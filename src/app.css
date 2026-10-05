@@ -1,0 +1,219 @@
+:root {
+  /*
+   * The theme — one place. Components use these names only.
+   *
+   * The app's palette is the note rainbow: a hue per pitch class, C red, D
+   * yellow, E green, G light blue, A blue, B magenta (hue = pitch class × 30°).
+   * Notes, spectra and edges take their colours from it (src/ui/theme.ts mirrors
+   * the note settings below for colours computed in code); the chrome uses it
+   * as its accent: the active tab, playing, focus.
+   */
+
+  /* surfaces, from deep to raised — muted, neutral: so what sounds (notes,
+     spectra) and what you act on (the accent) are what shine */
+  --bg: #1f222b;
+  --surface: #272b36;
+  --surface-2: #323745;
+  --code-bg: #1a1d25;
+  --scrim: rgb(10 12 24 / 0.45);
+  --line: #3b404f;
+  --edge: #5f6576;
+
+  /* ink */
+  --text: #f1ece2;
+  --text-muted: #a4a8b5;
+  --text-faint: #6a6f7d;
+  --code: #dbe5ff;
+  /* text on a note's colour */
+  --ink-on-note: #111320;
+
+  /* accent: gold, the warmest of the rainbow's hues, for what you act on */
+  --accent: #f4c04e;
+  --accent-ink: #2a2112;
+  --danger: #ff7a7a;
+  --warning: #f1c96d;
+
+  /* the note rainbow: saturation and lightness of notes, and the gradient */
+  --note-s: 70%;
+  --note-l: 58%;
+  --rainbow: linear-gradient(90deg,
+      hsl(0 80% 62%), hsl(30 85% 60%), hsl(60 80% 55%), hsl(90 70% 52%), hsl(120 60% 50%), hsl(150 60% 50%),
+      hsl(180 65% 50%), hsl(210 75% 60%), hsl(240 70% 66%), hsl(270 70% 66%), hsl(300 65% 62%), hsl(330 75% 62%));
+
+  /* the code, coloured: quiet, so the music's colours stay the loudest */
+  --tok-comment: #6f7484;
+  --tok-string: #d9b38a;
+  --tok-ref: #9cc4ff;
+  --tok-attr: #9aa0b2;
+  --tok-func: #e8bd5a;
+  --tok-note: #9ad9ae;
+  --tok-num: #e6e9f2;
+  --tok-punct: #7d8396;
+  --tok-mod: #c3a4ee;
+  --tok-word: #d7dbe6;
+
+  /* wheels */
+  --wheel-disc: #181a21;
+  --wheel-hub: #262a34;
+  --wheel-tick: #545a69;
+  --wheel-rest: #262a34;
+  --wheel-ref: #454a59;
+
+  /* shape */
+  --radius-sm: 6px;
+  --radius: 10px;
+  --radius-lg: 16px;
+  --radius-pill: 999px;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --shadow: 0 10px 30px rgb(0 0 0 / 0.35);
+  --shadow-strong: 0 16px 40px rgb(0 0 0 / 0.45);
+
+  /* type */
+  --font-ui: 'Avenir Next', Avenir, 'Segoe UI Variable Text', 'Segoe UI', system-ui, sans-serif;
+  --font-code: 'JetBrains Mono', 'Iosevka', 'SF Mono', ui-monospace, Menlo, Consolas, monospace;
+  --text-xs: 11px;
+  --text-sm: 13px;
+  --text-md: 15px;
+
+  color-scheme: dark;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font: 15px/1.5 var(--font-ui);
+  -webkit-font-smoothing: antialiased;
+}
+
+select {
+  padding: 7px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--code-bg);
+  color: var(--text);
+  font: 500 15px var(--font-ui);
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .svelte-flow__edge.animated path {
+    animation: none !important;
+  }
+  /* no motion: every transition and animation off */
+  *,
+  *::before,
+  *::after {
+    transition: none !important;
+    animation: none !important;
+  }
+}
+
+/* ---- node states (see ui/context.ts) ---- */
+.node {
+  position: relative;
+  -webkit-touch-callout: none;
+  user-select: none;
+  transition: opacity 260ms ease, filter 260ms ease;
+}
+/* at rest (while playing, not sounding now): quieter, less colour; sounding: full colour, a soft glow */
+.node[data-state='idle'] {
+  opacity: 0.72;
+  filter: saturate(0.5);
+}
+.node[data-state='live'] {
+  /* sounding: full colour (no halo) */
+}
+.node[data-state='unrouted'] {
+  opacity: 0.28;
+}
+.node[data-state='off'] {
+  opacity: 0.4;
+  filter: grayscale(1);
+}
+.node[data-state='off']::before {
+  content: '';
+  position: absolute;
+  inset: -6px;
+  border-radius: inherit;
+  border: 2px dashed var(--text-muted);
+  pointer-events: none;
+}
+
+/* hold feedback: a ring that closes in while the long-press timer runs */
+.node::after {
+  content: '';
+  position: absolute;
+  inset: -10px;
+  border-radius: inherit;
+  border: 3px solid var(--accent);
+  opacity: 0;
+  transform: scale(1.25);
+  pointer-events: none;
+}
+.node.holding::after {
+  animation: hold 450ms linear forwards;
+}
+@keyframes hold {
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.node .pin {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 3px var(--bg);
+}
+.track .pin {
+  top: -4px;
+  right: -4px;
+}
+
+.center-handle.svelte-flow__handle {
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 1px;
+  height: 1px;
+  min-width: 0;
+  min-height: 0;
+  border: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .node {
+    transition: none;
+  }
+  .node.holding::after {
+    animation-duration: 1ms;
+    animation-delay: 449ms;
+  }
+}

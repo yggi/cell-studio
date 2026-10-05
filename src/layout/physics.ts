@@ -1,0 +1,958 @@
+/**
+ * Force-directed layout for the cell graph (d3-force), independent of the
+ * renderer. Nodes keep their simulated state across graph edits, so editing
+ * code nudges the picture instead of rebuilding it. Depth is a soft radial
+ * force: the root grid sits at the centre and cells ring outward along their
+ * over= chains — but everything still moves freely.
+ */
+import {
+  forceX,
+  forceY,
+  forceCollide,
+  forceLink,
+  forceManyBody,
+  forceSimulation,
+  type Simulation,
+  type SimulationLinkDatum,
+  type SimulationNodeDatum,
+} from 'd3-force';
+import type { GraphModel, GraphNode } from '../engine/graph';
+import { layered } from './layered';
+
+export interface PhysNode extends SimulationNodeDatum {
+  id: string;
+  depth: number;
+  radius: number;
+  /** What it is, for the forces between kinds: time (a meter), sound (a voice, a mix, the sound card), or a cell. */
+  role?: 'clock' | 'audio' | 'cell' | 'tag';
+  /** Its cluster: the first of its own tags (tags= on a cell inside a piece), if any. */
+  group?: string;
+  /** A turntable (a physical cell): nothing may overlap it. */
+  heavy?: boolean;
+}
+interface PhysLink extends SimulationLinkDatum<PhysNode> {
+  id: string;
+  count: number;
+  /** A part or table edge (&ref, over=): shorter, so parts stay with their user. */
+  part: boolean;
+  /** A tag's spring to one of its cells (not drawn: no crossings, no bends, no spread). */
+  tag?: boolean;
+}
+
+export interface LayoutOptions {
+  layerGap: number;
+  /** Edge length at rest (px). */
+  linkDistance: number;
+  /** How much edges contract towards that length (0 none … 1 full). */
+  contract: number;
+  /** Edge length from a part or table to its user, as a fraction of the length (they stay close). */
+  partLength: number;
+  /** Node repulsion (negative: push apart). */
+  charge: number;
+  /** How hard crossing edges push each other apart (gently: edges may cross). */
+  uncross: number;
+  /** How far node repulsion reaches (px): near field. */
+  repelRange: number;
+  /** Busy nodes push harder: repulsion × (1 + this × (edges − 1)). */
+  degreeRepel: number;
+  /** Extra clearance around each node beyond its wheel (room for its label). */
+  collidePad: number;
+  /** How quickly a bent edge straightens (0 … 1 per tick). */
+  straighten: number;
+  /** How far an edge keeps off a node's centre, as a fraction of its radius (0: passes straight over). */
+  avoid: number;
+  /** How strongly the sound card and the meters are drawn up- and down-centre. */
+  endPull: number;
+  /** How strongly each node is drawn to the height of its rank in the signal path (y only). */
+  rankPull: number;
+  /** A weak sideways pull of every node towards the centre line (keeps the graph balanced). */
+  centre: number;
+  /** A gentle sideways pull of every node towards its column (voices by stereo and mix order). */
+  columnPull: number;
+  /** false = never start the internal timer; drive it with tick() (tests). */
+  live: boolean;
+  /** The edges at a node spread round it, as far apart as they can (stars, mirror symmetries). */
+  spread: number;
+  /** Time and sound keep apart: meters push voices, mixes and the sound card away (and they it). */
+  kindRepel: number;
+  /** Cells with the same tag (tags= inside a piece) draw together; different tags push apart. */
+  tagPull: number;
+  tagRepel: number;
+  /**
+   * Lay the graph out in layers (rows by signal flow, order without tangles, columns
+   * by neighbours: layered.ts) and let the physics only relax it: each node springs
+   * to its place, nothing overlaps. Off: the forces alone (the library's cloud).
+   */
+  layered: boolean;
+  radius: (node: GraphNode) => number;
+}
+
+/** Do segments p1–p2 and p3–p4 cross (properly, not just touch at an end)? */
+function segmentsCross(x1: number, y1: number, x2: number, y2: number, x3: number, y3: number, x4: number, y4: number): boolean {
+  const d = (x2 - x1) * (y4 - y3) - (y2 - y1) * (x4 - x3);
+  if (Math.abs(d) < 1e-9) return false;
+  const t = ((x3 - x1) * (y4 - y3) - (y3 - y1) * (x4 - x3)) / d;
+  const u = ((x3 - x1) * (y2 - y1) - (y3 - y1) * (x2 - x1)) / d;
+  return t > 1e-6 && t < 1 - 1e-6 && u > 1e-6 && u < 1 - 1e-6;
+}
+
+type Seg = { a: { x?: number; y?: number; id: string }; b: { x?: number; y?: number; id: string } };
+
+/** Pairs of edges that cross, ignoring pairs that share a node. */
+export function crossingPairs<S extends Seg>(segs: readonly S[]): [S, S][] {
+  const out: [S, S][] = [];
+  for (let i = 0; i < segs.length; i++)
+    for (let j = i + 1; j < segs.length; j++) {
+      const p = segs[i];
+      const q = segs[j];
+      if (p.a.id === q.a.id || p.a.id === q.b.id || p.b.id === q.a.id || p.b.id === q.b.id) continue;
+      if (segmentsCross(p.a.x ?? 0, p.a.y ?? 0, p.b.x ?? 0, p.b.y ?? 0, q.a.x ?? 0, q.a.y ?? 0, q.b.x ?? 0, q.b.y ?? 0)) out.push([p, q]);
+    }
+  return out;
+}
+
+/**
+ * A force that resists crossings: for every two edges that cross, push them
+ * apart along the line between their midpoints (each end gets half).
+ */
+function forceUncross(strengthOf: () => number) {
+  let links: { source: PhysNode; target: PhysNode }[] = [];
+  const force = (alpha: number) => {
+    const strength = strengthOf();
+    if (strength <= 0) return;
+    const segs = links.map((l) => ({ a: l.source, b: l.target }));
+    for (const [p, q] of crossingPairs(segs)) {
+      const mx = ((p.a.x ?? 0) + (p.b.x ?? 0)) / 2 - ((q.a.x ?? 0) + (q.b.x ?? 0)) / 2;
+      const my = ((p.a.y ?? 0) + (p.b.y ?? 0)) / 2 - ((q.a.y ?? 0) + (q.b.y ?? 0)) / 2;
+      const len = Math.hypot(mx, my) || 1;
+      const k = (strength * alpha * 30) / len;
+      for (const n of [p.a, p.b]) {
+        n.vx = (n.vx ?? 0) + mx * k * 0.5;
+        n.vy = (n.vy ?? 0) + my * k * 0.5;
+      }
+      for (const n of [q.a, q.b]) {
+        n.vx = (n.vx ?? 0) - mx * k * 0.5;
+        n.vy = (n.vy ?? 0) - my * k * 0.5;
+      }
+    }
+  };
+  force.links = (ls: typeof links) => {
+    links = ls;
+    return force;
+  };
+  return force;
+}
+
+/**
+ * Starting x order for a fresh graph, layer by layer (a layer = a depth): each
+ * node goes to the mean position of its neighbours, a few sweeps up and down —
+ * the barycentre heuristic, which starts layered drawings with few crossings.
+ * Each node sits at its wanted place, pushed apart just enough to keep one slot
+ * between neighbours. Returns x in slots.
+ */
+export function orderLayers(nodes: readonly { id: string; depth: number }[], edges: readonly { source: string; target: string }[], sweeps = 8): Map<string, number> {
+  const layers = new Map<number, string[]>();
+  for (const n of nodes) layers.set(n.depth, [...(layers.get(n.depth) ?? []), n.id]);
+  const x = new Map<string, number>();
+  const spread = (ids: string[]) => ids.forEach((id, i) => x.set(id, i - (ids.length - 1) / 2));
+  for (const ids of layers.values()) spread(ids);
+  const nbrs = new Map<string, string[]>();
+  for (const e of edges) {
+    if (!x.has(e.source) || !x.has(e.target) || e.source === e.target) continue;
+    nbrs.set(e.source, [...(nbrs.get(e.source) ?? []), e.target]);
+    nbrs.set(e.target, [...(nbrs.get(e.target) ?? []), e.source]);
+  }
+  const depths = [...layers.keys()].sort((a, b) => a - b);
+  for (let s = 0; s < sweeps; s++)
+    for (const d of s % 2 ? [...depths].reverse() : depths) {
+      const ids = layers.get(d)!;
+      const want = new Map(ids.map((id) => [id, (() => {
+        const ns = nbrs.get(id) ?? [];
+        return ns.length ? ns.reduce((a, n) => a + x.get(n)!, 0) / ns.length : x.get(id)!;
+      })()]));
+      ids.sort((a, b) => want.get(a)! - want.get(b)!);
+      // each at its wanted place, pushed apart just enough to keep a slot between neighbours
+      const placed = ids.map((id) => want.get(id)!);
+      for (let k = 1; k < placed.length; k++) placed[k] = Math.max(placed[k], placed[k - 1] + 1);
+      // shift back so the layer sits where it wanted to be on average
+      const drift = placed.reduce((a, v, k) => a + v - want.get(ids[k])!, 0) / placed.length;
+      ids.forEach((id, k) => x.set(id, placed[k] - drift));
+    }
+  return x;
+}
+
+/**
+ * Each node's height in the signal path, from time (0, the meter) up to sound
+ * (the sound card). Edges that carry the flow go up one rank: a step driver
+ * sits under the played cell it drives, a melody under its voice, a voice under
+ * its mix, a mix under the sound card (longest path). A modulator sits just
+ * under what it feeds. Parts and tables — reached by &refs and over=, stepped
+ * or not — sit half a row under whatever uses them (parts of parts half as far
+ * again), so they cluster under it instead of widening its row.
+ */
+export function flowRanks(model: { nodes: readonly { id: string }[]; edges: readonly { source: string; target: string; kind: string }[] }): Map<string, number> {
+  const sinks = new Set(model.nodes.filter((n) => endOf(n as GraphNode) === 'top').map((n) => n.id));
+  // played cells: the terms of the mixes (melodies, modulators) and every part they splice
+  const played = new Set(model.edges.filter((e) => e.kind === 'out').map((e) => e.source));
+  for (let grew = true; grew; ) {
+    grew = false;
+    for (const e of model.edges)
+      if (e.kind === 'ref' && played.has(e.source) && !played.has(e.target)) {
+        played.add(e.target);
+        grew = true;
+      }
+  }
+  // what carries sound: mixes (not the sound card), and tables whose entries are all mixes (a selector's
+  // parts) — an edge into one of those is flow (sound goes up it), not a part hanging under its user
+  const cellOf = new Map(model.nodes.map((n) => [n.id, (n as { cell?: { mix?: unknown; sink?: boolean } }).cell]));
+  const sounding = new Set(model.nodes.filter((n) => cellOf.get(n.id)?.mix && !cellOf.get(n.id)?.sink).map((n) => n.id));
+  for (const n of model.nodes) {
+    const entries = model.edges.filter((e) => e.source === n.id && e.kind === 'ref');
+    if (entries.length && entries.every((e) => sounding.has(e.target))) sounding.add(n.id);
+  }
+  // up: [lower, higher]
+  const up: [string, string][] = [];
+  for (const e of model.edges) {
+    if (e.source === e.target) continue;
+    // sound going up: a part mix into its table, the table into its selector, the selector into the sound card
+    if ((e.kind === 'ref' || e.kind === 'over') && sounding.has(e.target)) {
+      up.push([e.target, e.source]);
+      continue;
+    }
+    // a step driver sits under what it drives — when that's played; a stepped table hangs beside its readers
+    if (e.kind === 'step' && played.has(e.source)) up.push([e.target, e.source]);
+    else if (e.kind === 'out' || e.kind === 'mix') up.push([e.source, e.target]);
+    else if (e.kind === 'ref' && sinks.has(e.source)) up.push([e.target, e.source]); // the sound card's channels
+  }
+  const inFlow = new Set(up.flat());
+  const rank = new Map<string, number>();
+  for (const id of inFlow) rank.set(id, 0);
+  // longest path (bounded: a loop can't run away)
+  for (let i = 0; i < model.nodes.length; i++) {
+    let changed = false;
+    for (const [lo, hi] of up)
+      if (rank.get(hi)! < rank.get(lo)! + 1) {
+        rank.set(hi, rank.get(lo)! + 1);
+        changed = true;
+      }
+    if (!changed) break;
+  }
+  // a source that drives nothing (a modulator like &vibrato) sits just under what it feeds, not at the bottom
+  const drivers = new Set(model.edges.filter((e) => e.kind === 'step').map((e) => e.target));
+  const fed = new Map<string, string[]>();
+  for (const [lo, hi] of up) fed.set(lo, [...(fed.get(lo) ?? []), hi]);
+  const hasBelow = new Set(up.map(([, hi]) => hi));
+  for (const [id, his] of fed)
+    if (!hasBelow.has(id) && !drivers.has(id)) rank.set(id, Math.max(0, Math.min(...his.map((h) => rank.get(h)!)) - 1));
+  // parts and tables: just under whatever uses them — half a row, between it and the meter
+  // (parts of parts half as far again), so they cluster under their user rather than widen its row
+  for (let i = 0; i < model.nodes.length; i++) {
+    let changed = false;
+    for (const e of model.edges) {
+      if ((e.kind !== 'ref' && e.kind !== 'over') || sinks.has(e.source)) continue;
+      if (rank.has(e.source) && !rank.has(e.target)) {
+        const r = rank.get(e.source)!;
+        rank.set(e.target, inFlow.has(e.source) ? r - 0.5 : r - (r - Math.floor(r - 1e-9)) / 2);
+        changed = true;
+      }
+    }
+    if (!changed) break;
+  }
+  // a part or table sits under every one of its users, not just the first one met: half a row at least
+  // (so a table read by a melody and by that melody's motifs goes under the motifs, not beside them)
+  for (let i = 0; i < model.nodes.length; i++) {
+    let changed = false;
+    for (const e of model.edges) {
+      if ((e.kind !== 'ref' && e.kind !== 'over') || sinks.has(e.source) || inFlow.has(e.target) || sounding.has(e.target)) continue;
+      const user = rank.get(e.source);
+      const part = rank.get(e.target);
+      // what it's made of (&refs) half a row under; what it's tuned by (over=) a row under: tuning beneath content
+      const gap = e.kind === 'over' ? 1 : 0.5;
+      if (user === undefined || part === undefined || part <= user - gap + 1e-9) continue;
+      rank.set(e.target, user - gap);
+      changed = true;
+    }
+    if (!changed) break;
+  }
+  // time at the bottom: a meter (a clock: not a table that turns) that only drives sits under everything else
+  const meters = new Set(model.nodes.filter((n) => (n as { isMeter?: boolean }).isMeter).map((n) => n.id));
+  const pure = [...drivers].filter((d) => meters.has(d) && !played.has(d) && rank.has(d));
+  if (pure.length) {
+    const others = [...rank].filter(([id]) => !pure.includes(id)).map(([, r]) => r);
+    const floor = Math.min(0, ...others) - 1;
+    for (const d of pure) if (rank.get(d)! > floor) rank.set(d, Math.min(rank.get(d)!, floor));
+  }
+  // notes (label= alone) sit at the top, by the sound card; anything else left (unused cells) at the bottom
+  const top = Math.max(0, ...rank.values());
+  for (const n of model.nodes) if (!rank.has(n.id)) rank.set(n.id, (n as { cell?: { note?: boolean } }).cell?.note ? top : 0);
+  return rank;
+}
+
+/**
+ * Columns, for a symmetric first layout. Voices first: by stereo position
+ * (left … right); voices at the same place go by the order the mix names them,
+ * the first in the middle, then alternately left and right. Every other cell
+ * sits at the mean column of the voices it feeds (a motif under its player;
+ * the meter, the mix and the sound card in the middle). Centred on 0.
+ */
+export function columns(model: {
+  nodes: readonly { id: string; kind: string; pan?: number; order?: number; petalOf?: string }[];
+  edges: readonly { source: string; target: string; kind: string }[];
+}): Map<string, number> {
+  const nodes = model.nodes.filter((n) => !n.petalOf);
+  // what sounds: voices, and instruments (whose voices are petals)
+  const voices = nodes.filter((n) => n.pan !== undefined);
+  const col = new Map<string, number>();
+  if (voices.length === 0) return col;
+  // left, middle (alternating by order), right
+  const side = (n: (typeof voices)[number]) => ((n.pan ?? 0) < -0.05 ? -1 : (n.pan ?? 0) > 0.05 ? 1 : 0);
+  const byPan = (a: (typeof voices)[number], b: (typeof voices)[number]) => (a.pan ?? 0) - (b.pan ?? 0) || (a.order ?? 0) - (b.order ?? 0);
+  const left = voices.filter((n) => side(n) < 0).sort(byPan);
+  const right = voices.filter((n) => side(n) > 0).sort(byPan);
+  const mid = voices.filter((n) => side(n) === 0).sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+  const middle: typeof voices = [];
+  mid.forEach((n, i) => (i % 2 === 1 ? middle.unshift(n) : middle.push(n))); // 0 centre, 1 left, 2 right, …
+  const row = [...left, ...middle, ...right];
+  // centre on the first-named middle voice when there is one, else on the middle of the row
+  const anchor = mid.length ? row.indexOf(mid[0]) : (row.length - 1) / 2;
+  row.forEach((n, i) => col.set(n.id, i - anchor));
+  // who feeds whom: a part feeds what splices it, a table what reads it, a driver what it steps; a melody its voice
+  const consumers = new Map<string, string[]>();
+  const add = (from: string, to: string) => consumers.set(from, [...(consumers.get(from) ?? []), to]);
+  for (const e of model.edges) {
+    if (e.kind === 'ref' || e.kind === 'over' || e.kind === 'step') add(e.target, e.source);
+    else if (e.kind === 'out') add(e.source, e.target);
+  }
+  const served = (id: string, seen = new Set<string>()): string[] => {
+    if (col.has(id) && voices.some((v) => v.id === id)) return [id];
+    if (seen.has(id)) return [];
+    seen.add(id);
+    return [...new Set((consumers.get(id) ?? []).flatMap((c) => served(c, seen)))];
+  };
+  for (const n of nodes) {
+    if (col.has(n.id)) continue;
+    const vs = served(n.id);
+    // mixes and sound cards (and anything feeding no voice) sit in the middle of what they hear
+    const hears = model.edges.filter((e) => e.kind === 'mix' && e.target === n.id).map((e) => e.source);
+    const from = vs.length ? vs : hears.filter((h) => col.has(h));
+    col.set(n.id, from.length ? from.reduce((a, v) => a + col.get(v)!, 0) / from.length : 0);
+  }
+  return col;
+}
+
+// The layered drawing is where a graph starts (and a light pull back to it: rankPull, columnPull — less
+// order than a grid); then balanced forces give it its own shape: edges contract, nodes repel and keep
+// room for their labels, edges spread round each node (stars, symmetries), time and sound keep apart,
+// tagged cells cluster; edges straighten a little and keep well off nodes.
+export const DEFAULT_LAYOUT: LayoutOptions = {
+  uncross: 0.3,
+  repelRange: 380,
+  degreeRepel: 0.08,
+  collidePad: 34, // (room for the label under each node)
+  straighten: 0.15,
+  avoid: 0.6,
+  contract: 0.9,
+  partLength: 0.8,
+  endPull: 0,
+  rankPull: 0.05,
+  centre: 0.004,
+  columnPull: 0.035,
+  layerGap: 130,
+  linkDistance: 120,
+  charge: -320,
+  live: true,
+  layered: true,
+  spread: 0.5,
+  kindRepel: 0.6,
+  tagPull: 0.1,
+  tagRepel: 1.5,
+  radius: (n) => roomFor(n),
+};
+
+/**
+ * A node's room: the wheel itself (size= scales it), and what hangs under it — its label, as wide as
+ * it is, and its free() controls (sliders, a text field, a keypad's rows) — so nothing settles on them.
+ */
+function roomFor(n: GraphNode): number {
+  const cell = (n as { cell?: { size?: number; label?: string | null; frees?: readonly { key: string; labels?: readonly string[] }[] } }).cell;
+  const base = (n.kind === 'voice' ? 64 : n.depth === 0 ? 92 : 68) * (cell?.size ?? 1);
+  const label = cell?.label ? Math.min(220, cell.label.length * 5.5) / 2 : 0;
+  // (its free() values: pills under it, a row or two)
+  const pills = cell?.frees?.length ?? 0;
+  const controls = pills ? 24 * Math.ceil(pills / 3) : 0;
+  return Math.max(base, label) + (controls ? 10 + controls * 0.55 : 0);
+}
+
+/** The layout before layers: the forces alone, every one on (each still an option; their tests use this). */
+export const FORCES_ALONE: Partial<LayoutOptions> = {
+  layered: false,
+  uncross: 0.5,
+  repelRange: 340,
+  degreeRepel: 0.15,
+  collidePad: 26,
+  straighten: 0.25,
+  avoid: 0.3,
+  contract: 0.6,
+  endPull: 0.04,
+  rankPull: 0.08,
+  centre: 0.01,
+  columnPull: 0,
+  charge: -260,
+};
+
+export interface GraphDiff {
+  added: number;
+  removed: number;
+  total: number;
+  structural: boolean;
+}
+
+/** Small deterministic hash so new nodes always spawn in the same place. */
+function jitter(id: string, salt: number): number {
+  let h = 2166136261 ^ salt;
+  for (let i = 0; i < id.length; i++) h = Math.imul(h ^ id.charCodeAt(i), 16777619);
+  return ((h >>> 0) / 0xffffffff - 0.5) * 40;
+}
+
+export class ForceLayout {
+  private links: { id: string; source: string; target: string }[] = [];
+  /** Where the sound card (top) and the meters (bottom) are drawn to, sideways. */
+  private ends = new Map<string, { x: number; y: number }>();
+  /** The height of each node's rank in the signal path. */
+  private rankY = new Map<string, number>();
+  /** Edges per node (busy nodes push harder). */
+  private degree = new Map<string, number>();
+  /** Each node's column, in px (a symmetric first layout, and a gentle pull). */
+  private colX = new Map<string, number>();
+  /** Each edge's midpoint (the spline passes through it). */
+  private bendAt = new Map<string, { x: number; y: number }>();
+  private opts: LayoutOptions;
+  private readonly sim: Simulation<PhysNode, PhysLink>;
+  private readonly byId = new Map<string, PhysNode>();
+  private settleListeners: (() => void)[] = [];
+
+  constructor(onTick: () => void = () => {}, opts: Partial<LayoutOptions> = {}) {
+    this.opts = { ...DEFAULT_LAYOUT, ...opts };
+    const o = this.opts;
+    this.sim = forceSimulation<PhysNode, PhysLink>([])
+      .alphaMin(0.01)
+      .velocityDecay(0.45)
+      // every edge contracts a little
+      // every edge contracts a little
+      .force('link', forceLink<PhysNode, PhysLink>([]).id((d) => d.id))
+      // every node repels a little, near field only: neighbours, not the whole graph
+      .force('charge', forceManyBody<PhysNode>())
+      // nodes don't overlap, labels included (this isn't tension: it only acts on contact)
+      .force('collide', forceCollide<PhysNode>().strength(0.95).iterations(2))
+      .force('uncross', forceUncross(() => this.opts.uncross) as never)
+      // the sound card drifts up-centre, the meter down-centre (a slight pull, not a pin); all else gently centred
+      .force('endsX', forceX<PhysNode>((d) => this.ends.get(d.id)?.x ?? this.colX.get(d.id) ?? 0))
+      // every node drifts to the height of its rank in the signal path (y only: x stays free)
+      .force('rankY', forceY<PhysNode>((d) => this.rankY.get(d.id) ?? 0))
+      // edges' midpoints: drawn back to the straight line, slipping off any node they would rest on
+      .force('bends', () => this.stepBends())
+      // the edges at a node spread round it; time and sound apart; tagged cells in clusters
+      .force('spread', (alpha: number) => this.stepSpread(alpha))
+      .force('kinds', (alpha: number) => this.stepKinds(alpha))
+      .force('clusters', (alpha: number) => this.stepClusters(alpha))
+      // turntables: nothing overlaps them — a node that would is set at their edge
+      .force('exclusion', () => this.stepExclusion())
+      .on('tick', onTick)
+      .on('end', () => this.settleListeners.forEach((f) => f()));
+    this.applyOptions();
+    if (!o.live) this.sim.stop();
+  }
+
+  /**
+   * The edges at a node spread round it, as far apart as they can: for each node, its neighbours
+   * sorted by angle; where two sit closer than an even share of the circle, both are turned apart
+   * (tangentially, around the node) — stars and mirror symmetries come of it.
+   */
+  private stepSpread(alpha: number): void {
+    const k = this.opts.spread * alpha;
+    if (k <= 0) return;
+    const nbrs = new Map<string, PhysNode[]>();
+    for (const l of this.links) {
+      const a = this.byId.get(l.source);
+      const b = this.byId.get(l.target);
+      if (!a || !b || a === b) continue;
+      (nbrs.get(a.id) ?? nbrs.set(a.id, []).get(a.id)!).push(b);
+      (nbrs.get(b.id) ?? nbrs.set(b.id, []).get(b.id)!).push(a);
+    }
+    for (const [id, ns] of nbrs) {
+      if (ns.length < 2) continue;
+      const c = this.byId.get(id)!;
+      const at = ns.map((n) => ({ n, a: Math.atan2((n.y ?? 0) - (c.y ?? 0), (n.x ?? 0) - (c.x ?? 0)), r: Math.hypot((n.x ?? 0) - (c.x ?? 0), (n.y ?? 0) - (c.y ?? 0)) || 1 }));
+      at.sort((p, q) => p.a - q.a);
+      const even = (2 * Math.PI) / at.length;
+      for (let i = 0; i < at.length; i++) {
+        const p = at[i];
+        const q = at[(i + 1) % at.length];
+        let gap = q.a - p.a;
+        if (gap <= 0) gap += 2 * Math.PI;
+        if (gap >= even) continue;
+        const push = ((even - gap) / even) * k * 6; // px a tick, at full strength
+        // p turns back (clockwise), q forward: tangents to the circle round c
+        p.n.vx = (p.n.vx ?? 0) + Math.sin(p.a) * push;
+        p.n.vy = (p.n.vy ?? 0) - Math.cos(p.a) * push;
+        q.n.vx = (q.n.vx ?? 0) - Math.sin(q.a) * push;
+        q.n.vy = (q.n.vy ?? 0) + Math.cos(q.a) * push;
+      }
+    }
+  }
+
+  /** Nothing overlaps a turntable: a node inside its reach is put back at its edge. */
+  private stepExclusion(): void {
+    const all = [...this.byId.values()];
+    const heavy = all.filter((n) => n.heavy);
+    if (!heavy.length) return;
+    for (const h of heavy)
+      for (const n of all) {
+        if (n === h) continue;
+        const min = h.radius * 1.15 + n.radius + 24;
+        const dx = (n.x ?? 0) - (h.x ?? 0);
+        const dy = (n.y ?? 0) - (h.y ?? 0);
+        const d = Math.hypot(dx, dy) || 1;
+        if (d >= min) continue;
+        // (two turntables both pinned: leave them be)
+        if (n.heavy && n.fx != null && h.fx != null) continue;
+        n.x = (h.x ?? 0) + (dx / d) * min;
+        n.y = (h.y ?? 0) + (dy / d) * min;
+        n.vx = 0;
+        n.vy = 0;
+      }
+  }
+
+  /** Time and sound keep apart: a meter and a voice, mix or sound card push each other (1/distance). */
+  private stepKinds(alpha: number): void {
+    const k = this.opts.kindRepel * alpha * 900;
+    if (k <= 0) return;
+    const nodes = [...this.byId.values()];
+    const clocks = nodes.filter((n) => n.role === 'clock');
+    const audio = nodes.filter((n) => n.role === 'audio');
+    for (const a of clocks)
+      for (const b of audio) {
+        const dx = (b.x ?? 0) - (a.x ?? 0);
+        const dy = (b.y ?? 0) - (a.y ?? 0);
+        const d2 = Math.max(400, dx * dx + dy * dy);
+        const f = k / d2;
+        a.vx = (a.vx ?? 0) - dx * f;
+        a.vy = (a.vy ?? 0) - dy * f;
+        b.vx = (b.vx ?? 0) + dx * f;
+        b.vy = (b.vy ?? 0) + dy * f;
+      }
+  }
+
+  /** Tagged cells cluster: each pulled to its cluster's centre; clusters' centres push apart. */
+  private stepClusters(alpha: number): void {
+    const groups = new Map<string, PhysNode[]>();
+    for (const n of this.byId.values()) if (n.group) (groups.get(n.group) ?? groups.set(n.group, []).get(n.group)!).push(n);
+    if (groups.size === 0) return;
+    const centres = [...groups].map(([g, ns]) => ({ g, ns, x: ns.reduce((a, n) => a + (n.x ?? 0), 0) / ns.length, y: ns.reduce((a, n) => a + (n.y ?? 0), 0) / ns.length }));
+    const pull = this.opts.tagPull * alpha;
+    for (const c of centres)
+      for (const n of c.ns) {
+        n.vx = (n.vx ?? 0) + (c.x - (n.x ?? 0)) * pull;
+        n.vy = (n.vy ?? 0) + (c.y - (n.y ?? 0)) * pull;
+      }
+    const push = this.opts.tagRepel * alpha * 60000;
+    for (let i = 0; i < centres.length; i++)
+      for (let j = i + 1; j < centres.length; j++) {
+        const a = centres[i];
+        const b = centres[j];
+        const dx = b.x - a.x;
+        const dy = b.y - a.y;
+        const d2 = Math.max(900, dx * dx + dy * dy);
+        const f = push / d2 / Math.sqrt(d2);
+        for (const n of a.ns) {
+          n.vx = (n.vx ?? 0) - (dx * f) / a.ns.length;
+          n.vy = (n.vy ?? 0) - (dy * f) / a.ns.length;
+        }
+        for (const n of b.ns) {
+          n.vx = (n.vx ?? 0) + (dx * f) / b.ns.length;
+          n.vy = (n.vy ?? 0) + (dy * f) / b.ns.length;
+        }
+      }
+  }
+
+  /** The options in force (for the options view). */
+  get options(): Readonly<LayoutOptions> {
+    return this.opts;
+  }
+
+  /** Change forces live (the options view): they apply at once and the layout re-settles. */
+  setOptions(next: Partial<LayoutOptions>): void {
+    this.opts = { ...this.opts, ...next };
+    this.applyOptions();
+    this.reheat(0.4);
+  }
+
+  private applyOptions(): void {
+    const o = this.opts;
+    (this.sim.force('link') as ReturnType<typeof forceLink<PhysNode, PhysLink>>)
+      .distance((l) => (l.tag ? o.linkDistance * 1.6 : l.part ? o.linkDistance * o.partLength : o.linkDistance))
+      .strength((l) => (l.tag ? 0.12 : Math.min(0.2, 0.08 + 0.02 * l.count) * o.contract));
+    // busy nodes push a little harder: more room around hubs, fewer edges squeezed past them
+    (this.sim.force('charge') as ReturnType<typeof forceManyBody<PhysNode>>)
+      .strength((d) => (d.role === 'tag' ? o.charge * 3 : o.charge * (1 + o.degreeRepel * Math.max(0, (this.degree.get(d.id) ?? 1) - 1))))
+      .distanceMax(o.repelRange);
+    (this.sim.force('collide') as ReturnType<typeof forceCollide<PhysNode>>).radius((d) => d.radius + o.collidePad);
+    // sideways: &bar and &out to their places on the centre line, everything else gently towards it
+    // sideways: &bar and &out to the centre line, the rest gently to their columns (else to the centre)
+    (this.sim.force('endsX') as ReturnType<typeof forceX<PhysNode>>).strength((d) =>
+      this.ends.has(d.id) ? o.endPull : this.colX.has(d.id) ? o.columnPull : o.centre,
+    );
+    (this.sim.force('rankY') as ReturnType<typeof forceY<PhysNode>>).strength(o.rankPull);
+  }
+
+  /** Forget every position: the next graph is laid out afresh (a piece just opened). */
+  forget(): void {
+    this.byId.clear();
+    this.bendAt.clear();
+  }
+
+  /** Merge a new graph in. Existing nodes keep position and velocity. */
+  setGraph(model: GraphModel, structural = true): GraphDiff {
+    // petals (unnamed cells) hang from their parent: the physics only sees named cells
+    model = { ...model, nodes: model.nodes.filter((n) => !(n as { petalOf?: string }).petalOf) };
+    const next = new Map<string, PhysNode>();
+    let added = 0;
+    const parentOf = new Map<string, string>();
+    for (const e of model.edges) if (!parentOf.has(e.target)) parentOf.set(e.target, e.source);
+
+    // layers by rank in the signal path, from the meter (bottom) up to the sound card (top);
+    // a fresh graph starts there, each layer in barycentre order; an edit keeps what's on screen
+    const ranks = flowRanks(model);
+    const maxRank = Math.max(1, ...ranks.values());
+    const half = (maxRank * this.opts.layerGap) / 2;
+    const layerY = (rank: number) => half - (rank / maxRank) * 2 * half;
+    this.rankY = new Map([...ranks].map(([id, r]) => [id, layerY(r)]));
+    this.degree = new Map();
+    for (const e of model.edges)
+      if (e.source !== e.target) for (const id of [e.source, e.target]) this.degree.set(id, (this.degree.get(id) ?? 0) + 1);
+    // mostly new (a different example that happens to share &bar, &mix, &out): lay it all out afresh
+    const fresh = model.nodes.filter((n) => !this.byId.has(n.id)).length > model.nodes.length / 2;
+    if (fresh) this.bendAt.clear(); // a fresh graph: no bends left over from the last one
+    // columns: voices by stereo place and mix order, everything else over the voices it feeds
+    const cols = columns(model);
+    const slot = this.opts.layerGap * 1.1;
+    this.colX = new Map([...cols].map(([id, c]) => [id, c * slot]));
+    // laid out in layers: each node's place is its home — where a fresh graph starts, and what it springs to
+    let home: Map<string, { x: number; y: number }> | null = null;
+    if (this.opts.layered) {
+      const byId = new Map(model.nodes.map((n) => [n.id, n]));
+      const lay = layered(model, { gapX: this.opts.collidePad * 1.6, gapY: this.opts.layerGap, radius: (id) => this.opts.radius(byId.get(id)!) });
+      const ys = [...lay.values()].map((p) => p.y);
+      const midY = (Math.min(...ys) + Math.max(...ys)) / 2;
+      home = new Map([...lay].map(([id, p]) => [id, { x: p.x, y: p.y - midY }]));
+      this.colX = new Map([...home].map(([id, p]) => [id, p.x]));
+      this.rankY = new Map([...home].map(([id, p]) => [id, p.y]));
+    }
+    let ordered = fresh && !home ? orderLayers(model.nodes.map((n) => ({ id: n.id, depth: ranks.get(n.id)! })), model.edges) : null;
+    if (fresh && !home && cols.size) {
+      // a symmetric start: each node at its column, pushed apart within its row just enough
+      ordered = new Map();
+      const rows = new Map<number, string[]>();
+      for (const n of model.nodes) rows.set(ranks.get(n.id)!, [...(rows.get(ranks.get(n.id)!) ?? []), n.id]);
+      for (const ids of rows.values()) {
+        ids.sort((a, b) => (cols.get(a) ?? 0) - (cols.get(b) ?? 0));
+        const want = ids.map((id) => cols.get(id) ?? 0);
+        const placed = [...want];
+        for (let k = 1; k < placed.length; k++) placed[k] = Math.max(placed[k], placed[k - 1] + 1);
+        const drift = placed.reduce((a, v, k) => a + v - want[k], 0) / Math.max(1, placed.length);
+        ids.forEach((id, k) => ordered!.set(id, placed[k] - drift));
+      }
+    }
+
+    model.nodes.forEach((n, i) => {
+      let p = fresh ? undefined : this.byId.get(n.id);
+      if (!p) {
+        added++;
+        const parent = this.byId.get(parentOf.get(n.id) ?? '');
+        let x: number, y: number;
+        if (home?.has(n.id) && (fresh || !parent)) {
+          x = home.get(n.id)!.x;
+          y = home.get(n.id)!.y;
+        } else if (ordered) {
+          x = (ordered.get(n.id) ?? 0) * this.opts.layerGap * 1.1;
+          y = this.rankY.get(n.id) ?? 0;
+        } else if (parent?.x !== undefined && parent.y !== undefined) {
+          // spawn next to the parent
+          x = parent.x + this.opts.layerGap * 0.6;
+          y = parent.y - this.opts.layerGap * 0.3;
+        } else {
+          // a new cell on its own: at the origin, between the top and the bottom
+          x = 0;
+          y = 0;
+        }
+        // (a little jitter, even from a home in the layers: exactly in line, an edge would run straight through a node)
+        p = { id: n.id, depth: n.depth, radius: this.opts.radius(n), x: x + jitter(n.id, 1), y: y + jitter(n.id, 2) };
+      }
+      p.depth = n.depth;
+      p.radius = this.opts.radius(n);
+      const cell = (n as { cell?: { mix?: unknown; sink?: boolean; note?: boolean; tags?: readonly string[] } }).cell;
+      p.role = (n as { isMeter?: boolean }).isMeter ? 'clock' : n.kind === 'voice' || cell?.mix || cell?.sink ? 'audio' : 'cell';
+      p.group = cell?.note ? undefined : cell?.tags?.[0];
+      const prm = (cell as { params?: Record<string, unknown> } | undefined)?.params;
+      p.heavy = typeof prm?.motor === 'number' || typeof prm?.belt === 'number'; // (a piece's card: its tags are the piece's, not a cluster)
+      next.set(n.id, p);
+    });
+
+    // a flow from time to sound: the sound card drawn up-centre, the meters down-centre
+    // (a fresh graph starts them there; after that it's only a slight pull)
+    const outer = half;
+    this.ends = new Map();
+    // (laid out in layers, the ends are where the layers put them)
+    for (const end of home ? [] : (['top', 'bottom'] as const)) {
+      const ids = model.nodes.filter((n) => endOf(n) === end).map((n) => n.id);
+      ids.forEach((id, i) => {
+        const at = { x: (i - (ids.length - 1) / 2) * this.opts.layerGap * 1.2, y: end === 'top' ? -outer : outer };
+        this.ends.set(id, at);
+        if (ordered) Object.assign(next.get(id)!, at);
+      });
+    }
+
+    // tags inside the piece: a node each (its name), among its cells — it pushes cells and edges away,
+    // and its springs hold its cells round it
+    const members = new Map<string, string[]>();
+    for (const p of next.values()) if (p.group) (members.get(p.group) ?? members.set(p.group, []).get(p.group)!).push(p.id);
+    const tagLinks: PhysLink[] = [];
+    for (const [t, ids] of members) {
+      const id = `tag:${t}`;
+      let p = this.byId.get(id);
+      if (!p || fresh) {
+        const xs = ids.map((m) => next.get(m)!.x ?? 0);
+        const ys = ids.map((m) => next.get(m)!.y ?? 0);
+        p = { id, depth: 0, radius: 40 + 13 * t.length, x: xs.reduce((a, v) => a + v, 0) / ids.length + jitter(id, 1), y: ys.reduce((a, v) => a + v, 0) / ids.length + jitter(id, 2) };
+      }
+      p.role = 'tag';
+      p.radius = 40 + 13 * t.length;
+      next.set(id, p);
+      for (const m of ids) tagLinks.push({ id: `${id}~${m}`, source: m, target: id, count: 1, part: false, tag: true });
+    }
+
+    const removed = [...this.byId.keys()].filter((id) => !next.has(id)).length;
+    this.byId.clear();
+    for (const [k, v] of next) this.byId.set(k, v);
+
+    const links: PhysLink[] = model.edges
+      .filter((e) => next.has(e.source) && next.has(e.target) && e.source !== e.target)
+      .map((e) => ({ id: e.id, source: e.source, target: e.target, count: e.count, part: e.kind === 'ref' || e.kind === 'over' }));
+
+    this.sim.nodes([...next.values()]);
+    this.sim.force<ReturnType<typeof forceLink<PhysNode, PhysLink>>>('link')!.links([...links, ...tagLinks]);
+    // (a scope watches: its edges neither untangle the music's layout nor count as its crossings)
+    const scopes = new Set(
+      model.nodes.filter((n) => typeof (n as { cell?: { params?: Record<string, unknown> } }).cell?.params?.scope === 'string').map((n) => n.id),
+    );
+    const watcher = (id: string) => scopes.has(id);
+    const idOf = (x: unknown) => (typeof x === 'object' ? (x as PhysNode).id : (x as string));
+    const own = links.filter((l) => !watcher(idOf(l.source)) && !watcher(idOf(l.target)));
+    (this.sim.force('uncross') as unknown as ReturnType<typeof forceUncross>).links(
+      // forceLink has swapped ids for the node objects by now
+      own.map((l) => ({
+        source: typeof l.source === 'object' ? (l.source as PhysNode) : next.get(l.source as string)!,
+        target: typeof l.target === 'object' ? (l.target as PhysNode) : next.get(l.target as string)!,
+      })),
+    );
+
+    this.links = own.map((l) => ({
+      id: l.id,
+      source: typeof l.source === 'object' ? (l.source as PhysNode).id : (l.source as string),
+      target: typeof l.target === 'object' ? (l.target as PhysNode).id : (l.target as string),
+    }));
+    for (const id of [...this.bendAt.keys()]) if (!this.links.some((l) => l.id === id)) this.bendAt.delete(id);
+    if (structural) this.reheat(fresh ? 1 : added > 0 || removed > 0 ? 0.7 : 0.3); // a fresh graph settles from scratch, like a new layout
+    // forceX/Y cache their targets: refresh them for the new ends
+    this.sim.force('endsX', (this.sim.force('endsX') as ReturnType<typeof forceX<PhysNode>>).x((d) => this.ends.get(d.id)?.x ?? this.colX.get(d.id) ?? 0));
+    this.applyOptions();
+    this.sim.force('rankY', (this.sim.force('rankY') as ReturnType<typeof forceY<PhysNode>>).y((d) => this.rankY.get(d.id) ?? 0));
+    return { added, removed, total: next.size, structural };
+  }
+
+  /**
+   * One step for the edges' midpoints. Each is drawn back towards the straight
+   * line between its ends; edges slip freely over nodes, keeping only off a
+   * node's centre (to the side they already lean towards) — a small bend.
+   */
+  private stepBends(): void {
+    // (nothing to bend: no work — the library's cloud draws straight lines)
+    if (this.opts.avoid <= 0 && this.opts.straighten <= 0) return;
+    const nodes = [...this.byId.values()];
+    for (const l of this.links) {
+      const a = this.byId.get(l.source);
+      const b = this.byId.get(l.target);
+      if (!a || !b || a.x === undefined || a.y === undefined || b.x === undefined || b.y === undefined) continue;
+      const mx = (a.x + b.x) / 2;
+      const my = (a.y + b.y) / 2;
+      const m = this.bendAt.get(l.id) ?? { x: mx, y: my };
+      m.x += (mx - m.x) * this.opts.straighten;
+      m.y += (my - m.y) * this.opts.straighten;
+      // the normal of the straight line, for nodes sitting exactly on it
+      const len = Math.hypot(b.x - a.x, b.y - a.y) || 1;
+      const nx = -(b.y - a.y) / len;
+      const ny = (b.x - a.x) / len;
+      for (const n of nodes) {
+        if (n === a || n === b || n.x === undefined || n.y === undefined) continue;
+        // edges slip freely over nodes; they only keep off the centre (avoid × radius)
+        const clear = n.radius * (n.role === 'tag' ? 1.1 : this.opts.avoid); // (off a tag's name entirely)
+        if (clear <= 0) continue;
+        for (const t of [0.25, 0.5, 0.75]) {
+          const p = splinePoint(a.x, a.y, m.x, m.y, b.x, b.y, t);
+          const dx = p.x - n.x;
+          const dy = p.y - n.y;
+          const d = Math.hypot(dx, dy);
+          if (d >= clear) continue;
+          // slip: away from the node, or (dead centre) to the side the bend already leans
+          let ux = dx / (d || 1);
+          let uy = dy / (d || 1);
+          if (d < 1e-3) {
+            const side = Math.sign((m.x - mx) * nx + (m.y - my) * ny) || 1;
+            ux = nx * side;
+            uy = ny * side;
+          }
+          const push = (clear - d) * (t === 0.5 ? 0.6 : 0.35);
+          m.x += ux * push;
+          m.y += uy * push;
+        }
+      }
+      this.bendAt.set(l.id, m);
+    }
+  }
+
+  /**
+   * Crossings as drawn: each edge's spline in short pieces, ignoring pieces
+   * hidden under a node's disc (edges are drawn beneath the wheels). Pairs of
+   * edges that share a node don't count.
+   */
+  drawnCrossings(): number {
+    const nodes = [...this.byId.values()];
+    const hidden = (x: number, y: number) => nodes.some((n) => Math.hypot(x - (n.x ?? 0), y - (n.y ?? 0)) < n.radius);
+    const curves = this.links
+      .map((l) => {
+        const a = this.byId.get(l.source);
+        const b = this.byId.get(l.target);
+        if (!a || !b || a.x === undefined || a.y === undefined || b.x === undefined || b.y === undefined) return null;
+        const m = this.bendAt.get(l.id) ?? { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+        const pts = Array.from({ length: 17 }, (_, k) => splinePoint(a.x!, a.y!, m.x, m.y, b.x!, b.y!, k / 16));
+        const pieces: [number, number, number, number][] = [];
+        for (let k = 0; k < 16; k++) {
+          const [p, q] = [pts[k], pts[k + 1]];
+          if (!hidden((p.x + q.x) / 2, (p.y + q.y) / 2)) pieces.push([p.x, p.y, q.x, q.y]);
+        }
+        return { a: l.source, b: l.target, pieces };
+      })
+      .filter((c): c is NonNullable<typeof c> => c !== null);
+    let n = 0;
+    for (let i = 0; i < curves.length; i++)
+      for (let j = i + 1; j < curves.length; j++) {
+        const [p, q] = [curves[i], curves[j]];
+        if (p.a === q.a || p.a === q.b || p.b === q.a || p.b === q.b) continue;
+        if (p.pieces.some((u) => q.pieces.some((v) => segmentsCross(u[0], u[1], u[2], u[3], v[0], v[1], v[2], v[3])))) n++;
+      }
+    return n;
+  }
+
+  /** The point an edge's spline passes through halfway (its ends' midpoint when straight). */
+  bend(id: string): { x: number; y: number } | undefined {
+    const m = this.bendAt.get(id);
+    return m ? { x: m.x, y: m.y } : undefined;
+  }
+
+  /** All bends, for drawing. */
+  bends(): Map<string, { x: number; y: number }> {
+    return new Map([...this.bendAt].map(([k, v]) => [k, { x: v.x, y: v.y }]));
+  }
+
+  reheat(alpha = 0.5): void {
+    this.sim.alpha(Math.max(this.sim.alpha(), alpha));
+    if (this.opts.live) this.sim.restart();
+  }
+
+  /** Run the simulation synchronously (pre-settle before first paint, or tests). */
+  tick(n = 1): void {
+    this.sim.tick(n);
+  }
+
+  position(id: string): { x: number; y: number } | undefined {
+    const p = this.byId.get(id);
+    return p && p.x !== undefined && p.y !== undefined ? { x: p.x, y: p.y } : undefined;
+  }
+
+  get alpha(): number {
+    return this.sim.alpha();
+  }
+
+  dragStart(id: string, x: number, y: number): void {
+    const p = this.byId.get(id);
+    if (!p) return;
+    p.fx = x;
+    p.fy = y;
+    this.sim.alphaTarget(0.3);
+    if (this.opts.live) this.sim.restart();
+  }
+
+  drag(id: string, x: number, y: number): void {
+    const p = this.byId.get(id);
+    if (!p) return;
+    p.fx = x;
+    p.fy = y;
+  }
+
+  /** Release a dragged node back into the simulation, or keep it pinned. */
+  dragEnd(id: string, pin = false): void {
+    const p = this.byId.get(id);
+    this.sim.alphaTarget(0);
+    if (!p || pin) return;
+    p.fx = null;
+    p.fy = null;
+  }
+
+  isPinned(id: string): boolean {
+    const p = this.byId.get(id);
+    return p?.fx != null;
+  }
+
+  unpin(id: string): void {
+    const p = this.byId.get(id);
+    if (!p) return;
+    p.fx = null;
+    p.fy = null;
+    this.reheat(0.3);
+  }
+
+  onSettle(f: () => void): () => void {
+    this.settleListeners.push(f);
+    return () => (this.settleListeners = this.settleListeners.filter((g) => g !== f));
+  }
+
+  destroy(): void {
+    this.sim.stop();
+    this.sim.on('tick', null).on('end', null);
+    this.settleListeners = [];
+  }
+}
+
+/** Where a node is drawn to: the sound card up-centre, meters down-centre. */
+export function endOf(n: GraphNode): 'top' | 'bottom' | null {
+  if (n.cell?.sink) return 'top';
+  if (n.kind === 'cell' && n.isMeter) return 'bottom';
+  return null;
+}
+
+/** A point on the quadratic spline from a to b that passes through m at t = ½. */
+export function splinePoint(ax: number, ay: number, mx: number, my: number, bx: number, by: number, t: number) {
+  // control point: the one that makes the curve pass through m halfway
+  const cx = 2 * mx - (ax + bx) / 2;
+  const cy = 2 * my - (ay + by) / 2;
+  const u = 1 - t;
+  return { x: u * u * ax + 2 * u * t * cx + t * t * bx, y: u * u * ay + 2 * u * t * cy + t * t * by };
+}
+
+/** How many edge pairs cross in the current layout (for tests and tuning). */
+export function countCrossings(layout: ForceLayout, model: GraphModel): number {
+  const segs = model.edges
+    .filter((e) => e.source !== e.target && layout.position(e.source) && layout.position(e.target))
+    .map((e) => ({ a: { id: e.source, ...layout.position(e.source)! }, b: { id: e.target, ...layout.position(e.target)! } }));
+  return crossingPairs(segs).length;
+}

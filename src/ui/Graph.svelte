@@ -1,0 +1,656 @@
+<script lang="ts">
+  import { Background, Controls, SvelteFlow, ViewportPortal, type Edge, type NodeTypes } from '@xyflow/svelte';
+  import { noteColour } from './theme';
+  import '@xyflow/svelte/dist/style.css';
+  import { onDestroy, untrack } from 'svelte';
+  import { SvelteSet } from 'svelte/reactivity';
+  import type { CompileResult, Shifts } from '../engine/compile';
+  import { structureKey, type GraphEdge, type GraphModel, type GraphNode } from '../engine/graph';
+  import type { LiveState } from '../engine/realize';
+  import { DEFAULT_LAYOUT, ForceLayout, type LayoutOptions } from '../layout/physics';
+  import type { FlowNode } from './types';
+  import { setGraphContext } from './context';
+  import CellNode from './CellNode.svelte';
+  import VoiceNode from './VoiceNode.svelte';
+  import FitView from './FitView.svelte';
+  import CellSheet from './CellSheet.svelte';
+  import PulseEdge from './PulseEdge.svelte';
+  import MaterialNode from './MaterialNode.svelte';
+  import ScopeNode from './ScopeNode.svelte';
+  import SunNode from './SunNode.svelte';
+  import GraphLegend from './GraphLegend.svelte';
+  import BeltEdge from './BeltEdge.svelte';
+  import { pulleys } from '../layout/belts';
+  import { physicsOf } from '../engine/realize';
+  import { grab as grabPhysics } from '../engine/physics';
+  import { transportClock } from '../audio/clock.svelte';
+  import ForcesPanel from './ForcesPanel.svelte';
+
+  let {
+    model,
+    program,
+    muted,
+    routed,
+    live,
+    shifts,
+    ontoggle,
+    onturn,
+    onshowcode,
+    source,
+    spectrum,
+    note,
+    onedit,
+    onadd,
+    onrename,
+    onfree,
+    tapePos,
+    nudge,
+    cursor = 0,
+    epoch = 0,
+    tapeLevel,
+    scrub,
+    hand,
+    fixed = null,
+    opened = 0,
+    focus,
+  }: {
+    model: GraphModel;
+    program: CompileResult;
+    muted: ReadonlySet<string>;
+    routed: ReadonlySet<string>;
+    live: LiveState | null;
+    shifts: Shifts;
+    ontoggle: (id: string) => void;
+    onturn: (name: string, shift: number) => void;
+    onshowcode: (name: string) => void;
+    source: string;
+    spectrum: (voice: string) => { left: Float32Array; right: Float32Array; sampleRate: number } | null;
+    note: (voice: string) => number | null;
+    /** Write a changed source (the editor edits the code). */
+    onedit: (source: string) => void;
+    /** Add a new cell. */
+    onadd: () => void;
+    /** Rename: the new source, and the cell's new name (its sheet follows it). */
+    onrename: (source: string, to: string) => void;
+    /** An example's fixed layout: cell name → [column, row], pinned when it loads. */
+    fixed?: Readonly<Record<string, readonly [number, number]>> | null;
+    /** Counts the pieces opened: a new one is laid out afresh and framed (an edit keeps what's on screen). */
+    opened?: number;
+    /** A free(…) slider moved. */
+    onfree: (spec: import('../engine/ast').FreeSpec, value: number | string) => void;
+    /** Sound tapes, for a hand: where one is, and holding it. */
+    tapePos?: (name: string) => number | null;
+    nudge?: (seconds: number) => void;
+    /** Where play starts (stopped). */
+    cursor?: number;
+    /** Counts resets (reload from code). */
+    epoch?: number;
+    tapeLevel?: (name: string) => number | null;
+    scrub?: (name: string, u: number | null) => void;
+    /** Resonators, for a hand: strike, damp, bow. */
+    hand?: {
+      strike(name: string, x: number, index?: number): void;
+      damp(name: string, on: boolean): void;
+      bow(name: string, a: number | null): void;
+      resonance(name: string): { modes: number[]; exciters: number[] } | null;
+      waveform(name: string): Float32Array | null;
+      freqs(name: string): { db: Float32Array; hz: number } | null;
+    };
+    /** A cell to open in the detail sheet once it exists (after adding it). */
+    focus: { name: string; token: number } | null;
+  } = $props();
+
+  // open a newly added cell as soon as it appears in the graph
+  let focused = 0;
+  $effect(() => {
+    if (focus && focus.token !== focused && model.nodes.some((n) => n.id === `cell:${focus.name}`)) {
+      focused = focus.token;
+      selected = `cell:${focus.name}`;
+    }
+  });
+
+  // Tapping a node opens its detail sheet; the code is what it edits.
+  let selected = $state<string | null>(null);
+  const selectedNode = $derived(selected ? model.nodes.find((n) => n.id === selected) : undefined);
+
+  setGraphContext({
+    get program() {
+      return program;
+    },
+    get bends() {
+      return bends;
+    },
+    get muted() {
+      return muted;
+    },
+    get routed() {
+      return routed;
+    },
+    get live() {
+      return live;
+    },
+    get turned() {
+      return turned;
+    },
+    open(name: string) {
+      const id = `cell:${name}`;
+      if (model.nodes.some((n) => n.id === id)) selected = id;
+    },
+    get shifts() {
+      return shifts;
+    },
+    toggle: (id) => ontoggle(id),
+    tapePos: (name) => tapePos?.(name) ?? null,
+    nudge: (sec) => nudge?.(sec),
+    get epoch() {
+      return epoch;
+    },
+    get cursor() {
+      return cursor;
+    },
+    tapeLevel: (name) => tapeLevel?.(name) ?? null,
+    strike: (name, x, i) => hand?.strike(name, x, i),
+    resonance: (name) => hand?.resonance(name) ?? null,
+    waveform: (name) => hand?.waveform(name) ?? null,
+    freqs: (name) => hand?.freqs(name) ?? null,
+    damp: (name, on) => hand?.damp(name, on),
+    bow: (name, a) => hand?.bow(name, a),
+    scrub: (name, u) => scrub?.(name, u),
+    grab(name, speed) {
+      const w = physicsOf(program, shifts, name);
+      if (w) grabPhysics(program, w, transportClock.seconds, speed);
+    },
+    move(id, phase, x, y) {
+      if (phase === 'start') layout.dragStart(id, x, y);
+      else if (phase === 'move') layout.drag(id, x, y);
+      else {
+        layout.dragEnd(id, true);
+        pinned.add(id);
+        fixedPinned.add(id); // (its place, not a user's pin mark)
+      }
+    },
+    turn: (name, shift) => onturn(name, shift),
+    setFree: (spec, value) => onfree(spec, value),
+    spectrum: (voice) => spectrum(voice),
+    note: (voice) => note(voice),
+  });
+
+  const nodeTypes = { cell: CellNode, voice: VoiceNode, material: MaterialNode, scope: ScopeNode, sun: SunNode } as NodeTypes;
+  // physical cells: a meter with a motor, a belted cell — turntables
+  const physical = (g: GraphNode) =>
+    !g.petalOf &&
+    (typeof g.cell.params.motor === 'number' || typeof g.cell.params.belt === 'number' || typeof g.cell.params.write === 'string' || typeof g.cell.params.body === 'string');
+
+  let nodes = $state.raw<FlowNode[]>([]);
+  let edges = $state.raw<Edge[]>([]);
+  let fitToken = $state(0);
+  let dragging: string | null = null;
+  let lastKey = '';
+  const pinned = new SvelteSet<string>();
+
+  // Each physics tick copies simulated positions into the flow nodes.
+  // The node under the pointer is left alone: Svelte Flow owns it while dragging.
+  // where each edge's spline bends (it slips off nodes it would rest on)
+  let bends = $state.raw(new Map<string, { x: number; y: number }>());
+  // unnamed cells are petals: not simulated, hung on an arc above their parent
+  let petalSlot = new Map<string, { parent: string; i: number; n: number }>();
+  const PETAL = 44;
+  function posOf(id: string): { x: number; y: number } | undefined {
+    const slot = petalSlot.get(id);
+    if (!slot) return layout.position(id);
+    const p = layout.position(slot.parent);
+    if (!p) return undefined;
+    const parentSize = nodes.find((x) => x.id === slot.parent)?.data.size ?? 128;
+    // fanned out on the outer side (away from the centre line): the flow runs up and down, labels hang below
+    const outward = p.x < -20 ? Math.PI : 0;
+    const a = outward + (slot.i - (slot.n - 1) / 2) * (slot.n > 3 ? 0.55 : 0.68);
+    const d = (parentSize as number) / 2 + PETAL / 2 + 2;
+    return { x: p.x + Math.cos(a) * d, y: p.y + Math.sin(a) * d };
+  }
+  const layout = new ForceLayout(() => {
+    nodes = nodes.map((n) => {
+      if (n.id === dragging) return n;
+      const p = posOf(n.id);
+      return p ? { ...n, position: p } : n;
+    });
+    bends = layout.bends();
+  });
+  onDestroy(() => layout.destroy());
+
+  // the forces, adjustable live
+  let forcesOpen = $state(false);
+  let legendOpen = $state(false);
+  let forceOptions = $state({ ...layout.options });
+  const setForce = (key: keyof LayoutOptions, value: number) => {
+    layout.setOptions({ [key]: value });
+    forceOptions = { ...layout.options };
+  };
+  const resetForces = () => {
+    const { live: _live, radius: _radius, ...defaults } = DEFAULT_LAYOUT;
+    layout.setOptions(defaults);
+    forceOptions = { ...layout.options };
+  };
+
+  function toFlowNode(g: GraphNode): FlowNode {
+    const position = posOf(g.id) ?? { x: 0, y: 0 };
+    // an example's own fixed layout isn't marked: only what the user pinned
+    const isPinned = pinned.has(g.id) && !fixedPinned.has(g.id);
+    if (g.petalOf) {
+      if (g.kind === 'voice') return { id: g.id, type: 'voice', position, draggable: false, data: { name: g.cell.name, summary: '', size: PETAL, pinned: false, petal: true } };
+      return { id: g.id, type: 'cell', position, draggable: false, data: { name: g.cell.name, isMeter: false, size: PETAL, pinned: false, petal: true } };
+    }
+    if (g.kind === 'voice') {
+      // (a resonator is a voice too — but a body: a turntable, struck and damped and bowed by hand)
+      if (typeof g.cell.params.body === 'string')
+        return { id: g.id, type: 'material', position, draggable: false, zIndex: 10, data: { name: g.cell.name, size: 140 * g.cell.size, role: 'resonator', pinned: true } };
+      const p = g.cell.params;
+      const src = p.s === undefined ? `braid${g.cell.map ? ' ' + (g.cell.map.kind === 'table' ? '&' + g.cell.map.table : g.cell.map.kind) : ''}` : String(p.s);
+      const summary = ['white', 'pink', 'brown'].includes(src) ? src : `${src} · ${+g.cell.freq.toFixed(2)}`;
+      return { id: g.id, type: 'voice', position, data: { name: g.cell.name, summary, size: 120 * g.cell.size, pinned: isPinned } };
+    }
+    // the sun of a day's law: a dial
+    if (typeof g.cell.params.sun === 'string') return { id: g.id, type: 'sun', position, data: { name: g.cell.name, size: 220 } };
+    // an oscilloscope: a screen
+    if (typeof g.cell.params.scope === 'string')
+      return { id: g.id, type: 'scope', position, data: { name: g.cell.name, size: 200 } };
+    // (size= scales it: &bar size=2 twice as large)
+    if (physical(g)) {
+      // a turntable: raised over everything, moved only by its axle (held)
+      const role =
+        typeof g.cell.params.body === 'string' ? 'resonator' : typeof g.cell.params.motor === 'number' ? 'motor' : typeof g.cell.params.write === 'string' ? 'tape' : 'belt';
+      return { id: g.id, type: 'material', position, draggable: false, zIndex: 10, data: { name: g.cell.name, size: (role === 'motor' ? 168 : 140) * g.cell.size, role, pinned: true } };
+    }
+    const size = (g.cell.root ? 176 : g.isMeter ? 148 : 128) * g.cell.size;
+    return { id: g.id, type: 'cell', position, data: { name: g.cell.name, isMeter: g.isMeter, size, pinned: isPinned } };
+  }
+
+  // clusters: the tags cells carry inside the piece (not the card's) — where their members are, now
+  const clusters = $derived.by(() => {
+    const byTag = new Map<string, { x: number; y: number; size: number }[]>();
+    for (const n of nodes) {
+      const g = model.nodes.find((m) => m.id === n.id);
+      if (!g || g.petalOf || g.cell.note || !g.cell.tags.length) continue;
+      const size = (n.data as { size?: number }).size ?? 128;
+      for (const t of g.cell.tags) (byTag.get(t) ?? byTag.set(t, []).get(t)!).push({ x: n.position.x, y: n.position.y, size });
+    }
+    const tags = [...byTag.keys()].sort();
+    return [...byTag].map(([tag, ms]) => {
+      const x = ms.reduce((a, m) => a + m.x, 0) / ms.length;
+      const y = ms.reduce((a, m) => a + m.y, 0) / ms.length;
+      // (covering most of its members, not the furthest straggler)
+      const ds = ms.map((m) => Math.hypot(m.x - x, m.y - y)).sort((a, b) => a - b);
+      const r = Math.max(ds[Math.floor(ds.length * 0.8)] + 90, 120);
+      // its name: where its tag node is (a node of the layout, keeping cells and edges off it)
+      const at = layout.position(`tag:${tag}`) ?? { x, y: y - r };
+      return { tag, x, y, r, nx: at.x, ny: at.y, colour: noteColour(((tags.indexOf(tag) * 7) % 12) * 30) };
+    });
+  });
+
+  // the shifts of the tables that turn, as now: a key that changes only when one does
+  const turned = $derived.by(() => {
+    if (!live) return 'still';
+    let key = 'playing';
+    for (const c of program.cells.values()) if (c.step && !c.voice) key += `|${live.shifts(c.name)}`;
+    return key;
+  });
+
+  // Edge styling follows routing: live edges glow and flow, cut-off edges fade.
+  const liveEdges = $derived(live ? [...live.edges].sort().join('|') : '');
+
+  const edgeTypes = { pulse: PulseEdge, belt: BeltEdge };
+  const nameOf = (id: string) => id.slice('cell:'.length);
+  /** What an edge carries: whose steps pulse along it, and which voice's note colours it. */
+  function pulseData(e: GraphEdge) {
+    const trigger = (voice: string) => program.outputs.find((o) => o.voice === voice)?.cell ?? null;
+    if (e.kind === 'step') return { kind: e.kind, phaseCell: nameOf(e.source), voice: null, reverse: true };
+    // a tape's edges take the colour of what's on them: a read head's notes, as played; what's being
+    // written, as its source plays it
+    if (e.kind === 'out' && (e.pick === 'play' || e.pick === 'write')) {
+      const o =
+        e.pick === 'play'
+          ? program.outputs.find((x) => x.tape?.head === nameOf(e.target))
+          : program.outputs.find((x) => x.cell === nameOf(e.source) && !x.tape);
+      return { kind: e.kind, phaseCell: null, voice: o?.voice ?? null, reverse: false };
+    }
+    if (e.kind === 'out') {
+      const voice = nameOf(e.target);
+      return { kind: e.kind, phaseCell: trigger(voice) === nameOf(e.source) ? nameOf(e.source) : null, voice, reverse: false };
+    }
+    if (e.kind === 'mix') {
+      const voice = nameOf(e.source);
+      return { kind: e.kind, phaseCell: trigger(voice), voice, reverse: false };
+    }
+    return { kind: e.kind, phaseCell: null, voice: null, reverse: false };
+  }
+
+  function toFlowEdge(e: GraphEdge, liveSet: ReadonlySet<string>): Edge {
+    // an edge with a switched-off (or unrouted) end is off: never live, never coloured, whatever plays
+    const isRouted = routed.has(e.source) && routed.has(e.target) && !muted.has(e.source) && !muted.has(e.target);
+    const isLive = isRouted && liveSet.has(e.id);
+    // a belted cell's step: a belt, its pulleys by the ratio, its stretch as it is now
+    const driven = model.nodes.find((n) => n.id === e.source);
+    if (e.kind === 'step' && driven && typeof driven.cell.params.belt === 'number') {
+      const sizeOf = (id: string) => ((nodes.find((n) => n.id === id)?.data as { size?: number })?.size ?? 140) / 2;
+      const rate = program.clocks.get(driven.cell.name)?.belt?.rate ?? 1;
+      const [rDriver, rDriven] = pulleys(sizeOf(e.target), sizeOf(e.source), rate);
+      const st = live ? physicsOf(program, shifts, driven.cell.name)?.state?.(live.seconds) : undefined;
+      return { id: e.id, source: e.source, target: e.target, type: 'belt', zIndex: 5, selectable: false, data: { rDriver, rDriven, stretch: st?.stretch ?? 0, slipping: st?.slipping ?? false } };
+    }
+    // a tape's edges meet it at its heads: the write head (what it records), each read head (what it plays)
+    const heads =
+      e.pick === 'write' ? { targetHandle: 'head-write' } : e.pick === 'play' ? { sourceHandle: `head-${e.target.replace(/^cell:/, '')}` } : {};
+    return {
+      id: e.id,
+      source: e.source,
+      target: e.target,
+      ...heads,
+      type: 'pulse',
+      data: { ...pulseData(e), off: !isRouted },
+      label: [e.count > 1 ? `×${e.count}` : '', e.pick, e.label ?? ''].filter(Boolean).join(' ') || undefined,
+      class: `edge-${e.kind} ${isLive ? 'edge-live' : isRouted ? 'edge-routed' : 'edge-cut'}`,
+      selectable: false,
+    };
+  }
+
+  $effect(() => {
+    const liveSet = new Set(liveEdges ? liveEdges.split('|') : []);
+    const m = model;
+    void routed;
+    void muted;
+    untrack(() => (edges = m.edges.map((e) => toFlowEdge(e, liveSet))));
+  });
+
+  // an example's fixed layout: pinned when the example changes; released when it does again
+  let lastFixed: typeof fixed | undefined = undefined;
+  const fixedPinned = new Set<string>();
+  let lastOpened = -1;
+  $effect(() => {
+    const m = model;
+    const f = fixed;
+    const o = opened;
+    untrack(() => {
+      // a piece just opened: forget where the last one's cells were (even ones of the same name)
+      const justOpened = o !== lastOpened;
+      if (justOpened) {
+        lastOpened = o;
+        layout.forget();
+        // framed again once it has come to rest (clusters and tags keep growing it after the first frame)
+        const off = layout.onSettle(() => {
+          off();
+          fitToken++;
+        });
+        for (const id of [...pinned]) if (!fixedPinned.has(id)) pinned.delete(id);
+      }
+      const key = structureKey(m);
+      const structural = key !== lastKey;
+      lastKey = key;
+      for (const id of [...pinned]) if (!m.nodes.some((n) => n.id === id)) pinned.delete(id);
+      // petals hang from their parent: the physics only sees the named cells
+      const kids = new Map<string, string[]>();
+      for (const n of m.nodes) if (n.petalOf) kids.set(n.petalOf, [...(kids.get(n.petalOf) ?? []), n.id]);
+      petalSlot = new Map([...kids].flatMap(([parent, ids]) => ids.map((id, i) => [id, { parent, i, n: ids.length }] as const)));
+      const diff = layout.setGraph({ nodes: m.nodes.filter((n) => !n.petalOf), edges: m.edges }, structural);
+      // Mostly new graph (first load, preset switch): settle before first paint, then frame it.
+      const fresh = justOpened || diff.added > diff.total / 2;
+      const newExample = f !== lastFixed;
+      if (newExample) {
+        lastFixed = f;
+        for (const id of fixedPinned) {
+          layout.unpin(id);
+          pinned.delete(id);
+        }
+        fixedPinned.clear();
+        // pin its cells where it says, then let the rest settle round them
+        if (f) {
+          const col = DEFAULT_LAYOUT.layerGap * 1.1;
+          for (const [name, [c, r]] of Object.entries(f)) {
+            const id = `cell:${name}`;
+            if (!m.nodes.some((n) => n.id === id && !n.petalOf)) continue;
+            layout.dragStart(id, c * col, r * DEFAULT_LAYOUT.layerGap);
+            layout.dragEnd(id, true);
+            pinned.add(id);
+            fixedPinned.add(id);
+          }
+        }
+      }
+      if (fresh || (newExample && f)) layout.tick(220);
+      // turntables stay where they were first laid out (pinned): the rest flows round them
+      if (justOpened)
+        for (const g of m.nodes)
+          if (physical(g)) {
+            const p = layout.position(g.id);
+            if (!p) continue;
+            layout.dragStart(g.id, p.x, p.y);
+            layout.dragEnd(g.id, true);
+            pinned.add(g.id);
+            fixedPinned.add(g.id);
+          }
+      nodes = m.nodes.map(toFlowNode);
+      if (fresh || (newExample && f)) fitToken++;
+      if (selected && !m.nodes.some((n) => n.id === selected)) selected = null;
+    });
+  });
+
+  function togglePin(id: string) {
+    const on = !pinned.has(id);
+    if (on) {
+      pinned.add(id);
+      const p = layout.position(id);
+      if (p) {
+        layout.dragStart(id, p.x, p.y);
+        layout.dragEnd(id, true);
+      }
+    } else {
+      pinned.delete(id);
+      layout.unpin(id);
+    }
+    nodes = nodes.map((n) => (n.id === id ? ({ ...n, data: { ...n.data, pinned: on } } as FlowNode) : n));
+  }
+</script>
+
+<div class="graph">
+  <SvelteFlow
+    bind:nodes
+    bind:edges
+    {nodeTypes}
+    {edgeTypes}
+    nodeOrigin={[0.5, 0.5]}
+    nodesConnectable={false}
+    elementsSelectable={false}
+    onbeforedelete={async () => false}
+    colorMode="dark"
+    minZoom={0.15}
+    maxZoom={2.5}
+    onnodedragstart={({ targetNode }) => {
+      if (!targetNode) return;
+      dragging = targetNode.id;
+      layout.dragStart(targetNode.id, targetNode.position.x, targetNode.position.y);
+    }}
+    onnodedrag={({ targetNode }) => {
+      if (targetNode) layout.drag(targetNode.id, targetNode.position.x, targetNode.position.y);
+    }}
+    onnodedragstop={({ targetNode }) => {
+      if (targetNode) layout.dragEnd(targetNode.id, pinned.has(targetNode.id));
+      dragging = null;
+    }}
+    nodeClickDistance={6}
+    onnodeclick={({ node }) => (selected = node.id)}
+  >
+    <Background gap={28} size={1.5} />
+    <Controls showLock={false} />
+    <FitView token={fitToken} />
+    <!-- clusters: cells tagged alike inside the piece (tags=), washed and named behind their members -->
+    <ViewportPortal target="back">
+      {#each clusters as c (c.tag)}
+        <div class="cluster" style:left="{c.x}px" style:top="{c.y}px" style:width="{c.r * 2}px" style:height="{c.r * 2}px" style:--hue={c.colour}></div>
+        <div class="cluster-name" style:left="{c.nx}px" style:top="{c.ny}px" style:--hue={c.colour}>{c.tag}</div>
+      {/each}
+    </ViewportPortal>
+  </SvelteFlow>
+  <div class="toolbar">
+    <button class="add-cell" onclick={onadd} title="Add a cell (blank: the chromatic default)">+ cell</button>
+    <button class="forces-toggle" class:on={forcesOpen} onclick={() => (forcesOpen = !forcesOpen)} aria-pressed={forcesOpen} title="Layout forces">forces</button>
+    <button class="forces-toggle" class:on={legendOpen} onclick={() => (legendOpen = !legendOpen)} aria-pressed={legendOpen} title="What the colours and values mean">legend</button>
+  </div>
+  {#if legendOpen}
+    <div class="legend-wrap"><GraphLegend {program} shifts={shifts} {source} /></div>
+  {/if}
+  {#if forcesOpen}
+    <ForcesPanel options={forceOptions} onchange={setForce} onreset={resetForces} onclose={() => (forcesOpen = false)} />
+  {/if}
+  <p class="hint">Tap a cell to open it. Drag to move. Hold to switch off.</p>
+  {#if selectedNode}
+    <!-- (read defensively: renaming moves the selection, and for a moment there's none) -->
+    <CellSheet
+      name={selectedNode?.cell.name ?? ''}
+      isMeter={selectedNode?.kind === 'cell' && selectedNode.isMeter}
+      {source}
+      pinned={!!selectedNode && pinned.has(selectedNode.id)}
+      onpin={() => selectedNode && togglePin(selectedNode.id)}
+      onshowcode={() => {
+        const n = selectedNode?.cell.name ?? '';
+        selected = null;
+        onshowcode(n);
+      }}
+      onclose={() => (selected = null)}
+      {onedit}
+      {onrename}
+    />
+  {/if}
+</div>
+
+<style>
+  .graph {
+    position: relative;
+    width: 100%;
+    height: 100%;
+  }
+  .hint {
+    position: absolute;
+    left: 56px;
+    right: 80px;
+    bottom: 10px;
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.3;
+    color: var(--text-muted);
+    pointer-events: none;
+  }
+  .graph :global(.svelte-flow) {
+    --xy-background-color: var(--bg);
+    --xy-background-pattern-color: var(--line);
+    --xy-edge-stroke: var(--edge);
+    --xy-edge-stroke-width: 2;
+    --xy-edge-label-background-color: var(--surface);
+    --xy-edge-label-color: var(--text);
+    --xy-controls-button-background-color: var(--surface);
+    --xy-controls-button-background-color-hover: var(--surface-2);
+    --xy-controls-button-color: var(--text);
+    --xy-controls-button-border-color: var(--line);
+    --xy-node-background-color: transparent;
+    --xy-node-border: none;
+    --xy-node-boxshadow-hover: none;
+    --xy-node-boxshadow-selected: none;
+  }
+  .graph :global(.svelte-flow__node) {
+    padding: 0;
+    border: 0;
+    background: transparent;
+    width: auto;
+    box-shadow: none;
+    border-radius: 0;
+  }
+  .toolbar {
+    position: absolute;
+    left: var(--space-2);
+    top: var(--space-2);
+    z-index: 5;
+    display: flex;
+    gap: var(--space-2);
+  }
+  .forces-toggle {
+    min-height: 32px;
+    padding: 0 12px;
+    border-radius: var(--radius-pill);
+    border: 1px solid var(--line);
+    background: var(--surface);
+    color: var(--text-muted);
+    font: 600 var(--text-sm) var(--font-ui);
+    cursor: pointer;
+  }
+  .forces-toggle.on {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+  .add-cell {
+    min-height: 32px;
+    padding: 0 12px;
+    border-radius: var(--radius-pill);
+    border: 1px solid var(--accent);
+    background: var(--surface);
+    color: var(--accent);
+    font: 700 var(--text-sm) var(--font-ui);
+    cursor: pointer;
+  }
+  /* edges are a key element: thick, round-capped splines */
+  .graph :global(.svelte-flow__edge-path) {
+    stroke-width: 4;
+    stroke-linecap: round;
+    transition: stroke-opacity 140ms ease;
+  }
+  .graph :global(.edge-live .svelte-flow__edge-path) {
+    stroke: var(--accent);
+    stroke-width: 5;
+  }
+  .graph :global(.edge-over .svelte-flow__edge-path) {
+    stroke-dasharray: 1 9;
+    stroke-opacity: 0.7;
+  }
+  .graph :global(.edge-step .svelte-flow__edge-path) {
+    stroke: color-mix(in oklab, var(--accent) 50%, var(--edge));
+    stroke-dasharray: 12 7;
+  }
+  .graph :global(.edge-cut .svelte-flow__edge-path) {
+    stroke-opacity: 0.2;
+  }
+  /* edge labels (×0.4, [<<], ⟳ …): readable pills; an off edge's label fades with it */
+  .graph :global(.svelte-flow__edge-label) {
+    padding: 2px 8px;
+    border-radius: var(--radius-pill);
+    border: 1px solid var(--line);
+    background: var(--surface-2);
+    color: var(--text);
+    font: 700 12.5px/1.35 var(--font-ui);
+    box-shadow: 0 2px 6px rgb(0 0 0 / 0.3);
+    transition: opacity 200ms ease, border-color 200ms ease;
+  }
+  .graph :global(.svelte-flow__edge-path) {
+    transition: stroke 200ms ease, stroke-opacity 200ms ease;
+  }
+  /* clusters (rendered in the flow's viewport: global, since the portal lives outside this component) */
+  :global(.cluster) {
+    position: absolute;
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+    background: radial-gradient(circle, color-mix(in oklab, var(--hue) 34%, transparent) 0%, color-mix(in oklab, var(--hue) 16%, transparent) 55%, transparent 72%);
+    pointer-events: none;
+  }
+  :global(.cluster-name) {
+    position: absolute;
+    transform: translate(-50%, -50%);
+    padding: 4px 14px;
+    border-radius: 999px;
+    border: 1.5px solid var(--hue);
+    background: color-mix(in oklab, var(--hue) 22%, var(--surface));
+    color: var(--text);
+    font: 800 44px var(--font-ui); /* (read at the zoom a whole piece fits in) */
+    white-space: nowrap;
+    pointer-events: none;
+  }
+  .legend-wrap {
+    position: absolute;
+    z-index: 20;
+    top: 56px;
+    left: 12px;
+  }
+</style>

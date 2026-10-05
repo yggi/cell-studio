@@ -1,0 +1,277 @@
+/**
+ * Window-clocked player. Event times are seconds at the code's tempo; the
+ * transport runs at 60 bpm × rate, so one transport quarter is one of those
+ * seconds and the tempo control can change speed smoothly. Every sixteenth
+ * the events starting in that window are scheduled at their exact offset.
+ * Programs are swapped in whole (on edits and on every shift) and take
+ * effect at the next window.
+ */
+import { clocking, tapeMotion, eventsBetween, type Plan } from '../engine/realize';
+import { createVoices, type VoiceBank } from './voices';
+import { resetPhysics } from '../engine/physics';
+import { transportClock } from './clock.svelte';
+
+type ToneNS = typeof import('tone');
+const WINDOW = 0.25; // transport quarters = code seconds
+/** After a piece's end, how long its last notes (releases, reverb, echoes) ring before the transport stops. */
+const TAIL = 2.5;
+
+export class Player {
+  private Tone?: ToneNS;
+  private voices?: VoiceBank;
+  private plan: Plan | null = null;
+  private repeatId: number | null = null;
+  private raf = 0;
+  private rate = 1;
+
+  load(plan: Plan): void {
+    this.plan = plan;
+    this.voices?.sync(plan.result, plan.statics);
+  }
+
+  /**
+   * The sound engine, awake: made on the first gesture that needs it — Play, or a hand on a resonator
+   * while stopped (a body rings whether or not the clocks run). Tone is imported lazily, so no
+   * AudioContext exists before then.
+   */
+  private async wake() {
+    (globalThis as { TONE_SILENCE_LOGGING?: boolean }).TONE_SILENCE_LOGGING = true;
+    if (!this.Tone) {
+      const T = await import('tone');
+      // headroom: a context tuned for playback (a larger buffer) that schedules notes 0.3 s ahead —
+      // a busy page (a large graph drawing) then doesn't make notes late or starve the sound
+      T.setContext(new T.Context({ latencyHint: 'playback', lookAhead: 0.3 }));
+      this.Tone = T;
+    }
+    await this.Tone.start();
+    if (!this.voices) {
+      this.voices = createVoices(this.Tone);
+      if (this.plan) this.voices.sync(this.plan.result, this.plan.statics);
+    }
+    return this.Tone;
+  }
+
+  /** A hand on a resonator: strike at x (0 edge … 1), damp while held, bow (null lifts it) — playing or not. */
+  strike(name: string, x: number, index?: number): void {
+    void this.wake().then(() => this.voices?.strike(name, x, index));
+  }
+  /** What something sounds like now, as a fine spectrum — for a scope's spectrum and waterfall. */
+  freqs(name: string): { db: Float32Array; hz: number } | null {
+    return this.voices?.freqs(name) ?? null;
+  }
+  /** What something sounds like now, as a waveform — for an oscilloscope. */
+  waveform(name: string): Float32Array | null {
+    // (whether or not the clocks run: a struck body, a scratched tape, sound)
+    return this.voices?.waveform(name) ?? null;
+  }
+  resonance(name: string): { modes: number[]; exciters: number[] } | null {
+    // (a body rings whether or not the clocks run)
+    return this.voices?.resonance(name) ?? null;
+  }
+  damp(name: string, on: boolean): void {
+    void this.wake().then(() => this.voices?.damp(name, on));
+  }
+  bow(name: string, amount: number | null): void {
+    void this.wake().then(() => this.voices?.bow(name, amount));
+  }
+
+  /** How loud what a tape is recording is now (0 … 1): a sound tape's input, a note tape's source. */
+  tapeLevel(tape: string): number | null {
+    if (!this.plan || !this.voices || !this.playing) return null;
+    const sound = this.voices.tapeLevel(tape);
+    if (sound !== null) return sound;
+    const src = this.plan.result.cells.get(tape)?.params.write;
+    const o = typeof src === 'string' ? this.plan.result.outputs.find((x) => x.cell === src) : undefined;
+    const spec = o ? this.spectrum(o.voice) : null;
+    if (!spec) return 0;
+    let top = -Infinity;
+    for (const ch of [spec.left, spec.right]) for (const v of ch) if (v > top) top = v;
+    return Math.min(1, Math.max(0, (top + 90) / 60));
+  }
+
+  /** Where a sound tape is now (tape-seconds), while playing. */
+  tapePos(tape: string): number | null {
+    if (!this.plan) return null;
+    if (!this.playing) return this.heldTapes.get(tape) ?? null;
+    return tapeMotion(this.plan.result, clocking(this.plan.result, this.plan.statics), tape).pos(transportClock.seconds);
+  }
+
+  /**
+   * A hand holding a sound tape at u (tape-seconds; null lets go): what sits under each head was
+   * written when the tape was at u − at — its delay, now minus then. Moving u back faster than time
+   * runs reads backwards; holding it still, the sound stops.
+   */
+  scrub(tape: string, u: number | null): void {
+    if (!this.plan || !this.voices) return;
+    // stopped: the tape stays where the hand leaves it
+    if (!this.playing) {
+      if (u !== null) this.heldTapes.set(tape, u);
+      const at = this.heldTapes.get(tape);
+      if (at !== undefined) this.holdTape(tape, at);
+      return;
+    }
+    if (u === null) return this.voices.tapeScrub(tape, null);
+    const motion = tapeMotion(this.plan.result, clocking(this.plan.result, this.plan.statics), tape);
+    const now = transportClock.seconds;
+    this.voices.tapeScrub(tape, (at) => now - motion.real(u - at));
+  }
+
+  /** Speed relative to the code's tempo. */
+  setRate(rate: number): void {
+    this.rate = rate > 0 && Number.isFinite(rate) ? rate : 1;
+    if (this.Tone) this.Tone.getTransport().bpm.value = 60 * this.rate;
+  }
+
+  /** The note a voice is sounding now (its latest started), while playing. */
+  note(voice: string) {
+    return this.playing ? (this.voices?.note(voice) ?? null) : null;
+  }
+
+  /** Live spectrum of a voice, while playing. */
+  spectrum(voice: string) {
+    return this.playing ? (this.voices?.spectrum(voice) ?? null) : null;
+  }
+
+  /** The audio device's sample rate, once audio has started. */
+  get sampleRate(): number | null {
+    return this.Tone ? this.Tone.getContext().sampleRate : null;
+  }
+
+  get playing(): boolean {
+    return this.repeatId !== null;
+  }
+
+  /** Play — from the start, or from `from` seconds in (the time slider). */
+  async start(from = 0): Promise<void> {
+    if (this.playing) return;
+    const offset = Math.max(0, from);
+    // Tone is imported lazily so no AudioContext exists before the first gesture.
+    const Tone = await this.wake();
+    // physics: a hand's effect comes quickly (and stays, through pause and play, until Reset)
+    if (this.plan) {
+      const physical = [...this.plan.result.cells.values()].some((c) => typeof c.params.motor === 'number' || typeof c.params.belt === 'number');
+      (Tone.getContext() as unknown as { lookAhead: number }).lookAhead = physical ? 0.12 : 0.3;
+    }
+    if (this.plan) this.voices!.sync(this.plan.result, this.plan.statics);
+    // motors on: held tapes run on from where they stand
+    for (const t of this.heldTapes.keys()) this.voices!.tapeScrub(t, null);
+    this.heldTapes.clear();
+
+    const tr = Tone.getTransport();
+    tr.stop();
+    tr.cancel(0);
+    tr.position = 0;
+    tr.bpm.value = 60 * this.rate;
+    const ppq = tr.PPQ;
+
+    this.repeatId = tr.scheduleRepeat(
+      (time) => {
+        const from = Math.round((tr.getTicksAtTime(time) / ppq) * 4) / 4 + offset;
+        const secPerQuarter = 60 / tr.bpm.getValueAtTime(time);
+        if (!this.plan) return;
+        // sound tapes on a moving clock: their speed over this window, for the delays to follow
+        for (const tp of this.plan.result.tapes) {
+          const motion = tapeMotion(this.plan.result, clocking(this.plan.result, this.plan.statics), tp.name);
+          if (!motion.moving && !tp.dropout && !tp.heads.some((h) => h.wander > 0)) continue;
+          const pts: { at: number; speed: number }[] = [];
+          for (let x = from; x <= from + WINDOW + 1e-9; x += 0.05) pts.push({ at: time + (x - from) * secPerQuarter, speed: motion.speed(x) });
+          this.voices!.tapeSpeed(tp.name, pts);
+        }
+        for (const e of eventsBetween(this.plan, from, from + WINDOW)) {
+          const at = (x: number) => time + (x - from) * secPerQuarter;
+          this.voices!.play(
+            e.voice,
+            e.freq,
+            at(e.at),
+            e.dur * secPerQuarter,
+            e.bends.map((b) => ({ at: at(b.at), cents: b.cents, ramp: b.ramp })),
+            e.gains,
+            e.levels.map((l) => ({ at: at(l.at), level: l.level, ramp: l.ramp })),
+            e.env,
+            // moving parameters: their times onto the audio clock
+            e.params &&
+              Object.fromEntries(
+                Object.entries(e.params).map(([k, t]) => [
+                  k,
+                  t.kind === 'points' ? { ...t, points: t.points.map((x) => ({ ...x, at: at(x.at) })) } : t,
+                ]),
+              ),
+          );
+        }
+      },
+      '16n',
+      0,
+    );
+
+    const startsAt = Tone.now() + 0.05;
+    tr.start(startsAt);
+    transportClock.playing = true;
+    let shown = 0;
+    const frame = (t: number) => {
+      // (the live views: about 24 times a second — plenty for the eye, and a large graph leaves the
+      // page free to keep the sound fed)
+      if (t - shown < 40) {
+        this.raf = requestAnimationFrame(frame);
+        return;
+      }
+      shown = t;
+      // (until it has started, the transport still reports where the last run stopped: count from 0)
+      transportClock.seconds = offset + (Tone.immediate() < startsAt ? 0 : Math.max(0, tr.getTicksAtTime(Tone.immediate()) / ppq));
+      // a piece that ends (laps=): stop once its last notes have rung out
+      if (this.plan && Number.isFinite(this.plan.end) && transportClock.seconds > this.plan.end + TAIL) {
+        this.stop();
+        return;
+      }
+      this.raf = requestAnimationFrame(frame);
+    };
+    this.raf = requestAnimationFrame(frame);
+  }
+
+  private pausedAt = 0;
+  private pausedAudio = 0;
+  private heldTapes = new Map<string, number>();
+
+  stop(): void {
+    cancelAnimationFrame(this.raf);
+    const at = transportClock.seconds;
+    transportClock.playing = false;
+    transportClock.seconds = 0;
+    if (!this.Tone || this.repeatId === null) return;
+    const tr = this.Tone.getTransport();
+    tr.stop();
+    tr.clear(this.repeatId);
+    this.repeatId = null;
+    this.voices?.releaseAll();
+    // motors off: every sound tape stops where it is — held, silent, what's on it kept
+    this.pausedAt = at;
+    this.pausedAudio = this.Tone.getContext().currentTime;
+    if (this.plan)
+      for (const tp of this.plan.result.tapes) {
+        const u = tapeMotion(this.plan.result, clocking(this.plan.result, this.plan.statics), tp.name).pos(at);
+        this.heldTapes.set(tp.name, u);
+        this.holdTape(tp.name, u);
+      }
+  }
+
+  /** Back to the start as written: tapes wound off, hands' forces gone (Reset). */
+  resetState(): void {
+    if (this.plan) resetPhysics(this.plan.result);
+    this.voices?.clearTapes();
+    this.heldTapes.clear();
+    this.pausedAt = 0;
+  }
+
+  // a sound tape held still at u (stopped): its heads read what sat under them when it was there
+  private holdTape(tape: string, u: number) {
+    if (!this.plan || !this.voices || !this.Tone) return;
+    const motion = tapeMotion(this.plan.result, clocking(this.plan.result, this.plan.statics), tape);
+    const since = this.Tone.getContext().currentTime - this.pausedAudio;
+    this.voices.tapeScrub(tape, (at) => this.pausedAt - motion.real(u - at) + since);
+  }
+
+  dispose(): void {
+    this.stop();
+    this.voices?.dispose();
+    this.voices = undefined;
+  }
+}

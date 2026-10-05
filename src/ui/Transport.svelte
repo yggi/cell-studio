@@ -1,0 +1,416 @@
+<script lang="ts">
+  /**
+   * The transport, in one place: play and pause (pausing keeps the place), back to the
+   * start, where the piece is — its sections marked and named, each a jump — and the
+   * tempo of the meter that drives it (its free() value, as in the graph).
+   */
+  let {
+    title = '',
+    onchoose,
+    playing,
+    starting = false,
+    now,
+    span,
+    sections = null,
+    tempo = null,
+    onplay,
+    onreset,
+    dirty = false,
+    held = false,
+    onrevert,
+    onsave,
+    onmenu,
+    menuOpen = false,
+    onseek,
+    ontempo,
+  }: {
+    /** The piece open now (tap: choose another). */
+    title?: string;
+    onchoose?: () => void;
+    playing: boolean;
+    starting?: boolean;
+    /** Where it is (seconds; within one lap for a loop). */
+    now: number;
+    /** How far the slider reaches (null: nothing to move in). */
+    span: number | null;
+    sections?: { at: number; label: string }[] | null;
+    tempo?: { value: number; lo: number; hi: number; unit: string } | null;
+    onplay: () => void;
+    onreset: () => void;
+    /** Anything changed from the initial state: Reset pulses. */
+    dirty?: boolean;
+    /** free() values moved by hand: revert or save them. */
+    held?: boolean;
+    onrevert?: () => void;
+    onsave?: () => void;
+    /** The controls drawer. */
+    onmenu?: () => void;
+    menuOpen?: boolean;
+    onseek: (t: number) => void;
+    ontempo: (v: number) => void;
+  } = $props();
+
+  // (an hour or more: hours too)
+  const clock = (sec: number) =>
+    sec >= 3600 || (span ?? 0) >= 3600
+      ? `${Math.floor(sec / 3600)}:${String(Math.floor((sec % 3600) / 60)).padStart(2, '0')}:${String(Math.floor(sec % 60)).padStart(2, '0')}`
+      : `${Math.floor(sec / 60)}:${String(Math.floor(sec % 60)).padStart(2, '0')}`;
+  // the section it's in now
+  const current = $derived(sections ? [...sections].reverse().find((s) => s.at <= now + 1e-6) ?? null : null);
+  let width = $state(300);
+  // a name shows where it has room (else only its mark, which still jumps)
+  // (a run of sections with one name — drop · drop — shares that name across them all)
+  const room = (i: number) => {
+    if (!sections || !span) return false;
+    if (i > 0 && sections[i - 1].label === sections[i].label) return false;
+    let j = i + 1;
+    while (j < sections.length && sections[j].label === sections[i].label) j++;
+    const next = sections[j]?.at ?? span;
+    return ((next - sections[i].at) / span) * width > sections[i].label.length * 6.6 + 10;
+  };
+</script>
+
+<div class="transport" role="group" aria-label="Transport">
+  <div class="row">
+    <button class="play" class:on={playing} onclick={onplay} disabled={starting} aria-label={playing ? 'Pause' : 'Play'}>
+      {#if playing}
+        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="5" width="4" height="14" rx="1" /><rect x="14" y="5" width="4" height="14" rx="1" /></svg>
+      {:else}
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.5-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5z" /></svg>
+      {/if}
+    </button>
+    <button class="reset" class:dirty onclick={onreset} aria-label="Back to the start">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="5" width="3" height="14" rx="1" /><path d="M19 5.9v12.2a.9.9 0 0 1-1.4.75L9.2 12.75a.9.9 0 0 1 0-1.5l8.4-6.1a.9.9 0 0 1 1.4.75z" /></svg>
+    </button>
+    <span class="what">
+      {#if title}<button class="title" onclick={onchoose} title="Choose another piece">{title}</button>{/if}
+      <span class="time">
+        <b>{clock(now)}</b>{#if span}<span class="of"> / {clock(span)}</span>{/if}
+        {#if current}<span class="where">{current.label}</span>{/if}
+      </span>
+    </span>
+    {#if onmenu}<button class="burger" onclick={onmenu} aria-expanded={menuOpen} aria-label="Controls" title="The piece's controls">☰</button>{/if}
+  </div>
+  <div class="lower">
+  {#if span}
+    <div class="track" bind:clientWidth={width}>
+      {#if sections}
+        <div class="marks">
+          {#each sections as s, i (i)}
+            <button
+              class="mark"
+              class:here={current === s}
+              style:left="{(s.at / span) * 100}%"
+              onclick={() => onseek(s.at)}
+              aria-label="Jump to {s.label} ({clock(s.at)})"
+              title="{s.label} · {clock(s.at)}"
+            >
+              {#if room(i)}<span>{s.label}</span>{/if}
+            </button>
+          {/each}
+        </div>
+  {/if}
+      <input
+        type="range"
+        min="0"
+        max={span}
+        step="0.1"
+        value={now}
+        aria-label="Time: jump to any point"
+        onchange={(e) => onseek(+(e.currentTarget as HTMLInputElement).value)}
+      />
+    </div>
+  {:else}
+    <!-- (nothing to move in: the row keeps its place, so the header never jumps) -->
+    <div class="track empty" aria-hidden="true"></div>
+  {/if}
+    <!-- (always there, invisible when nothing is held: nothing moves when it appears) -->
+    <div class="heldslot" class:on={held} aria-hidden={!held}>
+      <button onclick={onrevert} tabindex={held ? 0 : -1} title="Back to what the code says">Revert</button>
+      <button class="save" onclick={onsave} tabindex={held ? 0 : -1} title="Write these values into the code">Save</button>
+    </div>
+    {#if tempo}
+    <label class="tempo">
+      <span class="tv"><small>♩</small>{Math.round(tempo.value)}</span>
+      <input
+        type="range"
+        min={tempo.lo}
+        max={tempo.hi}
+        step={(tempo.hi - tempo.lo) / 100}
+        value={tempo.value}
+        aria-label="Tempo"
+        oninput={(e) => ontempo(+(e.currentTarget as HTMLInputElement).value)}
+      />
+    </label>
+  {/if}
+  </div>
+</div>
+
+<style>
+  .transport {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .play,
+  .reset {
+    flex: none;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    border: 0;
+    cursor: pointer;
+  }
+  .play {
+    width: 44px;
+    height: 44px;
+    background: var(--accent);
+    color: var(--accent-ink);
+  }
+  .play.on {
+    background: color-mix(in oklab, var(--accent) 80%, white);
+  }
+  .play svg,
+  .reset svg {
+    width: 22px;
+    height: 22px;
+    fill: currentColor;
+  }
+  .reset {
+    width: 36px;
+    height: 36px;
+    background: var(--code-bg);
+    color: var(--text);
+    border: 1px solid var(--line);
+  }
+  .reset svg {
+    width: 16px;
+    height: 16px;
+  }
+  .play:focus-visible,
+  .reset:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  .time {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    min-width: 0;
+    flex: 1 1 auto;
+    white-space: nowrap; /* (the time never wraps; the section's name takes what's left) */
+    font: 600 13px var(--font-code);
+    font-variant-numeric: tabular-nums;
+    color: var(--text);
+  }
+  .of {
+    color: var(--text-muted);
+    font-weight: 500;
+    flex: none;
+  }
+  .where {
+    font: 700 12px var(--font-ui);
+    color: var(--accent);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  /* the track and the tempo: one line under the controls (on a wide screen, all one line) */
+  .lower {
+    display: flex;
+    align-items: flex-end;
+    gap: 10px;
+  }
+  .lower .track {
+    flex: 1;
+    min-width: 0;
+  }
+  .tempo {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex: 0 0 auto;
+    width: 120px;
+    padding-bottom: 2px;
+  }
+  .tempo input {
+    flex: 1;
+    min-width: 0;
+    accent-color: var(--accent);
+  }
+  .tv {
+    font: 700 13px var(--font-code);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+  .tv small {
+    font-size: 10px;
+    color: var(--text-muted);
+    margin-left: 1px;
+  }
+  .track {
+    position: relative;
+    padding-top: 16px;
+  }
+  .track input {
+    width: 100%;
+    margin: 0;
+    accent-color: var(--accent);
+    min-height: 26px;
+  }
+  .marks {
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: 30px;
+    pointer-events: none;
+  }
+  /* a section: its mark on the track (a jump), its name where there's room */
+  .mark {
+    all: unset;
+    pointer-events: auto;
+    position: absolute;
+    top: 0;
+    height: 30px;
+    min-width: 12px;
+    border-left: 2px solid color-mix(in oklab, var(--text-muted) 55%, transparent);
+    cursor: pointer;
+    padding-left: 4px;
+    font: 600 11px var(--font-ui);
+    color: var(--text-muted);
+    white-space: nowrap;
+    line-height: 13px;
+  }
+  .mark.here {
+    border-left-color: var(--accent);
+    color: var(--accent);
+  }
+  .mark:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+  @media (min-width: 900px) {
+    .transport {
+      flex-direction: row;
+      align-items: center;
+      gap: 16px;
+    }
+    .row {
+      flex: none;
+    }
+    .lower {
+      flex: 1;
+      align-items: center;
+    }
+    .tempo {
+      width: 170px;
+    }
+  }
+  /* sharper: one rhythm of sizes — play 42, reset 32, a two-line title and time */
+  .play {
+    width: 42px;
+    height: 42px;
+    box-shadow: 0 2px 10px color-mix(in oklab, var(--accent) 35%, transparent);
+  }
+  .reset {
+    width: 32px;
+    height: 32px;
+    background: transparent;
+  }
+  .what {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    flex: 1;
+    gap: 1px;
+  }
+  .title {
+    all: unset;
+    cursor: pointer;
+    min-width: 0;
+    font: 700 13px var(--font-ui);
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .title:hover {
+    color: var(--accent);
+  }
+  .title:focus-visible {
+    outline: 2px solid var(--accent);
+    border-radius: 4px;
+  }
+  .time {
+    font-size: 12px;
+  }
+  .tv small {
+    font-size: 13px;
+    color: var(--text-muted);
+    margin-right: 2px;
+  }
+  /* changed from the initial state: Reset breathes, gently */
+  .reset.dirty {
+    animation: breathe 2.4s ease-in-out infinite;
+  }
+  @keyframes breathe {
+    0%,
+    100% {
+      box-shadow: 0 0 0 0 color-mix(in oklab, var(--accent) 0%, transparent);
+    }
+    50% {
+      box-shadow: 0 0 0 4px color-mix(in oklab, var(--accent) 45%, transparent);
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .reset.dirty {
+      animation: none;
+      box-shadow: 0 0 0 2px color-mix(in oklab, var(--accent) 45%, transparent);
+    }
+  }
+  /* a fixed height, with or without a track: the header never jumps */
+  .track,
+  .track.empty {
+    height: 46px;
+    box-sizing: border-box;
+  }
+  .heldslot {
+    display: flex;
+    gap: 4px;
+    flex: none;
+    visibility: hidden;
+  }
+  .heldslot.on {
+    visibility: visible;
+  }
+  .heldslot button,
+  .burger {
+    all: unset;
+    cursor: pointer;
+    padding: 4px 9px;
+    border-radius: 999px;
+    font: 700 12px var(--font-ui);
+    color: var(--text);
+    background: var(--code-bg);
+    border: 1px solid var(--line);
+  }
+  .heldslot .save {
+    background: var(--accent);
+    color: var(--accent-ink);
+    border-color: var(--accent);
+  }
+  .burger {
+    flex: none;
+    margin-left: auto;
+    font-size: 16px;
+    padding: 2px 10px;
+  }
+  .heldslot button:focus-visible,
+  .burger:focus-visible {
+    outline: 2px solid var(--accent);
+  }
+</style>
