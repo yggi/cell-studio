@@ -30,6 +30,11 @@
   /* accent: gold, the warmest of the rainbow's hues, for what you act on */
   --accent: #f4c04e;
   --accent-ink: #2a2112;
+  /* meters (#27): the ring a cell wears for the meter that steps it, one colour each (the first: the accent) */
+  --meter-0: var(--accent);
+  --meter-1: #6fd3c4;
+  --meter-2: #c49af0;
+  --meter-3: #f2957a;
   --danger: #ff7a7a;
   --warning: #f1c96d;
 

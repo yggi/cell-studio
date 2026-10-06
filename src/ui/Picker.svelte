@@ -48,6 +48,9 @@
   import type { LibraryLayout } from '../layout/library';
   import { durationText } from '../engine/duration';
   import type { Entry } from './entries';
+  import { trap } from './kit/attach';
+  import { untrack } from 'svelte';
+  import { prefersReducedMotion } from 'svelte/motion';
 
   let {
     entries,
@@ -133,7 +136,7 @@
       return;
     }
     let cancelled = false;
-    const still = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const still = untrack(() => prefersReducedMotion.current);
     const frame = (l: LibraryLayout) =>
       new Promise<void>((go) => {
         if (!cancelled) lib = l;
@@ -198,24 +201,6 @@
   let cardWidth = $state(0);
   const wheel = $derived(cardWidth ? Math.min(136, Math.floor((cardWidth - 8) / 1.41)) : 136);
   const when = (iso?: string) => (iso ? new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short' }) : '');
-
-  // a piece's details hold the focus while open (Open first; Tab goes round), and give it back on closing
-  function holdFocus(node: HTMLElement) {
-    const back = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    node.querySelector<HTMLElement>('.primary')?.focus();
-    const onkey = (e: KeyboardEvent) => {
-      if (e.key !== 'Tab') return;
-      const all = [...node.querySelectorAll<HTMLElement>('button:not(:disabled)')];
-      const [first, last] = [all[0], all[all.length - 1]];
-      if (e.shiftKey && document.activeElement === first) (e.preventDefault(), last.focus());
-      else if (!e.shiftKey && document.activeElement === last) (e.preventDefault(), first.focus());
-    };
-    node.addEventListener('keydown', onkey);
-    return () => {
-      node.removeEventListener('keydown', onkey);
-      if (back?.isConnected) back.focus({ preventScroll: true });
-    };
-  }
 
   let fileInput: HTMLInputElement;
   function onkeydown(e: KeyboardEvent) {
@@ -350,7 +335,7 @@
   <!-- (a keyed each over zero or one: closing it never reads a card that's gone) -->
   {#each detail ? [detail] : [] as d (d.id)}
     <div class="scrim" onclick={() => (detail = null)} role="presentation"></div>
-    <div class="detail" role="dialog" aria-modal="true" aria-label={d.title} {@attach holdFocus}>
+    <div class="detail" role="dialog" aria-modal="true" aria-label={d.title} {@attach trap({ onescape: () => (detail = null), focus: '.primary' })}>
       <header>
         <h3>{d.title}</h3>
         <button class="close" onclick={() => (detail = null)} aria-label="Close">×</button>

@@ -4,11 +4,12 @@
   import type { CellFlowNode } from './types';
   import CellGlyph from './CellGlyph.svelte';
   import { getGraphContext, nodeState } from './context';
-  import { longpress } from './longpress';
+  import { longpress } from './kit/attach';
   import FreePills from './FreePills.svelte';
   import SpectrumWheel from './SpectrumWheel.svelte';
   import { hubLabel } from '../layout/cellview';
   import { formatLabel } from '../layout/labels';
+  import { meterColour } from './theme';
 
   let { id, data }: NodeProps<CellFlowNode> = $props();
   const ctx = getGraphContext();
@@ -32,7 +33,7 @@
 
 {#if note}
 <!-- a note is for reading: it never fades with the sound (unless switched off) -->
-<div class="node notecard" data-state={state === 'off' ? 'off' : 'on'} use:longpress={{ onlong: () => ctx.toggle(id) }}>
+<div class="node notecard" data-state={state === 'off' ? 'off' : 'on'} {@attach longpress(() => ctx.toggle(id))}>
   <Handle type="target" position={Position.Top} class="center-handle" isConnectable={false} />
   <p>{@html label}</p>
   <Handle type="source" position={Position.Bottom} class="center-handle" isConnectable={false} />
@@ -44,13 +45,17 @@
   class:meter={data.isMeter}
   data-state={state}
   style="width: {data.size}px; height: {data.size}px"
-  use:longpress={{ onlong: () => ctx.toggle(id) }}
+  style:--meter={data.meterIndex !== undefined ? meterColour(data.meterIndex) : undefined}
+  {@attach longpress(() => ctx.toggle(id))}
 >
+  <!-- the meter that steps it, as a ring in that meter's colour (the edge to it isn't drawn: it's ground), and the rate -->
+  <!-- (the ring itself is the glyph's: the meter's segments, turning with it) -->
+  {#if data.ring?.rate && !data.petal}<span class="rate" style:--ring={meterColour(data.ring.meter)}>{data.ring.rate}</span>{/if}
   <Handle type="target" position={Position.Top} class="center-handle" isConnectable={false} />
   {#if signal && hub}
     <SpectrumWheel name={data.name} size={data.size} {hub} />
   {:else}
-    <CellGlyph name={data.name} isMeter={data.isMeter} size={data.size} />
+    <CellGlyph name={data.name} isMeter={data.isMeter} size={data.size} ring={data.petal ? undefined : data.ring} />
   {/if}
   {#if !data.petal}<div class="name" class:lambda={!!cell?.lambda} title={cell?.lambda ? `&(${cell.lambda})` : label ? `&${data.name}` : undefined}>
     {#if label}<span class="label">{@html label}</span><small>&amp;{data.name}</small>
@@ -123,7 +128,22 @@
     border: 1px solid transparent;
   }
   .meter .name {
-    color: var(--accent);
+    color: var(--meter, var(--accent));
+  }
+  /* the rate against its meter, on the meter's ring (the glyph's), lower right: clear of the ring's step now, mostly near the top */
+  .rate {
+    position: absolute;
+    left: calc(50% + 0.707 * (50% + 6px));
+    top: calc(50% + 0.707 * (50% + 6px));
+    transform: translate(-50%, -50%);
+    font: 600 10px/1.2 var(--font-code);
+    color: var(--ring);
+    background: var(--surface);
+    border: 1px solid var(--ring);
+    border-radius: var(--radius-pill);
+    padding: 1px 5px;
+    white-space: nowrap;
+    pointer-events: none;
   }
   [data-state='live'] .name {
     border-color: var(--accent);
