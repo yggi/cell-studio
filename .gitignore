@@ -1,6 +1,15 @@
 node_modules
 dist
+__pycache__/
+*.pyc
+.DS_Store
+.idea/
+.vscode/
+*.swp
+coverage/
+.vite/
+*.log
 
 # profiling output
 profile-*.json
-*.png
+before-play.png

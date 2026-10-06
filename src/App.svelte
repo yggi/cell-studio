@@ -309,7 +309,9 @@
       rendering = false;
     }
   }
-  // (for measuring from outside: render the open piece, report its loudness)
+  // Debug hook, `window.cellStudio` (documented in the README): for measuring from outside —
+  // measure(seconds?) renders the open piece and returns {rms, peak, clipped} in dB below full scale;
+  // length() is the default render length in seconds; level(name) is a voice's current peak level.
   if (typeof window !== 'undefined')
     (window as unknown as { cellStudio: unknown }).cellStudio = {
       measure: async (seconds?: number) => loudness(await renderPiece(result, codeShifts(result), seconds)),

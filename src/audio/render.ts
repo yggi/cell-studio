@@ -43,26 +43,11 @@ export async function renderOffline(plan: Plan, seconds: number, tail = 2): Prom
     44100,
   );
   const buffer = out.get() as AudioBuffer;
-  let sum = 0;
-  let top = 0;
-  let clipped = 0;
-  let n = 0;
-  for (let ch = 0; ch < buffer.numberOfChannels; ch++) {
-    const d = buffer.getChannelData(ch);
-    for (let i = 0; i < d.length; i++) {
-      const v = Math.abs(d[i]);
-      sum += v * v;
-      if (v > top) top = v;
-      if (v >= 0.999) clipped++;
-      n++;
-    }
-  }
-  const db = (x: number) => (x > 0 ? 20 * Math.log10(x) : -Infinity);
-  return { buffer, rms: db(Math.sqrt(sum / Math.max(1, n))), peak: db(top), clipped };
+  return { buffer, ...loudness(buffer) };
 }
 
 /** 16-bit PCM WAV, interleaved. */
-export function wavOf(buffer: AudioBuffer): Blob {
+export function wav(buffer: AudioBuffer): Blob {
   const chs = buffer.numberOfChannels;
   const len = buffer.length;
   const data = new DataView(new ArrayBuffer(44 + len * chs * 2));
@@ -123,6 +108,3 @@ export function loudness(buffer: AudioBuffer): { rms: number; peak: number; clip
   const db = (x: number) => (x > 0 ? 20 * Math.log10(x) : -Infinity);
   return { rms: db(Math.sqrt(sum / Math.max(1, n))), peak: db(top), clipped };
 }
-
-/** 16-bit WAV (the name the app uses). */
-export const wav = wavOf;
