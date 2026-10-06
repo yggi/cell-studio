@@ -7,6 +7,7 @@ import { buildGraph } from '../engine/graph';
 import { pieceMeta } from '../engine/parser';
 import { canonicalTags } from '../engine/tags';
 import { EXAMPLES, loadExample, type PresetKey } from '../examples';
+import type { Miniature } from '../layout/miniature';
 import type { SavedPiece } from '../library';
 
 export interface Entry {
@@ -15,10 +16,11 @@ export interface Entry {
   readonly title: string;
   readonly description: string;
   readonly tags: readonly string[];
-  /** Its text: a saved piece has it; an example is fetched when needed (`load`). */
+  /** Its text: a saved piece has it; an example's is fetched when it opens (`load`). */
   readonly source?: string;
   readonly load?: () => Promise<string>;
-  readonly layout?: Readonly<Record<string, readonly [number, number]>> | null;
+  /** An example's graph in miniature, from the index (a saved piece's is worked out from its text). */
+  readonly miniature?: Miniature | null;
   /** For saved pieces: when. */
   readonly saved?: string;
   /** How many cells its graph has. */
@@ -44,7 +46,7 @@ export function savedEntry(p: SavedPiece): Entry {
   };
 }
 
-// (one loader each, the same every time: a card's picture is fetched once)
+// (one loader each, the same every time: a piece is fetched once)
 const loaders = Object.fromEntries(EXAMPLES.map((e) => [e.key, () => loadExample(e.key)])) as Record<PresetKey, () => Promise<string>>;
 
 /** The examples' cards, from the index made at build time (a piece's text is fetched when it's needed). */
@@ -55,6 +57,7 @@ export const exampleEntries: readonly Entry[] = EXAMPLES.map((e) => ({
   description: e.description,
   tags: e.tags,
   load: loaders[e.key],
+  miniature: e.miniature,
   size: e.size,
   time: e.time,
 }));
