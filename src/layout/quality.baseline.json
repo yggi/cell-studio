@@ -43,12 +43,12 @@
   "musicbox": {"cells":13,"start":2,"crossings":0,"width":980,"height":839,"edge":305,"overlap":0,"clusters":0,"intruders":0,"aim":0},
   "tape": {"cells":15,"start":0,"crossings":1,"width":987,"height":919,"edge":298,"overlap":0,"clusters":0,"intruders":0,"aim":0},
   "automaton": {"cells":18,"start":0,"crossings":1,"width":1069,"height":1086,"edge":307,"overlap":0,"clusters":0,"intruders":0,"aim":0},
-  "echotape": {"cells":16,"start":0,"crossings":0,"width":965,"height":1113,"edge":330,"overlap":0,"clusters":0,"intruders":0,"aim":1},
-  "soundtape": {"cells":17,"start":0,"crossings":1,"width":965,"height":1334,"edge":325,"overlap":0,"clusters":0,"intruders":0,"aim":11},
-  "testtones": {"cells":25,"start":1,"crossings":1,"width":1380,"height":1414,"edge":311,"overlap":0,"clusters":0,"intruders":0,"aim":14},
+  "echotape": {"cells":16,"start":0,"crossings":0,"width":960,"height":1077,"edge":306,"overlap":0,"clusters":0,"intruders":0,"aim":11},
+  "soundtape": {"cells":17,"start":0,"crossings":1,"width":849,"height":1389,"edge":278,"overlap":0,"clusters":0,"intruders":0,"aim":2},
+  "testtones": {"cells":25,"start":1,"crossings":1,"width":1380,"height":1398,"edge":321,"overlap":0,"clusters":0,"intruders":0,"aim":8},
   "forks": {"cells":9,"start":0,"crossings":0,"width":752,"height":1126,"edge":277,"overlap":0,"clusters":0,"intruders":0,"aim":0},
-  "resonanz": {"cells":22,"start":6,"crossings":5,"width":1063,"height":1519,"edge":327,"overlap":0,"clusters":0,"intruders":0,"aim":7},
+  "resonanz": {"cells":22,"start":3,"crossings":4,"width":1074,"height":1503,"edge":288,"overlap":0,"clusters":0,"intruders":0,"aim":6},
   "kalimba": {"cells":10,"start":0,"crossings":0,"width":759,"height":1070,"edge":259,"overlap":0,"clusters":0,"intruders":0,"aim":0},
   "harmonograph": {"cells":9,"start":0,"crossings":0,"width":780,"height":912,"edge":223,"overlap":0,"clusters":0,"intruders":0,"aim":0},
-  "fiveto12": {"cells":16,"start":0,"crossings":0,"width":895,"height":1413,"edge":302,"overlap":0,"clusters":0,"intruders":0,"aim":10}
+  "fiveto12": {"cells":16,"start":0,"crossings":0,"width":1204,"height":1205,"edge":315,"overlap":0,"clusters":0,"intruders":0,"aim":4}
 }

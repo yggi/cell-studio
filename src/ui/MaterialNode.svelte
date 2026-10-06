@@ -13,10 +13,10 @@
   import { onFrames } from '../audio/ticker';
   import { timed } from '../audio/stats';
   import FreePills from './FreePills.svelte';
-  import { headAngle as tapeHeadAngle, tapeHeads, WRITE_ANGLE } from '../layout/tape';
+  import { headAngle as tapeHeadAngle, tapeHeads, UNTURNED } from '../layout/tape';
 
   let { id, data }: NodeProps = $props();
-  const d = $derived(data as { name: string; size: number; role: 'motor' | 'belt' | 'tape' | 'resonator' });
+  const d = $derived(data as { name: string; size: number; role: 'motor' | 'belt' | 'tape' | 'resonator'; turn?: number });
   const ctx = getGraphContext();
   const look = $derived(nodeState(ctx, id));
   const flow = useSvelteFlow();
@@ -86,8 +86,10 @@
     const erase = typeof cell.params.erase === 'number' ? Math.min(1, Math.max(0, cell.params.erase)) : 1;
     return { heads, L, erase };
   });
-  // (the write head at the top; a read head further round by how far on the tape it sits: layout/tape.ts)
-  const headAngle = (at: number) => (tape ? tapeHeadAngle(at, tape.L) : WRITE_ANGLE);
+  // (the write head where the layout turned the tape (on top if not); a read head further round by how far
+  // along the tape it reads: layout/tape.ts)
+  const turn = $derived(d.turn ?? UNTURNED);
+  const headAngle = (at: number) => (tape ? tapeHeadAngle(at, tape.L, turn) : turn);
   const polar = (deg: number, r: number) => ({ x: R + r * Math.cos((deg * Math.PI) / 180), y: R + r * Math.sin((deg * Math.PI) / 180) });
   const N = 96;
   let rec = $state.raw<number[]>(new Array(96).fill(0)); // (replaced whole each time: raw)
@@ -380,16 +382,16 @@
         {#each rec as l, j (j)}
           {#if l > 0.02}
             {@const cj = ((j + 0.5) / N) * tape.L}
-            {@const deg = -90 - (cj / tape.L) * 360}
+            {@const deg = turn - (cj / tape.L) * 360}
             {@const a = polar(deg, R * 0.79)}
             {@const b2 = polar(deg, R * (0.79 + 0.16 * l))}
             <line x1={a.x} y1={a.y} x2={b2.x} y2={b2.y} style:opacity={0.35 + 0.65 * l} />
           {/if}
         {/each}
       </g>
-      <!-- the heads, fixed: the write head at the top, the read heads where they sit -->
-      {@const w = polar(-90, R * 0.97)}
-      <rect class="head write" x={w.x - 6} y={w.y - 4} width="12" height="8" rx="2" transform="rotate(0 {w.x} {w.y})" />
+      <!-- the heads, fixed on the turned wheel: the write head, the read heads where they sit -->
+      {@const w = polar(turn, R * 0.97)}
+      <rect class="head write" x={w.x - 6} y={w.y - 4} width="12" height="8" rx="2" transform="rotate({turn + 90} {w.x} {w.y})" />
       {#each tape.heads as h (h.name)}
         {@const p = polar(headAngle(h.at), R * 0.97)}
         <rect class="head read" x={p.x - 5} y={p.y - 4} width="10" height="8" rx="2" transform="rotate({headAngle(h.at) + 90} {p.x} {p.y})" />
@@ -424,7 +426,7 @@
   <Handle type="source" position={Position.Bottom} class="center-handle" isConnectable={false} />
   {#if tape}
     <!-- edges meet the tape at its heads -->
-    {@const w = polar(-90, R * 1.02)}
+    {@const w = polar(turn, R * 1.02)}
     <Handle type="target" id="head-write" position={Position.Top} class="head-handle" style="left: {w.x}px; top: {w.y}px" isConnectable={false} />
     {#each tape.heads as h (h.name)}
       {@const p = polar(headAngle(h.at), R * 1.02)}

@@ -190,11 +190,18 @@
     const d = (parentSize as number) / 2 + PETAL / 2 + 2;
     return { x: p.x + Math.cos(a) * d, y: p.y + Math.sin(a) * d };
   }
+  // a tape's turn (where the layout faced its heads), to the degree: its node is redrawn only when that changes
+  const turnOf = (id: string) => {
+    const t = layout.tapeTurn(id);
+    return t === undefined ? undefined : Math.round(t);
+  };
   const layout = new ForceLayout(() => {
-    nodes = nodes.map((n) => {
-      if (n.id === dragging) return n;
+    nodes = nodes.map((n): FlowNode => {
+      const turn = n.type === 'material' ? turnOf(n.id) : undefined;
+      const turned = n.type === 'material' && turn !== undefined && turn !== n.data.turn ? { ...n, data: { ...n.data, turn } } : n;
+      if (n.id === dragging) return turned;
       const p = posOf(n.id);
-      return p ? { ...n, position: p } : n;
+      return p ? { ...turned, position: p } : turned;
     });
     bends = layout.bends();
   });
@@ -241,7 +248,7 @@
       // a turntable: raised over everything, moved only by its axle (held)
       const role =
         typeof g.cell.params.body === 'string' ? 'resonator' : typeof g.cell.params.motor === 'number' ? 'motor' : typeof g.cell.params.write === 'string' ? 'tape' : 'belt';
-      return { id: g.id, type: 'material', position, draggable: false, zIndex: 10, data: { name: g.cell.name, size: (role === 'motor' ? 168 : 140) * g.cell.size, role, pinned: true } };
+      return { id: g.id, type: 'material', position, draggable: false, zIndex: 10, data: { name: g.cell.name, size: (role === 'motor' ? 168 : 140) * g.cell.size, role, pinned: true, turn: turnOf(g.id) } };
     }
     const size = (g.cell.root ? 176 : g.isMeter ? 148 : 128) * g.cell.size;
     return { id: g.id, type: 'cell', position, data: { name: g.cell.name, isMeter: g.isMeter, size, pinned: isPinned } };

@@ -19,9 +19,13 @@ Gotcha: a crossing exactly at the end of a curve's piece (an edge cut in 16) isn
 
 ## Step 2: tape heads (done)
 
-A tape's read heads are drawn round its wheel by how far along the tape they read (`src/layout/tape.ts`); what each head plays now starts in its head's direction and is held there (the `aims` force in `physics.ts`; `aim` in the baseline: mean degrees off, 62–126 before, 2–10 after). Crossings 140 → 142 (Resonanz 1 → 4, Echo Tape 0 → 1; Sound on Tape 2 → 1, Test Tones 1 → 0).
+What is fixed on a tape is only how far apart its heads are: each read head is further round from the write head by how far along the tape it reads (`src/layout/tape.ts`). The wheel itself turns: each tick the layout fits the tape's turn to face its heads at what they connect to (`fitTurn`: a circular mean, busy cells counting more, so a hub like a mix stays put and the tape turns to it), and the `aims` force draws those cells towards their heads; the tape's node is drawn turned (`data.turn`, `MaterialNode.svelte`). `aim` in the baseline: mean degrees a head's cell is off its head, over every head, write heads included.
 
-Not the write head (on top): its source sits *below* the tape in the signal flow, so turning it up drags the source's other parts across (tried: Resonanz 1 → 12 crossings, the library +15; moving the tape under its source instead, +18). If the write edge should meet the head, drawing the write head where the source is (at the bottom) would fit the flow; that's a design call.
+- Read heads only, with the write head fixed on top: aim 62–126° → 2–10°, crossings 140 → 142.
+- With the wheel free to turn and the write head included: aim ≤ 11° per piece, crossings 106 → 105 (on top of step 3), the layered start 173 → 170.
+- Tried before the wheel could turn, and dropped: pulling the write source up to a write head on top (+15 crossings) or moving the tape under its source (+18).
+
+The code takes any number of heads (a list of offsets per tape), so more write heads would fit in when the language has them.
 
 ## Step 3: the physics' strengths (done)
 

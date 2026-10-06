@@ -1,7 +1,8 @@
 /**
- * Where a tape's heads sit round its wheel: the write head at the top, each read head further round
- * (clockwise) by how far along the tape it reads (`at=` seconds of `length=`). The tape's node draws
- * them there (MaterialNode.svelte) and the layout turns what they connect to towards them (physics.ts).
+ * Where a tape's heads sit round its wheel. What is fixed is how far apart they are: a read head sits
+ * further round (clockwise) from the write head by how far along the tape it reads (`at=` seconds of
+ * `length=`). The wheel as a whole is free to turn: the layout turns it so its heads face what they
+ * connect to (`fitTurn`, physics.ts), and the tape's node draws it turned (MaterialNode.svelte).
  */
 type Params = Readonly<Record<string, unknown>>;
 
@@ -18,8 +19,25 @@ export function tapeHeads(tape: { name: string; params: Params }, cells: Iterabl
   return { heads, length: loop ? (tape.params.length as number) : Math.max(1, ...heads.map((h) => h.at)) * 1.25 };
 }
 
-/** The write head's angle, in degrees (screen: 0 to the right, clockwise): the top. */
-export const WRITE_ANGLE = -90;
+/** A tape's turn when nothing says otherwise, degrees (screen: 0 to the right, clockwise): the write head on top. */
+export const UNTURNED = -90;
 
-/** A read head's angle, in degrees: the top, then clockwise by how far along the tape it reads. */
-export const headAngle = (at: number, length: number) => WRITE_ANGLE + (at / length) * 360;
+/** How far round from the write head a read head sits, degrees: by how far along the tape it reads. */
+export const headOffset = (at: number, length: number) => (at / length) * 360;
+
+/** A head's angle on a tape turned by `turn` (where its write head sits), degrees. */
+export const headAngle = (at: number, length: number, turn = UNTURNED) => turn + headOffset(at, length);
+
+/**
+ * The turn that best faces each head towards what it connects to: the weighted circular mean of
+ * (where each one is, seen from the tape) − (its head's offset), radians. `null` when there's nothing to face.
+ */
+export function fitTurn(faces: readonly { angle: number; offset: number; weight: number }[]): number | null {
+  let s = 0;
+  let c = 0;
+  for (const f of faces) {
+    s += f.weight * Math.sin(f.angle - f.offset);
+    c += f.weight * Math.cos(f.angle - f.offset);
+  }
+  return Math.hypot(s, c) < 1e-9 ? null : Math.atan2(s, c);
+}
