@@ -1,15 +1,19 @@
 <script lang="ts">
   import { untrack } from 'svelte';
   import { noteColour } from './theme';
-  import { cellView, hubLabel, type CellView, type Fill } from '../layout/cellview';
+  import { cellView, hubLabel, type CellView, type Fill, type Segment } from '../layout/cellview';
+  import { BORDER, border, coarsen } from '../layout/coarse';
   import { names, noteLabel, tonicOf, voiceBase } from '../layout/show';
   import { polar, ringSegment } from '../layout/geometry';
   import { angleOf, turnDelta } from '../layout/dial';
   import { mod } from '../theory/modes';
   import { getGraphContext } from './context';
 
-  /** `interactive`: the rim turns the cell (detail sheet). In the graph the whole node just drags. */
-  let { name, isMeter, size = 128, interactive = false }: { name: string; isMeter: boolean; size?: number; interactive?: boolean } = $props();
+  /**
+   * `interactive`: the rim turns the cell (detail sheet). In the graph the whole node just drags.
+   * `fine`: draw every step of a long braid; by default one over ~160 segments is drawn coarser (`coarsen`).
+   */
+  let { name, isMeter, size = 128, interactive = false, fine = false }: { name: string; isMeter: boolean; size?: number; interactive?: boolean; fine?: boolean } = $props();
   const ctx = getGraphContext();
 
   const c = $derived(size / 2);
@@ -34,7 +38,15 @@
     const t = cell && typeof cell.params.play === 'string' ? ctx.program.cells.get(cell.params.play) : undefined;
     return t && typeof t.params.write === 'string' && ctx.program.cells.has(t.params.write) ? t.params.write : name;
   });
-  const view = $derived(cell ? cellView(ctx.program, drawn, shown, isMeter) : EMPTY);
+  // every step, as the cell is written (the rim's turning works on these) …
+  const full = $derived(cell ? cellView(ctx.program, drawn, shown, isMeter) : EMPTY);
+  // … and what's drawn: a braid of hundreds of steps is merged into ~160 segments (a step is under a pixel
+  // there, and each is a path to rewrite whenever a table turns: #41). Segments keep their times, so `lit` works.
+  const view = $derived.by<CellView>(() => {
+    if (fine || full.mode !== 'braid') return full;
+    const segments = coarsen(full.segments);
+    return segments === full.segments ? full : { ...full, segments };
+  });
   // (motion is a hint for slow cells — a step a second or slower; on faster ones it's noise: none)
   const fast = $derived.by(() => {
     if (!cell?.clock) return false;
@@ -48,10 +60,10 @@
   // a braid's steps rotate as it turns: its new first step was at that step's start in the old
   // drawing, so start turned to there and ease home. A table's entries stay put (its hub says the change).
   let shownBefore: number | null = null;
-  let viewBefore: typeof view | null = null;
+  let viewBefore: typeof full | null = null;
   $effect(() => {
     const now = shown(name);
-    const v = view;
+    const v = full;
     if (shownBefore !== null && viewBefore && now !== shownBefore && v.mode === 'braid' && v.detents > 0 && !fast) {
       const delta = now - shownBefore;
       const k = ((delta % v.detents) + v.detents) % v.detents;
@@ -160,19 +172,49 @@
             ? 'color-mix(in oklab, var(--accent) 70%, var(--wheel-ref))'
             : 'var(--wheel-ref)';
 
-  const paths = $derived(
-    view.segments.map((s) => {
-      const band = (rOuter - rInner) / s.bands.length;
-      return s.bands.map((f, j) => ({
-        // a level is a bar from the inner ring, as tall as the level
-        d:
-          f.kind === 'level'
-            ? ringSegment(c, c, rInner, rInner + Math.max(0.04, f.v) * (rOuter - rInner), s.t0, s.t1)
-            : ringSegment(c, c, rInner + j * band, rInner + (j + 1) * band, s.t0, s.t1),
-        fill: fillOf(f),
-      }));
-    }),
-  );
+  // What a glyph draws is two things that change at different rates. Where each band goes (`d`) depends on the
+  // segments' times, band counts and levels, and not on which note is where: a table turning leaves it as it was.
+  // The fills are the notes' colours, and are what a turn changes. So the geometry is kept from one view to the next
+  // while its layout is the same (the very same array, so nothing downstream even looks at it), and the paths' `d`
+  // are only ever written when a wheel's layout changes (#41).
+  const levelOf = (f: Fill) => (f.kind === 'level' ? f.v : -1);
+  const sameLayout = (a: Segment, b: Segment) =>
+    a.t0 === b.t0 && a.t1 === b.t1 && a.bands.length === b.bands.length && a.bands.every((f, j) => (f.kind === 'level') === (b.bands[j].kind === 'level') && levelOf(f) === levelOf(b.bands[j]));
+  const draw = (s: Segment) => {
+    const band = (rOuter - rInner) / s.bands.length;
+    return s.bands.map((f, j) =>
+      // a level is a bar from the inner ring, as tall as the level
+      f.kind === 'level'
+        ? ringSegment(c, c, rInner, rInner + Math.max(0.04, f.v) * (rOuter - rInner), s.t0, s.t1)
+        : ringSegment(c, c, rInner + j * band, rInner + (j + 1) * band, s.t0, s.t1),
+    );
+  };
+  // The border between segments (a stroke in the disc's colour): 1.5 px, as ever. On a wheel the cap merged it
+  // would eat most of a segment (2.25° is ~3 px at the rim), so there it tapers with the segment's width: none
+  // under 2.5°, full from 6° (`border`, long steps keep theirs). A function of the layout, so it is kept with it.
+  const merged = $derived(view.segments !== full.segments);
+  const borderOf = (s: Segment) => (merged ? border(s.t1 - s.t0) : BORDER);
+  type Laid = { d: string[]; w: number };
+  let laid: { key: string; segments: readonly Segment[]; slots: Laid[] } | null = null;
+  const geometry = $derived.by(() => {
+    const segments = view.segments;
+    const key = `${c} ${rInner} ${rOuter} ${merged}`;
+    const before = laid && laid.key === key ? laid : null;
+    let changed = !before || before.segments.length !== segments.length;
+    const slots = segments.map((s, i) => {
+      const old = before?.segments[i];
+      if (before && old && sameLayout(old, s)) return before.slots[i];
+      changed = true;
+      return { d: draw(s), w: borderOf(s) };
+    });
+    if (before && !changed) {
+      laid = { ...before, segments }; // (the same drawing, for these segments)
+      return before.slots;
+    }
+    laid = { key, segments, slots };
+    return slots;
+  });
+  const fills = $derived(view.segments.map((s) => s.bands.map(fillOf)));
 
   const ticks = $derived(
     view.ticks <= 48
@@ -318,9 +360,9 @@
   <circle class="disc" cx={c} cy={c} r={rOuter + 6} />
   {#each ticks as t}<line class="tick" x1={t.x1} y1={t.y1} x2={t.x2} y2={t.y2} />{/each}
   {#snippet slots()}
-    {#each paths as segs, i}
-      <g class="slot" class:lit={lit.has(i)}>
-        {#each segs as p}<path d={p.d} fill={p.fill} fill-rule="evenodd" />{/each}
+    {#each geometry as slot, i}
+      <g class="slot" class:lit={lit.has(i)} stroke-width={slot.w}>
+        {#each slot.d as d, j}<path {d} fill={fills[i][j]} fill-rule="evenodd" />{/each}
       </g>
     {/each}
   {/snippet}
@@ -484,7 +526,6 @@
   }
   .slot path {
     stroke: var(--wheel-disc);
-    stroke-width: 1.5;
     stroke-linejoin: round;
   }
   /* the step playing now: brighter, no halo */
