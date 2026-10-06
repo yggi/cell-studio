@@ -12,6 +12,7 @@ import { isPhysical, retime, type Window } from '../engine/schedule';
 import { createVoices, type VoiceBank } from './voices';
 import { transportClock } from './clock.svelte';
 import { load, watchLoad } from './load';
+import { markDuration, marks, noteStats } from './stats';
 import { LocalEngine, type Engine, type PieceSource } from './engine';
 import type { LiveSource } from './live';
 
@@ -184,8 +185,11 @@ export class Player implements LiveSource {
     outputLatency: number | null;
     currentTime: number | null;
     playout: { underrunEvents: number; underrunDuration: number; totalDuration: number; averageLatency: number; maximumLatency: number } | null;
+    /** Notes scheduled / shifted late / left out for being > 50 ms late, since the page loaded. */
+    notes: { played: number; late: number; dropped: number; worstLateMs: number };
   } {
-    if (!this.Tone) return { state: null, sampleRate: null, baseLatency: null, outputLatency: null, currentTime: null, playout: null };
+    const notes = { ...noteStats };
+    if (!this.Tone) return { state: null, sampleRate: null, baseLatency: null, outputLatency: null, currentTime: null, playout: null, notes };
     const tc = this.Tone.getContext() as unknown as { rawContext?: Record<string, unknown>; state?: string; sampleRate?: number; currentTime?: number };
     const raw = (tc.rawContext ?? {}) as { playoutStats?: Record<string, number>; _nativeContext?: { playoutStats?: Record<string, number>; baseLatency?: number; outputLatency?: number }; baseLatency?: number; outputLatency?: number };
     // (Tone wraps the native context: the stats are on the native one)
@@ -197,6 +201,7 @@ export class Player implements LiveSource {
       baseLatency: num(raw.baseLatency ?? raw._nativeContext?.baseLatency),
       outputLatency: num(raw.outputLatency ?? raw._nativeContext?.outputLatency),
       currentTime: num(tc.currentTime),
+      notes,
       playout: stats
         ? {
             underrunEvents: stats.underrunEvents ?? 0,
@@ -269,7 +274,11 @@ export class Player implements LiveSource {
       }
       shown = t;
       // (until it has started, the transport still reports where the last run stopped: count from 0)
+      const t0 = marks.on ? performance.now() : 0;
       transportClock.seconds = offset + (Tone.immediate() < startsAt ? 0 : Math.max(0, tr.getTicksAtTime(Tone.immediate()) / ppq));
+      // (what this write sets going — the reactive flush of every live view — runs as a microtask queued
+      // before this one: when this one runs, the flush is done)
+      if (t0) queueMicrotask(() => markDuration('transport + flush', performance.now() - t0));
       // a piece that ends (laps=): stop once its last notes have rung out
       if (this.plan && Number.isFinite(this.plan.end) && transportClock.seconds > this.plan.end + TAIL) {
         this.stop();

@@ -12,6 +12,7 @@
   import { voiceBase } from '../layout/show';
   import { noteColour } from './theme';
   import { load, watchLoad } from '../audio/load';
+  import { timed } from '../audio/stats';
 
   let { name, w = 240, h = 150, round = false }: { name: string; w?: number; h?: number; round?: boolean } = $props();
   const d = $derived({ name });
@@ -152,6 +153,9 @@
       // waveforms ~30 a second; a spectrum (an 8192-point analysis per channel) ~15: plenty for the eye
       if (t - last < (spectral ? 66 : 33) * load.scale) return;
       last = t;
+      timed('scope', () => step());
+    };
+    const step = () => {
       const now = ctx.live?.seconds ?? 0;
       if (spectral) {
         const L = layout;
