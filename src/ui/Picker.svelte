@@ -1,29 +1,28 @@
 <script lang="ts" module>
-  // the library's layout, kept between openings (the same pieces: the same cloud)
+  // the library's layout, kept between openings (the same pieces: the same wheel)
   let kept: { key: string; layout: import('../layout/library').LibraryLayout } | null = null;
   const keyOf = (entries: readonly { id: string; tags: readonly string[] }[]) => entries.map((e) => `${e.id}:${e.tags.join(',')}`).join('|');
-  // (and kept in the browser between visits: the same library, the same wheel — at once)
-  const STORE = 'cell-studio:library-layout:v3';
+  // (and kept in the browser between visits: the next visit's opening is a replay, not the physics again)
+  const STORE = 'cell-studio:library-layout:v4';
   type Stored = { key: string; layout: Record<string, unknown> };
   const freeze = (l: import('../layout/library').LibraryLayout) => ({ ...l, at: [...l.at], hue: [...l.hue], count: [...l.count], sat: [...l.sat] });
   const thaw = (o: Record<string, unknown>) =>
     ({ ...o, at: new Map(o.at as []), hue: new Map(o.hue as []), count: new Map(o.count as []), sat: new Map(o.sat as []) }) as unknown as import('../layout/library').LibraryLayout;
-  function cachedLayout(entries: readonly { id: string; tags: readonly string[] }[]) {
-    const key = keyOf(entries);
-    if (kept && kept.key === key) return kept.layout;
+  try {
+    for (const v of ['v2', 'v3']) localStorage.removeItem(`cell-studio:library-layout:${v}`);
+  } catch {
+    // (no storage)
+  }
+  function storedLayout(key: string) {
     try {
       const stored = JSON.parse(localStorage.getItem(STORE) ?? 'null') as Stored | null;
-      if (stored && stored.key === key) {
-        kept = { key, layout: thaw(stored.layout) };
-        return kept.layout;
-      }
+      return stored && stored.key === key ? thaw(stored.layout) : null;
     } catch {
-      // (no storage, or not ours: lay it out)
+      return null; // (no storage, or not ours: grow it)
     }
-    return null;
   }
-  async function layoutFor(entries: readonly { id: string; tags: readonly string[] }[]) {
-    const layout = await libraryLayoutOf(entries);
+  async function layoutFor(entries: readonly { id: string; tags: readonly string[] }[], onFrame?: (l: import('../layout/library').LibraryLayout) => Promise<void>) {
+    const layout = await libraryLayoutOf(entries, onFrame);
     kept = { key: keyOf(entries), layout };
     try {
       localStorage.setItem(STORE, JSON.stringify({ key: kept.key, layout: freeze(layout) } satisfies Stored));
@@ -32,7 +31,7 @@
     }
     return layout;
   }
-  import { libraryLayoutAsync as libraryLayoutOf } from '../layout/library';
+  import { libraryLayoutAsync as libraryLayoutOf, stageOf } from '../layout/library';
 </script>
 
 <script lang="ts">
@@ -125,20 +124,41 @@
   const saved = $derived(shown.filter((e) => e.kind === 'saved'));
   // the library as a graph: worked out just after opening (the cards come first), kept for next time
   let lib = $state<LibraryLayout | null>(null);
-  // (kept while the same pieces carry the same tags; worked out again, just after, when they change)
+  // (kept while the same pieces carry the same tags; grown again when they change)
   $effect(() => {
     const now = entries;
-    const ready = cachedLayout(now);
-    if (ready) {
-      lib = ready;
+    const key = keyOf(now);
+    if (kept && kept.key === key) {
+      lib = kept.layout;
       return;
     }
-    // (after the cards have been drawn: two frames, then the work)
     let cancelled = false;
+    const still = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const frame = (l: LibraryLayout) =>
+      new Promise<void>((go) => {
+        if (!cancelled) lib = l;
+        requestAnimationFrame(() => go());
+      });
+    // kept from a visit before: its opening replayed — 0.7 s, as many frames as the device draws, no physics
+    const stored = storedLayout(key);
+    if (stored) {
+      kept = { key, layout: stored };
+      if (still) lib = stored;
+      else
+        void (async () => {
+          const t0 = performance.now();
+          for (let t = 0; !cancelled; t = Math.min(1, (performance.now() - t0) / 700)) {
+            await frame(stageOf(stored, t));
+            if (t === 1) break;
+          }
+        })();
+      return () => (cancelled = true);
+    }
+    // (else after the cards have been drawn: two frames, then it grows — each stage drawn, unless motion is reduced)
     requestAnimationFrame(() =>
       requestAnimationFrame(() =>
         setTimeout(async () => {
-          const l = await layoutFor(now);
+          const l = await layoutFor(now, still ? undefined : frame);
           if (!cancelled) lib = l;
         }, 0),
       ),

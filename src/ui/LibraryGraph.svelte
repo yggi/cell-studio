@@ -5,7 +5,7 @@
    * size of how many pieces carry it. Pieces sharing tags gather. Laid out by the
    * same physics as the pieces' graphs, without its ranks: a cloud, not a flow.
    */
-  import { GENRES, PIECE, tagFont, type LibraryLayout } from '../layout/library';
+  import { GENRES, tagFont, type LibraryLayout } from '../layout/library';
   import { tagName } from '../engine/tags';
   import { tick } from 'svelte';
   import PieceNode from './PieceNode.svelte';
@@ -44,8 +44,8 @@
 
 
   const layout = $derived(lib);
-  // a piece's size: what the layout gave it (sized to fill the wheel), else the usual
-  const PR = $derived(lib.ring?.piece ?? PIECE);
+  // a piece's size, and the tags': as large as the layout has grown them (to fill the wheel)
+  const PR = $derived(lib.piece);
   const tags = $derived(lib.count);
   // zoom: the wheels stay legible (a piece ~76 px across at 1); fit shows it all
   let width = $state(0);
@@ -266,7 +266,7 @@
             class:dim={tag !== null && tag !== t}
             style:left="{p.x}px"
             style:top="{p.y}px"
-            style:font-size="{Math.max(isGenre(t) ? 11 : 9, px(tagFont(n)))}px"
+            style:font-size="{Math.max(isGenre(t) ? 11 : 9, px(tagFont(n) * lib.tagScale))}px"
             style:--hue={colours.get(t)}
             onclick={() => (tag = tag === t ? null : t)}
             aria-pressed={tag === t}>{tagName(t)}</button
@@ -297,7 +297,7 @@
             oncontextmenu={(ev) => ev.preventDefault()}
             aria-label="{e.title}: details"
           >
-            <PieceNode entry={e} {colours} size={d} label={short(e.title)} petals={d >= 96} showLabel={d >= 40 || peek === e.id} pill current={e.id === current} />
+            <PieceNode entry={e} {colours} size={d} label={short(e.title)} petals={d >= 96} showLabel={d >= 40 || peek === e.id} pill current={e.id === current} miniature={lib.done} />
           </button>
         {/if}
       {/each}

@@ -19,6 +19,7 @@
     showLabel = true,
     pill = false,
     current = false,
+    miniature = true,
   }: {
     entry: Entry;
     colours: ReadonlyMap<string, string>;
@@ -33,6 +34,8 @@
     /** The label as a pill over the wheel's lower third, straight (tight, for the library's graph). */
     pill?: boolean;
     current?: boolean;
+    /** Its graph inside the wheel (the library leaves it out while it grows). */
+    miniature?: boolean;
   } = $props();
 
   // its facts, as petals: how many cells; how long (it ends) or how often round (it loops)
@@ -55,7 +58,7 @@
 
 <span class="node" style:width="{size}px">
   <span class="wheelbox" style:width="{size}px" style:height="{size}px">
-    <PieceWheel id={entry.id} source={entry.source ?? entry.load!} layout={entry.layout ?? null} tags={entry.tags} {colours} {size} {labels} {current} />
+    <PieceWheel id={entry.id} source={entry.source ?? entry.load!} layout={entry.layout ?? null} tags={entry.tags} {colours} {size} {labels} {current} {miniature} />
     {#if petals}
       {#each facts as f, i (i)}
         {@const p = at(i)}

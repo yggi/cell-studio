@@ -1,13 +1,14 @@
 /**
- * The library, laid out one level up: pieces and their tags as a graph, by the
- * same physics as a piece's graph — without its ranks, held together both ways,
- * the edges pulling hard (they're the whole structure). A tag's colour is its
- * angle round the cloud's centre: the cloud is a colour wheel by construction.
+ * The library, laid out one level up: pieces and their tags as a graph inside one large wheel, the
+ * five main genres its rim. Grown, not placed: every node starts tiny and the tag edges pull each
+ * piece to its tags, so the groups gather while there's room to move; then the nodes grow until the
+ * wheel is filled enough, each pushing only its neighbours (an exclusion zone and a near field, no
+ * long-range charge), so the groups keep together as they swell. Each stage can be drawn as it
+ * happens: the library's opening animation. A tag's colour is its angle round the centre: the wheel
+ * is a colour wheel by construction.
  */
-import { forceX, forceY } from 'd3-force';
-import type { GraphModel } from '../engine/graph';
+import { forceCollide, forceLink, forceSimulation, type SimulationNodeDatum } from 'd3-force';
 import { tagName } from '../engine/tags';
-import { DEFAULT_LAYOUT, ForceLayout } from './physics';
 
 export interface LibraryLayout {
   readonly at: ReadonlyMap<string, { x: number; y: number }>;
@@ -16,201 +17,249 @@ export interface LibraryLayout {
   readonly w: number;
   readonly h: number;
   readonly edges: readonly { id: string; source: string; target: string }[];
-  /** Each tag's hue: its angle round the cloud's centre, in degrees. */
+  /** Each tag's hue: its angle round the wheel's centre, in degrees. */
   readonly hue: ReadonlyMap<string, number>;
   /** How many pieces carry each tag. */
   readonly count: ReadonlyMap<string, number>;
   /** Each tag's saturation, 0…1: grey at the centre, full at the border (where the genres are). */
   readonly sat: ReadonlyMap<string, number>;
-  /** The genres as the library wheel's rim: its radius (layout units, centred on 0) and each genre's angle. */
-  readonly ring: { readonly r: number; readonly piece: number; readonly genres: readonly { readonly tag: string; readonly angle: number }[] } | null;
+  /** The genres as the wheel's rim: its radius (layout units, centred on 0) and each genre's angle. */
+  readonly ring: { readonly r: number; readonly genres: readonly { readonly tag: string; readonly angle: number }[] } | null;
+  /** A piece's wheel, its radius now (layout units). */
+  readonly piece: number;
+  /** How large the tags' words are now (× `tagFont`). */
+  readonly tagScale: number;
+  /** Grown and come to rest (else a stage on the way). */
+  readonly done: boolean;
 }
 
 /** The five main genres (of `genre:` tags): pinned at even angles round the border, so every colour (an angle) stays where it is. */
 export const GENRES = ['genre:classical', 'genre:jazz', 'genre:electronic', 'genre:experimental', 'genre:world'] as const;
 
-/** A tag node's half-width in layout units: its pill as drawn (its word at its size, `tagFont`), and the `t:` of its id. */
-const tagWidth = (id: string, n: number) => ((0.58 * tagName(id.slice(2)).length + 1.5) * tagFont(n)) / 2;
-/** A tag's word, in layout units: larger the more pieces carry it. */
-export const tagFont = (n: number) => 15 + 4 * Math.sqrt(n);
-
-/** A piece's wheel, in layout units. */
+/** A piece's wheel at scale 1, in layout units (its radius). */
 export const PIECE = 46;
-export const tagRadius = (n: number) => 16 + 4 * Math.sqrt(n);
+/** A tag's word at scale 1, in layout units: larger the more pieces carry it. */
+export const tagFont = (n: number) => 15 + 4 * Math.sqrt(n);
+/** A tag's room as its pill is drawn (half its width), at scale 1. */
+const tagRoom = (tag: string, n: number) => ((0.58 * tagName(tag).length + 1.5) * tagFont(n)) / 2;
+
+/** How much of the wheel's disc the nodes fill when grown. */
+
+const FILL = 0.5;
+/** The stages, in ticks: gather (tiny nodes, the tag edges contract), grow (to FILL), rest. */
+const GATHER = 220;
+const GROW = 320;
+const REST = 160;
+const START = 0.12; // (the nodes' size while they gather, of their full size)
 
 export function libraryLayout(entries: readonly { id: string; tags: readonly string[] }[]): LibraryLayout {
   const run = start(entries);
-  run.tick(700);
-  return run.finish();
+  run.tick(run.total);
+  return run.snapshot();
 }
-
-/** The same, a batch of steps at a time — the page stays free to paint (the waiting wheel turns). */
-export async function libraryLayoutAsync(entries: readonly { id: string; tags: readonly string[] }[]): Promise<LibraryLayout> {
-  const run = start(entries);
-  for (let done = 0; done < 700; done += 40) {
-    run.tick(40);
-    await new Promise((r) => setTimeout(r, 0));
-  }
-  return run.finish();
-}
-
-function start(entries: readonly { id: string; tags: readonly string[] }[]): { tick: (n: number) => void; finish: () => LibraryLayout } {
-  const count = new Map<string, number>();
-  for (const e of entries) for (const t of e.tags) count.set(t, (count.get(t) ?? 0) + 1);
-  const model = {
-    nodes: [
-      ...entries.map((e) => ({ id: `p:${e.id}`, depth: 1, kind: 'cell', isMeter: false, cell: { name: e.id } })),
-      ...[...count.keys()].map((t) => ({ id: `t:${t}`, depth: 0, kind: 'cell', isMeter: false, cell: { name: t } })),
-    ],
-    edges: entries.flatMap((e) => e.tags.map((t) => ({ id: `p:${e.id}->t:${t}`, source: `p:${e.id}`, target: `t:${t}`, kind: 'ref', count: 1, pick: '' }))),
-  } as unknown as GraphModel;
-  const isGenreId = (id: string) => (GENRES as readonly string[]).includes(id.slice(2));
-  // a hub: a tag inside the wheel that several pieces carry (one piece's own tag only shows close up)
-  const hub = (id: string) => id.startsWith('t:') && !isGenreId(id) && (count.get(id.slice(2)) ?? 0) > 1;
-  // the wheel: its radius by how much it holds; the pieces sized to fill about half its disc
-  const nodesN = entries.length + count.size;
-  const R = 85 * Math.sqrt(nodesN);
-  const pieceR = Math.max(PIECE, Math.min(110, R * Math.sqrt(0.5 / Math.max(1, entries.length)) * 0.82));
-  // a node's room: a piece its wheel; a hub its word as drawn; any other tag a little
-  const roomOf = (id: string) => {
-    const n = count.get(id.slice(2)) ?? 1;
-    return id.startsWith('p:') ? pieceR + 6 : hub(id) ? Math.max(tagRadius(n), tagWidth(id, n)) : tagRadius(n);
-  };
-  const l = new ForceLayout(undefined, {
-    ...DEFAULT_LAYOUT,
-    live: false,
-    layered: false, // a cloud, not a flow: the forces alone
-    // (and none of a piece's own: straight lines, no bends, no spread, no kinds, no tag clusters)
-    avoid: 0,
-    straighten: 0,
-    spread: 0,
-    kindRepel: 0,
-    tagPull: 0,
-    tagRepel: 0,
-    columnPull: 0,
-    rankPull: 0, // a cloud: no layers …
-    endPull: 0, // … no top and bottom
-    centre: 0.04,
-    linkDistance: 70,
-    charge: -130, // pieces pack close …
-    collidePad: 10,
-    degreeRepel: 0, // (a busy tag is the cloud's hub: it shouldn't push the rest away)
-    uncross: 0, // (and in a cloud, a hub's edges must cross: untangling would throw it out)
-    radius: (n) => roomOf(n.id),
-  });
-  l.setGraph(model);
-  // a cloud holds together both ways (the engine's own pull to the centre is sideways only — in a
-  // piece, height belongs to the ranks); and its edges are the whole structure: they pull hard
-  type Force = { strength: (s: number) => Force; distance: (d: number) => Force };
-  const sim = (l as unknown as { sim: { force: (name: string, f?: unknown) => Force } }).sim;
-  // (with the genres pinned round the border, the pull to the centre is slight: they hold it together)
-  const pinned = GENRES.some((g) => count.has(g));
-  sim.force('cloud-x', forceX(0).strength(pinned ? 0.008 : 0.04));
-  sim.force('cloud-y', forceY(0).strength(pinned ? 0.008 : 0.05));
-  // the tags organise, the pieces follow: a tag several pieces carry is a hub — it holds its ground
-  // (pushes hard) and draws its pieces round it; a piece pushes little (collision keeps them apart)
-  (sim.force('charge') as unknown as { strength: (f: (n: { id: string }) => number) => unknown }).strength((n) =>
-    n.id.startsWith('p:') ? -40 : hub(n.id) ? -700 : -120,
-  );
-  // a link to a hub is short and strong: the piece sits in its tag's cluster; to a genre (on the
-  // rim) long and slight: the genres lean the clusters outwards, they don't pull them apart
-  type L = { target: { id: string } | string };
-  const tid = (l: L) => (typeof l.target === 'string' ? l.target : l.target.id);
-  (sim.force('link') as unknown as { strength: (f: (l: L) => number) => { distance: (f: (l: L) => number) => unknown } })
-    .strength((l) => (isGenreId(tid(l)) ? 0.08 : hub(tid(l)) ? 0.7 : 0.4))
-    .distance((l) => (isGenreId(tid(l)) ? R * 0.5 : pieceR * 1.4 + 30));
-  // … and the hubs push each other apart (only each other): each the heart of its own cluster
-  sim.force('tags-apart', tagsApart(model.nodes.filter((n) => hub(n.id)).map((n) => n.id), 90000));
-  // the genres, pinned round the border at even angles (classical at the top, then clockwise)
-  const genres = GENRES.filter((g) => count.has(g));
-  genres.forEach((g, i) => {
-    const a = (i / genres.length) * 2 * Math.PI - Math.PI / 2;
-    l.dragStart(`t:${g}`, R * Math.cos(a), R * Math.sin(a));
-    l.dragEnd(`t:${g}`, true);
-  });
-  // (and inside the wheel: nothing past the inner edge of the rim — a hard edge, by each one's own size)
-  if (genres.length) {
-    const edge = R - 40;
-    const sizeOf = (id: string) => (id.startsWith('p:') ? pieceR + 8 : roomOf(id));
-    sim.force('disc', (() => {
-      for (const n of (sim as unknown as { nodes: () => { id: string; x: number; y: number; vx: number; vy: number }[] }).nodes()) {
-        if (isGenreId(n.id)) continue;
-        const r = Math.hypot(n.x, n.y);
-        const max = edge - sizeOf(n.id);
-        if (r <= max) continue;
-        n.x *= max / r;
-        n.y *= max / r;
-        n.vx *= 0.5;
-        n.vy *= 0.5;
-      }
-    }) as unknown as never);
-  }
-  return { tick: (n: number) => l.tick(n), finish: () => finish() };
-  function finish(): LibraryLayout {
-  const at = new Map<string, { x: number; y: number }>();
-  for (const n of model.nodes) {
-    const p = l.position(n.id);
-    if (p) at.set(n.id, { x: p.x, y: p.y });
-  }
-  l.destroy();
-  const xs = [...at.values()].map((p) => p.x);
-  const ys = [...at.values()].map((p) => p.y);
-  const pad = PIECE + 170; // (room for the genres' names at the border)
-  const x0 = Math.min(...xs) - pad;
-  const y0 = Math.min(...ys) - pad;
-  // the centre: the middle of the pieces; a tag's hue, its angle from there
-  const pieces = [...at].filter(([id]) => id.startsWith('p:')).map(([, p]) => p);
-  const cx = pieces.reduce((a, p) => a + p.x, 0) / Math.max(1, pieces.length);
-  const cy = pieces.reduce((a, p) => a + p.y, 0) / Math.max(1, pieces.length);
-  // the centre: the genres' (pinned, so it doesn't drift), else the pieces'
-  const ox = genres.length ? 0 : cx;
-  const oy = genres.length ? 0 : cy;
-  const hue = new Map<string, number>();
-  const sat = new Map<string, number>();
-  for (const t of count.keys()) {
-    const p = at.get(`t:${t}`);
-    if (!p) continue;
-    hue.set(t, ((Math.atan2(p.y - oy, p.x - ox) * 180) / Math.PI + 450) % 360);
-    sat.set(t, Math.max(0.2, Math.min(1, Math.hypot(p.x - ox, p.y - oy) / (genres.length ? R : 400))));
-  }
-  const ring = genres.length ? { r: R, piece: pieceR, genres: genres.map((g, i) => ({ tag: g, angle: (i / genres.length) * 2 * Math.PI - Math.PI / 2 })) } : null;
-  // (the wheel's rim, its names included, inside the frame)
-  const rx0 = ring ? Math.min(x0, -R - 140) : x0;
-  const ry0 = ring ? Math.min(y0, -R - 140) : y0;
-  const rx1 = ring ? Math.max(Math.max(...xs) + pad, R + 140) : Math.max(...xs) + pad;
-  const ry1 = ring ? Math.max(Math.max(...ys) + pad, R + 140) : Math.max(...ys) + pad;
-  return { at, x0: rx0, y0: ry0, w: rx1 - rx0, h: ry1 - ry0, edges: model.edges, hue, count, sat, ring };
-  }
-}
-
 
 /**
- * A push between tags only: each tag repels the others (strength / distance), so
- * the pieces they share stay between them while the tags spread to the edges of
- * their own clusters. (A d3 force: it nudges the velocities of the tag nodes.)
+ * The same, a batch of steps at a time — the page stays free to paint. With `onFrame`, each stage on
+ * the way is handed over to be drawn (and awaited: the caller paces it, a frame at a time).
  */
-function tagsApart(ids: readonly string[], strength: number) {
-  let tags: { x: number; y: number; vx: number; vy: number }[] = [];
-  const force = (alpha: number) => {
-    for (let i = 0; i < tags.length; i++)
-      for (let j = i + 1; j < tags.length; j++) {
-        const a = tags[i];
-        const b = tags[j];
-        let dx = b.x - a.x;
-        let dy = b.y - a.y;
-        const d2 = Math.max(400, dx * dx + dy * dy);
-        const k = (strength * alpha) / d2;
-        dx *= k / Math.sqrt(d2);
-        dy *= k / Math.sqrt(d2);
-        a.vx -= dx;
-        a.vy -= dy;
-        b.vx += dx;
-        b.vy += dy;
+export async function libraryLayoutAsync(
+  entries: readonly { id: string; tags: readonly string[] }[],
+  onFrame?: (stage: LibraryLayout) => void | Promise<void>,
+): Promise<LibraryLayout> {
+  const run = start(entries);
+  // (drawn while it gathers and grows; the rest, where little moves, in one go — and where a stage is
+  // slow to draw, fewer stages: a slow device sees it grow in larger steps, not for longer)
+  const drawn = onFrame ? run.total - REST : 0;
+  let batch = 16;
+  for (let done = 0; done < run.total; ) {
+    const n = Math.min(done < drawn ? batch : 40, run.total - done);
+    run.tick(n);
+    done += n;
+    if (onFrame && done <= drawn) {
+      const t = performance.now();
+      await onFrame(run.snapshot());
+      if (performance.now() - t > 50) batch = 48;
+    } else await new Promise((r) => setTimeout(r, 0));
+  }
+  return run.snapshot();
+}
+
+/**
+ * A grown layout as it looked on the way, roughly (`t` from 0, tiny in the middle, to 1, grown): all
+ * of it nearer the centre and smaller. The opening again, without the physics — for a layout kept
+ * from before.
+ */
+export function stageOf(l: LibraryLayout, t: number): LibraryLayout {
+  const e = t * t * (3 - 2 * t);
+  const f = START + (1 - START) * e;
+  const rim = (id: string) => !!l.ring && (GENRES as readonly string[]).includes(id.slice(2));
+  const at = new Map([...l.at].map(([id, p]) => [id, rim(id) ? p : { x: p.x * f, y: p.y * f }]));
+  return { ...l, at, piece: l.piece * f, tagScale: l.tagScale * f, done: t >= 1 };
+}
+
+type Node = SimulationNodeDatum & { id: string; base: number; r: number; genre: boolean };
+type Link = { source: string | Node; target: string | Node; id: string };
+
+/** Same input, same layout: a node's first place comes from its name. */
+function hash(id: string, salt: number): number {
+  let h = 2166136261 ^ salt;
+  for (let i = 0; i < id.length; i++) h = Math.imul(h ^ id.charCodeAt(i), 16777619);
+  return (h >>> 0) / 0xffffffff;
+}
+
+function start(entries: readonly { id: string; tags: readonly string[] }[]) {
+  const count = new Map<string, number>();
+  for (const e of entries) for (const t of e.tags) count.set(t, (count.get(t) ?? 0) + 1);
+  const isGenre = (t: string) => (GENRES as readonly string[]).includes(t);
+  const genres = GENRES.filter((g) => count.has(g));
+  // a hub: a tag inside the wheel that several pieces carry (one piece's own tag only shows close up)
+  const hub = (t: string) => !isGenre(t) && (count.get(t) ?? 0) > 1;
+  const R = 85 * Math.sqrt(entries.length + count.size);
+  const inner = R - 40; // (the rim's inner edge)
+
+  // every node at scale 1: a piece its wheel; a hub its word as drawn; any other tag a little
+  const nodes: Node[] = [
+    ...entries.map((e) => ({ id: `p:${e.id}`, base: PIECE + 6, genre: false })),
+    ...[...count].map(([t, n]) => ({ id: `t:${t}`, base: hub(t) ? Math.max(tagFont(n), tagRoom(t, n)) : tagFont(n) * 0.6, genre: !!genres.length && isGenre(t) })),
+  ].map((n) => {
+    // (somewhere inside, by its name; the genres on the rim, pinned at even angles, classical at the top)
+    const g = genres.indexOf(n.id.slice(2) as (typeof GENRES)[number]);
+    if (n.genre) {
+      const a = (g / genres.length) * 2 * Math.PI - Math.PI / 2;
+      return { ...n, r: 0, x: R * Math.cos(a), y: R * Math.sin(a), fx: R * Math.cos(a), fy: R * Math.sin(a) };
+    }
+    const a = hash(n.id, 1) * 2 * Math.PI;
+    const d = Math.sqrt(hash(n.id, 2)) * inner * 0.7;
+    return { ...n, r: 0, x: d * Math.cos(a), y: d * Math.sin(a) };
+  });
+  const byId = new Map(nodes.map((n) => [n.id, n]));
+  const edges = entries.flatMap((e) => e.tags.map((t) => ({ id: `p:${e.id}->t:${t}`, source: `p:${e.id}`, target: `t:${t}` })));
+  const tagOf = (l: Link) => (typeof l.target === 'string' ? l.target : l.target.id).slice(2);
+  const end = (x: string | Node) => (typeof x === 'string' ? byId.get(x)! : x);
+
+  // full size: the scale at which the nodes fill FILL of the disc (the genres are the rim, not in it) —
+  // a piece by its wheel, a tag by its pill as drawn (as wide as its room, a word high: not a disc)
+  const area = nodes
+    .filter((n) => !n.genre)
+    .reduce((a, n) => a + (n.id.startsWith('p:') ? n.base * n.base : (2 * n.base * 1.5 * tagFont(count.get(n.id.slice(2)) ?? 1)) / Math.PI), 0);
+  const full = inner * Math.sqrt(FILL / area);
+
+  // the tag edges pull: a piece to each of its tags, to touching (the rim's genres lean, below)
+  const onRim = (t: string) => isGenre(t) && genres.length > 0;
+  const link = forceLink<Node, Link>(edges.filter((e) => !onRim(e.target.slice(2))).map((e) => ({ ...e })))
+    .id((d) => d.id)
+    .strength((l) => (hub(tagOf(l)) ? 0.9 : 0.8));
+  // a piece leans towards its genres on the rim (one way: towards, never pushed off): where it sits round the wheel
+  const lean = entries.flatMap((e) => {
+    const gs = e.tags.filter(onRim).map((t) => byId.get(`t:${t}`)!);
+    if (!gs.length) return [];
+    const x = gs.reduce((a, g) => a + g.fx! / R, 0) / gs.length;
+    const y = gs.reduce((a, g) => a + g.fy! / R, 0) / gs.length;
+    return [{ n: byId.get(`p:${e.id}`)!, x, y }];
+  });
+  const collide = forceCollide<Node>().strength(1).iterations(3);
+  const sim = forceSimulation<Node>(nodes)
+    .stop()
+    .alphaDecay(0)
+    .velocityDecay(0.4)
+    .force('link', link)
+    // every node keeps its neighbours off: an exclusion zone (no overlaps) and a near field around it
+    .force('near', nearField(nodes, 0.6, 0.2))
+    .force('collide', collide)
+    // (towards its genres' side of the cloud as it is now: the tiny knot is turned to its rim before it grows)
+    .force('lean', (alpha: number) => {
+      const reach = inner * 0.8 * (scale / full);
+      for (const { n, x, y } of lean) {
+        n.vx! += (x * reach - n.x!) * 0.12 * alpha;
+        n.vy! += (y * reach - n.y!) * 0.12 * alpha;
+      }
+    })
+    // (the cloud stays centred in its wheel, however its genres lean)
+    .force('centre', () => {
+      const inside = nodes.filter((n) => !n.genre);
+      const cx = inside.reduce((a, n) => a + n.x!, 0) / inside.length;
+      const cy = inside.reduce((a, n) => a + n.y!, 0) / inside.length;
+      for (const n of inside) {
+        n.x! -= cx * 0.2;
+        n.y! -= cy * 0.2;
+      }
+    })
+    // and nothing past the rim's inner edge, by each one's own size
+    .force('disc', () => {
+      for (const n of nodes) {
+        if (n.genre) continue;
+        const d = Math.hypot(n.x!, n.y!);
+        const max = Math.max(0, inner - n.r);
+        if (d <= max) continue;
+        n.x! *= max / d;
+        n.y! *= max / d;
+        n.vx! *= 0.5;
+        n.vy! *= 0.5;
+      }
+    });
+  let scale = 0;
+  const grow = (s: number) => {
+    scale = s;
+    for (const n of nodes) n.r = n.genre ? 0 : n.base * s;
+    collide.radius((d) => d.r);
+    link.distance((l) => (end(l.source).r + end(l.target).r) * 1.05);
+  };
+  grow(full * START);
+
+  let i = 0;
+  const total = GATHER + GROW + REST;
+  const tick = (n: number) => {
+    for (const stop = Math.min(total, i + n); i < stop; i++) {
+      if (i < GATHER) sim.alpha(0.5);
+      else if (i < GATHER + GROW) {
+        const t = (i - GATHER + 1) / GROW;
+        grow(full * (START + (1 - START) * t * t * (3 - 2 * t)));
+        sim.alpha(0.4);
+      } else sim.alpha(0.02 + 0.38 * (1 - (i - GATHER - GROW) / REST));
+      sim.tick();
+    }
+  };
+
+  const snapshot = (): LibraryLayout => {
+    const at = new Map(nodes.map((n) => [n.id, { x: n.x!, y: n.y! }]));
+    const hue = new Map<string, number>();
+    const sat = new Map<string, number>();
+    for (const t of count.keys()) {
+      const p = at.get(`t:${t}`)!;
+      hue.set(t, ((Math.atan2(p.y, p.x) * 180) / Math.PI + 450) % 360);
+      sat.set(t, Math.max(0.2, Math.min(1, Math.hypot(p.x, p.y) / R)));
+    }
+    const ring = genres.length ? { r: R, genres: genres.map((g, k) => ({ tag: g, angle: (k / genres.length) * 2 * Math.PI - Math.PI / 2 })) } : null;
+    // (the frame: the wheel, the genres' names included — the same at every stage)
+    const m = R + 140;
+    return { at, x0: -m, y0: -m, w: 2 * m, h: 2 * m, edges, hue, count, sat, ring, piece: PIECE * scale, tagScale: scale, done: i >= total };
+  };
+  return { total, tick, snapshot };
+}
+
+/**
+ * Near-field repulsion: each pair closer than `reach` × their summed radii pushes apart, harder the
+ * deeper in; beyond that, nothing (no long-range charge: neighbours, not the whole wheel).
+ */
+function nearField(nodes: readonly Node[], reach: number, strength: number) {
+  return (alpha: number) => {
+    for (let i = 0; i < nodes.length; i++)
+      for (let j = i + 1; j < nodes.length; j++) {
+        const a = nodes[i];
+        const b = nodes[j];
+        if (a.genre || b.genre) continue;
+        const dx = b.x! - a.x!;
+        const dy = b.y! - a.y!;
+        const d = Math.hypot(dx, dy) || 1e-3;
+        const zone = (a.r + b.r) * (1 + reach);
+        if (d >= zone) continue;
+        // (each gives way by the other's share: the smaller moves more)
+        const k = (strength * alpha * (zone - d)) / d;
+        const wa = (b.r + 1) / (a.r + b.r + 2);
+        a.vx! -= dx * k * wa;
+        a.vy! -= dy * k * wa;
+        b.vx! += dx * k * (1 - wa);
+        b.vy! += dy * k * (1 - wa);
       }
   };
-  force.initialize = (nodes: { id: string; x: number; y: number; vx: number; vy: number }[]) => {
-    const wanted = new Set(ids);
-    tags = nodes.filter((n) => wanted.has(n.id));
-  };
-  return force;
 }
