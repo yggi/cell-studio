@@ -11,7 +11,7 @@ What lives where in Cell studio, and how source text becomes sound. Language: [l
 ## Data flow
 
 ```
-code text (App.svelte `code`)
+code text (ui/state/piece.svelte.ts `Piece.code`)
   parse()              engine/parser/     -> ParseResult (AST types: ast.ts)
   compile()            engine/compiler/   -> CompileResult (cells, clocks, outputs, tapes, diagnostics)
   plan(result, shifts, muted)  engine/realize.ts -> Plan
@@ -71,6 +71,7 @@ Scheduling: Tone's context is made with `latencyHint: 'balanced'` (about 55 ms m
 
 - `src/ui/`: Svelte components by role. Graph and nodes: `Graph`, `MiniGraph`, `LibraryGraph`, `FitView`, `CellNode`, `PieceNode`, `VoiceNode`, `MaterialNode`, `ScopeNode`, `SunNode`, `CellLink`, `BeltEdge`, `PulseEdge`, `GraphLegend`. Cell drawing: `CellGlyph`, `WaveGlyph`, `SpectrumWheel`, `ScopeView`, `PieceWheel`. Editing: `Editor`, `EditPop`, `StepEditor`, `HubEditor`, `TokenWheel`, `Keypad`, `Picker`, `QuickPick`, `CellSheet`, `CellFacts`, `ParamRows`, `Free*` (`FreeControl`: a free() as a slider, keypad or text; `free.ts`: its words), `ForcesPanel`, shared `Shorten`, `Transport`. Shared parts, `ui/kit/`: `Dialog` (a modal pop-up: scrim, panel, focus held) and `attach.ts` (attachments: `trap` a modal's focus, `longpress`, `onScreen`). Helpers: `flownode.ts` (which node draws a cell, and how large), `theme.ts`, `highlight.ts`, `suggest.ts`, `tags.ts`, `context.ts`, `types.ts`, `entries.ts`, `wakeLock.ts`, `perfSwitch.ts`.
 - `src/theory/modes.ts`: names, modes, `scan`, hues. `src/library.ts`: saved pieces (localStorage) and `.cells` files; always reports unavailable storage instead of failing.
-- `src/App.svelte`: owns `code`, derives `result`/`plan`, wires `Player`, opening and saving, render. Held `free()` values: `engine/held.ts`; the library's cards: `ui/entries.ts`; the screen wake lock: `ui/wakeLock.ts`; the performance overlay's switch: `ui/perfSwitch.ts`; `window.cellStudio`: `src/debugHook.ts`. `src/main.ts` mounts it.
+- `src/ui/state/`: the app's state, as classes with rune fields, shared through one context (`studio.svelte.ts`: `setStudio`/`getStudio`). `Piece`: the code (the only writer of it: every edit goes through `engine/edit.ts`), what it compiles to, the last version that compiled, held `free()` values (`engine/held.ts`). `Playback`: the `Player` fed the piece's plan, where play starts, reset, what hands did (`sound`, the `LiveSource` the views read), the screen wake lock (`ui/wakeLock.ts`). `Library`: the cards (`ui/entries.ts`) and what's open. `View`: the tab, the drawer, the performance overlay's switch (`ui/perfSwitch.ts`), the picker's message. `Studio`: what takes more than one of them (opening a piece, saving, rendering, the overlay's test) and `window.cellStudio` (`src/debugHook.ts`). `Piece` runs in node (`piece.test.ts`).
+- `src/App.svelte`: makes the `Studio`, shares it and lays out the page; `Transport`, `Picker` and `FreePanel` read the context, `Graph` still takes props. `src/main.ts` mounts it.
 - `tools/`: Python generators (`bwv847.py` writes `examples/bwv847.cells`; `kern2cells.py`, `counterpoint.py`) and `tools/bwv847.reference.json` and `tools/profile/` scripts; `smoke.mjs` with `smoke-pick.ts` (the smoke test, [testing.md](testing.md)). Python deps: `pip install -r tools/dev-requirements.txt` (music21).
 - `.github/workflows/`: `ci.yml` (check, test, build, deploy to gh-pages from `main`); `smoke.yml` (start every piece and play a set covering every kind of sound, for the PR labelled `candidate` only); `dependabot.yml` (weekly npm and actions).
