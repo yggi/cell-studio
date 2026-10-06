@@ -18,11 +18,13 @@ that makes the change. Also note changes to the language that could affect saved
 - A favicon.
 
 ### Changed
+- Lighter live views, second round (main-thread load while playing roughly 20–55 % lower on the busiest pieces than before): spectrum wheels are drawn at the size they are seen (zoomed-out wheels are cheaper and refresh less often), a tape's recording ring turns as one group instead of redrawing ~100 lines a frame, resonator and tape animations run at ~30 a second and back off when the page is busy, and scopes no longer read their traces through reactive proxies. The look is unchanged.
 - Lighter live views while playing: scopes and spectrum wheels do much less work per frame (about half the main-thread load on the busiest pieces), skip it when off screen or silent, and refresh less often when the page falls behind. The sound is unchanged; wheels are drawn at up to 1.5× (was 2×) the layout size.
 - Sound: Tone's default audio context is now closed when the app creates its own, so only one runs (less battery use on Android).
 - Tests run without per-file isolation (faster).
 
 ### Developer
+- `tools/profile/trace.mjs`: a Chrome-trace breakdown of the browser's own time, with CSS ablation.
 - `tools/profile/`: scripts to measure main-thread load while a piece plays (Playwright + CDP) and to attribute it to code.
 - `.claude/skills/profile`: a Claude Code skill for using them (measure, attribute, compare before/after).
 - CI runs `npm run check`, the tests and the build on pull requests and on `main`.

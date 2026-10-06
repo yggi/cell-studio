@@ -24,8 +24,8 @@
   const pc = (semis: number) => (((Math.round(semis) % 12) + 12) % 12) * 30;
   // a trace: points (null a gap) in 0 … 1, and its colour per point
   type Trace = { name: string; pts: ({ x: number; y: number } | null)[]; colour: (i: number) => string };
-  let traces = $state<Trace[]>([]);
-  let xy = $state<{ x: number; y: number }[]>([]);
+  let traces = $state.raw<Trace[]>([]); // (raw: replaced whole every frame — a deep proxy would make every point access a reactive read)
+  let xy = $state.raw<{ x: number; y: number }[]>([]);
   let held = 0;
 
   // a sound's waveform: from a rising zero-crossing (so it stands still), scaled to fit
@@ -133,7 +133,7 @@
     }
     return { levels: lv, labels, hues };
   }
-  let lanes = $state<Bins[]>([]);
+  let lanes = $state.raw<Bins[]>([]);
   let canvas = $state<HTMLCanvasElement | null>(null);
 
   let root = $state<HTMLDivElement | null>(null);
