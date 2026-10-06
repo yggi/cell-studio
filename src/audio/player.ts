@@ -15,7 +15,7 @@ import { transportClock } from './clock.svelte';
 import { onFrames } from './ticker';
 import { markDuration, marks } from './stats';
 import { type Tuning, DEFAULT_TUNING } from './tuning';
-import { audioInfo, openContext, type AudioInfo } from './device';
+import { audioInfo, openContext, readTuning, type AudioInfo } from './device';
 import { HeldTapes } from './heldTapes';
 import { LocalEngine, type Engine, type PieceSource } from './engine';
 import type { LiveSource } from './live';
@@ -69,6 +69,29 @@ export class Player implements LiveSource {
   /** How the context was tuned (the safe defaults unless the address said otherwise). */
   tuning: Tuning = DEFAULT_TUNING;
 
+  /** A tuning asked for with `retune` before the engine was awake. */
+  private asked: Tuning | null = null;
+
+  /**
+   * Run on another tuning from now on: stopped, the voices gone, a new context (a context's latency is fixed when
+   * it is made). For the automated latency test (ui/perfrun.ts); not kept, the address and the kept settings
+   * still decide the next page load. The new context starts without a tap because the page has been tapped
+   * before (sticky user activation); where it does not, `audioInfo().state` says so.
+   */
+  async retune(to: Tuning | null): Promise<void> {
+    this.stop();
+    // (null: as the address and the kept settings say)
+    const t = to ?? readTuning();
+    this.tuning = t;
+    this.asked = to;
+    if (!this.Tone) return;
+    this.voices?.dispose();
+    this.voices = undefined;
+    openContext(this.Tone, t);
+    this.resetState();
+    await this.Tone.start().catch(() => undefined);
+  }
+
   /**
    * The sound engine, awake: made on the first gesture that needs it — Play, or a hand on a resonator
    * while stopped (a body rings whether or not the clocks run). Tone is imported lazily, so no
@@ -78,7 +101,8 @@ export class Player implements LiveSource {
     (globalThis as { TONE_SILENCE_LOGGING?: boolean }).TONE_SILENCE_LOGGING = true;
     if (!this.Tone) {
       const T = await import('tone');
-      this.tuning = openContext(T);
+      this.tuning = this.asked ?? readTuning();
+      openContext(T, this.tuning);
       this.Tone = T;
     }
     await this.Tone.start();

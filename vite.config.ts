@@ -75,5 +75,6 @@ export default defineConfig({
     include: ['src/**/*.test.ts'],
     environment: 'node',
     isolate: false,
+    fsModuleCache: true,
   },
 });

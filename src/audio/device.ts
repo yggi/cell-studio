@@ -9,15 +9,14 @@ import { resolveTuning, type Tuning, DEFAULT_TUNING } from './tuning';
 type ToneNS = typeof import('tone');
 
 /**
- * Make Tone's context: headroom, a context tuned for playback (a larger buffer) that schedules notes
- * 0.3 s ahead, so a busy page (a large graph drawing) doesn't make notes late or starve the sound. The
- * defaults, unless the address asks otherwise to find out how far they can go on a device (tuning.ts).
+ * Make Tone's context on a tuning, in place of the one it has. Headroom by default: a context tuned for
+ * playback (a larger buffer) that schedules notes 0.3 s ahead, so a busy page (a large graph drawing)
+ * doesn't make notes late or starve the sound — unless the address (`readTuning`) or the latency test
+ * asks otherwise, to find out how far they can go on a device (tuning.ts).
  */
-export function openContext(T: ToneNS): Tuning {
-  const tuning = readTuning();
-  T.setContext(new T.Context({ latencyHint: tuning.latencyHint as AudioContextLatencyCategory, lookAhead: tuning.lookAhead ?? 0.3 }), true); // (true: dispose Tone's default context, or it keeps running beside ours)
+export function openContext(T: ToneNS, tuning: Tuning): void {
+  T.setContext(new T.Context({ latencyHint: tuning.latencyHint as AudioContextLatencyCategory, lookAhead: tuning.lookAhead ?? 0.3 }), true); // (true: dispose the old context, or it keeps running beside the new one)
   watchCapacity(T);
-  return tuning;
 }
 
 /** The native context behind Tone's wrapper (where renderCapacity and the output timestamp live). */
@@ -103,7 +102,7 @@ export function audioInfo(T: ToneNS | undefined, tuning: Tuning): AudioInfo {
 
 const KEPT = { latency: 'cell-studio-latency', lookahead: 'cell-studio-lookahead' };
 /** The tuning the address and the kept settings ask for (and keeps the address's). */
-function readTuning(): Tuning {
+export function readTuning(): Tuning {
   if (typeof location === 'undefined') return DEFAULT_TUNING;
   let kept = { latency: null as string | null, lookahead: null as string | null };
   try {

@@ -5,7 +5,7 @@
 import { readFileSync } from 'node:fs';
 import { compileSource, codeShifts } from '../../src/engine/compile';
 import { cellView } from '../../src/layout/cellview';
-import { shiftsAt, playedCells } from '../../src/engine/realize';
+import { shiftsAt, playedCells } from '../../src/engine/clocking';
 const file = process.argv[2] ?? 'examples/bwv847.cells';
 const horizon = Number(process.argv[3] ?? 60);
 const r = compileSource(readFileSync(file, 'utf8'));
