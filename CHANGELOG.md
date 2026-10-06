@@ -24,6 +24,7 @@ that makes the change. Also note changes to the language that could affect saved
 
 ### Developer
 - `tools/profile/`: scripts to measure main-thread load while a piece plays (Playwright + CDP) and to attribute it to code.
+- `.claude/skills/profile`: a Claude Code skill for using them (measure, attribute, compare before/after).
 - CI runs `npm run check`, the tests and the build on pull requests and on `main`.
 - `window.cellStudio` (`measure`, `length`, `level`) is documented in the README.
 - `.gitignore` covers Python caches, editor files, coverage and logs.
