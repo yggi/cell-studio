@@ -15,6 +15,8 @@ What Cell studio doesn't do yet or does with a catch, documented rather than tra
 
 - Belts don't pull back on their driver (load is static `mass=`/`friction=`); no live display of a belt's stretch or slips; belts between non-meter cells in chains aren't supported; no flutter beside `wow=`.
 - A noise voice starts at a random point of its noise buffer on each note, so no two plays or renders are bit-identical (pitch, level and timing are).
+- A mix's spectrum wheel hears its voices whole, not only the notes that go through it: a voice in two mixes shows in both ([#77](https://github.com/yggi/cell-studio/issues/77)). The graph's states and edges do say which mix plays now.
+- Switching a cell off doesn't reach the offline render or WAV export, nor (from reading the code) a tape's heads, a tape or a resonator in playback ([#76](https://github.com/yggi/cell-studio/issues/76)).
 - The live views, not the audio, are what loads the main thread; on a slow phone a large graph can still saturate it (measure with [testing.md](testing.md); the numbers are in the profile skill's README).
 
 ## Editor

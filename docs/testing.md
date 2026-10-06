@@ -20,6 +20,7 @@ Tests are `*.test.ts` beside their source, in node: they can only cover `engine/
 - Theory: `src/theory/modes.test.ts`.
 - Parser: `parser.test.ts`. Compile: `compile.test.ts`, `duration.test.ts`, `physics.test.ts`, `fiveto12.test.ts`.
 - Realize (what sounds): `realize.test.ts` (notes, times, levels, per example), `tape.test.ts`, `resonator.test.ts`, `fm.test.ts`, `wave.test.ts`; `edit.test.ts` for line rewrites; `schedule.test.ts` (windows, the engine host).
+- Routing (what the graph draws as sounding): `routing.test.ts`: the cases of #11, and for every example that routed and live states agree (live within routed, edges with routed ends, every routed edge drawn), every voice that plays is routed and live while its note sounds, and what moves a voice is routed.
 - Audio: `src/audio/engine.test.ts` (local and worker engines; no Web Audio needed).
 - Layout: `src/layout/*.test.ts` (belts, cellview, describe, dial, geometry, labels, physics, show, spectrum).
 - Examples: `src/engine/examples.test.ts` — every `examples/*.cells` file is listed, compiles with zero diagnostics, and has a title, tags and `level=`.
@@ -38,6 +39,7 @@ Tests are `*.test.ts` beside their source, in node: they can only cover `engine/
   - `cellStudio.engine()`: how the engine's windows went (which engine, how many, compute and round-trip ms, how many a worker answered too late).
 - Golden renders (audio refactors): `tools/golden.mjs` renders every example offline in the browser (Math.random seeded) and compares block levels with a recorded run: record on the base commit (`npm run build && node tools/golden.mjs 6 > /tmp/golden.json`), then check the change (`… --check /tmp/golden.json`). Within −80 dB counts as the same; forks and kalimba vary by up to about −45 dB from run to run on their own (a resonator strike's nodes are disconnected while the offline render runs), so a differing piece is rendered twice more before it counts. Not in CI yet (#18).
 - Engines (#15): `src/engine/schedule.test.ts` (windows match `eventsBetween` and survive a structured clone; the host mirrors hands), `src/audio/engine.test.ts` (the worker engine through a fake port: same windows, a late or failed worker falls back to the local plan). In the browser: `ENGINE=worker npm run smoke` plays every piece with the engine in a Web Worker.
+- Graph states in the browser: `tools/shots.mjs` plays pieces and saves a screenshot and each node's and edge's drawn state (`npm run build && node tools/shots.mjs 3 "Sound on Tape"`; `DIST=` another build to compare).
 - Layering: `src/architecture.test.ts` fails if a non-test file in `engine/` or `layout/` imports Svelte, Tone, `@xyflow`, `audio/` or `ui/`.
 - Docs: `src/docs.test.ts` compiles every ```` ```cells ```` block under `docs/language/` with no diagnostics, checks `docs/INDEX.md` lists each page, and that relative links resolve.
 

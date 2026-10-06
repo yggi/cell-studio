@@ -1,6 +1,6 @@
 # #11 Active and inactive cells and edges
 
-2026-10-06 · status: investigated, design proposed, not yet implemented · [#11](https://github.com/yggi/cell-studio/issues/11), the `routedNodes` item of [#9](https://github.com/yggi/cell-studio/issues/9)
+2026-10-06 · status: implemented on `claude/bug-11-investigation-toqp49` (below: what was found, then what was done) · [#11](https://github.com/yggi/cell-studio/issues/11), the `routedNodes` item of [#9](https://github.com/yggi/cell-studio/issues/9)
 
 The owner's screenshots are Baustelle (cells that sound are drawn idle; the selector's edges to parts that aren't picked look the same as the edge to the part that is; `&beamv → &einsturz` takes a note's colour while `&einsturz` isn't picked) and Sound on Tape (`&dry` is drawn idle while it plays into the speakers and onto the tape). Everything below was reproduced with the pure functions in node (a throwaway vitest probe over every example, sampled every 50 ms of its main length). Nothing was checked in a browser.
 
@@ -41,7 +41,7 @@ Graph.svelte combines 2, 3 and 4 edge by edge. Nothing checks that they agree.
 
 **Running independently of the audio:** yes. Every node and edge state is worked out again on the main thread, from the compile result at `transportClock.seconds` (`Tone.immediate()`, not compensated for output latency). Nothing reads what the engine scheduled (`Window`/`Played`), so chance and laps don't come from the scheduler, and in worker mode the views never see the worker's windows. Only the spectra, waveforms, resonance, tape levels and `note()` come from the audio.
 
-## Proposed design (one model, two projections)
+## Design (implemented)
 
 - **Routes, recorded where they're made.** `compile`'s `expand` already walks the mix tree from each sound card down to each voice. It should record the path as edges of the written graph, instead of the `via` bag: voice → instruments (`through`) → mix → part → selector, via the table of parts → sound card. Each output's route then adds:
   - its trigger's braid (ref and over edges, the table chains)
@@ -64,7 +64,15 @@ Graph.svelte combines 2, 3 and 4 edge by edge. Nothing checks that they agree.
 
   Plus #11's minimal cases: a modulation-only cell, a `step=` chain, a table read only by a selector, a kit, a tape head, an off ancestor, a cell with `off`.
 
+## What was done
+
+- `engine/routing.ts`: routes. One deviation from the plan above: compile is unchanged. An output's sound path is the set of graph flow edges between the names in its `via` and `through` (plus its source), which is exact because those names form one chain. Tapes and bodies are worked out by flow from what reaches them, and everything is cut to what reaches a sound card. `drawn()` maps ids through petals (`buildGraph` now returns `alias`).
+- `engine/live.ts`: `liveAt`, moved out of `realize.ts`. It keeps the playheads and lit entries, and its node and edge sets come from `liveRouting`, so live is within routed. Tables that turn light their `step=` chain. A table is credited to the cell that lends it.
+- The UI: `nodeState` and `toFlowEdge` read `nodeStateOf` and `edgeStateOf`. Edges are `edge-live`, `edge-idle`, `edge-on`, `edge-unrouted` or `edge-off`. Only a live edge takes a note's colour and pulses. Turntables and scopes carry `data-state`. The forced-live case for tapes, heads, bodies and scopes is gone (they're live when routed and playing).
+- A changed meaning: a cell that only turns a table that sounding notes read (Royal's `&theme` with `&lead` off) stays routed. Its notes don't sound, but its laps still turn the key.
+- Verified with `routing.test.ts` (the #11 cases, and invariants over every example) and in the browser with `tools/shots.mjs` before and after (Sound on Tape, Baustelle, Baustelle II), comparing the DOM states.
+- Filed: #76 (`off` doesn't reach the offline render or export, nor the tapes and bodies in playback; the render part checked in the browser), #77 (mix wheels hear voices whole).
+
 Open questions for the owner:
 
-- Should **live** stay "its output is active now" (steady), or become "a note sounds now", taken from the plan's events with the chance thrown (exact, but blinks with every drum hit)? The proposal keeps the steady meaning for nodes and edges and adds no third level. The glyphs already show the step.
-- Mix wheels (5) need a tap per path in the audio. That's a separate issue.
+- Should **live** stay "its part plays now" (steady, implemented), or become "a note sounds now", taken from the plan's events with the chance thrown (exact, but blinks with every drum hit)?

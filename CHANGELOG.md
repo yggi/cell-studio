@@ -10,6 +10,9 @@ that makes the change. Also note changes to the language that could affect saved
 
 ## Unreleased
 
+### Fixed
+- The graph shows what sounds, for nodes and edges alike (#11): cells that sound are no longer drawn dimmed (a cell that moves a filter or a pitch, a part made only of chance choices, a mix used as an instrument such as Sound on Tape's `&dry`, the mix of tape heads that drives Resonanz's pipes); tapes, resonators, motors and scopes now fade too when off or unused; a selector lights only the part it picks now, and the way from it to the sound card; an edge takes a note's colour and pulses only while what it carries plays (a voice in two mixes no longer colours the edge to the one that isn't playing). The sound and saved `.cells` pieces are not affected.
+
 ### Changed
 - The examples are no longer all in the first download: the library is listed from an index made at build time (nothing is compiled to show it), and each piece's text is fetched when its card is drawn or it is opened (the first bundle is about 24 kB smaller gzipped). If a piece can't be fetched (offline, never opened before), it says so instead of opening. Saved `.cells` pieces are not affected.
 - Cell studio is now an installable app (PWA): it has an icon and a manifest, works offline after the first visit, and shows "New version ready" when an update is waiting (it never reloads by itself, so a playing piece is not cut off). The build is no longer one `index.html` but normal files with Tone loaded on first Play. Saved `.cells` pieces are not affected.

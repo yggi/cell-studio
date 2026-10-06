@@ -6,7 +6,8 @@
   import { SvelteSet } from 'svelte/reactivity';
   import type { CompileResult, Shifts } from '../engine/compile';
   import { structureKey, type GraphEdge, type GraphModel, type GraphNode } from '../engine/graph';
-  import type { LiveState } from '../engine/realize';
+  import type { LiveState } from '../engine/live';
+  import { drawn, edgeStateOf, type Routing } from '../engine/routing';
   import { DEFAULT_LAYOUT, ForceLayout, type LayoutOptions } from '../layout/physics';
   import type { FlowNode } from './types';
   import { setGraphContext } from './context';
@@ -51,7 +52,7 @@
     model: GraphModel;
     program: CompileResult;
     muted: ReadonlySet<string>;
-    routed: ReadonlySet<string>;
+    routed: Routing;
     live: LiveState | null;
     shifts: Shifts;
     ontoggle: (id: string) => void;
@@ -272,8 +273,11 @@
     return key;
   });
 
-  // Edge styling follows routing: live edges glow and flow, cut-off edges fade.
-  const liveEdges = $derived(live ? [...live.edges].sort().join('|') : '');
+  // Edge styling follows routing (as drawn: petals' edges are their parents'): live edges glow and flow, the rest fade.
+  const routedDrawn = $derived(drawn(model, routed));
+  const liveDrawn = $derived(live ? drawn(model, live) : null);
+  // (a key that changes only when the live edges do, not every frame)
+  const liveEdges = $derived(liveDrawn ? [...liveDrawn.edges].sort().join('|') : null);
 
   const edgeTypes = { pulse: PulseEdge, belt: BeltEdge };
   const nameOf = (id: string) => id.slice('cell:'.length);
@@ -301,10 +305,9 @@
     return { kind: e.kind, phaseCell: null, voice: null, reverse: false };
   }
 
-  function toFlowEdge(e: GraphEdge, liveSet: ReadonlySet<string>): Edge {
-    // an edge with a switched-off (or unrouted) end is off: never live, never coloured, whatever plays
-    const isRouted = routed.has(e.source) && routed.has(e.target) && !muted.has(e.source) && !muted.has(e.target);
-    const isLive = isRouted && liveSet.has(e.id);
+  function toFlowEdge(e: GraphEdge, liveSet: ReadonlySet<string> | null): Edge {
+    // off, unrouted, on, idle, live: one rule for edges and nodes (engine/routing.ts)
+    const state = edgeStateOf(e, muted, routedDrawn, liveSet ? { nodes: new Set(), edges: liveSet } : null);
     // a belted cell's step: a belt, its pulleys by the ratio, its stretch as it is now
     const driven = model.nodes.find((n) => n.id === e.source);
     if (e.kind === 'step' && driven && typeof driven.cell.params.belt === 'number') {
@@ -323,17 +326,18 @@
       target: e.target,
       ...heads,
       type: 'pulse',
-      data: { ...pulseData(e), off: !isRouted },
+      // (only a live edge carries a note's colour and pulses: an edge into what doesn't sound now stays still)
+      data: { ...pulseData(e), off: state === 'off' || state === 'unrouted', live: state === 'live' },
       label: [e.count > 1 ? `×${e.count}` : '', e.pick, e.label ?? ''].filter(Boolean).join(' ') || undefined,
-      class: `edge-${e.kind} ${isLive ? 'edge-live' : isRouted ? 'edge-routed' : 'edge-cut'}`,
+      class: `edge-${e.kind} edge-${state}`,
       selectable: false,
     };
   }
 
   $effect(() => {
-    const liveSet = new Set(liveEdges ? liveEdges.split('|') : []);
+    const liveSet = liveEdges === null ? null : new Set(liveEdges ? liveEdges.split('|') : []);
     const m = model;
-    void routed;
+    void routedDrawn;
     void muted;
     untrack(() => (edges = m.edges.map((e) => toFlowEdge(e, liveSet))));
   });
@@ -367,7 +371,7 @@
       const kids = new Map<string, string[]>();
       for (const n of m.nodes) if (n.petalOf) kids.set(n.petalOf, [...(kids.get(n.petalOf) ?? []), n.id]);
       petalSlot = new Map([...kids].flatMap(([parent, ids]) => ids.map((id, i) => [id, { parent, i, n: ids.length }] as const)));
-      const diff = layout.setGraph({ nodes: m.nodes.filter((n) => !n.petalOf), edges: m.edges }, structural);
+      const diff = layout.setGraph({ ...m, nodes: m.nodes.filter((n) => !n.petalOf) }, structural);
       // Mostly new graph (first load, preset switch): settle before first paint, then frame it.
       const fresh = justOpened || diff.added > diff.total / 2;
       const newExample = f !== lastFixed;
@@ -588,7 +592,12 @@
     stroke: color-mix(in oklab, var(--accent) 50%, var(--edge));
     stroke-dasharray: 12 7;
   }
-  .graph :global(.edge-cut .svelte-flow__edge-path) {
+  /* not sounding now (playing): quieter; not part of the sound, or switched off: faded */
+  .graph :global(.edge-idle .svelte-flow__edge-path) {
+    stroke-opacity: 0.45;
+  }
+  .graph :global(.edge-unrouted .svelte-flow__edge-path),
+  .graph :global(.edge-off .svelte-flow__edge-path) {
     stroke-opacity: 0.2;
   }
   /* edge labels (×0.4, [<<], ⟳ …): readable pills; an off edge's label fades with it */

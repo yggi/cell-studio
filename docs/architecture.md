@@ -21,6 +21,7 @@ code text (App.svelte `code`)
   retime(window, audioTime, secPerQuarter)  engine/schedule.ts: onto the audio clock
   voices.play(note)    audio/voices.ts (Tone.js; createVoices, parts in audio/voice/)
   also: compile result -> buildGraph (engine/graph.ts) -> layout/ -> ui/ drawing
+        compile result -> routing (engine/routing.ts), liveAt (engine/live.ts) -> what the graph draws as sounding
 ```
 
 The engine behind `engine.window` is local (in this thread, on the app's plan: the default) or a Web Worker (`?engine=worker` or `localStorage['cell-studio:engine'] = 'worker'`): `audio/engine.worker.ts` runs `engine/host.ts`, which compiles the same piece from its source, plans it, mirrors every hand (`grab`, `reset`) and answers windows by message; a window it doesn't answer within 40 ms is worked out locally. Measured, the worker doesn't lighten the main thread (scheduling is < 1 % of it; see [notes/15-engine-worker.md](notes/15-engine-worker.md)), so it stays opt-in; it's the message-shaped seam for moving the live state off the main thread later. Views read the sound through one `LiveSource` (`audio/live.ts`, implemented by `Player`): notes, spectra, waveforms, tapes, and hands (strike, damp, bow, scrub, grab).
@@ -31,7 +32,8 @@ The engine behind `engine.window` is local (in this thread, on the app's plan: t
 
 - `parser.ts`, `ast.ts`: one cell or command per line; `pieceMeta`.
 - `compile.ts`: cells as helices over grids, `ROOT` grid, diagnostics, `MAX_EVENTS`.
-- `realize.ts`: `flatten`, `plan`, `eventsBetween`, `timeMap`, `playedCells`; tape routing (`tapeMotion`, `routedNodes`); resonators.
+- `realize.ts`: `flatten`, `plan`, `eventsBetween`, `timeMap`, `playedCells`; tape motion (`tapeMotion`); resonators; the gates the scheduler uses (`outputSounds`, `endOf`, `picksNow`).
+- `routing.ts`: what takes part in the sound, as graph nodes and edges: `routing` (what can sound), `liveRouting` (what does now), `drawn` (through petals), `nodeStateOf`/`edgeStateOf` (off, unrouted, on, idle, live). One model for nodes and edges: [ui/graph.md](ui/graph.md#states). `live.ts`: `liveAt`, the live view (playheads, lit table entries, and the live routing).
 - `schedule.ts`: what to play next as plain data (`windowAt`, `tapeSpeeds`, `retime`, `isPhysical`). `host.ts`: the engine as a message handler (`createHost`: load, window, grab, reset; `planOf`, `grabIn`), what the worker runs.
 - `edit.ts`: line rewrites. `graph.ts`: `buildGraph`, the graph of exactly what is written.
 - `duration.ts`: piece length / loop cycle (`pieceTime`, `sections`, `mainTempo`).
