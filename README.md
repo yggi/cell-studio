@@ -15,7 +15,7 @@ Live: <https://yggi.github.io/cell-studio/>
     npm run dev       # vite
     npm test          # vitest (pure TS: theory, parser, compiler, realize, layout, docs)
     npm run check     # svelte-check
-    npm run build     # dist/index.html, one self-contained file
+    npm run build     # dist/: the app as a PWA (installable, works offline after the first visit)
 
 ## Documentation
 

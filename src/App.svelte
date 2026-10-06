@@ -19,6 +19,7 @@
   import { transportClock } from './audio/clock.svelte';
   import Graph from './ui/Graph.svelte';
   import Editor from './ui/Editor.svelte';
+  import UpdateToast from './ui/UpdateToast.svelte';
 
   const FIRST: PresetKey = 'royal';
   /** What's open: an example (its fixed layout applies), a piece saved here, a file. */
@@ -350,6 +351,8 @@
     }
   }
 </script>
+
+<UpdateToast />
 
 <div class="app" class:selecting={tab === 'select'}>
   <header>
