@@ -10,7 +10,7 @@
   import { BORDER, border, coarsen } from '../layout/coarse';
   import { names, noteLabel, tonicOf, voiceBase } from '../layout/show';
   import { polar, ringSegment } from '../layout/geometry';
-  import { wheelGeometry } from '../layout/wheel';
+  import { envelopeNames, wheelGeometry } from '../layout/wheel';
   import { angleOf, fitFont, hubMax, turnDelta } from '../layout/dial';
   import { mod } from '../theory/modes';
   import { getGraphContext } from './context';
@@ -158,7 +158,23 @@
       [X(attack + decay + hold), y0 - h * sustain],
       [X(total), y0],
     ];
-    return pts.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(' ');
+    return pts;
+  });
+  const curvePoints = $derived(curve ? curve.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(' ') : '');
+  // its values named on their stretches of the curve (#107): attack by the peak, decay along its fall, sustain
+  // under its hold, release by its end — from 112 px up (smaller, the curve alone)
+  const envFont = $derived(Math.min(11, size * 0.06));
+  const envLabels = $derived.by(() => {
+    if (!curve || !view.curve || size < 112) return [];
+    const n = envelopeNames(view.curve);
+    const [, peak, fall, held, end] = curve;
+    const f = envFont;
+    return [
+      { x: peak[0] + f * 0.3, y: peak[1] - f * 0.5, text: n.a, anchor: 'start' },
+      { x: (peak[0] + fall[0]) / 2 + f * 0.6, y: (peak[1] + fall[1]) / 2 - f * 0.4, text: n.d, anchor: 'start' },
+      { x: (fall[0] + held[0]) / 2, y: fall[1] + f * 1.2, text: n.s, anchor: 'middle' },
+      { x: end[0], y: Math.min(held[1], end[1]) - f * 0.8, text: n.r, anchor: 'end' },
+    ];
   });
   // The live state is a new object every tick. What this wheel takes from it is kept as primitives, so that what
   // depends on them runs again only when they change — not every tick, for every wheel on the graph (#13).
@@ -177,7 +193,6 @@
   const hubWidth = $derived(2 * geo.rHub * 0.86);
   const bigFont = $derived(fitFont(hubWidth, label.big.length, hubMax(size)));
   const smallFont = $derived(size >= 80 && label.small ? fitFont(hubWidth, label.small.length, 11, 7) : null);
-  const curveFont = $derived(fitFont(rOuter * 1.6, label.small.length, 11, 7));
 
   // an accidental is striped: its own colour and the natural's (a semitone back for a sharp)
   const uid = `g${++glyphs}`;
@@ -445,12 +460,12 @@
     <text class="steplabel" x={l.x} y={l.y} font-size={Math.max(6, Math.min(11, size / 12, l.wide * size * 1.2))}>{l.text}</text>
   {/each}
   {#if curve}
-    <polyline class="curve" points={curve} />
+    <polyline class="curve" points={curvePoints} />
   {:else}
   <circle class="hub" cx={c} cy={c} r={geo.rHub} />
   {/if}
   {#if curve}
-    {#if size >= 80 && curveFont}<text class="small" x={c} y={c + rOuter * 0.55} dy="0.35em" style:font-size="{curveFont}px">{label.small}</text>{/if}
+    {#each envLabels as l (l.text)}<text class="envlabel" x={l.x} y={l.y} style:text-anchor={l.anchor} style:font-size="{envFont}px">{l.text}</text>{/each}
   {:else}
   {#if bigFont}<text class="big" class:pop onanimationend={() => (pop = false)} x={c} y={c} dy={smallFont ? '0.1em' : '0.35em'} style:font-size="{bigFont}px">{label.big}</text>{/if}
   {#if smallFont}<text class="small" x={c} y={c + (bigFont ?? 0) * 0.1} dy="1.45em" style:font-size="{smallFont}px">{label.small}</text>{/if}
@@ -458,6 +473,7 @@
   {#if shownShift !== 0 && size >= 80}<text class="shift" x={c} y={c - rInner * 0.5}>{shownShift > 0 ? '+' : ''}{shownShift}</text>{/if}
   {#if hand !== null}
     <g class="hand" style="transform: rotate({hand * 360}deg); transform-origin: {c}px {c}px">
+      <line class="edge" x1={c} y1={c - geo.hand.r0} x2={c} y2={c - geo.hand.r1} style:stroke-width="{geo.hand.width + 2}px" />
       <line x1={c} y1={c - geo.hand.r0} x2={c} y2={c - geo.hand.r1} style:stroke-width="{geo.hand.width}px" />
     </g>
   {/if}
@@ -523,6 +539,14 @@
     font-weight: 700;
     fill: var(--ink-on-note);
     pointer-events: none;
+  }
+  /* an envelope's values, on their stretches of the curve */
+  .envlabel {
+    font-weight: 700;
+    fill: var(--text);
+    paint-order: stroke;
+    stroke: var(--wheel-disc);
+    stroke-width: 3px;
   }
   .curve {
     fill: none;
@@ -595,6 +619,9 @@
   .hand line {
     stroke: var(--wheel-hand);
     stroke-linecap: round;
+  }
+  .hand line.edge {
+    stroke: var(--wheel-hand-edge);
   }
   /* a table's entry read now: a dot, like a read head */
   .read {

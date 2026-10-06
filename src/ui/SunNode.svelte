@@ -1,3 +1,8 @@
+<script lang="ts" module>
+  // (each one's own ids for its gradients: the same cell can be drawn twice at once)
+  let suns = 0;
+</script>
+
 <script lang="ts">
   /**
    * The sun: a day of 24 hours as the sky turns it — noon (S) at the top, midnight (N) at the bottom,
@@ -17,6 +22,7 @@
   const d = $derived(data as { name: string });
   const ctx = getGraphContext();
   const S = 220;
+  const sky = `sky${++suns}`;
   const R = S / 2;
   const cell = $derived(ctx.program.cells.get(d.name));
   const law = $derived(cell && typeof cell.params.sun === 'string' ? ctx.program.cells.get(cell.params.sun) : undefined);
@@ -76,14 +82,14 @@
   <Handle type="target" position={Position.Top} class="center-handle" isConnectable={false} />
   <svg viewBox="0 0 {S} {S}" width={S} height={S}>
     <defs>
-      <linearGradient id="sky-{d.name}" x1="0" y1="0" x2="0" y2="1">
+      <linearGradient id={sky} x1="0" y1="0" x2="0" y2="1">
         <stop offset="0" style:stop-color="var(--sky-day)" />
         <stop offset="0.48" style:stop-color="var(--sky-dusk)" />
         <stop offset="0.52" style:stop-color="var(--sky-dusk-night)" />
         <stop offset="1" style:stop-color="var(--sky-night)" />
       </linearGradient>
     </defs>
-    <circle cx={R} cy={R} r={R - 2} fill="url(#sky-{d.name})" />
+    <circle cx={R} cy={R} r={R - 2} fill="url(#{sky})" />
     <!-- the law's blocks, as bright as their modes -->
     {#each blocks as b, i (i)}
       <path d={arc(b.s0, b.s1, R * 0.82, R - 3)} fill={blockColour(b.light)} stroke="rgba(0,0,0,.45)" stroke-width="1"><title>{b.name}</title></path>
