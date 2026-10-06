@@ -21,6 +21,7 @@ import { segmentsCross, splinePoint } from './geometry';
 import { layered } from './layered';
 import { drawnCrossings, layoutQuality, type Aim, type LayoutQuality } from './quality';
 import { fitTurn, headOffset, tapeHeads, UNTURNED } from './tape';
+import { isGround } from './meters';
 
 export interface PhysNode extends SimulationNodeDatum {
   id: string;
@@ -725,9 +726,12 @@ export class ForceLayout {
     const half = (maxRank * this.opts.layerGap) / 2;
     const layerY = (rank: number) => half - (rank / maxRank) * 2 * half;
     this.rankY = new Map([...ranks].map(([id, r]) => [id, layerY(r)]));
+    // (a meter's edges aren't drawn — its cells wear its ring, meters.ts — so they neither count nor pull)
+    const nodeById = new Map(model.nodes.map((n) => [n.id, n]));
+    const ground = (e: (typeof model.edges)[number]) => isGround(e, nodeById);
     this.degree = new Map();
     for (const e of model.edges)
-      if (e.source !== e.target && e.kind !== 'about') for (const id of [e.source, e.target]) this.degree.set(id, (this.degree.get(id) ?? 0) + 1);
+      if (e.source !== e.target && e.kind !== 'about' && !ground(e)) for (const id of [e.source, e.target]) this.degree.set(id, (this.degree.get(id) ?? 0) + 1);
     // mostly new (a different example that happens to share &bar, &mix, &out): lay it all out afresh
     const fresh = model.nodes.filter((n) => !this.byId.has(n.id)).length > model.nodes.length / 2;
     if (fresh) this.bendAt.clear(); // a fresh graph: no bends left over from the last one
@@ -848,7 +852,7 @@ export class ForceLayout {
 
     const links: PhysLink[] = model.edges
       // (a note's links, about=, are not springs: they only draw a note towards what it explains, see stepAbout)
-      .filter((e) => e.kind !== 'about' && next.has(e.source) && next.has(e.target) && e.source !== e.target)
+      .filter((e) => e.kind !== 'about' && !ground(e) && next.has(e.source) && next.has(e.target) && e.source !== e.target)
       .map((e) => ({ id: e.id, source: e.source, target: e.target, count: e.count, part: e.kind === 'ref' || e.kind === 'over' }));
 
     this.sim.nodes([...next.values()]);
