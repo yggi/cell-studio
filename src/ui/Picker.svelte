@@ -3,7 +3,7 @@
   let kept: { key: string; layout: import('../layout/library').LibraryLayout } | null = null;
   const keyOf = (entries: readonly { id: string; tags: readonly string[] }[]) => entries.map((e) => `${e.id}:${e.tags.join(',')}`).join('|');
   // (and kept in the browser between visits: the same library, the same wheel — at once)
-  const STORE = 'cell-studio:library-layout:v2';
+  const STORE = 'cell-studio:library-layout:v3';
   type Stored = { key: string; layout: Record<string, unknown> };
   const freeze = (l: import('../layout/library').LibraryLayout) => ({ ...l, at: [...l.at], hue: [...l.hue], count: [...l.count], sat: [...l.sat] });
   const thaw = (o: Record<string, unknown>) =>
@@ -44,7 +44,7 @@
   import LibraryGraph from './LibraryGraph.svelte';
   import PieceNode from './PieceNode.svelte';
   import { tagColours } from './tags';
-  import { tagName } from '../engine/tags';
+  import { tagKind, tagName, type TagKind } from '../engine/tags';
   import { noteColour } from './theme';
   import type { LibraryLayout } from '../layout/library';
   import { durationText } from '../engine/duration';
@@ -85,7 +85,13 @@
   } = $props();
 
   let query = $state('');
+  // the tag lit in the graph
   let tag = $state<string | null>(null);
+  // the cards' filters: a tag of each kind, or any (all of them hold: genre and artist and topic)
+  const KINDS: readonly TagKind[] = ['genre', 'artist', 'topic'];
+  let filter = $state<Record<TagKind, string | null>>({ genre: null, artist: null, topic: null });
+  const filtered = $derived(KINDS.some((k) => filter[k]));
+  const clearFilter = () => (filter = { genre: null, artist: null, topic: null });
   // cards, or the library as a graph (pieces and their tags)
   let view = $state<'cards' | 'graph'>('graph');
   let filesOpen = $state(false);
@@ -101,17 +107,18 @@
   // a piece's card, opened from the graph: its details
   let detail = $state<Entry | null>(null);
 
-  // every tag, the most used first
-  const tags = $derived.by(() => {
+  // every tag by its kind, the most used first
+  const tagsByKind = $derived.by(() => {
     const count = new Map<string, number>();
     for (const e of entries) for (const t of e.tags) count.set(t, (count.get(t) ?? 0) + 1);
-    return [...count].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([t, n]) => ({ t, n }));
+    const all = [...count].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([t, n]) => ({ t, n }));
+    return Object.fromEntries(KINDS.map((k) => [k, all.filter(({ t }) => tagKind(t) === k)])) as Record<TagKind, { t: string; n: number }[]>;
   });
   const words = $derived(query.trim().toLowerCase());
   const shown = $derived(
     entries.filter(
       (e) =>
-        (!tag || e.tags.includes(tag)) &&
+        KINDS.every((k) => !filter[k] || e.tags.includes(filter[k]!)) &&
         (!words || e.title.toLowerCase().includes(words) || e.description.toLowerCase().includes(words) || e.tags.some((t) => tagName(t).toLowerCase().includes(words))),
     ),
   );
@@ -247,9 +254,19 @@
 
   {#if view === 'cards'}
   <div class="tags" role="group" aria-label="Filter by tag">
-    {#each tags as { t, n } (t)}
-      <button class="tag" class:on={tag === t} aria-pressed={tag === t} style:--hue={colours.get(t)} onclick={() => (tag = tag === t ? null : t)}>{tagName(t)}<span>{n}</span></button>
+    {#each KINDS as k (k)}
+      {#if tagsByKind[k].length}
+        {@const on = filter[k]}
+        <label class="kind" class:on={!!on} style:--hue={on ? colours.get(on) : undefined}>
+          <select aria-label="Filter by {k}" value={on ?? ''} onchange={(ev) => (filter[k] = ev.currentTarget.value || null)}>
+            <option value="">Any {k}</option>
+            {#each tagsByKind[k] as { t, n } (t)}<option value={t}>{tagName(t)} ({n})</option>{/each}
+          </select>
+          <span class="chev" aria-hidden="true">▾</span>
+        </label>
+      {/if}
     {/each}
+    {#if filtered}<button class="link clear" onclick={clearFilter}>Clear</button>{/if}
   </div>
   {/if}
   </div>
@@ -304,7 +321,7 @@
     {#if examples.length}
       <div class="grid">{#each examples as e (e.id)}{@render card(e)}{/each}</div>
     {:else}
-      <p class="empty">Nothing matches. <button class="link" onclick={() => ((query = ''), (tag = null))}>Show everything</button></p>
+      <p class="empty">Nothing matches. <button class="link" onclick={() => ((query = ''), clearFilter())}>Show everything</button></p>
     {/if}
   </section>
   {/if}
@@ -520,21 +537,47 @@
     color: var(--text);
     font: 500 15px var(--font-ui);
   }
-  /* one row that scrolls sideways on a phone; it wraps where there's room */
+  /* the filters: one dropdown per kind of tag */
   .tags {
-    flex: none; /* (a scrolling row may otherwise be squeezed to nothing) */
     display: flex;
-    gap: 6px;
-    overflow-x: auto;
-    scrollbar-width: none;
-    margin: 0 -14px;
-    padding: 0 14px 2px;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
   }
-  .tags::-webkit-scrollbar {
-    display: none;
+  .kind {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
   }
-  .tag {
-    flex: none;
+  .kind select {
+    appearance: none;
+    min-height: 34px;
+    padding: 0 28px 0 12px;
+    border-radius: var(--radius-pill);
+    border: 1px solid var(--line);
+    background: var(--surface);
+    color: var(--text-muted);
+    font: 600 13px var(--font-ui);
+    cursor: pointer;
+  }
+  .kind.on select {
+    border-color: var(--hue, var(--accent));
+    background: color-mix(in oklab, var(--hue, var(--accent)) 30%, var(--surface));
+    color: var(--text);
+  }
+  .kind select:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+  .kind .chev {
+    position: absolute;
+    right: 11px;
+    font-size: 11px;
+    color: var(--text-muted);
+    pointer-events: none;
+  }
+  .clear {
+    font-size: 13px;
   }
   .tag {
     display: inline-flex;
@@ -548,17 +591,9 @@
     font: 600 13px var(--font-ui);
     cursor: pointer;
   }
-  .tag span {
-    font-weight: 500;
-    font-size: 11.5px;
-    color: var(--text-faint);
-  }
   .tag.on {
     border-color: var(--hue, var(--accent));
     background: var(--hue, var(--accent));
-    color: var(--ink-on-note);
-  }
-  .tag.on span {
     color: var(--ink-on-note);
   }
   .files {
@@ -679,12 +714,6 @@
     font-weight: 600;
   }
   @media (min-width: 900px) {
-    .tags {
-      flex-wrap: wrap;
-      overflow: visible;
-      margin: 0;
-      padding: 0;
-    }
     .picker {
       padding: 24px max(24px, calc((100vw - 1040px) / 2));
     }

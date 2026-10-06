@@ -29,8 +29,10 @@ export interface LibraryLayout {
 /** The five main genres (of `genre:` tags): pinned at even angles round the border, so every colour (an angle) stays where it is. */
 export const GENRES = ['genre:classical', 'genre:jazz', 'genre:electronic', 'genre:experimental', 'genre:world'] as const;
 
-/** A tag node's width in layout units: as wide as its word (its name, not its kind), and the `t:` of its id. */
-const tagWidth = (id: string) => 4.6 * (tagName(id.slice(2)).length + 2);
+/** A tag node's half-width in layout units: its pill as drawn (its word at its size, `tagFont`), and the `t:` of its id. */
+const tagWidth = (id: string, n: number) => ((0.58 * tagName(id.slice(2)).length + 1.5) * tagFont(n)) / 2;
+/** A tag's word, in layout units: larger the more pieces carry it. */
+export const tagFont = (n: number) => 15 + 4 * Math.sqrt(n);
 
 /** A piece's wheel, in layout units. */
 export const PIECE = 46;
@@ -62,10 +64,18 @@ function start(entries: readonly { id: string; tags: readonly string[] }[]): { t
     ],
     edges: entries.flatMap((e) => e.tags.map((t) => ({ id: `p:${e.id}->t:${t}`, source: `p:${e.id}`, target: `t:${t}`, kind: 'ref', count: 1, pick: '' }))),
   } as unknown as GraphModel;
+  const isGenreId = (id: string) => (GENRES as readonly string[]).includes(id.slice(2));
+  // a hub: a tag inside the wheel that several pieces carry (one piece's own tag only shows close up)
+  const hub = (id: string) => id.startsWith('t:') && !isGenreId(id) && (count.get(id.slice(2)) ?? 0) > 1;
   // the wheel: its radius by how much it holds; the pieces sized to fill about half its disc
   const nodesN = entries.length + count.size;
   const R = 85 * Math.sqrt(nodesN);
   const pieceR = Math.max(PIECE, Math.min(110, R * Math.sqrt(0.5 / Math.max(1, entries.length)) * 0.82));
+  // a node's room: a piece its wheel; a hub its word as drawn; any other tag a little
+  const roomOf = (id: string) => {
+    const n = count.get(id.slice(2)) ?? 1;
+    return id.startsWith('p:') ? pieceR + 6 : hub(id) ? Math.max(tagRadius(n), tagWidth(id, n)) : tagRadius(n);
+  };
   const l = new ForceLayout(undefined, {
     ...DEFAULT_LAYOUT,
     live: false,
@@ -86,8 +96,7 @@ function start(entries: readonly { id: string; tags: readonly string[] }[]): { t
     collidePad: 10,
     degreeRepel: 0, // (a busy tag is the cloud's hub: it shouldn't push the rest away)
     uncross: 0, // (and in a cloud, a hub's edges must cross: untangling would throw it out)
-    // a tag is as wide as its word; a piece, its wheel and title
-    radius: (n) => (n.id.startsWith('p:') ? pieceR + 6 : Math.max(tagRadius(count.get(n.id.slice(2)) ?? 1), tagWidth(n.id))),
+    radius: (n) => roomOf(n.id),
   });
   l.setGraph(model);
   // a cloud holds together both ways (the engine's own pull to the centre is sideways only — in a
@@ -98,17 +107,20 @@ function start(entries: readonly { id: string; tags: readonly string[] }[]): { t
   const pinned = GENRES.some((g) => count.has(g));
   sim.force('cloud-x', forceX(0).strength(pinned ? 0.008 : 0.04));
   sim.force('cloud-y', forceY(0).strength(pinned ? 0.008 : 0.05));
-  if (pinned) (sim.force('charge') as unknown as { strength: (s: number) => unknown }).strength(-260);
-  // a link to a genre (on the rim) pulls hard and far: pieces go out towards their genres;
-  // a link to an inner tag is short: the tag the core of its pieces' cluster
-  const isGenreId = (id: string) => (GENRES as readonly string[]).includes(id.slice(2));
+  // the tags organise, the pieces follow: a tag several pieces carry is a hub — it holds its ground
+  // (pushes hard) and draws its pieces round it; a piece pushes little (collision keeps them apart)
+  (sim.force('charge') as unknown as { strength: (f: (n: { id: string }) => number) => unknown }).strength((n) =>
+    n.id.startsWith('p:') ? -40 : hub(n.id) ? -700 : -120,
+  );
+  // a link to a hub is short and strong: the piece sits in its tag's cluster; to a genre (on the
+  // rim) long and slight: the genres lean the clusters outwards, they don't pull them apart
   type L = { target: { id: string } | string };
   const tid = (l: L) => (typeof l.target === 'string' ? l.target : l.target.id);
   (sim.force('link') as unknown as { strength: (f: (l: L) => number) => { distance: (f: (l: L) => number) => unknown } })
-    .strength((l) => (isGenreId(tid(l)) ? 0.35 : 0.9))
-    .distance((l) => (isGenreId(tid(l)) ? R * 0.45 : pieceR + 40));
-  // … and tags push each other apart (only each other): each the heart of its own cluster
-  sim.force('tags-apart', tagsApart(model.nodes.filter((n) => n.id.startsWith('t:')).map((n) => n.id), 26000));
+    .strength((l) => (isGenreId(tid(l)) ? 0.08 : hub(tid(l)) ? 0.7 : 0.4))
+    .distance((l) => (isGenreId(tid(l)) ? R * 0.5 : pieceR * 1.4 + 30));
+  // … and the hubs push each other apart (only each other): each the heart of its own cluster
+  sim.force('tags-apart', tagsApart(model.nodes.filter((n) => hub(n.id)).map((n) => n.id), 90000));
   // the genres, pinned round the border at even angles (classical at the top, then clockwise)
   const genres = GENRES.filter((g) => count.has(g));
   genres.forEach((g, i) => {
@@ -119,7 +131,7 @@ function start(entries: readonly { id: string; tags: readonly string[] }[]): { t
   // (and inside the wheel: nothing past the inner edge of the rim — a hard edge, by each one's own size)
   if (genres.length) {
     const edge = R - 40;
-    const sizeOf = (id: string) => (id.startsWith('p:') ? pieceR + 8 : Math.max(tagRadius(count.get(id.slice(2)) ?? 1), tagWidth(id)) * 0.6);
+    const sizeOf = (id: string) => (id.startsWith('p:') ? pieceR + 8 : roomOf(id));
     sim.force('disc', (() => {
       for (const n of (sim as unknown as { nodes: () => { id: string; x: number; y: number; vx: number; vy: number }[] }).nodes()) {
         if (isGenreId(n.id)) continue;
