@@ -57,6 +57,8 @@ export function miniature(source: string): Miniature | null {
   const l = new ForceLayout(undefined, { live: false });
   l.setGraph(model);
   l.tick(TICKS);
+  l.placeMeters(); // (meters last, as the graph places them)
+  const kept = l.groundEdges();
   const shifts = codeShifts(result);
   const index = new Map<string, number>();
   const out: [number, number, number][] = [];
@@ -67,10 +69,10 @@ export function miniature(source: string): Miniature | null {
     out.push([whole(p.x), whole(p.y), colourOf(result, shifts, n.cell.name)]);
   }
   l.destroy();
-  // (as the graph draws them: a meter's edges are ground, not drawn — meters.ts)
+  // (as the graph draws them: a meter's edges are ground — meters.ts — drawn only where they cross nothing)
   const byId = new Map(model.nodes.map((n) => [n.id, n]));
   const edges = model.edges.flatMap((e) => {
-    if (isGround(e, byId)) return [];
+    if (isGround(e, byId) && !kept.has(e.id)) return [];
     const a = index.get(e.source);
     const b = index.get(e.target);
     return a !== undefined && b !== undefined ? [[a, b] as const] : [];
