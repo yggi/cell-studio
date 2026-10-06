@@ -266,20 +266,20 @@
     })),
   ]);
   const currentId = $derived(open.kind === 'example' ? `example:${open.key}` : open.kind === 'saved' ? `saved:${open.id}` : null);
-  // the piece last asked for: an example still being fetched gives way to a later choice
-  let picking = '';
+  // the piece last asked for (a card or a file): one still being fetched or read gives way to a later choice
+  let choice = 0;
   async function pick(id: string) {
-    picking = id;
+    const mine = ++choice;
     const [kind, key] = [id.slice(0, id.indexOf(':')), id.slice(id.indexOf(':') + 1)];
     if (kind === 'example') {
       let source: string;
       try {
         source = await loadExample(key as PresetKey);
       } catch {
-        message = 'This piece could not be loaded (offline?).';
+        if (mine === choice) message = 'This piece could not be loaded (offline?).';
         return;
       }
-      if (picking !== id) return;
+      if (mine !== choice) return;
       open = { kind: 'example', key: key as PresetKey };
       code = source;
     } else {
@@ -350,15 +350,18 @@
     }
   }
   async function openFile(file: File) {
+    const mine = ++choice;
     try {
-      code = await readFile(file);
+      const text = await readFile(file);
+      if (mine !== choice) return;
+      code = text;
       open = { kind: 'file', name: file.name };
       opened++;
       fresh();
       tab = 'graph';
       message = null;
     } catch {
-      message = `Couldn’t read ${file.name}.`;
+      if (mine === choice) message = `Couldn’t read ${file.name}.`;
     }
   }
 </script>
