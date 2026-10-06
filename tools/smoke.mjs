@@ -81,7 +81,7 @@ for (const [i, p] of wanted.entries()) {
     const now = await page.evaluate(() => window.__ctx.map((c) => ({ state: c.state, t: c.currentTime })));
     const live = now.filter((c) => c.state === 'running');
     if (live.length === 0) problems.push('no running AudioContext');
-    else if (p.full && !live.some((c, k) => c.t > (t0[now.indexOf(c)] ?? 0) + 0.5 * Number(secs))) problems.push('audio clock did not advance');
+    else if (p.full && !live.some((c, _k) => c.t > (t0[now.indexOf(c)] ?? 0) + 0.5 * Number(secs))) problems.push('audio clock did not advance');
     await page.locator('.transport').getByRole('button', { name: 'Pause' }).first().click();
     // the engine asked for is the one that played, and it answered (a window it misses is worked out locally)
     const st = await page.evaluate(() => window.cellStudio.engine());
@@ -95,7 +95,17 @@ for (const [i, p] of wanted.entries()) {
     await page.getByRole('radio', { name: 'Cards' }).click();
   }
   const ok = problems.length === 0;
-  console.log(`${ok ? 'ok  ' : 'FAIL'} ${String(i + 1).padStart(2)}/${wanted.length} ${p.full ? `${secs} s` : 'start'} ${p.title}${ok ? '' : '\n       ' + [...new Set(problems)].slice(0, 3).map((x) => x.slice(0, 200)).join('\n       ')}`);
+  console.log(
+    `${ok ? 'ok  ' : 'FAIL'} ${String(i + 1).padStart(2)}/${wanted.length} ${p.full ? `${secs} s` : 'start'} ${p.title}${
+      ok
+        ? ''
+        : '\n       ' +
+          [...new Set(problems)]
+            .slice(0, 3)
+            .map((x) => x.slice(0, 200))
+            .join('\n       ')
+    }`,
+  );
   if (!ok) failed.push(p.title);
 }
 await browser.close();

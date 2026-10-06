@@ -145,10 +145,14 @@
         <button class="x" onclick={onclose} aria-label="Close the overlay">×</button>
       </header>
       <dl>
-        <dt>Frames</dt><dd>{live.fps.toFixed(0)} fps · p95 {live.p95Ms.toFixed(0)} ms · max {live.maxMs.toFixed(0)} ms</dd>
-        <dt>Long tasks</dt><dd class={health}>{live.longCount} · longest {live.longMaxMs.toFixed(0)} ms · blocked {live.blockedPct.toFixed(0)} %</dd>
-        <dt>Live views</dt><dd>{live.scale < 1.05 ? 'full rate' : `refresh ×${live.scale.toFixed(1)} slower`}</dd>
-        <dt>Piece</dt><dd>{sources.playing() ? 'playing' : 'stopped'}{recordingFrom !== null ? ` · recording ${clock(recordedSeconds)}` : ''}</dd>
+        <dt>Frames</dt>
+        <dd>{live.fps.toFixed(0)} fps · p95 {live.p95Ms.toFixed(0)} ms · max {live.maxMs.toFixed(0)} ms</dd>
+        <dt>Long tasks</dt>
+        <dd class={health}>{live.longCount} · longest {live.longMaxMs.toFixed(0)} ms · blocked {live.blockedPct.toFixed(0)} %</dd>
+        <dt>Live views</dt>
+        <dd>{live.scale < 1.05 ? 'full rate' : `refresh ×${live.scale.toFixed(1)} slower`}</dd>
+        <dt>Piece</dt>
+        <dd>{sources.playing() ? 'playing' : 'stopped'}{recordingFrom !== null ? ` · recording ${clock(recordedSeconds)}` : ''}</dd>
       </dl>
       {#if running}
         <p class="progress" role="status">
@@ -161,7 +165,10 @@
         <div class="row">
           <button class="full" onclick={runFull}>▶ Run full test (about {estimateMinutes(options)} min)</button>
         </div>
-        <p class="hint">Plays {options.pieces.map((p) => p.label).join(', ')} on {options.settings.length} audio settings, from the safest down, and gives one report: how far the latency can be lowered on this device. The piece open now is put back afterwards.</p>
+        <p class="hint">
+          Plays {options.pieces.map((p) => p.label).join(', ')} on {options.settings.length} audio settings, from the safest down, and gives one report: how far the latency can be lowered
+          on this device. The piece open now is put back afterwards.
+        </p>
         <div class="row">
           <button class:rec={recordingFrom !== null} onclick={toggleRecord}>{recordingFrom === null ? '● Record' : '■ Stop'}</button>
           <button onclick={copy}>Copy report</button>

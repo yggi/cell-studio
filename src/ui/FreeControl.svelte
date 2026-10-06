@@ -35,7 +35,16 @@
     {/if}
   </div>
 {:else if f.key === 'text'}
-  <label class="keys"><span class="what">text</span><input class="textfree" type="text" value={f.text ?? ''} spellcheck="false" autocomplete="off" oninput={(e) => onfree(f, e.currentTarget.value)} /></label>
+  <label class="keys"
+    ><span class="what">text</span><input
+      class="textfree"
+      type="text"
+      value={f.text ?? ''}
+      spellcheck="false"
+      autocomplete="off"
+      oninput={(e) => onfree(f, e.currentTarget.value)}
+    /></label
+  >
 {:else if f.labels}
   <div class="keys"><span class="what">{freeLabel(f)}</span><Keypad labels={f.labels} value={f.value} lo={f.lo} hi={f.hi} size="large" onpick={(v) => onfree(f, v)} /></div>
 {:else}

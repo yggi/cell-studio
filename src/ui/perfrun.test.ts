@@ -1,6 +1,18 @@
 import { describe, expect, it } from 'vitest';
 import { summarizeFrames, summarizeLong, type ReportData } from './perf';
-import { audioProblems, combinedReport, estimateMinutes, parseRunOptions, planSteps, PIECES, runScenario, SETTINGS, summarizeSettings, type RunController, type RunResult } from './perfrun';
+import {
+  audioProblems,
+  combinedReport,
+  estimateMinutes,
+  parseRunOptions,
+  planSteps,
+  PIECES,
+  runScenario,
+  SETTINGS,
+  summarizeSettings,
+  type RunController,
+  type RunResult,
+} from './perfrun';
 
 const data = (over: Partial<ReportData> = {}, audio: Partial<ReportData['audio']> = {}): ReportData => ({
   version: '0.9.0 (abc1234)',
@@ -17,7 +29,19 @@ const data = (over: Partial<ReportData> = {}, audio: Partial<ReportData['audio']
   queue: null,
   notes: { played: 400, late: 0, dropped: 0, worstLateMs: 3 },
   loadScale: { mean: 1, max: 1 },
-  audio: { state: 'running', sampleRate: 48000, baseLatencyMs: 21, outputLatencyMs: 280, clockRatio: 1, tuning: 'playback, look-ahead default', heardLatencyMs: 280, pictureLagMs: null, capacity: { updates: 25, meanLoad: 0.3, peakLoad: 0.5, underrunRatioMean: 0, underrunRatioMax: 0 }, playout: null, ...audio },
+  audio: {
+    state: 'running',
+    sampleRate: 48000,
+    baseLatencyMs: 21,
+    outputLatencyMs: 280,
+    clockRatio: 1,
+    tuning: 'playback, look-ahead default',
+    heardLatencyMs: 280,
+    pictureLagMs: null,
+    capacity: { updates: 25, meanLoad: 0.3, peakLoad: 0.5, underrunRatioMean: 0, underrunRatioMax: 0 },
+    playout: null,
+    ...audio,
+  },
   heapMB: 50,
   ...over,
 });
@@ -26,7 +50,10 @@ const results = (bad: string | null = null): RunResult[] =>
   planSteps({ seconds: 25, settings: SETTINGS, pieces: PIECES }).map(({ piece, setting }) => ({
     piece: piece.label,
     setting,
-    data: setting.id === bad ? data({ notes: { played: 400, late: 5, dropped: 2, worstLateMs: 80 } }, { heardLatencyMs: 40 }) : data({}, { heardLatencyMs: ({ playback: 280, balanced: 90, interactive: 50 } as Record<string, number>)[setting.id] ?? 40 }),
+    data:
+      setting.id === bad
+        ? data({ notes: { played: 400, late: 5, dropped: 2, worstLateMs: 80 } }, { heardLatencyMs: 40 })
+        : data({}, { heardLatencyMs: ({ playback: 280, balanced: 90, interactive: 50 } as Record<string, number>)[setting.id] ?? 40 }),
   }));
 
 describe('the scenario', () => {

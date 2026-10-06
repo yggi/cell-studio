@@ -92,17 +92,18 @@ export function layered(model: GraphModel, o: LayeredOptions): Map<string, { x: 
     const es: [number, number, number][] = [];
     for (const id of layers[l]) for (const n of down.get(id) ?? []) es.push([pos.get(id)!, pos.get(n.id)!, n.w]);
     let c = 0;
-    for (let i = 0; i < es.length; i++)
-      for (let j = i + 1; j < es.length; j++) if ((es[i][0] - es[j][0]) * (es[i][1] - es[j][1]) < 0) c += es[i][2] * es[j][2];
+    for (let i = 0; i < es.length; i++) for (let j = i + 1; j < es.length; j++) if ((es[i][0] - es[j][0]) * (es[i][1] - es[j][1]) < 0) c += es[i][2] * es[j][2];
     return c;
   };
   const total = () => layers.reduce((a, _, l) => a + crossings(l), 0);
   // tags inside the piece (tags= on cells): a tagged node leans towards where its tag's members are —
   // so clusters begin side by side, not scattered over every row
-  const tagOf = new Map(nodes.flatMap((n) => {
-    const c = (n as { cell?: { note?: boolean; tags?: readonly string[] } }).cell;
-    return !c?.note && c?.tags?.length ? [[n.id, c.tags[0]] as const] : [];
-  }));
+  const tagOf = new Map(
+    nodes.flatMap((n) => {
+      const c = (n as { cell?: { note?: boolean; tags?: readonly string[] } }).cell;
+      return !c?.note && c?.tags?.length ? [[n.id, c.tags[0]] as const] : [];
+    }),
+  );
   const tagCentre = (by: Map<string, number>) => {
     const sums = new Map<string, [number, number]>();
     for (const [id, t] of tagOf) {
@@ -115,7 +116,9 @@ export function layered(model: GraphModel, o: LayeredOptions): Map<string, { x: 
   };
   // first, tags apart: each row begins with its tags in order of their names
   const tagNames = [...new Set(tagOf.values())].sort();
-  if (tagNames.length) for (const row of layers) row.sort((a, b) => (tagOf.has(a) ? tagNames.indexOf(tagOf.get(a)!) : tagNames.length / 2) - (tagOf.has(b) ? tagNames.indexOf(tagOf.get(b)!) : tagNames.length / 2));
+  if (tagNames.length)
+    for (const row of layers)
+      row.sort((a, b) => (tagOf.has(a) ? tagNames.indexOf(tagOf.get(a)!) : tagNames.length / 2) - (tagOf.has(b) ? tagNames.indexOf(tagOf.get(b)!) : tagNames.length / 2));
   const mean = (ns: { id: string; w: number }[] | undefined, fallback: number) => {
     if (!ns?.length) return fallback;
     const w = ns.reduce((a, n) => a + n.w, 0);

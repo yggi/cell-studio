@@ -44,7 +44,7 @@
   {#if suggestions.length && word.word}
     <ul class="list" role="listbox" aria-label="suggestions">
       {#each suggestions as s}
-        <li><button class={s.kind} onclick={() => complete(s.text)}>{s.label}</button></li>
+        <li><button class="unstyled {s.kind}" onclick={() => complete(s.text)}>{s.label}</button></li>
       {/each}
     </ul>
   {/if}
@@ -100,12 +100,10 @@
     border: 1px solid var(--line);
   }
   .list button {
-    all: unset;
     display: block;
     width: 100%;
     box-sizing: border-box;
     padding: 9px 12px;
-    cursor: pointer;
     font: 500 14px var(--font-code);
     color: var(--accent);
   }

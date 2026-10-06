@@ -33,9 +33,7 @@ describe('ForceLayout', () => {
     l.setGraph(g);
     l.tick(400);
     const ids = g.nodes.filter((n) => !n.petalOf).map((n) => n.id); // petals hang from their parent
-    for (let i = 0; i < ids.length; i++)
-      for (let j = i + 1; j < ids.length; j++)
-        expect(dist(l.position(ids[i])!, l.position(ids[j])!)).toBeGreaterThan(70);
+    for (let i = 0; i < ids.length; i++) for (let j = i + 1; j < ids.length; j++) expect(dist(l.position(ids[i])!, l.position(ids[j])!)).toBeGreaterThan(70);
   });
 
   it('preserves positions of surviving nodes across edits', () => {
@@ -229,10 +227,14 @@ describe('initial layout', () => {
       ],
       edges: [],
     } as unknown as Parameters<ForceLayout['setGraph']>[0];
-    const l = new ForceLayout(undefined, { ...FORCES_ALONE,  live: false, centre: 0 }); // repulsion alone
+    const l = new ForceLayout(undefined, { ...FORCES_ALONE, live: false, centre: 0 }); // repulsion alone
     l.setGraph(model);
     const r = 2 * DEFAULT_LAYOUT.layerGap; // 480 px apart: beyond the near field
-    for (const [id, x] of [['a', -r], ['b', r]] as const) l.dragStart(id, x, 0);
+    for (const [id, x] of [
+      ['a', -r],
+      ['b', r],
+    ] as const)
+      l.dragStart(id, x, 0);
     l.tick(1); // a drag takes effect on the next tick
     for (const id of ['a', 'b']) l.dragEnd(id);
     l.tick(100);
@@ -266,7 +268,12 @@ describe('the natural order (waltz)', () => {
     expect(y('mix')).toBeLessThan(y('flute'));
     expect(y('flute')).toBeLessThan(y('tune'));
     expect(y('tune')).toBeLessThan(y('bar'));
-    for (const [m, p] of [['I', 'oom'], ['V', 'oom'], ['i', 'pah'], ['v', 'pah']]) {
+    for (const [m, p] of [
+      ['I', 'oom'],
+      ['V', 'oom'],
+      ['i', 'pah'],
+      ['v', 'pah'],
+    ]) {
       // beside: around the player's height (collisions spread them a little, as in the screenshot)
       expect(Math.abs(y(m) - y(p)), m).toBeLessThan(DEFAULT_LAYOUT.layerGap * 2);
       expect(y(m), m).toBeLessThan(y('bar') + DEFAULT_LAYOUT.layerGap / 2); // level with the meter at most (the outer column)
@@ -332,9 +339,15 @@ describe('drawn crossings', () => {
         { id: 'c->d', source: 'c', target: 'd', kind: 'ref', count: 1, pick: '' },
       ],
     } as unknown as Parameters<ForceLayout['setGraph']>[0];
-    const l = new ForceLayout(undefined, { ...FORCES_ALONE,  live: false, avoid: 0 });
+    const l = new ForceLayout(undefined, { ...FORCES_ALONE, live: false, avoid: 0 });
     l.setGraph(model);
-    for (const [id, x, y] of [['a', -300, 0], ['b', 300, 0], ['c', 0, 0], ['d', 0, 300]] as const) l.dragStart(id, x, y);
+    for (const [id, x, y] of [
+      ['a', -300, 0],
+      ['b', 300, 0],
+      ['c', 0, 0],
+      ['d', 0, 300],
+    ] as const)
+      l.dragStart(id, x, y);
     l.tick(30);
     expect(l.drawnCrossings()).toBe(0);
     // made to arc around c (old behaviour), the same edge crosses c's
@@ -393,7 +406,9 @@ describe('busy nodes push harder', () => {
   it('repulsion scales with a node’s edges: a hub gets more room than a leaf', () => {
     const model = {
       nodes: ['hub', 'a', 'b', 'c', 'd', 'x', 'y'].map((id) => ({ id, depth: 1, kind: 'cell' })),
-      edges: ['a', 'b', 'c', 'd'].map((n) => ({ id: `hub->${n}`, source: 'hub', target: n, kind: 'ref', count: 1, pick: '' })).concat([{ id: 'x->y', source: 'x', target: 'y', kind: 'ref', count: 1, pick: '' }]),
+      edges: ['a', 'b', 'c', 'd']
+        .map((n) => ({ id: `hub->${n}`, source: 'hub', target: n, kind: 'ref', count: 1, pick: '' }))
+        .concat([{ id: 'x->y', source: 'x', target: 'y', kind: 'ref', count: 1, pick: '' }]),
     } as unknown as Parameters<ForceLayout['setGraph']>[0];
     const gap = (degreeRepel: number) => {
       const l = new ForceLayout(undefined, { ...FORCES_ALONE, live: false, degreeRepel, centre: 0, rankPull: 0 });
@@ -475,8 +490,7 @@ describe('tags inside a piece: a node each, pushing cells and edges off its name
       }
       // the names apart
       for (let i = 0; i < tagAt.length; i++)
-        for (let j = i + 1; j < tagAt.length; j++)
-          expect(Math.hypot(tagAt[i].p.x - tagAt[j].p.x, tagAt[i].p.y - tagAt[j].p.y)).toBeGreaterThan((tagAt[i].r + tagAt[j].r) * 0.8);
+        for (let j = i + 1; j < tagAt.length; j++) expect(Math.hypot(tagAt[i].p.x - tagAt[j].p.x, tagAt[i].p.y - tagAt[j].p.y)).toBeGreaterThan((tagAt[i].r + tagAt[j].r) * 0.8);
       // and no drawn edge across a name (sampled along each curve)
       const bends = l.bends();
       let over = 0;
@@ -537,9 +551,19 @@ describe('tapes: the heads keep their spacing, the wheel turns to face them at w
   it('the turn that faces the heads best: a weighted circular mean', () => {
     const q = Math.PI / 2;
     // two heads a quarter apart, their cells a quarter apart, half a turn round: turned half a turn
-    expect(fitTurn([{ angle: Math.PI, offset: 0, weight: 1 }, { angle: -q, offset: q, weight: 1 }])).toBeCloseTo(Math.PI);
+    expect(
+      fitTurn([
+        { angle: Math.PI, offset: 0, weight: 1 },
+        { angle: -q, offset: q, weight: 1 },
+      ]),
+    ).toBeCloseTo(Math.PI);
     // they disagree: the busier one wins more
-    expect(fitTurn([{ angle: 0, offset: 0, weight: 3 }, { angle: q, offset: 0, weight: 1 }])!).toBeCloseTo(Math.atan2(1, 3));
+    expect(
+      fitTurn([
+        { angle: 0, offset: 0, weight: 3 },
+        { angle: q, offset: 0, weight: 1 },
+      ])!,
+    ).toBeCloseTo(Math.atan2(1, 3));
     expect(fitTurn([])).toBeNull();
   });
 });
@@ -562,7 +586,7 @@ describe('meters last, joined to their cells by a net', () => {
         const traces = net.filter((t) => t.meter === m);
         expect(traces.length).toBe(ends.size - 1);
         const reached = new Set([m]);
-        for (let grew = true; grew; ) {
+        for (let grew = true; grew;) {
           grew = false;
           for (const t of traces)
             if (reached.has(t.a) !== reached.has(t.b)) {
@@ -570,7 +594,10 @@ describe('meters last, joined to their cells by a net', () => {
               grew = true;
             }
         }
-        expect([...ends].filter((id) => !reached.has(id)), 'cells off the net').toEqual([]);
+        expect(
+          [...ends].filter((id) => !reached.has(id)),
+          'cells off the net',
+        ).toEqual([]);
         // and the meter sits clear of every wheel
         const p = l.position(m)!;
         for (const n of model.nodes.filter((n) => !n.petalOf && n.id !== m)) {
@@ -581,7 +608,7 @@ describe('meters last, joined to their cells by a net', () => {
       l.destroy();
     });
   }
-  it('inside a closed cycle when that reaches more: Royal\'s meter sits within its ring, its net crossing nothing', () => {
+  it("inside a closed cycle when that reaches more: Royal's meter sits within its ring, its net crossing nothing", () => {
     // (theme → scale ← pedal → bass → mix ← lead ← theme is a cycle; the meter steps theme and pedal, on it — from
     // outside a trace crosses the cycle, from inside none does: the face too small for it is widened)
     const model = buildGraph(compileSource(PRESETS.royal.source));
@@ -590,7 +617,12 @@ describe('meters last, joined to their cells by a net', () => {
     l.tick(220);
     const before = l.drawnCrossings();
     l.placeMeters();
-    expect(l.meterNet().map((t) => [t.a, t.b].sort().join(' ')).sort()).toEqual(['cell:bar cell:pedal', 'cell:bar cell:theme']);
+    expect(
+      l
+        .meterNet()
+        .map((t) => [t.a, t.b].sort().join(' '))
+        .sort(),
+    ).toEqual(['cell:bar cell:pedal', 'cell:bar cell:theme']);
     expect(l.drawnCrossings()).toBeLessThanOrEqual(before);
     l.destroy();
   });

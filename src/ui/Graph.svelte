@@ -234,7 +234,6 @@
     return flowNodeOf(g, posOf(g.id) ?? { x: 0, y: 0 }, pinned.has(g.id) && !fixedPinned.has(g.id), turnOf(g.id), meters);
   }
 
-
   // clusters: the tags cells carry inside the piece (not the card's) — where their members are, now
   const clusters = $derived.by(() => {
     const byTag = new Map<string, { x: number; y: number; size: number }[]>();
@@ -283,10 +282,7 @@
     // a tape's edges take the colour of what's on them: a read head's notes, as played; what's being
     // written, as its source plays it
     if (e.kind === 'out' && (e.pick === 'play' || e.pick === 'write')) {
-      const o =
-        e.pick === 'play'
-          ? program.outputs.find((x) => x.tape?.head === nameOf(e.target))
-          : program.outputs.find((x) => x.cell === nameOf(e.source) && !x.tape);
+      const o = e.pick === 'play' ? program.outputs.find((x) => x.tape?.head === nameOf(e.target)) : program.outputs.find((x) => x.cell === nameOf(e.source) && !x.tape);
       return { kind: e.kind, phaseCell: null, voice: o?.voice ?? null, reverse: false };
     }
     if (e.kind === 'out') {
@@ -311,11 +307,18 @@
       const rate = program.clocks.get(driven.cell.name)?.belt?.rate ?? 1;
       const [rDriver, rDriven] = pulleys(sizeOf(e.target), sizeOf(e.source), rate);
       const st = live ? physicsOf(program, shifts, driven.cell.name)?.state?.(live.seconds) : undefined;
-      return { id: e.id, source: e.source, target: e.target, type: 'belt', zIndex: 5, selectable: false, data: { rDriver, rDriven, stretch: st?.stretch ?? 0, slipping: st?.slipping ?? false } };
+      return {
+        id: e.id,
+        source: e.source,
+        target: e.target,
+        type: 'belt',
+        zIndex: 5,
+        selectable: false,
+        data: { rDriver, rDriven, stretch: st?.stretch ?? 0, slipping: st?.slipping ?? false },
+      };
     }
     // a tape's edges meet it at its heads: the write head (what it records), each read head (what it plays)
-    const heads =
-      e.pick === 'write' ? { targetHandle: 'head-write' } : e.pick === 'play' ? { sourceHandle: `head-${e.target.replace(/^cell:/, '')}` } : {};
+    const heads = e.pick === 'write' ? { targetHandle: 'head-write' } : e.pick === 'play' ? { sourceHandle: `head-${e.target.replace(/^cell:/, '')}` } : {};
     return {
       id: e.id,
       source: e.source,
@@ -344,9 +347,16 @@
       () =>
         (edges = [
           ...m.edges.filter((e) => !isGround(e, byId)).map((e) => toFlowEdge(e)),
-          ...laid.map(
-            (t): Edge => ({ id: t.id, source: t.a, target: t.b, type: 'meter', zIndex: -1, selectable: false, focusable: false, data: { meter: index.get(t.meter) ?? 0, name: nameOf(t.meter) } }),
-          ),
+          ...laid.map((t): Edge => ({
+            id: t.id,
+            source: t.a,
+            target: t.b,
+            type: 'meter',
+            zIndex: -1,
+            selectable: false,
+            focusable: false,
+            data: { meter: index.get(t.meter) ?? 0, name: nameOf(t.meter) },
+          })),
         ]),
     );
   });
@@ -486,10 +496,11 @@
   <div class="toolbar">
     <button class="add-cell" onclick={onadd} title="Add a cell (blank: the chromatic default)">+ cell</button>
     <button class="forces-toggle" class:on={forcesOpen} onclick={() => (forcesOpen = !forcesOpen)} aria-pressed={forcesOpen} title="Layout forces">forces</button>
-    <button class="forces-toggle" class:on={legendOpen} onclick={() => (legendOpen = !legendOpen)} aria-pressed={legendOpen} title="What the colours and values mean">legend</button>
+    <button class="forces-toggle" class:on={legendOpen} onclick={() => (legendOpen = !legendOpen)} aria-pressed={legendOpen} title="What the colours and values mean">legend</button
+    >
   </div>
   {#if legendOpen}
-    <div class="legend-wrap"><GraphLegend {program} shifts={shifts} {source} /></div>
+    <div class="legend-wrap"><GraphLegend {program} {shifts} {source} /></div>
   {/if}
   {#if forcesOpen}
     <ForcesPanel options={forceOptions} onchange={setForce} onreset={resetForces} onclose={() => (forcesOpen = false)} />
@@ -631,10 +642,14 @@
     color: var(--text);
     font: 700 12.5px/1.35 var(--font-ui);
     box-shadow: 0 2px 6px rgb(0 0 0 / 0.3);
-    transition: opacity 200ms ease, border-color 200ms ease;
+    transition:
+      opacity 200ms ease,
+      border-color 200ms ease;
   }
   .graph :global(.svelte-flow__edge-path) {
-    transition: stroke 200ms ease, stroke-opacity 200ms ease;
+    transition:
+      stroke 200ms ease,
+      stroke-opacity 200ms ease;
   }
   /* clusters (rendered in the flow's viewport: global, since the portal lives outside this component; the wash, .cluster, is in app.css) */
   :global(.cluster-name) {

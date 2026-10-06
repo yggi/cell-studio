@@ -38,7 +38,12 @@
   // keys you can pick: the one being edited, and those not set yet (step and loop are one setting)
   const keys = $derived(
     allKeys
-      .filter(([k]) => k === editing?.key || k === editing?.from || (!attrs.has(k) && !((k === 'step' || k === 'loop') && (attrs.has('step') || attrs.has('loop')) && editing?.from !== 'step' && editing?.from !== 'loop')))
+      .filter(
+        ([k]) =>
+          k === editing?.key ||
+          k === editing?.from ||
+          (!attrs.has(k) && !((k === 'step' || k === 'loop') && (attrs.has('step') || attrs.has('loop')) && editing?.from !== 'step' && editing?.from !== 'loop')),
+      )
       .map(([k]) => ({ value: k, label: k })),
   );
 
@@ -71,12 +76,12 @@
 
 <div class="rows">
   {#each rows as [k, v]}
-    <button class="row" onclick={() => (editing = { key: k, from: k, value: v })} title={meaning.get(k)}>
+    <button class="unstyled row" onclick={() => (editing = { key: k, from: k, value: v })} title={meaning.get(k)}>
       <span class="k">{k}</span>
       <span class="v">{v}</span>
     </button>
   {/each}
-  <button class="add" onclick={startAdd}>Add a setting</button>
+  <button class="unstyled add" onclick={startAdd}>Add a setting</button>
 </div>
 
 {#if editing}
@@ -102,7 +107,6 @@
     flex-direction: column;
   }
   .row {
-    all: unset;
     display: grid;
     grid-template-columns: 5.2em 1fr;
     gap: 10px;
@@ -111,7 +115,6 @@
     padding: 0 10px;
     background: var(--code-bg);
     border-top: 1px solid color-mix(in oklab, var(--line) 60%, transparent);
-    cursor: pointer;
     font: 500 13.5px var(--font-code);
   }
   .row:first-child {
@@ -139,13 +142,11 @@
     white-space: nowrap;
   }
   .add {
-    all: unset;
     align-self: flex-start;
     margin-top: 4px;
     padding: 6px 2px;
     color: var(--text-muted);
     font: 600 13.5px var(--font-ui);
-    cursor: pointer;
   }
   .add:hover {
     color: var(--accent);

@@ -73,9 +73,23 @@
   </figcaption>
   <div class="row">
     {#each flows as fl (fl.size)}
-    <div class="flow" data-where={f.key.split(':')[0]} data-size={fl.size} style:width="{fl.width}px" style:height="{height}px">
-      <SvelteFlow nodes={fl.nodes} edges={[]} {nodeTypes} nodeOrigin={[0.5, 0.5]} colorMode="dark" panOnDrag={false} zoomOnScroll={false} zoomOnPinch={false} zoomOnDoubleClick={false} nodesConnectable={false} elementsSelectable={false} viewport={{ x: 0, y: 0, zoom: 1 }} proOptions={{ hideAttribution: true }} />
-    </div>
+      <div class="flow" data-where={f.key.split(':')[0]} data-size={fl.size} style:width="{fl.width}px" style:height="{height}px">
+        <SvelteFlow
+          nodes={fl.nodes}
+          edges={[]}
+          {nodeTypes}
+          nodeOrigin={[0.5, 0.5]}
+          colorMode="dark"
+          panOnDrag={false}
+          zoomOnScroll={false}
+          zoomOnPinch={false}
+          zoomOnDoubleClick={false}
+          nodesConnectable={false}
+          elementsSelectable={false}
+          viewport={{ x: 0, y: 0, zoom: 1 }}
+          proOptions={{ hideAttribution: true }}
+        />
+      </div>
     {/each}
     {#if sheet}
       <div class="sheet" data-where="sheet">

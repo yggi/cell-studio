@@ -93,7 +93,10 @@ export function suggestValue(key: string, text: string, names: readonly string[]
   const w = text.trim();
   const q = w.toLowerCase();
   const pick = (items: [string, string][], kind: Suggestion['kind'] = 'value') =>
-    items.filter(([t]) => t.toLowerCase().startsWith(q) || t.toLowerCase().includes(q) && q.length > 1).slice(0, 10).map(([t, l]) => ({ text: t, label: l, kind }));
+    items
+      .filter(([t]) => t.toLowerCase().startsWith(q) || (t.toLowerCase().includes(q) && q.length > 1))
+      .slice(0, 10)
+      .map(([t, l]) => ({ text: t, label: l, kind }));
   if (/^&[A-Za-z_][A-Za-z0-9_]*\[/.test(w)) return suggest(w, names).filter((s) => !/\[(-?\d|:|-1)/.test(s.text) || key !== 'over');
   const refs = (prefix = '') => names.map((n): [string, string] => [`${prefix}&${n}`, `${prefix}&${n}`]);
   switch (key) {
@@ -111,7 +114,10 @@ export function suggestValue(key: string, text: string, names: readonly string[]
     case 'loop':
       return [
         ...pick(refs(), 'ref'),
-        ...pick(names.map((n): [string, string] => [`cycle(&${n})`, `cycle(&${n}) — once per cycle of &${n}`]), 'function'),
+        ...pick(
+          names.map((n): [string, string] => [`cycle(&${n})`, `cycle(&${n}) — once per cycle of &${n}`]),
+          'function',
+        ),
         ...pick([
           ['96bpm', '96bpm — a rate, beats per minute'],
           ['1', '1 — per second'],
@@ -136,11 +142,14 @@ export function suggestValue(key: string, text: string, names: readonly string[]
       ];
     case 'env':
       return [
-        ...pick([
-          ['&(map=adsr .01 .3 .5 .4)', 'an envelope: attack decay sustain release (seconds)'],
-          ['&(map=adsr 0 .2 0 .05)', 'a pluck: no sustain'],
-          ['&(map=adsr .3 .2 .8 1)', 'a pad: slow in, long release'],
-        ], 'function'),
+        ...pick(
+          [
+            ['&(map=adsr .01 .3 .5 .4)', 'an envelope: attack decay sustain release (seconds)'],
+            ['&(map=adsr 0 .2 0 .05)', 'a pluck: no sustain'],
+            ['&(map=adsr .3 .2 .8 1)', 'a pad: slow in, long release'],
+          ],
+          'function',
+        ),
         ...pick(refs(), 'ref'),
       ];
     case 'pitch':

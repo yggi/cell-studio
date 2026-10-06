@@ -152,7 +152,9 @@ export function createVoices(Tone: ToneNS): VoiceBank {
       // a voice played only into sends (a resonator's excitation, a tape) isn't heard from itself
       // (a kit's output names the kit: its members are what sound)
       const heardVoices = new Set([
-        ...result.outputs.filter((o) => !o.silent && outputSounds(result, o, muted)).flatMap((o) => (o.kit ? [o.voice, ...(result.cells.get(o.voice)?.children.keys() ?? [])] : [o.voice])),
+        ...result.outputs
+          .filter((o) => !o.silent && outputSounds(result, o, muted))
+          .flatMap((o) => (o.kit ? [o.voice, ...(result.cells.get(o.voice)?.children.keys() ?? [])] : [o.voice])),
         ...result.resonances.filter((x) => !off(x.cell)).map((x) => x.cell),
       ]);
       for (const [name, b] of built) {
@@ -176,10 +178,10 @@ export function createVoices(Tone: ToneNS): VoiceBank {
           const kit = o.kit ? result.cells.get(o.voice) : undefined;
           if (o.voice === name || (kit && kit.children.has(name))) {
             const g = liveGains(o, muted);
-            (l += g[0]), (r += g[1]);
+            ((l += g[0]), (r += g[1]));
           }
         }
-        for (const x of result.resonances) if (x.cell === name && !off(name)) (l += x.gains[0]), (r += x.gains[1]);
+        for (const x of result.resonances) if (x.cell === name && !off(name)) ((l += x.gains[0]), (r += x.gains[1]));
         b.res.level.gain.value = (l + r) / 2;
         // (its head is its panner: a resonator has no filters, no grit)
         const pan = b.head instanceof Tone.Panner ? b.head.pan : undefined;
@@ -283,7 +285,7 @@ export function createVoices(Tone: ToneNS): VoiceBank {
     },
     strike(name, x, index) {
       const r = built.get(name)?.res;
-      const part = r ? r.parts[index ?? 0] ?? r.parts[0] : undefined;
+      const part = r ? (r.parts[index ?? 0] ?? r.parts[0]) : undefined;
       if (part) strikeAt(ctx, part, ctx.currentTime + 0.005, Math.min(1, Math.max(0, x)));
     },
     resonance(name) {

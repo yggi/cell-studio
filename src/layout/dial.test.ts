@@ -18,7 +18,7 @@ describe('dial', () => {
     expect(segmentAt(0.25, rotationFor(3, 12), 12)).toBe(6);
   });
 
-  it('measures screen angles clockwise from 12 o\'clock', () => {
+  it("measures screen angles clockwise from 12 o'clock", () => {
     expect(angleOf(0, -1, 0, 0)).toBeCloseTo(0);
     expect(angleOf(1, 0, 0, 0)).toBeCloseTo(0.25);
     expect(angleOf(0, 1, 0, 0)).toBeCloseTo(0.5);
@@ -34,7 +34,7 @@ describe('dial', () => {
     expect(fitFont(10, 2, 17, 7)).toBeCloseTo(8.3, 1);
   });
 
-  it('scales a wheel\'s text with it, within limits', () => {
+  it("scales a wheel's text with it, within limits", () => {
     expect(hubMax(128)).toBe(17);
     expect(hubMax(256)).toBe(17);
     expect(hubMax(64)).toBe(9);

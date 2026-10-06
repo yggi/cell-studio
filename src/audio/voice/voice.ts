@@ -110,7 +110,10 @@ export function buildVoice(Tone: ToneNS, ctx: AudioContext, bus: Bus, result: Co
     send = new Tone.FeedbackDelay({ delayTime: time, maxDelay: Math.max(1, time + 0.25), feedback: num(params, 'delayfeedback', 0.35), wet: 1 }).connect(bus.master);
     nodes.push(send);
   }
-  for (const [k, target] of [['room', bus.reverb], ['delay', send]] as const)
+  for (const [k, target] of [
+    ['room', bus.reverb],
+    ['delay', send],
+  ] as const)
     if (typeof params[k] === 'number' || moves[k] || (k === 'delay' && send !== bus.echo)) {
       const g = new Tone.Gain(start(k, k === 'delay' ? 0.3 : 0)).connect(target);
       out.connect(g);

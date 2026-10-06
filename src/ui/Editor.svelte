@@ -118,7 +118,9 @@
     {/each}
   </div>
   <div class="code">
-    <pre class="paint" bind:this={paint} aria-hidden="true">{#each painted as line, i}{#each line as t}<span class="t-{t.kind}">{t.text}</span>{/each}{i < painted.length - 1 ? '\n' : '\n '}{/each}</pre>
+    <pre class="paint" bind:this={paint} aria-hidden="true">{#each painted as line, i}{#each line as t}<span class="t-{t.kind}">{t.text}</span>{/each}{i < painted.length - 1
+          ? '\n'
+          : '\n '}{/each}</pre>
     <textarea
       bind:this={textarea}
       bind:value
@@ -132,16 +134,15 @@
       autocapitalize="off"
       autocomplete="off"
       wrap="soft"
-      aria-label="Cell program"
-    ></textarea>
+      aria-label="Cell program"></textarea>
   </div>
   <!-- the same lines, laid out like the textarea, to measure where they wrap -->
   <div class="mirror" bind:this={mirror} aria-hidden="true">
     {#each lines as l}<div>{l || '\u200b'}</div>{/each}
   </div>
   <div class="zoom" role="group" aria-label="Text size">
-    <button type="button" onclick={() => zoom(-1)} aria-label="Smaller text">A−</button>
-    <button type="button" onclick={() => zoom(1)} aria-label="Larger text">A+</button>
+    <button type="button" class="unstyled" onclick={() => zoom(-1)} aria-label="Smaller text">A−</button>
+    <button type="button" class="unstyled" onclick={() => zoom(1)} aria-label="Larger text">A+</button>
   </div>
 </div>
 
@@ -149,7 +150,7 @@
   <ul class="diagnostics" aria-live="polite">
     {#each diagnostics as d}
       <li class={d.severity}>
-        <button type="button" onclick={() => jump(d)}>
+        <button type="button" class="unstyled" onclick={() => jump(d)}>
           <span class="where">Line {d.span.line}</span>
           {d.message}
         </button>
@@ -294,8 +295,6 @@
     opacity: 0.85;
   }
   .zoom button {
-    all: unset;
-    cursor: pointer;
     padding: 4px 10px;
     font: 700 12px var(--font-ui);
     color: var(--text-muted);
@@ -314,13 +313,11 @@
     border-top: 1px solid var(--line);
   }
   .diagnostics button {
-    all: unset;
     box-sizing: border-box;
     display: block;
     width: 100%;
     padding: 5px 8px;
     border-radius: var(--radius-sm);
-    cursor: pointer;
     font-size: 13px;
     line-height: 1.4;
     color: var(--text);

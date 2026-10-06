@@ -14,8 +14,7 @@ function fakeCtx(): BaseAudioContext {
 
 describe('noise is reproducible', () => {
   it('two contexts make the same noise of a colour, and the colours differ', () => {
-    for (const colour of ['white', 'pink', 'brown'] as const)
-      expect(noiseBuffer(fakeCtx(), colour).getChannelData(0)).toEqual(noiseBuffer(fakeCtx(), colour).getChannelData(0));
+    for (const colour of ['white', 'pink', 'brown'] as const) expect(noiseBuffer(fakeCtx(), colour).getChannelData(0)).toEqual(noiseBuffer(fakeCtx(), colour).getChannelData(0));
     const ctx = fakeCtx();
     expect(noiseBuffer(ctx, 'white').getChannelData(0)).not.toEqual(noiseBuffer(ctx, 'pink').getChannelData(0));
   });
@@ -29,7 +28,14 @@ describe('noise is reproducible', () => {
   });
 
   it('a seeded generator repeats for a seed and differs between seeds', () => {
-    const run = (seed: number) => Array.from({ length: 5 }, ((r) => () => r())(seeded(seed)));
+    const run = (seed: number) =>
+      Array.from(
+        { length: 5 },
+        (
+          (r) => () =>
+            r()
+        )(seeded(seed)),
+      );
     expect(run(7)).toEqual(run(7));
     expect(run(7)).not.toEqual(run(8));
   });

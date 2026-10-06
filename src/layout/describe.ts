@@ -126,11 +126,7 @@ export function summary(result: CompileResult, name: string): Bit[] {
     }
     case 'adsr': {
       const e = adsrOf(c);
-      return [
-        e ? `An envelope: in over ${e.attack} s, down to ${e.sustain} over ${e.decay} s, out over ${e.release} s` : 'An envelope',
-        ...tail('used by', ', shaping '),
-        '.',
-      ];
+      return [e ? `An envelope: in over ${e.attack} s, down to ${e.sustain} over ${e.decay} s, out over ${e.release} s` : 'An envelope', ...tail('used by', ', shaping '), '.'];
     }
     case 'lfo': {
       const v = lfoValues(result, name, codeShifts(result));

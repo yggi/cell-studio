@@ -42,7 +42,6 @@
     onopen: (e: Entry) => void;
   } = $props();
 
-
   const layout = $derived(lib);
   // a piece's size, and the tags': as large as the layout has grown them (to fill the wheel)
   const PR = $derived(lib.piece);
@@ -170,7 +169,10 @@
     if (key === lastShown) return;
     lastShown = key;
     if (!searching) return void fit();
-    const ps = entries.filter((e) => shown.has(e.id)).map((e) => layout.at.get(`p:${e.id}`)).filter((p): p is { x: number; y: number } => !!p);
+    const ps = entries
+      .filter((e) => shown.has(e.id))
+      .map((e) => layout.at.get(`p:${e.id}`))
+      .filter((p): p is { x: number; y: number } => !!p);
     if (!ps.length || !scroller) return;
     const pad = PR * 2.5;
     const x0 = Math.min(...ps.map((p) => p.x)) - pad;
@@ -189,7 +191,10 @@
     [...tags]
       .filter(([t, n]) => n > 1 && shownTag(t) && !(layout.ring && isGenre(t)))
       .map(([t]) => {
-        const ms = entries.filter((e) => visible(e.id) && e.tags.includes(t)).map((e) => layout.at.get(`p:${e.id}`)).filter((p): p is { x: number; y: number } => !!p);
+        const ms = entries
+          .filter((e) => visible(e.id) && e.tags.includes(t))
+          .map((e) => layout.at.get(`p:${e.id}`))
+          .filter((p): p is { x: number; y: number } => !!p);
         if (ms.length < 2) return null;
         // (no wider than a few pieces: a tag carried all over the wheel washes only its heart)
         const c = clusterDisc(ms, PR * 0.6, PR * 2);
@@ -222,7 +227,7 @@
             </radialGradient>
           </defs>
           <circle cx={c.x} cy={c.y} r={R - band / 2} fill="url(#disc)" />
-          {#each layout.ring.genres as g, i (g.tag)}
+          {#each layout.ring.genres as g (g.tag)}
             {@const a0 = g.angle - Math.PI / n + 0.02}
             {@const a1 = g.angle + Math.PI / n - 0.02}
             {@const ro = R + band / 2}
@@ -236,14 +241,16 @@
               style:fill={colours.get(g.tag)}
             />
             <path id="genre-{tagName(g.tag)}" d={below ? `M${pt(R, a1)} A${R},${R} 0 0 0 ${pt(R, a0)}` : `M${pt(R, a0)} A${R},${R} 0 0 1 ${pt(R, a1)}`} fill="none" />
-            <text class="segname" font-size={Math.max(12, px(30))} dy="0.35em"><textPath href="#genre-{tagName(g.tag)}" startOffset="50%" text-anchor="middle">{tagName(g.tag).toUpperCase()}</textPath></text>
+            <text class="segname" font-size={Math.max(12, px(30))} dy="0.35em"
+              ><textPath href="#genre-{tagName(g.tag)}" startOffset="50%" text-anchor="middle">{tagName(g.tag).toUpperCase()}</textPath></text
+            >
           {/each}
         </svg>
         <!-- (the segments answer taps, like the tags they are) -->
         {#each layout.ring.genres as g (g.tag)}
           {@const R2 = px(layout.ring.r)}
           <button
-            class="segtap"
+            class="unstyled segtap"
             style:left="{c.x + R2 * Math.cos(g.angle)}px"
             style:top="{c.y + R2 * Math.sin(g.angle)}px"
             style:width="{px(260)}px"
@@ -256,7 +263,15 @@
       {/if}
       <!-- clusters: the pieces a tag gathers, washed in its colour (as cells tagged alike in a piece's graph) -->
       {#each clusters as c (c.tag)}
-        <div class="cluster" class:off={tag !== null && tag !== c.tag} style:left="{px(c.x - layout.x0)}px" style:top="{px(c.y - layout.y0)}px" style:width="{px(c.r * 2)}px" style:height="{px(c.r * 2)}px" style:--hue={colours.get(c.tag)}></div>
+        <div
+          class="cluster"
+          class:off={tag !== null && tag !== c.tag}
+          style:left="{px(c.x - layout.x0)}px"
+          style:top="{px(c.y - layout.y0)}px"
+          style:width="{px(c.r * 2)}px"
+          style:height="{px(c.r * 2)}px"
+          style:--hue={colours.get(c.tag)}
+        ></div>
       {/each}
       <!-- a lit tag's pieces: tied to it -->
       {#if tag}
@@ -291,7 +306,7 @@
           {@const d = px(2 * (lib.wheel.get(`p:${e.id}`) ?? PR))}
           {@const g = grown(e.id)}
           <button
-            class="piece"
+            class="unstyled piece"
             class:dim={!lit(e)}
             class:peeking={peek === e.id}
             class:current={e.id === current}
@@ -318,7 +333,9 @@
               <!-- (its miniature only once its wheel shows: fetched and drawn when zoomed in to) -->
               <!-- (its facts in a row just under its title: the title's foot, in the wheel's own unscaled px) -->
               {@const foot = d * (0.5 + 0.24 * g) + pillFont * 0.85 + 3}
-              <span class="grow" style:transform="scale({g})"><PieceNode entry={e} {colours} size={d} petals={d * g >= 96} podsAt={d / 2 + (foot - d / 2) / g} current={e.id === current} miniature={lib.done} /></span>
+              <span class="grow" style:transform="scale({g})"
+                ><PieceNode entry={e} {colours} size={d} petals={d * g >= 96} podsAt={d / 2 + (foot - d / 2) / g} current={e.id === current} miniature={lib.done} /></span
+              >
             {/if}
             <span class="title" style:top="{50 + 24 * g}%" style:font-size="{pillFont}px">{shortTitle(e.title)}</span>
           </button>
@@ -404,11 +421,9 @@
   /* layered across the whole cloud (a piece makes no layer of its own: no z-index, no transform — it's
      centred by its margins): every wheel at the back, the tags' words over the wheels, every title on top */
   .piece {
-    all: unset;
     -webkit-touch-callout: none;
     user-select: none;
     position: absolute;
-    cursor: pointer;
     transition: opacity 160ms ease;
   }
   .piece .grow {
@@ -453,7 +468,6 @@
     outline: 2px solid var(--accent);
     outline-offset: 1px;
   }
-  
 
   .dim {
     opacity: 0.22;
@@ -496,10 +510,8 @@
     fill: var(--ink-on-note);
   }
   .segtap {
-    all: unset;
     position: absolute;
     transform: translate(-50%, -50%);
-    cursor: pointer;
     border-radius: 999px;
     z-index: 1;
   }

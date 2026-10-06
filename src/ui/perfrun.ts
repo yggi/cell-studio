@@ -39,7 +39,7 @@ export interface RunOptions {
   pieces: readonly { key: string; label: string }[];
 }
 
-export const DEFAULT_SECONDS = 25;
+const DEFAULT_SECONDS = 25;
 /** Seconds the report leaves out after Play (perf.ts WARMUP), and the pause between two tests. */
 const WARMUP_S = 3;
 const GAP_S = 1;
@@ -48,7 +48,11 @@ const GAP_S = 1;
 export function parseRunOptions(search: string): RunOptions {
   const q = new URLSearchParams(search);
   const seconds = Number(q.get('runseconds'));
-  const list = (k: string) => (q.get(k) ?? '').split(',').map((s) => s.trim()).filter(Boolean);
+  const list = (k: string) =>
+    (q.get(k) ?? '')
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
   const wantSettings = list('runsettings');
   const wantPieces = list('runpieces');
   const settings = wantSettings.length ? SETTINGS.filter((s) => wantSettings.includes(s.id)) : SETTINGS;
@@ -151,7 +155,12 @@ export async function runScenario(
       if (ctl.audioState() !== 'running') {
         // (a context made without a tap that the browser keeps suspended: nothing after it can be measured either)
         ctl.stop();
-        results.push({ piece: piece.label, setting, data: null, problem: `the audio did not start (${ctl.audioState() ?? 'no context'}): the browser wants a tap for a new audio context` });
+        results.push({
+          piece: piece.label,
+          setting,
+          data: null,
+          problem: `the audio did not start (${ctl.audioState() ?? 'no context'}): the browser wants a tap for a new audio context`,
+        });
         stoppedBecause = 'the browser would not start audio without a tap';
         break;
       }
@@ -181,7 +190,8 @@ export function audioProblems(d: ReportData): string[] {
   const out: string[] = [];
   if (d.notes && d.notes.dropped > 0) out.push(`${d.notes.dropped} note(s) left out`);
   if (d.notes && d.notes.late > 0 && d.notes.worstLateMs >= 30) out.push(`notes up to ${Math.round(d.notes.worstLateMs)} ms late`);
-  if (d.audio.capacity && d.audio.capacity.underrunRatioMax > 0) out.push(`audio thread missed deadlines (${(d.audio.capacity.underrunRatioMax * 100).toFixed(1)} % of blocks in its worst second)`);
+  if (d.audio.capacity && d.audio.capacity.underrunRatioMax > 0)
+    out.push(`audio thread missed deadlines (${(d.audio.capacity.underrunRatioMax * 100).toFixed(1)} % of blocks in its worst second)`);
   if (d.audio.playout && d.audio.playout.events > 0) out.push(`${d.audio.playout.events} audio underrun(s)`);
   if (d.audio.clockRatio !== null && d.audio.clockRatio < 0.98) out.push(`audio clock slow (${d.audio.clockRatio.toFixed(3)}×)`);
   return out;
@@ -280,11 +290,15 @@ export function combinedReport(out: Outcome, o: RunOptions): string {
   const clean = sum.filter((s) => s.clean);
   // (lowest heard latency among those that held; the list is in order from the safest, so ties go to the safer)
   const best = clean.length ? clean.reduce((a, b) => ((b.heardMs ?? Infinity) < (a.heardMs ?? Infinity) ? b : a)) : null;
-  if (best) L.push(`- Lowest setting that stayed clean on every piece: **${best.setting.label}**${best.heardMs !== null ? `, about ${n0(best.heardMs)} ms from made to heard` : ''}.`);
+  if (best)
+    L.push(`- Lowest setting that stayed clean on every piece: **${best.setting.label}**${best.heardMs !== null ? `, about ${n0(best.heardMs)} ms from made to heard` : ''}.`);
   else L.push('- No setting stayed clean on every piece (or the series did not complete).');
   for (const s of sum)
-    L.push(`- ${s.setting.label}: ${s.clean ? 'clean' : 'not clean'}${s.heardMs !== null ? ` · made-to-heard ${n0(s.heardMs)} ms` : ''}${s.outputMs !== null ? ` · output latency ${n0(s.outputMs)} ms` : ''}`);
-  if (!supported) L.push("- This browser gives no audio-thread report (renderCapacity): underruns inside the audio thread cannot be seen, only late notes and the clock. Listen too.");
+    L.push(
+      `- ${s.setting.label}: ${s.clean ? 'clean' : 'not clean'}${s.heardMs !== null ? ` · made-to-heard ${n0(s.heardMs)} ms` : ''}${s.outputMs !== null ? ` · output latency ${n0(s.outputMs)} ms` : ''}`,
+    );
+  if (!supported)
+    L.push('- This browser gives no audio-thread report (renderCapacity): underruns inside the audio thread cannot be seen, only late notes and the clock. Listen too.');
   L.push('');
 
   L.push('| Piece | Setting | fps | blocked | notes late / left out | audio thread peak / missed | output / heard | |');

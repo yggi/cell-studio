@@ -62,7 +62,7 @@
         return; // (not fetched, say offline: no picture now, another try when it's shown again)
       }
       if (cancelled) return;
-      let m: Miniature | null = null;
+      let m: Miniature | null;
       try {
         m = miniature(text);
       } catch {

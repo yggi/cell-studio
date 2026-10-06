@@ -28,7 +28,14 @@ export function noiseBuffer(ctx: BaseAudioContext, colour: 'white' | 'pink' | 'b
   const buf = ctx.createBuffer(1, length, ctx.sampleRate);
   const d = buf.getChannelData(0);
   const random = seeded(colour === 'white' ? 1 : colour === 'pink' ? 2 : 3);
-  let b0 = 0, b1 = 0, b2 = 0, b3 = 0, b4 = 0, b5 = 0, b6 = 0, last = 0;
+  let b0 = 0,
+    b1 = 0,
+    b2 = 0,
+    b3 = 0,
+    b4 = 0,
+    b5 = 0,
+    b6 = 0,
+    last = 0;
   for (let i = 0; i < length; i++) {
     const w = random() * 2 - 1;
     if (colour === 'white') d[i] = w;

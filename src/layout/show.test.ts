@@ -39,13 +39,7 @@ describe('show=', () => {
   });
   it('infers what cells have always looked like', () => {
     const r = compileSource(PRESETS.royal.source);
-    expect([inferShow(r, 'bar'), inferShow(r, 'key'), inferShow(r, 'scale'), inferShow(r, 'theme'), inferShow(r, 'lead')]).toEqual([
-      'meter',
-      'key',
-      'scale',
-      'braid',
-      'spectrum',
-    ]);
+    expect([inferShow(r, 'bar'), inferShow(r, 'key'), inferShow(r, 'scale'), inferShow(r, 'theme'), inferShow(r, 'lead')]).toEqual(['meter', 'key', 'scale', 'braid', 'spectrum']);
   });
   it('names the steps: notes, midi, movable do, degrees — twinkle’s first line', () => {
     expect(labels(twinkle('notes'), 'up')).toEqual(['C5', 'C5', 'G5', 'G5', 'A5', 'A5', 'G5']);

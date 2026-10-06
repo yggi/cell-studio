@@ -8,7 +8,7 @@ describe('geometry', () => {
     expect(arcPath(100, 100, 50, 0, 0.75)).toContain(' 0 1 1 ');
   });
 
-  it('measures turns clockwise from 12 o\'clock', () => {
+  it("measures turns clockwise from 12 o'clock", () => {
     const [x0, y0] = polar(0, 0, 10, 0);
     const [x1, y1] = polar(0, 0, 10, 0.25);
     expect([Math.round(x0), Math.round(y0)]).toEqual([0, -10]);

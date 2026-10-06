@@ -77,7 +77,7 @@ describe('coarsen', () => {
     expect(out[2].bands).toEqual([rest]);
   });
 
-  it('keeps a chord a chord: the bands are the picked step\'s own, never mixed across steps', () => {
+  it("keeps a chord a chord: the bands are the picked step's own, never mixed across steps", () => {
     const chord = [note(10), note(20), note(30)];
     const out = coarsen(braid(1000, { 2: [note(5)], 3: chord, 6: [note(40), note(50)] }), 100);
     // the first non-rest member is the single note at 2, so it's one band …
@@ -121,7 +121,10 @@ describe('coarsen on the Prelude', () => {
       const pitched = v.segments.filter((s) => s.bands.some((f) => f.kind === 'pitch'));
       for (const s of pitched) {
         const b = out.find((o) => s.t0 >= o.t0 - 1e-9 && s.t1 <= o.t1 + 1e-9)!;
-        expect(b.bands.some((f) => f.kind === 'pitch'), `${n} at ${s.t0}`).toBe(true);
+        expect(
+          b.bands.some((f) => f.kind === 'pitch'),
+          `${n} at ${s.t0}`,
+        ).toBe(true);
       }
     }
     for (const n of ['subject', 'alto4']) {

@@ -73,16 +73,13 @@ export function libraryLayout(entries: readonly LibraryEntry[]): LibraryLayout {
  * The same, a batch of steps at a time — the page stays free to paint. With `onFrame`, each stage on
  * the way is handed over to be drawn (and awaited: the caller paces it, a frame at a time).
  */
-export async function libraryLayoutAsync(
-  entries: readonly LibraryEntry[],
-  onFrame?: (stage: LibraryLayout) => void | Promise<void>,
-): Promise<LibraryLayout> {
+export async function libraryLayoutAsync(entries: readonly LibraryEntry[], onFrame?: (stage: LibraryLayout) => void | Promise<void>): Promise<LibraryLayout> {
   const run = start(entries);
   // (drawn while it gathers and grows; the rest, where little moves, in one go — and where a stage is
   // slow to draw, fewer stages: a slow device sees it grow in larger steps, not for longer)
   const drawn = onFrame ? run.total - REST : 0;
   let batch = 16;
-  for (let done = 0; done < run.total; ) {
+  for (let done = 0; done < run.total;) {
     const n = Math.min(done < drawn ? batch : 40, run.total - done);
     run.tick(n);
     done += n;
@@ -204,7 +201,7 @@ function start(entries: readonly LibraryEntry[]) {
         n.x! *= 1 + k * (r - 1);
         n.y! *= 1 + k * (1 / r - 1);
       }
-    })
+    });
   // and nothing past the rim's inner edge, by each one's own size (after every step: a hard edge)
   const disc = () => {
     for (const n of nodes) {
@@ -275,7 +272,23 @@ function start(entries: readonly LibraryEntry[]) {
       }),
     );
     const sizes = [...wheel.values()].sort((a, b) => a - b);
-    return { at, x0: -m, y0: -m, w: 2 * m, h: 2 * m, edges, hue, count, sat, ring, wheel, piece: sizes[sizes.length >> 1] ?? 0, tagScale: scale, fullScale: full, done: i >= total };
+    return {
+      at,
+      x0: -m,
+      y0: -m,
+      w: 2 * m,
+      h: 2 * m,
+      edges,
+      hue,
+      count,
+      sat,
+      ring,
+      wheel,
+      piece: sizes[sizes.length >> 1] ?? 0,
+      tagScale: scale,
+      fullScale: full,
+      done: i >= total,
+    };
   };
   return { total, tick, snapshot };
 }

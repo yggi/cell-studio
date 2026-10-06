@@ -9,18 +9,41 @@
   import MockWheel from './MockWheel.svelte';
 
   type Option = { label: string; note: string; cls?: string; vars?: Record<string, string> };
-  const style = (vars?: Record<string, string>) => (vars ? Object.entries(vars).map(([k, v]) => `${k}: ${v}`).join('; ') : '');
+  const style = (vars?: Record<string, string>) =>
+    vars
+      ? Object.entries(vars)
+          .map(([k, v]) => `${k}: ${v}`)
+          .join('; ')
+      : '';
 
   // 1 · turntables and the sun: physical, or flat like the other wheels
   const flatTinted = {
-    '--disc-belt-0': '#4a3b2f', '--disc-belt-1': '#4a3b2f', '--disc-belt-2': '#4a3b2f',
-    '--disc-motor-0': '#353a47', '--disc-motor-1': '#353a47', '--disc-motor-2': '#353a47',
-    '--disc-tape-0': '#2c3038', '--disc-tape-1': '#2c3038', '--disc-tape-2': '#2c3038',
-    '--disc-resonator-0': '#9c7a35', '--disc-resonator-1': '#9c7a35', '--disc-resonator-2': '#9c7a35',
-    '--axle-0': '#d7dbe6', '--axle-1': '#d7dbe6', '--axle-2': '#d7dbe6',
-    '--sky-day': '#2c3a52', '--sky-dusk': '#2c3a52', '--sky-dusk-night': '#1b1e27', '--sky-night': '#1b1e27',
+    '--disc-belt-0': '#4a3b2f',
+    '--disc-belt-1': '#4a3b2f',
+    '--disc-belt-2': '#4a3b2f',
+    '--disc-motor-0': '#353a47',
+    '--disc-motor-1': '#353a47',
+    '--disc-motor-2': '#353a47',
+    '--disc-tape-0': '#2c3038',
+    '--disc-tape-1': '#2c3038',
+    '--disc-tape-2': '#2c3038',
+    '--disc-resonator-0': '#9c7a35',
+    '--disc-resonator-1': '#9c7a35',
+    '--disc-resonator-2': '#9c7a35',
+    '--axle-0': '#d7dbe6',
+    '--axle-1': '#d7dbe6',
+    '--axle-2': '#d7dbe6',
+    '--sky-day': '#2c3a52',
+    '--sky-dusk': '#2c3a52',
+    '--sky-dusk-night': '#1b1e27',
+    '--sky-night': '#1b1e27',
   };
-  const flatWheel = Object.fromEntries(Object.keys(flatTinted).map((k) => [k, k.startsWith('--axle') ? 'var(--text-muted)' : k.startsWith('--sky-d') && !k.endsWith('night') ? 'var(--wheel-hub)' : 'var(--wheel-disc)']));
+  const flatWheel = Object.fromEntries(
+    Object.keys(flatTinted).map((k) => [
+      k,
+      k.startsWith('--axle') ? 'var(--text-muted)' : k.startsWith('--sky-d') && !k.endsWith('night') ? 'var(--wheel-hub)' : 'var(--wheel-disc)',
+    ]),
+  );
   const q1: Option[] = [
     { label: 'A · physical (now)', note: 'wood, chrome, brass, a sky: things you can touch look touchable' },
     { label: 'B · flat, tinted', note: 'one flat colour per material, no gradients or drop shadows; the role still reads' },
@@ -28,7 +51,6 @@
   ];
   q1[1].vars = flatTinted;
   q1[1].cls = 'flat';
-
 </script>
 
 <main>
@@ -55,7 +77,6 @@
       {/each}
     </div>
   </section>
-
 </main>
 
 <style>

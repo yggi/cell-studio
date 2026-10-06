@@ -26,8 +26,7 @@ function merge(group: readonly Segment[]): Segment {
   if (group.length === 1) return group[0];
   let pick = group.find((s) => !isRest(s)) ?? group[0];
   // levels: the highest bar wins (the first, among equals) — a bar's height is what the picture shows
-  if (group.some((s) => s.bands.some((f) => f.kind === 'level')))
-    for (const s of group) if (!isRest(s) && level(s) > level(pick)) pick = s;
+  if (group.some((s) => s.bands.some((f) => f.kind === 'level'))) for (const s of group) if (!isRest(s) && level(s) > level(pick)) pick = s;
   return {
     t0: Math.min(...group.map((s) => s.t0)),
     t1: Math.max(...group.map((s) => s.t1)),

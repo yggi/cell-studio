@@ -201,9 +201,7 @@
     return e && e.size ? [...e].join(',') : '';
   });
   const bar = $derived(ctx.live?.bars.get(name) ?? null);
-  const label = $derived(
-    cell ? hubLabel(ctx.program, name, shown, isMeter, hasLive ? bar : null) : { big: '', small: '' },
-  );
+  const label = $derived(cell ? hubLabel(ctx.program, name, shown, isMeter, hasLive ? bar : null) : { big: '', small: '' });
   // the hub's text fits the hub, or is left out (a petal's hub has room for a number, not a sentence); its
   // second line from 80 px up
   const hubWidth = $derived(2 * geo.rHub * 0.86);
@@ -243,7 +241,10 @@
   // are only ever written when a wheel's layout changes (#41).
   const levelOf = (f: Fill) => (f.kind === 'level' ? f.v : -1);
   const sameLayout = (a: Segment, b: Segment) =>
-    a.t0 === b.t0 && a.t1 === b.t1 && a.bands.length === b.bands.length && a.bands.every((f, j) => (f.kind === 'level') === (b.bands[j].kind === 'level') && levelOf(f) === levelOf(b.bands[j]));
+    a.t0 === b.t0 &&
+    a.t1 === b.t1 &&
+    a.bands.length === b.bands.length &&
+    a.bands.every((f, j) => (f.kind === 'level') === (b.bands[j].kind === 'level') && levelOf(f) === levelOf(b.bands[j]));
   const draw = (s: Segment) => {
     const band = (rOuter - rInner) / s.bands.length;
     return s.bands.map((f, j) =>
@@ -386,7 +387,6 @@
   // ---- turning the rim changes shift: one detent per 1/k of a turn
   let svg: SVGSVGElement;
   let dragging = $state(false);
-  let startTurn = 0;
   let startShift = 0;
   let travelled = 0;
   let lastTurn = 0;
@@ -400,7 +400,7 @@
     e.stopPropagation();
     (e.currentTarget as Element).setPointerCapture(e.pointerId);
     dragging = true;
-    startTurn = lastTurn = pointerTurn(e);
+    lastTurn = pointerTurn(e);
     startShift = shift;
     travelled = 0;
   }
@@ -437,7 +437,17 @@
   }
 </script>
 
-<svg bind:this={svg} data-wheel="cell" data-mode={isMeter ? 'meter' : view.mode} data-show={view.show} width={size} height={size} viewBox="0 0 {size} {size}" role={interactive ? 'group' : 'img'} aria-label="&{name}: {label.big} {label.small}">
+<svg
+  bind:this={svg}
+  data-wheel="cell"
+  data-mode={isMeter ? 'meter' : view.mode}
+  data-show={view.show}
+  width={size}
+  height={size}
+  viewBox="0 0 {size} {size}"
+  role={interactive ? 'group' : 'img'}
+  aria-label="&{name}: {label.big} {label.small}"
+>
   {#if stripes.size}
     <defs>
       {#each [...stripes] as [id, st] (id)}
@@ -488,13 +498,7 @@
   {/if}
   {#each pins as pin}
     {@const now = pin.step === nowStep}
-    <path
-      class="pin"
-      class:now
-      d={pin.d}
-      fill={pin.on ? pin.fill : 'var(--wheel-rest)'}
-      opacity={pin.on ? (hand === null || now ? 1 : 0.4) : now ? 0.9 : 0.5}
-    />
+    <path class="pin" class:now d={pin.d} fill={pin.on ? pin.fill : 'var(--wheel-rest)'} opacity={pin.on ? (hand === null || now ? 1 : 0.4) : now ? 0.9 : 0.5} />
   {/each}
   {#each beatLabels as l}
     <text class="beat" x={l.x} y={l.y} font-size={Math.max(7, size / 13)}>{l.text}</text>
@@ -505,13 +509,14 @@
   {#if curve}
     <polyline class="curve" points={curvePoints} />
   {:else}
-  <circle class="hub" cx={c} cy={c} r={geo.rHub} />
+    <circle class="hub" cx={c} cy={c} r={geo.rHub} />
   {/if}
   {#if curve}
     {#each envLabels as l (l.text)}<text class="envlabel" x={l.x} y={l.y} style:text-anchor={l.anchor} style:font-size="{envFont}px">{l.text}</text>{/each}
   {:else}
-  {#if bigFont}<text class="big" class:pop onanimationend={() => (pop = false)} x={c} y={c} dy={smallFont ? '0.1em' : '0.35em'} style:font-size="{bigFont}px">{label.big}</text>{/if}
-  {#if smallFont}<text class="small" x={c} y={c + (bigFont ?? 0) * 0.1} dy="1.45em" style:font-size="{smallFont}px">{label.small}</text>{/if}
+    {#if bigFont}<text class="big" class:pop onanimationend={() => (pop = false)} x={c} y={c} dy={smallFont ? '0.1em' : '0.35em'} style:font-size="{bigFont}px">{label.big}</text
+      >{/if}
+    {#if smallFont}<text class="small" x={c} y={c + (bigFont ?? 0) * 0.1} dy="1.45em" style:font-size="{smallFont}px">{label.small}</text>{/if}
   {/if}
   {#if shownShift !== 0 && size >= 80}<text class="shift" x={c} y={c - rInner * 0.5}>{shownShift > 0 ? '+' : ''}{shownShift}</text>{/if}
   {#if hand !== null}

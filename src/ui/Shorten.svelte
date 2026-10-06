@@ -30,7 +30,7 @@
 </script>
 
 <div class="shorten">
-  <button class="toggle" aria-expanded={open} onclick={() => (open = !open)}>
+  <button class="unstyled toggle" aria-expanded={open} onclick={() => (open = !open)}>
     <span class="caret" aria-hidden="true">{open ? '▾' : '▸'}</span> Shorten
     {#if open && list}<span class="sum">{list.length ? `${list.length} · up to ${total} characters` : 'nothing to shorten'}</span>{/if}
   </button>
@@ -68,8 +68,6 @@
     overflow: auto;
   }
   .toggle {
-    all: unset;
-    cursor: pointer;
     display: flex;
     align-items: baseline;
     gap: 6px;

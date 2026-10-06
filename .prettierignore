@@ -1,0 +1,16 @@
+# Prose and generated pages: docs have ```cells blocks the tests compile, examples are the product's text
+docs
+examples
+*.md
+public
+# Data that a test or a tool writes; formatting it would drift on the next record
+src/layout/quality.baseline.json
+tools/bwv847.reference.json
+package-lock.json
+# Hand-laid markup
+index.html
+tools/wheels/harness.html
+.claude
+node_modules
+dist
+.svelte-check

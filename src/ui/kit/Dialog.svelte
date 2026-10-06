@@ -24,7 +24,15 @@
 </script>
 
 <div class="backdrop" onclick={onclose} role="presentation"></div>
-<div class="pop" role="dialog" aria-label={label} aria-modal="true" tabindex="-1" style:width="min({width}px, calc(100vw - 24px))" {@attach trap({ onescape: () => onclose(), focus })}>
+<div
+  class="pop"
+  role="dialog"
+  aria-label={label}
+  aria-modal="true"
+  tabindex="-1"
+  style:width="min({width}px, calc(100vw - 24px))"
+  {@attach trap({ onescape: () => onclose(), focus })}
+>
   {@render children()}
 </div>
 

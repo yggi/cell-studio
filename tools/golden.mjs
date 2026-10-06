@@ -20,7 +20,9 @@ const args = process.argv.slice(2);
 const check = args.includes('--check') ? JSON.parse(readFileSync(args[args.indexOf('--check') + 1], 'utf8')) : null;
 const secs = Number(args.find((a) => /^\d+(\.\d+)?$/.test(a)) ?? 6);
 const TOL = Number(process.env.TOL ?? 1e-4);
-const files = readdirSync('examples').filter((f) => f.endsWith('.cells')).sort();
+const files = readdirSync('examples')
+  .filter((f) => f.endsWith('.cells'))
+  .sort();
 
 const server = await preview({ preview: { port: 0, host: '127.0.0.1' }, logLevel: 'error' });
 const browser = await chromium.launch({ args: ['--no-sandbox'] });

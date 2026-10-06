@@ -5,17 +5,7 @@
  * force: the root grid sits at the centre and cells ring outward along their
  * over= chains — but everything still moves freely.
  */
-import {
-  forceX,
-  forceY,
-  forceCollide,
-  forceLink,
-  forceManyBody,
-  forceSimulation,
-  type Simulation,
-  type SimulationLinkDatum,
-  type SimulationNodeDatum,
-} from 'd3-force';
+import { forceX, forceY, forceCollide, forceLink, forceManyBody, forceSimulation, type Simulation, type SimulationLinkDatum, type SimulationNodeDatum } from 'd3-force';
 import type { GraphModel, GraphNode } from '../engine/graph';
 import { segmentsCross, splinePoint } from './geometry';
 import { layered } from './layered';
@@ -186,10 +176,15 @@ export function orderLayers(nodes: readonly { id: string; depth: number }[], edg
   for (let s = 0; s < sweeps; s++)
     for (const d of s % 2 ? [...depths].reverse() : depths) {
       const ids = layers.get(d)!;
-      const want = new Map(ids.map((id) => [id, (() => {
-        const ns = nbrs.get(id) ?? [];
-        return ns.length ? ns.reduce((a, n) => a + x.get(n)!, 0) / ns.length : x.get(id)!;
-      })()]));
+      const want = new Map(
+        ids.map((id) => [
+          id,
+          (() => {
+            const ns = nbrs.get(id) ?? [];
+            return ns.length ? ns.reduce((a, n) => a + x.get(n)!, 0) / ns.length : x.get(id)!;
+          })(),
+        ]),
+      );
       ids.sort((a, b) => want.get(a)! - want.get(b)!);
       // each at its wanted place, pushed apart just enough to keep a slot between neighbours
       const placed = ids.map((id) => want.get(id)!);
@@ -214,7 +209,7 @@ export function flowRanks(model: { nodes: readonly { id: string }[]; edges: read
   const sinks = new Set(model.nodes.filter((n) => endOf(n as GraphNode) === 'top').map((n) => n.id));
   // played cells: the terms of the mixes (melodies, modulators) and every part they splice
   const played = new Set(model.edges.filter((e) => e.kind === 'out').map((e) => e.source));
-  for (let grew = true; grew; ) {
+  for (let grew = true; grew;) {
     grew = false;
     for (const e of model.edges)
       if (e.kind === 'ref' && played.has(e.source) && !played.has(e.target)) {
@@ -262,8 +257,7 @@ export function flowRanks(model: { nodes: readonly { id: string }[]; edges: read
   const fed = new Map<string, string[]>();
   for (const [lo, hi] of up) fed.set(lo, [...(fed.get(lo) ?? []), hi]);
   const hasBelow = new Set(up.map(([, hi]) => hi));
-  for (const [id, his] of fed)
-    if (!hasBelow.has(id) && !drivers.has(id)) rank.set(id, Math.max(0, Math.min(...his.map((h) => rank.get(h)!)) - 1));
+  for (const [id, his] of fed) if (!hasBelow.has(id) && !drivers.has(id)) rank.set(id, Math.max(0, Math.min(...his.map((h) => rank.get(h)!)) - 1));
   // parts and tables: just under whatever uses them — half a row, between it and the meter
   // (parts of parts half as far again), so they cluster under their user rather than widen its row
   for (let i = 0; i < model.nodes.length; i++) {
@@ -457,16 +451,25 @@ export class ForceLayout {
       .velocityDecay(0.45)
       // every edge contracts a little
       // every edge contracts a little
-      .force('link', forceLink<PhysNode, PhysLink>([]).id((d) => d.id))
+      .force(
+        'link',
+        forceLink<PhysNode, PhysLink>([]).id((d) => d.id),
+      )
       // every node repels a little, near field only: neighbours, not the whole graph
       .force('charge', forceManyBody<PhysNode>())
       // nodes don't overlap, labels included (this isn't tension: it only acts on contact)
       .force('collide', forceCollide<PhysNode>().strength(0.95).iterations(2))
       .force('uncross', forceUncross(() => this.opts.uncross) as never)
       // the sound card drifts up-centre, the meter down-centre (a slight pull, not a pin); all else gently centred
-      .force('endsX', forceX<PhysNode>((d) => this.ends.get(d.id)?.x ?? this.colX.get(d.id) ?? 0))
+      .force(
+        'endsX',
+        forceX<PhysNode>((d) => this.ends.get(d.id)?.x ?? this.colX.get(d.id) ?? 0),
+      )
       // every node drifts to the height of its rank in the signal path (y only: x stays free)
-      .force('rankY', forceY<PhysNode>((d) => this.rankY.get(d.id) ?? 0))
+      .force(
+        'rankY',
+        forceY<PhysNode>((d) => this.rankY.get(d.id) ?? 0),
+      )
       // edges' midpoints: drawn back to the straight line, slipping off any node they would rest on
       .force('bends', () => this.stepBends())
       // the edges at a node spread round it; time and sound apart; tagged cells in clusters
@@ -700,9 +703,7 @@ export class ForceLayout {
     (this.sim.force('collide') as ReturnType<typeof forceCollide<PhysNode>>).radius((d) => d.radius + o.collidePad);
     // sideways: &bar and &out to their places on the centre line, everything else gently towards it
     // sideways: &bar and &out to the centre line, the rest gently to their columns (else to the centre)
-    (this.sim.force('endsX') as ReturnType<typeof forceX<PhysNode>>).strength((d) =>
-      this.ends.has(d.id) ? o.endPull : this.colX.has(d.id) ? o.columnPull : o.centre,
-    );
+    (this.sim.force('endsX') as ReturnType<typeof forceX<PhysNode>>).strength((d) => (this.ends.has(d.id) ? o.endPull : this.colX.has(d.id) ? o.columnPull : o.centre));
     (this.sim.force('rankY') as ReturnType<typeof forceY<PhysNode>>).strength(o.rankPull);
   }
 
@@ -766,7 +767,13 @@ export class ForceLayout {
       this.colX = new Map([...home].map(([id, p]) => [id, p.x]));
       this.rankY = new Map([...home].map(([id, p]) => [id, p.y]));
     }
-    let ordered = fresh && !home ? orderLayers(model.nodes.map((n) => ({ id: n.id, depth: ranks.get(n.id)! })), model.edges.filter((e) => e.kind !== 'about')) : null;
+    let ordered =
+      fresh && !home
+        ? orderLayers(
+            model.nodes.map((n) => ({ id: n.id, depth: ranks.get(n.id)! })),
+            model.edges.filter((e) => e.kind !== 'about'),
+          )
+        : null;
     if (fresh && !home && cols.size) {
       // a symmetric start: each node at its column, pushed apart within its row just enough
       ordered = new Map();
@@ -782,7 +789,7 @@ export class ForceLayout {
       }
     }
 
-    model.nodes.forEach((n, i) => {
+    model.nodes.forEach((n) => {
       let p = fresh ? undefined : this.byId.get(n.id);
       if (!p) {
         added++;
@@ -842,7 +849,13 @@ export class ForceLayout {
       if (!p || fresh) {
         const xs = ids.map((m) => next.get(m)!.x ?? 0);
         const ys = ids.map((m) => next.get(m)!.y ?? 0);
-        p = { id, depth: 0, radius: 40 + 13 * t.length, x: xs.reduce((a, v) => a + v, 0) / ids.length + jitter(id, 1 + 2 * this.opts.seed), y: ys.reduce((a, v) => a + v, 0) / ids.length + jitter(id, 2 + 2 * this.opts.seed) };
+        p = {
+          id,
+          depth: 0,
+          radius: 40 + 13 * t.length,
+          x: xs.reduce((a, v) => a + v, 0) / ids.length + jitter(id, 1 + 2 * this.opts.seed),
+          y: ys.reduce((a, v) => a + v, 0) / ids.length + jitter(id, 2 + 2 * this.opts.seed),
+        };
       }
       p.role = 'tag';
       p.radius = 40 + 13 * t.length;
@@ -867,7 +880,9 @@ export class ForceLayout {
     for (const id of [...this.placedMeters]) if (!next.has(id)) this.placedMeters.delete(id);
     // the tapes turned to where everything is now (an edit that doesn't move anything doesn't turn them)
     this.turns = this.fitTurns((id) => this.position(id));
-    this.explains = model.edges.filter((e) => e.kind === 'about' && next.has(e.source) && next.has(e.target)).map((e) => ({ note: next.get(e.source)!, cell: next.get(e.target)! }));
+    this.explains = model.edges
+      .filter((e) => e.kind === 'about' && next.has(e.source) && next.has(e.target))
+      .map((e) => ({ note: next.get(e.source)!, cell: next.get(e.target)! }));
     // a hub's edges into a cluster: each keeps part of its pull, the cluster's tag takes the rest, once per hub (`mux`)
     // (none at all when it's off: d3 balances each spring by how many its ends have, so even a slack one would count)
     const muxLinks = new Map<string, PhysLink>();
@@ -884,9 +899,7 @@ export class ForceLayout {
     }
     this.sim.force<ReturnType<typeof forceLink<PhysNode, PhysLink>>>('link')!.links([...links, ...tagLinks, ...muxLinks.values()]);
     // (a scope watches: its edges neither untangle the music's layout nor count as its crossings)
-    const scopes = new Set(
-      model.nodes.filter((n) => typeof (n as { cell?: { params?: Record<string, unknown> } }).cell?.params?.scope === 'string').map((n) => n.id),
-    );
+    const scopes = new Set(model.nodes.filter((n) => typeof (n as { cell?: { params?: Record<string, unknown> } }).cell?.params?.scope === 'string').map((n) => n.id));
     const watcher = (id: string) => scopes.has(id);
     const idOf = (x: unknown) => (typeof x === 'object' ? (x as PhysNode).id : (x as string));
     const own = links.filter((l) => !watcher(idOf(l.source)) && !watcher(idOf(l.target)));
@@ -906,9 +919,15 @@ export class ForceLayout {
     for (const id of [...this.bendAt.keys()]) if (!this.links.some((l) => l.id === id)) this.bendAt.delete(id);
     if (structural) this.reheat(fresh ? 1 : added > 0 || removed > 0 ? 0.7 : 0.3); // a fresh graph settles from scratch, like a new layout
     // forceX/Y cache their targets: refresh them for the new ends
-    this.sim.force('endsX', (this.sim.force('endsX') as ReturnType<typeof forceX<PhysNode>>).x((d) => this.ends.get(d.id)?.x ?? this.colX.get(d.id) ?? 0));
+    this.sim.force(
+      'endsX',
+      (this.sim.force('endsX') as ReturnType<typeof forceX<PhysNode>>).x((d) => this.ends.get(d.id)?.x ?? this.colX.get(d.id) ?? 0),
+    );
     this.applyOptions();
-    this.sim.force('rankY', (this.sim.force('rankY') as ReturnType<typeof forceY<PhysNode>>).y((d) => this.rankY.get(d.id) ?? 0));
+    this.sim.force(
+      'rankY',
+      (this.sim.force('rankY') as ReturnType<typeof forceY<PhysNode>>).y((d) => this.rankY.get(d.id) ?? 0),
+    );
     return { added, removed, total: next.size, structural };
   }
 
@@ -1261,7 +1280,7 @@ export class ForceLayout {
 }
 
 /** Where a node is drawn to: the sound card up-centre, meters down-centre. */
-export function endOf(n: GraphNode): 'top' | 'bottom' | null {
+function endOf(n: GraphNode): 'top' | 'bottom' | null {
   if (n.cell?.sink) return 'top';
   if (n.kind === 'cell' && n.isMeter) return 'bottom';
   return null;

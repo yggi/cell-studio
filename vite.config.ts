@@ -10,7 +10,9 @@ const { version } = JSON.parse(readFileSync('./package.json', 'utf8')) as { vers
 const sha = (() => {
   if (process.env.GITHUB_SHA) return process.env.GITHUB_SHA.slice(0, 7);
   try {
-    return execSync('git rev-parse --short HEAD', { stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim();
+    return execSync('git rev-parse --short HEAD', { stdio: ['ignore', 'pipe', 'ignore'] })
+      .toString()
+      .trim();
   } catch {
     return '';
   }

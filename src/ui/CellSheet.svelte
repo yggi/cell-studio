@@ -3,10 +3,8 @@
   import { getGraphContext } from './context';
   import { cellView, hubLabel } from '../layout/cellview';
   import { declLine, declWords, deleteCell, nameProblem, renameCell, setBraid, spansLines, splitToken, splitWords, usersOf } from '../engine/edit';
-  import { waveform } from '../engine/wave';
   import { parse } from '../engine/parser';
   import { period, positionHue, resolvePitch, semitones, shiftedUnits } from '../engine/helix';
-  import { pitchHue } from '../theory/modes';
   import { stepText } from '../layout/wheel';
   import TokenWheel, { type WheelToken } from './TokenWheel.svelte';
   import StepEditor from './StepEditor.svelte';
@@ -61,10 +59,6 @@
     const i = lambda ? +lambda[1] - 1 : declLine(source, name);
     return i < 0 ? '' : source.split('\n')[i];
   });
-  const label = $derived(cell && !cell.voice ? hubLabel(ctx.program, name, ctx.live?.shifts ?? ctx.shifts, isMeter, null) : null);
-  const kind = $derived(
-    !cell ? '' : cell.voice ? 'voice' : cell.kit ? 'kit' : isMeter ? 'clock' : cell.root ? 'grid' : cell.step ? 'stepped cell' : 'cell',
-  );
   // a voice made from its braid: plot one cycle of the waveform it loops
   const braidVoice = $derived(!!cell?.voice && cell.params.s === undefined);
 
@@ -109,7 +103,13 @@
     if (!atom || atom.kind !== 'note') return null;
     try {
       const r = resolvePitch(ctx.program, name, atom.value, atom.alter, shown);
-      return noteLabel(shown_.show, { semis: semitones(ctx.program, r.root, r.position), value: atom.value, alter: atom.alter, lap: period(ctx.program, name) }, base, tonic, shown_.conv);
+      return noteLabel(
+        shown_.show,
+        { semis: semitones(ctx.program, r.root, r.position), value: atom.value, alter: atom.alter, lap: period(ctx.program, name) },
+        base,
+        tonic,
+        shown_.conv,
+      );
     } catch {
       return null;
     }
@@ -210,8 +210,7 @@
   }
 
   // "Shown as a meter: …", or "Shown as braid: …" (the meaning names it, or the show does)
-  const shownAs = (show: keyof typeof SHOW_MEANING) =>
-    /^(a|an|the|its|one) /.test(SHOW_MEANING[show]) ? `as ${SHOW_MEANING[show]}` : `as ${show}: ${SHOW_MEANING[show]}`;
+  const shownAs = (show: keyof typeof SHOW_MEANING) => (/^(a|an|the|its|one) /.test(SHOW_MEANING[show]) ? `as ${SHOW_MEANING[show]}` : `as ${show}: ${SHOW_MEANING[show]}`);
 
   // ---- in words, and everything it connects to (each a link)
   const bits = $derived(cell ? summary(ctx.program, name) : []);
@@ -232,7 +231,7 @@
 <svelte:window {onkeydown} />
 
 <div class="backdrop" onclick={onclose} role="presentation"></div>
-<div class="sheet" role="dialog" aria-label="&{name}" aria-modal="true" tabindex="-1" {@attach trap({ onescape: () => onclose(), focus: 'self' })}>
+<div class="bottom-sheet sheet" role="dialog" aria-label="&{name}" aria-modal="true" tabindex="-1" {@attach trap({ onescape: () => onclose(), focus: 'self' })}>
   {#if cell}
     <header>
       {#if cell.lambda}
@@ -254,10 +253,10 @@
             onblur={commitRename}
             bind:this={nameInput}
           />
-          <button class="pencil" type="button" aria-label="Rename" onclick={() => (nameInput?.focus(), nameInput?.select())}>✎</button>
+          <button class="unstyled pencil" type="button" aria-label="Rename" onclick={() => (nameInput?.focus(), nameInput?.select())}>✎</button>
         </label>
       {/if}
-      <button class="close" onclick={onclose} aria-label="Close">×</button>
+      <button class="unstyled close" onclick={onclose} aria-label="Close">×</button>
     </header>
     {#if cell && typeof cell.params.scope === 'string'}
       <!-- the scope, unconstrained: as wide as the sheet -->
@@ -304,9 +303,9 @@
         <button onclick={() => ctx.turn(name, shift - 1)} aria-label="Shift down">−</button>
         <output aria-label="shift">{shift > 0 ? '+' : ''}{shift}</output>
         <button onclick={() => ctx.turn(name, shift + 1)} aria-label="Shift up">+</button>
-        <button class="quiet" onclick={() => ctx.turn(name, 0)} disabled={shift === 0}>Reset</button>
+        <button class="unstyled quiet" onclick={() => ctx.turn(name, 0)} disabled={shift === 0}>Reset</button>
         {#if listed.kind !== 'function'}
-          <button class="quiet" onclick={() => writeList([...(listed.kind === 'list' ? listed.tokens : []), '0'])}>Add a step</button>
+          <button class="unstyled quiet" onclick={() => writeList([...(listed.kind === 'list' ? listed.tokens : []), '0'])}>Add a step</button>
         {/if}
       </div>
       <p class="hint">
@@ -324,8 +323,8 @@
         <button onclick={() => ctx.turn(name, shift - 1)} aria-label="Shift down">−</button>
         <output aria-label="shift">{shift > 0 ? '+' : ''}{shift}</output>
         <button onclick={() => ctx.turn(name, shift + 1)} aria-label="Shift up">+</button>
-        <button class="quiet" onclick={() => ctx.turn(name, 0)} disabled={shift === 0}>Reset</button>
-        {#if overview && words}<button class="quiet" onclick={() => (editingHub = true)}>Edit steps</button>{/if}
+        <button class="unstyled quiet" onclick={() => ctx.turn(name, 0)} disabled={shift === 0}>Reset</button>
+        {#if overview && words}<button class="unstyled quiet" onclick={() => (editingHub = true)}>Edit steps</button>{/if}
       </div>
     {/if}
 
@@ -357,7 +356,9 @@
         <dl class="links">
           {#each links as l (l.relation)}
             <dt>{l.relation}</dt>
-            <dd>{#each l.cells as c (c)}<CellLink name={c} />{/each}</dd>
+            <dd>
+              {#each l.cells as c (c)}<CellLink name={c} />{/each}
+            </dd>
           {/each}
         </dl>
       </section>
@@ -423,7 +424,7 @@
         </button>
         <button class="btn" class:on={pinned} onclick={onpin} aria-pressed={pinned}>{pinned ? 'Pinned' : 'Pin'}</button>
         <button class="btn" onclick={onshowcode}>Show in code</button>
-        {#if words}<button class="delete" onclick={() => (confirming = true)}>Delete…</button>{/if}
+        {#if words}<button class="unstyled delete" onclick={() => (confirming = true)}>Delete…</button>{/if}
       {/if}
     </footer>
   {/if}
@@ -438,21 +439,10 @@
     background: var(--scrim);
   }
   .sheet {
-    position: fixed;
     z-index: 41;
-    left: 0;
-    right: 0;
-    bottom: 0;
     max-height: 88svh;
-    overflow: auto;
     padding: var(--space-3) 14px calc(var(--space-3) + env(safe-area-inset-bottom));
-    background: var(--surface);
-    border-top: 1px solid var(--line);
-    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
     box-shadow: var(--shadow);
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
     animation: rise 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
   }
   .sheet:focus {
@@ -514,8 +504,6 @@
     border-bottom-color: var(--accent);
   }
   .pencil {
-    all: unset;
-    cursor: pointer;
     margin-left: 6px;
     font: 400 15px var(--font-ui);
     color: var(--text-faint);
@@ -537,8 +525,6 @@
     font-size: 13px;
   }
   .close {
-    all: unset;
-    cursor: pointer;
     flex: none;
     font-size: 26px;
     line-height: 1;
@@ -600,8 +586,6 @@
     font-variant-numeric: tabular-nums;
   }
   .quiet {
-    all: unset;
-    cursor: pointer;
     padding: 8px 8px;
     font: 600 13.5px var(--font-ui);
     color: var(--text-muted);
@@ -643,7 +627,6 @@
     font-size: 13px;
     color: var(--text-muted);
   }
-
 
   /* connections: how they relate, then the cells */
   .links {
@@ -730,8 +713,6 @@
     box-shadow: 0 0 6px var(--accent);
   }
   .delete {
-    all: unset;
-    cursor: pointer;
     margin-left: auto;
     padding: 8px 4px;
     font: 600 13.5px var(--font-ui);
@@ -756,8 +737,7 @@
     border-color: var(--danger);
     color: var(--ink-on-note);
   }
-  button:focus-visible,
-  .close:focus-visible {
+  button:focus-visible {
     outline: 2px solid var(--accent);
     outline-offset: 2px;
   }
