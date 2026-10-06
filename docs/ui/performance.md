@@ -50,11 +50,23 @@ Three different delays, easily confused:
 - **Heard offset** (reported as "made-to-heard"): the difference between the engine's clock and what is heard now, from
   `getOutputTimestamp()`. This is what the pictures can be shifted by, at any latency.
 
-To try a setting, open the app with `?latency=interactive` (or `balanced`, `playback`, or seconds such as `0.05`) and/or
+**The automated test.** In the overlay (Files ▾ → Performance report, or `?perf`), **▶ Run full test** does all of this and
+gives one report. It plays Hypercell, Bach's Prelude and Fugue, Test Tones on Tape and Baustelle II: Resonanz for 25 s each (after the 3 s start-up that
+reports leave out) on four settings, from the safest down: `playback` (today), `balanced`, `interactive`, and `interactive` with a
+0.1 s look-ahead, about 8 minutes in all. Before each setting it makes a new audio context (a context's latency is fixed when it is
+made; it starts without another tap because the page has been tapped before), and it asks the phone to keep the screen on. Keep the page in front and
+leave it alone: a test during which the page was in the background is marked, and a cancelled or cut-off series reports what ran.
+The report names the lowest setting that stayed clean on every piece (nothing left out, no note more than 30 ms late, no missed
+deadlines or underruns where the browser reports them, a steady audio clock), then a row for each piece and setting. It runs on the
+graph view, the heaviest. The piece and tuning in use before are put back afterwards, and nothing is kept, so a reload is back to the defaults.
+For trying it out, `?runseconds=10&runsettings=playback,interactive&runpieces=hypercell` shortens it
+(settings: `playback`, `balanced`, `interactive`, `interactive-la100`; pieces: `hypercell`, `bwv847`, `testtones`, `resonanz`).
+
+By hand, to try a setting, open the app with `?latency=interactive` (or `balanced`, `playback`, or seconds such as `0.05`) and/or
 `?lookahead=0.1`. They are kept until `?latency=off` / `?lookahead=off`. The report's **Latency tuning** row shows what is in force and the
 made-to-heard time; **Audio thread (renderCapacity)** (Chrome 126+, where present) shows the render thread's load and the share of
 blocks that missed their deadline, which is the underrun measure; **Notes** shows late and dropped notes. A setting is safe on a
-device when, over a few pieces played for 30 s each (a heavy one: Hypercell, Bach Prelude and Fugue, Test Tones on Tape), the audio
+device when, over a few pieces played for 30 s each (a heavy one: Hypercell, Bach Prelude and Fugue, Test Tones on Tape, Baustelle II), the audio
 thread's peak stays well under 80 % with no missed deadlines (or, without renderCapacity, nothing left out and the clock ratio
 at 1.00×), and you hear no clicks.
 
@@ -67,5 +79,5 @@ at 1.00×), and you hear no clicks.
 - Headless / desktop numbers from `tools/profile` are comparable in kind, not in value: use one device and one
   piece for before/after comparisons.
 
-Code: `src/ui/perf.ts` (summaries, report, collector; tested in `perf.test.ts`), `src/ui/PerfOverlay.svelte`
+Code: `src/ui/perf.ts` (summaries, report, collector; tested in `perf.test.ts`), `src/ui/perfrun.ts` (the full test: settings, running, combined report; `perfrun.test.ts`), `src/ui/PerfOverlay.svelte`
 (loaded only when on), `Player.audioInfo()`. Headless measurement: [tools/profile/README.md](../../tools/profile/README.md).
