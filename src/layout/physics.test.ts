@@ -568,25 +568,37 @@ describe('tapes: the heads keep their spacing, the wheel turns to face them at w
   });
 });
 
-describe('meters last: placed where most of their edges cross nothing', () => {
+describe('meters last, joined to their cells by a net', () => {
   for (const key of ['royal', 'bossa', 'cellscape', 'baustelle'] as const) {
     it(key, () => {
       const model = buildGraph(compileSource(PRESETS[key].source));
       const l = new ForceLayout(undefined, { live: false });
       l.setGraph(model);
       l.tick(220);
-      const before = l.drawnCrossings();
       l.placeMeters();
-      const kept = l.groundEdges();
+      const net = l.meterNet();
       const byId = new Map(model.nodes.map((n) => [n.id, n]));
       const grounds = model.edges.filter((e) => isGround(e, byId));
       expect(grounds.length).toBeGreaterThan(0);
-      expect(kept.size, 'some of its edges are drawn').toBeGreaterThan(0);
-      for (const id of kept) expect(grounds.some((e) => e.id === id)).toBe(true);
-      // the edges drawn cross nothing: no more crossings than before the meter was placed
-      expect(l.drawnCrossings()).toBeLessThanOrEqual(before);
-      // and the meter sits clear of every wheel
       for (const m of new Set(grounds.map((e) => e.target))) {
+        // a tree over the meter and every cell it steps: each reached, one trace fewer than its ends
+        const ends = new Set([m, ...grounds.filter((e) => e.target === m).map((e) => e.source)]);
+        const traces = net.filter((t) => t.meter === m);
+        expect(traces.length).toBe(ends.size - 1);
+        const reached = new Set([m]);
+        for (let grew = true; grew;) {
+          grew = false;
+          for (const t of traces)
+            if (reached.has(t.a) !== reached.has(t.b)) {
+              reached.add(t.a).add(t.b);
+              grew = true;
+            }
+        }
+        expect(
+          [...ends].filter((id) => !reached.has(id)),
+          'cells off the net',
+        ).toEqual([]);
+        // and the meter sits clear of every wheel
         const p = l.position(m)!;
         for (const n of model.nodes.filter((n) => !n.petalOf && n.id !== m)) {
           const q = l.position(n.id);
@@ -596,17 +608,22 @@ describe('meters last: placed where most of their edges cross nothing', () => {
       l.destroy();
     });
   }
-  it("inside a closed cycle when that reaches more: Royal's meter sits within its ring, to both cells", () => {
+  it("inside a closed cycle when that reaches more: Royal's meter sits within its ring, its net crossing nothing", () => {
     // (theme → scale ← pedal → bass → mix ← lead ← theme is a cycle; the meter steps theme and pedal, on it — from
-    // outside one edge crosses the cycle, from inside neither does: the face too small for it is widened)
+    // outside a trace crosses the cycle, from inside none does: the face too small for it is widened)
     const model = buildGraph(compileSource(PRESETS.royal.source));
     const l = new ForceLayout(undefined, { live: false });
     l.setGraph(model);
     l.tick(220);
+    const before = l.drawnCrossings();
     l.placeMeters();
-    const byId = new Map(model.nodes.map((n) => [n.id, n]));
-    const kept = model.edges.filter((e) => isGround(e, byId) && l.groundEdges().has(e.id)).map((e) => e.source);
-    expect(kept.sort()).toEqual(['cell:pedal', 'cell:theme']);
+    expect(
+      l
+        .meterNet()
+        .map((t) => [t.a, t.b].sort().join(' '))
+        .sort(),
+    ).toEqual(['cell:bar cell:pedal', 'cell:bar cell:theme']);
+    expect(l.drawnCrossings()).toBeLessThanOrEqual(before);
     l.destroy();
   });
 });

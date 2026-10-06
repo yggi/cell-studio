@@ -100,6 +100,16 @@ Which face of the drawing it sits in matters most: inside a closed cycle or outs
 
 The contact sheet of every graph (`tools/graphs.mjs`, the library's miniatures) is how to look at all of it at once.
 
+## Step 7: a meter's net (done)
+
+The owner's idea: it's inconsistent that some cells are joined to their meter and some aren't. So every cell a meter steps is joined, through the others — a net, like ground on a circuit board. `meterNet` lays a spanning tree over the meter and its cells (Kruskal: pairs costed length × (1 + 2 × what they cross: drawn edges, wheels passed at 2), a pair a drawn edge already joins ×3; a pair crossing traces already laid is costed again before it's taken). `placeMeters` now puts the meter where that tree costs least (Prim's over the cells' fixed costs and the meter's from each spot, crowding a little), still making room inside a cycle. Traces carry no pulse; they blink together on the meter's steps (`MeterEdge.svelte`), and a cell's ring turns at its rate (`LiveState.stepAt` × the cell's rate).
+
+| 5 starts, 500 ticks | step 6 (edges that cross nothing) | net |
+|---|---|---|
+| crossings | 60 ± 5 | 71 ± 5 |
+| area (M px²) | 76.1 | 74.0 |
+| meter edges / traces | 145 of 214 cells | all 214 |
+
 ## Next
 
 1. **Groups from structure** where a piece has no tags: cut at the hubs (high betweenness), then communities (Louvain or Leiden) as proposed blocks. Tags stay the override.
