@@ -279,11 +279,18 @@
     tab = 'graph';
     message = null;
     opened++;
+    fresh();
+  }
+  // a piece just opened starts from rest: transport stopped at 0, nothing sounding, nothing held or
+  // touched — whatever was playing (or ringing, or recorded on a tape) is gone. (stop first: it reads the old plan.)
+  function fresh() {
+    player.stop();
+    player.resetState();
+    epoch++;
     cursor = 0;
     held = new Map();
     touched = false;
     played = false;
-    player.resetState();
   }
   // render the piece to a WAV (offline: faster than it plays)
   let rendering = $state(false);
@@ -335,6 +342,7 @@
       code = await readFile(file);
       open = { kind: 'file', name: file.name };
       opened++;
+      fresh();
       tab = 'graph';
       message = null;
     } catch {
