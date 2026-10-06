@@ -7,15 +7,19 @@
   import { onDestroy, onMount } from 'svelte';
   import { load } from '../audio/load';
   import { buildReport, PerfCollector, type PerfSources } from './perf';
+  import { combinedReport, estimateMinutes, parseRunOptions, planSteps, runScenario, type Progress, type RunController } from './perfrun';
 
   let {
     sources,
     meta,
+    test,
     onclose,
   }: {
     sources: Pick<PerfSources, 'playing' | 'audio'>;
     /** The piece open now, asked at the moment a report is made. */
     meta: () => { version: string; piece: { title: string | null; graphNodes: number | null; cells: number | null } };
+    /** What the full test needs from the page: open a piece, play, retune the audio, put things back. */
+    test: RunController;
     onclose: () => void;
   } = $props();
 
@@ -30,6 +34,10 @@
   let recordedSeconds = $state(0);
   let report = $state('');
   let note = $state('');
+  // the full test: progress while it runs
+  let running = $state<Progress | null>(null);
+  let cancelRun = false;
+  const options = typeof location === 'undefined' ? parseRunOptions('') : parseRunOptions(location.search);
   let timer: ReturnType<typeof setInterval> | undefined;
 
   onMount(() => {
@@ -57,6 +65,41 @@
       make(recordingFrom, collector.now());
       recordingFrom = null;
       note = 'Recording stopped. Report ready below.';
+    }
+  }
+  async function runFull() {
+    if (running) return;
+    note = '';
+    report = '';
+    open = true;
+    cancelRun = false;
+    // (a phone that dims or locks its screen mid-test would stop the page: ask it to stay awake, where it can)
+    let lock: { release(): Promise<void> } | null = null;
+    try {
+      lock = (await (navigator as unknown as { wakeLock?: { request(t: 'screen'): Promise<{ release(): Promise<void> }> } }).wakeLock?.request('screen')) ?? null;
+    } catch {
+      /* not allowed here */
+    }
+    running = { index: 0, total: planSteps(options).length, piece: '', setting: '', elapsed: 0, of: options.seconds };
+    try {
+      const out = await runScenario(
+        planSteps(options),
+        options,
+        test,
+        { now: () => collector.now(), report: (from, to) => collector.report(from, to, meta()) },
+        {
+          wait: (ms) => new Promise((r) => setTimeout(r, ms)),
+          onProgress: (p) => (running = p),
+          cancelled: () => cancelRun,
+        },
+      );
+      report = combinedReport(out, options);
+      note = out.stoppedBecause ? `Stopped: ${out.stoppedBecause}. The report covers what ran.` : 'Done. Copy the report and paste it into the issue.';
+    } catch (err) {
+      note = `The test failed: ${err instanceof Error ? err.message : String(err)}`;
+    } finally {
+      running = null;
+      void lock?.release().catch(() => undefined);
     }
   }
   async function copy() {
@@ -91,7 +134,7 @@
 <div class="perf" class:open>
   {#if !open}
     <button class="pill {health}" onclick={() => (open = true)} aria-label="Performance overlay">
-      {recordingFrom !== null ? `● ${clock(recordedSeconds)}` : 'perf'} · {live.fps.toFixed(0)} fps · {live.longCount} long
+      {running ? `test ${running.index}/${running.total}` : recordingFrom !== null ? `● ${clock(recordedSeconds)}` : 'perf'} · {live.fps.toFixed(0)} fps · {live.longCount} long
     </button>
   {:else}
     <div class="panel" role="dialog" aria-label="Performance">
@@ -107,12 +150,25 @@
         <dt>Live views</dt><dd>{live.scale < 1.05 ? 'full rate' : `refresh ×${live.scale.toFixed(1)} slower`}</dd>
         <dt>Piece</dt><dd>{sources.playing() ? 'playing' : 'stopped'}{recordingFrom !== null ? ` · recording ${clock(recordedSeconds)}` : ''}</dd>
       </dl>
-      <div class="row">
-        <button class:rec={recordingFrom !== null} onclick={toggleRecord}>{recordingFrom === null ? '● Record' : '■ Stop'}</button>
-        <button onclick={copy}>Copy report</button>
-        {#if typeof navigator !== 'undefined' && 'share' in navigator}<button onclick={share}>Share</button>{/if}
-      </div>
-      <p class="hint">Press Record, play the piece for 30 s, press Stop, then Copy report. Without a recording, Copy gives the last minute.</p>
+      {#if running}
+        <p class="progress" role="status">
+          Test {running.index} of {running.total}{running.piece ? `: ${running.piece}, ${running.setting}` : ''} · {running.elapsed} / {running.of} s
+        </p>
+        <progress max={running.total * running.of} value={Math.max(0, running.index - 1) * running.of + running.elapsed}></progress>
+        <div class="row"><button class="rec" onclick={() => (cancelRun = true)}>Cancel</button></div>
+        <p class="hint">Leave this page in front with the screen on and don't touch it: every test plays a piece for {options.seconds} s on another audio setting.</p>
+      {:else}
+        <div class="row">
+          <button class="full" onclick={runFull}>▶ Run full test (about {estimateMinutes(options)} min)</button>
+        </div>
+        <p class="hint">Plays {options.pieces.map((p) => p.label).join(', ')} on {options.settings.length} audio settings, from the safest down, and gives one report: how far the latency can be lowered on this device. The piece open now is put back afterwards.</p>
+        <div class="row">
+          <button class:rec={recordingFrom !== null} onclick={toggleRecord}>{recordingFrom === null ? '● Record' : '■ Stop'}</button>
+          <button onclick={copy}>Copy report</button>
+          {#if typeof navigator !== 'undefined' && 'share' in navigator}<button onclick={share}>Share</button>{/if}
+        </div>
+        <p class="hint">Or by hand: press Record, play a piece for 30 s, press Stop, then Copy report. Without a recording, Copy gives the last minute.</p>
+      {/if}
       {#if note}<p class="note" role="status">{note}</p>{/if}
       {#if report}<textarea readonly rows="8" value={report} onfocus={(e) => e.currentTarget.select()}></textarea>{/if}
     </div>
@@ -203,6 +259,18 @@
     padding: 6px 10px;
     font: inherit;
     cursor: pointer;
+  }
+  .row button.full {
+    flex: 1;
+  }
+  .progress {
+    margin: var(--space-2) 0 var(--space-1);
+    font-variant-numeric: tabular-nums;
+  }
+  progress {
+    width: 100%;
+    accent-color: var(--accent);
+    margin-bottom: var(--space-2);
   }
   .row button.rec {
     background: var(--danger);
