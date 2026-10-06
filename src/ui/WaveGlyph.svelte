@@ -36,7 +36,7 @@
   });
 </script>
 
-<svg width={size} height={size} viewBox="0 0 {size} {size}" role="img" aria-label="&{name}: one cycle of its waveform">
+<svg data-wheel="wave" width={size} height={size} viewBox="0 0 {size} {size}" role="img" aria-label="&{name}: one cycle of its waveform">
   <circle class="disc" cx={size / 2} cy={size / 2} r={size / 2 - 2} />
   <line class="axis" x1={size * 0.14} y1={size / 2} x2={size * 0.86} y2={size / 2} />
   <polyline class="wave" {points} />
