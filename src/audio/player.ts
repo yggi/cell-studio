@@ -28,6 +28,21 @@ export class Player {
   load(plan: Plan): void {
     this.plan = plan;
     this.voices?.sync(plan.result, plan.statics);
+    this.settle();
+  }
+
+  /**
+   * Stopped: every sound tape is held, silent, where it stands (a fresh one at its start). A tape's hiss
+   * runs from the moment its nets are made — made on every load — so without this a piece just opened
+   * would hiss before anything is played.
+   */
+  private settle(): void {
+    if (this.playing || !this.plan || !this.voices || !this.Tone) return;
+    for (const tp of this.plan.result.tapes) {
+      const u = this.heldTapes.get(tp.name) ?? 0;
+      this.heldTapes.set(tp.name, u);
+      this.holdTape(tp.name, u);
+    }
   }
 
   /**
@@ -48,6 +63,7 @@ export class Player {
     if (!this.voices) {
       this.voices = createVoices(this.Tone);
       if (this.plan) this.voices.sync(this.plan.result, this.plan.statics);
+      this.settle();
     }
     return this.Tone;
   }
@@ -261,6 +277,7 @@ export class Player {
     this.voices?.clearTapes();
     this.heldTapes.clear();
     this.pausedAt = 0;
+    this.pausedAudio = this.Tone?.getContext().currentTime ?? 0;
   }
 
   // a sound tape held still at u (stopped): its heads read what sat under them when it was there

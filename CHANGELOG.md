@@ -10,6 +10,9 @@ that makes the change. Also note changes to the language that could affect saved
 
 ## Unreleased
 
+### Fixed
+- Opening a piece now starts it from rest: the transport stops at 0 and nothing sounds, even if another piece was playing (it used to carry on from where it was) or the new piece has tapes (their hiss sounded as soon as the piece opened).
+
 ### Added
 - The running build's version and commit, shown in the **Files** menu.
 - A favicon.
