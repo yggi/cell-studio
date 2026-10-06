@@ -6,6 +6,7 @@
    */
   import { lastWord, suggest } from './suggest';
   import { parse } from '../engine/parser';
+  import { trap } from './trap';
 
   let { text: initial, names, onapply, onclose }: { text: string; names: readonly string[]; onapply: (text: string) => void; onclose: () => void } = $props();
 
@@ -23,7 +24,7 @@
 </script>
 
 <div class="backdrop" onclick={onclose} role="presentation"></div>
-<div class="pop" role="dialog" aria-label="Edit the braid" aria-modal="true">
+<div class="pop" role="dialog" aria-label="Edit the braid" aria-modal="true" use:trap={onclose}>
   <div class="field">
     <!-- svelte-ignore a11y_autofocus -->
     <input
@@ -35,7 +36,6 @@
       placeholder="0 2 4 &motif …  or  scan(2 2 1 2 2 2 1)"
       onkeydown={(e) => {
         if (e.key === 'Enter') apply();
-        if (e.key === 'Escape') onclose();
         if (e.key === 'Tab' && suggestions.length && word.word) {
           e.preventDefault();
           complete(suggestions[0].text);
