@@ -54,15 +54,24 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    # One deploy at a time, none cancelled. Runs reach this job in the order their `check` finishes, not in
+    # commit order, so an older commit could cancel or follow a newer one: the first step skips it instead.
     concurrency:
       group: deploy
-      cancel-in-progress: true
+      cancel-in-progress: false
     steps:
-      - uses: actions/download-artifact@v8
+      - name: Is this still the newest commit on main?
+        id: newest
+        run: |
+          head=$(git ls-remote "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}" refs/heads/main | cut -f1)
+          if [ "$head" = "$GITHUB_SHA" ]; then echo "current=true" >> "$GITHUB_OUTPUT"; else echo "A newer commit ($head) is on main: its run deploys, not this one"; fi
+      - if: steps.newest.outputs.current == 'true'
+        uses: actions/download-artifact@v8
         with:
           name: dist
           path: dist
       - name: Publish dist to gh-pages
+        if: steps.newest.outputs.current == 'true'
         run: |
           cd dist
           touch .nojekyll
