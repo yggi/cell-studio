@@ -507,15 +507,18 @@
   .mark {
     fill: var(--accent);
   }
+  /* its name on a pill, as a cell's: edges and their labels pass under it (it sits on the node, above them) */
   .name {
     position: absolute;
     left: 50%;
     top: calc(100% + 6px);
     transform: translateX(-50%);
-    font: 700 13px var(--font-code);
+    font: 700 13px/1.2 var(--font-code);
     color: var(--text);
     white-space: nowrap;
-    text-shadow: 0 1px 3px var(--bg);
+    background: var(--surface);
+    padding: 3px 8px;
+    border-radius: 6px;
     pointer-events: none;
   }
   .pack {
