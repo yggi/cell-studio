@@ -5,6 +5,8 @@
   import { codeShifts } from '../engine/compile';
   import { noteName } from '../theory/modes';
   import { getGraphContext } from './context';
+  import { fitFont, hubMax } from '../layout/dial';
+  import { wheelGeometry } from '../layout/wheel';
 
   let { name, size = 120 }: { name: string; size?: number } = $props();
   const ctx = getGraphContext();
@@ -17,6 +19,9 @@
     square: (x) => (x < 0.5 ? 1 : -1),
     pulse: (x) => (x < 0.25 ? 1 : -1),
   };
+  const geo = $derived(wheelGeometry(size));
+  const note = $derived(cell ? noteName(cell.freq) : '');
+  const noteFont = $derived(fitFont(size * 0.4, note.length, hubMax(size, 12)));
   const points = $derived.by(() => {
     let w: Float32Array;
     const src = cell?.params.s === undefined ? null : String(cell.params.s);
@@ -37,10 +42,10 @@
 </script>
 
 <svg data-wheel="wave" width={size} height={size} viewBox="0 0 {size} {size}" role="img" aria-label="&{name}: one cycle of its waveform">
-  <circle class="disc" cx={size / 2} cy={size / 2} r={size / 2 - 2} />
+  <circle class="disc" cx={geo.c} cy={geo.c} r={geo.rDisc} />
   <line class="axis" x1={size * 0.14} y1={size / 2} x2={size * 0.86} y2={size / 2} />
   <polyline class="wave" {points} />
-  <text x={size / 2} y={size * 0.84}>{cell ? noteName(cell.freq) : ''}</text>
+  {#if noteFont}<text x={geo.c} y={size * 0.84} style:font-size="{noteFont}px">{note}</text>{/if}
 </svg>
 
 <style>

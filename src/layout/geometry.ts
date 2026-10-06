@@ -30,6 +30,13 @@ export function ringSegment(cx: number, cy: number, r0: number, r1: number, t0: 
   ].join(' ');
 }
 
+/** An arc at radius r from turn t0 to t1 (for text to follow); `back` runs it from t1 to t0, so that text on the lower half reads upright. */
+export function arcPath(cx: number, cy: number, r: number, t0: number, t1: number, back = false): string {
+  const [x0, y0] = polar(cx, cy, r, back ? t1 : t0);
+  const [x1, y1] = polar(cx, cy, r, back ? t0 : t1);
+  return `M ${f(x0)} ${f(y0)} A ${f(r)} ${f(r)} 0 ${t1 - t0 > 0.5 ? 1 : 0} ${back ? 0 : 1} ${f(x1)} ${f(y1)}`;
+}
+
 /** Do segments p1–p2 and p3–p4 cross (properly, not just touch at an end)? */
 export function segmentsCross(x1: number, y1: number, x2: number, y2: number, x3: number, y3: number, x4: number, y4: number): boolean {
   const d = (x2 - x1) * (y4 - y3) - (y2 - y1) * (x4 - x3);

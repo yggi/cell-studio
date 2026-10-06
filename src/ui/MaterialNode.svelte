@@ -14,6 +14,9 @@
   import { onFrames } from '../audio/ticker';
   import { timed } from '../audio/stats';
   import FreePills from './FreePills.svelte';
+  import { polar as onCircle } from '../layout/geometry';
+  import { angleOf, turnDelta } from '../layout/dial';
+  import { NOTE_NAMES as NAMES } from '../theory/modes';
 
   let { id, data }: NodeProps = $props();
   const d = $derived(data as { name: string; size: number; role: 'motor' | 'belt' | 'tape' | 'resonator' });
@@ -27,7 +30,6 @@
   let amps = $state.raw<number[]>([]);
   let pads = $state.raw<number[]>([]);
   // its exciters: one pad each round the wheel, named by the note it sounds
-  const NAMES = ['C', 'C♯', 'D', 'E♭', 'E', 'F', 'F♯', 'G', 'A♭', 'A', 'B♭', 'B'];
   const exciters = $derived.by(() => {
     if (d.role !== 'resonator' || !cell?.exciters) return [];
     const f0 = cell.freq > 0 ? cell.freq : 440;
@@ -98,7 +100,11 @@
   });
   // (the write head at the top; a read head further round by how far on the tape it sits)
   const headAngle = (at: number) => -90 + (tape ? (at / tape.L) * 360 : 0);
-  const polar = (deg: number, r: number) => ({ x: R + r * Math.cos((deg * Math.PI) / 180), y: R + r * Math.sin((deg * Math.PI) / 180) });
+  // (degrees here, 0 at 3 o'clock, as SVG's rotate() counts them)
+  const polar = (deg: number, r: number) => {
+    const [x, y] = onCircle(R, R, r, (deg + 90) / 360);
+    return { x, y };
+  };
   const N = 96;
   let rec = $state.raw<number[]>(new Array(96).fill(0)); // (replaced whole each time: raw)
   let tapeAt = $state(0);
@@ -187,10 +193,12 @@
     const r = el.getBoundingClientRect();
     return { x: r.left + r.width / 2, y: r.top + r.height / 2, scale: r.width / S };
   };
+  // where the pointer is round the centre (radians, clockwise) and how far it has turned since `from`
   const angleAt = (e: PointerEvent) => {
     const c = centre();
-    return Math.atan2(e.clientY - c.y, e.clientX - c.x);
+    return angleOf(e.clientX, e.clientY, c.x, c.y) * 2 * Math.PI;
   };
+  const turned = (from: number, to: number) => turnDelta(from / (2 * Math.PI), to / (2 * Math.PI)) * 2 * Math.PI;
   function down(e: PointerEvent) {
     if (e.button !== 0) return;
     e.stopPropagation();
@@ -265,9 +273,7 @@
       ctx.bow(d.name, Math.min(0.6, v * 0.25));
     } else if (mode === 'scrub') {
       const a = angleAt(e);
-      let da = a - last.a;
-      if (da > Math.PI) da -= 2 * Math.PI;
-      if (da < -Math.PI) da += 2 * Math.PI;
+      const da = turned(last.a, a);
       last = { a, t: performance.now() };
       // (back as far as the tape holds; forward no further than what has been written)
       scrubAt = Math.min(scrubTop, Math.max(scrubTop - 4, scrubAt + da / (2 * Math.PI)));
@@ -276,9 +282,7 @@
     } else if (mode === 'grab') {
       const a = angleAt(e);
       const t = performance.now();
-      let da = a - last.a;
-      if (da > Math.PI) da -= 2 * Math.PI;
-      if (da < -Math.PI) da += 2 * Math.PI;
+      const da = turned(last.a, a);
       const dt = Math.max(1, t - last.t) / 1000;
       smooth = smooth * 0.6 + (da / dt) * 0.4; // the finger's angular speed (rad/s), smoothed
       last = { a, t };
@@ -441,7 +445,7 @@
     {#each exciters as x, i (i)}
       {@const deg = -90 + (i / exciters.length) * 360}
       {@const pr = Math.max(9, Math.min(16, (Math.PI * R * 1.2) / exciters.length - 2))}
-      {@const p = { x: R + R * 1.2 * Math.cos((deg * Math.PI) / 180), y: R + R * 1.2 * Math.sin((deg * Math.PI) / 180) }}
+      {@const p = polar(deg, R * 1.2)}
       <button
         class="pad"
         style:left="{p.x}px"

@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { polar, ringSegment } from './geometry';
+import { arcPath, polar, ringSegment } from './geometry';
 
 describe('geometry', () => {
+  it('draws an arc for text, either way round', () => {
+    expect(arcPath(100, 100, 50, 0, 0.25)).toBe('M 100 50 A 50 50 0 0 1 150 100');
+    expect(arcPath(100, 100, 50, 0, 0.25, true)).toBe('M 150 100 A 50 50 0 0 0 100 50');
+    expect(arcPath(100, 100, 50, 0, 0.75)).toContain(' 0 1 1 ');
+  });
+
   it('measures turns clockwise from 12 o\'clock', () => {
     const [x0, y0] = polar(0, 0, 10, 0);
     const [x1, y1] = polar(0, 0, 10, 0.25);

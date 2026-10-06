@@ -58,6 +58,8 @@
   --wheel-tick: #545a69;
   --wheel-rest: #262a34;
   --wheel-ref: #454a59;
+  --wheel-hand: var(--accent); /* the playhead, on every wheel */
+  --wheel-lit: brightness(1.3) saturate(1.15); /* the step under it */
   --wheel-read: #fff; /* a table's entry read now: a dot */
   --wheel-read-edge: rgb(0 0 0 / 0.5);
   --ink-halo: rgb(255 255 255 / 0.55); /* a light halo behind dark ink on a note */
