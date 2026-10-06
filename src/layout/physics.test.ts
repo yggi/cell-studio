@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { parse } from '../engine/parser';
 import { ForceLayout, DEFAULT_LAYOUT, FORCES_ALONE, columns, crossingPairs, flowRanks, orderLayers, tapeFaces } from './physics';
 import { fitTurn, headAngle, tapeHeads } from './tape';
+import { isGround } from './meters';
 import { splinePoint } from './geometry';
 import { buildGraph } from '../engine/graph';
 import { compileSource } from '../engine/compile';
@@ -189,7 +190,7 @@ describe('dragging', () => {
 // (no overlaps, on every example settled: physics.library.test.ts)
 
 describe('initial layout', () => {
-  it('draws the sound card up-centre and the meter down-centre — a slight pull, not a pin', () => {
+  it('draws the sound card up-centre — a slight pull, not a pin', () => {
     const model = buildGraph(compileSource(PRESETS.royal.source));
     const l = new ForceLayout(undefined, { live: false });
     l.setGraph(model);
@@ -197,10 +198,7 @@ describe('initial layout', () => {
     // royal's &mix is the sound card (map=sample)
     expect(l.isPinned('cell:mix') || l.isPinned('cell:bar')).toBe(false);
     const out = l.position('cell:mix')!;
-    const bar = l.position('cell:bar')!;
-    expect(out.y).toBeLessThan(bar.y); // screen y grows downward: out above bar
     expect(Math.abs(out.x)).toBeLessThan(DEFAULT_LAYOUT.layerGap * 1.5);
-    expect(Math.abs(bar.x)).toBeLessThan(DEFAULT_LAYOUT.layerGap * 1.5);
     // a drag moves it freely; released, it drifts back only slowly
     l.dragStart('cell:mix', out.x + 300, out.y);
     l.tick(1);
@@ -251,7 +249,6 @@ describe('the natural order (waltz)', () => {
   it('ranks the signal path from time up to sound; parts beside what uses them', () => {
     const r = flowRanks(model);
     const at = (n: string) => r.get(id(n))!;
-    expect(at('bar')).toBe(-1); // time below everything (the motifs reach down to 0.5)
     expect([at('tune'), at('oom'), at('pah')]).toEqual([1, 1, 1]);
     expect([at('flute'), at('tuba'), at('strings')]).toEqual([2, 2, 2]);
     expect(at('mix')).toBe(3); // the mix is the sound card: the top
@@ -302,7 +299,6 @@ describe('the natural order (royal)', () => {
   it('stepped tables hang just under their readers; the vibrato beside the melody', () => {
     const r = flowRanks(model);
     const at = (n: string) => r.get(id(n))!;
-    expect(at('bar')).toBe(-2); // time below everything
     expect([at('theme'), at('pedal')]).toEqual([1, 1]);
     // &key steps per cycle of &theme and &scale per cycle of &key — but they're tables &theme reads through:
     // tuning a row under what it tunes (the scale under the theme, the key under the scale)
@@ -321,7 +317,6 @@ describe('the natural order (royal)', () => {
     const y = (n: string) => l.position(id(n))!.y;
     expect(y('mix')).toBeLessThan(y('lead'));
     expect(y('lead')).toBeLessThan(y('key'));
-    expect(y('key')).toBeLessThan(y('bar'));
     expect(l.drawnCrossings()).toBe(0);
     l.destroy();
   });
@@ -546,5 +541,48 @@ describe('tapes: the heads keep their spacing, the wheel turns to face them at w
     // they disagree: the busier one wins more
     expect(fitTurn([{ angle: 0, offset: 0, weight: 3 }, { angle: q, offset: 0, weight: 1 }])!).toBeCloseTo(Math.atan2(1, 3));
     expect(fitTurn([])).toBeNull();
+  });
+});
+
+describe('meters last: placed where most of their edges cross nothing', () => {
+  for (const key of ['royal', 'bossa', 'cellscape', 'baustelle'] as const) {
+    it(key, () => {
+      const model = buildGraph(compileSource(PRESETS[key].source));
+      const l = new ForceLayout(undefined, { live: false });
+      l.setGraph(model);
+      l.tick(220);
+      const before = l.drawnCrossings();
+      l.placeMeters();
+      const kept = l.groundEdges();
+      const byId = new Map(model.nodes.map((n) => [n.id, n]));
+      const grounds = model.edges.filter((e) => isGround(e, byId));
+      expect(grounds.length).toBeGreaterThan(0);
+      expect(kept.size, 'some of its edges are drawn').toBeGreaterThan(0);
+      for (const id of kept) expect(grounds.some((e) => e.id === id)).toBe(true);
+      // the edges drawn cross nothing: no more crossings than before the meter was placed
+      expect(l.drawnCrossings()).toBeLessThanOrEqual(before);
+      // and the meter sits clear of every wheel
+      for (const m of new Set(grounds.map((e) => e.target))) {
+        const p = l.position(m)!;
+        for (const n of model.nodes.filter((n) => !n.petalOf && n.id !== m)) {
+          const q = l.position(n.id);
+          if (q) expect(Math.hypot(p.x - q.x, p.y - q.y), `${m} on ${n.id}`).toBeGreaterThan(DEFAULT_LAYOUT.radius(byId.get(m)!) + DEFAULT_LAYOUT.radius(n));
+        }
+      }
+      l.destroy();
+    });
+  }
+  it('inside a closed cycle when that reaches more: Royal\'s meter sits within its ring, to both cells', () => {
+    // (theme → scale ← pedal → bass → mix ← lead ← theme is a cycle; the meter steps theme and pedal, on it — from
+    // outside one edge crosses the cycle, from inside neither does: the face too small for it is widened)
+    const model = buildGraph(compileSource(PRESETS.royal.source));
+    const l = new ForceLayout(undefined, { live: false });
+    l.setGraph(model);
+    l.tick(220);
+    l.placeMeters();
+    const byId = new Map(model.nodes.map((n) => [n.id, n]));
+    const kept = model.edges.filter((e) => isGround(e, byId) && l.groundEdges().has(e.id)).map((e) => e.source);
+    expect(kept.sort()).toEqual(['cell:pedal', 'cell:theme']);
+    l.destroy();
   });
 });

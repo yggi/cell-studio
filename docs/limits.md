@@ -28,7 +28,7 @@ What Cell studio doesn't do yet or does with a catch, documented rather than tra
 
 ## Layout
 
-- Tags start as blocks and hubs pull a cluster as one, but clusters still touch in the largest pieces (30 overlapping pairs over the library; [notes/27-layout.md](notes/27-layout.md)); BWV 847 is wide. With a meter's edges no longer drawn or pulling, a meter sits at the bottom on its own, and graphs are a little larger (about 8 %).
+- Tags start as blocks and hubs pull a cluster as one, but clusters still touch in the largest pieces (30 overlapping pairs over the library; [notes/27-layout.md](notes/27-layout.md)); BWV 847 is wide. A meter is placed last, where most of its edges cross nothing; in the densest pieces only a few of them can be drawn (the rings say the rest).
 - A restarted part's playhead shows the global clock, not its own restarted time.
 - Notes float near the top; a note can't point at the cell it explains.
 - A column pull (keeping nodes in their symmetric columns while they settle) costs crossings at every strength tried (0.005–0.06): it's a slider, off by default; the columns shape only the start.
