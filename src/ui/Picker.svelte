@@ -52,39 +52,31 @@
   import { untrack } from 'svelte';
   import { prefersReducedMotion } from 'svelte/motion';
 
+  import { getStudio } from './state/studio.svelte';
+
   let {
-    entries,
-    current,
-    storageOk,
-    message,
-    onpick,
-    onclose,
     embedded = false,
-    onsavefile,
-    onopenfile,
-    onsavebrowser,
-    onremove,
-    onrender,
-    onperf,
-    perfOn = false,
   }: {
-    entries: readonly Entry[];
-    current: string | null;
-    storageOk: boolean;
-    message: string | null;
-    onpick: (id: string) => void;
-    onclose: () => void;
     /** A view of its own (the first one), not a dialog over the piece. */
     embedded?: boolean;
-    onsavefile: () => void;
-    onopenfile: (file: File) => void;
-    onsavebrowser: () => void;
-    onremove: (id: string) => void;
-    onrender: () => void;
-    /** Show or hide the performance overlay. */
-    onperf?: () => void;
-    perfOn?: boolean;
   } = $props();
+
+  const studio = getStudio();
+  const { library } = studio;
+  const entries = $derived(library.entries);
+  const current = $derived(library.currentId);
+  const storageOk = library.storageOk;
+  const message = $derived(studio.view.message);
+  const perfOn = $derived(studio.view.perf);
+  const onpick = (id: string) => studio.pick(id);
+  const onclose = () => (studio.view.tab = 'graph');
+  const onsavefile = () => studio.saveFile();
+  const onopenfile = (file: File) => studio.openFile(file);
+  const onsavebrowser = () => studio.saveHere();
+  const onremove = (id: string) => library.remove(id);
+  const onrender = () => studio.render();
+  /** Show or hide the performance overlay. */
+  const onperf = () => studio.view.togglePerf();
 
   let query = $state('');
   // the tag lit in the graph

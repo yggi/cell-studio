@@ -1,0 +1,112 @@
+import { compileSource } from '../../engine/compile';
+import { codeShifts, type CompileResult } from '../../engine/program';
+import { addCell, setFree, setOff, setShift } from '../../engine/edit';
+import { freeIndex, freeList, withHeld } from '../../engine/held';
+import { buildGraph } from '../../engine/graph';
+import { routing } from '../../engine/routing';
+import { mainTempo, sections } from '../../engine/duration';
+import { titleOf } from '../../library';
+import type { PieceSource } from '../../audio/engine';
+import type { FreeSpec } from '../../engine/ast';
+
+/**
+ * The open piece: its code — the single source of truth, and this the only place that writes it —
+ * what it compiles to, and the free() values moved by hand. Every edit (a wheel turned, a cell
+ * switched off, added, renamed, a value kept) is a rewrite of the code through engine/edit.ts.
+ */
+export class Piece {
+  #code = $state('');
+  /** The device's sample rate, once audio runs: a value the environment provides to the code. */
+  sampleRate = $state(48000);
+  readonly env = $derived({ SAMPLE_RATE: this.sampleRate, A4: 440 });
+  /** The code as written, compiled (its diagnostics are the editor's). */
+  readonly result = $derived(compileSource(this.#code, this.env));
+  /** Its title, from its card as it stands (it follows edits). */
+  readonly title = $derived(titleOf(this.#code));
+  readonly errors = $derived(this.result.diagnostics.filter((d) => d.severity === 'error').length);
+  /** The code has errors: what's shown and played is the last version that compiled. */
+  readonly stale = $derived(!this.result.ok);
+
+  /**
+   * free() values moved by hand: what plays, not what's written — until kept. Held by their place
+   * among the code's free()s (the first, the second …), so rewriting can't lose them.
+   */
+  held = $state.raw<Map<number, number | string>>(new Map());
+  readonly playedCode = $derived(this.held.size && this.result.ok ? withHeld(this.#code, this.result, this.held) : this.#code);
+  readonly playedResult = $derived(this.playedCode === this.#code ? this.result : compileSource(this.playedCode, this.env));
+
+  // (the last version that compiled, and the text it was compiled from: an engine in a worker compiles
+  // the same piece from it. A remembered value, not state: it only changes as `good` is read.)
+  #lastGood: { result: CompileResult; source: PieceSource };
+  readonly good = $derived.by(() => {
+    if (this.playedResult.ok) this.#lastGood = { result: this.playedResult, source: { code: this.playedCode, env: this.env } };
+    return this.#lastGood;
+  });
+  /** What's shown and played: the last version that compiled. */
+  readonly program = $derived(this.good.result);
+  readonly graph = $derived(buildGraph(this.program));
+  readonly shifts = $derived(codeShifts(this.program));
+  readonly muted = $derived(this.program.off);
+  /** What can sound (engine/routing.ts). */
+  readonly routed = $derived(routing(this.program, this.muted));
+  /** The arrangement's sections (if a selector plays the piece) and the meter that drives it. */
+  readonly sections = $derived(this.program.ok ? sections(this.program) : null);
+  readonly mainMeter = $derived(this.program.ok ? mainTempo(this.program) : null);
+
+  // how many free()s the code had when it last compiled: an edit that changes that leaves what was held
+  // no longer fitting
+  #frees: number;
+
+  constructor(code: string) {
+    this.#code = code;
+    const first = compileSource(code);
+    this.#lastGood = { result: first, source: { code } };
+    this.#frees = first.ok ? freeList(first).length : 0;
+  }
+
+  get code(): string {
+    return this.#code;
+  }
+  /** Write the code (the editor, Shorten, an opened piece). */
+  set code(source: string) {
+    this.#code = source;
+    const r = this.result;
+    const n = freeList(r).length;
+    if (r.ok && n !== this.#frees) {
+      this.#frees = n;
+      if (this.held.size) this.held = new Map();
+    }
+  }
+
+  /** Turn a cell; one whose shift is free(…) moves its free value (the wheel and its slider are one control). */
+  turn(name: string, shift: number): void {
+    const free = this.program.cells.get(name)?.frees.find((f) => f.key === 'shift');
+    this.code = free ? setFree(this.code, free, shift) : setShift(this.code, name, shift);
+  }
+  /** Switch a cell (a graph id, `cell:<name>`) on or off. */
+  toggle(id: string): void {
+    const name = id.slice('cell:'.length);
+    this.code = setOff(this.code, name, !this.program.cells.get(name)?.off);
+  }
+  /** Add a new cell; its name. */
+  add(): string {
+    const r = addCell(this.code);
+    this.code = r.source;
+    return r.name;
+  }
+  /** Move a free(…) value by hand: it plays, and the code keeps what's written until `keep`. */
+  hold(spec: Pick<FreeSpec, 'span'>, v: number | string): void {
+    const i = freeIndex(this.program, spec);
+    if (i < 0) return;
+    this.held = new Map(this.held).set(i, v);
+  }
+  /** Write what's held into the code. */
+  keep(): void {
+    this.code = this.playedCode;
+    this.held = new Map();
+  }
+  /** Let go of what's held. */
+  revert(): void {
+    if (this.held.size) this.held = new Map();
+  }
+}

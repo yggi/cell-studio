@@ -5,54 +5,38 @@
    * start, where the piece is — its sections marked and named, each a jump — and the
    * tempo of the meter that drives it (its free() value, as in the graph).
    */
+  import { getStudio } from './state/studio.svelte';
+
   let {
-    title = '',
-    onchoose,
     path,
-    playing,
-    starting = false,
-    now,
-    span,
-    sections = null,
-    tempo = null,
-    onplay,
-    onreset,
-    dirty = false,
-    held = false,
-    onrevert,
-    onsave,
-    onmenu,
-    menuOpen = false,
-    onseek,
-    ontempo,
   }: {
-    /** The piece open now (tap: choose another). */
-    title?: string;
-    onchoose?: () => void;
     /** In place of the title: the piece's place in the library, to choose another from (QuickPick). */
     path?: Snippet;
-    playing: boolean;
-    starting?: boolean;
-    /** Where it is (seconds; within one lap for a loop). */
-    now: number;
-    /** How far the slider reaches (null: nothing to move in). */
-    span: number | null;
-    sections?: { at: number; label: string }[] | null;
-    tempo?: { value: number; lo: number; hi: number; unit: string } | null;
-    onplay: () => void;
-    onreset: () => void;
-    /** Anything changed from the initial state: Reset pulses. */
-    dirty?: boolean;
-    /** free() values moved by hand: revert or save them. */
-    held?: boolean;
-    onrevert?: () => void;
-    onsave?: () => void;
-    /** The controls drawer. */
-    onmenu?: () => void;
-    menuOpen?: boolean;
-    onseek: (t: number) => void;
-    ontempo: (v: number) => void;
   } = $props();
+
+  const { piece, playback, view } = getStudio();
+  const title = $derived(piece.title);
+  const playing = $derived(playback.playing);
+  const starting = $derived(playback.starting);
+  /** Where it is (seconds; within one lap for a loop). */
+  const now = $derived(playback.now);
+  /** How far the slider reaches (null: nothing to move in). */
+  const span = $derived(playback.span);
+  const sections = $derived(piece.sections);
+  const tempo = $derived(piece.mainMeter?.free ?? null);
+  /** Anything changed from the initial state: Reset pulses. */
+  const dirty = $derived(playback.dirty);
+  /** free() values moved by hand: revert or save them. */
+  const held = $derived(piece.held.size > 0);
+  const menuOpen = $derived(view.panelOpen);
+  const onchoose = () => (view.tab = 'select');
+  const onplay = () => playback.toggle();
+  const onreset = () => playback.reset();
+  const onrevert = () => piece.revert();
+  const onsave = () => piece.keep();
+  const onmenu = () => (view.panelOpen = !view.panelOpen);
+  const onseek = (t: number) => playback.seek(t);
+  const ontempo = (v: number) => piece.mainMeter && piece.hold(piece.mainMeter.free, v);
 
   // (an hour or more: hours too)
   const clock = (sec: number) =>
