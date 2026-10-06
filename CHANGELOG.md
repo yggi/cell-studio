@@ -15,6 +15,8 @@ that makes the change. Also note changes to the language that could affect saved
 - Cell studio is now an installable app (PWA): it has an icon and a manifest, works offline after the first visit, and shows "New version ready" when an update is waiting (it never reloads by itself, so a playing piece is not cut off). The build is no longer one `index.html` but normal files with Tone loaded on first Play. Saved `.cells` pieces are not affected.
 
 ### Fixed
+- A kit's members now use their own `env=`: a drum read through a kit (`&drums over=&kit …`) used to ignore its envelope and ring for the whole step. This changes how **Drunken Sailor**, **IDM: drill**, **Automaton** and **Metronome** sound (their drums are as short as written); the levels of Drunken Sailor and Automaton were re-set to keep their loudness. Saved pieces that read a kit whose members have `env=` will sound different too.
+- **Metronome** no longer hisses: its clicks are short tonal ticks (higher and longer on the downbeat, lower and shorter for finer divisions) instead of noise bursts.
 - Opening a piece now starts it from rest: the transport stops at 0 and nothing sounds, even if another piece was playing (it used to carry on from where it was) or the new piece has tapes (their hiss sounded as soon as the piece opened).
 
 ### Added
