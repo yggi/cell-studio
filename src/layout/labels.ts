@@ -16,8 +16,12 @@ import { modeName, mod } from '../theory/modes';
 
 const NAMES = ['C', 'C♯', 'D', 'E♭', 'E', 'F', 'F♯', 'G', 'A♭', 'A', 'B♭', 'B'];
 
-/** A cell's fields, as text (null where a field doesn't apply). */
-export function fieldsOf(result: CompileResult, name: string, shifts: Shifts): Record<string, string | null> {
+/**
+ * A cell's fields, as text (null where a field doesn't apply). `need` names the fields wanted: the note
+ * fields (notes, tonic, mode) read the whole table or melody, so they're worked out only when asked for
+ * (a label is refilled whenever a table turns, for every node that has one).
+ */
+export function fieldsOf(result: CompileResult, name: string, shifts: Shifts, need?: ReadonlySet<string>): Record<string, string | null> {
   const c = result.cells.get(name);
   const out: Record<string, string | null> = { name: `&${name}`, notes: null, tonic: null, mode: null, steps: null, tempo: null, shift: null };
   if (!c) return out;
@@ -25,6 +29,7 @@ export function fieldsOf(result: CompileResult, name: string, shifts: Shifts): R
   out.shift = String(shifts(name));
   const clock = c.clock ? result.clocks.get(c.clock) : null;
   if (clock) out.tempo = String(Math.round((clock.perSecond * c.rate * 60) / (c.clock === name ? c.beat : 1)));
+  if (need && !need.has('notes') && !need.has('tonic') && !need.has('mode')) return out;
   try {
     // a table: its entries; a melody: what it plays, in order
     const pitchOf = (value: number, alter: number) => {
@@ -53,9 +58,10 @@ const escape = (t: string) => t.replace(/&/g, '&amp;').replace(/</g, '&lt;').rep
  * any formatting is applied). Unknown fields stay as written.
  */
 export function formatLabel(result: CompileResult, name: string, template: string, shifts: Shifts): string {
-  const own = fieldsOf(result, name, shifts);
+  const need = new Set([...template.matchAll(/\{(?:&[A-Za-z_][A-Za-z0-9_]*:)?([a-z]+)\}/g)].map((m) => m[1]));
+  const own = fieldsOf(result, name, shifts, need);
   const filled = template.replace(/\{(?:&([A-Za-z_][A-Za-z0-9_]*):)?([a-z]+)\}/g, (whole, cell: string | undefined, field: string) => {
-    const f = cell ? (result.cells.get(cell) ? fieldsOf(result, cell, shifts) : null) : own;
+    const f = cell ? (result.cells.get(cell) ? fieldsOf(result, cell, shifts, need) : null) : own;
     const v = f?.[field];
     return v ?? whole;
   });

@@ -15,10 +15,12 @@ that makes the change. Also note changes to the language that could affect saved
 - A favicon.
 
 ### Changed
+- Lighter live views while playing: scopes and spectrum wheels do much less work per frame (about half the main-thread load on the busiest pieces), skip it when off screen or silent, and refresh less often when the page falls behind. The sound is unchanged; wheels are drawn at up to 1.5× (was 2×) the layout size.
 - Sound: Tone's default audio context is now closed when the app creates its own, so only one runs (less battery use on Android).
 - Tests run without per-file isolation (faster).
 
 ### Developer
+- `tools/profile/`: scripts to measure main-thread load while a piece plays (Playwright + CDP) and to attribute it to code.
 - CI runs `npm run check`, the tests and the build on pull requests and on `main`.
 - `window.cellStudio` (`measure`, `length`, `level`) is documented in the README.
 - `.gitignore` covers Python caches, editor files, coverage and logs.

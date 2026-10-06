@@ -9,3 +9,7 @@ __pycache__/
 coverage/
 .vite/
 *.log
+
+# profiling output
+profile-*.json
+before-play.png

@@ -11,6 +11,7 @@
   import { adsrOf, resolvePitch, semitones } from '../engine/compile';
   import { voiceBase } from '../layout/show';
   import { noteColour } from './theme';
+  import { load, watchLoad } from '../audio/load';
 
   let { name, w = 240, h = 150, round = false }: { name: string; w?: number; h?: number; round?: boolean } = $props();
   const d = $derived({ name });
@@ -64,9 +65,24 @@
   const NAMES12 = ['C', 'C♯', 'D', 'E♭', 'E', 'F', 'F♯', 'G', 'A♭', 'A', 'B♭', 'B'];
   const LO = 30;
   const HI = 16000;
-  const bandOfFreq = (f: number) => {
-    if (fold > 0) return (((Math.round(69 + 12 * Math.log2(f / 440)) % fold) + fold) % fold);
-    return Math.min(nBands - 1, Math.max(0, Math.floor((Math.log(f / LO) / Math.log(HI / LO)) * nBands)));
+  type Bins = { levels: number[]; labels: string[]; hues: number[] };
+  // The bins' layout, worked out when the cell changes — and read once per frame: a $derived read
+  // from a frame callback (outside any effect) is recomputed on every read, so the hot loop below
+  // works on this plain snapshot instead of on the reactive values.
+  const layout = $derived.by(() => {
+    const f = fold;
+    const n = nBands;
+    return {
+      fold: f,
+      n,
+      labels: Array.from({ length: n }, (_, k) => (f === 12 ? NAMES12[k] : f > 0 ? String(k) : '')),
+      hues: Array.from({ length: n }, (_, k) => (f > 0 ? (k / f) * 360 : ((((Math.round(12 * Math.log2((LO * Math.pow(HI / LO, (k + 0.5) / n)) / 261.63)) % 12) + 12) % 12) * 30))),
+    };
+  });
+  type Layout = typeof layout;
+  const bandOfFreq = (L: Layout, f: number) => {
+    if (L.fold > 0) return (((Math.round(69 + 12 * Math.log2(f / 440)) % L.fold) + L.fold) % L.fold);
+    return Math.min(L.n - 1, Math.max(0, Math.floor((Math.log(f / LO) / Math.log(HI / LO)) * L.n)));
   };
   // a channel's kit, if it plays through one: its tokens are its bins
   const kitOf = (ch: string) => {
@@ -74,27 +90,25 @@
     const k = c?.over ? ctx.program.cells.get(c.over) : undefined;
     return k?.kit ? [...k.children.keys()] : null;
   };
-  type Bins = { levels: number[]; labels: string[]; hues: number[] };
-  function binsOf(ch: string, now: number): Bins {
+  function binsOf(ch: string, now: number, L: Layout): Bins {
     const kit = kitOf(ch);
     if (kit) {
       const lv = new Array(kit.length).fill(0);
       for (const v of valuesAt(ctx.program, ctx.shifts, ch, now)) if (kit[v]) lv[v] = 1;
       return { levels: lv, labels: kit, hues: kit.map((_, i) => (i / kit.length) * 360) };
     }
-    const lv = new Array(nBands).fill(0);
-    const labels = Array.from({ length: nBands }, (_, k) => (fold === 12 ? NAMES12[k] : fold > 0 ? String(k) : ''));
-    const hues = Array.from({ length: nBands }, (_, k) => (fold > 0 ? (k / fold) * 360 : ((((Math.round(12 * Math.log2((LO * Math.pow(HI / LO, (k + 0.5) / nBands)) / 261.63)) % 12) + 12) % 12) * 30)));
+    const { n, labels, hues } = L;
+    const lv = new Array(n).fill(0);
     const fq = ctx.freqs(ch);
     if (fq) {
       // a sound: its power, gathered into bins — then in dB, −90 … −20 as 0 … 1
-      const pw = new Array(nBands).fill(0);
+      const pw = new Array(n).fill(0);
       for (let i = 1; i < fq.db.length; i++) {
         const f = i * fq.hz;
         if (f < LO || f > HI) continue;
-        pw[bandOfFreq(f)] += Math.pow(10, fq.db[i] / 10);
+        pw[bandOfFreq(L, f)] += Math.pow(10, fq.db[i] / 10);
       }
-      for (let k = 0; k < nBands; k++) lv[k] = pw[k] > 0 ? Math.max(0, Math.min(1, (10 * Math.log10(pw[k]) + 90) / 70)) : 0;
+      for (let k = 0; k < n; k++) lv[k] = pw[k] > 0 ? Math.max(0, Math.min(1, (10 * Math.log10(pw[k]) + 90) / 70)) : 0;
       return { levels: lv, labels, hues };
     }
     // notes or chords: exactly what sounds — a gate per bin; through a voice with an envelope, the
@@ -114,7 +128,7 @@
       const v = n.value;
       const r = resolvePitch(ctx.program, ch, Math.floor(v), 0, ctx.shifts);
       const semis = semitones(ctx.program, r.root, r.position) + (v - Math.floor(v));
-      const k = bandOfFreq(base * Math.pow(2, semis / 12));
+      const k = bandOfFreq(L, base * Math.pow(2, semis / 12));
       lv[k] = Math.max(lv[k], shape(n.since));
     }
     return { levels: lv, labels, hues };
@@ -122,16 +136,26 @@
   let lanes = $state<Bins[]>([]);
   let canvas = $state<HTMLCanvasElement | null>(null);
 
+  let root = $state<HTMLDivElement | null>(null);
   $effect(() => {
     let raf = 0;
     let last = 0;
+    // only a scope that can be seen does any work (off screen, or the page in the background, it reads
+    // no analysis and draws nothing) — as the spectrum wheels do
+    let visible = true;
+    watchLoad();
+    const watch = typeof IntersectionObserver !== 'undefined' && root ? new IntersectionObserver((es) => (visible = es.some((e) => e.isIntersecting))) : null;
+    if (watch && root) watch.observe(root);
     const tick = (t: number) => {
       raf = requestAnimationFrame(tick);
-      if (t - last < 33) return; // ~30 a second
+      if (!visible || document.hidden) return;
+      // waveforms ~30 a second; a spectrum (an 8192-point analysis per channel) ~15: plenty for the eye
+      if (t - last < (spectral ? 66 : 33) * load.scale) return;
       last = t;
       const now = ctx.live?.seconds ?? 0;
       if (spectral) {
-        const per = channels.map((ch) => binsOf(ch, now));
+        const L = layout;
+        const per = channels.map((ch) => binsOf(ch, now, L));
         if (summed && per.length > 1)
           lanes = [{ ...per[0], levels: per[0].levels.map((_, k) => Math.min(1, per.reduce((a, b) => a + (b.levels[k] ?? 0), 0))) }];
         else lanes = per;
@@ -178,7 +202,10 @@
       });
     };
     raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
+    return () => {
+      cancelAnimationFrame(raf);
+      watch?.disconnect();
+    };
   });
 
   // the waterfall: the picture moves up a row; the new row is now — each bin its colour, as bright as loud
@@ -211,9 +238,32 @@
     const b = band(ci);
     return { x: 8 + p.x * (W - 16), y: b.y0 + b.h / 2 - p.y * (b.h / 2 - 8) };
   };
+  // each trace as a few paths, not a line per segment: neighbouring segments of one colour join
+  // (a waveform is one path; a stepped value's trace changes colour with its value)
+  const runs = $derived(
+    traces.map((tr, ci) => {
+      const out: { colour: string; d: string }[] = [];
+      let cur: { colour: string; d: string } | null = null;
+      for (let i = 0; i < tr.pts.length - 1; i++) {
+        const p = tr.pts[i];
+        const q = tr.pts[i + 1];
+        if (!p || !q) {
+          cur = null;
+          continue;
+        }
+        const a = px(p, ci);
+        const b = px(q, ci);
+        const colour = tr.colour(i);
+        const pt = (v: { x: number; y: number }) => `${v.x.toFixed(1)} ${v.y.toFixed(1)}`;
+        if (cur && cur.colour === colour) cur.d += `L${pt(b)}`;
+        else out.push((cur = { colour, d: `M${pt(a)}L${pt(b)}` }));
+      }
+      return out;
+    }),
+  );
 </script>
 
-<div class="scope" class:round style:width="{W}px" style:height="{H}px" role="img" aria-label="Scope: {channels.join(', ')}">
+<div class="scope" bind:this={root} class:round style:width="{W}px" style:height="{H}px" role="img" aria-label="Scope: {channels.join(', ')}">
   {#if mode === 'waterfall'}
     <canvas bind:this={canvas} width={Math.round(box.w)} height={Math.round(box.h)} style:left="{box.x}px" style:top="{box.y}px"></canvas>
     {#if lanes[0]}
@@ -246,14 +296,9 @@
         <polyline class="trace" points={xy.map((p) => `${W / 2 + p.x * (Math.min(W, H) / 2 - 10)},${H / 2 - p.y * (Math.min(W, H) / 2 - 10)}`).join(' ')} style:stroke={noteColour(pc(0))} />
       {/if}
     {:else if mode !== 'waterfall'}
-      {#each traces as tr, ci (tr.name)}
-        {#each tr.pts as p, i (i)}
-          {@const q = tr.pts[i + 1]}
-          {#if p && q}
-            {@const a = px(p, ci)}
-            {@const b = px(q, ci)}
-            <line class="trace" x1={a.x} y1={a.y} x2={b.x} y2={b.y} style:stroke={tr.colour(i)} />
-          {/if}
+      {#each runs as rs, ci (ci)}
+        {#each rs as r, i (i)}
+          <path class="trace" d={r.d} style:stroke={r.colour} />
         {/each}
       {/each}
     {/if}

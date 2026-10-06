@@ -10,6 +10,7 @@ import { clocking, tapeMotion, eventsBetween, type Plan } from '../engine/realiz
 import { createVoices, type VoiceBank } from './voices';
 import { resetPhysics } from '../engine/physics';
 import { transportClock } from './clock.svelte';
+import { load, watchLoad } from './load';
 
 type ToneNS = typeof import('tone');
 const WINDOW = 0.25; // transport quarters = code seconds
@@ -203,6 +204,7 @@ export class Player {
       0,
     );
 
+    watchLoad();
     const startsAt = Tone.now() + 0.05;
     tr.start(startsAt);
     transportClock.playing = true;
@@ -210,7 +212,7 @@ export class Player {
     const frame = (t: number) => {
       // (the live views: about 24 times a second — plenty for the eye, and a large graph leaves the
       // page free to keep the sound fed)
-      if (t - shown < 40) {
+      if (t - shown < 40 * load.scale) {
         this.raf = requestAnimationFrame(frame);
         return;
       }
