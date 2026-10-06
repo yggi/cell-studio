@@ -4,7 +4,7 @@ What the tests promise and how to run them; see [architecture.md](architecture.m
 
 ## Run
 
-CI (`.github/workflows/ci.yml`, Node 22) is the gate on every PR and on `main`:
+CI (`.github/workflows/ci.yml`, Node 22) is the gate on every PR and on `main` (the ruleset requires the `check` job; see [decision 004](decisions/004-agents-dont-merge.md#the-ruleset)):
 
 - `check` job: `npm run check` (svelte-check), `npm test` (`vitest run`; `npm run test:watch` while editing), `npm run build`. It uploads the build.
 - `smoke` job: `npm run smoke` on that build, in the runner's Chrome: `tools/smoke.mjs` opens every piece of the library, plays it for 2 s, and fails on any page error, console error, or an AudioContext that isn't running and advancing. This is the only check that builds the audio graph of every voice kind (tapes, resonators, FM, kits), since vitest has no Web Audio.
