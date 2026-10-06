@@ -46,3 +46,15 @@ describe('layoutQuality', () => {
     expect(layoutQuality([node('a', 0, 0, 10, ['x', 'y']), node('b', 40, 0, 10, ['x', 'y'])], []).clusters).toBe(0);
   });
 });
+
+describe('aim', () => {
+  it('says how far, on average, a node is turned from where it should sit', () => {
+    const ns = [node('tape', 0, 0), node('top', 0, -100), node('right', 100, 0)];
+    // (screen angles: y down, so the top is -90°)
+    const up = -Math.PI / 2;
+    expect(layoutQuality(ns, [], [{ from: 'tape', to: 'top', angle: up }]).aim).toBe(0);
+    expect(layoutQuality(ns, [], [{ from: 'tape', to: 'right', angle: up }]).aim).toBe(90);
+    expect(layoutQuality(ns, [], [{ from: 'tape', to: 'top', angle: up }, { from: 'tape', to: 'right', angle: Math.PI }]).aim).toBe(90); // (0° and 180°)
+    expect(layoutQuality(ns, []).aim).toBe(0);
+  });
+});

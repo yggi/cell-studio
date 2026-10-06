@@ -17,7 +17,15 @@ What the first baseline says (library totals: 173 crossings at the start, 140 se
 
 Gotcha: a crossing exactly at the end of a curve's piece (an edge cut in 16) isn't seen, so two straight edges that cross exactly at their midpoints count 0. The examples' numbers don't seem to hit it, but a hand-made test can.
 
+## Step 2: tape heads (done)
+
+A tape's read heads are drawn round its wheel by how far along the tape they read (`src/layout/tape.ts`); what each head plays now starts in its head's direction and is held there (the `aims` force in `physics.ts`; `aim` in the baseline: mean degrees off, 62–126 before, 2–10 after). Crossings 140 → 142 (Resonanz 1 → 4, Echo Tape 0 → 1; Sound on Tape 2 → 1, Test Tones 1 → 0).
+
+Not the write head (on top): its source sits *below* the tape in the signal flow, so turning it up drags the source's other parts across (tried: Resonanz 1 → 12 crossings, the library +15; moving the tape under its source instead, +18). If the write edge should meet the head, drawing the write head where the source is (at the bottom) would fit the flow; that's a design call.
+
 ## Next
 
-1. #61 (sidequest, its own PR): the miniatures move to a pure `src/layout/miniature.ts` and into the examples' index. Pinned layouts (`Preset.layout`) are moot: no example has one any more.
-2. The first layout change, judged by the baseline: the pieces where the physics adds crossings (a weaker relaxation, or fewer ticks once the layered start is good), then cluster-level placement for the tagged pieces.
+1. The pieces where the physics adds crossings to a good layered start (Cellscape 19 → 33, Baustelle 9 → 14, Korobeiniki 2 → 6, IDM 1 → 4, Brothers 1 → 4, Acid 0 → 2).
+2. Cluster-level placement for the tagged pieces.
+
+(#61, the library's miniatures, is done: #108.)

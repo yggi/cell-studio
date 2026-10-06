@@ -13,6 +13,7 @@
   import { onFrames } from '../audio/ticker';
   import { timed } from '../audio/stats';
   import FreePills from './FreePills.svelte';
+  import { headAngle as tapeHeadAngle, tapeHeads, WRITE_ANGLE } from '../layout/tape';
 
   let { id, data }: NodeProps = $props();
   const d = $derived(data as { name: string; size: number; role: 'motor' | 'belt' | 'tape' | 'resonator' });
@@ -81,16 +82,12 @@
   // ---- a tape: its heads, where they sit, and what's been recorded round it
   const tape = $derived.by(() => {
     if (d.role !== 'tape' || !cell) return null;
-    const heads = [...ctx.program.cells.values()]
-      .filter((h) => h.params.play === d.name)
-      .map((h) => ({ name: h.name, at: typeof h.params.at === 'number' ? h.params.at : 0 }));
-    const loop = typeof cell.params.length === 'number' && cell.params.length > 0;
-    const L = loop ? (cell.params.length as number) : Math.max(1, ...heads.map((h) => h.at)) * 1.25;
+    const { heads, length: L } = tapeHeads(cell, ctx.program.cells.values());
     const erase = typeof cell.params.erase === 'number' ? Math.min(1, Math.max(0, cell.params.erase)) : 1;
     return { heads, L, erase };
   });
-  // (the write head at the top; a read head further round by how far on the tape it sits)
-  const headAngle = (at: number) => -90 + (tape ? (at / tape.L) * 360 : 0);
+  // (the write head at the top; a read head further round by how far on the tape it sits: layout/tape.ts)
+  const headAngle = (at: number) => (tape ? tapeHeadAngle(at, tape.L) : WRITE_ANGLE);
   const polar = (deg: number, r: number) => ({ x: R + r * Math.cos((deg * Math.PI) / 180), y: R + r * Math.sin((deg * Math.PI) / 180) });
   const N = 96;
   let rec = $state.raw<number[]>(new Array(96).fill(0)); // (replaced whole each time: raw)

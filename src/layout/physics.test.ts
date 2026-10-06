@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { parse } from '../engine/parser';
-import { ForceLayout, DEFAULT_LAYOUT, FORCES_ALONE, columns, crossingPairs, flowRanks, orderLayers } from './physics';
+import { ForceLayout, DEFAULT_LAYOUT, FORCES_ALONE, columns, crossingPairs, flowRanks, orderLayers, tapeAims } from './physics';
+import { headAngle, tapeHeads } from './tape';
 import { splinePoint } from './geometry';
 import { buildGraph } from '../engine/graph';
 import { compileSource } from '../engine/compile';
@@ -498,4 +499,30 @@ describe('tags inside a piece: a node each, pushing cells and edges off its name
       l.destroy();
     });
   }
+});
+
+describe('tapes: what a read head plays sits towards the head, round the tape', () => {
+  for (const key of ['soundtape', 'testtones', 'resonanz', 'fiveto12'] as const) {
+    it(key, () => {
+      const model = buildGraph(compileSource(PRESETS[key].source));
+      const aims = tapeAims(model);
+      expect(aims.length).toBeGreaterThan(1);
+      const l = new ForceLayout(undefined, { live: false });
+      l.setGraph(model);
+      l.tick(500);
+      for (const { from, to, angle } of aims) {
+        const t = l.position(from)!;
+        const h = l.position(to)!;
+        const d = Math.atan2(h.y - t.y, h.x - t.x) - angle;
+        expect(Math.abs(Math.atan2(Math.sin(d), Math.cos(d))) * (180 / Math.PI), `${to}`).toBeLessThan(25);
+      }
+      l.destroy();
+    });
+  }
+  it('a head sits by how far along the tape it reads: the top, then clockwise', () => {
+    expect(tapeHeads({ name: 't', params: { length: 4 } }, [{ name: 'h', params: { play: 't', at: 1 } }])).toEqual({ heads: [{ name: 'h', at: 1 }], length: 4 });
+    expect(headAngle(0, 4)).toBe(-90);
+    expect(headAngle(1, 4)).toBe(0);
+    expect(headAngle(2, 4)).toBe(90);
+  });
 });
