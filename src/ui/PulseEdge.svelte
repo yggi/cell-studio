@@ -8,7 +8,7 @@
    *    note sounding now, with a pulse per step of the melody
    */
   import { BaseEdge, type EdgeProps } from '@xyflow/svelte';
-  import { splinePoint } from '../layout/physics';
+  import { splinePoint } from '../layout/geometry';
   import { getGraphContext } from './context';
   import { pitchHue } from '../theory/modes';
 
