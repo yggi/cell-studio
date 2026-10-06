@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { parse } from '../engine/parser';
-import { ForceLayout, DEFAULT_LAYOUT, FORCES_ALONE, columns, countCrossings, crossingPairs, flowRanks, orderLayers, splinePoint } from './physics';
+import { ForceLayout, DEFAULT_LAYOUT, FORCES_ALONE, columns, crossingPairs, flowRanks, orderLayers, splinePoint } from './physics';
 import { buildGraph } from '../engine/graph';
 import { compileSource } from '../engine/compile';
 import { PRESETS } from '../engine/presets';
@@ -70,16 +70,6 @@ describe('ForceLayout', () => {
 });
 
 describe('crossing-free layout', () => {
-  const settle = (src: string, uncross: number) => {
-    const model = buildGraph(compileSource(src));
-    const layout = new ForceLayout(undefined, { live: false, uncross });
-    layout.setGraph(model);
-    layout.tick(500);
-    const n = countCrossings(layout, model);
-    layout.destroy();
-    return n;
-  };
-
   it('orders layers by their neighbours: two families stay apart', () => {
     const x = orderLayers(
       [
@@ -114,10 +104,7 @@ describe('crossing-free layout', () => {
     expect(crossingPairs(segs)).toHaveLength(1);
   });
 
-  it('edges may cross, but crossing edges still push apart a little', () => {
-    const total = (u: number) => Object.values(PRESETS).reduce((n, p) => n + settle(p.source, u), 0);
-    expect(total(DEFAULT_LAYOUT.uncross)).toBeLessThanOrEqual(total(0));
-  }, 60_000); // (every example, twice)
+  // (and on every example: physics.library.test.ts)
 });
 
 describe('spline edges', () => {
@@ -197,28 +184,7 @@ describe('dragging', () => {
   });
 });
 
-describe('no overlaps', () => {
-  it('settled examples have no overlapping nodes', () => {
-    for (const [key, p] of Object.entries(PRESETS)) {
-      const full = buildGraph(compileSource(p.source));
-      const model = { ...full, nodes: full.nodes.filter((n) => !n.petalOf) }; // petals hang from their parent
-      const l = new ForceLayout(undefined, { live: false });
-      l.setGraph(model);
-      l.tick(500);
-      let worst = 0;
-      for (let i = 0; i < model.nodes.length; i++)
-        for (let j = i + 1; j < model.nodes.length; j++) {
-          const a = l.position(model.nodes[i].id)!;
-          const b = l.position(model.nodes[j].id)!;
-          const ra = DEFAULT_LAYOUT.radius(model.nodes[i]);
-          const rb = DEFAULT_LAYOUT.radius(model.nodes[j]);
-          worst = Math.max(worst, ra + rb - Math.hypot(a.x - b.x, a.y - b.y));
-        }
-      expect(worst, key).toBeLessThan(10); // at most a sliver
-      l.destroy();
-    }
-  }, 20000); // (every example laid out: more examples, more time)
-});
+// (no overlaps, on every example settled: physics.library.test.ts)
 
 describe('initial layout', () => {
   it('draws the sound card up-centre and the meter down-centre — a slight pull, not a pin', () => {
@@ -380,24 +346,7 @@ describe('drawn crossings', () => {
     expect(l.drawnCrossings()).toBe(1);
     l.destroy();
   });
-
-  it('every example: few crossings as drawn — laid out in layers, nothing pinned', () => {
-    // (up to 25 cells: at most 8; the large arranged pieces at most one per cell — Cellscape's two barrels
-    // read seven shared parts, which can't be drawn without crossings)
-    let total = 0;
-    for (const [key, p] of Object.entries(PRESETS)) {
-      const model = buildGraph(compileSource(p.source));
-      const cells = model.nodes.filter((n) => !n.petalOf).length;
-      const l = new ForceLayout(undefined, { live: false });
-      l.setGraph(model);
-      l.tick(500);
-      const c = l.drawnCrossings();
-      total += c;
-      expect(c, key).toBeLessThanOrEqual(cells <= 25 ? 8 : Math.ceil(cells * 1.1));
-      l.destroy();
-    }
-    expect(total).toBeLessThanOrEqual(160); // the whole library (117 when this was written; 145 with five more pieces)
-  }, 120_000);
+  // (every example: physics.library.test.ts)
 });
 
 describe('options', () => {
