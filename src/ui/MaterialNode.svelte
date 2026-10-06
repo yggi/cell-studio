@@ -7,7 +7,7 @@
    * let go, and its motor takes over.
    */
   import { Handle, Position, useSvelteFlow, type NodeProps } from '@xyflow/svelte';
-  import { getGraphContext } from './context';
+  import { getGraphContext, nodeState } from './context';
   import { clocking } from '../engine/realize';
   import { BODIES } from '../engine/compile';
   import { load, watchLoad } from '../audio/load';
@@ -17,6 +17,7 @@
   let { id, data }: NodeProps = $props();
   const d = $derived(data as { name: string; size: number; role: 'motor' | 'belt' | 'tape' | 'resonator' });
   const ctx = getGraphContext();
+  const look = $derived(nodeState(ctx, id));
   const flow = useSvelteFlow();
   const S = $derived(d.size);
   const R = $derived(S / 2);
@@ -342,6 +343,7 @@
 
 <div
   class="turntable nodrag nopan {d.role}"
+  data-state={look}
   bind:this={el}
   style:width="{S}px"
   style:height="{S}px"

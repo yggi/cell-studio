@@ -10,6 +10,9 @@ that makes the change. Also note changes to the language that could affect saved
 
 ## Unreleased
 
+### Fixed
+- The graph shows what sounds, for nodes and edges alike (#11): cells that sound are no longer drawn dimmed (a cell that moves a filter or a pitch, a part made only of chance choices, a mix used as an instrument such as Sound on Tape's `&dry`, the mix of tape heads that drives Resonanz's pipes); tapes, resonators, motors and scopes now fade too when off or unused; a selector lights only the part it picks now, and the way from it to the sound card; an edge takes a note's colour and pulses only while what it carries plays (a voice in two mixes no longer colours the edge to the one that isn't playing). The sound and saved `.cells` pieces are not affected.
+
 ### Changed
 - Seven examples had a placeholder `level=0` and now have a measured level, so they sit with the rest of the library at about −24 dB average: Waveforms +0.5, Drunken Sailor −1.5, IDM −0.5, Acid-Cell +0.5, One more Cell −0.5, Ghost-Cells −1 and Cellular Brothers −3 dB (it was clipping; its peak is now −1 dB). Saved `.cells` pieces are not affected.
 - The examples are no longer all in the first download: the library is listed from an index made at build time (nothing is compiled to show it), and each piece's text is fetched when its card is drawn or it is opened (the first bundle is about 24 kB smaller gzipped). If a piece can't be fetched (offline, never opened before), it says so instead of opening. Saved `.cells` pieces are not affected.
@@ -22,7 +25,7 @@ that makes the change. Also note changes to the language that could affect saved
 - Opening a piece now starts it from rest: the transport stops at 0 and nothing sounds, even if another piece was playing (it used to carry on from where it was) or the new piece has tapes (their hiss sounded as soon as the piece opened).
 
 ### Added
-- `about=&cell` (or `about=(&a &b)`) on a note links it to the cells it explains, drawn as fine dotted lines; it doesn't change how a piece sounds or the layout. Acid-Cell's long description is now split into notes beside the cells they explain.
+- `about=&cell` (or `about=(&a &b)`) on a note links it to the cells it explains, drawn as fine dotted lines; it doesn't change how a piece sounds or the layout. Every example's card is now one sentence linked to the sound card, and the longer descriptions (how it works, what to listen for, what to touch) are notes beside the cells they explain. No example sounds different.
 - The performance report now also lists our own per-frame work (transport + reactive flush, scopes, wheels, …), how long the main thread kept a task waiting, and how many notes started late or were left out; and its verdict flags a low frame rate and long frames even when there are no long tasks.
 - Tags have kinds: `genre:jazz`, `artist:Bach`, and a tag with no prefix is a topic. The library shows the names without the prefix, as before; a piece saved earlier with bare tags keeps working (a bare `jazz` or `Bach` is read as the genre or artist, any other bare tag as a topic), so its tags land on the same chips as the examples'. The examples now use a fixed vocabulary of tags (`src/engine/tags.ts`).
 - A performance overlay and a copyable performance report for measuring on a real device: open the app with `?perf` (or Files ▾ → Show performance report), press Record, play a piece, Stop, Copy report. See `docs/ui/performance.md`.
