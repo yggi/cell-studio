@@ -101,8 +101,8 @@ destination, so it works headless.
   `python3 -m http.server <port>` from its directory, and use a fresh port (a stale server on a port keeps answering).
 - Never `pkill -f "<pattern>"` from the shell when the pattern also occurs in your own command line: it kills
   the shell. Kill by PID or stop the background job you started.
-- Library cards are a `<button class="open">` containing clickable tag arcs: scripted clicks use
-  `dispatchEvent('click')` on the button (a centre click can hit a tag arc and filter instead of opening; see #12).
+- Library cards are a `<button class="open">`; the scripts click it with `dispatchEvent('click')` (it works
+  for cards scrolled out of view). Since #12 the wheel's tag arcs are a picture, so a real click opens too.
 - Run Playwright with `--autoplay-policy=no-user-gesture-required` (the scripts do).
 - `playoutStats` (underruns) is not available in this headless setup: it prints `null`.
 - Keep `profile-*.json` and screenshots out of git (`.gitignore` covers them).

@@ -41,6 +41,7 @@ One line each; the record has the rationale. → [decisions/](decisions/README.m
 - 002 · `scale(tonic, phase)` stays as shorthand for two unnamed cells · → decisions/002-scale-shorthand.md
 - 003 · `cycle=n` has one job; grids say `map=edo` · → decisions/003-cycle-one-job.md
 - 004 · Agents open PRs and never merge; the `senior` skill triages, reviews and merges with the owner's approval · → decisions/004-agents-dont-merge.md
+- 005 · The audio context is `balanced` (not `playback`, not yet `interactive`), and the pictures show what is heard · → decisions/005-balanced-latency-and-heard-pictures.md
 
 ## Where things are tracked
 

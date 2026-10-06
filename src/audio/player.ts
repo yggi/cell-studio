@@ -15,8 +15,9 @@ import { transportClock } from './clock.svelte';
 import { onFrames } from './ticker';
 import { markDuration, marks } from './stats';
 import { type Tuning, DEFAULT_TUNING } from './tuning';
-import { audioInfo, openContext, readTuning, type AudioInfo } from './device';
+import { audioInfo, heardLatency, openContext, outputLatency, readTuning, type AudioInfo } from './device';
 import { HeldTapes } from './heldTapes';
+import { heardLag } from './heard';
 import { LocalEngine, type Engine, type PieceSource } from './engine';
 import type { LiveSource } from './live';
 
@@ -84,12 +85,19 @@ export class Player implements LiveSource {
     const t = to ?? readTuning();
     this.tuning = t;
     this.asked = to;
+    this.lag = null;
     if (!this.Tone) return;
     this.voices?.dispose();
     this.voices = undefined;
     openContext(this.Tone, t);
     this.resetState();
     await this.Tone.start().catch(() => undefined);
+  }
+
+  /** How far the pictures are held back from the audio clock, so that they show what is heard (audio/heard.ts); null until measured. */
+  private lag: number | null = null;
+  private refreshLag(): void {
+    if (this.Tone) this.lag = heardLag(this.lag, heardLatency(this.Tone), outputLatency(this.Tone));
   }
 
   /**
@@ -200,7 +208,7 @@ export class Player implements LiveSource {
    * — where the browser reports them — the playout underruns. Nothing here starts audio.
    */
   audioInfo(): AudioInfo {
-    return audioInfo(this.Tone, this.tuning);
+    return { ...audioInfo(this.Tone, this.tuning), pictureLag: this.lag };
   }
 
   get playing(): boolean {
@@ -252,10 +260,18 @@ export class Player implements LiveSource {
     tr.start(startsAt);
     transportClock.playing = true;
     this.stopFrames();
-    const frame = () => {
+    let lagAt = 0;
+    this.refreshLag();
+    const frame = (t: number) => {
       // (until it has started, the transport still reports where the last run stopped: count from 0)
       const t0 = marks.on ? performance.now() : 0;
-      transportClock.seconds = offset + (Tone.immediate() < startsAt ? 0 : Math.max(0, tr.getTicksAtTime(Tone.immediate()) / ppq));
+      // (the position of what is heard now: the audio clock says what is made, the speaker plays it `lag` later)
+      if (t - lagAt > 500) {
+        lagAt = t;
+        this.refreshLag();
+      }
+      const heard = Tone.immediate() - (this.lag ?? 0);
+      transportClock.seconds = offset + (heard < startsAt ? 0 : Math.max(0, tr.getTicksAtTime(heard) / ppq));
       // (what this write sets going — the reactive flush of every live view — runs as a microtask queued
       // before this one: when this one runs, the flush is done)
       if (t0) queueMicrotask(() => markDuration('transport + flush', performance.now() - t0));

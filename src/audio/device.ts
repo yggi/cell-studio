@@ -1,5 +1,5 @@
 /**
- * The audio device: the context the player makes (tuned for playback, or as the address asks), and
+ * The audio device: the context the player makes (`balanced`, or as the address asks), and
  * what it reports for the performance report (its latencies, its clock, the render thread's load and
  * underruns where the browser has them). Nothing here starts audio by itself.
  */
@@ -9,8 +9,8 @@ import { resolveTuning, type Tuning, DEFAULT_TUNING } from './tuning';
 type ToneNS = typeof import('tone');
 
 /**
- * Make Tone's context on a tuning, in place of the one it has. Headroom by default: a context tuned for
- * playback (a larger buffer) that schedules notes 0.3 s ahead, so a busy page (a large graph drawing)
+ * Make Tone's context on a tuning, in place of the one it has. Headroom by default: a context with a moderate
+ * buffer (`balanced`: about 55 ms made-to-heard on the phone measured) that schedules notes 0.3 s ahead, so a busy page (a large graph drawing)
  * doesn't make notes late or starve the sound — unless the address (`readTuning`) or the latency test
  * asks otherwise, to find out how far they can go on a device (tuning.ts).
  */
@@ -43,6 +43,23 @@ function watchCapacity(T: ToneNS) {
   }
 }
 
+/** Seconds between a sample being made and being heard now, from the output timestamp (null where there is none). */
+export function heardLatency(T: ToneNS): number | null {
+  try {
+    const n = nativeContext(T) as { getOutputTimestamp?: () => { contextTime?: number }; currentTime?: number } | null;
+    const ts = n?.getOutputTimestamp?.();
+    return ts && typeof ts.contextTime === 'number' && ts.contextTime > 0 && typeof n?.currentTime === 'number' ? Math.max(0, n.currentTime - ts.contextTime) : null;
+  } catch {
+    return null;
+  }
+}
+
+/** The browser's own output latency, for a browser without an output timestamp (null where it says nothing). */
+export function outputLatency(T: ToneNS): number | null {
+  const own = nativeContext(T)?.outputLatency;
+  return typeof own === 'number' && Number.isFinite(own) ? own : null;
+}
+
 export interface AudioInfo {
   state: string | null;
   sampleRate: number | null;
@@ -56,6 +73,8 @@ export interface AudioInfo {
   heardLatency: number | null;
   /** The tuning in force (the latency hint and the look-ahead), as words. */
   tuning: string;
+  /** Seconds the pictures are held back from the audio clock now (null: not playing yet); the player fills it in. */
+  pictureLag: number | null;
 }
 
 /** What the audio context looks like now (T: none yet, before the first gesture). */
@@ -65,7 +84,7 @@ export function audioInfo(T: ToneNS | undefined, tuning: Tuning): AudioInfo {
   // can tell its own worst from one at the start of the page)
   const notes = { ...noteStats };
   noteStats.worstLateMs = 0;
-  if (!T) return { state: null, sampleRate: null, baseLatency: null, outputLatency: null, currentTime: null, playout: null, notes, heardLatency: null, tuning: tuned };
+  if (!T) return { state: null, sampleRate: null, baseLatency: null, outputLatency: null, currentTime: null, playout: null, notes, heardLatency: null, pictureLag: null, tuning: tuned };
   const tc = T.getContext() as unknown as { rawContext?: Record<string, unknown>; state?: string; sampleRate?: number; currentTime?: number };
   const raw = (tc.rawContext ?? {}) as { playoutStats?: Record<string, number>; _nativeContext?: { playoutStats?: Record<string, number>; baseLatency?: number; outputLatency?: number }; baseLatency?: number; outputLatency?: number };
   // (Tone wraps the native context: the stats are on the native one)
@@ -79,15 +98,8 @@ export function audioInfo(T: ToneNS | undefined, tuning: Tuning): AudioInfo {
     currentTime: num(tc.currentTime),
     notes,
     tuning: tuned,
-    heardLatency: (() => {
-      try {
-        const n = nativeContext(T) as { getOutputTimestamp?: () => { contextTime?: number }; currentTime?: number } | null;
-        const ts = n?.getOutputTimestamp?.();
-        return ts && typeof ts.contextTime === 'number' && ts.contextTime > 0 && typeof n?.currentTime === 'number' ? Math.max(0, n.currentTime - ts.contextTime) : null;
-      } catch {
-        return null;
-      }
-    })(),
+    heardLatency: heardLatency(T),
+    pictureLag: null,
     playout: stats
       ? {
           underrunEvents: stats.underrunEvents ?? 0,

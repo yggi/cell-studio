@@ -14,7 +14,12 @@ export interface Tuning {
   lookAhead: number | null;
 }
 
-export const DEFAULT_TUNING: Tuning = { latencyHint: 'playback', lookAhead: null };
+/**
+ * `balanced` (about 55 ms from made to heard on a phone that gave 280 ms with `playback`): measured on an Android phone
+ * with the full latency test (docs/ui/performance.md) with no late or left-out notes on the heaviest pieces. `interactive`
+ * (25 ms) held too, with a smaller margin; `playback` is the old default, for a device that struggles.
+ */
+export const DEFAULT_TUNING: Tuning = { latencyHint: 'balanced', lookAhead: null };
 
 const HINTS = ['interactive', 'balanced', 'playback'] as const;
 

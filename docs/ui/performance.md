@@ -40,7 +40,7 @@ impulse start then), and a window with less than 3 s of steady playback says so 
 ## Latency: how far can it go on this device?
 Three different delays, easily confused:
 - **Output latency** (the device): how long after the audio engine makes a sample it is heard. Set by the browser's
-  buffer (`latencyHint`: `playback` is the app's default, `balanced`, `interactive`, or a number of seconds) and by what the
+  buffer (`latencyHint`: `balanced` is the app's default, then `playback`, `interactive`, or a number of seconds) and by what the
   platform does with it (on Android a power-saving stream adds a deep buffer: 280 ms was measured on a phone with `playback`;
   desktop `playback` is ~70 ms, `interactive` ~30 ms). This is what makes pictures run ahead of the sound (#67), and the only
   delay between a hand (strike, bow) and its sound. Lowering it risks **underruns on the audio thread**.
@@ -48,11 +48,19 @@ Three different delays, easily confused:
   margin the *page* has before a note is late. It does not delay the sound or the pictures; lowering it risks **late notes** when
   the main thread stalls.
 - **Heard offset** (reported as "made-to-heard"): the difference between the engine's clock and what is heard now, from
-  `getOutputTimestamp()`. This is what the pictures can be shifted by, at any latency.
+  `getOutputTimestamp()`. The pictures are held back by exactly this (`audio/heard.ts`, smoothed; the report's **Latency tuning** row
+  shows "pictures held back"), so the position, the highlighted notes and the lit cells show what is heard now, at any latency. What is
+  *not* held back: the live views of the sound itself (scopes, spectra, tape levels read the signal as it is made), so they run ahead
+  of the speaker by the same lag: about 55 ms with the default.
+
+**Measured (Android 10, Chrome 154, the full test, 4 pieces × 4 settings, 25 s each):** output latency `playback` 280 ms,
+`balanced` 56 ms, `interactive` 24 ms (look-ahead 0.1 s the same). No late or left-out notes, a steady audio clock and an idle main thread in all
+16 runs; the audio-thread report was not available on that phone (no `renderCapacity`), so underruns inside the audio thread were not
+visible: that is why `balanced`, with twice `interactive`'s buffer, is the default. `?latency=interactive` is there to try; if a piece clicks, `?latency=playback`.
 
 **The automated test.** In the overlay (Files ▾ → Performance report, or `?perf`), **▶ Run full test** does all of this and
 gives one report. It plays Hypercell, Bach's Prelude and Fugue, Test Tones on Tape and Baustelle II: Resonanz for 25 s each (after the 3 s start-up that
-reports leave out) on four settings, from the safest down: `playback` (today), `balanced`, `interactive`, and `interactive` with a
+reports leave out) on four settings, from the safest down: `playback` (the old default), `balanced` (the default now), `interactive`, and `interactive` with a
 0.1 s look-ahead, about 8 minutes in all. Before each setting it makes a new audio context (a context's latency is fixed when it is
 made; it starts without another tap because the page has been tapped before), and it asks the phone to keep the screen on. Keep the page in front and
 leave it alone: a test during which the page was in the background is marked, and a cancelled or cut-off series reports what ran.

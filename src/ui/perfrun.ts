@@ -18,8 +18,8 @@ export interface Setting {
 
 /** From the safe default down to the most aggressive: in this order, so a run that is cut short has the safe ones. */
 export const SETTINGS: readonly Setting[] = [
-  { id: 'playback', label: 'playback (today)', tuning: { latencyHint: 'playback', lookAhead: null } },
-  { id: 'balanced', label: 'balanced', tuning: { latencyHint: 'balanced', lookAhead: null } },
+  { id: 'playback', label: 'playback (the old default)', tuning: { latencyHint: 'playback', lookAhead: null } },
+  { id: 'balanced', label: 'balanced (today)', tuning: { latencyHint: 'balanced', lookAhead: null } },
   { id: 'interactive', label: 'interactive', tuning: { latencyHint: 'interactive', lookAhead: null } },
   { id: 'interactive-la100', label: 'interactive, look-ahead 0.1 s', tuning: { latencyHint: 'interactive', lookAhead: 0.1 } },
 ];

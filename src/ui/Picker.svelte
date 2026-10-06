@@ -167,7 +167,28 @@
   );
   // the examples, smallest first: from simple to complex
   const examples = $derived(shown.filter((e) => e.kind === 'example').sort((a, b) => (a.size ?? 0) - (b.size ?? 0)));
+  // a card's wheel: as large as its card leaves room for, the petals on its rim included (≈ 1.41 × across)
+  let cardWidth = $state(0);
+  const wheel = $derived(cardWidth ? Math.min(136, Math.floor((cardWidth - 8) / 1.41)) : 136);
   const when = (iso?: string) => (iso ? new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short' }) : '');
+
+  // a piece's details hold the focus while open (Open first; Tab goes round), and give it back on closing
+  function holdFocus(node: HTMLElement) {
+    const back = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    node.querySelector<HTMLElement>('.primary')?.focus();
+    const onkey = (e: KeyboardEvent) => {
+      if (e.key !== 'Tab') return;
+      const all = [...node.querySelectorAll<HTMLElement>('button:not(:disabled)')];
+      const [first, last] = [all[0], all[all.length - 1]];
+      if (e.shiftKey && document.activeElement === first) (e.preventDefault(), last.focus());
+      else if (!e.shiftKey && document.activeElement === last) (e.preventDefault(), first.focus());
+    };
+    node.addEventListener('keydown', onkey);
+    return () => {
+      node.removeEventListener('keydown', onkey);
+      if (back?.isConnected) back.focus({ preventScroll: true });
+    };
+  }
 
   let fileInput: HTMLInputElement;
   function onkeydown(e: KeyboardEvent) {
@@ -183,11 +204,37 @@
   <div class="top" bind:clientHeight={topHeight}>
   <header class:quiet={embedded}>
     <h2>Choose a piece</h2>
-    {#if embedded}
-      {#if current}<button class="back" onclick={onclose}>Back to the piece →</button>{/if}
-    {:else}
-      <button class="close" onclick={onclose} aria-label="Close">×</button>
-    {/if}
+    <div class="end">
+      <div class="files" role="group" aria-label="Files">
+        <button class="filesbtn" aria-expanded={filesOpen} onclick={() => (filesOpen = !filesOpen)}>Files ▾</button>
+        {#if filesOpen}
+          <div class="menu" role="menu">
+            <button role="menuitem" onclick={() => ((filesOpen = false), fileInput.click())}>Open a file…</button>
+            <button role="menuitem" disabled={!current} onclick={() => ((filesOpen = false), onsavefile())}>Save the piece to a file</button>
+            <button role="menuitem" disabled={!current} onclick={() => ((filesOpen = false), onrender())}>Render the piece to WAV</button>
+            {#if onperf}<button role="menuitem" onclick={() => ((filesOpen = false), onperf())}>{perfOn ? 'Hide' : 'Show'} performance report</button>{/if}
+            <button role="menuitem" disabled={!current || !storageOk} title={storageOk ? undefined : 'This browser can’t keep pieces here'} onclick={() => ((filesOpen = false), onsavebrowser())}>Save it in this browser</button>
+            <p class="version">Cell studio {__APP_VERSION__}</p>
+          </div>
+        {/if}
+        <input
+          bind:this={fileInput}
+          type="file"
+          accept=".cells,.txt,text/plain"
+          hidden
+          onchange={(e) => {
+            const f = e.currentTarget.files?.[0];
+            if (f) onopenfile(f);
+            e.currentTarget.value = '';
+          }}
+        />
+      </div>
+      {#if embedded}
+        {#if current}<button class="back" onclick={onclose}>Back to the piece →</button>{/if}
+      {:else}
+        <button class="close" onclick={onclose} aria-label="Close">×</button>
+      {/if}
+    </div>
   </header>
 
   <div class="bar">
@@ -205,43 +252,21 @@
     {/each}
   </div>
   {/if}
-  <div class="files" role="group" aria-label="Files">
-    <button class="filesbtn" aria-expanded={filesOpen} onclick={() => (filesOpen = !filesOpen)}>Files ▾</button>
-    {#if filesOpen}
-      <div class="menu" role="menu">
-        <button role="menuitem" onclick={() => ((filesOpen = false), fileInput.click())}>Open a file…</button>
-        <button role="menuitem" disabled={!current} onclick={() => ((filesOpen = false), onsavefile())}>Save the piece to a file</button>
-        <button role="menuitem" disabled={!current} onclick={() => ((filesOpen = false), onrender())}>Render the piece to WAV</button>
-        {#if onperf}<button role="menuitem" onclick={() => ((filesOpen = false), onperf())}>{perfOn ? 'Hide' : 'Show'} performance report</button>{/if}
-        <button role="menuitem" disabled={!current || !storageOk} title={storageOk ? undefined : 'This browser can’t keep pieces here'} onclick={() => ((filesOpen = false), onsavebrowser())}>Save it in this browser</button>
-        <p class="version">Cell studio {__APP_VERSION__}</p>
-      </div>
-    {/if}
-    <input
-      bind:this={fileInput}
-      type="file"
-      accept=".cells,.txt,text/plain"
-      hidden
-      onchange={(e) => {
-        const f = e.currentTarget.files?.[0];
-        if (f) onopenfile(f);
-        e.currentTarget.value = '';
-      }}
-    />
-  </div>
   </div>
   {#if message}<p class="message" role="status">{message}</p>{/if}
 
   {#snippet card(e: Entry)}
-    <div class="card" class:current={e.id === current}>
+    <div class="card" class:current={e.id === current} bind:clientWidth={cardWidth}>
+      <!-- (one target: the wheel is a picture, its tags chosen from the chips) -->
       <button class="open" data-id={e.id} onclick={() => onpick(e.id)} aria-label="Open {e.title}">
-        <div class="mini"><PieceNode entry={e} {colours} size={136} label={e.title} labels wrap current={e.id === current} ontag={pickTag} /></div>
-        {#if e.description}<p class="desc">{e.description}</p>{/if}
+        <span class="mini"><PieceNode entry={e} {colours} size={wheel} label={e.title} labels showLabel={false} current={e.id === current} /></span>
+        <span class="title">{e.title}</span>
+        {#if e.description}<span class="desc">{e.description}</span>{/if}
         {#if e.id === current || e.saved}
-          <p class="meta">
+          <span class="meta">
             {#if e.id === current}<b>Open now</b>{/if}
             {#if e.saved}<span>Saved {when(e.saved)}</span>{/if}
-          </p>
+          </span>
         {/if}
       </button>
       {#if e.kind === 'saved'}<button class="remove" onclick={() => onremove(e.id)} aria-label="Remove {e.title} from this browser">Remove</button>{/if}
@@ -288,12 +313,12 @@
   <!-- (a keyed each over zero or one: closing it never reads a card that's gone) -->
   {#each detail ? [detail] : [] as d (d.id)}
     <div class="scrim" onclick={() => (detail = null)} role="presentation"></div>
-    <div class="detail" role="dialog" aria-label={d.title}>
+    <div class="detail" role="dialog" aria-modal="true" aria-label={d.title} {@attach holdFocus}>
       <header>
         <h3>{d.title}</h3>
         <button class="close" onclick={() => (detail = null)} aria-label="Close">×</button>
       </header>
-      <button class="big" onclick={() => ((detail = null), onpick(d.id))} aria-label="Open {d.title}"><PieceNode entry={d} {colours} size={220} label={d.title} labels showLabel={false} current={d.id === current} ontag={pickTag} /></button>
+      <button class="big" onclick={() => ((detail = null), onpick(d.id))} aria-label="Open {d.title}"><PieceNode entry={d} {colours} size={220} label={d.title} labels showLabel={false} current={d.id === current} /></button>
       {#if d.description}<p class="full">{d.description}</p>{/if}
       {#if d.time}<p class="full time">{timeSentence(d)}{d.size ? ` ${d.size} cells.` : ''}</p>{/if}
       <p class="when">
@@ -355,6 +380,12 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
+    gap: 12px;
+  }
+  header .end {
+    display: flex;
+    align-items: center;
+    gap: 14px;
   }
   h2 {
     margin: 0;
@@ -597,11 +628,18 @@
     position: relative;
     display: flex;
     justify-content: center;
-    padding: 12px 24px 8px;
-    margin: 0 -10px 2px;
+    padding: 12px 0 8px;
+  }
+  .title {
+    font: 700 14.5px/1.3 var(--font-ui);
+    color: var(--text);
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
   }
   .desc {
-    margin: 0;
     font-size: 12.5px;
     line-height: 1.4;
     color: var(--text-muted);
@@ -612,7 +650,7 @@
     overflow: hidden;
   }
   .meta {
-    margin: 2px 0 0;
+    margin-top: 2px;
     display: flex;
     flex-wrap: wrap;
     gap: 2px 8px;
@@ -745,7 +783,7 @@
     position: absolute;
     z-index: 5;
     top: 100%;
-    left: 0;
+    right: 0;
     min-width: 230px;
     display: flex;
     flex-direction: column;

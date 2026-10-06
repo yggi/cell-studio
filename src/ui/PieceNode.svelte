@@ -18,9 +18,7 @@
     petals = true,
     showLabel = true,
     curved = false,
-    wrap = false,
     current = false,
-    ontag,
   }: {
     entry: Entry;
     colours: ReadonlyMap<string, string>;
@@ -34,11 +32,7 @@
     showLabel?: boolean;
     /** The label bent round the bottom of the wheel (tight, for the library's graph). */
     curved?: boolean;
-    /** The label may wrap (the list), or stays one line (the graph). */
-    wrap?: boolean;
     current?: boolean;
-    /** A tag on its rim, clicked. */
-    ontag?: (t: string) => void;
   } = $props();
 
   // its facts, as petals: how many cells; how long (it ends) or how often round (it loops)
@@ -61,7 +55,7 @@
 
 <span class="node" style:width="{size}px">
   <span class="wheelbox" style:width="{size}px" style:height="{size}px">
-    <PieceWheel id={entry.id} source={entry.source ?? entry.load!} layout={entry.layout ?? null} tags={entry.tags} {colours} {size} {labels} {current} {ontag} />
+    <PieceWheel id={entry.id} source={entry.source ?? entry.load!} layout={entry.layout ?? null} tags={entry.tags} {colours} {size} {labels} {current} />
     {#if petals}
       {#each facts as f, i (i)}
         {@const p = at(i)}
@@ -83,7 +77,7 @@
     </svg>
     <span class="sr">{label}</span>
   {:else if showLabel}
-    <span class="label" class:wrap style:font-size="{Math.max(7, Math.min(15, size * 0.16))}px">{label}</span>
+    <span class="label" style:font-size="{Math.max(7, Math.min(15, size * 0.16))}px">{label}</span>
   {/if}
 </span>
 
@@ -136,10 +130,6 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-  }
-  .label.wrap {
-    white-space: normal;
-    max-width: 100%;
   }
   /* bent round the bottom of the wheel: it sits tight */
   .arclabel {

@@ -39,7 +39,7 @@ Graph.svelte combines 2, 3 and 4 edge by edge. Nothing checks that they agree.
 
 **Running without being drawn:** `show=off` cells and the implicit default grid run but aren't drawn. Petals are drawn but their edge ids are remapped, so their live edges never match.
 
-**Running independently of the audio:** yes. Every node and edge state is worked out again on the main thread, from the compile result at `transportClock.seconds` (`Tone.immediate()`, not compensated for output latency). Nothing reads what the engine scheduled (`Window`/`Played`), so chance and laps don't come from the scheduler, and in worker mode the views never see the worker's windows. Only the spectra, waveforms, resonance, tape levels and `note()` come from the audio.
+**Running independently of the audio:** yes. Every node and edge state is worked out again on the main thread, from the compile result at `transportClock.seconds` (`Tone.immediate()` held back by the output latency since #67, `audio/heard.ts`). Nothing reads what the engine scheduled (`Window`/`Played`), so chance and laps don't come from the scheduler, and in worker mode the views never see the worker's windows. Only the spectra, waveforms, resonance, tape levels and `note()` come from the audio.
 
 ## Design (implemented)
 
