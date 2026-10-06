@@ -30,3 +30,22 @@ describe('miniature', () => {
     expect(wheel.edges).toHaveLength(m.edges.length);
   });
 });
+
+describe('miniature frames', () => {
+  it('hold every node whole, the largest included, in every example (a card and a wheel)', () => {
+    for (const [key, p] of Object.entries(PRESETS)) {
+      const m = miniature(p.source);
+      if (!m) continue;
+      for (const round of [false, true]) {
+        const s = miniShape(m, round);
+        const [x0, y0, w, h] = s.box;
+        for (const n of s.nodes) {
+          expect(n.x - n.r, `${key}${round ? ' (wheel)' : ''}`).toBeGreaterThanOrEqual(x0);
+          expect(n.x + n.r, `${key}${round ? ' (wheel)' : ''}`).toBeLessThanOrEqual(x0 + w);
+          expect(n.y - n.r, `${key}${round ? ' (wheel)' : ''}`).toBeGreaterThanOrEqual(y0);
+          expect(n.y + n.r, `${key}${round ? ' (wheel)' : ''}`).toBeLessThanOrEqual(y0 + h);
+        }
+      }
+    }
+  });
+});

@@ -4,8 +4,8 @@
    * build time); a saved piece's or a file's is worked out from its text (src/layout/miniature.ts),
    * one at a time, so opening the picker never stalls on thirty layouts at once.
    */
-  import { METER, MIX, QUIET, VOICE, miniature, miniShape, type Miniature, type MiniShape } from '../layout/miniature';
-  import { noteColour } from './theme';
+  import { miniature, miniShape, type Miniature, type MiniShape } from '../layout/miniature';
+  import { miniPaint as paint } from './theme';
 
   const cache = new Map<string, Miniature | null>();
   const queue: (() => Promise<void>)[] = [];
@@ -23,13 +23,6 @@
   }
 
   /** A node's fill, and whether it's drawn as a ring: the theme's, resolved now. */
-  function paint(colour: number): { fill: string; ring: boolean } {
-    if (colour === VOICE) return { fill: 'var(--text)', ring: true };
-    if (colour === MIX) return { fill: 'var(--accent)', ring: true };
-    if (colour === METER) return { fill: 'color-mix(in oklab, var(--accent) 45%, var(--wheel-ref))', ring: false };
-    if (colour === QUIET) return { fill: 'var(--wheel-ref)', ring: false };
-    return { fill: noteColour(colour), ring: false };
-  }
 </script>
 
 <script lang="ts">

@@ -186,6 +186,9 @@
     const d = (parentSize as number) / 2 + PETAL / 2 + 2;
     return { x: p.x + Math.cos(a) * d, y: p.y + Math.sin(a) * d };
   }
+  // a meter's edges that are drawn: those that cross nothing, as things stand once the layout comes to rest
+  let groundKept = $state.raw<ReadonlySet<string>>(new Set());
+  const sameSet = (a: ReadonlySet<string>, b: ReadonlySet<string>) => a.size === b.size && [...a].every((x) => b.has(x));
   // a tape's turn (where the layout faced its heads), to the degree: its node is redrawn only when that changes
   const turnOf = (id: string) => {
     const t = layout.tapeTurn(id);
@@ -200,6 +203,11 @@
       return p ? { ...turned, position: p } : turned;
     });
     bends = layout.bends();
+  });
+  // (at rest again — after a drag, an edit — the meter's edges that cross nothing are drawn; the meter stays put)
+  layout.onSettle(() => {
+    const kept = layout.groundEdges();
+    if (!sameSet(kept, groundKept)) groundKept = kept;
   });
   onDestroy(() => layout.destroy());
 
@@ -327,9 +335,10 @@
     void muted;
     void playing;
     if (hasBelts) void liveEdges;
-    // (a meter's edges aren't drawn: its cells wear its ring instead — layout/meters.ts)
+    // (a meter's edges are drawn only where they cross nothing: its cells wear its ring anyway — layout/meters.ts)
     const byId = new Map(m.nodes.map((n) => [n.id, n]));
-    untrack(() => (edges = m.edges.filter((e) => !isGround(e, byId)).map((e) => toFlowEdge(e))));
+    const kept = groundKept;
+    untrack(() => (edges = m.edges.filter((e) => !isGround(e, byId) || kept.has(e.id)).map((e) => toFlowEdge(e))));
   });
 
   // an example's fixed layout: pinned when the example changes; released when it does again
@@ -385,7 +394,12 @@
           }
         }
       }
-      if (fresh || (newExample && f)) layout.tick(220);
+      if (fresh || (newExample && f)) {
+        layout.tick(220);
+        // meters last: where most of their edges cross nothing; those are drawn (layout/meters.ts)
+        layout.placeMeters();
+        groundKept = layout.groundEdges();
+      }
       // turntables stay where they were first laid out (pinned): the rest flows round them
       if (justOpened)
         for (const g of m.nodes)

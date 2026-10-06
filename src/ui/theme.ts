@@ -1,9 +1,19 @@
+import { METER, MIX, QUIET, VOICE } from '../layout/miniature';
 /**
  * The theme, for colours computed in code (SVG fill attributes can't read CSS
  * variables). Mirrors the note settings in app.css: change both together.
  */
 /** A meter's colour (the ring its cells wear): the first is the accent; four, then round again (app.css: --meter-*). */
 export const meterColour = (i: number) => `var(--meter-${((i % 4) + 4) % 4})`;
+
+/** A miniature's node, painted (MiniGraph, tools/graphs.mjs): its fill, and whether it's drawn as a ring (a voice, a mix). */
+export function miniPaint(colour: number): { fill: string; ring: boolean } {
+  if (colour === VOICE) return { fill: 'var(--text)', ring: true };
+  if (colour === MIX) return { fill: 'var(--accent)', ring: true };
+  if (colour === METER) return { fill: 'color-mix(in oklab, var(--accent) 45%, var(--wheel-ref))', ring: false };
+  if (colour === QUIET) return { fill: 'var(--wheel-ref)', ring: false };
+  return { fill: noteColour(colour), ring: false };
+}
 
 export const NOTE_S = 70;
 export const NOTE_L = 58;

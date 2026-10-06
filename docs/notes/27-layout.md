@@ -84,9 +84,25 @@ The owner's call: a meter is like ground in a circuit — the edges to it can go
 
 The cluster settings stay (`mux` 0 saves 5 crossings but nearly doubles the intruders). Without the meter's springs, graphs are about 8 % larger: the meter was glue.
 
+## Step 6: meters last (done)
+
+The owner's call: a meter alone at the bottom reads as disconnected. It now has no row of its own; once the rest has settled it's placed last (`placeMeters`), on a grid over the graph, where most of its edges can be drawn straight without crossing a drawn edge (its spline, in pieces) or passing through a wheel; then the least crowded, then the shortest. Those edges are drawn, the rest aren't (the rings say them); `groundEdges` recomputes them from where things are, so a meter dragged elsewhere draws what it can reach from there.
+
+Which face of the drawing it sits in matters most: inside a closed cycle or outside it decides what it can reach without crossing the cycle. Royal theme: theme → scale ← pedal → bass → mix ← lead ← theme is a ring, the meter steps theme and pedal; from outside one edge must cross the ring, from inside neither does — but the hole is ~150 px across and the meter needs ~190. So a crowded spot isn't rejected, only counted against (crowding is the tie-break after reach), and the wheels round a placed meter are pushed apart, a little at a time, to make room (`makeRoom`).
+
+| 5 starts, 500 ticks | step 5 (bottom row) | no bottom row | placed last |
+|---|---|---|---|
+| crossings | 57 ± 8 | 59 ± 4 | 60 ± 5 |
+| overlapping clusters | 32 ± 2 | 32 ± 2 | 32 ± 2 |
+| intruders | 51 ± 5 | 53 ± 7 | 54 ± 6 |
+| area (M px²) | 84.0 | 79.4 | 76.1 |
+| meter edges drawn | 0 | 0 | 145 |
+
+The contact sheet of every graph (`tools/graphs.mjs`, the library's miniatures) is how to look at all of it at once.
+
 ## Next
 
 1. **Groups from structure** where a piece has no tags: cut at the hubs (high betweenness), then communities (Louvain or Leiden) as proposed blocks. Tags stay the override.
 2. **Recursion**: blocks inside blocks (a tag's own hubs), when a block is large.
-3. Compactness: the area grew with each step (69.9 → 85.1 M px² since step 1); BWV 847 is still wide.
+3. Compactness: the area grew with each step (69.9 → 85.1 M px² up to step 5; placing meters last took it back to about 76); BWV 847 is still wide.
 4. The same "ground" idea for other hubs? A scale every melody reads (`&lydian`), an arrangement selector: they're drawn edges with meaning (what, not when), so not obviously.
