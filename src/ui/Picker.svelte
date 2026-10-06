@@ -1,15 +1,15 @@
 <script lang="ts" module>
   // the library's layout, kept between openings (the same pieces: the same wheel)
   let kept: { key: string; layout: import('../layout/library').LibraryLayout } | null = null;
-  const keyOf = (entries: readonly { id: string; tags: readonly string[] }[]) => entries.map((e) => `${e.id}:${e.tags.join(',')}`).join('|');
+  const keyOf = (entries: readonly { id: string; title?: string; tags: readonly string[] }[]) => entries.map((e) => `${e.id}:${e.title ?? ''}:${e.tags.join(',')}`).join('|');
   // (and kept in the browser between visits: the next visit's opening is a replay, not the physics again)
-  const STORE = 'cell-studio:library-layout:v4';
+  const STORE = 'cell-studio:library-layout:v5';
   type Stored = { key: string; layout: Record<string, unknown> };
-  const freeze = (l: import('../layout/library').LibraryLayout) => ({ ...l, at: [...l.at], hue: [...l.hue], count: [...l.count], sat: [...l.sat] });
+  const freeze = (l: import('../layout/library').LibraryLayout) => ({ ...l, at: [...l.at], hue: [...l.hue], count: [...l.count], sat: [...l.sat], wheel: [...l.wheel] });
   const thaw = (o: Record<string, unknown>) =>
-    ({ ...o, at: new Map(o.at as []), hue: new Map(o.hue as []), count: new Map(o.count as []), sat: new Map(o.sat as []) }) as unknown as import('../layout/library').LibraryLayout;
+    ({ ...o, at: new Map(o.at as []), hue: new Map(o.hue as []), count: new Map(o.count as []), sat: new Map(o.sat as []), wheel: new Map(o.wheel as []) }) as unknown as import('../layout/library').LibraryLayout;
   try {
-    for (const v of ['v2', 'v3']) localStorage.removeItem(`cell-studio:library-layout:${v}`);
+    for (const v of ['v2', 'v3', 'v4']) localStorage.removeItem(`cell-studio:library-layout:${v}`);
   } catch {
     // (no storage)
   }
@@ -21,7 +21,7 @@
       return null; // (no storage, or not ours: grow it)
     }
   }
-  async function layoutFor(entries: readonly { id: string; tags: readonly string[] }[], onFrame?: (l: import('../layout/library').LibraryLayout) => Promise<void>) {
+  async function layoutFor(entries: readonly import('../layout/library').LibraryEntry[], onFrame?: (l: import('../layout/library').LibraryLayout) => Promise<void>) {
     const layout = await libraryLayoutOf(entries, onFrame);
     kept = { key: keyOf(entries), layout };
     try {
@@ -296,7 +296,7 @@
     <div class="card" class:current={e.id === current} bind:clientWidth={cardWidth}>
       <!-- (one target: the wheel is a picture, its tags chosen from the chips) -->
       <button class="open" data-id={e.id} onclick={() => onpick(e.id)} aria-label="Open {e.title}">
-        <span class="mini"><PieceNode entry={e} {colours} size={wheel} label={e.title} labels showLabel={false} current={e.id === current} /></span>
+        <span class="mini"><PieceNode entry={e} {colours} size={wheel} labels current={e.id === current} /></span>
         <span class="title">{e.title}</span>
         {#if e.description}<span class="desc">{e.description}</span>{/if}
         {#if e.id === current || e.saved}
@@ -355,7 +355,7 @@
         <h3>{d.title}</h3>
         <button class="close" onclick={() => (detail = null)} aria-label="Close">×</button>
       </header>
-      <button class="big" onclick={() => ((detail = null), onpick(d.id))} aria-label="Open {d.title}"><PieceNode entry={d} {colours} size={220} label={d.title} labels showLabel={false} current={d.id === current} /></button>
+      <button class="big" onclick={() => ((detail = null), onpick(d.id))} aria-label="Open {d.title}"><PieceNode entry={d} {colours} size={220} labels current={d.id === current} /></button>
       {#if d.description}<p class="full">{d.description}</p>{/if}
       {#if d.time}<p class="full time">{timeSentence(d)}{d.size ? ` ${d.size} cells.` : ''}</p>{/if}
       <p class="when">
