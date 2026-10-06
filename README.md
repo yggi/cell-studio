@@ -9,6 +9,9 @@ classes over octaves, beats over bars) with a **braid** sitting in its grid.
     npm run check     # svelte-check
     npm run build     # dist/index.html, one self-contained file
 
+Changes are listed in [CHANGELOG.md](CHANGELOG.md): add a line under *Unreleased* in the PR that makes
+them. To release, bump `version` in `package.json`, move the entries under a new heading, and tag `vX.Y.Z`.
+
 ## The language
 
 One cell per line; attributes go anywhere.
