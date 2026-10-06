@@ -33,6 +33,7 @@ that makes the change. Also note changes to the language that could affect saved
 - Tests run without per-file isolation (faster).
 
 ### Developer
+- CI: the smoke test moved out of `ci.yml` into `smoke.yml` and runs only on the PR labelled `candidate` (once on its head, again after each push to it), no longer on every push of every PR and on `main`. `check` stays on all. See `docs/testing.md`.
 - Audio refactoring (#15, #9), no change in sound (every example's offline render compared before and after): what to play next is worked out as plain data (`engine/schedule.ts`) behind an `Engine` that runs in this thread (the default) or, opt-in with `?engine=worker`, in a Web Worker; `voices.ts` is split into `audio/voice/` parts behind the unchanged `VoiceBank`, with Tone's wrapped nodes bridged in one typed place; the graph gets the sound as one `LiveSource` object instead of ten callbacks. Measured: the worker doesn't lighten the main thread (`docs/notes/15-engine-worker.md`).
 - `tools/golden.mjs` (golden renders: every example rendered offline and compared with a recorded run), `cellStudio.render(source, seconds)` and `cellStudio.engine()`, `ENGINE=worker npm run smoke`.
 - Agent workflow (#6): `AGENTS.md` rewritten (what is enforced, what is judgment, what an agent decides alone), the `senior` skill for triaging, reviewing and merging PRs with the owner's approval, a PR template, a SessionStart hook that installs dependencies in cloud sessions, `.claude/settings.json` allowlist.
