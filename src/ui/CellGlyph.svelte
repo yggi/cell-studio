@@ -109,16 +109,20 @@
     if (view.mode !== 'matrix' || !view.matrix) return [];
     const { rows, steps } = view.matrix;
     const band = (rOuter - rInner) / Math.max(1, rows);
-    return steps.flatMap((st) => {
-      // the section under the playhead: its pins at full colour (the rest quieter while playing)
-      const now = hand !== null && hand >= st.t0 - EPS && hand < st.t1 - EPS;
-      return Array.from({ length: rows }, (_, k) => ({
+    return steps.flatMap((st, step) =>
+      Array.from({ length: rows }, (_, k) => ({
         d: ringSegment(c, c, rInner + k * band + 0.8, rInner + (k + 1) * band - 0.8, st.t0 + 0.004, st.t1 - 0.004),
         on: st.rows.has(k),
-        now,
+        step,
         fill: noteColour((k / rows) * 360),
-      }));
-    });
+      })),
+    );
+  });
+  // the section under the playhead: its pins at full colour (the rest quieter while playing). Apart from the pins,
+  // so that the playhead moving does not draw them all again.
+  const nowStep = $derived.by(() => {
+    if (view.mode !== 'matrix' || !view.matrix || hand === null) return -1;
+    return view.matrix.steps.findIndex((st) => hand >= st.t0 - EPS && hand < st.t1 - EPS);
   });
   // show=adsr: the envelope as a curve across the ring — rising, falling, holding, releasing
   const curve = $derived.by(() => {
@@ -140,10 +144,17 @@
     ];
     return pts.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(' ');
   });
-  const live = $derived(ctx.live?.cells.get(name) ?? null);
+  // The live state is a new object every tick. What this wheel takes from it is kept as primitives, so that what
+  // depends on them runs again only when they change — not every tick, for every wheel on the graph (#13).
+  const hasLive = $derived(!!ctx.live?.cells.get(name));
+  const liveLocal = $derived(ctx.live?.cells.get(name)?.local ?? null);
+  const entriesKey = $derived.by(() => {
+    const e = ctx.live?.cells.get(name)?.entries;
+    return e && e.size ? [...e].join(',') : '';
+  });
   const bar = $derived(ctx.live?.bars.get(name) ?? null);
   const label = $derived(
-    cell ? hubLabel(ctx.program, name, shown, isMeter, live ? bar : null) : { big: '', small: '' },
+    cell ? hubLabel(ctx.program, name, shown, isMeter, hasLive ? bar : null) : { big: '', small: '' },
   );
 
   // an accidental is striped: its own colour and the natural's (a semitone back for a sharp)
@@ -227,23 +238,23 @@
   );
 
   // which segments are live: braids by time, grids by the entries being looked up
-  const lit = $derived.by(() => {
-    const set = new Set<number>();
-    if (!live) return set;
-    if (view.mode === 'braid' && live.local !== null) {
-      const t = live.local / Math.max(1, cell?.steps ?? 1);
-      view.segments.forEach((s, i) => {
-        if (t >= s.t0 - EPS && t < s.t1 - EPS) set.add(i);
-      });
-    }
-    return set;
+  // (as a key first: the set is made again only when the lit segments change, not every tick)
+  const litKey = $derived.by(() => {
+    if (!hasLive || view.mode !== 'braid' || liveLocal === null) return '';
+    const t = liveLocal / Math.max(1, cell?.steps ?? 1);
+    const on: number[] = [];
+    view.segments.forEach((s, i) => {
+      if (t >= s.t0 - EPS && t < s.t1 - EPS) on.push(i);
+    });
+    return on.join(',');
   });
+  const lit = $derived(new Set(litKey ? litKey.split(',').map(Number) : []));
   // a table: the entries being read now (accessed) — a dot in each, like a read head …
   const accessed = $derived.by(() => {
     const set = new Set<number>();
-    if (!live || view.mode === 'braid') return set;
+    if (!hasLive || view.mode === 'braid') return set;
     const k = view.detents;
-    for (const e of live.entries)
+    for (const e of entriesKey ? entriesKey.split(',').map(Number) : [])
       view.segments.forEach((s, i) => {
         if (s.index === mod(e, k)) set.add(i);
       });
@@ -259,7 +270,7 @@
   const polarAt = (t: number, r: number) => ({ x: c + r * Math.cos(2 * Math.PI * t - Math.PI / 2), y: c + r * Math.sin(2 * Math.PI * t - Math.PI / 2) });
 
   // the playhead: braids, and a selector's barrel (where in its sections)
-  const hand = $derived((view.mode === 'braid' || view.mode === 'matrix') && live?.local != null ? live.local / Math.max(1, cell?.steps ?? 1) : null);
+  const hand = $derived((view.mode === 'braid' || view.mode === 'matrix') && liveLocal != null ? liveLocal / Math.max(1, cell?.steps ?? 1) : null);
   // show=lfo: one cycle round the ring — its value the radius; a dot at its phase while playing
   const lfoPath = $derived.by(() => {
     if (view.mode !== 'lfo' || !view.wave) return null;
@@ -275,8 +286,8 @@
     );
   });
   const lfoDot = $derived.by(() => {
-    if (view.mode !== 'lfo' || !view.wave || live?.local == null) return null;
-    const t = live.local / Math.max(1e-9, cell?.steps ?? 1);
+    if (view.mode !== 'lfo' || !view.wave || liveLocal == null) return null;
+    const t = liveLocal / Math.max(1e-9, cell?.steps ?? 1);
     const w = view.wave;
     const v = w[Math.floor((((t % 1) + 1) % 1) * w.length) % w.length];
     const [x, y] = polar(c, c, rInner + (rOuter - rInner) * (0.12 + 0.76 * v), t);
@@ -392,12 +403,13 @@
     {#if lfoDot}<circle class="lfo-dot" cx={lfoDot.x} cy={lfoDot.y} r={Math.max(3, size / 26)} />{/if}
   {/if}
   {#each pins as pin}
+    {@const now = pin.step === nowStep}
     <path
       class="pin"
-      class:now={pin.now}
+      class:now
       d={pin.d}
       fill={pin.on ? pin.fill : 'var(--wheel-rest)'}
-      opacity={pin.on ? (hand === null || pin.now ? 1 : 0.4) : pin.now ? 0.9 : 0.5}
+      opacity={pin.on ? (hand === null || now ? 1 : 0.4) : now ? 0.9 : 0.5}
     />
   {/each}
   {#each beatLabels as l}

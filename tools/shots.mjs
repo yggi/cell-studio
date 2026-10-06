@@ -37,7 +37,8 @@ for (const title of titles) {
     const edges = {};
     for (const e of document.querySelectorAll('.svelte-flow__edge')) {
       const id = e.getAttribute('data-id') ?? e.id;
-      const cls = [...e.classList].filter((c) => /^edge-(live|idle|on|off|unrouted|routed|cut)$/.test(c)).join(' ');
+      // (the state is on the edge's own path since #13; older builds had it on the group)
+      const cls = [...e.classList, ...(e.querySelector('.svelte-flow__edge-path')?.classList ?? [])].filter((c) => /^edge-(live|idle|on|off|unrouted|routed|cut)$/.test(c)).join(' ');
       edges[id.replace(/cell:/g, '')] = cls;
     }
     return { nodes, edges };
