@@ -22,6 +22,7 @@ The full hierarchy of `docs/`. Start with [MEMORY.md](MEMORY.md).
 - [language/sound.md](language/sound.md) — voices, envelopes, volumes
 - [language/physics.md](language/physics.md) — motors, belts, tape, resonators, FM
 - [language/display.md](language/display.md) — titles, tags, labels, `show=`, `level=`
+- [language/reference.md](language/reference.md) — every form the parser reads, generated from it
 
 ## ui/
 

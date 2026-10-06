@@ -6,11 +6,9 @@
  */
 import { codeShifts, entries, ROOT, resolveIn, resolvePitch, semitones, type CompileResult } from '../engine/compile';
 import { modeName, mod } from '../theory/modes';
+import { SHOWS } from '../engine/parser';
 
-export const SHOWS = [
-  'braid', 'pattern', 'notes', 'midi', 'do', 'degrees', 'table', 'scale', 'mode', 'key', 'grid', 'meter',
-  'spectrum', 'wave', 'levels', 'adsr', 'mix', 'note', 'petal', 'off', 'matrix', 'lfo',
-] as const;
+export { SHOWS };
 export type Show = (typeof SHOWS)[number];
 
 /** What a cell is, for showing it. */
