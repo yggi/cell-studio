@@ -22,7 +22,7 @@
   import GraphLegend from './GraphLegend.svelte';
   import BeltEdge from './BeltEdge.svelte';
   import { pulleys } from '../layout/belts';
-  import { physicsOf } from '../engine/realize';
+  import { physicsOf } from '../engine/clocking';
   import type { LiveSource } from '../audio/live';
   import ForcesPanel from './ForcesPanel.svelte';
 

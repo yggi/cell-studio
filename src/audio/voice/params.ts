@@ -1,5 +1,5 @@
 // A voice's sound parameters (dough notation) and how a moving one is scheduled over a note.
-import type { ParamTrack } from '../../engine/realize';
+import type { ParamTrack } from '../../engine/series';
 import type { Movable } from './nodes';
 
 export type Params = Readonly<Record<string, number | string>>;

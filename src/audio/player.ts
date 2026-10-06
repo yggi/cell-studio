@@ -7,7 +7,8 @@
  * that at its exact offsets. Programs are swapped in whole (on edits and on
  * every shift) and take effect at the next window.
  */
-import { clocking, tapeMotion, type Plan } from '../engine/realize';
+import { clocking, tapeMotion } from '../engine/clocking';
+import { type Plan } from '../engine/realize';
 import { isPhysical, retime, type Window } from '../engine/schedule';
 import { createVoices, type VoiceBank } from './voices';
 import { transportClock } from './clock.svelte';

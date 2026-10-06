@@ -7,7 +7,8 @@
    * one: the colour of its value as it goes.
    */
   import { getGraphContext } from './context';
-  import { clocking, notesAt, valueAt, valuesAt } from '../engine/realize';
+  import { clocking } from '../engine/clocking';
+  import { notesAt, valueAt, valuesAt } from '../engine/values';
   import { adsrOf, resolvePitch, semitones } from '../engine/compile';
   import { voiceBase } from '../layout/show';
   import { noteColour } from './theme';

@@ -26,13 +26,18 @@ code text (App.svelte `code`)
 
 The engine behind `engine.window` is local (in this thread, on the app's plan: the default) or a Web Worker (`?engine=worker` or `localStorage['cell-studio:engine'] = 'worker'`): `audio/engine.worker.ts` runs `engine/host.ts`, which compiles the same piece from its source, plans it, mirrors every hand (`grab`, `reset`) and answers windows by message; a window it doesn't answer within 40 ms is worked out locally. Measured, the worker doesn't lighten the main thread (scheduling is < 1 % of it; see [notes/15-engine-worker.md](notes/15-engine-worker.md)), so it stays opt-in; it's the message-shaped seam for moving the live state off the main thread later. Views read the sound through one `LiveSource` (`audio/live.ts`, implemented by `Player`): notes, spectra, waveforms, tapes, and hands (strike, damp, bow, scrub, grab).
 
-`compileSource(src, env)` = parse + compile. `codeShifts(result)` gives the shifts written in the code; live hand-turns replace them. `shiftsAt`, `clocking`, `timeMap` (realize.ts) make every stepped cell's shift a function of time. `Player` (a 16th-note window scheduler on the Tone transport) swaps programs in whole at the next window. `renderOffline` (audio/render.ts) plays the same plan into a buffer.
+`compileSource(src, env)` = parse + compile. `codeShifts(result)` gives the shifts written in the code; live hand-turns replace them. `shiftsAt`, `clocking`, `timeMap` (clocking.ts) make every stepped cell's shift a function of time. `Player` (a 16th-note window scheduler on the Tone transport) swaps programs in whole at the next window. `renderOffline` (audio/render.ts) plays the same plan into a buffer.
 
 ## src/engine
 
 - `parser.ts`, `ast.ts`: one cell or command per line; `pieceMeta`.
 - `compile.ts`: cells as helices over grids, `ROOT` grid, diagnostics, `MAX_EVENTS`.
-- `realize.ts`: `flatten`, `plan`, `eventsBetween`, `timeMap`, `playedCells`; tape motion (`tapeMotion`); resonators; the gates the scheduler uses (`outputSounds`, `endOf`, `picksNow`).
+- `realize.ts`: `plan` (every output's braid flattened once), `eventsBetween` (the notes that start in a window: tapes' echoes, laws, selectors, chance); the gates the scheduler uses (`outputSounds`, `endOf`, `picksNow`, `liveGains`). Its parts:
+  - `clocking.ts`: time. `timeMap` (swing, positions in a bar, a motor or a belt), `clocking` (a program's clocks at a moment), `shiftsAt` (tables turning), `playedCells`, `physicsOf`, `tapeMotion`.
+  - `flatten.ts`: a braid as numbers in its own steps (`flatten`, `unitsFor`, `stepsOf`, `StepEvent`).
+  - `series.ts`: a cell read as a stream over a note (`modulation`, `levelSeries`, `paramTracks`, `pitchOf`).
+  - `values.ts`: what a cell sounds at a moment, for views (`valueAt`, `valuesAt`, `notesAt`).
+  - `ids.ts`: graph ids (`cellId`, `edgeId`, `stepEdgeId`), shared with `muted` sets.
 - `routing.ts`: what takes part in the sound, as graph nodes and edges: `routing` (what can sound), `liveRouting` (what does now), `drawn` (through petals), `nodeStateOf`/`edgeStateOf` (off, unrouted, on, idle, live). One model for nodes and edges: [ui/graph.md](ui/graph.md#states). `live.ts`: `liveAt`, the live view (playheads, lit table entries, and the live routing).
 - `schedule.ts`: what to play next as plain data (`windowAt`, `tapeSpeeds`, `retime`, `isPhysical`). `host.ts`: the engine as a message handler (`createHost`: load, window, grab, reset; `planOf`, `grabIn`), what the worker runs.
 - `edit.ts`: line rewrites. `graph.ts`: `buildGraph`, the graph of exactly what is written.
@@ -40,7 +45,7 @@ The engine behind `engine.window` is local (in this thread, on the app's plan: t
 - `compress.ts`: Shorten (`shorten`, `shortenAll`).
 - `physics.ts` (motors, friction, belts: warps a clock's time map), `fm.ts` (Bessel spectrum), `wave.ts` (a voice's braid as waveform).
 - `dough-params.ts`: sound parameter names. `order.ts`: the library's order of examples (`ORDER`: a new file in `examples/` needs an entry). `presets.ts`: `PRESETS`, every `examples/*.cells` read at once (one plain-text piece per file, the format users save), for the tests; `examples.test.ts` checks every file compiles clean and has a title, tags and `level=`, and that the index below is current. The app doesn't use it: `src/examples.ts` has the build-time index (`virtual:examples-index`, made by `tools/examples-index.ts` through a plugin in `vite.config.ts`: title, description, tags, size, time, bytes) and `loadExample(key)`, which fetches a piece's source (its own chunk) when it's drawn or opened; only the first piece is in the first bundle. `fiveto12.ts`: the day-long cycle.
-- Tape and resonator have no file of their own; they live in parser/compile/realize (tests: `tape.test.ts`, `resonator.test.ts`).
+- Tape and resonator have no file of their own; they live in parser/compile/realize/clocking (tests: `tape.test.ts`, `resonator.test.ts`).
 
 ## src/layout (pure drawing logic)
 

@@ -7,7 +7,8 @@
 import { BLOCK_NAMES, DAY_MODES, MODE_NAMES } from './fiveto12';
 import { codeShifts, type CompileResult } from './compile';
 import type { FreeSpec } from './ast';
-import { clocking, plan } from './realize';
+import { clocking } from './clocking';
+import { plan } from './realize';
 
 export interface PieceTime {
   /** It ends: after this many seconds (laps=). */

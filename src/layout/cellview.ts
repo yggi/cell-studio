@@ -7,7 +7,8 @@ import { adsrOf, entries, period, positionHue,
   positionOctave, resolvePitch, semitones, shiftedUnits, type CompileResult, type Shifts } from '../engine/compile';
 import { effectiveShow, type Named, type Show } from './show';
 import { NOTE_NAMES, mod, modeName, pitchHue } from '../theory/modes';
-import { flatten, playedCells } from '../engine/realize';
+import { playedCells } from '../engine/clocking';
+import { flatten } from '../engine/flatten';
 import { resolveIn } from '../engine/compile';
 
 /**
