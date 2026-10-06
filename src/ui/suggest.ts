@@ -2,6 +2,7 @@
  * Autocomplete for the braid editors: what the word being typed could become.
  * Pure, so it's tested on its own.
  */
+import { CORE } from '../engine/attributes';
 
 export interface Suggestion {
   /** What replaces the word. */
@@ -82,25 +83,7 @@ export function nudge(t: string, by: number): string {
 }
 
 /** The parameters a cell can have, in the order the editor offers them, with what each means. */
-export const PARAM_KEYS: readonly [string, string][] = [
-  ['over', 'the table its numbers read'],
-  ['step', 'what moves it, step by step'],
-  ['loop', 'what moves it, the whole braid at a time'],
-  ['shift', 'how far it is turned'],
-  ['stride', 'how far each step turns it'],
-  ['map', 'how its values sound'],
-  ['show', 'how it’s shown: notes, do, scale, pattern … (and everything below it)'],
-  ['label', 'a name to show, in quotes — alone on a cell, a note in the graph'],
-  ['env', 'a voice’s own volume on every note: an envelope'],
-  ['pitch', 'a voice’s own pitch on every note: a vibrato'],
-  ['cycle', 'size of a grid'],
-  ['size', 'how large it’s drawn, against the others: 2 twice, .5 half'],
-  ['laps', 'how many laps it plays, then it ends'],
-  ['chance', 'what a bare x? means here: a probability, or free() for a slider'],
-  ['seed', 'a different sequence of chance'],
-  ['title', 'on a note: the piece’s title (its card)'],
-  ['tags', 'on a note: the piece’s tags, comma-separated'],
-];
+export const PARAM_KEYS: readonly [string, string][] = Object.entries(CORE).map(([k, a]) => [k, a.help]);
 
 /**
  * Suggestions for a parameter's value, by key: cells and scales for over=;
