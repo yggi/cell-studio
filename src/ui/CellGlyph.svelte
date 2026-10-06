@@ -380,7 +380,6 @@
   // ---- turning the rim changes shift: one detent per 1/k of a turn
   let svg: SVGSVGElement;
   let dragging = $state(false);
-  let startTurn = 0;
   let startShift = 0;
   let travelled = 0;
   let lastTurn = 0;
@@ -394,7 +393,7 @@
     e.stopPropagation();
     (e.currentTarget as Element).setPointerCapture(e.pointerId);
     dragging = true;
-    startTurn = lastTurn = pointerTurn(e);
+    lastTurn = pointerTurn(e);
     startShift = shift;
     travelled = 0;
   }

@@ -6,7 +6,7 @@
 import { adsrOf, type CompileResult, type Shifts } from '../engine/program';
 import { entries, period, positionHue, positionOctave, resolvePitch, semitones, shiftedUnits } from '../engine/helix';
 import { effectiveShow, type Named, type Show } from './show';
-import { NOTE_NAMES, mod, modeName, pitchHue } from '../theory/modes';
+import { NOTE_NAMES, mod, modeName } from '../theory/modes';
 import { playedCells } from '../engine/clocking';
 import { flatten } from '../engine/flatten';
 import { resolveIn } from '../engine/helix';
@@ -175,7 +175,7 @@ export function cellView(result: CompileResult, name: string, shifts: Shifts, is
     while (i + 1 < bounds.length && bounds[i + 1] <= step + 1e-9) i++;
     return i;
   };
-  let events: ReturnType<typeof flatten> = [];
+  let events: ReturnType<typeof flatten>;
   try {
     events = flatten(result, name, shifts, null, undefined, 0, c.context);
   } catch {

@@ -780,7 +780,7 @@ export class ForceLayout {
       }
     }
 
-    model.nodes.forEach((n, i) => {
+    model.nodes.forEach((n) => {
       let p = fresh ? undefined : this.byId.get(n.id);
       if (!p) {
         added++;

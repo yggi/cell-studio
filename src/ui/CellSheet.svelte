@@ -3,10 +3,8 @@
   import { getGraphContext } from './context';
   import { cellView, hubLabel } from '../layout/cellview';
   import { declLine, declWords, deleteCell, nameProblem, renameCell, setBraid, spansLines, splitToken, splitWords, usersOf } from '../engine/edit';
-  import { waveform } from '../engine/wave';
   import { parse } from '../engine/parser';
   import { period, positionHue, resolvePitch, semitones, shiftedUnits } from '../engine/helix';
-  import { pitchHue } from '../theory/modes';
   import { stepText } from '../layout/wheel';
   import TokenWheel, { type WheelToken } from './TokenWheel.svelte';
   import StepEditor from './StepEditor.svelte';
@@ -61,8 +59,6 @@
     const i = lambda ? +lambda[1] - 1 : declLine(source, name);
     return i < 0 ? '' : source.split('\n')[i];
   });
-  const label = $derived(cell && !cell.voice ? hubLabel(ctx.program, name, ctx.live?.shifts ?? ctx.shifts, isMeter, null) : null);
-  const kind = $derived(!cell ? '' : cell.voice ? 'voice' : cell.kit ? 'kit' : isMeter ? 'clock' : cell.root ? 'grid' : cell.step ? 'stepped cell' : 'cell');
   // a voice made from its braid: plot one cycle of the waveform it loops
   const braidVoice = $derived(!!cell?.voice && cell.params.s === undefined);
 

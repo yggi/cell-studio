@@ -271,7 +271,7 @@ export const GENERATORS: Readonly<Record<string, { readonly parse: Generator; re
     syntax: syntax(
       'generator',
       'meter("sig") · meter("sig", sub) · meter("levels")',
-      `A bar as levels, one per step: 0 the downbeat, 1 a beat, then finer. A time signature (${Object.keys(SIGNATURES).join(' ')}) with sub steps a beat, or levels written out (\* bar, + beat, - half, . subdivision, , finer). Its bpm counts beats. Each argument can be free(…).`,
+      `A bar as levels, one per step: 0 the downbeat, 1 a beat, then finer. A time signature (${Object.keys(SIGNATURES).join(' ')}) with sub steps a beat, or levels written out (* bar, + beat, - half, . subdivision, , finer). Its bpm counts beats. Each argument can be free(…).`,
       ['&bar meter("4/4", 2) step=100bpm', '&bar meter("6/8") step=60bpm', '&bar meter("*.+.+..") step=90bpm'],
       'time.md',
     ),

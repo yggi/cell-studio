@@ -10,7 +10,7 @@ import type { Pick } from './ast';
 import { SECONDS_PER_STEP as LAW_SPS, notesBetween as lawNotes } from './fiveto12';
 import { adsrOf, type CompileResult, type Output, type Shifts } from './program';
 import { tableChain } from './helix';
-import { clocking, EPS, playedCells, selects, tapeMotion, varispeedOf } from './clocking';
+import { clocking, EPS, playedCells, tapeMotion, varispeedOf } from './clocking';
 import { ExpansionLimit, flatten, stepsOf, type StepEvent } from './flatten';
 import { cellId } from './ids';
 import { levelSeries, modulation, paramTracks, pitchOf, valueThen, type ParamTrack, type Series, type VoiceParam } from './series';

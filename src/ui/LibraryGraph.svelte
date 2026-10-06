@@ -227,7 +227,7 @@
             </radialGradient>
           </defs>
           <circle cx={c.x} cy={c.y} r={R - band / 2} fill="url(#disc)" />
-          {#each layout.ring.genres as g, i (g.tag)}
+          {#each layout.ring.genres as g (g.tag)}
             {@const a0 = g.angle - Math.PI / n + 0.02}
             {@const a1 = g.angle + Math.PI / n - 0.02}
             {@const ro = R + band / 2}

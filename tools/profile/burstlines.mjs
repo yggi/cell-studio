@@ -36,8 +36,7 @@ for (let k = 0; k <= Math.max(...bins.keys()) + 1; k++) {
   }
 }
 const inc = new Map();
-let total = 0,
-  count = 0;
+let total = 0;
 pr.samples.forEach((id, i) => {
   if (!keep.has(Math.floor((at[i] - pr.startTime) / BIN))) return;
   const dt = pr.timeDeltas[i] || 0;

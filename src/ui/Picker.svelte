@@ -180,8 +180,6 @@
         )
       : tagColours(entries.flatMap((e) => e.tags)),
   );
-  const timeText = (e: Entry) =>
-    !e.time ? '' : e.time.ends !== null ? `ends after ${durationText(e.time.ends)}` : e.time.cycle !== null ? `cycle ${durationText(e.time.cycle)}` : '';
   const timeSentence = (e: Entry) =>
     !e.time
       ? ''
