@@ -2,8 +2,8 @@
  * Voices for playback: the bank of everything that sounds, behind one interface (VoiceBank — the seam a
  * backend without Tone, or an AudioWorklet, implements: #14). A voice's waveform is its braid (see
  * engine/wave.ts) — or a built-in one when it names a dough source (s=saw, s=white …). Each note is its own
- * oscillator, so it can take its own pitch bends (modulation). Sound parameters, in dough notation: s attack
- * decay sustain release gain lpf lpq hpf hpq pan penv pdec room delay. Only built after a user gesture.
+ * oscillator, so it can take its own pitch bends (modulation). Its parameters (dough's names: s lpf lpq hpf
+ * …) are listed in engine/attributes.ts. Only built after a user gesture.
  *
  * The parts live in voice/: a voice and its notes (voice.ts), resonators (resonator.ts), sound tapes
  * (tape.ts), noise, parameter tracks, and the bridge to Tone's nodes (nodes.ts). This file wires them to
