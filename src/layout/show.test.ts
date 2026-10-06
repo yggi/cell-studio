@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { codeShifts, compileSource } from '../engine/compile';
-import { eventsBetween, liveAt, plan } from '../engine/realize';
+import { eventsBetween, plan } from '../engine/realize';
+import { liveAt } from '../engine/live';
 import { setAttr } from '../engine/edit';
 import { PRESETS } from '../engine/presets';
 import { cellView, hubLabel } from './cellview';

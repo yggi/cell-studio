@@ -11,6 +11,7 @@ import { harmonics, waveform } from '../../engine/wave';
 import { inputOf, movable, type Disposable, type Movable, type ToneNS } from './nodes';
 import { noiseBuffer } from './noise';
 import { envelope, num, schedule, type Params } from './params';
+import { noteStats } from '../stats';
 import { buildResonator, nearest, strikeAt, type Resonator } from './resonator';
 
 /** Where every voice goes: the master (then the limiter), and the shared reverb and echo. */
@@ -156,11 +157,17 @@ export function playNote(Tone: ToneNS, ctx: AudioContext, b: Built, note: Played
   // much later (> 50 ms), leave it out: it would sound in the wrong place anyway
   const now = ctx.currentTime;
   if (time < now + 0.003) {
-    if (time < now - 0.05) return;
+    noteStats.worstLateMs = Math.max(noteStats.worstLateMs, (now - time) * 1000);
+    if (time < now - 0.05) {
+      noteStats.dropped++;
+      return;
+    }
+    noteStats.late++;
     const late = now + 0.003 - time;
     time += late;
     duration = Math.max(0.02, duration - late);
   }
+  noteStats.played++;
   // its moving parameters, over this note
   for (const [k, track] of Object.entries(params ?? {})) {
     const target = b.moving[k];

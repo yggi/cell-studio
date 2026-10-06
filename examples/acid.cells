@@ -1,7 +1,9 @@
 # Acid-Cell — everybody needs a 303. An original acid line: a saw through a resonant
 # low-pass whose envelope opens on every note — further on the accents — while a hand
 # turns the cutoff and the resonance, slowly (all of it lpf=… * &cells). Echo: a dotted eighth.
-&about title="Acid-Cell: everybody needs a 303" tags="electronic, chromatic, sound" label="**Acid-Cell** — everybody needs a 303. Every note opens the filter (&fenv); accents open it further, and play louder (&accent); the knobs turn slowly (&knob, &res). Listen to the resonance squeal as they meet."
+&about title="Acid-Cell: everybody needs a 303" tags="genre:electronic, chromatic, sound" label="**Acid-Cell** — everybody needs a 303: a saw through a resonant filter that opens on every note." about=&mix
+&filter label="Every note opens the filter (&fenv); accents open it further, and play louder (&accent)." about=(&fenv &accent)
+&knobs label="Two knobs turn slowly, the cutoff and the resonance: listen to the squeal as they meet." about=(&knob &res)
 &bar scan(1 1 1 1) step=free(126bpm, 100..150)
 &minor scan(2 1 2 2 1 2 2)                                   # A minor (the voices sit on A)
 
@@ -24,5 +26,5 @@
 &hh s=white hpf=8000 env=&(map=adsr 0 .03 0 .02)
 &oh s=white hpf=7000 env=&(map=adsr 0 .2 0 .1)
 
-&mix level=0 loop=SAMPLE_RATE map=sample [&line * &accent * &tb303 * .45, &kick * &bd * .8, &clap * &cp * .35,
+&mix level=0.5 loop=SAMPLE_RATE map=sample [&line * &accent * &tb303 * .45, &kick * &bd * .8, &clap * &cp * .35,
                                   &closed * &hh * .25, &open * &oh * .2]

@@ -5,7 +5,9 @@ import { meterLevels } from './parser';
 import { parse } from './parser';
 import bwv847Reference from '../../tools/bwv847.reference.json';
 import { codeShifts, compileSource } from './compile';
-import { eventsBetween, flatten, liveAt, plan, routedNodes, shiftsAt, timeMap } from './realize';
+import { eventsBetween, flatten, plan, shiftsAt, timeMap } from './realize';
+import { liveAt } from './live';
+import { routing } from './routing';
 import { buildGraph, structureKey } from './graph';
 import { PRESETS } from './presets';
 
@@ -53,6 +55,26 @@ describe('sound', () => {
   it('kits take the number as an index into their voices', () => {
     const r = compileSource('&m step=1\n&d over=&kit step=&m 0 1 2 3\n&bd s=sine loop=55\n&sd s=white\n&kit &bd &sd\n&mix loop=SAMPLE_RATE map=sample [&d]');
     expect(events(r, 0, 4).map((e) => [e.voice, e.freq])).toEqual([['bd', 55], ['sd', 261.63], ['bd', 55], ['sd', 261.63]]);
+  });
+
+  it("a kit's members bring their own env= (a member without one plays with the voice's default)", () => {
+    const r = compileSource(
+      '&m step=1\n&d over=&kit step=&m 0 1 2\n&bd s=sine loop=55 env=&(map=adsr 0 .28 0 .05)\n&sd s=white\n&hh s=white env=&(map=adsr 0 .04 0 .02)\n&kit &bd &sd &hh\n&mix loop=SAMPLE_RATE map=sample [&d]',
+    );
+    expect(r.diagnostics.filter((d) => d.severity === 'error')).toEqual([]);
+    const ev = events(r, 0, 3);
+    expect(ev.map((e) => [e.voice, e.env])).toEqual([
+      ['bd', { attack: 0, decay: 0.28, sustain: 0, release: 0.05 }],
+      ['sd', undefined],
+      ['hh', { attack: 0, decay: 0.04, sustain: 0, release: 0.02 }],
+    ]);
+  });
+
+  it("an envelope in the product wins over a kit member's own", () => {
+    const r = compileSource(
+      '&m step=1\n&d over=&kit step=&m 0 1\n&bd s=sine loop=55 env=&(map=adsr 0 .28 0 .05)\n&sd s=white\n&kit &bd &sd\n&e map=adsr .01 .5 .5 .2\n&mix loop=SAMPLE_RATE map=sample [&e * &d]',
+    );
+    expect(events(r, 0, 2).map((e) => e.env)).toEqual([{ attack: 0.01, decay: 0.5, sustain: 0.5, release: 0.2 }, { attack: 0.01, decay: 0.5, sustain: 0.5, release: 0.2 }]);
   });
 
   it('ratios: ÷2 plays twice per beat, ×2 once per two beats', () => {
@@ -145,10 +167,14 @@ describe('live view', () => {
     expect(at.edges.has('cell:theme->cell:lead')).toBe(true);
     expect(at.bars.get('bar')).toBe(2);
   });
-  it('routedNodes follows sounding outputs only', () => {
-    const on = routedNodes(r, new Set(['cell:lead']));
-    expect(on.has('cell:pedal') && on.has('cell:scale') && on.has('cell:bar') && on.has('cell:bass')).toBe(true);
-    expect(on.has('cell:theme')).toBe(false);
+  it('routing follows sounding outputs only', () => {
+    const on = routing(r, new Set(['cell:lead']));
+    expect(['pedal', 'scale', 'bar', 'bass'].every((c) => on.nodes.has(`cell:${c}`))).toBe(true);
+    // the theme is silent, but still turns the key the pedal is read through (step=cycle(&theme))
+    expect(on.edges.has('cell:theme->cell:lead')).toBe(false);
+    expect(on.edges.has('cell:theme->cell:scale')).toBe(false);
+    expect(on.edges.has('cell:key~>cell:theme')).toBe(true);
+    expect(on.nodes.has('cell:theme')).toBe(true);
   });
 });
 
@@ -443,7 +469,7 @@ describe('switching off', () => {
       const r = compileSource(p.source);
       const g = buildGraph(r);
       for (const n of g.nodes) {
-        const routed = routedNodes(r, new Set([n.id]));
+        const routed = routing(r, new Set([n.id])).nodes;
         expect(routed.has(n.id), `${key}: ${n.id} switched off but routed`).toBe(false);
       }
     }
@@ -1271,7 +1297,7 @@ describe('Cellscape: a cycle of twelve', () => {
     }
   });
   it('the score both barrels read is reached, not dimmed', () => {
-    expect(routedNodes(r, new Set()).has('cell:scenes')).toBe(true);
+    expect(routing(r, new Set()).nodes.has('cell:scenes')).toBe(true);
   });
   it('one score, read for each ear: the leader mostly left, the follower mostly right', () => {
     const g = (voice: string) => r.outputs.filter((o) => o.voice === voice).reduce((a, o) => [a[0] + o.gains[0], a[1] + o.gains[1]], [0, 0]);

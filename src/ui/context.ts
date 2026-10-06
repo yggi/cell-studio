@@ -1,26 +1,28 @@
 import { createContext } from 'svelte';
 import type { CompileResult, Shifts } from '../engine/compile';
-import type { LiveState } from '../engine/realize';
+import type { LiveState } from '../engine/live';
+import { nodeStateOf, type Routing, type State } from '../engine/routing';
 import type { LiveSource } from '../audio/live';
 
 /**
- * Visual state of a node:
+ * Visual state of a node (engine/routing.ts decides it, for nodes and edges alike):
  *  off      — switched off by the user (hold to toggle)
  *  unrouted — on, but not part of anything that sounds
  *  on       — part of the sound, transport stopped
- *  idle     — part of the sound, but not at the playhead right now
- *  live     — at the playhead right now
+ *  idle     — part of the sound, but not sounding now
+ *  live     — sounding now
  */
-export type NodeState = 'off' | 'unrouted' | 'on' | 'idle' | 'live';
+export type NodeState = State;
 
 /** The graph's shared state, and the sound (LiveSource: what plays now, hands on it). */
 export interface GraphContext extends LiveSource {
   readonly program: CompileResult;
   readonly muted: ReadonlySet<string>;
-  readonly routed: ReadonlySet<string>;
+  /** What can sound (routing.ts). */
+  readonly routed: Routing;
   readonly live: LiveState | null;
-  /** The edges that carry something now (ids): each edge reads its own, so the edge list isn't remade every step. */
-  readonly liveEdges: ReadonlySet<string>;
+  /** The edges that carry something now (drawn ids), or null when nothing plays: each edge reads its own, so the edge list isn't remade every step. */
+  readonly liveEdges: ReadonlySet<string> | null;
   /**
    * Changes only when what's drawn changes while playing: a table turns, or play
    * starts or stops (the live state itself is new every frame). Read it to redraw
@@ -49,12 +51,5 @@ export interface GraphContext extends LiveSource {
 export const [getGraphContext, setGraphContext] = createContext<GraphContext>();
 
 export function nodeState(ctx: GraphContext, id: string): NodeState {
-  if (ctx.muted.has(id)) return 'off';
-  if (!ctx.routed.has(id)) return 'unrouted';
-  const live = ctx.live;
-  if (!live) return 'on';
-  // tapes, their heads, resonators, scopes: working parts — never at rest while anything plays
-  const c = ctx.program.cells.get(id.slice('cell:'.length));
-  if (c && (typeof c.params.play === 'string' || typeof c.params.write === 'string' || typeof c.params.body === 'string' || typeof c.params.scope === 'string')) return 'live';
-  return live.cells.has(id.slice('cell:'.length)) ? 'live' : 'idle';
+  return nodeStateOf(id, ctx.muted, ctx.routed, ctx.live);
 }

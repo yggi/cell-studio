@@ -12,6 +12,18 @@ The code is the single source of truth. The graph draws exactly the cells and li
 - While playing, every table a note passes through lights the entry it used.
 - A played braid's moving shift is its playhead; a restarted part's playhead shows the global clock (see [../limits.md](../limits.md)).
 
+## States
+
+Every node and edge is drawn in one of five states, decided for both by one model (`src/engine/routing.ts`, so a node and its edges can't disagree):
+
+- **off**: switched off (`off` in the code; hold to toggle). Faded, grey, a dashed ring; its edges faded.
+- **unrouted**: on, but not part of anything that sounds. Faded.
+- **on** (stopped), **idle** (playing, not sounding now: quieter, less colour) and **live** (sounding now: full colour; a live edge glows, pulses and takes its note's colour).
+
+An output's route is what its notes need (its braid and tables, the `step=` chain and clock that move it, what moves its voice: pitch and volume streams, the envelope, parameter cells, FM) and where its sound goes (voice, instruments, mix, the part a selector picks, the sound card). Sound tapes and resonators keep sound and pass it on wherever their heads and mixes go. Something is routed if it is on the route of an output that can sound (`plan`'s own test) and reaches a sound card; live if it is on the route of one that plays now (until its `laps=` end, while its selectors pick it). Inside a braid only the cell and table entries under the playhead are live. A voice in two mixes lights only the mix its notes take now.
+
+*Live* means its part plays now, not that a note sounds this instant: a rest or a missed chance in a part that plays stays live (the glyphs show the step). The spectrum wheels show the sound itself; a mix's wheel hears its voices whole (see [../limits.md](../limits.md)).
+
 ## Arrangement
 
 A layered drawing, the textbook way: rows by signal flow (the sound card on top, voices, melodies, the parts and tables they read — tuning a row under content — and the meter at the bottom), each row ordered to cross as few edges as it can (an edge to the meter counts a quarter: it says when, not what), each node placed towards its neighbours (`src/layout/layered.ts`).

@@ -5,9 +5,12 @@
   import { codeShifts, compileSource, type CompileResult } from './engine/compile';
   import { addCell, declLine, setFree, setOff, setShift } from './engine/edit';
   import { buildGraph } from './engine/graph';
-  import { liveAt, plan, routedNodes } from './engine/realize';
+  import { plan } from './engine/realize';
+  import { liveAt } from './engine/live';
+  import { routing } from './engine/routing';
   import { EXAMPLES, FIRST, FIRST_SOURCE, loadExample, type PresetKey } from './examples';
   import { pieceMeta } from './engine/parser';
+  import { canonicalTags } from './engine/tags';
   import { fileName, listSaved, readFile, removeSaved, saveFile, savePiece, storageAvailable, titleOf, type SavedPiece } from './library';
   import Picker, { type Entry } from './ui/Picker.svelte';
   import Shorten from './ui/Shorten.svelte';
@@ -120,7 +123,7 @@
   // The code is the single source of truth: the graph edits it (shift=, off) and reads it back.
   const shifts = $derived(codeShifts(program));
   const muted = $derived(program.off);
-  const routed = $derived(routedNodes(program, muted));
+  const routed = $derived(routing(program, muted));
   const live = $derived(transportClock.playing ? liveAt(program, shifts, muted, transportClock.seconds) : null);
 
   // turning a cell whose shift is free(…) moves its free value: the wheel and its slider are one control
@@ -298,7 +301,7 @@
         kind: 'saved' as const,
         title: p.title,
         description: m?.description ?? '',
-        tags: m?.tags ?? [],
+        tags: canonicalTags(m?.tags ?? []),
         source: p.source,
         saved: p.saved,
         size: buildGraph(r).nodes.filter((n) => !n.petalOf && !n.cell.note).length,

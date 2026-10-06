@@ -38,7 +38,7 @@ export interface GraphEdge {
   readonly id: string;
   readonly source: string;
   readonly target: string;
-  readonly kind: 'over' | 'ref' | 'step' | 'out' | 'mix';
+  readonly kind: 'over' | 'ref' | 'step' | 'out' | 'mix' | 'about';
   /** How many slots of the source play the target (refs). */
   readonly count: number;
   /** Pick written on the reference, if any (`[-1:]`). */
@@ -50,6 +50,8 @@ export interface GraphEdge {
 export interface GraphModel {
   readonly nodes: readonly GraphNode[];
   readonly edges: readonly GraphEdge[];
+  /** An edge drawn under another id (through a petal: to its parent), by its own id; undefined: not drawn. */
+  readonly alias: ReadonlyMap<string, string | undefined>;
 }
 
 export function buildGraph(result: CompileResult): GraphModel {
@@ -124,6 +126,8 @@ export function buildGraph(result: CompileResult): GraphModel {
       const ups = [...new Set(c.units.flatMap((u) => (u.atom.kind === 'ref' && u.atom.name === child && u.atom.transpose ? [u.atom.transpose] : [])))];
       link({ id: edgeId(id, cellId(child)), source: id, target: cellId(child), kind: 'ref', count, pick: ups.map((n) => `^${n}`).join(' ') });
     }
+    // a note's links: what it explains
+    for (const target of c.about) if (result.cells.has(target)) link({ id: edgeId(id, cellId(target)), source: id, target: cellId(target), kind: 'about', count: 1, pick: '' });
     if (c.step)
       // (a belt says so: the cell follows through a spring, not rigidly)
       link({ id: stepEdgeId(id, cellId(c.step.driver)), source: id, target: cellId(c.step.driver), kind: 'step', count: 1, pick: '', label: typeof c.params.belt === 'number' ? `${c.step.label} · belt` : c.step.label });
@@ -221,6 +225,8 @@ function petals(result: CompileResult, allNodes: GraphNode[], allEdges: GraphEdg
   const pairs = new Set<string>();
   const key = (a: string, b: string) => [a, b].sort().join('|');
   for (const e of edges) if (!parentOf.has(e.source) && !parentOf.has(e.target)) pairs.add(key(e.source, e.target));
+  // (an edge redrawn, or left out because one is drawn between the same two already: drawn as that one)
+  const redrawn: { id: string; pair: string | null }[] = [];
   for (const e of edges) {
     const source = up(e.source);
     const target = up(e.target);
@@ -228,11 +234,17 @@ function petals(result: CompileResult, allNodes: GraphNode[], allEdges: GraphEdg
       out.push(e);
       continue;
     }
+    redrawn.push({ id: e.id, pair: source === target ? null : key(source, target) });
     if (source === target || pairs.has(key(source, target))) continue;
     pairs.add(key(source, target));
     out.push({ ...e, id: edgeId(source, target) + (e.kind === 'step' ? '~' : ''), source, target });
   }
-  return { nodes: nodes.map((n) => (parentOf.has(n.id) ? { ...n, petalOf: parentOf.get(n.id) } : n)), edges: out };
+  const byPair = new Map<string, string>();
+  for (const e of out) if (!byPair.has(key(e.source, e.target))) byPair.set(key(e.source, e.target), e.id);
+  const alias = new Map<string, string | undefined>();
+  for (const r of redrawn) alias.set(r.id, r.pair === null ? undefined : byPair.get(r.pair));
+  for (const e of allEdges) if (hidden.has(e.source) || hidden.has(e.target)) alias.set(e.id, undefined);
+  return { nodes: nodes.map((n) => (parentOf.has(n.id) ? { ...n, petalOf: parentOf.get(n.id) } : n)), edges: out, alias };
 }
 
 /** Changes only when the set of nodes or edges changes — not when contents do. */
