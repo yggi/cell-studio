@@ -17,5 +17,5 @@
 &hh s=white hpf=7000 env=&(map=adsr 0 .04 0 .02)
 &bd s=sine loop=D1 penv=16 pdec=.05 env=&(map=adsr 0 .3 0 .05)
 
-&out level=7 loop=SAMPLE_RATE map=sample [&loop * &keys * .16, &chords * &pad * .05, &hats * &hh * .08, &kick * &bd * .5] [
-                                  &loop * &keys * .12, &chords * &pad * .05, &hats * &hh * .1, &kick * &bd * .5]
+&out level=7 loop=SAMPLE_RATE map=sample [&loop * &keys * .16, &chords * &pad * .05, &hats * &hh * .08, &kick * &bd * .35] [
+                                  &loop * &keys * .12, &chords * &pad * .05, &hats * &hh * .1, &kick * &bd * .35]
