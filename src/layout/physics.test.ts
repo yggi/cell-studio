@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { parse } from '../engine/parser';
-import { ForceLayout, DEFAULT_LAYOUT, FORCES_ALONE, columns, crossingPairs, flowRanks, orderLayers } from './physics';
+import { ForceLayout, DEFAULT_LAYOUT, FORCES_ALONE, columns, crossingPairs, flowRanks, orderLayers, tapeFaces } from './physics';
+import { fitTurn, headAngle, tapeHeads } from './tape';
 import { splinePoint } from './geometry';
 import { buildGraph } from '../engine/graph';
 import { compileSource } from '../engine/compile';
@@ -498,4 +499,52 @@ describe('tags inside a piece: a node each, pushing cells and edges off its name
       l.destroy();
     });
   }
+});
+
+describe('tapes: the heads keep their spacing, the wheel turns to face them at what they connect to', () => {
+  for (const key of ['echotape', 'soundtape', 'testtones', 'resonanz', 'fiveto12'] as const) {
+    it(key, () => {
+      const model = buildGraph(compileSource(PRESETS[key].source));
+      const faces = tapeFaces(model);
+      expect(faces.some((f) => f.write)).toBe(true);
+      expect(faces.filter((f) => !f.write).length).toBeGreaterThan(1);
+      const l = new ForceLayout(undefined, { live: false });
+      l.setGraph(model);
+      l.tick(500);
+      for (const f of faces) {
+        const turn = (l.tapeTurn(f.tape)! * Math.PI) / 180;
+        const t = l.position(f.tape)!;
+        const c = l.position(f.to)!;
+        const d = Math.atan2(c.y - t.y, c.x - t.x) - (turn + f.offset);
+        expect(Math.abs(Math.atan2(Math.sin(d), Math.cos(d))) * (180 / Math.PI), `${f.to}${f.write ? ' (written)' : ''}`).toBeLessThan(30);
+      }
+      l.destroy();
+    });
+  }
+  it('an update that moves nothing (pressing Play) leaves the tapes turned as they were', () => {
+    const model = buildGraph(compileSource(PRESETS.soundtape.source));
+    const l = new ForceLayout(undefined, { live: false });
+    l.setGraph(model);
+    l.tick(220);
+    const before = l.tapeTurn('cell:tape')!;
+    const aim = l.quality().aim;
+    l.setGraph(model, false);
+    expect(l.tapeTurn('cell:tape')).toBeCloseTo(before, 1); // (to a tenth of a degree: the last tick fitted it just before its own step)
+    expect(l.quality().aim).toBe(aim);
+    l.destroy();
+  });
+  it('a read head sits by how far along the tape it reads: clockwise from the write head, wherever that is', () => {
+    expect(tapeHeads({ name: 't', params: { length: 4 } }, [{ name: 'h', params: { play: 't', at: 1 } }])).toEqual({ heads: [{ name: 'h', at: 1 }], length: 4 });
+    expect(headAngle(0, 4)).toBe(-90); // (unturned: the write head on top)
+    expect(headAngle(1, 4)).toBe(0);
+    expect(headAngle(1, 4, 0)).toBe(90);
+  });
+  it('the turn that faces the heads best: a weighted circular mean', () => {
+    const q = Math.PI / 2;
+    // two heads a quarter apart, their cells a quarter apart, half a turn round: turned half a turn
+    expect(fitTurn([{ angle: Math.PI, offset: 0, weight: 1 }, { angle: -q, offset: q, weight: 1 }])).toBeCloseTo(Math.PI);
+    // they disagree: the busier one wins more
+    expect(fitTurn([{ angle: 0, offset: 0, weight: 3 }, { angle: q, offset: 0, weight: 1 }])!).toBeCloseTo(Math.atan2(1, 3));
+    expect(fitTurn([])).toBeNull();
+  });
 });

@@ -185,11 +185,18 @@
     const d = (parentSize as number) / 2 + PETAL / 2 + 2;
     return { x: p.x + Math.cos(a) * d, y: p.y + Math.sin(a) * d };
   }
+  // a tape's turn (where the layout faced its heads), to the degree: its node is redrawn only when that changes
+  const turnOf = (id: string) => {
+    const t = layout.tapeTurn(id);
+    return t === undefined ? undefined : Math.round(t);
+  };
   const layout = new ForceLayout(() => {
-    nodes = nodes.map((n) => {
-      if (n.id === dragging) return n;
+    nodes = nodes.map((n): FlowNode => {
+      const turn = n.type === 'material' ? turnOf(n.id) : undefined;
+      const turned = n.type === 'material' && turn !== undefined && turn !== n.data.turn ? { ...n, data: { ...n.data, turn } } : n;
+      if (n.id === dragging) return turned;
       const p = posOf(n.id);
-      return p ? { ...n, position: p } : n;
+      return p ? { ...turned, position: p } : turned;
     });
     bends = layout.bends();
   });
@@ -211,7 +218,7 @@
 
   function toFlowNode(g: GraphNode): FlowNode {
     // an example's own fixed layout isn't marked: only what the user pinned
-    return flowNodeOf(g, posOf(g.id) ?? { x: 0, y: 0 }, pinned.has(g.id) && !fixedPinned.has(g.id));
+    return flowNodeOf(g, posOf(g.id) ?? { x: 0, y: 0 }, pinned.has(g.id) && !fixedPinned.has(g.id), turnOf(g.id));
   }
 
 
