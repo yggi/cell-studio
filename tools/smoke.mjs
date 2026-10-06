@@ -4,6 +4,7 @@
 //
 //   npm run build && npm run smoke            # all pieces, 2 s each
 //   npm run smoke -- 3 Hypercell "Music Box"  # 3 s each, only titles containing these words
+//   ENGINE=worker npm run smoke               # with the engine in a Web Worker (?engine=worker, #15)
 //
 // Chromium: Playwright's, or CHROME_PATH=/path/to/chrome (CI uses the runner's Chrome). See tools/profile/playwright.mjs.
 import { preview } from 'vite';
@@ -11,7 +12,8 @@ import { chromium } from './profile/playwright.mjs';
 
 const [secs = '2', ...only] = process.argv.slice(2);
 const server = await preview({ preview: { port: 0, host: '127.0.0.1' }, logLevel: 'error' });
-const url = server.resolvedUrls.local[0];
+const engine = process.env.ENGINE;
+const url = server.resolvedUrls.local[0] + (engine ? `?engine=${engine}` : '');
 const browser = await chromium.launch({ args: ['--autoplay-policy=no-user-gesture-required', '--no-sandbox'] });
 const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
 
@@ -38,6 +40,7 @@ const wanted = pieces.filter((p) => only.length === 0 || only.some((w) => p.titl
 if (wanted.length === 0) throw new Error('no piece matches ' + only.join(', '));
 
 const failed = [];
+let stats = null;
 for (const [i, p] of wanted.entries()) {
   problems = [];
   try {
@@ -56,6 +59,12 @@ for (const [i, p] of wanted.entries()) {
     if (live.length === 0) problems.push('no running AudioContext');
     else if (!live.some((c, k) => c.t > (t0[now.indexOf(c)] ?? 0) + 0.5 * Number(secs))) problems.push('audio clock did not advance');
     await page.locator('.transport').getByRole('button', { name: 'Pause' }).first().click();
+    // the engine asked for is the one that played, and it answered (a window it misses is worked out locally)
+    const st = await page.evaluate(() => window.cellStudio.engine());
+    if (engine && st.kind !== engine) problems.push(`engine: ${st.kind}, not ${engine}`);
+    if (st.windows === 0) problems.push('no window asked of the engine');
+    if (engine === 'worker' && st.late >= st.windows) problems.push('the worker answered no window in time');
+    stats = st;
   } catch (e) {
     problems.push(String(e.message).split('\n')[0]);
     await page.goto(url); // start the next piece from a fresh page
@@ -72,3 +81,4 @@ if (failed.length) {
   process.exit(1);
 }
 console.log(`\nall ${wanted.length} pieces opened and played ${secs} s`);
+if (engine) console.log('engine:', JSON.stringify(stats));
