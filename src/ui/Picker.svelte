@@ -222,6 +222,7 @@
         <button role="menuitem" disabled={!current} onclick={() => ((filesOpen = false), onsavefile())}>Save the piece to a file</button>
         <button role="menuitem" disabled={!current} onclick={() => ((filesOpen = false), onrender())}>Render the piece to WAV</button>
         <button role="menuitem" disabled={!current || !storageOk} title={storageOk ? undefined : 'This browser can’t keep pieces here'} onclick={() => ((filesOpen = false), onsavebrowser())}>Save it in this browser</button>
+        <p class="version">Cell studio {__APP_VERSION__}</p>
       </div>
     {/if}
     <input
@@ -773,6 +774,12 @@
   .menu button:hover:not(:disabled),
   .menu button:focus-visible {
     background: var(--code-bg);
+  }
+  .menu .version {
+    margin: 4px 10px 2px;
+    font: 12px var(--font-ui);
+    color: var(--text-faint);
+    user-select: text;
   }
   .menu button:disabled {
     color: var(--text-faint);
