@@ -32,7 +32,7 @@ code text (App.svelte `code`)
 - `duration.ts`: piece length / loop cycle (`pieceTime`, `sections`, `mainTempo`).
 - `compress.ts`: Shorten (`shorten`, `shortenAll`).
 - `physics.ts` (motors, friction, belts: warps a clock's time map), `fm.ts` (Bessel spectrum), `wave.ts` (a voice's braid as waveform).
-- `dough-params.ts`: sound parameter names. `presets.ts`: the examples (`PRESETS`). `fiveto12.ts`: the day-long cycle.
+- `dough-params.ts`: sound parameter names. `presets.ts`: loads `examples/*.cells` (`PRESETS`; `examples.test.ts` checks every file). `fiveto12.ts`: the day-long cycle.
 - Tape and resonator have no file of their own; they live in parser/compile/realize (tests: `tape.test.ts`, `resonator.test.ts`).
 
 ## src/layout (pure drawing logic)
@@ -48,5 +48,5 @@ code text (App.svelte `code`)
 - `src/ui/`: Svelte components by role. Graph and nodes: `Graph`, `MiniGraph`, `LibraryGraph`, `FitView`, `CellNode`, `PieceNode`, `VoiceNode`, `MaterialNode`, `ScopeNode`, `SunNode`, `CellLink`, `BeltEdge`, `PulseEdge`, `GraphLegend`. Cell drawing: `CellGlyph`, `WaveGlyph`, `SpectrumWheel`, `ScopeView`, `PieceWheel`. Editing: `Editor`, `EditPop`, `StepEditor`, `HubEditor`, `TokenWheel`, `Keypad`, `Picker`, `CellSheet`, `CellFacts`, `ParamRows`, `Free*`, `ForcesPanel`, shared `Shorten`, `Transport`. Helpers: `theme.ts`, `highlight.ts`, `suggest.ts`, `tags.ts`, `context.ts`, `types.ts`, `longpress.ts`.
 - `src/theory/modes.ts`: names, modes, `scan`, hues. `src/library.ts`: saved pieces (localStorage) and `.cells` files; always reports unavailable storage instead of failing.
 - `src/App.svelte`: owns `code`, derives `result`/`plan`, wires `Player`, saving, render, and `window.cellStudio`. `src/main.ts` mounts it.
-- `tools/`: Python generators (`bwv847.py`, `kern2cells.py`, `embed_bwv847.py`, `counterpoint.py`) and `tools/profile/` scripts.
+- `tools/`: Python generators (`bwv847.py`, `kern2cells.py`, `counterpoint.py`) and `tools/profile/` scripts.
 - `.github/workflows/`: `ci.yml` (check, test, build), `deploy.yml`.
