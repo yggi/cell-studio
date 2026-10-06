@@ -34,7 +34,7 @@ Details are on the linked pages; this list is only a pointer. → [language/over
 - `step=` `loop=` (rates, `&x`, `cycle(&x)`, `*n` `/n`), `stride=`, `laps=` → [time](language/time.md)
 - `map=edo|ed(r)|ratios`, note names → [tuning](language/tuning.md)
 - `free(default, lo..hi)` → [free](language/free.md)
-- `[a * &voice, …]` mixes, `map=sample` → [mix](language/mix.md)
+- `[a * &voice, …]` mixes (sorts, `+` `*` commute), `map=sample` → [mix](language/mix.md)
 - voices `s=` `loop=`, `env=` `pitch=` `map=adsr|amp|lin|db` → [sound](language/sound.md)
 - belts, tape, resonators, FM → [physics](language/physics.md)
 - `title=` `tags=` `label=` `show=` `level=` → [display](language/display.md)
@@ -48,6 +48,7 @@ One line each; the record has the rationale. → [decisions/](decisions/README.m
 - 003 · `cycle=n` has one job; grids say `map=edo` · → decisions/003-cycle-one-job.md
 - 004 · Agents open PRs and never merge; the `senior` skill triages, reviews and merges with the owner's approval · → decisions/004-agents-dont-merge.md
 - 005 · The audio context is `balanced` (not `playback`, not yet `interactive`), and the pictures show what is heard · → decisions/005-balanced-latency-and-heard-pictures.md
+- 006 · The mix algebra: a factor's sort (pitch, volume, signal) comes from the cell, not its place; `+` and `*` commute; numbers are semitones in a sum, a gain in a product · → decisions/006-mix-algebra.md
 
 ## Where things are tracked
 
