@@ -39,7 +39,7 @@ export function layered(model: GraphModel, o: LayeredOptions): Map<string, { x: 
   const links: { a: string; b: string; w: number }[] = [];
   const seen = new Set<string>();
   for (const e of model.edges) {
-    if (!vs.has(e.source) || !vs.has(e.target) || e.source === e.target) continue;
+    if (!vs.has(e.source) || !vs.has(e.target) || e.source === e.target || e.kind === 'about') continue;
     const key = [e.source, e.target].sort().join('→');
     if (seen.has(key)) continue;
     seen.add(key);
