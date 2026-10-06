@@ -6,7 +6,14 @@ export type VoiceNodeData = { name: string; summary: string; size: number; pinne
 export type CellFlowNode = Node<CellNodeData, 'cell'>;
 export type VoiceFlowNode = Node<VoiceNodeData, 'voice'>;
 /** A physical cell (a motor's meter, a belted cell): a turntable. */
-export type MaterialNodeData = { name: string; size: number; role: 'motor' | 'belt' | 'tape' | 'resonator'; pinned: boolean };
+export type MaterialNodeData = {
+  name: string;
+  size: number;
+  role: 'motor' | 'belt' | 'tape' | 'resonator';
+  pinned: boolean;
+  /** A tape's turn, degrees: where the layout faced its write head (layout/tape.ts). */
+  turn?: number;
+};
 export type MaterialFlowNode = Node<MaterialNodeData, 'material'>;
 /** An oscilloscope (scope=): a screen. */
 export type ScopeNodeData = { name: string; size: number };

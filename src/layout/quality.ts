@@ -41,6 +41,15 @@ export interface LayoutQuality {
   readonly clusters: number;
   /** Cells inside the disc of a tag they don't carry. */
   readonly intruders: number;
+  /** How far, on average, a node is turned away from where it should sit (a tape's read head's cell from its head), degrees; 0 when none. */
+  readonly aim: number;
+}
+
+/** A node that should sit in a direction from another (a tape's read head's cell, from the tape), radians. */
+export interface Aim {
+  readonly from: string;
+  readonly to: string;
+  readonly angle: number;
 }
 
 /**
@@ -74,7 +83,7 @@ export function drawnCrossings(nodes: readonly PlacedNode[], edges: readonly Dra
 }
 
 /** Every number of LayoutQuality for one layout. Cluster discs are the graph's own (clusterDisc, pad 90, at least 120). */
-export function layoutQuality(nodes: readonly PlacedNode[], edges: readonly DrawnEdge[]): LayoutQuality {
+export function layoutQuality(nodes: readonly PlacedNode[], edges: readonly DrawnEdge[], aims: readonly Aim[] = []): LayoutQuality {
   const cells = nodes.filter((n) => !n.label);
   const at = new Map(cells.map((n) => [n.id, n]));
   const box = (f: (n: PlacedNode) => number) => (cells.length ? Math.max(...cells.map(f)) : 0);
@@ -103,6 +112,13 @@ export function layoutQuality(nodes: readonly PlacedNode[], edges: readonly Draw
       if (!shared && Math.hypot(p.x - q.x, p.y - q.y) < p.r + q.r) clusters++;
     }
   const intruders = cells.filter((n) => discs.some((d) => !n.tags?.includes(d.tag) && Math.hypot(n.x - d.x, n.y - d.y) < d.r)).length;
+  const off = aims.flatMap(({ from, to, angle }) => {
+    const a = at.get(from);
+    const b = at.get(to);
+    if (!a || !b) return [];
+    const d = Math.atan2(b.y - a.y, b.x - a.x) - angle;
+    return [Math.abs(Math.atan2(Math.sin(d), Math.cos(d))) * (180 / Math.PI)];
+  });
   return {
     cells: cells.length,
     crossings: drawnCrossings(nodes, edges),
@@ -112,5 +128,6 @@ export function layoutQuality(nodes: readonly PlacedNode[], edges: readonly Draw
     overlap: Math.max(0, Math.round(overlap)),
     clusters,
     intruders,
+    aim: Math.round(off.length ? off.reduce((s, v) => s + v, 0) / off.length : 0),
   };
 }

@@ -13,7 +13,8 @@ export const physical = (g: GraphNode) =>
   !g.petalOf &&
   (typeof g.cell.params.motor === 'number' || typeof g.cell.params.belt === 'number' || typeof g.cell.params.write === 'string' || typeof g.cell.params.body === 'string');
 
-export function flowNodeOf(g: GraphNode, position: { x: number; y: number }, isPinned: boolean): FlowNode {
+/** `turn`: a tape's, in degrees (where the layout faced its write head; layout/tape.ts); none: unturned. */
+export function flowNodeOf(g: GraphNode, position: { x: number; y: number }, isPinned: boolean, turn?: number): FlowNode {
   if (g.petalOf) {
     if (g.kind === 'voice') return { id: g.id, type: 'voice', position, draggable: false, data: { name: g.cell.name, summary: '', size: PETAL, pinned: false, petal: true } };
     return { id: g.id, type: 'cell', position, draggable: false, data: { name: g.cell.name, isMeter: false, size: PETAL, pinned: false, petal: true } };
@@ -35,7 +36,7 @@ export function flowNodeOf(g: GraphNode, position: { x: number; y: number }, isP
   if (physical(g)) {
     // a turntable: raised over everything, moved only by its axle (held)
     const role = typeof g.cell.params.body === 'string' ? 'resonator' : typeof g.cell.params.motor === 'number' ? 'motor' : typeof g.cell.params.write === 'string' ? 'tape' : 'belt';
-    return { id: g.id, type: 'material', position, draggable: false, zIndex: 10, data: { name: g.cell.name, size: (role === 'motor' ? 168 : 140) * g.cell.size, role, pinned: true } };
+    return { id: g.id, type: 'material', position, draggable: false, zIndex: 10, data: { name: g.cell.name, size: (role === 'motor' ? 168 : 140) * g.cell.size, role, pinned: true, ...(role === 'tape' && turn !== undefined ? { turn } : {}) } };
   }
   const size = (g.cell.root ? 176 : g.isMeter ? 148 : 128) * g.cell.size;
   return { id: g.id, type: 'cell', position, data: { name: g.cell.name, isMeter: g.isMeter, size, pinned: isPinned } };
