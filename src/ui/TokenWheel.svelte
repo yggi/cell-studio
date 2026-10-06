@@ -7,6 +7,7 @@
    * (an empty braid: the 12 grid) faintly.
    */
   import { polar, ringSegment } from '../layout/geometry';
+  import { fitFont } from '../layout/dial';
 
   export interface WheelToken {
     readonly label: string;
@@ -62,7 +63,13 @@
   const under = (t0: number, t1: number) => hand !== null && ((hand - t0) % 1 + 1) % 1 < t1 - t0;
   const fill = (t: WheelToken, band: number) =>
     t.hues?.length ? noteColour(t.hues[band % t.hues.length], dim) : t.kind === 'rest' ? 'var(--wheel-rest)' : 'var(--wheel-ref)';
-  const fontFor = (span: number, label: string) => Math.max(9, Math.min(16, (span * Math.PI * 2 * (r0 + r1)) / 2 / Math.max(2, label.length) * 1.3));
+  // a step's label (written across) fits both its arc and the ring's width — at 3 and 9 o'clock the width is
+  // what it crosses; at least 7 px: the editor keeps every label
+  const fontFor = (span: number, label: string) =>
+    Math.max(7, fitFont(Math.min(span * Math.PI * (r0 + r1), r1 - r0) * 0.9, Math.max(2, label.length), Math.min(16, (r1 - r0) * 0.5), 0) ?? 7);
+  // the hub, laid out as at 232 px and scaled with the wheel; its text fits the hub
+  const u = $derived(size / 232);
+  const hubWidth = $derived(2 * (r0 - 4) * 0.86);
 </script>
 
 <svg data-wheel="token" width={size} height={size} viewBox="0 0 {size} {size}" class:dim role="group" aria-label="braid">
@@ -109,9 +116,9 @@
   {/if}
   <g class="hubbtn" role="button" tabindex="0" aria-label="Edit the whole braid" onclick={onhub} onkeydown={(e) => (e.key === 'Enter' || e.key === ' ') && onhub()}>
     <circle cx={c} cy={c} r={r0 - 4} class="hub" />
-    <text x={c} y={c - 6} class="big" font-size={hub.big.length > 6 ? 14 : 20}>{hub.big}</text>
-    <text x={c} y={c + 12} class="small">{hub.small}</text>
-    <text x={c} y={c + 28} class="pen">✎</text>
+    <text x={c} y={c - 6 * u} class="big" style:font-size="{fitFont(hubWidth, hub.big.length, 20 * Math.max(0.6, u), 0) ?? 9}px">{hub.big}</text>
+    <text x={c} y={c + 12 * u} class="small" style:font-size="{fitFont(hubWidth, hub.small.length, 11 * Math.max(0.8, u), 0) ?? 8}px">{hub.small}</text>
+    {#if size >= 160}<text x={c} y={c + 28 * u} class="pen">✎</text>{/if}
   </g>
 </svg>
 

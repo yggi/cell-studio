@@ -11,7 +11,26 @@ and keeps one screenshot per **kind**: where it sits (`graph`, `petal`, `sheet`,
 unrouted > off) replaces the one kept. For each graph kind it also opens one cell's sheet and keeps
 the sheet's wheels.
 
-## Run
+## Fast or real
+- **Fast** (`--fast`, ~15 s, no build): `tools/wheels/harness.html` mounts every kind of wheel directly, as the
+  graph mounts it (`src/ui/flownode.ts`), in its piece's live state at a moment (`liveAt`) with a made-up
+  sound (`tools/wheels/sound.ts`), each at a ladder of sizes (44, 64, 96 and its own) beside its sheet; plus the
+  library's piece wheels (five tags, one, none) and the braid's token wheel. Use it while iterating, and for
+  anything about size. The spectra show the made-up sound, not the piece's.
+- **Real** (default, ~2 min, needs a build): every piece opened and played in the app, the wheels cropped from
+  the graph as it lays them out. Use it to check the real thing before a PR: layout, real spectra, sheets as they open.
+
+```
+CHROME_PATH=/opt/pw-browsers/chromium node tools/wheels.mjs --fast                 # every kind; shots/wheels-fast/
+node tools/wheels.mjs --fast 5 Hypercell Metronome                                 # 5 s in, these pieces only
+SIZES=32,44,64 STOPPED=1 OUT=shots/fast-before node tools/wheels.mjs --fast        # other sizes, stopped, elsewhere
+```
+Fast writes `sheet.png` (the whole harness page), `tiles/<kind>.png` (one per kind: its sizes and its sheet),
+`index.html` and `wheels.json`; it fails on a page error. To compare a change: run it on the base commit
+(`git stash`) with `OUT=shots/fast-before`, then on the change; the tiles pair up by name. Open the harness
+yourself with `npx vite` and `/tools/wheels/harness.html?t=3&only=hypercell&sizes=44,64`.
+
+## Run (real)
 ```
 npm run build
 CHROME_PATH=/opt/pw-browsers/chromium node tools/wheels.mjs            # all pieces, 3 s in; ~2 min

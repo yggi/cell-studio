@@ -5,7 +5,7 @@
   import { BORDER, border, coarsen } from '../layout/coarse';
   import { names, noteLabel, tonicOf, voiceBase } from '../layout/show';
   import { polar, ringSegment } from '../layout/geometry';
-  import { angleOf, turnDelta } from '../layout/dial';
+  import { angleOf, fitFont, hubMax, turnDelta } from '../layout/dial';
   import { mod } from '../theory/modes';
   import { getGraphContext } from './context';
 
@@ -17,7 +17,11 @@
   const ctx = getGraphContext();
 
   const c = $derived(size / 2);
-  const rOuter = $derived(c - 7);
+  // the margin round the rim (ticks, the playhead's tip, the notch): 7 px at 128 and up, less on a smaller wheel
+  const margin = $derived(Math.min(7, size * 0.055));
+  const rOuter = $derived(c - margin);
+  // a smaller wheel's marks scale with it (as at 128 px and up)
+  const k = $derived(Math.min(1, size / 128));
   const rInner = $derived(c * 0.44);
   const EPS = 1e-9;
 
@@ -162,6 +166,12 @@
   const label = $derived(
     cell ? hubLabel(ctx.program, name, shown, isMeter, hasLive ? bar : null) : { big: '', small: '' },
   );
+  // the hub's text fits the hub, or is left out (a petal's hub has room for a number, not a sentence); its
+  // second line from 80 px up
+  const hubWidth = $derived(2 * (rInner - 3) * 0.86);
+  const bigFont = $derived(fitFont(hubWidth, label.big.length, hubMax(size)));
+  const smallFont = $derived(size >= 80 && label.small ? fitFont(hubWidth, label.small.length, 11, 7) : null);
+  const curveFont = $derived(fitFont(rOuter * 1.6, label.small.length, 11, 7));
 
   // an accidental is striped: its own colour and the natural's (a semitone back for a sharp)
   const uid = `g${Math.random().toString(36).slice(2, 8)}`;
@@ -235,9 +245,9 @@
 
   const ticks = $derived(
     view.ticks <= 48
-      ? Array.from({ length: view.ticks }, (_, k) => {
-          const [x1, y1] = polar(c, c, rOuter + 1.5, k / view.ticks);
-          const [x2, y2] = polar(c, c, rOuter + 5, k / view.ticks);
+      ? Array.from({ length: view.ticks }, (_, i) => {
+          const [x1, y1] = polar(c, c, rOuter + 1.5 * k, i / view.ticks);
+          const [x2, y2] = polar(c, c, rOuter + 5 * k, i / view.ticks);
           return { x1, y1, x2, y2 };
         })
       : [],
@@ -301,7 +311,7 @@
   });
   // a meter's beats, numbered
   const beatLabels = $derived.by(() => {
-    if (!isMeter || view.mode !== 'grid' || view.segments.length > 16) return [];
+    if (!isMeter || view.mode !== 'grid' || view.segments.length > 16 || size < 64) return [];
     const r = (rInner + rOuter) / 2;
     return view.segments.map((sg, i) => {
       const [x, y] = polar(c, c, r, (sg.t0 + sg.t1) / 2);
@@ -374,7 +384,7 @@
       {/each}
     </defs>
   {/if}
-  <circle class="disc" cx={c} cy={c} r={rOuter + 6} />
+  <circle class="disc" cx={c} cy={c} r={rOuter + margin - 1} />
   {#each ticks as t}<line class="tick" x1={t.x1} y1={t.y1} x2={t.x2} y2={t.y2} />{/each}
   {#snippet slots()}
     {#each geometry as slot, i}
@@ -431,15 +441,15 @@
   <circle class="hub" cx={c} cy={c} r={rInner - 3} />
   {/if}
   {#if curve}
-    {#if size >= 80}<text class="small" x={c} y={c + rOuter * 0.55} dy="0.35em">{label.small}</text>{/if}
+    {#if size >= 80 && curveFont}<text class="small" x={c} y={c + rOuter * 0.55} dy="0.35em" style:font-size="{curveFont}px">{label.small}</text>{/if}
   {:else}
-  <text class="big" class:long={label.big.length > 5} class:pop onanimationend={() => (pop = false)} x={c} y={c} dy={label.small ? '0.1em' : '0.35em'}>{label.big}</text>
-  {#if label.small}<text class="small" x={c} y={c} dy="1.6em">{label.small}</text>{/if}
+  {#if bigFont}<text class="big" class:pop onanimationend={() => (pop = false)} x={c} y={c} dy={smallFont ? '0.1em' : '0.35em'} style:font-size="{bigFont}px">{label.big}</text>{/if}
+  {#if smallFont}<text class="small" x={c} y={c + (bigFont ?? 0) * 0.1} dy="1.45em" style:font-size="{smallFont}px">{label.small}</text>{/if}
   {/if}
-  {#if shownShift !== 0}<text class="shift" x={c} y={c - rInner + 14}>{shownShift > 0 ? '+' : ''}{shownShift}</text>{/if}
+  {#if shownShift !== 0 && size >= 80}<text class="shift" x={c} y={c - rInner * 0.5}>{shownShift > 0 ? '+' : ''}{shownShift}</text>{/if}
   {#if hand !== null}
     <g class="hand" style="transform: rotate({hand * 360}deg); transform-origin: {c}px {c}px">
-      <line x1={c} y1={c - rInner + 3} x2={c} y2={c - rOuter - 6} />
+      <line x1={c} y1={c - rInner + 3} x2={c} y2={c - rOuter - margin + 1} style:stroke-width="{Math.max(1.2, 2.5 * k)}px" />
     </g>
   {/if}
   {#each [...accessed] as i (i)}
@@ -448,9 +458,9 @@
     <circle class="read" cx={p.x} cy={p.y} r={Math.max(2.2, size * 0.022)} />
   {/each}
   {#if zero !== null}
-    {@const a = polarAt(zero, rOuter + 1)}
-    {@const b = polarAt(zero - 0.018, rOuter + 7)}
-    {@const d = polarAt(zero + 0.018, rOuter + 7)}
+    {@const a = polarAt(zero, rOuter + 1 * k)}
+    {@const b = polarAt(zero - 0.018, rOuter + margin)}
+    {@const d = polarAt(zero + 0.018, rOuter + margin)}
     <path class="zero" d="M{a.x},{a.y} L{b.x},{b.y} L{d.x},{d.y} Z" />
   {/if}
 </svg>
@@ -564,9 +574,6 @@
     fill: var(--text);
     font-size: 17px;
     font-weight: 700;
-  }
-  .big.long {
-    font-size: 12px;
   }
   .small {
     fill: var(--text-muted);

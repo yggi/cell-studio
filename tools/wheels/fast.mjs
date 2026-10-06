@@ -1,0 +1,65 @@
+// The fast contact sheet (`node tools/wheels.mjs --fast`): the harness (harness.html) sets every kind of
+// wheel up directly — no piece played, no layout settling — so the sheet takes seconds, not minutes, and
+// shows each wheel at a ladder of sizes. Served by vite's dev server from the working tree (no build).
+//
+//   node tools/wheels.mjs --fast                      # every example, 3 s in
+//   node tools/wheels.mjs --fast 5 Hypercell Metronome   # 5 s in, only these pieces
+//   SIZES=32,44,64 STOPPED=1 OUT=shots/fast node tools/wheels.mjs --fast
+//
+// Writes <OUT>/sheet.png (the whole page), <OUT>/tiles/<kind>.png (one per kind: its sizes and its sheet),
+// <OUT>/index.html (the tiles) and <OUT>/wheels.json. OUT defaults to shots/wheels-fast.
+import { createServer } from 'vite';
+import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { chromium } from '../profile/playwright.mjs';
+
+const args = process.argv.slice(2).filter((a) => a !== '--fast');
+// (the seconds are optional: a first word that isn't a number is a piece's)
+const [secs, ...only] = args.length && !Number.isNaN(Number(args[0])) ? args : ['3', ...args];
+const out = process.env.OUT ?? 'shots/wheels-fast';
+const scale = Number(process.env.SCALE ?? 2);
+rmSync(join(out, 'tiles'), { recursive: true, force: true });
+mkdirSync(join(out, 'tiles'), { recursive: true });
+
+const server = await createServer({ server: { port: 0, host: '127.0.0.1' }, logLevel: 'error' });
+await server.listen();
+const q = new URLSearchParams({ t: secs });
+if (only.length) q.set('only', only.join(','));
+if (process.env.SIZES) q.set('sizes', process.env.SIZES);
+if (process.env.STOPPED) q.set('stopped', '');
+const url = `${server.resolvedUrls.local[0]}tools/wheels/harness.html?${q}`;
+const browser = await chromium.launch({ args: ['--no-sandbox'] });
+const page = await browser.newPage({ viewport: { width: 1500, height: 1000 }, deviceScaleFactor: scale });
+const problems = [];
+page.on('pageerror', (e) => problems.push(e.message));
+page.on('console', (m) => m.type() === 'error' && !/Failed to load resource/.test(m.text()) && problems.push(m.text()));
+page.on('response', (r) => r.status() >= 400 && !/favicon/.test(r.url()) && problems.push(`${r.status()} ${r.url()}`));
+await page.goto(url);
+await page.waitForSelector('figure[data-kind]', { timeout: 60000 });
+await page.waitForTimeout(1500); // (the spectra fill in from the made-up sound)
+const kinds = await page.$$eval('figure[data-kind]', (fs) =>
+  fs.map((f) => ({ key: f.dataset.kind, caption: f.querySelector('figcaption')?.textContent?.replace(/\s+/g, ' ').trim() ?? '', wheels: [...f.querySelectorAll('[data-wheel]')].map((w) => [w.dataset.wheel, w.dataset.mode, w.dataset.show].filter(Boolean).join(':')) })),
+);
+const slug = (s) => s.replace(/[^\w@]+/g, '-').replace(/^-|-$/g, '').toLowerCase();
+const figures = page.locator('figure[data-kind]');
+for (const [i, k] of kinds.entries()) {
+  k.file = `${slug(k.key)}.png`;
+  await figures.nth(i).screenshot({ path: join(out, 'tiles', k.file) });
+}
+await page.screenshot({ path: join(out, 'sheet.png'), fullPage: true });
+await browser.close();
+await server.close();
+
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+writeFileSync(
+  join(out, 'index.html'),
+  `<!doctype html><meta charset="utf-8"><title>Wheels (fast)</title><style>body{margin:0;padding:20px;background:#1f222b;color:#e6e8ee;font:13px system-ui}img{display:block;max-width:100%;margin:6px 0 18px}</style>
+<h1>Wheels (fast)</h1><p>${kinds.length} kinds · ${esc(secs)} s in${only.length ? ' · ' + esc(only.join(', ')) : ''}</p>
+${kinds.map((k) => `<div>${esc(k.caption)}</div><img src="tiles/${esc(k.file)}" alt="${esc(k.key)}">`).join('\n')}${problems.length ? `<h2>Problems</h2><pre>${esc(problems.join('\n'))}</pre>` : ''}`,
+);
+writeFileSync(join(out, 'wheels.json'), JSON.stringify(kinds, null, 1));
+console.log(`${kinds.length} kinds → ${join(out, 'sheet.png')}, ${join(out, 'index.html')}`);
+if (problems.length) {
+  console.log(`${problems.length} problems:\n  ` + problems.slice(0, 20).join('\n  '));
+  process.exitCode = 1;
+}
