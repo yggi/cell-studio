@@ -7,9 +7,10 @@ The code is the single source of truth. The graph draws exactly the cells and li
 ## Drawing
 
 - **Braids** are drawn as what they play: every `&ref` is expanded all the way down and coloured through the cell's own table, so `&leadA` (made of `&m1 &m2`) wears the motifs' colours, and a cell of cells of motifs too.
-- **Voices, mixes and the sound card** are wheels that don't spin: a spectral waterfall. Left channel on the left half, right on the right; 20 Hz meets at the bottom, 20 kHz at the top (log scale); the newest frame at the hub, flowing outward. Colour is frequency — red at 20 Hz to deep violet at 20 kHz — and brightness is level. At rest a voice shows its own partials at pitch 0.
+- **Voices, mixes and the sound card** are wheels that don't spin: a spectral waterfall. Left channel on the left half, right on the right; 20 Hz meets at the bottom, 20 kHz at the top (log scale); the newest frame at the hub, flowing outward. Colour is frequency — red at 20 Hz to deep violet at 20 kHz — and brightness is level. At rest a voice shows its own partials at pitch 0, lifted so they read, inside a rim.
 - Roots sit at the centre; cells ring outward along the tables they read through. Tables (roots, scales, meters) are drawn as their entries on the grid below; melodies as slots in time.
 - While playing, every table a note passes through lights the entry it used.
+- The playhead is white with a dark edge on every wheel (live edges are yellow: the two don't mix). An envelope (`show=adsr`) names its values on its curve from 112 px up (A 3 ms, D 180 ms, S 10 %, R 60 ms); in a braid's sheet a written number shows to three figures.
 - A played braid's moving shift is its playhead; a restarted part's playhead shows the global clock (see [../limits.md](../limits.md)).
 
 ## States
