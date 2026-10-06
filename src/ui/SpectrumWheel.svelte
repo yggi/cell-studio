@@ -23,7 +23,11 @@
   const FRAMES = 18;
   // (the wheel is a soft field of colour: 1.5 × the layout size is plenty, and 3/4 the pixels of 2 ×)
   const scale = typeof devicePixelRatio === 'number' ? Math.min(1.5, devicePixelRatio) : 1;
-  const px = $derived(Math.round(size * scale));
+  // The canvas is drawn at the size it is seen: the graph's zoom shrinks a wheel to a few dozen pixels, and
+  // painting (and analysing) the full size for that is wasted. `seen` is on-screen size / layout size,
+  // measured twice a second; the canvas steps by 16 px so a pinch doesn't rebuild the lookup each frame.
+  let seen = $state(1);
+  const px = $derived(Math.max(32, Math.min(Math.round(size * scale), Math.ceil((size * seen * scale) / 16) * 16)));
   const lut = $derived(wheelLUT(px, px * 0.24, px * 0.47, BANDS, FRAMES));
 
   // history[side][frame][band], frame 0 newest
@@ -125,7 +129,10 @@
   function frame(t: number) {
     raf = requestAnimationFrame(frame);
     if (!visible || document.hidden) return;
-    if (t - last < 66 * load.scale * (quiet > FRAMES ? 2 : 1)) return; // ~15 a second: plenty for a spectrum (fewer when the page is busy)
+    // (a wheel seen small — the graph zoomed out to take in a whole piece — is read less often: every read of
+    // its analysers is a Fourier transform, and a few dozen pixels can't show 15 a second)
+    const small = size * seen < 56 ? 3 : size * seen < 90 ? 2 : 1;
+    if (t - last < 66 * load.scale * small * (quiet > FRAMES ? 2 : 1)) return; // ~15 a second: plenty for a spectrum (fewer when the page is busy)
     last = t;
     // (in the hidden tab the box is still in view, just not shown: ask the element itself — twice a
     // second, not every frame: the question is not free)
@@ -133,6 +140,8 @@
       checked = t;
       const el = canvas as HTMLCanvasElement & { checkVisibility?: (o?: object) => boolean };
       shown = !el.checkVisibility || el.checkVisibility({ visibilityProperty: true, opacityProperty: true });
+      const w = el.getBoundingClientRect().width;
+      if (w > 0 && Math.abs(w / size - seen) > 0.1 * seen) seen = w / size;
     }
     if (!shown) return;
     const playing = !!ctx.live;
@@ -166,6 +175,12 @@
       fillResting();
       draw();
     }
+  });
+
+  // (a canvas that changes size is cleared: paint it again from the history)
+  $effect(() => {
+    void px;
+    if (canvas) draw();
   });
 
   let watch: IntersectionObserver | null = null;
