@@ -29,6 +29,7 @@ The full hierarchy of `docs/`. Start with [MEMORY.md](MEMORY.md).
 - [ui/graph.md](ui/graph.md) — drawing, arrangement, touch
 - [ui/editor.md](ui/editor.md) — editing in the graph and the code editor
 - [ui/shorten.md](ui/shorten.md) — Shorten and its promise
+- [ui/transport.md](ui/transport.md) — play, seek, sections, render
 - [ui/theme.md](ui/theme.md) — colours, sizes, motion
 
 ## Directories

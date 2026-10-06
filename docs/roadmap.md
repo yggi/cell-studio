@@ -4,11 +4,12 @@ The big jobs, at a high level. Detail lives in the issues — this page names ep
 
 | epic | what | issues |
 |---|---|---|
-| Language | selectors everywhere, `restart=`, scale-step inversion, pitch drop, `gate()`; wish list: slides, gamelan, tempo canon, chorale, tintinnabuli, Web MIDI out, share links | #10 |
-| FM | voices as pitch sources, feedback and operator loops (decision pending) | #17 |
-| Engine and audio | per-note levels for noise, belts and flutter, off-main-thread engine | #14, #15 |
-| Presets | one `.cells` file per piece, generated catalogue | #8 |
+| Language | a systematic pass before more features: inventory, orthogonality, errors, laws, time, naming, a tutorial | #10 |
+| Audio engine | worker, dropping Tone, worklets (FM feedback, coupled resonators), a shared WASM core | #14 (#15, #16, #17, #18) |
+| Examples | lazy loading, a build-time index, the catalogue generated from the files | #8 |
 | Library | the picker and its graph | #12 |
-| Layout and visual bugs | cluster placement, wide pieces | #11 |
-| Performance | live views cost on large graphs | #13 |
-| Docs and agents | this documentation, AGENTS.md, CI | #5, #6, #7 |
+| Visual bugs | active/inactive detection of cells and edges | #11 |
+| Performance | live views' cost on large graphs: the first slice is done | #13 (closed) |
+| Refactoring | `voices.ts`, large engine files, UI plumbing, lint | #9 |
+| Deployment | PWA, PR workflow | #7 |
+| Agents | AGENTS.md follow-ups | #6 |

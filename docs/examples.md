@@ -1,6 +1,6 @@
 # Examples
 
-The pieces that ship with Cell studio (`src/engine/presets.ts`, 52 of them), grouped by what they show. Open one from the title in the header ([ui/library.md](ui/library.md)). When the pieces move to `examples/*.cells` (#8) this page will be generated from their `title=`, `tags=` and `label=`, so edit those, not this table.
+The pieces that ship with Cell studio, one plain-text file each in `examples/*.cells` (52 of them), grouped here by what they show. Open one from the title in the header ([ui/library.md](ui/library.md)). The table is written by hand; generating it from the files' `title=`, `tags=` and `label=` is still to do (#8).
 
 ## The language, small
 

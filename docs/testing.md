@@ -18,12 +18,14 @@ Tests are `*.test.ts` beside their source, in node: they can only cover `engine/
 - Parser: `parser.test.ts`. Compile: `compile.test.ts`, `duration.test.ts`, `physics.test.ts`, `fiveto12.test.ts`.
 - Realize (what sounds): `realize.test.ts` (notes, times, levels, per example), `tape.test.ts`, `resonator.test.ts`, `fm.test.ts`, `wave.test.ts`; `edit.test.ts` for line rewrites.
 - Layout: `src/layout/*.test.ts` (belts, cellview, describe, dial, geometry, labels, physics, show, spectrum).
+- Examples: `src/engine/examples.test.ts` — every `examples/*.cells` file is listed, compiles with zero diagnostics, and has a title, tags and `level=`.
+- Docs: `src/docs.test.ts` — see the last section.
 - UI helpers: `src/ui/colour`, `highlight`, `suggest` tests.
 
 ## Promises
 
 - Shorten (`src/engine/compress.ts`) preserves every note: `compress.test.ts` runs `shorten` on every preset; each suggestion is shorter and `sounds()` is identical (events from `plan` + `eventsBetween`). `shortenAll` is tested too.
-- BWV 847: `src/engine/bwv847.reference.json` (written by `tools/bwv847.py` from the CCARH encoding, embedded via `tools/embed_bwv847.py`) is checked note by note in `realize.test.ts`: onset, length and pitch per voice, as sounded through the tempo map.
+- BWV 847: `tools/bwv847.reference.json` (written by `tools/bwv847.py` from the CCARH encoding, which also writes `examples/bwv847.cells`) is checked note by note in `realize.test.ts`: onset, length and pitch per voice, as sounded through the tempo map.
 - Counterpoint: the Ricercar's passes obey the species rules in `realize.test.ts` (`problems(...)` on what sounds, also per tonos). `tools/counterpoint.py` searched for the lines under the same species rules.
 - Loudness: not in vitest (needs Web Audio). Measure in the browser with `window.cellStudio` (defined in `src/App.svelte`):
   - `await cellStudio.measure(seconds?)` renders offline, returns `{ rms, peak, clipped }` (dB below full scale; `clipped` counts samples at the ceiling).

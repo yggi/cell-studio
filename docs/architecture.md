@@ -32,7 +32,7 @@ code text (App.svelte `code`)
 - `duration.ts`: piece length / loop cycle (`pieceTime`, `sections`, `mainTempo`).
 - `compress.ts`: Shorten (`shorten`, `shortenAll`).
 - `physics.ts` (motors, friction, belts: warps a clock's time map), `fm.ts` (Bessel spectrum), `wave.ts` (a voice's braid as waveform).
-- `dough-params.ts`: sound parameter names. `presets.ts`: the examples (`PRESETS`). `fiveto12.ts`: the day-long cycle.
+- `dough-params.ts`: sound parameter names. `presets.ts`: the examples (`PRESETS`): it reads `examples/*.cells` (one plain-text piece per file, the format users save) with an eager `import.meta.glob`; `examples.test.ts` checks every file compiles clean and has a title, tags and `level=`. `fiveto12.ts`: the day-long cycle.
 - Tape and resonator have no file of their own; they live in parser/compile/realize (tests: `tape.test.ts`, `resonator.test.ts`).
 
 ## src/layout (pure drawing logic)
@@ -43,10 +43,12 @@ code text (App.svelte `code`)
 
 `player.ts` (Player), `voices.ts` (createVoices, VoiceBank), `clock.svelte.ts` (reactive transport position), `render.ts` (offline render, WAV, `loudness`), `load.ts` (eases view refresh under load; sound is unaffected).
 
+Scheduling: Tone's context is made for playback (`latencyHint: 'playback'`) with a 0.3 s look-ahead (0.12 s for pieces with hands, so a grabbed motor answers quickly); the sound itself runs on the audio thread, so a busy main thread delays scheduling (covered by the look-ahead), not the sound. Live views refresh about 24 times a second (spectrum wheels 15, and only while on screen) and stretch their interval when frames come late. Details and measurements: `tools/profile/README.md`.
+
 ## Elsewhere
 
 - `src/ui/`: Svelte components by role. Graph and nodes: `Graph`, `MiniGraph`, `LibraryGraph`, `FitView`, `CellNode`, `PieceNode`, `VoiceNode`, `MaterialNode`, `ScopeNode`, `SunNode`, `CellLink`, `BeltEdge`, `PulseEdge`, `GraphLegend`. Cell drawing: `CellGlyph`, `WaveGlyph`, `SpectrumWheel`, `ScopeView`, `PieceWheel`. Editing: `Editor`, `EditPop`, `StepEditor`, `HubEditor`, `TokenWheel`, `Keypad`, `Picker`, `CellSheet`, `CellFacts`, `ParamRows`, `Free*`, `ForcesPanel`, shared `Shorten`, `Transport`. Helpers: `theme.ts`, `highlight.ts`, `suggest.ts`, `tags.ts`, `context.ts`, `types.ts`, `longpress.ts`.
 - `src/theory/modes.ts`: names, modes, `scan`, hues. `src/library.ts`: saved pieces (localStorage) and `.cells` files; always reports unavailable storage instead of failing.
 - `src/App.svelte`: owns `code`, derives `result`/`plan`, wires `Player`, saving, render, and `window.cellStudio`. `src/main.ts` mounts it.
-- `tools/`: Python generators (`bwv847.py`, `kern2cells.py`, `embed_bwv847.py`, `counterpoint.py`) and `tools/profile/` scripts.
+- `tools/`: Python generators (`bwv847.py` writes `examples/bwv847.cells`; `kern2cells.py`, `counterpoint.py`) and `tools/bwv847.reference.json` and `tools/profile/` scripts.
 - `.github/workflows/`: `ci.yml` (check, test, build), `deploy.yml`.
