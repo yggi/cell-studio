@@ -11,6 +11,7 @@
   import { adsrOf, resolvePitch, semitones } from '../engine/compile';
   import { voiceBase } from '../layout/show';
   import { noteColour } from './theme';
+  import { load, watchLoad } from '../audio/load';
 
   let { name, w = 240, h = 150, round = false }: { name: string; w?: number; h?: number; round?: boolean } = $props();
   const d = $derived({ name });
@@ -142,13 +143,14 @@
     // only a scope that can be seen does any work (off screen, or the page in the background, it reads
     // no analysis and draws nothing) — as the spectrum wheels do
     let visible = true;
+    watchLoad();
     const watch = typeof IntersectionObserver !== 'undefined' && root ? new IntersectionObserver((es) => (visible = es.some((e) => e.isIntersecting))) : null;
     if (watch && root) watch.observe(root);
     const tick = (t: number) => {
       raf = requestAnimationFrame(tick);
       if (!visible || document.hidden) return;
       // waveforms ~30 a second; a spectrum (an 8192-point analysis per channel) ~15: plenty for the eye
-      if (t - last < (spectral ? 66 : 33)) return;
+      if (t - last < (spectral ? 66 : 33) * load.scale) return;
       last = t;
       const now = ctx.live?.seconds ?? 0;
       if (spectral) {

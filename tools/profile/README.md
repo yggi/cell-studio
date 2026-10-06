@@ -10,9 +10,10 @@ device, so this measures the page, not audible glitches; use a real phone for th
 
     # where the time goes: build unminified, sample with the CDP profiler, aggregate
     npx vite build --minify false --outDir /tmp/dist-nomin && npx vite preview --outDir /tmp/dist-nomin --port 4174 &
-    node tools/profile/cpu.mjs http://localhost:4174/ "Hypercell" 15    # writes profile-Hypercell.json
+    THROTTLE=4 node tools/profile/cpu.mjs http://localhost:4174/ "Hypercell" 15    # writes profile-Hypercell.json
     node tools/profile/agg.mjs profile-Hypercell.json                   # self / inclusive time by function
     node tools/profile/names.mjs scheduling,tick,flush profile-*.json   # inclusive % of named functions
+    node tools/profile/lines.mjs profile-Hypercell.json /tmp/dist-nomin/index.html   # inclusive % by source line (shows the code)
 
     # engine cost without a browser (compile / plan / events per example):
     npx vite-node tools/profile/engine-time.ts

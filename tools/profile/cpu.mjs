@@ -9,6 +9,7 @@ await p.getByRole('radio', { name: 'Cards' }).click();
 await p.locator('input.search').fill(title); await p.waitForTimeout(300);
 await p.locator('button.open').first().dispatchEvent('click'); await p.waitForTimeout(2000);
 const cdp = await c.newCDPSession(p);
+await cdp.send('Emulation.setCPUThrottlingRate', { rate: Number(process.env.THROTTLE ?? 1) });
 await cdp.send('Profiler.enable'); await cdp.send('Profiler.setSamplingInterval', { interval: 500 });
 await p.getByRole('button', { name: 'Play' }).click(); await p.waitForTimeout(4000);
 await cdp.send('Profiler.start'); await p.waitForTimeout(Number(secs) * 1000);

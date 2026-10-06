@@ -13,6 +13,7 @@
   import { freqHue, gridName } from '../engine/compile';
   import { noteName } from '../theory/modes';
   import { DOUGH_SOURCES } from '../engine/dough-params';
+  import { load, watchLoad } from '../audio/load';
 
   /** hub: what the hub says; without it, the note a voice sounds now (at rest, its pitch 0). */
   let { name, size = 120, hub: fixed = null }: { name: string; size?: number; hub?: { big: string; small: string } | null } = $props();
@@ -20,7 +21,8 @@
 
   const BANDS = 120; // a semitone each, C0 … B9
   const FRAMES = 18;
-  const scale = typeof devicePixelRatio === 'number' ? Math.min(2, devicePixelRatio) : 1;
+  // (the wheel is a soft field of colour: 1.5 × the layout size is plenty, and 3/4 the pixels of 2 ×)
+  const scale = typeof devicePixelRatio === 'number' ? Math.min(1.5, devicePixelRatio) : 1;
   const px = $derived(Math.round(size * scale));
   const lut = $derived(wheelLUT(px, px * 0.24, px * 0.47, BANDS, FRAMES));
 
@@ -117,27 +119,42 @@
   // background it reads no analysis and paints nothing (dozens of wheels, each analysing its voice every
   // frame, kept the page too busy to feed the sound)
   let visible = true;
+  let quiet = 0; // frames of silence in a row
+  let shown = true;
+  let checked = -1e9;
   function frame(t: number) {
     raf = requestAnimationFrame(frame);
     if (!visible || document.hidden) return;
-    // (in the hidden tab the box is still in view, just not shown: ask the element itself)
-    const el = canvas as HTMLCanvasElement & { checkVisibility?: (o?: object) => boolean };
-    if (el.checkVisibility && !el.checkVisibility({ visibilityProperty: true, opacityProperty: true })) return;
-    if (t - last < 66) return; // ~15 a second: plenty for a spectrum
+    if (t - last < 66 * load.scale * (quiet > FRAMES ? 2 : 1)) return; // ~15 a second: plenty for a spectrum (fewer when the page is busy)
     last = t;
+    // (in the hidden tab the box is still in view, just not shown: ask the element itself — twice a
+    // second, not every frame: the question is not free)
+    if (t - checked > 500) {
+      checked = t;
+      const el = canvas as HTMLCanvasElement & { checkVisibility?: (o?: object) => boolean };
+      shown = !el.checkVisibility || el.checkVisibility({ visibilityProperty: true, opacityProperty: true });
+    }
+    if (!shown) return;
     const playing = !!ctx.live;
     if (playing !== wasLive) {
       wasLive = playing;
       // play: start from an empty wheel; stop: back to the profile
-      if (playing) history.fill(0);
+      if (playing) (history.fill(0), (quiet = 0));
       else fillResting();
       draw();
     }
     const live = playing ? ctx.spectrum(name) : null;
     sounding = playing && !fixed ? ctx.note(name) : null;
     if (live) {
-      push(bandsFromFFT(live.left, live.sampleRate, BANDS), bandsFromFFT(live.right, live.sampleRate, BANDS));
-      draw();
+      const l = bandsFromFFT(live.left, live.sampleRate, BANDS);
+      const r = bandsFromFFT(live.right, live.sampleRate, BANDS);
+      // a wheel that has been silent for its whole history is blank already: nothing to age or paint
+      if (l.some((v) => v > 0) || r.some((v) => v > 0)) quiet = 0;
+      else if (quiet <= FRAMES) quiet++;
+      if (quiet <= FRAMES) {
+        push(l, r);
+        draw();
+      }
     }
   }
 
@@ -155,6 +172,7 @@
   onMount(() => {
     fillResting();
     draw();
+    watchLoad();
     raf = requestAnimationFrame(frame);
     if (typeof IntersectionObserver !== 'undefined') {
       watch = new IntersectionObserver((es) => (visible = es.some((e) => e.isIntersecting)));
