@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { codeShifts, compileSource, type Shifts } from '../engine/compile';
+import { compileSource } from '../engine/compile';
+import { codeShifts, type Shifts } from '../engine/program';
 import { cellView, hubLabel, isGrid } from './cellview';
 import { PRESETS } from '../engine/presets';
 

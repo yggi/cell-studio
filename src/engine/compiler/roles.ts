@@ -1,7 +1,7 @@
 /** Phase 8: attributes where they do nothing — each acts on some roles only (attributes.ts): warnings. */
 import type { Span } from '../ast';
 import { ATTRIBUTES, rolesText, type Role } from '../attributes';
-import type { ResolvedCell } from '../compile';
+import type { ResolvedCell } from '../program';
 import type { Ctx } from './context';
 
 export function checkRoles(ctx: Ctx): void {

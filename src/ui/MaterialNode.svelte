@@ -10,7 +10,7 @@
   import { Handle, Position, useSvelteFlow, type NodeProps } from '@xyflow/svelte';
   import { getGraphContext, nodeState } from './context';
   import { clocking } from '../engine/clocking';
-  import { BODIES } from '../engine/compile';
+  import { BODIES } from '../engine/program';
   import { onFrames } from '../audio/ticker';
   import { timed } from '../audio/stats';
   import FreePills from './FreePills.svelte';

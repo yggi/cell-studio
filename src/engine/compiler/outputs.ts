@@ -1,6 +1,6 @@
 /** Phase 6: the outputs — one per voice binding, articulated (the step= term starts notes; loop= terms bend). */
 import type { Span } from '../ast';
-import { adsrOf, pickSteps, pickText, type Output, type Resonance, type ResolvedCell, type TapeReturn } from '../compile';
+import { adsrOf, pickSteps, pickText, type Output, type Resonance, type ResolvedCell, type TapeReturn } from '../program';
 import { IMPLICIT } from './tables';
 import type { Bound } from './bindings';
 import type { Ctx } from './context';

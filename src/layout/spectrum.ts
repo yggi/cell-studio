@@ -12,7 +12,7 @@
 import { harmonics, waveform } from '../engine/wave';
 import { fmLines } from '../engine/fm';
 import { DOUGH_SOURCES } from '../engine/dough-params';
-import type { CompileResult, Shifts } from '../engine/compile';
+import type { CompileResult, Shifts } from '../engine/program';
 
 /** C0. Bands are a semitone wide, centred on notes: the range runs half a semitone below C0, ten octaves up. */
 export const C0 = 16.3516;

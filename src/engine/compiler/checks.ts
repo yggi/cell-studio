@@ -1,5 +1,5 @@
 /** Phase 5: what the physical and sounding cells refer to, and what their values say — resonators, tapes, FM, moving parameters, envelopes, grids. */
-import { BODIES } from '../compile';
+import { BODIES } from '../program';
 import { MOVING_PARAMS } from '../dough-params';
 import type { Ctx } from './context';
 

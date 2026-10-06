@@ -1,6 +1,6 @@
 /** Phase 2: the cells — each declaration resolved as a helix over its table, &refs followed (cycles caught). */
 import type { Atom, Binding, Span } from '../ast';
-import { DEFAULT_FREQ, ROOT, pickSteps, pickText, type ResolvedCell } from '../compile';
+import { DEFAULT_FREQ, ROOT, pickSteps, pickText, type ResolvedCell } from '../program';
 import { VOICE_PARAMS } from '../attributes';
 import { scan as scanOf } from '../../theory/modes';
 import { gridSteps, lengthOf as lengthIn, tableOf, unitsOf as unitsIn } from './tables';

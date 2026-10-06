@@ -10,7 +10,8 @@
  *
  *   **bold**   *italic*   \n a new line
  */
-import { entries, resolvePitch, semitones, type CompileResult, type Shifts } from '../engine/compile';
+import type { CompileResult, Shifts } from '../engine/program';
+import { entries, resolvePitch, semitones } from '../engine/helix';
 import { flatten } from '../engine/flatten';
 import { modeName, mod } from '../theory/modes';
 

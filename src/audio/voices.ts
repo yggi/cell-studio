@@ -11,7 +11,7 @@
  */
 import { liveGains, outputSounds, type Played } from '../engine/realize';
 import { cellId } from '../engine/ids';
-import type { CompileResult, Shifts } from '../engine/compile';
+import type { CompileResult, Shifts } from '../engine/program';
 import { audioContext, type Disposable, type ToneNS } from './voice/nodes';
 import { buildVoice, freeVoice, playNote, type Built, type Bus, type Scope } from './voice/voice';
 import { bow, couple, damp, driveScale, resonanceOf, strikeAt } from './voice/resonator';

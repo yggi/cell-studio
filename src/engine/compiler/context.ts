@@ -1,6 +1,6 @@
 /** What every phase of compile() shares: the diagnostics, the declarations, the cells and clocks as they are built. */
 import type { CellDecl, Diagnostic, ParseResult, Span } from '../ast';
-import { noteFrequency, type Clock, type Env, type ResolvedCell } from '../compile';
+import { noteFrequency, type Clock, type Env, type ResolvedCell } from '../program';
 
 export interface Ctx {
   readonly parsed: ParseResult;

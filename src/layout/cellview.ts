@@ -3,13 +3,13 @@
  * a table placed on one lap of the grid below — scales, keys, meters) or a
  * *braid* (slots in time — melodies). Angles are in turns, 0 = 12 o'clock.
  */
-import { adsrOf, entries, period, positionHue,
-  positionOctave, resolvePitch, semitones, shiftedUnits, type CompileResult, type Shifts } from '../engine/compile';
+import { adsrOf, type CompileResult, type Shifts } from '../engine/program';
+import { entries, period, positionHue, positionOctave, resolvePitch, semitones, shiftedUnits } from '../engine/helix';
 import { effectiveShow, type Named, type Show } from './show';
 import { NOTE_NAMES, mod, modeName, pitchHue } from '../theory/modes';
 import { playedCells } from '../engine/clocking';
 import { flatten } from '../engine/flatten';
-import { resolveIn } from '../engine/compile';
+import { resolveIn } from '../engine/helix';
 
 /**
  * Drawn as a grid (entries placed on the grid below) only when it's looked

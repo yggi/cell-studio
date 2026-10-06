@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { codeShifts, compileSource } from '../engine/compile';
+import { compileSource } from '../engine/compile';
+import { codeShifts } from '../engine/program';
 import { cellView, type Fill, type Segment } from './cellview';
 import { BORDER, MAX_SEGMENTS, border, coarsen } from './coarse';
 

@@ -3,7 +3,7 @@
    * The piece's controls: every free() in it, grouped by the cell it's in (in the order of the code) —
    * a slider, a keypad, a text field. What they change plays, until kept (Save) or let go (Revert).
    */
-  import type { CompileResult } from '../engine/compile';
+  import type { CompileResult } from '../engine/program';
   import type { FreeSpec } from '../engine/ast';
   import Keypad from './Keypad.svelte';
 

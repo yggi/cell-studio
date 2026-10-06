@@ -1,5 +1,5 @@
 /** Phase 7: how cells are shown — a cell without over= through its first player's table; a resonator's exciters. */
-import { ROOT, type Exciter } from '../compile';
+import { ROOT, type Exciter } from '../program';
 import type { Ctx } from './context';
 
 export function displayCells(state: Ctx): void {

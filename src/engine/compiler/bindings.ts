@@ -2,7 +2,7 @@
 import type { Atom, Binding, Span } from '../ast';
 import { DOUGH_SOURCES } from '../dough-params';
 import { ATTRIBUTES, VOICE_PARAMS } from '../attributes';
-import type { ResolvedCell } from '../compile';
+import type { ResolvedCell } from '../program';
 import type { Ctx } from './context';
 
 export function bindVoices(ctx: Ctx, typed: (atom: Extract<Atom, { kind: 'mix' }>) => Binding[]) {

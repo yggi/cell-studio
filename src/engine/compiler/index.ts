@@ -3,7 +3,7 @@
  * refine one shared context (context.ts), in this order — the order of the diagnostics too.
  */
 import type { ParseResult } from '../ast';
-import type { AudioTape, CompileResult, Env, ResolvedCell } from '../compile';
+import type { AudioTape, CompileResult, Env, ResolvedCell } from '../program';
 import { context } from './context';
 import { declare } from './declare';
 import { sorts } from './sorts';

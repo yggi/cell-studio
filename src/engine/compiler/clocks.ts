@@ -1,5 +1,5 @@
 /** Phase 4: time — clocks (cells moved at a rate), every cell's steps per step of its clock, times given as clocks. */
-import { isPositional } from '../compile';
+import { isPositional } from '../program';
 import type { Ctx } from './context';
 
 export function clockCells(ctx: Ctx): void {
