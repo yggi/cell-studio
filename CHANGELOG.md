@@ -24,6 +24,7 @@ that makes the change. Also note changes to the language that could affect saved
 - Tests run without per-file isolation (faster).
 
 ### Developer
+- `TODO.md` is gone: its open work is in the issues (#27–#37), its known limits in `docs/limits.md`, the rest in `docs/`.
 - `tools/profile/trace.mjs`: a Chrome-trace breakdown of the browser's own time, with CSS ablation.
 - `tools/profile/`: scripts to measure main-thread load while a piece plays (Playwright + CDP) and to attribute it to code.
 - `.claude/skills/profile`: a Claude Code skill for using them (measure, attribute, compare before/after).
@@ -35,4 +36,4 @@ that makes the change. Also note changes to the language that could affect saved
 
 The first version in this repository, seeded from cell-studio-19 (#1) and deployed to gh-pages (#2).
 Earlier history was not kept; what 0.9.0 contains is described in the README (the language, the
-graph editor, the example pieces, offline WAV rendering) and in `TODO.md` (open questions and known limits).
+graph editor, the example pieces, offline WAV rendering).
