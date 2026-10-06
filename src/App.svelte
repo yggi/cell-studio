@@ -2,7 +2,8 @@
   import { noteColour } from './ui/theme';
   import { tick } from 'svelte';
   import { onDestroy } from 'svelte';
-  import { codeShifts, compileSource, type CompileResult } from './engine/compile';
+  import { compileSource } from './engine/compile';
+  import { codeShifts, type CompileResult } from './engine/program';
   import { addCell, declLine, setFree, setOff, setShift } from './engine/edit';
   import { freeIndex, freeList, withHeld } from './engine/held';
   import { buildGraph } from './engine/graph';

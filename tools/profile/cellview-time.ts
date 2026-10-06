@@ -3,7 +3,8 @@
 // time is in the reactive flush and DOM, not in the layout code.
 // usage: npx vite-node tools/profile/cellview-time.ts [examples/bwv847.cells] [seconds=60]
 import { readFileSync } from 'node:fs';
-import { compileSource, codeShifts } from '../../src/engine/compile';
+import { compileSource } from '../../src/engine/compile';
+import { codeShifts } from '../../src/engine/program';
 import { cellView } from '../../src/layout/cellview';
 import { shiftsAt, playedCells } from '../../src/engine/clocking';
 const file = process.argv[2] ?? 'examples/bwv847.cells';

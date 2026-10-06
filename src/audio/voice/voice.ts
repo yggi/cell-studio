@@ -3,8 +3,8 @@
  * spectrum tap), or a resonator's bodies in its place; and a note played on it — an oscillator (its braid as
  * the waveform, or a built-in one), or noise, each note its own source so it takes its own bends.
  */
-import type { CompileResult, Shifts } from '../../engine/compile';
-import { BODIES } from '../../engine/compile';
+import type { CompileResult, Shifts } from '../../engine/program';
+import { BODIES } from '../../engine/program';
 import { DOUGH_SOURCES } from '../../engine/dough-params';
 import type { Played } from '../../engine/realize';
 import type { ParamTrack } from '../../engine/series';

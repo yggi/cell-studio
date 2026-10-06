@@ -1,3 +1,8 @@
+<script lang="ts" module>
+  // (each one's own ids for its gradients: the same cell can be drawn twice at once)
+  let tables = 0;
+</script>
+
 <script lang="ts">
   /**
    * A physical cell (a meter with a motor, a belted cell) as a turntable: a raised disc of
@@ -10,7 +15,7 @@
   import { Handle, Position, useSvelteFlow, type NodeProps } from '@xyflow/svelte';
   import { getGraphContext, nodeState } from './context';
   import { clocking } from '../engine/clocking';
-  import { BODIES } from '../engine/compile';
+  import { BODIES } from '../engine/program';
   import { onFrames } from '../audio/ticker';
   import { timed } from '../audio/stats';
   import FreePills from './FreePills.svelte';
@@ -355,7 +360,7 @@
     return (body ?? []).map(([r]) => Math.max(0.3, 0.92 - Math.log2(Math.max(1, r)) * 0.18));
   });
   const ticks = Array.from({ length: 60 }, (_, i) => (i / 60) * 2 * Math.PI);
-  const uid = $derived(`mat-${d.name}`);
+  const uid = `mat${++tables}`;
 </script>
 
 <div

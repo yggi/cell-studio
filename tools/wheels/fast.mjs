@@ -5,6 +5,7 @@
 //   node tools/wheels.mjs --fast                      # every example, 3 s in
 //   node tools/wheels.mjs --fast 5 Hypercell Metronome   # 5 s in, only these pieces
 //   SIZES=32,44,64 STOPPED=1 OUT=shots/fast node tools/wheels.mjs --fast
+//   node tools/wheels.mjs --fast --mockups              # the design questions of #107 (Mockups.svelte)
 //
 // Writes <OUT>/sheet.png (the whole page), <OUT>/tiles/<kind>.png (one per kind: its sizes and its sheet),
 // <OUT>/index.html (the tiles) and <OUT>/wheels.json. OUT defaults to shots/wheels-fast.
@@ -13,10 +14,11 @@ import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { chromium } from '../profile/playwright.mjs';
 
-const args = process.argv.slice(2).filter((a) => a !== '--fast');
+const mockups = process.argv.includes('--mockups');
+const args = process.argv.slice(2).filter((a) => a !== '--fast' && a !== '--mockups');
 // (the seconds are optional: a first word that isn't a number is a piece's)
 const [secs, ...only] = args.length && !Number.isNaN(Number(args[0])) ? args : ['3', ...args];
-const out = process.env.OUT ?? 'shots/wheels-fast';
+const out = process.env.OUT ?? (mockups ? 'shots/wheel-mockups' : 'shots/wheels-fast');
 const scale = Number(process.env.SCALE ?? 2);
 rmSync(join(out, 'tiles'), { recursive: true, force: true });
 mkdirSync(join(out, 'tiles'), { recursive: true });
@@ -27,6 +29,7 @@ const q = new URLSearchParams({ t: secs });
 if (only.length) q.set('only', only.join(','));
 if (process.env.SIZES) q.set('sizes', process.env.SIZES);
 if (process.env.STOPPED) q.set('stopped', '');
+if (mockups) q.set('mockups', '');
 const url = `${server.resolvedUrls.local[0]}tools/wheels/harness.html?${q}`;
 const browser = await chromium.launch({ args: ['--no-sandbox'] });
 const page = await browser.newPage({ viewport: { width: 1500, height: 1000 }, deviceScaleFactor: scale });
@@ -35,6 +38,20 @@ page.on('pageerror', (e) => problems.push(e.message));
 page.on('console', (m) => m.type() === 'error' && !/Failed to load resource/.test(m.text()) && problems.push(m.text()));
 page.on('response', (r) => r.status() >= 400 && !/favicon/.test(r.url()) && problems.push(`${r.status()} ${r.url()}`));
 await page.goto(url);
+if (mockups) {
+  // the design questions (#107): a picture of each, and of the whole page
+  await page.waitForSelector('section[data-mock]', { timeout: 60000 });
+  await page.waitForTimeout(1500);
+  const sections = page.locator('section[data-mock]');
+  const names = await sections.evaluateAll((ss) => ss.map((s) => s.getAttribute('data-mock')));
+  for (const [i, n] of names.entries()) await sections.nth(i).screenshot({ path: join(out, `${n}.png`) });
+  await page.screenshot({ path: join(out, 'mockups.png'), fullPage: true });
+  await browser.close();
+  await server.close();
+  console.log(`${names.length} questions → ${out}/`);
+  if (problems.length) console.log(`${problems.length} problems:\n  ` + problems.slice(0, 20).join('\n  '));
+  process.exit(problems.length ? 1 : 0);
+}
 await page.waitForSelector('figure[data-kind]', { timeout: 60000 });
 await page.waitForTimeout(1500); // (the spectra fill in from the made-up sound)
 const kinds = await page.$$eval('figure[data-kind]', (fs) =>

@@ -4,7 +4,8 @@
    * its timing, the tables it reads down to its grid, its range, what plays it
    * (or what it plays), and for a mix every term in it.
    */
-  import { codeShifts, resolvePitch, semitones, tableChain, type CompileResult } from '../engine/compile';
+  import { codeShifts, type CompileResult } from '../engine/program';
+  import { resolvePitch, semitones, tableChain } from '../engine/helix';
   import { flatten } from '../engine/flatten';
   import { noteName } from '../theory/modes';
   import { isSelector, voiceBase } from '../layout/show';

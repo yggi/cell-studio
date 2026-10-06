@@ -3,7 +3,8 @@
  * it mentions as links; and its connections, grouped by how they relate.
  * For the detail view (the sheet): read at a glance, every cell one tap away.
  */
-import { adsrOf, codeShifts, entries, resolvePitch, semitones, type CompileResult } from '../engine/compile';
+import { adsrOf, codeShifts, type CompileResult } from '../engine/program';
+import { entries, resolvePitch, semitones } from '../engine/helix';
 import { modeName, mod, noteName } from '../theory/modes';
 import { isSelector, kindOf } from './show';
 import { lfoValues } from './cellview';

@@ -30,6 +30,12 @@ Fast writes `sheet.png` (the whole harness page), `tiles/<kind>.png` (one per ki
 (`git stash`) with `OUT=shots/fast-before`, then on the change; the tiles pair up by name. Open the harness
 yourself with `npx vite` and `/tools/wheels/harness.html?t=3&only=hypercell&sizes=44,64`.
 
+## Design mock-ups
+`node tools/wheels.mjs --fast --mockups` renders `tools/wheels/Mockups.svelte` (`harness.html?mockups`): real
+wheels from the examples (`MockWheel.svelte`), each option of a design question applied to its own column only
+(a theme token or a style overridden there), one picture per question in `shots/wheel-mockups/`. Add a question as
+a `<section data-mock="n-name">` with its columns.
+
 ## Run (real)
 ```
 npm run build

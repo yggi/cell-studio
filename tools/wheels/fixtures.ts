@@ -2,7 +2,8 @@
  * Which wheels the harness shows: the first of each kind across the examples (a live one if any is), named
  * as `tools/wheels.mjs` names them from the page (`data-wheel`, `data-mode`, `data-show`, and where it sits).
  */
-import { codeShifts, compileSource, type CompileResult, type Shifts } from '../../src/engine/compile';
+import { compileSource } from '../../src/engine/compile';
+import { codeShifts, type CompileResult, type Shifts } from '../../src/engine/program';
 import { buildGraph } from '../../src/engine/graph';
 import { liveAt, type LiveState } from '../../src/engine/live';
 import { ORDER } from '../../src/engine/order';

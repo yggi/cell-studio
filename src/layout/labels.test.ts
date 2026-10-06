@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { codeShifts, compileSource } from '../engine/compile';
+import { compileSource } from '../engine/compile';
+import { codeShifts } from '../engine/program';
 import { PRESETS } from '../engine/presets';
 import { setAttr } from '../engine/edit';
 import { fieldsOf, formatLabel, labelText } from './labels';

@@ -1,6 +1,6 @@
 <script lang="ts">
   import { noteColour } from './theme';
-  import { freqHue } from '../engine/compile';
+  import { freqHue } from '../engine/helix';
   /**
    * An edge that shows what flows along it while playing:
    *  - step edges: a pulse per step of the consumer, from the driver (&bar) to it

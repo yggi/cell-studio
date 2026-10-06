@@ -6,6 +6,9 @@
  */
 import { mount } from 'svelte';
 import Harness from './Harness.svelte';
+import Mockups from './Mockups.svelte';
 import '../../src/app.css';
 
-export default mount(Harness, { target: document.getElementById('app')! });
+// ?mockups: the design questions of #107, side by side (Mockups.svelte)
+const page = new URLSearchParams(location.search).has('mockups') ? Mockups : Harness;
+export default mount(page, { target: document.getElementById('app')! });

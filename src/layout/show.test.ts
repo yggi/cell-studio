@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { codeShifts, compileSource } from '../engine/compile';
+import { compileSource } from '../engine/compile';
+import { codeShifts } from '../engine/program';
 import { eventsBetween, plan } from '../engine/realize';
 import { liveAt } from '../engine/live';
 import { setAttr } from '../engine/edit';

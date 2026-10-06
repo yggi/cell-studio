@@ -10,7 +10,8 @@
   import { NOTE_NAMES } from '../theory/modes';
   import { clocking } from '../engine/clocking';
   import { notesAt, valueAt, valuesAt } from '../engine/values';
-  import { adsrOf, resolvePitch, semitones } from '../engine/compile';
+  import { adsrOf } from '../engine/program';
+  import { resolvePitch, semitones } from '../engine/helix';
   import { voiceBase } from '../layout/show';
   import { noteColour, scopeBand } from './theme';
   import { onFrames } from '../audio/ticker';

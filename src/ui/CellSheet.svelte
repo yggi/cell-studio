@@ -5,8 +5,9 @@
   import { declLine, declWords, deleteCell, nameProblem, renameCell, setBraid, spansLines, splitToken, splitWords, usersOf } from '../engine/edit';
   import { waveform } from '../engine/wave';
   import { parse } from '../engine/parser';
-  import { period, positionHue, resolvePitch, semitones, shiftedUnits } from '../engine/compile';
+  import { period, positionHue, resolvePitch, semitones, shiftedUnits } from '../engine/helix';
   import { pitchHue } from '../theory/modes';
+  import { stepText } from '../layout/wheel';
   import TokenWheel, { type WheelToken } from './TokenWheel.svelte';
   import StepEditor from './StepEditor.svelte';
   import SpectrumWheel from './SpectrumWheel.svelte';
@@ -142,7 +143,7 @@
           parts = undefined;
         }
       }
-      return { label: t.startsWith('&') ? t.replace(/[!*@]\d+$/, '') : (nameOf(t) ?? t), hues: shown_?.show === 'pattern' ? null : hues, weight, kind, parts };
+      return { label: t.startsWith('&') ? t.replace(/[!*@]\d+$/, '') : (nameOf(t) ?? stepText(t)), full: t, hues: shown_?.show === 'pattern' ? null : hues, weight, kind, parts };
     }),
   );
   const rotation = $derived.by(() => {
