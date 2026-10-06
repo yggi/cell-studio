@@ -5,6 +5,7 @@
  */
 import { BODIES, type ResolvedCell } from '../../engine/compile';
 import { disposer, type Disposable } from './nodes';
+import { seeded } from './noise';
 
 /** One body: an exciter (or the board) — its modes (or a spring's loop), its strike input, its motion. */
 export interface Part {
@@ -156,7 +157,9 @@ export function buildResonator(raw: AudioContext, c: ResolvedCell, type: string,
   const bowSrc = raw.createBufferSource();
   const nb = raw.createBuffer(1, raw.sampleRate * 2, raw.sampleRate);
   const nd = nb.getChannelData(0);
-  for (let i = 0; i < nd.length; i++) nd[i] = Math.random() * 2 - 1;
+  // (seeded from the cell's seed: the bow is the same every time)
+  const random = seeded(c.seed + 4);
+  for (let i = 0; i < nd.length; i++) nd[i] = random() * 2 - 1;
   bowSrc.buffer = nb;
   bowSrc.loop = true;
   const bow = raw.createGain();

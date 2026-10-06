@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { grainOffset, noiseBuffer } from './noise';
+import { grainOffset, noiseBuffer, seeded } from './noise';
 
 /** Just enough of a context: buffers are plain arrays. */
 function fakeCtx(): BaseAudioContext {
@@ -26,5 +26,11 @@ describe('noise is reproducible', () => {
     expect(o).toBeGreaterThanOrEqual(0);
     expect(o).toBeLessThan(4);
     for (const other of [grainOffset(1, 'hat', 1.5, 4), grainOffset(0, 'snare', 1.5, 4), grainOffset(0, 'hat', 2, 4)]) expect(other).not.toBe(o);
+  });
+
+  it('a seeded generator repeats for a seed and differs between seeds', () => {
+    const run = (seed: number) => Array.from({ length: 5 }, ((r) => () => r())(seeded(seed)));
+    expect(run(7)).toEqual(run(7));
+    expect(run(7)).not.toEqual(run(8));
   });
 });

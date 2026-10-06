@@ -2,7 +2,7 @@
 import { chanceOf } from '../../engine/realize';
 
 /** A small seeded generator (mulberry32): numbers in [0, 1), the same sequence for the same seed. */
-function seeded(seed: number): () => number {
+export function seeded(seed: number): () => number {
   let a = seed >>> 0;
   return () => {
     a = (a + 0x6d2b79f5) >>> 0;
