@@ -19,7 +19,8 @@ import {
 import type { GraphModel, GraphNode } from '../engine/graph';
 import { segmentsCross, splinePoint } from './geometry';
 import { layered } from './layered';
-import { drawnCrossings, layoutQuality, type LayoutQuality } from './quality';
+import { drawnCrossings, layoutQuality, type Aim, type LayoutQuality } from './quality';
+import { fitTurn, headOffset, tapeHeads, UNTURNED } from './tape';
 
 export interface PhysNode extends SimulationNodeDatum {
   id: string;
@@ -340,13 +341,15 @@ export function columns(model: {
 // room for their labels, edges spread round each node (stars, symmetries), time and sound keep apart,
 // tagged cells cluster; edges straighten a little and keep well off nodes.
 export const DEFAULT_LAYOUT: LayoutOptions = {
-  uncross: 0.3,
+  // (uncross and contract: measured over the examples, docs/notes/27-layout.md — stronger untangling and softer
+  // springs cross a quarter less than 0.3 / 0.9, for about 6 % more room)
+  uncross: 0.6,
   repelRange: 380,
   degreeRepel: 0.08,
   collidePad: 34, // (room for the label under each node)
   straighten: 0.15,
   avoid: 0.6,
-  contract: 0.9,
+  contract: 0.75,
   partLength: 0.8,
   endPull: 0,
   rankPull: 0.05,
@@ -452,6 +455,8 @@ export class ForceLayout {
       .force('clusters', (alpha: number) => this.stepClusters(alpha))
       // a note drifts towards the cells it explains (and only it: they don't feel it)
       .force('about', (alpha: number) => this.stepAbout(alpha))
+      // a tape turns so its heads face what they connect to, and those turn round it towards their heads
+      .force('aims', (alpha: number) => this.stepAims(alpha))
       // turntables: nothing overlaps them — a node that would is set at their edge
       .force('exclusion', () => this.stepExclusion())
       .on('tick', onTick)
@@ -462,6 +467,63 @@ export class ForceLayout {
 
   /** What each note explains (about=): the note and one cell it is about. */
   private explains: { note: PhysNode; cell: PhysNode }[] = [];
+  /** What each tape's heads connect to: its write source and its read heads' cells, each with its head's offset. */
+  private faces: TapeFace[] = [];
+  /** Each tape's turn, radians: where its write head sits (the heads keep their spacing; the wheel turns). */
+  private turns = new Map<string, number>();
+
+  /** Each tape turned to face its heads towards what they connect to (busy cells count more: they move less). */
+  private fitTurns(at: (id: string) => { x: number; y: number } | undefined): Map<string, number> {
+    const turns = new Map<string, number>();
+    const byTape = new Map<string, TapeFace[]>();
+    for (const f of this.faces) (byTape.get(f.tape) ?? byTape.set(f.tape, []).get(f.tape)!).push(f);
+    for (const [tape, fs] of byTape) {
+      const t = at(tape);
+      if (!t) continue;
+      const turn = fitTurn(
+        fs.flatMap((f) => {
+          const c = at(f.to);
+          return c ? [{ angle: Math.atan2(c.y - t.y, c.x - t.x), offset: f.offset, weight: this.degree.get(f.to) ?? 1 }] : [];
+        }),
+      );
+      turns.set(tape, turn ?? this.turns.get(tape) ?? (UNTURNED * Math.PI) / 180);
+    }
+    return turns;
+  }
+
+  /** Where each head's cell should be, seen from its tape (radians), with the tapes as they're turned now. */
+  private aims(): Aim[] {
+    return this.faces.map((f) => ({ from: f.tape, to: f.to, angle: (this.turns.get(f.tape) ?? 0) + f.offset }));
+  }
+
+  /**
+   * Each tape turns to face its heads towards what they connect to; then each of those turns round the tape
+   * (at the distance it is now) towards its head. The two share that turn, the one with fewer edges moving more.
+   */
+  private stepAims(alpha: number): void {
+    if (!this.faces.length) return;
+    this.turns = this.fitTurns((id) => this.position(id));
+    for (const { from, to, angle } of this.aims()) {
+      const a = this.byId.get(from);
+      const b = this.byId.get(to);
+      if (!a || !b) continue;
+      const len = Math.hypot((b.x ?? 0) - (a.x ?? 0), (b.y ?? 0) - (a.y ?? 0)) || 1;
+      const dx = ((a.x ?? 0) + Math.cos(angle) * len - (b.x ?? 0)) * alpha;
+      const dy = ((a.y ?? 0) + Math.sin(angle) * len - (b.y ?? 0)) * alpha;
+      const [da, db] = [this.degree.get(a.id) ?? 1, this.degree.get(b.id) ?? 1];
+      const share = da / (da + db); // (b's part of the turn)
+      b.vx = (b.vx ?? 0) + dx * share;
+      b.vy = (b.vy ?? 0) + dy * share;
+      a.vx = (a.vx ?? 0) - dx * (1 - share);
+      a.vy = (a.vy ?? 0) - dy * (1 - share);
+    }
+  }
+
+  /** A tape's turn, degrees (screen: 0 to the right, clockwise): where its write head is drawn. */
+  tapeTurn(id: string): number | undefined {
+    const t = this.turns.get(id);
+    return t === undefined ? undefined : (t * 180) / Math.PI;
+  }
 
   /** A note is drawn towards the cells it explains, to a short distance from them: they feel nothing, so a note can't pull the music's layout about. */
   private stepAbout(alpha: number): void {
@@ -657,6 +719,7 @@ export class ForceLayout {
     const slot = this.opts.layerGap * 1.1;
     this.colX = new Map([...cols].map(([id, c]) => [id, c * slot]));
     // laid out in layers: each node's place is its home — where a fresh graph starts, and what it springs to
+    this.faces = tapeFaces(model);
     let home: Map<string, { x: number; y: number }> | null = null;
     if (this.opts.layered) {
       const byId = new Map(model.nodes.map((n) => [n.id, n]));
@@ -664,6 +727,17 @@ export class ForceLayout {
       const ys = [...lay.values()].map((p) => p.y);
       const midY = (Math.min(...ys) + Math.max(...ys)) / 2;
       home = new Map([...lay].map(([id, p]) => [id, { x: p.x, y: p.y - midY }]));
+      // each tape turned to face where the layers put what its heads connect to; then each read head's
+      // cell starts in its head's direction, just clear of the tape (a write source stays: it's a source of more)
+      // (only to place them: the tapes' turns are fitted to where everything is once it's placed, below)
+      const homeTurns = this.fitTurns((id) => home!.get(id));
+      for (const f of this.faces) {
+        const t = home.get(f.tape);
+        if (f.write || !t || !home.has(f.to)) continue;
+        const angle = (homeTurns.get(f.tape) ?? 0) + f.offset;
+        const d = this.opts.radius(byId.get(f.tape)!) + this.opts.radius(byId.get(f.to)!) + this.opts.collidePad;
+        home.set(f.to, { x: t.x + Math.cos(angle) * d, y: t.y + Math.sin(angle) * d });
+      }
       this.colX = new Map([...home].map(([id, p]) => [id, p.x]));
       this.rankY = new Map([...home].map(([id, p]) => [id, p.y]));
     }
@@ -761,6 +835,9 @@ export class ForceLayout {
       .map((e) => ({ id: e.id, source: e.source, target: e.target, count: e.count, part: e.kind === 'ref' || e.kind === 'over' }));
 
     this.sim.nodes([...next.values()]);
+    this.faces = this.faces.filter((f) => next.has(f.tape) && next.has(f.to));
+    // the tapes turned to where everything is now (an edit that doesn't move anything doesn't turn them)
+    this.turns = this.fitTurns((id) => this.position(id));
     this.explains = model.edges.filter((e) => e.kind === 'about' && next.has(e.source) && next.has(e.target)).map((e) => ({ note: next.get(e.source)!, cell: next.get(e.target)! }));
     this.sim.force<ReturnType<typeof forceLink<PhysNode, PhysLink>>>('link')!.links([...links, ...tagLinks]);
     // (a scope watches: its edges neither untangle the music's layout nor count as its crossings)
@@ -858,7 +935,7 @@ export class ForceLayout {
   /** How good the layout is now, in numbers (quality.ts). */
   quality(): LayoutQuality {
     const { nodes, edges } = this.placed();
-    return layoutQuality(nodes, edges);
+    return layoutQuality(nodes, edges, this.aims());
   }
 
   /** The point an edge's spline passes through halfway (its ends' midpoint when straight). */
@@ -954,4 +1031,32 @@ export function countCrossings(layout: ForceLayout, model: GraphModel): number {
     .filter((e) => e.source !== e.target && layout.position(e.source) && layout.position(e.target))
     .map((e) => ({ a: { id: e.source, ...layout.position(e.source)! }, b: { id: e.target, ...layout.position(e.target)! } }));
   return crossingPairs(segs).length;
+}
+
+/** What a tape's head connects to (its write source, or a read head's cell) and how far round from the write head that head sits (radians). */
+export interface TapeFace {
+  readonly tape: string;
+  readonly to: string;
+  readonly offset: number;
+  readonly write: boolean;
+}
+
+/** Every tape's heads and what they connect to (layout/tape.ts). */
+export function tapeFaces(model: GraphModel): TapeFace[] {
+  // (hand-made graphs, in tests, may have nodes without a cell)
+  const cells = model.nodes.flatMap((n) => ((n as { cell?: GraphNode['cell'] }).cell ? [n.cell] : [])); // (as the tape draws its heads: every cell, petals too)
+  const byName = new Map(model.nodes.filter((n) => !n.petalOf && (n as { cell?: unknown }).cell).map((n) => [n.cell.name, n]));
+  const faces: TapeFace[] = [];
+  for (const tape of byName.values()) {
+    const write = tape.cell.params.write;
+    if (typeof write !== 'string') continue;
+    const src = byName.get(write);
+    if (src) faces.push({ tape: tape.id, to: src.id, offset: 0, write: true });
+    const { heads, length } = tapeHeads(tape.cell, cells);
+    for (const h of heads) {
+      const n = byName.get(h.name);
+      if (n) faces.push({ tape: tape.id, to: n.id, offset: (headOffset(h.at, length) * Math.PI) / 180, write: false });
+    }
+  }
+  return faces;
 }

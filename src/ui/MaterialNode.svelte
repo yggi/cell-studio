@@ -14,12 +14,13 @@
   import { onFrames } from '../audio/ticker';
   import { timed } from '../audio/stats';
   import FreePills from './FreePills.svelte';
+  import { headAngle as tapeHeadAngle, tapeHeads, UNTURNED } from '../layout/tape';
   import { polar as onCircle } from '../layout/geometry';
   import { angleOf, turnDelta } from '../layout/dial';
   import { NOTE_NAMES as NAMES } from '../theory/modes';
 
   let { id, data }: NodeProps = $props();
-  const d = $derived(data as { name: string; size: number; role: 'motor' | 'belt' | 'tape' | 'resonator' });
+  const d = $derived(data as { name: string; size: number; role: 'motor' | 'belt' | 'tape' | 'resonator'; turn?: number });
   const ctx = getGraphContext();
   const look = $derived(nodeState(ctx, id));
   const flow = useSvelteFlow();
@@ -90,16 +91,14 @@
   // ---- a tape: its heads, where they sit, and what's been recorded round it
   const tape = $derived.by(() => {
     if (d.role !== 'tape' || !cell) return null;
-    const heads = [...ctx.program.cells.values()]
-      .filter((h) => h.params.play === d.name)
-      .map((h) => ({ name: h.name, at: typeof h.params.at === 'number' ? h.params.at : 0 }));
-    const loop = typeof cell.params.length === 'number' && cell.params.length > 0;
-    const L = loop ? (cell.params.length as number) : Math.max(1, ...heads.map((h) => h.at)) * 1.25;
+    const { heads, length: L } = tapeHeads(cell, ctx.program.cells.values());
     const erase = typeof cell.params.erase === 'number' ? Math.min(1, Math.max(0, cell.params.erase)) : 1;
     return { heads, L, erase };
   });
-  // (the write head at the top; a read head further round by how far on the tape it sits)
-  const headAngle = (at: number) => -90 + (tape ? (at / tape.L) * 360 : 0);
+  // (the write head where the layout turned the tape (on top if not); a read head further round by how far
+  // along the tape it reads: layout/tape.ts)
+  const turn = $derived(d.turn ?? UNTURNED);
+  const headAngle = (at: number) => (tape ? tapeHeadAngle(at, tape.L, turn) : turn);
   // (degrees here, 0 at 3 o'clock, as SVG's rotate() counts them)
   const polar = (deg: number, r: number) => {
     const [x, y] = onCircle(R, R, r, (deg + 90) / 360);
@@ -424,16 +423,16 @@
         {#each rec as l, j (j)}
           {#if l > 0.02}
             {@const cj = ((j + 0.5) / N) * tape.L}
-            {@const deg = -90 - (cj / tape.L) * 360}
+            {@const deg = turn - (cj / tape.L) * 360}
             {@const a = polar(deg, R * 0.79)}
             {@const b2 = polar(deg, R * (0.79 + 0.16 * l))}
             <line x1={a.x} y1={a.y} x2={b2.x} y2={b2.y} style:opacity={0.35 + 0.65 * l} />
           {/if}
         {/each}
       </g>
-      <!-- the heads, fixed: the write head at the top, the read heads where they sit -->
-      {@const w = polar(-90, R * 0.97)}
-      <rect class="head write" x={w.x - 6} y={w.y - 4} width="12" height="8" rx="2" transform="rotate(0 {w.x} {w.y})" />
+      <!-- the heads, fixed on the turned wheel: the write head, the read heads where they sit -->
+      {@const w = polar(turn, R * 0.97)}
+      <rect class="head write" x={w.x - 6} y={w.y - 4} width="12" height="8" rx="2" transform="rotate({turn + 90} {w.x} {w.y})" />
       {#each tape.heads as h (h.name)}
         {@const p = polar(headAngle(h.at), R * 0.97)}
         <rect class="head read" x={p.x - 5} y={p.y - 4} width="10" height="8" rx="2" transform="rotate({headAngle(h.at) + 90} {p.x} {p.y})" />
@@ -468,7 +467,7 @@
   <Handle type="source" position={Position.Bottom} class="center-handle" isConnectable={false} />
   {#if tape}
     <!-- edges meet the tape at its heads -->
-    {@const w = polar(-90, R * 1.02)}
+    {@const w = polar(turn, R * 1.02)}
     <Handle type="target" id="head-write" position={Position.Top} class="head-handle" style="left: {w.x}px; top: {w.y}px" isConnectable={false} />
     {#each tape.heads as h (h.name)}
       {@const p = polar(headAngle(h.at), R * 1.02)}
