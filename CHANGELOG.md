@@ -24,6 +24,8 @@ that makes the change. Also note changes to the language that could affect saved
 - Tests run without per-file isolation (faster).
 
 ### Developer
+- `tools/profile`: `bursts.mjs`, `burstlines.mjs`, `cellview-time.ts` (what a long task rewrites and spends its time on; what a table turn costs); `engine-time.ts` reads `examples/`.
+- `docs/notes/41-prelude-bursts.md`: measured analysis and fix plan for the once-a-bar stalls in Bach's Prelude.
 - `TODO.md` is gone: its open work is in the issues (#27–#37), its known limits in `docs/limits.md`, the rest in `docs/`.
 - `tools/profile/trace.mjs`: a Chrome-trace breakdown of the browser's own time, with CSS ablation.
 - `tools/profile/`: scripts to measure main-thread load while a piece plays (Playwright + CDP) and to attribute it to code.
