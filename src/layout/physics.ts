@@ -37,8 +37,6 @@ interface PhysLink extends SimulationLinkDatum<PhysNode> {
   part: boolean;
   /** A tag's spring to one of its cells (not drawn: no crossings, no bends, no spread). */
   tag?: boolean;
-  /** A note's link to a cell it explains (about=): drawn, but a soft spring, and no say in crossings or bends. */
-  about?: boolean;
 }
 
 export interface LayoutOptions {
@@ -457,12 +455,36 @@ export class ForceLayout {
       .force('spread', (alpha: number) => this.stepSpread(alpha))
       .force('kinds', (alpha: number) => this.stepKinds(alpha))
       .force('clusters', (alpha: number) => this.stepClusters(alpha))
+      // a note drifts towards the cells it explains (and only it: they don't feel it)
+      .force('about', (alpha: number) => this.stepAbout(alpha))
       // turntables: nothing overlaps them — a node that would is set at their edge
       .force('exclusion', () => this.stepExclusion())
       .on('tick', onTick)
       .on('end', () => this.settleListeners.forEach((f) => f()));
     this.applyOptions();
     if (!o.live) this.sim.stop();
+  }
+
+  /** What each note explains (about=): the note and one cell it is about. */
+  private explains: { note: PhysNode; cell: PhysNode }[] = [];
+
+  /** A note is drawn towards the cells it explains, to a short distance from them: they feel nothing, so a note can't pull the music's layout about. */
+  private stepAbout(alpha: number): void {
+    const byNote = new Map<PhysNode, PhysNode[]>();
+    for (const { note, cell } of this.explains) (byNote.get(note) ?? byNote.set(note, []).get(note)!).push(cell);
+    for (const [note, cells] of byNote) {
+      const cx = cells.reduce((s, c) => s + (c.x ?? 0), 0) / cells.length;
+      const cy = cells.reduce((s, c) => s + (c.y ?? 0), 0) / cells.length;
+      const dx = cx - (note.x ?? 0);
+      const dy = cy - (note.y ?? 0);
+      const d = Math.hypot(dx, dy) || 1;
+      // (at rest just clear of what it explains: touching, they'd push each other about)
+      const rest = note.radius + Math.max(...cells.map((c) => c.radius)) + this.opts.collidePad + 20;
+      if (d <= rest) continue;
+      const k = (0.3 * alpha * (d - rest)) / d;
+      note.vx = (note.vx ?? 0) + dx * k;
+      note.vy = (note.vy ?? 0) + dy * k;
+    }
   }
 
   /**
@@ -592,8 +614,8 @@ export class ForceLayout {
   private applyOptions(): void {
     const o = this.opts;
     (this.sim.force('link') as ReturnType<typeof forceLink<PhysNode, PhysLink>>)
-      .distance((l) => (l.tag ? o.linkDistance * 1.6 : l.about ? o.linkDistance * 1.3 : l.part ? o.linkDistance * o.partLength : o.linkDistance))
-      .strength((l) => (l.tag ? 0.12 : l.about ? 0.04 : Math.min(0.2, 0.08 + 0.02 * l.count) * o.contract));
+      .distance((l) => (l.tag ? o.linkDistance * 1.6 : l.part ? o.linkDistance * o.partLength : o.linkDistance))
+      .strength((l) => (l.tag ? 0.12 : Math.min(0.2, 0.08 + 0.02 * l.count) * o.contract));
     // busy nodes push a little harder: more room around hubs, fewer edges squeezed past them
     (this.sim.force('charge') as ReturnType<typeof forceManyBody<PhysNode>>)
       .strength((d) => (d.role === 'tag' ? o.charge * 3 : o.charge * (1 + o.degreeRepel * Math.max(0, (this.degree.get(d.id) ?? 1) - 1))))
@@ -738,10 +760,12 @@ export class ForceLayout {
     for (const [k, v] of next) this.byId.set(k, v);
 
     const links: PhysLink[] = model.edges
-      .filter((e) => next.has(e.source) && next.has(e.target) && e.source !== e.target)
-      .map((e) => ({ id: e.id, source: e.source, target: e.target, count: e.count, part: e.kind === 'ref' || e.kind === 'over', about: e.kind === 'about' }));
+      // (a note's links, about=, are not springs: they only draw a note towards what it explains, see stepAbout)
+      .filter((e) => e.kind !== 'about' && next.has(e.source) && next.has(e.target) && e.source !== e.target)
+      .map((e) => ({ id: e.id, source: e.source, target: e.target, count: e.count, part: e.kind === 'ref' || e.kind === 'over' }));
 
     this.sim.nodes([...next.values()]);
+    this.explains = model.edges.filter((e) => e.kind === 'about' && next.has(e.source) && next.has(e.target)).map((e) => ({ note: next.get(e.source)!, cell: next.get(e.target)! }));
     this.sim.force<ReturnType<typeof forceLink<PhysNode, PhysLink>>>('link')!.links([...links, ...tagLinks]);
     // (a scope watches: its edges neither untangle the music's layout nor count as its crossings)
     const scopes = new Set(
@@ -749,8 +773,7 @@ export class ForceLayout {
     );
     const watcher = (id: string) => scopes.has(id);
     const idOf = (x: unknown) => (typeof x === 'object' ? (x as PhysNode).id : (x as string));
-    // (and a note's links: they point out what a note says, they don't shape the music's layout)
-    const own = links.filter((l) => !l.about && !watcher(idOf(l.source)) && !watcher(idOf(l.target)));
+    const own = links.filter((l) => !watcher(idOf(l.source)) && !watcher(idOf(l.target)));
     (this.sim.force('uncross') as unknown as ReturnType<typeof forceUncross>).links(
       // forceLink has swapped ids for the node objects by now
       own.map((l) => ({
