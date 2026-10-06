@@ -182,18 +182,25 @@ export function cellView(result: CompileResult, name: string, shifts: Shifts, is
     events = [];
   }
   const groups = new Map<string, { step: number; duration: number; fills: { v: number; f: Fill; n: Named }[] }>();
+  // (a long braid says the same few notes over and over: each is resolved once, for these shifts)
+  const seen = new Map<string, { f: Fill; n: Named }>();
   for (const e of events) {
     const key = `${e.step.toFixed(6)}|${e.duration.toFixed(6)}`;
     let g = groups.get(key);
     if (!g) groups.set(key, (g = { step: e.step, duration: e.duration, fills: [] }));
-    const found = resolveIn(result, e.table, e.tableShift, e.value, e.alter, shifts);
-    const r = e.transpose ? { ...found, position: found.position + e.transpose } : found; // ^n
-    const f: Fill = levels
-      ? { kind: 'level', v: levelOf(e.value + e.alter) }
-      : pattern
-        ? { kind: 'beat', down: false }
-        : { kind: 'pitch', hue: positionHue(result, r.root, r.position), octave: positionOctave(result, r.root, r.position), alter: e.alter };
-    g.fills.push({ v: e.value + e.alter, f, n: { semis: semitones(result, r.root, r.position), value: e.value, alter: e.alter, lap: period(result, e.table) } });
+    const known = `${e.table}|${e.tableShift}|${e.value}|${e.alter}|${e.transpose ?? 0}`;
+    let hit = seen.get(known);
+    if (!hit) {
+      const found = resolveIn(result, e.table, e.tableShift, e.value, e.alter, shifts);
+      const r = e.transpose ? { ...found, position: found.position + e.transpose } : found; // ^n
+      const f: Fill = levels
+        ? { kind: 'level', v: levelOf(e.value + e.alter) }
+        : pattern
+          ? { kind: 'beat', down: false }
+          : { kind: 'pitch', hue: positionHue(result, r.root, r.position), octave: positionOctave(result, r.root, r.position), alter: e.alter };
+      seen.set(known, (hit = { f, n: { semis: semitones(result, r.root, r.position), value: e.value, alter: e.alter, lap: period(result, e.table) } }));
+    }
+    g.fills.push({ v: e.value + e.alter, f: hit.f, n: hit.n });
   }
   const segments: Segment[] = [];
   let cursor = 0;

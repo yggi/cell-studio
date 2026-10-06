@@ -126,7 +126,19 @@ function parentsOf(result: CompileResult, name: string): string[] {
  * A cell's show, and where it comes from: its own show=, the nearest cell above
  * it whose show= fits it, or inferred.
  */
-export function effectiveShow(result: CompileResult, name: string): { show: Show; conv: string; from: 'set' | 'inferred' | string } {
+export function effectiveShow(result: CompileResult, name: string): EffectiveShow {
+  let byName = effectiveCache.get(result);
+  if (!byName) effectiveCache.set(result, (byName = new Map()));
+  let hit = byName.get(name);
+  if (!hit) byName.set(name, (hit = computeShow(result, name)));
+  return hit;
+}
+
+/** (Every glyph asks on every redraw, and each answer walks the cells above it: kept per compiled program.) */
+type EffectiveShow = { readonly show: Show; readonly conv: string; readonly from: 'set' | 'inferred' | string };
+const effectiveCache = new WeakMap<CompileResult, Map<string, EffectiveShow>>();
+
+function computeShow(result: CompileResult, name: string): EffectiveShow {
   const fits = FITS[kindOf(result, name)];
   const own = parseShow(result.cells.get(name)?.show);
   if (own && fits.includes(own.show)) return { ...own, from: 'set' };
