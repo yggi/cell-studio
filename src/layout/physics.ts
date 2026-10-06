@@ -455,12 +455,36 @@ export class ForceLayout {
       .force('spread', (alpha: number) => this.stepSpread(alpha))
       .force('kinds', (alpha: number) => this.stepKinds(alpha))
       .force('clusters', (alpha: number) => this.stepClusters(alpha))
+      // a note drifts towards the cells it explains (and only it: they don't feel it)
+      .force('about', (alpha: number) => this.stepAbout(alpha))
       // turntables: nothing overlaps them — a node that would is set at their edge
       .force('exclusion', () => this.stepExclusion())
       .on('tick', onTick)
       .on('end', () => this.settleListeners.forEach((f) => f()));
     this.applyOptions();
     if (!o.live) this.sim.stop();
+  }
+
+  /** What each note explains (about=): the note and one cell it is about. */
+  private explains: { note: PhysNode; cell: PhysNode }[] = [];
+
+  /** A note is drawn towards the cells it explains, to a short distance from them: they feel nothing, so a note can't pull the music's layout about. */
+  private stepAbout(alpha: number): void {
+    const byNote = new Map<PhysNode, PhysNode[]>();
+    for (const { note, cell } of this.explains) (byNote.get(note) ?? byNote.set(note, []).get(note)!).push(cell);
+    for (const [note, cells] of byNote) {
+      const cx = cells.reduce((s, c) => s + (c.x ?? 0), 0) / cells.length;
+      const cy = cells.reduce((s, c) => s + (c.y ?? 0), 0) / cells.length;
+      const dx = cx - (note.x ?? 0);
+      const dy = cy - (note.y ?? 0);
+      const d = Math.hypot(dx, dy) || 1;
+      // (at rest just clear of what it explains: touching, they'd push each other about)
+      const rest = note.radius + Math.max(...cells.map((c) => c.radius)) + this.opts.collidePad + 20;
+      if (d <= rest) continue;
+      const k = (0.3 * alpha * (d - rest)) / d;
+      note.vx = (note.vx ?? 0) + dx * k;
+      note.vy = (note.vy ?? 0) + dy * k;
+    }
   }
 
   /**
@@ -618,7 +642,7 @@ export class ForceLayout {
     const next = new Map<string, PhysNode>();
     let added = 0;
     const parentOf = new Map<string, string>();
-    for (const e of model.edges) if (!parentOf.has(e.target)) parentOf.set(e.target, e.source);
+    for (const e of model.edges) if (e.kind !== 'about' && !parentOf.has(e.target)) parentOf.set(e.target, e.source);
 
     // layers by rank in the signal path, from the meter (bottom) up to the sound card (top);
     // a fresh graph starts there, each layer in barycentre order; an edit keeps what's on screen
@@ -629,7 +653,7 @@ export class ForceLayout {
     this.rankY = new Map([...ranks].map(([id, r]) => [id, layerY(r)]));
     this.degree = new Map();
     for (const e of model.edges)
-      if (e.source !== e.target) for (const id of [e.source, e.target]) this.degree.set(id, (this.degree.get(id) ?? 0) + 1);
+      if (e.source !== e.target && e.kind !== 'about') for (const id of [e.source, e.target]) this.degree.set(id, (this.degree.get(id) ?? 0) + 1);
     // mostly new (a different example that happens to share &bar, &mix, &out): lay it all out afresh
     const fresh = model.nodes.filter((n) => !this.byId.has(n.id)).length > model.nodes.length / 2;
     if (fresh) this.bendAt.clear(); // a fresh graph: no bends left over from the last one
@@ -648,7 +672,7 @@ export class ForceLayout {
       this.colX = new Map([...home].map(([id, p]) => [id, p.x]));
       this.rankY = new Map([...home].map(([id, p]) => [id, p.y]));
     }
-    let ordered = fresh && !home ? orderLayers(model.nodes.map((n) => ({ id: n.id, depth: ranks.get(n.id)! })), model.edges) : null;
+    let ordered = fresh && !home ? orderLayers(model.nodes.map((n) => ({ id: n.id, depth: ranks.get(n.id)! })), model.edges.filter((e) => e.kind !== 'about')) : null;
     if (fresh && !home && cols.size) {
       // a symmetric start: each node at its column, pushed apart within its row just enough
       ordered = new Map();
@@ -736,10 +760,12 @@ export class ForceLayout {
     for (const [k, v] of next) this.byId.set(k, v);
 
     const links: PhysLink[] = model.edges
-      .filter((e) => next.has(e.source) && next.has(e.target) && e.source !== e.target)
+      // (a note's links, about=, are not springs: they only draw a note towards what it explains, see stepAbout)
+      .filter((e) => e.kind !== 'about' && next.has(e.source) && next.has(e.target) && e.source !== e.target)
       .map((e) => ({ id: e.id, source: e.source, target: e.target, count: e.count, part: e.kind === 'ref' || e.kind === 'over' }));
 
     this.sim.nodes([...next.values()]);
+    this.explains = model.edges.filter((e) => e.kind === 'about' && next.has(e.source) && next.has(e.target)).map((e) => ({ note: next.get(e.source)!, cell: next.get(e.target)! }));
     this.sim.force<ReturnType<typeof forceLink<PhysNode, PhysLink>>>('link')!.links([...links, ...tagLinks]);
     // (a scope watches: its edges neither untangle the music's layout nor count as its crossings)
     const scopes = new Set(
