@@ -199,7 +199,7 @@
   });
 </script>
 
-<div class="wheel" style="width: {size}px; height: {size}px">
+<div class="wheel" data-wheel="spectrum" style="width: {size}px; height: {size}px">
   <canvas bind:this={canvas} width={px} height={px} style="width: {size}px; height: {size}px"></canvas>
   <span class="note" class:long={hub.length > 4} {title}>{hub}{#if small}<small>{small}</small>{/if}</span>
 </div>

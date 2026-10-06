@@ -66,7 +66,7 @@
   const up_ = () => (last = null);
 </script>
 
-<div class="sun nodrag" style:width="{S}px" style:height="{S}px" role="img" aria-label="The day: {hhmm}, {MODE_NAMES[where.mode]}, key of {NAMES[where.tonic]}" onpointerdown={down} onpointermove={move} onpointerup={up_} onpointercancel={up_}>
+<div class="sun nodrag" data-wheel="sun" style:width="{S}px" style:height="{S}px" role="img" aria-label="The day: {hhmm}, {MODE_NAMES[where.mode]}, key of {NAMES[where.tonic]}" onpointerdown={down} onpointermove={move} onpointerup={up_} onpointercancel={up_}>
   <Handle type="target" position={Position.Top} class="center-handle" isConnectable={false} />
   <svg viewBox="0 0 {S} {S}" width={S} height={S}>
     <defs>

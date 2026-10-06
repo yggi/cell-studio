@@ -323,6 +323,8 @@
 
 <div
   class="turntable nodrag nopan {d.role}"
+  data-wheel="material"
+  data-mode={d.role}
   data-state={look}
   bind:this={el}
   style:width="{S}px"

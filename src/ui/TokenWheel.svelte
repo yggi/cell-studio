@@ -65,7 +65,7 @@
   const fontFor = (span: number, label: string) => Math.max(9, Math.min(16, (span * Math.PI * 2 * (r0 + r1)) / 2 / Math.max(2, label.length) * 1.3));
 </script>
 
-<svg width={size} height={size} viewBox="0 0 {size} {size}" class:dim role="group" aria-label="braid">
+<svg data-wheel="token" width={size} height={size} viewBox="0 0 {size} {size}" class:dim role="group" aria-label="braid">
   {#each segments as s (s.i)}
     {@const bands = s.t.kind === 'chord' && s.t.hues ? s.t.hues.length : 1}
     {@const mid = (s.t0 + s.t1) / 2}

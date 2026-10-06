@@ -68,7 +68,7 @@
   });
 </script>
 
-<div class="wheel" class:current style:width="{size}px" style:height="{size}px">
+<div class="wheel" data-wheel="piece" class:current style:width="{size}px" style:height="{size}px">
   <svg viewBox="0 0 200 200" aria-hidden="true">
     <circle cx={R} cy={R} r={R - 0.5} class="back" />
     {#each segments as s, i (s.t)}

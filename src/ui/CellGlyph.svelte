@@ -357,7 +357,7 @@
   }
 </script>
 
-<svg bind:this={svg} width={size} height={size} viewBox="0 0 {size} {size}" role="img" aria-label="&{name}: {label.big} {label.small}">
+<svg bind:this={svg} data-wheel="cell" data-mode={isMeter ? 'meter' : view.mode} data-show={view.show} width={size} height={size} viewBox="0 0 {size} {size}" role="img" aria-label="&{name}: {label.big} {label.small}">
   {#if stripes.size}
     <defs>
       {#each [...stripes] as [id, st] (id)}

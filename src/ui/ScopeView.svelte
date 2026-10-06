@@ -261,7 +261,7 @@
   );
 </script>
 
-<div class="scope" bind:this={root} class:round style:width="{W}px" style:height="{H}px" role="img" aria-label="Scope: {channels.join(', ')}">
+<div class="scope" data-wheel="scope" bind:this={root} class:round style:width="{W}px" style:height="{H}px" role="img" aria-label="Scope: {channels.join(', ')}">
   {#if mode === 'waterfall'}
     <canvas bind:this={canvas} width={Math.round(box.w)} height={Math.round(box.h)} style:left="{box.x}px" style:top="{box.y}px"></canvas>
     {#if lanes[0]}
