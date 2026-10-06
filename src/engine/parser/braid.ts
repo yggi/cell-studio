@@ -2,6 +2,18 @@
 import type { Atom, Token } from '../ast';
 import { MAX_REPS, type LineScanner } from './scanner';
 import { isMixChord, parseMixChord } from './mix';
+import { syntax, type Syntax } from './syntax';
+
+/** What a braid's steps can be. */
+export const STEP_SYNTAX: readonly Syntax[] = [
+  syntax('step', 'n', 'A number: an index into the table it reads (over=), or a value (a volume, a waveform\'s level). Negative and decimal numbers work.', ['&tune step=2 0 2 4 -1 .5'], 'cell.md'),
+  syntax('step', 'n# · nb', 'A number with accidentals: one step up (#) or down (b) on the grid below the table it reads — 6# over a scale is its 7th degree raised a semitone.', ['&tune over=&major step=2 0 4 6# 7 3b'], 'tables.md'),
+  syntax('step', 'n/d', 'A fraction: 9/8, 3/2 (the ratios of a map=ratios grid).', ['&just map=ratios 1 9/8 5/4 3/2 2'], 'tuning.md'),
+  syntax('step', '~', 'A rest: a step that plays nothing.', ['&tune step=2 0 ~ 4 ~'], 'cell.md'),
+  syntax('step', '[a, b, c] · [a b c]', 'A chord: the numbers sound together, in one step.', ['&chords step=1 [0,2,4] [3 5 7]'], 'time.md'),
+  syntax('step', '[a|b|c]', 'A choice: one of them, chosen afresh each time round (the same every time it is played).', ['&tune step=2 0 [2|4|7] 4'], 'braid.md'),
+  syntax('step', '&x', 'A cell, spliced in: its braid plays in this one\'s step (as long as its own steps). Picks, shifts and transposing are under References.', ['&theme step=2 &motif &motif^7 0'], 'braid.md'),
+];
 
 export function parseAtom(s: LineScanner): Atom {
   const c = s.peek();
@@ -64,8 +76,14 @@ export function parseAtom(s: LineScanner): Atom {
   return s.fail(`Unexpected '${c}' — expected a number, ~, [chord], &cell or key=value`);
 }
 
-export const MODIFIERS = { '!': 'repeat', '*': 'subdivide', '@': 'elongate' } as const;
+/** A step's modifiers, each at most once; the parser reads them through this table (and ? for chance). */
+export const MODIFIERS = {
+  '!': { field: 'repeat', syntax: syntax('modifier', 'x!n', 'Repeat: n copies of the step, each as long as one.', ['&beat step=4 0!4 2!2'], 'cell.md') },
+  '*': { field: 'subdivide', syntax: syntax('modifier', 'x*n', 'Ratchet: the step played n times within its own length.', ['&hats step=2 0 0*2 0 0*3'], 'cell.md') },
+  '@': { field: 'elongate', syntax: syntax('modifier', 'x@n', 'Hold: the step lasts n steps.', ['&tune step=2 0@2 2 4@3'], 'cell.md') },
+} as const;
 type ModKey = keyof typeof MODIFIERS;
+export const CHANCE_SYNTAX = syntax('modifier', 'x? · x?p', 'Chance: the step sounds with probability p (x? alone: the cell\'s chance=, ½ unless set). Reproducible: the same every time the piece is played; seed= gives another sequence.', ['&hats step=4 0 0? 0?.3 0', '&ghost chance=.2 step=4 0? 0? 0? 0?'], 'cell.md');
 
 export function parseToken(s: LineScanner): Token {
   const start = s.i;
@@ -91,7 +109,7 @@ export function parseToken(s: LineScanner): Token {
     const at = s.i;
     const n = s.int(`a count after ${op}`);
     if (n < 1 || n > MAX_REPS) s.fail(`Count must be between 1 and ${MAX_REPS}`, at, s.i - at);
-    mods[MODIFIERS[op]] = n;
+    mods[MODIFIERS[op].field] = n;
   }
   if (!s.atBoundary()) s.fail(`Unexpected '${s.peek()}' — separate steps with spaces`);
   return { atom, ...mods, ...(chance !== undefined ? { chance } : {}), span: s.span(start) };

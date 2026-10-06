@@ -1,6 +1,8 @@
 /** free(…): a number left to the performer — a slider, a tempo marking, named choices, a text. */
 import type { FreeSpec } from '../ast';
 import type { LineScanner } from './scanner';
+import { UNIT } from './values';
+import { syntax, type Syntax } from './syntax';
 
 /** Tempo markings for free(…): a range in bpm, centred. */
 export const TEMPI: Readonly<Record<string, readonly [number, number]>> = {
@@ -13,6 +15,14 @@ export const TEMPI: Readonly<Record<string, readonly [number, number]>> = {
   vivace: [156, 176],
   presto: [168, 200],
 };
+
+/** free(…)'s forms. */
+export const FREE_SYNTAX: readonly Syntax[] = [
+  syntax('free', 'free(v, lo..hi)', 'A number left to the performer: a slider from lo to hi, starting at v. Wherever a number goes in an attribute (a rate with its units: free(90bpm, 60..240)), in a scan, or as a gain in a mix.', ['&bar scan(4 4 4 4) step=free(90bpm, 60..240)', '&lead s=saw loop=C4 lpf=free(1200, 200..5000)', '&key step=cycle(&theme) shift=free(0, 0..11)'], 'free.md'),
+  syntax('free', 'free(marking)', `A rate as a tempo marking, a slider over its range: ${Object.entries(TEMPI).map(([k, [lo, hi]]) => `${k} ${lo}–${hi}`).join(', ')} (bpm).`, ['&bar scan(4 4 4 4) step=free(andante)'], 'free.md'),
+  syntax('free', 'free(v, lo..hi, "names")', 'Named choices: the names spread evenly over the range (one per value, or every 2nd …), shown instead of the numbers.', ['&bar meter(free(2, 0..3, "2/4 3/4 4/4 6/8")) step=90bpm'], 'free.md'),
+  syntax('free', 'free("text")', 'A text left to the performer: a field to type in (for spell(…)).', ['&dial spell(free("867 5309"), &keys, "1 2 3 4 5 6 7 8 9 0")'], 'free.md'),
+];
 
 /**
  * free(default, lo..hi) or free(marking) at the scanner (it's at 'free'):
@@ -48,7 +58,7 @@ export function parseFree(s: LineScanner, key: FreeSpec['key'], units: boolean):
     const n = s.match(/-?(?:[0-9]+(?:\.[0-9]+)?|\.[0-9]+)/y);
     if (n === null) s.fail('free(default, lo..hi), like free(90bpm, 60..240) or free(.8, 0..1)');
     value = parseFloat(n);
-    if (units) unit = s.match(/bpm|hz|k/y) ?? '';
+    if (units) unit = s.match(UNIT) ?? '';
     s.skipSpace();
     s.expect(',', `',' then the range, like free(${n}${unit}, 60..240)`);
     s.skipSpace();

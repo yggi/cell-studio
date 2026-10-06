@@ -32,6 +32,7 @@ import { parseCell } from './cell';
 
 export { TEMPI } from './free';
 export { bjorklund, meterLevels } from './generators';
+export { SHOWS, SHOW_CONVENTIONS } from './cell';
 
 export function parse(source: string): ParseResult {
   const cells: CellDecl[] = [];
