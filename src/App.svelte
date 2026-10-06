@@ -14,7 +14,7 @@
   import { mainLength, mainTempo, pieceTime, sections } from './engine/duration';
   import Transport from './ui/Transport.svelte';
   import FreePanel from './ui/FreePanel.svelte';
-  import { loudness, renderLength, renderPiece, wav } from './audio/render';
+  import { loudness, renderLength, renderPiece, sampleHash, blockLevels, wav } from './audio/render';
   import { Player } from './audio/player';
   import { transportClock } from './audio/clock.svelte';
   import Graph from './ui/Graph.svelte';
@@ -335,6 +335,13 @@
     (window as unknown as { cellStudio: unknown }).cellStudio = {
       measure: async (seconds?: number) => loudness(await renderPiece(result, codeShifts(result), seconds)),
       length: () => renderLength(result),
+      // render(source, seconds) renders any source (not just the open piece), with a hash of the samples and
+      // the level of every block of them: for checking a refactor leaves every piece sounding the same (`tools/golden.mjs`)
+      render: async (source: string, seconds?: number) => {
+        const r = compileSource(source, { SAMPLE_RATE: 44100, A4: 440 });
+        const buf = await renderPiece(r, codeShifts(r), seconds);
+        return { ...loudness(buf), hash: sampleHash(buf), blocks: blockLevels(buf) };
+      },
       level: (n: string) => {
         const w = player.waveform(n);
         return w ? Math.max(...Array.from(w).map(Math.abs)) : null;
