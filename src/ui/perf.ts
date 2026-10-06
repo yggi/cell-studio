@@ -1,4 +1,4 @@
-import { marks } from '../audio/stats';
+import { capacity, marks } from '../audio/stats';
 
 /**
  * Performance report: what the page felt like while a piece played, on the device in your hand. The
@@ -179,6 +179,12 @@ export interface ReportData {
     outputLatencyMs: number | null;
     /** How fast the audio clock ran against the wall clock while playing (1 = in step; null: not measured). */
     clockRatio: number | null;
+    /** The audio context's tuning (latency hint, look-ahead): what the figures above are for. */
+    tuning: string | null;
+    /** Mean seconds between a sample being made and being heard, from the output timestamp, in ms (null: no timestamp). */
+    heardLatencyMs: number | null;
+    /** The render thread's own report (AudioContext.renderCapacity), over the window: null where the browser has none. */
+    capacity: { updates: number; meanLoad: number; peakLoad: number; underrunRatioMean: number; underrunRatioMax: number } | null;
     /** Underruns over the window; null where the browser doesn't report them. */
     playout: { events: number; seconds: number; averageLatencyMs: number; maximumLatencyMs: number } | null;
   };
@@ -194,6 +200,8 @@ export function verdict(r: ReportData): string[] {
   if (r.playingSeconds < 3) out.push('Too little steady playback in this window to judge (the first 3 s after Play do not count): press Record, play the piece for 20 s or more, then stop.');
   if (r.audio.playout && r.audio.playout.events > 0) out.push(`Audio underran ${r.audio.playout.events} time(s) (${n1(r.audio.playout.seconds * 1000)} ms in all): that is audible.`);
   else if (r.audio.playout) out.push('No audio underruns reported.');
+  if (r.audio.capacity && r.audio.capacity.underrunRatioMax > 0) out.push(`The audio thread missed deadlines (up to ${n1(r.audio.capacity.underrunRatioMax * 100)} % of blocks in a second): that is audible.`);
+  else if (r.audio.capacity && r.audio.capacity.peakLoad > 0.8) out.push(`The audio thread peaked at ${n0(r.audio.capacity.peakLoad * 100)} % load: little room left for a smaller buffer.`);
   if (r.audio.clockRatio !== null && r.audio.clockRatio < 0.98) out.push(`The audio clock ran slow (${r.audio.clockRatio.toFixed(3)} of real time): the audio thread was starved.`);
   if (r.notes && r.notes.dropped > 0) out.push(`${r.notes.dropped} note(s) were left out for starting more than 50 ms late (worst ${n0(r.notes.worstLateMs)} ms): that is audible.`);
   else if (r.notes && r.notes.late > 0) out.push(`${r.notes.late} note(s) started a little late (worst ${n0(r.notes.worstLateMs)} ms).`);
@@ -235,6 +243,12 @@ export function buildReport(r: ReportData): string {
   lines.push(
     `| Audio | ${r.audio.state ?? 'not started'}${r.audio.sampleRate ? ` · ${r.audio.sampleRate} Hz` : ''}${r.audio.baseLatencyMs !== null ? ` · base latency ${n1(r.audio.baseLatencyMs)} ms` : ''}${r.audio.outputLatencyMs !== null ? ` · output latency ${n1(r.audio.outputLatencyMs)} ms` : ''}${r.audio.clockRatio !== null ? ` · clock ${r.audio.clockRatio.toFixed(3)}× real time` : ''} |`,
   );
+  if (r.audio.tuning || r.audio.heardLatencyMs !== null)
+    lines.push(`| Latency tuning | ${r.audio.tuning ?? '?'}${r.audio.heardLatencyMs !== null ? ` · made-to-heard (output timestamp) ${n1(r.audio.heardLatencyMs)} ms` : ''} |`);
+  if (r.audio.capacity)
+    lines.push(
+      `| Audio thread (renderCapacity) | load mean ${n0(r.audio.capacity.meanLoad * 100)} %, peak ${n0(r.audio.capacity.peakLoad * 100)} % · missed deadlines: mean ${n1(r.audio.capacity.underrunRatioMean * 100)} %, worst second ${n1(r.audio.capacity.underrunRatioMax * 100)} % (${r.audio.capacity.updates} s) |`,
+    );
   lines.push(
     r.audio.playout
       ? `| Audio underruns | ${r.audio.playout.events} (${n1(r.audio.playout.seconds * 1000)} ms) · latency average ${n1(r.audio.playout.averageLatencyMs)} ms, max ${n1(r.audio.playout.maximumLatencyMs)} ms |`
@@ -272,6 +286,7 @@ interface Sample {
   audioTime: number | null;
   playout: Playout | null;
   notes: NoteStats | null;
+  heardLatency: number | null;
   heap: number | null;
 }
 
@@ -283,6 +298,8 @@ interface AudioNow {
   currentTime: number | null;
   playout: Playout | null;
   notes: NoteStats | null;
+  heardLatency?: number | null;
+  tuning?: string | null;
 }
 
 export interface PerfSources {
@@ -403,7 +420,7 @@ export class PerfCollector {
     if (this.ticks++ % 5 !== 0) return;
     const a = this.src.audio();
     const heap = (performance as unknown as { memory?: { usedJSHeapSize: number } }).memory?.usedJSHeapSize ?? null;
-    this.push(this.samples, { t: performance.now(), playing: this.steady(), scale: this.src.loadScale(), audioTime: a.currentTime, playout: a.playout, notes: a.notes, heap });
+    this.push(this.samples, { t: performance.now(), playing: this.steady(), scale: this.src.loadScale(), audioTime: a.currentTime, playout: a.playout, notes: a.notes, heardLatency: a.heardLatency ?? null, heap });
   }
 
   /** What the last `seconds` (or the window from `from`) looked like, for the live readout. */
@@ -466,9 +483,21 @@ export class PerfCollector {
         ? (() => {
             const a = withNotes[0].notes!;
             const b = withNotes[withNotes.length - 1].notes!;
-            return { played: b.played - a.played, late: b.late - a.late, dropped: b.dropped - a.dropped, worstLateMs: b.worstLateMs };
+            // (each sample carries the worst since the one before it: the window's worst is the largest after its first)
+            return { played: b.played - a.played, late: b.late - a.late, dropped: b.dropped - a.dropped, worstLateMs: Math.max(0, ...withNotes.slice(1).map((s) => s.notes!.worstLateMs)) };
           })()
         : null;
+    const heard = samples.map((s) => s.heardLatency).filter((h): h is number => h !== null);
+    const caps = capacity.events.filter((e) => win(e.t));
+    const cap: ReportData['audio']['capacity'] = caps.length
+      ? {
+          updates: caps.length,
+          meanLoad: caps.reduce((a, e) => a + e.avg, 0) / caps.length,
+          peakLoad: Math.max(...caps.map((e) => e.peak)),
+          underrunRatioMean: caps.reduce((a, e) => a + e.underrun, 0) / caps.length,
+          underrunRatioMax: Math.max(...caps.map((e) => e.underrun)),
+        }
+      : null;
     const nav = navigator as Navigator & { deviceMemory?: number; userAgentData?: { mobile?: boolean } };
     const heaps = samples.map((s) => s.heap).filter((h): h is number => h !== null);
     return {
@@ -500,6 +529,9 @@ export class PerfCollector {
         baseLatencyMs: audio.baseLatency === null ? null : audio.baseLatency * 1000,
         outputLatencyMs: audio.outputLatency === null ? null : audio.outputLatency * 1000,
         clockRatio,
+        tuning: audio.tuning ?? null,
+        heardLatencyMs: heard.length ? (heard.reduce((a, b) => a + b, 0) / heard.length) * 1000 : null,
+        capacity: cap,
         playout,
       },
       heapMB: heaps.length ? Math.max(...heaps) / 1048576 : null,

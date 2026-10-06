@@ -34,3 +34,10 @@ export function timed<T>(name: string, fn: () => T): T {
     markDuration(name, performance.now() - s);
   }
 }
+
+/**
+ * The audio thread's own report on itself, where the browser has it (AudioContext.renderCapacity, Chrome 126+):
+ * once a second, how loaded the render thread was (0…1 of the time a block may take) and what share of blocks
+ * missed their deadline — the underruns `playoutStats` would count. Filled by the player.
+ */
+export const capacity: { supported: boolean; events: { t: number; avg: number; peak: number; underrun: number }[] } = { supported: false, events: [] };

@@ -37,6 +37,27 @@ Since the first phone reports it also says:
 Only **steady playback** counts: the first 3 s after each Play are left out (the audio engine and the reverb
 impulse start then), and a window with less than 3 s of steady playback says so instead of a verdict.
 
+## Latency: how far can it go on this device?
+Three different delays, easily confused:
+- **Output latency** (the device): how long after the audio engine makes a sample it is heard. Set by the browser's
+  buffer (`latencyHint`: `playback` is the app's default, `balanced`, `interactive`, or a number of seconds) and by what the
+  platform does with it (on Android a power-saving stream adds a deep buffer: 280 ms was measured on a phone with `playback`;
+  desktop `playback` is ~70 ms, `interactive` ~30 ms). This is what makes pictures run ahead of the sound (#67), and the only
+  delay between a hand (strike, bow) and its sound. Lowering it risks **underruns on the audio thread**.
+- **Look-ahead** (Tone, 0.3 s; 0.12 s for pieces with hands): how far ahead of the audio clock notes are scheduled, the
+  margin the *page* has before a note is late. It does not delay the sound or the pictures; lowering it risks **late notes** when
+  the main thread stalls.
+- **Heard offset** (reported as "made-to-heard"): the difference between the engine's clock and what is heard now, from
+  `getOutputTimestamp()`. This is what the pictures can be shifted by, at any latency.
+
+To try a setting, open the app with `?latency=interactive` (or `balanced`, `playback`, or seconds such as `0.05`) and/or
+`?lookahead=0.1`. They are kept until `?latency=off` / `?lookahead=off`. The report's **Latency tuning** row shows what is in force and the
+made-to-heard time; **Audio thread (renderCapacity)** (Chrome 126+, where present) shows the render thread's load and the share of
+blocks that missed their deadline, which is the underrun measure; **Notes** shows late and dropped notes. A setting is safe on a
+device when, over a few pieces played for 30 s each (a heavy one: Hypercell, Bach Prelude and Fugue, Test Tones on Tape), the audio
+thread's peak stays well under 80 % with no missed deadlines (or, without renderCapacity, nothing left out and the clock ratio
+at 1.00×), and you hear no clicks.
+
 ## Caveats
 - It measures the page and the audio context, not what you hear: a clean report doesn't prove the sound was clean,
   but underruns or a slow audio clock prove it wasn't. Listen as well.
