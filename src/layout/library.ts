@@ -6,6 +6,7 @@
  */
 import { forceX, forceY } from 'd3-force';
 import type { GraphModel } from '../engine/graph';
+import { tagName } from '../engine/tags';
 import { DEFAULT_LAYOUT, ForceLayout } from './physics';
 
 export interface LibraryLayout {
@@ -25,8 +26,11 @@ export interface LibraryLayout {
   readonly ring: { readonly r: number; readonly piece: number; readonly genres: readonly { readonly tag: string; readonly angle: number }[] } | null;
 }
 
-/** The genres: pinned at even angles round the border, so every colour (an angle) stays where it is. */
-export const GENRES = ['classical', 'jazz', 'electronic', 'experimental', 'world'] as const;
+/** The five main genres (of `genre:` tags): pinned at even angles round the border, so every colour (an angle) stays where it is. */
+export const GENRES = ['genre:classical', 'genre:jazz', 'genre:electronic', 'genre:experimental', 'genre:world'] as const;
+
+/** A tag node's width in layout units: as wide as its word (its name, not its kind), and the `t:` of its id. */
+const tagWidth = (id: string) => 4.6 * (tagName(id.slice(2)).length + 2);
 
 /** A piece's wheel, in layout units. */
 export const PIECE = 46;
@@ -83,7 +87,7 @@ function start(entries: readonly { id: string; tags: readonly string[] }[]): { t
     degreeRepel: 0, // (a busy tag is the cloud's hub: it shouldn't push the rest away)
     uncross: 0, // (and in a cloud, a hub's edges must cross: untangling would throw it out)
     // a tag is as wide as its word; a piece, its wheel and title
-    radius: (n) => (n.id.startsWith('p:') ? pieceR + 6 : Math.max(tagRadius(count.get(n.id.slice(2)) ?? 1), 4.6 * n.id.length)),
+    radius: (n) => (n.id.startsWith('p:') ? pieceR + 6 : Math.max(tagRadius(count.get(n.id.slice(2)) ?? 1), tagWidth(n.id))),
   });
   l.setGraph(model);
   // a cloud holds together both ways (the engine's own pull to the centre is sideways only — in a
@@ -115,7 +119,7 @@ function start(entries: readonly { id: string; tags: readonly string[] }[]): { t
   // (and inside the wheel: nothing past the inner edge of the rim — a hard edge, by each one's own size)
   if (genres.length) {
     const edge = R - 40;
-    const sizeOf = (id: string) => (id.startsWith('p:') ? pieceR + 8 : Math.max(tagRadius(count.get(id.slice(2)) ?? 1), 4.6 * id.length) * 0.6);
+    const sizeOf = (id: string) => (id.startsWith('p:') ? pieceR + 8 : Math.max(tagRadius(count.get(id.slice(2)) ?? 1), tagWidth(id)) * 0.6);
     sim.force('disc', (() => {
       for (const n of (sim as unknown as { nodes: () => { id: string; x: number; y: number; vx: number; vy: number }[] }).nodes()) {
         if (isGenreId(n.id)) continue;

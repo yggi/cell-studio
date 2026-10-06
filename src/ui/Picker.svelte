@@ -44,6 +44,7 @@
   import LibraryGraph from './LibraryGraph.svelte';
   import PieceNode from './PieceNode.svelte';
   import { tagColours } from './tags';
+  import { tagName } from '../engine/tags';
   import { noteColour } from './theme';
   import type { LibraryLayout } from '../layout/library';
   import { durationText } from '../engine/duration';
@@ -128,7 +129,7 @@
     entries.filter(
       (e) =>
         (!tag || e.tags.includes(tag)) &&
-        (!words || e.title.toLowerCase().includes(words) || e.description.toLowerCase().includes(words) || e.tags.some((t) => t.toLowerCase().includes(words))),
+        (!words || e.title.toLowerCase().includes(words) || e.description.toLowerCase().includes(words) || e.tags.some((t) => tagName(t).toLowerCase().includes(words))),
     ),
   );
   const saved = $derived(shown.filter((e) => e.kind === 'saved'));
@@ -179,7 +180,7 @@
           : '';
   // (the graph keeps every piece in place: the search only dims)
   const matching = $derived(
-    new Set(entries.filter((e) => !words || e.title.toLowerCase().includes(words) || e.description.toLowerCase().includes(words) || e.tags.some((t) => t.toLowerCase().includes(words))).map((e) => e.id)),
+    new Set(entries.filter((e) => !words || e.title.toLowerCase().includes(words) || e.description.toLowerCase().includes(words) || e.tags.some((t) => tagName(t).toLowerCase().includes(words))).map((e) => e.id)),
   );
   // the examples, smallest first: from simple to complex
   const examples = $derived(shown.filter((e) => e.kind === 'example').sort((a, b) => (a.size ?? 0) - (b.size ?? 0)));
@@ -217,7 +218,7 @@
   {#if view === 'cards'}
   <div class="tags" role="group" aria-label="Filter by tag">
     {#each tags as { t, n } (t)}
-      <button class="tag" class:on={tag === t} aria-pressed={tag === t} style:--hue={colours.get(t)} onclick={() => (tag = tag === t ? null : t)}>{t}<span>{n}</span></button>
+      <button class="tag" class:on={tag === t} aria-pressed={tag === t} style:--hue={colours.get(t)} onclick={() => (tag = tag === t ? null : t)}>{tagName(t)}<span>{n}</span></button>
     {/each}
   </div>
   {/if}
@@ -318,7 +319,7 @@
       </p>
       <div class="dtags">
         {#each d.tags as t (t)}
-          <button class="tag" class:on={tag === t} style:--hue={colours.get(t)} onclick={() => pickTag(t)}>{t}</button>
+          <button class="tag" class:on={tag === t} style:--hue={colours.get(t)} onclick={() => pickTag(t)}>{tagName(t)}</button>
         {/each}
       </div>
       <div class="actions">
