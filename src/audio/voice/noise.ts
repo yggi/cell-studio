@@ -1,4 +1,21 @@
-// Noise for noise voices (s=white, s=pink, s=brown).
+// Noise for noise voices (s=white, s=pink, s=brown). Seeded, never Math.random: a piece sounds the same every time.
+import { chanceOf } from '../../engine/realize';
+
+/** A small seeded generator (mulberry32): numbers in [0, 1), the same sequence for the same seed. */
+export function seeded(seed: number): () => number {
+  let a = seed >>> 0;
+  return () => {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/** Where in the noise a note starts: from its cell's seed, its voice and its start in the code's seconds (not the audio clock, which depends on when the context began), as chance is thrown. */
+export function grainOffset(seed: number, voice: string, at: number, duration: number): number {
+  return chanceOf(`${seed}|${voice}|${at.toFixed(6)}|grain`) * duration;
+}
 
 /** Four seconds of noise of a colour, made once per audio context and colour. */
 const noiseBuffers = new WeakMap<BaseAudioContext, Map<string, AudioBuffer>>();
@@ -10,9 +27,10 @@ export function noiseBuffer(ctx: BaseAudioContext, colour: 'white' | 'pink' | 'b
   const length = Math.floor(ctx.sampleRate * 4);
   const buf = ctx.createBuffer(1, length, ctx.sampleRate);
   const d = buf.getChannelData(0);
+  const random = seeded(colour === 'white' ? 1 : colour === 'pink' ? 2 : 3);
   let b0 = 0, b1 = 0, b2 = 0, b3 = 0, b4 = 0, b5 = 0, b6 = 0, last = 0;
   for (let i = 0; i < length; i++) {
-    const w = Math.random() * 2 - 1;
+    const w = random() * 2 - 1;
     if (colour === 'white') d[i] = w;
     else if (colour === 'pink') {
       // Paul Kellet's filter: -3 dB an octave

@@ -12,7 +12,8 @@ import { isPhysical, retime, type Window } from '../engine/schedule';
 import { createVoices, type VoiceBank } from './voices';
 import { transportClock } from './clock.svelte';
 import { load, watchLoad } from './load';
-import { markDuration, marks, noteStats } from './stats';
+import { capacity, markDuration, marks, noteStats } from './stats';
+import { resolveTuning, type Tuning, DEFAULT_TUNING } from './tuning';
 import { LocalEngine, type Engine, type PieceSource } from './engine';
 import type { LiveSource } from './live';
 
@@ -65,6 +66,34 @@ export class Player implements LiveSource {
     }
   }
 
+  /** How the context was tuned (the safe defaults unless the address said otherwise). */
+  tuning: Tuning = DEFAULT_TUNING;
+
+  /** The native context behind Tone's wrapper (where renderCapacity and the output timestamp live). */
+  private native(): Record<string, unknown> | null {
+    if (!this.Tone) return null;
+    const raw = (this.Tone.getContext() as unknown as { rawContext?: Record<string, unknown> }).rawContext;
+    return ((raw?._nativeContext as Record<string, unknown> | undefined) ?? raw) ?? null;
+  }
+
+  /** The render thread's load and underruns, once a second, where the browser reports them (stats.ts `capacity`). */
+  private watchCapacity() {
+    try {
+      const rc = this.native()?.renderCapacity as
+        | { start(o: { updateInterval: number }): void; addEventListener(t: 'update', f: (e: { averageLoad: number; peakLoad: number; underrunRatio: number }) => void): void }
+        | undefined;
+      if (!rc) return;
+      capacity.supported = true;
+      rc.addEventListener('update', (e) => {
+        capacity.events.push({ t: performance.now(), avg: e.averageLoad, peak: e.peakLoad, underrun: e.underrunRatio });
+        if (capacity.events.length > 3600) capacity.events.splice(0, capacity.events.length - 3600);
+      });
+      rc.start({ updateInterval: 1 });
+    } catch {
+      /* not available here */
+    }
+  }
+
   /**
    * The sound engine, awake: made on the first gesture that needs it — Play, or a hand on a resonator
    * while stopped (a body rings whether or not the clocks run). Tone is imported lazily, so no
@@ -76,8 +105,11 @@ export class Player implements LiveSource {
       const T = await import('tone');
       // headroom: a context tuned for playback (a larger buffer) that schedules notes 0.3 s ahead —
       // a busy page (a large graph drawing) then doesn't make notes late or starve the sound
-      T.setContext(new T.Context({ latencyHint: 'playback', lookAhead: 0.3 }), true); // (true: dispose Tone's default context, or it keeps running beside ours)
+      // (the defaults, unless the address asks otherwise to find out how far they can go on a device: audio/tuning.ts)
+      this.tuning = readTuning();
+      T.setContext(new T.Context({ latencyHint: this.tuning.latencyHint as AudioContextLatencyCategory, lookAhead: this.tuning.lookAhead ?? 0.3 }), true); // (true: dispose Tone's default context, or it keeps running beside ours)
       this.Tone = T;
+      this.watchCapacity();
     }
     await this.Tone.start();
     if (!this.voices) {
@@ -187,9 +219,17 @@ export class Player implements LiveSource {
     playout: { underrunEvents: number; underrunDuration: number; totalDuration: number; averageLatency: number; maximumLatency: number } | null;
     /** Notes scheduled / shifted late / left out for being > 50 ms late, since the page loaded. */
     notes: { played: number; late: number; dropped: number; worstLateMs: number };
+    /** Seconds between a sample being made and being heard, from the output timestamp (null where there is none). */
+    heardLatency: number | null;
+    /** The tuning in force (the latency hint and the look-ahead), as words. */
+    tuning: string;
   } {
+    const tuned = `${typeof this.tuning.latencyHint === 'number' ? `${this.tuning.latencyHint} s` : this.tuning.latencyHint}, look-ahead ${this.tuning.lookAhead ?? 'default'}`;
+    // (the worst lateness is since the last time it was asked: the report reads it every half second, so a window
+    // can tell its own worst from one at the start of the page)
     const notes = { ...noteStats };
-    if (!this.Tone) return { state: null, sampleRate: null, baseLatency: null, outputLatency: null, currentTime: null, playout: null, notes };
+    noteStats.worstLateMs = 0;
+    if (!this.Tone) return { state: null, sampleRate: null, baseLatency: null, outputLatency: null, currentTime: null, playout: null, notes, heardLatency: null, tuning: tuned };
     const tc = this.Tone.getContext() as unknown as { rawContext?: Record<string, unknown>; state?: string; sampleRate?: number; currentTime?: number };
     const raw = (tc.rawContext ?? {}) as { playoutStats?: Record<string, number>; _nativeContext?: { playoutStats?: Record<string, number>; baseLatency?: number; outputLatency?: number }; baseLatency?: number; outputLatency?: number };
     // (Tone wraps the native context: the stats are on the native one)
@@ -202,6 +242,16 @@ export class Player implements LiveSource {
       outputLatency: num(raw.outputLatency ?? raw._nativeContext?.outputLatency),
       currentTime: num(tc.currentTime),
       notes,
+      tuning: tuned,
+      heardLatency: (() => {
+        try {
+          const n = this.native() as { getOutputTimestamp?: () => { contextTime?: number }; currentTime?: number } | null;
+          const ts = n?.getOutputTimestamp?.();
+          return ts && typeof ts.contextTime === 'number' && ts.contextTime > 0 && typeof n?.currentTime === 'number' ? Math.max(0, n.currentTime - ts.contextTime) : null;
+        } catch {
+          return null;
+        }
+      })(),
       playout: stats
         ? {
             underrunEvents: stats.underrunEvents ?? 0,
@@ -225,7 +275,7 @@ export class Player implements LiveSource {
     // Tone is imported lazily so no AudioContext exists before the first gesture.
     const Tone = await this.wake();
     // physics: a hand's effect comes quickly (and stays, through pause and play, until Reset)
-    if (this.plan) (Tone.getContext() as unknown as { lookAhead: number }).lookAhead = isPhysical(this.plan.result) ? 0.12 : 0.3;
+    if (this.plan) (Tone.getContext() as unknown as { lookAhead: number }).lookAhead = this.tuning.lookAhead ?? (isPhysical(this.plan.result) ? 0.12 : 0.3);
     if (this.plan) this.voices!.sync(this.plan.result, this.plan.statics);
     // motors on: held tapes run on from where they stand
     for (const t of this.heldTapes.keys()) this.voices!.tapeScrub(t, null);
@@ -339,4 +389,23 @@ export class Player implements LiveSource {
     this.voices?.dispose();
     this.voices = undefined;
   }
+}
+
+const KEPT = { latency: 'cell-studio-latency', lookahead: 'cell-studio-lookahead' };
+/** The tuning the address and the kept settings ask for (and keeps the address's). */
+function readTuning(): Tuning {
+  if (typeof location === 'undefined') return DEFAULT_TUNING;
+  let kept = { latency: null as string | null, lookahead: null as string | null };
+  try {
+    kept = { latency: localStorage.getItem(KEPT.latency), lookahead: localStorage.getItem(KEPT.lookahead) };
+  } catch {
+    /* no storage here */
+  }
+  const { tuning, keep } = resolveTuning(location.search, kept);
+  try {
+    for (const k of ['latency', 'lookahead'] as const) keep[k] === null ? localStorage.removeItem(KEPT[k]) : localStorage.setItem(KEPT[k], keep[k]!);
+  } catch {
+    /* no storage here */
+  }
+  return tuning;
 }
