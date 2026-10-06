@@ -13,7 +13,7 @@ What lives where in Cell studio, and how source text becomes sound. Language: [l
 ```
 code text (App.svelte `code`)
   parse()              engine/parser/     -> ParseResult (AST types: ast.ts)
-  compile()            engine/compile.ts  -> CompileResult (cells, clocks, outputs, tapes, diagnostics)
+  compile()            engine/compiler/   -> CompileResult (cells, clocks, outputs, tapes, diagnostics)
   plan(result, shifts, muted)  engine/realize.ts -> Plan
   player.load(plan, source)    audio/player.ts
   every window: engine.window(from, 0.25)   audio/engine.ts -> engine/schedule.ts windowAt -> Window
@@ -37,7 +37,9 @@ The engine behind `engine.window` is local (in this thread, on the app's plan: t
   - `generators.ts`, `free.ts`, `values.ts` (`step=`/`loop=`, `map=`), `mix.ts` (a mix chord, kept as an expression).
 - `attributes.ts`: every attribute in one table (what it means, takes and acts on; its doc page); the parser, compile, the node editor and the docs test read it.
 - `algebra.ts`: the mix algebra ([decision 006](decisions/006-mix-algebra.md)): a mix's expressions typed by sort and distributed, one binding per voice.
-- `compile.ts`: cells as helices over grids, `ROOT` grid, diagnostics, `MAX_EVENTS`.
+- `compile.ts`: the compiled program's types (`ResolvedCell`, `Clock`, `Output` …), `ROOT` grid, `MAX_EVENTS`, and reading a compiled program (`pickIndices`, `entries`, `lookup`, `resolveIn`, `semitones` …); `compile()` itself is `compiler/`, in phases over one shared context (`context.ts`), run in order by `compiler/index.ts`:
+  - `declare.ts` (declarations, the default grid, `scale()` tables, `over=` chains) → `sorts.ts` (what each cell is, a mix typed: `algebra.ts`) → `resolve.ts` (cells as helices, `&refs`) → `bindings.ts` (kits, the sound card's channels, mixes expanded, voices) → `clocks.ts` (clocks, each cell's rate) → `checks.ts` (what physical and sounding cells refer to) → `outputs.ts` (one per voice binding, articulated) → `display.ts` (display tables, exciters) → `roles.ts` (attributes where they do nothing).
+  - `tables.ts`: reading declarations as tables (`tableOf`, `lengthOf`, `unitsOf`).
 - `realize.ts`: `plan` (every output's braid flattened once), `eventsBetween` (the notes that start in a window: tapes' echoes, laws, selectors, chance); the gates the scheduler uses (`outputSounds`, `endOf`, `picksNow`, `liveGains`). Its parts:
   - `clocking.ts`: time. `timeMap` (swing, positions in a bar, a motor or a belt), `clocking` (a program's clocks at a moment), `shiftsAt` (tables turning), `playedCells`, `physicsOf`, `tapeMotion`.
   - `flatten.ts`: a braid as numbers in its own steps (`flatten`, `unitsFor`, `stepsOf`, `StepEvent`).
