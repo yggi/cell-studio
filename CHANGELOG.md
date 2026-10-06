@@ -10,6 +10,9 @@ that makes the change. Also note changes to the language that could affect saved
 
 ## Unreleased
 
+### Changed
+- `bwv847` is written shorter (#82): `tools/bwv847.py` now runs its longhand through Shorten (`tools/shorten.mjs`), so repeated phrases are cells of their own, used exactly or transposed (10,138 → 9,999 characters in the committed file). The notes are unchanged (checked note by note, and the events of every example hash the same); the graph has one more shared cell and a few more crossings (24 → 28). The order convention is written down in `docs/language/display.md`.
+
 ### Fixed
 - The graph shows what sounds, for nodes and edges alike (#11): cells that sound are no longer drawn dimmed (a cell that moves a filter or a pitch, a part made only of chance choices, a mix used as an instrument such as Sound on Tape's `&dry`, the mix of tape heads that drives Resonanz's pipes); tapes, resonators, motors and scopes now fade too when off or unused; a selector lights only the part it picks now, and the way from it to the sound card; an edge takes a note's colour and pulses only while what it carries plays (a voice in two mixes no longer colours the edge to the one that isn't playing). The sound and saved `.cells` pieces are not affected.
 
