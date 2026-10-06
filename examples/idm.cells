@@ -1,4 +1,4 @@
-&piece title="IDM: drill, after Aphex Twin" tags="electronic, Aphex Twin, chromatic, rhythm" label="A breakbeat backwards every other bar, ratchets, hats seven against four; one harmony and one breath for pad, acid and lead."
+&piece title="IDM: drill, after Aphex Twin" tags="genre:electronic, artist:Aphex Twin, chromatic, rhythm" label="A breakbeat backwards every other bar, ratchets, hats seven against four; one harmony and one breath for pad, acid and lead."
 # Intelligent dance music, in the manner of Aphex Twin — an original. A breakbeat
 # read through a kit, every other bar its retrograde ([::-1]); ratchets (2*3: a
 # sixteenth split in three); hats seven against four. One harmony for all: the
@@ -26,5 +26,5 @@
 &saw303 s=saw loop=C2 lpf=150..2600 * &(map=adsr .002 .16 .12 .06) * &accent lpq=12 env=&(map=adsr .002 .12 .4 .05)
 &pad1 s=saw loop=C4 lpf=500..2200 * &breath env=&(map=adsr 1.2 .5 .7 2) pitch=&(map=lin loop=.3 0 .15 0 -.15 0)
 
-&mix level=0 loop=SAMPLE_RATE map=sample [&break * .7, &hats * &tick * .2, &bleeps * &bleep * .3,
+&mix level=-0.5 loop=SAMPLE_RATE map=sample [&break * .7, &hats * &tick * .2, &bleeps * &bleep * .3,
                                   &acid * &accent * &saw303 * .4, &pad * &pad1 * .14]

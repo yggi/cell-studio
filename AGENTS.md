@@ -10,7 +10,7 @@ Cell studio: a minimal music language where everything is a cell, as a browser a
 
 ## Checks
 
-CI runs `check`, `test`, `build` and the smoke test on every PR; it is the gate. Before pushing run `npm test && npm run check`. While iterating, run one file: `npx vitest run src/engine/parser.test.ts`. Don't run `build` or the full smoke test locally unless you changed what they cover (`vite.config.ts`, `index.html`, assets, audio or UI wiring: then `npm run build && npm run smoke -- 2 "<a piece>"`). Don't repeat what CI repeats.
+CI runs `check`, `test` and `build` on every PR; it is the gate. The smoke test (every piece played in a browser) runs only on the PR labelled `candidate`, the one about to be merged ([testing.md](docs/testing.md)). Before pushing run `npm test && npm run check`. While iterating, run one file: `npx vitest run src/engine/parser.test.ts`. Don't run `build` or the full smoke test locally unless you changed what they cover (`vite.config.ts`, `index.html`, assets, audio or UI wiring: then `npm run build && npm run smoke -- 2 "<a piece>"`). Don't repeat what CI repeats.
 
 ## Rules
 

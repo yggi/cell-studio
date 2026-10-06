@@ -7,6 +7,7 @@ import { pieceTime, type PieceTime } from '../src/engine/duration';
 import { buildGraph } from '../src/engine/graph';
 import { ORDER, type PresetKey } from '../src/engine/order';
 import { pieceMeta } from '../src/engine/parser';
+import { canonicalTags } from '../src/engine/tags';
 
 export interface ExampleInfo {
   readonly key: PresetKey;
@@ -31,7 +32,7 @@ export function buildExamplesIndex(dir = 'examples'): ExampleInfo[] {
       key,
       title: m?.title ?? key,
       description: m?.description ?? '',
-      tags: m?.tags ?? [],
+      tags: canonicalTags(m?.tags ?? []),
       size: buildGraph(r).nodes.filter((n) => !n.petalOf && !n.cell.note).length,
       time: pieceTime(r),
       bytes: Buffer.byteLength(source),

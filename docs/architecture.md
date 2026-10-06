@@ -58,4 +58,4 @@ Scheduling: Tone's context is made for playback (`latencyHint: 'playback'`) with
 - `src/theory/modes.ts`: names, modes, `scan`, hues. `src/library.ts`: saved pieces (localStorage) and `.cells` files; always reports unavailable storage instead of failing.
 - `src/App.svelte`: owns `code`, derives `result`/`plan`, wires `Player`, saving, render, and `window.cellStudio`. `src/main.ts` mounts it.
 - `tools/`: Python generators (`bwv847.py` writes `examples/bwv847.cells`; `kern2cells.py`, `counterpoint.py`) and `tools/bwv847.reference.json` and `tools/profile/` scripts. Python deps: `pip install -r tools/dev-requirements.txt` (music21).
-- `.github/workflows/`: `ci.yml` (check, test, build, smoke, deploy to gh-pages from `main`); `dependabot.yml` (weekly npm and actions).
+- `.github/workflows/`: `ci.yml` (check, test, build, deploy to gh-pages from `main`); `smoke.yml` (play every piece, for the PR labelled `candidate` only); `dependabot.yml` (weekly npm and actions).

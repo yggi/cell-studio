@@ -14,6 +14,7 @@ that makes the change. Also note changes to the language that could affect saved
 - The graph shows what sounds, for nodes and edges alike (#11): cells that sound are no longer drawn dimmed (a cell that moves a filter or a pitch, a part made only of chance choices, a mix used as an instrument such as Sound on Tape's `&dry`, the mix of tape heads that drives Resonanz's pipes); tapes, resonators, motors and scopes now fade too when off or unused; a selector lights only the part it picks now, and the way from it to the sound card; an edge takes a note's colour and pulses only while what it carries plays (a voice in two mixes no longer colours the edge to the one that isn't playing). The sound and saved `.cells` pieces are not affected.
 
 ### Changed
+- Seven examples had a placeholder `level=0` and now have a measured level, so they sit with the rest of the library at about −24 dB average: Waveforms +0.5, Drunken Sailor −1.5, IDM −0.5, Acid-Cell +0.5, One more Cell −0.5, Ghost-Cells −1 and Cellular Brothers −3 dB (it was clipping; its peak is now −1 dB). Saved `.cells` pieces are not affected.
 - The examples are no longer all in the first download: the library is listed from an index made at build time (nothing is compiled to show it), and each piece's text is fetched when its card is drawn or it is opened (the first bundle is about 24 kB smaller gzipped). If a piece can't be fetched (offline, never opened before), it says so instead of opening. Saved `.cells` pieces are not affected.
 - Cell studio is now an installable app (PWA): it has an icon and a manifest, works offline after the first visit, and shows "New version ready" when an update is waiting (it never reloads by itself, so a playing piece is not cut off). The build is no longer one `index.html` but normal files with Tone loaded on first Play. Saved `.cells` pieces are not affected.
 
@@ -21,6 +22,7 @@ that makes the change. Also note changes to the language that could affect saved
 - Opening a piece now starts it from rest: the transport stops at 0 and nothing sounds, even if another piece was playing (it used to carry on from where it was) or the new piece has tapes (their hiss sounded as soon as the piece opened).
 
 ### Added
+- Tags have kinds: `genre:jazz`, `artist:Bach`, and a tag with no prefix is a topic. The library shows the names without the prefix, as before; a piece saved earlier with bare tags keeps working (a bare `jazz` or `Bach` is read as the genre or artist, any other bare tag as a topic), so its tags land on the same chips as the examples'. The examples now use a fixed vocabulary of tags (`src/engine/tags.ts`).
 - A performance overlay and a copyable performance report for measuring on a real device: open the app with `?perf` (or Files ▾ → Show performance report), press Record, play a piece, Stop, Copy report. See `docs/ui/performance.md`.
 - The running build's version and commit, shown in the **Files** menu.
 - A favicon.
@@ -34,6 +36,7 @@ that makes the change. Also note changes to the language that could affect saved
 - Tests run without per-file isolation (faster).
 
 ### Developer
+- CI: the smoke test moved out of `ci.yml` into `smoke.yml` and runs only on the PR labelled `candidate` (once on its head, again after each push to it), no longer on every push of every PR and on `main`. `check` stays on all. See `docs/testing.md`.
 - Audio refactoring (#15, #9), no change in sound (every example's offline render compared before and after): what to play next is worked out as plain data (`engine/schedule.ts`) behind an `Engine` that runs in this thread (the default) or, opt-in with `?engine=worker`, in a Web Worker; `voices.ts` is split into `audio/voice/` parts behind the unchanged `VoiceBank`, with Tone's wrapped nodes bridged in one typed place; the graph gets the sound as one `LiveSource` object instead of ten callbacks. Measured: the worker doesn't lighten the main thread (`docs/notes/15-engine-worker.md`).
 - `tools/golden.mjs` (golden renders: every example rendered offline and compared with a recorded run), `cellStudio.render(source, seconds)` and `cellStudio.engine()`, `ENGINE=worker npm run smoke`.
 - Agent workflow (#6): `AGENTS.md` rewritten (what is enforced, what is judgment, what an agent decides alone), the `senior` skill for triaging, reviewing and merging PRs with the owner's approval, a PR template, a SessionStart hook that installs dependencies in cloud sessions, `.claude/settings.json` allowlist.
