@@ -10,6 +10,12 @@ A minimal language for music where everything is a **cell**: a helix (pitch clas
 
 Commands, the rules (which are enforced and which are judgment), the PR conventions and what an agent may decide alone are in [../AGENTS.md](../AGENTS.md); how the tests and CI fit together is in [testing.md](testing.md). A release: bump `version` in `package.json`, move the *Unreleased* entries of `CHANGELOG.md` under a new heading, tag `vX.Y.Z`.
 
+## Pull requests: draft until ready
+
+- **Complex work starts as a draft PR**, opened early, so others see what is being done and where it will touch their work.
+- **A PR goes back to draft whenever you start putting more work on top of one that is already open**, your own or another one (a follow-up commit, a merge of main with conflicts, a rework after review). Don't leave a PR "ready" while it is moving.
+- **A PR is out of draft only when it is ready to be merged**: checks green, description and CHANGELOG up to date, nothing left on your side. Then it can be reviewed, labelled `candidate` and merged ([testing.md](testing.md)).
+
 ## Map of src/
 
 - `engine/` parse, compile, realize (plan → events), edit, Shorten, physics, FM, presets (reads `examples/*.cells`; the app gets an index at build time and loads sources on demand) → [architecture.md](architecture.md)
