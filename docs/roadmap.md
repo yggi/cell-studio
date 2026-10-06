@@ -15,4 +15,4 @@ The big jobs, at a high level. Detail lives in the issues — this page names ep
 | Performance | live views' cost on large graphs; the first slice (#13) is done | #36 |
 | Refactoring | `voices.ts`, large engine files, UI plumbing, lint | #9 |
 | Deployment | PWA, PR workflow | #7 |
-| Agents | AGENTS.md follow-ups | #6 |
+| Agents | the agentic workflow: AGENTS.md, the `senior` skill, CI | #6 |

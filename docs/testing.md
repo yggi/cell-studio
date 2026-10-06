@@ -4,13 +4,15 @@ What the tests promise and how to run them; see [architecture.md](architecture.m
 
 ## Run
 
-CI (`.github/workflows/ci.yml`, Node 22) runs these three after `npm ci`:
+CI (`.github/workflows/ci.yml`, Node 22) is the gate on every PR and on `main`:
 
-- `npm run check`: svelte-check with `tsconfig.json`.
-- `npm test`: `vitest run` (`npm run test:watch` while editing).
-- `npm run build`: `vite build`.
+- `check` job: `npm run check` (svelte-check), `npm test` (`vitest run`; `npm run test:watch` while editing), `npm run build`. It uploads the build.
+- `smoke` job: `npm run smoke` on that build, in the runner's Chrome: `tools/smoke.mjs` opens every piece of the library, plays it for 2 s, and fails on any page error, console error, or an AudioContext that isn't running and advancing. This is the only check that builds the audio graph of every voice kind (tapes, resonators, FM, kits), since vitest has no Web Audio.
+- `deploy` job (`main` only): publishes the `check` job's build to gh-pages; it doesn't test or build again.
 
-Tests are `*.test.ts` beside their source, in node: they can only cover `engine/`, `layout/`, `theory/`, a few `ui/` helpers and the docs.
+Locally, run `npm test && npm run check` before pushing, and one file while iterating (`npx vitest run src/engine/parser.test.ts`). Run the smoke test only when you changed what it covers (audio, UI wiring, assets, `vite.config.ts`): `npm run build && npm run smoke -- 2 "Music Box"` (seconds, then piece-title words; all pieces if none). In a cloud session set `CHROME_PATH=/opt/pw-browsers/chromium`.
+
+Tests are `*.test.ts` beside their source, in node: they can only cover `engine/`, `layout/`, `theory/`, a few `ui/` helpers, the examples and the docs.
 
 ## Groups
 
@@ -19,7 +21,6 @@ Tests are `*.test.ts` beside their source, in node: they can only cover `engine/
 - Realize (what sounds): `realize.test.ts` (notes, times, levels, per example), `tape.test.ts`, `resonator.test.ts`, `fm.test.ts`, `wave.test.ts`; `edit.test.ts` for line rewrites.
 - Layout: `src/layout/*.test.ts` (belts, cellview, describe, dial, geometry, labels, physics, show, spectrum).
 - Examples: `src/engine/examples.test.ts` — every `examples/*.cells` file is listed, compiles with zero diagnostics, and has a title, tags and `level=`.
-- Docs: `src/docs.test.ts` — see the last section.
 - UI helpers: `src/ui/colour`, `highlight`, `suggest` tests.
 
 ## Promises
@@ -31,6 +32,7 @@ Tests are `*.test.ts` beside their source, in node: they can only cover `engine/
   - `await cellStudio.measure(seconds?)` renders offline, returns `{ rms, peak, clipped }` (dB below full scale; `clipped` counts samples at the ceiling).
   - `cellStudio.length()`: default render length in seconds.
   - `cellStudio.level(name)`: a voice's current peak level, or `null`.
+- Layering: `src/architecture.test.ts` fails if a non-test file in `engine/` or `layout/` imports Svelte, Tone, `@xyflow`, `audio/` or `ui/`.
 - Docs: `src/docs.test.ts` compiles every ```` ```cells ```` block under `docs/language/` with no diagnostics, checks `docs/INDEX.md` lists each page, and that relative links resolve.
 
 ## Profiling

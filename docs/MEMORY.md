@@ -6,24 +6,9 @@ Entrypoint for humans and agents: slow-change, shared knowledge about Cell studi
 
 A minimal language for music where everything is a **cell**: a helix (pitch classes over octaves, beats over bars) with a **braid** sitting in its grid. A browser app (Svelte, TypeScript, Tone.js) with a code editor and a graph that are two views of the same text. One self-contained `dist/index.html`.
 
-## Commands
+## Working here
 
-    npm install
-    npm run dev       # vite
-    npm test          # vitest: theory, parser, compiler, realize, layout, docs
-    npm run check     # svelte-check
-    npm run build     # dist/index.html
-
-Before pushing: `npm test && npm run check && npm run build` (the three CI runs). Don't push to `main`; PR from a branch.
-
-## Rules
-
-- The code (text) is the single source of truth; every graph edit is a rewrite of a cell's line (`src/engine/edit.ts`). → [architecture.md](architecture.md)
-- `engine/` and `layout/` stay pure TS (no DOM, no Tone).
-- Theme values come from `src/app.css` and `src/ui/theme.ts` only. → [ui/theme.md](ui/theme.md)
-- Shorten preserves every note; tests check it on every example. → [ui/shorten.md](ui/shorten.md)
-- A change that users can see adds a line under *Unreleased* in `CHANGELOG.md`. To release: bump `version` in `package.json`, move the entries under a new heading, tag `vX.Y.Z`.
-- Facts live in one place; other places link. `docs/language/**` code blocks fenced `cells` are compiled by a test; use `cells-fragment` for snippets that aren't standalone.
+Commands, the rules (which are enforced and which are judgment), the PR conventions and what an agent may decide alone are in [../AGENTS.md](../AGENTS.md); how the tests and CI fit together is in [testing.md](testing.md). A release: bump `version` in `package.json`, move the *Unreleased* entries of `CHANGELOG.md` under a new heading, tag `vX.Y.Z`.
 
 ## Map of src/
 
@@ -55,6 +40,7 @@ One line each; the record has the rationale. → [decisions/](decisions/README.m
 - 001 · The wiki is dropped; `docs/` is the project memory · → decisions/001-no-wiki.md
 - 002 · `scale(tonic, phase)` stays as shorthand for two unnamed cells · → decisions/002-scale-shorthand.md
 - 003 · `cycle=n` has one job; grids say `map=edo` · → decisions/003-cycle-one-job.md
+- 004 · Agents open PRs and never merge; the `senior` skill triages, reviews and merges with the owner's approval · → decisions/004-agents-dont-merge.md
 
 ## Where things are tracked
 
