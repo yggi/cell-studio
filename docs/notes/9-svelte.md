@@ -131,8 +131,12 @@ Hygiene fixes (writable `$derived`, no writes in `$derived`, explicit dependenci
 
 **How to verify each PR:** `npm test && npm run check`. The `wheels` contact sheet and screenshots, before and after, for 3–6. The `profile` skill for 3. The PR labelled `candidate` runs the smoke test.
 
-## Open questions for the owner
+## Decided (owner, 2026-10-06)
 
-- Context or props for Transport/Picker? Context is less wiring. Props keep them usable without the app. I'd use context, since neither is reused outside the app.
-- `GraphContext` having a `sound` rather than *being* one touches every node component, but mechanically. Fine in PR 3?
-- The CSS pass (6) touches most components' styles. Like the Prettier commit, it's best done with no other UI PR open.
+- Transport and Picker read the `Studio` context, not props.
+- `GraphContext` has a `sound` (`ctx.sound.tapePos`): fine in PR 3.
+- Prettier, ESLint and the shared-CSS pass (step 6) are [#123](https://github.com/yggi/cell-studio/issues/123), done when no PR is open.
+
+## Progress
+
+- **PR 1 (shared primitives):** `ui/free.ts` (tested) and `FreeControl` (variants `row` and `large`); `FreeSliders` deleted. `ui/kit/attach.ts` has `trap`, `longpress` and `onScreen` (the name `visible` above) as attachments; `trap.ts`, `longpress.ts` and Picker's `holdFocus` are gone. `ui/kit/Dialog.svelte` is the centred pop-up only (`EditPop`, `HubEditor`); the sheet and the library card keep their own chrome with `trap` until PRs 4 and 5. The two short names a `free()` has (`bpm`/`choice` on pills and in the drawer, `tempo`/`choose` over a large control) are kept, as `freeKey` and `freeLabel`.

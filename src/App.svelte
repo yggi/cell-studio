@@ -2,6 +2,7 @@
   import { noteColour } from './ui/theme';
   import { tick } from 'svelte';
   import { onDestroy } from 'svelte';
+  import { MediaQuery } from 'svelte/reactivity';
   import { compileSource } from './engine/compile';
   import { codeShifts, type CompileResult } from './engine/program';
   import { addCell, declLine, setFree, setOff, setShift } from './engine/edit';
@@ -162,14 +163,8 @@
   // the first view: choosing a piece (the library as a graph); then the piece's graph and its code
   let tab = $state<'select' | 'graph' | 'code'>('select');
   // tabs only on narrow screens (matches the CSS breakpoint)
-  let narrow = $state(typeof matchMedia === 'function' ? !matchMedia('(min-width: 900px)').matches : false);
-  $effect(() => {
-    if (typeof matchMedia !== 'function') return;
-    const mq = matchMedia('(min-width: 900px)');
-    const on = () => (narrow = !mq.matches);
-    mq.addEventListener('change', on);
-    return () => mq.removeEventListener('change', on);
-  });
+  const wide = new MediaQuery('min-width: 900px');
+  const narrow = $derived(!wide.current);
   const errors = $derived(result.diagnostics.filter((d) => d.severity === 'error').length);
 
   const showInCode = async (name: string) => {

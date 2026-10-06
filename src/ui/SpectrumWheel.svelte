@@ -14,6 +14,7 @@
   import { noteName } from '../theory/modes';
   import { DOUGH_SOURCES } from '../engine/dough-params';
   import { onFrames } from '../audio/ticker';
+  import { onScreen } from './kit/attach';
   import { timed } from '../audio/stats';
   import { fitFont, hubMax } from '../layout/dial';
   import { wheelGeometry } from '../layout/wheel';
@@ -192,24 +193,16 @@
     if (canvas) draw();
   });
 
-  let watch: IntersectionObserver | null = null;
   onMount(() => {
     fillResting();
     draw();
     stopFrames = onFrames(frame, interval);
-    if (typeof IntersectionObserver !== 'undefined') {
-      watch = new IntersectionObserver((es) => (visible = es.some((e) => e.isIntersecting)));
-      watch.observe(canvas);
-    }
   });
-  onDestroy(() => {
-    stopFrames();
-    watch?.disconnect();
-  });
+  onDestroy(() => stopFrames());
 </script>
 
 <div class="wheel" class:resting data-wheel="spectrum" style="width: {size}px; height: {size}px">
-  <canvas bind:this={canvas} width={px} height={px} style="width: {size}px; height: {size}px"></canvas>
+  <canvas bind:this={canvas} {@attach onScreen((v) => (visible = v))} width={px} height={px} style="width: {size}px; height: {size}px"></canvas>
   {#if bigFont}<span class="note" {title} style:font-size="{bigFont}px">{hub}{#if smallFont}<small style:font-size="{smallFont}px">{small}</small>{/if}</span>{/if}
 </div>
 

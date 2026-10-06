@@ -4,7 +4,7 @@
   import type { CellFlowNode } from './types';
   import CellGlyph from './CellGlyph.svelte';
   import { getGraphContext, nodeState } from './context';
-  import { longpress } from './longpress';
+  import { longpress } from './kit/attach';
   import FreePills from './FreePills.svelte';
   import SpectrumWheel from './SpectrumWheel.svelte';
   import { hubLabel } from '../layout/cellview';
@@ -32,7 +32,7 @@
 
 {#if note}
 <!-- a note is for reading: it never fades with the sound (unless switched off) -->
-<div class="node notecard" data-state={state === 'off' ? 'off' : 'on'} use:longpress={{ onlong: () => ctx.toggle(id) }}>
+<div class="node notecard" data-state={state === 'off' ? 'off' : 'on'} {@attach longpress(() => ctx.toggle(id))}>
   <Handle type="target" position={Position.Top} class="center-handle" isConnectable={false} />
   <p>{@html label}</p>
   <Handle type="source" position={Position.Bottom} class="center-handle" isConnectable={false} />
@@ -44,7 +44,7 @@
   class:meter={data.isMeter}
   data-state={state}
   style="width: {data.size}px; height: {data.size}px"
-  use:longpress={{ onlong: () => ctx.toggle(id) }}
+  {@attach longpress(() => ctx.toggle(id))}
 >
   <Handle type="target" position={Position.Top} class="center-handle" isConnectable={false} />
   {#if signal && hub}

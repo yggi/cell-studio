@@ -16,6 +16,7 @@
   import { noteColour, scopeBand } from './theme';
   import { onFrames } from '../audio/ticker';
   import { timed } from '../audio/stats';
+  import { onScreen } from './kit/attach';
 
   let { name, w = 240, h = 150, round = false }: { name: string; w?: number; h?: number; round?: boolean } = $props();
   const ctx = getGraphContext();
@@ -139,13 +140,10 @@
   let lanes = $state.raw<Bins[]>([]);
   let canvas = $state<HTMLCanvasElement | null>(null);
 
-  let root = $state<HTMLDivElement | null>(null);
+  // only a scope that can be seen does any work (off screen, or the page in the background, it reads
+  // no analysis and draws nothing) — as the spectrum wheels do
+  let visible = true;
   $effect(() => {
-    // only a scope that can be seen does any work (off screen, or the page in the background, it reads
-    // no analysis and draws nothing) — as the spectrum wheels do
-    let visible = true;
-    const watch = typeof IntersectionObserver !== 'undefined' && root ? new IntersectionObserver((es) => (visible = es.some((e) => e.isIntersecting))) : null;
-    if (watch && root) watch.observe(root);
     const tick = () => {
       if (visible) timed('scope', () => step());
     };
@@ -201,10 +199,7 @@
     };
     // waveforms ~30 a second; a spectrum (an 8192-point analysis per channel) ~15: plenty for the eye
     const stop = onFrames(tick, () => (spectral ? 66 : 33));
-    return () => {
-      stop();
-      watch?.disconnect();
-    };
+    return stop;
   });
 
   // the waterfall: the picture moves up a row; the new row is now — each bin its colour, as bright as loud
@@ -262,7 +257,7 @@
   );
 </script>
 
-<div class="scope" data-wheel="scope" bind:this={root} class:round style:width="{W}px" style:height="{H}px" role="img" aria-label="Scope: {channels.join(', ')}">
+<div class="scope" data-wheel="scope" {@attach onScreen((v) => (visible = v))} class:round style:width="{W}px" style:height="{H}px" role="img" aria-label="Scope: {channels.join(', ')}">
   {#if mode === 'waterfall'}
     <canvas bind:this={canvas} width={Math.round(box.w)} height={Math.round(box.h)} style:left="{box.x}px" style:top="{box.y}px"></canvas>
     {#if lanes[0]}

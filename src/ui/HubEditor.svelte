@@ -6,14 +6,11 @@
    */
   import { lastWord, suggest } from './suggest';
   import { parse } from '../engine/parser';
-  import { trap } from './trap';
+  import Dialog from './kit/Dialog.svelte';
 
   let { text: initial, names, onapply, onclose }: { text: string; names: readonly string[]; onapply: (text: string) => void; onclose: () => void } = $props();
 
-  let text = $state('');
-  $effect(() => {
-    text = initial;
-  });
+  let text = $derived(initial);
   const word = $derived(lastWord(text));
   const suggestions = $derived(suggest(word.word, names, true));
   const problem = $derived(text.trim() ? (parse(`&probe ${text}`).diagnostics[0]?.message ?? null) : null);
@@ -23,8 +20,7 @@
   };
 </script>
 
-<div class="backdrop" onclick={onclose} role="presentation"></div>
-<div class="pop" role="dialog" aria-label="Edit the braid" aria-modal="true" use:trap={onclose}>
+<Dialog label="Edit the braid" {onclose} width={440}>
   <div class="field">
     <!-- svelte-ignore a11y_autofocus -->
     <input
@@ -53,31 +49,9 @@
     </ul>
   {/if}
   <p class="hint">Steps separated by spaces, or one function. Empty: the default grid.</p>
-</div>
+</Dialog>
 
 <style>
-  .backdrop {
-    position: fixed;
-    inset: 0;
-    z-index: 60;
-    background: var(--scrim);
-  }
-  .pop {
-    position: fixed;
-    z-index: 61;
-    left: 50%;
-    top: 22%;
-    transform: translateX(-50%);
-    width: min(440px, calc(100vw - 24px));
-    padding: 10px;
-    border-radius: 14px;
-    background: var(--surface);
-    border: 1px solid var(--line);
-    box-shadow: var(--shadow-strong);
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-  }
   .field {
     display: flex;
     gap: 6px;
