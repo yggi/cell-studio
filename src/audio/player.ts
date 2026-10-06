@@ -154,6 +154,42 @@ export class Player {
     return this.Tone ? this.Tone.getContext().sampleRate : null;
   }
 
+  /**
+   * What the audio context looks like now, for the performance report: its state and latencies, its clock, and
+   * — where the browser reports them — the playout underruns. Nothing here starts audio.
+   */
+  audioInfo(): {
+    state: string | null;
+    sampleRate: number | null;
+    baseLatency: number | null;
+    outputLatency: number | null;
+    currentTime: number | null;
+    playout: { underrunEvents: number; underrunDuration: number; totalDuration: number; averageLatency: number; maximumLatency: number } | null;
+  } {
+    if (!this.Tone) return { state: null, sampleRate: null, baseLatency: null, outputLatency: null, currentTime: null, playout: null };
+    const tc = this.Tone.getContext() as unknown as { rawContext?: Record<string, unknown>; state?: string; sampleRate?: number; currentTime?: number };
+    const raw = (tc.rawContext ?? {}) as { playoutStats?: Record<string, number>; _nativeContext?: { playoutStats?: Record<string, number>; baseLatency?: number; outputLatency?: number }; baseLatency?: number; outputLatency?: number };
+    // (Tone wraps the native context: the stats are on the native one)
+    const stats = raw.playoutStats ?? raw._nativeContext?.playoutStats;
+    const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : null);
+    return {
+      state: tc.state ?? null,
+      sampleRate: num(tc.sampleRate),
+      baseLatency: num(raw.baseLatency ?? raw._nativeContext?.baseLatency),
+      outputLatency: num(raw.outputLatency ?? raw._nativeContext?.outputLatency),
+      currentTime: num(tc.currentTime),
+      playout: stats
+        ? {
+            underrunEvents: stats.underrunEvents ?? 0,
+            underrunDuration: stats.underrunDuration ?? 0,
+            totalDuration: stats.totalDuration ?? 0,
+            averageLatency: stats.averageLatency ?? 0,
+            maximumLatency: stats.maximumLatency ?? 0,
+          }
+        : null,
+    };
+  }
+
   get playing(): boolean {
     return this.repeatId !== null;
   }

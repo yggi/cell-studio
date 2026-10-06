@@ -18,6 +18,7 @@ that makes the change. Also note changes to the language that could affect saved
 - Opening a piece now starts it from rest: the transport stops at 0 and nothing sounds, even if another piece was playing (it used to carry on from where it was) or the new piece has tapes (their hiss sounded as soon as the piece opened).
 
 ### Added
+- A performance overlay and a copyable performance report for measuring on a real device: open the app with `?perf` (or Files ▾ → Show performance report), press Record, play a piece, Stop, Copy report. See `docs/ui/performance.md`.
 - The running build's version and commit, shown in the **Files** menu.
 - A favicon.
 

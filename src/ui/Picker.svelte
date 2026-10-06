@@ -79,6 +79,8 @@
     onsavebrowser,
     onremove,
     onrender,
+    onperf,
+    perfOn = false,
   }: {
     entries: readonly Entry[];
     current: string | null;
@@ -93,6 +95,9 @@
     onsavebrowser: () => void;
     onremove: (id: string) => void;
     onrender: () => void;
+    /** Show or hide the performance overlay. */
+    onperf?: () => void;
+    perfOn?: boolean;
   } = $props();
 
   let query = $state('');
@@ -223,6 +228,7 @@
         <button role="menuitem" onclick={() => ((filesOpen = false), fileInput.click())}>Open a file…</button>
         <button role="menuitem" disabled={!current} onclick={() => ((filesOpen = false), onsavefile())}>Save the piece to a file</button>
         <button role="menuitem" disabled={!current} onclick={() => ((filesOpen = false), onrender())}>Render the piece to WAV</button>
+        {#if onperf}<button role="menuitem" onclick={() => ((filesOpen = false), onperf())}>{perfOn ? 'Hide' : 'Show'} performance report</button>{/if}
         <button role="menuitem" disabled={!current || !storageOk} title={storageOk ? undefined : 'This browser can’t keep pieces here'} onclick={() => ((filesOpen = false), onsavebrowser())}>Save it in this browser</button>
         <p class="version">Cell studio {__APP_VERSION__}</p>
       </div>

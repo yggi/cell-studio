@@ -27,5 +27,8 @@ device, so this measures the page, not audible glitches; use a real phone for th
     npx vite-node tools/profile/cellview-time.ts examples/bwv847.cells
 
 `measure.mjs` prints one JSON line per piece (`taskPct` = main-thread busy %, `longtasks` > 50 ms).
+On a real device there is no cable needed: open the app with `?perf` and use the overlay's Record / Copy report
+(`docs/ui/performance.md`); paste the report into the issue.
+
 Playwright is found by `playwright.mjs` (set `PLAYWRIGHT=` or `CHROME_PATH=` if needed).
 Commit result tables to the issue, not here; `profile-*.json` is ignored.

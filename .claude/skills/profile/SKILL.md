@@ -71,6 +71,12 @@ largest events of the first long tasks. Busy % saturates near 90–100 % at ×4,
 Engine cost without a browser: `npx vite-node tools/profile/engine-time.ts` (compile/plan/events per example;
 it was 2–16 ms / ≤ 3 ms / ≤ ~21 ms per 8 s of music, so the engine is not the bottleneck).
 
+## On a real device
+No cable needed: open the app with `?perf` (or Files ▾ → Show performance report), Record, play a piece for 30 s,
+Stop, Copy report, paste it into the issue (`docs/ui/performance.md`). It reports frames, long tasks, long
+animation frames, the audio clock and underruns where the browser has them, with a verdict against the #13
+targets. Ask the owner for a report from the phone before claiming a performance fix works on Android.
+
 ## Silence check
 `node tools/profile/fresh-open.mjs <url>` opens pieces in sequence (playing, paused, tape pieces) and fails
 if a freshly opened piece sounds or keeps the old transport position. It taps the audio output before the
