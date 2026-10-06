@@ -34,7 +34,7 @@ describe('the scenario', () => {
     const steps = planSteps({ seconds: 25, settings: SETTINGS, pieces: PIECES });
     expect(steps).toHaveLength(SETTINGS.length * PIECES.length);
     expect(steps.slice(0, PIECES.length).every((s) => s.setting.id === 'playback')).toBe(true);
-    expect(estimateMinutes({ seconds: 25, settings: SETTINGS, pieces: PIECES })).toBe(6);
+    expect(estimateMinutes({ seconds: 25, settings: SETTINGS, pieces: PIECES })).toBe(8);
   });
   it('the address can shorten it for trying out; anything unusable falls back to the defaults', () => {
     const o = parseRunOptions('?perf&runseconds=5&runsettings=balanced&runpieces=testtones');

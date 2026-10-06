@@ -24,11 +24,12 @@ export const SETTINGS: readonly Setting[] = [
   { id: 'interactive-la100', label: 'interactive, look-ahead 0.1 s', tuning: { latencyHint: 'interactive', lookAhead: 0.1 } },
 ];
 
-/** The heaviest pieces: the dense drum-and-synth one, the longest counterpoint, the tape and noise one. */
+/** The heaviest pieces: the dense drum-and-synth one, the longest counterpoint, the tape and noise one, the resonating bodies (hands: a shorter look-ahead). */
 export const PIECES: readonly { key: string; label: string }[] = [
   { key: 'hypercell', label: 'Hypercell' },
   { key: 'bwv847', label: 'Bach 847' },
   { key: 'testtones', label: 'Test Tones on Tape' },
+  { key: 'resonanz', label: 'Baustelle II: Resonanz' },
 ];
 
 export interface RunOptions {
