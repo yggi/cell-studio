@@ -10,6 +10,7 @@
   import { getGraphContext } from './context';
   import { clocking } from '../engine/realize';
   import { BODIES } from '../engine/compile';
+  import { load, watchLoad } from '../audio/load';
   import FreePills from './FreePills.svelte';
 
   let { id, data }: NodeProps = $props();
@@ -20,8 +21,8 @@
   const R = $derived(S / 2);
 
   // ---- a resonator: how it's ringing — each mode squashes and stretches the disc along its own axis
-  let amps = $state<number[]>([]);
-  let pads = $state<number[]>([]);
+  let amps = $state.raw<number[]>([]);
+  let pads = $state.raw<number[]>([]);
   // its exciters: one pad each round the wheel, named by the note it sounds
   const NAMES = ['C', 'C♯', 'D', 'E♭', 'E', 'F', 'F♯', 'G', 'A♭', 'A', 'B♭', 'B'];
   const exciters = $derived.by(() => {
@@ -36,15 +37,22 @@
   $effect(() => {
     if (d.role !== 'resonator') return;
     let raf = 0;
+    let lastT = 0;
+    watchLoad();
     const tick = (t: number) => {
       raf = requestAnimationFrame(tick);
+      // (~30 a second: the wobble is a slow shimmer, and reading the analyser is not free)
+      if (document.hidden || t - lastT < 33 * load.scale) return;
+      lastT = t;
       const r = ctx.resonance(d.name);
       if (!r) {
         if (wobble !== 'none') (wobble = 'none'), (amps = []), (pads = []);
         return;
       }
       const a = r.modes;
-      amps = a;
+      // (each ring's brightness in 24 steps, and only written when one changed: a ring's style is a repaint)
+      const q = a.map((v: number) => Math.round(v * 24) / 24);
+      if (q.length !== amps.length || q.some((v: number, i: number) => v !== amps[i])) amps = q;
       pads = r.exciters;
       // M = I + Σ dₖ (uₖuₖᵀ − vₖvₖᵀ): mode k's axis at k/n of a half-turn, its stretch oscillating (higher
       // modes faster — a visible rate, not the real one), its depth its strength
@@ -90,7 +98,7 @@
   const headAngle = (at: number) => -90 + (tape ? (at / tape.L) * 360 : 0);
   const polar = (deg: number, r: number) => ({ x: R + r * Math.cos((deg * Math.PI) / 180), y: R + r * Math.sin((deg * Math.PI) / 180) });
   const N = 96;
-  let rec = $state<number[]>(new Array(96).fill(0));
+  let rec = $state.raw<number[]>(new Array(96).fill(0)); // (replaced whole each time: raw)
   let tapeAt = $state(0);
   $effect(() => {
     const t = tape;
@@ -98,8 +106,12 @@
     let raf = 0;
     let last = -1;
     let running = false;
-    const tick = () => {
+    let lastT = 0;
+    watchLoad();
+    const tick = (now: number) => {
       raf = requestAnimationFrame(tick);
+      if (document.hidden || now - lastT < 33 * load.scale) return;
+      lastT = now;
       const p = ctx.tapePos(d.name);
       if (p === null) return void (running = false);
       // (a new run starts on a blank tape — the sound's was wound off when it stopped)
@@ -376,11 +388,13 @@
     <circle cx={R} cy={R} r={AXLE * 0.3} fill="#2a2d33" />
     {#if tape}
       <!-- the recording, round the tape: each stretch where the tape has carried it from the write head -->
-      <g class="recording" aria-hidden="true">
+      <!-- (the stretches are set where the write head left them and the group turns with the tape: one
+           transform a frame, not four attributes on each of ~100 lines) -->
+      <g class="recording" aria-hidden="true" transform="rotate({((tapeAt / tape.L) * 360) % 360} {R} {R})">
         {#each rec as l, j (j)}
           {#if l > 0.02}
             {@const cj = ((j + 0.5) / N) * tape.L}
-            {@const deg = -90 + ((((tapeAt - cj) % tape.L) + tape.L) % tape.L) / tape.L * 360}
+            {@const deg = -90 - (cj / tape.L) * 360}
             {@const a = polar(deg, R * 0.79)}
             {@const b2 = polar(deg, R * (0.79 + 0.16 * l))}
             <line x1={a.x} y1={a.y} x2={b2.x} y2={b2.y} style:opacity={0.35 + 0.65 * l} />

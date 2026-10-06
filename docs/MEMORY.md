@@ -27,7 +27,7 @@ Before pushing: `npm test && npm run check && npm run build` (the three CI runs)
 
 ## Map of src/
 
-- `engine/` parse, compile, realize (plan → events), edit, Shorten, physics, FM, presets → [architecture.md](architecture.md)
+- `engine/` parse, compile, realize (plan → events), edit, Shorten, physics, FM, presets (reads `examples/*.cells`) → [architecture.md](architecture.md)
 - `layout/` pure layout of the graph, the library, wheels, labels
 - `audio/` player, voices, clock, offline render
 - `ui/` Svelte components; `App.svelte`, `library.ts`, `theory/`
