@@ -9,7 +9,7 @@ Tap the title in the header to choose a piece: every example and every piece you
 A piece's card is a note with a title: the first note with `title=` names the piece, its label describes it, `tags=` tags it (see [../language/display.md](../language/display.md)):
 
 ```cells-fragment
-&piece title="Swing blues" tags="jazz, blues, caprice" label="A 12-bar blues in C, swung …"
+&piece title="Swing blues" tags="genre:jazz, genre:blues, caprice" label="A 12-bar blues in C, swung …"
 ```
 
 It's an ordinary note in the graph; the picker reads it, and a saved piece is saved under its title.
@@ -20,7 +20,7 @@ Every piece is shown as one node — the same in the list, its details and the l
 
 The first view, **Select**, is the library (Select · Graph · Code are the tabs; on a wide screen, Select covers both panes): as a graph by default, or as cards.
 
-- The five genres — classical, jazz, electronic, experimental, world — are the rim of one large cell wheel, a braid of five named arcs at even angles (tap one to light its pieces). The pieces and the other tags sit on the disc within, the tags as quiet words.
+- The five main genres (`genre:`: classical, jazz, electronic, experimental, world) — are the rim of one large cell wheel, a braid of five named arcs at even angles (tap one to light its pieces). The pieces and the other tags sit on the disc within, the tags as quiet words.
 - The rim keeps every colour (a tag's angle) in place; a tag's saturation grows with its distance from the centre; tags one piece alone carries step back when zoomed out; the tag chips belong to the cards.
 - One level up, every piece is a wheel and every tag a node the size of how many carry it, laid out by the same physics as a piece's graph ([graph.md](graph.md)) — without its ranks, held together both ways: a cloud where pieces that share tags gather.
 - Tap a tag to light its pieces; tap a piece for its card (description, tags, Open).

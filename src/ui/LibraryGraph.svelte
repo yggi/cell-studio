@@ -6,6 +6,7 @@
    * same physics as the pieces' graphs, without its ranks: a cloud, not a flow.
    */
   import { GENRES, PIECE, type LibraryLayout } from '../layout/library';
+  import { tagName } from '../engine/tags';
   import { tick } from 'svelte';
   import PieceNode from './PieceNode.svelte';
   import type { Entry } from './Picker.svelte';
@@ -208,8 +209,8 @@
               d="M{pt(ro, a0)} A{ro},{ro} 0 0 1 {pt(ro, a1)} L{pt(ri, a1)} A{ri},{ri} 0 0 0 {pt(ri, a0)}Z"
               style:fill={colours.get(g.tag)}
             />
-            <path id="genre-{g.tag}" d={below ? `M${pt(R, a1)} A${R},${R} 0 0 0 ${pt(R, a0)}` : `M${pt(R, a0)} A${R},${R} 0 0 1 ${pt(R, a1)}`} fill="none" />
-            <text class="segname" font-size={Math.max(12, px(30))} dy="0.35em"><textPath href="#genre-{g.tag}" startOffset="50%" text-anchor="middle">{g.tag.toUpperCase()}</textPath></text>
+            <path id="genre-{tagName(g.tag)}" d={below ? `M${pt(R, a1)} A${R},${R} 0 0 0 ${pt(R, a0)}` : `M${pt(R, a0)} A${R},${R} 0 0 1 ${pt(R, a1)}`} fill="none" />
+            <text class="segname" font-size={Math.max(12, px(30))} dy="0.35em"><textPath href="#genre-{tagName(g.tag)}" startOffset="50%" text-anchor="middle">{tagName(g.tag).toUpperCase()}</textPath></text>
           {/each}
         </svg>
         <!-- (the segments answer taps, like the tags they are) -->
@@ -223,7 +224,7 @@
             style:height="{px(90)}px"
             onclick={() => (tag = tag === g.tag ? null : g.tag)}
             aria-pressed={tag === g.tag}
-            aria-label="{g.tag}: light its pieces"
+            aria-label="{tagName(g.tag)}: light its pieces"
           ></button>
         {/each}
       {/if}
@@ -273,7 +274,7 @@
             style:font-size="{Math.max(11, px(15 + 4 * Math.sqrt(n)))}px"
             style:--hue={colours.get(t)}
             onclick={() => (tag = tag === t ? null : t)}
-            aria-pressed={tag === t}>{t}</button
+            aria-pressed={tag === t}>{tagName(t)}</button
           >
         {/if}
       {/each}

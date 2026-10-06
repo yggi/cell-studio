@@ -5,6 +5,7 @@
    * a braid of tags, each in its colour, named along its arc when there's room.
    */
   import MiniGraph from './MiniGraph.svelte';
+  import { tagName } from '../engine/tags';
 
   let {
     id,
@@ -50,6 +51,7 @@
     const gap = tags.length > 1 ? 0.012 : 0;
     const mid = R - ring / 2 - 1;
     return tags.map((t, i) => {
+      const name = tagName(t); // (what's written on the arc: the name, not its kind)
       const t0 = i / n + gap / 2;
       const t1 = (i + 1) / n - gap / 2;
       const [ox0, oy0] = at(R - 1, t0);
@@ -62,9 +64,9 @@
       const centre = (t0 + t1) / 2;
       const back = centre > 0.25 && centre < 0.75;
       const room = 2 * Math.PI * mid * (t1 - t0);
-      const font = Math.max(9, Math.min(15, room / (0.62 * t.length)));
+      const font = Math.max(9, Math.min(15, room / (0.62 * name.length)));
       const fits = Math.floor(room / (0.62 * font));
-      return { t, d, path: arc(mid, t0, t1, back), font, text: t.length <= fits ? t : t.slice(0, Math.max(1, fits - 1)) + '…' };
+      return { t, d, path: arc(mid, t0, t1, back), font, text: name.length <= fits ? name : name.slice(0, Math.max(1, fits - 1)) + '…', name };
     });
   });
 </script>
@@ -84,8 +86,8 @@
         }}
         onpointerdown={(e) => ontag && e.stopPropagation()}
         role={ontag ? 'button' : undefined}
-        aria-label={ontag ? `the tag ${s.t}` : undefined}
-      ><title>{s.t}</title></path>
+        aria-label={ontag ? `the tag ${s.name}` : undefined}
+      ><title>{s.name}</title></path>
       {#if labels}
         <path id="{uid}-{i}" d={s.path} fill="none" />
         <text class="name" font-size={s.font} dy="0.35em"><textPath href="#{uid}-{i}" startOffset="50%" text-anchor="middle">{s.text}</textPath></text>

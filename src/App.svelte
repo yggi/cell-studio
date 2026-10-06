@@ -8,14 +8,17 @@
   import { liveAt, plan, routedNodes } from './engine/realize';
   import { EXAMPLES, FIRST, FIRST_SOURCE, loadExample, type PresetKey } from './examples';
   import { pieceMeta } from './engine/parser';
+  import { canonicalTags } from './engine/tags';
   import { fileName, listSaved, readFile, removeSaved, saveFile, savePiece, storageAvailable, titleOf, type SavedPiece } from './library';
   import Picker, { type Entry } from './ui/Picker.svelte';
   import Shorten from './ui/Shorten.svelte';
   import { mainLength, mainTempo, pieceTime, sections } from './engine/duration';
   import Transport from './ui/Transport.svelte';
   import FreePanel from './ui/FreePanel.svelte';
-  import { loudness, renderLength, renderPiece, wav } from './audio/render';
+  import { loudness, renderLength, renderPiece, sampleHash, blockLevels, wav } from './audio/render';
   import { Player } from './audio/player';
+  import { chooseEngine, type PieceSource } from './audio/engine';
+  import type { LiveSource } from './audio/live';
   import { transportClock } from './audio/clock.svelte';
   import Graph from './ui/Graph.svelte';
   import Editor from './ui/Editor.svelte';
@@ -35,7 +38,8 @@
 
   // values the environment provides to the code: the device's sample rate, once audio runs
   let sampleRate = $state(48000);
-  const result = $derived(compileSource(code, { SAMPLE_RATE: sampleRate, A4: 440 }));
+  const env = $derived({ SAMPLE_RATE: sampleRate, A4: 440 });
+  const result = $derived(compileSource(code, env));
 
   // free() values moved by hand: what plays, not what's written — until you keep them. Held by
   // their place among the code's free()s (the first, the second …), so rewriting can't lose them.
@@ -50,7 +54,7 @@
     return out;
   };
   const playedCode = $derived(held.size && result.ok ? withHeld(code, result) : code);
-  const playedResult = $derived(playedCode === code ? result : compileSource(playedCode, { SAMPLE_RATE: sampleRate, A4: 440 }));
+  const playedResult = $derived(playedCode === code ? result : compileSource(playedCode, env));
   function holdFree(spec: { span: { line: number; col: number } }, v: number | string) {
     const i = freeList(program).findIndex((f) => f.span.line === spec.span.line && f.span.col === spec.span.col);
     if (i < 0) return;
@@ -72,11 +76,13 @@
   };
 
   // While the code has errors, keep showing and playing the last version that compiled.
-  let lastGood: CompileResult = compileSource(FIRST_SOURCE);
-  const program = $derived.by(() => {
-    if (playedResult.ok) lastGood = playedResult;
+  // (and the text it was compiled from: an engine in a worker compiles the same piece from it)
+  let lastGood: { result: CompileResult; source: PieceSource } = { result: compileSource(FIRST_SOURCE), source: { code: FIRST_SOURCE } };
+  const good = $derived.by(() => {
+    if (playedResult.ok) lastGood = { result: playedResult, source: { code: playedCode, env } };
     return lastGood;
   });
+  const program = $derived(good.result);
   const graph = $derived(buildGraph(program));
 
   // The performance overlay: ?perf turns it on (and keeps it on), ?perf=off turns it off; Files ▾ toggles it too.
@@ -165,8 +171,23 @@
     if (i >= 0) editor?.showLine(i + 1);
   };
 
-  const player = new Player();
-  $effect(() => player.load(plan(program, shifts, muted)));
+  const player = new Player(chooseEngine());
+  $effect(() => player.load(plan(program, shifts, muted), good.source));
+  // the sound, for the views: what plays now, and hands on it (a hand marks the piece touched: Reset pulses)
+  const sound: LiveSource = {
+    note: (v) => player.note(v),
+    spectrum: (v) => player.spectrum(v),
+    waveform: (n) => player.waveform(n),
+    freqs: (n) => player.freqs(n),
+    resonance: (n) => player.resonance(n),
+    tapePos: (t) => player.tapePos(t),
+    tapeLevel: (t) => player.tapeLevel(t),
+    scrub: (t, u) => ((touched = true), player.scrub(t, u)),
+    grab: (c, speed) => player.grab(c, speed),
+    strike: (n, x, i) => ((touched = true), player.strike(n, x, i)),
+    damp: (n, on) => player.damp(n, on),
+    bow: (n, a) => ((touched = true), player.bow(n, a)),
+  };
   onDestroy(() => player.dispose());
 
   // where play begins (the time slider), and how far it reaches: the piece, its cycle, or its longest layer
@@ -278,7 +299,7 @@
         kind: 'saved' as const,
         title: p.title,
         description: m?.description ?? '',
-        tags: m?.tags ?? [],
+        tags: canonicalTags(m?.tags ?? []),
         source: p.source,
         saved: p.saved,
         size: buildGraph(r).nodes.filter((n) => !n.petalOf && !n.cell.note).length,
@@ -366,6 +387,15 @@
     (window as unknown as { cellStudio: unknown }).cellStudio = {
       measure: async (seconds?: number) => loudness(await renderPiece(result, codeShifts(result), seconds)),
       length: () => renderLength(result),
+      // engine() says how the engine's windows went: where they were worked out, how long they took (#15)
+      engine: () => player.engineStats(),
+      // render(source, seconds) renders any source (not just the open piece), with a hash of the samples and
+      // the level of every block of them: for checking a refactor leaves every piece sounding the same (`tools/golden.mjs`)
+      render: async (source: string, seconds?: number) => {
+        const r = compileSource(source, { SAMPLE_RATE: 44100, A4: 440 });
+        const buf = await renderPiece(r, codeShifts(r), seconds);
+        return { ...loudness(buf), hash: sampleHash(buf), blocks: blockLevels(buf) };
+      },
       level: (n: string) => {
         const w = player.waveform(n);
         return w ? Math.max(...Array.from(w).map(Math.abs)) : null;
@@ -445,7 +475,7 @@
   </div>
 
   <section class="canvas" class:away={tab !== 'graph'} inert={narrow && tab !== 'graph'} aria-label="Cell graph">
-    <Graph model={graph} {program} {muted} {routed} {live} {shifts} ontoggle={toggleNode} onturn={turn} onshowcode={showInCode} source={code} spectrum={(v) => player.spectrum(v)} note={(v) => player.note(v)} onedit={(s) => (code = s)} onadd={add} onrename={rename} onfree={holdFree} {epoch} tapePos={(t) => player.tapePos(t)} {nudge} {cursor} tapeLevel={(t) => player.tapeLevel(t)} scrub={(t, u) => ((touched = true), player.scrub(t, u))} hand={{ strike: (n, x, i) => ((touched = true), player.strike(n, x, i)), damp: (n, on) => player.damp(n, on), bow: (n, a) => ((touched = true), player.bow(n, a)), resonance: (n) => player.resonance(n), waveform: (n) => player.waveform(n), freqs: (n) => player.freqs(n) }} {opened} {focus} />
+    <Graph model={graph} {program} {muted} {routed} {live} {shifts} ontoggle={toggleNode} onturn={turn} onshowcode={showInCode} source={code} {sound} onedit={(s) => (code = s)} onadd={add} onrename={rename} onfree={holdFree} {epoch} {nudge} {cursor} {opened} {focus} />
     {#if stale}
       <p class="stale">Showing the last version that compiled</p>
     {/if}
