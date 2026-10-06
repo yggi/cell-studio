@@ -473,7 +473,8 @@ export class ForceLayout {
   private turns = new Map<string, number>();
 
   /** Each tape turned to face its heads towards what they connect to (busy cells count more: they move less). */
-  private fitTurns(at: (id: string) => { x: number; y: number } | undefined): void {
+  private fitTurns(at: (id: string) => { x: number; y: number } | undefined): Map<string, number> {
+    const turns = new Map<string, number>();
     const byTape = new Map<string, TapeFace[]>();
     for (const f of this.faces) (byTape.get(f.tape) ?? byTape.set(f.tape, []).get(f.tape)!).push(f);
     for (const [tape, fs] of byTape) {
@@ -485,8 +486,9 @@ export class ForceLayout {
           return c ? [{ angle: Math.atan2(c.y - t.y, c.x - t.x), offset: f.offset, weight: this.degree.get(f.to) ?? 1 }] : [];
         }),
       );
-      this.turns.set(tape, turn ?? this.turns.get(tape) ?? (UNTURNED * Math.PI) / 180);
+      turns.set(tape, turn ?? this.turns.get(tape) ?? (UNTURNED * Math.PI) / 180);
     }
+    return turns;
   }
 
   /** Where each head's cell should be, seen from its tape (radians), with the tapes as they're turned now. */
@@ -500,7 +502,7 @@ export class ForceLayout {
    */
   private stepAims(alpha: number): void {
     if (!this.faces.length) return;
-    this.fitTurns((id) => this.position(id));
+    this.turns = this.fitTurns((id) => this.position(id));
     for (const { from, to, angle } of this.aims()) {
       const a = this.byId.get(from);
       const b = this.byId.get(to);
@@ -727,11 +729,12 @@ export class ForceLayout {
       home = new Map([...lay].map(([id, p]) => [id, { x: p.x, y: p.y - midY }]));
       // each tape turned to face where the layers put what its heads connect to; then each read head's
       // cell starts in its head's direction, just clear of the tape (a write source stays: it's a source of more)
-      this.fitTurns((id) => home!.get(id));
+      // (only to place them: the tapes' turns are fitted to where everything is once it's placed, below)
+      const homeTurns = this.fitTurns((id) => home!.get(id));
       for (const f of this.faces) {
         const t = home.get(f.tape);
         if (f.write || !t || !home.has(f.to)) continue;
-        const angle = (this.turns.get(f.tape) ?? 0) + f.offset;
+        const angle = (homeTurns.get(f.tape) ?? 0) + f.offset;
         const d = this.opts.radius(byId.get(f.tape)!) + this.opts.radius(byId.get(f.to)!) + this.opts.collidePad;
         home.set(f.to, { x: t.x + Math.cos(angle) * d, y: t.y + Math.sin(angle) * d });
       }
@@ -833,7 +836,8 @@ export class ForceLayout {
 
     this.sim.nodes([...next.values()]);
     this.faces = this.faces.filter((f) => next.has(f.tape) && next.has(f.to));
-    for (const id of [...this.turns.keys()]) if (!this.faces.some((f) => f.tape === id)) this.turns.delete(id);
+    // the tapes turned to where everything is now (an edit that doesn't move anything doesn't turn them)
+    this.turns = this.fitTurns((id) => this.position(id));
     this.explains = model.edges.filter((e) => e.kind === 'about' && next.has(e.source) && next.has(e.target)).map((e) => ({ note: next.get(e.source)!, cell: next.get(e.target)! }));
     this.sim.force<ReturnType<typeof forceLink<PhysNode, PhysLink>>>('link')!.links([...links, ...tagLinks]);
     // (a scope watches: its edges neither untangle the music's layout nor count as its crossings)

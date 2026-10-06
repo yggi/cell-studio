@@ -521,6 +521,18 @@ describe('tapes: the heads keep their spacing, the wheel turns to face them at w
       l.destroy();
     });
   }
+  it('an update that moves nothing (pressing Play) leaves the tapes turned as they were', () => {
+    const model = buildGraph(compileSource(PRESETS.soundtape.source));
+    const l = new ForceLayout(undefined, { live: false });
+    l.setGraph(model);
+    l.tick(220);
+    const before = l.tapeTurn('cell:tape')!;
+    const aim = l.quality().aim;
+    l.setGraph(model, false);
+    expect(l.tapeTurn('cell:tape')).toBeCloseTo(before, 1); // (to a tenth of a degree: the last tick fitted it just before its own step)
+    expect(l.quality().aim).toBe(aim);
+    l.destroy();
+  });
   it('a read head sits by how far along the tape it reads: clockwise from the write head, wherever that is', () => {
     expect(tapeHeads({ name: 't', params: { length: 4 } }, [{ name: 'h', params: { play: 't', at: 1 } }])).toEqual({ heads: [{ name: 'h', at: 1 }], length: 4 });
     expect(headAngle(0, 4)).toBe(-90); // (unturned: the write head on top)
