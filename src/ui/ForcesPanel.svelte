@@ -91,7 +91,7 @@
 <div class="panel" role="dialog" aria-label="Layout forces">
   <header>
     <h3>forces</h3>
-    <button class="close" onclick={onclose} aria-label="Close">×</button>
+    <button class="unstyled close" onclick={onclose} aria-label="Close">×</button>
   </header>
   {#each groups as g}
     <h4>{g.title}</h4>
@@ -158,8 +158,6 @@
     color: var(--text-muted);
   }
   .close {
-    all: unset;
-    cursor: pointer;
     font-size: 22px;
     color: var(--text-muted);
     padding: 0 4px;

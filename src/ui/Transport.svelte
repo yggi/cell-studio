@@ -73,13 +73,13 @@
       >
     </button>
     <span class="what">
-      {#if path}{@render path()}{:else if title}<button class="title" onclick={onchoose} title="Choose another piece">{title}</button>{/if}
+      {#if path}{@render path()}{:else if title}<button class="unstyled title" onclick={onchoose} title="Choose another piece">{title}</button>{/if}
       <span class="time">
         <b>{clock(now)}</b>{#if span}<span class="of"> / {clock(span)}</span>{/if}
         {#if current}<span class="where">{current.label}</span>{/if}
       </span>
     </span>
-    {#if onmenu}<button class="burger" onclick={onmenu} aria-expanded={menuOpen} aria-label="Controls" title="The piece's controls">☰</button>{/if}
+    {#if onmenu}<button class="unstyled burger" onclick={onmenu} aria-expanded={menuOpen} aria-label="Controls" title="The piece's controls">☰</button>{/if}
   </div>
   <div class="lower">
     {#if span}
@@ -88,7 +88,7 @@
           <div class="marks">
             {#each sections as s, i (i)}
               <button
-                class="mark"
+                class="unstyled mark"
                 class:here={current === s}
                 style:left="{(s.at / span) * 100}%"
                 onclick={() => onseek(s.at)}
@@ -108,8 +108,8 @@
     {/if}
     <!-- (always there, invisible when nothing is held: nothing moves when it appears) -->
     <div class="heldslot" class:on={held} aria-hidden={!held}>
-      <button onclick={onrevert} tabindex={held ? 0 : -1} title="Back to what the code says">Revert</button>
-      <button class="save" onclick={onsave} tabindex={held ? 0 : -1} title="Write these values into the code">Save</button>
+      <button class="unstyled" onclick={onrevert} tabindex={held ? 0 : -1} title="Back to what the code says">Revert</button>
+      <button class="unstyled save" onclick={onsave} tabindex={held ? 0 : -1} title="Write these values into the code">Save</button>
     </div>
     {#if tempo}
       <label class="tempo">
@@ -173,11 +173,6 @@
   .reset svg {
     width: 16px;
     height: 16px;
-  }
-  .play:focus-visible,
-  .reset:focus-visible {
-    outline: 2px solid var(--accent);
-    outline-offset: 2px;
   }
   .time {
     display: flex;
@@ -253,14 +248,12 @@
   }
   /* a section: its mark on the track (a jump), its name where there's room */
   .mark {
-    all: unset;
     pointer-events: auto;
     position: absolute;
     top: 0;
     height: 30px;
     min-width: 12px;
     border-left: 2px solid color-mix(in oklab, var(--text-muted) 55%, transparent);
-    cursor: pointer;
     padding-left: 4px;
     font: 600 11px var(--font-ui);
     color: var(--text-muted);
@@ -311,8 +304,6 @@
     gap: 1px;
   }
   .title {
-    all: unset;
-    cursor: pointer;
     min-width: 0;
     font: 700 13px var(--font-ui);
     color: var(--text);
@@ -371,8 +362,6 @@
   }
   .heldslot button,
   .burger {
-    all: unset;
-    cursor: pointer;
     padding: 4px 9px;
     border-radius: 999px;
     font: 700 12px var(--font-ui);

@@ -250,7 +250,7 @@
         {#each layout.ring.genres as g (g.tag)}
           {@const R2 = px(layout.ring.r)}
           <button
-            class="segtap"
+            class="unstyled segtap"
             style:left="{c.x + R2 * Math.cos(g.angle)}px"
             style:top="{c.y + R2 * Math.sin(g.angle)}px"
             style:width="{px(260)}px"
@@ -306,7 +306,7 @@
           {@const d = px(2 * (lib.wheel.get(`p:${e.id}`) ?? PR))}
           {@const g = grown(e.id)}
           <button
-            class="piece"
+            class="unstyled piece"
             class:dim={!lit(e)}
             class:peeking={peek === e.id}
             class:current={e.id === current}
@@ -421,11 +421,9 @@
   /* layered across the whole cloud (a piece makes no layer of its own: no z-index, no transform — it's
      centred by its margins): every wheel at the back, the tags' words over the wheels, every title on top */
   .piece {
-    all: unset;
     -webkit-touch-callout: none;
     user-select: none;
     position: absolute;
-    cursor: pointer;
     transition: opacity 160ms ease;
   }
   .piece .grow {
@@ -512,10 +510,8 @@
     fill: var(--ink-on-note);
   }
   .segtap {
-    all: unset;
     position: absolute;
     transform: translate(-50%, -50%);
-    cursor: pointer;
     border-radius: 999px;
     z-index: 1;
   }

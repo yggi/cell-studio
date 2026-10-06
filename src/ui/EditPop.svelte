@@ -94,7 +94,7 @@
         if (e.key === 'Escape') onclose();
       }}
     />
-    <button class="x" onclick={onclose} aria-label="Close">×</button>
+    <button class="unstyled x" onclick={onclose} aria-label="Close">×</button>
   </div>
   {#if problem}<p class="problem">{problem}</p>{/if}
 
@@ -109,7 +109,7 @@
   {#if suggestions.length}
     <ul class="list" role="listbox" aria-label="suggestions">
       {#each suggestions as s}
-        <li><button class={s.kind} onclick={() => apply(s.text)}>{s.label}</button></li>
+        <li><button class="unstyled {s.kind}" onclick={() => apply(s.text)}>{s.label}</button></li>
       {/each}
     </ul>
   {/if}
@@ -155,8 +155,6 @@
     border-color: var(--accent);
   }
   .x {
-    all: unset;
-    cursor: pointer;
     font-size: 24px;
     color: var(--text-muted);
     padding: 0 8px;
@@ -195,12 +193,10 @@
     border: 1px solid var(--line);
   }
   .list button {
-    all: unset;
     display: block;
     width: 100%;
     box-sizing: border-box;
     padding: 9px 12px;
-    cursor: pointer;
     font: 500 14px var(--font-code);
     color: var(--accent);
   }

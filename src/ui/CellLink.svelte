@@ -11,12 +11,10 @@
   const title = $derived(cell?.label && !cell.note ? labelText(ctx.program, name, cell.label, ctx.shifts) : undefined);
 </script>
 
-<button type="button" class="link" class:lambda={!!cell?.lambda} {title} onclick={() => ctx.open(name)}>{text}</button>
+<button type="button" class="unstyled link" class:lambda={!!cell?.lambda} {title} onclick={() => ctx.open(name)}>{text}</button>
 
 <style>
   .link {
-    all: unset;
-    cursor: pointer;
     font: 600 0.95em var(--font-code);
     color: var(--code);
     border-bottom: 1px solid color-mix(in oklab, var(--code) 35%, transparent);

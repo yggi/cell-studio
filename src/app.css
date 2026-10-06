@@ -192,6 +192,30 @@ select {
   outline-offset: 2px;
 }
 
+/* ---- shared chrome: a component adds its own size, colour and spacing on top ---- */
+
+/* A button with nothing of the browser's look left, to be dressed by its component. After :focus-visible on purpose:
+   it takes the ring away as `all: unset` always did, and a component that wants one asks for it (`:focus-visible`). */
+.unstyled {
+  all: unset;
+  cursor: pointer;
+}
+
+/* A sheet rising from the bottom edge (the cell's, a piece's card): its own z-index, height, padding, shadow and entrance stay with it. */
+.bottom-sheet {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: var(--surface);
+  border-top: 1px solid var(--line);
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .svelte-flow__edge.animated path {
     animation: none !important;

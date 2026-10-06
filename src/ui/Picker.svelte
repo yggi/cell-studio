@@ -228,14 +228,15 @@
       <h2>Choose a piece</h2>
       <div class="end">
         <div class="files" role="group" aria-label="Files">
-          <button class="filesbtn" aria-expanded={filesOpen} onclick={() => (filesOpen = !filesOpen)}>Files ▾</button>
+          <button class="unstyled filesbtn" aria-expanded={filesOpen} onclick={() => (filesOpen = !filesOpen)}>Files ▾</button>
           {#if filesOpen}
             <div class="menu" role="menu">
-              <button role="menuitem" onclick={() => ((filesOpen = false), fileInput.click())}>Open a file…</button>
-              <button role="menuitem" disabled={!current} onclick={() => ((filesOpen = false), onsavefile())}>Save the piece to a file</button>
-              <button role="menuitem" disabled={!current} onclick={() => ((filesOpen = false), onrender())}>Render the piece to WAV</button>
-              {#if onperf}<button role="menuitem" onclick={() => ((filesOpen = false), onperf())}>{perfOn ? 'Hide' : 'Show'} performance report</button>{/if}
+              <button class="unstyled" role="menuitem" onclick={() => ((filesOpen = false), fileInput.click())}>Open a file…</button>
+              <button class="unstyled" role="menuitem" disabled={!current} onclick={() => ((filesOpen = false), onsavefile())}>Save the piece to a file</button>
+              <button class="unstyled" role="menuitem" disabled={!current} onclick={() => ((filesOpen = false), onrender())}>Render the piece to WAV</button>
+              {#if onperf}<button class="unstyled" role="menuitem" onclick={() => ((filesOpen = false), onperf())}>{perfOn ? 'Hide' : 'Show'} performance report</button>{/if}
               <button
+                class="unstyled"
                 role="menuitem"
                 disabled={!current || !storageOk}
                 title={storageOk ? undefined : 'This browser can’t keep pieces here'}
@@ -257,9 +258,9 @@
           />
         </div>
         {#if embedded}
-          {#if current}<button class="back" onclick={onclose}>Back to the piece →</button>{/if}
+          {#if current}<button class="unstyled back" onclick={onclose}>Back to the piece →</button>{/if}
         {:else}
-          <button class="close" onclick={onclose} aria-label="Close">×</button>
+          <button class="unstyled close" onclick={onclose} aria-label="Close">×</button>
         {/if}
       </div>
     </header>
@@ -267,8 +268,8 @@
     <div class="bar">
       <input class="search" type="search" placeholder="Search titles, descriptions, tags" bind:value={query} aria-label="Search" />
       <div class="views" role="radiogroup" aria-label="View">
-        <button role="radio" aria-checked={view === 'cards'} class:on={view === 'cards'} onclick={() => (view = 'cards')}>Cards</button>
-        <button role="radio" aria-checked={view === 'graph'} class:on={view === 'graph'} onclick={() => (view = 'graph')}>Graph</button>
+        <button role="radio" aria-checked={view === 'cards'} class="unstyled" class:on={view === 'cards'} onclick={() => (view = 'cards')}>Cards</button>
+        <button role="radio" aria-checked={view === 'graph'} class="unstyled" class:on={view === 'graph'} onclick={() => (view = 'graph')}>Graph</button>
       </div>
     </div>
 
@@ -286,7 +287,7 @@
             </label>
           {/if}
         {/each}
-        {#if filtered}<button class="link clear" onclick={clearFilter}>Clear</button>{/if}
+        {#if filtered}<button class="unstyled link clear" onclick={clearFilter}>Clear</button>{/if}
       </div>
     {/if}
   </div>
@@ -295,7 +296,7 @@
   {#snippet card(e: Entry)}
     <div class="card" class:current={e.id === current} bind:clientWidth={cardWidth}>
       <!-- (one target: the wheel is a picture, its tags chosen from the chips) -->
-      <button class="open" data-id={e.id} onclick={() => onpick(e.id)} aria-label="Open {e.title}">
+      <button class="unstyled open" data-id={e.id} onclick={() => onpick(e.id)} aria-label="Open {e.title}">
         <span class="mini"><PieceNode entry={e} {colours} size={wheel} labels current={e.id === current} /></span>
         <span class="title">{e.title}</span>
         {#if e.description}<span class="desc">{e.description}</span>{/if}
@@ -306,7 +307,7 @@
           </span>
         {/if}
       </button>
-      {#if e.kind === 'saved'}<button class="remove" onclick={() => onremove(e.id)} aria-label="Remove {e.title} from this browser">Remove</button>{/if}
+      {#if e.kind === 'saved'}<button class="unstyled remove" onclick={() => onremove(e.id)} aria-label="Remove {e.title} from this browser">Remove</button>{/if}
     </div>
   {/snippet}
 
@@ -351,7 +352,7 @@
           {#each examples as e (e.id)}{@render card(e)}{/each}
         </div>
       {:else}
-        <p class="empty">Nothing matches. <button class="link" onclick={() => ((query = ''), clearFilter())}>Show everything</button></p>
+        <p class="empty">Nothing matches. <button class="unstyled link" onclick={() => ((query = ''), clearFilter())}>Show everything</button></p>
       {/if}
     </section>
   {/if}
@@ -360,12 +361,12 @@
   <!-- (a keyed each over zero or one: closing it never reads a card that's gone) -->
   {#each detail ? [detail] : [] as d (d.id)}
     <div class="scrim" onclick={() => (detail = null)} role="presentation"></div>
-    <div class="detail" role="dialog" aria-modal="true" aria-label={d.title} {@attach trap({ onescape: () => (detail = null), focus: '.primary' })}>
+    <div class="bottom-sheet detail" role="dialog" aria-modal="true" aria-label={d.title} {@attach trap({ onescape: () => (detail = null), focus: '.primary' })}>
       <header>
         <h3>{d.title}</h3>
-        <button class="close" onclick={() => (detail = null)} aria-label="Close">×</button>
+        <button class="unstyled close" onclick={() => (detail = null)} aria-label="Close">×</button>
       </header>
-      <button class="big" onclick={() => ((detail = null), onpick(d.id))} aria-label="Open {d.title}"
+      <button class="unstyled big" onclick={() => ((detail = null), onpick(d.id))} aria-label="Open {d.title}"
         ><PieceNode entry={d} {colours} size={220} labels current={d.id === current} /></button
       >
       {#if d.description}<p class="full">{d.description}</p>{/if}
@@ -381,7 +382,7 @@
       </div>
       <div class="actions">
         <button class="primary" onclick={() => ((detail = null), onpick(d.id))}>Open</button>
-        {#if d.kind === 'saved'}<button class="remove" onclick={() => ((detail = null), onremove(d.id))}>Remove from this browser</button>{/if}
+        {#if d.kind === 'saved'}<button class="unstyled remove" onclick={() => ((detail = null), onremove(d.id))}>Remove from this browser</button>{/if}
       </div>
     </div>
   {/each}
@@ -397,8 +398,6 @@
     padding-top: 10px;
   }
   .back {
-    all: unset;
-    cursor: pointer;
     font: 600 14px var(--font-ui);
     color: var(--accent);
     padding: 6px 4px;
@@ -442,8 +441,6 @@
     letter-spacing: -0.01em;
   }
   .close {
-    all: unset;
-    cursor: pointer;
     font-size: 28px;
     line-height: 1;
     padding: 2px 8px;
@@ -466,8 +463,6 @@
     flex: none;
   }
   .views button {
-    all: unset;
-    cursor: pointer;
     padding: 9px 12px;
     font: 600 13px var(--font-ui);
     color: var(--text-muted);
@@ -487,20 +482,9 @@
     background: var(--scrim);
   }
   .detail {
-    position: fixed;
     z-index: 62;
-    left: 0;
-    right: 0;
-    bottom: 0;
     max-height: 86svh;
-    overflow: auto;
     padding: 14px 16px calc(16px + env(safe-area-inset-bottom));
-    background: var(--surface);
-    border-top: 1px solid var(--line);
-    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
     animation: rise 200ms cubic-bezier(0.2, 0.8, 0.2, 1);
   }
   @media (min-width: 900px) {
@@ -634,8 +618,6 @@
     gap: 6px 14px;
   }
   .files button {
-    all: unset;
-    cursor: pointer;
     font: 600 13.5px var(--font-ui);
     color: var(--text-muted);
     padding: 4px 0;
@@ -680,8 +662,6 @@
     border-color: var(--accent);
   }
   .open {
-    all: unset;
-    cursor: pointer;
     display: flex;
     flex-direction: column;
     gap: 4px;
@@ -729,8 +709,6 @@
     font-weight: 700;
   }
   .remove {
-    all: unset;
-    cursor: pointer;
     align-self: flex-start;
     margin: 0 10px 10px;
     font: 600 12.5px var(--font-ui);
@@ -740,8 +718,6 @@
     color: var(--text-muted);
   }
   .link {
-    all: unset;
-    cursor: pointer;
     color: var(--accent);
     font-weight: 600;
   }
@@ -830,8 +806,6 @@
     align-self: flex-start;
   }
   .filesbtn {
-    all: unset;
-    cursor: pointer;
     font: 600 13px var(--font-ui);
     color: var(--text-muted);
     padding: 4px 2px;
@@ -855,8 +829,6 @@
     box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45);
   }
   .menu button {
-    all: unset;
-    cursor: pointer;
     padding: 9px 10px;
     border-radius: 8px;
     font: 600 14px var(--font-ui);
@@ -877,8 +849,6 @@
     cursor: default;
   }
   button.big {
-    all: unset;
-    cursor: pointer;
     align-self: center;
     border-radius: 50%;
   }

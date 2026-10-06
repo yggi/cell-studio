@@ -13,7 +13,12 @@
 
 <div class="pills nodrag nopan" role="group" aria-label="free values of &{name}">
   {#each frees as f, i (i)}
-    <button class="pill" onclick={(e) => (e.stopPropagation(), ctx.open(name))} onpointerdown={(e) => e.stopPropagation()} title="Change it: in the sidebar, or the cell's details">
+    <button
+      class="unstyled pill"
+      onclick={(e) => (e.stopPropagation(), ctx.open(name))}
+      onpointerdown={(e) => e.stopPropagation()}
+      title="Change it: in the sidebar, or the cell's details"
+    >
       <span class="k">{freeKey(f)}:</span> <span class="v">{freeValue(f)}</span>
     </button>
   {/each}
@@ -33,8 +38,6 @@
     max-width: 220px;
   }
   .pill {
-    all: unset;
-    cursor: pointer;
     padding: 2px 8px;
     border-radius: 999px;
     background: var(--surface);
