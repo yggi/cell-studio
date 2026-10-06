@@ -591,6 +591,13 @@
   .graph :global(.edge-cut .svelte-flow__edge-path) {
     stroke-opacity: 0.2;
   }
+  /* a note's links (about=): fine dots from the note to what it explains; never routed, never live */
+  .graph :global(.edge-about .svelte-flow__edge-path) {
+    stroke: var(--text-muted, var(--edge));
+    stroke-width: 2;
+    stroke-dasharray: 1 7;
+    stroke-opacity: 0.6;
+  }
   /* edge labels (×0.4, [<<], ⟳ …): readable pills; an off edge's label fades with it */
   .graph :global(.svelte-flow__edge-label) {
     padding: 2px 8px;

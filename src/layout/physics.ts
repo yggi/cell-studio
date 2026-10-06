@@ -37,6 +37,8 @@ interface PhysLink extends SimulationLinkDatum<PhysNode> {
   part: boolean;
   /** A tag's spring to one of its cells (not drawn: no crossings, no bends, no spread). */
   tag?: boolean;
+  /** A note's link to a cell it explains (about=): drawn, but a soft spring, and no say in crossings or bends. */
+  about?: boolean;
 }
 
 export interface LayoutOptions {
@@ -590,8 +592,8 @@ export class ForceLayout {
   private applyOptions(): void {
     const o = this.opts;
     (this.sim.force('link') as ReturnType<typeof forceLink<PhysNode, PhysLink>>)
-      .distance((l) => (l.tag ? o.linkDistance * 1.6 : l.part ? o.linkDistance * o.partLength : o.linkDistance))
-      .strength((l) => (l.tag ? 0.12 : Math.min(0.2, 0.08 + 0.02 * l.count) * o.contract));
+      .distance((l) => (l.tag ? o.linkDistance * 1.6 : l.about ? o.linkDistance * 1.3 : l.part ? o.linkDistance * o.partLength : o.linkDistance))
+      .strength((l) => (l.tag ? 0.12 : l.about ? 0.04 : Math.min(0.2, 0.08 + 0.02 * l.count) * o.contract));
     // busy nodes push a little harder: more room around hubs, fewer edges squeezed past them
     (this.sim.force('charge') as ReturnType<typeof forceManyBody<PhysNode>>)
       .strength((d) => (d.role === 'tag' ? o.charge * 3 : o.charge * (1 + o.degreeRepel * Math.max(0, (this.degree.get(d.id) ?? 1) - 1))))
@@ -618,7 +620,7 @@ export class ForceLayout {
     const next = new Map<string, PhysNode>();
     let added = 0;
     const parentOf = new Map<string, string>();
-    for (const e of model.edges) if (!parentOf.has(e.target)) parentOf.set(e.target, e.source);
+    for (const e of model.edges) if (e.kind !== 'about' && !parentOf.has(e.target)) parentOf.set(e.target, e.source);
 
     // layers by rank in the signal path, from the meter (bottom) up to the sound card (top);
     // a fresh graph starts there, each layer in barycentre order; an edit keeps what's on screen
@@ -629,7 +631,7 @@ export class ForceLayout {
     this.rankY = new Map([...ranks].map(([id, r]) => [id, layerY(r)]));
     this.degree = new Map();
     for (const e of model.edges)
-      if (e.source !== e.target) for (const id of [e.source, e.target]) this.degree.set(id, (this.degree.get(id) ?? 0) + 1);
+      if (e.source !== e.target && e.kind !== 'about') for (const id of [e.source, e.target]) this.degree.set(id, (this.degree.get(id) ?? 0) + 1);
     // mostly new (a different example that happens to share &bar, &mix, &out): lay it all out afresh
     const fresh = model.nodes.filter((n) => !this.byId.has(n.id)).length > model.nodes.length / 2;
     if (fresh) this.bendAt.clear(); // a fresh graph: no bends left over from the last one
@@ -648,7 +650,7 @@ export class ForceLayout {
       this.colX = new Map([...home].map(([id, p]) => [id, p.x]));
       this.rankY = new Map([...home].map(([id, p]) => [id, p.y]));
     }
-    let ordered = fresh && !home ? orderLayers(model.nodes.map((n) => ({ id: n.id, depth: ranks.get(n.id)! })), model.edges) : null;
+    let ordered = fresh && !home ? orderLayers(model.nodes.map((n) => ({ id: n.id, depth: ranks.get(n.id)! })), model.edges.filter((e) => e.kind !== 'about')) : null;
     if (fresh && !home && cols.size) {
       // a symmetric start: each node at its column, pushed apart within its row just enough
       ordered = new Map();
@@ -737,7 +739,7 @@ export class ForceLayout {
 
     const links: PhysLink[] = model.edges
       .filter((e) => next.has(e.source) && next.has(e.target) && e.source !== e.target)
-      .map((e) => ({ id: e.id, source: e.source, target: e.target, count: e.count, part: e.kind === 'ref' || e.kind === 'over' }));
+      .map((e) => ({ id: e.id, source: e.source, target: e.target, count: e.count, part: e.kind === 'ref' || e.kind === 'over', about: e.kind === 'about' }));
 
     this.sim.nodes([...next.values()]);
     this.sim.force<ReturnType<typeof forceLink<PhysNode, PhysLink>>>('link')!.links([...links, ...tagLinks]);
@@ -747,7 +749,8 @@ export class ForceLayout {
     );
     const watcher = (id: string) => scopes.has(id);
     const idOf = (x: unknown) => (typeof x === 'object' ? (x as PhysNode).id : (x as string));
-    const own = links.filter((l) => !watcher(idOf(l.source)) && !watcher(idOf(l.target)));
+    // (and a note's links: they point out what a note says, they don't shape the music's layout)
+    const own = links.filter((l) => !l.about && !watcher(idOf(l.source)) && !watcher(idOf(l.target)));
     (this.sim.force('uncross') as unknown as ReturnType<typeof forceUncross>).links(
       // forceLink has swapped ids for the node objects by now
       own.map((l) => ({
