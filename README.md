@@ -331,6 +331,14 @@ code* in a cell's sheet switches to it and selects the line). Both views stay
 mounted, so the graph keeps its layout while you edit. On a wide screen they
 sit side by side.
 
+### Measuring from the console
+
+The page exposes `window.cellStudio` for measuring the open piece from outside (the browser console, or a script driving the page):
+
+- `await cellStudio.measure(seconds?)` renders the piece offline and returns `{ rms, peak, clipped }` (dB below full scale; samples at the ceiling).
+- `cellStudio.length()` is the default render length in seconds.
+- `cellStudio.level(name)` is the current peak level of a voice (or `null`).
+
 ## The graph — a visual editor over the code
 
 **Editing** (every change is a rewrite of the cell's line; the text stays the source):
