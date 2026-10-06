@@ -302,7 +302,7 @@
             oncontextmenu={(ev) => ev.preventDefault()}
             aria-label="{e.title}: details"
           >
-            <PieceNode entry={e} {colours} size={d} label={short(e.title)} petals={d >= 96} showLabel curved current={e.id === current} ontag={(t) => (tag = tag === t ? null : t)} />
+            <PieceNode entry={e} {colours} size={d} label={short(e.title)} petals={d >= 96} showLabel curved current={e.id === current} />
           </button>
         {/if}
       {/each}
