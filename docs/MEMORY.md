@@ -12,7 +12,7 @@ Commands, the rules (which are enforced and which are judgment), the PR conventi
 
 ## Map of src/
 
-- `engine/` parse, compile, realize (plan → events), edit, Shorten, physics, FM, presets (reads `examples/*.cells`) → [architecture.md](architecture.md)
+- `engine/` parse, compile, realize (plan → events), edit, Shorten, physics, FM, presets (reads `examples/*.cells`; the app gets an index at build time and loads sources on demand) → [architecture.md](architecture.md)
 - `layout/` pure layout of the graph, the library, wheels, labels
 - `audio/` player, voices, clock, offline render
 - `ui/` Svelte components; `App.svelte`, `library.ts`, `theory/`

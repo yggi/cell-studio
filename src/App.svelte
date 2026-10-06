@@ -6,7 +6,7 @@
   import { addCell, declLine, setFree, setOff, setShift } from './engine/edit';
   import { buildGraph } from './engine/graph';
   import { liveAt, plan, routedNodes } from './engine/realize';
-  import { PRESETS, type Preset, type PresetKey } from './engine/presets';
+  import { EXAMPLES, FIRST, FIRST_SOURCE, loadExample, type PresetKey } from './examples';
   import { pieceMeta } from './engine/parser';
   import { fileName, listSaved, readFile, removeSaved, saveFile, savePiece, storageAvailable, titleOf, type SavedPiece } from './library';
   import Picker, { type Entry } from './ui/Picker.svelte';
@@ -21,7 +21,6 @@
   import Editor from './ui/Editor.svelte';
   import UpdateToast from './ui/UpdateToast.svelte';
 
-  const FIRST: PresetKey = 'royal';
   /** What's open: an example (its fixed layout applies), a piece saved here, a file. */
   type Open = { kind: 'example'; key: PresetKey } | { kind: 'saved'; id: string } | { kind: 'file'; name: string };
   let open = $state<Open>({ kind: 'example', key: FIRST });
@@ -29,7 +28,7 @@
   let opened = $state(0);
   // nothing chosen yet (the front door): no transport, no piece marked open
   const anyOpen = $derived(opened > 0);
-  let code = $state<string>(PRESETS[FIRST].source);
+  let code = $state<string>(FIRST_SOURCE);
   // its title, from its card as it stands (it follows edits)
   const title = $derived(titleOf(code));
   let starting = $state(false);
@@ -73,7 +72,7 @@
   };
 
   // While the code has errors, keep showing and playing the last version that compiled.
-  let lastGood: CompileResult = compileSource(PRESETS[FIRST].source);
+  let lastGood: CompileResult = compileSource(FIRST_SOURCE);
   const program = $derived.by(() => {
     if (playedResult.ok) lastGood = playedResult;
     return lastGood;
@@ -237,6 +236,8 @@
   let saved = $state<SavedPiece[]>(listSaved());
   const storageOk = storageAvailable();
   let message = $state<string | null>(null);
+  // (one function each, the same every time: a card's picture is fetched once)
+  const loaders = Object.fromEntries(EXAMPLES.map((e) => [e.key, () => loadExample(e.key)])) as Record<PresetKey, () => Promise<string>>;
   const entries = $derived<Entry[]>([
     ...saved.map((p) => {
       const m = pieceMeta(p.source);
@@ -253,24 +254,34 @@
         time: r.ok ? pieceTime(r) : undefined,
       };
     }),
-    ...(Object.entries(PRESETS) as [PresetKey, Preset][]).map(([key, p]) => {
-      const m = pieceMeta(p.source);
-      return { id: `example:${key}`, kind: 'example' as const, title: m?.title ?? key, description: m?.description ?? '', tags: m?.tags ?? [], source: p.source, layout: p.layout ?? null, ...facts.get(key) };
-    }),
+    ...EXAMPLES.map((e) => ({
+      id: `example:${e.key}`,
+      kind: 'example' as const,
+      title: e.title,
+      description: e.description,
+      tags: e.tags,
+      load: loaders[e.key],
+      size: e.size,
+      time: e.time,
+    })),
   ]);
-  // each example's size (the cells in its graph) and time (how long, or its cycle): worked out once
-  const facts = new Map(
-    (Object.entries(PRESETS) as [PresetKey, Preset][]).map(([key, p]) => {
-      const r = compileSource(p.source);
-      return [key, { size: buildGraph(r).nodes.filter((n) => !n.petalOf && !n.cell.note).length, time: pieceTime(r) }];
-    }),
-  );
   const currentId = $derived(open.kind === 'example' ? `example:${open.key}` : open.kind === 'saved' ? `saved:${open.id}` : null);
-  function pick(id: string) {
+  // the piece last asked for: an example still being fetched gives way to a later choice
+  let picking = '';
+  async function pick(id: string) {
+    picking = id;
     const [kind, key] = [id.slice(0, id.indexOf(':')), id.slice(id.indexOf(':') + 1)];
     if (kind === 'example') {
+      let source: string;
+      try {
+        source = await loadExample(key as PresetKey);
+      } catch {
+        message = 'This piece could not be loaded (offline?).';
+        return;
+      }
+      if (picking !== id) return;
       open = { kind: 'example', key: key as PresetKey };
-      code = PRESETS[key as PresetKey].source;
+      code = source;
     } else {
       const p = saved.find((x) => x.id === key);
       if (!p) return;

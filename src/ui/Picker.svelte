@@ -54,7 +54,9 @@
     readonly title: string;
     readonly description: string;
     readonly tags: readonly string[];
-    readonly source: string;
+    /** Its text: a saved piece has it; an example is fetched when needed (`load`). */
+    readonly source?: string;
+    readonly load?: () => Promise<string>;
     readonly layout?: Readonly<Record<string, readonly [number, number]>> | null;
     /** For saved pieces: when. */
     readonly saved?: string;
