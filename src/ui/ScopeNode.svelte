@@ -2,11 +2,14 @@
   /** An oscilloscope in the graph: a round screen, a cathode-ray tube (the details show it unconstrained). */
   import { Handle, Position, type NodeProps } from '@xyflow/svelte';
   import ScopeView from './ScopeView.svelte';
-  let { data }: NodeProps = $props();
+  import { getGraphContext, nodeState } from './context';
+  let { id, data }: NodeProps = $props();
   const d = $derived(data as { name: string });
+  const ctx = getGraphContext();
+  const state = $derived(nodeState(ctx, id));
 </script>
 
-<div class="node-scope">
+<div class="node-scope" data-state={state}>
   <Handle type="target" position={Position.Top} class="center-handle" isConnectable={false} />
   <ScopeView name={d.name} w={200} h={200} round />
   <span class="name">&{d.name}</span>

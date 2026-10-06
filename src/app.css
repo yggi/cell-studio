@@ -128,25 +128,27 @@ select {
   }
 }
 
-/* ---- node states (see ui/context.ts) ---- */
+/* ---- node states (engine/routing.ts decides them; ui/context.ts) ---- */
 .node {
   position: relative;
   -webkit-touch-callout: none;
   user-select: none;
+}
+[data-state] {
   transition: opacity 260ms ease, filter 260ms ease;
 }
-/* at rest (while playing, not sounding now): quieter, less colour; sounding: full colour, a soft glow */
-.node[data-state='idle'] {
+/* at rest (while playing, not sounding now): quieter, less colour; sounding: full colour */
+[data-state='idle'] {
   opacity: 0.72;
   filter: saturate(0.5);
 }
-.node[data-state='live'] {
+[data-state='live'] {
   /* sounding: full colour (no halo) */
 }
-.node[data-state='unrouted'] {
+[data-state='unrouted'] {
   opacity: 0.28;
 }
-.node[data-state='off'] {
+[data-state='off'] {
   opacity: 0.4;
   filter: grayscale(1);
 }
