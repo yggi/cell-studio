@@ -10,6 +10,9 @@ that makes the change. Also note changes to the language that could affect saved
 
 ## Unreleased
 
+### Changed
+- `bwv847` is written shorter (#82): `tools/bwv847.py` now runs its longhand through Shorten (`tools/shorten.mjs`), so repeated phrases are cells of their own, used exactly or transposed (10,138 → 9,999 characters in the committed file). The notes are unchanged (checked note by note, and the events of every example hash the same); the graph has one more shared cell and a few more crossings (24 → 28). The order convention is written down in `docs/language/display.md`.
+
 ### Fixed
 - The graph shows what sounds, for nodes and edges alike (#11): cells that sound are no longer drawn dimmed (a cell that moves a filter or a pitch, a part made only of chance choices, a mix used as an instrument such as Sound on Tape's `&dry`, the mix of tape heads that drives Resonanz's pipes); tapes, resonators, motors and scopes now fade too when off or unused; a selector lights only the part it picks now, and the way from it to the sound card; an edge takes a note's colour and pulses only while what it carries plays (a voice in two mixes no longer colours the edge to the one that isn't playing). The sound and saved `.cells` pieces are not affected.
 
@@ -43,6 +46,7 @@ that makes the change. Also note changes to the language that could affect saved
 
 ### Developer
 - `?latency=interactive|balanced|playback|<seconds>` and `?lookahead=<seconds>` tune the audio context from the address (kept until `=off`), and the performance report shows the tuning, the made-to-heard latency (output timestamp), the audio thread's load and missed deadlines (`renderCapacity`, where the browser has it) and a per-window worst lateness: the tools for finding how far output latency can be lowered on a device (#67). The defaults are unchanged.
+- The performance overlay has a **▶ Run full test** button (#67): it plays four heavy pieces on four audio settings, from today's down to the lowest latency, makes a new audio context for each, and gives one report that names the lowest setting that stayed clean, to find how far the output latency can be lowered on a device. It puts the piece back afterwards and keeps nothing. Saved `.cells` pieces are not affected.
 - CI: the smoke test moved out of `ci.yml` into `smoke.yml` and runs only on the PR labelled `candidate` (once on its head, again after each push to it), no longer on every push of every PR and on `main`. `check` stays on all. See `docs/testing.md`.
 - Audio refactoring (#15, #9), no change in sound (every example's offline render compared before and after): what to play next is worked out as plain data (`engine/schedule.ts`) behind an `Engine` that runs in this thread (the default) or, opt-in with `?engine=worker`, in a Web Worker; `voices.ts` is split into `audio/voice/` parts behind the unchanged `VoiceBank`, with Tone's wrapped nodes bridged in one typed place; the graph gets the sound as one `LiveSource` object instead of ten callbacks. Measured: the worker doesn't lighten the main thread (`docs/notes/15-engine-worker.md`).
 - `tools/golden.mjs` (golden renders: every example rendered offline and compared with a recorded run), `cellStudio.render(source, seconds)` and `cellStudio.engine()`, `ENGINE=worker npm run smoke`.
