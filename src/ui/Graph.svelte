@@ -27,6 +27,7 @@
   import type { LiveSource } from '../audio/live';
   import ForcesPanel from './ForcesPanel.svelte';
   import { clusterDisc } from '../layout/clusters';
+  import { isGround, meterIndex, meterRings } from '../layout/meters';
 
   let {
     model,
@@ -216,9 +217,12 @@
     forceOptions = { ...layout.options };
   };
 
+  // the rings cells wear for the meter that steps them (the edges to it aren't drawn), and each meter's colour
+  const meters = $derived({ rings: meterRings(model), index: meterIndex(model) });
+
   function toFlowNode(g: GraphNode): FlowNode {
     // an example's own fixed layout isn't marked: only what the user pinned
-    return flowNodeOf(g, posOf(g.id) ?? { x: 0, y: 0 }, pinned.has(g.id) && !fixedPinned.has(g.id), turnOf(g.id));
+    return flowNodeOf(g, posOf(g.id) ?? { x: 0, y: 0 }, pinned.has(g.id) && !fixedPinned.has(g.id), turnOf(g.id), meters);
   }
 
 
@@ -323,7 +327,9 @@
     void muted;
     void playing;
     if (hasBelts) void liveEdges;
-    untrack(() => (edges = m.edges.map((e) => toFlowEdge(e))));
+    // (a meter's edges aren't drawn: its cells wear its ring instead — layout/meters.ts)
+    const byId = new Map(m.nodes.map((n) => [n.id, n]));
+    untrack(() => (edges = m.edges.filter((e) => !isGround(e, byId)).map((e) => toFlowEdge(e))));
   });
 
   // an example's fixed layout: pinned when the example changes; released when it does again

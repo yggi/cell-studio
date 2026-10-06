@@ -9,6 +9,7 @@
   import SpectrumWheel from './SpectrumWheel.svelte';
   import { hubLabel } from '../layout/cellview';
   import { formatLabel } from '../layout/labels';
+  import { meterColour } from './theme';
 
   let { id, data }: NodeProps<CellFlowNode> = $props();
   const ctx = getGraphContext();
@@ -44,8 +45,14 @@
   class:meter={data.isMeter}
   data-state={state}
   style="width: {data.size}px; height: {data.size}px"
+  style:--meter={data.meterIndex !== undefined ? meterColour(data.meterIndex) : undefined}
   use:longpress={{ onlong: () => ctx.toggle(id) }}
 >
+  <!-- the meter that steps it, as a ring in that meter's colour (the edge to it isn't drawn: it's ground), and the rate -->
+  {#if data.ring && !data.petal}
+    <span class="ring" style:--ring={meterColour(data.ring.meter)} title="stepped by a meter{data.ring.rate ? ` (${data.ring.rate})` : ''}"></span>
+    {#if data.ring.rate}<span class="rate" style:--ring={meterColour(data.ring.meter)}>{data.ring.rate}</span>{/if}
+  {/if}
   <Handle type="target" position={Position.Top} class="center-handle" isConnectable={false} />
   {#if signal && hub}
     <SpectrumWheel name={data.name} size={data.size} {hub} />
@@ -123,7 +130,29 @@
     border: 1px solid transparent;
   }
   .meter .name {
-    color: var(--accent);
+    color: var(--meter, var(--accent));
+  }
+  /* a meter's ring: just outside the wheel, under its name; its rate on the ring, top right */
+  .ring {
+    position: absolute;
+    inset: -8px;
+    border-radius: 50%;
+    border: 3px solid var(--ring);
+    pointer-events: none;
+  }
+  .rate {
+    position: absolute;
+    left: calc(50% + 0.707 * (50% + 8px));
+    top: calc(50% - 0.707 * (50% + 8px));
+    transform: translate(-50%, -50%);
+    font: 600 10px/1.2 var(--font-code);
+    color: var(--ring);
+    background: var(--surface);
+    border: 1px solid var(--ring);
+    border-radius: var(--radius-pill);
+    padding: 1px 5px;
+    white-space: nowrap;
+    pointer-events: none;
   }
   [data-state='live'] .name {
     border-color: var(--accent);

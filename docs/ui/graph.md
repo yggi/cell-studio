@@ -7,6 +7,7 @@ The code is the single source of truth. The graph draws exactly the cells and li
 ## Drawing
 
 - **Braids** are drawn as what they play: every `&ref` is expanded all the way down and coloured through the cell's own table, so `&leadA` (made of `&m1 &m2`) wears the motifs' colours, and a cell of cells of motifs too.
+- **Meters are ground**, as in a circuit: the edges into a meter (`step=&bar`) aren't drawn. Each cell a meter steps wears a ring in that meter's colour, its rate on the ring (`÷2`, `loop ×16`); each meter's name is in its colour (the first: the accent; `--meter-*` in `app.css`). A meter stepped by another wears that one's ring. A belted cell keeps its belt. The layout doesn't pull on those edges either (`src/layout/meters.ts`).
 - **Voices, mixes and the sound card** are wheels that don't spin: a spectral waterfall. Left channel on the left half, right on the right; 20 Hz meets at the bottom, 20 kHz at the top (log scale); the newest frame at the hub, flowing outward. Colour is frequency — red at 20 Hz to deep violet at 20 kHz — and brightness is level. At rest a voice shows its own partials at pitch 0, lifted so they read, inside a rim.
 - Roots sit at the centre; cells ring outward along the tables they read through. Tables (roots, scales, meters) are drawn as their entries on the grid below; melodies as slots in time.
 - While playing, every table a note passes through lights the entry it used.

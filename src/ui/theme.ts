@@ -2,6 +2,9 @@
  * The theme, for colours computed in code (SVG fill attributes can't read CSS
  * variables). Mirrors the note settings in app.css: change both together.
  */
+/** A meter's colour (the ring its cells wear): the first is the accent; four, then round again (app.css: --meter-*). */
+export const meterColour = (i: number) => `var(--meter-${((i % 4) + 4) % 4})`;
+
 export const NOTE_S = 70;
 export const NOTE_L = 58;
 

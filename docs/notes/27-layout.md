@@ -71,13 +71,22 @@ The start alone (the layered drawing, before the physics) improves too: crossing
 
 Gotcha: d3's link force balances each spring by how many springs its ends have, so even a zero-strength spring changes the others; the multiplexer's springs are only added when `mux` > 0.
 
+## Step 5: meters as ground (done)
+
+The owner's call: a meter is like ground in a circuit — the edges to it can go; a ring round each cell it steps shows they're in sync, coloured per meter. `src/layout/meters.ts` says which edges are ground (a step into a meter, not a belt: 214 of the examples' 231 step edges) and which ring each cell wears (meter, rate). The graph doesn't draw those edges (`Graph.svelte`), `CellNode` draws the ring (the rate as a badge on it), and the layout neither pulls on them nor counts them (`physics.ts`: links and degrees). Six examples have two meters (Meter and rhythm, Jazz, Five, Coltrane, Bossa nova, Bell): `--meter-0` (the accent) … `--meter-3`.
+
+| | before (step 4) | ground |
+|---|---|---|
+| crossings, 5 starts | 136 ± 9 | 58 ± 8 |
+| overlapping clusters | 31 ± 3 | 32 ± 2 |
+| intruders | 61 ± 6 | 51 ± 5 |
+| area (M px²) | 78.0 | 84.0 |
+
+The cluster settings stay (`mux` 0 saves 5 crossings but nearly doubles the intruders). Without the meter's springs, graphs are about 8 % larger: the meter was glue.
+
 ## Next
 
-1. **The meter as a bus or a net label** (most of the remaining cost). Automatic, in the graph only:
-   - (a) a time rail: the meter's step edges drawn into one line under the blocks, with a short stub up into each;
-   - (b) the meter's edges not drawn at all, each stepped cell wearing a small mark of its clock (a net label; its sheet still says `step=&bar`);
-   - (c) one dashed edge per cluster, to the block's edge.
-   (b) removes those crossings entirely and is the cheapest; (a) keeps the picture of one clock driving everything. As a language feature it isn't needed: a meter is already one cell that everything names, and an arrangement selector (`&parts`) is already a multiplexer.
-2. **Groups from structure** where a piece has no tags: cut at the hubs (high betweenness), then communities (Louvain or Leiden) as proposed blocks. Tags stay the override.
-3. **Recursion**: blocks inside blocks (a tag's own hubs), when a block is large.
-4. BWV 847 is still wide (≈ 4 × 1.5 k px).
+1. **Groups from structure** where a piece has no tags: cut at the hubs (high betweenness), then communities (Louvain or Leiden) as proposed blocks. Tags stay the override.
+2. **Recursion**: blocks inside blocks (a tag's own hubs), when a block is large.
+3. Compactness: the area grew with each step (69.9 → 85.1 M px² since step 1); BWV 847 is still wide.
+4. The same "ground" idea for other hubs? A scale every melody reads (`&lydian`), an arrangement selector: they're drawn edges with meaning (what, not when), so not obviously.

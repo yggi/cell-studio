@@ -1,7 +1,17 @@
 import type { Node } from '@xyflow/svelte';
 
 /** petal: an unnamed cell, drawn small hanging from its parent (no label, no edges). */
-export type CellNodeData = { name: string; isMeter: boolean; size: number; pinned: boolean; petal?: boolean };
+export type CellNodeData = {
+  name: string;
+  isMeter: boolean;
+  size: number;
+  pinned: boolean;
+  petal?: boolean;
+  /** The meter that steps it (its edge isn't drawn: layout/meters.ts): which, and at what rate. */
+  ring?: { meter: number; rate: string };
+  /** A meter's own place among the piece's meters (its colour). */
+  meterIndex?: number;
+};
 export type VoiceNodeData = { name: string; summary: string; size: number; pinned: boolean; petal?: boolean };
 export type CellFlowNode = Node<CellNodeData, 'cell'>;
 export type VoiceFlowNode = Node<VoiceNodeData, 'voice'>;
