@@ -7,7 +7,7 @@
    */
   import PieceWheel from './PieceWheel.svelte';
   import { durationText } from '../engine/duration';
-  import type { Entry } from './Picker.svelte';
+  import type { Entry } from './entries';
 
   let {
     entry,

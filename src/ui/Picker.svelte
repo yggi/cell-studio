@@ -48,24 +48,7 @@
   import { noteColour } from './theme';
   import type { LibraryLayout } from '../layout/library';
   import { durationText } from '../engine/duration';
-
-  export interface Entry {
-    readonly id: string;
-    readonly kind: 'example' | 'saved';
-    readonly title: string;
-    readonly description: string;
-    readonly tags: readonly string[];
-    /** Its text: a saved piece has it; an example is fetched when needed (`load`). */
-    readonly source?: string;
-    readonly load?: () => Promise<string>;
-    readonly layout?: Readonly<Record<string, readonly [number, number]>> | null;
-    /** For saved pieces: when. */
-    readonly saved?: string;
-    /** How many cells its graph has. */
-    readonly size?: number;
-    /** How long it is: when it ends, or its cycle. */
-    readonly time?: import('../engine/duration').PieceTime;
-  }
+  import type { Entry } from './entries';
 
   let {
     entries,

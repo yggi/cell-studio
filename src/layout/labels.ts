@@ -11,7 +11,7 @@
  *   **bold**   *italic*   \n a new line
  */
 import { entries, resolvePitch, semitones, type CompileResult, type Shifts } from '../engine/compile';
-import { flatten } from '../engine/realize';
+import { flatten } from '../engine/flatten';
 import { modeName, mod } from '../theory/modes';
 
 const NAMES = ['C', 'C♯', 'D', 'E♭', 'E', 'F', 'F♯', 'G', 'A♭', 'A', 'B♭', 'B'];

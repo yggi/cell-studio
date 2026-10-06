@@ -13,7 +13,7 @@
   import { freqHue, gridName } from '../engine/compile';
   import { noteName } from '../theory/modes';
   import { DOUGH_SOURCES } from '../engine/dough-params';
-  import { load, watchLoad } from '../audio/load';
+  import { onFrames } from '../audio/ticker';
   import { timed } from '../audio/stats';
 
   /** hub: what the hub says; without it, the note a voice sounds now (at rest, its pitch 0). */
@@ -75,8 +75,7 @@
 
   let canvas: HTMLCanvasElement;
   let image: ImageData | null = null;
-  let raf = 0;
-  let last = 0;
+  let stopFrames = () => {};
 
   function fillResting() {
     if (!ctx.program.cells.get(name)) return;
@@ -128,15 +127,12 @@
   let shown = true;
   let checked = -1e9;
   function frame(t: number) {
-    raf = requestAnimationFrame(frame);
-    if (!visible || document.hidden) return;
-    // (a wheel seen small — the graph zoomed out to take in a whole piece — is read less often: every read of
-    // its analysers is a Fourier transform, and a few dozen pixels can't show 15 a second)
-    const small = size * seen < 56 ? 3 : size * seen < 90 ? 2 : 1;
-    if (t - last < 66 * load.scale * small * (quiet > FRAMES ? 2 : 1)) return; // ~15 a second: plenty for a spectrum (fewer when the page is busy)
-    last = t;
-    timed('wheel', () => work(t));
+    if (visible) timed('wheel', () => work(t));
   }
+  // ~15 a second: plenty for a spectrum (fewer when the page is busy). A wheel seen small (the graph zoomed
+  // out to take in a whole piece) is read less often: every read of its analysers is a Fourier transform,
+  // and a few dozen pixels can't show 15 a second
+  const interval = () => 66 * (size * seen < 56 ? 3 : size * seen < 90 ? 2 : 1) * (quiet > FRAMES ? 2 : 1);
   function work(t: number) {
     // (in the hidden tab the box is still in view, just not shown: ask the element itself — twice a
     // second, not every frame: the question is not free)
@@ -191,15 +187,14 @@
   onMount(() => {
     fillResting();
     draw();
-    watchLoad();
-    raf = requestAnimationFrame(frame);
+    stopFrames = onFrames(frame, interval);
     if (typeof IntersectionObserver !== 'undefined') {
       watch = new IntersectionObserver((es) => (visible = es.some((e) => e.isIntersecting)));
       watch.observe(canvas);
     }
   });
   onDestroy(() => {
-    cancelAnimationFrame(raf);
+    stopFrames();
     watch?.disconnect();
   });
 </script>

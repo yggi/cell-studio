@@ -7,11 +7,12 @@
    * one: the colour of its value as it goes.
    */
   import { getGraphContext } from './context';
-  import { clocking, notesAt, valueAt, valuesAt } from '../engine/realize';
+  import { clocking } from '../engine/clocking';
+  import { notesAt, valueAt, valuesAt } from '../engine/values';
   import { adsrOf, resolvePitch, semitones } from '../engine/compile';
   import { voiceBase } from '../layout/show';
   import { noteColour } from './theme';
-  import { load, watchLoad } from '../audio/load';
+  import { onFrames } from '../audio/ticker';
   import { timed } from '../audio/stats';
 
   let { name, w = 240, h = 150, round = false }: { name: string; w?: number; h?: number; round?: boolean } = $props();
@@ -139,21 +140,13 @@
 
   let root = $state<HTMLDivElement | null>(null);
   $effect(() => {
-    let raf = 0;
-    let last = 0;
     // only a scope that can be seen does any work (off screen, or the page in the background, it reads
     // no analysis and draws nothing) — as the spectrum wheels do
     let visible = true;
-    watchLoad();
     const watch = typeof IntersectionObserver !== 'undefined' && root ? new IntersectionObserver((es) => (visible = es.some((e) => e.isIntersecting))) : null;
     if (watch && root) watch.observe(root);
-    const tick = (t: number) => {
-      raf = requestAnimationFrame(tick);
-      if (!visible || document.hidden) return;
-      // waveforms ~30 a second; a spectrum (an 8192-point analysis per channel) ~15: plenty for the eye
-      if (t - last < (spectral ? 66 : 33) * load.scale) return;
-      last = t;
-      timed('scope', () => step());
+    const tick = () => {
+      if (visible) timed('scope', () => step());
     };
     const step = () => {
       const now = ctx.live?.seconds ?? 0;
@@ -205,9 +198,10 @@
         };
       });
     };
-    raf = requestAnimationFrame(tick);
+    // waveforms ~30 a second; a spectrum (an 8192-point analysis per channel) ~15: plenty for the eye
+    const stop = onFrames(tick, () => (spectral ? 66 : 33));
     return () => {
-      cancelAnimationFrame(raf);
+      stop();
       watch?.disconnect();
     };
   });

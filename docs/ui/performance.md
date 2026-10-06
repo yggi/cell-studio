@@ -7,7 +7,7 @@ bottom left (`perf · 59 fps · 0 long`); its border turns amber, then red, as t
 ## The panel
 - **Last 10 s** (live): frames a second, the frame interval's 95th percentile and worst, long tasks (> 50 ms:
   how many, the longest, the share of time the main thread was blocked), and the live views' refresh stretch
-  (`audio/load.ts`: 1 = full rate, higher = the page is behind and the wheels and scopes refresh less often).
+  (`audio/ticker.ts`: 1 = full rate, higher = the page is behind and the wheels and scopes refresh less often).
 - **Record / Stop**: marks a window. Press Record, play the piece for 30 s, press Stop.
 - **Copy report** (and **Share**, where the browser has it): the report as markdown for an issue, followed by the data
   as JSON in a collapsed block. Without a recording, it covers the last minute. If the browser refuses to copy, the

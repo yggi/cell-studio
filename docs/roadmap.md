@@ -13,6 +13,6 @@ The big jobs, at a high level. Detail lives in the issues — this page names ep
 | Wish list | pieces and features, as one checklist | #35 |
 | Visual bugs | active/inactive detection of cells and edges | #11 |
 | Performance | live views' cost on large graphs; the first slice (#13) is done | #36 |
-| Refactoring | `voices.ts` is split and the graph gets the sound as one object; left: `Player` (transport, held tapes, UI clock), large engine files, `App.svelte`, lint | #9 |
+| Refactoring | `voices.ts`, `realize.ts`, `Player` and `App.svelte` are split, the graph gets the sound as one object, views share one frame loop; left: `compile.ts` and `parser.ts`, the large components, lint, stricter types | #9 |
 | Deployment | PWA, PR workflow | #7 |
 | Agents | the agentic workflow: AGENTS.md, the `senior` skill, CI | #6 |

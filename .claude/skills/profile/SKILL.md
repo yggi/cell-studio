@@ -93,8 +93,8 @@ destination, so it works headless.
 - A tape's recording was ~100 `<line>`s with four attributes rewritten per frame (~7000 DOM writes a second);
   static lines in a rotating `<g>` took it to one transform. Look for per-frame attribute writes first.
 - Canvas/analyser work follows the size a wheel is seen at (`SpectrumWheel`: resolution and refresh by on-screen size).
-- Views refresh slower when frames come late (`src/audio/load.ts`); new per-frame views should use
-  `load.scale` and skip work when not visible.
+- Per-frame views run from the one frame loop, `onFrames` in `src/audio/ticker.ts` (no `requestAnimationFrame` of
+  their own); it stretches their interval by `load.scale` when frames come late. Skip work when not visible.
 
 ## Pitfalls
 - `vite preview --outDir` is unreliable for a second build; serve a non-minified build with

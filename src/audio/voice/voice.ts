@@ -6,7 +6,8 @@
 import type { CompileResult, Shifts } from '../../engine/compile';
 import { BODIES } from '../../engine/compile';
 import { DOUGH_SOURCES } from '../../engine/dough-params';
-import type { ParamTrack, Played } from '../../engine/realize';
+import type { Played } from '../../engine/realize';
+import type { ParamTrack } from '../../engine/series';
 import { harmonics, waveform } from '../../engine/wave';
 import { inputOf, movable, type Disposable, type Movable, type ToneNS } from './nodes';
 import { grainOffset, noiseBuffer } from './noise';

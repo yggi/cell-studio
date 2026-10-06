@@ -4,25 +4,28 @@
   import { onDestroy } from 'svelte';
   import { codeShifts, compileSource, type CompileResult } from './engine/compile';
   import { addCell, declLine, setFree, setOff, setShift } from './engine/edit';
+  import { freeIndex, freeList, withHeld } from './engine/held';
   import { buildGraph } from './engine/graph';
   import { plan } from './engine/realize';
   import { liveAt } from './engine/live';
   import { routing } from './engine/routing';
-  import { EXAMPLES, FIRST, FIRST_SOURCE, loadExample, type PresetKey } from './examples';
-  import { pieceMeta } from './engine/parser';
-  import { canonicalTags } from './engine/tags';
+  import { FIRST, FIRST_SOURCE, loadExample, type PresetKey } from './examples';
   import { fileName, listSaved, readFile, removeSaved, saveFile, savePiece, storageAvailable, titleOf, type SavedPiece } from './library';
-  import Picker, { type Entry } from './ui/Picker.svelte';
+  import Picker from './ui/Picker.svelte';
+  import { exampleEntries, savedEntry, type Entry } from './ui/entries';
   import Shorten from './ui/Shorten.svelte';
-  import { mainLength, mainTempo, pieceTime, sections } from './engine/duration';
+  import { anchoredAt, mainLength, mainTempo, pieceTime, sections } from './engine/duration';
   import Transport from './ui/Transport.svelte';
   import FreePanel from './ui/FreePanel.svelte';
-  import { loudness, renderLength, renderPiece, sampleHash, blockLevels, wav } from './audio/render';
+  import { loudness, renderLength, renderPiece, wav } from './audio/render';
   import { Player } from './audio/player';
   import { chooseEngine, type PieceSource } from './audio/engine';
   import type { LiveSource } from './audio/live';
   import { transportClock } from './audio/clock.svelte';
   import Graph from './ui/Graph.svelte';
+  import { screenAwake } from './ui/wakeLock';
+  import { keepPerf, perfWanted } from './ui/perfSwitch';
+  import { installDebugHook } from './debugHook';
   import Editor from './ui/Editor.svelte';
   import UpdateToast from './ui/UpdateToast.svelte';
   import type { RunController } from './ui/perfrun';
@@ -47,19 +50,10 @@
   // free() values moved by hand: what plays, not what's written — until you keep them. Held by
   // their place among the code's free()s (the first, the second …), so rewriting can't lose them.
   let held = $state<Map<number, number | string>>(new Map());
-  const freeList = (r: CompileResult) =>
-    [...r.cells.values()].flatMap((c) => c.frees).sort((a, b) => a.span.line - b.span.line || a.span.col - b.span.col);
-  const withHeld = (src: string, r: CompileResult) => {
-    const fs = freeList(r);
-    let out = src;
-    // (from the end backwards: each rewrite leaves the earlier places where they were)
-    for (let i = fs.length - 1; i >= 0; i--) if (held.has(i)) out = setFree(out, fs[i], held.get(i)!);
-    return out;
-  };
-  const playedCode = $derived(held.size && result.ok ? withHeld(code, result) : code);
+  const playedCode = $derived(held.size && result.ok ? withHeld(code, result, held) : code);
   const playedResult = $derived(playedCode === code ? result : compileSource(playedCode, env));
   function holdFree(spec: { span: { line: number; col: number } }, v: number | string) {
-    const i = freeList(program).findIndex((f) => f.span.line === spec.span.line && f.span.col === spec.span.col);
+    const i = freeIndex(program, spec);
     if (i < 0) return;
     held = new Map(held).set(i, v);
   }
@@ -88,30 +82,11 @@
   const program = $derived(good.result);
   const graph = $derived(buildGraph(program));
 
-  // The performance overlay: ?perf turns it on (and keeps it on), ?perf=off turns it off; Files ▾ toggles it too.
-  // It is loaded only when on, so it costs nothing otherwise.
-  const PERF_KEY = 'cell-studio-perf';
-  function perfWanted(): boolean {
-    try {
-      const q = new URLSearchParams(location.search).get('perf');
-      if (q !== null) {
-        if (q === 'off' || q === '0') localStorage.removeItem(PERF_KEY);
-        else localStorage.setItem(PERF_KEY, '1');
-      }
-      return localStorage.getItem(PERF_KEY) === '1';
-    } catch {
-      return new URLSearchParams(location.search).has('perf');
-    }
-  }
-  let perf = $state(typeof location !== 'undefined' && perfWanted());
+  // The performance overlay (ui/perfSwitch.ts): loaded only when on, so it costs nothing otherwise.
+  let perf = $state(perfWanted());
   function togglePerf() {
     perf = !perf;
-    try {
-      if (perf) localStorage.setItem(PERF_KEY, '1');
-      else localStorage.removeItem(PERF_KEY);
-    } catch {
-      /* not kept */
-    }
+    keepPerf(perf);
   }
   const perfSources = {
     playing: () => transportClock.playing,
@@ -239,32 +214,9 @@
     await player.start(to);
   }
   // keep the screen awake while playing (where the browser allows it: Android Chrome does)
-  let wake: { release(): Promise<void> } | null = null;
-  async function stayAwake(on: boolean) {
-    const nav = navigator as Navigator & { wakeLock?: { request(type: 'screen'): Promise<{ release(): Promise<void> }> } };
-    try {
-      if (on && !wake && nav.wakeLock) wake = await nav.wakeLock.request('screen');
-      if (!on && wake) {
-        await wake.release();
-        wake = null;
-      }
-    } catch {
-      wake = null; // (not allowed now — e.g. the page is hidden; asked again when it's back)
-    }
-  }
-  $effect(() => {
-    void stayAwake(transportClock.playing);
-  });
-  $effect(() => {
-    const back = () => {
-      if (document.visibilityState === 'visible' && transportClock.playing) {
-        wake = null; // (the system let it go while hidden)
-        void stayAwake(true);
-      }
-    };
-    document.addEventListener('visibilitychange', back);
-    return () => document.removeEventListener('visibilitychange', back);
-  });
+  const awake = screenAwake();
+  $effect(() => awake.set(transportClock.playing));
+  onDestroy(() => awake.dispose());
 
   // the arrangement's sections (if a selector plays the piece) and the tempo of the meter that drives it
   const pieceSections = $derived(program.ok ? sections(program) : null);
@@ -300,13 +252,8 @@
     starting = true;
     try {
       // a piece anchored to the clock (anchor=11.55), started fresh: it plays where the day stands
-      const anchor = [...program.cells.values()].find((c) => typeof c.params.anchor === 'number')?.params.anchor as number | undefined;
-      if (anchor !== undefined && cursor === 0 && !played && !touched) {
-        const d = new Date();
-        const now = d.getHours() * 3600 + d.getMinutes() * 60 + d.getSeconds();
-        const at = Math.floor(anchor) * 3600 + Math.round((anchor % 1) * 100) * 60;
-        cursor = (((now - at) % 86400) + 86400) % 86400;
-      }
+      const anchored = cursor === 0 && !played && !touched ? anchoredAt(program, new Date()) : null;
+      if (anchored !== null) cursor = anchored;
       await player.start(cursor);
       played = true;
       sampleRate = player.sampleRate ?? sampleRate;
@@ -321,35 +268,7 @@
   let saved = $state<SavedPiece[]>(listSaved());
   const storageOk = storageAvailable();
   let message = $state<string | null>(null);
-  // (one function each, the same every time: a card's picture is fetched once)
-  const loaders = Object.fromEntries(EXAMPLES.map((e) => [e.key, () => loadExample(e.key)])) as Record<PresetKey, () => Promise<string>>;
-  const entries = $derived<Entry[]>([
-    ...saved.map((p) => {
-      const m = pieceMeta(p.source);
-      const r = compileSource(p.source);
-      return {
-        id: `saved:${p.id}`,
-        kind: 'saved' as const,
-        title: p.title,
-        description: m?.description ?? '',
-        tags: canonicalTags(m?.tags ?? []),
-        source: p.source,
-        saved: p.saved,
-        size: buildGraph(r).nodes.filter((n) => !n.petalOf && !n.cell.note).length,
-        time: r.ok ? pieceTime(r) : undefined,
-      };
-    }),
-    ...EXAMPLES.map((e) => ({
-      id: `example:${e.key}`,
-      kind: 'example' as const,
-      title: e.title,
-      description: e.description,
-      tags: e.tags,
-      load: loaders[e.key],
-      size: e.size,
-      time: e.time,
-    })),
-  ]);
+  const entries = $derived<Entry[]>([...saved.map(savedEntry), ...exampleEntries]);
   const currentId = $derived(open.kind === 'example' ? `example:${open.key}` : open.kind === 'saved' ? `saved:${open.id}` : null);
   // the piece last asked for (a card or a file): one still being fetched or read gives way to a later choice
   let choice = 0;
@@ -413,27 +332,8 @@
       rendering = false;
     }
   }
-  // Debug hook, `window.cellStudio` (documented in the README): for measuring from outside —
-  // measure(seconds?) renders the open piece and returns {rms, peak, clipped} in dB below full scale;
-  // length() is the default render length in seconds; level(name) is a voice's current peak level.
-  if (typeof window !== 'undefined')
-    (window as unknown as { cellStudio: unknown }).cellStudio = {
-      measure: async (seconds?: number) => loudness(await renderPiece(result, codeShifts(result), seconds)),
-      length: () => renderLength(result),
-      // engine() says how the engine's windows went: where they were worked out, how long they took (#15)
-      engine: () => player.engineStats(),
-      // render(source, seconds) renders any source (not just the open piece), with a hash of the samples and
-      // the level of every block of them: for checking a refactor leaves every piece sounding the same (`tools/golden.mjs`)
-      render: async (source: string, seconds?: number) => {
-        const r = compileSource(source, { SAMPLE_RATE: 44100, A4: 440 });
-        const buf = await renderPiece(r, codeShifts(r), seconds);
-        return { ...loudness(buf), hash: sampleHash(buf), blocks: blockLevels(buf) };
-      },
-      level: (n: string) => {
-        const w = player.waveform(n);
-        return w ? Math.max(...Array.from(w).map(Math.abs)) : null;
-      },
-    };
+  // `window.cellStudio`, for measuring from outside (docs/testing.md): the open piece as written
+  installDebugHook(() => result, player);
   function saveHere() {
     const r = savePiece(code);
     if ('error' in r) message = r.error;
