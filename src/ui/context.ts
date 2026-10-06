@@ -19,6 +19,8 @@ export interface GraphContext extends LiveSource {
   readonly muted: ReadonlySet<string>;
   readonly routed: ReadonlySet<string>;
   readonly live: LiveState | null;
+  /** The edges that carry something now (ids): each edge reads its own, so the edge list isn't remade every step. */
+  readonly liveEdges: ReadonlySet<string>;
   /**
    * Changes only when what's drawn changes while playing: a table turns, or play
    * starts or stops (the live state itself is new every frame). Read it to redraw

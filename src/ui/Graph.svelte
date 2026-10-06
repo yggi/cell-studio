@@ -110,6 +110,9 @@
     get live() {
       return live;
     },
+    get liveEdges() {
+      return liveEdgeSet;
+    },
     get turned() {
       return turned;
     },
@@ -274,6 +277,11 @@
 
   // Edge styling follows routing: live edges glow and flow, cut-off edges fade.
   const liveEdges = $derived(live ? [...live.edges].sort().join('|') : '');
+  // Which edges carry something now. Each edge reads it for itself (PulseEdge), so a step that changes it
+  // does not make the whole edge list again for the flow to reconcile (#13).
+  const liveEdgeSet = $derived<ReadonlySet<string>>(new Set(liveEdges ? liveEdges.split('|') : []));
+  // (only a belt's stretch is drawn from the moment, and that is read when the list is made)
+  const hasBelts = $derived([...program.cells.values()].some((c) => typeof c.params.belt === 'number'));
 
   const edgeTypes = { pulse: PulseEdge, belt: BeltEdge };
   const nameOf = (id: string) => id.slice('cell:'.length);
@@ -301,10 +309,9 @@
     return { kind: e.kind, phaseCell: null, voice: null, reverse: false };
   }
 
-  function toFlowEdge(e: GraphEdge, liveSet: ReadonlySet<string>): Edge {
+  function toFlowEdge(e: GraphEdge): Edge {
     // an edge with a switched-off (or unrouted) end is off: never live, never coloured, whatever plays
     const isRouted = routed.has(e.source) && routed.has(e.target) && !muted.has(e.source) && !muted.has(e.target);
-    const isLive = isRouted && liveSet.has(e.id);
     // a belted cell's step: a belt, its pulleys by the ratio, its stretch as it is now
     const driven = model.nodes.find((n) => n.id === e.source);
     if (e.kind === 'step' && driven && typeof driven.cell.params.belt === 'number') {
@@ -325,17 +332,17 @@
       type: 'pulse',
       data: { ...pulseData(e), off: !isRouted },
       label: [e.count > 1 ? `×${e.count}` : '', e.pick, e.label ?? ''].filter(Boolean).join(' ') || undefined,
-      class: `edge-${e.kind} ${isLive ? 'edge-live' : isRouted ? 'edge-routed' : 'edge-cut'}`,
+      class: `edge-${e.kind} ${isRouted ? 'edge-routed' : 'edge-cut'}`,
       selectable: false,
     };
   }
 
   $effect(() => {
-    const liveSet = new Set(liveEdges ? liveEdges.split('|') : []);
     const m = model;
     void routed;
     void muted;
-    untrack(() => (edges = m.edges.map((e) => toFlowEdge(e, liveSet))));
+    if (hasBelts) void liveEdges;
+    untrack(() => (edges = m.edges.map((e) => toFlowEdge(e))));
   });
 
   // an example's fixed layout: pinned when the example changes; released when it does again
@@ -576,7 +583,7 @@
     stroke-linecap: round;
     transition: stroke-opacity 140ms ease;
   }
-  .graph :global(.edge-live .svelte-flow__edge-path) {
+  .graph :global(.svelte-flow__edge-path.edge-live) {
     stroke: var(--accent);
     stroke-width: 5;
   }

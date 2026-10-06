@@ -11,6 +11,7 @@ that makes the change. Also note changes to the language that could affect saved
 ## Unreleased
 
 ### Changed
+- Lighter playback on phones, third round: the redraw after each clock tick is about a third cheaper on the busiest piece (wheels recompute only what changed — the lit step, the entries read, the label's bar — and a step that makes an edge glow no longer rebuilds the whole edge list). The look is unchanged.
 - The examples are no longer all in the first download: the library is listed from an index made at build time (nothing is compiled to show it), and each piece's text is fetched when its card is drawn or it is opened (the first bundle is about 24 kB smaller gzipped). If a piece can't be fetched (offline, never opened before), it says so instead of opening. Saved `.cells` pieces are not affected.
 - Cell studio is now an installable app (PWA): it has an icon and a manifest, works offline after the first visit, and shows "New version ready" when an update is waiting (it never reloads by itself, so a playing piece is not cut off). The build is no longer one `index.html` but normal files with Tone loaded on first Play. Saved `.cells` pieces are not affected.
 

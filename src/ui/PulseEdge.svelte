@@ -42,10 +42,12 @@
     return r >= 1 && r <= 2.0001 ? 0 : Math.floor(Math.log2(r));
   });
   const colour = $derived(hue === null ? null : noteColour(hue, false, octave));
+  // (an edge with a switched-off end is never live)
+  const isLive = $derived(!d.off && ctx.liveEdges.has(id));
   const edgeStyle = $derived(colour ? `${style ?? ''}; stroke: ${colour}; stroke-opacity: 0.9` : style);
 </script>
 
-<BaseEdge {id} {path} {markerEnd} style={edgeStyle} {label} labelX={geometry[1]} labelY={geometry[2]} labelStyle={d.off ? 'opacity: 0.3' : colour ? `border-color: ${colour}` : undefined} />
+<BaseEdge {id} {path} {markerEnd} style={edgeStyle} class={isLive ? 'edge-live' : undefined} {label} labelX={geometry[1]} labelY={geometry[2]} labelStyle={d.off ? 'opacity: 0.3' : colour ? `border-color: ${colour}` : undefined} />
 {#if dot}
   <circle class="pulse" cx={dot.x} cy={dot.y} r="6" style={colour ? `fill: ${colour}` : undefined} />
 {/if}
