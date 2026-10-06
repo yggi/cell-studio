@@ -12,6 +12,7 @@
    * let go, and its motor takes over.
    */
   import { onDestroy } from 'svelte';
+  import { prefersReducedMotion } from 'svelte/motion';
   import { Handle, Position, useSvelteFlow, type NodeProps } from '@xyflow/svelte';
   import { getGraphContext, nodeState } from './context';
   import { clocking } from '../engine/clocking';
@@ -46,7 +47,6 @@
   });
   let wobble = $state('none');
   // (a shimmer, set from here: the reduced-motion rule in app.css only reaches CSS animations)
-  const still = typeof matchMedia === 'function' ? matchMedia('(prefers-reduced-motion: reduce)') : null;
   $effect(() => {
     if (d.role !== 'resonator') return;
     const step = (t: number) => {
@@ -60,7 +60,7 @@
       const q = a.map((v: number) => Math.round(v * 24) / 24);
       if (q.length !== amps.length || q.some((v: number, i: number) => v !== amps[i])) amps = q;
       pads = r.exciters;
-      if (still?.matches) {
+      if (prefersReducedMotion.current) {
         if (wobble !== 'none') wobble = 'none';
         return;
       }
