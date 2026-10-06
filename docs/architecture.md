@@ -48,5 +48,5 @@ code text (App.svelte `code`)
 - `src/ui/`: Svelte components by role. Graph and nodes: `Graph`, `MiniGraph`, `LibraryGraph`, `FitView`, `CellNode`, `PieceNode`, `VoiceNode`, `MaterialNode`, `ScopeNode`, `SunNode`, `CellLink`, `BeltEdge`, `PulseEdge`, `GraphLegend`. Cell drawing: `CellGlyph`, `WaveGlyph`, `SpectrumWheel`, `ScopeView`, `PieceWheel`. Editing: `Editor`, `EditPop`, `StepEditor`, `HubEditor`, `TokenWheel`, `Keypad`, `Picker`, `CellSheet`, `CellFacts`, `ParamRows`, `Free*`, `ForcesPanel`, shared `Shorten`, `Transport`. Helpers: `theme.ts`, `highlight.ts`, `suggest.ts`, `tags.ts`, `context.ts`, `types.ts`, `longpress.ts`.
 - `src/theory/modes.ts`: names, modes, `scan`, hues. `src/library.ts`: saved pieces (localStorage) and `.cells` files; always reports unavailable storage instead of failing.
 - `src/App.svelte`: owns `code`, derives `result`/`plan`, wires `Player`, saving, render, and `window.cellStudio`. `src/main.ts` mounts it.
-- `tools/`: Python generators (`bwv847.py`, `kern2cells.py`, `counterpoint.py`) and `tools/profile/` scripts.
+- `tools/`: Python generators (`bwv847.py`, `kern2cells.py`, `counterpoint.py`) and `tools/profile/` scripts. Python deps: `pip install -r tools/dev-requirements.txt` (music21).
 - `.github/workflows/`: `ci.yml` (check, test, build), `deploy.yml`.
