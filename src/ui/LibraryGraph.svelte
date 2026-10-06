@@ -5,7 +5,7 @@
    * size of how many pieces carry it. Pieces sharing tags gather. Laid out by the
    * same physics as the pieces' graphs, without its ranks: a cloud, not a flow.
    */
-  import { GENRES, tagFont, type LibraryLayout } from '../layout/library';
+  import { GENRES, PILL, shortTitle, tagFont, type LibraryLayout } from '../layout/library';
   import { tagName } from '../engine/tags';
   import { tick } from 'svelte';
   import PieceNode from './PieceNode.svelte';
@@ -52,8 +52,6 @@
   let height = $state(0);
   let zoom = $state(0.5);
   let scroller = $state<HTMLDivElement | null>(null);
-  // a node's label: its short title (before the colon)
-  const short = (t: string) => t.split(':')[0];
   // fit: all of it in the frame, both ways — and where it opens
   const fit = () => {
     zoom = Math.max(0.15, Math.min(1.6, (width - 8) / layout.w, (height - top - 8) / layout.h));
@@ -136,6 +134,12 @@
   let peek = $state<string | null>(null);
   let holding: ReturnType<typeof setTimeout> | null = null;
   const px = (u: number) => u * zoom;
+  // a piece at the full view is its title, a pill: as the layout sized it, but no larger than 16 px …
+  const title = $derived(px(PILL * lib.tagScale));
+  const pillFont = $derived(Math.max(8, Math.min(16, title)));
+  // … and zoomed in, its wheel grows behind it: from nothing where its title would be 12 px to whole at 20
+  // (and whole for the piece under the pointer, or held)
+  const grown = (id: string) => (peek === id ? 1 : Math.max(0, Math.min(1, (title - 12) / 8)));
   const pos = (id: string) => {
     const p = layout.at.get(id);
     return p ? { x: px(p.x - layout.x0), y: px(p.y - layout.y0) } : null;
@@ -266,7 +270,7 @@
             class:dim={tag !== null && tag !== t}
             style:left="{p.x}px"
             style:top="{p.y}px"
-            style:font-size="{Math.max(isGenre(t) ? 11 : 9, px(tagFont(n) * lib.tagScale))}px"
+            style:font-size="{Math.max(isGenre(t) ? 11 : 9, Math.min(26, px(tagFont(n) * lib.tagScale)))}px"
             style:--hue={colours.get(t)}
             onclick={() => (tag = tag === t ? null : t)}
             aria-pressed={tag === t}>{tagName(t)}</button
@@ -276,13 +280,18 @@
       {#each entries.filter((e) => visible(e.id)) as e (e.id)}
         {@const p = pos(`p:${e.id}`)}
         {#if p}
-          {@const d = px(PR * 2)}
+          {@const d = px(2 * (lib.wheel.get(`p:${e.id}`) ?? PR))}
+          {@const g = grown(e.id)}
           <button
             class="piece"
             class:dim={!lit(e)}
             class:peeking={peek === e.id}
+            class:current={e.id === current}
             style:left="{p.x}px"
             style:top="{p.y}px"
+            style:width="{d}px"
+            style:height="{d}px"
+            style:margin="{-d / 2}px 0 0 {-d / 2}px"
             onclick={() => onopen(e)}
             onpointerenter={(ev) => ev.pointerType === 'mouse' && (peek = e.id)}
             onpointerleave={() => peek === e.id && (peek = null)}
@@ -297,7 +306,11 @@
             oncontextmenu={(ev) => ev.preventDefault()}
             aria-label="{e.title}: details"
           >
-            <PieceNode entry={e} {colours} size={d} label={short(e.title)} petals={d >= 96} showLabel={d >= 40 || peek === e.id} pill current={e.id === current} miniature={lib.done} />
+            {#if g > 0}
+              <!-- (its miniature only once its wheel shows: fetched and drawn when zoomed in to) -->
+              <span class="grow" style:transform="scale({g})"><PieceNode entry={e} {colours} size={d} petals={d * g >= 96} current={e.id === current} miniature={lib.done} /></span>
+            {/if}
+            <span class="title" style:top="{50 + 30 * g}%" style:font-size="{pillFont}px">{shortTitle(e.title)}</span>
           </button>
         {/if}
       {/each}
@@ -378,22 +391,57 @@
       0 0 24px color-mix(in oklab, var(--hue) 65%, transparent),
       0 0 0 4px color-mix(in oklab, var(--hue) 20%, transparent);
   }
-  .piece.peeking {
-    z-index: 3;
-  }
+  /* layered across the whole cloud (a piece makes no layer of its own: no z-index, no transform — it's
+     centred by its margins): every wheel at the back, the tags' words over the wheels, every title on top */
   .piece {
     all: unset;
-    z-index: 1;
     -webkit-touch-callout: none;
     user-select: none;
     position: absolute;
-    transform: translate(-50%, -50%);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 4px;
     cursor: pointer;
     transition: opacity 160ms ease;
+  }
+  .piece .grow {
+    z-index: 1;
+  }
+  .piece .title {
+    z-index: 3;
+  }
+  .piece.peeking .grow {
+    z-index: 4;
+  }
+  .piece.peeking .title {
+    z-index: 5;
+  }
+  /* its wheel, growing behind its title from the middle */
+  .piece .grow {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    justify-content: center;
+    transform-origin: 50% 50%;
+  }
+  /* its title, a pill: in the middle while it's only that, over the wheel's lower third once grown */
+  .piece .title {
+    position: absolute;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    padding: 0.15em 0.65em;
+    border-radius: var(--radius-pill);
+    border: 1px solid var(--line);
+    background: color-mix(in oklab, var(--surface) 90%, transparent);
+    color: var(--text);
+    font-family: var(--font-ui);
+    font-weight: 700;
+    line-height: 1.3;
+    white-space: nowrap;
+  }
+  .piece.current .title {
+    border-color: var(--accent);
+  }
+  .piece:focus-visible .title {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
   }
   
 
@@ -402,7 +450,7 @@
   }
   .zoom {
     position: absolute;
-    z-index: 2;
+    z-index: 10; /* (above the cloud's words and pieces, which stack up to 4) */
     right: 8px;
     bottom: 8px;
     display: flex;
@@ -470,10 +518,6 @@
     border: 0;
     border-radius: 0;
     background: transparent;
-  }
-  /* pieces above the tags' words: a tap on a piece is the piece's */
-  .piece {
-    z-index: 4;
   }
   .tagnode:not(.genre) {
     z-index: 2;

@@ -2,7 +2,7 @@
   /**
    * A piece, as a node: its wheel (its graph inside, its tags round the rim), its
    * facts as petals on the rim — how many cells, how long or how often round — as
-   * unnamed cells sit on theirs in a piece's graph, and its label beneath. The same
+   * unnamed cells sit on theirs in a piece's graph (its title is the caller's: a card's text, the graph's pill). The same
    * in the list and in the library's graph.
    */
   import PieceWheel from './PieceWheel.svelte';
@@ -13,11 +13,8 @@
     entry,
     colours,
     size,
-    label,
     labels = false,
     petals = true,
-    showLabel = true,
-    pill = false,
     current = false,
     miniature = true,
   }: {
@@ -25,14 +22,9 @@
     colours: ReadonlyMap<string, string>;
     /** The wheel, across, in px. */
     size: number;
-    /** What it's called beneath. */
-    label: string;
     /** Tag names along the rim. */
     labels?: boolean;
     petals?: boolean;
-    showLabel?: boolean;
-    /** The label as a pill over the wheel's lower third, straight (tight, for the library's graph). */
-    pill?: boolean;
     current?: boolean;
     /** Its graph inside the wheel (the library leaves it out while it grows). */
     miniature?: boolean;
@@ -68,11 +60,6 @@
       {/each}
     {/if}
   </span>
-  {#if showLabel && pill}
-    <span class="pill" style:top="{size * 0.8}px" style:font-size="{Math.max(9, Math.min(14, size * 0.16))}px" style:max-width="{Math.max(70, size * 1.5)}px">{label}</span>
-  {:else if showLabel}
-    <span class="label" style:font-size="{Math.max(7, Math.min(15, size * 0.16))}px">{label}</span>
-  {/if}
 </span>
 
 <style>
@@ -111,36 +98,5 @@
   .petal small {
     font-size: 0.72em;
     color: var(--text-muted);
-  }
-  /* its label, as in the graph: bold, shadowed against whatever is behind */
-  .label {
-    max-width: 170%;
-    text-align: center;
-    font-family: var(--font-ui);
-    font-weight: 700;
-    line-height: 1.25;
-    color: var(--text);
-    text-shadow: 0 1px 3px var(--bg);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-  /* a pill over the wheel's lower third, straight, as a cell's name in the piece's graph */
-  .pill {
-    position: absolute;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    padding: 0.15em 0.6em;
-    border-radius: var(--radius-pill);
-    border: 1px solid var(--line);
-    background: color-mix(in oklab, var(--surface) 88%, transparent);
-    color: var(--text);
-    font-family: var(--font-ui);
-    font-weight: 700;
-    line-height: 1.3;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    pointer-events: none;
   }
 </style>

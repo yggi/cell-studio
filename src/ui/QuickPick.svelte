@@ -6,6 +6,7 @@
    * it opens. Native selects: the phone's own picker.
    */
   import { tagKind, tagName, type TagKind } from '../engine/tags';
+  import { shortTitle } from '../layout/library';
 
   let {
     entries,
@@ -39,8 +40,6 @@
   const tag = $derived(mine?.tag ?? piece?.tags.find((t) => tagKind(t) === kind) ?? tags[0]?.[0] ?? null);
   const pieces = $derived(tag ? entries.filter((e) => e.tags.includes(tag)).sort((a, b) => a.title.localeCompare(b.title)) : []);
   const here = $derived(pieces.some((e) => e.id === current) ? current! : '');
-  // a title, short: before its colon
-  const short = (t: string) => t.split(':')[0];
 </script>
 
 <span class="quick" role="group" aria-label="Choose a piece by its tags">
@@ -64,7 +63,7 @@
   </span>
   <span class="sep" aria-hidden="true">›</span>
   <span class="step piece" class:none={!here}>
-    <span class="text">{here ? short(piece!.title) : `${pieces.length} pieces…`}</span>
+    <span class="text">{here ? shortTitle(piece!.title) : `${pieces.length} pieces…`}</span>
     <select aria-label="Piece" value={here} onchange={(e) => e.currentTarget.value && onpick(e.currentTarget.value)}>
       {#if !here}<option value="" disabled>{piece ? `${piece.title} (open)` : 'Choose a piece'}</option>{/if}
       {#each pieces as e (e.id)}<option value={e.id}>{e.title}</option>{/each}
