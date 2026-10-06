@@ -15,6 +15,7 @@
   import { DOUGH_SOURCES } from '../engine/dough-params';
   import { onFrames } from '../audio/ticker';
   import { timed } from '../audio/stats';
+  import { fitFont, hubMax } from '../layout/dial';
 
   /** hub: what the hub says; without it, the note a voice sounds now (at rest, its pitch 0). */
   let { name, size = 120, hub: fixed = null }: { name: string; size?: number; hub?: { big: string; small: string } | null } = $props();
@@ -69,6 +70,10 @@
   const onGrid = $derived(!fixed && !noise && cell?.voice ? gridName(ctx.program, name, sounding ?? cell.freq) : null);
   const hub = $derived(fixed ? fixed.big : (noise ?? (onGrid ? String(onGrid.position) : noteName(sounding ?? cell?.freq ?? 0))));
   const small = $derived(fixed?.small ?? (onGrid ? `${onGrid.nearest} ${onGrid.cents >= 0 ? '+' : '−'}${Math.abs(onGrid.cents)}¢` : ''));
+  // the hub's text fits the hub (the disc inside the spectrum, 0.24 of the wheel), or is left out; its second line from 80 px up
+  const hubWidth = $derived(size * 0.48 * 0.86);
+  const bigFont = $derived(fitFont(hubWidth, hub.length, hubMax(size, 16)));
+  const smallFont = $derived(size >= 80 && small ? fitFont(hubWidth, small.length, 10, 7) : null);
   const title = $derived(
     onGrid ? `&${onGrid.grid} ${onGrid.position} · nearest 12-tone ${onGrid.nearest}, ${onGrid.cents >= 0 ? '+' : '−'}${Math.abs(onGrid.cents)} cents` : undefined,
   );
@@ -203,7 +208,7 @@
 
 <div class="wheel" data-wheel="spectrum" style="width: {size}px; height: {size}px">
   <canvas bind:this={canvas} width={px} height={px} style="width: {size}px; height: {size}px"></canvas>
-  <span class="note" class:long={hub.length > 4} {title}>{hub}{#if small}<small>{small}</small>{/if}</span>
+  {#if bigFont}<span class="note" {title} style:font-size="{bigFont}px">{hub}{#if smallFont}<small style:font-size="{smallFont}px">{small}</small>{/if}</span>{/if}
 </div>
 
 <style>
@@ -220,17 +225,11 @@
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    max-width: 44%;
-    overflow: hidden;
-    text-overflow: ellipsis;
     white-space: nowrap;
     font: 700 16px var(--font-ui);
     color: var(--text);
     font-variant-numeric: tabular-nums;
     pointer-events: none;
-  }
-  .note.long {
-    font-size: 12px;
   }
   .note small {
     display: block;

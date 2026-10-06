@@ -30,3 +30,19 @@ export function turnDelta(a: number, b: number): number {
   const d = mod(b - a, 1);
   return d > 0.5 ? d - 1 : d;
 }
+
+/** About how wide a character of the wheels' labels is, in em (bold UI figures and letters). */
+const EM = 0.6;
+
+/**
+ * A label's font size on a wheel: as large as lets `chars` characters fit in `width` px, at most `max`;
+ * null when that is under `min` (too small to read: leave it out — the wheel's name says it).
+ */
+export function fitFont(width: number, chars: number, max: number, min = 7): number | null {
+  const fits = width / (Math.max(1, chars) * EM);
+  const px = Math.min(max, fits);
+  return px >= min ? Math.round(px * 10) / 10 : null;
+}
+
+/** The size a wheel's own text tops out at: as at 128 px (17 px), scaled with it, between 9 and 17. */
+export const hubMax = (size: number, at128 = 17) => Math.max(9, Math.min(at128, (size * at128) / 128));

@@ -14,6 +14,13 @@
 // <OUT>/wheels.json (every kind: where it was found, in which state, and which pieces have it).
 // OUT defaults to shots/wheels. Viewport VIEW (default 3000x1900) at SCALE (default 2). Chromium as for the smoke test
 // (tools/profile/playwright.mjs; in a cloud session CHROME_PATH=/opt/pw-browsers/chromium).
+//
+// --fast: the wheels set up directly instead (tools/wheels/fast.mjs): seconds, from the working tree, each
+// kind at a ladder of sizes; the made-up sound stands in for the real one.
+if (process.argv.includes('--fast')) {
+  await import('./wheels/fast.mjs');
+  process.exit(process.exitCode ?? 0);
+}
 import { preview } from 'vite';
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';

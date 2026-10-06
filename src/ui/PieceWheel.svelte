@@ -32,9 +32,13 @@
   } = $props();
 
   const R = 100; // drawn in a 200 × 200 box
-  const ring = $derived(labels ? 24 : 14); // the rim's width: room for names, or a band of colour
+  // names along the rim when they can be read: at least 7 px on screen (the drawing is 200 units across), and
+  // the largest is 15 units, so not on a wheel under ~94 px
+  const least = $derived((7 * 200) / size);
+  const named = $derived(labels && least <= 15);
+  const ring = $derived(named ? 24 : 14); // the rim's width: room for names, or a band of colour
   const inner = $derived(R - ring - 2);
-  const uid = $derived(`pw-${id.replace(/[^A-Za-z0-9_-]/g, '_')}-${labels ? 'l' : 'p'}`);
+  const uid = $derived(`pw-${id.replace(/[^A-Za-z0-9_-]/g, '_')}-${named ? 'l' : 'p'}`);
   const at = (r: number, turn: number) => {
     const a = turn * 2 * Math.PI - Math.PI / 2;
     return [R + r * Math.cos(a), R + r * Math.sin(a)] as const;
@@ -68,7 +72,7 @@
       const centre = (n0 + n1) / 2;
       const back = centre > 0.25 && centre < 0.75;
       const room = 2 * Math.PI * mid * (n1 - n0);
-      const font = Math.max(9, Math.min(15, room / (0.62 * name.length)));
+      const font = Math.max(least, 9, Math.min(15, room / (0.62 * name.length)));
       const fits = Math.floor(room / (0.62 * font));
       return { t, d, path: arc(mid, n0, n1, back), font, text: name.length <= fits ? name : name.slice(0, Math.max(1, fits - 1)) + '…', name };
     });
@@ -81,7 +85,7 @@
     {#each segments as s, i (s.t)}
       <!-- (a picture: a tap anywhere on the wheel is the piece's; tags are chosen as chips) -->
       <path d={s.d} fill-rule="evenodd" style:fill={colours.get(s.t) ?? 'var(--wheel-ref)'}><title>{s.name}</title></path>
-      {#if labels}
+      {#if named}
         <path id="{uid}-{i}" d={s.path} fill="none" />
         <text class="name" font-size={s.font} dy="0.35em"><textPath href="#{uid}-{i}" startOffset="50%" text-anchor="middle">{s.text}</textPath></text>
       {/if}
