@@ -16,7 +16,7 @@ const base = (over: Partial<ReportData> = {}): ReportData => ({
   queue: null,
   notes: null,
   loadScale: { mean: 1.2, max: 2 },
-  audio: { state: 'running', sampleRate: 48000, baseLatencyMs: 10, outputLatencyMs: 40, clockRatio: 1, playout: { events: 0, seconds: 0, averageLatencyMs: 40, maximumLatencyMs: 60 } },
+  audio: { state: 'running', sampleRate: 48000, baseLatencyMs: 10, outputLatencyMs: 40, clockRatio: 1, tuning: null, heardLatencyMs: null, capacity: null, playout: { events: 0, seconds: 0, averageLatencyMs: 40, maximumLatencyMs: 60 } },
   heapMB: 55,
   ...over,
 });
@@ -72,6 +72,19 @@ describe('marks', () => {
   });
 });
 
+describe('latency and the audio thread', () => {
+  const audio = (over: object) => ({ state: 'running', sampleRate: 48000, baseLatencyMs: 21, outputLatencyMs: 280, clockRatio: 1, tuning: 'playback, look-ahead default', heardLatencyMs: 262.5, capacity: null, playout: null, ...over });
+  it('reports the tuning, the heard latency and the audio thread', () => {
+    const md = buildReport(base({ audio: audio({ capacity: { updates: 40, meanLoad: 0.31, peakLoad: 0.55, underrunRatioMean: 0, underrunRatioMax: 0 } }) }));
+    expect(md).toMatch(/Latency tuning \| playback, look-ahead default · made-to-heard \(output timestamp\) 262\.5 ms/);
+    expect(md).toMatch(/Audio thread \(renderCapacity\) \| load mean 31 %, peak 55 % · missed deadlines: mean 0\.0 %, worst second 0\.0 % \(40 s\)/);
+  });
+  it('says when the audio thread missed deadlines, or peaked high', () => {
+    expect(verdict(base({ audio: audio({ capacity: { updates: 10, meanLoad: 0.5, peakLoad: 0.9, underrunRatioMean: 0.01, underrunRatioMax: 0.05 } }) })).join('\n')).toMatch(/missed deadlines \(up to 5\.0 % of blocks/);
+    expect(verdict(base({ audio: audio({ capacity: { updates: 10, meanLoad: 0.5, peakLoad: 0.9, underrunRatioMean: 0, underrunRatioMax: 0 } }) })).join('\n')).toMatch(/peaked at 90 % load/);
+  });
+});
+
 describe('verdict', () => {
   it('names late and dropped notes, a slow main thread, long frames and a low frame rate', () => {
     const v = verdict(
@@ -97,7 +110,7 @@ describe('verdict', () => {
     const v = verdict(
       base({
         long: summarizeLong([300, 120], 1),
-        audio: { state: 'running', sampleRate: 48000, baseLatencyMs: 10, outputLatencyMs: 40, clockRatio: 0.9, playout: { events: 3, seconds: 0.02, averageLatencyMs: 40, maximumLatencyMs: 90 } },
+        audio: { state: 'running', sampleRate: 48000, baseLatencyMs: 10, outputLatencyMs: 40, clockRatio: 0.9, tuning: null, heardLatencyMs: null, capacity: null, playout: { events: 3, seconds: 0.02, averageLatencyMs: 40, maximumLatencyMs: 90 } },
         loadScale: { mean: 2.5, max: 4 },
         frames: summarizeFrames(Array(200).fill(60), 20),
       }),
@@ -141,7 +154,7 @@ describe('buildReport', () => {
     expect(md).toMatch(/Notes \| 500 scheduled · 2 started late · 0 left out/);
   });
   it('says when the browser reports no underruns or no piece is open', () => {
-    const md = buildReport(base({ piece: { title: null, graphNodes: null, cells: null }, audio: { state: null, sampleRate: null, baseLatencyMs: null, outputLatencyMs: null, clockRatio: null, playout: null }, heapMB: null }));
+    const md = buildReport(base({ piece: { title: null, graphNodes: null, cells: null }, audio: { state: null, sampleRate: null, baseLatencyMs: null, outputLatencyMs: null, clockRatio: null, tuning: null, heardLatencyMs: null, capacity: null, playout: null }, heapMB: null }));
     expect(md).toContain('(no piece open)');
     expect(md).toContain('not reported by this browser');
     expect(md).toContain('not started');
