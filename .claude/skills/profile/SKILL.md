@@ -57,6 +57,17 @@ time; `(program)` was ~45 % at ×4 and is not yet attributed: a Chrome trace is 
 In the non-minified build the single bundle has no per-file URLs, so map lines back to source with `lines.mjs`
 (it prints the code at each hot line) and search for it in `src/`.
 
+Where the *browser* spends it (style, layout, paint, compositing, GC, which a JS profile shows only as
+`(program)`), and what ran inside each long task:
+```
+THROTTLE=4 node tools/profile/trace.mjs http://localhost:4173/ "Hypercell" 10
+CSS="canvas{display:none!important}" node tools/profile/trace.mjs ...   # ablation: switch a kind of drawing off
+```
+It prints main-thread busy %, painted frames and rAF callbacks per second, self time per event type, and the
+largest events of the first long tasks. Busy % saturates near 90–100 % at ×4, so judge changes by the ×1 numbers
+(and by the ablation), not by ×4 alone. To count what the page redraws, a `MutationObserver` over
+`document.body` for 5 s (by attribute and element) shows the churn directly.
+
 Engine cost without a browser: `npx vite-node tools/profile/engine-time.ts` (compile/plan/events per example;
 it was 2–16 ms / ≤ 3 ms / ≤ ~21 ms per 8 s of music, so the engine is not the bottleneck).
 
@@ -71,10 +82,17 @@ destination, so it works headless.
   outside an effect: snapshot them once per frame); one reactive DOM element per point/segment (draw one
   `<path>`); label fields computed when not asked for; per-frame analyser reads and canvas repaints
   (`getFloatFrequencyData`, `SpectrumWheel.draw`).
+- Per-frame arrays that are replaced whole belong in `$state.raw`: a deep `$state` proxy makes every element
+  access a reactive read (a scope's traces: 36 % → 22 % busy on Test Tones on Tape).
+- A tape's recording was ~100 `<line>`s with four attributes rewritten per frame (~7000 DOM writes a second);
+  static lines in a rotating `<g>` took it to one transform. Look for per-frame attribute writes first.
+- Canvas/analyser work follows the size a wheel is seen at (`SpectrumWheel`: resolution and refresh by on-screen size).
 - Views refresh slower when frames come late (`src/audio/load.ts`); new per-frame views should use
   `load.scale` and skip work when not visible.
 
 ## Pitfalls
+- `vite preview --outDir` is unreliable for a second build; serve a non-minified build with
+  `python3 -m http.server <port>` from its directory, and use a fresh port (a stale server on a port keeps answering).
 - Never `pkill -f "<pattern>"` from the shell when the pattern also occurs in your own command line: it kills
   the shell. Kill by PID or stop the background job you started.
 - Library cards are a `<button class="open">` containing clickable tag arcs: scripted clicks use

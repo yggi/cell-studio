@@ -15,6 +15,9 @@ device, so this measures the page, not audible glitches; use a real phone for th
     node tools/profile/names.mjs scheduling,tick,flush profile-*.json   # inclusive % of named functions
     node tools/profile/lines.mjs profile-Hypercell.json /tmp/dist-nomin/index.html   # inclusive % by source line (shows the code)
 
+    # the browser's own time (style/layout/paint/GC) and the long tasks, from a Chrome trace; CSS= ablates a kind of drawing
+    THROTTLE=4 node tools/profile/trace.mjs http://localhost:4173/ "Hypercell" 10
+
     # engine cost without a browser (compile / plan / events per example):
     npx vite-node tools/profile/engine-time.ts
 
