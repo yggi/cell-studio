@@ -9,7 +9,7 @@ import { DOUGH_SOURCES } from '../../engine/dough-params';
 import type { ParamTrack, Played } from '../../engine/realize';
 import { harmonics, waveform } from '../../engine/wave';
 import { inputOf, movable, type Disposable, type Movable, type ToneNS } from './nodes';
-import { noiseBuffer } from './noise';
+import { grainOffset, noiseBuffer } from './noise';
 import { envelope, num, schedule, type Params } from './params';
 import { noteStats } from '../stats';
 import { buildResonator, nearest, strikeAt, type Resonator } from './resonator';
@@ -25,6 +25,8 @@ export type Scope = { left: import('tone').Analyser; right: import('tone').Analy
 
 export interface Built {
   key: string;
+  /** Its cell's seed: where each noise note starts comes from it. */
+  seed: number;
   params: Params;
   head: import('tone').ToneAudioNode;
   nodes: Disposable[];
@@ -127,7 +129,7 @@ export function buildVoice(Tone: ToneNS, ctx: AudioContext, bus: Bus, result: Co
     const { real, imag } = harmonics(waveform(result, name, shifts));
     wave = ctx.createPeriodicWave(real, imag);
   }
-  return { res, key, params, head, nodes, wave, noise, scope, out, notes: [], last: -Infinity, live: new Set(), moving };
+  return { res, key, seed: c.seed, params, head, nodes, wave, noise, scope, out, notes: [], last: -Infinity, live: new Set(), moving };
 }
 
 /** Let a voice go: its sounding notes stopped, its nodes disposed. */
@@ -178,7 +180,7 @@ export function playNote(Tone: ToneNS, ctx: AudioContext, b: Built, note: Played
   const dur = Math.max(0.02, duration * 0.9);
   // a map=adsr factor shapes this note; otherwise the voice's own envelope
   const env = noteEnv ?? envelope(b.params);
-  // noise: its buffer, looping from somewhere new each note (the grain, not the music, is random);
+  // noise: its buffer, looping from somewhere else each note (from the cell's seed, so the same every time);
   // then the same path as a tone — envelope, volume streams, placement
   // a tone: its waveform, its pitch (a drop, if penv=), its bends
   const tone = (o: OscillatorNode) => {
@@ -254,7 +256,7 @@ export function playNote(Tone: ToneNS, ctx: AudioContext, b: Built, note: Played
   }
   osc.connect(amp).connect(lvl).connect(pan);
   Tone.connect(pan, b.head);
-  if (b.noise) (osc as AudioBufferSourceNode).start(time, Math.random() * b.noise.duration);
+  if (b.noise) (osc as AudioBufferSourceNode).start(time, grainOffset(b.seed, note.voice, note.at, b.noise.duration));
   else osc.start(time);
   osc.stop(time + dur + env.release * 4 + 0.05);
   b.live.add(osc);
