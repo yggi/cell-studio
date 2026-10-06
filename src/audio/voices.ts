@@ -12,6 +12,7 @@
 import type { Played } from '../engine/realize';
 import type { CompileResult, Shifts } from '../engine/compile';
 import { audioContext, type Disposable, type ToneNS } from './voice/nodes';
+import { reverbImpulse } from './voice/noise';
 import { buildVoice, freeVoice, playNote, type Built, type Bus, type Scope } from './voice/voice';
 import { bow, couple, damp, driveScale, resonanceOf, strikeAt } from './voice/resonator';
 import { buildTapeNet, fadeOut, scrubTape, tapeKey, tapeLevelOf, tapeSpeedOf, type TapeNet } from './voice/tape';
@@ -46,7 +47,7 @@ export interface VoiceBank {
   spectrum(name: string): { left: Float32Array; right: Float32Array; sampleRate: number } | null;
   releaseAll(): void;
   dispose(): void;
-  /** Resolves when everything is ready to sound (the reverb's impulse is made asynchronously). */
+  /** Resolves when everything is ready to sound. */
   ready(): Promise<void>;
 }
 
@@ -55,7 +56,8 @@ export function createVoices(Tone: ToneNS): VoiceBank {
   // the sound card's level (level=, dB) and then a limiter: nothing past full scale
   const limiter = new Tone.Limiter(-1).toDestination();
   const master = new Tone.Gain(1).connect(limiter);
-  const reverb = new Tone.Reverb({ decay: 2.8, preDelay: 0.01, wet: 1 }).connect(master);
+  // (a convolver of our own seeded impulse, not Tone.Reverb, whose impulse comes from Math.random)
+  const reverb = new Tone.Convolver(reverbImpulse(ctx, 2.8, 0.01)).connect(master);
   const echo = new Tone.FeedbackDelay({ delayTime: 0.375, feedback: 0.35, wet: 1 }).connect(master);
   const bus: Bus = { master, reverb, echo };
   const built = new Map<string, Built>();
@@ -109,7 +111,6 @@ export function createVoices(Tone: ToneNS): VoiceBank {
 
   return {
     async ready() {
-      await reverb.ready;
     },
     sync(result, shifts) {
       // the sound card's level: level= in dB on the (first) sound card

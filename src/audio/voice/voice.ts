@@ -17,7 +17,7 @@ import { buildResonator, nearest, strikeAt, type Resonator } from './resonator';
 /** Where every voice goes: the master (then the limiter), and the shared reverb and echo. */
 export interface Bus {
   master: import('tone').Gain;
-  reverb: import('tone').Reverb;
+  reverb: import('tone').Convolver;
   echo: import('tone').FeedbackDelay;
 }
 
@@ -256,7 +256,7 @@ export function playNote(Tone: ToneNS, ctx: AudioContext, b: Built, note: Played
   }
   osc.connect(amp).connect(lvl).connect(pan);
   Tone.connect(pan, b.head);
-  if (b.noise) (osc as AudioBufferSourceNode).start(time, grainOffset(b.seed, note.voice, note.at, b.noise.duration));
+  if (b.noise) (osc as AudioBufferSourceNode).start(time, grainOffset(b.seed, note.voice, note.code ?? note.at, b.noise.duration));
   else osc.start(time);
   osc.stop(time + dur + env.release * 4 + 0.05);
   b.live.add(osc);

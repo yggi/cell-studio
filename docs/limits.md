@@ -14,7 +14,7 @@ What Cell studio doesn't do yet or does with a catch, documented rather than tra
 ## Engine and audio
 
 - Belts don't pull back on their driver (load is static `mass=`/`friction=`); no live display of a belt's stretch or slips; belts between non-meter cells in chains aren't supported; no flutter beside `wow=`.
-- A noise voice starts at a random point of its noise buffer on each note, so no two plays or renders are bit-identical (pitch, level and timing are).
+- Two renders of a piece are not bit-identical: Chromium sums three or more inputs of a node in an order that changes from run to run, so the last bit of a float differs (about −180 dB). Nothing of ours is random ([testing.md](testing.md#promises)). Pieces with a resonator vary much more (#65).
 - The live views, not the audio, are what loads the main thread; on a slow phone a large graph can still saturate it (measure with [testing.md](testing.md); the numbers are in the profile skill's README).
 
 ## Editor

@@ -4,7 +4,8 @@
  * scrubbing them move the delays.
  */
 import type { AudioTape } from '../../engine/compile';
-import { disposer, type Disposable, type ToneNS } from './nodes';
+import { disposer, inputOf, type Disposable, type ToneNS } from './nodes';
+import { noiseBuffer } from './noise';
 
 type Delay = import('tone').Delay;
 
@@ -39,10 +40,14 @@ export function buildTapeNet(Tone: ToneNS, raw: AudioContext, tp: AudioTape): Ta
   Tone.connect(input, meter);
   nodes.push(disposer(() => meter.disconnect()));
   if (tp.hiss > 0) {
-    const n = new Tone.Noise('pink').start();
+    // (our seeded pink noise, from its start: Tone.Noise starts at a random place in a random buffer)
+    const n = raw.createBufferSource();
+    n.buffer = noiseBuffer(raw, 'pink', 2);
+    n.loop = true;
     const g = new Tone.Gain(tp.hiss).connect(input);
-    n.connect(g);
-    nodes.push(n, g);
+    n.connect(inputOf(g));
+    n.start();
+    nodes.push(disposer(() => (n.stop(), n.disconnect())), g);
   }
   // (room to stretch: a slow tape makes every delay longer)
   const maxDelay = Math.min(179, Math.max(tp.length, ...tp.heads.map((h) => h.at), 0.05) * 4 + 1);
