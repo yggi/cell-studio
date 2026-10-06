@@ -11,7 +11,7 @@
 // check compares the block levels: a piece passes when no block differs by more than TOL (default 1e-4, −80 dB
 // of full scale); the hash only says whether it was bit-identical. A piece that differs is rendered up to twice
 // more before it counts: the resonator pieces (forks, kalimba) vary by up to about −45 dB from run to run on their
-// own. In a cloud session set CHROME_PATH=/opt/pw-browsers/chromium. Not a CI check (yet): see #18.
+// own (#65). In a cloud session set CHROME_PATH=/opt/pw-browsers/chromium. Not a CI check (yet): see #18.
 import { readFileSync, readdirSync } from 'node:fs';
 import { preview } from 'vite';
 import { chromium } from './profile/playwright.mjs';
