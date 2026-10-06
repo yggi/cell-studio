@@ -5,7 +5,7 @@
    * Loaded only when asked for (a dynamic import), so it costs nothing otherwise.
    */
   import { onDestroy, onMount } from 'svelte';
-  import { load } from '../audio/load';
+  import { load } from '../audio/ticker';
   import { buildReport, PerfCollector, type PerfSources } from './perf';
 
   let {

@@ -12,9 +12,11 @@ import { type Plan } from '../engine/realize';
 import { isPhysical, retime, type Window } from '../engine/schedule';
 import { createVoices, type VoiceBank } from './voices';
 import { transportClock } from './clock.svelte';
-import { load, watchLoad } from './load';
-import { capacity, markDuration, marks, noteStats } from './stats';
-import { resolveTuning, type Tuning, DEFAULT_TUNING } from './tuning';
+import { onFrames } from './ticker';
+import { markDuration, marks } from './stats';
+import { type Tuning, DEFAULT_TUNING } from './tuning';
+import { audioInfo, openContext, type AudioInfo } from './device';
+import { HeldTapes } from './heldTapes';
 import { LocalEngine, type Engine, type PieceSource } from './engine';
 import type { LiveSource } from './live';
 
@@ -28,10 +30,15 @@ export class Player implements LiveSource {
   private voices?: VoiceBank;
   private plan: Plan | null = null;
   private repeatId: number | null = null;
-  private raf = 0;
+  private stopFrames: () => void = () => {};
   private rate = 1;
   // (counts runs: a window answered after a stop, or after the next start, is not played)
   private run = 0;
+  private held = new HeldTapes(
+    () => this.plan,
+    () => this.voices,
+    () => (this.Tone ? this.Tone.getContext().currentTime : null),
+  );
 
   constructor(private engine: Engine = new LocalEngine()) {}
 
@@ -53,47 +60,14 @@ export class Player implements LiveSource {
     this.engine.grab(cell, transportClock.seconds, speed);
   }
 
-  /**
-   * Stopped: every sound tape is held, silent, where it stands (a fresh one at its start). A tape's hiss
-   * runs from the moment its nets are made — made on every load — so without this a piece just opened
-   * would hiss before anything is played.
-   */
+  /** Stopped: every sound tape is held, silent, where it stands (heldTapes.ts). */
   private settle(): void {
     if (this.playing || !this.plan || !this.voices || !this.Tone) return;
-    for (const tp of this.plan.result.tapes) {
-      const u = this.heldTapes.get(tp.name) ?? 0;
-      this.heldTapes.set(tp.name, u);
-      this.holdTape(tp.name, u);
-    }
+    this.held.settle();
   }
 
   /** How the context was tuned (the safe defaults unless the address said otherwise). */
   tuning: Tuning = DEFAULT_TUNING;
-
-  /** The native context behind Tone's wrapper (where renderCapacity and the output timestamp live). */
-  private native(): Record<string, unknown> | null {
-    if (!this.Tone) return null;
-    const raw = (this.Tone.getContext() as unknown as { rawContext?: Record<string, unknown> }).rawContext;
-    return ((raw?._nativeContext as Record<string, unknown> | undefined) ?? raw) ?? null;
-  }
-
-  /** The render thread's load and underruns, once a second, where the browser reports them (stats.ts `capacity`). */
-  private watchCapacity() {
-    try {
-      const rc = this.native()?.renderCapacity as
-        | { start(o: { updateInterval: number }): void; addEventListener(t: 'update', f: (e: { averageLoad: number; peakLoad: number; underrunRatio: number }) => void): void }
-        | undefined;
-      if (!rc) return;
-      capacity.supported = true;
-      rc.addEventListener('update', (e) => {
-        capacity.events.push({ t: performance.now(), avg: e.averageLoad, peak: e.peakLoad, underrun: e.underrunRatio });
-        if (capacity.events.length > 3600) capacity.events.splice(0, capacity.events.length - 3600);
-      });
-      rc.start({ updateInterval: 1 });
-    } catch {
-      /* not available here */
-    }
-  }
 
   /**
    * The sound engine, awake: made on the first gesture that needs it — Play, or a hand on a resonator
@@ -104,13 +78,8 @@ export class Player implements LiveSource {
     (globalThis as { TONE_SILENCE_LOGGING?: boolean }).TONE_SILENCE_LOGGING = true;
     if (!this.Tone) {
       const T = await import('tone');
-      // headroom: a context tuned for playback (a larger buffer) that schedules notes 0.3 s ahead —
-      // a busy page (a large graph drawing) then doesn't make notes late or starve the sound
-      // (the defaults, unless the address asks otherwise to find out how far they can go on a device: audio/tuning.ts)
-      this.tuning = readTuning();
-      T.setContext(new T.Context({ latencyHint: this.tuning.latencyHint as AudioContextLatencyCategory, lookAhead: this.tuning.lookAhead ?? 0.3 }), true); // (true: dispose Tone's default context, or it keeps running beside ours)
+      this.tuning = openContext(T);
       this.Tone = T;
-      this.watchCapacity();
     }
     await this.Tone.start();
     if (!this.voices) {
@@ -162,7 +131,7 @@ export class Player implements LiveSource {
   /** Where a sound tape is now (tape-seconds), while playing. */
   tapePos(tape: string): number | null {
     if (!this.plan) return null;
-    if (!this.playing) return this.heldTapes.get(tape) ?? null;
+    if (!this.playing) return this.held.position(tape);
     return tapeMotion(this.plan.result, clocking(this.plan.result, this.plan.statics), tape).pos(transportClock.seconds);
   }
 
@@ -174,12 +143,7 @@ export class Player implements LiveSource {
   scrub(tape: string, u: number | null): void {
     if (!this.plan || !this.voices) return;
     // stopped: the tape stays where the hand leaves it
-    if (!this.playing) {
-      if (u !== null) this.heldTapes.set(tape, u);
-      const at = this.heldTapes.get(tape);
-      if (at !== undefined) this.holdTape(tape, at);
-      return;
-    }
+    if (!this.playing) return this.held.scrub(tape, u);
     if (u === null) return this.voices.tapeScrub(tape, null);
     const motion = tapeMotion(this.plan.result, clocking(this.plan.result, this.plan.statics), tape);
     const now = transportClock.seconds;
@@ -211,58 +175,8 @@ export class Player implements LiveSource {
    * What the audio context looks like now, for the performance report: its state and latencies, its clock, and
    * — where the browser reports them — the playout underruns. Nothing here starts audio.
    */
-  audioInfo(): {
-    state: string | null;
-    sampleRate: number | null;
-    baseLatency: number | null;
-    outputLatency: number | null;
-    currentTime: number | null;
-    playout: { underrunEvents: number; underrunDuration: number; totalDuration: number; averageLatency: number; maximumLatency: number } | null;
-    /** Notes scheduled / shifted late / left out for being > 50 ms late, since the page loaded. */
-    notes: { played: number; late: number; dropped: number; worstLateMs: number };
-    /** Seconds between a sample being made and being heard, from the output timestamp (null where there is none). */
-    heardLatency: number | null;
-    /** The tuning in force (the latency hint and the look-ahead), as words. */
-    tuning: string;
-  } {
-    const tuned = `${typeof this.tuning.latencyHint === 'number' ? `${this.tuning.latencyHint} s` : this.tuning.latencyHint}, look-ahead ${this.tuning.lookAhead ?? 'default'}`;
-    // (the worst lateness is since the last time it was asked: the report reads it every half second, so a window
-    // can tell its own worst from one at the start of the page)
-    const notes = { ...noteStats };
-    noteStats.worstLateMs = 0;
-    if (!this.Tone) return { state: null, sampleRate: null, baseLatency: null, outputLatency: null, currentTime: null, playout: null, notes, heardLatency: null, tuning: tuned };
-    const tc = this.Tone.getContext() as unknown as { rawContext?: Record<string, unknown>; state?: string; sampleRate?: number; currentTime?: number };
-    const raw = (tc.rawContext ?? {}) as { playoutStats?: Record<string, number>; _nativeContext?: { playoutStats?: Record<string, number>; baseLatency?: number; outputLatency?: number }; baseLatency?: number; outputLatency?: number };
-    // (Tone wraps the native context: the stats are on the native one)
-    const stats = raw.playoutStats ?? raw._nativeContext?.playoutStats;
-    const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : null);
-    return {
-      state: tc.state ?? null,
-      sampleRate: num(tc.sampleRate),
-      baseLatency: num(raw.baseLatency ?? raw._nativeContext?.baseLatency),
-      outputLatency: num(raw.outputLatency ?? raw._nativeContext?.outputLatency),
-      currentTime: num(tc.currentTime),
-      notes,
-      tuning: tuned,
-      heardLatency: (() => {
-        try {
-          const n = this.native() as { getOutputTimestamp?: () => { contextTime?: number }; currentTime?: number } | null;
-          const ts = n?.getOutputTimestamp?.();
-          return ts && typeof ts.contextTime === 'number' && ts.contextTime > 0 && typeof n?.currentTime === 'number' ? Math.max(0, n.currentTime - ts.contextTime) : null;
-        } catch {
-          return null;
-        }
-      })(),
-      playout: stats
-        ? {
-            underrunEvents: stats.underrunEvents ?? 0,
-            underrunDuration: stats.underrunDuration ?? 0,
-            totalDuration: stats.totalDuration ?? 0,
-            averageLatency: stats.averageLatency ?? 0,
-            maximumLatency: stats.maximumLatency ?? 0,
-          }
-        : null,
-    };
+  audioInfo(): AudioInfo {
+    return audioInfo(this.Tone, this.tuning);
   }
 
   get playing(): boolean {
@@ -279,8 +193,7 @@ export class Player implements LiveSource {
     if (this.plan) (Tone.getContext() as unknown as { lookAhead: number }).lookAhead = this.tuning.lookAhead ?? (isPhysical(this.plan.result) ? 0.12 : 0.3);
     if (this.plan) this.voices!.sync(this.plan.result, this.plan.statics);
     // motors on: held tapes run on from where they stand
-    for (const t of this.heldTapes.keys()) this.voices!.tapeScrub(t, null);
-    this.heldTapes.clear();
+    this.held.release();
 
     const tr = Tone.getTransport();
     tr.stop();
@@ -311,19 +224,11 @@ export class Player implements LiveSource {
       0,
     );
 
-    watchLoad();
     const startsAt = Tone.now() + 0.05;
     tr.start(startsAt);
     transportClock.playing = true;
-    let shown = 0;
-    const frame = (t: number) => {
-      // (the live views: about 24 times a second — plenty for the eye, and a large graph leaves the
-      // page free to keep the sound fed)
-      if (t - shown < 40 * load.scale) {
-        this.raf = requestAnimationFrame(frame);
-        return;
-      }
-      shown = t;
+    this.stopFrames();
+    const frame = () => {
       // (until it has started, the transport still reports where the last run stopped: count from 0)
       const t0 = marks.on ? performance.now() : 0;
       transportClock.seconds = offset + (Tone.immediate() < startsAt ? 0 : Math.max(0, tr.getTicksAtTime(Tone.immediate()) / ppq));
@@ -331,21 +236,15 @@ export class Player implements LiveSource {
       // before this one: when this one runs, the flush is done)
       if (t0) queueMicrotask(() => markDuration('transport + flush', performance.now() - t0));
       // a piece that ends (laps=): stop once its last notes have rung out
-      if (this.plan && Number.isFinite(this.plan.end) && transportClock.seconds > this.plan.end + TAIL) {
-        this.stop();
-        return;
-      }
-      this.raf = requestAnimationFrame(frame);
+      if (this.plan && Number.isFinite(this.plan.end) && transportClock.seconds > this.plan.end + TAIL) this.stop();
     };
-    this.raf = requestAnimationFrame(frame);
+    // (the live views: about 24 times a second — plenty for the eye, and a large graph leaves the
+    // page free to keep the sound fed)
+    this.stopFrames = onFrames(frame, () => 40, 'clock');
   }
 
-  private pausedAt = 0;
-  private pausedAudio = 0;
-  private heldTapes = new Map<string, number>();
-
   stop(): void {
-    cancelAnimationFrame(this.raf);
+    this.stopFrames();
     const at = transportClock.seconds;
     transportClock.playing = false;
     transportClock.seconds = 0;
@@ -357,31 +256,14 @@ export class Player implements LiveSource {
     this.run++;
     this.voices?.releaseAll();
     // motors off: every sound tape stops where it is — held, silent, what's on it kept
-    this.pausedAt = at;
-    this.pausedAudio = this.Tone.getContext().currentTime;
-    if (this.plan)
-      for (const tp of this.plan.result.tapes) {
-        const u = tapeMotion(this.plan.result, clocking(this.plan.result, this.plan.statics), tp.name).pos(at);
-        this.heldTapes.set(tp.name, u);
-        this.holdTape(tp.name, u);
-      }
+    this.held.pause(at);
   }
 
   /** Back to the start as written: tapes wound off, hands' forces gone (Reset). */
   resetState(): void {
     this.engine.reset();
     this.voices?.clearTapes();
-    this.heldTapes.clear();
-    this.pausedAt = 0;
-    this.pausedAudio = this.Tone?.getContext().currentTime ?? 0;
-  }
-
-  // a sound tape held still at u (stopped): its heads read what sat under them when it was there
-  private holdTape(tape: string, u: number) {
-    if (!this.plan || !this.voices || !this.Tone) return;
-    const motion = tapeMotion(this.plan.result, clocking(this.plan.result, this.plan.statics), tape);
-    const since = this.Tone.getContext().currentTime - this.pausedAudio;
-    this.voices.tapeScrub(tape, (at) => this.pausedAt - motion.real(u - at) + since);
+    this.held.reset();
   }
 
   dispose(): void {
@@ -390,23 +272,4 @@ export class Player implements LiveSource {
     this.voices?.dispose();
     this.voices = undefined;
   }
-}
-
-const KEPT = { latency: 'cell-studio-latency', lookahead: 'cell-studio-lookahead' };
-/** The tuning the address and the kept settings ask for (and keeps the address's). */
-function readTuning(): Tuning {
-  if (typeof location === 'undefined') return DEFAULT_TUNING;
-  let kept = { latency: null as string | null, lookahead: null as string | null };
-  try {
-    kept = { latency: localStorage.getItem(KEPT.latency), lookahead: localStorage.getItem(KEPT.lookahead) };
-  } catch {
-    /* no storage here */
-  }
-  const { tuning, keep } = resolveTuning(location.search, kept);
-  try {
-    for (const k of ['latency', 'lookahead'] as const) keep[k] === null ? localStorage.removeItem(KEPT[k]) : localStorage.setItem(KEPT[k], keep[k]!);
-  } catch {
-    /* no storage here */
-  }
-  return tuning;
 }

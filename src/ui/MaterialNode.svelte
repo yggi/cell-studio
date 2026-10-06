@@ -10,7 +10,7 @@
   import { getGraphContext, nodeState } from './context';
   import { clocking } from '../engine/clocking';
   import { BODIES } from '../engine/compile';
-  import { load, watchLoad } from '../audio/load';
+  import { onFrames } from '../audio/ticker';
   import { timed } from '../audio/stats';
   import FreePills from './FreePills.svelte';
 
@@ -38,16 +38,6 @@
   let wobble = $state('none');
   $effect(() => {
     if (d.role !== 'resonator') return;
-    let raf = 0;
-    let lastT = 0;
-    watchLoad();
-    const tick = (t: number) => {
-      raf = requestAnimationFrame(tick);
-      // (~30 a second: the wobble is a slow shimmer, and reading the analyser is not free)
-      if (document.hidden || t - lastT < 33 * load.scale) return;
-      lastT = t;
-      timed('resonator', () => step(t));
-    };
     const step = (t: number) => {
       const r = ctx.resonance(d.name);
       if (!r) {
@@ -75,8 +65,8 @@
       });
       wobble = `matrix(${m00.toFixed(4)}, ${m01.toFixed(4)}, ${m01.toFixed(4)}, ${m11.toFixed(4)}, 0, 0)`;
     };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
+    // (~30 a second: the wobble is a slow shimmer, and reading the analyser is not free)
+    return onFrames((t) => timed('resonator', () => step(t)), () => 33);
   });
 
   // reset (reload from code): what hands left — a recording, a reel's turn — is gone
@@ -108,17 +98,8 @@
   $effect(() => {
     const t = tape;
     if (!t) return;
-    let raf = 0;
     let last = -1;
     let running = false;
-    let lastT = 0;
-    watchLoad();
-    const tick = (now: number) => {
-      raf = requestAnimationFrame(tick);
-      if (document.hidden || now - lastT < 33 * load.scale) return;
-      lastT = now;
-      timed('tape', () => step());
-    };
     const step = () => {
       const p = ctx.tapePos(d.name);
       if (p === null) return void (running = false);
@@ -144,8 +125,7 @@
       }
       tapeAt = p;
     };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
+    return onFrames(() => timed('tape', () => step()), () => 33);
   });
   const AXLE = $derived(R * 0.2);
 
