@@ -111,6 +111,9 @@
     get live() {
       return live;
     },
+    get liveEdges() {
+      return liveEdgeSet;
+    },
     get turned() {
       return turned;
     },
@@ -278,6 +281,13 @@
   const liveDrawn = $derived(live ? drawn(model, live) : null);
   // (a key that changes only when the live edges do, not every frame)
   const liveEdges = $derived(liveDrawn ? [...liveDrawn.edges].sort().join('|') : null);
+  // The live edges as a set, which each edge reads for itself (PulseEdge): a step that changes them does not make the
+  // whole edge list again for the flow to reconcile (#13). null: nothing plays.
+  const liveEdgeSet = $derived<ReadonlySet<string> | null>(liveEdges === null ? null : new Set(liveEdges ? liveEdges.split('|') : []));
+  const playing = $derived(liveEdges !== null);
+  // (only a belt's stretch is drawn from the moment, and that is read when the list is made)
+  const hasBelts = $derived([...program.cells.values()].some((c) => typeof c.params.belt === 'number'));
+  const NO_LIVE = { nodes: new Set<string>(), edges: new Set<string>() };
 
   const edgeTypes = { pulse: PulseEdge, belt: BeltEdge };
   const nameOf = (id: string) => id.slice('cell:'.length);
@@ -305,9 +315,10 @@
     return { kind: e.kind, phaseCell: null, voice: null, reverse: false };
   }
 
-  function toFlowEdge(e: GraphEdge, liveSet: ReadonlySet<string> | null): Edge {
-    // off, unrouted, on, idle, live: one rule for edges and nodes (engine/routing.ts)
-    const state = edgeStateOf(e, muted, routedDrawn, liveSet ? { nodes: new Set(), edges: liveSet } : null);
+  function toFlowEdge(e: GraphEdge): Edge {
+    // off, unrouted, on, idle, live: one rule for edges and nodes (engine/routing.ts). Here without the live set: while
+    // playing an edge that is routed is idle, and PulseEdge makes it live when it is (each edge reads that for itself)
+    const state = edgeStateOf(e, muted, routedDrawn, playing ? NO_LIVE : null);
     // a belted cell's step: a belt, its pulleys by the ratio, its stretch as it is now
     const driven = model.nodes.find((n) => n.id === e.source);
     if (e.kind === 'step' && driven && typeof driven.cell.params.belt === 'number') {
@@ -327,19 +338,20 @@
       ...heads,
       type: 'pulse',
       // (only a live edge carries a note's colour and pulses: an edge into what doesn't sound now stays still)
-      data: { ...pulseData(e), off: state === 'off' || state === 'unrouted', live: state === 'live' },
+      data: { ...pulseData(e), off: state === 'off' || state === 'unrouted', state },
       label: [e.count > 1 ? `×${e.count}` : '', e.pick, e.label ?? ''].filter(Boolean).join(' ') || undefined,
-      class: `edge-${e.kind} edge-${state}`,
+      class: `edge-${e.kind}`,
       selectable: false,
     };
   }
 
   $effect(() => {
-    const liveSet = liveEdges === null ? null : new Set(liveEdges ? liveEdges.split('|') : []);
     const m = model;
     void routedDrawn;
     void muted;
-    untrack(() => (edges = m.edges.map((e) => toFlowEdge(e, liveSet))));
+    void playing;
+    if (hasBelts) void liveEdges;
+    untrack(() => (edges = m.edges.map((e) => toFlowEdge(e))));
   });
 
   // an example's fixed layout: pinned when the example changes; released when it does again
@@ -580,7 +592,7 @@
     stroke-linecap: round;
     transition: stroke-opacity 140ms ease;
   }
-  .graph :global(.edge-live .svelte-flow__edge-path) {
+  .graph :global(.svelte-flow__edge-path.edge-live) {
     stroke: var(--accent);
     stroke-width: 5;
   }
@@ -592,12 +604,13 @@
     stroke: color-mix(in oklab, var(--accent) 50%, var(--edge));
     stroke-dasharray: 12 7;
   }
-  /* not sounding now (playing): quieter; not part of the sound, or switched off: faded */
-  .graph :global(.edge-idle .svelte-flow__edge-path) {
+  /* (the state is on the edge's own path, put there by PulseEdge, so a step doesn't remake the edge list: #13)
+     not sounding now (playing): quieter; not part of the sound, or switched off: faded */
+  .graph :global(.svelte-flow__edge-path.edge-idle) {
     stroke-opacity: 0.45;
   }
-  .graph :global(.edge-unrouted .svelte-flow__edge-path),
-  .graph :global(.edge-off .svelte-flow__edge-path) {
+  .graph :global(.svelte-flow__edge-path.edge-unrouted),
+  .graph :global(.svelte-flow__edge-path.edge-off) {
     stroke-opacity: 0.2;
   }
   /* a note's links (about=): fine dots from the note to what it explains; never routed, never live */
