@@ -13,3 +13,4 @@ coverage/
 # profiling output
 profile-*.json
 before-play.png
+shots/

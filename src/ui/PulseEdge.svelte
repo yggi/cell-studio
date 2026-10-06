@@ -14,7 +14,7 @@
 
   let { id, sourceX, sourceY, targetX, targetY, data, label, markerEnd, style }: EdgeProps = $props();
   const ctx = getGraphContext();
-  const d = $derived(data as { kind: string; phaseCell: string | null; voice: string | null; reverse: boolean; off?: boolean });
+  const d = $derived(data as { kind: string; phaseCell: string | null; voice: string | null; reverse: boolean; off?: boolean; live?: boolean });
 
   // a quadratic spline through the layout's bend point (straight when nothing is in the way)
   const mid = $derived(ctx.bends.get(id) ?? { x: (sourceX + targetX) / 2, y: (sourceY + targetY) / 2 });
@@ -22,21 +22,21 @@
   const path = $derived(`M ${sourceX} ${sourceY} Q ${control.x} ${control.y} ${targetX} ${targetY}`);
   const geometry = $derived([path, mid.x, mid.y] as const);
 
-  // an edge that's off (an end switched off) neither pulses nor takes its voice's colour
-  const phase = $derived(!d.off && d.phaseCell && ctx.live ? ctx.live.phases.get(d.phaseCell) : undefined);
+  // only a live edge (what it carries sounds now) pulses and takes its voice's colour
+  const phase = $derived(d.live && d.phaseCell && ctx.live ? ctx.live.phases.get(d.phaseCell) : undefined);
   // flow from upstream to downstream: step edges point consumer → driver, so they run backwards
   const t = $derived(phase === undefined ? null : d.reverse ? 1 - phase : phase);
   const dot = $derived(t === null ? null : splinePoint(sourceX, sourceY, mid.x, mid.y, targetX, targetY, t));
 
   const hue = $derived.by(() => {
-    if (d.off || !d.voice || !ctx.live) return null;
+    if (!d.live || !d.voice || !ctx.live) return null;
     const f = ctx.note(d.voice);
     // the note's colour on the voice's own grid
     return f ? (freqHue(ctx.program, d.voice, f) ?? pitchHue(12 * Math.log2(f / 261.63))) : null;
   });
   // (the colouring rule: C4 … C5 full colour, other octaves muted, lighter above, darker below)
   const octave = $derived.by(() => {
-    const f = d.voice && ctx.live ? ctx.note(d.voice) : null;
+    const f = d.live && d.voice && ctx.live ? ctx.note(d.voice) : null;
     if (!f) return 0;
     const r = f / 261.63;
     return r >= 1 && r <= 2.0001 ? 0 : Math.floor(Math.log2(r));
