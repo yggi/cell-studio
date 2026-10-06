@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { untrack } from 'svelte';
+  import { onDestroy, untrack } from 'svelte';
   import { noteColour } from './theme';
   import { cellView, hubLabel, type CellView, type Fill, type Segment } from '../layout/cellview';
   import { BORDER, border, coarsen } from '../layout/coarse';
@@ -59,6 +59,10 @@
   let easing = $state(false);
   // a braid's steps rotate as it turns: its new first step was at that step's start in the old
   // drawing, so start turned to there and ease home. A table's entries stay put (its hub says the change).
+  // (one pending frame each for the turn and the pop: a newer one replaces it, and none outlives the wheel)
+  let turnFrame = 0;
+  let popFrame = 0;
+  onDestroy(() => (cancelAnimationFrame(turnFrame), cancelAnimationFrame(popFrame)));
   let shownBefore: number | null = null;
   let viewBefore: typeof full | null = null;
   $effect(() => {
@@ -71,7 +75,8 @@
       if (first) {
         easing = false;
         spin = (delta > 0 ? first.t0 : first.t0 - 1) * 360;
-        requestAnimationFrame(() => requestAnimationFrame(() => ((easing = true), (spin = 0))));
+        cancelAnimationFrame(turnFrame);
+        turnFrame = requestAnimationFrame(() => (turnFrame = requestAnimationFrame(() => ((easing = true), (spin = 0)))));
       }
     }
     shownBefore = now;
@@ -83,7 +88,8 @@
     const big = label.big;
     if (lastBig !== null && big !== lastBig && !fast) {
       pop = false;
-      requestAnimationFrame(() => (pop = true));
+      cancelAnimationFrame(popFrame);
+      popFrame = requestAnimationFrame(() => (pop = true));
     }
     lastBig = big;
   });
@@ -357,7 +363,7 @@
   }
 </script>
 
-<svg bind:this={svg} width={size} height={size} viewBox="0 0 {size} {size}" role="img" aria-label="&{name}: {label.big} {label.small}">
+<svg bind:this={svg} data-wheel="cell" data-mode={isMeter ? 'meter' : view.mode} data-show={view.show} width={size} height={size} viewBox="0 0 {size} {size}" role={interactive ? 'group' : 'img'} aria-label="&{name}: {label.big} {label.small}">
   {#if stripes.size}
     <defs>
       {#each [...stripes] as [id, st] (id)}
@@ -390,6 +396,7 @@
       tabindex="0"
       aria-label="Shift &{name}"
       aria-valuenow={shift}
+      aria-valuetext="shift {shift > 0 ? '+' : ''}{shift} of {view.detents}"
     >
       {@render slots()}
     </g>
@@ -577,8 +584,8 @@
   }
   /* a table's entry read now: a dot, like a read head */
   .read {
-    fill: #fff;
-    stroke: rgba(0, 0, 0, 0.5);
+    fill: var(--wheel-read);
+    stroke: var(--wheel-read-edge);
     stroke-width: 1;
   }
   /* where a shifted table's 0 has gone: a notch at the rim */
