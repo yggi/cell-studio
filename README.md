@@ -265,16 +265,6 @@ washes its surroundings in its colour; the same colours everywhere tags appear.
 | Test Tones on Tape | in the spirit of Hainbach: sine generators, a beeping test oscillator and noise swells on seven seconds of worn tape that hardly erases — three heads (two wandering), hiss, print-through, dropouts; the motor dies into a tape stop |
 | Sound on Tape | a plucked tune and a pad, on a 4-second sound tape loop on a wowing reel: three heads, every lap darker and warmer; hold the reel and the tape bends down |
 | Echo Tape | a tune on a tape loop: three read heads echo it, older passes fading to ghosts; hold the reel and the echoes sag |
-| Tape Machine | a tape loop on a machine that turns: spin-up glide, gentle wow, the hats on a slack belt, and a tape stop at the end |
-| Automaton | a mechanical band on belts: taut bells, a slack drummer, a woodblock that slips and stays behind |
-| 5 to 12 | a day of music, anchored to the clock (11:55): 12 modes, 144 keys, every bar all seven notes on its mode's 12/8 bell, five dimensions in counterpoint — law=fiveto12 (src/engine/fiveto12.ts). The sun (sun=&cycle) shows the day — noon above, midnight below; a tape keeps memories (a minute back) and messages (twelve bars back); strings on every semitone ring with it (reflection) and to a hand (inspiration) |
-| Harmonograph | two forks, a tonic and its fifth, struck together; each drives one axis of an oscilloscope: a 3 : 2 Lissajous figure, turning, shrinking |
-| Kalimba | eight tines, each a resonator, all coupled to one shared box; a tune plucks them — tap them to play along |
-| Baustelle II: Resonanz | the building site's metal rings: a plate hammered where the pattern says, a beam, a wire, a kicked spring; a tape loop of the site drives two pipes |
-| Two Tuning Forks | two forks on one table: one struck, the other — never struck — begins to sing; detune it and they beat. Tap, hold, drag them |
-| Test Tones on Tape | in the spirit of Hainbach: sine generators, a beeping test oscillator and noise swells on seven seconds of worn tape that hardly erases — three heads (two wandering), hiss, print-through, dropouts; the motor dies into a tape stop |
-| Sound on Tape | a plucked tune and a pad, on a 4-second sound tape loop on a wowing reel: three heads, every lap darker and warmer; hold the reel and the tape bends down |
-| Echo Tape | a tune on a tape loop: three read heads echo it, older passes fading to ghosts; hold the reel and the echoes sag |
 | Tape Machine | a tape loop on a machine that turns: spins up (pitch with it), wows, the hats on a slack belt; at the end the tape stops, its pitch diving |
 | Automaton | a mechanical band on belts: bells taut and exact, a drummer slack and swinging, a woodblock that slips and stays behind |
 | Music Box | a clockwork box: wound, it spins up, plays its tune, and as the spring runs down it slows and stops — physics, not a ritardando |
