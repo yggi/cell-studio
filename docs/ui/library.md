@@ -14,7 +14,7 @@ A piece's card is a note with a title: the first note with `title=` names the pi
 
 It's an ordinary note in the graph; the picker reads it, and a saved piece is saved under its title.
 
-Every piece is shown as one node — the same in the list, its details and the library's graph: a wheel with its own graph in miniature inside, its tags round the rim (named along their arcs where there's room), its facts as petals (how many cells; how long, or how often round), its label beneath. The graph opens fitted; pinch (or ctrl + wheel) to zoom; labels show when there's room, or on hover and press-and-hold. Each wheel says how long the piece is: when it ends, or its cycle (every layer — melodies, meters, what oscillates, selects or turns — back together: the least common multiple of their periods), and whether chance makes every time round different.
+Every piece is shown as one node — the same in the list, its details and the library's graph: a wheel with its own graph in miniature inside, its tags round the rim (named along their arcs where there's room), its facts as petals (how many cells; how long, or how often round), its label beneath. The wheel is a picture: a tap anywhere on it is the piece's (a card opens it, the graph shows its details); tags are chosen as chips, in the cards' row or a piece's details. The graph opens fitted; pinch (or ctrl + wheel) to zoom; labels show when there's room, or on hover and press-and-hold. Each wheel says how long the piece is: when it ends, or its cycle (every layer — melodies, meters, what oscillates, selects or turns — back together: the least common multiple of their periods), and whether chance makes every time round different.
 
 ## Select
 
