@@ -1,4 +1,5 @@
 <script lang="ts">
+  import type { Snippet } from 'svelte';
   /**
    * The transport, in one place: play and pause (pausing keeps the place), back to the
    * start, where the piece is — its sections marked and named, each a jump — and the
@@ -7,6 +8,7 @@
   let {
     title = '',
     onchoose,
+    path,
     playing,
     starting = false,
     now,
@@ -27,6 +29,8 @@
     /** The piece open now (tap: choose another). */
     title?: string;
     onchoose?: () => void;
+    /** In place of the title: the piece's place in the library, to choose another from (QuickPick). */
+    path?: Snippet;
     playing: boolean;
     starting?: boolean;
     /** Where it is (seconds; within one lap for a loop). */
@@ -83,7 +87,7 @@
       <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="5" width="3" height="14" rx="1" /><path d="M19 5.9v12.2a.9.9 0 0 1-1.4.75L9.2 12.75a.9.9 0 0 1 0-1.5l8.4-6.1a.9.9 0 0 1 1.4.75z" /></svg>
     </button>
     <span class="what">
-      {#if title}<button class="title" onclick={onchoose} title="Choose another piece">{title}</button>{/if}
+      {#if path}{@render path()}{:else if title}<button class="title" onclick={onchoose} title="Choose another piece">{title}</button>{/if}
       <span class="time">
         <b>{clock(now)}</b>{#if span}<span class="of"> / {clock(span)}</span>{/if}
         {#if current}<span class="where">{current.label}</span>{/if}

@@ -1,4 +1,4 @@
-/** SVG path helpers for the cell wheels. Angles are in turns, 0 = 12 o'clock, clockwise. */
+/** Geometry: SVG path helpers for the cell wheels (angles in turns, 0 = 12 o'clock, clockwise), and the edges' splines. */
 
 const TAU = Math.PI * 2;
 
@@ -28,4 +28,22 @@ export function ringSegment(cx: number, cy: number, r0: number, r1: number, t0: 
     `A ${f(r0)} ${f(r0)} 0 ${large} 0 ${f(dx)} ${f(dy)}`,
     'Z',
   ].join(' ');
+}
+
+/** Do segments p1–p2 and p3–p4 cross (properly, not just touch at an end)? */
+export function segmentsCross(x1: number, y1: number, x2: number, y2: number, x3: number, y3: number, x4: number, y4: number): boolean {
+  const d = (x2 - x1) * (y4 - y3) - (y2 - y1) * (x4 - x3);
+  if (Math.abs(d) < 1e-9) return false;
+  const t = ((x3 - x1) * (y4 - y3) - (y3 - y1) * (x4 - x3)) / d;
+  const u = ((x3 - x1) * (y2 - y1) - (y3 - y1) * (x2 - x1)) / d;
+  return t > 1e-6 && t < 1 - 1e-6 && u > 1e-6 && u < 1 - 1e-6;
+}
+
+/** A point on the quadratic spline from a to b that passes through m at t = ½. */
+export function splinePoint(ax: number, ay: number, mx: number, my: number, bx: number, by: number, t: number) {
+  // control point: the one that makes the curve pass through m halfway
+  const cx = 2 * mx - (ax + bx) / 2;
+  const cy = 2 * my - (ay + by) / 2;
+  const u = 1 - t;
+  return { x: u * u * ax + 2 * u * t * cx + t * t * bx, y: u * u * ay + 2 * u * t * cy + t * t * by };
 }

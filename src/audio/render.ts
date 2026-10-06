@@ -26,7 +26,7 @@ export async function renderOffline(plan: Plan, seconds: number, tail = 2): Prom
   const out = await Tone.Offline(
     async () => {
       const voices = createVoices(Tone);
-      voices.sync(plan.result, plan.statics);
+      voices.sync(plan.result, plan.statics, plan.muted);
       // (the reverb prepares its impulse first: without it, the first notes would ring dry)
       await voices.ready();
       for (const e of eventsBetween(plan, 0, seconds)) voices.play(e);
@@ -79,9 +79,9 @@ export function renderLength(result: CompileResult): number {
   return Math.min(60, t.cycle ?? 60);
 }
 
-/** A compiled piece, rendered: its length (or the given seconds), with a moment for the last notes to ring. */
-export async function renderPiece(result: CompileResult, shifts: Shifts, seconds?: number): Promise<AudioBuffer> {
-  return (await renderOffline(plan(result, shifts), seconds ?? renderLength(result))).buffer;
+/** A compiled piece, rendered: its length (or the given seconds), with a moment for the last notes to ring. `muted`: what is switched off (graph ids; the piece's `off` cells by default), as in playback. */
+export async function renderPiece(result: CompileResult, shifts: Shifts, seconds?: number, muted: ReadonlySet<string> = result.off): Promise<AudioBuffer> {
+  return (await renderOffline(plan(result, shifts, muted), seconds ?? renderLength(result))).buffer;
 }
 
 /** A buffer's loudness (RMS, dB below full scale), its peak, and how many samples reached the ceiling. */

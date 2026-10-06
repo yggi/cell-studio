@@ -5,23 +5,26 @@
    * a braid of tags, each in its colour, named along its arc when there's room.
    */
   import MiniGraph from './MiniGraph.svelte';
+  import type { Miniature } from '../layout/miniature';
   import { tagName } from '../engine/tags';
   import { ringSegment } from '../layout/geometry';
 
   let {
     id,
     source,
-    layout = null,
+    stored,
     tags,
     colours,
     size,
     labels = false,
     current = false,
+    miniature = true,
   }: {
     id: string;
     /** Its text, or how to get it. */
     source: string | (() => Promise<string>);
-    layout?: Readonly<Record<string, readonly [number, number]>> | null;
+    /** Its miniature, made at build time (an example); else worked out from its text. */
+    stored?: Miniature | null;
     tags: readonly string[];
     colours: ReadonlyMap<string, string>;
     /** Across, in px. */
@@ -29,6 +32,8 @@
     /** Name each tag along its arc. */
     labels?: boolean;
     current?: boolean;
+    /** Its graph inside (else an empty disc: the library while it grows). */
+    miniature?: boolean;
   } = $props();
 
   const R = 100; // drawn in a 200 × 200 box
@@ -88,7 +93,7 @@
     {/each}
   </svg>
   <div class="inside" style:inset="{((R - inner) / (2 * R)) * 100}%">
-    <MiniGraph {id} {source} {layout} round />
+    {#if miniature}<MiniGraph {id} {source} {stored} round />{/if}
   </div>
 </div>
 
