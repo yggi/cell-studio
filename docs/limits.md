@@ -5,7 +5,6 @@ What Cell studio doesn't do yet or does with a catch, documented rather than tra
 ## Language
 
 - Filters are one per voice (as on a monosynth): overlapping notes share the last envelope.
-- A pitch drop is the sound parameters `penv`/`pdec`, not a `pitch=` shape in seconds.
 - Selectors choose parts in a braid's position only; they don't read in a voice's position (orchestration) or a melody's (multiplexing). There is no `restart=&x`, and label templates have no `{lap}`.
 - A voice can't be a pitch source in a product (`&op2 * &op1` is an error: "a voice, not a pitch"); FM is `fm=` ([language/physics.md](language/physics.md)), without feedback or loops.
 - No inversion within a scale (`(7 - &theme) * &lead` mirrors in semitones; keeping the scale's steps would need something like `&theme[-]`).
