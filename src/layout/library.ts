@@ -31,6 +31,8 @@ export interface LibraryLayout {
   readonly piece: number;
   /** How large the tags' words are now (× `tagFont`). */
   readonly tagScale: number;
+  /** … and once grown (known from the start: a view can be framed for the end of the opening). */
+  readonly fullScale: number;
   /** Grown and come to rest (else a stage on the way). */
   readonly done: boolean;
 }
@@ -43,7 +45,7 @@ export const tagFont = (n: number) => 13 + 2.5 * Math.sqrt(n);
 /** A piece's title as the library shows it: short (before its colon). */
 export const shortTitle = (t: string) => t.split(':')[0];
 /** A piece's title pill, its words at scale 1 (layout units): at the full view a piece is its title. */
-export const PILL = 15;
+export const PILL = 17;
 /** A pill's half-width at scale 1: its words (0.58 em a letter) and its padding, at its font. */
 const pillHalf = (words: string, font: number) => ((0.58 * words.length + 1.5) * font) / 2;
 /** What the layout needs of a piece: its tags, and its title (for its pill's room). */
@@ -273,7 +275,7 @@ function start(entries: readonly LibraryEntry[]) {
       }),
     );
     const sizes = [...wheel.values()].sort((a, b) => a - b);
-    return { at, x0: -m, y0: -m, w: 2 * m, h: 2 * m, edges, hue, count, sat, ring, wheel, piece: sizes[sizes.length >> 1] ?? 0, tagScale: scale, done: i >= total };
+    return { at, x0: -m, y0: -m, w: 2 * m, h: 2 * m, edges, hue, count, sat, ring, wheel, piece: sizes[sizes.length >> 1] ?? 0, tagScale: scale, fullScale: full, done: i >= total };
   };
   return { total, tick, snapshot };
 }

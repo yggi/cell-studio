@@ -17,6 +17,7 @@
     petals = true,
     current = false,
     miniature = true,
+    podsAt = null,
   }: {
     entry: Entry;
     colours: ReadonlyMap<string, string>;
@@ -28,6 +29,8 @@
     current?: boolean;
     /** Its graph inside the wheel (the library leaves it out while it grows). */
     miniature?: boolean;
+    /** Its facts in a row below this height (px, from the wheel's top: under a title), not on its rim. */
+    podsAt?: number | null;
   } = $props();
 
   // its facts, as petals: how many cells; how long (it ends) or how often round (it loops)
@@ -39,9 +42,11 @@
     else if (t?.cycle != null) out.push({ big: Number.isFinite(t.cycle) && t.cycle < 3600 ? durationText(t.cycle) : '∞', small: t.chance ? 'cycle ~' : 'cycle' });
     return out;
   });
-  const petal = $derived(Math.max(26, size * 0.3));
-  // on the rim's edge, left and right, a little above the middle (clear of most names)
+  const petal = $derived(podsAt === null ? Math.max(26, size * 0.3) : Math.max(22, size * 0.22));
+  // on the rim's edge, left and right, a little above the middle (clear of most names) — or in a row, side
+  // by side, below `podsAt`
   const at = (i: number) => {
+    if (podsAt !== null) return { x: size / 2 + (i - (facts.length - 1) / 2) * (petal + 3), y: podsAt + petal / 2 };
     const a = ((i === 0 ? -62 : 62) * Math.PI) / 180;
     const r = size / 2 + petal * 0.42;
     return { x: size / 2 + r * Math.sin(a), y: size / 2 - r * Math.cos(a) };

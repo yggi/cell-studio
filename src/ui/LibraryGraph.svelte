@@ -69,6 +69,14 @@
     if (!fitted && width > 0 && height > 0) {
       fitted = true;
       fit();
+      // (a phone opens on the middle, zoomed in until the titles read at 11 px: the whole wheel is too small
+      // there to read them)
+      if (width < 600) {
+        zoom = Math.max(zoom, Math.min(2.5, 11 / (PILL * (lib.fullScale || lib.tagScale))));
+        requestAnimationFrame(() =>
+          requestAnimationFrame(() => scroller?.scrollTo((scroller.scrollWidth - scroller.clientWidth) / 2, (scroller.scrollHeight - scroller.clientHeight) / 2)),
+        );
+      }
     }
   });
   // zoom, keeping the point (fx, fy) in the frame where it is
@@ -134,9 +142,9 @@
   let peek = $state<string | null>(null);
   let holding: ReturnType<typeof setTimeout> | null = null;
   const px = (u: number) => u * zoom;
-  // a piece at the full view is its title, a pill: as the layout sized it, but no larger than 16 px …
+  // a piece at the full view is its title, a pill: as the layout sized it, but no larger than 18 px …
   const title = $derived(px(PILL * lib.tagScale));
-  const pillFont = $derived(Math.max(8, Math.min(16, title)));
+  const pillFont = $derived(Math.max(8, Math.min(18, title)));
   // … and zoomed in, its wheel grows behind it: from nothing where its title would be 12 px to whole at 20
   // (and whole for the piece under the pointer, or held)
   const grown = (id: string) => (peek === id ? 1 : Math.max(0, Math.min(1, (title - 12) / 8)));
@@ -308,9 +316,11 @@
           >
             {#if g > 0}
               <!-- (its miniature only once its wheel shows: fetched and drawn when zoomed in to) -->
-              <span class="grow" style:transform="scale({g})"><PieceNode entry={e} {colours} size={d} petals={d * g >= 96} current={e.id === current} miniature={lib.done} /></span>
+              <!-- (its facts in a row just under its title: the title's foot, in the wheel's own unscaled px) -->
+              {@const foot = d * (0.5 + 0.24 * g) + pillFont * 0.85 + 3}
+              <span class="grow" style:transform="scale({g})"><PieceNode entry={e} {colours} size={d} petals={d * g >= 96} podsAt={d / 2 + (foot - d / 2) / g} current={e.id === current} miniature={lib.done} /></span>
             {/if}
-            <span class="title" style:top="{50 + 30 * g}%" style:font-size="{pillFont}px">{shortTitle(e.title)}</span>
+            <span class="title" style:top="{50 + 24 * g}%" style:font-size="{pillFont}px">{shortTitle(e.title)}</span>
           </button>
         {/if}
       {/each}
@@ -421,7 +431,7 @@
     justify-content: center;
     transform-origin: 50% 50%;
   }
-  /* its title, a pill: in the middle while it's only that, over the wheel's lower third once grown */
+  /* its title, a pill: in the middle while it's only that, low on the wheel once grown (its facts below it) */
   .piece .title {
     position: absolute;
     left: 50%;
