@@ -1,3 +1,8 @@
+<script lang="ts" module>
+  // (each wheel's own ids for its name paths: a piece can be shown twice at once, in the list and its details)
+  let wheels = 0;
+</script>
+
 <script lang="ts">
   /**
    * A piece as a wheel, the same wherever it's shown (cards, the library's graph,
@@ -7,7 +12,7 @@
   import MiniGraph from './MiniGraph.svelte';
   import type { Miniature } from '../layout/miniature';
   import { tagName } from '../engine/tags';
-  import { ringSegment } from '../layout/geometry';
+  import { arcPath, ringSegment } from '../layout/geometry';
 
   let {
     id,
@@ -43,16 +48,7 @@
   const named = $derived(labels && least <= 15);
   const ring = $derived(named ? 24 : 14); // the rim's width: room for names, or a band of colour
   const inner = $derived(R - ring - 2);
-  const uid = $derived(`pw-${id.replace(/[^A-Za-z0-9_-]/g, '_')}-${named ? 'l' : 'p'}`);
-  const at = (r: number, turn: number) => {
-    const a = turn * 2 * Math.PI - Math.PI / 2;
-    return [R + r * Math.cos(a), R + r * Math.sin(a)] as const;
-  };
-  const arc = (r: number, t0: number, t1: number, back = false) => {
-    const [x0, y0] = at(r, back ? t1 : t0);
-    const [x1, y1] = at(r, back ? t0 : t1);
-    return `M${x0.toFixed(2)},${y0.toFixed(2)} A${r},${r} 0 ${t1 - t0 > 0.5 ? 1 : 0} ${back ? 0 : 1} ${x1.toFixed(2)},${y1.toFixed(2)}`;
-  };
+  const uid = `pw${++wheels}`;
   const segments = $derived.by(() => {
     const n = Math.max(1, tags.length);
     const gap = tags.length > 1 ? 0.012 : 0;
@@ -61,16 +57,9 @@
       const name = tagName(t); // (what's written on the arc: the name, not its kind)
       const t0 = i / n + gap / 2;
       const t1 = (i + 1) / n - gap / 2;
-      const [ox0, oy0] = at(R - 1, t0);
-      const [ox1, oy1] = at(R - 1, t1);
-      const [ix1, iy1] = at(R - ring - 1, t1);
-      const [ix0, iy0] = at(R - ring - 1, t0);
-      const large = t1 - t0 > 0.5 ? 1 : 0;
-      // (one tag is a whole ring: an arc from a point to itself is no arc, so it is drawn as two)
+      // (one tag is a whole ring: ringSegment draws it as two arcs, an arc from a point to itself being none)
       const whole = t1 - t0 >= 1;
-      const d = whole
-        ? ringSegment(R, R, R - ring - 1, R - 1, 0, 1)
-        : `M${ox0},${oy0} A${R - 1},${R - 1} 0 ${large} 1 ${ox1},${oy1} L${ix1},${iy1} A${R - ring - 1},${R - ring - 1} 0 ${large} 0 ${ix0},${iy0}Z`;
+      const d = ringSegment(R, R, R - ring - 1, R - 1, t0, t1);
       // a name along the arc: on the lower half it runs the other way, so it never reads upside down
       // (a whole ring's name runs over the top half)
       const [n0, n1] = whole ? [-0.25, 0.25] : [t0, t1];
@@ -79,7 +68,7 @@
       const room = 2 * Math.PI * mid * (n1 - n0);
       const font = Math.max(least, 9, Math.min(15, room / (0.62 * name.length)));
       const fits = Math.floor(room / (0.62 * font));
-      return { t, d, path: arc(mid, n0, n1, back), font, text: name.length <= fits ? name : name.slice(0, Math.max(1, fits - 1)) + '…', name };
+      return { t, d, path: arcPath(R, R, mid, n0, n1, back), font, text: name.length <= fits ? name : name.slice(0, Math.max(1, fits - 1)) + '…', name };
     });
   });
 </script>
@@ -87,7 +76,7 @@
 <div class="wheel" data-wheel="piece" class:current style:width="{size}px" style:height="{size}px">
   <svg viewBox="0 0 200 200" aria-hidden="true">
     <circle cx={R} cy={R} r={R - 0.5} class="back" />
-    {#each segments as s, i (s.t)}
+    {#each segments as s, i (i)}
       <!-- (a picture: a tap anywhere on the wheel is the piece's; tags are chosen as chips) -->
       <path d={s.d} fill-rule="evenodd" style:fill={colours.get(s.t) ?? 'var(--wheel-ref)'}><title>{s.name}</title></path>
       {#if named}
