@@ -63,6 +63,7 @@ async function wheelsIn(page, scope) {
         mode: el.dataset.mode ?? '',
         show: el.dataset.show ?? '',
         id: node?.dataset.id ?? null,
+        host: /svelte-flow__node-(\w+)/.exec(node?.className ?? '')?.[1] ?? '',
         petal: !!node && !node.querySelector('.name'),
         state: el.closest('[data-state]')?.getAttribute('data-state') ?? '',
         name: (node?.dataset.id ?? '').replace(/^cell:/, ''),
@@ -128,7 +129,8 @@ async function piece(page, p) {
   for (const w of graph) if (await offer(page, { ...w, where: w.petal ? 'petal' : 'graph' }, p.title)) added++;
   // the sheet of one cell of each graph kind (turntables, scopes and the sun open no sheet on a tap)
   for (const w of graph) {
-    const key = keyOf({ ...w, where: 'graph' });
+    // (by node type too: a voice's and a mix's wheels are both spectra, and their sheets differ)
+    const key = `${w.host}:${keyOf({ ...w, where: 'graph' })}`;
     if (!w.id || w.petal || !['cell', 'spectrum', 'wave'].includes(w.wheel) || sheeted.has(key)) continue;
     sheeted.add(key);
     const node = page.locator(`.svelte-flow__node[data-id="${w.id}"]`);

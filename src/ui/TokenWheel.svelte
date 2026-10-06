@@ -187,7 +187,7 @@
   text.ref {
     fill: var(--ink-on-note);
     paint-order: stroke;
-    stroke: rgb(255 255 255 / 0.55);
+    stroke: var(--ink-halo);
     stroke-width: 3px;
   }
   .dim text {

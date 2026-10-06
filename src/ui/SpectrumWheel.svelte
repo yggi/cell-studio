@@ -168,10 +168,12 @@
   }
 
   // at rest (and whenever the voice changes), show its own partials
+  // (on whether it plays, not on the live state itself: that is a new object every tick)
+  const resting = $derived(!ctx.live);
   $effect(() => {
     void ctx.program;
     void ctx.shifts;
-    if (!ctx.live) {
+    if (resting) {
       fillResting();
       draw();
     }

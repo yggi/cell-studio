@@ -6,6 +6,7 @@
    */
   import MiniGraph from './MiniGraph.svelte';
   import { tagName } from '../engine/tags';
+  import { ringSegment } from '../layout/geometry';
 
   let {
     id,
@@ -56,14 +57,20 @@
       const [ix1, iy1] = at(R - ring - 1, t1);
       const [ix0, iy0] = at(R - ring - 1, t0);
       const large = t1 - t0 > 0.5 ? 1 : 0;
-      const d = `M${ox0},${oy0} A${R - 1},${R - 1} 0 ${large} 1 ${ox1},${oy1} L${ix1},${iy1} A${R - ring - 1},${R - ring - 1} 0 ${large} 0 ${ix0},${iy0}Z`;
+      // (one tag is a whole ring: an arc from a point to itself is no arc, so it is drawn as two)
+      const whole = t1 - t0 >= 1;
+      const d = whole
+        ? ringSegment(R, R, R - ring - 1, R - 1, 0, 1)
+        : `M${ox0},${oy0} A${R - 1},${R - 1} 0 ${large} 1 ${ox1},${oy1} L${ix1},${iy1} A${R - ring - 1},${R - ring - 1} 0 ${large} 0 ${ix0},${iy0}Z`;
       // a name along the arc: on the lower half it runs the other way, so it never reads upside down
-      const centre = (t0 + t1) / 2;
+      // (a whole ring's name runs over the top half)
+      const [n0, n1] = whole ? [-0.25, 0.25] : [t0, t1];
+      const centre = (n0 + n1) / 2;
       const back = centre > 0.25 && centre < 0.75;
-      const room = 2 * Math.PI * mid * (t1 - t0);
+      const room = 2 * Math.PI * mid * (n1 - n0);
       const font = Math.max(9, Math.min(15, room / (0.62 * name.length)));
       const fits = Math.floor(room / (0.62 * font));
-      return { t, d, path: arc(mid, t0, t1, back), font, text: name.length <= fits ? name : name.slice(0, Math.max(1, fits - 1)) + '…', name };
+      return { t, d, path: arc(mid, n0, n1, back), font, text: name.length <= fits ? name : name.slice(0, Math.max(1, fits - 1)) + '…', name };
     });
   });
 </script>
@@ -73,7 +80,7 @@
     <circle cx={R} cy={R} r={R - 0.5} class="back" />
     {#each segments as s, i (s.t)}
       <!-- (a picture: a tap anywhere on the wheel is the piece's; tags are chosen as chips) -->
-      <path d={s.d} style:fill={colours.get(s.t) ?? 'var(--wheel-ref)'}><title>{s.name}</title></path>
+      <path d={s.d} fill-rule="evenodd" style:fill={colours.get(s.t) ?? 'var(--wheel-ref)'}><title>{s.name}</title></path>
       {#if labels}
         <path id="{uid}-{i}" d={s.path} fill="none" />
         <text class="name" font-size={s.font} dy="0.35em"><textPath href="#{uid}-{i}" startOffset="50%" text-anchor="middle">{s.text}</textPath></text>
