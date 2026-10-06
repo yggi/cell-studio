@@ -1,0 +1,39 @@
+name: Smoke
+
+# Opens every piece and plays it for 2 s in the runner's Chrome (tools/smoke.mjs): the audio graph of every
+# voice kind, which the unit tests can't build. It takes minutes, so it doesn't run on every push of every PR:
+# only on the one that is about to be merged, the merge candidate, which carries the label `candidate`.
+#  - add the label `candidate` to a PR: it runs once on its head;
+#  - a push to a PR that has the label runs it again (so the result is always for the head);
+#  - any other PR, and `main` after a merge, don't run it. By hand: Actions -> Smoke -> Run workflow.
+# It is not a required check (ruleset: only `check`): the `senior` skill waits for it before merging.
+on:
+  pull_request:
+    types: [labeled, synchronize]
+  workflow_dispatch:
+
+concurrency:
+  group: smoke-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  smoke:
+    # (labeled with `candidate`, or pushed to while it has it; adding another label doesn't run it again)
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (contains(github.event.pull_request.labels.*.name, 'candidate') &&
+       (github.event.action == 'synchronize' || github.event.label.name == 'candidate'))
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+        env:
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: 1
+      - run: npm run build
+      - run: npm run smoke
+        env:
+          CHROME_PATH: /usr/bin/google-chrome
