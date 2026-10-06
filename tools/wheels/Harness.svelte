@@ -71,7 +71,7 @@
       <figure data-kind="library:piece:{pc.label.replace(' ', '-')}">
         <figcaption><b>piece · {pc.label}</b></figcaption>
         <div class="row" data-where="library">
-          {#each [80, 136, 220] as s (s)}<PieceNode entry={pc.entry} {colours} size={s} label="Hypercell" labels />{/each}
+          {#each [80, 136, 220] as s (s)}<PieceNode entry={pc.entry} {colours} size={s} labels />{/each}
         </div>
       </figure>
     {/each}
@@ -137,7 +137,7 @@
   .row {
     display: flex;
     align-items: center;
-    gap: 40px;
-    padding: 8px 24px 16px;
+    gap: 72px;
+    padding: 8px 48px 16px;
   }
 </style>
