@@ -22,8 +22,7 @@
   import BeltEdge from './BeltEdge.svelte';
   import { pulleys } from '../layout/belts';
   import { physicsOf } from '../engine/realize';
-  import { grab as grabPhysics } from '../engine/physics';
-  import { transportClock } from '../audio/clock.svelte';
+  import type { LiveSource } from '../audio/live';
   import ForcesPanel from './ForcesPanel.svelte';
 
   let {
@@ -37,19 +36,14 @@
     onturn,
     onshowcode,
     source,
-    spectrum,
-    note,
+    sound,
     onedit,
     onadd,
     onrename,
     onfree,
-    tapePos,
     nudge,
     cursor = 0,
     epoch = 0,
-    tapeLevel,
-    scrub,
-    hand,
     fixed = null,
     opened = 0,
     focus,
@@ -64,8 +58,8 @@
     onturn: (name: string, shift: number) => void;
     onshowcode: (name: string) => void;
     source: string;
-    spectrum: (voice: string) => { left: Float32Array; right: Float32Array; sampleRate: number } | null;
-    note: (voice: string) => number | null;
+    /** The sound while it plays, and hands on it (the Player). */
+    sound: LiveSource;
     /** Write a changed source (the editor edits the code). */
     onedit: (source: string) => void;
     /** Add a new cell. */
@@ -78,24 +72,11 @@
     opened?: number;
     /** A free(…) slider moved. */
     onfree: (spec: import('../engine/ast').FreeSpec, value: number | string) => void;
-    /** Sound tapes, for a hand: where one is, and holding it. */
-    tapePos?: (name: string) => number | null;
     nudge?: (seconds: number) => void;
     /** Where play starts (stopped). */
     cursor?: number;
     /** Counts resets (reload from code). */
     epoch?: number;
-    tapeLevel?: (name: string) => number | null;
-    scrub?: (name: string, u: number | null) => void;
-    /** Resonators, for a hand: strike, damp, bow. */
-    hand?: {
-      strike(name: string, x: number, index?: number): void;
-      damp(name: string, on: boolean): void;
-      bow(name: string, a: number | null): void;
-      resonance(name: string): { modes: number[]; exciters: number[] } | null;
-      waveform(name: string): Float32Array | null;
-      freqs(name: string): { db: Float32Array; hz: number } | null;
-    };
     /** A cell to open in the detail sheet once it exists (after adding it). */
     focus: { name: string; token: number } | null;
   } = $props();
@@ -140,7 +121,7 @@
       return shifts;
     },
     toggle: (id) => ontoggle(id),
-    tapePos: (name) => tapePos?.(name) ?? null,
+    tapePos: (name) => sound.tapePos(name),
     nudge: (sec) => nudge?.(sec),
     get epoch() {
       return epoch;
@@ -148,18 +129,15 @@
     get cursor() {
       return cursor;
     },
-    tapeLevel: (name) => tapeLevel?.(name) ?? null,
-    strike: (name, x, i) => hand?.strike(name, x, i),
-    resonance: (name) => hand?.resonance(name) ?? null,
-    waveform: (name) => hand?.waveform(name) ?? null,
-    freqs: (name) => hand?.freqs(name) ?? null,
-    damp: (name, on) => hand?.damp(name, on),
-    bow: (name, a) => hand?.bow(name, a),
-    scrub: (name, u) => scrub?.(name, u),
-    grab(name, speed) {
-      const w = physicsOf(program, shifts, name);
-      if (w) grabPhysics(program, w, transportClock.seconds, speed);
-    },
+    tapeLevel: (name) => sound.tapeLevel(name),
+    strike: (name, x, i) => sound.strike(name, x, i),
+    resonance: (name) => sound.resonance(name),
+    waveform: (name) => sound.waveform(name),
+    freqs: (name) => sound.freqs(name),
+    damp: (name, on) => sound.damp(name, on),
+    bow: (name, a) => sound.bow(name, a),
+    scrub: (name, u) => sound.scrub(name, u),
+    grab: (name, speed) => sound.grab(name, speed),
     move(id, phase, x, y) {
       if (phase === 'start') layout.dragStart(id, x, y);
       else if (phase === 'move') layout.drag(id, x, y);
@@ -171,8 +149,8 @@
     },
     turn: (name, shift) => onturn(name, shift),
     setFree: (spec, value) => onfree(spec, value),
-    spectrum: (voice) => spectrum(voice),
-    note: (voice) => note(voice),
+    spectrum: (voice) => sound.spectrum(voice),
+    note: (voice) => sound.note(voice),
   });
 
   const nodeTypes = { cell: CellNode, voice: VoiceNode, material: MaterialNode, scope: ScopeNode, sun: SunNode } as NodeTypes;

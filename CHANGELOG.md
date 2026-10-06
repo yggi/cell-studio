@@ -11,6 +11,7 @@ that makes the change. Also note changes to the language that could affect saved
 ## Unreleased
 
 ### Changed
+- Seven examples had a placeholder `level=0` and now have a measured level, so they sit with the rest of the library at about −24 dB average: Waveforms +0.5, Drunken Sailor −1.5, IDM −0.5, Acid-Cell +0.5, One more Cell −0.5, Ghost-Cells −1 and Cellular Brothers −3 dB (it was clipping; its peak is now −1 dB). Saved `.cells` pieces are not affected.
 - The examples are no longer all in the first download: the library is listed from an index made at build time (nothing is compiled to show it), and each piece's text is fetched when its card is drawn or it is opened (the first bundle is about 24 kB smaller gzipped). If a piece can't be fetched (offline, never opened before), it says so instead of opening. Saved `.cells` pieces are not affected.
 - Cell studio is now an installable app (PWA): it has an icon and a manifest, works offline after the first visit, and shows "New version ready" when an update is waiting (it never reloads by itself, so a playing piece is not cut off). The build is no longer one `index.html` but normal files with Tone loaded on first Play. Saved `.cells` pieces are not affected.
 
@@ -32,6 +33,8 @@ that makes the change. Also note changes to the language that could affect saved
 - Tests run without per-file isolation (faster).
 
 ### Developer
+- Audio refactoring (#15, #9), no change in sound (every example's offline render compared before and after): what to play next is worked out as plain data (`engine/schedule.ts`) behind an `Engine` that runs in this thread (the default) or, opt-in with `?engine=worker`, in a Web Worker; `voices.ts` is split into `audio/voice/` parts behind the unchanged `VoiceBank`, with Tone's wrapped nodes bridged in one typed place; the graph gets the sound as one `LiveSource` object instead of ten callbacks. Measured: the worker doesn't lighten the main thread (`docs/notes/15-engine-worker.md`).
+- `tools/golden.mjs` (golden renders: every example rendered offline and compared with a recorded run), `cellStudio.render(source, seconds)` and `cellStudio.engine()`, `ENGINE=worker npm run smoke`.
 - Agent workflow (#6): `AGENTS.md` rewritten (what is enforced, what is judgment, what an agent decides alone), the `senior` skill for triaging, reviewing and merging PRs with the owner's approval, a PR template, a SessionStart hook that installs dependencies in cloud sessions, `.claude/settings.json` allowlist.
 - CI: a smoke test (`npm run smoke`, `tools/smoke.mjs`) opens and plays every piece in Chrome; `deploy` is a job of the CI workflow and publishes the build CI made instead of testing and building again; a layering test keeps `engine/` and `layout/` pure.
 - `tools/profile`: `bursts.mjs`, `burstlines.mjs`, `cellview-time.ts` (what a long task rewrites and spends its time on; what a table turn costs); `engine-time.ts` reads `examples/`.

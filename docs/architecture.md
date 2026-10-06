@@ -15,11 +15,15 @@ code text (App.svelte `code`)
   parse()              engine/parser.ts   -> ParseResult (AST types: ast.ts)
   compile()            engine/compile.ts  -> CompileResult (cells, clocks, outputs, tapes, diagnostics)
   plan(result, shifts, muted)  engine/realize.ts -> Plan
-  player.load(plan)    audio/player.ts
-  every window: eventsBetween(plan, from, to) -> Played[]   (at, dur, voice, freq, bends, gains, levels)
-  voices.play(...)     audio/voices.ts (Tone.js; createVoices)
+  player.load(plan, source)    audio/player.ts
+  every window: engine.window(from, 0.25)   audio/engine.ts -> engine/schedule.ts windowAt -> Window
+               (plain data: Played[] — at, dur, voice, freq, bends, gains, levels — and moving tapes' speeds)
+  retime(window, audioTime, secPerQuarter)  engine/schedule.ts: onto the audio clock
+  voices.play(note)    audio/voices.ts (Tone.js; createVoices, parts in audio/voice/)
   also: compile result -> buildGraph (engine/graph.ts) -> layout/ -> ui/ drawing
 ```
+
+The engine behind `engine.window` is local (in this thread, on the app's plan: the default) or a Web Worker (`?engine=worker` or `localStorage['cell-studio:engine'] = 'worker'`): `audio/engine.worker.ts` runs `engine/host.ts`, which compiles the same piece from its source, plans it, mirrors every hand (`grab`, `reset`) and answers windows by message; a window it doesn't answer within 40 ms is worked out locally. Measured, the worker doesn't lighten the main thread (scheduling is < 1 % of it; see [notes/15-engine-worker.md](notes/15-engine-worker.md)), so it stays opt-in; it's the message-shaped seam for moving the live state off the main thread later. Views read the sound through one `LiveSource` (`audio/live.ts`, implemented by `Player`): notes, spectra, waveforms, tapes, and hands (strike, damp, bow, scrub, grab).
 
 `compileSource(src, env)` = parse + compile. `codeShifts(result)` gives the shifts written in the code; live hand-turns replace them. `shiftsAt`, `clocking`, `timeMap` (realize.ts) make every stepped cell's shift a function of time. `Player` (a 16th-note window scheduler on the Tone transport) swaps programs in whole at the next window. `renderOffline` (audio/render.ts) plays the same plan into a buffer.
 
@@ -28,6 +32,7 @@ code text (App.svelte `code`)
 - `parser.ts`, `ast.ts`: one cell or command per line; `pieceMeta`.
 - `compile.ts`: cells as helices over grids, `ROOT` grid, diagnostics, `MAX_EVENTS`.
 - `realize.ts`: `flatten`, `plan`, `eventsBetween`, `timeMap`, `playedCells`; tape routing (`tapeMotion`, `routedNodes`); resonators.
+- `schedule.ts`: what to play next as plain data (`windowAt`, `tapeSpeeds`, `retime`, `isPhysical`). `host.ts`: the engine as a message handler (`createHost`: load, window, grab, reset; `planOf`, `grabIn`), what the worker runs.
 - `edit.ts`: line rewrites. `graph.ts`: `buildGraph`, the graph of exactly what is written.
 - `duration.ts`: piece length / loop cycle (`pieceTime`, `sections`, `mainTempo`).
 - `compress.ts`: Shorten (`shorten`, `shortenAll`).
@@ -41,7 +46,7 @@ code text (App.svelte `code`)
 
 ## src/audio
 
-`player.ts` (Player), `voices.ts` (createVoices, VoiceBank), `clock.svelte.ts` (reactive transport position), `render.ts` (offline render, WAV, `loudness`), `load.ts` (eases view refresh under load; sound is unaffected).
+`player.ts` (Player: transport, windows onto the audio clock, tapes held and scrubbed; implements `LiveSource`), `engine.ts` (`Engine`: `LocalEngine`, `WorkerEngine`, `chooseEngine`) and `engine.worker.ts`, `live.ts` (`LiveSource`, what views ask of the sound), `voices.ts` (createVoices, VoiceBank: wires the piece's voices, mixes, tapes and resonators), `voice/` (its parts: `voice.ts` a voice's chain and a note on it, `resonator.ts`, `tape.ts`, `noise.ts`, `params.ts` moving parameters, `nodes.ts` the typed bridge between Tone's nodes and native ones), `clock.svelte.ts` (reactive transport position), `render.ts` (offline render, WAV, `loudness`, `sampleHash`, `blockLevels`), `load.ts` (eases view refresh under load; sound is unaffected).
 
 Scheduling: Tone's context is made for playback (`latencyHint: 'playback'`) with a 0.3 s look-ahead (0.12 s for pieces with hands, so a grabbed motor answers quickly); the sound itself runs on the audio thread, so a busy main thread delays scheduling (covered by the look-ahead), not the sound. Live views refresh about 24 times a second (spectrum wheels 15, and only while on screen) and stretch their interval when frames come late. Details and measurements: `tools/profile/README.md`.
 
