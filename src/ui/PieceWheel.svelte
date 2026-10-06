@@ -18,7 +18,8 @@
     ontag,
   }: {
     id: string;
-    source: string;
+    /** Its text, or how to get it. */
+    source: string | (() => Promise<string>);
     layout?: Readonly<Record<string, readonly [number, number]>> | null;
     tags: readonly string[];
     colours: ReadonlyMap<string, string>;

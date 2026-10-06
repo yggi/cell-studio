@@ -20,15 +20,15 @@
   }
 
   const cache = new Map<string, Shape | null>();
-  const queue: (() => void)[] = [];
+  const queue: (() => Promise<void>)[] = [];
   let running = false;
   function pump() {
     if (running) return;
     const next = queue.shift();
     if (!next) return;
     running = true;
-    setTimeout(() => {
-      next();
+    setTimeout(async () => {
+      await next();
       running = false;
       pump();
     }, 0);
@@ -115,25 +115,33 @@
     round = false,
   }: {
     id: string;
-    source: string;
+    /** Its text, or how to get it (an example's source is fetched here, one at a time). */
+    source: string | (() => Promise<string>);
     layout?: Readonly<Record<string, readonly [number, number]>> | null;
     /** Shown in a circle (a wheel): square, and the graph kept inside it. */
     round?: boolean;
   } = $props();
   let shape = $state<Shape | null | undefined>(undefined);
   $effect(() => {
-    const key = `${id}\n${round}\n${source}`;
+    const key = `${id}\n${round}\n${typeof source === 'string' ? source : ''}`;
     if (cache.has(key)) {
       shape = cache.get(key);
       return;
     }
     shape = undefined;
     let cancelled = false;
-    queue.push(() => {
+    queue.push(async () => {
+      if (cancelled) return;
+      let text: string;
+      try {
+        text = typeof source === 'string' ? source : await source();
+      } catch {
+        return; // (not fetched, say offline: no picture now, another try when it's shown again)
+      }
       if (cancelled) return;
       let s: Shape | null = null;
       try {
-        s = shapeOf(source, layout, round);
+        s = shapeOf(text, layout, round);
       } catch {
         s = null;
       }
