@@ -61,7 +61,7 @@
 
 <span class="node" style:width="{size}px">
   <span class="wheelbox" style:width="{size}px" style:height="{size}px">
-    <PieceWheel id={entry.id} source={entry.source} layout={entry.layout ?? null} tags={entry.tags} {colours} {size} {labels} {current} {ontag} />
+    <PieceWheel id={entry.id} source={entry.source ?? entry.load!} layout={entry.layout ?? null} tags={entry.tags} {colours} {size} {labels} {current} {ontag} />
     {#if petals}
       {#each facts as f, i (i)}
         {@const p = at(i)}

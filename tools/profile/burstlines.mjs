@@ -1,10 +1,12 @@
 // Inclusive time by source line over the *bursts only* of a CPU profile (cpu.mjs, unminified build): stretches
 // where the main thread is busy ≥ 95 % for ≥ 50 ms. Shows what a long task spends its time on, which the
 // whole-run profile (agg.mjs, lines.mjs) averages away.
-// usage: node tools/profile/burstlines.mjs <profile.json> <dist/index.html> [top=18]
+// usage: node tools/profile/burstlines.mjs <profile.json> <dist/assets/index-*.js> [top=18]
 import fs from 'fs';
-const [pf, htmlf, top = '18'] = process.argv.slice(2);
-const html = fs.readFileSync(htmlf, 'utf8').split('\n');
+const [pf, jsf, top = '18'] = process.argv.slice(2);
+// only frames of this file count: the build has several chunks (Tone is lazy), each with its own line numbers
+const file = jsf.split('/').pop();
+const html = fs.readFileSync(jsf, 'utf8').split('\n');
 const pr = JSON.parse(fs.readFileSync(pf));
 const nodes = new Map(pr.nodes.map((n) => [n.id, n]));
 const parent = new Map(); pr.nodes.forEach((n) => (n.children || []).forEach((c) => parent.set(c, n.id)));
@@ -22,10 +24,10 @@ pr.samples.forEach((id, i) => {
   if (!keep.has(Math.floor((at[i] - pr.startTime) / BIN))) return;
   const dt = pr.timeDeltas[i] || 0; total += dt;
   const seen = new Set(); let c = id;
-  while (c !== undefined) { const k = nodes.get(c).callFrame.lineNumber; if (!seen.has(k)) { seen.add(k); inc.set(k, (inc.get(k) || 0) + dt); } c = parent.get(c); }
+  while (c !== undefined) { const cf = nodes.get(c).callFrame; const k = cf.lineNumber; if (cf.url.endsWith(file) && !seen.has(k)) { seen.add(k); inc.set(k, (inc.get(k) || 0) + dt); } c = parent.get(c); }
 });
 console.log(`bursts: ${keep.size * 10} ms of ${(at.at(-1) - pr.startTime) / 1e3 | 0} ms profiled`);
-[...inc].filter(([k]) => k > 3200).sort((a, b) => b[1] - a[1]).slice(0, Number(top)).forEach(([k, v]) => console.log((100 * v / total).toFixed(1).padStart(5) + '%', String(k).padStart(6), (html[k] || '').trim().slice(0, 110)));
+[...inc].sort((a, b) => b[1] - a[1]).slice(0, Number(top)).forEach(([k, v]) => console.log((100 * v / total).toFixed(1).padStart(5) + '%', String(k).padStart(6), (html[k] || '').trim().slice(0, 110)));
 // self time in the bursts: the native "(program)" share is style/layout/paint and DOM writes the JS profile can't split
 const self = new Map();
 pr.samples.forEach((id, i) => { if (!keep.has(Math.floor((at[i] - pr.startTime) / BIN))) return; const f = nodes.get(id).callFrame; const k = (f.functionName || '(anon)') + (f.lineNumber >= 0 ? ':' + f.lineNumber : ''); self.set(k, (self.get(k) || 0) + (pr.timeDeltas[i] || 0)); });

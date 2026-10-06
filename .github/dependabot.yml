@@ -1,0 +1,21 @@
+version: 2
+updates:
+  # Vite, Svelte, TypeScript and vitest are all very new majors: one weekly PR per group, CI is the gate
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      npm:
+        patterns: ['*']
+    ignore:
+      # TypeScript 7 (the native compiler) doesn't resolve with svelte-check yet: reopen when it does (#51)
+      - dependency-name: typescript
+        update-types: ['version-update:semver-major']
+      # CI runs Node 22: the types follow it
+      - dependency-name: '@types/node'
+        update-types: ['version-update:semver-major']
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly

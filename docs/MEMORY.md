@@ -4,7 +4,7 @@ Entrypoint for humans and agents: slow-change, shared knowledge about Cell studi
 
 ## The project
 
-A minimal language for music where everything is a **cell**: a helix (pitch classes over octaves, beats over bars) with a **braid** sitting in its grid. A browser app (Svelte, TypeScript, Tone.js) with a code editor and a graph that are two views of the same text. One self-contained `dist/index.html`.
+A minimal language for music where everything is a **cell**: a helix (pitch classes over octaves, beats over bars) with a **braid** sitting in its grid. A browser app (Svelte, TypeScript, Tone.js) with a code editor and a graph that are two views of the same text. Built as a PWA (manifest, service worker, relative `base`): installable on Android and desktop, offline after the first visit; Tone is a lazily loaded chunk.
 
 ## Working here
 
@@ -12,7 +12,7 @@ Commands, the rules (which are enforced and which are judgment), the PR conventi
 
 ## Map of src/
 
-- `engine/` parse, compile, realize (plan → events), edit, Shorten, physics, FM, presets (reads `examples/*.cells`) → [architecture.md](architecture.md)
+- `engine/` parse, compile, realize (plan → events), edit, Shorten, physics, FM, presets (reads `examples/*.cells`; the app gets an index at build time and loads sources on demand) → [architecture.md](architecture.md)
 - `layout/` pure layout of the graph, the library, wheels, labels
 - `audio/` player, voices, clock, offline render
 - `ui/` Svelte components; `App.svelte`, `library.ts`, `theory/`

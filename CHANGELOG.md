@@ -10,6 +10,10 @@ that makes the change. Also note changes to the language that could affect saved
 
 ## Unreleased
 
+### Changed
+- The examples are no longer all in the first download: the library is listed from an index made at build time (nothing is compiled to show it), and each piece's text is fetched when its card is drawn or it is opened (the first bundle is about 24 kB smaller gzipped). If a piece can't be fetched (offline, never opened before), it says so instead of opening. Saved `.cells` pieces are not affected.
+- Cell studio is now an installable app (PWA): it has an icon and a manifest, works offline after the first visit, and shows "New version ready" when an update is waiting (it never reloads by itself, so a playing piece is not cut off). The build is no longer one `index.html` but normal files with Tone loaded on first Play. Saved `.cells` pieces are not affected.
+
 ### Fixed
 - Opening a piece now starts it from rest: the transport stops at 0 and nothing sounds, even if another piece was playing (it used to carry on from where it was) or the new piece has tapes (their hiss sounded as soon as the piece opened).
 
