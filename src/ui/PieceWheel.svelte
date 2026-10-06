@@ -16,7 +16,6 @@
     size,
     labels = false,
     current = false,
-    ontag,
   }: {
     id: string;
     /** Its text, or how to get it. */
@@ -29,8 +28,6 @@
     /** Name each tag along its arc. */
     labels?: boolean;
     current?: boolean;
-    /** A tag on the rim, clicked: choose it (instead of the piece). */
-    ontag?: (t: string) => void;
   } = $props();
 
   const R = 100; // drawn in a 200 × 200 box
@@ -75,19 +72,8 @@
   <svg viewBox="0 0 200 200" aria-hidden="true">
     <circle cx={R} cy={R} r={R - 0.5} class="back" />
     {#each segments as s, i (s.t)}
-      <path
-        d={s.d}
-        class:tappable={!!ontag}
-        style:fill={colours.get(s.t) ?? 'var(--wheel-ref)'}
-        onclick={(e) => {
-          if (!ontag) return;
-          e.stopPropagation();
-          ontag(s.t);
-        }}
-        onpointerdown={(e) => ontag && e.stopPropagation()}
-        role={ontag ? 'button' : undefined}
-        aria-label={ontag ? `the tag ${s.name}` : undefined}
-      ><title>{s.name}</title></path>
+      <!-- (a picture: a tap anywhere on the wheel is the piece's; tags are chosen as chips) -->
+      <path d={s.d} style:fill={colours.get(s.t) ?? 'var(--wheel-ref)'}><title>{s.name}</title></path>
       {#if labels}
         <path id="{uid}-{i}" d={s.path} fill="none" />
         <text class="name" font-size={s.font} dy="0.35em"><textPath href="#{uid}-{i}" startOffset="50%" text-anchor="middle">{s.text}</textPath></text>
@@ -129,17 +115,10 @@
     letter-spacing: 0.02em;
   }
   .inside {
-    pointer-events: none; /* (a picture: taps go to the piece, or the tag on the rim) */
+    pointer-events: none; /* (a picture: taps go to the piece) */
     position: absolute;
     border-radius: 50%;
     overflow: hidden;
     background: var(--wheel-disc);
-  }
-  path.tappable {
-    cursor: pointer;
-    transition: filter 120ms ease;
-  }
-  path.tappable:hover {
-    filter: brightness(1.25);
   }
 </style>

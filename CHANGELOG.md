@@ -11,6 +11,7 @@ that makes the change. Also note changes to the language that could affect saved
 ## Unreleased
 
 ### Changed
+- Library cards (#12): a tap anywhere on a piece's wheel opens it (in the graph: its details); before, a tap on a tag round the rim filtered by that tag instead. Tags are chosen from the chips. The cards' titles use the card's width, the wheel's petals (cells, length) are no longer cut off on a phone, and **Files** sits beside the heading. A piece's details keep the keyboard focus while open and give it back on closing.
 - `bwv847` is written shorter (#82): `tools/bwv847.py` now runs its longhand through Shorten (`tools/shorten.mjs`), so repeated phrases are cells of their own, used exactly or transposed (10,138 → 9,999 characters in the committed file). The notes are unchanged (checked note by note, and the events of every example hash the same); the graph has one more shared cell and a few more crossings (24 → 28). The order convention is written down in `docs/language/display.md`.
 
 ### Fixed
