@@ -8,6 +8,7 @@
   import { liveAt, plan, routedNodes } from './engine/realize';
   import { EXAMPLES, FIRST, FIRST_SOURCE, loadExample, type PresetKey } from './examples';
   import { pieceMeta } from './engine/parser';
+  import { canonicalTags } from './engine/tags';
   import { fileName, listSaved, readFile, removeSaved, saveFile, savePiece, storageAvailable, titleOf, type SavedPiece } from './library';
   import Picker, { type Entry } from './ui/Picker.svelte';
   import Shorten from './ui/Shorten.svelte';
@@ -278,7 +279,7 @@
         kind: 'saved' as const,
         title: p.title,
         description: m?.description ?? '',
-        tags: m?.tags ?? [],
+        tags: canonicalTags(m?.tags ?? []),
         source: p.source,
         saved: p.saved,
         size: buildGraph(r).nodes.filter((n) => !n.petalOf && !n.cell.note).length,
