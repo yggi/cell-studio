@@ -2,14 +2,18 @@
   import { untrack } from 'svelte';
   import { noteColour } from './theme';
   import { cellView, hubLabel, type CellView, type Fill } from '../layout/cellview';
+  import { coarsen } from '../layout/coarse';
   import { names, noteLabel, tonicOf, voiceBase } from '../layout/show';
   import { polar, ringSegment } from '../layout/geometry';
   import { angleOf, turnDelta } from '../layout/dial';
   import { mod } from '../theory/modes';
   import { getGraphContext } from './context';
 
-  /** `interactive`: the rim turns the cell (detail sheet). In the graph the whole node just drags. */
-  let { name, isMeter, size = 128, interactive = false }: { name: string; isMeter: boolean; size?: number; interactive?: boolean } = $props();
+  /**
+   * `interactive`: the rim turns the cell (detail sheet). In the graph the whole node just drags.
+   * `fine`: draw every step of a long braid; by default one over ~160 segments is drawn coarser (`coarsen`).
+   */
+  let { name, isMeter, size = 128, interactive = false, fine = false }: { name: string; isMeter: boolean; size?: number; interactive?: boolean; fine?: boolean } = $props();
   const ctx = getGraphContext();
 
   const c = $derived(size / 2);
@@ -34,7 +38,15 @@
     const t = cell && typeof cell.params.play === 'string' ? ctx.program.cells.get(cell.params.play) : undefined;
     return t && typeof t.params.write === 'string' && ctx.program.cells.has(t.params.write) ? t.params.write : name;
   });
-  const view = $derived(cell ? cellView(ctx.program, drawn, shown, isMeter) : EMPTY);
+  // every step, as the cell is written (the rim's turning works on these) …
+  const full = $derived(cell ? cellView(ctx.program, drawn, shown, isMeter) : EMPTY);
+  // … and what's drawn: a braid of hundreds of steps is merged into ~160 segments (a step is under a pixel
+  // there, and each is a path to rewrite whenever a table turns: #41). Segments keep their times, so `lit` works.
+  const view = $derived.by<CellView>(() => {
+    if (fine || full.mode !== 'braid') return full;
+    const segments = coarsen(full.segments);
+    return segments === full.segments ? full : { ...full, segments };
+  });
   // (motion is a hint for slow cells — a step a second or slower; on faster ones it's noise: none)
   const fast = $derived.by(() => {
     if (!cell?.clock) return false;
@@ -48,10 +60,10 @@
   // a braid's steps rotate as it turns: its new first step was at that step's start in the old
   // drawing, so start turned to there and ease home. A table's entries stay put (its hub says the change).
   let shownBefore: number | null = null;
-  let viewBefore: typeof view | null = null;
+  let viewBefore: typeof full | null = null;
   $effect(() => {
     const now = shown(name);
-    const v = view;
+    const v = full;
     if (shownBefore !== null && viewBefore && now !== shownBefore && v.mode === 'braid' && v.detents > 0 && !fast) {
       const delta = now - shownBefore;
       const k = ((delta % v.detents) + v.detents) % v.detents;

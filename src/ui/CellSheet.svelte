@@ -324,7 +324,7 @@
       </p>
     {:else if !cell.voice || braidVoice}
       <div class="dial">
-        <CellGlyph {name} {isMeter} size={200} interactive />
+        <CellGlyph {name} {isMeter} size={200} interactive fine />
       </div>
       <div class="turn" role="group" aria-label="Turn">
         <button onclick={() => ctx.turn(name, shift - 1)} aria-label="Shift down">−</button>
