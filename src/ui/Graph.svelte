@@ -26,6 +26,7 @@
   import { physicsOf } from '../engine/clocking';
   import type { LiveSource } from '../audio/live';
   import ForcesPanel from './ForcesPanel.svelte';
+  import { clusterDisc } from '../layout/clusters';
 
   let {
     model,
@@ -225,11 +226,7 @@
     }
     const tags = [...byTag.keys()].sort();
     return [...byTag].map(([tag, ms]) => {
-      const x = ms.reduce((a, m) => a + m.x, 0) / ms.length;
-      const y = ms.reduce((a, m) => a + m.y, 0) / ms.length;
-      // (covering most of its members, not the furthest straggler)
-      const ds = ms.map((m) => Math.hypot(m.x - x, m.y - y)).sort((a, b) => a - b);
-      const r = Math.max(ds[Math.floor(ds.length * 0.8)] + 90, 120);
+      const { x, y, r } = clusterDisc(ms, 90, 120);
       // its name: where its tag node is (a node of the layout, keeping cells and edges off it)
       const at = layout.position(`tag:${tag}`) ?? { x, y: y - r };
       return { tag, x, y, r, nx: at.x, ny: at.y, colour: noteColour(((tags.indexOf(tag) * 7) % 12) * 30) };
@@ -602,14 +599,7 @@
   .graph :global(.svelte-flow__edge-path) {
     transition: stroke 200ms ease, stroke-opacity 200ms ease;
   }
-  /* clusters (rendered in the flow's viewport: global, since the portal lives outside this component) */
-  :global(.cluster) {
-    position: absolute;
-    transform: translate(-50%, -50%);
-    border-radius: 50%;
-    background: radial-gradient(circle, color-mix(in oklab, var(--hue) 34%, transparent) 0%, color-mix(in oklab, var(--hue) 16%, transparent) 55%, transparent 72%);
-    pointer-events: none;
-  }
+  /* clusters (rendered in the flow's viewport: global, since the portal lives outside this component; the wash, .cluster, is in app.css) */
   :global(.cluster-name) {
     position: absolute;
     transform: translate(-50%, -50%);

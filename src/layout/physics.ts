@@ -17,7 +17,9 @@ import {
   type SimulationNodeDatum,
 } from 'd3-force';
 import type { GraphModel, GraphNode } from '../engine/graph';
+import { segmentsCross, splinePoint } from './geometry';
 import { layered } from './layered';
+import { drawnCrossings, layoutQuality, type LayoutQuality } from './quality';
 
 export interface PhysNode extends SimulationNodeDatum {
   id: string;
@@ -27,6 +29,8 @@ export interface PhysNode extends SimulationNodeDatum {
   role?: 'clock' | 'audio' | 'cell' | 'tag';
   /** Its cluster: the first of its own tags (tags= on a cell inside a piece), if any. */
   group?: string;
+  /** All its tags (tags= on a cell inside a piece): the clusters drawn round it. */
+  tags?: readonly string[];
   /** A turntable (a physical cell): nothing may overlap it. */
   heavy?: boolean;
 }
@@ -85,15 +89,6 @@ export interface LayoutOptions {
    */
   layered: boolean;
   radius: (node: GraphNode) => number;
-}
-
-/** Do segments p1–p2 and p3–p4 cross (properly, not just touch at an end)? */
-function segmentsCross(x1: number, y1: number, x2: number, y2: number, x3: number, y3: number, x4: number, y4: number): boolean {
-  const d = (x2 - x1) * (y4 - y3) - (y2 - y1) * (x4 - x3);
-  if (Math.abs(d) < 1e-9) return false;
-  const t = ((x3 - x1) * (y4 - y3) - (y3 - y1) * (x4 - x3)) / d;
-  const u = ((x3 - x1) * (y2 - y1) - (y3 - y1) * (x2 - x1)) / d;
-  return t > 1e-6 && t < 1 - 1e-6 && u > 1e-6 && u < 1 - 1e-6;
 }
 
 type Seg = { a: { x?: number; y?: number; id: string }; b: { x?: number; y?: number; id: string } };
@@ -717,6 +712,7 @@ export class ForceLayout {
       const cell = (n as { cell?: { mix?: unknown; sink?: boolean; note?: boolean; tags?: readonly string[] } }).cell;
       p.role = (n as { isMeter?: boolean }).isMeter ? 'clock' : n.kind === 'voice' || cell?.mix || cell?.sink ? 'audio' : 'cell';
       p.group = cell?.note ? undefined : cell?.tags?.[0];
+      p.tags = cell?.note ? undefined : cell?.tags;
       const prm = (cell as { params?: Record<string, unknown> } | undefined)?.params;
       p.heavy = typeof prm?.motor === 'number' || typeof prm?.belt === 'number'; // (a piece's card: its tags are the piece's, not a cluster)
       next.set(n.id, p);
@@ -846,37 +842,23 @@ export class ForceLayout {
     }
   }
 
-  /**
-   * Crossings as drawn: each edge's spline in short pieces, ignoring pieces
-   * hidden under a node's disc (edges are drawn beneath the wheels). Pairs of
-   * edges that share a node don't count.
-   */
+  /** Where everything is now, as quality.ts reads it: the nodes (a tag's name hides edges, but isn't a cell) and the edges as drawn. */
+  private placed() {
+    const nodes = [...this.byId.values()].map((n) => ({ id: n.id, x: n.x ?? 0, y: n.y ?? 0, r: n.radius, tags: n.tags, label: n.role === 'tag' }));
+    const edges = this.links.map((l) => ({ a: l.source, b: l.target, mid: this.bendAt.get(l.id) }));
+    return { nodes, edges };
+  }
+
+  /** Crossings as drawn (quality.ts: drawnCrossings). */
   drawnCrossings(): number {
-    const nodes = [...this.byId.values()];
-    const hidden = (x: number, y: number) => nodes.some((n) => Math.hypot(x - (n.x ?? 0), y - (n.y ?? 0)) < n.radius);
-    const curves = this.links
-      .map((l) => {
-        const a = this.byId.get(l.source);
-        const b = this.byId.get(l.target);
-        if (!a || !b || a.x === undefined || a.y === undefined || b.x === undefined || b.y === undefined) return null;
-        const m = this.bendAt.get(l.id) ?? { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
-        const pts = Array.from({ length: 17 }, (_, k) => splinePoint(a.x!, a.y!, m.x, m.y, b.x!, b.y!, k / 16));
-        const pieces: [number, number, number, number][] = [];
-        for (let k = 0; k < 16; k++) {
-          const [p, q] = [pts[k], pts[k + 1]];
-          if (!hidden((p.x + q.x) / 2, (p.y + q.y) / 2)) pieces.push([p.x, p.y, q.x, q.y]);
-        }
-        return { a: l.source, b: l.target, pieces };
-      })
-      .filter((c): c is NonNullable<typeof c> => c !== null);
-    let n = 0;
-    for (let i = 0; i < curves.length; i++)
-      for (let j = i + 1; j < curves.length; j++) {
-        const [p, q] = [curves[i], curves[j]];
-        if (p.a === q.a || p.a === q.b || p.b === q.a || p.b === q.b) continue;
-        if (p.pieces.some((u) => q.pieces.some((v) => segmentsCross(u[0], u[1], u[2], u[3], v[0], v[1], v[2], v[3])))) n++;
-      }
-    return n;
+    const { nodes, edges } = this.placed();
+    return drawnCrossings(nodes, edges);
+  }
+
+  /** How good the layout is now, in numbers (quality.ts). */
+  quality(): LayoutQuality {
+    const { nodes, edges } = this.placed();
+    return layoutQuality(nodes, edges);
   }
 
   /** The point an edge's spline passes through halfway (its ends' midpoint when straight). */
@@ -964,15 +946,6 @@ export function endOf(n: GraphNode): 'top' | 'bottom' | null {
   if (n.cell?.sink) return 'top';
   if (n.kind === 'cell' && n.isMeter) return 'bottom';
   return null;
-}
-
-/** A point on the quadratic spline from a to b that passes through m at t = ½. */
-export function splinePoint(ax: number, ay: number, mx: number, my: number, bx: number, by: number, t: number) {
-  // control point: the one that makes the curve pass through m halfway
-  const cx = 2 * mx - (ax + bx) / 2;
-  const cy = 2 * my - (ay + by) / 2;
-  const u = 1 - t;
-  return { x: u * u * ax + 2 * u * t * cx + t * t * bx, y: u * u * ay + 2 * u * t * cy + t * t * by };
 }
 
 /** How many edge pairs cross in the current layout (for tests and tuning). */

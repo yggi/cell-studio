@@ -16,6 +16,7 @@
   import Shorten from './ui/Shorten.svelte';
   import { anchoredAt, mainLength, mainTempo, pieceTime, sections } from './engine/duration';
   import Transport from './ui/Transport.svelte';
+  import QuickPick from './ui/QuickPick.svelte';
   import FreePanel from './ui/FreePanel.svelte';
   import { loudness, renderLength, renderPiece, wav } from './audio/render';
   import { Player } from './audio/player';
@@ -377,6 +378,7 @@
       <Transport
         {title}
         onchoose={() => (tab = 'select')}
+        path={quick}
         playing={transportClock.playing}
         {starting}
         {now}
@@ -397,7 +399,9 @@
     </div>
     {:else}
       <p class="tagline">Music, cell by cell<span>&nbsp;— choose a piece to begin</span></p>
+      <div class="quick-idle">{@render quick()}</div>
     {/if}
+    {#snippet quick()}<QuickPick {entries} current={anyOpen ? currentId : null} onpick={pick} />{/snippet}
   </header>
   <div class="tabs" role="tablist" aria-label="View">
     <button role="tab" aria-selected={tab === 'select'} class:on={tab === 'select'} onclick={() => (tab = 'select')}>Select</button>
@@ -658,6 +662,17 @@
   }
   @media (max-width: 899px) {
     .tagline span {
+      display: none;
+    }
+  }
+  /* nothing open yet: the quick path beside the tagline (on a phone, in its place) */
+  .quick-idle {
+    flex: 0 1 auto;
+    min-width: 0;
+    display: flex;
+  }
+  @media (max-width: 599px) {
+    .tagline {
       display: none;
     }
   }

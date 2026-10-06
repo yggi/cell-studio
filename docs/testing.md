@@ -22,8 +22,9 @@ Tests are `*.test.ts` beside their source, in node (no isolation between files, 
 - Realize (what sounds): `realize.test.ts` (notes, times, levels, per example), `tape.test.ts`, `resonator.test.ts`, `fm.test.ts`, `wave.test.ts`; `edit.test.ts` for line rewrites; `schedule.test.ts` (windows, the engine host).
 - Routing (what the graph draws as sounding): `routing.test.ts`: the cases of #11, and for every example that routed and live states agree (live within routed, edges with routed ends, every routed edge drawn), every voice that plays is routed and live while its note sounds, and what moves a voice is routed.
 - Audio: `src/audio/engine.test.ts` (local and worker engines; no Web Audio needed).
-- Layout: `src/layout/*.test.ts` (belts, cellview, describe, dial, geometry, labels, physics, show, spectrum).
+- Layout: `src/layout/*.test.ts` (belts, cellview, describe, dial, geometry, labels, physics, quality, show, spectrum); `physics.library.test.ts` lays out every example once for its checks.
 - Examples: `src/engine/examples.test.ts` — every `examples/*.cells` file is listed, compiles with zero diagnostics, and has a title, tags and `level=`.
+- Fuzz: `src/engine/fuzz.test.ts` — every example with one token or character deleted (a seeded sample of 20 each) compiles, plans and plays its first seconds without throwing. A program with errors plays nothing (`plan` returns no tracks): it may name cells it doesn't have.
 - UI helpers: `src/ui/colour`, `highlight`, `suggest` tests.
 
 ## Promises
@@ -42,6 +43,7 @@ Tests are `*.test.ts` beside their source, in node (no isolation between files, 
 - Engines (#15): `src/engine/schedule.test.ts` (windows match `eventsBetween` and survive a structured clone; the host mirrors hands), `src/audio/engine.test.ts` (the worker engine through a fake port: same windows, a late or failed worker falls back to the local plan). In the browser: `ENGINE=worker npm run smoke` plays every piece with the engine in a Web Worker.
 - Graph states in the browser: `tools/shots.mjs` plays pieces and saves a screenshot and each node's and edge's drawn state (`npm run build && node tools/shots.mjs 3 "Sound on Tape"`; `DIST=` another build to compare).
 - Wheels in the browser: `tools/wheels.mjs` plays every piece and makes a contact sheet of every kind of wheel (graph, petals, a cell's sheet, the library), each in its liveliest state (`npm run build && node tools/wheels.mjs`; writes `shots/wheels/sheet.png`); `--fast` sets every kind up directly instead (`tools/wheels/harness.html`, from the working tree, no build, ~15 s), each at a ladder of sizes; the `wheels` skill (`.claude/skills/wheels/SKILL.md`) says how to read them and compare before / after.
+- Layout quality (#27): `src/layout/quality.ts` measures a layout: drawn crossings, the box, mean edge length, the worst overlap, overlapping tag clusters and cells inside a cluster they don't carry. `physics.library.test.ts` measures every example (and its crossings before the physics, `start`) and compares the library's totals with `src/layout/quality.baseline.json`: crossings, clusters and intruders may not grow, the area not by more than 5 %. A layout change that is worth its trade records the new numbers (`UPDATE_LAYOUT_BASELINE=1 npx vitest run src/layout/physics.library.test.ts`), so the PR's diff of the baseline shows what it did, piece by piece.
 - Layering: `src/architecture.test.ts` fails if a non-test file in `engine/` or `layout/` imports Svelte, Tone, `@xyflow`, `audio/` or `ui/`.
 - Docs: `src/docs.test.ts` compiles every ```` ```cells ```` block under `docs/language/` with no diagnostics, checks `docs/INDEX.md` lists each page, and that relative links resolve.
 

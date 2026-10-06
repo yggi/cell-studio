@@ -239,3 +239,12 @@ select {
     animation-delay: 449ms;
   }
 }
+
+/* ---- a cluster's wash: the members of a tag (the piece's graph, the library's); layout/clusters.ts places it ---- */
+.cluster {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: radial-gradient(circle, color-mix(in oklab, var(--hue) 34%, transparent) 0%, color-mix(in oklab, var(--hue) 16%, transparent) 55%, transparent 72%);
+  pointer-events: none;
+}
