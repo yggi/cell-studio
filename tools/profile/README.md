@@ -13,14 +13,14 @@ device, so this measures the page, not audible glitches; use a real phone for th
     THROTTLE=4 node tools/profile/cpu.mjs http://localhost:4174/ "Hypercell" 15    # writes profile-Hypercell.json
     node tools/profile/agg.mjs profile-Hypercell.json                   # self / inclusive time by function
     node tools/profile/names.mjs scheduling,tick,flush profile-*.json   # inclusive % of named functions
-    node tools/profile/lines.mjs profile-Hypercell.json /tmp/dist-nomin/index.html   # inclusive % by source line (shows the code)
+    node tools/profile/lines.mjs profile-Hypercell.json /tmp/dist-nomin/assets/index-*.js   # inclusive % by source line (shows the code)
 
     # the browser's own time (style/layout/paint/GC) and the long tasks, from a Chrome trace; CSS= ablates a kind of drawing
     THROTTLE=4 node tools/profile/trace.mjs http://localhost:4173/ "Hypercell" 10
 
     # long tasks: what each one rewrote in the DOM, and (CPU profile) what the bursts spend their time on
     node tools/profile/bursts.mjs http://localhost:4173/ "Prelude and Fugue in C minor" 25
-    node tools/profile/burstlines.mjs profile-Prelude_and_Fugue_in_C_minor.json /tmp/dist-nomin/index.html
+    node tools/profile/burstlines.mjs profile-Prelude_and_Fugue_in_C_minor.json /tmp/dist-nomin/assets/index-*.js
 
     # engine cost without a browser (compile / plan / events per example; what a table turn costs `cellView`):
     npx vite-node tools/profile/engine-time.ts

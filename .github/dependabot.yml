@@ -1,0 +1,14 @@
+version: 2
+updates:
+  # Vite, Svelte, TypeScript and vitest are all very new majors: one weekly PR per group, CI is the gate
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      npm:
+        patterns: ['*']
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly

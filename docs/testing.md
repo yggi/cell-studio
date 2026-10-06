@@ -8,6 +8,7 @@ CI (`.github/workflows/ci.yml`, Node 22) is the gate on every PR and on `main`:
 
 - `check` job: `npm run check` (svelte-check), `npm test` (`vitest run`; `npm run test:watch` while editing), `npm run build`. It uploads the build.
 - `smoke` job: `npm run smoke` on that build, in the runner's Chrome: `tools/smoke.mjs` opens every piece of the library, plays it for 2 s, and fails on any page error, console error, or an AudioContext that isn't running and advancing. This is the only check that builds the audio graph of every voice kind (tapes, resonators, FM, kits), since vitest has no Web Audio.
+- The build is a PWA (`vite-plugin-pwa` in `vite.config.ts`): `dist/sw.js` precaches the shell and the Tone chunk; a new version waits for the user (`src/ui/UpdateToast.svelte`). `base` is `./`, so the same `dist/` works under `/cell-studio/` or any preview folder.
 - `deploy` job (`main` only): publishes the `check` job's build to gh-pages; it doesn't test or build again.
 
 Locally, run `npm test && npm run check` before pushing, and one file while iterating (`npx vitest run src/engine/parser.test.ts`). Run the smoke test only when you changed what it covers (audio, UI wiring, assets, `vite.config.ts`): `npm run build && npm run smoke -- 2 "Music Box"` (seconds, then piece-title words; all pieces if none). In a cloud session set `CHROME_PATH=/opt/pw-browsers/chromium`.

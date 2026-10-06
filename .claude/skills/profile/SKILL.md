@@ -49,12 +49,12 @@ npx vite build --minify false --outDir /tmp/dist-nomin        # readable functio
 npx vite preview --outDir /tmp/dist-nomin --port 4174 &
 THROTTLE=4 node tools/profile/cpu.mjs http://localhost:4174/ "Hypercell" 15   # writes profile-Hypercell.json
 node tools/profile/agg.mjs profile-Hypercell.json                       # self and inclusive time by function
-node tools/profile/lines.mjs profile-Hypercell.json /tmp/dist-nomin/index.html 14   # inclusive % by source line
+node tools/profile/lines.mjs profile-Hypercell.json /tmp/dist-nomin/assets/index-*.js 14   # inclusive % by source line
 node tools/profile/names.mjs valuesAt,formatLabel,tick profile-*.json   # inclusive % of named functions
 ```
 (Percentages in `agg.mjs` are shares of busy time. `(program)` and `(idle)` are native/browser and idle
 time; `(program)` was ~45 % at ×4 and is not yet attributed: a Chrome trace is the next tool.)
-In the non-minified build the single bundle has no per-file URLs, so map lines back to source with `lines.mjs`
+In the non-minified build the app is one chunk (`assets/index-*.js`) with no per-file URLs, so map lines back to source with `lines.mjs`
 (it prints the code at each hot line) and search for it in `src/`.
 
 Where the *browser* spends it (style, layout, paint, compositing, GC, which a JS profile shows only as
