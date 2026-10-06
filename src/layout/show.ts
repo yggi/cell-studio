@@ -9,7 +9,6 @@ import { entries, resolveIn, resolvePitch, semitones } from '../engine/helix';
 import { modeName, mod } from '../theory/modes';
 import { SHOWS } from '../engine/parser';
 
-export { SHOWS };
 export type Show = (typeof SHOWS)[number];
 
 /** What a cell is, for showing it. */
@@ -34,7 +33,7 @@ export const FITS: Readonly<Record<Kind, readonly Show[]>> = {
 const OWN: readonly Show[] = ['petal', 'off'];
 
 /** show= as written: the show, and a naming convention (notes:flats, do:fixed). */
-export function parseShow(raw: string | null | undefined): { show: Show; conv: string } | null {
+function parseShow(raw: string | null | undefined): { show: Show; conv: string } | null {
   if (!raw) return null;
   const [show, conv = ''] = raw.split(':');
   return (SHOWS as readonly string[]).includes(show) ? { show: show as Show, conv } : null;
@@ -235,5 +234,3 @@ export function tonicOf(result: CompileResult, name: string): number {
     return 0;
   }
 }
-
-export { ROOT };

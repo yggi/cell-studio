@@ -81,7 +81,7 @@ function flowsOf(result: CompileResult): Map<string, Flow[]> {
 const keeps = (result: CompileResult, name: string) => result.tapes.some((t) => t.name === name) || typeof result.cells.get(name)?.params.body === 'string';
 
 /** What its mixes name: the voice, or a kit's stream (&drums, read through the kit). */
-export const sourceOf = (o: Output) => (o.kit ? o.cell : o.voice);
+const sourceOf = (o: Output) => (o.kit ? o.cell : o.voice);
 
 const playable = (c: ResolvedCell) => c.units.some((u) => u.atom.kind === 'note' || u.atom.kind === 'chord' || u.atom.kind === 'choice');
 

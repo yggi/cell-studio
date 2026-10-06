@@ -21,7 +21,7 @@ export const UNIT = new RegExp(
     .join('|'),
   'y',
 );
-export const perSecond = (n: number, unit: string | null | undefined) => {
+const perSecond = (n: number, unit: string | null | undefined) => {
   const u = unit ? RATE_UNITS[unit] : undefined;
   return u ? (n * u.times) / u.per : n;
 };

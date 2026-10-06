@@ -64,7 +64,7 @@ export function parseMixChord(s: LineScanner): Atom {
   }
 }
 
-export function parseExpr(s: LineScanner): Expr {
+function parseExpr(s: LineScanner): Expr {
   const start = s.i;
   const items: { e: Expr; sign: 1 | -1 }[] = [{ e: parseProduct(s), sign: 1 }];
   for (;;) {

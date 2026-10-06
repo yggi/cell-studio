@@ -25,7 +25,7 @@ export interface Window {
 }
 
 /** How finely a tape's speed is sampled (seconds). */
-export const SPEED_STEP = 0.05;
+const SPEED_STEP = 0.05;
 
 /**
  * Each moving tape's speed from `from` to `to` (inclusive), every SPEED_STEP seconds. Tapes that run

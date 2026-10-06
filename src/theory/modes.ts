@@ -44,7 +44,7 @@ export function even(k: number, n: number, phase = 0, i?: number): number[] {
  * bar (fractional), i.e. where each beat really falls. Known profiles bend
  * straight time; anything else is straight.
  */
-export const AGOGIC: Readonly<Record<string, readonly number[]>> = {
+const AGOGIC: Readonly<Record<string, readonly number[]>> = {
   // * . + .  — beats 2 and 4 lean late (given as 0 27 50 76 % of the bar)
   '4/4': [0, 3.24, 6, 9.12],
   // Viennese waltz: beat 2 anticipated — short first beat, long second

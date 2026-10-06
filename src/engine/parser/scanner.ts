@@ -32,7 +32,7 @@ export const REFERENCE_SYNTAX: readonly Syntax[] = [
 ];
 
 export const IDENT = /[A-Za-z_][A-Za-z0-9_]*/y;
-export const INT = /-?[0-9]+/y;
+const INT = /-?[0-9]+/y;
 export const NUM = /-?(?:[0-9]+(?:\.[0-9]+)?|\.[0-9]+)/y;
 // a long rest is legitimate (a voice waiting out a whole prelude: ~@617); this only guards against typos
 export const MAX_REPS = 4096;

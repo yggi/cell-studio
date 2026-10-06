@@ -1,6 +1,7 @@
 /** A cell's line: its name, then attributes and its braid, in any order. */
 import type { Braid, CellDecl, MapSpec, ParamCells, Ref, Span, StepSpec, Token } from '../ast';
-import { RETIRED_PARAMS, TIME_PARAMS, canonical, isDoughParam } from '../dough-params';
+import { TIME_PARAMS } from '../attributes';
+import { RETIRED_PARAMS, canonical, isDoughParam } from '../dough-params';
 import { CELL_PARAMS, CORE, PARAMS, nearestAttribute } from '../attributes';
 import { IDENT, type LineScanner } from './scanner';
 import { parseToken } from './braid';

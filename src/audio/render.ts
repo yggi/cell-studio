@@ -10,7 +10,7 @@ import type { CompileResult, Shifts } from '../engine/program';
 import { pieceTime } from '../engine/duration';
 import { createVoices } from './voices';
 
-export interface Rendered {
+interface Rendered {
   readonly buffer: AudioBuffer;
   /** Loudness: the RMS of both channels, in dB below full scale. */
   readonly rms: number;
@@ -20,7 +20,7 @@ export interface Rendered {
   readonly clipped: number;
 }
 
-export async function renderOffline(plan: Plan, seconds: number, tail = 2): Promise<Rendered> {
+async function renderOffline(plan: Plan, seconds: number, tail = 2): Promise<Rendered> {
   (globalThis as { TONE_SILENCE_LOGGING?: boolean }).TONE_SILENCE_LOGGING = true;
   const Tone = await import('tone');
   const out = await Tone.Offline(

@@ -67,7 +67,7 @@ function parseScan(s: LineScanner, start: number): Braid {
  * Bjorklund's algorithm: k hits and n − k rests, the leftovers paired again and again until
  * one group is left — the Euclidean rhythms in their usual form (Toussaint): 3 in 8 x..x..x.
  */
-export function bjorklund(k: number, n: number): boolean[] {
+function bjorklund(k: number, n: number): boolean[] {
   if (k <= 0) return Array(n).fill(false);
   let a: boolean[][] = Array.from({ length: k }, () => [true]);
   let b: boolean[][] = Array.from({ length: n - k }, () => [false]);
@@ -122,7 +122,7 @@ function parseSpell(s: LineScanner, start: number): Braid {
 }
 
 /** A time signature's bar as levels: * the bar, + a beat, . a subdivision, , a finer one. */
-export const SIGNATURES: Record<string, number[]> = {
+const SIGNATURES: Record<string, number[]> = {
   // x/4: beats; x/8: eighths in groups (a beat a group)
   '2/4': [1, 1],
   '3/4': [1, 1, 1],
@@ -289,7 +289,7 @@ export const GENERATORS: Readonly<Record<string, { readonly parse: Generator; re
 };
 
 /** Generators that are gone: reading one says what to write instead. */
-export const RETIRED_GENERATORS: Readonly<Record<string, Generator>> = {
+const RETIRED_GENERATORS: Readonly<Record<string, Generator>> = {
   even: (s, start) => {
     const { args, span } = numbers(s, 'even', start);
     const [k, n = 12, phase = 0] = args;

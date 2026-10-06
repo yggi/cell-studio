@@ -5,7 +5,7 @@ import { UNIT } from './values';
 import { syntax, type Syntax } from './syntax';
 
 /** Tempo markings for free(…): a range in bpm, centred. */
-export const TEMPI: Readonly<Record<string, readonly [number, number]>> = {
+const TEMPI: Readonly<Record<string, readonly [number, number]>> = {
   largo: [40, 60],
   larghetto: [60, 66],
   adagio: [66, 76],

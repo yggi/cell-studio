@@ -3,7 +3,7 @@
  * language's own rules (a # starts a comment at a line's start or after a space;
  * quoted text is one piece), not the parser: it colours even code that doesn't parse.
  */
-export type Kind = 'comment' | 'string' | 'ref' | 'attr' | 'func' | 'note' | 'num' | 'rest' | 'mod' | 'word' | 'punct' | 'space';
+type Kind = 'comment' | 'string' | 'ref' | 'attr' | 'func' | 'note' | 'num' | 'rest' | 'mod' | 'word' | 'punct' | 'space';
 export interface Token {
   readonly text: string;
   readonly kind: Kind;

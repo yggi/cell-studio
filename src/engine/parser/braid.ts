@@ -33,7 +33,7 @@ export const STEP_SYNTAX: readonly Syntax[] = [
   ),
 ];
 
-export function parseAtom(s: LineScanner): Atom {
+function parseAtom(s: LineScanner): Atom {
   const c = s.peek();
   if (c === '&') {
     const r = s.ref('a cell like &motif');

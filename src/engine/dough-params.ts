@@ -1,7 +1,5 @@
 import { PARAMS } from './attributes';
 
-export { MOVING_PARAMS, TIME_PARAMS } from './attributes';
-
 /**
  * The parameters voices and physical cells understand, with what each means (from the table in
  * attributes.ts). Written as attributes: `&lead s=saw lpf=1800 room=.3` (its envelope is a cell:

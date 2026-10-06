@@ -29,7 +29,7 @@ export function mainLength(t: PieceTime): number | null {
 }
 
 /** x as a fraction n/d (continued fractions, d ≤ 10000). */
-export function fraction(x: number): [bigint, bigint] {
+function fraction(x: number): [bigint, bigint] {
   let [h0, h1, k0, k1] = [0n, 1n, 1n, 0n];
   let v = x;
   for (let i = 0; i < 32; i++) {

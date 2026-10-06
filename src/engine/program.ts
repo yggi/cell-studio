@@ -202,7 +202,7 @@ export interface Clock {
 }
 
 /** A pitch term of an out sum. */
-export interface PitchTerm {
+interface PitchTerm {
   readonly cell: string;
   readonly pick: Pick | null;
   readonly shift: number;

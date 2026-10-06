@@ -39,7 +39,7 @@ export interface RunOptions {
   pieces: readonly { key: string; label: string }[];
 }
 
-export const DEFAULT_SECONDS = 25;
+const DEFAULT_SECONDS = 25;
 /** Seconds the report leaves out after Play (perf.ts WARMUP), and the pause between two tests. */
 const WARMUP_S = 3;
 const GAP_S = 1;

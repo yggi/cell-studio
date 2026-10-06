@@ -16,9 +16,8 @@ import type { CellDecl, Diagnostic, ParseResult } from '../ast';
 import { IDENT, LineError, LineScanner, stripComment } from './scanner';
 import { parseCell } from './cell';
 
-export { TEMPI } from './free';
-export { bjorklund, meterLevels } from './generators';
-export { SHOWS, SHOW_CONVENTIONS } from './cell';
+export { meterLevels } from './generators';
+export { SHOWS } from './cell';
 
 export function parse(source: string): ParseResult {
   const cells: CellDecl[] = [];

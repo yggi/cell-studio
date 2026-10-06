@@ -1239,7 +1239,7 @@ export class ForceLayout {
 }
 
 /** Where a node is drawn to: the sound card up-centre, meters down-centre. */
-export function endOf(n: GraphNode): 'top' | 'bottom' | null {
+function endOf(n: GraphNode): 'top' | 'bottom' | null {
   if (n.cell?.sink) return 'top';
   if (n.kind === 'cell' && n.isMeter) return 'bottom';
   return null;

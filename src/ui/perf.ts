@@ -102,7 +102,7 @@ export function summarizeLoaf(entries: readonly Loaf[]): LoafStats {
 
 // ---- the report
 
-export interface Playout {
+interface Playout {
   underrunEvents: number;
   underrunDuration: number;
   totalDuration: number;
@@ -132,13 +132,13 @@ export function summarizeMarks(events: readonly { name: string; d: number }[]): 
     .sort((a, b) => b.totalMs - a.totalMs);
 }
 
-export interface QueueStats {
+interface QueueStats {
   medianMs: number;
   p95Ms: number;
   maxMs: number;
 }
 
-export interface NoteStats {
+interface NoteStats {
   played: number;
   late: number;
   dropped: number;

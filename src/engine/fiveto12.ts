@@ -20,9 +20,9 @@
  * Everything is a function of the step of the day: nothing to play through, any moment computed.
  */
 
-export const STEPS_PER_MINUTE = 84;
+const STEPS_PER_MINUTE = 84;
 export const BAR = 12;
-export const BARS_PER_KEY = 70;
+const BARS_PER_KEY = 70;
 export const KEY = BAR * BARS_PER_KEY; // 840
 export const BLOCK = KEY * 12; // 10 080
 export const DAY = BLOCK * 12; // 120 960 — 24 hours at 84 a minute
@@ -92,7 +92,7 @@ export interface Onset {
 }
 
 /** The bell of a mode: its 7 onsets in the 12 — where its notes sit. */
-export function bellOf(mode: number): number[] {
+function bellOf(mode: number): number[] {
   return modeSemis(mode);
 }
 
