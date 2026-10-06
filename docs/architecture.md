@@ -12,7 +12,7 @@ What lives where in Cell studio, and how source text becomes sound. Language: [l
 
 ```
 code text (App.svelte `code`)
-  parse()              engine/parser.ts   -> ParseResult (AST types: ast.ts)
+  parse()              engine/parser/     -> ParseResult (AST types: ast.ts)
   compile()            engine/compile.ts  -> CompileResult (cells, clocks, outputs, tapes, diagnostics)
   plan(result, shifts, muted)  engine/realize.ts -> Plan
   player.load(plan, source)    audio/player.ts
@@ -30,7 +30,13 @@ The engine behind `engine.window` is local (in this thread, on the app's plan: t
 
 ## src/engine
 
-- `parser.ts`, `ast.ts`: one cell or command per line; `pieceMeta`.
+- `parser/` (`parse`, `pieceMeta`), `ast.ts`: one cell per line, read by construct:
+  - `scanner.ts`: a line (continued lines joined), names, numbers, references with picks, shifts and `^n`.
+  - `cell.ts`: a cell's line, its attributes and its braid in any order.
+  - `braid.ts`: steps (numbers, rests, chords, choices, cells) and their modifiers.
+  - `generators.ts`, `free.ts`, `values.ts` (`step=`/`loop=`, `map=`), `mix.ts` (a mix chord, kept as an expression).
+- `attributes.ts`: every attribute in one table (what it means, takes and acts on; its doc page); the parser, compile, the node editor and the docs test read it.
+- `algebra.ts`: the mix algebra ([decision 006](decisions/006-mix-algebra.md)): a mix's expressions typed by sort and distributed, one binding per voice.
 - `compile.ts`: cells as helices over grids, `ROOT` grid, diagnostics, `MAX_EVENTS`.
 - `realize.ts`: `plan` (every output's braid flattened once), `eventsBetween` (the notes that start in a window: tapes' echoes, laws, selectors, chance); the gates the scheduler uses (`outputSounds`, `endOf`, `picksNow`, `liveGains`). Its parts:
   - `clocking.ts`: time. `timeMap` (swing, positions in a bar, a motor or a belt), `clocking` (a program's clocks at a moment), `shiftsAt` (tables turning), `playedCells`, `physicsOf`, `tapeMotion`.

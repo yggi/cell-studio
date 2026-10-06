@@ -26,7 +26,7 @@ Commands, the rules (which are enforced and which are judgment), the PR conventi
 
 ## Language cheatsheet
 
-Details are on the linked pages; this list is only a pointer. → [language/overview.md](language/overview.md)
+Details are on the linked pages; this list is only a pointer. → [language/overview.md](language/overview.md); every form at once: [language/reference.md](language/reference.md) (generated from the parser)
 
 - `&name … ` one cell per line; steps `0 2 ~ 4@2 0!4 [0,2,4]` → [cell](language/cell.md)
 - `scan(…)` `euclid(k,n)` `sin(n)`; `&t[i]` `&t[a:b]` `&t[<<n]` `&t^n` → [braid](language/braid.md)
