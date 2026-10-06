@@ -6,6 +6,7 @@
    * it — while your finger is down, it's pulled towards your finger's speed (push, brake, scratch);
    * let go, and its motor takes over.
    */
+  import { onDestroy } from 'svelte';
   import { Handle, Position, useSvelteFlow, type NodeProps } from '@xyflow/svelte';
   import { getGraphContext, nodeState } from './context';
   import { clocking } from '../engine/clocking';
@@ -36,6 +37,8 @@
     });
   });
   let wobble = $state('none');
+  // (a shimmer, set from here: the reduced-motion rule in app.css only reaches CSS animations)
+  const still = typeof matchMedia === 'function' ? matchMedia('(prefers-reduced-motion: reduce)') : null;
   $effect(() => {
     if (d.role !== 'resonator') return;
     const step = (t: number) => {
@@ -49,6 +52,10 @@
       const q = a.map((v: number) => Math.round(v * 24) / 24);
       if (q.length !== amps.length || q.some((v: number, i: number) => v !== amps[i])) amps = q;
       pads = r.exciters;
+      if (still?.matches) {
+        if (wobble !== 'none') wobble = 'none';
+        return;
+      }
       // M = I + Σ dₖ (uₖuₖᵀ − vₖvₖᵀ): mode k's axis at k/n of a half-turn, its stretch oscillating (higher
       // modes faster — a visible rate, not the real one), its depth its strength
       let m00 = 1;
@@ -185,6 +192,7 @@
     return Math.atan2(e.clientY - c.y, e.clientX - c.x);
   };
   function down(e: PointerEvent) {
+    if (e.button !== 0) return;
     e.stopPropagation();
     const c = centre();
     const dist = Math.hypot(e.clientX - c.x, e.clientY - c.y) / c.scale;
@@ -280,18 +288,35 @@
           ctx.grab(d.name, smooth / omega0);
         }
       } else {
-        // stopped: turning it moves where play starts — a turn, as long as it takes to turn once
-        preview += (da * 180) / Math.PI;
-        if (cell?.clock)
-          try {
-            const m = clocking(ctx.program, ctx.shifts, 0).map(cell.clock);
-            const turn = m.q(lap / (cell.clock === d.name ? 1 : cell.rate)) - m.q(0);
-            if (Number.isFinite(turn) && turn > 0) ctx.nudge((da / (2 * Math.PI)) * turn);
-          } catch {
-            // (a clock that can't say: it just turns)
-          }
+        turnStopped(da);
       }
     }
+  }
+  // stopped: turning it moves where play starts — a turn, as long as it takes to turn once
+  function turnStopped(da: number) {
+    preview += (da * 180) / Math.PI;
+    if (cell?.clock)
+      try {
+        const m = clocking(ctx.program, ctx.shifts, 0).map(cell.clock);
+        const turn = m.q(lap / (cell.clock === d.name ? 1 : cell.rate)) - m.q(0);
+        if (Number.isFinite(turn) && turn > 0) ctx.nudge((da / (2 * Math.PI)) * turn);
+      } catch {
+        // (a clock that can't say: it just turns)
+      }
+  }
+  // the keyboard: Enter or Space opens it; stopped, the arrows turn it a sixteenth
+  function key(e: KeyboardEvent) {
+    if (e.target !== e.currentTarget) return; // (a resonator's pads are buttons of their own)
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      ctx.open(d.name);
+      return;
+    }
+    const step = e.key === 'ArrowRight' || e.key === 'ArrowUp' ? 1 : e.key === 'ArrowLeft' || e.key === 'ArrowDown' ? -1 : 0;
+    if (!step || ctx.live || d.role === 'resonator') return;
+    e.preventDefault();
+    e.stopPropagation();
+    turnStopped((step * 2 * Math.PI) / 16);
   }
   function up(e: PointerEvent) {
     if (hold) clearTimeout(hold);
@@ -313,6 +338,15 @@
     }
     mode = 'none';
   }
+  // gone mid-gesture (a code edit, another piece): no timer left running, no hand left on it
+  onDestroy(() => {
+    if (hold) clearTimeout(hold);
+    if (renew) clearInterval(renew);
+    if (mode === 'grab') ctx.grab(d.name, null);
+    else if (mode === 'damp') ctx.damp(d.name, false);
+    else if (mode === 'bowing') ctx.bow(d.name, null);
+    else if (mode === 'scrub') ctx.scrub(d.name, null);
+  });
   const modeRings = $derived.by(() => {
     const body = cell && typeof cell.params.body === 'string' ? BODIES[cell.params.body] : undefined;
     return (body ?? []).map(([r]) => Math.max(0.3, 0.92 - Math.log2(Math.max(1, r)) * 0.18));
@@ -323,6 +357,8 @@
 
 <div
   class="turntable nodrag nopan {d.role}"
+  data-wheel="material"
+  data-mode={d.role}
   data-state={look}
   bind:this={el}
   style:width="{S}px"
@@ -331,24 +367,25 @@
   onpointermove={move}
   onpointerup={up}
   onpointercancel={up}
+  onlostpointercapture={up}
   onclick={(e) => e.stopPropagation()}
   role="button"
   tabindex="0"
   aria-label="&{d.name}: a turntable — tap the axle for its details, drag the disc to grab it"
-  onkeydown={(e) => (e.key === 'Enter' ? ctx.open(d.name) : null)}
+  onkeydown={key}
 >
   <Handle type="target" position={Position.Top} class="center-handle" isConnectable={false} />
   <svg viewBox="0 0 {S} {S}" width={S} height={S} aria-hidden="true" style:transform={wobble} style:transform-origin="50% 50%">
     <defs>
       <radialGradient id="{uid}-disc" cx="40%" cy="35%" r="75%">
-        <stop offset="0%" stop-color={d.role === 'resonator' ? '#e7c46a' : d.role === 'motor' ? '#4a4f5c' : d.role === 'tape' ? '#3b3f46' : '#5a4636'} />
-        <stop offset="70%" stop-color={d.role === 'resonator' ? '#a87b2c' : d.role === 'motor' ? '#262a33' : d.role === 'tape' ? '#22252b' : '#3a2c22'} />
-        <stop offset="100%" stop-color={d.role === 'resonator' ? '#5e4214' : d.role === 'motor' ? '#15171c' : d.role === 'tape' ? '#121418' : '#211812'} />
+        <stop offset="0%" style:stop-color="var(--disc-{d.role}-0)" />
+        <stop offset="70%" style:stop-color="var(--disc-{d.role}-1)" />
+        <stop offset="100%" style:stop-color="var(--disc-{d.role}-2)" />
       </radialGradient>
       <radialGradient id="{uid}-axle" cx="35%" cy="30%" r="80%">
-        <stop offset="0%" stop-color="#f2f2f2" />
-        <stop offset="55%" stop-color="#9aa0aa" />
-        <stop offset="100%" stop-color="#4b505a" />
+        <stop offset="0%" style:stop-color="var(--axle-0)" />
+        <stop offset="55%" style:stop-color="var(--axle-1)" />
+        <stop offset="100%" style:stop-color="var(--axle-2)" />
       </radialGradient>
     </defs>
     <circle cx={R} cy={R} r={R - 1} fill="url(#{uid}-disc)" stroke="rgba(255,255,255,.12)" stroke-width="1" />
@@ -374,7 +411,7 @@
       <circle cx={R} cy={R - R * 0.74} r={R * 0.06} class="mark" />
     </g>
     <circle cx={R} cy={R} r={AXLE} fill="url(#{uid}-axle)" stroke="rgba(0,0,0,.5)" />
-    <circle cx={R} cy={R} r={AXLE * 0.3} fill="#2a2d33" />
+    <circle cx={R} cy={R} r={AXLE * 0.3} style:fill="var(--axle-bore)" />
     {#if tape}
       <!-- the recording, round the tape: each stretch where the tape has carried it from the write head -->
       <!-- (the stretches are set where the write head left them and the group turns with the tape: one
@@ -479,28 +516,28 @@
     pointer-events: none;
   }
   .pack {
-    fill: #3a2418;
+    fill: var(--reel-pack);
     stroke: rgba(0, 0, 0, 0.5);
   }
   .layer {
     fill: none;
-    stroke: rgba(255, 210, 170, 0.08);
+    stroke: var(--reel-layer);
     stroke-width: 1;
   }
   .hub {
-    fill: #1b1d22;
+    fill: var(--reel-hub);
     stroke: rgba(255, 255, 255, 0.12);
   }
   .spoke {
-    fill: #0d0e11;
+    fill: var(--reel-spoke);
   }
   .modering {
     fill: none;
-    stroke: rgba(255, 240, 200, 0.35);
+    stroke: var(--resonator-mode);
     stroke-width: 1.2;
   }
   .recording line {
-    stroke: #f2c48a;
+    stroke: var(--tape-recorded);
     stroke-width: 2.2;
     stroke-linecap: round;
   }
@@ -509,10 +546,10 @@
     stroke-width: 1;
   }
   .head.write {
-    fill: #e35d5d;
+    fill: var(--head-write);
   }
   .head.read {
-    fill: #9fd3ff;
+    fill: var(--head-read);
   }
   :global(.head-handle) {
     width: 4px !important;
@@ -528,13 +565,13 @@
     transform: translate(-50%, -50%);
     border-radius: 50%;
     border: 1px solid rgba(0, 0, 0, 0.5);
-    background: radial-gradient(circle at 35% 30%, #f3d98a, #a87b2c 70%);
-    color: #3a2806;
+    background: radial-gradient(circle at 35% 30%, var(--pad-0), var(--pad-1) 70%);
+    color: var(--pad-ink);
     font-weight: 800;
     font-family: var(--font-ui);
     padding: 0;
     cursor: pointer;
-    box-shadow: 0 0 calc(var(--glow) * 14px) rgba(255, 220, 120, calc(var(--glow) * 0.9));
+    box-shadow: 0 0 calc(var(--glow) * 14px) color-mix(in srgb, var(--pad-glow) calc(var(--glow) * 90%), transparent);
     filter: brightness(calc(0.85 + var(--glow) * 0.5));
     z-index: 2;
   }

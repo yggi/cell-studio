@@ -7,6 +7,7 @@
    */
   import { Handle, Position, type NodeProps } from '@xyflow/svelte';
   import { getGraphContext } from './context';
+  import { blockColour } from './theme';
   import { BLOCK_NAMES, DAY_MODES, MODE_NAMES, place, SECONDS_PER_STEP } from '../engine/fiveto12';
 
   let { data }: NodeProps = $props();
@@ -49,7 +50,7 @@
     return Math.atan2(e.clientX - (r.left + r.width / 2), -(e.clientY - (r.top + r.height / 2)));
   };
   function down(e: PointerEvent) {
-    if (ctx.live) return;
+    if (ctx.live || e.button !== 0) return;
     e.stopPropagation();
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     last = angleOf(e);
@@ -64,23 +65,31 @@
     ctx.nudge((da / (2 * Math.PI)) * 86400);
   }
   const up_ = () => (last = null);
+  // the keyboard: stopped, the arrows turn it an hour
+  function key(e: KeyboardEvent) {
+    const step = e.key === 'ArrowRight' || e.key === 'ArrowUp' ? 1 : e.key === 'ArrowLeft' || e.key === 'ArrowDown' ? -1 : 0;
+    if (!step || ctx.live) return;
+    e.preventDefault();
+    e.stopPropagation();
+    ctx.nudge(step * 3600);
+  }
 </script>
 
-<div class="sun nodrag" style:width="{S}px" style:height="{S}px" role="img" aria-label="The day: {hhmm}, {MODE_NAMES[where.mode]}, key of {NAMES[where.tonic]}" onpointerdown={down} onpointermove={move} onpointerup={up_} onpointercancel={up_}>
+<div class="sun nodrag" data-wheel="sun" style:width="{S}px" style:height="{S}px" role="slider" tabindex="0" aria-label="The day" aria-valuetext="{hhmm}, {MODE_NAMES[where.mode]}, key of {NAMES[where.tonic]}" aria-valuenow={Math.floor(ofDay / 60)} aria-valuemin={0} aria-valuemax={1439} onpointerdown={down} onpointermove={move} onpointerup={up_} onpointercancel={up_} onlostpointercapture={up_} onkeydown={key}>
   <Handle type="target" position={Position.Top} class="center-handle" isConnectable={false} />
   <svg viewBox="0 0 {S} {S}" width={S} height={S}>
     <defs>
       <linearGradient id="sky-{d.name}" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0" stop-color="#3d6fa8" />
-        <stop offset="0.48" stop-color="#e3a25a" />
-        <stop offset="0.52" stop-color="#2a1c3a" />
-        <stop offset="1" stop-color="#070912" />
+        <stop offset="0" style:stop-color="var(--sky-day)" />
+        <stop offset="0.48" style:stop-color="var(--sky-dusk)" />
+        <stop offset="0.52" style:stop-color="var(--sky-dusk-night)" />
+        <stop offset="1" style:stop-color="var(--sky-night)" />
       </linearGradient>
     </defs>
     <circle cx={R} cy={R} r={R - 2} fill="url(#sky-{d.name})" />
     <!-- the law's blocks, as bright as their modes -->
     {#each blocks as b, i (i)}
-      <path d={arc(b.s0, b.s1, R * 0.82, R - 3)} fill="hsl(45 {30 + 60 * b.light}% {14 + 62 * b.light}%)" stroke="rgba(0,0,0,.45)" stroke-width="1"><title>{b.name}</title></path>
+      <path d={arc(b.s0, b.s1, R * 0.82, R - 3)} fill={blockColour(b.light)} stroke="rgba(0,0,0,.45)" stroke-width="1"><title>{b.name}</title></path>
     {/each}
     <!-- the hours -->
     {#each Array.from({ length: 24 }, (_, h) => h) as h (h)}
@@ -115,45 +124,45 @@
     display: block;
   }
   .tick {
-    stroke: rgba(255, 255, 255, 0.55);
+    stroke: var(--sky-tick);
     stroke-width: 1.4;
   }
   .horizon {
-    stroke: rgba(255, 255, 255, 0.35);
+    stroke: var(--sky-horizon);
     stroke-dasharray: 3 4;
   }
   .cardinal {
-    fill: rgba(255, 255, 255, 0.85);
+    fill: var(--sky-mark);
     font: 800 13px var(--font-ui);
     text-anchor: middle;
   }
   .disc {
-    fill: #ffd84a;
-    stroke: #fff3b0;
+    fill: var(--sun);
+    stroke: var(--sun-edge);
     stroke-width: 2;
-    filter: drop-shadow(0 0 8px #ffcf3a);
+    filter: drop-shadow(0 0 8px var(--sun-glow));
   }
   .disc.night {
-    fill: #8a7a40;
-    stroke: #b8aa70;
+    fill: var(--sun-night);
+    stroke: var(--sun-night-edge);
     filter: none;
     opacity: 0.7;
   }
   .time {
-    fill: #fff;
+    fill: var(--sky-ink);
     font: 800 17px var(--font-code);
     text-anchor: middle;
     paint-order: stroke;
-    stroke: rgba(0, 0, 0, 0.6);
+    stroke: var(--sky-ink-halo);
     stroke-width: 3px;
   }
   .mode,
   .block {
-    fill: #fff;
+    fill: var(--sky-ink);
     font: 700 10px var(--font-ui);
     text-anchor: middle;
     paint-order: stroke;
-    stroke: rgba(0, 0, 0, 0.6);
+    stroke: var(--sky-ink-halo);
     stroke-width: 3px;
   }
   .block {
