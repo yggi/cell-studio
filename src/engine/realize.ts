@@ -726,6 +726,16 @@ function valueThen<T extends { at: number; ramp?: boolean }>(s: readonly T[], ti
   return v(s[i]) + ((v(next) - v(s[i])) * (time - s[i].at)) / Math.max(EPS, next.at - s[i].at);
 }
 
+/**
+ * The envelope a kit's member brings with it (its own env=&adsr). A voice played directly gets its env= folded
+ * into the product it is in; a kit is a table of voices picked per note, so the picked member's own is read here.
+ */
+function memberEnvelope(result: CompileResult, voice: string) {
+  const name = result.cells.get(voice)?.env;
+  const cell = name ? result.cells.get(name) : undefined;
+  return cell?.map?.kind === 'adsr' ? adsrOf(cell) : null;
+}
+
 /** Which voice a number plays on, and that voice's base frequency. */
 export function voiceFor(result: CompileResult, o: Output, value: number): { voice: string; freq: number } | null {
   if (!o.kit) return { voice: o.voice, freq: result.cells.get(o.voice)!.freq };
@@ -894,7 +904,8 @@ function plainEvents(p: Plan, from: number, to: number): Played[] {
         }
         const freq = v.freq * Math.pow(2, semis / 12);
         const params = paramTracks(p, v.voice, at, dur);
-        if (freq > 0 && freq < 20000 && level.some((l) => l.level > 0)) out.push({ at, dur, voice: v.voice, freq, bends, value: e.value + e.alter, gains: liveGains(t.output, p.muted), levels: level, ...(t.output.envelope ? { env: t.output.envelope } : {}), ...(t.output.through.length ? { instrument: t.output.through[0] } : {}), ...(params ? { params } : {}) });
+        const env = t.output.envelope ?? (t.output.kit ? memberEnvelope(result, v.voice) : null);
+        if (freq > 0 && freq < 20000 && level.some((l) => l.level > 0)) out.push({ at, dur, voice: v.voice, freq, bends, value: e.value + e.alter, gains: liveGains(t.output, p.muted), levels: level, ...(env ? { env } : {}), ...(t.output.through.length ? { instrument: t.output.through[0] } : {}), ...(params ? { params } : {}) });
     };
     if (t.selects.length === 0) {
       for (let lap = Math.floor(c0 / t.period) - 1; lap * t.period < c1; lap++)

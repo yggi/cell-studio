@@ -19,9 +19,12 @@ that makes the change. Also note changes to the language that could affect saved
 - Cell studio is now an installable app (PWA): it has an icon and a manifest, works offline after the first visit, and shows "New version ready" when an update is waiting (it never reloads by itself, so a playing piece is not cut off). The build is no longer one `index.html` but normal files with Tone loaded on first Play. Saved `.cells` pieces are not affected.
 
 ### Fixed
+- A kit's members now use their own `env=`: a drum read through a kit (`&drums over=&kit …`) used to ignore its envelope and ring for the whole step. This changes how **Drunken Sailor**, **IDM: drill**, **Automaton** and **Metronome** sound (their drums are as short as written); the levels of Drunken Sailor and Automaton were re-set to keep their loudness. Saved pieces that read a kit whose members have `env=` will sound different too.
+- **Metronome** no longer hisses: its clicks are short tonal ticks (higher and longer on the downbeat, lower and shorter for finer divisions) instead of noise bursts.
 - Opening a piece now starts it from rest: the transport stops at 0 and nothing sounds, even if another piece was playing (it used to carry on from where it was) or the new piece has tapes (their hiss sounded as soon as the piece opened).
 
 ### Added
+- The performance report now also lists our own per-frame work (transport + reactive flush, scopes, wheels, …), how long the main thread kept a task waiting, and how many notes started late or were left out; and its verdict flags a low frame rate and long frames even when there are no long tasks.
 - Tags have kinds: `genre:jazz`, `artist:Bach`, and a tag with no prefix is a topic. The library shows the names without the prefix, as before; a piece saved earlier with bare tags keeps working (a bare `jazz` or `Bach` is read as the genre or artist, any other bare tag as a topic), so its tags land on the same chips as the examples'. The examples now use a fixed vocabulary of tags (`src/engine/tags.ts`).
 - A performance overlay and a copyable performance report for measuring on a real device: open the app with `?perf` (or Files ▾ → Show performance report), press Record, play a piece, Stop, Copy report. See `docs/ui/performance.md`.
 - The running build's version and commit, shown in the **Files** menu.

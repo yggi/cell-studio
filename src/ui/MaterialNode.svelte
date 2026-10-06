@@ -11,6 +11,7 @@
   import { clocking } from '../engine/realize';
   import { BODIES } from '../engine/compile';
   import { load, watchLoad } from '../audio/load';
+  import { timed } from '../audio/stats';
   import FreePills from './FreePills.svelte';
 
   let { id, data }: NodeProps = $props();
@@ -45,6 +46,9 @@
       // (~30 a second: the wobble is a slow shimmer, and reading the analyser is not free)
       if (document.hidden || t - lastT < 33 * load.scale) return;
       lastT = t;
+      timed('resonator', () => step(t));
+    };
+    const step = (t: number) => {
       const r = ctx.resonance(d.name);
       if (!r) {
         if (wobble !== 'none') (wobble = 'none'), (amps = []), (pads = []);
@@ -113,6 +117,9 @@
       raf = requestAnimationFrame(tick);
       if (document.hidden || now - lastT < 33 * load.scale) return;
       lastT = now;
+      timed('tape', () => step());
+    };
+    const step = () => {
       const p = ctx.tapePos(d.name);
       if (p === null) return void (running = false);
       // (a new run starts on a blank tape — the sound's was wound off when it stopped)

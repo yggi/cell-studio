@@ -1,3 +1,5 @@
+import { marks } from '../audio/stats';
+
 /**
  * Performance report: what the page felt like while a piece played, on the device in your hand. The
  * numbers come from the browser itself (frame intervals, long tasks, long animation frames, the audio
@@ -105,6 +107,41 @@ export interface Playout {
   maximumLatency: number;
 }
 
+/** One kind of per-frame work our own code timed (audio/stats.ts `timed`): how much of the time it took, how long each run. */
+export interface MarkStats {
+  name: string;
+  count: number;
+  totalMs: number;
+  meanMs: number;
+  p95Ms: number;
+  maxMs: number;
+}
+
+export function summarizeMarks(events: readonly { name: string; d: number }[]): MarkStats[] {
+  const by = new Map<string, number[]>();
+  for (const e of events) (by.get(e.name) ?? by.set(e.name, []).get(e.name)!).push(e.d);
+  return [...by]
+    .map(([name, ds]) => {
+      const s = [...ds].sort((a, b) => a - b);
+      const total = ds.reduce((a, b) => a + b, 0);
+      return { name, count: ds.length, totalMs: total, meanMs: total / ds.length, p95Ms: percentile(s, 95), maxMs: s[s.length - 1] };
+    })
+    .sort((a, b) => b.totalMs - a.totalMs);
+}
+
+export interface QueueStats {
+  medianMs: number;
+  p95Ms: number;
+  maxMs: number;
+}
+
+export interface NoteStats {
+  played: number;
+  late: number;
+  dropped: number;
+  worstLateMs: number;
+}
+
 export interface ReportData {
   version: string;
   when: string;
@@ -127,6 +164,12 @@ export interface ReportData {
   long: LongStats;
   /** null where the browser has no long-animation-frame API. */
   loaf: LoafStats | null;
+  /** Our own timed work per frame (null when none was recorded). */
+  marks: MarkStats[] | null;
+  /** How long a task waited for the main thread (a message to ourselves every 100 ms): null if not measured. */
+  queue: QueueStats | null;
+  /** Notes the player scheduled in the window, and how many the page let be late. */
+  notes: NoteStats | null;
   /** The live views' refresh stretch (audio/load.ts): 1 = full rate. */
   loadScale: { mean: number; max: number };
   audio: {
@@ -152,9 +195,14 @@ export function verdict(r: ReportData): string[] {
   if (r.audio.playout && r.audio.playout.events > 0) out.push(`Audio underran ${r.audio.playout.events} time(s) (${n1(r.audio.playout.seconds * 1000)} ms in all): that is audible.`);
   else if (r.audio.playout) out.push('No audio underruns reported.');
   if (r.audio.clockRatio !== null && r.audio.clockRatio < 0.98) out.push(`The audio clock ran slow (${r.audio.clockRatio.toFixed(3)} of real time): the audio thread was starved.`);
+  if (r.notes && r.notes.dropped > 0) out.push(`${r.notes.dropped} note(s) were left out for starting more than 50 ms late (worst ${n0(r.notes.worstLateMs)} ms): that is audible.`);
+  else if (r.notes && r.notes.late > 0) out.push(`${r.notes.late} note(s) started a little late (worst ${n0(r.notes.worstLateMs)} ms).`);
+  if (r.queue && r.queue.p95Ms > 50) out.push(`The main thread answered slowly: a task waited up to ${n0(r.queue.maxMs)} ms (95th percentile ${n0(r.queue.p95Ms)} ms).`);
+  if (r.loaf && r.playingSeconds >= 3 && r.loaf.totalMs / (r.playingSeconds * 1000) > 0.05)
+    out.push(`Frames longer than 50 ms took ${n0((100 * r.loaf.totalMs) / (r.playingSeconds * 1000))} % of the time (${r.loaf.count} of them): the page is not keeping up with the screen, whatever the long-task count says.`);
   if (r.long.maxMs > 100) out.push(`The longest main-thread stall was ${n0(r.long.maxMs)} ms (target: none over 100 ms).`);
   if (r.long.blockedPct > 25) out.push(`The main thread was inside long tasks ${n0(r.long.blockedPct)} % of the time (target: under 25 %).`);
-  if (r.frames.fps && r.frames.fps < 30) out.push(`Only ${n0(r.frames.fps)} frames a second reached the screen.`);
+  if (r.frames.fps && r.frames.fps < 45) out.push(`Only ${n0(r.frames.fps)} frames a second reached the screen (60 is full rate).`);
   if (r.loadScale.mean > 1.5) out.push(`The page was behind: the live views refreshed ${r.loadScale.mean.toFixed(1)}× slower than normal on average.`);
   if (!out.length) out.push('Nothing over the targets in this window.');
   return out;
@@ -181,6 +229,8 @@ export function buildReport(r: ReportData): string {
     lines.push(
       `| Long animation frames | ${r.loaf.count} · ${n0(r.loaf.totalMs)} ms in all, ${n0(r.loaf.blockingMs)} ms blocking · ${r.loaf.byInvoker.map(([k, c, ms]) => `${k} ×${c} (${n0(ms)} ms)`).join(', ') || '—'} |`,
     );
+  if (r.queue) lines.push(`| Main-thread responsiveness | a task waited median ${n1(r.queue.medianMs)} ms, p95 ${n1(r.queue.p95Ms)} ms, max ${n0(r.queue.maxMs)} ms |`);
+  if (r.notes) lines.push(`| Notes | ${r.notes.played} scheduled · ${r.notes.late} started late · ${r.notes.dropped} left out (> 50 ms late) · worst ${n0(r.notes.worstLateMs)} ms late |`);
   lines.push(`| Live views' refresh stretch | mean ${r.loadScale.mean.toFixed(2)}×, max ${r.loadScale.max.toFixed(2)}× (1× = full rate) |`);
   lines.push(
     `| Audio | ${r.audio.state ?? 'not started'}${r.audio.sampleRate ? ` · ${r.audio.sampleRate} Hz` : ''}${r.audio.baseLatencyMs !== null ? ` · base latency ${n1(r.audio.baseLatencyMs)} ms` : ''}${r.audio.outputLatencyMs !== null ? ` · output latency ${n1(r.audio.outputLatencyMs)} ms` : ''}${r.audio.clockRatio !== null ? ` · clock ${r.audio.clockRatio.toFixed(3)}× real time` : ''} |`,
@@ -191,6 +241,15 @@ export function buildReport(r: ReportData): string {
       : '| Audio underruns | not reported by this browser |',
   );
   if (r.heapMB !== null) lines.push(`| JS heap | ${n0(r.heapMB)} MB |`);
+  if (r.marks?.length) {
+    lines.push('');
+    lines.push('Our own per-frame work (steady playback; share = of the window):');
+    lines.push('');
+    lines.push('| work | runs | total | share | mean | p95 | max |');
+    lines.push('|---|---|---|---|---|---|---|');
+    for (const m of r.marks) lines.push(`| ${m.name} | ${m.count} | ${n0(m.totalMs)} ms | ${n1((100 * m.totalMs) / Math.max(1, (r.basis === 'playing' ? r.playingSeconds : r.seconds) * 1000))} % | ${n1(m.meanMs)} ms | ${n1(m.p95Ms)} ms | ${n1(m.maxMs)} ms |`);
+    lines.push('');
+  }
   lines.push('');
   lines.push(...verdict(r).map((v) => `- ${v}`));
   lines.push('');
@@ -212,6 +271,7 @@ interface Sample {
   scale: number;
   audioTime: number | null;
   playout: Playout | null;
+  notes: NoteStats | null;
   heap: number | null;
 }
 
@@ -222,6 +282,7 @@ interface AudioNow {
   outputLatency: number | null;
   currentTime: number | null;
   playout: Playout | null;
+  notes: NoteStats | null;
 }
 
 export interface PerfSources {
@@ -239,6 +300,9 @@ export class PerfCollector {
   private frames: { t: number; d: number; p: boolean }[] = [];
   private tasks: { t: number; d: number; p: boolean }[] = [];
   private loafs: { t: number; l: Loaf; p: boolean }[] = [];
+  private queue: { t: number; d: number; p: boolean }[] = [];
+  private channel: MessageChannel | null = null;
+  private pingAt = 0;
   private samples: Sample[] = [];
   private raf = 0;
   private timer: ReturnType<typeof setInterval> | undefined;
@@ -275,7 +339,20 @@ export class PerfCollector {
     };
     this.raf = requestAnimationFrame(frame);
     this.sample();
-    this.timer = setInterval(() => this.sample(), 500);
+    marks.events.length = 0;
+    marks.on = true;
+    this.timer = setInterval(() => {
+      this.sample();
+      // how long a task waits for the main thread: a message to ourselves, answered when the thread is free
+      if (this.channel) {
+        this.pingAt = performance.now();
+        this.channel.port2.postMessage(0);
+      }
+    }, 100);
+    if (typeof MessageChannel !== 'undefined') {
+      this.channel = new MessageChannel();
+      this.channel.port1.onmessage = () => this.push(this.queue, { t: performance.now(), d: performance.now() - this.pingAt, p: this.steady() });
+    }
     this.observe('longtask', (e) => {
       this.hasLongTask = true;
       this.push(this.tasks, { t: e.startTime, d: e.duration, p: this.steady() });
@@ -289,6 +366,9 @@ export class PerfCollector {
   }
 
   stop(): void {
+    marks.on = false;
+    this.channel?.port1.close();
+    this.channel = null;
     cancelAnimationFrame(this.raf);
     this.raf = 0;
     clearInterval(this.timer);
@@ -317,10 +397,13 @@ export class PerfCollector {
     if (a.length > CAP) a.splice(0, a.length - CAP);
   }
 
+  private ticks = 0;
   private sample() {
+    // (the timer runs every 100 ms for the responsiveness probe; the samples are every 500 ms)
+    if (this.ticks++ % 5 !== 0) return;
     const a = this.src.audio();
     const heap = (performance as unknown as { memory?: { usedJSHeapSize: number } }).memory?.usedJSHeapSize ?? null;
-    this.push(this.samples, { t: performance.now(), playing: this.steady(), scale: this.src.loadScale(), audioTime: a.currentTime, playout: a.playout, heap });
+    this.push(this.samples, { t: performance.now(), playing: this.steady(), scale: this.src.loadScale(), audioTime: a.currentTime, playout: a.playout, notes: a.notes, heap });
   }
 
   /** What the last `seconds` (or the window from `from`) looked like, for the live readout. */
@@ -363,6 +446,29 @@ export class PerfCollector {
       const b = withPlayout[withPlayout.length - 1].playout!;
       playout = { events: b.underrunEvents - a.underrunEvents, seconds: b.underrunDuration - a.underrunDuration, averageLatencyMs: b.averageLatency * 1000, maximumLatencyMs: b.maximumLatency * 1000 };
     }
+    // our own timed work, for the stretches that were steady playback
+    const steadyAt = (t: number) => {
+      let lo = 0;
+      let hi = this.samples.length - 1;
+      let at = -1;
+      while (lo <= hi) {
+        const mid = (lo + hi) >> 1;
+        if (this.samples[mid].t <= t) (at = mid), (lo = mid + 1);
+        else hi = mid - 1;
+      }
+      return at >= 0 && this.samples[at].playing;
+    };
+    const markEvents = marks.events.filter((e) => win(e.t) && (basis === 'all' || steadyAt(e.t)));
+    const queueDs = this.queue.filter((x) => win(x.t) && keep(x.p)).map((x) => x.d).sort((a, b) => a - b);
+    const withNotes = samples.filter((s) => s.notes);
+    const notes: NoteStats | null =
+      withNotes.length >= 2
+        ? (() => {
+            const a = withNotes[0].notes!;
+            const b = withNotes[withNotes.length - 1].notes!;
+            return { played: b.played - a.played, late: b.late - a.late, dropped: b.dropped - a.dropped, worstLateMs: b.worstLateMs };
+          })()
+        : null;
     const nav = navigator as Navigator & { deviceMemory?: number; userAgentData?: { mobile?: boolean } };
     const heaps = samples.map((s) => s.heap).filter((h): h is number => h !== null);
     return {
@@ -384,6 +490,9 @@ export class PerfCollector {
       frames,
       long,
       loaf,
+      marks: markEvents.length ? summarizeMarks(markEvents) : null,
+      queue: queueDs.length ? { medianMs: percentile(queueDs, 50), p95Ms: percentile(queueDs, 95), maxMs: queueDs[queueDs.length - 1] } : null,
+      notes,
       loadScale: { mean: scales.length ? scales.reduce((a, b) => a + b, 0) / scales.length : 1, max: scales.length ? Math.max(...scales) : 1 },
       audio: {
         state: audio.state,

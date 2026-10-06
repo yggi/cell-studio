@@ -21,6 +21,19 @@ latencies, how fast its clock ran against real time) and **audio underruns** whe
 (`AudioContext.playoutStats`; "not reported" otherwise), JS heap (Chrome), and a verdict in words against the
 targets of issue #13: no task over 100 ms, under 25 % blocked, no underruns.
 
+Since the first phone reports it also says:
+- **Our own per-frame work**: a table of what our code spends per frame, timed with `timed(name, fn)` from
+  `src/audio/stats.ts` (recorded only while the overlay is on): `transport + flush` (the transport clock write and the
+  whole reactive flush it sets going: live state, labels, pulses, glyphs), `scope`, `wheel` (with `wheel.read` for the
+  analyser reads and `wheel.draw`), `resonator`, `tape`. The share is of the steady-playback window. Add a mark around
+  new per-frame work you want to see; the minified build makes the browser's own script names useless.
+- **Main-thread responsiveness**: how long a message to ourselves waited for the main thread (every 100 ms): the
+  closest thing to "how busy is the page" without a profiler; a p95 over 50 ms is a stalled page.
+- **Notes**: scheduled, started a little late (shifted by the player), and left out for being more than 50 ms late
+  (audible). The real-device glitch proxy while `playoutStats` is not reported.
+- The verdict also flags a frame rate under 45 fps and frames longer than 50 ms taking more than 5 % of the time,
+  which can happen with zero long tasks: work in many tasks under 50 ms still halves the frame rate.
+
 Only **steady playback** counts: the first 3 s after each Play are left out (the audio engine and the reverb
 impulse start then), and a window with less than 3 s of steady playback says so instead of a verdict.
 
