@@ -1,4 +1,4 @@
-// The examples' index: what the library lists (title, tags, size, time) worked out once, at build
+// The examples' index: what the library lists (title, tags, size, time, the miniature) worked out once, at build
 // time, so the app compiles nothing to show it and fetches a piece's source only when it opens.
 // Used by the vite plugin (vite.config.ts: `virtual:examples-index`) and by the tests.
 import { readFileSync } from 'node:fs';
@@ -7,6 +7,7 @@ import { pieceTime, type PieceTime } from '../src/engine/duration';
 import { buildGraph } from '../src/engine/graph';
 import { ORDER, type PresetKey } from '../src/engine/order';
 import { pieceMeta } from '../src/engine/parser';
+import { miniature, type Miniature } from '../src/layout/miniature';
 import { canonicalTags } from '../src/engine/tags';
 
 export interface ExampleInfo {
@@ -20,6 +21,8 @@ export interface ExampleInfo {
   readonly time: PieceTime;
   /** The source's length, in bytes. */
   readonly bytes: number;
+  /** Its graph in miniature (src/layout/miniature.ts): the library draws it without fetching the piece. */
+  readonly miniature: Miniature | null;
 }
 
 /** Every example, in the library's order, from examples/<key>.cells (as the app reads them: no trailing newline). */
@@ -36,6 +39,7 @@ export function buildExamplesIndex(dir = 'examples'): ExampleInfo[] {
       size: buildGraph(r).nodes.filter((n) => !n.petalOf && !n.cell.note).length,
       time: pieceTime(r),
       bytes: Buffer.byteLength(source),
+      miniature: miniature(source),
     };
   });
 }
