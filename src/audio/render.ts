@@ -4,7 +4,8 @@
  * For saving as WAV, and for measuring — loudness, peaks, clipping — what a test
  * can't hear.
  */
-import { clocking, eventsBetween, plan, tapeMotion, type Plan } from '../engine/realize';
+import { eventsBetween, plan, type Plan } from '../engine/realize';
+import { tapeSpeeds } from '../engine/schedule';
 import type { CompileResult, Shifts } from '../engine/compile';
 import { pieceTime } from '../engine/duration';
 import { createVoices } from './voices';
@@ -28,15 +29,9 @@ export async function renderOffline(plan: Plan, seconds: number, tail = 2): Prom
       voices.sync(plan.result, plan.statics);
       // (the reverb prepares its impulse first: without it, the first notes would ring dry)
       await voices.ready();
-      for (const e of eventsBetween(plan, 0, seconds)) voices.play(e.voice, e.freq, e.at, e.dur, e.bends, e.gains, e.levels, e.env, e.params);
+      for (const e of eventsBetween(plan, 0, seconds)) voices.play(e);
       // sound tapes on a moving clock: their speed over the whole render
-      for (const tp of plan.result.tapes) {
-        const motion = tapeMotion(plan.result, clocking(plan.result, plan.statics), tp.name);
-        if (!motion.moving && !tp.dropout && !tp.heads.some((h) => h.wander > 0)) continue;
-        const pts: { at: number; speed: number }[] = [];
-        for (let x = 0; x <= seconds; x += 0.05) pts.push({ at: x, speed: motion.speed(x) });
-        voices.tapeSpeed(tp.name, pts);
-      }
+      for (const t of tapeSpeeds(plan, 0, seconds)) voices.tapeSpeed(t.tape, t.points);
     },
     seconds + tail,
     2,

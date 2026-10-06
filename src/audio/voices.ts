@@ -5,7 +5,7 @@
  * Sound parameters, in dough notation: s attack decay sustain release gain
  * lpf lpq hpf hpq pan penv pdec room delay. Only built after a user gesture.
  */
-import type { ParamTrack } from '../engine/realize';
+import type { ParamTrack, Played } from '../engine/realize';
 import { BODIES } from '../engine/compile';
 import type { CompileResult, Shifts } from '../engine/compile';
 import { DOUGH_SOURCES } from '../engine/dough-params';
@@ -15,17 +15,8 @@ type ToneNS = typeof import('tone');
 type Params = Readonly<Record<string, number | string>>;
 
 export interface VoiceBank {
-  play(
-    voice: string,
-    freq: number,
-    time: number,
-    duration: number,
-    bends: readonly { at: number; cents: number; ramp?: boolean }[],
-    gains: readonly [number, number],
-    levels: readonly { at: number; level: number; ramp?: boolean }[],
-    env?: { attack: number; decay: number; sustain: number; release: number },
-    params?: Readonly<Record<string, ParamTrack>>,
-  ): void;
+  /** Play a note (its times on the audio clock: see engine/schedule.ts `retime`). */
+  play(note: Played): void;
   /** Rebuild voices whose sound changed; drop ones that are gone. */
   sync(result: CompileResult, shifts: Shifts): void;
   /** A sound tape's speed over time (audio seconds): its delays follow — the heads' distances ÷ speed. */
@@ -876,7 +867,9 @@ export function createVoices(Tone: ToneNS): VoiceBank {
       }
     },
 
-    play(voice, freq, time, duration, bends, gains, levels, noteEnv, params) {
+    play(note) {
+      const { voice, freq, gains, env: noteEnv } = note;
+      let { at: time, dur: duration, bends, levels, params } = note;
       const b = built.get(voice);
       if (!b) return;
       // a resonator: a note strikes it — its value is where (0 … 7 across it)
