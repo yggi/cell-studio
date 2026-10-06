@@ -5,7 +5,7 @@
 
 <script lang="ts">
   import { onDestroy, untrack } from 'svelte';
-  import { noteColour } from './theme';
+  import { meterColour, noteColour } from './theme';
   import { cellView, hubLabel, type CellView, type Fill, type Segment } from '../layout/cellview';
   import { BORDER, border, coarsen } from '../layout/coarse';
   import { names, noteLabel, tonicOf, voiceBase } from '../layout/show';
@@ -14,12 +14,28 @@
   import { angleOf, fitFont, hubMax, turnDelta } from '../layout/dial';
   import { mod } from '../theory/modes';
   import { getGraphContext } from './context';
+  import { meterNow, type MeterRing } from '../layout/meters';
 
   /**
    * `interactive`: the rim turns the cell (detail sheet). In the graph the whole node just drags.
    * `fine`: draw every step of a long braid; by default one over ~160 segments is drawn coarser (`coarsen`).
    */
-  let { name, isMeter, size = 128, interactive = false, fine = false }: { name: string; isMeter: boolean; size?: number; interactive?: boolean; fine?: boolean } = $props();
+  let {
+    name,
+    isMeter,
+    size = 128,
+    interactive = false,
+    fine = false,
+    ring,
+  }: {
+    name: string;
+    isMeter: boolean;
+    size?: number;
+    interactive?: boolean;
+    fine?: boolean;
+    /** The meter that steps it (the edge to it isn't drawn: layout/meters.ts): its segments round the wheel, turning. */
+    ring?: MeterRing;
+  } = $props();
   const ctx = getGraphContext();
 
   // (the one wheel geometry: layout/wheel.ts)
@@ -311,6 +327,23 @@
 
   // the playhead: braids, and a selector's barrel (where in its sections)
   const hand = $derived((view.mode === 'braid' || view.mode === 'matrix') && liveLocal != null ? liveLocal / Math.max(1, cell?.steps ?? 1) : null);
+
+  // a meter as it plays: the wheel stays put, the step it's in now goes round, outlined and glowing in its colour
+  const beatAt = $derived(isMeter ? (ctx.live?.beatAt.get(name) ?? null) : null);
+  const meterAt = $derived(isMeter && view.mode === 'grid' && beatAt !== null ? meterNow(view.segments, beatAt) : null);
+  const meterLit = $derived(meterAt ? ringSegment(c, c, rInner, rOuter, view.segments[meterAt.at].t0, view.segments[meterAt.at].t1) : null);
+
+  // the ring of the meter that steps it: the meter's own segments, where they are on the meter, the one it's in now
+  // in full colour — so on a wheel the meter drives 1:1 the lit segment of the ring is beside the cell's own step now
+  const ringView = $derived(ring && ctx.program.cells.has(ring.name) ? cellView(ctx.program, ring.name, shown, true) : null);
+  const ringBeat = $derived(ring ? (ctx.live?.beatAt.get(ring.name) ?? null) : null);
+  const ringNow = $derived(ringView && ringBeat !== null ? meterNow(ringView.segments, ringBeat) : null);
+  const ringPaths = $derived.by(() => {
+    if (!ringView) return [];
+    const [r0, r1] = [c + 2, c + 2 + Math.max(3, 6 * k)];
+    const gap = ringView.segments.length > 1 ? 0.006 : 0;
+    return ringView.segments.map((sg) => ringSegment(c, c, r0, r1, sg.t0 + gap, sg.t1 - gap));
+  });
   // show=lfo: one cycle round the ring — its value the radius; a dot at its phase while playing
   const lfoPath = $derived.by(() => {
     if (view.mode !== 'lfo' || !view.wave) return null;
@@ -435,7 +468,10 @@
       {@render slots()}
     </g>
   {:else}
-    <g class="rim" class:easing style="transform: rotate({spin}deg); transform-origin: {c}px {c}px">{@render slots()}</g>
+    <g class="rim" class:easing style="transform: rotate({spin}deg); transform-origin: {c}px {c}px">
+      {@render slots()}
+      {#if meterLit}<path class="meter-now" d={meterLit} />{/if}
+    </g>
   {/if}
   {#if lfoPath}
     <circle class="lfo-rim" cx={c} cy={c} r={rInner + (rOuter - rInner) * 0.12} />
@@ -477,11 +513,16 @@
       <line x1={c} y1={c - geo.hand.r0} x2={c} y2={c - geo.hand.r1} style:stroke-width="{geo.hand.width}px" />
     </g>
   {/if}
-  {#each [...accessed] as i (i)}
+  {#each meterAt ? [] : [...accessed] as i (i)}
     {@const sg = view.segments[i]}
     {@const p = polarAt((sg.t0 + sg.t1) / 2, rInner + (rOuter - rInner) * 0.22)}
     <circle class="read" cx={p.x} cy={p.y} r={Math.max(2.2, size * 0.022)} />
   {/each}
+  {#if ringPaths.length}
+    <g class="meter-ring" style:--ring={meterColour(ring?.meter ?? 0)}>
+      {#each ringPaths as d, i (i)}<path {d} class:now={ringNow?.at === i} />{/each}
+    </g>
+  {/if}
   {#if zero !== null}
     {@const a = polarAt(zero, rOuter + 1 * k)}
     {@const b = polarAt(zero - 0.018, rOuter + margin)}
@@ -592,6 +633,24 @@
   /* the step playing now: brighter, no halo */
   .slot.lit path {
     filter: var(--wheel-lit);
+  }
+  /* a meter's step now: outlined in its colour, and glowing */
+  .meter-now {
+    fill: color-mix(in oklab, var(--meter, var(--accent)) 30%, transparent);
+    stroke: var(--meter, var(--accent));
+    stroke-width: 3;
+    stroke-linejoin: round;
+    filter: drop-shadow(0 0 4px var(--meter, var(--accent)));
+    pointer-events: none;
+  }
+  /* the ring of the meter that steps it: its segments faint, the one now in full colour, glowing */
+  .meter-ring path {
+    fill: var(--ring);
+    opacity: 0.3;
+  }
+  .meter-ring path.now {
+    opacity: 1;
+    filter: drop-shadow(0 0 3px var(--ring));
   }
   .hub {
     fill: var(--wheel-hub);

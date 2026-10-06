@@ -12,6 +12,7 @@ import { routing, type Routing } from '../../src/engine/routing';
 import { cellView } from '../../src/layout/cellview';
 import { effectiveShow } from '../../src/layout/show';
 import { flowNodeOf } from '../../src/ui/flownode';
+import { meterIndex, meterRings } from '../../src/layout/meters';
 import type { FlowNode } from '../../src/ui/types';
 
 export interface Piece {
@@ -42,7 +43,9 @@ function kindOf(p: CompileResult, n: FlowNode, shifts: Shifts): string {
   if (cell.mix || cell.sink) return `${where}:spectrum`;
   const isMeter = 'isMeter' in n.data && n.data.isMeter;
   const v = cellView(p, n.data.name, shifts, isMeter);
-  return [where, 'cell', isMeter ? 'meter' : v.mode, v.show].filter(Boolean).join(':');
+  // (a cell a meter steps wears that meter's ring: a kind of its own)
+  const ringed = 'ring' in n.data && n.data.ring ? 'ring' : '';
+  return [where, 'cell', isMeter ? 'meter' : v.mode, v.show, ringed].filter(Boolean).join(':');
 }
 
 export function fixtures(seconds: number, only: readonly string[]): Fixture[] {
@@ -56,9 +59,11 @@ export function fixtures(seconds: number, only: readonly string[]): Fixture[] {
     const shifts = codeShifts(program);
     const muted = new Set<string>();
     const piece: Piece = { key, title, program, shifts, routed: routing(program, muted), live: liveAt(program, shifts, muted, seconds) };
-    for (const g of buildGraph(program).nodes) {
+    const model = buildGraph(program);
+    const meters = { rings: meterRings(model), index: meterIndex(model) };
+    for (const g of model.nodes) {
       if (g.cell.note) continue;
-      const node = flowNodeOf(g, { x: 0, y: 0 }, false);
+      const node = flowNodeOf(g, { x: 0, y: 0 }, false, undefined, meters);
       const kind = kindOf(program, node, shifts);
       const live = piece.live.nodes.has(g.id);
       const had = kinds.get(kind);

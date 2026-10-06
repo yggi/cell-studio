@@ -1,3 +1,4 @@
+import type { MeterRing } from '../layout/meters';
 import type { Node } from '@xyflow/svelte';
 
 /** petal: an unnamed cell, drawn small hanging from its parent (no label, no edges). */
@@ -8,7 +9,7 @@ export type CellNodeData = {
   pinned: boolean;
   petal?: boolean;
   /** The meter that steps it (its edge isn't drawn: layout/meters.ts): which, and at what rate. */
-  ring?: { meter: number; rate: string };
+  ring?: MeterRing;
   /** A meter's own place among the piece's meters (its colour). */
   meterIndex?: number;
 };

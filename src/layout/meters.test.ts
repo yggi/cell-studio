@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { isGround, meterIndex, meterRings } from './meters';
+import { isGround, meterIndex, meterNow, meterRings } from './meters';
+import { liveAt } from '../engine/live';
+import { codeShifts } from '../engine/program';
 import { buildGraph } from '../engine/graph';
 import { compileSource } from '../engine/compile';
 import { PRESETS } from '../engine/presets';
@@ -39,5 +41,29 @@ describe('meters as ground', () => {
     const rings = new Map([...meterRings(m)].map(([id, r]) => [name(id), r.rate]));
     expect(rings.get('a')).toBe('÷2');
     expect(rings.get('b')).toBe('');
+  });
+});
+
+describe('a meter now, on its own wheel', () => {
+  // a swung bar: the first beat two thirds of it, the second a third
+  const swung = [
+    { index: 0, t0: 0, t1: 2 / 3 },
+    { index: 1, t0: 2 / 3, t1: 1 },
+  ];
+  it('is through its beat within that beat’s stretch of the wheel', () => {
+    expect(meterNow(swung, 0)).toEqual({ turn: 0, at: 0 });
+    expect(meterNow(swung, 0.5)!.turn).toBeCloseTo(1 / 3);
+    expect(meterNow(swung, 1)).toEqual({ turn: 2 / 3, at: 1 });
+    expect(meterNow(swung, 1.5)!.turn).toBeCloseTo(5 / 6);
+  });
+  it('is nothing for a beat the wheel doesn’t have', () => expect(meterNow(swung, 2)).toBeNull());
+  it('the live state says where each clock is in its cycle, in beats', () => {
+    const r = compileSource('&bar scan(1 1 1 1) step=120bpm\n&a step=&bar 0 2\n&v s=sine loop=C4\n&out loop=SAMPLE_RATE map=sample [&a * &v]');
+    for (const s of [0, 0.25, 0.6, 1.9, 2.1]) {
+      const at = liveAt(r, codeShifts(r), new Set(), s).beatAt.get('bar')!;
+      expect(at).toBeGreaterThanOrEqual(0);
+      expect(at).toBeLessThan(4);
+      expect(at).toBeCloseTo((s * 2) % 4, 6); // (120 bpm: two beats a second)
+    }
   });
 });
