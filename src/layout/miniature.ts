@@ -8,7 +8,8 @@
  * The colour is a kind (a negative code) or a note's hue (0 ≤ h < 360, to a tenth), never a CSS value: the theme resolves
  * it when it's drawn (MiniGraph.svelte). Sizes and the frame are derived here, per card or wheel.
  */
-import { codeShifts, compileSource, type CompileResult } from '../engine/compile';
+import { compileSource } from '../engine/compile';
+import { codeShifts, type CompileResult } from '../engine/program';
 import { buildGraph } from '../engine/graph';
 import { cellView } from './cellview';
 import { ForceLayout } from './physics';

@@ -4,7 +4,8 @@
  * the cell (its parts, &refs, and its tables, over=) — wherever it fits.
  * step= drivers aren't below in this sense: a melody's show never renames its meter.
  */
-import { codeShifts, entries, ROOT, resolveIn, resolvePitch, semitones, type CompileResult } from '../engine/compile';
+import { codeShifts, ROOT, type CompileResult } from '../engine/program';
+import { entries, resolveIn, resolvePitch, semitones } from '../engine/helix';
 import { modeName, mod } from '../theory/modes';
 import { SHOWS } from '../engine/parser';
 

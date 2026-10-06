@@ -6,7 +6,7 @@
  */
 import { eventsBetween, plan, type Plan } from '../engine/realize';
 import { tapeSpeeds } from '../engine/schedule';
-import type { CompileResult, Shifts } from '../engine/compile';
+import type { CompileResult, Shifts } from '../engine/program';
 import { pieceTime } from '../engine/duration';
 import { createVoices } from './voices';
 

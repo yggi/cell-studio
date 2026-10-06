@@ -5,7 +5,8 @@
 //
 //   npx vite-node tools/smoke-pick.ts   (or: npm run smoke -- --list)
 import { readFileSync } from 'node:fs';
-import { compileSource, type CompileResult } from '../src/engine/compile';
+import { compileSource } from '../src/engine/compile';
+import type { CompileResult } from '../src/engine/program';
 import { ORDER } from '../src/engine/order';
 import { pieceMeta } from '../src/engine/parser';
 

@@ -3,7 +3,7 @@
  * its saturation, and what erasing leaves); each read head a tap. Their speed (a moving clock) and a hand
  * scrubbing them move the delays.
  */
-import type { AudioTape } from '../../engine/compile';
+import type { AudioTape } from '../../engine/program';
 import { disposer, type Disposable, type ToneNS } from './nodes';
 
 type Delay = import('tone').Delay;

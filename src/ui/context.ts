@@ -1,5 +1,5 @@
 import { createContext } from 'svelte';
-import type { CompileResult, Shifts } from '../engine/compile';
+import type { CompileResult, Shifts } from '../engine/program';
 import type { LiveState } from '../engine/live';
 import { nodeStateOf, type Routing, type State } from '../engine/routing';
 import type { LiveSource } from '../audio/live';

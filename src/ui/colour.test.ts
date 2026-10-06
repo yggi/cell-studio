@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { compileSource, positionOctave } from '../engine/compile';
+import { compileSource } from '../engine/compile';
+import { positionOctave } from '../engine/helix';
 import { noteColour } from './theme';
 
 describe('colouring rule: 0 … 12 (C4 – C5) the natural range; other octaves muted, lighter above, darker below', () => {

@@ -7,7 +7,7 @@
  *    instead, so a busy or broken worker costs nothing worse than the local engine.
  * Either way the main thread keeps its own plan: the views read it (live state, tapes' positions).
  */
-import type { Env } from '../engine/compile';
+import type { Env } from '../engine/program';
 import { emptyWindow, grabIn, type FromEngine, type ToEngine } from '../engine/host';
 import { resetPhysics } from '../engine/physics';
 import type { Plan } from '../engine/realize';

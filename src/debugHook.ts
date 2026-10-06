@@ -2,7 +2,8 @@
  * `window.cellStudio`, for measuring from outside (the browser console, `tools/golden.mjs`, the smoke
  * test); documented in docs/testing.md.
  */
-import { codeShifts, compileSource, type CompileResult } from './engine/compile';
+import { compileSource } from './engine/compile';
+import { codeShifts, type CompileResult } from './engine/program';
 import { blockLevels, loudness, renderLength, renderPiece, sampleHash } from './audio/render';
 import type { Player } from './audio/player';
 

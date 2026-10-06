@@ -2,7 +2,7 @@
   import { fmWave } from '../engine/fm';
   /** show=wave: one cycle of a voice's waveform, in a disc. */
   import { waveform } from '../engine/wave';
-  import { codeShifts } from '../engine/compile';
+  import { codeShifts } from '../engine/program';
   import { noteName } from '../theory/modes';
   import { getGraphContext } from './context';
   import { fitFont, hubMax } from '../layout/dial';

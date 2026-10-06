@@ -10,7 +10,7 @@
   import { onDestroy, onMount } from 'svelte';
   import { getGraphContext } from './context';
   import { bandFreq, bandHue, bandsFromFFT, hslToRgb, restingProfile, wheelLUT } from '../layout/spectrum';
-  import { freqHue, gridName } from '../engine/compile';
+  import { freqHue, gridName } from '../engine/helix';
   import { noteName } from '../theory/modes';
   import { DOUGH_SOURCES } from '../engine/dough-params';
   import { onFrames } from '../audio/ticker';

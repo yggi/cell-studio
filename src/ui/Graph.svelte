@@ -4,7 +4,7 @@
   import '@xyflow/svelte/dist/style.css';
   import { onDestroy, untrack } from 'svelte';
   import { SvelteSet } from 'svelte/reactivity';
-  import type { CompileResult, Shifts } from '../engine/compile';
+  import type { CompileResult, Shifts } from '../engine/program';
   import { structureKey, type GraphEdge, type GraphModel, type GraphNode } from '../engine/graph';
   import type { LiveState } from '../engine/live';
   import { drawn, edgeStateOf, type Routing } from '../engine/routing';
