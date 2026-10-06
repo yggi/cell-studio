@@ -89,6 +89,7 @@ describe('layout quality', () => {
     expect(sum(now, (r) => r.crossings), `drawn crossings: ${record}`).toBeLessThanOrEqual(sum(base, (r) => r.crossings));
     expect(sum(now, (r) => r.intruders), `cells in a foreign cluster: ${record}`).toBeLessThanOrEqual(sum(base, (r) => r.intruders));
     expect(sum(now, (r) => r.clusters), `overlapping clusters: ${record}`).toBeLessThanOrEqual(sum(base, (r) => r.clusters));
+    expect(sum(now, (r) => r.aim), `read heads' cells turned from their heads: ${record}`).toBeLessThanOrEqual(sum(base, (r) => r.aim ?? Infinity));
     expect(sum(now, (r) => r.width * r.height), `area: ${record}`).toBeLessThanOrEqual(sum(base, (r) => r.width * r.height) * 1.05);
   });
 });
