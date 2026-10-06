@@ -51,3 +51,40 @@ keeps the rhythm), the most frequent one, or a split segment (two bands). I woul
     node tools/profile/burstlines.mjs profile-Prelude_and_Fugue_in_C_minor.json <dist-nomin>/index.html
 
 Baseline before any fix: 9–13 long tasks in 20–25 s, 100–200 ms each (×1).
+
+## Batch 1 result: cap the segments drawn (PR "Cap the segments drawn on long braids")
+Plan step 1 done: `coarsen()` in `src/layout/coarse.ts` (pure, tested), used by `CellGlyph` for braids; the cell
+sheet's interactive wheel passes `fine` and still draws every step. Engine, audio, examples untouched.
+
+**What was decided**
+- Cap 160 (buckets of at most 1/160 turn, 2.25°), not 128: `&roll` in hypercell has 145 segments and must stay as is.
+  Nothing else in `examples/` is over 160 except the Prelude's braids; `focus`/`zell` `&arp` have exactly 128.
+- Bucket rule: a bucket starts at a segment and takes the following ones while they end within 1/160 turn of its
+  start; a segment longer than that is never merged. Merged `t0/t1` are the union, so `lit` (playhead) works.
+- Colour: the **first non-rest** member (a rest only if all are), with its own bands, so a chord stays a chord and
+  bands are never mixed; show=levels: the member with the highest bar. First-step colour would have erased the notes:
+  most steps of the 1,120-step wheels are rests, and a note is a 0.3° sliver.
+- A merged note is drawn up to ~9× wider than its step (that is the point: it makes the notes visible).
+  The 1.5 px `--wheel-disc` stroke on each slot still eats ~half of a 2.25° segment at 196 px, so they read as thin ticks.
+- Only braids. `&tempo` (a 1,120-entry grid, show=meter) is not merged: grids use `index` for `accessed`/`zero`/tap.
+  It is not turned by the key tables (cheap), but is 1,120 static paths; look at it in batch 2/3 if it matters.
+- `CellGlyph`'s turn ease (`spin`) uses the full view (`full`), the drawing the coarse one (`view`).
+
+**Result** (production build, headless Chromium, `measure.mjs` 20 s; before = main, after = this branch; two repeats at x1)
+| Prelude and Fugue | before | after |
+|---|---|---|
+| `bursts.mjs` long tasks / 25 s, length | 12, 91–208 ms | 12, 63–120 ms |
+| DOM writes per burst | ~1,560–1,650 `fill`s | ~520–650 |
+| x1 busy %, long tasks (>50 ms), longest | 50.6 / 61.1 / 55.1 %; 9; 139 / 209 / 152 ms | 40.1 / 41.3 / 42.2 %; 9; 113 / 105 / 91 ms |
+| x4 busy %, long tasks, longest | 93 %; 104; 678 ms | 90.5 %; 111; 475 ms |
+
+The `fill` writes fall by ~60 % and the stalls are roughly 30–40 % shorter, but the bursts are **not gone**: still 9 long tasks per 20 s at x1, ~65–120 ms each.
+x4 is saturated (busy ~90 %) before and after, so it says little. Hypercell and Metronome did not change
+(x1: Hypercell 33.6–39.9 % before, 36–38.5 % after, run-to-run noise; Metronome 10.1 → 10.5 %).
+
+**For the next batch**: ~520–650 `fill` writes per burst remain (the figures `&lhFigure`/`&rhFigure` are 192 segments
+each, the rest 60–85). The remaining time is then mostly `cellView` itself (24 ms per turn, unchanged by this batch:
+it still builds every step) and Svelte's effects, so steps 2 (geometry vs fills) and 3 (memoise `entries()`) are next;
+a view that is built coarse in the first place (no 1,000-segment `cellView` for the glyph) would also cut the 10 %
+`view` share. Lower the cap or add a size-based cap (draw ≤ ~size/1.5 segments) only if 192 per figure is still a
+cost after that.
