@@ -40,7 +40,7 @@ export class Player {
       const T = await import('tone');
       // headroom: a context tuned for playback (a larger buffer) that schedules notes 0.3 s ahead —
       // a busy page (a large graph drawing) then doesn't make notes late or starve the sound
-      T.setContext(new T.Context({ latencyHint: 'playback', lookAhead: 0.3 }));
+      T.setContext(new T.Context({ latencyHint: 'playback', lookAhead: 0.3 }), true); // (true: dispose Tone's default context, or it keeps running beside ours)
       this.Tone = T;
     }
     await this.Tone.start();
