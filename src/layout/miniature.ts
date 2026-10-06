@@ -14,6 +14,7 @@ import { buildGraph } from '../engine/graph';
 import { cellView } from './cellview';
 import { ForceLayout } from './physics';
 import { kindOf } from './show';
+import { isGround } from './meters';
 
 /** A node's colour: a note's hue (0 ≤ h < 360, to a tenth of a degree) or one of these kinds. */
 export const VOICE = -1;
@@ -56,6 +57,8 @@ export function miniature(source: string): Miniature | null {
   const l = new ForceLayout(undefined, { live: false });
   l.setGraph(model);
   l.tick(TICKS);
+  l.placeMeters(); // (meters last, as the graph places them)
+  const kept = l.groundEdges();
   const shifts = codeShifts(result);
   const index = new Map<string, number>();
   const out: [number, number, number][] = [];
@@ -66,7 +69,10 @@ export function miniature(source: string): Miniature | null {
     out.push([whole(p.x), whole(p.y), colourOf(result, shifts, n.cell.name)]);
   }
   l.destroy();
+  // (as the graph draws them: a meter's edges are ground — meters.ts — drawn only where they cross nothing)
+  const byId = new Map(model.nodes.map((n) => [n.id, n]));
   const edges = model.edges.flatMap((e) => {
+    if (isGround(e, byId) && !kept.has(e.id)) return [];
     const a = index.get(e.source);
     const b = index.get(e.target);
     return a !== undefined && b !== undefined ? [[a, b] as const] : [];
@@ -87,28 +93,29 @@ export interface MiniShape {
 export function miniShape(m: Miniature, round: boolean): MiniShape {
   const xs = m.nodes.map((n) => n[0]);
   const ys = m.nodes.map((n) => n[1]);
-  // the box: at least a minimum size (a small graph stays small); in a wheel, square, with the
-  // graph inside the circle (corners are cut off); else padded out to 4:3
+  // nodes and edges sized to the frame, not to the graph (a small piece and a large one read alike): a radius is
+  // this share of the frame's width
+  const share = (colour: number) => ((colour === VOICE || colour === MIX ? 5.2 : colour === METER ? 5 : 4.2) / 100) * (round ? 1 : 0.8);
+  const biggest = Math.max(...m.nodes.map((n) => share(n[2])));
+  // the box: at least a minimum size (a small graph stays small), the graph and a pad round it — the pad and the
+  // largest node, whole, on every side (its radius grows with the box: solved for); in a wheel, square, with the
+  // graph inside the circle (corners are cut off); else 4:3
   const pad = 40;
+  const [spanX, spanY] = [Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys)];
   const cx = (Math.min(...xs) + Math.max(...xs)) / 2;
   const cy = (Math.min(...ys) + Math.max(...ys)) / 2;
-  let w = Math.max(640, Math.max(...xs) - Math.min(...xs) + 2 * pad);
-  let h = Math.max(480, Math.max(...ys) - Math.min(...ys) + 2 * pad);
+  let w: number;
+  let h: number;
   if (round) {
-    // the graph's corners within the circle: its diagonal is the circle's diameter
-    const side = Math.max(640, Math.hypot(Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys)) + 3 * pad);
-    w = h = side;
-  } else if (w / h > 4 / 3) h = (w * 3) / 4;
-  else w = (h * 4) / 3;
-  // nodes and edges sized to the frame, not to the graph: a small piece and a large one read alike
+    // the graph's corners within the circle: its diagonal (and a node at each end) is the circle's diameter
+    w = h = Math.max(640, (Math.hypot(spanX, spanY) + 3 * pad) / (1 - 2 * biggest));
+  } else {
+    w = Math.max(640, (spanX + 2 * pad) / (1 - 2 * biggest), (spanY + 2 * pad) / (3 / 4 - 2 * biggest));
+    h = (w * 3) / 4;
+  }
   const unit = w / 100;
   return {
-    nodes: m.nodes.map(([x, y, colour]) => ({
-      x,
-      y,
-      r: (colour === VOICE || colour === MIX ? 5.2 : colour === METER ? 5 : 4.2) * unit * (round ? 1 : 0.8),
-      colour,
-    })),
+    nodes: m.nodes.map(([x, y, colour]) => ({ x, y, r: share(colour) * w, colour })),
     edges: m.edges.map(([a, b]) => ({ x1: m.nodes[a][0], y1: m.nodes[a][1], x2: m.nodes[b][0], y2: m.nodes[b][1] })),
     box: [cx - w / 2, cy - h / 2, w, h],
     edge: (round ? 1.35 : 1.1) * unit,

@@ -285,14 +285,7 @@ export function flowRanks(model: { nodes: readonly { id: string }[]; edges: read
     }
     if (!changed) break;
   }
-  // time at the bottom: a meter (a clock: not a table that turns) that only drives sits under everything else
-  const meters = new Set(model.nodes.filter((n) => (n as { isMeter?: boolean }).isMeter).map((n) => n.id));
-  const pure = [...drivers].filter((d) => meters.has(d) && !played.has(d) && rank.has(d));
-  if (pure.length) {
-    const others = [...rank].filter(([id]) => !pure.includes(id)).map(([, r]) => r);
-    const floor = Math.min(0, ...others) - 1;
-    for (const d of pure) if (rank.get(d)! > floor) rank.set(d, Math.min(rank.get(d)!, floor));
-  }
+  // (a meter has no row of its own at the bottom: its edges are ground, and it's placed last — placeMeters)
   // notes (label= alone) sit at the top, by the sound card; anything else left (unused cells) at the bottom
   const top = Math.max(0, ...rank.values());
   for (const n of model.nodes) if (!rank.has(n.id)) rank.set(n.id, (n as { cell?: { note?: boolean } }).cell?.note ? top : 0);
@@ -707,6 +700,8 @@ export class ForceLayout {
   /** Forget every position: the next graph is laid out afresh (a piece just opened). */
   forget(): void {
     this.byId.clear();
+    this.placedMeters.clear();
+    this.keptGrounds.clear();
     this.bendAt.clear();
   }
 
@@ -857,6 +852,10 @@ export class ForceLayout {
 
     this.sim.nodes([...next.values()]);
     this.faces = this.faces.filter((f) => next.has(f.tape) && next.has(f.to));
+    // a meter's edges (ground): kept aside, to be drawn where they cross nothing once the meter is placed
+    this.grounds = model.edges.filter((e) => ground(e) && next.has(e.source) && next.has(e.target)).map((e) => ({ id: e.id, meter: e.target, cell: e.source }));
+    for (const id of [...this.keptGrounds]) if (!this.grounds.some((g) => g.id === id)) this.keptGrounds.delete(id);
+    for (const id of [...this.placedMeters]) if (!next.has(id)) this.placedMeters.delete(id);
     // the tapes turned to where everything is now (an edit that doesn't move anything doesn't turn them)
     this.turns = this.fitTurns((id) => this.position(id));
     this.explains = model.edges.filter((e) => e.kind === 'about' && next.has(e.source) && next.has(e.target)).map((e) => ({ note: next.get(e.source)!, cell: next.get(e.target)! }));
@@ -957,8 +956,165 @@ export class ForceLayout {
   /** Where everything is now, as quality.ts reads it: the nodes (a tag's name hides edges, but isn't a cell) and the edges as drawn. */
   private placed() {
     const nodes = [...this.byId.values()].map((n) => ({ id: n.id, x: n.x ?? 0, y: n.y ?? 0, r: n.radius, tags: n.tags, label: n.role === 'tag' }));
-    const edges = this.links.map((l) => ({ a: l.source, b: l.target, mid: this.bendAt.get(l.id) }));
+    const edges = [
+      ...this.links.map((l) => ({ a: l.source, b: l.target, mid: this.bendAt.get(l.id) as { x: number; y: number } | undefined })),
+      // (a meter's edges that are drawn: straight)
+      ...this.grounds.filter((g) => this.keptGrounds.has(g.id)).map((g) => ({ a: g.cell, b: g.meter, mid: undefined })),
+    ];
     return { nodes, edges };
+  }
+
+  /** A meter's edges (ground, meters.ts) and which of them are drawn. */
+  private grounds: { id: string; meter: string; cell: string }[] = [];
+  private keptGrounds = new Set<string>();
+  /** Meters this layout placed (and holds there): a meter dragged elsewhere isn't placed again. */
+  private placedMeters = new Set<string>();
+
+  /** Every drawn edge as short straight pieces (its spline), with its ends: what a meter's edge mustn't cross. */
+  private drawnPieces(skip: (a: string, b: string) => boolean): { a: string; b: string; seg: [number, number, number, number] }[] {
+    const out: { a: string; b: string; seg: [number, number, number, number] }[] = [];
+    for (const l of this.links) {
+      if (skip(l.source, l.target)) continue;
+      const a = this.byId.get(l.source);
+      const b = this.byId.get(l.target);
+      if (!a || !b) continue;
+      const m = this.bendAt.get(l.id) ?? { x: ((a.x ?? 0) + (b.x ?? 0)) / 2, y: ((a.y ?? 0) + (b.y ?? 0)) / 2 };
+      const pts = Array.from({ length: 9 }, (_, k) => splinePoint(a.x ?? 0, a.y ?? 0, m.x, m.y, b.x ?? 0, b.y ?? 0, k / 8));
+      for (let k = 0; k < 8; k++) out.push({ a: l.source, b: l.target, seg: [pts[k].x, pts[k].y, pts[k + 1].x, pts[k + 1].y] });
+    }
+    return out;
+  }
+
+  /** Can a straight edge from (x, y) — a meter of radius r — to this cell be drawn without crossing an edge or a node? */
+  private clear(x: number, y: number, r: number, meter: string, cell: string, pieces: ReturnType<ForceLayout['drawnPieces']>): boolean {
+    const c = this.byId.get(cell);
+    if (!c) return false;
+    const [cx, cy] = [c.x ?? 0, c.y ?? 0];
+    const len = Math.hypot(cx - x, cy - y);
+    if (len <= r + c.radius) return true;
+    // (the part outside both wheels: an edge is drawn beneath them)
+    const [ux, uy] = [(cx - x) / len, (cy - y) / len];
+    const [x1, y1, x2, y2] = [x + ux * r, y + uy * r, cx - ux * c.radius, cy - uy * c.radius];
+    for (const p of pieces) {
+      if (p.a === cell || p.b === cell || p.a === meter || p.b === meter) continue;
+      if (segmentsCross(x1, y1, x2, y2, ...p.seg)) return false;
+    }
+    for (const n of this.byId.values()) {
+      if (n.id === cell || n.id === meter || n.role === 'tag') continue;
+      // (through another wheel's middle: it would read as an edge to it)
+      const t = Math.max(0, Math.min(1, (((n.x ?? 0) - x1) * (x2 - x1) + ((n.y ?? 0) - y1) * (y2 - y1)) / ((x2 - x1) ** 2 + (y2 - y1) ** 2 || 1)));
+      if (Math.hypot(x1 + t * (x2 - x1) - (n.x ?? 0), y1 + t * (y2 - y1) - (n.y ?? 0)) < n.radius * 0.8) return false;
+    }
+    return true;
+  }
+
+  /**
+   * Meters last (#27): each meter that steps cells is put where most of its edges can be drawn straight without
+   * crossing a drawn edge or passing through a wheel (the least crowded, then the shortest, breaking ties), and held
+   * there. Which face of the drawing it sits in — inside a closed cycle or outside it — decides which cells it can
+   * reach, so a face too small for it still counts: its wheels are pushed apart to make room (makeRoom). Those edges
+   * are drawn (groundEdges); the rest aren't — the rings say it. Call after the layout settles.
+   */
+  placeMeters(): void {
+    const meters = [...new Set(this.grounds.map((g) => g.meter))];
+    const kept: { meter: string; cell: string }[] = [];
+    for (const m of meters) {
+      const node = this.byId.get(m);
+      // (one the user moved stays where they put it)
+      if (!node || (node.fx != null && !this.placedMeters.has(m))) continue;
+      const cells = this.grounds.filter((g) => g.meter === m).map((g) => g.cell);
+      const others = [...this.byId.values()].filter((n) => n.id !== m && n.role !== 'tag');
+      if (!others.length) continue;
+      const pieces = [
+        ...this.drawnPieces((a, b) => a === m || b === m),
+        ...kept.map((k) => {
+          const [a, b] = [this.byId.get(k.meter)!, this.byId.get(k.cell)!];
+          return { a: k.meter, b: k.cell, seg: [a.x ?? 0, a.y ?? 0, b.x ?? 0, b.y ?? 0] as [number, number, number, number] };
+        }),
+      ];
+      const xs = others.map((n) => n.x ?? 0);
+      const ys = others.map((n) => n.y ?? 0);
+      const reach = node.radius * 2 + this.opts.collidePad;
+      const [x0, x1, y0, y1] = [Math.min(...xs) - reach, Math.max(...xs) + reach, Math.min(...ys) - reach, Math.max(...ys) + reach];
+      const step = Math.max(40, Math.max(x1 - x0, y1 - y0) / 40);
+      let best: { x: number; y: number; n: number; crowd: number; len: number } | null = null;
+      for (let y = y0; y <= y1; y += step)
+        for (let x = x0; x <= x1; x += step) {
+          // (not on a wheel; nearer than it should be is crowding — room is made for it)
+          let crowd = 0;
+          let on = false;
+          for (const o of others) {
+            const d = Math.hypot((o.x ?? 0) - x, (o.y ?? 0) - y);
+            if (d < (node.radius + o.radius) * 0.6) on = true;
+            crowd += Math.max(0, node.radius + o.radius + this.opts.collidePad - d);
+          }
+          if (on) continue;
+          let n = 0;
+          let len = 0;
+          for (const c of cells)
+            if (this.clear(x, y, node.radius, m, c, pieces)) {
+              n++;
+              len += Math.hypot((this.byId.get(c)!.x ?? 0) - x, (this.byId.get(c)!.y ?? 0) - y);
+            }
+          if (!best || n > best.n || (n === best.n && (crowd < best.crowd - 1 || (crowd <= best.crowd + 1 && len < best.len)))) best = { x, y, n, crowd, len };
+        }
+      if (!best) continue;
+      node.x = node.fx = best.x;
+      node.y = node.fy = best.y;
+      node.vx = node.vy = 0;
+      this.placedMeters.add(m);
+      if (best.crowd > 0) this.makeRoom(m);
+      for (const c of cells) if (this.clear(best.x, best.y, node.radius, m, c, pieces)) kept.push({ meter: m, cell: c });
+    }
+    this.keptGrounds = this.groundsClear();
+  }
+
+  /**
+   * Room round a placed meter: wheels closer than they may be are pushed apart, the meter held — a little at a
+   * time, so each moves out of the way along where it was (the drawing keeps its faces).
+   */
+  private makeRoom(meter: string): void {
+    const nodes = [...this.byId.values()].filter((n) => n.role !== 'tag');
+    const pinned = (n: PhysNode) => n.id === meter || this.placedMeters.has(n.id) || n.fx != null;
+    for (let round = 0; round < 60; round++) {
+      let moved = false;
+      for (let i = 0; i < nodes.length; i++)
+        for (let j = i + 1; j < nodes.length; j++) {
+          const [a, b] = [nodes[i], nodes[j]];
+          const [pa, pb] = [pinned(a), pinned(b)];
+          if (pa && pb) continue;
+          const dx = (b.x ?? 0) - (a.x ?? 0);
+          const dy = (b.y ?? 0) - (a.y ?? 0);
+          const d = Math.hypot(dx, dy) || 1;
+          const short = a.radius + b.radius + this.opts.collidePad - d;
+          if (short <= 0.5) continue;
+          moved = true;
+          const [ux, uy] = [dx / d, dy / d];
+          const [sa, sb] = pa ? [0, 1] : pb ? [1, 0] : [0.5, 0.5];
+          a.x = (a.x ?? 0) - ux * short * sa * 0.5;
+          a.y = (a.y ?? 0) - uy * short * sa * 0.5;
+          b.x = (b.x ?? 0) + ux * short * sb * 0.5;
+          b.y = (b.y ?? 0) + uy * short * sb * 0.5;
+        }
+      if (!moved) break;
+    }
+  }
+
+  /** A meter's edges that can be drawn now, from where everything is (ones that cross nothing). */
+  private groundsClear(): Set<string> {
+    const keep = new Set<string>();
+    for (const g of this.grounds) {
+      const m = this.byId.get(g.meter);
+      if (!m) continue;
+      if (this.clear(m.x ?? 0, m.y ?? 0, m.radius, g.meter, g.cell, this.drawnPieces((a, b) => a === g.meter || b === g.meter))) keep.add(g.id);
+    }
+    return keep;
+  }
+
+  /** The meter edges (ground) to draw, by edge id: those clear of every other edge and wheel, as things stand now. */
+  groundEdges(): ReadonlySet<string> {
+    this.keptGrounds = this.groundsClear();
+    return this.keptGrounds;
   }
 
   /** Crossings as drawn (quality.ts: drawnCrossings). */
