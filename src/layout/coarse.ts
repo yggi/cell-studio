@@ -76,3 +76,15 @@ export function coarsen(segments: readonly Segment[], cap: number = MAX_SEGMENTS
   flush();
   return out;
 }
+
+/** The border (px) between segments: 1.5 for a plain wheel. */
+export const BORDER = 1.5;
+
+/**
+ * The border of a segment `span` turns wide on a wheel that was coarsened. The border is the disc's colour and
+ * would eat most of a merged segment (2.25° is ~3 px at the rim), so it tapers: none under 2.5°, growing
+ * linearly to the full border at 6°. Long steps, which stay as they are, keep their border.
+ */
+export function border(span: number): number {
+  return BORDER * Math.max(0, Math.min(1, (span * 360 - 2.5) / 3.5));
+}

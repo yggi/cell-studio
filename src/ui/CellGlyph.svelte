@@ -2,7 +2,7 @@
   import { untrack } from 'svelte';
   import { noteColour } from './theme';
   import { cellView, hubLabel, type CellView, type Fill, type Segment } from '../layout/cellview';
-  import { coarsen } from '../layout/coarse';
+  import { BORDER, border, coarsen } from '../layout/coarse';
   import { names, noteLabel, tonicOf, voiceBase } from '../layout/show';
   import { polar, ringSegment } from '../layout/geometry';
   import { angleOf, turnDelta } from '../layout/dial';
@@ -189,23 +189,30 @@
         : ringSegment(c, c, rInner + j * band, rInner + (j + 1) * band, s.t0, s.t1),
     );
   };
-  let laid: { c: number; rInner: number; rOuter: number; segments: readonly Segment[]; d: string[][] } | null = null;
+  // The border between segments (a stroke in the disc's colour): 1.5 px, as ever. On a wheel the cap merged it
+  // would eat most of a segment (2.25° is ~3 px at the rim), so there it tapers with the segment's width: none
+  // under 2.5°, full from 6° (`border`, long steps keep theirs). A function of the layout, so it is kept with it.
+  const merged = $derived(view.segments !== full.segments);
+  const borderOf = (s: Segment) => (merged ? border(s.t1 - s.t0) : BORDER);
+  type Laid = { d: string[]; w: number };
+  let laid: { key: string; segments: readonly Segment[]; slots: Laid[] } | null = null;
   const geometry = $derived.by(() => {
     const segments = view.segments;
-    const before = laid && laid.c === c && laid.rInner === rInner && laid.rOuter === rOuter ? laid : null;
+    const key = `${c} ${rInner} ${rOuter} ${merged}`;
+    const before = laid && laid.key === key ? laid : null;
     let changed = !before || before.segments.length !== segments.length;
-    const d = segments.map((s, i) => {
+    const slots = segments.map((s, i) => {
       const old = before?.segments[i];
-      if (before && old && sameLayout(old, s)) return before.d[i];
+      if (before && old && sameLayout(old, s)) return before.slots[i];
       changed = true;
-      return draw(s);
+      return { d: draw(s), w: borderOf(s) };
     });
     if (before && !changed) {
       laid = { ...before, segments }; // (the same drawing, for these segments)
-      return before.d;
+      return before.slots;
     }
-    laid = { c, rInner, rOuter, segments, d };
-    return d;
+    laid = { key, segments, slots };
+    return slots;
   });
   const fills = $derived(view.segments.map((s) => s.bands.map(fillOf)));
 
@@ -353,9 +360,9 @@
   <circle class="disc" cx={c} cy={c} r={rOuter + 6} />
   {#each ticks as t}<line class="tick" x1={t.x1} y1={t.y1} x2={t.x2} y2={t.y2} />{/each}
   {#snippet slots()}
-    {#each geometry as bands, i}
-      <g class="slot" class:lit={lit.has(i)}>
-        {#each bands as d, j}<path {d} fill={fills[i][j]} fill-rule="evenodd" />{/each}
+    {#each geometry as slot, i}
+      <g class="slot" class:lit={lit.has(i)} stroke-width={slot.w}>
+        {#each slot.d as d, j}<path {d} fill={fills[i][j]} fill-rule="evenodd" />{/each}
       </g>
     {/each}
   {/snippet}
@@ -519,7 +526,6 @@
   }
   .slot path {
     stroke: var(--wheel-disc);
-    stroke-width: 1.5;
     stroke-linejoin: round;
   }
   /* the step playing now: brighter, no halo */

@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { codeShifts, compileSource } from '../engine/compile';
 import { cellView, type Fill, type Segment } from './cellview';
-import { MAX_SEGMENTS, coarsen } from './coarse';
+import { BORDER, MAX_SEGMENTS, border, coarsen } from './coarse';
 
 const rest: Fill = { kind: 'rest' };
 const note = (hue: number, alter = 0): Fill => ({ kind: 'pitch', hue, octave: 4, alter });
@@ -127,5 +127,20 @@ describe('coarsen on the Prelude', () => {
       const v = cellView(r, n, sh, false);
       expect(coarsen(v.segments)).toBe(v.segments);
     }
+  });
+});
+
+describe('border', () => {
+  it('is full on wide segments, none on merged ones, and tapers between', () => {
+    const deg = (d: number) => d / 360;
+    expect(border(deg(30))).toBe(BORDER);
+    expect(border(deg(6))).toBe(BORDER);
+    expect(border(deg(360 / MAX_SEGMENTS))).toBe(0); // a bucket
+    expect(border(deg(2.5))).toBe(0);
+    expect(border(0.0003)).toBe(0);
+    const mid = border(deg(4));
+    expect(mid).toBeGreaterThan(0);
+    expect(mid).toBeLessThan(BORDER);
+    expect(border(deg(5))).toBeGreaterThan(mid); // (monotone)
   });
 });
