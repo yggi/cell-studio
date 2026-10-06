@@ -23,9 +23,22 @@ A tape's read heads are drawn round its wheel by how far along the tape they rea
 
 Not the write head (on top): its source sits *below* the tape in the signal flow, so turning it up drags the source's other parts across (tried: Resonanz 1 → 12 crossings, the library +15; moving the tape under its source instead, +18). If the write edge should meet the head, drawing the write head where the source is (at the bottom) would fit the flow; that's a design call.
 
+## Step 3: the physics' strengths (done)
+
+Why the physics undid good starts: not the pull back to the layered places (stronger `rankPull`/`columnPull` made it *worse*: 142 → 170–183 crossings), but too little untangling against springs that pull edges straight through each other. Swept over the library (500 ticks, and 220 as the app runs first: the same picture):
+
+| uncross / contract | crossings | area (M px²) | clusters / intruders | tape aim |
+|---|---|---|---|---|
+| 0.3 / 0.9 (before) | 142 | 69.9 | 52 / 170 | 29 |
+| 0.6 / 0.9 | 130 | 71.4 | 51 / 154 | 44 |
+| 0.3 / 0.6 | 127 | 72.5 | 49 / 150 | 31 |
+| **0.6 / 0.75 (now)** | **106** | **74.0** | **50 / 152** | **43** |
+| 1 / 0.6 | 94 | 82.1 | 44 / 135 | 62 |
+| 1.2 / 0.6 | 77 | 89.5 | 45 / 142 | 96 |
+
+(Tape aim: summed over the five tape pieces; 43 is at most 14° in any.) More untangling keeps paying in crossings but costs room (Cellscape +73 % at 1 / 0.6) and the heads' alignment; 0.6 / 0.75 is the knee. Chaotic per piece: 13 pieces cross less, 7 more (by 1–3: Hypercell 7 → 10, Per tonos 1 → 3). Tried and no better: more `centre`, less `charge`, shorter `repelRange`, `spread` off, less `kindRepel`.
+
 ## Next
 
-1. The pieces where the physics adds crossings to a good layered start (Cellscape 19 → 33, Baustelle 9 → 14, Korobeiniki 2 → 6, IDM 1 → 4, Brothers 1 → 4, Acid 0 → 2).
-2. Cluster-level placement for the tagged pieces.
-
-(#61, the library's miniatures, is done: #108.)
+1. Cluster-level placement for the tagged pieces (50 overlapping pairs, 152 intruders: the most left to gain).
+2. BWV 847 is still wide (≈ 3.7 × 1.4 k px).

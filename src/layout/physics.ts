@@ -341,13 +341,15 @@ export function columns(model: {
 // room for their labels, edges spread round each node (stars, symmetries), time and sound keep apart,
 // tagged cells cluster; edges straighten a little and keep well off nodes.
 export const DEFAULT_LAYOUT: LayoutOptions = {
-  uncross: 0.3,
+  // (uncross and contract: measured over the examples, docs/notes/27-layout.md — stronger untangling and softer
+  // springs cross a quarter less than 0.3 / 0.9, for about 6 % more room)
+  uncross: 0.6,
   repelRange: 380,
   degreeRepel: 0.08,
   collidePad: 34, // (room for the label under each node)
   straighten: 0.15,
   avoid: 0.6,
-  contract: 0.9,
+  contract: 0.75,
   partLength: 0.8,
   endPull: 0,
   rankPull: 0.05,
