@@ -15,6 +15,9 @@
   import { DOUGH_SOURCES } from '../engine/dough-params';
   import { onFrames } from '../audio/ticker';
   import { timed } from '../audio/stats';
+  import { fitFont, hubMax } from '../layout/dial';
+  import { wheelGeometry } from '../layout/wheel';
+  import { octaveMute, octaveOfFreq } from './theme';
 
   /** hub: what the hub says; without it, the note a voice sounds now (at rest, its pitch 0). */
   let { name, size = 120, hub: fixed = null }: { name: string; size?: number; hub?: { big: string; small: string } | null } = $props();
@@ -29,7 +32,9 @@
   // measured twice a second; the canvas steps by 16 px so a pinch doesn't rebuild the lookup each frame.
   let seen = $state(1);
   const px = $derived(Math.max(32, Math.min(Math.round(size * scale), Math.ceil((size * seen * scale) / 16) * 16)));
-  const lut = $derived(wheelLUT(px, px * 0.24, px * 0.47, BANDS, FRAMES));
+  // (the one wheel geometry, layout/wheel.ts, in the canvas's pixels)
+  const geo = $derived(wheelGeometry(size));
+  const lut = $derived(wheelLUT(px, (geo.rInner / size) * px, (geo.rOuter / size) * px, BANDS, FRAMES));
 
   // history[side][frame][band], frame 0 newest
   const history = new Float32Array(2 * FRAMES * BANDS);
@@ -43,12 +48,10 @@
     for (let b = 0; b < BANDS; b++) {
       const f = bandFreq(b, BANDS);
       const hue = (voice ? freqHue(ctx.program, name, f) : null) ?? bandHue(b, BANDS);
-      // the colouring rule: C4 … C5 the natural range, full colour; other octaves muted, lighter above,
-      // darker below
-      const ratio = f / 261.63;
-      const oct = ratio <= 2.0001 && ratio >= 1 ? 0 : Math.floor(Math.log2(ratio));
-      const o = Math.max(-3, Math.min(3, oct));
-      const sat = o === 0 ? 0.9 : 0.9 * (0.6 - 0.1 * (Math.abs(o) - 1));
+      // the colouring rule (theme.ts): C4 … C5 the natural range, full colour; other octaves muted, lighter
+      // above, darker below (a spectrum's full colour is a little stronger than a note's: it's dark round it)
+      const o = octaveOfFreq(f);
+      const sat = 0.9 * octaveMute(o);
       for (let i = 0; i < LEVELS; i++) {
         const t = Math.pow(i / (LEVELS - 1), 0.6); // lift quiet partials
         const [r, g, bl] = hslToRgb(hue, sat, Math.max(0.03, Math.min(0.85, 0.06 + 0.5 * t + o * 0.06 * t)));
@@ -69,6 +72,10 @@
   const onGrid = $derived(!fixed && !noise && cell?.voice ? gridName(ctx.program, name, sounding ?? cell.freq) : null);
   const hub = $derived(fixed ? fixed.big : (noise ?? (onGrid ? String(onGrid.position) : noteName(sounding ?? cell?.freq ?? 0))));
   const small = $derived(fixed?.small ?? (onGrid ? `${onGrid.nearest} ${onGrid.cents >= 0 ? '+' : '−'}${Math.abs(onGrid.cents)}¢` : ''));
+  // the hub's text fits the hub, or is left out; its second line from 80 px up
+  const hubWidth = $derived(2 * geo.rHub * 0.86);
+  const bigFont = $derived(fitFont(hubWidth, hub.length, hubMax(size, 16)));
+  const smallFont = $derived(size >= 80 && small ? fitFont(hubWidth, small.length, 10, 7) : null);
   const title = $derived(
     onGrid ? `&${onGrid.grid} ${onGrid.position} · nearest 12-tone ${onGrid.nearest}, ${onGrid.cents >= 0 ? '+' : '−'}${Math.abs(onGrid.cents)} cents` : undefined,
   );
@@ -168,10 +175,12 @@
   }
 
   // at rest (and whenever the voice changes), show its own partials
+  // (on whether it plays, not on the live state itself: that is a new object every tick)
+  const resting = $derived(!ctx.live);
   $effect(() => {
     void ctx.program;
     void ctx.shifts;
-    if (!ctx.live) {
+    if (resting) {
       fillResting();
       draw();
     }
@@ -199,9 +208,9 @@
   });
 </script>
 
-<div class="wheel" style="width: {size}px; height: {size}px">
+<div class="wheel" data-wheel="spectrum" style="width: {size}px; height: {size}px">
   <canvas bind:this={canvas} width={px} height={px} style="width: {size}px; height: {size}px"></canvas>
-  <span class="note" class:long={hub.length > 4} {title}>{hub}{#if small}<small>{small}</small>{/if}</span>
+  {#if bigFont}<span class="note" {title} style:font-size="{bigFont}px">{hub}{#if smallFont}<small style:font-size="{smallFont}px">{small}</small>{/if}</span>{/if}
 </div>
 
 <style>
@@ -218,17 +227,11 @@
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    max-width: 44%;
-    overflow: hidden;
-    text-overflow: ellipsis;
     white-space: nowrap;
     font: 700 16px var(--font-ui);
     color: var(--text);
     font-variant-numeric: tabular-nums;
     pointer-events: none;
-  }
-  .note.long {
-    font-size: 12px;
   }
   .note small {
     display: block;

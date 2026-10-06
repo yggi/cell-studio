@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { angleOf, nearestRotation, rotationFor, segmentAt, segmentAtTop, turnDelta } from './dial';
+import { angleOf, fitFont, hubMax, nearestRotation, rotationFor, segmentAt, segmentAtTop, turnDelta } from './dial';
 
 describe('dial', () => {
   it('rotationFor and segmentAtTop are inverse', () => {
@@ -24,5 +24,21 @@ describe('dial', () => {
     expect(angleOf(0, 1, 0, 0)).toBeCloseTo(0.5);
     expect(turnDelta(0.95, 0.05)).toBeCloseTo(0.1);
     expect(turnDelta(0.05, 0.95)).toBeCloseTo(-0.1);
+  });
+
+  it('fits a label to the room it has, or leaves it out', () => {
+    expect(fitFont(50, 1, 17)).toBe(17); // room to spare: as large as allowed
+    expect(fitFont(50, 6, 17)).toBeCloseTo(13.9, 1); // six characters in 50 px
+    expect(fitFont(13, 4, 17)).toBeNull(); // '5 Hz' in a petal's hub: too small to read
+    expect(fitFont(13, 1, 17)).toBeCloseTo(17, 0);
+    expect(fitFont(10, 2, 17, 7)).toBeCloseTo(8.3, 1);
+  });
+
+  it('scales a wheel\'s text with it, within limits', () => {
+    expect(hubMax(128)).toBe(17);
+    expect(hubMax(256)).toBe(17);
+    expect(hubMax(64)).toBe(9);
+    expect(hubMax(96)).toBeCloseTo(12.75);
+    expect(hubMax(44, 11)).toBe(9);
   });
 });

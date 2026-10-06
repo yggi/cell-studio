@@ -7,6 +7,8 @@
    * (an empty braid: the 12 grid) faintly.
    */
   import { polar, ringSegment } from '../layout/geometry';
+  import { fitFont } from '../layout/dial';
+  import { BORDER, wheelGeometry } from '../layout/wheel';
 
   export interface WheelToken {
     readonly label: string;
@@ -47,8 +49,10 @@
   } = $props();
 
   const c = $derived(size / 2);
-  const r0 = $derived(size * 0.27);
-  const r1 = $derived(size * 0.48);
+  // (the one wheel geometry: layout/wheel.ts)
+  const geo = $derived(wheelGeometry(size));
+  const r0 = $derived(geo.rInner);
+  const r1 = $derived(geo.rOuter);
   const total = $derived(tokens.reduce((a, t) => a + Math.max(t.weight, 0.0001), 0) || 1);
   const segments = $derived.by(() => {
     let at = -rotation;
@@ -62,10 +66,17 @@
   const under = (t0: number, t1: number) => hand !== null && ((hand - t0) % 1 + 1) % 1 < t1 - t0;
   const fill = (t: WheelToken, band: number) =>
     t.hues?.length ? noteColour(t.hues[band % t.hues.length], dim) : t.kind === 'rest' ? 'var(--wheel-rest)' : 'var(--wheel-ref)';
-  const fontFor = (span: number, label: string) => Math.max(9, Math.min(16, (span * Math.PI * 2 * (r0 + r1)) / 2 / Math.max(2, label.length) * 1.3));
+  // a step's label (written across) fits both its arc and the ring's width — at 3 and 9 o'clock the width is
+  // what it crosses; at least 7 px: the editor keeps every label
+  const fontFor = (span: number, label: string) =>
+    Math.max(7, fitFont(Math.min(span * Math.PI * (r0 + r1), r1 - r0) * 0.9, Math.max(2, label.length), Math.min(16, (r1 - r0) * 0.5), 0) ?? 7);
+  // the hub, laid out as at 232 px and scaled with the wheel; its text fits the hub
+  const u = $derived(size / 232);
+  const hubWidth = $derived(2 * geo.rHub * 0.86);
 </script>
 
-<svg width={size} height={size} viewBox="0 0 {size} {size}" class:dim role="group" aria-label="braid">
+<svg data-wheel="token" width={size} height={size} viewBox="0 0 {size} {size}" class:dim role="group" aria-label="braid">
+  <circle class="disc" cx={c} cy={c} r={geo.rDisc} />
   {#each segments as s (s.i)}
     {@const bands = s.t.kind === 'chord' && s.t.hues ? s.t.hues.length : 1}
     {@const mid = (s.t0 + s.t1) / 2}
@@ -98,20 +109,20 @@
           />
         {/each}
       {/if}
-      <path class="edge" d={ringSegment(c, c, r0, r1, s.t0, s.t1)} />
+      <path class="edge" stroke-width={BORDER} d={ringSegment(c, c, r0, r1, s.t0, s.t1)} />
       <text x={lx} y={ly} font-size={fontFor(s.t1 - s.t0, s.t.label)} class:ref={s.t.kind === 'ref'}>{s.t.label}</text>
     </g>
   {/each}
   {#if hand !== null}
-    {@const [hx0, hy0] = polar(c, c, r0 - 2, hand)}
-    {@const [hx1, hy1] = polar(c, c, r1 + 6, hand)}
-    <line class="hand" x1={hx0} y1={hy0} x2={hx1} y2={hy1} />
+    {@const [hx0, hy0] = polar(c, c, geo.hand.r0, hand)}
+    {@const [hx1, hy1] = polar(c, c, geo.hand.r1, hand)}
+    <line class="hand" style:stroke-width="{geo.hand.width}px" x1={hx0} y1={hy0} x2={hx1} y2={hy1} />
   {/if}
   <g class="hubbtn" role="button" tabindex="0" aria-label="Edit the whole braid" onclick={onhub} onkeydown={(e) => (e.key === 'Enter' || e.key === ' ') && onhub()}>
-    <circle cx={c} cy={c} r={r0 - 4} class="hub" />
-    <text x={c} y={c - 6} class="big" font-size={hub.big.length > 6 ? 14 : 20}>{hub.big}</text>
-    <text x={c} y={c + 12} class="small">{hub.small}</text>
-    <text x={c} y={c + 28} class="pen">✎</text>
+    <circle cx={c} cy={c} r={geo.rHub} class="hub" />
+    <text x={c} y={c - 6 * u} class="big" style:font-size="{fitFont(hubWidth, hub.big.length, 20 * Math.max(0.6, u), 0) ?? 9}px">{hub.big}</text>
+    <text x={c} y={c + 12 * u} class="small" style:font-size="{fitFont(hubWidth, hub.small.length, 11 * Math.max(0.8, u), 0) ?? 8}px">{hub.small}</text>
+    {#if size >= 160}<text x={c} y={c + 28 * u} class="pen">✎</text>{/if}
   </g>
 </svg>
 
@@ -125,19 +136,14 @@
     cursor: pointer;
     outline: none;
   }
-  .seg.live .edge {
-    stroke: var(--accent);
-    stroke-width: 4;
-  }
   .seg.live path:not(.edge) {
-    filter: brightness(1.35);
+    filter: var(--wheel-lit);
   }
   .seg.locked.live path:not(.edge) {
     opacity: 0.85;
   }
   .hand {
-    stroke: var(--accent);
-    stroke-width: 3;
+    stroke: var(--wheel-hand);
     stroke-linecap: round;
     pointer-events: none;
   }
@@ -170,8 +176,10 @@
   }
   .edge {
     fill: none;
-    stroke: var(--surface);
-    stroke-width: 2;
+    stroke: var(--wheel-disc);
+  }
+  .disc {
+    fill: var(--wheel-disc);
   }
   .dim .seg path:not(.edge) {
     opacity: 0.4;
@@ -187,14 +195,14 @@
   text.ref {
     fill: var(--ink-on-note);
     paint-order: stroke;
-    stroke: rgb(255 255 255 / 0.55);
+    stroke: var(--ink-halo);
     stroke-width: 3px;
   }
   .dim text {
     fill: var(--text-muted);
   }
   .hub {
-    fill: var(--code-bg);
+    fill: var(--wheel-hub);
   }
   .big {
     fill: var(--text);

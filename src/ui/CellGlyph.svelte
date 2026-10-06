@@ -1,11 +1,17 @@
+<script lang="ts" module>
+  // (each glyph's own ids for its patterns: counted, not drawn by chance)
+  let glyphs = 0;
+</script>
+
 <script lang="ts">
-  import { untrack } from 'svelte';
+  import { onDestroy, untrack } from 'svelte';
   import { noteColour } from './theme';
   import { cellView, hubLabel, type CellView, type Fill, type Segment } from '../layout/cellview';
   import { BORDER, border, coarsen } from '../layout/coarse';
   import { names, noteLabel, tonicOf, voiceBase } from '../layout/show';
   import { polar, ringSegment } from '../layout/geometry';
-  import { angleOf, turnDelta } from '../layout/dial';
+  import { wheelGeometry } from '../layout/wheel';
+  import { angleOf, fitFont, hubMax, turnDelta } from '../layout/dial';
   import { mod } from '../theory/modes';
   import { getGraphContext } from './context';
 
@@ -16,9 +22,13 @@
   let { name, isMeter, size = 128, interactive = false, fine = false }: { name: string; isMeter: boolean; size?: number; interactive?: boolean; fine?: boolean } = $props();
   const ctx = getGraphContext();
 
-  const c = $derived(size / 2);
-  const rOuter = $derived(c - 7);
-  const rInner = $derived(c * 0.44);
+  // (the one wheel geometry: layout/wheel.ts)
+  const geo = $derived(wheelGeometry(size));
+  const c = $derived(geo.c);
+  const margin = $derived(geo.margin);
+  const rOuter = $derived(geo.rOuter);
+  const k = $derived(geo.k);
+  const rInner = $derived(geo.rInner);
   const EPS = 1e-9;
 
   // A node can outlive its cell for a frame when the program changes (preset switch); render empty then.
@@ -59,6 +69,10 @@
   let easing = $state(false);
   // a braid's steps rotate as it turns: its new first step was at that step's start in the old
   // drawing, so start turned to there and ease home. A table's entries stay put (its hub says the change).
+  // (one pending frame each for the turn and the pop: a newer one replaces it, and none outlives the wheel)
+  let turnFrame = 0;
+  let popFrame = 0;
+  onDestroy(() => (cancelAnimationFrame(turnFrame), cancelAnimationFrame(popFrame)));
   let shownBefore: number | null = null;
   let viewBefore: typeof full | null = null;
   $effect(() => {
@@ -71,7 +85,8 @@
       if (first) {
         easing = false;
         spin = (delta > 0 ? first.t0 : first.t0 - 1) * 360;
-        requestAnimationFrame(() => requestAnimationFrame(() => ((easing = true), (spin = 0))));
+        cancelAnimationFrame(turnFrame);
+        turnFrame = requestAnimationFrame(() => (turnFrame = requestAnimationFrame(() => ((easing = true), (spin = 0)))));
       }
     }
     shownBefore = now;
@@ -83,7 +98,8 @@
     const big = label.big;
     if (lastBig !== null && big !== lastBig && !fast) {
       pop = false;
-      requestAnimationFrame(() => (pop = true));
+      cancelAnimationFrame(popFrame);
+      popFrame = requestAnimationFrame(() => (pop = true));
     }
     lastBig = big;
   });
@@ -156,9 +172,15 @@
   const label = $derived(
     cell ? hubLabel(ctx.program, name, shown, isMeter, hasLive ? bar : null) : { big: '', small: '' },
   );
+  // the hub's text fits the hub, or is left out (a petal's hub has room for a number, not a sentence); its
+  // second line from 80 px up
+  const hubWidth = $derived(2 * geo.rHub * 0.86);
+  const bigFont = $derived(fitFont(hubWidth, label.big.length, hubMax(size)));
+  const smallFont = $derived(size >= 80 && label.small ? fitFont(hubWidth, label.small.length, 11, 7) : null);
+  const curveFont = $derived(fitFont(rOuter * 1.6, label.small.length, 11, 7));
 
   // an accidental is striped: its own colour and the natural's (a semitone back for a sharp)
-  const uid = `g${Math.random().toString(36).slice(2, 8)}`;
+  const uid = `g${++glyphs}`;
   const stripeKey = (f: { hue: number; octave?: number; alter?: number }) => `${uid}-${Math.round(f.hue)}-${f.octave ?? 0}-${f.alter}`;
   const stripes = $derived.by(() => {
     const m = new Map<string, { a: string; b: string }>();
@@ -229,9 +251,9 @@
 
   const ticks = $derived(
     view.ticks <= 48
-      ? Array.from({ length: view.ticks }, (_, k) => {
-          const [x1, y1] = polar(c, c, rOuter + 1.5, k / view.ticks);
-          const [x2, y2] = polar(c, c, rOuter + 5, k / view.ticks);
+      ? Array.from({ length: view.ticks }, (_, i) => {
+          const [x1, y1] = polar(c, c, geo.tick.r0, i / view.ticks);
+          const [x2, y2] = polar(c, c, geo.tick.r1, i / view.ticks);
           return { x1, y1, x2, y2 };
         })
       : [],
@@ -267,7 +289,10 @@
     const sg = view.segments.find((sg) => sg.index === mod(shownShift, view.detents));
     return sg ? sg.t0 : null;
   });
-  const polarAt = (t: number, r: number) => ({ x: c + r * Math.cos(2 * Math.PI * t - Math.PI / 2), y: c + r * Math.sin(2 * Math.PI * t - Math.PI / 2) });
+  const polarAt = (t: number, r: number) => {
+    const [x, y] = polar(c, c, r, t);
+    return { x, y };
+  };
 
   // the playhead: braids, and a selector's barrel (where in its sections)
   const hand = $derived((view.mode === 'braid' || view.mode === 'matrix') && liveLocal != null ? liveLocal / Math.max(1, cell?.steps ?? 1) : null);
@@ -295,7 +320,7 @@
   });
   // a meter's beats, numbered
   const beatLabels = $derived.by(() => {
-    if (!isMeter || view.mode !== 'grid' || view.segments.length > 16) return [];
+    if (!isMeter || view.mode !== 'grid' || view.segments.length > 16 || size < 64) return [];
     const r = (rInner + rOuter) / 2;
     return view.segments.map((sg, i) => {
       const [x, y] = polar(c, c, r, (sg.t0 + sg.t1) / 2);
@@ -357,7 +382,7 @@
   }
 </script>
 
-<svg bind:this={svg} width={size} height={size} viewBox="0 0 {size} {size}" role="img" aria-label="&{name}: {label.big} {label.small}">
+<svg bind:this={svg} data-wheel="cell" data-mode={isMeter ? 'meter' : view.mode} data-show={view.show} width={size} height={size} viewBox="0 0 {size} {size}" role={interactive ? 'group' : 'img'} aria-label="&{name}: {label.big} {label.small}">
   {#if stripes.size}
     <defs>
       {#each [...stripes] as [id, st] (id)}
@@ -368,8 +393,8 @@
       {/each}
     </defs>
   {/if}
-  <circle class="disc" cx={c} cy={c} r={rOuter + 6} />
-  {#each ticks as t}<line class="tick" x1={t.x1} y1={t.y1} x2={t.x2} y2={t.y2} />{/each}
+  <circle class="disc" cx={c} cy={c} r={geo.rDisc} />
+  {#each ticks as t}<line class="tick" style:stroke-width="{geo.tick.width}px" x1={t.x1} y1={t.y1} x2={t.x2} y2={t.y2} />{/each}
   {#snippet slots()}
     {#each geometry as slot, i}
       <g class="slot" class:lit={lit.has(i)} stroke-width={slot.w}>
@@ -390,6 +415,7 @@
       tabindex="0"
       aria-label="Shift &{name}"
       aria-valuenow={shift}
+      aria-valuetext="shift {shift > 0 ? '+' : ''}{shift} of {view.detents}"
     >
       {@render slots()}
     </g>
@@ -421,18 +447,18 @@
   {#if curve}
     <polyline class="curve" points={curve} />
   {:else}
-  <circle class="hub" cx={c} cy={c} r={rInner - 3} />
+  <circle class="hub" cx={c} cy={c} r={geo.rHub} />
   {/if}
   {#if curve}
-    {#if size >= 80}<text class="small" x={c} y={c + rOuter * 0.55} dy="0.35em">{label.small}</text>{/if}
+    {#if size >= 80 && curveFont}<text class="small" x={c} y={c + rOuter * 0.55} dy="0.35em" style:font-size="{curveFont}px">{label.small}</text>{/if}
   {:else}
-  <text class="big" class:long={label.big.length > 5} class:pop onanimationend={() => (pop = false)} x={c} y={c} dy={label.small ? '0.1em' : '0.35em'}>{label.big}</text>
-  {#if label.small}<text class="small" x={c} y={c} dy="1.6em">{label.small}</text>{/if}
+  {#if bigFont}<text class="big" class:pop onanimationend={() => (pop = false)} x={c} y={c} dy={smallFont ? '0.1em' : '0.35em'} style:font-size="{bigFont}px">{label.big}</text>{/if}
+  {#if smallFont}<text class="small" x={c} y={c + (bigFont ?? 0) * 0.1} dy="1.45em" style:font-size="{smallFont}px">{label.small}</text>{/if}
   {/if}
-  {#if shownShift !== 0}<text class="shift" x={c} y={c - rInner + 14}>{shownShift > 0 ? '+' : ''}{shownShift}</text>{/if}
+  {#if shownShift !== 0 && size >= 80}<text class="shift" x={c} y={c - rInner * 0.5}>{shownShift > 0 ? '+' : ''}{shownShift}</text>{/if}
   {#if hand !== null}
     <g class="hand" style="transform: rotate({hand * 360}deg); transform-origin: {c}px {c}px">
-      <line x1={c} y1={c - rInner + 3} x2={c} y2={c - rOuter - 6} />
+      <line x1={c} y1={c - geo.hand.r0} x2={c} y2={c - geo.hand.r1} style:stroke-width="{geo.hand.width}px" />
     </g>
   {/if}
   {#each [...accessed] as i (i)}
@@ -441,9 +467,9 @@
     <circle class="read" cx={p.x} cy={p.y} r={Math.max(2.2, size * 0.022)} />
   {/each}
   {#if zero !== null}
-    {@const a = polarAt(zero, rOuter + 1)}
-    {@const b = polarAt(zero - 0.018, rOuter + 7)}
-    {@const d = polarAt(zero + 0.018, rOuter + 7)}
+    {@const a = polarAt(zero, rOuter + 1 * k)}
+    {@const b = polarAt(zero - 0.018, rOuter + margin)}
+    {@const d = polarAt(zero + 0.018, rOuter + margin)}
     <path class="zero" d="M{a.x},{a.y} L{b.x},{b.y} L{d.x},{d.y} Z" />
   {/if}
 </svg>
@@ -506,7 +532,6 @@
   }
   .tick {
     stroke: var(--wheel-tick);
-    stroke-width: 1.5;
   }
   .rim.easing {
     transition: transform 340ms cubic-bezier(0.2, 0.8, 0.2, 1);
@@ -542,7 +567,7 @@
   }
   /* the step playing now: brighter, no halo */
   .slot.lit path {
-    filter: brightness(1.3) saturate(1.15);
+    filter: var(--wheel-lit);
   }
   .hub {
     fill: var(--wheel-hub);
@@ -558,9 +583,6 @@
     font-size: 17px;
     font-weight: 700;
   }
-  .big.long {
-    font-size: 12px;
-  }
   .small {
     fill: var(--text-muted);
     font-size: 11px;
@@ -571,14 +593,13 @@
     font-weight: 700;
   }
   .hand line {
-    stroke: var(--accent);
-    stroke-width: 2.5;
+    stroke: var(--wheel-hand);
     stroke-linecap: round;
   }
   /* a table's entry read now: a dot, like a read head */
   .read {
-    fill: #fff;
-    stroke: rgba(0, 0, 0, 0.5);
+    fill: var(--wheel-read);
+    stroke: var(--wheel-read-edge);
     stroke-width: 1;
   }
   /* where a shifted table's 0 has gone: a notch at the rim */

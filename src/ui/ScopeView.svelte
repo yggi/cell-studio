@@ -7,18 +7,18 @@
    * one: the colour of its value as it goes.
    */
   import { getGraphContext } from './context';
+  import { NOTE_NAMES } from '../theory/modes';
   import { clocking } from '../engine/clocking';
   import { notesAt, valueAt, valuesAt } from '../engine/values';
   import { adsrOf, resolvePitch, semitones } from '../engine/compile';
   import { voiceBase } from '../layout/show';
-  import { noteColour } from './theme';
+  import { noteColour, scopeBand } from './theme';
   import { onFrames } from '../audio/ticker';
   import { timed } from '../audio/stats';
 
   let { name, w = 240, h = 150, round = false }: { name: string; w?: number; h?: number; round?: boolean } = $props();
-  const d = $derived({ name });
   const ctx = getGraphContext();
-  const cell = $derived(ctx.program.cells.get(d.name));
+  const cell = $derived(ctx.program.cells.get(name));
   const mode = $derived(cell && typeof cell.params.scope === 'string' ? cell.params.scope : 'stack');
   const channels = $derived(cell ? cell.units.flatMap((u) => (u.atom.kind === 'ref' ? [u.atom.name] : [])) : []);
   const W = $derived(w);
@@ -64,7 +64,7 @@
   const fold = $derived(P('fold') ?? (P('bins') !== undefined ? 0 : 12));
   const nBands = $derived(fold > 0 ? fold : Math.max(1, Math.round(P('bins') ?? 20)));
   const summed = $derived(PS('channels') !== 'split');
-  const NAMES12 = ['C', 'C♯', 'D', 'E♭', 'E', 'F', 'F♯', 'G', 'A♭', 'A', 'B♭', 'B'];
+  const NAMES12 = NOTE_NAMES;
   const LO = 30;
   const HI = 16000;
   type Bins = { levels: number[]; labels: string[]; hues: number[] };
@@ -217,7 +217,7 @@
     lanes.forEach((ln, li) => {
       const bw = laneW / ln.levels.length;
       ln.levels.forEach((lv, k) => {
-        g.fillStyle = lv > 0.01 ? `hsl(${ln.hues[k]} 80% ${Math.round(8 + lv * 52)}%)` : '#050b08';
+        g.fillStyle = scopeBand(ln.hues[k], lv);
         g.fillRect(li * laneW + k * bw, chh - 2, Math.ceil(bw), 2);
       });
     });
@@ -261,7 +261,7 @@
   );
 </script>
 
-<div class="scope" bind:this={root} class:round style:width="{W}px" style:height="{H}px" role="img" aria-label="Scope: {channels.join(', ')}">
+<div class="scope" data-wheel="scope" bind:this={root} class:round style:width="{W}px" style:height="{H}px" role="img" aria-label="Scope: {channels.join(', ')}">
   {#if mode === 'waterfall'}
     <canvas bind:this={canvas} width={Math.round(box.w)} height={Math.round(box.h)} style:left="{box.x}px" style:top="{box.y}px"></canvas>
     {#if lanes[0]}
@@ -316,8 +316,8 @@
     position: relative;
     overflow: hidden;
     border-radius: 10px;
-    background: radial-gradient(ellipse at 50% 40%, #0f2219, #050b08 80%);
-    border: 3px solid #2a2e35;
+    background: radial-gradient(ellipse at 50% 40%, var(--scope-face), var(--scope-black) 80%);
+    border: 3px solid var(--scope-bezel);
     box-shadow:
       inset 0 0 18px rgba(0, 0, 0, 0.8),
       0 6px 18px rgba(0, 0, 0, 0.5);
@@ -325,9 +325,9 @@
   /* the cathode-ray tube: round, its face darker and curving away at the edge */
   .scope.round {
     border-radius: 50%;
-    border: 6px solid #23262c;
+    border: 6px solid var(--scope-tube);
     box-shadow:
-      0 0 0 2px #0b0c0f,
+      0 0 0 2px var(--scope-tube-edge),
       0 8px 22px rgba(0, 0, 0, 0.6);
   }
   .glass {
@@ -347,7 +347,7 @@
     display: block;
   }
   .grid {
-    stroke: rgba(120, 255, 180, 0.08);
+    stroke: var(--scope-grid);
     stroke-width: 1;
   }
   .trace {
@@ -361,7 +361,7 @@
   }
   .bin {
     font: 700 8px var(--font-code);
-    fill: rgba(200, 255, 220, 0.6);
+    fill: var(--scope-ink);
     text-anchor: middle;
   }
   .ticks {
@@ -373,6 +373,6 @@
     position: absolute;
     transform: translateX(-50%);
     font: 700 8px var(--font-code);
-    color: rgba(200, 255, 220, 0.7);
+    color: var(--scope-tick);
   }
 </style>
