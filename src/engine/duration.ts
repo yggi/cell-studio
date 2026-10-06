@@ -157,3 +157,12 @@ export function mainTempo(result: CompileResult): { cell: string; free: FreeSpec
   }
   return null;
 }
+
+/** A piece anchored to the clock (anchor=11.55, hours.minutes): where the day stands in it at `now`, in seconds; null without an anchor. */
+export function anchoredAt(result: CompileResult, now: Date): number | null {
+  const anchor = [...result.cells.values()].find((c) => typeof c.params.anchor === 'number')?.params.anchor as number | undefined;
+  if (anchor === undefined) return null;
+  const sec = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
+  const at = Math.floor(anchor) * 3600 + Math.round((anchor % 1) * 100) * 60;
+  return (((sec - at) % 86400) + 86400) % 86400;
+}

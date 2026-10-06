@@ -9,7 +9,7 @@
   import { tagName } from '../engine/tags';
   import { tick } from 'svelte';
   import PieceNode from './PieceNode.svelte';
-  import type { Entry } from './Picker.svelte';
+  import type { Entry } from './entries';
 
   let {
     entries,
