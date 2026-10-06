@@ -1,0 +1,2 @@
+# Python tools in tools/ (bwv847.py, kern2cells.py, counterpoint.py): pip install -r tools/dev-requirements.txt
+music21==10.5.0
