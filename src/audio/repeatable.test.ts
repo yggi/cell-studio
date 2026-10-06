@@ -25,7 +25,10 @@ describe('none of our code that sounds is random', () => {
           .split('\n')
           .forEach((line, i) => {
             // (comments, line and block, may name them: the point of a comment is to say why not)
-            const code = line.replace(/^\s*(\/?\*+).*$/, '').replace(/\/\/.*$/, '').replace(/\/\*.*?\*\//g, '');
+            const code = line
+              .replace(/^\s*(\/?\*+).*$/, '')
+              .replace(/\/\/.*$/, '')
+              .replace(/\/\*.*?\*\//g, '');
             if (CHANCE.some((re) => re.test(code))) found.push(`${file}:${i + 1}: ${line.trim()}`);
           });
       expect(found).toEqual([]);

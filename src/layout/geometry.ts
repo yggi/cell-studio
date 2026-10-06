@@ -21,13 +21,9 @@ export function ringSegment(cx: number, cy: number, r0: number, r1: number, t0: 
   const [bx, by] = polar(cx, cy, r1, t1);
   const [c2x, c2y] = polar(cx, cy, r0, t1);
   const [dx, dy] = polar(cx, cy, r0, t0);
-  return [
-    `M ${f(ax)} ${f(ay)}`,
-    `A ${f(r1)} ${f(r1)} 0 ${large} 1 ${f(bx)} ${f(by)}`,
-    `L ${f(c2x)} ${f(c2y)}`,
-    `A ${f(r0)} ${f(r0)} 0 ${large} 0 ${f(dx)} ${f(dy)}`,
-    'Z',
-  ].join(' ');
+  return [`M ${f(ax)} ${f(ay)}`, `A ${f(r1)} ${f(r1)} 0 ${large} 1 ${f(bx)} ${f(by)}`, `L ${f(c2x)} ${f(c2y)}`, `A ${f(r0)} ${f(r0)} 0 ${large} 0 ${f(dx)} ${f(dy)}`, 'Z'].join(
+    ' ',
+  );
 }
 
 /** An arc at radius r from turn t0 to t1 (for text to follow); `back` runs it from t1 to t0, so that text on the lower half reads upright. */

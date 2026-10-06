@@ -78,7 +78,25 @@
   }
 </script>
 
-<div class="sun nodrag" data-wheel="sun" style:width="{S}px" style:height="{S}px" role="slider" tabindex="0" aria-label="The day" aria-valuetext="{hhmm}, {MODE_NAMES[where.mode]}, key of {NAMES[where.tonic]}" aria-valuenow={Math.floor(ofDay / 60)} aria-valuemin={0} aria-valuemax={1439} onpointerdown={down} onpointermove={move} onpointerup={up_} onpointercancel={up_} onlostpointercapture={up_} onkeydown={key}>
+<div
+  class="sun nodrag"
+  data-wheel="sun"
+  style:width="{S}px"
+  style:height="{S}px"
+  role="slider"
+  tabindex="0"
+  aria-label="The day"
+  aria-valuetext="{hhmm}, {MODE_NAMES[where.mode]}, key of {NAMES[where.tonic]}"
+  aria-valuenow={Math.floor(ofDay / 60)}
+  aria-valuemin={0}
+  aria-valuemax={1439}
+  onpointerdown={down}
+  onpointermove={move}
+  onpointerup={up_}
+  onpointercancel={up_}
+  onlostpointercapture={up_}
+  onkeydown={key}
+>
   <Handle type="target" position={Position.Top} class="center-handle" isConnectable={false} />
   <svg viewBox="0 0 {S} {S}" width={S} height={S}>
     <defs>

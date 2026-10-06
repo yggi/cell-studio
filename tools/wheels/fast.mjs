@@ -55,9 +55,17 @@ if (mockups) {
 await page.waitForSelector('figure[data-kind]', { timeout: 60000 });
 await page.waitForTimeout(1500); // (the spectra fill in from the made-up sound)
 const kinds = await page.$$eval('figure[data-kind]', (fs) =>
-  fs.map((f) => ({ key: f.dataset.kind, caption: f.querySelector('figcaption')?.textContent?.replace(/\s+/g, ' ').trim() ?? '', wheels: [...f.querySelectorAll('[data-wheel]')].map((w) => [w.dataset.wheel, w.dataset.mode, w.dataset.show].filter(Boolean).join(':')) })),
+  fs.map((f) => ({
+    key: f.dataset.kind,
+    caption: f.querySelector('figcaption')?.textContent?.replace(/\s+/g, ' ').trim() ?? '',
+    wheels: [...f.querySelectorAll('[data-wheel]')].map((w) => [w.dataset.wheel, w.dataset.mode, w.dataset.show].filter(Boolean).join(':')),
+  })),
 );
-const slug = (s) => s.replace(/[^\w@]+/g, '-').replace(/^-|-$/g, '').toLowerCase();
+const slug = (s) =>
+  s
+    .replace(/[^\w@]+/g, '-')
+    .replace(/^-|-$/g, '')
+    .toLowerCase();
 const figures = page.locator('figure[data-kind]');
 for (const [i, k] of kinds.entries()) {
   k.file = `${slug(k.key)}.png`;

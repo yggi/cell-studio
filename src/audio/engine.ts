@@ -101,7 +101,10 @@ export class WorkerEngine implements Engine {
   private pending = new Map<number, { asked: number; done: (w: Window | null) => void }>();
   private s = zero('worker');
 
-  constructor(port: Port, private deadline = 40) {
+  constructor(
+    port: Port,
+    private deadline = 40,
+  ) {
     this.port = port;
     port.onmessage = (e) => this.answer(e.data);
     port.onerror = () => this.fail();

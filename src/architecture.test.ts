@@ -12,8 +12,7 @@ const files = (dir: string): string[] =>
   );
 
 const FORBIDDEN = [/^svelte(\/|$)/, /^tone(\/|$)/, /^@xyflow\//, /\/(audio|ui)\//, /^\.\.\/(audio|ui)$/];
-const importsOf = (src: string): string[] =>
-  [...src.matchAll(/(?:^|\n)\s*(?:import|export)\s[^'";]*?from\s+['"]([^'"]+)['"]/g)].map((m) => m[1]);
+const importsOf = (src: string): string[] => [...src.matchAll(/(?:^|\n)\s*(?:import|export)\s[^'";]*?from\s+['"]([^'"]+)['"]/g)].map((m) => m[1]);
 
 describe('layering: engine/ and layout/ are pure', () => {
   for (const dir of ['engine', 'layout'])

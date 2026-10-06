@@ -29,7 +29,8 @@
       // an FM voice: its modulated wave (at its brightest), not its carrier's
       if (typeof cell?.params.fm === 'string') w = fmWave(ctx.program, name, 160);
       else if (src && BUILT_IN[src]) w = Float32Array.from({ length: 96 }, (_, i) => BUILT_IN[src](i / 95));
-      else if (src) w = Float32Array.from({ length: 96 }, (_, i) => Math.sin(i * 12.9898) * 0.8); // noise
+      else if (src)
+        w = Float32Array.from({ length: 96 }, (_, i) => Math.sin(i * 12.9898) * 0.8); // noise
       else w = waveform(ctx.program, name, codeShifts(ctx.program), 96);
     } catch {
       return '';

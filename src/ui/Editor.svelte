@@ -118,7 +118,9 @@
     {/each}
   </div>
   <div class="code">
-    <pre class="paint" bind:this={paint} aria-hidden="true">{#each painted as line, i}{#each line as t}<span class="t-{t.kind}">{t.text}</span>{/each}{i < painted.length - 1 ? '\n' : '\n '}{/each}</pre>
+    <pre class="paint" bind:this={paint} aria-hidden="true">{#each painted as line, i}{#each line as t}<span class="t-{t.kind}">{t.text}</span>{/each}{i < painted.length - 1
+          ? '\n'
+          : '\n '}{/each}</pre>
     <textarea
       bind:this={textarea}
       bind:value
@@ -132,8 +134,7 @@
       autocapitalize="off"
       autocomplete="off"
       wrap="soft"
-      aria-label="Cell program"
-    ></textarea>
+      aria-label="Cell program"></textarea>
   </div>
   <!-- the same lines, laid out like the textarea, to measure where they wrap -->
   <div class="mirror" bind:this={mirror} aria-hidden="true">

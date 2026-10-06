@@ -64,7 +64,12 @@ export function buildTapeNet(Tone: ToneNS, raw: AudioContext, tp: AudioTape): Ta
     loop.connect(loss);
     Tone.connect(loss, sat);
     sat.chain(keep, input);
-    nodes.push(loop, disposer(() => loss.disconnect()), sat, keep);
+    nodes.push(
+      loop,
+      disposer(() => loss.disconnect()),
+      sat,
+      keep,
+    );
     delays.push({ node: loop, base: tp.length });
   }
   // each head: its tap (and its print-through, a faint tap before it) into its own output,

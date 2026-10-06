@@ -22,7 +22,10 @@ const secs = Number(args.find((a) => /^\d+(\.\d+)?$/.test(a)) ?? 6);
 const TOL = Number(process.env.TOL ?? 1e-5);
 const KNOWN = { 'forks.cells': '#65', 'kalimba.cells': '#65' };
 const words = args.filter((a) => !/^\d+(\.\d+)?$/.test(a)).map((w) => w.toLowerCase());
-const files = readdirSync('examples').filter((f) => f.endsWith('.cells')).sort().filter((f) => !words.length || words.some((w) => f.includes(w)));
+const files = readdirSync('examples')
+  .filter((f) => f.endsWith('.cells'))
+  .sort()
+  .filter((f) => !words.length || words.some((w) => f.includes(w)));
 
 const server = await preview({ preview: { port: 0, host: '127.0.0.1' }, logLevel: 'error' });
 const browser = await chromium.launch({ args: ['--no-sandbox'] });
@@ -34,7 +37,15 @@ await page.addInitScript(() => {
   // mulberry32, seeded afresh before each render; the top frame of the caller is recorded while a render runs
   Math.random = () => {
     if (window.__calls) {
-      const where = (new Error().stack ?? '').split('\n').slice(2, 4).map((l) => l.trim().replace(/^at /, '').replace(/https?:\/\/[^/]+\//, ''));
+      const where = (new Error().stack ?? '')
+        .split('\n')
+        .slice(2, 4)
+        .map((l) =>
+          l
+            .trim()
+            .replace(/^at /, '')
+            .replace(/https?:\/\/[^/]+\//, ''),
+        );
       const key = where.join(' < ');
       window.__calls.set(key, [(window.__calls.get(key)?.[0] ?? 0) + 1, /esm-[\w-]+\.js/.test(where[0] ?? '')]);
     }
@@ -50,14 +61,17 @@ await page.waitForFunction(() => window.cellStudio?.render);
 
 const { readFileSync } = await import('node:fs');
 const render = (source) =>
-  page.evaluate(async ([src, s]) => {
-    window.__seed(1);
-    window.__calls = new Map();
-    const r = await window.cellStudio.render(src, s);
-    const calls = [...window.__calls];
-    window.__calls = null;
-    return { hash: r.hash, blocks: r.blocks, calls };
-  }, [source, secs]);
+  page.evaluate(
+    async ([src, s]) => {
+      window.__seed(1);
+      window.__calls = new Map();
+      const r = await window.cellStudio.render(src, s);
+      const calls = [...window.__calls];
+      window.__calls = null;
+      return { hash: r.hash, blocks: r.blocks, calls };
+    },
+    [source, secs],
+  );
 
 let bad = 0;
 const callers = new Map();
@@ -75,7 +89,9 @@ for (const f of files) {
   const ok = apart <= TOL || known;
   if (!ok) bad++;
   const how = a.hash === b.hash ? 'bit-identical' : `largest block difference ${dB}, first at ${((a.blocks.findIndex((x, i) => x !== b.blocks[i]) * 2048) / 44100).toFixed(2)} s`;
-  console.error(`${apart <= TOL ? 'same ' : known ? 'KNOWN' : 'DIFF '} ${f.padEnd(28)} ${how}${apart > TOL && known ? `  (${known})` : ''}${[...warm.calls, ...a.calls, ...b.calls].some(([, [, tone]]) => !tone) ? '  Math.random called by our code' : ''}`);
+  console.error(
+    `${apart <= TOL ? 'same ' : known ? 'KNOWN' : 'DIFF '} ${f.padEnd(28)} ${how}${apart > TOL && known ? `  (${known})` : ''}${[...warm.calls, ...a.calls, ...b.calls].some(([, [, tone]]) => !tone) ? '  Math.random called by our code' : ''}`,
+  );
 }
 await browser.close();
 await server.close();
@@ -85,5 +101,9 @@ for (const [where, [n, tone]] of callers) {
   console.error(`${tone ? 'Tone (known)' : 'OURS'}: Math.random ×${n}: ${where}`);
 }
 const fail = bad || ours;
-console.error(fail ? `${bad} of ${files.length} pieces differ between two renders${ours ? `; Math.random called from ${ours} place(s) of ours` : ''}` : `all ${files.length} pieces render the same twice (within ${(20 * Math.log10(TOL)).toFixed(0)} dB), none of our code calls Math.random`);
+console.error(
+  fail
+    ? `${bad} of ${files.length} pieces differ between two renders${ours ? `; Math.random called from ${ours} place(s) of ours` : ''}`
+    : `all ${files.length} pieces render the same twice (within ${(20 * Math.log10(TOL)).toFixed(0)} dB), none of our code calls Math.random`,
+);
 process.exit(fail ? 1 : 0);

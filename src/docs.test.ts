@@ -17,8 +17,7 @@ const pages = existsSync(DOCS) ? markdown(DOCS) : [];
 const read = (p: string) => readFileSync(p, 'utf8');
 
 /** The ```cells blocks of a page: each must compile standalone with no diagnostics. */
-const blocks = (text: string): string[] =>
-  [...text.matchAll(/^```cells\n([\s\S]*?)^```/gm)].map((m) => m[1]);
+const blocks = (text: string): string[] => [...text.matchAll(/^```cells\n([\s\S]*?)^```/gm)].map((m) => m[1]);
 
 describe('docs: language pages compile', () => {
   const language = pages.filter((p) => rel(p).startsWith('language/'));
@@ -39,8 +38,7 @@ describe('docs: structure', () => {
   // notes/ and decisions/ are listed as directories only; their files change too often
   const listed = pages.filter((p) => !/^(notes|decisions)\//.test(rel(p)) && rel(p) !== 'INDEX.md');
 
-  for (const page of listed)
-    it(`INDEX.md lists ${rel(page)}`, () => expect(index).toContain(`](${rel(page)})`));
+  for (const page of listed) it(`INDEX.md lists ${rel(page)}`, () => expect(index).toContain(`](${rel(page)})`));
 
   it('INDEX.md lists notes/ and decisions/', () => {
     expect(index).toContain('](notes/)');
@@ -59,7 +57,6 @@ describe('docs: structure', () => {
 
   it('every decision linked from MEMORY.md exists', () => {
     const memory = read(join(DOCS, 'MEMORY.md'));
-    for (const [, target] of memory.matchAll(/→ (decisions\/[\w.-]+\.md)/g))
-      expect(existsSync(join(DOCS, target)), target).toBe(true);
+    for (const [, target] of memory.matchAll(/→ (decisions\/[\w.-]+\.md)/g)) expect(existsSync(join(DOCS, target)), target).toBe(true);
   });
 });

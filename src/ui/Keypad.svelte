@@ -3,7 +3,14 @@
    * A free(…) with named choices, as a keypad: one key a value, the chosen one lit.
    * free(0, 0..30, "1 2 3 A 4 5 6 B 7 8 9 C * 0 # D") — a telephone's sixteen keys (every 2nd value).
    */
-  let { labels, value, lo, hi, onpick, size = 'small' }: { labels: readonly string[]; value: number; lo: number; hi: number; onpick: (v: number) => void; size?: 'small' | 'large' } = $props();
+  let {
+    labels,
+    value,
+    lo,
+    hi,
+    onpick,
+    size = 'small',
+  }: { labels: readonly string[]; value: number; lo: number; hi: number; onpick: (v: number) => void; size?: 'small' | 'large' } = $props();
   // (the names spread evenly over lo..hi: key i is lo + i × step)
   const step = $derived(labels.length > 1 ? (hi - lo) / (labels.length - 1) : 1);
   const at = (i: number) => lo + i * step;
@@ -12,10 +19,15 @@
 
 <div class="pad {size}" role="group" aria-label="Keypad" style:grid-template-columns="repeat({cols}, 1fr)">
   {#each labels as l, i (i)}
-    <button class:on={Math.round(value) === at(i)} aria-pressed={Math.round(value) === at(i)} onclick={(e) => {
+    <button
+      class:on={Math.round(value) === at(i)}
+      aria-pressed={Math.round(value) === at(i)}
+      onclick={(e) => {
         e.stopPropagation(); // (a key, not a tap on its cell)
         onpick(at(i));
-      }} onpointerdown={(e) => e.stopPropagation()}>{l}</button>
+      }}
+      onpointerdown={(e) => e.stopPropagation()}>{l}</button
+    >
   {/each}
 </div>
 
@@ -33,7 +45,9 @@
     font: 700 13px var(--font-code);
     padding: 6px 0;
     cursor: pointer;
-    transition: background 120ms ease, transform 80ms ease;
+    transition:
+      background 120ms ease,
+      transform 80ms ease;
   }
   .large button {
     font-size: 18px;

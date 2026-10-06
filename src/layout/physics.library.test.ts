@@ -87,10 +87,25 @@ describe('layout quality', () => {
     const base = JSON.parse(readFileSync(path, 'utf8')) as Record<string, Row>;
     expect(Object.keys(now).sort(), 'examples added or removed: record the baseline').toEqual(Object.keys(base).sort());
     const record = 'record it (UPDATE_LAYOUT_BASELINE=1) if the trade is worth it';
-    expect(sum(now, (r) => r.crossings), `drawn crossings: ${record}`).toBeLessThanOrEqual(sum(base, (r) => r.crossings));
-    expect(sum(now, (r) => r.intruders), `cells in a foreign cluster: ${record}`).toBeLessThanOrEqual(sum(base, (r) => r.intruders));
-    expect(sum(now, (r) => r.clusters), `overlapping clusters: ${record}`).toBeLessThanOrEqual(sum(base, (r) => r.clusters));
-    expect(sum(now, (r) => r.aim), `read heads' cells turned from their heads: ${record}`).toBeLessThanOrEqual(sum(base, (r) => r.aim ?? Infinity));
-    expect(sum(now, (r) => r.width * r.height), `area: ${record}`).toBeLessThanOrEqual(sum(base, (r) => r.width * r.height) * 1.05);
+    expect(
+      sum(now, (r) => r.crossings),
+      `drawn crossings: ${record}`,
+    ).toBeLessThanOrEqual(sum(base, (r) => r.crossings));
+    expect(
+      sum(now, (r) => r.intruders),
+      `cells in a foreign cluster: ${record}`,
+    ).toBeLessThanOrEqual(sum(base, (r) => r.intruders));
+    expect(
+      sum(now, (r) => r.clusters),
+      `overlapping clusters: ${record}`,
+    ).toBeLessThanOrEqual(sum(base, (r) => r.clusters));
+    expect(
+      sum(now, (r) => r.aim),
+      `read heads' cells turned from their heads: ${record}`,
+    ).toBeLessThanOrEqual(sum(base, (r) => r.aim ?? Infinity));
+    expect(
+      sum(now, (r) => r.width * r.height),
+      `area: ${record}`,
+    ).toBeLessThanOrEqual(sum(base, (r) => r.width * r.height) * 1.05);
   });
 });

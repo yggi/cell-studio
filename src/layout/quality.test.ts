@@ -54,7 +54,16 @@ describe('aim', () => {
     const up = -Math.PI / 2;
     expect(layoutQuality(ns, [], [{ from: 'tape', to: 'top', angle: up }]).aim).toBe(0);
     expect(layoutQuality(ns, [], [{ from: 'tape', to: 'right', angle: up }]).aim).toBe(90);
-    expect(layoutQuality(ns, [], [{ from: 'tape', to: 'top', angle: up }, { from: 'tape', to: 'right', angle: Math.PI }]).aim).toBe(90); // (0° and 180°)
+    expect(
+      layoutQuality(
+        ns,
+        [],
+        [
+          { from: 'tape', to: 'top', angle: up },
+          { from: 'tape', to: 'right', angle: Math.PI },
+        ],
+      ).aim,
+    ).toBe(90); // (0° and 180°)
     expect(layoutQuality(ns, []).aim).toBe(0);
   });
 });

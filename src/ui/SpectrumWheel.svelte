@@ -95,7 +95,10 @@
   }
 
   function push(left: Float32Array, right: Float32Array) {
-    for (const [side, bands] of [[0, left], [1, right]] as const) {
+    for (const [side, bands] of [
+      [0, left],
+      [1, right],
+    ] as const) {
       const base = side * FRAMES * BANDS;
       history.copyWithin(base + BANDS, base, base + (FRAMES - 1) * BANDS); // age everything one frame inward
       history.set(bands, base);
@@ -203,7 +206,9 @@
 
 <div class="wheel" class:resting data-wheel="spectrum" style="width: {size}px; height: {size}px">
   <canvas bind:this={canvas} {@attach onScreen((v) => (visible = v))} width={px} height={px} style="width: {size}px; height: {size}px"></canvas>
-  {#if bigFont}<span class="note" {title} style:font-size="{bigFont}px">{hub}{#if smallFont}<small style:font-size="{smallFont}px">{small}</small>{/if}</span>{/if}
+  {#if bigFont}<span class="note" {title} style:font-size="{bigFont}px"
+      >{hub}{#if smallFont}<small style:font-size="{smallFont}px">{small}</small>{/if}</span
+    >{/if}
 </div>
 
 <style>

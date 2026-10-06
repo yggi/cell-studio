@@ -10,7 +10,11 @@ describe('colouring rule: 0 … 12 (C4 – C5) the natural range; other octaves 
     expect([0, 7, 12, 13, 24, -1, -12, -13].map((p) => positionOctave(r, 'chromatic', p))).toEqual([0, 0, 0, 1, 2, -1, -1, -2]);
   });
   it('full colour in the natural range; muted and lighter above, muted and darker below', () => {
-    const hsl = (c: string) => c.match(/hsl\(([-\d.]+) ([\d.]+)% ([\d.]+)%\)/)!.slice(1).map(Number);
+    const hsl = (c: string) =>
+      c
+        .match(/hsl\(([-\d.]+) ([\d.]+)% ([\d.]+)%\)/)!
+        .slice(1)
+        .map(Number);
     const [, s0, l0] = hsl(noteColour(0));
     const [, s1, l1] = hsl(noteColour(0, false, 1));
     const [, sm, lm] = hsl(noteColour(0, false, -1));

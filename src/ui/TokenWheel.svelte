@@ -65,9 +65,8 @@
     });
   });
   // the step under the hand (turns can start before the top: compare round the circle)
-  const under = (t0: number, t1: number) => hand !== null && ((hand - t0) % 1 + 1) % 1 < t1 - t0;
-  const fill = (t: WheelToken, band: number) =>
-    t.hues?.length ? noteColour(t.hues[band % t.hues.length], dim) : t.kind === 'rest' ? 'var(--wheel-rest)' : 'var(--wheel-ref)';
+  const under = (t0: number, t1: number) => hand !== null && (((hand - t0) % 1) + 1) % 1 < t1 - t0;
+  const fill = (t: WheelToken, band: number) => (t.hues?.length ? noteColour(t.hues[band % t.hues.length], dim) : t.kind === 'rest' ? 'var(--wheel-rest)' : 'var(--wheel-ref)');
   // a step's label (written across) fits both its arc and the ring's width — at 3 and 9 o'clock the width is
   // what it crosses; at least 7 px: the editor keeps every label
   const fontFor = (span: number, label: string) =>
@@ -98,17 +97,11 @@
         <!-- a reference: its notes across the step -->
         {@const span = s.t1 - s.t0}
         {#each s.t.parts.map((p, k) => ({ p, from: s.t.parts!.slice(0, k).reduce((a, x) => a + x.w, 0) })) as q}
-          <path
-            d={ringSegment(c, c, r0, r1, s.t0 + q.from * span, s.t0 + (q.from + q.p.w) * span)}
-            fill={q.p.hue === null ? 'var(--wheel-rest)' : noteColour(q.p.hue, dim)}
-          />
+          <path d={ringSegment(c, c, r0, r1, s.t0 + q.from * span, s.t0 + (q.from + q.p.w) * span)} fill={q.p.hue === null ? 'var(--wheel-rest)' : noteColour(q.p.hue, dim)} />
         {/each}
       {:else}
         {#each Array.from({ length: bands }, (_, b) => b) as b}
-          <path
-            d={ringSegment(c, c, r0 + ((r1 - r0) * b) / bands, r0 + ((r1 - r0) * (b + 1)) / bands, s.t0, s.t1)}
-            fill={fill(s.t, b)}
-          />
+          <path d={ringSegment(c, c, r0 + ((r1 - r0) * b) / bands, r0 + ((r1 - r0) * (b + 1)) / bands, s.t0, s.t1)} fill={fill(s.t, b)} />
         {/each}
       {/if}
       <path class="edge" stroke-width={BORDER} d={ringSegment(c, c, r0, r1, s.t0, s.t1)} />

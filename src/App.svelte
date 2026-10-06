@@ -31,9 +31,9 @@
       {#each [...'Cell studio'] as ch, i}<span style:color={ch === ' ' ? undefined : noteColour((i * 7 * 30) % 360)}>{ch}</span>{/each}
     </h1>
     {#if library.anyOpen}
-    <div class="transport-in">
-      <Transport path={quick} />
-    </div>
+      <div class="transport-in">
+        <Transport path={quick} />
+      </div>
     {:else}
       <p class="tagline">Music, cell by cell<span>&nbsp;— choose a piece to begin</span></p>
       <div class="quick-idle">{@render quick()}</div>
@@ -78,7 +78,10 @@
 
   {#if view.panelOpen && library.anyOpen}
     <aside class="drawer" aria-label="The piece's controls">
-      <header><h2>Controls</h2><button class="x" onclick={() => (view.panelOpen = false)} aria-label="Close">×</button></header>
+      <header>
+        <h2>Controls</h2>
+        <button class="x" onclick={() => (view.panelOpen = false)} aria-label="Close">×</button>
+      </header>
       <FreePanel />
     </aside>
   {/if}
@@ -123,8 +126,7 @@
     z-index: 2;
     min-height: 0;
     overflow: hidden;
-    background:
-      radial-gradient(120% 90% at 50% 40%, color-mix(in oklab, var(--surface) 70%, transparent) 0%, var(--bg) 70%);
+    background: radial-gradient(120% 90% at 50% 40%, color-mix(in oklab, var(--surface) 70%, transparent) 0%, var(--bg) 70%);
   }
   .away {
     z-index: 0;
@@ -230,7 +232,9 @@
   /* playing: the rim runs round the note rainbow */
   @keyframes rim {
     to {
-      background-position: 0 0, 200% 0;
+      background-position:
+        0 0,
+        200% 0;
     }
   }
   @media (prefers-reduced-motion: reduce) {

@@ -78,7 +78,7 @@ export function noteName(freq: number): string {
  * inverse of a scan.
  */
 export function intervals(positions: readonly number[], lap: number): number[] {
-  return positions.map((p, i) => +(((i + 1 < positions.length ? positions[i + 1] : positions[0] + lap) - p).toFixed(6)));
+  return positions.map((p, i) => +((i + 1 < positions.length ? positions[i + 1] : positions[0] + lap) - p).toFixed(6));
 }
 
 /** A scan: running totals from 0 (the positions), and their sum (the lap). */

@@ -23,8 +23,15 @@ describe('ticker', () => {
   it('runs the clock first, then the views, each at its own interval', async () => {
     const { onFrames } = await import('./ticker');
     const seen: string[] = [];
-    onFrames((t) => seen.push(`view ${t}`), () => 30);
-    onFrames((t) => seen.push(`clock ${t}`), () => 0, 'clock');
+    onFrames(
+      (t) => seen.push(`view ${t}`),
+      () => 30,
+    );
+    onFrames(
+      (t) => seen.push(`clock ${t}`),
+      () => 0,
+      'clock',
+    );
     for (const t of [0, 16, 32, 48]) await frameAt(t);
     expect(seen).toEqual(['clock 0', 'view 0', 'clock 16', 'clock 32', 'view 32', 'clock 48']);
   });
@@ -53,7 +60,11 @@ describe('ticker', () => {
     vi.spyOn(performance, 'now').mockImplementation(() => now);
     const seen: string[] = [];
     // three views, 4 ms each: a 6 ms budget fits two a frame
-    for (const name of ['a', 'b', 'c']) onFrames(() => ((now += 4), seen.push(name)), () => 30);
+    for (const name of ['a', 'b', 'c'])
+      onFrames(
+        () => ((now += 4), seen.push(name)),
+        () => 30,
+      );
     await frameAt(0);
     expect(seen).toEqual(['a', 'b']);
     await frameAt(16); // c was left over: it goes first

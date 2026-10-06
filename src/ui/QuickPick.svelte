@@ -31,8 +31,7 @@
     for (const e of entries) for (const t of e.tags) c.set(t, (c.get(t) ?? 0) + 1);
     return c;
   });
-  const tagsOf = (k: TagKind) =>
-    [...count].filter(([t]) => tagKind(t) === k).sort((a, b) => b[1] - a[1] || tagName(a[0]).localeCompare(tagName(b[0])));
+  const tagsOf = (k: TagKind) => [...count].filter(([t]) => tagKind(t) === k).sort((a, b) => b[1] - a[1] || tagName(a[0]).localeCompare(tagName(b[0])));
   const kinds = $derived(KINDS.filter((k) => tagsOf(k).length));
   // the path: what was chosen, else the open piece's own (its artist first: the most particular), else the most used
   const kind = $derived<TagKind>(mine?.kind ?? (['artist', 'genre', 'topic'] as const).find((k) => piece?.tags.some((t) => tagKind(t) === k)) ?? kinds[0] ?? 'genre');

@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { tokenize } from './highlight';
 
-const kinds = (line: string) => tokenize(line).filter((t) => t.kind !== 'space').map((t) => `${t.kind}:${t.text}`);
+const kinds = (line: string) =>
+  tokenize(line)
+    .filter((t) => t.kind !== 'space')
+    .map((t) => `${t.kind}:${t.text}`);
 
 describe('highlighting', () => {
   it('a melody: references, attributes, functions, numbers, modifiers, rests, comments', () => {
@@ -65,6 +68,10 @@ describe('highlighting', () => {
   });
   it('every character is kept: the tokens put back together are the line', () => {
     const line = '&mix loop=SAMPLE_RATE map=sample [&tune * &(map=adsr .01 .3 .4 .3) * &lead * .3, &x[::-1]^7]';
-    expect(tokenize(line).map((t) => t.text).join('')).toBe(line);
+    expect(
+      tokenize(line)
+        .map((t) => t.text)
+        .join(''),
+    ).toBe(line);
   });
 });

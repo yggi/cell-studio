@@ -45,8 +45,16 @@ export function flowNodeOf(
   // (size= scales it: &bar size=2 twice as large)
   if (physical(g)) {
     // a turntable: raised over everything, moved only by its axle (held)
-    const role = typeof g.cell.params.body === 'string' ? 'resonator' : typeof g.cell.params.motor === 'number' ? 'motor' : typeof g.cell.params.write === 'string' ? 'tape' : 'belt';
-    return { id: g.id, type: 'material', position, draggable: false, zIndex: 10, data: { name: g.cell.name, size: (role === 'motor' ? 168 : 140) * g.cell.size, role, pinned: true, ...(role === 'tape' && turn !== undefined ? { turn } : {}) } };
+    const role =
+      typeof g.cell.params.body === 'string' ? 'resonator' : typeof g.cell.params.motor === 'number' ? 'motor' : typeof g.cell.params.write === 'string' ? 'tape' : 'belt';
+    return {
+      id: g.id,
+      type: 'material',
+      position,
+      draggable: false,
+      zIndex: 10,
+      data: { name: g.cell.name, size: (role === 'motor' ? 168 : 140) * g.cell.size, role, pinned: true, ...(role === 'tape' && turn !== undefined ? { turn } : {}) },
+    };
   }
   const size = (g.cell.root ? 176 : g.isMeter ? 148 : 128) * g.cell.size;
   const ring = meters?.rings.get(g.id);

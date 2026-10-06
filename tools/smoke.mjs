@@ -95,7 +95,17 @@ for (const [i, p] of wanted.entries()) {
     await page.getByRole('radio', { name: 'Cards' }).click();
   }
   const ok = problems.length === 0;
-  console.log(`${ok ? 'ok  ' : 'FAIL'} ${String(i + 1).padStart(2)}/${wanted.length} ${p.full ? `${secs} s` : 'start'} ${p.title}${ok ? '' : '\n       ' + [...new Set(problems)].slice(0, 3).map((x) => x.slice(0, 200)).join('\n       ')}`);
+  console.log(
+    `${ok ? 'ok  ' : 'FAIL'} ${String(i + 1).padStart(2)}/${wanted.length} ${p.full ? `${secs} s` : 'start'} ${p.title}${
+      ok
+        ? ''
+        : '\n       ' +
+          [...new Set(problems)]
+            .slice(0, 3)
+            .map((x) => x.slice(0, 200))
+            .join('\n       ')
+    }`,
+  );
   if (!ok) failed.push(p.title);
 }
 await browser.close();

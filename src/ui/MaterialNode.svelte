@@ -52,7 +52,7 @@
     const step = (t: number) => {
       const r = ctx.resonance(d.name);
       if (!r) {
-        if (wobble !== 'none') (wobble = 'none'), (amps = []), (pads = []);
+        if (wobble !== 'none') ((wobble = 'none'), (amps = []), (pads = []));
         return;
       }
       const a = r.modes;
@@ -81,7 +81,10 @@
       wobble = `matrix(${m00.toFixed(4)}, ${m01.toFixed(4)}, ${m01.toFixed(4)}, ${m11.toFixed(4)}, 0, 0)`;
     };
     // (~30 a second: the wobble is a slow shimmer, and reading the analyser is not free)
-    return onFrames((t) => timed('resonator', () => step(t)), () => 33);
+    return onFrames(
+      (t) => timed('resonator', () => step(t)),
+      () => 33,
+    );
   });
 
   // reset (reload from code): what hands left — a recording, a reel's turn — is gone
@@ -142,7 +145,10 @@
       }
       tapeAt = p;
     };
-    return onFrames(() => timed('tape', () => step()), () => 33);
+    return onFrames(
+      () => timed('tape', () => step()),
+      () => 33,
+    );
   });
   const AXLE = $derived(R * 0.2);
 
@@ -400,7 +406,13 @@
     <!-- what turns: the knurled rim, the grooves, a mark -->
     <g transform="rotate({angle} {R} {R})">
       {#each ticks as a, i (i)}
-        <line x1={R + (R - 3) * Math.cos(a)} y1={R + (R - 3) * Math.sin(a)} x2={R + (R - (i % 5 ? 9 : 14)) * Math.cos(a)} y2={R + (R - (i % 5 ? 9 : 14)) * Math.sin(a)} class="tick" />
+        <line
+          x1={R + (R - 3) * Math.cos(a)}
+          y1={R + (R - 3) * Math.sin(a)}
+          x2={R + (R - (i % 5 ? 9 : 14)) * Math.cos(a)}
+          y2={R + (R - (i % 5 ? 9 : 14)) * Math.sin(a)}
+          class="tick"
+        />
       {/each}
       {#if d.role === 'resonator'}
         <!-- a body: rings where its modes are (the higher, the further in) -->

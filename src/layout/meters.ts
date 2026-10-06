@@ -32,8 +32,7 @@ export function meterRings(model: { nodes: readonly Node[]; edges: readonly Edge
   const byId = new Map(model.nodes.map((n) => [n.id, n]));
   const index = meterIndex(model);
   const rings = new Map<string, MeterRing>();
-  for (const e of model.edges)
-    if (isGround(e, byId)) rings.set(e.source, { meter: index.get(e.target) ?? 0, name: byId.get(e.target)?.cell?.name ?? '', rate: e.label ?? '' });
+  for (const e of model.edges) if (isGround(e, byId)) rings.set(e.source, { meter: index.get(e.target) ?? 0, name: byId.get(e.target)?.cell?.name ?? '', rate: e.label ?? '' });
   return rings;
 }
 

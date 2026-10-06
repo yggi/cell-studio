@@ -93,7 +93,10 @@ export function summarizeLoaf(entries: readonly Loaf[]): LoafStats {
     count: entries.length,
     totalMs: entries.reduce((a, e) => a + e.duration, 0),
     blockingMs: entries.reduce((a, e) => a + e.blocking, 0),
-    byInvoker: [...by].map(([k, v]) => [k, v[0], v[1]] as const).sort((a, b) => b[2] - a[2]).slice(0, 6),
+    byInvoker: [...by]
+      .map(([k, v]) => [k, v[0], v[1]] as const)
+      .sort((a, b) => b[2] - a[2])
+      .slice(0, 6),
   };
 }
 
@@ -199,17 +202,24 @@ const n0 = (x: number) => x.toFixed(0);
 /** A verdict in words, from the same numbers (the thresholds `tools/profile` and issue #13 use). */
 export function verdict(r: ReportData): string[] {
   const out: string[] = [];
-  if (r.playingSeconds < 3) out.push('Too little steady playback in this window to judge (the first 3 s after Play do not count): press Record, play the piece for 20 s or more, then stop.');
-  if (r.audio.playout && r.audio.playout.events > 0) out.push(`Audio underran ${r.audio.playout.events} time(s) (${n1(r.audio.playout.seconds * 1000)} ms in all): that is audible.`);
+  if (r.playingSeconds < 3)
+    out.push('Too little steady playback in this window to judge (the first 3 s after Play do not count): press Record, play the piece for 20 s or more, then stop.');
+  if (r.audio.playout && r.audio.playout.events > 0)
+    out.push(`Audio underran ${r.audio.playout.events} time(s) (${n1(r.audio.playout.seconds * 1000)} ms in all): that is audible.`);
   else if (r.audio.playout) out.push('No audio underruns reported.');
-  if (r.audio.capacity && r.audio.capacity.underrunRatioMax > 0) out.push(`The audio thread missed deadlines (up to ${n1(r.audio.capacity.underrunRatioMax * 100)} % of blocks in a second): that is audible.`);
-  else if (r.audio.capacity && r.audio.capacity.peakLoad > 0.8) out.push(`The audio thread peaked at ${n0(r.audio.capacity.peakLoad * 100)} % load: little room left for a smaller buffer.`);
+  if (r.audio.capacity && r.audio.capacity.underrunRatioMax > 0)
+    out.push(`The audio thread missed deadlines (up to ${n1(r.audio.capacity.underrunRatioMax * 100)} % of blocks in a second): that is audible.`);
+  else if (r.audio.capacity && r.audio.capacity.peakLoad > 0.8)
+    out.push(`The audio thread peaked at ${n0(r.audio.capacity.peakLoad * 100)} % load: little room left for a smaller buffer.`);
   if (r.audio.clockRatio !== null && r.audio.clockRatio < 0.98) out.push(`The audio clock ran slow (${r.audio.clockRatio.toFixed(3)} of real time): the audio thread was starved.`);
-  if (r.notes && r.notes.dropped > 0) out.push(`${r.notes.dropped} note(s) were left out for starting more than 50 ms late (worst ${n0(r.notes.worstLateMs)} ms): that is audible.`);
+  if (r.notes && r.notes.dropped > 0)
+    out.push(`${r.notes.dropped} note(s) were left out for starting more than 50 ms late (worst ${n0(r.notes.worstLateMs)} ms): that is audible.`);
   else if (r.notes && r.notes.late > 0) out.push(`${r.notes.late} note(s) started a little late (worst ${n0(r.notes.worstLateMs)} ms).`);
   if (r.queue && r.queue.p95Ms > 50) out.push(`The main thread answered slowly: a task waited up to ${n0(r.queue.maxMs)} ms (95th percentile ${n0(r.queue.p95Ms)} ms).`);
   if (r.loaf && r.playingSeconds >= 3 && r.loaf.totalMs / (r.playingSeconds * 1000) > 0.05)
-    out.push(`Frames longer than 50 ms took ${n0((100 * r.loaf.totalMs) / (r.playingSeconds * 1000))} % of the time (${r.loaf.count} of them): the page is not keeping up with the screen, whatever the long-task count says.`);
+    out.push(
+      `Frames longer than 50 ms took ${n0((100 * r.loaf.totalMs) / (r.playingSeconds * 1000))} % of the time (${r.loaf.count} of them): the page is not keeping up with the screen, whatever the long-task count says.`,
+    );
   if (r.long.maxMs > 100) out.push(`The longest main-thread stall was ${n0(r.long.maxMs)} ms (target: none over 100 ms).`);
   if (r.long.blockedPct > 25) out.push(`The main thread was inside long tasks ${n0(r.long.blockedPct)} % of the time (target: under 25 %).`);
   if (r.frames.fps && r.frames.fps < 45) out.push(`Only ${n0(r.frames.fps)} frames a second reached the screen (60 is full rate).`);
@@ -229,24 +239,31 @@ export function buildReport(r: ReportData): string {
     `${r.device.mobile === null ? '' : r.device.mobile ? 'mobile · ' : 'desktop · '}${r.device.cores ?? '?'} cores · ${r.device.memoryGB ?? '?'} GB (reported) · pixel ratio ${r.device.pixelRatio} · viewport ${r.device.viewport} · screen ${r.device.screen}`,
   );
   lines.push(`Piece: ${r.piece.cells ?? '?'} cells, ${r.piece.graphNodes ?? '?'} graph nodes`);
-  lines.push(`Window: ${n0(r.seconds)} s, steady playback ${n0(r.playingSeconds)} s (the first 3 s after each Play are left out) — numbers below cover ${r.basis === 'playing' ? 'the steady playback' : 'the whole window'}.`);
+  lines.push(
+    `Window: ${n0(r.seconds)} s, steady playback ${n0(r.playingSeconds)} s (the first 3 s after each Play are left out) — numbers below cover ${r.basis === 'playing' ? 'the steady playback' : 'the whole window'}.`,
+  );
   lines.push('');
   lines.push('| | |');
   lines.push('|---|---|');
-  lines.push(`| Frames | ${n1(r.frames.fps)} fps · interval median ${n1(r.frames.medianMs)} ms, p95 ${n1(r.frames.p95Ms)} ms, max ${n0(r.frames.maxMs)} ms · ${r.frames.over50} over 50 ms, ${r.frames.over100} over 100 ms |`);
+  lines.push(
+    `| Frames | ${n1(r.frames.fps)} fps · interval median ${n1(r.frames.medianMs)} ms, p95 ${n1(r.frames.p95Ms)} ms, max ${n0(r.frames.maxMs)} ms · ${r.frames.over50} over 50 ms, ${r.frames.over100} over 100 ms |`,
+  );
   lines.push(`| Long tasks (> 50 ms) | ${r.long.count} · longest ${n0(r.long.maxMs)} ms · ${r.long.over100} over 100 ms · main thread blocked ${n1(r.long.blockedPct)} % |`);
   if (r.loaf)
     lines.push(
       `| Long animation frames | ${r.loaf.count} · ${n0(r.loaf.totalMs)} ms in all, ${n0(r.loaf.blockingMs)} ms blocking · ${r.loaf.byInvoker.map(([k, c, ms]) => `${k} ×${c} (${n0(ms)} ms)`).join(', ') || '—'} |`,
     );
   if (r.queue) lines.push(`| Main-thread responsiveness | a task waited median ${n1(r.queue.medianMs)} ms, p95 ${n1(r.queue.p95Ms)} ms, max ${n0(r.queue.maxMs)} ms |`);
-  if (r.notes) lines.push(`| Notes | ${r.notes.played} scheduled · ${r.notes.late} started late · ${r.notes.dropped} left out (> 50 ms late) · worst ${n0(r.notes.worstLateMs)} ms late |`);
+  if (r.notes)
+    lines.push(`| Notes | ${r.notes.played} scheduled · ${r.notes.late} started late · ${r.notes.dropped} left out (> 50 ms late) · worst ${n0(r.notes.worstLateMs)} ms late |`);
   lines.push(`| Live views' refresh stretch | mean ${r.loadScale.mean.toFixed(2)}×, max ${r.loadScale.max.toFixed(2)}× (1× = full rate) |`);
   lines.push(
     `| Audio | ${r.audio.state ?? 'not started'}${r.audio.sampleRate ? ` · ${r.audio.sampleRate} Hz` : ''}${r.audio.baseLatencyMs !== null ? ` · base latency ${n1(r.audio.baseLatencyMs)} ms` : ''}${r.audio.outputLatencyMs !== null ? ` · output latency ${n1(r.audio.outputLatencyMs)} ms` : ''}${r.audio.clockRatio !== null ? ` · clock ${r.audio.clockRatio.toFixed(3)}× real time` : ''} |`,
   );
   if (r.audio.tuning || r.audio.heardLatencyMs !== null)
-    lines.push(`| Latency tuning | ${r.audio.tuning ?? '?'}${r.audio.heardLatencyMs !== null ? ` · made-to-heard (output timestamp) ${n1(r.audio.heardLatencyMs)} ms` : ''}${r.audio.pictureLagMs !== null ? ` · pictures held back ${n0(r.audio.pictureLagMs)} ms` : ''} |`);
+    lines.push(
+      `| Latency tuning | ${r.audio.tuning ?? '?'}${r.audio.heardLatencyMs !== null ? ` · made-to-heard (output timestamp) ${n1(r.audio.heardLatencyMs)} ms` : ''}${r.audio.pictureLagMs !== null ? ` · pictures held back ${n0(r.audio.pictureLagMs)} ms` : ''} |`,
+    );
   if (r.audio.capacity)
     lines.push(
       `| Audio thread (renderCapacity) | load mean ${n0(r.audio.capacity.meanLoad * 100)} %, peak ${n0(r.audio.capacity.peakLoad * 100)} % · missed deadlines: mean ${n1(r.audio.capacity.underrunRatioMean * 100)} %, worst second ${n1(r.audio.capacity.underrunRatioMax * 100)} % (${r.audio.capacity.updates} s) |`,
@@ -263,7 +280,10 @@ export function buildReport(r: ReportData): string {
     lines.push('');
     lines.push('| work | runs | total | share | mean | p95 | max |');
     lines.push('|---|---|---|---|---|---|---|');
-    for (const m of r.marks) lines.push(`| ${m.name} | ${m.count} | ${n0(m.totalMs)} ms | ${n1((100 * m.totalMs) / Math.max(1, (r.basis === 'playing' ? r.playingSeconds : r.seconds) * 1000))} % | ${n1(m.meanMs)} ms | ${n1(m.p95Ms)} ms | ${n1(m.maxMs)} ms |`);
+    for (const m of r.marks)
+      lines.push(
+        `| ${m.name} | ${m.count} | ${n0(m.totalMs)} ms | ${n1((100 * m.totalMs) / Math.max(1, (r.basis === 'playing' ? r.playingSeconds : r.seconds) * 1000))} % | ${n1(m.meanMs)} ms | ${n1(m.p95Ms)} ms | ${n1(m.maxMs)} ms |`,
+      );
     lines.push('');
   }
   lines.push('');
@@ -423,15 +443,30 @@ export class PerfCollector {
     if (this.ticks++ % 5 !== 0) return;
     const a = this.src.audio();
     const heap = (performance as unknown as { memory?: { usedJSHeapSize: number } }).memory?.usedJSHeapSize ?? null;
-    this.push(this.samples, { t: performance.now(), playing: this.steady(), scale: this.src.loadScale(), audioTime: a.currentTime, playout: a.playout, notes: a.notes, heardLatency: a.heardLatency ?? null, heap });
+    this.push(this.samples, {
+      t: performance.now(),
+      playing: this.steady(),
+      scale: this.src.loadScale(),
+      audioTime: a.currentTime,
+      playout: a.playout,
+      notes: a.notes,
+      heardLatency: a.heardLatency ?? null,
+      heap,
+    });
   }
 
   /** What the last `seconds` (or the window from `from`) looked like, for the live readout. */
   live(seconds = 10): { fps: number; p95Ms: number; maxMs: number; longCount: number; longMaxMs: number; blockedPct: number; scale: number } {
     const to = performance.now();
     const from = to - seconds * 1000;
-    const f = summarizeFrames(this.frames.filter((x) => x.t >= from).map((x) => x.d), seconds);
-    const l = summarizeLong(this.tasks.filter((x) => x.t >= from).map((x) => x.d), seconds);
+    const f = summarizeFrames(
+      this.frames.filter((x) => x.t >= from).map((x) => x.d),
+      seconds,
+    );
+    const l = summarizeLong(
+      this.tasks.filter((x) => x.t >= from).map((x) => x.d),
+      seconds,
+    );
     return { fps: f.fps, p95Ms: f.p95Ms, maxMs: f.maxMs, longCount: l.count, longMaxMs: l.maxMs, blockedPct: l.blockedPct, scale: this.src.loadScale() };
   }
 
@@ -444,8 +479,14 @@ export class PerfCollector {
     const basis: 'playing' | 'all' = playingSeconds >= 3 ? 'playing' : 'all';
     const keep = (p: boolean) => basis === 'all' || p;
     const span = basis === 'playing' ? playingSeconds : seconds;
-    const frames = summarizeFrames(this.frames.filter((x) => win(x.t) && keep(x.p)).map((x) => x.d), span);
-    const long = summarizeLong(this.tasks.filter((x) => win(x.t) && keep(x.p)).map((x) => x.d), span);
+    const frames = summarizeFrames(
+      this.frames.filter((x) => win(x.t) && keep(x.p)).map((x) => x.d),
+      span,
+    );
+    const long = summarizeLong(
+      this.tasks.filter((x) => win(x.t) && keep(x.p)).map((x) => x.d),
+      span,
+    );
     const loaf = this.hasLoaf ? summarizeLoaf(this.loafs.filter((x) => win(x.t) && keep(x.p)).map((x) => x.l)) : null;
     const ps = samples.filter((s) => keep(s.playing));
     const scales = ps.map((s) => s.scale);
@@ -464,7 +505,12 @@ export class PerfCollector {
     if (withPlayout.length >= 2) {
       const a = withPlayout[0].playout!;
       const b = withPlayout[withPlayout.length - 1].playout!;
-      playout = { events: b.underrunEvents - a.underrunEvents, seconds: b.underrunDuration - a.underrunDuration, averageLatencyMs: b.averageLatency * 1000, maximumLatencyMs: b.maximumLatency * 1000 };
+      playout = {
+        events: b.underrunEvents - a.underrunEvents,
+        seconds: b.underrunDuration - a.underrunDuration,
+        averageLatencyMs: b.averageLatency * 1000,
+        maximumLatencyMs: b.maximumLatency * 1000,
+      };
     }
     // our own timed work, for the stretches that were steady playback
     const steadyAt = (t: number) => {
@@ -473,13 +519,16 @@ export class PerfCollector {
       let at = -1;
       while (lo <= hi) {
         const mid = (lo + hi) >> 1;
-        if (this.samples[mid].t <= t) (at = mid), (lo = mid + 1);
+        if (this.samples[mid].t <= t) ((at = mid), (lo = mid + 1));
         else hi = mid - 1;
       }
       return at >= 0 && this.samples[at].playing;
     };
     const markEvents = marks.events.filter((e) => win(e.t) && (basis === 'all' || steadyAt(e.t)));
-    const queueDs = this.queue.filter((x) => win(x.t) && keep(x.p)).map((x) => x.d).sort((a, b) => a - b);
+    const queueDs = this.queue
+      .filter((x) => win(x.t) && keep(x.p))
+      .map((x) => x.d)
+      .sort((a, b) => a - b);
     const withNotes = samples.filter((s) => s.notes);
     const notes: NoteStats | null =
       withNotes.length >= 2
@@ -487,7 +536,12 @@ export class PerfCollector {
             const a = withNotes[0].notes!;
             const b = withNotes[withNotes.length - 1].notes!;
             // (each sample carries the worst since the one before it: the window's worst is the largest after its first)
-            return { played: b.played - a.played, late: b.late - a.late, dropped: b.dropped - a.dropped, worstLateMs: Math.max(0, ...withNotes.slice(1).map((s) => s.notes!.worstLateMs)) };
+            return {
+              played: b.played - a.played,
+              late: b.late - a.late,
+              dropped: b.dropped - a.dropped,
+              worstLateMs: Math.max(0, ...withNotes.slice(1).map((s) => s.notes!.worstLateMs)),
+            };
           })()
         : null;
     const heard = samples.map((s) => s.heardLatency).filter((h): h is number => h !== null);

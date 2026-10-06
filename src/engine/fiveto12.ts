@@ -129,9 +129,7 @@ export function barOf(block: number, key: number, bar: number): Onset[] {
   if (bar < 35) return stated(row, mode, bar);
   // the mirror: bar 69 − b's onsets, backwards in time, its degrees inverted about the tonic
   const src = stated(row, mode, 69 - bar);
-  return src
-    .map((o) => ({ ...o, at: BAR - (o.at + o.dur), degree: mod(-o.degree, 7) }))
-    .sort((a, b) => a.at - b.at);
+  return src.map((o) => ({ ...o, at: BAR - (o.at + o.dur), degree: mod(-o.degree, 7) })).sort((a, b) => a.at - b.at);
 }
 
 /** A note to sound: its step of the day, length in steps, semitones above C4, level, pan (−1 … 1). */

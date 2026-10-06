@@ -37,10 +37,11 @@
     const w = ctx.waveform(name);
     if (!w) return null;
     let start = 0;
-    for (let i = 1; i < w.length - n; i++) if (w[i - 1] < 0 && w[i] >= 0) {
-      start = i;
-      break;
-    }
+    for (let i = 1; i < w.length - n; i++)
+      if (w[i - 1] < 0 && w[i] >= 0) {
+        start = i;
+        break;
+      }
     const seg = Array.from(w.subarray(start, start + n));
     const top = Math.max(0.02, ...seg.map(Math.abs));
     return seg.map((v) => v / top);
@@ -80,12 +81,12 @@
       fold: f,
       n,
       labels: Array.from({ length: n }, (_, k) => (f === 12 ? NAMES12[k] : f > 0 ? String(k) : '')),
-      hues: Array.from({ length: n }, (_, k) => (f > 0 ? (k / f) * 360 : ((((Math.round(12 * Math.log2((LO * Math.pow(HI / LO, (k + 0.5) / n)) / 261.63)) % 12) + 12) % 12) * 30))),
+      hues: Array.from({ length: n }, (_, k) => (f > 0 ? (k / f) * 360 : (((Math.round(12 * Math.log2((LO * Math.pow(HI / LO, (k + 0.5) / n)) / 261.63)) % 12) + 12) % 12) * 30)),
     };
   });
   type Layout = typeof layout;
   const bandOfFreq = (L: Layout, f: number) => {
-    if (L.fold > 0) return (((Math.round(69 + 12 * Math.log2(f / 440)) % L.fold) + L.fold) % L.fold);
+    if (L.fold > 0) return ((Math.round(69 + 12 * Math.log2(f / 440)) % L.fold) + L.fold) % L.fold;
     return Math.min(L.n - 1, Math.max(0, Math.floor((Math.log(f / LO) / Math.log(HI / LO)) * L.n)));
   };
   // a channel's kit, if it plays through one: its tokens are its bins
@@ -153,7 +154,17 @@
         const L = layout;
         const per = channels.map((ch) => binsOf(ch, now, L));
         if (summed && per.length > 1)
-          lanes = [{ ...per[0], levels: per[0].levels.map((_, k) => Math.min(1, per.reduce((a, b) => a + (b.levels[k] ?? 0), 0))) }];
+          lanes = [
+            {
+              ...per[0],
+              levels: per[0].levels.map((_, k) =>
+                Math.min(
+                  1,
+                  per.reduce((a, b) => a + (b.levels[k] ?? 0), 0),
+                ),
+              ),
+            },
+          ];
         else lanes = per;
         if (mode === 'waterfall' && canvas) paintRow();
         return;
@@ -257,7 +268,16 @@
   );
 </script>
 
-<div class="scope" data-wheel="scope" {@attach onScreen((v) => (visible = v))} class:round style:width="{W}px" style:height="{H}px" role="img" aria-label="Scope: {channels.join(', ')}">
+<div
+  class="scope"
+  data-wheel="scope"
+  {@attach onScreen((v) => (visible = v))}
+  class:round
+  style:width="{W}px"
+  style:height="{H}px"
+  role="img"
+  aria-label="Scope: {channels.join(', ')}"
+>
   {#if mode === 'waterfall'}
     <canvas bind:this={canvas} width={Math.round(box.w)} height={Math.round(box.h)} style:left="{box.x}px" style:top="{box.y}px"></canvas>
     {#if lanes[0]}
@@ -281,13 +301,25 @@
         {@const y0 = box.y + li * lh}
         {@const bw = (box.w - 8) / ln.levels.length}
         {#each ln.levels as lv, k (k)}
-          <rect x={box.x + 4 + k * bw + 1} y={y0 + lh - 12 - lv * (lh - 18)} width={Math.max(1, bw - 2)} height={Math.max(1, lv * (lh - 18))} rx="1.5" style:fill={noteColour(ln.hues[k])} style:opacity={0.3 + 0.7 * lv} />
+          <rect
+            x={box.x + 4 + k * bw + 1}
+            y={y0 + lh - 12 - lv * (lh - 18)}
+            width={Math.max(1, bw - 2)}
+            height={Math.max(1, lv * (lh - 18))}
+            rx="1.5"
+            style:fill={noteColour(ln.hues[k])}
+            style:opacity={0.3 + 0.7 * lv}
+          />
           {#if ln.labels[k] && ln.levels.length <= 24}<text class="bin" x={box.x + 4 + (k + 0.5) * bw} y={y0 + lh - 2}>{ln.labels[k]}</text>{/if}
         {/each}
       {/each}
     {:else if mode === 'xy'}
       {#if xy.length > 1}
-        <polyline class="trace" points={xy.map((p) => `${W / 2 + p.x * (Math.min(W, H) / 2 - 10)},${H / 2 - p.y * (Math.min(W, H) / 2 - 10)}`).join(' ')} style:stroke={noteColour(pc(0))} />
+        <polyline
+          class="trace"
+          points={xy.map((p) => `${W / 2 + p.x * (Math.min(W, H) / 2 - 10)},${H / 2 - p.y * (Math.min(W, H) / 2 - 10)}`).join(' ')}
+          style:stroke={noteColour(pc(0))}
+        />
       {/if}
     {:else if mode !== 'waterfall'}
       {#each runs as rs, ci (ci)}
@@ -297,10 +329,14 @@
       {/each}
     {/if}
     {#if mode === 'xy'}
-      <text class="chan" x={round ? W / 2 : 8} y={round ? 22 : 13} text-anchor={round ? 'middle' : 'start'} style:fill={noteColour(pc(0))}>{round ? `&${channels[0] ?? '—'} × &${channels[1] ?? '—'}` : `x: &${channels[0] ?? '—'} · y: &${channels[1] ?? '—'}`}</text>
+      <text class="chan" x={round ? W / 2 : 8} y={round ? 22 : 13} text-anchor={round ? 'middle' : 'start'} style:fill={noteColour(pc(0))}
+        >{round ? `&${channels[0] ?? '—'} × &${channels[1] ?? '—'}` : `x: &${channels[0] ?? '—'} · y: &${channels[1] ?? '—'}`}</text
+      >
     {:else if mode !== 'spectrum' && mode !== 'waterfall'}
       {#each channels as nm, ci (ci)}
-        <text class="chan" x={round ? W / 2 : 8} y={band(ci).y0 + (round && ci === 0 ? 24 : 13)} text-anchor={round ? 'middle' : 'start'} style:fill={noteColour(pc(ci))}>&{nm}</text>
+        <text class="chan" x={round ? W / 2 : 8} y={band(ci).y0 + (round && ci === 0 ? 24 : 13)} text-anchor={round ? 'middle' : 'start'} style:fill={noteColour(pc(ci))}
+          >&{nm}</text
+        >
       {/each}
     {/if}
   </svg>

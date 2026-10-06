@@ -2,7 +2,24 @@
   /** Sliders for the layout's main forces. Changes apply live; Reset restores the defaults. */
   import type { LayoutOptions } from '../layout/physics';
 
-  type Key = 'columnPull' | 'degreeRepel' | 'charge' | 'repelRange' | 'collidePad' | 'linkDistance' | 'partLength' | 'contract' | 'uncross' | 'rankPull' | 'endPull' | 'centre' | 'straighten' | 'avoid' | 'tagPull' | 'tagRepel' | 'mux';
+  type Key =
+    | 'columnPull'
+    | 'degreeRepel'
+    | 'charge'
+    | 'repelRange'
+    | 'collidePad'
+    | 'linkDistance'
+    | 'partLength'
+    | 'contract'
+    | 'uncross'
+    | 'rankPull'
+    | 'endPull'
+    | 'centre'
+    | 'straighten'
+    | 'avoid'
+    | 'tagPull'
+    | 'tagRepel'
+    | 'mux';
   let {
     options,
     onchange,
@@ -41,7 +58,14 @@
       rows: [
         { key: 'rankPull', label: 'flow order', min: 0, max: 0.3, step: 0.01, hint: 'pull to the height of each node’s rank in the signal path' },
         { key: 'endPull', label: 'centre line', min: 0, max: 0.3, step: 0.01, hint: 'pull of &bar and &out to the centre line' },
-        { key: 'columnPull', label: 'columns', min: 0, max: 0.2, step: 0.005, hint: 'a gentle pull to each node’s column: voices by stereo and mix order, cells over the voices they feed' },
+        {
+          key: 'columnPull',
+          label: 'columns',
+          min: 0,
+          max: 0.2,
+          step: 0.005,
+          hint: 'a gentle pull to each node’s column: voices by stereo and mix order, cells over the voices they feed',
+        },
         { key: 'centre', label: 'centring', min: 0, max: 0.1, step: 0.005, hint: 'a weak sideways pull to the centre line, for nodes without a column' },
       ],
     },
@@ -50,7 +74,14 @@
       rows: [
         { key: 'tagPull', label: 'cluster pull', min: 0, max: 0.6, step: 0.01, hint: 'cells with the same tag drawn to their cluster’s middle' },
         { key: 'tagRepel', label: 'cluster push', min: 0, max: 8, step: 0.1, hint: 'clusters pushed apart' },
-        { key: 'mux', label: 'hubs pull clusters', min: 0, max: 1, step: 0.05, hint: 'how much of a hub’s pull on a cluster’s cells (the meter, a selector, a mix) moves the cluster as one instead' },
+        {
+          key: 'mux',
+          label: 'hubs pull clusters',
+          min: 0,
+          max: 1,
+          step: 0.05,
+          hint: 'how much of a hub’s pull on a cluster’s cells (the meter, a selector, a mix) moves the cluster as one instead',
+        },
       ],
     },
   ];
@@ -67,14 +98,7 @@
     {#each g.rows as r}
       <label title={r.hint}>
         <span class="name">{r.label}</span>
-        <input
-          type="range"
-          min={r.min}
-          max={r.max}
-          step={r.step}
-          value={options[r.key]}
-          oninput={(e) => onchange(r.key, +e.currentTarget.value)}
-        />
+        <input type="range" min={r.min} max={r.max} step={r.step} value={options[r.key]} oninput={(e) => onchange(r.key, +e.currentTarget.value)} />
         <output>{fmt(options[r.key])}</output>
       </label>
     {/each}

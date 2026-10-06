@@ -15,9 +15,7 @@ export class Library {
   readonly anyOpen = $derived(this.opened > 0);
   readonly entries = $derived<Entry[]>([...this.saved.map(savedEntry), ...exampleEntries]);
   /** The card of the piece open now (none for a file, or before anything is chosen). */
-  readonly currentId = $derived(
-    !this.anyOpen ? null : this.open.kind === 'example' ? `example:${this.open.key}` : this.open.kind === 'saved' ? `saved:${this.open.id}` : null,
-  );
+  readonly currentId = $derived(!this.anyOpen ? null : this.open.kind === 'example' ? `example:${this.open.key}` : this.open.kind === 'saved' ? `saved:${this.open.id}` : null);
 
   /** Read the saved pieces again (after saving or removing one). */
   refresh(): void {

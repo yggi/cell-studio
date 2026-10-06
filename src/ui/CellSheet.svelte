@@ -62,9 +62,7 @@
     return i < 0 ? '' : source.split('\n')[i];
   });
   const label = $derived(cell && !cell.voice ? hubLabel(ctx.program, name, ctx.live?.shifts ?? ctx.shifts, isMeter, null) : null);
-  const kind = $derived(
-    !cell ? '' : cell.voice ? 'voice' : cell.kit ? 'kit' : isMeter ? 'clock' : cell.root ? 'grid' : cell.step ? 'stepped cell' : 'cell',
-  );
+  const kind = $derived(!cell ? '' : cell.voice ? 'voice' : cell.kit ? 'kit' : isMeter ? 'clock' : cell.root ? 'grid' : cell.step ? 'stepped cell' : 'cell');
   // a voice made from its braid: plot one cycle of the waveform it loops
   const braidVoice = $derived(!!cell?.voice && cell.params.s === undefined);
 
@@ -109,7 +107,13 @@
     if (!atom || atom.kind !== 'note') return null;
     try {
       const r = resolvePitch(ctx.program, name, atom.value, atom.alter, shown);
-      return noteLabel(shown_.show, { semis: semitones(ctx.program, r.root, r.position), value: atom.value, alter: atom.alter, lap: period(ctx.program, name) }, base, tonic, shown_.conv);
+      return noteLabel(
+        shown_.show,
+        { semis: semitones(ctx.program, r.root, r.position), value: atom.value, alter: atom.alter, lap: period(ctx.program, name) },
+        base,
+        tonic,
+        shown_.conv,
+      );
     } catch {
       return null;
     }
@@ -210,8 +214,7 @@
   }
 
   // "Shown as a meter: …", or "Shown as braid: …" (the meaning names it, or the show does)
-  const shownAs = (show: keyof typeof SHOW_MEANING) =>
-    /^(a|an|the|its|one) /.test(SHOW_MEANING[show]) ? `as ${SHOW_MEANING[show]}` : `as ${show}: ${SHOW_MEANING[show]}`;
+  const shownAs = (show: keyof typeof SHOW_MEANING) => (/^(a|an|the|its|one) /.test(SHOW_MEANING[show]) ? `as ${SHOW_MEANING[show]}` : `as ${show}: ${SHOW_MEANING[show]}`);
 
   // ---- in words, and everything it connects to (each a link)
   const bits = $derived(cell ? summary(ctx.program, name) : []);
@@ -357,7 +360,9 @@
         <dl class="links">
           {#each links as l (l.relation)}
             <dt>{l.relation}</dt>
-            <dd>{#each l.cells as c (c)}<CellLink name={c} />{/each}</dd>
+            <dd>
+              {#each l.cells as c (c)}<CellLink name={c} />{/each}
+            </dd>
           {/each}
         </dl>
       </section>
@@ -643,7 +648,6 @@
     font-size: 13px;
     color: var(--text-muted);
   }
-
 
   /* connections: how they relate, then the cells */
   .links {

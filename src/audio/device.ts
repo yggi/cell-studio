@@ -22,7 +22,7 @@ export function openContext(T: ToneNS, tuning: Tuning): void {
 /** The native context behind Tone's wrapper (where renderCapacity and the output timestamp live). */
 function nativeContext(T: ToneNS): Record<string, unknown> | null {
   const raw = (T.getContext() as unknown as { rawContext?: Record<string, unknown> }).rawContext;
-  return ((raw?._nativeContext as Record<string, unknown> | undefined) ?? raw) ?? null;
+  return (raw?._nativeContext as Record<string, unknown> | undefined) ?? raw ?? null;
 }
 
 /** The render thread's load and underruns, once a second, where the browser reports them (stats.ts `capacity`). */
@@ -84,9 +84,15 @@ export function audioInfo(T: ToneNS | undefined, tuning: Tuning): AudioInfo {
   // can tell its own worst from one at the start of the page)
   const notes = { ...noteStats };
   noteStats.worstLateMs = 0;
-  if (!T) return { state: null, sampleRate: null, baseLatency: null, outputLatency: null, currentTime: null, playout: null, notes, heardLatency: null, pictureLag: null, tuning: tuned };
+  if (!T)
+    return { state: null, sampleRate: null, baseLatency: null, outputLatency: null, currentTime: null, playout: null, notes, heardLatency: null, pictureLag: null, tuning: tuned };
   const tc = T.getContext() as unknown as { rawContext?: Record<string, unknown>; state?: string; sampleRate?: number; currentTime?: number };
-  const raw = (tc.rawContext ?? {}) as { playoutStats?: Record<string, number>; _nativeContext?: { playoutStats?: Record<string, number>; baseLatency?: number; outputLatency?: number }; baseLatency?: number; outputLatency?: number };
+  const raw = (tc.rawContext ?? {}) as {
+    playoutStats?: Record<string, number>;
+    _nativeContext?: { playoutStats?: Record<string, number>; baseLatency?: number; outputLatency?: number };
+    baseLatency?: number;
+    outputLatency?: number;
+  };
   // (Tone wraps the native context: the stats are on the native one)
   const stats = raw.playoutStats ?? raw._nativeContext?.playoutStats;
   const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : null);

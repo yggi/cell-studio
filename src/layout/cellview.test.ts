@@ -5,7 +5,10 @@ import { cellView, hubLabel, isGrid } from './cellview';
 import { PRESETS } from '../engine/presets';
 
 const r = compileSource(PRESETS.royal.source);
-const with_ = (o: Record<string, number>): Shifts => (n) => o[n] ?? codeShifts(r)(n);
+const with_ =
+  (o: Record<string, number>): Shifts =>
+  (n) =>
+    o[n] ?? codeShifts(r)(n);
 
 describe('cellView', () => {
   it('draws tables as grids and melodies as braids', () => {
@@ -51,7 +54,7 @@ describe('hubLabel', () => {
     expect(hubLabel(r, 'key', with_({ key: 3 }), false, null)).toEqual({ big: 'E♭', small: '' });
     expect(hubLabel(r, 'scale', codeShifts(r), false, null)).toEqual({ big: 'Aeolian', small: 'on C' });
     expect(hubLabel(r, 'scale', with_({ scale: 3 }), false, null)).toEqual({ big: 'Dorian', small: 'on F' }); // rotated: F Dorian, same notes
-    expect(hubLabel(r, 'bar', codeShifts(r), true, null)).toEqual({ big: '84', small: 'bpm, 4/bar' }) // at rest: its tempo;
+    expect(hubLabel(r, 'bar', codeShifts(r), true, null)).toEqual({ big: '84', small: 'bpm, 4/bar' }); // at rest: its tempo;
     expect(hubLabel(r, 'bar', codeShifts(r), true, 2)).toEqual({ big: '3', small: '4/bar' });
     expect(hubLabel(r, 'fifths12TET', codeShifts(r), false, null)).toEqual({ big: '12', small: 'grid' });
     expect(hubLabel(r, 'theme', codeShifts(r), false, null)).toEqual({ big: '20', small: 'steps' });
@@ -91,9 +94,19 @@ describe('braids made of references', () => {
     const hues = (n: string) => cellView(r2, n, codeShifts(r2), false).segments.map((s) => s.bands.map((b) => (b.kind === 'pitch' ? b.hue : b.kind)));
     // &A = &m1 &m2: eight coloured notes, no grey reference slots
     expect(hues('A')).toHaveLength(8);
-    expect(hues('A').flat().every((h) => typeof h === 'number')).toBe(true);
+    expect(
+      hues('A')
+        .flat()
+        .every((h) => typeof h === 'number'),
+    ).toBe(true);
     // &m1 is one note four times: four of the same colour
-    expect(new Set(hues('A').slice(0, 4).map((h) => JSON.stringify(h))).size).toBe(1);
+    expect(
+      new Set(
+        hues('A')
+          .slice(0, 4)
+          .map((h) => JSON.stringify(h)),
+      ).size,
+    ).toBe(1);
     // two levels down: &tune → &A → &m1
     expect(hues('tune').slice(0, 8)).toEqual(hues('A'));
     // read through &lead[<<], the same motifs take other colours
@@ -125,7 +138,11 @@ describe('a turn eases from where the wheel was', () => {
     const first = old.segments.find((sg) => sg.index === k)!;
     return delta > 0 ? first.t0 : first.t0 - 1;
   };
-  for (const [example, cell, delta] of [['transpose', 'theme', 1], ['transpose', 'theme', -1], ['twinkle', 'down', 2]] as const) {
+  for (const [example, cell, delta] of [
+    ['transpose', 'theme', 1],
+    ['transpose', 'theme', -1],
+    ['twinkle', 'down', 2],
+  ] as const) {
     it(`${example} &${cell} turned ${delta > 0 ? '+' : ''}${delta}: the new drawing, turned back by the start angle, is the old one`, () => {
       const r = compileSource(PRESETS[example].source);
       const at = (n: number) => cellView(r, cell, (x) => (x === cell ? n : codeShifts(r)(x)), false);

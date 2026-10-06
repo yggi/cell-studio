@@ -44,7 +44,7 @@
       ? `${Math.floor(sec / 3600)}:${String(Math.floor((sec % 3600) / 60)).padStart(2, '0')}:${String(Math.floor(sec % 60)).padStart(2, '0')}`
       : `${Math.floor(sec / 60)}:${String(Math.floor(sec % 60)).padStart(2, '0')}`;
   // the section it's in now
-  const current = $derived(sections ? [...sections].reverse().find((s) => s.at <= now + 1e-6) ?? null : null);
+  const current = $derived(sections ? ([...sections].reverse().find((s) => s.at <= now + 1e-6) ?? null) : null);
   let width = $state(300);
   // a name shows where it has room (else only its mark, which still jumps)
   // (a run of sections with one name — drop · drop — shares that name across them all)
@@ -68,7 +68,9 @@
       {/if}
     </button>
     <button class="reset" class:dirty onclick={onreset} aria-label="Back to the start">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="5" width="3" height="14" rx="1" /><path d="M19 5.9v12.2a.9.9 0 0 1-1.4.75L9.2 12.75a.9.9 0 0 1 0-1.5l8.4-6.1a.9.9 0 0 1 1.4.75z" /></svg>
+      <svg viewBox="0 0 24 24" aria-hidden="true"
+        ><rect x="5" y="5" width="3" height="14" rx="1" /><path d="M19 5.9v12.2a.9.9 0 0 1-1.4.75L9.2 12.75a.9.9 0 0 1 0-1.5l8.4-6.1a.9.9 0 0 1 1.4.75z" /></svg
+      >
     </button>
     <span class="what">
       {#if path}{@render path()}{:else if title}<button class="title" onclick={onchoose} title="Choose another piece">{title}</button>{/if}
@@ -80,57 +82,49 @@
     {#if onmenu}<button class="burger" onclick={onmenu} aria-expanded={menuOpen} aria-label="Controls" title="The piece's controls">☰</button>{/if}
   </div>
   <div class="lower">
-  {#if span}
-    <div class="track" bind:clientWidth={width}>
-      {#if sections}
-        <div class="marks">
-          {#each sections as s, i (i)}
-            <button
-              class="mark"
-              class:here={current === s}
-              style:left="{(s.at / span) * 100}%"
-              onclick={() => onseek(s.at)}
-              aria-label="Jump to {s.label} ({clock(s.at)})"
-              title="{s.label} · {clock(s.at)}"
-            >
-              {#if room(i)}<span>{s.label}</span>{/if}
-            </button>
-          {/each}
-        </div>
-  {/if}
-      <input
-        type="range"
-        min="0"
-        max={span}
-        step="0.1"
-        value={now}
-        aria-label="Time: jump to any point"
-        onchange={(e) => onseek(+(e.currentTarget as HTMLInputElement).value)}
-      />
-    </div>
-  {:else}
-    <!-- (nothing to move in: the row keeps its place, so the header never jumps) -->
-    <div class="track empty" aria-hidden="true"></div>
-  {/if}
+    {#if span}
+      <div class="track" bind:clientWidth={width}>
+        {#if sections}
+          <div class="marks">
+            {#each sections as s, i (i)}
+              <button
+                class="mark"
+                class:here={current === s}
+                style:left="{(s.at / span) * 100}%"
+                onclick={() => onseek(s.at)}
+                aria-label="Jump to {s.label} ({clock(s.at)})"
+                title="{s.label} · {clock(s.at)}"
+              >
+                {#if room(i)}<span>{s.label}</span>{/if}
+              </button>
+            {/each}
+          </div>
+        {/if}
+        <input type="range" min="0" max={span} step="0.1" value={now} aria-label="Time: jump to any point" onchange={(e) => onseek(+(e.currentTarget as HTMLInputElement).value)} />
+      </div>
+    {:else}
+      <!-- (nothing to move in: the row keeps its place, so the header never jumps) -->
+      <div class="track empty" aria-hidden="true"></div>
+    {/if}
     <!-- (always there, invisible when nothing is held: nothing moves when it appears) -->
     <div class="heldslot" class:on={held} aria-hidden={!held}>
       <button onclick={onrevert} tabindex={held ? 0 : -1} title="Back to what the code says">Revert</button>
       <button class="save" onclick={onsave} tabindex={held ? 0 : -1} title="Write these values into the code">Save</button>
     </div>
     {#if tempo}
-    <label class="tempo">
-      <span class="tv"><small>♩</small>{Math.round(tempo.value)}</span>
-      <input
-        type="range"
-        min={tempo.lo}
-        max={tempo.hi}
-        step={(tempo.hi - tempo.lo) / 100}
-        value={tempo.value}
-        aria-label="Tempo"
-        oninput={(e) => ontempo(+(e.currentTarget as HTMLInputElement).value)}
-      />
-    </label>
-  {/if}
+      <label class="tempo">
+        <span class="tv"><small>♩</small>{Math.round(tempo.value)}</span>
+        <input
+          type="range"
+          min={tempo.lo}
+          max={tempo.hi}
+          step={(tempo.hi - tempo.lo) / 100}
+          value={tempo.value}
+          aria-label="Tempo"
+          oninput={(e) => ontempo(+(e.currentTarget as HTMLInputElement).value)}
+        />
+      </label>
+    {/if}
   </div>
 </div>
 

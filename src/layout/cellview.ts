@@ -140,17 +140,16 @@ export function cellView(result: CompileResult, name: string, shifts: Shifts, is
   if (drawnAsGrid(result, name)) {
     const lap = period(result, name);
     const es = c.root ? Array.from({ length: c.cycle }, (_, i) => ({ value: i + shift, alter: 0 })) : entries(result, name, shift);
-    const placed = es
-      .map((e, index) => ({ index, t: mod(e.value + e.alter, lap) / lap, e }))
-      .sort((a, b) => a.t - b.t || a.index - b.index);
+    const placed = es.map((e, index) => ({ index, t: mod(e.value + e.alter, lap) / lap, e })).sort((a, b) => a.t - b.t || a.index - b.index);
     const segments = placed.map((p, i) => {
       const next = placed[(i + 1) % placed.length];
       const t1 = i + 1 < placed.length ? next.t : next.t + 1;
-      const fill: Fill = isMeter || pattern
-        ? { kind: 'beat', down: p.index === 0 }
-        : c.root
-          ? { kind: 'pitch', hue: positionHue(result, name, p.e.value), octave: positionOctave(result, name, p.e.value) }
-          : pitchFill(result, name, p.e.value, p.e.alter, shifts);
+      const fill: Fill =
+        isMeter || pattern
+          ? { kind: 'beat', down: p.index === 0 }
+          : c.root
+            ? { kind: 'pitch', hue: positionHue(result, name, p.e.value), octave: positionOctave(result, name, p.e.value) }
+            : pitchFill(result, name, p.e.value, p.e.alter, shifts);
       const notes = c.root ? [{ semis: semitones(result, name, p.e.value), value: p.e.value, alter: 0, lap }] : [named(null, 0, p.e.value, p.e.alter)];
       return { t0: p.t, t1: placed.length === 1 ? p.t + 1 : t1, index: p.index, bands: [fill], notes };
     });
@@ -219,13 +218,7 @@ export function cellView(result: CompileResult, name: string, shifts: Shifts, is
 }
 
 /** Text for the hub. */
-export function hubLabel(
-  result: CompileResult,
-  name: string,
-  shifts: Shifts,
-  isMeter: boolean,
-  bar: number | null,
-): { big: string; small: string } {
+export function hubLabel(result: CompileResult, name: string, shifts: Shifts, isMeter: boolean, bar: number | null): { big: string; small: string } {
   const c = result.cells.get(name)!;
   if (c.root) {
     // a grid: its steps, and its period when it isn't the octave (to 5:1, to 3:2)
@@ -297,7 +290,6 @@ export function hubLabel(
   }
   return { big: String(c.steps), small: c.steps === 1 ? 'step' : 'steps' };
 }
-
 
 /**
  * An oscillation over one cycle: 96 samples from its lowest (0) to its highest (1);

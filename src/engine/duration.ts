@@ -124,17 +124,20 @@ export function durationText(seconds: number): string {
  */
 export function sections(result: CompileResult): { at: number; label: string }[] | null {
   // a day's law: its twelve blocks, each a mode and a moment of the day
-  if ([...result.cells.values()].some((c) => c.params.law === 'fiveto12'))
-    return DAY_MODES.map((m, b) => ({ at: b * 7200, label: `${MODE_NAMES[m]} · ${BLOCK_NAMES[b]}` }));
+  if ([...result.cells.values()].some((c) => c.params.law === 'fiveto12')) return DAY_MODES.map((m, b) => ({ at: b * 7200, label: `${MODE_NAMES[m]} · ${BLOCK_NAMES[b]}` }));
   const statics = codeShifts(result);
   const clk = clocking(result, statics);
   for (const c of result.cells.values()) {
     const table = result.cells.get(c.over ?? '');
-    const isSelector = !!table && table.units.length > 0 && table.units.every((u) => u.atom.kind === 'ref' && !!result.cells.get(u.atom.name)?.mix && !result.cells.get(u.atom.name)?.sink);
+    const isSelector =
+      !!table && table.units.length > 0 && table.units.every((u) => u.atom.kind === 'ref' && !!result.cells.get(u.atom.name)?.mix && !result.cells.get(u.atom.name)?.sink);
     if (!isSelector || !c.clock || !c.steps) continue;
     const tm = clk.map(c.clock);
     const t0 = tm.q(0);
-    const names = (c.label ?? '').split('·').map((x) => x.trim().replace(/\{[^}]*\}/g, '')).filter(Boolean);
+    const names = (c.label ?? '')
+      .split('·')
+      .map((x) => x.trim().replace(/\{[^}]*\}/g, ''))
+      .filter(Boolean);
     const out: { at: number; label: string }[] = [];
     for (let i = 0; i < c.steps; i++) out.push({ at: tm.q(i / c.rate) - t0, label: names.length === c.steps ? names[i] : String(i + 1) });
     return out;

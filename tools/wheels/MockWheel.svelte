@@ -61,7 +61,21 @@
 {:else if kind === 'spectrum'}<SpectrumWheel {name} {size} />
 {:else}
   <div class="flow" style:width="{box}px" style:height="{box + 24}px">
-    <SvelteFlow {nodes} edges={[]} {nodeTypes} nodeOrigin={[0.5, 0.5]} colorMode="dark" panOnDrag={false} zoomOnScroll={false} zoomOnPinch={false} zoomOnDoubleClick={false} nodesConnectable={false} elementsSelectable={false} viewport={{ x: 0, y: 0, zoom: 1 }} proOptions={{ hideAttribution: true }} />
+    <SvelteFlow
+      {nodes}
+      edges={[]}
+      {nodeTypes}
+      nodeOrigin={[0.5, 0.5]}
+      colorMode="dark"
+      panOnDrag={false}
+      zoomOnScroll={false}
+      zoomOnPinch={false}
+      zoomOnDoubleClick={false}
+      nodesConnectable={false}
+      elementsSelectable={false}
+      viewport={{ x: 0, y: 0, zoom: 1 }}
+      proOptions={{ hideAttribution: true }}
+    />
   </div>
 {/if}
 

@@ -38,7 +38,12 @@
   // keys you can pick: the one being edited, and those not set yet (step and loop are one setting)
   const keys = $derived(
     allKeys
-      .filter(([k]) => k === editing?.key || k === editing?.from || (!attrs.has(k) && !((k === 'step' || k === 'loop') && (attrs.has('step') || attrs.has('loop')) && editing?.from !== 'step' && editing?.from !== 'loop')))
+      .filter(
+        ([k]) =>
+          k === editing?.key ||
+          k === editing?.from ||
+          (!attrs.has(k) && !((k === 'step' || k === 'loop') && (attrs.has('step') || attrs.has('loop')) && editing?.from !== 'step' && editing?.from !== 'loop')),
+      )
       .map(([k]) => ({ value: k, label: k })),
   );
 

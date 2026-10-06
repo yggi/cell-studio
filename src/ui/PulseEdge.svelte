@@ -49,7 +49,17 @@
   const edgeStyle = $derived(colour ? `${style ?? ''}; stroke: ${colour}; stroke-opacity: 0.9` : style);
 </script>
 
-<BaseEdge {id} {path} {markerEnd} style={edgeStyle} class={`edge-${state}`} {label} labelX={geometry[1]} labelY={geometry[2]} labelStyle={d.off ? 'opacity: 0.3' : colour ? `border-color: ${colour}` : undefined} />
+<BaseEdge
+  {id}
+  {path}
+  {markerEnd}
+  style={edgeStyle}
+  class={`edge-${state}`}
+  {label}
+  labelX={geometry[1]}
+  labelY={geometry[2]}
+  labelStyle={d.off ? 'opacity: 0.3' : colour ? `border-color: ${colour}` : undefined}
+/>
 {#if dot}
   <circle class="pulse" cx={dot.x} cy={dot.y} r="6" style={colour ? `fill: ${colour}` : undefined} />
 {/if}

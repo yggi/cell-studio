@@ -145,9 +145,7 @@ export function restingProfile(result: CompileResult, name: string, shifts: Shif
   if (!c) return empty;
   if (c.voice) return restingSpectrum(result, name, shifts, bands);
   if (c.mix) {
-    const parts = c.mix
-      .filter((b) => result.cells.get(b.voice.name)?.voice)
-      .map((b) => ({ ...restingSpectrum(result, b.voice.name, shifts, bands), gl: b.gain, gr: b.gain }));
+    const parts = c.mix.filter((b) => result.cells.get(b.voice.name)?.voice).map((b) => ({ ...restingSpectrum(result, b.voice.name, shifts, bands), gl: b.gain, gr: b.gain }));
     return combine(parts, bands);
   }
   if (c.sink) {

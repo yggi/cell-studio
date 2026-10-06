@@ -50,7 +50,11 @@ const url = server.resolvedUrls.local[0];
 const browser = await chromium.launch({ args: ['--autoplay-policy=no-user-gesture-required', '--no-sandbox'] });
 const newPage = () => browser.newPage({ viewport: { width: vw, height: vh }, deviceScaleFactor: scale });
 
-const slug = (s) => s.replace(/[^\w]+/g, '-').replace(/^-|-$/g, '').toLowerCase();
+const slug = (s) =>
+  s
+    .replace(/[^\w]+/g, '-')
+    .replace(/^-|-$/g, '')
+    .toLowerCase();
 const keyOf = (w) => [w.where, w.wheel, w.mode, w.show].filter(Boolean).join(':');
 const FAMILY = { graph: 'Graph', petal: 'Graph — petals', sheet: "A cell's sheet", library: 'Library' };
 
@@ -64,7 +68,12 @@ async function wheelsIn(page, scope) {
       const r = host.getBoundingClientRect();
       // the node, the wheel (its ticks can stand out of the node) and the name under it
       const parts = [r, el.getBoundingClientRect(), ...[...(node?.querySelectorAll('.name') ?? [])].map((n) => n.getBoundingClientRect())];
-      const box = { x: Math.min(...parts.map((p) => p.x)), y: Math.min(...parts.map((p) => p.y)), right: Math.max(...parts.map((p) => p.right)), bottom: Math.max(...parts.map((p) => p.bottom)) };
+      const box = {
+        x: Math.min(...parts.map((p) => p.x)),
+        y: Math.min(...parts.map((p) => p.y)),
+        right: Math.max(...parts.map((p) => p.right)),
+        bottom: Math.max(...parts.map((p) => p.bottom)),
+      };
       return {
         wheel: el.dataset.wheel,
         mode: el.dataset.mode ?? '',
@@ -100,7 +109,20 @@ async function offer(page, w, piece) {
   if (had && rank(w.state) <= rank(had.state)) return false;
   const file = `${slug(key)}.png`;
   // (claimed before the screenshot, so that another page finding the same kind meanwhile leaves it)
-  const kept = { key, family: FAMILY[w.where], where: w.where, wheel: w.wheel, mode: w.mode, show: w.show, piece, name: w.name, state: w.state, zoom: w.zoom, file, pieces: new Set([...(had?.pieces ?? []), piece]) };
+  const kept = {
+    key,
+    family: FAMILY[w.where],
+    where: w.where,
+    wheel: w.wheel,
+    mode: w.mode,
+    show: w.show,
+    piece,
+    name: w.name,
+    state: w.state,
+    zoom: w.zoom,
+    file,
+    pieces: new Set([...(had?.pieces ?? []), piece]),
+  };
   kinds.set(key, kept);
   if (await shoot(page, w.box, file)) return !had;
   if (had) kinds.set(key, { ...had, pieces: kept.pieces });
@@ -149,10 +171,19 @@ async function piece(page, p) {
     }
     await page.waitForTimeout(600); // (it rises in)
     for (const s of await wheelsIn(page, '.sheet')) if (await offer(page, { ...s, where: 'sheet', name: w.name, zoom: 1 }, p.title)) added++;
-    await sheet.getByRole('button', { name: 'Close' }).first().click().catch(() => page.keyboard.press('Escape'));
+    await sheet
+      .getByRole('button', { name: 'Close' })
+      .first()
+      .click()
+      .catch(() => page.keyboard.press('Escape'));
     await page.waitForTimeout(200);
   }
-  await page.locator('.transport').getByRole('button', { name: 'Pause' }).first().click().catch(() => {});
+  await page
+    .locator('.transport')
+    .getByRole('button', { name: 'Pause' })
+    .first()
+    .click()
+    .catch(() => {});
   return added;
 }
 
@@ -161,8 +192,9 @@ const first = await newPage();
 first.on('pageerror', (e) => problems.push(`library: ${e.message}`));
 await library(first);
 await first.getByRole('radio', { name: 'Cards' }).click();
-const pieces = (await first.$$eval('button.open', (bs) => bs.map((b) => ({ id: b.dataset.id, title: b.getAttribute('aria-label').replace(/^Open /, '') }))))
-  .filter((p) => only.length === 0 || only.some((w) => p.title.toLowerCase().includes(w.toLowerCase())));
+const pieces = (await first.$$eval('button.open', (bs) => bs.map((b) => ({ id: b.dataset.id, title: b.getAttribute('aria-label').replace(/^Open /, '') })))).filter(
+  (p) => only.length === 0 || only.some((w) => p.title.toLowerCase().includes(w.toLowerCase())),
+);
 await first.close();
 if (pieces.length === 0) throw new Error('no piece matches ' + only.join(', '));
 
@@ -174,7 +206,7 @@ await Promise.all(
     page.setDefaultTimeout(8000);
     let current = '';
     page.on('pageerror', (e) => problems.push(`${current}: ${e.message}`));
-    for (let p; (p = queue.shift()); ) {
+    for (let p; (p = queue.shift());) {
       current = p.title;
       let added = 0;
       try {
@@ -220,7 +252,9 @@ ${groups
     (g) => `<h2>${esc(g.title)} · ${g.items.length}</h2><div class="grid">
 ${g.items
   .map(
-    (k) => `<figure${k.wheel === 'library' ? ' class="wide"' : ''}><div class="img"><img src="tiles/${esc(k.file)}" alt="${esc(k.key)}"></div><figcaption><b>${esc([k.wheel, k.mode, k.show && `show=${k.show}`].filter(Boolean).join(' · '))}</b>${k.state ? `<span class="state">${esc(k.state)}</span>` : ''}
+    (
+      k,
+    ) => `<figure${k.wheel === 'library' ? ' class="wide"' : ''}><div class="img"><img src="tiles/${esc(k.file)}" alt="${esc(k.key)}"></div><figcaption><b>${esc([k.wheel, k.mode, k.show && `show=${k.show}`].filter(Boolean).join(' · '))}</b>${k.state ? `<span class="state">${esc(k.state)}</span>` : ''}
 <span>${esc(k.piece)}${k.name ? ` · &amp;${esc(k.name)}` : ''}${k.zoom !== 1 ? ` · zoom ${k.zoom.toFixed(2)}` : ''}</span><span>in ${k.pieces.size} piece${k.pieces.size === 1 ? '' : 's'}</span></figcaption></figure>`,
   )
   .join('\n')}</div>`,
@@ -229,7 +263,14 @@ ${g.items
 ${problems.length ? `<h2>Problems</h2><pre>${esc(problems.join('\n'))}</pre>` : ''}
 </body></html>`;
 writeFileSync(join(out, 'index.html'), html);
-writeFileSync(join(out, 'wheels.json'), JSON.stringify(list.map((k) => ({ ...k, pieces: [...k.pieces].sort() })), null, 1));
+writeFileSync(
+  join(out, 'wheels.json'),
+  JSON.stringify(
+    list.map((k) => ({ ...k, pieces: [...k.pieces].sort() })),
+    null,
+    1,
+  ),
+);
 
 const sheet = await browser.newPage({ viewport: { width: 1400, height: 900 }, deviceScaleFactor: 1 });
 await sheet.goto(pathToFileURL(resolve(out, 'index.html')).href);

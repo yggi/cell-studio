@@ -40,7 +40,8 @@ export interface Resonator {
 export function buildResonator(raw: AudioContext, c: ResolvedCell, type: string, into: AudioNode): { res: Resonator; node: Disposable } {
   const params = c.params;
   const f0 = c.freq > 0 ? c.freq : 440;
-  const num = (p: Readonly<Record<string, number | string>>, k: string, d: number) => (typeof p[k] === 'number' ? (p[k] as number) : typeof params[k] === 'number' ? (params[k] as number) : d);
+  const num = (p: Readonly<Record<string, number | string>>, k: string, d: number) =>
+    typeof p[k] === 'number' ? (p[k] as number) : typeof params[k] === 'number' ? (params[k] as number) : d;
   const level = raw.createGain();
   level.gain.value = 0;
   const motion = raw.createGain();
@@ -147,7 +148,7 @@ export function buildResonator(raw: AudioContext, c: ResolvedCell, type: string,
     g.connect(to.exc);
     disposers.push(() => (d.disconnect(), g.disconnect()));
   };
-  if (board) for (const p of parts) link(p, board), link(board, p);
+  if (board) for (const p of parts) (link(p, board), link(board, p));
   // what reaches it from outside (a neighbour, a mix, a bow): the board — or, with none, every exciter
   const spread = raw.createGain();
   spread.gain.value = board ? 1 : 1 / Math.sqrt(parts.length);
@@ -175,7 +176,19 @@ export function buildResonator(raw: AudioContext, c: ResolvedCell, type: string,
   meter.fftSize = 4096;
   meter.smoothingTimeConstant = 0.6;
   level.connect(meter);
-  const node = disposer(() => (bowSrc.stop(), bowSrc.disconnect(), bow.disconnect(), input.disconnect(), spread.disconnect(), level.disconnect(), meter.disconnect(), motion.disconnect(), disposers.forEach((f) => f())));
+  const node = disposer(
+    () => (
+      bowSrc.stop(),
+      bowSrc.disconnect(),
+      bow.disconnect(),
+      input.disconnect(),
+      spread.disconnect(),
+      level.disconnect(),
+      meter.disconnect(),
+      motion.disconnect(),
+      disposers.forEach((f) => f())
+    ),
+  );
   return { res: { exc: input, level, motion, parts, board, burst, bow, meter, f0 }, node };
 }
 
@@ -239,7 +252,10 @@ export function bow(now: number, r: Resonator, amount: number | null): void {
 /** Two resonators coupled (couple=): through a short delay, both ways, a little (k) of each into the other. */
 export function couple(raw: AudioContext, a: Resonator, b: Resonator, k: number): AudioNode[] {
   const made: AudioNode[] = [];
-  for (const [from, to] of [[a, b], [b, a]] as const) {
+  for (const [from, to] of [
+    [a, b],
+    [b, a],
+  ] as const) {
     const d = raw.createDelay(0.05);
     d.delayTime.value = 0.003;
     const g = raw.createGain();

@@ -305,7 +305,10 @@ describe('a piece’s card: title= and tags= on a note', () => {
 });
 
 describe('about=: a note’s links to the cells it explains', () => {
-  const about = (src: string) => parse(src).cells.find((c) => c.name === 'hint')?.about?.map((r) => r.name);
+  const about = (src: string) =>
+    parse(src)
+      .cells.find((c) => c.name === 'hint')
+      ?.about?.map((r) => r.name);
   it('one cell, or several in parentheses', () => {
     expect(about('&hint label="x" about=&fenv\n&fenv map=adsr .1 .2 .3 .4')).toEqual(['fenv']);
     expect(about('&hint label="x" about=(&a &b  &c)')).toEqual(['a', 'b', 'c']);

@@ -41,9 +41,21 @@
   /* the note rainbow: saturation and lightness of notes, and the gradient */
   --note-s: 70%;
   --note-l: 58%;
-  --rainbow: linear-gradient(90deg,
-      hsl(0 80% 62%), hsl(30 85% 60%), hsl(60 80% 55%), hsl(90 70% 52%), hsl(120 60% 50%), hsl(150 60% 50%),
-      hsl(180 65% 50%), hsl(210 75% 60%), hsl(240 70% 66%), hsl(270 70% 66%), hsl(300 65% 62%), hsl(330 75% 62%));
+  --rainbow: linear-gradient(
+    90deg,
+    hsl(0 80% 62%),
+    hsl(30 85% 60%),
+    hsl(60 80% 55%),
+    hsl(90 70% 52%),
+    hsl(120 60% 50%),
+    hsl(150 60% 50%),
+    hsl(180 65% 50%),
+    hsl(210 75% 60%),
+    hsl(240 70% 66%),
+    hsl(270 70% 66%),
+    hsl(300 65% 62%),
+    hsl(330 75% 62%)
+  );
 
   /* the code, coloured: quiet, so the music's colours stay the loudest */
   --tok-comment: #6f7484;
@@ -73,20 +85,56 @@
 
   /* the physical wheels: turntables, the scope's tube, the sun's sky. (Black and white at an alpha for
      shadows, glass and engraving stay where they're drawn: they are light, not colour.) */
-  --disc-belt-0: #5a4636; --disc-belt-1: #3a2c22; --disc-belt-2: #211812;
-  --disc-motor-0: #4a4f5c; --disc-motor-1: #262a33; --disc-motor-2: #15171c;
-  --disc-tape-0: #3b3f46; --disc-tape-1: #22252b; --disc-tape-2: #121418;
-  --disc-resonator-0: #e7c46a; --disc-resonator-1: #a87b2c; --disc-resonator-2: #5e4214;
-  --axle-0: #f2f2f2; --axle-1: #9aa0aa; --axle-2: #4b505a; --axle-bore: #2a2d33;
-  --reel-pack: #3a2418; --reel-layer: rgb(255 210 170 / 0.08); --reel-hub: #1b1d22; --reel-spoke: #0d0e11;
-  --tape-recorded: #f2c48a; --head-write: #e35d5d; --head-read: #9fd3ff;
+  --disc-belt-0: #5a4636;
+  --disc-belt-1: #3a2c22;
+  --disc-belt-2: #211812;
+  --disc-motor-0: #4a4f5c;
+  --disc-motor-1: #262a33;
+  --disc-motor-2: #15171c;
+  --disc-tape-0: #3b3f46;
+  --disc-tape-1: #22252b;
+  --disc-tape-2: #121418;
+  --disc-resonator-0: #e7c46a;
+  --disc-resonator-1: #a87b2c;
+  --disc-resonator-2: #5e4214;
+  --axle-0: #f2f2f2;
+  --axle-1: #9aa0aa;
+  --axle-2: #4b505a;
+  --axle-bore: #2a2d33;
+  --reel-pack: #3a2418;
+  --reel-layer: rgb(255 210 170 / 0.08);
+  --reel-hub: #1b1d22;
+  --reel-spoke: #0d0e11;
+  --tape-recorded: #f2c48a;
+  --head-write: #e35d5d;
+  --head-read: #9fd3ff;
   --resonator-mode: rgb(255 240 200 / 0.35);
-  --pad-0: #f3d98a; --pad-1: #a87b2c; --pad-ink: #3a2806; --pad-glow: rgb(255 220 120);
-  --scope-face: #0f2219; --scope-black: #050b08; --scope-bezel: #2a2e35; --scope-tube: #23262c; --scope-tube-edge: #0b0c0f;
-  --scope-grid: rgb(120 255 180 / 0.08); --scope-ink: rgb(200 255 220 / 0.6); --scope-tick: rgb(200 255 220 / 0.7);
-  --sky-day: #3d6fa8; --sky-dusk: #e3a25a; --sky-dusk-night: #2a1c3a; --sky-night: #070912;
-  --sky-ink: #fff; --sky-ink-halo: rgb(0 0 0 / 0.6); --sky-mark: rgb(255 255 255 / 0.85); --sky-tick: rgb(255 255 255 / 0.55); --sky-horizon: rgb(255 255 255 / 0.35);
-  --sun: #ffd84a; --sun-edge: #fff3b0; --sun-glow: #ffcf3a; --sun-night: #8a7a40; --sun-night-edge: #b8aa70;
+  --pad-0: #f3d98a;
+  --pad-1: #a87b2c;
+  --pad-ink: #3a2806;
+  --pad-glow: rgb(255 220 120);
+  --scope-face: #0f2219;
+  --scope-black: #050b08;
+  --scope-bezel: #2a2e35;
+  --scope-tube: #23262c;
+  --scope-tube-edge: #0b0c0f;
+  --scope-grid: rgb(120 255 180 / 0.08);
+  --scope-ink: rgb(200 255 220 / 0.6);
+  --scope-tick: rgb(200 255 220 / 0.7);
+  --sky-day: #3d6fa8;
+  --sky-dusk: #e3a25a;
+  --sky-dusk-night: #2a1c3a;
+  --sky-night: #070912;
+  --sky-ink: #fff;
+  --sky-ink-halo: rgb(0 0 0 / 0.6);
+  --sky-mark: rgb(255 255 255 / 0.85);
+  --sky-tick: rgb(255 255 255 / 0.55);
+  --sky-horizon: rgb(255 255 255 / 0.35);
+  --sun: #ffd84a;
+  --sun-edge: #fff3b0;
+  --sun-glow: #ffcf3a;
+  --sun-night: #8a7a40;
+  --sun-night-edge: #b8aa70;
 
   /* shape */
   --radius-sm: 6px;
@@ -164,7 +212,9 @@ select {
   user-select: none;
 }
 [data-state] {
-  transition: opacity 260ms ease, filter 260ms ease;
+  transition:
+    opacity 260ms ease,
+    filter 260ms ease;
 }
 /* at rest (while playing, not sounding now): quieter, less colour; sounding: full colour */
 [data-state='idle'] {

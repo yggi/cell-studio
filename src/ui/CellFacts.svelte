@@ -98,7 +98,9 @@
       if (voices.length) out.push(['plays on', voices.join(', ')]);
     }
     // what uses it
-    const users = [...result.cells.values()].filter((x) => x.name !== name && !x.implicit && (x.over === name || x.units.some((u) => u.atom.kind === 'ref' && u.atom.name === name)));
+    const users = [...result.cells.values()].filter(
+      (x) => x.name !== name && !x.implicit && (x.over === name || x.units.some((u) => u.atom.kind === 'ref' && u.atom.name === name)),
+    );
     if (users.length) out.push(['used by', users.map((u) => (u.lambda ? '&(…)' : `&${u.name}`)).join(', ')]);
     const driven = [...result.cells.values()].filter((x) => x.step?.driver === name);
     if (driven.length) out.push(['steps', driven.map((d) => (d.lambda ? '&(…)' : `&${d.name}`)).join(', ')]);
@@ -136,7 +138,9 @@
         <tbody>
           {#each terms as t}
             <tr>
-              <td>{t.pitch}{#if t.vols}<span class="vols"> {t.vols}</span>{/if}</td>
+              <td
+                >{t.pitch}{#if t.vols}<span class="vols"> {t.vols}</span>{/if}</td
+              >
               <td>{t.voice}</td>
               <td class="num">{t.l}</td>
               <td class="num">{t.r}</td>
@@ -156,7 +160,6 @@
     margin: 0 0 6px;
     font: 600 12px var(--font-ui);
     color: var(--text-muted);
-
   }
   dl {
     display: grid;

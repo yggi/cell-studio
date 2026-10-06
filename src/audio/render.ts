@@ -71,7 +71,6 @@ export function wav(buffer: AudioBuffer): Blob {
   return new Blob([data.buffer], { type: 'audio/wav' });
 }
 
-
 /** How much of a piece to render: all of it if it ends (10 minutes at most), else one cycle (a minute at most). */
 export function renderLength(result: CompileResult): number {
   const t = pieceTime(result);

@@ -38,7 +38,10 @@ export function fieldsOf(result: CompileResult, name: string, shifts: Shifts, ne
       return semitones(result, r.root, r.position);
     };
     const table = [...result.cells.values()].some((x) => x.over === name);
-    const pitches = table || c.root ? entries(result, name, shifts(name)).map((e) => pitchOf(e.value, e.alter)) : flatten(result, name, shifts, null, undefined, 0, c.context).map((e) => pitchOf(e.value, e.alter));
+    const pitches =
+      table || c.root
+        ? entries(result, name, shifts(name)).map((e) => pitchOf(e.value, e.alter))
+        : flatten(result, name, shifts, null, undefined, 0, c.context).map((e) => pitchOf(e.value, e.alter));
     if (pitches.length) {
       const names = pitches.map((p) => NAMES[mod(Math.round(p), 12)]);
       out.notes = (pitches.length > 16 ? [...names.slice(0, 16), '…'] : names).join(' ');
