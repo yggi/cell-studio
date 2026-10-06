@@ -17,8 +17,9 @@
     labels = false,
     petals = true,
     showLabel = true,
-    curved = false,
+    pill = false,
     current = false,
+    miniature = true,
   }: {
     entry: Entry;
     colours: ReadonlyMap<string, string>;
@@ -30,9 +31,11 @@
     labels?: boolean;
     petals?: boolean;
     showLabel?: boolean;
-    /** The label bent round the bottom of the wheel (tight, for the library's graph). */
-    curved?: boolean;
+    /** The label as a pill over the wheel's lower third, straight (tight, for the library's graph). */
+    pill?: boolean;
     current?: boolean;
+    /** Its graph inside the wheel (the library leaves it out while it grows). */
+    miniature?: boolean;
   } = $props();
 
   // its facts, as petals: how many cells; how long (it ends) or how often round (it loops)
@@ -55,7 +58,7 @@
 
 <span class="node" style:width="{size}px">
   <span class="wheelbox" style:width="{size}px" style:height="{size}px">
-    <PieceWheel id={entry.id} source={entry.source ?? entry.load!} layout={entry.layout ?? null} tags={entry.tags} {colours} {size} {labels} {current} />
+    <PieceWheel id={entry.id} source={entry.source ?? entry.load!} layout={entry.layout ?? null} tags={entry.tags} {colours} {size} {labels} {current} {miniature} />
     {#if petals}
       {#each facts as f, i (i)}
         {@const p = at(i)}
@@ -65,17 +68,8 @@
       {/each}
     {/if}
   </span>
-  {#if showLabel && curved}
-    {@const r = size / 2 + Math.max(6, size * 0.08)}
-    {@const fs = Math.max(7, Math.min(14, size * 0.14))}
-    {@const id = `arc-${entry.id.replace(/[^a-z0-9]/gi, '')}`}
-    {@const cx = size / 2 + (r - size / 2) + fs}
-    {@const cy = size / 2 + (r - size / 2) + fs}
-    <svg class="arclabel" width={2 * cx} height={2 * cy} style:font-size="{fs}px" aria-hidden="true">
-      <path id={id} d="M {cx - r},{cy} A {r},{r} 0 0 0 {cx + r},{cy}" fill="none" />
-      <text dy="0.35em"><textPath href="#{id}" startOffset="50%" text-anchor="middle">{label}</textPath></text>
-    </svg>
-    <span class="sr">{label}</span>
+  {#if showLabel && pill}
+    <span class="pill" style:top="{size * 0.8}px" style:font-size="{Math.max(9, Math.min(14, size * 0.16))}px" style:max-width="{Math.max(70, size * 1.5)}px">{label}</span>
   {:else if showLabel}
     <span class="label" style:font-size="{Math.max(7, Math.min(15, size * 0.16))}px">{label}</span>
   {/if}
@@ -131,29 +125,22 @@
     text-overflow: ellipsis;
     white-space: nowrap;
   }
-  /* bent round the bottom of the wheel: it sits tight */
-  .arclabel {
+  /* a pill over the wheel's lower third, straight, as a cell's name in the piece's graph */
+  .pill {
     position: absolute;
     left: 50%;
-    top: 50%;
-    transform: translate(-50%, -50%) translateY(calc(var(--lift, 0px)));
-    pointer-events: none;
-    overflow: visible;
-  }
-  .arclabel text {
+    transform: translate(-50%, -50%);
+    padding: 0.15em 0.6em;
+    border-radius: var(--radius-pill);
+    border: 1px solid var(--line);
+    background: color-mix(in oklab, var(--surface) 88%, transparent);
+    color: var(--text);
     font-family: var(--font-ui);
     font-weight: 700;
-    fill: var(--text);
-    paint-order: stroke;
-    stroke: var(--bg);
-    stroke-width: 3px;
-    stroke-linejoin: round;
-  }
-  .sr {
-    position: absolute;
-    width: 1px;
-    height: 1px;
+    line-height: 1.3;
+    white-space: nowrap;
     overflow: hidden;
-    clip: rect(0 0 0 0);
+    text-overflow: ellipsis;
+    pointer-events: none;
   }
 </style>

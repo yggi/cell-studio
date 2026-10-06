@@ -16,6 +16,7 @@
     size,
     labels = false,
     current = false,
+    miniature = true,
   }: {
     id: string;
     /** Its text, or how to get it. */
@@ -28,6 +29,8 @@
     /** Name each tag along its arc. */
     labels?: boolean;
     current?: boolean;
+    /** Its graph inside (else an empty disc: the library while it grows). */
+    miniature?: boolean;
   } = $props();
 
   const R = 100; // drawn in a 200 × 200 box
@@ -81,7 +84,7 @@
     {/each}
   </svg>
   <div class="inside" style:inset="{((R - inner) / (2 * R)) * 100}%">
-    <MiniGraph {id} {source} {layout} round />
+    {#if miniature}<MiniGraph {id} {source} {layout} round />{/if}
   </div>
 </div>
 

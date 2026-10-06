@@ -5,10 +5,11 @@
    * size of how many pieces carry it. Pieces sharing tags gather. Laid out by the
    * same physics as the pieces' graphs, without its ranks: a cloud, not a flow.
    */
-  import { GENRES, PIECE, type LibraryLayout } from '../layout/library';
+  import { GENRES, tagFont, type LibraryLayout } from '../layout/library';
   import { tagName } from '../engine/tags';
   import { tick } from 'svelte';
   import PieceNode from './PieceNode.svelte';
+  import { clusterDisc } from '../layout/clusters';
   import type { Entry } from './entries';
 
   let {
@@ -43,8 +44,8 @@
 
 
   const layout = $derived(lib);
-  // a piece's size: what the layout gave it (sized to fill the wheel), else the usual
-  const PR = $derived(lib.ring?.piece ?? PIECE);
+  // a piece's size, and the tags': as large as the layout has grown them (to fill the wheel)
+  const PR = $derived(lib.piece);
   const tags = $derived(lib.count);
   // zoom: the wheels stay legible (a piece ~76 px across at 1); fit shows it all
   let width = $state(0);
@@ -140,9 +141,9 @@
     return p ? { x: px(p.x - layout.x0), y: px(p.y - layout.y0) } : null;
   };
   // lit: what the chosen tag carries; dim: what the search leaves out
-  // zoomed out, a tag only one piece carries says little: left out (its halo and edges too)
+  // zoomed out, a tag only one piece carries says little: left out (and its wash)
   const shownTag = (t: string) => zoom >= 0.6 || (tags.get(t) ?? 0) > 1 || tag === t;
-  // (on the wheel, the genres are its rim: no pill, no halo of their own)
+  // (on the wheel, the genres are its rim: no pill, no wash of their own)
   const asNode = (t: string) => shownTag(t) && tagHasVisible(t) && !(layout.ring && isGenre(t));
   const isGenre = (t: string) => (GENRES as readonly string[]).includes(t);
   // searching: what doesn't match is gone (as in the cards), not dimmed — and a tag left with no
@@ -171,6 +172,19 @@
       scroller.scrollTop = ((y0 + y1) / 2 - layout.y0) * zoom - (height - top) / 2;
     });
   });
+  // a tag's cluster: the pieces showing that carry it (two or more; the rim's genres have their arc)
+  const clusters = $derived.by(() =>
+    [...tags]
+      .filter(([t, n]) => n > 1 && shownTag(t) && !(layout.ring && isGenre(t)))
+      .map(([t]) => {
+        const ms = entries.filter((e) => visible(e.id) && e.tags.includes(t)).map((e) => layout.at.get(`p:${e.id}`)).filter((p): p is { x: number; y: number } => !!p);
+        if (ms.length < 2) return null;
+        // (no wider than a few pieces: a tag carried all over the wheel washes only its heart)
+        const c = clusterDisc(ms, PR * 0.6, PR * 2);
+        return { tag: t, ...c, r: Math.min(c.r, PR * 3.2) };
+      })
+      .filter((c) => c !== null),
+  );
   const lit = (e: Entry) => (!tag || e.tags.includes(tag)) && shown.has(e.id);
 </script>
 
@@ -228,39 +242,20 @@
           ></button>
         {/each}
       {/if}
-      <!-- each tag's colour washes its surroundings -->
-      {#each [...tags].filter(([t]) => asNode(t)) as [t] (t)}
-        {@const p = pos(`t:${t}`)}
-        {#if p}
-          <div
-            class="halo"
-            class:genre={isGenre(t)}
-            class:off={tag !== null && tag !== t}
-            style:left="{p.x}px"
-            style:top="{p.y}px"
-            style:width="{px(340)}px"
-            style:height="{px(340)}px"
-            style:--hue={colours.get(t)}
-          ></div>
-        {/if}
+      <!-- clusters: the pieces a tag gathers, washed in its colour (as cells tagged alike in a piece's graph) -->
+      {#each clusters as c (c.tag)}
+        <div class="cluster" class:off={tag !== null && tag !== c.tag} style:left="{px(c.x - layout.x0)}px" style:top="{px(c.y - layout.y0)}px" style:width="{px(c.r * 2)}px" style:height="{px(c.r * 2)}px" style:--hue={colours.get(c.tag)}></div>
       {/each}
-      <svg width={px(layout.w)} height={px(layout.h)} aria-hidden="true">
-        <!-- shading: each piece's link to an inner tag, wide and faint in the tag's colour — clusters wash -->
-        {#each layout.edges.filter((e) => visible(e.source.slice(2)) && shownTag(e.target.slice(2)) && !(layout.ring && isGenre(e.target.slice(2)))) as e (e.id + ':shade')}
-          {@const a = pos(e.source)}
-          {@const b = pos(e.target)}
-          {#if a && b}
-            <line class="shade" x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke-width={px(PR * 1.6)} style:stroke={colours.get(e.target.slice(2))} />
-          {/if}
-        {/each}
-        {#each layout.edges.filter((e) => visible(e.source.slice(2)) && shownTag(e.target.slice(2))) as e (e.id)}
-          {@const a = pos(e.source)}
-          {@const b = pos(e.target)}
-          {#if a && b}
-            <line x1={a.x} y1={a.y} x2={b.x} y2={b.y} class:hot={tag !== null && e.target === `t:${tag}`} class:thread={!!layout.ring && isGenre(e.target.slice(2))} />
-          {/if}
-        {/each}
-      </svg>
+      <!-- a lit tag's pieces: tied to it -->
+      {#if tag}
+        <svg width={px(layout.w)} height={px(layout.h)} aria-hidden="true">
+          {#each layout.edges.filter((e) => e.target === `t:${tag}` && visible(e.source.slice(2))) as e (e.id)}
+            {@const a = pos(e.source)}
+            {@const b = pos(e.target)}
+            {#if a && b}<line x1={a.x} y1={a.y} x2={b.x} y2={b.y} />{/if}
+          {/each}
+        </svg>
+      {/if}
       {#each [...tags].filter(([t]) => asNode(t)) as [t, n] (t)}
         {@const p = pos(`t:${t}`)}
         {#if p}
@@ -271,7 +266,7 @@
             class:dim={tag !== null && tag !== t}
             style:left="{p.x}px"
             style:top="{p.y}px"
-            style:font-size="{Math.max(11, px(15 + 4 * Math.sqrt(n)))}px"
+            style:font-size="{Math.max(isGenre(t) ? 11 : 9, px(tagFont(n) * lib.tagScale))}px"
             style:--hue={colours.get(t)}
             onclick={() => (tag = tag === t ? null : t)}
             aria-pressed={tag === t}>{tagName(t)}</button
@@ -302,7 +297,7 @@
             oncontextmenu={(ev) => ev.preventDefault()}
             aria-label="{e.title}: details"
           >
-            <PieceNode entry={e} {colours} size={d} label={short(e.title)} petals={d >= 96} showLabel curved current={e.id === current} />
+            <PieceNode entry={e} {colours} size={d} label={short(e.title)} petals={d >= 96} showLabel={d >= 40 || peek === e.id} pill current={e.id === current} miniature={lib.done} />
           </button>
         {/if}
       {/each}
@@ -338,15 +333,19 @@
     position: absolute;
     inset: 0;
   }
+  /* a lit tag's ties */
   line {
-    stroke: var(--edge);
-    stroke-width: 1;
-    stroke-opacity: 0.35;
-  }
-  line.hot {
     stroke: var(--accent);
-    stroke-opacity: 0.9;
-    stroke-width: 1.6;
+    stroke-width: 1.4;
+    stroke-opacity: 0.55;
+  }
+  /* (many tags share the wheel: their washes lighter than a piece's few) */
+  .cluster {
+    opacity: 0.6;
+    transition: opacity 200ms ease;
+  }
+  .cluster.off {
+    opacity: 0.12;
   }
   /* tags: the cloud's landmarks — bold, in their colour, glowing a little */
   .tagnode {
@@ -369,20 +368,6 @@
     background: var(--hue);
     color: var(--ink-on-note);
   }
-  .halo {
-    position: absolute;
-    transform: translate(-50%, -50%);
-    border-radius: 50%;
-    background: radial-gradient(circle, color-mix(in oklab, var(--hue) 55%, transparent) 0%, transparent 68%);
-    opacity: 0.42;
-    pointer-events: none;
-    transition: opacity 200ms ease;
-  }
-  /* the genres: the cloud's compass points — larger, brighter, glowing */
-  .halo.genre {
-    opacity: 0.6;
-    transform: translate(-50%, -50%) scale(1.5);
-  }
   .tagnode.genre {
     z-index: 3;
     letter-spacing: 0.04em;
@@ -393,9 +378,6 @@
       0 0 24px color-mix(in oklab, var(--hue) 65%, transparent),
       0 0 0 4px color-mix(in oklab, var(--hue) 20%, transparent);
   }
-  .halo.off {
-    opacity: 0.08;
-  }
   .piece.peeking {
     z-index: 3;
   }
@@ -405,7 +387,7 @@
     -webkit-touch-callout: none;
     user-select: none;
     position: absolute;
-    transform: translate(-50%, -38%);
+    transform: translate(-50%, -50%);
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -466,42 +448,19 @@
   .segtap:focus-visible {
     outline: 2px solid var(--accent);
   }
-  line.thread {
-    stroke-opacity: 0.12;
-    stroke-dasharray: 2 4;
-  }
-  /* inside the wheel the tags are words, quieter than the pieces: no pill, a faint wash, their colour */
-  .tagnode:not(.genre) {
-    border-color: transparent;
-    background: color-mix(in oklab, var(--hue) 14%, transparent);
-    box-shadow: none;
-    color: color-mix(in oklab, var(--hue) 55%, var(--text));
-    font-weight: 700;
-    opacity: 0.85;
-  }
   .tagnode:not(.genre).on {
     opacity: 1;
     background: var(--hue);
     color: var(--ink-on-note);
   }
-  .halo:not(.genre) {
-    opacity: 0.22;
-  }
-  line.shade {
-    stroke-opacity: 0.07;
-    stroke-linecap: round;
-  }
   /* the inner tags: cores of their clusters — bold words on a wash of their colour */
   .tagnode:not(.genre) {
     border-color: transparent;
-    background: color-mix(in oklab, var(--hue) 30%, rgba(0, 0, 0, 0.35));
-    color: color-mix(in oklab, var(--hue) 35%, white);
+    background: color-mix(in oklab, var(--hue) 30%, var(--bg));
+    color: color-mix(in oklab, var(--hue) 35%, var(--text));
     font-weight: 800;
     opacity: 1;
     box-shadow: 0 0 14px color-mix(in oklab, var(--hue) 35%, transparent);
-  }
-  .halo:not(.genre) {
-    opacity: 0.38;
   }
   /* the view's own canvas: no frame, the whole view, behind the controls */
   .frame.bare {
@@ -518,5 +477,9 @@
   }
   .tagnode:not(.genre) {
     z-index: 2;
+  }
+  /* (another tag lit: the inner words step back too) */
+  .tagnode.dim {
+    opacity: 0.22;
   }
 </style>
