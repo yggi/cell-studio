@@ -183,25 +183,12 @@ export function playNote(Tone: ToneNS, ctx: AudioContext, b: Built, note: Played
   const env = noteEnv ?? envelope(b.params);
   // noise: its buffer, looping from somewhere else each note (from the cell's seed, so the same every time);
   // then the same path as a tone — envelope, volume streams, placement
-<<<<<<< HEAD
   // a tone: its waveform, its pitch (a shape, if pitch=lo..hi * &shape), its bends
   const tone = (o: OscillatorNode) => {
     if (typeof b.wave === 'string') o.type = b.wave as OscillatorType;
     else if (b.wave) o.setPeriodicWave(b.wave);
     if (params?.pitch) schedulePitch(o.frequency, freq, params.pitch, time, dur);
     else o.frequency.setValueAtTime(freq, time);
-=======
-  // a tone: its waveform, its pitch (a shape, if pitch=lo..hi * &shape; the retiring penv= drop), its bends
-  const tone = (o: OscillatorNode) => {
-    if (typeof b.wave === 'string') o.type = b.wave as OscillatorType;
-    else if (b.wave) o.setPeriodicWave(b.wave);
-    const depth = num(b.params, 'penv', 0);
-    if (params?.pitch) schedulePitch(o.frequency, freq, params.pitch, time, dur);
-    else if (depth) {
-      o.frequency.setValueAtTime(freq * Math.pow(2, depth / 12), time);
-      o.frequency.exponentialRampToValueAtTime(freq, time + num(b.params, 'pdec', 0.05));
-    } else o.frequency.setValueAtTime(freq, time);
->>>>>>> origin/main
     o.detune.setValueAtTime(0, time);
     for (const bend of bends) {
       if (bend.ramp) o.detune.linearRampToValueAtTime(bend.cents, bend.at);
