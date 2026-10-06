@@ -11,9 +11,11 @@ that makes the change. Also note changes to the language that could affect saved
 ## Unreleased
 
 ### Changed
+- The audio output is tuned for lower latency: `balanced` instead of `playback`, measured on an Android phone with the full latency test at 56 ms from made to heard instead of 280 ms (desktop ~45 ms instead of ~85 ms), with no late or left-out notes on the heaviest pieces. Hands (strike, bow) are heard sooner by the same amount. If a piece clicks on a device, `?latency=playback` brings the old setting back (kept until `?latency=off`). Saved `.cells` pieces are not affected; how a piece sounds is not, only when.
 - `bwv847` is written shorter (#82): `tools/bwv847.py` now runs its longhand through Shorten (`tools/shorten.mjs`), so repeated phrases are cells of their own, used exactly or transposed (10,138 → 9,999 characters in the committed file). The notes are unchanged (checked note by note, and the events of every example hash the same); the graph has one more shared cell and a few more crossings (24 → 28). The order convention is written down in `docs/language/display.md`.
 
 ### Fixed
+- What you see matches what you hear (#67): the position, the highlighted notes and the lit cells and edges now follow the sound as it leaves the speaker, not as the audio engine makes it, so they no longer run ahead of it (by 280 ms on the phone measured). The scopes and spectra, which read the signal as it is made, still run ahead of the speaker by the output latency (about 55 ms with the new default). Saved `.cells` pieces are not affected.
 - The graph shows what sounds, for nodes and edges alike (#11): cells that sound are no longer drawn dimmed (a cell that moves a filter or a pitch, a part made only of chance choices, a mix used as an instrument such as Sound on Tape's `&dry`, the mix of tape heads that drives Resonanz's pipes); tapes, resonators, motors and scopes now fade too when off or unused; a selector lights only the part it picks now, and the way from it to the sound card; an edge takes a note's colour and pulses only while what it carries plays (a voice in two mixes no longer colours the edge to the one that isn't playing). The sound and saved `.cells` pieces are not affected.
 
 ### Changed

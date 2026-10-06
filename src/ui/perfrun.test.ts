@@ -17,7 +17,7 @@ const data = (over: Partial<ReportData> = {}, audio: Partial<ReportData['audio']
   queue: null,
   notes: { played: 400, late: 0, dropped: 0, worstLateMs: 3 },
   loadScale: { mean: 1, max: 1 },
-  audio: { state: 'running', sampleRate: 48000, baseLatencyMs: 21, outputLatencyMs: 280, clockRatio: 1, tuning: 'playback, look-ahead default', heardLatencyMs: 280, capacity: { updates: 25, meanLoad: 0.3, peakLoad: 0.5, underrunRatioMean: 0, underrunRatioMax: 0 }, playout: null, ...audio },
+  audio: { state: 'running', sampleRate: 48000, baseLatencyMs: 21, outputLatencyMs: 280, clockRatio: 1, tuning: 'playback, look-ahead default', heardLatencyMs: 280, pictureLagMs: null, capacity: { updates: 25, meanLoad: 0.3, peakLoad: 0.5, underrunRatioMean: 0, underrunRatioMax: 0 }, playout: null, ...audio },
   heapMB: 50,
   ...over,
 });
@@ -121,6 +121,6 @@ describe('the combined report', () => {
   it('stays small enough for an issue comment', () => {
     const md = combinedReport({ results: results(), stoppedBecause: null }, { seconds: 25, settings: SETTINGS, pieces: PIECES });
     expect(md.length).toBeLessThan(20000);
-    expect(md).toContain('| Hypercell | playback (today) |');
+    expect(md).toContain('| Hypercell | playback (the old default) |');
   });
 });
