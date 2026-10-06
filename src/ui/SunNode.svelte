@@ -7,6 +7,9 @@
    */
   import { Handle, Position, type NodeProps } from '@xyflow/svelte';
   import { getGraphContext } from './context';
+  import { polar, ringSegment } from '../layout/geometry';
+  import { angleOf as turnOf, turnDelta } from '../layout/dial';
+  import { NOTE_NAMES as NAMES } from '../theory/modes';
   import { blockColour } from './theme';
   import { BLOCK_NAMES, DAY_MODES, MODE_NAMES, place, SECONDS_PER_STEP } from '../engine/fiveto12';
 
@@ -25,20 +28,16 @@
   const t = $derived(ctx.live?.seconds ?? ctx.cursor);
   const ofDay = $derived((((anchor + t) % 86400) + 86400) % 86400);
   const hhmm = $derived(`${Math.floor(ofDay / 3600)}:${String(Math.floor((ofDay % 3600) / 60)).padStart(2, '0')}`);
-  const NAMES = ['C', 'C♯', 'D', 'E♭', 'E', 'F', 'F♯', 'G', 'A♭', 'A', 'B♭', 'B'];
   const where = $derived(place(t / SECONDS_PER_STEP));
-  // the angle of a time of day: noon at the top, turning clockwise (east → south → west)
-  const ang = (sec: number) => ((sec / 3600 - 12) / 24) * 2 * Math.PI;
-  const at = (sec: number, r: number) => ({ x: R + r * Math.sin(ang(sec)), y: R - r * Math.cos(ang(sec)) });
+  // a time of day, in turns: noon at the top, turning clockwise (east → south → west)
+  const turns = (sec: number) => (sec / 3600 - 12) / 24;
+  const at = (sec: number, r: number) => {
+    const [x, y] = polar(R, R, r, turns(sec));
+    return { x, y };
+  };
   // a mode's brightness: Lydian 1 … Locrian 0
   const BRIGHT = [5, 3, 1, 6, 4, 2, 0].map((b) => b / 6); // by mode index: Ionian … Locrian
-  const arc = (s0: number, s1: number, r0: number, r1: number) => {
-    const a = at(s0, r1);
-    const b = at(s1, r1);
-    const c = at(s1, r0);
-    const e = at(s0, r0);
-    return `M${a.x},${a.y} A${r1},${r1} 0 0 1 ${b.x},${b.y} L${c.x},${c.y} A${r0},${r0} 0 0 0 ${e.x},${e.y} Z`;
-  };
+  const arc = (s0: number, s1: number, r0: number, r1: number) => ringSegment(R, R, r0, r1, turns(s0), turns(s1));
   const blocks = $derived(DAY_MODES.map((m, b) => ({ s0: anchor + b * 7200, s1: anchor + (b + 1) * 7200, light: BRIGHT[m], name: `${MODE_NAMES[m]} · ${BLOCK_NAMES[b]}` })));
   const sun = $derived(at(ofDay, R * 0.62));
   const up = $derived(ofDay > 6 * 3600 && ofDay < 18 * 3600);
@@ -47,7 +46,7 @@
   let last: number | null = null;
   const angleOf = (e: PointerEvent) => {
     const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
-    return Math.atan2(e.clientX - (r.left + r.width / 2), -(e.clientY - (r.top + r.height / 2)));
+    return turnOf(e.clientX, e.clientY, r.left + r.width / 2, r.top + r.height / 2);
   };
   function down(e: PointerEvent) {
     if (ctx.live || e.button !== 0) return;
@@ -58,11 +57,9 @@
   function move(e: PointerEvent) {
     if (last === null) return;
     const a = angleOf(e);
-    let da = a - last;
-    if (da > Math.PI) da -= 2 * Math.PI;
-    if (da < -Math.PI) da += 2 * Math.PI;
+    const da = turnDelta(last, a);
     last = a;
-    ctx.nudge((da / (2 * Math.PI)) * 86400);
+    ctx.nudge(da * 86400);
   }
   const up_ = () => (last = null);
   // the keyboard: stopped, the arrows turn it an hour

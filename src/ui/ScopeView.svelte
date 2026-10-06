@@ -7,6 +7,7 @@
    * one: the colour of its value as it goes.
    */
   import { getGraphContext } from './context';
+  import { NOTE_NAMES } from '../theory/modes';
   import { clocking } from '../engine/clocking';
   import { notesAt, valueAt, valuesAt } from '../engine/values';
   import { adsrOf, resolvePitch, semitones } from '../engine/compile';
@@ -16,9 +17,8 @@
   import { timed } from '../audio/stats';
 
   let { name, w = 240, h = 150, round = false }: { name: string; w?: number; h?: number; round?: boolean } = $props();
-  const d = $derived({ name });
   const ctx = getGraphContext();
-  const cell = $derived(ctx.program.cells.get(d.name));
+  const cell = $derived(ctx.program.cells.get(name));
   const mode = $derived(cell && typeof cell.params.scope === 'string' ? cell.params.scope : 'stack');
   const channels = $derived(cell ? cell.units.flatMap((u) => (u.atom.kind === 'ref' ? [u.atom.name] : [])) : []);
   const W = $derived(w);
@@ -64,7 +64,7 @@
   const fold = $derived(P('fold') ?? (P('bins') !== undefined ? 0 : 12));
   const nBands = $derived(fold > 0 ? fold : Math.max(1, Math.round(P('bins') ?? 20)));
   const summed = $derived(PS('channels') !== 'split');
-  const NAMES12 = ['C', 'C♯', 'D', 'E♭', 'E', 'F', 'F♯', 'G', 'A♭', 'A', 'B♭', 'B'];
+  const NAMES12 = NOTE_NAMES;
   const LO = 30;
   const HI = 16000;
   type Bins = { levels: number[]; labels: string[]; hues: number[] };

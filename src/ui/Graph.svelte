@@ -11,6 +11,7 @@
   import { DEFAULT_LAYOUT, ForceLayout, type LayoutOptions } from '../layout/physics';
   import type { FlowNode } from './types';
   import { setGraphContext } from './context';
+  import { flowNodeOf, PETAL, physical } from './flownode';
   import CellNode from './CellNode.svelte';
   import VoiceNode from './VoiceNode.svelte';
   import FitView from './FitView.svelte';
@@ -159,11 +160,6 @@
   });
 
   const nodeTypes = { cell: CellNode, voice: VoiceNode, material: MaterialNode, scope: ScopeNode, sun: SunNode } as NodeTypes;
-  // physical cells: a meter with a motor, a belted cell — turntables
-  const physical = (g: GraphNode) =>
-    !g.petalOf &&
-    (typeof g.cell.params.motor === 'number' || typeof g.cell.params.belt === 'number' || typeof g.cell.params.write === 'string' || typeof g.cell.params.body === 'string');
-
   let nodes = $state.raw<FlowNode[]>([]);
   let edges = $state.raw<Edge[]>([]);
   let fitToken = $state(0);
@@ -177,7 +173,6 @@
   let bends = $state.raw(new Map<string, { x: number; y: number }>());
   // unnamed cells are petals: not simulated, hung on an arc above their parent
   let petalSlot = new Map<string, { parent: string; i: number; n: number }>();
-  const PETAL = 44;
   function posOf(id: string): { x: number; y: number } | undefined {
     const slot = petalSlot.get(id);
     if (!slot) return layout.position(id);
@@ -215,37 +210,10 @@
   };
 
   function toFlowNode(g: GraphNode): FlowNode {
-    const position = posOf(g.id) ?? { x: 0, y: 0 };
     // an example's own fixed layout isn't marked: only what the user pinned
-    const isPinned = pinned.has(g.id) && !fixedPinned.has(g.id);
-    if (g.petalOf) {
-      if (g.kind === 'voice') return { id: g.id, type: 'voice', position, draggable: false, data: { name: g.cell.name, summary: '', size: PETAL, pinned: false, petal: true } };
-      return { id: g.id, type: 'cell', position, draggable: false, data: { name: g.cell.name, isMeter: false, size: PETAL, pinned: false, petal: true } };
-    }
-    if (g.kind === 'voice') {
-      // (a resonator is a voice too — but a body: a turntable, struck and damped and bowed by hand)
-      if (typeof g.cell.params.body === 'string')
-        return { id: g.id, type: 'material', position, draggable: false, zIndex: 10, data: { name: g.cell.name, size: 140 * g.cell.size, role: 'resonator', pinned: true } };
-      const p = g.cell.params;
-      const src = p.s === undefined ? `braid${g.cell.map ? ' ' + (g.cell.map.kind === 'table' ? '&' + g.cell.map.table : g.cell.map.kind) : ''}` : String(p.s);
-      const summary = ['white', 'pink', 'brown'].includes(src) ? src : `${src} · ${+g.cell.freq.toFixed(2)}`;
-      return { id: g.id, type: 'voice', position, data: { name: g.cell.name, summary, size: 120 * g.cell.size, pinned: isPinned } };
-    }
-    // the sun of a day's law: a dial
-    if (typeof g.cell.params.sun === 'string') return { id: g.id, type: 'sun', position, data: { name: g.cell.name, size: 220 } };
-    // an oscilloscope: a screen
-    if (typeof g.cell.params.scope === 'string')
-      return { id: g.id, type: 'scope', position, data: { name: g.cell.name, size: 200 } };
-    // (size= scales it: &bar size=2 twice as large)
-    if (physical(g)) {
-      // a turntable: raised over everything, moved only by its axle (held)
-      const role =
-        typeof g.cell.params.body === 'string' ? 'resonator' : typeof g.cell.params.motor === 'number' ? 'motor' : typeof g.cell.params.write === 'string' ? 'tape' : 'belt';
-      return { id: g.id, type: 'material', position, draggable: false, zIndex: 10, data: { name: g.cell.name, size: (role === 'motor' ? 168 : 140) * g.cell.size, role, pinned: true } };
-    }
-    const size = (g.cell.root ? 176 : g.isMeter ? 148 : 128) * g.cell.size;
-    return { id: g.id, type: 'cell', position, data: { name: g.cell.name, isMeter: g.isMeter, size, pinned: isPinned } };
+    return flowNodeOf(g, posOf(g.id) ?? { x: 0, y: 0 }, pinned.has(g.id) && !fixedPinned.has(g.id));
   }
+
 
   // clusters: the tags cells carry inside the piece (not the card's) — where their members are, now
   const clusters = $derived.by(() => {
