@@ -58,8 +58,10 @@
   --wheel-tick: #545a69;
   --wheel-rest: #262a34;
   --wheel-ref: #454a59;
-  --wheel-hand: var(--accent); /* the playhead, on every wheel */
+  --wheel-hand: #f4f6fb; /* the playhead, on every wheel: white (not a live edge's yellow) … */
+  --wheel-hand-edge: rgb(0 0 0 / 0.75); /* … with a dark edge, so it reads on pale notes too (#107) */
   --wheel-lit: brightness(1.3) saturate(1.15); /* the step under it */
+  --spectrum-rest: brightness(2.8) saturate(1.3); /* a spectrum at rest: its own partials, lifted so they read (#107) */
   --wheel-read: #fff; /* a table's entry read now: a dot */
   --wheel-read-edge: rgb(0 0 0 / 0.5);
   --ink-halo: rgb(255 255 255 / 0.55); /* a light halo behind dark ink on a note */

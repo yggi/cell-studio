@@ -48,3 +48,14 @@ export function wheelGeometry(size: number): WheelGeometry {
     tick: { r0: rOuter + 1.5 * k, r1: rOuter + 5 * k, width: Math.max(1, 1.5 * k) },
   };
 }
+
+/** A time on a wheel: ms under a second (3 ms, 180 ms), else seconds (1.2 s). */
+export const timeText = (s: number) => (s < 1 ? `${+(s * 1000).toPrecision(2)} ms` : `${+s.toPrecision(2)} s`);
+
+/** An envelope's four values, named as the curve shows them (#107): attack, decay and release as times, sustain as a level. */
+export function envelopeNames(e: { attack: number; decay: number; sustain: number; release: number }): { a: string; d: string; s: string; r: string } {
+  return { a: `A ${timeText(e.attack)}`, d: `D ${timeText(e.decay)}`, s: `S ${Math.round(e.sustain * 100)} %`, r: `R ${timeText(e.release)}` };
+}
+
+/** A written number on a wheel's step: three figures at most (2.3429 → 2.34, 1.1047 → 1.1); anything else as written. */
+export const stepText = (token: string) => (/^-?\d+\.\d{3,}$/.test(token) ? String(+(+token).toPrecision(3)) : token);

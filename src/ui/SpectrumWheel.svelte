@@ -208,7 +208,7 @@
   });
 </script>
 
-<div class="wheel" data-wheel="spectrum" style="width: {size}px; height: {size}px">
+<div class="wheel" class:resting data-wheel="spectrum" style="width: {size}px; height: {size}px">
   <canvas bind:this={canvas} width={px} height={px} style="width: {size}px; height: {size}px"></canvas>
   {#if bigFont}<span class="note" {title} style:font-size="{bigFont}px">{hub}{#if smallFont}<small style:font-size="{smallFont}px">{small}</small>{/if}</span>{/if}
 </div>
@@ -221,6 +221,13 @@
   }
   canvas {
     display: block;
+  }
+  /* at rest: its own partials, lifted, and a rim so the disc reads (#107) */
+  .wheel.resting {
+    box-shadow: inset 0 0 0 1.5px var(--wheel-tick);
+  }
+  .wheel.resting canvas {
+    filter: var(--spectrum-rest);
   }
   .note {
     position: absolute;

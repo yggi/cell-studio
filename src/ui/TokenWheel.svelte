@@ -12,6 +12,8 @@
 
   export interface WheelToken {
     readonly label: string;
+    /** As written, when the label shortens it (a number to three figures): what a screen reader says. */
+    readonly full?: string;
     readonly hues: readonly number[] | null;
     readonly weight: number;
     readonly kind: 'note' | 'chord' | 'ref' | 'rest' | 'other';
@@ -88,7 +90,7 @@
       role="button"
       tabindex={editable ? 0 : -1}
       aria-disabled={!editable}
-      aria-label="step {s.i + 1}: {s.t.label}"
+      aria-label="step {s.i + 1}: {s.t.full ?? s.t.label}"
       onclick={() => editable && onpick(s.i)}
       onkeydown={(e) => editable && (e.key === 'Enter' || e.key === ' ') && onpick(s.i)}
     >
@@ -116,6 +118,7 @@
   {#if hand !== null}
     {@const [hx0, hy0] = polar(c, c, geo.hand.r0, hand)}
     {@const [hx1, hy1] = polar(c, c, geo.hand.r1, hand)}
+    <line class="hand edge" style:stroke-width="{geo.hand.width + 2}px" x1={hx0} y1={hy0} x2={hx1} y2={hy1} />
     <line class="hand" style:stroke-width="{geo.hand.width}px" x1={hx0} y1={hy0} x2={hx1} y2={hy1} />
   {/if}
   <g class="hubbtn" role="button" tabindex="0" aria-label="Edit the whole braid" onclick={onhub} onkeydown={(e) => (e.key === 'Enter' || e.key === ' ') && onhub()}>
@@ -146,6 +149,9 @@
     stroke: var(--wheel-hand);
     stroke-linecap: round;
     pointer-events: none;
+  }
+  .hand.edge {
+    stroke: var(--wheel-hand-edge);
   }
   .seg.locked {
     cursor: default;
