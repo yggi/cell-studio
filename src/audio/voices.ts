@@ -9,7 +9,8 @@
  * (tape.ts), noise, parameter tracks, and the bridge to Tone's nodes (nodes.ts). This file wires them to
  * the piece: which voices exist, what each mix hears, what feeds each tape and resonator.
  */
-import type { Played } from '../engine/realize';
+import { liveGains, outputSounds, type Played } from '../engine/realize';
+import { cellId } from '../engine/ids';
 import type { CompileResult, Shifts } from '../engine/compile';
 import { audioContext, type Disposable, type ToneNS } from './voice/nodes';
 import { buildVoice, freeVoice, playNote, type Built, type Bus, type Scope } from './voice/voice';
@@ -19,8 +20,8 @@ import { buildTapeNet, fadeOut, scrubTape, tapeKey, tapeLevelOf, tapeSpeedOf, ty
 export interface VoiceBank {
   /** Play a note (its times on the audio clock: see engine/schedule.ts `retime`). */
   play(note: Played): void;
-  /** Rebuild voices whose sound changed; drop ones that are gone. */
-  sync(result: CompileResult, shifts: Shifts): void;
+  /** Rebuild voices whose sound changed; drop ones that are gone. `muted`: graph ids switched off — what they would feed or ring stays unwired. */
+  sync(result: CompileResult, shifts: Shifts, muted?: ReadonlySet<string>): void;
   /** A sound tape's speed over time (audio seconds): its delays follow — the heads' distances ÷ speed. */
   tapeSpeed(tape: string, points: readonly { at: number; speed: number }[]): void;
   /** A hand on a sound tape: each head's delay from where it sits (at → seconds back); null lets go. */
@@ -111,7 +112,10 @@ export function createVoices(Tone: ToneNS): VoiceBank {
     async ready() {
       await reverb.ready;
     },
-    sync(result, shifts) {
+    sync(result, shifts, muted = new Set<string>()) {
+      const off = (name: string) => muted.has(cellId(name));
+      // a mix's voices, minus the ones switched off (a mix that is off feeds nothing)
+      const feeds = (mix: string) => (off(mix) ? [] : (result.cells.get(mix)?.mix ?? []).filter((b) => !off(b.voice.name)));
       // the sound card's level: level= in dB on the (first) sound card
       const card = [...result.cells.values()].find((c) => c.sink);
       const db = typeof card?.params.level === 'number' ? card.params.level : 0;
@@ -148,8 +152,8 @@ export function createVoices(Tone: ToneNS): VoiceBank {
       // a voice played only into sends (a resonator's excitation, a tape) isn't heard from itself
       // (a kit's output names the kit: its members are what sound)
       const heardVoices = new Set([
-        ...result.outputs.filter((o) => !o.silent).flatMap((o) => (o.kit ? [o.voice, ...(result.cells.get(o.voice)?.children.keys() ?? [])] : [o.voice])),
-        ...result.resonances.map((x) => x.cell),
+        ...result.outputs.filter((o) => !o.silent && outputSounds(result, o, muted)).flatMap((o) => (o.kit ? [o.voice, ...(result.cells.get(o.voice)?.children.keys() ?? [])] : [o.voice])),
+        ...result.resonances.filter((x) => !off(x.cell)).map((x) => x.cell),
       ]);
       for (const [name, b] of built) {
         const want = heardVoices.has(name);
@@ -166,13 +170,16 @@ export function createVoices(Tone: ToneNS): VoiceBank {
         if (!b.res) continue;
         let l = 0;
         let r = 0;
-        for (const o of result.outputs) {
-          if (o.silent) continue;
+        for (const o of off(name) ? [] : result.outputs) {
+          if (o.silent || !outputSounds(result, o, muted)) continue;
           // (struck directly, or as one of a kit's members)
           const kit = o.kit ? result.cells.get(o.voice) : undefined;
-          if (o.voice === name || (kit && kit.children.has(name))) (l += o.gains[0]), (r += o.gains[1]);
+          if (o.voice === name || (kit && kit.children.has(name))) {
+            const g = liveGains(o, muted);
+            (l += g[0]), (r += g[1]);
+          }
         }
-        for (const x of result.resonances) if (x.cell === name) (l += x.gains[0]), (r += x.gains[1]);
+        for (const x of result.resonances) if (x.cell === name && !off(name)) (l += x.gains[0]), (r += x.gains[1]);
         b.res.level.gain.value = (l + r) / 2;
         // (its head is its panner: a resonator has no filters, no grit)
         const pan = b.head instanceof Tone.Panner ? b.head.pan : undefined;
@@ -182,14 +189,14 @@ export function createVoices(Tone: ToneNS): VoiceBank {
         const a = built.get(c.name)?.res;
         if (!a) continue;
         // coupled: through the table, both ways, a little of each into the other
-        if (typeof c.params.couple === 'string') {
+        if (typeof c.params.couple === 'string' && !off(c.name) && !off(c.params.couple)) {
           const bRes = built.get(c.params.couple)?.res;
           const k = typeof c.params.coupling === 'number' ? Math.min(0.2, Math.max(0, c.params.coupling)) : 0.02;
           if (bRes) resLinks.push(...couple(ctx, a, bRes, k));
         }
         // excited by sound: a mix's voices into it
-        if (typeof c.params.excite === 'string')
-          for (const bnd of result.cells.get(c.params.excite)?.mix ?? []) {
+        if (typeof c.params.excite === 'string' && !off(c.name))
+          for (const bnd of feeds(c.params.excite)) {
             const v = built.get(bnd.voice.name);
             if (!v || v.res === a) continue;
             const g = ctx.createGain();
@@ -206,6 +213,8 @@ export function createVoices(Tone: ToneNS): VoiceBank {
       const oldNets = tapeNets;
       tapeNets = new Map();
       for (const tp of result.tapes) {
+        // (a tape that is off isn't threaded: nothing is recorded, its heads give nothing)
+        if (off(tp.name)) continue;
         const prev = oldNets.get(tp.name);
         let net: TapeNet;
         if (prev && prev.key === tapeKey(tp)) {
@@ -215,7 +224,7 @@ export function createVoices(Tone: ToneNS): VoiceBank {
           net = prev;
         } else net = buildTapeNet(Tone, ctx, tp);
         tapeNets.set(tp.name, net);
-        for (const b of result.cells.get(tp.source)?.mix ?? []) {
+        for (const b of feeds(tp.source)) {
           const v = built.get(b.voice.name);
           if (!v) continue;
           const g = new Tone.Gain(b.gain).connect(net.input);
@@ -226,6 +235,7 @@ export function createVoices(Tone: ToneNS): VoiceBank {
       for (const n of oldNets.values()) for (const x of n.nodes) x.dispose();
       // read heads in mixes: back to the sound card, left and right at their levels
       for (const r of result.returns) {
+        if (off(r.head) || off(r.tape)) continue;
         const net = tapeNets.get(r.tape);
         const d = net?.heads.get(r.head);
         if (!net || !d) continue;
@@ -242,8 +252,8 @@ export function createVoices(Tone: ToneNS): VoiceBank {
       // resonators excited by a mix with tape heads in it: the heads drive them too
       for (const c of result.cells.values()) {
         const a = built.get(c.name)?.res;
-        if (!a || typeof c.params.excite !== 'string') continue;
-        for (const bnd of result.cells.get(c.params.excite)?.mix ?? []) {
+        if (!a || typeof c.params.excite !== 'string' || off(c.name)) continue;
+        for (const bnd of feeds(c.params.excite)) {
           const head = result.cells.get(bnd.voice.name);
           const tape = head && typeof head.params.play === 'string' ? tapeNets.get(head.params.play) : undefined;
           const out = tape?.heads.get(bnd.voice.name);
