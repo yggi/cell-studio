@@ -22,14 +22,24 @@ export interface LayeredOptions {
   readonly gapX: number;
   /** A node's radius (its width is twice this). */
   readonly radius: (id: string) => number;
+  /** Ranks worked out already (a cluster's cells keep the ranks they have in the whole piece). */
+  readonly ranks?: ReadonlyMap<string, number>;
+  /** How tall a node is beyond a row (a cluster's block: from its top cells to its bottom ones); 0 if not given. */
+  readonly span?: (id: string) => number;
+  /** One level only: no clusters laid out as blocks (inside a block, or to compare). */
+  readonly flat?: boolean;
 }
 
 type V = { id: string; layer: number; dummy: boolean; w: number };
 
 export function layered(model: GraphModel, o: LayeredOptions): Map<string, { x: number; y: number }> {
+  if (!o.flat) {
+    const blocks = clustered(model, o);
+    if (blocks) return blocks;
+  }
   const nodes = model.nodes.filter((n) => !(n as { petalOf?: string }).petalOf);
   const ids = new Set(nodes.map((n) => n.id));
-  const rank = flowRanks({ nodes, edges: model.edges.filter((e) => ids.has(e.source) && ids.has(e.target)) });
+  const rank = o.ranks ?? flowRanks({ nodes, edges: model.edges.filter((e) => ids.has(e.source) && ids.has(e.target)) });
   // rows: the distinct ranks, top (sound) first; y keeps half-ranks half a row apart
   const ranksDesc = [...new Set(nodes.map((n) => rank.get(n.id) ?? 0))].sort((a, b) => b - a);
   const layerOf = new Map(ranksDesc.map((r, i) => [r, i]));
@@ -253,9 +263,12 @@ export function layered(model: GraphModel, o: LayeredOptions): Map<string, { x: 
   const mid = (Math.min(...real) + Math.max(...real)) / 2;
   // rows evenly spaced, one per distinct rank (half-ranks get a row of their own, not half of one);
   // a staggered row takes its sub-rows' room, half a row each
+  // (a block taller than a row pushes its neighbours away by half its height on each side)
+  const spanOf = (l: number) => Math.max(0, ...layers[l].map((id) => o.span?.(id) ?? 0));
   const rowY: number[] = [];
   let yAt = 0;
   for (let l = 0; l < layers.length; l++) {
+    if (l) yAt += (spanOf(l - 1) + spanOf(l)) / 2;
     rowY[l] = yAt;
     yAt += o.gapY * (1 + (subRows[l] - 1) * (tracks.has(l) ? 0.8 : 0.55));
   }
@@ -276,6 +289,75 @@ export function layered(model: GraphModel, o: LayeredOptions): Map<string, { x: 
       out.set(n.id, { x: at + w / 2, y: 0 });
       at += w;
     }
+  }
+  return out;
+}
+
+/**
+ * Tags as blocks (#27): the hubs that every part meets (the meter, a selector, a scale, the mix) are what tangle
+ * a piece's tags together; cut there, each tag is a small graph of its own. So each tag (two cells or more) is laid
+ * out alone, as a block, keeping the ranks its cells have in the whole piece; then the piece is laid out with each
+ * block as one node (as wide and as tall as it is: every edge to a block meets it once); then each block's cells
+ * are put back where the block landed. Null when there are fewer than two tags to separate.
+ */
+function clustered(model: GraphModel, o: LayeredOptions): Map<string, { x: number; y: number }> | null {
+  const nodes = model.nodes.filter((n) => !(n as { petalOf?: string }).petalOf);
+  const tagOf = new Map(
+    nodes.flatMap((n) => {
+      const c = (n as { cell?: { note?: boolean; tags?: readonly string[] } }).cell;
+      return !c?.note && c?.tags?.length ? [[n.id, c.tags[0]] as const] : [];
+    }),
+  );
+  const members = new Map<string, string[]>();
+  for (const [id, t] of tagOf) (members.get(t) ?? members.set(t, []).get(t)!).push(id);
+  for (const [t, ids] of members) if (ids.length < 2) members.delete(t);
+  if (members.size < 2) return null;
+  const ids = new Set(nodes.map((n) => n.id));
+  const edges = model.edges.filter((e) => ids.has(e.source) && ids.has(e.target));
+  const ranks = o.ranks ?? flowRanks({ nodes, edges });
+  const blockOf = new Map<string, string>();
+  for (const [t, ms] of members) for (const id of ms) blockOf.set(id, `block:${t}`);
+  // each tag alone: its cells and the edges between them, at their ranks in the whole piece
+  const blocks = new Map<string, { at: Map<string, { x: number; y: number }>; radius: number; span: number }>();
+  for (const [t, ms] of members) {
+    const inside = new Set(ms);
+    const sub = { ...model, nodes: nodes.filter((n) => inside.has(n.id)), edges: edges.filter((e) => inside.has(e.source) && inside.has(e.target)) } as GraphModel;
+    const at = layered(sub, { ...o, flat: true, ranks });
+    const xs = ms.map((id) => at.get(id)!.x);
+    const ys = ms.map((id) => at.get(id)!.y);
+    const [cx, cy] = [(Math.min(...xs) + Math.max(...xs)) / 2, (Math.min(...ys) + Math.max(...ys)) / 2];
+    for (const id of ms) {
+      const p = at.get(id)!;
+      at.set(id, { x: p.x - cx, y: p.y - cy });
+    }
+    const half = Math.max(...ms.map((id) => Math.abs(at.get(id)!.x) + o.radius(id)));
+    blocks.set(`block:${t}`, { at, radius: half, span: Math.max(...ys) - Math.min(...ys) });
+  }
+  // the piece with a node per block: at the middle of its cells' ranks; its edges are its cells' edges, met once
+  const top = (id: string) => blockOf.get(id) ?? id;
+  const rankOf = new Map([...ranks].filter(([id]) => !blockOf.has(id)));
+  for (const [b, ms] of [...members].map(([t, ms]) => [`block:${t}`, ms] as const)) {
+    const rs = ms.map((id) => ranks.get(id) ?? 0);
+    rankOf.set(b, (Math.min(...rs) + Math.max(...rs)) / 2);
+  }
+  const blockNodes = [...blocks.keys()].map((id) => ({ id, kind: 'cell', depth: 0, cell: { name: id, tags: [], params: {} } }));
+  const outer = {
+    ...model,
+    nodes: [...nodes.filter((n) => !blockOf.has(n.id)), ...blockNodes],
+    edges: edges.filter((e) => top(e.source) !== top(e.target)).map((e) => ({ ...e, source: top(e.source), target: top(e.target) })),
+  } as unknown as GraphModel;
+  const placed = layered(outer, {
+    ...o,
+    flat: true,
+    ranks: rankOf,
+    radius: (id) => blocks.get(id)?.radius ?? o.radius(id),
+    span: (id) => blocks.get(id)?.span ?? 0,
+  });
+  const out = new Map<string, { x: number; y: number }>();
+  for (const [id, p] of placed) {
+    const b = blocks.get(id);
+    if (!b) out.set(id, p);
+    else for (const [m, q] of b.at) out.set(m, { x: p.x + q.x, y: p.y + q.y });
   }
   return out;
 }
