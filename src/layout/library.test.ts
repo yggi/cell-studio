@@ -1,11 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { GENRES, libraryLayout, libraryLayoutAsync, stageOf } from './library';
+import { GENRES, PILL, libraryLayout, libraryLayoutAsync, shortTitle, stageOf } from './library';
 import { PRESETS } from '../engine/presets';
 import { pieceMeta } from '../engine/parser';
 import { canonicalTags } from '../engine/tags';
 
-// the library as the app lists it: every example with its card's tags
-const entries = Object.entries(PRESETS).map(([key, p]) => ({ id: `example:${key}`, tags: canonicalTags(pieceMeta(p.source)?.tags ?? []) }));
+// the library as the app lists it: every example with its card's title and tags
+const entries = Object.entries(PRESETS).map(([key, p]) => {
+  const m = pieceMeta(p.source);
+  return { id: `example:${key}`, title: m?.title ?? key, tags: canonicalTags(m?.tags ?? []) };
+});
 const t0 = performance.now();
 const lib = libraryLayout(entries);
 const ms = performance.now() - t0;
@@ -20,14 +23,39 @@ describe('the library laid out', () => {
     const again = libraryLayout(entries);
     for (const [id, p] of lib.at) expect(again.at.get(id), id).toEqual(p);
   });
-  it('keeps every piece inside the rim, and no two overlap', () => {
+  it('keeps every piece inside the rim, and no two wheels overlap (each takes the room free around it)', () => {
     const inner = lib.ring!.r - 40;
+    const r = (id: string) => lib.wheel.get(`p:${id}`)!;
     let worst = 0;
     for (const a of pieces) {
-      expect(Math.hypot(a.p.x, a.p.y) + lib.piece, a.id).toBeLessThanOrEqual(inner + 2);
-      for (const b of pieces) if (a !== b) worst = Math.max(worst, 2 * lib.piece - Math.hypot(a.p.x - b.p.x, a.p.y - b.p.y));
+      expect(Math.hypot(a.p.x, a.p.y) + r(a.id), a.id).toBeLessThanOrEqual(inner + 2);
+      for (const b of pieces) if (a !== b) worst = Math.max(worst, r(a.id) + r(b.id) - Math.hypot(a.p.x - b.p.x, a.p.y - b.p.y));
     }
-    expect(worst).toBeLessThan(lib.piece * 0.1); // at most a sliver
+    expect(worst).toBeLessThan(1e-6);
+    // (and a wheel is worth growing: most are at least one and a half times its title's height across)
+    const big = pieces.filter((e) => r(e.id) >= 1.2 * PILL * lib.tagScale).length;
+    expect(big / pieces.length).toBeGreaterThan(0.75);
+  });
+  it('at the full view a piece is its title: no two title pills overlap', () => {
+    // (a pill as drawn: its words at PILL × the layout's scale, 0.58 em a letter, 0.65 em padding each side, 1.6 em high)
+    const f = PILL * lib.tagScale;
+    const box = (e: (typeof pieces)[number]) => ({ w: (0.58 * shortTitle(e.title).length + 1.3) * f, h: 1.6 * f, ...e.p });
+    let worst = 0;
+    for (const a of pieces)
+      for (const b of pieces) {
+        if (a === b) continue;
+        const A = box(a);
+        const B = box(b);
+        const ox = (A.w + B.w) / 2 - Math.abs(A.x - B.x);
+        const oy = (A.h + B.h) / 2 - Math.abs(A.y - B.y);
+        if (ox > 0 && oy > 0) worst = Math.max(worst, Math.min(ox, oy));
+      }
+    expect(worst).toBeLessThan(f * 0.2); // at most a sliver
+  });
+  it('is round, as its wheel is: about as wide as it is tall', () => {
+    const sd = (k: 'x' | 'y') => Math.sqrt(pieces.reduce((a, e) => a + e.p[k] ** 2, 0) / pieces.length);
+    expect(sd('x') / sd('y')).toBeGreaterThan(0.7); // (0.83 when written; pills set apart the shortest way stack into a column, 0.5)
+    expect(sd('x') / sd('y')).toBeLessThan(1.4);
   });
   it('keeps groups together: a piece is nearer the tags it carries than the tags it does not, and its nearest neighbour shares one', () => {
     // (inner tags several pieces share: the hubs)
@@ -47,16 +75,15 @@ describe('the library laid out', () => {
       const next = pieces.filter((o) => o !== e).sort((a, b) => Math.hypot(a.p.x - e.p.x, a.p.y - e.p.y) - Math.hypot(b.p.x - e.p.x, b.p.y - e.p.y))[0];
       if (own.some((t) => next.tags.includes(t))) shares++;
     }
-    // (0.75 and 0.69 when written; the forces before growing, with a long-range charge, gave 0.85 and 0.71 —
-    // the genres' lean, below, pulls a little against the tags)
+    // (0.87 and 0.75 when written; the forces before growing, with a long-range charge, gave 0.85 and 0.71)
     expect(nearer / all).toBeGreaterThan(0.7);
     expect(shares / all).toBeGreaterThan(0.62);
   });
   it('can be watched as it grows: the stages get larger and end where the layout ends', async () => {
     const sizes: number[] = [];
-    const end = await libraryLayoutAsync(entries, (s) => void sizes.push(s.piece));
+    const end = await libraryLayoutAsync(entries, (s) => void sizes.push(s.tagScale));
     expect(sizes.length).toBeGreaterThan(20);
-    expect(sizes[0]).toBeLessThan(end.piece * 0.2);
+    expect(sizes[0]).toBeLessThan(end.tagScale * 0.2);
     expect(sizes.every((s, i) => i === 0 || s >= sizes[i - 1])).toBe(true);
     expect(end.at).toEqual(lib.at);
   });
@@ -84,6 +111,6 @@ describe('the library laid out', () => {
       cos += (gx * e.p.x + gy * e.p.y) / l;
       n++;
     }
-    expect(cos / n).toBeGreaterThan(0.45); // (0.63 when written; 1 would be every piece straight towards its genres)
+    expect(cos / n).toBeGreaterThan(0.5); // (0.72 when written; 1 would be every piece straight towards its genres)
   });
 });
