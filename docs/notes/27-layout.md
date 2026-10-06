@@ -42,7 +42,42 @@ Why the physics undid good starts: not the pull back to the layered places (stro
 
 (Tape aim: summed over the five tape pieces; 43 is at most 14° in any.) More untangling keeps paying in crossings but costs room (Cellscape +73 % at 1 / 0.6) and the heads' alignment; 0.6 / 0.75 is the knee. Chaotic per piece: 13 pieces cross less, 7 more (by 1–3: Hypercell 7 → 10, Per tonos 1 → 3). Tried and no better: more `centre`, less `charge`, shorter `repelRange`, `spread` off, less `kindRepel`.
 
+## Step 4: tags as blocks (done)
+
+### What tangles the tagged pieces
+
+Measured on the nine pieces with tags inside them: edges between two different tags are almost absent (11, against 196 inside a tag; none in most pieces). What ties the tags together are a few untagged **hubs** that every part meets: the meter (`&bar`, 8–16 edges, all `step=`), an arrangement selector (`&parts`, `&teile`, `&song`: an edge to every part), a scale (`&lydian`, `&minor`), the mixes (`&leftLayers`, `&rightLayers`) and `&out`. Every hub pulls one cell of every cluster towards itself, so clusters were dragged into each other at the hubs; and since rows are the signal flow, each tag was a tall strip over all rows. Few shared neighbourhoods (bicliques K(2,2), K(2,3)): edge concentration alone has little to remove.
+
+### Approaches (graph drawing literature)
+
+- **Cut and conquer.** The edges that hold dense parts together are the ones with the highest *edge betweenness*; removing them splits the graph into its communities (Girvan & Newman 2002). Bridges and articulation points (biconnected components, Hopcroft & Tarjan 1973) are the strict case of a single edge or node holding two parts together. Here the cut is the hubs' edges, and the parts are the tags. Where there are no tags, the same cut plus community detection (modularity: Newman 2004; Louvain, Blondel et al. 2008; Leiden, Traag et al. 2019) could propose the groups: "structure first, hints only as overrides" (#27). Not done yet.
+- **Divide, lay out, unite.** This is clustered (compound) graph drawing: lay out each cluster, then the graph of clusters, then put the cells back (Eades & Feng 1996, multilevel views of clustered graphs; Sander 1996 for layered drawings; ELK's hierarchical layered layout today). Recursive bisection repeats it inside each part. Multilevel force layouts coarsen and refine the same way (Walshaw 2000; Hu 2005). **Done here, one level**: `layered.ts` lays out each tag as a block (its cells at their ranks in the whole piece), then the piece with each block as one node as wide and tall as it is, then puts the cells back.
+- **Multiplexers.** *Edge concentration* (Newbery 1989) replaces a complete bipartite K(m,n) with a dummy node (m·n edges → m+n); confluent drawings (Dickerson, Eppstein, Goodrich & Meng 2003) and power graphs (Royer et al. 2008; Dwyer et al. 2013, "edge compression") generalise it. Little K(m,n) here, but the same idea applied to the forces works: **done** as `mux`. A hub's edges into a cluster mostly pull the cluster (through its tag node, one spring per hub and cluster) instead of each cell; the edges are still drawn one by one.
+- **Buses (edge bundling).** Hierarchical edge bundling (Holten 2006) and force-directed bundling (Holten & van Wijk 2009) route related edges along shared trunks. **Tried and dropped**: bending a hub's edges into a cluster through one junction (a drawn bus) raised crossings from 121 to 166–192: a bent edge sweeps across everything between it and its straight path. A bus would need its own routing (a rail), not spline bends.
+- **Node duplication.** A hub can be drawn more than once, or as a label instead of edges: vertex splitting (Eades & Mendonça 1995), node duplication for clustered networks (Henry, Bezerianos & Fekete 2008). Schematics do this for clocks and power: a net label, not a wire to every part. The meter is exactly that kind of net ("when, not what").
+
+### Measured (5 starts each, 300 ticks; seed 0 is what the app shows)
+
+| | crossings | overlapping clusters | intruders | area (M px²) |
+|---|---|---|---|---|
+| before (one level) | 116 ± 11 | 50 ± 1 | 151 ± 8 | 73.5 |
+| blocks | 127 ± 14 | 47 ± 2 | 127 ± 8 | 75.0 |
+| blocks, tagPull 0.15 | 131 ± 13 | 44 ± 1 | 105 ± 6 | 74.5 |
+| blocks, mux 0.5, tagPull 0.15 | 141 ± 11 | 42 ± 2 | 88 ± 4 | 76.5 |
+| **blocks, mux 0.8, tagPull 0.2 (now)** | **136 ± 9** | **31 ± 3** | **61 ± 6** | **78.0** |
+| blocks, mux 0.8, tagPull 0.25 | 158 ± 13 | 31 ± 3 | 52 ± 5 | 77.6 |
+
+The start alone (the layered drawing, before the physics) improves too: crossings 170 → 141, intruders 151 → 55. Where the extra crossings are (means of 5 starts): between content edges 57.8 → 62.8, with a meter's step edge 62.4 → 81.8. So most of the cost is the meter's dashed "when" lines, which now run from one place to every block. Only the nine tagged pieces change; the others are laid out exactly as before.
+
+Gotcha: d3's link force balances each spring by how many springs its ends have, so even a zero-strength spring changes the others; the multiplexer's springs are only added when `mux` > 0.
+
 ## Next
 
-1. Cluster-level placement for the tagged pieces (50 overlapping pairs, 152 intruders: the most left to gain).
-2. BWV 847 is still wide (≈ 3.7 × 1.4 k px).
+1. **The meter as a bus or a net label** (most of the remaining cost). Automatic, in the graph only:
+   - (a) a time rail: the meter's step edges drawn into one line under the blocks, with a short stub up into each;
+   - (b) the meter's edges not drawn at all, each stepped cell wearing a small mark of its clock (a net label; its sheet still says `step=&bar`);
+   - (c) one dashed edge per cluster, to the block's edge.
+   (b) removes those crossings entirely and is the cheapest; (a) keeps the picture of one clock driving everything. As a language feature it isn't needed: a meter is already one cell that everything names, and an arrangement selector (`&parts`) is already a multiplexer.
+2. **Groups from structure** where a piece has no tags: cut at the hubs (high betweenness), then communities (Louvain or Leiden) as proposed blocks. Tags stay the override.
+3. **Recursion**: blocks inside blocks (a tag's own hubs), when a block is large.
+4. BWV 847 is still wide (≈ 4 × 1.5 k px).

@@ -29,7 +29,7 @@ What Cell studio doesn't do yet or does with a catch, documented rather than tra
 
 ## Layout
 
-- Clusters overlap in the largest pieces (a cluster-level first placement is the fix: lay the tags out as a graph, then each tag's cells inside its region); BWV 847 is wide.
+- Tags start as blocks and hubs pull a cluster as one, but clusters still touch in the largest pieces (31 overlapping pairs over the library), and the meter's edges to every cluster cross more than they did ([notes/27-layout.md](notes/27-layout.md)); BWV 847 is wide.
 - A restarted part's playhead shows the global clock, not its own restarted time.
 - Notes float near the top; a note can't point at the cell it explains.
 - A column pull (keeping nodes in their symmetric columns while they settle) costs crossings at every strength tried (0.005–0.06): it's a slider, off by default; the columns shape only the start.

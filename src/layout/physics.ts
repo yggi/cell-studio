@@ -42,6 +42,10 @@ interface PhysLink extends SimulationLinkDatum<PhysNode> {
   part: boolean;
   /** A tag's spring to one of its cells (not drawn: no crossings, no bends, no spread). */
   tag?: boolean;
+  /** How much of its pull it keeps (a hub's edge into a cluster gives the rest to the cluster's tag: `mux`). */
+  keep?: number;
+  /** A hub's spring to a cluster's tag, standing for its edges into the cluster (not drawn). */
+  muxed?: boolean;
 }
 
 export interface LayoutOptions {
@@ -83,6 +87,16 @@ export interface LayoutOptions {
   /** Cells with the same tag (tags= inside a piece) draw together; different tags push apart. */
   tagPull: number;
   tagRepel: number;
+  /**
+   * A hub's edges into a tagged cluster (the meter, a selector, a mix into each of its cells) pull the cluster
+   * as one, through its tag, by this much (0: each cell on its own, as drawn; 1: only the cluster) — a multiplexer
+   * for the forces: the clusters stay together instead of being drawn into each other at the hubs.
+   */
+  mux: number;
+  /** In the layered start, each tag (two cells or more) laid out as a block of its own (layered.ts); off: one level. */
+  clusters: boolean;
+  /** Which of the small, fixed nudges each new node gets (0: the app's): other seeds measure a change over several starts. */
+  seed: number;
   /**
    * Lay the graph out in layers (rows by signal flow, order without tangles, columns
    * by neighbours: layered.ts) and let the physics only relax it: each node springs
@@ -362,8 +376,11 @@ export const DEFAULT_LAYOUT: LayoutOptions = {
   layered: true,
   spread: 0.5,
   kindRepel: 0.6,
-  tagPull: 0.1,
+  tagPull: 0.2,
   tagRepel: 1.5,
+  mux: 0.8,
+  clusters: true,
+  seed: 0,
   radius: (n) => roomFor(n),
 };
 
@@ -671,8 +688,8 @@ export class ForceLayout {
   private applyOptions(): void {
     const o = this.opts;
     (this.sim.force('link') as ReturnType<typeof forceLink<PhysNode, PhysLink>>)
-      .distance((l) => (l.tag ? o.linkDistance * 1.6 : l.part ? o.linkDistance * o.partLength : o.linkDistance))
-      .strength((l) => (l.tag ? 0.12 : Math.min(0.2, 0.08 + 0.02 * l.count) * o.contract));
+      .distance((l) => (l.tag || l.muxed ? o.linkDistance * 1.6 : l.part ? o.linkDistance * o.partLength : o.linkDistance))
+      .strength((l) => (l.tag ? 0.12 : Math.min(0.2, 0.08 + 0.02 * l.count) * o.contract * (l.muxed ? o.mux : 1 - (1 - (l.keep ?? 1)) * o.mux)));
     // busy nodes push a little harder: more room around hubs, fewer edges squeezed past them
     (this.sim.force('charge') as ReturnType<typeof forceManyBody<PhysNode>>)
       .strength((d) => (d.role === 'tag' ? o.charge * 3 : o.charge * (1 + o.degreeRepel * Math.max(0, (this.degree.get(d.id) ?? 1) - 1))))
@@ -723,7 +740,7 @@ export class ForceLayout {
     let home: Map<string, { x: number; y: number }> | null = null;
     if (this.opts.layered) {
       const byId = new Map(model.nodes.map((n) => [n.id, n]));
-      const lay = layered(model, { gapX: this.opts.collidePad * 1.6, gapY: this.opts.layerGap, radius: (id) => this.opts.radius(byId.get(id)!) });
+      const lay = layered(model, { gapX: this.opts.collidePad * 1.6, gapY: this.opts.layerGap, radius: (id) => this.opts.radius(byId.get(id)!), flat: !this.opts.clusters });
       const ys = [...lay.values()].map((p) => p.y);
       const midY = (Math.min(...ys) + Math.max(...ys)) / 2;
       home = new Map([...lay].map(([id, p]) => [id, { x: p.x, y: p.y - midY }]));
@@ -779,7 +796,7 @@ export class ForceLayout {
           y = 0;
         }
         // (a little jitter, even from a home in the layers: exactly in line, an edge would run straight through a node)
-        p = { id: n.id, depth: n.depth, radius: this.opts.radius(n), x: x + jitter(n.id, 1), y: y + jitter(n.id, 2) };
+        p = { id: n.id, depth: n.depth, radius: this.opts.radius(n), x: x + jitter(n.id, 1 + 2 * this.opts.seed), y: y + jitter(n.id, 2 + 2 * this.opts.seed) };
       }
       p.depth = n.depth;
       p.radius = this.opts.radius(n);
@@ -817,7 +834,7 @@ export class ForceLayout {
       if (!p || fresh) {
         const xs = ids.map((m) => next.get(m)!.x ?? 0);
         const ys = ids.map((m) => next.get(m)!.y ?? 0);
-        p = { id, depth: 0, radius: 40 + 13 * t.length, x: xs.reduce((a, v) => a + v, 0) / ids.length + jitter(id, 1), y: ys.reduce((a, v) => a + v, 0) / ids.length + jitter(id, 2) };
+        p = { id, depth: 0, radius: 40 + 13 * t.length, x: xs.reduce((a, v) => a + v, 0) / ids.length + jitter(id, 1 + 2 * this.opts.seed), y: ys.reduce((a, v) => a + v, 0) / ids.length + jitter(id, 2 + 2 * this.opts.seed) };
       }
       p.role = 'tag';
       p.radius = 40 + 13 * t.length;
@@ -839,7 +856,21 @@ export class ForceLayout {
     // the tapes turned to where everything is now (an edit that doesn't move anything doesn't turn them)
     this.turns = this.fitTurns((id) => this.position(id));
     this.explains = model.edges.filter((e) => e.kind === 'about' && next.has(e.source) && next.has(e.target)).map((e) => ({ note: next.get(e.source)!, cell: next.get(e.target)! }));
-    this.sim.force<ReturnType<typeof forceLink<PhysNode, PhysLink>>>('link')!.links([...links, ...tagLinks]);
+    // a hub's edges into a cluster: each keeps part of its pull, the cluster's tag takes the rest, once per hub (`mux`)
+    // (none at all when it's off: d3 balances each spring by how many its ends have, so even a slack one would count)
+    const muxLinks = new Map<string, PhysLink>();
+    for (const l of this.opts.mux > 0 ? links : []) {
+      const [a, b] = [next.get(l.source as string)!, next.get(l.target as string)!];
+      if (!a.group === !b.group) continue;
+      const [hub, cell] = a.group ? [b, a] : [a, b];
+      if (hub.role === 'tag' || !next.has(`tag:${cell.group}`)) continue;
+      l.keep = 0;
+      const id = `${hub.id}=>tag:${cell.group}`;
+      const m = muxLinks.get(id) ?? { id, source: hub.id, target: `tag:${cell.group}`, count: 0, part: false, muxed: true };
+      m.count += 1;
+      muxLinks.set(id, m);
+    }
+    this.sim.force<ReturnType<typeof forceLink<PhysNode, PhysLink>>>('link')!.links([...links, ...tagLinks, ...muxLinks.values()]);
     // (a scope watches: its edges neither untangle the music's layout nor count as its crossings)
     const scopes = new Set(
       model.nodes.filter((n) => typeof (n as { cell?: { params?: Record<string, unknown> } }).cell?.params?.scope === 'string').map((n) => n.id),

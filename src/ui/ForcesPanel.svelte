@@ -2,7 +2,7 @@
   /** Sliders for the layout's main forces. Changes apply live; Reset restores the defaults. */
   import type { LayoutOptions } from '../layout/physics';
 
-  type Key = 'columnPull' | 'degreeRepel' | 'charge' | 'repelRange' | 'collidePad' | 'linkDistance' | 'partLength' | 'contract' | 'uncross' | 'rankPull' | 'endPull' | 'centre' | 'straighten' | 'avoid';
+  type Key = 'columnPull' | 'degreeRepel' | 'charge' | 'repelRange' | 'collidePad' | 'linkDistance' | 'partLength' | 'contract' | 'uncross' | 'rankPull' | 'endPull' | 'centre' | 'straighten' | 'avoid' | 'tagPull' | 'tagRepel' | 'mux';
   let {
     options,
     onchange,
@@ -43,6 +43,14 @@
         { key: 'endPull', label: 'centre line', min: 0, max: 0.3, step: 0.01, hint: 'pull of &bar and &out to the centre line' },
         { key: 'columnPull', label: 'columns', min: 0, max: 0.2, step: 0.005, hint: 'a gentle pull to each node’s column: voices by stereo and mix order, cells over the voices they feed' },
         { key: 'centre', label: 'centring', min: 0, max: 0.1, step: 0.005, hint: 'a weak sideways pull to the centre line, for nodes without a column' },
+      ],
+    },
+    {
+      title: 'clusters',
+      rows: [
+        { key: 'tagPull', label: 'cluster pull', min: 0, max: 0.6, step: 0.01, hint: 'cells with the same tag drawn to their cluster’s middle' },
+        { key: 'tagRepel', label: 'cluster push', min: 0, max: 8, step: 0.1, hint: 'clusters pushed apart' },
+        { key: 'mux', label: 'hubs pull clusters', min: 0, max: 1, step: 0.05, hint: 'how much of a hub’s pull on a cluster’s cells (the meter, a selector, a mix) moves the cluster as one instead' },
       ],
     },
   ];
