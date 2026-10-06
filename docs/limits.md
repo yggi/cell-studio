@@ -16,6 +16,8 @@ What Cell studio doesn't do yet or does with a catch, documented rather than tra
 - Belts don't pull back on their driver (load is static `mass=`/`friction=`); no live display of a belt's stretch or slips; belts between non-meter cells in chains aren't supported; no flutter beside `wow=`.
 - Two renders of a piece are not bit-identical: Chromium sums three or more inputs of a node in an order that changes from run to run, so the last bit of a float differs (about −180 dB). Nor are two plays: Tone's reverb impulse and a tape's hiss are made from `Math.random()`, which we leave to Tone, so the reverb's tail and a hiss differ a little each time. Nothing of ours is random ([testing.md](testing.md#promises)). Pieces with a resonator vary much more (#65).
 - A mix's spectrum wheel hears its voices whole, not only the notes that go through it: a voice in two mixes shows in both ([#77](https://github.com/yggi/cell-studio/issues/77)). The graph's states and edges do say which mix plays now.
+- Scopes, spectrum wheels and tape levels read the signal as it is made, so they run ahead of the speaker by the output lag (about 55 ms with the default `balanced` hint; the position, notes, cells and edges are held back to match what is heard: [decision 005](decisions/005-balanced-latency-and-heard-pictures.md)).
+- Tape Machine peaks at −0.2 dB, a little over the −1 dB convention, and its average level doesn't follow its parts' gains as expected ([#95](https://github.com/yggi/cell-studio/issues/95)).
 - The live views, not the audio, are what loads the main thread; on a slow phone a large graph can still saturate it (measure with [testing.md](testing.md); the numbers are in the profile skill's README).
 
 ## Editor
