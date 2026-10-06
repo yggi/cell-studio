@@ -18,8 +18,13 @@ device, so this measures the page, not audible glitches; use a real phone for th
     # the browser's own time (style/layout/paint/GC) and the long tasks, from a Chrome trace; CSS= ablates a kind of drawing
     THROTTLE=4 node tools/profile/trace.mjs http://localhost:4173/ "Hypercell" 10
 
-    # engine cost without a browser (compile / plan / events per example):
+    # long tasks: what each one rewrote in the DOM, and (CPU profile) what the bursts spend their time on
+    node tools/profile/bursts.mjs http://localhost:4173/ "Prelude and Fugue in C minor" 25
+    node tools/profile/burstlines.mjs profile-Prelude_and_Fugue_in_C_minor.json /tmp/dist-nomin/index.html
+
+    # engine cost without a browser (compile / plan / events per example; what a table turn costs `cellView`):
     npx vite-node tools/profile/engine-time.ts
+    npx vite-node tools/profile/cellview-time.ts examples/bwv847.cells
 
 `measure.mjs` prints one JSON line per piece (`taskPct` = main-thread busy %, `longtasks` > 50 ms).
 Playwright is found by `playwright.mjs` (set `PLAYWRIGHT=` or `CHROME_PATH=` if needed).
