@@ -14,7 +14,7 @@ Commands, the rules (which are enforced and which are judgment), the PR conventi
 
 - `engine/` parse, compile, realize (plan → events), edit, Shorten, physics, FM, presets (reads `examples/*.cells`; the app gets an index at build time and loads sources on demand) → [architecture.md](architecture.md)
 - `layout/` pure layout of the graph, the library, wheels, labels
-- `audio/` player, voices, clock, offline render
+- `audio/` player, engine (local or Web Worker), voices (parts in `audio/voice/`), clock, offline render
 - `ui/` Svelte components; `App.svelte`, `library.ts`, `theory/`
 - `tools/` generators (Python) and profiling scripts → [testing.md](testing.md)
 

@@ -2,33 +2,52 @@
  * Window-clocked player. Event times are seconds at the code's tempo; the
  * transport runs at 60 bpm × rate, so one transport quarter is one of those
  * seconds and the tempo control can change speed smoothly. Every sixteenth
- * the events starting in that window are scheduled at their exact offset.
- * Programs are swapped in whole (on edits and on every shift) and take
- * effect at the next window.
+ * it asks its engine what to play in the next window (engine/schedule.ts:
+ * plain data, worked out here or in a worker, audio/engine.ts) and schedules
+ * that at its exact offsets. Programs are swapped in whole (on edits and on
+ * every shift) and take effect at the next window.
  */
-import { clocking, tapeMotion, eventsBetween, type Plan } from '../engine/realize';
+import { clocking, tapeMotion, type Plan } from '../engine/realize';
+import { isPhysical, retime, type Window } from '../engine/schedule';
 import { createVoices, type VoiceBank } from './voices';
-import { resetPhysics } from '../engine/physics';
 import { transportClock } from './clock.svelte';
 import { load, watchLoad } from './load';
+import { LocalEngine, type Engine, type PieceSource } from './engine';
+import type { LiveSource } from './live';
 
 type ToneNS = typeof import('tone');
 const WINDOW = 0.25; // transport quarters = code seconds
 /** After a piece's end, how long its last notes (releases, reverb, echoes) ring before the transport stops. */
 const TAIL = 2.5;
 
-export class Player {
+export class Player implements LiveSource {
   private Tone?: ToneNS;
   private voices?: VoiceBank;
   private plan: Plan | null = null;
   private repeatId: number | null = null;
   private raf = 0;
   private rate = 1;
+  // (counts runs: a window answered after a stop, or after the next start, is not played)
+  private run = 0;
 
-  load(plan: Plan): void {
+  constructor(private engine: Engine = new LocalEngine()) {}
+
+  /** The piece to play: its plan, and the source it was compiled from (for an engine in a worker). */
+  load(plan: Plan, source: PieceSource | null = null): void {
     this.plan = plan;
+    this.engine.load(plan, source);
     this.voices?.sync(plan.result, plan.statics);
     this.settle();
+  }
+
+  /** How the engine's windows went (for measuring). */
+  engineStats() {
+    return this.engine.stats();
+  }
+
+  /** A hand on a physical cell, now: its finger's speed (1 on tempo), or null to let go. */
+  grab(cell: string, speed: number | null): void {
+    this.engine.grab(cell, transportClock.seconds, speed);
   }
 
   /**
@@ -154,6 +173,42 @@ export class Player {
     return this.Tone ? this.Tone.getContext().sampleRate : null;
   }
 
+  /**
+   * What the audio context looks like now, for the performance report: its state and latencies, its clock, and
+   * — where the browser reports them — the playout underruns. Nothing here starts audio.
+   */
+  audioInfo(): {
+    state: string | null;
+    sampleRate: number | null;
+    baseLatency: number | null;
+    outputLatency: number | null;
+    currentTime: number | null;
+    playout: { underrunEvents: number; underrunDuration: number; totalDuration: number; averageLatency: number; maximumLatency: number } | null;
+  } {
+    if (!this.Tone) return { state: null, sampleRate: null, baseLatency: null, outputLatency: null, currentTime: null, playout: null };
+    const tc = this.Tone.getContext() as unknown as { rawContext?: Record<string, unknown>; state?: string; sampleRate?: number; currentTime?: number };
+    const raw = (tc.rawContext ?? {}) as { playoutStats?: Record<string, number>; _nativeContext?: { playoutStats?: Record<string, number>; baseLatency?: number; outputLatency?: number }; baseLatency?: number; outputLatency?: number };
+    // (Tone wraps the native context: the stats are on the native one)
+    const stats = raw.playoutStats ?? raw._nativeContext?.playoutStats;
+    const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : null);
+    return {
+      state: tc.state ?? null,
+      sampleRate: num(tc.sampleRate),
+      baseLatency: num(raw.baseLatency ?? raw._nativeContext?.baseLatency),
+      outputLatency: num(raw.outputLatency ?? raw._nativeContext?.outputLatency),
+      currentTime: num(tc.currentTime),
+      playout: stats
+        ? {
+            underrunEvents: stats.underrunEvents ?? 0,
+            underrunDuration: stats.underrunDuration ?? 0,
+            totalDuration: stats.totalDuration ?? 0,
+            averageLatency: stats.averageLatency ?? 0,
+            maximumLatency: stats.maximumLatency ?? 0,
+          }
+        : null,
+    };
+  }
+
   get playing(): boolean {
     return this.repeatId !== null;
   }
@@ -165,10 +220,7 @@ export class Player {
     // Tone is imported lazily so no AudioContext exists before the first gesture.
     const Tone = await this.wake();
     // physics: a hand's effect comes quickly (and stays, through pause and play, until Reset)
-    if (this.plan) {
-      const physical = [...this.plan.result.cells.values()].some((c) => typeof c.params.motor === 'number' || typeof c.params.belt === 'number');
-      (Tone.getContext() as unknown as { lookAhead: number }).lookAhead = physical ? 0.12 : 0.3;
-    }
+    if (this.plan) (Tone.getContext() as unknown as { lookAhead: number }).lookAhead = isPhysical(this.plan.result) ? 0.12 : 0.3;
     if (this.plan) this.voices!.sync(this.plan.result, this.plan.statics);
     // motors on: held tapes run on from where they stand
     for (const t of this.heldTapes.keys()) this.voices!.tapeScrub(t, null);
@@ -181,40 +233,23 @@ export class Player {
     tr.bpm.value = 60 * this.rate;
     const ppq = tr.PPQ;
 
+    const run = ++this.run;
+    // a window onto the audio clock, from `time` (its start) at `secPerQuarter`
+    const play = (w: Window, time: number, secPerQuarter: number) => {
+      if (run !== this.run || !this.voices) return;
+      const { events, tapes } = retime(w, time, secPerQuarter);
+      // sound tapes on a moving clock: their speed over this window, for the delays to follow
+      for (const t of tapes) this.voices.tapeSpeed(t.tape, t.points);
+      for (const e of events) this.voices.play(e);
+    };
     this.repeatId = tr.scheduleRepeat(
       (time) => {
         const from = Math.round((tr.getTicksAtTime(time) / ppq) * 4) / 4 + offset;
         const secPerQuarter = 60 / tr.bpm.getValueAtTime(time);
         if (!this.plan) return;
-        // sound tapes on a moving clock: their speed over this window, for the delays to follow
-        for (const tp of this.plan.result.tapes) {
-          const motion = tapeMotion(this.plan.result, clocking(this.plan.result, this.plan.statics), tp.name);
-          if (!motion.moving && !tp.dropout && !tp.heads.some((h) => h.wander > 0)) continue;
-          const pts: { at: number; speed: number }[] = [];
-          for (let x = from; x <= from + WINDOW + 1e-9; x += 0.05) pts.push({ at: time + (x - from) * secPerQuarter, speed: motion.speed(x) });
-          this.voices!.tapeSpeed(tp.name, pts);
-        }
-        for (const e of eventsBetween(this.plan, from, from + WINDOW)) {
-          const at = (x: number) => time + (x - from) * secPerQuarter;
-          this.voices!.play(
-            e.voice,
-            e.freq,
-            at(e.at),
-            e.dur * secPerQuarter,
-            e.bends.map((b) => ({ at: at(b.at), cents: b.cents, ramp: b.ramp })),
-            e.gains,
-            e.levels.map((l) => ({ at: at(l.at), level: l.level, ramp: l.ramp })),
-            e.env,
-            // moving parameters: their times onto the audio clock
-            e.params &&
-              Object.fromEntries(
-                Object.entries(e.params).map(([k, t]) => [
-                  k,
-                  t.kind === 'points' ? { ...t, points: t.points.map((x) => ({ ...x, at: at(x.at) })) } : t,
-                ]),
-              ),
-          );
-        }
+        const w = this.engine.window(from, WINDOW);
+        if (w instanceof Promise) void w.then((x) => play(x, time, secPerQuarter));
+        else play(w, time, secPerQuarter);
       },
       '16n',
       0,
@@ -259,6 +294,7 @@ export class Player {
     tr.stop();
     tr.clear(this.repeatId);
     this.repeatId = null;
+    this.run++;
     this.voices?.releaseAll();
     // motors off: every sound tape stops where it is — held, silent, what's on it kept
     this.pausedAt = at;
@@ -273,7 +309,7 @@ export class Player {
 
   /** Back to the start as written: tapes wound off, hands' forces gone (Reset). */
   resetState(): void {
-    if (this.plan) resetPhysics(this.plan.result);
+    this.engine.reset();
     this.voices?.clearTapes();
     this.heldTapes.clear();
     this.pausedAt = 0;
@@ -290,6 +326,7 @@ export class Player {
 
   dispose(): void {
     this.stop();
+    this.engine.dispose();
     this.voices?.dispose();
     this.voices = undefined;
   }

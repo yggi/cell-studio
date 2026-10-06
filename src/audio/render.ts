@@ -4,7 +4,8 @@
  * For saving as WAV, and for measuring — loudness, peaks, clipping — what a test
  * can't hear.
  */
-import { clocking, eventsBetween, plan, tapeMotion, type Plan } from '../engine/realize';
+import { eventsBetween, plan, type Plan } from '../engine/realize';
+import { tapeSpeeds } from '../engine/schedule';
 import type { CompileResult, Shifts } from '../engine/compile';
 import { pieceTime } from '../engine/duration';
 import { createVoices } from './voices';
@@ -28,15 +29,9 @@ export async function renderOffline(plan: Plan, seconds: number, tail = 2): Prom
       voices.sync(plan.result, plan.statics);
       // (the reverb prepares its impulse first: without it, the first notes would ring dry)
       await voices.ready();
-      for (const e of eventsBetween(plan, 0, seconds)) voices.play(e.voice, e.freq, e.at, e.dur, e.bends, e.gains, e.levels, e.env, e.params);
+      for (const e of eventsBetween(plan, 0, seconds)) voices.play(e);
       // sound tapes on a moving clock: their speed over the whole render
-      for (const tp of plan.result.tapes) {
-        const motion = tapeMotion(plan.result, clocking(plan.result, plan.statics), tp.name);
-        if (!motion.moving && !tp.dropout && !tp.heads.some((h) => h.wander > 0)) continue;
-        const pts: { at: number; speed: number }[] = [];
-        for (let x = 0; x <= seconds; x += 0.05) pts.push({ at: x, speed: motion.speed(x) });
-        voices.tapeSpeed(tp.name, pts);
-      }
+      for (const t of tapeSpeeds(plan, 0, seconds)) voices.tapeSpeed(t.tape, t.points);
     },
     seconds + tail,
     2,
@@ -107,4 +102,27 @@ export function loudness(buffer: AudioBuffer): { rms: number; peak: number; clip
   }
   const db = (x: number) => (x > 0 ? 20 * Math.log10(x) : -Infinity);
   return { rms: db(Math.sqrt(sum / Math.max(1, n))), peak: db(top), clipped };
+}
+
+/** A hash of a buffer's samples (FNV-1a over their bits): equal hashes, the same sound to the last bit. */
+export function sampleHash(buffer: AudioBuffer): string {
+  let h = 0x811c9dc5;
+  for (let ch = 0; ch < buffer.numberOfChannels; ch++) {
+    const bits = new Uint32Array(Float32Array.from(buffer.getChannelData(ch)).buffer);
+    for (let i = 0; i < bits.length; i++) h = Math.imul(h ^ bits[i], 0x01000193) >>> 0;
+  }
+  return h.toString(16).padStart(8, '0');
+}
+
+/** The level (RMS of both channels) of each block of `size` samples: a coarse print of a sound, to compare two renders. */
+export function blockLevels(buffer: AudioBuffer, size = 2048): number[] {
+  const chs = Array.from({ length: buffer.numberOfChannels }, (_, c) => buffer.getChannelData(c));
+  const out: number[] = [];
+  for (let at = 0; at < buffer.length; at += size) {
+    let sum = 0;
+    const end = Math.min(buffer.length, at + size);
+    for (const d of chs) for (let i = at; i < end; i++) sum += d[i] * d[i];
+    out.push(Math.sqrt(sum / ((end - at) * chs.length)));
+  }
+  return out;
 }
