@@ -25,6 +25,7 @@
   import Graph from './ui/Graph.svelte';
   import Editor from './ui/Editor.svelte';
   import UpdateToast from './ui/UpdateToast.svelte';
+  import type { RunController } from './ui/perfrun';
 
   /** What's open: an example (its fixed layout applies), a piece saved here, a file. */
   type Open = { kind: 'example'; key: PresetKey } | { kind: 'saved'; id: string } | { kind: 'file'; name: string };
@@ -117,6 +118,36 @@
     audio: () => player.audioInfo(),
   };
   const perfMeta = () => ({ version: __APP_VERSION__, piece: { title: title ?? null, graphNodes: graph.nodes.length, cells: program.cells.size } });
+  // What the overlay's full test does to the page: open a piece, play it, tune the audio anew; and puts it all back.
+  let beforeTest: { open: Open; code: string; tab: 'select' | 'graph' | 'code' } | null = null;
+  let retuned = false;
+  const perfTest: RunController = {
+    open: async (key) => {
+      beforeTest ??= { open, code, tab };
+      await pick(`example:${key}`);
+      return open.kind === 'example' && open.key === key;
+    },
+    retune: async (t) => {
+      retuned = true;
+      await player.retune(t);
+    },
+    play: () => toggle(),
+    stop: () => {
+      if (transportClock.playing) player.stop();
+    },
+    audioState: () => player.audioInfo().state,
+    hidden: () => document.hidden,
+    finish: async () => {
+      if (retuned) await player.retune(null);
+      retuned = false;
+      if (beforeTest) {
+        ({ open, code, tab } = beforeTest);
+        opened++;
+        fresh();
+      }
+      beforeTest = null;
+    },
+  };
   const stale = $derived(!result.ok);
 
 
@@ -432,7 +463,7 @@
 <UpdateToast />
 {#if perf}
   {#await import('./ui/PerfOverlay.svelte') then m}
-    <m.default sources={perfSources} meta={perfMeta} onclose={togglePerf} />
+    <m.default sources={perfSources} meta={perfMeta} test={perfTest} onclose={togglePerf} />
   {/await}
 {/if}
 

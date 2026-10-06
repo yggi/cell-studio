@@ -68,19 +68,26 @@ describe('show=', () => {
       // (an unnamed cell's internal name has its column in it: compare what sounds, not that)
       return JSON.stringify(eventsBetween(plan(r, codeShifts(r)), 0, 3).map((x) => [x.at.toFixed(6), x.voice.replace(/^λ.*/, 'λ'), x.freq.toFixed(4)]));
     };
+    // Every (cell, show) pair is rewritten into the source, but a whole slot at once: pass k sets every cell to
+    // its k-th fitting show, so a piece compiles once per slot, not once per pair. Only a pass that sounds
+    // different is taken apart, one cell at a time, to name the cell.
     for (const [key, p] of Object.entries(PRESETS)) {
       const r = compileSource(p.source);
       const before = sound(p.source);
-      for (const c of r.cells.values()) {
-        if (c.implicit || c.lambda) continue;
-        for (const show of FITS[kindOf(r, c.name)]) {
-          const src = setAttr(p.source, c.name, 'show', show);
-          if (src === p.source) continue;
-          expect(sound(src), `${key}: &${c.name} show=${show}`).toBe(before);
+      const cells = [...r.cells.values()].filter((c) => !c.implicit && !c.lambda).map((c) => ({ name: c.name, fits: FITS[kindOf(r, c.name)] }));
+      const passes = Math.max(0, ...cells.map((c) => c.fits.length));
+      for (let k = 0; k < passes; k++) {
+        const set = cells.filter((c) => k < c.fits.length).map((c) => ({ name: c.name, show: c.fits[k] }));
+        const src = set.reduce((s, c) => setAttr(s, c.name, 'show', c.show), p.source);
+        if (src === p.source || sound(src) === before) continue;
+        for (const { name, show } of set) {
+          const one = setAttr(p.source, name, 'show', show);
+          if (one !== p.source) expect(sound(one), `${key}: &${name} show=${show}`).toBe(before);
         }
+        expect(sound(src), `${key}: show slot ${k} on every cell`).toBe(before); // (no one cell alone: together)
       }
     }
-  }, 60_000); // (every show on every cell of every example: a lot of compiling)
+  }, 30_000); // (every show on every cell of every example)
 });
 
 describe('label=, and the rest of show=', () => {

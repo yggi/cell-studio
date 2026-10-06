@@ -69,6 +69,34 @@ export class Player implements LiveSource {
   /** How the context was tuned (the safe defaults unless the address said otherwise). */
   tuning: Tuning = DEFAULT_TUNING;
 
+  /** A tuning asked for with `retune` before the engine was awake. */
+  private asked: Tuning | null = null;
+
+  private context(T: ToneNS, t: Tuning) {
+    return new T.Context({ latencyHint: t.latencyHint as AudioContextLatencyCategory, lookAhead: t.lookAhead ?? 0.3 });
+  }
+
+  /**
+   * Run on another tuning from now on: stopped, the voices gone, a new context (a context's latency is fixed when
+   * it is made). For the automated latency test (ui/perfrun.ts); not kept, the address and the kept settings
+   * still decide the next page load. The new context starts without a tap because the page has been tapped
+   * before (sticky user activation); where it does not, `audioInfo().state` says so.
+   */
+  async retune(to: Tuning | null): Promise<void> {
+    this.stop();
+    // (null: as the address and the kept settings say)
+    const t = to ?? readTuning();
+    this.tuning = t;
+    this.asked = to;
+    if (!this.Tone) return;
+    this.voices?.dispose();
+    this.voices = undefined;
+    this.Tone.setContext(this.context(this.Tone, t), true);
+    this.watchCapacity();
+    this.resetState();
+    await this.Tone.start().catch(() => undefined);
+  }
+
   /** The native context behind Tone's wrapper (where renderCapacity and the output timestamp live). */
   private native(): Record<string, unknown> | null {
     if (!this.Tone) return null;
@@ -106,8 +134,8 @@ export class Player implements LiveSource {
       // headroom: a context tuned for playback (a larger buffer) that schedules notes 0.3 s ahead —
       // a busy page (a large graph drawing) then doesn't make notes late or starve the sound
       // (the defaults, unless the address asks otherwise to find out how far they can go on a device: audio/tuning.ts)
-      this.tuning = readTuning();
-      T.setContext(new T.Context({ latencyHint: this.tuning.latencyHint as AudioContextLatencyCategory, lookAhead: this.tuning.lookAhead ?? 0.3 }), true); // (true: dispose Tone's default context, or it keeps running beside ours)
+      this.tuning = this.asked ?? readTuning();
+      T.setContext(this.context(T, this.tuning), true); // (true: dispose Tone's default context, or it keeps running beside ours)
       this.Tone = T;
       this.watchCapacity();
     }

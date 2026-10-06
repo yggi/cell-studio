@@ -1,7 +1,8 @@
 name: Smoke
 
-# Opens every piece and plays it for 2 s in the runner's Chrome (tools/smoke.mjs): the audio graph of every
-# voice kind, which the unit tests can't build. It takes minutes, so it doesn't run on every push of every PR:
+# Opens and starts every piece in the runner's Chrome, and plays for 2 s the fewest pieces that use every kind
+# of audio node between them (tools/smoke.mjs, tools/smoke-pick.ts): the audio graph of every voice kind,
+# which the unit tests can't build. It takes a minute or two, so it doesn't run on every push of every PR:
 # only on the one that is about to be merged, the merge candidate, which carries the label `candidate`.
 #  - add the label `candidate` to a PR: it runs once on its head;
 #  - a push to a PR that has the label runs it again (so the result is always for the head);
