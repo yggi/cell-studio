@@ -14,6 +14,7 @@ import { transportClock } from './clock.svelte';
 import { load, watchLoad } from './load';
 import { capacity, markDuration, marks, noteStats } from './stats';
 import { resolveTuning, type Tuning, DEFAULT_TUNING } from './tuning';
+import { heardLag } from './heard';
 import { LocalEngine, type Engine, type PieceSource } from './engine';
 import type { LiveSource } from './live';
 
@@ -88,6 +89,7 @@ export class Player implements LiveSource {
     const t = to ?? readTuning();
     this.tuning = t;
     this.asked = to;
+    this.lag = null;
     if (!this.Tone) return;
     this.voices?.dispose();
     this.voices = undefined;
@@ -102,6 +104,24 @@ export class Player implements LiveSource {
     if (!this.Tone) return null;
     const raw = (this.Tone.getContext() as unknown as { rawContext?: Record<string, unknown> }).rawContext;
     return ((raw?._nativeContext as Record<string, unknown> | undefined) ?? raw) ?? null;
+  }
+
+  /** Seconds between a sample being made and being heard now, from the output timestamp (null where there is none). */
+  private heardLatency(): number | null {
+    try {
+      const n = this.native() as { getOutputTimestamp?: () => { contextTime?: number }; currentTime?: number } | null;
+      const ts = n?.getOutputTimestamp?.();
+      return ts && typeof ts.contextTime === 'number' && ts.contextTime > 0 && typeof n?.currentTime === 'number' ? Math.max(0, n.currentTime - ts.contextTime) : null;
+    } catch {
+      return null;
+    }
+  }
+
+  /** How far the pictures are held back from the audio clock, so that they show what is heard (audio/heard.ts); null until measured. */
+  private lag: number | null = null;
+  private refreshLag(): void {
+    const own = this.native()?.outputLatency;
+    this.lag = heardLag(this.lag, this.heardLatency(), typeof own === 'number' && Number.isFinite(own) ? own : null);
   }
 
   /** The render thread's load and underruns, once a second, where the browser reports them (stats.ts `capacity`). */
@@ -131,7 +151,7 @@ export class Player implements LiveSource {
     (globalThis as { TONE_SILENCE_LOGGING?: boolean }).TONE_SILENCE_LOGGING = true;
     if (!this.Tone) {
       const T = await import('tone');
-      // headroom: a context tuned for playback (a larger buffer) that schedules notes 0.3 s ahead —
+      // headroom: a context with a moderate buffer (`balanced`: 56 ms heard on the phone measured) that schedules notes 0.3 s ahead —
       // a busy page (a large graph drawing) then doesn't make notes late or starve the sound
       // (the defaults, unless the address asks otherwise to find out how far they can go on a device: audio/tuning.ts)
       this.tuning = this.asked ?? readTuning();
@@ -251,13 +271,15 @@ export class Player implements LiveSource {
     heardLatency: number | null;
     /** The tuning in force (the latency hint and the look-ahead), as words. */
     tuning: string;
+    /** Seconds the pictures are held back from the audio clock now (null: not playing yet). */
+    pictureLag: number | null;
   } {
     const tuned = `${typeof this.tuning.latencyHint === 'number' ? `${this.tuning.latencyHint} s` : this.tuning.latencyHint}, look-ahead ${this.tuning.lookAhead ?? 'default'}`;
     // (the worst lateness is since the last time it was asked: the report reads it every half second, so a window
     // can tell its own worst from one at the start of the page)
     const notes = { ...noteStats };
     noteStats.worstLateMs = 0;
-    if (!this.Tone) return { state: null, sampleRate: null, baseLatency: null, outputLatency: null, currentTime: null, playout: null, notes, heardLatency: null, tuning: tuned };
+    if (!this.Tone) return { state: null, sampleRate: null, baseLatency: null, outputLatency: null, currentTime: null, playout: null, notes, heardLatency: null, pictureLag: null, tuning: tuned };
     const tc = this.Tone.getContext() as unknown as { rawContext?: Record<string, unknown>; state?: string; sampleRate?: number; currentTime?: number };
     const raw = (tc.rawContext ?? {}) as { playoutStats?: Record<string, number>; _nativeContext?: { playoutStats?: Record<string, number>; baseLatency?: number; outputLatency?: number }; baseLatency?: number; outputLatency?: number };
     // (Tone wraps the native context: the stats are on the native one)
@@ -271,15 +293,8 @@ export class Player implements LiveSource {
       currentTime: num(tc.currentTime),
       notes,
       tuning: tuned,
-      heardLatency: (() => {
-        try {
-          const n = this.native() as { getOutputTimestamp?: () => { contextTime?: number }; currentTime?: number } | null;
-          const ts = n?.getOutputTimestamp?.();
-          return ts && typeof ts.contextTime === 'number' && ts.contextTime > 0 && typeof n?.currentTime === 'number' ? Math.max(0, n.currentTime - ts.contextTime) : null;
-        } catch {
-          return null;
-        }
-      })(),
+      heardLatency: this.heardLatency(),
+      pictureLag: this.lag,
       playout: stats
         ? {
             underrunEvents: stats.underrunEvents ?? 0,
@@ -343,6 +358,8 @@ export class Player implements LiveSource {
     tr.start(startsAt);
     transportClock.playing = true;
     let shown = 0;
+    let lagAt = 0;
+    this.refreshLag();
     const frame = (t: number) => {
       // (the live views: about 24 times a second — plenty for the eye, and a large graph leaves the
       // page free to keep the sound fed)
@@ -353,7 +370,13 @@ export class Player implements LiveSource {
       shown = t;
       // (until it has started, the transport still reports where the last run stopped: count from 0)
       const t0 = marks.on ? performance.now() : 0;
-      transportClock.seconds = offset + (Tone.immediate() < startsAt ? 0 : Math.max(0, tr.getTicksAtTime(Tone.immediate()) / ppq));
+      // (the position of what is heard now: the audio clock says what is made, the speaker plays it `lag` later)
+      if (t - lagAt > 500) {
+        lagAt = t;
+        this.refreshLag();
+      }
+      const heard = Tone.immediate() - (this.lag ?? 0);
+      transportClock.seconds = offset + (heard < startsAt ? 0 : Math.max(0, tr.getTicksAtTime(heard) / ppq));
       // (what this write sets going — the reactive flush of every live view — runs as a microtask queued
       // before this one: when this one runs, the flush is done)
       if (t0) queueMicrotask(() => markDuration('transport + flush', performance.now() - t0));

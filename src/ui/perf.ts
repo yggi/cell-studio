@@ -183,6 +183,8 @@ export interface ReportData {
     tuning: string | null;
     /** Mean seconds between a sample being made and being heard, from the output timestamp, in ms (null: no timestamp). */
     heardLatencyMs: number | null;
+    /** How far the pictures are held back from the audio clock to match what is heard, in ms (null: not playing yet). */
+    pictureLagMs: number | null;
     /** The render thread's own report (AudioContext.renderCapacity), over the window: null where the browser has none. */
     capacity: { updates: number; meanLoad: number; peakLoad: number; underrunRatioMean: number; underrunRatioMax: number } | null;
     /** Underruns over the window; null where the browser doesn't report them. */
@@ -244,7 +246,7 @@ export function buildReport(r: ReportData): string {
     `| Audio | ${r.audio.state ?? 'not started'}${r.audio.sampleRate ? ` · ${r.audio.sampleRate} Hz` : ''}${r.audio.baseLatencyMs !== null ? ` · base latency ${n1(r.audio.baseLatencyMs)} ms` : ''}${r.audio.outputLatencyMs !== null ? ` · output latency ${n1(r.audio.outputLatencyMs)} ms` : ''}${r.audio.clockRatio !== null ? ` · clock ${r.audio.clockRatio.toFixed(3)}× real time` : ''} |`,
   );
   if (r.audio.tuning || r.audio.heardLatencyMs !== null)
-    lines.push(`| Latency tuning | ${r.audio.tuning ?? '?'}${r.audio.heardLatencyMs !== null ? ` · made-to-heard (output timestamp) ${n1(r.audio.heardLatencyMs)} ms` : ''} |`);
+    lines.push(`| Latency tuning | ${r.audio.tuning ?? '?'}${r.audio.heardLatencyMs !== null ? ` · made-to-heard (output timestamp) ${n1(r.audio.heardLatencyMs)} ms` : ''}${r.audio.pictureLagMs !== null ? ` · pictures held back ${n0(r.audio.pictureLagMs)} ms` : ''} |`);
   if (r.audio.capacity)
     lines.push(
       `| Audio thread (renderCapacity) | load mean ${n0(r.audio.capacity.meanLoad * 100)} %, peak ${n0(r.audio.capacity.peakLoad * 100)} % · missed deadlines: mean ${n1(r.audio.capacity.underrunRatioMean * 100)} %, worst second ${n1(r.audio.capacity.underrunRatioMax * 100)} % (${r.audio.capacity.updates} s) |`,
@@ -300,6 +302,7 @@ interface AudioNow {
   notes: NoteStats | null;
   heardLatency?: number | null;
   tuning?: string | null;
+  pictureLag?: number | null;
 }
 
 export interface PerfSources {
@@ -530,6 +533,7 @@ export class PerfCollector {
         outputLatencyMs: audio.outputLatency === null ? null : audio.outputLatency * 1000,
         clockRatio,
         tuning: audio.tuning ?? null,
+        pictureLagMs: audio.pictureLag == null ? null : audio.pictureLag * 1000,
         heardLatencyMs: heard.length ? (heard.reduce((a, b) => a + b, 0) / heard.length) * 1000 : null,
         capacity: cap,
         playout,
