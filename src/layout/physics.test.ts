@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { parse } from '../engine/parser';
-import { ForceLayout, DEFAULT_LAYOUT, FORCES_ALONE, columns, crossingPairs, flowRanks, orderLayers, splinePoint } from './physics';
+import { ForceLayout, DEFAULT_LAYOUT, FORCES_ALONE, columns, crossingPairs, flowRanks, orderLayers } from './physics';
+import { splinePoint } from './geometry';
 import { buildGraph } from '../engine/graph';
 import { compileSource } from '../engine/compile';
 import { PRESETS } from '../engine/presets';
