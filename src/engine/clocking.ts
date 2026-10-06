@@ -97,7 +97,13 @@ export interface Clocking {
 }
 
 const belts = new WeakMap<CompileResult, Map<string, Warp>>();
-onReset((r) => belts.delete(r));
+// (a program's time maps, built once per shifts: a map reads its clock's braid, and the plan, shiftsAt and
+// the views ask for one per note and per frame; a reset of the physics forgets them with the warps they read)
+const built = new WeakMap<CompileResult, WeakMap<Shifts, Map<string, TimeMap>>>();
+onReset((r) => {
+  belts.delete(r);
+  built.delete(r);
+});
 
 /**
  * The physics of a physical cell (a meter with a motor, or a belted cell): to put a hand on it, and
@@ -120,8 +126,12 @@ export function varispeedOf(result: CompileResult, clock: string): number {
   return typeof v === 'number' ? v : 0;
 }
 
+/** A program's clocks read at `seconds`: each clock's time map, and how many steps it has taken. */
 export function clocking(result: CompileResult, statics: Shifts, seconds = 0): Clocking {
-  const maps = new Map<string, TimeMap>();
+  let byShifts = built.get(result);
+  if (!byShifts) built.set(result, (byShifts = new WeakMap()));
+  const maps = byShifts.get(statics) ?? new Map<string, TimeMap>();
+  byShifts.set(statics, maps);
   const map = (clock: string) => {
     let m = maps.get(clock);
     if (!m) {
