@@ -333,10 +333,17 @@
   const meterAt = $derived(isMeter && view.mode === 'grid' && beatAt !== null ? meterNow(view.segments, beatAt) : null);
   const meterLit = $derived(meterAt ? ringSegment(c, c, rInner, rOuter, view.segments[meterAt.at].t0, view.segments[meterAt.at].t1) : null);
 
-  // the ring of the meter that steps it: the meter's own segments, where they are on the meter, the one it's in now
-  // in full colour — so on a wheel the meter drives 1:1 the lit segment of the ring is beside the cell's own step now
+  // the ring of the meter that steps it: the meter's own segments, where they are on the meter, the one lit going
+  // round at the cell's rate (twice as fast at ×2, half at ÷2) — so on a wheel the meter drives 1:1 the lit segment
+  // of the ring is beside the cell's own step now
   const ringView = $derived(ring && ctx.program.cells.has(ring.name) ? cellView(ctx.program, ring.name, shown, true) : null);
-  const ringBeat = $derived(ring ? (ctx.live?.beatAt.get(ring.name) ?? null) : null);
+  const ringBeat = $derived.by(() => {
+    const at = ring && ringView ? ctx.live?.stepAt.get(ring.name) : undefined;
+    if (at === undefined || !ringView) return null;
+    const beats = Math.max(1, ...ringView.segments.map((sg) => sg.index + 1));
+    const s = at * (ctx.program.cells.get(name)?.rate ?? 1);
+    return ((s % beats) + beats) % beats;
+  });
   const ringNow = $derived(ringView && ringBeat !== null ? meterNow(ringView.segments, ringBeat) : null);
   const ringPaths = $derived.by(() => {
     if (!ringView) return [];

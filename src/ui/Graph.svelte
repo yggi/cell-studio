@@ -8,7 +8,7 @@
   import { structureKey, type GraphEdge, type GraphModel, type GraphNode } from '../engine/graph';
   import type { LiveState } from '../engine/live';
   import { drawn, edgeStateOf, type Routing } from '../engine/routing';
-  import { DEFAULT_LAYOUT, ForceLayout, type LayoutOptions } from '../layout/physics';
+  import { DEFAULT_LAYOUT, ForceLayout, type LayoutOptions, type MeterTrace } from '../layout/physics';
   import type { FlowNode } from './types';
   import { setGraphContext } from './context';
   import { flowNodeOf, PETAL, physical } from './flownode';
@@ -17,6 +17,7 @@
   import FitView from './FitView.svelte';
   import CellSheet from './CellSheet.svelte';
   import PulseEdge from './PulseEdge.svelte';
+  import MeterEdge from './MeterEdge.svelte';
   import MaterialNode from './MaterialNode.svelte';
   import ScopeNode from './ScopeNode.svelte';
   import SunNode from './SunNode.svelte';
@@ -186,9 +187,9 @@
     const d = (parentSize as number) / 2 + PETAL / 2 + 2;
     return { x: p.x + Math.cos(a) * d, y: p.y + Math.sin(a) * d };
   }
-  // a meter's edges that are drawn: those that cross nothing, as things stand once the layout comes to rest
-  let groundKept = $state.raw<ReadonlySet<string>>(new Set());
-  const sameSet = (a: ReadonlySet<string>, b: ReadonlySet<string>) => a.size === b.size && [...a].every((x) => b.has(x));
+  // each meter's net (its traces to the cells it steps, through each other), as laid once the layout comes to rest
+  let net = $state.raw<readonly MeterTrace[]>([]);
+  const sameNet = (a: readonly MeterTrace[], b: readonly MeterTrace[]) => a.length === b.length && a.every((t, i) => t.id === b[i].id);
   // a tape's turn (where the layout faced its heads), to the degree: its node is redrawn only when that changes
   const turnOf = (id: string) => {
     const t = layout.tapeTurn(id);
@@ -204,10 +205,10 @@
     });
     bends = layout.bends();
   });
-  // (at rest again — after a drag, an edit — the meter's edges that cross nothing are drawn; the meter stays put)
+  // (at rest again — after a drag, an edit — the meter's net is laid again from where things are; the meter stays put)
   layout.onSettle(() => {
-    const kept = layout.groundEdges();
-    if (!sameSet(kept, groundKept)) groundKept = kept;
+    const laid = layout.meterNet();
+    if (!sameNet(laid, net)) net = laid;
   });
   onDestroy(() => layout.destroy());
 
@@ -273,7 +274,7 @@
   const hasBelts = $derived([...program.cells.values()].some((c) => typeof c.params.belt === 'number'));
   const NO_LIVE = { nodes: new Set<string>(), edges: new Set<string>() };
 
-  const edgeTypes = { pulse: PulseEdge, belt: BeltEdge };
+  const edgeTypes = { pulse: PulseEdge, belt: BeltEdge, meter: MeterEdge };
   const nameOf = (id: string) => id.slice('cell:'.length);
   /** What an edge carries: whose steps pulse along it, and which voice's note colours it. */
   function pulseData(e: GraphEdge) {
@@ -335,10 +336,19 @@
     void muted;
     void playing;
     if (hasBelts) void liveEdges;
-    // (a meter's edges are drawn only where they cross nothing: its cells wear its ring anyway — layout/meters.ts)
+    // (a meter's edges are ground — layout/meters.ts — and its net is drawn instead)
     const byId = new Map(m.nodes.map((n) => [n.id, n]));
-    const kept = groundKept;
-    untrack(() => (edges = m.edges.filter((e) => !isGround(e, byId) || kept.has(e.id)).map((e) => toFlowEdge(e))));
+    const laid = net;
+    const index = meterIndex(m);
+    untrack(
+      () =>
+        (edges = [
+          ...m.edges.filter((e) => !isGround(e, byId)).map((e) => toFlowEdge(e)),
+          ...laid.map(
+            (t): Edge => ({ id: t.id, source: t.a, target: t.b, type: 'meter', zIndex: -1, selectable: false, focusable: false, data: { meter: index.get(t.meter) ?? 0, name: nameOf(t.meter) } }),
+          ),
+        ]),
+    );
   });
 
   // an example's fixed layout: pinned when the example changes; released when it does again
@@ -398,7 +408,7 @@
         layout.tick(220);
         // meters last: where most of their edges cross nothing; those are drawn (layout/meters.ts)
         layout.placeMeters();
-        groundKept = layout.groundEdges();
+        net = layout.meterNet();
       }
       // turntables stay where they were first laid out (pinned): the rest flows round them
       if (justOpened)
