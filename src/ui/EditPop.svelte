@@ -6,6 +6,7 @@
    * The line is checked as you type; Enter or a suggestion applies.
    */
   import type { Suggestion } from './suggest';
+  import Dialog from './kit/Dialog.svelte';
 
   export interface BarItem {
     readonly text: string;
@@ -56,11 +57,11 @@
     onclose: () => void;
   } = $props();
 
-  let text = $state('');
-  let typing = $state(false);
-  $effect(() => {
-    text = initial;
-    typing = false;
+  // (a new text to edit, from outside: shown as it is, and not being typed)
+  let text = $derived(initial);
+  let typing = $derived.by(() => {
+    void initial;
+    return false;
   });
   const suggestions = $derived(typing ? suggest(text) : []);
   const problem = $derived(text.trim() ? check(text.trim()) : null);
@@ -71,8 +72,7 @@
   }
 </script>
 
-<div class="backdrop" onclick={onclose} role="presentation"></div>
-<div class="pop" role="dialog" aria-label={label} aria-modal="true">
+<Dialog {label} {onclose}>
   <div class="field">
     {#if keys}
       <select aria-label="parameter" value={key} onchange={(e) => onkey?.(e.currentTarget.value)}>
@@ -128,31 +128,9 @@
       </span>
     </div>
   {/if}
-</div>
+</Dialog>
 
 <style>
-  .backdrop {
-    position: fixed;
-    inset: 0;
-    z-index: 60;
-    background: var(--scrim);
-  }
-  .pop {
-    position: fixed;
-    z-index: 61;
-    left: 50%;
-    top: 22%;
-    transform: translateX(-50%);
-    width: min(400px, calc(100vw - 24px));
-    padding: 10px;
-    border-radius: 14px;
-    background: var(--surface);
-    border: 1px solid var(--line);
-    box-shadow: var(--shadow-strong);
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-  }
   .field {
     display: flex;
     gap: 6px;

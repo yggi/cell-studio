@@ -20,8 +20,9 @@
   import { FITS, effectiveShow, kindOf, names as namesNotes, noteLabel, tonicOf, voiceBase } from '../layout/show';
   import HubEditor from './HubEditor.svelte';
   import ParamRows from './ParamRows.svelte';
-  import Keypad from './Keypad.svelte';
+  import FreeControl from './FreeControl.svelte';
   import ScopeView from './ScopeView.svelte';
+  import { trap } from './kit/attach';
 
   let {
     name,
@@ -196,11 +197,8 @@
   }
 
   // ---- the name, edited where it's shown: Enter renames, Escape puts it back
-  let draft = $state('');
+  let draft = $derived(name);
   let nameInput = $state<HTMLInputElement | null>(null);
-  $effect(() => {
-    draft = name;
-  });
   const renameProblem = $derived(draft.trim() && draft.trim() !== name ? nameProblem(source, draft.trim(), name) : null);
   function commitRename() {
     const to = draft.trim();
@@ -220,11 +218,6 @@
   const links = $derived(cell ? connections(ctx.program, name) : []);
   // the numbers it leaves free (free(…)): sliders, here as on its node
   const frees = $derived(cell?.frees ?? []);
-  const freeLabel = (f: (typeof frees)[number]) =>
-    f.key === 'param' ? (f.param ?? 'value') : f.key === 'choice' ? 'choose' :
-    f.key === 'step' || f.key === 'loop' ? (f.unit === 'bpm' ? 'tempo' : f.key) : f.key === 'interval' ? 'ratio' : f.key === 'gain' ? 'level' : f.key;
-  const freeStep = (f: (typeof frees)[number]) => (f.key === 'shift' || f.key === 'stride' ? 1 : f.hi - f.lo >= 20 ? 1 : (f.hi - f.lo) / 100);
-  const freeShow = (f: (typeof frees)[number], v: number) => `${+v.toFixed(f.hi - f.lo >= 20 ? 0 : 2)}${f.unit}`;
   // a selector or a meter: its picture as in the graph (a barrel, a meter), not its steps written out
   const overview = $derived(!!cell && ['selector', 'meter', 'lfo'].includes(kindOfCell(ctx.program, name)));
 
@@ -239,7 +232,7 @@
 <svelte:window {onkeydown} />
 
 <div class="backdrop" onclick={onclose} role="presentation"></div>
-<div class="sheet" role="dialog" aria-label="&{name}" aria-modal="true" tabindex="-1">
+<div class="sheet" role="dialog" aria-label="&{name}" aria-modal="true" tabindex="-1" {@attach trap({ onescape: () => onclose(), focus: 'self' })}>
   {#if cell}
     <header>
       {#if cell.lambda}
@@ -340,18 +333,7 @@
     {#if frees.length}
       <section class="group" aria-label="Controls">
         {#each frees as f, i (i)}
-          {#if f.key === 'text'}
-            <label class="keys"><span class="what">text</span><input class="textfree" type="text" value={f.text ?? ''} spellcheck="false" autocomplete="off" oninput={(e) => ctx.setFree(f, e.currentTarget.value)} /></label>
-          {:else if f.labels}
-            <div class="keys"><span class="what">{freeLabel(f)}</span><Keypad labels={f.labels} value={f.value} lo={f.lo} hi={f.hi} size="large" onpick={(v) => ctx.setFree(f, v)} /></div>
-          {:else}
-          <label class="slider">
-            <span class="what">{freeLabel(f)}</span>
-            <output>{freeShow(f, f.value)}</output>
-            <input type="range" min={f.lo} max={f.hi} step={freeStep(f)} value={f.value} oninput={(e) => ctx.setFree(f, +e.currentTarget.value)} />
-            <span class="range">{freeShow(f, f.lo)}</span><span class="range end">{freeShow(f, f.hi)}</span>
-          </label>
-          {/if}
+          <FreeControl {f} onfree={(s, v) => ctx.setFree(s, v)} variant="large" />
         {/each}
       </section>
     {/if}
@@ -472,6 +454,9 @@
     flex-direction: column;
     gap: 10px;
     animation: rise 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+  .sheet:focus {
+    outline: none;
   }
   @keyframes rise {
     from {
@@ -659,37 +644,6 @@
     color: var(--text-muted);
   }
 
-  /* the numbers left free: real controls */
-  .slider {
-    display: grid;
-    grid-template-columns: 1fr auto;
-    align-items: baseline;
-    gap: 2px 8px;
-  }
-  .slider .what {
-    font: 600 14px var(--font-ui);
-  }
-  .slider output {
-    font: 700 15px var(--font-code);
-    color: var(--accent);
-    font-variant-numeric: tabular-nums;
-  }
-  .slider input {
-    grid-column: 1 / -1;
-    width: 100%;
-    accent-color: var(--accent);
-    min-height: 28px;
-    padding: 0;
-    border: 0;
-    background: none;
-  }
-  .slider .range {
-    font: 12px var(--font-code);
-    color: var(--text-faint);
-  }
-  .slider .end {
-    text-align: right;
-  }
 
   /* connections: how they relate, then the cells */
   .links {
@@ -830,23 +784,6 @@
   }
   .sheet :global(input[type='number']) {
     font-family: var(--font-code);
-  }
-  .keys {
-    display: grid;
-    gap: 6px;
-  }
-  .keys .what {
-    font: 600 13px var(--font-ui);
-    color: var(--text-muted);
-  }
-  .textfree {
-    font: 700 20px var(--font-code);
-    letter-spacing: 0.08em;
-    padding: 10px 12px;
-    border-radius: 10px;
-    border: 1px solid var(--line);
-    background: var(--code-bg);
-    color: var(--text);
   }
   .bigscope {
     margin: 4px 0 12px;

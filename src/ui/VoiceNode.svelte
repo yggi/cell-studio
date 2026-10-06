@@ -3,7 +3,7 @@
   import { Handle, Position, type NodeProps } from '@xyflow/svelte';
   import type { VoiceFlowNode } from './types';
   import { getGraphContext, nodeState } from './context';
-  import { longpress } from './longpress';
+  import { longpress } from './kit/attach';
   import FreePills from './FreePills.svelte';
   import SpectrumWheel from './SpectrumWheel.svelte';
   import WaveGlyph from './WaveGlyph.svelte';
@@ -30,7 +30,7 @@
   class="node voice"
   data-state={state}
   style="width: {data.size}px; height: {data.size}px"
-  use:longpress={{ onlong: () => ctx.toggle(id) }}
+  {@attach longpress(() => ctx.toggle(id))}
   title="&{data.name}: spectrum — left / right channel; low at the top, high at the bottom"
 >
   <Handle type="target" position={Position.Top} class="center-handle" isConnectable={false} />
