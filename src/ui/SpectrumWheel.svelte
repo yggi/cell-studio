@@ -14,6 +14,7 @@
   import { noteName } from '../theory/modes';
   import { DOUGH_SOURCES } from '../engine/dough-params';
   import { load, watchLoad } from '../audio/load';
+  import { timed } from '../audio/stats';
 
   /** hub: what the hub says; without it, the note a voice sounds now (at rest, its pitch 0). */
   let { name, size = 120, hub: fixed = null }: { name: string; size?: number; hub?: { big: string; small: string } | null } = $props();
@@ -134,6 +135,9 @@
     const small = size * seen < 56 ? 3 : size * seen < 90 ? 2 : 1;
     if (t - last < 66 * load.scale * small * (quiet > FRAMES ? 2 : 1)) return; // ~15 a second: plenty for a spectrum (fewer when the page is busy)
     last = t;
+    timed('wheel', () => work(t));
+  }
+  function work(t: number) {
     // (in the hidden tab the box is still in view, just not shown: ask the element itself — twice a
     // second, not every frame: the question is not free)
     if (t - checked > 500) {
@@ -152,7 +156,7 @@
       else fillResting();
       draw();
     }
-    const live = playing ? ctx.spectrum(name) : null;
+    const live = playing ? timed('wheel.read', () => ctx.spectrum(name)) : null;
     sounding = playing && !fixed ? ctx.note(name) : null;
     if (live) {
       const l = bandsFromFFT(live.left, live.sampleRate, BANDS);
@@ -162,7 +166,7 @@
       else if (quiet <= FRAMES) quiet++;
       if (quiet <= FRAMES) {
         push(l, r);
-        draw();
+        timed('wheel.draw', draw);
       }
     }
   }
