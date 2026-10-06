@@ -1,30 +1,16 @@
 /**
- * Parser for the cell language. One cell or command per line:
+ * Parser for the cell language: one cell per line, attributes and a braid in any order; a line
+ * ending in +, *, a comma or [ continues on the next. Errors are collected per line (a bad line
+ * drops its cell, the rest is read). Every form it reads is in docs/language/reference.md,
+ * generated from the tables in these modules (syntax.ts):
  *
- *   cell     := REF item*                         (REF here: a name, &theme)
- *   item     := 'over=' (REF | 'scale(' INT ',' INT ')') | 'shift=' INT | 'cycle=' INT | ('step=' | 'loop=') STEP | 'stride=' INT
- *             | 'map=' (MAP | REF) | 'off' | KEY '=' VALUE | generator | token
- *               KEY and VALUE: every attribute is in attributes.ts (what it takes, what it acts on)
- *   STEP     := (REF | 'cycle(' REF ')') (('*' | '/') NUM)*   driven by another cell (*2/3: three per two)
- *             | NUM ('bpm' | 'hz' | 'k')?                     a rate per second
- *             | ENV                                          provided by the environment: SAMPLE_RATE, A4, C#3, Bb2 …
- *   generator:= 'scan(' (NUM ('!' INT)? | 'geo(' NUM ',' INT ',' NUM+ ')')+ ')' | 'sin(' INT ')' | 'euclid(' INT ',' INT (',' INT)? ')'
- *             | 'meter(' … ')' | 'spell(' … ')'
- *               scan: running totals of intervals (scales, meters); geo(r, n, k…): intervals r^(k/n)
- *   token    := atom (('!' | '*' | '@') INT)*     each modifier at most once
- *   atom     := REF | '~' | NUM | '[' NUM (','? NUM)* ']' | '[' EXPR (',' EXPR)* ']'    the last: a mix
- *   REF      := '&' (IDENT | '(' item* ')') ('[' INT ']' | '[' INT? ':' INT? (':' INT?)? ']' | '[' INT? ':' INT? ']' | '[' ('<<' | '>>') INT? ']')?
- *               a pick from the braid as written: &x[0] first, &x[-1] last, &x[-1:], &x[:-1]
- *               or a shift: &x[<<] back one, &x[>>2] forward two (relative, climbing the helix);
- *               then, in a braid, ^n: what it plays n grid steps up (&subject^7, &subject^-12)
- *   NUM      := '-'? (DIGITS ('.' DIGITS)? | '.' DIGITS) ('#' | 'b')*
- *   EXPR     := PRODUCT (('+' | '-') PRODUCT)*        inside a mix chord
- *   PRODUCT  := FACTOR ('*' FACTOR)*
- *   FACTOR   := REF | NUM | '(' EXPR ')'
- * A line ending in '+', '*', ',' or '[' continues on the next line.
- *
- * Comments: `//` anywhere, or `#` at the start of a line or after a space
- * (a `#` glued to a number is a sharp). Errors are collected per line.
+ *   scanner.ts     a line: names, numbers, references (picks, shifts, ^n), unnamed cells &( … )
+ *   cell.ts        a cell's line: the attributes (KEYS, then parameters) and its braid
+ *   braid.ts       steps (numbers, rests, chords, choices, cells) and their modifiers
+ *   generators.ts  scan(…), euclid(…), sin(…), meter(…), spell(…)
+ *   free.ts        free(…): a number left to the performer
+ *   values.ts      step= / loop= (rates, units, clocks) and map= (kinds, grids, tables)
+ *   mix.ts         a mix chord, kept as an expression (compile types it: algebra.ts)
  */
 import type { CellDecl, Diagnostic, ParseResult } from '../ast';
 import { IDENT, LineError, LineScanner, stripComment } from './scanner';
