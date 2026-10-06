@@ -6,11 +6,11 @@ Cell studio: a minimal music language where everything is a cell, as a browser a
 
 - **Work:** open issues (labels `language` `audio` `ui` `bug` …; epics in [docs/roadmap.md](docs/roadmap.md)); rough edges that are documented, not tracked, in [docs/limits.md](docs/limits.md).
 - **Code:** `docs/architecture.md` says what lives where and how data flows; the `docs/language/` pages say what each attribute means.
-- **Tools:** `npm test` (vitest), `npm run check` (svelte-check), `npm run smoke` (every piece played in a real browser), the `profile` skill (main-thread load), `window.cellStudio.measure` (loudness). [docs/testing.md](docs/testing.md).
+- **Tools:** `npm test` (vitest), `npm run check` (svelte-check), `npm run smoke` (every piece started in a real browser, a set covering every kind of sound played), the `profile` skill (main-thread load), `window.cellStudio.measure` (loudness). [docs/testing.md](docs/testing.md).
 
 ## Checks
 
-CI runs `check`, `test` and `build` on every PR; it is the gate. The smoke test (every piece played in a browser) runs only on the PR labelled `candidate`, the one about to be merged ([testing.md](docs/testing.md)). Before pushing run `npm test && npm run check`. While iterating, run one file: `npx vitest run src/engine/parser.test.ts`. Don't run `build` or the full smoke test locally unless you changed what they cover (`vite.config.ts`, `index.html`, assets, audio or UI wiring: then `npm run build && npm run smoke -- 2 "<a piece>"`). Don't repeat what CI repeats.
+CI runs `check`, `test` and `build` on every PR; it is the gate. The smoke test (every piece started in a browser, a covering set played) runs only on the PR labelled `candidate`, the one about to be merged ([testing.md](docs/testing.md)). Before pushing run `npm test && npm run check`. While iterating, run one file: `npx vitest run src/engine/parser.test.ts`. Don't run `build` or the full smoke test locally unless you changed what they cover (`vite.config.ts`, `index.html`, assets, audio or UI wiring: then `npm run build && npm run smoke -- 2 "<a piece>"`). Don't repeat what CI repeats.
 
 ## Rules
 

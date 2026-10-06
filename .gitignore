@@ -14,3 +14,6 @@ coverage/
 profile-*.json
 before-play.png
 shots/
+
+# svelte-check --tsgo writes the transpiled Svelte files here
+.svelte-check/
