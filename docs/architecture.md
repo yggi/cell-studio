@@ -32,7 +32,7 @@ code text (App.svelte `code`)
 - `duration.ts`: piece length / loop cycle (`pieceTime`, `sections`, `mainTempo`).
 - `compress.ts`: Shorten (`shorten`, `shortenAll`).
 - `physics.ts` (motors, friction, belts: warps a clock's time map), `fm.ts` (Bessel spectrum), `wave.ts` (a voice's braid as waveform).
-- `dough-params.ts`: sound parameter names. `presets.ts`: the examples (`PRESETS`): it reads `examples/*.cells` (one plain-text piece per file, the format users save) with an eager `import.meta.glob`; `examples.test.ts` checks every file compiles clean and has a title, tags and `level=`. `fiveto12.ts`: the day-long cycle.
+- `dough-params.ts`: sound parameter names. `order.ts`: the library's order of examples (`ORDER`: a new file in `examples/` needs an entry). `presets.ts`: `PRESETS`, every `examples/*.cells` read at once (one plain-text piece per file, the format users save), for the tests; `examples.test.ts` checks every file compiles clean and has a title, tags and `level=`, and that the index below is current. The app doesn't use it: `src/examples.ts` has the build-time index (`virtual:examples-index`, made by `tools/examples-index.ts` through a plugin in `vite.config.ts`: title, description, tags, size, time, bytes) and `loadExample(key)`, which fetches a piece's source (its own chunk) when it's drawn or opened; only the first piece is in the first bundle. `fiveto12.ts`: the day-long cycle.
 - Tape and resonator have no file of their own; they live in parser/compile/realize (tests: `tape.test.ts`, `resonator.test.ts`).
 
 ## src/layout (pure drawing logic)
