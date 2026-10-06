@@ -24,6 +24,7 @@ Tests are `*.test.ts` beside their source, in node (no isolation between files, 
 - Audio: `src/audio/engine.test.ts` (local and worker engines; no Web Audio needed).
 - Layout: `src/layout/*.test.ts` (belts, cellview, describe, dial, geometry, labels, physics, show, spectrum).
 - Examples: `src/engine/examples.test.ts` — every `examples/*.cells` file is listed, compiles with zero diagnostics, and has a title, tags and `level=`.
+- Fuzz: `src/engine/fuzz.test.ts` — every example with one token or character deleted (a seeded sample of 20 each) compiles, plans and plays its first seconds without throwing. A program with errors plays nothing (`plan` returns no tracks): it may name cells it doesn't have.
 - UI helpers: `src/ui/colour`, `highlight`, `suggest` tests.
 
 ## Promises
