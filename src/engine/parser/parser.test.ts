@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { parse, pieceMeta } from './parser';
-import { pickLabel, refLabel, type Atom, type Binding } from './ast';
-import { distribute } from './algebra';
+import { parse, pieceMeta } from './index';
+import { pickLabel, refLabel, type Atom, type Binding } from '../ast';
+import { distribute } from '../algebra';
 
 /** The parser keeps a mix as written; typed here as compile would, the voices of these tests being sounds. */
 const SOUNDS = /^(lead|bass|organ|cello|v|w|v2)$/;

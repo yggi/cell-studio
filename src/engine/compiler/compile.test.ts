@@ -1,14 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { setFree } from './edit';
-import { compileSource } from './compile';
-import { noteFrequency, codeShifts, type Shifts } from './program';
-import { freqHue, gridName, positionOf, voiceGrid, positionHue, semitones, entries, lookup, resolveIn, resolvePitch, shiftedUnits } from './helix';
-import { flatten } from './flatten';
-import { eventsBetween, plan } from './realize';
-import { parse } from './parser';
-import { buildGraph } from './graph';
-import { PRESETS } from './presets';
-import { modeName } from '../theory/modes';
+import { setFree } from '../edit';
+import { compileSource } from '../compile';
+import { noteFrequency, codeShifts, type Shifts } from '../program';
+import { freqHue, gridName, positionOf, voiceGrid, positionHue, semitones, entries, lookup, resolveIn, resolvePitch, shiftedUnits } from '../helix';
+import { flatten } from '../flatten';
+import { eventsBetween, plan } from '../realize';
+import { parse } from '../parser';
+import { buildGraph } from '../graph';
+import { PRESETS } from '../presets';
+import { modeName } from '../../theory/modes';
 
 type R = ReturnType<typeof compileSource>;
 const with_ =
