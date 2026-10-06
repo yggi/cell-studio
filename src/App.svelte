@@ -1,449 +1,93 @@
 <script lang="ts">
-  import { noteColour } from './ui/theme';
-  import { tick } from 'svelte';
   import { onDestroy } from 'svelte';
-  import { MediaQuery } from 'svelte/reactivity';
-  import { compileSource } from './engine/compile';
-  import { codeShifts, type CompileResult } from './engine/program';
-  import { addCell, declLine, setFree, setOff, setShift } from './engine/edit';
-  import { freeIndex, freeList, withHeld } from './engine/held';
-  import { buildGraph } from './engine/graph';
-  import { plan } from './engine/realize';
-  import { liveAt } from './engine/live';
-  import { routing } from './engine/routing';
-  import { FIRST, FIRST_SOURCE, loadExample, type PresetKey } from './examples';
-  import { fileName, listSaved, readFile, removeSaved, saveFile, savePiece, storageAvailable, titleOf, type SavedPiece } from './library';
+  import { noteColour } from './ui/theme';
+  import { Studio, setStudio } from './ui/state/studio.svelte';
   import Picker from './ui/Picker.svelte';
-  import { exampleEntries, savedEntry, type Entry } from './ui/entries';
   import Shorten from './ui/Shorten.svelte';
-  import { anchoredAt, mainLength, mainTempo, pieceTime, sections } from './engine/duration';
   import Transport from './ui/Transport.svelte';
   import QuickPick from './ui/QuickPick.svelte';
   import FreePanel from './ui/FreePanel.svelte';
-  import { loudness, renderLength, renderPiece, wav } from './audio/render';
-  import { Player } from './audio/player';
-  import { chooseEngine, type PieceSource } from './audio/engine';
-  import type { LiveSource } from './audio/live';
-  import { transportClock } from './audio/clock.svelte';
   import Graph from './ui/Graph.svelte';
-  import { screenAwake } from './ui/wakeLock';
-  import { keepPerf, perfWanted } from './ui/perfSwitch';
-  import { installDebugHook } from './debugHook';
   import Editor from './ui/Editor.svelte';
   import UpdateToast from './ui/UpdateToast.svelte';
-  import type { RunController } from './ui/perfrun';
 
-  /** What's open: an example (its fixed layout applies), a piece saved here, a file. */
-  type Open = { kind: 'example'; key: PresetKey } | { kind: 'saved'; id: string } | { kind: 'file'; name: string };
-  let open = $state<Open>({ kind: 'example', key: FIRST });
-  // each piece opened (an example, a saved one, a file): the graph lays it out afresh
-  let opened = $state(0);
-  // nothing chosen yet (the front door): no transport, no piece marked open
-  const anyOpen = $derived(opened > 0);
-  let code = $state<string>(FIRST_SOURCE);
-  // its title, from its card as it stands (it follows edits)
-  const title = $derived(titleOf(code));
-  let starting = $state(false);
-
-  // values the environment provides to the code: the device's sample rate, once audio runs
-  let sampleRate = $state(48000);
-  const env = $derived({ SAMPLE_RATE: sampleRate, A4: 440 });
-  const result = $derived(compileSource(code, env));
-
-  // free() values moved by hand: what plays, not what's written — until you keep them. Held by
-  // their place among the code's free()s (the first, the second …), so rewriting can't lose them.
-  let held = $state<Map<number, number | string>>(new Map());
-  const playedCode = $derived(held.size && result.ok ? withHeld(code, result, held) : code);
-  const playedResult = $derived(playedCode === code ? result : compileSource(playedCode, env));
-  function holdFree(spec: { span: { line: number; col: number } }, v: number | string) {
-    const i = freeIndex(program, spec);
-    if (i < 0) return;
-    held = new Map(held).set(i, v);
-  }
-  // an edit that changes how many free()s there are: what was held no longer fits
-  let freeCount = 0;
-  $effect(() => {
-    const n = freeList(result).length;
-    if (result.ok && n !== freeCount) {
-      freeCount = n;
-      if (held.size) held = new Map();
-    }
-  });
-  let panelOpen = $state(false);
-  const keepHeld = () => {
-    code = playedCode;
-    held = new Map();
-  };
-
-  // While the code has errors, keep showing and playing the last version that compiled.
-  // (and the text it was compiled from: an engine in a worker compiles the same piece from it)
-  let lastGood: { result: CompileResult; source: PieceSource } = { result: compileSource(FIRST_SOURCE), source: { code: FIRST_SOURCE } };
-  const good = $derived.by(() => {
-    if (playedResult.ok) lastGood = { result: playedResult, source: { code: playedCode, env } };
-    return lastGood;
-  });
-  const program = $derived(good.result);
-  const graph = $derived(buildGraph(program));
-
-  // The performance overlay (ui/perfSwitch.ts): loaded only when on, so it costs nothing otherwise.
-  let perf = $state(perfWanted());
-  function togglePerf() {
-    perf = !perf;
-    keepPerf(perf);
-  }
-  const perfSources = {
-    playing: () => transportClock.playing,
-    audio: () => player.audioInfo(),
-  };
-  const perfMeta = () => ({ version: __APP_VERSION__, piece: { title: title ?? null, graphNodes: graph.nodes.length, cells: program.cells.size } });
-  // What the overlay's full test does to the page: open a piece, play it, tune the audio anew; and puts it all back.
-  let beforeTest: { open: Open; code: string; tab: 'select' | 'graph' | 'code' } | null = null;
-  let retuned = false;
-  const perfTest: RunController = {
-    open: async (key) => {
-      beforeTest ??= { open, code, tab };
-      await pick(`example:${key}`);
-      return open.kind === 'example' && open.key === key;
-    },
-    retune: async (t) => {
-      retuned = true;
-      await player.retune(t);
-    },
-    play: () => toggle(),
-    stop: () => {
-      if (transportClock.playing) player.stop();
-    },
-    audioState: () => player.audioInfo().state,
-    hidden: () => document.hidden,
-    finish: async () => {
-      if (retuned) await player.retune(null);
-      retuned = false;
-      if (beforeTest) {
-        ({ open, code, tab } = beforeTest);
-        opened++;
-        fresh();
-      }
-      beforeTest = null;
-    },
-  };
-  const stale = $derived(!result.ok);
-
-
-  // The code is the single source of truth: the graph edits it (shift=, off) and reads it back.
-  const shifts = $derived(codeShifts(program));
-  const muted = $derived(program.off);
-  const routed = $derived(routing(program, muted));
-  const live = $derived(transportClock.playing ? liveAt(program, shifts, muted, transportClock.seconds) : null);
-
-  // turning a cell whose shift is free(…) moves its free value: the wheel and its slider are one control
-  const turn = (name: string, shift: number) => {
-    const free = program.cells.get(name)?.frees.find((f) => f.key === 'shift');
-    code = free ? setFree(code, free, shift) : setShift(code, name, shift);
-  };
-  const toggleNode = (id: string) => {
-    const name = id.slice('cell:'.length);
-    code = setOff(code, name, !program.cells.get(name)?.off);
-  };
-
-  // the node editor writes code; a new cell opens in the detail sheet
-  let focus = $state<{ name: string; token: number } | null>(null);
-  const add = () => {
-    const r = addCell(code);
-    code = r.source;
-    focus = { name: r.name, token: (focus?.token ?? 0) + 1 };
-  };
-
-  const rename = (source: string, to: string) => {
-    code = source;
-    focus = { name: to, token: (focus?.token ?? 0) + 1 };
-  };
-
-  let editor: ReturnType<typeof Editor> | undefined = $state();
-  // phone: graph and code are two full-size views, switched by tabs
-  // the first view: choosing a piece (the library as a graph); then the piece's graph and its code
-  let tab = $state<'select' | 'graph' | 'code'>('select');
-  // tabs only on narrow screens (matches the CSS breakpoint)
-  const wide = new MediaQuery('min-width: 900px');
-  const narrow = $derived(!wide.current);
-  const errors = $derived(result.diagnostics.filter((d) => d.severity === 'error').length);
-
-  const showInCode = async (name: string) => {
-    tab = 'code';
-    await tick(); // the code view has to be visible before it can take focus
-    // an unnamed cell lives inside the line it's written on: λ<line>_<column>
-    const lambda = /^λ(\d+)_/.exec(name);
-    const i = lambda ? +lambda[1] - 1 : declLine(code, name);
-    if (i >= 0) editor?.showLine(i + 1);
-  };
-
-  const player = new Player(chooseEngine());
-  $effect(() => player.load(plan(program, shifts, muted), good.source));
-  // the sound, for the views: what plays now, and hands on it (a hand marks the piece touched: Reset pulses)
-  const sound: LiveSource = {
-    note: (v) => player.note(v),
-    spectrum: (v) => player.spectrum(v),
-    waveform: (n) => player.waveform(n),
-    freqs: (n) => player.freqs(n),
-    resonance: (n) => player.resonance(n),
-    tapePos: (t) => player.tapePos(t),
-    tapeLevel: (t) => player.tapeLevel(t),
-    scrub: (t, u) => ((touched = true), player.scrub(t, u)),
-    grab: (c, speed) => player.grab(c, speed),
-    strike: (n, x, i) => ((touched = true), player.strike(n, x, i)),
-    damp: (n, on) => player.damp(n, on),
-    bow: (n, a) => ((touched = true), player.bow(n, a)),
-  };
-  onDestroy(() => player.dispose());
-
-  // where play begins (the time slider), and how far it reaches: the piece, its cycle, or its longest layer
-  let cursor = $state(0);
-  // (a span of a few seconds at least: DTMF's whole cycle is a tone and a pause — nothing to move in)
-  const span = $derived.by(() => {
-    const l = program.ok ? mainLength(pieceTime(program)) : null;
-    return l !== null && l >= 2 ? l : null;
-  });
-  const now = $derived(transportClock.playing ? (span ? transportClock.seconds % span : transportClock.seconds) : cursor);
-  const clock = (sec: number) => `${Math.floor(sec / 60)}:${String(Math.floor(sec % 60)).padStart(2, '0')}`;
-  async function seek(to: number) {
-    cursor = to;
-    if (!transportClock.playing) return;
-    player.stop();
-    await player.start(to);
-  }
-  // keep the screen awake while playing (where the browser allows it: Android Chrome does)
-  const awake = screenAwake();
-  $effect(() => awake.set(transportClock.playing));
-  onDestroy(() => awake.dispose());
-
-  // the arrangement's sections (if a selector plays the piece) and the tempo of the meter that drives it
-  const pieceSections = $derived(program.ok ? sections(program) : null);
-  const mainMeter = $derived(program.ok ? mainTempo(program) : null);
-  // reset: reload from the code — what hands did is gone (held free() values, tapes' recordings,
-  // reels turned by hand), and it starts again from the start (playing: on from there)
-  let epoch = $state(0);
-  // anything changed from the initial state? — Reset pulses while so
-  let touched = $state(false);
-  let played = $state(false);
-  const dirty = $derived(held.size > 0 || touched || played || cursor > 0.01 || transportClock.seconds > 0.01);
-  async function reset() {
-    held = new Map();
-    epoch++;
-    player.resetState();
-    touched = false;
-    await seek(0);
-    played = transportClock.playing;
-  }
-  // stopped: a turntable turned by hand moves where play starts
-  function nudge(seconds: number) {
-    if (transportClock.playing) return;
-    cursor = Math.max(0, Math.min(span ?? Infinity, cursor + seconds));
-    touched = true;
-  }
-
-  async function toggle() {
-    // pause: keep the place, and play goes on from there
-    if (transportClock.playing) {
-      cursor = now;
-      return player.stop();
-    }
-    starting = true;
-    try {
-      // a piece anchored to the clock (anchor=11.55), started fresh: it plays where the day stands
-      const anchored = cursor === 0 && !played && !touched ? anchoredAt(program, new Date()) : null;
-      if (anchored !== null) cursor = anchored;
-      await player.start(cursor);
-      played = true;
-      sampleRate = player.sampleRate ?? sampleRate;
-    } catch (err) {
-      console.error('Audio failed to start:', err);
-    } finally {
-      starting = false;
-    }
-  }
-
-  // ---- choosing, saving, opening
-  let saved = $state<SavedPiece[]>(listSaved());
-  const storageOk = storageAvailable();
-  let message = $state<string | null>(null);
-  const entries = $derived<Entry[]>([...saved.map(savedEntry), ...exampleEntries]);
-  const currentId = $derived(open.kind === 'example' ? `example:${open.key}` : open.kind === 'saved' ? `saved:${open.id}` : null);
-  // the piece last asked for (a card or a file): one still being fetched or read gives way to a later choice
-  let choice = 0;
-  async function pick(id: string) {
-    const mine = ++choice;
-    const [kind, key] = [id.slice(0, id.indexOf(':')), id.slice(id.indexOf(':') + 1)];
-    if (kind === 'example') {
-      let source: string;
-      try {
-        source = await loadExample(key as PresetKey);
-      } catch {
-        if (mine === choice) message = 'This piece could not be loaded (offline?).';
-        return;
-      }
-      if (mine !== choice) return;
-      open = { kind: 'example', key: key as PresetKey };
-      code = source;
-    } else {
-      const p = saved.find((x) => x.id === key);
-      if (!p) return;
-      open = { kind: 'saved', id: p.id };
-      code = p.source;
-    }
-    tab = 'graph';
-    message = null;
-    opened++;
-    fresh();
-  }
-  // a piece just opened starts from rest: transport stopped at 0, nothing sounding, nothing held or
-  // touched — whatever was playing (or ringing, or recorded on a tape) is gone. (stop first: it reads the old plan.)
-  function fresh() {
-    player.stop();
-    player.resetState();
-    epoch++;
-    cursor = 0;
-    held = new Map();
-    touched = false;
-    played = false;
-  }
-  // render the piece to a WAV (offline: faster than it plays)
-  let rendering = $state(false);
-  async function renderWav() {
-    if (rendering || !result.ok) return;
-    rendering = true;
-    message = `Rendering ${Math.round(renderLength(result))} s…`;
-    try {
-      const buf = await renderPiece(result, codeShifts(result));
-      const url = URL.createObjectURL(wav(buf));
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = fileName(code).replace(/\.cells$/, '.wav');
-      document.body.append(a);
-      a.click();
-      a.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 2000);
-      const l = loudness(buf);
-      message = `Rendered: ${buf.duration.toFixed(0)} s, ${l.rms.toFixed(1)} dB average, peak ${l.peak.toFixed(1)} dB.`;
-    } catch (e) {
-      message = `Couldn’t render: ${(e as Error).message}`;
-    } finally {
-      rendering = false;
-    }
-  }
-  // `window.cellStudio`, for measuring from outside (docs/testing.md): the open piece as written
-  installDebugHook(() => result, player);
-  function saveHere() {
-    const r = savePiece(code);
-    if ('error' in r) message = r.error;
-    else {
-      saved = listSaved();
-      open = { kind: 'saved', id: r.piece.id };
-      message = `Saved “${r.piece.title}” in this browser.`;
-    }
-  }
-  async function openFile(file: File) {
-    const mine = ++choice;
-    try {
-      const text = await readFile(file);
-      if (mine !== choice) return;
-      code = text;
-      open = { kind: 'file', name: file.name };
-      opened++;
-      fresh();
-      tab = 'graph';
-      message = null;
-    } catch {
-      if (mine === choice) message = `Couldn’t read ${file.name}.`;
-    }
-  }
+  // the app's state (ui/state/): the piece, playing it, the library, what's on screen
+  const studio = new Studio();
+  setStudio(studio);
+  onDestroy(() => studio.dispose());
+  const { piece, playback, library, view } = studio;
 </script>
 
 <UpdateToast />
-{#if perf}
+{#if view.perf}
   {#await import('./ui/PerfOverlay.svelte') then m}
-    <m.default sources={perfSources} meta={perfMeta} test={perfTest} onclose={togglePerf} />
+    <m.default sources={studio.perfSources} meta={studio.perfMeta} test={studio.perfTest} onclose={() => view.togglePerf()} />
   {/await}
 {/if}
 
-<div class="app" class:selecting={tab === 'select'}>
+<div class="app" class:selecting={view.tab === 'select'}>
   <header>
     <h1 aria-label="Cell studio">
       {#each [...'Cell studio'] as ch, i}<span style:color={ch === ' ' ? undefined : noteColour((i * 7 * 30) % 360)}>{ch}</span>{/each}
     </h1>
-    {#if anyOpen}
+    {#if library.anyOpen}
     <div class="transport-in">
-      <Transport
-        {title}
-        onchoose={() => (tab = 'select')}
-        path={quick}
-        playing={transportClock.playing}
-        {starting}
-        {now}
-        {span}
-        sections={pieceSections}
-        tempo={mainMeter ? mainMeter.free : null}
-        onplay={toggle}
-        onreset={reset}
-        {dirty}
-        held={held.size > 0}
-        onrevert={() => (held = new Map())}
-        onsave={keepHeld}
-        onmenu={() => (panelOpen = !panelOpen)}
-        menuOpen={panelOpen}
-        onseek={seek}
-        ontempo={(v) => mainMeter && holdFree(mainMeter.free, v)}
-      />
+      <Transport path={quick} />
     </div>
     {:else}
       <p class="tagline">Music, cell by cell<span>&nbsp;— choose a piece to begin</span></p>
       <div class="quick-idle">{@render quick()}</div>
     {/if}
-    {#snippet quick()}<QuickPick {entries} current={anyOpen ? currentId : null} onpick={pick} />{/snippet}
+    {#snippet quick()}<QuickPick entries={library.entries} current={library.currentId} onpick={(id) => studio.pick(id)} />{/snippet}
   </header>
   <div class="tabs" role="tablist" aria-label="View">
-    <button role="tab" aria-selected={tab === 'select'} class:on={tab === 'select'} onclick={() => (tab = 'select')}>Select</button>
-    <button role="tab" aria-selected={tab === 'graph'} class:on={tab === 'graph'} disabled={!anyOpen} onclick={() => (tab = 'graph')}>Graph</button>
-    <button role="tab" aria-selected={tab === 'code'} class:on={tab === 'code'} disabled={!anyOpen} onclick={() => (tab = 'code')}>
-      Code{#if errors}<span class="badge" aria-label="{errors} errors">{errors}</span>{/if}
+    <button role="tab" aria-selected={view.tab === 'select'} class:on={view.tab === 'select'} onclick={() => (view.tab = 'select')}>Select</button>
+    <button role="tab" aria-selected={view.tab === 'graph'} class:on={view.tab === 'graph'} disabled={!library.anyOpen} onclick={() => (view.tab = 'graph')}>Graph</button>
+    <button role="tab" aria-selected={view.tab === 'code'} class:on={view.tab === 'code'} disabled={!library.anyOpen} onclick={() => (view.tab = 'code')}>
+      Code{#if piece.errors}<span class="badge" aria-label="{piece.errors} errors">{piece.errors}</span>{/if}
     </button>
   </div>
 
-  <section class="canvas" class:away={tab !== 'graph'} inert={narrow && tab !== 'graph'} aria-label="Cell graph">
-    <Graph model={graph} {program} {muted} {routed} {live} {shifts} ontoggle={toggleNode} onturn={turn} onshowcode={showInCode} source={code} {sound} onedit={(s) => (code = s)} onadd={add} onrename={rename} onfree={holdFree} {epoch} {nudge} {cursor} {opened} {focus} />
-    {#if stale}
+  <section class="canvas" class:away={view.tab !== 'graph'} inert={view.narrow && view.tab !== 'graph'} aria-label="Cell graph">
+    <Graph
+      model={piece.graph}
+      program={piece.program}
+      muted={piece.muted}
+      routed={piece.routed}
+      live={playback.live}
+      shifts={piece.shifts}
+      ontoggle={(id) => piece.toggle(id)}
+      onturn={(name, shift) => piece.turn(name, shift)}
+      onshowcode={(name) => studio.showInCode(name)}
+      source={piece.code}
+      sound={playback.sound}
+      onedit={(s) => (piece.code = s)}
+      onadd={() => studio.add()}
+      onrename={(s, to) => studio.rename(s, to)}
+      onfree={(spec, v) => piece.hold(spec, v)}
+      epoch={playback.epoch}
+      nudge={(sec) => playback.nudge(sec)}
+      cursor={playback.cursor}
+      opened={library.opened}
+      focus={view.focus}
+    />
+    {#if piece.stale}
       <p class="stale">Showing the last version that compiled</p>
     {/if}
   </section>
 
-  {#if panelOpen && anyOpen}
+  {#if view.panelOpen && library.anyOpen}
     <aside class="drawer" aria-label="The piece's controls">
-      <header><h2>Controls</h2><button class="x" onclick={() => (panelOpen = false)} aria-label="Close">×</button></header>
-      <FreePanel {program} onfree={holdFree} />
+      <header><h2>Controls</h2><button class="x" onclick={() => (view.panelOpen = false)} aria-label="Close">×</button></header>
+      <FreePanel />
     </aside>
   {/if}
-  <section class="side" class:away={tab !== 'code'} inert={narrow && tab !== 'code'} aria-label="Program">
-    <Editor bind:this={editor} bind:value={code} diagnostics={result.diagnostics} />
-    <Shorten {code} onapply={(next) => (code = next)} />
+  <section class="side" class:away={view.tab !== 'code'} inert={view.narrow && view.tab !== 'code'} aria-label="Program">
+    <Editor bind:this={studio.editor} bind:value={piece.code} diagnostics={piece.result.diagnostics} />
+    <Shorten code={piece.code} onapply={(next) => (piece.code = next)} />
   </section>
-  <section class="select" class:away={tab !== 'select'} class:front={tab === 'select'} inert={tab !== 'select'} aria-label="Choose a piece">
-    <Picker
-      {entries}
-      current={anyOpen ? currentId : null}
-      {storageOk}
-      {message}
-      onpick={pick}
-      onclose={() => (tab = 'graph')}
-      embedded
-      onsavefile={() => saveFile(code)}
-      onopenfile={openFile}
-      onsavebrowser={saveHere}
-      onrender={renderWav}
-      onperf={togglePerf}
-      perfOn={perf}
-      onremove={(id) => {
-        removeSaved(id.slice('saved:'.length));
-        saved = listSaved();
-      }}
-    />
+  <section class="select" class:away={view.tab !== 'select'} class:front={view.tab === 'select'} inert={view.tab !== 'select'} aria-label="Choose a piece">
+    <Picker embedded />
   </section>
 </div>
 
