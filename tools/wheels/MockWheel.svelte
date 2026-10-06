@@ -11,7 +11,8 @@
   import SunNode from '../../src/ui/SunNode.svelte';
   import CellGlyph from '../../src/ui/CellGlyph.svelte';
   import SpectrumWheel from '../../src/ui/SpectrumWheel.svelte';
-  import { codeShifts, compileSource } from '../../src/engine/compile';
+  import { compileSource } from '../../src/engine/compile';
+  import { codeShifts } from '../../src/engine/program';
   import { buildGraph } from '../../src/engine/graph';
   import { liveAt } from '../../src/engine/live';
   import { PRESETS, type PresetKey } from '../../src/engine/presets';
