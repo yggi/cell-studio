@@ -17,58 +17,37 @@ export function grainOffset(seed: number, voice: string, at: number, duration: n
   return chanceOf(`${seed}|${voice}|${at.toFixed(6)}|grain`) * duration;
 }
 
-/** Four seconds of noise of a colour (a channel each, decorrelated), made once per audio context. */
+/** Four seconds of noise of a colour, made once per audio context and colour. */
 const noiseBuffers = new WeakMap<BaseAudioContext, Map<string, AudioBuffer>>();
-export function noiseBuffer(ctx: BaseAudioContext, colour: 'white' | 'pink' | 'brown', channels = 1): AudioBuffer {
+export function noiseBuffer(ctx: BaseAudioContext, colour: 'white' | 'pink' | 'brown'): AudioBuffer {
   let byColour = noiseBuffers.get(ctx);
   if (!byColour) noiseBuffers.set(ctx, (byColour = new Map()));
-  const key = `${colour}${channels}`;
-  const cached = byColour.get(key);
+  const cached = byColour.get(colour);
   if (cached) return cached;
   const length = Math.floor(ctx.sampleRate * 4);
-  const buf = ctx.createBuffer(channels, length, ctx.sampleRate);
-  for (let c = 0; c < channels; c++) {
-    const d = buf.getChannelData(c);
-    const random = seeded((colour === 'white' ? 1 : colour === 'pink' ? 2 : 3) + 16 * c);
-    let b0 = 0, b1 = 0, b2 = 0, b3 = 0, b4 = 0, b5 = 0, b6 = 0, last = 0;
-    for (let i = 0; i < length; i++) {
-      const w = random() * 2 - 1;
-      if (colour === 'white') d[i] = w;
-      else if (colour === 'pink') {
-        // Paul Kellet's filter: -3 dB an octave
-        b0 = 0.99886 * b0 + w * 0.0555179;
-        b1 = 0.99332 * b1 + w * 0.0750759;
-        b2 = 0.969 * b2 + w * 0.153852;
-        b3 = 0.8665 * b3 + w * 0.3104856;
-        b4 = 0.55 * b4 + w * 0.5329522;
-        b5 = -0.7616 * b5 - w * 0.016898;
-        d[i] = (b0 + b1 + b2 + b3 + b4 + b5 + b6 + w * 0.5362) * 0.11;
-        b6 = w * 0.115926;
-      } else {
-        // brown: the walk, leaky (-6 dB an octave)
-        last = (last + 0.02 * w) / 1.02;
-        d[i] = last * 3.5;
-      }
+  const buf = ctx.createBuffer(1, length, ctx.sampleRate);
+  const d = buf.getChannelData(0);
+  const random = seeded(colour === 'white' ? 1 : colour === 'pink' ? 2 : 3);
+  let b0 = 0, b1 = 0, b2 = 0, b3 = 0, b4 = 0, b5 = 0, b6 = 0, last = 0;
+  for (let i = 0; i < length; i++) {
+    const w = random() * 2 - 1;
+    if (colour === 'white') d[i] = w;
+    else if (colour === 'pink') {
+      // Paul Kellet's filter: -3 dB an octave
+      b0 = 0.99886 * b0 + w * 0.0555179;
+      b1 = 0.99332 * b1 + w * 0.0750759;
+      b2 = 0.969 * b2 + w * 0.153852;
+      b3 = 0.8665 * b3 + w * 0.3104856;
+      b4 = 0.55 * b4 + w * 0.5329522;
+      b5 = -0.7616 * b5 - w * 0.016898;
+      d[i] = (b0 + b1 + b2 + b3 + b4 + b5 + b6 + w * 0.5362) * 0.11;
+      b6 = w * 0.115926;
+    } else {
+      // brown: the walk, leaky (-6 dB an octave)
+      last = (last + 0.02 * w) / 1.02;
+      d[i] = last * 3.5;
     }
   }
-  byColour.set(key, buf);
-  return buf;
-}
-
-/**
- * The reverb's impulse: white noise in each channel, silent for the pre-delay, then decaying by e every `decay`
- * seconds (what Tone's Reverb makes, but from our seeded noise: Tone's own draws on Math.random).
- */
-export function reverbImpulse(ctx: BaseAudioContext, decay: number, preDelay: number): AudioBuffer {
-  const length = Math.max(1, Math.ceil((decay + preDelay) * ctx.sampleRate));
-  const buf = ctx.createBuffer(2, length, ctx.sampleRate);
-  for (let c = 0; c < 2; c++) {
-    const d = buf.getChannelData(c);
-    const random = seeded(101 + c);
-    for (let i = 0; i < length; i++) {
-      const t = i / ctx.sampleRate;
-      d[i] = t < preDelay ? 0 : (random() * 2 - 1) * Math.exp(-(t - preDelay) / decay);
-    }
-  }
+  byColour.set(colour, buf);
   return buf;
 }

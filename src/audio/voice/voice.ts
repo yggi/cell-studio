@@ -17,7 +17,7 @@ import { buildResonator, nearest, strikeAt, type Resonator } from './resonator';
 /** Where every voice goes: the master (then the limiter), and the shared reverb and echo. */
 export interface Bus {
   master: import('tone').Gain;
-  reverb: import('tone').Convolver;
+  reverb: import('tone').Reverb;
   echo: import('tone').FeedbackDelay;
 }
 
