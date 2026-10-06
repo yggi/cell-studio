@@ -78,6 +78,37 @@
     return lastGood;
   });
   const graph = $derived(buildGraph(program));
+
+  // The performance overlay: ?perf turns it on (and keeps it on), ?perf=off turns it off; Files ▾ toggles it too.
+  // It is loaded only when on, so it costs nothing otherwise.
+  const PERF_KEY = 'cell-studio-perf';
+  function perfWanted(): boolean {
+    try {
+      const q = new URLSearchParams(location.search).get('perf');
+      if (q !== null) {
+        if (q === 'off' || q === '0') localStorage.removeItem(PERF_KEY);
+        else localStorage.setItem(PERF_KEY, '1');
+      }
+      return localStorage.getItem(PERF_KEY) === '1';
+    } catch {
+      return new URLSearchParams(location.search).has('perf');
+    }
+  }
+  let perf = $state(typeof location !== 'undefined' && perfWanted());
+  function togglePerf() {
+    perf = !perf;
+    try {
+      if (perf) localStorage.setItem(PERF_KEY, '1');
+      else localStorage.removeItem(PERF_KEY);
+    } catch {
+      /* not kept */
+    }
+  }
+  const perfSources = {
+    playing: () => transportClock.playing,
+    audio: () => player.audioInfo(),
+  };
+  const perfMeta = () => ({ version: __APP_VERSION__, piece: { title: title ?? null, graphNodes: graph.nodes.length, cells: program.cells.size } });
   const stale = $derived(!result.ok);
 
 
@@ -367,6 +398,11 @@
 </script>
 
 <UpdateToast />
+{#if perf}
+  {#await import('./ui/PerfOverlay.svelte') then m}
+    <m.default sources={perfSources} meta={perfMeta} onclose={togglePerf} />
+  {/await}
+{/if}
 
 <div class="app" class:selecting={tab === 'select'}>
   <header>
@@ -438,6 +474,8 @@
       onopenfile={openFile}
       onsavebrowser={saveHere}
       onrender={renderWav}
+      onperf={togglePerf}
+      perfOn={perf}
       onremove={(id) => {
         removeSaved(id.slice('saved:'.length));
         saved = listSaved();
