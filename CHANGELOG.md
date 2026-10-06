@@ -28,6 +28,8 @@ that makes the change. Also note changes to the language that could affect saved
 - Tests run without per-file isolation (faster).
 
 ### Developer
+- Audio refactoring (#15, #9), no change in sound (every example's offline render compared before and after): what to play next is worked out as plain data (`engine/schedule.ts`) behind an `Engine` that runs in this thread (the default) or, opt-in with `?engine=worker`, in a Web Worker; `voices.ts` is split into `audio/voice/` parts behind the unchanged `VoiceBank`, with Tone's wrapped nodes bridged in one typed place; the graph gets the sound as one `LiveSource` object instead of ten callbacks. Measured: the worker doesn't lighten the main thread (`docs/notes/15-engine-worker.md`).
+- `tools/golden.mjs` (golden renders: every example rendered offline and compared with a recorded run), `cellStudio.render(source, seconds)` and `cellStudio.engine()`, `ENGINE=worker npm run smoke`.
 - Agent workflow (#6): `AGENTS.md` rewritten (what is enforced, what is judgment, what an agent decides alone), the `senior` skill for triaging, reviewing and merging PRs with the owner's approval, a PR template, a SessionStart hook that installs dependencies in cloud sessions, `.claude/settings.json` allowlist.
 - CI: a smoke test (`npm run smoke`, `tools/smoke.mjs`) opens and plays every piece in Chrome; `deploy` is a job of the CI workflow and publishes the build CI made instead of testing and building again; a layering test keeps `engine/` and `layout/` pure.
 - `tools/profile`: `bursts.mjs`, `burstlines.mjs`, `cellview-time.ts` (what a long task rewrites and spends its time on; what a table turn costs); `engine-time.ts` reads `examples/`.
