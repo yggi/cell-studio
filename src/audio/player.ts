@@ -47,7 +47,7 @@ export class Player implements LiveSource {
   load(plan: Plan, source: PieceSource | null = null): void {
     this.plan = plan;
     this.engine.load(plan, source);
-    this.voices?.sync(plan.result, plan.statics);
+    this.voices?.sync(plan.result, plan.statics, plan.muted);
     this.settle();
   }
 
@@ -116,7 +116,7 @@ export class Player implements LiveSource {
     await this.Tone.start();
     if (!this.voices) {
       this.voices = createVoices(this.Tone);
-      if (this.plan) this.voices.sync(this.plan.result, this.plan.statics);
+      if (this.plan) this.voices.sync(this.plan.result, this.plan.statics, this.plan.muted);
       this.settle();
     }
     return this.Tone;
@@ -223,7 +223,7 @@ export class Player implements LiveSource {
     const Tone = await this.wake();
     // physics: a hand's effect comes quickly (and stays, through pause and play, until Reset)
     if (this.plan) (Tone.getContext() as unknown as { lookAhead: number }).lookAhead = this.tuning.lookAhead ?? (isPhysical(this.plan.result) ? 0.12 : 0.3);
-    if (this.plan) this.voices!.sync(this.plan.result, this.plan.statics);
+    if (this.plan) this.voices!.sync(this.plan.result, this.plan.statics, this.plan.muted);
     // motors on: held tapes run on from where they stand
     this.held.release();
 
