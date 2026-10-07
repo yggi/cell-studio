@@ -6,6 +6,10 @@ on:
   pull_request:
   workflow_dispatch:
 
+# (each job asks for what it writes)
+permissions:
+  contents: read
+
 jobs:
   check:
     runs-on: ubuntu-latest
@@ -29,16 +33,18 @@ jobs:
           retention-days: 3
 
   # Publishes the build `check` made (the same commit, the same tests): no second test or build run.
+  # Every writer of gh-pages (this, `preview`, preview-cleanup.yml) goes through .github/scripts/pages.sh,
+  # which pushes with a lease and writes again if gh-pages moved: none overwrites another's folder.
   deploy:
     needs: check
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     permissions:
       contents: write
-    # One deploy at a time, none cancelled. Runs reach this job in the order their `check` finishes, not in
-    # commit order, so an older commit could cancel or follow a newer one: the first step skips it instead.
+    # One deploy of main at a time, none cancelled while it runs. Runs reach this job in the order their `check`
+    # finishes, not in commit order, so an older commit could follow a newer one: the first step skips it instead.
     concurrency:
-      group: deploy
+      group: pages-main
       cancel-in-progress: false
     steps:
       - name: Is this still the newest commit on main?
@@ -47,18 +53,52 @@ jobs:
           head=$(git ls-remote "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}" refs/heads/main | cut -f1)
           if [ "$head" = "$GITHUB_SHA" ]; then echo "current=true" >> "$GITHUB_OUTPUT"; else echo "A newer commit ($head) is on main: its run deploys, not this one"; fi
       - if: steps.newest.outputs.current == 'true'
+        uses: actions/checkout@v7
+        with:
+          sparse-checkout: .github/scripts
+          persist-credentials: false
+      - if: steps.newest.outputs.current == 'true'
         uses: actions/download-artifact@v8
         with:
           name: dist
           path: dist
-      - name: Publish dist to gh-pages
+      - name: Publish dist to gh-pages (keeping the PR previews)
         if: steps.newest.outputs.current == 'true'
-        run: |
-          cd dist
-          touch .nojekyll
-          git init -q -b gh-pages
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A
-          git commit -q -m "Deploy ${GITHUB_SHA}"
-          git push -f "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}" gh-pages
+        run: .github/scripts/pages.sh main dist
+        env:
+          PAGES_REMOTE: https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}
+          MESSAGE: Deploy ${{ github.sha }}
+
+  # A PR's build at …/pr-<n>/, to try on a phone before merging; one comment on the PR says where.
+  # Drafts too (trying a change before it's ready is the point). Not a fork's PR, nor a Dependabot run: their
+  # token can't write. The folder goes when the PR closes (preview-cleanup.yml).
+  preview:
+    needs: check
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      pages: read
+    # (a newer push to the PR replaces the preview being written; the cleanup shares this group)
+    concurrency:
+      group: pages-pr-${{ github.event.pull_request.number }}
+      cancel-in-progress: true
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: .github/scripts
+          persist-credentials: false
+      - uses: actions/download-artifact@v8
+        with:
+          name: dist
+          path: dist
+      - name: Publish dist to gh-pages/pr-${{ github.event.pull_request.number }}
+        run: .github/scripts/pages.sh preview ${{ github.event.pull_request.number }} dist
+        env:
+          PAGES_REMOTE: https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}
+          MESSAGE: Preview of PR ${{ github.event.pull_request.number }} at ${{ github.event.pull_request.head.sha }}
+      - name: Say where on the PR
+        run: .github/scripts/preview-comment.sh ${{ github.event.pull_request.number }} up ${{ github.event.pull_request.head.sha }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

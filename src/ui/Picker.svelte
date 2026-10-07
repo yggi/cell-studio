@@ -3,7 +3,7 @@
   let kept: { key: string; layout: import('../layout/library').LibraryLayout } | null = null;
   const keyOf = (entries: readonly { id: string; title?: string; tags: readonly string[] }[]) => entries.map((e) => `${e.id}:${e.title ?? ''}:${e.tags.join(',')}`).join('|');
   // (and kept in the browser between visits: the next visit's opening is a replay, not the physics again)
-  const STORE = 'cell-studio:library-layout:v5';
+  const STORE = storageKey('cell-studio:library-layout:v5');
   type Stored = { key: string; layout: Record<string, unknown> };
   const freeze = (l: import('../layout/library').LibraryLayout) => ({ ...l, at: [...l.at], hue: [...l.hue], count: [...l.count], sat: [...l.sat], wheel: [...l.wheel] });
   const thaw = (o: Record<string, unknown>) =>
@@ -39,6 +39,7 @@
     return layout;
   }
   import { libraryLayoutAsync as libraryLayoutOf, stageOf } from '../layout/library';
+  import { storageKey } from '../storageKey';
 </script>
 
 <script lang="ts">

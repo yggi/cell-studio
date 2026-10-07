@@ -70,7 +70,9 @@ export default defineConfig({
         ],
       },
       // precache the app shell and the lazily loaded Tone chunk: the whole app works offline after the first visit
-      workbox: { globPatterns: ['**/*.{js,css,html,svg,png,woff2}'], navigateFallback: 'index.html' },
+      // (but not a PR preview's page, `pr-<n>/` inside the app's folder and so inside its worker's scope: it would be
+      // answered with the app's own index.html; the preview's page registers its own worker for its folder)
+      workbox: { globPatterns: ['**/*.{js,css,html,svg,png,woff2}'], navigateFallback: 'index.html', navigateFallbackDenylist: [/\/pr-\d+\//] },
     }),
   ],
   test: {
