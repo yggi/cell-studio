@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { compileSource } from '../compile';
 import { shorten, shortenAll } from '.';
+import { size } from './harness';
 import { eventsBetween, plan } from '../realize';
 import { codeShifts } from '../program';
 import { PRESETS } from '../presets';
@@ -42,9 +43,19 @@ describe('shorten', () => {
     expect(s.apply(src)).toMatch(/\^-?7/); // (either one, transposed to the other)
     expect(sounds(s.apply(src))).toEqual(sounds(src));
   });
-  it('… but not through a scale (degrees aren’t a transposition)', () => {
-    const src = '&major scan(2 2 1 2 2 2 1)\n&t over=&major step=4 0 2 4 2 0 1 3 5 3 1' + tail;
+  it('… and through a scale, by degrees: degree(&m, k), not ^k (#10)', () => {
+    const src = '&major scan(2 2 1 2 2 2 1)\n&t over=&major step=4 0 2 4 5 7 9 7 5 4 2 0 -1 0 2 9 2 4 6 7 9 11 9 7 6 4 2 1 2 4 8 -1 1 3 4 6 8 6 4 3 1 -1 -2 -1 1' + tail;
     expect(shorten(src).some((x) => x.title.includes('transposed'))).toBe(false);
+    const s = shorten(src).find((x) => x.kind === 'phrase' && x.title.includes('degrees'))!;
+    expect(s.apply(src)).toMatch(/degree\(&m1?, -?[123]\)/);
+    expect(sounds(s.apply(src))).toEqual(sounds(src));
+  });
+  it('a motif without over= read through its player’s scale is moved by degrees, not grid steps', () => {
+    const src =
+      '&major scan(2 2 1 2 2 2 1)\n&a 0 2 4 5 7 9 7 5 4 2 0 -1 0 2\n&b 1 3 5 6 8 10 8 6 5 3 1 0 1 3\n&c 3 5 7 8 10 12 10 8 7 5 3 2 3 5\n&t over=&major step=4 &a &b &c' + tail;
+    const s = shorten(src).find((x) => x.kind === 'phrase')!;
+    expect(s.apply(src)).not.toMatch(/\^/);
+    expect(sounds(s.apply(src))).toEqual(sounds(src));
   });
   it('fractions: every step held twice — divide by 2, step twice as slow', () => {
     const src = '&bar step=120bpm 0 0 0 0\n&t step=&bar/2 4@2 2@2 0@4 ~@2' + tail;
@@ -72,7 +83,7 @@ describe('shorten, on every example: every suggestion sounds the same, and is sh
         const before = sounds(p.source);
         for (const s of suggestions) {
           const next = s.apply(p.source);
-          expect(next.length, s.title).toBeLessThan(p.source.length);
+          expect(size(next), s.title).toBeLessThan(size(p.source));
           expect(sounds(next), `${key}: ${s.title}`).toEqual(before);
         }
       },
@@ -120,4 +131,53 @@ describe('shorten all the way, on every example: it sounds the same, and is done
       60_000,
     );
   }
+});
+
+describe('shorten: whole lines (#10)', () => {
+  it('a cell that only reads a motif through a shifted table: degree(&motif, k) where it is used', () => {
+    const src = '&scale over=scale(0,5)\n&down 3 3 2 2 1 1 0@2\n&mid over=&scale[>>] &down\n&t over=&scale step=4 &down &mid &mid' + tail;
+    const s = shorten(src).find((x) => x.kind === 'degree')!;
+    const next = s.apply(src);
+    expect(next).not.toMatch(/^&mid/m);
+    expect(next).toContain('&t over=&scale step=4 &down degree(&down, 1) degree(&down, 1)');
+    expect(sounds(next)).toEqual(sounds(src));
+  });
+  it('… written in place, &(over=&major[>>] &hook), too', () => {
+    const src = '&major scan(2 2 1 2 2 2 1)\n&hook 4 4 5 4\n&t over=&major step=4 &hook 2 &(over=&major[>>] &hook) 0' + tail;
+    const s = shorten(src).find((x) => x.kind === 'degree')!;
+    expect(s.apply(src)).toContain('&hook 2 degree(&hook, 1) 0');
+    expect(sounds(s.apply(src))).toEqual(sounds(src));
+  });
+  it('… but not one with a label (it says something), nor one read by a cell on another table', () => {
+    const labelled = '&scale over=scale(0,5)\n&down 3 2 1 0\n&mid label="up a step" over=&scale[>>] &down\n&t over=&scale step=4 &down &mid' + tail;
+    expect(shorten(labelled).some((x) => x.kind === 'degree')).toBe(false);
+    const elsewhere = '&scale over=scale(0,5)\n&down 3 2 1 0\n&mid over=&scale[>>] &down\n&t step=4 &down &mid' + tail;
+    expect(shorten(elsewhere).some((x) => x.kind === 'degree')).toBe(false);
+  });
+  it('a transposing progression written loop=&bar*N is step=&bar*(N/k), then its runs count', () => {
+    const src =
+      '&bar step=120bpm 0 0 0 0\n&changes loop=&bar*32 0 0 0 0 5 5 0 0\n&walk step=&bar 0 4 7 10\n&v s=sine loop=C4\n&out loop=SAMPLE_RATE map=sample [(&walk + &changes) * &v]';
+    const s = shorten(src).find((x) => x.kind === 'progression')!;
+    expect(s.apply(src)).toContain('&changes step=&bar*4 0 0 0 0 5 5 0 0');
+    expect(sounds(s.apply(src), 40)).toEqual(sounds(src, 40));
+    expect(shortenAll(src).source).toContain('0!4 5!2 0!2');
+  });
+  it('defaults: loop=SAMPLE_RATE on the sound card, a cycle= that is the table’s own length, pan=.5', () => {
+    const src = '&bar step=1 0\n&key step=&bar stride=7 cycle=12\n&t over=&key step=&bar 0 4 7\n&v s=sine loop=C4 pan=.5\n&out loop=SAMPLE_RATE map=sample [&t * &v]';
+    const kinds = shorten(src)
+      .filter((x) => x.kind === 'default')
+      .map((x) => x.before)
+      .sort();
+    expect(kinds).toEqual(['cycle=12', 'loop=SAMPLE_RATE', 'pan=.5']);
+    expect(sounds(shortenAll(src).source)).toEqual(sounds(src));
+    // (a grid's cycle= is its size: not a default to drop)
+    expect(shorten('&edo cycle=19 map=edo\n&t over=&edo step=2 0 1' + tail).some((x) => x.before.startsWith('cycle='))).toBe(false);
+  });
+  it('the measure is the code: the spaces that keep a comment aligned aren’t counted', () => {
+    const src = '&bar step=1 0\n&key step=&bar stride=7 cycle=12          # the 12\n&t over=&key step=&bar 0 4 7' + tail;
+    const s = shorten(src).find((x) => x.before === 'cycle=12')!;
+    expect(s.saving).toBe(9);
+    expect(s.apply(src)).toContain('stride=7');
+    expect(s.apply(src)).toContain('# the 12');
+  });
 });

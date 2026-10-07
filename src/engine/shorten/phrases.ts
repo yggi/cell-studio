@@ -1,7 +1,8 @@
 /**
  * Phrases: a phrase written twice or more (anywhere) becomes a cell of its own, used
  * where it was: exactly (&m), backwards (&m[::-1]), or — where the numbers are steps of
- * a grid — transposed (&m^7), or turned round its helix (&m[>>2]: begun two steps on,
+ * a grid — transposed (&m^7), or where they are steps of a table, moved by degrees
+ * (degree(&m, 2): the same shape two steps up the scale), or turned round its helix (&m[>>2]: begun two steps on,
  * the steps that wrap round climbing a lap).
  */
 import { period } from '../helix';
@@ -13,6 +14,9 @@ const NOTE = /^(-?[0-9]+)((?:@[0-9]+)?)$/; // a plain step: a whole number, perh
 const MIN_PHRASE = 4;
 /** … and saves at least this much beyond its own line: a new name is something to look up (a toll for reading). */
 const TOLL = 12;
+/** An occurrence moved by degrees (its ref is written degree(&m, d), not a suffix). */
+const DEGREE = '°';
+const use = (name: string, ref: string) => (ref.startsWith(DEGREE) ? `degree(&${name}, ${ref.slice(1)})` : `&${name}${ref}`);
 
 /** Phrases written more than once (exactly, backwards, or transposed): one cell, used where they were. */
 export function phrases(source: string, cells: readonly Candidate[], result: Result): Suggestion[] {
@@ -43,7 +47,6 @@ export function phrases(source: string, cells: readonly Candidate[], result: Res
   };
   const byShape = new Map<string, { cell: string; at: number; first: number }[]>();
   for (const c of cells) {
-    if (!c.grid) continue;
     for (let L = MIN_PHRASE; L <= Math.min(maxLen, c.tokens.length); L++)
       for (let i = 0; i + L <= c.tokens.length; i++) {
         const sh = shapeOf(c.tokens.slice(i, i + L));
@@ -92,11 +95,12 @@ export function phrases(source: string, cells: readonly Candidate[], result: Res
     if (sh && L >= MIN_PHRASE)
       for (const o of byShape.get(sh.key) ?? []) {
         const d = o.first - sh.first;
-        if (d !== 0 && grid.get(o.cell) && list.every((x) => grid.get(x.cell))) take(o.cell, o.at, `^${d}`);
+        // (grid steps where the numbers are a grid's, wherever the cell is read; else steps of its table: degrees)
+        if (d !== 0) take(o.cell, o.at, grid.get(o.cell) ? `^${d}` : `${DEGREE}${d}`);
       }
     if (occs.length < 2) continue;
     // a rough saving, to rank (each is measured exactly once it's a suggestion)
-    const saving = occs.reduce((a, o) => a + key.length - (3 + o.ref.length), 0) - (key.length + 6);
+    const saving = occs.reduce((a, o) => a + key.length - use('m1', o.ref).length, 0) - (key.length + 6);
     if (saving > 4) found.push({ key, tokens, occs, saving });
   }
   found.sort((a, b) => b.saving - a.saving || b.tokens.length - a.tokens.length);
@@ -122,21 +126,34 @@ export function phrases(source: string, cells: readonly Candidate[], result: Res
       // each cell: its occurrences replaced, from the right (so the earlier places stay put)
       for (const cell of new Set(f.occs.map((o) => o.cell))) {
         const ts = [...tokensOf.get(cell)!];
-        for (const o of f.occs.filter((x) => x.cell === cell).sort((a, b) => b.at - a.at)) ts.splice(o.at, f.tokens.length, `&${name}${o.ref}`);
+        for (const o of f.occs.filter((x) => x.cell === cell).sort((a, b) => b.at - a.at)) ts.splice(o.at, f.tokens.length, use(name, o.ref));
         next = setBraid(next, cell, ts);
       }
       return next;
     };
     const ways = [
-      ...new Set(f.occs.map((o) => (o.ref === '' ? 'as written' : o.ref === '[::-1]' ? 'backwards' : o.ref.startsWith('^') ? `transposed ${o.ref}` : `turned ${o.ref}`))),
+      ...new Set(
+        f.occs.map((o) =>
+          o.ref === ''
+            ? 'as written'
+            : o.ref === '[::-1]'
+              ? 'backwards'
+              : o.ref.startsWith('^')
+                ? `transposed ${o.ref}`
+                : o.ref.startsWith(DEGREE)
+                  ? `${o.ref.slice(1)} degrees`
+                  : `turned ${o.ref}`,
+        ),
+      ),
     ];
-    const turnedAny = f.occs.some((o) => o.ref.startsWith('[>>') || o.ref.startsWith('[<<'));
+    // (a turn's climb, and a degree's step, depend on the table it's read through: checked note for note)
+    const turnedAny = f.occs.some((o) => o.ref.startsWith('[>>') || o.ref.startsWith('[<<') || o.ref.startsWith(DEGREE));
     const s = measured(source, {
       id: `phrase:${f.key}`,
       kind: 'phrase',
       title: `A phrase written ${f.occs.length} times (${ways.join(', ')}) in ${[...new Set(f.occs.map((o) => `&${o.cell}`))].join(', ')}: one cell, used where it was`,
       before: f.key.length > 48 ? f.key.slice(0, 47) + '…' : f.key,
-      after: f.occs.map((o) => `&m${o.ref}`).join(' … '),
+      after: f.occs.map((o) => use('m', o.ref)).join(' … '),
       apply,
     });
     // (a turn's climb depends on the table it's read through: checked, note for note, before it's offered)
