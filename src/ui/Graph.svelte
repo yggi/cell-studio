@@ -31,6 +31,10 @@
   import ForcesPanel from './ForcesPanel.svelte';
   import { clusterDisc } from '../layout/clusters';
   import { groundsOf, meterIndex } from '../layout/meters';
+  import { EXAMPLES } from '../examples';
+
+  // each example's rows' order, chosen when the app was built (tools/examples-index.ts), by its graph's shape
+  const EXAMPLE_ROWS = new Map(EXAMPLES.map((e) => [e.rows.key, e.rows.order]));
 
   let {
     model,
@@ -202,17 +206,21 @@
     const t = layout.tapeTurn(id);
     return t === undefined ? undefined : Math.round(t);
   };
-  const layout = new ForceLayout(() => {
-    nodes = nodes.map((n): FlowNode => {
-      const turn = n.type === 'material' ? turnOf(n.id) : undefined;
-      const turned = n.type === 'material' && turn !== undefined && turn !== n.data.turn ? { ...n, data: { ...n.data, turn } } : n;
-      if (n.id === dragging) return turned;
-      const p = posOf(n.id);
-      return p ? { ...turned, position: p } : turned;
-    });
-    bends = layout.bends();
-    taps = new Map([...layout.taps()].map(([id, t]) => [id, t && { ...t, r: ((nodes.find((n) => n.id === t.from)?.data as { size?: number })?.size ?? 0) / 2 }]));
-  });
+  const layout = new ForceLayout(
+    () => {
+      nodes = nodes.map((n): FlowNode => {
+        const turn = n.type === 'material' ? turnOf(n.id) : undefined;
+        const turned = n.type === 'material' && turn !== undefined && turn !== n.data.turn ? { ...n, data: { ...n.data, turn } } : n;
+        if (n.id === dragging) return turned;
+        const p = posOf(n.id);
+        return p ? { ...turned, position: p } : turned;
+      });
+      bends = layout.bends();
+      taps = new Map([...layout.taps()].map(([id, t]) => [id, t && { ...t, r: ((nodes.find((n) => n.id === t.from)?.data as { size?: number })?.size ?? 0) / 2 }]));
+      // (an example opens with its rows in the order chosen when the app was built: no trials)
+    },
+    { rowOrders: EXAMPLE_ROWS },
+  );
   // (at rest again — after a drag, an edit — the meter's net is laid again from where things are; the meter stays put)
   layout.onSettle(() => {
     const laid = layout.meterNet();

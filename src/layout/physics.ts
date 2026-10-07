@@ -6,7 +6,7 @@
  * over= chains — but everything still moves freely.
  */
 import { forceX, forceY, forceCollide, forceLink, forceManyBody, forceSimulation, type Simulation, type SimulationLinkDatum, type SimulationNodeDatum } from 'd3-force';
-import type { GraphModel, GraphNode } from '../engine/graph';
+import { structureKey, type GraphModel, type GraphNode } from '../engine/graph';
 import { segmentsCross, splinePoint } from './geometry';
 import { layered } from './layered';
 import { distanceToSegment, drawnCrossings, layoutQuality, type Aim, type LayoutQuality } from './quality';
@@ -103,6 +103,11 @@ export interface LayoutOptions {
    * sweeps, each for this many ticks, and starts from the rows that crossed less.
    */
   trial: number;
+  /**
+   * The rows' order already chosen for a graph (rowOrder 3), by its shape (rowsKey): the examples', worked out when
+   * the app is built (tools/examples-index.ts), so one opens without the trials.
+   */
+  rowOrders: ReadonlyMap<string, number>;
   /** Laid out by insertion (startInsertion): a fresh graph taken in one cell at a time from its drains, over this many ticks. 0: from the layered start. */
   insert: number;
   layerGap: number;
@@ -435,6 +440,7 @@ export const DEFAULT_LAYOUT: LayoutOptions = {
   // seeds 63 → 47 crossings, cost 90 → 65, for 2–3 times the layout's time when a piece opens: docs/notes/nets.md)
   rowOrder: 3,
   trial: 120,
+  rowOrders: new Map(),
   // (uncross and contract: measured over the examples, docs/notes/27-layout.md — stronger untangling and softer
   // springs cross a quarter less than 0.3 / 0.9, for about 6 % more room)
   uncross: 0.6,
@@ -846,17 +852,7 @@ export class ForceLayout {
    */
   private rowOrderFor(model: GraphModel): number {
     if (this.opts.rowOrder !== 3) return this.opts.rowOrder;
-    let best = { order: 0, crossings: Infinity, cost: Infinity };
-    for (const order of [0, 1]) {
-      const t = new ForceLayout(undefined, { ...this.opts, live: false, rowOrder: order });
-      t.setGraph(model);
-      t.tick(this.opts.trial);
-      t.layNet();
-      const q = t.quality();
-      t.destroy();
-      if (q.crossings < best.crossings || (q.crossings === best.crossings && q.cost < best.cost)) best = { order, crossings: q.crossings, cost: q.cost };
-    }
-    return best.order;
+    return this.opts.rowOrders.get(rowsKey(model)) ?? bestRowOrder(model, this.opts);
   }
 
   /** Merge a new graph in. Existing nodes keep position and velocity. */
@@ -1795,4 +1791,32 @@ export function tapeFaces(model: GraphModel): TapeFace[] {
     }
   }
   return faces;
+}
+
+/** A graph's shape, for the rows' order chosen for it (LayoutOptions.rowOrders): its named cells and its edges, hashed. */
+export function rowsKey(model: GraphModel): string {
+  const named = model.nodes.filter((n) => !n.petalOf);
+  const text = structureKey({ ...model, nodes: named });
+  let h = 2166136261;
+  for (let i = 0; i < text.length; i++) h = Math.imul(h ^ text.charCodeAt(i), 16777619);
+  return `${named.length}:${(h >>> 0).toString(36)}`;
+}
+
+/**
+ * The rows' order (layered.ts: 0 the sweeps, 1 insertion then the sweeps) that lays a fresh graph out with fewer
+ * crossings: each tried, in a layout of its own, for `trial` ticks.
+ */
+export function bestRowOrder(model: GraphModel, opts: Partial<LayoutOptions> = {}): number {
+  const o = { ...DEFAULT_LAYOUT, ...opts };
+  let best = { order: 0, crossings: Infinity, cost: Infinity };
+  for (const order of [0, 1]) {
+    const t = new ForceLayout(undefined, { ...o, live: false, rowOrder: order });
+    t.setGraph(model);
+    t.tick(o.trial);
+    t.layNet();
+    const q = t.quality();
+    t.destroy();
+    if (q.crossings < best.crossings || (q.crossings === best.crossings && q.cost < best.cost)) best = { order, crossings: q.crossings, cost: q.cost };
+  }
+  return best.order;
 }

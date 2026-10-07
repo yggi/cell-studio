@@ -49,12 +49,13 @@ function colourOf(result: CompileResult, shifts: ReturnType<typeof codeShifts>, 
 }
 
 /** A piece's miniature from its text (null: no cells to draw). */
-export function miniature(source: string): Miniature | null {
+export function miniature(source: string, rowOrder?: number): Miniature | null {
   const result = compileSource(source);
   const model = buildGraph(result);
   const nodes = model.nodes.filter((n) => !n.petalOf && !n.cell.note);
   if (nodes.length === 0) return null;
-  const l = new ForceLayout(undefined, { live: false });
+  // (the rows' order, when it is known: chosen already, it needn't be tried again)
+  const l = new ForceLayout(undefined, rowOrder === undefined ? { live: false } : { live: false, rowOrder });
   l.setGraph(model);
   l.tick(TICKS);
   l.layNet(); // (the meters' nets, as the graph lays them)

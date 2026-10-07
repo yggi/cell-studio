@@ -349,7 +349,7 @@ A bug on the way: the tree's cost for a join through a wheel (`netTree`) clamped
 | **both tried, 120 ticks** | **46.0** | **64.0** | 60.3 |
 | both tried, 60 ticks | 49.3 | 69.5 | 58.5 |
 
-The gate (three seeds): crossings 63 → 45.5, cost 87 → 64, intruders 71 → 60, read heads' aim 38 → 30; overlapping clusters 35 → 36; area the same. The price is time when a piece opens: the two trials (node, `performance.now`, before the faster tree): BWV 847 0.37 → 0.77 s, Baustelle 0.49 → 1.11 s, Cellscape 0.42 → 1.14 s, Twinkle 25 → 85 ms. Edits don't pay it (only a fresh graph). Building the examples' index (their miniatures) takes 8 → 20 s. Not measured in the browser.
+The gate (three seeds): crossings 63 → 45.5, cost 87 → 64, intruders 71 → 60, read heads' aim 38 → 30; overlapping clusters 35 → 36; area the same. The price is time when a piece opens: the two trials (node, `performance.now`, before the faster tree): BWV 847 0.37 → 0.77 s, Baustelle 0.49 → 1.11 s, Cellscape 0.42 → 1.14 s, Twinkle 25 → 85 ms. Edits don't pay it (only a fresh graph). Building the examples' index (their miniatures) takes 8 → 20 s. Not measured in the browser. Then each example's order is chosen when the index is built (`ExampleInfo.rows`, by the graph's shape: `rowsKey`) and the graph is given them (`rowOrders`): an example opens without the trials (Baustelle 0.41 s against 0.40 s with the sweeps alone and 1.01 s with the trials); a piece of one's own, or an example edited out of its shape, still tries both.
 
 ### Order
 

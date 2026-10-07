@@ -7,6 +7,8 @@ import built from 'virtual:examples-index';
 import { buildExamplesIndex, examplesIndexModule } from '../../tools/examples-index';
 import { ORDER } from './order';
 import { miniature } from '../layout/miniature';
+import { rowsKey } from '../layout/physics';
+import { buildGraph } from './graph';
 import { canonicalTag, parseTag, VOCABULARY } from './tags';
 
 describe('examples/*.cells', () => {
@@ -53,6 +55,8 @@ describe('examples/*.cells', () => {
       // its miniature: what the browser would work out from its text, one node per cell drawn
       expect(e.miniature, `${e.key}: miniature`).toEqual(miniature(PRESETS[e.key].source));
       expect(e.miniature?.nodes, `${e.key}: miniature`).toHaveLength(e.size);
+      // (laid out with the rows' order the index keeps, as the browser lays it out choosing afresh: the same order)
+      expect(e.rows.key, `${e.key}: its graph's shape`).toBe(rowsKey(buildGraph(compileSource(PRESETS[e.key].source))));
     }
   }, 60_000); // (it works every miniature out again, each laid out twice first to choose its rows: about 10 s alone, 20 s on a loaded machine)
   test('the index module keeps an endless cycle (JSON would make it null)', () => {

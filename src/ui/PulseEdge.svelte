@@ -95,7 +95,9 @@
   // a bus: a table read through over= (its entries), or a chord (its notes); at most 12 strands, a longer table sampled
   const STRANDS = 12;
   const view = $derived.by(() => {
-    if (d.width < 2 || d.tines || (!d.table && d.band !== 'cv')) return null;
+    // (and only for a cell of the program drawn now: while one piece gives way to the next, an edge can be drawn
+    // against the program before)
+    if (d.width < 2 || d.tines || (!d.table && d.band !== 'cv') || !ctx.program.cells.has(d.table ?? d.from)) return null;
     void ctx.turned;
     return cellView(ctx.program, d.table ?? d.from, shown, false);
   });
