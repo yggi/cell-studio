@@ -312,13 +312,6 @@ export function layered(model: GraphModel, o: LayeredOptions): Map<string, { x: 
 }
 
 /**
- * Tags as blocks (#27): the hubs that every part meets (the meter, a selector, a scale, the mix) are what tangle
- * a piece's tags together; cut there, each tag is a small graph of its own. So each tag (two cells or more) is laid
- * out alone, as a block, keeping the ranks its cells have in the whole piece; then the piece is laid out with each
- * block as one node (as wide and as tall as it is: every edge to a block meets it once); then each block's cells
- * are put back where the block landed. Null when there are fewer than two tags to separate.
- */
-/**
  * The rows filled by insertion (the owner's idea, within the layers): a walk from the top row (the sound card) and the
  * scopes, breadth first along the edges between rows, the heaviest first, takes in one node at a time; each goes into
  * its row at the place where it crosses the fewest edges to the nodes already in (then nearest its neighbours there).
@@ -377,6 +370,13 @@ function insertionOrder(
   return rows;
 }
 
+/**
+ * Tags as blocks (#27): the hubs that every part meets (the meter, a selector, a scale, the mix) are what tangle
+ * a piece's tags together; cut there, each tag is a small graph of its own. So each tag (two cells or more) is laid
+ * out alone, as a block, keeping the ranks its cells have in the whole piece; then the piece is laid out with each
+ * block as one node (as wide and as tall as it is: every edge to a block meets it once); then each block's cells
+ * are put back where the block landed. Null when there are fewer than two tags to separate.
+ */
 function clustered(model: GraphModel, o: LayeredOptions): Map<string, { x: number; y: number }> | null {
   const nodes = model.nodes.filter((n) => !(n as { petalOf?: string }).petalOf);
   const tagOf = new Map(

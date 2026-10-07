@@ -228,7 +228,6 @@ const CELL_WANTS: Readonly<Record<string, string>> = {
   write: 'what the tape records, like write=&melody',
   play: 'the tape it reads, like play=&tape',
   couple: 'the resonator it shares a table with, like couple=&fork',
-  sun: 'the law whose day it shows, like sun=&cycle',
   excite: 'what drives it, like excite=&mix',
 };
 

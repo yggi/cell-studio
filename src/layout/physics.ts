@@ -532,6 +532,8 @@ export class ForceLayout {
   private colX = new Map<string, number>();
   /** Each edge's midpoint (the spline passes through it). */
   private bendAt = new Map<string, { x: number; y: number }>();
+  /** The rows' order of the last fresh graph (rowOrderFor): an edit keeps it, as it keeps the positions. */
+  private rowChoice = 0;
   private opts: LayoutOptions;
   private readonly sim: Simulation<PhysNode, PhysLink>;
   private byId = new Map<string, PhysNode>();
@@ -897,7 +899,7 @@ export class ForceLayout {
         gapY: this.opts.layerGap,
         radius: (id) => this.opts.radius(byId.get(id)!),
         flat: !this.opts.clusters,
-        rowOrder: fresh ? this.rowOrderFor(model) : this.opts.rowOrder,
+        rowOrder: fresh ? (this.rowChoice = this.rowOrderFor(model)) : this.rowChoice,
       });
       const ys = [...lay.values()].map((p) => p.y);
       const midY = (Math.min(...ys) + Math.max(...ys)) / 2;
