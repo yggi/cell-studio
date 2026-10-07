@@ -280,7 +280,7 @@ export function formsUsed(source: string): Set<string> {
     } else if (st?.kind === 'env') use('rate loop=NAME');
     else if (st?.kind === 'driven') {
       use(st.cycle ? 'rate step=cycle(&x)' : 'rate step=&x');
-      if (st.label) use('rate step=&x*n');
+      if (st.chain.length) use('rate step=&x*n');
       ref(st.driver);
     }
     // map=
