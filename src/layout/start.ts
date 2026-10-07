@@ -4,7 +4,7 @@
  * parents (startNodes), and the rows' order chosen for a graph by its shape (rowsKey; the trial itself is
  * physics.ts: bestRowOrder). A start by insertion is insertion.ts.
  */
-import { structureKey, type GraphModel, type GraphNode } from '../engine/graph';
+import { feeds, structureKey, type GraphModel, type GraphNode } from '../engine/graph';
 import { fitTurns, tapeFaces } from './aims';
 import { layered } from './layered';
 import { massOf } from './weights';
@@ -62,14 +62,14 @@ export function orderLayers(nodes: readonly { id: string; depth: number }[], edg
  * or not — sit half a row under whatever uses them (parts of parts half as far
  * again), so they cluster under it instead of widening its row.
  */
-export function flowRanks(model: { nodes: readonly { id: string }[]; edges: readonly { source: string; target: string; kind: string }[] }): Map<string, number> {
+export function flowRanks(model: { nodes: readonly { id: string }[]; edges: readonly { source: string; target: string; port: string }[] }): Map<string, number> {
   const sinks = new Set(model.nodes.filter((n) => endOf(n as GraphNode) === 'top').map((n) => n.id));
   // played cells: the terms of the mixes (melodies, modulators) and every part they splice
-  const played = new Set(model.edges.filter((e) => e.kind === 'out').map((e) => e.source));
+  const played = new Set(model.edges.filter(feeds).map((e) => e.source));
   for (let grew = true; grew;) {
     grew = false;
     for (const e of model.edges)
-      if (e.kind === 'ref' && played.has(e.source) && !played.has(e.target)) {
+      if (e.port === 'braid' && played.has(e.source) && !played.has(e.target)) {
         played.add(e.target);
         grew = true;
       }
@@ -79,7 +79,7 @@ export function flowRanks(model: { nodes: readonly { id: string }[]; edges: read
   const cellOf = new Map(model.nodes.map((n) => [n.id, (n as { cell?: { mix?: unknown; sink?: boolean } }).cell]));
   const sounding = new Set(model.nodes.filter((n) => cellOf.get(n.id)?.mix && !cellOf.get(n.id)?.sink).map((n) => n.id));
   for (const n of model.nodes) {
-    const entries = model.edges.filter((e) => e.source === n.id && e.kind === 'ref');
+    const entries = model.edges.filter((e) => e.source === n.id && e.port === 'braid');
     if (entries.length && entries.every((e) => sounding.has(e.target))) sounding.add(n.id);
   }
   // up: [lower, higher]
@@ -87,14 +87,14 @@ export function flowRanks(model: { nodes: readonly { id: string }[]; edges: read
   for (const e of model.edges) {
     if (e.source === e.target) continue;
     // sound going up: a part mix into its table, the table into its selector, the selector into the sound card
-    if ((e.kind === 'ref' || e.kind === 'over') && sounding.has(e.target)) {
+    if ((e.port === 'braid' || e.port === 'over') && sounding.has(e.target)) {
       up.push([e.target, e.source]);
       continue;
     }
     // a step driver sits under what it drives — when that's played; a stepped table hangs beside its readers
-    if (e.kind === 'step' && played.has(e.source)) up.push([e.target, e.source]);
-    else if (e.kind === 'out' || e.kind === 'mix') up.push([e.source, e.target]);
-    else if (e.kind === 'ref' && sinks.has(e.source)) up.push([e.target, e.source]); // the sound card's channels
+    if (e.port === 'step' && played.has(e.source)) up.push([e.target, e.source]);
+    else if (feeds(e) || e.port === 'mix') up.push([e.source, e.target]);
+    else if (e.port === 'braid' && sinks.has(e.source)) up.push([e.target, e.source]); // the sound card's channels
   }
   const inFlow = new Set(up.flat());
   const rank = new Map<string, number>();
@@ -110,7 +110,7 @@ export function flowRanks(model: { nodes: readonly { id: string }[]; edges: read
     if (!changed) break;
   }
   // a source that drives nothing (a modulator like &vibrato) sits just under what it feeds, not at the bottom
-  const drivers = new Set(model.edges.filter((e) => e.kind === 'step').map((e) => e.target));
+  const drivers = new Set(model.edges.filter((e) => e.port === 'step').map((e) => e.target));
   const fed = new Map<string, string[]>();
   for (const [lo, hi] of up) fed.set(lo, [...(fed.get(lo) ?? []), hi]);
   const hasBelow = new Set(up.map(([, hi]) => hi));
@@ -120,7 +120,7 @@ export function flowRanks(model: { nodes: readonly { id: string }[]; edges: read
   for (let i = 0; i < model.nodes.length; i++) {
     let changed = false;
     for (const e of model.edges) {
-      if ((e.kind !== 'ref' && e.kind !== 'over') || sinks.has(e.source)) continue;
+      if ((e.port !== 'braid' && e.port !== 'over') || sinks.has(e.source)) continue;
       if (rank.has(e.source) && !rank.has(e.target)) {
         const r = rank.get(e.source)!;
         rank.set(e.target, inFlow.has(e.source) ? r - 0.5 : r - (r - Math.floor(r - 1e-9)) / 2);
@@ -134,11 +134,11 @@ export function flowRanks(model: { nodes: readonly { id: string }[]; edges: read
   for (let i = 0; i < model.nodes.length; i++) {
     let changed = false;
     for (const e of model.edges) {
-      if ((e.kind !== 'ref' && e.kind !== 'over') || sinks.has(e.source) || inFlow.has(e.target) || sounding.has(e.target)) continue;
+      if ((e.port !== 'braid' && e.port !== 'over') || sinks.has(e.source) || inFlow.has(e.target) || sounding.has(e.target)) continue;
       const user = rank.get(e.source);
       const part = rank.get(e.target);
       // what it's made of (&refs) half a row under; what it's tuned by (over=) a row under: tuning beneath content
-      const gap = e.kind === 'over' ? 1 : 0.5;
+      const gap = e.port === 'over' ? 1 : 0.5;
       if (user === undefined || part === undefined || part <= user - gap + 1e-9) continue;
       rank.set(e.target, user - gap);
       changed = true;
@@ -161,7 +161,7 @@ export function flowRanks(model: { nodes: readonly { id: string }[]; edges: read
  */
 export function columns(model: {
   nodes: readonly { id: string; kind: string; pan?: number; order?: number; petalOf?: string }[];
-  edges: readonly { source: string; target: string; kind: string }[];
+  edges: readonly { source: string; target: string; port: string }[];
 }): Map<string, number> {
   const nodes = model.nodes.filter((n) => !n.petalOf);
   // what sounds: voices, and instruments (whose voices are petals)
@@ -184,8 +184,8 @@ export function columns(model: {
   const consumers = new Map<string, string[]>();
   const add = (from: string, to: string) => consumers.set(from, [...(consumers.get(from) ?? []), to]);
   for (const e of model.edges) {
-    if (e.kind === 'ref' || e.kind === 'over' || e.kind === 'step') add(e.target, e.source);
-    else if (e.kind === 'out') add(e.source, e.target);
+    if (e.port === 'braid' || e.port === 'over' || e.port === 'step') add(e.target, e.source);
+    else if (feeds(e)) add(e.source, e.target);
   }
   const served = (id: string, seen = new Set<string>()): string[] => {
     if (col.has(id) && voices.some((v) => v.id === id)) return [id];
@@ -197,7 +197,7 @@ export function columns(model: {
     if (col.has(n.id)) continue;
     const vs = served(n.id);
     // mixes and sound cards (and anything feeding no voice) sit in the middle of what they hear
-    const hears = model.edges.filter((e) => e.kind === 'mix' && e.target === n.id).map((e) => e.source);
+    const hears = model.edges.filter((e) => e.port === 'mix' && e.target === n.id).map((e) => e.source);
     const from = vs.length ? vs : hears.filter((h) => col.has(h));
     col.set(n.id, from.length ? from.reduce((a, v) => a + col.get(v)!, 0) / from.length : 0);
   }
@@ -273,7 +273,7 @@ export function startPlaces(
     fresh && !home
       ? orderLayers(
           model.nodes.map((n) => ({ id: n.id, depth: ranks.get(n.id)! })),
-          model.edges.filter((e) => e.kind !== 'about'),
+          model.edges.filter((e) => e.port !== 'about'),
         )
       : null;
   if (fresh && !home && cols.size) {

@@ -22,7 +22,6 @@
   const ctx = getGraphContext();
   const d = $derived(
     data as {
-      kind: string;
       band: string;
       port: string;
       width: number;
