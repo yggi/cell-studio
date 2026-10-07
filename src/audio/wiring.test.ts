@@ -5,6 +5,7 @@ import { flows, type Flow } from '../engine/flows';
 import { cellId } from '../engine/ids';
 import type { CompileResult } from '../engine/program';
 import { wiring } from './wiring';
+import { returnGains } from '../engine/realize';
 
 const OUT = '&out loop=SAMPLE_RATE map=sample';
 const src = (...lines: string[]) => compileSource(lines.join('\n'));
@@ -72,5 +73,40 @@ describe('voices.sync wires from the flows the graph draws (#132)', () => {
     expect(plan(['tape'])).toEqual(['tap v send 0.5', 'tap a out 0.5', 'tap b out 0.5', 'couple a b 0.05']);
     expect(plan(['b'])).toEqual(['tap v send 0.5', 'tap a out 0.5', 'thread tape tape 1', 'record v tape 0.5', 'return h tape 1', 'excite h a 0.3']);
     expect(wiring(r).heard).toEqual(new Set(['a', 'b']));
+  });
+
+  it('with nothing off, returns and lone resonators reach the sound card at the levels compile gives them (#165)', () => {
+    for (const { source } of Object.values(PRESETS)) {
+      const r = compileSource(source);
+      for (const x of [...r.returns, ...r.resonances]) expect(returnGains(x, new Set())).toEqual([x.gains[0], x.gains[1]]);
+    }
+  });
+
+  it('muting a mix or the sound card silences what returns through it: tape heads, a resonator ringing alone (#165)', () => {
+    const muted = (...names: string[]) => new Set(names.map(cellId));
+    const tape = src(
+      '&bar step=96bpm 0 0 0 0',
+      '&tune step=&bar 0 4 7 ~',
+      '&v s=tri loop=C4',
+      '&dry [&tune * &v]',
+      '&tape write=&dry length=4',
+      '&h1 play=&tape at=.5',
+      '&wet [&h1 * .4]',
+      `${OUT} [&dry, &wet] [&dry, &wet]`,
+    );
+    const returns = (m: ReadonlySet<string>) => wiring(tape, m).connections.filter((c) => c.kind === 'return');
+    expect(returns(new Set()).map((c) => c.gains)).toEqual([[0.4, 0.4]]);
+    for (const off of ['out', 'wet', 'h1', 'tape']) expect(returns(muted(off))).toEqual([]);
+    // (the dry voice's own mix off: the head still returns)
+    expect(returns(muted('dry')).length).toBe(1);
+
+    const ring = src('&f body=fork loop=440', '&hit step=1 0', '&m [&hit * &f]', '&ring [&f]', `${OUT} [&ring, &m] [&ring, &m]`);
+    const plan = (m: ReadonlySet<string>) => wiring(ring, m);
+    expect(plan(new Set()).levels.get('f')).toEqual([2, 2]);
+    // the mix it rings alone in off: only its struck share is left
+    expect(plan(muted('ring')).levels.get('f')).toEqual([1, 1]);
+    // the sound card off: nothing, and not heard
+    expect(plan(muted('out')).levels.get('f')).toEqual([0, 0]);
+    expect(plan(muted('out')).heard.has('f')).toBe(false);
   });
 });
