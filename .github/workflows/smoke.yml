@@ -2,15 +2,12 @@ name: Smoke
 
 # Opens and starts every piece in the runner's Chrome, and plays for 2 s the fewest pieces that use every kind
 # of audio node between them (tools/smoke.mjs, tools/smoke-pick.ts): the audio graph of every voice kind,
-# which the unit tests can't build. It takes a minute or two, so it doesn't run on every push of every PR:
-# only on the one that is about to be merged, the merge candidate, which carries the label `candidate`.
-#  - add the label `candidate` to a PR: it runs once on its head;
-#  - a push to a PR that has the label runs it again (so the result is always for the head);
-#  - any other PR, and `main` after a merge, don't run it. By hand: Actions -> Smoke -> Run workflow.
+# which the unit tests can't build. It runs on every PR (opened, pushed to, reopened, taken out of draft), so the
+# result is always for the head; `main` after a merge doesn't run it. By hand: Actions -> Smoke -> Run workflow.
 # It is not a required check (ruleset: only `check`): the `senior` skill waits for it before merging.
 on:
   pull_request:
-    types: [labeled, synchronize]
+    types: [opened, synchronize, reopened, ready_for_review]
   workflow_dispatch:
 
 concurrency:
@@ -19,11 +16,8 @@ concurrency:
 
 jobs:
   smoke:
-    # (labeled with `candidate`, or pushed to while it has it; adding another label doesn't run it again)
-    if: >-
-      github.event_name == 'workflow_dispatch' ||
-      (contains(github.event.pull_request.labels.*.name, 'candidate') &&
-       (github.event.action == 'synchronize' || github.event.label.name == 'candidate'))
+    # (a draft doesn't run it until it is marked ready)
+    if: github.event_name == 'workflow_dispatch' || !github.event.pull_request.draft
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
