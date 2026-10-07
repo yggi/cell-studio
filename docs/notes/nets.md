@@ -314,6 +314,20 @@ And it is steady: 62–65 over the six seeds. Over the gate's three seeds: cross
 
 The miniatures (`node tools/gallery.mjs graphs`, now a gallery subject) draw a net's hops as the graph does. A visual pass over them: the meters now sit among the cells they step, not at the bottom; the large pieces (BWV 847, Cellscape, Baustelle, Hypercell, Zell) are still dense knots with overlapping clusters, and the small ones are clean.
 
+### Tried: laid out by insertion (2026-10-07)
+
+The owner's idea: start with the sound card in the middle and take in the cells one at a time, each next to what it is joined to already, in the order a walk from the drains meets them (the sound card, a scope first); a meter, reached by no drawn edge, comes last of itself. Built as an option (`insert`, the ticks it takes; `startInsertion` in `physics.ts`: while it grows, the forces see only the cells taken in). Measured over the library (crossings / cost; cells in a foreign cluster):
+
+| | crossings | cost | intruders |
+|---|---|---|---|
+| the layered start (today), six seeds | **63.3** | **90.2** | 68.0 |
+| insertion over 150 ticks, six seeds | 109.8 | 177.8 | 51.8 |
+| … without the layers' pull | 101.8 | 167.8 | 80.2 |
+| … over 60 / 300 ticks, three seeds | 114.3 / 99.3 | 181.7 / 154.7 | 79.7 / 53.3 |
+| … each placed close to its neighbours, three seeds | 98.0 | 158.7 | **41.0** |
+
+Worse in nearly every piece, the knots most (Cellscape 15 → 24, Baustelle 11 → 14). The layered start orders each row against the whole graph's crossings; insertion decides greedily, early, and the forces don't undo it (as with growing from small). It gathers the clusters better, though. Off, kept as an option.
+
 ### Order
 
 1. The weights table and weighted crossings: measurable against the baseline, no change to the model.

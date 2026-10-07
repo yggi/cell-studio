@@ -93,6 +93,8 @@ export interface LayoutOptions {
    * cells, held by its net's springs — each meter is put where its net costs least and held there (placeMeters). 0 off.
    */
   placeLast: number;
+  /** Laid out by insertion (startInsertion): a fresh graph taken in one cell at a time from its drains, over this many ticks. 0: from the layered start. */
+  insert: number;
   layerGap: number;
   /** Edge length at rest (px). */
   linkDistance: number;
@@ -190,6 +192,7 @@ function forceUncross(strengthOf: () => number) {
       }
     }
   };
+  force.current = () => links;
   force.links = (ls: typeof links) => {
     links = ls;
     return force;
@@ -415,6 +418,9 @@ export const DEFAULT_LAYOUT: LayoutOptions = {
   // (tried again with the nets' springs, docs/notes/nets.md: over six seeds 80 → 63 crossings, its cost 127 → 90; the
   // meter is laid out with its cells by its net's springs, then put where its net costs least)
   placeLast: 1,
+  // (by insertion, from the drains, measured over the library, docs/notes/nets.md: 63 → 98–114 crossings, worse in
+  // nearly every piece, though fewer cells in a foreign cluster: off)
+  insert: 0,
   // (uncross and contract: measured over the examples, docs/notes/27-layout.md — stronger untangling and softer
   // springs cross a quarter less than 0.3 / 0.9, for about 6 % more room)
   uncross: 0.6,
@@ -508,7 +514,7 @@ export class ForceLayout {
   private bendAt = new Map<string, { x: number; y: number }>();
   private opts: LayoutOptions;
   private readonly sim: Simulation<PhysNode, PhysLink>;
-  private readonly byId = new Map<string, PhysNode>();
+  private byId = new Map<string, PhysNode>();
   private settleListeners: (() => void)[] = [];
 
   constructor(onTick: () => void = () => {}, opts: Partial<LayoutOptions> = {}) {
@@ -563,7 +569,10 @@ export class ForceLayout {
       .force('aims', (alpha: number) => this.stepAims(alpha))
       // turntables: nothing overlaps them — a node that would is set at their edge
       .force('exclusion', () => this.stepExclusion())
-      .on('tick', onTick)
+      .on('tick', () => {
+        this.insertStep();
+        onTick();
+      })
       .on('end', () => this.settleListeners.forEach((f) => f()));
     this.applyOptions();
     if (!o.live) this.sim.stop();
@@ -810,6 +819,7 @@ export class ForceLayout {
 
   /** Forget every position: the next graph is laid out afresh (a piece just opened). */
   forget(): void {
+    this.endInsertion();
     this.byId.clear();
     this.placedMeters.clear();
     this.net = [];
@@ -818,6 +828,7 @@ export class ForceLayout {
 
   /** Merge a new graph in. Existing nodes keep position and velocity. */
   setGraph(model: GraphModel, structural = true): GraphDiff {
+    this.endInsertion();
     this.nets = model.nets ?? [];
     this.edgeEnds = new Map(model.edges.map((e) => [e.id, e.to]));
     // petals (unnamed cells) hang from their parent: the physics only sees named cells
@@ -1047,6 +1058,7 @@ export class ForceLayout {
     }));
     for (const id of [...this.bendAt.keys()]) if (!this.links.some((l) => l.id === id)) this.bendAt.delete(id);
     if (structural) this.reheat(fresh ? 1 : added > 0 || removed > 0 ? 0.7 : 0.3); // a fresh graph settles from scratch, like a new layout
+    if (fresh && this.opts.insert > 0) this.startInsertion(model, groundIds);
     // forceX/Y cache their targets: refresh them for the new ends
     this.sim.force(
       'endsX',
@@ -1522,7 +1534,118 @@ export class ForceLayout {
 
   /** Run the simulation synchronously (pre-settle before first paint, or tests). */
   tick(n = 1): void {
-    this.sim.tick(n);
+    for (let i = 0; i < n; i++) {
+      this.insertStep();
+      this.sim.tick(1);
+    }
+  }
+
+  /**
+   * Laid out by insertion (the owner's idea): a fresh graph starts from its drains — the sound card, a scope — and
+   * takes in its cells one at a time, each next to the ones it is joined to already, in the order a walk from the
+   * drains along the drawn edges meets them; what no drawn edge reaches (a meter: its edges are ground) comes last.
+   * While it grows, the forces see only the cells taken in so far (`byId` is theirs; `all` holds the rest).
+   */
+  private pending: string[] = [];
+  private all: Map<string, PhysNode> | null = null;
+  private insertClock = 0;
+  private insertEvery = 1;
+  private adjacent = new Map<string, string[]>();
+  private simLinks: PhysLink[] = [];
+  private crossLinks: { source: PhysNode; target: PhysNode }[] = [];
+
+  private startInsertion(model: GraphModel, grounds: ReadonlySet<string>): void {
+    const all = new Map(this.byId);
+    const cells = model.nodes.filter((n) => all.has(n.id));
+    const drawn = new Map<string, string[]>();
+    const adjacent = new Map<string, string[]>();
+    const join = (m: Map<string, string[]>, a: string, b: string) => {
+      (m.get(a) ?? m.set(a, []).get(a)!).push(b);
+      (m.get(b) ?? m.set(b, []).get(b)!).push(a);
+    };
+    for (const e of model.edges) {
+      if (e.kind === 'about' || !all.has(e.source) || !all.has(e.target) || e.source === e.target) continue;
+      join(adjacent, e.source, e.target);
+      if (!grounds.has(e.id)) join(drawn, e.source, e.target);
+    }
+    const cellOf = (n: (typeof cells)[number]) => n.cell as { sink?: boolean; note?: boolean; params?: Record<string, unknown> };
+    const drains = cells.filter((n) => cellOf(n).sink || typeof cellOf(n).params?.scope === 'string').map((n) => n.id);
+    // (a walk from the drains, breadth first, the busiest neighbour first)
+    const order: string[] = [];
+    const seen = new Set<string>();
+    const queue = drains.length ? [...drains] : cells.slice(0, 1).map((n) => n.id);
+    for (const id of queue) seen.add(id);
+    while (queue.length) {
+      const id = queue.shift()!;
+      order.push(id);
+      for (const nb of [...(drawn.get(id) ?? [])].sort((a, b) => (drawn.get(b)?.length ?? 0) - (drawn.get(a)?.length ?? 0)))
+        if (!seen.has(nb)) {
+          seen.add(nb);
+          queue.push(nb);
+        }
+    }
+    // then what the walk didn't reach: cells, then meters, then notes
+    const rest = cells.filter((n) => !seen.has(n.id));
+    const rank = (n: (typeof cells)[number]) => (cellOf(n).note ? 2 : (n as { isMeter?: boolean }).isMeter ? 1 : 0);
+    order.push(...rest.sort((a, b) => rank(a) - rank(b)).map((n) => n.id));
+    if (order.length < 3) return;
+    this.all = all;
+    this.adjacent = adjacent;
+    this.simLinks = [...(this.sim.force('link') as ReturnType<typeof forceLink<PhysNode, PhysLink>>).links()];
+    this.crossLinks = [...(this.sim.force('uncross') as unknown as ReturnType<typeof forceUncross>).current()];
+    const first = drains.length || 1;
+    this.pending = order.slice(first);
+    this.insertEvery = Math.max(1, Math.floor(this.opts.insert / this.pending.length));
+    this.insertClock = 0;
+    // the drains in the middle, side by side
+    const start = order.slice(0, first);
+    start.forEach((id, i) => Object.assign(all.get(id)!, { x: (i - (start.length - 1) / 2) * this.opts.linkDistance, y: 0, vx: 0, vy: 0 }));
+    this.activate(new Set(start));
+  }
+
+  /** The forces and the simulation on the cells taken in so far (a tag with them, once one of its cells is in). */
+  private activate(on: ReadonlySet<string>): void {
+    const all = this.all!;
+    const tags = new Set([...on].flatMap((id) => (all.get(id)?.group ? [`tag:${all.get(id)!.group}`] : [])));
+    const live = (id: string) => on.has(id) || tags.has(id);
+    this.byId = new Map([...all].filter(([id]) => live(id)));
+    this.sim.nodes([...this.byId.values()]);
+    const idOf = (x: unknown) => (typeof x === 'object' ? (x as PhysNode).id : (x as string));
+    (this.sim.force('link') as ReturnType<typeof forceLink<PhysNode, PhysLink>>).links(this.simLinks.filter((l) => live(idOf(l.source)) && live(idOf(l.target))));
+    (this.sim.force('uncross') as unknown as ReturnType<typeof forceUncross>).links(this.crossLinks.filter((l) => live(l.source.id) && live(l.target.id)));
+  }
+
+  /** One step of the insertion: the next cell taken in, next to the ones it is joined to already. */
+  private insertStep(): void {
+    if (!this.all || this.insertClock++ % this.insertEvery) return;
+    const id = this.pending.shift();
+    const n = id ? this.all.get(id) : undefined;
+    if (n) {
+      const placed = [...this.byId.values()].filter((p) => p.role !== 'tag');
+      const near = (this.adjacent.get(n.id) ?? []).map((a) => this.byId.get(a)).filter((p): p is PhysNode => !!p && p.role !== 'tag');
+      const mid = (ps: PhysNode[]) => ({ x: ps.reduce((a, p) => a + (p.x ?? 0), 0) / ps.length, y: ps.reduce((a, p) => a + (p.y ?? 0), 0) / ps.length });
+      const g = mid(placed);
+      const c = near.length ? mid(near) : g;
+      // (out from the middle of what's there, close beside its neighbours: measured, nearer gathers the clusters best)
+      let [dx, dy] = [c.x - g.x, c.y - g.y];
+      const l = Math.hypot(dx, dy);
+      const a = (jitter(n.id, 7 + this.opts.seed) / 40 + 0.5) * 2 * Math.PI;
+      [dx, dy] = l > 1 ? [dx / l, dy / l] : [Math.cos(a), Math.sin(a)];
+      const reach = near.length ? this.opts.linkDistance * 0.4 : Math.max(...placed.map((p) => Math.hypot((p.x ?? 0) - g.x, (p.y ?? 0) - g.y))) + this.opts.linkDistance;
+      Object.assign(n, { x: c.x + dx * reach + jitter(n.id, 3) * 0.5, y: c.y + dy * reach + jitter(n.id, 4) * 0.5, vx: 0, vy: 0 });
+      this.activate(new Set([...this.byId.keys(), n.id]));
+      this.sim.alpha(Math.max(this.sim.alpha(), 0.6));
+    }
+    if (!this.pending.length) this.endInsertion();
+  }
+
+  /** The insertion over (or cut short by a new graph): every cell in, the forces on all of them. */
+  private endInsertion(): void {
+    if (!this.all) return;
+    const ids = new Set(this.all.keys());
+    this.activate(ids);
+    this.all = null;
+    this.pending = [];
   }
 
   position(id: string): { x: number; y: number } | undefined {

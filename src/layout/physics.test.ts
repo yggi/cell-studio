@@ -186,6 +186,19 @@ describe('dragging', () => {
   });
 });
 
+describe('laid out by insertion (an option)', () => {
+  it('takes in every cell, from the sound card outwards, and leaves none overlapping', () => {
+    const model = buildGraph(compileSource(PRESETS.twinkle.source));
+    const l = new ForceLayout(undefined, { live: false, insert: 100 });
+    l.setGraph(model);
+    l.tick(400);
+    const ids = model.nodes.filter((n) => !n.petalOf).map((n) => n.id);
+    expect(ids.filter((id) => !l.position(id))).toEqual([]);
+    expect(l.quality().overlap).toBeLessThan(10);
+    l.destroy();
+  });
+});
+
 // (no overlaps, on every example settled: physics.library.test.ts)
 
 describe('initial layout', () => {
