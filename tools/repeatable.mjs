@@ -6,7 +6,8 @@
 //   2. The two renders agree block by block (the level of every 2048 samples) within TOL (default 1e-5, −100 dB).
 //      Not bit for bit: Chromium sums three or more inputs of a node in an order that changes from run to run, so the
 //      last bit of a float differs (about −180 dB; two inputs are stable, six differ every time). Pieces with a
-//      resonator (forks, kalimba) vary much more (−45 dB, #65): they are listed as KNOWN and don't fail the run.
+//      resonator loop (couple=, a board: forks, kalimba) vary much more (−45 dB, #65: the order Chromium processes a loop in
+//      changes from run to run; accepted): they are listed as KNOWN and don't fail the run.
 //
 //   npm run build && node tools/repeatable.mjs 6 [piece words…]
 //
