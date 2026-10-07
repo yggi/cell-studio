@@ -92,6 +92,10 @@ describe('layout quality', () => {
       `drawn crossings: ${record}`,
     ).toBeLessThanOrEqual(sum(base, (r) => r.crossings));
     expect(
+      sum(now, (r) => r.cost),
+      `crossings weighed by what they cross: ${record}`,
+    ).toBeLessThanOrEqual(sum(base, (r) => r.cost ?? Infinity));
+    expect(
       sum(now, (r) => r.intruders),
       `cells in a foreign cluster: ${record}`,
     ).toBeLessThanOrEqual(sum(base, (r) => r.intruders));

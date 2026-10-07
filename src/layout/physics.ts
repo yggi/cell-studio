@@ -13,6 +13,7 @@ import { drawnCrossings, layoutQuality, type Aim, type LayoutQuality } from './q
 import { fitTurn, headOffset, tapeHeads, UNTURNED } from './tape';
 import { isGround } from './meters';
 import { openBelt, pulleys } from './belts';
+import { massOf, strengthOf } from './weights';
 
 /** A belt's spring: its length against an edge's, and its pull. */
 const BELT_LENGTH = 0.8;
@@ -41,6 +42,8 @@ export interface PhysNode extends SimulationNodeDatum {
   tags?: readonly string[];
   /** A turntable (a physical cell): nothing may overlap it. */
   heavy?: boolean;
+  /** Its mass (weights.ts): how much it holds its place and its room. */
+  mass?: number;
 }
 interface PhysLink extends SimulationLinkDatum<PhysNode> {
   id: string;
@@ -51,6 +54,8 @@ interface PhysLink extends SimulationLinkDatum<PhysNode> {
   belt?: boolean;
   /** A meter's edge (ground): a spring that isn't drawn (its net is). */
   ground?: boolean;
+  /** Its strength (weights.ts): how hard it pulls, and what crossing it costs. */
+  strength?: number;
   /** A tag's spring to one of its cells (not drawn: no crossings, no bends, no spread). */
   tag?: boolean;
   /** How much of its pull it keeps (a hub's edge into a cluster gives the rest to the cluster's tag: `mux`). */
@@ -60,6 +65,10 @@ interface PhysLink extends SimulationLinkDatum<PhysNode> {
 }
 
 export interface LayoutOptions {
+  /** How much a node's mass (weights.ts) scales its repulsion, its inertia, and an edge's strength its spring: 0 none, 1 full. */
+  massRepel: number;
+  inertia: number;
+  strengthPull: number;
   layerGap: number;
   /** Edge length at rest (px). */
   linkDistance: number;
@@ -363,6 +372,11 @@ export function columns(model: {
 // room for their labels, edges spread round each node (stars, symmetries), time and sound keep apart,
 // tagged cells cluster; edges straighten a little and keep well off nodes.
 export const DEFAULT_LAYOUT: LayoutOptions = {
+  // (measured over the library, docs/notes/nets.md: mass as repulsion 89 → 83 crossings; inertia and strength as
+  // stiffness made it worse as tried, so they are off: strength weighs only what a crossing costs)
+  massRepel: 1,
+  inertia: 0,
+  strengthPull: 0,
   // (uncross and contract: measured over the examples, docs/notes/27-layout.md — stronger untangling and softer
   // springs cross a quarter less than 0.3 / 0.9, for about 6 % more room)
   uncross: 0.6,
@@ -438,7 +452,7 @@ function jitter(id: string, salt: number): number {
 }
 
 export class ForceLayout {
-  private links: { id: string; source: string; target: string; belt?: boolean }[] = [];
+  private links: { id: string; source: string; target: string; belt?: boolean; strength?: number }[] = [];
   /** Where the sound card (top) and the meters (bottom) are drawn to, sideways. */
   private ends = new Map<string, { x: number; y: number }>();
   /** The height of each node's rank in the signal path. */
@@ -471,6 +485,15 @@ export class ForceLayout {
       // nodes don't overlap, labels included (this isn't tension: it only acts on contact)
       .force('collide', forceCollide<PhysNode>().strength(0.95).iterations(2))
       .force('uncross', forceUncross(() => this.opts.uncross) as never)
+      // mass: a heavy node takes less of each push (inertia); d3 has none, so its velocity is scaled down
+      .force('mass', () => {
+        if (!this.opts.inertia) return;
+        for (const n of this.sim.nodes()) {
+          const k = 1 / Math.sqrt(1 + this.opts.inertia * ((n.mass ?? 1) - 1));
+          n.vx = (n.vx ?? 0) * k;
+          n.vy = (n.vy ?? 0) * k;
+        }
+      })
       // the sound card drifts up-centre, the meter down-centre (a slight pull, not a pin); all else gently centred
       .force(
         'endsX',
@@ -708,11 +731,17 @@ export class ForceLayout {
       // (a belt is drawn over the wheels: short and stiff, so its turntables sit side by side and it crosses little)
       .distance((l) => (l.tag || l.muxed ? o.linkDistance * 1.6 : l.part ? o.linkDistance * o.partLength : l.belt ? o.linkDistance * BELT_LENGTH : o.linkDistance))
       .strength((l) =>
-        l.tag ? 0.12 : l.ground ? GROUND_PULL : l.belt ? BELT_PULL : Math.min(0.2, 0.08 + 0.02 * l.count) * o.contract * (l.muxed ? o.mux : 1 - (1 - (l.keep ?? 1)) * o.mux),
+        l.tag
+          ? 0.12
+          : l.ground
+            ? GROUND_PULL
+            : l.belt
+              ? BELT_PULL
+              : Math.min(0.2, 0.08 + 0.02 * l.count) * o.contract * (l.muxed ? o.mux : 1 - (1 - (l.keep ?? 1)) * o.mux) * (1 + o.strengthPull * ((l.strength ?? 1) - 1)),
       );
     // busy nodes push a little harder: more room around hubs, fewer edges squeezed past them
     (this.sim.force('charge') as ReturnType<typeof forceManyBody<PhysNode>>)
-      .strength((d) => (d.role === 'tag' ? o.charge * 3 : o.charge * (1 + o.degreeRepel * Math.max(0, (this.degree.get(d.id) ?? 1) - 1))))
+      .strength((d) => (d.role === 'tag' ? o.charge * 3 : o.charge * (1 + o.degreeRepel * Math.max(0, (this.degree.get(d.id) ?? 1) - 1)) * (1 + o.massRepel * ((d.mass ?? 1) - 1))))
       .distanceMax(o.repelRange);
     (this.sim.force('collide') as ReturnType<typeof forceCollide<PhysNode>>).radius((d) => d.radius + o.collidePad);
     // sideways: &bar and &out to their places on the centre line, everything else gently towards it
@@ -804,6 +833,7 @@ export class ForceLayout {
       }
     }
 
+    const owners = new Set((model.nets ?? []).map((net) => net.owner));
     model.nodes.forEach((n) => {
       let p = fresh ? undefined : this.byId.get(n.id);
       if (!p) {
@@ -835,6 +865,7 @@ export class ForceLayout {
       p.group = cell?.note ? undefined : cell?.tags?.[0];
       p.tags = cell?.note ? undefined : cell?.tags;
       const prm = (cell as { params?: Record<string, unknown> } | undefined)?.params;
+      p.mass = massOf(n, owners.has(n.id));
       p.heavy = typeof prm?.motor === 'number' || typeof prm?.belt === 'number'; // (a piece's card: its tags are the piece's, not a cluster)
       next.set(n.id, p);
     });
@@ -892,6 +923,7 @@ export class ForceLayout {
         count: e.count,
         part: e.kind === 'ref' || e.kind === 'over',
         belt: !!e.belt,
+        strength: strengthOf(e),
       }));
 
     this.sim.nodes([...next.values()]);
@@ -939,6 +971,7 @@ export class ForceLayout {
       source: typeof l.source === 'object' ? (l.source as PhysNode).id : (l.source as string),
       target: typeof l.target === 'object' ? (l.target as PhysNode).id : (l.target as string),
       belt: l.belt,
+      strength: l.strength,
     }));
     for (const id of [...this.bendAt.keys()]) if (!this.links.some((l) => l.id === id)) this.bendAt.delete(id);
     if (structural) this.reheat(fresh ? 1 : added > 0 || removed > 0 ? 0.7 : 0.3); // a fresh graph settles from scratch, like a new layout
@@ -1009,9 +1042,9 @@ export class ForceLayout {
   private placed() {
     const nodes = [...this.byId.values()].map((n) => ({ id: n.id, x: n.x ?? 0, y: n.y ?? 0, r: n.radius, tags: n.tags, label: n.role === 'tag' }));
     const edges = [
-      ...this.links.map((l) => ({ a: l.source, b: l.target, mid: this.bendAt.get(l.id) as { x: number; y: number } | undefined, runs: this.beltRuns(l) })),
+      ...this.links.map((l) => ({ a: l.source, b: l.target, mid: this.bendAt.get(l.id) as { x: number; y: number } | undefined, runs: this.beltRuns(l), weight: l.strength })),
       // (a meter's net: straight traces)
-      ...this.net.map((t) => ({ a: t.a, b: t.b, mid: undefined })),
+      ...this.net.map((t) => ({ a: t.a, b: t.b, mid: undefined, weight: 2 })),
     ];
     return { nodes, edges };
   }

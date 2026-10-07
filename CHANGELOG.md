@@ -14,6 +14,7 @@ that makes the change. Also note changes to the language that could affect saved
 - A read head of a sound tape (`play=` on a tape that records a mix) showed an empty wheel: it shows the waveform of what it plays back, with where it reads (`0.75s`). Saved `.cells` pieces are not affected.
 
 ### Changed
+- The graph's layout weighs its cells: a turntable heaviest, then a meter, a table read by several, a sound, a cell, and the heavier holds more room round it. Over the library: 83 crossings (89 before). Saved `.cells` pieces are not affected.
 - A table read by several cells is a net: one bundle of strands leaves its wheel and branches at a junction to each reader (it was a bundle each). A wheel's strands leave it as curves that keep their order, from the far side diving under the wheel, so none cross where they leave. Saved `.cells` pieces are not affected.
 - A meter's net is a backbone: a wide trace in the meter's colour, lit on the beat (it was a thin line that the edges' own width rule overrode). Saved `.cells` pieces are not affected.
 - Kalimba reads through its own tines: `&tune over=&kalimba`, and `&notes` (the same eight numbers written twice) is gone; each note plucks the tine at its place. It plays the same notes. In the graph the tune and the kalimba share one bus, from its pads. Saved `.cells` pieces are not affected.

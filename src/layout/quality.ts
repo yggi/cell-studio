@@ -28,6 +28,8 @@ export interface DrawnEdge {
    * belt crosses twice) against every edge, and against every wheel it passes over but its own two.
    */
   readonly runs?: readonly (readonly [number, number, number, number])[];
+  /** Its strength (weights.ts): what crossing it costs (1 when not given). */
+  readonly weight?: number;
 }
 
 export interface LayoutQuality {
@@ -35,6 +37,8 @@ export interface LayoutQuality {
   readonly cells: number;
   /** Pairs of edges that cross as drawn (see drawnCrossings). */
   readonly crossings: number;
+  /** The crossings weighed by what they cross (weights.ts): a crossing costs the product of the two edges' strengths. */
+  readonly cost: number;
   /** The bounding box of the cells' rooms, px. */
   readonly width: number;
   readonly height: number;
@@ -70,13 +74,18 @@ function distanceToSegment(px: number, py: number, x1: number, y1: number, x2: n
  * wheels: each of its runs counts, against the edges and against each wheel it passes over.
  */
 export function drawnCrossings(nodes: readonly PlacedNode[], edges: readonly DrawnEdge[]): number {
+  return crossingsOf(nodes, edges).count;
+}
+
+/** The crossings as drawn, counted and weighed. */
+function crossingsOf(nodes: readonly PlacedNode[], edges: readonly DrawnEdge[]): { count: number; cost: number } {
   const at = new Map(nodes.map((n) => [n.id, n]));
   const hidden = (x: number, y: number) => nodes.some((n) => Math.hypot(x - n.x, y - n.y) < n.r);
   const curves = edges.flatMap((e) => {
     const a = at.get(e.a);
     const b = at.get(e.b);
     if (!a || !b) return [];
-    if (e.runs) return e.runs.map((r) => ({ a: e.a, b: e.b, pieces: [r as [number, number, number, number]], belt: true }));
+    if (e.runs) return e.runs.map((r) => ({ a: e.a, b: e.b, pieces: [r as [number, number, number, number]], belt: true, w: e.weight ?? 1 }));
     const m = e.mid ?? { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
     const pts = Array.from({ length: 17 }, (_, k) => splinePoint(a.x, a.y, m.x, m.y, b.x, b.y, k / 16));
     const pieces: [number, number, number, number][] = [];
@@ -84,23 +93,34 @@ export function drawnCrossings(nodes: readonly PlacedNode[], edges: readonly Dra
       const [p, q] = [pts[k], pts[k + 1]];
       if (!hidden((p.x + q.x) / 2, (p.y + q.y) / 2)) pieces.push([p.x, p.y, q.x, q.y]);
     }
-    return [{ a: e.a, b: e.b, pieces, belt: false }];
+    return [{ a: e.a, b: e.b, pieces, belt: false, w: e.weight ?? 1 }];
   });
   let n = 0;
+  let cost = 0;
+  // (a belt over a wheel: the wheel weighs as an edge would)
   for (const c of curves)
-    if (c.belt) for (const w of nodes) if (!w.label && w.id !== c.a && w.id !== c.b && c.pieces.some((u) => distanceToSegment(w.x, w.y, u[0], u[1], u[2], u[3]) < w.r)) n++;
+    if (c.belt)
+      for (const w of nodes)
+        if (!w.label && w.id !== c.a && w.id !== c.b && c.pieces.some((u) => distanceToSegment(w.x, w.y, u[0], u[1], u[2], u[3]) < w.r)) {
+          n++;
+          cost += c.w;
+        }
   for (let i = 0; i < curves.length; i++)
     for (let j = i + 1; j < curves.length; j++) {
       const [p, q] = [curves[i], curves[j]];
       if (p.a === q.a || p.a === q.b || p.b === q.a || p.b === q.b) continue;
-      if (p.pieces.some((u) => q.pieces.some((v) => segmentsCross(u[0], u[1], u[2], u[3], v[0], v[1], v[2], v[3])))) n++;
+      if (p.pieces.some((u) => q.pieces.some((v) => segmentsCross(u[0], u[1], u[2], u[3], v[0], v[1], v[2], v[3])))) {
+        n++;
+        cost += p.w * q.w;
+      }
     }
-  return n;
+  return { count: n, cost: Math.round(cost * 10) / 10 };
 }
 
 /** Every number of LayoutQuality for one layout. Cluster discs are the graph's own (clusterDisc, pad 90, at least 120). */
 export function layoutQuality(nodes: readonly PlacedNode[], edges: readonly DrawnEdge[], aims: readonly Aim[] = []): LayoutQuality {
   const cells = nodes.filter((n) => !n.label);
+  const crossed = crossingsOf(nodes, edges);
   const at = new Map(cells.map((n) => [n.id, n]));
   const box = (f: (n: PlacedNode) => number) => (cells.length ? Math.max(...cells.map(f)) : 0);
   const width = cells.length ? box((n) => n.x + n.r) + box((n) => -(n.x - n.r)) : 0;
@@ -137,7 +157,8 @@ export function layoutQuality(nodes: readonly PlacedNode[], edges: readonly Draw
   });
   return {
     cells: cells.length,
-    crossings: drawnCrossings(nodes, edges),
+    crossings: crossed.count,
+    cost: crossed.cost,
     width: Math.round(width),
     height: Math.round(height),
     edge: Math.round(lengths.length ? lengths.reduce((s, v) => s + v, 0) / lengths.length : 0),

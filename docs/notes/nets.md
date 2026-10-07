@@ -234,6 +234,21 @@ Rates are a table (`RATE_UNITS`: `bpm`, `hz`, `k`, each n per so many seconds). 
 
 `GraphModel.nets` (`graph.ts`): the edges leaving one cell through one port, two or more (tables, `over=`, so far). The layout places each net's junction (`ForceLayout.junctions`, published with the bends): on the way to its readers' middle, at least 110 px out of the owner's wheel, short of the nearest reader. The first tap draws the trunk (the loom, `loom` in `geometry.ts`, to the junction), every tap its branch from there, one curve per strand that goes on along the trunk's way and round into the branch's. The loom is now one cubic per strand: out along the radius, into its place in the bundle (by angle round the wheel, so neighbours stay neighbours); a strand from the far side dives under the wheel. In the golden graph, `&mode` leaves once and branches to `&motif` and `&theme`. Not yet: the layout's forces don't know nets (a branch can run under a wheel, `&theme`'s under `&near`); that is the weights step.
 
+### Built: mass and strength (2026-10-07)
+
+`layout/weights.ts`: `massOf` (turntable 3, meter 2.5, a net's owner 2, a sound 1.5, a cell 1, a petal .5) and `strengthOf` (belt 3, sync 2, a bus 1 + log₂(width)/3, a wire 1, a note's link .3). The quality report gains `cost`, the crossings weighed by what they cross (the product of the two strengths; a belt over a wheel its own), recorded in the baseline and guarded by the library test. Measured over the library (crossings / cost):
+
+| | crossings | cost |
+|---|---|---|
+| none | 89 | 139 |
+| mass as repulsion | **83** | **128** |
+| mass as inertia | 102 | 164 |
+| strength as stiffness | 107 | 166 |
+| all three | 107 | 172 |
+| repulsion ×1.5 / ×2 / ×3 | 94 / 78 / 97 | 142 / 114 / 148 |
+
+The landscape is noisy (×2 is best, its neighbours are worse), so the plain rule is kept: repulsion in proportion to mass. Inertia and stiffness stay as options (`inertia`, `strengthPull`), off: as tried they make it worse. Strength counts, for now, in what a crossing costs.
+
 ### Order
 
 1. The weights table and weighted crossings: measurable against the baseline, no change to the model.
