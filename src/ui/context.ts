@@ -37,6 +37,8 @@ export interface GraphContext extends LiveSource {
   open(name: string): void;
   /** Where each edge's spline bends (by edge id), from the layout. */
   readonly bends: ReadonlyMap<string, { x: number; y: number }>;
+  /** Where each net's tap attaches (by edge id): null, the trunk's, from the owner; else a point on the net and its way. */
+  readonly taps?: ReadonlyMap<string, { x: number; y: number; dx: number; dy: number; phi: number } | null>;
   toggle(id: string): void;
   /** Stopped: move where play starts by so many seconds (a turntable turned by hand). */
   nudge(seconds: number): void;

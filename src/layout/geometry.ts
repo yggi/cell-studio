@@ -116,16 +116,24 @@ export function loomPaths(cx: number, cy: number, r: number, turns: readonly num
   return loom(cx, cy, r, turns, mx, my, bx, by, gap).paths;
 }
 
+/**
+ * The places in a loom's bundle (0 … n−1, across it): by angle round the wheel from the way it leaves (`phi`, radians),
+ * right of it to the right, left to the left — so a branch of the bundle carries each strand on at the same place.
+ */
+export function loomOrder(turns: readonly number[], phi: number): number[] {
+  const delta = turns.map((t) => Math.atan2(Math.sin(t * 2 * Math.PI - Math.PI / 2 - phi), Math.cos(t * 2 * Math.PI - Math.PI / 2 - phi)));
+  return delta.map((d, i) => delta.filter((e, j) => e < d || (e === d && j < i)).length);
+}
+
 /** loomPaths, with where each strand's bundle place ends (b, offset across). */
-export function loom(cx: number, cy: number, r: number, turns: readonly number[], mx: number, my: number, bx: number, by: number, gap: number) {
+function loom(cx: number, cy: number, r: number, turns: readonly number[], mx: number, my: number, bx: number, by: number, gap: number) {
   const phi = Math.atan2(by - cy, bx - cx);
   const [ux, uy] = [Math.cos(phi), Math.sin(phi)];
   const [nx, ny] = [-uy, ux];
   const wrap = (a: number) => Math.atan2(Math.sin(a), Math.cos(a));
   const at = turns.map((t) => t * 2 * Math.PI - Math.PI / 2);
   const delta = at.map((a) => wrap(a - phi));
-  // places in the bundle: by angle round the wheel from b's direction (right of it to the right, left to the left)
-  const rank = delta.map((d, i) => delta.filter((e, j) => e < d || (e === d && j < i)).length);
+  const rank = loomOrder(turns, phi);
   const n = turns.length;
   const d = Math.hypot(bx - cx, by - cy) || 1;
   // (where the bundle gathers: out of the wheel, but well short of b)

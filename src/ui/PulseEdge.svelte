@@ -12,7 +12,7 @@
    */
   import { BaseEdge, type EdgeProps } from '@xyflow/svelte';
   import { untrack } from 'svelte';
-  import { loom, loomPaths, radialPath, ripplePath, splinePoint, strandPath } from '../layout/geometry';
+  import { loomOrder, loomPaths, radialPath, ripplePath, splinePoint, strandPath } from '../layout/geometry';
   import { cellView, type Fill } from '../layout/cellview';
   import { isTurntable } from '../engine/graph';
   import { getGraphContext } from './context';
@@ -33,7 +33,7 @@
       phaseCell: string | null;
       voice: string | null;
       sizes?: { from: number; to: number };
-      net?: { id: string; trunk: boolean };
+      net?: { id: string };
       off?: boolean;
       state?: string;
     },
@@ -95,23 +95,22 @@
     if (!exits.length || exits.some((s) => !s))
       return Array.from({ length: count }, (_, i) => strandPath(sourceX, sourceY, mid.x, mid.y, targetX, targetY, (i - (count - 1) / 2) * GAP));
     const turns = exits.map((s) => (s!.t0 + s!.t1) / 2);
-    // a net (a table read by several): the trunk, out of the wheel to the junction, carried by one of its edges; from
-    // there each edge's branch to its reader — the bundle goes on, its strands side by side, to each
-    const j = d.net ? ctx.bends.get(d.net.id) : undefined;
-    if (j) {
-      const trunk = loom(sourceX, sourceY, r, turns, (sourceX + j.x) / 2, (sourceY + j.y) / 2, j.x, j.y, GAP);
-      const [tx, ty] = [j.x - sourceX, j.y - sourceY];
-      const tl = Math.hypot(tx, ty) || 1;
-      const [bx, by] = [targetX - j.x, targetY - j.y];
+    // a net (a table read by several), laid as a ratsnest: one tap takes the trunk, the loom from the wheel, straight to
+    // its reader; each other tap branches off the tree where it is nearest, the bundle going on, each strand at its place
+    const tap = d.net ? ctx.taps?.get(id) : undefined;
+    if (tap === null) return loomPaths(sourceX, sourceY, r, turns, (sourceX + targetX) / 2, (sourceY + targetY) / 2, targetX, targetY, GAP);
+    if (tap) {
+      const order = loomOrder(turns, tap.phi);
+      const [bx, by] = [targetX - tap.x, targetY - tap.y];
       const bl = Math.hypot(bx, by) || 1;
       const k = 0.4 * bl;
       const f = (v: number) => v.toFixed(1);
-      return trunk.paths.map((p, i) => {
-        const e = trunk.ends[i];
-        const [nx, ny] = [-by / bl, bx / bl];
-        // (on along the trunk's way, then round into the branch's: one smooth curve)
-        const branch = `C ${f(e.x + (tx / tl) * k)} ${f(e.y + (ty / tl) * k)} ${f(targetX + nx * e.o - (bx / bl) * k)} ${f(targetY + ny * e.o - (by / bl) * k)} ${f(targetX + nx * e.o)} ${f(targetY + ny * e.o)}`;
-        return d.net!.trunk ? `${p} ${branch}` : `M ${f(e.x)} ${f(e.y)} ${branch}`;
+      return turns.map((_, i) => {
+        const o = (order[i] - (turns.length - 1) / 2) * GAP;
+        const [sx, sy] = [tap.x - tap.dy * o, tap.y + tap.dx * o];
+        const [ex, ey] = [targetX - (by / bl) * o, targetY + (bx / bl) * o];
+        // (along the tree's way at the T, then round into the branch's: one smooth curve)
+        return `M ${f(sx)} ${f(sy)} C ${f(sx + tap.dx * k)} ${f(sy + tap.dy * k)} ${f(ex - (bx / bl) * k)} ${f(ey - (by / bl) * k)} ${f(ex)} ${f(ey)}`;
       });
     }
     // out of each entry, along the radius, into a bundle towards the reader

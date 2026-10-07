@@ -24,8 +24,9 @@ describe('the golden graph', () => {
     layout.setGraph(model);
     layout.tick(500);
     layout.layNet();
-    // each net's junction: out of its owner's wheel
-    for (const net of model.nets) expect(layout.junctions().has(net.id), net.id).toBe(true);
+    // each net a ratsnest: one tap takes the trunk from the owner, the others attach to the tree
+    const taps = layout.taps();
+    for (const net of model.nets) expect(net.taps.map((id) => taps.get(id) === null).filter(Boolean), net.id).toHaveLength(1);
     const { crossings, overlap } = layout.quality();
     expect(overlap).toBe(0);
     // (the graph is planar: it can be drawn with none. Lower this when the layout gets there. 4 → 6 when the sun got

@@ -82,7 +82,7 @@ interface GraphNet {
   readonly owner: string;
   readonly port: string;
   readonly band: Band;
-  /** Its edges, one a reader; the first carries the trunk. */
+  /** Its edges, one a reader (the layout lays them as a ratsnest: ForceLayout.taps). */
   readonly taps: readonly string[];
 }
 

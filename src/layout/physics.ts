@@ -1234,8 +1234,6 @@ export class ForceLayout {
   /** All bends, for drawing. */
   bends(): Map<string, { x: number; y: number }> {
     const out = new Map([...this.bendAt].map(([k, v]) => [k, { x: v.x, y: v.y }]));
-    // (and each net's junction, by its id: where its trunk ends and its branches start)
-    for (const [id, j] of this.junctions()) out.set(id, j);
     return out;
   }
 
@@ -1243,25 +1241,50 @@ export class ForceLayout {
   private nets: GraphModel['nets'] = [];
 
   /**
-   * Where each net's trunk branches: on the way from its owner to its readers' middle, outside the owner's wheel —
-   * nearer the readers the further they are (a long trunk, short branches), never past the nearest of them.
+   * Each net laid as a ratsnest (as KiCad shows one, and lays it again as a part moves): the reader nearest the owner
+   * takes the trunk straight from it; then, nearest first, each other reader attaches where the tree is nearest to it —
+   * anywhere along a segment (a T), never inside a wheel. By tap (edge id): null for the trunk's, else the point it
+   * branches from, the way the segment there runs, and the trunk's way out of the owner (the strands' order). Laid again whenever it's asked for, so it follows a moved cell.
    */
-  junctions(): Map<string, { x: number; y: number }> {
-    const out = new Map<string, { x: number; y: number }>();
+  taps(): Map<string, { x: number; y: number; dx: number; dy: number; phi: number } | null> {
+    const out = new Map<string, { x: number; y: number; dx: number; dy: number; phi: number } | null>();
     for (const net of this.nets) {
       const o = this.byId.get(net.owner);
-      const readers = net.taps
-        .map((id) => this.edgeEnds.get(id))
-        .flatMap((e) => (e ? [this.byId.get(e)] : []))
-        .filter((n): n is PhysNode => !!n);
+      const readers = net.taps.flatMap((id) => {
+        const n = this.byId.get(this.edgeEnds.get(id) ?? '');
+        return n ? [{ id, n, x: n.x ?? 0, y: n.y ?? 0 }] : [];
+      });
       if (!o || readers.length < 2) continue;
       const [ox, oy] = [o.x ?? 0, o.y ?? 0];
-      const [mx, my] = [readers.reduce((s, n) => s + (n.x ?? 0), 0) / readers.length, readers.reduce((s, n) => s + (n.y ?? 0), 0) / readers.length];
-      const d = Math.hypot(mx - ox, my - oy) || 1;
-      const nearest = Math.min(...readers.map((n) => Math.hypot((n.x ?? 0) - ox, (n.y ?? 0) - oy) - n.radius));
-      // (room for the loom to gather before it branches: well out of the owner's wheel)
-      const along = Math.max(o.radius + 110, Math.min(d * 0.6, nearest - 20));
-      out.set(net.id, { x: ox + ((mx - ox) / d) * along, y: oy + ((my - oy) / d) * along });
+      const first = readers.reduce((a, b) => (Math.hypot(b.x - ox, b.y - oy) < Math.hypot(a.x - ox, a.y - oy) ? b : a));
+      out.set(first.id, null);
+      // (the trunk's way out of the owner: the order of the strands in every branch)
+      const phi = Math.atan2(first.y - oy, first.x - ox);
+      // the tree's segments, each clear of the wheels at its ends
+      const segs: { ax: number; ay: number; bx: number; by: number; ra: number; rb: number }[] = [{ ax: ox, ay: oy, bx: first.x, by: first.y, ra: o.radius, rb: first.n.radius }];
+      const nearest = (x: number, y: number) => {
+        let best = { d: Infinity, x: 0, y: 0, dx: 1, dy: 0 };
+        for (const s of segs) {
+          const [vx, vy] = [s.bx - s.ax, s.by - s.ay];
+          const l = Math.hypot(vx, vy) || 1;
+          const lo = Math.min(0.5, (s.ra + 30) / l);
+          const hi = Math.max(lo, 1 - (s.rb + 30) / l);
+          const t = Math.max(lo, Math.min(hi, ((x - s.ax) * vx + (y - s.ay) * vy) / (l * l)));
+          const [px, py] = [s.ax + vx * t, s.ay + vy * t];
+          const d = Math.hypot(x - px, y - py);
+          if (d < best.d) best = { d, x: px, y: py, dx: vx / l, dy: vy / l };
+        }
+        return best;
+      };
+      const left = readers.filter((r) => r !== first);
+      while (left.length) {
+        const at = left.map((r) => nearest(r.x, r.y));
+        const k = at.reduce((b, a, i) => (a.d < at[b].d ? i : b), 0);
+        const r = left.splice(k, 1)[0];
+        const a = at[k];
+        out.set(r.id, { x: a.x, y: a.y, dx: a.dx, dy: a.dy, phi });
+        segs.push({ ax: a.x, ay: a.y, bx: r.x, by: r.y, ra: 0, rb: r.n.radius });
+      }
     }
     return out;
   }

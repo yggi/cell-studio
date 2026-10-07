@@ -69,10 +69,9 @@ export interface EndSizes {
   readonly to: number;
 }
 
-/** An edge's place in a net (GraphModel.nets): which, and whether it carries the trunk (the loom out of the owner). */
+/** An edge's place in a net (GraphModel.nets): which (the layout says where it attaches: ForceLayout.taps). */
 export interface NetPlace {
   readonly id: string;
-  readonly trunk: boolean;
 }
 
 export function flowEdgeOf(e: GraphEdge, state: State, program: CompileResult, belt?: BeltDrawn, sizes?: EndSizes, net?: NetPlace): Edge {

@@ -108,6 +108,9 @@
     get bends() {
       return bends;
     },
+    get taps() {
+      return taps;
+    },
     get muted() {
       return muted;
     },
@@ -175,6 +178,8 @@
   // The node under the pointer is left alone: Svelte Flow owns it while dragging.
   // where each edge's spline bends (it slips off nodes it would rest on)
   let bends = $state.raw(new Map<string, { x: number; y: number }>());
+  // where each net's taps attach (a ratsnest: laid again as cells move)
+  let taps = $state.raw(new Map<string, { x: number; y: number; dx: number; dy: number; phi: number } | null>());
   // unnamed cells are petals: not simulated, hung on an arc above their parent
   let petalSlot = new Map<string, { parent: string; i: number; n: number }>();
   function posOf(id: string): { x: number; y: number } | undefined {
@@ -206,6 +211,7 @@
       return p ? { ...turned, position: p } : turned;
     });
     bends = layout.bends();
+    taps = layout.taps();
   });
   // (at rest again — after a drag, an edit — the meter's net is laid again from where things are; the meter stays put)
   layout.onSettle(() => {
@@ -278,7 +284,7 @@
   const edgeTypes = { pulse: PulseEdge, belt: BeltEdge, meter: MeterEdge };
 
   // each edge's place in a net (a table read by several: one trunk, a branch to each reader)
-  const netPlaces = $derived(new Map(model.nets.flatMap((n) => n.taps.map((id, i) => [id, { id: n.id, trunk: i === 0 }] as const))));
+  const netPlaces = $derived(new Map(model.nets.flatMap((n) => n.taps.map((id) => [id, { id: n.id }] as const))));
 
   function toFlowEdge(e: GraphEdge): Edge {
     // off, unrouted, on, idle, live: one rule for edges and nodes (engine/routing.ts). Here without the live set: while

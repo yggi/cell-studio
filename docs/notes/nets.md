@@ -249,6 +249,10 @@ Rates are a table (`RATE_UNITS`: `bpm`, `hz`, `k`, each n per so many seconds). 
 
 The landscape is noisy (×2 is best, its neighbours are worse), so the plain rule is kept: repulsion in proportion to mass. Inertia and stiffness stay as options (`inertia`, `strengthPull`), off: as tried they make it worse. Strength counts, for now, in what a crossing costs.
 
+### Built: nets as a ratsnest (2026-10-07)
+
+The owner: nets are flexible, a moved cell snaps to its best place to attach, as KiCad's ratsnest does. `ForceLayout.taps()` (laid again on every tick, so it follows a drag): the reader nearest the owner takes the trunk straight from it; then, nearest first, each other reader attaches where the tree is nearest to it, anywhere along a segment (a T), kept 30 px clear of the wheels at its ends. Published to the edges as `ctx.taps` beside the bends: null for the trunk's tap, else the point, the segment's way there and the trunk's way out (`phi`), from which each branch keeps its strands at their places (`loomOrder`). The fixed junction is gone. In the golden graph `&mode`'s trunk goes to `&motif` (nearest) and `&theme` tees off near it. Seen in pictures at rest; a drag not seen.
+
 ### Tried: grown, as the library is (2026-10-07)
 
 The owner's idea: lay a fresh graph out as the library is (`layout/library.ts`): small first (nodes, edges and repulsion at a fraction of their size), its edges contracting it into its groups, then grown to full size. Built as options (`grow`, `growStart`, `growGather`, `growTicks`, `growShrink`: one scale on the collision radii, the link lengths and the repulsion, ramped smoothly). Measured over the library (crossings / cost) and on the golden graph:
