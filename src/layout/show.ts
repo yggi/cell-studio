@@ -16,7 +16,7 @@ export type Kind = 'voice' | 'adsr' | 'grid' | 'meter' | 'mix' | 'table' | 'brai
 
 /** The shows that fit each kind of cell (the first is the plain one). */
 export const FITS: Readonly<Record<Kind, readonly Show[]>> = {
-  voice: ['spectrum', 'wave', 'petal', 'off'],
+  voice: ['wave', 'spectrum', 'petal', 'off'],
   adsr: ['adsr', 'table', 'petal', 'off'],
   grid: ['grid', 'table', 'off'],
   meter: ['meter', 'pattern', 'off'],
@@ -56,7 +56,7 @@ export const SHOW_MEANING: Readonly<Record<Show, string>> = {
   spectrum: 'the sound: a spectral waterfall',
   adsr: 'an envelope curve',
   mix: 'the voices it mixes',
-  wave: 'one cycle of its waveform',
+  wave: 'its waveform: one cycle, and the sound itself while it plays',
   levels: 'its levels, as bars',
   note: 'a note in the graph: its label',
   petal: 'small, hung from the cell that uses it',

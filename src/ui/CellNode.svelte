@@ -7,6 +7,7 @@
   import { longpress } from './kit/attach';
   import FreePills from './FreePills.svelte';
   import SpectrumWheel from './SpectrumWheel.svelte';
+  import WaveGlyph from './WaveGlyph.svelte';
   import { hubLabel } from '../layout/cellview';
   import { formatLabel } from '../layout/labels';
   import { meterColour } from './theme';
@@ -21,9 +22,9 @@
   });
   const state = $derived(nodeState(ctx, id));
   const freeCell = $derived(ctx.program.cells.get(data.name));
-  // mixes and the sound card are signals: they show their spectrum
+  // mixes and the sound card are signals: they show their spectrum (a read head, its waveform)
   const cell = $derived(ctx.program.cells.get(data.name));
-  // (and a read head of a sound tape: what it plays back is sound — its spectrum, with where it reads)
+  // (a read head of a sound tape: what it plays back is sound — its waveform, with where it reads)
   const soundHead = $derived(!!cell && typeof cell.params.play === 'string' && ctx.program.tapes.some((t) => t.name === cell.params.play));
   const signal = $derived(!!cell && (!!cell.mix || cell.sink || soundHead));
   const at = $derived(cell?.params.at);
@@ -57,7 +58,9 @@
     {@attach longpress(() => ctx.toggle(id))}
   >
     <Handle type="target" position={Position.Top} class="center-handle" isConnectable={false} />
-    {#if signal && hub}
+    {#if soundHead}
+      <WaveGlyph name={data.name} size={data.size} caption={hub ? `${hub.big} ${hub.small}` : null} />
+    {:else if signal && hub}
       <SpectrumWheel name={data.name} size={data.size} {hub} />
     {:else}
       <CellGlyph name={data.name} isMeter={data.isMeter} size={data.size} />
