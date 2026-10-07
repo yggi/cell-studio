@@ -20,6 +20,7 @@ A round over the 52 examples with #10's eyes: find the syntax that strains, the 
 | Shorten | degrees, wrappers, progressions, defaults, stereo twins; padding isn't code | 40b7772, ee6339f |
 | examples | every note the same: the new forms in 33 pieces | dfa7b46 |
 | examples | changed on purpose: pans in 8 pieces (≤ 0.25 dB), Cellscape's one selector, the tresillo on the bar | f2b8fe4 |
+| BWV 847 | from its generator: braids of chords, `pan=` (≤ 0.09 dB), no `loop=SAMPLE_RATE` | 8603836 |
 
 Over the corpus: 2,566 characters, 33 lines and 21 cells fewer; the layout's crossings 45.5 → 37.5.
 
@@ -28,7 +29,6 @@ Over the corpus: 2,566 characters, 33 lines and 21 cells fewer; the layout's cro
 **Open, for #10 or their own issue:**
 - F5 swing: not built. `swing=` still swings only a list meter or `meter()`; the swing clock (`&swing scan(free(2, 1..3) 1)`) is the form the examples use.
 - The operator pass (below).
-- BWV 847 is written by `tools/bwv847.py` (which downloads its source): its chord tables (`stride=4 cycle=280`), stereo and `loop=SAMPLE_RATE` change there, not by hand.
 - Grooves: a choice of voices (`[&sd|&cp]`) isn't read yet; a moving `pan=` (an auto-pan) and a kit member that is a resonator don't take a pan yet (decision 007).
 - Five: after its rewrite the layout leaves one node overlap (12.7 px); Cellular Brothers and Cellscape each one more tag cluster.
 - Still single-piece kludges: Korobeiniki's parts written twice for two harmonies (#29), Pachelbel's entries as gates (the nets thread), Hypercell's chord cells in absolute semitones (`degree(&triad, &prog)`, F1's moving amount).
