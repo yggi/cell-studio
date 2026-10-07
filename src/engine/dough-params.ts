@@ -47,7 +47,6 @@ export const RETIRED_PARAMS: Readonly<Record<string, string>> = {
   sustain: ENVELOPE('sustain'),
   release: ENVELOPE('release'),
   gain: 'gain= is gone: set the level in the mix, &theme * &lead * 0.8',
-  pan: 'pan= is gone: balance with two mixes, &out … map=sample &left &right',
   penv: PITCH_DROP('penv'),
   pdec: PITCH_DROP('pdec'),
 };

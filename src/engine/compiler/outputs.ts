@@ -1,6 +1,6 @@
 /** Phase 6: the outputs — one per voice binding, articulated (the finest step= term starts notes; the others and loop= terms bend or hold). */
 import type { CellDecl, Span } from '../ast';
-import { adsrOf, pickSteps, pickText, type Clock, type Output, type Resonance, type ResolvedCell, type TapeReturn } from '../program';
+import { adsrOf, balance, pickSteps, pickText, type Clock, type Output, type Resonance, type ResolvedCell, type TapeReturn } from '../program';
 import { IMPLICIT } from './tables';
 import type { Bound } from './bindings';
 import type { Cells, Ctx } from './context';
@@ -38,7 +38,8 @@ export function outputsOf(ctx: Ctx, decls: ReadonlyMap<string, CellDecl>, cells:
     if (!voice) continue;
     // a resonator alone in a mix: heard ringing (from a hand, a neighbour, what drives it)
     if (typeof voice.params.body === 'string' && b.pitches.length === 0) {
-      resonances.push({ cell: voice.name, gains: [gains[0], gains[1]] });
+      const [pl, pr] = balance(voice.params.pan);
+      resonances.push({ cell: voice.name, gains: [gains[0] * pl, gains[1] * pr] });
       continue;
     }
     if (voice.kit && !b.pitches.some((t) => decls.get(t.ref.name)?.over?.name === voice.name)) {
@@ -152,6 +153,8 @@ export function outputsOf(ctx: Ctx, decls: ReadonlyMap<string, CellDecl>, cells:
       error(`&${cell.name} has no steps to play`, t.ref.span);
       continue;
     }
+    // pan= on the voice: its channel gains (a kit's members are placed note by note, in realize)
+    const [pl, pr] = voice.kit ? [1, 1] : balance(voice.params.pan);
     outputs.push({
       id: `${voice.name}:${cell.name}:${t.ref.span.line}:${t.ref.span.col}${select.map((x) => `@${x.cell}:${x.entry}`).join('')}`,
       voice: voice.name,
@@ -164,8 +167,8 @@ export function outputsOf(ctx: Ctx, decls: ReadonlyMap<string, CellDecl>, cells:
       mods: pitches.filter((x) => x !== lead[0]).map((x) => ({ cell: x.c.name, pick: x.t.ref.pick, shift: x.t.ref.shift, sign: x.t.sign })),
       levels: levels.filter((x) => x !== lead[0]).map((x) => ({ cell: x.c.name, pick: x.t.ref.pick, shift: x.t.ref.shift, sign: x.t.sign })),
       offset: b.offset,
-      gains: [gains[0], gains[1]],
-      parts,
+      gains: [gains[0] * pl, gains[1] * pr],
+      parts: parts.map((x) => ({ ...x, gains: [x.gains[0] * pl, x.gains[1] * pr] as [number, number] })),
       select,
       ...(tapeOf.has(t) ? { tape: tapeOf.get(t)! } : {}),
       ...(silent ? { silent: true } : {}),

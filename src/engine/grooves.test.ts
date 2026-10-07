@@ -49,3 +49,28 @@ describe('a stepped braid of voices plays them (#10 F4)', () => {
     expect(shorten(src)).toEqual([]);
   });
 });
+
+describe('pan= on a voice: where it sits in stereo (#10 F3)', () => {
+  const tune = '&t step=2 0 4 7\n';
+  const gains = (src: string) => {
+    const r = compileSource(src);
+    expect(r.diagnostics).toEqual([]);
+    return eventsBetween(plan(r, codeShifts(r)), 0, 1.4).map((e) => `${e.voice} ${e.gains.map((g) => g.toFixed(4))}`);
+  };
+  it('.5 is the centre, as without it; 0 is left, 1 right; between, the far side fades', () => {
+    const at = (pan: string) => gains(tune + `&v s=sine loop=C4 ${pan}\n&out map=sample [&t * &v * .5]`)[0];
+    expect(at('pan=.5')).toBe(at(''));
+    expect(at('pan=0')).toBe('v 0.5000,0.0000');
+    expect(at('pan=1')).toBe('v 0.0000,0.5000');
+    expect(at('pan=.25')).toBe('v 0.5000,0.2500');
+  });
+  it('one chord with panned voices plays what two chords with different gains play', () => {
+    const two = gains(tune + '&a s=sine loop=C4\n&b s=tri loop=C3\n&out map=sample [&t * &a * .2, &t * &b * .4] [&t * &a * .1, &t * &b * .1]');
+    const one = gains(tune + '&a s=sine loop=C4 pan=.25\n&b s=tri loop=C3 pan=.125\n&out map=sample [&t * &a * .2, &t * &b * .4]');
+    expect(one).toEqual(two);
+  });
+  it('a kit’s members each sit where their pan= says', () => {
+    const g = gains(voices.replace('hpf=8000', 'hpf=8000 pan=1') + '&groove step=&bar/2 &bd &hh\n&out map=sample [&groove * .6]');
+    expect(g.slice(0, 2)).toEqual(['bd 0.6000,0.6000', 'hh 0.0000,0.6000']);
+  });
+});

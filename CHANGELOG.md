@@ -17,6 +17,8 @@ that makes the change. Also note changes to the language that could affect saved
 
 - A stepped braid of voices plays them: `&groove step=&bar/4 &bd ~ &hh [&bd,&sd] &hh*2` is a drum pattern by name, with no kit and no numbers to look up; it plays what the same pattern read through a kit plays. Saved `.cells` pieces are not affected (it was an error before).
 
+- `pan=` on a voice places it in stereo: 0 left, .5 centre (as without it), 1 right, the far side fading; one chord with panned voices plays what two chords with different gains play. **Saved pieces:** `pan=` was an error since the start (it said "balance with two mixes"); two chords keep working ([decision 007](docs/decisions/007-pan-is-back.md)).
+
 ### Fixed
 - Opening a piece whose graph has a chord or a table bus no longer throws while the previous piece gives way (Baustelle, Baustelle II failed the smoke test). Saved `.cells` pieces are not affected.
 - A read head of a sound tape (`play=` on a tape that records a mix) showed an empty wheel: it shows the waveform of what it plays back, with where it reads (`0.75s`). Saved `.cells` pieces are not affected.

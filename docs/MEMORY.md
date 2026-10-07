@@ -49,6 +49,7 @@ One line each; the record has the rationale. → [decisions/](decisions/README.m
 - 004 · Agents open PRs and never merge; the `senior` skill triages, reviews and merges with the owner's approval · → decisions/004-agents-dont-merge.md
 - 005 · The audio context is `balanced` (not `playback`, not yet `interactive`), and the pictures show what is heard · → decisions/005-balanced-latency-and-heard-pictures.md
 - 006 · The mix algebra: a factor's sort (pitch, volume, signal) comes from the cell, not its place; `+` and `*` commute; numbers are semitones in a sum, a gain in a product · → decisions/006-mix-algebra.md
+- 007 · `pan=` is back, a balance in dough's sense, compiled into the channel gains; two chords on the sound card stay valid · → decisions/007-pan-is-back.md
 
 ## Where things are tracked
 

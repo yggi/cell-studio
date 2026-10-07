@@ -120,6 +120,7 @@ Parameters belong to voices (the sound ones keep dough's names) and to physical 
 - `delay=n` · `delay=free(n, lo..hi)` · `delay=&x` · `delay=lo..hi * &a * &b`: Delay send 0–1 — on a voice; it makes the cell a voice. [→](sound.md)
 - `delaytime=n` · `delaytime=free(n, lo..hi)` · `delaytime=&clock/n`: Echo time, seconds — or a clock: &bar/2 (an eighth at the tempo) — on a voice; it makes the cell a voice. [→](sound.md)
 - `delayfeedback=n` · `delayfeedback=free(n, lo..hi)`: Echo feedback 0–1 — on a voice; it makes the cell a voice. [→](sound.md)
+- `pan=n` · `pan=free(n, lo..hi)`: Where it sits in stereo: 0 left, .5 centre (as without it), 1 right — the far side fades — on a voice; it makes the cell a voice. [→](sound.md)
 - `distort=n` · `distort=free(n, lo..hi)`: Distortion: 0 clean, .3 gritty, 1 and more harsh — on a voice; it makes the cell a voice. [→](sound.md)
 - `crush=n` · `crush=free(n, lo..hi)`: Bit depth: 16 clean, 8 grainy, 3 and fewer: rubble — on a voice; it makes the cell a voice. [→](sound.md)
 - `fm=&cell`: Frequency modulation: the voice that modulates this one (fm=&op); it may have its own fm= — on a voice; it makes the cell a voice. [→](physics.md)

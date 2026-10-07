@@ -187,6 +187,16 @@ export interface Exciter {
   readonly params: Readonly<Record<string, number | string>>;
 }
 
+/**
+ * pan= as channel gains: 0 left, .5 centre, 1 right, the far side fading while the near one stays full
+ * (a balance: centre is [1, 1], as without pan=). Any pair of channel gains is one gain and one pan.
+ */
+export function balance(pan: unknown): [number, number] {
+  if (typeof pan !== 'number') return [1, 1];
+  const p = Math.min(1, Math.max(0, pan));
+  return [Math.min(1, 2 * (1 - p)), Math.min(1, 2 * p)];
+}
+
 /** What isn't a voice's: the sound card's level, and a clock's physics. */
 
 export interface Clock {

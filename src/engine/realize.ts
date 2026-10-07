@@ -8,7 +8,7 @@
  */
 import type { Pick } from './ast';
 import { SECONDS_PER_STEP as LAW_SPS, notesBetween as lawNotes } from './fiveto12';
-import { adsrOf, type CompileResult, type Output, type Shifts } from './program';
+import { adsrOf, balance, type CompileResult, type Output, type Shifts } from './program';
 import { tableChain } from './helix';
 import { clocking, EPS, playedCells, tapeMotion, varispeedOf } from './clocking';
 import { ExpansionLimit, flatten, stepsOf, type StepEvent } from './flatten';
@@ -428,6 +428,12 @@ function plainEvents(p: Plan, from: number, to: number): Played[] {
       const freq = v.freq * Math.pow(2, semis / 12);
       const params = paramTracks(p, v.voice, at, dur);
       const env = t.output.envelope ?? (t.output.kit ? memberEnvelope(result, v.voice) : null);
+      // a kit's member placed by its own pan= (a voice's own is in its output's gains already)
+      const memberPan = (g: [number, number]): [number, number] => {
+        if (!t.output.kit) return g;
+        const [l, r] = balance(result.cells.get(v.voice)?.params.pan);
+        return [g[0] * l, g[1] * r];
+      };
       if (freq > 0 && freq < 20000 && level.some((l) => l.level > 0))
         out.push({
           at,
@@ -436,7 +442,7 @@ function plainEvents(p: Plan, from: number, to: number): Played[] {
           freq,
           bends,
           value: e.value + e.alter,
-          gains: liveGains(t.output, p.muted),
+          gains: memberPan(liveGains(t.output, p.muted)),
           levels: level,
           ...(env ? { env } : {}),
           ...(t.output.through.length ? { instrument: t.output.through[0] } : {}),
