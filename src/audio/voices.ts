@@ -7,12 +7,14 @@
  *
  * The parts live in voice/: a voice and its notes (voice.ts), resonators (resonator.ts), sound tapes
  * (tape.ts), noise, parameter tracks, and the bridge to Tone's nodes (nodes.ts). This file wires them to
- * the piece: which voices exist, what each mix hears, what feeds each tape and resonator — the connections
- * wiring.ts lists, from where sound goes (engine/flows.ts, the flows the graph draws).
+ * the piece: which voices exist, what each mix hears (the notes going through it: ./gate.ts), what feeds each
+ * tape and resonator — the connections wiring.ts lists, from where sound goes (engine/flows.ts, the flows the
+ * graph draws).
  */
 import type { Played } from '../engine/realize';
 import type { CompileResult, Shifts } from '../engine/program';
-import { audioContext, type Disposable, type ToneNS } from './voice/nodes';
+import { audioContext, disposer, inputOf, type Disposable, type ToneNS } from './voice/nodes';
+import { Gate } from './gate';
 import { buildVoice, freeVoice, playNote, type Built, type Bus, type Scope } from './voice/voice';
 import { bow, couple, damp, driveScale, resonanceOf, strikeAt } from './voice/resonator';
 import { wiring } from './wiring';
@@ -44,7 +46,7 @@ export interface VoiceBank {
   bow(name: string, amount: number | null): void;
   /** Frequency of the voice's most recent note to have started (null if none yet). */
   note(voice: string): number | null;
-  /** Live FFT (dB per bin), left and right: of a voice (after pan), a mix (its voices at their gains), or the sound card (the master). */
+  /** Live FFT (dB per bin), left and right: of a voice (after pan), a mix (the notes that go through it), or the sound card (the master). */
   spectrum(name: string): { left: Float32Array; right: Float32Array; sampleRate: number } | null;
   releaseAll(): void;
   dispose(): void;
@@ -81,8 +83,12 @@ export function createVoices(Tone: ToneNS): VoiceBank {
   // the sound card's wheel listens to everything
   const master_ = makeScope();
   master.connect(master_.input);
-  // a mix's wheel listens to its voices at their gains (analysis only: the sound goes out through the master)
+  // a mix's wheel listens to what goes through it (analysis only: the sound goes out through the master): each
+  // voice's tap opened by the notes it plays through the mix (wiring.ts `taps`, ./gate.ts)
   let mixes = new Map<string, { scope: Scope; nodes: Disposable[]; input?: import('tone').Gain }>();
+  let gates = new Map<string, Gate>();
+  let taps: ReadonlyMap<string, readonly string[]> = new Map();
+  const gateKey = (voice: string, mix: string) => `${voice}\u0000${mix}`;
   let sinks = new Set<string>();
 
   const soundKey = (result: CompileResult, name: string, shifts: Shifts) => {
@@ -137,6 +143,10 @@ export function createVoices(Tone: ToneNS): VoiceBank {
       for (const m of mixes.values()) for (const n of m.nodes) n.dispose();
       mixes = new Map();
       for (const c of result.cells.values()) if (c.mix) mixes.set(c.name, makeScope());
+      // (notes already scheduled keep their taps open on the new ones)
+      const oldGates = gates;
+      gates = new Map();
+      taps = plan.taps;
       sinks = new Set([...result.cells.values()].filter((c) => c.sink).map((c) => c.name));
       // a voice played only into sends (a resonator's excitation, a tape) isn't heard from itself
       for (const [name, b] of built) {
@@ -174,9 +184,27 @@ export function createVoices(Tone: ToneNS): VoiceBank {
         if (w.kind === 'tap') {
           const tap = mixes.get(w.to);
           if (!v || !tap) continue;
-          const g = new Tone.Gain(w.gain).connect(tap.input!);
-          v.out.connect(g);
-          tap.nodes.push(g);
+          const g = ctx.createGain();
+          g.gain.value = w.gate ? 0 : w.gain;
+          Tone.connect(v.out, g);
+          g.connect(inputOf(tap.input!));
+          tap.nodes.push(
+            disposer(() => {
+              g.disconnect();
+              // (a voice rebuilt is disconnected already)
+              try {
+                v.out.disconnect(g);
+              } catch {
+                /* gone with its voice */
+              }
+            }),
+          );
+          if (w.gate) {
+            const gate = new Gate(g.gain);
+            const now = ctx.currentTime;
+            for (const s of oldGates.get(gateKey(w.from, w.to))?.pending(now) ?? []) gate.open(s.a, s.b, now);
+            gates.set(gateKey(w.from, w.to), gate);
+          }
         } else if (w.kind === 'couple') {
           // through the table, both ways, a little of each into the other
           const a = v?.res;
@@ -280,7 +308,10 @@ export function createVoices(Tone: ToneNS): VoiceBank {
 
     play(note: Played) {
       const b = built.get(note.voice);
-      if (b) playNote(Tone, ctx, b, note, (name) => built.get(name));
+      if (!b) return;
+      const sounds = playNote(Tone, ctx, b, note, (name) => built.get(name));
+      // its taps: the wheels of the mixes it goes through hear it while it sounds
+      if (sounds && note.output) for (const m of taps.get(note.output) ?? []) gates.get(gateKey(note.voice, m))?.open(sounds.at, sounds.end, ctx.currentTime);
     },
 
     note(voice) {
