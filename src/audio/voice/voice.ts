@@ -142,17 +142,17 @@ export function freeVoice(b: Built): void {
   for (const n of b.nodes) n.dispose();
 }
 
-/** Play a note on a voice (`voiceOf`: the others, for FM modulators). */
-export function playNote(Tone: ToneNS, ctx: AudioContext, b: Built, note: Played, voiceOf: (name: string) => Built | undefined): void {
+/** Play a note on a voice (`voiceOf`: the others, for FM modulators). Returns when it sounds (audio seconds; null: not played, or a strike). */
+export function playNote(Tone: ToneNS, ctx: AudioContext, b: Built, note: Played, voiceOf: (name: string) => Built | undefined): { at: number; end: number } | null {
   const { freq, gains, env: noteEnv } = note;
   let { at: time, dur: duration, bends, levels, params } = note;
   // a resonator: a note plucks the exciter nearest its pitch
   if (b.res) {
     if (Number.isFinite(time) && b.res.parts.length) strikeAt(ctx, nearest(b.res, freq), time, 0.5);
-    return;
+    return null;
   }
   // (a time that never comes — a clock run down under it — or nonsense: nothing to play)
-  if (!Number.isFinite(time) || !Number.isFinite(duration) || !Number.isFinite(freq)) return;
+  if (!Number.isFinite(time) || !Number.isFinite(duration) || !Number.isFinite(freq)) return null;
   bends = bends.filter((x) => Number.isFinite(x.at) && Number.isFinite(x.cents));
   levels = levels.filter((x) => Number.isFinite(x.at) && Number.isFinite(x.level));
   if (params)
@@ -166,7 +166,7 @@ export function playNote(Tone: ToneNS, ctx: AudioContext, b: Built, note: Played
     noteStats.worstLateMs = Math.max(noteStats.worstLateMs, (now - time) * 1000);
     if (time < now - 0.05) {
       noteStats.dropped++;
-      return;
+      return null;
     }
     noteStats.late++;
     const late = now + 0.003 - time;
@@ -259,7 +259,8 @@ export function playNote(Tone: ToneNS, ctx: AudioContext, b: Built, note: Played
   Tone.connect(pan, b.head);
   if (b.noise) (osc as AudioBufferSourceNode).start(time, grainOffset(b.seed, note.voice, note.code ?? note.at, b.noise.duration));
   else osc.start(time);
-  osc.stop(time + dur + env.release * 4 + 0.05);
+  const end = time + dur + env.release * 4 + 0.05;
+  osc.stop(end);
   b.live.add(osc);
   osc.onended = () => {
     b.live.delete(osc);
@@ -267,4 +268,5 @@ export function playNote(Tone: ToneNS, ctx: AudioContext, b: Built, note: Played
     lvl.disconnect();
     pan.disconnect();
   };
+  return { at: time, end };
 }

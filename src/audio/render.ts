@@ -29,7 +29,7 @@ async function renderOffline(plan: Plan, seconds: number, tail = 2): Promise<Ren
       voices.sync(plan.result, plan.statics, plan.muted);
       // (the reverb prepares its impulse first: without it, the first notes would ring dry)
       await voices.ready();
-      for (const e of eventsBetween(plan, 0, seconds)) voices.play(e);
+      for (const e of eventsBetween(plan, 0, seconds, true)) voices.play(e);
       // sound tapes on a moving clock: their speed over the whole render
       for (const t of tapeSpeeds(plan, 0, seconds)) voices.tapeSpeed(t.tape, t.points);
     },
