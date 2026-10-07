@@ -26,7 +26,7 @@ export function wheelFacets(key: string): string[] {
 /** The facets of an edge of a program. */
 export function edgeFacets(e: GraphEdge, program: CompileResult, ground: boolean): string[] {
   if (ground) return ['kind=net'];
-  const belted = e.kind === 'step' && typeof program.cells.get(e.source.slice('cell:'.length))?.params.belt === 'number';
+  const belted = !!e.belt;
   const head = e.kind === 'out' && (e.pick === 'write' || e.pick === 'play');
   // (what it carries, docs/notes/nets.md: its band, and whether it is a bus — a table's entries, a chord's notes)
   const bus = e.width < 2 ? 'wire' : e.port === 'over' ? 'table' : 'chord';

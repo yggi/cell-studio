@@ -30,7 +30,7 @@
   import type { LiveSource } from '../audio/live';
   import ForcesPanel from './ForcesPanel.svelte';
   import { clusterDisc } from '../layout/clusters';
-  import { isGround, meterIndex, meterRings } from '../layout/meters';
+  import { isGround, meterIndex } from '../layout/meters';
 
   let {
     model,
@@ -229,7 +229,7 @@
   };
 
   // the rings cells wear for the meter that steps them (the edges to it aren't drawn), and each meter's colour
-  const meters = $derived({ rings: meterRings(model), index: meterIndex(model) });
+  const meters = $derived({ index: meterIndex(model) });
 
   function toFlowNode(g: GraphNode): FlowNode {
     // an example's own fixed layout isn't marked: only what the user pinned
@@ -283,7 +283,7 @@
     const state = edgeStateOf(e, muted, routedDrawn, playing ? NO_LIVE : null);
     // a belted cell's step: a belt, its pulleys by the ratio, its stretch as it is now
     const driven = model.nodes.find((n) => n.id === e.source);
-    if (e.kind === 'step' && driven && typeof driven.cell.params.belt === 'number') {
+    if (e.belt && driven) {
       const sizeOf = (id: string) => ((nodes.find((n) => n.id === id)?.data as { size?: number })?.size ?? 140) / 2;
       const rate = program.clocks.get(driven.cell.name)?.belt?.rate ?? 1;
       const [rDriver, rDriven] = pulleys(sizeOf(e.target), sizeOf(e.source), rate);

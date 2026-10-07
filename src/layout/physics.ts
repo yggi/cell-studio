@@ -875,7 +875,6 @@ export class ForceLayout {
     this.byId.clear();
     for (const [k, v] of next) this.byId.set(k, v);
 
-    const cellOf = new Map(model.nodes.map((n) => [n.id, n.cell]));
     const links: PhysLink[] = model.edges
       // (a note's links, about=, are not springs: they only draw a note towards what it explains, see stepAbout)
       .filter((e) => e.kind !== 'about' && !ground(e) && next.has(e.source) && next.has(e.target) && e.source !== e.target)
@@ -885,7 +884,7 @@ export class ForceLayout {
         target: e.target,
         count: e.count,
         part: e.kind === 'ref' || e.kind === 'over',
-        belt: e.kind === 'step' && typeof cellOf.get(e.source)?.params.belt === 'number',
+        belt: !!e.belt,
       }));
 
     this.sim.nodes([...next.values()]);

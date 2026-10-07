@@ -56,6 +56,11 @@ interface Wire {
 
 export interface GraphEdge extends Wire {
   readonly id: string;
+  /**
+   * A step drawn as a belt between two turntables: `spring` when the driven cell says `belt=` (it lags and swings),
+   * `rigid` when both are turntables anyway (a tape on its motor's capstan).
+   */
+  readonly belt?: 'spring' | 'rigid';
   readonly source: string;
   readonly target: string;
   readonly kind: 'over' | 'ref' | 'step' | 'out' | 'mix' | 'about';
@@ -73,6 +78,10 @@ export interface GraphModel {
   /** An edge drawn under another id (through a petal: to its parent), by its own id; undefined: not drawn. */
   readonly alias: ReadonlyMap<string, string | undefined>;
 }
+
+/** A cell drawn as a turntable: a motor, a belted cell, a tape, a resonator's body. */
+export const isTurntable = (c: ResolvedCell) =>
+  typeof c.params.motor === 'number' || typeof c.params.belt === 'number' || typeof c.params.write === 'string' || typeof c.params.body === 'string';
 
 export function buildGraph(result: CompileResult): GraphModel {
   const edges: GraphEdge[] = [];
@@ -226,6 +235,7 @@ export function buildGraph(result: CompileResult): GraphModel {
         count: 1,
         pick: '',
         label: typeof c.params.belt === 'number' ? `${c.step.label} · belt` : c.step.label,
+        ...beltOf(c, result.cells.get(c.step.driver)),
         ...wire('step', 'sync', id, cellId(c.step.driver), 1, true),
       });
   }
@@ -303,6 +313,12 @@ export function buildGraph(result: CompileResult): GraphModel {
     return { ...n, pan: l + r > 0 ? (r - l) / (l + r) : 0, order: Math.max(0, order.indexOf(n.cell.name)) } as GraphNode;
   });
   return petals(result, placed, edges);
+}
+
+/** A step's belt, if it is one (GraphEdge.belt). */
+function beltOf(driven: ResolvedCell, driver: ResolvedCell | undefined): { belt?: 'spring' | 'rigid' } {
+  if (typeof driven.params.belt === 'number') return { belt: 'spring' };
+  return driver && isTurntable(driven) && isTurntable(driver) ? { belt: 'rigid' } : {};
 }
 
 /** How many values a cell holds at once: its widest chord, a ref counting as the cell it splices in. */

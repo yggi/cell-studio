@@ -29,7 +29,9 @@ describe('the golden graph', () => {
     // (the graph is planar: it can be drawn with none. Lower this when the layout gets there. 4 → 6 when the sun got
     // its edge to its law; a belt's runs now count, each over every edge and wheel, and the meter is placed so its belt
     // crosses little: docs/notes/nets.md)
-    expect(crossings).toBeLessThanOrEqual(6);
+    // 6 → 13 when the tape's step on the capstan became a belt (rigid): the three turntables now sit together as one
+    // machine, and the tape's write and play edges reach across to its source and its head
+    expect(crossings).toBeLessThanOrEqual(13);
     layout.destroy();
   });
 });

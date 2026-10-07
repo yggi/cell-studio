@@ -2,29 +2,20 @@
  * Which node draws a cell of the graph, and how large: the graph (`Graph.svelte`) and the wheels' contact
  * sheet (`tools/gallery/`) both place nodes by it.
  */
-import type { GraphNode } from '../engine/graph';
-import type { MeterRing } from '../layout/meters';
+import { isTurntable, type GraphNode } from '../engine/graph';
 import type { FlowNode } from './types';
 
 /** An unnamed cell, hung small on its parent. */
 export const PETAL = 44;
 
 // physical cells: a meter with a motor, a belted cell — turntables
-export const physical = (g: GraphNode) =>
-  !g.petalOf &&
-  (typeof g.cell.params.motor === 'number' || typeof g.cell.params.belt === 'number' || typeof g.cell.params.write === 'string' || typeof g.cell.params.body === 'string');
+export const physical = (g: GraphNode) => !g.petalOf && isTurntable(g.cell);
 
 /**
  * `turn`: a tape's, in degrees (where the layout faced its write head; layout/tape.ts); none: unturned.
- * `meters`: the rings cells wear for the meter that steps them, and each meter's own place (layout/meters.ts).
+ * `meters`: each meter's place among the meters, for its colour (layout/meters.ts).
  */
-export function flowNodeOf(
-  g: GraphNode,
-  position: { x: number; y: number },
-  isPinned: boolean,
-  turn?: number,
-  meters?: { rings: ReadonlyMap<string, MeterRing>; index: ReadonlyMap<string, number> },
-): FlowNode {
+export function flowNodeOf(g: GraphNode, position: { x: number; y: number }, isPinned: boolean, turn?: number, meters?: { index: ReadonlyMap<string, number> }): FlowNode {
   if (g.petalOf) {
     if (g.kind === 'voice') return { id: g.id, type: 'voice', position, draggable: false, data: { name: g.cell.name, summary: '', size: PETAL, pinned: false, petal: true } };
     return { id: g.id, type: 'cell', position, draggable: false, data: { name: g.cell.name, isMeter: false, size: PETAL, pinned: false, petal: true } };
@@ -57,12 +48,11 @@ export function flowNodeOf(
     };
   }
   const size = (g.cell.root ? 176 : g.isMeter ? 148 : 128) * g.cell.size;
-  const ring = meters?.rings.get(g.id);
   const meterIndex = meters?.index.get(g.id);
   return {
     id: g.id,
     type: 'cell',
     position,
-    data: { name: g.cell.name, isMeter: g.isMeter, size, pinned: isPinned, ...(ring ? { ring } : {}), ...(meterIndex !== undefined ? { meterIndex } : {}) },
+    data: { name: g.cell.name, isMeter: g.isMeter, size, pinned: isPinned, ...(meterIndex !== undefined ? { meterIndex } : {}) },
   };
 }
