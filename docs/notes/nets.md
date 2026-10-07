@@ -29,6 +29,8 @@ The golden graph (`node tools/gallery.mjs golden`, PR #136) puts every kind of w
 17. **A tape and a chorus line up** (the owner likes it): a chorus is a tape with short, wandering heads, as a canon is one with long ones. A net with delayed taps covers all three.
 18. **The wheels need distinguishing by role**, not only by their hub text: proposal under "The wheels".
 19. **A resonator's tines are its inputs** (the owner pointed at the Kalimba; built): a tune into a resonator with more than one exciter is a bus as wide as its tines; its strands end at the pads, each in its pitch's colour, lit while its tine rings (`ctx.resonance`), as a tape's heads are its inputs and outputs.
+20. **Strands run as a cable loom** (built: `loomPaths`): out of each entry at a right angle onto a ring round the wheel, round it on a lane each, off it where it faces the reader into the bundle. Refs keep their own curl into their segment.
+21. **Instruments and read heads show waveforms, mixes spectra** (built): a voice's plain show is `wave` (one cycle stopped, the sound itself while it plays); `show=spectrum` still asks for the spectrum.
 
 ## What the golden graph shows
 
@@ -177,7 +179,7 @@ Each step is its own PR, each visible in the golden graph and the edge sheet (be
 - **Pitch:** the rim is the grid, a thin rainbow of all its steps. A table's entries are notches on it, one step wide, with the pitch classes it leaves out dark, so a scale reads as a sieve of the circle and a pentatonic shows its holes. A grid is the rim and a dim full ring. A key is the grid with its tonic marked (a pointer at the top).
 - **Time:** the rim is a clock, a tick a step (a beat longer), with the steps in order and the hand.
 
-Levels (gold), meters, curves, LFOs and the matrix are already apart. This would also sit well with the buses: a table's strands leave notches, a melody's chord strands leave a segment under the hand.
+**Built (owner: "do that"):** the pitch rim (the grid's steps, those a table holds bright), the sieve (a wedge shaded past its own step), and the clock rim (a tick a step, longer every four) in `CellGlyph`. Not built: a key's tonic pointer (the existing `zero` mark shows a turned table's first entry). Levels (gold), meters, curves, LFOs and the matrix are already apart. This would also sit well with the buses: a table's strands leave notches, a melody's chord strands leave a segment under the hand.
 
 ## The Kalimba: one bus written twice
 

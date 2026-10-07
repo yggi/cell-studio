@@ -278,8 +278,39 @@
   });
   const fills = $derived(view.segments.map((s) => s.bands.map(fillOf)));
 
+  // What space the wheel is drawn in, said by its rim (docs/notes/nets.md, the wheels): a table, scale, key or grid
+  // is laid out by pitch — its rim the grid, a rainbow of its steps, those it holds bright (a sieve); a braid by time —
+  // its rim a clock, a tick a step. (A meter, a curve, an LFO, a barrel: their own.)
+  const pitched = $derived(view.segments.some((sg) => sg.bands[0]?.kind === 'pitch'));
+  const space = $derived(isMeter || !pitched ? null : view.mode === 'grid' ? 'pitch' : view.mode === 'braid' ? 'time' : null);
+  const pitchRim = $derived.by(() => {
+    if (space !== 'pitch' || view.ticks < 2 || view.ticks > 128) return [];
+    const lap = view.ticks;
+    return Array.from({ length: lap }, (_, p) => {
+      const held = view.segments.find((sg) => Math.abs(sg.t0 * lap - p) < 1e-6);
+      const f = held?.bands[0];
+      const hue = f?.kind === 'pitch' ? f.hue : (p / lap) * 360;
+      return { d: ringSegment(c, c, geo.tick.r0, geo.tick.r1 + k, p / lap + 0.002, (p + 1) / lap - 0.002), fill: noteColour(hue, !held), held: !!held };
+    });
+  });
+  // the sieve: a table's wedge is bright for its own step of the grid; the steps it leaves out, to its next entry, dark
+  const sieve = $derived.by(() => {
+    if (space !== 'pitch' || view.ticks < 2) return [];
+    const step = 1 / view.ticks;
+    return view.segments.filter((sg) => sg.t1 - sg.t0 > step * 1.01).map((sg) => ringSegment(c, c, rInner, rOuter, sg.t0 + step, sg.t1));
+  });
+  const clockTicks = $derived(
+    space === 'time' && view.ticks <= 64
+      ? Array.from({ length: view.ticks }, (_, i) => {
+          const long = i === 0 || (view.ticks % 4 === 0 && i % 4 === 0);
+          const [x1, y1] = polar(c, c, geo.tick.r0, i / view.ticks);
+          const [x2, y2] = polar(c, c, geo.tick.r1 + (long ? 2.5 * k : 0), i / view.ticks);
+          return { x1, y1, x2, y2, long };
+        })
+      : [],
+  );
   const ticks = $derived(
-    view.ticks <= 48
+    space === null && view.ticks <= 48
       ? Array.from({ length: view.ticks }, (_, i) => {
           const [x1, y1] = polar(c, c, geo.tick.r0, i / view.ticks);
           const [x2, y2] = polar(c, c, geo.tick.r1, i / view.ticks);
@@ -439,6 +470,11 @@
   {/if}
   <circle class="disc" cx={c} cy={c} r={geo.rDisc} />
   {#each ticks as t}<line class="tick" style:stroke-width="{geo.tick.width}px" x1={t.x1} y1={t.y1} x2={t.x2} y2={t.y2} />{/each}
+  {#each pitchRim as r, i (i)}<path class="pitch-rim" class:held={r.held} d={r.d} fill={r.fill} />{/each}
+  {#if clockTicks.length}
+    <circle class="clock-rim" cx={c} cy={c} r={geo.tick.r0} style:stroke-width="{geo.tick.width}px" />
+    {#each clockTicks as t, i (i)}<line class="clock-tick" class:long={t.long} style:stroke-width="{geo.tick.width}px" x1={t.x1} y1={t.y1} x2={t.x2} y2={t.y2} />{/each}
+  {/if}
   {#snippet slots()}
     {#each geometry as slot, i}
       <g class="slot" class:lit={lit.has(i)} stroke-width={slot.w}>
@@ -462,10 +498,12 @@
       aria-valuetext="shift {shift > 0 ? '+' : ''}{shift} of {view.detents}"
     >
       {@render slots()}
+      {#each sieve as d, i (i)}<path class="sieve" {d} />{/each}
     </g>
   {:else}
     <g class="rim" class:easing style="transform: rotate({spin}deg); transform-origin: {c}px {c}px">
       {@render slots()}
+      {#each sieve as d, i (i)}<path class="sieve" {d} />{/each}
       {#if meterLit}<path class="meter-now" d={meterLit} />{/if}
     </g>
   {/if}
@@ -583,6 +621,28 @@
   }
   .tick {
     stroke: var(--wheel-tick);
+  }
+  /* the rim says the space: pitch, the grid's rainbow (the steps a table holds bright); time, a clock */
+  .pitch-rim {
+    opacity: 0.45;
+  }
+  .pitch-rim.held {
+    opacity: 1;
+  }
+  .sieve {
+    fill: var(--wheel-disc);
+    opacity: 0.62;
+    pointer-events: none;
+  }
+  .clock-rim {
+    fill: none;
+    stroke: var(--text-faint);
+  }
+  .clock-tick {
+    stroke: var(--text-faint);
+  }
+  .clock-tick.long {
+    stroke: var(--text-muted);
   }
   .rim.easing {
     transition: transform 340ms cubic-bezier(0.2, 0.8, 0.2, 1);
