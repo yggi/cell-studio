@@ -5,6 +5,7 @@
  */
 import { capacity, noteStats } from './stats';
 import { resolveTuning, type Tuning, DEFAULT_TUNING } from './tuning';
+import { storageKey } from '../storageKey';
 
 type ToneNS = typeof import('tone');
 
@@ -118,7 +119,7 @@ export function audioInfo(T: ToneNS | undefined, tuning: Tuning): AudioInfo {
   };
 }
 
-const KEPT = { latency: 'cell-studio-latency', lookahead: 'cell-studio-lookahead' };
+const KEPT = { latency: storageKey('cell-studio-latency'), lookahead: storageKey('cell-studio-lookahead') };
 /** The tuning the address and the kept settings ask for (and keeps the address's). */
 export function readTuning(): Tuning {
   if (typeof location === 'undefined') return DEFAULT_TUNING;
