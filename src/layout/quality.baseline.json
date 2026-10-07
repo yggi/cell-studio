@@ -1,7 +1,7 @@
 {
   "metronome": {"cells":11,"crossings":0,"cost":0,"width":878.7,"height":926.7,"edge":235,"overlap":0,"clusters":0,"intruders":0,"aim":0,"start":0},
   "transpose": {"cells":8,"crossings":0,"cost":0,"width":811.3,"height":864.7,"edge":220,"overlap":0,"clusters":0,"intruders":0,"aim":0,"start":0},
-  "rhythm": {"cells":12,"crossings":0,"cost":0,"width":1000.7,"height":785,"edge":222.3,"overlap":0,"clusters":0,"intruders":0,"aim":0,"start":0},
+  "rhythm": {"cells":12,"crossings":0,"cost":0,"width":842.3,"height":745,"edge":217.3,"overlap":0,"clusters":0,"intruders":0,"aim":0,"start":0},
   "twinkle": {"cells":13,"crossings":0,"cost":0,"width":853,"height":886.3,"edge":237,"overlap":0,"clusters":0,"intruders":0,"aim":0,"start":0},
   "fifths": {"cells":6,"crossings":0,"cost":0,"width":783,"height":627.3,"edge":215.7,"overlap":0,"clusters":0,"intruders":0,"aim":0,"start":0},
   "canon": {"cells":14,"crossings":1,"cost":1,"width":810,"height":966.3,"edge":267.3,"overlap":0,"clusters":0,"intruders":0,"aim":0,"start":3.3},
@@ -29,7 +29,7 @@
   "bwv847": {"cells":61,"crossings":3.7,"cost":4.4,"width":3989,"height":1508.7,"edge":482.3,"overlap":0,"clusters":5.3,"intruders":6,"aim":0,"start":12},
   "acid": {"cells":22,"crossings":0,"cost":0,"width":1570,"height":961,"edge":300,"overlap":0,"clusters":0,"intruders":0,"aim":0,"start":0},
   "zell": {"cells":31,"crossings":2.3,"cost":3.7,"width":1498,"height":1748.3,"edge":362.3,"overlap":0,"clusters":2.7,"intruders":5.7,"aim":0,"start":0.7},
-  "cellscape": {"cells":47,"crossings":13.7,"cost":20,"width":2305.3,"height":1875.3,"edge":423,"overlap":0,"clusters":7.3,"intruders":17,"aim":0,"start":12.7},
+  "cellscape": {"cells":39,"crossings":7.7,"cost":11.8,"width":2089.3,"height":1897.3,"edge":385,"overlap":0,"clusters":8.3,"intruders":16.3,"aim":0,"start":1.7},
   "cellscape2": {"cells":21,"crossings":0.3,"cost":0.3,"width":1740.7,"height":1043.7,"edge":334,"overlap":0,"clusters":0,"intruders":0,"aim":0,"start":0},
   "baustelle": {"cells":50,"crossings":7.3,"cost":8,"width":2501.7,"height":1592,"edge":356.7,"overlap":0,"clusters":2.7,"intruders":7.7,"aim":0,"start":6.3},
   "focus": {"cells":18,"crossings":0,"cost":0,"width":1185,"height":977.7,"edge":258.3,"overlap":0,"clusters":0,"intruders":0,"aim":0,"start":0},
