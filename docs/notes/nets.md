@@ -1,12 +1,20 @@
 # Nets: what an edge is
 
-**2026-10-07 · open, brainstorm (nothing built) · #9, #10, #27, on top of PR #136 (the gallery)**
+**2026-10-07 · open: decided in part (below), step 1 built · #9, #10, #27, on top of PR #136 (the gallery)**
 
 The golden graph (`node tools/gallery.mjs golden`, PR #136) puts every kind of wheel and edge into one picture, so the flaws of the edge model show up together. This note collects what it shows, proposes one model under all of them, and splits the work into small steps. The owner's input that started it: **nets and buses** (an edge carrying `[0,4,7]` is a 3-wire bus); **edges by the signal they carry** (sync, CV, audio); **a palette that maps values to colours**; **named networks with in and out**, which unify tape heads and the meter's net, where today's edge syntax is the anonymous shorthand (like `&( )` cells).
 
 ![mock-up: bands, buses, named nets, junctions](nets-mockup.png)
 
 *A mock-up for discussion, drawn by hand, not by the app.*
+
+## Decided (owner, 2026-10-07)
+
+1. **Every arrow follows the flow.**
+2. **A product is an unnamed junction node**, shorthand for a node that could be written out with a name (as `&leadA [&walk * &lead * .3]` already is), the same way `&( … )` is shorthand for a named cell.
+3. **Refs and `over=` are pointers**: indirections, reference values. `over=` is still drawn as a wide bus, because the bus is how the notes go from the scale's wheel to the theme's.
+4. **Three fundamental bands** (sync, CV, audio). Visual variations come from `show=`.
+5. **Syntax: to be decided.** The owner's sketch is `&<foo` (from net `foo`) and `&>foo` (to net `foo`), as in `&foo step=&<meter`. Worked through below.
 
 ## What the golden graph shows
 
@@ -79,6 +87,23 @@ One function, `palette(band, value)`. Kinds get no colour of their own. The band
 
 That removes six kind colours (the step tint, excite magenta, belt brown, meter yellow, the about grey, the live accent) and leaves one rule.
 
+## Syntax: `&x`, `&<x`, `&>x`
+
+The owner's sketch, read together with decision 3 (refs and `over=` are pointers): **a name can mean the cell or what is on its net.**
+
+| written | means | today | new power |
+|---|---|---|---|
+| `&x` | the cell itself, a pointer: splice it, index it, play it as a voice | every `&name` | none |
+| `&<x` | a tap: what `x` actually played, on one timeline | `play=&tape`, `step=&bar` | a head on any cell, not only a tape |
+| `&>x` | a send: this cell's output also goes into `x` | `write=&tune` (written on the other line) | aux sends: many cells feed one net without it listing them |
+
+- **The tape, written both ways.** Today, the pull form: `&tape step=&reel write=&tune length=6` and `&near play=&tape at=.375`. The push form: `&tune … &>tape` and `&near &<tape at=.375`. Both spell the same edge. Only the token's line differs, so the graph doesn't change.
+- **An aux send:** `&lead s=saw … &>verb*.3` with `&verb room=.9`. Today `&verb` would have to list every input itself (`&verb [&lead*.3, &bass*.1]`). With `&>`, the inputs name the net instead, and `&>verb*.3` is a mix entry written on its source's line.
+- **Where `&<` differs from `&`.** A port that can only take a signal needs no arrow. `step=` can only follow a running clock, so `step=&bar` is already `step=&<bar` and stays the shorthand. The arrow matters where both readings fit: a braid or a mix. There, `&john[<<1]` is a **copy**, the braid replayed a step later. `&<john[<<1]` (or `at=`) would be a **tap**, what `&john` played a step ago. They differ once something happens only once: a `free()` moved by hand, a belt slipping, a turntable held, a restart. A canon from copies keeps the score. A canon from a tap echoes the performance.
+- **Parsing:** `&<` and `&>` are free. Nothing else follows `&` with `<` or `>` (picks are bracketed, `&t[<<n]`), and a mix has no comparisons.
+
+**Recommendation.** Add no syntax until steps 2 to 5 are drawn. The model and graph need none, since every existing form is the shorthand. Then add `&>` first, because it is the only one that says something new (a send). Add `&<` only if the copy/tap difference turns out to be heard in a real piece. Each one gets a decision record (#10, item 2: one edge, two lines to write it on).
+
 ## How it unlocks #9 and #10
 
 - **#9, PR 3 (`Graph.svelte`, a pure tested `flowedges.ts`).** Once an edge is `(net, port, band, transform, width)`, `pulseData`'s special cases (`play`, `write`, `out`, `mix`, `step`) become one lookup, and `flowedge.ts` becomes a pure function worth testing. #132 (`voices.sync` and `routing.ts` disagreeing about where sound goes) gets one source: both read the same nets.
@@ -91,17 +116,31 @@ That removes six kind colours (the step tint, excite magenta, belt brown, meter 
 Each step is its own PR, each visible in the golden graph and the edge sheet (before and after), and each keeps saved pieces and sound unchanged until step 6.
 
 0. **Land #136** (the gallery). It is the yardstick.
-1. **The model, no visual change.** `GraphEdge` gains `port`, `band`, `transform` and `width`, computed in `graph.ts` from `attributes.ts` (a `band` per port) and the sorts. `kind`, `pick` and `label` stay and are derived from them. A test maps every edge in the examples, and the edge sheet groups by band × port. Engine only, pure TS.
-2. **One direction.** Every edge flows from the name written to the cell that writes it. The layout's forces are adjusted (#27). The golden graph's crossing bound must hold.
+1. **The model, no visual change. Built.** Every `GraphEdge` is also a wire: `port`, `band`, `pointer`, `width`, and `from` → `to` along the flow (`src/engine/graph.ts`, tested in `graph.test.ts`). Over the examples:
+
+   | port | band | edges |
+   |---|---|---|
+   | `braid` (a ref) | CV, pointer | 251 |
+   | `about` | none | 246 |
+   | `step` | sync | 231 |
+   | `mix` | audio | 230 |
+   | `voice` (melody → voice) | CV | 192 |
+   | `over` | CV, pointer | 113 |
+   | `lpf` `hpf` `lpq`, `level`, `pitch` | CV | 39 |
+   | `fm`, `excite`, `couple` | audio | 14 |
+   | `write`, `play` | CV on a tape of notes (4), audio on a tape of sound (14) | 18 |
+
+   Widths: `over` buses are 4 to 25 wide, and 95 and 96 for the two chord tables of the Prelude. Chords on `voice` and `braid` edges are 2 to 8. No example puts an audio-rate wave into a pitch sum, so audio on `pitch` (FM) is seen only in the unit test. Still to do: `transform` (today's `pick` and `label` taken apart), and stereo as 2 wires on the sound card.
+2. **One direction.** The flow drawn (arrows, pulses) and read by the forces from `from` → `to` (#27). The golden graph's crossing bound must hold. Also the written name with no edge: `sun=&cycle`.
 3. **Bands and palette** in `edges.css` and `PulseEdge`, with the kind colours dropped.
 4. **Junctions.** Products become small anonymous nodes, and voices become definitions. This is the biggest layout change: watch the golden graph's crossings and the library's overlap count ([limits.md](../limits.md)).
-5. **Buses.** Width drawn as strands.
+5. **Buses.** Width drawn as strands, capped (a 95-entry table can't be 95 lines), with `show=` choosing among the variations.
 6. **Named nets.** The meter's net comes from the engine. Tape heads and a canon get one drawing. Then the language question, `[<<n]` and `play= at=`, goes to a decision record.
 
-## Open questions for the owner
+## Open questions
 
-1. **Direction:** flow everywhere (`&bar → &theme` for `step=&bar`)? This turns over half of today's arrows.
-2. **Junctions:** draw `&theme * &lead` as its own small node, with voices as definitions? Or keep voices as hubs and show which melody goes where some other way?
-3. **Are refs signals?** `&tune &up &up` splices `&up` into `&tune`'s braid. That is composition (inclusion), not a wire. Should it be drawn inside the braid as a strand, the way `&( )` is a petal, and not as an edge at all? Same question for `over=`: a table is a static bus, so is it CV, or a fourth band, "space" (pitch structure) against "time" (sync)?
-4. **Three bands or more?** Is a table its own band, and is a gate apart from a clock (a trigger as opposed to a tempo)?
-5. **Syntax:** is named-net syntax wanted beyond what exists, or is the unification only in the model and the graph, with `[<<n]` and `at=` the first pair to settle?
+Questions 1 to 4 of the first round are answered above (Decided). Open:
+
+1. **Syntax** (above): add `&>` and `&<`, or leave the syntax alone for now?
+2. **Copy or tap:** should a canon written as `&john[<<1]` keep the score (a copy, as today), with an echo of the performance spelled differently?
+3. **`show=` on edges:** the net's `show=` sets how its taps are drawn (strands or one thick line, a pulse or still)? Its values come in steps 3 and 5.

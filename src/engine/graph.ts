@@ -34,7 +34,27 @@ export type GraphNode =
       readonly order?: number;
     };
 
-export interface GraphEdge {
+/**
+ * What a wire carries (docs/notes/nets.md): ticks (a clock, a gate), values (pitch, level, a table) or sound.
+ * A note's link (about=) carries nothing.
+ */
+type Band = 'sync' | 'cv' | 'audio' | 'none';
+
+/** What an edge is as a wire, read from the code: from the cell whose values travel, into a port of the cell that takes them. */
+interface Wire {
+  /** Where the code reads it: `over`, `step`, `braid` (a ref), `voice` (a melody playing it), `env`, `level`, `pitch`, `mix`, `about`, or the attribute (`lpf`, `fm`, `write`, `play` …). */
+  readonly port: string;
+  readonly band: Band;
+  /** The reader indexes or splices the cell itself (over=, a ref), rather than taking its signal. */
+  readonly pointer: boolean;
+  /** How many values at once: a chord's notes, a table's entries. */
+  readonly width: number;
+  /** Along the flow (source and target point either way, as the layout reads them): what travels, and where to. */
+  readonly from: string;
+  readonly to: string;
+}
+
+export interface GraphEdge extends Wire {
   readonly id: string;
   readonly source: string;
   readonly target: string;
@@ -98,35 +118,101 @@ export function buildGraph(result: CompileResult): GraphModel {
     seen.add(e.id);
     edges.push(e);
   };
+  // (a wire along the flow, source → target; `back`: the edge points from the reader to what it reads)
+  const wire = (port: string, band: Band, source: string, target: string, width = 1, back = false, pointer = false): Wire => ({
+    port,
+    band,
+    pointer,
+    width,
+    from: back ? target : source,
+    to: back ? source : target,
+  });
+  const chord = chordWidth(result);
+  const sounds = (name: string) => {
+    const c = result.cells.get(name);
+    return !!c && (c.voice || !!c.mix || c.kit || result.tapes.some((t) => t.name === name) || result.returns.some((r) => r.head === name));
+  };
   for (const c of result.cells.values()) {
     if (!shown(c.name)) continue;
     const id = cellId(c.name);
     if (c.voice) nodes.push({ id, kind: 'voice', depth: depthOf(c.name), cell: c });
     else nodes.push({ id, kind: 'cell', depth: depthOf(c.name), cell: c, isMeter: meters.has(c.name) });
-    if (c.over) link({ id: edgeId(id, cellId(c.over)), source: id, target: cellId(c.over), kind: 'over', count: 1, pick: shiftLabel(c.overShift) });
+    if (c.over)
+      link({
+        id: edgeId(id, cellId(c.over)),
+        source: id,
+        target: cellId(c.over),
+        kind: 'over',
+        count: 1,
+        pick: shiftLabel(c.overShift),
+        ...wire('over', 'cv', id, cellId(c.over), result.cells.get(c.over)?.cycle ?? 1, true, true),
+      });
     // resonators: coupled through the table (couple=), and what excites them
     if (typeof c.params.couple === 'string' && result.cells.has(c.params.couple))
-      link({ id: edgeId(id, cellId(c.params.couple)), source: id, target: cellId(c.params.couple), kind: 'out', count: 1, pick: 'couple' });
+      link({
+        id: edgeId(id, cellId(c.params.couple)),
+        source: id,
+        target: cellId(c.params.couple),
+        kind: 'out',
+        count: 1,
+        pick: 'couple',
+        ...wire('couple', 'audio', id, cellId(c.params.couple), 1, true),
+      });
     if (typeof c.params.excite === 'string' && result.cells.has(c.params.excite))
-      link({ id: edgeId(cellId(c.params.excite), id), source: cellId(c.params.excite), target: id, kind: 'out', count: 1, pick: 'excite' });
+      link({
+        id: edgeId(cellId(c.params.excite), id),
+        source: cellId(c.params.excite),
+        target: id,
+        kind: 'out',
+        count: 1,
+        pick: 'excite',
+        ...wire('excite', 'audio', cellId(c.params.excite), id),
+      });
     // tapes: the source into the tape (written), the tape into each read head (played)
     if (typeof c.params.write === 'string' && result.cells.has(c.params.write))
-      link({ id: edgeId(cellId(c.params.write), id), source: cellId(c.params.write), target: id, kind: 'out', count: 1, pick: 'write' });
+      link({
+        id: edgeId(cellId(c.params.write), id),
+        source: cellId(c.params.write),
+        target: id,
+        kind: 'out',
+        count: 1,
+        pick: 'write',
+        ...wire('write', sounds(c.params.write) ? 'audio' : 'cv', cellId(c.params.write), id, chord(c.params.write)),
+      });
     if (typeof c.params.play === 'string' && result.cells.has(c.params.play))
-      link({ id: edgeId(cellId(c.params.play), id), source: cellId(c.params.play), target: id, kind: 'out', count: 1, pick: 'play' });
+      link({
+        id: edgeId(cellId(c.params.play), id),
+        source: cellId(c.params.play),
+        target: id,
+        kind: 'out',
+        count: 1,
+        pick: 'play',
+        ...wire('play', sounds(c.params.play) ? 'audio' : 'cv', cellId(c.params.play), id, chord(c.params.play)),
+      });
     // FM: the modulator feeds its carrier
     if (typeof c.params.fm === 'string' && result.cells.has(c.params.fm))
-      link({ id: edgeId(cellId(c.params.fm), id), source: cellId(c.params.fm), target: id, kind: 'out', count: 1, pick: 'fm' });
+      link({ id: edgeId(cellId(c.params.fm), id), source: cellId(c.params.fm), target: id, kind: 'out', count: 1, pick: 'fm', ...wire('fm', 'audio', cellId(c.params.fm), id) });
     // a voice's moving parameters: their cells feed it (lpf, lpq …)
     for (const [key, pc] of Object.entries(c.paramCells ?? {}))
-      for (const f of pc.factors) if (result.cells.has(f)) link({ id: edgeId(cellId(f), id), source: cellId(f), target: id, kind: 'out', count: 1, pick: key });
+      for (const f of pc.factors)
+        if (result.cells.has(f)) link({ id: edgeId(cellId(f), id), source: cellId(f), target: id, kind: 'out', count: 1, pick: key, ...wire(key, 'cv', cellId(f), id) });
     for (const [child, count] of c.children) {
       // its transpositions (^n), as written in this cell's steps
       const ups = [...new Set(c.units.flatMap((u) => (u.atom.kind === 'ref' && u.atom.name === child && u.atom.transpose ? [u.atom.transpose] : [])))];
-      link({ id: edgeId(id, cellId(child)), source: id, target: cellId(child), kind: 'ref', count, pick: ups.map((n) => `^${n}`).join(' ') });
+      link({
+        id: edgeId(id, cellId(child)),
+        source: id,
+        target: cellId(child),
+        kind: 'ref',
+        count,
+        pick: ups.map((n) => `^${n}`).join(' '),
+        ...wire('braid', 'cv', id, cellId(child), chord(child), true, true),
+      });
     }
     // a note's links: what it explains
-    for (const target of c.about) if (result.cells.has(target)) link({ id: edgeId(id, cellId(target)), source: id, target: cellId(target), kind: 'about', count: 1, pick: '' });
+    for (const target of c.about)
+      if (result.cells.has(target))
+        link({ id: edgeId(id, cellId(target)), source: id, target: cellId(target), kind: 'about', count: 1, pick: '', ...wire('about', 'none', id, cellId(target)) });
     if (c.step)
       // (a belt says so: the cell follows through a spring, not rigidly)
       link({
@@ -137,6 +223,7 @@ export function buildGraph(result: CompileResult): GraphModel {
         count: 1,
         pick: '',
         label: typeof c.params.belt === 'number' ? `${c.step.label} · belt` : c.step.label,
+        ...wire('step', 'sync', id, cellId(c.step.driver), 1, true),
       });
   }
   // voices into their mixes (labelled with the gain when it isn't 1)
@@ -151,9 +238,18 @@ export function buildGraph(result: CompileResult): GraphModel {
           count: 1,
           pick: '',
           label: b.gain !== 1 ? `×${+b.gain.toFixed(3)}` : undefined,
+          ...wire('mix', 'audio', cellId(b.voice.name), cellId(c.name)),
         });
   for (const o of result.outputs) {
-    link({ id: edgeId(cellId(from(o)), cellId(o.voice)), source: cellId(from(o)), target: cellId(o.voice), kind: 'out', count: 1, pick: refLabel(o) });
+    link({
+      id: edgeId(cellId(from(o)), cellId(o.voice)),
+      source: cellId(from(o)),
+      target: cellId(o.voice),
+      kind: 'out',
+      count: 1,
+      pick: refLabel(o),
+      ...wire('voice', 'cv', cellId(from(o)), cellId(o.voice), chord(from(o))),
+    });
     if (o.envelopeCell)
       link({
         id: edgeId(cellId(o.envelopeCell), cellId(o.voice)),
@@ -163,6 +259,7 @@ export function buildGraph(result: CompileResult): GraphModel {
         count: 1,
         pick: '',
         label: '×',
+        ...wire('env', 'cv', cellId(o.envelopeCell), cellId(o.voice)),
       });
     for (const m of o.levels)
       link({
@@ -173,6 +270,7 @@ export function buildGraph(result: CompileResult): GraphModel {
         count: 1,
         pick: refLabel(m),
         label: '×',
+        ...wire('level', 'cv', cellId(m.cell), cellId(o.voice), chord(m.cell)),
       });
     for (const m of o.mods)
       link({
@@ -183,6 +281,8 @@ export function buildGraph(result: CompileResult): GraphModel {
         count: 1,
         pick: refLabel(m),
         label: m.sign > 0 ? '+' : '−',
+        // (a wave in a pitch sum moves the pitch at audio rate: FM)
+        ...wire('pitch', isWave(result, m.cell) ? 'audio' : 'cv', cellId(m.cell), cellId(o.voice), chord(m.cell)),
       });
   }
   // voices: where they sit in stereo, and in what order the mix names them
@@ -201,6 +301,30 @@ export function buildGraph(result: CompileResult): GraphModel {
   });
   return petals(result, placed, edges);
 }
+
+/** How many values a cell holds at once: its widest chord, a ref counting as the cell it splices in. */
+function chordWidth(result: CompileResult): (name: string) => number {
+  const memo = new Map<string, number>();
+  const of = (name: string, guard = 0): number => {
+    const hit = memo.get(name);
+    if (hit !== undefined) return hit;
+    let w = 1;
+    for (const u of result.cells.get(name)?.units ?? []) {
+      if (u.atom.kind === 'chord') w = Math.max(w, u.atom.notes.length);
+      else if (u.atom.kind === 'ref' && guard < 64) w = Math.max(w, of(u.atom.name, guard + 1));
+    }
+    memo.set(name, w);
+    return w;
+  };
+  return (name) => of(name);
+}
+
+/** A braid turning at an audio rate with no sound of its own (decision 006's wave). */
+const isWave = (result: CompileResult, name: string) => {
+  const c = result.cells.get(name);
+  // (its own rate: a driven cell's freq is only the default)
+  return !!c && !c.voice && !c.step && [...result.clocks.values()].some((k) => k.cell === name) && c.freq >= 20;
+};
 
 /**
  * Unnamed cells (&( … )) are drawn as petals of the named cell on their line:
@@ -244,7 +368,7 @@ function petals(result: CompileResult, allNodes: GraphNode[], allEdges: GraphEdg
     redrawn.push({ id: e.id, pair: source === target ? null : key(source, target) });
     if (source === target || pairs.has(key(source, target))) continue;
     pairs.add(key(source, target));
-    out.push({ ...e, id: edgeId(source, target) + (e.kind === 'step' ? '~' : ''), source, target });
+    out.push({ ...e, id: edgeId(source, target) + (e.kind === 'step' ? '~' : ''), source, target, from: up(e.from), to: up(e.to) });
   }
   const byPair = new Map<string, string>();
   for (const e of out) if (!byPair.has(key(e.source, e.target))) byPair.set(key(e.source, e.target), e.id);
