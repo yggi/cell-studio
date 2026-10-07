@@ -4,6 +4,7 @@
  */
 import type { Edge } from '@xyflow/svelte';
 import type { GraphEdge } from '../engine/graph';
+import { edgeLabel } from '../engine/transform';
 import type { CompileResult } from '../engine/program';
 import { drawn, edgeStateOf, type State } from '../engine/routing';
 import type { LiveState } from '../engine/live';
@@ -87,7 +88,6 @@ export function carried(e: GraphEdge, program: CompileResult): Carried {
 /** What PulseEdge reads of an edge (its `data`). */
 function pulseData(e: GraphEdge, program: CompileResult) {
   return {
-    kind: e.kind,
     band: e.band,
     port: e.port,
     width: e.width,
@@ -106,7 +106,7 @@ function pulseData(e: GraphEdge, program: CompileResult) {
 export function flowEdgeOf(e: GraphEdge, state: State, program: CompileResult, belt?: BeltDrawn, sizes?: EndSizes, net?: NetPlace): Edge {
   if (belt) return { id: e.id, source: e.source, target: e.target, type: 'belt', zIndex: 5, selectable: false, data: { ...belt } };
   // a tape's edges meet it at its heads: the write head (what it records), each read head (what it plays)
-  const heads = e.pick === 'write' ? { targetHandle: 'head-write' } : e.pick === 'play' ? { sourceHandle: `head-${nameOf(e.target)}` } : {};
+  const heads = e.port === 'write' ? { targetHandle: 'head-write' } : e.port === 'play' ? { sourceHandle: `head-${nameOf(e.target)}` } : {};
   // drawn along the flow (docs/notes/nets.md): from what is read to the cell that reads it
   return {
     id: e.id,
@@ -116,8 +116,8 @@ export function flowEdgeOf(e: GraphEdge, state: State, program: CompileResult, b
     type: 'pulse',
     // (only a live edge carries a note's colour and pulses: an edge into what doesn't sound now stays still)
     data: { ...pulseData(e, program), off: state === 'off' || state === 'unrouted', state, sizes, to: nameOf(e.to), net },
-    label: [e.count > 1 ? `×${e.count}` : '', e.pick, e.label ?? ''].filter(Boolean).join(' ') || undefined,
-    class: `edge-${e.kind} band-${e.band}${e.pointer ? ' pointer' : ''}`,
+    label: edgeLabel(e),
+    class: `edge-${e.port} band-${e.band}${e.pointer ? ' pointer' : ''}`,
     selectable: false,
   };
 }

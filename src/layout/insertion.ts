@@ -38,7 +38,7 @@ export class Insertion {
       (m.get(b) ?? m.set(b, []).get(b)!).push(a);
     };
     for (const e of model.edges) {
-      if (e.kind === 'about' || !all.has(e.source) || !all.has(e.target) || e.source === e.target) continue;
+      if (e.port === 'about' || !all.has(e.source) || !all.has(e.target) || e.source === e.target) continue;
       join(adjacent, e.source, e.target);
       if (!grounds.has(e.id)) join(drawn, e.source, e.target);
     }
