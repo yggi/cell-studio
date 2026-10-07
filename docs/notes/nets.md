@@ -273,6 +273,32 @@ The golden graph gains, the library loses by a fifth: the layered start (rows by
 
 The owner: the law reads the day via `over=&day`. Built as refined above: `RATE_UNITS` gains `min` `h` `d` `wk`; `anchor=` applies to clocks; `sun=` and the law's own anchor retire. The law takes the offset from its day's anchor (`lawOffset` in `realize.ts`, against 11:55, where the law's cycle starts), so *5 to 12* plays the same notes as before (checked: identical events, and a test that anchor 13.55 at 0 s is 11.55 at 7200 s). `show=sun` draws the day meter as the dial (`SunNode`, which finds the law that reads it); `show=brightness` shades each segment of a mode table by its brightness (`CellGlyph`). In the golden graph `&blues` shows brightness and `&cycle` reads `&day`.
 
+### Built: the readers are the junctions; nets in the forces (2026-10-07)
+
+The owner: with the ratsnest, cells become the junctions and the crossings of the nets they're on (a safe crossing: a meter's net and a scale's meet at a cell and flare out of it); the loom and the strands were mangled by the T-junctions; `&up`'s edges to `&tune` a bus. Built:
+
+- **A net's tree** (`ForceLayout.netTree`): the readers are its junctions, each joined to the one nearest it already joined (Prim's), a join through a wheel costing as much again per wheel. A bus leaves its owner once (to the reader nearest it); a meter's ground joins it wherever is nearest. No T in mid-air: a tap comes on from a reader, out of its wheel (`taps()`, a hop, drawn as a short loom flared over the rim facing the next reader, the strands in the table's order). In the golden graph `&mode`'s net runs `&mode` → `&motif` → `&theme`.
+- **The meter's net is in the model**: `GraphModel.nets` holds every net — `over`, `voice` (a melody playing several voices), `mix` (a voice into several mixes: the sound card's channels) and `step` (a meter's ground). `meters.ts: groundsOf` reads the ground from there; the layout no longer works out which edges are ground. A tape's heads are not a net: each is its own place on the tape, which is their junction already. The meter's traces are still laid at rest by `meterNet` (Kruskal, costed by what they cross).
+- **The loom, again**: strands on the near half leave at a right angle and come round into the bundle; strands on the far half run straight under the wheel; the places across the bundle are in the order the strands sit across its way, so none cross. A ref written more than once (`&up` in `&tune`) is a bus: a strand to each place.
+- **Nets in the forces** (`stepNets`): each join of a net's tree is a spring (a bus's as a part's edge, a meter's as its ground), instead of the owner's star; the tree is laid again every tick. `netClear` (a wheel on a join pushed off it) is built and off: it made it worse; the tree's cost already keeps joins off wheels.
+- **The quality gate is the mean of three seeds**: one start is noise (HEAD's 83 crossings was seed 0; its six seeds run 83 to 115).
+
+Measured over the library, mean of six seeds (crossings / cost; golden):
+
+| | crossings | cost | golden |
+|---|---|---|---|
+| before (HEAD) | 103.3 | 165.2 | 3.7 |
+| readers as junctions, no net forces | 95.8 | 146.3 | 4.0 |
+| + tree springs, laid every 5 ticks | 82.5 | 129.5 | 4.5 |
+| + tree springs, every tick | 82.0 | 128.8 | 4.5 |
+| + wheels off the joins (0.3) | 85.7 | 138.3 | 4.5 |
+| meter's tree at half pull / buses' only | 98.3 / 101.0 | 152.0 / 151.8 | 5.3 / 4.7 |
+| + voice and mix nets | **75.3** | **123.2** | 5.2 |
+
+Over three seeds (the gate): crossings 101 → 76, cost 165 → 123, cells in a foreign cluster 92 → 64, overlapping clusters 42 → 35, read heads' aim 36.6 → 36.0; area 7 % more.
+
+Open: a voice's mix net reads as if one mix fed the next (`&lead` → `&leadA` → `&leadB` → `&out`); audio might rather branch from its owner each time (a star), or the hop might be drawn so it doesn't read as a signal path.
+
 ### Order
 
 1. The weights table and weighted crossings: measurable against the baseline, no change to the model.
@@ -286,4 +312,4 @@ The owner: the law reads the day via `over=&day`. Built as refined above: `RATE_
 2. **The net's style** (decision 9): which styles (strands or one line, a pulse or still, coloured or neutral), and the spelling of the attribute and of the decorator.
 3. **The time source** (decision 11): its name and attributes, and how a tap names its unit.
 4. **The law and the day:** decided, `over=&day` (built).
-5. **Junctions in the layout:** a net's branch points as real (massless) nodes, or drawn only.
+5. **Junctions in the layout:** decided, the readers are the junctions (built); no node of its own.

@@ -11,7 +11,7 @@ import { segmentsCross, splinePoint } from './geometry';
 import { layered } from './layered';
 import { drawnCrossings, layoutQuality, type Aim, type LayoutQuality } from './quality';
 import { fitTurn, headOffset, tapeHeads, UNTURNED } from './tape';
-import { isGround } from './meters';
+import { groundsOf } from './meters';
 import { openBelt, pulleys } from './belts';
 import { massOf, strengthOf } from './weights';
 
@@ -56,6 +56,8 @@ interface PhysLink extends SimulationLinkDatum<PhysNode> {
   ground?: boolean;
   /** Its strength (weights.ts): how hard it pulls, and what crossing it costs. */
   strength?: number;
+  /** A tap of a net (a table read by several): with `netPull`, its pull goes to the net's tree instead. */
+  net?: boolean;
   /** A tag's spring to one of its cells (not drawn: no crossings, no bends, no spread). */
   tag?: boolean;
   /** How much of its pull it keeps (a hub's edge into a cluster gives the rest to the cluster's tag: `mux`). */
@@ -79,6 +81,13 @@ export interface LayoutOptions {
   massRepel: number;
   inertia: number;
   strengthPull: number;
+  /**
+   * Nets in the forces (docs/notes/nets.md): a net's springs run along its tree as it's laid now (netTree) instead of
+   * from its owner to every reader (`netPull`, 0 off, 1 on); and a wheel lying on a net's join is pushed off it, the
+   * join's ends the other way (`netClear`, its strength).
+   */
+  netPull: number;
+  netClear: number;
   layerGap: number;
   /** Edge length at rest (px). */
   linkDistance: number;
@@ -394,6 +403,10 @@ export const DEFAULT_LAYOUT: LayoutOptions = {
   massRepel: 1,
   inertia: 0,
   strengthPull: 0,
+  // (measured over the library at six seeds, docs/notes/nets.md: the trees' springs 103 → 82 crossings, with voices' and mixes' nets 75; keeping wheels
+  // off the joins made it worse, the trees' costs already keep them off: so it is off)
+  netPull: 1,
+  netClear: 0,
   // (uncross and contract: measured over the examples, docs/notes/27-layout.md — stronger untangling and softer
   // springs cross a quarter less than 0.3 / 0.9, for about 6 % more room)
   uncross: 0.6,
@@ -461,6 +474,11 @@ export interface GraphDiff {
   structural: boolean;
 }
 
+/** An edge's spring, as strong as it is (a net's tree takes the same, netTree). */
+function linkPull(l: { count: number; keep?: number; muxed?: boolean; strength?: number }, o: LayoutOptions): number {
+  return Math.min(0.2, 0.08 + 0.02 * l.count) * o.contract * (l.muxed ? o.mux : 1 - (1 - (l.keep ?? 1)) * o.mux) * (1 + o.strengthPull * ((l.strength ?? 1) - 1));
+}
+
 /** Small deterministic hash so new nodes always spawn in the same place. */
 function jitter(id: string, salt: number): number {
   let h = 2166136261 ^ salt;
@@ -525,6 +543,8 @@ export class ForceLayout {
       )
       // edges' midpoints: drawn back to the straight line, slipping off any node they would rest on
       .force('bends', () => this.stepBends())
+      // each net: springs along its tree, and wheels kept off its joins
+      .force('nets', (alpha: number) => this.stepNets(alpha))
       // the edges at a node spread round it; time and sound apart; tagged cells in clusters
       .force('spread', (alpha: number) => this.stepSpread(alpha))
       .force('kinds', (alpha: number) => this.stepKinds(alpha))
@@ -765,15 +785,7 @@ export class ForceLayout {
     (this.sim.force('link') as ReturnType<typeof forceLink<PhysNode, PhysLink>>)
       // (a belt is drawn over the wheels: short and stiff, so its turntables sit side by side and it crosses little)
       .distance((l) => this.size * (l.tag || l.muxed ? o.linkDistance * 1.6 : l.part ? o.linkDistance * o.partLength : l.belt ? o.linkDistance * BELT_LENGTH : o.linkDistance))
-      .strength((l) =>
-        l.tag
-          ? 0.12
-          : l.ground
-            ? GROUND_PULL
-            : l.belt
-              ? BELT_PULL
-              : Math.min(0.2, 0.08 + 0.02 * l.count) * o.contract * (l.muxed ? o.mux : 1 - (1 - (l.keep ?? 1)) * o.mux) * (1 + o.strengthPull * ((l.strength ?? 1) - 1)),
-      );
+      .strength((l) => (l.tag ? 0.12 : l.ground ? GROUND_PULL * (1 - o.netPull) : l.belt ? BELT_PULL : linkPull(l, o) * (l.net ? 1 - o.netPull : 1)));
     // busy nodes push a little harder: more room around hubs, fewer edges squeezed past them
     (this.sim.force('charge') as ReturnType<typeof forceManyBody<PhysNode>>)
       .strength(
@@ -814,8 +826,8 @@ export class ForceLayout {
     const layerY = (rank: number) => half - (rank / maxRank) * 2 * half;
     this.rankY = new Map([...ranks].map(([id, r]) => [id, layerY(r)]));
     // (a meter's edges aren't drawn — its cells wear its ring, meters.ts — so they neither count nor pull)
-    const nodeById = new Map(model.nodes.map((n) => [n.id, n]));
-    const ground = (e: (typeof model.edges)[number]) => isGround(e, nodeById);
+    const groundIds = groundsOf(model);
+    const ground = (e: (typeof model.edges)[number]) => groundIds.has(e.id);
     this.degree = new Map();
     for (const e of model.edges)
       if (e.source !== e.target && e.kind !== 'about' && !ground(e)) for (const id of [e.source, e.target]) this.degree.set(id, (this.degree.get(id) ?? 0) + 1);
@@ -951,6 +963,7 @@ export class ForceLayout {
     this.byId.clear();
     for (const [k, v] of next) this.byId.set(k, v);
 
+    const busTaps = new Set(this.nets.flatMap((n) => (n.port === 'step' ? [] : n.taps)));
     const links: PhysLink[] = model.edges
       // (a note's links, about=, are not springs: they only draw a note towards what it explains, see stepAbout)
       .filter((e) => e.kind !== 'about' && !ground(e) && next.has(e.source) && next.has(e.target) && e.source !== e.target)
@@ -962,6 +975,7 @@ export class ForceLayout {
         part: e.kind === 'ref' || e.kind === 'over',
         belt: !!e.belt,
         strength: strengthOf(e),
+        net: busTaps.has(e.id),
       }));
 
     // a fresh graph grows (the library's way): it starts small, drawn in round its middle, and gathers before it grows
@@ -1090,8 +1104,15 @@ export class ForceLayout {
   /** Where everything is now, as quality.ts reads it: the nodes (a tag's name hides edges, but isn't a cell) and the edges as drawn. */
   private placed() {
     const nodes = [...this.byId.values()].map((n) => ({ id: n.id, x: n.x ?? 0, y: n.y ?? 0, r: n.radius, tags: n.tags, label: n.role === 'tag' }));
+    // (a bus's tap that comes on from another reader: drawn from there, straight)
+    const hops = this.hops();
     const edges = [
-      ...this.links.map((l) => ({ a: l.source, b: l.target, mid: this.bendAt.get(l.id) as { x: number; y: number } | undefined, runs: this.beltRuns(l), weight: l.strength })),
+      ...this.links.map((l) => {
+        const h = hops.get(l.id);
+        return h
+          ? { a: h.from, b: h.to, mid: undefined, weight: l.strength }
+          : { a: l.source, b: l.target, mid: this.bendAt.get(l.id) as { x: number; y: number } | undefined, runs: this.beltRuns(l), weight: l.strength };
+      }),
       // (a meter's net: straight traces)
       ...this.net.map((t) => ({ a: t.a, b: t.b, mid: undefined, weight: 2 })),
     ];
@@ -1117,14 +1138,17 @@ export class ForceLayout {
   /** Every drawn edge as short straight pieces (its spline), with its ends: what a meter's edge mustn't cross. */
   private drawnPieces(skip: (a: string, b: string) => boolean): { a: string; b: string; seg: [number, number, number, number] }[] {
     const out: { a: string; b: string; seg: [number, number, number, number] }[] = [];
+    const hops = this.hops();
     for (const l of this.links) {
-      if (skip(l.source, l.target)) continue;
-      const a = this.byId.get(l.source);
-      const b = this.byId.get(l.target);
+      const h = hops.get(l.id);
+      const [source, target] = h ? [h.from, h.to] : [l.source, l.target];
+      if (skip(source, target)) continue;
+      const a = this.byId.get(source);
+      const b = this.byId.get(target);
       if (!a || !b) continue;
-      const m = this.bendAt.get(l.id) ?? { x: ((a.x ?? 0) + (b.x ?? 0)) / 2, y: ((a.y ?? 0) + (b.y ?? 0)) / 2 };
+      const m = (h ? undefined : this.bendAt.get(l.id)) ?? { x: ((a.x ?? 0) + (b.x ?? 0)) / 2, y: ((a.y ?? 0) + (b.y ?? 0)) / 2 };
       const pts = Array.from({ length: 9 }, (_, k) => splinePoint(a.x ?? 0, a.y ?? 0, m.x, m.y, b.x ?? 0, b.y ?? 0, k / 8));
-      for (let k = 0; k < 8; k++) out.push({ a: l.source, b: l.target, seg: [pts[k].x, pts[k].y, pts[k + 1].x, pts[k + 1].y] });
+      for (let k = 0; k < 8; k++) out.push({ a: source, b: target, seg: [pts[k].x, pts[k].y, pts[k + 1].x, pts[k + 1].y] });
     }
     return out;
   }
@@ -1241,51 +1265,126 @@ export class ForceLayout {
   private nets: GraphModel['nets'] = [];
 
   /**
-   * Each net laid as a ratsnest (as KiCad shows one, and lays it again as a part moves): the reader nearest the owner
-   * takes the trunk straight from it; then, nearest first, each other reader attaches where the tree is nearest to it —
-   * anywhere along a segment (a T), never inside a wheel. By tap (edge id): null for the trunk's, else the point it
-   * branches from, the way the segment there runs, and the trunk's way out of the owner (the strands' order). Laid again whenever it's asked for, so it follows a moved cell.
+   * A net's tree as things stand now, a ratsnest (as KiCad shows one, and lays again as a part moves): the readers
+   * are its junctions — it comes into a cell and flares out of it to the next — each joined to the one nearest it
+   * already joined, a join through a wheel costing as much again for each wheel. A bus (a table's) leaves its owner
+   * once, to the reader nearest it; a meter's ground joins it wherever it is nearest. By tap (edge id): the node it
+   * comes from, and its reader.
    */
-  taps(): Map<string, { x: number; y: number; dx: number; dy: number; phi: number } | null> {
-    const out = new Map<string, { x: number; y: number; dx: number; dy: number; phi: number } | null>();
-    for (const net of this.nets) {
-      const o = this.byId.get(net.owner);
-      const readers = net.taps.flatMap((id) => {
-        const n = this.byId.get(this.edgeEnds.get(id) ?? '');
-        return n ? [{ id, n, x: n.x ?? 0, y: n.y ?? 0 }] : [];
+  netTree(net: GraphModel['nets'][number]): Map<string, { from: string; to: string }> {
+    const out = new Map<string, { from: string; to: string }>();
+    const o = this.byId.get(net.owner);
+    const readers = net.taps.flatMap((id) => {
+      const n = this.byId.get(this.edgeEnds.get(id) ?? '');
+      return n && n !== o ? [{ id, n }] : [];
+    });
+    if (!o || !readers.length) return out;
+    const wheels = [...this.byId.values()].filter((w) => w.role !== 'tag');
+    const cost = (a: PhysNode, b: PhysNode) => {
+      const [ax, ay, bx, by] = [a.x ?? 0, a.y ?? 0, b.x ?? 0, b.y ?? 0];
+      const l = Math.hypot(bx - ax, by - ay) || 1;
+      let through = 0;
+      for (const w of wheels) {
+        if (w === a || w === b) continue;
+        const t = Math.max(0, Math.min(1, ((w.x ?? 0) - ax) * (bx - ax) + ((w.y ?? 0) - ay) * (by - ay)) / (l * l));
+        if (Math.hypot(ax + t * (bx - ax) - (w.x ?? 0), ay + t * (by - ay) - (w.y ?? 0)) < w.radius * 0.8) through++;
+      }
+      return Math.max(1, l - a.radius - b.radius) * (1 + through);
+    };
+    const bus = net.port !== 'step';
+    const joined: PhysNode[] = [o];
+    const left = [...readers];
+    // (each reader's cheapest join so far, and what to)
+    const best = left.map((r) => ({ cost: cost(o, r.n), from: o }));
+    while (left.length) {
+      const k = best.reduce((b, c, i) => (c.cost < best[b].cost ? i : b), 0);
+      const [r] = left.splice(k, 1);
+      const [{ from }] = best.splice(k, 1);
+      out.set(r.id, { from: from.id, to: r.n.id });
+      joined.push(r.n);
+      // (a bus has left its owner: only the readers join on)
+      left.forEach((q, i) => {
+        if (bus && best[i].from === o) best[i] = { cost: Infinity, from: o };
+        const c = cost(r.n, q.n);
+        if (c < best[i].cost) best[i] = { cost: c, from: r.n };
       });
-      if (!o || readers.length < 2) continue;
-      const [ox, oy] = [o.x ?? 0, o.y ?? 0];
-      const first = readers.reduce((a, b) => (Math.hypot(b.x - ox, b.y - oy) < Math.hypot(a.x - ox, a.y - oy) ? b : a));
-      out.set(first.id, null);
-      // (the trunk's way out of the owner: the order of the strands in every branch)
-      const phi = Math.atan2(first.y - oy, first.x - ox);
-      // the tree's segments, each clear of the wheels at its ends
-      const segs: { ax: number; ay: number; bx: number; by: number; ra: number; rb: number }[] = [{ ax: ox, ay: oy, bx: first.x, by: first.y, ra: o.radius, rb: first.n.radius }];
-      const nearest = (x: number, y: number) => {
-        let best = { d: Infinity, x: 0, y: 0, dx: 1, dy: 0 };
-        for (const s of segs) {
-          const [vx, vy] = [s.bx - s.ax, s.by - s.ay];
-          const l = Math.hypot(vx, vy) || 1;
-          const lo = Math.min(0.5, (s.ra + 30) / l);
-          const hi = Math.max(lo, 1 - (s.rb + 30) / l);
-          const t = Math.max(lo, Math.min(hi, ((x - s.ax) * vx + (y - s.ay) * vy) / (l * l)));
-          const [px, py] = [s.ax + vx * t, s.ay + vy * t];
-          const d = Math.hypot(x - px, y - py);
-          if (d < best.d) best = { d, x: px, y: py, dx: vx / l, dy: vy / l };
+    }
+    return out;
+  }
+
+  /**
+   * Nets in the forces: each join of a net's tree a spring, as strong as the edge it stands for (a meter's as its
+   * ground); a wheel lying on a join pushed off it to the side it is on, the join's ends the other way.
+   */
+  private stepNets(alpha: number): void {
+    const o = this.opts;
+    if (o.netPull <= 0 && o.netClear <= 0) return;
+    // (laid again every tick: measured, it settles better than a tree kept for a few — docs/notes/nets.md)
+    const trees = this.nets.map((net) => ({ net, tree: this.netTree(net) }));
+    const wheels = [...this.byId.values()].filter((w) => w.role !== 'tag');
+    for (const { net, tree } of trees) {
+      const bus = net.port !== 'step';
+      for (const { from, to } of tree.values()) {
+        const [a, b] = [this.byId.get(from), this.byId.get(to)];
+        if (!a || !b) continue;
+        const [dx, dy] = [(b.x ?? 0) - (a.x ?? 0), (b.y ?? 0) - (a.y ?? 0)];
+        const l = Math.hypot(dx, dy) || 1;
+        if (o.netPull > 0) {
+          // (as d3's link: towards its length, shared by the two ends)
+          const rest = this.size * (bus ? o.linkDistance * o.partLength : o.linkDistance);
+          const k = (((l - rest) / l) * alpha * o.netPull * (bus ? linkPull({ count: 1 }, o) : GROUND_PULL)) / 2;
+          a.vx = (a.vx ?? 0) + dx * k;
+          a.vy = (a.vy ?? 0) + dy * k;
+          b.vx = (b.vx ?? 0) - dx * k;
+          b.vy = (b.vy ?? 0) - dy * k;
         }
-        return best;
-      };
-      const left = readers.filter((r) => r !== first);
-      while (left.length) {
-        const at = left.map((r) => nearest(r.x, r.y));
-        const k = at.reduce((b, a, i) => (a.d < at[b].d ? i : b), 0);
-        const r = left.splice(k, 1)[0];
-        const a = at[k];
-        out.set(r.id, { x: a.x, y: a.y, dx: a.dx, dy: a.dy, phi });
-        segs.push({ ax: a.x, ay: a.y, bx: r.x, by: r.y, ra: 0, rb: r.n.radius });
+        if (o.netClear <= 0) continue;
+        for (const w of wheels) {
+          if (w === a || w === b) continue;
+          const t = (((w.x ?? 0) - (a.x ?? 0)) * dx + ((w.y ?? 0) - (a.y ?? 0)) * dy) / (l * l);
+          if (t <= 0 || t >= 1) continue;
+          const [px, py] = [(a.x ?? 0) + t * dx - (w.x ?? 0), (a.y ?? 0) + t * dy - (w.y ?? 0)];
+          const d = Math.hypot(px, py);
+          const clear = w.radius + 12;
+          if (d >= clear) continue;
+          // (off the join, to the side it lies on; dead on it, to the join's left)
+          const [ux, uy] = d > 1e-3 ? [-px / d, -py / d] : [-dy / l, dx / l];
+          const push = (clear - d) * alpha * o.netClear;
+          w.vx = (w.vx ?? 0) + ux * push;
+          w.vy = (w.vy ?? 0) + uy * push;
+          for (const [e, share] of [
+            [a, 1 - t],
+            [b, t],
+          ] as const) {
+            e.vx = (e.vx ?? 0) - ux * push * share;
+            e.vy = (e.vy ?? 0) - uy * push * share;
+          }
+        }
       }
     }
+  }
+
+  /**
+   * Where each tap of a bus (a table read by several) comes from, for drawing: null, the trunk, out of the owner's
+   * wheel; else the reader it comes on from (its node, where it is now). Laid again whenever it's asked for, so it
+   * follows a moved cell.
+   */
+  taps(): Map<string, { from: string; x: number; y: number } | null> {
+    const out = new Map<string, { from: string; x: number; y: number } | null>();
+    for (const net of this.nets) {
+      if (net.port === 'step') continue;
+      for (const [id, { from }] of this.netTree(net)) {
+        const f = this.byId.get(from)!;
+        out.set(id, from === net.owner ? null : { from, x: f.x ?? 0, y: f.y ?? 0 });
+      }
+    }
+    return out;
+  }
+
+  /** Each bus's joins that aren't its owner's own edge (a tap coming on from another reader), by tap: what's drawn. */
+  private hops(): Map<string, { from: string; to: string }> {
+    const out = new Map<string, { from: string; to: string }>();
+    for (const net of this.nets) if (net.port !== 'step') for (const [id, j] of this.netTree(net)) if (j.from !== net.owner) out.set(id, j);
     return out;
   }
 

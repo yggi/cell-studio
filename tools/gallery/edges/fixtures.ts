@@ -4,7 +4,7 @@
  * so a new way to write an edge turns up here by itself. Beside them, the edges that aren't in the model: a meter's net.
  */
 import { buildGraph, type GraphEdge } from '../../../src/engine/graph';
-import { isGround, meterIndex } from '../../../src/layout/meters';
+import { groundsOf, meterIndex } from '../../../src/layout/meters';
 import type { Piece } from '../pieces';
 
 export interface EdgeFixture {
@@ -44,10 +44,10 @@ export function edgeFixtures(list: readonly Piece[]): EdgeFixture[] {
   let meter: EdgeFixture | undefined;
   for (const piece of list) {
     const model = buildGraph(piece.program);
-    const byId = new Map(model.nodes.map((n) => [n.id, n]));
+    const grounds = groundsOf(model);
     for (const e of model.edges) {
       // (a meter's own step edges aren't drawn: its net is)
-      if (isGround(e, byId)) {
+      if (grounds.has(e.id)) {
         const index = meterIndex(model).get(e.target);
         const had = meter;
         if (!had && index !== undefined)

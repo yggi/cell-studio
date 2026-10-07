@@ -73,8 +73,9 @@ export interface GraphEdge extends Wire {
 }
 
 /**
- * A net (docs/notes/nets.md): a cell read by several through the same port — one trunk out of it, branching at a
- * junction to each reader. Today a table read by several (over=); a meter's net is laid by the layout.
+ * A net (docs/notes/nets.md): a cell read through one port by several, or a meter by whatever it steps. A table's
+ * (over=), a melody's (voice) and a voice's (mix) leave it once and go on from reader to reader; a meter's (step=, sync) is its ground: no edge of
+ * its own is drawn, its traces join it and its cells through each other. The layout lays each as a tree (a ratsnest).
  */
 interface GraphNet {
   readonly id: string;
@@ -418,18 +419,29 @@ function petals(result: CompileResult, allNodes: GraphNode[], allEdges: GraphEdg
   const alias = new Map<string, string | undefined>();
   for (const r of redrawn) alias.set(r.id, r.pair === null ? undefined : byPair.get(r.pair));
   for (const e of allEdges) if (hidden.has(e.source) || hidden.has(e.target)) alias.set(e.id, undefined);
-  return { nodes: nodes.map((n) => (parentOf.has(n.id) ? { ...n, petalOf: parentOf.get(n.id) } : n)), edges: out, nets: netsOf(out), alias };
+  return { nodes: nodes.map((n) => (parentOf.has(n.id) ? { ...n, petalOf: parentOf.get(n.id) } : n)), edges: out, nets: netsOf(nodes, out), alias };
 }
 
-/** The ports a net is drawn for so far: a table read by several. */
-const NET_PORTS = new Set(['over']);
+/**
+ * The ports whose edges from one cell to several make a net laid as a bus: a table read through over=, a melody
+ * playing several voices, a voice into several mixes (the sound card's channels). A tape's heads are not: each is
+ * its own place on the tape, which is their junction already.
+ */
+const BUS_PORTS = new Set(['over', 'voice', 'mix']);
 
-/** The nets among the edges: those leaving one cell through one port, two or more. */
-function netsOf(edges: readonly GraphEdge[]): GraphNet[] {
+/**
+ * The nets among the edges: a table read by two or more (over=), a melody or a voice by two or more, and each meter's ticks to every cell it steps (a
+ * step into a meter, not through a belt: a belt is a body, drawn).
+ */
+function netsOf(nodes: readonly GraphNode[], edges: readonly GraphEdge[]): GraphNet[] {
+  const meters = new Set(nodes.flatMap((n) => (n.kind === 'cell' && n.isMeter ? [n.id] : [])));
   const groups = new Map<string, GraphEdge[]>();
-  for (const e of edges) if (NET_PORTS.has(e.port)) groups.set(`${e.from}|${e.port}`, [...(groups.get(`${e.from}|${e.port}`) ?? []), e]);
+  for (const e of edges) {
+    const port = BUS_PORTS.has(e.port) ? e.port : e.kind === 'step' && !e.belt && meters.has(e.target) ? 'step' : null;
+    if (port) groups.set(`${e.from}|${port}`, [...(groups.get(`${e.from}|${port}`) ?? []), e]);
+  }
   return [...groups.values()]
-    .filter((g) => g.length > 1)
+    .filter((g) => g.length > 1 || g[0].port === 'step')
     .map((g) => ({ id: `net:${g[0].from}:${g[0].port}`, owner: g[0].from, port: g[0].port, band: g[0].band, taps: g.map((e) => e.id) }));
 }
 

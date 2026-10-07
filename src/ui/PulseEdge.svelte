@@ -12,7 +12,7 @@
    */
   import { BaseEdge, type EdgeProps } from '@xyflow/svelte';
   import { untrack } from 'svelte';
-  import { loomOrder, loomPaths, radialPath, ripplePath, splinePoint, strandPath } from '../layout/geometry';
+  import { loomPaths, radialPath, ripplePath, splinePoint, strandPath } from '../layout/geometry';
   import { cellView, type Fill } from '../layout/cellview';
   import { isTurntable } from '../engine/graph';
   import { getGraphContext } from './context';
@@ -43,10 +43,16 @@
   const state = $derived(d.state === 'idle' && ctx.liveEdges?.has(id) ? 'live' : (d.state ?? 'on'));
   const isLive = $derived(state === 'live');
 
+  // A bus read by several (a net) is laid as a ratsnest whose junctions are its readers (ForceLayout.netTree): its trunk
+  // leaves the owner's wheel once, to the reader nearest; every other tap comes on from a reader, out of its wheel —
+  // a hop, drawn from there (straight: the tree keeps its joins off the wheels)
+  const hop = $derived(d.net ? ctx.taps?.get(id) : undefined);
+  const fromX = $derived(hop ? hop.x : sourceX);
+  const fromY = $derived(hop ? hop.y : sourceY);
   // a quadratic spline through the layout's bend point (straight when nothing is in the way)
-  const mid = $derived(ctx.bends.get(id) ?? { x: (sourceX + targetX) / 2, y: (sourceY + targetY) / 2 });
-  const control = $derived({ x: 2 * mid.x - (sourceX + targetX) / 2, y: 2 * mid.y - (sourceY + targetY) / 2 });
-  const spline = $derived(`M ${sourceX} ${sourceY} Q ${control.x} ${control.y} ${targetX} ${targetY}`);
+  const mid = $derived((hop ? undefined : ctx.bends.get(id)) ?? { x: (fromX + targetX) / 2, y: (fromY + targetY) / 2 });
+  const control = $derived({ x: 2 * mid.x - (fromX + targetX) / 2, y: 2 * mid.y - (fromY + targetY) / 2 });
+  const spline = $derived(`M ${fromX} ${fromY} Q ${control.x} ${control.y} ${targetX} ${targetY}`);
 
   // the shifts its wheels are drawn with (CellGlyph's rule): as they stand now, redrawn when a table turns, not every
   // frame — so a locked end and a lit strand mean the segment the wheel shows there
@@ -55,6 +61,9 @@
     const still = ctx.shifts;
     return untrack(() => ctx.live?.shifts) ?? still;
   });
+
+  // (between a bus's strands)
+  const GAP = 4;
 
   // Ends locked to their segments (as a tape's heads are): a ref meets the wheel of the cell it is spliced into where it
   // sits in that braid, once for each time it is written; a table's strands leave its wheel at their entries.
@@ -75,12 +84,16 @@
     // (a ref that fills the braid has no place on it but everywhere)
     return [...spans.values()].filter(([a, b]) => b - a < 0.999).map(([a, b]) => (a + b) / 2);
   });
-  const lockedPaths = $derived(occurrences.map((t) => radialPath(sourceX, sourceY, control, targetX, targetY, rimOf(d.sizes?.to), t)));
-  const path = $derived(d.band === 'audio' ? ripplePath(sourceX, sourceY, mid.x, mid.y, targetX, targetY) : (lockedPaths[0] ?? spline));
+  // (written more than once: a bus, a strand to each place, gathered towards the cell spliced in)
+  const lockedPaths = $derived(
+    occurrences.length > 1
+      ? loomPaths(targetX, targetY, rimOf(d.sizes?.to), occurrences, mid.x, mid.y, sourceX, sourceY, 2.5 * GAP)
+      : occurrences.map((t) => radialPath(sourceX, sourceY, control, targetX, targetY, rimOf(d.sizes?.to), t)),
+  );
+  const path = $derived(d.band === 'audio' ? ripplePath(fromX, fromY, mid.x, mid.y, targetX, targetY) : (lockedPaths[0] ?? spline));
 
   // a bus: a table read through over= (its entries), or a chord (its notes); at most 12 strands, a longer table sampled
   const STRANDS = 12;
-  const GAP = 4;
   const view = $derived.by(() => {
     if (d.width < 2 || d.tines || (!d.table && d.band !== 'cv')) return null;
     void ctx.turned;
@@ -93,25 +106,15 @@
     const r = rimOf(d.sizes?.from);
     const exits = d.table && r ? Array.from({ length: count }, (_, i) => entryOf(i)) : [];
     if (!exits.length || exits.some((s) => !s))
-      return Array.from({ length: count }, (_, i) => strandPath(sourceX, sourceY, mid.x, mid.y, targetX, targetY, (i - (count - 1) / 2) * GAP));
+      return Array.from({ length: count }, (_, i) => strandPath(fromX, fromY, mid.x, mid.y, targetX, targetY, (i - (count - 1) / 2) * GAP));
     const turns = exits.map((s) => (s!.t0 + s!.t1) / 2);
-    // a net (a table read by several), laid as a ratsnest: one tap takes the trunk, the loom from the wheel, straight to
-    // its reader; each other tap branches off the tree where it is nearest, the bundle going on, each strand at its place
-    const tap = d.net ? ctx.taps?.get(id) : undefined;
-    if (tap === null) return loomPaths(sourceX, sourceY, r, turns, (sourceX + targetX) / 2, (sourceY + targetY) / 2, targetX, targetY, GAP);
-    if (tap) {
-      const order = loomOrder(turns, tap.phi);
-      const [bx, by] = [targetX - tap.x, targetY - tap.y];
-      const bl = Math.hypot(bx, by) || 1;
-      const k = 0.4 * bl;
-      const f = (v: number) => v.toFixed(1);
-      return turns.map((_, i) => {
-        const o = (order[i] - (turns.length - 1) / 2) * GAP;
-        const [sx, sy] = [tap.x - tap.dy * o, tap.y + tap.dx * o];
-        const [ex, ey] = [targetX - (by / bl) * o, targetY + (bx / bl) * o];
-        // (along the tree's way at the T, then round into the branch's: one smooth curve)
-        return `M ${f(sx)} ${f(sy)} C ${f(sx + tap.dx * k)} ${f(sy + tap.dy * k)} ${f(ex - (bx / bl) * k)} ${f(ey - (by / bl) * k)} ${f(ex)} ${f(ey)}`;
-      });
+    // a hop: out of the reader's wheel it comes on from, flared over the part of its rim facing this one, each strand
+    // at its place in the table's order
+    if (hop?.r) {
+      const way = Math.atan2(targetY - hop.y, targetX - hop.x) / (2 * Math.PI) + 0.25;
+      const spread = (1.5 * GAP) / (2 * Math.PI * hop.r);
+      const fan = turns.map((_, i) => way + (i - (turns.length - 1) / 2) * spread);
+      return loomPaths(hop.x, hop.y, hop.r, fan, mid.x, mid.y, targetX, targetY, GAP);
     }
     // out of each entry, along the radius, into a bundle towards the reader
     return loomPaths(sourceX, sourceY, r, turns, mid.x, mid.y, targetX, targetY, GAP);
@@ -155,7 +158,7 @@
 
   // only a live edge (what it carries sounds now) pulses and takes its voice's colour
   const phase = $derived(isLive && d.phaseCell && ctx.live ? ctx.live.phases.get(d.phaseCell) : undefined);
-  const dot = $derived(phase === undefined ? null : splinePoint(sourceX, sourceY, mid.x, mid.y, targetX, targetY, phase));
+  const dot = $derived(phase === undefined ? null : splinePoint(fromX, fromY, mid.x, mid.y, targetX, targetY, phase));
 
   const hue = $derived.by(() => {
     if (!isLive || !d.voice || !ctx.live) return null;

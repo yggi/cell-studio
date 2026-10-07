@@ -67,14 +67,24 @@ describe('crossing-free layout', () => {
 
 // The layout's quality per example (quality.ts), against the recorded baseline: the library as a whole may
 // not get worse, and a change that makes it better records the new numbers, so each PR's diff of
-// quality.baseline.json shows what it did, piece by piece. Record: UPDATE_LAYOUT_BASELINE=1 npx vitest run src/layout/physics.library.test.ts
+// quality.baseline.json shows what it did, piece by piece. Each number is the mean of three starts (seeds): one start
+// alone is noise — a change can gain a fifth over the library at one seed and lose it at the next (docs/notes/nets.md).
+// Record: UPDATE_LAYOUT_BASELINE=1 npx vitest run src/layout/physics.library.test.ts
 describe('layout quality', () => {
   type Row = LayoutQuality & { start: number };
   const path = 'src/layout/quality.baseline.json';
+  const SEEDS = [1, 2];
   const now: Record<string, Row> = Object.fromEntries(
-    library.map(({ key, layout, start }) => {
-      const { cells, ...settled } = layout.quality();
-      return [key, { cells, start: start.crossings, ...settled }];
+    library.map(({ key, source, layout, start }) => {
+      const rows = [
+        { ...layout.quality(), start: start.crossings },
+        ...SEEDS.map((seed) => {
+          const s = settle(source, { seed });
+          return { ...s.layout.quality(), start: s.start.crossings };
+        }),
+      ];
+      const mean = Object.fromEntries(Object.keys(rows[0]).map((k) => [k, Math.round((rows.reduce((a, r) => a + (r[k as keyof Row] as number), 0) / rows.length) * 10) / 10]));
+      return [key, mean as unknown as Row];
     }),
   );
   const sum = (rows: Record<string, Row>, f: (r: Row) => number) => Object.values(rows).reduce((a, r) => a + f(r), 0);

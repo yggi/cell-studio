@@ -30,7 +30,7 @@
   import type { LiveSource } from '../audio/live';
   import ForcesPanel from './ForcesPanel.svelte';
   import { clusterDisc } from '../layout/clusters';
-  import { isGround, meterIndex } from '../layout/meters';
+  import { groundsOf, meterIndex } from '../layout/meters';
 
   let {
     model,
@@ -178,8 +178,8 @@
   // The node under the pointer is left alone: Svelte Flow owns it while dragging.
   // where each edge's spline bends (it slips off nodes it would rest on)
   let bends = $state.raw(new Map<string, { x: number; y: number }>());
-  // where each net's taps attach (a ratsnest: laid again as cells move)
-  let taps = $state.raw(new Map<string, { x: number; y: number; dx: number; dy: number; phi: number } | null>());
+  // where each bus's taps come from (a ratsnest, the readers its junctions: laid again as cells move)
+  let taps = $state.raw(new Map<string, { from: string; x: number; y: number; r: number } | null>());
   // unnamed cells are petals: not simulated, hung on an arc above their parent
   let petalSlot = new Map<string, { parent: string; i: number; n: number }>();
   function posOf(id: string): { x: number; y: number } | undefined {
@@ -211,7 +211,7 @@
       return p ? { ...turned, position: p } : turned;
     });
     bends = layout.bends();
-    taps = layout.taps();
+    taps = new Map([...layout.taps()].map(([id, t]) => [id, t && { ...t, r: ((nodes.find((n) => n.id === t.from)?.data as { size?: number })?.size ?? 0) / 2 }]));
   });
   // (at rest again — after a drag, an edit — the meter's net is laid again from where things are; the meter stays put)
   layout.onSettle(() => {
@@ -311,10 +311,10 @@
     void playing;
     if (hasBelts) void liveEdges;
     // (a meter's edges are ground — layout/meters.ts — and its net is drawn instead)
-    const byId = new Map(m.nodes.map((n) => [n.id, n]));
+    const grounds = groundsOf(m);
     const laid = net;
     const index = meterIndex(m);
-    untrack(() => (edges = [...m.edges.filter((e) => !isGround(e, byId)).map((e) => toFlowEdge(e)), ...laid.map((t) => meterEdgeOf(t, index.get(t.meter) ?? 0))]));
+    untrack(() => (edges = [...m.edges.filter((e) => !grounds.has(e.id)).map((e) => toFlowEdge(e)), ...laid.map((t) => meterEdgeOf(t, index.get(t.meter) ?? 0))]));
   });
 
   // an example's fixed layout: pinned when the example changes; released when it does again

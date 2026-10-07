@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { parse } from '../engine/parser';
 import { ForceLayout, DEFAULT_LAYOUT, FORCES_ALONE, columns, crossingPairs, flowRanks, orderLayers, tapeFaces } from './physics';
 import { fitTurn, headAngle, tapeHeads } from './tape';
-import { isGround } from './meters';
+import { groundsOf } from './meters';
 import { splinePoint } from './geometry';
 import { buildGraph } from '../engine/graph';
 import { compileSource } from '../engine/compile';
@@ -176,7 +176,8 @@ describe('dragging', () => {
     l.dragEnd(id);
     l.tick(200);
     const p = l.position(id)!;
-    expect(Math.hypot(p.x - drop.x, p.y - drop.y)).toBeGreaterThan(20);
+    // (it moves: its meter holds it by the join of its net nearest it now, not by a spring from the meter itself)
+    expect(Math.hypot(p.x - drop.x, p.y - drop.y)).toBeGreaterThan(10);
     l.dragStart(id, drop.x, drop.y);
     l.dragEnd(id, true);
     l.tick(200);
@@ -576,8 +577,9 @@ describe('meters, joined to their cells by a net', () => {
       l.tick(220);
       l.layNet();
       const net = l.meterNet();
+      const ids = groundsOf(model);
       const byId = new Map(model.nodes.map((n) => [n.id, n]));
-      const grounds = model.edges.filter((e) => isGround(e, byId));
+      const grounds = model.edges.filter((e) => ids.has(e.id));
       expect(grounds.length).toBeGreaterThan(0);
       for (const m of new Set(grounds.map((e) => e.target))) {
         // a tree over the meter and every cell it steps: each reached, one trace fewer than its ends

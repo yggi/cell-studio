@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isGround, meterIndex, meterNow } from './meters';
+import { groundsOf, meterIndex, meterNow } from './meters';
 import { liveAt } from '../engine/live';
 import { codeShifts } from '../engine/program';
 import { buildGraph } from '../engine/graph';
@@ -14,12 +14,13 @@ describe('meters as ground', () => {
     for (const key of ['fifths', 'automaton', 'soundtape'] as const) {
       const m = buildGraph(compileSource(PRESETS[key].source));
       const byId = new Map(m.nodes.map((n) => [n.id, n]));
+      const grounds = groundsOf(m);
       for (const e of m.edges.filter((e) => e.kind === 'step')) {
         const meter = (byId.get(e.target) as { isMeter?: boolean }).isMeter;
         const belted = !!e.belt;
-        expect(isGround(e, byId), `${key}: ${e.id}`).toBe(!!meter && !belted);
+        expect(grounds.has(e.id), `${key}: ${e.id}`).toBe(!!meter && !belted);
       }
-      for (const e of m.edges.filter((e) => e.kind !== 'step')) expect(isGround(e, byId)).toBe(false);
+      for (const e of m.edges.filter((e) => e.kind !== 'step')) expect(grounds.has(e.id)).toBe(false);
     }
   });
 

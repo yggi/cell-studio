@@ -6,7 +6,7 @@
  * tape's head, a meter's net; and what it carries: its band (sync, CV, audio) and whether it is a bus. Which label it has (`×0.4`, `[<<]`, `lpf`) is the edge sheet's to show.
  */
 import { buildGraph, type GraphEdge } from '../../../src/engine/graph';
-import { isGround } from '../../../src/layout/meters';
+import { groundsOf } from '../../../src/layout/meters';
 import type { CompileResult } from '../../../src/engine/program';
 import type { Piece } from '../pieces';
 import { wheelsOf } from '../wheels/fixtures';
@@ -49,9 +49,9 @@ export interface Carrier {
 /** Everything a piece carries: its wheels and its edges, each with its facets. */
 export function carriers(piece: Piece): { wheels: Carrier[]; edges: Carrier[] } {
   const model = buildGraph(piece.program);
-  const byId = new Map(model.nodes.map((n) => [n.id, n]));
+  const grounds = groundsOf(model);
   return {
     wheels: wheelsOf(piece).map((w) => ({ what: `&${w.name}`, facets: wheelFacets(w.key) })),
-    edges: model.edges.map((e) => ({ what: `${e.source.slice(5)}>${e.target.slice(5)}`, facets: edgeFacets(e, piece.program, isGround(e, byId)) })),
+    edges: model.edges.map((e) => ({ what: `${e.source.slice(5)}>${e.target.slice(5)}`, facets: edgeFacets(e, piece.program, grounds.has(e.id)) })),
   };
 }

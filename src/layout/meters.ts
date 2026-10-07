@@ -1,14 +1,14 @@
 /**
- * Meters as ground (#27): a meter drives almost everything in a piece (`step=&bar`), so its edges would run
- * from one place to every part, crossing all the rest. As in a circuit, where ground isn't drawn as a wire to
- * every part, the graph draws a meter's net instead (layout/physics.ts: meterNet). A belt keeps its belt: a body, drawn.
+ * Meters as ground (#27): a meter drives almost everything in a piece (`step=&bar`), so its edges would run from one
+ * place to every part, crossing all the rest. As in a circuit, where ground isn't drawn as a wire to every part, the
+ * graph draws a meter's net instead (GraphModel.nets, the step ones; laid by layout/physics.ts: meterNet). A belt
+ * keeps its belt: a body, drawn.
  */
-type Node = { id: string; kind: string; isMeter?: boolean; petalOf?: string; cell?: { name: string; params: Readonly<Record<string, unknown>> } };
-type Edge = { source: string; target: string; kind: string; label?: string; belt?: string };
+type Node = { id: string; kind: string; isMeter?: boolean; petalOf?: string };
 
-/** An edge to a meter that isn't drawn: a step into a meter, not through a belt. */
-export function isGround(e: Edge, byId: ReadonlyMap<string, Node>): boolean {
-  return e.kind === 'step' && !e.belt && !!byId.get(e.target)?.isMeter;
+/** The edges to a meter that aren't drawn (its net's taps), by id. */
+export function groundsOf(model: { nets?: readonly { port: string; taps: readonly string[] }[] }): Set<string> {
+  return new Set((model.nets ?? []).flatMap((n) => (n.port === 'step' ? n.taps : [])));
 }
 
 /** Each meter's place among the piece's meters, in the order they're written. */

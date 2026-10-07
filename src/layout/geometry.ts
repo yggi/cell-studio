@@ -105,57 +105,40 @@ export function radialPath(ax: number, ay: number, via: { x: number; y: number }
 }
 
 /**
- * A wheel's strands, routed as a cable loom (a table's entries, a resonator's tines), each one cubic Bézier: out of
- * its place on the rim (`turns`, 0 the top, clockwise) along the radius, into its place in a bundle `gap` px apart that
- * leaves the wheel towards b and follows the edge's curve (through m) to b. The places in the bundle are in the order
- * the strands sit round the wheel, seen from b's side, so neighbours stay neighbours and none cross where they leave;
- * a strand from the far side dives under the wheel (edges are drawn beneath it) and comes out in its place. Paths in
- * the order of `turns`; `ends`, where each one's bundle place is (for a net's branches to go on from).
+ * A wheel's strands, routed as a cable loom (a table's entries, a resonator's tines, a ref written several times), each
+ * one cubic Bézier into its place in a bundle `gap` px apart that leaves the wheel towards b and follows the edge's
+ * curve (through m) to b. A strand on the near half (facing b) leaves its place on the rim (`turns`, 0 the top,
+ * clockwise) at a right angle and comes round into the bundle; one on the far half runs straight under the wheel
+ * (edges are drawn beneath it) and comes out where its place is across. The places across the bundle are in the order
+ * the strands sit across b's way (a near strand outside the far one beside it), so no two cross. Paths in the order
+ * of `turns`.
  */
 export function loomPaths(cx: number, cy: number, r: number, turns: readonly number[], mx: number, my: number, bx: number, by: number, gap: number): string[] {
-  return loom(cx, cy, r, turns, mx, my, bx, by, gap).paths;
-}
-
-/**
- * The places in a loom's bundle (0 … n−1, across it): by angle round the wheel from the way it leaves (`phi`, radians),
- * right of it to the right, left to the left — so a branch of the bundle carries each strand on at the same place.
- */
-export function loomOrder(turns: readonly number[], phi: number): number[] {
-  const delta = turns.map((t) => Math.atan2(Math.sin(t * 2 * Math.PI - Math.PI / 2 - phi), Math.cos(t * 2 * Math.PI - Math.PI / 2 - phi)));
-  return delta.map((d, i) => delta.filter((e, j) => e < d || (e === d && j < i)).length);
-}
-
-/** loomPaths, with where each strand's bundle place ends (b, offset across). */
-function loom(cx: number, cy: number, r: number, turns: readonly number[], mx: number, my: number, bx: number, by: number, gap: number) {
   const phi = Math.atan2(by - cy, bx - cx);
   const [ux, uy] = [Math.cos(phi), Math.sin(phi)];
   const [nx, ny] = [-uy, ux];
-  const wrap = (a: number) => Math.atan2(Math.sin(a), Math.cos(a));
   const at = turns.map((t) => t * 2 * Math.PI - Math.PI / 2);
-  const delta = at.map((a) => wrap(a - phi));
-  const rank = loomOrder(turns, phi);
+  // (across b's way: −1 … 1; a far strand just inside the near one at the same place, which comes out round it)
+  const across = at.map((a) => Math.sin(a - phi) * (Math.cos(a - phi) < 0 ? 0.999 : 1));
+  const rank = across.map((v, i) => across.filter((w, j) => w < v || (w === v && j < i)).length);
   const n = turns.length;
   const d = Math.hypot(bx - cx, by - cy) || 1;
   // (where the bundle gathers: out of the wheel, but well short of b)
   const reach = r + Math.max(8, Math.min(90, 0.55 * (d - r)));
   const f = (v: number) => v.toFixed(1);
-  const ends: { x: number; y: number; o: number }[] = [];
-  const paths = at.map((a, i) => {
-    // (n across is to b's left in screen terms; a positive angle from b's direction is on that side)
+  // on along the edge's curve — never back: a control behind where the bundle gathered would loop it
+  const [qx, qy] = [2 * mx - (cx + bx) / 2, 2 * my - (cy + by) / 2];
+  const ahead = (qx - cx) * ux + (qy - cy) * uy > reach + 4;
+  return at.map((a, i) => {
     const o = (rank[i] - (n - 1) / 2) * gap;
     const [px, py] = [cx + r * Math.cos(a), cy + r * Math.sin(a)];
-    // out along the radius, a little (a strand from the far side only just: it turns under the wheel at once)
-    const back = (1 - Math.cos(delta[i])) / 2;
-    const l1 = 6 + 18 * (1 - back);
+    const c = Math.cos(a - phi);
     const [gx, gy] = [cx + ux * reach + nx * o, cy + uy * reach + ny * o];
-    // (into its place over most of the way out: a strand far to the side has room to come in)
-    const l2 = (reach - r) * (0.55 + 0.3 * back);
-    // on along the edge's curve — never back: a control behind where the bundle gathered would loop it
-    const [qx, qy] = [2 * mx - (cx + bx) / 2, 2 * my - (cy + by) / 2];
-    const ahead = (qx - cx) * ux + (qy - cy) * uy > reach + 4;
+    // near: out along the radius (the more so the more to the side), then round; far: straight on, under the wheel,
+    // to where the rim faces b at its place
+    const [c1x, c1y] = c >= 0 ? [px + Math.cos(a) * (6 + 18 * (1 - c)), py + Math.sin(a) * (6 + 18 * (1 - c))] : [px - ux * 2 * r * c, py - uy * 2 * r * c];
+    const l2 = (reach - r) * 0.55;
     const [kx, ky] = ahead ? [qx + nx * o, qy + ny * o] : [(gx + bx + nx * o) / 2, (gy + by + ny * o) / 2];
-    ends.push({ x: bx + nx * o, y: by + ny * o, o });
-    return `M ${f(px)} ${f(py)} C ${f(px + Math.cos(a) * l1)} ${f(py + Math.sin(a) * l1)} ${f(gx - ux * l2)} ${f(gy - uy * l2)} ${f(gx)} ${f(gy)} Q ${f(kx)} ${f(ky)} ${f(bx + nx * o)} ${f(by + ny * o)}`;
+    return `M ${f(px)} ${f(py)} C ${f(c1x)} ${f(c1y)} ${f(gx - ux * l2)} ${f(gy - uy * l2)} ${f(gx)} ${f(gy)} Q ${f(kx)} ${f(ky)} ${f(bx + nx * o)} ${f(by + ny * o)}`;
   });
-  return { paths, ends };
 }
