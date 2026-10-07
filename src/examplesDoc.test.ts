@@ -4,8 +4,9 @@ import { buildExamplesDoc } from '../tools/examples-doc';
 
 // docs/examples.md is generated from examples/*.cells (tools/examples-doc.ts): a change to an example
 // regenerates it in the same PR (`npm run docs:examples`).
+// (it lays out every example, which takes ~20 s: the default 5 s is far too little)
 test('docs/examples.md is up to date with examples/*.cells', () => {
   const doc = buildExamplesDoc();
   if (process.env.UPDATE_EXAMPLES_DOC) writeFileSync('docs/examples.md', doc);
   expect(readFileSync('docs/examples.md', 'utf8'), 'run `npm run docs:examples`').toBe(doc);
-});
+}, 120_000);
