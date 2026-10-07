@@ -1,18 +1,27 @@
-/** Phase 6: the outputs — one per voice binding, articulated (the step= term starts notes; loop= terms bend). */
+/** Phase 6: the outputs — one per voice binding, articulated (the finest step= term starts notes; the others and loop= terms bend or hold). */
 import type { CellDecl, Span } from '../ast';
-import { adsrOf, pickSteps, pickText, type Output, type Resonance, type ResolvedCell, type TapeReturn } from '../program';
+import { adsrOf, pickSteps, pickText, type Clock, type Output, type Resonance, type ResolvedCell, type TapeReturn } from '../program';
 import { IMPLICIT } from './tables';
 import type { Bound } from './bindings';
 import type { Cells, Ctx } from './context';
 
-export function outputsOf(ctx: Ctx, decls: ReadonlyMap<string, CellDecl>, cells: Cells, { sinks, bindings, soundHead }: Bound) {
+export function outputsOf(ctx: Ctx, decls: ReadonlyMap<string, CellDecl>, cells: Cells, clocks: ReadonlyMap<string, Clock>, { sinks, bindings, soundHead }: Bound) {
   const { parsed, error, warn } = ctx;
   // ---- outputs: one per voice binding. Articulation (rule 2): the step= term
-  // starts notes; loop= terms bend them; terms that don't move hold (transpose).
+  // starts notes — of several, the finest (a melody over its harmony: the coarser
+  // ones hold, as loop= terms do); loop= terms bend them; terms that don't move hold.
   const outputs: Output[] = [];
   const returns: TapeReturn[] = [];
   const resonances: Resonance[] = [];
   const articulates = (c: ResolvedCell) => !!c.clock && decls.get(c.name)?.step?.whole === false;
+  /** Steps a second (at the code's tempo): what "finer" compares. */
+  const stepsPerSecond = (c: ResolvedCell) => (clocks.get(c.clock!)?.perSecond ?? 0) * c.rate;
+  /** Of several terms that would start notes, the finest one; null when two share the finest rate. */
+  const finest = <T extends { c: ResolvedCell }>(xs: T[]): T | null => {
+    const by = [...xs].sort((a, b) => stepsPerSecond(b.c) - stepsPerSecond(a.c));
+    const [a, b] = [stepsPerSecond(by[0].c), stepsPerSecond(by[1].c)];
+    return a - b > 1e-9 * Math.max(a, b) ? by[0] : null;
+  };
   for (const { b, span, gains, via, parts, through, select, silent } of bindings) {
     const known = (r: { name: string; span: Span }) => {
       if (decls.has(r.name)) return true;
@@ -123,8 +132,15 @@ export function outputsOf(ctx: Ctx, decls: ReadonlyMap<string, CellDecl>, cells:
       continue;
     }
     if (lead.length > 1) {
-      error(`Both &${lead[0].c.name} and &${lead[1].c.name} would start notes on &${voice.name} — make one loop= (it then bends or shapes them)`, lead[1].t.ref.span);
-      continue;
+      const first = finest(lead);
+      if (!first) {
+        error(
+          `Both &${lead[0].c.name} and &${lead[1].c.name} would start notes on &${voice.name}, at the same rate — make one coarser (it then holds under the other) or loop= (it then bends or shapes them)`,
+          lead[1].t.ref.span,
+        );
+        continue;
+      }
+      lead = [first];
     }
     const { t, c: cell } = lead[0];
     const badPick = terms.find((x) => pickSteps(x.c, x.t.ref.pick) === null);

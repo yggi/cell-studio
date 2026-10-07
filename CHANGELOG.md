@@ -13,6 +13,8 @@ that makes the change. Also note changes to the language that could affect saved
 ### Added
 - `degree(&x, n)` and `inverse(&x)` in a braid: a motif moved n degrees up the table it is read through, or mirrored within it, without a cell of its own reading a shifted table (#31). They nest: `degree(inverse(&x), 4)`. Saved `.cells` pieces are not affected (both were errors before).
 
+- In a pitch sum, of two terms with `step=` timing the finer one starts the notes and the coarser one holds under it (a progression: `&changes step=&bar*4 0 0 5 0` beside `&walk step=&bar`), as a `loop=` term would; before, this was an error and a progression had to be written `loop=&bar*N`. Two at the same rate are still an error. Saved `.cells` pieces are not affected.
+
 ### Fixed
 - Opening a piece whose graph has a chord or a table bus no longer throws while the previous piece gives way (Baustelle, Baustelle II failed the smoke test). Saved `.cells` pieces are not affected.
 - A read head of a sound tape (`play=` on a tape that records a mix) showed an empty wheel: it shows the waveform of what it plays back, with where it reads (`0.75s`). Saved `.cells` pieces are not affected.
