@@ -1,0 +1,18 @@
+&piece title="A voice: a source, an envelope, a filter" tags="tutorial, sound" rung=3 label="Five voices, each made of a source and what shapes it: an envelope, a filter, a vibrato, echoes and grit." about=&out
+&envNote label="env= is a voice's volume on every note: map=adsr, attack, decay, sustain and release. Written where it is used, &( … ) is a cell without a name." about=&pluck
+&filterNote label="lpf= lets the lows through (Hz), lpq= rings at the cutoff; hpf= and hpq= the same from above." about=(&brass &air)
+&effectsNote label="room= sends to a reverb, delay= to an echo (delaytime= apart, delayfeedback= how long it repeats); distort= and crush= add grit." about=(&glass &grit)
+&bar scan(1 1 1 1) step=free(moderato)
+
+&tune step=&bar/2 0 4 7 12 7 4 0 ~ 2 5 9 14 9 5 2 ~
+&line step=&bar*2 7 9 5 7
+&bass step=&bar 0 0 7 0 2 2 9 2
+&sparkle step=&bar*4 12 14
+
+&pluck s=tri loop=C4 env=&(map=adsr .005 .3 .1 .2)                                      # a source and an envelope
+&brass s=saw loop=C4 lpf=1400 lpq=6 env=&(map=adsr .08 .2 .7 .4) pitch=&(loop=5 0 .15 0 -.15)   # a filter, and a vibrato: pitch=
+&glass s=sine loop=C5 room=.6 delay=.4 delaytime=.33 delayfeedback=.5 env=&(map=adsr .01 .8 0 .8)
+&grit s=square loop=C2 lpf=900 distort=.3 crush=8 env=&(map=adsr .005 .2 .6 .1)
+&air s=pink hpf=3000 hpq=3 env=&(map=adsr .3 .2 .5 .6)
+
+&out map=sample level=4 [&tune * &pluck * .3, &line * &brass * .15, &sparkle * &glass * .2, &bass * &grit * .3, &line * &air * .05]
