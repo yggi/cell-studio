@@ -36,21 +36,26 @@ function kindOf(p: CompileResult, n: FlowNode, shifts: Shifts): string {
   return [where, 'cell', isMeter ? 'meter' : v.mode, v.show, ringed].filter(Boolean).join(':');
 }
 
+/** Every wheel of a piece, with its kind (not the notes: they are cards). */
+export function wheelsOf(piece: Piece): { name: string; key: string; node: FlowNode; live: boolean }[] {
+  const model = buildGraph(piece.program);
+  const meters = { rings: meterRings(model), index: meterIndex(model) };
+  return model.nodes
+    .filter((g) => !g.cell.note)
+    .map((g) => {
+      const node = flowNodeOf(g, { x: 0, y: 0 }, false, undefined, meters);
+      return { name: g.cell.name, key: kindOf(piece.program, node, piece.shifts), node, live: piece.live.nodes.has(g.id) };
+    });
+}
+
 /** The first of each kind of wheel across these pieces (a live one if any is). */
 export function fixtures(list: readonly Piece[]): Fixture[] {
   const kinds = new Map<string, Fixture>();
   for (const piece of list) {
-    const { key, program, shifts } = piece;
-    const model = buildGraph(program);
-    const meters = { rings: meterRings(model), index: meterIndex(model) };
-    for (const g of model.nodes) {
-      if (g.cell.note) continue;
-      const node = flowNodeOf(g, { x: 0, y: 0 }, false, undefined, meters);
-      const kind = kindOf(program, node, shifts);
-      const live = piece.live.nodes.has(g.id);
+    for (const { key: kind, node, live } of wheelsOf(piece)) {
       const had = kinds.get(kind);
       const having = had?.pieces ?? new Set<string>();
-      having.add(key);
+      having.add(piece.key);
       if (!had || (live && !had.live)) kinds.set(kind, { key: kind, piece, node, live, pieces: having });
     }
   }

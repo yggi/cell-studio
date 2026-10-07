@@ -1,5 +1,4 @@
-/** The golden reference graph: one piece with every kind of wheel and edge, and where its cells sit (columns, rows: as an example's fixed layout). */
+/** The golden reference graph: one piece, as the app reads it, with a value of every dimension the examples draw (facets.ts). */
 import source from './golden.cells?raw';
-import layout from './layout.json';
 
-export const golden = { source: source.replace(/\n$/, ''), layout: layout as unknown as Record<string, [number, number]> };
+export const golden = { source: source.replace(/\n$/, '') };

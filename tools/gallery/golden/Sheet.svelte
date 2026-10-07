@@ -1,6 +1,6 @@
 <script lang="ts">
   /**
-   * The golden graph: the real Graph (src/ui/Graph.svelte) on the golden piece, its cells pinned where golden.ts says,
+   * The golden graph: the real Graph (src/ui/Graph.svelte) on the golden piece, laid out by the app as it lays out any piece,
    * once stopped and once at a moment of play (the live state at ?t=3, a made-up sound). One frame per state, fixed in size.
    */
   import Graph from '../../../src/ui/Graph.svelte';
@@ -42,7 +42,6 @@
           onrename={nothing}
           onfree={nothing}
           focus={null}
-          fixed={golden.layout}
           opened={1}
         />
       </div>

@@ -9,7 +9,7 @@ import { forceX, forceY, forceCollide, forceLink, forceManyBody, forceSimulation
 import type { GraphModel, GraphNode } from '../engine/graph';
 import { segmentsCross, splinePoint } from './geometry';
 import { layered } from './layered';
-import { drawnCrossingPairs, drawnCrossings, layoutQuality, type Aim, type LayoutQuality } from './quality';
+import { drawnCrossings, layoutQuality, type Aim, type LayoutQuality } from './quality';
 import { fitTurn, headOffset, tapeHeads, UNTURNED } from './tape';
 import { isGround } from './meters';
 
@@ -1191,15 +1191,6 @@ export class ForceLayout {
   drawnCrossings(): number {
     const { nodes, edges } = this.placed();
     return drawnCrossings(nodes, edges);
-  }
-
-  /** The pairs of drawn edges (and meter traces) that cross now, by their ends' ids (quality.ts: drawnCrossingPairs). */
-  drawnCrossingPairs(): [[string, string], [string, string]][] {
-    const { nodes, edges } = this.placed();
-    return drawnCrossingPairs(nodes, edges).map(([p, q]) => [
-      [p.a, p.b],
-      [q.a, q.b],
-    ]);
   }
 
   /** How good the layout is now, in numbers (quality.ts). */

@@ -1,6 +1,6 @@
 ---
 name: gallery
-description: Mock up what Cell studio's graph draws and take pictures of it, as contact sheets - every kind of wheel (cell glyphs, spectrum, wave, scope, sun, turntables, petals, sheets, library) and every kind of edge (ref, over, step, mix, out, about, belts, a meter's net) in each state, plus design mock-ups. Use when asked for a contact sheet, a visual pass, a screenshot of how something is drawn, a before/after of a drawing change, or to try a design option side by side.
+description: Mock up what Cell studio's graph draws and take pictures of it, as contact sheets - every kind of wheel (cell glyphs, spectrum, wave, scope, sun, turntables, petals, sheets, library) and every kind of edge (ref, over, step, mix, out, about, belts, a meter's net) in each state, the golden reference graph (one real graph with all of them), plus design mock-ups. Use when asked for a contact sheet, a visual pass, a screenshot of how something is drawn, a before/after of a drawing change, or to try a design option side by side.
 ---
 
 # Gallery
@@ -14,6 +14,7 @@ It fails on a page error.
 |---|---|---|
 | `wheels` | every kind of wheel, each at a ladder of sizes beside its sheet | fast, or real (below) |
 | `edges` | every kind of edge in every state, on bare nodes | fast |
+| `golden` | one graph with a value of every kind of wheel and edge, in the real Graph, stopped and live | fast |
 | `mockups` | design questions, options side by side (`tools/gallery/wheels/Mockups.svelte`) | fast |
 
 Graphs as a whole: `tools/graphs.mjs` (every example's layout, as the library's miniatures draw it) and
@@ -43,6 +44,27 @@ A meter's own step edges aren't drawn in the graph (ground) and so aren't here; 
 Read it for: whether kinds can be told apart without their label, state contrast (idle / unrouted / off against
 on), the note colour on a live edge against its label's border, the pulse dot, dashes at the ends, labels over a
 bend. To change how an edge looks, change `edges.css` or the component and re-run: the sheet is the spec.
+
+## The golden graph
+`tools/gallery/golden/golden.cells` is a piece like any other — Cells code, nothing else — given to the real `Graph` and
+laid out by the app as it lays out any piece: `node tools/gallery.mjs golden` takes one picture stopped and one at 3 s
+(`?t=`), 5616 × 3038 px each. So it tests the graph's structure (what the engine makes of the code) and its layout (what
+the physics makes of the graph) at once, and there is no layout of its own to keep up: no placer, no pins.
+
+It is a **spanning set**, not every combination: `facets.ts` reads each wheel and edge as dimensions — a wheel's place
+(graph, petal), what draws it, its mode and show, a turntable's role; an edge's kind, whether it has a label, and the
+few drawn differently (a belt, a tape's head, a meter's net) — and the golden graph has every *value* of every dimension
+the examples have, once or more. Whether a meter steps a cell (its ring) is not a dimension; which label an edge has is the
+edge sheet's. `golden.test.ts` (run with the rest, `npm test`) checks that it compiles without a warning, that no value is
+missing (`coverage()` says which), and that the app's layout of it has no overlap and at most the recorded number of
+crossings. The graph is planar, so the number can be 0; lower it in the test when the layout gets there.
+
+When an example brings a new kind of wheel or edge the test names the missing value: add a cell that has it. Keep the
+piece small — a cell that carries no value the others don't is a candidate to drop (`coverage().spare`, to read with care:
+what hangs on it goes too).
+
+Read it for what the layout does with all of them at once: edges through wheels (a belt across other turntables), a cell
+nothing draws an edge to (the sun floats off), crowding, which row each kind of wheel lands in.
 
 ## Wheels
 `tools/gallery/wheels/`. **Fast** mounts every kind of wheel directly, as the graph mounts it (`src/ui/flownode.ts`),
