@@ -261,7 +261,7 @@ export function buildGraph(result: CompileResult): GraphModel {
       kind: 'out',
       count: 1,
       pick: refLabel(o),
-      ...wire('voice', 'cv', cellId(from(o)), cellId(o.voice), chord(from(o))),
+      ...wire('voice', 'cv', cellId(from(o)), cellId(o.voice), tines(result, o.voice) || chord(from(o))),
     });
     if (o.envelopeCell)
       link({
@@ -320,6 +320,12 @@ function beltOf(driven: ResolvedCell, driver: ResolvedCell | undefined): { belt?
   if (typeof driven.params.belt === 'number') return { belt: 'spring' };
   return driver && isTurntable(driven) && isTurntable(driver) ? { belt: 'rigid' } : {};
 }
+
+/** A resonator's tines (its exciters, when it has more than one): a note into it picks one, so the edge is that wide. */
+const tines = (result: CompileResult, name: string) => {
+  const c = result.cells.get(name);
+  return typeof c?.params.body === 'string' && (c.exciters?.length ?? 0) > 1 ? c.exciters!.length : 0;
+};
 
 /** How many values a cell holds at once: its widest chord, a ref counting as the cell it splices in. */
 function chordWidth(result: CompileResult): (name: string) => number {

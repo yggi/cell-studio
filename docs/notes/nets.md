@@ -28,6 +28,7 @@ The golden graph (`node tools/gallery.mjs golden`, PR #136) puts every kind of w
 16. **Placed-last for meters can be retired.** Tried, not done: see step 9.
 17. **A tape and a chorus line up** (the owner likes it): a chorus is a tape with short, wandering heads, as a canon is one with long ones. A net with delayed taps covers all three.
 18. **The wheels need distinguishing by role**, not only by their hub text: proposal under "The wheels".
+19. **A resonator's tines are its inputs** (the owner pointed at the Kalimba; built): a tune into a resonator with more than one exciter is a bus as wide as its tines; its strands end at the pads, each in its pitch's colour, lit while its tine rings (`ctx.resonance`), as a tape's heads are its inputs and outputs.
 
 ## What the golden graph shows
 
@@ -178,8 +179,18 @@ Each step is its own PR, each visible in the golden graph and the edge sheet (be
 
 Levels (gold), meters, curves, LFOs and the matrix are already apart. This would also sit well with the buses: a table's strands leave notches, a melody's chord strands leave a segment under the hand.
 
+## The Kalimba: one bus written twice
+
+`&notes 0 2 4 7 9 12 14 16` is the tune's table, and the kalimba's braid repeats the same eight numbers as its tines; a note plucks "the tine nearest its pitch". Drawn as buses, the duplication shows: the same eight colours from `&notes` to `&tune`, and from `&tune` to the kalimba's pads. Two clean forms compile today, with no warning, and play the same notes (the events compared: identical, but for an output's id, which carries its line):
+
+- **`&tune over=&kalimba …`**, without `&notes`: the instrument is the table. A note picks its tine by index, and "nearest its pitch" becomes exact. The graph would then hold one bus both ways between them (the tune reads the tines, and plays them), a question for its drawing.
+- **`&kalimba body=tine … &notes`**: the tines come from the table (a ref in the exciters resolves; events byte-identical).
+
+Recommended: the first, as the true form (one bus, read by index). Not changed yet: it is the example's spelling (decision 6 allows it), so the owner's call.
+
 ## Open questions
 
 1. **The canon's clean form** (decision 6): a canon is one net, `&john`, with three taps at a delay. As copies today, `&john[<<1]`. Once `&<` exists, as taps of what was played. Which of the two the Frère Jacques example shows is to be decided when `&<` comes.
 2. **The net's style** (decision 9): which styles (strands or one line, a pulse or still, coloured or neutral), and the spelling of the attribute and of the decorator.
 3. **The time source** (decision 11): its name and attributes, and how a tap names its unit.
+4. **The Kalimba's clean form** (above): `&tune over=&kalimba`, or the tines from `&notes`.

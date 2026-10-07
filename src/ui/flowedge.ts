@@ -18,10 +18,26 @@ export interface BeltDrawn {
   readonly slipping: boolean;
 }
 
+/** A note into a resonator with tines picks one: each tine's pitch (semitones from C4), for the strands that end at its pads. */
+function tinesOf(e: GraphEdge, program: CompileResult): number[] | null {
+  const c = e.port === 'voice' ? program.cells.get(nameOf(e.to)) : undefined;
+  if (!c || typeof c.params.body !== 'string' || (c.exciters?.length ?? 0) < 2) return null;
+  const f0 = c.freq > 0 ? c.freq : 440;
+  return c.exciters!.map((x) => 12 * Math.log2(f0 / 261.63) + x.shift);
+}
+
 /** What an edge carries: whose steps pulse along it (from → to), and which voice's note colours it. */
 function pulseData(e: GraphEdge, program: CompileResult) {
   const trigger = (voice: string) => program.outputs.find((o) => o.voice === voice)?.cell ?? null;
-  const wire = { band: e.band, port: e.port, width: e.width, pointer: e.pointer, from: nameOf(e.from), table: e.port === 'over' ? nameOf(e.from) : null };
+  const wire = {
+    band: e.band,
+    port: e.port,
+    width: e.width,
+    pointer: e.pointer,
+    from: nameOf(e.from),
+    table: e.port === 'over' ? nameOf(e.from) : null,
+    tines: tinesOf(e, program),
+  };
   // (a clock's ticks: the pulse is the steps of the cell it drives)
   if (e.kind === 'step') return { ...wire, kind: e.kind, phaseCell: nameOf(e.to), voice: null };
   // a tape's edges take the colour of what's on them: a read head's notes, as played; what's being

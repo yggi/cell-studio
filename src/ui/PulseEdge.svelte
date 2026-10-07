@@ -14,6 +14,7 @@
   import { untrack } from 'svelte';
   import { acrossOrder, busStrandPath, polar, radialPath, ripplePath, splinePoint, strandPath } from '../layout/geometry';
   import { cellView, type Fill } from '../layout/cellview';
+  import { isTurntable } from '../engine/graph';
   import { getGraphContext } from './context';
   import { pitchHue } from '../theory/modes';
 
@@ -28,6 +29,7 @@
       from: string;
       to: string;
       table: string | null;
+      tines: number[] | null;
       phaseCell: string | null;
       voice: string | null;
       sizes?: { from: number; to: number };
@@ -57,7 +59,9 @@
   // sits in that braid, once for each time it is written; a table's strands leave its wheel at their entries.
   const rimOf = (size: number | undefined) => (size ? size / 2 - 1 : 0);
   const occurrences = $derived.by((): number[] => {
-    if (d.port !== 'braid' || !rimOf(d.sizes?.to)) return [];
+    // (only on a cell's own wheel: a scope, a sun or a turntable has no segments to meet)
+    const reader = ctx.program.cells.get(d.to);
+    if (d.port !== 'braid' || !rimOf(d.sizes?.to) || !reader || isTurntable(reader) || reader.params.scope || reader.params.sun) return [];
     void ctx.turned;
     const parent = ctx.program.cells.get(d.to);
     const units = new Set(parent?.units.flatMap((u, i) => (u.atom.kind === 'ref' && u.atom.name === d.from ? [i] : [])) ?? []);
@@ -67,7 +71,8 @@
         const sp = spans.get(sg.index);
         spans.set(sg.index, sp ? [Math.min(sp[0], sg.t0), Math.max(sp[1], sg.t1)] : [sg.t0, sg.t1]);
       }
-    return [...spans.values()].map(([a, b]) => (a + b) / 2);
+    // (a ref that fills the braid has no place on it but everywhere)
+    return [...spans.values()].filter(([a, b]) => b - a < 0.999).map(([a, b]) => (a + b) / 2);
   });
   const lockedPaths = $derived(occurrences.map((t) => radialPath(sourceX, sourceY, control, targetX, targetY, rimOf(d.sizes?.to), t)));
   const path = $derived(d.band === 'audio' ? ripplePath(sourceX, sourceY, mid.x, mid.y, targetX, targetY) : (lockedPaths[0] ?? spline));
@@ -76,7 +81,7 @@
   const STRANDS = 12;
   const GAP = 4;
   const view = $derived.by(() => {
-    if (d.width < 2 || (!d.table && d.band !== 'cv')) return null;
+    if (d.width < 2 || d.tines || (!d.table && d.band !== 'cv')) return null;
     void ctx.turned;
     return cellView(ctx.program, d.table ?? d.from, shown, false);
   });
@@ -100,6 +105,23 @@
     return turns.map((t, i) => busStrandPath(sourceX, sourceY, r, t, mid.x, mid.y, targetX, targetY, (slot[i] - (count - 1) / 2) * GAP));
   });
   const fillColour = (f: Fill | undefined) => (f?.kind === 'pitch' ? noteColour(f.hue, false, f.octave ?? 0) : 'var(--edge)');
+  // a resonator's tines: a strand into each pad (round its body, as MaterialNode lays them), lit while it rings
+  const tinePaths = $derived.by(() => {
+    if (!d.tines || !d.sizes?.to) return [];
+    const n = d.tines.length;
+    const r = (d.sizes.to / 2) * 1.2;
+    const ends = d.tines.map((_, i) => polar(targetX, targetY, r, i / n));
+    const slot = acrossOrder(ends, targetX, targetY, sourceX, sourceY);
+    return d.tines.map((_, i) => busStrandPath(targetX, targetY, r, i / n, mid.x, mid.y, sourceX, sourceY, (slot[i] - (n - 1) / 2) * GAP));
+  });
+  const tineStrands = $derived.by(() => {
+    if (!d.tines) return [];
+    const rings = isLive ? ctx.resonance(d.to)?.exciters : undefined;
+    return d.tines.map((p, i) => ({
+      colour: noteColour(pitchHue(p), false, Math.floor(p / 12)),
+      dim: !!rings && (rings[i] ?? 0) < 0.05,
+    }));
+  });
   const strands = $derived.by((): { colour: string; dim: boolean }[] => {
     if (!view) return [];
     if (d.table) {
@@ -137,9 +159,16 @@
   });
   const colour = $derived(hue === null ? null : noteColour(hue, false, octave));
   // (a bus draws its own strands: its core stays hidden, so it takes no colour)
-  const edgeStyle = $derived(colour && !count ? `${style ?? ''}; stroke: ${colour}; stroke-opacity: 0.9` : style);
+  const edgeStyle = $derived(colour && !count && !d.tines ? `${style ?? ''}; stroke: ${colour}; stroke-opacity: 0.9` : style);
 </script>
 
+{#if tineStrands.length}
+  <g class={`bus edge-${state}`}>
+    {#each tineStrands as t, i (i)}
+      <path d={tinePaths[i]} class:dim={t.dim} style={`stroke: ${t.colour}`} />
+    {/each}
+  </g>
+{/if}
 {#if strands.length}
   <g class={`bus edge-${state}`}>
     {#if !(d.table && rimOf(d.sizes?.from))}
@@ -158,7 +187,7 @@
   {path}
   {markerEnd}
   style={edgeStyle}
-  class={`edge-${state}${strands.length ? ' bus-core' : ''}`}
+  class={`edge-${state}${strands.length || tineStrands.length ? ' bus-core' : ''}`}
   {label}
   labelX={mid.x}
   labelY={mid.y}

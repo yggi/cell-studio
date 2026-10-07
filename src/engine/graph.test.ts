@@ -38,6 +38,10 @@ describe('edges as wires', () => {
     expect(wireOf(chords.edges, 'c', 'v')).toMatchObject({ port: 'voice', width: 3 });
   });
 
+  it('into a resonator with tines: as wide as its tines (a note picks one)', () => {
+    expect(wireOf(buildGraph(compileSource(PRESETS.kalimba.source)).edges, 'tune', 'kalimba')).toMatchObject({ port: 'voice', width: 8 });
+  });
+
   it('carry sound where the source is a sound: a mix written to tape, a modulator, a wave in a pitch sum (FM)', () => {
     const sound = buildGraph(compileSource(PRESETS.soundtape.source)).edges;
     expect(wireOf(sound, 'dry', 'tape')).toMatchObject({ port: 'write', band: 'audio' });
