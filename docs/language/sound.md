@@ -33,7 +33,18 @@ FM (`fm=` `ratio=` `index=`) and resonators (`body=` `ring=` `hard=`) are on [ph
 &lead s=saw loop=261.63 lpf=2200
 ```
 
-A braid of voices (`&kit &bd &sd &hh`) is a table of voices: a pattern read through it, `&drums over=&kit step=&bar/2 0 2 1 2`, is a signal — mix it as it is, `[&drums * 0.6]`; its numbers pick the drum. Each member brings its own `env=` (a kick's long decay, a hat's short one); an envelope in the product (`[&env * &drums]`) wins over it.
+**A stepped braid of voices plays them:** `&groove step=&bar/4 &bd ~ &hh ~ [&bd,&sd] ~ &hh &hh*2` is a drum pattern by name, mixed as it is (`[&groove * .6]`); a chord of voices sounds together, and repeats, ratchets, holds and chance work as on any step. It is the pattern below, read through a kit of its voices, without writing the kit.
+
+```cells
+&bar scan(1 1 1 1) step=120bpm
+&bd s=sine loop=A1 pitch=0..24 * &(map=adsr 0 .05 0 0) env=&(map=adsr 0 .3 0 .05)
+&sd s=white hpf=1500 env=&(map=adsr 0 .12 0 .04)
+&hh s=white hpf=7000 env=&(map=adsr 0 .04 0 .02)
+&groove step=&bar/2 &bd &hh [&bd,&sd] &hh &bd &bd [&hh,&sd] &hh*2
+&out map=sample [&groove * .6]
+```
+
+A braid of voices with no `step=` (`&kit &bd &sd &hh`) is a table of voices: a pattern read through it, `&drums over=&kit step=&bar/2 0 2 1 2`, is a signal — mix it as it is, `[&drums * 0.6]`; its numbers pick the drum. Each member brings its own `env=` (a kick's long decay, a hat's short one); an envelope in the product (`[&env * &drums]`) wins over it.
 
 ## Parameters as cells
 

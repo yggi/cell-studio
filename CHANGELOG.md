@@ -15,6 +15,8 @@ that makes the change. Also note changes to the language that could affect saved
 
 - In a pitch sum, of two terms with `step=` timing the finer one starts the notes and the coarser one holds under it (a progression: `&changes step=&bar*4 0 0 5 0` beside `&walk step=&bar`), as a `loop=` term would; before, this was an error and a progression had to be written `loop=&bar*N`. Two at the same rate are still an error. Saved `.cells` pieces are not affected.
 
+- A stepped braid of voices plays them: `&groove step=&bar/4 &bd ~ &hh [&bd,&sd] &hh*2` is a drum pattern by name, with no kit and no numbers to look up; it plays what the same pattern read through a kit plays. Saved `.cells` pieces are not affected (it was an error before).
+
 ### Fixed
 - Opening a piece whose graph has a chord or a table bus no longer throws while the previous piece gives way (Baustelle, Baustelle II failed the smoke test). Saved `.cells` pieces are not affected.
 - A read head of a sound tape (`play=` on a tape that records a mix) showed an empty wheel: it shows the waveform of what it plays back, with where it reads (`0.75s`). Saved `.cells` pieces are not affected.

@@ -42,6 +42,7 @@ export function candidates(source: string): { result: Result; cells: Candidate[]
     const w = declWords(source, c.name);
     if (!w || w.braid.length < 2 || w.braid.some((t) => t.startsWith('[') && t.includes('&'))) continue;
     const over = c.over ? r.cells.get(c.over) : null;
+    if (over?.implicit && over.kit) continue; // a braid of voices: its steps are names, not numbers
     out.push({ name: c.name, tokens: w.braid, grid: !over || !!over.root });
   }
   return { result: r, cells: out };

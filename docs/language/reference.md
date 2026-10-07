@@ -21,6 +21,7 @@ Every form the parser reads, what it means and an example: generated from the pa
 - `[a, b, c]` · `[a b c]`: A chord: the numbers sound together, in one step. [→](time.md) `&chords step=1 [0,2,4] [3 5 7]`
 - `[a|b|c]`: A choice: one of them, chosen afresh each time round (the same every time it is played). [→](braid.md) `&tune step=2 0 [2|4|7] 4`
 - `&x`: A cell, spliced in: its braid plays in this one's step (as long as its own steps). Picks, shifts and transposing are under References. [→](braid.md) `&theme step=2 &motif &motif^7 0`
+- `&voice (stepped)`: In a stepped braid of voices (and rests), each step plays its voice: a drum pattern by name. Chords of voices sound together, [&bd, &hh]; modifiers work as on any step. Unstepped, a braid of voices is a kit, read by number. [→](sound.md) `&groove step=4 &bd ~ &hh [&bd, &sd] &hh*2 ~`
 
 ## Modifiers
 

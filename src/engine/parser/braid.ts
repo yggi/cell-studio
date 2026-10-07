@@ -31,6 +31,13 @@ export const STEP_SYNTAX: readonly Syntax[] = [
     ['&theme step=2 &motif &motif^7 0'],
     'braid.md',
   ),
+  syntax(
+    'step',
+    '&voice (stepped)',
+    'In a stepped braid of voices (and rests), each step plays its voice: a drum pattern by name. Chords of voices sound together, [&bd, &hh]; modifiers work as on any step. Unstepped, a braid of voices is a kit, read by number.',
+    ['&groove step=4 &bd ~ &hh [&bd, &sd] &hh*2 ~'],
+    'sound.md',
+  ),
 ];
 
 /** Operations on a reference's values, by name: degree(&x, n), inverse(&x) — nested as you like. */

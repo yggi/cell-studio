@@ -1,5 +1,5 @@
 /** Phase 1: the declarations — one per name, the default grid and scale() tables added, over= chains known and acyclic. */
-import type { CellDecl } from '../ast';
+import type { Atom, CellDecl, Ref, Token } from '../ast';
 import { ROOT } from '../program';
 import { even as evenPositions, intervals } from '../../theory/modes';
 import { IMPLICIT, isRootDecl, tableOf } from './tables';
@@ -9,7 +9,7 @@ import type { Ctx } from './context';
 export interface Declared {
   /** Every cell's declaration by name, the implicit ones (the default grid, scale() tables) included. */
   readonly decls: ReadonlyMap<string, CellDecl>;
-  /** Cells added for a scale(tonic, phase) shorthand: not drawn. */
+  /** Cells added for a scale(tonic, phase) shorthand, or the kit of a stepped braid of voices: not drawn. */
   readonly implicit: ReadonlySet<string>;
   /** The default grid wasn't declared, so it was added. */
   readonly implicitRoot: boolean;
@@ -44,6 +44,29 @@ export function declare(ctx: Ctx): Declared {
       braid: { kind: 'scan', steps: intervals(evenPositions(7, 12, parseInt(phase, 10)), 12), span },
     });
     implicit.add(key).add(d.over!.name);
+  }
+  // a stepped braid of voices (&groove step=&bar/4 &bd ~ &hh [&bd,&hh]) plays them: it is a pattern of
+  // numbers read through the kit of its voices, in the order first written (that kit unnamed, not drawn)
+  for (const d of [...decls.values()]) {
+    const kit = voicePattern(d, decls);
+    if (!kit) continue;
+    const name = `kit:${d.name}`;
+    decls.set(name, {
+      name,
+      span: d.span,
+      over: null,
+      shift: null,
+      off: false,
+      step: null,
+      map: null,
+      stride: null,
+      cycle: null,
+      params: {},
+      paramSpans: {},
+      braid: { kind: 'list', tokens: kit.voices.map((v) => ({ atom: { kind: 'ref', name: v.name, pick: null, shift: 0 }, repeat: 1, subdivide: 1, elongate: 1, span: v.span })) },
+    });
+    decls.set(d.name, { ...d, over: { name, pick: null, shift: 0, span: d.span }, braid: { kind: 'list', tokens: kit.tokens } });
+    implicit.add(name);
   }
   if (implicitRoot)
     decls.set(ROOT, {
@@ -84,4 +107,35 @@ export function declare(ctx: Ctx): Declared {
   };
   for (const name of decls.keys()) checkOver(name, []);
   return { decls, implicit, implicitRoot, overOk };
+}
+
+/**
+ * A stepped cell whose steps are voices (and rests): the voices, in the order first written, and its
+ * steps as numbers into them — or null when it isn't one (an over= of its own, a sound of its own,
+ * a step that isn't a plain voice).
+ */
+function voicePattern(d: CellDecl, decls: ReadonlyMap<string, CellDecl>): { voices: Ref[]; tokens: Token[] } | null {
+  if (!d.step || d.over || Object.keys(d.params).length || d.braid.kind !== 'list') return null;
+  const isVoice = (r: Ref) => !r.pick && !r.shift && !r.transpose && Object.keys(decls.get(r.name)?.params ?? {}).length > 0;
+  const voices: Ref[] = [];
+  const index = (r: Ref) => {
+    const i = voices.findIndex((v) => v.name === r.name);
+    return i >= 0 ? i : voices.push(r) - 1;
+  };
+  const tokens: Token[] = [];
+  for (const t of d.braid.tokens) {
+    const a = t.atom;
+    let atom: Atom;
+    if (a.kind === 'rest') atom = a;
+    else if (a.kind === 'ref' && !a.values) {
+      const r = { name: a.name, pick: a.pick, shift: a.shift, transpose: a.transpose, span: t.span };
+      if (!isVoice(r)) return null;
+      atom = { kind: 'note', value: index(r), alter: 0 };
+    } else if (a.kind === 'mix' && a.exprs.every((e) => e.k === 'ref' && isVoice(e.ref))) {
+      const notes = a.exprs.map((e) => index((e as { ref: Ref }).ref));
+      atom = { kind: 'chord', notes, alters: notes.map(() => 0) };
+    } else return null;
+    tokens.push({ ...t, atom });
+  }
+  return voices.length ? { voices, tokens } : null;
 }
