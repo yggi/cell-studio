@@ -2,14 +2,15 @@
   /** The sheet: every kind of wheel (fixtures.ts), the library's piece wheels and the braid's token wheel. */
   import Fixture from './Fixture.svelte';
   import { fixtures } from './fixtures';
-  import PieceNode from '../../src/ui/PieceNode.svelte';
-  import TokenWheel, { type WheelToken } from '../../src/ui/TokenWheel.svelte';
-  import { tagColours } from '../../src/ui/tags';
-  import type { Entry } from '../../src/ui/entries';
-  import { compileSource } from '../../src/engine/compile';
-  import { buildGraph } from '../../src/engine/graph';
-  import { pieceTime } from '../../src/engine/duration';
-  import { PRESETS } from '../../src/engine/presets';
+  import { pieces as examples } from '../pieces';
+  import PieceNode from '../../../src/ui/PieceNode.svelte';
+  import TokenWheel, { type WheelToken } from '../../../src/ui/TokenWheel.svelte';
+  import { tagColours } from '../../../src/ui/tags';
+  import type { Entry } from '../../../src/ui/entries';
+  import { compileSource } from '../../../src/engine/compile';
+  import { buildGraph } from '../../../src/engine/graph';
+  import { pieceTime } from '../../../src/engine/duration';
+  import { PRESETS } from '../../../src/engine/presets';
 
   const q = new URLSearchParams(location.search);
   const seconds = Number(q.get('t') ?? 3);
@@ -17,7 +18,7 @@
   const playing = q.get('stopped') === null;
   /** The ladder of sizes a cell's or a voice's wheel is shown at (each up to its own size). */
   const sizes = (q.get('sizes') ?? '44,64,96').split(',').map(Number);
-  const list = fixtures(seconds, only);
+  const list = fixtures(examples(seconds, only));
   const groups = [
     { where: 'graph', title: 'Graph' },
     { where: 'petal', title: 'Graph — petals' },
@@ -58,7 +59,7 @@
   <h1>Wheels</h1>
   <p class="meta">
     {list.length} kinds, set up directly: {seconds} s into each piece, {playing ? 'with a made-up sound' : 'stopped'} · sizes {sizes.join(', ')} and each one's own ·
-    <code>node tools/wheels.mjs --fast</code>
+    <code>node tools/gallery.mjs wheels --fast</code>
   </p>
   {#each groups as g (g.where)}
     {#if g.items.length}

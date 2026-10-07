@@ -1,6 +1,6 @@
 /**
  * Which node draws a cell of the graph, and how large: the graph (`Graph.svelte`) and the wheels' contact
- * sheet (`tools/wheels/`) both place nodes by it.
+ * sheet (`tools/gallery/`) both place nodes by it.
  */
 import type { GraphNode } from '../engine/graph';
 import type { MeterRing } from '../layout/meters';
