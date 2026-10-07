@@ -1,6 +1,6 @@
 # Nets: what an edge is
 
-**2026-10-07 · open: decided in part (below), steps 1–2 and 5 built, 3 begun, belts counted, ends locked · #9, #10, #27, on top of PR #136 (the gallery)**
+**2026-10-07 · open: decided in part (below), steps 1–2 and 5 built, 3 begun, belts counted, ends locked, buses gathered · #9, #10, #27, on top of PR #136 (the gallery)**
 
 The golden graph (`node tools/gallery.mjs golden`, PR #136) puts every kind of wheel and edge into one picture, so the flaws of the edge model show up together. This note collects what it shows, proposes one model under all of them, and splits the work into small steps. The owner's input that started it: **nets and buses** (an edge carrying `[0,4,7]` is a 3-wire bus); **edges by the signal they carry** (sync, CV, audio); **a palette that maps values to colours**; **named networks with in and out**, which unify tape heads and the meter's net, where today's edge syntax is the anonymous shorthand (like `&( )` cells).
 
@@ -22,6 +22,12 @@ The golden graph (`node tools/gallery.mjs golden`, PR #136) puts every kind of w
 10. **Belts count, twice.** A belt is drawn over the wheels, two runs: every edge or wheel it crosses counts once per run.
 11. **The sun dissolves into two mechanisms** (worked through below): a source of absolute time, a sync net like a meter's; and `show=brightness`, a way to draw any mode wheel.
 12. **Angular locking:** a braid's edge meets its segment, generalizing a tape's heads.
+13. **A step between two turntables is a belt** (built: `GraphEdge.belt`, `rigid` without `belt=`, as the tape on its capstan).
+14. **A table's strands leave at their entries and gather into a bus towards the reader** (built: `busStrandPath`).
+15. **Meter rings retired** (built): the net says which meter steps a cell.
+16. **Placed-last for meters can be retired.** Tried, not done: see step 9.
+17. **A tape and a chorus line up** (the owner likes it): a chorus is a tape with short, wandering heads, as a canon is one with long ones. A net with delayed taps covers all three.
+18. **The wheels need distinguishing by role**, not only by their hub text: proposal under "The wheels".
 
 ## What the golden graph shows
 
@@ -158,6 +164,19 @@ Each step is its own PR, each visible in the golden graph and the edge sheet (be
    **Locking and a moving shift** (owner, 2026-10-07). Two kinds of wheel behave differently:
    - **A table's wheel is drawn in pitch space.** Turning it (`shift=`, a stepped table, a hand) keeps every segment where it is, with the same hue; only which degree sits there changes (`cellView`'s `index`). So a locked strand never moves: the scale turns under it, the way tape moves under a fixed head. Only its meaning moves, which entry is looked up there. That was a bug: the edges read the static shifts while the wheels draw the live ones (`CellGlyph`: `ctx.live?.shifts ?? ctx.shifts`, redrawn on `ctx.turned`), so a turning table lit the wrong strands. Fixed: the edges use the wheel's rule.
    - **A braid's wheel is drawn in time.** A shift turns its units round the rim, so a ref locked to its segment moves with it. Today that happens with `shift=` in the code or a hand turning a wheel (stopped), when the end should follow, like a string tied to a turning wheel. While playing, the live shifts turn stepped tables, which are in pitch space. A braid of refs that turns while it plays would have its ends travel round the rim each turn. Open: let them ride, or unlock them (centre to centre) while the shift moves.
+
+9. **Meters laid out with the rest: tried, not done.** Placed-last (`placeMeters`) searches a grid for the spot where the meter's net and belts cross least. Replacing it with springs that aren't drawn (ground links), so a meter settles among its cells, costs crossings at every strength tried: the library goes from 75 to 89 at best (`GROUND_PULL` .15) and to 95–140 elsewhere, and the golden graph never gets back to its bound. Kept for now. What would retire it cleanly: a force that does what the search does (pushing a meter off drawn edges, towards where its net is shortest), or a net that routes round the drawing.
+
+## The wheels (decision 18)
+
+![wheels by role, a mock-up](nets-wheels-mockup.png)
+
+*A mock-up, drawn by hand.* Today a grid, a key, a scale, a table and a melody are all a full ring of rainbow wedges; only the hub's text tells them apart (`node tools/gallery.mjs wheels --fast`). The finding about shifts gives the line to draw: a grid's, key's, scale's or table's wheel is laid out in **pitch** (a position is a pitch class, fixed; turning it moves the degrees), a melody's in **time** (a position is a step). Let the rim say which:
+
+- **Pitch:** the rim is the grid, a thin rainbow of all its steps. A table's entries are notches on it, one step wide, with the pitch classes it leaves out dark, so a scale reads as a sieve of the circle and a pentatonic shows its holes. A grid is the rim and a dim full ring. A key is the grid with its tonic marked (a pointer at the top).
+- **Time:** the rim is a clock, a tick a step (a beat longer), with the steps in order and the hand.
+
+Levels (gold), meters, curves, LFOs and the matrix are already apart. This would also sit well with the buses: a table's strands leave notches, a melody's chord strands leave a segment under the hand.
 
 ## Open questions
 
