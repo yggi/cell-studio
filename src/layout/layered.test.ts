@@ -41,3 +41,26 @@ describe('layered: tags as blocks', () => {
     expect(layered(model, { ...o, flat: true })).not.toEqual(layered(model, o));
   });
 });
+
+describe('layered: rows filled by insertion (rowOrder)', () => {
+  it('places every node, each row in order without overlaps, by the sweeps, by insertion, or both', () => {
+    const model = buildGraph(compileSource(PRESETS.bwv847.source));
+    const byId = new Map(model.nodes.map((n) => [n.id, n]));
+    const radius = (id: string) => DEFAULT_LAYOUT.radius(byId.get(id)!);
+    const ids = model.nodes.filter((n) => !n.petalOf).map((n) => n.id);
+    for (const rowOrder of [0, 1, 2]) {
+      const at = layered(model, { gapX: 54, gapY: 130, radius, flat: true, rowOrder });
+      expect(
+        ids.filter((id) => !at.has(id)),
+        `rowOrder ${rowOrder}`,
+      ).toEqual([]);
+      const rows = new Map<number, string[]>();
+      for (const id of ids) rows.set(at.get(id)!.y, [...(rows.get(at.get(id)!.y) ?? []), id]);
+      for (const row of rows.values()) {
+        row.sort((a, b) => at.get(a)!.x - at.get(b)!.x);
+        for (let i = 1; i < row.length; i++)
+          expect(at.get(row[i])!.x - at.get(row[i - 1])!.x, `rowOrder ${rowOrder}`).toBeGreaterThanOrEqual(radius(row[i]) + radius(row[i - 1]) - 1);
+      }
+    }
+  });
+});

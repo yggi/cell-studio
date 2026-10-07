@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { METER, MIX, QUIET, VOICE, miniature, miniShape } from './miniature';
+import { METER, MIX, QUIET, VOICE, miniature, miniShape, type Miniature } from './miniature';
 import { PRESETS } from '../engine/presets';
+import built from 'virtual:examples-index';
 
 describe('miniature', () => {
   const m = miniature(PRESETS.royal.source)!;
@@ -33,8 +34,9 @@ describe('miniature', () => {
 
 describe('miniature frames', () => {
   it('hold every node whole, the largest included, in every example (a card and a wheel)', () => {
-    for (const [key, p] of Object.entries(PRESETS)) {
-      const m = miniature(p.source);
+    // (each example's miniature as the library has it, worked out when the index is built: tools/examples-index.ts)
+    for (const e of built) {
+      const { key, miniature: m } = e as { key: string; miniature: Miniature | null };
       if (!m) continue;
       for (const round of [false, true]) {
         const s = miniShape(m, round);

@@ -54,9 +54,10 @@ describe('examples/*.cells', () => {
       expect(e.miniature, `${e.key}: miniature`).toEqual(miniature(PRESETS[e.key].source));
       expect(e.miniature?.nodes, `${e.key}: miniature`).toHaveLength(e.size);
     }
-  }, 30_000); // (it works every miniature out again: about 4 s alone, over the default 5 s on a loaded machine)
+  }, 60_000); // (it works every miniature out again, each laid out twice first to choose its rows: about 10 s alone, 20 s on a loaded machine)
   test('the index module keeps an endless cycle (JSON would make it null)', () => {
-    const [first] = buildExamplesIndex();
+    // (the first entry of the index as built: working every miniature out again only to take one is slow)
+    const [first] = built as ReturnType<typeof buildExamplesIndex>;
     const text = examplesIndexModule([{ ...first, time: { ends: null, cycle: Infinity, chance: false, longest: null } }]);
     expect(text).toContain('"cycle":Infinity');
   });

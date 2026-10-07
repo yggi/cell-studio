@@ -328,6 +328,29 @@ The owner's idea: start with the sound card in the middle and take in the cells 
 
 Worse in nearly every piece, the knots most (Cellscape 15 → 24, Baustelle 11 → 14). The layered start orders each row against the whole graph's crossings; insertion decides greedily, early, and the forces don't undo it (as with growing from small). It gathers the clusters better, though. Off, kept as an option.
 
+### Built: insertion order within the layered rows; both tried (2026-10-07)
+
+The owner: try insertion order within the layered rows. `layered.ts: insertionOrder`: a walk from the top row (the sound card) and the scopes, breadth first along the edges between rows, takes in one node at a time, each into its row where it crosses the fewest edges to the nodes already in (then nearest its neighbours); the sweeps (barycentre, swaps) go on from there (`rowOrder` 1), or not (2). Over six seeds (crossings / cost; intruders):
+
+| | crossings | cost | intruders |
+|---|---|---|---|
+| sweeps from the columns (before) | 63.3 | 90.2 | 68.0 |
+| insertion, then the sweeps | 64.7 | 91.7 | 58.2 |
+| insertion alone | 70.3 | 96.8 | 61.8 |
+| whichever has fewer crossings in the layered rows | 66.0 | 97.5 | 59.3 |
+
+Even over the library, but not piece by piece: insertion untangles the knots (BWV 847 7.2 → 4.2, Zell 4.2 → 1.7, Baustelle 10.7 → 6.7) and loses Cellscape (15.3 → 23.2). The rows' own crossings don't say which will lay out better; laying each out does. So **both are tried** (`rowOrder` 3, on): a fresh graph is laid out twice for `trial` ticks (120), by each order, and starts from the one that crossed less (`rowOrderFor`).
+
+A bug on the way: the tree's cost for a join through a wheel (`netTree`) clamped before it divided, so it never counted a wheel; fixed (and three times faster, the net force 0.8 → 0.5 ms a tick on Baustelle). With it the sweeps alone come out worse (70.3), both tried better:
+
+| six seeds | crossings | cost | intruders |
+|---|---|---|---|
+| sweeps only | 70.3 | 103.2 | 66.8 |
+| **both tried, 120 ticks** | **46.0** | **64.0** | 60.3 |
+| both tried, 60 ticks | 49.3 | 69.5 | 58.5 |
+
+The gate (three seeds): crossings 63 → 45.5, cost 87 → 64, intruders 71 → 60, read heads' aim 38 → 30; overlapping clusters 35 → 36; area the same. The price is time when a piece opens: the two trials (node, `performance.now`, before the faster tree): BWV 847 0.37 → 0.77 s, Baustelle 0.49 → 1.11 s, Cellscape 0.42 → 1.14 s, Twinkle 25 → 85 ms. Edits don't pay it (only a fresh graph). Building the examples' index (their miniatures) takes 8 → 20 s. Not measured in the browser.
+
 ### Order
 
 1. The weights table and weighted crossings: measurable against the baseline, no change to the model.

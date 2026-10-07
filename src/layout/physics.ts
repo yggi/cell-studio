@@ -93,6 +93,16 @@ export interface LayoutOptions {
    * cells, held by its net's springs — each meter is put where its net costs least and held there (placeMeters). 0 off.
    */
   placeLast: number;
+  /**
+   * How the layered start orders each row (layered.ts: LayeredOptions.rowOrder): 0 sweeps, 1 insertion then sweeps,
+   * 2 insertion; 3 both 0 and 1 tried on a fresh graph, the one that crosses less kept (rowOrderFor).
+   */
+  rowOrder: number;
+  /**
+   * With `rowOrder` 3 (both), a fresh graph is laid out twice first, its rows by the sweeps and by insertion then the
+   * sweeps, each for this many ticks, and starts from the rows that crossed less.
+   */
+  trial: number;
   /** Laid out by insertion (startInsertion): a fresh graph taken in one cell at a time from its drains, over this many ticks. 0: from the layered start. */
   insert: number;
   layerGap: number;
@@ -421,6 +431,10 @@ export const DEFAULT_LAYOUT: LayoutOptions = {
   // (by insertion, from the drains, measured over the library, docs/notes/nets.md: 63 → 98–114 crossings, worse in
   // nearly every piece, though fewer cells in a foreign cluster: off)
   insert: 0,
+  // (each row's order: both the sweeps and insertion then the sweeps tried, the one that crosses less kept; over six
+  // seeds 63 → 47 crossings, cost 90 → 65, for 2–3 times the layout's time when a piece opens: docs/notes/nets.md)
+  rowOrder: 3,
+  trial: 120,
   // (uncross and contract: measured over the examples, docs/notes/27-layout.md — stronger untangling and softer
   // springs cross a quarter less than 0.3 / 0.9, for about 6 % more room)
   uncross: 0.6,
@@ -826,6 +840,25 @@ export class ForceLayout {
     this.bendAt.clear();
   }
 
+  /**
+   * The rows' order for a fresh graph: as the options say, or (rowOrder 3) the one of the sweeps and insertion that
+   * lays it out with fewer crossings — tried, each in a layout of its own, for `trial` ticks.
+   */
+  private rowOrderFor(model: GraphModel): number {
+    if (this.opts.rowOrder !== 3) return this.opts.rowOrder;
+    let best = { order: 0, crossings: Infinity, cost: Infinity };
+    for (const order of [0, 1]) {
+      const t = new ForceLayout(undefined, { ...this.opts, live: false, rowOrder: order });
+      t.setGraph(model);
+      t.tick(this.opts.trial);
+      t.layNet();
+      const q = t.quality();
+      t.destroy();
+      if (q.crossings < best.crossings || (q.crossings === best.crossings && q.cost < best.cost)) best = { order, crossings: q.crossings, cost: q.cost };
+    }
+    return best.order;
+  }
+
   /** Merge a new graph in. Existing nodes keep position and velocity. */
   setGraph(model: GraphModel, structural = true): GraphDiff {
     this.endInsertion();
@@ -863,7 +896,13 @@ export class ForceLayout {
     let home: Map<string, { x: number; y: number }> | null = null;
     if (this.opts.layered) {
       const byId = new Map(model.nodes.map((n) => [n.id, n]));
-      const lay = layered(model, { gapX: this.opts.collidePad * 1.6, gapY: this.opts.layerGap, radius: (id) => this.opts.radius(byId.get(id)!), flat: !this.opts.clusters });
+      const lay = layered(model, {
+        gapX: this.opts.collidePad * 1.6,
+        gapY: this.opts.layerGap,
+        radius: (id) => this.opts.radius(byId.get(id)!),
+        flat: !this.opts.clusters,
+        rowOrder: fresh ? this.rowOrderFor(model) : this.opts.rowOrder,
+      });
       const ys = [...lay.values()].map((p) => p.y);
       const midY = (Math.min(...ys) + Math.max(...ys)) / 2;
       home = new Map([...lay].map(([id, p]) => [id, { x: p.x, y: p.y - midY }]));
@@ -1413,17 +1452,25 @@ export class ForceLayout {
       return n && n !== o ? [{ id, n }] : [];
     });
     if (!o || !readers.length) return out;
-    const wheels = [...this.byId.values()].filter((w) => w.role !== 'tag');
+    // (the wheels, as plain numbers: this runs every tick, for every pair of a net's ends)
+    const ws = [...this.byId.values()].filter((w) => w.role !== 'tag');
+    const wx = ws.map((w) => w.x ?? 0);
+    const wy = ws.map((w) => w.y ?? 0);
+    const wr = ws.map((w) => w.radius * 0.8);
     const cost = (a: PhysNode, b: PhysNode) => {
       const [ax, ay, bx, by] = [a.x ?? 0, a.y ?? 0, b.x ?? 0, b.y ?? 0];
-      const l = Math.hypot(bx - ax, by - ay) || 1;
+      const [dx, dy] = [bx - ax, by - ay];
+      const l2 = dx * dx + dy * dy || 1;
+      const [x0, x1, y0, y1] = [Math.min(ax, bx), Math.max(ax, bx), Math.min(ay, by), Math.max(ay, by)];
       let through = 0;
-      for (const w of wheels) {
-        if (w === a || w === b) continue;
-        const t = Math.max(0, Math.min(1, ((w.x ?? 0) - ax) * (bx - ax) + ((w.y ?? 0) - ay) * (by - ay)) / (l * l));
-        if (Math.hypot(ax + t * (bx - ax) - (w.x ?? 0), ay + t * (by - ay) - (w.y ?? 0)) < w.radius * 0.8) through++;
+      for (let i = 0; i < ws.length; i++) {
+        const [x, y, r] = [wx[i], wy[i], wr[i]];
+        if (x < x0 - r || x > x1 + r || y < y0 - r || y > y1 + r || ws[i] === a || ws[i] === b) continue;
+        const t = Math.max(0, Math.min(1, ((x - ax) * dx + (y - ay) * dy) / l2));
+        const [px, py] = [ax + t * dx - x, ay + t * dy - y];
+        if (px * px + py * py < r * r) through++;
       }
-      return Math.max(1, l - a.radius - b.radius) * (1 + through);
+      return Math.max(1, Math.sqrt(l2) - a.radius - b.radius) * (1 + through);
     };
     const bus = net.port !== 'step';
     if (net.band === 'audio') {

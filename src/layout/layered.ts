@@ -28,6 +28,11 @@ export interface LayeredOptions {
   readonly span?: (id: string) => number;
   /** One level only: no clusters laid out as blocks (inside a block, or to compare). */
   readonly flat?: boolean;
+  /**
+   * How each row is ordered: 0 sweeps (the barycentre, then swaps) from the voices' columns; 1 the rows filled by
+   * insertion first (insertionOrder), then the sweeps; 2 insertion alone.
+   */
+  readonly rowOrder?: number;
 }
 
 type V = { id: string; layer: number; dummy: boolean; w: number };
@@ -83,6 +88,7 @@ export function layered(model: GraphModel, o: LayeredOptions): Map<string, { x: 
   // a first order: voices by their stereo place (columns), the rest as they come
   const cols = columns(model);
   for (const row of layers) row.sort((a, b) => (cols.get(a) ?? 0) - (cols.get(b) ?? 0));
+  const inserted = o.rowOrder ? insertionOrder(nodes, layers, vs, up, down) : null;
   const pos = new Map<string, number>();
   const index = () => layers.forEach((row) => row.forEach((id, i) => pos.set(id, i)));
   index();
@@ -116,9 +122,11 @@ export function layered(model: GraphModel, o: LayeredOptions): Map<string, { x: 
   };
   // first, tags apart: each row begins with its tags in order of their names
   const tagNames = [...new Set(tagOf.values())].sort();
-  if (tagNames.length)
-    for (const row of layers)
-      row.sort((a, b) => (tagOf.has(a) ? tagNames.indexOf(tagOf.get(a)!) : tagNames.length / 2) - (tagOf.has(b) ? tagNames.indexOf(tagOf.get(b)!) : tagNames.length / 2));
+  const tagsApart = (rows: string[][]) =>
+    rows.forEach((row) =>
+      row.sort((a, b) => (tagOf.has(a) ? tagNames.indexOf(tagOf.get(a)!) : tagNames.length / 2) - (tagOf.has(b) ? tagNames.indexOf(tagOf.get(b)!) : tagNames.length / 2)),
+    );
+  if (tagNames.length && o.rowOrder !== 1 && o.rowOrder !== 2) tagsApart(layers);
   const mean = (ns: { id: string; w: number }[] | undefined, fallback: number) => {
     if (!ns?.length) return fallback;
     const w = ns.reduce((a, n) => a + n.w, 0);
@@ -126,7 +134,14 @@ export function layered(model: GraphModel, o: LayeredOptions): Map<string, { x: 
   };
   let best = layers.map((r) => [...r]);
   let bestCross = total();
-  for (let sweep = 0; sweep < 24 && bestCross > 0; sweep++) {
+  if (inserted) {
+    // (by insertion: the start of the sweeps, or all of it)
+    inserted.forEach((r, l) => (layers[l] = [...r]));
+    index();
+    best = layers.map((r) => [...r]);
+    bestCross = total();
+  }
+  for (let sweep = 0; sweep < (o.rowOrder === 2 ? 0 : 24) && bestCross > 0; sweep++) {
     const downward = sweep % 2 === 0;
     const order = downward ? layers.map((_, l) => l) : layers.map((_, l) => layers.length - 1 - l);
     const tc = tagCentre(pos);
@@ -303,6 +318,65 @@ export function layered(model: GraphModel, o: LayeredOptions): Map<string, { x: 
  * block as one node (as wide and as tall as it is: every edge to a block meets it once); then each block's cells
  * are put back where the block landed. Null when there are fewer than two tags to separate.
  */
+/**
+ * The rows filled by insertion (the owner's idea, within the layers): a walk from the top row (the sound card) and the
+ * scopes, breadth first along the edges between rows, the heaviest first, takes in one node at a time; each goes into
+ * its row at the place where it crosses the fewest edges to the nodes already in (then nearest its neighbours there).
+ */
+function insertionOrder(
+  nodes: GraphModel['nodes'],
+  layers: string[][],
+  vs: Map<string, V>,
+  up: Map<string, { id: string; w: number }[]>,
+  down: Map<string, { id: string; w: number }[]>,
+): string[][] {
+  const nbrs = (id: string) => [...(up.get(id) ?? []), ...(down.get(id) ?? [])].sort((a, b) => b.w - a.w);
+  const scopes = nodes.filter((n) => typeof (n.cell as { params?: Record<string, unknown> }).params?.scope === 'string').map((n) => n.id);
+  const start = [...(layers[0] ?? []), ...scopes.filter((id) => !layers[0]?.includes(id))];
+  const order: string[] = [];
+  const seen = new Set(start);
+  const queue = [...start];
+  while (queue.length) {
+    const id = queue.shift()!;
+    order.push(id);
+    for (const n of nbrs(id))
+      if (!seen.has(n.id)) {
+        seen.add(n.id);
+        queue.push(n.id);
+      }
+  }
+  for (const row of layers) for (const id of row) if (!seen.has(id)) order.push(id);
+  const rows: string[][] = layers.map(() => []);
+  const pos = new Map<string, number>();
+  // crossings between rows l and l+1, among the nodes in so far
+  const cross = (l: number) => {
+    if (l < 0 || l + 1 >= rows.length) return 0;
+    const es: [number, number, number][] = [];
+    for (const id of rows[l]) for (const n of down.get(id) ?? []) if (pos.has(n.id)) es.push([pos.get(id)!, pos.get(n.id)!, n.w]);
+    let c = 0;
+    for (let i = 0; i < es.length; i++) for (let j = i + 1; j < es.length; j++) if ((es[i][0] - es[j][0]) * (es[i][1] - es[j][1]) < 0) c += es[i][2] * es[j][2];
+    return c;
+  };
+  for (const id of order) {
+    const l = vs.get(id)!.layer;
+    const row = rows[l];
+    const placed = nbrs(id).filter((n) => pos.has(n.id));
+    const centre = placed.length ? placed.reduce((a, n) => a + pos.get(n.id)! * n.w, 0) / placed.reduce((a, n) => a + n.w, 0) : row.length / 2;
+    let best = { at: 0, cost: Infinity };
+    for (let at = 0; at <= row.length; at++) {
+      row.splice(at, 0, id);
+      row.forEach((x, i) => pos.set(x, i));
+      const cost = cross(l - 1) + cross(l) + Math.abs(at - centre) * 1e-3;
+      row.splice(at, 1);
+      pos.delete(id);
+      if (cost < best.cost) best = { at, cost };
+    }
+    row.splice(best.at, 0, id);
+    row.forEach((x, i) => pos.set(x, i));
+  }
+  return rows;
+}
+
 function clustered(model: GraphModel, o: LayeredOptions): Map<string, { x: number; y: number }> | null {
   const nodes = model.nodes.filter((n) => !(n as { petalOf?: string }).petalOf);
   const tagOf = new Map(
