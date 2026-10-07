@@ -73,3 +73,12 @@
     stroke 200ms ease,
     stroke-opacity 200ms ease;
 }
+
+/* a meter's net (MeterEdge): a backbone, a wide trace under everything, as ground is on a board; it lights on the beat */
+.graph .svelte-flow__edge-path.meter-trace {
+  stroke: var(--trace);
+  stroke-linecap: round;
+  stroke-opacity: calc(0.42 + 0.5 * var(--flash));
+  stroke-width: calc(9px + 3px * var(--flash));
+  filter: drop-shadow(0 0 calc(6px * var(--flash)) var(--trace));
+}
