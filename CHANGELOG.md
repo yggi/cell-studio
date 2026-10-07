@@ -19,6 +19,8 @@ that makes the change. Also note changes to the language that could affect saved
 
 - `pan=` on a voice places it in stereo: 0 left, .5 centre (as without it), 1 right, the far side fading; one chord with panned voices plays what two chords with different gains play. **Saved pieces:** `pan=` was an error since the start (it said "balance with two mixes"); two chords keep working ([decision 007](docs/decisions/007-pan-is-back.md)).
 
+- A turning table (a stepped key, a scale stepped a degree at a time, a braid of chords) comes round after its own length without `cycle=`; `cycle=` is needed only to say otherwise (`cycle=24`: two laps). **Saved pieces:** a table turned without `cycle=` used to climb a lap each time round and now comes round instead; give it a larger `cycle=` to keep climbing ([decision 008](docs/decisions/008-tables-come-round.md)). Every example plays the same.
+
 ### Fixed
 - Opening a piece whose graph has a chord or a table bus no longer throws while the previous piece gives way (Baustelle, Baustelle II failed the smoke test). Saved `.cells` pieces are not affected.
 - A read head of a sound tape (`play=` on a tape that records a mix) showed an empty wheel: it shows the waveform of what it plays back, with where it reads (`0.75s`). Saved `.cells` pieces are not affected.

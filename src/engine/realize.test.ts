@@ -477,15 +477,25 @@ describe('volume streams (map=amp)', () => {
   });
 });
 
-describe('turning climbs; cycle= wraps', () => {
+describe('a turning table comes round after its own length; cycle= says otherwise (#10 F6)', () => {
   const src = (cycle: string) =>
     `&m step=1\n&t step=&m 0\n&k step=cycle(&t) stride=7 ${cycle}\n&u over=&k step=&m 0\n&v s=tri loop=C4\n&mix [&u * &v]\n&out loop=SAMPLE_RATE map=sample &mix`;
   const pitches = (r: R) => events(r, 0, 3.9).map((e) => midi(e.freq) - 60);
-  it('without cycle= a stepped table keeps climbing: 0, 7, 14, 21', () => {
-    expect(pitches(compileSource(src('')))).toEqual([0, 7, 14, 21]);
-  });
-  it('with cycle=12 it wraps round: 0, 7, 2, 9', () => {
+  it('without cycle= the 12 comes round after 12: 0, 7, 2, 9 — the same as cycle=12', () => {
+    expect(pitches(compileSource(src('')))).toEqual([0, 7, 2, 9]);
     expect(pitches(compileSource(src('cycle=12')))).toEqual([0, 7, 2, 9]);
+  });
+  it('cycle=24 climbs a lap on the way round: 0, 7, 14, 21', () => {
+    expect(pitches(compileSource(src('cycle=24')))).toEqual([0, 7, 14, 21]);
+  });
+  it('a braid of chords comes round after its chords: the Prelude without its cycle=', () => {
+    const p = PRESETS.prelude.source;
+    const nums = /^&chords step=&bar\*4 stride=5 cycle=95 (.*)$/m.exec(p)!;
+    const n = nums[1].trim().split(/\s+/);
+    const chords = Array.from({ length: n.length / 5 }, (_, i) => `[${n.slice(i * 5, i * 5 + 5).join(',')}]`).join(' ');
+    const asChords = p.replace(nums[0], `&chords step=&bar*4 ${chords}`);
+    const all = (src: string) => events(compileSource(src), 0, 150).map((e) => `${e.at.toFixed(4)} ${e.freq.toFixed(2)}`);
+    expect(all(asChords)).toEqual(all(p));
   });
   it('per tonos rises a whole tone a pass — and an octave after six', () => {
     const r = compileSource(PRESETS.pertonos.source);
