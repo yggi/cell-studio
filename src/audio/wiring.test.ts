@@ -5,26 +5,38 @@ import { flows, type Flow } from '../engine/flows';
 import { cellId } from '../engine/ids';
 import type { CompileResult } from '../engine/program';
 import { wiring } from './wiring';
-import { returnGains } from '../engine/realize';
+import { eventsBetween, outputSounds, plan as planOf, returnGains } from '../engine/realize';
+import { codeShifts } from '../engine/program';
 
 const OUT = '&out loop=SAMPLE_RATE map=sample';
 const src = (...lines: string[]) => compileSource(lines.join('\n'));
 const show = (fs: Iterable<Flow>) => [...new Set([...fs].map((f) => `${f.kind} ${f.id}`))].sort();
 const isHead = (r: CompileResult, name: string) => typeof r.cells.get(name)?.params.play === 'string';
 /**
+ * The cells on the way of what sounds (its voice, its entry, the mixes it goes through to the sound card, the send it
+ * feeds): of every output that sounds, and every resonator ringing alone in a mix.
+ */
+const onTheWay = (r: CompileResult) =>
+  [
+    ...r.outputs
+      .filter((o) => outputSounds(r, o, r.off))
+      .map((o) => [o.voice, o.cell, ...o.through, ...o.parts.map((p) => p.mix), ...o.select.map((x) => x.part), ...(o.silent ? o.via : [])]),
+    ...r.resonances.filter((x) => returnGains(x, r.off).some((g) => g > 0)).map((x) => [x.cell, ...x.through, ...x.parts.map((p) => p.mix)]),
+  ].map((cells) => new Set(cells));
+/**
  * The flows sync carries as connections: all but those compile sums into levels — a sound card's channels, a
- * selector's parts, a mix (or a kit's stream) into a mix, and a read head into a mix that only takes it to the
- * sound card (its return). A head into a mix that drives a resonator is wired, as a send.
+ * selector's parts, and a read head into a mix that only takes it to the sound card (its return). A head into a mix
+ * that drives a resonator is wired, as a send. Every other entry of a mix is wired when sound goes through it (#77):
+ * it is on the way of something that sounds, and the mix's wheel hears it.
  */
 const wired = (r: CompileResult, f: Flow) => {
   if (f.kind === 'channel' || f.kind === 'part') return false;
-  if (f.kind !== 'mix' || r.cells.get(f.from)?.voice) return true;
-  return (
-    isHead(r, f.from) &&
-    !!flows(r)
+  if (f.kind !== 'mix') return true;
+  if (isHead(r, f.from))
+    return !!flows(r)
       .from.get(f.to)
-      ?.some((g) => g.kind === 'excite')
-  );
+      ?.some((g) => g.kind === 'excite');
+  return onTheWay(r).some((w) => w.has(f.from) && w.has(f.to));
 };
 
 describe('voices.sync wires from the flows the graph draws (#132)', () => {
@@ -67,11 +79,11 @@ describe('voices.sync wires from the flows the graph draws (#132)', () => {
       `${OUT} [&h * .2, &a * .5, &b * .5]`,
     );
     const plan = (muted: string[] = []) => wiring(r, new Set(muted.map(cellId))).connections.map((c) => `${c.kind} ${c.from} ${c.to} ${c.gain}`);
-    expect(plan()).toEqual(['tap v send 0.5', 'tap a out 0.5', 'tap b out 0.5', 'couple a b 0.05', 'thread tape tape 1', 'record v tape 0.5', 'return h tape 1', 'excite h a 0.3']);
+    expect(plan()).toEqual(['tap v send 1', 'tap a out 1', 'tap b out 1', 'couple a b 0.05', 'thread tape tape 1', 'record v tape 0.5', 'return h tape 1', 'excite h a 0.3']);
     // a mix off: what only goes through it is unwired; the tape keeps what's on it
-    expect(plan(['send'])).toEqual(['tap a out 0.5', 'tap b out 0.5', 'couple a b 0.05', 'thread tape tape 1', 'return h tape 1', 'excite h a 0.3']);
-    expect(plan(['tape'])).toEqual(['tap v send 0.5', 'tap a out 0.5', 'tap b out 0.5', 'couple a b 0.05']);
-    expect(plan(['b'])).toEqual(['tap v send 0.5', 'tap a out 0.5', 'thread tape tape 1', 'record v tape 0.5', 'return h tape 1', 'excite h a 0.3']);
+    expect(plan(['send'])).toEqual(['tap a out 1', 'tap b out 1', 'couple a b 0.05', 'thread tape tape 1', 'return h tape 1', 'excite h a 0.3']);
+    expect(plan(['tape'])).toEqual(['tap v send 1', 'tap a out 1', 'tap b out 1', 'couple a b 0.05']);
+    expect(plan(['b'])).toEqual(['tap v send 1', 'tap a out 1', 'thread tape tape 1', 'record v tape 0.5', 'return h tape 1', 'excite h a 0.3']);
     expect(wiring(r).heard).toEqual(new Set(['a', 'b']));
   });
 
@@ -108,6 +120,54 @@ describe('voices.sync wires from the flows the graph draws (#132)', () => {
     // the sound card off: nothing, and not heard
     expect(plan(muted('out')).levels.get('f')).toEqual([0, 0]);
     expect(plan(muted('out')).heard.has('f')).toBe(false);
+  });
+
+  it("a mix's wheel hears only the notes that go through it: Baustelle's &einsturz only while it is picked (#77)", () => {
+    const r = compileSource(PRESETS.baustelle.source);
+    const w = wiring(r, r.off);
+    const notes = eventsBetween(planOf(r, codeShifts(r), r.off), 0, 600, true);
+    const out = new Map(r.outputs.map((o) => [o.id, o]));
+    const hears = (m: string) => notes.filter((n) => w.taps.get(n.output!)?.includes(m));
+    // every note names its output, and each mix it opens has a tap from its voice
+    const tapped = new Set(w.connections.filter((c) => c.kind === 'tap').map((c) => `${c.from} ${c.to}`));
+    for (const n of notes) for (const m of w.taps.get(n.output!) ?? []) expect(tapped).toContain(`${n.voice} ${m}`);
+    // &einsturz hears only the notes &tag plays it for, at the end; before, its voices play in their own parts
+    const crash = hears('einsturz');
+    expect(crash.length).toBeGreaterThan(0);
+    for (const n of crash) expect(out.get(n.output!)!.select.map((x) => x.part)).toEqual(['einsturz']);
+    const from = Math.min(...crash.map((n) => n.at));
+    const before = notes.filter((n) => n.at < from && ['beamv', 'platev', 'sub'].includes(n.voice));
+    expect(new Set(before.map((n) => n.voice))).toEqual(new Set(['beamv', 'platev', 'sub']));
+    for (const n of before) expect(w.taps.get(n.output!)).not.toContain('einsturz');
+    expect(from).toBeGreaterThan(0.9 * Math.max(...notes.map((n) => n.at)));
+    // (and the voices' own parts hear them: &beams' notes in &metalPart)
+    expect(new Set(before.filter((n) => n.voice === 'beamv').flatMap((n) => w.taps.get(n.output!)!))).toEqual(new Set(['metalPart']));
+  });
+
+  it("a kit's stream in a mix is heard by that mix's wheel: each member, opened by its notes (#166)", () => {
+    const r = src('&kick s=sine loop=50', '&hat s=white', '&kit &kick &hat', '&drums over=&kit step=1 0 1', '&beat [&drums * .5]', `${OUT} &beat`);
+    const w = wiring(r);
+    expect(w.connections.filter((c) => c.kind === 'tap').map((c) => `${c.from} ${c.to} ${c.gate}`)).toEqual(['kick beat true', 'hat beat true']);
+    expect([...w.taps.values()]).toEqual([['beat']]);
+    // off: no tap
+    expect(wiring(r, new Set([cellId('beat')])).connections.filter((c) => c.kind === 'tap')).toEqual([]);
+  });
+
+  it('a voice in two mixes opens each from its own notes; mixes in mixes and instruments hear their notes too', () => {
+    const r = src(
+      '&a step=1 0',
+      '&b step=1 4',
+      '&v s=saw',
+      '&inst [&(map=adsr 0 .1 .5 .1) * &v]',
+      '&one [&a * &v * .5]',
+      '&two [&b * &inst]',
+      '&both [&one, &two]',
+      `${OUT} &both`,
+    );
+    const w = wiring(r);
+    const by = (cell: string) => r.outputs.filter((o) => o.cell === cell).map((o) => [...w.taps.get(o.id)!].sort());
+    expect(by('a')).toEqual([['both', 'one']]);
+    expect(by('b')).toEqual([['both', 'inst', 'two']]);
   });
 
   it("a resonator's pan= is kept when a mix it rings in is muted (#165, #171)", () => {
