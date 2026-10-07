@@ -12,16 +12,30 @@ const tutorial = pieces.filter((p) => canonicalTags(p.meta?.tags ?? []).includes
 describe('the tutorial, a ladder', () => {
   test('its pieces carry rung=, 1 to the last, one each; a rung only on the tutorial', () => {
     expect(tutorial.map((p) => p.meta?.rung)).toEqual(LADDER.map((_, i) => i + 1));
-    for (const p of pieces) if (p.meta?.rung != null) expect(tutorial.map((t) => t.key), `${p.key}: rung= without the tutorial tag`).toContain(p.key);
+    for (const p of pieces)
+      if (p.meta?.rung != null)
+        expect(
+          tutorial.map((t) => t.key),
+          `${p.key}: rung= without the tutorial tag`,
+        ).toContain(p.key);
   });
 
   test('every form of the reference is on one rung, and only on one', () => {
     const keys = entries().map(formKey);
     expect(new Set(keys).size, 'two forms with one key').toBe(keys.length);
     const declared = LADDER.flatMap((r) => r.forms);
-    expect(declared.filter((k, i) => declared.indexOf(k) !== i), 'on two rungs').toEqual([]);
-    expect(declared.filter((k) => !keys.includes(k)), 'not in the reference').toEqual([]);
-    expect(keys.filter((k) => !declared.includes(k)), 'on no rung').toEqual([]);
+    expect(
+      declared.filter((k, i) => declared.indexOf(k) !== i),
+      'on two rungs',
+    ).toEqual([]);
+    expect(
+      declared.filter((k) => !keys.includes(k)),
+      'not in the reference',
+    ).toEqual([]);
+    expect(
+      keys.filter((k) => !declared.includes(k)),
+      'on no rung',
+    ).toEqual([]);
   });
 
   test('each rung introduces its concept, and uses only what the rungs before it introduced', () => {

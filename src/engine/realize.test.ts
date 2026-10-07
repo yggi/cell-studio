@@ -149,10 +149,20 @@ describe('sound', () => {
         r,
         0,
         (
-          { bwv847: 200, ricercar: 120, pop: 100, arrangement: 40, zell: 140, korobeiniki: 60, cellscape: 330, baustelle: 110, hypercell: 75, onemore: 80, brothers: 120, ghosts: 60 } as Record<
-            string,
-            number
-          >
+          {
+            bwv847: 200,
+            ricercar: 120,
+            pop: 100,
+            arrangement: 40,
+            zell: 140,
+            korobeiniki: 60,
+            cellscape: 330,
+            baustelle: 110,
+            hypercell: 75,
+            onemore: 80,
+            brothers: 120,
+            ghosts: 60,
+          } as Record<string, number>
         )[key] ?? 12,
       );
       for (const o of r.outputs)

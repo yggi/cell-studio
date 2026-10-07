@@ -2,17 +2,20 @@ import { describe, expect, it } from 'vitest';
 import { GENRES, PILL, libraryLayout, libraryLayoutAsync, shortTitle, stageOf } from './library';
 import { PRESETS } from '../engine/presets';
 import { pieceMeta } from '../engine/parser';
-import { canonicalTags } from '../engine/tags';
+import { canonicalTags, TUTORIAL } from '../engine/tags';
 
-// the library as the app lists it: every example with its card's title and tags
+// the library as the app lists it: every example with its card's title, tags and rung
 const entries = Object.entries(PRESETS).map(([key, p]) => {
   const m = pieceMeta(p.source);
-  return { id: `example:${key}`, title: m?.title ?? key, tags: canonicalTags(m?.tags ?? []) };
+  return { id: `example:${key}`, title: m?.title ?? key, tags: canonicalTags(m?.tags ?? []), rung: m?.rung ?? null };
 });
 const t0 = performance.now();
 const lib = libraryLayout(entries);
 const ms = performance.now() - t0;
-const pieces = entries.map((e) => ({ ...e, p: lib.at.get(`p:${e.id}`)! }));
+const everyPiece = entries.map((e) => ({ ...e, p: lib.at.get(`p:${e.id}`)! }));
+// the wheel's pieces (the tutorial's are a cell of their own)
+const pieces = everyPiece.filter((e) => !e.tags.includes(TUTORIAL));
+const ladder = everyPiece.filter((e) => e.tags.includes(TUTORIAL)).sort((a, b) => a.rung! - b.rung!);
 
 describe('the library laid out', () => {
   it('is grown and at rest, quickly', () => {
@@ -27,10 +30,8 @@ describe('the library laid out', () => {
     const inner = lib.ring!.r - 40;
     const r = (id: string) => lib.wheel.get(`p:${id}`)!;
     let worst = 0;
-    for (const a of pieces) {
-      expect(Math.hypot(a.p.x, a.p.y) + r(a.id), a.id).toBeLessThanOrEqual(inner + 2);
-      for (const b of pieces) if (a !== b) worst = Math.max(worst, r(a.id) + r(b.id) - Math.hypot(a.p.x - b.p.x, a.p.y - b.p.y));
-    }
+    for (const a of pieces) expect(Math.hypot(a.p.x, a.p.y) + r(a.id), a.id).toBeLessThanOrEqual(inner + 2);
+    for (const a of everyPiece) for (const b of everyPiece) if (a !== b) worst = Math.max(worst, r(a.id) + r(b.id) - Math.hypot(a.p.x - b.p.x, a.p.y - b.p.y));
     expect(worst).toBeLessThan(1e-6);
     // (and a wheel is worth growing: most are at least one and a half times its title's height across)
     const big = pieces.filter((e) => r(e.id) >= 1.2 * PILL * lib.tagScale).length;
@@ -41,8 +42,8 @@ describe('the library laid out', () => {
     const f = PILL * lib.tagScale;
     const box = (e: (typeof pieces)[number]) => ({ w: (0.58 * shortTitle(e.title).length + 1.3) * f, h: 1.6 * f, ...e.p });
     let worst = 0;
-    for (const a of pieces)
-      for (const b of pieces) {
+    for (const a of everyPiece)
+      for (const b of everyPiece) {
         if (a === b) continue;
         const A = box(a);
         const B = box(b);
@@ -59,7 +60,7 @@ describe('the library laid out', () => {
   });
   it('keeps groups together: a piece is nearer the tags it carries than the tags it does not, and its nearest neighbour shares one', () => {
     // (inner tags several pieces share: the hubs)
-    const hubs = [...lib.count].filter(([t, n]) => n > 1 && !(GENRES as readonly string[]).includes(t)).map(([t]) => t);
+    const hubs = [...lib.count].filter(([t, n]) => n > 1 && lib.at.has(`t:${t}`) && !(GENRES as readonly string[]).includes(t)).map(([t]) => t);
     let nearer = 0;
     let shares = 0;
     let all = 0;
@@ -93,6 +94,11 @@ describe('the library laid out', () => {
     expect(first.done).toBe(false);
     const p = pieces[0].p;
     expect(Math.hypot(first.at.get(`p:${pieces[0].id}`)!.x, first.at.get(`p:${pieces[0].id}`)!.y)).toBeLessThan(Math.hypot(p.x, p.y) * 0.2 + 1e-9);
+    // (the tutorial's pieces from the middle of their own cell)
+    const c = lib.tutorial!;
+    const q = ladder[ladder.length - 1];
+    const at = first.at.get(`p:${q.id}`)!;
+    expect(Math.hypot(at.x - c.x, at.y - c.y)).toBeLessThan(Math.hypot(q.p.x - c.x, q.p.y - c.y) * 0.2 + 1e-9);
     const last = stageOf(lib, 1);
     expect(last.at).toEqual(lib.at);
     expect(last.piece).toBeCloseTo(lib.piece);
@@ -112,5 +118,24 @@ describe('the library laid out', () => {
       n++;
     }
     expect(cos / n).toBeGreaterThan(0.5); // (0.72 when written; 1 would be every piece straight towards its genres)
+  });
+  it('draws the tutorial as a cell of its own beside the wheel, its rungs in rows from the top, a path', () => {
+    const c = lib.tutorial!;
+    expect(c.order).toEqual(ladder.map((e) => `p:${e.id}`));
+    expect(ladder.length).toBeGreaterThan(20);
+    // (beside the wheel, clear of its rim and the genres' names)
+    expect(c.x - c.r).toBeGreaterThan(lib.ring!.r + 64);
+    expect(lib.x0 + lib.w).toBeGreaterThanOrEqual(c.x + c.r);
+    for (const e of ladder) expect(Math.hypot(e.p.x - c.x, e.p.y - c.y) + lib.wheel.get(`p:${e.id}`)!, e.id).toBeLessThanOrEqual(c.r);
+    // each rung beside the one before, in its row, or just below it: a path that never jumps
+    const f = PILL * lib.tagScale;
+    for (let i = 1; i < ladder.length; i++) {
+      const [a, b] = [ladder[i - 1].p, ladder[i].p];
+      expect(b.y, ladder[i].id).toBeGreaterThanOrEqual(a.y - 1e-6);
+      if (b.y > a.y + 1e-6) expect(b.y - a.y, ladder[i].id).toBeLessThan(f * 4);
+    }
+    // its tag is on its rim, lit like the genres'
+    expect(lib.at.get(`t:${TUTORIAL}`)).toEqual({ x: c.x, y: c.y - c.r });
+    expect(lib.edges.filter((e) => e.target === `t:${TUTORIAL}`)).toHaveLength(ladder.length);
   });
 });

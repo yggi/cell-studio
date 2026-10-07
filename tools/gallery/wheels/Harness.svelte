@@ -38,8 +38,8 @@
     time: r.ok ? pieceTime(r) : undefined,
   };
   const pieces: { label: string; entry: Entry }[] = [
-    { label: 'five tags', entry: { ...base, id: 'harness:five', tags: ['genre:electronic', 'basics', 'harmony', 'rhythm', 'tonal'] } },
-    { label: 'one tag', entry: { ...base, id: 'harness:one', tags: ['basics'] } },
+    { label: 'five tags', entry: { ...base, id: 'harness:five', tags: ['genre:electronic', 'tutorial', 'harmony', 'rhythm', 'tonal'] } },
+    { label: 'one tag', entry: { ...base, id: 'harness:one', tags: ['tutorial'] } },
     { label: 'no tags', entry: { ...base, id: 'harness:none', tags: [] } },
   ];
   const colours = tagColours(pieces.flatMap((p) => p.entry.tags));

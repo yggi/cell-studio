@@ -5,7 +5,7 @@
  * the language, each form once. `formsUsed` reads which forms a piece uses from what it parses to;
  * the ladder's test (ladder.test.ts) checks each form is first used on the rung that introduces it.
  */
-import type { Atom, CellDecl, Expr, Ref, Span, Token } from './ast';
+import type { Atom, Expr, Ref, Span, Token } from './ast';
 import { compileSource } from './compile';
 import { voiceGrooves } from './compiler/declare';
 import { context } from './compiler/context';
@@ -58,7 +58,10 @@ export const LADDER: readonly { readonly concept: string; readonly forms: readon
       'sort pitch: anything else',
     ],
   },
-  { concept: 'a clock: a bar, step=&bar, /2 and *2, a tempo marking', forms: ['generator scan(i …)', 'rate nbpm', 'rate step=&x', 'rate step=&x*n', 'rate step=free(r, lo..hi)', 'free free(marking)'] },
+  {
+    concept: 'a clock: a bar, step=&bar, /2 and *2, a tempo marking',
+    forms: ['generator scan(i …)', 'rate nbpm', 'rate step=&x', 'rate step=&x*n', 'rate step=free(r, lo..hi)', 'free free(marking)'],
+  },
   {
     concept: 'a voice: an envelope, filters, a vibrato, effects',
     forms: [
@@ -82,7 +85,10 @@ export const LADDER: readonly { readonly concept: string; readonly forms: readon
   { concept: 'motifs: splicing, reuse, degree()', forms: ['step &x', 'reference degree(&name, n)'] },
   { concept: 'chords and a progression: accidentals, a sum of pitches', forms: ['step [a, b, c]', 'step n#', 'mix a + b', 'mix ( … )'] },
   { concept: 'meter and feel: a bent bar, gates', forms: ['map map=amp', 'sort volume: map=amp, map=db or map=adsr'] },
-  { concept: 'drums: a groove of voices, ratchets, euclid, a kit', forms: ['step &voice (stepped)', 'modifier x*n', 'generator euclid(k, n)', 'sort signal: a pattern read through a kit'] },
+  {
+    concept: 'drums: a groove of voices, ratchets, euclid, a kit',
+    forms: ['step &voice (stepped)', 'modifier x*n', 'generator euclid(k, n)', 'sort signal: a pattern read through a kit'],
+  },
   { concept: 'swing: a swing clock, swing= and beat=', forms: ['parameter swing', 'parameter beat'] },
   { concept: 'canon: a theme shifted', forms: ['reference &name[<<n]'] },
   { concept: 'mirrors: retrograde, slices, picks, transposing, inverse()', forms: ['reference &name[i]', 'reference &name[a:b]', 'reference &name^n', 'reference inverse(&name)'] },
@@ -140,7 +146,7 @@ export function formsUsed(source: string): Set<string> {
     const line = stripComment(raw);
     if (line !== raw) use('line # …');
     if (/[+*,[]\s*$/.test(line)) use('line … +');
-    code += line.replace(/"[^"]*"/g, (q) => (/^"[*+\-., ]*"$|^"\d+\/\d+"$/.test(q) ? q : '""')) + '\n';
+    code += line.replace(/"[^"]*"/g, '""') + '\n';
   }
   for (const [word, form] of [
     ['scan', 'scan(i …)'],

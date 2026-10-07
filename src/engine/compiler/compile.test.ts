@@ -391,7 +391,10 @@ describe('scale(tonic, phase)', () => {
 
 describe('rung=: a place in the tutorial', () => {
   it('belongs on the card', () => {
-    const errors = (src: string) => compileSource(src).diagnostics.filter((d) => d.severity === 'error').map((d) => d.message);
+    const errors = (src: string) =>
+      compileSource(src)
+        .diagnostics.filter((d) => d.severity === 'error')
+        .map((d) => d.message);
     expect(errors('&p label="x" rung=2')).toEqual(['rung= belongs on a piece’s card: the note with its title=']);
     expect(errors('&p title="x" rung=2')).toEqual([]);
   });

@@ -10,35 +10,35 @@ Each rung introduces one concept and uses only what the rungs before it introduc
 
 | rung | piece | file | introduces | about | level | length |
 |---|---|---|---|---|---|---|
-| 1 | Steps: a tune on one line | [`steps`](../examples/steps.cells) | steps: numbers, rests, holds, repeats, a rate; a voice and the sound card | Frère Jacques written as steps: numbers, rests, holds and repeats, four steps a second. | 0 | 0:11 loop |
-| 2 | A clock: one bar drives every part | [`clock`](../examples/clock.cells) | a clock: a bar, step=&bar, /2 and *2, a tempo marking | A bar sets the tempo, and every part steps with it: on the beat, twice as fast, or once every two beats. | 0 | 0:10 loop |
-| 3 | A voice: a source, an envelope, a filter | [`voice`](../examples/voice.cells) | a voice: an envelope, filters, a vibrato, effects | Five voices, each made of a source and what shapes it: an envelope, a filter, a vibrato, echoes and grit. | 0 | 1:20 loop |
+| 1 | Steps: a tune on one line | [`steps`](../examples/steps.cells) | steps: numbers, rests, holds, repeats, a rate; a voice and the sound card | Frère Jacques written as steps: numbers, rests, holds and repeats, four steps a second. | 6 | 0:11 loop |
+| 2 | A clock: one bar drives every part | [`clock`](../examples/clock.cells) | a clock: a bar, step=&bar, /2 and *2, a tempo marking | A bar sets the tempo, and every part steps with it: on the beat, twice as fast, or once every two beats. | 3 | 0:10 loop |
+| 3 | A voice: a source, an envelope, a filter | [`voice`](../examples/voice.cells) | a voice: an envelope, filters, a vibrato, effects | Five voices, each made of a source and what shapes it: an envelope, a filter, a vibrato, echoes and grit. | 4 | 1:20 loop |
 | 4 | Key and mode: one theme, two wheels | [`transpose`](../examples/transpose.cells) | tables: over=, scale(), shift=; show= and size= | One theme, read through a mode and a key. | 6.5 | 0:05 loop |
 | 5 | Motifs and reuse: Twinkle Twinkle | [`twinkle`](../examples/twinkle.cells) | motifs: splicing, reuse, degree() | Twinkle Twinkle from three motifs, one of them read a step up the scale, in solfège. | 4 | 0:30 loop |
-| 6 | Chords and a progression | [`chords`](../examples/chords.cells) | chords and a progression: accidentals, a sum of pitches | Four chords in A minor, struck on the beat, and the bass that follows them. | 0 | 0:10 loop |
+| 6 | Chords and a progression | [`chords`](../examples/chords.cells) | chords and a progression: accidentals, a sum of pitches | Four chords in A minor, struck on the beat, and the bass that follows them. | 9.5 | 0:10 loop |
 | 7 | Meter and rhythm: the tresillo | [`rhythm`](../examples/rhythm.cells) | meter and feel: a bent bar, gates | The tresillo over a meter of its own, with hats, triplets and chords on the beat. | 3 | 0:07 loop |
-| 8 | Drums: a groove of voices | [`drums`](../examples/drums.cells) | drums: a groove of voices, ratchets, euclid, a kit | A drum part written with the drums' names: a beat, a fill with ratchets, a Euclidean rhythm and a kit. | 0 | 0:32 loop |
-| 9 | Swing: the long and the short | [`swing`](../examples/swing.cells) | swing: a swing clock, swing= and beat= | Eighths played long and short: a swing clock, and the same feel from swing= on the bar. | 0 | 0:04 loop |
+| 8 | Drums: a groove of voices | [`drums`](../examples/drums.cells) | drums: a groove of voices, ratchets, euclid, a kit | A drum part written with the drums' names: a beat, a fill with ratchets, a Euclidean rhythm and a kit. | -0.5 | 0:32 loop |
+| 9 | Swing: the long and the short | [`swing`](../examples/swing.cells) | swing: a swing clock, swing= and beat= | Eighths played long and short: a swing clock, and the same feel from swing= on the bar. | 5.5 | 0:04 loop |
 | 10 | Canon: Frère Jacques | [`canon`](../examples/canon.cells) | canon: a theme shifted | Frère Jacques as a round: four voices, each a bar behind the last. | 2.5 | 0:16 loop |
-| 11 | Mirrors: backwards, upside down, in pieces | [`mirrors`](../examples/mirrors.cells) | mirrors: retrograde, slices, picks, transposing, inverse() | One motif heard forwards, backwards, higher, upside down, and taken apart. | 0 | 1:57 loop |
-| 12 | Chance and choice | [`chance`](../examples/chance.cells) | chance and choice | A line that is never quite the same twice round: steps that may not sound, and choices between notes. | 0 | 0:02 loop |
+| 11 | Mirrors: backwards, upside down, in pieces | [`mirrors`](../examples/mirrors.cells) | mirrors: retrograde, slices, picks, transposing, inverse() | One motif heard forwards, backwards, higher, upside down, and taken apart. | 13.5 | 1:57 loop |
+| 12 | Chance and choice | [`chance`](../examples/chance.cells) | chance and choice | A line that is never quite the same twice round: steps that may not sound, and choices between notes. | 4 | 0:02 loop |
 | 13 | A table that turns: the circle of fifths | [`fifths`](../examples/fifths.cells) | turning tables: stride=, cycle(&x) | A key that turns a fifth each pass: round the circle of fifths and home. | 7.5 | 0:52 loop |
-| 14 | Arrangement: parts and a song | [`arrangement`](../examples/arrangement.cells) | arrangement: parts, a selector, laps=, off | Three parts, and a song that picks which of them play: an intro, a verse, a chorus, an end. | 0 | 0:34 |
+| 14 | Arrangement: parts and a song | [`arrangement`](../examples/arrangement.cells) | arrangement: parts, a selector, laps=, off | Three parts, and a song that picks which of them play: an intro, a verse, a chorus, an end. | 6 | 0:34 |
 | 15 | Stereo: Mary Had a Little Lamb | [`stereo`](../examples/stereo.cells) | stereo: pan= | Mary Had a Little Lamb across two channels: the bell on the left, the cello on the right. | 1.5 | 0:05 loop |
 | 16 | Sound: voices, waveforms, envelopes | [`waveforms`](../examples/waveforms.cells) | waveforms from braids: audio rates, sin(), ramps, tables, an instrument | Voices made of braids: square, triangle, saw and sine, with envelopes and a vibrato. | 0.5 | 21:36 loop |
-| 17 | Moving parameters: a filter that opens | [`moving`](../examples/moving.cells) | moving parameters: a filter that opens, a fade in decibels | A bass line whose filter opens on every note and swells over four bars, with accents and a fade. | 0 | 0:08 loop |
-| 18 | Tuning: three grids | [`grids`](../examples/grids.cells) | tuning: grids | One tune on three grids in turn: nineteen equal steps to the octave, a pure fifth cut in seven, and pure ratios. | 0 | 0:31 loop |
+| 17 | Moving parameters: a filter that opens | [`moving`](../examples/moving.cells) | moving parameters: a filter that opens, a fade in decibels | A bass line whose filter opens on every note and swells over four bars, with accents and a fade. | 16 | 0:08 loop |
+| 18 | Tuning: three grids | [`grids`](../examples/grids.cells) | tuning: grids | One tune on three grids in turn: nineteen equal steps to the octave, a pure fifth cut in seven, and pure ratios. | 14 | 0:31 loop |
 | 19 | Metronome: any meter | [`metronome`](../examples/metronome.cells) | free(): sliders and named choices; meter() | A bar and the clicks it plays, in a meter you choose. | 4 | 0:02 loop |
-| 20 | FM: one voice bends another | [`fm`](../examples/fm.cells) | FM | A bell and an electric piano, each a sine whose frequency another sine swings. | 0 | 0:10 loop |
+| 20 | FM: one voice bends another | [`fm`](../examples/fm.cells) | FM | A bell and an electric piano, each a sine whose frequency another sine swings. | 18 | 0:10 loop |
 | 21 | Music Box | [`musicbox`](../examples/musicbox.cells) | a motor | A clockwork music box: wound, it spins up from rest, plays its tune, and as the spring runs down it slows and stops. | 7 | 0:46 |
 | 22 | Automaton | [`automaton`](../examples/automaton.cells) | a belt | A mechanical band on belts, all turned by one drum: bells, a drummer and a woodblock, each on a belt of different give. | -0.5 | 0:06 loop |
 | 23 | Kalimba | [`kalimba`](../examples/kalimba.cells) | a resonator | The smallest tuned instrument: one resonator, its braid its tines, eight of them on a shared board. | -15.5 | 0:10 loop |
-| 24 | Sympathy: resonators that answer | [`sympathy`](../examples/sympathy.cells) | resonators that answer: coupled, excited | A struck fork sets its twin singing, and a harp's strings answer a flute they are never plucked by. | 0 | 0:13 loop |
+| 24 | Sympathy: resonators that answer | [`sympathy`](../examples/sympathy.cells) | resonators that answer: coupled, excited | A struck fork sets its twin singing, and a harp's strings answer a flute they are never plucked by. | -7.5 | 0:13 loop |
 | 25 | Harmonograph | [`harmonograph`](../examples/harmonograph.cells) | a scope | Two tuning forks, struck together, each draw one axis of an oscilloscope: a Lissajous curve. | -3 | 0:06 loop |
 | 26 | Echo Tape | [`echotape`](../examples/echotape.cells) | a tape | A tape loop of notes: a write head records the tune and read heads play it back, echoing. | 17 | 0:11 loop |
-| 27 | Sound on a worn tape | [`worn`](../examples/worn.cells) | a sound tape: worn, wandering heads | A flute recorded onto a worn tape loop and played back by two heads, one of them wandering. | 0 | 0:10 loop |
+| 27 | Sound on a worn tape | [`worn`](../examples/worn.cells) | a sound tape: worn, wandering heads | A flute recorded onto a worn tape loop and played back by two heads, one of them wandering. | 20 | 0:10 loop |
 | 28 | DTMF: a telephone keypad | [`dtmf`](../examples/dtmf.cells) | text: spell() | Every touch-tone phone: a key is two sines at once, its row's and its column's. | 11.5 | 0:05 loop |
-| 29 | Clock time: a minute, an hour, a day | [`daytime`](../examples/daytime.cells) | clock time and a law | Music on the clock on the wall: a tick each second, a chime each minute, a day of music anchored to the time. | 0 | 1 day |
+| 29 | Clock time: a minute, an hour, a day | [`daytime`](../examples/daytime.cells) | clock time and a law | Music on the clock on the wall: a tick each second, a chime each minute, a day of music anchored to the time. | 9.5 | 1 day |
 
 ## Classical
 
