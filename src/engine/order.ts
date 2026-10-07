@@ -4,6 +4,7 @@ export const ORDER = [
   'steps',
   'clock',
   'voice',
+  'effects',
   'transpose',
   'twinkle',
   'chords',

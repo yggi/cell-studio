@@ -176,6 +176,8 @@
     lib
       ? new Map(
           [...lib.hue].map(([t, h]) => {
+            // (the tutorial is no genre: a neutral of its own, not its angle's colour)
+            if (t === TUTORIAL) return [t, 'var(--tutorial)'];
             // saturation by distance from the centre: grey in the middle, full at the border
             const pct = Math.round(25 + 75 * (lib!.sat.get(t) ?? 1));
             return [t, `color-mix(in oklab, ${noteColour(h)} ${pct}%, #8b909a)`];

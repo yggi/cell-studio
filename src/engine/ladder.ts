@@ -62,13 +62,11 @@ export const LADDER: readonly { readonly concept: string; readonly forms: readon
     concept: 'a clock: a bar, step=&bar, /2 and *2, a tempo marking',
     forms: ['generator scan(i …)', 'rate nbpm', 'rate step=&x', 'rate step=&x*n', 'rate step=free(r, lo..hi)', 'free free(marking)'],
   },
+  { concept: 'a voice: a source and an envelope', forms: ['attribute env', 'reference &( … )', 'map map=adsr a d s r'] },
   {
-    concept: 'a voice: an envelope, filters, a vibrato, effects',
+    concept: 'filters and effects; a vibrato',
     forms: [
-      'attribute env',
       'attribute pitch',
-      'reference &( … )',
-      'map map=adsr a d s r',
       'parameter lpf',
       'parameter lpq',
       'parameter hpf',
