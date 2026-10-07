@@ -36,7 +36,7 @@
   const edgeTypes = { pulse: PulseEdge, belt: BeltEdge, meter: MeterEdge };
 
   const WIDTH = 168;
-  const belt = f.edge.kind === 'step' && typeof f.piece.program.cells.get(f.edge.source.slice('cell:'.length))?.params.belt === 'number';
+  const belt = f.edge.port === 'step' && typeof f.piece.program.cells.get(f.edge.source.slice('cell:'.length))?.params.belt === 'number';
   // (a belt's wheels are drawn at a size where their pulleys show)
   const [w, h] = belt ? [110, 110] : [66, 28];
   const GAP = belt ? 70 : 96;
@@ -54,8 +54,8 @@
     data: { name: nameOf(id), w, h, round: belt, sources, targets },
   });
   const nodes = [
-    node(f.edge.source, top, f.edge.pick === 'play' ? [`head-${nameOf(f.edge.target)}`] : [], []),
-    node(f.edge.target, bottom, [], f.edge.pick === 'write' ? ['head-write'] : []),
+    node(f.edge.source, top, f.edge.port === 'play' ? [`head-${nameOf(f.edge.target)}`] : [], []),
+    node(f.edge.target, bottom, [], f.edge.port === 'write' ? ['head-write'] : []),
   ];
   const meterTrace = f.meter && { id: e.id, a: f.edge.source, b: f.edge.target, meter: `cell:${f.meter.name}` };
   const rate = f.piece.program.clocks.get(nameOf(f.edge.source))?.belt?.rate ?? 1;

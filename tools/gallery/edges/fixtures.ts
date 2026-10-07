@@ -1,14 +1,15 @@
 /**
  * Which edges the sheet shows: the first of each kind across the examples (one that is live at the moment, if any is),
- * where a kind is what the edge looks like — its kind, the parameter it feeds, the shape of its label and pick —
+ * where a kind is what the edge looks like — the port it is read through, the shape of the transforms written on it —
  * so a new way to write an edge turns up here by itself. Beside them, the edges that aren't in the model: a meter's net.
  */
 import { buildGraph, type GraphEdge } from '../../../src/engine/graph';
+import type { Transform } from '../../../src/engine/transform';
 import { groundsOf, meterIndex } from '../../../src/layout/meters';
 import type { Piece } from '../pieces';
 
 export interface EdgeFixture {
-  /** The kind, as a tile is named: `edge:out:fm`, `edge:step:div-n`. */
+  /** The kind, as a tile is named: `edge:fm`, `edge:step:div`. */
   readonly key: string;
   readonly piece: Piece;
   readonly edge: GraphEdge;
@@ -20,22 +21,27 @@ export interface EdgeFixture {
   readonly meter?: { readonly name: string; readonly index: number };
 }
 
-const WORDS: Record<string, string> = { '×': ' times ', '÷': ' div ', '+': ' plus ', '−': ' minus ', '⟳': ' cycle ', '^': ' up ', '·': ' ' };
-/** `×0.4` → `times-n`: the shape of a label or a pick, as a word (digits are all one `n`; a tile name has no symbols). */
-const shape = (s: string) =>
-  s
-    .replace(/<</g, ' back ')
-    .replace(/>>/g, ' fwd ')
-    .replace(/[×÷+−⟳^·]/g, (c) => WORDS[c])
-    .replace(/[\d.]+/g, 'n')
-    .replace(/[^\w]+/g, ' ')
-    .trim()
-    .replace(/\s+/g, '-');
+/** A transform's shape, as a word: what its steps do, not by how much (`[<<2]` → `delay`, `÷2 · belt` → `div-belt`). */
+const shape = (t: Transform) =>
+  t
+    .map((s) => {
+      switch (s.kind) {
+        case 'delay':
+          return s.unit === 'step' ? 'delay' : 'delay-s';
+        case 'transpose':
+          return s.unit === 'grid' ? 'up' : 'semitones';
+        case 'rate':
+          return [s.whole && 'loop', s.per === 'cycle' && 'cycle', ...s.by.map((r) => (r.op === '×' ? 'times' : 'div')), s.belt !== undefined && 'belt'].filter(Boolean).join('-');
+        default:
+          return s.kind;
+      }
+    })
+    .filter(Boolean)
+    .join('-');
 
-/** What kind of edge: an `out` whose pick is a word feeds a parameter (`fm`, `lpf`, `write` …: the pick is its name). */
+/** What kind of edge: the port it is read through, the shapes of the transforms written on it, whether it counts (`×n` slots). */
 export function edgeKind(e: GraphEdge): string {
-  const param = e.kind === 'out' && /^[a-z]+$/.test(e.pick) ? e.pick : '';
-  return ['edge', e.kind, param, e.label && shape(e.label), !param && e.pick && `pick-${shape(e.pick)}`, e.count > 1 && 'count'].filter(Boolean).join(':');
+  return ['edge', e.port, ...new Set(e.transforms.map(shape).filter(Boolean)), e.count > 1 && 'count'].filter(Boolean).join(':');
 }
 
 /** The first of each kind of edge across these pieces (a live one if any is), and a meter's net if one has a meter. */

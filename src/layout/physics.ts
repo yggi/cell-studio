@@ -197,13 +197,13 @@ export class ForceLayout {
     // petals (unnamed cells) hang from their parent: the physics only sees named cells
     model = { ...model, nodes: model.nodes.filter((n) => !(n as { petalOf?: string }).petalOf) };
     const parentOf = new Map<string, string>();
-    for (const e of model.edges) if (e.kind !== 'about' && !parentOf.has(e.target)) parentOf.set(e.target, e.source);
+    for (const e of model.edges) if (e.port !== 'about' && !parentOf.has(e.target)) parentOf.set(e.target, e.source);
     // (a meter's edges aren't drawn — its cells wear its ring, meters.ts — so they neither count nor pull)
     const groundIds = groundsOf(model);
     const ground = (e: (typeof model.edges)[number]) => groundIds.has(e.id);
     this.s.degree = new Map();
     for (const e of model.edges)
-      if (e.source !== e.target && e.kind !== 'about' && !ground(e)) for (const id of [e.source, e.target]) this.s.degree.set(id, (this.s.degree.get(id) ?? 0) + 1);
+      if (e.source !== e.target && e.port !== 'about' && !ground(e)) for (const id of [e.source, e.target]) this.s.degree.set(id, (this.s.degree.get(id) ?? 0) + 1);
     // mostly new (a different example that happens to share &bar, &mix, &out): lay it all out afresh
     const fresh = model.nodes.filter((n) => !this.s.byId.has(n.id)).length > model.nodes.length / 2;
     if (fresh) this.s.bendAt.clear(); // a fresh graph: no bends left over from the last one
@@ -217,13 +217,13 @@ export class ForceLayout {
     const busTaps = new Set(this.s.nets.flatMap((n) => (n.port === 'step' ? [] : n.taps)));
     const links: PhysLink[] = model.edges
       // (a note's links, about=, are not springs: they only draw a note towards what it explains, see stepAbout)
-      .filter((e) => e.kind !== 'about' && !ground(e) && next.has(e.source) && next.has(e.target) && e.source !== e.target)
+      .filter((e) => e.port !== 'about' && !ground(e) && next.has(e.source) && next.has(e.target) && e.source !== e.target)
       .map((e) => ({
         id: e.id,
         source: e.source,
         target: e.target,
         count: e.count,
-        part: e.kind === 'ref' || e.kind === 'over',
+        part: e.port === 'braid' || e.port === 'over',
         belt: !!e.belt,
         strength: strengthOf(e),
         net: busTaps.has(e.id),
@@ -248,7 +248,7 @@ export class ForceLayout {
     // the tapes turned to where everything is now (an edit that doesn't move anything doesn't turn them)
     this.s.turns = fitTurns(this.s, (id) => this.position(id));
     this.s.explains = model.edges
-      .filter((e) => e.kind === 'about' && next.has(e.source) && next.has(e.target))
+      .filter((e) => e.port === 'about' && next.has(e.source) && next.has(e.target))
       .map((e) => ({ note: next.get(e.source)!, cell: next.get(e.target)! }));
     // a hub's edges into a cluster: each keeps part of its pull, the cluster's tag takes the rest, once per hub (`mux`)
     // (none at all when it's off: d3 balances each spring by how many its ends have, so even a slack one would count)

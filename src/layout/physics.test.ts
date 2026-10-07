@@ -120,7 +120,7 @@ describe('spline edges', () => {
       { id: 'b', depth: 1, kind: 'cell' },
       { id: 'c', depth: 1, kind: 'cell' },
     ],
-    edges: [{ id: 'a->b', source: 'a', target: 'b', kind: 'ref', count: 1, pick: '' }],
+    edges: [{ id: 'a->b', source: 'a', target: 'b', port: 'braid', count: 1, transforms: [[]] }],
   } as unknown as Parameters<ForceLayout['setGraph']>[0];
   const hold = (l: ForceLayout, id: string, x: number, y: number) => {
     l.dragStart(id, x, y);
@@ -352,8 +352,8 @@ describe('drawn crossings', () => {
     const model = {
       nodes: ['a', 'b', 'c', 'd'].map((id) => ({ id, depth: 1, kind: 'cell' })),
       edges: [
-        { id: 'a->b', source: 'a', target: 'b', kind: 'ref', count: 1, pick: '' },
-        { id: 'c->d', source: 'c', target: 'd', kind: 'ref', count: 1, pick: '' },
+        { id: 'a->b', source: 'a', target: 'b', port: 'braid', count: 1, transforms: [[]] },
+        { id: 'c->d', source: 'c', target: 'd', port: 'braid', count: 1, transforms: [[]] },
       ],
     } as unknown as Parameters<ForceLayout['setGraph']>[0];
     const l = new ForceLayout(undefined, { ...FORCES_ALONE, live: false, avoid: 0 });
@@ -424,8 +424,8 @@ describe('busy nodes push harder', () => {
     const model = {
       nodes: ['hub', 'a', 'b', 'c', 'd', 'x', 'y'].map((id) => ({ id, depth: 1, kind: 'cell' })),
       edges: ['a', 'b', 'c', 'd']
-        .map((n) => ({ id: `hub->${n}`, source: 'hub', target: n, kind: 'ref', count: 1, pick: '' }))
-        .concat([{ id: 'x->y', source: 'x', target: 'y', kind: 'ref', count: 1, pick: '' }]),
+        .map((n) => ({ id: `hub->${n}`, source: 'hub', target: n, port: 'braid', count: 1, transforms: [[]] }))
+        .concat([{ id: 'x->y', source: 'x', target: 'y', port: 'braid', count: 1, transforms: [[]] }]),
     } as unknown as Parameters<ForceLayout['setGraph']>[0];
     const gap = (degreeRepel: number) => {
       const l = new ForceLayout(undefined, { ...FORCES_ALONE, live: false, degreeRepel, centre: 0, rankPull: 0 });

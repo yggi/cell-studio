@@ -18,10 +18,11 @@ export function massOf(n: GraphNode, ownsNet: boolean): number {
   return 1;
 }
 
-/** An edge's strength: a belt strongest (a body), a clock's ticks strong (a backbone), a bus by its width, a note's link weak. */
+/** An edge's strength: a belt strongest (a body), a clock's ticks strong (a backbone), a bus of values by its width, a note's link weak. */
 export function strengthOf(e: GraphEdge): number {
   if (e.belt) return 3;
   if (e.band === 'none') return 0.3;
   if (e.band === 'sync') return 2;
-  return e.width > 1 ? 1 + Math.log2(e.width) / 3 : 1;
+  // (sound weighs as one wire: a stereo pair into the sound card is two channels, not more to keep together)
+  return e.band === 'cv' && e.width > 1 ? 1 + Math.log2(e.width) / 3 : 1;
 }
