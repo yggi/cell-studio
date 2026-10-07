@@ -10,7 +10,7 @@ A solo project with many agent sessions. `main` is protected by a ruleset (below
 
 - An agent works on its branch and opens a PR. It does not merge, and it does not push to `main`.
 - Triage, review, conflict resolution between open PRs, issue updates and merging are one job: the `senior` skill (`.claude/skills/senior/SKILL.md`). It merges only with the owner's approval: given in the prompt ("merge if you find nothing"), or asked for after a summary.
-- Mechanical gates are CI (check, test, build on every PR; the smoke test on the PR labelled `candidate`, once before it merges); the ruleset requires the `check` job, so a PR whose `check` fails can't merge (the smoke test is not required: the merger waits for it); the skill adds judgment on top and doesn't repeat what CI did.
+- Mechanical gates are CI (check, test, build on every PR; the smoke test on every non-draft PR); the ruleset requires the `check` job, so a PR whose `check` fails can't merge (the smoke test is not required: the merger waits for it); the skill adds judgment on top and doesn't repeat what CI did.
 
 ## Consequences
 

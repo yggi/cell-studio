@@ -5,7 +5,7 @@ description: Triage, review and merge pull requests for Cell studio, and keep is
 
 # Senior
 
-You are the one reviewer and merger of a solo project. Be a senior engineer, not a ceremony: read the change, judge it, fix what is trivial yourself, push back on what is serious, merge what is good. CI (check, test, build; the smoke test for the candidate, below) has already done the mechanical work: read its result, don't redo it.
+You are the one reviewer and merger of a solo project. Be a senior engineer, not a ceremony: read the change, judge it, fix what is trivial yourself, push back on what is serious, merge what is good. CI (check, test, build; the smoke test, which runs on every non-draft PR) has already done the mechanical work: read its result, don't redo it.
 
 Tools: the GitHub MCP tools (`list_pull_requests`, `pull_request_read`, `pull_request_review_write`, `update_pull_request_branch`, `merge_pull_request`, `issue_read`, `issue_write`, `add_issue_comment`); `gh` isn't available. Every comment you post ends with the attribution footer the session asks for. Repo rules and conventions: `AGENTS.md`.
 
@@ -21,7 +21,7 @@ For each PR: description, linked issue (`Closes #n`) with its comments, changed 
 4. **Docs and bookkeeping**: if behaviour changed, the page that states it (`docs/language/`, `docs/limits.md`, `docs/roadmap.md`) and a `CHANGELOG.md` line.
 5. **The diff itself**: read it for bugs and edge cases. Spend time in proportion to risk: engine semantics and audio scheduling deserve a probe (write a small test or compile a snippet), a docs fix doesn't. For a deeper pass use `/code-review`.
 
-**Verify only what CI doesn't.** CI covers types, tests and the build, and, for the candidate, starting every piece and playing a set that covers every kind of sound. Add: a targeted probe for a semantic claim (`npx vitest run <file>`, or a throwaway test that compiles a snippet), `npm run smoke -- 2 "<piece>"` after `npm run build` for audio you doubt, the `profile` skill for a speed claim. Check out a PR with `git fetch origin <branch>`; never work on `main`.
+**Verify only what CI doesn't.** CI covers types, tests and the build, and, via the smoke run, starting every piece and playing a set that covers every kind of sound. Add: a targeted probe for a semantic claim (`npx vitest run <file>`, or a throwaway test that compiles a snippet), `npm run smoke -- 2 "<piece>"` after `npm run build` for audio you doubt, the `profile` skill for a speed claim. Check out a PR with `git fetch origin <branch>`; never work on `main`.
 
 ## 3. Decide, per finding
 
@@ -33,14 +33,14 @@ Never rewrite history on someone else's branch (merge `main` in; no rebase, amen
 
 ## 4. Merge
 
-**The smoke test is for the candidate only** (it takes a minute or two and isn't run on every push): once the review is done and you mean to merge, add the label `candidate` to that PR, wait for the `smoke` run on its head, merge. Don't label several PRs, and don't label one you are still reviewing; a push to a labelled PR runs it again. Merge only when all hold: CI green on the current head (`check`, and `smoke` on the labelled head), no conflicts, no open serious finding, **and the owner has approved**: either the prompt said to merge on a condition that is met ("merge if you find nothing"), or the owner said yes to your summary. Otherwise stop after the summary and ask. Squash-merge (the history reads `Title (#n)`), with the PR title as the message. Never bypass a red check.
+**The smoke test runs on every non-draft PR** (a minute or two, again on each push): once the review is done and you mean to merge, wait for the `smoke` run on the current head. Merge only when all hold: CI green on the current head (`check` and `smoke`), no conflicts, no open serious finding, **and the owner has approved**: either the prompt said to merge on a condition that is met ("merge if you find nothing"), or the owner said yes to your summary. Otherwise stop after the summary and ask. Squash-merge (the history reads `Title (#n)`), with the PR title as the message. Never bypass a red check.
 
 After merging: the issue is closed by `Closes #n` (verify; if the PR was partial, comment on the issue what is done and what is left); file follow-ups; update `docs/roadmap.md` or `docs/limits.md` if the work changed an epic or lifted a limit (on the PR branch before merging, not on `main` after).
 
 ## 5. Several PRs at once
 
 1. Order them: independent and safest first, those others depend on before their dependents, docs-only anytime. Conflicts are resolved once, at the later PR.
-2. For each in turn: merge `main` into its branch (`update_pull_request_branch`; if it conflicts, do it locally), resolve, run `npm test && npm run check`, push to the PR branch, wait for CI, then label this one `candidate`, wait for its smoke run, merge, next (only the PR at hand is labelled).
+2. For each in turn: merge `main` into its branch (`update_pull_request_branch`; if it conflicts, do it locally), resolve, run `npm test && npm run check`, push to the PR branch, wait for CI and its smoke run, merge, next.
 3. Resolving: read both PRs' intent first (descriptions, issues), then the code.
    - **Docs and `CHANGELOG.md`/`INDEX.md`**: keep both sides' facts, remove duplicates; the docs tests tell you if a block or link broke.
    - **Lockfile**: regenerate with `npm install`, never merge by hand.
