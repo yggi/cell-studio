@@ -19,8 +19,10 @@ code text (ui/state/piece.svelte.ts `Piece.code`)
   every window: engine.window(from, 0.25)   audio/engine.ts -> engine/schedule.ts windowAt -> Window
                (plain data: Played[] — at, dur, voice, freq, bends, gains, levels — and moving tapes' speeds)
   retime(window, audioTime, secPerQuarter)  engine/schedule.ts: onto the audio clock
+  voices.sync(result, shifts, muted)  audio/voices.ts: carries out wiring(result, muted) (audio/wiring.ts)
   voices.play(note)    audio/voices.ts (Tone.js; createVoices, parts in audio/voice/)
   also: compile result -> buildGraph (engine/graph.ts) -> layout/ -> ui/ drawing
+        compile result -> flows (engine/flows.ts): where sound goes, read by routing and by wiring
         compile result -> routing (engine/routing.ts), liveAt (engine/live.ts) -> what the graph draws as sounding
 ```
 
@@ -48,6 +50,7 @@ The engine behind `engine.window` is local (in this thread, on the app's plan: t
   - `series.ts`: a cell read as a stream over a note (`modulation`, `levelSeries`, `paramTracks`, `pitchOf`).
   - `values.ts`: what a cell sounds at a moment, for views (`valueAt`, `valuesAt`, `notesAt`).
   - `ids.ts`: graph ids (`cellId`, `edgeId`, `stepEdgeId`), shared with `muted` sets.
+- `flows.ts`: where sound goes, one description (#132): every flow between cells (a mix's entries, a sound card's channels, a selector's parts, a mix onto a tape, a tape under a head, `excite=`, `couple=`), with its graph edge id. Read by `routing.ts` (the graph's states) and by `audio/wiring.ts` (the connections `voices.sync` makes), so the two can't drift apart.
 - `routing.ts`: what takes part in the sound, as graph nodes and edges: `routing` (what can sound), `liveRouting` (what does now), `drawn` (through petals), `nodeStateOf`/`edgeStateOf` (off, unrouted, on, idle, live). One model for nodes and edges: [ui/graph.md](ui/graph.md#states). `live.ts`: `liveAt`, the live view (playheads, lit table entries, and the live routing).
 - `schedule.ts`: what to play next as plain data (`windowAt`, `tapeSpeeds`, `retime`, `isPhysical`). `host.ts`: the engine as a message handler (`createHost`: load, window, grab, reset; `planOf`, `grabIn`), what the worker runs.
 - `edit.ts`: line rewrites. `graph.ts`: `buildGraph`, the graph of exactly what is written.
@@ -63,7 +66,7 @@ The engine behind `engine.window` is local (in this thread, on the app's plan: t
 
 ## src/audio
 
-`player.ts` (Player: transport, windows onto the audio clock, hands; implements `LiveSource`), `heldTapes.ts` (sound tapes while stopped: held where they stand, moved by hand), `device.ts` (the audio context: made as `tuning.ts` says, and what it reports to the performance overlay), `engine.ts` (`Engine`: `LocalEngine`, `WorkerEngine`, `chooseEngine`) and `engine.worker.ts`, `live.ts` (`LiveSource`, what views ask of the sound), `voices.ts` (createVoices, VoiceBank: wires the piece's voices, mixes, tapes and resonators), `voice/` (its parts: `voice.ts` a voice's chain and a note on it, `resonator.ts`, `tape.ts`, `noise.ts`, `params.ts` moving parameters, `nodes.ts` the typed bridge between Tone's nodes and native ones), `clock.svelte.ts` (reactive transport position), `render.ts` (offline render, WAV, `loudness`, `sampleHash`, `blockLevels`), `ticker.ts` (`onFrames`: the one frame loop for the transport clock and every live view, each at its own interval, eased under load; sound is unaffected).
+`player.ts` (Player: transport, windows onto the audio clock, hands; implements `LiveSource`), `heldTapes.ts` (sound tapes while stopped: held where they stand, moved by hand), `device.ts` (the audio context: made as `tuning.ts` says, and what it reports to the performance overlay), `engine.ts` (`Engine`: `LocalEngine`, `WorkerEngine`, `chooseEngine`) and `engine.worker.ts`, `live.ts` (`LiveSource`, what views ask of the sound), `voices.ts` (createVoices, VoiceBank: builds the piece's voices, mixes, tapes and resonators and makes the connections `wiring.ts` lists), `wiring.ts` (pure: the connections `sync` makes, from `engine/flows.ts`, with `off` applied once: a connection needs its ends and every cell on its flows on; `wiring.test.ts` holds it equal to the flows for every example), `voice/` (its parts: `voice.ts` a voice's chain and a note on it, `resonator.ts`, `tape.ts`, `noise.ts`, `params.ts` moving parameters, `nodes.ts` the typed bridge between Tone's nodes and native ones), `clock.svelte.ts` (reactive transport position), `render.ts` (offline render, WAV, `loudness`, `sampleHash`, `blockLevels`), `ticker.ts` (`onFrames`: the one frame loop for the transport clock and every live view, each at its own interval, eased under load; sound is unaffected).
 
 Scheduling: Tone's context is made with `latencyHint: 'balanced'` (about 55 ms made-to-heard on the phone measured, `audio/tuning.ts`) and a 0.3 s look-ahead (0.12 s for pieces with hands, so a grabbed motor answers quickly); the sound itself runs on the audio thread, so a busy main thread delays scheduling (covered by the look-ahead), not the sound. The pictures are drawn from the position of what is *heard* (the audio clock held back by the output timestamp's lag, `audio/heard.ts`), not of what is made. Live views refresh about 24 times a second (spectrum wheels 15, and only while on screen) from one shared frame loop (`audio/ticker.ts`) and stretch their interval when frames come late. Details and measurements: `tools/profile/README.md`.
 
