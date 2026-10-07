@@ -45,15 +45,14 @@ export function declare(ctx: Ctx): Declared {
     });
     implicit.add(key).add(d.over!.name);
   }
-  // a stepped braid of voices (&groove step=&bar/4 &bd ~ &hh [&bd,&hh]) plays them: it is a pattern of
-  // numbers read through the kit of its voices, in the order first written (that kit unnamed, not drawn)
-  for (const d of [...decls.values()]) {
-    const kit = voicePattern(d, decls);
-    if (!kit) continue;
-    const name = `kit:${d.name}`;
-    decls.set(name, {
-      name,
-      span: d.span,
+  // a stepped braid of voices (&groove step=&bar/4 &bd ~ &hh [&bd,&hh]) plays them, and so do the unstepped
+  // braids of voices it splices (drum motifs: &groove … &fill &fill[::-1]): each is a pattern of numbers read
+  // through one kit of all their voices, in the order first written (that kit unnamed, not drawn)
+  const grooves = voiceGrooves(decls);
+  if (grooves) {
+    decls.set(VOICE_KIT, {
+      name: VOICE_KIT,
+      span: grooves.voices[0].span,
       over: null,
       shift: null,
       off: false,
@@ -63,10 +62,14 @@ export function declare(ctx: Ctx): Declared {
       cycle: null,
       params: {},
       paramSpans: {},
-      braid: { kind: 'list', tokens: kit.voices.map((v) => ({ atom: { kind: 'ref', name: v.name, pick: null, shift: 0 }, repeat: 1, subdivide: 1, elongate: 1, span: v.span })) },
+      braid: {
+        kind: 'list',
+        tokens: grooves.voices.map((v) => ({ atom: { kind: 'ref', name: v.name, pick: null, shift: 0 }, repeat: 1, subdivide: 1, elongate: 1, span: v.span })),
+      },
     });
-    decls.set(d.name, { ...d, over: { name, pick: null, shift: 0, span: d.span }, braid: { kind: 'list', tokens: kit.tokens } });
-    implicit.add(name);
+    for (const [name, tokens] of grooves.cells)
+      decls.set(name, { ...decls.get(name)!, over: { name: VOICE_KIT, pick: null, shift: 0, span: decls.get(name)!.span }, braid: { kind: 'list', tokens } });
+    implicit.add(VOICE_KIT);
   }
   if (implicitRoot)
     decls.set(ROOT, {
@@ -109,33 +112,63 @@ export function declare(ctx: Ctx): Declared {
   return { decls, implicit, implicitRoot, overOk };
 }
 
+/** The kit that grooves and their motifs read: every voice they name. */
+const VOICE_KIT = 'kit:voices';
+
 /**
- * A stepped cell whose steps are voices (and rests): the voices, in the order first written, and its
- * steps as numbers into them — or null when it isn't one (an over= of its own, a sound of its own,
- * a step that isn't a plain voice).
+ * Grooves: stepped cells whose steps are voices, rests, chords of voices and drum motifs; drum motifs:
+ * unstepped cells of the same, spliced by a groove (and read through nothing: a braid of voices read
+ * with over= is a kit, by number). Their voices in the order first written, and each one's steps as
+ * numbers into them — or null when the piece has none.
  */
-function voicePattern(d: CellDecl, decls: ReadonlyMap<string, CellDecl>): { voices: Ref[]; tokens: Token[] } | null {
-  if (!d.step || d.over || Object.keys(d.params).length || d.braid.kind !== 'list') return null;
-  const isVoice = (r: Ref) => !r.pick && !r.shift && !r.transpose && Object.keys(decls.get(r.name)?.params ?? {}).length > 0;
-  const voices: Ref[] = [];
-  const index = (r: Ref) => {
-    const i = voices.findIndex((v) => v.name === r.name);
-    return i >= 0 ? i : voices.push(r) - 1;
+function voiceGrooves(decls: ReadonlyMap<string, CellDecl>): { voices: Ref[]; cells: Map<string, Token[]> } | null {
+  const isVoiceDecl = (n: string) => Object.keys(decls.get(n)?.params ?? {}).length > 0;
+  const plain = (r: { pick: unknown; shift: number; transpose?: number; values?: unknown }) => !r.pick && !r.shift && !r.transpose && !r.values;
+  const asTable = new Set([...decls.values()].flatMap((d) => (d.over ? [d.over.name] : [])));
+  // what a cell may hold to be a groove or a motif: rests, voices, chords of voices, and references to motifs
+  const shape = (d: CellDecl | undefined, seen: readonly string[]): boolean => {
+    if (!d || d.over || d.map || Object.keys(d.params).length || d.braid.kind !== 'list' || d.braid.tokens.length === 0 || seen.includes(d.name)) return false;
+    let voiced = false;
+    for (const t of d.braid.tokens) {
+      const a = t.atom;
+      if (a.kind === 'rest') continue;
+      if (a.kind === 'ref' && isVoiceDecl(a.name) && plain(a)) voiced = true;
+      else if (a.kind === 'ref' && !a.shift && !a.transpose && !a.values && motif(a.name, [...seen, d.name])) voiced = true;
+      else if (a.kind === 'mix' && a.exprs.every((e) => e.k === 'ref' && isVoiceDecl(e.ref.name) && plain(e.ref))) voiced = true;
+      else return false;
+    }
+    return voiced;
   };
-  const tokens: Token[] = [];
-  for (const t of d.braid.tokens) {
-    const a = t.atom;
-    let atom: Atom;
-    if (a.kind === 'rest') atom = a;
-    else if (a.kind === 'ref' && !a.values) {
-      const r = { name: a.name, pick: a.pick, shift: a.shift, transpose: a.transpose, span: t.span };
-      if (!isVoice(r)) return null;
-      atom = { kind: 'note', value: index(r), alter: 0 };
-    } else if (a.kind === 'mix' && a.exprs.every((e) => e.k === 'ref' && isVoice(e.ref))) {
-      const notes = a.exprs.map((e) => index((e as { ref: Ref }).ref));
-      atom = { kind: 'chord', notes, alters: notes.map(() => 0) };
-    } else return null;
-    tokens.push({ ...t, atom });
-  }
-  return voices.length ? { voices, tokens } : null;
+  const motif = (name: string, seen: readonly string[]): boolean => {
+    const d = decls.get(name);
+    // (one chord of voices and nothing else is a mix: &organ [&a, &b])
+    const mix = d?.braid.kind === 'list' && d.braid.tokens.length === 1 && d.braid.tokens[0].atom.kind === 'mix';
+    return !!d && !d.step && !mix && !asTable.has(name) && shape(d, seen);
+  };
+  const grooves = [...decls.values()].filter((d) => d.step && shape(d, []));
+  if (!grooves.length) return null;
+  const voices: Ref[] = [];
+  const index = (name: string, span: Ref['span']) => {
+    const i = voices.findIndex((v) => v.name === name);
+    return i >= 0 ? i : voices.push({ name, pick: null, shift: 0, span }) - 1;
+  };
+  const cells = new Map<string, Token[]>();
+  const rewrite = (d: CellDecl) => {
+    if (cells.has(d.name) || d.braid.kind !== 'list') return;
+    cells.set(d.name, []);
+    const tokens = d.braid.tokens.map((t): Token => {
+      const a = t.atom;
+      let atom: Atom = a;
+      if (a.kind === 'ref' && isVoiceDecl(a.name)) atom = { kind: 'note', value: index(a.name, t.span), alter: 0 };
+      else if (a.kind === 'ref') rewrite(decls.get(a.name)!);
+      else if (a.kind === 'mix') {
+        const notes = a.exprs.map((e) => index((e as { ref: Ref }).ref.name, t.span));
+        atom = { kind: 'chord', notes, alters: notes.map(() => 0) };
+      }
+      return { ...t, atom };
+    });
+    cells.set(d.name, tokens);
+  };
+  for (const d of [...decls.values()]) if (grooves.includes(d)) rewrite(d);
+  return { voices, cells };
 }

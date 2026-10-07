@@ -15,7 +15,7 @@ that makes the change. Also note changes to the language that could affect saved
 
 - In a pitch sum, of two terms with `step=` timing the finer one starts the notes and the coarser one holds under it (a progression: `&changes step=&bar*4 0 0 5 0` beside `&walk step=&bar`), as a `loop=` term would; before, this was an error and a progression had to be written `loop=&bar*N`. Two at the same rate are still an error. Saved `.cells` pieces are not affected.
 
-- A stepped braid of voices plays them: `&groove step=&bar/4 &bd ~ &hh [&bd,&sd] &hh*2` is a drum pattern by name, with no kit and no numbers to look up; it plays what the same pattern read through a kit plays. Saved `.cells` pieces are not affected (it was an error before).
+- A stepped braid of voices plays them: `&groove step=&bar/4 &bd ~ &hh [&bd,&sd] &hh*2` is a drum pattern by name, with no kit and no numbers to look up; it plays what the same pattern read through a kit plays. An unstepped braid of voices it splices is a drum motif (`&fill &sd &sd*2 ~ &hh`, spliced, reversed, nested). Saved `.cells` pieces are not affected (it was an error before).
 
 - `pan=` on a voice places it in stereo: 0 left, .5 centre (as without it), 1 right, the far side fading; one chord with panned voices plays what two chords with different gains play. **Saved pieces:** `pan=` was an error since the start (it said "balance with two mixes"); two chords keep working ([decision 007](docs/decisions/007-pan-is-back.md)).
 

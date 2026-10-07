@@ -44,6 +44,22 @@ describe('a stepped braid of voices plays them (#10 F4)', () => {
     expect(melody.diagnostics).toEqual([]);
     expect(melody.cells.get('t')!.over).toBeNull();
   });
+  it('drum motifs: an unstepped braid of voices a groove splices, reversed or not, nested, shared by two grooves', () => {
+    const grooves = plays(
+      voices + '&fill &sd &sd*2 ~ &hh\n&bar2 &bd ~ &fill\n&a step=&bar/4 &bar2 &fill[::-1]\n&b step=&bar/2 [&bd,&hh] &fill\n&out map=sample [&a * .6, &b * .3]',
+    );
+    const kit = plays(
+      voices +
+        '&kit &sd &hh &bd\n&fill 0 0*2 ~ 1\n&bar2 2 ~ &fill\n&a over=&kit step=&bar/4 &bar2 &fill[::-1]\n&b over=&kit step=&bar/2 [2,1] &fill\n&out map=sample [&a * .6, &b * .3]',
+    );
+    expect(grooves).toEqual(kit);
+  });
+  it('a braid of voices read with over= stays a kit, read by number', () => {
+    const r = compileSource(voices + '&kit &bd &hh\n&d over=&kit step=&bar 1 0\n&g step=&bar &hh &bd\n&out map=sample [&d, &g]');
+    expect(r.diagnostics).toEqual([]);
+    expect(r.cells.get('kit')!.implicit).toBe(false);
+    expect(r.cells.get('d')!.over).toBe('kit');
+  });
   it('Shorten leaves its steps alone (they are names, not numbers)', () => {
     const src = voices + '&groove step=&bar/4 &bd ~ &hh ~ &sd ~ &hh ~ &bd ~ &hh ~ &sd ~ &hh ~ &bd &bd\n&out map=sample [&groove]';
     expect(shorten(src)).toEqual([]);
