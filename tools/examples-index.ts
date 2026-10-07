@@ -25,7 +25,7 @@ export interface ExampleInfo {
   /** Its graph in miniature (src/layout/miniature.ts): the library draws it without fetching the piece. */
   readonly miniature: Miniature | null;
   /** The order its graph's rows are laid out in (layout/physics.ts: bestRowOrder), by its shape: it opens without the trials. */
-  readonly rows: { readonly key: string; readonly order: number };
+  readonly rows: { readonly key: string; readonly order: 0 | 1 };
 }
 
 /** What the index says of an example that needs no layout: all but its miniature and its rows' order. */
