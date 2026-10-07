@@ -109,23 +109,17 @@
   const fillColour = (f: Fill | undefined) => (f?.kind === 'pitch' ? noteColour(f.hue, false, f.octave ?? 0) : 'var(--edge)');
   // a resonator's tines: a strand into each pad (round its body, as MaterialNode lays them), lit while it rings
   const tinePaths = $derived.by(() => {
-    if (!d.tines || !d.sizes?.to) return [];
+    if (!d.tines || !d.sizes) return [];
     const n = d.tines.length;
-    return loomPaths(
-      targetX,
-      targetY,
-      (d.sizes.to / 2) * 1.2,
-      d.tines.map((_, i) => i / n),
-      mid.x,
-      mid.y,
-      sourceX,
-      sourceY,
-      GAP,
-    );
+    const turns = d.tines.map((_, i) => i / n);
+    // (the resonator is the edge's end when the tune plays it, its start when the tune reads through it)
+    return d.port === 'over'
+      ? loomPaths(sourceX, sourceY, (d.sizes.from / 2) * 1.2, turns, mid.x, mid.y, targetX, targetY, GAP)
+      : loomPaths(targetX, targetY, (d.sizes.to / 2) * 1.2, turns, mid.x, mid.y, sourceX, sourceY, GAP);
   });
   const tineStrands = $derived.by(() => {
     if (!d.tines) return [];
-    const rings = isLive ? ctx.resonance(d.to)?.exciters : undefined;
+    const rings = isLive ? ctx.resonance(d.port === 'over' ? d.from : d.to)?.exciters : undefined;
     return d.tines.map((p, i) => ({
       colour: noteColour(pitchHue(p), false, Math.floor(p / 12)),
       dim: !!rings && (rings[i] ?? 0) < 0.05,

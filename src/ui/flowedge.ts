@@ -18,9 +18,10 @@ export interface BeltDrawn {
   readonly slipping: boolean;
 }
 
-/** A note into a resonator with tines picks one: each tine's pitch (semitones from C4), for the strands that end at its pads. */
+/** A note into a resonator with tines picks one (or reads through them): each tine's pitch (semitones from C4), for the strands at its pads. */
 function tinesOf(e: GraphEdge, program: CompileResult): number[] | null {
-  const c = e.port === 'voice' ? program.cells.get(nameOf(e.to)) : undefined;
+  // (a tune plays the tines — the resonator at the edge's end; or reads through them, over= — at its start)
+  const c = e.port === 'voice' ? program.cells.get(nameOf(e.to)) : e.port === 'over' ? program.cells.get(nameOf(e.from)) : undefined;
   if (!c || typeof c.params.body !== 'string' || (c.exciters?.length ?? 0) < 2) return null;
   const f0 = c.freq > 0 ? c.freq : 440;
   return c.exciters!.map((x) => 12 * Math.log2(f0 / 261.63) + x.shift);

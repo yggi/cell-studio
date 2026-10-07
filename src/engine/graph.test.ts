@@ -39,7 +39,11 @@ describe('edges as wires', () => {
   });
 
   it('into a resonator with tines: as wide as its tines (a note picks one)', () => {
-    expect(wireOf(buildGraph(compileSource(PRESETS.kalimba.source)).edges, 'tune', 'kalimba')).toMatchObject({ port: 'voice', width: 8 });
+    const tines =
+      '&bar scan(1 1 1 1) step=92bpm\n&notes 0 2 4 7 9 12 14 16\n&tune over=&notes step=&bar/2 0 2 4\n&k body=tine loop=C4 0 2 4 7 9 12 14 16\n&out loop=SAMPLE_RATE map=sample [&tune * &k * .5]';
+    expect(wireOf(buildGraph(compileSource(tines)).edges, 'tune', 'k')).toMatchObject({ port: 'voice', width: 8 });
+    // the Kalimba reads through its tines and plays them: one wire between them (the same id), its tines wide
+    expect(wireOf(buildGraph(compileSource(PRESETS.kalimba.source)).edges, 'kalimba', 'tune')).toMatchObject({ port: 'over', width: 8 });
   });
 
   it('carry sound where the source is a sound: a mix written to tape, a modulator, a wave in a pitch sum (FM)', () => {
