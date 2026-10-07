@@ -22,7 +22,7 @@ Tests are `*.test.ts` beside their source, in node (no isolation between files, 
 - Realize (what sounds): `realize.test.ts` (notes, times, levels, per example), `tape.test.ts`, `resonator.test.ts`, `fm.test.ts`, `wave.test.ts`; `edit.test.ts` for line rewrites; `schedule.test.ts` (windows, the engine host).
 - Routing (what the graph draws as sounding): `routing.test.ts`: the cases of #11, and for every example that routed and live states agree (live within routed, edges with routed ends, every routed edge drawn), every voice that plays is routed and live while its note sounds, and what moves a voice is routed.
 - Audio: `src/audio/engine.test.ts` (local and worker engines; no Web Audio needed).
-- Layout: `src/layout/*.test.ts` (belts, cellview, describe, dial, geometry, labels, physics, quality, show, spectrum); `physics.library.test.ts` lays out every example once for its checks.
+- Layout: `src/layout/*.test.ts` (belts, cellview, describe, dial, geometry, labels, physics, quality, show, spectrum); `physics.library.test.ts` lays out every example (three times, for the quality gate).
 - Examples: `src/engine/examples.test.ts` — every `examples/*.cells` file is listed, compiles with zero diagnostics, and has a title, tags and `level=`.
 - Fuzz: `src/engine/fuzz.test.ts` — every example with one token or character deleted (a seeded sample of 20 each) compiles, plans and plays its first seconds without throwing. A program with errors plays nothing (`plan` returns no tracks): it may name cells it doesn't have.
 - UI helpers: `src/ui/colour`, `highlight`, `suggest` tests.

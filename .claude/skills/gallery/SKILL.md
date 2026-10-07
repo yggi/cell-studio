@@ -16,9 +16,9 @@ It fails on a page error.
 | `edges` | every kind of edge in every state, on bare nodes | fast |
 | `golden` | one graph with a value of every kind of wheel and edge, in the real Graph, stopped and live | fast |
 | `mockups` | design questions, options side by side (`tools/gallery/wheels/Mockups.svelte`) | fast |
+| `graphs` | every example's graph as the library's miniature draws it, with its numbers from the layout's baseline (`tools/graphs.mjs`; `OUT` default `shots/graphs/`) | fast |
 
-Graphs as a whole: `tools/graphs.mjs` (every example's layout, as the library's miniatures draw it) and
-`tools/shots.mjs` (a piece in the built app, playing). They are not part of the gallery yet.
+A piece in the built app, playing: `tools/shots.mjs` (not part of the gallery yet).
 
 ```
 CHROME_PATH=/opt/pw-browsers/chromium node tools/gallery.mjs edges            # shots/edges-fast/ (CHROME_PATH only in a cloud session)

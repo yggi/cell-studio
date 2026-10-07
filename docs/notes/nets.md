@@ -297,7 +297,22 @@ Measured over the library, mean of six seeds (crossings / cost; golden):
 
 Over three seeds (the gate): crossings 101 → 76, cost 165 → 123, cells in a foreign cluster 92 → 64, overlapping clusters 42 → 35, read heads' aim 36.6 → 36.0; area 7 % more.
 
-Open: a voice's mix net reads as if one mix fed the next (`&lead` → `&leadA` → `&leadB` → `&out`); audio might rather branch from its owner each time (a star), or the hop might be drawn so it doesn't read as a signal path.
+Then a voice's mix net read as if one mix fed the next (`&lead` → `&leadA` → `&leadB` → `&out`). The owner: **sound branches from its owner as a star** (built below).
+
+### Built: sound as a star; meters placed last again (2026-10-07)
+
+- **Sound branches from its owner** (the owner's call): a net whose band is audio (a voice into several mixes) joins each reader to the owner, as before nets; the others (tables, melodies) go on from reader to reader. Over six seeds it costs a little (75 → 80 crossings): the chain was shorter.
+- **Meters placed last, again** (the owner, begrudgingly: worth revisiting). `placeMeters` is back as an option (`placeLast`), on: the meter is laid out among its cells by its net's springs, then put where its net costs least and held there. With the nets' springs it pays as it didn't before (six seeds, crossings / cost / area in Mpx²):
+
+| | crossings | cost | area |
+|---|---|---|---|
+| not placed (the meter among its cells) | 80.2 | 126.7 | 75.9 |
+| **placed last** | **63.3** | **90.2** | 74.5 |
+| placed last, the meter free while laid out (as before it was retired) | 72.3 | 108.2 | 76.1 |
+
+And it is steady: 62–65 over the six seeds. Over the gate's three seeds: crossings 76 → 63, cost 123 → 87; cells in a foreign cluster 64 → 71 and read heads' aim 36 → 38 (recorded: the trade is worth it).
+
+The miniatures (`node tools/gallery.mjs graphs`, now a gallery subject) draw a net's hops as the graph does. A visual pass over them: the meters now sit among the cells they step, not at the bottom; the large pieces (BWV 847, Cellscape, Baustelle, Hypercell, Zell) are still dense knots with overlapping clusters, and the small ones are clean.
 
 ### Order
 
