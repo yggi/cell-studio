@@ -9,6 +9,7 @@
  *  - same.ts:      two cells written exactly alike — one, used by both names' users
  *  - defaults.ts:  an attribute that says what would be so anyway (loop=SAMPLE_RATE, cycle= its length, pan=.5)
  *  - progressions.ts: a transposing loop=&x*N with the bars multiplied out — step=&x*(N/k)
+ *  - stereo.ts:    a sound card's two chords that differ only in gains — one chord, and pan= on each voice
  *  - wrappers.ts:  a cell that only reads motifs through a shifted table — degree(&motif, k) where it's used
  *
  * Each suggestion carries its rewrite; its saving is measured on the result
@@ -22,6 +23,7 @@ import { sameCells } from './same';
 import { defaults } from './defaults';
 import { progressions } from './progressions';
 import { wrappers } from './wrappers';
+import { stereo } from './stereo';
 
 export type { Suggestion } from './harness';
 
@@ -37,6 +39,7 @@ export function shorten(source: string): Suggestion[] {
     ...defaults(source, result),
     ...progressions(source, result),
     ...wrappers(source, result),
+    ...stereo(source, result),
   ].sort((a, b) => b.saving - a.saving);
 }
 

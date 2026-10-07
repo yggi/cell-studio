@@ -181,3 +181,22 @@ describe('shorten: whole lines (#10)', () => {
     expect(s.apply(src)).toContain('# the 12');
   });
 });
+
+describe('shorten: stereo twins → one chord and pan= (#10, decision 007)', () => {
+  const head = '&t step=2 0 4 7\n&a s=sine loop=C4\n&b s=tri loop=C3\n';
+  it('two chords with the same sounds at different gains: one chord, each voice panned', () => {
+    const src = head + '&out loop=SAMPLE_RATE map=sample [&t * &a * .2, &t * &b * .4] [\n  &t * &a * .1, &t * &b * .1]';
+    const s = shorten(src).find((x) => x.kind === 'pan')!;
+    const next = s.apply(src);
+    expect(next).toContain('&out loop=SAMPLE_RATE map=sample [&t * &a * .2, &t * &b * .4]');
+    expect(next).toMatch(/&a pan=\.25 /);
+    expect(next).toMatch(/&b pan=\.125 /);
+    expect(sounds(next.replace(/&t step=2 0 4 7/, '&t step=4 0 4 7'))).toEqual(sounds(src.replace(/&t step=2 0 4 7/, '&t step=4 0 4 7')));
+  });
+  it('not when a pan would be inexact, the sounds differ, or a voice plays in another mix too', () => {
+    const none = (out: string) => expect(shorten(head + out).some((x) => x.kind === 'pan')).toBe(false);
+    none('&out loop=SAMPLE_RATE map=sample [&t * &a * .22] [&t * &a * .16]');
+    none('&out loop=SAMPLE_RATE map=sample [&t * &a * .2] [&t * &b * .1]');
+    none('&m [&t * &a]\n&out loop=SAMPLE_RATE map=sample [&t * &a * .2, &m] [&t * &a * .1, &m]');
+  });
+});
