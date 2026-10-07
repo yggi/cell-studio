@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { SAILOR_WITH_KIT } from '../engine/fixtures';
 import { compileSource } from '../engine/compile';
 import { codeShifts, type Shifts } from '../engine/program';
 import { cellView, hubLabel, isGrid } from './cellview';
@@ -90,7 +91,7 @@ describe('played cells', () => {
 
 describe('braids made of references', () => {
   it('carry the colours of what they reference, transitively, through their own table', () => {
-    const r2 = compileSource(PRESETS.sailor.source);
+    const r2 = compileSource(SAILOR_WITH_KIT);
     const hues = (n: string) => cellView(r2, n, codeShifts(r2), false).segments.map((s) => s.bands.map((b) => (b.kind === 'pitch' ? b.hue : b.kind)));
     // &A = &m1 &m2: eight coloured notes, no grey reference slots
     expect(hues('A')).toHaveLength(8);

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { SAILOR_WITH_KIT } from '../fixtures';
 import { setFree } from '../edit';
 import { compileSource } from '../compile';
 import { noteFrequency, codeShifts, type Shifts } from '../program';
@@ -81,7 +82,7 @@ describe('pitch: lookups all the way down', () => {
 });
 
 describe('motifs and shifted references', () => {
-  const r = compileSource(PRESETS.sailor.source);
+  const r = compileSource(SAILOR_WITH_KIT);
   it('motifs read through the table of whoever splices them; a shifted table steps it down', () => {
     expect(r.cells.get('m1')).toMatchObject({ over: null, context: 'lead' });
     expect(spell(r, 'A')).toBe('A A A A A A D F');

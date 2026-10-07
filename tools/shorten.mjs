@@ -25,7 +25,7 @@ try {
     const best = shorten(now).find(ok);
     if (!best) break;
     const next = best.apply(now);
-    if (next.length >= now.length) break;
+    if (best.saving <= 0) break;
     steps.push(`−${best.saving}: ${best.title}`);
     now = next;
   }

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { SAILOR_WITH_KIT } from './fixtures';
 import { waveform } from './wave';
 import { setFree } from './edit';
 import { meterLevels } from './parser';
@@ -244,7 +245,7 @@ describe('graph', () => {
   });
 
   it('labels shifted references; containers sit outside their parts; voices outermost', () => {
-    const g = buildGraph(compileSource(PRESETS.sailor.source));
+    const g = buildGraph(compileSource(SAILOR_WITH_KIT));
     expect(g.edges.find((e) => e.id === 'cell:B->cell:lead')!.pick).toBe('[<<]');
     const g2 = buildGraph(compileSource('&m step=1\n&x step=&m 0 1 2\n&v loop=440\n&mix_ [&x[1:] * &v]\n&out_ loop=44k map=sample &mix_'));
     expect(g2.edges.find((e) => e.id === 'cell:x->cell:v')!.pick).toBe('[1:]');
@@ -489,13 +490,16 @@ describe('a turning table comes round after its own length; cycle= says otherwis
     expect(pitches(compileSource(src('cycle=24')))).toEqual([0, 7, 14, 21]);
   });
   it('a braid of chords comes round after its chords: the Prelude without its cycle=', () => {
+    // (as the Prelude was written before: one table of 95 numbers, turned five at a time, cycle= its length)
     const p = PRESETS.prelude.source;
-    const nums = /^&chords step=&bar\*4 stride=5 cycle=95 (.*)$/m.exec(p)!;
-    const n = nums[1].trim().split(/\s+/);
-    const chords = Array.from({ length: n.length / 5 }, (_, i) => `[${n.slice(i * 5, i * 5 + 5).join(',')}]`).join(' ');
-    const asChords = p.replace(nums[0], `&chords step=&bar*4 ${chords}`);
+    const line = /^&chords step=&bar\*4 (\[.*)$/m.exec(p)!;
+    const n = line[1]
+      .replace(/[[\],]/g, ' ')
+      .trim()
+      .split(/\s+/);
+    const strided = p.replace(line[0], `&chords step=&bar*4 stride=5 cycle=${n.length} ${n.join(' ')}`);
     const all = (src: string) => events(compileSource(src), 0, 150).map((e) => `${e.at.toFixed(4)} ${e.freq.toFixed(2)}`);
-    expect(all(asChords)).toEqual(all(p));
+    expect(all(p)).toEqual(all(strided));
   });
   it('per tonos rises a whole tone a pass — and an octave after six', () => {
     const r = compileSource(PRESETS.pertonos.source);

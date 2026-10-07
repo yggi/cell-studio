@@ -1,6 +1,7 @@
 /** Phase 1: the declarations — one per name, the default grid and scale() tables added, over= chains known and acyclic. */
 import type { Atom, CellDecl, Ref, Token } from '../ast';
 import { ROOT } from '../program';
+import { VOICE_PARAMS } from '../attributes';
 import { even as evenPositions, intervals } from '../../theory/modes';
 import { IMPLICIT, isRootDecl, tableOf } from './tables';
 import type { Ctx } from './context';
@@ -122,12 +123,13 @@ const VOICE_KIT = 'kit:voices';
  * numbers into them — or null when the piece has none.
  */
 function voiceGrooves(decls: ReadonlyMap<string, CellDecl>): { voices: Ref[]; cells: Map<string, Token[]> } | null {
-  const isVoiceDecl = (n: string) => Object.keys(decls.get(n)?.params ?? {}).length > 0;
+  const sounds = (d: CellDecl | undefined) => Object.keys(d?.params ?? {}).some((k) => VOICE_PARAMS.has(k));
+  const isVoiceDecl = (n: string) => sounds(decls.get(n));
   const plain = (r: { pick: unknown; shift: number; transpose?: number; values?: unknown }) => !r.pick && !r.shift && !r.transpose && !r.values;
   const asTable = new Set([...decls.values()].flatMap((d) => (d.over ? [d.over.name] : [])));
   // what a cell may hold to be a groove or a motif: rests, voices, chords of voices, and references to motifs
   const shape = (d: CellDecl | undefined, seen: readonly string[]): boolean => {
-    if (!d || d.over || d.map || Object.keys(d.params).length || d.braid.kind !== 'list' || d.braid.tokens.length === 0 || seen.includes(d.name)) return false;
+    if (!d || d.over || d.map || sounds(d) || d.braid.kind !== 'list' || d.braid.tokens.length === 0 || seen.includes(d.name)) return false;
     let voiced = false;
     for (const t of d.braid.tokens) {
       const a = t.atom;

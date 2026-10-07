@@ -21,7 +21,10 @@ that makes the change. Also note changes to the language that could affect saved
 
 - A turning table (a stepped key, a scale stepped a degree at a time, a braid of chords) comes round after its own length without `cycle=`; `cycle=` is needed only to say otherwise (`cycle=24`: two laps). **Saved pieces:** a table turned without `cycle=` used to climb a lap each time round and now comes round instead; give it a larger `cycle=` to keep climbing ([decision 008](docs/decisions/008-tables-come-round.md)). Every example plays the same.
 
+- The examples are rewritten in the new forms and play the same notes: `degree(…)` instead of a cell reading a shifted table (Twinkle, Lullaby, Five, Pop, Drunken Sailor, Zelluläre Aktivität, Cell Tines), drums by name (Drunken Sailor, IDM, Cellular Brothers, Automaton), one chord and `pan=` instead of two (Two Tuning Forks, Kalimba, Cell Phase, Tape Machine), progressions stepped a bar at a time (Swing blues, Five, Hypercell, One more Cell), the Prelude's chords as a braid of chords, and no `loop=SAMPLE_RATE` or `cycle=` where they said the default. Saved `.cells` pieces are not affected.
+
 ### Fixed
+- A piece's loop length counts a turning table's turns where they really wrap: IDM: drill loops in 0:30 (its harmony turns twice and back), not 3:30; Canon per tonos in 3:20 (twelve passes, two octaves, home), not 1:40 (six, an octave up). Saved `.cells` pieces are not affected.
 - Opening a piece whose graph has a chord or a table bus no longer throws while the previous piece gives way (Baustelle, Baustelle II failed the smoke test). Saved `.cells` pieces are not affected.
 - A read head of a sound tape (`play=` on a tape that records a mix) showed an empty wheel: it shows the waveform of what it plays back, with where it reads (`0.75s`). Saved `.cells` pieces are not affected.
 

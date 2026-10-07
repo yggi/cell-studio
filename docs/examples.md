@@ -11,7 +11,7 @@ The pieces that ship with Cell studio, one plain-text file each in `examples/*.c
 | Metronome: any meter | [`metronome`](../examples/metronome.cells) | electronic, basics, rhythm | A bar and the clicks it plays, in a meter you choose. | 4 | 0:02 loop |
 | Sound: voices, waveforms, envelopes | [`waveforms`](../examples/waveforms.cells) | electronic, basics, sound | Voices made of braids: square, triangle, saw and sine, with envelopes and a vibrato. | 0.5 | 21:36 loop |
 | Pop song: four chords, arranged | [`pop`](../examples/pop.cells) | electronic, diatonic, harmony, arrangement | I – V – vi – IV, arranged by a selector: intro, verses, choruses, a break, an outro, an end. | 5 | 1:36 |
-| IDM: drill, after Aphex Twin | [`idm`](../examples/idm.cells) | electronic, Aphex Twin, chromatic, rhythm | A breakbeat backwards every other bar, with ratchets and hats. | -0.5 | 3:30 loop |
+| IDM: drill, after Aphex Twin | [`idm`](../examples/idm.cells) | electronic, Aphex Twin, chromatic, rhythm | A breakbeat backwards every other bar, with ratchets and hats. | -0.5 | 0:30 loop |
 | Acid-Cell: everybody needs a 303 | [`acid`](../examples/acid.cells) | electronic, chromatic, sound | Acid-Cell — everybody needs a 303: a saw through a resonant filter that opens on every note. | 0.5 | 0:15 loop |
 | Zelluläre Aktivität | [`zell`](../examples/zell.cells) | electronic, Kraftwerk, diatonic, arrangement | it builds, layer by layer, and ends. | 5 | 2:17 |
 | Cellscape | [`cellscape`](../examples/cellscape.cells) | electronic, modal, ambient, canon, arrangement | A cycle of twelve scenes, each a fifth from the last, and home. | 8 | 26:40 loop |
@@ -34,7 +34,7 @@ The pieces that ship with Cell studio, one plain-text file each in `examples/*.c
 | Lullaby: Brahms, Wiegenlied | [`lullaby`](../examples/lullaby.cells) | classical, Brahms, tonal, diatonic | Brahms' lullaby on a music box, its notes ringing on. | 7.5 | 6:00 loop |
 | Viennese waltz: oom-pah-pah | [`waltz`](../examples/waltz.cells) | classical, tonal, rhythm | A waltz in G: oom on one, pah-pah on two and three, a flute above. | 2 | 0:09 loop |
 | Royal theme: all keys and modes | [`royal`](../examples/royal.cells) | classical, Bach, modal, chromatic, harmony | Bach's royal theme through every key in fifths, then every mode. | 8 | 20:00 loop |
-| Canon per tonos: rising a tone a pass | [`pertonos`](../examples/pertonos.cells) | classical, Bach, tonal, canon | A canon on the royal theme that rises a whole tone each pass, as in the Musical Offering. | 2.5 | 1:40 loop |
+| Canon per tonos: rising a tone a pass | [`pertonos`](../examples/pertonos.cells) | classical, Bach, tonal, canon | A canon on the royal theme that rises a whole tone each pass, as in the Musical Offering. | 2.5 | 3:20 loop |
 | Ricercar: a study in counterpoint | [`ricercar`](../examples/ricercar.cells) | classical, Bach, tonal, counterpoint | A study in counterpoint on the King's theme, from strict to free, in six passes. | 10 | 1:49 |
 | Bach, Prelude in C: for Wendy | [`prelude`](../examples/prelude.cells) | classical, electronic, Bach, Wendy Carlos, tonal | Bach's Prelude in C (bars 1–19) as one figure reading a table of chords, on an old-school synthesizer. | 6.5 | 1:09 loop |
 | Pachelbel, Canon in D: a ground and three violins | [`pachelbel`](../examples/pachelbel.cells) | classical, Pachelbel, tonal, diatonic, canon | Eight bass notes, over and over; three violins play one line, each entering a ground later. | 8 | 16:00 loop |
