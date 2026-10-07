@@ -54,15 +54,15 @@ export function layered(model: GraphModel, o: LayeredOptions): Map<string, { x: 
   const links: { a: string; b: string; w: number }[] = [];
   const seen = new Set<string>();
   for (const e of model.edges) {
-    if (!vs.has(e.source) || !vs.has(e.target) || e.source === e.target || e.kind === 'about') continue;
+    if (!vs.has(e.source) || !vs.has(e.target) || e.source === e.target || e.port === 'about') continue;
     const key = [e.source, e.target].sort().join('→');
     if (seen.has(key)) continue;
     seen.add(key);
     // an edge into a meter says when, not what: no say in rows or order, no waypoints taking room
     // (the meter keeps its place by its rank; the edge is still drawn)
     const into = nodes.find((n) => n.id === e.target) as { isMeter?: boolean } | undefined;
-    if (e.kind === 'step' && into?.isMeter) continue;
-    const w = e.kind === 'step' ? 0.25 : 1;
+    if (e.port === 'step' && into?.isMeter) continue;
+    const w = e.port === 'step' ? 0.25 : 1;
     let [u, v] = [vs.get(e.source)!, vs.get(e.target)!];
     if (u.layer === v.layer) continue; // (same row: no say in the order)
     if (u.layer > v.layer) [u, v] = [v, u];

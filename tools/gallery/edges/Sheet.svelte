@@ -6,6 +6,7 @@
    */
   import EdgeCell, { type Column } from './EdgeCell.svelte';
   import { edgeFixtures } from './fixtures';
+  import { edgeLabel } from '../../../src/engine/transform';
   import { pieces } from '../pieces';
   import '../../../src/ui/edges.css';
 
@@ -36,8 +37,9 @@
     { label: 'step 3', state: 'live', beat: 2 },
   ];
   const columnsOf = (f: (typeof list)[number]) =>
-    f.meter ? METER : f.edge.kind === 'step' && f.piece.program.cells.get(f.edge.source.slice(5))?.params.belt !== undefined ? BELT : STATES;
-  const groupOf = (f: (typeof list)[number]) => (f.meter ? 'meter' : f.edge.kind);
+    f.meter ? METER : f.edge.port === 'step' && f.piece.program.cells.get(f.edge.source.slice(5))?.params.belt !== undefined ? BELT : STATES;
+  // (grouped by what they carry: ticks, values, sound, nothing — and the meter's net)
+  const groupOf = (f: (typeof list)[number]) => (f.meter ? 'meter' : f.edge.band);
   const groups = $derived([...new Set(list.map(groupOf))].map((g) => ({ g, items: list.filter((f) => groupOf(f) === g) })));
 </script>
 
@@ -54,11 +56,7 @@
         <figure data-kind={f.key}>
           <figcaption>
             <b>{f.key.split(':').slice(1).join(' · ')}</b>
-            <span
-              >{f.piece.title} · &amp;{f.edge.source.slice(5)} → &amp;{f.edge.target.slice(5)}{f.edge.label ? ` · “${f.edge.label}”` : ''}{f.edge.pick
-                ? ` · pick “${f.edge.pick}”`
-                : ''}</span
-            >
+            <span>{f.piece.title} · &amp;{f.edge.source.slice(5)} → &amp;{f.edge.target.slice(5)}{edgeLabel(f.edge) ? ` · “${edgeLabel(f.edge)}”` : ''}</span>
             <span>in {f.pieces.size} example{f.pieces.size === 1 ? '' : 's'}</span>
           </figcaption>
           <div class="row">

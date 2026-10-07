@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { compileSource } from '../engine/compile';
-import { buildGraph, type GraphEdge } from '../engine/graph';
+import { buildGraph, feeds, type GraphEdge } from '../engine/graph';
 import { codeShifts, type CompileResult } from '../engine/program';
 import { routing } from '../engine/routing';
 import { PRESETS } from '../engine/presets';
@@ -9,19 +9,19 @@ import { snapshotOf } from './snapshot';
 
 const nameOf = (id: string) => id.slice('cell:'.length);
 
-// what an edge carried before it was one lookup (by kind and pick, special case after special case): the reference
-function byKind(e: GraphEdge, program: CompileResult) {
+// what an edge carried before it was one lookup (by port, special case after special case): the reference
+function byPort(e: GraphEdge, program: CompileResult) {
   const trigger = (voice: string) => program.outputs.find((o) => o.voice === voice)?.cell ?? null;
-  if (e.kind === 'step') return { phaseCell: nameOf(e.to), voice: null };
-  if (e.kind === 'out' && (e.pick === 'play' || e.pick === 'write')) {
-    const o = e.pick === 'play' ? program.outputs.find((x) => x.tape?.head === nameOf(e.target)) : program.outputs.find((x) => x.cell === nameOf(e.source) && !x.tape);
+  if (e.port === 'step') return { phaseCell: nameOf(e.to), voice: null };
+  if (e.port === 'play' || e.port === 'write') {
+    const o = e.port === 'play' ? program.outputs.find((x) => x.tape?.head === nameOf(e.target)) : program.outputs.find((x) => x.cell === nameOf(e.source) && !x.tape);
     return { phaseCell: null, voice: o?.voice ?? null };
   }
-  if (e.kind === 'out') {
+  if (feeds(e)) {
     const voice = nameOf(e.target);
     return { phaseCell: trigger(voice) === nameOf(e.source) ? nameOf(e.source) : null, voice };
   }
-  if (e.kind === 'mix') {
+  if (e.port === 'mix') {
     const voice = nameOf(e.source);
     return { phaseCell: trigger(voice), voice };
   }
@@ -40,7 +40,7 @@ describe('what an edge carries: one lookup by band and port', () => {
     for (const [key, { source }] of Object.entries(PRESETS)) {
       const program = compileSource(source);
       for (const e of buildGraph(program).edges) {
-        expect(carried(e, program), `${key}: ${e.id} (${e.kind} ${e.port} ${e.band})`).toEqual(byKind(e, program));
+        expect(carried(e, program), `${key}: ${e.id} (${e.port} ${e.band})`).toEqual(byPort(e, program));
         n++;
       }
     }
