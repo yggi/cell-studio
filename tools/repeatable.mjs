@@ -10,9 +10,13 @@
 //
 //   npm run build && node tools/repeatable.mjs 6 [piece words…]
 //
-// Exit 1 on a Math.random call of ours or a piece that differs beyond TOL (other than the known ones). Not a CI check (like
-// golden.mjs, #18); `src/audio/repeatable.test.ts` is the cheap first line that runs in CI. In a cloud session set
-// CHROME_PATH=/opt/pw-browsers/chromium.
+//   3. A loudness ceiling (#92; the convention in docs/language/display.md, level=): no sample clipped, the peak at or
+//      under PEAK (−1 dB) and the average at or under RMS (−18 dB), over the seconds rendered. Only a ceiling: a short
+//      render of a piece with a quiet start averages far under the −24 dB of the whole piece, so there is no floor.
+//
+// Exit 1 on a Math.random call of ours, a piece that differs beyond TOL (other than the known ones) or one over the
+// ceiling. The smoke workflow runs it on every PR (`node tools/repeatable.mjs 4`); `src/audio/repeatable.test.ts` is the
+// cheap first line in `npm test`. In a cloud session set CHROME_PATH=/opt/pw-browsers/chromium.
 import { readdirSync } from 'node:fs';
 import { preview } from 'vite';
 import { chromium } from './profile/playwright.mjs';
@@ -20,6 +24,8 @@ import { chromium } from './profile/playwright.mjs';
 const args = process.argv.slice(2);
 const secs = Number(args.find((a) => /^\d+(\.\d+)?$/.test(a)) ?? 6);
 const TOL = Number(process.env.TOL ?? 1e-5);
+const PEAK = Number(process.env.PEAK ?? -1);
+const RMS = Number(process.env.RMS ?? -18);
 const KNOWN = { 'forks.cells': '#65', 'kalimba.cells': '#65' };
 const words = args.filter((a) => !/^\d+(\.\d+)?$/.test(a)).map((w) => w.toLowerCase());
 const files = readdirSync('examples')
@@ -68,12 +74,13 @@ const render = (source) =>
       const r = await window.cellStudio.render(src, s);
       const calls = [...window.__calls];
       window.__calls = null;
-      return { hash: r.hash, blocks: r.blocks, calls };
+      return { hash: r.hash, blocks: r.blocks, calls, rms: r.rms, peak: r.peak, clipped: r.clipped };
     },
     [source, secs],
   );
 
 let bad = 0;
+let loud = 0;
 const callers = new Map();
 for (const f of files) {
   const source = readFileSync(`examples/${f}`, 'utf8');
@@ -88,9 +95,16 @@ for (const f of files) {
   const known = KNOWN[f];
   const ok = apart <= TOL || known;
   if (!ok) bad++;
+  const over = [
+    a.clipped > 0 && `${a.clipped} samples clipped`,
+    a.peak > PEAK && `peak ${a.peak.toFixed(1)} dB over ${PEAK}`,
+    a.rms > RMS && `average ${a.rms.toFixed(1)} dB over ${RMS}`,
+  ].filter(Boolean);
+  if (over.length) loud++;
+  const level = `rms ${a.rms.toFixed(1)} peak ${a.peak.toFixed(1)}`;
   const how = a.hash === b.hash ? 'bit-identical' : `largest block difference ${dB}, first at ${((a.blocks.findIndex((x, i) => x !== b.blocks[i]) * 2048) / 44100).toFixed(2)} s`;
   console.error(
-    `${apart <= TOL ? 'same ' : known ? 'KNOWN' : 'DIFF '} ${f.padEnd(28)} ${how}${apart > TOL && known ? `  (${known})` : ''}${[...warm.calls, ...a.calls, ...b.calls].some(([, [, tone]]) => !tone) ? '  Math.random called by our code' : ''}`,
+    `${apart <= TOL ? 'same ' : known ? 'KNOWN' : 'DIFF '} ${f.padEnd(28)} ${level.padEnd(22)} ${how}${over.length ? `  LOUD: ${over.join(', ')}` : ''}${apart > TOL && known ? `  (${known})` : ''}${[...warm.calls, ...a.calls, ...b.calls].some(([, [, tone]]) => !tone) ? '  Math.random called by our code' : ''}`,
   );
 }
 await browser.close();
@@ -100,10 +114,16 @@ for (const [where, [n, tone]] of callers) {
   if (!tone) ours++;
   console.error(`${tone ? 'Tone (known)' : 'OURS'}: Math.random ×${n}: ${where}`);
 }
-const fail = bad || ours;
+const fail = bad || ours || loud;
 console.error(
   fail
-    ? `${bad} of ${files.length} pieces differ between two renders${ours ? `; Math.random called from ${ours} place(s) of ours` : ''}`
-    : `all ${files.length} pieces render the same twice (within ${(20 * Math.log10(TOL)).toFixed(0)} dB), none of our code calls Math.random`,
+    ? [
+        bad && `${bad} of ${files.length} pieces differ between two renders`,
+        ours && `Math.random called from ${ours} place(s) of ours`,
+        loud && `${loud} of ${files.length} pieces over the loudness ceiling (peak ${PEAK} dB, average ${RMS} dB, no clipping)`,
+      ]
+        .filter(Boolean)
+        .join('; ')
+    : `all ${files.length} pieces render the same twice (within ${(20 * Math.log10(TOL)).toFixed(0)} dB) and under the loudness ceiling; none of our code calls Math.random`,
 );
 process.exit(fail ? 1 : 0);
