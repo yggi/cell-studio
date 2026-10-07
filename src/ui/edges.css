@@ -1,0 +1,62 @@
+/*
+ * How the graph draws its edges: thick, round-capped splines; a kind's own dashes; the state's opacity; the labels' pills.
+ * Under `.graph`: the graph (Graph.svelte) and the gallery's edge sheet (tools/gallery/edges/) both wear it.
+ */
+.graph .svelte-flow {
+  --xy-edge-stroke: var(--edge);
+  --xy-edge-stroke-width: 2;
+  --xy-edge-label-background-color: var(--surface);
+  --xy-edge-label-color: var(--text);
+}
+/* edges are a key element: thick, round-capped splines */
+.graph .svelte-flow__edge-path {
+  stroke-width: 4;
+  stroke-linecap: round;
+  transition: stroke-opacity 140ms ease;
+}
+.graph .svelte-flow__edge-path.edge-live {
+  stroke: var(--accent);
+  stroke-width: 5;
+}
+.graph .edge-over .svelte-flow__edge-path {
+  stroke-dasharray: 1 9;
+  stroke-opacity: 0.7;
+}
+.graph .edge-step .svelte-flow__edge-path {
+  stroke: color-mix(in oklab, var(--accent) 50%, var(--edge));
+  stroke-dasharray: 12 7;
+}
+/* (the state is on the edge's own path, put there by PulseEdge, so a step doesn't remake the edge list: #13)
+   not sounding now (playing): quieter; not part of the sound, or switched off: faded */
+.graph .svelte-flow__edge-path.edge-idle {
+  stroke-opacity: 0.45;
+}
+.graph .svelte-flow__edge-path.edge-unrouted,
+.graph .svelte-flow__edge-path.edge-off {
+  stroke-opacity: 0.2;
+}
+/* a note's links (about=): fine dots from the note to what it explains; never routed, never live */
+.graph .edge-about .svelte-flow__edge-path {
+  stroke: var(--text-muted, var(--edge));
+  stroke-width: 2;
+  stroke-dasharray: 1 7;
+  stroke-opacity: 0.6;
+}
+/* edge labels (×0.4, [<<], ⟳ …): readable pills; an off edge's label fades with it */
+.graph .svelte-flow__edge-label {
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+  color: var(--text);
+  font: 700 12.5px/1.35 var(--font-ui);
+  box-shadow: 0 2px 6px rgb(0 0 0 / 0.3);
+  transition:
+    opacity 200ms ease,
+    border-color 200ms ease;
+}
+.graph .svelte-flow__edge-path {
+  transition:
+    stroke 200ms ease,
+    stroke-opacity 200ms ease;
+}

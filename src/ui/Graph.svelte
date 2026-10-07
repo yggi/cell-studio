@@ -23,6 +23,8 @@
   import SunNode from './SunNode.svelte';
   import GraphLegend from './GraphLegend.svelte';
   import BeltEdge from './BeltEdge.svelte';
+  import { flowEdgeOf, meterEdgeOf } from './flowedge';
+  import './edges.css';
   import { pulleys } from '../layout/belts';
   import { physicsOf } from '../engine/clocking';
   import type { LiveSource } from '../audio/live';
@@ -274,27 +276,6 @@
   const NO_LIVE = { nodes: new Set<string>(), edges: new Set<string>() };
 
   const edgeTypes = { pulse: PulseEdge, belt: BeltEdge, meter: MeterEdge };
-  const nameOf = (id: string) => id.slice('cell:'.length);
-  /** What an edge carries: whose steps pulse along it, and which voice's note colours it. */
-  function pulseData(e: GraphEdge) {
-    const trigger = (voice: string) => program.outputs.find((o) => o.voice === voice)?.cell ?? null;
-    if (e.kind === 'step') return { kind: e.kind, phaseCell: nameOf(e.source), voice: null, reverse: true };
-    // a tape's edges take the colour of what's on them: a read head's notes, as played; what's being
-    // written, as its source plays it
-    if (e.kind === 'out' && (e.pick === 'play' || e.pick === 'write')) {
-      const o = e.pick === 'play' ? program.outputs.find((x) => x.tape?.head === nameOf(e.target)) : program.outputs.find((x) => x.cell === nameOf(e.source) && !x.tape);
-      return { kind: e.kind, phaseCell: null, voice: o?.voice ?? null, reverse: false };
-    }
-    if (e.kind === 'out') {
-      const voice = nameOf(e.target);
-      return { kind: e.kind, phaseCell: trigger(voice) === nameOf(e.source) ? nameOf(e.source) : null, voice, reverse: false };
-    }
-    if (e.kind === 'mix') {
-      const voice = nameOf(e.source);
-      return { kind: e.kind, phaseCell: trigger(voice), voice, reverse: false };
-    }
-    return { kind: e.kind, phaseCell: null, voice: null, reverse: false };
-  }
 
   function toFlowEdge(e: GraphEdge): Edge {
     // off, unrouted, on, idle, live: one rule for edges and nodes (engine/routing.ts). Here without the live set: while
@@ -307,30 +288,9 @@
       const rate = program.clocks.get(driven.cell.name)?.belt?.rate ?? 1;
       const [rDriver, rDriven] = pulleys(sizeOf(e.target), sizeOf(e.source), rate);
       const st = live ? physicsOf(program, shifts, driven.cell.name)?.state?.(live.seconds) : undefined;
-      return {
-        id: e.id,
-        source: e.source,
-        target: e.target,
-        type: 'belt',
-        zIndex: 5,
-        selectable: false,
-        data: { rDriver, rDriven, stretch: st?.stretch ?? 0, slipping: st?.slipping ?? false },
-      };
+      return flowEdgeOf(e, state, program, { rDriver, rDriven, stretch: st?.stretch ?? 0, slipping: st?.slipping ?? false });
     }
-    // a tape's edges meet it at its heads: the write head (what it records), each read head (what it plays)
-    const heads = e.pick === 'write' ? { targetHandle: 'head-write' } : e.pick === 'play' ? { sourceHandle: `head-${e.target.replace(/^cell:/, '')}` } : {};
-    return {
-      id: e.id,
-      source: e.source,
-      target: e.target,
-      ...heads,
-      type: 'pulse',
-      // (only a live edge carries a note's colour and pulses: an edge into what doesn't sound now stays still)
-      data: { ...pulseData(e), off: state === 'off' || state === 'unrouted', state },
-      label: [e.count > 1 ? `×${e.count}` : '', e.pick, e.label ?? ''].filter(Boolean).join(' ') || undefined,
-      class: `edge-${e.kind}`,
-      selectable: false,
-    };
+    return flowEdgeOf(e, state, program);
   }
 
   $effect(() => {
@@ -343,22 +303,7 @@
     const byId = new Map(m.nodes.map((n) => [n.id, n]));
     const laid = net;
     const index = meterIndex(m);
-    untrack(
-      () =>
-        (edges = [
-          ...m.edges.filter((e) => !isGround(e, byId)).map((e) => toFlowEdge(e)),
-          ...laid.map((t): Edge => ({
-            id: t.id,
-            source: t.a,
-            target: t.b,
-            type: 'meter',
-            zIndex: -1,
-            selectable: false,
-            focusable: false,
-            data: { meter: index.get(t.meter) ?? 0, name: nameOf(t.meter) },
-          })),
-        ]),
-    );
+    untrack(() => (edges = [...m.edges.filter((e) => !isGround(e, byId)).map((e) => toFlowEdge(e)), ...laid.map((t) => meterEdgeOf(t, index.get(t.meter) ?? 0))]));
   });
 
   // an example's fixed layout: pinned when the example changes; released when it does again
@@ -546,10 +491,6 @@
   .graph :global(.svelte-flow) {
     --xy-background-color: var(--bg);
     --xy-background-pattern-color: var(--line);
-    --xy-edge-stroke: var(--edge);
-    --xy-edge-stroke-width: 2;
-    --xy-edge-label-background-color: var(--surface);
-    --xy-edge-label-color: var(--text);
     --xy-controls-button-background-color: var(--surface);
     --xy-controls-button-background-color-hover: var(--surface-2);
     --xy-controls-button-color: var(--text);
@@ -598,58 +539,6 @@
     color: var(--accent);
     font: 700 var(--text-sm) var(--font-ui);
     cursor: pointer;
-  }
-  /* edges are a key element: thick, round-capped splines */
-  .graph :global(.svelte-flow__edge-path) {
-    stroke-width: 4;
-    stroke-linecap: round;
-    transition: stroke-opacity 140ms ease;
-  }
-  .graph :global(.svelte-flow__edge-path.edge-live) {
-    stroke: var(--accent);
-    stroke-width: 5;
-  }
-  .graph :global(.edge-over .svelte-flow__edge-path) {
-    stroke-dasharray: 1 9;
-    stroke-opacity: 0.7;
-  }
-  .graph :global(.edge-step .svelte-flow__edge-path) {
-    stroke: color-mix(in oklab, var(--accent) 50%, var(--edge));
-    stroke-dasharray: 12 7;
-  }
-  /* (the state is on the edge's own path, put there by PulseEdge, so a step doesn't remake the edge list: #13)
-     not sounding now (playing): quieter; not part of the sound, or switched off: faded */
-  .graph :global(.svelte-flow__edge-path.edge-idle) {
-    stroke-opacity: 0.45;
-  }
-  .graph :global(.svelte-flow__edge-path.edge-unrouted),
-  .graph :global(.svelte-flow__edge-path.edge-off) {
-    stroke-opacity: 0.2;
-  }
-  /* a note's links (about=): fine dots from the note to what it explains; never routed, never live */
-  .graph :global(.edge-about .svelte-flow__edge-path) {
-    stroke: var(--text-muted, var(--edge));
-    stroke-width: 2;
-    stroke-dasharray: 1 7;
-    stroke-opacity: 0.6;
-  }
-  /* edge labels (×0.4, [<<], ⟳ …): readable pills; an off edge's label fades with it */
-  .graph :global(.svelte-flow__edge-label) {
-    padding: 2px 8px;
-    border-radius: var(--radius-pill);
-    border: 1px solid var(--line);
-    background: var(--surface-2);
-    color: var(--text);
-    font: 700 12.5px/1.35 var(--font-ui);
-    box-shadow: 0 2px 6px rgb(0 0 0 / 0.3);
-    transition:
-      opacity 200ms ease,
-      border-color 200ms ease;
-  }
-  .graph :global(.svelte-flow__edge-path) {
-    transition:
-      stroke 200ms ease,
-      stroke-opacity 200ms ease;
   }
   /* clusters (rendered in the flow's viewport: global, since the portal lives outside this component; the wash, .cluster, is in app.css) */
   :global(.cluster-name) {

@@ -9,7 +9,7 @@ tools/bwv847.reference.json
 package-lock.json
 # Hand-laid markup
 index.html
-tools/wheels/harness.html
+tools/gallery/harness.html
 .claude
 node_modules
 dist

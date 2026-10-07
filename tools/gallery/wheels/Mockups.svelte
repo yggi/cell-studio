@@ -3,8 +3,8 @@
    * Mock-ups for design questions, side by side: real wheels, each option a theme token or a style changed for its
    * column only (nothing in the app changes). #107 asked five; four are decided and in the app (a white playhead
    * with a dark edge, a spectrum at rest lifted, an envelope's values named, rests as they were), the
-   * turntables' and the sun's look is still open. `harness.html?mockups`, or
-   * `node tools/wheels.mjs --fast --mockups` for a picture of each question.
+   * turntables' and the sun's look is still open. `harness.html?subject=mockups`, or
+   * `node tools/gallery.mjs mockups` for a picture of each question.
    */
   import MockWheel from './MockWheel.svelte';
 
