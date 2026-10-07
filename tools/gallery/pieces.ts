@@ -15,6 +15,16 @@ export interface Piece {
   readonly live: LiveState;
 }
 
+/** A source as a piece, in the live state of a moment; null when it doesn't compile. */
+export function pieceOf(key: string, source: string, seconds: number): Piece | null {
+  const title = /title="([^"]*)"/.exec(source)?.[1] ?? key;
+  const program = compileSource(source);
+  if (!program.ok) return null;
+  const shifts = codeShifts(program);
+  const muted = new Set<string>();
+  return { key, title, program, shifts, routed: routing(program, muted), live: liveAt(program, shifts, muted, seconds) };
+}
+
 /** Every example that compiles (or those whose key or title has one of the words in `only`), in the library's order. */
 export function pieces(seconds: number, only: readonly string[]): Piece[] {
   const out: Piece[] = [];
@@ -22,11 +32,8 @@ export function pieces(seconds: number, only: readonly string[]): Piece[] {
     const source = PRESETS[key].source;
     const title = /title="([^"]*)"/.exec(source)?.[1] ?? key;
     if (only.length && !only.some((w) => `${key} ${title}`.toLowerCase().includes(w.toLowerCase()))) continue;
-    const program = compileSource(source);
-    if (!program.ok) continue;
-    const shifts = codeShifts(program);
-    const muted = new Set<string>();
-    out.push({ key, title, program, shifts, routed: routing(program, muted), live: liveAt(program, shifts, muted, seconds) });
+    const piece = pieceOf(key, source, seconds);
+    if (piece) out.push(piece);
   }
   return out;
 }

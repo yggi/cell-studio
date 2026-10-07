@@ -5,7 +5,7 @@
  */
 import { buildGraph, type GraphEdge } from '../../../src/engine/graph';
 import { isGround, meterIndex } from '../../../src/layout/meters';
-import { pieces, type Piece } from '../pieces';
+import type { Piece } from '../pieces';
 
 export interface EdgeFixture {
   /** The kind, as a tile is named: `edge:out:fm`, `edge:step:div-n`. */
@@ -38,10 +38,11 @@ export function edgeKind(e: GraphEdge): string {
   return ['edge', e.kind, param, e.label && shape(e.label), !param && e.pick && `pick-${shape(e.pick)}`, e.count > 1 && 'count'].filter(Boolean).join(':');
 }
 
-export function edgeFixtures(seconds: number, only: readonly string[]): EdgeFixture[] {
+/** The first of each kind of edge across these pieces (a live one if any is), and a meter's net if one has a meter. */
+export function edgeFixtures(list: readonly Piece[]): EdgeFixture[] {
   const kinds = new Map<string, EdgeFixture>();
   let meter: EdgeFixture | undefined;
-  for (const piece of pieces(seconds, only)) {
+  for (const piece of list) {
     const model = buildGraph(piece.program);
     const byId = new Map(model.nodes.map((n) => [n.id, n]));
     for (const e of model.edges) {

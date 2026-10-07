@@ -9,7 +9,7 @@ import { flowNodeOf } from '../../../src/ui/flownode';
 import { meterIndex, meterRings } from '../../../src/layout/meters';
 import type { FlowNode } from '../../../src/ui/types';
 import type { CompileResult, Shifts } from '../../../src/engine/program';
-import { pieces, type Piece } from '../pieces';
+import type { Piece } from '../pieces';
 
 export interface Fixture {
   /** The kind, as the slow sheet names it: where it sits, its component, mode and show. */
@@ -36,9 +36,10 @@ function kindOf(p: CompileResult, n: FlowNode, shifts: Shifts): string {
   return [where, 'cell', isMeter ? 'meter' : v.mode, v.show, ringed].filter(Boolean).join(':');
 }
 
-export function fixtures(seconds: number, only: readonly string[]): Fixture[] {
+/** The first of each kind of wheel across these pieces (a live one if any is). */
+export function fixtures(list: readonly Piece[]): Fixture[] {
   const kinds = new Map<string, Fixture>();
-  for (const piece of pieces(seconds, only)) {
+  for (const piece of list) {
     const { key, program, shifts } = piece;
     const model = buildGraph(program);
     const meters = { rings: meterRings(model), index: meterIndex(model) };

@@ -33,7 +33,7 @@ if (process.env.SIZES) q.set('sizes', process.env.SIZES);
 if (process.env.STOPPED) q.set('stopped', '');
 const url = `${server.resolvedUrls.local[0]}tools/gallery/harness.html?${q}`;
 const browser = await chromium.launch({ args: ['--no-sandbox'] });
-const page = await browser.newPage({ viewport: { width: subject === 'edges' ? 2560 : 1500, height: 1000 }, deviceScaleFactor: scale });
+const page = await browser.newPage({ viewport: { width: { edges: 2560, golden: 2840 }[subject] ?? 1500, height: 1000 }, deviceScaleFactor: scale });
 const problems = [];
 page.on('pageerror', (e) => problems.push(e.message));
 page.on('console', (m) => m.type() === 'error' && !/Failed to load resource/.test(m.text()) && problems.push(m.text()));
@@ -54,7 +54,7 @@ if (mockups) {
   process.exit(problems.length ? 1 : 0);
 }
 await page.waitForSelector('figure[data-kind]', { timeout: 60000 });
-await page.waitForTimeout(1500); // (the spectra fill in from the made-up sound)
+await page.waitForTimeout(subject === 'golden' ? 6000 : 1500); // (the spectra fill in from the made-up sound; a graph lays itself out and frames itself)
 const kinds = await page.$$eval('figure[data-kind]', (fs) =>
   fs.map((f) => ({
     key: f.dataset.kind,

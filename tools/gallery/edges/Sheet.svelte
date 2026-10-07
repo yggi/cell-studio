@@ -6,12 +6,13 @@
    */
   import EdgeCell, { type Column } from './EdgeCell.svelte';
   import { edgeFixtures } from './fixtures';
+  import { pieces } from '../pieces';
   import '../../../src/ui/edges.css';
 
   const q = new URLSearchParams(location.search);
   const seconds = Number(q.get('t') ?? 3);
   const only = (q.get('only') ?? '').split(',').filter(Boolean);
-  const list = edgeFixtures(seconds, only);
+  const list = edgeFixtures(pieces(seconds, only));
 
   const STATES: Column[] = [
     { label: 'off', state: 'off' },

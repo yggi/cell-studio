@@ -2,6 +2,7 @@
   /** The sheet: every kind of wheel (fixtures.ts), the library's piece wheels and the braid's token wheel. */
   import Fixture from './Fixture.svelte';
   import { fixtures } from './fixtures';
+  import { pieces as examples } from '../pieces';
   import PieceNode from '../../../src/ui/PieceNode.svelte';
   import TokenWheel, { type WheelToken } from '../../../src/ui/TokenWheel.svelte';
   import { tagColours } from '../../../src/ui/tags';
@@ -17,7 +18,7 @@
   const playing = q.get('stopped') === null;
   /** The ladder of sizes a cell's or a voice's wheel is shown at (each up to its own size). */
   const sizes = (q.get('sizes') ?? '44,64,96').split(',').map(Number);
-  const list = fixtures(seconds, only);
+  const list = fixtures(examples(seconds, only));
   const groups = [
     { where: 'graph', title: 'Graph' },
     { where: 'petal', title: 'Graph — petals' },

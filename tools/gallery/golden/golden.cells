@@ -1,0 +1,108 @@
+&piece title="Golden reference" tags="basics" label="Every kind of wheel and edge in one graph, laid out without a crossing: the gallery's reference picture." about=&out
+&timeNote label="A meter, the cells it steps, a motor with a belt." about=&bar
+&tapeNote label="A tape, its heads, and a pipe the tape sings through." about=(&tape &pipe)
+# A · time and tables
+&bar scan(27 23 26 24) step=free(96bpm, 60..160)
+&swing scan(free(2, 1..3) 1) step=&bar/2
+&key shift=free(0, -6..6)
+&key2 shift=-1 step=&bar*4 stride=-4 cycle=12
+&key3 step=cycle(&tune) stride=7 cycle=12
+&mode over=&key scan(2 2 1 2 2 2 1) shift=free(0, 0..6)
+&lydian over=&key2 scan(2 2 2 1 2 2 1) step=&bar*8 stride=1 cycle=2
+&blues scan(3 2 1 1 3 2)
+&alpha cycle=9 map=ed(3/2)
+&scale over=scale(0,5)
+&up 0 0 4 4 5 5 4@2
+&down 3 3 2 2 1 1 0@2
+&mid over=&scale[>>] &down
+&sink over=&scale[<<] &up
+&high over=&scale[>>5] &down
+&tune over=&scale step=&bar show=do &up &down &mid &sink &high &mid &up &down
+&theme over=&mode step=&swing 0 2 4 7 4 2 0@2
+&hymn over=&lydian step=96bpm 0 2 4 7
+&walk over=&blues step=96bpm 0 1 2 3
+&drone over=&alpha step=48bpm 0 3 6
+&roam over=&key3 step=96bpm 0 2 4
+&flute s=tri loop=C4 room=.3 env=&(map=adsr .02 .3 .5 .3)
+&lead s=tri loop=C5 env=&(map=adsr .01 .3 .4 .3)
+&famA [&tune * &lead * .5, &theme * &flute, &hymn * &flute * .4, &walk * &lead * .3, &drone * &flute * .3, &roam * &lead * .2]
+
+# B · modulation
+&pulse scan(1 1 1 1) step=free(84bpm, 60..110)
+&lineB over=&blues step=168bpm 0 2 4 5 7 5 4 ~
+&accent map=amp step=&pulse/4 1 .4 .8 .4
+&square loop=C4 0 1
+&vibrato map=lin loop=6 0 .3 0 -.3 0
+&pluck map=lin loop=&lineB 1 .4 0
+&fenv map=adsr .003 .18 .1 .06
+&knob map=lin loop=&pulse*16 .2 1 .35 .2
+&res map=lin loop=.05 6 19 6
+&tideB map=lin loop=.0345 .2 .1 .8 .2
+&tb303 s=saw loop=A2 lpf=110..3800 * &fenv * &knob lpq=&res env=&(map=adsr .002 .15 .6 .05)
+&noise s=white hpf=150..1500 * &tideB env=&(map=adsr 12 4 .8 12)
+&m1 s=sine ratio=1
+&body s=sine loop=C4 fm=&m1 index=.3..2.6 * &(map=adsr .002 .9 .3 .6) env=&(map=adsr .002 1.6 .35 .8)
+&saw loop=C2 map=lin env=&(map=adsr .04 .3 .6 .5)
+&bass [&saw, &(loop=C1 sin(12)) * 0.6]
+&famB [(&lineB + &vibrato) * &pluck * &square, &lineB * &accent * &tb303 * .4, &lineB * &body * .2, &lineB * &noise * .1, &lineB * &bass * .3]
+
+# C · a tape, bodies and the day
+&capstan scan(1 1 1 1) step=96bpm motor=1.4 mass=1 friction=.1 wow=.015 varispeed=1
+&hats step=&capstan/2 belt=30 mass=1.5 ~ 0 ~ 0 ~ 0 ~ 0
+&motif over=&mode step=192bpm 0 ~ 4 ~ 7 ~!3 11 ~ 9
+&reel step=84bpm motor=1.5 mass=1 friction=.1 wow=.015 0
+&tape step=&reel write=&motif length=6 erase=.45 varispeed=1
+&near play=&tape at=.375
+&far play=&tape at=1.5
+&hh s=white hpf=7000 env=&(map=adsr 0 .04 0 .02)
+&m2 s=sine ratio=3
+&bell s=sine loop=G4 fm=&m2 index=.2..1.4 * &(map=adsr .001 .15 .1 .1) room=.3 env=&(map=adsr .002 1.2 0 .8)
+&soft s=tri loop=G4 lpf=1800 room=.5 env=&(map=adsr .004 .9 0 .6)
+&hits step=24bpm 1 ~ ~ ~
+&forkA body=fork loop=A4 ring=10 hard=.35 board=none couple=&forkB coupling=.1 0
+&forkB body=fork loop=A4 ring=10 hard=.35 board=none 0
+&echo [&motif * &bell * .4]
+&pipe body=pipe loop=D2 ring=4 board=none excite=&echo 0
+&famC [&echo, &near * &soft * .12, &far * &soft * .08, &hats * &hh * .08, &hits * &forkA * .5, &forkB * .35, &pipe * .4]
+
+# D · arrangement
+&beat scan(1 1 1 1) step=free(66bpm, 40..100)
+&chords step=&beat*4 stride=5 cycle=20 0 4 7 12 16  0 2 9 14 17  -1 2 7 14 17  0 4 7 12 16
+&figure over=&chords step=264bpm 0 1 2 3 4 2 3 4
+&a 0@2 1@2 2@2 0@2
+&b 2@2 3@2 4@4
+&john over=scale(0,5) step=132bpm &a!2 &b!2
+&line step=&beat/2 show=notes &(16@2 14@2 12@2 11@2) &(12@2 11@2 9@2 7@2)
+&alto over=scale(0,5) step=66bpm &(4 4 7 7) &(7!4)
+&oct 0 12 0 12
+&bassline step=132bpm &oct!2 &oct^-4!2 &oct^3!2 &oct^-2!2
+&p1 0 2 4
+&p2 2 4 5
+&p3 4 5 7
+&subject show=notes 12 11 12@2 7@2 8@2
+&stack step=33bpm &p1 &p2^12 &p3^5 &p3 &subject
+&v1 s=tri loop=C5 env=&(map=adsr .005 .3 .5 .2)
+&v2 s=square loop=C4 lpf=1800 env=&(map=adsr .005 .3 .4 .1)
+&v3 s=saw loop=C4 lpf=1200 env=&(map=adsr .005 .3 .4 .1)
+&violin s=saw loop=D4 lpf=2600 env=&(map=adsr .08 .2 .8 .4) pitch=&(map=lin loop=5 0 .12 0 -.12 0)
+&pad s=saw loop=C3 lpf=700 env=&(map=adsr 1 1 .8 2)
+&leadA [&figure * &pad * .3]
+&leadB [&alto * &v1 * .3]
+&parts &leadA &leadB
+&tetris over=&parts step=&beat*32 [0,2] [1]
+&famD [&bassline * &pad * .2, &stack * &v1 * .2, &tetris, &john * &v1 * .6, &john[<<] * &v2 * .4, &john[<<2] * &v3 * .1, &line[<<] * &(map=amp step=&beat 1 .5 1 .5) * &violin * .35]
+
+# E · a clock and its clicks
+&clock meter(free(2, 0..7, "2/4 3/4 4/4 5/4 6/8 7/8 9/8 12/8"), free(0, 0..3, "1 2 3 4")) step=free(100bpm, 40..208) over=&clicks
+&clicks &tick &tock
+&tick s=sine loop=G6 pitch=0..7 * &(map=adsr 0 .008 0 0) env=&(map=adsr 0 .07 0 .03)
+&tock s=sine loop=D6 pitch=0..5 * &(map=adsr 0 .006 0 0) env=&(map=adsr 0 .05 0 .025)
+&famE [&clock * .8]
+
+# F · the day
+&cycle law=fiveto12 anchor=11.55 step=84bpm
+&sun sun=&cycle
+&glass s=tri loop=C4 lpf=3200 env=&(map=adsr .004 .9 .25 1.2)
+&light scope=spectrum &glass
+&famF [&cycle * &glass * .3]
+&out level=4 loop=SAMPLE_RATE map=sample [&famA, &famB, &famE] [&famC, &famD, &famF]

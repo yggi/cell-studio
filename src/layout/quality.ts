@@ -57,6 +57,11 @@ export interface Aim {
  * (edges are drawn beneath the wheels). Pairs of edges that share a node don't count.
  */
 export function drawnCrossings(nodes: readonly PlacedNode[], edges: readonly DrawnEdge[]): number {
+  return drawnCrossingPairs(nodes, edges).length;
+}
+
+/** The pairs of edges that cross as drawn (drawnCrossings counts them). */
+export function drawnCrossingPairs(nodes: readonly PlacedNode[], edges: readonly DrawnEdge[]): [DrawnEdge, DrawnEdge][] {
   const at = new Map(nodes.map((n) => [n.id, n]));
   const hidden = (x: number, y: number) => nodes.some((n) => Math.hypot(x - n.x, y - n.y) < n.r);
   const curves = edges.flatMap((e) => {
@@ -70,16 +75,16 @@ export function drawnCrossings(nodes: readonly PlacedNode[], edges: readonly Dra
       const [p, q] = [pts[k], pts[k + 1]];
       if (!hidden((p.x + q.x) / 2, (p.y + q.y) / 2)) pieces.push([p.x, p.y, q.x, q.y]);
     }
-    return [{ a: e.a, b: e.b, pieces }];
+    return [{ edge: e, pieces }];
   });
-  let n = 0;
+  const out: [DrawnEdge, DrawnEdge][] = [];
   for (let i = 0; i < curves.length; i++)
     for (let j = i + 1; j < curves.length; j++) {
       const [p, q] = [curves[i], curves[j]];
-      if (p.a === q.a || p.a === q.b || p.b === q.a || p.b === q.b) continue;
-      if (p.pieces.some((u) => q.pieces.some((v) => segmentsCross(u[0], u[1], u[2], u[3], v[0], v[1], v[2], v[3])))) n++;
+      if (p.edge.a === q.edge.a || p.edge.a === q.edge.b || p.edge.b === q.edge.a || p.edge.b === q.edge.b) continue;
+      if (p.pieces.some((u) => q.pieces.some((v) => segmentsCross(u[0], u[1], u[2], u[3], v[0], v[1], v[2], v[3])))) out.push([p.edge, q.edge]);
     }
-  return n;
+  return out;
 }
 
 /** Every number of LayoutQuality for one layout. Cluster discs are the graph's own (clusterDisc, pad 90, at least 120). */
