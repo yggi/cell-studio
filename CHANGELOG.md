@@ -11,7 +11,7 @@ that makes the change. Also note changes to the language that could affect saved
 ## Unreleased
 
 ### Added
-- Each PR's build is published as a preview at `…/cell-studio/pr-<n>/` (the PR's comment says where), to try a change on a phone before it's merged; it goes when the PR closes. A preview keeps its own settings (`?latency=`, `?lookahead=`, `?perf`, the engine, the library's layout), so trying one doesn't change the app's; your saved pieces are shared. The app keeps the settings it had. Saved `.cells` pieces are not affected.
+- Each PR's build is published as a preview at `…/cell-studio/pr-<n>/` (the PR's comment says where), to try a change on a phone before it's merged; it goes when the PR closes. A preview keeps its own settings (`?latency=`, `?lookahead=`, `?perf`, the engine, the library's layout), so trying one doesn't change the app's, and its own saved pieces (open yours there as a `.cells` file). The app keeps the settings it had. Saved `.cells` pieces are not affected.
 
 ### Fixed
 - Opening a piece whose graph has a chord or a table bus no longer throws while the previous piece gives way (Baustelle, Baustelle II failed the smoke test). Saved `.cells` pieces are not affected.

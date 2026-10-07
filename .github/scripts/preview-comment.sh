@@ -24,7 +24,7 @@ case $state in
     body="$marker
 **Preview** of ${sha:0:7}: $url
 
-Updated on every push (live a minute or two after the run, once Pages has published it); removed when the PR closes. Settings it keeps (\`?latency=\`, \`?lookahead=\`, \`?perf\`, the engine, the library's layout) are its own, not the app's; your saved pieces are shared with the app."
+Updated on every push (live a minute or two after the run, once Pages has published it); removed when the PR closes. Settings it keeps (\`?latency=\`, \`?lookahead=\`, \`?perf\`, the engine, the library's layout) and its saved pieces are its own, not the app's: open a piece of yours there as a \`.cells\` file."
     ;;
   removed)
     body="$marker
