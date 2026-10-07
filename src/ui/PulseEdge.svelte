@@ -11,6 +11,7 @@
    * While playing, a live edge into a voice or a mix takes the colour of the note sounding now, with a pulse per step.
    */
   import { BaseEdge, type EdgeProps } from '@xyflow/svelte';
+  import { untrack } from 'svelte';
   import { radialPath, ripplePath, splinePoint, strandPath } from '../layout/geometry';
   import { cellView, type Fill } from '../layout/cellview';
   import { getGraphContext } from './context';
@@ -44,6 +45,14 @@
   const control = $derived({ x: 2 * mid.x - (sourceX + targetX) / 2, y: 2 * mid.y - (sourceY + targetY) / 2 });
   const spline = $derived(`M ${sourceX} ${sourceY} Q ${control.x} ${control.y} ${targetX} ${targetY}`);
 
+  // the shifts its wheels are drawn with (CellGlyph's rule): as they stand now, redrawn when a table turns, not every
+  // frame — so a locked end and a lit strand mean the segment the wheel shows there
+  const shown = $derived.by(() => {
+    void ctx.turned;
+    const still = ctx.shifts;
+    return untrack(() => ctx.live?.shifts) ?? still;
+  });
+
   // Ends locked to their segments (as a tape's heads are): a ref meets the wheel of the cell it is spliced into where it
   // sits in that braid, once for each time it is written; a table's strands leave its wheel at their entries.
   const rimOf = (size: number | undefined) => (size ? size / 2 - 1 : 0);
@@ -53,7 +62,7 @@
     const parent = ctx.program.cells.get(d.to);
     const units = new Set(parent?.units.flatMap((u, i) => (u.atom.kind === 'ref' && u.atom.name === d.from ? [i] : [])) ?? []);
     const spans = new Map<number, [number, number]>();
-    for (const sg of units.size ? cellView(ctx.program, d.to, ctx.shifts, false).segments : [])
+    for (const sg of units.size ? cellView(ctx.program, d.to, shown, false).segments : [])
       if (units.has(sg.index)) {
         const sp = spans.get(sg.index);
         spans.set(sg.index, sp ? [Math.min(sp[0], sg.t0), Math.max(sp[1], sg.t1)] : [sg.t0, sg.t1]);
@@ -69,7 +78,7 @@
   const view = $derived.by(() => {
     if (d.width < 2 || (!d.table && d.band !== 'cv')) return null;
     void ctx.turned;
-    return cellView(ctx.program, d.table ?? d.from, ctx.shifts, false);
+    return cellView(ctx.program, d.table ?? d.from, shown, false);
   });
   const count = $derived(view ? Math.min(STRANDS, d.width) : 0);
   // (a strand's place in the table: the entry it carries; a chord's strands run side by side)
