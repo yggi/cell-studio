@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { compileSource } from './compile';
-import { shorten, shortenAll } from './compress';
-import { eventsBetween, plan } from './realize';
-import { codeShifts } from './program';
-import { PRESETS } from './presets';
+import { compileSource } from '../compile';
+import { shorten, shortenAll } from '.';
+import { eventsBetween, plan } from '../realize';
+import { codeShifts } from '../program';
+import { PRESETS } from '../presets';
 
 const tail = '\n&v s=sine loop=C4\n&out loop=SAMPLE_RATE map=sample [&t * &v]';
 const sounds = (src: string, until = 20) => {
@@ -105,4 +105,19 @@ describe('shorten: turns, alike cells, and all the way', () => {
     expect(source.length).toBeLessThan(src.length);
     expect(sounds(source)).toEqual(sounds(src));
   });
+});
+
+describe('shorten all the way, on every example: it sounds the same, and is done (#10: idempotence)', () => {
+  for (const [key, p] of Object.entries(PRESETS)) {
+    it(
+      key,
+      () => {
+        const { source } = shortenAll(p.source);
+        expect(shorten(source).map((s) => s.title)).toEqual([]);
+        expect(shortenAll(source).source).toBe(source);
+        if (source !== p.source) expect(sounds(source)).toEqual(sounds(p.source));
+      },
+      60_000,
+    );
+  }
 });

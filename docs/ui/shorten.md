@@ -1,6 +1,6 @@
 # Shorten
 
-A linter in the code view that offers what's written out longhand, shorter. Implemented in `src/engine/compress.ts`, UI in `src/ui/Shorten.svelte`.
+A linter in the code view that offers what's written out longhand, shorter. Implemented in `src/engine/shorten/` (one rule a file, their shared harness in `harness.ts`), UI in `src/ui/Shorten.svelte`.
 
 It offers:
 
