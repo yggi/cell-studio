@@ -1,6 +1,6 @@
 # #10, read from the corpus: the examples as evidence
 
-2026-10-07 · open, orientation only (nothing changed yet) · [#10](https://github.com/yggi/cell-studio/issues/10), [#9](https://github.com/yggi/cell-studio/issues/9), [#31](https://github.com/yggi/cell-studio/issues/31), [#29](https://github.com/yggi/cell-studio/issues/29), [#35](https://github.com/yggi/cell-studio/issues/35)
+2026-10-07 · open: orientation done, decisions in (below) · [#10](https://github.com/yggi/cell-studio/issues/10), [#9](https://github.com/yggi/cell-studio/issues/9), [#31](https://github.com/yggi/cell-studio/issues/31), [#29](https://github.com/yggi/cell-studio/issues/29), [#35](https://github.com/yggi/cell-studio/issues/35)
 
 A round over the 52 examples with #10's eyes: find the syntax that strains, the paradigms that are missing (swing, drum sequences, phrase assembly), and teach Shorten to see each overcomplication it finds. Read from `main` at 6561beb. This note is the homework before anything changes: what was measured, what each finding is, what it would take, and the decisions it needs. Every claim marked *probed* was compiled and its events compared (scratch scripts over `compileSource` → `plan` → `eventsBetween`).
 
@@ -198,13 +198,13 @@ Bell and scale, Just and Two Tuning Forks read better as pieces than as rungs (e
 4. The examples moved to the clean forms, a few at a time, each PR with its list of what changes sound and why; F7, F8, F10, F11's single fixes.
 5. The ladder: the new basics, the trimmed old ones, the ladder test, `docs/examples.md` regenerated.
 
-## Decisions waiting (owner)
+## Decisions (owner, 2026-10-07)
 
-1. F1 · the values level: `[k+]` / `[k-]` (recommended), or another spelling.
-2. F2 · articulation: the finer stepped term articulates (recommended), or an explicit `gate()` only.
-3. F3 · stereo: `pan=` on a voice, desugared (recommended), a `map=pan` cell, or two mixes as now.
-4. F4 · a stepped braid of voices plays them (recommended).
-5. F5 · `swing=`: shorthand for a swing clock, or retired.
-6. F6 · a turning table comes round after its length by default (recommended), or climbing stays the default.
-7. F8 · the sound card: drop `loop=SAMPLE_RATE` in the examples but the first basic (recommended), or keep it everywhere.
-8. The ladder: the rungs above, and whether to enforce them with a test.
+1. **F1 · the values level is `~`** (the owner's spelling, replacing `[k+]`): `&x~1` one degree up, `&x~-1` one down, glued to the reference (today an error: "Unexpected '~'"; spaced, `&x ~ 1` stays a rest). `~k` adds k, so `&x~0` is `&x` and `&x~1~2` is `&x~3`. Inversion is a sign of its own: `-&x` (round degree 0; today an error, "Expected a number"), `-&x~4` round degree 2 (4 − each value). *Inversion's spelling to confirm.*
+2. **F2 · articulation:** of two stepped pitches in a sum, the finer one articulates and the coarser one transposes; two at the same rate stay an error.
+3. **F3 · stereo:** `pan=` on a voice, in dough's sense (0 left, .5 centre, 1 right), compiled into the two channel gains. Reverses the seed's "two mixes": a decision record.
+4. **F6 · turning:** a stepped table comes round after its own length unless `cycle=` says otherwise. Amends decision 003's area: a decision record.
+
+Taken as recommended unless the owner says otherwise: F4 (a stepped braid of voices plays them), F5 (`swing=` becomes shorthand for a swing clock), F8 (`loop=SAMPLE_RATE` only in the first basic), the ladder with its test.
+
+In the findings above, read `&m[k+]` as `&m~k` and `[k-]` as `-&m~k`.
