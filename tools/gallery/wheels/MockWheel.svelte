@@ -44,7 +44,7 @@
     cursor: 0,
     epoch: 0,
     move() {},
-    ...madeUpSound(() => playing),
+    sound: madeUpSound(() => playing),
   });
   const g = buildGraph(program).nodes.find((n) => n.cell.name === name);
   if (!g) throw new Error(`mock-ups: no &${name} in ${piece}`);

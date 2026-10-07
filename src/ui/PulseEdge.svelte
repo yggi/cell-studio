@@ -76,7 +76,7 @@
     const parent = ctx.program.cells.get(d.to);
     const units = new Set(parent?.units.flatMap((u, i) => (u.atom.kind === 'ref' && u.atom.name === d.from ? [i] : [])) ?? []);
     const spans = new Map<number, [number, number]>();
-    for (const sg of units.size ? cellView(ctx.program, d.to, shown, false).segments : [])
+    for (const sg of units.size ? (cellView(ctx.program, d.to, shown, false)?.segments ?? []) : [])
       if (units.has(sg.index)) {
         const sp = spans.get(sg.index);
         spans.set(sg.index, sp ? [Math.min(sp[0], sg.t0), Math.max(sp[1], sg.t1)] : [sg.t0, sg.t1]);
@@ -95,9 +95,7 @@
   // a bus: a table read through over= (its entries), or a chord (its notes); at most 12 strands, a longer table sampled
   const STRANDS = 12;
   const view = $derived.by(() => {
-    // (and only for a cell of the program drawn now: while one piece gives way to the next, an edge can be drawn
-    // against the program before)
-    if (d.width < 2 || d.tines || (!d.table && d.band !== 'cv') || !ctx.program.cells.has(d.table ?? d.from)) return null;
+    if (d.width < 2 || d.tines || (!d.table && d.band !== 'cv')) return null;
     void ctx.turned;
     return cellView(ctx.program, d.table ?? d.from, shown, false);
   });
@@ -134,7 +132,7 @@
   });
   const tineStrands = $derived.by(() => {
     if (!d.tines) return [];
-    const rings = isLive ? ctx.resonance(d.port === 'over' ? d.from : d.to)?.exciters : undefined;
+    const rings = isLive ? ctx.sound.resonance(d.port === 'over' ? d.from : d.to)?.exciters : undefined;
     return d.tines.map((p, i) => ({
       colour: noteColour(pitchHue(p), false, Math.floor(p / 12)),
       dim: !!rings && (rings[i] ?? 0) < 0.05,
@@ -164,13 +162,13 @@
 
   const hue = $derived.by(() => {
     if (!isLive || !d.voice || !ctx.live) return null;
-    const f = ctx.note(d.voice);
+    const f = ctx.sound.note(d.voice);
     // the note's colour on the voice's own grid
     return f ? (freqHue(ctx.program, d.voice, f) ?? pitchHue(12 * Math.log2(f / 261.63))) : null;
   });
   // (the colouring rule: C4 … C5 full colour, other octaves muted, lighter above, darker below)
   const octave = $derived.by(() => {
-    const f = isLive && d.voice && ctx.live ? ctx.note(d.voice) : null;
+    const f = isLive && d.voice && ctx.live ? ctx.sound.note(d.voice) : null;
     if (!f) return 0;
     const r = f / 261.63;
     return r >= 1 && r <= 2.0001 ? 0 : Math.floor(Math.log2(r));

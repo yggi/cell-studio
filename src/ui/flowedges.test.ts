@@ -1,0 +1,76 @@
+import { describe, expect, it } from 'vitest';
+import { compileSource } from '../engine/compile';
+import { buildGraph, type GraphEdge } from '../engine/graph';
+import { codeShifts, type CompileResult } from '../engine/program';
+import { routing } from '../engine/routing';
+import { PRESETS } from '../engine/presets';
+import { carried, flowEdgesOf } from './flowedges';
+import { snapshotOf } from './snapshot';
+
+const nameOf = (id: string) => id.slice('cell:'.length);
+
+// what an edge carried before it was one lookup (by kind and pick, special case after special case): the reference
+function byKind(e: GraphEdge, program: CompileResult) {
+  const trigger = (voice: string) => program.outputs.find((o) => o.voice === voice)?.cell ?? null;
+  if (e.kind === 'step') return { phaseCell: nameOf(e.to), voice: null };
+  if (e.kind === 'out' && (e.pick === 'play' || e.pick === 'write')) {
+    const o = e.pick === 'play' ? program.outputs.find((x) => x.tape?.head === nameOf(e.target)) : program.outputs.find((x) => x.cell === nameOf(e.source) && !x.tape);
+    return { phaseCell: null, voice: o?.voice ?? null };
+  }
+  if (e.kind === 'out') {
+    const voice = nameOf(e.target);
+    return { phaseCell: trigger(voice) === nameOf(e.source) ? nameOf(e.source) : null, voice };
+  }
+  if (e.kind === 'mix') {
+    const voice = nameOf(e.source);
+    return { phaseCell: trigger(voice), voice };
+  }
+  return { phaseCell: null, voice: null };
+}
+
+const SRC = `&bar scan(1 1 1 1) step=120bpm
+&minor scan(2 1 2 2 1 2 2)
+&tune 0 2 4 over=&minor step=&bar/4
+&lead s=sine
+&mix loop=SAMPLE_RATE map=sample [&tune * &lead]`;
+
+describe('what an edge carries: one lookup by band and port', () => {
+  it('is what the special cases said, on every edge of every example', () => {
+    let n = 0;
+    for (const [key, { source }] of Object.entries(PRESETS)) {
+      const program = compileSource(source);
+      for (const e of buildGraph(program).edges) {
+        expect(carried(e, program), `${key}: ${e.id} (${e.kind} ${e.port} ${e.band})`).toEqual(byKind(e, program));
+        n++;
+      }
+    }
+    expect(n).toBeGreaterThan(500);
+  });
+
+  it('pulses a clock’s ticks with the cell they drive, and a melody into its voice with its steps', () => {
+    const program = compileSource(SRC);
+    const model = buildGraph(program);
+    const edge = (port: string) => model.edges.find((e) => e.port === port)!;
+    expect(carried(edge('step'), program)).toEqual({ phaseCell: 'tune', voice: null });
+    expect(carried(edge('voice'), program)).toEqual({ phaseCell: 'tune', voice: 'lead' });
+    expect(carried(edge('over'), program)).toEqual({ phaseCell: null, voice: null });
+  });
+});
+
+describe('the flow’s edges of a snapshot', () => {
+  it('carry no pointer, and read only cells of their own program', () => {
+    for (const key of ['baustelle', 'resonanz', 'twinkle'] as const) {
+      const program = compileSource(PRESETS[key].source);
+      const model = buildGraph(program);
+      const s = snapshotOf(program, model, codeShifts(program), program.off, routing(program, program.off));
+      const edges = flowEdgesOf(s, { sizeOf: () => 128, net: [], playing: false, live: null });
+      expect(edges.length).toBeGreaterThan(0);
+      for (const e of edges) {
+        if (e.type !== 'pulse') continue;
+        const d = e.data as Record<string, unknown>;
+        expect(d).not.toHaveProperty('pointer');
+        for (const name of [d.from, d.to, d.table, d.phaseCell, d.voice]) if (name !== null) expect(program.cells.has(name as string), `${key}: ${e.id} reads ${name}`).toBe(true);
+      }
+    }
+  });
+});
