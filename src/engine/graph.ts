@@ -145,7 +145,7 @@ export function buildGraph(result: CompileResult): GraphModel {
         kind: 'over',
         count: 1,
         pick: shiftLabel(c.overShift),
-        ...wire('over', 'cv', id, cellId(c.over), result.cells.get(c.over)?.cycle ?? 1, true, true),
+        ...wire('over', 'cv', id, cellId(c.over), entries(result, c.over), true, true),
       });
     // resonators: coupled through the table (couple=), and what excites them
     if (typeof c.params.couple === 'string' && result.cells.has(c.params.couple))
@@ -189,6 +189,9 @@ export function buildGraph(result: CompileResult): GraphModel {
         pick: 'play',
         ...wire('play', sounds(c.params.play) ? 'audio' : 'cv', cellId(c.params.play), id, chord(c.params.play)),
       });
+    // a sun: the day of the law it shows
+    if (typeof c.params.sun === 'string' && result.cells.has(c.params.sun))
+      link({ id: edgeId(cellId(c.params.sun), id), source: cellId(c.params.sun), target: id, kind: 'out', count: 1, pick: 'sun', ...wire('sun', 'cv', cellId(c.params.sun), id) });
     // FM: the modulator feeds its carrier
     if (typeof c.params.fm === 'string' && result.cells.has(c.params.fm))
       link({ id: edgeId(cellId(c.params.fm), id), source: cellId(c.params.fm), target: id, kind: 'out', count: 1, pick: 'fm', ...wire('fm', 'audio', cellId(c.params.fm), id) });
@@ -318,6 +321,12 @@ function chordWidth(result: CompileResult): (name: string) => number {
   };
   return (name) => of(name);
 }
+
+/** A table's entries: its cycle, or (a kit, a table of parts) the entries written. */
+const entries = (result: CompileResult, name: string) => {
+  const c = result.cells.get(name);
+  return Math.max(1, c?.cycle || c?.units.length || 1);
+};
 
 /** A braid turning at an audio rate with no sound of its own (decision 006's wave). */
 const isWave = (result: CompileResult, name: string) => {

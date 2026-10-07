@@ -55,6 +55,7 @@ describe('edges as wires', () => {
       for (const e of buildGraph(compileSource(p.source)).edges) {
         expect(e.port, `${key}: ${e.id}`).not.toBe('');
         expect(['sync', 'cv', 'audio', 'none']).toContain(e.band);
+        expect(e.width, `${key}: ${e.id}`).toBeGreaterThanOrEqual(1);
         expect([e.source, e.target].sort()).toEqual([e.from, e.to].sort());
       }
     }

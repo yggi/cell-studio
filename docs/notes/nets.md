@@ -1,6 +1,6 @@
 # Nets: what an edge is
 
-**2026-10-07 · open: decided in part (below), step 1 built · #9, #10, #27, on top of PR #136 (the gallery)**
+**2026-10-07 · open: decided in part (below), steps 1–2 built, 3 and 5 begun · #9, #10, #27, on top of PR #136 (the gallery)**
 
 The golden graph (`node tools/gallery.mjs golden`, PR #136) puts every kind of wheel and edge into one picture, so the flaws of the edge model show up together. This note collects what it shows, proposes one model under all of them, and splits the work into small steps. The owner's input that started it: **nets and buses** (an edge carrying `[0,4,7]` is a 3-wire bus); **edges by the signal they carry** (sync, CV, audio); **a palette that maps values to colours**; **named networks with in and out**, which unify tape heads and the meter's net, where today's edge syntax is the anonymous shorthand (like `&( )` cells).
 
@@ -14,7 +14,9 @@ The golden graph (`node tools/gallery.mjs golden`, PR #136) puts every kind of w
 2. **A product is an unnamed junction node**, shorthand for a node that could be written out with a name (as `&leadA [&walk * &lead * .3]` already is), the same way `&( … )` is shorthand for a named cell.
 3. **Refs and `over=` are pointers**: indirections, reference values. `over=` is still drawn as a wide bus, because the bus is how the notes go from the scale's wheel to the theme's.
 4. **Three fundamental bands** (sync, CV, audio). Visual variations come from `show=`.
-5. **Syntax: to be decided.** The owner's sketch is `&<foo` (from net `foo`) and `&>foo` (to net `foo`), as in `&foo step=&<meter`. Worked through below.
+5. **Syntax: the new operators come later** (after the drawing). The owner's sketch is `&<foo` (from net `foo`) and `&>foo` (to net `foo`), as in `&foo step=&<meter`. Worked through below.
+6. **The canon may change:** go for the clean form, and rewrite the examples rather than keep a spelling for their sake.
+7. **`show=` is decoupled between the node and the net:** a cell's `show=` says how its wheel is drawn, and its net's (the taps') drawing gets its own say.
 
 ## What the golden graph shows
 
@@ -131,16 +133,13 @@ Each step is its own PR, each visible in the golden graph and the edge sheet (be
    | `write`, `play` | CV on a tape of notes (4), audio on a tape of sound (14) | 18 |
 
    Widths: `over` buses are 4 to 25 wide, and 95 and 96 for the two chord tables of the Prelude. Chords on `voice` and `braid` edges are 2 to 8. No example puts an audio-rate wave into a pitch sum, so audio on `pitch` (FM) is seen only in the unit test. Still to do: `transform` (today's `pick` and `label` taken apart), and stereo as 2 wires on the sound card.
-2. **One direction.** The flow drawn (arrows, pulses) and read by the forces from `from` → `to` (#27). The golden graph's crossing bound must hold. Also the written name with no edge: `sun=&cycle`.
-3. **Bands and palette** in `edges.css` and `PulseEdge`, with the kind colours dropped.
+2. **One direction. Built.** The flow edge is drawn `from` → `to` (`src/ui/flowedge.ts`), so a pulse always runs along the signal: the step edge's reversed pulse is gone. `sun=&cycle` is an edge, and the sun sits by its law. That costs crossings: the golden graph's bound goes from 4 to 6 (the sun now sits among the belts), and *5 to 12* goes from 0 to 1. Not done: the layout still turns each kind round by hand (`flowRanks`, the consumers in `physics.ts`). Each of those turns already reads along the flow, but `layered.ts` remaps `source` and `target` without `from` and `to`, so it is a refactor for later (#27), with no change in the picture.
+3. **Bands and palette.** Begun: in `PulseEdge` and `edges.css`, sync is dotted in the meter's colour, audio is a wave (`ripplePath`), and CV is solid. The step edge's accent tint and the `over` edge's dashes are gone. Still to come: a live edge without a voice keeps the accent yellow, a belt is brown, `excite` takes its voice's colour, and the palette as one function.
 4. **Junctions.** Products become small anonymous nodes, and voices become definitions. This is the biggest layout change: watch the golden graph's crossings and the library's overlap count ([limits.md](../limits.md)).
-5. **Buses.** Width drawn as strands, capped (a 95-entry table can't be 95 lines), with `show=` choosing among the variations.
+5. **Buses.** Begun: an `over=` edge is a bus, a strand per entry in the colours its wheel gives them (`strandPath`), at most 12 strands. A kit's strands are grey: its entries are voices, not pitches. Still to come: a chord's strands on `voice` and `braid` edges, coloured by the notes sounding; stereo; and `show=` on the net (decision 7).
 6. **Named nets.** The meter's net comes from the engine. Tape heads and a canon get one drawing. Then the language question, `[<<n]` and `play= at=`, goes to a decision record.
 
 ## Open questions
 
-Questions 1 to 4 of the first round are answered above (Decided). Open:
-
-1. **Syntax** (above): add `&>` and `&<`, or leave the syntax alone for now?
-2. **Copy or tap:** should a canon written as `&john[<<1]` keep the score (a copy, as today), with an echo of the performance spelled differently?
-3. **`show=` on edges:** the net's `show=` sets how its taps are drawn (strands or one thick line, a pulse or still)? Its values come in steps 3 and 5.
+1. **The canon's clean form** (decision 6): a canon is one net, `&john`, with three taps at a delay. As copies today, `&john[<<1]`. Once `&<` exists, as taps of what was played. Which of the two the Frère Jacques example shows is to be decided when `&<` comes.
+2. **`show=` on a net:** its values (strands or one line, a pulse or still), written on the cell whose net it is, or on the tap?

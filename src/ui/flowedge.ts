@@ -18,25 +18,27 @@ export interface BeltDrawn {
   readonly slipping: boolean;
 }
 
-/** What an edge carries: whose steps pulse along it, and which voice's note colours it. */
+/** What an edge carries: whose steps pulse along it (from → to), and which voice's note colours it. */
 function pulseData(e: GraphEdge, program: CompileResult) {
   const trigger = (voice: string) => program.outputs.find((o) => o.voice === voice)?.cell ?? null;
-  if (e.kind === 'step') return { kind: e.kind, phaseCell: nameOf(e.source), voice: null, reverse: true };
+  const wire = { band: e.band, port: e.port, width: e.width, pointer: e.pointer, table: e.port === 'over' ? nameOf(e.from) : null };
+  // (a clock's ticks: the pulse is the steps of the cell it drives)
+  if (e.kind === 'step') return { ...wire, kind: e.kind, phaseCell: nameOf(e.to), voice: null };
   // a tape's edges take the colour of what's on them: a read head's notes, as played; what's being
   // written, as its source plays it
   if (e.kind === 'out' && (e.pick === 'play' || e.pick === 'write')) {
     const o = e.pick === 'play' ? program.outputs.find((x) => x.tape?.head === nameOf(e.target)) : program.outputs.find((x) => x.cell === nameOf(e.source) && !x.tape);
-    return { kind: e.kind, phaseCell: null, voice: o?.voice ?? null, reverse: false };
+    return { ...wire, kind: e.kind, phaseCell: null, voice: o?.voice ?? null };
   }
   if (e.kind === 'out') {
     const voice = nameOf(e.target);
-    return { kind: e.kind, phaseCell: trigger(voice) === nameOf(e.source) ? nameOf(e.source) : null, voice, reverse: false };
+    return { ...wire, kind: e.kind, phaseCell: trigger(voice) === nameOf(e.source) ? nameOf(e.source) : null, voice };
   }
   if (e.kind === 'mix') {
     const voice = nameOf(e.source);
-    return { kind: e.kind, phaseCell: trigger(voice), voice, reverse: false };
+    return { ...wire, kind: e.kind, phaseCell: trigger(voice), voice };
   }
-  return { kind: e.kind, phaseCell: null, voice: null, reverse: false };
+  return { ...wire, kind: e.kind, phaseCell: null, voice: null };
 }
 
 /**
@@ -48,16 +50,17 @@ export function flowEdgeOf(e: GraphEdge, state: State, program: CompileResult, b
   if (belt) return { id: e.id, source: e.source, target: e.target, type: 'belt', zIndex: 5, selectable: false, data: { ...belt } };
   // a tape's edges meet it at its heads: the write head (what it records), each read head (what it plays)
   const heads = e.pick === 'write' ? { targetHandle: 'head-write' } : e.pick === 'play' ? { sourceHandle: `head-${nameOf(e.target)}` } : {};
+  // drawn along the flow (docs/notes/nets.md): from what is read to the cell that reads it
   return {
     id: e.id,
-    source: e.source,
-    target: e.target,
+    source: e.from,
+    target: e.to,
     ...heads,
     type: 'pulse',
     // (only a live edge carries a note's colour and pulses: an edge into what doesn't sound now stays still)
     data: { ...pulseData(e, program), off: state === 'off' || state === 'unrouted', state },
     label: [e.count > 1 ? `×${e.count}` : '', e.pick, e.label ?? ''].filter(Boolean).join(' ') || undefined,
-    class: `edge-${e.kind}`,
+    class: `edge-${e.kind} band-${e.band}${e.pointer ? ' pointer' : ''}`,
     selectable: false,
   };
 }

@@ -18,13 +18,26 @@
   stroke: var(--accent);
   stroke-width: 5;
 }
-.graph .edge-over .svelte-flow__edge-path {
-  stroke-dasharray: 1 9;
-  stroke-opacity: 0.7;
+/* by band (docs/notes/nets.md): a clock's ticks dotted, in the meter's colour; sound a wave, a little finer; values solid */
+.graph .band-sync .svelte-flow__edge-path {
+  stroke: color-mix(in oklab, var(--meter-0) 70%, var(--edge));
+  stroke-width: 3;
+  stroke-dasharray: 0.5 8;
 }
-.graph .edge-step .svelte-flow__edge-path {
-  stroke: color-mix(in oklab, var(--accent) 50%, var(--edge));
-  stroke-dasharray: 12 7;
+.graph .band-audio .svelte-flow__edge-path {
+  stroke-width: 3;
+  stroke-linejoin: round;
+}
+/* a table's bus: its strands are drawn beside the path, which stays only for the label and the hit area */
+.graph .svelte-flow__edge .svelte-flow__edge-path.bus-core {
+  stroke-opacity: 0;
+}
+.graph .bus.edge-idle path:not(.bus-sheath) {
+  stroke-opacity: 0.55;
+}
+.graph .bus.edge-unrouted path,
+.graph .bus.edge-off path {
+  stroke-opacity: 0.2;
 }
 /* (the state is on the edge's own path, put there by PulseEdge, so a step doesn't remake the edge list: #13)
    not sounding now (playing): quieter; not part of the sound, or switched off: faded */

@@ -26,8 +26,9 @@ describe('the golden graph', () => {
     layout.placeMeters();
     const { crossings, overlap } = layout.quality();
     expect(overlap).toBe(0);
-    // (the graph is planar: it can be drawn with none. Lower this when the layout gets there.)
-    expect(crossings).toBeLessThanOrEqual(4);
+    // (the graph is planar: it can be drawn with none. Lower this when the layout gets there. 4 → 6 when the sun got
+    // its edge to its law: it no longer floats off, and now sits among the belts, docs/notes/nets.md)
+    expect(crossings).toBeLessThanOrEqual(6);
     layout.destroy();
   });
 });
