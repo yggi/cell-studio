@@ -23,8 +23,17 @@
   const freeCell = $derived(ctx.program.cells.get(data.name));
   // mixes and the sound card are signals: they show their spectrum
   const cell = $derived(ctx.program.cells.get(data.name));
-  const signal = $derived(!!cell && (!!cell.mix || cell.sink));
-  const hub = $derived(signal ? hubLabel(ctx.program, data.name, ctx.shifts, false, null) : null);
+  // (and a read head of a sound tape: what it plays back is sound — its spectrum, with where it reads)
+  const soundHead = $derived(!!cell && typeof cell.params.play === 'string' && ctx.program.tapes.some((t) => t.name === cell.params.play));
+  const signal = $derived(!!cell && (!!cell.mix || cell.sink || soundHead));
+  const at = $derived(cell?.params.at);
+  const hub = $derived(
+    soundHead
+      ? { big: typeof at === 'number' ? `${+at.toFixed(2)}s` : typeof at === 'string' ? `&${at}` : 'head', small: 'head' }
+      : signal
+        ? hubLabel(ctx.program, data.name, ctx.shifts, false, null)
+        : null,
+  );
   // label=: the name shown (a template, filled in live); a cell that is only a label is a note in the graph
   const shown = $derived(stillShifts);
   const label = $derived(cell?.label ? formatLabel(ctx.program, data.name, cell.label, shown) : null);

@@ -10,6 +10,9 @@ that makes the change. Also note changes to the language that could affect saved
 
 ## Unreleased
 
+### Fixed
+- A read head of a sound tape (`play=` on a tape that records a mix) showed an empty wheel: it shows the spectrum of what it plays back, with where it reads (`0.75s`). Saved `.cells` pieces are not affected.
+
 ### Changed
 - A cell stepped by a meter no longer wears the meter's ring (with its rate): the meter's net says which meter steps it. A step between two turntables is drawn as a belt even without `belt=` (a tape on its motor's capstan: rigid). Saved `.cells` pieces are not affected.
 - The graph draws an edge by what it carries ([notes/nets.md](docs/notes/nets.md)), from what is read to the cell that reads it: a clock's ticks dotted, with the pulse running from the driver; sound as a wave (a voice into a mix, FM, a resonator excited, a tape of sound); values solid. A table read through `over=` is a bus, a strand per entry in the colours of its wheel (a scale is seven strands from its wheel to the theme's), with the entries looked up now lit while it plays; an edge carrying chords is a strand per note, in the colours of the notes sounding. A cell spliced into another's braid meets its wheel at the segment where it sits, once for each time it is written, and a table's strands leave its wheel from their entries. A belt counts as drawn (over the wheels, both runs), and a meter with a belt is placed where its belt crosses least. A sun is joined to the law whose day it shows (`sun=&cycle`), so it no longer floats off. Saved `.cells` pieces are not affected.
