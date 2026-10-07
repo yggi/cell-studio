@@ -88,3 +88,18 @@ export function strandPath(ax: number, ay: number, mx: number, my: number, bx: n
   const cy = 2 * my - (ay + by) / 2 + ny;
   return `M ${ax + nx} ${ay + ny} Q ${cx} ${cy} ${bx + nx} ${by + ny}`;
 }
+
+/**
+ * A curve from a to a wheel's rim at `turns` (0 the top, clockwise), arriving along the radius from outside, as a
+ * tape's head meets its reel: so the end shows on the segment it belongs to, not under the wheel. `via` pulls its
+ * first half (the layout's bend); `reverse` runs it from the rim to a.
+ */
+export function radialPath(ax: number, ay: number, via: { x: number; y: number }, cx: number, cy: number, r: number, turns: number, reverse = false): string {
+  const [px, py] = polar(cx, cy, r, turns);
+  const lead = Math.min(80, 0.4 * Math.hypot(px - ax, py - ay));
+  const [qx, qy] = polar(cx, cy, r + lead, turns);
+  const f = (n: number) => n.toFixed(1);
+  return reverse
+    ? `M ${f(px)} ${f(py)} C ${f(qx)} ${f(qy)} ${f(via.x)} ${f(via.y)} ${f(ax)} ${f(ay)}`
+    : `M ${f(ax)} ${f(ay)} C ${f(via.x)} ${f(via.y)} ${f(qx)} ${f(qy)} ${f(px)} ${f(py)}`;
+}

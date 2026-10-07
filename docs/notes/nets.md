@@ -1,6 +1,6 @@
 # Nets: what an edge is
 
-**2026-10-07 · open: decided in part (below), steps 1–2 built, 3 and 5 begun · #9, #10, #27, on top of PR #136 (the gallery)**
+**2026-10-07 · open: decided in part (below), steps 1–2 and 5 built, 3 begun, belts counted, ends locked · #9, #10, #27, on top of PR #136 (the gallery)**
 
 The golden graph (`node tools/gallery.mjs golden`, PR #136) puts every kind of wheel and edge into one picture, so the flaws of the edge model show up together. This note collects what it shows, proposes one model under all of them, and splits the work into small steps. The owner's input that started it: **nets and buses** (an edge carrying `[0,4,7]` is a 3-wire bus); **edges by the signal they carry** (sync, CV, audio); **a palette that maps values to colours**; **named networks with in and out**, which unify tape heads and the meter's net, where today's edge syntax is the anonymous shorthand (like `&( )` cells).
 
@@ -18,6 +18,10 @@ The golden graph (`node tools/gallery.mjs golden`, PR #136) puts every kind of w
 6. **The canon may change:** go for the clean form, and rewrite the examples rather than keep a spelling for their sake.
 7. **`show=` is decoupled between the node and the net:** a cell's `show=` says how its wheel is drawn, and its net's (the taps') drawing gets its own say.
 8. **A net's style is set by its owner**: the cell whose net it is, once for all its taps, not each place it is read.
+9. **How it is said:** an attribute of its own on the owner, or a decorator on the reference to the net (a tap written with its style). Not `show=`.
+10. **Belts count, twice.** A belt is drawn over the wheels, two runs: every edge or wheel it crosses counts once per run.
+11. **The sun dissolves into two mechanisms** (worked through below): a source of absolute time, a sync net like a meter's; and `show=brightness`, a way to draw any mode wheel.
+12. **Angular locking:** a braid's edge meets its segment, generalizing a tape's heads.
 
 ## What the golden graph shows
 
@@ -107,6 +111,15 @@ The owner's sketch, read together with decision 3 (refs and `over=` are pointers
 
 **Recommendation.** Add no syntax until steps 2 to 5 are drawn. The model and graph need none, since every existing form is the shorthand. Then add `&>` first, because it is the only one that says something new (a send). Add `&<` only if the copy/tap difference turns out to be heard in a real piece. Each one gets a decision record (#10, item 2: one edge, two lines to write it on).
 
+## The sun, dissolved (decision 11)
+
+Today one cell does two jobs: `&cycle law=fiveto12 anchor=11.55 step=84bpm` computes notes from a time of day, and `&sun sun=&cycle` draws that day as a 24-hour dial whose rim shows the twelve modes by brightness. Split:
+
+- **A source of absolute time.** A cell that is the clock of the world, as a meter is the clock of a bar: its net is sync, and it is tapped by unit: seconds, minutes, hours, the day of the week, the week in the month and in the year, the day in the year, the month. Its own attributes: where it starts (`anchor=`, today on the law) and how fast time runs (1 the real one; faster to hear a day in a minute). A law reads it instead of keeping its own anchor. The tap's unit is part of the reference, so the open question is the spelling: a pick (`&now[hour]`), a rate like a meter's (`step=&now/hour`), or a decorator once `&<` exists.
+- **`show=brightness`**: a way to draw a mode wheel (or any table read as modes), its segments shaded by how bright their mode is (Lydian 1 … Locrian 0, today the sun's `blockColour`). The sun's dial becomes: the time source drawn as a 24-hour face, beside a mode wheel with `show=brightness`.
+
+Nothing is built yet. *5 to 12* is the only example, and it would be rewritten (decision 6: the clean form, not the old spelling).
+
 ## How it unlocks #9 and #10
 
 - **#9, PR 3 (`Graph.svelte`, a pure tested `flowedges.ts`).** Once an edge is `(net, port, band, transform, width)`, `pulseData`'s special cases (`play`, `write`, `out`, `mix`, `step`) become one lookup, and `flowedge.ts` becomes a pure function worth testing. #132 (`voices.sync` and `routing.ts` disagreeing about where sound goes) gets one source: both read the same nets.
@@ -139,8 +152,11 @@ Each step is its own PR, each visible in the golden graph and the edge sheet (be
 4. **Junctions.** Products become small anonymous nodes, and voices become definitions. This is the biggest layout change: watch the golden graph's crossings and the library's overlap count ([limits.md](../limits.md)).
 5. **Buses.** Built for tables and chords: an `over=` edge is a bus, a strand per entry in the colours its wheel gives them (at most 12), and while it plays the entries looked up now are lit, the others dim. A CV edge carrying chords (melody → voice, a ref) is a strand per note: stopped, neutral; playing, the notes under the playhead of the cell it comes from, in the colours of that wheel's rings (the rest dim). A kit's strands are grey: its entries are voices. The golden graph's facets now include the band and the bus (`facets.ts`), so its `&theme` has two chords. Still to come: stereo, and the owner's style for its net (decision 8).
 6. **Named nets.** The meter's net comes from the engine. Tape heads and a canon get one drawing. Then the language question, `[<<n]` and `play= at=`, goes to a decision record.
+7. **Belts counted. Built.** `drawnCrossings` (`quality.ts`) takes a belt as drawn: its two runs, over the wheels, each counted against every edge and every wheel but its own two. The layout keeps belts short (a stiff, short spring) and places a meter with a belt where the belt crosses least (`placeMeters`: its length, with every crossing ×4 per run, beside the net's cost). The golden graph went 6 → 26 when belts were first counted, and is back at 6 with the placement. The library went 74 → 86, and is now 75: *Tape Machine* is tighter with the same crossings, and *Automaton* has one more.
+8. **Angular locking. Built** for refs and tables. A ref's edge meets the wheel of the cell it is spliced into at the segment where it sits, once per time it is written (`&tune &up &up`: two strokes, at 3 and 9 o'clock). A table's strands leave its wheel from their own entries. The ends arrive along the radius from outside (`radialPath`), as a tape's head meets its reel, because edges are drawn under the wheels. The layout still bends edges between centres, so a locked end can swing round its wheel; to come: the layout knowing the ends.
 
 ## Open questions
 
 1. **The canon's clean form** (decision 6): a canon is one net, `&john`, with three taps at a delay. As copies today, `&john[<<1]`. Once `&<` exists, as taps of what was played. Which of the two the Frère Jacques example shows is to be decided when `&<` comes.
-2. **How the owner says its net's style** (decision 8): a word in `show=` beside the wheel's (`show=notes,strands`), or an attribute of its own. Which styles: strands or one line, a pulse or still, coloured or neutral.
+2. **The net's style** (decision 9): which styles (strands or one line, a pulse or still, coloured or neutral), and the spelling of the attribute and of the decorator.
+3. **The time source** (decision 11): its name and attributes, and how a tap names its unit.

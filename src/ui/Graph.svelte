@@ -290,7 +290,9 @@
       const st = live ? physicsOf(program, shifts, driven.cell.name)?.state?.(live.seconds) : undefined;
       return flowEdgeOf(e, state, program, { rDriver, rDriven, stretch: st?.stretch ?? 0, slipping: st?.slipping ?? false });
     }
-    return flowEdgeOf(e, state, program);
+    // (the wheels' sizes at its ends: a braid's edge meets its segment, a table's strands leave their entries)
+    const size = (id: string) => (nodes.find((n) => n.id === id)?.data as { size?: number } | undefined)?.size ?? 0;
+    return flowEdgeOf(e, state, program, undefined, { from: size(e.from), to: size(e.to) });
   }
 
   $effect(() => {

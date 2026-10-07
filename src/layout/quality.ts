@@ -23,6 +23,11 @@ export interface DrawnEdge {
   readonly a: string;
   readonly b: string;
   readonly mid?: { readonly x: number; readonly y: number };
+  /**
+   * A belt: its runs as drawn, straight and above the wheels. Nothing hides them, so each run counts on its own (a
+   * belt crosses twice) against every edge, and against every wheel it passes over but its own two.
+   */
+  readonly runs?: readonly (readonly [number, number, number, number])[];
 }
 
 export interface LayoutQuality {
@@ -52,9 +57,17 @@ export interface Aim {
   readonly angle: number;
 }
 
+/** How far the point (px, py) is from the segment (x1, y1)–(x2, y2). */
+export function distanceToSegment(px: number, py: number, x1: number, y1: number, x2: number, y2: number): number {
+  const [dx, dy] = [x2 - x1, y2 - y1];
+  const t = Math.max(0, Math.min(1, ((px - x1) * dx + (py - y1) * dy) / (dx * dx + dy * dy || 1)));
+  return Math.hypot(px - (x1 + t * dx), py - (y1 + t * dy));
+}
+
 /**
  * Crossings as drawn: each edge's spline in short pieces, ignoring pieces hidden under a node's disc
- * (edges are drawn beneath the wheels). Pairs of edges that share a node don't count.
+ * (edges are drawn beneath the wheels). Pairs of edges that share a node don't count. A belt is drawn above the
+ * wheels: each of its runs counts, against the edges and against each wheel it passes over.
  */
 export function drawnCrossings(nodes: readonly PlacedNode[], edges: readonly DrawnEdge[]): number {
   const at = new Map(nodes.map((n) => [n.id, n]));
@@ -63,6 +76,7 @@ export function drawnCrossings(nodes: readonly PlacedNode[], edges: readonly Dra
     const a = at.get(e.a);
     const b = at.get(e.b);
     if (!a || !b) return [];
+    if (e.runs) return e.runs.map((r) => ({ a: e.a, b: e.b, pieces: [r as [number, number, number, number]], belt: true }));
     const m = e.mid ?? { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
     const pts = Array.from({ length: 17 }, (_, k) => splinePoint(a.x, a.y, m.x, m.y, b.x, b.y, k / 16));
     const pieces: [number, number, number, number][] = [];
@@ -70,9 +84,11 @@ export function drawnCrossings(nodes: readonly PlacedNode[], edges: readonly Dra
       const [p, q] = [pts[k], pts[k + 1]];
       if (!hidden((p.x + q.x) / 2, (p.y + q.y) / 2)) pieces.push([p.x, p.y, q.x, q.y]);
     }
-    return [{ a: e.a, b: e.b, pieces }];
+    return [{ a: e.a, b: e.b, pieces, belt: false }];
   });
   let n = 0;
+  for (const c of curves)
+    if (c.belt) for (const w of nodes) if (!w.label && w.id !== c.a && w.id !== c.b && c.pieces.some((u) => distanceToSegment(w.x, w.y, u[0], u[1], u[2], u[3]) < w.r)) n++;
   for (let i = 0; i < curves.length; i++)
     for (let j = i + 1; j < curves.length; j++) {
       const [p, q] = [curves[i], curves[j]];

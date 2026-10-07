@@ -23,6 +23,22 @@ describe('drawnCrossings', () => {
   it('follows the curve: a bend can take an edge round the other', () => {
     expect(drawnCrossings(x, [edges[0], { a: 'c', b: 'd', mid: { x: 150, y: 150 } }])).toBe(0);
   });
+
+  it('counts a belt as drawn: over the wheels, each run on its own (twice for one crossing), and each wheel under it', () => {
+    // a belt from c to d: two runs either side of the line, both over the a–b edge
+    const belt = {
+      a: 'c',
+      b: 'd',
+      runs: [
+        [-100, 95, 100, -65],
+        [-100, 105, 100, -55],
+      ] as [number, number, number, number][],
+    };
+    expect(drawnCrossings(x, [edges[0], belt])).toBe(2);
+    // alone, over a wheel that isn't its own: once per run
+    expect(drawnCrossings([...x, node('w', 0, 20, 30)], [belt])).toBe(2);
+    expect(drawnCrossings([...x, node('w', 0, 300, 30)], [belt])).toBe(0);
+  });
 });
 
 describe('layoutQuality', () => {

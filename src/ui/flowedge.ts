@@ -46,7 +46,13 @@ function pulseData(e: GraphEdge, program: CompileResult) {
  * belt over its pulleys. While playing, an edge that is routed is `idle` here, and PulseEdge makes it live when it is
  * (each edge reads that for itself).
  */
-export function flowEdgeOf(e: GraphEdge, state: State, program: CompileResult, belt?: BeltDrawn): Edge {
+/** The sizes (px) of the wheels at an edge's ends, along the flow: where its ends lock to their segments. */
+export interface EndSizes {
+  readonly from: number;
+  readonly to: number;
+}
+
+export function flowEdgeOf(e: GraphEdge, state: State, program: CompileResult, belt?: BeltDrawn, sizes?: EndSizes): Edge {
   if (belt) return { id: e.id, source: e.source, target: e.target, type: 'belt', zIndex: 5, selectable: false, data: { ...belt } };
   // a tape's edges meet it at its heads: the write head (what it records), each read head (what it plays)
   const heads = e.pick === 'write' ? { targetHandle: 'head-write' } : e.pick === 'play' ? { sourceHandle: `head-${nameOf(e.target)}` } : {};
@@ -58,7 +64,7 @@ export function flowEdgeOf(e: GraphEdge, state: State, program: CompileResult, b
     ...heads,
     type: 'pulse',
     // (only a live edge carries a note's colour and pulses: an edge into what doesn't sound now stays still)
-    data: { ...pulseData(e, program), off: state === 'off' || state === 'unrouted', state },
+    data: { ...pulseData(e, program), off: state === 'off' || state === 'unrouted', state, sizes, to: nameOf(e.to) },
     label: [e.count > 1 ? `×${e.count}` : '', e.pick, e.label ?? ''].filter(Boolean).join(' ') || undefined,
     class: `edge-${e.kind} band-${e.band}${e.pointer ? ' pointer' : ''}`,
     selectable: false,

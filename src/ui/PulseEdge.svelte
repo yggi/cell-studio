@@ -11,7 +11,7 @@
    * While playing, a live edge into a voice or a mix takes the colour of the note sounding now, with a pulse per step.
    */
   import { BaseEdge, type EdgeProps } from '@xyflow/svelte';
-  import { ripplePath, splinePoint, strandPath } from '../layout/geometry';
+  import { radialPath, ripplePath, splinePoint, strandPath } from '../layout/geometry';
   import { cellView, type Fill } from '../layout/cellview';
   import { getGraphContext } from './context';
   import { pitchHue } from '../theory/modes';
@@ -19,7 +19,20 @@
   let { id, sourceX, sourceY, targetX, targetY, data, label, markerEnd, style }: EdgeProps = $props();
   const ctx = getGraphContext();
   const d = $derived(
-    data as { kind: string; band: string; width: number; from: string; table: string | null; phaseCell: string | null; voice: string | null; off?: boolean; state?: string },
+    data as {
+      kind: string;
+      band: string;
+      port: string;
+      width: number;
+      from: string;
+      to: string;
+      table: string | null;
+      phaseCell: string | null;
+      voice: string | null;
+      sizes?: { from: number; to: number };
+      off?: boolean;
+      state?: string;
+    },
   );
   // The edge's state as drawn: the list says off / unrouted / on / idle (idle: routed, playing); an idle edge is live
   // when the live set says so — each edge reads that for itself, so the list isn't remade at every step (#13).
@@ -30,7 +43,25 @@
   const mid = $derived(ctx.bends.get(id) ?? { x: (sourceX + targetX) / 2, y: (sourceY + targetY) / 2 });
   const control = $derived({ x: 2 * mid.x - (sourceX + targetX) / 2, y: 2 * mid.y - (sourceY + targetY) / 2 });
   const spline = $derived(`M ${sourceX} ${sourceY} Q ${control.x} ${control.y} ${targetX} ${targetY}`);
-  const path = $derived(d.band === 'audio' ? ripplePath(sourceX, sourceY, mid.x, mid.y, targetX, targetY) : spline);
+
+  // Ends locked to their segments (as a tape's heads are): a ref meets the wheel of the cell it is spliced into where it
+  // sits in that braid, once for each time it is written; a table's strands leave its wheel at their entries.
+  const rimOf = (size: number | undefined) => (size ? size / 2 - 1 : 0);
+  const occurrences = $derived.by((): number[] => {
+    if (d.port !== 'braid' || !rimOf(d.sizes?.to)) return [];
+    void ctx.turned;
+    const parent = ctx.program.cells.get(d.to);
+    const units = new Set(parent?.units.flatMap((u, i) => (u.atom.kind === 'ref' && u.atom.name === d.from ? [i] : [])) ?? []);
+    const spans = new Map<number, [number, number]>();
+    for (const sg of units.size ? cellView(ctx.program, d.to, ctx.shifts, false).segments : [])
+      if (units.has(sg.index)) {
+        const sp = spans.get(sg.index);
+        spans.set(sg.index, sp ? [Math.min(sp[0], sg.t0), Math.max(sp[1], sg.t1)] : [sg.t0, sg.t1]);
+      }
+    return [...spans.values()].map(([a, b]) => (a + b) / 2);
+  });
+  const lockedPaths = $derived(occurrences.map((t) => radialPath(sourceX, sourceY, control, targetX, targetY, rimOf(d.sizes?.to), t)));
+  const path = $derived(d.band === 'audio' ? ripplePath(sourceX, sourceY, mid.x, mid.y, targetX, targetY) : (lockedPaths[0] ?? spline));
 
   // a bus: a table read through over= (its entries), or a chord (its notes); at most 12 strands, a longer table sampled
   const STRANDS = 12;
@@ -41,7 +72,19 @@
     return cellView(ctx.program, d.table ?? d.from, ctx.shifts, false);
   });
   const count = $derived(view ? Math.min(STRANDS, d.width) : 0);
-  const strandPaths = $derived(Array.from({ length: count }, (_, i) => strandPath(sourceX, sourceY, mid.x, mid.y, targetX, targetY, (i - (count - 1) / 2) * GAP)));
+  // (a strand's place in the table: the entry it carries; a chord's strands run side by side)
+  const entryOf = (i: number) => view?.segments[Math.floor((i * view.segments.length) / count)];
+  const strandPaths = $derived(
+    Array.from({ length: count }, (_, i) => {
+      const offset = (i - (count - 1) / 2) * GAP;
+      const s = d.table ? entryOf(i) : undefined;
+      const r = rimOf(d.sizes?.from);
+      if (!s || !r) return strandPath(sourceX, sourceY, mid.x, mid.y, targetX, targetY, offset);
+      const l = Math.hypot(targetX - sourceX, targetY - sourceY) || 1;
+      const [nx, ny] = [(-(targetY - sourceY) / l) * offset, ((targetX - sourceX) / l) * offset];
+      return radialPath(targetX + nx, targetY + ny, { x: control.x + nx, y: control.y + ny }, sourceX, sourceY, r, (s.t0 + s.t1) / 2, true);
+    }),
+  );
   const fillColour = (f: Fill | undefined) => (f?.kind === 'pitch' ? noteColour(f.hue, false, f.octave ?? 0) : 'var(--edge)');
   const strands = $derived.by((): { colour: string; dim: boolean }[] => {
     if (!view) return [];
@@ -49,7 +92,7 @@
       // the table's entries, as its wheel colours them; while it plays, the ones looked up now lit
       const lit = isLive ? ctx.live?.cells.get(d.table)?.entries : undefined;
       return Array.from({ length: count }, (_, i) => {
-        const s = view.segments[Math.floor((i * view.segments.length) / count)];
+        const s = entryOf(i);
         return { colour: fillColour(s?.bands[0]), dim: !!lit?.size && !!s && !lit.has(s.index) };
       });
     }
@@ -85,12 +128,17 @@
 
 {#if strands.length}
   <g class={`bus edge-${state}`}>
-    <path class="bus-sheath" d={spline} style={`stroke-width: ${strands.length * GAP + 6}px`} />
+    {#if !(d.table && rimOf(d.sizes?.from))}
+      <path class="bus-sheath" d={spline} style={`stroke-width: ${strands.length * GAP + 6}px`} />
+    {/if}
     {#each strands as s, i (i)}
       <path d={strandPaths[i]} class:dim={s.dim} style={`stroke: ${s.colour}`} />
     {/each}
   </g>
 {/if}
+{#each lockedPaths.slice(1) as p, i (i)}
+  <path class={`svelte-flow__edge-path edge-${state}`} d={p} style={edgeStyle} />
+{/each}
 <BaseEdge
   {id}
   {path}

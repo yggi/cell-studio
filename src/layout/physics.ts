@@ -9,9 +9,14 @@ import { forceX, forceY, forceCollide, forceLink, forceManyBody, forceSimulation
 import type { GraphModel, GraphNode } from '../engine/graph';
 import { segmentsCross, splinePoint } from './geometry';
 import { layered } from './layered';
-import { drawnCrossings, layoutQuality, type Aim, type LayoutQuality } from './quality';
+import { distanceToSegment, drawnCrossings, layoutQuality, type Aim, type LayoutQuality } from './quality';
 import { fitTurn, headOffset, tapeHeads, UNTURNED } from './tape';
 import { isGround } from './meters';
+import { openBelt, pulleys } from './belts';
+
+/** A belt's spring: its length against an edge's, and its pull. */
+const BELT_LENGTH = 0.8;
+const BELT_PULL = 0.5;
 
 /** A trace of a meter's net (meterNet): between two of its ends, the meter or a cell it steps. */
 export interface MeterTrace {
@@ -40,6 +45,8 @@ interface PhysLink extends SimulationLinkDatum<PhysNode> {
   count: number;
   /** A part or table edge (&ref, over=): shorter, so parts stay with their user. */
   part: boolean;
+  /** A belt (a belted cell's step, source: the driven): drawn as two runs over the wheels. */
+  belt?: boolean;
   /** A tag's spring to one of its cells (not drawn: no crossings, no bends, no spread). */
   tag?: boolean;
   /** How much of its pull it keeps (a hub's edge into a cluster gives the rest to the cluster's tag: `mux`). */
@@ -427,7 +434,7 @@ function jitter(id: string, salt: number): number {
 }
 
 export class ForceLayout {
-  private links: { id: string; source: string; target: string }[] = [];
+  private links: { id: string; source: string; target: string; belt?: boolean }[] = [];
   /** Where the sound card (top) and the meters (bottom) are drawn to, sideways. */
   private ends = new Map<string, { x: number; y: number }>();
   /** The height of each node's rank in the signal path. */
@@ -694,8 +701,9 @@ export class ForceLayout {
   private applyOptions(): void {
     const o = this.opts;
     (this.sim.force('link') as ReturnType<typeof forceLink<PhysNode, PhysLink>>)
-      .distance((l) => (l.tag || l.muxed ? o.linkDistance * 1.6 : l.part ? o.linkDistance * o.partLength : o.linkDistance))
-      .strength((l) => (l.tag ? 0.12 : Math.min(0.2, 0.08 + 0.02 * l.count) * o.contract * (l.muxed ? o.mux : 1 - (1 - (l.keep ?? 1)) * o.mux)));
+      // (a belt is drawn over the wheels: short and stiff, so its turntables sit side by side and it crosses little)
+      .distance((l) => (l.tag || l.muxed ? o.linkDistance * 1.6 : l.part ? o.linkDistance * o.partLength : l.belt ? o.linkDistance * BELT_LENGTH : o.linkDistance))
+      .strength((l) => (l.tag ? 0.12 : l.belt ? BELT_PULL : Math.min(0.2, 0.08 + 0.02 * l.count) * o.contract * (l.muxed ? o.mux : 1 - (1 - (l.keep ?? 1)) * o.mux)));
     // busy nodes push a little harder: more room around hubs, fewer edges squeezed past them
     (this.sim.force('charge') as ReturnType<typeof forceManyBody<PhysNode>>)
       .strength((d) => (d.role === 'tag' ? o.charge * 3 : o.charge * (1 + o.degreeRepel * Math.max(0, (this.degree.get(d.id) ?? 1) - 1))))
@@ -867,10 +875,18 @@ export class ForceLayout {
     this.byId.clear();
     for (const [k, v] of next) this.byId.set(k, v);
 
+    const cellOf = new Map(model.nodes.map((n) => [n.id, n.cell]));
     const links: PhysLink[] = model.edges
       // (a note's links, about=, are not springs: they only draw a note towards what it explains, see stepAbout)
       .filter((e) => e.kind !== 'about' && !ground(e) && next.has(e.source) && next.has(e.target) && e.source !== e.target)
-      .map((e) => ({ id: e.id, source: e.source, target: e.target, count: e.count, part: e.kind === 'ref' || e.kind === 'over' }));
+      .map((e) => ({
+        id: e.id,
+        source: e.source,
+        target: e.target,
+        count: e.count,
+        part: e.kind === 'ref' || e.kind === 'over',
+        belt: e.kind === 'step' && typeof cellOf.get(e.source)?.params.belt === 'number',
+      }));
 
     this.sim.nodes([...next.values()]);
     this.faces = this.faces.filter((f) => next.has(f.tape) && next.has(f.to));
@@ -915,6 +931,7 @@ export class ForceLayout {
       id: l.id,
       source: typeof l.source === 'object' ? (l.source as PhysNode).id : (l.source as string),
       target: typeof l.target === 'object' ? (l.target as PhysNode).id : (l.target as string),
+      belt: l.belt,
     }));
     for (const id of [...this.bendAt.keys()]) if (!this.links.some((l) => l.id === id)) this.bendAt.delete(id);
     if (structural) this.reheat(fresh ? 1 : added > 0 || removed > 0 ? 0.7 : 0.3); // a fresh graph settles from scratch, like a new layout
@@ -985,11 +1002,22 @@ export class ForceLayout {
   private placed() {
     const nodes = [...this.byId.values()].map((n) => ({ id: n.id, x: n.x ?? 0, y: n.y ?? 0, r: n.radius, tags: n.tags, label: n.role === 'tag' }));
     const edges = [
-      ...this.links.map((l) => ({ a: l.source, b: l.target, mid: this.bendAt.get(l.id) as { x: number; y: number } | undefined })),
+      ...this.links.map((l) => ({ a: l.source, b: l.target, mid: this.bendAt.get(l.id) as { x: number; y: number } | undefined, runs: this.beltRuns(l) })),
       // (a meter's net: straight traces)
       ...this.net.map((t) => ({ a: t.a, b: t.b, mid: undefined })),
     ];
     return { nodes, edges };
+  }
+
+  /** A belt's two runs as BeltEdge draws them (the outer tangents of its pulleys; their ratio taken as 1). */
+  private beltRuns(l: { source: string; target: string; belt?: boolean }): [number, number, number, number][] | undefined {
+    if (!l.belt) return undefined;
+    const driven = this.byId.get(l.source);
+    const driver = this.byId.get(l.target);
+    if (!driven || !driver) return undefined;
+    const [rDriver, rDriven] = pulleys(driver.radius, driven.radius, 1);
+    const runs = openBelt({ x: driver.x ?? 0, y: driver.y ?? 0 }, rDriver, { x: driven.x ?? 0, y: driven.y ?? 0 }, rDriven);
+    return runs?.map(([a, b]) => [a.x, a.y, b.x, b.y]);
   }
 
   /** A meter's edges (ground, meters.ts) and which of them are drawn. */
@@ -1065,6 +1093,18 @@ export class ForceLayout {
           return len * (1 + 2 * this.hits(a.x ?? 0, a.y ?? 0, a.radius, a.id, b.id, pieces, 4)) * (joined.has([a.id, b.id].sort().join('|')) ? 3 : 1);
         }),
       );
+      // its belts (to the cells it drives through a spring): drawn over the wheels, two runs, so every edge or wheel one
+      // would cross counts twice
+      const belted = this.links
+        .filter((l) => l.belt && l.target === m)
+        .map((l) => this.byId.get(l.source))
+        .filter((n): n is PhysNode => !!n);
+      const beltCost = (x: number, y: number) =>
+        belted.reduce((sum, c) => {
+          const [cx, cy] = [c.x ?? 0, c.y ?? 0];
+          const over = others.filter((o) => o !== c && distanceToSegment(o.x ?? 0, o.y ?? 0, x, y, cx, cy) < o.radius).length;
+          return sum + Math.hypot(cx - x, cy - y) * (1 + 4 * (this.hits(x, y, node.radius, m, c.id, pieces, 4) + over));
+        }, 0);
       const xs = others.map((n) => n.x ?? 0);
       const ys = others.map((n) => n.y ?? 0);
       const reach = node.radius * 2 + this.opts.collidePad;
@@ -1086,7 +1126,7 @@ export class ForceLayout {
           const to = cells.map((c) => Math.hypot((c.x ?? 0) - x, (c.y ?? 0) - y) * (1 + 2 * this.hits(x, y, node.radius, m, c.id, pieces, 4)));
           const near = [...to];
           const done = cells.map(() => false);
-          let cost = crowd * 2;
+          let cost = crowd * 2 + beltCost(x, y);
           for (let k = 0; k < cells.length; k++) {
             let i = -1;
             for (let c = 0; c < cells.length; c++) if (!done[c] && (i < 0 || near[c] < near[i])) i = c;
