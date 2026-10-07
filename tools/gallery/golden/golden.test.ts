@@ -23,7 +23,7 @@ describe('the golden graph', () => {
     const layout = new ForceLayout(undefined, { live: false });
     layout.setGraph(model);
     layout.tick(500);
-    layout.placeMeters();
+    layout.layNet();
     const { crossings, overlap } = layout.quality();
     expect(overlap).toBe(0);
     // (the graph is planar: it can be drawn with none. Lower this when the layout gets there. 4 → 6 when the sun got

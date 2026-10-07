@@ -16,7 +16,7 @@ const settle = (source: string, opts: Partial<typeof DEFAULT_LAYOUT> = {}) => {
   layout.setGraph(model); // (petals hang from their parent: the physics only sees named cells)
   const start = layout.quality(); // (the layered drawing, before the physics relaxes it)
   layout.tick(500);
-  layout.placeMeters(); // (as the app does once the layout is laid out: meters last)
+  layout.layNet(); // (as the app does once the layout is laid out: the meters' nets)
   made.push(layout);
   return { model, layout, start };
 };

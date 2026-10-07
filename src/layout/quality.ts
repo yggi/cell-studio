@@ -58,7 +58,7 @@ export interface Aim {
 }
 
 /** How far the point (px, py) is from the segment (x1, y1)–(x2, y2). */
-export function distanceToSegment(px: number, py: number, x1: number, y1: number, x2: number, y2: number): number {
+function distanceToSegment(px: number, py: number, x1: number, y1: number, x2: number, y2: number): number {
   const [dx, dy] = [x2 - x1, y2 - y1];
   const t = Math.max(0, Math.min(1, ((px - x1) * dx + (py - y1) * dy) / (dx * dx + dy * dy || 1)));
   return Math.hypot(px - (x1 + t * dx), py - (y1 + t * dy));

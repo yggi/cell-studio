@@ -364,7 +364,7 @@
       if (fresh || (newExample && f)) {
         layout.tick(220);
         // meters last: where most of their edges cross nothing; those are drawn (layout/meters.ts)
-        layout.placeMeters();
+        layout.layNet();
         net = layout.meterNet();
       }
       // turntables stay where they were first laid out (pinned): the rest flows round them

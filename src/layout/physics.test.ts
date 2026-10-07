@@ -276,7 +276,6 @@ describe('the natural order (waltz)', () => {
     ]) {
       // beside: around the player's height (collisions spread them a little, as in the screenshot)
       expect(Math.abs(y(m) - y(p)), m).toBeLessThan(DEFAULT_LAYOUT.layerGap * 2);
-      expect(y(m), m).toBeLessThan(y('bar') + DEFAULT_LAYOUT.layerGap / 2); // level with the meter at most (the outer column)
     }
     // and on the outer side of their player: oom's motifs on its side of the tune, pah's on the other
     expect(Math.sign(x('I') - x('tune'))).toBe(Math.sign(x('oom') - x('tune')));
@@ -568,14 +567,14 @@ describe('tapes: the heads keep their spacing, the wheel turns to face them at w
   });
 });
 
-describe('meters last, joined to their cells by a net', () => {
+describe('meters, joined to their cells by a net', () => {
   for (const key of ['royal', 'bossa', 'cellscape', 'baustelle'] as const) {
     it(key, () => {
       const model = buildGraph(compileSource(PRESETS[key].source));
       const l = new ForceLayout(undefined, { live: false });
       l.setGraph(model);
       l.tick(220);
-      l.placeMeters();
+      l.layNet();
       const net = l.meterNet();
       const byId = new Map(model.nodes.map((n) => [n.id, n]));
       const grounds = model.edges.filter((e) => isGround(e, byId));
@@ -608,22 +607,4 @@ describe('meters last, joined to their cells by a net', () => {
       l.destroy();
     });
   }
-  it("inside a closed cycle when that reaches more: Royal's meter sits within its ring, its net crossing nothing", () => {
-    // (theme → scale ← pedal → bass → mix ← lead ← theme is a cycle; the meter steps theme and pedal, on it — from
-    // outside a trace crosses the cycle, from inside none does: the face too small for it is widened)
-    const model = buildGraph(compileSource(PRESETS.royal.source));
-    const l = new ForceLayout(undefined, { live: false });
-    l.setGraph(model);
-    l.tick(220);
-    const before = l.drawnCrossings();
-    l.placeMeters();
-    expect(
-      l
-        .meterNet()
-        .map((t) => [t.a, t.b].sort().join(' '))
-        .sort(),
-    ).toEqual(['cell:bar cell:pedal', 'cell:bar cell:theme']);
-    expect(l.drawnCrossings()).toBeLessThanOrEqual(before);
-    l.destroy();
-  });
 });

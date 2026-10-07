@@ -57,7 +57,7 @@ export function miniature(source: string): Miniature | null {
   const l = new ForceLayout(undefined, { live: false });
   l.setGraph(model);
   l.tick(TICKS);
-  l.placeMeters(); // (meters last, as the graph places them, and their nets)
+  l.layNet(); // (the meters' nets, as the graph lays them)
   const net = l.meterNet();
   const shifts = codeShifts(result);
   const index = new Map<string, number>();
