@@ -1,8 +1,37 @@
 # #10, read from the corpus: the examples as evidence
 
-2026-10-07 · open: orientation done, decisions in (below) · [#10](https://github.com/yggi/cell-studio/issues/10), [#9](https://github.com/yggi/cell-studio/issues/9), [#31](https://github.com/yggi/cell-studio/issues/31), [#29](https://github.com/yggi/cell-studio/issues/29), [#35](https://github.com/yggi/cell-studio/issues/35)
+2026-10-07 · open: built through phase 4 (below, *Where it stands*); the ladder and the operator pass to come · [#10](https://github.com/yggi/cell-studio/issues/10), [#9](https://github.com/yggi/cell-studio/issues/9), [#31](https://github.com/yggi/cell-studio/issues/31), [#29](https://github.com/yggi/cell-studio/issues/29), [#35](https://github.com/yggi/cell-studio/issues/35)
 
 A round over the 52 examples with #10's eyes: find the syntax that strains, the paradigms that are missing (swing, drum sequences, phrase assembly), and teach Shorten to see each overcomplication it finds. Read from `main` at 6561beb. This note is the homework before anything changes: what was measured, what each finding is, what it would take, and the decisions it needs. Every claim marked *probed* was compiled and its events compared (scratch scripts over `compileSource` → `plan` → `eventsBetween`).
+
+## Where it stands
+
+**Built** (branch `claude/corpus-refactor-syntax-examples-fd4yad`, each commit with its tests):
+
+| | what | commit |
+|---|---|---|
+| #9 | Shorten split into `engine/shorten/`, one rule a file; its idempotence tested | 3279ae8 |
+| yardstick | `tools/corpus.mjs`: every example's size, Shorten and notes, checked against a base | 3279ae8 |
+| F1 | `degree(&x, n)`, `inverse(&x)`, nesting; the laws tested | f47e060 |
+| F2 | the finer stepped pitch articulates, the coarser holds | 0860001 |
+| F4 | a stepped braid of voices plays them; drum motifs | eefd1fa, f6cd852 |
+| F3 | `pan=` back (decision 007) | e483ca1 |
+| F6 | a turning table comes round after its length (decision 008) | 761f412 |
+| Shorten | degrees, wrappers, progressions, defaults, stereo twins; padding isn't code | 40b7772, ee6339f |
+| examples | every note the same: the new forms in 33 pieces | dfa7b46 |
+| examples | changed on purpose: pans in 8 pieces (≤ 0.25 dB), Cellscape's one selector, the tresillo on the bar | f2b8fe4 |
+
+Over the corpus: 2,566 characters, 33 lines and 21 cells fewer; the layout's crossings 45.5 → 37.5.
+
+**Found on the way (fixed):** a piece's loop length counted a turning table's entries and ignored `cycle=` (IDM showed 3:30 for 0:30, per tonos 1:40 for 3:20); Shorten offered `&m^k` for a motif without `over=` that its player reads through a scale (grid steps where degrees were meant) — it now checks every table a cell is read through; Shorten's measure counted the spaces that keep comments aligned, so removing an attribute from a commented line saved nothing and hid runs (Bossa, Twinkle, Jazz); `tools/shorten.mjs` stopped on the same.
+
+**Open, for #10 or their own issue:**
+- F5 swing: not built. `swing=` still swings only a list meter or `meter()`; the swing clock (`&swing scan(free(2, 1..3) 1)`) is the form the examples use.
+- The operator pass (below).
+- BWV 847 is written by `tools/bwv847.py` (which downloads its source): its chord tables (`stride=4 cycle=280`), stereo and `loop=SAMPLE_RATE` change there, not by hand.
+- Grooves: a choice of voices (`[&sd|&cp]`) isn't read yet; a moving `pan=` (an auto-pan) and a kit member that is a resonator don't take a pan yet (decision 007).
+- Five: after its rewrite the layout leaves one node overlap (12.7 px); Cellular Brothers and Cellscape each one more tag cluster.
+- Still single-piece kludges: Korobeiniki's parts written twice for two harmonies (#29), Pachelbel's entries as gates (the nets thread), Hypercell's chord cells in absolute semitones (`degree(&triad, &prog)`, F1's moving amount).
 
 ## The yardstick: how we know a change is better
 
