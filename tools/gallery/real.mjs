@@ -1,3 +1,4 @@
+// The real wheels sheet (`node tools/gallery.mjs wheels`; the gallery's other modes are tools/gallery/fast.mjs).
 // Contact sheet of every kind of wheel, each in a representative state: for a visual pass over the
 // wheels, and before / after a change to how they're drawn. Every wheel carries `data-wheel` (its
 // component) and, where it has one, `data-mode` / `data-show`; their combination, with where it sits
@@ -5,27 +6,20 @@
 // the first wheel of each kind is kept, and replaced by one in a livelier state (live > idle > on >
 // unrouted > off) when one turns up. For each new kind in the graph its cell's sheet is opened too.
 //
-//   npm run build && node tools/wheels.mjs                 # every piece, 3 s into each
-//   node tools/wheels.mjs 4 Hypercell "Music Box"          # 4 s, only titles containing these words
-//   OUT=shots/before DIST=/path/to/other/dist node tools/wheels.mjs   # another build, to compare
-//   JOBS=2 SCALE=1 node tools/wheels.mjs                   # fewer pages at once, 1× pixels
+//   npm run build && node tools/gallery.mjs wheels                 # every piece, 3 s into each
+//   node tools/gallery.mjs wheels 4 Hypercell "Music Box"          # 4 s, only titles containing these words
+//   OUT=shots/before DIST=/path/to/other/dist node tools/gallery.mjs wheels   # another build, to compare
+//   JOBS=2 SCALE=1 node tools/gallery.mjs wheels                   # fewer pages at once, 1× pixels
 //
 // Writes <OUT>/tiles/*.png, <OUT>/index.html (the sheet, grouped), <OUT>/sheet.png (it, rendered) and
 // <OUT>/wheels.json (every kind: where it was found, in which state, and which pieces have it).
 // OUT defaults to shots/wheels. Viewport VIEW (default 3000x1900) at SCALE (default 2). Chromium as for the smoke test
 // (tools/profile/playwright.mjs; in a cloud session CHROME_PATH=/opt/pw-browsers/chromium).
-//
-// --fast: the wheels set up directly instead (tools/wheels/fast.mjs): seconds, from the working tree, each
-// kind at a ladder of sizes; the made-up sound stands in for the real one.
-if (process.argv.includes('--fast')) {
-  await import('./wheels/fast.mjs');
-  process.exit(process.exitCode ?? 0);
-}
 import { preview } from 'vite';
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { chromium } from './profile/playwright.mjs';
+import { chromium } from '../profile/playwright.mjs';
 
 const [secs = '3', ...only] = process.argv.slice(2);
 const out = process.env.OUT ?? 'shots/wheels';
@@ -246,7 +240,7 @@ const html = `<!doctype html>
   .state { display: inline-block; padding: 0 6px; border-radius: 6px; border: 1px solid var(--line); font-size: 11px; margin-left: 4px; }
 </style></head><body>
 <h1>Wheels</h1>
-<p class="meta">${list.length} kinds from ${pieces.length} pieces, ${secs} s into each · ${new Date().toISOString().slice(0, 16).replace('T', ' ')} · <code>node tools/wheels.mjs</code></p>
+<p class="meta">${list.length} kinds from ${pieces.length} pieces, ${secs} s into each · ${new Date().toISOString().slice(0, 16).replace('T', ' ')} · <code>node tools/gallery.mjs wheels</code></p>
 ${groups
   .map(
     (g) => `<h2>${esc(g.title)} · ${g.items.length}</h2><div class="grid">

@@ -6,19 +6,19 @@
   import { untrack } from 'svelte';
   import { SvelteFlow, type NodeTypes } from '@xyflow/svelte';
   import '@xyflow/svelte/dist/style.css';
-  import { setGraphContext } from '../../src/ui/context';
-  import CellNode from '../../src/ui/CellNode.svelte';
-  import VoiceNode from '../../src/ui/VoiceNode.svelte';
-  import MaterialNode from '../../src/ui/MaterialNode.svelte';
-  import ScopeNode from '../../src/ui/ScopeNode.svelte';
-  import SunNode from '../../src/ui/SunNode.svelte';
-  import CellGlyph from '../../src/ui/CellGlyph.svelte';
-  import SpectrumWheel from '../../src/ui/SpectrumWheel.svelte';
-  import WaveGlyph from '../../src/ui/WaveGlyph.svelte';
-  import { hubLabel } from '../../src/layout/cellview';
-  import type { FlowNode } from '../../src/ui/types';
+  import { setGraphContext } from '../../../src/ui/context';
+  import CellNode from '../../../src/ui/CellNode.svelte';
+  import VoiceNode from '../../../src/ui/VoiceNode.svelte';
+  import MaterialNode from '../../../src/ui/MaterialNode.svelte';
+  import ScopeNode from '../../../src/ui/ScopeNode.svelte';
+  import SunNode from '../../../src/ui/SunNode.svelte';
+  import CellGlyph from '../../../src/ui/CellGlyph.svelte';
+  import SpectrumWheel from '../../../src/ui/SpectrumWheel.svelte';
+  import WaveGlyph from '../../../src/ui/WaveGlyph.svelte';
+  import { hubLabel } from '../../../src/layout/cellview';
+  import type { FlowNode } from '../../../src/ui/types';
   import type { Fixture } from './fixtures';
-  import { madeUpSound } from './sound';
+  import { madeUpSound } from '../sound';
 
   let props: { fixture: Fixture; sizes: readonly number[]; playing?: boolean } = $props();
   // (fixed for the life of the sheet)
