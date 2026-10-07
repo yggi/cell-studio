@@ -10,7 +10,7 @@ import type { LiveState } from '../engine/live';
 import { physicsOf } from '../engine/clocking';
 import { pulleys } from '../layout/belts';
 import { groundsOf, meterIndex } from '../layout/meters';
-import type { MeterTrace } from '../layout/physics';
+import type { MeterTrace } from '../layout/state';
 import type { GraphSnapshot } from './snapshot';
 
 const nameOf = (id: string) => id.slice('cell:'.length);

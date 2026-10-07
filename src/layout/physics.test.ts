@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { parse } from '../engine/parser';
-import { ForceLayout, DEFAULT_LAYOUT, FORCES_ALONE, columns, crossingPairs, flowRanks, orderLayers, tapeFaces } from './physics';
+import { ForceLayout } from './physics';
+import { DEFAULT_LAYOUT, FORCES_ALONE } from './options';
+import { columns, flowRanks, orderLayers } from './start';
+import { crossingPairs } from './forces';
+import { tapeFaces } from './aims';
 import { fitTurn, headAngle, tapeHeads } from './tape';
 import { groundsOf } from './meters';
 import { splinePoint } from './geometry';

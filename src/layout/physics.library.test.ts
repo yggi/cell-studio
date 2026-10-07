@@ -1,6 +1,7 @@
 import { afterAll, describe, expect, it } from 'vitest';
 import { readFileSync, writeFileSync } from 'node:fs';
-import { ForceLayout, DEFAULT_LAYOUT, countCrossings } from './physics';
+import { ForceLayout, countCrossings } from './physics';
+import { DEFAULT_LAYOUT } from './options';
 import type { LayoutQuality } from './quality';
 import { buildGraph } from '../engine/graph';
 import { compileSource } from '../engine/compile';

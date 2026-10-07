@@ -1,6 +1,6 @@
 <script lang="ts">
   /**
-   * A trace of a meter's net (#27, layout/physics.ts meterNet): a meter reaches each cell it steps through the
+   * A trace of a meter's net (#27, layout/nets.ts meterNet): a meter reaches each cell it steps through the
    * others, like ground on a circuit board: a backbone, a wide trace in the meter's colour. It carries no pulse of its own: every trace of a meter blinks at once,
    * on each of its steps (brighter on its first), so the whole net shows one signal.
    */
