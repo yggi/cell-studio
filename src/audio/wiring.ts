@@ -9,7 +9,7 @@
  */
 import { BODIES, type CompileResult } from '../engine/program';
 import { flows, type Flow } from '../engine/flows';
-import { liveGains, outputSounds } from '../engine/realize';
+import { liveGains, outputSounds, returnGains } from '../engine/realize';
 import { cellId } from '../engine/ids';
 
 /**
@@ -85,10 +85,11 @@ export function wiring(result: CompileResult, muted: ReadonlySet<string> = new S
     const w = into(t.name, 'write').find((f) => f.from === t.source);
     if (w) for (const m of into(t.source, 'mix')) if (voice(m.from)) add({ kind: 'record', from: m.from, to: t.name, gain: m.gain ?? 1, flows: [m, w] });
   }
-  // read heads in mixes: back to the sound card, left and right at their levels
+  // read heads in mixes: back to the sound card, left and right at their levels (through the mixes and sound cards that are on)
   for (const r of result.returns) {
     const p = headOf(r.head);
-    if (p && p.from === r.tape) add({ kind: 'return', from: r.head, to: r.tape, gain: 1, gains: r.gains, flows: [p] });
+    const gains = returnGains(r, muted);
+    if (p && p.from === r.tape && (gains[0] > 0 || gains[1] > 0)) add({ kind: 'return', from: r.head, to: r.tape, gain: 1, gains, flows: [p] });
   }
   // resonators excited by a mix with tape heads in it: the heads drive them too
   for (const c of result.cells.values()) {
@@ -106,7 +107,7 @@ export function wiring(result: CompileResult, muted: ReadonlySet<string> = new S
     ...result.outputs
       .filter((o) => !o.silent && outputSounds(result, o, muted))
       .flatMap((o) => (o.kit ? [o.voice, ...(result.cells.get(o.voice)?.children.keys() ?? [])] : [o.voice])),
-    ...result.resonances.filter((x) => !off(x.cell)).map((x) => x.cell),
+    ...result.resonances.filter((x) => !off(x.cell) && returnGains(x, muted).some((g) => g > 0)).map((x) => x.cell),
   ]);
   // resonators: heard at the levels of every mix they're in (struck there, or ringing alone)
   const levels = new Map<string, readonly [number, number]>();
@@ -124,7 +125,11 @@ export function wiring(result: CompileResult, muted: ReadonlySet<string> = new S
         ((l += g[0]), (r += g[1]));
       }
     }
-    for (const x of result.resonances) if (x.cell === name && !off(name)) ((l += x.gains[0]), (r += x.gains[1]));
+    for (const x of result.resonances)
+      if (x.cell === name && !off(name)) {
+        const g = returnGains(x, muted);
+        ((l += g[0]), (r += g[1]));
+      }
     levels.set(name, [l, r]);
   }
   return { connections: all, heard, levels };
