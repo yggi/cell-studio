@@ -69,6 +69,8 @@ export const SHOWS = [
   'off',
   'matrix',
   'lfo',
+  'sun',
+  'brightness',
 ] as const;
 /** Naming conventions, after a colon: show=notes:flats. */
 export const SHOW_CONVENTIONS: Readonly<Record<string, readonly string[]>> = { notes: ['flats', 'sharps', 'german'], do: ['fixed', 'movable'] };

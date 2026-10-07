@@ -5,7 +5,7 @@
 
 <script lang="ts">
   import { onDestroy, untrack } from 'svelte';
-  import { noteColour } from './theme';
+  import { blockColour, noteColour } from './theme';
   import { cellView, hubLabel, type CellView, type Fill, type Segment } from '../layout/cellview';
   import { BORDER, border, coarsen } from '../layout/coarse';
   import { names, noteLabel, tonicOf, voiceBase } from '../layout/show';
@@ -276,7 +276,17 @@
     laid = { key, segments, slots };
     return slots;
   });
-  const fills = $derived(view.segments.map((s) => s.bands.map(fillOf)));
+  // show=brightness: each degree of a table shaded by the mode that starts on it — the sum of that mode's steps up from
+  // it, against the others' (Lydian brightest … Locrian darkest), in the sun's gold
+  const brightness = $derived.by(() => {
+    if (view.show !== 'brightness' || view.mode !== 'grid' || view.ticks < 2) return null;
+    const lap = view.ticks;
+    const at = view.segments.map((sg) => Math.round(sg.t0 * lap));
+    const sums = at.map((p) => at.reduce((sum, q) => sum + ((((q - p) % lap) + lap) % lap), 0));
+    const [lo, hi] = [Math.min(...sums), Math.max(...sums)];
+    return sums.map((v) => (hi > lo ? (v - lo) / (hi - lo) : 0.5));
+  });
+  const fills = $derived(view.segments.map((s, i) => (brightness ? s.bands.map(() => blockColour(brightness[i])) : s.bands.map(fillOf))));
 
   // What space the wheel is drawn in, said by its rim (docs/notes/nets.md, the wheels): a table, scale, key or grid
   // is laid out by pitch — its rim the grid, a rainbow of its steps, those it holds bright (a sieve); a braid by time —

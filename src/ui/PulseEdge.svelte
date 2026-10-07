@@ -62,7 +62,7 @@
   const occurrences = $derived.by((): number[] => {
     // (only on a cell's own wheel: a scope, a sun or a turntable has no segments to meet)
     const reader = ctx.program.cells.get(d.to);
-    if (d.port !== 'braid' || !rimOf(d.sizes?.to) || !reader || isTurntable(reader) || reader.params.scope || reader.params.sun) return [];
+    if (d.port !== 'braid' || !rimOf(d.sizes?.to) || !reader || isTurntable(reader) || reader.params.scope || reader.show === 'sun') return [];
     void ctx.turned;
     const parent = ctx.program.cells.get(d.to);
     const units = new Set(parent?.units.flatMap((u, i) => (u.atom.kind === 'ref' && u.atom.name === d.from ? [i] : [])) ?? []);

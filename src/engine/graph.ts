@@ -213,9 +213,6 @@ export function buildGraph(result: CompileResult): GraphModel {
         pick: 'play',
         ...wire('play', sounds(c.params.play) ? 'audio' : 'cv', cellId(c.params.play), id, chord(c.params.play)),
       });
-    // a sun: the day of the law it shows
-    if (typeof c.params.sun === 'string' && result.cells.has(c.params.sun))
-      link({ id: edgeId(cellId(c.params.sun), id), source: cellId(c.params.sun), target: id, kind: 'out', count: 1, pick: 'sun', ...wire('sun', 'cv', cellId(c.params.sun), id) });
     // FM: the modulator feeds its carrier
     if (typeof c.params.fm === 'string' && result.cells.has(c.params.fm))
       link({ id: edgeId(cellId(c.params.fm), id), source: cellId(c.params.fm), target: id, kind: 'out', count: 1, pick: 'fm', ...wire('fm', 'audio', cellId(c.params.fm), id) });

@@ -29,8 +29,8 @@ export function flowNodeOf(g: GraphNode, position: { x: number; y: number }, isP
     const summary = ['white', 'pink', 'brown'].includes(src) ? src : `${src} · ${+g.cell.freq.toFixed(2)}`;
     return { id: g.id, type: 'voice', position, data: { name: g.cell.name, summary, size: 120 * g.cell.size, pinned: isPinned } };
   }
-  // the sun of a day's law: a dial
-  if (typeof g.cell.params.sun === 'string') return { id: g.id, type: 'sun', position, data: { name: g.cell.name, size: 220 } };
+  // a day meter shown as the sun (show=sun): a dial
+  if (g.cell.show === 'sun') return { id: g.id, type: 'sun', position, data: { name: g.cell.name, size: 220 } };
   // an oscilloscope: a screen
   if (typeof g.cell.params.scope === 'string') return { id: g.id, type: 'scope', position, data: { name: g.cell.name, size: 200 } };
   // (size= scales it: &bar size=2 twice as large)

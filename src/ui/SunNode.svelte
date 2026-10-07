@@ -25,16 +25,17 @@
   const sky = `sky${++suns}`;
   const R = S / 2;
   const cell = $derived(ctx.program.cells.get(d.name));
-  const law = $derived(cell && typeof cell.params.sun === 'string' ? ctx.program.cells.get(cell.params.sun) : undefined);
-  const anchor = $derived.by(() => {
-    const a = law && typeof law.params.anchor === 'number' ? law.params.anchor : 11.55;
-    return Math.floor(a) * 3600 + Math.round((a % 1) * 100) * 60;
-  });
+  // a day meter (show=sun): its own anchor= says where it stands when play starts; the law that reads it (over=) its
+  // modes, block by block, from its own 11:55
+  const sec = (h: number) => Math.floor(h) * 3600 + Math.round((h % 1) * 100) * 60;
+  const law = $derived([...ctx.program.cells.values()].find((c) => c.params.law === 'fiveto12' && c.over === d.name));
+  const anchor = $derived(typeof cell?.params.anchor === 'number' ? sec(cell.params.anchor) : 0);
+  const lawStart = sec(11.55);
   // where the piece is: playing, its time; stopped, where play will start
   const t = $derived(ctx.live?.seconds ?? ctx.cursor);
   const ofDay = $derived((((anchor + t) % 86400) + 86400) % 86400);
   const hhmm = $derived(`${Math.floor(ofDay / 3600)}:${String(Math.floor((ofDay % 3600) / 60)).padStart(2, '0')}`);
-  const where = $derived(place(t / SECONDS_PER_STEP));
+  const where = $derived(place(((((anchor - lawStart + t) % 86400) + 86400) % 86400) / SECONDS_PER_STEP));
   // a time of day, in turns: noon at the top, turning clockwise (east → south → west)
   const turns = (sec: number) => (sec / 3600 - 12) / 24;
   const at = (sec: number, r: number) => {
@@ -44,7 +45,9 @@
   // a mode's brightness: Lydian 1 … Locrian 0
   const BRIGHT = [5, 3, 1, 6, 4, 2, 0].map((b) => b / 6); // by mode index: Ionian … Locrian
   const arc = (s0: number, s1: number, r0: number, r1: number) => ringSegment(R, R, r0, r1, turns(s0), turns(s1));
-  const blocks = $derived(DAY_MODES.map((m, b) => ({ s0: anchor + b * 7200, s1: anchor + (b + 1) * 7200, light: BRIGHT[m], name: `${MODE_NAMES[m]} · ${BLOCK_NAMES[b]}` })));
+  const blocks = $derived(
+    (law ? DAY_MODES : []).map((m, b) => ({ s0: lawStart + b * 7200, s1: lawStart + (b + 1) * 7200, light: BRIGHT[m], name: `${MODE_NAMES[m]} · ${BLOCK_NAMES[b]}` })),
+  );
   const sun = $derived(at(ofDay, R * 0.62));
   const up = $derived(ofDay > 6 * 3600 && ofDay < 18 * 3600);
 

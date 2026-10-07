@@ -269,6 +269,10 @@ The owner's idea: lay a fresh graph out as the library is (`layout/library.ts`):
 
 The golden graph gains, the library loses by a fifth: the layered start (rows by the signal path, columns by the voices) already does what gathering does, and growing undoes some of it. Off, kept as options. Worth trying again once nets pull in the layout (their segments as springs), when there is more to gather by.
 
+### Built: the sun, split (2026-10-07)
+
+The owner: the law reads the day via `over=&day`. Built as refined above: `RATE_UNITS` gains `min` `h` `d` `wk`; `anchor=` applies to clocks; `sun=` and the law's own anchor retire. The law takes the offset from its day's anchor (`lawOffset` in `realize.ts`, against 11:55, where the law's cycle starts), so *5 to 12* plays the same notes as before (checked: identical events, and a test that anchor 13.55 at 0 s is 11.55 at 7200 s). `show=sun` draws the day meter as the dial (`SunNode`, which finds the law that reads it); `show=brightness` shades each segment of a mode table by its brightness (`CellGlyph`). In the golden graph `&blues` shows brightness and `&cycle` reads `&day`.
+
 ### Order
 
 1. The weights table and weighted crossings: measurable against the baseline, no change to the model.
@@ -281,5 +285,5 @@ The golden graph gains, the library loses by a fifth: the layered start (rows by
 1. **The canon's clean form** (decision 6): a canon is one net, `&john`, with three taps at a delay. As copies today, `&john[<<1]`. Once `&<` exists, as taps of what was played. Which of the two the Frère Jacques example shows is to be decided when `&<` comes.
 2. **The net's style** (decision 9): which styles (strands or one line, a pulse or still, coloured or neutral), and the spelling of the attribute and of the decorator.
 3. **The time source** (decision 11): its name and attributes, and how a tap names its unit.
-4. **The law and the day:** how `law=fiveto12` reads the day meter (`over=&day`, its step, or a new port).
+4. **The law and the day:** decided, `over=&day` (built).
 5. **Junctions in the layout:** a net's branch points as real (massless) nodes, or drawn only.
