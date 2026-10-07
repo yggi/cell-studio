@@ -42,7 +42,7 @@
     cursor: 0,
     epoch: 0,
     move() {},
-    ...madeUpSound(() => playing),
+    sound: madeUpSound(() => playing),
   });
   const nodeTypes = { cell: CellNode, voice: VoiceNode, material: MaterialNode, scope: ScopeNode, sun: SunNode } as NodeTypes;
   const name = f.node.data.name;

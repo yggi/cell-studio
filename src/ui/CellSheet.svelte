@@ -136,7 +136,7 @@
       const ref = /^&([A-Za-z_][A-Za-z0-9_]*)/.exec(t)?.[1];
       if (ref && ctx.program.cells.get(ref) && shown_?.show !== 'pattern') {
         try {
-          parts = cellView(ctx.program, ref, shown, false).segments.map((sg) => {
+          parts = cellView(ctx.program, ref, shown, false)?.segments.map((sg) => {
             const top = sg.bands[sg.bands.length - 1];
             return { w: sg.t1 - sg.t0, hue: top?.kind === 'pitch' ? top.hue : null };
           });

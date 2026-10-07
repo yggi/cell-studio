@@ -113,7 +113,7 @@ describe('coarsen on the Prelude', () => {
 
   it('brings the long braids to about the cap, and leaves what is under it alone', () => {
     for (const n of ['lh', 'rh', 'lhFigure', 'rhFigure', 'alto', 'bass', 'soprano']) {
-      const v = cellView(r, n, sh, false);
+      const v = cellView(r, n, sh, false)!;
       const out = coarsen(v.segments);
       expect(v.segments.length, n).toBeGreaterThan(MAX_SEGMENTS);
       expect(out.length, n).toBeLessThanOrEqual(MAX_SEGMENTS * 1.25);
@@ -128,7 +128,7 @@ describe('coarsen on the Prelude', () => {
       }
     }
     for (const n of ['subject', 'alto4']) {
-      const v = cellView(r, n, sh, false);
+      const v = cellView(r, n, sh, false)!;
       expect(coarsen(v.segments)).toBe(v.segments);
     }
   });

@@ -8,7 +8,7 @@
   import { SvelteFlow, type NodeTypes } from '@xyflow/svelte';
   import '@xyflow/svelte/dist/style.css';
   import { setGraphContext } from '../../../src/ui/context';
-  import { flowEdgeOf, meterEdgeOf } from '../../../src/ui/flowedge';
+  import { flowEdgeOf, meterEdgeOf } from '../../../src/ui/flowedges';
   import PulseEdge from '../../../src/ui/PulseEdge.svelte';
   import BeltEdge from '../../../src/ui/BeltEdge.svelte';
   import MeterEdge from '../../../src/ui/MeterEdge.svelte';
@@ -86,8 +86,7 @@
     cursor: 0,
     epoch: 0,
     move() {},
-    ...madeUpSound(() => playing),
-    note: () => (playing ? (c.note ?? 261.63) : null),
+    sound: { ...madeUpSound(() => playing), note: () => (playing ? (c.note ?? 261.63) : null) },
   });
 </script>
 
