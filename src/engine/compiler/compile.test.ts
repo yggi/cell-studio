@@ -784,6 +784,13 @@ describe('diagnostics: nothing plays, or the wrong thing, without a word (#143)'
     }
   });
 
+  it('a cap says what the user wrote: an unnamed cell as such, a rate past counting as unbounded (#163)', () => {
+    expect(said(`&a 0!4000\n${piece('&tune step=4 &(&a!4000)')}`).map((d) => [d[1], d[3]])).toEqual([
+      [2, expect.stringMatching(/^An unnamed cell &\( … \) expands to 16,000,000 notes/)],
+    ]);
+    expect(said(piece(`&tune step=${'9'.repeat(400)} 0 1`)).map((d) => d[3])).toEqual([expect.stringMatching(/^&tune would start unboundedly many notes a second/)]);
+  });
+
   it("a cell whose line failed isn't reported again where it is used", () => {
     expect(said(piece('&a 0 1 (\n&tune step=120bpm &a &a\n&c over=&a 0'))).toEqual([['error', 1, 8, "Unexpected '(' — expected a number, ~, [chord], &cell or key=value"]]);
     expect(said('&a 0 1 (\n&m [&a]')).toEqual([['error', 1, 8, "Unexpected '(' — expected a number, ~, [chord], &cell or key=value"]]);
