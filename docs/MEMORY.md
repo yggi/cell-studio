@@ -51,6 +51,7 @@ One line each; the record has the rationale. → [decisions/](decisions/README.m
 - 006 · The mix algebra: a factor's sort (pitch, volume, signal) comes from the cell, not its place; `+` and `*` commute; numbers are semitones in a sum, a gain in a product · → decisions/006-mix-algebra.md
 - 007 · `pan=` is back, a balance in dough's sense, compiled into the channel gains; two chords on the sound card stay valid · → decisions/007-pan-is-back.md
 - 008 · A turning table comes round after its own length; `cycle=` only when it differs · → decisions/008-tables-come-round.md
+- 010 · A canon's `[<<n]` is a copy (the score replayed); `play= at=` reads what was recorded; a tap of what was played waits for `&<` (#149) · → decisions/010-canon-copies.md
 
 ## Where things are tracked
 

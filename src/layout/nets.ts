@@ -16,8 +16,9 @@ export type Piece = { a: string; b: string; seg: [number, number, number, number
  * are its junctions — it comes into a cell and flares out of it to the next — each joined to the one nearest it
  * already joined, a join through a wheel costing as much again for each wheel. A bus (a table's, a melody's) leaves
  * its owner once, to the reader nearest it; a meter's ground joins it wherever it is nearest. Sound branches from its
- * owner to each reader (a star): a voice into two mixes doesn't pass through the one to the other. By tap (edge id):
- * the node it comes from, and its reader.
+ * owner to each reader (a star): a voice into two mixes doesn't pass through the one to the other; so do taps at a
+ * delay (a canon's copies, a tape's heads), each delay counted from the owner. By tap (edge id): the node it comes
+ * from, and its reader.
  */
 export function netTree(s: LayoutState, net: GraphModel['nets'][number]): Map<string, { from: string; to: string }> {
   const out = new Map<string, { from: string; to: string }>();
@@ -48,7 +49,7 @@ export function netTree(s: LayoutState, net: GraphModel['nets'][number]): Map<st
     return Math.max(1, Math.sqrt(l2) - a.radius - b.radius) * (1 + through);
   };
   const bus = net.port !== 'step';
-  if (net.band === 'audio') {
+  if (net.band === 'audio' || net.delayed) {
     for (const r of readers) out.set(r.id, { from: o.id, to: r.n.id });
     return out;
   }
@@ -77,8 +78,9 @@ export function netTree(s: LayoutState, net: GraphModel['nets'][number]): Map<st
 export function stepNets(s: LayoutState, alpha: number): void {
   const o = s.opts;
   if (o.netPull <= 0 && o.netClear <= 0) return;
-  // (laid again every tick: measured, it settles better than a tree kept for a few — docs/notes/nets.md)
-  const trees = s.nets.map((net) => ({ net, tree: netTree(s, net) }));
+  // (laid again every tick: measured, it settles better than a tree kept for a few — docs/notes/nets.md; a net at
+  // delays is a star, pulled by its edges' own springs: physics.ts)
+  const trees = s.nets.filter((net) => !net.delayed).map((net) => ({ net, tree: netTree(s, net) }));
   const wheels = [...s.byId.values()].filter((w) => w.role !== 'tag');
   for (const { net, tree } of trees) {
     const bus = net.port !== 'step';
