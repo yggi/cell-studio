@@ -6,7 +6,7 @@ import type { Edge } from '@xyflow/svelte';
 import type { GraphEdge } from '../engine/graph';
 import type { CompileResult } from '../engine/program';
 import type { State } from '../engine/routing';
-import type { MeterTrace } from '../layout/physics';
+import type { MeterTrace } from '../layout/state';
 
 const nameOf = (id: string) => id.slice('cell:'.length);
 

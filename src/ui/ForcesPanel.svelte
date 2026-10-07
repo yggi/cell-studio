@@ -1,6 +1,6 @@
 <script lang="ts">
   /** Sliders for the layout's main forces. Changes apply live; Reset restores the defaults. */
-  import type { LayoutOptions } from '../layout/physics';
+  import type { LayoutOptions } from '../layout/options';
 
   type Key =
     | 'columnPull'

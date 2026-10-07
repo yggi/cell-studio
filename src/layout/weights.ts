@@ -1,8 +1,8 @@
 /**
  * What the layout weighs (docs/notes/nets.md, mass and strength): a node's mass by what it is, an edge's strength by
  * what it carries. A heavy node moves less and holds more room, so the backbones anchor and light cells settle round
- * them; a strong edge pulls harder, and crossing it costs more. One table, read by the forces (physics.ts) and the
- * quality count (quality.ts).
+ * them; a strong edge pulls harder, and crossing it costs more. One table, read by the forces (start.ts, physics.ts)
+ * and the quality count (quality.ts).
  */
 import { isTurntable, type GraphEdge, type GraphNode } from '../engine/graph';
 

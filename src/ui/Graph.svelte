@@ -8,7 +8,9 @@
   import { structureKey, type GraphEdge, type GraphModel, type GraphNode } from '../engine/graph';
   import type { LiveState } from '../engine/live';
   import { drawn, edgeStateOf, type Routing } from '../engine/routing';
-  import { DEFAULT_LAYOUT, ForceLayout, type LayoutOptions, type MeterTrace } from '../layout/physics';
+  import { ForceLayout } from '../layout/physics';
+  import { DEFAULT_LAYOUT, type LayoutOptions } from '../layout/options';
+  import type { MeterTrace } from '../layout/state';
   import type { FlowNode } from './types';
   import { setGraphContext } from './context';
   import { flowNodeOf, PETAL, physical } from './flownode';
