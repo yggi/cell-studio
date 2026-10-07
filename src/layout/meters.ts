@@ -28,3 +28,21 @@ export function meterNow(segments: readonly { index: number; t0: number; t1: num
   const s = segments[at];
   return { turn: s.t0 + (beatAt - beat) * (s.t1 - s.t0), at };
 }
+
+/** What tickLevel reads of a meter (a ResolvedCell). */
+interface Ticking {
+  readonly leveled: boolean;
+  readonly units: readonly { readonly atom: { readonly kind: string; readonly value?: number } }[];
+}
+
+/**
+ * The level of a meter's tick now (the palette's sync value, ui/palette.ts): 0 the bar's first, 1 a beat, 2 … 3 finer.
+ * A meter written as levels (meter(…)) says each step's; any other clock: its first step 0, the rest 1.
+ */
+export function tickLevel(meter: Ticking | undefined, beatAt: number): number {
+  const step = Math.floor(beatAt + 1e-9);
+  const n = meter?.leveled ? meter.units.length : 0;
+  const atom = n ? meter!.units[((step % n) + n) % n].atom : null;
+  if (atom?.kind === 'note' && typeof atom.value === 'number') return Math.max(0, Math.min(3, Math.round(atom.value)));
+  return step === 0 ? 0 : 1;
+}
