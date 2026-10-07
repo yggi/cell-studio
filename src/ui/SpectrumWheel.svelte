@@ -163,8 +163,8 @@
       else fillResting();
       draw();
     }
-    const live = playing ? timed('wheel.read', () => ctx.spectrum(name)) : null;
-    sounding = playing && !fixed ? ctx.note(name) : null;
+    const live = playing ? timed('wheel.read', () => ctx.sound.spectrum(name)) : null;
+    sounding = playing && !fixed ? ctx.sound.note(name) : null;
     if (live) {
       const l = bandsFromFFT(live.left, live.sampleRate, BANDS);
       const r = bandsFromFFT(live.right, live.sampleRate, BANDS);

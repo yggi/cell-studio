@@ -1,4 +1,4 @@
-// Shorten a .cells source with the studio's own Shorten (src/engine/compress.ts): stdin → stdout, the steps on stderr.
+// Shorten a .cells source with the studio's own Shorten (src/engine/shorten/): stdin → stdout, the steps on stderr.
 // For generators (tools/bwv847.py) that write longhand and want the shorter form without a second copy of the rules.
 //   node tools/shorten.mjs [--within "<regex>"] < in.cells > out.cells
 // --within: take only suggestions whose cells all share one match of the regex's first group (a phrase shared
@@ -12,7 +12,7 @@ const group = (name) => within?.exec(name)?.[1] ?? null;
 
 const server = await createServer({ configFile: false, appType: 'custom', logLevel: 'silent', server: { middlewareMode: true } });
 try {
-  const { shorten } = await server.ssrLoadModule('/src/engine/compress.ts');
+  const { shorten } = await server.ssrLoadModule('/src/engine/shorten/');
   const ok = (s) => {
     if (!within) return true;
     const names = [...s.title.matchAll(/&([A-Za-z_][A-Za-z0-9_]*)/g)].map((m) => m[1]);
@@ -25,7 +25,7 @@ try {
     const best = shorten(now).find(ok);
     if (!best) break;
     const next = best.apply(now);
-    if (next.length >= now.length) break;
+    if (best.saving <= 0) break;
     steps.push(`−${best.saving}: ${best.title}`);
     now = next;
   }

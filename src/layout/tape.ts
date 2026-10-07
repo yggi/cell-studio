@@ -2,7 +2,7 @@
  * Where a tape's heads sit round its wheel. What is fixed is how far apart they are: a read head sits
  * further round (clockwise) from the write head by how far along the tape it reads (`at=` seconds of
  * `length=`). The wheel as a whole is free to turn: the layout turns it so its heads face what they
- * connect to (`fitTurn`, physics.ts), and the tape's node draws it turned (MaterialNode.svelte).
+ * connect to (`fitTurn`, aims.ts), and the tape's node draws it turned (MaterialNode.svelte).
  */
 type Params = Readonly<Record<string, unknown>>;
 

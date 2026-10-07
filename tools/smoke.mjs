@@ -108,6 +108,30 @@ for (const [i, p] of wanted.entries()) {
   );
   if (!ok) failed.push(p.title);
 }
+// One piece after another while playing, each drawn against its own program (#144: a piece switch once drew the new
+// piece's edges against the old program, and threw on these two)
+const SWITCH = ['example:baustelle', 'example:resonanz', 'example:twinkle'];
+if (only.length === 0 && SWITCH.every((id) => pieces.some((p) => p.id === id))) {
+  problems = [];
+  try {
+    await page.goto(url);
+    await page.getByRole('radio', { name: 'Cards' }).click();
+    for (const id of SWITCH) {
+      // (a card opens from the library, whichever tab is showing)
+      await page.locator(`button.open[data-id="${id}"]`).dispatchEvent('click');
+      await page.waitForTimeout(300);
+      const play = page.locator('.transport').getByRole('button', { name: 'Play' }).first();
+      if (await play.count()) await play.click();
+      await page.waitForTimeout(500);
+    }
+    await page.locator('.transport').getByRole('button', { name: 'Pause' }).first().click();
+  } catch (e) {
+    problems.push(String(e.message).split('\n')[0]);
+  }
+  const ok = problems.length === 0;
+  console.log(`${ok ? 'ok  ' : 'FAIL'} switch: ${SWITCH.join(' → ')}${ok ? '' : '\n       ' + [...new Set(problems)].slice(0, 3).join('\n       ')}`);
+  if (!ok) failed.push('the piece switch');
+}
 await browser.close();
 await server.close();
 if (failed.length) {

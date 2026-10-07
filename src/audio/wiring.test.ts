@@ -169,4 +169,13 @@ describe('voices.sync wires from the flows the graph draws (#132)', () => {
     expect(by('a')).toEqual([['both', 'one']]);
     expect(by('b')).toEqual([['both', 'inst', 'two']]);
   });
+
+  it("a resonator's pan= is kept when a mix it rings in is muted (#165, #171)", () => {
+    const muted = (...names: string[]) => new Set(names.map(cellId));
+    const ring = src('&f body=fork loop=440 pan=0', '&hit step=1 0', '&m [&hit * &f]', '&ring [&f]', `${OUT} [&ring, &m] [&ring, &m]`);
+    const level = (m: ReadonlySet<string>) => wiring(ring, m).levels.get('f');
+    expect(level(new Set())).toEqual([2, 0]);
+    expect(level(muted('ring'))).toEqual([1, 0]);
+    expect(level(muted('out'))).toEqual([0, 0]);
+  });
 });

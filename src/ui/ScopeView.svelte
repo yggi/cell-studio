@@ -34,7 +34,7 @@
 
   // a sound's waveform: from a rising zero-crossing (so it stands still), scaled to fit
   function wave(name: string, n = 400): number[] | null {
-    const w = ctx.waveform(name);
+    const w = ctx.sound.waveform(name);
     if (!w) return null;
     let start = 0;
     for (let i = 1; i < w.length - n; i++)
@@ -104,7 +104,7 @@
     }
     const { n, labels, hues } = L;
     const lv = new Array(n).fill(0);
-    const fq = ctx.freqs(ch);
+    const fq = ctx.sound.freqs(ch);
     if (fq) {
       // a sound: its power, gathered into bins — then in dB, −90 … −20 as 0 … 1
       const pw = new Array(n).fill(0);
@@ -169,10 +169,10 @@
         if (mode === 'waterfall' && canvas) paintRow();
         return;
       }
-      if (ctx.live === null && !ctx.waveform(channels[0] ?? '')) return;
+      if (ctx.live === null && !ctx.sound.waveform(channels[0] ?? '')) return;
       if (mode === 'xy' && channels.length >= 2) {
-        const a = ctx.waveform(channels[0]);
-        const b = ctx.waveform(channels[1]);
+        const a = ctx.sound.waveform(channels[0]);
+        const b = ctx.sound.waveform(channels[1]);
         if (a && b) {
           const n = Math.min(a.length, b.length);
           // (the scale holds its peak and lets go slowly: a fresh strike fills the screen, and the figure
@@ -196,7 +196,7 @@
         const w = wave(name);
         if (w) {
           // (one channel: the colour of the note it sounds; several: the colour of its place)
-          const f = single ? ctx.note(name) : null;
+          const f = single ? ctx.sound.note(name) : null;
           const hue = f ? pc(12 * Math.log2(f / 440) + 69) : pc(ci);
           return { name, pts: w.map((y, i) => ({ x: i / (w.length - 1), y })), colour: () => noteColour(hue) };
         }

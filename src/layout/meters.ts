@@ -1,7 +1,7 @@
 /**
  * Meters as ground (#27): a meter drives almost everything in a piece (`step=&bar`), so its edges would run from one
  * place to every part, crossing all the rest. As in a circuit, where ground isn't drawn as a wire to every part, the
- * graph draws a meter's net instead (GraphModel.nets, the step ones; laid by layout/physics.ts: meterNet). A belt
+ * graph draws a meter's net instead (GraphModel.nets, the step ones; laid by layout/nets.ts: meterNet). A belt
  * keeps its belt: a body, drawn.
  */
 type Node = { id: string; kind: string; isMeter?: boolean; petalOf?: string };

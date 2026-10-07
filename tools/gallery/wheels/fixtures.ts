@@ -30,7 +30,7 @@ function kindOf(p: CompileResult, n: FlowNode, shifts: Shifts): string {
   if (n.type === 'voice') return `${where}:${effectiveShow(p, n.data.name).show === 'wave' ? 'wave' : 'spectrum'}`;
   if (cell.mix || cell.sink) return `${where}:spectrum`;
   const isMeter = 'isMeter' in n.data && n.data.isMeter;
-  const v = cellView(p, n.data.name, shifts, isMeter);
+  const v = cellView(p, n.data.name, shifts, isMeter)!;
   // (a cell a meter steps wears that meter's ring: a kind of its own)
   const ringed = 'ring' in n.data && n.data.ring ? 'ring' : '';
   return [where, 'cell', isMeter ? 'meter' : v.mode, v.show, ringed].filter(Boolean).join(':');
