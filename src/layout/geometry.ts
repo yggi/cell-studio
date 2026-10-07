@@ -105,31 +105,42 @@ export function radialPath(ax: number, ay: number, via: { x: number; y: number }
 }
 
 /**
- * A strand of a table's bus: out of its entry on the wheel at (cx, cy), radius r, `turns` round (0 the top, clockwise),
- * along the radius; then into its place in the bundle (`offset` px across), which gathers just outside the wheel on
- * the side towards b and runs from there along the edge's own curve (through m) to b.
+ * A wheel's strands, routed as a cable loom (a table's entries, a resonator's tines): each leaves the rim at its place
+ * (`turns`, 0 the top, clockwise) at a right angle onto a ring round the wheel, runs round it on a lane of its own
+ * towards b, and turns off it where the ring faces b, into a bundle `gap` px apart that follows the edge's curve
+ * (through m) to b. A strand further round runs outside the nearer ones and turns off first, further across, so no
+ * strand crosses another. Paths in the order of `turns`.
  */
-export function busStrandPath(cx: number, cy: number, r: number, turns: number, mx: number, my: number, bx: number, by: number, offset: number): string {
-  const d = Math.hypot(bx - cx, by - cy) || 1;
-  const [ux, uy] = [(bx - cx) / d, (by - cy) / d];
-  const [nx, ny] = [-uy * offset, ux * offset];
-  const [px, py] = polar(cx, cy, r, turns);
-  // (an entry facing away from b leaves with a short lead, so it doesn't curl out round the wheel)
-  const facing = ((px - cx) * ux + (py - cy) * uy) / (r || 1);
-  const [qx, qy] = polar(cx, cy, r + 22 * Math.max(0.1, (1 + facing) / 2) ** 2, turns);
-  const reach = r + Math.min(90, 0.3 * d);
-  const [gx, gy] = [cx + ux * reach + nx, cy + uy * reach + ny];
-  const back = Math.min(45, reach * 0.4);
-  const [kx, ky] = [2 * mx - (cx + bx) / 2 + nx, 2 * my - (cy + by) / 2 + ny];
-  const f = (n: number) => n.toFixed(1);
-  return `M ${f(px)} ${f(py)} C ${f(qx)} ${f(qy)} ${f(gx - ux * back)} ${f(gy - uy * back)} ${f(gx)} ${f(gy)} Q ${f(kx)} ${f(ky)} ${f(bx + nx)} ${f(by + ny)}`;
-}
-
-/** Where each of these points sits across the direction from (ax, ay) to (bx, by): its place in a bundle (0 … n−1). */
-export function acrossOrder(points: readonly (readonly [number, number])[], ax: number, ay: number, bx: number, by: number): number[] {
-  const [nx, ny] = [-(by - ay), bx - ax];
-  const across = points.map(([x, y], i) => ({ i, v: (x - ax) * nx + (y - ay) * ny }));
-  const rank = new Array<number>(points.length);
-  [...across].sort((p, q) => p.v - q.v).forEach((p, k) => (rank[p.i] = k));
-  return rank;
+export function loomPaths(cx: number, cy: number, r: number, turns: readonly number[], mx: number, my: number, bx: number, by: number, gap: number): string[] {
+  const phi = Math.atan2(by - cy, bx - cx);
+  const [ux, uy] = [Math.cos(phi), Math.sin(phi)];
+  const [nx, ny] = [-uy, ux];
+  const wrap = (a: number) => Math.atan2(Math.sin(a), Math.cos(a));
+  const at = turns.map((t) => t * 2 * Math.PI - Math.PI / 2);
+  const delta = at.map((a) => wrap(a - phi));
+  const side = delta.map((d) => (d >= 0 ? 1 : -1));
+  // a strand's lane: counted out from the rim among those on its side, the nearest to b innermost
+  const lane = delta.map((d, i) => delta.filter((e, j) => side[j] === side[i] && (Math.abs(e) < Math.abs(d) || (Math.abs(e) === Math.abs(d) && j < i))).length);
+  const left = side.filter((v) => v > 0).length;
+  const right = side.length - left;
+  const f = (v: number) => v.toFixed(1);
+  const lead = Math.min(50, 0.25 * Math.hypot(bx - cx, by - cy));
+  return at.map((a, i) => {
+    const rl = r + 8 + lane[i] * gap;
+    // its place across the bundle: the left side's on the left, the outermost lane outermost, the bundle centred
+    const o = side[i] > 0 ? (lane[i] + 0.5) * gap - ((left - right) * gap) / 2 : -(lane[i] + 0.5) * gap - ((left - right) * gap) / 2;
+    const psi = phi + Math.asin(Math.max(-0.95, Math.min(0.95, o / rl)));
+    const [px, py] = [cx + r * Math.cos(a), cy + r * Math.sin(a)];
+    const [qx, qy] = [cx + rl * Math.cos(a), cy + rl * Math.sin(a)];
+    const runs = Math.abs(delta[i]) > Math.abs(wrap(psi - phi)) && Math.sign(wrap(a - psi)) === side[i];
+    const [lx, ly] = runs ? [cx + rl * Math.cos(psi), cy + rl * Math.sin(psi)] : [qx, qy];
+    const arc = runs ? ` A ${f(rl)} ${f(rl)} 0 ${Math.abs(wrap(a - psi)) > Math.PI ? 1 : 0} ${side[i] > 0 ? 0 : 1} ${f(lx)} ${f(ly)}` : '';
+    // off the ring: a rounded corner into b's direction, then the edge's curve, beside the others
+    const along = (lx - cx) * ux + (ly - cy) * uy + lead;
+    const [gx, gy] = [cx + ux * along + nx * o, cy + uy * along + ny * o];
+    const [kx, ky] = [2 * mx - (cx + bx) / 2 + nx * o, 2 * my - (cy + by) / 2 + ny * o];
+    const k = lead * 0.5;
+    const [tx, ty] = runs ? [lx + ux * k, ly + uy * k] : [lx + Math.cos(a) * k, ly + Math.sin(a) * k];
+    return `M ${f(px)} ${f(py)} L ${f(qx)} ${f(qy)}${arc} C ${f(tx)} ${f(ty)} ${f(gx - ux * k)} ${f(gy - uy * k)} ${f(gx)} ${f(gy)} Q ${f(kx)} ${f(ky)} ${f(bx + nx * o)} ${f(by + ny * o)}`;
+  });
 }

@@ -12,7 +12,7 @@
    */
   import { BaseEdge, type EdgeProps } from '@xyflow/svelte';
   import { untrack } from 'svelte';
-  import { acrossOrder, busStrandPath, polar, radialPath, ripplePath, splinePoint, strandPath } from '../layout/geometry';
+  import { loomPaths, radialPath, ripplePath, splinePoint, strandPath } from '../layout/geometry';
   import { cellView, type Fill } from '../layout/cellview';
   import { isTurntable } from '../engine/graph';
   import { getGraphContext } from './context';
@@ -93,26 +93,35 @@
     const exits = d.table && r ? Array.from({ length: count }, (_, i) => entryOf(i)) : [];
     if (!exits.length || exits.some((s) => !s))
       return Array.from({ length: count }, (_, i) => strandPath(sourceX, sourceY, mid.x, mid.y, targetX, targetY, (i - (count - 1) / 2) * GAP));
-    // out of each entry, along the radius; gathered into a bundle towards the reader, in the order they sit across it
-    const turns = exits.map((s) => (s!.t0 + s!.t1) / 2);
-    const slot = acrossOrder(
-      turns.map((t) => polar(sourceX, sourceY, r, t)),
+    // out of each entry at a right angle, round the wheel on its lane, into a bundle towards the reader
+    return loomPaths(
       sourceX,
       sourceY,
+      r,
+      exits.map((s) => (s!.t0 + s!.t1) / 2),
+      mid.x,
+      mid.y,
       targetX,
       targetY,
+      GAP,
     );
-    return turns.map((t, i) => busStrandPath(sourceX, sourceY, r, t, mid.x, mid.y, targetX, targetY, (slot[i] - (count - 1) / 2) * GAP));
   });
   const fillColour = (f: Fill | undefined) => (f?.kind === 'pitch' ? noteColour(f.hue, false, f.octave ?? 0) : 'var(--edge)');
   // a resonator's tines: a strand into each pad (round its body, as MaterialNode lays them), lit while it rings
   const tinePaths = $derived.by(() => {
     if (!d.tines || !d.sizes?.to) return [];
     const n = d.tines.length;
-    const r = (d.sizes.to / 2) * 1.2;
-    const ends = d.tines.map((_, i) => polar(targetX, targetY, r, i / n));
-    const slot = acrossOrder(ends, targetX, targetY, sourceX, sourceY);
-    return d.tines.map((_, i) => busStrandPath(targetX, targetY, r, i / n, mid.x, mid.y, sourceX, sourceY, (slot[i] - (n - 1) / 2) * GAP));
+    return loomPaths(
+      targetX,
+      targetY,
+      (d.sizes.to / 2) * 1.2,
+      d.tines.map((_, i) => i / n),
+      mid.x,
+      mid.y,
+      sourceX,
+      sourceY,
+      GAP,
+    );
   });
   const tineStrands = $derived.by(() => {
     if (!d.tines) return [];
