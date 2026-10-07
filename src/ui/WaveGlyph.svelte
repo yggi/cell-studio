@@ -1,7 +1,7 @@
 <script lang="ts">
   import { fmWave } from '../engine/fm';
   /**
-   * An instrument's or a read head's wheel (show=wave, a voice's plain show): its waveform in a disc — stopped, one
+   * An instrument's, a mix's or a read head's wheel (show=wave, a voice's plain show): its waveform in a disc — stopped, one
    * cycle of it; playing, the sound itself, held still from a rising zero-crossing (as the scope holds it).
    */
   import { onDestroy, onMount } from 'svelte';
@@ -31,8 +31,8 @@
   const noteFont = $derived(fitFont(size * 0.4, note.length, hubMax(size, 12)));
   const points = $derived.by(() => {
     let w: Float32Array;
-    // (a read head has no cycle of its own: stopped, only its line)
-    if (typeof cell?.params.play === 'string') return '';
+    // (a read head or a mix has no cycle of its own: stopped, only its line)
+    if (typeof cell?.params.play === 'string' || cell?.mix) return '';
     const src = cell?.params.s === undefined ? null : String(cell.params.s);
     try {
       // an FM voice: its modulated wave (at its brightest), not its carrier's

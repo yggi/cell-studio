@@ -22,7 +22,7 @@
   });
   const state = $derived(nodeState(ctx, id));
   const freeCell = $derived(ctx.program.cells.get(data.name));
-  // mixes and the sound card are signals: they show their spectrum (a read head, its waveform)
+  // mixes and the sound card are signals: a mix shows its waveform (as a read head does), the sound card its spectrum
   const cell = $derived(ctx.program.cells.get(data.name));
   // (a read head of a sound tape: what it plays back is sound — its waveform, with where it reads)
   const soundHead = $derived(!!cell && typeof cell.params.play === 'string' && ctx.program.tapes.some((t) => t.name === cell.params.play));
@@ -58,7 +58,7 @@
     {@attach longpress(() => ctx.toggle(id))}
   >
     <Handle type="target" position={Position.Top} class="center-handle" isConnectable={false} />
-    {#if soundHead}
+    {#if soundHead || (cell?.mix && !cell.sink)}
       <WaveGlyph name={data.name} size={data.size} caption={hub ? `${hub.big} ${hub.small}` : null} />
     {:else if signal && hub}
       <SpectrumWheel name={data.name} size={data.size} {hub} />

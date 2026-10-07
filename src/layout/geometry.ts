@@ -133,14 +133,25 @@ export function loomPaths(cx: number, cy: number, r: number, turns: readonly num
     const [px, py] = [cx + r * Math.cos(a), cy + r * Math.sin(a)];
     const [qx, qy] = [cx + rl * Math.cos(a), cy + rl * Math.sin(a)];
     const runs = Math.abs(delta[i]) > Math.abs(wrap(psi - phi)) && Math.sign(wrap(a - psi)) === side[i];
+    // the way round: towards b (a strand on b's left goes back round, to smaller angles)
+    const dir = side[i] > 0 ? -1 : 1;
+    // onto the ring: up the radius, round a corner of radius rc onto its lane (not a right angle)
+    const rc = Math.min(rl - r - 1, 3 * gap, Math.abs(wrap(a - psi)) * rl * 0.5);
+    const on = runs && rc > 1 ? a + (dir * rc) / rl : a;
+    const [sx, sy] = [cx + (rl - rc) * Math.cos(a), cy + (rl - rc) * Math.sin(a)];
+    const [ox, oy] = [cx + rl * Math.cos(on), cy + rl * Math.sin(on)];
+    const onto = runs && rc > 1 ? ` L ${f(sx)} ${f(sy)} Q ${f(qx)} ${f(qy)} ${f(ox)} ${f(oy)}` : ` L ${f(qx)} ${f(qy)}`;
     const [lx, ly] = runs ? [cx + rl * Math.cos(psi), cy + rl * Math.sin(psi)] : [qx, qy];
-    const arc = runs ? ` A ${f(rl)} ${f(rl)} 0 ${Math.abs(wrap(a - psi)) > Math.PI ? 1 : 0} ${side[i] > 0 ? 0 : 1} ${f(lx)} ${f(ly)}` : '';
-    // off the ring: a rounded corner into b's direction, then the edge's curve, beside the others
+    const arc = runs ? ` A ${f(rl)} ${f(rl)} 0 ${Math.abs(wrap(on - psi)) > Math.PI ? 1 : 0} ${side[i] > 0 ? 0 : 1} ${f(lx)} ${f(ly)}` : '';
+    // off the ring: on along its lane, round into b's direction, then the edge's curve, beside the others
     const along = (lx - cx) * ux + (ly - cy) * uy + lead;
     const [gx, gy] = [cx + ux * along + nx * o, cy + uy * along + ny * o];
     const [kx, ky] = [2 * mx - (cx + bx) / 2 + nx * o, 2 * my - (cy + by) / 2 + ny * o];
     const k = lead * 0.5;
-    const [tx, ty] = runs ? [lx + ux * k, ly + uy * k] : [lx + Math.cos(a) * k, ly + Math.sin(a) * k];
-    return `M ${f(px)} ${f(py)} L ${f(qx)} ${f(qy)}${arc} C ${f(tx)} ${f(ty)} ${f(gx - ux * k)} ${f(gy - uy * k)} ${f(gx)} ${f(gy)} Q ${f(kx)} ${f(ky)} ${f(bx + nx * o)} ${f(by + ny * o)}`;
+    // (the lane's direction where it leaves: its tangent, the way it was going)
+    // (a tight corner: a long tangent would swing it out sideways before it turns)
+    const kt = Math.min(k, 2 * gap);
+    const [tx, ty] = runs ? [lx - dir * Math.sin(psi) * kt, ly + dir * Math.cos(psi) * kt] : [lx + Math.cos(a) * kt, ly + Math.sin(a) * kt];
+    return `M ${f(px)} ${f(py)}${onto}${arc} C ${f(tx)} ${f(ty)} ${f(gx - ux * k)} ${f(gy - uy * k)} ${f(gx)} ${f(gy)} Q ${f(kx)} ${f(ky)} ${f(bx + nx * o)} ${f(by + ny * o)}`;
   });
 }
