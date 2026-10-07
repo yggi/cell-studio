@@ -249,6 +249,22 @@ Rates are a table (`RATE_UNITS`: `bpm`, `hz`, `k`, each n per so many seconds). 
 
 The landscape is noisy (×2 is best, its neighbours are worse), so the plain rule is kept: repulsion in proportion to mass. Inertia and stiffness stay as options (`inertia`, `strengthPull`), off: as tried they make it worse. Strength counts, for now, in what a crossing costs.
 
+### Tried: grown, as the library is (2026-10-07)
+
+The owner's idea: lay a fresh graph out as the library is (`layout/library.ts`): small first (nodes, edges and repulsion at a fraction of their size), its edges contracting it into its groups, then grown to full size. Built as options (`grow`, `growStart`, `growGather`, `growTicks`, `growShrink`: one scale on the collision radii, the link lengths and the repulsion, ramped smoothly). Measured over the library (crossings / cost) and on the golden graph:
+
+| | library | golden |
+|---|---|---|
+| not grown (today) | **83** / 128 | 11 |
+| from 15 %, 120 + 220 ticks | 102 / 151 | 9 |
+| from 30 % | 97 / 153 (overlaps) | 6 |
+| 40 + 120 ticks | 111 / 174 | 10 |
+| from the layered start (not drawn in) | 107 / 166 | 5 |
+| … shorter | 104 / 167 (overlaps) | 4 |
+| from 50 %, shorter | 102 / 155 | 5 |
+
+The golden graph gains, the library loses by a fifth: the layered start (rows by the signal path, columns by the voices) already does what gathering does, and growing undoes some of it. Off, kept as options. Worth trying again once nets pull in the layout (their segments as springs), when there is more to gather by.
+
 ### Order
 
 1. The weights table and weighted crossings: measurable against the baseline, no change to the model.

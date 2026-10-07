@@ -65,6 +65,16 @@ interface PhysLink extends SimulationLinkDatum<PhysNode> {
 }
 
 export interface LayoutOptions {
+  /**
+   * Grown, as the library is (layout/library.ts): a fresh graph starts small — its nodes at `growStart` of their size,
+   * its edges as short — while its edges contract it into its groups, then grows to full size. 0: laid out at full size.
+   */
+  grow: number;
+  growStart: number;
+  /** The growing, in ticks: gathering small, then growing to full size; and whether the start is drawn in too. */
+  growGather: number;
+  growTicks: number;
+  growShrink: number;
   /** How much a node's mass (weights.ts) scales its repulsion, its inertia, and an edge's strength its spring: 0 none, 1 full. */
   massRepel: number;
   inertia: number;
@@ -372,6 +382,13 @@ export function columns(model: {
 // room for their labels, edges spread round each node (stars, symmetries), time and sound keep apart,
 // tagged cells cluster; edges straighten a little and keep well off nodes.
 export const DEFAULT_LAYOUT: LayoutOptions = {
+  // (grown as the library is, measured over the examples: 102–111 crossings against 83, though the golden graph's 11
+  // fall to 4–6: off — docs/notes/nets.md)
+  grow: 0,
+  growStart: 0.15,
+  growGather: 120,
+  growTicks: 220,
+  growShrink: 1,
   // (measured over the library, docs/notes/nets.md: mass as repulsion 89 → 83 crossings; inertia and strength as
   // stiffness made it worse as tried, so they are off: strength weighs only what a crossing costs)
   massRepel: 1,
@@ -484,6 +501,8 @@ export class ForceLayout {
       .force('charge', forceManyBody<PhysNode>())
       // nodes don't overlap, labels included (this isn't tension: it only acts on contact)
       .force('collide', forceCollide<PhysNode>().strength(0.95).iterations(2))
+      // (first: the scale for this tick, while a fresh graph grows)
+      .force('grow', () => this.growStep())
       .force('uncross', forceUncross(() => this.opts.uncross) as never)
       // mass: a heavy node takes less of each push (inertia); d3 has none, so its velocity is scaled down
       .force('mass', () => {
@@ -725,11 +744,27 @@ export class ForceLayout {
     this.reheat(0.4);
   }
 
+  /** The layout's scale now (1 grown; less while a fresh graph gathers and grows), and how far it has grown, in ticks. */
+  private size = 1;
+  private growing = Infinity;
+
+  /** One tick of the growing: the scale for it, and the heat kept up while it gathers and grows (the library's way). */
+  private growStep(): void {
+    if (this.growing >= this.opts.growGather + this.opts.growTicks) return;
+    const t = Math.max(0, this.growing - this.opts.growGather) / this.opts.growTicks;
+    const s0 = this.opts.growStart;
+    this.size = s0 + (1 - s0) * t * t * (3 - 2 * t);
+    this.growing++;
+    if (this.growing >= this.opts.growGather + this.opts.growTicks) this.size = 1;
+    this.applyOptions();
+    this.sim.alpha(Math.max(this.sim.alpha(), 0.5));
+  }
+
   private applyOptions(): void {
     const o = this.opts;
     (this.sim.force('link') as ReturnType<typeof forceLink<PhysNode, PhysLink>>)
       // (a belt is drawn over the wheels: short and stiff, so its turntables sit side by side and it crosses little)
-      .distance((l) => (l.tag || l.muxed ? o.linkDistance * 1.6 : l.part ? o.linkDistance * o.partLength : l.belt ? o.linkDistance * BELT_LENGTH : o.linkDistance))
+      .distance((l) => this.size * (l.tag || l.muxed ? o.linkDistance * 1.6 : l.part ? o.linkDistance * o.partLength : l.belt ? o.linkDistance * BELT_LENGTH : o.linkDistance))
       .strength((l) =>
         l.tag
           ? 0.12
@@ -741,9 +776,12 @@ export class ForceLayout {
       );
     // busy nodes push a little harder: more room around hubs, fewer edges squeezed past them
     (this.sim.force('charge') as ReturnType<typeof forceManyBody<PhysNode>>)
-      .strength((d) => (d.role === 'tag' ? o.charge * 3 : o.charge * (1 + o.degreeRepel * Math.max(0, (this.degree.get(d.id) ?? 1) - 1)) * (1 + o.massRepel * ((d.mass ?? 1) - 1))))
-      .distanceMax(o.repelRange);
-    (this.sim.force('collide') as ReturnType<typeof forceCollide<PhysNode>>).radius((d) => d.radius + o.collidePad);
+      .strength(
+        (d) =>
+          this.size * (d.role === 'tag' ? o.charge * 3 : o.charge * (1 + o.degreeRepel * Math.max(0, (this.degree.get(d.id) ?? 1) - 1)) * (1 + o.massRepel * ((d.mass ?? 1) - 1))),
+      )
+      .distanceMax(o.repelRange * this.size);
+    (this.sim.force('collide') as ReturnType<typeof forceCollide<PhysNode>>).radius((d) => (d.radius + o.collidePad) * this.size);
     // sideways: &bar and &out to their places on the centre line, everything else gently towards it
     // sideways: &bar and &out to the centre line, the rest gently to their columns (else to the centre)
     (this.sim.force('endsX') as ReturnType<typeof forceX<PhysNode>>).strength((d) => (this.ends.has(d.id) ? o.endPull : this.colX.has(d.id) ? o.columnPull : o.centre));
@@ -926,6 +964,17 @@ export class ForceLayout {
         strength: strengthOf(e),
       }));
 
+    // a fresh graph grows (the library's way): it starts small, drawn in round its middle, and gathers before it grows
+    if (fresh && this.opts.grow) {
+      const s0 = this.opts.growStart;
+      const k = 1 - this.opts.growShrink * (1 - s0);
+      for (const p of next.values()) {
+        p.x = (p.x ?? 0) * k;
+        p.y = (p.y ?? 0) * k;
+      }
+      this.size = s0;
+      this.growing = 0;
+    }
     this.sim.nodes([...next.values()]);
     this.faces = this.faces.filter((f) => next.has(f.tape) && next.has(f.to));
     // a meter's edges (ground): kept aside, to be drawn where they cross nothing once the meter is placed
