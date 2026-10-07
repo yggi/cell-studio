@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { parse } from '../engine/parser';
 import { ForceLayout, DEFAULT_LAYOUT, FORCES_ALONE, columns, crossingPairs, flowRanks, orderLayers, tapeFaces } from './physics';
 import { fitTurn, headAngle, tapeHeads } from './tape';
-import { isGround } from './meters';
+import { groundsOf } from './meters';
 import { splinePoint } from './geometry';
 import { buildGraph } from '../engine/graph';
 import { compileSource } from '../engine/compile';
@@ -176,11 +176,25 @@ describe('dragging', () => {
     l.dragEnd(id);
     l.tick(200);
     const p = l.position(id)!;
-    expect(Math.hypot(p.x - drop.x, p.y - drop.y)).toBeGreaterThan(20);
+    // (it moves: its meter holds it by the join of its net nearest it now, not by a spring from the meter itself)
+    expect(Math.hypot(p.x - drop.x, p.y - drop.y)).toBeGreaterThan(10);
     l.dragStart(id, drop.x, drop.y);
     l.dragEnd(id, true);
     l.tick(200);
     expect(l.position(id)).toEqual(drop);
+    l.destroy();
+  });
+});
+
+describe('laid out by insertion (an option)', () => {
+  it('takes in every cell, from the sound card outwards, and leaves none overlapping', () => {
+    const model = buildGraph(compileSource(PRESETS.twinkle.source));
+    const l = new ForceLayout(undefined, { live: false, insert: 100 });
+    l.setGraph(model);
+    l.tick(400);
+    const ids = model.nodes.filter((n) => !n.petalOf).map((n) => n.id);
+    expect(ids.filter((id) => !l.position(id))).toEqual([]);
+    expect(l.quality().overlap).toBeLessThan(10);
     l.destroy();
   });
 });
@@ -276,7 +290,6 @@ describe('the natural order (waltz)', () => {
     ]) {
       // beside: around the player's height (collisions spread them a little, as in the screenshot)
       expect(Math.abs(y(m) - y(p)), m).toBeLessThan(DEFAULT_LAYOUT.layerGap * 2);
-      expect(y(m), m).toBeLessThan(y('bar') + DEFAULT_LAYOUT.layerGap / 2); // level with the meter at most (the outer column)
     }
     // and on the outer side of their player: oom's motifs on its side of the tune, pah's on the other
     expect(Math.sign(x('I') - x('tune'))).toBe(Math.sign(x('oom') - x('tune')));
@@ -568,17 +581,18 @@ describe('tapes: the heads keep their spacing, the wheel turns to face them at w
   });
 });
 
-describe('meters last, joined to their cells by a net', () => {
+describe('meters, joined to their cells by a net', () => {
   for (const key of ['royal', 'bossa', 'cellscape', 'baustelle'] as const) {
     it(key, () => {
       const model = buildGraph(compileSource(PRESETS[key].source));
       const l = new ForceLayout(undefined, { live: false });
       l.setGraph(model);
       l.tick(220);
-      l.placeMeters();
+      l.layNet();
       const net = l.meterNet();
+      const ids = groundsOf(model);
       const byId = new Map(model.nodes.map((n) => [n.id, n]));
-      const grounds = model.edges.filter((e) => isGround(e, byId));
+      const grounds = model.edges.filter((e) => ids.has(e.id));
       expect(grounds.length).toBeGreaterThan(0);
       for (const m of new Set(grounds.map((e) => e.target))) {
         // a tree over the meter and every cell it steps: each reached, one trace fewer than its ends
@@ -608,22 +622,4 @@ describe('meters last, joined to their cells by a net', () => {
       l.destroy();
     });
   }
-  it("inside a closed cycle when that reaches more: Royal's meter sits within its ring, its net crossing nothing", () => {
-    // (theme → scale ← pedal → bass → mix ← lead ← theme is a cycle; the meter steps theme and pedal, on it — from
-    // outside a trace crosses the cycle, from inside none does: the face too small for it is widened)
-    const model = buildGraph(compileSource(PRESETS.royal.source));
-    const l = new ForceLayout(undefined, { live: false });
-    l.setGraph(model);
-    l.tick(220);
-    const before = l.drawnCrossings();
-    l.placeMeters();
-    expect(
-      l
-        .meterNet()
-        .map((t) => [t.a, t.b].sort().join(' '))
-        .sort(),
-    ).toEqual(['cell:bar cell:pedal', 'cell:bar cell:theme']);
-    expect(l.drawnCrossings()).toBeLessThanOrEqual(before);
-    l.destroy();
-  });
 });

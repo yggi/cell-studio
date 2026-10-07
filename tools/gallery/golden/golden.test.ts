@@ -23,11 +23,25 @@ describe('the golden graph', () => {
     const layout = new ForceLayout(undefined, { live: false });
     layout.setGraph(model);
     layout.tick(500);
-    layout.placeMeters();
+    layout.layNet();
+    // each bus a ratsnest, its readers the junctions: one tap takes the trunk from the owner, the others come on from a
+    // reader (sound branches from its owner to each: a star)
+    const taps = layout.taps();
+    for (const net of model.nets.filter((n) => n.port !== 'step' && n.band !== 'audio'))
+      expect(net.taps.map((id) => taps.get(id) === null).filter(Boolean), net.id).toHaveLength(1);
+    for (const net of model.nets.filter((n) => n.band === 'audio'))
+      expect(
+        net.taps.every((id) => taps.get(id) === null),
+        net.id,
+      ).toBe(true);
     const { crossings, overlap } = layout.quality();
     expect(overlap).toBe(0);
-    // (the graph is planar: it can be drawn with none. Lower this when the layout gets there.)
-    expect(crossings).toBeLessThanOrEqual(4);
+    // (the graph is planar: it can be drawn with none. Lower this when the layout gets there. 4 → 6 when the sun got
+    // its edge to its law; a belt's runs now count, each over every edge and wheel, and the meter is placed so its belt
+    // crosses little: docs/notes/nets.md)
+    // 6 → 13 when the tape's step on the capstan became a belt (rigid): the three turntables now sit together as one
+    // machine, and the tape's write and play edges reach across to its source and its head
+    expect(crossings).toBeLessThanOrEqual(13);
     layout.destroy();
   });
 });

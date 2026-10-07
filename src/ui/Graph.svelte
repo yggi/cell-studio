@@ -30,7 +30,11 @@
   import type { LiveSource } from '../audio/live';
   import ForcesPanel from './ForcesPanel.svelte';
   import { clusterDisc } from '../layout/clusters';
-  import { isGround, meterIndex, meterRings } from '../layout/meters';
+  import { groundsOf, meterIndex } from '../layout/meters';
+  import { EXAMPLES } from '../examples';
+
+  // each example's rows' order, chosen when the app was built (tools/examples-index.ts), by its graph's shape
+  const EXAMPLE_ROWS = new Map(EXAMPLES.map((e) => [e.rows.key, e.rows.order]));
 
   let {
     model,
@@ -108,6 +112,9 @@
     get bends() {
       return bends;
     },
+    get taps() {
+      return taps;
+    },
     get muted() {
       return muted;
     },
@@ -175,6 +182,8 @@
   // The node under the pointer is left alone: Svelte Flow owns it while dragging.
   // where each edge's spline bends (it slips off nodes it would rest on)
   let bends = $state.raw(new Map<string, { x: number; y: number }>());
+  // where each bus's taps come from (a ratsnest, the readers its junctions: laid again as cells move)
+  let taps = $state.raw(new Map<string, { from: string; x: number; y: number; r: number } | null>());
   // unnamed cells are petals: not simulated, hung on an arc above their parent
   let petalSlot = new Map<string, { parent: string; i: number; n: number }>();
   function posOf(id: string): { x: number; y: number } | undefined {
@@ -197,16 +206,21 @@
     const t = layout.tapeTurn(id);
     return t === undefined ? undefined : Math.round(t);
   };
-  const layout = new ForceLayout(() => {
-    nodes = nodes.map((n): FlowNode => {
-      const turn = n.type === 'material' ? turnOf(n.id) : undefined;
-      const turned = n.type === 'material' && turn !== undefined && turn !== n.data.turn ? { ...n, data: { ...n.data, turn } } : n;
-      if (n.id === dragging) return turned;
-      const p = posOf(n.id);
-      return p ? { ...turned, position: p } : turned;
-    });
-    bends = layout.bends();
-  });
+  const layout = new ForceLayout(
+    () => {
+      nodes = nodes.map((n): FlowNode => {
+        const turn = n.type === 'material' ? turnOf(n.id) : undefined;
+        const turned = n.type === 'material' && turn !== undefined && turn !== n.data.turn ? { ...n, data: { ...n.data, turn } } : n;
+        if (n.id === dragging) return turned;
+        const p = posOf(n.id);
+        return p ? { ...turned, position: p } : turned;
+      });
+      bends = layout.bends();
+      taps = new Map([...layout.taps()].map(([id, t]) => [id, t && { ...t, r: ((nodes.find((n) => n.id === t.from)?.data as { size?: number })?.size ?? 0) / 2 }]));
+      // (an example opens with its rows in the order chosen when the app was built: no trials)
+    },
+    { rowOrders: EXAMPLE_ROWS },
+  );
   // (at rest again — after a drag, an edit — the meter's net is laid again from where things are; the meter stays put)
   layout.onSettle(() => {
     const laid = layout.meterNet();
@@ -229,7 +243,7 @@
   };
 
   // the rings cells wear for the meter that steps them (the edges to it aren't drawn), and each meter's colour
-  const meters = $derived({ rings: meterRings(model), index: meterIndex(model) });
+  const meters = $derived({ index: meterIndex(model) });
 
   function toFlowNode(g: GraphNode): FlowNode {
     // an example's own fixed layout isn't marked: only what the user pinned
@@ -277,20 +291,25 @@
 
   const edgeTypes = { pulse: PulseEdge, belt: BeltEdge, meter: MeterEdge };
 
+  // each edge's place in a net (a table read by several: one trunk, a branch to each reader)
+  const netPlaces = $derived(new Map(model.nets.flatMap((n) => n.taps.map((id) => [id, { id: n.id }] as const))));
+
   function toFlowEdge(e: GraphEdge): Edge {
     // off, unrouted, on, idle, live: one rule for edges and nodes (engine/routing.ts). Here without the live set: while
     // playing an edge that is routed is idle, and PulseEdge makes it live when it is (each edge reads that for itself)
     const state = edgeStateOf(e, muted, routedDrawn, playing ? NO_LIVE : null);
     // a belted cell's step: a belt, its pulleys by the ratio, its stretch as it is now
     const driven = model.nodes.find((n) => n.id === e.source);
-    if (e.kind === 'step' && driven && typeof driven.cell.params.belt === 'number') {
+    if (e.belt && driven) {
       const sizeOf = (id: string) => ((nodes.find((n) => n.id === id)?.data as { size?: number })?.size ?? 140) / 2;
       const rate = program.clocks.get(driven.cell.name)?.belt?.rate ?? 1;
       const [rDriver, rDriven] = pulleys(sizeOf(e.target), sizeOf(e.source), rate);
       const st = live ? physicsOf(program, shifts, driven.cell.name)?.state?.(live.seconds) : undefined;
       return flowEdgeOf(e, state, program, { rDriver, rDriven, stretch: st?.stretch ?? 0, slipping: st?.slipping ?? false });
     }
-    return flowEdgeOf(e, state, program);
+    // (the wheels' sizes at its ends: a braid's edge meets its segment, a table's strands leave their entries)
+    const size = (id: string) => (nodes.find((n) => n.id === id)?.data as { size?: number } | undefined)?.size ?? 0;
+    return flowEdgeOf(e, state, program, undefined, { from: size(e.from), to: size(e.to) }, netPlaces.get(e.id));
   }
 
   $effect(() => {
@@ -300,10 +319,10 @@
     void playing;
     if (hasBelts) void liveEdges;
     // (a meter's edges are ground — layout/meters.ts — and its net is drawn instead)
-    const byId = new Map(m.nodes.map((n) => [n.id, n]));
+    const grounds = groundsOf(m);
     const laid = net;
     const index = meterIndex(m);
-    untrack(() => (edges = [...m.edges.filter((e) => !isGround(e, byId)).map((e) => toFlowEdge(e)), ...laid.map((t) => meterEdgeOf(t, index.get(t.meter) ?? 0))]));
+    untrack(() => (edges = [...m.edges.filter((e) => !grounds.has(e.id)).map((e) => toFlowEdge(e)), ...laid.map((t) => meterEdgeOf(t, index.get(t.meter) ?? 0))]));
   });
 
   // an example's fixed layout: pinned when the example changes; released when it does again
@@ -362,7 +381,7 @@
       if (fresh || (newExample && f)) {
         layout.tick(220);
         // meters last: where most of their edges cross nothing; those are drawn (layout/meters.ts)
-        layout.placeMeters();
+        layout.layNet();
         net = layout.meterNet();
       }
       // turntables stay where they were first laid out (pinned): the rest flows round them

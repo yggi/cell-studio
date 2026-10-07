@@ -5,7 +5,7 @@
 
 <script lang="ts">
   import { onDestroy, untrack } from 'svelte';
-  import { meterColour, noteColour } from './theme';
+  import { blockColour, noteColour } from './theme';
   import { cellView, hubLabel, type CellView, type Fill, type Segment } from '../layout/cellview';
   import { BORDER, border, coarsen } from '../layout/coarse';
   import { names, noteLabel, tonicOf, voiceBase } from '../layout/show';
@@ -14,7 +14,7 @@
   import { angleOf, fitFont, hubMax, turnDelta } from '../layout/dial';
   import { mod } from '../theory/modes';
   import { getGraphContext } from './context';
-  import { meterNow, type MeterRing } from '../layout/meters';
+  import { meterNow } from '../layout/meters';
 
   /**
    * `interactive`: the rim turns the cell (detail sheet). In the graph the whole node just drags.
@@ -26,15 +26,12 @@
     size = 128,
     interactive = false,
     fine = false,
-    ring,
   }: {
     name: string;
     isMeter: boolean;
     size?: number;
     interactive?: boolean;
     fine?: boolean;
-    /** The meter that steps it (the edge to it isn't drawn: layout/meters.ts): its segments round the wheel, turning. */
-    ring?: MeterRing;
   } = $props();
   const ctx = getGraphContext();
 
@@ -279,10 +276,51 @@
     laid = { key, segments, slots };
     return slots;
   });
-  const fills = $derived(view.segments.map((s) => s.bands.map(fillOf)));
+  // show=brightness: each degree of a table shaded by the mode that starts on it — the sum of that mode's steps up from
+  // it, against the others' (Lydian brightest … Locrian darkest), in the sun's gold
+  const brightness = $derived.by(() => {
+    if (view.show !== 'brightness' || view.mode !== 'grid' || view.ticks < 2) return null;
+    const lap = view.ticks;
+    const at = view.segments.map((sg) => Math.round(sg.t0 * lap));
+    const sums = at.map((p) => at.reduce((sum, q) => sum + ((((q - p) % lap) + lap) % lap), 0));
+    const [lo, hi] = [Math.min(...sums), Math.max(...sums)];
+    return sums.map((v) => (hi > lo ? (v - lo) / (hi - lo) : 0.5));
+  });
+  const fills = $derived(view.segments.map((s, i) => (brightness ? s.bands.map(() => blockColour(brightness[i])) : s.bands.map(fillOf))));
 
+  // What space the wheel is drawn in, said by its rim (docs/notes/nets.md, the wheels): a table, scale, key or grid
+  // is laid out by pitch — its rim the grid, a rainbow of its steps, those it holds bright (a sieve); a braid by time —
+  // its rim a clock, a tick a step. (A meter, a curve, an LFO, a barrel: their own.)
+  const pitched = $derived(view.segments.some((sg) => sg.bands[0]?.kind === 'pitch'));
+  const space = $derived(isMeter || !pitched ? null : view.mode === 'grid' ? 'pitch' : view.mode === 'braid' ? 'time' : null);
+  const pitchRim = $derived.by(() => {
+    if (space !== 'pitch' || view.ticks < 2 || view.ticks > 128) return [];
+    const lap = view.ticks;
+    return Array.from({ length: lap }, (_, p) => {
+      const held = view.segments.find((sg) => Math.abs(sg.t0 * lap - p) < 1e-6);
+      const f = held?.bands[0];
+      const hue = f?.kind === 'pitch' ? f.hue : (p / lap) * 360;
+      return { d: ringSegment(c, c, geo.tick.r0, geo.tick.r1 + k, p / lap + 0.002, (p + 1) / lap - 0.002), fill: noteColour(hue, !held), held: !!held };
+    });
+  });
+  // the sieve: a table's wedge is bright for its own step of the grid; the steps it leaves out, to its next entry, dark
+  const sieve = $derived.by(() => {
+    if (space !== 'pitch' || view.ticks < 2) return [];
+    const step = 1 / view.ticks;
+    return view.segments.filter((sg) => sg.t1 - sg.t0 > step * 1.01).map((sg) => ringSegment(c, c, rInner, rOuter, sg.t0 + step, sg.t1));
+  });
+  const clockTicks = $derived(
+    space === 'time' && view.ticks <= 64
+      ? Array.from({ length: view.ticks }, (_, i) => {
+          const long = i === 0 || (view.ticks % 4 === 0 && i % 4 === 0);
+          const [x1, y1] = polar(c, c, geo.tick.r0, i / view.ticks);
+          const [x2, y2] = polar(c, c, geo.tick.r1 + (long ? 2.5 * k : 0), i / view.ticks);
+          return { x1, y1, x2, y2, long };
+        })
+      : [],
+  );
   const ticks = $derived(
-    view.ticks <= 48
+    space === null && view.ticks <= 48
       ? Array.from({ length: view.ticks }, (_, i) => {
           const [x1, y1] = polar(c, c, geo.tick.r0, i / view.ticks);
           const [x2, y2] = polar(c, c, geo.tick.r1, i / view.ticks);
@@ -334,24 +372,6 @@
   const meterAt = $derived(isMeter && view.mode === 'grid' && beatAt !== null ? meterNow(view.segments, beatAt) : null);
   const meterLit = $derived(meterAt ? ringSegment(c, c, rInner, rOuter, view.segments[meterAt.at].t0, view.segments[meterAt.at].t1) : null);
 
-  // the ring of the meter that steps it: the meter's own segments, where they are on the meter, the one lit going
-  // round at the cell's rate (twice as fast at ×2, half at ÷2) — so on a wheel the meter drives 1:1 the lit segment
-  // of the ring is beside the cell's own step now
-  const ringView = $derived(ring && ctx.program.cells.has(ring.name) ? cellView(ctx.program, ring.name, shown, true) : null);
-  const ringBeat = $derived.by(() => {
-    const at = ring && ringView ? ctx.live?.stepAt.get(ring.name) : undefined;
-    if (at === undefined || !ringView) return null;
-    const beats = Math.max(1, ...ringView.segments.map((sg) => sg.index + 1));
-    const s = at * (ctx.program.cells.get(name)?.rate ?? 1);
-    return ((s % beats) + beats) % beats;
-  });
-  const ringNow = $derived(ringView && ringBeat !== null ? meterNow(ringView.segments, ringBeat) : null);
-  const ringPaths = $derived.by(() => {
-    if (!ringView) return [];
-    const [r0, r1] = [c + 2, c + 2 + Math.max(3, 6 * k)];
-    const gap = ringView.segments.length > 1 ? 0.006 : 0;
-    return ringView.segments.map((sg) => ringSegment(c, c, r0, r1, sg.t0 + gap, sg.t1 - gap));
-  });
   // show=lfo: one cycle round the ring — its value the radius; a dot at its phase while playing
   const lfoPath = $derived.by(() => {
     if (view.mode !== 'lfo' || !view.wave) return null;
@@ -460,6 +480,11 @@
   {/if}
   <circle class="disc" cx={c} cy={c} r={geo.rDisc} />
   {#each ticks as t}<line class="tick" style:stroke-width="{geo.tick.width}px" x1={t.x1} y1={t.y1} x2={t.x2} y2={t.y2} />{/each}
+  {#each pitchRim as r, i (i)}<path class="pitch-rim" class:held={r.held} d={r.d} fill={r.fill} />{/each}
+  {#if clockTicks.length}
+    <circle class="clock-rim" cx={c} cy={c} r={geo.tick.r0} style:stroke-width="{geo.tick.width}px" />
+    {#each clockTicks as t, i (i)}<line class="clock-tick" class:long={t.long} style:stroke-width="{geo.tick.width}px" x1={t.x1} y1={t.y1} x2={t.x2} y2={t.y2} />{/each}
+  {/if}
   {#snippet slots()}
     {#each geometry as slot, i}
       <g class="slot" class:lit={lit.has(i)} stroke-width={slot.w}>
@@ -483,10 +508,12 @@
       aria-valuetext="shift {shift > 0 ? '+' : ''}{shift} of {view.detents}"
     >
       {@render slots()}
+      {#each sieve as d, i (i)}<path class="sieve" {d} />{/each}
     </g>
   {:else}
     <g class="rim" class:easing style="transform: rotate({spin}deg); transform-origin: {c}px {c}px">
       {@render slots()}
+      {#each sieve as d, i (i)}<path class="sieve" {d} />{/each}
       {#if meterLit}<path class="meter-now" d={meterLit} />{/if}
     </g>
   {/if}
@@ -530,11 +557,6 @@
     {@const p = polarAt((sg.t0 + sg.t1) / 2, rInner + (rOuter - rInner) * 0.22)}
     <circle class="read" cx={p.x} cy={p.y} r={Math.max(2.2, size * 0.022)} />
   {/each}
-  {#if ringPaths.length}
-    <g class="meter-ring" style:--ring={meterColour(ring?.meter ?? 0)}>
-      {#each ringPaths as d, i (i)}<path {d} class:now={ringNow?.at === i} />{/each}
-    </g>
-  {/if}
   {#if zero !== null}
     {@const a = polarAt(zero, rOuter + 1 * k)}
     {@const b = polarAt(zero - 0.018, rOuter + margin)}
@@ -610,6 +632,28 @@
   .tick {
     stroke: var(--wheel-tick);
   }
+  /* the rim says the space: pitch, the grid's rainbow (the steps a table holds bright); time, a clock */
+  .pitch-rim {
+    opacity: 0.45;
+  }
+  .pitch-rim.held {
+    opacity: 1;
+  }
+  .sieve {
+    fill: var(--wheel-disc);
+    opacity: 0.62;
+    pointer-events: none;
+  }
+  .clock-rim {
+    fill: none;
+    stroke: var(--text-faint);
+  }
+  .clock-tick {
+    stroke: var(--text-faint);
+  }
+  .clock-tick.long {
+    stroke: var(--text-muted);
+  }
   .rim.easing {
     transition: transform 340ms cubic-bezier(0.2, 0.8, 0.2, 1);
   }
@@ -654,15 +698,6 @@
     stroke-linejoin: round;
     filter: drop-shadow(0 0 4px var(--meter, var(--accent)));
     pointer-events: none;
-  }
-  /* the ring of the meter that steps it: its segments faint, the one now in full colour, glowing */
-  .meter-ring path {
-    fill: var(--ring);
-    opacity: 0.3;
-  }
-  .meter-ring path.now {
-    opacity: 1;
-    filter: drop-shadow(0 0 3px var(--ring));
   }
   .hub {
     fill: var(--wheel-hub);

@@ -16,12 +16,12 @@ export type Kind = 'voice' | 'adsr' | 'grid' | 'meter' | 'mix' | 'table' | 'brai
 
 /** The shows that fit each kind of cell (the first is the plain one). */
 export const FITS: Readonly<Record<Kind, readonly Show[]>> = {
-  voice: ['spectrum', 'wave', 'petal', 'off'],
+  voice: ['wave', 'spectrum', 'petal', 'off'],
   adsr: ['adsr', 'table', 'petal', 'off'],
   grid: ['grid', 'table', 'off'],
-  meter: ['meter', 'pattern', 'off'],
+  meter: ['meter', 'pattern', 'sun', 'off'],
   mix: ['mix'],
-  table: ['table', 'scale', 'mode', 'key', 'notes', 'midi', 'do', 'degrees', 'petal', 'off'],
+  table: ['table', 'scale', 'mode', 'key', 'notes', 'midi', 'do', 'degrees', 'brightness', 'petal', 'off'],
   braid: ['braid', 'pattern', 'notes', 'midi', 'do', 'degrees', 'petal', 'off'],
   volume: ['levels', 'braid', 'pattern', 'petal', 'off'],
   note: ['note', 'off'],
@@ -56,7 +56,9 @@ export const SHOW_MEANING: Readonly<Record<Show, string>> = {
   spectrum: 'the sound: a spectral waterfall',
   adsr: 'an envelope curve',
   mix: 'the voices it mixes',
-  wave: 'one cycle of its waveform',
+  wave: 'its waveform: one cycle, and the sound itself while it plays',
+  sun: 'a day meter as the sun: a 24-hour dial, noon at the top',
+  brightness: 'its modes by brightness: each degree shaded by the mode that starts on it (Lydian bright … Locrian dark)',
   levels: 'its levels, as bars',
   note: 'a note in the graph: its label',
   petal: 'small, hung from the cell that uses it',

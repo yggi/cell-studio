@@ -23,7 +23,8 @@
   const lambda = $derived(ctx.program.cells.get(data.name)?.lambda ?? null);
   const rawLabel = $derived(ctx.program.cells.get(data.name)?.label ?? null);
   const label = $derived(rawLabel ? formatLabel(ctx.program, data.name, rawLabel, stillShifts) : null);
-  const wave = $derived(effectiveShow(ctx.program, data.name).show === 'wave');
+  // an instrument shows its waveform (show=spectrum: its spectrum)
+  const wave = $derived(effectiveShow(ctx.program, data.name).show !== 'spectrum');
 </script>
 
 <div
@@ -31,7 +32,7 @@
   data-state={state}
   style="width: {data.size}px; height: {data.size}px"
   {@attach longpress(() => ctx.toggle(id))}
-  title="&{data.name}: spectrum — left / right channel; low at the top, high at the bottom"
+  title={wave ? `&${data.name}: its waveform` : `&${data.name}: spectrum — left / right channel; low at the top, high at the bottom`}
 >
   <Handle type="target" position={Position.Top} class="center-handle" isConnectable={false} />
   {#if wave}<WaveGlyph name={data.name} size={data.size} />{:else}<SpectrumWheel name={data.name} size={data.size} />{/if}

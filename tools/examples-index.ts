@@ -8,6 +8,7 @@ import { buildGraph } from '../src/engine/graph';
 import { ORDER, type PresetKey } from '../src/engine/order';
 import { pieceMeta } from '../src/engine/parser';
 import { miniature, type Miniature } from '../src/layout/miniature';
+import { bestRowOrder, rowsKey } from '../src/layout/physics';
 import { canonicalTags } from '../src/engine/tags';
 
 export interface ExampleInfo {
@@ -23,24 +24,39 @@ export interface ExampleInfo {
   readonly bytes: number;
   /** Its graph in miniature (src/layout/miniature.ts): the library draws it without fetching the piece. */
   readonly miniature: Miniature | null;
+  /** The order its graph's rows are laid out in (layout/physics.ts: bestRowOrder), by its shape: it opens without the trials. */
+  readonly rows: { readonly key: string; readonly order: number };
 }
 
-/** Every example, in the library's order, from examples/<key>.cells (as the app reads them: no trailing newline). */
-export function buildExamplesIndex(dir = 'examples'): ExampleInfo[] {
+/** What the index says of an example that needs no layout: all but its miniature and its rows' order. */
+export type ExampleMeta = Omit<ExampleInfo, 'miniature' | 'rows'>;
+
+/** Each example's own entry, without laying it out (the examples' page reads only these): in the library's order. */
+export function buildExamplesMeta(dir = 'examples'): (ExampleMeta & { source: string; graph: ReturnType<typeof buildGraph> })[] {
   return ORDER.map((key) => {
     const source = readFileSync(`${dir}/${key}.cells`, 'utf8').replace(/\n$/, '');
     const r = compileSource(source);
     const m = pieceMeta(source);
+    const graph = buildGraph(r);
     return {
       key,
       title: m?.title ?? key,
       description: m?.description ?? '',
       tags: canonicalTags(m?.tags ?? []),
-      size: buildGraph(r).nodes.filter((n) => !n.petalOf && !n.cell.note).length,
+      size: graph.nodes.filter((n) => !n.petalOf && !n.cell.note).length,
       time: pieceTime(r),
       bytes: Buffer.byteLength(source),
-      miniature: miniature(source),
+      source,
+      graph,
     };
+  });
+}
+
+/** Every example, in the library's order, from examples/<key>.cells (as the app reads them: no trailing newline). */
+export function buildExamplesIndex(dir = 'examples'): ExampleInfo[] {
+  return buildExamplesMeta(dir).map(({ source, graph, ...meta }) => {
+    const order = bestRowOrder(graph);
+    return { ...meta, miniature: miniature(source, order), rows: { key: rowsKey(graph), order } };
   });
 }
 

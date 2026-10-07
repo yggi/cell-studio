@@ -50,3 +50,95 @@ export function splinePoint(ax: number, ay: number, mx: number, my: number, bx: 
   const u = 1 - t;
   return { x: u * u * ax + 2 * u * t * cx + t * t * bx, y: u * u * ay + 2 * u * t * cy + t * t * by };
 }
+
+/** A point on the spline through m and its unit normal there (the derivative turned a quarter). */
+function splineFrame(ax: number, ay: number, mx: number, my: number, bx: number, by: number, t: number) {
+  const cx = 2 * mx - (ax + bx) / 2;
+  const cy = 2 * my - (ay + by) / 2;
+  const p = splinePoint(ax, ay, mx, my, bx, by, t);
+  const dx = 2 * (1 - t) * (cx - ax) + 2 * t * (bx - cx);
+  const dy = 2 * (1 - t) * (cy - ay) + 2 * t * (by - cy);
+  const l = Math.hypot(dx, dy) || 1;
+  return { ...p, nx: -dy / l, ny: dx / l };
+}
+
+/**
+ * The spline through m drawn as a wave along it (what sound looks like on an edge): `amp` px either side, one
+ * period every `period` px, fading in and out at its ends so it leaves and meets the nodes straight.
+ */
+export function ripplePath(ax: number, ay: number, mx: number, my: number, bx: number, by: number, amp = 2.5, period = 11): string {
+  const length = Math.hypot(mx - ax, my - ay) + Math.hypot(bx - mx, by - my);
+  const n = Math.max(8, Math.ceil((length / period) * 6));
+  const turns = Math.max(1, Math.round(length / period));
+  const pts: string[] = [];
+  for (let i = 0; i <= n; i++) {
+    const t = i / n;
+    const f = splineFrame(ax, ay, mx, my, bx, by, t);
+    const a = amp * Math.sin(t * turns * 2 * Math.PI) * Math.min(1, t * 10, (1 - t) * 10);
+    pts.push(`${(f.x + f.nx * a).toFixed(1)} ${(f.y + f.ny * a).toFixed(1)}`);
+  }
+  return `M ${pts.join(' L ')}`;
+}
+
+/** The spline through m moved `offset` px sideways (one strand of a bus): the same curve, beside it. */
+export function strandPath(ax: number, ay: number, mx: number, my: number, bx: number, by: number, offset: number): string {
+  const l = Math.hypot(bx - ax, by - ay) || 1;
+  const [nx, ny] = [(-(by - ay) / l) * offset, ((bx - ax) / l) * offset];
+  const cx = 2 * mx - (ax + bx) / 2 + nx;
+  const cy = 2 * my - (ay + by) / 2 + ny;
+  return `M ${ax + nx} ${ay + ny} Q ${cx} ${cy} ${bx + nx} ${by + ny}`;
+}
+
+/**
+ * A curve from a to a wheel's rim at `turns` (0 the top, clockwise), arriving along the radius from outside, as a
+ * tape's head meets its reel: so the end shows on the segment it belongs to, not under the wheel. `via` pulls its
+ * first half (the layout's bend); `reverse` runs it from the rim to a.
+ */
+export function radialPath(ax: number, ay: number, via: { x: number; y: number }, cx: number, cy: number, r: number, turns: number, reverse = false): string {
+  const [px, py] = polar(cx, cy, r, turns);
+  const lead = Math.min(80, 0.4 * Math.hypot(px - ax, py - ay));
+  const [qx, qy] = polar(cx, cy, r + lead, turns);
+  const f = (n: number) => n.toFixed(1);
+  return reverse
+    ? `M ${f(px)} ${f(py)} C ${f(qx)} ${f(qy)} ${f(via.x)} ${f(via.y)} ${f(ax)} ${f(ay)}`
+    : `M ${f(ax)} ${f(ay)} C ${f(via.x)} ${f(via.y)} ${f(qx)} ${f(qy)} ${f(px)} ${f(py)}`;
+}
+
+/**
+ * A wheel's strands, routed as a cable loom (a table's entries, a resonator's tines, a ref written several times), each
+ * one cubic Bézier into its place in a bundle `gap` px apart that leaves the wheel towards b and follows the edge's
+ * curve (through m) to b. A strand on the near half (facing b) leaves its place on the rim (`turns`, 0 the top,
+ * clockwise) at a right angle and comes round into the bundle; one on the far half runs straight under the wheel
+ * (edges are drawn beneath it) and comes out where its place is across. The places across the bundle are in the order
+ * the strands sit across b's way (a near strand outside the far one beside it), so no two cross. Paths in the order
+ * of `turns`.
+ */
+export function loomPaths(cx: number, cy: number, r: number, turns: readonly number[], mx: number, my: number, bx: number, by: number, gap: number): string[] {
+  const phi = Math.atan2(by - cy, bx - cx);
+  const [ux, uy] = [Math.cos(phi), Math.sin(phi)];
+  const [nx, ny] = [-uy, ux];
+  const at = turns.map((t) => t * 2 * Math.PI - Math.PI / 2);
+  // (across b's way: −1 … 1; a far strand just inside the near one at the same place, which comes out round it)
+  const across = at.map((a) => Math.sin(a - phi) * (Math.cos(a - phi) < 0 ? 0.999 : 1));
+  const rank = across.map((v, i) => across.filter((w, j) => w < v || (w === v && j < i)).length);
+  const n = turns.length;
+  const d = Math.hypot(bx - cx, by - cy) || 1;
+  // (where the bundle gathers: out of the wheel, but well short of b)
+  const reach = r + Math.max(8, Math.min(90, 0.55 * (d - r)));
+  const f = (v: number) => v.toFixed(1);
+  // on along the edge's curve — never back: a control behind where the bundle gathered would loop it
+  const [qx, qy] = [2 * mx - (cx + bx) / 2, 2 * my - (cy + by) / 2];
+  const ahead = (qx - cx) * ux + (qy - cy) * uy > reach + 4;
+  return at.map((a, i) => {
+    const o = (rank[i] - (n - 1) / 2) * gap;
+    const [px, py] = [cx + r * Math.cos(a), cy + r * Math.sin(a)];
+    const c = Math.cos(a - phi);
+    const [gx, gy] = [cx + ux * reach + nx * o, cy + uy * reach + ny * o];
+    // near: out along the radius (the more so the more to the side), then round; far: straight on, under the wheel,
+    // to where the rim faces b at its place
+    const [c1x, c1y] = c >= 0 ? [px + Math.cos(a) * (6 + 18 * (1 - c)), py + Math.sin(a) * (6 + 18 * (1 - c))] : [px - ux * 2 * r * c, py - uy * 2 * r * c];
+    const l2 = (reach - r) * 0.55;
+    const [kx, ky] = ahead ? [qx + nx * o, qy + ny * o] : [(gx + bx + nx * o) / 2, (gy + by + ny * o) / 2];
+    return `M ${f(px)} ${f(py)} C ${f(c1x)} ${f(c1y)} ${f(gx - ux * l2)} ${f(gy - uy * l2)} ${f(gx)} ${f(gy)} Q ${f(kx)} ${f(ky)} ${f(bx + nx * o)} ${f(by + ny * o)}`;
+  });
+}

@@ -6,7 +6,7 @@ import { buildGraph } from '../../../src/engine/graph';
 import { cellView } from '../../../src/layout/cellview';
 import { effectiveShow } from '../../../src/layout/show';
 import { flowNodeOf } from '../../../src/ui/flownode';
-import { meterIndex, meterRings } from '../../../src/layout/meters';
+import { meterIndex } from '../../../src/layout/meters';
 import type { FlowNode } from '../../../src/ui/types';
 import type { CompileResult, Shifts } from '../../../src/engine/program';
 import type { Piece } from '../pieces';
@@ -39,7 +39,7 @@ function kindOf(p: CompileResult, n: FlowNode, shifts: Shifts): string {
 /** Every wheel of a piece, with its kind (not the notes: they are cards). */
 export function wheelsOf(piece: Piece): { name: string; key: string; node: FlowNode; live: boolean }[] {
   const model = buildGraph(piece.program);
-  const meters = { rings: meterRings(model), index: meterIndex(model) };
+  const meters = { index: meterIndex(model) };
   return model.nodes
     .filter((g) => !g.cell.note)
     .map((g) => {

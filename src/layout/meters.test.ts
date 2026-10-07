@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isGround, meterIndex, meterNow, meterRings } from './meters';
+import { groundsOf, meterIndex, meterNow } from './meters';
 import { liveAt } from '../engine/live';
 import { codeShifts } from '../engine/program';
 import { buildGraph } from '../engine/graph';
@@ -14,33 +14,20 @@ describe('meters as ground', () => {
     for (const key of ['fifths', 'automaton', 'soundtape'] as const) {
       const m = buildGraph(compileSource(PRESETS[key].source));
       const byId = new Map(m.nodes.map((n) => [n.id, n]));
+      const grounds = groundsOf(m);
       for (const e of m.edges.filter((e) => e.kind === 'step')) {
         const meter = (byId.get(e.target) as { isMeter?: boolean }).isMeter;
-        const belted = typeof byId.get(e.source)!.cell.params.belt === 'number';
-        expect(isGround(e, byId), `${key}: ${e.id}`).toBe(!!meter && !belted);
+        const belted = !!e.belt;
+        expect(grounds.has(e.id), `${key}: ${e.id}`).toBe(!!meter && !belted);
       }
-      for (const e of m.edges.filter((e) => e.kind !== 'step')) expect(isGround(e, byId)).toBe(false);
+      for (const e of m.edges.filter((e) => e.kind !== 'step')) expect(grounds.has(e.id)).toBe(false);
     }
   });
 
-  it('two meters: each has its colour, in the order written; each cell wears the ring of the one that steps it, with its rate', () => {
+  it('two meters: each has its colour, in the order written', () => {
     const m = graphOf(PRESETS.bossa.source);
     const index = new Map([...meterIndex(m)].map(([id, i]) => [name(id), i]));
     expect([...index.keys()]).toEqual(['bar', 'clave']);
-    const rings = new Map([...meterRings(m)].map(([id, r]) => [name(id), r]));
-    // (the clave is a meter stepped by the bar: it wears the bar's ring)
-    expect(rings.get('clave')?.meter).toBe(0);
-    expect(rings.get('rim')?.meter).toBe(1);
-    expect(rings.get('strum')?.meter).toBe(1);
-    expect(rings.get('bassline')?.meter).toBe(0);
-    expect(rings.has('bar')).toBe(false);
-  });
-
-  it('the rate is the edge’s own label', () => {
-    const m = graphOf('&bar scan(1 1 1 1) step=120bpm\n&a step=&bar/2 0 2\n&b step=&bar 0\n&v s=sine loop=C4\n&out loop=SAMPLE_RATE map=sample [&a * &v, &b * &v]');
-    const rings = new Map([...meterRings(m)].map(([id, r]) => [name(id), r.rate]));
-    expect(rings.get('a')).toBe('÷2');
-    expect(rings.get('b')).toBe('');
   });
 });
 

@@ -7,6 +7,7 @@
   import { longpress } from './kit/attach';
   import FreePills from './FreePills.svelte';
   import SpectrumWheel from './SpectrumWheel.svelte';
+  import WaveGlyph from './WaveGlyph.svelte';
   import { hubLabel } from '../layout/cellview';
   import { formatLabel } from '../layout/labels';
   import { meterColour } from './theme';
@@ -21,10 +22,19 @@
   });
   const state = $derived(nodeState(ctx, id));
   const freeCell = $derived(ctx.program.cells.get(data.name));
-  // mixes and the sound card are signals: they show their spectrum
+  // mixes and the sound card are signals: a mix shows its waveform (as a read head does), the sound card its spectrum
   const cell = $derived(ctx.program.cells.get(data.name));
-  const signal = $derived(!!cell && (!!cell.mix || cell.sink));
-  const hub = $derived(signal ? hubLabel(ctx.program, data.name, ctx.shifts, false, null) : null);
+  // (a read head of a sound tape: what it plays back is sound — its waveform, with where it reads)
+  const soundHead = $derived(!!cell && typeof cell.params.play === 'string' && ctx.program.tapes.some((t) => t.name === cell.params.play));
+  const signal = $derived(!!cell && (!!cell.mix || cell.sink || soundHead));
+  const at = $derived(cell?.params.at);
+  const hub = $derived(
+    soundHead
+      ? { big: typeof at === 'number' ? `${+at.toFixed(2)}s` : typeof at === 'string' ? `&${at}` : 'head', small: 'head' }
+      : signal
+        ? hubLabel(ctx.program, data.name, ctx.shifts, false, null)
+        : null,
+  );
   // label=: the name shown (a template, filled in live); a cell that is only a label is a note in the graph
   const shown = $derived(stillShifts);
   const label = $derived(cell?.label ? formatLabel(ctx.program, data.name, cell.label, shown) : null);
@@ -47,14 +57,13 @@
     style:--meter={data.meterIndex !== undefined ? meterColour(data.meterIndex) : undefined}
     {@attach longpress(() => ctx.toggle(id))}
   >
-    <!-- the meter that steps it, as a ring in that meter's colour (the edge to it isn't drawn: it's ground), and the rate -->
-    <!-- (the ring itself is the glyph's: the meter's segments, turning with it) -->
-    {#if data.ring?.rate && !data.petal}<span class="rate" style:--ring={meterColour(data.ring.meter)}>{data.ring.rate}</span>{/if}
     <Handle type="target" position={Position.Top} class="center-handle" isConnectable={false} />
-    {#if signal && hub}
+    {#if soundHead || (cell?.mix && !cell.sink)}
+      <WaveGlyph name={data.name} size={data.size} caption={hub ? `${hub.big} ${hub.small}` : null} />
+    {:else if signal && hub}
       <SpectrumWheel name={data.name} size={data.size} {hub} />
     {:else}
-      <CellGlyph name={data.name} isMeter={data.isMeter} size={data.size} ring={data.petal ? undefined : data.ring} />
+      <CellGlyph name={data.name} isMeter={data.isMeter} size={data.size} />
     {/if}
     {#if !data.petal}<div class="name" class:lambda={!!cell?.lambda} title={cell?.lambda ? `&(${cell.lambda})` : label ? `&${data.name}` : undefined}>
         {#if label}<span class="label">{@html label}</span><small>&amp;{data.name}</small>
@@ -128,21 +137,6 @@
   }
   .meter .name {
     color: var(--meter, var(--accent));
-  }
-  /* the rate against its meter, on the meter's ring (the glyph's), lower right: clear of the ring's step now, mostly near the top */
-  .rate {
-    position: absolute;
-    left: calc(50% + 0.707 * (50% + 6px));
-    top: calc(50% + 0.707 * (50% + 6px));
-    transform: translate(-50%, -50%);
-    font: 600 10px/1.2 var(--font-code);
-    color: var(--ring);
-    background: var(--surface);
-    border: 1px solid var(--ring);
-    border-radius: var(--radius-pill);
-    padding: 1px 5px;
-    white-space: nowrap;
-    pointer-events: none;
   }
   [data-state='live'] .name {
     border-color: var(--accent);

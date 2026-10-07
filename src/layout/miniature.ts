@@ -14,7 +14,7 @@ import { buildGraph } from '../engine/graph';
 import { cellView } from './cellview';
 import { ForceLayout } from './physics';
 import { kindOf } from './show';
-import { isGround } from './meters';
+import { groundsOf } from './meters';
 
 /** A node's colour: a note's hue (0 ≤ h < 360, to a tenth of a degree) or one of these kinds. */
 export const VOICE = -1;
@@ -49,16 +49,19 @@ function colourOf(result: CompileResult, shifts: ReturnType<typeof codeShifts>, 
 }
 
 /** A piece's miniature from its text (null: no cells to draw). */
-export function miniature(source: string): Miniature | null {
+export function miniature(source: string, rowOrder?: number): Miniature | null {
   const result = compileSource(source);
   const model = buildGraph(result);
   const nodes = model.nodes.filter((n) => !n.petalOf && !n.cell.note);
   if (nodes.length === 0) return null;
-  const l = new ForceLayout(undefined, { live: false });
+  // (the rows' order, when it is known: chosen already, it needn't be tried again)
+  const l = new ForceLayout(undefined, rowOrder === undefined ? { live: false } : { live: false, rowOrder });
   l.setGraph(model);
   l.tick(TICKS);
-  l.placeMeters(); // (meters last, as the graph places them, and their nets)
+  l.layNet(); // (the meters' nets, as the graph lays them)
   const net = l.meterNet();
+  // (a net's tap that comes on from another reader is drawn from there, as the graph draws it)
+  const hops = l.taps();
   const shifts = codeShifts(result);
   const index = new Map<string, number>();
   const out: [number, number, number][] = [];
@@ -70,13 +73,16 @@ export function miniature(source: string): Miniature | null {
   }
   l.destroy();
   // (as the graph draws them: a meter's edges are ground — meters.ts — and its net is drawn instead)
-  const byId = new Map(model.nodes.map((n) => [n.id, n]));
+  const grounds = groundsOf(model);
   const pair = (s: string, t: string) => {
     const a = index.get(s);
     const b = index.get(t);
     return a !== undefined && b !== undefined ? [[a, b] as const] : [];
   };
-  const edges = [...model.edges.flatMap((e) => (isGround(e, byId) ? [] : pair(e.source, e.target))), ...net.flatMap((t) => pair(t.a, t.b))];
+  const edges = [
+    ...model.edges.flatMap((e) => (grounds.has(e.id) ? [] : pair(hops.get(e.id)?.from ?? e.source, hops.get(e.id) ? e.to : e.target))),
+    ...net.flatMap((t) => pair(t.a, t.b)),
+  ];
   return { nodes: out, edges };
 }
 

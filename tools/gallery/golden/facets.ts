@@ -3,10 +3,10 @@
  * once (a spanning set), not every combination of them. A wheel is where it sits (graph or petal), what draws it (a cell,
  * a turntable, a scope, the sun, a spectrum), its mode and show, and a turntable's role; whether a meter steps it (its
  * ring) is not one. An edge is its kind, whether it has a label, and the few that are drawn differently: a belt, a
- * tape's head, a meter's net. Which label it has (`×0.4`, `[<<]`, `lpf`) is the edge sheet's to show.
+ * tape's head, a meter's net; and what it carries: its band (sync, CV, audio) and whether it is a bus. Which label it has (`×0.4`, `[<<]`, `lpf`) is the edge sheet's to show.
  */
 import { buildGraph, type GraphEdge } from '../../../src/engine/graph';
-import { isGround } from '../../../src/layout/meters';
+import { groundsOf } from '../../../src/layout/meters';
 import type { CompileResult } from '../../../src/engine/program';
 import type { Piece } from '../pieces';
 import { wheelsOf } from '../wheels/fixtures';
@@ -26,9 +26,18 @@ export function wheelFacets(key: string): string[] {
 /** The facets of an edge of a program. */
 export function edgeFacets(e: GraphEdge, program: CompileResult, ground: boolean): string[] {
   if (ground) return ['kind=net'];
-  const belted = e.kind === 'step' && typeof program.cells.get(e.source.slice('cell:'.length))?.params.belt === 'number';
+  const belted = !!e.belt;
   const head = e.kind === 'out' && (e.pick === 'write' || e.pick === 'play');
-  return [`kind=${e.kind}`, `label=${e.count > 1 || e.pick || e.label ? 'pill' : 'bare'}`, ...(belted ? ['special=belt'] : []), ...(head ? ['special=head'] : [])];
+  // (what it carries, docs/notes/nets.md: its band, and whether it is a bus — a table's entries, a chord's notes)
+  const bus = e.width < 2 ? 'wire' : e.port === 'over' ? 'table' : 'chord';
+  return [
+    `kind=${e.kind}`,
+    `label=${e.count > 1 || e.pick || e.label ? 'pill' : 'bare'}`,
+    `band=${e.band}`,
+    `bus=${bus}`,
+    ...(belted ? ['special=belt'] : []),
+    ...(head ? ['special=head'] : []),
+  ];
 }
 
 export interface Carrier {
@@ -40,9 +49,9 @@ export interface Carrier {
 /** Everything a piece carries: its wheels and its edges, each with its facets. */
 export function carriers(piece: Piece): { wheels: Carrier[]; edges: Carrier[] } {
   const model = buildGraph(piece.program);
-  const byId = new Map(model.nodes.map((n) => [n.id, n]));
+  const grounds = groundsOf(model);
   return {
     wheels: wheelsOf(piece).map((w) => ({ what: `&${w.name}`, facets: wheelFacets(w.key) })),
-    edges: model.edges.map((e) => ({ what: `${e.source.slice(5)}>${e.target.slice(5)}`, facets: edgeFacets(e, piece.program, isGround(e, byId)) })),
+    edges: model.edges.map((e) => ({ what: `${e.source.slice(5)}>${e.target.slice(5)}`, facets: edgeFacets(e, piece.program, grounds.has(e.id)) })),
   };
 }
