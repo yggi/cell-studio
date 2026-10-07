@@ -103,3 +103,33 @@ export function radialPath(ax: number, ay: number, via: { x: number; y: number }
     ? `M ${f(px)} ${f(py)} C ${f(qx)} ${f(qy)} ${f(via.x)} ${f(via.y)} ${f(ax)} ${f(ay)}`
     : `M ${f(ax)} ${f(ay)} C ${f(via.x)} ${f(via.y)} ${f(qx)} ${f(qy)} ${f(px)} ${f(py)}`;
 }
+
+/**
+ * A strand of a table's bus: out of its entry on the wheel at (cx, cy), radius r, `turns` round (0 the top, clockwise),
+ * along the radius; then into its place in the bundle (`offset` px across), which gathers just outside the wheel on
+ * the side towards b and runs from there along the edge's own curve (through m) to b.
+ */
+export function busStrandPath(cx: number, cy: number, r: number, turns: number, mx: number, my: number, bx: number, by: number, offset: number): string {
+  const d = Math.hypot(bx - cx, by - cy) || 1;
+  const [ux, uy] = [(bx - cx) / d, (by - cy) / d];
+  const [nx, ny] = [-uy * offset, ux * offset];
+  const [px, py] = polar(cx, cy, r, turns);
+  // (an entry facing away from b leaves with a short lead, so it doesn't curl out round the wheel)
+  const facing = ((px - cx) * ux + (py - cy) * uy) / (r || 1);
+  const [qx, qy] = polar(cx, cy, r + 22 * Math.max(0.1, (1 + facing) / 2) ** 2, turns);
+  const reach = r + Math.min(90, 0.3 * d);
+  const [gx, gy] = [cx + ux * reach + nx, cy + uy * reach + ny];
+  const back = Math.min(45, reach * 0.4);
+  const [kx, ky] = [2 * mx - (cx + bx) / 2 + nx, 2 * my - (cy + by) / 2 + ny];
+  const f = (n: number) => n.toFixed(1);
+  return `M ${f(px)} ${f(py)} C ${f(qx)} ${f(qy)} ${f(gx - ux * back)} ${f(gy - uy * back)} ${f(gx)} ${f(gy)} Q ${f(kx)} ${f(ky)} ${f(bx + nx)} ${f(by + ny)}`;
+}
+
+/** Where each of these points sits across the direction from (ax, ay) to (bx, by): its place in a bundle (0 … n−1). */
+export function acrossOrder(points: readonly (readonly [number, number])[], ax: number, ay: number, bx: number, by: number): number[] {
+  const [nx, ny] = [-(by - ay), bx - ax];
+  const across = points.map(([x, y], i) => ({ i, v: (x - ax) * nx + (y - ay) * ny }));
+  const rank = new Array<number>(points.length);
+  [...across].sort((p, q) => p.v - q.v).forEach((p, k) => (rank[p.i] = k));
+  return rank;
+}

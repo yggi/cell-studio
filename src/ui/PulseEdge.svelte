@@ -12,7 +12,7 @@
    */
   import { BaseEdge, type EdgeProps } from '@xyflow/svelte';
   import { untrack } from 'svelte';
-  import { radialPath, ripplePath, splinePoint, strandPath } from '../layout/geometry';
+  import { acrossOrder, busStrandPath, polar, radialPath, ripplePath, splinePoint, strandPath } from '../layout/geometry';
   import { cellView, type Fill } from '../layout/cellview';
   import { getGraphContext } from './context';
   import { pitchHue } from '../theory/modes';
@@ -83,17 +83,22 @@
   const count = $derived(view ? Math.min(STRANDS, d.width) : 0);
   // (a strand's place in the table: the entry it carries; a chord's strands run side by side)
   const entryOf = (i: number) => view?.segments[Math.floor((i * view.segments.length) / count)];
-  const strandPaths = $derived(
-    Array.from({ length: count }, (_, i) => {
-      const offset = (i - (count - 1) / 2) * GAP;
-      const s = d.table ? entryOf(i) : undefined;
-      const r = rimOf(d.sizes?.from);
-      if (!s || !r) return strandPath(sourceX, sourceY, mid.x, mid.y, targetX, targetY, offset);
-      const l = Math.hypot(targetX - sourceX, targetY - sourceY) || 1;
-      const [nx, ny] = [(-(targetY - sourceY) / l) * offset, ((targetX - sourceX) / l) * offset];
-      return radialPath(targetX + nx, targetY + ny, { x: control.x + nx, y: control.y + ny }, sourceX, sourceY, r, (s.t0 + s.t1) / 2, true);
-    }),
-  );
+  const strandPaths = $derived.by(() => {
+    const r = rimOf(d.sizes?.from);
+    const exits = d.table && r ? Array.from({ length: count }, (_, i) => entryOf(i)) : [];
+    if (!exits.length || exits.some((s) => !s))
+      return Array.from({ length: count }, (_, i) => strandPath(sourceX, sourceY, mid.x, mid.y, targetX, targetY, (i - (count - 1) / 2) * GAP));
+    // out of each entry, along the radius; gathered into a bundle towards the reader, in the order they sit across it
+    const turns = exits.map((s) => (s!.t0 + s!.t1) / 2);
+    const slot = acrossOrder(
+      turns.map((t) => polar(sourceX, sourceY, r, t)),
+      sourceX,
+      sourceY,
+      targetX,
+      targetY,
+    );
+    return turns.map((t, i) => busStrandPath(sourceX, sourceY, r, t, mid.x, mid.y, targetX, targetY, (slot[i] - (count - 1) / 2) * GAP));
+  });
   const fillColour = (f: Fill | undefined) => (f?.kind === 'pitch' ? noteColour(f.hue, false, f.octave ?? 0) : 'var(--edge)');
   const strands = $derived.by((): { colour: string; dim: boolean }[] => {
     if (!view) return [];
