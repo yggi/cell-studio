@@ -3,7 +3,7 @@
  * once (a spanning set), not every combination of them. A wheel is where it sits (graph or petal), what draws it (a cell,
  * a turntable, a scope, the sun, a spectrum), its mode and show, and a turntable's role; whether a meter steps it (its
  * ring) is not one. An edge is its kind, whether it has a label, and the few that are drawn differently: a belt, a
- * tape's head, a meter's net. Which label it has (`×0.4`, `[<<]`, `lpf`) is the edge sheet's to show.
+ * tape's head, a meter's net; and what it carries: its band (sync, CV, audio) and whether it is a bus. Which label it has (`×0.4`, `[<<]`, `lpf`) is the edge sheet's to show.
  */
 import { buildGraph, type GraphEdge } from '../../../src/engine/graph';
 import { isGround } from '../../../src/layout/meters';
@@ -28,7 +28,16 @@ export function edgeFacets(e: GraphEdge, program: CompileResult, ground: boolean
   if (ground) return ['kind=net'];
   const belted = e.kind === 'step' && typeof program.cells.get(e.source.slice('cell:'.length))?.params.belt === 'number';
   const head = e.kind === 'out' && (e.pick === 'write' || e.pick === 'play');
-  return [`kind=${e.kind}`, `label=${e.count > 1 || e.pick || e.label ? 'pill' : 'bare'}`, ...(belted ? ['special=belt'] : []), ...(head ? ['special=head'] : [])];
+  // (what it carries, docs/notes/nets.md: its band, and whether it is a bus — a table's entries, a chord's notes)
+  const bus = e.width < 2 ? 'wire' : e.port === 'over' ? 'table' : 'chord';
+  return [
+    `kind=${e.kind}`,
+    `label=${e.count > 1 || e.pick || e.label ? 'pill' : 'bare'}`,
+    `band=${e.band}`,
+    `bus=${bus}`,
+    ...(belted ? ['special=belt'] : []),
+    ...(head ? ['special=head'] : []),
+  ];
 }
 
 export interface Carrier {

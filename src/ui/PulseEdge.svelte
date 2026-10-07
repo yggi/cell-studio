@@ -4,19 +4,23 @@
   /**
    * An edge drawn by what it carries (its band, docs/notes/nets.md), from what is read to the cell that reads it:
    *  - sync (a clock's ticks): dotted, a pulse per step of the cell it drives
-   *  - CV (pitch, level, a table): solid; a table read through over= is a bus, a strand per entry in its wheel's colours
+   *  - CV (pitch, level, a table): solid; a bus when it carries several values at once — a table read through over=,
+   *    a strand per entry in its wheel's colours (the entries looked up now lit); a chord, a strand per note, in the
+   *    colours of the notes under the playhead of the cell it comes from
    *  - audio (sound): a wave along it
    * While playing, a live edge into a voice or a mix takes the colour of the note sounding now, with a pulse per step.
    */
   import { BaseEdge, type EdgeProps } from '@xyflow/svelte';
   import { ripplePath, splinePoint, strandPath } from '../layout/geometry';
-  import { cellView } from '../layout/cellview';
+  import { cellView, type Fill } from '../layout/cellview';
   import { getGraphContext } from './context';
   import { pitchHue } from '../theory/modes';
 
   let { id, sourceX, sourceY, targetX, targetY, data, label, markerEnd, style }: EdgeProps = $props();
   const ctx = getGraphContext();
-  const d = $derived(data as { kind: string; band: string; width: number; table: string | null; phaseCell: string | null; voice: string | null; off?: boolean; state?: string });
+  const d = $derived(
+    data as { kind: string; band: string; width: number; from: string; table: string | null; phaseCell: string | null; voice: string | null; off?: boolean; state?: string },
+  );
   // The edge's state as drawn: the list says off / unrouted / on / idle (idle: routed, playing); an idle edge is live
   // when the live set says so — each edge reads that for itself, so the list isn't remade at every step (#13).
   const state = $derived(d.state === 'idle' && ctx.liveEdges?.has(id) ? 'live' : (d.state ?? 'on'));
@@ -28,19 +32,33 @@
   const spline = $derived(`M ${sourceX} ${sourceY} Q ${control.x} ${control.y} ${targetX} ${targetY}`);
   const path = $derived(d.band === 'audio' ? ripplePath(sourceX, sourceY, mid.x, mid.y, targetX, targetY) : spline);
 
-  // a table's bus: its entries as its wheel colours them (at most 12 strands: a longer table is sampled)
+  // a bus: a table read through over= (its entries), or a chord (its notes); at most 12 strands, a longer table sampled
   const STRANDS = 12;
   const GAP = 4;
-  const strands = $derived.by(() => {
-    if (!d.table || d.width < 2) return [];
+  const view = $derived.by(() => {
+    if (d.width < 2 || (!d.table && d.band !== 'cv')) return null;
     void ctx.turned;
-    const segments = cellView(ctx.program, d.table, ctx.shifts, false).segments;
-    const n = Math.min(STRANDS, segments.length);
-    return Array.from({ length: n }, (_, i) => {
-      const fill = segments[Math.floor((i * segments.length) / n)].bands[0];
-      const colour = fill?.kind === 'pitch' ? noteColour(fill.hue, false, fill.octave ?? 0) : 'var(--edge)';
-      return { colour, path: strandPath(sourceX, sourceY, mid.x, mid.y, targetX, targetY, (i - (n - 1) / 2) * GAP) };
-    });
+    return cellView(ctx.program, d.table ?? d.from, ctx.shifts, false);
+  });
+  const count = $derived(view ? Math.min(STRANDS, d.width) : 0);
+  const strandPaths = $derived(Array.from({ length: count }, (_, i) => strandPath(sourceX, sourceY, mid.x, mid.y, targetX, targetY, (i - (count - 1) / 2) * GAP)));
+  const fillColour = (f: Fill | undefined) => (f?.kind === 'pitch' ? noteColour(f.hue, false, f.octave ?? 0) : 'var(--edge)');
+  const strands = $derived.by((): { colour: string; dim: boolean }[] => {
+    if (!view) return [];
+    if (d.table) {
+      // the table's entries, as its wheel colours them; while it plays, the ones looked up now lit
+      const lit = isLive ? ctx.live?.cells.get(d.table)?.entries : undefined;
+      return Array.from({ length: count }, (_, i) => {
+        const s = view.segments[Math.floor((i * view.segments.length) / count)];
+        return { colour: fillColour(s?.bands[0]), dim: !!lit?.size && !!s && !lit.has(s.index) };
+      });
+    }
+    // a chord: the notes under the playhead of the cell it comes from (stopped, or a rest: every strand still)
+    const local = isLive ? ctx.live?.cells.get(d.from)?.local : null;
+    const t = local == null ? null : local / Math.max(1, ctx.program.cells.get(d.from)?.steps ?? 1);
+    const here = t === null ? undefined : view.segments.find((s) => t >= s.t0 - 1e-9 && t < s.t1 - 1e-9);
+    const notes = here?.bands.filter((b) => b.kind === 'pitch') ?? [];
+    return Array.from({ length: count }, (_, i) => ({ colour: notes[i] ? fillColour(notes[i]) : 'var(--edge)', dim: t !== null && !notes[i] }));
   });
 
   // only a live edge (what it carries sounds now) pulses and takes its voice's colour
@@ -61,14 +79,15 @@
     return r >= 1 && r <= 2.0001 ? 0 : Math.floor(Math.log2(r));
   });
   const colour = $derived(hue === null ? null : noteColour(hue, false, octave));
-  const edgeStyle = $derived(colour ? `${style ?? ''}; stroke: ${colour}; stroke-opacity: 0.9` : style);
+  // (a bus draws its own strands: its core stays hidden, so it takes no colour)
+  const edgeStyle = $derived(colour && !count ? `${style ?? ''}; stroke: ${colour}; stroke-opacity: 0.9` : style);
 </script>
 
 {#if strands.length}
   <g class={`bus edge-${state}`}>
     <path class="bus-sheath" d={spline} style={`stroke-width: ${strands.length * GAP + 6}px`} />
     {#each strands as s, i (i)}
-      <path d={s.path} style={`stroke: ${s.colour}`} />
+      <path d={strandPaths[i]} class:dim={s.dim} style={`stroke: ${s.colour}`} />
     {/each}
   </g>
 {/if}
@@ -99,6 +118,9 @@
     stroke-linecap: round;
     pointer-events: none;
     transition: stroke-opacity 200ms ease;
+  }
+  .bus path.dim {
+    stroke-opacity: 0.25;
   }
   .bus .bus-sheath {
     stroke: var(--bg);

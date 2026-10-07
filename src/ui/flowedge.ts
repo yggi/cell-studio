@@ -21,7 +21,7 @@ export interface BeltDrawn {
 /** What an edge carries: whose steps pulse along it (from → to), and which voice's note colours it. */
 function pulseData(e: GraphEdge, program: CompileResult) {
   const trigger = (voice: string) => program.outputs.find((o) => o.voice === voice)?.cell ?? null;
-  const wire = { band: e.band, port: e.port, width: e.width, pointer: e.pointer, table: e.port === 'over' ? nameOf(e.from) : null };
+  const wire = { band: e.band, port: e.port, width: e.width, pointer: e.pointer, from: nameOf(e.from), table: e.port === 'over' ? nameOf(e.from) : null };
   // (a clock's ticks: the pulse is the steps of the cell it drives)
   if (e.kind === 'step') return { ...wire, kind: e.kind, phaseCell: nameOf(e.to), voice: null };
   // a tape's edges take the colour of what's on them: a read head's notes, as played; what's being

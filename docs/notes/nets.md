@@ -17,6 +17,7 @@ The golden graph (`node tools/gallery.mjs golden`, PR #136) puts every kind of w
 5. **Syntax: the new operators come later** (after the drawing). The owner's sketch is `&<foo` (from net `foo`) and `&>foo` (to net `foo`), as in `&foo step=&<meter`. Worked through below.
 6. **The canon may change:** go for the clean form, and rewrite the examples rather than keep a spelling for their sake.
 7. **`show=` is decoupled between the node and the net:** a cell's `show=` says how its wheel is drawn, and its net's (the taps') drawing gets its own say.
+8. **A net's style is set by its owner**: the cell whose net it is, once for all its taps, not each place it is read.
 
 ## What the golden graph shows
 
@@ -136,10 +137,10 @@ Each step is its own PR, each visible in the golden graph and the edge sheet (be
 2. **One direction. Built.** The flow edge is drawn `from` → `to` (`src/ui/flowedge.ts`), so a pulse always runs along the signal: the step edge's reversed pulse is gone. `sun=&cycle` is an edge, and the sun sits by its law. That costs crossings: the golden graph's bound goes from 4 to 6 (the sun now sits among the belts), and *5 to 12* goes from 0 to 1. Not done: the layout still turns each kind round by hand (`flowRanks`, the consumers in `physics.ts`). Each of those turns already reads along the flow, but `layered.ts` remaps `source` and `target` without `from` and `to`, so it is a refactor for later (#27), with no change in the picture.
 3. **Bands and palette.** Begun: in `PulseEdge` and `edges.css`, sync is dotted in the meter's colour, audio is a wave (`ripplePath`), and CV is solid. The step edge's accent tint and the `over` edge's dashes are gone. Still to come: a live edge without a voice keeps the accent yellow, a belt is brown, `excite` takes its voice's colour, and the palette as one function.
 4. **Junctions.** Products become small anonymous nodes, and voices become definitions. This is the biggest layout change: watch the golden graph's crossings and the library's overlap count ([limits.md](../limits.md)).
-5. **Buses.** Begun: an `over=` edge is a bus, a strand per entry in the colours its wheel gives them (`strandPath`), at most 12 strands. A kit's strands are grey: its entries are voices, not pitches. Still to come: a chord's strands on `voice` and `braid` edges, coloured by the notes sounding; stereo; and `show=` on the net (decision 7).
+5. **Buses.** Built for tables and chords: an `over=` edge is a bus, a strand per entry in the colours its wheel gives them (at most 12), and while it plays the entries looked up now are lit, the others dim. A CV edge carrying chords (melody → voice, a ref) is a strand per note: stopped, neutral; playing, the notes under the playhead of the cell it comes from, in the colours of that wheel's rings (the rest dim). A kit's strands are grey: its entries are voices. The golden graph's facets now include the band and the bus (`facets.ts`), so its `&theme` has two chords. Still to come: stereo, and the owner's style for its net (decision 8).
 6. **Named nets.** The meter's net comes from the engine. Tape heads and a canon get one drawing. Then the language question, `[<<n]` and `play= at=`, goes to a decision record.
 
 ## Open questions
 
 1. **The canon's clean form** (decision 6): a canon is one net, `&john`, with three taps at a delay. As copies today, `&john[<<1]`. Once `&<` exists, as taps of what was played. Which of the two the Frère Jacques example shows is to be decided when `&<` comes.
-2. **`show=` on a net:** its values (strands or one line, a pulse or still), written on the cell whose net it is, or on the tap?
+2. **How the owner says its net's style** (decision 8): a word in `show=` beside the wheel's (`show=notes,strands`), or an attribute of its own. Which styles: strands or one line, a pulse or still, coloured or neutral.
