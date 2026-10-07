@@ -31,6 +31,11 @@ The golden graph (`node tools/gallery.mjs golden`, PR #136) puts every kind of w
 19. **A resonator's tines are its inputs** (the owner pointed at the Kalimba; built): a tune into a resonator with more than one exciter is a bus as wide as its tines; its strands end at the pads, each in its pitch's colour, lit while its tine rings (`ctx.resonance`), as a tape's heads are its inputs and outputs.
 20. **Strands run as a cable loom** (built: `loomPaths`): out of each entry at a right angle onto a ring round the wheel, round it on a lane each, off it where it faces the reader into the bundle. Refs keep their own curl into their segment.
 21. **Instruments and read heads show waveforms, mixes spectra** (built): a voice's plain show is `wave` (one cycle stopped, the sound itself while it plays); `show=spectrum` still asks for the spectrum.
+22. **Placed-last retired** (built): a meter is laid out with the cells it steps, held by springs that aren't drawn; library crossings 76 → 89, accepted.
+23. **The Kalimba reads through its tines** (built): `&tune over=&kalimba`, one bus at the pads.
+24. **Only the sound card shows a spectrum**; mixes show waveforms (built).
+25. **Nets are a backbone**: the meter's net is a wide trace (built, 9 px). The net approach is to be built out beyond the meter's net (below).
+26. **Layout by mass and strength** (the owner's idea): each node has a mass, each edge or net segment a strength (below).
 
 ## What the golden graph shows
 
@@ -190,9 +195,52 @@ Each step is its own PR, each visible in the golden graph and the edge sheet (be
 
 Recommended: the first, as the true form (one bus, read by index). Not changed yet: it is the example's spelling (decision 6 allows it), so the owner's call.
 
+## Next: nets, mass and strength, the sun (discussion, 2026-10-07)
+
+### Nets beyond the meter
+
+Today one net is drawn as a net: a meter's (sync), a spanning tree the layout lays. Everywhere else a cell read by several cells is drawn as one edge per reader. Over the examples, cells read by two or more in the same port:
+
+| port | nets | taps | most |
+|---|---|---|---|
+| `step` (meters) | 46 | 210 | 16 |
+| `over` (tables) | 25 | 77 | 7 |
+| `braid` (parts spliced in) | 22 | 48 | 4 |
+| `mix` (a voice in both channels) | 22 | 44 | 2 |
+| `voice` (a melody playing several voices) | 9 | 20 | 4 |
+| `play` (a tape's heads) | 5 | 13 | 3 |
+
+The proposal: **a cell read by two or more is a net**. One trunk leaves it (a table's loom leaves once, not once per reader) and branches at junctions to its readers. A junction is an unnamed node (decision 2), so a net's branch points and a product's junction are the same thing. In the model, `GraphModel` gains `nets` (an owner, its band, its taps). The meter's spanning tree moves from the layout into the model, and the layout lays every net the same way. Drawing: the trunk carries the band and the width (the backbone for sync, strands for a bus, a wave for sound), and each branch carries what its tap takes.
+
+### Mass and strength
+
+One table, as `attributes.ts` is for the language (`layout/weights.ts`):
+
+- **A node's mass** by what it is. A turntable is heavy, and the language's own `mass=` on a motor could be its weight here too. A net's owner is heavy, a table medium, a melody light, a junction nearly nothing. A heavy node moves less and holds more room, so the backbones anchor and light cells settle round them. d3 has no mass: it is emulated by scaling the forces on a node by 1 / mass.
+- **An edge's or a net segment's strength** by what it carries. A belt is strongest (a body), a backbone strong, a bus by its width, a wire medium, a note's link weak. Strength is the spring's stiffness *and* what a crossing costs: crossing a backbone is worse than crossing a thin wire. The quality count becomes weighted (a belt already counts twice, which is the first case of it).
+
+This also gives placed-last's job back to the forces: a heavy meter pulled by strong ground segments, which cost a lot to cross.
+
+### The sun, split (refined)
+
+Rates are a table (`RATE_UNITS`: `bpm`, `hz`, `k`, each n per so many seconds). Adding `min`, `h`, `d` and `wk` makes wall-clock time a rate like any other: `loop=1d` turns once a day. Then:
+
+- **A day is a meter:** `&day scan(1!24) loop=1d anchor=11.55` has 24 hours, turns once a day, and stands at 11:55 when play starts. Its taps are the rate chain we have: `step=&day` an hour, `step=&day/60` a minute, `step=cycle(&day)` a day; `&week scan(1!7) loop=1wk` the weekdays. Only the irregular units (a month, the week in a month, the day in a year) need something new, a calendar, and can wait.
+- **`anchor=` moves from laws to any clock:** where it stands, in wall time, when play starts.
+- **The dial is a day meter drawn as a 24-hour face:** `show=sun` on a meter. The rim of modes by brightness becomes `show=brightness` on the mode table.
+- **The law reads the day instead of keeping its own anchor**, and `sun=` and the sun node retire. *5 to 12* is rewritten.
+
+### Order
+
+1. The weights table and weighted crossings: measurable against the baseline, no change to the model.
+2. Nets in the model (`GraphModel.nets`), with the meter's net computed there instead of in the layout.
+3. Nets for tables (one loom, branching), then tapes' heads, voices, the card's channels.
+4. The sun: time units, `anchor=` on clocks, `show=sun` and `show=brightness`, *5 to 12* rewritten.
+
 ## Open questions
 
 1. **The canon's clean form** (decision 6): a canon is one net, `&john`, with three taps at a delay. As copies today, `&john[<<1]`. Once `&<` exists, as taps of what was played. Which of the two the Frère Jacques example shows is to be decided when `&<` comes.
 2. **The net's style** (decision 9): which styles (strands or one line, a pulse or still, coloured or neutral), and the spelling of the attribute and of the decorator.
 3. **The time source** (decision 11): its name and attributes, and how a tap names its unit.
-4. **The Kalimba's clean form** (above): `&tune over=&kalimba`, or the tines from `&notes`.
+4. **The law and the day:** how `law=fiveto12` reads the day meter (`over=&day`, its step, or a new port).
+5. **Junctions in the layout:** a net's branch points as real (massless) nodes, or drawn only.
