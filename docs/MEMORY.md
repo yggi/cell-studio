@@ -52,5 +52,5 @@ One line each; the record has the rationale. → [decisions/](decisions/README.m
 
 ## Where things are tracked
 
-- Open work: the GitHub issues; big jobs in [roadmap.md](roadmap.md); rough edges in [limits.md](limits.md).
+- Open work: the GitHub issues; the target and big jobs in [roadmap.md](roadmap.md), the sequence towards it in [#141](https://github.com/yggi/cell-studio/issues/141); rough edges in [limits.md](limits.md).
 - Gotcha: never `pkill -f "<pattern>"` from the agent shell when the pattern also appears in the command line itself; it kills the shell. Use the PID or a port check.

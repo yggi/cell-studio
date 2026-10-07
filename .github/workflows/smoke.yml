@@ -2,7 +2,7 @@ name: Smoke
 
 # Opens and starts every piece in the runner's Chrome, and plays for 2 s the fewest pieces that use every kind
 # of audio node between them (tools/smoke.mjs, tools/smoke-pick.ts): the audio graph of every voice kind,
-# which the unit tests can't build. It runs on every PR (opened, pushed to, reopened, taken out of draft), so the
+# which the unit tests can't build. Then every example is rendered twice (tools/repeatable.mjs). It runs on every PR (opened, pushed to, reopened, taken out of draft), so the
 # result is always for the head; `main` after a merge doesn't run it. By hand: Actions -> Smoke -> Run workflow.
 # It is not a required check (ruleset: only `check`): the `senior` skill waits for it before merging.
 on:
@@ -30,5 +30,12 @@ jobs:
           PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: 1
       - run: npm run build
       - run: npm run smoke
+        env:
+          CHROME_PATH: /usr/bin/google-chrome
+      # Every example rendered offline twice, 4 s each: the two must agree within −100 dB (what "the same sound" means,
+      # docs/testing.md), none of our code may call Math.random, and none may clip or go over the loudness ceiling (#92).
+      - name: Renders repeat, under the loudness ceiling
+        if: ${{ !cancelled() }}
+        run: node tools/repeatable.mjs 4
         env:
           CHROME_PATH: /usr/bin/google-chrome
