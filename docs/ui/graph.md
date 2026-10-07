@@ -38,7 +38,7 @@ The physics only relaxes it — a spring to each node's place, no overlaps — a
 - **Tap** a cell: a detail sheet to turn it (drag the rim, − / +: writes `shift=`), switch it on/off (writes `off`), pin it in the layout, or jump to its line in the code (*Show in code*).
 - **Hold**: quick toggle of `off`.
 - **Drag**: moves the cell (physics keeps the rest arranged). Drag a hub to move, a rim to shift; double-tap pins.
-- **Keyboard**: in a sheet the arrows turn the rim; stopped, a focused sun turns by an hour and a turntable by a sixteenth (Enter or Space opens a turntable).
+- **Keyboard**: in a sheet the arrows turn the rim; stopped, a focused plugin dial turns by its own step (the sun, an hour) and a turntable by a sixteenth (Enter or Space opens a turntable).
 - Pinning is layout, not music, so it isn't in the code (yet).
 
 On a phone, **Graph** and **Code** are two full-size views switched by tabs under the header (the Code tab shows a count when there are errors; *Show in code* switches to it and selects the line). Both views stay mounted, so the graph keeps its layout while you edit. On a wide screen they sit side by side. See [theme.md](theme.md).

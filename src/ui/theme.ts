@@ -39,7 +39,7 @@ export const noteColour = (hue: number, dim = false, octave = 0) => {
   return `hsl(${hue} ${s}% ${l}%)`;
 };
 
-/** The sun's twelve blocks round its rim, by how bright their mode is (Lydian 1 … Locrian 0). */
+/** A mode's colour by how bright it is (Lydian 1 … Locrian 0): show=brightness, and what a plugin draws a day's blocks with. */
 export const blockColour = (light: number) => `hsl(45 ${30 + 60 * light}% ${14 + 62 * light}%)`;
 
 /** A scope's spectrogram: a band at its note's hue, as bright as it is loud; silence the tube's black (`--scope-black`). */

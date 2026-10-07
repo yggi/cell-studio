@@ -5,6 +5,7 @@
  * on the language pages (docs/language/overview.md).
  */
 import type { Atom, Binding, Braid, Diagnostic, FreeSpec, Pick, Span } from './ast';
+import type { ShowPlugin } from './plugins';
 
 export const ROOT = 'fifths12TET';
 /**
@@ -328,6 +329,8 @@ export interface CompileResult {
   /** Node ids of cells written `off`. */
   readonly off: ReadonlySet<string>;
   readonly diagnostics: readonly Diagnostic[];
+  /** The `show=` plugins the piece carries, by name (plugins.ts). */
+  readonly plugins: ReadonlyMap<string, ShowPlugin>;
 }
 
 /** Shift of every cell; missing names use the code's shift=. */

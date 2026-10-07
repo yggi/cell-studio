@@ -210,7 +210,8 @@
   }
 
   // "Shown as a meter: …", or "Shown as braid: …" (the meaning names it, or the show does)
-  const shownAs = (show: keyof typeof SHOW_MEANING) => (/^(a|an|the|its|one) /.test(SHOW_MEANING[show]) ? `as ${SHOW_MEANING[show]}` : `as ${show}: ${SHOW_MEANING[show]}`);
+  const meaningOf = (show: string) => (SHOW_MEANING as Record<string, string | undefined>)[show] ?? ctx.program.plugins.get(show)?.meaning ?? 'a plugin of the piece';
+  const shownAs = (show: string) => (/^(a|an|the|its|one) /.test(meaningOf(show)) ? `as ${meaningOf(show)}` : `as ${show}: ${meaningOf(show)}`);
 
   // ---- in words, and everything it connects to (each a link)
   const bits = $derived(cell ? summary(ctx.program, name) : []);

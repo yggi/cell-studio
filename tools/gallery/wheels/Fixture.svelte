@@ -11,7 +11,7 @@
   import VoiceNode from '../../../src/ui/VoiceNode.svelte';
   import MaterialNode from '../../../src/ui/MaterialNode.svelte';
   import ScopeNode from '../../../src/ui/ScopeNode.svelte';
-  import SunNode from '../../../src/ui/SunNode.svelte';
+  import PluginNode from '../../../src/ui/PluginNode.svelte';
   import CellGlyph from '../../../src/ui/CellGlyph.svelte';
   import SpectrumWheel from '../../../src/ui/SpectrumWheel.svelte';
   import WaveGlyph from '../../../src/ui/WaveGlyph.svelte';
@@ -44,7 +44,7 @@
     move() {},
     sound: madeUpSound(() => playing),
   });
-  const nodeTypes = { cell: CellNode, voice: VoiceNode, material: MaterialNode, scope: ScopeNode, sun: SunNode } as NodeTypes;
+  const nodeTypes = { cell: CellNode, voice: VoiceNode, material: MaterialNode, scope: ScopeNode, plugin: PluginNode } as NodeTypes;
   const name = f.node.data.name;
   const cell = p.program.cells.get(name)!;
   // the ladder: a cell's or a voice's wheel at each size (petals and the physical ones only at their own)

@@ -1,6 +1,8 @@
 /** Phase 8: attributes where they do nothing — each acts on some roles only (attributes.ts): warnings. */
 import type { Span } from '../ast';
+import { SHOWS } from '../parser/cell';
 import { ATTRIBUTES, rolesText, type Role } from '../attributes';
+import { PLUGIN_SYNTAX } from '../plugins';
 import type { Clock, ResolvedCell } from '../program';
 import type { Cells, Ctx } from './context';
 import type { Declared } from './declare';
@@ -29,6 +31,10 @@ export function checkRoles(ctx: Ctx, { decls, implicit }: Declared, cells: Cells
   for (const d of decls.values()) {
     const c = cells.get(d.name);
     if (!c || implicit.has(d.name)) continue;
+    // show=: one of the shows, or a plugin the piece carries (the parser reads any word)
+    const show = d.show?.split(':')[0];
+    if (show && !(SHOWS as readonly string[]).includes(show) && !ctx.parsed.plugins?.some((p) => p.name === show))
+      ctx.error(`show=${show}: not a show (${SHOWS.join(' ')}) and the piece carries no plugin of that name (${PLUGIN_SYNTAX})`, d.span);
     const has = roles(c);
     const written: [string, Span][] = [
       ...Object.keys(d.params).map((k): [string, Span] => [k, d.paramSpans[k] ?? d.span]),

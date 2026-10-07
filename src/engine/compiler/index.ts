@@ -56,5 +56,6 @@ export function compile(parsed: ParseResult, env: Env): CompileResult {
         .filter((h) => h.params.play === c.name)
         .map((h) => ({ head: h.name, at: num(h, 'at', 0), wander: num(h, 'wander', 0), wanderhz: num(h, 'wanderhz', 0.2) })),
     }));
-  return { ok, cells, clocks, outputs, off, diagnostics, tapes, returns, resonances };
+  const plugins = new Map((parsed.plugins ?? []).map((p) => [p.name, p]));
+  return { ok, cells, clocks, outputs, off, diagnostics, tapes, returns, resonances, plugins };
 }

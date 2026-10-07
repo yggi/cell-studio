@@ -23,6 +23,8 @@ export interface ExampleInfo {
   readonly time: PieceTime;
   /** The source's length, in bytes. */
   readonly bytes: number;
+  /** The code of the plugins it carries: shipped with the app, so run without asking (ui/pluginTrust.ts). */
+  readonly plugins: readonly string[];
   /** Its graph in miniature (src/layout/miniature.ts): the library draws it without fetching the piece. */
   readonly miniature: Miniature | null;
   /** The order its graph's rows are laid out in (layout/physics.ts: bestRowOrder), by its shape: it opens without the trials. */
@@ -47,6 +49,7 @@ export function buildExamplesMeta(dir = 'examples'): (ExampleMeta & { source: st
       size: graph.nodes.filter((n) => !n.petalOf && !n.cell.note).length,
       time: pieceTime(r),
       bytes: Buffer.byteLength(source),
+      plugins: [...r.plugins.values()].map((p) => p.code),
       source,
       graph,
     };

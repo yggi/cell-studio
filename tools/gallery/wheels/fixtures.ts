@@ -26,7 +26,7 @@ function kindOf(p: CompileResult, n: FlowNode, shifts: Shifts): string {
   const where = 'petal' in n.data && n.data.petal ? 'petal' : 'graph';
   const cell = p.cells.get(n.data.name)!;
   if (n.type === 'material') return `${where}:material:${n.data.role}`;
-  if (n.type === 'scope' || n.type === 'sun') return `${where}:${n.type}`;
+  if (n.type === 'scope' || n.type === 'plugin') return `${where}:${n.type}`;
   if (n.type === 'voice') return `${where}:${effectiveShow(p, n.data.name).show === 'wave' ? 'wave' : 'spectrum'}`;
   if (cell.mix || cell.sink) return `${where}:spectrum`;
   const isMeter = 'isMeter' in n.data && n.data.isMeter;
@@ -43,7 +43,7 @@ export function wheelsOf(piece: Piece): { name: string; key: string; node: FlowN
   return model.nodes
     .filter((g) => !g.cell.note)
     .map((g) => {
-      const node = flowNodeOf(g, { x: 0, y: 0 }, false, undefined, meters);
+      const node = flowNodeOf(g, { x: 0, y: 0 }, false, undefined, meters, piece.program);
       return { name: g.cell.name, key: kindOf(piece.program, node, piece.shifts), node, live: piece.live.nodes.has(g.id) };
     });
 }
