@@ -40,7 +40,7 @@ function colourOf(result: CompileResult, shifts: ReturnType<typeof codeShifts>, 
   if (kind === 'mix') return MIX;
   if (kind === 'meter') return METER;
   try {
-    const band = cellView(result, name, shifts, false).segments.find((s) => s.bands[0]?.kind === 'pitch')?.bands[0];
+    const band = cellView(result, name, shifts, false)?.segments.find((s) => s.bands[0]?.kind === 'pitch')?.bands[0];
     if (band?.kind === 'pitch') return (((Math.round(band.hue * 10) / 10) % 360) + 360) % 360; // (to a tenth of a degree)
   } catch {
     /* no pitch: a quiet dot */

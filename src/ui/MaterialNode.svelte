@@ -50,7 +50,7 @@
   $effect(() => {
     if (d.role !== 'resonator') return;
     const step = (t: number) => {
-      const r = ctx.resonance(d.name);
+      const r = ctx.sound.resonance(d.name);
       if (!r) {
         if (wobble !== 'none') ((wobble = 'none'), (amps = []), (pads = []));
         return;
@@ -121,7 +121,7 @@
     let last = -1;
     let running = false;
     const step = () => {
-      const p = ctx.tapePos(d.name);
+      const p = ctx.sound.tapePos(d.name);
       if (p === null) return void (running = false);
       // (a new run starts on a blank tape — the sound's was wound off when it stopped)
       if (!running) {
@@ -129,7 +129,7 @@
         rec = new Array(N).fill(0);
         last = -1;
       }
-      const level = ctx.tapeLevel(d.name) ?? 0;
+      const level = ctx.sound.tapeLevel(d.name) ?? 0;
       const c = ((p % t.L) + t.L) % t.L;
       const b = Math.floor((c / t.L) * N) % N;
       // the stretch under the write head: what's recorded now, over what erasing left of before
@@ -234,13 +234,13 @@
       touchAt = { x: e.clientX, y: e.clientY, t: performance.now(), pos: Math.max(0, Math.min(0.5, 0.5 - (dist / R) * 0.5)) };
       hold = setTimeout(() => {
         mode = 'damp';
-        ctx.damp(d.name, true);
+        ctx.sound.damp(d.name, true);
         navigator.vibrate?.(8);
       }, 220);
       return;
     }
     // a sound tape's reel: the hand holds the tape itself — scrubbing (a turn: a second of tape)
-    const u0 = d.role === 'tape' ? ctx.tapePos(d.name) : null;
+    const u0 = d.role === 'tape' ? ctx.sound.tapePos(d.name) : null;
     if (u0 !== null) {
       mode = 'scrub';
       handAngle = clockAngle() + reelOffset;
@@ -248,17 +248,17 @@
       scrubAt = u0;
       scrubTop = u0;
       last = { a: angleAt(e), t: performance.now() };
-      ctx.scrub(d.name, scrubAt);
+      ctx.sound.scrub(d.name, scrubAt);
       return;
     }
     // the disc: a hand on it — renewed while the finger is down (a still finger brakes)
     mode = 'grab';
     last = { a: angleAt(e), t: performance.now() };
     smooth = 0;
-    if (ctx.live) ctx.grab(d.name, 0);
+    if (ctx.live) ctx.sound.grab(d.name, 0);
     renew = setInterval(() => {
       if (performance.now() - last.t > 80) smooth *= 0.5; // (not moving: slowing to a stop)
-      if (ctx.live) ctx.grab(d.name, smooth / omega0);
+      if (ctx.live) ctx.sound.grab(d.name, smooth / omega0);
     }, 100);
   }
   function move(e: PointerEvent) {
@@ -273,14 +273,14 @@
       // dragged: a bow, its pressure the hand's speed
       if (hold) clearTimeout(hold);
       hold = null;
-      if (mode === 'damp') ctx.damp(d.name, false);
+      if (mode === 'damp') ctx.sound.damp(d.name, false);
       mode = 'bowing';
       bowLast = { x: e.clientX, y: e.clientY, t: performance.now() };
     } else if (mode === 'bowing') {
       const t = performance.now();
       const v = Math.hypot(e.clientX - bowLast.x, e.clientY - bowLast.y) / Math.max(1, t - bowLast.t); // px/ms
       bowLast = { x: e.clientX, y: e.clientY, t };
-      ctx.bow(d.name, Math.min(0.6, v * 0.25));
+      ctx.sound.bow(d.name, Math.min(0.6, v * 0.25));
     } else if (mode === 'scrub') {
       const a = angleAt(e);
       const da = turned(last.a, a);
@@ -288,7 +288,7 @@
       // (back as far as the tape holds; forward no further than what has been written)
       scrubAt = Math.min(scrubTop, Math.max(scrubTop - 4, scrubAt + da / (2 * Math.PI)));
       handAngle += (da * 180) / Math.PI;
-      ctx.scrub(d.name, scrubAt);
+      ctx.sound.scrub(d.name, scrubAt);
     } else if (mode === 'grab') {
       const a = angleAt(e);
       const t = performance.now();
@@ -299,7 +299,7 @@
       if (ctx.live) {
         if (t - sent > 30) {
           sent = t;
-          ctx.grab(d.name, smooth / omega0);
+          ctx.sound.grab(d.name, smooth / omega0);
         }
       } else {
         turnStopped(da);
@@ -341,12 +341,12 @@
     else if (mode === 'move') {
       const p = flow.screenToFlowPosition({ x: e.clientX, y: e.clientY });
       ctx.move(id, 'end', p.x, p.y);
-    } else if (mode === 'grab' && ctx.live) ctx.grab(d.name, null);
-    else if (mode === 'touch') ctx.strike(d.name, touchAt.pos);
-    else if (mode === 'damp') ctx.damp(d.name, false);
-    else if (mode === 'bowing') ctx.bow(d.name, null);
+    } else if (mode === 'grab' && ctx.live) ctx.sound.grab(d.name, null);
+    else if (mode === 'touch') ctx.sound.strike(d.name, touchAt.pos);
+    else if (mode === 'damp') ctx.sound.damp(d.name, false);
+    else if (mode === 'bowing') ctx.sound.bow(d.name, null);
     else if (mode === 'scrub') {
-      ctx.scrub(d.name, null);
+      ctx.sound.scrub(d.name, null);
       reelOffset = handAngle - clockAngle();
       scrubbing = false;
     }
@@ -356,10 +356,10 @@
   onDestroy(() => {
     if (hold) clearTimeout(hold);
     if (renew) clearInterval(renew);
-    if (mode === 'grab') ctx.grab(d.name, null);
-    else if (mode === 'damp') ctx.damp(d.name, false);
-    else if (mode === 'bowing') ctx.bow(d.name, null);
-    else if (mode === 'scrub') ctx.scrub(d.name, null);
+    if (mode === 'grab') ctx.sound.grab(d.name, null);
+    else if (mode === 'damp') ctx.sound.damp(d.name, false);
+    else if (mode === 'bowing') ctx.sound.bow(d.name, null);
+    else if (mode === 'scrub') ctx.sound.scrub(d.name, null);
   });
   const modeRings = $derived.by(() => {
     const body = cell && typeof cell.params.body === 'string' ? BODIES[cell.params.body] : undefined;
@@ -474,7 +474,7 @@
         onpointerdown={(e) => e.stopPropagation()}
         onclick={(e) => {
           e.stopPropagation();
-          ctx.strike(d.name, 0.5, i); // (playing or not: a body rings whether or not the clocks run)
+          ctx.sound.strike(d.name, 0.5, i); // (playing or not: a body rings whether or not the clocks run)
         }}>{x.name.replace(/-?\d+$/, '')}</button
       >
     {/each}

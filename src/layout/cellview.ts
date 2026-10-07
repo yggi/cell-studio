@@ -80,8 +80,10 @@ export function isGrid(result: CompileResult, name: string): boolean {
   return vals.every((v, i) => i === 0 || v > vals[i - 1]) && vals[vals.length - 1] - vals[0] < period(result, name);
 }
 
-export function cellView(result: CompileResult, name: string, shifts: Shifts, isMeter: boolean): CellView {
-  const c = result.cells.get(name)!;
+/** What a cell's wheel draws; null for a name the program doesn't have (one piece's name asked of another's program). */
+export function cellView(result: CompileResult, name: string, shifts: Shifts, isMeter: boolean): CellView | null {
+  const c = result.cells.get(name);
+  if (!c) return null;
   const shift = shifts(name);
   const eff = effectiveShow(result, name);
   const show = eff.show;

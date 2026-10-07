@@ -2,7 +2,7 @@
   /**
    * The edge sheet: every kind of edge the examples have (fixtures.ts), each in the states the graph draws it in
    * (off, unrouted, on, idle, live — twice, on a low note too — and bent as the layout bends it), on bare nodes. Belts
-   * by their stretch, a meter's net by its beat. The real edge components, as `flowedge.ts` makes them.
+   * by their stretch, a meter's net by its beat. The real edge components, as `flowedges.ts` makes them.
    */
   import EdgeCell, { type Column } from './EdgeCell.svelte';
   import { edgeFixtures } from './fixtures';

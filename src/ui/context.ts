@@ -14,8 +14,11 @@ import type { LiveSource } from '../audio/live';
  */
 export type NodeState = State;
 
-/** The graph's shared state, and the sound (LiveSource: what plays now, hands on it). */
-export interface GraphContext extends LiveSource {
+/**
+ * The graph's shared state. `program`, `shifts`, `muted` and `routed` are one snapshot (`ui/snapshot.ts`), the one the
+ * nodes and edges drawn now were made from: swapped together when the piece changes.
+ */
+export interface GraphContext {
   readonly program: CompileResult;
   readonly muted: ReadonlySet<string>;
   /** What can sound (routing.ts). */
@@ -48,6 +51,8 @@ export interface GraphContext extends LiveSource {
   readonly epoch: number;
   /** Move a node (held by its axle): start, move, end — where it ends, it stays (pinned). */
   move(id: string, phase: 'start' | 'move' | 'end', x: number, y: number): void;
+  /** The sound (the Player): what plays now, and hands on it. */
+  readonly sound: LiveSource;
 }
 
 export const [getGraphContext, setGraphContext] = createContext<GraphContext>();
