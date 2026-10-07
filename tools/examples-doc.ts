@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { durationText, mainLength } from '../src/engine/duration';
 import { pieceMeta } from '../src/engine/parser';
 import { parseTag, tagName } from '../src/engine/tags';
-import { buildExamplesIndex, type ExampleInfo } from './examples-index';
+import { buildExamplesMeta, type ExampleMeta } from './examples-index';
 
 /** The level= of the sound card, in dB (the examples all carry one). */
 const levelOf = (source: string): string => /\blevel=(-?[\d.]+)/.exec(source)?.[1] ?? '';
@@ -12,7 +12,7 @@ const levelOf = (source: string): string => /\blevel=(-?[\d.]+)/.exec(source)?.[
 const cell = (s: string): string => s.replace(/\|/g, '\\|');
 
 /** How long the piece is: its length, `∞` for a loop with no end, `~` when chance is in it. */
-function lengthOf(e: ExampleInfo): string {
+function lengthOf(e: ExampleMeta): string {
   const t = e.time;
   const main = mainLength(t);
   if (main === null) return '';
@@ -22,12 +22,12 @@ function lengthOf(e: ExampleInfo): string {
 
 /** The page: one section per genre (the first genre tag), in the order the genres first appear in the library. */
 export function buildExamplesDoc(dir = 'examples'): string {
-  const index = buildExamplesIndex(dir);
-  const firstGenre = (e: ExampleInfo) => {
+  const index = buildExamplesMeta(dir);
+  const firstGenre = (e: ExampleMeta) => {
     const g = e.tags.map(parseTag).find((t) => t.kind === 'genre');
     return g?.name ?? 'other';
   };
-  const groups = new Map<string, ExampleInfo[]>();
+  const groups = new Map<string, ExampleMeta[]>();
   for (const e of index) {
     const g = firstGenre(e);
     groups.set(g, [...(groups.get(g) ?? []), e]);
