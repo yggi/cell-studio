@@ -29,6 +29,8 @@ const FUNCTIONS: readonly [string, string][] = [
   ['scan(27 23 26 24)', 'scan — a 4/4 bar, the first beat long'],
   ['scan(28 37 35)', 'scan — a waltz bar, beat 2 early'],
   ['sin(12)', 'sin(n) — one cycle of a sine in n steps (a waveform)'],
+  ['degree(&x, 1)', 'degree(&x, n) — &x moved n steps up its table (a degree up the scale)'],
+  ['inverse(&x)', 'inverse(&x) — &x mirrored within its table (inversion in the scale)'],
 ];
 
 /**

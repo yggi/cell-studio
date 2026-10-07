@@ -7,7 +7,7 @@
  */
 import { effectiveShow } from '../layout/show';
 import type { CompileResult, ResolvedCell } from './program';
-import { refLabel, shiftLabel } from './ast';
+import { refLabel, shiftLabel, valueMapLabel } from './ast';
 import { cellId, edgeId, stepEdgeId } from './ids';
 
 export type GraphNode =
@@ -222,15 +222,23 @@ export function buildGraph(result: CompileResult): GraphModel {
       for (const f of pc.factors)
         if (result.cells.has(f)) link({ id: edgeId(cellId(f), id), source: cellId(f), target: id, kind: 'out', count: 1, pick: key, ...wire(key, 'cv', cellId(f), id) });
     for (const [child, count] of c.children) {
-      // its transpositions (^n), as written in this cell's steps
-      const ups = [...new Set(c.units.flatMap((u) => (u.atom.kind === 'ref' && u.atom.name === child && u.atom.transpose ? [u.atom.transpose] : [])))];
+      // its transpositions (^n) and operations (degree, inverse), as written in this cell's steps
+      const ups = [
+        ...new Set(
+          c.units.flatMap((u) =>
+            u.atom.kind === 'ref' && u.atom.name === child && (u.atom.transpose || u.atom.values)
+              ? [[valueMapLabel(u.atom.values), u.atom.transpose ? `^${u.atom.transpose}` : ''].filter(Boolean).join(' ')]
+              : [],
+          ),
+        ),
+      ];
       link({
         id: edgeId(id, cellId(child)),
         source: id,
         target: cellId(child),
         kind: 'ref',
         count,
-        pick: ups.map((n) => `^${n}`).join(' '),
+        pick: ups.join(' '),
         ...wire('braid', 'cv', id, cellId(child), chord(child), true, true),
       });
     }

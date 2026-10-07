@@ -200,11 +200,30 @@ Bell and scale, Just and Two Tuning Forks read better as pieces than as rungs (e
 
 ## Decisions (owner, 2026-10-07)
 
-1. **F1 · the values level is `~`** (the owner's spelling, replacing `[k+]`): `&x~1` one degree up, `&x~-1` one down, glued to the reference (today an error: "Unexpected '~'"; spaced, `&x ~ 1` stays a rest). `~k` adds k, so `&x~0` is `&x` and `&x~1~2` is `&x~3`. Inversion is a sign of its own: `-&x` (round degree 0; today an error, "Expected a number"), `-&x~4` round degree 2 (4 − each value). *Inversion's spelling to confirm.*
+1. **F1 · named operations now, operators later, in one pass.** `degree(&x, n)` (n steps up the table it is read through) and `inverse(&x)` (mirrored round the first degree), nesting (`degree(inverse(&x), 4)`): built, with the laws tested (`engine/operations.test.ts`). They give the meaning; a short spelling (the owner's sketch: `&x~1`, `&x~-1`) is chosen for every operator together, below, not one at a time.
 2. **F2 · articulation:** of two stepped pitches in a sum, the finer one articulates and the coarser one transposes; two at the same rate stay an error.
 3. **F3 · stereo:** `pan=` on a voice, in dough's sense (0 left, .5 centre, 1 right), compiled into the two channel gains. Reverses the seed's "two mixes": a decision record.
 4. **F6 · turning:** a stepped table comes round after its own length unless `cycle=` says otherwise. Amends decision 003's area: a decision record.
 
 Taken as recommended unless the owner says otherwise: F4 (a stepped braid of voices plays them), F5 (`swing=` becomes shorthand for a swing clock), F8 (`loop=SAMPLE_RATE` only in the first basic), the ladder with its test.
 
-In the findings above, read `&m[k+]` as `&m~k` and `[k-]` as `-&m~k`.
+In the findings above, read `&m[k+]` as `degree(&m, k)` and `[k-]` as `degree(inverse(&m), k)`.
+
+## The operator pass (to come, one decision)
+
+Every operator the language has or is about to get, so their spellings are chosen together and stay one system. Named forms (like `degree`, `inverse`) define the meaning; an operator is shorthand for one.
+
+| space | operation | today | named form |
+|---|---|---|---|
+| a step | repeat · ratchet · hold · chance | `x!n` · `x*n` · `x@n` · `x?p` | — |
+| a braid, as written | pick · slice · retrograde | `&x[i]` · `&x[a:b]` · `&x[::-1]` | — |
+| a braid, in time | rotate (climbing) | `&x[<<n]` `&x[>>n]` | — |
+| its values, before the table | degree · inversion | — | `degree(&x, n)` · `inverse(&x)` |
+| the grid, after the table | transpose | `&x^n` | — |
+| a table read | shifted | `over=&t[>>n]` | — |
+| semitones, in a mix | add · subtract · product | `+` `-` `*` | — |
+| time, on a clock | faster · slower · per cycle | `&x/n` `&x*n` · `cycle(&x)` | — |
+| a net | tap · send (nets thread) | — | `&<x` · `&>x` (sketch) |
+
+Questions for the pass: one character per space or words throughout; whether `[<<n]` on a melody stays time (the canon) when degrees get a sign of their own; whether a mix may take degrees at all; how a moving amount is written (`degree(&triad, &prog)`, F1's progression).
+
