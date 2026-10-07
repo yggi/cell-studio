@@ -48,7 +48,7 @@ bend. To change how an edge looks, change `edges.css` or the component and re-ru
 ## The golden graph
 `tools/gallery/golden/golden.cells` is a piece like any other — Cells code, nothing else — given to the real `Graph` and
 laid out by the app as it lays out any piece: `node tools/gallery.mjs golden` takes one picture stopped and one at 3 s
-(`?t=`), 5616 × 3038 px each. So it tests the graph's structure (what the engine makes of the code) and its layout (what
+(`?t=`), 5616 × 3038 px each. `node tools/gallery.mjs golden 3 canon pertonos` draws those examples instead, each in the real Graph (stopped and live): a before / after of a drawing change on the pieces it touches. So it tests the graph's structure (what the engine makes of the code) and its layout (what
 the physics makes of the graph) at once, and there is no layout of its own to keep up: no placer, no pins.
 
 It is a **spanning set**, not every combination: `facets.ts` reads each wheel and edge as dimensions — a wheel's place
