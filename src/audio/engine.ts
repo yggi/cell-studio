@@ -12,6 +12,7 @@ import { emptyWindow, grabIn, type FromEngine, type ToEngine } from '../engine/h
 import { resetPhysics } from '../engine/physics';
 import type { Plan } from '../engine/realize';
 import { windowAt, type Window } from '../engine/schedule';
+import { storageKey } from '../storageKey';
 
 /** The text a plan was compiled from, and its environment: what an engine elsewhere needs to make the same plan. */
 export interface PieceSource {
@@ -182,7 +183,7 @@ export class WorkerEngine implements Engine {
 export function chooseEngine(): Engine {
   let want: string | null = null;
   try {
-    want = new URLSearchParams(location.search).get('engine') ?? localStorage.getItem('cell-studio:engine');
+    want = new URLSearchParams(location.search).get('engine') ?? localStorage.getItem(storageKey('cell-studio:engine'));
   } catch {
     // (no storage: the default)
   }

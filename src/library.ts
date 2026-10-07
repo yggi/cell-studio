@@ -3,6 +3,7 @@
  * Storage can be unavailable (a viewer that blocks it, a private window):
  * every call says so instead of failing, and files always work.
  */
+import { storageKey } from './storageKey';
 import { pieceMeta } from './engine/parser';
 
 export interface SavedPiece {
@@ -13,7 +14,8 @@ export interface SavedPiece {
   readonly saved: string;
 }
 
-const KEY = 'cell-studio:pieces';
+// (a PR preview keeps its own: a PR that changes how pieces are saved can't touch yours)
+const KEY = storageKey('cell-studio:pieces');
 
 /** Can this browser keep pieces? */
 export function storageAvailable(): boolean {

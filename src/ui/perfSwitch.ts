@@ -1,8 +1,10 @@
+import { storageKey } from '../storageKey';
+
 /**
  * Whether the performance overlay is on: `?perf` turns it on (and keeps it on), `?perf=off` turns it
  * off; Files ▾ toggles it too. Kept in this browser; without storage only the address counts.
  */
-const KEY = 'cell-studio-perf';
+const KEY = storageKey('cell-studio-perf');
 
 export function perfWanted(): boolean {
   if (typeof location === 'undefined') return false;

@@ -1,0 +1,47 @@
+name: Preview cleanup
+
+# Removes a PR's preview (gh-pages/pr-<n>/, made by the `preview` job in ci.yml) when the PR closes, merged or
+# not, and says so in the preview's comment. By hand, for a preview left behind: Actions -> Preview cleanup ->
+# Run workflow, with the PR's number.
+on:
+  pull_request:
+    types: [closed]
+  workflow_dispatch:
+    inputs:
+      pr:
+        description: The PR whose preview to remove
+        required: true
+        type: number
+
+permissions:
+  contents: read
+
+jobs:
+  remove:
+    # (a fork's or Dependabot's PR never had a preview, and their token can't write)
+    if: github.event_name == 'workflow_dispatch' || (github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'dependabot[bot]')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      pages: read
+    # the preview's own group: a preview still being written for this PR is cancelled, not left to finish after
+    concurrency:
+      group: pages-pr-${{ github.event.pull_request.number || inputs.pr }}
+      cancel-in-progress: true
+    steps:
+      # (the scripts as they are on the default branch: the PR's branch may be gone)
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          sparse-checkout: .github/scripts
+          persist-credentials: false
+      - name: Remove gh-pages/pr-${{ github.event.pull_request.number || inputs.pr }}
+        run: .github/scripts/pages.sh remove ${{ github.event.pull_request.number || inputs.pr }}
+        env:
+          PAGES_REMOTE: https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}
+          MESSAGE: Remove the preview of PR ${{ github.event.pull_request.number || inputs.pr }}
+      - name: Say so on the PR
+        run: .github/scripts/preview-comment.sh ${{ github.event.pull_request.number || inputs.pr }} removed
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,18 +1,30 @@
 # Roadmap
 
-The big jobs, at a high level. Detail lives in the issues — this page names epics, not tasks, so it changes rarely. What exists today but is rough is on [limits.md](limits.md).
+The big jobs, at a high level. Detail lives in the issues — this page names the target and the epics, not tasks, so it changes rarely. What exists today but is rough is on [limits.md](limits.md).
+
+## The target: one model, read by everything
+
+The text compiles to one model — cells joined by **wires** (a port, a band, a transform, a width) on **nets**, in three bands (sync, CV, audio; [notes/nets.md](notes/nets.md)) — and the sound's wiring, the graph's drawing, the layout, the live states and the editor all read it. Done when:
+
+1. **The graph is the code**: every `&name` token on a line is exactly one wire, and every wire one token; products are junctions.
+2. **One description of where sound goes**, read by the audio wiring and the graph alike.
+3. **One spelling per meaning**: a canonical form for each family of equal spellings, which Shorten writes; every port has a band, and its units follow from it.
+4. **Nothing fails silently.**
+5. **Sameness is checked by machine**: event snapshots in `npm test`, renders within −100 dB on the smoke run.
+6. **The examples are written in the settled language**, sound the same, and a beginner's ladder teaches it.
+
+The sequence of work towards it, phase by phase, is [#141](https://github.com/yggi/cell-studio/issues/141); the epics below are its views from the code, the language and the layout, plus the tracks beside it.
+
+## Epics
 
 | epic | what | issues |
 |---|---|---|
-| Language | a systematic pass before more features: inventory, orthogonality, errors, laws, time, naming, a tutorial; then FM, selectors, pitch drop | #10 (#28, #29, #30, #31, #34) |
-| Auto-layout | code becomes a grouped, compact, readable graph with as few hints as possible, for any cellular architecture | #27 |
-| Audio engine | the engine seam and an opt-in worker are in (it doesn't lighten the main thread by itself: next, the live state off the main thread); dropping Tone, worklets (FM feedback, coupled resonators), a shared WASM core; physical cells part 2 | #14 (#15, #16, #17, #18, #32, #37, #65) |
-| Examples | the catalogue generated from the files (lazy loading and the build-time index are done) | #8 (#55) |
-| Library | the picker and its graph | #12 |
-| Editor | everything the language can say, editable in the graph | #33 |
+| One model | the target above, in phases: ground truth, one snapshot and one flow, the model complete, the language settled, taught | #141 |
+| Language | the shakedown: inventory, orthogonality, errors, laws, time, naming, a beginner path; then pitch spaces, selectors, sends | #10 (#29, #31, #143, #149, #150, #151, #152) |
+| Auto-layout | code becomes a grouped, compact, readable graph with as few hints as possible, for any cellular architecture | #27 (#145, #147, #148) |
+| Refactoring | the engine and audio are split; left: `Graph.svelte`, `physics.ts`, `CellSheet`, `Picker`, one description of where sound goes, stricter types | #9 (#132, #144, #145) |
+| Verification | events and renders checked by machine; previews to try a PR on a phone | #142, #92 (#65), #45 |
+| Phone and speed | latency, the screen-off crackle and the densest graph's frame rate, answered in one phone session; the graph's own cost | #154 (#91, #56, #36), #153 |
+| Audio engine | parked: dropping Tone, worklets (FM feedback, coupled resonators), a shared WASM core; physical cells part 2 | #16, #17, #18, #28, #32 |
+| Library and editor | the picker and its graph; everything the language can say, editable in the graph | #12, #33 |
 | Wish list | pieces and features, as one checklist | #35 |
-| Visual bugs | active/inactive detection of cells and edges | #11 |
-| Performance | live views' cost on large graphs; the first slice (#13) is done | #36 |
-| Refactoring | `voices.ts`, `realize.ts`, `Player` and `App.svelte` are split, the graph gets the sound as one object, views share one frame loop; `compile()` is in phases (`compiler/`) and the parser by construct (`parser/`); left: the large components, lint, stricter types | #9 |
-| Deployment | PWA, PR workflow | #7 |
-| Agents | the agentic workflow: AGENTS.md, the `senior` skill, CI | #6 |

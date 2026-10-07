@@ -1,6 +1,6 @@
 /** Phase 1: the declarations — one per name, the default grid and scale() tables added, over= chains known and acyclic. */
 import type { Atom, CellDecl, Ref, Token } from '../ast';
-import { ROOT } from '../program';
+import { MAX_SPLICE_DEPTH, ROOT } from '../program';
 import { VOICE_PARAMS } from '../attributes';
 import { even as evenPositions, intervals } from '../../theory/modes';
 import { IMPLICIT, isRootDecl, tableOf } from './tables';
@@ -19,7 +19,7 @@ export interface Declared {
 }
 
 export function declare(ctx: Ctx): Declared {
-  const { parsed, error } = ctx;
+  const { parsed, error, unknownCell } = ctx;
   const decls = new Map<string, CellDecl>();
   const implicit = new Set<string>();
   for (const c of parsed.cells) {
@@ -99,7 +99,7 @@ export function declare(ctx: Ctx): Declared {
     let ok = true;
     if (o !== null) {
       if (!decls.has(o)) {
-        error(`Unknown cell &${o}`, d.over!.span);
+        unknownCell(o, d.over!.span);
         ok = false;
       } else if (seen.includes(o)) {
         error(`over= loops: ${[...seen.slice(seen.indexOf(o)), name, o].map((n) => '&' + n).join(' → ')}`, d.over?.span ?? d.span);
@@ -129,7 +129,8 @@ function voiceGrooves(decls: ReadonlyMap<string, CellDecl>): { voices: Ref[]; ce
   const asTable = new Set([...decls.values()].flatMap((d) => (d.over ? [d.over.name] : [])));
   // what a cell may hold to be a groove or a motif: rests, voices, chords of voices, and references to motifs
   const shape = (d: CellDecl | undefined, seen: readonly string[]): boolean => {
-    if (!d || d.over || d.map || sounds(d) || d.braid.kind !== 'list' || d.braid.tokens.length === 0 || seen.includes(d.name)) return false;
+    // (no deeper than a splice may go: past that it is an error of its own, and no groove)
+    if (!d || d.over || d.map || sounds(d) || d.braid.kind !== 'list' || d.braid.tokens.length === 0 || seen.length > MAX_SPLICE_DEPTH || seen.includes(d.name)) return false;
     let voiced = false;
     for (const t of d.braid.tokens) {
       const a = t.atom;
@@ -141,11 +142,16 @@ function voiceGrooves(decls: ReadonlyMap<string, CellDecl>): { voices: Ref[]; ce
     }
     return voiced;
   };
+  const motifs = new Map<string, boolean>();
   const motif = (name: string, seen: readonly string[]): boolean => {
+    if (motifs.has(name)) return motifs.get(name)!;
     const d = decls.get(name);
     // (one chord of voices and nothing else is a mix: &organ [&a, &b])
     const mix = d?.braid.kind === 'list' && d.braid.tokens.length === 1 && d.braid.tokens[0].atom.kind === 'mix';
-    return !!d && !d.step && !mix && !asTable.has(name) && shape(d, seen);
+    const is = !!d && !d.step && !mix && !asTable.has(name) && shape(d, seen);
+    // (only a settled answer is kept: one cut short by a loop or the depth may differ from elsewhere)
+    if (seen.length === 0 || is) motifs.set(name, is);
+    return is;
   };
   const grooves = [...decls.values()].filter((d) => d.step && shape(d, []));
   if (!grooves.length) return null;

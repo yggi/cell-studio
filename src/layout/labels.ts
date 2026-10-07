@@ -10,7 +10,7 @@
  *
  *   **bold**   *italic*   \n a new line
  */
-import type { CompileResult, Shifts } from '../engine/program';
+import { LABEL_FIELDS, type CompileResult, type Shifts } from '../engine/program';
 import { entries, resolvePitch, semitones } from '../engine/helix';
 import { flatten } from '../engine/flatten';
 import { modeName, mod } from '../theory/modes';
@@ -24,7 +24,7 @@ const NAMES = ['C', 'C♯', 'D', 'E♭', 'E', 'F', 'F♯', 'G', 'A♭', 'A', 'B�
  */
 export function fieldsOf(result: CompileResult, name: string, shifts: Shifts, need?: ReadonlySet<string>): Record<string, string | null> {
   const c = result.cells.get(name);
-  const out: Record<string, string | null> = { name: `&${name}`, notes: null, tonic: null, mode: null, steps: null, tempo: null, shift: null };
+  const out: Record<string, string | null> = { ...Object.fromEntries(LABEL_FIELDS.map((f) => [f, null])), name: `&${name}` };
   if (!c) return out;
   out.steps = String(c.steps);
   out.shift = String(shifts(name));
