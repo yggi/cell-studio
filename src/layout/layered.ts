@@ -13,7 +13,7 @@
  *     apart by its width — columns appear where they're natural.
  */
 import type { GraphModel } from '../engine/graph';
-import { columns, flowRanks } from './physics';
+import { columns, flowRanks } from './start';
 
 export interface LayeredOptions {
   /** Room between rows, per rank. */
@@ -421,7 +421,8 @@ function clustered(model: GraphModel, o: LayeredOptions): Map<string, { x: numbe
   const outer = {
     ...model,
     nodes: [...nodes.filter((n) => !blockOf.has(n.id)), ...blockNodes],
-    edges: edges.filter((e) => top(e.source) !== top(e.target)).map((e) => ({ ...e, source: top(e.source), target: top(e.target) })),
+    // (each edge as a wire too, its flow's ends: from and to)
+    edges: edges.filter((e) => top(e.source) !== top(e.target)).map((e) => ({ ...e, source: top(e.source), target: top(e.target), from: top(e.from), to: top(e.to) })),
   } as unknown as GraphModel;
   const placed = layered(outer, {
     ...o,

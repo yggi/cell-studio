@@ -62,7 +62,7 @@
     return t && typeof t.params.write === 'string' && ctx.program.cells.has(t.params.write) ? t.params.write : name;
   });
   // every step, as the cell is written (the rim's turning works on these) …
-  const full = $derived(cell ? cellView(ctx.program, drawn, shown, isMeter) : EMPTY);
+  const full = $derived((cell && cellView(ctx.program, drawn, shown, isMeter)) || EMPTY);
   // … and what's drawn: a braid of hundreds of steps is merged into ~160 segments (a step is under a pixel
   // there, and each is a path to rewrite whenever a table turns: #41). Segments keep their times, so `lit` works.
   const view = $derived.by<CellView>(() => {

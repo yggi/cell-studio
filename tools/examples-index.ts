@@ -8,7 +8,8 @@ import { buildGraph } from '../src/engine/graph';
 import { ORDER, type PresetKey } from '../src/engine/order';
 import { pieceMeta } from '../src/engine/parser';
 import { miniature, type Miniature } from '../src/layout/miniature';
-import { bestRowOrder, rowsKey } from '../src/layout/physics';
+import { bestRowOrder } from '../src/layout/physics';
+import { rowsKey } from '../src/layout/start';
 import { canonicalTags } from '../src/engine/tags';
 
 export interface ExampleInfo {

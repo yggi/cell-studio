@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { layered } from './layered';
-import { DEFAULT_LAYOUT } from './physics';
+import { DEFAULT_LAYOUT } from './options';
 import { buildGraph } from '../engine/graph';
 import { compileSource } from '../engine/compile';
 import { PRESETS } from '../engine/presets';

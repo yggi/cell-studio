@@ -7,13 +7,13 @@ import { setAttr } from '../engine/edit';
 import { PRESETS } from '../engine/presets';
 import { cellView, hubLabel } from './cellview';
 import { buildGraph } from '../engine/graph';
-import { flowRanks } from './physics';
+import { flowRanks } from './start';
 import { FITS, effectiveShow, inferShow, kindOf, noteLabel, tonicOf, voiceBase } from './show';
 
 const twinkle = (show: string) => setAttr(PRESETS.twinkle.source, 'tune', 'show', show);
 const labels = (src: string, cell: string) => {
   const r = compileSource(src);
-  const v = cellView(r, cell, codeShifts(r), false);
+  const v = cellView(r, cell, codeShifts(r), false)!;
   const base = voiceBase(r, cell);
   const tonic = tonicOf(r, cell);
   return v.segments.flatMap((s) => (s.notes?.length ? [noteLabel(v.show!, s.notes[s.notes.length - 1], base, tonic)] : []));
@@ -51,9 +51,9 @@ describe('show=', () => {
   });
   it('pattern: rhythm only; adsr: a curve; mode: major and minor by name', () => {
     const r = compileSource(twinkle('pattern'));
-    expect(cellView(r, 'tune', codeShifts(r), false).segments.every((s) => s.bands.every((b) => b.kind !== 'pitch'))).toBe(true);
+    expect(cellView(r, 'tune', codeShifts(r), false)!.segments.every((s) => s.bands.every((b) => b.kind !== 'pitch'))).toBe(true);
     const e = compileSource('&e map=adsr .01 .3 .5 .4');
-    expect(cellView(e, 'e', codeShifts(e), false)).toMatchObject({ mode: 'curve', curve: { attack: 0.01, decay: 0.3, sustain: 0.5, release: 0.4 } });
+    expect(cellView(e, 'e', codeShifts(e), false)!).toMatchObject({ mode: 'curve', curve: { attack: 0.01, decay: 0.3, sustain: 0.5, release: 0.4 } });
     const royal = compileSource(setAttr(PRESETS.royal.source, 'scale', 'show', 'mode'));
     expect(hubLabel(royal, 'scale', codeShifts(royal), false, null)).toEqual({ big: 'minor', small: 'on C' });
   });
@@ -112,7 +112,7 @@ describe('label=, and the rest of show=', () => {
   });
   it('show=levels: a volume as bars, as tall as its levels (decibels converted)', () => {
     const r = compileSource('&m step=1\n&vol map=db step=&m show=levels 0 -6 -20\n&t step=&m 0\n&v s=tri loop=C4\n&mix loop=SAMPLE_RATE map=sample [&t * &vol * &v]');
-    const v = cellView(r, 'vol', codeShifts(r), false);
+    const v = cellView(r, 'vol', codeShifts(r), false)!;
     expect(v.segments.map((s) => (s.bands[0].kind === 'level' ? +s.bands[0].v.toFixed(2) : null))).toEqual([1, 0.5, 0.1]);
   });
   it('naming conventions: notes:flats, notes:sharps, notes:german, do:fixed', () => {
@@ -140,7 +140,7 @@ describe('show=lfo: what moves other cells', () => {
     expect(kindOf(r, vib)).toBe('lfo');
     expect(effectiveShow(r, vib).show).toBe('lfo');
     expect(hubLabel(r, vib, codeShifts(r), false, null)).toEqual({ big: '5 Hz', small: '±0.15' });
-    const w = cellView(r, vib, codeShifts(r), false).wave!;
+    const w = cellView(r, vib, codeShifts(r), false)!.wave!;
     expect(w).toHaveLength(96);
     // 0 .15 0 -.15 0, gliding: it starts in the middle, peaks a fifth of the way round, and is lowest at three fifths
     expect(w[0]).toBeCloseTo(0.5, 6);

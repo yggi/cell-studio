@@ -55,7 +55,7 @@ export interface ResolvedCell {
   readonly cycle: number;
   /**
    * cycle= as written: where a turning cell wraps. Without it a cell's turning
-   * climbs a lap each time round, like every other shift.
+   * comes round after its own length (decision 008); a larger cycle= keeps it climbing.
    */
   readonly wrap: number | null;
   /** An unnamed cell (`&( … )`): its body as written. */
@@ -301,12 +301,20 @@ export interface AudioTape {
 export interface Resonance {
   readonly cell: string;
   readonly gains: readonly [number, number];
+  /** Its gains by the mix and sound card they go through (as an output's): muting either takes its share away. */
+  readonly parts: Output['parts'];
+  /** The mixes it plays through on the way (as an output's): one switched off silences it. */
+  readonly through: Output['through'];
 }
 /** A read head of a sound tape in a mix: its tap, at a level per channel. */
 export interface TapeReturn {
   readonly head: string;
   readonly tape: string;
   readonly gains: readonly [number, number];
+  /** Its gains by the mix and sound card they go through (as an output's): muting either takes its share away. */
+  readonly parts: Output['parts'];
+  /** The mixes it plays through on the way (as an output's): one switched off silences it. */
+  readonly through: Output['through'];
 }
 
 export interface CompileResult {
