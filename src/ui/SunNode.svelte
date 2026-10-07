@@ -16,7 +16,7 @@
   import { angleOf as turnOf, turnDelta } from '../layout/dial';
   import { NOTE_NAMES as NAMES } from '../theory/modes';
   import { blockColour } from './theme';
-  import { BLOCK_NAMES, DAY_MODES, MODE_NAMES, place, SECONDS_PER_STEP } from '../engine/fiveto12';
+  import { BLOCK_NAMES, DAY_MODES, MODE_NAMES, place, SECONDS_PER_STEP, START as lawStart } from '../engine/fiveto12';
 
   let { data }: NodeProps = $props();
   const d = $derived(data as { name: string });
@@ -30,7 +30,6 @@
   const sec = (h: number) => Math.floor(h) * 3600 + Math.round((h % 1) * 100) * 60;
   const law = $derived([...ctx.program.cells.values()].find((c) => c.params.law === 'fiveto12' && c.over === d.name));
   const anchor = $derived(typeof cell?.params.anchor === 'number' ? sec(cell.params.anchor) : 0);
-  const lawStart = sec(11.55);
   // where the piece is: playing, its time; stopped, where play will start
   const t = $derived(ctx.live?.seconds ?? ctx.cursor);
   const ofDay = $derived((((anchor + t) % 86400) + 86400) % 86400);

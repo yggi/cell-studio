@@ -1808,10 +1808,10 @@ export function rowsKey(model: GraphModel): string {
  * The rows' order (layered.ts: 0 the sweeps, 1 insertion then the sweeps) that lays a fresh graph out with fewer
  * crossings: each tried, in a layout of its own, for `trial` ticks.
  */
-export function bestRowOrder(model: GraphModel, opts: Partial<LayoutOptions> = {}): number {
+export function bestRowOrder(model: GraphModel, opts: Partial<LayoutOptions> = {}): 0 | 1 {
   const o = { ...DEFAULT_LAYOUT, ...opts };
-  let best = { order: 0, crossings: Infinity, cost: Infinity };
-  for (const order of [0, 1]) {
+  let best: { order: 0 | 1; crossings: number; cost: number } = { order: 0, crossings: Infinity, cost: Infinity };
+  for (const order of [0, 1] as const) {
     const t = new ForceLayout(undefined, { ...o, live: false, rowOrder: order });
     t.setGraph(model);
     t.tick(o.trial);
