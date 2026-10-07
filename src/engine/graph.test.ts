@@ -58,6 +58,14 @@ describe('edges as wires', () => {
     expect(wireOf(fm.edges, 'op', 'v')).toMatchObject({ port: 'pitch', band: 'audio' });
   });
 
+  it('a table read by several is a net: one trunk, a tap for each reader', () => {
+    const net = g.nets.find((n) => n.owner === 'cell:mode');
+    expect(net).toMatchObject({ port: 'over', band: 'cv' });
+    expect(net!.taps.map((id) => g.edges.find((e) => e.id === id)!.to).sort()).toEqual(['cell:motif', 'cell:theme']);
+    // (a table read by one is an edge, not a net)
+    expect(g.nets.some((n) => n.owner === 'cell:alpha')).toBe(false);
+  });
+
   it('every edge of every example has a port and a band, and its ends are the edge’s', () => {
     for (const [key, p] of Object.entries(PRESETS)) {
       for (const e of buildGraph(compileSource(p.source)).edges) {

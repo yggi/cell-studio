@@ -12,7 +12,7 @@
    */
   import { BaseEdge, type EdgeProps } from '@xyflow/svelte';
   import { untrack } from 'svelte';
-  import { loomPaths, radialPath, ripplePath, splinePoint, strandPath } from '../layout/geometry';
+  import { loom, loomPaths, radialPath, ripplePath, splinePoint, strandPath } from '../layout/geometry';
   import { cellView, type Fill } from '../layout/cellview';
   import { isTurntable } from '../engine/graph';
   import { getGraphContext } from './context';
@@ -33,6 +33,7 @@
       phaseCell: string | null;
       voice: string | null;
       sizes?: { from: number; to: number };
+      net?: { id: string; trunk: boolean };
       off?: boolean;
       state?: string;
     },
@@ -93,18 +94,28 @@
     const exits = d.table && r ? Array.from({ length: count }, (_, i) => entryOf(i)) : [];
     if (!exits.length || exits.some((s) => !s))
       return Array.from({ length: count }, (_, i) => strandPath(sourceX, sourceY, mid.x, mid.y, targetX, targetY, (i - (count - 1) / 2) * GAP));
-    // out of each entry at a right angle, round the wheel on its lane, into a bundle towards the reader
-    return loomPaths(
-      sourceX,
-      sourceY,
-      r,
-      exits.map((s) => (s!.t0 + s!.t1) / 2),
-      mid.x,
-      mid.y,
-      targetX,
-      targetY,
-      GAP,
-    );
+    const turns = exits.map((s) => (s!.t0 + s!.t1) / 2);
+    // a net (a table read by several): the trunk, out of the wheel to the junction, carried by one of its edges; from
+    // there each edge's branch to its reader — the bundle goes on, its strands side by side, to each
+    const j = d.net ? ctx.bends.get(d.net.id) : undefined;
+    if (j) {
+      const trunk = loom(sourceX, sourceY, r, turns, (sourceX + j.x) / 2, (sourceY + j.y) / 2, j.x, j.y, GAP);
+      const [tx, ty] = [j.x - sourceX, j.y - sourceY];
+      const tl = Math.hypot(tx, ty) || 1;
+      const [bx, by] = [targetX - j.x, targetY - j.y];
+      const bl = Math.hypot(bx, by) || 1;
+      const k = 0.4 * bl;
+      const f = (v: number) => v.toFixed(1);
+      return trunk.paths.map((p, i) => {
+        const e = trunk.ends[i];
+        const [nx, ny] = [-by / bl, bx / bl];
+        // (on along the trunk's way, then round into the branch's: one smooth curve)
+        const branch = `C ${f(e.x + (tx / tl) * k)} ${f(e.y + (ty / tl) * k)} ${f(targetX + nx * e.o - (bx / bl) * k)} ${f(targetY + ny * e.o - (by / bl) * k)} ${f(targetX + nx * e.o)} ${f(targetY + ny * e.o)}`;
+        return d.net!.trunk ? `${p} ${branch}` : `M ${f(e.x)} ${f(e.y)} ${branch}`;
+      });
+    }
+    // out of each entry, along the radius, into a bundle towards the reader
+    return loomPaths(sourceX, sourceY, r, turns, mid.x, mid.y, targetX, targetY, GAP);
   });
   const fillColour = (f: Fill | undefined) => (f?.kind === 'pitch' ? noteColour(f.hue, false, f.octave ?? 0) : 'var(--edge)');
   // a resonator's tines: a strand into each pad (round its body, as MaterialNode lays them), lit while it rings

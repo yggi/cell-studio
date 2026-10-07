@@ -14,6 +14,7 @@ that makes the change. Also note changes to the language that could affect saved
 - A read head of a sound tape (`play=` on a tape that records a mix) showed an empty wheel: it shows the waveform of what it plays back, with where it reads (`0.75s`). Saved `.cells` pieces are not affected.
 
 ### Changed
+- A table read by several cells is a net: one bundle of strands leaves its wheel and branches at a junction to each reader (it was a bundle each). A wheel's strands leave it as curves that keep their order, from the far side diving under the wheel, so none cross where they leave. Saved `.cells` pieces are not affected.
 - A meter's net is a backbone: a wide trace in the meter's colour, lit on the beat (it was a thin line that the edges' own width rule overrode). Saved `.cells` pieces are not affected.
 - Kalimba reads through its own tines: `&tune over=&kalimba`, and `&notes` (the same eight numbers written twice) is gone; each note plucks the tine at its place. It plays the same notes. In the graph the tune and the kalimba share one bus, from its pads. Saved `.cells` pieces are not affected.
 - A meter is no longer placed last, apart from the rest: it is laid out with the cells it steps (held to them by springs that aren't drawn), and its net is laid after. Over the library that's 13 more crossings (89): fewer in the Prelude, Zelluläre Aktivität and Korobeiniki, more in Cellscape, Hypercell and the Lullaby. Saved `.cells` pieces are not affected.

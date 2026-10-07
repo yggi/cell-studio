@@ -72,9 +72,24 @@ export interface GraphEdge extends Wire {
   readonly label?: string;
 }
 
+/**
+ * A net (docs/notes/nets.md): a cell read by several through the same port — one trunk out of it, branching at a
+ * junction to each reader. Today a table read by several (over=); a meter's net is laid by the layout.
+ */
+interface GraphNet {
+  readonly id: string;
+  /** The cell it leaves (its node id), and the port its readers read it through. */
+  readonly owner: string;
+  readonly port: string;
+  readonly band: Band;
+  /** Its edges, one a reader; the first carries the trunk. */
+  readonly taps: readonly string[];
+}
+
 export interface GraphModel {
   readonly nodes: readonly GraphNode[];
   readonly edges: readonly GraphEdge[];
+  readonly nets: readonly GraphNet[];
   /** An edge drawn under another id (through a petal: to its parent), by its own id; undefined: not drawn. */
   readonly alias: ReadonlyMap<string, string | undefined>;
 }
@@ -406,7 +421,19 @@ function petals(result: CompileResult, allNodes: GraphNode[], allEdges: GraphEdg
   const alias = new Map<string, string | undefined>();
   for (const r of redrawn) alias.set(r.id, r.pair === null ? undefined : byPair.get(r.pair));
   for (const e of allEdges) if (hidden.has(e.source) || hidden.has(e.target)) alias.set(e.id, undefined);
-  return { nodes: nodes.map((n) => (parentOf.has(n.id) ? { ...n, petalOf: parentOf.get(n.id) } : n)), edges: out, alias };
+  return { nodes: nodes.map((n) => (parentOf.has(n.id) ? { ...n, petalOf: parentOf.get(n.id) } : n)), edges: out, nets: netsOf(out), alias };
+}
+
+/** The ports a net is drawn for so far: a table read by several. */
+const NET_PORTS = new Set(['over']);
+
+/** The nets among the edges: those leaving one cell through one port, two or more. */
+function netsOf(edges: readonly GraphEdge[]): GraphNet[] {
+  const groups = new Map<string, GraphEdge[]>();
+  for (const e of edges) if (NET_PORTS.has(e.port)) groups.set(`${e.from}|${e.port}`, [...(groups.get(`${e.from}|${e.port}`) ?? []), e]);
+  return [...groups.values()]
+    .filter((g) => g.length > 1)
+    .map((g) => ({ id: `net:${g[0].from}:${g[0].port}`, owner: g[0].from, port: g[0].port, band: g[0].band, taps: g.map((e) => e.id) }));
 }
 
 /** Changes only when the set of nodes or edges changes — not when contents do. */

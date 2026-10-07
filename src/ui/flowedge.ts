@@ -69,7 +69,13 @@ export interface EndSizes {
   readonly to: number;
 }
 
-export function flowEdgeOf(e: GraphEdge, state: State, program: CompileResult, belt?: BeltDrawn, sizes?: EndSizes): Edge {
+/** An edge's place in a net (GraphModel.nets): which, and whether it carries the trunk (the loom out of the owner). */
+export interface NetPlace {
+  readonly id: string;
+  readonly trunk: boolean;
+}
+
+export function flowEdgeOf(e: GraphEdge, state: State, program: CompileResult, belt?: BeltDrawn, sizes?: EndSizes, net?: NetPlace): Edge {
   if (belt) return { id: e.id, source: e.source, target: e.target, type: 'belt', zIndex: 5, selectable: false, data: { ...belt } };
   // a tape's edges meet it at its heads: the write head (what it records), each read head (what it plays)
   const heads = e.pick === 'write' ? { targetHandle: 'head-write' } : e.pick === 'play' ? { sourceHandle: `head-${nameOf(e.target)}` } : {};
@@ -81,7 +87,7 @@ export function flowEdgeOf(e: GraphEdge, state: State, program: CompileResult, b
     ...heads,
     type: 'pulse',
     // (only a live edge carries a note's colour and pulses: an edge into what doesn't sound now stays still)
-    data: { ...pulseData(e, program), off: state === 'off' || state === 'unrouted', state, sizes, to: nameOf(e.to) },
+    data: { ...pulseData(e, program), off: state === 'off' || state === 'unrouted', state, sizes, to: nameOf(e.to), net },
     label: [e.count > 1 ? `×${e.count}` : '', e.pick, e.label ?? ''].filter(Boolean).join(' ') || undefined,
     class: `edge-${e.kind} band-${e.band}${e.pointer ? ' pointer' : ''}`,
     selectable: false,

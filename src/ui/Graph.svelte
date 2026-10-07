@@ -277,6 +277,9 @@
 
   const edgeTypes = { pulse: PulseEdge, belt: BeltEdge, meter: MeterEdge };
 
+  // each edge's place in a net (a table read by several: one trunk, a branch to each reader)
+  const netPlaces = $derived(new Map(model.nets.flatMap((n) => n.taps.map((id, i) => [id, { id: n.id, trunk: i === 0 }] as const))));
+
   function toFlowEdge(e: GraphEdge): Edge {
     // off, unrouted, on, idle, live: one rule for edges and nodes (engine/routing.ts). Here without the live set: while
     // playing an edge that is routed is idle, and PulseEdge makes it live when it is (each edge reads that for itself)
@@ -292,7 +295,7 @@
     }
     // (the wheels' sizes at its ends: a braid's edge meets its segment, a table's strands leave their entries)
     const size = (id: string) => (nodes.find((n) => n.id === id)?.data as { size?: number } | undefined)?.size ?? 0;
-    return flowEdgeOf(e, state, program, undefined, { from: size(e.from), to: size(e.to) });
+    return flowEdgeOf(e, state, program, undefined, { from: size(e.from), to: size(e.to) }, netPlaces.get(e.id));
   }
 
   $effect(() => {

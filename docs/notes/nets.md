@@ -230,6 +230,10 @@ Rates are a table (`RATE_UNITS`: `bpm`, `hz`, `k`, each n per so many seconds). 
 - **The dial is a day meter drawn as a 24-hour face:** `show=sun` on a meter. The rim of modes by brightness becomes `show=brightness` on the mode table.
 - **The law reads the day instead of keeping its own anchor**, and `sun=` and the sun node retire. *5 to 12* is rewritten.
 
+### Built: nets for tables (2026-10-07)
+
+`GraphModel.nets` (`graph.ts`): the edges leaving one cell through one port, two or more (tables, `over=`, so far). The layout places each net's junction (`ForceLayout.junctions`, published with the bends): on the way to its readers' middle, at least 110 px out of the owner's wheel, short of the nearest reader. The first tap draws the trunk (the loom, `loom` in `geometry.ts`, to the junction), every tap its branch from there, one curve per strand that goes on along the trunk's way and round into the branch's. The loom is now one cubic per strand: out along the radius, into its place in the bundle (by angle round the wheel, so neighbours stay neighbours); a strand from the far side dives under the wheel. In the golden graph, `&mode` leaves once and branches to `&motif` and `&theme`. Not yet: the layout's forces don't know nets (a branch can run under a wheel, `&theme`'s under `&near`); that is the weights step.
+
 ### Order
 
 1. The weights table and weighted crossings: measurable against the baseline, no change to the model.

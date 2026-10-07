@@ -730,6 +730,8 @@ export class ForceLayout {
 
   /** Merge a new graph in. Existing nodes keep position and velocity. */
   setGraph(model: GraphModel, structural = true): GraphDiff {
+    this.nets = model.nets ?? [];
+    this.edgeEnds = new Map(model.edges.map((e) => [e.id, e.to]));
     // petals (unnamed cells) hang from their parent: the physics only sees named cells
     model = { ...model, nodes: model.nodes.filter((n) => !(n as { petalOf?: string }).petalOf) };
     const next = new Map<string, PhysNode>();
@@ -1149,8 +1151,41 @@ export class ForceLayout {
 
   /** All bends, for drawing. */
   bends(): Map<string, { x: number; y: number }> {
-    return new Map([...this.bendAt].map(([k, v]) => [k, { x: v.x, y: v.y }]));
+    const out = new Map([...this.bendAt].map(([k, v]) => [k, { x: v.x, y: v.y }]));
+    // (and each net's junction, by its id: where its trunk ends and its branches start)
+    for (const [id, j] of this.junctions()) out.set(id, j);
+    return out;
   }
+
+  /** The nets laid out here (GraphModel.nets). */
+  private nets: GraphModel['nets'] = [];
+
+  /**
+   * Where each net's trunk branches: on the way from its owner to its readers' middle, outside the owner's wheel —
+   * nearer the readers the further they are (a long trunk, short branches), never past the nearest of them.
+   */
+  junctions(): Map<string, { x: number; y: number }> {
+    const out = new Map<string, { x: number; y: number }>();
+    for (const net of this.nets) {
+      const o = this.byId.get(net.owner);
+      const readers = net.taps
+        .map((id) => this.edgeEnds.get(id))
+        .flatMap((e) => (e ? [this.byId.get(e)] : []))
+        .filter((n): n is PhysNode => !!n);
+      if (!o || readers.length < 2) continue;
+      const [ox, oy] = [o.x ?? 0, o.y ?? 0];
+      const [mx, my] = [readers.reduce((s, n) => s + (n.x ?? 0), 0) / readers.length, readers.reduce((s, n) => s + (n.y ?? 0), 0) / readers.length];
+      const d = Math.hypot(mx - ox, my - oy) || 1;
+      const nearest = Math.min(...readers.map((n) => Math.hypot((n.x ?? 0) - ox, (n.y ?? 0) - oy) - n.radius));
+      // (room for the loom to gather before it branches: well out of the owner's wheel)
+      const along = Math.max(o.radius + 110, Math.min(d * 0.6, nearest - 20));
+      out.set(net.id, { x: ox + ((mx - ox) / d) * along, y: oy + ((my - oy) / d) * along });
+    }
+    return out;
+  }
+
+  /** Each edge's reader (its flow's end), by edge id: for the nets' branches. */
+  private edgeEnds = new Map<string, string>();
 
   reheat(alpha = 0.5): void {
     this.sim.alpha(Math.max(this.sim.alpha(), alpha));
