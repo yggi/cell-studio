@@ -16,6 +16,7 @@ import type { CellDecl, Diagnostic, ParseResult } from '../ast';
 import { IDENT, LineError, LineScanner, stripComment } from './scanner';
 import { parseCell, SHOWS } from './cell';
 import { splitPlugins } from '../plugins';
+import { BUILTIN_PLUGINS } from '../builtinPlugins';
 
 export { meterLevels } from './generators';
 export { SHOWS } from './cell';
@@ -23,7 +24,7 @@ export { SHOWS } from './cell';
 export function parse(whole: string): ParseResult {
   const cells: CellDecl[] = [];
   // (plugin blocks are not cells: split off and blanked, so the lines keep their numbers)
-  const { text: source, plugins, diagnostics: pluginDiagnostics } = splitPlugins(whole, SHOWS);
+  const { text: source, plugins, diagnostics: pluginDiagnostics } = splitPlugins(whole, [...SHOWS, ...BUILTIN_PLUGINS.map((p) => p.name)]);
   const diagnostics: Diagnostic[] = [...pluginDiagnostics];
   const broken: string[] = [];
   // a line ending in + * , or [ (outside comments) continues on the next one

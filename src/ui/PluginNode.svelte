@@ -13,7 +13,7 @@
   import { getGraphContext } from './context';
   import { angleOf as turnOf, turnDelta } from '../layout/dial';
   import { drawPlugin, loadPlugin } from './plugin';
-  import { confirmed, isShipped, isTrusted, revoke, trust } from './pluginTrust.svelte';
+  import { confirmed, isTrusted, revoke, trust } from './pluginTrust.svelte';
   import { viewOf } from './pluginView';
   import { pluginKey } from '../engine/plugins';
   import PluginTree from './PluginTree.svelte';
@@ -25,7 +25,7 @@
   const plugin = $derived(ctx.program.plugins.get(d.plugin));
   const S = $derived(plugin?.size ?? 200);
   const trustKey = $derived(plugin ? pluginKey(plugin) : '');
-  const allowed = $derived(!!plugin && isTrusted(trustKey));
+  const allowed = $derived(!!plugin && isTrusted(plugin));
   const code = $derived(plugin && allowed ? loadPlugin(plugin.code) : null);
   const view = $derived(plugin ? viewOf(ctx.program, plugin, d.name, uid, ctx.live?.seconds ?? ctx.cursor, !!ctx.live) : null);
   const drawn = $derived(code && !(code instanceof Error) && view ? drawPlugin(code, view) : null);
@@ -116,7 +116,7 @@
     <div class="ask"><b>{d.plugin}</b><span>{problem ? problem.message : 'no plugin of that name in this piece'}</span></div>
   {/if}
   <span class="name">&{d.name}</span>
-  {#if allowed && !isShipped(trustKey)}
+  {#if allowed && plugin && !plugin.builtin}
     <button type="button" class="stop" onclick={() => revoke(trustKey)} title="Stop running this plugin: it will ask again">stop plugin</button>
   {/if}
   <Handle type="source" position={Position.Bottom} class="center-handle" isConnectable={false} />

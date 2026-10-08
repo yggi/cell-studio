@@ -5,8 +5,14 @@ import { PRESETS } from '../engine/presets';
 import { drawPlugin, loadPlugin } from './plugin';
 import { dayLaw } from '../engine/fiveto12';
 import { pluginKey } from '../engine/plugins';
+import { confirmed, isTrusted, revoke, trust } from './pluginTrust.svelte';
 import { attributesOf, boundedTree, h, plainAttribute, TAGS, type PNode } from './pluginTree';
 import { viewOf } from './pluginView';
+
+const errors = (src: string) =>
+  compileSource(src)
+    .diagnostics.filter((d) => d.severity === 'error')
+    .map((d) => d.message);
 
 const day = compileSource(PRESETS.fiveto12.source);
 const sun = day.plugins.get('sun')!;
@@ -14,11 +20,23 @@ const sun = day.plugins.get('sun')!;
 /** Every element of a drawing. */
 const elements = (n: readonly PNode[]): { t: string; a: Record<string, string | number> }[] => n.flatMap((x) => (typeof x === 'object' ? [x, ...elements(x.c)] : []));
 
-describe('the sun, a plugin of 5 to 12', () => {
-  it('is read from the piece, and the piece still compiles clean', () => {
-    expect(day.diagnostics.filter((d) => d.severity === 'error')).toEqual([]);
-    expect(sun).toMatchObject({ fits: ['meter'], size: 220, rim: false, dial: { turn: 86400, key: 3600 } });
+describe('the sun, a built-in plugin', () => {
+  it('is the app’s own: 5 to 12 and Clock time name it and carry no code', () => {
+    for (const key of ['fiveto12', 'daytime'] as const) {
+      const r = compileSource(PRESETS[key].source);
+      expect(r.diagnostics.filter((d) => d.severity === 'error')).toEqual([]);
+      expect(PRESETS[key].source).not.toContain('=== plugin');
+      expect(r.plugins.get('sun')).toBe(sun);
+    }
+    expect(sun).toMatchObject({ fits: ['meter'], size: 220, rim: false, builtin: true, dial: { turn: 86400, key: 3600 } });
     expect(day.cells.get('day')!.show).toBe('sun');
+  });
+
+  it('is there for any piece, and a piece cannot write another of its name', () => {
+    const own = (name: string) => `&bar scan(1 1) step=60bpm show=${name}\n=== plugin ${name} ===\n{ "fits": ["meter"] }\nfunction draw() { return []; }\n=== end ===`;
+    expect(compileSource('&day scan(1!24) loop=1d show=sun').plugins.get('sun')?.builtin).toBe(true);
+    expect(errors(own('sun'))[0]).toMatch(/sun is a show of its own/);
+    expect(errors('&day scan(1!24) loop=1d show=moon')[0]).toMatch(/not one of the built-in plugins \(sun\)/);
   });
 
   it('draws at any time of the day, only from the allowed elements and attributes', () => {
@@ -47,11 +65,6 @@ describe('the sun, a plugin of 5 to 12', () => {
     expect(at(300).text).toMatch(/^12:00, Ionian/);
     // two hours on, the second block: Mixolydian
     expect(at(7200).text).toMatch(/^13:55, Mixolydian/);
-  });
-
-  it('is the same plugin wherever an example carries it (until plugins can be shared from a file of their own)', () => {
-    const daytime = compileSource(PRESETS.daytime.source).plugins.get('sun');
-    expect(daytime && pluginKey(daytime)).toBe(pluginKey(sun));
   });
 
   it('has the law only when a law reads the day', () => {
@@ -162,10 +175,6 @@ describe('running a plugin', () => {
 describe('a manifest', () => {
   const block = (tokens: string) =>
     `&bar scan(1 1) step=60bpm show=ring\n=== plugin ring ===\n{ "fits": ["meter"], "tokens": ${tokens} }\nfunction draw() { return []; }\n=== end ===`;
-  const errors = (src: string) =>
-    compileSource(src)
-      .diagnostics.filter((d) => d.severity === 'error')
-      .map((d) => d.message);
   it('has tokens that are colours and nothing else: the drawing puts them into style text', () => {
     expect(errors(block('{ "a": "#ffd84a", "b": "rgb(0 0 0 / 0.6)", "c": "hsl(45 90% 50%)", "d": "gold", "e": "var(--text)" }'))).toEqual([]);
     for (const bad of ['red; font-size:9999px', 'url(https://evil/x)', 'red;background:url(x)', '#12', 'rgb(0 0 0)}'])
@@ -175,18 +184,36 @@ describe('a manifest', () => {
     const at = (tokens: string) => pluginKey(compileSource(block(tokens)).plugins.get('ring')!);
     expect(at('{ "a": "red" }')).not.toBe(at('{ "a": "blue" }'));
     expect(at('{ "a": "red" }')).toBe(at('{ "a": "red" }'));
-    // (the shipped sun is listed by this key, so a copy of its code with other tokens is not trusted)
     expect(pluginKey(sun)).toContain('function draw(');
   });
-  it('says, for show=sun without its block, where the block is', () => {
-    expect(errors('&day scan(1!24) loop=1d show=sun')[0]).toMatch(/examples\/fiveto12\.cells/);
+});
+
+describe('what runs', () => {
+  const ring = () =>
+    compileSource(`&bar scan(1 1) step=60bpm show=ring\n=== plugin ring ===\n{ "fits": ["meter"] }\nfunction draw() { return []; }\n=== end ===`).plugins.get('ring')!;
+  it('is the app’s own plugins, and the piece’s own only once the user has chosen it', () => {
+    expect(isTrusted(sun)).toBe(true);
+    expect(isTrusted(ring())).toBe(false);
+    trust(pluginKey(ring()));
+    expect(isTrusted(ring())).toBe(true); // (this visit)
+    confirmed(pluginKey(ring()));
+    revoke(pluginKey(ring()));
+    expect(isTrusted(ring())).toBe(false);
+    expect(isTrusted(sun)).toBe(true);
+  });
+  it('is not what a piece’s copy of a built-in’s text or manifest can earn: its name is taken', () => {
+    const copy = `&bar scan(1 1) step=60bpm show=sun\n=== plugin sun ===\n{ "fits": ["meter"] }\n${sun.code}\n=== end ===`;
+    expect(errors(copy).join()).toMatch(/sun is a show of its own/);
+    // (and the plugin it names is still the app's)
+    expect(compileSource(copy).plugins.get('sun')).toBe(sun);
   });
 });
 
 describe('a plugin in the text', () => {
   it('stays when a graph edit rewrites a cell’s line', () => {
-    const edited = setAttr(PRESETS.fiveto12.source, 'glass', 'lpf', '2400');
-    expect(edited).toContain(sun.code);
-    expect(compileSource(edited).plugins.get('sun')?.code).toBe(sun.code);
+    const src = `&bar scan(1 1) step=60bpm show=ring\n&v s=sine loop=C4 lpf=1000\n=== plugin ring ===\n{ "fits": ["meter"] }\nfunction draw() { return []; }\n=== end ===`;
+    const edited = setAttr(src, 'v', 'lpf', '2400');
+    expect(edited).toContain('function draw() { return []; }');
+    expect(compileSource(edited).plugins.get('ring')?.code).toBe('function draw() { return []; }');
   });
 });

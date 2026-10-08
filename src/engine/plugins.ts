@@ -1,5 +1,6 @@
 /**
- * Plugins: a piece can carry the code of a `show=` of its own (decision 011). A plugin is a block of the piece's
+ * Plugins: `show=` wheels beyond the language's own (decision 011). The app ships some (builtinPlugins.ts: the sun …);
+ * a piece can also carry the code of one of its own. A plugin is a block of the piece's
  * text, between two lines:
  *
  *   === plugin sun ===
@@ -36,8 +37,10 @@ export interface ShowPlugin {
   readonly dial: PluginDial | null;
   /** Colours (any CSS colour), by name: the drawing reads them as `view.tokens`. */
   readonly tokens: Readonly<Record<string, string>>;
-  /** The drawing, as written (what is trusted or not: ui/pluginTrust.ts). */
+  /** The drawing, as written. */
   readonly code: string;
+  /** One of the app's own (builtinPlugins.ts): trusted, and a piece can't write another of the name. Else the piece's own: trusted only by the user (ui/pluginTrust.ts). */
+  readonly builtin: boolean;
   /** The line its block starts on. */
   readonly line: number;
 }
@@ -63,7 +66,7 @@ export const PLUGIN_SYNTAX = '=== plugin name === … === end ===';
 /** Does the text carry a block at all? (the common case costs one scan) */
 const HAS = /^=== plugin /m;
 
-export function splitPlugins(source: string, reserved: readonly string[] = []): PluginSplit {
+export function splitPlugins(source: string, reserved: readonly string[] = [], builtin = false): PluginSplit {
   if (!HAS.test(source)) return { text: source, plugins: [], diagnostics: [] };
   const lines = source.split('\n');
   const plugins: ShowPlugin[] = [];
@@ -86,7 +89,7 @@ export function splitPlugins(source: string, reserved: readonly string[] = []): 
     if (reserved.includes(name)) fail(start + 1, `${name} is a show of its own: a plugin needs another name`);
     else if (plugins.some((p) => p.name === name)) fail(start + 1, `plugin ${name} is written twice`);
     else {
-      const made = readBlock(name, body, start + 1);
+      const made = readBlock(name, body, start + 1, builtin);
       if (typeof made === 'string') fail(start + 1, `plugin ${name}: ${made}`);
       else plugins.push(made);
     }
@@ -116,7 +119,7 @@ function firstObject(text: string): { json: string; rest: string } | null {
 }
 
 /** A block's manifest and code, or what is wrong with it. */
-function readBlock(name: string, body: string, line: number): ShowPlugin | string {
+function readBlock(name: string, body: string, line: number, builtin: boolean): ShowPlugin | string {
   const obj = firstObject(body);
   if (!obj) return 'starts with its manifest, a { … } of JSON: { "fits": ["meter"], "size": 200 }';
   let m: unknown;
@@ -158,6 +161,7 @@ function readBlock(name: string, body: string, line: number): ShowPlugin | strin
     dial,
     tokens,
     code: obj.rest.replace(/^\n+|\s+$/g, ''),
+    builtin,
     line,
   };
 }

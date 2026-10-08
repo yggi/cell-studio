@@ -2,12 +2,12 @@
 import type { Span } from '../ast';
 import { SHOWS } from '../parser/cell';
 import { ATTRIBUTES, rolesText, type Role } from '../attributes';
-import { PLUGIN_SYNTAX } from '../plugins';
+import { PLUGIN_SYNTAX, type ShowPlugin } from '../plugins';
 import type { Clock, ResolvedCell } from '../program';
 import type { Cells, Ctx } from './context';
 import type { Declared } from './declare';
 
-export function checkRoles(ctx: Ctx, { decls, implicit }: Declared, cells: Cells, clocks: ReadonlyMap<string, Clock>): void {
+export function checkRoles(ctx: Ctx, { decls, implicit }: Declared, cells: Cells, clocks: ReadonlyMap<string, Clock>, plugins: ReadonlyMap<string, ShowPlugin>): void {
   const { warn } = ctx;
   // ---- attributes where they do nothing: each acts on some roles only (attributes.ts)
   const modulators = new Set([...cells.values()].flatMap((c) => (typeof c.params.fm === 'string' ? [c.params.fm] : [])));
@@ -33,11 +33,12 @@ export function checkRoles(ctx: Ctx, { decls, implicit }: Declared, cells: Cells
     if (!c || implicit.has(d.name)) continue;
     // show=: one of the shows, or a plugin the piece carries (the parser reads any word)
     const show = d.show?.split(':')[0];
-    if (show && !(SHOWS as readonly string[]).includes(show) && !ctx.parsed.plugins?.some((p) => p.name === show))
+    if (show && !(SHOWS as readonly string[]).includes(show) && !plugins.has(show))
       ctx.error(
-        show === 'sun'
-          ? `show=sun is a plugin now: copy its block (=== plugin sun === … === end ===) from the example 5 to 12 (examples/fiveto12.cells) into this piece`
-          : `show=${show}: not a show (${SHOWS.join(' ')}) and the piece carries no plugin of that name (${PLUGIN_SYNTAX})`,
+        `show=${show}: not a show (${SHOWS.join(' ')}), not one of the built-in plugins (${[...plugins.values()]
+          .filter((p) => p.builtin)
+          .map((p) => p.name)
+          .join(' ')}), and the piece carries no plugin of that name (${PLUGIN_SYNTAX})`,
         d.span,
       );
     const has = roles(c);

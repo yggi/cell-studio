@@ -1,8 +1,16 @@
 # Plugins
 
-A piece can carry the drawing of a `show=` of its own: a **plugin**, written in the piece's text. The core stays lean; what one piece needs lives in that piece. Why, and what is not built yet: [decision 011](../decisions/011-plugins.md). A plugin changes only how a cell is drawn, never how it sounds.
+A **plugin** is a `show=` wheel beyond the language's own, drawn by code. The core stays lean: the app ships a bundle of **built-in plugins**, and a piece can carry one of its own. A plugin changes only how a cell is drawn, never how it sounds. Why, and what is not built yet: [decision 011](../decisions/011-plugins.md).
 
-## A block
+## Built in
+
+| `show=` | draws |
+|---|---|
+| `sun` | a meter that is a day (`loop=1d`, `anchor=`) as a 24-hour dial, noon at the top; with a `law=fiveto12` that reads it through `over=`, its twelve blocks round the rim, each as bright as its mode. Stopped, turn it to choose where play starts. See *5 to 12* and *Clock time*. |
+
+A built-in plugin needs no code in the piece (`&day scan(1!24) loop=1d anchor=11.55 show=sun`) and runs without asking. A piece can't write a plugin of the same name. The bundle is `src/engine/builtinPlugins.ts`, in the block syntax below.
+
+## A block of your own
 
 ```
 === plugin ring ===
@@ -17,7 +25,7 @@ function draw(view, h) {
 === end ===
 ```
 
-The name is lower-case letters (not one of the shows). The block is blanked before the cells are read, so a cell's line numbers don't move. Then `show=ring` on a cell it fits draws that cell as the plugin does:
+The name is lower-case letters (not one of the shows or the built-in plugins). The block is blanked before the cells are read, so a cell's line numbers don't move. Then `show=ring` on a cell it fits draws that cell as the plugin does:
 
 ```cells
 &piece title="Plugin ring" tags="topic" label="A meter drawn by a plugin." about=&out
@@ -55,14 +63,14 @@ The first `{ … }` of the block, JSON:
 
 `view`: `name`, `params` (the cell's attributes as written, such as `anchor`), `size`, `uid` (a prefix for ids: the same cell can be drawn twice), `tokens`, `time` (`seconds`, `playing`: the piece's time while it plays, else where play will start) and `law` (a day's law as data, for a meter that a `law=fiveto12` cell reads through `over=`; else null). `g` has `polar`, `ringSegment` (the wheels' own geometry) and `blockColour` (a mode's colour by brightness). `describe(view)`, for a dial, returns `{ text, now, min, max }` for a screen reader.
 
-The sun of *5 to 12* is a plugin: read `examples/fiveto12.cells`.
+The sun is a plugin too: read the bundle, `src/engine/builtinPlugins.ts`.
 
 ## Trust
 
-A plugin is code, and **Run it means full trust**: until there is a sandbox it runs on the page's main thread with the page's powers, so it can read your saved pieces and use the network, and it runs every time the piece opens. It runs without asking only if its manifest and code are exactly those of a plugin in an example that ships with the app. Otherwise its wheel asks, and shows the code. The choice is kept in this browser by the plugin's text (a changed plugin asks again), but only once it has drawn: a plugin that hangs or throws on its first run is forgotten, so the piece opens again next time. **A hang after the first draw is not caught**: code that loops only once the piece plays (`if (view.time.playing) while (true) {}`) or at a time of day is kept, freezes the tab on every later open, and can freeze it before **stop plugin** (under a wheel you chose to run, which takes the choice back) can be clicked. Then only clearing this site's data (the `cell-studio-plugins` entry of its local storage) recovers. A watchdog or a Worker sandbox is the real fix, and is not built yet.
+A plugin is code, and **Run it means full trust**: until there is a sandbox it runs on the page's main thread with the page's powers, so it can read your saved pieces and use the network, and it runs every time the piece opens. The app's own plugins run without asking; a plugin a piece carries does not: its wheel asks, and shows the code. The choice is kept in this browser by the plugin's text (a changed plugin asks again), but only once it has drawn: a plugin that hangs or throws on its first run is forgotten, so the piece opens again next time. **A hang after the first draw is not caught**: code that loops only once the piece plays (`if (view.time.playing) while (true) {}`) or at a time of day is kept, freezes the tab on every later open, and can freeze it before **stop plugin** (under a wheel you chose to run, which takes the choice back) can be clicked. Then only clearing this site's data (the `cell-studio-plugins` entry of its local storage) recovers. A watchdog or a Worker sandbox is the real fix, and is not built yet.
 
 ## Limits
 
-- A plugin lives in one piece's text: none from a file of its own, or in a bundle, yet.
+- Your own plugin lives in one piece's text: none from a file of its own, or in a bundle you choose, yet. (The app's bundle is built in.)
 - It runs on the main thread (no sandbox: a plugin that loops for ever freezes the tab while it runs): the reason for the trust rule.
 - Not in the `show=` picker of the node editor, and the editor doesn't colour the code in a block.

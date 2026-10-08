@@ -53,7 +53,7 @@ One line each; the record has the rationale. → [decisions/](decisions/README.m
 - 008 · A turning table comes round after its own length; `cycle=` only when it differs · → decisions/008-tables-come-round.md
 - 009 · The tutorial is a ladder of pieces, one concept each, covering every form once (a test checks); `rung=` on the card; `tutorial` a kind of tag (it replaces `basics`), its own cell in the library · → decisions/009-tutorial-ladder.md
 - 010 · A canon's `[<<n]` is a copy (the score replayed); `play= at=` reads what was recorded; a tap of what was played waits for `&<` (#149) · → decisions/010-canon-copies.md
-- 011 · The core stays lean: a piece carries the drawing of a `show=` of its own as a plugin block (the sun is one); plugin code runs only if shipped with the app or chosen by the user · → decisions/011-plugins.md
+- 011 · The core stays lean: `show=` wheels beyond the language are plugins: the app ships a bundle of built-in ones (the sun first), and a piece can carry its own as a block; a piece's own runs only if the user chose it · → decisions/011-plugins.md
 
 ## Where things are tracked
 

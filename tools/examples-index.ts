@@ -3,7 +3,6 @@
 // Used by the vite plugin (vite.config.ts: `virtual:examples-index`) and by the tests.
 import { readFileSync } from 'node:fs';
 import { compileSource } from '../src/engine/compile';
-import { pluginKey } from '../src/engine/plugins';
 import { pieceTime, type PieceTime } from '../src/engine/duration';
 import { buildGraph } from '../src/engine/graph';
 import { ORDER, type PresetKey } from '../src/engine/order';
@@ -26,8 +25,6 @@ export interface ExampleInfo {
   readonly time: PieceTime;
   /** The source's length, in bytes. */
   readonly bytes: number;
-  /** The plugins it carries (`pluginKey`: manifest and code): shipped with the app, so run without asking (ui/pluginTrust.ts). */
-  readonly plugins: readonly string[];
   /** Its graph in miniature (src/layout/miniature.ts): the library draws it without fetching the piece. */
   readonly miniature: Miniature | null;
   /** The order its graph's rows are laid out in (layout/physics.ts: bestRowOrder), by its shape: it opens without the trials. */
@@ -53,7 +50,6 @@ export function buildExamplesMeta(dir = 'examples'): (ExampleMeta & { source: st
       size: graph.nodes.filter((n) => !n.petalOf && !n.cell.note).length,
       time: pieceTime(r),
       bytes: Buffer.byteLength(source),
-      plugins: [...r.plugins.values()].map(pluginKey),
       source,
       graph,
     };
