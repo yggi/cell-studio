@@ -10,7 +10,7 @@ import { NOTE_NAMES, mod, modeName } from '../theory/modes';
 import { playedCells } from '../engine/clocking';
 import { flatten, tapped } from '../engine/flatten';
 import { resolveIn } from '../engine/helix';
-import { bulbHosts } from '../engine/graph';
+import { bulbHosts, isTurntable } from '../engine/graph';
 import { bulbsOf, type Bulb } from './track';
 
 /**
@@ -260,8 +260,8 @@ export function cellView(result: CompileResult, name: string, shifts: Shifts, is
     cursor = Math.max(cursor, g.step + g.duration);
   }
   rest(cursor, total);
-  // (bars of levels stay on the ring)
-  const bulbs = levels ? [] : bulbsOf(result, name, shifts, bulbHosts(result));
+  // (bars of levels stay on the ring; a scope or a turntable draws no track)
+  const bulbs = levels || typeof c.params.scope === 'string' || isTurntable(c) ? [] : bulbsOf(result, name, shifts, bulbHosts(result));
   return { mode: 'braid', segments, ticks: total, detents: Math.max(1, units.length), show, conv, ...(bulbs.length ? { bulbs } : {}) };
 }
 

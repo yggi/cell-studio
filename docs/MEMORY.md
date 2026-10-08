@@ -55,6 +55,7 @@ One line each; the record has the rationale. → [decisions/](decisions/README.m
 - 010 · A canon's `[<<n]` is a copy (the score replayed); `play= at=` reads what was recorded; a tap of what was played waits for `&<` (#149) · → decisions/010-canon-copies.md
 - 011 · The core stays lean: `show=` wheels beyond the language are plugins: the app ships a bundle of built-in ones (the sun first), and a piece can carry its own as a block; a piece's own runs only if the user chose it · → decisions/011-plugins.md
 - 012 · A pick is a fixed tap on a turning wheel: `&x[i]` reads the cell as turned (and follows it while it plays), `&x[$i]` as written · → decisions/012-picks-are-taps.md
+- 014 · A splice is a bulb on its braid's track (the ring and its bulbs one curve, the hand bending into them); a cell spliced into one braid only has no node of its own; one read elsewhere is a net-ref, drawn hollow · → decisions/014-splices-are-bulbs.md
 
 ## Where things are tracked
 

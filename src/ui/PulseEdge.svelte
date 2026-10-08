@@ -16,7 +16,7 @@
    */
   import { BaseEdge, type EdgeProps } from '@xyflow/svelte';
   import { untrack } from 'svelte';
-  import { loomParts, loomPaths, radialPath, ripplePath, splinePoint, strandPath } from '../layout/geometry';
+  import { loomParts, loomPaths, polar, radialPath, ripplePath, splinePoint, strandPath } from '../layout/geometry';
   import { cellView, type Fill, type Segment } from '../layout/cellview';
   import { pluginOf } from '../layout/show';
   import { isTurntable } from '../engine/graph';
@@ -26,6 +26,7 @@
   import { pickIndices } from '../engine/program';
   import { tapRadius } from '../layout/wheel';
   import { STRAND_GAP } from '../layout/looms';
+  import { layTrack, netEnds, ringOf } from '../layout/track';
   import type { Pick } from '../engine/ast';
 
   let { id: edgeId, sourceX, sourceY, targetX, targetY, data, label, markerEnd, style }: EdgeProps = $props();
@@ -105,12 +106,41 @@
     // (a ref that fills the braid has no place on it but everywhere)
     return [...spans.values()].filter(([a, b]) => b - a < 0.999).map(([a, b]) => (a + b) / 2);
   });
-  // (written more than once: a bus, a strand to each place, gathered towards the cell spliced in)
-  const lockedPaths = $derived(
-    occurrences.length > 1
+  // A net-ref on the reader's track (#221): its bulbs there, hollow; the edge meets each on its outside
+  const bulbEnds = $derived.by(() => {
+    const reader = ctx.program.cells.get(d.to);
+    if (d.port !== 'braid' || d.picks?.length || !d.sizes?.to || !reader || isTurntable(reader) || reader.params.scope || pluginOf(ctx.program, d.to)) return [];
+    void ctx.turned;
+    const v = cellView(ctx.program, d.to, shown, false);
+    if (!v?.bulbs?.length) return [];
+    const { r, w } = ringOf(d.sizes.to);
+    return netEnds(layTrack(d.sizes.to / 2, d.sizes.to / 2, r, w, v.bulbs), d.sizes.to, d.from);
+  });
+  // (written more than once: a bus, a strand to each place, gathered towards the cell spliced in, through the loom; to
+  // bulbs, the loom round the farthest, each strand on in to its own)
+  const lockedPaths = $derived.by(() => {
+    if (bulbEnds.length === 1) return [radialPath(sourceX, sourceY, control, targetX, targetY, bulbEnds[0].r, bulbEnds[0].turn)];
+    if (bulbEnds.length > 1) {
+      const R = Math.max(...bulbEnds.map((e) => e.r));
+      return loomPaths(
+        targetX,
+        targetY,
+        R,
+        bulbEnds.map((e) => e.turn),
+        mid.x,
+        mid.y,
+        sourceX,
+        sourceY,
+        2.5 * GAP,
+      ).map((p, i) => {
+        const [x, y] = polar(targetX, targetY, bulbEnds[i].r, bulbEnds[i].turn);
+        return `M ${x.toFixed(1)} ${y.toFixed(1)} L${p.slice(1)}`;
+      });
+    }
+    return occurrences.length > 1
       ? loomPaths(targetX, targetY, rimOf(d.sizes?.to), occurrences, mid.x, mid.y, sourceX, sourceY, 2.5 * GAP)
-      : occurrences.map((t) => radialPath(sourceX, sourceY, control, targetX, targetY, rimOf(d.sizes?.to), t)),
-  );
+      : occurrences.map((t) => radialPath(sourceX, sourceY, control, targetX, targetY, rimOf(d.sizes?.to), t));
+  });
   const path = $derived(d.band === 'audio' ? ripplePath(fromX, fromY, mid.x, mid.y, targetX, targetY) : (lockedPaths[0] ?? spline));
 
   // a bus: a table read through over= (its entries), or a chord (its notes); at most 12 strands, a longer table sampled

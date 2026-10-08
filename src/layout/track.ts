@@ -400,13 +400,30 @@ export function cursorOf(cx: number, cy: number, rFrom: number, track: Track, t:
   return { d: smooth(pts), head };
 }
 
+/**
+ * Where a net-ref's edge meets a braid's track (a wheel `size` px across): at each bulb it shows, on its outside, along
+ * the line from the wheel's centre through the bulb's hub — its turn (0 the top, clockwise) and its distance from the centre.
+ */
+export function netEnds(track: Track, size: number, net: string): { turn: number; r: number }[] {
+  const c: P = [size / 2, size / 2];
+  const out: { turn: number; r: number }[] = [];
+  const walk = (list: readonly Laid[]) => {
+    for (const L of list) {
+      if (L.bulb.net === net) out.push({ turn: ((angleOf(c, L.C) % 1) + 1) % 1, r: len(sub(L.C, c)) + L.rho + L.w / 2 + 2 });
+      walk(L.bulbs);
+    }
+  };
+  walk(track.bulbs);
+  return out.sort((a, b) => a.turn - b.turn);
+}
+
 /** How far the track reaches from the wheel's centre (px). */
 export function trackReach(cx: number, cy: number, track: Track): number {
   return Math.max(0, ...track.p.map((p, i) => len(sub(p, [cx, cy])) + track.w[i] / 2));
 }
 
 /** The ring a wheel `size` px across lays its track on: its radius (the middle of the ring) and its ribbon's width. */
-function ringOf(size: number): { readonly r: number; readonly w: number } {
+export function ringOf(size: number): { readonly r: number; readonly w: number } {
   const g = wheelGeometry(size);
   return { r: (g.rInner + g.rOuter) / 2, w: g.rOuter - g.rInner };
 }

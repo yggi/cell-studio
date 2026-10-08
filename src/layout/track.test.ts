@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { compileSource } from '../engine/compile';
 import { codeShifts } from '../engine/program';
 import { bulbHosts } from '../engine/graph';
-import { bulbsOf, cursorOf, layTrack, stepOn, tauOf, trackAt, trackReach } from './track';
+import { bulbsOf, cursorOf, layTrack, netEnds, stepOn, tauOf, trackAt, trackReach } from './track';
 
 // Twinkle's shape (#221): &up here only, &down read elsewhere too, &mid (here only) holding a &down, twice round.
 const SRC = ['&up 0 0 4 4 5 5 4@2', '&down 3 3 2 2 1 1 0@2', '&mid &down', '&tune step=1 0 &up &down &mid!2 &up &down', '&other step=1 &down'].join('\n');
@@ -64,6 +64,15 @@ describe('the track: a bulb for each splice', () => {
     // a step there is drawn once, on the first lap
     expect(stepOn(track, mid.t0 + (mid.t1 - mid.t0) * 0.75, mid.t1)).toBeNull();
     expect(stepOn(track, mid.t0, mid.t0 + 1 / 49)!.tau1).toBeGreaterThan(stepOn(track, mid.t0, mid.t0 + 1 / 49)!.tau0);
+  });
+
+  it('a net-ref’s edge meets each bulb that shows it, outside it, along the line through its hub', () => {
+    const track = layTrack(64, 64, 45, 26, bulbs);
+    const ends = netEnds(track, 128, 'down');
+    // the two &down, and &mid (which is a &down)
+    expect(ends).toHaveLength(3);
+    for (const e of ends) expect(e.r).toBeGreaterThan(64);
+    expect(netEnds(track, 128, 'up')).toEqual([]);
   });
 
   it('the cursor bends from the hub into the bulb the time is in; on the ring, the plain hand', () => {
