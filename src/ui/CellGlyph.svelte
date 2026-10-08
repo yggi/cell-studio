@@ -15,6 +15,7 @@
   import { mod } from '../theory/modes';
   import { getGraphContext } from './context';
   import { meterNow } from '../layout/meters';
+  import { cursorOf, joins, layTrack, ribbon, stepOn, trackAt, type Laid as LaidBulb } from '../layout/track';
 
   /**
    * `interactive`: the rim turns the cell (detail sheet). In the graph the whole node just drags.
@@ -80,6 +81,30 @@
     const segments = coarsen(full.segments);
     return segments === full.segments ? full : { ...full, segments };
   });
+  // a braid's track (#221): its splices bend out of the ring into bulbs, their steps along them
+  const ringMid = $derived((rInner + rOuter) / 2);
+  const ringW = $derived(rOuter - rInner);
+  const track = $derived(view.bulbs?.length ? layTrack(c, c, ringMid, ringW, view.bulbs) : null);
+  const trackKey = $derived(JSON.stringify(view.bulbs ?? []));
+  // where it takes no time (back to the ring between two bulbs): a thread
+  const threads = $derived(track ? joins(track, Math.max(2, ringW * 0.14)) : []);
+  // each bulb: a disc behind it (its own small wheel), a dotted outline when it is a net-ref, its name at its hub
+  const bulbs = $derived.by(() => {
+    const out: { L: LaidBulb; outline: string | null; text: string; sub: string; font: number | null }[] = [];
+    const walk = (list: readonly LaidBulb[]) => {
+      for (const L of list) {
+        const b = L.bulb;
+        const lambda = !!ctx.program.cells.get(b.name)?.lambda;
+        const text = lambda ? '' : `&${b.name}`;
+        const sub = [b.label, b.laps > 1 ? `×${b.laps}` : ''].filter(Boolean).join(' ');
+        const room = 2 * Math.max(4, L.rho - L.w / 2) * 0.9;
+        out.push({ L, outline: b.hollow && track ? ribbon(track, L.T0, L.T1, 0, 1, 1.5) : null, text, sub, font: fitFont(room, Math.max(2, text.length, sub.length), 13, 6) });
+        walk(L.bulbs);
+      }
+    };
+    walk(track?.bulbs ?? []);
+    return out;
+  });
   // (motion is a hint for slow cells — a step a second or slower; on faster ones it's noise: none)
   const fast = $derived.by(() => {
     if (!cell?.clock) return false;
@@ -136,12 +161,16 @@
     return view.segments.flatMap((sg) => {
       const n = sg.notes?.[sg.notes.length - 1];
       if (!n) return [];
-      // a label where its step has room for it (long braids: the longer steps)
-      if ((sg.t1 - sg.t0) * 2 * Math.PI * r < 11) return [];
+      // a label where its step has room for it (long braids: the longer steps); on a track, along it
+      const on = track ? stepOn(track, sg.t0, sg.t1) : null;
+      if (track && !on) return [];
+      const ends = on ? [trackAt(track!, on.tau0).p, trackAt(track!, on.tau1).p] : null;
+      const span = ends ? Math.hypot(ends[1][0] - ends[0][0], ends[1][1] - ends[0][1]) : (sg.t1 - sg.t0) * 2 * Math.PI * r;
+      if (span < 11) return [];
       const text = noteLabel(view.show!, n, base, tonic, view.conv);
       if (!text) return [];
-      const [x, y] = polar(c, c, r, (sg.t0 + sg.t1) / 2);
-      return [{ x, y, text, wide: sg.t1 - sg.t0 }];
+      const [x, y] = on ? trackAt(track!, (on.tau0 + on.tau1) / 2).p : polar(c, c, r, (sg.t0 + sg.t1) / 2);
+      return [{ x, y, text, wide: span / (2 * Math.PI * r) }];
     });
   });
   // the sheet: each written step's span on the ring (its segments, as turned), and its token there
@@ -157,6 +186,19 @@
     return [...spans].map(([index, sp]) => {
       const written = mod(index + shownShift, n);
       const text = tokens[written] ?? '';
+      // (a splice: its token at its bulb's hub)
+      const L = track?.bulbs.find((x) => Math.abs(x.bulb.t0 - sp.t0) < 1e-6 && Math.abs(x.bulb.t1 - sp.t1) < 1e-6);
+      if (L && track) {
+        const font = Math.max(7, fitFont(2 * (L.rho - L.w / 2) * 0.9, Math.max(2, text.length), 15, 0) ?? 7);
+        return { written, x: L.C[0], y: L.C[1] + font * 1.2, text, font, d: ribbon(track, L.T0, L.T1) };
+      }
+      // (a step on a track: its stretch of it)
+      const on = track ? stepOn(track, sp.t0, sp.t1) : null;
+      if (on && track) {
+        const [x, y] = trackAt(track, (on.tau0 + on.tau1) / 2).p;
+        const font = Math.max(7, fitFont(ringW * 0.9, Math.max(2, text.length), 15, 0) ?? 7);
+        return { written, x, y, text, font, d: ribbon(track, on.tau0, on.tau1) };
+      }
       const [x, y] = polar(c, c, r, (sp.t0 + sp.t1) / 2);
       const font = Math.max(7, fitFont(Math.min((sp.t1 - sp.t0) * Math.PI * (rInner + rOuter), rOuter - rInner) * 0.9, Math.max(2, text.length), 15, 0) ?? 7);
       return { written, x, y, text, font, d: ringSegment(c, c, rInner, rOuter, sp.t0, sp.t1) };
@@ -273,6 +315,11 @@
     a.bands.length === b.bands.length &&
     a.bands.every((f, j) => (f.kind === 'level') === (b.bands[j].kind === 'level') && levelOf(f) === levelOf(b.bands[j]));
   const draw = (s: Segment) => {
+    // (on a track: along it, the ring and its bulbs one curve; in a bulb's later lap: drawn once, on its first)
+    if (track) {
+      const on = stepOn(track, s.t0, s.t1);
+      return on ? s.bands.map((_, j) => ribbon(track, on.tau0, on.tau1, j, s.bands.length)) : [];
+    }
     const band = (rOuter - rInner) / s.bands.length;
     return s.bands.map((f, j) =>
       // a level is a bar from the inner ring, as tall as the level
@@ -290,7 +337,7 @@
   let laid: { key: string; segments: readonly Segment[]; slots: Laid[] } | null = null;
   const geometry = $derived.by(() => {
     const segments = view.segments;
-    const key = `${c} ${rInner} ${rOuter} ${merged}`;
+    const key = `${c} ${rInner} ${rOuter} ${merged} ${trackKey}`;
     const before = laid && laid.key === key ? laid : null;
     let changed = !before || before.segments.length !== segments.length;
     const slots = segments.map((s, i) => {
@@ -367,7 +414,7 @@
     return view.segments.filter((sg) => sg.t1 - sg.t0 > step * 1.01).map((sg) => ringSegment(c, c, rInner, rOuter, sg.t0 + step, sg.t1));
   });
   const clockTicks = $derived(
-    space === 'time' && view.ticks <= 64
+    space === 'time' && view.ticks <= 64 && !track
       ? Array.from({ length: view.ticks }, (_, i) => {
           const long = i === 0 || (view.ticks % 4 === 0 && i % 4 === 0);
           const [x1, y1] = polar(c, c, geo.tick.r0, i / view.ticks);
@@ -416,6 +463,8 @@
 
   // the playhead: braids, and a selector's barrel (where in its sections)
   const hand = $derived((view.mode === 'braid' || view.mode === 'matrix') && liveLocal != null ? liveLocal / Math.max(1, cell?.steps ?? 1) : null);
+  // in a bulb, the hand bends: from the hub through each bulb's neck and hub to the step playing now (#221)
+  const bent = $derived(hand !== null && track ? cursorOf(c, c, geo.hand.r0 * 0.4, track, mod(hand, 1)) : null);
 
   // a meter as it plays: the wheel stays put, the step it's in now goes round, outlined and glowing in its colour
   const beatAt = $derived(isMeter ? (ctx.live?.beatAt.get(name) ?? null) : null);
@@ -548,10 +597,19 @@
     {/if}
   {/snippet}
   {#snippet slots()}
+    {#each bulbs as b, i (i)}<circle class="bulb-disc" cx={b.L.C[0]} cy={b.L.C[1]} r={b.L.rho + b.L.w / 2 + 2} />{/each}
+    {#each threads as d, i (i)}<path class="bulb-thread" {d} />{/each}
     {#each geometry as slot, i}
       <g class="slot" class:lit={lit.has(i)} stroke-width={slot.w}>
         {#each slot.d as d, j}<path {d} fill={fills[i][j]} fill-rule="evenodd" />{/each}
       </g>
+    {/each}
+    {#each bulbs as b, i (i)}
+      {#if b.outline}<path class="bulb-hollow" d={b.outline} />{/if}
+      {#if b.font && !units.length}
+        <text class="bulb-name" x={b.L.C[0]} y={b.L.C[1]} dy={b.sub ? '-0.15em' : '0.35em'} style:font-size="{b.font}px">{b.text}</text>
+        {#if b.sub}<text class="bulb-sub" x={b.L.C[0]} y={b.L.C[1]} dy="1.05em" style:font-size="{b.font * 0.8}px">{b.sub}</text>{/if}
+      {/if}
     {/each}
   {/snippet}
   {#if interactive}
@@ -641,7 +699,13 @@
     />
     {#if size >= 160}<text class="pen" x={c} y={c + geo.rHub * 0.62}>✎</text>{/if}
   {/if}
-  {#if hand !== null}
+  {#if bent}
+    <g class="hand bent">
+      <path class="edge" d={bent.d} style:stroke-width="{geo.hand.width + 2}px" />
+      <path d={bent.d} style:stroke-width="{geo.hand.width}px" />
+      <circle cx={bent.head[0]} cy={bent.head[1]} r={Math.max(2.5, geo.hand.width * 1.3)} />
+    </g>
+  {:else if hand !== null}
     <g class="hand" style="transform: rotate({hand * 360}deg); transform-origin: {c}px {c}px">
       <line class="edge" x1={c} y1={c - geo.hand.r0} x2={c} y2={c - geo.hand.r1} style:stroke-width="{geo.hand.width + 2}px" />
       <line x1={c} y1={c - geo.hand.r0} x2={c} y2={c - geo.hand.r1} style:stroke-width="{geo.hand.width}px" />
@@ -836,6 +900,44 @@
   }
   .hand line.edge {
     stroke: var(--wheel-hand-edge);
+  }
+  /* the hand bent into a bulb: a line, and a dot on the step playing */
+  .hand.bent path {
+    fill: none;
+    stroke: var(--wheel-hand);
+    stroke-linecap: round;
+  }
+  .hand.bent path.edge {
+    stroke: var(--wheel-hand-edge);
+  }
+  .hand.bent circle {
+    fill: var(--wheel-hand);
+    stroke: var(--wheel-hand-edge);
+    stroke-width: 1.5;
+  }
+  /* a bulb (#221): its own small disc behind it; a net-ref's dotted round; its name at its hub */
+  .bulb-disc {
+    fill: var(--wheel-disc);
+  }
+  .bulb-thread {
+    fill: var(--wheel-tick);
+    pointer-events: none;
+  }
+  .bulb-hollow {
+    fill: none;
+    stroke: var(--text-muted);
+    stroke-width: 1.6;
+    stroke-dasharray: 1 3.5;
+    stroke-linecap: round;
+    pointer-events: none;
+  }
+  .bulb-name {
+    fill: var(--text);
+    font-weight: 700;
+  }
+  .bulb-sub {
+    fill: var(--accent);
+    font-weight: 600;
   }
   /* a table's entry read now: a dot, like a read head */
   .read {

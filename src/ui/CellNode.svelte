@@ -65,7 +65,12 @@
     {:else}
       <CellGlyph name={data.name} isMeter={data.isMeter} size={data.size} />
     {/if}
-    {#if !data.petal}<div class="name" class:lambda={!!cell?.lambda} title={cell?.lambda ? `&(${cell.lambda})` : label ? `&${data.name}` : undefined}>
+    {#if !data.petal}<div
+        class="name"
+        style:--below="{data.below ?? 0}px"
+        class:lambda={!!cell?.lambda}
+        title={cell?.lambda ? `&(${cell.lambda})` : label ? `&${data.name}` : undefined}
+      >
         {#if label}<span class="label">{@html label}</span><small>&amp;{data.name}</small>
         {:else}{cell?.lambda ? `&(${cell.lambda.length > 14 ? cell.lambda.slice(0, 13) + '…' : cell.lambda})` : '&' + data.name}{/if}
       </div>{/if}
@@ -126,7 +131,7 @@
     position: absolute;
     top: 100%;
     left: 50%;
-    transform: translate(-50%, 6px);
+    transform: translate(-50%, calc(6px + var(--below, 0px)));
     white-space: nowrap;
     font: 600 13px/1.2 var(--font-code);
     color: var(--text);
