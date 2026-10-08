@@ -1,8 +1,8 @@
 <script lang="ts">
   import type { Snippet } from 'svelte';
   /**
-   * The transport, in one place: play and pause (pausing keeps the place), back to the
-   * start, where the piece is — its sections marked and named, each a jump — and the
+   * The transport, in one place: play and pause (pausing keeps the place), stop (back to
+   * the initial state), where the piece is — its sections marked and named, each a jump — and the
    * tempo of the meter that drives it (its free() value, as in the graph).
    */
   import { getStudio } from './state/studio.svelte';
@@ -24,14 +24,14 @@
   const span = $derived(playback.span);
   const sections = $derived(piece.sections);
   const tempo = $derived(piece.mainMeter?.free ?? null);
-  /** Anything changed from the initial state: Reset pulses. */
-  const dirty = $derived(playback.dirty);
+  /** Anything to go back from (not stopped, or a free() value held by hand): Stop is there, and pulses. */
+  const resettable = $derived(playback.resettable);
   /** free() values moved by hand: revert or save them. */
   const held = $derived(piece.held.size > 0);
   const menuOpen = $derived(view.panelOpen);
   const onchoose = () => (view.tab = 'select');
   const onplay = () => playback.toggle();
-  const onreset = () => playback.reset();
+  const onstop = () => playback.stop();
   const onrevert = () => piece.revert();
   const onsave = () => piece.keep();
   const onmenu = () => (view.panelOpen = !view.panelOpen);
@@ -67,10 +67,8 @@
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.5-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5z" /></svg>
       {/if}
     </button>
-    <button class="reset" class:dirty onclick={onreset} aria-label="Back to the start">
-      <svg viewBox="0 0 24 24" aria-hidden="true"
-        ><rect x="5" y="5" width="3" height="14" rx="1" /><path d="M19 5.9v12.2a.9.9 0 0 1-1.4.75L9.2 12.75a.9.9 0 0 1 0-1.5l8.4-6.1a.9.9 0 0 1 1.4.75z" /></svg
-      >
+    <button class="stop" class:dirty={resettable} onclick={onstop} disabled={!resettable} aria-label="Stop" title="Stop: back to the initial state">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="1.5" /></svg>
     </button>
     <span class="what">
       {#if path}{@render path()}{:else if title}<button class="unstyled title" onclick={onchoose} title="Choose another piece">{title}</button>{/if}
@@ -140,7 +138,7 @@
     gap: 8px;
   }
   .play,
-  .reset {
+  .stop {
     flex: none;
     display: grid;
     place-items: center;
@@ -158,21 +156,25 @@
     background: color-mix(in oklab, var(--accent) 80%, white);
   }
   .play svg,
-  .reset svg {
+  .stop svg {
     width: 22px;
     height: 22px;
     fill: currentColor;
   }
-  .reset {
+  .stop {
     width: 36px;
     height: 36px;
     background: var(--code-bg);
     color: var(--text);
     border: 1px solid var(--line);
   }
-  .reset svg {
+  .stop svg {
     width: 16px;
     height: 16px;
+  }
+  .stop:disabled {
+    opacity: 0.4;
+    cursor: default;
   }
   .time {
     display: flex;
@@ -285,13 +287,13 @@
       width: 170px;
     }
   }
-  /* sharper: one rhythm of sizes — play 42, reset 32, a two-line title and time */
+  /* sharper: one rhythm of sizes — play 42, stop 32, a two-line title and time */
   .play {
     width: 42px;
     height: 42px;
     box-shadow: 0 2px 10px color-mix(in oklab, var(--accent) 35%, transparent);
   }
-  .reset {
+  .stop {
     width: 32px;
     height: 32px;
     background: transparent;
@@ -326,8 +328,8 @@
     color: var(--text-muted);
     margin-right: 2px;
   }
-  /* changed from the initial state: Reset breathes, gently */
-  .reset.dirty {
+  /* something to go back from: Stop breathes, gently */
+  .stop.dirty {
     animation: breathe 2.4s ease-in-out infinite;
   }
   @keyframes breathe {
@@ -340,7 +342,7 @@
     }
   }
   @media (prefers-reduced-motion: reduce) {
-    .reset.dirty {
+    .stop.dirty {
       animation: none;
       box-shadow: 0 0 0 2px color-mix(in oklab, var(--accent) 45%, transparent);
     }

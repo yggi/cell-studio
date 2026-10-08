@@ -43,7 +43,7 @@ export class Studio {
     this.view.tab = 'graph';
     this.view.message = null;
     this.library.opened++;
-    this.playback.fresh();
+    this.playback.stop();
   }
 
   /** Open a card: an example (fetched: its own chunk) or a piece saved here. */
@@ -142,7 +142,7 @@ export class Studio {
 
   // ---- the performance overlay (ui/PerfOverlay.svelte)
   readonly perfSources = {
-    playing: () => transportClock.playing,
+    playing: () => transportClock.state === 'playing',
     audio: () => this.playback.player.audioInfo(),
   };
   readonly perfMeta = () => ({
@@ -164,7 +164,7 @@ export class Studio {
       await this.playback.player.retune(t);
     },
     play: () => this.playback.toggle(),
-    stop: () => this.playback.stop(),
+    stop: () => this.playback.pause(),
     audioState: () => this.playback.player.audioInfo().state,
     hidden: () => document.hidden,
     finish: async () => {
@@ -176,7 +176,7 @@ export class Studio {
         this.piece.code = before.code;
         this.view.tab = before.tab;
         this.library.opened++;
-        this.playback.fresh();
+        this.playback.stop();
       }
       this.#beforeTest = null;
     },
