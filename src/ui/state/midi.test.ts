@@ -6,7 +6,9 @@ import { compileSource } from '../../engine/compile';
 import { PRESETS } from '../../engine/presets';
 import { DRUM_PRESETS } from '../../midi/drum-presets';
 import type { NoteSink } from '../../audio/player';
-import type { Played } from '../../engine/realize';
+import { plan, type Played } from '../../engine/realize';
+import { codeShifts } from '../../engine/program';
+import { retime, windowAt } from '../../engine/schedule';
 
 const store = new Map<string, string>();
 const page = Object.assign(new EventTarget(), { visibilityState: 'visible' });
@@ -325,6 +327,79 @@ describe('Midi: MIDI out', () => {
     midi.attach(player, { program: compileSource(PRESETS.sailor.source), title: 'Sailor' });
     expect(() => midi.play(fakeTone(1), [note('bass', 1.1)], 1.25)).not.toThrow();
     expect(() => midi.stop(fakeTone(1))).not.toThrow();
+  });
+});
+
+describe('Midi: MIDI clock', () => {
+  async function tapped(source = PRESETS.sailor.source) {
+    const out = fakePort('out-1', 'Drum machine');
+    installMidi(fakeAccess([], [out]));
+    const midi = await made();
+    await midi.connect();
+    midi.chooseOutput('out-1');
+    out.sent = [];
+    const program = compileSource(source);
+    midi.attach({ sink: null, internal: true }, { program, title: 'A piece' });
+    const p = plan(program, codeShifts(program));
+    // (the player: windows of 0.25 code seconds from 0, the first heard at audio second 10)
+    const play = (from: number, to: number) => {
+      for (let x = from; x < to - 1e-9; x += 0.25) midi.play(fakeTone(10 + x - 0.3), [], 10 + x + 0.25, retime(windowAt(p, x, 0.25), 10 + x, 1).clock);
+    };
+    return { midi, out, play };
+  }
+  const clockMessages = (sent: { data: number[]; timestamp?: number }[]) => sent.filter((m) => m.data[0] >= 0xf8 || m.data[0] === 0xf2);
+
+  it('is off by default, and then sends nothing', async () => {
+    const { midi, out, play } = await tapped();
+    expect(midi.sendClock).toBe(false);
+    play(0, 2);
+    midi.stop(fakeTone(12));
+    expect(clockMessages(out.sent)).toEqual([]);
+  });
+
+  it("switched on, sends Start, the main meter's ticks through the same clock offset as the notes, and Stop when stopped; kept per device", async () => {
+    const { midi, out, play } = await tapped();
+    midi.sendClock = true;
+    play(0, 4);
+    midi.stop(fakeTone(14));
+    const sent = clockMessages(out.sent);
+    expect(sent[0]).toEqual({ data: [0xfa], timestamp: 10 * 1000 + 5000 - 2 });
+    // (sailor's bar at 112 bpm: a beat of 60/112 s, 24 ticks; a 4/4 bar, 96)
+    const beat = (n: number) => sent.filter((m) => m.data[0] === 0xf8 && m.timestamp! < 15000 + (n * 60 * 1000) / 112 - 1e-6);
+    expect(beat(1)).toHaveLength(24);
+    expect(beat(4)).toHaveLength(96);
+    expect(sent[1]).toEqual({ data: [0xf8], timestamp: 10 * 1000 + 5000 });
+    expect(sent.at(-1)!.data).toEqual([0xfc]);
+    expect(JSON.parse(store.get('cell-studio:midi')!).clock).toEqual({ 'Drum machine': true });
+    expect((await made()).sendClock).toBe(true);
+  });
+
+  it('switched off while playing: Stop, and no more ticks', async () => {
+    const { midi, out, play } = await tapped();
+    midi.sendClock = true;
+    play(0, 1);
+    midi.sendClock = false;
+    play(1, 2);
+    const sent = clockMessages(out.sent);
+    expect(sent.at(-1)!.data).toEqual([0xfc]);
+    expect(sent.filter((m) => m.data[0] === 0xfc)).toHaveLength(1);
+  });
+
+  it('sends Stop to the old output when another is chosen while playing', async () => {
+    const { midi, out, play } = await tapped();
+    midi.sendClock = true;
+    play(0, 1);
+    midi.chooseOutput('none');
+    expect(clockMessages(out.sent).at(-1)!.data).toEqual([0xfc]);
+  });
+
+  it('a piece with no meter sends no clock, and says so', async () => {
+    const { midi, out, play } = await tapped('&tune step=4 0 2 4\n&v s=sine loop=C4\n&out map=sample [&tune * &v]');
+    midi.sendClock = true;
+    expect(midi.meter).toBeNull();
+    play(0, 2);
+    midi.stop(fakeTone(12));
+    expect(clockMessages(out.sent)).toEqual([]);
   });
 });
 

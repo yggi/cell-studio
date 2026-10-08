@@ -13,8 +13,9 @@
 //
 // Then MIDI out (#205): one piece played into a fake Web MIDI port, its note-ons checked against the plan's notes
 // (tools/smoke-midi.ts) to within 2 ms of their median offset (one step of a clock jump followed allowed); then the
-// tempo (a held free()) moved and Pause and Play again within the look-ahead, with no All notes off from either
-// cutting what plays, and no note left sounding.
+// tempo (a held free()) moved and Pause and Play again within the look-ahead (twice, the second at once), with no All notes off from either
+// cutting what plays, and no note left sounding. The MIDI clock (#206) is on: its ticks before the tempo moved are
+// checked against the meter's (2 ms, as the notes), and Start, Stop, Song Position and Continue in order, no tick while stopped.
 //
 // Chromium: Playwright's, or CHROME_PATH=/path/to/chrome (CI uses the runner's Chrome). See tools/profile/playwright.mjs.
 import { preview, runnerImport } from 'vite';
@@ -154,7 +155,7 @@ const MIDI_PIECE = 'sailor';
       send: (data, timestamp) => sent.push({ data: [...data], timestamp: timestamp ?? performance.now(), sentAt: performance.now() }),
     };
     navigator.requestMIDIAccess = () => Promise.resolve({ inputs: new Map(), outputs: new Map([['fake-out', out]]), onstatechange: null });
-    localStorage.setItem('cell-studio:midi', JSON.stringify({ out: { id: 'fake-out', name: 'Fake synth' }, in: { id: 'none', name: '' } }));
+    localStorage.setItem('cell-studio:midi', JSON.stringify({ out: { id: 'fake-out', name: 'Fake synth' }, in: { id: 'none', name: '' }, clock: { 'Fake synth': true } }));
   });
   const secs = 3;
   let note = '';
@@ -183,6 +184,10 @@ const MIDI_PIECE = 'sailor';
     const resumedAt = await mp.evaluate(() => performance.now());
     await transport.getByRole('button', { name: 'Play' }).first().click();
     await mp.waitForTimeout(1000);
+    // and once more at once (the clock's ticks sent ahead outlast the pause: the next run waits for its Stop)
+    await transport.getByRole('button', { name: 'Pause' }).first().click();
+    await transport.getByRole('button', { name: 'Play' }).first().click();
+    await mp.waitForTimeout(800);
     await transport.getByRole('button', { name: 'Pause' }).first().click();
     await mp.waitForTimeout(800);
     const sent = await mp.evaluate(() => window.__midi);
@@ -238,9 +243,41 @@ const MIDI_PIECE = 'sailor';
     const cut = allOff.filter((m) => m.sentAt < resumedAt && resumed.some((t) => m.timestamp > t));
     if (cut.length) problems.push(`${cut.length} All notes off from the pause land after Play again`);
     if (allOff.length === 0) problems.push('Pause sent no All notes off');
+    // the MIDI clock: the ticks before the tempo moved, each against the meter's tick of its index, from Start's tick 0
+    // (at the plan's code second 0, where the notes' offset puts it), aligned as the note-ons are
+    const clockOrder = order.filter((m) => m.data[0] >= 0xf8 || m.data[0] === 0xf2);
+    const ticks = clockOrder.filter((m) => m.data[0] === 0xf8 && m.timestamp < movedAt).map((m) => m.timestamp);
+    const wantTicks = midiPlan.expectedTicks(MIDI_PIECE, secs + 2);
+    if (ticks.length < 24 * 4) problems.push(`only ${ticks.length} clock ticks before the tempo moved`);
+    const tickOffsets = ticks.map((t, k) => t - wantTicks[k] * 1000);
+    const tickSteps = tickOffsets.flatMap((d, i) => (i > 0 && Math.abs(d - tickOffsets[i - 1]) > 2 ? [i] : []));
+    const tickParts = tickSteps.length === 1 ? [tickOffsets.slice(0, tickSteps[0]), tickOffsets.slice(tickSteps[0])] : [tickOffsets];
+    const tickWorst = Math.max(0, ...tickParts.flatMap((p) => p.map((d) => Math.abs(d - median(p)))));
+    if (tickWorst > 2) problems.push(`a clock tick was ${tickWorst.toFixed(2)} ms off the meter`);
+    if (Math.abs(median(tickOffsets) - median(offsets)) > 2) problems.push(`the clock is ${(median(tickOffsets) - median(offsets)).toFixed(2)} ms off the notes`);
+    // in timestamp order: Start first, a tick only while running, Stop after Pause; then the Song Position, Continue
+    const names = { 0xfa: 'Start', 0xfb: 'Continue', 0xfc: 'Stop', 0xf2: 'SPP' };
+    let running = false;
+    const said = [];
+    for (const m of clockOrder) {
+      if (m.data[0] === 0xf8) {
+        if (!running) problems.push('a clock tick while stopped');
+        continue;
+      }
+      said.push(names[m.data[0]]);
+      if (m.data[0] === 0xfa || m.data[0] === 0xfb) running = true;
+      if (m.data[0] === 0xfc) running = false;
+    }
+    // (no tick doubled nor bunched: within a run, none nearer the one before than half a tick at the fastest tempo moved to)
+    const close = clockOrder.filter((m, i) => m.data[0] === 0xf8 && clockOrder[i - 1]?.data[0] === 0xf8 && m.timestamp - clockOrder[i - 1].timestamp < 60000 / 119 / 24 / 2);
+    if (close.length) problems.push(`${close.length} clock ticks closer than half a tick to the one before`);
+    if (said.join(' ') !== 'Start Stop SPP Continue Stop SPP Continue Stop') problems.push(`the clock said ${said.join(' ')}`);
+    // (and as sent: each clock message timestamped no earlier than the one before it)
+    const clockSent = sent.filter((m) => m.data[0] >= 0xf8 || m.data[0] === 0xf2);
+    if (clockSent.some((m, i) => i > 0 && m.timestamp < clockSent[i - 1].timestamp)) problems.push('clock messages sent out of order');
     const offs = sent.filter((m) => (m.data[0] & 0xf0) === 0x80).length;
     const all = sent.filter((m) => (m.data[0] & 0xf0) === 0x90).length;
-    note = `${ons.length} note-ons within ${worst.toFixed(3)} ms of the plan (median offset${step ? `; one step of ${step.toFixed(1)} ms, a clock jump followed` : ''}); then 4 tempo moves, Pause and Play: ${all} note-ons, ${offs} note-offs, ${allOff.length} All notes off, none left sounding`;
+    note = `${ons.length} note-ons within ${worst.toFixed(3)} ms of the plan (median offset${step ? `; one step of ${step.toFixed(1)} ms, a clock jump followed` : ''}); then 4 tempo moves, Pause and Play twice: ${all} note-ons, ${offs} note-offs, ${allOff.length} All notes off, none left sounding; clock: ${ticks.length} ticks within ${tickWorst.toFixed(3)} ms of the meter, ${said.join(' ')}`;
   } catch (e) {
     problems.push(String(e.message).split('\n')[0]);
   }
