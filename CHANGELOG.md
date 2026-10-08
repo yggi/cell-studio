@@ -41,6 +41,7 @@ that makes the change. Also note changes to the language that could affect saved
 
 ### Fixed
 - `rung=` accepts 1 to 9999 (a huge number was read as 1e20), and warns on a card without the `tutorial` tag, where it was silently ignored. A piece with `rung=` over 9999 now fails to parse; none of the examples do (#186).
+- A kit member that is switched off is no longer connected to the master; it played no notes, so nothing audible changes (#166). Saved `.cells` pieces are not affected.
 - A library of tutorial pieces only no longer hangs the layout (not reachable in the app, where examples always exist) (#186).
 - Keyboard focus is visible on every button (the piece picker's cards, the sheet's close button): 68 of the first 120 Tab stops showed no ring (#135). Saved `.cells` pieces are not affected.
 - In the live view, a chord of voices in a groove (`[&bd, &hh]`) lights each of its voices while it sounds (before, they stayed dark). Saved `.cells` pieces are not affected.
