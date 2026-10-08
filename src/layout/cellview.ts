@@ -10,6 +10,8 @@ import { NOTE_NAMES, mod, modeName } from '../theory/modes';
 import { playedCells } from '../engine/clocking';
 import { flatten, tapped } from '../engine/flatten';
 import { resolveIn } from '../engine/helix';
+import { bulbHosts, isTurntable } from '../engine/graph';
+import { bulbsOf, type Bulb } from './track';
 
 /**
  * Drawn as a grid (entries placed on the grid below) only when it's looked
@@ -76,6 +78,8 @@ export interface CellView {
    */
   readonly taps?: readonly number[];
   readonly hub?: Hub;
+  /** A braid's splices, each a bulb on its track (layout/track.ts, #221): its segments in them are drawn along them. */
+  readonly bulbs?: readonly Bulb[];
   /** Grid lap (slots per turn) for drawing ticks; braid: steps. */
   readonly ticks: number;
   /** How many detents one full turn of the rim has. */
@@ -256,7 +260,9 @@ export function cellView(result: CompileResult, name: string, shifts: Shifts, is
     cursor = Math.max(cursor, g.step + g.duration);
   }
   rest(cursor, total);
-  return { mode: 'braid', segments, ticks: total, detents: Math.max(1, units.length), show, conv };
+  // (bars of levels stay on the ring; a scope or a turntable draws no track)
+  const bulbs = levels || typeof c.params.scope === 'string' || isTurntable(c) ? [] : bulbsOf(result, name, shifts, bulbHosts(result));
+  return { mode: 'braid', segments, ticks: total, detents: Math.max(1, units.length), show, conv, ...(bulbs.length ? { bulbs } : {}) };
 }
 
 /**
