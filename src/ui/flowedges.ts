@@ -99,7 +99,8 @@ function pulseData(e: GraphEdge, program: CompileResult) {
     port: e.port,
     width: e.width,
     from: endOf(e, e.from),
-    table: e.port === 'over' ? nameOf(e.from) : null,
+    // (a table read through, over=, or looked up, map=: its strands leave its entries)
+    table: e.port === 'over' || e.port === 'map' ? nameOf(e.from) : null,
     tines: tinesOf(e, program),
     ...carried(e, program),
   };
