@@ -22,7 +22,7 @@ const labels = (src: string, cell: string) => {
 describe('show=', () => {
   it('reads one of the shows; says which when it isn’t', () => {
     expect(compileSource('&t show=do 0').cells.get('t')!.show).toBe('do');
-    expect(compileSource('&t show=fancy 0').diagnostics[0].message).toMatch(/show= takes one of: braid pattern notes midi do/);
+    expect(compileSource('&t show=fancy 0').diagnostics[0].message).toMatch(/show= takes one of: braid pattern equal notes midi do/);
   });
   it('is the default for everything below: parts and tables — not a step driver', () => {
     const r = compileSource(twinkle('do'));

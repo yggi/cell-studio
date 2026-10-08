@@ -21,7 +21,7 @@ export const FITS: Readonly<Record<Kind, readonly Show[]>> = {
   grid: ['grid', 'table', 'off'],
   meter: ['meter', 'pattern', 'sun', 'off'],
   mix: ['mix'],
-  table: ['table', 'scale', 'mode', 'key', 'notes', 'midi', 'do', 'degrees', 'brightness', 'petal', 'off'],
+  table: ['table', 'equal', 'scale', 'mode', 'key', 'notes', 'midi', 'do', 'degrees', 'brightness', 'petal', 'off'],
   braid: ['braid', 'pattern', 'notes', 'midi', 'do', 'degrees', 'petal', 'off'],
   volume: ['levels', 'braid', 'pattern', 'petal', 'off'],
   note: ['note', 'off'],
@@ -43,6 +43,7 @@ function parseShow(raw: string | null | undefined): { show: Show; conv: string }
 export const SHOW_MEANING: Readonly<Record<Show, string>> = {
   braid: 'steps, coloured by pitch',
   pattern: 'rhythm only: hits and rests',
+  equal: 'its entries evenly round the ring, wired from the slots they take: the taps stay put as it turns',
   notes: 'note names: C4 D4 E4',
   midi: 'MIDI numbers: 60 62 64',
   do: 'movable do: do re mi from the tonic',
