@@ -58,9 +58,12 @@ const NOTHING: Carrier = () => ({ phaseCell: null, voice: null });
 /** The cell whose output plays a voice (its steps are the voice's notes). */
 const trigger = (program: CompileResult, voice: string) => program.outputs.find((o) => o.voice === voice)?.cell ?? null;
 
-/** By band: ticks pulse with the steps of the cell they drive (a clock's), a note's link carries nothing. */
+/**
+ * By band: ticks pulse with the steps of the cell they drive (a clock's), or a parameter's clock with the clock's own
+ * (`delaytime=&bar*3/4`: its reader doesn't step); a note's link carries nothing.
+ */
 const BY_BAND: Readonly<Partial<Record<GraphEdge['band'], Carrier>>> = {
-  sync: (e) => ({ phaseCell: nameOf(e.to), voice: null }),
+  sync: (e) => ({ phaseCell: nameOf(e.port === 'step' ? e.to : e.from), voice: null }),
   none: NOTHING,
 };
 /** By port, for the other bands. */
@@ -96,7 +99,8 @@ function pulseData(e: GraphEdge, program: CompileResult) {
     port: e.port,
     width: e.width,
     from: endOf(e, e.from),
-    table: e.port === 'over' ? nameOf(e.from) : null,
+    // (a table read through, over=, or looked up, map=: its strands leave its entries)
+    table: e.port === 'over' || e.port === 'map' ? nameOf(e.from) : null,
     tines: tinesOf(e, program),
     ...carried(e, program),
   };

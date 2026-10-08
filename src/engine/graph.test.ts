@@ -5,6 +5,7 @@ import { buildGraph, type GraphModel } from './graph';
 import { cellId, edgeId, stepEdgeId } from './ids';
 import { transformLabel } from './transform';
 import { PRESETS } from './presets';
+import { TIME_PARAMS } from './attributes';
 
 /** The edge between two cells along the flow; through a product's junction (graph.ts) when they meet there: into a product whose voice is `to`, out of one whose voice is `from`. */
 const between = (model: GraphModel, from: string, to: string) => {
@@ -30,6 +31,13 @@ describe('edges as wires', () => {
     expect(wireOf(g, 'mode', 'theme')).toMatchObject({ port: 'over', band: 'cv', pointer: true }); // over=&mode
     expect(wireOf(g, 'up', 'tune')).toMatchObject({ port: 'braid', band: 'cv', pointer: true }); // &tune … &up &up
     expect(wireOf(g, 'capstan', 'tape')).toMatchObject({ port: 'step', band: 'sync' });
+  });
+
+  it('a table a cell reads twice (map= and pitch=) is two wires, each with its own id (#182)', () => {
+    const r = compileSource(['&t 0 1 .3 -1', '&bar step=1', '&mel step=&bar 0 2', '&v loop=C4 map=&t pitch=&t 0 1 2 3', '&out loop=SAMPLE_RATE map=sample [&mel * &v]'].join('\n'));
+    const from = buildGraph(r).edges.filter((x) => x.from === 'cell:t' && x.to === 'cell:v');
+    expect(from.map((x) => x.port).sort()).toEqual(['map', 'pitch']);
+    expect(new Set(from.map((x) => x.id)).size).toBe(2);
   });
 
   it('take their band from the port: values, ticks or sound', () => {
@@ -201,6 +209,58 @@ describe('a product is a junction (docs/notes/nets.md, decision 2)', () => {
   });
 });
 
+describe('a parameter that takes a clock is a tap of it (delaytime=&bar*3/4, length=, at=)', () => {
+  const tapOf = (model: GraphModel, from: string, to: string, port: string) => model.edges.find((e) => e.from === `cell:${from}` && e.to === `cell:${to}` && e.port === port);
+
+  it('a sync wire from the clock to the cell, carrying its rate as written', () => {
+    const acid = buildGraph(compileSource(PRESETS.acid.source));
+    const e = tapOf(acid, 'bar', 'tb303', 'delaytime')!;
+    expect(e).toMatchObject({ band: 'sync', width: 1, pointer: false });
+    expect(e.transforms).toEqual([
+      [
+        {
+          kind: 'rate',
+          by: [
+            { op: '×', n: 3 },
+            { op: '÷', n: 4 },
+          ],
+          per: 'step',
+          whole: false,
+        },
+      ],
+    ]);
+    expect(transformLabel(e.transforms[0])).toBe('×3÷4');
+  });
+
+  it('into a meter: a tap of its net (ground), as a step is, so it blinks with it and isn’t drawn as an edge of its own', () => {
+    const acid = buildGraph(compileSource(PRESETS.acid.source));
+    const net = acid.nets.find((n) => n.owner === 'cell:bar');
+    expect(net).toMatchObject({ id: 'net:cell:bar:step', port: 'step', band: 'sync' });
+    expect(net!.taps).toContain(tapOf(acid, 'bar', 'tb303', 'delaytime')!.id);
+    // (only the clock tap: the voice isn't stepped)
+    expect(acid.nets.filter((n) => n.port === 'delaytime')).toEqual([]);
+  });
+
+  it('beside a step from the same clock: a wire each', () => {
+    const m = buildGraph(
+      compileSource(
+        '&bar scan(1 1 1 1) step=120bpm\n&t step=&bar 0 2\n&v s=sine loop=C4 delaytime=&bar/2 delay=.3\n&w step=&bar length=&bar*4 write=&t\n&h play=&w at=&bar\n&out loop=SAMPLE_RATE map=sample [&h * &v]',
+      ),
+    );
+    expect(tapOf(m, 'bar', 'v', 'delaytime')?.transforms.map(transformLabel)).toEqual(['÷2']);
+    expect(tapOf(m, 'bar', 'w', 'step')).toBeDefined();
+    expect(tapOf(m, 'bar', 'w', 'length')?.transforms.map(transformLabel)).toEqual(['×4']);
+    expect(tapOf(m, 'bar', 'h', 'at')?.transforms.map(transformLabel)).toEqual(['']);
+    expect(m.nets.find((n) => n.owner === 'cell:bar')!.taps).toHaveLength(5);
+  });
+
+  it('from a clock that is not a meter: an edge drawn, not a net', () => {
+    const m = buildGraph(compileSource('&lfo map=lin loop=2 0 1\n&t step=1 0 2\n&v s=sine loop=C4 delaytime=&lfo*2 delay=.3\n&out loop=SAMPLE_RATE map=sample [&t * &v]'));
+    expect(tapOf(m, 'lfo', 'v', 'delaytime')).toMatchObject({ band: 'sync', transforms: [[{ kind: 'rate', by: [{ op: '×', n: 2 }] }]] });
+    expect(m.nets.some((n) => n.owner === 'cell:lfo')).toBe(false);
+  });
+});
+
 describe('a wire carries its transform', () => {
   const edge = (src: string, from: string, to: string) => between(buildGraph(compileSource(src)), from, to)!;
 
@@ -345,14 +405,16 @@ function tokensOn(line: string): Token[] {
     const written =
       where === 'step' || where === 'loop'
         ? [where === 'loop' ? 'loop' : '', (cycle ? '⟳' : '') + chain, belt ? '· belt' : '']
-        : [
-            m[3] && !shift ? m[3] : '',
-            shift ? `[${shift[1]}${shift[2] && shift[2] !== '1' ? shift[2] : ''}]` : '',
-            mul < 0 ? 'inverse' : '',
-            add ? `degree ${add > 0 ? '+' : ''}${add}` : '',
-            m[4] ?? '',
-            where === 'play' && at ? `at=${+at}` : '',
-          ];
+        : TIME_PARAMS.has(where)
+          ? [(cycle ? '⟳' : '') + chain]
+          : [
+              m[3] && !shift ? m[3] : '',
+              shift ? `[${shift[1]}${shift[2] && shift[2] !== '1' ? shift[2] : ''}]` : '',
+              mul < 0 ? 'inverse' : '',
+              add ? `degree ${add > 0 ? '+' : ''}${add}` : '',
+              m[4] ?? '',
+              where === 'play' && at ? `at=${+at}` : '',
+            ];
     out.push({ name: m[2], where, written: written.filter(Boolean).join(' ') });
   }
   return out;
@@ -366,9 +428,6 @@ function openCall(text: string): string | undefined {
     else if (text[i] === '(' && depth-- === 0) return /[a-z]*$/.exec(text.slice(0, i))![0];
   return undefined;
 }
-
-/** Attributes that read a cell the graph doesn't draw yet: a delay's time from a clock (`delaytime=&bar*3/4`), a table its values are looked up in (`map=&curve`). */
-const UNDRAWN = new Set(['delaytime', 'map']);
 
 /** The port a name written as the value of an attribute is read through. */
 const PORT: Readonly<Record<string, string>> = { loop: 'step', generated: 'braid' };
@@ -391,7 +450,7 @@ describe('every name written is one wire carrying the transform it writes, and e
       const groove = c.over === 'kit:voices';
       const tokens = tokensOn(lines.get(c.span.line) ?? '')
         .map((t) => (groove && t.where === 'mix' ? { ...t, where: 'braid' } : t))
-        .filter((t) => !UNDRAWN.has(t.where) && program.cells.has(t.name));
+        .filter((t) => program.cells.has(t.name));
       // each place a name is written in the braid is one of its wire's transforms, in order
       const written = new Map<string, Token[]>();
       for (const t of tokens) {
