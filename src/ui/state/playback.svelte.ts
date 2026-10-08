@@ -32,8 +32,12 @@ export class Playback {
   readonly now = $derived(this.playing ? (this.span ? transportClock.seconds % this.span : transportClock.seconds) : this.cursor);
   /** Anything to go back from: not stopped, or a free() value held by hand (Stop pulses). */
   readonly resettable = $derived.by(() => transportClock.state !== 'stopped' || this.piece.held.size > 0);
-  /** The live view while playing (playheads, lit entries, the live routing), null otherwise. */
-  readonly live = $derived.by(() => (this.playing ? liveAt(this.piece.program, this.piece.shifts, this.piece.muted, transportClock.seconds) : null));
+  /**
+   * Where everything is at the transport's time (playheads, lit entries, the live routing): the clock while playing,
+   * else where play will start. Always there, so the heads are drawn stopped (at the start) and paused too; at rest
+   * it is worked out once, not every frame.
+   */
+  readonly heads = $derived.by(() => liveAt(this.piece.program, this.piece.shifts, this.piece.muted, this.playing ? transportClock.seconds : this.cursor));
 
   /** The sound, for the views: what plays now, and hands on it (the Player takes a stopped transport to paused when one lays hold). */
   readonly sound: LiveSource;

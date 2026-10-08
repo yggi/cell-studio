@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { liveAt } from '../../../src/engine/live';
   /**
    * One edge in one state, on two bare nodes: the real edge component with the context the graph gives it
    * (what plays now, the note on the voice, where the layout bends it). `state`: as engine/routing.ts names them;
@@ -73,7 +74,10 @@
     program: f.piece.program,
     muted: new Set(),
     routed: f.piece.routed,
-    live,
+    state: playing ? 'playing' : 'stopped',
+    playing,
+    heads: live ?? liveAt(f.piece.program, f.piece.shifts, new Set(), 0),
+    lit: live,
     liveEdges: playing ? new Set(c.state === 'live' ? [e.id] : []) : null,
     turned: playing ? 'live' : '',
     shifts: f.piece.shifts,

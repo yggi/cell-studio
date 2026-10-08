@@ -55,7 +55,7 @@
   let visible = true;
   let stop = () => {};
   function frame() {
-    const w = visible && ctx.live ? ctx.sound.waveform(name) : null;
+    const w = visible && ctx.playing ? ctx.sound.waveform(name) : null;
     if (!w) {
       if (live) live = '';
       return;

@@ -13,8 +13,8 @@ import type { FlowNode } from '../types';
 
 /** What the edges are drawn with besides the snapshot (read when they are made, not tracked). */
 export interface EdgeStyle {
-  /** Something plays: a routed edge is idle (PulseEdge makes it live). */
-  readonly playing: boolean;
+  /** Not stopped (paused or playing): a routed edge is idle (PulseEdge makes it live), an unrouted one dimmed; stopped, nothing is. */
+  readonly lit: boolean;
   readonly live: LiveState | null;
   /** Changes when a belt's stretch is to be drawn again (the live edges, on a piece with belts); else null. */
   readonly moment: string | null;
@@ -129,16 +129,16 @@ export class GraphLayout {
     if (fresh) this.fitToken++;
   }
 
-  /** Make the edges again if what they're drawn with changed (routing, playing, a meter's net, a belt's stretch). */
+  /** Make the edges again if what they're drawn with changed (routing, lit, a meter's net, a belt's stretch). */
   restyle(): void {
     const s = this.#style();
-    if (!same(this.#madeFrom, [this.shown, this.net, s.playing, s.moment])) this.#makeEdges();
+    if (!same(this.#madeFrom, [this.shown, this.net, s.lit, s.moment])) this.#makeEdges();
   }
 
   #makeEdges(): void {
     const s = this.#style();
-    this.#madeFrom = [this.shown, this.net, s.playing, s.moment];
-    this.edges = flowEdgesOf(this.shown, { sizeOf: (id) => this.#sizeOf(id), net: this.net, playing: s.playing, live: s.live });
+    this.#madeFrom = [this.shown, this.net, s.lit, s.moment];
+    this.edges = flowEdgesOf(this.shown, { sizeOf: (id) => this.#sizeOf(id), net: this.net, lit: s.lit, live: s.live });
   }
 
   /** Where a node is now. */

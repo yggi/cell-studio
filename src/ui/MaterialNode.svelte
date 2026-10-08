@@ -161,20 +161,22 @@
   let handAngle = $state(0);
   // the turn a hand gave it: it stays (the reel turns on from where it was left)
   let reelOffset = $state(0);
+  // (playing, or paused: it turns with the clock at the transport's time; a cell with no clock turns only under a hand)
+  const followsClock = $derived(!!cell && (ctx.playing || ctx.program.clocks.has(cell.clock ?? d.name)));
   const angle = $derived.by(() => {
     if (scrubbing) return handAngle;
-    if (!ctx.live || !cell) return preview;
+    if (!followsClock || !cell) return preview;
     try {
-      const steps = clocking(ctx.program, ctx.shifts, ctx.live.seconds).stepOf(cell.clock ?? d.name) * (cell.clock === d.name ? 1 : cell.rate);
+      const steps = clocking(ctx.program, ctx.shifts, ctx.heads.seconds).stepOf(cell.clock ?? d.name) * (cell.clock === d.name ? 1 : cell.rate);
       return ((steps % lap) / lap) * 360 + reelOffset;
     } catch {
       return preview;
     }
   });
   const clockAngle = () => {
-    if (!ctx.live || !cell) return preview;
+    if (!followsClock || !cell) return preview;
     try {
-      const steps = clocking(ctx.program, ctx.shifts, ctx.live.seconds).stepOf(cell.clock ?? d.name) * (cell.clock === d.name ? 1 : cell.rate);
+      const steps = clocking(ctx.program, ctx.shifts, ctx.heads.seconds).stepOf(cell.clock ?? d.name) * (cell.clock === d.name ? 1 : cell.rate);
       return ((steps % lap) / lap) * 360;
     } catch {
       return preview;
@@ -255,10 +257,10 @@
     mode = 'grab';
     last = { a: angleAt(e), t: performance.now() };
     smooth = 0;
-    if (ctx.live) ctx.sound.grab(d.name, 0);
+    if (ctx.playing) ctx.sound.grab(d.name, 0);
     renew = setInterval(() => {
       if (performance.now() - last.t > 80) smooth *= 0.5; // (not moving: slowing to a stop)
-      if (ctx.live) ctx.sound.grab(d.name, smooth / omega0);
+      if (ctx.playing) ctx.sound.grab(d.name, smooth / omega0);
     }, 100);
   }
   function move(e: PointerEvent) {
@@ -296,7 +298,7 @@
       const dt = Math.max(1, t - last.t) / 1000;
       smooth = smooth * 0.6 + (da / dt) * 0.4; // the finger's angular speed (rad/s), smoothed
       last = { a, t };
-      if (ctx.live) {
+      if (ctx.playing) {
         if (t - sent > 30) {
           sent = t;
           ctx.sound.grab(d.name, smooth / omega0);
@@ -327,7 +329,7 @@
       return;
     }
     const step = e.key === 'ArrowRight' || e.key === 'ArrowUp' ? 1 : e.key === 'ArrowLeft' || e.key === 'ArrowDown' ? -1 : 0;
-    if (!step || ctx.live || d.role === 'resonator') return;
+    if (!step || ctx.playing || d.role === 'resonator') return;
     e.preventDefault();
     e.stopPropagation();
     turnStopped((step * 2 * Math.PI) / 16);
@@ -341,7 +343,7 @@
     else if (mode === 'move') {
       const p = flow.screenToFlowPosition({ x: e.clientX, y: e.clientY });
       ctx.move(id, 'end', p.x, p.y);
-    } else if (mode === 'grab' && ctx.live) ctx.sound.grab(d.name, null);
+    } else if (mode === 'grab' && ctx.playing) ctx.sound.grab(d.name, null);
     else if (mode === 'touch') ctx.sound.strike(d.name, touchAt.pos);
     else if (mode === 'damp') ctx.sound.damp(d.name, false);
     else if (mode === 'bowing') ctx.sound.bow(d.name, null);
