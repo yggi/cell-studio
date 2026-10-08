@@ -6,7 +6,7 @@
 import type { GraphModel } from '../engine/graph';
 import { segmentsCross, splinePoint } from './geometry';
 import { GROUND_PULL, linkPull } from './options';
-import type { LayoutState, MeterTrace, PhysNode } from './state';
+import { nodeAt, type LayoutState, type MeterTrace, type PhysNode } from './state';
 
 /** A short straight piece of a drawn edge (its spline), with its ends. */
 export type Piece = { a: string; b: string; seg: [number, number, number, number] };
@@ -18,13 +18,14 @@ export type Piece = { a: string; b: string; seg: [number, number, number, number
  * its owner once, to the reader nearest it; a meter's ground joins it wherever it is nearest. Sound branches from its
  * owner to each reader (a star): a voice into two mixes doesn't pass through the one to the other; so do taps at a
  * delay (a canon's copies, a tape's heads), each delay counted from the owner. By tap (edge id): the node it comes
- * from, and its reader.
+ * from, and its reader. `ends`: each tap's reader (the forces' nets by default; the drawn ones' for drawing).
  */
-export function netTree(s: LayoutState, net: GraphModel['nets'][number]): Map<string, { from: string; to: string }> {
+export function netTree(s: LayoutState, net: GraphModel['nets'][number], ends = s.edgeEnds): Map<string, { from: string; to: string }> {
   const out = new Map<string, { from: string; to: string }>();
   const o = s.byId.get(net.owner);
+  // (a reader may be a product's junction: as drawn)
   const readers = net.taps.flatMap((id) => {
-    const n = s.byId.get(s.edgeEnds.get(id) ?? '');
+    const n = nodeAt(s, ends.get(id) ?? '');
     return n && n !== o ? [{ id, n }] : [];
   });
   if (!o || !readers.length) return out;
@@ -131,16 +132,16 @@ export function stepNets(s: LayoutState, alpha: number): void {
  */
 export function taps(s: LayoutState): Map<string, { from: string; x: number; y: number } | null> {
   const out = new Map<string, { from: string; x: number; y: number } | null>();
-  for (const net of s.nets) {
+  for (const net of s.drawnNets) {
     if (net.port === 'step') continue;
-    for (const [id, { from }] of netTree(s, net)) {
+    for (const [id, { from }] of netTree(s, net, s.drawnEnds)) {
       if (from === net.owner) {
         out.set(id, null);
         continue;
       }
       // (a tap whose node has gone: not drawn)
-      const f = s.byId.get(from);
-      if (f) out.set(id, { from, x: f.x ?? 0, y: f.y ?? 0 });
+      const f = nodeAt(s, from);
+      if (f?.x !== undefined) out.set(id, { from, x: f.x, y: f.y ?? 0 });
     }
   }
   return out;
@@ -149,7 +150,7 @@ export function taps(s: LayoutState): Map<string, { from: string; x: number; y: 
 /** Each bus's joins that aren't its owner's own edge (a tap coming on from another reader), by tap: what's drawn. */
 export function hops(s: LayoutState): Map<string, { from: string; to: string }> {
   const out = new Map<string, { from: string; to: string }>();
-  for (const net of s.nets) if (net.port !== 'step') for (const [id, j] of netTree(s, net)) if (j.from !== net.owner) out.set(id, j);
+  for (const net of s.drawnNets) if (net.port !== 'step') for (const [id, j] of netTree(s, net, s.drawnEnds)) if (j.from !== net.owner) out.set(id, j);
   return out;
 }
 
@@ -161,9 +162,9 @@ export function drawnPieces(s: LayoutState, skip: (a: string, b: string) => bool
     const h = joins.get(l.id);
     const [source, target] = h ? [h.from, h.to] : [l.source, l.target];
     if (skip(source, target)) continue;
-    const a = s.byId.get(source);
-    const b = s.byId.get(target);
-    if (!a || !b) continue;
+    const a = nodeAt(s, source);
+    const b = nodeAt(s, target);
+    if (a?.x === undefined || b?.x === undefined) continue;
     const m = (h ? undefined : s.bendAt.get(l.id)) ?? { x: ((a.x ?? 0) + (b.x ?? 0)) / 2, y: ((a.y ?? 0) + (b.y ?? 0)) / 2 };
     const pts = Array.from({ length: 9 }, (_, k) => splinePoint(a.x ?? 0, a.y ?? 0, m.x, m.y, b.x ?? 0, b.y ?? 0, k / 8));
     for (let k = 0; k < 8; k++) out.push({ a: source, b: target, seg: [pts[k].x, pts[k].y, pts[k + 1].x, pts[k + 1].y] });

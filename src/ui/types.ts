@@ -28,4 +28,7 @@ type ScopeNodeData = { name: string; size: number };
 type ScopeFlowNode = Node<ScopeNodeData, 'scope'>;
 /** The sun of a day's law (sun=): a 24-hour dial. */
 type SunFlowNode = Node<ScopeNodeData, 'sun'>;
-export type FlowNode = CellFlowNode | VoiceFlowNode | MaterialFlowNode | ScopeFlowNode | SunFlowNode;
+/** A product's junction (graph.ts): the voice it is and the mix it goes into (`name`: its id, no cell's). */
+type JunctionNodeData = { name: string; voice: string; mix: string; size: number };
+export type JunctionFlowNode = Node<JunctionNodeData, 'junction'>;
+export type FlowNode = CellFlowNode | VoiceFlowNode | MaterialFlowNode | ScopeFlowNode | SunFlowNode | JunctionFlowNode;

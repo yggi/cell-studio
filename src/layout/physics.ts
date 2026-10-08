@@ -17,10 +17,11 @@ import { openBelt, pulleys } from './belts';
 import { strengthOf } from './weights';
 import { BELT_LENGTH, BELT_PULL, DEFAULT_LAYOUT, GROUND_PULL, linkPull, type LayoutOptions } from './options';
 import type { LayoutState, MeterTrace, PhysLink, PhysNode } from './state';
-import { positionOf } from './state';
+import { nodeAt, positionOf } from './state';
+import { folded, junctionNodes, placeJunctions, settleJunctions } from './junctions';
 import { rowsKey, startNodes, startPlaces } from './start';
 import { Insertion } from './insertion';
-import { crossingPairs, forceUncross, stepAbout, stepBends, stepClusters, stepExclusion, stepKinds, stepSpread } from './forces';
+import { forceUncross, stepAbout, stepBends, stepClusters, stepExclusion, stepKinds, stepSpread } from './forces';
 import { aims, fitTurns, stepAims } from './aims';
 import { hops, meterNet, netTree, stepNets, taps } from './nets';
 import { placeMeters } from './placement';
@@ -47,6 +48,9 @@ export class ForceLayout {
       opts: { ...DEFAULT_LAYOUT, ...opts },
       byId: new Map(),
       links: [],
+      springs: [],
+      junctions: new Map(),
+      rims: new Map(),
       ends: new Map(),
       rankY: new Map(),
       degree: new Map(),
@@ -58,6 +62,8 @@ export class ForceLayout {
       turns: new Map(),
       nets: [],
       edgeEnds: new Map(),
+      drawnNets: [],
+      drawnEnds: new Map(),
       grounds: [],
       net: [],
       placedMeters: new Set(),
@@ -77,7 +83,13 @@ export class ForceLayout {
       .force('collide', forceCollide<PhysNode>().strength(0.95).iterations(2))
       // (first: the scale for this tick, while a fresh graph grows)
       .force('grow', () => this.growStep())
-      .force('uncross', forceUncross(() => this.s.opts.uncross) as never)
+      .force(
+        'uncross',
+        forceUncross(
+          () => this.s.opts.uncross,
+          (n) => (n.rides ? this.s.byId.get(n.rides) : n),
+        ) as never,
+      )
       // mass: a heavy node takes less of each push (inertia); d3 has none, so its velocity is scaled down
       .force('mass', () => {
         if (!this.s.opts.inertia) return;
@@ -113,9 +125,17 @@ export class ForceLayout {
       .force('exclusion', () => stepExclusion(this.s))
       .on('tick', () => {
         this.insertion.step();
+        placeJunctions(this.s);
         onTick();
       })
-      .on('end', () => this.settleListeners.forEach((f) => f()));
+      .on('end', () => {
+        // (at rest: the products' junctions where their wires cross least, shown at once)
+        if (this.s.junctions.size) {
+          settleJunctions(this.s, (l) => this.beltRuns(l));
+          onTick();
+        }
+        this.settleListeners.forEach((f) => f());
+      });
     this.insertion = new Insertion(this.s, this.sim);
     this.applyOptions();
     if (!o.live) this.sim.stop();
@@ -190,8 +210,13 @@ export class ForceLayout {
   }
 
   /** Merge a new graph in. Existing nodes keep position and velocity. */
-  setGraph(model: GraphModel, structural = true): GraphDiff {
+  setGraph(drawn: GraphModel, structural = true): GraphDiff {
     this.insertion.end();
+    // (as drawn: a product's wires at its junction; the forces lay the graph with each junction folded into its voice,
+    // and the junctions are set on their voices' rims after each tick: junctions.ts)
+    this.s.drawnNets = drawn.nets ?? [];
+    this.s.drawnEnds = new Map(drawn.edges.map((e) => [e.id, e.to]));
+    let model = folded(drawn);
     this.s.nets = model.nets ?? [];
     this.s.edgeEnds = new Map(model.edges.map((e) => [e.id, e.to]));
     // petals (unnamed cells) hang from their parent: the physics only sees named cells
@@ -207,7 +232,7 @@ export class ForceLayout {
     // mostly new (a different example that happens to share &bar, &mix, &out): lay it all out afresh
     const fresh = model.nodes.filter((n) => !this.s.byId.has(n.id)).length > model.nodes.length / 2;
     if (fresh) this.s.bendAt.clear(); // a fresh graph: no bends left over from the last one
-    const start = startPlaces(this.s, model, fresh, () => (fresh ? (this.rowChoice = this.rowOrderFor(model)) : this.rowChoice));
+    const start = startPlaces(this.s, model, fresh, () => (fresh ? (this.rowChoice = this.rowOrderFor(drawn)) : this.rowChoice));
     const { next, added, tagLinks } = startNodes(this.s, model, fresh, parentOf, start);
 
     const removed = [...this.s.byId.keys()].filter((id) => !next.has(id)).length;
@@ -274,21 +299,26 @@ export class ForceLayout {
     const watcher = (id: string) => scopes.has(id);
     const idOf = (x: unknown) => (typeof x === 'object' ? (x as PhysNode).id : (x as string));
     const own = links.filter((l) => !watcher(idOf(l.source)) && !watcher(idOf(l.target)));
-    (this.sim.force('uncross') as unknown as ReturnType<typeof forceUncross>).links(
-      // forceLink has swapped ids for the node objects by now
-      own.map((l) => ({
-        source: typeof l.source === 'object' ? (l.source as PhysNode) : next.get(l.source as string)!,
-        target: typeof l.target === 'object' ? (l.target as PhysNode) : next.get(l.target as string)!,
-      })),
-    );
-
-    this.s.links = own.map((l) => ({
+    this.s.springs = own.map((l) => ({
       id: l.id,
       source: typeof l.source === 'object' ? (l.source as PhysNode).id : (l.source as string),
       target: typeof l.target === 'object' ? (l.target as PhysNode).id : (l.target as string),
       belt: l.belt,
       strength: l.strength,
     }));
+    // (as drawn: a product's wires at its junction, its `is` too)
+    this.s.junctions = junctionNodes(this.s, drawn);
+    for (const id of [...this.s.rims.keys()]) if (!this.s.junctions.has(id)) this.s.rims.delete(id);
+    const placedIds = (id: string) => next.has(id) || this.s.junctions.has(id);
+    this.s.links = drawn.edges
+      .filter((e) => e.port !== 'about' && !ground(e) && placedIds(e.source) && placedIds(e.target) && e.source !== e.target)
+      .filter((e) => !watcher(e.source) && !watcher(e.target))
+      .map((e) => ({ id: e.id, source: e.source, target: e.target, belt: !!e.belt, strength: strengthOf(e), is: e.port === 'is' }));
+    placeJunctions(this.s);
+    // crossings untangled as drawn: a product's wires at its junction (a push on a junction moves its voice)
+    (this.sim.force('uncross') as unknown as ReturnType<typeof forceUncross>).links(
+      this.s.links.filter((l) => !l.is).map((l) => ({ source: nodeAt(this.s, l.source)!, target: nodeAt(this.s, l.target)! })),
+    );
     for (const id of [...this.s.bendAt.keys()]) if (!this.s.links.some((l) => l.id === id)) this.s.bendAt.delete(id);
     if (structural) this.reheat(fresh ? 1 : added > 0 || removed > 0 ? 0.7 : 0.3); // a fresh graph settles from scratch, like a new layout
     if (fresh && this.s.opts.insert > 0) this.insertion.start(model, groundIds);
@@ -307,7 +337,11 @@ export class ForceLayout {
 
   /** Where everything is now, as quality.ts reads it: the nodes (a tag's name hides edges, but isn't a cell) and the edges as drawn. */
   private placed() {
-    const nodes = [...this.s.byId.values()].map((n) => ({ id: n.id, x: n.x ?? 0, y: n.y ?? 0, r: n.radius, tags: n.tags, label: n.role === 'tag' }));
+    const nodes = [
+      ...[...this.s.byId.values()].map((n) => ({ id: n.id, x: n.x ?? 0, y: n.y ?? 0, r: n.radius, tags: n.tags, label: n.role === 'tag' })),
+      // (a product's junction hides the edges under its dot, but it is part of its voice, not a cell)
+      ...[...this.s.junctions.values()].flatMap((n) => (n.x === undefined ? [] : [{ id: n.id, x: n.x, y: n.y ?? 0, r: n.radius, label: true, of: n.rides }])),
+    ];
     // (a bus's tap that comes on from another reader: drawn from there, straight)
     const joins = hops(this.s);
     const edges = [
@@ -340,6 +374,8 @@ export class ForceLayout {
    */
   layNet(): void {
     if (this.s.opts.placeLast) this.placeMeters();
+    // (the products' junctions, where their wires cross least: junctions.ts)
+    settleJunctions(this.s, (l) => this.beltRuns(l));
     this.meterNet();
   }
 
@@ -379,7 +415,7 @@ export class ForceLayout {
 
   /** A net's tree as things stand now (nets.ts: netTree). By tap (edge id): the node it comes from, and its reader. */
   netTree(net: GraphModel['nets'][number]): Map<string, { from: string; to: string }> {
-    return netTree(this.s, net);
+    return netTree(this.s, net, this.s.drawnEnds);
   }
 
   /** Where each tap of a bus comes from, for drawing (nets.ts: taps). */
@@ -397,6 +433,7 @@ export class ForceLayout {
     for (let i = 0; i < n; i++) {
       this.insertion.step();
       this.sim.tick(1);
+      placeJunctions(this.s);
     }
   }
 
@@ -456,14 +493,6 @@ export class ForceLayout {
     this.sim.on('tick', null).on('end', null);
     this.settleListeners = [];
   }
-}
-
-/** How many edge pairs cross in the current layout (for tests and tuning). */
-export function countCrossings(layout: ForceLayout, model: GraphModel): number {
-  const segs = model.edges
-    .filter((e) => e.source !== e.target && layout.position(e.source) && layout.position(e.target))
-    .map((e) => ({ a: { id: e.source, ...layout.position(e.source)! }, b: { id: e.target, ...layout.position(e.target)! } }));
-  return crossingPairs(segs).length;
 }
 
 /**

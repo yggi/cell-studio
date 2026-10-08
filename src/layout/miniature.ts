@@ -22,6 +22,8 @@ export const MIX = -2;
 export const METER = -3;
 /** No pitch to show: a quiet dot. */
 export const QUIET = -4;
+/** A product's junction (graph.ts): a small dot where a melody meets its voice. */
+export const JUNCTION = -5;
 
 export interface Miniature {
   readonly nodes: readonly (readonly [number, number, number])[];
@@ -52,7 +54,7 @@ function colourOf(result: CompileResult, shifts: ReturnType<typeof codeShifts>, 
 export function miniature(source: string, rowOrder?: number): Miniature | null {
   const result = compileSource(source);
   const model = buildGraph(result);
-  const nodes = model.nodes.filter((n) => !n.petalOf && !n.cell.note);
+  const nodes = model.nodes.filter((n) => !n.petalOf && !n.cell?.note);
   if (nodes.length === 0) return null;
   // (the rows' order, when it is known: chosen already, it needn't be tried again)
   const l = new ForceLayout(undefined, rowOrder === undefined ? { live: false } : { live: false, rowOrder });
@@ -69,7 +71,7 @@ export function miniature(source: string, rowOrder?: number): Miniature | null {
     const p = l.position(n.id);
     if (!p) continue;
     index.set(n.id, out.length);
-    out.push([whole(p.x), whole(p.y), colourOf(result, shifts, n.cell.name)]);
+    out.push([whole(p.x), whole(p.y), n.kind === 'junction' ? JUNCTION : colourOf(result, shifts, n.cell.name)]);
   }
   l.destroy();
   // (as the graph draws them: a meter's edges are ground — meters.ts — and its net is drawn instead)
@@ -101,7 +103,7 @@ export function miniShape(m: Miniature, round: boolean): MiniShape {
   const ys = m.nodes.map((n) => n[1]);
   // nodes and edges sized to the frame, not to the graph (a small piece and a large one read alike): a radius is
   // this share of the frame's width
-  const share = (colour: number) => ((colour === VOICE || colour === MIX ? 5.2 : colour === METER ? 5 : 4.2) / 100) * (round ? 1 : 0.8);
+  const share = (colour: number) => ((colour === VOICE || colour === MIX ? 5.2 : colour === METER ? 5 : colour === JUNCTION ? 1.8 : 4.2) / 100) * (round ? 1 : 0.8);
   const biggest = Math.max(...m.nodes.map((n) => share(n[2])));
   // the box: at least a minimum size (a small graph stays small), the graph and a pad round it — the pad and the
   // largest node, whole, on every side (its radius grows with the box: solved for); in a wheel, square, with the

@@ -83,8 +83,9 @@ export class Piece {
     const free = this.program.cells.get(name)?.frees.find((f) => f.key === 'shift');
     this.code = free ? setFree(this.code, free, shift) : setShift(this.code, name, shift);
   }
-  /** Switch a cell (a graph id, `cell:<name>`) on or off. */
+  /** Switch a cell (a graph id, `cell:<name>`) on or off; any other node (a product's junction) is not a cell: nothing. */
   toggle(id: string): void {
+    if (!id.startsWith('cell:')) return;
     const name = id.slice('cell:'.length);
     this.code = setOff(this.code, name, !this.program.cells.get(name)?.off);
   }

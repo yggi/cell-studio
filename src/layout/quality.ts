@@ -16,6 +16,8 @@ export interface PlacedNode {
   readonly tags?: readonly string[];
   /** Hides the edges under it, but isn't a cell (a tag's name): not counted in room, overlaps or clusters. */
   readonly label?: boolean;
+  /** The node it is part of (a product's junction: its voice). */
+  readonly of?: string;
 }
 
 /** An edge as drawn: a spline from a to b through its bend (the straight midpoint if none). */

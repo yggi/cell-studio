@@ -4,6 +4,7 @@
  */
 import type { Edge } from '@xyflow/svelte';
 import type { GraphEdge } from '../engine/graph';
+import { isJunction } from '../engine/ids';
 import { edgeLabel } from '../engine/transform';
 import type { CompileResult } from '../engine/program';
 import { drawn, edgeStateOf, type State } from '../engine/routing';
@@ -15,6 +16,8 @@ import type { MeterTrace } from '../layout/state';
 import type { GraphSnapshot } from './snapshot';
 
 const nameOf = (id: string) => id.slice('cell:'.length);
+/** An edge's end as a cell's name: a product's junction reads as the voice it is (its sound). */
+const endOf = (e: GraphEdge, id: string) => (isJunction(id) ? (e.sound ?? null) : nameOf(id));
 
 /** A belt between two turntables as it is now (BeltEdge). */
 export interface BeltDrawn {
@@ -38,7 +41,7 @@ export interface NetPlace {
 /** A note into a resonator with tines picks one (or reads through them): each tine's pitch (semitones from C4), for the strands at its pads. */
 function tinesOf(e: GraphEdge, program: CompileResult): number[] | null {
   // (a tune plays the tines — the resonator at the edge's end; or reads through them, over= — at its start)
-  const c = e.port === 'voice' ? program.cells.get(nameOf(e.to)) : e.port === 'over' ? program.cells.get(nameOf(e.from)) : undefined;
+  const c = e.port === 'voice' ? program.cells.get(e.sound ?? nameOf(e.to)) : e.port === 'over' ? program.cells.get(nameOf(e.from)) : undefined;
   if (!c || typeof c.params.body !== 'string' || (c.exciters?.length ?? 0) < 2) return null;
   const f0 = c.freq > 0 ? c.freq : 440;
   return c.exciters!.map((x) => 12 * Math.log2(f0 / 261.63) + x.shift);
@@ -68,15 +71,16 @@ const BY_PORT: Readonly<Record<string, Carrier>> = {
   // a tape's edges take the colour of what's on them: a read head's notes, as played; what's being written, as its source plays it
   play: (e, p) => ({ phaseCell: null, voice: p.outputs.find((x) => x.tape?.head === nameOf(e.target))?.voice ?? null }),
   write: (e, p) => ({ phaseCell: null, voice: p.outputs.find((x) => x.cell === nameOf(e.source) && !x.tape)?.voice ?? null }),
-  // a voice into a mix: its notes, pulsing with the steps that play it
+  // a voice into a mix (or a product's junction, its sound): its notes, pulsing with the steps that play it
   mix: (e, p) => {
-    const voice = nameOf(e.source);
+    const voice = e.sound ?? nameOf(e.source);
     return { phaseCell: trigger(p, voice), voice };
   },
 };
 /** Any other port feeds a voice (a melody playing it, its envelope, levels, pitch, parameters, FM, what excites or couples it): its note; the pulse if this is what plays it. */
 const INTO_VOICE: Carrier = (e, p) => {
-  const voice = nameOf(e.target);
+  // (into a product's junction: the voice it is)
+  const voice = e.sound ?? nameOf(e.target);
   return { phaseCell: trigger(p, voice) === nameOf(e.source) ? nameOf(e.source) : null, voice };
 };
 
@@ -91,7 +95,7 @@ function pulseData(e: GraphEdge, program: CompileResult) {
     band: e.band,
     port: e.port,
     width: e.width,
-    from: nameOf(e.from),
+    from: endOf(e, e.from),
     table: e.port === 'over' ? nameOf(e.from) : null,
     tines: tinesOf(e, program),
     ...carried(e, program),
@@ -115,7 +119,7 @@ export function flowEdgeOf(e: GraphEdge, state: State, program: CompileResult, b
     ...heads,
     type: 'pulse',
     // (only a live edge carries a note's colour and pulses: an edge into what doesn't sound now stays still)
-    data: { ...pulseData(e, program), off: state === 'off' || state === 'unrouted', state, sizes, to: nameOf(e.to), net },
+    data: { ...pulseData(e, program), off: state === 'off' || state === 'unrouted', state, sizes, to: endOf(e, e.to), net },
     label: edgeLabel(e),
     class: `edge-${e.port} band-${e.band}${e.pointer ? ' pointer' : ''}`,
     selectable: false,
@@ -155,7 +159,7 @@ export function flowEdgesOf(s: GraphSnapshot, scene: EdgeScene): Edge[] {
     const state = edgeStateOf(e, s.muted, routed, live);
     // a belted cell's step: a belt, its pulleys by the ratio, its stretch as it is now
     const driven = e.belt ? model.nodes.find((n) => n.id === e.source) : undefined;
-    if (driven) {
+    if (driven?.cell) {
       const radius = (id: string) => (scene.sizeOf(id) ?? 140) / 2;
       const rate = program.clocks.get(driven.cell.name)?.belt?.rate ?? 1;
       const [rDriver, rDriven] = pulleys(radius(e.target), radius(e.source), rate);

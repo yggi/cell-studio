@@ -34,7 +34,7 @@
     description: '',
     tags: [],
     source,
-    size: buildGraph(r).nodes.filter((n) => !n.petalOf && !n.cell.note).length,
+    size: buildGraph(r).nodes.filter((n) => !n.petalOf && n.cell && !n.cell.note).length,
     time: r.ok ? pieceTime(r) : undefined,
   };
   const pieces: { label: string; entry: Entry }[] = [
