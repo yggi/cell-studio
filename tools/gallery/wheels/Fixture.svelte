@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { liveAt } from '../../../src/engine/live';
   /**
    * One kind of wheel, as the graph mounts it (its node, in a flow of its own) at a ladder of sizes, and as its
    * sheet shows it: in the context of its piece at one moment, with a made-up sound.
@@ -29,7 +30,10 @@
     program: p.program,
     muted: new Set(),
     routed: p.routed,
-    live,
+    state: live ? 'playing' : 'stopped',
+    playing: !!live,
+    heads: live ?? liveAt(p.program, p.shifts, new Set(), 0),
+    lit: live,
     liveEdges: live ? live.edges : null,
     turned: live ? 'live' : '',
     shifts: live ? live.shifts : p.shifts,

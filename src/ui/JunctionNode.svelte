@@ -15,11 +15,11 @@
   const state = $derived(
     ctx.muted.has(cellId(data.voice)) || ctx.muted.has(cellId(data.mix))
       ? 'off'
-      : !ctx.routed.edges.has(flow)
-        ? 'unrouted'
-        : !ctx.live
-          ? 'on'
-          : ctx.live.edges.has(flow)
+      : !ctx.lit
+        ? 'on'
+        : !ctx.routed.edges.has(flow)
+          ? 'unrouted'
+          : ctx.lit.edges.has(flow)
             ? 'live'
             : 'idle',
   );

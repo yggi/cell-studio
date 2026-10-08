@@ -32,6 +32,7 @@ The full hierarchy of `docs/`. Start with [MEMORY.md](MEMORY.md).
 - [ui/editor.md](ui/editor.md) — editing in the graph and the code editor
 - [ui/shorten.md](ui/shorten.md) — Shorten and its promise
 - [ui/transport.md](ui/transport.md) — play, seek, sections, render
+- [ui/midi.md](ui/midi.md) — MIDI ports, the settings kept, reconnects, All notes off
 - [ui/performance.md](ui/performance.md) — the `?perf` overlay and copyable performance report
 - [ui/theme.md](ui/theme.md) — colours, sizes, motion
 

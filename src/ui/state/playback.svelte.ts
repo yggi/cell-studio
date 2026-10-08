@@ -6,36 +6,40 @@ import { chooseEngine } from '../../audio/engine';
 import type { LiveSource } from '../../audio/live';
 import { transportClock } from '../../audio/clock.svelte';
 import { screenAwake } from '../wakeLock';
+import type { TransportState } from '../../audio/transport';
 import type { Piece } from './piece.svelte';
 
 /**
- * Playing the piece: the Player (fed the piece's plan whenever it changes), where play starts and how
- * far it reaches, and what hands did to the sound since it was opened or reset. Made while a component
- * initialises (its effects belong to that component); `dispose` when it goes.
+ * Playing the piece: the Player (fed the piece's plan whenever it changes) and the transport's state
+ * (stopped, paused, playing: audio/transport.ts), where play starts and how far it reaches. Made while a
+ * component initialises (its effects belong to that component); `dispose` when it goes.
  */
 export class Playback {
   readonly player = new Player(chooseEngine());
-  /** Where play begins, stopped (the time slider). */
+  /** Where play begins, not playing (the time slider, a turned wheel). */
   cursor = $state(0);
   starting = $state(false);
-  /** Counts resets (reload from code): hands' traces — tapes' recordings, reels' turns — are gone. */
+  /** Counts stops: hands' traces — tapes' recordings, reels' turns — are gone. */
   epoch = $state(0);
-  /** A hand has been on the sound (Reset pulses while anything is changed). */
-  touched = $state(false);
-  played = $state(false);
+  /** Where a piece that ends (`laps=`) ended, while it is paused there; Play then goes on from the start. */
+  #endedAt: number | null = null;
   /** How far the slider reaches: the piece, its cycle, or its longest layer (a few seconds at least: DTMF's whole cycle is a tone and a pause, nothing to move in). */
   readonly span = $derived.by(() => {
     const l = this.piece.program.ok ? mainLength(pieceTime(this.piece.program)) : null;
     return l !== null && l >= 2 ? l : null;
   });
   /** Where it is (seconds; within one lap for a loop). */
-  readonly now = $derived(transportClock.playing ? (this.span ? transportClock.seconds % this.span : transportClock.seconds) : this.cursor);
-  /** Anything changed from the initial state? */
-  readonly dirty = $derived.by(() => this.piece.held.size > 0 || this.touched || this.played || this.cursor > 0.01 || transportClock.seconds > 0.01);
-  /** The live view while playing (playheads, lit entries, the live routing), null stopped. */
-  readonly live = $derived.by(() => (transportClock.playing ? liveAt(this.piece.program, this.piece.shifts, this.piece.muted, transportClock.seconds) : null));
+  readonly now = $derived(this.playing ? (this.span ? transportClock.seconds % this.span : transportClock.seconds) : this.cursor);
+  /** Anything to go back from: not stopped, or a free() value held by hand (Stop pulses). */
+  readonly resettable = $derived.by(() => transportClock.state !== 'stopped' || this.piece.held.size > 0);
+  /**
+   * Where everything is at the transport's time (playheads, lit entries, the live routing): the clock while playing,
+   * else where play will start. Always there, so the heads are drawn stopped (at the start) and paused too; at rest
+   * it is worked out once, not every frame.
+   */
+  readonly heads = $derived.by(() => liveAt(this.piece.program, this.piece.shifts, this.piece.muted, this.playing ? transportClock.seconds : this.cursor));
 
-  /** The sound, for the views: what plays now, and hands on it (a hand marks the piece touched). */
+  /** The sound, for the views: what plays now, and hands on it (the Player takes a stopped transport to paused when one lays hold). */
   readonly sound: LiveSource;
   readonly #awake = screenAwake();
 
@@ -49,34 +53,41 @@ export class Playback {
       resonance: (n) => p.resonance(n),
       tapePos: (t) => p.tapePos(t),
       tapeLevel: (t) => p.tapeLevel(t),
-      scrub: (t, u) => ((this.touched = true), p.scrub(t, u)),
+      scrub: (t, u) => p.scrub(t, u),
       grab: (c, speed) => p.grab(c, speed),
-      strike: (n, x, i) => ((this.touched = true), p.strike(n, x, i)),
+      strike: (n, x, i) => p.strike(n, x, i),
       damp: (n, on) => p.damp(n, on),
-      bow: (n, a) => ((this.touched = true), p.bow(n, a)),
+      bow: (n, a) => p.bow(n, a),
+    };
+    p.onEnded = (end) => {
+      this.#endedAt = end;
+      this.cursor = Math.min(end, this.span ?? end);
     };
     $effect(() => p.load(plan(piece.program, piece.shifts, piece.muted), piece.good.source));
     // keep the screen awake while playing (where the browser allows it: Android Chrome does)
-    $effect(() => this.#awake.set(transportClock.playing));
+    $effect(() => this.#awake.set(transportClock.state === 'playing'));
   }
 
   get playing(): boolean {
-    return transportClock.playing;
+    return transportClock.state === 'playing';
+  }
+
+  get state(): TransportState {
+    return transportClock.state;
   }
 
   /** Play from the cursor, or pause (keeping the place: play goes on from there). */
   async toggle(): Promise<void> {
-    if (transportClock.playing) {
-      this.cursor = this.now;
-      return this.player.stop();
-    }
+    if (this.playing) return this.pause();
     this.starting = true;
     try {
+      // a piece that ended plays again from the start, with what hands did kept
+      if (this.#endedAt !== null) this.cursor = 0;
+      this.#endedAt = null;
       // a piece anchored to the clock (anchor=11.55), started fresh: it plays where the day stands
-      const anchored = this.cursor === 0 && !this.played && !this.touched ? anchoredAt(this.piece.program, new Date()) : null;
+      const anchored = this.state === 'stopped' ? anchoredAt(this.piece.program, new Date()) : null;
       if (anchored !== null) this.cursor = anchored;
       await this.player.start(this.cursor);
-      this.played = true;
       this.piece.sampleRate = this.player.sampleRate ?? this.piece.sampleRate;
     } catch (err) {
       console.error('Audio failed to start:', err);
@@ -85,46 +96,40 @@ export class Playback {
     }
   }
 
-  stop(): void {
-    if (transportClock.playing) this.player.stop();
+  pause(): void {
+    if (!this.playing) return;
+    this.cursor = this.now;
+    this.player.pause();
   }
 
+  /** To another place in time: playing, on from there; else paused there. */
   async seek(to: number): Promise<void> {
     this.cursor = to;
-    if (!transportClock.playing) return;
-    this.player.stop();
+    this.#endedAt = null;
+    if (!this.playing) return this.player.touch();
+    this.player.pause();
     await this.player.start(to);
   }
 
-  /** Reload from the code: what hands did is gone (held free() values, tapes' recordings, reels turned by hand), and it starts again from the start (playing: on from there). */
-  async reset(): Promise<void> {
-    this.piece.held = new Map();
-    this.epoch++;
-    this.player.resetState();
-    this.touched = false;
-    await this.seek(0);
-    this.played = transportClock.playing;
-  }
-
-  /** Stopped: a turntable turned by hand moves where play starts. */
+  /** Not playing: a turntable turned by hand moves where play starts (a stopped transport is paused from then on). */
   nudge(seconds: number): void {
-    if (transportClock.playing) return;
+    if (this.playing) return;
     this.cursor = Math.max(0, Math.min(this.span ?? Infinity, this.cursor + seconds));
-    this.touched = true;
+    this.#endedAt = null;
+    this.player.touch();
   }
 
   /**
-   * A piece just opened starts from rest: transport stopped at 0, nothing sounding, nothing held or
-   * touched — whatever was playing (or ringing, or recorded on a tape) is gone. (Stop first: it reads the old plan.)
+   * Stop: back to the initial state — time 0, what hands did gone (held free() values, tapes' recordings,
+   * reels turned by hand), nothing sounding from the clocks. A piece just opened starts here too. (The
+   * Player reads the old plan to stop, so it goes first.)
    */
-  fresh(): void {
+  stop(): void {
     this.player.stop();
-    this.player.resetState();
     this.epoch++;
     this.cursor = 0;
+    this.#endedAt = null;
     this.piece.held = new Map();
-    this.touched = false;
-    this.played = false;
   }
 
   dispose(): void {
