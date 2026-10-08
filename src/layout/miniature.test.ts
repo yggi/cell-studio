@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { METER, MIX, QUIET, VOICE, miniature, miniShape, type Miniature } from './miniature';
+import { JUNCTION, METER, MIX, QUIET, VOICE, miniature, miniShape, type Miniature } from './miniature';
 import { PRESETS } from '../engine/presets';
 import built from 'virtual:examples-index';
 
@@ -10,7 +10,7 @@ describe('miniature', () => {
     expect(m.nodes.length).toBeGreaterThan(3);
     for (const [x, y, c] of m.nodes) {
       expect(Number.isInteger(x) && Number.isInteger(y)).toBe(true);
-      expect([VOICE, MIX, METER, QUIET].includes(c) || (Number.isInteger(c * 10) && c >= 0 && c < 360), `colour ${c}`).toBe(true);
+      expect([VOICE, MIX, METER, QUIET, JUNCTION].includes(c) || (Number.isInteger(c * 10) && c >= 0 && c < 360), `colour ${c}`).toBe(true);
     }
     for (const [a, b] of m.edges) expect(m.nodes[a] && m.nodes[b]).toBeTruthy();
     // (no CSS in it: the theme resolves the colours when it's drawn)

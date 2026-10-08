@@ -58,11 +58,11 @@ export function layered(model: GraphModel, o: LayeredOptions): Map<string, { x: 
     const key = [e.source, e.target].sort().join('→');
     if (seen.has(key)) continue;
     seen.add(key);
-    // an edge into a meter says when, not what: no say in rows or order, no waypoints taking room
-    // (the meter keeps its place by its rank; the edge is still drawn)
+    // an edge into a meter says when, not what (a step, a parameter's clock): no say in rows or order, no waypoints
+    // taking room (the meter keeps its place by its rank)
     const into = nodes.find((n) => n.id === e.target) as { isMeter?: boolean } | undefined;
-    if (e.port === 'step' && into?.isMeter) continue;
-    const w = e.port === 'step' ? 0.25 : 1;
+    if (e.band === 'sync' && into?.isMeter) continue;
+    const w = e.band === 'sync' ? 0.25 : 1;
     let [u, v] = [vs.get(e.source)!, vs.get(e.target)!];
     if (u.layer === v.layer) continue; // (same row: no say in the order)
     if (u.layer > v.layer) [u, v] = [v, u];

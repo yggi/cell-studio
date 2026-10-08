@@ -6,9 +6,11 @@
  */
 import { isTurntable, type GraphEdge, type GraphNode } from '../engine/graph';
 
-/** A node's mass: a turntable (a body) heaviest, then a meter, a net's owner, a sound; a cell 1, a petal light. */
+/** A node's mass: a turntable (a body) heaviest, then a meter, a net's owner, a sound; a cell 1, a petal light, a junction nothing. */
 export function massOf(n: GraphNode, ownsNet: boolean): number {
   if (n.petalOf) return 0.5;
+  // (a product's junction weighs nothing: it takes no part in the forces, it is set on its voice's rim, junctions.ts)
+  if (n.kind === 'junction') return 0;
   // (a bare node, as the layout's tests make them: a cell)
   if (!n.cell) return 1;
   if (isTurntable(n.cell)) return 3;
