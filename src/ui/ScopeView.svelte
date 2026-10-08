@@ -149,7 +149,7 @@
       if (visible) timed('scope', () => step());
     };
     const step = () => {
-      const now = ctx.live?.seconds ?? 0;
+      const now = ctx.heads.seconds;
       if (spectral) {
         const L = layout;
         const per = channels.map((ch) => binsOf(ch, now, L));
@@ -169,7 +169,7 @@
         if (mode === 'waterfall' && canvas) paintRow();
         return;
       }
-      if (ctx.live === null && !ctx.sound.waveform(channels[0] ?? '')) return;
+      if (ctx.state === 'stopped' && !ctx.sound.waveform(channels[0] ?? '')) return;
       if (mode === 'xy' && channels.length >= 2) {
         const a = ctx.sound.waveform(channels[0]);
         const b = ctx.sound.waveform(channels[1]);

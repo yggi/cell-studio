@@ -58,6 +58,7 @@ export class Player implements LiveSource {
 
   /** A hand on anything, or a move in time: a stopped transport is paused from now on (the hands below call it). */
   touch(): void {
+    this.voices?.open();
     this.move('touch');
   }
 
@@ -174,7 +175,7 @@ export class Player implements LiveSource {
 
   /** How loud what a tape is recording is now (0 … 1): a sound tape's input, a note tape's source. */
   tapeLevel(tape: string): number | null {
-    if (!this.plan || !this.voices || !this.playing) return null;
+    if (!this.plan || !this.voices || this.state === 'stopped') return null;
     const sound = this.voices.tapeLevel(tape);
     if (sound !== null) return sound;
     const src = this.plan.result.cells.get(tape)?.params.write;
@@ -215,14 +216,14 @@ export class Player implements LiveSource {
     if (this.Tone) this.Tone.getTransport().bpm.value = 60 * this.rate;
   }
 
-  /** The note a voice is sounding now (its latest started), while playing. */
+  /** The note a voice is sounding now (its latest started), unless stopped: paused, it is the last one. */
   note(voice: string) {
-    return this.playing ? (this.voices?.note(voice) ?? null) : null;
+    return this.state !== 'stopped' ? (this.voices?.note(voice) ?? null) : null;
   }
 
-  /** Live spectrum of a voice, while playing. */
+  /** Live spectrum of a voice, unless stopped (paused, whatever still rings: tails, a body, a held tape). */
   spectrum(voice: string) {
-    return this.playing ? (this.voices?.spectrum(voice) ?? null) : null;
+    return this.state !== 'stopped' ? (this.voices?.spectrum(voice) ?? null) : null;
   }
 
   /** The audio device's sample rate, once audio has started. */
@@ -253,6 +254,7 @@ export class Player implements LiveSource {
     if (this.plan) this.voices!.sync(this.plan.result, this.plan.statics, this.plan.muted);
     // motors on: held tapes run on from where they stand
     this.held.release();
+    this.voices!.open();
 
     const tr = Tone.getTransport();
     tr.stop();
@@ -314,7 +316,7 @@ export class Player implements LiveSource {
     this.stopFrames = onFrames(frame, () => 40, 'clock');
   }
 
-  /** Pause: the clocks stand, every sound tape is held where it is, what is on it kept. */
+  /** Pause: the clocks stand, no trigger or gate is left open, every sound tape is held where it is, what is on it kept. */
   pause(): void {
     if (!this.playing) return;
     this.stopFrames();
@@ -327,14 +329,16 @@ export class Player implements LiveSource {
     tr.clear(this.repeatId);
     this.repeatId = null;
     this.run++;
-    this.voices?.releaseAll();
+    // every note lets go (its release and the effects' tails ring on: Stop is what silences)
+    this.voices?.dropGates();
     // motors off: every sound tape stops where it is — held, silent, what's on it kept
     this.held.pause(at);
   }
 
-  /** Stop: back to the initial state (tapes wound off, hands' forces gone). */
+  /** Stop: back to the initial state: every note cut, every body at rest, tapes wound off, hands' forces gone. */
   stop(): void {
     this.pause();
+    this.voices?.releaseAll();
     this.resetState();
     this.move('stop');
   }

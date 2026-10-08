@@ -66,7 +66,7 @@ describe('the flow’s edges of a snapshot', () => {
       const program = compileSource(PRESETS[key].source);
       const model = buildGraph(program);
       const s = snapshotOf(program, model, codeShifts(program), program.off, routing(program, program.off));
-      const edges = flowEdgesOf(s, { sizeOf: () => 128, net: [], playing: false, live: null });
+      const edges = flowEdgesOf(s, { sizeOf: () => 128, net: [], lit: false, live: null });
       expect(edges.length).toBeGreaterThan(0);
       for (const e of edges) {
         if (e.type !== 'pulse') continue;
