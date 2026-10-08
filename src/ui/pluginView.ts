@@ -1,5 +1,5 @@
 /**
- * What a plugin's drawing is given: one plain, read-only value, no handles on the program or the player. Everything
+ * What a plugin's drawing is given: one plain value, a frozen copy: no handles on the program or the player. Everything
  * it may know about the cell, the piece's time and (for a day's law) the law, as data.
  */
 import { dayLaw } from '../engine/fiveto12';
@@ -24,13 +24,14 @@ export interface PluginView {
 export function viewOf(program: CompileResult, plugin: ShowPlugin, name: string, uid: string, seconds: number, playing: boolean): PluginView {
   const cell = program.cells.get(name);
   const reads = [...program.cells.values()].some((c) => c.params.law === 'fiveto12' && c.over === name);
-  return {
+  // (a copy, frozen: a drawing reads the piece, it does not hold it)
+  return Object.freeze({
     name,
-    params: cell?.params ?? {},
+    params: Object.freeze({ ...cell?.params }),
     size: plugin.size,
     uid,
-    tokens: plugin.tokens,
-    time: { seconds, playing },
+    tokens: Object.freeze({ ...plugin.tokens }),
+    time: Object.freeze({ seconds, playing }),
     law: reads ? { ...dayLaw(), noteNames: NOTE_NAMES } : null,
-  };
+  });
 }

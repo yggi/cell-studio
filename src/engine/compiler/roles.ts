@@ -34,7 +34,12 @@ export function checkRoles(ctx: Ctx, { decls, implicit }: Declared, cells: Cells
     // show=: one of the shows, or a plugin the piece carries (the parser reads any word)
     const show = d.show?.split(':')[0];
     if (show && !(SHOWS as readonly string[]).includes(show) && !ctx.parsed.plugins?.some((p) => p.name === show))
-      ctx.error(`show=${show}: not a show (${SHOWS.join(' ')}) and the piece carries no plugin of that name (${PLUGIN_SYNTAX})`, d.span);
+      ctx.error(
+        show === 'sun'
+          ? `show=sun is a plugin now: copy its block (=== plugin sun === … === end ===) from the example 5 to 12 (examples/fiveto12.cells) into this piece`
+          : `show=${show}: not a show (${SHOWS.join(' ')}) and the piece carries no plugin of that name (${PLUGIN_SYNTAX})`,
+        d.span,
+      );
     const has = roles(c);
     const written: [string, Span][] = [
       ...Object.keys(d.params).map((k): [string, Span] => [k, d.paramSpans[k] ?? d.span]),

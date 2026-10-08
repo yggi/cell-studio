@@ -13,9 +13,9 @@
   import { getGraphContext } from './context';
   import { angleOf as turnOf, turnDelta } from '../layout/dial';
   import { drawPlugin, loadPlugin } from './plugin';
-  import { rootsOf } from './pluginTree';
-  import { isTrusted, trust } from './pluginTrust.svelte';
+  import { confirmed, isShipped, isTrusted, revoke, trust } from './pluginTrust.svelte';
   import { viewOf } from './pluginView';
+  import { pluginKey } from '../engine/plugins';
   import PluginTree from './PluginTree.svelte';
 
   let { data }: NodeProps = $props();
@@ -24,11 +24,16 @@
   const uid = `plugin${++drawings}`;
   const plugin = $derived(ctx.program.plugins.get(d.plugin));
   const S = $derived(plugin?.size ?? 200);
-  const allowed = $derived(!!plugin && isTrusted(plugin.code));
+  const trustKey = $derived(plugin ? pluginKey(plugin) : '');
+  const allowed = $derived(!!plugin && isTrusted(trustKey));
   const code = $derived(plugin && allowed ? loadPlugin(plugin.code) : null);
   const view = $derived(plugin ? viewOf(ctx.program, plugin, d.name, uid, ctx.live?.seconds ?? ctx.cursor, !!ctx.live) : null);
   const drawn = $derived(code && !(code instanceof Error) && view ? drawPlugin(code, view) : null);
   const problem = $derived(code instanceof Error ? code : drawn instanceof Error ? drawn : null);
+  // (a choice to run it is kept once it has drawn: pluginTrust.svelte.ts)
+  $effect(() => {
+    if (drawn && !(drawn instanceof Error)) confirmed(trustKey);
+  });
   const dial = $derived(plugin?.dial ?? null);
   const said = $derived.by(() => {
     if (!dial || !code || code instanceof Error || !code.describe || !view) return null;
@@ -92,18 +97,28 @@
 >
   <Handle type="target" position={Position.Top} class="center-handle" isConnectable={false} />
   {#if drawn && !(drawn instanceof Error)}
-    <svg viewBox="0 0 {S} {S}" width={S} height={S}><PluginTree roots={rootsOf(drawn.roots)} /></svg>
+    <svg viewBox="0 0 {S} {S}" width={S} height={S}><PluginTree roots={drawn.roots} /></svg>
   {:else if plugin && !allowed}
     <!-- (not run: it is code, from the piece) -->
     <div class="ask">
       <b>{plugin.name}</b>
-      <span>a plugin of this piece draws this cell. It is code.</span>
-      <button type="button" onclick={() => trust(plugin.code)}>Run it</button>
+      <span
+        >This piece carries code that draws this cell. Run, it has the page's full powers: it can read your saved pieces and use the network, and it runs every time this piece
+        opens.</span
+      >
+      <details>
+        <summary>Show the code</summary>
+        <pre>{plugin.code}</pre>
+      </details>
+      <button type="button" onclick={() => trust(trustKey)}>Run it</button>
     </div>
   {:else}
     <div class="ask"><b>{d.plugin}</b><span>{problem ? problem.message : 'no plugin of that name in this piece'}</span></div>
   {/if}
   <span class="name">&{d.name}</span>
+  {#if allowed && !isShipped(trustKey)}
+    <button type="button" class="stop" onclick={() => revoke(trustKey)} title="Stop running this plugin: it will ask again">stop plugin</button>
+  {/if}
   <Handle type="source" position={Position.Bottom} class="center-handle" isConnectable={false} />
 </div>
 
@@ -123,7 +138,8 @@
     box-sizing: border-box;
     width: 100%;
     height: 100%;
-    border-radius: 50%;
+    border-radius: var(--radius-lg);
+    overflow: auto;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -138,6 +154,29 @@
   .ask b {
     font: 700 14px var(--font-code);
     color: var(--text);
+  }
+  .ask details {
+    max-height: 5em;
+    overflow: auto;
+    max-width: 100%;
+  }
+  .ask pre {
+    margin: 0;
+    text-align: left;
+    font: 10px var(--font-code);
+    white-space: pre-wrap;
+  }
+  .stop {
+    position: absolute;
+    left: 50%;
+    top: 100%;
+    transform: translate(-50%, 26px);
+    font: 500 11px var(--font-ui);
+    color: var(--text-muted);
+    background: none;
+    border: 0;
+    cursor: pointer;
+    white-space: nowrap;
   }
   .name {
     position: absolute;
