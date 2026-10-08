@@ -1,6 +1,7 @@
 /**
  * What a plugin's `draw` returns: a tree of SVG elements as plain data, never DOM. The host (PluginTree.svelte)
- * draws it from an allow-list of elements and attributes, so a drawing can only draw.
+ * draws it from allow-lists of elements, attributes and values, which keeps what is drawn to shapes and paint. That is
+ * not a sandbox: the code that made it runs with the page's powers (pluginTrust.svelte.ts).
  */
 
 /** An element, or a text. */
@@ -54,11 +55,20 @@ const STYLE: ReadonlySet<string> = new Set(
 /** The only functions a value may call (a reference is `url(#plugin…)`, one of the drawing's own ids). */
 const FUNCTIONS: ReadonlySet<string> = new Set(['rgb', 'rgba', 'hsl', 'hsla', 'var', 'drop-shadow', 'translate', 'rotate', 'scale', 'matrix', 'url']);
 
-/** A value that paints or places: no escapes, quotes or markup, only the functions above, and a url() only to the drawing's own ids. */
+/** A value that paints or places: no escapes, control characters, quotes or markup; parentheses that close; only the functions above; and every `url(` a closed reference to the drawing's own ids (an unterminated one is a fetch the closed-form check would never see). */
 function plainValue(value: string): boolean {
-  if (/[\\"'<>{};@]|\/\*/.test(value)) return false;
+  // eslint-disable-next-line no-control-regex -- control characters are what this rejects
+  if (/[\\"'<>{};@\u0000-\u001f]|\/\*/.test(value)) return false;
+  let open = 0;
+  for (const ch of value) {
+    if (ch === '(') open++;
+    else if (ch === ')' && --open < 0) return false;
+  }
+  if (open !== 0) return false;
   for (const m of value.matchAll(/([a-zA-Z-]+)\(/g)) if (!FUNCTIONS.has(m[1].toLowerCase())) return false;
-  return [...value.matchAll(/url\(([^)]*)\)/gi)].every((m) => /^#plugin[A-Za-z0-9_-]*$/.test(m[1].trim()));
+  const urls = value.match(/url\(/gi) ?? [];
+  const own = value.match(/url\(\s*#plugin[A-Za-z0-9_-]*\s*\)/gi) ?? [];
+  return urls.length === own.length;
 }
 
 /** A `style` kept to its allowed properties and values (null when nothing is left). */

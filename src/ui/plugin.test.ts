@@ -3,6 +3,7 @@ import { compileSource } from '../engine/compile';
 import { setAttr } from '../engine/edit';
 import { PRESETS } from '../engine/presets';
 import { drawPlugin, loadPlugin } from './plugin';
+import { dayLaw } from '../engine/fiveto12';
 import { pluginKey } from '../engine/plugins';
 import { attributesOf, boundedTree, h, plainAttribute, TAGS, type PNode } from './pluginTree';
 import { viewOf } from './pluginView';
@@ -99,6 +100,34 @@ describe('running a plugin', () => {
     ])
       expect(plainAttribute('style', style), style).toBeNull();
     expect(plainAttribute('style', 'fill:image-set(x 1x);stroke:red;position:fixed')).toBe('stroke:red');
+  });
+
+  it('lets no url( through unless it is closed and the drawing’s own (an unterminated one is a fetch)', () => {
+    for (const value of [
+      'url(//evil',
+      'url(//evil/x.svg#a',
+      'url( //evil',
+      'url(#plugin1) url(//evil',
+      'url\u0000(//evil',
+      'var(--x,url(//evil',
+      'url(#plugin1',
+      'url(#plugin1))',
+      'url(//evil)',
+      'url(#app)',
+    ])
+      for (const name of ['fill', 'stroke', 'clip-path', 'filter', 'font-family']) expect(plainAttribute(name, value), `${name}=${value}`).toBeNull();
+    // (in a style the bad declaration is dropped and the others stay)
+    for (const style of ['fill:url(//evil;stroke:red', 'filter:url(//evil/x.svg#f', 'fill:var(--x,url(//evil'])
+      expect(plainAttribute('style', style) ?? '', style).not.toMatch(/url|evil/);
+    expect(plainAttribute('style', 'fill:url(//evil;stroke:red')).toBe('stroke:red');
+    expect(plainAttribute('fill', 'url(#plugin1)')).toBe('url(#plugin1)');
+    expect(plainAttribute('fill', 'url( #plugin12sky )')).toBe('url( #plugin12sky )');
+  });
+
+  it('gives a drawing a view it cannot change, the law too, and leaves the engine’s lists alone', () => {
+    const view = viewOf(day, sun, 'day', 'u', 0, false);
+    expect(Object.isFrozen(view.law) && Object.isFrozen(view.law!.blocks) && Object.isFrozen(view.law!.modeNames) && Object.isFrozen(view.law!.tonics[0])).toBe(true);
+    expect(Object.isFrozen(dayLaw().modeNames)).toBe(false);
   });
 
   it('copies what draw returned into a bounded tree of its own', () => {

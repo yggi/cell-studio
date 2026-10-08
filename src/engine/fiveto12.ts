@@ -64,8 +64,8 @@ export function dayLaw() {
     start: START,
     blockSeconds: BLOCK * SECONDS_PER_STEP,
     keySeconds: KEY * SECONDS_PER_STEP,
-    modeNames: MODE_NAMES,
-    blockNames: BLOCK_NAMES,
+    modeNames: [...MODE_NAMES],
+    blockNames: [...BLOCK_NAMES],
     blocks: DAY_MODES.map((mode) => ({ mode, brightness: MODE_BRIGHTNESS[mode] })),
     tonics: DAY_MODES.map((_, block) => Array.from({ length: 12 }, (__, key) => tonicOf(block, key))),
   };

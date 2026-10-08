@@ -39,6 +39,7 @@ const data = (over: Partial<ReportData> = {}, audio: Partial<ReportData['audio']
     heardLatencyMs: 280,
     pictureLagMs: null,
     capacity: { updates: 25, meanLoad: 0.3, peakLoad: 0.5, underrunRatioMean: 0, underrunRatioMax: 0 },
+    capacityProbe: { inPrototype: false, onContext: false, started: false, updates: 0, error: null },
     playout: null,
     ...audio,
   },

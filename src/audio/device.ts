@@ -28,19 +28,24 @@ function nativeContext(T: ToneNS): Record<string, unknown> | null {
 
 /** The render thread's load and underruns, once a second, where the browser reports them (stats.ts `capacity`). */
 function watchCapacity(T: ToneNS) {
+  const probe = capacity.probe;
   try {
+    probe.inPrototype = typeof AudioContext === 'undefined' ? null : 'renderCapacity' in AudioContext.prototype;
     const rc = nativeContext(T)?.renderCapacity as
       | { start(o: { updateInterval: number }): void; addEventListener(t: 'update', f: (e: { averageLoad: number; peakLoad: number; underrunRatio: number }) => void): void }
       | undefined;
+    probe.onContext = !!rc;
     if (!rc) return;
     capacity.supported = true;
     rc.addEventListener('update', (e) => {
+      probe.updates++;
       capacity.events.push({ t: performance.now(), avg: e.averageLoad, peak: e.peakLoad, underrun: e.underrunRatio });
       if (capacity.events.length > 3600) capacity.events.splice(0, capacity.events.length - 3600);
     });
     rc.start({ updateInterval: 1 });
-  } catch {
-    /* not available here */
+    probe.started = true;
+  } catch (e) {
+    probe.error = e instanceof Error ? e.message : String(e); // (shown in the report: "not available here" is what #91 could not tell apart)
   }
 }
 

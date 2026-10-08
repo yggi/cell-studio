@@ -21,6 +21,15 @@ export interface PluginView {
   readonly law: (ReturnType<typeof dayLaw> & { readonly noteNames: readonly string[] }) | null;
 }
 
+/** A value frozen all the way down (its arrays and objects: a drawing must not change what the next drawing reads). */
+function deepFreeze<T>(v: T): T {
+  if (typeof v === 'object' && v !== null && !Object.isFrozen(v)) {
+    Object.freeze(v);
+    for (const x of Object.values(v)) deepFreeze(x);
+  }
+  return v;
+}
+
 export function viewOf(program: CompileResult, plugin: ShowPlugin, name: string, uid: string, seconds: number, playing: boolean): PluginView {
   const cell = program.cells.get(name);
   const reads = [...program.cells.values()].some((c) => c.params.law === 'fiveto12' && c.over === name);
@@ -32,6 +41,6 @@ export function viewOf(program: CompileResult, plugin: ShowPlugin, name: string,
     uid,
     tokens: Object.freeze({ ...plugin.tokens }),
     time: Object.freeze({ seconds, playing }),
-    law: reads ? { ...dayLaw(), noteNames: NOTE_NAMES } : null,
+    law: reads ? deepFreeze({ ...dayLaw(), noteNames: [...NOTE_NAMES] }) : null,
   });
 }

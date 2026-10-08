@@ -1,4 +1,4 @@
-import { capacity, marks } from '../audio/stats';
+import { capacity, marks, type CapacityProbe } from '../audio/stats';
 
 /**
  * Performance report: what the page felt like while a piece played, on the device in your hand. The
@@ -190,6 +190,8 @@ export interface ReportData {
     pictureLagMs: number | null;
     /** The render thread's own report (AudioContext.renderCapacity), over the window: null where the browser has none. */
     capacity: { updates: number; meanLoad: number; peakLoad: number; underrunRatioMean: number; underrunRatioMax: number } | null;
+    /** What looking for `renderCapacity` found (says why `capacity` is null). */
+    capacityProbe: CapacityProbe;
     /** Underruns over the window; null where the browser doesn't report them. */
     playout: { events: number; seconds: number; averageLatencyMs: number; maximumLatencyMs: number } | null;
   };
@@ -268,6 +270,16 @@ export function buildReport(r: ReportData): string {
     lines.push(
       `| Audio thread (renderCapacity) | load mean ${n0(r.audio.capacity.meanLoad * 100)} %, peak ${n0(r.audio.capacity.peakLoad * 100)} % · missed deadlines: mean ${n1(r.audio.capacity.underrunRatioMean * 100)} %, worst second ${n1(r.audio.capacity.underrunRatioMax * 100)} % (${r.audio.capacity.updates} s) |`,
     );
+  else {
+    const p = r.audio.capacityProbe;
+    const yn = (v: boolean | null) => (v === null ? '?' : v ? 'yes' : 'no');
+    // (the probe runs when the audio context is made, at the first Play: before that every answer is "?", not "no")
+    if (p.inPrototype === null && p.onContext === null) lines.push('| Audio thread (renderCapacity) | not asked yet: no audio context has been made (press Play, then Record) |');
+    else
+      lines.push(
+        `| Audio thread (renderCapacity) | no figures · in AudioContext.prototype: ${yn(p.inPrototype)} · on this context: ${yn(p.onContext)} · started: ${yn(p.started)} · update events since load: ${p.updates}${p.error ? ` · error: ${p.error}` : ''} |`,
+      );
+  }
   lines.push(
     r.audio.playout
       ? `| Audio underruns | ${r.audio.playout.events} (${n1(r.audio.playout.seconds * 1000)} ms) · latency average ${n1(r.audio.playout.averageLatencyMs)} ms, max ${n1(r.audio.playout.maximumLatencyMs)} ms |`
@@ -590,6 +602,7 @@ export class PerfCollector {
         pictureLagMs: audio.pictureLag == null ? null : audio.pictureLag * 1000,
         heardLatencyMs: heard.length ? (heard.reduce((a, b) => a + b, 0) / heard.length) * 1000 : null,
         capacity: cap,
+        capacityProbe: { ...capacity.probe },
         playout,
       },
       heapMB: heaps.length ? Math.max(...heaps) / 1048576 : null,

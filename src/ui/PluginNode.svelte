@@ -103,8 +103,8 @@
     <div class="ask">
       <b>{plugin.name}</b>
       <span
-        >This piece carries code that draws this cell. Run, it has the page's full powers: it can read your saved pieces and use the network, and it runs every time this piece
-        opens.</span
+        >This piece carries code that draws this cell. Running it gives the code the page's full powers: it can read your saved pieces and use the network, and it runs every time
+        this piece opens.</span
       >
       <details>
         <summary>Show the code</summary>

@@ -11,6 +11,8 @@ that makes the change. Also note changes to the language that could affect saved
 ## Unreleased
 
 ### Added
+- The performance report says why it has no audio-thread row: whether `renderCapacity` is in `AudioContext.prototype`, on the context, started, and how many `update` events arrived (#91). Saved `.cells` pieces are not affected.
+
 - Plugins (decision 011): a piece can carry the drawing of a `show=` of its own, a block `=== plugin name ===` … `=== end ===` (a JSON manifest, then JS `draw(view, h, g)`), so what one piece needs stays out of the core; see [language/plugins.md](docs/language/plugins.md). Plugin code runs only if it ships with the app or after **Run it** on its wheel. The sun of *5 to 12* is the first: it moved out of the app into `examples/fiveto12.cells` and looks and turns the same. **Saved pieces:** `show=sun` is no longer built in; a saved `.cells` with `show=sun` and no plugin block is a compile error (copy the block from *5 to 12*).
 - `degree(&x, n)` and `inverse(&x)` in a braid: a motif moved n degrees up the table it is read through, or mirrored within it, without a cell of its own reading a shifted table (#31). They nest: `degree(inverse(&x), 4)`. Saved `.cells` pieces are not affected (both were errors before).
 
