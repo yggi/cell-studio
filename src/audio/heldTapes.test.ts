@@ -14,7 +14,7 @@ const motion = tapeMotion(result, clocking(result, p.statics), 'tape');
 /** Tapes held in a transport that stands at `at`, over a voice bank that records every hold: head delay (at → seconds) per call. */
 function held(at: number) {
   const holds: ((head: number) => number)[] = [];
-  const voices = { tapeScrub: (_: string, f: ((head: number) => number) | null) => f && holds.push(f) } as unknown as VoiceBank;
+  const voices = { tapeScrub: () => {}, tapeFreeze: () => {}, tapeHold: (_: string, f: (head: number) => number) => holds.push(f) } as unknown as VoiceBank;
   const h = new HeldTapes(
     () => p,
     () => voices,
@@ -39,7 +39,7 @@ describe('held tapes follow the timeline', () => {
     h.follow(1);
     h.follow(1.5);
     const [before, after] = holds.slice(-2).map((f) => f(0.375));
-    // (audio time stands still: a head further along the tape reads a moment closer to now)
+    // (how far behind where the tape was held the content under the head lies: less, further along)
     expect(after).toBeLessThan(before);
   });
   it('at the start it is where it begins, and holds there (seamless: no jump below it)', () => {

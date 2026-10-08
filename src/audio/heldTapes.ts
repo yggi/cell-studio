@@ -1,10 +1,11 @@
 /**
  * Sound tapes while the transport is not playing: each is held, silent, where it stands (a fresh one at
- * its start); its heads read what sat under them when it was there. They are not written to (nothing
- * sounds into them: no clock runs), and they follow the timeline: turn it by hand, or move the slider, and
- * every tape goes to where the timeline has it, its heads playing what is under them on the way (a scrub).
- * A hand on a tape moves it off the timeline by so much, and it keeps that displacement as the timeline moves.
- * Play lets them run on from where they stand.
+ * its start). A tape with a loop is frozen: nothing is written to it, and the lap that is on it goes round on its
+ * own (audio/voice/tape.ts), so what is on it is the same every time round, and only the tape's length of it:
+ * turning the tape forward or back, or round and round, plays that lap over and over, as the rim of its reel shows
+ * it. A tape follows the timeline: turn it by hand, or move the slider, and every tape goes to where the timeline
+ * has it, its heads playing what is under them on the way (a scrub). A hand on a tape moves it off the timeline by so
+ * much, and it keeps that displacement as the timeline moves. Play lets them run on from where they stand.
  */
 import { clocking, tapeMotion } from '../engine/clocking';
 import type { Plan } from '../engine/realize';
@@ -20,6 +21,8 @@ export class HeldTapes {
   private cursor = 0;
   /** How far a hand moved a tape off the timeline (tape-seconds). */
   private offset = new Map<string, number>();
+  /** Where each tape stood (tape-seconds) when it was held: the content of a frozen tape is placed by how far behind that it lies. */
+  private base = new Map<string, number>();
 
   constructor(
     private readonly plan: () => Plan | null,
@@ -42,6 +45,8 @@ export class HeldTapes {
     for (const tp of this.plan()?.result.tapes ?? []) {
       const u = this.at.get(tp.name) ?? 0;
       this.at.set(tp.name, u);
+      if (!this.base.has(tp.name)) this.base.set(tp.name, u);
+      this.voices()?.tapeFreeze(tp.name, true);
       this.hold(tp.name, u);
     }
   }
@@ -57,6 +62,8 @@ export class HeldTapes {
     for (const tp of p.result.tapes) {
       const u = tapeMotion(p.result, clocking(p.result, p.statics), tp.name).pos(at);
       this.at.set(tp.name, u);
+      this.base.set(tp.name, u);
+      this.voices()?.tapeFreeze(tp.name, true);
       this.hold(tp.name, u);
     }
   }
@@ -87,15 +94,20 @@ export class HeldTapes {
 
   /** Motors on: held tapes run on from where they stand. */
   release(): void {
-    for (const t of this.at.keys()) this.voices()?.tapeScrub(t, null);
+    for (const t of this.at.keys()) {
+      this.voices()?.tapeScrub(t, null);
+      this.voices()?.tapeFreeze(t, false);
+    }
     this.at.clear();
     this.offset.clear();
+    this.base.clear();
   }
 
   /** Back to the start as written: tapes wound off. */
   reset(): void {
     this.at.clear();
     this.offset.clear();
+    this.base.clear();
     this.cursor = 0;
     this.pausedAt = 0;
     this.pausedAudio = this.audioNow() ?? 0;
@@ -107,6 +119,8 @@ export class HeldTapes {
     const voices = this.voices();
     const now = this.audioNow();
     if (!p || !voices || now === null) return;
+    // a tape with a loop is frozen: it turns round its lap (a head reads how far behind where it was held its content lies)
+    if (p.result.tapes.find((t) => t.name === tape)?.length) return voices.tapeHold(tape, (at) => (this.base.get(tape) ?? 0) - (u - at));
     const motion = tapeMotion(p.result, clocking(p.result, p.statics), tape);
     const since = now - this.pausedAudio;
     voices.tapeScrub(tape, (at) => this.pausedAt - motion.real(u - at) + since);
