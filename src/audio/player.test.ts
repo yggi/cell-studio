@@ -2,6 +2,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Player } from './player';
 import { transportClock } from './clock.svelte';
 import type { TransportState } from './transport';
+import { compileSource } from '../engine/compile';
+import { codeShifts } from '../engine/program';
+import { plan } from '../engine/realize';
 
 // (no Tone in node: the sound engine's waking is stubbed out; what is tested is the transport)
 const hands: [string, (p: Player) => void, (p: Player) => void][] = [
@@ -90,5 +93,51 @@ describe('pause lets go, stop silences', () => {
     p.stop();
     expect(asked).toContain('releaseAll');
     expect(state()).toBe('stopped');
+  });
+});
+
+describe('a hand on the timeline plays the notes it passes', () => {
+  // &t plays at 0, 1, 2, 3 s (one step a second)
+  const piece = compileSource('&bar step=1\n&t step=&bar 0 2 4 5\n&v s=sine loop=C4\n&out loop=SAMPLE_RATE map=sample [&t * &v]');
+  function listening() {
+    const p = make();
+    const played: { at: number; code: number }[] = [];
+    p.load(plan(piece, codeShifts(piece)));
+    Object.assign(p as unknown as Record<string, unknown>, {
+      Tone: { getContext: () => ({ currentTime: 10 }) },
+      voices: { open: () => {}, tapeScrub: () => {}, play: (e: { at: number; code?: number }) => played.push({ at: e.at, code: e.code ?? NaN }) },
+    });
+    return { p, played };
+  }
+  const settle = () => new Promise((r) => setTimeout(r, 0));
+  afterEach(() => (transportClock.state = 'stopped'));
+
+  it('forward: each note it passes sounds, in order, as the hand reaches it', async () => {
+    const { p, played } = listening();
+    p.scroll(0.5, 2.5, true);
+    await settle();
+    expect(played.map((e) => e.code)).toEqual([1, 2]);
+    expect(played[0].at).toBeLessThan(played[1].at);
+    expect(state()).toBe('paused');
+  });
+  it('backward: the same notes, the other way round', async () => {
+    const { p, played } = listening();
+    p.scroll(2.5, 0.5, true);
+    await settle();
+    expect([...played].sort((a, b) => a.at - b.at).map((e) => e.code)).toEqual([2, 1]);
+  });
+  it('the slider jumping, or a hand standing still, plays nothing', async () => {
+    const { p, played } = listening();
+    p.scroll(0.5, 2.5, false);
+    p.scroll(1, 1, true);
+    await settle();
+    expect(played).toEqual([]);
+  });
+  it('while playing the clock plays, not the hand', async () => {
+    const { p, played } = listening();
+    transportClock.state = 'playing';
+    p.scroll(0.5, 2.5, true);
+    await settle();
+    expect(played).toEqual([]);
   });
 });

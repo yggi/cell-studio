@@ -8,7 +8,7 @@
  * every shift) and take effect at the next window.
  */
 import { clocking, tapeMotion } from '../engine/clocking';
-import { type Plan } from '../engine/realize';
+import { eventsBetween, type Plan } from '../engine/realize';
 import { isPhysical, retime, type Window } from '../engine/schedule';
 import { createVoices, type VoiceBank } from './voices';
 import { transportClock } from './clock.svelte';
@@ -54,6 +54,39 @@ export class Player implements LiveSource {
   /** Something happened to the transport (audio/transport.ts says what it becomes). */
   private move(event: TransportEvent): void {
     transportClock.state = transition(transportClock.state, event);
+  }
+
+  /** When the timeline last moved by hand (ms). */
+  private scrolledAt = 0;
+
+  /**
+   * The timeline moved from `from` to `to` (code seconds) while not playing: a hand turned it (`hand`), or the slider
+   * jumped. Every sound tape goes to where the timeline has it (held.ts), and, for a hand, the notes it passed over
+   * sound as it passes them, in either direction — a tine rings as its pin goes by, whichever way the drum turns.
+   */
+  scroll(from: number, to: number, hand: boolean): void {
+    if (this.playing) return;
+    this.touch();
+    this.held.follow(to);
+    if (!hand || from === to) return;
+    const now = typeof performance === 'undefined' ? 0 : performance.now();
+    // (how long the hand took: the notes it passed are spread over that, not over the piece's own time)
+    const took = this.scrolledAt ? Math.min(100, Math.max(8, now - this.scrolledAt)) : 16;
+    this.scrolledAt = now;
+    void this.wake().then(() => {
+      const plan = this.plan;
+      if (!plan || !this.voices || !this.Tone || this.playing) return;
+      const [lo, hi] = from < to ? [from, to] : [to, from];
+      const scale = Math.min(1.5, Math.max(0.02, took / 1000 / (hi - lo)));
+      const start = this.Tone.getContext().currentTime + 0.01;
+      // (at most 32, the ones nearest where the hand started)
+      const passed = eventsBetween(plan, lo, hi, true);
+      for (const e of from < to ? passed.slice(0, 32) : passed.slice(-32)) {
+        // (where the hand passes it: forward from the low end, backward from the high)
+        const at = start + (from < to ? e.at - lo : hi - e.at) * scale;
+        for (const x of retime({ from: e.at, to: e.at, events: [e], tapes: [] }, at, scale).events) this.voices.play(x);
+      }
+    });
   }
 
   /** A hand on anything, or a move in time: a stopped transport is paused from now on (the hands below call it). */
