@@ -13,7 +13,8 @@ import { folded } from './junctions';
 import { compileSource } from '../engine/compile';
 import { PRESETS } from '../engine/presets';
 
-const graphOf = (src: string) => buildGraph(compileSource(src));
+// (every cell a node, splices used once too: these are about how parts sit beside their players, #221)
+const graphOf = (src: string) => buildGraph(compileSource(src), { bulbs: false });
 const dist = (a: { x: number; y: number }, b: { x: number; y: number }) => Math.hypot(a.x - b.x, a.y - b.y);
 
 describe('ForceLayout', () => {
@@ -265,7 +266,7 @@ describe('initial layout', () => {
 
 // (the start is worked out on the graph with each product's junction folded into its voice: junctions.ts)
 describe('the natural order (waltz)', () => {
-  const model = folded(buildGraph(compileSource(PRESETS.waltz.source)));
+  const model = folded(buildGraph(compileSource(PRESETS.waltz.source), { bulbs: false }));
   const id = (n: string) => `cell:${n}`;
 
   it('ranks the signal path from time up to sound; parts beside what uses them', () => {
@@ -310,7 +311,7 @@ describe('switching examples', () => {
     const l = new ForceLayout(undefined, { live: false });
     l.setGraph(buildGraph(compileSource(PRESETS.transpose.source)));
     l.tick(300);
-    const waltz = buildGraph(compileSource(PRESETS.waltz.source));
+    const waltz = buildGraph(compileSource(PRESETS.waltz.source), { bulbs: false });
     l.setGraph(waltz);
     l.tick(500);
     expect(l.drawnCrossings()).toBe(0);
@@ -444,7 +445,7 @@ describe('busy nodes push harder', () => {
 
 describe('symmetric columns', () => {
   it('the waltz: the first voice in the middle, the others either side — each motif over its player', () => {
-    const c = columns(folded(buildGraph(compileSource(PRESETS.waltz.source))));
+    const c = columns(folded(buildGraph(compileSource(PRESETS.waltz.source), { bulbs: false })));
     const at = (n: string) => c.get(`cell:${n}`)!;
     expect([at('tuba'), at('flute'), at('strings')]).toEqual([-1, 0, 1]);
     expect([at('oom'), at('I'), at('V')]).toEqual([-1, -1, -1]);
@@ -460,7 +461,7 @@ describe('symmetric columns', () => {
   });
   it('a fresh layout starts symmetric: the waltz’s left and right mirror each other', () => {
     const l = new ForceLayout(undefined, { live: false });
-    l.setGraph(buildGraph(compileSource(PRESETS.waltz.source)));
+    l.setGraph(buildGraph(compileSource(PRESETS.waltz.source), { bulbs: false }));
     const x = (n: string) => l.position(`cell:${n}`)!.x;
     // mirror images, to within the few pixels of jitter that keep nodes from starting exactly on top of each other
     // (within 40: each node keeps room for its own label, and the two sides' labels differ in length)
