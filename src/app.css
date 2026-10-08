@@ -85,7 +85,7 @@
   --wheel-read-edge: rgb(0 0 0 / 0.5);
   --ink-halo: rgb(255 255 255 / 0.55); /* a light halo behind dark ink on a note */
 
-  /* the physical wheels: turntables, the scope's tube, the sun's sky. (Black and white at an alpha for
+  /* the physical wheels: turntables, the scope's tube. (Black and white at an alpha for
      shadows, glass and engraving stay where they're drawn: they are light, not colour.) */
   --disc-belt-0: #5a4636;
   --disc-belt-1: #3a2c22;
@@ -123,20 +123,6 @@
   --scope-grid: rgb(120 255 180 / 0.08);
   --scope-ink: rgb(200 255 220 / 0.6);
   --scope-tick: rgb(200 255 220 / 0.7);
-  --sky-day: #3d6fa8;
-  --sky-dusk: #e3a25a;
-  --sky-dusk-night: #2a1c3a;
-  --sky-night: #070912;
-  --sky-ink: #fff;
-  --sky-ink-halo: rgb(0 0 0 / 0.6);
-  --sky-mark: rgb(255 255 255 / 0.85);
-  --sky-tick: rgb(255 255 255 / 0.55);
-  --sky-horizon: rgb(255 255 255 / 0.35);
-  --sun: #ffd84a;
-  --sun-edge: #fff3b0;
-  --sun-glow: #ffcf3a;
-  --sun-night: #8a7a40;
-  --sun-night-edge: #b8aa70;
 
   /* shape */
   --radius-sm: 6px;
@@ -196,11 +182,15 @@ select {
 
 /* ---- shared chrome: a component adds its own size, colour and spacing on top ---- */
 
-/* A button with nothing of the browser's look left, to be dressed by its component. After :focus-visible on purpose:
-   it takes the ring away as `all: unset` always did, and a component that wants one asks for it (`:focus-visible`). */
+/* A button with nothing of the browser's look left, to be dressed by its component. `all: unset` takes the ring away,
+   so it is given back below, after the reset (a component may still dress its own). */
 .unstyled {
   all: unset;
   cursor: pointer;
+}
+.unstyled:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 /* A sheet rising from the bottom edge (the cell's, a piece's card): its own z-index, height, padding, shadow and entrance stay with it. */

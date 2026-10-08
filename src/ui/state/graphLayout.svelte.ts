@@ -122,7 +122,9 @@ export class GraphLayout {
     this.shown = next;
     const meters = { index: meterIndex(m) };
     // (an example's own place isn't marked pinned: only what the user pinned)
-    this.nodes = m.nodes.map((g: GraphNode) => flowNodeOf(g, this.#posOf(g.id) ?? { x: 0, y: 0 }, this.pinned.has(g.id) && !this.#placed.has(g.id), this.#turnOf(g.id), meters));
+    this.nodes = m.nodes.map((g: GraphNode) =>
+      flowNodeOf(g, this.#posOf(g.id) ?? { x: 0, y: 0 }, this.pinned.has(g.id) && !this.#placed.has(g.id), this.#turnOf(g.id), meters, next.program),
+    );
     this.#makeEdges();
     if (fresh) this.fitToken++;
   }

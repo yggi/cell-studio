@@ -32,6 +32,10 @@ export interface PhysNode extends SimulationNodeDatum {
   heavy?: boolean;
   /** Its mass (weights.ts): how much it holds its place and its room. */
   mass?: number;
+  /** How far its loom reaches round it (looms.ts), px: part of its room, and of each of its springs' length. */
+  loom?: number;
+  /** A product's junction (junctions.ts): the voice whose rim it is set on. */
+  rides?: string;
 }
 export interface PhysLink extends SimulationLinkDatum<PhysNode> {
   id: string;
@@ -61,14 +65,22 @@ interface DrawnLink {
   target: string;
   belt?: boolean;
   strength?: number;
+  /** A product's voice into its junction (`is`): drawn, but no wire to untangle (it is under the voice). */
+  is?: boolean;
 }
 
 export interface LayoutState {
   opts: LayoutOptions;
   /** The nodes the forces see (while a graph is taken in by insertion, only those taken in so far). */
   byId: Map<string, PhysNode>;
-  /** The edges as drawn (not a scope's: it watches). */
+  /** The edges as drawn (not a scope's: it watches): a product's wires at its junction. */
   links: DrawnLink[];
+  /** The edges as the forces see them: each product's junction folded into its voice (junctions.ts); else `links`. */
+  springs: DrawnLink[];
+  /** Each product's junction (junctions.ts): not in the forces, set on its voice's rim after each tick. */
+  junctions: Map<string, PhysNode>;
+  /** Each junction's angle on its voice's rim, radians. */
+  rims: Map<string, number>;
   /** Where the sound card (top) and the meters (bottom) are drawn to, sideways. */
   ends: Map<string, { x: number; y: number }>;
   /** The height of each node's rank in the signal path. */
@@ -87,10 +99,13 @@ export interface LayoutState {
   faces: TapeFace[];
   /** Each tape's turn, radians: where its write head sits (the heads keep their spacing; the wheel turns). */
   turns: Map<string, number>;
-  /** The nets laid out here (GraphModel.nets). */
+  /** The nets the forces lay (GraphModel.nets, of the graph with its junctions folded: junctions.ts). */
   nets: GraphModel['nets'];
-  /** Each edge's reader (its flow's end), by edge id: for the nets' branches. */
+  /** Each of their edges' reader (its flow's end), by edge id: for the nets' branches. */
   edgeEnds: Map<string, string>;
+  /** The nets as drawn (GraphModel.nets: a product's wires at its junction), and their edges' readers. */
+  drawnNets: GraphModel['nets'];
+  drawnEnds: Map<string, string>;
   /** A meter's edges (ground, meters.ts) and which of them are drawn. */
   grounds: { id: string; meter: string; cell: string }[];
   /** Each meter's net, as last worked out (meterNet). */
@@ -101,6 +116,9 @@ export interface LayoutState {
 
 /** Where a node is now. */
 export function positionOf(s: LayoutState, id: string): { x: number; y: number } | undefined {
-  const p = s.byId.get(id);
+  const p = nodeAt(s, id);
   return p && p.x !== undefined && p.y !== undefined ? { x: p.x, y: p.y } : undefined;
 }
+
+/** A node by its id: one the forces lay, or a product's junction. */
+export const nodeAt = (s: LayoutState, id: string): PhysNode | undefined => s.byId.get(id) ?? s.junctions.get(id);

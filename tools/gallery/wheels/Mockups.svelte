@@ -33,17 +33,8 @@
     '--axle-0': '#d7dbe6',
     '--axle-1': '#d7dbe6',
     '--axle-2': '#d7dbe6',
-    '--sky-day': '#2c3a52',
-    '--sky-dusk': '#2c3a52',
-    '--sky-dusk-night': '#1b1e27',
-    '--sky-night': '#1b1e27',
   };
-  const flatWheel = Object.fromEntries(
-    Object.keys(flatTinted).map((k) => [
-      k,
-      k.startsWith('--axle') ? 'var(--text-muted)' : k.startsWith('--sky-d') && !k.endsWith('night') ? 'var(--wheel-hub)' : 'var(--wheel-disc)',
-    ]),
-  );
+  const flatWheel = Object.fromEntries(Object.keys(flatTinted).map((k) => [k, k.startsWith('--axle') ? 'var(--text-muted)' : 'var(--wheel-disc)']));
   const q1: Option[] = [
     { label: 'A · physical (now)', note: 'wood, chrome, brass, a sky: things you can touch look touchable' },
     { label: 'B · flat, tinted', note: 'one flat colour per material, no gradients or drop shadows; the role still reads' },
@@ -143,7 +134,7 @@
   }
   /* 1 · flat: no gradient shading or drop shadows on the physical wheels */
   .flat :global(.turntable),
-  .flat :global(.sun) {
+  .flat :global(.plugin) {
     filter: none !important;
     box-shadow: none !important;
   }

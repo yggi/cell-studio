@@ -41,7 +41,8 @@ const problems = [];
 page.on('pageerror', (e) => problems.push(e.message));
 page.on('console', (m) => m.type() === 'error' && !/Failed to load resource/.test(m.text()) && problems.push(m.text()));
 page.on('response', (r) => r.status() >= 400 && !/favicon/.test(r.url()) && problems.push(`${r.status()} ${r.url()}`));
-await page.goto(url);
+// (a cold dev server compiles the app's modules on the first load: that can take longer than playwright's 30 s)
+await page.goto(url, { timeout: 120000 });
 if (mockups) {
   // the design questions (#107): a picture of each, and of the whole page
   await page.waitForSelector('section[data-mock]', { timeout: 60000 });

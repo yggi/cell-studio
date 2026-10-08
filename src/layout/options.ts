@@ -178,6 +178,8 @@ export const DEFAULT_LAYOUT: LayoutOptions = {
  * it is, and its free() controls (sliders, a text field, a keypad's rows) — so nothing settles on them.
  */
 function roomFor(n: GraphNode): number {
+  // (a product's junction: a dot, junctions.ts)
+  if (n.kind === 'junction') return JUNCTION_ROOM;
   const cell = (n as { cell?: { size?: number; label?: string | null; frees?: readonly { key: string; labels?: readonly string[] }[] } }).cell;
   const base = (n.kind === 'voice' ? 64 : n.depth === 0 ? 92 : 68) * (cell?.size ?? 1);
   const label = cell?.label ? Math.min(220, cell.label.length * 5.5) / 2 : 0;
@@ -186,6 +188,9 @@ function roomFor(n: GraphNode): number {
   const controls = pills ? 24 * Math.ceil(pills / 3) : 0;
   return Math.max(base, label) + (controls ? 10 + controls * 0.55 : 0);
 }
+
+/** A product's junction's room (engine/graph.ts, junctions.ts): a dot where its wires meet. */
+export const JUNCTION_ROOM = 14;
 
 /** The layout before layers: the forces alone, every one on (each still an option; their tests use this). */
 export const FORCES_ALONE: Partial<LayoutOptions> = {

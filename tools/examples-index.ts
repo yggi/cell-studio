@@ -47,7 +47,7 @@ export function buildExamplesMeta(dir = 'examples'): (ExampleMeta & { source: st
       description: m?.description ?? '',
       tags: canonicalTags(m?.tags ?? []),
       rung: m?.rung ?? null,
-      size: graph.nodes.filter((n) => !n.petalOf && !n.cell.note).length,
+      size: graph.nodes.filter((n) => !n.petalOf && n.cell && !n.cell.note).length,
       time: pieceTime(r),
       bytes: Buffer.byteLength(source),
       source,

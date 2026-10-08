@@ -232,7 +232,8 @@ export function cellView(result: CompileResult, name: string, shifts: Shifts, is
     const known = `${e.table}|${e.tableShift}|${e.value}|${e.alter}|${e.transpose ?? 0}`;
     let hit = seen.get(known);
     if (!hit) {
-      const found = resolveIn(result, e.table, e.tableShift, tapped(result, e, shifts), e.alter, shifts);
+      const t = tapped(result, e, shifts);
+      const found = resolveIn(result, e.table, e.tableShift, t.value, t.alter, shifts);
       const r = e.transpose ? { ...found, position: found.position + e.transpose } : found; // ^n
       const f: Fill = levels
         ? { kind: 'level', v: levelOf(e.value + e.alter) }

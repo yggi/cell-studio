@@ -1,14 +1,14 @@
 <script lang="ts">
   /**
    * One real wheel for the mock-ups (Mockups.svelte): an example's cell, drawn by the component the graph would use
-   * (its glyph or spectrum alone; a turntable or the sun as its node), stopped or at a moment of play.
+   * (its glyph or spectrum alone; a turntable or a plugin's wheel as its node), stopped or at a moment of play.
    */
   import { untrack } from 'svelte';
   import { SvelteFlow, type NodeTypes } from '@xyflow/svelte';
   import '@xyflow/svelte/dist/style.css';
   import { setGraphContext } from '../../../src/ui/context';
   import MaterialNode from '../../../src/ui/MaterialNode.svelte';
-  import SunNode from '../../../src/ui/SunNode.svelte';
+  import PluginNode from '../../../src/ui/PluginNode.svelte';
   import CellGlyph from '../../../src/ui/CellGlyph.svelte';
   import SpectrumWheel from '../../../src/ui/SpectrumWheel.svelte';
   import { compileSource } from '../../../src/engine/compile';
@@ -46,15 +46,15 @@
     move() {},
     sound: madeUpSound(() => playing),
   });
-  const g = buildGraph(program).nodes.find((n) => n.cell.name === name);
+  const g = buildGraph(program).nodes.find((n) => n.cell?.name === name);
   if (!g) throw new Error(`mock-ups: no &${name} in ${piece}`);
-  const node = flowNodeOf(g, { x: 0, y: 0 }, false);
+  const node = flowNodeOf(g, { x: 0, y: 0 }, false, undefined, undefined, program);
   const cell = program.cells.get(name)!;
-  const kind = node.type === 'material' || node.type === 'sun' ? 'node' : node.type === 'voice' || cell.mix || cell.sink ? 'spectrum' : 'cell';
+  const kind = node.type === 'material' || node.type === 'plugin' ? 'node' : node.type === 'voice' || cell.mix || cell.sink ? 'spectrum' : 'cell';
   const own = node.data.size;
   const box = own + 40;
   const nodes = [{ ...node, position: { x: box / 2, y: box / 2 }, draggable: false } as FlowNode];
-  const nodeTypes = { material: MaterialNode, sun: SunNode } as NodeTypes;
+  const nodeTypes = { material: MaterialNode, plugin: PluginNode } as NodeTypes;
 </script>
 
 {#if kind === 'cell'}<CellGlyph {name} isMeter={'isMeter' in node.data && node.data.isMeter} {size} />

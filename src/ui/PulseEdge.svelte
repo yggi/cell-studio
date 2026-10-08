@@ -18,6 +18,7 @@
   import { untrack } from 'svelte';
   import { loomParts, loomPaths, radialPath, ripplePath, splinePoint, strandPath } from '../layout/geometry';
   import { cellView, type Fill, type Segment } from '../layout/cellview';
+  import { pluginOf } from '../layout/show';
   import { isTurntable } from '../engine/graph';
   import { getGraphContext } from './context';
   import { LOOM } from './flowedges';
@@ -88,9 +89,10 @@
   // sits in that braid, once for each time it is written; a table's strands leave its wheel at their entries.
   const rimOf = (size: number | undefined) => (size ? size / 2 - 1 : 0);
   const occurrences = $derived.by((): number[] => {
-    // (only on a cell's own wheel: a scope, a sun or a turntable has no segments to meet)
+    // (only on a cell's own wheel: a scope, a plugin's wheel that says so, or a turntable has no segments to meet)
     const reader = ctx.program.cells.get(d.to);
-    if (d.port !== 'braid' || d.picks?.length || !rimOf(d.sizes?.to) || !reader || isTurntable(reader) || reader.params.scope || reader.show === 'sun') return [];
+    if (d.port !== 'braid' || d.picks?.length || !rimOf(d.sizes?.to) || !reader || isTurntable(reader) || reader.params.scope || pluginOf(ctx.program, d.to)?.rim === false)
+      return [];
     void ctx.turned;
     const parent = ctx.program.cells.get(d.to);
     const units = new Set(parent?.units.flatMap((u, i) => (u.atom.kind === 'ref' && u.atom.name === d.from ? [i] : [])) ?? []);

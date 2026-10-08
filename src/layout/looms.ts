@@ -11,6 +11,7 @@ const RUN = 18;
 
 /** The strands a bus takes round its source's loom: a table's entries (12 at most), a ref's picks (two or more). */
 function busStrands(e: GraphEdge): number {
+  // (a table read through, over=, or looked up, map=: its entries)
   if (e.port === 'over') return e.width >= 2 ? Math.min(12, e.width) : 0;
   if (e.port !== 'braid') return 0;
   const picks = e.transforms.flatMap((t) => t.flatMap((st) => (st.kind === 'pick' && !st.pick.abs ? [st.pick] : [])));

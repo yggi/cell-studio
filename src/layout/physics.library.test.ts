@@ -1,6 +1,6 @@
 import { afterAll, describe, expect, it } from 'vitest';
 import { readFileSync, writeFileSync } from 'node:fs';
-import { ForceLayout, countCrossings } from './physics';
+import { ForceLayout } from './physics';
 import { DEFAULT_LAYOUT } from './options';
 import type { LayoutQuality } from './quality';
 import { buildGraph } from '../engine/graph';
@@ -57,13 +57,12 @@ describe('drawn crossings', () => {
 
 describe('crossing-free layout', () => {
   it('edges may cross, but crossing edges still push apart a little', () => {
-    const withUncross = library.reduce((n, { model, layout }) => n + countCrossings(layout, model), 0);
-    const without = library.reduce((n, { source }) => {
-      const { model, layout } = settle(source, { uncross: 0 });
-      return n + countCrossings(layout, model);
-    }, 0);
+    // (as drawn: a product's wires end at its junction, on its voice's rim — junctions.ts — so a crossing centre to
+    // centre, under a wheel, is no longer what shows)
+    const withUncross = library.reduce((n, { layout }) => n + layout.drawnCrossings(), 0);
+    const without = library.reduce((n, { source }) => n + settle(source, { uncross: 0 }).layout.drawnCrossings(), 0);
     expect(withUncross).toBeLessThanOrEqual(without);
-  }, 30_000); // (every example laid out again, without the force)
+  }, 120_000); // (every example laid out again, without the force: about 35 s on a quiet 4-CPU machine)
 });
 
 // The layout's quality per example (quality.ts), against the recorded baseline: the library as a whole may
