@@ -310,7 +310,7 @@
     }) ?? [],
   );
   // the taps: where each entry leaves the wheel, on a ring of their own outside it (drawn whether wired or not)
-  const tapR = $derived(rOuter + margin * 0.55);
+  const tapR = $derived(geo.rTap);
   const taps = $derived(
     (view.taps ?? []).map((t, i) => {
       const [x, y] = polar(c, c, tapR, t);

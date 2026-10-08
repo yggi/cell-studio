@@ -50,7 +50,7 @@ export interface Segment {
  * other's entries as it pushes them, a slot each, lit where this one takes it — and the gear that wires each slot
  * taken to the entry it becomes. It turns with the ring.
  */
-export interface Hub {
+interface Hub {
   readonly slots: readonly { readonly t0: number; readonly t1: number; readonly fill: Fill; readonly held: boolean }[];
   /** Each entry's wire: from its slot (turns) to its tap (turns). */
   readonly gears: readonly { readonly from: number; readonly to: number; readonly fill: Fill }[];

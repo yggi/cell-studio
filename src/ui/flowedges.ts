@@ -94,6 +94,8 @@ function pulseData(e: GraphEdge, program: CompileResult) {
     from: nameOf(e.from),
     table: e.port === 'over' ? nameOf(e.from) : null,
     tines: tinesOf(e, program),
+    // what each place it is written picks (a strand from each tap it reads; $: from the hub)
+    picks: e.port === 'braid' ? e.transforms.flatMap((t) => t.flatMap((st) => (st.kind === 'pick' ? [st.pick] : []))) : [],
     ...carried(e, program),
   };
 }
@@ -103,7 +105,7 @@ function pulseData(e: GraphEdge, program: CompileResult) {
  * belt over its pulleys. While playing, an edge that is routed is `idle` here, and PulseEdge makes it live when it is
  * (each edge reads that for itself).
  */
-export function flowEdgeOf(e: GraphEdge, state: State, program: CompileResult, belt?: BeltDrawn, sizes?: EndSizes, net?: NetPlace): Edge {
+export function flowEdgeOf(e: GraphEdge, state: State, program: CompileResult, belt?: BeltDrawn, sizes?: EndSizes, net?: NetPlace, ring = 0): Edge {
   if (belt) return { id: e.id, source: e.source, target: e.target, type: 'belt', zIndex: 5, selectable: false, data: { ...belt } };
   // a tape's edges meet it at its heads: the write head (what it records), each read head (what it plays)
   const heads = e.port === 'write' ? { targetHandle: 'head-write' } : e.port === 'play' ? { sourceHandle: `head-${nameOf(e.target)}` } : {};
@@ -115,7 +117,7 @@ export function flowEdgeOf(e: GraphEdge, state: State, program: CompileResult, b
     ...heads,
     type: 'pulse',
     // (only a live edge carries a note's colour and pulses: an edge into what doesn't sound now stays still)
-    data: { ...pulseData(e, program), off: state === 'off' || state === 'unrouted', state, sizes, to: nameOf(e.to), net },
+    data: { ...pulseData(e, program), off: state === 'off' || state === 'unrouted', state, sizes, to: nameOf(e.to), net, ring },
     label: edgeLabel(e),
     class: `edge-${e.port} band-${e.band}${e.pointer ? ' pointer' : ''}`,
     selectable: false,
@@ -125,6 +127,43 @@ export function flowEdgeOf(e: GraphEdge, state: State, program: CompileResult, b
 /** A trace of a meter's net (meters are ground: their edges aren't drawn, this is). `index`: the meter's place among the meters. */
 export function meterEdgeOf(t: MeterTrace, index: number): Edge {
   return { id: t.id, source: t.a, target: t.b, type: 'meter', zIndex: -1, selectable: false, focusable: false, data: { meter: index, name: nameOf(t.meter) } };
+}
+
+/** The strands a bus takes round its source's loom: a table's entries (12 at most), a ref's picks, a resonator's tines. */
+function strandsOf(e: GraphEdge, program: CompileResult): number {
+  if (e.port === 'over') return tinesOf(e, program)?.length ?? (e.width >= 2 ? Math.min(12, e.width) : 0);
+  if (e.port !== 'braid') return 0;
+  const picks = e.transforms.flatMap((t) => t.flatMap((st) => (st.kind === 'pick' && !st.pick.abs ? [st.pick] : [])));
+  return picks.length >= 2 ? picks.length : 0;
+}
+
+/**
+ * Each bus's band of tracks round its source's wheel (in tracks, from the inside): one loom per wheel, the larger buses
+ * inside, so that two leave it on rings of their own. A table read by several leaves it once (its net: the others come on
+ * from a reader), so its edges share a band.
+ */
+function loomRings(s: GraphSnapshot): Map<string, number> {
+  const netOf = new Map(s.model.nets.flatMap((n) => n.taps.map((id) => [id, n.id] as const)));
+  const groups = new Map<string, Map<string, { n: number; ids: string[] }>>();
+  for (const e of s.model.edges) {
+    const n = strandsOf(e, s.program);
+    if (!n) continue;
+    const bySource = groups.get(e.from) ?? new Map<string, { n: number; ids: string[] }>();
+    groups.set(e.from, bySource);
+    const key = netOf.get(e.id) ?? e.id;
+    const g = bySource.get(key) ?? { n, ids: [] };
+    g.ids.push(e.id);
+    bySource.set(key, g);
+  }
+  const out = new Map<string, number>();
+  for (const bySource of groups.values()) {
+    let inner = 0;
+    for (const g of [...bySource.values()].sort((a, b) => b.n - a.n)) {
+      for (const id of g.ids) out.set(id, inner);
+      inner += Math.ceil(g.n / 2) + 1;
+    }
+  }
+  return out;
 }
 
 /** What the edges are drawn with besides the snapshot: the wheels' sizes, the meters' nets as laid, and whether (and what) plays. */
@@ -149,6 +188,7 @@ export function flowEdgesOf(s: GraphSnapshot, scene: EdgeScene): Edge[] {
   const live = scene.playing ? NO_LIVE : null;
   // each edge's place in a net (a table read by several: one trunk, a branch to each reader)
   const netPlaces = new Map(model.nets.flatMap((n) => n.taps.map((id) => [id, { id: n.id }] as const)));
+  const rings = loomRings(s);
   const grounds = groundsOf(model);
   const index = meterIndex(model);
   const toFlowEdge = (e: GraphEdge): Edge => {
@@ -163,7 +203,7 @@ export function flowEdgesOf(s: GraphSnapshot, scene: EdgeScene): Edge[] {
       return flowEdgeOf(e, state, program, { rDriver, rDriven, stretch: st?.stretch ?? 0, slipping: st?.slipping ?? false });
     }
     // (the wheels' sizes at its ends: a braid's edge meets its segment, a table's strands leave their entries)
-    return flowEdgeOf(e, state, program, undefined, { from: scene.sizeOf(e.from) ?? 0, to: scene.sizeOf(e.to) ?? 0 }, netPlaces.get(e.id));
+    return flowEdgeOf(e, state, program, undefined, { from: scene.sizeOf(e.from) ?? 0, to: scene.sizeOf(e.to) ?? 0 }, netPlaces.get(e.id), rings.get(e.id));
   };
   return [...model.edges.filter((e) => !grounds.has(e.id)).map(toFlowEdge), ...scene.net.map((t) => meterEdgeOf(t, index.get(t.meter) ?? 0))];
 }

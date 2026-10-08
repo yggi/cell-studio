@@ -28,7 +28,12 @@ export interface WheelGeometry {
   readonly hand: { readonly r0: number; readonly r1: number; readonly width: number };
   /** A tick on the rim: from, to; its stroke. */
   readonly tick: { readonly r0: number; readonly r1: number; readonly width: number };
+  /** The taps' ring, just outside the rim: where a table's entries leave the wheel (and its edges' strands start). */
+  readonly rTap: number;
 }
+
+/** The taps' ring of a wheel `size` px across (wheelGeometry's rTap): its edges start their strands there. */
+export const tapRadius = (size: number) => wheelGeometry(size).rTap;
 
 export function wheelGeometry(size: number): WheelGeometry {
   const c = size / 2;
@@ -46,6 +51,7 @@ export function wheelGeometry(size: number): WheelGeometry {
     rDisc: c - 1,
     hand: { r0: rInner - 3 * k, r1: rOuter + margin - 1, width: Math.max(1.2, 2.5 * k) },
     tick: { r0: rOuter + 1.5 * k, r1: rOuter + 5 * k, width: Math.max(1, 1.5 * k) },
+    rTap: rOuter + margin * 0.55,
   };
 }
 
