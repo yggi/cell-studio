@@ -25,10 +25,18 @@ function drawnAsGrid(result: CompileResult, name: string): boolean {
   return plainTable(result, name) && !playedCells(result).has(name);
 }
 
-/** Every unit a single plain number, once each: a table's entries (in any order). */
+/**
+ * A set of entries in its own order: every unit a single whole number, each once, within one lap (the circle of
+ * fifths). Not a curve of values (`0 1 .3 -1`, read by map=) nor a motif with a repeat (`0 2 4 2`): those are braids.
+ */
 function plainTable(result: CompileResult, name: string): boolean {
   const c = result.cells.get(name)!;
-  return c.units.length > 0 && c.units.every((u) => u.atom.kind === 'note' && u.repeat === 1 && u.subdivide === 1 && u.elongate === 1);
+  const vals: number[] = [];
+  for (const u of c.units) {
+    if (u.atom.kind !== 'note' || u.repeat !== 1 || u.subdivide !== 1 || u.elongate !== 1) return false;
+    vals.push(u.atom.value + u.atom.alter);
+  }
+  return vals.length > 0 && vals.every(Number.isInteger) && new Set(vals).size === vals.length && Math.max(...vals) - Math.min(...vals) < period(result, name);
 }
 
 export type Fill =
