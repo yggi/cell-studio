@@ -6,6 +6,7 @@
 import { capacity, noteStats } from './stats';
 import { resolveTuning, type Tuning, DEFAULT_TUNING } from './tuning';
 import { storageKey } from '../storageKey';
+import { clockOffset, type ClockOffset, type OutputClock } from '../midi/clock';
 
 type ToneNS = typeof import('tone');
 
@@ -49,12 +50,41 @@ function watchCapacity(T: ToneNS) {
   }
 }
 
-/** Seconds between a sample being made and being heard now, from the output timestamp (null where there is none). */
+// one clock pairing per context: a retuned context starts its own
+const clocks = new WeakMap<object, ClockOffset>();
+
+/**
+ * The audio clock against the page's at the moment heard, for this context (`midi/clock.ts`): what MIDI timestamps are
+ * read against, and what `heardLatency` reads, so the pictures and MIDI out follow one estimate.
+ */
+export function contextClock(T: ToneNS): ClockOffset | null {
+  const n = nativeContext(T) as (OutputClock & { getOutputTimestamp?: () => { contextTime?: number; performanceTime?: number }; outputLatency?: number }) | null;
+  if (!n || typeof n.currentTime !== 'number') return null;
+  let clock = clocks.get(n);
+  if (!clock) {
+    const native = n;
+    clock = clockOffset({
+      get currentTime() {
+        return native.currentTime;
+      },
+      get latency() {
+        return outputLatency(T) ?? 0;
+      },
+      ...(typeof native.getOutputTimestamp === 'function' && { outputTimestamp: () => native.getOutputTimestamp!() }),
+    });
+    clocks.set(n, clock);
+  }
+  return clock;
+}
+
+/** Seconds between a sample being made and being heard now, from the output timestamp's pairing (null where there is none). */
 export function heardLatency(T: ToneNS): number | null {
   try {
-    const n = nativeContext(T) as { getOutputTimestamp?: () => { contextTime?: number }; currentTime?: number } | null;
-    const ts = n?.getOutputTimestamp?.();
-    return ts && typeof ts.contextTime === 'number' && ts.contextTime > 0 && typeof n?.currentTime === 'number' ? Math.max(0, n.currentTime - ts.contextTime) : null;
+    const clock = contextClock(T);
+    if (!clock?.paired) return null;
+    clock.update();
+    const n = nativeContext(T) as { currentTime: number };
+    return Math.max(0, n.currentTime - clock.heard());
   } catch {
     return null;
   }
