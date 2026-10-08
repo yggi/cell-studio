@@ -62,7 +62,7 @@ describe('crossing-free layout', () => {
     const withUncross = library.reduce((n, { layout }) => n + layout.drawnCrossings(), 0);
     const without = library.reduce((n, { source }) => n + settle(source, { uncross: 0 }).layout.drawnCrossings(), 0);
     expect(withUncross).toBeLessThanOrEqual(without);
-  }, 30_000); // (every example laid out again, without the force)
+  }, 120_000); // (every example laid out again, without the force: about 35 s on a quiet 4-CPU machine)
 });
 
 // The layout's quality per example (quality.ts), against the recorded baseline: the library as a whole may
