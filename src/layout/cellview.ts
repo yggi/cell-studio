@@ -23,7 +23,22 @@ function drawnAsGrid(result: CompileResult, name: string): boolean {
   const c = result.cells.get(name)!;
   if (c.voice) return false;
   if (c.root || c.scan) return true;
-  return isGrid(result, name) && !playedCells(result).has(name);
+  // (a table of plain numbers in any order: in pitch order it is spaced by pitch, else evenly in its own — the circle of fifths)
+  return plainTable(result, name) && !playedCells(result).has(name);
+}
+
+/**
+ * A set of entries in its own order: every unit a single whole number, each once, within one lap (the circle of
+ * fifths). Not a curve of values (`0 1 .3 -1`, read by map=) nor a motif with a repeat (`0 2 4 2`): those are braids.
+ */
+function plainTable(result: CompileResult, name: string): boolean {
+  const c = result.cells.get(name)!;
+  const vals: number[] = [];
+  for (const u of c.units) {
+    if (u.atom.kind !== 'note' || u.repeat !== 1 || u.subdivide !== 1 || u.elongate !== 1) return false;
+    vals.push(u.atom.value + u.atom.alter);
+  }
+  return vals.length > 0 && vals.every(Number.isInteger) && new Set(vals).size === vals.length && Math.max(...vals) - Math.min(...vals) < period(result, name);
 }
 
 export type Fill =
@@ -176,7 +191,8 @@ export function cellView(result: CompileResult, name: string, shifts: Shifts, is
     // The ring turns: the entry now first sits under the marker at 12 o'clock, and the taps stay where they are
     // (equal) or ride their entries (pattern). A pitched table's slot is centred on its tap; a meter's beat starts there.
     const n = es.length;
-    const equal = show === 'equal';
+    // (in its own order when that isn't the pitches' — the circle of fifths: evenly round, as written)
+    const equal = show === 'equal' || (!c.root && !c.scan && !isGrid(result, name));
     const base = n ? es[0].value + es[0].alter : 0;
     const centre = isMeter || pattern ? 0 : 0.5;
     const tapOf = (e: { value: number; alter: number }, i: number) => (equal ? i / n : mod(e.value + e.alter - base, lap) / lap);

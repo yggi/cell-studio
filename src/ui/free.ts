@@ -31,7 +31,7 @@ export function freeLabel(f: FreeSpec): string {
 
 /** A slider's step: whole numbers for shifts, strides and wide ranges; a hundredth of the range otherwise. */
 export function freeStep(f: FreeSpec): number {
-  return f.key === 'shift' || f.key === 'stride' || f.hi - f.lo >= 20 ? 1 : (f.hi - f.lo) / 100;
+  return f.key === 'shift' || f.key === 'stride' || f.key === 'tonic' || f.hi - f.lo >= 20 ? 1 : (f.hi - f.lo) / 100;
 }
 
 /** A number of it with its unit (wide ranges whole, narrow ones to two places): "90bpm", "0.25". */
