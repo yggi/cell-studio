@@ -62,7 +62,7 @@ export function orderLayers(nodes: readonly { id: string; depth: number }[], edg
  * or not — sit half a row under whatever uses them (parts of parts half as far
  * again), so they cluster under it instead of widening its row.
  */
-export function flowRanks(model: { nodes: readonly { id: string }[]; edges: readonly { source: string; target: string; port: string }[] }): Map<string, number> {
+export function flowRanks(model: { nodes: readonly { id: string }[]; edges: readonly { source: string; target: string; port: string; band: string }[] }): Map<string, number> {
   const sinks = new Set(model.nodes.filter((n) => endOf(n as GraphNode) === 'top').map((n) => n.id));
   // played cells: the terms of the mixes (melodies, modulators) and every part they splice
   const played = new Set(model.edges.filter(feeds).map((e) => e.source));
@@ -161,7 +161,7 @@ export function flowRanks(model: { nodes: readonly { id: string }[]; edges: read
  */
 export function columns(model: {
   nodes: readonly { id: string; kind: string; pan?: number; order?: number; petalOf?: string }[];
-  edges: readonly { source: string; target: string; port: string }[];
+  edges: readonly { source: string; target: string; port: string; band: string }[];
 }): Map<string, number> {
   const nodes = model.nodes.filter((n) => !n.petalOf);
   // what sounds: voices, and instruments (whose voices are petals)

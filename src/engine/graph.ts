@@ -116,7 +116,7 @@ const STRUCTURE = new Set(['over', 'braid', 'step', 'mix', 'is', 'about']);
  * A wire into what plays it: a melody into its voice, its envelope, levels, pitch, parameters, FM, what excites, couples,
  * writes or plays it. Not ticks: a parameter's clock (`delaytime=&bar*3/4`) is timing, as a step is.
  */
-export const feeds = (e: { readonly port: string; readonly band: Band }) => !STRUCTURE.has(e.port) && e.band !== 'sync';
+export const feeds = (e: { readonly port: string; readonly band: string }) => !STRUCTURE.has(e.port) && e.band !== 'sync';
 
 /** Nothing written: a wire that carries its source as it is. */
 const AS_IS: readonly Transform[] = [[]];
