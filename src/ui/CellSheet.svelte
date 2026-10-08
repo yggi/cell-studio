@@ -1,12 +1,11 @@
 <script lang="ts">
   import CellGlyph from './CellGlyph.svelte';
   import { getGraphContext } from './context';
-  import { cellView, hubLabel } from '../layout/cellview';
+  import { hubLabel } from '../layout/cellview';
   import { declLine, declWords, deleteCell, nameProblem, renameCell, setBraid, spansLines, splitToken, splitWords, usersOf } from '../engine/edit';
   import { parse } from '../engine/parser';
   import { period, positionHue, resolvePitch, semitones, shiftedUnits } from '../engine/helix';
   import { stepText } from '../layout/wheel';
-  import TokenWheel, { type WheelToken } from './TokenWheel.svelte';
   import StepEditor from './StepEditor.svelte';
   import SpectrumWheel from './SpectrumWheel.svelte';
   import WaveGlyph from './WaveGlyph.svelte';
@@ -51,7 +50,6 @@
   const shift = $derived(ctx.shifts(name));
   // live while playing, as the graph is: shifts as tables turn, and the playhead
   const shown = $derived(ctx.live?.shifts ?? ctx.shifts);
-  const liveCell = $derived(ctx.live?.cells.get(name) ?? null);
   const off = $derived(cell?.off ?? false);
   const line = $derived.by(() => {
     // an unnamed cell: the line it's written in (λ<line>_<column>)
@@ -126,50 +124,8 @@
     }
     return { tokens: b, kind: 'list' };
   });
-  const wheelTokens = $derived(
-    listed.tokens.map((t, i): WheelToken => {
-      const hues = hueOf(t); // through the cell's own table: its grid's colours
-      const kind: WheelToken['kind'] = t.startsWith('&') ? 'ref' : t.startsWith('~') ? 'rest' : t.startsWith('[') ? 'chord' : hues ? 'note' : 'other';
-      const weight = listed.kind === 'list' ? (cell?.unitSteps[i] ?? 1) : 1;
-      // a reference: its notes across the step, coloured as in the graph
-      let parts: { w: number; hue: number | null }[] | undefined;
-      const ref = /^&([A-Za-z_][A-Za-z0-9_]*)/.exec(t)?.[1];
-      if (ref && ctx.program.cells.get(ref) && shown_?.show !== 'pattern') {
-        try {
-          parts = cellView(ctx.program, ref, shown, false)?.segments.map((sg) => {
-            const top = sg.bands[sg.bands.length - 1];
-            return { w: sg.t1 - sg.t0, hue: top?.kind === 'pitch' ? top.hue : null };
-          });
-        } catch {
-          parts = undefined;
-        }
-      }
-      return { label: t.startsWith('&') ? t.replace(/[!*@]\d+$/, '') : (nameOf(t) ?? stepText(t)), full: t, hues: shown_?.show === 'pattern' ? null : hues, weight, kind, parts };
-    }),
-  );
-  const rotation = $derived.by(() => {
-    const n = wheelTokens.length;
-    if (!n || listed.kind !== 'list') return 0;
-    const live = shown(name);
-    const k = ((live % n) + n) % n;
-    const total = wheelTokens.reduce((a, t) => a + t.weight, 0) || 1;
-    return wheelTokens.slice(0, k).reduce((a, t) => a + t.weight, 0) / total;
-  });
-  // the hub: a generator shows its function (edit it there); otherwise what the cell is
-  const hub = $derived.by(() => {
-    if (listed.kind === 'function' && words) {
-      const m = /^(\w+)\((.*)\)$/.exec(words.braid[0]);
-      return { big: m?.[1] ?? words.braid[0], small: m ? `(${m[2]})` : '' };
-    }
-    return cell ? hubLabel(ctx.program, name, shown, isMeter, liveCell ? (ctx.live?.bars.get(name) ?? null) : null) : { big: '', small: '' };
-  });
-  // the playhead: where in the braid (written order starts at the top, rotated by the shift)
-  const hand = $derived(liveCell?.local != null && cell ? liveCell.local / Math.max(1, cell.steps) : null);
-  // a table's entries being looked up right now
-  const litEntries = $derived.by(() => {
-    const n = Math.max(1, wheelTokens.length);
-    return new Set<number>([...(liveCell?.entries ?? [])].map((e: number) => ((e % n) + n) % n));
-  });
+  // the steps as written, a label each on the wheel (a long number to three figures, a note by its name when shown so)
+  const tokenLabels = $derived(listed.tokens.map((t) => (t.startsWith('&') ? t.replace(/[!*@]\d+$/, '') : (nameOf(t) ?? stepText(t)))));
   let editingHub = $state(false);
   /** Entries per octave of the table this cell reads (12 chromatic, 7 for a scale). */
   const lap = $derived.by(() => {
@@ -288,15 +244,14 @@
       <!-- (shown above) -->
     {:else if words && !multiline && !overview}
       <div class="dial">
-        <TokenWheel
-          tokens={wheelTokens}
-          dim={listed.kind === 'empty'}
-          editable={listed.kind === 'list'}
-          {hand}
-          lit={litEntries}
-          {rotation}
-          {hub}
-          onpick={(i) => (editingStep = i)}
+        <CellGlyph
+          {name}
+          {isMeter}
+          size={232}
+          interactive
+          fine
+          tokens={listed.kind === 'list' ? tokenLabels : undefined}
+          onpick={listed.kind === 'list' ? (i) => (editingStep = i) : undefined}
           onhub={() => (editingHub = true)}
         />
       </div>

@@ -175,7 +175,14 @@ export class ForceLayout {
     const o = this.s.opts;
     (this.sim.force('link') as ReturnType<typeof forceLink<PhysNode, PhysLink>>)
       // (a belt is drawn over the wheels: short and stiff, so its turntables sit side by side and it crosses little)
-      .distance((l) => this.s.size * (l.tag || l.muxed ? o.linkDistance * 1.6 : l.part ? o.linkDistance * o.partLength : l.belt ? o.linkDistance * BELT_LENGTH : o.linkDistance))
+      // (a loom round either end lengthens the spring by its reach: the wheels' rooms grow, so do their springs)
+      .distance(
+        (l) =>
+          this.s.size *
+          ((l.tag || l.muxed ? o.linkDistance * 1.6 : l.part ? o.linkDistance * o.partLength : l.belt ? o.linkDistance * BELT_LENGTH : o.linkDistance) +
+            ((l.source as PhysNode).loom ?? 0) +
+            ((l.target as PhysNode).loom ?? 0)),
+      )
       .strength((l) => (l.tag ? 0.12 : l.ground ? GROUND_PULL * (1 - o.netPull) : l.belt ? BELT_PULL : linkPull(l, o) * (l.net ? 1 - o.netPull : 1)));
     // busy nodes push a little harder: more room around hubs, fewer edges squeezed past them
     (this.sim.force('charge') as ReturnType<typeof forceManyBody<PhysNode>>)

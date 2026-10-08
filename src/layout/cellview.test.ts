@@ -21,22 +21,42 @@ describe('cellView', () => {
     expect(cellView(r, 'noSuchCell', codeShifts(r), false)).toBeNull();
   });
 
-  it('places scale entries on the 12-grid, so turning reshapes it', () => {
+  it('places scale entries on the 12-grid, each slot centred on its tap', () => {
     const v = cellView(r, 'scale', codeShifts(r), false)!;
     expect(v.mode).toBe('grid');
     expect(v.ticks).toBe(12);
     expect(v.detents).toBe(7);
-    expect(v.segments.map((s) => Math.round(s.t0 * 12))).toEqual([0, 2, 3, 5, 7, 8, 10]);
-    // shifting rotates: the same seven notes, entry 0 now on D
-    const rotated = cellView(r, 'scale', with_({ scale: 1 }), false)!;
-    expect(rotated.segments.map((s) => Math.round(s.t0 * 12))).toEqual([0, 2, 3, 5, 7, 8, 10]);
-    expect(rotated.segments.find((s) => s.index === 0)!.t0).toBeCloseTo(2 / 12);
+    expect(v.segments.map((s) => Math.round(s.at! * 12))).toEqual([0, 2, 3, 5, 7, 8, 10]);
+    expect(v.segments[0].t0).toBeCloseTo(-0.5 / 12);
+    expect(v.taps!.map((t) => Math.round(t * 12))).toEqual([0, 2, 3, 5, 7, 8, 10]);
   });
 
-  it('a turned key rotates its ring and keeps entry 0 identifiable', () => {
-    const v = cellView(r, 'key', with_({ key: 3 }), false)!;
-    expect(v.segments[0]).toMatchObject({ index: 9 }); // entry 9 → position 12 ≡ 0
-    expect(v.segments.find((s) => s.index === 0)!.t0).toBeCloseTo(3 / 12);
+  it('the ring turns: the entry now first sits under the marker, its taps ride it (pattern) or stay (equal)', () => {
+    // turned one: the same seven notes, the next one on top — its steps from there
+    const rotated = cellView(r, 'scale', with_({ scale: 1 }), false)!;
+    expect(rotated.segments.find((s) => s.index === 0)!.at).toBeCloseTo(0);
+    expect(rotated.taps!.map((t) => Math.round(t * 12))).toEqual([0, 1, 3, 5, 6, 8, 10]);
+    const key = cellView(r, 'key', with_({ key: 3 }), false)!;
+    expect(key.segments[0]).toMatchObject({ index: 0 });
+    expect(key.taps!.map((t) => Math.round(t * 12))).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]);
+    const equal = compileSource('&key shift=2\n&mode over=&key scan(2 2 1 2 2 2 1) shift=1 show=equal\n&lead over=&mode 0 2 4');
+    expect(cellView(equal, 'mode', codeShifts(equal), false)!.taps).toEqual([0, 1, 2, 3, 4, 5, 6].map((j) => j / 7));
+  });
+
+  it('a mode’s hub: the key’s 12 coming in as the key pushes them, the 7 it takes lit, each wired to its entry', () => {
+    const b = compileSource('&key shift=2\n&mode over=&key scan(2 2 1 2 2 2 1) shift=1');
+    const v = cellView(b, 'mode', codeShifts(b), false)!;
+    const hub = v.hub!;
+    expect(hub.slots).toHaveLength(12);
+    expect(hub.slots.map((sl) => sl.held)).toEqual([true, false, true, false, true, true, false, true, false, true, false, true]);
+    // (slot 0 is the key's first, D; the mode's first, E — the key's slot 2 — is under the marker)
+    const hue = (f: { kind: string; hue?: number }) => (f.kind === 'pitch' ? f.hue : null);
+    expect(hue(hub.slots[0].fill)).toBe(60);
+    expect(hub.slots[2].t0 + hub.slots[2].t1).toBeCloseTo(0);
+    expect(hub.gears.map((g) => hue(g.fill))).toEqual([4, 6, 7, 9, 11, 1, 2].map((p) => p * 30));
+    expect(hub.gears.every((g, j) => Math.abs(g.to - v.taps![j]) < 1e-9 && Math.abs(((g.from - g.to + 1.5) % 1) - 0.5) < 1e-9)).toBe(true);
+    // a key of all twelve takes every slot: no hub to show
+    expect(cellView(b, 'key', codeShifts(b), false)!.hub).toBeUndefined();
   });
 
   it('agogic time cells show bent beats with the downbeat marked', () => {
@@ -160,9 +180,21 @@ describe('a turn eases from where the wheel was', () => {
       }
     });
   }
-  it('a table’s entries stay where they are as it turns (only its hub changes)', () => {
-    const r = compileSource(PRESETS.royal.source);
-    const at = (n: number) => cellView(r, 'key', (x) => (x === 'key' ? n : codeShifts(r)(x)), false)!;
-    for (let k = 0; k < 24; k++) expect(colourAt(at(1), (k + 0.5) / 24)).toBe(colourAt(at(0), (k + 0.5) / 24));
-  });
+  for (const [cell, delta] of [
+    ['key', 1],
+    ['key', -2],
+    ['scale', 1],
+  ] as const)
+    it(`a table turns as a braid does: royal &${cell} turned ${delta}, turned back by the start angle, is the old one`, () => {
+      const r = compileSource(PRESETS.royal.source);
+      const at = (n: number) => cellView(r, cell, (x) => (x === cell ? n : codeShifts(r)(x)), false)!;
+      const old = at(0);
+      const k = ((delta % old.detents) + old.detents) % old.detents;
+      const first = old.segments.find((sg) => sg.index === k)!.at!;
+      const turn = delta > 0 ? first : first - 1;
+      for (let i = 0; i < 48; i++) {
+        const t = (i + 0.5) / 48;
+        expect(colourAt(at(delta), t - turn), `at ${t}`).toBe(colourAt(old, t));
+      }
+    });
 });

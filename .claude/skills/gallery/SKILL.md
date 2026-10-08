@@ -48,7 +48,7 @@ bend. To change how an edge looks, change `edges.css` or the component and re-ru
 ## The golden graph
 `tools/gallery/golden/golden.cells` is a piece like any other — Cells code, nothing else — given to the real `Graph` and
 laid out by the app as it lays out any piece: `node tools/gallery.mjs golden` takes one picture stopped and one at 3 s
-(`?t=`), 5616 × 3038 px each. `node tools/gallery.mjs golden 3 canon pertonos` draws those examples instead, each in the real Graph (stopped and live): a before / after of a drawing change on the pieces it touches. So it tests the graph's structure (what the engine makes of the code) and its layout (what
+(`?t=`), 5616 × 3038 px each. `node tools/gallery.mjs golden 3 canon pertonos` draws those examples instead, each in the real Graph (stopped and live): a before / after of a drawing change on the pieces it touches; `CELLS=piece.cells node tools/gallery.mjs golden` draws a source of your own. So it tests the graph's structure (what the engine makes of the code) and its layout (what
 the physics makes of the graph) at once, and there is no layout of its own to keep up: no placer, no pins.
 
 It is a **spanning set**, not every combination: `facets.ts` reads each wheel and edge as dimensions — a wheel's place
@@ -69,7 +69,7 @@ nothing draws an edge to (the sun floats off), crowding, which row each kind of 
 ## Wheels
 `tools/gallery/wheels/`. **Fast** mounts every kind of wheel directly, as the graph mounts it (`src/ui/flownode.ts`),
 in its piece's live state at a moment (`liveAt`) with a made-up sound (`tools/gallery/sound.ts`), each at a ladder of
-sizes (44, 64, 96 and its own) beside its sheet; plus the library's piece wheels and the braid's token wheel. Use it
+sizes (44, 64, 96 and its own) beside its sheet; plus the library's piece wheels (a cell's sheet draws its graph wheel). Use it
 while iterating, and for anything about size. The spectra show the made-up sound, not the piece's.
 
 **Real** (`node tools/gallery.mjs wheels`, ~2 min, needs `npm run build`) opens and plays every piece (or the ones

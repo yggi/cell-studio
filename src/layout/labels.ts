@@ -3,7 +3,7 @@
  * now (a key that turns renames itself), and light formatting:
  *
  *   {notes}  the notes of a table or scale (C D E F G A B), or of a melody
- *   {tonic}  its first note          {mode}   its mode (Ionian … , or major/minor)
+ *   {tonic}  its first note          {mode}   its mode, bold: **Dorian**, **Minor** (*Aeolian*)
  *   {steps}  how many steps          {tempo}  beats a minute (a meter's beats: beat=, meter(…))
  *   {shift}  how far it is turned    {name}   &name
  *   {&key:tonic}  a field of another cell (for notes, which have none of their own)
@@ -46,8 +46,10 @@ export function fieldsOf(result: CompileResult, name: string, shifts: Shifts, ne
       const names = pitches.map((p) => NAMES[mod(Math.round(p), 12)]);
       out.notes = (pitches.length > 16 ? [...names.slice(0, 16), '…'] : names).join(' ');
       out.tonic = names[0];
+      // (the two with a common name say it first: **Minor** (*Aeolian*), **Major** (*Ionian*))
       const m = table ? modeName(pitches) : null;
-      out.mode = m;
+      const common: Record<string, string> = { Aeolian: 'Minor', Ionian: 'Major' };
+      out.mode = m && (common[m] ? `**${common[m]}** (*${m}*)` : `**${m}**`);
     }
   } catch {
     /* not resolvable: no note fields */
@@ -62,6 +64,8 @@ const escape = (t: string) => t.replace(/&/g, '&amp;').replace(/</g, '&lt;').rep
  * any formatting is applied). Unknown fields stay as written.
  */
 export function formatLabel(result: CompileResult, name: string, template: string, shifts: Shifts): string {
+  // ({mode} is bold already: a **{mode}** written round it, as labels used to, is the same)
+  template = template.replace(/\*\*(\{(?:&[A-Za-z_][A-Za-z0-9_]*:)?mode\})\*\*/g, '$1');
   const need = new Set([...template.matchAll(/\{(?:&[A-Za-z_][A-Za-z0-9_]*:)?([a-z]+)\}/g)].map((m) => m[1]));
   const own = fieldsOf(result, name, shifts, need);
   const filled = template.replace(/\{(?:&([A-Za-z_][A-Za-z0-9_]*):)?([a-z]+)\}/g, (whole, cell: string | undefined, field: string) => {
