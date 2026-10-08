@@ -4,6 +4,7 @@
    * plugged in shows as "Not connected". The pattern is Jambot's SoundPanel (yggi/jambot apps/web/src/components/SoundPanel.svelte @ 8cdb6b8).
    */
   import Dialog from './kit/Dialog.svelte';
+  import LearnSettings from './LearnSettings.svelte';
   import type { Midi } from './state/midi.svelte';
 
   let { midi, onclose }: { midi: Midi; onclose: () => void } = $props();
@@ -35,6 +36,7 @@
         {#if absent(midi.ports.inputs, midi.inPortId)}<option value={midi.inPortId}>Not connected</option>{/if}
       </select>
     </label>
+    <LearnSettings />
   {/if}
   <div class="buttons">
     {#if midi.access}
