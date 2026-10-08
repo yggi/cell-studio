@@ -17,7 +17,7 @@
   --code-bg: #1a1d25;
   --scrim: rgb(10 12 24 / 0.45);
   --line: #3b404f;
-  --edge: #5f6576;
+  --edge: #5f6576; /* an edge at rest; its hue is the palette's neutral (theme.ts LEVEL) */
 
   /* ink */
   --text: #f1ece2;
@@ -30,7 +30,8 @@
   /* accent: gold, the warmest of the rainbow's hues, for what you act on */
   --accent: #f4c04e;
   --accent-ink: #2a2112;
-  /* meters (#27): the ring a cell wears for the meter that steps it, one colour each (the first: the accent) */
+  /* meters (#27): the ring a cell wears for the meter that steps it, one colour each (the first: the accent); and the
+     palette's sync levels (ui/palette.ts, #34): a tick on the bar's first --meter-0, a beat --meter-1, finer 2 … 3 */
   --meter-0: var(--accent);
   --meter-1: #6fd3c4;
   --meter-2: #c49af0;

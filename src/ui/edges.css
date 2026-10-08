@@ -14,13 +14,12 @@
   stroke-linecap: round;
   transition: stroke-opacity 140ms ease;
 }
+/* (a live edge wears its value's colour, ui/palette.ts, which PulseEdge sets on it: no kind has a colour of its own) */
 .graph .svelte-flow__edge-path.edge-live {
-  stroke: var(--accent);
   stroke-width: 5;
 }
-/* by band (docs/notes/nets.md): a clock's ticks dotted, in the meter's colour; sound a wave, a little finer; values solid */
+/* by band (docs/notes/nets.md): a clock's ticks dotted; sound a wave, a little finer; values solid */
 .graph .band-sync .svelte-flow__edge-path {
-  stroke: color-mix(in oklab, var(--meter-0) 70%, var(--edge));
   stroke-width: 3;
   stroke-dasharray: 0.5 8;
 }
@@ -48,9 +47,8 @@
 .graph .svelte-flow__edge-path.edge-off {
   stroke-opacity: 0.2;
 }
-/* a note's links (about=): fine dots from the note to what it explains; never routed, never live */
+/* a note's links (about=): fine dots from the note to what it explains; never routed, never live, so never coloured */
 .graph .edge-about .svelte-flow__edge-path {
-  stroke: var(--text-muted, var(--edge));
   stroke-width: 2;
   stroke-dasharray: 1 7;
   stroke-opacity: 0.6;
