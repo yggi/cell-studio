@@ -23,7 +23,7 @@ export interface Bulb {
   readonly net: string | null;
   /** How many times round it goes in its span (`&x!2`, `&x*2`). */
   readonly laps: number;
-  /** What the ref does to it, as written (`+1`, `^7`, `inverse`), or ''. */
+  /** What the ref does to it, as written (`^1`, `^$7`, `inverse`), or ''. */
   readonly label: string;
   /** The splices in its first lap. */
   readonly bulbs: readonly Bulb[];
@@ -33,8 +33,7 @@ const MAX_DEPTH = 6;
 
 /** How a ref changes what it splices, written short: inverse, a degree up or down, a transposition. */
 function refLabel(a: { readonly transpose?: number; readonly values?: { readonly mul: number; readonly add: number } }): string {
-  const sign = (n: number) => (n > 0 ? `+${n}` : String(n));
-  return [a.values && a.values.mul < 0 ? 'inverse' : '', a.values?.add ? sign(a.values.add) : '', a.transpose ? `^${a.transpose}` : ''].filter(Boolean).join(' ');
+  return [a.values && a.values.mul < 0 ? 'inverse' : '', a.values?.add ? `^${a.values.add}` : '', a.transpose ? `^$${a.transpose}` : ''].filter(Boolean).join(' ');
 }
 
 /**

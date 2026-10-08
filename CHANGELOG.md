@@ -11,6 +11,7 @@ that makes the change. Also note changes to the language that could affect saved
 ## Unreleased
 
 ### Changed
+- `&x^n` moves a reference by degrees, n steps of the table it is read through (as `degree(&x, n)`); `&x^$n` transposes it by n grid steps, as `^n` did (#179, [decision 015](docs/decisions/015-caret-is-degrees.md)). The examples are rewritten and play the same notes. **Saved pieces:** a piece that wrote `&x^n` meaning grid steps plays the same over the 12 but moves by degrees over a scale: write `&x^$n` to keep its notes.
 - A label's `{mode}` is bold and gives the common name first: **Minor** (*Aeolian*), **Major** (*Ionian*), **Dorian**; the examples drop their own `**…**` round it. A wheel whose hub shows what comes in shows just its count there. Saved pieces are not affected: a label that wrote `**{mode}**` reads as `{mode}`.
 - A pick reads its cell as it is turned: `&key[0]` with `&key shift=2` is D (a fixed tap on a turning wheel), and it follows a key that steps or is turned live; `&key[$0]` is the new form for *as written* (C). Slices too: `&x[1:3]`, `&x[$1:3]` (#10). **Saved pieces:** a pick from a cell with a `shift=` (or a stepped one, read in another cell's braid) now plays the turned entry; write `[$…]` to keep the old notes. No example's sound changes.
 
