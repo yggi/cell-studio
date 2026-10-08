@@ -32,6 +32,8 @@ export interface PhysNode extends SimulationNodeDatum {
   heavy?: boolean;
   /** Its mass (weights.ts): how much it holds its place and its room. */
   mass?: number;
+  /** How far its loom reaches round it (looms.ts), px: part of its room, and of each of its springs' length. */
+  loom?: number;
   /** A product's junction (junctions.ts): the voice whose rim it is set on. */
   rides?: string;
 }

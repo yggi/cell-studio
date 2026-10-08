@@ -84,7 +84,7 @@ src/ui/free.ts           a free() value's name, step, text (pure, tested); used 
 ```
 
 - **App.svelte** creates the four objects, provides them through `createContext`, wires the `Player` and does the layout. That's about 120 lines of script and its CSS.
-- **Transport, Picker, FreePanel and Editor** read what they need from the context, not from 15–20 props each. Callbacks stay props where a component really is reusable: `Keypad`, `TokenWheel`, `EditPop`.
+- **Transport, Picker, FreePanel and Editor** read what they need from the context, not from 15–20 props each. Callbacks stay props where a component really is reusable: `Keypad`, `CellGlyph` (the sheet's `onpick`, `onhub`; `TokenWheel` is gone), `EditPop`.
 - **GraphContext** keeps its shape, which is a good one. Its parts:
   - `program`/`shifts`/`muted`/`routed`/`live` come from `Piece` and the live view.
   - `sound` is passed as the `LiveSource` object itself, not as twelve forwarding arrows. `GraphContext` would *have* a `sound` rather than *be* one. That's a mechanical rename at the call sites (`ctx.tapePos` → `ctx.sound.tapePos`).
