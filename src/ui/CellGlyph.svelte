@@ -232,7 +232,8 @@
   // second line from 80 px up
   const hubWidth = $derived(2 * (view.hub ? hubRing.r0 : geo.rHub) * 0.86);
   const bigFont = $derived(fitFont(hubWidth, label.big.length, hubMax(size)));
-  const smallFont = $derived(size >= 80 && label.small ? fitFont(hubWidth, label.small.length, 11, 7) : null);
+  // (a hub with its ring has room for the count alone)
+  const smallFont = $derived(size >= 80 && label.small && !view.hub ? fitFont(hubWidth, label.small.length, 11, 7) : null);
 
   // an accidental is striped: its own colour and the natural's (a semitone back for a sharp)
   const uid = `g${++glyphs}`;
