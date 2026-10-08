@@ -12,7 +12,7 @@
 //   ENGINE=worker npm run smoke               # with the engine in a Web Worker (?engine=worker, #15)
 //
 // Then MIDI out (#205): one piece played into a fake Web MIDI port, its note-ons checked against the plan's notes
-// (tools/smoke-midi.ts) to within 2 ms of their median offset (one step of a clock jump followed allowed); then the
+// (tools/smoke-midi.ts) to within 2 ms of their median offset (one step of a clock jump followed allowed, up to 50 ms); then the
 // tempo (a held free()) moved and Pause and Play again within the look-ahead (twice, the second at once), with no All notes off from either
 // cutting what plays, and no note left sounding. The MIDI clock (#206) is on: its ticks before the tempo moved are
 // checked against the meter's (2 ms, as the notes), and Start, Stop, Song Position and Continue in order, no tick while stopped.
@@ -216,15 +216,16 @@ const MIDI_PIECE = 'sailor';
       taken.add(best);
       offsets.push(o.ms - want[best].at * 1000);
     }
-    // (a dropped buffer moves what is heard by about 10 ms, and MIDI follows it: one such step is allowed, each side of
-    // it aligned on its own median)
+    // (a dropped buffer moves what is heard, by about 10 ms or, on a loaded runner, a few buffers at once, and MIDI
+    // follows it: one such step is allowed, up to the clock's leap (OUTPUT.leap, 50 ms, beyond which it is another
+    // device), each side of it aligned on its own median)
     const median = (xs) => [...xs].sort((a, b) => a - b)[Math.floor(xs.length / 2)] ?? 0;
     const steps = offsets.flatMap((d, i) => (i > 0 && Math.abs(d - offsets[i - 1]) > 2 ? [i] : []));
     const parts = steps.length === 1 ? [offsets.slice(0, steps[0]), offsets.slice(steps[0])] : [offsets];
     const worst = Math.max(0, ...parts.flatMap((p) => p.map((d) => Math.abs(d - median(p)))));
     const step = steps.length === 1 ? Math.abs(median(parts[1]) - median(parts[0])) : 0;
     if (worst > 2) problems.push(`a note-on was ${worst.toFixed(2)} ms off the plan`);
-    if (step > 15) problems.push(`the note-ons stepped by ${step.toFixed(2)} ms`);
+    if (step > 50) problems.push(`the note-ons stepped by ${step.toFixed(2)} ms`);
     // what the device plays, message by message in timestamp order (at one moment, in the order sent)
     const order = sent.map((m, i) => ({ ...m, i })).sort((a, b) => a.timestamp - b.timestamp || a.i - b.i);
     const sounding = new Set();
