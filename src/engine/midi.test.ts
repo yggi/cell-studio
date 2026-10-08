@@ -55,6 +55,7 @@ describe('bends', () => {
     expect(bendValue(100)).toBe(12288);
     expect(bendValue(100, 48)).toBe(Math.round(8192 + 8192 / 48));
     expect(bendValue(5000)).toBe(16383);
+    expect([bendValue(NaN), bendValue(Infinity)]).toEqual([BEND_CENTRE, BEND_CENTRE]);
   });
 
   it('a 12-EDO note starts on the centre and sends no bend; a microtonal one starts on its cents', () => {
@@ -137,6 +138,13 @@ describe('kits: General MIDI drum notes by name', () => {
       ['beat', 39],
       ['sub', 40],
     ]);
+  });
+
+  it('gives no note past 127: a member beyond it has none, and is not sent', () => {
+    const names = Array.from({ length: 100 }, (_, i) => `x${String.fromCharCode(97 + (i % 26))}${Math.floor(i / 26)}y`);
+    const notes = kitNotes(names);
+    expect(notes.size).toBe(128 - 36);
+    expect(Math.max(...notes.values())).toBe(127);
   });
 });
 

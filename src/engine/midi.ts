@@ -28,6 +28,7 @@ export function noteOf(freq: number, a4 = 440): { note: number; cents: number } 
 
 /** Cents of bend as a 14-bit pitch-bend value (0 … 16383, 8192 the centre) on a synth bending `range` semitones each way. */
 export function bendValue(cents: number, range = DEFAULT_BEND_RANGE): number {
+  if (!Number.isFinite(cents)) return BEND_CENTRE;
   const v = Math.round(BEND_CENTRE + (cents / (100 * range)) * BEND_CENTRE);
   return Math.max(0, Math.min(16383, v));
 }
@@ -81,7 +82,7 @@ export function gmDrumNote(name: string): number | null {
 
 /**
  * Each kit member's drum note: by its name where General MIDI has one (`gmDrumNote`), else the next note from 36
- * that no other member has.
+ * that no other member has, up to 127 (a member past that has none, and isn't sent).
  */
 export function kitNotes(members: readonly string[]): Map<string, number> {
   const out = new Map<string, number>();
@@ -93,7 +94,8 @@ export function kitNotes(members: readonly string[]): Map<string, number> {
   let next = 36;
   for (const m of members) {
     if (out.has(m)) continue;
-    while (taken.has(next)) next++;
+    while (next <= 127 && taken.has(next)) next++;
+    if (next > 127) break;
     out.set(m, next);
     taken.add(next);
   }

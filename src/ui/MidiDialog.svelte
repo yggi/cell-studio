@@ -15,6 +15,12 @@
   const CHANNELS = Array.from({ length: 16 }, (_, i) => i + 1);
   const preset = $derived(presetNameOf(midi.drums));
   const num = (e: Event) => Number((e.currentTarget as HTMLInputElement).value);
+  // a number typed, set (the setter clamps it), and the field showing what was kept: a value clamped to the one already
+  // there changes no state, so nothing would redraw the field
+  const typed = (e: Event, set: (n: number) => void, kept: () => number) => {
+    set(num(e));
+    (e.currentTarget as HTMLInputElement).value = String(kept());
+  };
 </script>
 
 <Dialog label="MIDI" {onclose} width={420}>
@@ -89,7 +95,12 @@
                     max="127"
                     aria-label="Note of {k.member}"
                     value={deviceNote(midi.drums, k.note)}
-                    onchange={(e) => midi.setDrumNote(k.note, num(e))}
+                    onchange={(e) =>
+                      typed(
+                        e,
+                        (n) => midi.setDrumNote(k.note, n),
+                        () => deviceNote(midi.drums, k.note),
+                      )}
                   />
                 </td>
               </tr>
@@ -98,7 +109,18 @@
         </table>
       {/if}
       <label class="inline">
-        Bend range ± <input type="number" min="1" max="96" value={midi.bendRange} onchange={(e) => (midi.bendRange = num(e))} /> semitones
+        Bend range ± <input
+          type="number"
+          min="1"
+          max="96"
+          value={midi.bendRange}
+          onchange={(e) =>
+            typed(
+              e,
+              (n) => (midi.bendRange = n),
+              () => midi.bendRange,
+            )}
+        /> semitones
       </label>
       <label class="check">
         <input type="checkbox" checked={midi.rotate !== null} onchange={(e) => (midi.rotate = e.currentTarget.checked ? { from: 2, to: 16 } : null)} />
@@ -112,9 +134,27 @@
             max="16"
             aria-label="First channel"
             value={midi.rotate.from}
-            onchange={(e) => (midi.rotate = { from: num(e), to: midi.rotate!.to })}
+            onchange={(e) =>
+              typed(
+                e,
+                (n) => (midi.rotate = { from: n, to: midi.rotate!.to }),
+                () => midi.rotate!.from,
+              )}
           />
-          to <input type="number" min="1" max="16" aria-label="Last channel" value={midi.rotate.to} onchange={(e) => (midi.rotate = { from: midi.rotate!.from, to: num(e) })} />
+          to
+          <input
+            type="number"
+            min="1"
+            max="16"
+            aria-label="Last channel"
+            value={midi.rotate.to}
+            onchange={(e) =>
+              typed(
+                e,
+                (n) => (midi.rotate = { from: midi.rotate!.from, to: n }),
+                () => midi.rotate!.to,
+              )}
+          />
         </label>
       {/if}
       {#if midi.warning}<p class="message warning" role="status">{midi.warning}</p>{/if}

@@ -44,6 +44,8 @@ const numbers = (v: unknown, lo: number, hi: number): Record<string, number> =>
   isRecord(v) ? Object.fromEntries(Object.entries(v).filter((e): e is [string, number] => Number.isInteger(e[1]) && (e[1] as number) >= lo && (e[1] as number) <= hi)) : {};
 const nested = (v: unknown, lo: number, hi: number): Record<string, Numbers> => (isRecord(v) ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, numbers(x, lo, hi)])) : {});
 const channel = (v: unknown, fallback: number) => (Number.isInteger(v) && (v as number) >= 1 && (v as number) <= 16 ? (v as number) : fallback);
+/** A number typed into a field, rounded into lo … hi (not a number: `fallback`). */
+const clamped = (v: number, lo: number, hi: number, fallback: number) => (Number.isFinite(v) ? Math.max(lo, Math.min(hi, Math.round(v))) : fallback);
 
 /** What this browser kept, merged over the defaults (nothing kept, junk, or no storage: the defaults). */
 function load(): Stored {
@@ -208,8 +210,7 @@ export class Midi implements ChosenPorts, NoteSink {
     return this.#bendRange;
   }
   set bendRange(semitones: number) {
-    if (!(semitones >= 1 && semitones <= 96)) return;
-    this.#bendRange = Math.round(semitones);
+    this.#bendRange = clamped(semitones, 1, 96, this.#bendRange);
     this.#save();
   }
 
@@ -218,7 +219,7 @@ export class Midi implements ChosenPorts, NoteSink {
     return this.#rotate;
   }
   set rotate(range: Stored['rotate']) {
-    this.#rotate = range && { from: channel(range.from, 2), to: channel(range.to, 16) };
+    this.#rotate = range && { from: clamped(range.from, 1, 16, 2), to: clamped(range.to, 1, 16, 16) };
     this.warning = null;
     this.#save();
   }
@@ -226,7 +227,7 @@ export class Midi implements ChosenPorts, NoteSink {
   /** Put a voice of the open piece on a channel, kept for that piece in this browser. */
   setChannel(voice: string, ch: number): void {
     const title = this.#piece?.title ?? '';
-    this.#channels = { ...this.#channels, [title]: { ...this.#channels[title], [voice]: channel(ch, 1) } };
+    this.#channels = { ...this.#channels, [title]: { ...this.#channels[title], [voice]: clamped(ch, 1, 16, 1) } };
     this.#save();
   }
 
@@ -241,7 +242,7 @@ export class Midi implements ChosenPorts, NoteSink {
 
   /** Send a General MIDI drum note as another, on this output. */
   setDrumNote(gm: number, note: number): void {
-    if (Number.isInteger(note) && note >= 0 && note <= 127) this.drums = { ...this.drums, [gm]: note };
+    if (Number.isFinite(note)) this.drums = { ...this.drums, [gm]: clamped(note, 0, 127, 0) };
   }
 
   /** A window's notes from the player (NoteSink): sent to the output, timestamped for when they're heard. */

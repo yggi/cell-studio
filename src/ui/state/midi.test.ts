@@ -206,6 +206,22 @@ describe('Midi: MIDI out', () => {
   }
   const note = (voice: string, at: number, output?: string): Played => ({ at, dur: 0.2, voice, freq: 220, bends: [], gains: [1, 1], levels: [], output });
 
+  it('clamps a bend range, a channel and a drum note typed out of range, rather than ignoring them', async () => {
+    const { midi } = await tapped();
+    midi.bendRange = 200;
+    expect(midi.bendRange).toBe(96);
+    midi.bendRange = 0;
+    expect(midi.bendRange).toBe(1);
+    midi.bendRange = NaN;
+    expect(midi.bendRange).toBe(1);
+    midi.rotate = { from: 0, to: 40 };
+    expect(midi.rotate).toEqual({ from: 1, to: 16 });
+    midi.setChannel('bass', 20);
+    expect(midi.table!.voices.find((v) => v.voice === 'bass')!.channel).toBe(16);
+    midi.setDrumNote(38, 300);
+    expect(midi.drums[38]).toBe(127);
+  });
+
   it('taps the player: its sink, and its sound follows the internal-sound switch, kept', async () => {
     const { midi, player } = await tapped();
     expect(player.sink).toBe(midi);
