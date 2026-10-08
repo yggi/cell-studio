@@ -24,6 +24,7 @@
   import { pitchHue } from '../theory/modes';
   import { pickIndices } from '../engine/program';
   import { tapRadius } from '../layout/wheel';
+  import { STRAND_GAP } from '../layout/looms';
   import type { Pick } from '../engine/ast';
 
   let { id: edgeId, sourceX, sourceY, targetX, targetY, data, label, markerEnd, style }: EdgeProps = $props();
@@ -76,7 +77,7 @@
   });
 
   // (between a bus's strands)
-  const GAP = 4;
+  const GAP = STRAND_GAP;
   // a loom round the source: the part this edge draws (its ring above every run, its run with the rest; whole if not split)
   const ringOnly = $derived(d.part === 'ring');
   const looming = (parts: { ring: string; run: string }[]) => parts.map((p) => (d.part === 'ring' ? p.ring : d.part === 'run' ? p.run : `${p.ring} L${p.run.slice(1)}`));

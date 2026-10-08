@@ -11,6 +11,7 @@ import type { LiveState } from '../engine/live';
 import { physicsOf } from '../engine/clocking';
 import { pulleys } from '../layout/belts';
 import { groundsOf, meterIndex } from '../layout/meters';
+import { loomBands } from '../layout/looms';
 import type { MeterTrace } from '../layout/state';
 import type { GraphSnapshot } from './snapshot';
 
@@ -130,43 +131,6 @@ export function meterEdgeOf(t: MeterTrace, index: number): Edge {
   return { id: t.id, source: t.a, target: t.b, type: 'meter', zIndex: -1, selectable: false, focusable: false, data: { meter: index, name: nameOf(t.meter) } };
 }
 
-/** The strands a bus takes round its source's loom: a table's entries (12 at most), a ref's picks, a resonator's tines. */
-function strandsOf(e: GraphEdge, program: CompileResult): number {
-  if (e.port === 'over') return tinesOf(e, program)?.length ?? (e.width >= 2 ? Math.min(12, e.width) : 0);
-  if (e.port !== 'braid') return 0;
-  const picks = e.transforms.flatMap((t) => t.flatMap((st) => (st.kind === 'pick' && !st.pick.abs ? [st.pick] : [])));
-  return picks.length >= 2 ? picks.length : 0;
-}
-
-/**
- * Each bus's band of tracks round its source's wheel (in tracks, from the inside): one loom per wheel, the larger buses
- * inside, so that two leave it on rings of their own. A table read by several leaves it once (its net: the others come on
- * from a reader), so its edges share a band.
- */
-function loomRings(s: GraphSnapshot): Map<string, number> {
-  const netOf = new Map(s.model.nets.flatMap((n) => n.taps.map((id) => [id, n.id] as const)));
-  const groups = new Map<string, Map<string, { n: number; ids: string[] }>>();
-  for (const e of s.model.edges) {
-    const n = strandsOf(e, s.program);
-    if (!n) continue;
-    const bySource = groups.get(e.from) ?? new Map<string, { n: number; ids: string[] }>();
-    groups.set(e.from, bySource);
-    const key = netOf.get(e.id) ?? e.id;
-    const g = bySource.get(key) ?? { n, ids: [] };
-    g.ids.push(e.id);
-    bySource.set(key, g);
-  }
-  const out = new Map<string, number>();
-  for (const bySource of groups.values()) {
-    let inner = 0;
-    for (const g of [...bySource.values()].sort((a, b) => b.n - a.n)) {
-      for (const id of g.ids) out.set(id, inner);
-      inner += g.n + 1;
-    }
-  }
-  return out;
-}
-
 /** What the edges are drawn with besides the snapshot: the wheels' sizes, the meters' nets as laid, and whether (and what) plays. */
 export interface EdgeScene {
   /** A node's size (px), as the flow draws it; undefined: not drawn. */
@@ -189,7 +153,7 @@ export function flowEdgesOf(s: GraphSnapshot, scene: EdgeScene): Edge[] {
   const live = scene.playing ? NO_LIVE : null;
   // each edge's place in a net (a table read by several: one trunk, a branch to each reader)
   const netPlaces = new Map(model.nets.flatMap((n) => n.taps.map((id) => [id, { id: n.id }] as const)));
-  const rings = loomRings(s);
+  const rings = loomBands(model).inner;
   const grounds = groundsOf(model);
   const index = meterIndex(model);
   const toFlowEdge = (e: GraphEdge): Edge => {

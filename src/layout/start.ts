@@ -9,6 +9,7 @@ import { fitTurns, tapeFaces } from './aims';
 import { layered } from './layered';
 import { massOf } from './weights';
 import type { LayoutState, PhysLink, PhysNode } from './state';
+import { loomReach } from './looms';
 
 /**
  * Starting x order for a fresh graph, layer by layer (a layer = a depth): each
@@ -308,6 +309,9 @@ export function startNodes(
   const next = new Map<string, PhysNode>();
   let added = 0;
   const owners = new Set((model.nets ?? []).map((net) => net.owner));
+  // (a wheel's room takes its loom: the buses round it, and a straight run out of it before the next wheel's)
+  const looms = loomReach(model);
+  const roomOf = (n: GraphModel['nodes'][number]) => s.opts.radius(n) + (looms.get(n.id) ?? 0);
   model.nodes.forEach((n) => {
     let p = fresh ? undefined : s.byId.get(n.id);
     if (!p) {
@@ -330,10 +334,10 @@ export function startNodes(
         y = 0;
       }
       // (a little jitter, even from a home in the layers: exactly in line, an edge would run straight through a node)
-      p = { id: n.id, depth: n.depth, radius: s.opts.radius(n), x: x + jitter(n.id, 1 + 2 * s.opts.seed), y: y + jitter(n.id, 2 + 2 * s.opts.seed) };
+      p = { id: n.id, depth: n.depth, radius: roomOf(n), x: x + jitter(n.id, 1 + 2 * s.opts.seed), y: y + jitter(n.id, 2 + 2 * s.opts.seed) };
     }
     p.depth = n.depth;
-    p.radius = s.opts.radius(n);
+    p.radius = roomOf(n);
     const cell = (n as { cell?: { mix?: unknown; sink?: boolean; note?: boolean; tags?: readonly string[] } }).cell;
     p.role = (n as { isMeter?: boolean }).isMeter ? 'clock' : n.kind === 'voice' || cell?.mix || cell?.sink ? 'audio' : 'cell';
     p.group = cell?.note ? undefined : cell?.tags?.[0];
