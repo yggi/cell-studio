@@ -104,9 +104,10 @@ export class Playback {
 
   /** To another place in time: playing, on from there; else paused there. */
   async seek(to: number): Promise<void> {
+    const from = this.cursor;
     this.cursor = to;
     this.#endedAt = null;
-    if (!this.playing) return this.player.touch();
+    if (!this.playing) return this.player.scroll(from, to, false);
     this.player.pause();
     await this.player.start(to);
   }
@@ -114,9 +115,10 @@ export class Playback {
   /** Not playing: a turntable turned by hand moves where play starts (a stopped transport is paused from then on). */
   nudge(seconds: number): void {
     if (this.playing) return;
+    const from = this.cursor;
     this.cursor = Math.max(0, Math.min(this.span ?? Infinity, this.cursor + seconds));
     this.#endedAt = null;
-    this.player.touch();
+    this.player.scroll(from, this.cursor, true);
   }
 
   /**
