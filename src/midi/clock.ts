@@ -15,7 +15,9 @@
  * toward it by at most `slew` a sample (clocks drift apart by some parts per million). A clock can also jump: an
  * output that drops a buffer loses 10 ms at once. When `confirm` samples in a row disagree with the one trusted and
  * agree with each other, the clocks jumped: the samples before are dropped and the offset follows at once (a single
- * blip is dropped). A jump no wider than the samples' bounds is not told from drift, and is slewed.
+ * blip is dropped). A jump no wider than the samples' bounds is not told from drift, and is slewed. A leap wider than
+ * `leap` is no blip (another output device, a context suspended and resumed: tens of milliseconds to seconds) and is
+ * followed from its first sample, so the pictures and the MIDI timestamps don't wait three readings for it.
  */
 
 /** How a pair of clocks is estimated. */
@@ -30,6 +32,8 @@ interface PairConfig {
   readonly jumped: number;
   /** How many samples in a row it takes to say the clocks jumped. */
   readonly confirm: number;
+  /** How far, in seconds, a sample may miss the trusted one before it is followed at once, unconfirmed. */
+  readonly leap: number;
 }
 
 /** A sample of a pair's offset: it lies within `bound` of `offset`, both in seconds. */
@@ -68,15 +72,17 @@ const estimateOf = ({ samples, offset, jumps }: PairCarried): PairEstimate => ({
 
 /** The estimator of a pair of clocks, from samples of their offset: a step from what it carried and one sample. */
 function clockPair(config: PairConfig) {
-  const { window, ready, slew, jumped, confirm } = config;
+  const { window, ready, slew, jumped, confirm, leap } = config;
   const initial: PairCarried = { samples: [], offset: null, doubts: [], jumps: 0 };
   const advance = (carried: PairCarried, sample: Sample): { carried: PairCarried; output: PairEstimate } => {
     if (!(sample.bound >= 0)) return { carried, output: estimateOf(carried) };
     const trusted = trustedOf(carried.samples);
     const withDoubts = carried.doubts.every((d) => agree(sample, d, jumped));
     if (trusted && !agree(sample, trusted, jumped)) {
-      const doubts = withDoubts ? [...carried.doubts, sample] : [sample];
-      if (doubts.length < confirm) {
+      // (a leap is followed from this one sample; a smaller jump waits for `confirm` in a row)
+      const leapt = !agree(sample, trusted, leap);
+      const doubts = withDoubts && !leapt ? [...carried.doubts, sample] : [sample];
+      if (!leapt && doubts.length < confirm) {
         // too few against the rest: held until more say which is right
         const next = { ...carried, doubts };
         return { carried: next, output: estimateOf(next) };
@@ -108,6 +114,8 @@ export const OUTPUT = {
   /** A quarter of a millisecond a reading. */
   slew: 0.00025,
   jumped: 0.001,
+  /** Fifty milliseconds: a dropped buffer (about 10) is confirmed, another device or a resume is followed at once. */
+  leap: 0.05,
   /** The bound of a reading of the pairing. */
   paired: 0.0005,
   /** The bound of a reading of the clock less its latency: a render quantum, at 44.1 kHz. */

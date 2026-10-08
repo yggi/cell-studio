@@ -100,6 +100,14 @@ describe('the output pair: one estimate of the clocks', () => {
     for (const o of out.slice(100 + OUTPUT.confirm - 1)) expect(o).toBeCloseTo(-12 - drop, 9);
   });
 
+  it('follows a leap wider than OUTPUT.leap from its first reading: another device, or a suspend and resume', () => {
+    for (const leap of [0.08, -0.3, 5]) {
+      const out = run((_, i) => (i >= 100 ? -12 + leap : -12));
+      expect(out[99]).toBeCloseTo(-12, 9);
+      for (const o of out.slice(100)) expect(o).toBeCloseTo(-12 + leap, 9);
+    }
+  });
+
   it('follows drift by at most the slew a reading', () => {
     const out = run((t) => -12 + 1e-4 * t, 400);
     for (let i = 2; i < out.length; i++) expect(Math.abs(out[i]! - out[i - 1]!)).toBeLessThanOrEqual(OUTPUT.slew + 1e-12);
