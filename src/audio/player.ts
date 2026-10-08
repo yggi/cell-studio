@@ -8,9 +8,8 @@
  * every shift) and take effect at the next window.
  */
 import { clocking, tapeMotion } from '../engine/clocking';
-import { type Plan } from '../engine/realize';
+import { eventsBetween, type Plan } from '../engine/realize';
 import { isPhysical, retime, type Window } from '../engine/schedule';
-import { eventsBetween } from '../engine/realize';
 import { createVoices, type VoiceBank } from './voices';
 import { transportClock } from './clock.svelte';
 import { transition, type TransportEvent, type TransportState } from './transport';
@@ -80,7 +79,9 @@ export class Player implements LiveSource {
       const [lo, hi] = from < to ? [from, to] : [to, from];
       const scale = Math.min(1.5, Math.max(0.02, took / 1000 / (hi - lo)));
       const start = this.Tone.getContext().currentTime + 0.01;
-      for (const e of eventsBetween(plan, lo, hi, true).slice(0, 32)) {
+      // (at most 32, the ones nearest where the hand started)
+      const passed = eventsBetween(plan, lo, hi, true);
+      for (const e of from < to ? passed.slice(0, 32) : passed.slice(-32)) {
         // (where the hand passes it: forward from the low end, backward from the high)
         const at = start + (from < to ? e.at - lo : hi - e.at) * scale;
         for (const x of retime({ from: e.at, to: e.at, events: [e], tapes: [] }, at, scale).events) this.voices.play(x);
