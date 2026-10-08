@@ -35,6 +35,8 @@ that makes the change. Also note changes to the language that could affect saved
 - *Bell and scale*, *Just intonation*, *Two Tuning Forks* and *Alpha* are pieces now, not basics.
 
 ### Fixed
+- `rung=` accepts 1 to 9999 (a huge number was read as 1e20), and warns on a card without the `tutorial` tag, where it was silently ignored. A piece with `rung=` over 9999 now fails to parse; none of the examples do (#186).
+- A library of tutorial pieces only no longer hangs the layout (not reachable in the app, where examples always exist) (#186).
 - In the live view, a chord of voices in a groove (`[&bd, &hh]`) lights each of its voices while it sounds (before, they stayed dark). Saved `.cells` pieces are not affected.
 - A piece's loop length counts a turning table's turns where they really wrap: IDM: drill loops in 0:30 (its harmony turns twice and back), not 3:30; Canon per tonos in 3:20 (twelve passes, two octaves, home), not 1:40 (six, an octave up). Saved `.cells` pieces are not affected.
 - Switching off a mix or the sound card silences the tape heads that return through it, and a resonator ringing alone in it, as the graph already showed (#165): in *Sound on Tape*, muting `&out` used to leave the heads playing. Nothing changes while everything is on. Saved `.cells` pieces are not affected.
