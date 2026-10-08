@@ -19,6 +19,8 @@
   /**
    * `interactive`: the rim turns the cell (detail sheet). In the graph the whole node just drags.
    * `fine`: draw every step of a long braid; by default one over ~160 segments is drawn coarser (`coarsen`).
+   * The sheet's editing, on the same wheel: `tokens` the steps as written (a label on each), `onpick` a tap on a step
+   * (its written index), `onhub` a tap on the hub.
    */
   let {
     name,
@@ -26,12 +28,18 @@
     size = 128,
     interactive = false,
     fine = false,
+    tokens,
+    onpick,
+    onhub,
   }: {
     name: string;
     isMeter: boolean;
     size?: number;
     interactive?: boolean;
     fine?: boolean;
+    tokens?: readonly string[];
+    onpick?: (index: number) => void;
+    onhub?: () => void;
   } = $props();
   const ctx = getGraphContext();
 
@@ -123,7 +131,7 @@
   const base = $derived(cell ? voiceBase(ctx.program, name) : 261.63);
   const tonic = $derived(cell ? tonicOf(ctx.program, name) : 0);
   const labels = $derived.by(() => {
-    if (!view.show || !names(view.show)) return [];
+    if (tokens?.length || !view.show || !names(view.show)) return [];
     const r = (rInner + rOuter) / 2;
     return view.segments.flatMap((sg) => {
       const n = sg.notes?.[sg.notes.length - 1];
@@ -134,6 +142,24 @@
       if (!text) return [];
       const [x, y] = polar(c, c, r, (sg.t0 + sg.t1) / 2);
       return [{ x, y, text, wide: sg.t1 - sg.t0 }];
+    });
+  });
+  // the sheet: each written step's span on the ring (its segments, as turned), and its token there
+  const units = $derived.by(() => {
+    if (!tokens?.length || (view.mode !== 'braid' && view.mode !== 'grid')) return [];
+    const n = tokens.length;
+    const spans = new Map<number, { t0: number; t1: number }>();
+    for (const sg of view.segments) {
+      const sp = spans.get(sg.index);
+      spans.set(sg.index, sp ? { t0: Math.min(sp.t0, sg.t0), t1: Math.max(sp.t1, sg.t1) } : { t0: sg.t0, t1: sg.t1 });
+    }
+    const r = (rInner + rOuter) / 2;
+    return [...spans].map(([index, sp]) => {
+      const written = mod(index + shownShift, n);
+      const text = tokens[written] ?? '';
+      const [x, y] = polar(c, c, r, (sp.t0 + sp.t1) / 2);
+      const font = Math.max(7, fitFont(Math.min((sp.t1 - sp.t0) * Math.PI * (rInner + rOuter), rOuter - rInner) * 0.9, Math.max(2, text.length), 15, 0) ?? 7);
+      return { written, x, y, text, font, d: ringSegment(c, c, rInner, rOuter, sp.t0, sp.t1) };
     });
   });
   // show=matrix: a selector's barrel — a ring per part, a pin where a step picks it
@@ -462,8 +488,14 @@
     if (!dragging) return;
     e.stopPropagation();
     dragging = false;
+    // a tap on a step, in the sheet: edit it
+    if (travelled < 0.02 && onpick && units.length) {
+      const t = pointerTurn(e);
+      const hit = view.segments.find((x) => mod(t - x.t0, 1) < x.t1 - x.t0);
+      if (hit) onpick(mod(hit.index + shownShift, tokens!.length));
+    }
     // a tap on the root or a 12-tone table jumps straight to that slot
-    if (travelled < 0.02 && view.mode === 'grid' && !isMeter && view.detents === view.ticks) {
+    else if (travelled < 0.02 && view.mode === 'grid' && !isMeter && view.detents === view.ticks) {
       const tapped = Math.round(pointerTurn(e) * view.ticks);
       // (the first entry is under the marker at the top: the slot tapped is that many on)
       const delta = mod(tapped + view.ticks / 2, view.ticks) - view.ticks / 2;
@@ -564,6 +596,9 @@
   {#each beatLabels as l}
     <text class="beat" x={l.x} y={l.y} font-size={Math.max(7, size / 13)}>{l.text}</text>
   {/each}
+  {#each units as u (u.written)}
+    <text class="steplabel token" x={u.x} y={u.y} font-size={u.font}>{u.text}</text>
+  {/each}
   {#each labels as l}
     <text class="steplabel" x={l.x} y={l.y} font-size={Math.max(6, Math.min(11, size / 12, l.wide * size * 1.2))}>{l.text}</text>
   {/each}
@@ -580,6 +615,20 @@
     {#if smallFont}<text class="small" x={c} y={c + (bigFont ?? 0) * 0.1} dy="1.45em" style:font-size="{smallFont}px">{label.small}</text>{/if}
   {/if}
   {#if shownShift !== 0 && size >= 80 && !view.hub}<text class="shift" x={c} y={c - rInner * 0.5}>{shownShift > 0 ? '+' : ''}{shownShift}</text>{/if}
+  {#if onhub}
+    <circle
+      class="hub-button"
+      cx={c}
+      cy={c}
+      r={geo.rHub}
+      role="button"
+      tabindex="0"
+      aria-label="Edit the whole braid"
+      onclick={onhub}
+      onkeydown={(e) => (e.key === 'Enter' || e.key === ' ') && onhub()}
+    />
+    {#if size >= 160}<text class="pen" x={c} y={c + geo.rHub * 0.62}>✎</text>{/if}
+  {/if}
   {#if hand !== null}
     <g class="hand" style="transform: rotate({hand * 360}deg); transform-origin: {c}px {c}px">
       <line class="edge" x1={c} y1={c - geo.hand.r0} x2={c} y2={c - geo.hand.r1} style:stroke-width="{geo.hand.width + 2}px" />
@@ -724,6 +773,21 @@
   .hub {
     fill: var(--wheel-hub);
   }
+  /* the sheet: the hub edits the whole braid */
+  .hub-button {
+    fill: transparent;
+    cursor: pointer;
+    outline: none;
+  }
+  .hub-button:focus-visible {
+    stroke: var(--accent);
+    stroke-width: 2;
+  }
+  .pen {
+    fill: var(--text-muted);
+    font-size: 12px;
+  }
+
   text {
     text-anchor: middle;
     font-family: var(--font-ui);

@@ -7,8 +7,6 @@
 
 /** The hub's edge (the ring's inner radius), as a share of the wheel's size. */
 export const HUB = 0.24;
-/** The border between a ring's segments (in the disc's colour): `BORDER` in coarse.ts, which tapers it on merged segments. */
-export { BORDER } from './coarse';
 
 export interface WheelGeometry {
   /** The centre (x = y). */
