@@ -11,6 +11,9 @@
 //   npm run smoke -- --list                   # which pieces play in full, and what each brings
 //   ENGINE=worker npm run smoke               # with the engine in a Web Worker (?engine=worker, #15)
 //
+// Then MIDI out (#205): one piece played into a fake Web MIDI port, its note-ons checked against the plan's notes
+// (tools/smoke-midi.ts) to within a millisecond, and Stop's All notes off, now and past the look-ahead.
+//
 // Chromium: Playwright's, or CHROME_PATH=/path/to/chrome (CI uses the runner's Chrome). See tools/profile/playwright.mjs.
 import { preview, runnerImport } from 'vite';
 import { chromium } from './profile/playwright.mjs';
@@ -131,6 +134,64 @@ if (only.length === 0 && SWITCH.every((id) => pieces.some((p) => p.id === id))) 
   const ok = problems.length === 0;
   console.log(`${ok ? 'ok  ' : 'FAIL'} switch: ${SWITCH.join(' → ')}${ok ? '' : '\n       ' + [...new Set(problems)].slice(0, 3).join('\n       ')}`);
   if (!ok) failed.push('the piece switch');
+}
+// MIDI out (#205): a fake port that records what is sent, chosen before the page loads (so it connects without a click)
+const MIDI_PIECE = 'sailor';
+{
+  problems = [];
+  const { module: midiPlan } = await runnerImport('./tools/smoke-midi.ts', { configFile: false });
+  const mp = await browser.newPage({ viewport: { width: 1280, height: 800 } });
+  mp.setDefaultTimeout(8000);
+  mp.on('pageerror', (e) => problems.push(`page error: ${e.message}`));
+  mp.on('console', (m) => m.type() === 'error' && problems.push(`console error: ${m.text()}`));
+  await mp.addInitScript(() => {
+    const sent = (window.__midi = []);
+    const out = { id: 'fake-out', name: 'Fake synth', send: (data, timestamp) => sent.push({ data: [...data], timestamp: timestamp ?? performance.now() }) };
+    navigator.requestMIDIAccess = () => Promise.resolve({ inputs: new Map(), outputs: new Map([['fake-out', out]]), onstatechange: null });
+    localStorage.setItem('cell-studio:midi', JSON.stringify({ out: { id: 'fake-out', name: 'Fake synth' }, in: { id: 'none', name: '' } }));
+  });
+  const secs = 3;
+  let note = '';
+  try {
+    await mp.goto(url);
+    await mp.getByRole('radio', { name: 'Cards' }).click();
+    await mp.locator(`button.open[data-id="example:${MIDI_PIECE}"]`).dispatchEvent('click');
+    await mp.waitForTimeout(300);
+    await mp.locator('.transport').getByRole('button', { name: 'Play' }).first().click();
+    await mp.waitForTimeout(secs * 1000);
+    const stoppedAt = await mp.evaluate(() => performance.now());
+    await mp.locator('.transport').getByRole('button', { name: 'Pause' }).first().click();
+    const sent = await mp.evaluate(() => window.__midi);
+    const ons = sent
+      .filter((m) => (m.data[0] & 0xf0) === 0x90)
+      .map((m) => ({ channel: (m.data[0] & 15) + 1, note: m.data[1], ms: m.timestamp }))
+      .sort((a, b) => Math.round(a.ms * 10) - Math.round(b.ms * 10) || a.channel - b.channel || a.note - b.note);
+    const want = midiPlan.expectedNoteOns(MIDI_PIECE, secs + 2);
+    if (ons.length < 8) problems.push(`only ${ons.length} note-ons were sent`);
+    const zero = ons.length ? ons[0].ms - want[0].at * 1000 : 0;
+    let worst = 0;
+    for (const [i, o] of ons.entries()) {
+      const w = want[i];
+      if (!w || w.channel !== o.channel || w.note !== o.note) {
+        problems.push(`note-on ${i}: sent ${o.channel}:${o.note}, the plan has ${w ? `${w.channel}:${w.note}` : 'none'}`);
+        break;
+      }
+      worst = Math.max(worst, Math.abs(o.ms - zero - w.at * 1000));
+    }
+    if (worst > 1) problems.push(`a note-on was ${worst.toFixed(2)} ms off the plan`);
+    // Stop: All notes off at once, and again past what was sent ahead
+    const offs = sent.filter((m) => (m.data[0] & 0xf0) === 0xb0 && m.data[1] === 123).map((m) => m.timestamp);
+    const late = offs.filter((t) => t > stoppedAt + 300);
+    if (offs.length === 0 || late.length === 0) problems.push(`Stop sent ${offs.length} All notes off, ${late.length} past the look-ahead`);
+    const pairs = sent.filter((m) => (m.data[0] & 0xf0) === 0x80 || (m.data[0] & 0xf0) === 0x90).length;
+    note = `${ons.length} note-ons within ${worst.toFixed(3)} ms of the plan, ${pairs - ons.length} note-offs, ${offs.length} All notes off`;
+  } catch (e) {
+    problems.push(String(e.message).split('\n')[0]);
+  }
+  await mp.close();
+  const ok = problems.length === 0;
+  console.log(`${ok ? 'ok  ' : 'FAIL'} MIDI out: ${MIDI_PIECE} into a fake port${ok ? `: ${note}` : '\n       ' + [...new Set(problems)].slice(0, 3).join('\n       ')}`);
+  if (!ok) failed.push('MIDI out');
 }
 await browser.close();
 await server.close();
