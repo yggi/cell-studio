@@ -59,7 +59,7 @@ describe('examples/*.cells', () => {
       // (laid out with the rows' order the index keeps, as the browser lays it out choosing afresh: the same order)
       expect(e.rows.key, `${e.key}: its graph's shape`).toBe(rowsKey(buildGraph(compileSource(PRESETS[e.key].source))));
     }
-  }, 60_000); // (it works every miniature out again, each laid out twice first to choose its rows: about 10 s alone, 20 s on a loaded machine)
+  }, 180_000); // (it works every miniature out again, each laid out twice first to choose its rows, junctions folded in: about 30 s alone on a quiet machine, 60 s or more on a loaded one)
   test('the index module keeps an endless cycle (JSON would make it null)', () => {
     // (the first entry of the index as built: working every miniature out again only to take one is slow)
     const [first] = built as ReturnType<typeof buildExamplesIndex>;
