@@ -63,7 +63,7 @@
   const shown = $derived.by(() => {
     void ctx.turned;
     const still = ctx.shifts;
-    return untrack(() => ctx.live?.shifts) ?? still;
+    return untrack(() => ctx.heads.shifts) ?? still;
   });
 
   // (between a bus's strands)
@@ -150,14 +150,14 @@
     if (!view) return [];
     if (d.table) {
       // the table's entries, as its wheel colours them; while it plays, the ones looked up now lit
-      const lit = isLive ? ctx.live?.cells.get(d.table)?.entries : undefined;
+      const lit = isLive ? ctx.heads.cells.get(d.table)?.entries : undefined;
       return Array.from({ length: count }, (_, i) => {
         const s = entryOf(i);
         return { colour: fillColour(s?.bands[0]), dim: !!lit?.size && !!s && !lit.has(s.index) };
       });
     }
     // a chord: the notes under the playhead of the cell it comes from (stopped, or a rest: every strand still)
-    const local = isLive ? ctx.live?.cells.get(d.from)?.local : null;
+    const local = isLive ? ctx.heads.cells.get(d.from)?.local : null;
     const t = local == null ? null : local / Math.max(1, ctx.program.cells.get(d.from)?.steps ?? 1);
     const here = t === null ? undefined : view.segments.find((s) => t >= s.t0 - 1e-9 && t < s.t1 - 1e-9);
     const notes = here?.bands.filter((b) => b.kind === 'pitch') ?? [];
@@ -165,7 +165,7 @@
   });
 
   // only a live edge (what it carries sounds now) pulses and takes the colour of its value (ui/palette.ts)
-  const phase = $derived(isLive && d.phaseCell && ctx.live ? ctx.live.phases.get(d.phaseCell) : undefined);
+  const phase = $derived(isLive && d.phaseCell ? ctx.heads.phases.get(d.phaseCell) : undefined);
   const dot = $derived(phase === undefined ? null : splinePoint(fromX, fromY, mid.x, mid.y, targetX, targetY, phase));
 
   // the grid its voice's colours follow (a voice's notes', a mix's by the owner's rule: null, several, no colour)
@@ -187,7 +187,7 @@
     return cellView(ctx.program, d.from, shown, false);
   });
   const fillNow = (): Fill | undefined => {
-    const lc = ctx.live?.cells.get(d.from);
+    const lc = ctx.heads.cells.get(d.from);
     if (!source || !lc) return undefined;
     if (d.port === 'over') {
       const i = lc.entries.values().next().value;
@@ -199,9 +199,9 @@
   };
   const colour = $derived.by((): string | null => {
     // (a note's link carries nothing: no value, no colour)
-    if (!isLive || !ctx.live || d.band === 'none') return null;
+    if (!isLive || d.band === 'none') return null;
     // sync: the level of the tick of the clock it carries
-    if (d.band === 'sync') return palette('sync', tickLevel(ctx.program.cells.get(d.from), ctx.live.beatAt.get(d.from) ?? 1));
+    if (d.band === 'sync') return palette('sync', tickLevel(ctx.program.cells.get(d.from), ctx.heads.beatAt.get(d.from) ?? 1));
     // audio: the hue of its fundamental (a mix carries several: neutral), as bright as it is loud
     if (d.band === 'audio') return palette('audio', { position: notePosition(), loud: 1 }, grid);
     // CV: a level (an envelope, a gain, lpf=) on the neutral hue; a pitch the note's colour on its grid

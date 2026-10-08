@@ -24,6 +24,7 @@
   import BeltEdge from './BeltEdge.svelte';
   import './edges.css';
   import type { LiveSource } from '../audio/live';
+  import type { TransportState } from '../audio/transport';
   import ForcesPanel from './ForcesPanel.svelte';
   import { clusterDisc } from '../layout/clusters';
   import { EXAMPLES } from '../examples';
@@ -36,7 +37,8 @@
     program,
     muted,
     routed,
-    live,
+    heads,
+    transport,
     shifts,
     ontoggle,
     onturn,
@@ -57,7 +59,9 @@
     program: CompileResult;
     muted: ReadonlySet<string>;
     routed: Routing;
-    live: LiveState | null;
+    /** Where everything is at the transport's time (always there). */
+    heads: LiveState;
+    transport: TransportState;
     shifts: Shifts;
     ontoggle: (id: string) => void;
     onturn: (name: string, shift: number) => void;
@@ -88,7 +92,7 @@
   // from it (layout.sync), so nothing here, in a node or in an edge reads one piece's program with another's graph.
   const layout = new GraphLayout(
     untrack(() => snapshotOf(program, model, shifts, muted, routed)),
-    () => ({ playing, live, moment: hasBelts ? liveEdges : null }),
+    () => ({ lit, live, moment: hasBelts ? liveEdges : null }),
     EXAMPLE_ROWS,
   );
   onDestroy(() => layout.destroy());
@@ -127,7 +131,16 @@
     get taps() {
       return layout.taps;
     },
-    get live() {
+    get state() {
+      return transport;
+    },
+    get playing() {
+      return transport === 'playing';
+    },
+    get heads() {
+      return heads;
+    },
+    get lit() {
       return live;
     },
     get liveEdges() {
@@ -182,11 +195,12 @@
 
   // the shifts of the tables that turn, as now: a key that changes only when one does
   const turned = $derived.by(() => {
-    if (!live) return 'still';
-    let key = 'playing';
-    for (const c of shown.program.cells.values()) if (c.step && !c.voice) key += `|${live.shifts(c.name)}`;
+    let key = 'turned';
+    for (const c of shown.program.cells.values()) if (c.step && !c.voice) key += `|${heads.shifts(c.name)}`;
     return key;
   });
+  // (what is lit: the routing at the transport's time; stopped, nothing is)
+  const live = $derived(transport === 'stopped' ? null : heads);
 
   // live edges glow and flow (as drawn: petals' edges are their parents')
   const liveDrawn = $derived(live ? drawn(shown.model, live) : null);
@@ -195,7 +209,7 @@
   // The live edges as a set, which each edge reads for itself (PulseEdge): a step that changes them does not make the
   // whole edge list again for the flow to reconcile (#13). null: nothing plays.
   const liveEdgeSet = $derived<ReadonlySet<string> | null>(liveEdges === null ? null : new Set(liveEdges ? liveEdges.split('|') : []));
-  const playing = $derived(liveEdges !== null);
+  const lit = $derived(liveEdges !== null);
   // (only a belt's stretch is drawn from the moment, and that is read when the list is made)
   const hasBelts = $derived([...shown.program.cells.values()].some((c) => typeof c.params.belt === 'number'));
 
@@ -208,11 +222,11 @@
       if (selected && !next.model.nodes.some((n) => n.id === selected)) selected = null;
     });
   });
-  // the edges again when what they're drawn with changes: playing or not, a meter's net laid again, a belt's stretch
+  // the edges again when what they're drawn with changes: lit or not, a meter's net laid again, a belt's stretch
   $effect(() => {
     void layout.shown;
     void layout.net;
-    void playing;
+    void lit;
     if (hasBelts) void liveEdges;
     untrack(() => layout.restyle());
   });

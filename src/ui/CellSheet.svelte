@@ -50,8 +50,8 @@
   const cell = $derived(ctx.program.cells.get(name));
   const shift = $derived(ctx.shifts(name));
   // live while playing, as the graph is: shifts as tables turn, and the playhead
-  const shown = $derived(ctx.live?.shifts ?? ctx.shifts);
-  const liveCell = $derived(ctx.live?.cells.get(name) ?? null);
+  const shown = $derived(ctx.heads.shifts);
+  const liveCell = $derived(ctx.heads.cells.get(name) ?? null);
   const off = $derived(cell?.off ?? false);
   const line = $derived.by(() => {
     // an unnamed cell: the line it's written in (λ<line>_<column>)
@@ -161,7 +161,7 @@
       const m = /^(\w+)\((.*)\)$/.exec(words.braid[0]);
       return { big: m?.[1] ?? words.braid[0], small: m ? `(${m[2]})` : '' };
     }
-    return cell ? hubLabel(ctx.program, name, shown, isMeter, liveCell ? (ctx.live?.bars.get(name) ?? null) : null) : { big: '', small: '' };
+    return cell ? hubLabel(ctx.program, name, shown, isMeter, liveCell ? (ctx.lit?.bars.get(name) ?? null) : null) : { big: '', small: '' };
   });
   // the playhead: where in the braid (written order starts at the top, rotated by the shift)
   const hand = $derived(liveCell?.local != null && cell ? liveCell.local / Math.max(1, cell.steps) : null);

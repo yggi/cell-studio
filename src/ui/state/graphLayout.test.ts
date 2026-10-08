@@ -36,20 +36,20 @@ describe('GraphLayout: one snapshot per piece', () => {
   afterEach(() => layout?.destroy());
 
   it('swaps program, nodes and edges together: Baustelle → Baustelle II → Twinkle', { timeout: 60_000 }, () => {
-    let playing = false;
+    let lit = false;
     const first = snapshot('baustelle');
-    layout = new GraphLayout(first, () => ({ playing, live: null, moment: null }));
+    layout = new GraphLayout(first, () => ({ lit, live: null, moment: null }));
     let opened = 0;
     for (const key of ['baustelle', 'resonanz', 'twinkle'] as const) {
       const next = key === 'baustelle' ? first : snapshot(key);
       layout.sync(next, ++opened);
       expect(layout.shown).toBe(next);
       expectConsistent(layout, key);
-      // restyled (playing): the same snapshot, edges made again, still its own
-      playing = true;
+      // restyled (lit): the same snapshot, edges made again, still its own
+      lit = true;
       layout.restyle();
-      expectConsistent(layout, `${key}, playing`);
-      playing = false;
+      expectConsistent(layout, `${key}, lit`);
+      lit = false;
       layout.restyle();
     }
   });

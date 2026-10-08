@@ -23,10 +23,12 @@ The code is the single source of truth. The graph draws exactly the cells and li
 Every node and edge is drawn in one of five states, decided for both by one model (`src/engine/routing.ts`, so a node and its edges can't disagree):
 
 - **off**: switched off (`off` in the code; hold to toggle). Faded, grey, a dashed ring; its edges faded.
-- **unrouted**: on, but not part of anything that sounds. Faded.
-- **on** (stopped), **idle** (playing, not sounding now: quieter, less colour) and **live** (sounding now: full colour; a live edge glows, pulses and takes its note's colour).
+- **unrouted**: on, but not part of anything that sounds. Faded, once the transport is not stopped.
+- **on** (stopped: nothing is dimmed, routed or not), **idle** (paused or playing, not sounding at that moment: quieter, less colour) and **live** (sounding at that moment: full colour; a live edge glows, pulses and takes its note's colour).
 
-An output's route is what its notes need (its braid and tables, the `step=` chain and clock that move it, what moves its voice: pitch and volume streams, the envelope, parameter cells, FM) and where its sound goes (voice, instruments, mix, the part a selector picks, the sound card). Sound tapes and resonators keep sound and pass it on wherever their heads and mixes go. Something is routed if it is on the route of an output that can sound (`plan`'s own test) and reaches a sound card; live if it is on the route of one that plays now (until its `laps=` end, while its selectors pick it). Inside a braid only the cell and table entries under the playhead are live. A voice in two mixes lights only the mix its notes take now.
+The **heads** are drawn in every state: the playheads, the lit entries, the beat of a meter, the tables turned, all at the transport's time (`Playback.heads`, the live state at that time): time 0 stopped, the place paused, the clock playing. What the sound shows (the wheels' spectra and waves, a meter's flash, the colours of a note) still waits for playing; paused sound is [#201](https://github.com/yggi/cell-studio/issues/201), step 4.
+
+An output's route is what its notes need (its braid and tables, the `step=` chain and clock that move it, what moves its voice: pitch and volume streams, the envelope, parameter cells, FM) and where its sound goes (voice, instruments, mix, the part a selector picks, the sound card). Sound tapes and resonators keep sound and pass it on wherever their heads and mixes go. Something is routed if it is on the route of an output that can sound (`plan`'s own test) and reaches a sound card; live if it is on the route of one that plays now (until its `laps=` end, while its selectors pick it). Inside a braid only the cell and table entries under the playhead are live. Paused, that is where the transport stands. A voice in two mixes lights only the mix its notes take now.
 
 *Live* means its part plays now, not that a note sounds this instant: a rest or a missed chance in a part that plays stays live (the glyphs show the step). The spectrum wheels show the sound itself; a mix's wheel hears the notes that go through it (with a limit: [../limits.md](../limits.md)).
 

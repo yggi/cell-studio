@@ -135,12 +135,13 @@ export function meterEdgeOf(t: MeterTrace, index: number): Edge {
   return { id: t.id, source: t.a, target: t.b, type: 'meter', zIndex: -1, selectable: false, focusable: false, data: { meter: index, name: nameOf(t.meter) } };
 }
 
-/** What the edges are drawn with besides the snapshot: the wheels' sizes, the meters' nets as laid, and whether (and what) plays. */
+/** What the edges are drawn with besides the snapshot: the wheels' sizes, the meters' nets as laid, and whether anything is lit (not stopped), and what, for a belt. */
 export interface EdgeScene {
   /** A node's size (px), as the flow draws it; undefined: not drawn. */
   readonly sizeOf: (id: string) => number | undefined;
   readonly net: readonly MeterTrace[];
-  readonly playing: boolean;
+  /** Not stopped: a routed edge is idle, an unrouted one dimmed (PulseEdge makes an idle one live); stopped, none is dimmed. */
+  readonly lit: boolean;
   /** Read only for a belt's stretch, as it is now. */
   readonly live: LiveState | null;
 }
@@ -151,10 +152,10 @@ const NO_LIVE = { nodes: new Set<string>(), edges: new Set<string>() };
 export function flowEdgesOf(s: GraphSnapshot, scene: EdgeScene): Edge[] {
   const { program, model } = s;
   // Edge styling follows routing (as drawn: petals' edges are their parents'): off, unrouted, on, idle, live — one rule for
-  // edges and nodes (engine/routing.ts). Here without the live set: while playing an edge that is routed is idle, and
+  // edges and nodes (engine/routing.ts). Here without the live set: while lit an edge that is routed is idle, and
   // PulseEdge makes it live when it is (each edge reads that for itself)
   const routed = drawn(model, s.routed);
-  const live = scene.playing ? NO_LIVE : null;
+  const live = scene.lit ? NO_LIVE : null;
   // each edge's place in a net (a table read by several: one trunk, a branch to each reader)
   const netPlaces = new Map(model.nets.flatMap((n) => n.taps.map((id) => [id, { id: n.id }] as const)));
   const grounds = groundsOf(model);

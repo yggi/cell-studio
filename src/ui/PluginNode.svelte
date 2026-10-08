@@ -27,7 +27,7 @@
   const trustKey = $derived(plugin ? pluginKey(plugin) : '');
   const allowed = $derived(!!plugin && isTrusted(plugin));
   const code = $derived(plugin && allowed ? loadPlugin(plugin.code) : null);
-  const view = $derived(plugin ? viewOf(ctx.program, plugin, d.name, uid, ctx.live?.seconds ?? ctx.cursor, !!ctx.live) : null);
+  const view = $derived(plugin ? viewOf(ctx.program, plugin, d.name, uid, ctx.heads.seconds, ctx.playing) : null);
   const drawn = $derived(code && !(code instanceof Error) && view ? drawPlugin(code, view) : null);
   const problem = $derived(code instanceof Error ? code : drawn instanceof Error ? drawn : null);
   // (a choice to run it is kept once it has drawn: pluginTrust.svelte.ts)
@@ -50,7 +50,7 @@
     return turnOf(e.clientX, e.clientY, r.left + r.width / 2, r.top + r.height / 2);
   };
   function down(e: PointerEvent) {
-    if (!dial || ctx.live || e.button !== 0) return;
+    if (!dial || ctx.playing || e.button !== 0) return;
     e.stopPropagation();
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     last = angleOf(e);
@@ -66,7 +66,7 @@
   // the keyboard: stopped, the arrows turn it a step
   function key(e: KeyboardEvent) {
     const step = e.key === 'ArrowRight' || e.key === 'ArrowUp' ? 1 : e.key === 'ArrowLeft' || e.key === 'ArrowDown' ? -1 : 0;
-    if (!dial || !step || ctx.live) return;
+    if (!dial || !step || ctx.playing) return;
     e.preventDefault();
     e.stopPropagation();
     ctx.nudge(step * dial.key);

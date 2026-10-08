@@ -54,7 +54,8 @@
       program={piece.program}
       muted={piece.muted}
       routed={piece.routed}
-      live={playback.live}
+      heads={playback.heads}
+      transport={playback.state}
       shifts={piece.shifts}
       ontoggle={(id) => piece.toggle(id)}
       onturn={(name, shift) => piece.turn(name, shift)}

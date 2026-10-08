@@ -156,7 +156,7 @@
       if (w > 0 && Math.abs(w / size - seen) > 0.1 * seen) seen = w / size;
     }
     if (!shown) return;
-    const playing = !!ctx.live;
+    const playing = ctx.playing;
     if (playing !== wasLive) {
       wasLive = playing;
       // play: start from an empty wheel; stop: back to the profile
@@ -181,7 +181,7 @@
 
   // at rest (and whenever the voice changes), show its own partials
   // (on whether it plays, not on the live state itself: that is a new object every tick)
-  const resting = $derived(!ctx.live);
+  const resting = $derived(!ctx.playing);
   $effect(() => {
     void ctx.program;
     void ctx.shifts;

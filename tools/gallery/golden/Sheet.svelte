@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { liveAt } from '../../../src/engine/live';
   /**
    * The golden graph: the real Graph (src/ui/Graph.svelte) on the golden piece, laid out by the app as it lays out any piece,
    * once stopped and once at a moment of play (the live state at ?t=3, a made-up sound). One frame per state, fixed in size.
@@ -35,7 +36,8 @@
           program={s.p.program}
           muted={new Set()}
           routed={s.p.routed}
-          live={s.live}
+          heads={s.live ?? liveAt(s.p.program, s.p.shifts, new Set(), 0)}
+          transport={s.live ? 'playing' : 'stopped'}
           shifts={s.live ? s.live.shifts : s.p.shifts}
           ontoggle={nothing}
           onturn={nothing}
