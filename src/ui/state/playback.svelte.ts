@@ -35,7 +35,7 @@ export class Playback {
   /** The live view while playing (playheads, lit entries, the live routing), null otherwise. */
   readonly live = $derived.by(() => (this.playing ? liveAt(this.piece.program, this.piece.shifts, this.piece.muted, transportClock.seconds) : null));
 
-  /** The sound, for the views: what plays now, and hands on it (a hand leaves the initial state). */
+  /** The sound, for the views: what plays now, and hands on it (the Player takes a stopped transport to paused when one lays hold). */
   readonly sound: LiveSource;
   readonly #awake = screenAwake();
 
@@ -49,11 +49,11 @@ export class Playback {
       resonance: (n) => p.resonance(n),
       tapePos: (t) => p.tapePos(t),
       tapeLevel: (t) => p.tapeLevel(t),
-      scrub: (t, u) => (p.touch(), p.scrub(t, u)),
+      scrub: (t, u) => p.scrub(t, u),
       grab: (c, speed) => p.grab(c, speed),
-      strike: (n, x, i) => (p.touch(), p.strike(n, x, i)),
+      strike: (n, x, i) => p.strike(n, x, i),
       damp: (n, on) => p.damp(n, on),
-      bow: (n, a) => (p.touch(), p.bow(n, a)),
+      bow: (n, a) => p.bow(n, a),
     };
     p.onEnded = (end) => {
       this.#endedAt = end;
