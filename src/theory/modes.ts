@@ -122,3 +122,14 @@ export function scan(steps: readonly number[]): { positions: number[]; lap: numb
   }
   return { positions, lap: +at.toFixed(6) };
 }
+
+/**
+ * A note by name, as semitones from C4: `C` (octave 4 when left out), `F#`, `Bb3`, `C5`. Null if it isn't one. In a
+ * braid a name is a pitch (where a number is an index into the cell's table); as a tonic, a pitch class.
+ */
+export function pitchOfName(name: string): number | null {
+  const m = /^([A-G])(#|b)?(-?[0-9]+)?$/.exec(name);
+  if (!m) return null;
+  const letter = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 }[m[1]]!;
+  return letter + (m[2] === '#' ? 1 : m[2] === 'b' ? -1 : 0) + 12 * ((m[3] === undefined ? 4 : parseInt(m[3], 10)) - 4);
+}

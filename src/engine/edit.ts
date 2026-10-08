@@ -220,12 +220,18 @@ function replaceSpan(source: string, span: { line: number; col: number; len: num
 /** A free(…) with a new value, written back where it stands (a marking becomes explicit). */
 export function setFree(
   source: string,
-  spec: { value: number; unit: string; lo: number; hi: number; span: { line: number; col: number; len: number }; labels?: readonly string[]; text?: string },
+  spec: { value: number; unit: string; lo: number; hi: number; span: { line: number; col: number; len: number }; labels?: readonly string[]; text?: string; byName?: true },
   value: number | string,
 ): string {
   // a text: free("…") (quotes can't be inside: they're dropped)
   if (typeof value === 'string') return replaceSpan(source, spec.span, `free("${value.replace(/"/g, '')}")`);
   const v = Math.min(spec.hi, Math.max(spec.lo, value));
+  // (a pitch class written by name stays one: free(D) → free(E))
+  if (spec.byName) {
+    const names = ['C', 'C#', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B'];
+    const own = spec.labels && spec.labels.join(' ') !== names.join(' ') ? `, "${spec.labels.join(' ')}"` : '';
+    return replaceSpan(source, spec.span, `free(${names[Math.round(v) % 12]}${own})`);
+  }
   const range = spec.hi - spec.lo;
   const digits = spec.labels ? 0 : range >= 20 ? 0 : range >= 2 ? 1 : 2;
   const named = spec.labels ? `, "${spec.labels.join(' ')}"` : '';

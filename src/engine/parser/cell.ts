@@ -438,7 +438,9 @@ export function parseBody(s: LineScanner, head: Ref): CellDecl {
       off = true;
       continue;
     }
-    if (word !== null) s.fail(`Unexpected '${word}'`, at, word.length);
+    // a note by name is a step (C, Bb3): read again as one
+    if (word !== null && /^[A-G](?:b?-?[0-9]*)$/.test(word)) s.i = at;
+    else if (word !== null) s.fail(`Unexpected '${word}'`, at, word.length);
     if (generator) s.fail('A cell has one braid: a generator or a list of steps');
     tokens.push(parseToken(s));
   }

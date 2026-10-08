@@ -393,6 +393,24 @@ describe('the sound card: &out loop=44k map=sample &left &right', () => {
   });
 });
 
+describe('a note by name is a pitch; a number an index', () => {
+  it('[C, E, G] is C E G whatever the cell reads; a number beside it reads the table', () => {
+    const r = compileSource('&key shift=2\n&s over=&key scan(2 2 1 2 2 2 1)\n&a over=&s [C, E, G]\n&b over=&s [0, E, 4]\n&c over=&s D F# A C5\n&d [Bb3, Eb, G]');
+    expect(r.ok).toBe(true);
+    expect(spell(r, 'a')).toBe('C E G');
+    expect(spell(r, 'b')).toBe('D E A');
+    expect(spell(r, 'c')).toBe('D F# A C');
+    expect(flatten(r, 'c', codeShifts(r)).map((e) => resolveIn(r, e.table, e.tableShift, e.value, e.alter, codeShifts(r)).position)).toEqual([2, 6, 9, 12]);
+    expect(spell(r, 'd')).toBe('Bb Eb G');
+  });
+  it('free(D) is a pitch class by name: a tonic, a turn of the 12', () => {
+    const r = compileSource('&s scale(dorian, free(D))\n&t over=&s 0\n&key shift=free(G)\n&u over=&key 0');
+    expect(spell(r, 't')).toBe('D');
+    expect(spell(r, 'u')).toBe('G');
+    expect(r.cells.get('key')!.frees[0]).toMatchObject({ key: 'shift', value: 7, lo: 0, hi: 11, byName: true });
+  });
+});
+
 describe('scale(name, tonic)', () => {
   it('a scale by name over the 12 turned to its tonic — after over=, hidden from the graph', () => {
     const r = compileSource('&a over=scale(minor) 0 1 2 3 4 5 6 7\n&b over=scale(dorian, D) 0 1 2 3 4 5 6\n&c over=scale(major, G) 0 2 4\n&d over=scale(minor, 9) 0 2 4');
@@ -876,8 +894,10 @@ describe('diagnostics: nothing plays, or the wrong thing, without a word (#143)'
   });
 
   it("a cell whose line failed isn't reported again where it is used", () => {
-    expect(said(piece('&a 0 1 (\n&tune step=120bpm &a &a\n&c over=&a 0'))).toEqual([['error', 1, 8, "Unexpected '(' — expected a number, ~, [chord], &cell or key=value"]]);
-    expect(said('&a 0 1 (\n&m [&a]')).toEqual([['error', 1, 8, "Unexpected '(' — expected a number, ~, [chord], &cell or key=value"]]);
+    expect(said(piece('&a 0 1 (\n&tune step=120bpm &a &a\n&c over=&a 0'))).toEqual([
+      ['error', 1, 8, "Unexpected '(' — expected a number, a note name (C, F#), ~, [chord], &cell or key=value"],
+    ]);
+    expect(said('&a 0 1 (\n&m [&a]')).toEqual([['error', 1, 8, "Unexpected '(' — expected a number, a note name (C, F#), ~, [chord], &cell or key=value"]]);
     // a cell that is simply missing still is
     expect(said(piece('&tune step=120bpm &a')).map((d) => d[3])).toContain('Unknown cell &a');
   });

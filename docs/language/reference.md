@@ -14,11 +14,11 @@ Every form the parser reads, what it means and an example: generated from the pa
 
 ## Steps
 
-- `n`: A number: an index into the table it reads (over=), or a value (a volume, a waveform's level). Negative and decimal numbers work. [→](cell.md) `&tune step=2 0 2 4 -1 .5`
+- `n`: A number: an index into the table it reads (over=), or a value (a volume, a waveform's level). Negative and decimal numbers work. A note by name (C, F#, Bb3; octave 4 left out) is a pitch instead: a place on the grid at the root of its tables, whatever they are. [→](cell.md) `&tune step=2 0 2 4 -1 .5` · `&tune step=2 C E G C5`
 - `n#` · `nb`: A number with accidentals: one step up (#) or down (b) on the grid below the table it reads — 6# over a scale is its 7th degree raised a semitone. [→](tables.md) `&tune over=&major step=2 0 4 6# 7 3b`
 - `n/d`: A fraction: 9/8, 3/2 (the ratios of a map=ratios grid). [→](tuning.md) `&just map=ratios 1 9/8 5/4 3/2 2`
 - `~`: A rest: a step that plays nothing. [→](cell.md) `&tune step=2 0 ~ 4 ~`
-- `[a, b, c]` · `[a b c]`: A chord: the numbers sound together, in one step. [→](time.md) `&chords step=1 [0,2,4] [3 5 7]`
+- `[a, b, c]` · `[a b c]`: A chord: the numbers sound together, in one step. Its notes can be names, pitches whatever the tables: [C, E, G]. [→](time.md) `&chords step=1 [0,2,4] [3 5 7]` · `&chords step=1 [C, E, G] [F, A, C5]`
 - `[a|b|c]`: A choice: one of them, chosen afresh each time round (the same every time it is played). [→](braid.md) `&tune step=2 0 [2|4|7] 4`
 - `&x`: A cell, spliced in: its braid plays in this one's step (as long as its own steps). Picks, shifts and transposing are under References. [→](braid.md) `&theme step=2 &motif &motif^7 0`
 - `&voice (stepped)`: In a stepped braid of voices (and rests), each step plays its voice: a drum pattern by name. Chords of voices sound together, [&bd, &hh]; modifiers work as on any step. Unstepped, a braid of voices is a kit, read by number. [→](sound.md) `&groove step=4 &bd ~ &hh [&bd, &sd] &hh*2 ~`

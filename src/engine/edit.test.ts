@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  setFree,
   setAttr,
   addCell,
   attrsOf,
@@ -190,5 +191,13 @@ describe('quoted labels in edits', () => {
     expect(splitWords('&key label="key: **{tonic}** [x]" shift=2 0 1')).toEqual(['&key', 'label="key: **{tonic}** [x]"', 'shift=2', '0', '1']);
     expect(setAttr('&key label="a b c" shift=2', 'key', 'label', '"d e"')).toBe('&key label="d e" shift=2');
     expect(setAttr('&key label="a b c" shift=2', 'key', 'label', null)).toBe('&key shift=2');
+  });
+});
+
+describe('a free pitch class by name', () => {
+  it('writes back by name: free(D) turned to E is free(E)', () => {
+    const src = '&key shift=free(D)\n&t over=&key 0';
+    const spec = compileSource(src).cells.get('key')!.frees[0];
+    expect(setFree(src, spec, 4)).toBe('&key shift=free(E)\n&t over=&key 0');
   });
 });

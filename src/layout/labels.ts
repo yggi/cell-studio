@@ -11,7 +11,7 @@
  *   **bold**   *italic*   \n a new line
  */
 import { LABEL_FIELDS, type CompileResult, type Shifts } from '../engine/program';
-import { entries, resolvePitch, semitones } from '../engine/helix';
+import { entries, resolveIn, resolvePitch, semitones } from '../engine/helix';
 import { flatten } from '../engine/flatten';
 import { modeName, mod } from '../theory/modes';
 
@@ -42,7 +42,11 @@ export function fieldsOf(result: CompileResult, name: string, shifts: Shifts, ne
     const pitches =
       table || c.root
         ? entries(result, name, shifts(name)).map((e) => pitchOf(e.value, e.alter))
-        : flatten(result, name, shifts, null, undefined, 0, c.context).map((e) => pitchOf(e.value, e.alter));
+        : flatten(result, name, shifts, null, undefined, 0, c.context).map((e) => {
+            // (each through the table it is read in: a note by name is a pitch on the root grid)
+            const r = resolveIn(result, e.table, e.tableShift, e.value, e.alter, shifts);
+            return semitones(result, r.root, r.position);
+          });
     if (pitches.length) {
       const names = pitches.map((p) => NAMES[mod(Math.round(p), 12)]);
       out.notes = (pitches.length > 16 ? [...names.slice(0, 16), '…'] : names).join(' ');

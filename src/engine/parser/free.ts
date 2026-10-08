@@ -62,12 +62,19 @@ export function parseFree(s: LineScanner, key: FreeSpec['key'], units: boolean):
     s.frees.push(spec);
     return spec;
   }
-  const word = s.match(/[a-z]+/y);
+  // a key, a tonic, a turn of the 12 by name: free(D) — a pitch class, chosen from the twelve by their names
+  const named = key === 'shift' || key === 'tonic' ? s.noteName() : null;
+  const word = named === null ? s.match(/[a-z]+/y) : null;
   let value: number;
   let unit = '';
   let lo: number;
   let hi: number;
-  if (word !== null) {
+  let names: string[] | undefined;
+  if (named !== null) {
+    value = ((named % 12) + 12) % 12;
+    [lo, hi] = [0, 11];
+    names = ['C', 'C#', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B'];
+  } else if (word !== null) {
     const range = TEMPI[word];
     if (!range || key === 'shift' || key === 'stride' || key === 'gain' || key === 'tonic')
       s.fail(`free(${word}): a tempo marking (${Object.keys(TEMPI).join(', ')}) — for a rate`, start, s.i - start);
@@ -111,7 +118,17 @@ export function parseFree(s: LineScanner, key: FreeSpec['key'], units: boolean):
     s.skipSpace();
   }
   s.expect(')', `')' to close free(…)`);
-  const spec: FreeSpec = { key, value, unit, lo, hi, span: s.place(start), ...(labels ? { labels } : {}) };
+  labels ??= names;
+  const spec: FreeSpec = {
+    key,
+    value,
+    unit,
+    lo,
+    hi,
+    span: s.place(start),
+    ...(labels ? { labels } : {}),
+    ...(named !== null ? { byName: true as const } : {}),
+  };
   s.frees.push(spec);
   return spec;
 }
