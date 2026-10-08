@@ -12,6 +12,7 @@ import { type Plan, type Played } from '../engine/realize';
 import { isPhysical, retime, type Window } from '../engine/schedule';
 import { createVoices, type VoiceBank } from './voices';
 import { transportClock } from './clock.svelte';
+import { transition, type TransportEvent, type TransportState } from './transport';
 import { onFrames } from './ticker';
 import { markDuration, marks } from './stats';
 import { type Tuning, DEFAULT_TUNING } from './tuning';
@@ -49,7 +50,24 @@ export class Player implements LiveSource {
     () => (this.Tone ? this.Tone.getContext().currentTime : null),
   );
 
+  /** Told when a piece that ends (`laps=`) has rung out and the transport paused itself there: where it ended (code seconds). */
+  onEnded: ((end: number) => void) | null = null;
+
   constructor(private engine: Engine = new LocalEngine()) {}
+
+  get state(): TransportState {
+    return transportClock.state;
+  }
+
+  /** Something happened to the transport (audio/transport.ts says what it becomes). */
+  private move(event: TransportEvent): void {
+    transportClock.state = transition(transportClock.state, event);
+  }
+
+  /** A hand on anything, or a move in time: a stopped transport is paused from now on (the hands below call it). */
+  touch(): void {
+    this.move('touch');
+  }
 
   /** The piece to play: its plan, and the source it was compiled from (for an engine in a worker). */
   load(plan: Plan, source: PieceSource | null = null): void {
@@ -64,8 +82,13 @@ export class Player implements LiveSource {
     return this.engine.stats();
   }
 
-  /** A hand on a physical cell, now: its finger's speed (1 on tempo), or null to let go. */
+  /**
+   * A hand on a physical cell, now: its finger's speed (1 on tempo), or null to let go. Every hand —
+   * this, `strike`, `damp`, `bow`, `scrub` — takes a stopped transport to paused when it lays hold
+   * (letting go does not: a hand can be lifted after Stop).
+   */
   grab(cell: string, speed: number | null): void {
+    if (speed !== null) this.touch();
     this.engine.grab(cell, transportClock.seconds, speed);
   }
 
@@ -142,6 +165,7 @@ export class Player implements LiveSource {
 
   /** A hand on a resonator: strike at x (0 edge … 1), damp while held, bow (null lifts it) — playing or not. */
   strike(name: string, x: number, index?: number): void {
+    this.touch();
     void this.wake().then(() => this.voices?.strike(name, x, index));
   }
   /** What something sounds like now, as a fine spectrum — for a scope's spectrum and waterfall. */
@@ -158,9 +182,11 @@ export class Player implements LiveSource {
     return this.voices?.resonance(name) ?? null;
   }
   damp(name: string, on: boolean): void {
+    if (on) this.touch();
     void this.wake().then(() => this.voices?.damp(name, on));
   }
   bow(name: string, amount: number | null): void {
+    if (amount !== null) this.touch();
     void this.wake().then(() => this.voices?.bow(name, amount));
   }
 
@@ -191,6 +217,7 @@ export class Player implements LiveSource {
    * runs reads backwards; holding it still, the sound stops.
    */
   scrub(tape: string, u: number | null): void {
+    if (u !== null) this.touch();
     if (!this.plan || !this.voices) return;
     // stopped: the tape stays where the hand leaves it
     if (!this.playing) return this.held.scrub(tape, u);
@@ -230,7 +257,7 @@ export class Player implements LiveSource {
   }
 
   get playing(): boolean {
-    return this.repeatId !== null;
+    return transportClock.state === 'playing';
   }
 
   /** Play — from the start, or from `from` seconds in (the time slider). */
@@ -277,7 +304,7 @@ export class Player implements LiveSource {
 
     const startsAt = Tone.now() + 0.05;
     tr.start(startsAt);
-    transportClock.playing = true;
+    this.move('play');
     this.stopFrames();
     let lagAt = 0;
     this.refreshLag();
@@ -295,18 +322,24 @@ export class Player implements LiveSource {
       // before this one: when this one runs, the flush is done)
       if (t0) queueMicrotask(() => markDuration('transport + flush', performance.now() - t0));
       // a piece that ends (laps=): stop once its last notes have rung out
-      if (this.plan && Number.isFinite(this.plan.end) && transportClock.seconds > this.plan.end + TAIL) this.stop();
+      if (this.plan && Number.isFinite(this.plan.end) && transportClock.seconds > this.plan.end + TAIL) {
+        const end = this.plan.end;
+        this.pause();
+        this.onEnded?.(end);
+      }
     };
     // (the live views: about 24 times a second — plenty for the eye, and a large graph leaves the
     // page free to keep the sound fed)
     this.stopFrames = onFrames(frame, () => 40, 'clock');
   }
 
-  stop(): void {
+  /** Pause: the clocks stand, every sound tape is held where it is, what is on it kept. */
+  pause(): void {
+    if (!this.playing) return;
     this.stopFrames();
     const at = transportClock.seconds;
-    transportClock.playing = false;
     transportClock.seconds = 0;
+    this.move('pause');
     if (!this.Tone || this.repeatId === null) return;
     const tr = this.Tone.getTransport();
     tr.stop();
@@ -319,7 +352,14 @@ export class Player implements LiveSource {
     this.held.pause(at);
   }
 
-  /** Back to the start as written: tapes wound off, hands' forces gone (Reset). */
+  /** Stop: back to the initial state (tapes wound off, hands' forces gone). */
+  stop(): void {
+    this.pause();
+    this.resetState();
+    this.move('stop');
+  }
+
+  /** Back to the start as written: tapes wound off, hands' forces gone (part of Stop). */
   resetState(): void {
     this.engine.reset();
     this.voices?.clearTapes();
@@ -327,7 +367,7 @@ export class Player implements LiveSource {
   }
 
   dispose(): void {
-    this.stop();
+    this.pause();
     this.engine.dispose();
     this.voices?.dispose();
     this.voices = undefined;

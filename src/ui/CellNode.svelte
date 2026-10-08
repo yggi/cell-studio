@@ -18,7 +18,7 @@
   const stillShifts = $derived.by(() => {
     void ctx.turned;
     const still = ctx.shifts;
-    return untrack(() => ctx.live?.shifts) ?? still;
+    return untrack(() => ctx.heads.shifts) ?? still;
   });
   const state = $derived(nodeState(ctx, id));
   const freeCell = $derived(ctx.program.cells.get(data.name));

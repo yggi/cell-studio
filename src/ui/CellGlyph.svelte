@@ -63,7 +63,7 @@
   const shown = $derived.by(() => {
     void ctx.turned;
     const still = ctx.shifts;
-    return untrack(() => ctx.live?.shifts) ?? still;
+    return untrack(() => ctx.heads.shifts) ?? still;
   });
   const shownShift = $derived(shown(name));
   // a read head shows what's on its tape: its source's braid
@@ -220,13 +220,14 @@
   });
   // The live state is a new object every tick. What this wheel takes from it is kept as primitives, so that what
   // depends on them runs again only when they change — not every tick, for every wheel on the graph (#13).
-  const hasLive = $derived(!!ctx.live?.cells.get(name));
-  const liveLocal = $derived(ctx.live?.cells.get(name)?.local ?? null);
+  const hasLive = $derived(!!ctx.heads.cells.get(name));
+  const liveLocal = $derived(ctx.heads.cells.get(name)?.local ?? null);
   const entriesKey = $derived.by(() => {
-    const e = ctx.live?.cells.get(name)?.entries;
+    const e = ctx.heads.cells.get(name)?.entries;
     return e && e.size ? [...e].join(',') : '';
   });
-  const bar = $derived(ctx.live?.bars.get(name) ?? null);
+  // (the bar it is in: not stopped; at rest the hub says its tempo)
+  const bar = $derived(ctx.lit?.bars.get(name) ?? null);
   const label = $derived(cell ? hubLabel(ctx.program, name, shown, isMeter, hasLive ? bar : null) : { big: '', small: '' });
   // the hub's text fits the hub, or is left out (a petal's hub has room for a number, not a sentence); its
   // second line from 80 px up
@@ -418,7 +419,7 @@
   const hand = $derived((view.mode === 'braid' || view.mode === 'matrix') && liveLocal != null ? liveLocal / Math.max(1, cell?.steps ?? 1) : null);
 
   // a meter as it plays: the wheel stays put, the step it's in now goes round, outlined and glowing in its colour
-  const beatAt = $derived(isMeter ? (ctx.live?.beatAt.get(name) ?? null) : null);
+  const beatAt = $derived(isMeter ? (ctx.heads.beatAt.get(name) ?? null) : null);
   const meterAt = $derived(isMeter && view.mode === 'grid' && beatAt !== null ? meterNow(view.segments, beatAt) : null);
   const meterLit = $derived(meterAt ? ringSegment(c, c, rInner, rOuter, view.segments[meterAt.at].t0, view.segments[meterAt.at].t1) : null);
 

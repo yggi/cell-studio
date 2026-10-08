@@ -3,14 +3,15 @@ import type { CompileResult, Shifts } from '../engine/program';
 import type { LiveState } from '../engine/live';
 import { nodeStateOf, type Routing, type State } from '../engine/routing';
 import type { LiveSource } from '../audio/live';
+import type { TransportState } from '../audio/transport';
 
 /**
  * Visual state of a node (engine/routing.ts decides it, for nodes and edges alike):
  *  off      — switched off by the user (hold to toggle)
  *  unrouted — on, but not part of anything that sounds
- *  on       — part of the sound, transport stopped
- *  idle     — part of the sound, but not sounding now
- *  live     — sounding now
+ *  on       — transport stopped (nothing is dimmed: routed or not), or part of the sound with nothing to say more
+ *  idle     — part of the sound, but not sounding at the transport's time (paused or playing)
+ *  live     — sounding at the transport's time
  */
 export type NodeState = State;
 
@@ -23,8 +24,17 @@ export interface GraphContext {
   readonly muted: ReadonlySet<string>;
   /** What can sound (routing.ts). */
   readonly routed: Routing;
-  readonly live: LiveState | null;
-  /** The edges that carry something now (drawn ids), or null when nothing plays: each edge reads its own, so the edge list isn't remade every step. */
+  /** Stopped, paused or playing (audio/transport.ts). */
+  readonly state: TransportState;
+  readonly playing: boolean;
+  /**
+   * Where everything is at the transport's time: playheads, lit entries, beats, tables turned. Always there — at
+   * rest it is time 0, paused the place paused at, playing the clock — so the heads are drawn in every state.
+   */
+  readonly heads: LiveState;
+  /** `heads` when not stopped (what sounds, what is idle: the routing at that time), else null: stopped dims nothing. */
+  readonly lit: LiveState | null;
+  /** The edges that carry something now (drawn ids), or null when stopped: each edge reads its own, so the edge list isn't remade every step. */
   readonly liveEdges: ReadonlySet<string> | null;
   /**
    * Changes only when what's drawn changes while playing: a table turns, or play
@@ -43,9 +53,9 @@ export interface GraphContext {
   /** Where each bus's tap comes from (by edge id): null, the trunk, out of the owner; else the reader it comes on from (its centre and its wheel's radius). */
   readonly taps?: ReadonlyMap<string, { from: string; x: number; y: number; r: number } | null>;
   toggle(id: string): void;
-  /** Stopped: move where play starts by so many seconds (a turntable turned by hand). */
+  /** Not playing: move where play starts by so many seconds (a turntable turned by hand). */
   nudge(seconds: number): void;
-  /** Stopped: where play will start (seconds). */
+  /** Not playing: where play will start (seconds). */
   readonly cursor: number;
   /** Counts resets (reload from code): hands' traces — tapes' recordings, reels' turns — are gone. */
   readonly epoch: number;
@@ -58,5 +68,5 @@ export interface GraphContext {
 export const [getGraphContext, setGraphContext] = createContext<GraphContext>();
 
 export function nodeState(ctx: GraphContext, id: string): NodeState {
-  return nodeStateOf(id, ctx.muted, ctx.routed, ctx.live);
+  return nodeStateOf(id, ctx.muted, ctx.routed, ctx.lit);
 }

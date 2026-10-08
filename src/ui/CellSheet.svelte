@@ -49,7 +49,7 @@
   const cell = $derived(ctx.program.cells.get(name));
   const shift = $derived(ctx.shifts(name));
   // live while playing, as the graph is: shifts as tables turn, and the playhead
-  const shown = $derived(ctx.live?.shifts ?? ctx.shifts);
+  const shown = $derived(ctx.heads.shifts);
   const off = $derived(cell?.off ?? false);
   const line = $derived.by(() => {
     // an unnamed cell: the line it's written in (λ<line>_<column>)
