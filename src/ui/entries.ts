@@ -44,7 +44,7 @@ export function savedEntry(p: SavedPiece): Entry {
     rung: m?.rung ?? null,
     source: p.source,
     saved: p.saved,
-    size: buildGraph(r).nodes.filter((n) => !n.petalOf && !n.cell.note).length,
+    size: buildGraph(r).nodes.filter((n) => !n.petalOf && n.cell && !n.cell.note).length,
     time: r.ok ? pieceTime(r) : undefined,
   };
 }

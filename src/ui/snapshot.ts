@@ -24,8 +24,10 @@ const nameOf = (id: string) => id.slice('cell:'.length);
  * from one program (`buildGraph`) it drops nothing.
  */
 export function snapshotOf(program: CompileResult, model: GraphModel, shifts: Shifts, muted: ReadonlySet<string>, routed: Routing): GraphSnapshot {
-  const has = (id: string) => program.cells.has(nameOf(id));
-  const nodes = model.nodes.filter((n) => program.cells.has(n.cell.name));
+  // (a product's junction: while its mix and its voice are)
+  const nodes = model.nodes.filter((n) => (n.kind === 'junction' ? program.cells.has(n.mix) && program.cells.has(n.voice) : program.cells.has(n.cell.name)));
+  const junctions = new Set(nodes.flatMap((n) => (n.kind === 'junction' ? [n.id] : [])));
+  const has = (id: string) => junctions.has(id) || program.cells.has(nameOf(id));
   const edges = model.edges.filter((e) => has(e.from) && has(e.to) && has(e.source) && has(e.target));
   if (nodes.length === model.nodes.length && edges.length === model.edges.length) return { program, model, shifts, muted, routed };
   const kept = new Set(edges.map((e) => e.id));

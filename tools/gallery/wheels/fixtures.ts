@@ -2,7 +2,7 @@
  * Which wheels the harness shows: the first of each kind across the examples (a live one if any is), named
  * as `tools/gallery/real.mjs` names them from the page (`data-wheel`, `data-mode`, `data-show`, and where it sits).
  */
-import { buildGraph } from '../../../src/engine/graph';
+import { buildGraph, isCellNode } from '../../../src/engine/graph';
 import { cellView } from '../../../src/layout/cellview';
 import { effectiveShow } from '../../../src/layout/show';
 import { flowNodeOf } from '../../../src/ui/flownode';
@@ -41,6 +41,7 @@ export function wheelsOf(piece: Piece): { name: string; key: string; node: FlowN
   const model = buildGraph(piece.program);
   const meters = { index: meterIndex(model) };
   return model.nodes
+    .filter(isCellNode)
     .filter((g) => !g.cell.note)
     .map((g) => {
       const node = flowNodeOf(g, { x: 0, y: 0 }, false, undefined, meters, piece.program);

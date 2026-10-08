@@ -13,10 +13,19 @@ describe('weights', () => {
       g.nodes.find((n) => n.id === `cell:${name}`)!,
       owners.has(`cell:${name}`),
     );
-  const strength = (from: string, to: string) => strengthOf(g.edges.find((e) => e.from === `cell:${from}` && e.to === `cell:${to}`)!);
+  // (into a product: the wire into its junction)
+  const into = (id: string, to: string) => id === `cell:${to}` || g.nodes.some((n) => n.id === id && n.kind === 'junction' && n.voice === to);
+  const strength = (from: string, to: string) => strengthOf(g.edges.find((e) => e.from === `cell:${from}` && into(e.to, to))!);
 
   it('a turntable heaviest, then a meter, a net’s owner, a sound, a cell', () => {
     expect([mass('capstan'), mass('bar'), mass('mode'), mass('flute'), mass('up')]).toEqual([3, 2.5, 2, 1.5, 1]);
+    // (a product's junction weighs nothing: it isn't in the forces, junctions.ts)
+    expect(
+      massOf(
+        g.nodes.find((n) => n.kind === 'junction')!,
+        false,
+      ),
+    ).toBe(0);
   });
 
   it('a belt strongest, a bus by its width, a wire 1, a note’s link weak', () => {

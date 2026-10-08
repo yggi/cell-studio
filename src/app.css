@@ -182,11 +182,15 @@ select {
 
 /* ---- shared chrome: a component adds its own size, colour and spacing on top ---- */
 
-/* A button with nothing of the browser's look left, to be dressed by its component. After :focus-visible on purpose:
-   it takes the ring away as `all: unset` always did, and a component that wants one asks for it (`:focus-visible`). */
+/* A button with nothing of the browser's look left, to be dressed by its component. `all: unset` takes the ring away,
+   so it is given back below, after the reset (a component may still dress its own). */
 .unstyled {
   all: unset;
   cursor: pointer;
+}
+.unstyled:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 /* A sheet rising from the bottom edge (the cell's, a piece's card): its own z-index, height, padding, shadow and entrance stay with it. */

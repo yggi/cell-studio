@@ -46,7 +46,7 @@
     move() {},
     sound: madeUpSound(() => playing),
   });
-  const g = buildGraph(program).nodes.find((n) => n.cell.name === name);
+  const g = buildGraph(program).nodes.find((n) => n.cell?.name === name);
   if (!g) throw new Error(`mock-ups: no &${name} in ${piece}`);
   const node = flowNodeOf(g, { x: 0, y: 0 }, false, undefined, undefined, program);
   const cell = program.cells.get(name)!;

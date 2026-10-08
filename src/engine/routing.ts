@@ -18,7 +18,7 @@
  */
 import { ROOT, type CompileResult, type Output, type ResolvedCell } from './program';
 import { tableChain } from './helix';
-import { cellId, edgeId, stepEdgeId } from './ids';
+import { cellId, clockTapId, edgeId, isJunction, stepEdgeId } from './ids';
 import { chainMuted, outputSounds } from './realize';
 import type { GraphModel } from './graph';
 import { flows } from './flows';
@@ -87,6 +87,15 @@ export class RouteAcc {
     }
     const clock = this.result.cells.get(name)?.clock;
     if (clock && !this.off(clock)) this.tables(clock);
+    this.timed(name);
+  }
+  /** The clocks its parameters take their times from (delaytime=&bar*3/4, a tape's length=, a head's at=). */
+  timed(name: string) {
+    for (const [key, k] of Object.entries(this.result.cells.get(name)?.paramClocks ?? {}))
+      if (!this.off(k.driver)) {
+        this.edge(name, k.driver, clockTapId(cellId(name), cellId(k.driver), key));
+        this.clock(k.driver);
+      }
   }
   /**
    * A braid, all the way down: the cells it splices and the tables their notes resolve through
@@ -130,6 +139,12 @@ export class RouteAcc {
     this.node(name);
     // its own volume and pitch (env=, pitch=: on every note it plays; drawn as its petals, no edge)
     for (const own of [v.env, v.pitch]) if (own && !this.off(own)) this.stream(own);
+    // its wave's table (map=&curve: its values looked up in it, every cycle)
+    if (v.map?.kind === 'table' && !this.off(v.map.table)) {
+      this.edge(v.map.table, name, clockTapId(cellId(v.map.table), cellId(name), 'map'));
+      this.stream(v.map.table);
+    }
+    this.timed(name);
     for (const pc of Object.values(v.paramCells ?? {}))
       for (const f of pc.factors)
         if (!this.off(f)) {
@@ -174,6 +189,7 @@ function notesOf(acc: RouteAcc, o: Output, how: NotesOf) {
     acc.edge(o.tape.tape, o.tape.head);
     acc.edge(o.tape.head, o.voice);
     acc.clock(o.tape.tape);
+    acc.timed(o.tape.head);
   } else acc.edge(o.cell, o.voice);
   for (const m of [...o.mods, ...o.levels])
     if (!acc.off(m.cell)) {
@@ -282,7 +298,11 @@ export function liveRouting(result: CompileResult, muted: ReadonlySet<string>, o
 
 const drawnCache = new WeakMap<Routing, WeakMap<GraphModel, Routing>>();
 
-/** A routing in the graph as drawn: an edge a petal redraws is the edge it's drawn as; one that isn't drawn, left out. */
+/**
+ * A routing in the graph as drawn: an edge a petal redraws is the edge it's drawn as; one that isn't drawn, left out.
+ * A wire at a product's junction is routed when the written pairs it stands for are (graph.ts: `routes`), and the
+ * junction with it.
+ */
 export function drawn(model: GraphModel, r: Routing): Routing {
   let byModel = drawnCache.get(r);
   if (!byModel) drawnCache.set(r, (byModel = new WeakMap()));
@@ -295,7 +315,17 @@ export function drawn(model: GraphModel, r: Routing): Routing {
       // (an edge to a cell that isn't drawn — the implicit grid — isn't either)
       if (to && shown.has(to)) edges.add(to);
     }
-    byModel.set(model, (hit = { nodes: r.nodes, edges }));
+    let nodes = r.nodes;
+    for (const e of model.edges)
+      if (e.routes?.every((any) => any.some((id) => r.edges.has(id)))) {
+        edges.add(e.id);
+        for (const end of [e.source, e.target])
+          if (isJunction(end) && !nodes.has(end)) {
+            if (nodes === r.nodes) nodes = new Set(r.nodes);
+            (nodes as Set<string>).add(end);
+          }
+      }
+    byModel.set(model, (hit = { nodes, edges }));
   }
   return hit;
 }

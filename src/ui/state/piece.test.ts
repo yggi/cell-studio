@@ -34,6 +34,10 @@ describe('Piece: the code and what it compiles to', () => {
     expect(p.program.cells.get('lead')?.off).toBe(true);
     p.toggle('cell:lead');
     expect(p.program.cells.get('lead')?.off).toBe(false);
+    // (a product's junction is not a cell: holding it switches nothing)
+    const before = p.code;
+    p.toggle('junction:out:0');
+    expect(p.code).toBe(before);
   });
 
   it('adds a cell and names it', () => {
