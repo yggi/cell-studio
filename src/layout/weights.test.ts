@@ -18,7 +18,7 @@ describe('weights', () => {
   const strength = (from: string, to: string) => strengthOf(g.edges.find((e) => e.from === `cell:${from}` && into(e.to, to))!);
 
   it('a turntable heaviest, then a meter, a net’s owner, a sound, a cell', () => {
-    expect([mass('capstan'), mass('bar'), mass('mode'), mass('flute'), mass('up')]).toEqual([3, 2.5, 2, 1.5, 1]);
+    expect([mass('capstan'), mass('bar'), mass('mode'), mass('flute'), mass('tune')]).toEqual([3, 2.5, 2, 1.5, 1]);
     // (a product's junction weighs nothing: it isn't in the forces, junctions.ts)
     expect(
       massOf(

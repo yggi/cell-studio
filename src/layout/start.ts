@@ -311,7 +311,8 @@ export function startNodes(
   const owners = new Set((model.nets ?? []).map((net) => net.owner));
   // (a wheel's room takes its loom: the buses round it, and a straight run out of it before the next wheel's)
   const looms = loomReach(model);
-  const roomOf = (n: GraphModel['nodes'][number]) => s.opts.radius(n) + (looms.get(n.id) ?? 0);
+  // (and its bulbs: a braid's splices bend out of its ring, layout/track.ts)
+  const roomOf = (n: GraphModel['nodes'][number]) => s.opts.radius(n) + Math.max(looms.get(n.id) ?? 0, (n as { reach?: { room: number } }).reach?.room ?? 0);
   model.nodes.forEach((n) => {
     let p = fresh ? undefined : s.byId.get(n.id);
     if (!p) {

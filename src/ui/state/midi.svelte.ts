@@ -47,6 +47,8 @@ export class Midi implements ChosenPorts {
   #in = $state<Chosen>(NONE);
   // the channels (0–15) sent on since the last All notes off
   #used = new Set<number>();
+  // who hears every message from the input listened to (MIDI learn: state/learn.svelte.ts)
+  #hearers = new Set<(data: Uint8Array, source: string, timeStamp: number) => void>();
 
   constructor() {
     const kept = load();
@@ -95,11 +97,17 @@ export class Midi implements ChosenPorts {
   async connect(): Promise<void> {
     if (this.connecting) return;
     this.connecting = true;
-    const result = await connectMidi(() => MidiAccess.connect({ onChange: () => this.#changed() }), this);
+    const result = await connectMidi(() => MidiAccess.connect({ onChange: () => this.#changed(), onMessage: (...m) => this.#hearers.forEach((h) => h(...m)) }), this);
     this.access = result.access;
     this.message = result.message;
     this.#list();
     this.connecting = false;
+  }
+
+  /** Hear every message from the input listened to, raw; the function returned stops it. */
+  hear(hearer: (data: Uint8Array, source: string, timeStamp: number) => void): () => void {
+    this.#hearers.add(hearer);
+    return () => this.#hearers.delete(hearer);
   }
 
   /** Look at the ports again, on a person's asking. */

@@ -18,7 +18,7 @@ import { Gate } from './gate';
 import { buildVoice, dropGates, freeVoice, playNote, type Built, type Bus, type Scope } from './voice/voice';
 import { bow, couple, damp, driveScale, hush, resonanceOf, strikeAt } from './voice/resonator';
 import { wiring } from './wiring';
-import { buildTapeNet, fadeOut, scrubTape, tapeKey, tapeLevelOf, tapeSpeedOf, type TapeNet } from './voice/tape';
+import { buildTapeNet, fadeOut, freezeTape, holdTape, scrubTape, tapeKey, tapeLevelOf, tapeSpeedOf, type TapeNet } from './voice/tape';
 
 export interface VoiceBank {
   /** Play a note (its times on the audio clock: see engine/schedule.ts `retime`). */
@@ -27,6 +27,10 @@ export interface VoiceBank {
   sync(result: CompileResult, shifts: Shifts, muted?: ReadonlySet<string>): void;
   /** A sound tape's speed over time (audio seconds): its delays follow — the heads' distances ÷ speed. */
   tapeSpeed(tape: string, points: readonly { at: number; speed: number }[]): void;
+  /** A tape held (the transport not playing): frozen, its write gate closed, its lap kept as it is — or running again. Only a tape with a loop. */
+  tapeFreeze(tape: string, on: boolean): void;
+  /** A frozen tape turned: how far behind where it was held (tape-seconds) the content under each head lies; the lap wraps. */
+  tapeHold(tape: string, behindFor: (head: number) => number): void;
   /** A hand on a sound tape: each head's delay from where it sits (at → seconds back); null lets go. */
   tapeScrub(tape: string, delayFor: ((at: number) => number) | null): void;
   /** Stopped: the tapes go quiet and are wound off — the next sync threads fresh, empty ones. */
@@ -306,6 +310,14 @@ export function createVoices(Tone: ToneNS): VoiceBank {
       const old = [...tapeNets.values()];
       tapeNets = new Map();
       fadeOut(ctx.currentTime, old);
+    },
+    tapeFreeze(tape, on) {
+      const net = tapeNets.get(tape);
+      if (net) freezeTape(ctx.currentTime, net, on);
+    },
+    tapeHold(tape, behindFor) {
+      const net = tapeNets.get(tape);
+      if (net) holdTape(ctx.currentTime, net, behindFor);
     },
     tapeScrub(tape, delayFor) {
       const net = tapeNets.get(tape);
