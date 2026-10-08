@@ -171,7 +171,7 @@ export function settleJunctions(s: LayoutState, runs: (l: { source: string; targ
   if (!s.junctions.size) return;
   placeJunctions(s);
   const discs = [...s.byId.values()].filter((n) => n.role !== 'tag' && n.x !== undefined).map((n) => ({ x: n.x ?? 0, y: n.y ?? 0, r: n.radius * s.size }));
-  // (a point further off than a disc's radius along either axis isn't under it: the root left for the rest)
+  // (a point further off than a disc's radius along either axis isn't under it: the distance only for the others)
   const hidden = (x: number, y: number) => discs.some((d) => Math.abs(x - d.x) < d.r && Math.abs(y - d.y) < d.r && Math.hypot(x - d.x, y - d.y) < d.r);
   /** A drawn line's pieces that show, between two points (straight, or through its bend). */
   const pieces = (a: { x: number; y: number }, b: { x: number; y: number }, m = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }): Segs => {
@@ -228,7 +228,7 @@ export function settleJunctions(s: LayoutState, runs: (l: { source: string; targ
       return [line];
     });
   const meet = (u: Drawn, v: Drawn) => u.a === v.a || u.a === v.b || u.b === v.a || u.b === v.b;
-  const crosses = (u: Drawn, v: Drawn) => !meet(u, v) && !apart(u, v) && u.segs.some((p) => v.segs.some((q) => segmentsCross(...p, ...q)));
+  const crosses = (u: Drawn, v: Drawn) => !meet(u, v) && !apart(u, v) && u.segs.some((p) => v.segs.some((q) => segmentsCross(p[0], p[1], p[2], p[3], q[0], q[1], q[2], q[3])));
   /**
    * What everything but these junctions' wires is drawn as, near enough to cross them: wherever round their voices'
    * rims they are tried, their wires (straight) stay in the box round those rims and their wires' other ends.
