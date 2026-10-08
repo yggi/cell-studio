@@ -62,7 +62,7 @@ export function orderLayers(nodes: readonly { id: string; depth: number }[], edg
  * or not — sit half a row under whatever uses them (parts of parts half as far
  * again), so they cluster under it instead of widening its row.
  */
-export function flowRanks(model: { nodes: readonly { id: string }[]; edges: readonly { source: string; target: string; port: string }[] }): Map<string, number> {
+export function flowRanks(model: { nodes: readonly { id: string }[]; edges: readonly { source: string; target: string; port: string; band: string }[] }): Map<string, number> {
   const sinks = new Set(model.nodes.filter((n) => endOf(n as GraphNode) === 'top').map((n) => n.id));
   // played cells: the terms of the mixes (melodies, modulators) and every part they splice
   const played = new Set(model.edges.filter(feeds).map((e) => e.source));
@@ -92,7 +92,7 @@ export function flowRanks(model: { nodes: readonly { id: string }[]; edges: read
       continue;
     }
     // a step driver sits under what it drives — when that's played; a stepped table hangs beside its readers
-    if (e.port === 'step' && played.has(e.source)) up.push([e.target, e.source]);
+    if (e.band === 'sync' && played.has(e.source)) up.push([e.target, e.source]);
     else if (feeds(e) || e.port === 'mix') up.push([e.source, e.target]);
     else if (e.port === 'braid' && sinks.has(e.source)) up.push([e.target, e.source]); // the sound card's channels
   }
@@ -110,7 +110,7 @@ export function flowRanks(model: { nodes: readonly { id: string }[]; edges: read
     if (!changed) break;
   }
   // a source that drives nothing (a modulator like &vibrato) sits just under what it feeds, not at the bottom
-  const drivers = new Set(model.edges.filter((e) => e.port === 'step').map((e) => e.target));
+  const drivers = new Set(model.edges.filter((e) => e.band === 'sync').map((e) => e.target));
   const fed = new Map<string, string[]>();
   for (const [lo, hi] of up) fed.set(lo, [...(fed.get(lo) ?? []), hi]);
   const hasBelow = new Set(up.map(([, hi]) => hi));
@@ -161,7 +161,7 @@ export function flowRanks(model: { nodes: readonly { id: string }[]; edges: read
  */
 export function columns(model: {
   nodes: readonly { id: string; kind: string; pan?: number; order?: number; petalOf?: string }[];
-  edges: readonly { source: string; target: string; port: string }[];
+  edges: readonly { source: string; target: string; port: string; band: string }[];
 }): Map<string, number> {
   const nodes = model.nodes.filter((n) => !n.petalOf);
   // what sounds: voices, and instruments (whose voices are petals)
@@ -184,7 +184,7 @@ export function columns(model: {
   const consumers = new Map<string, string[]>();
   const add = (from: string, to: string) => consumers.set(from, [...(consumers.get(from) ?? []), to]);
   for (const e of model.edges) {
-    if (e.port === 'braid' || e.port === 'over' || e.port === 'step') add(e.target, e.source);
+    if (e.port === 'braid' || e.port === 'over' || e.band === 'sync') add(e.target, e.source);
     else if (feeds(e)) add(e.source, e.target);
   }
   const served = (id: string, seen = new Set<string>()): string[] => {
