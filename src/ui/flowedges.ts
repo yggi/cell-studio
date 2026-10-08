@@ -117,7 +117,8 @@ export function flowEdgeOf(e: GraphEdge, state: State, program: CompileResult, b
     ...heads,
     type: 'pulse',
     // (only a live edge carries a note's colour and pulses: an edge into what doesn't sound now stays still)
-    data: { ...pulseData(e, program), off: state === 'off' || state === 'unrouted', state, sizes, to: nameOf(e.to), net, ring },
+    // (a bus round a loom: its run here, its ring as an edge of its own, LOOM)
+    data: { ...pulseData(e, program), off: state === 'off' || state === 'unrouted', state, sizes, to: nameOf(e.to), net, ring, ...(ring === undefined ? {} : { part: 'run' }) },
     label: edgeLabel(e),
     class: `edge-${e.port} band-${e.band}${e.pointer ? ' pointer' : ''}`,
     selectable: false,
@@ -205,5 +206,11 @@ export function flowEdgesOf(s: GraphSnapshot, scene: EdgeScene): Edge[] {
     // (the wheels' sizes at its ends: a braid's edge meets its segment, a table's strands leave their entries)
     return flowEdgeOf(e, state, program, undefined, { from: scene.sizeOf(e.from) ?? 0, to: scene.sizeOf(e.to) ?? 0 }, netPlaces.get(e.id), rings.get(e.id));
   };
-  return [...model.edges.filter((e) => !grounds.has(e.id)).map(toFlowEdge), ...scene.net.map((t) => meterEdgeOf(t, index.get(t.meter) ?? 0))];
+  const pulses = model.edges.filter((e) => !grounds.has(e.id)).map(toFlowEdge);
+  // a bus's loom round its source, drawn after every edge's run (so over it): a bus passing a wheel runs under its loom
+  const looms = pulses.filter((f) => rings.has(f.id)).map((f): Edge => ({ ...f, id: `${f.id}${LOOM}`, label: undefined, data: { ...f.data, part: 'ring' } }));
+  return [...pulses, ...looms, ...scene.net.map((t) => meterEdgeOf(t, index.get(t.meter) ?? 0))];
 }
+
+/** The id of a bus's loom, drawn as an edge of its own (above every run): the bus's id and this. */
+export const LOOM = '#loom';

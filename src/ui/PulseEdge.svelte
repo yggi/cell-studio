@@ -16,17 +16,20 @@
    */
   import { BaseEdge, type EdgeProps } from '@xyflow/svelte';
   import { untrack } from 'svelte';
-  import { loomPaths, radialPath, ripplePath, splinePoint, strandPath } from '../layout/geometry';
+  import { loomParts, loomPaths, radialPath, ripplePath, splinePoint, strandPath } from '../layout/geometry';
   import { cellView, type Fill, type Segment } from '../layout/cellview';
   import { isTurntable } from '../engine/graph';
   import { getGraphContext } from './context';
+  import { LOOM } from './flowedges';
   import { pitchHue } from '../theory/modes';
   import { pickIndices } from '../engine/program';
   import { tapRadius } from '../layout/wheel';
   import type { Pick } from '../engine/ast';
 
-  let { id, sourceX, sourceY, targetX, targetY, data, label, markerEnd, style }: EdgeProps = $props();
+  let { id: edgeId, sourceX, sourceY, targetX, targetY, data, label, markerEnd, style }: EdgeProps = $props();
   const ctx = getGraphContext();
+  // (a loom's ring is drawn as an edge of its own: it reads the bus's bends, taps and liveness)
+  const id = $derived(edgeId.endsWith(LOOM) ? edgeId.slice(0, -LOOM.length) : edgeId);
   const d = $derived(
     data as {
       band: string;
@@ -41,6 +44,8 @@
       sizes?: { from: number; to: number };
       picks?: Pick[];
       ring?: number;
+      /** A bus round a loom is drawn in two parts: its run, and its ring as an edge of its own above every run. */
+      part?: 'run' | 'ring';
       net?: { id: string };
       off?: boolean;
       state?: string;
@@ -72,6 +77,9 @@
 
   // (between a bus's strands)
   const GAP = 4;
+  // a loom round the source: the part this edge draws (its ring above every run, its run with the rest; whole if not split)
+  const ringOnly = $derived(d.part === 'ring');
+  const looming = (parts: { ring: string; run: string }[]) => parts.map((p) => (d.part === 'ring' ? p.ring : d.part === 'run' ? p.run : `${p.ring} L${p.run.slice(1)}`));
   // (the CV ports that carry notes; any other CV is a level: an envelope, a gain, a filter …)
   const PITCH_PORTS = new Set(['voice', 'pitch', 'play', 'write', 'braid', 'over']);
 
@@ -121,9 +129,9 @@
       return Array.from({ length: count }, (_, i) => strandPath(fromX, fromY, mid.x, mid.y, targetX, targetY, (i - (count - 1) / 2) * GAP));
     const turns = exits.map((s) => tapOf(view!, s!));
     // a hop: the bus goes on out of the hub of the reader it came into, flat, in the table's order
-    if (hop) return turns.map((_, i) => strandPath(hop.x, hop.y, mid.x, mid.y, targetX, targetY, (i - (turns.length - 1) / 2) * GAP));
+    if (hop) return ringOnly ? [] : turns.map((_, i) => strandPath(hop.x, hop.y, mid.x, mid.y, targetX, targetY, (i - (turns.length - 1) / 2) * GAP));
     // out of each entry's tap, round the source's loom, into a bundle towards the reader
-    return loomPaths(sourceX, sourceY, r, turns, mid.x, mid.y, targetX, targetY, GAP, d.ring ?? 0);
+    return looming(loomParts(sourceX, sourceY, r, turns, mid.x, mid.y, targetX, targetY, GAP, d.ring ?? 0));
   });
   // A reference that picks (&key[0], &maj's &key[0] &key[4] &key[7]): a strand from each tap it reads, in the colour
   // the wheel pushes there — one straight out of its tap, several through the loom; as written ($): from the hub.
@@ -150,7 +158,7 @@
     const turns = picked.taps.map((x) => x.t);
     return turns.length === 1
       ? [radialPath(targetX, targetY, control, sourceX, sourceY, r, turns[0], true)]
-      : loomPaths(sourceX, sourceY, r, turns, mid.x, mid.y, targetX, targetY, GAP, d.ring ?? 0);
+      : looming(loomParts(sourceX, sourceY, r, turns, mid.x, mid.y, targetX, targetY, GAP, d.ring ?? 0));
   });
   // a wheel's fill, coloured as its wheel colours it: a note its pitch colour (the palette's, its place on its grid
   // already found), a level on the neutral hue
@@ -162,7 +170,7 @@
     const turns = d.tines.map((_, i) => i / n);
     // (the resonator is the edge's end when the tune plays it, its start when the tune reads through it)
     return d.port === 'over'
-      ? loomPaths(sourceX, sourceY, (d.sizes.from / 2) * 1.2, turns, mid.x, mid.y, targetX, targetY, GAP, d.ring ?? 0)
+      ? looming(loomParts(sourceX, sourceY, (d.sizes.from / 2) * 1.2, turns, mid.x, mid.y, targetX, targetY, GAP, d.ring ?? 0))
       : loomPaths(targetX, targetY, (d.sizes.to / 2) * 1.2, turns, mid.x, mid.y, sourceX, sourceY, GAP);
   });
   const tineStrands = $derived.by(() => {
@@ -245,7 +253,7 @@
 {/if}
 {#if strands.length}
   <g class={`bus edge-${state}`}>
-    {#if !(d.table && rimOf(d.sizes?.from))}
+    {#if !(d.table && rimOf(d.sizes?.from)) && !ringOnly}
       <path class="bus-sheath" d={spline} style={`stroke-width: ${strands.length * GAP + 6}px`} />
     {/if}
     {#each strands as s, i (i)}
@@ -260,22 +268,24 @@
     {/each}
   </g>
 {/if}
-{#each lockedPaths.slice(1) as p, i (i)}
-  <path class={`svelte-flow__edge-path edge-${state}`} d={p} style={edgeStyle} />
-{/each}
-<BaseEdge
-  {id}
-  {path}
-  {markerEnd}
-  style={edgeStyle}
-  class={`edge-${state}${strands.length || tineStrands.length || (pickPaths.length && !picked?.hub) ? ' bus-core' : ''}`}
-  {label}
-  labelX={mid.x}
-  labelY={mid.y}
-  labelStyle={d.off ? 'opacity: 0.3' : colour ? `border-color: ${colour}` : undefined}
-/>
-{#if dot}
-  <circle class="pulse" cx={dot.x} cy={dot.y} r={d.band === 'sync' ? 4.5 : 6} style={colour ? `fill: ${colour}` : undefined} />
+{#if !ringOnly}
+  {#each lockedPaths.slice(1) as p, i (i)}
+    <path class={`svelte-flow__edge-path edge-${state}`} d={p} style={edgeStyle} />
+  {/each}
+  <BaseEdge
+    {id}
+    {path}
+    {markerEnd}
+    style={edgeStyle}
+    class={`edge-${state}${strands.length || tineStrands.length || (pickPaths.length && !picked?.hub) ? ' bus-core' : ''}`}
+    {label}
+    labelX={mid.x}
+    labelY={mid.y}
+    labelStyle={d.off ? 'opacity: 0.3' : colour ? `border-color: ${colour}` : undefined}
+  />
+  {#if dot}
+    <circle class="pulse" cx={dot.x} cy={dot.y} r={d.band === 'sync' ? 4.5 : 6} style={colour ? `fill: ${colour}` : undefined} />
+  {/if}
 {/if}
 
 <style>

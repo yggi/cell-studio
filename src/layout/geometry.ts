@@ -116,6 +116,22 @@ export function radialPath(ax: number, ay: number, via: { x: number; y: number }
  * taken by the wheel's other buses (a band each, the larger inside).
  */
 export function loomPaths(cx: number, cy: number, r: number, turns: readonly number[], mx: number, my: number, bx: number, by: number, gap: number, inner = 0): string[] {
+  return loomParts(cx, cy, r, turns, mx, my, bx, by, gap, inner).map((p) => `${p.ring} L${p.run.slice(1)}`);
+}
+
+/** loomPaths in two parts each: its ring (from the tap round the wheel to where it turns off) and its run on to b. */
+export function loomParts(
+  cx: number,
+  cy: number,
+  r: number,
+  turns: readonly number[],
+  mx: number,
+  my: number,
+  bx: number,
+  by: number,
+  gap: number,
+  inner = 0,
+): { ring: string; run: string }[] {
   const phi = Math.atan2(by - cy, bx - cx);
   const [ux, uy] = [Math.cos(phi), Math.sin(phi)];
   const [nx, ny] = [-uy, ux];
@@ -156,6 +172,6 @@ export function loomPaths(cx: number, cy: number, r: number, turns: readonly num
     const round = side[i] * (w - psi) <= 1e-3 ? `L ${v(ox)} ${v(oy)}` : `A ${v(R)} ${v(R)} 0 0 ${sweep} ${v(hx)} ${v(hy)} A ${v(R)} ${v(R)} 0 0 ${sweep} ${v(ox)} ${v(oy)}`;
     const [gx, gy] = [cx + ux * reach + nx * o, cy + uy * reach + ny * o];
     const [kx, ky] = ahead ? [qx + nx * o, qy + ny * o] : [(gx + bx + nx * o) / 2, (gy + by + ny * o) / 2];
-    return `M ${v(px)} ${v(py)} L ${v(tx)} ${v(ty)} ${round} L ${v(gx)} ${v(gy)} Q ${v(kx)} ${v(ky)} ${v(bx + nx * o)} ${v(by + ny * o)}`;
+    return { ring: `M ${v(px)} ${v(py)} L ${v(tx)} ${v(ty)} ${round}`, run: `M ${v(ox)} ${v(oy)} L ${v(gx)} ${v(gy)} Q ${v(kx)} ${v(ky)} ${v(bx + nx * o)} ${v(by + ny * o)}` };
   });
 }
