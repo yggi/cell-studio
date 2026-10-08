@@ -11,7 +11,7 @@ that makes the change. Also note changes to the language that could affect saved
 ## Unreleased
 
 ### Changed
-- A label's `{mode}` is bold and gives the common name first: **Minor** (*Aeolian*), **Major** (*Ionian*), **Dorian**; the examples drop their own `**…**` round it. A wheel whose hub shows what comes in shows just its count there. **Saved pieces:** a label that wrote `**{mode}**` still shows the mode, its markers doubled.
+- A label's `{mode}` is bold and gives the common name first: **Minor** (*Aeolian*), **Major** (*Ionian*), **Dorian**; the examples drop their own `**…**` round it. A wheel whose hub shows what comes in shows just its count there. Saved pieces are not affected: a label that wrote `**{mode}**` reads as `{mode}`.
 - A pick reads its cell as it is turned: `&key[0]` with `&key shift=2` is D (a fixed tap on a turning wheel), and it follows a key that steps or is turned live; `&key[$0]` is the new form for *as written* (C). Slices too: `&x[1:3]`, `&x[$1:3]` (#10). **Saved pieces:** a pick from a cell with a `shift=` (or a stepped one, read in another cell's braid) now plays the turned entry; write `[$…]` to keep the old notes. No example changes.
 
 ### Added

@@ -25,6 +25,9 @@ describe('label templates', () => {
     expect(formatLabel(royal, 'nope', 'key {&key:tonic} · *mode* {&scale:mode}\\nnext', codeShifts(royal))).toBe('key C · <i>mode</i> <b>Minor</b> (<i>Aeolian</i>)<br>next');
     expect(formatLabel(royal, 'scale', '<script> & {what}', codeShifts(royal))).toBe('&lt;script&gt; &amp; {what}');
   });
+  it('a **{mode}** written as labels used to reads as {mode}', () => {
+    expect(formatLabel(royal, 'scale', '**{mode}** on {tonic}', codeShifts(royal))).toBe('<b>Minor</b> (<i>Aeolian</i>) on C');
+  });
   it('a label= written with fields, in an example', () => {
     const r = compileSource(setAttr(PRESETS.royal.source, 'scale', 'label', '"{mode}: {notes}"'));
     expect(labelText(r, 'scale', r.cells.get('scale')!.label!, codeShifts(r))).toBe('Minor (Aeolian): C D E♭ F G A♭ B♭');

@@ -64,6 +64,8 @@ const escape = (t: string) => t.replace(/&/g, '&amp;').replace(/</g, '&lt;').rep
  * any formatting is applied). Unknown fields stay as written.
  */
 export function formatLabel(result: CompileResult, name: string, template: string, shifts: Shifts): string {
+  // ({mode} is bold already: a **{mode}** written round it, as labels used to, is the same)
+  template = template.replace(/\*\*(\{(?:&[A-Za-z_][A-Za-z0-9_]*:)?mode\})\*\*/g, '$1');
   const need = new Set([...template.matchAll(/\{(?:&[A-Za-z_][A-Za-z0-9_]*:)?([a-z]+)\}/g)].map((m) => m[1]));
   const own = fieldsOf(result, name, shifts, need);
   const filled = template.replace(/\{(?:&([A-Za-z_][A-Za-z0-9_]*):)?([a-z]+)\}/g, (whole, cell: string | undefined, field: string) => {
