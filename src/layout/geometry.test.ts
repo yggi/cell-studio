@@ -44,13 +44,15 @@ describe('loomPaths: the strands round a wheel, a ring of tracks', () => {
         }
       } else if (c === 'A') {
         const r = +tok[i++];
-        i += 4;
+        i += 3;
+        const sweep = +tok[i++];
         const [x, y] = [+tok[i++], +tok[i++]];
         const [ax, ay] = out[out.length - 1];
         const a0 = Math.atan2(ay - cy, ax - cx);
         let a1 = Math.atan2(y - cy, x - cx);
-        if (a1 - a0 > Math.PI) a1 -= 2 * Math.PI;
-        if (a0 - a1 > Math.PI) a1 += 2 * Math.PI;
+        // (clockwise on screen when sweep is 1: the angle grows)
+        if (sweep && a1 < a0) a1 += 2 * Math.PI;
+        if (!sweep && a1 > a0) a1 -= 2 * Math.PI;
         for (let k = 1; k <= 12; k++) out.push([cx + r * Math.cos(a0 + ((a1 - a0) * k) / 12), cy + r * Math.sin(a0 + ((a1 - a0) * k) / 12)]);
       }
     }
@@ -67,6 +69,7 @@ describe('loomPaths: the strands round a wheel, a ring of tracks', () => {
     ['up', [0, -400]],
     ['right', [400, 30]],
     ['down left', [-300, 280]],
+    ['across the seam', [-40, -400]],
   ] as const)
     it(`twelve taps to a reader ${what}: each leaves its tap, none crosses another, the bundle ends a gap apart`, () => {
       const turns = Array.from({ length: 12 }, (_, i) => i / 12);
@@ -77,7 +80,9 @@ describe('loomPaths: the strands round a wheel, a ring of tracks', () => {
         expect(Math.hypot(p[0][0] - x, p[0][1] - y)).toBeLessThan(0.2);
       });
       expect(crossings(ps)).toBe(0);
-      const ends = ps.map((p) => p[p.length - 1]).sort((p, q) => p[0] - q[0] || p[1] - q[1]);
-      for (let i = 1; i < ends.length; i++) expect(Math.hypot(ends[i][0] - ends[i - 1][0], ends[i][1] - ends[i - 1][1])).toBeCloseTo(4, 0);
+      // the bus in its own order: strand i is i-th across the bundle, left to right looking along it (as a flat bus)
+      const l = Math.hypot(b[0], b[1]);
+      const across = ps.map((p) => (p[p.length - 1][0] * -b[1] + p[p.length - 1][1] * b[0]) / l);
+      across.forEach((x, i) => expect(x).toBeCloseTo((i - 5.5) * 4, 0));
     });
 });

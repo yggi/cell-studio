@@ -160,7 +160,7 @@ function loomRings(s: GraphSnapshot): Map<string, number> {
     let inner = 0;
     for (const g of [...bySource.values()].sort((a, b) => b.n - a.n)) {
       for (const id of g.ids) out.set(id, inner);
-      inner += Math.ceil(g.n / 2) + 1;
+      inner += g.n + 1;
     }
   }
   return out;

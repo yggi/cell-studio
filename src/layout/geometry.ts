@@ -107,24 +107,30 @@ export function radialPath(ax: number, ay: number, via: { x: number; y: number }
 /**
  * A wheel's strands, routed as a cable loom (a table's entries, a resonator's tines, a ref written several times): out
  * of each tap (`turns`, 0 the top, clockwise; r its ring) along the radius onto a track of its own round the wheel, and
- * off the ring towards b — so the wires round a source make a ring. The tap nearest b's way leaves first, on the
- * innermost track, in the middle of the bundle; the farther one comes round, the farther out its track and the bundle's
- * edge (on its own side): nested, no two cross. Then on as a flat bundle `gap` px apart along the edge's curve (through
- * m) to b. Paths in the order of `turns`. `inner`: tracks taken by the wheel's other buses (a band each, the larger inside).
+ * off the ring towards b — so the wires round a source make a ring. A bus keeps one order everywhere: strand i is
+ * i-th across the bundle (its first on the left, looking along it, as a flat bundle has it: strandPath). So the ring
+ * is cut at the seam between the last tap and the first, not across from b: a tap before b's way, counted round from
+ * the seam, comes to it clockwise, one after it anticlockwise — the long way round if need be — the nearer b's way,
+ * the inner its track. Nested, no two cross (when the taps are in order round the wheel, as a table's are). Then on as a
+ * flat bundle `gap` px apart along the edge's curve (through m) to b. Paths in the order of `turns`. `inner`: tracks
+ * taken by the wheel's other buses (a band each, the larger inside).
  */
 export function loomPaths(cx: number, cy: number, r: number, turns: readonly number[], mx: number, my: number, bx: number, by: number, gap: number, inner = 0): string[] {
   const phi = Math.atan2(by - cy, bx - cx);
   const [ux, uy] = [Math.cos(phi), Math.sin(phi)];
   const [nx, ny] = [-uy, ux];
-  // each tap's way round from b's way: −π … π (clockwise positive), and its rank on its side, nearest first
-  const way = turns.map((t) => {
-    const d = t * TAU - Math.PI / 2 - phi;
-    return d - TAU * Math.round(d / TAU);
-  });
+  const n = turns.length;
+  const wrap = (t: number) => ((t % 1) + 1) % 1;
+  // the seam: halfway from the last tap round to the first (a lone strand: across from b, the short way)
+  const out = wrap((phi + Math.PI / 2) / TAU);
+  const seam = n > 1 ? turns[n - 1] + wrap(turns[0] - turns[n - 1]) / 2 : out + 0.5;
+  // each tap's way round to b's, from the seam (clockwise positive: it comes anticlockwise), and its rank on its side
+  const way = turns.map((t) => (wrap(t - seam) - wrap(out - seam)) * TAU);
   const side = way.map((d) => (d >= 0 ? 1 : -1));
-  const rank = way.map((d, i) => way.filter((e, j) => side[j] === side[i] && (Math.abs(e) < Math.abs(d) || (Math.abs(e) === Math.abs(d) && j < i))).length);
-  // (across the bundle: each side outwards from the middle — so a track never crosses to the other side)
-  const across = way.map((_, i) => side[i] * (rank[i] + 0.5) * gap);
+  // (a track each, the nearer b's way the inner, whichever side: near the axis a strand's turn crosses to the other)
+  const rank = way.map((d, i) => way.filter((e, j) => Math.abs(e) < Math.abs(d) || (Math.abs(e) === Math.abs(d) && j < i)).length);
+  // (across the bundle: by its place on the bus)
+  const across = way.map((_, i) => (i - (n - 1) / 2) * gap);
   const track0 = r + (1.5 + inner) * gap;
   const outer = track0 + Math.max(0, ...rank) * gap;
   const d = Math.hypot(bx - cx, by - cy) || 1;
@@ -143,7 +149,11 @@ export function loomPaths(cx: number, cy: number, r: number, turns: readonly num
     // where its track turns off towards b: as far across as its place in the bundle
     const psi = Math.asin(Math.max(-0.95, Math.min(0.95, o / R)));
     const [ox, oy] = [cx + R * Math.cos(phi + psi), cy + R * Math.sin(phi + psi)];
-    const round = side[i] * (w - psi) > 1e-3 ? `A ${v(R)} ${v(R)} 0 ${Math.abs(w - psi) > Math.PI ? 1 : 0} ${side[i] > 0 ? 0 : 1} ${v(ox)} ${v(oy)}` : `L ${v(ox)} ${v(oy)}`;
+    // (round its side's way; a long way round in two halves, an arc flag can't say more than a half turn)
+    const sweep = side[i] > 0 ? 0 : 1;
+    const half = (w + psi) / 2;
+    const [hx, hy] = [cx + R * Math.cos(phi + half), cy + R * Math.sin(phi + half)];
+    const round = side[i] * (w - psi) <= 1e-3 ? `L ${v(ox)} ${v(oy)}` : `A ${v(R)} ${v(R)} 0 0 ${sweep} ${v(hx)} ${v(hy)} A ${v(R)} ${v(R)} 0 0 ${sweep} ${v(ox)} ${v(oy)}`;
     const [gx, gy] = [cx + ux * reach + nx * o, cy + uy * reach + ny * o];
     const [kx, ky] = ahead ? [qx + nx * o, qy + ny * o] : [(gx + bx + nx * o) / 2, (gy + by + ny * o) / 2];
     return `M ${v(px)} ${v(py)} L ${v(tx)} ${v(ty)} ${round} L ${v(gx)} ${v(gy)} Q ${v(kx)} ${v(ky)} ${v(bx + nx * o)} ${v(by + ny * o)}`;
