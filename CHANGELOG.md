@@ -38,6 +38,7 @@ that makes the change. Also note changes to the language that could affect saved
 - *Bell and scale*, *Just intonation*, *Two Tuning Forks* and *Alpha* are pieces now, not basics.
 
 ### Fixed
+- Keyboard focus is visible on every button (the piece picker's cards, the sheet's close button): 68 of the first 120 Tab stops showed no ring (#135). Saved `.cells` pieces are not affected.
 - In the live view, a chord of voices in a groove (`[&bd, &hh]`) lights each of its voices while it sounds (before, they stayed dark). Saved `.cells` pieces are not affected.
 - A piece's loop length counts a turning table's turns where they really wrap: IDM: drill loops in 0:30 (its harmony turns twice and back), not 3:30; Canon per tonos in 3:20 (twelve passes, two octaves, home), not 1:40 (six, an octave up). Saved `.cells` pieces are not affected.
 - Switching off a mix or the sound card silences the tape heads that return through it, and a resonator ringing alone in it, as the graph already showed (#165): in *Sound on Tape*, muting `&out` used to leave the heads playing. Nothing changes while everything is on. Saved `.cells` pieces are not affected.
