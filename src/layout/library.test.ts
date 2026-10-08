@@ -139,3 +139,12 @@ describe('the library laid out', () => {
     expect(lib.edges.filter((e) => e.target === `t:${TUTORIAL}`)).toHaveLength(ladder.length);
   });
 });
+
+describe('a library of nothing but the tutorial', () => {
+  it('still returns, with the tutorial laid out', () => {
+    const only = entries.filter((e) => e.tags.includes(TUTORIAL));
+    const l = libraryLayout(only);
+    expect(l.tutorial).toBeTruthy();
+    for (const e of only) expect(l.at.get(`p:${e.id}`), e.id).toBeDefined();
+  });
+});

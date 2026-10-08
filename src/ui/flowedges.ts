@@ -4,6 +4,7 @@
  */
 import type { Edge } from '@xyflow/svelte';
 import type { GraphEdge } from '../engine/graph';
+import { isJunction } from '../engine/ids';
 import { edgeLabel } from '../engine/transform';
 import type { CompileResult } from '../engine/program';
 import { drawn, edgeStateOf, type State } from '../engine/routing';
@@ -16,6 +17,8 @@ import type { MeterTrace } from '../layout/state';
 import type { GraphSnapshot } from './snapshot';
 
 const nameOf = (id: string) => id.slice('cell:'.length);
+/** An edge's end as a cell's name: a product's junction reads as the voice it is (its sound). */
+const endOf = (e: GraphEdge, id: string) => (isJunction(id) ? (e.sound ?? null) : nameOf(id));
 
 /** A belt between two turntables as it is now (BeltEdge). */
 export interface BeltDrawn {
@@ -39,7 +42,7 @@ export interface NetPlace {
 /** A note into a resonator with tines picks one (or reads through them): each tine's pitch (semitones from C4), for the strands at its pads. */
 function tinesOf(e: GraphEdge, program: CompileResult): number[] | null {
   // (a tune plays the tines — the resonator at the edge's end; or reads through them, over= — at its start)
-  const c = e.port === 'voice' ? program.cells.get(nameOf(e.to)) : e.port === 'over' ? program.cells.get(nameOf(e.from)) : undefined;
+  const c = e.port === 'voice' ? program.cells.get(e.sound ?? nameOf(e.to)) : e.port === 'over' ? program.cells.get(nameOf(e.from)) : undefined;
   if (!c || typeof c.params.body !== 'string' || (c.exciters?.length ?? 0) < 2) return null;
   const f0 = c.freq > 0 ? c.freq : 440;
   return c.exciters!.map((x) => 12 * Math.log2(f0 / 261.63) + x.shift);
@@ -56,9 +59,12 @@ const NOTHING: Carrier = () => ({ phaseCell: null, voice: null });
 /** The cell whose output plays a voice (its steps are the voice's notes). */
 const trigger = (program: CompileResult, voice: string) => program.outputs.find((o) => o.voice === voice)?.cell ?? null;
 
-/** By band: ticks pulse with the steps of the cell they drive (a clock's), a note's link carries nothing. */
+/**
+ * By band: ticks pulse with the steps of the cell they drive (a clock's), or a parameter's clock with the clock's own
+ * (`delaytime=&bar*3/4`: its reader doesn't step); a note's link carries nothing.
+ */
 const BY_BAND: Readonly<Partial<Record<GraphEdge['band'], Carrier>>> = {
-  sync: (e) => ({ phaseCell: nameOf(e.to), voice: null }),
+  sync: (e) => ({ phaseCell: nameOf(e.port === 'step' ? e.to : e.from), voice: null }),
   none: NOTHING,
 };
 /** By port, for the other bands. */
@@ -69,15 +75,16 @@ const BY_PORT: Readonly<Record<string, Carrier>> = {
   // a tape's edges take the colour of what's on them: a read head's notes, as played; what's being written, as its source plays it
   play: (e, p) => ({ phaseCell: null, voice: p.outputs.find((x) => x.tape?.head === nameOf(e.target))?.voice ?? null }),
   write: (e, p) => ({ phaseCell: null, voice: p.outputs.find((x) => x.cell === nameOf(e.source) && !x.tape)?.voice ?? null }),
-  // a voice into a mix: its notes, pulsing with the steps that play it
+  // a voice into a mix (or a product's junction, its sound): its notes, pulsing with the steps that play it
   mix: (e, p) => {
-    const voice = nameOf(e.source);
+    const voice = e.sound ?? nameOf(e.source);
     return { phaseCell: trigger(p, voice), voice };
   },
 };
 /** Any other port feeds a voice (a melody playing it, its envelope, levels, pitch, parameters, FM, what excites or couples it): its note; the pulse if this is what plays it. */
 const INTO_VOICE: Carrier = (e, p) => {
-  const voice = nameOf(e.target);
+  // (into a product's junction: the voice it is)
+  const voice = e.sound ?? nameOf(e.target);
   return { phaseCell: trigger(p, voice) === nameOf(e.source) ? nameOf(e.source) : null, voice };
 };
 
@@ -92,8 +99,9 @@ function pulseData(e: GraphEdge, program: CompileResult) {
     band: e.band,
     port: e.port,
     width: e.width,
-    from: nameOf(e.from),
-    table: e.port === 'over' ? nameOf(e.from) : null,
+    from: endOf(e, e.from),
+    // (a table read through, over=, or looked up, map=: its strands leave its entries)
+    table: e.port === 'over' || e.port === 'map' ? nameOf(e.from) : null,
     tines: tinesOf(e, program),
     // what each place it is written picks (a strand from each tap it reads; $: from the hub)
     picks: e.port === 'braid' ? e.transforms.flatMap((t) => t.flatMap((st) => (st.kind === 'pick' ? [st.pick] : []))) : [],
@@ -106,7 +114,7 @@ function pulseData(e: GraphEdge, program: CompileResult) {
  * belt over its pulleys. While playing, an edge that is routed is `idle` here, and PulseEdge makes it live when it is
  * (each edge reads that for itself).
  */
-export function flowEdgeOf(e: GraphEdge, state: State, program: CompileResult, belt?: BeltDrawn, sizes?: EndSizes, net?: NetPlace, ring = 0): Edge {
+export function flowEdgeOf(e: GraphEdge, state: State, program: CompileResult, belt?: BeltDrawn, sizes?: EndSizes, net?: NetPlace, ring?: number): Edge {
   if (belt) return { id: e.id, source: e.source, target: e.target, type: 'belt', zIndex: 5, selectable: false, data: { ...belt } };
   // a tape's edges meet it at its heads: the write head (what it records), each read head (what it plays)
   const heads = e.port === 'write' ? { targetHandle: 'head-write' } : e.port === 'play' ? { sourceHandle: `head-${nameOf(e.target)}` } : {};
@@ -119,7 +127,7 @@ export function flowEdgeOf(e: GraphEdge, state: State, program: CompileResult, b
     type: 'pulse',
     // (only a live edge carries a note's colour and pulses: an edge into what doesn't sound now stays still)
     // (a bus round a loom: its run here, its ring as an edge of its own, LOOM)
-    data: { ...pulseData(e, program), off: state === 'off' || state === 'unrouted', state, sizes, to: nameOf(e.to), net, ring, ...(ring === undefined ? {} : { part: 'run' }) },
+    data: { ...pulseData(e, program), off: state === 'off' || state === 'unrouted', state, sizes, to: endOf(e, e.to), net, ring, ...(ring === undefined ? {} : { part: 'run' }) },
     label: edgeLabel(e),
     class: `edge-${e.port} band-${e.band}${e.pointer ? ' pointer' : ''}`,
     selectable: false,
@@ -160,7 +168,7 @@ export function flowEdgesOf(s: GraphSnapshot, scene: EdgeScene): Edge[] {
     const state = edgeStateOf(e, s.muted, routed, live);
     // a belted cell's step: a belt, its pulleys by the ratio, its stretch as it is now
     const driven = e.belt ? model.nodes.find((n) => n.id === e.source) : undefined;
-    if (driven) {
+    if (driven?.cell) {
       const radius = (id: string) => (scene.sizeOf(id) ?? 140) / 2;
       const rate = program.clocks.get(driven.cell.name)?.belt?.rate ?? 1;
       const [rDriver, rDriven] = pulleys(radius(e.target), radius(e.source), rate);

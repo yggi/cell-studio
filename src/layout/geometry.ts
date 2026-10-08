@@ -111,7 +111,8 @@ export function radialPath(ax: number, ay: number, via: { x: number; y: number }
  * i-th across the bundle (its first on the left, looking along it, as a flat bundle has it: strandPath). So the ring
  * is cut at the seam between the last tap and the first, not across from b: a tap before b's way, counted round from
  * the seam, comes to it clockwise, one after it anticlockwise — the long way round if need be — the nearer b's way,
- * the inner its track. Nested, no two cross (when the taps are in order round the wheel, as a table's are). Then on as a
+ * the inner its track. Nested, so they usually don't cross (taps in order round the wheel, as a table's are; a reader very
+ * near a small wheel with many strands can still make two meet). Then on as a
  * flat bundle `gap` px apart along the edge's curve (through m) to b. Paths in the order of `turns`. `inner`: tracks
  * taken by the wheel's other buses (a band each, the larger inside).
  */

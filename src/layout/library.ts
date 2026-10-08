@@ -174,7 +174,8 @@ function start(all: readonly LibraryEntry[]) {
 
   // full size: the scale at which the nodes' rooms fill FILL of the disc (the genres are the rim, not in it)
   const area = nodes.filter((n) => !n.genre).reduce((a, n) => a + 4 * n.bw * n.bh, 0);
-  const full = inner * Math.sqrt((FILL * Math.PI) / area);
+  // (no pieces on the wheel, only the tutorial's: no area to fill, so layout units as they are)
+  const full = area > 0 ? inner * Math.sqrt((FILL * Math.PI) / area) : 1;
   const cell = tutorialCell(tutorial, full, R);
 
   // the tag edges pull: a piece to each of its tags, to touching (the rim's genres lean, below)

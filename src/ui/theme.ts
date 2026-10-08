@@ -1,4 +1,4 @@
-import { METER, MIX, QUIET, VOICE } from '../layout/miniature';
+import { JUNCTION, METER, MIX, QUIET, VOICE } from '../layout/miniature';
 /**
  * The theme, for colours computed in code (SVG fill attributes can't read CSS
  * variables). Mirrors the note settings in app.css: change both together.
@@ -12,6 +12,7 @@ export function miniPaint(colour: number): { fill: string; ring: boolean } {
   if (colour === MIX) return { fill: 'var(--accent)', ring: true };
   if (colour === METER) return { fill: 'color-mix(in oklab, var(--accent) 45%, var(--wheel-ref))', ring: false };
   if (colour === QUIET) return { fill: 'var(--wheel-ref)', ring: false };
+  if (colour === JUNCTION) return { fill: 'var(--edge)', ring: false };
   return { fill: noteColour(colour), ring: false };
 }
 
@@ -49,7 +50,7 @@ export const LEVEL = { hue: 224, s: 11, l0: 46, l1: 86 } as const;
  * lightness (%) from silence to full — dark when quiet, as bright as it is loud. */
 export const SOUND = { s: 90, l0: 6, l1: 56, lo: 3, hi: 85, octave: 6 } as const;
 
-/** The sun's twelve blocks round its rim, by how bright their mode is (Lydian 1 … Locrian 0). */
+/** A mode's colour by how bright it is (Lydian 1 … Locrian 0): show=brightness, and what a plugin draws a day's blocks with. */
 export const blockColour = (light: number) => `hsl(45 ${30 + 60 * light}% ${14 + 62 * light}%)`;
 
 /** A scope's spectrogram: a band at its note's hue, as bright as it is loud; silence the tube's black (`--scope-black`). */

@@ -8,7 +8,7 @@ import { PRESETS } from '../engine/presets';
 import { cellView, hubLabel } from './cellview';
 import { buildGraph } from '../engine/graph';
 import { flowRanks } from './start';
-import { FITS, effectiveShow, inferShow, kindOf, noteLabel, tonicOf, voiceBase } from './show';
+import { FITS, effectiveShow, inferShow, kindOf, noteLabel, pluginOf, tonicOf, voiceBase } from './show';
 
 const twinkle = (show: string) => setAttr(PRESETS.twinkle.source, 'tune', 'show', show);
 const labels = (src: string, cell: string) => {
@@ -19,10 +19,41 @@ const labels = (src: string, cell: string) => {
   return v.segments.flatMap((s) => (s.notes?.length ? [noteLabel(v.show!, s.notes[s.notes.length - 1], base, tonic)] : []));
 };
 
+const errors = (src: string) => compileSource(src).diagnostics.filter((d) => d.severity === 'error');
+
 describe('show=', () => {
   it('reads one of the shows; says which when it isn’t', () => {
     expect(compileSource('&t show=do 0').cells.get('t')!.show).toBe('do');
-    expect(compileSource('&t show=fancy 0').diagnostics[0].message).toMatch(/show= takes one of: braid pattern equal notes midi do/);
+    expect(errors('&t show=fancy 0')[0].message).toMatch(/show=fancy: not a show \(braid pattern equal notes midi do.*no plugin of that name/);
+  });
+  it('a plugin of the piece is a show of its own, for the kinds it says; not passed down', () => {
+    const src = [
+      '&bar scan(1 1 1 1) step=60bpm show=ring',
+      '&tune step=&bar 0 2',
+      '=== plugin ring ===',
+      '{ "fits": ["meter"], "size": 150 }',
+      'function draw() { return []; }',
+      '=== end ===',
+    ].join('\n');
+    const r = compileSource(src);
+    expect(r.diagnostics.filter((d) => d.severity === 'error')).toEqual([]);
+    expect(r.plugins.get('ring')).toMatchObject({ fits: ['meter'], size: 150, rim: true });
+    expect(effectiveShow(r, 'bar')).toMatchObject({ show: 'ring', from: 'set' });
+    expect(pluginOf(r, 'bar')?.name).toBe('ring');
+    // (it draws a meter; the tune it steps is not one, and a plugin's show is a wheel, not a default for what is below)
+    expect(pluginOf(r, 'tune')).toBeNull();
+    expect(effectiveShow(r, 'tune').from).toBe('inferred');
+  });
+  it('the block is blanked in the cells’ text: the cells keep their line numbers', () => {
+    const r = compileSource(['=== plugin ring ===', '{ "fits": ["meter"] }', 'function draw() { return []; }', '=== end ===', '&bar scan(1 1) step=60bpm show=nope'].join('\n'));
+    expect(r.diagnostics.find((d) => d.severity === 'error')!.span.line).toBe(5);
+  });
+  it('says what is wrong with a block', () => {
+    const msgs = (s: string) => errors(s).map((d) => d.message);
+    expect(msgs('=== plugin ring ===\n=== end ===')[0]).toMatch(/starts with its manifest/);
+    expect(msgs('=== plugin ring ===\n{ "fits": ["meter"] }')[0]).toMatch(/no === end ===/);
+    expect(msgs('=== plugin wave ===\n{ "fits": ["meter"] }\n=== end ===')[0]).toMatch(/a show of its own/);
+    expect(msgs('=== plugin ring ===\n{ "fits": [] }\n=== end ===')[0]).toMatch(/"fits" lists/);
   });
   it('is the default for everything below: parts and tables — not a step driver', () => {
     const r = compileSource(twinkle('do'));

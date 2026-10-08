@@ -599,6 +599,17 @@
   {/each}
   {#each units as u (u.written)}
     <text class="steplabel token" x={u.x} y={u.y} font-size={u.font}>{u.text}</text>
+    <!-- (each step a button for the keyboard and screen readers; a pointer's tap goes to the rim, which tells taps from turns) -->
+    {#if onpick}
+      <path
+        class="step-button"
+        d={u.d}
+        role="button"
+        tabindex="0"
+        aria-label="step {u.written + 1}: {u.text}"
+        onkeydown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), onpick(u.written))}
+      />
+    {/if}
   {/each}
   {#each labels as l}
     <text class="steplabel" x={l.x} y={l.y} font-size={Math.max(6, Math.min(11, size / 12, l.wide * size * 1.2))}>{l.text}</text>
@@ -773,6 +784,16 @@
   }
   .hub {
     fill: var(--wheel-hub);
+  }
+  /* the sheet: a step, for the keyboard (the pointer turns or taps the rim beneath) */
+  .step-button {
+    fill: transparent;
+    pointer-events: none;
+    outline: none;
+  }
+  .step-button:focus-visible {
+    stroke: var(--accent);
+    stroke-width: 2.5;
   }
   /* the sheet: the hub edits the whole braid */
   .hub-button {

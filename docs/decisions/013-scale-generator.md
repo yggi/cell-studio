@@ -1,4 +1,4 @@
-# 012 · `scale(name, tonic)`: a generator for a fixed mode over a key
+# 013 · `scale(name, tonic)`: a generator for a fixed mode over a key
 
 **Date:** 2026-10-08 · **Status:** accepted (owner, #199) · supersedes [002](002-scale-shorthand.md)
 

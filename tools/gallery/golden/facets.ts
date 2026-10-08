@@ -30,7 +30,7 @@ export function edgeFacets(e: GraphEdge, program: CompileResult, ground: boolean
   const belted = !!e.belt;
   const head = e.port === 'write' || e.port === 'play';
   // (what it carries, docs/notes/nets.md: its band, and whether it is a bus — a table's entries, a chord's notes)
-  const bus = e.width < 2 ? 'wire' : e.port === 'over' ? 'table' : e.band === 'audio' ? 'stereo' : 'chord';
+  const bus = e.width < 2 ? 'wire' : e.port === 'over' || e.port === 'map' ? 'table' : e.band === 'audio' ? 'stereo' : 'chord';
   return [
     // (an attribute — fm=, lpf=, couple= … — is one value: which one is the edge sheet's to show)
     `port=${isAttribute(e.port) ? 'attribute' : e.port}`,

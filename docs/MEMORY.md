@@ -37,14 +37,14 @@ Details are on the linked pages; this list is only a pointer. → [language/over
 - `[a * &voice, …]` mixes (sorts, `+` `*` commute), `map=sample` → [mix](language/mix.md)
 - voices `s=` `loop=`, `env=` `pitch=` `map=adsr|amp|lin|db` → [sound](language/sound.md)
 - belts, tape, resonators, FM → [physics](language/physics.md)
-- `title=` `tags=` `label=` `show=` `level=`; the tutorial: `tags="tutorial"` `rung=n` → [display](language/display.md)
+- `title=` `tags=` `label=` `show=` `level=`; the tutorial: `tags="tutorial"` `rung=n` → [display](language/display.md); a `show=` of the piece's own → [plugins](language/plugins.md)
 
 ## Decisions
 
 One line each; the record has the rationale. → [decisions/](decisions/README.md)
 
 - 001 · The wiki is dropped; `docs/` is the project memory · → decisions/001-no-wiki.md
-- 002 · `scale(tonic, phase)` stays as shorthand for two unnamed cells (superseded by 012) · → decisions/002-scale-shorthand.md
+- 002 · `scale(tonic, phase)` stays as shorthand for two unnamed cells (superseded by 013) · → decisions/002-scale-shorthand.md
 - 003 · `cycle=n` has one job; grids say `map=edo` · → decisions/003-cycle-one-job.md
 - 004 · Agents open PRs and never merge; the `senior` skill triages, reviews and merges with the owner's approval · → decisions/004-agents-dont-merge.md
 - 005 · The audio context is `balanced` (not `playback`, not yet `interactive`), and the pictures show what is heard · → decisions/005-balanced-latency-and-heard-pictures.md
@@ -53,8 +53,9 @@ One line each; the record has the rationale. → [decisions/](decisions/README.m
 - 008 · A turning table comes round after its own length; `cycle=` only when it differs · → decisions/008-tables-come-round.md
 - 009 · The tutorial is a ladder of pieces, one concept each, covering every form once (a test checks); `rung=` on the card; `tutorial` a kind of tag (it replaces `basics`), its own cell in the library · → decisions/009-tutorial-ladder.md
 - 010 · A canon's `[<<n]` is a copy (the score replayed); `play= at=` reads what was recorded; a tap of what was played waits for `&<` (#149) · → decisions/010-canon-copies.md
-- 012 · `scale(name, tonic)` is a generator: a fixed mode by name over a key of its own; `shift=` walks its modes, the tonic transposes · → decisions/012-scale-generator.md
-- 011 · A pick is a fixed tap on a turning wheel: `&x[i]` reads the cell as turned (and follows it while it plays), `&x[$i]` as written · → decisions/011-picks-are-taps.md
+- 011 · The core stays lean: `show=` wheels beyond the language are plugins: the app ships a bundle of built-in ones (the sun first), and a piece can carry its own as a block; a piece's own runs only if the user chose it · → decisions/011-plugins.md
+- 012 · A pick is a fixed tap on a turning wheel: `&x[i]` reads the cell as turned (and follows it while it plays), `&x[$i]` as written · → decisions/012-picks-are-taps.md
+- 013 · `scale(name, tonic)` is a generator: a fixed mode by name over a key of its own; `shift=` walks its modes, the tonic transposes · → decisions/013-scale-generator.md
 
 ## Where things are tracked
 

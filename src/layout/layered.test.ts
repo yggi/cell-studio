@@ -2,19 +2,20 @@ import { describe, expect, it } from 'vitest';
 import { layered } from './layered';
 import { DEFAULT_LAYOUT } from './options';
 import { buildGraph } from '../engine/graph';
+import { folded } from './junctions';
 import { compileSource } from '../engine/compile';
 import { PRESETS } from '../engine/presets';
 
 describe('layered: tags as blocks', () => {
   for (const key of ['cellscape', 'baustelle', 'hypercell', 'brothers'] as const) {
     it(`${key}: each tag starts as a block of its own, and no two blocks overlap`, () => {
-      const model = buildGraph(compileSource(PRESETS[key].source));
+      const model = folded(buildGraph(compileSource(PRESETS[key].source)));
       const byId = new Map(model.nodes.map((n) => [n.id, n]));
       const radius = (id: string) => DEFAULT_LAYOUT.radius(byId.get(id)!);
       const at = layered(model, { gapX: 54, gapY: 130, radius });
       const box = new Map<string, [number, number, number, number]>();
       for (const n of model.nodes) {
-        const t = !n.petalOf && !n.cell.note ? n.cell.tags[0] : undefined;
+        const t = n.cell && !n.petalOf && !n.cell.note ? n.cell.tags[0] : undefined;
         if (!t) continue;
         const p = at.get(n.id)!;
         const r = radius(n.id);
@@ -35,7 +36,7 @@ describe('layered: tags as blocks', () => {
   }
 
   it('one level (flat): tags interleave as they fall', () => {
-    const model = buildGraph(compileSource(PRESETS.baustelle.source));
+    const model = folded(buildGraph(compileSource(PRESETS.baustelle.source)));
     const byId = new Map(model.nodes.map((n) => [n.id, n]));
     const o = { gapX: 54, gapY: 130, radius: (id: string) => DEFAULT_LAYOUT.radius(byId.get(id)!) };
     expect(layered(model, { ...o, flat: true })).not.toEqual(layered(model, o));
@@ -44,7 +45,7 @@ describe('layered: tags as blocks', () => {
 
 describe('layered: rows filled by insertion (rowOrder)', () => {
   it('places every node, each row in order without overlaps, by the sweeps, by insertion, or both', () => {
-    const model = buildGraph(compileSource(PRESETS.bwv847.source));
+    const model = folded(buildGraph(compileSource(PRESETS.bwv847.source)));
     const byId = new Map(model.nodes.map((n) => [n.id, n]));
     const radius = (id: string) => DEFAULT_LAYOUT.radius(byId.get(id)!);
     const ids = model.nodes.filter((n) => !n.petalOf).map((n) => n.id);

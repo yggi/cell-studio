@@ -125,9 +125,10 @@ export function flatten(
   return [...walk(root, rootPick, rootShift, rootCtx, 0)].sort((a, b) => a.step - b.step || a.value - b.value);
 }
 
-/** A step event's value: a relative pick's entry as its cell stands now (StepEvent.via), else as written. */
-export function tapped(result: CompileResult, e: StepEvent, shifts: Shifts): number {
-  if (!e.via) return e.value;
+/** A step event's value and accidental: a relative pick's entry as its cell stands now (StepEvent.via), else as written. */
+export function tapped(result: CompileResult, e: StepEvent, shifts: Shifts): { value: number; alter: number } {
+  if (!e.via) return { value: e.value, alter: e.alter };
   const u = shiftedUnits(result, e.via.cell, shifts(e.via.cell), e.via.ctx)[e.via.index];
-  return u?.atom.kind === 'note' ? e.via.mul * u.atom.value + e.via.add : e.value;
+  // (the entry under the tap now, its accidental with it: mirrored with it by inverse(…))
+  return u?.atom.kind === 'note' ? { value: e.via.mul * u.atom.value + e.via.add, alter: e.via.mul * u.atom.alter } : { value: e.value, alter: e.alter };
 }

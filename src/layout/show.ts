@@ -5,11 +5,14 @@
  * step= drivers aren't below in this sense: a melody's show never renames its meter.
  */
 import { codeShifts, ROOT, type CompileResult } from '../engine/program';
+import type { ShowPlugin } from '../engine/plugins';
 import { entries, resolveIn, resolvePitch, semitones } from '../engine/helix';
 import { modeName, mod } from '../theory/modes';
 import { SHOWS } from '../engine/parser';
 
-export type Show = (typeof SHOWS)[number];
+/** The shows the language has. A piece can carry more (plugins: engine/plugins.ts). */
+export type CoreShow = (typeof SHOWS)[number];
+export type Show = string;
 
 /** What a cell is, for showing it. */
 export type Kind = 'voice' | 'adsr' | 'grid' | 'meter' | 'mix' | 'table' | 'braid' | 'volume' | 'note' | 'selector' | 'lfo';
@@ -19,7 +22,7 @@ export const FITS: Readonly<Record<Kind, readonly Show[]>> = {
   voice: ['wave', 'spectrum', 'petal', 'off'],
   adsr: ['adsr', 'table', 'petal', 'off'],
   grid: ['grid', 'table', 'off'],
-  meter: ['meter', 'pattern', 'sun', 'off'],
+  meter: ['meter', 'pattern', 'off'],
   mix: ['mix'],
   table: ['table', 'equal', 'scale', 'mode', 'key', 'notes', 'midi', 'do', 'degrees', 'brightness', 'petal', 'off'],
   braid: ['braid', 'pattern', 'notes', 'midi', 'do', 'degrees', 'petal', 'off'],
@@ -29,18 +32,32 @@ export const FITS: Readonly<Record<Kind, readonly Show[]>> = {
   lfo: ['lfo', 'levels', 'braid', 'petal', 'off'],
 };
 
-/** Shows that belong to the cell itself, not passed down: hiding a cell hides only it. */
+/** Shows that belong to the cell itself, not passed down: hiding a cell hides only it. (A plugin's is a wheel of its own too.) */
 const OWN: readonly Show[] = ['petal', 'off'];
 
+/** The shows that fit a cell: the plain ones, and the piece's plugins that say they fit its kind. */
+function fitsOf(result: CompileResult, kind: Kind): readonly Show[] {
+  const plugs = [...result.plugins.values()].filter((p) => p.fits.includes(kind)).map((p) => p.name);
+  return plugs.length ? [...FITS[kind], ...plugs] : FITS[kind];
+}
+
 /** show= as written: the show, and a naming convention (notes:flats, do:fixed). */
-function parseShow(raw: string | null | undefined): { show: Show; conv: string } | null {
+function parseShow(result: CompileResult, raw: string | null | undefined): { show: Show; conv: string } | null {
   if (!raw) return null;
   const [show, conv = ''] = raw.split(':');
-  return (SHOWS as readonly string[]).includes(show) ? { show: show as Show, conv } : null;
+  return (SHOWS as readonly string[]).includes(show) || result.plugins.has(show) ? { show, conv } : null;
+}
+
+/** The plugin that draws a cell, if its own show= names one that fits it: its wheel is the cell's node. */
+export function pluginOf(result: CompileResult, name: string): ShowPlugin | null {
+  if (!result.plugins.size) return null;
+  const own = parseShow(result, result.cells.get(name)?.show);
+  const plugin = own && result.plugins.get(own.show);
+  return plugin && fitsOf(result, kindOf(result, name)).includes(plugin.name) ? plugin : null;
 }
 
 /** What each show does, for the picker. */
-export const SHOW_MEANING: Readonly<Record<Show, string>> = {
+export const SHOW_MEANING: Readonly<Record<CoreShow, string>> = {
   braid: 'steps, coloured by pitch',
   pattern: 'rhythm only: hits and rests',
   equal: 'its entries evenly round the ring, wired from the slots they take: the taps stay put as it turns',
@@ -58,7 +75,6 @@ export const SHOW_MEANING: Readonly<Record<Show, string>> = {
   adsr: 'an envelope curve',
   mix: 'the voices it mixes',
   wave: 'its waveform: one cycle, and the sound itself while it plays',
-  sun: 'a day meter as the sun: a 24-hour dial, noon at the top',
   brightness: 'its modes by brightness: each degree shaded by the mode that starts on it (Lydian bright … Locrian dark)',
   levels: 'its levels, as bars',
   note: 'a note in the graph: its label',
@@ -140,8 +156,8 @@ type EffectiveShow = { readonly show: Show; readonly conv: string; readonly from
 const effectiveCache = new WeakMap<CompileResult, Map<string, EffectiveShow>>();
 
 function computeShow(result: CompileResult, name: string): EffectiveShow {
-  const fits = FITS[kindOf(result, name)];
-  const own = parseShow(result.cells.get(name)?.show);
+  const fits = fitsOf(result, kindOf(result, name));
+  const own = parseShow(result, result.cells.get(name)?.show);
   if (own && fits.includes(own.show)) return { ...own, from: 'set' };
   // breadth first, upward: the nearest show= that fits
   const seen = new Set([name]);
@@ -152,8 +168,8 @@ function computeShow(result: CompileResult, name: string): EffectiveShow {
       for (const p of parentsOf(result, n)) {
         if (seen.has(p)) continue;
         seen.add(p);
-        const s = parseShow(result.cells.get(p)?.show);
-        if (s && !OWN.includes(s.show) && fits.includes(s.show)) return { ...s, from: p };
+        const s = parseShow(result, result.cells.get(p)?.show);
+        if (s && !OWN.includes(s.show) && !result.plugins.has(s.show) && fits.includes(s.show)) return { ...s, from: p };
         next.push(p);
       }
     level = next;
@@ -169,7 +185,7 @@ function computeShow(result: CompileResult, name: string): EffectiveShow {
  */
 export function heardGrid(result: CompileResult, name: string): string | null {
   const c = result.cells.get(name);
-  const own = c && kindOf(result, name) === 'mix' ? parseShow(c.show) : null;
+  const own = c && kindOf(result, name) === 'mix' ? parseShow(result, c.show) : null;
   const named = own?.show === 'mix' && own.conv.startsWith('&') ? own.conv.slice(1) : null;
   if (named && result.cells.get(named)?.root) return named;
   const shifts = codeShifts(result);

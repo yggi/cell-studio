@@ -1,4 +1,4 @@
-# 011 · A pick is a fixed tap on a turning wheel; `$` picks as written
+# 012 · A pick is a fixed tap on a turning wheel; `$` picks as written
 
 **Date:** 2026-10-08 · **Status:** accepted (owner, #10 · the wheels pass)
 
@@ -19,6 +19,6 @@ The wheel is the physical picture: an inner ring that turns, taps that stay put 
 
 ## Consequences
 
-- No example changes: the only one with picks (*Mirrors*) picks from an unturned motif (`src/engine/snapshot.test.ts` unchanged).
+- No example's sound changes: the only one with picks (*Mirrors*) picks from an unturned motif (the events in `src/engine/snapshot.test.ts` unchanged).
 - A saved piece that picks from a turned cell plays the turned entry; `[$…]` keeps the old notes (CHANGELOG).
 - `spell(…, &keys, …)` picks its keys as written.
