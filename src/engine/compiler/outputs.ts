@@ -81,7 +81,7 @@ export function outputsOf(ctx: Ctx, decls: ReadonlyMap<string, CellDecl>, cells:
       error(`&${moved.ref.name}^$${moved.ref.transpose}: transposing (^$) is for braids — in a mix, add pitch: &${moved.ref.name} + ${moved.ref.transpose}`, moved.ref.span);
     else if (moved)
       error(
-        `&${moved.ref.name}^${moved.ref.degree}: moving by degrees (^) is for braids — in a mix, write a cell that splices it: &(&${moved.ref.name}^${moved.ref.degree})`,
+        `&${moved.ref.name}^${moved.ref.degree}: moving by degrees (^) is for braids — in a mix, write a cell that plays it: &u step=&bar &${moved.ref.name}^${moved.ref.degree}`,
         moved.ref.span,
       );
     // a read head plays its tape: what the tape's write head recorded, retimed through the tape

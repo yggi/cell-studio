@@ -2,6 +2,11 @@
  * Sound tapes: a delay network each — the source mix in; a loop of its length back into it (through its loss,
  * its saturation, and what erasing leaves); each read head a tap. Their speed (a moving clock) and a hand
  * scrubbing them move the delays.
+ *
+ * Held (the transport not playing), a tape with a loop is frozen: nothing is written to it (the write gate and the
+ * hiss are closed) and its loop runs round on its own, lossless, so what is on it is the same lap again and again.
+ * A head then reads that lap by how far round it is turned (`holdTape`): a tape scrubbed forward and back, or
+ * round and round, plays the same content over and over, whatever time has passed.
  */
 import type { AudioTape } from '../../engine/program';
 import { disposer, type Disposable, type ToneNS } from './nodes';
@@ -19,7 +24,18 @@ export interface TapeNet {
   taps: { node: Delay; at: number }[];
   scrubbing: boolean;
   meter: AnalyserNode;
+  /** What is written to it: the sources come in here (a gate: closed while the tape is held, so nothing is recorded). */
   input: import('tone').Gain;
+  /** What the heads, the loop and the meter hear: what is written, and the loop coming round. */
+  bus: import('tone').Gain;
+  /** A tape's length in tape-seconds (0: no loop). */
+  length: number;
+  /** The loop, and the loss it goes through (bypassed while frozen). */
+  loop?: { delay: Delay; loss: BiquadFilterNode };
+  /** The hiss: its gain, and its level. */
+  hiss?: { gain: import('tone').Gain; level: number };
+  /** Held and frozen: when (audio seconds), and the loop's period then (audio seconds: its length ÷ its speed). */
+  frozen: { at: number; period: number } | null;
   /** Its settings: a tape whose settings haven't changed is kept (what's on it stays). */
   key: string;
   /** What feeds it and where its heads go: made again on every sync. */
@@ -31,22 +47,26 @@ export const tapeKey = (tp: AudioTape) => JSON.stringify(tp);
 /** A tape's network, threaded fresh (empty). */
 export function buildTapeNet(Tone: ToneNS, raw: AudioContext, tp: AudioTape): TapeNet {
   const nodes: Disposable[] = [];
-  const input = new Tone.Gain(1);
-  nodes.push(input);
+  const bus = new Tone.Gain(1);
+  const input = new Tone.Gain(1).connect(bus);
+  nodes.push(bus, input);
   // (what's being recorded, how loud: drawn round the reel)
   const meter = raw.createAnalyser();
   meter.fftSize = 512;
-  Tone.connect(input, meter);
+  Tone.connect(bus, meter);
   nodes.push(disposer(() => meter.disconnect()));
+  let hiss: TapeNet['hiss'];
   if (tp.hiss > 0) {
     const n = new Tone.Noise('pink').start();
-    const g = new Tone.Gain(tp.hiss).connect(input);
+    const g = new Tone.Gain(tp.hiss).connect(bus);
     n.connect(g);
     nodes.push(n, g);
+    hiss = { gain: g, level: tp.hiss };
   }
   // (room to stretch: a slow tape makes every delay longer)
   const maxDelay = Math.min(179, Math.max(tp.length, ...tp.heads.map((h) => h.at), 0.05) * 4 + 1);
   const delays: { node: Delay; base: number }[] = [];
+  let loopNodes: TapeNet['loop'];
   if (tp.length > 0) {
     const loop = new Tone.Delay({ delayTime: tp.length, maxDelay });
     // (flat: a resonant corner would lift the loop's gain above what erasing leaves)
@@ -60,10 +80,10 @@ export function buildTapeNet(Tone: ToneNS, raw: AudioContext, tp: AudioTape): Ta
     const k = 1 + 4 * Math.max(0, tp.drive);
     const sat = new Tone.WaveShaper((x) => Math.tanh(x * k) / k, 2048);
     const keep = new Tone.Gain(1 - tp.erase);
-    input.connect(loop);
+    bus.connect(loop);
     loop.connect(loss);
     Tone.connect(loss, sat);
-    sat.chain(keep, input);
+    sat.chain(keep, bus);
     nodes.push(
       loop,
       disposer(() => loss.disconnect()),
@@ -71,6 +91,7 @@ export function buildTapeNet(Tone: ToneNS, raw: AudioContext, tp: AudioTape): Ta
       keep,
     );
     delays.push({ node: loop, base: tp.length });
+    loopNodes = { delay: loop, loss };
   }
   // each head: its tap (and its print-through, a faint tap before it) into its own output,
   // which dropouts dip
@@ -81,7 +102,7 @@ export function buildTapeNet(Tone: ToneNS, raw: AudioContext, tp: AudioTape): Ta
   for (const h of tp.heads) {
     const out = new Tone.Gain(1);
     const d = new Tone.Delay({ delayTime: Math.max(0.001, h.at), maxDelay });
-    input.connect(d);
+    bus.connect(d);
     d.connect(out);
     nodes.push(out, d);
     taps.push({ node: d, at: Math.max(0.001, h.at) });
@@ -90,7 +111,7 @@ export function buildTapeNet(Tone: ToneNS, raw: AudioContext, tp: AudioTape): Ta
     if (tp.print > 0 && h.at > tp.printgap) {
       const pd = new Tone.Delay({ delayTime: h.at - tp.printgap, maxDelay });
       const pg = new Tone.Gain(tp.print);
-      input.connect(pd);
+      bus.connect(pd);
       pd.chain(pg, out);
       nodes.push(pd, pg);
       delays.push({ node: pd, base: h.at - tp.printgap });
@@ -98,7 +119,26 @@ export function buildTapeNet(Tone: ToneNS, raw: AudioContext, tp: AudioTape): Ta
     }
     heads.set(h.head, out);
   }
-  return { nodes, delays, heads, maxDelay, wanders, dropout: tp.dropout, name: tp.name, taps, scrubbing: false, meter, input, key: tapeKey(tp), wires: [] };
+  return {
+    nodes,
+    delays,
+    heads,
+    maxDelay,
+    wanders,
+    dropout: tp.dropout,
+    name: tp.name,
+    taps,
+    scrubbing: false,
+    meter,
+    input,
+    bus,
+    length: tp.length,
+    loop: loopNodes,
+    hiss,
+    frozen: null,
+    key: tapeKey(tp),
+    wires: [],
+  };
 }
 
 /** How loud what a tape is recording is now (0 … 1). */
@@ -152,6 +192,76 @@ export function scrubTape(now: number, net: TapeNet, delayFor: ((at: number) => 
     }
     // (the speed's own schedule takes over again once every head has joined)
     setTimeout(() => (net.scrubbing = false), Math.max(0, (last - now) * 1000));
+  }
+}
+
+/**
+ * Held (on) or running again (off). Held, a tape with a loop is frozen: its write gate and its hiss close, and its loop
+ * goes round on its own, straight back into itself (no loss, no saturation, nothing erased), so the lap that is on it
+ * stays as it is. `holdTape` then turns it.
+ */
+export function freezeTape(now: number, net: TapeNet, on: boolean): void {
+  if (!net.loop || on === (net.frozen !== null)) return;
+  const { delay, loss } = net.loop;
+  if (on) {
+    // (the loop's own delay, where it is now: its speed's schedule is over)
+    const period = Math.max(0.05, Number(delay.delayTime.getValueAtTime(now)));
+    delay.delayTime.cancelScheduledValues(now);
+    delay.delayTime.setValueAtTime(period, now);
+    delay.disconnect(loss);
+    delay.connect(net.bus);
+    net.input.gain.setTargetAtTime(0, now, 0.01);
+    net.hiss?.gain.gain.setTargetAtTime(0, now, 0.01);
+    net.frozen = { at: now, period };
+  } else {
+    delay.disconnect(net.bus);
+    delay.connect(loss);
+    net.input.gain.setTargetAtTime(1, now, 0.01);
+    if (net.hiss) net.hiss.gain.gain.setTargetAtTime(net.hiss.level, now, 0.01);
+    for (const g of net.heads.values()) {
+      g.gain.cancelScheduledValues(now);
+      g.gain.setTargetAtTime(1, now, 0.01);
+    }
+    net.frozen = null;
+  }
+}
+
+/**
+ * Turn a frozen tape: `behindFor(head)` is how far behind where it stood when it was held (tape-seconds) the content under
+ * that head lies. The lap is the tape's length, so that wraps: the heads read the same lap over and over, whatever
+ * that is, and a hand turning the tape any way hears it go by. A head goes to its place by the short way round
+ * the loop (the content repeats every period) and then keeps its content still; a moment after the hand stops it
+ * is silent.
+ */
+export function holdTape(now: number, net: TapeNet, behindFor: (head: number) => number): void {
+  const f = net.frozen;
+  if (!f) return;
+  net.scrubbing = true;
+  const L = net.length;
+  const since = now - f.at;
+  const max = net.maxDelay - 0.01;
+  for (const t of net.taps) {
+    // how far round the lap, in the loop's own seconds, and since then the loop has turned `since`
+    const x = (((behindFor(t.at) % L) + L) % L) * (f.period / L);
+    const want = (since + x) % f.period;
+    const param = t.node.delayTime;
+    // (where it is at `now`, by its own schedule: `.value` is a lookahead on, which a head that moves can't be read by)
+    const cur = Number(param.getValueAtTime(now));
+    let d = want + Math.round((cur - want) / f.period) * f.period;
+    while (d > max && d - f.period >= 0.001) d -= f.period;
+    while (d < 0.001) d += f.period;
+    d = Math.min(max, d);
+    param.cancelScheduledValues(now);
+    param.setValueAtTime(cur, now);
+    param.linearRampToValueAtTime(d, now + 0.015);
+    // (then it grows with time: the head keeps reading the same moment of the lap)
+    const room = Math.max(0, max - d);
+    param.linearRampToValueAtTime(d + room, now + 0.015 + room);
+  }
+  for (const g of net.heads.values()) {
+    g.gain.cancelScheduledValues(now);
+    g.gain.setTargetAtTime(1, now, 0.005);
+    g.gain.setTargetAtTime(0, now + 0.4, 0.05);
   }
 }
 

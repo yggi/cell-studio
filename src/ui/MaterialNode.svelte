@@ -133,7 +133,10 @@
       const c = ((p % t.L) + t.L) % t.L;
       const b = Math.floor((c / t.L) * N) % N;
       // the stretch under the write head: what's recorded now, over what erasing left of before
-      if (b !== last) {
+      // (only while it is written to: a held tape is not, and its rim only turns)
+      if (!ctx.playing) {
+        // (nothing to paint)
+      } else if (b !== last) {
         const next = rec.slice();
         next[b] = Math.min(1, level + next[b] * (1 - t.erase));
         rec = next;
@@ -287,8 +290,10 @@
       const a = angleAt(e);
       const da = turned(last.a, a);
       last = { a, t: performance.now() };
-      // (back as far as the tape holds; forward no further than what has been written)
-      scrubAt = Math.min(scrubTop, Math.max(scrubTop - 4, scrubAt + da / (2 * Math.PI)));
+      // (playing: back as far as the tape holds, forward no further than what has been written; held, a tape is a lap, and
+      // turns round it either way for as long as the hand does)
+      scrubAt = scrubAt + da / (2 * Math.PI);
+      if (ctx.playing) scrubAt = Math.min(scrubTop, Math.max(scrubTop - 4, scrubAt));
       handAngle += (da * 180) / Math.PI;
       ctx.sound.scrub(d.name, scrubAt);
     } else if (mode === 'grab') {

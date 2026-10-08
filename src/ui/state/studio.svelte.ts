@@ -12,6 +12,7 @@ import { Playback } from './playback.svelte';
 import { Library, type Open } from './library.svelte';
 import { View, type Tab } from './view.svelte';
 import { Midi } from './midi.svelte';
+import { Learn } from './learn.svelte';
 
 /**
  * The app's state, in four parts — the piece (its code and what it compiles to), playing it, the
@@ -24,6 +25,8 @@ export class Studio {
   readonly library = new Library();
   readonly view = new View();
   readonly midi = new Midi();
+  /** MIDI learn: a controller's knobs moving the piece's free() values. */
+  readonly learn = new Learn(this.piece, this.midi, { opened: () => this.library.opened });
   /** The code editor (App binds it): showing a cell's line in it. */
   editor = $state<{ showLine(line: number): void } | undefined>();
   rendering = $state(false);
@@ -34,6 +37,8 @@ export class Studio {
   constructor() {
     // `window.cellStudio`, for measuring from outside (docs/testing.md): the open piece as written
     installDebugHook(() => this.piece.result, this.playback.player);
+    // MIDI out: the notes the player plays go to the output chosen too
+    this.midi.attach(this.playback.player, this.piece);
   }
 
   /** A piece's source, now open: laid out afresh, from rest, its graph shown. */
@@ -185,6 +190,7 @@ export class Studio {
   dispose(): void {
     this.playback.dispose();
     this.midi.dispose();
+    this.learn.dispose();
   }
 }
 

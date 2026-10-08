@@ -11,6 +11,11 @@
 //   npm run smoke -- --list                   # which pieces play in full, and what each brings
 //   ENGINE=worker npm run smoke               # with the engine in a Web Worker (?engine=worker, #15)
 //
+// Then MIDI out (#205): one piece played into a fake Web MIDI port, its note-ons checked against the plan's notes
+// (tools/smoke-midi.ts) to within 2 ms of their median offset (one step of a clock jump followed allowed); then the
+// tempo (a held free()) moved and Pause and Play again within the look-ahead, with no All notes off from either
+// cutting what plays, and no note left sounding.
+//
 // Chromium: Playwright's, or CHROME_PATH=/path/to/chrome (CI uses the runner's Chrome). See tools/profile/playwright.mjs.
 import { preview, runnerImport } from 'vite';
 import { chromium } from './profile/playwright.mjs';
@@ -131,6 +136,118 @@ if (only.length === 0 && SWITCH.every((id) => pieces.some((p) => p.id === id))) 
   const ok = problems.length === 0;
   console.log(`${ok ? 'ok  ' : 'FAIL'} switch: ${SWITCH.join(' → ')}${ok ? '' : '\n       ' + [...new Set(problems)].slice(0, 3).join('\n       ')}`);
   if (!ok) failed.push('the piece switch');
+}
+// MIDI out (#205): a fake port that records what is sent, chosen before the page loads (so it connects without a click)
+const MIDI_PIECE = 'sailor';
+{
+  problems = [];
+  const { module: midiPlan } = await runnerImport('./tools/smoke-midi.ts', { configFile: false });
+  const mp = await browser.newPage({ viewport: { width: 1280, height: 800 } });
+  mp.setDefaultTimeout(8000);
+  mp.on('pageerror', (e) => problems.push(`page error: ${e.message}`));
+  mp.on('console', (m) => m.type() === 'error' && problems.push(`console error: ${m.text()}`));
+  await mp.addInitScript(() => {
+    const sent = (window.__midi = []);
+    const out = {
+      id: 'fake-out',
+      name: 'Fake synth',
+      send: (data, timestamp) => sent.push({ data: [...data], timestamp: timestamp ?? performance.now(), sentAt: performance.now() }),
+    };
+    navigator.requestMIDIAccess = () => Promise.resolve({ inputs: new Map(), outputs: new Map([['fake-out', out]]), onstatechange: null });
+    localStorage.setItem('cell-studio:midi', JSON.stringify({ out: { id: 'fake-out', name: 'Fake synth' }, in: { id: 'none', name: '' } }));
+  });
+  const secs = 3;
+  let note = '';
+  try {
+    await mp.goto(url);
+    await mp.getByRole('radio', { name: 'Cards' }).click();
+    await mp.locator(`button.open[data-id="example:${MIDI_PIECE}"]`).dispatchEvent('click');
+    await mp.waitForTimeout(300);
+    const transport = mp.locator('.transport');
+    await transport.getByRole('button', { name: 'Play' }).first().click();
+    await mp.waitForTimeout(secs * 1000);
+    // a held free() moved while playing (the tempo): each move recompiles, and must neither cut nor hang a note
+    const movedAt = await mp.evaluate(() => performance.now());
+    for (const v of [113, 115, 117, 119]) {
+      await transport.getByRole('slider', { name: 'Tempo' }).evaluate((el, v) => {
+        el.value = String(v);
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+      }, v);
+      await mp.waitForTimeout(150);
+    }
+    await mp.waitForTimeout(400);
+    // then Pause and Play again within the look-ahead (as a seek does): what plays next must not be cut
+    const pausedAt = await mp.evaluate(() => performance.now());
+    await transport.getByRole('button', { name: 'Pause' }).first().click();
+    await mp.waitForTimeout(150);
+    const resumedAt = await mp.evaluate(() => performance.now());
+    await transport.getByRole('button', { name: 'Play' }).first().click();
+    await mp.waitForTimeout(1000);
+    await transport.getByRole('button', { name: 'Pause' }).first().click();
+    await mp.waitForTimeout(800);
+    const sent = await mp.evaluate(() => window.__midi);
+    // timing: the note-ons heard before the first move, each against the plan's note with its channel and key nearest
+    // in time (notes struck together can come in either order), aligned on the median offset
+    const ons = sent
+      .filter((m) => (m.data[0] & 0xf0) === 0x90 && m.timestamp < movedAt)
+      .map((m) => ({ channel: (m.data[0] & 15) + 1, note: m.data[1], ms: m.timestamp }))
+      .sort((a, b) => a.ms - b.ms);
+    const want = midiPlan.expectedNoteOns(MIDI_PIECE, secs + 2);
+    if (ons.length < 8) problems.push(`only ${ons.length} note-ons were sent`);
+    const zero = ons.length ? ons[0].ms - want[0].at * 1000 : 0;
+    const taken = new Set();
+    const offsets = [];
+    for (const [i, o] of ons.entries()) {
+      let best = -1;
+      for (let j = Math.max(0, i - 8); j < Math.min(want.length, i + 9); j++) {
+        const w = want[j];
+        if (taken.has(j) || w.channel !== o.channel || w.note !== o.note) continue;
+        if (best < 0 || Math.abs(o.ms - zero - w.at * 1000) < Math.abs(o.ms - zero - want[best].at * 1000)) best = j;
+      }
+      if (best < 0) {
+        problems.push(`note-on ${i}: sent ${o.channel}:${o.note}, the plan has none such near it`);
+        break;
+      }
+      taken.add(best);
+      offsets.push(o.ms - want[best].at * 1000);
+    }
+    // (a dropped buffer moves what is heard by about 10 ms, and MIDI follows it: one such step is allowed, each side of
+    // it aligned on its own median)
+    const median = (xs) => [...xs].sort((a, b) => a - b)[Math.floor(xs.length / 2)] ?? 0;
+    const steps = offsets.flatMap((d, i) => (i > 0 && Math.abs(d - offsets[i - 1]) > 2 ? [i] : []));
+    const parts = steps.length === 1 ? [offsets.slice(0, steps[0]), offsets.slice(steps[0])] : [offsets];
+    const worst = Math.max(0, ...parts.flatMap((p) => p.map((d) => Math.abs(d - median(p)))));
+    const step = steps.length === 1 ? Math.abs(median(parts[1]) - median(parts[0])) : 0;
+    if (worst > 2) problems.push(`a note-on was ${worst.toFixed(2)} ms off the plan`);
+    if (step > 15) problems.push(`the note-ons stepped by ${step.toFixed(2)} ms`);
+    // what the device plays, message by message in timestamp order (at one moment, in the order sent)
+    const order = sent.map((m, i) => ({ ...m, i })).sort((a, b) => a.timestamp - b.timestamp || a.i - b.i);
+    const sounding = new Set();
+    for (const m of order) {
+      const kind = m.data[0] & 0xf0;
+      const ch = m.data[0] & 15;
+      if (kind === 0x90) sounding.add(`${ch}:${m.data[1]}`);
+      else if (kind === 0x80) sounding.delete(`${ch}:${m.data[1]}`);
+      else if (kind === 0xb0 && m.data[1] === 123) for (const k of [...sounding]) if (k.startsWith(`${ch}:`)) sounding.delete(k);
+    }
+    if (sounding.size) problems.push(`left sounding at the end: ${[...sounding].join(', ')}`);
+    const allOff = sent.filter((m) => (m.data[0] & 0xf0) === 0xb0 && m.data[1] === 123);
+    const moving = allOff.filter((m) => m.sentAt >= movedAt && m.sentAt < pausedAt);
+    if (moving.length) problems.push(`moving the tempo sent ${moving.length} All notes off`);
+    const resumed = sent.filter((m) => (m.data[0] & 0xf0) === 0x90 && m.sentAt >= resumedAt).map((m) => m.timestamp);
+    const cut = allOff.filter((m) => m.sentAt < resumedAt && resumed.some((t) => m.timestamp > t));
+    if (cut.length) problems.push(`${cut.length} All notes off from the pause land after Play again`);
+    if (allOff.length === 0) problems.push('Pause sent no All notes off');
+    const offs = sent.filter((m) => (m.data[0] & 0xf0) === 0x80).length;
+    const all = sent.filter((m) => (m.data[0] & 0xf0) === 0x90).length;
+    note = `${ons.length} note-ons within ${worst.toFixed(3)} ms of the plan (median offset${step ? `; one step of ${step.toFixed(1)} ms, a clock jump followed` : ''}); then 4 tempo moves, Pause and Play: ${all} note-ons, ${offs} note-offs, ${allOff.length} All notes off, none left sounding`;
+  } catch (e) {
+    problems.push(String(e.message).split('\n')[0]);
+  }
+  await mp.close();
+  const ok = problems.length === 0;
+  console.log(`${ok ? 'ok  ' : 'FAIL'} MIDI out: ${MIDI_PIECE} into a fake port${ok ? `: ${note}` : '\n       ' + [...new Set(problems)].slice(0, 3).join('\n       ')}`);
+  if (!ok) failed.push('MIDI out');
 }
 await browser.close();
 await server.close();

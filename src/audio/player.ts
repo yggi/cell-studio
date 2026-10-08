@@ -8,7 +8,7 @@
  * every shift) and take effect at the next window.
  */
 import { clocking, tapeMotion } from '../engine/clocking';
-import { type Plan } from '../engine/realize';
+import { eventsBetween, type Plan, type Played } from '../engine/realize';
 import { isPhysical, retime, type Window } from '../engine/schedule';
 import { createVoices, type VoiceBank } from './voices';
 import { transportClock } from './clock.svelte';
@@ -26,6 +26,14 @@ type ToneNS = typeof import('tone');
 const WINDOW = 0.25; // transport quarters = code seconds
 /** After a piece's end, how long its last notes (releases, reverb, echoes) ring before the transport stops. */
 const TAIL = 2.5;
+
+/** Where the notes played also go (MIDI out, #205): each window's notes, retimed onto the audio clock, and the stops. */
+export interface NoteSink {
+  /** A window's notes (AudioContext seconds) and where that window ends: nothing later starts before it. */
+  play(T: ToneNS, events: readonly Played[], until: number): void;
+  /** Stopped now: what was sent ahead and is still held is let go, and nothing later is sent that could cut a resume. */
+  stop(T: ToneNS): void;
+}
 
 export class Player implements LiveSource {
   private Tone?: ToneNS;
@@ -54,6 +62,39 @@ export class Player implements LiveSource {
   /** Something happened to the transport (audio/transport.ts says what it becomes). */
   private move(event: TransportEvent): void {
     transportClock.state = transition(transportClock.state, event);
+  }
+
+  /** When the timeline last moved by hand (ms). */
+  private scrolledAt = 0;
+
+  /**
+   * The timeline moved from `from` to `to` (code seconds) while not playing: a hand turned it (`hand`), or the slider
+   * jumped. Every sound tape goes to where the timeline has it (held.ts), and, for a hand, the notes it passed over
+   * sound as it passes them, in either direction — a tine rings as its pin goes by, whichever way the drum turns.
+   */
+  scroll(from: number, to: number, hand: boolean): void {
+    if (this.playing) return;
+    this.touch();
+    this.held.follow(to);
+    if (!hand || from === to) return;
+    const now = typeof performance === 'undefined' ? 0 : performance.now();
+    // (how long the hand took: the notes it passed are spread over that, not over the piece's own time)
+    const took = this.scrolledAt ? Math.min(100, Math.max(8, now - this.scrolledAt)) : 16;
+    this.scrolledAt = now;
+    void this.wake().then(() => {
+      const plan = this.plan;
+      if (!plan || !this.voices || !this.Tone || this.playing) return;
+      const [lo, hi] = from < to ? [from, to] : [to, from];
+      const scale = Math.min(1.5, Math.max(0.02, took / 1000 / (hi - lo)));
+      const start = this.Tone.getContext().currentTime + 0.01;
+      // (at most 32, the ones nearest where the hand started)
+      const passed = eventsBetween(plan, lo, hi, true);
+      for (const e of from < to ? passed.slice(0, 32) : passed.slice(-32)) {
+        // (where the hand passes it: forward from the low end, backward from the high)
+        const at = start + (from < to ? e.at - lo : hi - e.at) * scale;
+        for (const x of retime({ from: e.at, to: e.at, events: [e], tapes: [] }, at, scale).events) this.voices.play(x);
+      }
+    });
   }
 
   /** A hand on anything, or a move in time: a stopped transport is paused from now on (the hands below call it). */
@@ -96,6 +137,15 @@ export class Player implements LiveSource {
 
   /** A tuning asked for with `retune` before the engine was awake. */
   private asked: Tuning | null = null;
+
+  /** Where the notes played go besides the voices (MIDI out, #205): none until one is given. */
+  sink: NoteSink | null = null;
+  private heard = true;
+  /** Whether the built-in sound is heard: off, the voices go silent and the sink alone sounds, on the same audio clock. */
+  set internal(on: boolean) {
+    this.heard = on;
+    if (this.Tone) this.Tone.getDestination().mute = !on;
+  }
 
   /**
    * Run on another tuning from now on: stopped, the voices gone, a new context (a context's latency is fixed when
@@ -143,6 +193,7 @@ export class Player implements LiveSource {
       if (this.plan) this.voices.sync(this.plan.result, this.plan.statics, this.plan.muted);
       this.settle();
     }
+    this.Tone.getDestination().mute = !this.heard;
     return this.Tone;
   }
 
@@ -271,6 +322,7 @@ export class Player implements LiveSource {
       // sound tapes on a moving clock: their speed over this window, for the delays to follow
       for (const t of tapes) this.voices.tapeSpeed(t.tape, t.points);
       for (const e of events) this.voices.play(e);
+      this.sink?.play(Tone, events, time + (w.to - w.from) * secPerQuarter);
     };
     this.repeatId = tr.scheduleRepeat(
       (time) => {
@@ -331,6 +383,7 @@ export class Player implements LiveSource {
     this.run++;
     // every note lets go (its release and the effects' tails ring on: Stop is what silences)
     this.voices?.dropGates();
+    this.sink?.stop(this.Tone);
     // motors off: every sound tape stops where it is — held, silent, what's on it kept
     this.held.pause(at);
   }
