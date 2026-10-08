@@ -4,7 +4,7 @@
   import '@xyflow/svelte/dist/style.css';
   import { onDestroy, untrack } from 'svelte';
   import type { CompileResult, Shifts } from '../engine/program';
-  import type { GraphModel } from '../engine/graph';
+  import { isCellNode, type GraphModel } from '../engine/graph';
   import type { LiveState } from '../engine/live';
   import { drawn, type Routing } from '../engine/routing';
   import { setGraphContext } from './context';
@@ -12,6 +12,7 @@
   import { GraphLayout } from './state/graphLayout.svelte';
   import CellNode from './CellNode.svelte';
   import VoiceNode from './VoiceNode.svelte';
+  import JunctionNode from './JunctionNode.svelte';
   import FitView from './FitView.svelte';
   import CellSheet from './CellSheet.svelte';
   import PulseEdge from './PulseEdge.svelte';
@@ -104,7 +105,8 @@
 
   // Tapping a node opens its detail sheet; the code is what it edits.
   let selected = $state<string | null>(null);
-  const selectedNode = $derived(selected ? shown.model.nodes.find((n) => n.id === selected) : undefined);
+  // (a product's junction is not a cell: never selected)
+  const selectedNode = $derived(selected ? shown.model.nodes.filter(isCellNode).find((n) => n.id === selected) : undefined);
 
   setGraphContext({
     get program() {
@@ -154,7 +156,7 @@
     },
   });
 
-  const nodeTypes = { cell: CellNode, voice: VoiceNode, material: MaterialNode, scope: ScopeNode, sun: SunNode } as NodeTypes;
+  const nodeTypes = { cell: CellNode, voice: VoiceNode, material: MaterialNode, scope: ScopeNode, sun: SunNode, junction: JunctionNode } as NodeTypes;
   const edgeTypes = { pulse: PulseEdge, belt: BeltEdge, meter: MeterEdge };
 
   let forcesOpen = $state(false);
@@ -165,7 +167,7 @@
     const byTag = new Map<string, { x: number; y: number; size: number }[]>();
     for (const n of layout.nodes) {
       const g = shown.model.nodes.find((m) => m.id === n.id);
-      if (!g || g.petalOf || g.cell.note || !g.cell.tags.length) continue;
+      if (!g?.cell || g.petalOf || g.cell.note || !g.cell.tags.length) continue;
       const size = (n.data as { size?: number }).size ?? 128;
       for (const t of g.cell.tags) (byTag.get(t) ?? byTag.set(t, []).get(t)!).push({ x: n.position.x, y: n.position.y, size });
     }
@@ -239,7 +241,10 @@
       if (targetNode) layout.dragEnd(targetNode.id);
     }}
     nodeClickDistance={6}
-    onnodeclick={({ node }) => (selected = node.id)}
+    onnodeclick={({ node }) => {
+      // (a product's junction is not a cell: nothing to open)
+      if (node.type !== 'junction') selected = node.id;
+    }}
   >
     <Background gap={28} size={1.5} />
     <Controls showLock={false} />

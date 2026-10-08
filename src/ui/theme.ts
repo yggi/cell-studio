@@ -1,4 +1,4 @@
-import { METER, MIX, QUIET, VOICE } from '../layout/miniature';
+import { JUNCTION, METER, MIX, QUIET, VOICE } from '../layout/miniature';
 /**
  * The theme, for colours computed in code (SVG fill attributes can't read CSS
  * variables). Mirrors the note settings in app.css: change both together.
@@ -12,6 +12,7 @@ export function miniPaint(colour: number): { fill: string; ring: boolean } {
   if (colour === MIX) return { fill: 'var(--accent)', ring: true };
   if (colour === METER) return { fill: 'color-mix(in oklab, var(--accent) 45%, var(--wheel-ref))', ring: false };
   if (colour === QUIET) return { fill: 'var(--wheel-ref)', ring: false };
+  if (colour === JUNCTION) return { fill: 'var(--edge)', ring: false };
   return { fill: noteColour(colour), ring: false };
 }
 

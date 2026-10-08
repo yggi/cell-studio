@@ -9,6 +9,7 @@ import { fitTurn, headAngle, tapeHeads } from './tape';
 import { groundsOf } from './meters';
 import { splinePoint } from './geometry';
 import { buildGraph } from '../engine/graph';
+import { folded } from './junctions';
 import { compileSource } from '../engine/compile';
 import { PRESETS } from '../engine/presets';
 
@@ -262,8 +263,9 @@ describe('initial layout', () => {
   });
 });
 
+// (the start is worked out on the graph with each product's junction folded into its voice: junctions.ts)
 describe('the natural order (waltz)', () => {
-  const model = buildGraph(compileSource(PRESETS.waltz.source));
+  const model = folded(buildGraph(compileSource(PRESETS.waltz.source)));
   const id = (n: string) => `cell:${n}`;
 
   it('ranks the signal path from time up to sound; parts beside what uses them', () => {
@@ -318,7 +320,7 @@ describe('switching examples', () => {
 });
 
 describe('the natural order (royal)', () => {
-  const model = buildGraph(compileSource(PRESETS.royal.source));
+  const model = folded(buildGraph(compileSource(PRESETS.royal.source)));
   const id = (n: string) => `cell:${n}`;
   it('stepped tables hang just under their readers; the vibrato beside the melody', () => {
     const r = flowRanks(model);
@@ -328,7 +330,7 @@ describe('the natural order (royal)', () => {
     // tuning a row under what it tunes (the scale under the theme, the key under the scale)
     expect([at('scale'), at('key')]).toEqual([0, -1]);
     // the vibrato is unnamed, the lead's own (pitch=): a petal of &lead, not ranked
-    expect(model.nodes.find((n) => n.cell.lambda && n.cell.map?.kind === 'lin')!.petalOf).toBe('cell:lead');
+    expect(model.nodes.find((n) => n.cell?.lambda && n.cell.map?.kind === 'lin')!.petalOf).toBe('cell:lead');
     expect([at('lead'), at('bass')]).toEqual([2, 2]);
     expect(at('mix')).toBe(3); // the mix is the sound card
   });
@@ -396,7 +398,7 @@ describe('options', () => {
 
 describe('balance (per tonos)', () => {
   it('parts cluster under their users: no ten-wide row, about as wide as tall, centred', () => {
-    const full = buildGraph(compileSource(PRESETS.pertonos.source));
+    const full = folded(buildGraph(compileSource(PRESETS.pertonos.source)));
     const model = { ...full, nodes: full.nodes.filter((n) => !n.petalOf) }; // the motifs are petals of &alto now
     const r = flowRanks(model);
     const rows = new Map<number, number>();
@@ -406,7 +408,7 @@ describe('balance (per tonos)', () => {
     l.setGraph(model);
     l.tick(500);
     // (the cells, not the note card beside the top)
-    const ps = model.nodes.filter((n) => !n.cell.note).map((n) => l.position(n.id)!);
+    const ps = model.nodes.filter((n) => !n.cell?.note).map((n) => l.position(n.id)!);
     const xs = ps.map((p) => p.x);
     const ys = ps.map((p) => p.y);
     const w = Math.max(...xs) - Math.min(...xs);
@@ -442,7 +444,7 @@ describe('busy nodes push harder', () => {
 
 describe('symmetric columns', () => {
   it('the waltz: the first voice in the middle, the others either side — each motif over its player', () => {
-    const c = columns(buildGraph(compileSource(PRESETS.waltz.source)));
+    const c = columns(folded(buildGraph(compileSource(PRESETS.waltz.source))));
     const at = (n: string) => c.get(`cell:${n}`)!;
     expect([at('tuba'), at('flute'), at('strings')]).toEqual([-1, 0, 1]);
     expect([at('oom'), at('I'), at('V')]).toEqual([-1, -1, -1]);
@@ -450,7 +452,7 @@ describe('symmetric columns', () => {
     expect([at('tune'), at('bar'), at('mix')]).toEqual([0, 0, 0]);
   });
   it('stereo: what leans left sits left', () => {
-    const c = columns(buildGraph(compileSource(PRESETS.stereo.source)));
+    const c = columns(folded(buildGraph(compileSource(PRESETS.stereo.source))));
     expect(c.get('cell:bell')!).toBeLessThan(0);
     expect(c.get('cell:cello')!).toBeGreaterThan(0);
     expect(c.get('cell:high')!).toBeLessThan(0);
@@ -475,8 +477,8 @@ describe('size=: how large a cell is drawn, against the others', () => {
     const r = compileSource(src);
     expect([r.cells.get('bar')!.size, r.cells.get('t')!.size]).toEqual([2, 1]);
     const model = buildGraph(r);
-    const node = (name: string) => model.nodes.find((n) => n.cell.name === name)!;
-    expect(DEFAULT_LAYOUT.radius(node('bar'))).toBe(2 * DEFAULT_LAYOUT.radius(buildGraph(compileSource(src.replace(' size=2', ''))).nodes.find((n) => n.cell.name === 'bar')!));
+    const node = (name: string) => model.nodes.find((n) => n.cell?.name === name)!;
+    expect(DEFAULT_LAYOUT.radius(node('bar'))).toBe(2 * DEFAULT_LAYOUT.radius(buildGraph(compileSource(src.replace(' size=2', ''))).nodes.find((n) => n.cell?.name === 'bar')!));
   });
   it('is only how it looks: the sound is the same', () => {
     const a = compileSource(src);
@@ -496,14 +498,14 @@ describe('tags inside a piece: a node each, pushing cells and edges off its name
       const l = new ForceLayout(undefined, { live: false });
       l.setGraph(model);
       l.tick(500);
-      const tags = [...new Set(model.nodes.flatMap((n) => (n.cell.note || n.petalOf ? [] : n.cell.tags.slice(0, 1))))];
+      const tags = [...new Set(model.nodes.flatMap((n) => (!n.cell || n.cell.note || n.petalOf ? [] : n.cell.tags.slice(0, 1))))];
       expect(tags.length).toBeGreaterThan(2);
       const tagAt = tags.map((t) => ({ t, p: l.position(`tag:${t}`)!, r: 40 + 13 * t.length }));
       for (const { p } of tagAt) expect(p).toBeTruthy();
       // no cell on a name
-      for (const n of model.nodes.filter((n) => !n.petalOf)) {
+      for (const n of model.nodes.filter((n) => !n.petalOf && n.cell)) {
         const q = l.position(n.id)!;
-        for (const { t, p, r } of tagAt) expect(Math.hypot(q.x - p.x, q.y - p.y), `${n.cell.name} on ${t}`).toBeGreaterThan(r * 0.8);
+        for (const { t, p, r } of tagAt) expect(Math.hypot(q.x - p.x, q.y - p.y), `${n.cell?.name} on ${t}`).toBeGreaterThan(r * 0.8);
       }
       // the names apart
       for (let i = 0; i < tagAt.length; i++)

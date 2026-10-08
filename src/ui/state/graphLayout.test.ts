@@ -18,7 +18,9 @@ function expectConsistent(layout: GraphLayout, what: string) {
   const { program, model } = layout.shown;
   const ids = new Set(layout.nodes.map((n) => n.id));
   expect(layout.nodes.map((n) => n.id).sort(), what).toEqual(model.nodes.map((n) => n.id).sort());
-  for (const n of layout.nodes) expect(program.cells.has(n.data.name), `${what}: node ${n.id}`).toBe(true);
+  // (a product's junction reads its voice and its mix)
+  for (const n of layout.nodes)
+    for (const name of n.type === 'junction' ? [n.data.voice, n.data.mix] : [n.data.name]) expect(program.cells.has(name), `${what}: node ${n.id} reads ${name}`).toBe(true);
   for (const e of layout.edges) {
     expect(ids.has(e.source) && ids.has(e.target), `${what}: edge ${e.id}`).toBe(true);
     if (e.type !== 'pulse') continue;
@@ -56,8 +58,9 @@ describe('GraphLayout: one snapshot per piece', () => {
     const a = snapshot('baustelle');
     const b = snapshot('twinkle');
     const mixed = snapshotOf(b.program, a.model, b.shifts, b.muted, b.routed);
-    for (const n of mixed.model.nodes) expect(b.program.cells.has(n.cell.name)).toBe(true);
-    for (const e of mixed.model.edges) for (const id of [e.from, e.to, e.source, e.target]) expect(b.program.cells.has(id.slice(5))).toBe(true);
+    for (const n of mixed.model.nodes) for (const name of n.kind === 'junction' ? [n.voice, n.mix] : [n.cell.name]) expect(b.program.cells.has(name)).toBe(true);
+    const junctions = new Set(mixed.model.nodes.flatMap((n) => (n.kind === 'junction' ? [n.id] : [])));
+    for (const e of mixed.model.edges) for (const id of [e.from, e.to, e.source, e.target]) expect(junctions.has(id) || b.program.cells.has(id.slice(5))).toBe(true);
     for (const net of mixed.model.nets) expect(net.taps.every((id) => mixed.model.edges.some((e) => e.id === id))).toBe(true);
     // and a name of the other piece is null, not a throw
     const gone = [...a.program.cells.keys()].find((n) => !b.program.cells.has(n))!;

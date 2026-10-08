@@ -6,7 +6,7 @@
  * aims are aims.ts; the nets' springs nets.ts.
  */
 import { segmentsCross, splinePoint } from './geometry';
-import type { LayoutState, PhysNode } from './state';
+import { nodeAt, type LayoutState, type PhysNode } from './state';
 
 type Seg = { a: { x?: number; y?: number; id: string }; b: { x?: number; y?: number; id: string } };
 
@@ -27,7 +27,7 @@ export function crossingPairs<S extends Seg>(segs: readonly S[]): [S, S][] {
  * A force that resists crossings: for every two edges that cross, push them
  * apart along the line between their midpoints (each end gets half).
  */
-export function forceUncross(strengthOf: () => number) {
+export function forceUncross(strengthOf: () => number, body: (n: PhysNode) => PhysNode | undefined = (n) => n) {
   let links: { source: PhysNode; target: PhysNode }[] = [];
   const force = (alpha: number) => {
     const strength = strengthOf();
@@ -38,11 +38,15 @@ export function forceUncross(strengthOf: () => number) {
       const my = ((p.a.y ?? 0) + (p.b.y ?? 0)) / 2 - ((q.a.y ?? 0) + (q.b.y ?? 0)) / 2;
       const len = Math.hypot(mx, my) || 1;
       const k = (strength * alpha * 30) / len;
-      for (const n of [p.a, p.b]) {
+      for (const end of [p.a, p.b]) {
+        const n = body(end);
+        if (!n) continue;
         n.vx = (n.vx ?? 0) + mx * k * 0.5;
         n.vy = (n.vy ?? 0) + my * k * 0.5;
       }
-      for (const n of [q.a, q.b]) {
+      for (const end of [q.a, q.b]) {
+        const n = body(end);
+        if (!n) continue;
         n.vx = (n.vx ?? 0) - mx * k * 0.5;
         n.vy = (n.vy ?? 0) - my * k * 0.5;
       }
@@ -66,8 +70,9 @@ export function stepBends(s: LayoutState): void {
   if (s.opts.avoid <= 0 && s.opts.straighten <= 0) return;
   const nodes = [...s.byId.values()];
   for (const l of s.links) {
-    const a = s.byId.get(l.source);
-    const b = s.byId.get(l.target);
+    // (as drawn: a product's wires end at its junction)
+    const a = nodeAt(s, l.source);
+    const b = nodeAt(s, l.target);
     if (!a || !b || a.x === undefined || a.y === undefined || b.x === undefined || b.y === undefined) continue;
     const mx = (a.x + b.x) / 2;
     const my = (a.y + b.y) / 2;
@@ -115,7 +120,7 @@ export function stepSpread(s: LayoutState, alpha: number): void {
   const k = s.opts.spread * alpha;
   if (k <= 0) return;
   const nbrs = new Map<string, PhysNode[]>();
-  for (const l of s.links) {
+  for (const l of s.springs) {
     const a = s.byId.get(l.source);
     const b = s.byId.get(l.target);
     if (!a || !b || a === b) continue;

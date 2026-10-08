@@ -2,7 +2,7 @@
  * A tape's heads in the forces: each tape turns to face its heads towards what they connect to (its write source, its
  * read heads' cells), and those turn round it towards their heads (layout/tape.ts draws the heads).
  */
-import type { GraphModel, GraphNode } from '../engine/graph';
+import type { GraphModel } from '../engine/graph';
 import type { Aim } from './quality';
 import { fitTurn, headOffset, tapeHeads, UNTURNED } from './tape';
 import { positionOf, type LayoutState } from './state';
@@ -17,9 +17,9 @@ export interface TapeFace {
 
 /** Every tape's heads and what they connect to (layout/tape.ts). */
 export function tapeFaces(model: GraphModel): TapeFace[] {
-  // (hand-made graphs, in tests, may have nodes without a cell)
-  const cells = model.nodes.flatMap((n) => ((n as { cell?: GraphNode['cell'] }).cell ? [n.cell] : [])); // (as the tape draws its heads: every cell, petals too)
-  const byName = new Map(model.nodes.filter((n) => !n.petalOf && (n as { cell?: unknown }).cell).map((n) => [n.cell.name, n]));
+  // (hand-made graphs, in tests, may have nodes without a cell; a product's junction has none)
+  const cells = model.nodes.flatMap((n) => (n.cell ? [n.cell] : [])); // (as the tape draws its heads: every cell, petals too)
+  const byName = new Map(model.nodes.flatMap((n) => (!n.petalOf && n.cell ? [[n.cell.name, { id: n.id, cell: n.cell }] as const] : [])));
   const faces: TapeFace[] = [];
   for (const tape of byName.values()) {
     const write = tape.cell.params.write;

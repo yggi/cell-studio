@@ -3,19 +3,33 @@
  * sheet (`tools/gallery/`) both place nodes by it.
  */
 import { isTurntable, type GraphNode } from '../engine/graph';
+import { JUNCTION_ROOM } from '../layout/options';
 import type { FlowNode } from './types';
 
 /** An unnamed cell, hung small on its parent. */
 export const PETAL = 44;
 
 // physical cells: a meter with a motor, a belted cell — turntables
-export const physical = (g: GraphNode) => !g.petalOf && isTurntable(g.cell);
+export const physical = (g: GraphNode) => !g.petalOf && !!g.cell && isTurntable(g.cell);
 
 /**
  * `turn`: a tape's, in degrees (where the layout faced its write head; layout/tape.ts); none: unturned.
  * `meters`: each meter's place among the meters, for its colour (layout/meters.ts).
  */
 export function flowNodeOf(g: GraphNode, position: { x: number; y: number }, isPinned: boolean, turn?: number, meters?: { index: ReadonlyMap<string, number> }): FlowNode {
+  // a product's junction (graph.ts): a dot where its wires meet, set on its voice's rim (layout/junctions.ts); not a
+  // cell, so nothing to open, drag, select or delete
+  if (g.kind === 'junction')
+    return {
+      id: g.id,
+      type: 'junction',
+      position,
+      draggable: false,
+      selectable: false,
+      deletable: false,
+      connectable: false,
+      data: { name: g.id, voice: g.voice, mix: g.mix, size: JUNCTION_ROOM },
+    };
   if (g.petalOf) {
     if (g.kind === 'voice') return { id: g.id, type: 'voice', position, draggable: false, data: { name: g.cell.name, summary: '', size: PETAL, pinned: false, petal: true } };
     return { id: g.id, type: 'cell', position, draggable: false, data: { name: g.cell.name, isMeter: false, size: PETAL, pinned: false, petal: true } };
