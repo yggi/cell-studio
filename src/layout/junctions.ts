@@ -144,7 +144,22 @@ export function placeJunctions(s: LayoutState): void {
 const TRIES = 32;
 
 type Segs = [number, number, number, number][];
-type Drawn = { a: string; b: string; segs: Segs };
+/** A line as drawn: its ends, its pieces that show, and their box (min x, min y, max x, max y). */
+type Drawn = { a: string; b: string; segs: Segs; box: readonly [number, number, number, number] };
+
+/** The box round a line's pieces. */
+const boxOf = (segs: Segs): Drawn['box'] => {
+  let [x0, y0, x1, y1] = [Infinity, Infinity, -Infinity, -Infinity];
+  for (const [ax, ay, bx, by] of segs) {
+    x0 = Math.min(x0, ax, bx);
+    y0 = Math.min(y0, ay, by);
+    x1 = Math.max(x1, ax, bx);
+    y1 = Math.max(y1, ay, by);
+  }
+  return [x0, y0, x1, y1];
+};
+/** Lines whose boxes don't meet can't cross (segmentsCross counts a crossing strictly inside both pieces only). */
+const apart = (u: Drawn, v: Drawn) => u.box[2] < v.box[0] || v.box[2] < u.box[0] || u.box[3] < v.box[1] || v.box[3] < u.box[1];
 
 /**
  * At rest: each junction moved round its voice's rim to where its wires cross least (each edge, belt or meter's trace
@@ -181,11 +196,14 @@ export function settleJunctions(s: LayoutState, runs: (l: { source: string; targ
       const [p, q] = [at(a), at(b)];
       if (!p || !q) return [];
       const belt = hop ? undefined : runs(l);
-      return [{ a, b, segs: belt ?? pieces(p, q, hop ? undefined : s.bendAt.get(l.id)) }];
+      const segs = belt ?? pieces(p, q, hop ? undefined : s.bendAt.get(l.id));
+      return [{ a, b, segs, box: boxOf(segs) }];
     }),
     ...s.net.flatMap((t) => {
       const [p, q] = [at(t.a), at(t.b)];
-      return p && q ? [{ a: t.a, b: t.b, segs: pieces(p, q) }] : [];
+      if (!p || !q) return [];
+      const segs = pieces(p, q);
+      return [{ a: t.a, b: t.b, segs, box: boxOf(segs) }];
     }),
   ];
   const wiresOf = new Map<string, { a: string; b: string }[]>();
@@ -198,10 +216,12 @@ export function settleJunctions(s: LayoutState, runs: (l: { source: string; targ
   const wires = (j: PhysNode): Drawn[] =>
     (wiresOf.get(j.id) ?? []).flatMap((w) => {
       const [p, q] = [at(w.a), at(w.b)];
-      return p && q ? [{ ...w, segs: pieces(p, q) }] : [];
+      if (!p || !q) return [];
+      const segs = pieces(p, q);
+      return [{ ...w, segs, box: boxOf(segs) }];
     });
   const meet = (u: Drawn, v: Drawn) => u.a === v.a || u.a === v.b || u.b === v.a || u.b === v.b;
-  const crosses = (u: Drawn, v: Drawn) => !meet(u, v) && u.segs.some((p) => v.segs.some((q) => segmentsCross(...p, ...q)));
+  const crosses = (u: Drawn, v: Drawn) => !meet(u, v) && !apart(u, v) && u.segs.some((p) => v.segs.some((q) => segmentsCross(...p, ...q)));
   /** What everything but these junctions' wires is drawn as. */
   const restOf = (set: readonly PhysNode[]) => [...fixed, ...placed.filter((o) => !set.includes(o)).flatMap(wires)];
   /** How many crossings these junctions' wires make, where they are now: with the rest, and among themselves. */
