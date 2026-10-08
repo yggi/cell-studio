@@ -8,7 +8,7 @@
  * every shift) and take effect at the next window.
  */
 import { clocking, tapeMotion } from '../engine/clocking';
-import { type Plan } from '../engine/realize';
+import { type Plan, type Played } from '../engine/realize';
 import { isPhysical, retime, type Window } from '../engine/schedule';
 import { createVoices, type VoiceBank } from './voices';
 import { transportClock } from './clock.svelte';
@@ -25,6 +25,14 @@ type ToneNS = typeof import('tone');
 const WINDOW = 0.25; // transport quarters = code seconds
 /** After a piece's end, how long its last notes (releases, reverb, echoes) ring before the transport stops. */
 const TAIL = 2.5;
+
+/** Where the notes played also go (MIDI out, #205): each window's notes, retimed onto the audio clock, and the stops. */
+export interface NoteSink {
+  /** A window's notes (AudioContext seconds) and where that window ends: nothing later starts before it. */
+  play(T: ToneNS, events: readonly Played[], until: number): void;
+  /** Stopped now; what was sent ahead reaches at most the context's look-ahead and one window (`window` seconds) past now. */
+  stop(T: ToneNS, window: number): void;
+}
 
 export class Player implements LiveSource {
   private Tone?: ToneNS;
@@ -73,6 +81,15 @@ export class Player implements LiveSource {
   /** A tuning asked for with `retune` before the engine was awake. */
   private asked: Tuning | null = null;
 
+  /** Where the notes played go besides the voices (MIDI out, #205): none until one is given. */
+  sink: NoteSink | null = null;
+  private heard = true;
+  /** Whether the built-in sound is heard: off, the voices go silent and the sink alone sounds, on the same audio clock. */
+  set internal(on: boolean) {
+    this.heard = on;
+    if (this.Tone) this.Tone.getDestination().mute = !on;
+  }
+
   /**
    * Run on another tuning from now on: stopped, the voices gone, a new context (a context's latency is fixed when
    * it is made). For the automated latency test (ui/perfrun.ts); not kept, the address and the kept settings
@@ -119,6 +136,7 @@ export class Player implements LiveSource {
       if (this.plan) this.voices.sync(this.plan.result, this.plan.statics, this.plan.muted);
       this.settle();
     }
+    this.Tone.getDestination().mute = !this.heard;
     return this.Tone;
   }
 
@@ -242,6 +260,7 @@ export class Player implements LiveSource {
       // sound tapes on a moving clock: their speed over this window, for the delays to follow
       for (const t of tapes) this.voices.tapeSpeed(t.tape, t.points);
       for (const e of events) this.voices.play(e);
+      this.sink?.play(Tone, events, time + (w.to - w.from) * secPerQuarter);
     };
     this.repeatId = tr.scheduleRepeat(
       (time) => {
@@ -295,6 +314,7 @@ export class Player implements LiveSource {
     this.repeatId = null;
     this.run++;
     this.voices?.releaseAll();
+    this.sink?.stop(this.Tone, WINDOW / this.rate);
     // motors off: every sound tape stops where it is — held, silent, what's on it kept
     this.held.pause(at);
   }

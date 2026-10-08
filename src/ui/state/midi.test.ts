@@ -2,6 +2,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fakeAccess, fakeInput, fakePort, installMidi, uninstallMidi } from '../../midi/fixtures';
 import { Midi } from './midi.svelte';
+import { compileSource } from '../../engine/compile';
+import { PRESETS } from '../../engine/presets';
+import { DRUM_PRESETS } from '../../midi/drum-presets';
+import type { NoteSink } from '../../audio/player';
+import type { Played } from '../../engine/realize';
 
 const store = new Map<string, string>();
 const page = Object.assign(new EventTarget(), { visibilityState: 'visible' });
@@ -174,5 +179,92 @@ describe('Midi: All notes off', () => {
     };
     expect(() => midi.send([0x90, 60, 100])).not.toThrow();
     expect(() => midi.panic()).not.toThrow();
+  });
+});
+
+/** Tone as the sink sees it: an AudioContext at `t` whose output is heard `lag` later, `t` seconds being `t * 1000 + 5000` ms on the page. */
+function fakeTone(t: number, lag = 0.03) {
+  const native = {
+    currentTime: t,
+    outputLatency: lag,
+    getOutputTimestamp: () => ({ contextTime: native.currentTime - lag, performanceTime: (native.currentTime - lag) * 1000 + 5000 }),
+  };
+  return { getContext: () => ({ rawContext: native, lookAhead: 0.3 }), immediate: () => native.currentTime } as unknown as Parameters<NoteSink['play']>[0];
+}
+
+describe('Midi: MIDI out', () => {
+  async function tapped(title = 'Sailor', source = PRESETS.sailor.source) {
+    const out = fakePort('out-1', 'Circuit');
+    installMidi(fakeAccess([], [out]));
+    const midi = await made();
+    await midi.connect();
+    midi.chooseOutput('out-1');
+    out.sent = [];
+    const player = { sink: null as NoteSink | null, internal: true };
+    midi.attach(player, { program: compileSource(source), title });
+    return { midi, out, player };
+  }
+  const note = (voice: string, at: number, output?: string): Played => ({ at, dur: 0.2, voice, freq: 220, bends: [], gains: [1, 1], levels: [], output });
+
+  it('taps the player: its sink, and its sound follows the internal-sound switch, kept', async () => {
+    const { midi, player } = await tapped();
+    expect(player.sink).toBe(midi);
+    midi.internal = false;
+    expect(player.internal).toBe(false);
+    expect(JSON.parse(store.get('cell-studio:midi')!).internal).toBe(false);
+  });
+
+  it('sends what the player plays, timestamped for when it is heard, on the channel table; each kit member on 10', async () => {
+    const { midi, out } = await tapped();
+    expect(midi.table!.voices).toEqual([
+      { voice: 'fiddle', channel: 1 },
+      { voice: 'bass', channel: 2 },
+    ]);
+    const kit = compileSource(PRESETS.sailor.source).outputs.find((o) => o.kit)!.id;
+    midi.play(fakeTone(10), [note('bass', 10.3), note('sd', 10.3, kit)], 10.5);
+    expect(out.sent).toEqual([
+      { data: [0x91, 57, 127], timestamp: 10.3 * 1000 + 5000 },
+      { data: [0x99, 38, 127], timestamp: 10.3 * 1000 + 5000 },
+      { data: [0x81, 57, 0], timestamp: 10.5 * 1000 + 5000 },
+      { data: [0x89, 38, 0], timestamp: 10.5 * 1000 + 5000 },
+    ]);
+  });
+
+  it("keeps a voice's channel per piece, and a device's drum map per port", async () => {
+    const { midi } = await tapped();
+    midi.setChannel('bass', 7);
+    midi.drums = DRUM_PRESETS['Novation Circuit'];
+    midi.setDrumNote(38, 63);
+    midi.bendRange = 48;
+    midi.rotate = { from: 2, to: 9 };
+    const kept = JSON.parse(store.get('cell-studio:midi')!);
+    expect(kept.channels).toEqual({ Sailor: { bass: 7 } });
+    expect(kept.drums.Circuit[38]).toBe(63);
+    const again = await made();
+    expect([again.drums[36], again.drums[38], again.bendRange, again.rotate]).toEqual([60, 63, 48, { from: 2, to: 9 }]);
+    again.attach({ sink: null, internal: true }, { program: compileSource(PRESETS.sailor.source), title: 'Sailor' });
+    expect(again.table!.voices.find((v) => v.voice === 'bass')!.channel).toBe(7);
+    // (another piece: its own table)
+    again.attach({ sink: null, internal: true }, { program: compileSource(PRESETS.sailor.source), title: 'Other' });
+    expect(again.table!.voices.find((v) => v.voice === 'bass')!.channel).toBe(2);
+  });
+
+  it('stops: all notes off now and past the look-ahead and a window, then nothing held', async () => {
+    const { midi, out } = await tapped();
+    midi.play(fakeTone(10), [note('bass', 10.3)], 10.4);
+    out.sent = [];
+    midi.stop(fakeTone(10.35), 0.25);
+    expect(out.sent.map((m) => [m.data, m.timestamp])).toEqual([
+      [[0xb1, 123, 0], 10.35 * 1000 + 5000],
+      [[0xb1, 123, 0], (10.35 + 0.3 + 0.25) * 1000 + 5000],
+    ]);
+  });
+
+  it('sends nothing without an output, and the player plays on', async () => {
+    const midi = await made();
+    const player = { sink: null as NoteSink | null, internal: true };
+    midi.attach(player, { program: compileSource(PRESETS.sailor.source), title: 'Sailor' });
+    expect(() => midi.play(fakeTone(1), [note('bass', 1.1)], 1.25)).not.toThrow();
+    expect(() => midi.stop(fakeTone(1), 0.25)).not.toThrow();
   });
 });
