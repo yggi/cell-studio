@@ -64,10 +64,16 @@ export class MidiOut {
   #used = new Set<number>();
   /** Per channel nibble, the latest moment a bend was sent for. */
   #bendAt = new Map<number, number>();
-  /** Note-offs sent, by channel and key, until the clock has passed them (`advance`'s `now`). */
-  #offs: { key: string; at: number }[] = [];
-  /** Note-offs a silencing left ahead of it (sent ahead, and not taken back): their channel and key, and when. */
-  #struck: { key: string; at: number }[] = [];
+  /** Note-offs sent, by channel and key, until the clock has passed them (`advance`'s `now`): when, and the timestamp sent. */
+  #offs: { key: string; at: number; ms: number }[] = [];
+  /** Note-offs a silencing left ahead of it (sent ahead, and not taken back): their channel and key, when, and the timestamp sent. */
+  #struck: { key: string; at: number; ms: number }[] = [];
+  /**
+   * Per channel and key, the latest timestamp a note-on or note-off was sent at since the last silencing. The clock's
+   * offset can move between two sends (a jump followed), so each note message on a key is sent no earlier than the one
+   * before it: a note-off never lands before its own note-on, nor a note-on before the note-off it follows.
+   */
+  #keyMs = new Map<string, number>();
   /** Per channel nibble, a bend a silencing put back to the centre ahead of it (after a bend sent ahead): when. */
   #bentBack = new Map<number, number>();
   /** Told once when notes with different bends overlap on one channel (a microtonal piece without rotation). */
@@ -130,6 +136,7 @@ export class MidiOut {
     this.#bend.clear();
     this.#bendAt.clear();
     this.#offs = [];
+    this.#keyMs.clear();
   }
 
   /** Send one note: its bend if the channel needs another, its note-on, its bends while it sounds. Its release is decided by `advance`. */
@@ -144,6 +151,10 @@ export class MidiOut {
     const channel = nibble(!drum && this.#rotation ? this.#rotation.take(n.end) : n.channel);
     const note = drum ? deviceNote(this.#options.drums, n.note) : n.note;
     if (!drum) this.#clashes(channel, n.at, n.end, n.bend, n.bends.length > 0);
+    const key = `${channel}:${note}`;
+    // (a note-off a silencing left at this note's start, or before: this note-on lands after it)
+    let after = -Infinity;
+    for (const s of this.#struck) if (s.key === key && s.at <= n.at) after = Math.max(after, s.ms);
     this.#passed(n.at);
     const back = drum ? undefined : this.#bentBack.get(channel);
     if (back !== undefined) {
@@ -152,12 +163,11 @@ export class MidiOut {
       if (n.end > back && n.bend !== BEND_CENTRE) this.#sendBend(channel, n.bend, back, toDeviceMs);
       else this.#bend.set(channel, BEND_CENTRE);
     } else if (!drum && (this.#bend.get(channel) ?? BEND_CENTRE) !== n.bend) this.#sendBend(channel, n.bend, n.at, toDeviceMs);
-    const key = `${channel}:${note}`;
     const holders = this.#open.get(key) ?? [];
-    if (holders.some((h) => h.start <= n.at && n.at < h.end)) this.#send([NOTE_OFF | channel, note, 0], n.at, toDeviceMs);
-    this.#send([NOTE_ON | channel, note, n.velocity], n.at, toDeviceMs);
+    if (holders.some((h) => h.start <= n.at && n.at < h.end)) this.#note([NOTE_OFF | channel, note, 0], key, n.at, toDeviceMs);
+    this.#note([NOTE_ON | channel, note, n.velocity], key, n.at, toDeviceMs, after);
     // a note-off a silencing left ahead, while this one sounds: struck again after it, so this one sounds on
-    for (const s of this.#struck) if (s.key === key && s.at < n.end) this.#send([NOTE_ON | channel, note, n.velocity], s.at, toDeviceMs);
+    for (const s of this.#struck) if (s.key === key && s.at < n.end) this.#note([NOTE_ON | channel, note, n.velocity], key, s.at, toDeviceMs, s.ms);
     if (this.#struck.length) this.#struck = this.#struck.filter((s) => !(s.key === key && s.at < n.end));
     for (const b of n.bends) this.#pending.push({ channel, value: b.value, at: b.at });
     this.#open.set(key, [...holders, { start: n.at, end: n.end }]);
@@ -183,10 +193,7 @@ export class MidiOut {
       const released = new Set<number>();
       for (const h of due) {
         const stillHeld = holders.some((o) => o !== h && o.start <= h.end && h.end < o.end);
-        if (!stillHeld && !released.has(h.end)) {
-          this.#send([NOTE_OFF | channel, note, 0], h.end, toDeviceMs);
-          this.#offs.push({ key, at: h.end });
-        }
+        if (!stillHeld && !released.has(h.end)) this.#offs.push({ key, at: h.end, ms: this.#note([NOTE_OFF | channel, note, 0], key, h.end, toDeviceMs) });
         released.add(h.end);
       }
       const remaining = holders.filter((h) => h.end > horizon);
@@ -225,8 +232,8 @@ export class MidiOut {
     for (const [key, holders] of this.#open) {
       const [channel, note] = key.split(':').map(Number);
       for (const at of new Set(holders.map((h) => Math.max(now, h.start)))) {
-        this.#send([NOTE_OFF | channel, note, 0], at, toDeviceMs);
-        if (at > now) this.#struck.push({ key, at });
+        const ms = this.#note([NOTE_OFF | channel, note, 0], key, at, toDeviceMs);
+        if (at > now) this.#struck.push({ key, at, ms });
       }
     }
     for (const [c, v] of this.#bend) {
@@ -238,10 +245,22 @@ export class MidiOut {
   }
 
   #send(data: readonly number[], seconds: number, toDeviceMs: ToDeviceMs): void {
+    this.#sendAt(data, Math.max(0, toDeviceMs(seconds)));
+  }
+
+  // a note-on or note-off on a channel and key, no earlier than the one before it on that key (nor than `after`): the timestamp sent
+  #note(data: readonly number[], key: string, seconds: number, toDeviceMs: ToDeviceMs, after = -Infinity): number {
+    const ms = Math.max(0, toDeviceMs(seconds), this.#keyMs.get(key) ?? -Infinity, after);
+    this.#keyMs.set(key, ms);
+    this.#sendAt(data, ms);
+    return ms;
+  }
+
+  #sendAt(data: readonly number[], ms: number): void {
     if (!this.#port) return;
     this.#used.add(data[0] & 0x0f);
     try {
-      this.#port.send(data, Math.max(0, toDeviceMs(seconds)));
+      this.#port.send(data, ms);
     } catch {
       // a port can vanish mid-send (unplugged, revoked): nothing to do about it
     }

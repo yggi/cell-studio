@@ -452,6 +452,17 @@ describe('MidiOut: playing on through a change', () => {
     expect([1.39, 1.41].map((t) => sounding(alone.sent, 0, 60, t))).toEqual([false, false]);
   });
 
+  it('keeps each key in order when the clock jumps between two sends: a note-off never lands before its note-on', () => {
+    const { midi, sent } = made();
+    const later = (s: number) => s * 1000 - 10; // (the clocks jumped: the same moment, 10 ms earlier on the page)
+    midi.play(note('lead', 60, 1, 0.005), toDeviceMs);
+    midi.advance(2, later);
+    midi.play(note('bass', 40, 3, 1), toDeviceMs);
+    midi.panic(2.5, later);
+    expect([sounding(sent, 0, 60, 10), sounding(sent, 1, 40, 10)]).toEqual([false, false]);
+    expect(sent.filter((m) => m.data[1] === 60).map((m) => m.timestamp)).toEqual([1000, 1000]);
+  });
+
   it('puts a bend back after one sent ahead, and a note sent since keeps its own bend over it', () => {
     const at19 = (k: number) => 440 * Math.pow(2, k / 19);
     const { midi, sent } = made();

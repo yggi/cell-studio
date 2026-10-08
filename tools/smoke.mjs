@@ -12,7 +12,7 @@
 //   ENGINE=worker npm run smoke               # with the engine in a Web Worker (?engine=worker, #15)
 //
 // Then MIDI out (#205): one piece played into a fake Web MIDI port, its note-ons checked against the plan's notes
-// (tools/smoke-midi.ts) to within 2 ms of their median offset; then the tempo (a held free()) moved and Pause and Play
+// (tools/smoke-midi.ts) to within 2 ms of their median offset (one step of a clock jump followed allowed); then the tempo (a held free()) moved and Pause and Play
 // again within the look-ahead, with no All notes off from either cutting what plays, and no note left sounding.
 //
 // Chromium: Playwright's, or CHROME_PATH=/path/to/chrome (CI uses the runner's Chrome). See tools/profile/playwright.mjs.
@@ -210,9 +210,15 @@ const MIDI_PIECE = 'sailor';
       taken.add(best);
       offsets.push(o.ms - want[best].at * 1000);
     }
-    const median = [...offsets].sort((a, b) => a - b)[Math.floor(offsets.length / 2)] ?? 0;
-    const worst = Math.max(0, ...offsets.map((d) => Math.abs(d - median)));
+    // (a dropped buffer moves what is heard by about 10 ms, and MIDI follows it: one such step is allowed, each side of
+    // it aligned on its own median)
+    const median = (xs) => [...xs].sort((a, b) => a - b)[Math.floor(xs.length / 2)] ?? 0;
+    const steps = offsets.flatMap((d, i) => (i > 0 && Math.abs(d - offsets[i - 1]) > 2 ? [i] : []));
+    const parts = steps.length === 1 ? [offsets.slice(0, steps[0]), offsets.slice(steps[0])] : [offsets];
+    const worst = Math.max(0, ...parts.flatMap((p) => p.map((d) => Math.abs(d - median(p)))));
+    const step = steps.length === 1 ? Math.abs(median(parts[1]) - median(parts[0])) : 0;
     if (worst > 2) problems.push(`a note-on was ${worst.toFixed(2)} ms off the plan`);
+    if (step > 15) problems.push(`the note-ons stepped by ${step.toFixed(2)} ms`);
     // what the device plays, message by message in timestamp order (at one moment, in the order sent)
     const order = sent.map((m, i) => ({ ...m, i })).sort((a, b) => a.timestamp - b.timestamp || a.i - b.i);
     const sounding = new Set();
@@ -233,7 +239,7 @@ const MIDI_PIECE = 'sailor';
     if (allOff.length === 0) problems.push('Pause sent no All notes off');
     const offs = sent.filter((m) => (m.data[0] & 0xf0) === 0x80).length;
     const all = sent.filter((m) => (m.data[0] & 0xf0) === 0x90).length;
-    note = `${ons.length} note-ons within ${worst.toFixed(3)} ms of the plan (median offset); then 4 tempo moves, Pause and Play: ${all} note-ons, ${offs} note-offs, ${allOff.length} All notes off, none left sounding`;
+    note = `${ons.length} note-ons within ${worst.toFixed(3)} ms of the plan (median offset${step ? `; one step of ${step.toFixed(1)} ms, a clock jump followed` : ''}); then 4 tempo moves, Pause and Play: ${all} note-ons, ${offs} note-offs, ${allOff.length} All notes off, none left sounding`;
   } catch (e) {
     problems.push(String(e.message).split('\n')[0]);
   }
