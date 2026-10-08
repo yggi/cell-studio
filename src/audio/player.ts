@@ -31,8 +31,8 @@ const TAIL = 2.5;
 export interface NoteSink {
   /** A window's notes (AudioContext seconds) and where that window ends: nothing later starts before it. */
   play(T: ToneNS, events: readonly Played[], until: number): void;
-  /** Stopped now; what was sent ahead reaches at most the context's look-ahead and one window (`window` seconds) past now. */
-  stop(T: ToneNS, window: number): void;
+  /** Stopped now: what was sent ahead and is still held is let go, and nothing later is sent that could cut a resume. */
+  stop(T: ToneNS): void;
 }
 
 export class Player implements LiveSource {
@@ -350,7 +350,7 @@ export class Player implements LiveSource {
     this.run++;
     // every note lets go (its release and the effects' tails ring on: Stop is what silences)
     this.voices?.dropGates();
-    this.sink?.stop(this.Tone, WINDOW / this.rate);
+    this.sink?.stop(this.Tone);
     // motors off: every sound tape stops where it is — held, silent, what's on it kept
     this.held.pause(at);
   }

@@ -249,15 +249,58 @@ describe('Midi: MIDI out', () => {
     expect(again.table!.voices.find((v) => v.voice === 'bass')!.channel).toBe(2);
   });
 
-  it('stops: all notes off now and past the look-ahead and a window, then nothing held', async () => {
+  it('stops: all notes off now, and a note-off for each note still held, then nothing held', async () => {
     const { midi, out } = await tapped();
     midi.play(fakeTone(10), [note('bass', 10.3)], 10.4);
     out.sent = [];
-    midi.stop(fakeTone(10.35), 0.25);
+    midi.stop(fakeTone(10.35));
     expect(out.sent.map((m) => [m.data, m.timestamp])).toEqual([
       [[0xb1, 123, 0], 10.35 * 1000 + 5000],
-      [[0xb1, 123, 0], (10.35 + 0.3 + 0.25) * 1000 + 5000],
+      [[0x81, 57, 0], 10.35 * 1000 + 5000],
     ]);
+  });
+
+  it('a resume or a seek just after a stop is not cut: nothing past the stop silences it', async () => {
+    const { midi, out } = await tapped();
+    midi.play(fakeTone(10), [{ ...note('bass', 10.3), dur: 2 }], 10.5);
+    midi.stop(fakeTone(10.35));
+    midi.play(fakeTone(10.4), [{ ...note('bass', 10.45), dur: 2 }], 10.65);
+    midi.play(fakeTone(12.4), [], 12.65);
+    const late = out.sent.filter((m) => m.timestamp! > 10.45 * 1000 + 5000 && m.timestamp! < 12.45 * 1000 + 5000);
+    expect(late).toEqual([]);
+    expect(out.sent.at(-1)).toEqual({ data: [0x81, 57, 0], timestamp: 12.45 * 1000 + 5000 });
+  });
+
+  it('keeps a note held through a recompile while playing (a held free() moved), and sends its note-off', async () => {
+    const { midi, out, player } = await tapped();
+    midi.play(fakeTone(10), [{ ...note('bass', 10.3), dur: 2 }], 10.5);
+    midi.attach(player, { program: compileSource(PRESETS.sailor.source), title: 'Sailor' });
+    midi.play(fakeTone(10.25), [], 10.75);
+    midi.play(fakeTone(12.2), [], 12.5);
+    expect(out.sent.map((m) => [...m.data, Math.round(m.timestamp!)])).toEqual([
+      [0x91, 57, 127, 15300],
+      [0x81, 57, 0, 17300],
+    ]);
+  });
+
+  it("silences a voice's notes when its channel changes while playing, one struck ahead at its start", async () => {
+    const { midi, out } = await tapped();
+    midi.play(fakeTone(10), [{ ...note('bass', 10.3), dur: 2 }], 10.5);
+    midi.setChannel('bass', 7);
+    midi.play(fakeTone(10.25), [], 10.75);
+    expect(out.sent.slice(1)).toEqual([
+      { data: [0xb1, 123, 0], timestamp: 10.25 * 1000 + 5000 },
+      { data: [0x81, 57, 0], timestamp: 10.3 * 1000 + 5000 },
+    ]);
+  });
+
+  it('lets go of a note struck ahead on All notes off, and on another output chosen, while playing', async () => {
+    for (const act of [(m: Midi) => m.panic(), (m: Midi) => m.chooseOutput('none')]) {
+      const { midi, out } = await tapped();
+      midi.play(fakeTone(10), [note('bass', 10.3)], 10.4);
+      act(midi);
+      expect(out.sent).toContainEqual({ data: [0x81, 57, 0], timestamp: 10.3 * 1000 + 5000 });
+    }
   });
 
   it('sends nothing without an output, and the player plays on', async () => {
@@ -265,6 +308,6 @@ describe('Midi: MIDI out', () => {
     const player = { sink: null as NoteSink | null, internal: true };
     midi.attach(player, { program: compileSource(PRESETS.sailor.source), title: 'Sailor' });
     expect(() => midi.play(fakeTone(1), [note('bass', 1.1)], 1.25)).not.toThrow();
-    expect(() => midi.stop(fakeTone(1), 0.25)).not.toThrow();
+    expect(() => midi.stop(fakeTone(1))).not.toThrow();
   });
 });

@@ -11,6 +11,7 @@ import { contextClock } from '../../audio/device';
 import type { NoteSink } from '../../audio/player';
 import { storageKey } from '../../storageKey';
 
+type ToneNS = Parameters<NoteSink['play']>[0];
 type Chosen = { readonly id: string; readonly name: string };
 type Numbers = Readonly<Record<string, number>>;
 type Stored = {
@@ -106,8 +107,11 @@ export class Midi implements ChosenPorts, NoteSink {
 
   /** What sends the notes played to the output (`midi/out.ts`), through `send`. */
   readonly out = new MidiOut({ send: (data, timestamp) => this.send(data, timestamp) });
-  // the routing the out was last given, and the table it came from
+  // the table the out's routing was last made from, and what it said (a recompile makes a new table, often the same)
   #routed: ChannelTable | null = null;
+  #routedAs: string | null = null;
+  // Tone, as the player last handed it over: All notes off while playing silences on its clock
+  #tone: ToneNS | null = null;
 
   /** The open piece's channel table: its voices on their channels (as chosen here, else in order), its kit members on 10. */
   readonly table = $derived.by(() => {
@@ -241,36 +245,45 @@ export class Midi implements ChosenPorts, NoteSink {
   }
 
   /** A window's notes from the player (NoteSink): sent to the output, timestamped for when they're heard. */
-  play(T: Parameters<NoteSink['play']>[0], events: readonly Played[], until: number): void {
+  play(T: ToneNS, events: readonly Played[], until: number): void {
+    this.#tone = T;
     const clock = this.outPort && this.#piece ? contextClock(T) : null;
     if (!clock) return;
     clock.update();
     const at = T.immediate();
     const table = this.table;
     if (table && table !== this.#routed) {
-      this.#routed = table;
-      this.warning = null;
-      this.out.onClash = () =>
-        (this.warning = 'Notes with different bends overlap on one channel, so some sound out of tune. Rotate the notes over channels (for an MPE synth) to give each its own.');
-      this.out.setRoute(router(this.#piece!.program, table), at, clock.toDeviceMs);
+      // a recompile (an edit, a mute, a held free() moved) routes the next notes anew and keeps what's held; a channel
+      // table that says something else silences first
+      const as = JSON.stringify(table);
+      if (as !== this.#routedAs) {
+        if (this.#routedAs !== null) this.out.panic(at, clock.toDeviceMs);
+        this.warning = null;
+        this.out.onClash = () =>
+          (this.warning = 'Notes with different bends overlap on one channel, so some sound out of tune. Rotate the notes over channels (for an MPE synth) to give each its own.');
+      }
+      [this.#routed, this.#routedAs] = [table, as];
+      this.out.setRoute(router(this.#piece!.program, table));
     }
     const rotate = this.#rotate && rotationChannels(this.#rotate.from, this.#rotate.to, !!table?.kit.length);
     this.out.setOptions({ drums: this.drums, bendRange: this.#bendRange, rotate }, at, clock.toDeviceMs);
     for (const e of events) this.out.play(e, clock.toDeviceMs);
-    this.out.advance(until, clock.toDeviceMs);
+    this.out.advance(until, clock.toDeviceMs, at);
   }
 
-  /** The player stopped (NoteSink): silence now, and again past everything already sent ahead. */
-  stop(T: Parameters<NoteSink['stop']>[0], window: number): void {
+  /** The player stopped (NoteSink): All notes off now, and a note-off for each note still held; nothing later, so a resume or a seek isn't cut. */
+  stop(T: ToneNS): void {
+    this.#tone = T;
     const clock = this.outPort ? contextClock(T) : null;
     if (!clock) return this.out.forget();
-    const now = T.immediate();
-    this.out.stop(now, now + T.getContext().lookAhead + window, clock.toDeviceMs);
+    this.out.panic(T.immediate(), clock.toDeviceMs);
   }
 
   /** Send to an output by id (`'none'`: none); what the old one may still hold is silenced first. */
   chooseOutput(id: string): void {
     if (id !== this.#out.id && this.#used.size) this.panic();
+    // (what the old one was left ahead is its own business)
+    if (id !== this.#out.id) this.out.forget();
     this.#out = { id, name: id === 'none' ? '' : (this.ports.outputs.find((p) => p.id === id)?.name ?? '') };
     this.#save();
     this.outPort = id === 'none' ? null : (this.access?.outputPort(id) ?? null);
@@ -295,12 +308,17 @@ export class Midi implements ChosenPorts, NoteSink {
     }
   }
 
-  /** All notes off (CC 123) on every channel sent on since the last time, or on all 16 if none was; then they are forgotten. */
+  /**
+   * All notes off (CC 123) on every channel sent on since the last time, or on all 16 if none was; then they are
+   * forgotten. While playing, a note-off goes too for each note sent ahead, at its start, which CC 123 now can't reach.
+   */
   panic(): void {
     const port = this.outPort;
+    const clock = port && this.#tone ? contextClock(this.#tone) : null;
+    if (clock) this.out.panic(this.#tone!.immediate(), clock.toDeviceMs);
+    else this.out.forget();
     const channels = this.#used.size ? [...this.#used] : ALL_CHANNELS;
     this.#used.clear();
-    this.out.forget();
     if (!port) return;
     for (const c of channels)
       try {

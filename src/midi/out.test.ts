@@ -40,7 +40,7 @@ function made(options: Partial<Parameters<MidiOut['setOptions']>[0]> = {}) {
   const port = fakePort('out', 'Synth');
   const midi = new MidiOut();
   midi.setPort(port, 0, toDeviceMs);
-  midi.setRoute(route, 0, toDeviceMs);
+  midi.setRoute(route);
   midi.setOptions({ drums: {}, bendRange: 2, rotate: null, ...options }, 0, toDeviceMs);
   return { midi, sent: port.sent };
 }
@@ -50,7 +50,7 @@ const allNotesOffChannels = (sent: { data: number[] }[]) => new Set(sent.filter(
 describe('MidiOut', () => {
   it('sends nothing before a port is set', () => {
     const midi = new MidiOut();
-    midi.setRoute(route, 0, toDeviceMs);
+    midi.setRoute(route);
     midi.play(note('lead', 60, 0, 1), toDeviceMs);
     midi.advance(10, toDeviceMs);
   });
@@ -166,31 +166,39 @@ describe('MidiOut', () => {
     expect(b.sent.filter((m) => m.data[0] === NOTE_OFF).length).toBe(1);
   });
 
-  it('silences the channels in use when the routing changes; does nothing for the same port or routing', () => {
+  it('takes a new routing from the next note on, silencing nothing', () => {
     const { midi, sent } = made();
     midi.play(note('lead', 60, 0, 10), toDeviceMs);
-    const n = sent.length;
-    midi.setRoute(route, 1, toDeviceMs);
-    expect(sent.length).toBe(n);
-    midi.setRoute((e) => route(e), 2, toDeviceMs);
-    expect(sent.at(-1)).toEqual({ data: [CC | 0, ALL_NOTES_OFF, 0], timestamp: 2000 });
+    midi.setRoute((e) => (e.voice === 'lead' ? { channel: 5, drum: null } : null));
+    midi.play(note('lead', 62, 1, 1), toDeviceMs);
+    expect(sent.map((m) => m.data)).toEqual([
+      [NOTE_ON | 0, 60, 127],
+      [NOTE_ON | 4, 62, 127],
+    ]);
   });
 
-  it('stops: all notes off on every channel in use now, and again past the horizon; then nothing is held', () => {
+  it('stops: all notes off on every channel in use now, a note-off for each note held, and nothing after; then nothing is held', () => {
     const { midi, sent } = made();
     midi.play(note('lead', 60, 0, 10), toDeviceMs);
     midi.play(note('bass', 40, 0.4, 10), toDeviceMs);
-    midi.stop(0.1, 0.65, toDeviceMs);
-    const offs = sent.filter((m) => m.data[1] === ALL_NOTES_OFF && (m.data[0] & 0xf0) === CC);
-    expect(offs).toEqual([
+    midi.panic(0.1, toDeviceMs);
+    expect(sent.slice(2)).toEqual([
       { data: [CC | 0, ALL_NOTES_OFF, 0], timestamp: 100 },
       { data: [CC | 1, ALL_NOTES_OFF, 0], timestamp: 100 },
-      { data: [CC | 0, ALL_NOTES_OFF, 0], timestamp: 650 },
-      { data: [CC | 1, ALL_NOTES_OFF, 0], timestamp: 650 },
+      { data: [NOTE_OFF | 0, 60, 0], timestamp: 100 },
+      { data: [NOTE_OFF | 1, 40, 0], timestamp: 400 },
     ]);
     sent.length = 0;
     midi.advance(20, toDeviceMs);
     expect(sent).toEqual([]);
+  });
+
+  it('keeps which channel is free longest from window to window, under the same rotation', () => {
+    const { midi, sent } = made({ rotate: [2, 3] });
+    midi.play(note('lead', 60, 0, 2), toDeviceMs);
+    midi.setOptions({ drums: {}, bendRange: 2, rotate: [2, 3] }, 0.25, toDeviceMs);
+    midi.play(note('lead', 64, 0.5, 2), toDeviceMs);
+    expect(sent.map((m) => (m.data[0] & 0x0f) + 1)).toEqual([2, 3]);
   });
 
   it('clamps a timestamp before now to zero, rather than sending it late', () => {
@@ -211,11 +219,11 @@ describe('MidiOut', () => {
       0,
       toDeviceMs,
     );
-    midi.setRoute(route, 0, toDeviceMs);
+    midi.setRoute(route);
     expect(() => {
       midi.play(note('lead', 60, 0, 1), toDeviceMs);
       midi.advance(2, toDeviceMs);
-      midi.stop(2, 3, toDeviceMs);
+      midi.panic(2, toDeviceMs);
     }).not.toThrow();
   });
 });
@@ -256,9 +264,9 @@ describe('MidiOut: bends', () => {
     expect(sent.filter((m) => (m.data[0] & 0xf0) === BEND)).toEqual([]);
     midi.advance(1.5, toDeviceMs);
     expect(sent.filter((m) => (m.data[0] & 0xf0) === BEND).map((m) => m.timestamp)).toEqual([1000]);
-    midi.stop(1.6, 2, toDeviceMs);
+    midi.panic(1.6, toDeviceMs);
     // (the bend is put back at the stop, and the one at 3 s never goes)
-    expect(sent.filter((m) => (m.data[0] & 0xf0) === BEND).map((m) => m.timestamp)).toEqual([1000, 1600, 2000]);
+    expect(sent.filter((m) => (m.data[0] & 0xf0) === BEND).map((m) => m.timestamp)).toEqual([1000, 1600]);
   });
 
   it('warns once when notes with different bends overlap on one channel; rotation gives each its own', () => {
@@ -292,7 +300,7 @@ describe('MidiOut over every example, window by window as the player plays them'
       const port = fakePort('out', 'Synth');
       const midi = new MidiOut(port);
       const route = router(r, channelTable(r));
-      midi.setRoute(route, 0, toDeviceMs);
+      midi.setRoute(route);
       let expected = 0;
       for (let from = 0; from < SECONDS; from += WINDOW) {
         const w = windowAt(p, from, WINDOW);
@@ -323,4 +331,138 @@ describe('MidiOut over every example, window by window as the player plays them'
       // (none in the past)
       expect(port.sent.every((m) => m.timestamp! >= 0)).toBe(true);
     });
+});
+
+/** Whether a key sounds at `t` seconds on a device that plays what was sent in timestamp order (at one moment, in the order sent). */
+function sounding(sent: { data: number[]; timestamp?: number }[], channel: number, key: number, t: number): boolean {
+  let on = false;
+  for (const { data } of inOrder(sent, t)) {
+    if ((data[0] & 0x0f) !== channel) continue;
+    const kind = data[0] & 0xf0;
+    if (kind === NOTE_ON && data[1] === key) on = true;
+    else if ((kind === NOTE_OFF && data[1] === key) || (kind === CC && data[1] === ALL_NOTES_OFF)) on = false;
+  }
+  return on;
+}
+
+/** The bend a channel is at, at `t` seconds, played as `sounding` plays the notes. */
+function bendAt(sent: { data: number[]; timestamp?: number }[], channel: number, t: number): number {
+  let bend = BEND_CENTRE;
+  for (const { data } of inOrder(sent, t)) if (data[0] === (BEND | channel)) bend = data[1] | (data[2] << 7);
+  return bend;
+}
+
+const inOrder = (sent: { data: number[]; timestamp?: number }[], t: number) =>
+  sent
+    .map((m, i) => ({ ...m, i }))
+    .filter((m) => m.timestamp! <= t * 1000 + 1e-6)
+    .sort((a, b) => a.timestamp! - b.timestamp! || a.i - b.i);
+
+describe('MidiOut over every example, through a seek within the look-ahead', () => {
+  const dir = new URL('../../examples/', import.meta.url);
+  const files = readdirSync(dir).filter((f) => f.endsWith('.cells'));
+  const WINDOW = 0.25;
+
+  for (const f of files)
+    it(`${f}: no note sent after the seek is cut, and nothing is left sounding`, () => {
+      const r = compileSource(readFileSync(new URL(f, dir), 'utf8'));
+      const p = plan(r, codeShifts(r), r.off);
+      const port = fakePort('out', 'Synth');
+      const midi = new MidiOut(port);
+      const route = router(r, channelTable(r));
+      midi.setRoute(route);
+      const run = (from: number, to: number, shift: number, played: Played[]) => {
+        for (let t = from; t < to; t += WINDOW) {
+          const w = windowAt(p, t, WINDOW);
+          for (const e of w.events) {
+            const moved = { ...e, at: e.at + shift };
+            if (played) played.push(moved);
+            midi.play(moved, toDeviceMs);
+          }
+          midi.advance(w.to + shift, toDeviceMs);
+        }
+      };
+      // played to 4 s, sent ahead to 4 s while the clock is at 3.6 s; then a seek back to 2 s, from 3.65 s
+      run(0, 4, 0, []);
+      midi.panic(3.6, toDeviceMs);
+      const after: Played[] = [];
+      run(2, 6, 1.65, after);
+      midi.advance(Infinity, toDeviceMs);
+      for (const e of after) {
+        const to = route(e);
+        const n = to && midiNote(e, to);
+        if (!n || n.end - n.at < 0.002) continue;
+        expect(sounding(port.sent, (n.channel - 1) & 15, to.drum ?? n.note, (n.at + n.end) / 2), `${e.voice} at ${e.at}`).toBe(true);
+      }
+      const keys = new Set(port.sent.filter((m) => (m.data[0] & 0xf0) === NOTE_ON).map((m) => [m.data[0] & 0x0f, m.data[1]].join()));
+      for (const k of keys) expect(sounding(port.sent, ...(k.split(',').map(Number) as [number, number]), Infinity), k).toBe(false);
+    });
+});
+
+describe('MidiOut: playing on through a change', () => {
+  it('keeps every note held through a new routing, and sends its note-off (a recompile while playing)', () => {
+    const { midi, sent } = made();
+    // (sent ahead: struck at 1.2 s while the clock is at 1 s)
+    midi.play(note('lead', 69, 1.2, 0.5), toDeviceMs);
+    midi.setRoute((e) => route(e));
+    midi.advance(10, toDeviceMs);
+    expect(sent.map((m) => [m.data[0], m.data[1], m.timestamp])).toEqual([
+      [NOTE_ON, 69, 1200],
+      [NOTE_OFF, 69, 1700],
+    ]);
+  });
+
+  it('silences at a moment: All notes off then, and a note-off for every note still held, one struck ahead at its start', () => {
+    const { midi, sent } = made();
+    midi.play(note('lead', 60, 0.5, 10), toDeviceMs);
+    midi.play(note('bass', 40, 1.4, 1), toDeviceMs);
+    midi.panic(1.2, toDeviceMs);
+    expect(sent.slice(2)).toEqual([
+      { data: [CC | 0, ALL_NOTES_OFF, 0], timestamp: 1200 },
+      { data: [CC | 1, ALL_NOTES_OFF, 0], timestamp: 1200 },
+      { data: [NOTE_OFF | 0, 60, 0], timestamp: 1200 },
+      { data: [NOTE_OFF | 1, 40, 0], timestamp: 1400 },
+    ]);
+    expect(sounding(sent, 1, 40, 1.5)).toBe(false);
+    sent.length = 0;
+    midi.advance(20, toDeviceMs);
+    expect(sent).toEqual([]);
+  });
+
+  it('a resume just after a stop is not cut: nothing is sent past the stop to silence it', () => {
+    const { midi, sent } = made();
+    midi.play(note('lead', 60, 1, 5), toDeviceMs);
+    midi.panic(1.2, toDeviceMs);
+    midi.play(note('lead', 60, 1.3, 2), toDeviceMs);
+    midi.advance(10, toDeviceMs);
+    expect([1.25, 1.31, 1.8, 2.5, 3.29, 3.31].map((t) => sounding(sent, 0, 60, t))).toEqual([false, true, true, true, true, false]);
+  });
+
+  it('a seek within the look-ahead: a note struck ahead before the stop retriggers one sent since, and never cuts it', () => {
+    const { midi, sent } = made();
+    midi.play(note('lead', 60, 1.4, 1), toDeviceMs);
+    midi.panic(1.2, toDeviceMs);
+    midi.play(note('lead', 60, 1.3, 2), toDeviceMs);
+    midi.advance(10, toDeviceMs);
+    expect([1.31, 1.4, 1.5, 3.29, 3.31].map((t) => sounding(sent, 0, 60, t))).toEqual([true, true, true, true, false]);
+    // with nothing after it, the note struck ahead is let go at its start
+    const alone = made();
+    alone.midi.play(note('lead', 60, 1.4, 1), toDeviceMs);
+    alone.midi.panic(1.2, toDeviceMs);
+    expect([1.39, 1.41].map((t) => sounding(alone.sent, 0, 60, t))).toEqual([false, false]);
+  });
+
+  it('puts a bend back after one sent ahead, and a note sent since keeps its own bend over it', () => {
+    const at19 = (k: number) => 440 * Math.pow(2, k / 19);
+    const { midi, sent } = made();
+    midi.play(note('lead', 0, 1.4, 1, { freq: at19(1) }), toDeviceMs);
+    midi.panic(1.2, toDeviceMs);
+    expect(bendAt(sent, 0, 2)).toBe(BEND_CENTRE);
+    const since = note('lead', 0, 1.3, 2, { freq: at19(3) });
+    const bend = midiNote(since, { channel: 1, drum: null })!.bend;
+    expect(bend).not.toBe(BEND_CENTRE);
+    midi.play(since, toDeviceMs);
+    midi.advance(10, toDeviceMs);
+    expect([1.35, 1.41, 3].map((t) => bendAt(sent, 0, t))).toEqual([bend, bend, bend]);
+  });
 });
