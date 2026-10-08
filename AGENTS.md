@@ -19,7 +19,7 @@ Enforced (a failing test or CI says so): `engine/` and `layout/` stay pure TS, n
 Judgment (nothing checks these; you do):
 - The code (text) is the single source of truth; every graph edit rewrites a cell's line (`src/engine/edit.ts`).
 - Don't hand-format: Prettier owns whitespace and line breaks (`.prettierrc.json`). A commit that only reformats goes in `.git-blame-ignore-revs`. ESLint opt-outs say why, in `eslint.config.js` or on the line.
-- Theme values come from `src/app.css` and `src/ui/theme.ts` only.
+- Theme values come from `src/app.css` and `src/ui/theme.ts` only (a plugin carries its own colours in its manifest: [decision 011](docs/decisions/011-plugins.md)).
 - A user-visible change adds a line under *Unreleased* in `CHANGELOG.md`; mention changes that could affect saved `.cells` pieces.
 - Facts live in one place; other places link.
 

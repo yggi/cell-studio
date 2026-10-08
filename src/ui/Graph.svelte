@@ -19,7 +19,7 @@
   import MeterEdge from './MeterEdge.svelte';
   import MaterialNode from './MaterialNode.svelte';
   import ScopeNode from './ScopeNode.svelte';
-  import SunNode from './SunNode.svelte';
+  import PluginNode from './PluginNode.svelte';
   import GraphLegend from './GraphLegend.svelte';
   import BeltEdge from './BeltEdge.svelte';
   import './edges.css';
@@ -156,7 +156,7 @@
     },
   });
 
-  const nodeTypes = { cell: CellNode, voice: VoiceNode, material: MaterialNode, scope: ScopeNode, sun: SunNode, junction: JunctionNode } as NodeTypes;
+  const nodeTypes = { cell: CellNode, voice: VoiceNode, material: MaterialNode, scope: ScopeNode, plugin: PluginNode, junction: JunctionNode } as NodeTypes;
   const edgeTypes = { pulse: PulseEdge, belt: BeltEdge, meter: MeterEdge };
 
   let forcesOpen = $state(false);

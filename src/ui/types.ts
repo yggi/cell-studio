@@ -26,9 +26,10 @@ type MaterialFlowNode = Node<MaterialNodeData, 'material'>;
 /** An oscilloscope (scope=): a screen. */
 type ScopeNodeData = { name: string; size: number };
 type ScopeFlowNode = Node<ScopeNodeData, 'scope'>;
-/** The sun of a day's law (sun=): a 24-hour dial. */
-type SunFlowNode = Node<ScopeNodeData, 'sun'>;
+/** A cell drawn by a plugin of the piece (show=name). */
+type PluginFlowNode = Node<{ name: string; size: number; plugin: string }, 'plugin'>;
+
 /** A product's junction (graph.ts): the voice it is and the mix it goes into (`name`: its id, no cell's). */
 type JunctionNodeData = { name: string; voice: string; mix: string; size: number };
 export type JunctionFlowNode = Node<JunctionNodeData, 'junction'>;
-export type FlowNode = CellFlowNode | VoiceFlowNode | MaterialFlowNode | ScopeFlowNode | SunFlowNode | JunctionFlowNode;
+export type FlowNode = CellFlowNode | VoiceFlowNode | MaterialFlowNode | ScopeFlowNode | PluginFlowNode | JunctionFlowNode;
