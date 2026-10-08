@@ -1,6 +1,9 @@
 <script lang="ts">
   import { noteColour } from './theme';
-  import { freqHue } from '../engine/helix';
+  import { palette } from './palette';
+  import { positionOf } from '../engine/helix';
+  import { heardGrid } from '../layout/show';
+  import { tickLevel } from '../layout/meters';
   /**
    * An edge drawn by what it carries (its band, docs/notes/nets.md), from what is read to the cell that reads it:
    *  - sync (a clock's ticks): dotted, a pulse per step of the cell it drives
@@ -8,7 +11,8 @@
    *    a strand per entry in its wheel's colours (the entries looked up now lit); a chord, a strand per note, in the
    *    colours of the notes under the playhead of the cell it comes from
    *  - audio (sound): a wave along it
-   * While playing, a live edge into a voice or a mix takes the colour of the note sounding now, with a pulse per step.
+   * While playing, a live edge takes the colour of what it carries now, one palette for all (ui/palette.ts): a note its
+   * pitch colour on its grid, a level the neutral hue, a tick the meter's level, sound its fundamental; with a pulse per step.
    */
   import { BaseEdge, type EdgeProps } from '@xyflow/svelte';
   import { untrack } from 'svelte';
@@ -63,6 +67,8 @@
 
   // (between a bus's strands)
   const GAP = 4;
+  // (the CV ports that carry notes; any other CV is a level: an envelope, a gain, a filter …)
+  const PITCH_PORTS = new Set(['voice', 'pitch', 'play', 'write', 'braid', 'over']);
 
   // Ends locked to their segments (as a tape's heads are): a ref meets the wheel of the cell it is spliced into where it
   // sits in that braid, once for each time it is written; a table's strands leave its wheel at their entries.
@@ -118,7 +124,9 @@
     // out of each entry, along the radius, into a bundle towards the reader
     return loomPaths(sourceX, sourceY, r, turns, mid.x, mid.y, targetX, targetY, GAP);
   });
-  const fillColour = (f: Fill | undefined) => (f?.kind === 'pitch' ? noteColour(f.hue, false, f.octave ?? 0) : 'var(--edge)');
+  // a wheel's fill, coloured as its wheel colours it: a note its pitch colour (the palette's, its place on its grid
+  // already found), a level on the neutral hue
+  const fillColour = (f: Fill | undefined) => (f?.kind === 'pitch' ? noteColour(f.hue, false, f.octave ?? 0) : f?.kind === 'level' ? palette('level', f.v) : 'var(--edge)');
   // a resonator's tines: a strand into each pad (round its body, as MaterialNode lays them), lit while it rings
   const tinePaths = $derived.by(() => {
     if (!d.tines || !d.sizes) return [];
@@ -155,24 +163,53 @@
     return Array.from({ length: count }, (_, i) => ({ colour: notes[i] ? fillColour(notes[i]) : 'var(--edge)', dim: t !== null && !notes[i] }));
   });
 
-  // only a live edge (what it carries sounds now) pulses and takes its voice's colour
+  // only a live edge (what it carries sounds now) pulses and takes the colour of its value (ui/palette.ts)
   const phase = $derived(isLive && d.phaseCell && ctx.live ? ctx.live.phases.get(d.phaseCell) : undefined);
   const dot = $derived(phase === undefined ? null : splinePoint(fromX, fromY, mid.x, mid.y, targetX, targetY, phase));
 
-  const hue = $derived.by(() => {
-    if (!isLive || !d.voice || !ctx.live) return null;
-    const f = ctx.sound.note(d.voice);
-    // the note's colour on the voice's own grid
-    return f ? (freqHue(ctx.program, d.voice, f) ?? pitchHue(12 * Math.log2(f / 261.63))) : null;
+  // the grid its voice's colours follow (a voice's notes', a mix's by the owner's rule: null, several, no colour)
+  const grid = $derived.by(() => {
+    const g = d.voice ? heardGrid(ctx.program, d.voice) : null;
+    return g ? { name: g, cycle: ctx.program.cells.get(g)?.cycle ?? 12 } : null;
   });
-  // (the colouring rule: C4 … C5 full colour, other octaves muted, lighter above, darker below)
-  const octave = $derived.by(() => {
-    const f = isLive && d.voice && ctx.live ? ctx.sound.note(d.voice) : null;
-    if (!f) return 0;
-    const r = f / 261.63;
-    return r >= 1 && r <= 2.0001 ? 0 : Math.floor(Math.log2(r));
+  // the note its voice sounds now, as a position on that grid (from the voice's pitch 0); null: none
+  const notePosition = (): number | null => {
+    const f = d.voice ? ctx.sound.note(d.voice) : null;
+    const base = d.voice ? (ctx.program.cells.get(d.voice)?.freq ?? 0) : 0;
+    return f && base > 0 && grid ? positionOf(ctx.program, grid.name, 12 * Math.log2(f / base)) : null;
+  };
+  // what the cell it comes from plays now (a braid's step under its playhead, a table's entry looked up), for a CV edge
+  // that carries no voice's note; redrawn when a table turns, read every frame
+  const source = $derived.by(() => {
+    if (d.band !== 'cv' || count || d.tines || d.state !== 'idle') return null;
+    void ctx.turned;
+    return cellView(ctx.program, d.from, shown, false);
   });
-  const colour = $derived(hue === null ? null : noteColour(hue, false, octave));
+  const fillNow = (): Fill | undefined => {
+    const lc = ctx.live?.cells.get(d.from);
+    if (!source || !lc) return undefined;
+    if (d.port === 'over') {
+      const i = lc.entries.values().next().value;
+      return source.segments.find((s) => s.index === i)?.bands[0];
+    }
+    if (lc.local == null) return undefined;
+    const t = lc.local / Math.max(1, ctx.program.cells.get(d.from)?.steps ?? 1);
+    return source.segments.find((s) => t >= s.t0 - 1e-9 && t < s.t1 - 1e-9)?.bands.find((b) => b.kind === 'pitch' || b.kind === 'level');
+  };
+  const colour = $derived.by((): string | null => {
+    // (a note's link carries nothing: no value, no colour)
+    if (!isLive || !ctx.live || d.band === 'none') return null;
+    // sync: the level of the tick of the clock it carries
+    if (d.band === 'sync') return palette('sync', tickLevel(ctx.program.cells.get(d.from), ctx.live.beatAt.get(d.from) ?? 1));
+    // audio: the hue of its fundamental (a mix carries several: neutral), as bright as it is loud
+    if (d.band === 'audio') return palette('audio', { position: notePosition(), loud: 1 }, grid);
+    // CV: a level (an envelope, a gain, lpf=) on the neutral hue; a pitch the note's colour on its grid
+    const f = fillNow();
+    if (!PITCH_PORTS.has(d.port)) return palette('level', f?.kind === 'level' ? f.v : 1);
+    const p = notePosition();
+    if (p !== null) return palette('pitch', p, grid);
+    return f?.kind === 'pitch' || f?.kind === 'level' ? fillColour(f) : palette('level', 1);
+  });
   // (a bus draws its own strands: its core stays hidden, so it takes no colour)
   const edgeStyle = $derived(colour && !count && !d.tines ? `${style ?? ''}; stroke: ${colour}; stroke-opacity: 0.9` : style);
 </script>
@@ -214,7 +251,7 @@
 
 <style>
   .pulse {
-    fill: var(--accent);
+    fill: var(--edge);
     pointer-events: none;
     filter: drop-shadow(0 0 3px currentColor);
   }
