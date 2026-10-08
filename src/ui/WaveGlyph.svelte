@@ -1,8 +1,9 @@
 <script lang="ts">
   import { fmWave } from '../engine/fm';
   /**
-   * An instrument's, a mix's or a read head's wheel (show=wave, a voice's plain show): its waveform in a disc — stopped, one
-   * cycle of it; playing, the sound itself, held still from a rising zero-crossing (as the scope holds it).
+   * An instrument's, a mix's or a read head's wheel (show=wave, a voice's plain show): its waveform in a disc — one cycle of it
+   * at rest (stopped, or an instrument no sound goes through); otherwise the sound itself, held still from a rising
+   * zero-crossing (as the scope holds it). A mix's or a head's line is flat while nothing sounds in it.
    */
   import { onDestroy, onMount } from 'svelte';
   import { onFrames } from '../audio/ticker';
@@ -10,7 +11,7 @@
   import { waveform } from '../engine/wave';
   import { codeShifts } from '../engine/program';
   import { noteName } from '../theory/modes';
-  import { getGraphContext } from './context';
+  import { getGraphContext, hearing } from './context';
   import { fitFont, hubMax } from '../layout/dial';
   import { wheelGeometry } from '../layout/wheel';
 
@@ -50,12 +51,15 @@
     return Array.from(w, (v, i) => `${(c - width / 2 + (i / (w.length - 1)) * width).toFixed(1)},${(c - v * height).toFixed(1)}`).join(' ');
   });
 
+  // a mix or a read head carries whatever sounds; an instrument shows its sound while it is routed (ui/context.ts hearing)
+  const signal = $derived(typeof cell?.params.play === 'string' || !!cell?.mix);
+
   // the sound now, while it plays (~15 a second, only on screen)
   let live = $state('');
   let visible = true;
   let stop = () => {};
   function frame() {
-    const w = visible && ctx.playing ? ctx.sound.waveform(name) : null;
+    const w = visible && hearing(ctx, name, signal) ? ctx.sound.waveform(name) : null;
     if (!w) {
       if (live) live = '';
       return;

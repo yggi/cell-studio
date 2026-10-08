@@ -244,6 +244,16 @@ export function damp(now: number, r: Resonator, on: boolean): void {
   }
 }
 
+/**
+ * Stop: every body at rest. Choked at once (as a hand does), the bow lifted, and let ring again after a moment — by then
+ * there is nothing left in the loops to ring.
+ */
+export function hush(now: number, r: Resonator): void {
+  damp(now, r, true);
+  bow(now, r, null);
+  damp(now + 0.4, r, false);
+}
+
 /** The bow: its noise's level (null lifts it). */
 export function bow(now: number, r: Resonator, amount: number | null): void {
   r.bow.gain.setTargetAtTime(amount === null ? 0 : Math.min(0.6, Math.max(0, amount)), now, 0.03);

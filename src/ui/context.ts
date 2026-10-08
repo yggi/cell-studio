@@ -3,6 +3,7 @@ import type { CompileResult, Shifts } from '../engine/program';
 import type { LiveState } from '../engine/live';
 import { nodeStateOf, type Routing, type State } from '../engine/routing';
 import type { LiveSource } from '../audio/live';
+import { cellId } from '../engine/ids';
 import type { TransportState } from '../audio/transport';
 
 /**
@@ -66,6 +67,18 @@ export interface GraphContext {
 }
 
 export const [getGraphContext, setGraphContext] = createContext<GraphContext>();
+
+/**
+ * Is a wheel to show the sound itself (its analyser), not its resting picture? Not while stopped: nothing sounds. Paused or
+ * playing: a mix, a read head or the sound card (`signal`) always, whatever it carries; an instrument only when it is part
+ * of what sounds (routed), else it keeps its default.
+ */
+export function hearing(ctx: GraphContext, name: string, signal: boolean): boolean {
+  if (ctx.state === 'stopped') return false;
+  if (signal) return true;
+  const s = nodeState(ctx, cellId(name));
+  return s !== 'unrouted' && s !== 'off';
+}
 
 export function nodeState(ctx: GraphContext, id: string): NodeState {
   return nodeStateOf(id, ctx.muted, ctx.routed, ctx.lit);
