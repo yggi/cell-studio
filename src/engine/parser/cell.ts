@@ -7,7 +7,7 @@ import { CELL_PARAMS, CORE, PARAMS, nearestAttribute } from '../attributes';
 import { IDENT, type LineScanner } from './scanner';
 import { OPERATIONS, parseToken } from './braid';
 import { parseFree } from './free';
-import { isGenerator, parseGenerator, parseScale } from './generators';
+import { isGenerator, parseFifths, parseGenerator, parseScale } from './generators';
 import { parseMap, parseStep } from './values';
 import { syntax, type Syntax } from './syntax';
 
@@ -390,6 +390,7 @@ export function parseBody(s: LineScanner, head: Ref): CellDecl {
   const tokens: Token[] = [];
   let generator: Braid | null = null;
   let scaleKey: Ref | null = null;
+  let fifthsShift: number | null = null;
 
   while (!s.done()) {
     const at = s.i;
@@ -418,7 +419,12 @@ export function parseBody(s: LineScanner, head: Ref): CellDecl {
     }
     if (word !== null && isGenerator(word) && s.peek() === '(') {
       if (generator || tokens.length) s.fail('A cell has one braid: a generator or a list of steps', at, word.length);
-      if (word === 'scale') {
+      if (word === 'fifths') {
+        // fifths(n): the circle, turned n fifths round (the cell's shift)
+        const f = parseFifths(s, at);
+        generator = f.braid;
+        fifthsShift = f.shift;
+      } else if (word === 'scale') {
         // scale(name, tonic): its steps the cell's braid, read through the key it brings
         const sc = parseScale(s, at);
         generator = { kind: 'scan', steps: sc.steps, span: sc.span };
@@ -446,6 +452,10 @@ export function parseBody(s: LineScanner, head: Ref): CellDecl {
   }
 
   const braid: Braid = generator ?? (tokens.length ? { kind: 'list', tokens } : { kind: 'blank' });
+  if (fifthsShift !== null && fifthsShift !== 0) {
+    if (b.shift !== null) s.fail('fifths(n) turns it already: write fifths() and shift=, or fifths(n) alone');
+    b.shift = fifthsShift;
+  }
   if (scaleKey) {
     if (b.over) s.fail('scale(…) reads through a key of its own: drop over=, or write the key as a cell (&mode over=&key scan(…))', b.over.span.col - 1, b.over.span.len);
     b.over = scaleKey;

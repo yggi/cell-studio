@@ -1,4 +1,4 @@
-/** Generators: a braid written as a rule — scan(…), euclid(…), sin(…), scale(…), meter(…), spell(…). */
+/** Generators: a braid written as a rule — scan(…), euclid(…), sin(…), scale(…), fifths(…), meter(…), spell(…). */
 import type { Braid, Ref, Span } from '../ast';
 import { syntax, type Syntax } from './syntax';
 import type { LineScanner } from './scanner';
@@ -321,6 +321,29 @@ export function parseScale(s: LineScanner, start: number): { steps: number[]; ke
   return { steps, key: { name: key, pick: null, shift: 0, span }, span };
 }
 
+/**
+ * `fifths()`, `fifths(n)`, `fifths(G)`: the circle of fifths, the twelve pitch classes a fifth apart (C G D A E B F#
+ * C# Ab Eb Bb F), as written from C; turned n steps round, or to start on a note (the cell's shift: `[0]` is where
+ * it starts, `[$0]` C).
+ */
+export function parseFifths(s: LineScanner, start: number): { braid: Braid; shift: number } {
+  s.i++; // (
+  s.skipSpace();
+  let shift = 0;
+  if (s.peek() !== ')') {
+    const at = s.i;
+    const name = s.noteName();
+    if (name !== null) shift = ((((name % 12) + 12) % 12) * 7) % 12;
+    else shift = s.int('how many fifths round it starts (fifths(1): on G), or the note it starts on: fifths(G)');
+    if (name === null && Math.abs(shift) > 11) s.warn(`fifths(${shift}): the circle comes round after 12`, at, s.i - at);
+    s.skipSpace();
+  }
+  s.expect(')', "')' to close fifths(…)");
+  const span = s.span(start);
+  const tokens = Array.from({ length: 12 }, (_, k) => ({ atom: { kind: 'note' as const, value: (k * 7) % 12, alter: 0 }, repeat: 1, subdivide: 1, elongate: 1, span }));
+  return { braid: { kind: 'list', tokens, span } as Braid, shift };
+}
+
 type Generator = (s: LineScanner, start: number) => Braid;
 
 /** The generators: a braid written as a rule. The parser reads a cell's braid through this table. */
@@ -357,6 +380,17 @@ export const GENERATORS: Readonly<Record<string, { readonly parse: Generator; re
       'scale(name) · scale(name, tonic)',
       `A scale by name over the 12, turned to its tonic (a note name, a number or free(…); C if left out): the scan of its steps over a key of its own. Its shift= walks its modes; the tonic transposes. The names: ${Object.keys(SCALES).join(' ')}.`,
       ['&scale scale(minor, D)', '&blues scale(blues)', '&scale scale(dorian, free(2, 0..11))'],
+      'tables.md',
+    ),
+  },
+  fifths: {
+    // (read by the cell itself, which takes the turn it brings: parseFifths)
+    parse: (s, start) => s.fail('fifths(…) is read by its cell', start, 6),
+    syntax: syntax(
+      'generator',
+      'fifths() · fifths(n) · fifths(note)',
+      'The circle of fifths: the twelve pitch classes a fifth apart, C G D A E B F# C# Ab Eb Bb F, as written from C; turned n fifths round, or to start on a note (its shift=: [0] is where it starts, [$0] is C). Drawn round its wheel in its own order.',
+      ['&circle fifths()', '&circleG fifths(1)', '&circleG fifths(G)'],
       'tables.md',
     ),
   },

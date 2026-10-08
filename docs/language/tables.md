@@ -9,6 +9,7 @@ Reading through a table: `over=`, `shift=` and `scale()` say which grid a cell's
   - The names: `major` `minor` `ionian` `dorian` `phrygian` `lydian` `mixolydian` `aeolian` `locrian` `harmonic` `melodic` `pentatonic` `minorpentatonic` `blues` `wholetone`; each a plain `scan(…)` you could write out.
   - The older `scale(tonic, phase)` (a mode by number, 0 the darkest) still reads, with a warning that says it by name: `scale(9, 2)` is `scale(minor, A)`.
   - Write the key and the mode as named cells when you want to turn or step them apart.
+- **`fifths()`** is the circle of fifths: the twelve pitch classes a fifth apart, C G D A E B F# C# Ab Eb Bb F, as written from C. `fifths(1)` (or `fifths(G)`) turns it to start on G: it is its `shift=`, so `&circleG[0]` is G and `&circleG[$0]` C ([decision 012](../decisions/012-picks-are-taps.md)). A table in an order of its own, not the pitches', is drawn evenly round its wheel in that order; its taps stay put as it turns.
 - **`shift=n`** rotates the braid by n; wrapped entries climb a lap. On a table it turns what reads through it ([time.md](time.md) for a moving shift).
 - **Picks and shifts of a table** (`over=&scale[<<]`) are on [braid.md](braid.md).
 - **A turning table comes round after its own length**: a stepped key of 12 after 12 turns (`&key … stride=7` goes round the circle of fifths), a scale after its 7, a braid of chords after its chords. Within that, a turn that wraps climbs a lap, like every shift. **`cycle=n`** has one job everywhere — how many before it comes round — and says otherwise: per tonos' `&key … stride=2 cycle=24` rises two octaves, then starts again; IDM's `cycle=2` turns twice and back ([decision 008](../decisions/008-tables-come-round.md)).
@@ -24,4 +25,6 @@ Reading through a table: `over=`, `shift=` and `scale()` say which grid a cell's
 &line3 over=scale(dorian, D) step=1 0 2 4
 &blues scale(blues, Bb)
 &line4 over=&blues step=1 0 1 2 3 4 5
+&circleG fifths(G)
+&line5 step=1 &circleG[0] &circleG[1] &circleG[$0]
 ```
