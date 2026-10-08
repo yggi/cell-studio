@@ -5,7 +5,7 @@
    * step a dropdown. Choose a kind or a tag and the next step lists what's there; choose a piece and
    * it opens. Native selects: the phone's own picker.
    */
-  import { tagKind, tagName, type TagKind } from '../engine/tags';
+  import { tagKind, tagName, TUTORIAL, type TagKind } from '../engine/tags';
   import { shortTitle } from '../layout/library';
 
   let {
@@ -13,13 +13,13 @@
     current,
     onpick,
   }: {
-    entries: readonly { readonly id: string; readonly title: string; readonly tags: readonly string[] }[];
+    entries: readonly { readonly id: string; readonly title: string; readonly tags: readonly string[]; readonly rung?: number | null }[];
     /** The piece open now, if any. */
     current: string | null;
     onpick: (id: string) => void;
   } = $props();
 
-  const KINDS: readonly TagKind[] = ['genre', 'artist', 'topic'];
+  const KINDS: readonly TagKind[] = ['tutorial', 'genre', 'artist', 'topic'];
   const piece = $derived(entries.find((e) => e.id === current) ?? null);
   // what was chosen here — until another piece opens (then the path is that piece's)
   let chosen = $state<{ for: string | null; kind: TagKind | null; tag: string | null }>({ for: null, kind: null, tag: null });
@@ -33,11 +33,17 @@
   });
   const tagsOf = (k: TagKind) => [...count].filter(([t]) => tagKind(t) === k).sort((a, b) => b[1] - a[1] || tagName(a[0]).localeCompare(tagName(b[0])));
   const kinds = $derived(KINDS.filter((k) => tagsOf(k).length));
-  // the path: what was chosen, else the open piece's own (its artist first: the most particular), else the most used
-  const kind = $derived<TagKind>(mine?.kind ?? (['artist', 'genre', 'topic'] as const).find((k) => piece?.tags.some((t) => tagKind(t) === k)) ?? kinds[0] ?? 'genre');
+  // the path: what was chosen, else the open piece's own (the tutorial, or its artist first: the most particular), else the most used
+  const kind = $derived<TagKind>(
+    mine?.kind ?? (['tutorial', 'artist', 'genre', 'topic'] as const).find((k) => piece?.tags.some((t) => tagKind(t) === k)) ?? kinds.find((k) => k !== 'tutorial') ?? 'genre',
+  );
   const tags = $derived(tagsOf(kind));
   const tag = $derived(mine?.tag ?? piece?.tags.find((t) => tagKind(t) === kind) ?? tags[0]?.[0] ?? null);
-  const pieces = $derived(tag ? entries.filter((e) => e.tags.includes(tag)).sort((a, b) => a.title.localeCompare(b.title)) : []);
+  // (the tutorial's pieces by rung, numbered: the next one is the next rung)
+  const pieces = $derived(
+    tag ? entries.filter((e) => e.tags.includes(tag)).sort((a, b) => (tag === TUTORIAL ? (a.rung ?? 0) - (b.rung ?? 0) : a.title.localeCompare(b.title))) : [],
+  );
+  const named = (e: (typeof entries)[number]) => (tag === TUTORIAL && e.rung ? `${e.rung}. ${e.title}` : e.title);
   const here = $derived(pieces.some((e) => e.id === current) ? current! : '');
 </script>
 
@@ -65,7 +71,7 @@
     <span class="text">{here ? shortTitle(piece!.title) : `${pieces.length} pieces…`}</span>
     <select aria-label="Piece" value={here} onchange={(e) => e.currentTarget.value && onpick(e.currentTarget.value)}>
       {#if !here}<option value="" disabled>{piece ? `${piece.title} (open)` : 'Choose a piece'}</option>{/if}
-      {#each pieces as e (e.id)}<option value={e.id}>{e.title}</option>{/each}
+      {#each pieces as e (e.id)}<option value={e.id}>{named(e)}</option>{/each}
     </select>
   </span>
 </span>

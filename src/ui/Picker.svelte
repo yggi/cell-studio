@@ -1,9 +1,10 @@
 <script lang="ts" module>
   // the library's layout, kept between openings (the same pieces: the same wheel)
   let kept: { key: string; layout: import('../layout/library').LibraryLayout } | null = null;
-  const keyOf = (entries: readonly { id: string; title?: string; tags: readonly string[] }[]) => entries.map((e) => `${e.id}:${e.title ?? ''}:${e.tags.join(',')}`).join('|');
+  const keyOf = (entries: readonly { id: string; title?: string; tags: readonly string[]; rung?: number | null }[]) =>
+    entries.map((e) => `${e.id}:${e.title ?? ''}:${e.tags.join(',')}:${e.rung ?? ''}`).join('|');
   // (and kept in the browser between visits: the next visit's opening is a replay, not the physics again)
-  const STORE = storageKey('cell-studio:library-layout:v5');
+  const STORE = storageKey('cell-studio:library-layout:v6');
   type Stored = { key: string; layout: Record<string, unknown> };
   const freeze = (l: import('../layout/library').LibraryLayout) => ({ ...l, at: [...l.at], hue: [...l.hue], count: [...l.count], sat: [...l.sat], wheel: [...l.wheel] });
   const thaw = (o: Record<string, unknown>) =>
@@ -16,7 +17,7 @@
       wheel: new Map(o.wheel as []),
     }) as unknown as import('../layout/library').LibraryLayout;
   try {
-    for (const v of ['v2', 'v3', 'v4']) localStorage.removeItem(`cell-studio:library-layout:${v}`);
+    for (const v of ['v2', 'v3', 'v4', 'v5']) localStorage.removeItem(`cell-studio:library-layout:${v}`);
   } catch {
     // (no storage)
   }
@@ -51,7 +52,7 @@
   import LibraryGraph from './LibraryGraph.svelte';
   import PieceNode from './PieceNode.svelte';
   import { tagColours } from './tags';
-  import { tagKind, tagName, type TagKind } from '../engine/tags';
+  import { tagKind, tagName, TUTORIAL, type TagKind } from '../engine/tags';
   import { noteColour } from './theme';
   import type { LibraryLayout } from '../layout/library';
   import { durationText } from '../engine/duration';
@@ -89,9 +90,10 @@
   let query = $state('');
   // the tag lit in the graph
   let tag = $state<string | null>(null);
-  // the cards' filters: a tag of each kind, or any (all of them hold: genre and artist and topic)
-  const KINDS: readonly TagKind[] = ['genre', 'artist', 'topic'];
-  let filter = $state<Record<TagKind, string | null>>({ genre: null, artist: null, topic: null });
+  // the cards' filters: a tag of each kind, or any (all of them hold: genre and artist and topic; the tutorial has its own section)
+  type FilterKind = Exclude<TagKind, 'tutorial'>;
+  const KINDS: readonly FilterKind[] = ['genre', 'artist', 'topic'];
+  let filter = $state<Record<FilterKind, string | null>>({ genre: null, artist: null, topic: null });
   const filtered = $derived(KINDS.some((k) => filter[k]));
   const clearFilter = () => (filter = { genre: null, artist: null, topic: null });
   // cards, or the library as a graph (pieces and their tags)
@@ -114,7 +116,7 @@
     const count = new Map<string, number>();
     for (const e of entries) for (const t of e.tags) count.set(t, (count.get(t) ?? 0) + 1);
     const all = [...count].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([t, n]) => ({ t, n }));
-    return Object.fromEntries(KINDS.map((k) => [k, all.filter(({ t }) => tagKind(t) === k)])) as Record<TagKind, { t: string; n: number }[]>;
+    return Object.fromEntries(KINDS.map((k) => [k, all.filter(({ t }) => tagKind(t) === k)])) as Record<FilterKind, { t: string; n: number }[]>;
   });
   const words = $derived(query.trim().toLowerCase());
   const shown = $derived(
@@ -174,6 +176,8 @@
     lib
       ? new Map(
           [...lib.hue].map(([t, h]) => {
+            // (the tutorial is no genre: a neutral of its own, not its angle's colour)
+            if (t === TUTORIAL) return [t, 'var(--tutorial)'];
             // saturation by distance from the centre: grey in the middle, full at the border
             const pct = Math.round(25 + 75 * (lib!.sat.get(t) ?? 1));
             return [t, `color-mix(in oklab, ${noteColour(h)} ${pct}%, #8b909a)`];
@@ -199,8 +203,9 @@
         .map((e) => e.id),
     ),
   );
-  // the examples, smallest first: from simple to complex
-  const examples = $derived(shown.filter((e) => e.kind === 'example').sort((a, b) => (a.size ?? 0) - (b.size ?? 0)));
+  // the tutorial, rung by rung; then the other examples, smallest first: from simple to complex
+  const tutorial = $derived(shown.filter((e) => e.kind === 'example' && e.tags.includes(TUTORIAL)).sort((a, b) => (a.rung ?? 0) - (b.rung ?? 0)));
+  const examples = $derived(shown.filter((e) => e.kind === 'example' && !e.tags.includes(TUTORIAL)).sort((a, b) => (a.size ?? 0) - (b.size ?? 0)));
   // a card's wheel: as large as its card leaves room for, the petals on its rim included (≈ 1.41 × across)
   let cardWidth = $state(0);
   const wheel = $derived(cardWidth ? Math.min(136, Math.floor((cardWidth - 8) / 1.41)) : 136);
@@ -299,7 +304,7 @@
       <!-- (one target: the wheel is a picture, its tags chosen from the chips) -->
       <button class="unstyled open" data-id={e.id} onclick={() => onpick(e.id)} aria-label="Open {e.title}">
         <span class="mini"><PieceNode entry={e} {colours} size={wheel} labels current={e.id === current} /></span>
-        <span class="title">{e.title}</span>
+        <span class="title">{e.rung && e.tags.includes(TUTORIAL) ? `${e.rung}. ${e.title}` : e.title}</span>
         {#if e.description}<span class="desc">{e.description}</span>{/if}
         {#if e.id === current || e.saved}
           <span class="meta">
@@ -346,13 +351,21 @@
         </div>
       </section>
     {/if}
+    {#if tutorial.length}
+      <section>
+        <h3 class="section">Tutorial</h3>
+        <div class="grid">
+          {#each tutorial as e (e.id)}{@render card(e)}{/each}
+        </div>
+      </section>
+    {/if}
     <section>
-      {#if saved.length}<h3 class="section">Examples</h3>{/if}
+      {#if saved.length || tutorial.length}<h3 class="section">Examples</h3>{/if}
       {#if examples.length}
         <div class="grid">
           {#each examples as e (e.id)}{@render card(e)}{/each}
         </div>
-      {:else}
+      {:else if !tutorial.length}
         <p class="empty">Nothing matches. <button class="unstyled link" onclick={() => ((query = ''), clearFilter())}>Show everything</button></p>
       {/if}
     </section>
