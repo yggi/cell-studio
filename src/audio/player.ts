@@ -56,7 +56,7 @@ export class Player implements LiveSource {
     transportClock.state = transition(transportClock.state, event);
   }
 
-  /** A hand on anything, or a move in time: a stopped transport is paused from now on. */
+  /** A hand on anything, or a move in time: a stopped transport is paused from now on (the hands below call it). */
   touch(): void {
     this.move('touch');
   }
@@ -74,8 +74,13 @@ export class Player implements LiveSource {
     return this.engine.stats();
   }
 
-  /** A hand on a physical cell, now: its finger's speed (1 on tempo), or null to let go. */
+  /**
+   * A hand on a physical cell, now: its finger's speed (1 on tempo), or null to let go. Every hand —
+   * this, `strike`, `damp`, `bow`, `scrub` — takes a stopped transport to paused when it lays hold
+   * (letting go does not: a hand can be lifted after Stop).
+   */
   grab(cell: string, speed: number | null): void {
+    if (speed !== null) this.touch();
     this.engine.grab(cell, transportClock.seconds, speed);
   }
 
@@ -142,6 +147,7 @@ export class Player implements LiveSource {
 
   /** A hand on a resonator: strike at x (0 edge … 1), damp while held, bow (null lifts it) — playing or not. */
   strike(name: string, x: number, index?: number): void {
+    this.touch();
     void this.wake().then(() => this.voices?.strike(name, x, index));
   }
   /** What something sounds like now, as a fine spectrum — for a scope's spectrum and waterfall. */
@@ -158,9 +164,11 @@ export class Player implements LiveSource {
     return this.voices?.resonance(name) ?? null;
   }
   damp(name: string, on: boolean): void {
+    if (on) this.touch();
     void this.wake().then(() => this.voices?.damp(name, on));
   }
   bow(name: string, amount: number | null): void {
+    if (amount !== null) this.touch();
     void this.wake().then(() => this.voices?.bow(name, amount));
   }
 
@@ -191,6 +199,7 @@ export class Player implements LiveSource {
    * runs reads backwards; holding it still, the sound stops.
    */
   scrub(tape: string, u: number | null): void {
+    if (u !== null) this.touch();
     if (!this.plan || !this.voices) return;
     // stopped: the tape stays where the hand leaves it
     if (!this.playing) return this.held.scrub(tape, u);
