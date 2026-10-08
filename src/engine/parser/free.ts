@@ -63,7 +63,11 @@ export function parseFree(s: LineScanner, key: FreeSpec['key'], units: boolean):
     return spec;
   }
   // a key, a tonic, a turn of the 12 by name: free(D) — a pitch class, chosen from the twelve by their names
+  const at = s.i;
   const named = key === 'shift' || key === 'tonic' ? s.noteName() : null;
+  // (a key is a pitch class: an octave written with it says nothing)
+  if (named !== null && /[0-9]/.test(s.text.slice(at, s.i)))
+    s.warn(`free(${s.text.slice(at, s.i)}): a key is a pitch class — the octave is left out: free(${s.text.slice(at, s.i).replace(/-?[0-9]+$/, '')})`, at, s.i - at);
   const word = named === null ? s.match(/[a-z]+/y) : null;
   let value: number;
   let unit = '';

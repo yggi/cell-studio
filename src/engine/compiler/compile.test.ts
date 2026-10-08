@@ -408,6 +408,10 @@ describe('a note by name is a pitch; a number an index', () => {
     expect(spell(r, 't')).toBe('D');
     expect(spell(r, 'u')).toBe('G');
     expect(r.cells.get('key')!.frees[0]).toMatchObject({ key: 'shift', value: 7, lo: 0, hi: 11, byName: true });
+    // (an octave with it says nothing: said, not dropped silently)
+    const o = compileSource('&key shift=free(C100)\n&u over=&key 0');
+    expect(o.diagnostics.map((d) => d.message)).toContain('free(C100): a key is a pitch class — the octave is left out: free(C)');
+    expect(o.cells.get('key')!.frees[0].value).toBe(0);
   });
 });
 
@@ -420,6 +424,17 @@ describe('scale(name, tonic)', () => {
     expect(spell(r, 'c')).toBe('G B D');
     expect(spell(r, 'd')).toBe('A C E');
     expect([...r.cells.values()].filter((c) => /^(scale|key):/.test(c.name)).every((c) => c.implicit)).toBe(true);
+  });
+  it('a tonic by name is a pitch class: Cb is B, B# is C (in the same octave, without a warning)', () => {
+    const r = compileSource('&a over=scale(major, Cb) 0 2 4\n&b over=scale(major, B) 0 2 4\n&c over=scale(major, B#) 0 2 4\n&d over=scale(major, C) 0 2 4');
+    expect(r.diagnostics.filter((d) => /tonic/.test(d.message))).toEqual([]);
+    const semis = (name: string) =>
+      flatten(r, name, codeShifts(r)).map((e) => {
+        const p = resolvePitch(r, name, e.value, e.alter, codeShifts(r));
+        return semitones(r, p.root, p.position);
+      });
+    expect(semis('a')).toEqual(semis('b'));
+    expect(semis('c')).toEqual(semis('d'));
   });
   it('in a braid: the cell is the scale, reading through its own key; shift= walks its modes, the tonic transposes', () => {
     const r = compileSource('&s scale(minor, D)\n&t over=&s 0 1 2 3 4 5 6\n&m scale(minor, D) shift=2\n&u over=&m 0 2 4\n&b scale(blues, Bb)\n&v over=&b 0 1 2 3 4 5');

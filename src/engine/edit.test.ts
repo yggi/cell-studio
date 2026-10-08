@@ -19,6 +19,8 @@ import {
   usersOf,
 } from './edit';
 import { compileSource } from './compile';
+import { flatten, tapped } from './flatten';
+import { codeShifts } from './program';
 import { buildGraph } from './graph';
 import { readFileSync } from 'node:fs';
 import { PRESETS } from './presets';
@@ -45,6 +47,26 @@ describe('source edits', () => {
     expect(setShift(src, 'theme', 3).split('\n')[3]).toBe('&theme shift=3 over=&scale 0 2 4 // tune'); // longer line: comment moves right
     expect(setShift(src, 'keys', 1).split('\n')[1]).toBe('&key shift=0                 # the 12'); // &key untouched
     expect(setShift(src, 'nope', 1)).toBe(src);
+  });
+
+  it('turns a circle of fifths by its own argument: by name if it was written by name (shift= alongside is an error)', () => {
+    expect(setShift('&c fifths(G)', 'c', 2)).toBe('&c fifths(D)');
+    expect(setShift('&c fifths(G)', 'c', 0)).toBe('&c fifths(C)');
+    expect(setShift('&c fifths(1)', 'c', -1)).toBe('&c fifths(-1)');
+    expect(setShift('&c fifths(1)', 'c', 0)).toBe('&c fifths()');
+    expect(setShift('&c fifths()', 'c', 3)).toBe('&c fifths(3)');
+    // (written with shift= beside fifths(): that shift= is turned)
+    expect(setShift('&c shift=1 fifths()', 'c', 2)).toBe('&c shift=2 fifths()');
+    // and what it writes compiles, turned as asked: [0] is the note it starts on
+    for (const [n, first] of [
+      [2, 2], // D
+      [0, 0], // C
+      [5, 11], // B
+    ] as const) {
+      const r = compileSource(setShift('&c fifths(G)', 'c', n) + '\n&x step=1 &c[0]');
+      expect(r.diagnostics.filter((d) => d.severity === 'error')).toEqual([]);
+      expect(flatten(r, 'x', codeShifts(r)).map((e) => tapped(r, e, codeShifts(r)).value)).toEqual([first]);
+    }
   });
 
   it('toggles off without touching anything else', () => {

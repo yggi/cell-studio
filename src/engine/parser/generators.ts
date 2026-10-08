@@ -286,7 +286,8 @@ export function parseScale(s: LineScanner, start: number): { steps: number[]; ke
       const t0 = s.i;
       const note = s.match(/[A-G](?:#|b)?(?![A-Za-z0-9])/y);
       if (note !== null) {
-        tonic = TONICS[note[0]] + (note[1] === '#' ? 1 : note[1] === 'b' ? -1 : 0);
+        // (a pitch class: Cb is B, B# is C)
+        tonic = (((TONICS[note[0]] + (note[1] === '#' ? 1 : note[1] === 'b' ? -1 : 0)) % 12) + 12) % 12;
         tonicText = String(tonic);
       } else if (s.text.startsWith('free(', s.i)) {
         // a tonic left to the performer: its slider is the cell's own ('tonic'), its value the key's shift
@@ -295,8 +296,8 @@ export function parseScale(s: LineScanner, start: number): { steps: number[]; ke
       } else {
         tonic = s.int('the tonic: a note name (D, F#, Bb), a number or free(…)');
         tonicText = String(tonic);
+        if (Math.abs(tonic) > 11) s.warn(`scale(…, ${tonic}): the tonic is a pitch class, 0 (C) to 11 (B)`, t0, s.i - t0);
       }
-      if (Math.abs(tonic) > 11) s.warn(`scale(…, ${tonic}): the tonic is a pitch class, 0 (C) to 11 (B)`, t0, s.i - t0);
       s.skipSpace();
     }
     s.expect(')', "')' to close scale(…)");
