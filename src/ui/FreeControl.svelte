@@ -20,7 +20,7 @@
     f: FreeSpec;
     onfree: (spec: FreeSpec, value: number | string) => void;
     variant: 'row' | 'large';
-    /** The cell it's in (names a row's controls for a screen reader). */
+    /** The cell it's in (names its controls for a screen reader). */
     owner?: string;
   } = $props();
 
@@ -38,6 +38,7 @@
     learn.moved(f, v);
   };
   const place = $derived(learn.connected && f.key !== 'text' ? learn.placeOf(f) : '');
+  const name = $derived(owner ? `${owner}: ${freeKey(f)}` : freeKey(f));
   // a knob that hasn't reached the value yet: the stretch between the two, in % of the slider
   const gap = $derived.by(() => {
     const knob = place ? learn.gaps.get(place) : undefined;
@@ -70,7 +71,7 @@
       {@render range(`${owner}: ${freeKey(f)}`)}
       <output>{freeValue(f)}</output>
     {/if}
-    {#if place}<LearnButton {learn} {place} />{/if}
+    {#if place}<LearnButton {learn} {place} {name} />{/if}
   </div>
 {:else if f.key === 'text'}
   <label class="keys"
@@ -86,7 +87,7 @@
 {:else if f.labels}
   <div class="keys">
     <span class="what">{freeLabel(f)}</span><Keypad labels={f.labels} value={f.value} lo={f.lo} hi={f.hi} size="large" onpick={pick} />
-    {#if place}<span class="learnrow"><LearnButton {learn} {place} wide /></span>{/if}
+    {#if place}<span class="learnrow"><LearnButton {learn} {place} {name} wide /></span>{/if}
   </div>
 {:else}
   <div class="slider">
@@ -96,7 +97,7 @@
       {@render range()}
     </label>
     <span class="range">{freeAmount(f, f.lo)}</span><span class="range end">{freeAmount(f, f.hi)}</span>
-    {#if place}<span class="learnrow"><LearnButton {learn} {place} wide /></span>{/if}
+    {#if place}<span class="learnrow"><LearnButton {learn} {place} {name} wide /></span>{/if}
   </div>
 {/if}
 

@@ -26,7 +26,7 @@ export class Studio {
   readonly view = new View();
   readonly midi = new Midi();
   /** MIDI learn: a controller's knobs moving the piece's free() values. */
-  readonly learn = new Learn(this.piece, this.midi);
+  readonly learn = new Learn(this.piece, this.midi, { opened: () => this.library.opened });
   /** The code editor (App binds it): showing a cell's line in it. */
   editor = $state<{ showLine(line: number): void } | undefined>();
   rendering = $state(false);

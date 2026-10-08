@@ -2,25 +2,33 @@
   /**
    * MIDI learn for one free() control (FreeControl): Learn waits for the next knob, fader or pad (Esc cancels); a bound
    * control shows its knob, and Forget lets go of it. `wide` spells it out (a cell's sheet), else it's compact (the drawer).
+   * `name` names the control for a screen reader. Gone while waiting (its sheet closed), it stops waiting.
    */
   import { knobName } from './learn';
   import type { Learn } from './state/learn.svelte';
 
-  let { learn, place, wide = false }: { learn: Learn; place: string; wide?: boolean } = $props();
+  let { learn, place, name, wide = false }: { learn: Learn; place: string; name: string; wide?: boolean } = $props();
 
   const knob = $derived(learn.bindings[place]);
   const waiting = $derived(learn.learning === place);
+  $effect(() => {
+    const here = place;
+    return () => learn.release(here);
+  });
 </script>
 
 <span class="learn" class:wide>
   {#if knob}
     <span class="knob" title="Moved by {knobName(knob)}">{knobName(knob)}</span>
-    <button class="unstyled forget" onclick={() => learn.forget(place)} aria-label="Forget {knobName(knob)}" title="Forget {knobName(knob)}">{wide ? 'Forget' : '×'}</button>
+    <button class="unstyled forget" onclick={() => learn.forget(place)} aria-label="Forget {knobName(knob)} for {name}" title="Forget {knobName(knob)}"
+      >{wide ? 'Forget' : '×'}</button
+    >
   {:else}
     <button
       class="unstyled ask"
       class:waiting
       aria-pressed={waiting}
+      aria-label="Learn {name}"
       onclick={() => learn.learn(place)}
       title={waiting ? 'Move a knob or press a pad on the controller (Esc cancels)' : 'Learn: the next knob, fader or pad moved moves this'}
       >{waiting ? (wide ? 'Move a knob… (Esc cancels)' : 'Move…') : wide ? 'MIDI learn' : 'Learn'}</button

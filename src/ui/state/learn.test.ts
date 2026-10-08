@@ -1,11 +1,14 @@
+import { setMaxListeners } from 'node:events';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { freeList } from '../../engine/held';
 import type { MidiAccess } from '../../midi/access';
-import { Learn } from './learn.svelte';
+import { Learn, soon } from './learn.svelte';
 import { Piece } from './piece.svelte';
 
 const store = new Map<string, string>();
 const page = new EventTarget();
+// (Node counts a capture listener as still there once removed, and warns past 10: Esc's is removed, as the tests show)
+setMaxListeners(0, page);
 let cleanups: (() => void)[] = [];
 
 beforeEach(() => {
@@ -21,14 +24,18 @@ afterEach(() => {
 
 const SONG = `# Song\n&bar scan(4 4 4 4) step=free(90bpm, 60..240)\n&fx lpf=free(1200, 200..5000)\n&pad meter(free(1, 0..3, "2/4 3/4 4/4 6/8"), 0) step=free(100bpm, 40..208)\n`;
 
-/** A Learn on a piece, with a MIDI input a test plays into (`play`), what it sent (`sent`) and its frames run by hand (`frame`). */
-function made(code = SONG) {
+/**
+ * A Learn on a piece, with a MIDI input a test plays into (`play`), what it sent (`sent`), its frames run by hand
+ * (`frame`), and the library's count of pieces opened (`library.opened`).
+ */
+function made(code = SONG, frameFn?: (run: () => void) => void) {
   const piece = new Piece(code);
   type Hearer = (data: Uint8Array, source: string, timeStamp: number) => void;
   const hearers = new Set<Hearer>();
   const sent: number[][] = [];
-  const midi = {
+  const midi: { access: MidiAccess | null; inPortId: string; hear: (h: Hearer) => () => void; send: (d: readonly number[]) => void } = {
     access: {} as MidiAccess,
+    inPortId: 'Knobs',
     hear: (h: Hearer) => {
       hearers.add(h);
       return () => void hearers.delete(h);
@@ -36,13 +43,14 @@ function made(code = SONG) {
     send: (d: readonly number[]) => void sent.push([...d]),
   };
   const frames: (() => void)[] = [];
-  const learn = new Learn(piece, midi, (run) => frames.push(run));
+  const library = { opened: 1 };
+  const learn = new Learn(piece, midi, { frame: frameFn ?? ((run) => frames.push(run)), opened: () => library.opened });
   cleanups.push(() => learn.dispose());
   const play = (...bytes: number[]) => hearers.forEach((h) => h(new Uint8Array(bytes), 'Knobs', 0));
   const frame = () => frames.splice(0).forEach((run) => run());
   const value = (place: string) => [...piece.program.cells.values()].flatMap((c) => c.frees).find((f) => learn.placeOf(f) === place)?.value;
   const spec = (place: string) => [...piece.program.cells.values()].flatMap((c) => c.frees).find((f) => learn.placeOf(f) === place)!;
-  return { piece, learn, play, frame, frames, sent, value, spec };
+  return { piece, learn, play, frame, frames, sent, value, spec, midi, library };
 }
 
 describe('Learn: binding a knob', () => {
@@ -248,5 +256,129 @@ describe('Learn: echo out', () => {
       [0xb2, 7, 127],
     ]);
     expect(made().learn.echo).toBe(true);
+  });
+});
+
+describe('Learn: a wait for a knob ends with what it waits in', () => {
+  const esc = () => Object.assign(new Event('keydown', { cancelable: true }), { key: 'Escape' });
+  /** Whether Esc reaches the rest of the page. */
+  function escReaches(): boolean {
+    const other = vi.fn();
+    page.addEventListener('keydown', other);
+    page.dispatchEvent(esc());
+    page.removeEventListener('keydown', other);
+    return other.mock.calls.length === 1;
+  }
+
+  it("its control gone (its sheet closed): stops waiting, binds nothing, and Esc is everyone's again", () => {
+    const { learn, play } = made();
+    learn.learn('bar/step');
+    learn.release('fx/param:lpf');
+    expect(learn.learning).toBe('bar/step');
+    learn.release('bar/step');
+    expect(learn.learning).toBeNull();
+    play(0xb0, 7, 20);
+    expect(learn.bindings).toEqual({});
+    expect(escReaches()).toBe(true);
+  });
+  it('another piece opened, even one of the same title: stops waiting, binds nothing there, lets Esc through', () => {
+    const { learn, play, library } = made();
+    learn.learn('bar/step');
+    library.opened++;
+    expect(learn.learning).toBeNull();
+    expect(escReaches()).toBe(true);
+    play(0xb0, 7, 20);
+    expect(learn.bindings).toEqual({});
+  });
+  it('the piece renamed: stops waiting', () => {
+    const { learn, play, piece } = made();
+    learn.learn('bar/step');
+    piece.code = SONG.replace('Song', 'Other');
+    expect(learn.learning).toBeNull();
+    play(0xb0, 7, 20);
+    expect(learn.bindings).toEqual({});
+  });
+  it('the MIDI gone, or no input chosen: stops waiting, and offers no Learn', () => {
+    const t = made();
+    t.learn.learn('bar/step');
+    t.midi.access = null;
+    expect(t.learn.learning).toBeNull();
+    expect(t.learn.connected).toBe(false);
+    t.midi.access = {} as MidiAccess;
+    // (back, it's a new access: the wait ended)
+    expect(t.learn.learning).toBeNull();
+    expect(escReaches()).toBe(true);
+    const u = made();
+    u.midi.inPortId = 'none';
+    expect(u.learn.connected).toBe(false);
+    u.learn.learn('bar/step');
+    expect(u.learn.learning).toBeNull();
+  });
+  it('another piece opened: no gap, no takeover and no pending value of the last one carries over', () => {
+    const { learn, play, frame, frames, value, library, piece } = made();
+    learn.learn('bar/step');
+    play(0xb0, 7, 100);
+    play(0xb0, 7, 90);
+    frame();
+    expect(learn.gaps.has('bar/step')).toBe(true);
+    // a value pending at the frame, then the same-titled piece opened afresh
+    play(0xb0, 7, 10);
+    play(0xb0, 7, 30);
+    expect(frames.length).toBe(1);
+    library.opened++;
+    piece.code = SONG;
+    expect(learn.gaps.size).toBe(0);
+    frame();
+    expect(value('bar/step')).toBe(90);
+    // the takeover starts again: a knob away from the value leaves it
+    play(0xb0, 7, 40);
+    frame();
+    expect(value('bar/step')).toBe(90);
+    expect(learn.gaps.get('bar/step')).toBeCloseTo(40 / 127);
+  });
+});
+
+describe('soon: a knob moves its control in a tab that draws no frames', () => {
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
+  const never = () => {};
+
+  it('runs at the frame, once', () => {
+    const run = vi.fn();
+    let frame = () => {};
+    soon(
+      run,
+      (f) => (frame = f),
+      () => false,
+    );
+    frame();
+    vi.advanceTimersByTime(100);
+    expect(run).toHaveBeenCalledTimes(1);
+  });
+  it('no frame within 50 ms (an occluded window): runs anyway, once', () => {
+    const run = vi.fn();
+    soon(run, never, () => false);
+    vi.advanceTimersByTime(49);
+    expect(run).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(1);
+    expect(run).toHaveBeenCalledTimes(1);
+  });
+  it('a hidden tab: runs after about a frame, asking for none', () => {
+    const run = vi.fn();
+    const frame = vi.fn();
+    soon(run, frame, () => true);
+    vi.advanceTimersByTime(16);
+    expect(run).toHaveBeenCalledTimes(1);
+    expect(frame).not.toHaveBeenCalled();
+  });
+  it('a Learn whose frames never come still moves its control, coalesced', () => {
+    const { learn, play, value, piece } = made(SONG, (run) => soon(run, never, () => false));
+    learn.learn('bar/step');
+    play(0xb0, 7, 0);
+    const hold = vi.spyOn(piece, 'hold');
+    for (let cc = 30; cc <= 64; cc++) play(0xb0, 7, cc);
+    vi.advanceTimersByTime(50);
+    expect(hold).toHaveBeenCalledTimes(1);
+    expect(value('bar/step')).toBe(151);
   });
 });

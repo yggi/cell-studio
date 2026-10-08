@@ -11,7 +11,9 @@
 
 <div class="learned">
   <p>
-    {count ? `${count} control${count === 1 ? '' : 's'} of this piece learned.` : 'To move a slider by a knob, press Learn beside it, then move the knob.'}
+    {count
+      ? `${count} control${count === 1 ? '' : 's'} of this piece learned.`
+      : `To move a slider by a knob, ${learn.connected ? '' : 'choose an input, then '}press Learn beside it, then move the knob.`}
     {#if count}<button class="unstyled" onclick={() => learn.forgetAll()}>Forget all</button>{/if}
   </p>
   <label class="check"

@@ -288,7 +288,7 @@
     {#if frees.length}
       <section class="group" aria-label="Controls">
         {#each frees as f, i (i)}
-          <FreeControl {f} onfree={(s, v) => ctx.setFree(s, v)} variant="large" />
+          <FreeControl {f} onfree={(s, v) => ctx.setFree(s, v)} variant="large" owner={name} />
         {/each}
       </section>
     {/if}
