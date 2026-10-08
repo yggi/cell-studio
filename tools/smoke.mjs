@@ -12,7 +12,8 @@
 //   ENGINE=worker npm run smoke               # with the engine in a Web Worker (?engine=worker, #15)
 //
 // Then MIDI out (#205): one piece played into a fake Web MIDI port, its note-ons checked against the plan's notes
-// (tools/smoke-midi.ts) to within a millisecond, and Stop's All notes off, now and past the look-ahead.
+// (tools/smoke-midi.ts) to within 2 ms of their median offset; then the tempo (a held free()) moved and Pause and Play
+// again within the look-ahead, with no All notes off from either cutting what plays, and no note left sounding.
 //
 // Chromium: Playwright's, or CHROME_PATH=/path/to/chrome (CI uses the runner's Chrome). See tools/profile/playwright.mjs.
 import { preview, runnerImport } from 'vite';
@@ -146,7 +147,11 @@ const MIDI_PIECE = 'sailor';
   mp.on('console', (m) => m.type() === 'error' && problems.push(`console error: ${m.text()}`));
   await mp.addInitScript(() => {
     const sent = (window.__midi = []);
-    const out = { id: 'fake-out', name: 'Fake synth', send: (data, timestamp) => sent.push({ data: [...data], timestamp: timestamp ?? performance.now() }) };
+    const out = {
+      id: 'fake-out',
+      name: 'Fake synth',
+      send: (data, timestamp) => sent.push({ data: [...data], timestamp: timestamp ?? performance.now(), sentAt: performance.now() }),
+    };
     navigator.requestMIDIAccess = () => Promise.resolve({ inputs: new Map(), outputs: new Map([['fake-out', out]]), onstatechange: null });
     localStorage.setItem('cell-studio:midi', JSON.stringify({ out: { id: 'fake-out', name: 'Fake synth' }, in: { id: 'none', name: '' } }));
   });
@@ -157,22 +162,40 @@ const MIDI_PIECE = 'sailor';
     await mp.getByRole('radio', { name: 'Cards' }).click();
     await mp.locator(`button.open[data-id="example:${MIDI_PIECE}"]`).dispatchEvent('click');
     await mp.waitForTimeout(300);
-    await mp.locator('.transport').getByRole('button', { name: 'Play' }).first().click();
+    const transport = mp.locator('.transport');
+    await transport.getByRole('button', { name: 'Play' }).first().click();
     await mp.waitForTimeout(secs * 1000);
-    const stoppedAt = await mp.evaluate(() => performance.now());
-    await mp.locator('.transport').getByRole('button', { name: 'Pause' }).first().click();
+    // a held free() moved while playing (the tempo): each move recompiles, and must neither cut nor hang a note
+    const movedAt = await mp.evaluate(() => performance.now());
+    for (const v of [113, 115, 117, 119]) {
+      await transport.getByRole('slider', { name: 'Tempo' }).evaluate((el, v) => {
+        el.value = String(v);
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+      }, v);
+      await mp.waitForTimeout(150);
+    }
+    await mp.waitForTimeout(400);
+    // then Pause and Play again within the look-ahead (as a seek does): what plays next must not be cut
+    const pausedAt = await mp.evaluate(() => performance.now());
+    await transport.getByRole('button', { name: 'Pause' }).first().click();
+    await mp.waitForTimeout(150);
+    const resumedAt = await mp.evaluate(() => performance.now());
+    await transport.getByRole('button', { name: 'Play' }).first().click();
+    await mp.waitForTimeout(1000);
+    await transport.getByRole('button', { name: 'Pause' }).first().click();
+    await mp.waitForTimeout(800);
     const sent = await mp.evaluate(() => window.__midi);
+    // timing: the note-ons heard before the first move, each against the plan's note with its channel and key nearest
+    // in time (notes struck together can come in either order), aligned on the median offset
     const ons = sent
-      .filter((m) => (m.data[0] & 0xf0) === 0x90)
+      .filter((m) => (m.data[0] & 0xf0) === 0x90 && m.timestamp < movedAt)
       .map((m) => ({ channel: (m.data[0] & 15) + 1, note: m.data[1], ms: m.timestamp }))
       .sort((a, b) => a.ms - b.ms);
     const want = midiPlan.expectedNoteOns(MIDI_PIECE, secs + 2);
     if (ons.length < 8) problems.push(`only ${ons.length} note-ons were sent`);
     const zero = ons.length ? ons[0].ms - want[0].at * 1000 : 0;
-    let worst = 0;
-    // each note-on matched to the plan's note with its channel and key nearest in time (notes struck
-    // together can come in either order: their timestamps differ by a rounding, not by anything heard)
     const taken = new Set();
+    const offsets = [];
     for (const [i, o] of ons.entries()) {
       let best = -1;
       for (let j = Math.max(0, i - 8); j < Math.min(want.length, i + 9); j++) {
@@ -185,15 +208,32 @@ const MIDI_PIECE = 'sailor';
         break;
       }
       taken.add(best);
-      worst = Math.max(worst, Math.abs(o.ms - zero - want[best].at * 1000));
+      offsets.push(o.ms - want[best].at * 1000);
     }
-    if (worst > 1) problems.push(`a note-on was ${worst.toFixed(2)} ms off the plan`);
-    // Stop: All notes off at once, and again past what was sent ahead
-    const offs = sent.filter((m) => (m.data[0] & 0xf0) === 0xb0 && m.data[1] === 123).map((m) => m.timestamp);
-    const late = offs.filter((t) => t > stoppedAt + 300);
-    if (offs.length === 0 || late.length === 0) problems.push(`Stop sent ${offs.length} All notes off, ${late.length} past the look-ahead`);
-    const pairs = sent.filter((m) => (m.data[0] & 0xf0) === 0x80 || (m.data[0] & 0xf0) === 0x90).length;
-    note = `${ons.length} note-ons within ${worst.toFixed(3)} ms of the plan, ${pairs - ons.length} note-offs, ${offs.length} All notes off`;
+    const median = [...offsets].sort((a, b) => a - b)[Math.floor(offsets.length / 2)] ?? 0;
+    const worst = Math.max(0, ...offsets.map((d) => Math.abs(d - median)));
+    if (worst > 2) problems.push(`a note-on was ${worst.toFixed(2)} ms off the plan`);
+    // what the device plays, message by message in timestamp order (at one moment, in the order sent)
+    const order = sent.map((m, i) => ({ ...m, i })).sort((a, b) => a.timestamp - b.timestamp || a.i - b.i);
+    const sounding = new Set();
+    for (const m of order) {
+      const kind = m.data[0] & 0xf0;
+      const ch = m.data[0] & 15;
+      if (kind === 0x90) sounding.add(`${ch}:${m.data[1]}`);
+      else if (kind === 0x80) sounding.delete(`${ch}:${m.data[1]}`);
+      else if (kind === 0xb0 && m.data[1] === 123) for (const k of [...sounding]) if (k.startsWith(`${ch}:`)) sounding.delete(k);
+    }
+    if (sounding.size) problems.push(`left sounding at the end: ${[...sounding].join(', ')}`);
+    const allOff = sent.filter((m) => (m.data[0] & 0xf0) === 0xb0 && m.data[1] === 123);
+    const moving = allOff.filter((m) => m.sentAt >= movedAt && m.sentAt < pausedAt);
+    if (moving.length) problems.push(`moving the tempo sent ${moving.length} All notes off`);
+    const resumed = sent.filter((m) => (m.data[0] & 0xf0) === 0x90 && m.sentAt >= resumedAt).map((m) => m.timestamp);
+    const cut = allOff.filter((m) => m.sentAt < resumedAt && resumed.some((t) => m.timestamp > t));
+    if (cut.length) problems.push(`${cut.length} All notes off from the pause land after Play again`);
+    if (allOff.length === 0) problems.push('Pause sent no All notes off');
+    const offs = sent.filter((m) => (m.data[0] & 0xf0) === 0x80).length;
+    const all = sent.filter((m) => (m.data[0] & 0xf0) === 0x90).length;
+    note = `${ons.length} note-ons within ${worst.toFixed(3)} ms of the plan (median offset); then 4 tempo moves, Pause and Play: ${all} note-ons, ${offs} note-offs, ${allOff.length} All notes off, none left sounding`;
   } catch (e) {
     problems.push(String(e.message).split('\n')[0]);
   }

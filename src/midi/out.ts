@@ -169,7 +169,7 @@ export class MidiOut {
    */
   advance(horizon: number, toDeviceMs: ToDeviceMs, now = -Infinity): void {
     if (!this.#port) return;
-    if (this.#offs.length && this.#offs[0].at < now) this.#offs = this.#offs.filter((o) => o.at >= now);
+    if (this.#offs.length) this.#offs = this.#offs.filter((o) => o.at >= now);
     if (this.#pending.length) {
       const due = this.#pending.filter((b) => b.at <= horizon).sort((a, b) => a.at - b.at);
       this.#pending = this.#pending.filter((b) => b.at > horizon);
