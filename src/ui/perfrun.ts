@@ -285,6 +285,7 @@ export function combinedReport(out: Outcome, o: RunOptions): string {
 
   const sum = summarizeSettings(out.results, o.settings);
   const supported = out.results.some((r) => r.data?.audio.capacity);
+  const probe = out.results.find((r) => r.data)?.data?.audio.capacityProbe;
   L.push('**Result**');
   L.push('');
   const clean = sum.filter((s) => s.clean);
@@ -298,7 +299,9 @@ export function combinedReport(out: Outcome, o: RunOptions): string {
       `- ${s.setting.label}: ${s.clean ? 'clean' : 'not clean'}${s.heardMs !== null ? ` · made-to-heard ${n0(s.heardMs)} ms` : ''}${s.outputMs !== null ? ` · output latency ${n0(s.outputMs)} ms` : ''}`,
     );
   if (!supported)
-    L.push('- This browser gives no audio-thread report (renderCapacity): underruns inside the audio thread cannot be seen, only late notes and the clock. Listen too.');
+    L.push(
+      `- This browser gave no audio-thread report (renderCapacity${probe ? `: in AudioContext.prototype ${probe.inPrototype ?? '?'}, on the context ${probe.onContext ?? '?'}, started ${probe.started}, ${probe.updates} update events${probe.error ? `, error ${probe.error}` : ''}` : ''}): underruns inside the audio thread cannot be seen, only late notes and the clock. Listen too.`,
+    );
   L.push('');
 
   L.push('| Piece | Setting | fps | blocked | notes late / left out | audio thread peak / missed | output / heard | |');

@@ -26,6 +26,7 @@ const base = (over: Partial<ReportData> = {}): ReportData => ({
     heardLatencyMs: null,
     pictureLagMs: null,
     capacity: null,
+    capacityProbe: { inPrototype: false, onContext: false, started: false, updates: 0, error: null },
     playout: { events: 0, seconds: 0, averageLatencyMs: 40, maximumLatencyMs: 60 },
   },
   heapMB: 55,
@@ -94,6 +95,7 @@ describe('latency and the audio thread', () => {
     heardLatencyMs: 262.5,
     pictureLagMs: 262.5,
     capacity: null,
+    capacityProbe: { inPrototype: false, onContext: false, started: false, updates: 0, error: null },
     playout: null,
     ...over,
   });
@@ -102,6 +104,16 @@ describe('latency and the audio thread', () => {
     expect(md).toMatch(/Latency tuning \| playback, look-ahead default · made-to-heard \(output timestamp\) 262\.5 ms · pictures held back 263 ms/);
     expect(md).toMatch(/Audio thread \(renderCapacity\) \| load mean 31 %, peak 55 % · missed deadlines: mean 0\.0 %, worst second 0\.0 % \(40 s\)/);
   });
+  it('says the probe has not run before any audio context exists', () => {
+    const md = buildReport(base({ audio: audio({ capacityProbe: { inPrototype: null, onContext: null, started: false, updates: 0, error: null } }) }));
+    expect(md).toMatch(/Audio thread \(renderCapacity\) \| not asked yet/);
+  });
+
+  it('says why there is no audio-thread row', () => {
+    const md = buildReport(base({ audio: audio({ capacityProbe: { inPrototype: false, onContext: false, started: false, updates: 0, error: null } }) }));
+    expect(md).toMatch(/Audio thread \(renderCapacity\) \| no figures · in AudioContext.prototype: no · on this context: no · started: no · update events since load: 0/);
+  });
+
   it('says when the audio thread missed deadlines, or peaked high', () => {
     expect(verdict(base({ audio: audio({ capacity: { updates: 10, meanLoad: 0.5, peakLoad: 0.9, underrunRatioMean: 0.01, underrunRatioMax: 0.05 } }) })).join('\n')).toMatch(
       /missed deadlines \(up to 5\.0 % of blocks/,
@@ -147,6 +159,7 @@ describe('verdict', () => {
           heardLatencyMs: null,
           pictureLagMs: null,
           capacity: null,
+          capacityProbe: { inPrototype: false, onContext: false, started: false, updates: 0, error: null },
           playout: { events: 3, seconds: 0.02, averageLatencyMs: 40, maximumLatencyMs: 90 },
         },
         loadScale: { mean: 2.5, max: 4 },
@@ -208,6 +221,7 @@ describe('buildReport', () => {
           heardLatencyMs: null,
           pictureLagMs: null,
           capacity: null,
+          capacityProbe: { inPrototype: false, onContext: false, started: false, updates: 0, error: null },
           playout: null,
         },
         heapMB: null,

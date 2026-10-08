@@ -40,4 +40,22 @@ export function timed<T>(name: string, fn: () => T): T {
  * once a second, how loaded the render thread was (0…1 of the time a block may take) and what share of blocks
  * missed their deadline — the underruns `playoutStats` would count. Filled by the player.
  */
-export const capacity: { supported: boolean; events: { t: number; avg: number; peak: number; underrun: number }[] } = { supported: false, events: [] };
+export const capacity: { supported: boolean; events: { t: number; avg: number; peak: number; underrun: number }[]; probe: CapacityProbe } = {
+  supported: false,
+  events: [],
+  probe: { inPrototype: null, onContext: null, started: false, updates: 0, error: null },
+};
+
+/** What looking for `renderCapacity` found, so a report with no audio-thread row can say why (#91): the browser lacks it, our probe missed it, or it never reported. */
+export interface CapacityProbe {
+  /** `'renderCapacity' in AudioContext.prototype` (null: not asked yet, or no AudioContext). */
+  inPrototype: boolean | null;
+  /** The property is on the context the player made (null: not asked yet). */
+  onContext: boolean | null;
+  /** `start()` ran without throwing. */
+  started: boolean;
+  /** `update` events received since the page loaded. */
+  updates: number;
+  /** The first error from reading or starting it, if any. */
+  error: string | null;
+}

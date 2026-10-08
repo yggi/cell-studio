@@ -11,6 +11,7 @@ that makes the change. Also note changes to the language that could affect saved
 ## Unreleased
 
 ### Added
+- The performance report says why it has no audio-thread row: whether `renderCapacity` is in `AudioContext.prototype`, on the context, started, and how many `update` events arrived (#91). Saved `.cells` pieces are not affected.
 - `degree(&x, n)` and `inverse(&x)` in a braid: a motif moved n degrees up the table it is read through, or mirrored within it, without a cell of its own reading a shifted table (#31). They nest: `degree(inverse(&x), 4)`. Saved `.cells` pieces are not affected (both were errors before).
 
 - In a pitch sum, of two terms with `step=` timing the finer one starts the notes and the coarser one holds under it (a progression: `&changes step=&bar*4 0 0 5 0` beside `&walk step=&bar`), as a `loop=` term would; before, this was an error and a progression had to be written `loop=&bar*N`. Two at the same rate are still an error. Saved `.cells` pieces are not affected.

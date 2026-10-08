@@ -73,7 +73,7 @@ For trying it out, `?runseconds=10&runsettings=playback,interactive&runpieces=hy
 By hand, to try a setting, open the app with `?latency=interactive` (or `balanced`, `playback`, or seconds such as `0.05`) and/or
 `?lookahead=0.1`. They are kept until `?latency=off` / `?lookahead=off`. The report's **Latency tuning** row shows what is in force and the
 made-to-heard time; **Audio thread (renderCapacity)** (Chrome 126+, where present) shows the render thread's load and the share of
-blocks that missed their deadline, which is the underrun measure; **Notes** shows late and dropped notes. A setting is safe on a
+blocks that missed their deadline, which is the underrun measure (where the browser has none, the row says whether `renderCapacity` exists on the prototype and on the context, whether it started and how many `update` events came); **Notes** shows late and dropped notes. A setting is safe on a
 device when, over a few pieces played for 30 s each (a heavy one: Hypercell, Bach Prelude and Fugue, Test Tones on Tape, Baustelle II), the audio
 thread's peak stays well under 80 % with no missed deadlines (or, without renderCapacity, nothing left out and the clock ratio
 at 1.00×), and you hear no clicks.
