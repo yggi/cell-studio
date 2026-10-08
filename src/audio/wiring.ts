@@ -149,11 +149,11 @@ export function wiring(result: CompileResult, muted: ReadonlySet<string> = new S
   }
 
   // a voice played only into sends (a resonator's excitation, a tape) isn't heard from itself
-  // (a kit's output names the kit: its members are what sound)
+  // (a kit's output names the kit: its members are what sound, those that are on: an off member plays no notes — #166)
   const heard = new Set([
     ...result.outputs
       .filter((o) => !o.silent && outputSounds(result, o, muted))
-      .flatMap((o) => (o.kit ? [o.voice, ...(result.cells.get(o.voice)?.children.keys() ?? [])] : [o.voice])),
+      .flatMap((o) => (o.kit ? [o.voice, ...[...(result.cells.get(o.voice)?.children.keys() ?? [])].filter((m) => !off(m))] : [o.voice])),
     ...result.resonances.filter((x) => !off(x.cell) && returnGains(x, muted).some((g) => g > 0)).map((x) => x.cell),
   ]);
   // resonators: heard at the levels of every mix they're in (struck there, or ringing alone)

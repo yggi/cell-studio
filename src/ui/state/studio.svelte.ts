@@ -11,6 +11,7 @@ import { Piece } from './piece.svelte';
 import { Playback } from './playback.svelte';
 import { Library, type Open } from './library.svelte';
 import { View, type Tab } from './view.svelte';
+import { Midi } from './midi.svelte';
 
 /**
  * The app's state, in four parts — the piece (its code and what it compiles to), playing it, the
@@ -22,6 +23,7 @@ export class Studio {
   readonly playback = new Playback(this.piece);
   readonly library = new Library();
   readonly view = new View();
+  readonly midi = new Midi();
   /** The code editor (App binds it): showing a cell's line in it. */
   editor = $state<{ showLine(line: number): void } | undefined>();
   rendering = $state(false);
@@ -41,7 +43,7 @@ export class Studio {
     this.view.tab = 'graph';
     this.view.message = null;
     this.library.opened++;
-    this.playback.fresh();
+    this.playback.stop();
   }
 
   /** Open a card: an example (fetched: its own chunk) or a piece saved here. */
@@ -140,7 +142,7 @@ export class Studio {
 
   // ---- the performance overlay (ui/PerfOverlay.svelte)
   readonly perfSources = {
-    playing: () => transportClock.playing,
+    playing: () => transportClock.state === 'playing',
     audio: () => this.playback.player.audioInfo(),
   };
   readonly perfMeta = () => ({
@@ -162,7 +164,7 @@ export class Studio {
       await this.playback.player.retune(t);
     },
     play: () => this.playback.toggle(),
-    stop: () => this.playback.stop(),
+    stop: () => this.playback.pause(),
     audioState: () => this.playback.player.audioInfo().state,
     hidden: () => document.hidden,
     finish: async () => {
@@ -174,7 +176,7 @@ export class Studio {
         this.piece.code = before.code;
         this.view.tab = before.tab;
         this.library.opened++;
-        this.playback.fresh();
+        this.playback.stop();
       }
       this.#beforeTest = null;
     },
@@ -182,6 +184,7 @@ export class Studio {
 
   dispose(): void {
     this.playback.dispose();
+    this.midi.dispose();
   }
 }
 

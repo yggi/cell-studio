@@ -40,11 +40,27 @@ export interface Built {
   /** Scheduled note starts, oldest first (kept short): what's sounding now. */
   notes: { at: number; freq: number }[];
   last: number;
-  live: Set<AudioScheduledSourceNode>;
+  /** The notes in the air (started, or scheduled to), each with what a pause must reach to drop its gate. */
+  live: Map<AudioScheduledSourceNode, Sounding>;
   /** What moving parameters drive: a filter's frequency and resonance, a send's level. */
   moving: Record<string, Movable>;
   /** A resonator (body=): its modes, rung by strikes, a bow, a neighbour, sound. */
   res?: Resonator;
+}
+
+/** A note in the air: what dropping its gate (a pause) reaches. */
+export interface Sounding {
+  /** When it starts (audio seconds); a note not yet started is cancelled. */
+  readonly at: number;
+  /** Its envelope, and its volume streams. */
+  readonly amp: GainNode;
+  readonly lvl: GainNode;
+  /** What moves its pitch (bends, a shape): they stop where they are. */
+  readonly pitch: readonly AudioParam[];
+  /** Its FM modulators: they go with it. */
+  readonly mods: readonly OscillatorNode[];
+  /** Its release (seconds): how long it rings after the gate drops. */
+  readonly release: number;
 }
 
 /** Build a voice cell's chain (`key`: its sound, to tell when it must be built again). */
@@ -133,13 +149,45 @@ export function buildVoice(Tone: ToneNS, ctx: AudioContext, bus: Bus, result: Co
     const { real, imag } = harmonics(waveform(result, name, shifts));
     wave = ctx.createPeriodicWave(real, imag);
   }
-  return { res, key, seed: c.seed, params, head, nodes, wave, noise, scope, out, notes: [], last: -Infinity, live: new Set(), moving };
+  return { res, key, seed: c.seed, params, head, nodes, wave, noise, scope, out, notes: [], last: -Infinity, live: new Map(), moving };
 }
 
 /** Let a voice go: its sounding notes stopped, its nodes disposed. */
 export function freeVoice(b: Built): void {
-  for (const o of b.live) o.stop();
+  for (const o of b.live.keys()) o.stop();
   for (const n of b.nodes) n.dispose();
+}
+
+/** A parameter held where it is now: what was scheduled for it from `now` on is dropped. */
+function hold(param: Movable, now: number): void {
+  const v = (param as unknown as { value?: number }).value;
+  param.cancelScheduledValues(now);
+  if (typeof v === 'number') param.setValueAtTime(v, now);
+}
+
+/**
+ * A pause: every note in the air lets go. A note that has not started is never played; one that sounds drops its gate (its
+ * envelope goes into its release from where it is) and stops moving (its bends, volume stream and FM stay as they are), so
+ * nothing hangs, and what rings after — release, reverb, echo — is left to ring. Parameters that move a voice's filter
+ * hold where they are.
+ */
+export function dropGates(b: Built, now: number): void {
+  for (const [osc, n] of b.live) {
+    if (n.at > now) {
+      osc.stop(now);
+      for (const m of n.mods) m.stop(now);
+      continue;
+    }
+    hold(n.amp.gain, now);
+    hold(n.lvl.gain, now);
+    for (const p of n.pitch) hold(p, now);
+    const release = Math.max(n.release, 0.005);
+    n.amp.gain.setTargetAtTime(0, now, release / 3);
+    const end = now + release * 4 + 0.05;
+    osc.stop(end);
+    for (const m of n.mods) m.stop(end);
+  }
+  for (const p of Object.values(b.moving)) hold(p, now);
 }
 
 /** Play a note on a voice (`voiceOf`: the others, for FM modulators). Returns when it sounds (audio seconds; null: not played, or a strike). */
@@ -200,6 +248,7 @@ export function playNote(Tone: ToneNS, ctx: AudioContext, b: Built, note: Played
   };
   // FM: a modulator (a voice of its own, ratio= its frequency against this one) swinging this frequency
   // by index × its frequency — and its own modulator, if it has one; each note starts them afresh
+  const mods: OscillatorNode[] = [];
   const fmOnto = (param: AudioParam, carrierFreq: number, of: Built, t0: number, t1: number, depth: number, indexTrack?: ParamTrack) => {
     const name = of.params.fm;
     const mb = typeof name === 'string' ? voiceOf(name) : undefined;
@@ -215,6 +264,7 @@ export function playNote(Tone: ToneNS, ctx: AudioContext, b: Built, note: Played
     index.gain.value = num(of.params, 'index', 1);
     if (indexTrack) schedule(index.gain, 'index', indexTrack, t0, Math.max(0.02, t1 - t0));
     m.connect(swing).connect(index).connect(param);
+    mods.push(m);
     fmOnto(m.frequency, mf, mb, t0, t1, depth + 1);
     m.start(t0);
     m.stop(t1);
@@ -225,6 +275,7 @@ export function playNote(Tone: ToneNS, ctx: AudioContext, b: Built, note: Played
     };
   };
   let osc: AudioScheduledSourceNode;
+  const pitch: AudioParam[] = [];
   if (b.noise) {
     const n = ctx.createBufferSource();
     n.buffer = b.noise;
@@ -233,6 +284,7 @@ export function playNote(Tone: ToneNS, ctx: AudioContext, b: Built, note: Played
   } else {
     const o = ctx.createOscillator();
     tone(o);
+    pitch.push(o.frequency, o.detune);
     fmOnto(o.frequency, freq, b, time, time + dur + env.release * 4 + 0.05, 0, params?.index);
     osc = o;
   }
@@ -261,7 +313,7 @@ export function playNote(Tone: ToneNS, ctx: AudioContext, b: Built, note: Played
   else osc.start(time);
   const end = time + dur + env.release * 4 + 0.05;
   osc.stop(end);
-  b.live.add(osc);
+  b.live.set(osc, { at: time, amp, lvl, pitch, mods, release: env.release });
   osc.onended = () => {
     b.live.delete(osc);
     amp.disconnect();

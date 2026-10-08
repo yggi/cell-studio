@@ -15,8 +15,8 @@ import type { Played } from '../engine/realize';
 import type { CompileResult, Shifts } from '../engine/program';
 import { audioContext, disposer, inputOf, type Disposable, type ToneNS } from './voice/nodes';
 import { Gate } from './gate';
-import { buildVoice, freeVoice, playNote, type Built, type Bus, type Scope } from './voice/voice';
-import { bow, couple, damp, driveScale, resonanceOf, strikeAt } from './voice/resonator';
+import { buildVoice, dropGates, freeVoice, playNote, type Built, type Bus, type Scope } from './voice/voice';
+import { bow, couple, damp, driveScale, hush, resonanceOf, strikeAt } from './voice/resonator';
 import { wiring } from './wiring';
 import { buildTapeNet, fadeOut, scrubTape, tapeKey, tapeLevelOf, tapeSpeedOf, type TapeNet } from './voice/tape';
 
@@ -48,7 +48,15 @@ export interface VoiceBank {
   note(voice: string): number | null;
   /** Live FFT (dB per bin), left and right: of a voice (after pan), a mix (the notes that go through it), or the sound card (the master). */
   spectrum(name: string): { left: Float32Array; right: Float32Array; sampleRate: number } | null;
+  /**
+   * Pause: every note in the air lets go: its gate drops (it goes into its release), what is not yet started is never played.
+   * Release tails, effects and resonators ring on.
+   */
+  dropGates(): void;
+  /** Stop: every note cut at once, every body choked to rest, the output closed (the effects' tails are not heard) until `open`. */
   releaseAll(): void;
+  /** Open the output again (a hand on the sound, or Play, after Stop). */
+  open(): void;
   dispose(): void;
   /** Resolves when everything is ready to sound (the reverb's impulse is made asynchronously). */
   ready(): Promise<void>;
@@ -58,7 +66,9 @@ export function createVoices(Tone: ToneNS): VoiceBank {
   const ctx = audioContext(Tone);
   // the sound card's level (level=, dB) and then a limiter: nothing past full scale
   const limiter = new Tone.Limiter(-1).toDestination();
-  const master = new Tone.Gain(1).connect(limiter);
+  // (and before it a switch: Stop closes it, so that the reverb and the echo, which would ring on for seconds, are not heard)
+  const stopped = new Tone.Gain(1).connect(limiter);
+  const master = new Tone.Gain(1).connect(stopped);
   const reverb = new Tone.Reverb({ decay: 2.8, preDelay: 0.01, wet: 1 }).connect(master);
   const echo = new Tone.FeedbackDelay({ delayTime: 0.375, feedback: 0.35, wet: 1 }).connect(master);
   const bus: Bus = { master, reverb, echo };
@@ -332,12 +342,26 @@ export function createVoices(Tone: ToneNS): VoiceBank {
       };
     },
 
+    dropGates() {
+      const now = ctx.currentTime;
+      for (const b of built.values()) dropGates(b, now);
+    },
+
     releaseAll() {
       const now = ctx.currentTime;
       for (const b of built.values()) {
-        for (const o of b.live) o.stop(now + 0.02);
+        for (const o of b.live.keys()) o.stop(now + 0.02);
+        if (b.res) hush(now, b.res);
         b.last = -Infinity;
       }
+      stopped.gain.cancelScheduledValues(now);
+      stopped.gain.setTargetAtTime(0, now, 0.01);
+    },
+
+    open() {
+      const now = ctx.currentTime;
+      stopped.gain.cancelScheduledValues(now);
+      stopped.gain.setTargetAtTime(1, now, 0.005);
     },
 
     dispose() {
@@ -348,6 +372,7 @@ export function createVoices(Tone: ToneNS): VoiceBank {
       reverb.dispose();
       echo.dispose();
       master.dispose();
+      stopped.dispose();
     },
   };
 }

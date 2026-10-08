@@ -144,7 +144,22 @@ export function placeJunctions(s: LayoutState): void {
 const TRIES = 32;
 
 type Segs = [number, number, number, number][];
-type Drawn = { a: string; b: string; segs: Segs };
+/** A line as drawn: its ends, its pieces that show, and their box (min x, min y, max x, max y). */
+type Drawn = { a: string; b: string; segs: Segs; box: readonly [number, number, number, number] };
+
+/** The box round a line's pieces. */
+const boxOf = (segs: Segs): Drawn['box'] => {
+  let [x0, y0, x1, y1] = [Infinity, Infinity, -Infinity, -Infinity];
+  for (const [ax, ay, bx, by] of segs) {
+    x0 = Math.min(x0, ax, bx);
+    y0 = Math.min(y0, ay, by);
+    x1 = Math.max(x1, ax, bx);
+    y1 = Math.max(y1, ay, by);
+  }
+  return [x0, y0, x1, y1];
+};
+/** Lines whose boxes don't meet can't cross (segmentsCross counts a crossing strictly inside both pieces only). */
+const apart = (u: Drawn, v: Drawn) => u.box[2] < v.box[0] || v.box[2] < u.box[0] || u.box[3] < v.box[1] || v.box[3] < u.box[1];
 
 /**
  * At rest: each junction moved round its voice's rim to where its wires cross least (each edge, belt or meter's trace
@@ -155,8 +170,9 @@ type Drawn = { a: string; b: string; segs: Segs };
 export function settleJunctions(s: LayoutState, runs: (l: { source: string; target: string; belt?: boolean }) => Segs | undefined = () => undefined): void {
   if (!s.junctions.size) return;
   placeJunctions(s);
-  const discs = [...s.byId.values()].filter((n) => n.role !== 'tag' && n.x !== undefined);
-  const hidden = (x: number, y: number) => discs.some((n) => Math.hypot(x - (n.x ?? 0), y - (n.y ?? 0)) < n.radius * s.size);
+  const discs = [...s.byId.values()].filter((n) => n.role !== 'tag' && n.x !== undefined).map((n) => ({ x: n.x ?? 0, y: n.y ?? 0, r: n.radius * s.size }));
+  // (a point further off than a disc's radius along either axis isn't under it: the distance only for the others)
+  const hidden = (x: number, y: number) => discs.some((d) => Math.abs(x - d.x) < d.r && Math.abs(y - d.y) < d.r && Math.hypot(x - d.x, y - d.y) < d.r);
   /** A drawn line's pieces that show, between two points (straight, or through its bend). */
   const pieces = (a: { x: number; y: number }, b: { x: number; y: number }, m = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }): Segs => {
     const pts = Array.from({ length: 9 }, (_, k) => splinePoint(a.x, a.y, m.x, m.y, b.x, b.y, k / 8));
@@ -181,11 +197,14 @@ export function settleJunctions(s: LayoutState, runs: (l: { source: string; targ
       const [p, q] = [at(a), at(b)];
       if (!p || !q) return [];
       const belt = hop ? undefined : runs(l);
-      return [{ a, b, segs: belt ?? pieces(p, q, hop ? undefined : s.bendAt.get(l.id)) }];
+      const segs = belt ?? pieces(p, q, hop ? undefined : s.bendAt.get(l.id));
+      return [{ a, b, segs, box: boxOf(segs) }];
     }),
     ...s.net.flatMap((t) => {
       const [p, q] = [at(t.a), at(t.b)];
-      return p && q ? [{ a: t.a, b: t.b, segs: pieces(p, q) }] : [];
+      if (!p || !q) return [];
+      const segs = pieces(p, q);
+      return [{ a: t.a, b: t.b, segs, box: boxOf(segs) }];
     }),
   ];
   const wiresOf = new Map<string, { a: string; b: string }[]>();
@@ -194,16 +213,42 @@ export function settleJunctions(s: LayoutState, runs: (l: { source: string; targ
     for (const end of new Set([w.a, w.b])) if (s.junctions.has(end)) wiresOf.set(end, [...(wiresOf.get(end) ?? []), w]);
   }
   const placed = [...s.junctions.values()].filter((j) => j.x !== undefined);
+  /** Each wire as last drawn, and from where: drawn again only when an end has moved. */
+  const drawn = new Map<{ a: string; b: string }, { p: { x: number; y: number }; q: { x: number; y: number }; line: Drawn }>();
   /** A junction's wires as drawn from where it is now. */
   const wires = (j: PhysNode): Drawn[] =>
     (wiresOf.get(j.id) ?? []).flatMap((w) => {
       const [p, q] = [at(w.a), at(w.b)];
-      return p && q ? [{ ...w, segs: pieces(p, q) }] : [];
+      if (!p || !q) return [];
+      const was = drawn.get(w);
+      if (was && was.p.x === p.x && was.p.y === p.y && was.q.x === q.x && was.q.y === q.y) return [was.line];
+      const segs = pieces(p, q);
+      const line = { ...w, segs, box: boxOf(segs) };
+      drawn.set(w, { p, q, line });
+      return [line];
     });
   const meet = (u: Drawn, v: Drawn) => u.a === v.a || u.a === v.b || u.b === v.a || u.b === v.b;
-  const crosses = (u: Drawn, v: Drawn) => !meet(u, v) && u.segs.some((p) => v.segs.some((q) => segmentsCross(...p, ...q)));
-  /** What everything but these junctions' wires is drawn as. */
-  const restOf = (set: readonly PhysNode[]) => [...fixed, ...placed.filter((o) => !set.includes(o)).flatMap(wires)];
+  const crosses = (u: Drawn, v: Drawn) => !meet(u, v) && !apart(u, v) && u.segs.some((p) => v.segs.some((q) => segmentsCross(p[0], p[1], p[2], p[3], q[0], q[1], q[2], q[3])));
+  /**
+   * What everything but these junctions' wires is drawn as, near enough to cross them: wherever round their voices'
+   * rims they are tried, their wires (straight) stay in the box round those rims and their wires' other ends.
+   */
+  const restOf = (set: readonly PhysNode[], ring: number) => {
+    let [x0, y0, x1, y1] = [Infinity, Infinity, -Infinity, -Infinity];
+    for (const j of set) {
+      const v = s.byId.get(j.rides!)!;
+      const [vx, vy] = [v.x ?? 0, v.y ?? 0];
+      [x0, y0, x1, y1] = [Math.min(x0, vx - ring), Math.min(y0, vy - ring), Math.max(x1, vx + ring), Math.max(y1, vy + ring)];
+      for (const w of wiresOf.get(j.id) ?? [])
+        for (const end of [w.a, w.b]) {
+          const p = end === j.id ? undefined : at(end);
+          if (p) [x0, y0, x1, y1] = [Math.min(x0, p.x), Math.min(y0, p.y), Math.max(x1, p.x), Math.max(y1, p.y)];
+        }
+    }
+    // (a pixel to spare: a sampled point may stray past its ends by a rounding)
+    const near: Drawn = { a: '', b: '', segs: [], box: [x0 - 1, y0 - 1, x1 + 1, y1 + 1] };
+    return [...fixed, ...placed.filter((o) => !set.includes(o)).flatMap(wires)].filter((e) => !apart(e, near));
+  };
   /** How many crossings these junctions' wires make, where they are now: with the rest, and among themselves. */
   const cost = (set: readonly PhysNode[], rest: readonly Drawn[]) => {
     const mine = set.flatMap(wires);
@@ -229,7 +274,7 @@ export function settleJunctions(s: LayoutState, runs: (l: { source: string; targ
       if (pass < 2)
         for (const j of js) {
           const pulled = s.rims.get(j.id) ?? 0;
-          const rest = restOf([j]);
+          const rest = restOf([j], ring);
           let best = { cost: Infinity, angle: pulled };
           for (let k = 0; k < TRIES; k++) {
             // (tried nearest first: on a tie, the nearest to its pull wins)
@@ -245,7 +290,7 @@ export function settleJunctions(s: LayoutState, runs: (l: { source: string; targ
         for (let i = 0; i < js.length; i++)
           for (let k = i + 1; k < js.length; k++) {
             const pair = [js[i], js[k]];
-            const rest = restOf(pair);
+            const rest = restOf(pair, ring);
             const [a, b] = [s.rims.get(js[i].id)!, s.rims.get(js[k].id)!];
             const now = cost(pair, rest);
             put(js[i], v, ring, b);

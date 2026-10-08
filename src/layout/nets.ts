@@ -185,12 +185,18 @@ export function hits(s: LayoutState, x: number, y: number, r: number, from: stri
   // (the part outside both wheels: an edge is drawn beneath them)
   const [ux, uy] = [(cx - x) / len, (cy - y) / len];
   const [x1, y1, x2, y2] = [x + ux * r, y + uy * r, cx - ux * c.radius, cy - uy * c.radius];
+  // (its box: a piece wholly to one side of it can't cross it, nor a wheel further off than its room)
+  const [lx, hx, ly, hy] = [Math.min(x1, x2), Math.max(x1, x2), Math.min(y1, y2), Math.max(y1, y2)];
   let n = 0;
   for (const p of pieces) {
+    const q = p.seg;
+    if ((q[0] < lx && q[2] < lx) || (q[0] > hx && q[2] > hx) || (q[1] < ly && q[3] < ly) || (q[1] > hy && q[3] > hy)) continue;
     if (p.a === to || p.b === to || p.a === from || p.b === from) continue;
-    if (segmentsCross(x1, y1, x2, y2, ...p.seg) && ++n >= stop) return n;
+    if (segmentsCross(x1, y1, x2, y2, q[0], q[1], q[2], q[3]) && ++n >= stop) return n;
   }
   for (const o of s.byId.values()) {
+    const [ox, oy, room] = [o.x ?? 0, o.y ?? 0, o.radius + 1];
+    if (ox < lx - room || ox > hx + room || oy < ly - room || oy > hy + room) continue;
     if (o.id === to || o.id === from || o.role === 'tag') continue;
     const t = Math.max(0, Math.min(1, (((o.x ?? 0) - x1) * (x2 - x1) + ((o.y ?? 0) - y1) * (y2 - y1)) / ((x2 - x1) ** 2 + (y2 - y1) ** 2 || 1)));
     if (Math.hypot(x1 + t * (x2 - x1) - (o.x ?? 0), y1 + t * (y2 - y1) - (o.y ?? 0)) < o.radius * 0.8 && (n += 2) >= stop) return n;
