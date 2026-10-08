@@ -56,7 +56,8 @@ export function placeMeters(s: LayoutState): void {
         let on = false;
         for (const o of others) {
           const d = Math.hypot((o.x ?? 0) - x, (o.y ?? 0) - y);
-          if (d < (node.radius + o.radius) * 0.6) on = true;
+          // (a meter placed already is held: nothing would push the two apart, so it is kept clear of whole)
+          if (d < (node.radius + o.radius) * (s.placedMeters.has(o.id) ? 1 : 0.6)) on = true;
           crowd += Math.max(0, node.radius + o.radius + s.opts.collidePad - d);
         }
         if (on) continue;

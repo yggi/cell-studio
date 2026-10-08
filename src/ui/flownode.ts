@@ -78,6 +78,13 @@ export function flowNodeOf(
     id: g.id,
     type: 'cell',
     position,
-    data: { name: g.cell.name, isMeter: g.isMeter, size, pinned: isPinned, ...(meterIndex !== undefined ? { meterIndex } : {}) },
+    data: {
+      name: g.cell.name,
+      isMeter: g.isMeter,
+      size,
+      pinned: isPinned,
+      ...(meterIndex !== undefined ? { meterIndex } : {}),
+      ...(g.reach?.below ? { below: g.reach.below } : {}),
+    },
   };
 }

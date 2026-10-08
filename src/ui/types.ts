@@ -9,6 +9,8 @@ type CellNodeData = {
   petal?: boolean;
   /** A meter's own place among the piece's meters (its colour). */
   meterIndex?: number;
+  /** How far its bulbs reach below its wheel (px): its name goes under them (#221). */
+  below?: number;
 };
 type VoiceNodeData = { name: string; summary: string; size: number; pinned: boolean; petal?: boolean };
 export type CellFlowNode = Node<CellNodeData, 'cell'>;
