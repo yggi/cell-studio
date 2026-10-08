@@ -422,9 +422,6 @@ function openCall(text: string): string | undefined {
   return undefined;
 }
 
-/** Attributes that read a cell the graph doesn't draw yet: a table its values are looked up in (`map=&curve`). */
-const UNDRAWN = new Set(['map']);
-
 /** The port a name written as the value of an attribute is read through. */
 const PORT: Readonly<Record<string, string>> = { loop: 'step', generated: 'braid' };
 
@@ -446,7 +443,7 @@ describe('every name written is one wire carrying the transform it writes, and e
       const groove = c.over === 'kit:voices';
       const tokens = tokensOn(lines.get(c.span.line) ?? '')
         .map((t) => (groove && t.where === 'mix' ? { ...t, where: 'braid' } : t))
-        .filter((t) => !UNDRAWN.has(t.where) && program.cells.has(t.name));
+        .filter((t) => program.cells.has(t.name));
       // each place a name is written in the braid is one of its wire's transforms, in order
       const written = new Map<string, Token[]>();
       for (const t of tokens) {

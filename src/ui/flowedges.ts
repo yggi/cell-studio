@@ -68,8 +68,9 @@ const BY_BAND: Readonly<Partial<Record<GraphEdge['band'], Carrier>>> = {
 };
 /** By port, for the other bands. */
 const BY_PORT: Readonly<Record<string, Carrier>> = {
-  // a table read through, a cell spliced in: the reader's own wheel shows it
+  // a table read through or looked up (map=&curve), a cell spliced in: the reader's own wheel shows it
   over: NOTHING,
+  map: NOTHING,
   braid: NOTHING,
   // a tape's edges take the colour of what's on them: a read head's notes, as played; what's being written, as its source plays it
   play: (e, p) => ({ phaseCell: null, voice: p.outputs.find((x) => x.tape?.head === nameOf(e.target))?.voice ?? null }),
@@ -99,7 +100,8 @@ function pulseData(e: GraphEdge, program: CompileResult) {
     port: e.port,
     width: e.width,
     from: endOf(e, e.from),
-    table: e.port === 'over' ? nameOf(e.from) : null,
+    // (a table read through, over=, or looked up, map=: its strands leave its entries)
+    table: e.port === 'over' || e.port === 'map' ? nameOf(e.from) : null,
     tines: tinesOf(e, program),
     ...carried(e, program),
   };
