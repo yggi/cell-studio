@@ -403,6 +403,20 @@ describe('a note by name is a pitch; a number an index', () => {
     expect(flatten(r, 'c', codeShifts(r)).map((e) => resolveIn(r, e.table, e.tableShift, e.value, e.alter, codeShifts(r)).position)).toEqual([2, 6, 9, 12]);
     expect(spell(r, 'd')).toBe('Bb Eb G');
   });
+  it('a name sits on the grid: ^n and ^$n move it alike; over a scale, numbers tell them apart', () => {
+    const semis = (src: string) => {
+      const r = compileSource(src);
+      return flatten(r, 't', codeShifts(r)).map((e) => {
+        const p = resolveIn(r, e.table, e.tableShift, e.value, e.alter, codeShifts(r));
+        return semitones(r, p.root, p.position + (e.transpose ?? 0));
+      });
+    };
+    const s = '&major scan(2 2 1 2 2 2 1)\n&q C E G\n&n 0 2 4\n&t over=&major step=1 ';
+    expect(semis(s + '&q^2')).toEqual([2, 6, 9]);
+    expect(semis(s + '&q^$2')).toEqual([2, 6, 9]);
+    expect(semis(s + '&n^2')).toEqual([4, 7, 11]);
+    expect(semis(s + '&n^$2')).toEqual([2, 6, 9]);
+  });
   it('free(D) is a pitch class by name: a tonic, a turn of the 12', () => {
     const r = compileSource('&s scale(dorian, free(D))\n&t over=&s 0\n&key shift=free(G)\n&u over=&key 0');
     expect(spell(r, 't')).toBe('D');
