@@ -141,7 +141,7 @@ export class RouteAcc {
     for (const own of [v.env, v.pitch]) if (own && !this.off(own)) this.stream(own);
     // its wave's table (map=&curve: its values looked up in it, every cycle)
     if (v.map?.kind === 'table' && !this.off(v.map.table)) {
-      this.edge(v.map.table, name);
+      this.edge(v.map.table, name, clockTapId(cellId(v.map.table), cellId(name), 'map'));
       this.stream(v.map.table);
     }
     this.timed(name);

@@ -33,6 +33,13 @@ describe('edges as wires', () => {
     expect(wireOf(g, 'capstan', 'tape')).toMatchObject({ port: 'step', band: 'sync' });
   });
 
+  it('a table a cell reads twice (map= and pitch=) is two wires, each with its own id (#182)', () => {
+    const r = compileSource(['&t 0 1 .3 -1', '&bar step=1', '&mel step=&bar 0 2', '&v loop=C4 map=&t pitch=&t 0 1 2 3', '&out loop=SAMPLE_RATE map=sample [&mel * &v]'].join('\n'));
+    const from = buildGraph(r).edges.filter((x) => x.from === 'cell:t' && x.to === 'cell:v');
+    expect(from.map((x) => x.port).sort()).toEqual(['map', 'pitch']);
+    expect(new Set(from.map((x) => x.id)).size).toBe(2);
+  });
+
   it('take their band from the port: values, ticks or sound', () => {
     expect(wireOf(g, 'motif', 'tape')).toMatchObject({ port: 'write', band: 'cv' }); // a tape of notes
     expect(wireOf(g, 'tape', 'near')).toMatchObject({ port: 'play', band: 'cv' });

@@ -35,7 +35,7 @@ describe('routing: one model for what the graph draws as part of the sound (#11)
     const e = buildGraph(r).edges.filter((x) => x.port === 'map');
     expect(e.map((x) => [x.from, x.to, x.band, x.width, x.pointer])).toEqual([['cell:curve', 'cell:v', 'cv', 4, true]]);
     const s = states(r, 0.2);
-    expect([s.get('curve'), s.get('curve->v')]).toEqual(['live', 'live']);
+    expect([s.get('curve'), s.get('curve~map>v')]).toEqual(['live', 'live']);
     // (a built-in map is no wire)
     expect(buildGraph(src('&v loop=C4 map=lin 0 1', `${OUT} &v`)).edges.filter((x) => x.port === 'map')).toEqual([]);
   });

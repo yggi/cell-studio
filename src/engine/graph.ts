@@ -305,9 +305,17 @@ export function buildGraph(result: CompileResult): GraphModel {
         link({ id: edgeId(cellId(own), id), source: cellId(own), target: id, count: 1, transforms: AS_IS, ...wire(port, 'cv', cellId(own), id, chord(own)) });
     // its own wave's table (map=&curve: each value looked up in it, wave.ts): the cell indexes it, as over= is read, so a
     // bus as wide as the table; and it shapes every cycle the cell turns, as env= shapes every note: into it, as its own
+    // (its own id: the same table may also be this cell's env=, pitch=, level= …, and one id is one edge)
     if (c.map?.kind === 'table' && result.cells.has(c.map.table)) {
       const table = cellId(c.map.table);
-      link({ id: edgeId(table, id), source: table, target: id, count: 1, transforms: AS_IS, ...wire('map', 'cv', table, id, entries(result, c.map.table), false, true) });
+      link({
+        id: clockTapId(table, id, 'map'),
+        source: table,
+        target: id,
+        count: 1,
+        transforms: AS_IS,
+        ...wire('map', 'cv', table, id, entries(result, c.map.table), false, true),
+      });
     }
     // FM: the modulator feeds its carrier
     if (typeof c.params.fm === 'string' && result.cells.has(c.params.fm))
