@@ -43,6 +43,21 @@ Prints one JSON line per piece. Read `taskPct` (main-thread busy %), `scriptPct`
 - Run measurements one at a time and don't run tests/builds alongside (they distort the numbers). Compare
   runs from the same session; absolute numbers move between machines.
 
+## Opening a piece
+How long a piece takes to open and lay out, until no node moves (no playing): one JSON line per run.
+```
+node tools/profile/open.mjs <url> <throttle> "<piece title>" [runs]          # by its card in the library
+node tools/profile/open.mjs <url> <throttle> file:/abs/path/piece.cells [runs]  # as a .cells file, unsaved
+PROFILE=open.json node tools/profile/open.mjs ...                            # also a CPU profile per run (open-<run>.json)
+```
+Read `busyMs` (main-thread busy from the click to rest), `longMax` (the longest task: the page frozen that long),
+`settleMs`, `firstNodeMs`. An example's rows' order is worked out when the app is built (`tools/examples-index.ts`);
+a piece of your own isn't, so opening it lays it out three times (`bestRowOrder`'s two trials, then the layout).
+Measure that path with a `.cells` file whose shape no example has: an example with one cell added (#198 used
+Baustelle + 1 cell, and the golden graph, `tools/gallery/golden/golden.cells`). Compare revisions in the same
+session, 4 runs each, the revisions alternated run by run, at ×1 and ×4. #198's set: Hypercell, Cellscape,
+Cellular Brothers, "Prelude and Fugue in C minor", Metronome (no products), and the two files.
+
 ## Attribute (where does the time go)
 ```
 npx vite build --minify false --outDir /tmp/dist-nomin        # readable function names
@@ -93,6 +108,9 @@ destination, so it works headless.
 - A tape's recording was ~100 `<line>`s with four attributes rewritten per frame (~7000 DOM writes a second);
   static lines in a rotating `<g>` took it to one transform. Look for per-frame attribute writes first.
 - Canvas/analyser work follows the size a wheel is seen at (`SpectrumWheel`: resolution and refresh by on-screen size).
+- Opening (#198): the layout's crossing tests at rest (`settleJunctions`, `placeMeters`' `hits`) were most of it. A box
+  test before `segmentsCross` and passing a piece's four numbers by index, not spread (`segmentsCross(...p, ...q)`)
+  or destructured in the inner loop, made them 5–15× faster with the same results.
 - Per-frame views run from the one frame loop, `onFrames` in `src/audio/ticker.ts` (no `requestAnimationFrame` of
   their own); it stretches their interval by `load.scale` when frames come late. Skip work when not visible.
 
