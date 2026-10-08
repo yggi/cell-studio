@@ -8,7 +8,7 @@ import { entries, period, positionHue, positionOctave, resolvePitch, semitones, 
 import { effectiveShow, type Named, type Show } from './show';
 import { NOTE_NAMES, mod, modeName } from '../theory/modes';
 import { playedCells } from '../engine/clocking';
-import { flatten } from '../engine/flatten';
+import { flatten, tapped } from '../engine/flatten';
 import { resolveIn } from '../engine/helix';
 
 /**
@@ -41,6 +41,19 @@ export interface Segment {
   readonly bands: readonly Fill[];
   /** The notes the bands sound, for naming them (show=notes, do …). */
   readonly notes?: readonly Named[];
+  /** Where it is anchored on the ring, in turns: a braid's step where it starts, a table's entry at its tap. */
+  readonly at?: number;
+}
+
+/**
+ * The hub of a table that selects from another (a mode from its key, a scale from the 12): what comes in — the
+ * other's entries as it pushes them, a slot each, lit where this one takes it — and the gear that wires each slot
+ * taken to the entry it becomes. It turns with the ring.
+ */
+interface Hub {
+  readonly slots: readonly { readonly t0: number; readonly t1: number; readonly fill: Fill; readonly held: boolean }[];
+  /** Each entry's wire: from its slot (turns) to its tap (turns). */
+  readonly gears: readonly { readonly from: number; readonly to: number; readonly fill: Fill }[];
 }
 
 export interface CellView {
@@ -57,6 +70,12 @@ export interface CellView {
   /** A naming convention for it (notes:flats, do:fixed). */
   readonly conv?: string;
   readonly segments: readonly Segment[];
+  /**
+   * A table's taps, entry 0 first (under the marker): where each entry leaves the wheel, in turns. Its own spacing
+   * (show=pattern: each at its step of the grid; they turn with it) or even (show=equal: they stay put).
+   */
+  readonly taps?: readonly number[];
+  readonly hub?: Hub;
   /** Grid lap (slots per turn) for drawing ticks; braid: steps. */
   readonly ticks: number;
   /** How many detents one full turn of the rim has. */
@@ -142,20 +161,40 @@ export function cellView(result: CompileResult, name: string, shifts: Shifts, is
   if (drawnAsGrid(result, name)) {
     const lap = period(result, name);
     const es = c.root ? Array.from({ length: c.cycle }, (_, i) => ({ value: i + shift, alter: 0 })) : entries(result, name, shift);
-    const placed = es.map((e, index) => ({ index, t: mod(e.value + e.alter, lap) / lap, e })).sort((a, b) => a.t - b.t || a.index - b.index);
+    const fillOf = (e: { value: number; alter: number }): Fill =>
+      isMeter || pattern
+        ? { kind: 'beat', down: false }
+        : c.root
+          ? { kind: 'pitch', hue: positionHue(result, name, e.value), octave: positionOctave(result, name, e.value) }
+          : pitchFill(result, name, e.value, e.alter, shifts);
+    const noteOf = (e: { value: number; alter: number }): Named =>
+      c.root ? { semis: semitones(result, name, e.value), value: e.value, alter: 0, lap } : named(null, 0, e.value, e.alter);
+    // The ring turns: the entry now first sits under the marker at 12 o'clock, and the taps stay where they are
+    // (equal) or ride their entries (pattern). A pitched table's slot is centred on its tap; a meter's beat starts there.
+    const n = es.length;
+    const equal = show === 'equal';
+    const base = n ? es[0].value + es[0].alter : 0;
+    const centre = isMeter || pattern ? 0 : 0.5;
+    const tapOf = (e: { value: number; alter: number }, i: number) => (equal ? i / n : mod(e.value + e.alter - base, lap) / lap);
+    const placed = es.map((e, index) => ({ index, t: tapOf(e, index), e })).sort((a, b) => a.t - b.t || a.index - b.index);
     const segments = placed.map((p, i) => {
       const next = placed[(i + 1) % placed.length];
       const t1 = i + 1 < placed.length ? next.t : next.t + 1;
-      const fill: Fill =
-        isMeter || pattern
-          ? { kind: 'beat', down: p.index === 0 }
-          : c.root
-            ? { kind: 'pitch', hue: positionHue(result, name, p.e.value), octave: positionOctave(result, name, p.e.value) }
-            : pitchFill(result, name, p.e.value, p.e.alter, shifts);
-      const notes = c.root ? [{ semis: semitones(result, name, p.e.value), value: p.e.value, alter: 0, lap }] : [named(null, 0, p.e.value, p.e.alter)];
-      return { t0: p.t, t1: placed.length === 1 ? p.t + 1 : t1, index: p.index, bands: [fill], notes };
+      const half = (equal ? 1 / n : 1 / lap) * centre;
+      const fill: Fill = isMeter || pattern ? { kind: 'beat', down: p.index === 0 } : fillOf(p.e);
+      return { t0: p.t - half, t1: (placed.length === 1 ? p.t + 1 : t1) - half, index: p.index, bands: [fill], notes: [noteOf(p.e)], at: p.t };
     });
-    return { mode: 'grid', segments, ticks: lap, detents: Math.max(1, es.length), show, conv };
+    const taps = isMeter ? undefined : es.map((e, i) => tapOf(e, i));
+    return {
+      mode: 'grid',
+      segments,
+      ticks: lap,
+      detents: Math.max(1, n),
+      show,
+      conv,
+      ...(taps ? { taps } : {}),
+      ...(isMeter || pattern ? {} : hubOf(result, name, es, taps!, base, shifts)),
+    };
   }
 
   // braid: what it plays in time. &refs are expanded all the way down, so a
@@ -193,7 +232,8 @@ export function cellView(result: CompileResult, name: string, shifts: Shifts, is
     const known = `${e.table}|${e.tableShift}|${e.value}|${e.alter}|${e.transpose ?? 0}`;
     let hit = seen.get(known);
     if (!hit) {
-      const found = resolveIn(result, e.table, e.tableShift, e.value, e.alter, shifts);
+      const t = tapped(result, e, shifts);
+      const found = resolveIn(result, e.table, e.tableShift, t.value, t.alter, shifts);
       const r = e.transpose ? { ...found, position: found.position + e.transpose } : found; // ^n
       const f: Fill = levels
         ? { kind: 'level', v: levelOf(e.value + e.alter) }
@@ -217,6 +257,29 @@ export function cellView(result: CompileResult, name: string, shifts: Shifts, is
   }
   rest(cursor, total);
   return { mode: 'braid', segments, ticks: total, detents: Math.max(1, units.length), show, conv };
+}
+
+/**
+ * A table's hub when it selects from the table below it (fewer entries than that one has): the slots coming in, as
+ * that table pushes them (turned as it stands), each at its place on this ring — so a slot this one takes sits right
+ * under its entry (pattern) or is wired across to it (equal).
+ */
+function hubOf(result: CompileResult, name: string, es: readonly { value: number; alter: number }[], taps: readonly number[], base: number, shifts: Shifts): { hub?: Hub } {
+  const c = result.cells.get(name)!;
+  const below = c.root ? null : (c.over ?? c.context);
+  const t = below ? result.cells.get(below) : undefined;
+  if (!t) return {};
+  const ins = t.root ? Array.from({ length: t.cycle }, (_, i) => ({ value: i + shifts(below!), alter: 0 })) : entries(result, below!, shifts(below!));
+  const m = ins.length;
+  if (m < 2 || es.length >= m) return {};
+  const slotOf = (v: number) => mod(Math.round(v), m);
+  const held = new Set(es.map((e) => slotOf(e.value)));
+  const fill = (e: { value: number; alter: number }): Fill =>
+    t.root ? { kind: 'pitch', hue: positionHue(result, below!, e.value), octave: positionOctave(result, below!, e.value) } : pitchFill(result, below!, e.value, e.alter, shifts);
+  const at = (k: number) => (k - base) / m;
+  const slots = ins.map((e, k) => ({ t0: at(k) - 0.5 / m, t1: at(k) + 0.5 / m, fill: fill(e), held: held.has(k) }));
+  const gears = es.map((e, j) => ({ from: at(slotOf(e.value)), to: taps[j], fill: slots[slotOf(e.value)].fill }));
+  return { hub: { slots, gears } };
 }
 
 /** Text for the hub. */

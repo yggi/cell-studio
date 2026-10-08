@@ -58,9 +58,7 @@ describe('voices.sync wires from the flows the graph draws (#132)', () => {
       for (const name of r.cells.keys()) {
         const w = wiring(r, new Set([cellId(name)]));
         for (const c of w.connections) expect([c.from, c.to, ...c.flows.flatMap((f) => [f.from, f.to])]).not.toContain(name);
-        // (a kit's member stays heard, as it was: it plays no notes while it is off)
-        const member = [...r.cells.values()].some((k) => k.kit && k.children.has(name));
-        if (!member) expect(w.heard.has(name) && !!r.cells.get(name)?.voice).toBe(false);
+        expect(w.heard.has(name) && !!r.cells.get(name)?.voice).toBe(false);
       }
     }
   });
@@ -151,6 +149,12 @@ describe('voices.sync wires from the flows the graph draws (#132)', () => {
     expect([...w.taps.values()]).toEqual([['beat']]);
     // off: no tap
     expect(wiring(r, new Set([cellId('beat')])).connections.filter((c) => c.kind === 'tap')).toEqual([]);
+  });
+
+  it('a kit member that is off is not heard from itself, the others are (#166)', () => {
+    const r = src('&kick s=sine loop=50', '&hat s=white', '&kit &kick &hat', '&drums over=&kit step=1 0 1', '&beat [&drums * .5]', `${OUT} &beat`);
+    expect(wiring(r).heard).toEqual(new Set(['kit', 'kick', 'hat']));
+    expect(wiring(r, new Set([cellId('hat')])).heard).toEqual(new Set(['kit', 'kick']));
   });
 
   it('a voice in two mixes opens each from its own notes; mixes in mixes and instruments hear their notes too', () => {

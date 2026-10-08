@@ -10,7 +10,12 @@ that makes the change. Also note changes to the language that could affect saved
 
 ## Unreleased
 
+### Changed
+- A label's `{mode}` is bold and gives the common name first: **Minor** (*Aeolian*), **Major** (*Ionian*), **Dorian**; the examples drop their own `**…**` round it. A wheel whose hub shows what comes in shows just its count there. Saved pieces are not affected: a label that wrote `**{mode}**` reads as `{mode}`.
+- A pick reads its cell as it is turned: `&key[0]` with `&key shift=2` is D (a fixed tap on a turning wheel), and it follows a key that steps or is turned live; `&key[$0]` is the new form for *as written* (C). Slices too: `&x[1:3]`, `&x[$1:3]` (#10). **Saved pieces:** a pick from a cell with a `shift=` (or a stepped one, read in another cell's braid) now plays the turned entry; write `[$…]` to keep the old notes. No example's sound changes.
+
 ### Added
+- **The wheels, one mechanism**: a wheel's inner ring turns with `shift=` (a table's too, as a braid's did), the entry now first under a marker fixed at 12 o'clock; a table's taps sit on a ring outside it, wired or not; a mode or scale shows the slots of the table below it at its hub, the ones it takes lit and wired out to its entries. `show=equal` spaces a table's entries evenly, its taps staying put as it turns (the default spaces them by pitch). Strands leave their taps round the source on a ring of tracks (one loom per wheel), in the colours the source pushes, each bus in its own order (entry 0 first) all the way; the layout gives a wheel the room its loom takes, and a bus a straight run between two; a pick is a strand from its tap, a `$` pick a wire from the hub. A cell's sheet draws the graph's wheel, larger, and edits on it. Saved `.cells` pieces are not affected (`show=equal` was an error before).
 - The performance report says why it has no audio-thread row: whether `renderCapacity` is in `AudioContext.prototype`, on the context, started, and how many `update` events arrived (#91). Saved `.cells` pieces are not affected.
 
 - Plugins (decision 011): the sun is now a built-in plugin, the first of a bundle of `show=` wheels the app ships outside the language itself (`src/engine/builtinPlugins.ts`), and a piece can carry a plugin of its own as a block `=== plugin name ===` … `=== end ===` (a JSON manifest, then JS `draw(view, h, g)`); see [language/plugins.md](docs/language/plugins.md). Built-in plugins run without asking; a plugin a piece carries runs only after **Run it** on its wheel (which says it is full trust). `show=sun` looks and turns the same as before; saved pieces are not affected (a piece can't write its own plugin named `sun`).
@@ -29,7 +34,7 @@ that makes the change. Also note changes to the language that could affect saved
 - Each PR's build is published as a preview at `…/cell-studio/pr-<n>/` (the PR's comment says where), to try a change on a phone before it's merged; it goes when the PR closes. A preview keeps its own settings (`?latency=`, `?lookahead=`, `?perf`, the engine, the library's layout), so trying one doesn't change the app's, and its own saved pieces (open yours there as a `.cells` file). The app keeps the settings it had. Saved `.cells` pieces are not affected.
 
 - **The tutorial**: 30 small pieces, a ladder from the first steps to physics (#170). Each introduces one concept and uses only what the ones before it introduced, and together they teach every form of the language once (a test checks it). New: *Steps*, *A clock*, *A voice*, *Filters and effects*, *Chords and a progression*, *Drums*, *Swing*, *Mirrors*, *Chance and choice*, *Arrangement*, *Moving parameters*, *Tuning: three grids*, *FM*, *Sympathy*, *Sound on a worn tape*, *Clock time*; the rest are examples you know, a few trimmed (below). The list is in [docs/examples.md](docs/examples.md#tutorial).
-- `rung=n` on a piece's card says its place in the tutorial ([decision 011](docs/decisions/009-tutorial-ladder.md)). `tutorial` is a kind of tag of its own, as `genre:` and `artist:` are, and replaces the topic `basics`. **Saved pieces:** a piece tagged `basics` is read as `tutorial`; `rung=` was an error before.
+- `rung=n` on a piece's card says its place in the tutorial ([decision 009](docs/decisions/009-tutorial-ladder.md)). `tutorial` is a kind of tag of its own, as `genre:` and `artist:` are, and replaces the topic `basics`. **Saved pieces:** a piece tagged `basics` is read as `tutorial`; `rung=` was an error before.
 - The library draws the tutorial as a cell of its own beside the wheel, its pieces in rows in their order, numbered, a thread through them; tap its rim to light them. The cards list it first, rung by rung, and the header's path steps through it in order (*tutorial › tutorial › 3. A voice*).
 
 ### Changed
@@ -43,6 +48,7 @@ that makes the change. Also note changes to the language that could affect saved
 
 ### Fixed
 - `rung=` accepts 1 to 9999 (a huge number was read as 1e20), and warns on a card without the `tutorial` tag, where it was silently ignored. A piece with `rung=` over 9999 now fails to parse; none of the examples do (#186).
+- A kit member that is switched off is no longer connected to the master; it played no notes, so nothing audible changes (#166). Saved `.cells` pieces are not affected.
 - A library of tutorial pieces only no longer hangs the layout (not reachable in the app, where examples always exist) (#186).
 - Keyboard focus is visible on every button (the piece picker's cards, the sheet's close button): 68 of the first 120 Tab stops showed no ring (#135). Saved `.cells` pieces are not affected.
 - In the live view, a chord of voices in a groove (`[&bd, &hh]`) lights each of its voices while it sounds (before, they stayed dark). Saved `.cells` pieces are not affected.

@@ -3,7 +3,8 @@
   /**
    * The golden graph: the real Graph (src/ui/Graph.svelte) on the golden piece, laid out by the app as it lays out any piece,
    * once stopped and once at a moment of play (the live state at ?t=3, a made-up sound). One frame per state, fixed in size.
-   * ?only=word,word draws those examples instead (`node tools/gallery.mjs golden 3 canon`): any piece in the real Graph.
+   * ?only=word,word draws those examples instead (`node tools/gallery.mjs golden 3 canon`): any piece in the real Graph;
+   * ?src= a source of its own (`CELLS=piece.cells node tools/gallery.mjs golden`).
    */
   import Graph from '../../../src/ui/Graph.svelte';
   import { buildGraph } from '../../../src/engine/graph';
@@ -14,8 +15,9 @@
   const params = new URLSearchParams(location.search);
   const seconds = Number(params.get('t') ?? 3);
   const only = params.get('only')?.split(',').filter(Boolean) ?? [];
-  const piece = pieceOf('golden', golden.source, seconds);
-  if (!piece) throw new Error('the golden graph does not compile');
+  const src = params.get('src');
+  const piece = src ? pieceOf('source', src, seconds) : pieceOf('golden', golden.source, seconds);
+  if (!piece) throw new Error(src ? 'the source does not compile' : 'the golden graph does not compile');
   const frames = (only.length ? pieces(seconds, only) : [piece]).flatMap((p) => {
     const model = buildGraph(p.program);
     return [

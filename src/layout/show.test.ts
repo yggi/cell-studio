@@ -24,7 +24,7 @@ const errors = (src: string) => compileSource(src).diagnostics.filter((d) => d.s
 describe('show=', () => {
   it('reads one of the shows; says which when it isn’t', () => {
     expect(compileSource('&t show=do 0').cells.get('t')!.show).toBe('do');
-    expect(errors('&t show=fancy 0')[0].message).toMatch(/show=fancy: not a show \(braid pattern notes midi do.*no plugin of that name/);
+    expect(errors('&t show=fancy 0')[0].message).toMatch(/show=fancy: not a show \(braid pattern equal notes midi do.*no plugin of that name/);
   });
   it('a plugin of the piece is a show of its own, for the kinds it says; not passed down', () => {
     const src = [

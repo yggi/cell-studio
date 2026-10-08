@@ -1,10 +1,9 @@
 <script lang="ts">
-  /** The sheet: every kind of wheel (fixtures.ts), the library's piece wheels and the braid's token wheel. */
+  /** The sheet: every kind of wheel (fixtures.ts) and the library's piece wheels. (A cell's sheet draws its graph wheel, larger.) */
   import Fixture from './Fixture.svelte';
   import { fixtures } from './fixtures';
   import { pieces as examples } from '../pieces';
   import PieceNode from '../../../src/ui/PieceNode.svelte';
-  import TokenWheel, { type WheelToken } from '../../../src/ui/TokenWheel.svelte';
   import { tagColours } from '../../../src/ui/tags';
   import type { Entry } from '../../../src/ui/entries';
   import { compileSource } from '../../../src/engine/compile';
@@ -43,16 +42,6 @@
     { label: 'no tags', entry: { ...base, id: 'harness:none', tags: [] } },
   ];
   const colours = tagColours(pieces.flatMap((p) => p.entry.tags));
-
-  // the braid's token wheel (the sheet's editor): notes, references, a rest and a chord; and long numbers
-  const tok = (label: string, hue: number | null, kind: WheelToken['kind'] = 'note', weight = 1): WheelToken => ({ label, hues: hue === null ? null : [hue], weight, kind });
-  const tokenSets: { label: string; tokens: WheelToken[] }[] = [
-    {
-      label: 'notes, a reference, a rest, a chord',
-      tokens: [tok('0', 0), tok('2', 60), tok('4', 120), tok('&riff', null, 'ref', 2), tok('~', null, 'rest'), { label: '[0,4,7]', hues: [0, 120, 210], weight: 1, kind: 'chord' }],
-    },
-    { label: 'values', tokens: ['2.3429', '1.1047', '1.2224', '1.3501', '1.7346', '1.9168', '2.1191', '4'].map((v, i) => tok(v, (i * 45) % 360)) },
-  ];
 </script>
 
 <main>
@@ -76,23 +65,6 @@
         <figcaption><b>piece · {pc.label}</b></figcaption>
         <div class="row" data-where="library">
           {#each [80, 136, 220] as s (s)}<PieceNode entry={pc.entry} {colours} size={s} labels />{/each}
-        </div>
-      </figure>
-    {/each}
-  </div>
-  <h2>A cell's sheet · the braid</h2>
-  <div class="list">
-    {#each tokenSets as ts (ts.label)}
-      <figure data-kind="sheet:token:{ts.label.split(',')[0].replace(' ', '-')}">
-        <figcaption><b>token · {ts.label}</b></figcaption>
-        <div class="row" data-where="sheet">
-          {#each [120, 176, 232] as s (s)}<TokenWheel
-              tokens={ts.tokens}
-              size={s}
-              hub={{ big: String(ts.tokens.length), small: 'steps' }}
-              onpick={() => {}}
-              onhub={() => {}}
-            />{/each}
         </div>
       </figure>
     {/each}

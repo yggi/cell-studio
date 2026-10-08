@@ -16,15 +16,22 @@
    */
   import { BaseEdge, type EdgeProps } from '@xyflow/svelte';
   import { untrack } from 'svelte';
-  import { loomPaths, radialPath, ripplePath, splinePoint, strandPath } from '../layout/geometry';
-  import { cellView, type Fill } from '../layout/cellview';
+  import { loomParts, loomPaths, radialPath, ripplePath, splinePoint, strandPath } from '../layout/geometry';
+  import { cellView, type Fill, type Segment } from '../layout/cellview';
   import { pluginOf } from '../layout/show';
   import { isTurntable } from '../engine/graph';
   import { getGraphContext } from './context';
+  import { LOOM } from './flowedges';
   import { pitchHue } from '../theory/modes';
+  import { pickIndices } from '../engine/program';
+  import { tapRadius } from '../layout/wheel';
+  import { STRAND_GAP } from '../layout/looms';
+  import type { Pick } from '../engine/ast';
 
-  let { id, sourceX, sourceY, targetX, targetY, data, label, markerEnd, style }: EdgeProps = $props();
+  let { id: edgeId, sourceX, sourceY, targetX, targetY, data, label, markerEnd, style }: EdgeProps = $props();
   const ctx = getGraphContext();
+  // (a loom's ring is drawn as an edge of its own: it reads the bus's bends, taps and liveness)
+  const id = $derived(edgeId.endsWith(LOOM) ? edgeId.slice(0, -LOOM.length) : edgeId);
   const d = $derived(
     data as {
       band: string;
@@ -37,6 +44,10 @@
       phaseCell: string | null;
       voice: string | null;
       sizes?: { from: number; to: number };
+      picks?: Pick[];
+      ring?: number;
+      /** A bus round a loom is drawn in two parts: its run, and its ring as an edge of its own above every run. */
+      part?: 'run' | 'ring';
       net?: { id: string };
       off?: boolean;
       state?: string;
@@ -67,7 +78,10 @@
   });
 
   // (between a bus's strands)
-  const GAP = 4;
+  const GAP = STRAND_GAP;
+  // a loom round the source: the part this edge draws (its ring above every run, its run with the rest; whole if not split)
+  const ringOnly = $derived(d.part === 'ring');
+  const looming = (parts: { ring: string; run: string }[]) => parts.map((p) => (d.part === 'ring' ? p.ring : d.part === 'run' ? p.run : `${p.ring} L${p.run.slice(1)}`));
   // (the CV ports that carry notes; any other CV is a level: an envelope, a gain, a filter …)
   const PITCH_PORTS = new Set(['voice', 'pitch', 'play', 'write', 'braid', 'over']);
 
@@ -77,7 +91,8 @@
   const occurrences = $derived.by((): number[] => {
     // (only on a cell's own wheel: a scope, a plugin's wheel that says so, or a turntable has no segments to meet)
     const reader = ctx.program.cells.get(d.to);
-    if (d.port !== 'braid' || !rimOf(d.sizes?.to) || !reader || isTurntable(reader) || reader.params.scope || pluginOf(ctx.program, d.to)?.rim === false) return [];
+    if (d.port !== 'braid' || d.picks?.length || !rimOf(d.sizes?.to) || !reader || isTurntable(reader) || reader.params.scope || pluginOf(ctx.program, d.to)?.rim === false)
+      return [];
     void ctx.turned;
     const parent = ctx.program.cells.get(d.to);
     const units = new Set(parent?.units.flatMap((u, i) => (u.atom.kind === 'ref' && u.atom.name === d.from ? [i] : [])) ?? []);
@@ -108,22 +123,45 @@
   const count = $derived(view ? Math.min(STRANDS, d.width) : 0);
   // (a strand's place in the table: the entry it carries; a chord's strands run side by side)
   const entryOf = (i: number) => view?.segments[Math.floor((i * view.segments.length) / count)];
+  // a strand leaves its entry's tap (where the wheel draws it: the entry's own place, turned as it stands)
+  const tapOf = (v: NonNullable<typeof view>, sg: Segment) => v.taps?.[sg.index] ?? sg.at ?? (sg.t0 + sg.t1) / 2;
   const strandPaths = $derived.by(() => {
-    const r = rimOf(d.sizes?.from);
+    const r = d.sizes?.from ? tapRadius(d.sizes.from) : 0;
     const exits = d.table && r ? Array.from({ length: count }, (_, i) => entryOf(i)) : [];
     if (!exits.length || exits.some((s) => !s))
       return Array.from({ length: count }, (_, i) => strandPath(fromX, fromY, mid.x, mid.y, targetX, targetY, (i - (count - 1) / 2) * GAP));
-    const turns = exits.map((s) => (s!.t0 + s!.t1) / 2);
-    // a hop: out of the reader's wheel it comes on from, flared over the part of its rim facing this one, each strand
-    // at its place in the table's order
-    if (hop?.r) {
-      const way = Math.atan2(targetY - hop.y, targetX - hop.x) / (2 * Math.PI) + 0.25;
-      const spread = (1.5 * GAP) / (2 * Math.PI * hop.r);
-      const fan = turns.map((_, i) => way + (i - (turns.length - 1) / 2) * spread);
-      return loomPaths(hop.x, hop.y, hop.r, fan, mid.x, mid.y, targetX, targetY, GAP);
+    const turns = exits.map((s) => tapOf(view!, s!));
+    // a hop: the bus goes on out of the hub of the reader it came into, flat, in the table's order
+    if (hop) return ringOnly ? [] : turns.map((_, i) => strandPath(hop.x, hop.y, mid.x, mid.y, targetX, targetY, (i - (turns.length - 1) / 2) * GAP));
+    // out of each entry's tap, round the source's loom, into a bundle towards the reader
+    return looming(loomParts(sourceX, sourceY, r, turns, mid.x, mid.y, targetX, targetY, GAP, d.ring ?? 0));
+  });
+  // A reference that picks (&key[0], &maj's &key[0] &key[4] &key[7]): a strand from each tap it reads, in the colour
+  // the wheel pushes there — one straight out of its tap, several through the loom; as written ($): from the hub.
+  const picked = $derived.by(() => {
+    if (!d.picks?.length || !d.sizes?.from) return null;
+    void ctx.turned;
+    const v = cellView(ctx.program, d.from, shown, false);
+    if (!v || !v.segments.length) return null;
+    const taps: { t: number; fill: Fill | undefined }[] = [];
+    let hub = false;
+    for (const p of d.picks) {
+      if (p.abs) hub = true;
+      else
+        for (const i of pickIndices(v.detents, p) ?? []) {
+          const sg = v.segments.find((x) => x.index === i);
+          if (sg) taps.push({ t: tapOf(v, sg), fill: sg.bands[0] });
+        }
     }
-    // out of each entry, along the radius, into a bundle towards the reader
-    return loomPaths(sourceX, sourceY, r, turns, mid.x, mid.y, targetX, targetY, GAP);
+    return { taps, hub };
+  });
+  const pickPaths = $derived.by(() => {
+    if (!picked?.taps.length) return [];
+    const r = tapRadius(d.sizes!.from);
+    const turns = picked.taps.map((x) => x.t);
+    return turns.length === 1
+      ? [radialPath(targetX, targetY, control, sourceX, sourceY, r, turns[0], true)]
+      : looming(loomParts(sourceX, sourceY, r, turns, mid.x, mid.y, targetX, targetY, GAP, d.ring ?? 0));
   });
   // a wheel's fill, coloured as its wheel colours it: a note its pitch colour (the palette's, its place on its grid
   // already found), a level on the neutral hue
@@ -135,7 +173,7 @@
     const turns = d.tines.map((_, i) => i / n);
     // (the resonator is the edge's end when the tune plays it, its start when the tune reads through it)
     return d.port === 'over'
-      ? loomPaths(sourceX, sourceY, (d.sizes.from / 2) * 1.2, turns, mid.x, mid.y, targetX, targetY, GAP)
+      ? looming(loomParts(sourceX, sourceY, (d.sizes.from / 2) * 1.2, turns, mid.x, mid.y, targetX, targetY, GAP, d.ring ?? 0))
       : loomPaths(targetX, targetY, (d.sizes.to / 2) * 1.2, turns, mid.x, mid.y, sourceX, sourceY, GAP);
   });
   const tineStrands = $derived.by(() => {
@@ -148,14 +186,8 @@
   });
   const strands = $derived.by((): { colour: string; dim: boolean }[] => {
     if (!view) return [];
-    if (d.table) {
-      // the table's entries, as its wheel colours them; while it plays, the ones looked up now lit
-      const lit = isLive ? ctx.heads.cells.get(d.table)?.entries : undefined;
-      return Array.from({ length: count }, (_, i) => {
-        const s = entryOf(i);
-        return { colour: fillColour(s?.bands[0]), dim: !!lit?.size && !!s && !lit.has(s.index) };
-      });
-    }
+    // the table's entries, as its wheel colours them: what it pushes, whoever reads which
+    if (d.table) return Array.from({ length: count }, (_, i) => ({ colour: fillColour(entryOf(i)?.bands[0]), dim: false }));
     // a chord: the notes under the playhead of the cell it comes from (stopped, or a rest: every strand still)
     const local = isLive ? ctx.heads.cells.get(d.from)?.local : null;
     const t = local == null ? null : local / Math.max(1, ctx.program.cells.get(d.from)?.steps ?? 1);
@@ -224,7 +256,7 @@
 {/if}
 {#if strands.length}
   <g class={`bus edge-${state}`}>
-    {#if !(d.table && rimOf(d.sizes?.from))}
+    {#if !(d.table && rimOf(d.sizes?.from)) && !ringOnly}
       <path class="bus-sheath" d={spline} style={`stroke-width: ${strands.length * GAP + 6}px`} />
     {/if}
     {#each strands as s, i (i)}
@@ -232,22 +264,31 @@
     {/each}
   </g>
 {/if}
-{#each lockedPaths.slice(1) as p, i (i)}
-  <path class={`svelte-flow__edge-path edge-${state}`} d={p} style={edgeStyle} />
-{/each}
-<BaseEdge
-  {id}
-  {path}
-  {markerEnd}
-  style={edgeStyle}
-  class={`edge-${state}${strands.length || tineStrands.length ? ' bus-core' : ''}`}
-  {label}
-  labelX={mid.x}
-  labelY={mid.y}
-  labelStyle={d.off ? 'opacity: 0.3' : colour ? `border-color: ${colour}` : undefined}
-/>
-{#if dot}
-  <circle class="pulse" cx={dot.x} cy={dot.y} r={d.band === 'sync' ? 4.5 : 6} style={colour ? `fill: ${colour}` : undefined} />
+{#if pickPaths.length}
+  <g class={`bus edge-${state}`}>
+    {#each pickPaths as p, i (i)}
+      <path d={p} style={`stroke: ${fillColour(picked!.taps[i].fill)}`} />
+    {/each}
+  </g>
+{/if}
+{#if !ringOnly}
+  {#each lockedPaths.slice(1) as p, i (i)}
+    <path class={`svelte-flow__edge-path edge-${state}`} d={p} style={edgeStyle} />
+  {/each}
+  <BaseEdge
+    {id}
+    {path}
+    {markerEnd}
+    style={edgeStyle}
+    class={`edge-${state}${strands.length || tineStrands.length || (pickPaths.length && !picked?.hub) ? ' bus-core' : ''}`}
+    {label}
+    labelX={mid.x}
+    labelY={mid.y}
+    labelStyle={d.off ? 'opacity: 0.3' : colour ? `border-color: ${colour}` : undefined}
+  />
+  {#if dot}
+    <circle class="pulse" cx={dot.x} cy={dot.y} r={d.band === 'sync' ? 4.5 : 6} style={colour ? `fill: ${colour}` : undefined} />
+  {/if}
 {/if}
 
 <style>

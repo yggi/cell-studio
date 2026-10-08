@@ -7,11 +7,12 @@
 //   SIZES=32,44,64 STOPPED=1 OUT=shots/fast node tools/gallery.mjs wheels --fast   (wheels: sizes, stopped)
 //   node tools/gallery.mjs edges                              # every kind of edge, in every state
 //   node tools/gallery.mjs mockups                            # the design questions of #107 (Mockups.svelte)
+//   CELLS=piece.cells node tools/gallery.mjs golden           # any source in the real Graph, stopped and live
 //
 // Writes <OUT>/sheet.png (the whole page), <OUT>/tiles/<kind>.png (one per kind: a <figure data-kind>), <OUT>/index.html
 // (the tiles) and <OUT>/<subject>.json. OUT defaults to shots/<subject>-fast (mockups: shots/wheel-mockups).
 import { createServer } from 'vite';
-import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { chromium } from '../profile/playwright.mjs';
 
@@ -31,6 +32,8 @@ const q = new URLSearchParams({ subject, t: secs });
 if (only.length) q.set('only', only.join(','));
 if (process.env.SIZES) q.set('sizes', process.env.SIZES);
 if (process.env.STOPPED) q.set('stopped', '');
+// (golden: CELLS=piece.cells draws that source instead, in the real Graph)
+if (process.env.CELLS) q.set('src', readFileSync(process.env.CELLS, 'utf8'));
 const url = `${server.resolvedUrls.local[0]}tools/gallery/harness.html?${q}`;
 const browser = await chromium.launch({ args: ['--no-sandbox'] });
 const page = await browser.newPage({ viewport: { width: { edges: 2560, golden: 2840 }[subject] ?? 1500, height: 1000 }, deviceScaleFactor: scale });
@@ -38,7 +41,8 @@ const problems = [];
 page.on('pageerror', (e) => problems.push(e.message));
 page.on('console', (m) => m.type() === 'error' && !/Failed to load resource/.test(m.text()) && problems.push(m.text()));
 page.on('response', (r) => r.status() >= 400 && !/favicon/.test(r.url()) && problems.push(`${r.status()} ${r.url()}`));
-await page.goto(url);
+// (a cold dev server compiles the app's modules on the first load: that can take longer than playwright's 30 s)
+await page.goto(url, { timeout: 120000 });
 if (mockups) {
   // the design questions (#107): a picture of each, and of the whole page
   await page.waitForSelector('section[data-mock]', { timeout: 60000 });

@@ -19,6 +19,8 @@
   /**
    * `interactive`: the rim turns the cell (detail sheet). In the graph the whole node just drags.
    * `fine`: draw every step of a long braid; by default one over ~160 segments is drawn coarser (`coarsen`).
+   * The sheet's editing, on the same wheel: `tokens` the steps as written (a label on each), `onpick` a tap on a step
+   * (its written index), `onhub` a tap on the hub.
    */
   let {
     name,
@@ -26,12 +28,18 @@
     size = 128,
     interactive = false,
     fine = false,
+    tokens,
+    onpick,
+    onhub,
   }: {
     name: string;
     isMeter: boolean;
     size?: number;
     interactive?: boolean;
     fine?: boolean;
+    tokens?: readonly string[];
+    onpick?: (index: number) => void;
+    onhub?: () => void;
   } = $props();
   const ctx = getGraphContext();
 
@@ -43,6 +51,8 @@
   const k = $derived(geo.k);
   const rInner = $derived(geo.rInner);
   const EPS = 1e-9;
+  // (a table's hub that selects: the slots coming in, a ring inside the hub)
+  const hubRing = $derived({ r0: geo.rHub * 0.58, r1: geo.rHub * 0.86 });
 
   // A node can outlive its cell for a frame when the program changes (preset switch); render empty then.
   const EMPTY: CellView = { mode: 'grid', segments: [], ticks: 0, detents: 1 };
@@ -80,8 +90,8 @@
   // motion, subtle: a turn eases into place; a hub value that changes pops, once
   let spin = $state(0);
   let easing = $state(false);
-  // a braid's steps rotate as it turns: its new first step was at that step's start in the old
-  // drawing, so start turned to there and ease home. A table's entries stay put (its hub says the change).
+  // the inner wheel turns (a braid's steps, a table's entries): the new first was at its place in the old drawing,
+  // so start turned to there and ease home under the marker
   // (one pending frame each for the turn and the pop: a newer one replaces it, and none outlives the wheel)
   let turnFrame = 0;
   let popFrame = 0;
@@ -91,13 +101,14 @@
   $effect(() => {
     const now = shown(name);
     const v = full;
-    if (shownBefore !== null && viewBefore && now !== shownBefore && v.mode === 'braid' && v.detents > 0 && !fast) {
+    if (shownBefore !== null && viewBefore && now !== shownBefore && (v.mode === 'braid' || v.mode === 'grid') && v.detents > 0 && !fast) {
       const delta = now - shownBefore;
       const k = ((delta % v.detents) + v.detents) % v.detents;
       const first = viewBefore.segments.find((sg) => sg.index === k);
       if (first) {
         easing = false;
-        spin = (delta > 0 ? first.t0 : first.t0 - 1) * 360;
+        const at = first.at ?? first.t0;
+        spin = (delta > 0 ? at : at - 1) * 360;
         cancelAnimationFrame(turnFrame);
         turnFrame = requestAnimationFrame(() => (turnFrame = requestAnimationFrame(() => ((easing = true), (spin = 0)))));
       }
@@ -120,7 +131,7 @@
   const base = $derived(cell ? voiceBase(ctx.program, name) : 261.63);
   const tonic = $derived(cell ? tonicOf(ctx.program, name) : 0);
   const labels = $derived.by(() => {
-    if (!view.show || !names(view.show)) return [];
+    if (tokens?.length || !view.show || !names(view.show)) return [];
     const r = (rInner + rOuter) / 2;
     return view.segments.flatMap((sg) => {
       const n = sg.notes?.[sg.notes.length - 1];
@@ -131,6 +142,24 @@
       if (!text) return [];
       const [x, y] = polar(c, c, r, (sg.t0 + sg.t1) / 2);
       return [{ x, y, text, wide: sg.t1 - sg.t0 }];
+    });
+  });
+  // the sheet: each written step's span on the ring (its segments, as turned), and its token there
+  const units = $derived.by(() => {
+    if (!tokens?.length || (view.mode !== 'braid' && view.mode !== 'grid')) return [];
+    const n = tokens.length;
+    const spans = new Map<number, { t0: number; t1: number }>();
+    for (const sg of view.segments) {
+      const sp = spans.get(sg.index);
+      spans.set(sg.index, sp ? { t0: Math.min(sp.t0, sg.t0), t1: Math.max(sp.t1, sg.t1) } : { t0: sg.t0, t1: sg.t1 });
+    }
+    const r = (rInner + rOuter) / 2;
+    return [...spans].map(([index, sp]) => {
+      const written = mod(index + shownShift, n);
+      const text = tokens[written] ?? '';
+      const [x, y] = polar(c, c, r, (sp.t0 + sp.t1) / 2);
+      const font = Math.max(7, fitFont(Math.min((sp.t1 - sp.t0) * Math.PI * (rInner + rOuter), rOuter - rInner) * 0.9, Math.max(2, text.length), 15, 0) ?? 7);
+      return { written, x, y, text, font, d: ringSegment(c, c, rInner, rOuter, sp.t0, sp.t1) };
     });
   });
   // show=matrix: a selector's barrel — a ring per part, a pin where a step picks it
@@ -202,9 +231,10 @@
   const label = $derived(cell ? hubLabel(ctx.program, name, shown, isMeter, hasLive ? bar : null) : { big: '', small: '' });
   // the hub's text fits the hub, or is left out (a petal's hub has room for a number, not a sentence); its
   // second line from 80 px up
-  const hubWidth = $derived(2 * geo.rHub * 0.86);
+  const hubWidth = $derived(2 * (view.hub ? hubRing.r0 : geo.rHub) * 0.86);
   const bigFont = $derived(fitFont(hubWidth, label.big.length, hubMax(size)));
-  const smallFont = $derived(size >= 80 && label.small ? fitFont(hubWidth, label.small.length, 11, 7) : null);
+  // (a hub with its ring has room for the count alone)
+  const smallFont = $derived(size >= 80 && label.small && !view.hub ? fitFont(hubWidth, label.small.length, 11, 7) : null);
 
   // an accidental is striped: its own colour and the natural's (a semitone back for a sharp)
   const uid = `g${++glyphs}`;
@@ -282,31 +312,58 @@
   const brightness = $derived.by(() => {
     if (view.show !== 'brightness' || view.mode !== 'grid' || view.ticks < 2) return null;
     const lap = view.ticks;
-    const at = view.segments.map((sg) => Math.round(sg.t0 * lap));
+    const at = view.segments.map((sg) => Math.round((sg.at ?? sg.t0) * lap));
     const sums = at.map((p) => at.reduce((sum, q) => sum + ((((q - p) % lap) + lap) % lap), 0));
     const [lo, hi] = [Math.min(...sums), Math.max(...sums)];
     return sums.map((v) => (hi > lo ? (v - lo) / (hi - lo) : 0.5));
   });
   const fills = $derived(view.segments.map((s, i) => (brightness ? s.bands.map(() => blockColour(brightness[i])) : s.bands.map(fillOf))));
 
-  // What space the wheel is drawn in, said by its rim (docs/notes/nets.md, the wheels): a table, scale, key or grid
-  // is laid out by pitch — its rim the grid, a rainbow of its steps, those it holds bright (a sieve); a braid by time —
-  // its rim a clock, a tick a step. (A meter, a curve, an LFO, a barrel: their own.)
+  // What space the wheel is drawn in: a table, scale, key or grid is laid out by pitch (the slots it takes from the
+  // table below come in at its hub); a braid by time — its rim a clock, a tick a step. (A meter, a curve, an LFO, a
+  // barrel: their own.)
   const pitched = $derived(view.segments.some((sg) => sg.bands[0]?.kind === 'pitch'));
   const space = $derived(isMeter || !pitched ? null : view.mode === 'grid' ? 'pitch' : view.mode === 'braid' ? 'time' : null);
-  const pitchRim = $derived.by(() => {
-    if (space !== 'pitch' || view.ticks < 2 || view.ticks > 128) return [];
-    const lap = view.ticks;
-    return Array.from({ length: lap }, (_, p) => {
-      const held = view.segments.find((sg) => Math.abs(sg.t0 * lap - p) < 1e-6);
-      const f = held?.bands[0];
-      const hue = f?.kind === 'pitch' ? f.hue : (p / lap) * 360;
-      return { d: ringSegment(c, c, geo.tick.r0, geo.tick.r1 + k, p / lap + 0.002, (p + 1) / lap - 0.002), fill: noteColour(hue, !held), held: !!held };
-    });
+  // the hub of a table that selects (a mode from its key): the slots coming in, a ring inside the hub, the ones it
+  // takes bright; and the gear, a wire from each slot taken out to its entry. They turn with the ring.
+  const hubSlots = $derived(
+    view.hub?.slots.map((sl) => ({ d: ringSegment(c, c, hubRing.r0, hubRing.r1, sl.t0 + 0.003, sl.t1 - 0.003), fill: fillOf(sl.fill), held: sl.held })) ?? [],
+  );
+  const gears = $derived(
+    view.hub?.gears.map((g) => {
+      const [x1, y1] = polar(c, c, hubRing.r1, g.from);
+      const [qx, qy] = polar(c, c, (hubRing.r1 + rInner) / 2, (g.from + g.to + (Math.abs(g.to - g.from) > 0.5 ? 1 : 0)) / 2);
+      const [x2, y2] = polar(c, c, rInner, g.to);
+      return { d: `M${x1.toFixed(1)},${y1.toFixed(1)} Q${qx.toFixed(1)},${qy.toFixed(1)} ${x2.toFixed(1)},${y2.toFixed(1)}`, stroke: fillOf(g.fill) };
+    }) ?? [],
+  );
+  // the taps: where each entry leaves the wheel, on a ring of their own outside it (drawn whether wired or not)
+  const tapR = $derived(geo.rTap);
+  const taps = $derived(
+    (view.taps ?? []).map((t, i) => {
+      const [x, y] = polar(c, c, tapR, t);
+      const sg = view.segments.find((s) => s.index === i);
+      return { x, y, fill: sg ? fillOf(sg.bands[0]) : 'var(--edge)' };
+    }),
+  );
+  // the marker: fixed at 12 o'clock, over the first entry (a table's always; a braid's once it is turned)
+  const marker = $derived.by(() => {
+    if (!(view.mode === 'grid' && view.taps) && !(view.mode === 'braid' && shownShift !== 0)) return null;
+    const w = Math.max(4, size * 0.05);
+    const tip = c - rOuter + 1;
+    const top = c - rOuter - margin - w * 0.6;
+    return `M${c - w * 0.7},${top} L${c + w * 0.7},${top} L${c},${tip} Z`;
+  });
+  // the first entry, under the marker: outlined
+  const first = $derived.by(() => {
+    if (!view.taps) return null;
+    const sg = view.segments.find((s) => s.index === 0);
+    return sg ? ringSegment(c, c, rInner, rOuter, sg.t0, sg.t1) : null;
   });
   // the sieve: a table's wedge is bright for its own step of the grid; the steps it leaves out, to its next entry, dark
+  // (show=equal: every entry the same width, nothing to sieve)
   const sieve = $derived.by(() => {
-    if (space !== 'pitch' || view.ticks < 2) return [];
+    if (space !== 'pitch' || view.ticks < 2 || view.show === 'equal') return [];
     const step = 1 / view.ticks;
     return view.segments.filter((sg) => sg.t1 - sg.t0 > step * 1.01).map((sg) => ringSegment(c, c, rInner, rOuter, sg.t0 + step, sg.t1));
   });
@@ -352,13 +409,6 @@
         if (s.index === mod(e, k)) set.add(i);
       });
     return set;
-  });
-  // … and where its 0 has gone (shifted): a notch at the rim, at the entry now first
-  const zero = $derived.by(() => {
-    // (as it stands now: a stepped table turns as it plays)
-    if (view.mode === 'braid' || !shownShift || !view.detents) return null;
-    const sg = view.segments.find((sg) => sg.index === mod(shownShift, view.detents));
-    return sg ? sg.t0 : null;
   });
   const polarAt = (t: number, r: number) => {
     const [x, y] = polar(c, c, r, t);
@@ -440,11 +490,17 @@
     if (!dragging) return;
     e.stopPropagation();
     dragging = false;
+    // a tap on a step, in the sheet: edit it
+    if (travelled < 0.02 && onpick && units.length) {
+      const t = pointerTurn(e);
+      const hit = view.segments.find((x) => mod(t - x.t0, 1) < x.t1 - x.t0);
+      if (hit) onpick(mod(hit.index + shownShift, tokens!.length));
+    }
     // a tap on the root or a 12-tone table jumps straight to that slot
-    if (travelled < 0.02 && view.mode === 'grid' && !isMeter && view.detents === view.ticks) {
+    else if (travelled < 0.02 && view.mode === 'grid' && !isMeter && view.detents === view.ticks) {
       const tapped = Math.round(pointerTurn(e) * view.ticks);
-      const zero = view.segments.find((s) => s.index === 0)!;
-      const delta = mod(tapped - Math.round(zero.t0 * view.ticks) + view.ticks / 2, view.ticks) - view.ticks / 2;
+      // (the first entry is under the marker at the top: the slot tapped is that many on)
+      const delta = mod(tapped + view.ticks / 2, view.ticks) - view.ticks / 2;
       if (delta) ctx.turn(name, shift + delta);
     }
     unwrapped = 0;
@@ -481,11 +537,17 @@
   {/if}
   <circle class="disc" cx={c} cy={c} r={geo.rDisc} />
   {#each ticks as t}<line class="tick" style:stroke-width="{geo.tick.width}px" x1={t.x1} y1={t.y1} x2={t.x2} y2={t.y2} />{/each}
-  {#each pitchRim as r, i (i)}<path class="pitch-rim" class:held={r.held} d={r.d} fill={r.fill} />{/each}
   {#if clockTicks.length}
     <circle class="clock-rim" cx={c} cy={c} r={geo.tick.r0} style:stroke-width="{geo.tick.width}px" />
     {#each clockTicks as t, i (i)}<line class="clock-tick" class:long={t.long} style:stroke-width="{geo.tick.width}px" x1={t.x1} y1={t.y1} x2={t.x2} y2={t.y2} />{/each}
   {/if}
+  {#snippet inner()}
+    {#if hubSlots.length}
+      <circle class="hub" cx={c} cy={c} r={hubRing.r1 + 1} />
+      {#each hubSlots as sl, i (i)}<path class="hub-slot" class:held={sl.held} d={sl.d} fill={sl.fill} />{/each}
+      {#each gears as g, i (i)}<path class="gear" d={g.d} stroke={g.stroke} style:stroke-width="{Math.max(1, 1.8 * k)}px" />{/each}
+    {/if}
+  {/snippet}
   {#snippet slots()}
     {#each geometry as slot, i}
       <g class="slot" class:lit={lit.has(i)} stroke-width={slot.w}>
@@ -510,14 +572,19 @@
     >
       {@render slots()}
       {#each sieve as d, i (i)}<path class="sieve" {d} />{/each}
+      {@render inner()}
     </g>
   {:else}
     <g class="rim" class:easing style="transform: rotate({spin}deg); transform-origin: {c}px {c}px">
       {@render slots()}
       {#each sieve as d, i (i)}<path class="sieve" {d} />{/each}
       {#if meterLit}<path class="meter-now" d={meterLit} />{/if}
+      {@render inner()}
     </g>
   {/if}
+  {#if first}<path class="first" d={first} />{/if}
+  {#each taps as t, i (i)}<circle class="tap" cx={t.x} cy={t.y} r={Math.max(1.6, 2.6 * k)} fill={t.fill} stroke={t.fill} />{/each}
+  {#if marker}<path class="marker" d={marker} />{/if}
   {#if lfoPath}
     <circle class="lfo-rim" cx={c} cy={c} r={rInner + (rOuter - rInner) * 0.12} />
     <circle class="lfo-rim" cx={c} cy={c} r={rInner + (rOuter - rInner) * 0.88} />
@@ -531,13 +598,27 @@
   {#each beatLabels as l}
     <text class="beat" x={l.x} y={l.y} font-size={Math.max(7, size / 13)}>{l.text}</text>
   {/each}
+  {#each units as u (u.written)}
+    <text class="steplabel token" x={u.x} y={u.y} font-size={u.font}>{u.text}</text>
+    <!-- (each step a button for the keyboard and screen readers; a pointer's tap goes to the rim, which tells taps from turns) -->
+    {#if onpick}
+      <path
+        class="step-button"
+        d={u.d}
+        role="button"
+        tabindex="0"
+        aria-label="step {u.written + 1}: {u.text}"
+        onkeydown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), onpick(u.written))}
+      />
+    {/if}
+  {/each}
   {#each labels as l}
     <text class="steplabel" x={l.x} y={l.y} font-size={Math.max(6, Math.min(11, size / 12, l.wide * size * 1.2))}>{l.text}</text>
   {/each}
   {#if curve}
     <polyline class="curve" points={curvePoints} />
   {:else}
-    <circle class="hub" cx={c} cy={c} r={geo.rHub} />
+    <circle class="hub" cx={c} cy={c} r={view.hub ? hubRing.r0 - 1 : geo.rHub} />
   {/if}
   {#if curve}
     {#each envLabels as l (l.text)}<text class="envlabel" x={l.x} y={l.y} style:text-anchor={l.anchor} style:font-size="{envFont}px">{l.text}</text>{/each}
@@ -546,7 +627,21 @@
       >{/if}
     {#if smallFont}<text class="small" x={c} y={c + (bigFont ?? 0) * 0.1} dy="1.45em" style:font-size="{smallFont}px">{label.small}</text>{/if}
   {/if}
-  {#if shownShift !== 0 && size >= 80}<text class="shift" x={c} y={c - rInner * 0.5}>{shownShift > 0 ? '+' : ''}{shownShift}</text>{/if}
+  {#if shownShift !== 0 && size >= 80 && !view.hub}<text class="shift" x={c} y={c - rInner * 0.5}>{shownShift > 0 ? '+' : ''}{shownShift}</text>{/if}
+  {#if onhub}
+    <circle
+      class="hub-button"
+      cx={c}
+      cy={c}
+      r={geo.rHub}
+      role="button"
+      tabindex="0"
+      aria-label="Edit the whole braid"
+      onclick={onhub}
+      onkeydown={(e) => (e.key === 'Enter' || e.key === ' ') && onhub()}
+    />
+    {#if size >= 160}<text class="pen" x={c} y={c + geo.rHub * 0.62}>✎</text>{/if}
+  {/if}
   {#if hand !== null}
     <g class="hand" style="transform: rotate({hand * 360}deg); transform-origin: {c}px {c}px">
       <line class="edge" x1={c} y1={c - geo.hand.r0} x2={c} y2={c - geo.hand.r1} style:stroke-width="{geo.hand.width + 2}px" />
@@ -555,15 +650,9 @@
   {/if}
   {#each meterAt ? [] : [...accessed] as i (i)}
     {@const sg = view.segments[i]}
-    {@const p = polarAt((sg.t0 + sg.t1) / 2, rInner + (rOuter - rInner) * 0.22)}
+    {@const p = polarAt(sg.at ?? (sg.t0 + sg.t1) / 2, rInner + (rOuter - rInner) * 0.22)}
     <circle class="read" cx={p.x} cy={p.y} r={Math.max(2.2, size * 0.022)} />
   {/each}
-  {#if zero !== null}
-    {@const a = polarAt(zero, rOuter + 1 * k)}
-    {@const b = polarAt(zero - 0.018, rOuter + margin)}
-    {@const d = polarAt(zero + 0.018, rOuter + margin)}
-    <path class="zero" d="M{a.x},{a.y} L{b.x},{b.y} L{d.x},{d.y} Z" />
-  {/if}
 </svg>
 
 <style>
@@ -633,13 +722,7 @@
   .tick {
     stroke: var(--wheel-tick);
   }
-  /* the rim says the space: pitch, the grid's rainbow (the steps a table holds bright); time, a clock */
-  .pitch-rim {
-    opacity: 0.45;
-  }
-  .pitch-rim.held {
-    opacity: 1;
-  }
+  /* the rim says the space: time, a clock */
   .sieve {
     fill: var(--wheel-disc);
     opacity: 0.62;
@@ -703,6 +786,31 @@
   .hub {
     fill: var(--wheel-hub);
   }
+  /* the sheet: a step, for the keyboard (the pointer turns or taps the rim beneath) */
+  .step-button {
+    fill: transparent;
+    pointer-events: none;
+    outline: none;
+  }
+  .step-button:focus-visible {
+    stroke: var(--accent);
+    stroke-width: 2.5;
+  }
+  /* the sheet: the hub edits the whole braid */
+  .hub-button {
+    fill: transparent;
+    cursor: pointer;
+    outline: none;
+  }
+  .hub-button:focus-visible {
+    stroke: var(--accent);
+    stroke-width: 2;
+  }
+  .pen {
+    fill: var(--text-muted);
+    font-size: 12px;
+  }
+
   text {
     text-anchor: middle;
     font-family: var(--font-ui);
@@ -736,9 +844,32 @@
     stroke: var(--wheel-read-edge);
     stroke-width: 1;
   }
-  /* where a shifted table's 0 has gone: a notch at the rim */
-  .zero {
+  /* the marker at 12 o'clock, over the first entry; the first outlined */
+  .marker {
     fill: var(--text);
-    opacity: 0.85;
+    stroke: var(--wheel-disc);
+    stroke-width: 1.5;
+    stroke-linejoin: round;
+  }
+  .first {
+    fill: none;
+    stroke: var(--text);
+    stroke-width: 2;
+    stroke-linejoin: round;
+    pointer-events: none;
+  }
+  /* the taps: where entries leave the wheel; one nothing reads, hollow */
+  .tap {
+    stroke-width: 1.5;
+  }
+  .hub-slot {
+    opacity: 0.32;
+  }
+  .hub-slot.held {
+    opacity: 1;
+  }
+  .gear {
+    fill: none;
+    stroke-linecap: round;
   }
 </style>
