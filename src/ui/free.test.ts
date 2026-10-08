@@ -53,6 +53,13 @@ describe('a control from lo to hi (the slider and a knob alike)', () => {
     expect(freeScale(free({ key: 'loop', unit: 'hz', lo: 434, hi: 446 }))).toBe('linear');
     expect(freeScale(free({ key: 'param', lo: 0, hi: 5000 }))).toBe('linear');
   });
+  it('a log scale only for a frequency or a rate: a setting in Hz, a clock not in bpm; a wide drive= or index= stays straight', () => {
+    const wide = (o: Partial<FreeSpec>) => freeScale(free({ lo: 0.05, hi: 1, ...o }));
+    expect(['hpf', 'tone', 'wanderhz', 'dropout'].map((param) => wide({ key: 'param', param }))).toEqual(['log', 'log', 'log', 'log']);
+    expect(['drive', 'index', 'room', 'crush'].map((param) => wide({ key: 'param', param }))).toEqual(['linear', 'linear', 'linear', 'linear']);
+    expect(wide({ key: 'param', param: 'swing', unit: 'hz' })).toBe('log');
+    expect([wide({ key: 'step' }), wide({ key: 'loop', unit: 'hz' }), wide({ key: 'gain' }), wide({ key: 'chance' })]).toEqual(['log', 'log', 'linear', 'linear']);
+  });
   it('maps 0–127 onto a log and a straight range, both ends exact', () => {
     expect([knob(lpf, 0), knob(lpf, 127)]).toEqual([200, 5000]);
     expect([knob(tempo, 0), knob(tempo, 127)]).toEqual([60, 240]);

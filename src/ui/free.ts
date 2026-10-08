@@ -1,4 +1,5 @@
 import type { FreeSpec } from '../engine/ast';
+import { ATTRIBUTES } from '../engine/attributes';
 
 /**
  * A free(…) value in words, the same wherever it's shown (the pills on a node, the controls drawer,
@@ -49,14 +50,15 @@ export function freeValue(f: FreeSpec): string {
 }
 
 /**
- * How a control runs from lo to hi: `choice` a keypad's named choices, one each; `log` a rate or a setting over a
- * positive range of more than three octaves (a frequency: 200..5000), so each turn of the hand multiplies it alike;
- * `linear` everything else, in `freeStep`s (tempo whole bpm over a wide range). The slider and a MIDI knob both go
- * through `freeAt` and `freePosition`, so a knob is the slider.
+ * How a control runs from lo to hi: `choice` a keypad's named choices, one each; `log` a frequency or a rate (a
+ * setting in Hz, `attributes.ts`; a clock's step or loop not in bpm; a value written in hz) over a positive range of
+ * three octaves or more (200..5000), so each turn of the hand multiplies it alike; `linear` everything else, in
+ * `freeStep`s (tempo whole bpm, a `drive=` in hundredths). The slider and a MIDI knob both go through `freeAt` and
+ * `freePosition`, so a knob is the slider.
  */
 export function freeScale(f: FreeSpec): 'choice' | 'log' | 'linear' {
   if (f.labels) return 'choice';
-  const rate = f.key === 'param' || ((f.key === 'step' || f.key === 'loop') && f.unit !== 'bpm');
+  const rate = f.key === 'param' ? f.unit === 'hz' || !!(f.param && ATTRIBUTES[f.param]?.hz) : (f.key === 'step' || f.key === 'loop') && f.unit !== 'bpm';
   return rate && f.lo > 0 && f.hi / f.lo >= 8 ? 'log' : 'linear';
 }
 
