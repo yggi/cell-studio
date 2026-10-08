@@ -273,9 +273,12 @@ export function buildReport(r: ReportData): string {
   else {
     const p = r.audio.capacityProbe;
     const yn = (v: boolean | null) => (v === null ? '?' : v ? 'yes' : 'no');
-    lines.push(
-      `| Audio thread (renderCapacity) | no figures · in AudioContext.prototype: ${yn(p.inPrototype)} · on this context: ${yn(p.onContext)} · started: ${yn(p.started)} · update events since load: ${p.updates}${p.error ? ` · error: ${p.error}` : ''} |`,
-    );
+    // (the probe runs when the audio context is made, at the first Play: before that every answer is "?", not "no")
+    if (p.inPrototype === null && p.onContext === null) lines.push('| Audio thread (renderCapacity) | not asked yet: no audio context has been made (press Play, then Record) |');
+    else
+      lines.push(
+        `| Audio thread (renderCapacity) | no figures · in AudioContext.prototype: ${yn(p.inPrototype)} · on this context: ${yn(p.onContext)} · started: ${yn(p.started)} · update events since load: ${p.updates}${p.error ? ` · error: ${p.error}` : ''} |`,
+      );
   }
   lines.push(
     r.audio.playout

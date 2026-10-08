@@ -104,6 +104,11 @@ describe('latency and the audio thread', () => {
     expect(md).toMatch(/Latency tuning \| playback, look-ahead default · made-to-heard \(output timestamp\) 262\.5 ms · pictures held back 263 ms/);
     expect(md).toMatch(/Audio thread \(renderCapacity\) \| load mean 31 %, peak 55 % · missed deadlines: mean 0\.0 %, worst second 0\.0 % \(40 s\)/);
   });
+  it('says the probe has not run before any audio context exists', () => {
+    const md = buildReport(base({ audio: audio({ capacityProbe: { inPrototype: null, onContext: null, started: false, updates: 0, error: null } }) }));
+    expect(md).toMatch(/Audio thread \(renderCapacity\) \| not asked yet/);
+  });
+
   it('says why there is no audio-thread row', () => {
     const md = buildReport(base({ audio: audio({ capacityProbe: { inPrototype: false, onContext: false, started: false, updates: 0, error: null } }) }));
     expect(md).toMatch(/Audio thread \(renderCapacity\) \| no figures · in AudioContext.prototype: no · on this context: no · started: no · update events since load: 0/);
