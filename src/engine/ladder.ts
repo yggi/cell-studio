@@ -79,7 +79,7 @@ export const LADDER: readonly { readonly concept: string; readonly forms: readon
       'parameter crush',
     ],
   },
-  { concept: 'tables: over=, scale(), shift=; show= and size=', forms: ['attribute over', 'attribute shift', 'attribute show', 'attribute size'] },
+  { concept: 'tables: over=, scale(), shift=; show= and size=', forms: ['attribute over', 'attribute shift', 'attribute show', 'attribute size', 'generator scale(name)'] },
   { concept: 'motifs: splicing, reuse, degree()', forms: ['step &x', 'reference degree(&name, n)'] },
   { concept: 'chords and a progression: accidentals, a sum of pitches', forms: ['step [a, b, c]', 'step n#', 'mix a + b', 'mix ( … )'] },
   { concept: 'meter and feel: a bent bar, gates', forms: ['map map=amp', 'sort volume: map=amp, map=db or map=adsr'] },
@@ -152,6 +152,7 @@ export function formsUsed(source: string): Set<string> {
     ['sin', 'sin(n)'],
     ['meter', 'meter("sig")'],
     ['spell', 'spell("text", &table, "names")'],
+    ['scale', 'scale(name)'],
   ])
     if (new RegExp(`\\b${word}\\(`).test(code)) use(`generator ${form}`);
   if (TEMPO_MARKINGS.test(code)) use('free free(marking)');

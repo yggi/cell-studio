@@ -37,7 +37,8 @@ export function fieldsOf(result: CompileResult, name: string, shifts: Shifts, ne
       const r = resolvePitch(result, name, value, alter, shifts);
       return semitones(result, r.root, r.position);
     };
-    const table = [...result.cells.values()].some((x) => x.over === name);
+    // (a scale is a table, read or not)
+    const table = !!c.scan || [...result.cells.values()].some((x) => x.over === name);
     const pitches =
       table || c.root
         ? entries(result, name, shifts(name)).map((e) => pitchOf(e.value, e.alter))

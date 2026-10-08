@@ -170,7 +170,7 @@ export type MapSpec =
  */
 export interface FreeSpec {
   /** What it sets: a rate (step / loop), shift, stride, or a gain in a mix. */
-  readonly key: 'step' | 'loop' | 'shift' | 'stride' | 'gain' | 'interval' | 'chance' | 'text' | 'choice' | 'param';
+  readonly key: 'step' | 'loop' | 'shift' | 'stride' | 'gain' | 'interval' | 'chance' | 'text' | 'choice' | 'param' | 'tonic';
   /** For key 'param': which setting (lpf, swing …) it is. */
   readonly param?: string;
   readonly value: number;

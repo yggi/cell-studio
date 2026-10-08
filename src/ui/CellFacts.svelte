@@ -56,12 +56,11 @@
     if (c.voice) out.push(['pitch 0', `${fmt(c.freq)} Hz · ${noteName(c.freq)}`]);
     // tables, down to the grid
     if (c.over) {
-      // (scale(t, p) is shorthand: show it as written, not the cells it stands for)
+      // (scale(name, tonic) is shorthand: show it as written, not the cells it stands for)
       const shown: string[] = [];
       for (const t of tableChain(result, c.over)) {
-        const sc = /^scale:(-?\d+):(\d+)$/.exec(t);
-        if (sc) shown.push(`scale(${sc[1]},${sc[2]})`);
-        else if (!/^key:/.test(t)) shown.push(`&${t}`);
+        if (t.startsWith('scale:')) shown.push(result.cells.get(t)?.lambda ?? 'scale(…)');
+        else if (!t.startsWith('key:')) shown.push(`&${t}`);
       }
       out.push(['reads', shown.join(' → ')]);
     }

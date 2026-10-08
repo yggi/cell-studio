@@ -17,8 +17,8 @@ describe('a cell in words', () => {
     expect(text(summary(compileSource(PRESETS.metronome.source), 'bar'))).toMatch(/^A meter of 4 beats, 100 a minute\./);
     expect(text(summary(royal, 'lead'))).toMatch(/^A saw voice at C4, played by &theme/);
   });
-  it('a melody through the scale(t, p) shorthand says it as written', () => {
-    expect(text(summary(compileSource(PRESETS.waltz.source), 'tune'))).toBe('Plays 24 steps through scale(7,5), stepped by &bar, on &flute.');
+  it('a melody through the scale(name, tonic) shorthand says it as written', () => {
+    expect(text(summary(compileSource(PRESETS.waltz.source), 'tune'))).toBe('Plays 24 steps through scale(major, G), stepped by &bar, on &flute.');
   });
   it('an oscillation: how often, how far, what it moves', () => {
     const r = compileSource((PRESETS as Record<string, { source: string }>).cellscape.source);

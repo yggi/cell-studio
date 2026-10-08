@@ -393,27 +393,44 @@ describe('the sound card: &out loop=44k map=sample &left &right', () => {
   });
 });
 
-describe('scale(tonic, phase)', () => {
-  it('scale(0,2) is C Aeolian, scale(2,3) D Dorian, scale(7,5) G Ionian — and hidden from the graph', () => {
-    const r = compileSource('&a over=scale(0,2) 0 1 2 3 4 5 6 7\n&b over=scale(2,3) 0 1 2 3 4 5 6\n&c over=scale(7,5) 0 2 4');
+describe('scale(name, tonic)', () => {
+  it('a scale by name over the 12 turned to its tonic — after over=, hidden from the graph', () => {
+    const r = compileSource('&a over=scale(minor) 0 1 2 3 4 5 6 7\n&b over=scale(dorian, D) 0 1 2 3 4 5 6\n&c over=scale(major, G) 0 2 4\n&d over=scale(minor, 9) 0 2 4');
     expect(r.ok).toBe(true);
     expect(spell(r, 'a')).toBe('C D Eb F G Ab Bb C');
     expect(spell(r, 'b')).toBe('D E F G A B C');
     expect(spell(r, 'c')).toBe('G B D');
-    expect(r.cells.get('scale:0:2')!.implicit).toBe(true);
-    expect(r.cells.get('key:0')!.implicit).toBe(true);
+    expect(spell(r, 'd')).toBe('A C E');
+    expect([...r.cells.values()].filter((c) => /^(scale|key):/.test(c.name)).every((c) => c.implicit)).toBe(true);
+  });
+  it('in a braid: the cell is the scale, reading through its own key; shift= walks its modes, the tonic transposes', () => {
+    const r = compileSource('&s scale(minor, D)\n&t over=&s 0 1 2 3 4 5 6\n&m scale(minor, D) shift=2\n&u over=&m 0 2 4\n&b scale(blues, Bb)\n&v over=&b 0 1 2 3 4 5');
+    expect(r.ok).toBe(true);
+    expect(spell(r, 't')).toBe('D E F G A Bb C');
+    expect(spell(r, 'u')).toBe('F A C');
+    expect(spell(r, 'v')).toBe('Bb C# Eb E F Ab');
   });
   it('is the same as writing the key and scale out', () => {
-    const short = compileSource('&t over=scale(9,2) 0 2 4 6# 7');
+    const short = compileSource('&t over=scale(minor, A) 0 2 4 6# 7');
     const long = compileSource('&k shift=9\n&s over=&k scan(2 1 2 2 1 2 2)\n&t over=&s 0 2 4 6# 7');
     expect(spell(short, 't')).toBe(spell(long, 't'));
+    const braid = compileSource('&s scale(minor, A)\n&t over=&s 0 2 4 6# 7');
+    expect(spell(braid, 't')).toBe(spell(long, 't'));
   });
-  it('shares the hidden tables between cells that use the same scale', () => {
-    const r = compileSource('&a over=scale(7,5) 0\n&b over=scale(7,5) 1');
-    expect([...r.cells.keys()].filter((n) => n.startsWith('scale:'))).toEqual(['scale:7:5']);
+  it('a tonic left free is the cell’s own slider (its tonic), and moves the key', () => {
+    const r = compileSource('&s scale(dorian, free(2, 0..11))\n&t over=&s 0');
+    expect(r.cells.get('s')!.frees.map((f) => [f.key, f.value])).toEqual([['tonic', 2]]);
+    expect(spell(r, 't')).toBe('D');
   });
-  it('explains itself when malformed', () => {
-    expect(compileSource('&a over=scale(0) 0').diagnostics[0].message).toMatch(/scale\(tonic, phase\)/);
+  it('the old scale(tonic, phase) still reads, and says how it is written now', () => {
+    const r = compileSource('&t over=scale(9,2) 0 2 4');
+    expect(spell(r, 't')).toBe('A C E');
+    expect(r.diagnostics.map((d) => [d.severity, d.message])).toContainEqual(['warning', 'scale(9, 2) is written scale(minor, A): the mode by name, then the tonic']);
+  });
+  it('explains itself when malformed, or given a key of its own', () => {
+    expect(compileSource('&a over=scale(0) 0').diagnostics[0].message).toMatch(/scale\(minor, A\)/);
+    expect(compileSource('&a scale(nope)').diagnostics[0].message).toMatch(/a scale by name — major minor/);
+    expect(compileSource('&k shift=2\n&a scale(minor) over=&k').diagnostics[0].message).toMatch(/reads through a key of its own/);
   });
 });
 
@@ -879,13 +896,15 @@ describe('diagnostics: nothing plays, or the wrong thing, without a word (#143)'
     for (const f of LABEL_FIELDS) expect(said(`&a step=2 0 1 label="{${f}}"`)).toEqual([]);
   });
 
-  it('scale(tonic, phase): a phase beyond the seven modes is an error, a tonic beyond the octave a warning', () => {
-    expect(said('&a over=scale(0,99) 0 1 2')).toEqual([
-      ['error', 1, 17, 'scale(tonic, phase): the phase is a mode, 0 (the darkest, Locrian) to 6 (the brightest, Lydian) — not 99'],
+  it('scale(…): a phase beyond the seven modes is an error, a tonic beyond the octave a warning', () => {
+    expect(said('&a over=scale(0,99) 0 1 2')[0]).toEqual([
+      'error',
+      1,
+      17,
+      'scale(tonic, phase): the phase is a mode, 0 (the darkest, Locrian) to 6 (the brightest, Lydian) — not 99',
     ]);
     expect(said('&a over=scale(0,7) 0')[0][0]).toBe('error');
-    expect(said('&a over=scale(99,0) 0 1 2')).toEqual([['warning', 1, 15, 'scale(99, …): the tonic is a pitch class, 0 (C) to 11 (B); 99 is 8 octaves up from 3']]);
-    expect(said('&a over=scale(-13,0) 0')[0][3]).toMatch(/-13 is 1 octave down from -1/);
-    for (const s of ['scale(0,0)', 'scale(11,6)', 'scale(-11,3)']) expect(said(`&a over=${s} 0 1 2`)).toEqual([]);
+    expect(said('&a over=scale(minor, 99) 0 1 2')).toEqual([['warning', 1, 22, 'scale(…, 99): the tonic is a pitch class, 0 (C) to 11 (B)']]);
+    for (const s of ['scale(major)', 'scale(lydian, B)', 'scale(minor, -11)']) expect(said(`&a over=${s} 0 1 2`)).toEqual([]);
   });
 });

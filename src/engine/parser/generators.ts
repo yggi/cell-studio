@@ -1,9 +1,9 @@
-/** Generators: a braid written as a rule — scan(…), euclid(…), sin(…), meter(…), spell(…). */
-import type { Braid, Span } from '../ast';
+/** Generators: a braid written as a rule — scan(…), euclid(…), sin(…), scale(…), meter(…), spell(…). */
+import type { Braid, Ref, Span } from '../ast';
 import { syntax, type Syntax } from './syntax';
 import type { LineScanner } from './scanner';
 import { parseFree } from './free';
-import { agogic as agogicPositions, even as evenPositions, intervals } from '../../theory/modes';
+import { agogic as agogicPositions, even as evenPositions, intervals, SCALES, scaleOfPhase } from '../../theory/modes';
 
 /** scan(…): intervals, separated by spaces or commas; any positive numbers. */
 function parseScan(s: LineScanner, start: number): Braid {
@@ -241,6 +241,86 @@ function parseSin(s: LineScanner, start: number): Braid {
   return { kind: 'sin', n, span };
 }
 
+/** A tonic as a note name: C, F#, Bb (a pitch class). */
+const TONICS: Readonly<Record<string, number>> = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
+const tonicName = (pc: number) => ['C', 'C#', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B'][((pc % 12) + 12) % 12];
+
+/**
+ * `scale(name, tonic)`: a scale by name over the 12 turned to its tonic. What it stands for is two cells: the key (the
+ * 12, `shift=` the tonic: a note name, a number or free(…)) and the scale's steps over it, `scan(…)`. The key is declared
+ * here, unnamed and not drawn (`key:…`); the scan and the key are the caller's to place — a cell's own braid reading
+ * through it, or a table of its own after over=. The old `scale(tonic, phase)` (a mode by number) still reads, with a
+ * warning that says it by name.
+ */
+export function parseScale(s: LineScanner, start: number): { steps: number[]; key: Ref; span: Span } {
+  s.i++; // (
+  s.skipSpace();
+  let steps: number[];
+  let tonic = 0;
+  let tonicText = '0';
+  const legacy = s.match(/-?[0-9]+/y);
+  if (legacy !== null) {
+    // scale(tonic, phase): the mode by its number, darkest first
+    s.skipSpace();
+    s.expect(',', "',' then the mode — better by name: scale(minor, A)");
+    s.skipSpace();
+    const at = s.i;
+    const phase = s.int('the mode, 0 (the darkest) to 6');
+    if (phase > 6) s.fail(`scale(tonic, phase): the phase is a mode, 0 (the darkest, Locrian) to 6 (the brightest, Lydian) — not ${phase}`, at, String(phase).length);
+    tonic = parseInt(legacy, 10);
+    tonicText = legacy;
+    steps = intervals(evenPositions(7, 12, phase), 12);
+    s.skipSpace();
+    s.expect(')', "')' to close scale(…)");
+    s.warn(`scale(${tonic}, ${phase}) is written scale(${scaleOfPhase(phase)}, ${tonicName(tonic)}): the mode by name, then the tonic`, start, s.i - start);
+  } else {
+    const at = s.i;
+    const name = s.match(/[a-z]+/y);
+    const scale = name ? SCALES[name] : undefined;
+    if (!scale) s.fail(`scale(name, tonic): a scale by name — ${Object.keys(SCALES).join(' ')}`, at, Math.max(1, (name ?? '').length));
+    steps = [...scale!.steps];
+    s.skipSpace();
+    if (s.peek() === ',') {
+      s.i++;
+      s.skipSpace();
+      const t0 = s.i;
+      const note = s.match(/[A-G](?:#|b)?(?![A-Za-z0-9])/y);
+      if (note !== null) {
+        tonic = TONICS[note[0]] + (note[1] === '#' ? 1 : note[1] === 'b' ? -1 : 0);
+        tonicText = String(tonic);
+      } else if (s.text.startsWith('free(', s.i)) {
+        // a tonic left to the performer: its slider is the cell's own ('tonic'), its value the key's shift
+        tonic = Math.round(parseFree(s, 'tonic', false).value);
+        tonicText = s.text.slice(t0, s.i);
+      } else {
+        tonic = s.int('the tonic: a note name (D, F#, Bb), a number or free(…)');
+        tonicText = String(tonic);
+      }
+      if (Math.abs(tonic) > 11) s.warn(`scale(…, ${tonic}): the tonic is a pitch class, 0 (C) to 11 (B)`, t0, s.i - t0);
+      s.skipSpace();
+    }
+    s.expect(')', "')' to close scale(…)");
+  }
+  const span = s.span(start);
+  const key = `key:λ${s.line}_${start + s.offset}`;
+  s.lambdas.push({
+    name: key,
+    span,
+    lambda: `shift=${tonicText}`,
+    over: null,
+    shift: tonic,
+    off: false,
+    step: null,
+    map: null,
+    stride: null,
+    cycle: null,
+    params: {},
+    paramSpans: {},
+    braid: { kind: 'blank' },
+  });
+  return { steps, key: { name: key, pick: null, shift: 0, span }, span };
+}
+
 type Generator = (s: LineScanner, start: number) => Braid;
 
 /** The generators: a braid written as a rule. The parser reads a cell's braid through this table. */
@@ -268,6 +348,17 @@ export const GENERATORS: Readonly<Record<string, { readonly parse: Generator; re
   sin: {
     parse: parseSin,
     syntax: syntax('generator', 'sin(n)', 'One cycle of a sine in n steps, from −1 to 1: a waveform, or a slow swell.', ['&sine loop=220 sin(12)'], 'braid.md'),
+  },
+  scale: {
+    // (read by the cell itself, which takes the key it brings: parseScale)
+    parse: (s, start) => s.fail('scale(…) is read by its cell', start, 5),
+    syntax: syntax(
+      'generator',
+      'scale(name) · scale(name, tonic)',
+      `A scale by name over the 12, turned to its tonic (a note name, a number or free(…); C if left out): the scan of its steps over a key of its own. Its shift= walks its modes; the tonic transposes. The names: ${Object.keys(SCALES).join(' ')}.`,
+      ['&scale scale(minor, D)', '&blues scale(blues)', '&scale scale(dorian, free(2, 0..11))'],
+      'tables.md',
+    ),
   },
   meter: {
     parse: parseMeter,
