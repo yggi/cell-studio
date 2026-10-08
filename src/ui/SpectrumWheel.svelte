@@ -8,7 +8,7 @@
    * clears it, and live frames fill it from the hub.
    */
   import { onDestroy, onMount } from 'svelte';
-  import { getGraphContext } from './context';
+  import { getGraphContext, hearing } from './context';
   import { bandFreq, bandsFromFFT, hslToRgb, restingProfile, wheelLUT } from '../layout/spectrum';
   import { gridName, positionOf } from '../engine/helix';
   import { heardGrid } from '../layout/show';
@@ -156,7 +156,7 @@
       if (w > 0 && Math.abs(w / size - seen) > 0.1 * seen) seen = w / size;
     }
     if (!shown) return;
-    const playing = ctx.playing;
+    const playing = hearing(ctx, name, fixed !== null);
     if (playing !== wasLive) {
       wasLive = playing;
       // play: start from an empty wheel; stop: back to the profile
@@ -181,7 +181,7 @@
 
   // at rest (and whenever the voice changes), show its own partials
   // (on whether it plays, not on the live state itself: that is a new object every tick)
-  const resting = $derived(!ctx.playing);
+  const resting = $derived(!hearing(ctx, name, fixed !== null));
   $effect(() => {
     void ctx.program;
     void ctx.shifts;

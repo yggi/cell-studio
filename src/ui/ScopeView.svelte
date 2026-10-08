@@ -169,7 +169,7 @@
         if (mode === 'waterfall' && canvas) paintRow();
         return;
       }
-      if (!ctx.playing && !ctx.sound.waveform(channels[0] ?? '')) return;
+      if (ctx.state === 'stopped' && !ctx.sound.waveform(channels[0] ?? '')) return;
       if (mode === 'xy' && channels.length >= 2) {
         const a = ctx.sound.waveform(channels[0]);
         const b = ctx.sound.waveform(channels[1]);

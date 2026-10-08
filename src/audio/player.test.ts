@@ -53,3 +53,42 @@ describe('a hand takes a stopped transport to paused', () => {
     expect(state()).toBe('stopped');
   });
 });
+
+describe('pause lets go, stop silences', () => {
+  // (a transport that plays, and a voice bank that says what it was asked)
+  function playing() {
+    const p = make();
+    const asked: string[] = [];
+    const tr = { stop: () => asked.push('transport.stop'), clear: () => {} };
+    Object.assign(p as unknown as Record<string, unknown>, {
+      Tone: { getTransport: () => tr, getContext: () => ({ currentTime: 0 }) },
+      voices: { dropGates: () => asked.push('dropGates'), releaseAll: () => asked.push('releaseAll'), clearTapes: () => asked.push('clearTapes') },
+      repeatId: 1,
+    });
+    transportClock.state = 'playing';
+    return { p, asked };
+  }
+  afterEach(() => (transportClock.state = 'stopped'));
+
+  it('pause drops the gates and leaves the tails: no hard cut', () => {
+    const { p, asked } = playing();
+    p.pause();
+    expect(state()).toBe('paused');
+    expect(asked).toContain('dropGates');
+    expect(asked).not.toContain('releaseAll');
+  });
+  it('stop from playing drops the gates, then cuts what is left', () => {
+    const { p, asked } = playing();
+    p.stop();
+    expect(state()).toBe('stopped');
+    expect(asked.indexOf('dropGates')).toBeLessThan(asked.indexOf('releaseAll'));
+  });
+  it('stop from paused cuts the tails too (and the bodies)', () => {
+    const { p, asked } = playing();
+    p.pause();
+    asked.length = 0;
+    p.stop();
+    expect(asked).toContain('releaseAll');
+    expect(state()).toBe('stopped');
+  });
+});
