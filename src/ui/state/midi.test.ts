@@ -176,3 +176,23 @@ describe('Midi: All notes off', () => {
     expect(() => midi.panic()).not.toThrow();
   });
 });
+
+describe('Midi: hearing the input', () => {
+  it('passes every message from the input listened to, raw, to whoever hears, until they stop', async () => {
+    const keys = fakeInput('in-1', 'Keys');
+    installMidi(fakeAccess([keys]));
+    const midi = await made();
+    await midi.connect();
+    midi.chooseInput('in-1');
+    const heard: number[][] = [];
+    const stop = midi.hear((data) => void heard.push([...data]));
+    keys.play([0xb0, 7, 64]);
+    keys.play([0x90, 60, 100]);
+    stop();
+    keys.play([0xb0, 7, 65]);
+    expect(heard).toEqual([
+      [0xb0, 7, 64],
+      [0x90, 60, 100],
+    ]);
+  });
+});
