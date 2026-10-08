@@ -12,6 +12,13 @@ const with_ =
     o[n] ?? codeShifts(r)(n);
 
 describe('cellView', () => {
+  it('an unplayed set of entries in its own order is a table, drawn evenly (the circle of fifths); a curve or a motif with a repeat stays a braid', () => {
+    const q = compileSource('&circle fifths()\n&curve 0 1 .3 -1\n&tune 0 2 4 2\n&wide 0 7 14');
+    const mode = (n: string) => cellView(q, n, codeShifts(q), false)?.mode;
+    expect(['circle', 'curve', 'tune', 'wide'].map(mode)).toEqual(['grid', 'braid', 'braid', 'braid']);
+    // (evenly round, in its own order)
+    expect(cellView(q, 'circle', codeShifts(q), false)?.taps?.slice(0, 3)).toEqual([0, 1 / 12, 2 / 12]);
+  });
   it('draws tables as grids and melodies as braids', () => {
     expect(['fifths12TET', 'bar', 'key', 'scale'].map((n) => isGrid(r, n))).toEqual([true, true, true, true]);
     expect(['theme', 'pedal'].map((n) => cellView(r, n, codeShifts(r), false)!.mode)).toEqual(['braid', 'braid']);

@@ -393,27 +393,91 @@ describe('the sound card: &out loop=44k map=sample &left &right', () => {
   });
 });
 
-describe('scale(tonic, phase)', () => {
-  it('scale(0,2) is C Aeolian, scale(2,3) D Dorian, scale(7,5) G Ionian — and hidden from the graph', () => {
-    const r = compileSource('&a over=scale(0,2) 0 1 2 3 4 5 6 7\n&b over=scale(2,3) 0 1 2 3 4 5 6\n&c over=scale(7,5) 0 2 4');
+describe('a note by name is a pitch; a number an index', () => {
+  it('[C, E, G] is C E G whatever the cell reads; a number beside it reads the table', () => {
+    const r = compileSource('&key shift=2\n&s over=&key scan(2 2 1 2 2 2 1)\n&a over=&s [C, E, G]\n&b over=&s [0, E, 4]\n&c over=&s D F# A C5\n&d [Bb3, Eb, G]');
+    expect(r.ok).toBe(true);
+    expect(spell(r, 'a')).toBe('C E G');
+    expect(spell(r, 'b')).toBe('D E A');
+    expect(spell(r, 'c')).toBe('D F# A C');
+    expect(flatten(r, 'c', codeShifts(r)).map((e) => resolveIn(r, e.table, e.tableShift, e.value, e.alter, codeShifts(r)).position)).toEqual([2, 6, 9, 12]);
+    expect(spell(r, 'd')).toBe('Bb Eb G');
+  });
+  it('a name sits on the grid: ^n and ^$n move it alike; over a scale, numbers tell them apart', () => {
+    const semis = (src: string) => {
+      const r = compileSource(src);
+      return flatten(r, 't', codeShifts(r)).map((e) => {
+        const p = resolveIn(r, e.table, e.tableShift, e.value, e.alter, codeShifts(r));
+        return semitones(r, p.root, p.position + (e.transpose ?? 0));
+      });
+    };
+    const s = '&major scan(2 2 1 2 2 2 1)\n&q C E G\n&n 0 2 4\n&t over=&major step=1 ';
+    expect(semis(s + '&q^2')).toEqual([2, 6, 9]);
+    expect(semis(s + '&q^$2')).toEqual([2, 6, 9]);
+    expect(semis(s + '&n^2')).toEqual([4, 7, 11]);
+    expect(semis(s + '&n^$2')).toEqual([2, 6, 9]);
+  });
+  it('free(D) is a pitch class by name: a tonic, a turn of the 12', () => {
+    const r = compileSource('&s scale(dorian, free(D))\n&t over=&s 0\n&key shift=free(G)\n&u over=&key 0');
+    expect(spell(r, 't')).toBe('D');
+    expect(spell(r, 'u')).toBe('G');
+    expect(r.cells.get('key')!.frees[0]).toMatchObject({ key: 'shift', value: 7, lo: 0, hi: 11, byName: true });
+    // (an octave with it says nothing: said, not dropped silently)
+    const o = compileSource('&key shift=free(C100)\n&u over=&key 0');
+    expect(o.diagnostics.map((d) => d.message)).toContain('free(C100): a key is a pitch class — the octave is left out: free(C)');
+    expect(o.cells.get('key')!.frees[0].value).toBe(0);
+  });
+});
+
+describe('scale(name, tonic)', () => {
+  it('a scale by name over the 12 turned to its tonic — after over=, hidden from the graph', () => {
+    const r = compileSource('&a over=scale(minor) 0 1 2 3 4 5 6 7\n&b over=scale(dorian, D) 0 1 2 3 4 5 6\n&c over=scale(major, G) 0 2 4\n&d over=scale(minor, 9) 0 2 4');
     expect(r.ok).toBe(true);
     expect(spell(r, 'a')).toBe('C D Eb F G Ab Bb C');
     expect(spell(r, 'b')).toBe('D E F G A B C');
     expect(spell(r, 'c')).toBe('G B D');
-    expect(r.cells.get('scale:0:2')!.implicit).toBe(true);
-    expect(r.cells.get('key:0')!.implicit).toBe(true);
+    expect(spell(r, 'd')).toBe('A C E');
+    expect([...r.cells.values()].filter((c) => /^(scale|key):/.test(c.name)).every((c) => c.implicit)).toBe(true);
+  });
+  it('a tonic by name is a pitch class: Cb is B, B# is C (in the same octave, without a warning)', () => {
+    const r = compileSource('&a over=scale(major, Cb) 0 2 4\n&b over=scale(major, B) 0 2 4\n&c over=scale(major, B#) 0 2 4\n&d over=scale(major, C) 0 2 4');
+    expect(r.diagnostics.filter((d) => /tonic/.test(d.message))).toEqual([]);
+    const semis = (name: string) =>
+      flatten(r, name, codeShifts(r)).map((e) => {
+        const p = resolvePitch(r, name, e.value, e.alter, codeShifts(r));
+        return semitones(r, p.root, p.position);
+      });
+    expect(semis('a')).toEqual(semis('b'));
+    expect(semis('c')).toEqual(semis('d'));
+  });
+  it('in a braid: the cell is the scale, reading through its own key; shift= walks its modes, the tonic transposes', () => {
+    const r = compileSource('&s scale(minor, D)\n&t over=&s 0 1 2 3 4 5 6\n&m scale(minor, D) shift=2\n&u over=&m 0 2 4\n&b scale(blues, Bb)\n&v over=&b 0 1 2 3 4 5');
+    expect(r.ok).toBe(true);
+    expect(spell(r, 't')).toBe('D E F G A Bb C');
+    expect(spell(r, 'u')).toBe('F A C');
+    expect(spell(r, 'v')).toBe('Bb C# Eb E F Ab');
   });
   it('is the same as writing the key and scale out', () => {
-    const short = compileSource('&t over=scale(9,2) 0 2 4 6# 7');
+    const short = compileSource('&t over=scale(minor, A) 0 2 4 6# 7');
     const long = compileSource('&k shift=9\n&s over=&k scan(2 1 2 2 1 2 2)\n&t over=&s 0 2 4 6# 7');
     expect(spell(short, 't')).toBe(spell(long, 't'));
+    const braid = compileSource('&s scale(minor, A)\n&t over=&s 0 2 4 6# 7');
+    expect(spell(braid, 't')).toBe(spell(long, 't'));
   });
-  it('shares the hidden tables between cells that use the same scale', () => {
-    const r = compileSource('&a over=scale(7,5) 0\n&b over=scale(7,5) 1');
-    expect([...r.cells.keys()].filter((n) => n.startsWith('scale:'))).toEqual(['scale:7:5']);
+  it('a tonic left free is the cell’s own slider (its tonic), and moves the key', () => {
+    const r = compileSource('&s scale(dorian, free(2, 0..11))\n&t over=&s 0');
+    expect(r.cells.get('s')!.frees.map((f) => [f.key, f.value])).toEqual([['tonic', 2]]);
+    expect(spell(r, 't')).toBe('D');
   });
-  it('explains itself when malformed', () => {
-    expect(compileSource('&a over=scale(0) 0').diagnostics[0].message).toMatch(/scale\(tonic, phase\)/);
+  it('the old scale(tonic, phase) still reads, and says how it is written now', () => {
+    const r = compileSource('&t over=scale(9,2) 0 2 4');
+    expect(spell(r, 't')).toBe('A C E');
+    expect(r.diagnostics.map((d) => [d.severity, d.message])).toContainEqual(['warning', 'scale(9, 2) is written scale(minor, A): the mode by name, then the tonic']);
+  });
+  it('explains itself when malformed, or given a key of its own', () => {
+    expect(compileSource('&a over=scale(0) 0').diagnostics[0].message).toMatch(/scale\(minor, A\)/);
+    expect(compileSource('&a scale(nope)').diagnostics[0].message).toMatch(/a scale by name — major minor/);
+    expect(compileSource('&k shift=2\n&a scale(minor) over=&k').diagnostics[0].message).toMatch(/reads through a key of its own/);
   });
 });
 
@@ -682,45 +746,59 @@ describe('ratios grids, geometric intervals, decibels; colours and names on a vo
   });
 });
 
-describe('transposing a reference: &x^n', () => {
+describe('moving a reference: &x^n by its table (degrees), &x^$n by the grid (#179)', () => {
   const sounds = (src: string, cell = 't') => {
     const r = compileSource(src);
     expect(r.diagnostics.filter((d) => d.severity === 'error')).toEqual([]);
     return flattenPitches(r, cell);
   };
-  // what a cell plays, as grid positions after its tables and every ^n
+  // what a cell plays, as grid positions after its tables and every ^$n
   function flattenPitches(r: ReturnType<typeof compileSource>, cell: string) {
     return flatten(r, cell, codeShifts(r), null).map((e) => {
       const p = resolveIn(r, e.table, e.tableShift, e.value, e.alter, codeShifts(r));
       return +semitones(r, p.root, p.position + (e.transpose ?? 0)).toFixed(4);
     });
   }
-  it('reads ^n and ^-n, also after a bracket', () => {
-    const atoms = parse('&t &m^7 &m^-12 &m[::-1]^2 &m[>>]^1').cells[0].braid;
-    expect(atoms.kind === 'list' && atoms.tokens.map((t) => (t.atom.kind === 'ref' ? [t.atom.transpose, t.atom.shift, !!t.atom.pick] : null))).toEqual([
-      [7, 0, false],
-      [-12, 0, false],
-      [2, 0, true],
-      [1, 1, false],
+  it('reads ^n, ^-n, ^$n and ^$-n, also after a bracket', () => {
+    const atoms = parse('&t &m^$7 &m^$-12 &m[::-1]^$2 &m[>>]^$1 &m^1 &m[0]^-2').cells[0].braid;
+    expect(atoms.kind === 'list' && atoms.tokens.map((t) => (t.atom.kind === 'ref' ? [t.atom.transpose, t.atom.values?.add, t.atom.shift, !!t.atom.pick] : null))).toEqual([
+      [7, undefined, 0, false],
+      [-12, undefined, 0, false],
+      [2, undefined, 0, true],
+      [1, undefined, 1, false],
+      [undefined, 1, 0, false],
+      [undefined, -2, 0, true],
     ]);
-    expect(parse('&t &m^').diagnostics[0].message).toMatch(/transposes by n grid steps/);
+    expect(parse('&t &m^').diagnostics[0].message).toMatch(/moves it n steps of its table/);
+    expect(parse('&t &m^$').diagnostics[0].message).toMatch(/n semitones/);
   });
-  it('on the 12-tone grid, ^n is n semitones', () => {
-    expect(sounds('&m 0 4 7\n&t &m &m^7 &m^-12')).toEqual([0, 4, 7, 7, 11, 14, -12, -8, -5]);
+  it('on the 12-tone grid, ^$n is n semitones', () => {
+    expect(sounds('&m 0 4 7\n&t &m &m^$7 &m^$-12')).toEqual([0, 4, 7, 7, 11, 14, -12, -8, -5]);
   });
-  it('after the tables: a motif in scale degrees keeps its shape, n grid steps higher', () => {
-    expect(sounds('&major scan(2 2 1 2 2 2 1)\n&m 0 2 4\n&t over=&major &m &m^7')).toEqual([0, 4, 7, 7, 11, 14]);
+  it('^$n after the tables: a motif in scale degrees keeps its shape, n grid steps higher', () => {
+    expect(sounds('&major scan(2 2 1 2 2 2 1)\n&m 0 2 4\n&t over=&major &m &m^$7')).toEqual([0, 4, 7, 7, 11, 14]);
   });
-  it('on another grid, ^n is n of its steps: Studie II, 8 steps up the 5:1 grid', () => {
-    const ps = sounds('&steps cycle=25 map=ed(5)\n&m 0 1\n&t over=&steps &m &m^8');
+  it('^n before the table: n degrees, as degree(&m, n) is — over a scale they differ', () => {
+    const scale = '&major scan(2 2 1 2 2 2 1)\n&m 0 2 4\n';
+    expect(sounds(scale + '&t over=&major &m^1 &m^-1')).toEqual([2, 5, 9, -1, 2, 5]);
+    expect(sounds(scale + '&t over=&major &m^1')).toEqual(sounds(scale + '&t over=&major degree(&m, 1)'));
+    expect(sounds(scale + '&t over=&major &m^$1')).toEqual([1, 5, 8]);
+    // (on the 12 they agree)
+    expect(sounds('&m 0 4\n&t &m^3')).toEqual(sounds('&m 0 4\n&t &m^$3'));
+  });
+  it('on another grid, ^$n is n of its steps: Studie II, 8 steps up the 5:1 grid', () => {
+    const ps = sounds('&steps cycle=25 map=ed(5)\n&m 0 1\n&t over=&steps &m &m^$8');
     expect(Math.pow(2, ps[2] / 12)).toBeCloseTo(Math.pow(5, 8 / 25), 5);
   });
   it('nested: the steps add up', () => {
-    expect(sounds('&a 0\n&b &a^2\n&t &b^3 &b')).toEqual([5, 2]);
+    expect(sounds('&a 0\n&b &a^$2\n&t &b^$3 &b')).toEqual([5, 2]);
+    expect(sounds('&major scan(2 2 1 2 2 2 1)\n&a 0\n&b &a^2\n&t over=&major &b^1 &b')).toEqual([5, 4]);
   });
-  it('in a mix, it says to add pitch instead', () => {
-    const r = compileSource('&m step=1\n&t step=&m 0\n&v s=tri loop=C4\n&mix loop=SAMPLE_RATE map=sample [&t^7 * &v]');
-    expect(r.diagnostics.map((d) => d.message).join()).toMatch(/transposing \(\^\) is for braids — in a mix, add pitch: &t \+ 7/);
+  it('in a mix, it says what to write instead', () => {
+    const r = compileSource('&m step=1\n&t step=&m 0\n&v s=tri loop=C4\n&mix loop=SAMPLE_RATE map=sample [&t^$7 * &v]');
+    expect(r.diagnostics.map((d) => d.message).join()).toMatch(/transposing \(\^\$\) is for braids — in a mix, add pitch: &t \+ 7/);
+    const d = compileSource('&m step=1\n&t step=&m 0\n&v s=tri loop=C4\n&mix loop=SAMPLE_RATE map=sample [&t^1 * &v]');
+    expect(d.diagnostics.map((x) => x.message).join()).toMatch(/moving by degrees \(\^\) is for braids/);
   });
   it('the graph labels the reference with it', () => {
     const g = buildGraph(compileSource('&m 0 4\n&t step=1 &m^7\n&u step=1 &m\n&v s=tri\n&mix loop=SAMPLE_RATE map=sample [&t * &v]'));
@@ -859,8 +937,10 @@ describe('diagnostics: nothing plays, or the wrong thing, without a word (#143)'
   });
 
   it("a cell whose line failed isn't reported again where it is used", () => {
-    expect(said(piece('&a 0 1 (\n&tune step=120bpm &a &a\n&c over=&a 0'))).toEqual([['error', 1, 8, "Unexpected '(' — expected a number, ~, [chord], &cell or key=value"]]);
-    expect(said('&a 0 1 (\n&m [&a]')).toEqual([['error', 1, 8, "Unexpected '(' — expected a number, ~, [chord], &cell or key=value"]]);
+    expect(said(piece('&a 0 1 (\n&tune step=120bpm &a &a\n&c over=&a 0'))).toEqual([
+      ['error', 1, 8, "Unexpected '(' — expected a number, a note name (C, F#), ~, [chord], &cell or key=value"],
+    ]);
+    expect(said('&a 0 1 (\n&m [&a]')).toEqual([['error', 1, 8, "Unexpected '(' — expected a number, a note name (C, F#), ~, [chord], &cell or key=value"]]);
     // a cell that is simply missing still is
     expect(said(piece('&tune step=120bpm &a')).map((d) => d[3])).toContain('Unknown cell &a');
   });
@@ -889,13 +969,15 @@ describe('diagnostics: nothing plays, or the wrong thing, without a word (#143)'
     for (const f of LABEL_FIELDS) expect(said(`&a step=2 0 1 label="{${f}}"`)).toEqual([]);
   });
 
-  it('scale(tonic, phase): a phase beyond the seven modes is an error, a tonic beyond the octave a warning', () => {
-    expect(said('&a over=scale(0,99) 0 1 2')).toEqual([
-      ['error', 1, 17, 'scale(tonic, phase): the phase is a mode, 0 (the darkest, Locrian) to 6 (the brightest, Lydian) — not 99'],
+  it('scale(…): a phase beyond the seven modes is an error, a tonic beyond the octave a warning', () => {
+    expect(said('&a over=scale(0,99) 0 1 2')[0]).toEqual([
+      'error',
+      1,
+      17,
+      'scale(tonic, phase): the phase is a mode, 0 (the darkest, Locrian) to 6 (the brightest, Lydian) — not 99',
     ]);
     expect(said('&a over=scale(0,7) 0')[0][0]).toBe('error');
-    expect(said('&a over=scale(99,0) 0 1 2')).toEqual([['warning', 1, 15, 'scale(99, …): the tonic is a pitch class, 0 (C) to 11 (B); 99 is 8 octaves up from 3']]);
-    expect(said('&a over=scale(-13,0) 0')[0][3]).toMatch(/-13 is 1 octave down from -1/);
-    for (const s of ['scale(0,0)', 'scale(11,6)', 'scale(-11,3)']) expect(said(`&a over=${s} 0 1 2`)).toEqual([]);
+    expect(said('&a over=scale(minor, 99) 0 1 2')).toEqual([['warning', 1, 22, 'scale(…, 99): the tonic is a pitch class, 0 (C) to 11 (B)']]);
+    for (const s of ['scale(major)', 'scale(lydian, B)', 'scale(minor, -11)']) expect(said(`&a over=${s} 0 1 2`)).toEqual([]);
   });
 });

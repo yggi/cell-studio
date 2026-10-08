@@ -95,11 +95,11 @@ export function summary(result: CompileResult, name: string): Bit[] {
   const clock = c.clock ? result.clocks.get(c.clock) : null;
   const perMinute = clock ? Math.round((clock.perSecond * c.rate * 60) / (c.clock === name ? c.beat : 1)) : null;
   const tail = (rel: string, words: string, max = 3): Bit[] => (conn[rel]?.length ? [words, ...list(conn[rel], max)] : []);
-  // what it reads: a named table (a link), or the scale(t, p) shorthand (as written)
+  // what it reads: a named table (a link), or the scale(name, tonic) shorthand (as written)
   const through = (words: string): Bit[] => {
     if (conn['reads']?.length) return tail('reads', words);
-    const sc = /^scale:(-?\d+):(\d+)$/.exec(c.over ?? '');
-    return sc ? [`${words}scale(${sc[1]},${sc[2]})`] : [];
+    const sc = c.over?.startsWith('scale:') ? result.cells.get(c.over)?.lambda : undefined;
+    return sc ? [`${words}${sc}`] : [];
   };
   switch (kind) {
     case 'voice': {

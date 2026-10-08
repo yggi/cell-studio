@@ -30,8 +30,8 @@ Commands, the rules (which are enforced and which are judgment), the PR conventi
 Details are on the linked pages; this list is only a pointer. → [language/overview.md](language/overview.md); every form at once: [language/reference.md](language/reference.md) (generated from the parser)
 
 - `&name … ` one cell per line; steps `0 2 ~ 4@2 0!4 [0,2,4]` → [cell](language/cell.md)
-- `scan(…)` `euclid(k,n)` `sin(n)`; `&t[i]` `&t[$i]` `&t[a:b]` `&t[<<n]` `&t^n` → [braid](language/braid.md)
-- `over=&t` `scale(tonic,phase)` `shift=n` `cycle=n` → [tables](language/tables.md)
+- `scan(…)` `euclid(k,n)` `sin(n)`; `&t[i]` `&t[$i]` `&t[a:b]` `&t[<<n]` `&t^n` (degrees) `&t^$n` (grid steps) → [braid](language/braid.md)
+- `over=&t` `scale(name, tonic)` `shift=n` `cycle=n` → [tables](language/tables.md)
 - `step=` `loop=` (rates, `&x`, `cycle(&x)`, `*n` `/n`), `stride=`, `laps=` → [time](language/time.md)
 - `map=edo|ed(r)|ratios`, note names → [tuning](language/tuning.md)
 - `free(default, lo..hi)` → [free](language/free.md)
@@ -45,7 +45,7 @@ Details are on the linked pages; this list is only a pointer. → [language/over
 One line each; the record has the rationale. → [decisions/](decisions/README.md)
 
 - 001 · The wiki is dropped; `docs/` is the project memory · → decisions/001-no-wiki.md
-- 002 · `scale(tonic, phase)` stays as shorthand for two unnamed cells · → decisions/002-scale-shorthand.md
+- 002 · `scale(tonic, phase)` stays as shorthand for two unnamed cells (superseded by 013) · → decisions/002-scale-shorthand.md
 - 003 · `cycle=n` has one job; grids say `map=edo` · → decisions/003-cycle-one-job.md
 - 004 · Agents open PRs and never merge; the `senior` skill triages, reviews and merges with the owner's approval · → decisions/004-agents-dont-merge.md
 - 005 · The audio context is `balanced` (not `playback`, not yet `interactive`), and the pictures show what is heard · → decisions/005-balanced-latency-and-heard-pictures.md
@@ -56,7 +56,9 @@ One line each; the record has the rationale. → [decisions/](decisions/README.m
 - 010 · A canon's `[<<n]` is a copy (the score replayed); `play= at=` reads what was recorded; a tap of what was played waits for `&<` (#149) · → decisions/010-canon-copies.md
 - 011 · The core stays lean: `show=` wheels beyond the language are plugins: the app ships a bundle of built-in ones (the sun first), and a piece can carry its own as a block; a piece's own runs only if the user chose it · → decisions/011-plugins.md
 - 012 · A pick is a fixed tap on a turning wheel: `&x[i]` reads the cell as turned (and follows it while it plays), `&x[$i]` as written · → decisions/012-picks-are-taps.md
+- 013 · `scale(name, tonic)` is a generator: a fixed mode by name over a key of its own; `shift=` walks its modes, the tonic transposes · → decisions/013-scale-generator.md
 - 014 · A splice is a bulb on its braid's track (the ring and its bulbs one curve, the hand bending into them); a cell spliced into one braid only has no node of its own; one read elsewhere is a net-ref, drawn hollow · → decisions/014-splices-are-bulbs.md
+- 015 · `&x^n` moves by degrees (`degree(&x, n)`, relative), `&x^$n` by grid steps (absolute, the old `^n`): `$` is the absolute frame · → decisions/015-caret-is-degrees.md
 
 ## Where things are tracked
 

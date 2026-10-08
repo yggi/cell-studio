@@ -34,7 +34,7 @@ The engine behind `engine.window` is local (in this thread, on the app's plan: t
 ## src/engine
 
 - `parser/` (`parse`, `pieceMeta`), `ast.ts`: one cell per line, read by construct:
-  - `scanner.ts`: a line (continued lines joined), names, numbers, references with picks, shifts and `^n`.
+  - `scanner.ts`: a line (continued lines joined), names, numbers, references with picks, shifts, `^n` and `^$n`.
   - `cell.ts`: a cell's line, its attributes and its braid in any order.
   - `braid.ts`: steps (numbers, rests, chords, choices, cells) and their modifiers.
   - `generators.ts`, `free.ts`, `values.ts` (`step=`/`loop=`, `map=`), `mix.ts` (a mix chord, kept as an expression).

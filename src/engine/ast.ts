@@ -41,7 +41,8 @@ export interface ValueMap {
   readonly add: number;
 }
 
-export const refLabel = (r: { pick: Pick | null; shift: number; transpose?: number }) => (pickLabel(r.pick) || shiftLabel(r.shift)) + (r.transpose ? `^${r.transpose}` : '');
+export const refLabel = (r: { pick: Pick | null; shift: number; transpose?: number; degree?: number }) =>
+  (pickLabel(r.pick) || shiftLabel(r.shift)) + (r.degree ? `^${r.degree}` : '') + (r.transpose ? `^$${r.transpose}` : '');
 
 /**
  * `&name`, optionally viewed through brackets: a pick from the braid as
@@ -52,23 +53,26 @@ export interface Ref {
   readonly name: string;
   readonly pick: Pick | null;
   readonly shift: number;
-  /** ^n: what it plays, n grid steps up (^-n down), after its tables. */
+  /** ^$n: what it plays, n grid steps up (^$-n down), after its tables (absolute: a semitone on the 12). */
   readonly transpose?: number;
+  /** ^n: its values n steps of its table up (^-n down), before the table reads them: degree(&x, n). */
+  readonly degree?: number;
   readonly span: Span;
 }
 
 /**
- * A number is an index into the cell's `over` (decimals allowed on a root).
+ * A number is an index into the cell's `over` (decimals allowed on a root); a note by name (`C`, `F#`, `Bb3`) is a
+ * pitch (`pitched`: semitones from C4, on the grid at the root of its tables, whatever they are).
  * Accidentals (`6#`, `3b`) move one step on the grid below that.
  * `&cell` splices the cell's braid; `&cell[i]`, `&cell[a:b]` splice part of it as turned (`&cell[$i]`: as written).
  */
 export type Atom =
-  | { readonly kind: 'note'; readonly value: number; readonly alter: number }
+  | { readonly kind: 'note'; readonly value: number; readonly alter: number; readonly pitched?: true }
   | { readonly kind: 'rest' }
-  | { readonly kind: 'chord'; readonly notes: readonly number[]; readonly alters: readonly number[] }
+  | { readonly kind: 'chord'; readonly notes: readonly number[]; readonly alters: readonly number[]; readonly pitched?: readonly boolean[] }
   /** [a|b|c]: one of them, chosen afresh each time round (reproducibly). */
   | { readonly kind: 'choice'; readonly values: readonly number[]; readonly alters: readonly number[] }
-  /** transpose: grid steps up (or down) after its tables: &subject^7, &subject^-12. */
+  /** transpose: grid steps up (or down) after its tables, absolute: &subject^$7, &subject^$-12 (&subject^1 is a degree: values). */
   /** values: degree(…) / inverse(…) around it — its values moved before its tables read them. */
   | { readonly kind: 'ref'; readonly name: string; readonly pick: Pick | null; readonly shift: number; readonly transpose?: number; readonly values?: ValueMap }
   /** A mix chord `[&theme * &lead, …]`: its expressions as written; compile types them (algebra.ts). */
@@ -172,7 +176,7 @@ export type MapSpec =
  */
 export interface FreeSpec {
   /** What it sets: a rate (step / loop), shift, stride, or a gain in a mix. */
-  readonly key: 'step' | 'loop' | 'shift' | 'stride' | 'gain' | 'interval' | 'chance' | 'text' | 'choice' | 'param';
+  readonly key: 'step' | 'loop' | 'shift' | 'stride' | 'gain' | 'interval' | 'chance' | 'text' | 'choice' | 'param' | 'tonic';
   /** For key 'param': which setting (lpf, swing …) it is. */
   readonly param?: string;
   readonly value: number;
@@ -184,6 +188,8 @@ export interface FreeSpec {
   readonly span: Span;
   /** Named choices, one per whole value lo…hi (free(5, 0..15, "1 2 3 A …")): drawn as a keypad. */
   readonly labels?: readonly string[];
+  /** Written as a note by name (free(D)): a pitch class 0…11, written back by its name. */
+  readonly byName?: true;
   /** A text left free (free("867 5309")): drawn as a text field (key 'text'). */
   readonly text?: string;
 }
