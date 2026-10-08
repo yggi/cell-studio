@@ -6,6 +6,7 @@
    * range and the rotation of notes over channels. The pattern is Jambot's SoundPanel (yggi/jambot apps/web/src/components/SoundPanel.svelte @ 8cdb6b8).
    */
   import Dialog from './kit/Dialog.svelte';
+  import LearnSettings from './LearnSettings.svelte';
   import type { Midi } from './state/midi.svelte';
   import { DRUM_PRESETS, deviceNote, presetNameOf } from '../midi/drum-presets';
 
@@ -47,6 +48,7 @@
         {#if absent(midi.ports.inputs, midi.inPortId)}<option value={midi.inPortId}>Not connected</option>{/if}
       </select>
     </label>
+    <LearnSettings />
   {/if}
   {#if midi.access && midi.outPortId !== 'none'}
     <div class="out">

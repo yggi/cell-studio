@@ -12,8 +12,9 @@
 //   ENGINE=worker npm run smoke               # with the engine in a Web Worker (?engine=worker, #15)
 //
 // Then MIDI out (#205): one piece played into a fake Web MIDI port, its note-ons checked against the plan's notes
-// (tools/smoke-midi.ts) to within 2 ms of their median offset (one step of a clock jump followed allowed); then the tempo (a held free()) moved and Pause and Play
-// again within the look-ahead, with no All notes off from either cutting what plays, and no note left sounding.
+// (tools/smoke-midi.ts) to within 2 ms of their median offset (one step of a clock jump followed allowed); then the
+// tempo (a held free()) moved and Pause and Play again within the look-ahead, with no All notes off from either
+// cutting what plays, and no note left sounding.
 //
 // Chromium: Playwright's, or CHROME_PATH=/path/to/chrome (CI uses the runner's Chrome). See tools/profile/playwright.mjs.
 import { preview, runnerImport } from 'vite';
