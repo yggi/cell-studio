@@ -585,6 +585,23 @@ describe('tapes: the heads keep their spacing, the wheel turns to face them at w
   });
 });
 
+describe('a net at delays (a canon, a tape): every tap leaves its owner, its delay counted from there', () => {
+  for (const [key, owner] of [
+    ['canon', 'cell:john'],
+    ['echotape', 'cell:tape'],
+  ] as const)
+    it(key, () => {
+      const g = graphOf(PRESETS[key].source);
+      const l = new ForceLayout(undefined, { live: false });
+      l.setGraph(g);
+      l.tick(200);
+      const net = g.nets.find((n) => n.owner === owner)!;
+      expect([...l.netTree(net).values()].map((j) => j.from)).toEqual(net.taps.map(() => owner));
+      // (drawn as the owner's own edges: no tap hops on from a reader)
+      for (const id of net.taps) expect(l.taps().get(id)).toBeNull();
+    });
+});
+
 describe('meters, joined to their cells by a net', () => {
   for (const key of ['royal', 'bossa', 'cellscape', 'baustelle'] as const) {
     it(key, () => {

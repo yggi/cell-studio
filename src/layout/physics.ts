@@ -214,7 +214,9 @@ export class ForceLayout {
     this.s.byId.clear();
     for (const [k, v] of next) this.s.byId.set(k, v);
 
-    const busTaps = new Set(this.s.nets.flatMap((n) => (n.port === 'step' ? [] : n.taps)));
+    // (a net at delays is a star from its owner, which its edges' own springs already are: measured, as the net's
+    // springs Frère Jacques crosses more, 1 → 1.7 — docs/notes/nets.md, step 6)
+    const busTaps = new Set(this.s.nets.flatMap((n) => (n.port === 'step' || n.delayed ? [] : n.taps)));
     const links: PhysLink[] = model.edges
       // (a note's links, about=, are not springs: they only draw a note towards what it explains, see stepAbout)
       .filter((e) => e.port !== 'about' && !ground(e) && next.has(e.source) && next.has(e.target) && e.source !== e.target)
