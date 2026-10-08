@@ -165,18 +165,27 @@ const MIDI_PIECE = 'sailor';
     const ons = sent
       .filter((m) => (m.data[0] & 0xf0) === 0x90)
       .map((m) => ({ channel: (m.data[0] & 15) + 1, note: m.data[1], ms: m.timestamp }))
-      .sort((a, b) => Math.round(a.ms * 10) - Math.round(b.ms * 10) || a.channel - b.channel || a.note - b.note);
+      .sort((a, b) => a.ms - b.ms);
     const want = midiPlan.expectedNoteOns(MIDI_PIECE, secs + 2);
     if (ons.length < 8) problems.push(`only ${ons.length} note-ons were sent`);
     const zero = ons.length ? ons[0].ms - want[0].at * 1000 : 0;
     let worst = 0;
+    // each note-on matched to the plan's note with its channel and key nearest in time (notes struck
+    // together can come in either order: their timestamps differ by a rounding, not by anything heard)
+    const taken = new Set();
     for (const [i, o] of ons.entries()) {
-      const w = want[i];
-      if (!w || w.channel !== o.channel || w.note !== o.note) {
-        problems.push(`note-on ${i}: sent ${o.channel}:${o.note}, the plan has ${w ? `${w.channel}:${w.note}` : 'none'}`);
+      let best = -1;
+      for (let j = Math.max(0, i - 8); j < Math.min(want.length, i + 9); j++) {
+        const w = want[j];
+        if (taken.has(j) || w.channel !== o.channel || w.note !== o.note) continue;
+        if (best < 0 || Math.abs(o.ms - zero - w.at * 1000) < Math.abs(o.ms - zero - want[best].at * 1000)) best = j;
+      }
+      if (best < 0) {
+        problems.push(`note-on ${i}: sent ${o.channel}:${o.note}, the plan has none such near it`);
         break;
       }
-      worst = Math.max(worst, Math.abs(o.ms - zero - w.at * 1000));
+      taken.add(best);
+      worst = Math.max(worst, Math.abs(o.ms - zero - want[best].at * 1000));
     }
     if (worst > 1) problems.push(`a note-on was ${worst.toFixed(2)} ms off the plan`);
     // Stop: All notes off at once, and again past what was sent ahead
