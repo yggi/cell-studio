@@ -48,6 +48,11 @@ describe('the sun, a plugin of 5 to 12', () => {
     expect(at(7200).text).toMatch(/^13:55, Mixolydian/);
   });
 
+  it('is the same plugin wherever an example carries it (until plugins can be shared from a file of their own)', () => {
+    const daytime = compileSource(PRESETS.daytime.source).plugins.get('sun');
+    expect(daytime && pluginKey(daytime)).toBe(pluginKey(sun));
+  });
+
   it('has the law only when a law reads the day', () => {
     expect(viewOf(day, sun, 'day', 'u', 0, false).law?.blocks).toHaveLength(12);
     expect(viewOf(day, sun, 'cycle', 'u', 0, false).law).toBeNull();

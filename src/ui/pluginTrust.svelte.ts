@@ -1,7 +1,7 @@
 /**
  * Which plugin code runs. A piece's plugin is code that runs with the page's full powers (it can read your saved pieces
  * and use the network: there is no sandbox yet); opening a piece someone else wrote must not run it unasked (decision
- * 009). Trusted: the examples that ship with the app, and what the user chose to run, kept in this browser. Both by
+ * 011). Trusted: the examples that ship with the app, and what the user chose to run, kept in this browser. Both by
  * `pluginKey` (manifest and code: a changed plugin asks again).
  *
  * A choice is kept only once the plugin has drawn once: code that hangs or throws while it first runs is not kept, so

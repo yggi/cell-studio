@@ -1,4 +1,4 @@
-# 009 · Plugins: a piece can carry the drawing of a `show=` of its own
+# 011 · Plugins: a piece can carry the drawing of a `show=` of its own
 
 **Date:** 2026-10-07 · **Status:** accepted (owner); the first step, embedded plugins, is built
 

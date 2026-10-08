@@ -120,7 +120,7 @@ describe('spline edges', () => {
       { id: 'b', depth: 1, kind: 'cell' },
       { id: 'c', depth: 1, kind: 'cell' },
     ],
-    edges: [{ id: 'a->b', source: 'a', target: 'b', kind: 'ref', count: 1, pick: '' }],
+    edges: [{ id: 'a->b', source: 'a', target: 'b', port: 'braid', count: 1, transforms: [[]] }],
   } as unknown as Parameters<ForceLayout['setGraph']>[0];
   const hold = (l: ForceLayout, id: string, x: number, y: number) => {
     l.dragStart(id, x, y);
@@ -352,8 +352,8 @@ describe('drawn crossings', () => {
     const model = {
       nodes: ['a', 'b', 'c', 'd'].map((id) => ({ id, depth: 1, kind: 'cell' })),
       edges: [
-        { id: 'a->b', source: 'a', target: 'b', kind: 'ref', count: 1, pick: '' },
-        { id: 'c->d', source: 'c', target: 'd', kind: 'ref', count: 1, pick: '' },
+        { id: 'a->b', source: 'a', target: 'b', port: 'braid', count: 1, transforms: [[]] },
+        { id: 'c->d', source: 'c', target: 'd', port: 'braid', count: 1, transforms: [[]] },
       ],
     } as unknown as Parameters<ForceLayout['setGraph']>[0];
     const l = new ForceLayout(undefined, { ...FORCES_ALONE, live: false, avoid: 0 });
@@ -424,8 +424,8 @@ describe('busy nodes push harder', () => {
     const model = {
       nodes: ['hub', 'a', 'b', 'c', 'd', 'x', 'y'].map((id) => ({ id, depth: 1, kind: 'cell' })),
       edges: ['a', 'b', 'c', 'd']
-        .map((n) => ({ id: `hub->${n}`, source: 'hub', target: n, kind: 'ref', count: 1, pick: '' }))
-        .concat([{ id: 'x->y', source: 'x', target: 'y', kind: 'ref', count: 1, pick: '' }]),
+        .map((n) => ({ id: `hub->${n}`, source: 'hub', target: n, port: 'braid', count: 1, transforms: [[]] }))
+        .concat([{ id: 'x->y', source: 'x', target: 'y', port: 'braid', count: 1, transforms: [[]] }]),
     } as unknown as Parameters<ForceLayout['setGraph']>[0];
     const gap = (degreeRepel: number) => {
       const l = new ForceLayout(undefined, { ...FORCES_ALONE, live: false, degreeRepel, centre: 0, rankPull: 0 });
@@ -583,6 +583,23 @@ describe('tapes: the heads keep their spacing, the wheel turns to face them at w
     ).toBeCloseTo(Math.atan2(1, 3));
     expect(fitTurn([])).toBeNull();
   });
+});
+
+describe('a net at delays (a canon, a tape): every tap leaves its owner, its delay counted from there', () => {
+  for (const [key, owner] of [
+    ['canon', 'cell:john'],
+    ['echotape', 'cell:tape'],
+  ] as const)
+    it(key, () => {
+      const g = graphOf(PRESETS[key].source);
+      const l = new ForceLayout(undefined, { live: false });
+      l.setGraph(g);
+      l.tick(200);
+      const net = g.nets.find((n) => n.owner === owner)!;
+      expect([...l.netTree(net).values()].map((j) => j.from)).toEqual(net.taps.map(() => owner));
+      // (drawn as the owner's own edges: no tap hops on from a reader)
+      for (const id of net.taps) expect(l.taps().get(id)).toBeNull();
+    });
 });
 
 describe('meters, joined to their cells by a net', () => {

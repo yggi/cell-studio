@@ -6,7 +6,7 @@
 //   2. The two renders agree block by block (the level of every 2048 samples) within TOL (default 1e-5, −100 dB).
 //      Not bit for bit: Chromium sums three or more inputs of a node in an order that changes from run to run, so the
 //      last bit of a float differs (about −180 dB; two inputs are stable, six differ every time). Pieces with a
-//      resonator loop (couple=, a board: forks, kalimba) vary much more (−45 dB, #65: the order Chromium processes a loop in
+//      resonator loop (couple=, a board: forks, kalimba, sympathy) vary much more (−45 dB, #65: the order Chromium processes a loop in
 //      changes from run to run; accepted): they are listed as KNOWN and don't fail the run.
 //
 //   npm run build && node tools/repeatable.mjs 6 [piece words…]
@@ -27,7 +27,7 @@ const secs = Number(args.find((a) => /^\d+(\.\d+)?$/.test(a)) ?? 6);
 const TOL = Number(process.env.TOL ?? 1e-5);
 const PEAK = Number(process.env.PEAK ?? -1);
 const RMS = Number(process.env.RMS ?? -18);
-const KNOWN = { 'forks.cells': '#65', 'kalimba.cells': '#65' };
+const KNOWN = { 'forks.cells': '#65', 'kalimba.cells': '#65', 'sympathy.cells': '#65' };
 const words = args.filter((a) => !/^\d+(\.\d+)?$/.test(a)).map((w) => w.toLowerCase());
 const files = readdirSync('examples')
   .filter((f) => f.endsWith('.cells'))

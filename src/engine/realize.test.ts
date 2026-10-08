@@ -13,6 +13,7 @@ import { eventsBetween, plan } from './realize';
 import { liveAt } from './live';
 import { routing } from './routing';
 import { buildGraph, structureKey } from './graph';
+import { edgeLabel } from './transform';
 import { PRESETS } from './presets';
 
 type R = ReturnType<typeof compileSource>;
@@ -149,10 +150,20 @@ describe('sound', () => {
         r,
         0,
         (
-          { bwv847: 200, ricercar: 120, pop: 100, zell: 140, korobeiniki: 60, cellscape: 330, baustelle: 110, hypercell: 75, onemore: 80, brothers: 120, ghosts: 60 } as Record<
-            string,
-            number
-          >
+          {
+            bwv847: 200,
+            ricercar: 120,
+            pop: 100,
+            arrangement: 40,
+            zell: 140,
+            korobeiniki: 60,
+            cellscape: 330,
+            baustelle: 110,
+            hypercell: 75,
+            onemore: 80,
+            brothers: 120,
+            ghosts: 60,
+          } as Record<string, number>
         )[key] ?? 12,
       );
       for (const o of r.outputs)
@@ -240,15 +251,15 @@ describe('graph', () => {
     expect(ids).toContain('cell:theme~>cell:bar');
     expect(ids).toContain('cell:scale->cell:key');
     expect(ids).toContain('cell:scale~>cell:key');
-    expect(g.edges.find((e) => e.id === 'cell:key~>cell:theme')!.label).toBe('⟳');
+    expect(edgeLabel(g.edges.find((e) => e.id === 'cell:key~>cell:theme')!)).toBe('⟳');
     expect(ids.some((i) => i.includes('fifths12TET'))).toBe(false);
   });
 
   it('labels shifted references; containers sit outside their parts; voices outermost', () => {
     const g = buildGraph(compileSource(SAILOR_WITH_KIT));
-    expect(g.edges.find((e) => e.id === 'cell:B->cell:lead')!.pick).toBe('[<<]');
+    expect(edgeLabel(g.edges.find((e) => e.id === 'cell:B->cell:lead')!)).toBe('[<<]');
     const g2 = buildGraph(compileSource('&m step=1\n&x step=&m 0 1 2\n&v loop=440\n&mix_ [&x[1:] * &v]\n&out_ loop=44k map=sample &mix_'));
-    expect(g2.edges.find((e) => e.id === 'cell:x->cell:v')!.pick).toBe('[1:]');
+    expect(edgeLabel(g2.edges.find((e) => e.id === 'cell:x->cell:v')!)).toBe('[1:]');
     const d = Object.fromEntries(g.nodes.map((n) => [n.id, n.depth]));
     expect(d['cell:tune']).toBeGreaterThan(d['cell:A']);
     expect(d['cell:A']).toBeGreaterThan(d['cell:m1']);
@@ -286,7 +297,8 @@ describe('modulation: &mix_ [(&theme + &vibrato) * &voice]\n&out_ loop=44k map=s
   });
   it('draws the modulator into the voice', () => {
     const g = buildGraph(r);
-    expect(g.edges.find((e) => e.id === 'cell:vib->cell:v')).toMatchObject({ kind: 'out', label: '+' });
+    const vib = g.edges.find((e) => e.id === 'cell:vib->cell:v')!;
+    expect([vib.port, edgeLabel(vib)]).toEqual(['pitch', '+']);
   });
 });
 
@@ -474,7 +486,8 @@ describe('volume streams (map=amp)', () => {
   });
   it('draws the volume into the voice with ×', () => {
     const g = buildGraph(compileSource(base + '&vol map=amp step=&m 1\n' + out('&mix [&t * &vol * &v]')));
-    expect(g.edges.find((e) => e.id === 'cell:vol->cell:v')).toMatchObject({ label: '×' });
+    const vol = g.edges.find((e) => e.id === 'cell:vol->cell:v')!;
+    expect([vol.port, edgeLabel(vol)]).toEqual(['level', '×']);
   });
 });
 
@@ -561,9 +574,9 @@ describe('switching off', () => {
     }
   });
   it('switching off one channel’s mix silences only that channel', () => {
-    const r = compileSource(PRESETS.stereo.source);
+    const r = compileSource(PRESETS.canon.source);
     const p = plan(r, codeShifts(r), new Set(['cell:left']));
-    const e = eventsBetween(p, 0, 2).find((x) => (x.instrument ?? x.voice) === 'bell')!;
+    const e = eventsBetween(p, 0, 2).find((x) => (x.instrument ?? x.voice) === 'v1')!;
     expect(e.gains[0]).toBe(0);
     expect(e.gains[1]).toBeGreaterThan(0);
     // and the sound card off silences everything
@@ -1165,7 +1178,7 @@ describe('sound parameters that move', () => {
   });
   it('the graph: parameter cells feed their voice, labelled', () => {
     const g = buildGraph(compileSource(base + '&cut step=&bar 400 800\n&v s=saw lpf=&cut' + mix));
-    expect(g.edges.find((x) => x.source === 'cell:cut' && x.target === 'cell:v')!.pick).toBe('lpf');
+    expect(edgeLabel(g.edges.find((x) => x.source === 'cell:cut' && x.target === 'cell:v')!)).toBe('lpf');
   });
 });
 
@@ -1719,7 +1732,7 @@ describe('FM: fm=&op, ratio=, index=', () => {
     expect(r.cells.get('car')!.params).toMatchObject({ fm: 'op', index: 2 });
     expect(r.cells.get('op')!.params).toMatchObject({ ratio: 3.5 });
     const g = buildGraph(r);
-    expect(g.edges.find((e) => e.source === 'cell:op' && e.target === 'cell:car')!.pick).toBe('fm');
+    expect(edgeLabel(g.edges.find((e) => e.source === 'cell:op' && e.target === 'cell:car')!)).toBe('fm');
   });
   it('the index moves: a range under an envelope, per note', () => {
     const r = compileSource(base + '&op s=sine ratio=1\n&car s=sine loop=C4 fm=&op index=.5..5 * &(map=adsr .001 .2 .1 .1)' + mix);

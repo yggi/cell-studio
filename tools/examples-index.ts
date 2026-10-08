@@ -18,6 +18,8 @@ export interface ExampleInfo {
   readonly title: string;
   readonly description: string;
   readonly tags: readonly string[];
+  /** Its place in the tutorial (its card's rung=), or null. */
+  readonly rung: number | null;
   /** How many cells its graph has. */
   readonly size: number;
   /** How long it is: when it ends, or its cycle. */
@@ -47,6 +49,7 @@ export function buildExamplesMeta(dir = 'examples'): (ExampleMeta & { source: st
       title: m?.title ?? key,
       description: m?.description ?? '',
       tags: canonicalTags(m?.tags ?? []),
+      rung: m?.rung ?? null,
       size: graph.nodes.filter((n) => !n.petalOf && !n.cell.note).length,
       time: pieceTime(r),
       bytes: Buffer.byteLength(source),

@@ -94,7 +94,7 @@ An attribute is `key=value`, anywhere on a cell's line, each at most once (`step
 - `shift=n` · `shift=free(n, lo..hi)`: How far it is turned. [→](tables.md) `&mode over=&major shift=5 0 2 4` · `&key shift=free(0, 0..11)`
 - `stride=n` · `stride=free(n, lo..hi)`: How far each step turns it. [→](time.md) `&key step=cycle(&theme) stride=7`
 - `map=…`: How its values sound. [→](sound.md) `&accent map=amp step=&bar 1 .5`
-- `show=kind` · `show=notes:convention` · `show=do:convention`: How it’s shown: notes, do, scale, pattern … (and everything below it) [→](display.md) `&tune show=notes step=2 0 2 4` · `&tune show=notes:german step=2 0 2 4` · `&tune show=do:movable step=2 0 2 4`
+- `show=kind` · `show=notes:convention` · `show=do:convention` · `show=mix:&grid`: How it’s shown: notes, do, scale, pattern … (and everything below it) [→](display.md) `&tune show=notes step=2 0 2 4` · `&tune show=notes:german step=2 0 2 4` · `&tune show=do:movable step=2 0 2 4` · `&band show=mix:&edo19 [&a, &b]`
 - `label="text"`: A name to show, in quotes — alone on a cell, a note in the graph. [→](display.md) `&theme label="the King's theme" step=2 0 2 4` · `&note label="A note in the graph: alone on its cell."`
 - `env=&envelope`: A voice’s own volume on every note: an envelope — on a voice. [→](sound.md) `&lead s=saw loop=C4 env=&(map=adsr .01 .3 .5 .4)`
 - `pitch=&vibrato` · `pitch=lo..hi * &shape`: A voice’s own pitch on every note: a vibrato, or a shape in semitones (pitch=0..30 * &(map=adsr 0 .04 0 0): a drop) — on a voice. [→](sound.md) `&lead s=saw loop=C4 pitch=&(loop=5 0 .1 -.1)` · `&bd s=sine loop=A1 pitch=0..30 * &(map=adsr 0 .04 0 0)`
@@ -103,9 +103,10 @@ An attribute is `key=value`, anywhere on a cell's line, each at most once (`step
 - `laps=n`: How many laps it plays, then it ends. [→](time.md) `&bar scan(4 4 4 4) step=84bpm laps=30`
 - `chance=p` · `chance=free(p, 0..1)`: What a bare x? means here: a probability, or free() for a slider. [→](cell.md) `&ghost chance=.2 step=4 0? 0? 0? 0?` · `&ghost chance=free(.3, 0..1) step=4 0? 0?`
 - `seed=n`: A different sequence of chance. [→](cell.md) `&ghost seed=7 step=4 0? 0? 0? 0?`
-- `title="text"`: On a note: the piece’s title (its card) — on a note (a label= and nothing else) [→](display.md) `&piece title="Swing blues" tags="genre:jazz, basics" label="A blues in F."`
-- `tags="tag, tag"`: On a note: the piece’s tags, comma-separated; on a cell, its clusters in the graph. [→](display.md) `&piece title="Swing blues" tags="genre:jazz, basics"` · `&lead tags="melody" s=saw loop=C4`
+- `title="text"`: On a note: the piece’s title (its card) — on a note (a label= and nothing else) [→](display.md) `&piece title="Swing blues" tags="genre:jazz, rhythm" label="A blues in F."`
+- `tags="tag, tag"`: On a note: the piece’s tags, comma-separated; on a cell, its clusters in the graph. [→](display.md) `&piece title="Swing blues" tags="genre:jazz, rhythm"` · `&lead tags="melody" s=saw loop=C4`
 - `about=&cell` · `about=(&a &b …)`: On a note: the cells it explains — on a note (a label= and nothing else) [→](display.md) `&fenvNote label="The filter opens on every note." about=&fenv` · `&why label="Two cells at once." about=(&fenv &accent)`
+- `rung=n`: On a piece’s card: its place in the tutorial, the ladder of basics (1 the first) — on a note (a label= and nothing else) [→](display.md) `&piece title="Steps: a tune on one line" tags="tutorial" rung=1 label="Numbers, rests, holds and repeats."`
 
 ## Parameters
 

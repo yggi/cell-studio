@@ -9,8 +9,10 @@
    */
   import { onDestroy, onMount } from 'svelte';
   import { getGraphContext } from './context';
-  import { bandFreq, bandHue, bandsFromFFT, hslToRgb, restingProfile, wheelLUT } from '../layout/spectrum';
-  import { freqHue, gridName } from '../engine/helix';
+  import { bandFreq, bandsFromFFT, hslToRgb, restingProfile, wheelLUT } from '../layout/spectrum';
+  import { gridName, positionOf } from '../engine/helix';
+  import { heardGrid } from '../layout/show';
+  import { paletteHsl } from './palette';
   import { noteName } from '../theory/modes';
   import { DOUGH_SOURCES } from '../engine/dough-params';
   import { onFrames } from '../audio/ticker';
@@ -18,7 +20,8 @@
   import { timed } from '../audio/stats';
   import { fitFont, hubMax } from '../layout/dial';
   import { wheelGeometry } from '../layout/wheel';
-  import { octaveMute, octaveOfFreq } from './theme';
+
+  const C4 = 261.63;
 
   /** hub: what the hub says; without it, the note a voice sounds now (at rest, its pitch 0). */
   let { name, size = 120, hub: fixed = null }: { name: string; size?: number; hub?: { big: string; small: string } | null } = $props();
@@ -39,24 +42,22 @@
 
   // history[side][frame][band], frame 0 newest
   const history = new Float32Array(2 * FRAMES * BANDS);
-  // each band the colour of its note on the voice's own grid (a rainbow per period, from its pitch 0);
-  // mixes and the sound card hear many grids: the 12-tone rainbow, C red. Dark → bright by level.
+  // each band is sound in the palette (ui/palette.ts): the colour of its note on the grid it follows, dark → bright by
+  // level. A voice: its notes' grid, from its pitch 0. A mix or the sound card: by the owner's rule (heardGrid), the grid
+  // all its voices are on, from C4 (on the usual grid C red); voices in several grids: neutral, unless its show= names one.
   const LEVELS = 64;
   const cell = $derived(ctx.program.cells.get(name));
   const palette = $derived.by(() => {
     const out = new Uint8ClampedArray(BANDS * LEVELS * 3);
-    const voice = cell?.voice ?? false;
+    const g = heardGrid(ctx.program, name);
+    const grid = g ? { cycle: ctx.program.cells.get(g)?.cycle ?? 12 } : null;
+    const base = cell?.voice && cell.freq > 0 ? cell.freq : C4;
     for (let b = 0; b < BANDS; b++) {
-      const f = bandFreq(b, BANDS);
-      const hue = (voice ? freqHue(ctx.program, name, f) : null) ?? bandHue(b, BANDS);
-      // the colouring rule (theme.ts): C4 … C5 the natural range, full colour; other octaves muted, lighter
-      // above, darker below (a spectrum's full colour is a little stronger than a note's: it's dark round it)
-      const o = octaveOfFreq(f);
-      const sat = 0.9 * octaveMute(o);
+      const position = g ? positionOf(ctx.program, g, 12 * Math.log2(bandFreq(b, BANDS) / base)) : null;
       for (let i = 0; i < LEVELS; i++) {
-        const t = Math.pow(i / (LEVELS - 1), 0.6); // lift quiet partials
-        const [r, g, bl] = hslToRgb(hue, sat, Math.max(0.03, Math.min(0.85, 0.06 + 0.5 * t + o * 0.06 * t)));
-        out.set([r, g, bl], (b * LEVELS + i) * 3);
+        const loud = Math.pow(i / (LEVELS - 1), 0.6); // lift quiet partials
+        const [h, s, l] = paletteHsl('audio', { position, loud }, grid);
+        out.set(hslToRgb(h, s / 100, l / 100), (b * LEVELS + i) * 3);
       }
     }
     return out;

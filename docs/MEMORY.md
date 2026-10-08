@@ -37,7 +37,7 @@ Details are on the linked pages; this list is only a pointer. → [language/over
 - `[a * &voice, …]` mixes (sorts, `+` `*` commute), `map=sample` → [mix](language/mix.md)
 - voices `s=` `loop=`, `env=` `pitch=` `map=adsr|amp|lin|db` → [sound](language/sound.md)
 - belts, tape, resonators, FM → [physics](language/physics.md)
-- `title=` `tags=` `label=` `show=` `level=` → [display](language/display.md); a `show=` of the piece's own → [plugins](language/plugins.md)
+- `title=` `tags=` `label=` `show=` `level=`; the tutorial: `tags="tutorial"` `rung=n` → [display](language/display.md); a `show=` of the piece's own → [plugins](language/plugins.md)
 
 ## Decisions
 
@@ -51,7 +51,9 @@ One line each; the record has the rationale. → [decisions/](decisions/README.m
 - 006 · The mix algebra: a factor's sort (pitch, volume, signal) comes from the cell, not its place; `+` and `*` commute; numbers are semitones in a sum, a gain in a product · → decisions/006-mix-algebra.md
 - 007 · `pan=` is back, a balance in dough's sense, compiled into the channel gains; two chords on the sound card stay valid · → decisions/007-pan-is-back.md
 - 008 · A turning table comes round after its own length; `cycle=` only when it differs · → decisions/008-tables-come-round.md
-- 009 · The core stays lean: a piece carries the drawing of a `show=` of its own as a plugin block (the sun is one); plugin code runs only if shipped with the app or chosen by the user · → decisions/009-plugins.md
+- 009 · The tutorial is a ladder of pieces, one concept each, covering every form once (a test checks); `rung=` on the card; `tutorial` a kind of tag (it replaces `basics`), its own cell in the library · → decisions/009-tutorial-ladder.md
+- 010 · A canon's `[<<n]` is a copy (the score replayed); `play= at=` reads what was recorded; a tap of what was played waits for `&<` (#149) · → decisions/010-canon-copies.md
+- 011 · The core stays lean: a piece carries the drawing of a `show=` of its own as a plugin block (the sun is one); plugin code runs only if shipped with the app or chosen by the user · → decisions/011-plugins.md
 
 ## Where things are tracked
 

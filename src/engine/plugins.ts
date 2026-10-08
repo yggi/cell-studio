@@ -1,5 +1,5 @@
 /**
- * Plugins: a piece can carry the code of a `show=` of its own (decision 009). A plugin is a block of the piece's
+ * Plugins: a piece can carry the code of a `show=` of its own (decision 011). A plugin is a block of the piece's
  * text, between two lines:
  *
  *   === plugin sun ===

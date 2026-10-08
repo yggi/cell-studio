@@ -1,6 +1,6 @@
 # Plugins
 
-A piece can carry the drawing of a `show=` of its own: a **plugin**, written in the piece's text. The core stays lean; what one piece needs lives in that piece. Why, and what is not built yet: [decision 009](../decisions/009-plugins.md). A plugin changes only how a cell is drawn, never how it sounds.
+A piece can carry the drawing of a `show=` of its own: a **plugin**, written in the piece's text. The core stays lean; what one piece needs lives in that piece. Why, and what is not built yet: [decision 011](../decisions/011-plugins.md). A plugin changes only how a cell is drawn, never how it sounds.
 
 ## A block
 

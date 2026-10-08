@@ -26,6 +26,7 @@ interface Body {
   laps: number | null;
   title: string | null;
   tags: string | null;
+  rung: number | null;
   about: Ref[] | null;
   chance: number | null;
   seed: number | null;
@@ -137,8 +138,8 @@ export const KEYS: Readonly<Record<keyof typeof CORE, Key>> = {
   stride: { form: 'stride=n · stride=free(n, lo..hi)', examples: ['&key step=cycle(&theme) stride=7'], read: whole('stride') },
   map: { form: 'map=…', examples: ['&accent map=amp step=&bar 1 .5'], read: (s, b) => (b.map = parseMap(s)) },
   show: {
-    form: `show=kind · show=notes:convention · show=do:convention`,
-    examples: ['&tune show=notes step=2 0 2 4', '&tune show=notes:german step=2 0 2 4', '&tune show=do:movable step=2 0 2 4'],
+    form: `show=kind · show=notes:convention · show=do:convention · show=mix:&grid`,
+    examples: ['&tune show=notes step=2 0 2 4', '&tune show=notes:german step=2 0 2 4', '&tune show=do:movable step=2 0 2 4', '&band show=mix:&edo19 [&a, &b]'],
     read: (s, b) => {
       const at2 = s.i;
       const w = s.match(/[a-z]+/y);
@@ -146,6 +147,14 @@ export const KEYS: Readonly<Record<keyof typeof CORE, Key>> = {
       if (w === null) s.fail(`show= takes one of: ${SHOWS.join(' ')}, or a plugin of the piece`, at2, 1);
       // a naming convention: notes:flats, notes:sharps, notes:german, do:fixed
       let conv = '';
+      // a mix's colours: the grid it follows (show=mix:&edo19), whatever grids its voices are on
+      if (w === 'mix' && s.text.startsWith(':&', s.i)) {
+        s.i += 2;
+        const g = s.match(IDENT);
+        if (g === null) s.fail('show=mix:&grid: the grid whose colours the mix wears, like show=mix:&edo19', at2, s.i - at2);
+        b.show = `mix:&${g}`;
+        return;
+      }
       if (s.peek() === ':') {
         s.i++;
         const cw = s.match(/[a-z]+/y) ?? '';
@@ -213,11 +222,21 @@ export const KEYS: Readonly<Record<keyof typeof CORE, Key>> = {
     },
   },
   seed: { form: 'seed=n', examples: ['&ghost seed=7 step=4 0? 0? 0? 0?'], read: (s, b) => (b.seed = s.int('a whole number after seed=')) },
-  title: { form: 'title="text"', examples: ['&piece title="Swing blues" tags="genre:jazz, basics" label="A blues in F."'], read: text('title', 'title="Swing blues"') },
+  title: { form: 'title="text"', examples: ['&piece title="Swing blues" tags="genre:jazz, rhythm" label="A blues in F."'], read: text('title', 'title="Swing blues"') },
   tags: {
     form: 'tags="tag, tag"',
-    examples: ['&piece title="Swing blues" tags="genre:jazz, basics"', '&lead tags="melody" s=saw loop=C4'],
+    examples: ['&piece title="Swing blues" tags="genre:jazz, rhythm"', '&lead tags="melody" s=saw loop=C4'],
     read: text('tags', 'tags="jazz, blues"'),
+  },
+  rung: {
+    form: 'rung=n',
+    examples: ['&piece title="Steps: a tune on one line" tags="tutorial" rung=1 label="Numbers, rests, holds and repeats."'],
+    read: (s, b, word, at) => {
+      // its place in the tutorial: 1, 2, 3 …
+      const n = s.match(/[0-9]+(?![0-9.])/y);
+      if (n === null || !(parseInt(n, 10) >= 1)) s.fail('rung= is a place in the tutorial, 1 or more: rung=1', at, word.length + 1);
+      b.rung = parseInt(n!, 10);
+    },
   },
   about: {
     form: 'about=&cell · about=(&a &b …)',
@@ -363,6 +382,7 @@ export function parseBody(s: LineScanner, head: Ref): CellDecl {
     laps: null,
     title: null,
     tags: null,
+    rung: null,
     about: null,
     chance: null,
     seed: null,
@@ -425,7 +445,7 @@ export function parseBody(s: LineScanner, head: Ref): CellDecl {
   }
 
   const braid: Braid = generator ?? (tokens.length ? { kind: 'list', tokens } : { kind: 'blank' });
-  const { over, shift, step, map, stride, cycle, env, pitch, show, label, title, tags, about, laps, chance, seed, size, params, paramSpans, paramCells, paramClocks } = b;
+  const { over, shift, step, map, stride, cycle, env, pitch, show, label, title, tags, rung, about, laps, chance, seed, size, params, paramSpans, paramCells, paramClocks } = b;
   return {
     name: head.name,
     span: head.span,
@@ -442,6 +462,7 @@ export function parseBody(s: LineScanner, head: Ref): CellDecl {
     label,
     title,
     tags,
+    rung,
     about: about ?? undefined,
     laps,
     chance,

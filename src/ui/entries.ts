@@ -16,6 +16,8 @@ export interface Entry {
   readonly title: string;
   readonly description: string;
   readonly tags: readonly string[];
+  /** Its place in the tutorial (its card's rung=), if it is one of its pieces. */
+  readonly rung?: number | null;
   /** Its text: a saved piece has it; an example's is fetched when it opens (`load`). */
   readonly source?: string;
   readonly load?: () => Promise<string>;
@@ -39,6 +41,7 @@ export function savedEntry(p: SavedPiece): Entry {
     title: p.title,
     description: m?.description ?? '',
     tags: canonicalTags(m?.tags ?? []),
+    rung: m?.rung ?? null,
     source: p.source,
     saved: p.saved,
     size: buildGraph(r).nodes.filter((n) => !n.petalOf && !n.cell.note).length,
@@ -56,6 +59,7 @@ export const exampleEntries: readonly Entry[] = EXAMPLES.map((e) => ({
   title: e.title,
   description: e.description,
   tags: e.tags,
+  rung: e.rung,
   load: loaders[e.key],
   miniature: e.miniature,
   size: e.size,

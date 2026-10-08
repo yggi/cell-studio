@@ -9,6 +9,7 @@ import { routing, type Routing } from '../../src/engine/routing';
 export interface Piece {
   readonly key: string;
   readonly title: string;
+  readonly source: string;
   readonly program: CompileResult;
   readonly shifts: Shifts;
   readonly routed: Routing;
@@ -22,7 +23,7 @@ export function pieceOf(key: string, source: string, seconds: number): Piece | n
   if (!program.ok) return null;
   const shifts = codeShifts(program);
   const muted = new Set<string>();
-  return { key, title, program, shifts, routed: routing(program, muted), live: liveAt(program, shifts, muted, seconds) };
+  return { key, title, source, program, shifts, routed: routing(program, muted), live: liveAt(program, shifts, muted, seconds) };
 }
 
 /** Every example that compiles (or those whose key or title has one of the words in `only`), in the library's order. */

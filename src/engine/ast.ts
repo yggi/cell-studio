@@ -36,10 +36,6 @@ export interface ValueMap {
   readonly add: number;
 }
 
-/** The operations as written: degree(…, n), inverse(…), innermost first applied. */
-export const valueMapLabel = (m: ValueMap | undefined): string =>
-  !m ? '' : `${m.mul < 0 ? 'inverse' : ''}${m.mul < 0 && m.add ? ' ' : ''}${m.add ? `degree ${m.add > 0 ? '+' : ''}${m.add}` : ''}`;
-
 export const refLabel = (r: { pick: Pick | null; shift: number; transpose?: number }) => (pickLabel(r.pick) || shiftLabel(r.shift)) + (r.transpose ? `^${r.transpose}` : '');
 
 /**
@@ -123,6 +119,12 @@ export interface ParamCells {
   readonly span: Span;
 }
 
+/** One factor of a rate as written: `*2` (×) or `/2` (÷). */
+export interface RateOp {
+  readonly op: '×' | '÷';
+  readonly n: number;
+}
+
 export type StepSpec = { readonly whole: boolean } & (
   | {
       readonly kind: 'driven';
@@ -130,8 +132,8 @@ export type StepSpec = { readonly whole: boolean } & (
       readonly cycle: boolean;
       /** Steps per driver step (or cycle): `*2` ½, `/2` 2, `*2/3` 1.5. */
       readonly ratio: number;
-      /** The ratio as written, for drawing: `×2/3`. */
-      readonly label: string;
+      /** The ratio as written, factor by factor (`*2/3`: ×2, ÷3), for drawing. */
+      readonly chain: readonly RateOp[];
       readonly span: Span;
     }
   | { readonly kind: 'rate'; readonly perSecond: number; readonly span: Span; readonly free?: FreeSpec }
@@ -209,6 +211,8 @@ export interface CellDecl {
   readonly title?: string | null;
   /** On a note: the piece's tags, comma-separated. */
   readonly tags?: string | null;
+  /** On a piece's card: its place in the tutorial (the ladder of basics), 1 the first. */
+  readonly rung?: number | null;
   /** On a note: the cells it explains, drawn as links from the note (`about=&fenv`, `about=(&fenv &accent)`). */
   readonly about?: readonly Ref[];
   /**

@@ -4,7 +4,7 @@
  * the cell (its parts, &refs, and its tables, over=) — wherever it fits.
  * step= drivers aren't below in this sense: a melody's show never renames its meter.
  */
-import { codeShifts, type CompileResult } from '../engine/program';
+import { codeShifts, ROOT, type CompileResult } from '../engine/program';
 import type { ShowPlugin } from '../engine/plugins';
 import { entries, resolveIn, resolvePitch, semitones } from '../engine/helix';
 import { modeName, mod } from '../theory/modes';
@@ -174,6 +174,29 @@ function computeShow(result: CompileResult, name: string): EffectiveShow {
     level = next;
   }
   return { show: inferShow(result, name), conv: '', from: 'inferred' };
+}
+
+/**
+ * The grid whose colours a voice, a mix or the sound card wears (the owner's rule, #34): colour follows the grid each
+ * voice's notes are read through. A voice: its notes' grid. A mix or the sound card: the one grid every voice it hears is
+ * on; several collide, and it shows no colour (null) — unless its own `show=mix:&grid` names the grid it follows. A voice
+ * with no pitched notes (a kit, a gate) has no say; nothing to say, the default grid.
+ */
+export function heardGrid(result: CompileResult, name: string): string | null {
+  const c = result.cells.get(name);
+  const own = c && kindOf(result, name) === 'mix' ? parseShow(result, c.show) : null;
+  const named = own?.show === 'mix' && own.conv.startsWith('&') ? own.conv.slice(1) : null;
+  if (named && result.cells.get(named)?.root) return named;
+  const shifts = codeShifts(result);
+  const grids = new Set<string>();
+  for (const o of result.outputs)
+    if ((o.voice === name || o.via.includes(name) || o.through.includes(name)) && !o.kit && !o.gate)
+      try {
+        grids.add(resolvePitch(result, o.cell, 0, 0, shifts).root);
+      } catch {
+        /* not resolvable: no say */
+      }
+  return grids.size > 1 ? null : ([...grids][0] ?? ROOT);
 }
 
 /** The pitch 0 of the voice that plays a cell (directly or as a part), in Hz; C4 if none. */

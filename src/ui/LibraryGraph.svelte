@@ -5,8 +5,8 @@
    * size of how many pieces carry it. Pieces sharing tags gather. Laid out by the
    * same physics as the pieces' graphs, without its ranks: a cloud, not a flow.
    */
-  import { GENRES, PILL, shortTitle, tagFont, type LibraryLayout } from '../layout/library';
-  import { tagName } from '../engine/tags';
+  import { GENRES, PILL, shortTitle, tagFont, tutorialTitle, type LibraryLayout } from '../layout/library';
+  import { tagName, TUTORIAL } from '../engine/tags';
   import { tick } from 'svelte';
   import PieceNode from './PieceNode.svelte';
   import { clusterDisc } from '../layout/clusters';
@@ -68,13 +68,11 @@
     if (!fitted && width > 0 && height > 0) {
       fitted = true;
       fit();
-      // (a phone opens on the middle, zoomed in until the titles read at 11 px: the whole wheel is too small
-      // there to read them)
+      // (a phone opens on the middle of the wheel, zoomed in until the titles read at 11 px: the whole wheel is too
+      // small there to read them)
       if (width < 600) {
         zoom = Math.max(zoom, Math.min(2.5, 11 / (PILL * (lib.fullScale || lib.tagScale))));
-        requestAnimationFrame(() =>
-          requestAnimationFrame(() => scroller?.scrollTo((scroller.scrollWidth - scroller.clientWidth) / 2, (scroller.scrollHeight - scroller.clientHeight) / 2)),
-        );
+        requestAnimationFrame(() => requestAnimationFrame(() => scroller?.scrollTo(px(-layout.x0) - scroller.clientWidth / 2, px(-layout.y0) - (scroller.clientHeight - top) / 2)));
       }
     }
   });
@@ -154,9 +152,11 @@
   // lit: what the chosen tag carries; dim: what the search leaves out
   // zoomed out, a tag only one piece carries says little: left out (and its wash)
   const shownTag = (t: string) => zoom >= 0.6 || (tags.get(t) ?? 0) > 1 || tag === t;
-  // (on the wheel, the genres are its rim: no pill, no wash of their own)
-  const asNode = (t: string) => shownTag(t) && tagHasVisible(t) && !(layout.ring && isGenre(t));
+  // (on the wheel, the genres are its rim, and the tutorial its cell's: no pill, no wash of their own)
+  const asNode = (t: string) => shownTag(t) && tagHasVisible(t) && !onRim(t);
   const isGenre = (t: string) => (GENRES as readonly string[]).includes(t);
+  const onRim = (t: string) => (!!layout.ring && isGenre(t)) || (!!layout.tutorial && t === TUTORIAL);
+  const inTutorial = (e: Entry) => !!layout.tutorial && e.tags.includes(TUTORIAL);
   // searching: what doesn't match is gone (as in the cards), not dimmed — and a tag left with no
   // piece showing goes with it
   const searching = $derived(shown.size < entries.length);
@@ -189,10 +189,11 @@
   // a tag's cluster: the pieces showing that carry it (two or more; the rim's genres have their arc)
   const clusters = $derived.by(() =>
     [...tags]
-      .filter(([t, n]) => n > 1 && shownTag(t) && !(layout.ring && isGenre(t)))
+      .filter(([t, n]) => n > 1 && shownTag(t) && !onRim(t))
       .map(([t]) => {
+        // (the wheel's pieces: the tutorial's cell has its own rim, no washes)
         const ms = entries
-          .filter((e) => visible(e.id) && e.tags.includes(t))
+          .filter((e) => visible(e.id) && e.tags.includes(t) && !inTutorial(e))
           .map((e) => layout.at.get(`p:${e.id}`))
           .filter((p): p is { x: number; y: number } => !!p);
         if (ms.length < 2) return null;
@@ -260,6 +261,44 @@
             aria-label="{tagName(g.tag)}: light its pieces"
           ></button>
         {/each}
+      {/if}
+      <!-- the tutorial: a cell of its own beside the wheel, its rungs in order along a thread -->
+      {#if layout.tutorial}
+        {@const t = layout.tutorial}
+        {@const c = { x: px(t.x - layout.x0), y: px(t.y - layout.y0) }}
+        {@const R = px(t.r)}
+        {@const band = px(40)}
+        {@const pt = (r: number, a: number) => `${c.x + r * Math.cos(a)},${c.y + r * Math.sin(a)}`}
+        <svg class="ring" width={px(layout.w)} height={px(layout.h)} aria-hidden="true">
+          <defs>
+            <radialGradient id="tutorial-disc">
+              <stop offset="0%" stop-color="var(--surface)" />
+              <stop offset="100%" stop-color="var(--wheel-disc)" />
+            </radialGradient>
+          </defs>
+          <circle cx={c.x} cy={c.y} r={R - band / 2} fill="url(#tutorial-disc)" />
+          <circle class="seg" class:dim={tag !== null && tag !== TUTORIAL} cx={c.x} cy={c.y} r={R} fill="none" stroke-width={band} style:stroke={colours.get(TUTORIAL)} />
+          <path id="tutorial-rim" d="M{pt(R, Math.PI)} A{R},{R} 0 0 1 {pt(R, 0)}" fill="none" />
+          <text class="segname" font-size={Math.max(12, px(26))} dy="0.35em"><textPath href="#tutorial-rim" startOffset="50%" text-anchor="middle">TUTORIAL</textPath></text>
+          <polyline
+            class="thread"
+            points={t.order
+              .map(pos)
+              .filter((p) => p !== null)
+              .map((p) => `${p.x},${p.y}`)
+              .join(' ')}
+          />
+        </svg>
+        <button
+          class="unstyled segtap"
+          style:left="{c.x}px"
+          style:top="{c.y - R}px"
+          style:width="{px(300)}px"
+          style:height="{px(70)}px"
+          onclick={() => (tag = tag === TUTORIAL ? null : TUTORIAL)}
+          aria-pressed={tag === TUTORIAL}
+          aria-label="tutorial: light its pieces"
+        ></button>
       {/if}
       <!-- clusters: the pieces a tag gathers, washed in its colour (as cells tagged alike in a piece's graph) -->
       {#each clusters as c (c.tag)}
@@ -337,7 +376,7 @@
                 ><PieceNode entry={e} {colours} size={d} petals={d * g >= 96} podsAt={d / 2 + (foot - d / 2) / g} current={e.id === current} miniature={lib.done} /></span
               >
             {/if}
-            <span class="title" style:top="{50 + 24 * g}%" style:font-size="{pillFont}px">{shortTitle(e.title)}</span>
+            <span class="title" style:top="{50 + 24 * g}%" style:font-size="{pillFont}px">{inTutorial(e) ? tutorialTitle(e) : shortTitle(e.title)}</span>
           </button>
         {/if}
       {/each}
@@ -502,6 +541,14 @@
   }
   .seg.dim {
     opacity: 0.25;
+  }
+  /* the tutorial's thread: its rungs, in order */
+  .thread {
+    fill: none;
+    stroke: var(--text-muted);
+    stroke-width: 1.5;
+    stroke-opacity: 0.45;
+    stroke-dasharray: 2 4;
   }
   .segname {
     font-family: var(--font-ui);

@@ -21,23 +21,33 @@ const NOTE_L = 58;
 /** How much an octave away from the natural range mutes a note's colour (its saturation, × this): 1 in it, less further off. */
 export const octaveMute = (octave: number) => (octave === 0 ? 1 : 0.6 - 0.1 * (Math.abs(octave) - 1));
 
-/** The octave of a frequency, counted from the natural range (C4 … C5 is 0), within ±3. */
-export const octaveOfFreq = (f: number) => {
-  const ratio = f / 261.63;
-  return Math.max(-3, Math.min(3, ratio <= 2.0001 && ratio >= 1 ? 0 : Math.floor(Math.log2(ratio))));
+/** A note's colour as hue, saturation and lightness (s, l in %): noteColour's numbers, for the palette (palette.ts). */
+export const noteHsl = (hue: number, dim = false, octave = 0): [number, number, number] => {
+  const o = Math.max(-3, Math.min(3, Math.round(octave)));
+  return [hue, Math.round(NOTE_S * octaveMute(o)), Math.max(18, Math.min(88, (dim ? NOTE_L - 16 : NOTE_L) + o * 11))];
 };
 
-/** A note's colour by hue (dim: a fainter one, for defaults and locked steps). */
 /**
  * A note's colour: its hue the pitch class (C red …). In the natural range (0 … 12, C4 to C5: octave 0)
- * full colour; an octave away, muted — lighter above, darker below, more so the further.
+ * full colour; an octave away, muted — lighter above, darker below, more so the further. (dim: a fainter one, for
+ * defaults and locked steps.)
  */
 export const noteColour = (hue: number, dim = false, octave = 0) => {
-  const o = Math.max(-3, Math.min(3, Math.round(octave)));
-  const s = Math.round(NOTE_S * octaveMute(o));
-  const l = Math.max(18, Math.min(88, (dim ? NOTE_L - 16 : NOTE_L) + o * 11));
-  return `hsl(${hue} ${s}% ${l}%)`;
+  const [h, s, l] = noteHsl(hue, dim, octave);
+  return `hsl(${h} ${s}% ${l}%)`;
 };
+
+/**
+ * The palette's neutral (palette.ts): one hue for what has a level but no pitch (an envelope, a gain, a filter), and for
+ * sound that hears several grids. Hue and saturation are the edge's at rest (app.css --edge, #5f6576: hsl 224 11% 42%);
+ * its lightness is the level, from just above the edge at rest (0: 3:1 against --bg, palette.test.ts checks it) to
+ * near the ink (1: --text).
+ */
+export const LEVEL = { hue: 224, s: 11, l0: 46, l1: 86 } as const;
+
+/** Sound in the palette (palette.ts), as the spectrum wheels draw it: saturation in the natural range (%), and the
+ * lightness (%) from silence to full — dark when quiet, as bright as it is loud. */
+export const SOUND = { s: 90, l0: 6, l1: 56, lo: 3, hi: 85, octave: 6 } as const;
 
 /** A mode's colour by how bright it is (Lydian 1 … Locrian 0): show=brightness, and what a plugin draws a day's blocks with. */
 export const blockColour = (light: number) => `hsl(45 ${30 + 60 * light}% ${14 + 62 * light}%)`;

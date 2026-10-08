@@ -15,12 +15,12 @@ describe('meters as ground', () => {
       const m = buildGraph(compileSource(PRESETS[key].source));
       const byId = new Map(m.nodes.map((n) => [n.id, n]));
       const grounds = groundsOf(m);
-      for (const e of m.edges.filter((e) => e.kind === 'step')) {
+      for (const e of m.edges.filter((e) => e.port === 'step')) {
         const meter = (byId.get(e.target) as { isMeter?: boolean }).isMeter;
         const belted = !!e.belt;
         expect(grounds.has(e.id), `${key}: ${e.id}`).toBe(!!meter && !belted);
       }
-      for (const e of m.edges.filter((e) => e.kind !== 'step')) expect(grounds.has(e.id)).toBe(false);
+      for (const e of m.edges.filter((e) => e.port !== 'step')) expect(grounds.has(e.id)).toBe(false);
     }
   });
 
