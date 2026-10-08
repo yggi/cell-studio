@@ -33,8 +33,8 @@ Every form the parser reads, what it means and an example: generated from the pa
 ## References
 
 - `&name`: A cell, by name: in a braid (spliced in), after an attribute (over=&scale), in a mix. [→](cell.md) `&theme step=2 &motif 0`
-- `&name[i]`: One entry of its braid as written, counted from 0; negative from the end (&x[-1] the last). [→](braid.md) `&tune step=2 &motif[0] &motif[-1]`
-- `&name[a:b]` · `&name[a:b:s]`: A slice, Python-style: from a up to b (either may be left out), every s-th; [::-1] backwards (retrograde). [→](braid.md) `&tune step=2 &motif[1:3] &motif[:-1] &motif[::-1] &motif[::2]`
+- `&name[i]`: One entry of its braid as it is turned now (a fixed tap: it follows shift=), counted from 0; negative from the end (&x[-1] the last). &name[$i]: as written. [→](braid.md) `&tune step=2 &motif[0] &motif[-1] &key[$0]`
+- `&name[a:b]` · `&name[a:b:s]`: A slice, Python-style: from a up to b (either may be left out), every s-th; [::-1] backwards (retrograde). As turned; [$a:b] as written. [→](braid.md) `&tune step=2 &motif[1:3] &motif[:-1] &motif[::-1] &motif[::2]`
 - `&name[<<n]` · `&name[>>n]`: Shifted back or forward n places (1 if left out), on top of its own shift=: rotating it, climbing the helix. [→](braid.md) `&canon step=2 &theme[>>4]` · `&mode over=&scale[<<] 0 2 4`
 - `&name^n`: In a braid, transposed: what it plays, n grid steps up (^-n down) through its tables. [→](braid.md) `&answer step=2 &subject^7 &subject^-12`
 - `degree(&name, n)`: In a braid, moved n steps of the table it is read through (degrees, in a scale): its values plus n, before the table reads them. n may be negative. [→](braid.md) `&tune over=&major step=2 &motif degree(&motif, 1) degree(&motif, -2)`

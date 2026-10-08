@@ -8,7 +8,7 @@ import { entries, period, positionHue, positionOctave, resolvePitch, semitones, 
 import { effectiveShow, type Named, type Show } from './show';
 import { NOTE_NAMES, mod, modeName } from '../theory/modes';
 import { playedCells } from '../engine/clocking';
-import { flatten } from '../engine/flatten';
+import { flatten, tapped } from '../engine/flatten';
 import { resolveIn } from '../engine/helix';
 
 /**
@@ -193,7 +193,7 @@ export function cellView(result: CompileResult, name: string, shifts: Shifts, is
     const known = `${e.table}|${e.tableShift}|${e.value}|${e.alter}|${e.transpose ?? 0}`;
     let hit = seen.get(known);
     if (!hit) {
-      const found = resolveIn(result, e.table, e.tableShift, e.value, e.alter, shifts);
+      const found = resolveIn(result, e.table, e.tableShift, tapped(result, e, shifts), e.alter, shifts);
       const r = e.transpose ? { ...found, position: found.position + e.transpose } : found; // ^n
       const f: Fill = levels
         ? { kind: 'level', v: levelOf(e.value + e.alter) }

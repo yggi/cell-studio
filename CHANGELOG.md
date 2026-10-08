@@ -10,6 +10,9 @@ that makes the change. Also note changes to the language that could affect saved
 
 ## Unreleased
 
+### Changed
+- A pick reads its cell as it is turned: `&key[0]` with `&key shift=2` is D (a fixed tap on a turning wheel), and it follows a key that steps or is turned live; `&key[$0]` is the new form for *as written* (C). Slices too: `&x[1:3]`, `&x[$1:3]` (#10). **Saved pieces:** a pick from a cell with a `shift=` (or a stepped one, read in another cell's braid) now plays the turned entry; write `[$…]` to keep the old notes. No example changes.
+
 ### Added
 - The performance report says why it has no audio-thread row: whether `renderCapacity` is in `AudioContext.prototype`, on the context, started, and how many `update` events arrived (#91). Saved `.cells` pieces are not affected.
 - `degree(&x, n)` and `inverse(&x)` in a braid: a motif moved n degrees up the table it is read through, or mirrored within it, without a cell of its own reading a shifted table (#31). They nest: `degree(inverse(&x), 4)`. Saved `.cells` pieces are not affected (both were errors before).
