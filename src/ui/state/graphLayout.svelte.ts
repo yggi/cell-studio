@@ -8,6 +8,7 @@ import type { MeterTrace } from '../../layout/state';
 import { meterIndex } from '../../layout/meters';
 import { towerOf, towerRanks, zoneRanks } from '../../layout/tower';
 import { flowRanks } from '../../layout/start';
+import { gated } from '../../layout/gates';
 import { flowNodeOf, PETAL, physical } from '../flownode';
 import { flowEdgesOf } from '../flowedges';
 import type { GraphSnapshot } from '../snapshot';
@@ -18,6 +19,10 @@ import type { FlowNode } from '../types';
  * signal path within each, every node where its output lives (layout/tower.ts, docs/notes/tower-rows.md).
  */
 const ROWS = typeof location !== 'undefined' ? new URLSearchParams(location.search).get('rows') : null;
+/** A probe: `?gates=on` draws each selector as the sequencer that gates its parts' junctions (layout/gates.ts). */
+const GATES = typeof location !== 'undefined' && new URLSearchParams(location.search).get('gates') === 'on';
+/** A probe: `?junctions=bodies` lays each product's junction out as a node of its own (LayoutOptions.junctionBodies). */
+const BODIES = typeof location !== 'undefined' && new URLSearchParams(location.search).get('junctions') === 'bodies';
 /** What the edges are drawn with besides the snapshot (read when they are made, not tracked). */
 export interface EdgeStyle {
   /** Not stopped (paused or playing): a routed edge is idle (PulseEdge makes it live), an unrouted one dimmed; stopped, nothing is. */
@@ -84,9 +89,12 @@ export class GraphLayout {
    * Take the next snapshot: lay it out (a piece just opened, `opened` changed: afresh, and framed once it has come to
    * rest; an edit: from where things are) and make its nodes and edges, all at once.
    */
-  sync(next: GraphSnapshot, opened: number): void {
+  sync(given: GraphSnapshot, opened: number): void {
+    // (a probe: `?gates=on` draws the arrangement as gates, layout/gates.ts)
+    const next = GATES ? { ...given, model: gated(given.model) } : given;
     const m = next.model;
     const layout = this.#force;
+    if (BODIES && !layout.options.junctionBodies) layout.setOptions({ junctionBodies: 1 });
     // (a probe: the rows by the frequency tower instead of the signal path, docs/notes/multiscale.md)
     if (ROWS === 'tower') layout.setOptions({ ranks: towerRanks(towerOf(next.program, m)) });
     if (ROWS === 'zones') layout.setOptions({ ranks: zoneRanks(towerOf(next.program, m, 'emit'), flowRanks(m)) });

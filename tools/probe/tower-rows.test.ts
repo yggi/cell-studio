@@ -3,6 +3,7 @@
 // which way wires leave along the flow, how faithfully height follows the tower (Spearman's ρ between −y and the tower,
 // over the nodes with a finite height), and where the selectors land.
 // Run: PROBE=out.txt npx vitest run tools/probe/tower-rows.test.ts   (ONLY=word: the examples with it in their key; PIECES=a,b: those;
+// the last rows: the arrangement redrawn as gates, layout/gates.ts;
 // VARIANTS=0,1: only those rows)
 import { describe, it } from 'vitest';
 import { appendFileSync } from 'node:fs';
@@ -12,6 +13,7 @@ import { compileSource } from '../../src/engine/compile';
 import { PRESETS } from '../../src/engine/presets';
 import { towerOf, towerRanks, zoneRanks, type TowerAt } from '../../src/layout/tower';
 import { flowRanks } from '../../src/layout/start';
+import { gated } from '../../src/layout/gates';
 import type { LayoutOptions } from '../../src/layout/options';
 
 const log = (t: string) => appendFileSync(process.env.PROBE!, t + '\n');
@@ -73,9 +75,10 @@ interface Row {
   selectors: number[];
 }
 
-function measure(source: string, at: TowerAt | null, perDecade: number, seed: number, more: Partial<LayoutOptions>): Row {
+function measure(source: string, at: TowerAt | null, perDecade: number, seed: number, more: Partial<LayoutOptions>, gates = false): Row {
   const program = compileSource(source);
-  const model = buildGraph(program);
+  // (gates: the arrangement redrawn as gates, layout/gates.ts)
+  const model = gates ? gated(buildGraph(program)) : buildGraph(program);
   const tower = towerOf(program, model, at ?? 'step');
   // (perDecade 0: the tower's zones, ordered within by the signal path)
   const rows = !at ? undefined : perDecade ? towerRanks(tower, perDecade) : zoneRanks(tower, flowRanks(model));
@@ -122,12 +125,15 @@ function measure(source: string, at: TowerAt | null, perDecade: number, seed: nu
     model.nodes.filter((n) => n.cell && n.cell.units.length && n.cell.units.every((u) => u.atom.kind === 'ref' && mixes.has(`cell:${u.atom.name}`))).map((n) => n.id),
   );
   const ys = placed.map((p) => -p.y).sort((x, y) => x - y);
-  const selectors = model.edges
-    .filter((e) => e.port === 'over' && parts.has(e.from))
-    .flatMap((e) => {
-      const p = l.position(e.to);
-      return p ? [ys.filter((y) => y < -p.y).length / Math.max(1, ys.length - 1)] : [];
-    });
+  // (gated: the selector is where the gates come from)
+  const selectorIds = new Set([
+    ...model.edges.filter((e) => e.port === 'over' && parts.has(e.from)).map((e) => e.to),
+    ...model.edges.filter((e) => e.port === 'gate').map((e) => e.from),
+  ]);
+  const selectors = [...selectorIds].flatMap((id) => {
+    const p = l.position(id);
+    return p ? [ys.filter((y) => y < -p.y).length / Math.max(1, ys.length - 1)] : [];
+  });
   l.destroy();
   return { rhoStart, crossings: q.crossings, cost: q.cost, area: (q.width * q.height) / 1e6, wires, up, down, rho, selectors };
 }
@@ -139,7 +145,7 @@ describe.runIf(process.env.PROBE)('rows by the frequency tower', () => {
     const named = process.env.PIECES?.split(',');
     const pieces = Object.entries(PRESETS).filter(([k]) => (!only || k.toLowerCase().includes(only.toLowerCase())) && (!named || named.includes(k)));
     const held = { rankPull: 0.3 };
-    const variants: [string, TowerAt | null, number, Partial<LayoutOptions>][] = [
+    const variants: [string, TowerAt | null, number, Partial<LayoutOptions>, boolean?][] = [
       ['today (rows by the signal path)', null, 1, {}],
       ['tower by step, 1 row a decade', 'step', 1, {}],
       ['tower by step, 2 rows a decade', 'step', 2, {}],
@@ -150,6 +156,12 @@ describe.runIf(process.env.PROBE)('rows by the frequency tower', () => {
       ['tower, each node where its output lives (emit)', 'emit', 1, {}],
       ['zones by the tower (emit), the signal path within', 'emit', 0, {}],
       ['zones by the tower (step), the signal path within', 'step', 0, {}],
+      ["gated: today's rows (the signal path)", null, 1, {}, true],
+      ['gated: zones by the tower (emit), the signal path within', 'emit', 0, {}, true],
+      ['gated: tower by step', 'step', 1, {}, true],
+      ["junctions as nodes: today's rows", null, 1, { junctionBodies: 1 }],
+      ["junctions as nodes, gated: today's rows", null, 1, { junctionBodies: 1 }, true],
+      ['junctions as nodes, gated: zones by the tower (emit)', 'emit', 0, { junctionBodies: 1 }, true],
     ];
     // (VARIANTS=0,1: only those rows of the table)
     const pick = process.env.VARIANTS?.split(',').map(Number);
@@ -159,11 +171,11 @@ describe.runIf(process.env.PROBE)('rows by the frequency tower', () => {
     log("| rows | crossings | cost | area Mpx² | wires up / down | ρ start → settled | selectors' height |");
     log('|---|---|---|---|---|---|---|');
     const perPiece = new Map<string, Map<string, number>>();
-    for (const [name, at, perDecade, more] of variants) {
+    for (const [name, at, perDecade, more, gates] of variants) {
       const rows: Row[] = [];
       for (const seed of seeds)
         for (const [key, p] of pieces) {
-          const r = measure(p.source, at, perDecade, seed, more);
+          const r = measure(p.source, at, perDecade, seed, more, gates);
           rows.push(r);
           const m = perPiece.get(key) ?? new Map<string, number>();
           m.set(name, (m.get(name) ?? 0) + r.crossings / seeds.length);
@@ -176,26 +188,26 @@ describe.runIf(process.env.PROBE)('rows by the frequency tower', () => {
       log(
         `| ${name} | ${(sum((r) => r.crossings) / seeds.length).toFixed(1)} | ${(sum((r) => r.cost) / seeds.length).toFixed(1)} | ${(sum((r) => r.area) / seeds.length).toFixed(1)} | ${pct(sum((r) => r.up))} / ${pct(sum((r) => r.down))} | ${(sum((r) => r.rhoStart) / rows.length).toFixed(2)} → ${(sum((r) => r.rho) / rows.length).toFixed(2)} | ${sel.length ? (sel.reduce((a, b) => a + b, 0) / sel.length).toFixed(2) : '—'} |`,
       );
-      if (at && at !== 'mid' && perDecade === 1 && !Object.keys(more).length) {
+      if (at && at !== 'mid' && perDecade === 1 && !Object.keys(more).length && !gates) {
         log(`\n  wires running down with ${name}, by port (per seed):`);
         for (const [k, n] of [...downBy].sort((a, b) => b[1] - a[1]).slice(0, 10)) log(`    ${k.padEnd(48)} ${(n / seeds.length).toFixed(1)}`);
         log('');
       }
       downBy.clear();
     }
-    // (with today's row and the tower's, by step, both measured)
-    if (variants.length < 2 || variants[0][1] !== null || variants[1][1] !== 'step') return;
-    // the pieces the tower helps or hurts most (crossings, mean of the seeds): by step, 1 row a decade, against today
-    const [today, tower] = [variants[0][0], variants[1][0]];
-    const deltas = [...perPiece].map(([k, m]) => [k, (m.get(tower) ?? 0) - (m.get(today) ?? 0), m.get(today) ?? 0] as const).sort((a, b) => a[1] - b[1]);
-    // (split: the pieces arranged by a selector against the rest)
+    // (split: the pieces arranged by a selector against the rest, every variant)
     const withSelector = new Set(pieces.filter(([, p]) => measure(p.source, null, 1, 0, {}).selectors.length).map(([k]) => k));
-    for (const name of [today, tower]) {
+    for (const [name] of variants) {
       const total = (keep: (k: string) => boolean) => [...perPiece].filter(([k]) => keep(k)).reduce((n, [, m]) => n + (m.get(name) ?? 0), 0);
       log(
         `\n${name}: crossings in the ${withSelector.size} pieces with a selector ${total((k) => withSelector.has(k)).toFixed(1)}, in the other ${pieces.length - withSelector.size} ${total((k) => !withSelector.has(k)).toFixed(1)}`,
       );
     }
+    // (with today's row and the tower's, by step, both measured)
+    if (variants.length < 2 || variants[0][1] !== null || variants[1][1] !== 'step') return;
+    // the pieces the tower helps or hurts most (crossings, mean of the seeds): by step, 1 row a decade, against today
+    const [today, tower] = [variants[0][0], variants[1][0]];
+    const deltas = [...perPiece].map(([k, m]) => [k, (m.get(tower) ?? 0) - (m.get(today) ?? 0), m.get(today) ?? 0] as const).sort((a, b) => a[1] - b[1]);
     log(`\nPer piece, crossings today → tower by step (the five best and worst):`);
     for (const [k, d, t] of deltas.length > 10 ? [...deltas.slice(0, 5), ...deltas.slice(-5)] : deltas) log(`  ${k.padEnd(14)} ${t.toFixed(1)} → ${(t + d).toFixed(1)}`);
   }, 1_800_000);

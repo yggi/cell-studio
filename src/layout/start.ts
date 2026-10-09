@@ -95,7 +95,9 @@ export function flowRanks(model: { nodes: readonly { id: string }[]; edges: read
     // a step driver sits under what it drives — when that's played; a stepped table hangs beside its readers
     if (e.band === 'sync' && played.has(e.source)) up.push([e.target, e.source]);
     else if (feeds(e) || e.port === 'mix') up.push([e.source, e.target]);
-    else if (e.port === 'braid' && sinks.has(e.source)) up.push([e.target, e.source]); // the sound card's channels
+    else if (e.port === 'braid' && sinks.has(e.source))
+      up.push([e.target, e.source]); // the sound card's channels
+    else if (e.port === 'is') up.push([e.source, e.target]); // a voice under its junction (when junctions are nodes)
   }
   const inFlow = new Set(up.flat());
   const rank = new Map<string, number>();

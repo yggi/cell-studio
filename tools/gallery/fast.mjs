@@ -34,6 +34,10 @@ if (process.env.SIZES) q.set('sizes', process.env.SIZES);
 if (process.env.STOPPED) q.set('stopped', '');
 // (ROWS=tower: the rows by the frequency tower, a probe: src/layout/tower.ts)
 if (process.env.ROWS) q.set('rows', process.env.ROWS);
+// (GATES=on: the arrangement as gates, a probe: src/layout/gates.ts)
+if (process.env.GATES) q.set('gates', process.env.GATES);
+// (JUNCTIONS=bodies: junctions as nodes in the layout, a probe)
+if (process.env.JUNCTIONS) q.set('junctions', process.env.JUNCTIONS);
 // (golden: CELLS=piece.cells draws that source instead, in the real Graph)
 if (process.env.CELLS) q.set('src', readFileSync(process.env.CELLS, 'utf8'));
 const url = `${server.resolvedUrls.local[0]}tools/gallery/harness.html?${q}`;

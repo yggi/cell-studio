@@ -223,7 +223,8 @@ export class ForceLayout {
     // and the junctions are set on their voices' rims after each tick: junctions.ts)
     this.s.drawnNets = drawn.nets ?? [];
     this.s.drawnEnds = new Map(drawn.edges.map((e) => [e.id, e.to]));
-    let model = folded(drawn);
+    // (junctionBodies, a probe: each junction a node of its own in the forces, not folded into its voice)
+    let model = this.s.opts.junctionBodies ? drawn : folded(drawn);
     this.s.nets = model.nets ?? [];
     this.s.edgeEnds = new Map(model.edges.map((e) => [e.id, e.to]));
     // petals (unnamed cells) hang from their parent: the physics only sees named cells
@@ -314,7 +315,7 @@ export class ForceLayout {
       strength: l.strength,
     }));
     // (as drawn: a product's wires at its junction, its `is` too)
-    this.s.junctions = junctionNodes(this.s, drawn);
+    this.s.junctions = this.s.opts.junctionBodies ? new Map() : junctionNodes(this.s, drawn);
     for (const id of [...this.s.rims.keys()]) if (!this.s.junctions.has(id)) this.s.rims.delete(id);
     const placedIds = (id: string) => next.has(id) || this.s.junctions.has(id);
     this.s.links = drawn.edges

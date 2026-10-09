@@ -85,6 +85,11 @@ export interface LayoutOptions {
   endPull: number;
   /** How strongly each node is drawn to the height of its rank in the signal path (y only). */
   rankPull: number;
+  /**
+   * Probe (docs/notes/selector-gates.md): each product's junction a node of its own in the forces (1), instead of folded
+   * into its voice and set on its rim (0): the junction with a body, where a gate can meet the melody it gates.
+   */
+  junctionBodies: number;
   /** A weak sideways pull of every node towards the centre line (keeps the graph balanced). */
   centre: number;
   /** A gentle sideways pull of every node towards its column (voices by stereo and mix order). */
@@ -161,6 +166,7 @@ export const DEFAULT_LAYOUT: LayoutOptions = {
   partLength: 0.8,
   endPull: 0,
   rankPull: 0.05,
+  junctionBodies: 0,
   centre: 0.004,
   columnPull: 0.035,
   layerGap: 130,

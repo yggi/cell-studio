@@ -324,7 +324,7 @@ function insertionOrder(
   down: Map<string, { id: string; w: number }[]>,
 ): string[][] {
   const nbrs = (id: string) => [...(up.get(id) ?? []), ...(down.get(id) ?? [])].sort((a, b) => b.w - a.w);
-  const scopes = nodes.filter((n) => typeof (n.cell as { params?: Record<string, unknown> }).params?.scope === 'string').map((n) => n.id);
+  const scopes = nodes.filter((n) => typeof (n.cell as { params?: Record<string, unknown> } | undefined)?.params?.scope === 'string').map((n) => n.id);
   const start = [...(layers[0] ?? []), ...scopes.filter((id) => !layers[0]?.includes(id))];
   const order: string[] = [];
   const seen = new Set(start);
