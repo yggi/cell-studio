@@ -123,6 +123,8 @@ export class ForceLayout {
       .force('aims', (alpha: number) => stepAims(this.s, alpha))
       // turntables: nothing overlaps them — a node that would is set at their edge
       .force('exclusion', () => stepExclusion(this.s))
+      // (junctionBodies, a probe) each junction rides its voice on a short rod, above it
+      .force('bodies', () => this.stepBodies())
       .on('tick', () => {
         this.insertion.step();
         placeJunctions(this.s);
@@ -192,7 +194,7 @@ export class ForceLayout {
           (d.role === 'tag' ? o.charge * 3 : o.charge * (1 + o.degreeRepel * Math.max(0, (this.s.degree.get(d.id) ?? 1) - 1)) * (1 + o.massRepel * ((d.mass ?? 1) - 1))),
       )
       .distanceMax(o.repelRange * this.s.size);
-    (this.sim.force('collide') as ReturnType<typeof forceCollide<PhysNode>>).radius((d) => (d.radius + o.collidePad) * this.s.size);
+    (this.sim.force('collide') as ReturnType<typeof forceCollide<PhysNode>>).radius((d) => (this.bodyOf.has(d.id) ? d.radius : d.radius + o.collidePad) * this.s.size);
     // sideways: &bar and &out to the centre line, the rest gently to their columns (else to the centre)
     (this.sim.force('endsX') as ReturnType<typeof forceX<PhysNode>>).strength((d) => (this.s.ends.has(d.id) ? o.endPull : this.s.colX.has(d.id) ? o.columnPull : o.centre));
     (this.sim.force('rankY') as ReturnType<typeof forceY<PhysNode>>).strength(o.rankPull);
@@ -225,6 +227,7 @@ export class ForceLayout {
     this.s.drawnEnds = new Map(drawn.edges.map((e) => [e.id, e.to]));
     // (junctionBodies, a probe: each junction a node of its own in the forces, not folded into its voice)
     let model = this.s.opts.junctionBodies ? drawn : folded(drawn);
+    this.bodyOf = new Map(this.s.opts.junctionBodies ? drawn.nodes.flatMap((n) => (n.kind === 'junction' ? [[n.id, `cell:${n.voice}`] as const] : [])) : []);
     this.s.nets = model.nets ?? [];
     this.s.edgeEnds = new Map(model.edges.map((e) => [e.id, e.to]));
     // petals (unnamed cells) hang from their parent: the physics only sees named cells
@@ -344,6 +347,34 @@ export class ForceLayout {
   }
 
   /** Where everything is now, as quality.ts reads it: the nodes (a tag's name hides edges, but isn't a cell) and the edges as drawn. */
+  /** (junctionBodies, a probe) Each junction laid out as a node: the voice it rides, by the junction's id. */
+  private bodyOf = new Map<string, string>();
+
+  /**
+   * (junctionBodies) A junction on a rod from its voice: as far out as their rims and a little more, in the arc above it
+   * (its sound leaves upwards, its melody comes in from below), where the forces move it; a share of what pulls it
+   * moves its voice too.
+   */
+  private stepBodies(): void {
+    for (const [jid, vid] of this.bodyOf) {
+      const j = this.s.byId.get(jid);
+      const v = this.s.byId.get(vid);
+      if (!j || !v || j.x === undefined || v.x === undefined) continue;
+      const arc = (this.s.opts.junctionArc * Math.PI) / 180;
+      const a = Math.max(-Math.PI / 2 - arc, Math.min(-Math.PI / 2 + arc, Math.atan2((j.y ?? 0) - (v.y ?? 0), j.x - v.x)));
+      const r = (v.radius + j.radius + 8) * this.s.size;
+      const [tx, ty] = [v.x + Math.cos(a) * r, (v.y ?? 0) + Math.sin(a) * r];
+      if (v.fx == null) {
+        v.x += 0.2 * (j.x - tx);
+        v.y = (v.y ?? 0) + 0.2 * ((j.y ?? 0) - ty);
+      }
+      j.x = v.x + Math.cos(a) * r;
+      j.y = (v.y ?? 0) + Math.sin(a) * r;
+      j.vx = v.vx;
+      j.vy = v.vy;
+    }
+  }
+
   private placed() {
     const nodes = [
       ...[...this.s.byId.values()].map((n) => ({ id: n.id, x: n.x ?? 0, y: n.y ?? 0, r: n.radius, tags: n.tags, label: n.role === 'tag' })),

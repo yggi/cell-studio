@@ -90,6 +90,8 @@ export interface LayoutOptions {
    * into its voice and set on its rim (0): the junction with a body, where a gate can meet the melody it gates.
    */
   junctionBodies: number;
+  /** (junctionBodies) How far round from 12 o'clock a junction may ride its voice, either side, degrees (90: the upper half). */
+  junctionArc: number;
   /** A weak sideways pull of every node towards the centre line (keeps the graph balanced). */
   centre: number;
   /** A gentle sideways pull of every node towards its column (voices by stereo and mix order). */
@@ -167,6 +169,7 @@ export const DEFAULT_LAYOUT: LayoutOptions = {
   endPull: 0,
   rankPull: 0.05,
   junctionBodies: 0,
+  junctionArc: 60,
   centre: 0.004,
   columnPull: 0.035,
   layerGap: 130,

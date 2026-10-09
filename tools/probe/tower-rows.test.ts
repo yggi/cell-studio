@@ -162,6 +162,13 @@ describe.runIf(process.env.PROBE)('rows by the frequency tower', () => {
       ["junctions as nodes: today's rows", null, 1, { junctionBodies: 1 }],
       ["junctions as nodes, gated: today's rows", null, 1, { junctionBodies: 1 }, true],
       ['junctions as nodes, gated: zones by the tower (emit)', 'emit', 0, { junctionBodies: 1 }, true],
+      ['junctions as nodes, spread ½', null, 1, { junctionBodies: 1, spread: 0.25 }],
+      ['junctions as nodes, gated, spread ½', null, 1, { junctionBodies: 1, spread: 0.25 }, true],
+      ['junctions as nodes, gated, spread ½, no clusters', null, 1, { junctionBodies: 1, spread: 0.25, clusters: false }, true],
+      ['junctions as nodes, gated, spread 0, no kinds', null, 1, { junctionBodies: 1, spread: 0, kindRepel: 0 }, true],
+      ['junctions as nodes, gated, spread ½, no clusters, arc 90°', null, 1, { junctionBodies: 1, spread: 0.25, clusters: false, junctionArc: 90 }, true],
+      ['junctions as nodes, gated, spread ½, no clusters, arc 150°', null, 1, { junctionBodies: 1, spread: 0.25, clusters: false, junctionArc: 150 }, true],
+      ['junctions as nodes, spread ½, no clusters', null, 1, { junctionBodies: 1, spread: 0.25, clusters: false }],
     ];
     // (VARIANTS=0,1: only those rows of the table)
     const pick = process.env.VARIANTS?.split(',').map(Number);

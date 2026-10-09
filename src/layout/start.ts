@@ -97,7 +97,12 @@ export function flowRanks(model: { nodes: readonly { id: string }[]; edges: read
     else if (feeds(e) || e.port === 'mix') up.push([e.source, e.target]);
     else if (e.port === 'braid' && sinks.has(e.source))
       up.push([e.target, e.source]); // the sound card's channels
-    else if (e.port === 'is') up.push([e.source, e.target]); // a voice under its junction (when junctions are nodes)
+    else if (e.port === 'is') {
+      // (junctions as nodes) a voice under its junction, and what plays into the junction under the voice: the melody,
+      // the voice, the junction (its gate) on top, as when the junction is folded into its voice
+      up.push([e.source, e.target]);
+      for (const m of model.edges) if (m.target === e.target && m.port !== 'is' && feeds(m)) up.push([m.source, e.source]);
+    }
   }
   const inFlow = new Set(up.flat());
   const rank = new Map<string, number>();

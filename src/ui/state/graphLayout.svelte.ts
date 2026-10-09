@@ -23,6 +23,19 @@ const ROWS = typeof location !== 'undefined' ? new URLSearchParams(location.sear
 const GATES = typeof location !== 'undefined' && new URLSearchParams(location.search).get('gates') === 'on';
 /** A probe: `?junctions=bodies` lays each product's junction out as a node of its own (LayoutOptions.junctionBodies). */
 const BODIES = typeof location !== 'undefined' && new URLSearchParams(location.search).get('junctions') === 'bodies';
+/**
+ * A probe: `?opts=spread:0.25,clusters:0` sets layout options (numbers; 0 and 1 for a switch), as the probes in
+ * tools/probe/ do, so a variant they measure can be seen.
+ */
+const OPTS: Partial<LayoutOptions> = Object.fromEntries(
+  (typeof location !== 'undefined' ? (new URLSearchParams(location.search).get('opts') ?? '') : '')
+    .split(',')
+    .filter((kv) => kv.includes(':'))
+    .map((kv) => {
+      const [k, v] = kv.split(':');
+      return [k, typeof DEFAULT_LAYOUT[k as keyof LayoutOptions] === 'boolean' ? v !== '0' : Number(v)];
+    }),
+);
 /** What the edges are drawn with besides the snapshot (read when they are made, not tracked). */
 export interface EdgeStyle {
   /** Not stopped (paused or playing): a routed edge is idle (PulseEdge makes it live), an unrouted one dimmed; stopped, nothing is. */
@@ -95,6 +108,7 @@ export class GraphLayout {
     const m = next.model;
     const layout = this.#force;
     if (BODIES && !layout.options.junctionBodies) layout.setOptions({ junctionBodies: 1 });
+    if (Object.keys(OPTS).some((k) => layout.options[k as keyof LayoutOptions] !== OPTS[k as keyof LayoutOptions])) layout.setOptions(OPTS);
     // (a probe: the rows by the frequency tower instead of the signal path, docs/notes/multiscale.md)
     if (ROWS === 'tower') layout.setOptions({ ranks: towerRanks(towerOf(next.program, m)) });
     if (ROWS === 'zones') layout.setOptions({ ranks: zoneRanks(towerOf(next.program, m, 'emit'), flowRanks(m)) });

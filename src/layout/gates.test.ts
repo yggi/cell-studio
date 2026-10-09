@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { gated } from './gates';
+import { ForceLayout } from './physics';
 import { buildGraph } from '../engine/graph';
 import { compileSource } from '../engine/compile';
 import { PRESETS } from '../engine/presets';
@@ -25,5 +26,24 @@ describe('the arrangement as gates (a probe)', () => {
   it('a piece with no selector is left as it is', () => {
     const m = buildGraph(compileSource(PRESETS.twinkle.source));
     expect(gated(m)).toBe(m);
+  });
+});
+
+describe('junctions as nodes (a probe)', () => {
+  it('each junction rides its voice on a short rod, in the arc above it', () => {
+    const model = gated(buildGraph(compileSource(PRESETS.pop.source)));
+    const l = new ForceLayout(undefined, { live: false, junctionBodies: 1 });
+    l.setGraph(model);
+    l.tick(300);
+    const junctions = model.nodes.filter((n) => n.kind === 'junction');
+    expect(junctions.length).toBeGreaterThan(0);
+    for (const j of junctions) {
+      const p = l.position(j.id)!;
+      const v = l.position(`cell:${j.voice}`)!;
+      const angle = (Math.atan2(p.y - v.y, p.x - v.x) * 180) / Math.PI; // (−90: straight up)
+      expect(Math.abs(angle + 90), j.id).toBeLessThanOrEqual(60.5);
+      expect(Math.hypot(p.x - v.x, p.y - v.y), j.id).toBeLessThan(200);
+    }
+    l.destroy();
   });
 });

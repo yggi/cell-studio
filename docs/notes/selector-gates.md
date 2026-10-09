@@ -28,7 +28,8 @@ or the gate on the part (`&keysPart gate=&song:0 […]`), or the table of parts 
 ## Built, switched off
 
 - `src/layout/gates.ts: gated(model)`: the model redrawn in this shape: each part's sound wired straight to where its selector's went, a gate from the selector to each of the part's junctions, the table of parts gone, and the selector made a **meter of the form** (its gates its net, laid as a tree through the junctions, as a meter's steps are). A drawing of the model, not the model: no token writes the gates.
-- `LayoutOptions.junctionBodies` (0 by default): each junction a node of its own in the forces, not folded into its voice and set on its rim. The row rule (`flowRanks`) now puts a voice under its junction when junctions are nodes; nothing changes while they aren't.
+- `LayoutOptions.junctionBodies` (0 by default) and `junctionArc`: each junction a node of its own, on a rod above its voice (round 2, below). The row rule (`flowRanks`) puts a voice under its junction and its melody under the voice when junctions are nodes; nothing changes while they aren't.
+- `?opts=key:value,…` (the gallery's `OPTS=`): layout options in the app, so a variant a probe measures can be seen.
 - The app and the gallery: `?gates=on`, `?junctions=bodies` (`GATES=on JUNCTIONS=bodies node tools/gallery.mjs golden 3 pop`).
 - The rows probe (`tools/probe/tower-rows.test.ts`) has the gated and junction variants (rows 10 to 15).
 
@@ -53,12 +54,50 @@ or the gate on the part (`&keysPart gate=&song:0 […]`), or the table of parts 
 
 *Pop, gated, junctions folded:* the parts' mixes in the top row sending their sound straight to `&out`; `&song` (a meter of the form) mid-graph, its net running out to the voices across the melodies.
 
-![Pop, gated, junctions as nodes](selector-gates-pop-bodies.jpg)
 
-*Pop, gated, junctions as nodes:* the gate net (teal) threads through the junction dots; the junctions drift far from their voices.
+## Realized junctions (round 2)
+
+The owner: *go ahead with the realized junctions; reduce or disable other forces where they disturb, keep what helps.* What changed, all under `junctionBodies` (off by default):
+
+- **A rod**: each junction rides its voice on a short rigid rod (their rims and 8 px apart), in the arc 60° either side of 12 o'clock (`junctionArc`; 90° and 150° measured worse, 43.7 against 35.7); the forces move it, a fifth of what pulls it moves its voice (`stepBodies`). Its collision room is its own dot, without the label pad every cell gets: the pad pushed it off its rod.
+- **Rows**: a voice under its junction, and what plays into the junction (the melody, the levels) under the voice (`flowRanks`): melody, voice, junction on top, as the folded junction had it. Without this the melody and the voice shared a row and the graph went flat (ρ 0, 38 % of wires up).
+- **Forces**: the spread round a node halved and the clusters off help the gated shape (below); `kinds` and spread off entirely don't. Repulsion, collision, the links, uncrossing and the rows' pull stay.
+
+On the 10 pieces arranged by a selector (three seeds):
+
+| | crossings | cost | wires up / down | ρ |
+|---|---|---|---|---|
+| today | **13.7** | **18.8** | 53 / 0 % | 0.36 |
+| gated, junctions folded (round 1) | 34.3 | 72.5 | 54 / 1 % | 0.58 |
+| junctions as nodes, naive (round 1) | 116.0 | 102.2 | 39 / 3 % | 0.13 |
+| junctions on rods | 57.3 | 80.2 | 38 / 6 % | −0.01 |
+| … and the rows kept (melody, voice, junction) | 41.3 | 53.8 | 47 / 1 % | 0.33 |
+| … gated | 44.3 | 60.6 | 50 / 1 % | 0.53 |
+| **… gated, spread ½, clusters off** | **35.7** | 59.7 | **57 / 1 %** | 0.52 |
+
+Over the whole library (68 examples, three seeds), without gates: realized junctions cost what the folded ones hid.
+
+| | crossings | cost | area Mpx² | wires up / down |
+|---|---|---|---|---|
+| today | **25.3** | **40.8** | **86.4** | 58 / 2 % |
+| junctions on rods, the rows kept | 83.7 | 109.4 | 106.2 | 44 / 2 % |
+| … spread ½, clusters off | 80.7 | 105.8 | 104.5 | 48 / 2 % |
+
+The cost is everywhere, not in the selectors: the 58 pieces without one go 11.7 → 42.3, the 10 with one 13.7 → 41.3. A product drawn folded is two wires (melody into voice, voice into mix) meeting under the voice's disc; realized it is three (melody into junction, voice into junction, junction into mix), and its junction needs room beside its voice: crossings ×3, area +20 %. So realized junctions don't pay on their own yet; they pay where something more arrives at the junction (a gate), and only once those wires are routed (the rail, below).
+
+- **Realized junctions now carry the gated shape as well as the folded ones did** (35.7 against 34.3), with more wires leaving up than today (57 % against 53 %) and the vertical order kept: melodies at the bottom, voices above them with their junctions on top, the parts' mixes over those, `&out` on top.
+- **The remaining cost is the gate net**: one tree from the selector to every junction of every part, across the width of the graph, crossing the melodies that rise from below to their voices. Where the junctions happen to stand in a row, the tree already runs along them as a rail (Pop: bass → hats → keys), which crosses nothing: a wire that ends at a junction from below doesn't cross a rail at the junction's height.
+
+![Korobeiniki, gated, junctions realized](selector-gates-korobeiniki-junctions.jpg)
+
+*Korobeiniki, gated, junctions on rods (spread ½, clusters off):* `&out` on top, the parts' mixes under it, the voices with their junction dots above them (`&tri` has two), melodies and meters at the bottom; `&tetris` (a meter of the form) at the left, its gate net (teal) reaching across to the lead's junctions on the right.
+
+![Pop, gated, junctions realized](selector-gates-pop-junctions.jpg)
+
+*Pop, the same:* the three tiers, and the gate net running along the junctions as a rail in the middle.
 
 ## Next
 
-1. **Junctions as nodes, properly**: a junction just above its voice (a short, stiff `is`; its own small room; the voice's junctions side by side over it), its inputs from below and its sound out of the top (the outputs probe, #236). Measured against today's with crossings counted the same way.
-2. Then the gates again, landing on those junctions; and the selector placed at the bottom of its meter's family (it is stepped by `&bar*16`): its gate bus can run beside the meter's net, a bus of buses.
-3. The spelling (#29, ⚖ owner), only once the drawing shows the shape pays.
+1. **A gate rail**: lay a selector's gates as a bus bar along its junctions' height (their row, or the tree costed to keep to it), the selector at its end, at the bottom of its meter's family (it is stepped by `&bar*16`), its rail running up beside the meter's net: a bus of buses.
+2. **Sockets** on the junctions (#236): their sound out of the top, so the parts' mixes above them take it straight.
+3. The spelling (#29, ⚖ owner), once the drawing pays; until then the gates are a drawing of the model, not the model.
