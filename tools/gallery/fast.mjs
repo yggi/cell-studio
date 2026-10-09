@@ -32,6 +32,8 @@ const q = new URLSearchParams({ subject, t: secs });
 if (only.length) q.set('only', only.join(','));
 if (process.env.SIZES) q.set('sizes', process.env.SIZES);
 if (process.env.STOPPED) q.set('stopped', '');
+// (ROWS=tower: the rows by the frequency tower, a probe: src/layout/tower.ts)
+if (process.env.ROWS) q.set('rows', process.env.ROWS);
 // (golden: CELLS=piece.cells draws that source instead, in the real Graph)
 if (process.env.CELLS) q.set('src', readFileSync(process.env.CELLS, 'utf8'));
 const url = `${server.resolvedUrls.local[0]}tools/gallery/harness.html?${q}`;
