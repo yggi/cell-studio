@@ -109,6 +109,8 @@ export class ForceLayout {
         'rankY',
         forceY<PhysNode>((d) => this.s.rankY.get(d.id) ?? 0),
       )
+      // (probe) each reader drifts above what it reads, so its wire leaves at 12 o'clock
+      .force('up', (alpha: number) => this.stepUp(alpha))
       // edges' midpoints: drawn back to the straight line, slipping off any node they would rest on
       .force('bends', () => stepBends(this.s))
       // each net: springs along its tree, and wheels kept off its joins
@@ -301,6 +303,9 @@ export class ForceLayout {
     // a meter's edges (ground): springs that aren't drawn, so a meter settles among the cells it steps
     const groundLinks: PhysLink[] = this.s.grounds.map((g) => ({ id: `${g.id}~ground`, source: g.cell, target: g.meter, count: 1, part: false, ground: true }));
     this.sim.force<ReturnType<typeof forceLink<PhysNode, PhysLink>>>('link')!.links([...links, ...tagLinks, ...groundLinks, ...muxLinks.values()]);
+    this.flows = model.edges
+      .filter((e) => e.port !== 'about' && !ground(e) && !e.belt && next.has(e.from) && next.has(e.to) && e.from !== e.to)
+      .map((e) => [next.get(e.from)!, next.get(e.to)!]);
     // (a scope watches: its edges neither untangle the music's layout nor count as its crossings)
     const scopes = new Set(model.nodes.filter((n) => typeof (n as { cell?: { params?: Record<string, unknown> } }).cell?.params?.scope === 'string').map((n) => n.id));
     const watcher = (id: string) => scopes.has(id);
@@ -343,6 +348,23 @@ export class ForceLayout {
   }
 
   /** Where everything is now, as quality.ts reads it: the nodes (a tag's name hides edges, but isn't a cell) and the edges as drawn. */
+  /** (probe) What each reader reads, along the flow: [from, to]. */
+  private flows: [PhysNode, PhysNode][] = [];
+
+  /** (probe, upPull) A reader below or beside what it reads is pushed up, and that down, till it sits a row above. */
+  private stepUp(alpha: number): void {
+    const k = this.s.opts.upPull;
+    if (!k) return;
+    const gap = this.s.opts.layerGap * 0.5;
+    for (const [a, b] of this.flows) {
+      const over = (b.y ?? 0) - ((a.y ?? 0) - gap - a.radius - b.radius);
+      if (over <= 0) continue;
+      const f = k * alpha * over * 0.5;
+      b.vy = (b.vy ?? 0) - f;
+      a.vy = (a.vy ?? 0) + f;
+    }
+  }
+
   private placed() {
     const nodes = [
       ...[...this.s.byId.values()].map((n) => ({ id: n.id, x: n.x ?? 0, y: n.y ?? 0, r: n.radius, tags: n.tags, label: n.role === 'tag' })),

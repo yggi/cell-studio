@@ -32,6 +32,8 @@ const q = new URLSearchParams({ subject, t: secs });
 if (only.length) q.set('only', only.join(','));
 if (process.env.SIZES) q.set('sizes', process.env.SIZES);
 if (process.env.STOPPED) q.set('stopped', '');
+// (OUTPUTS=top: the outputs-top probe, src/ui/outputs.ts)
+if (process.env.OUTPUTS) q.set('outputs', process.env.OUTPUTS);
 // (golden: CELLS=piece.cells draws that source instead, in the real Graph)
 if (process.env.CELLS) q.set('src', readFileSync(process.env.CELLS, 'utf8'));
 const url = `${server.resolvedUrls.local[0]}tools/gallery/harness.html?${q}`;

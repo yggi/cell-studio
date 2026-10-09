@@ -1,3 +1,4 @@
+import { PROBE_LAYOUT } from '../outputs';
 import type { Edge } from '@xyflow/svelte';
 import { SvelteSet } from 'svelte/reactivity';
 import { structureKey, type GraphNode } from '../../engine/graph';
@@ -64,7 +65,7 @@ export class GraphLayout {
     this.#style = style;
     // Each physics tick copies simulated positions into the flow nodes. The node under the pointer is left alone:
     // Svelte Flow owns it while dragging.
-    this.#force = new ForceLayout(() => this.#tick(), rowOrders ? { rowOrders } : {});
+    this.#force = new ForceLayout(() => this.#tick(), { ...PROBE_LAYOUT, ...(rowOrders ? { rowOrders } : {}) });
     this.options = { ...this.#force.options };
     // (at rest again — after a drag, an edit — the meter's net is laid again from where things are; the meter stays put)
     this.#force.onSettle(() => {
