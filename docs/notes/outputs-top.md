@@ -1,6 +1,6 @@
 # Outputs at 12 o'clock (a feasibility probe)
 
-Date: 2026-10-09 · Status: open (probe; nothing changes unless switched on) · Issue: none yet (#27, [nets.md](nets.md))
+Date: 2026-10-09 · Status: open (probe; nothing changes unless switched on) · Issue: [#234](https://github.com/yggi/cell-studio/issues/234) (the multiscale epic; #27, [nets.md](nets.md))
 
 The owner's idea: **a node's output sits at its top, 12 o'clock**: a bus leaves its loom there (locked to the wheel's rotation, as the marker is), a single strand leaves the node's output socket there. The expectation: buses then feed in from the bottom and spread sideways. Two sidequests: wires between the same two nodes run side by side, not on top of each other (a bus of buses); a junction needs a body, so it has a proper output (a step towards a gate or play node that makes `*` explicit; not built here).
 
@@ -31,7 +31,7 @@ The owner's idea: **a node's output sits at its top, 12 o'clock**: a bus leaves 
 
 - A stronger pull to the rows makes it worse (more sideways): the rows put a reader level with its neighbours, not above what it reads.
 - `upPull` costs about one crossing over the whole library for no wire leaving down and 97 % arriving from below; area +5 %.
-- **A free win on the side: `spread` halved alone takes crossings 25.3 → 21.3** (cost 40.8 → 33.7). The spread force pushes a node's wires apart round it, which is the opposite of a socket; with sockets it should spread only the inputs (round the lower half). Worth its own issue.
+- **A free win on the side: `spread` halved alone takes crossings 25.3 → 21.3** (cost 40.8 → 33.7). The spread force pushes a node's wires apart round it, which is the opposite of a socket; with sockets it should spread only the inputs (round the lower half). Its own issue: [#235](https://github.com/yggi/cell-studio/issues/235).
 - The ~35–40 % sideways that stays is the owner's prediction: a source read by several readers a row up fans out horizontally. With a socket that is a bundle rising and splitting, not a wire leaving sideways.
 
 ## Seen (golden graph)
@@ -52,6 +52,6 @@ The owner's idea: **a node's output sits at its top, 12 o'clock**: a bus leaves 
 ## Next (proposed, for the owner)
 
 1. Decide: sockets for every output, or only for buses and sound? (`about=` none; a tape's heads are their own sockets already.)
-2. An issue for `spread` ½ on its own (a measured win independent of this).
+2. `spread` ½ on its own (a measured win independent of this): [#235](https://github.com/yggi/cell-studio/issues/235).
 3. Probe 2: junctions as nodes (the fold optional), measured the same way, and the lanes of a node's cable.
 4. If both hold: sockets on by default, `upPull` in, `spread` only on inputs; the baseline re-recorded; the edge sheet and golden graph re-shot.
