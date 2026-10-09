@@ -138,9 +138,49 @@ The owner's idea: *every output not overridden by something else is hot and wire
 
 **Measured** (the same probe): over the 68 examples only 16 cells are read by nothing (notes, meters and the card aside): 12 tables drawn for show and 4 waves in *Waveforms*, and **no voice or mix**. So the library would barely notice. Open, ⚖ owner, because it could change saved pieces: a piece of one's own that keeps a voice unconnected on purpose would start to sound. Options: only when no sound card is written; or a written `&out` overrides (its level, channels, `map=sample`) and every sound it doesn't take still goes out. In the editor it is a feature: patch a voice and hear it at once.
 
+## The owner, second round (2026-10-09)
+
+**Direction: selectors at the bottom, gating the input** (not guarding the output). Recorded as the direction to explore under the inversion above, not yet a decision on the spelling (#29). Rows by the tower ([#239](https://github.com/yggi/cell-studio/pull/239)) measured what today's spelling costs when drawn that way: a selector placed by its clock drags its parts' sound down after it (47 of the downward wires per seed). A rule came out of it: **a node sits where its output lives** (at the rate of what it sends on). Today's selector sends sound, so it belongs with the sound; one that sends gates would sit at the bottom by the same rule.
+
+**Hypothesis: Bach towerizes well.** Strict metrical nesting (a figure that fills half a bar, a bar of chord shapes, a tempo map over the sections) is the clean isometry case: each child's turn at its parent's step. Testable with the isometry condition (lead 3) and rows by the tower on BWV 847, the Ricercar, Pachelbel and the canon against the rest of the library. Measured (rows by the tower, [#239](https://github.com/yggi/cell-studio/pull/239), three seeds): on the seven contrapuntal pieces crossings 3.7 → 4.0, cost 9.7 → 4.3, and height follows the tower far better (ρ 0.64 → 0.81); over the whole library crossings 25 → 68, two thirds of it in the 10 pieces arranged by a selector. So far, yes.
+
+### Shorten, the secret hero: a ratchet
+
+Shorten (`src/engine/shorten/`, [../ui/shorten.md](../ui/shorten.md)) is the one part of the app that goes from the boundary inwards: it reads what is written out and folds it, one rule a file (runs, phrases, fractions, same cells, wrappers …), measured by the code's length and checked note for note. That is renormalization by compression: a minimum-description-length step [Rissanen 1978]. `phrases.ts` (a phrase written twice becomes a cell) is the same idea as Sequitur's grammar induction [Nevill-Manning & Witten 1997]; a library of abstractions grown by compressing a corpus of solutions is DreamCoder's [Ellis et al. 2021].
+
+**The ratchet** (the owner's): can Shorten find the folded shape from the unfolded one? Each stage moves the input further out towards the boundary; each is scored over the library and recorded as a baseline that may not get worse, as the layout's is (`quality.baseline.json`):
+
+| stage | input | what is lost on the way out | what counts as found |
+|---|---|---|---|
+| 0 (today) | the examples' text | nothing | what Shorten still finds (`tools/corpus.mjs`) |
+| 1 | each example unfolded: every voice's notes as one flat braid (`realize`) | names, cells, tables, meters | the same notes (exact), and a description length at or under the original's |
+| 2 | MIDI out → MIDI in (#203) | also pitch spelling against a table (a scale degree becomes a key number), the mix (a velocity), the voices (a channel) | the same notes as MIDI; cells modulo renaming |
+| 3 | audio of our own synth | also the notes themselves | the same render within −100 dB (`tools/repeatable.mjs` already compares two renders) |
+| 4 | any audio | also the instruments | a transcription first (e.g. basic-pitch [Bittner et al. 2022]) |
+
+- **The inverse is ill-posed**: many programs play the same notes. So the score is not "the original text back" but **equal sound and description length**, with the original as a reference point, not the answer. Where Shorten finds a shorter program than the hand-written example, that is a finding about the example.
+- Stage 3 is easier than it sounds for our own pieces: the voices are known and the renders repeat, so it can be analysis by synthesis (try a candidate, render, compare), not general transcription.
+- **Pipeline, not a bigger Shorten**: an unfolder (`realize` exists), a reader per format (MIDI in exists in part, #207), a folder (Shorten, its rules extended from text to events), a judge (the snapshot's note hashing, the render comparison). Pure TS in `engine/`.
+- The ultimate roundtrip, `pop.cells → wav → pop.cells`, is stage 3 on *Pop*; done means: equal render, equal or shorter text, the graph the same modulo the equivalences below.
+
+**α and β** (the owner's terms): in the λ-calculus α-equivalence is renaming bound names, β-reduction is substituting a definition where it is applied [Barendregt 1984]. For cells:
+
+- **α**: renaming cells (names are bound variables; two pieces are α-equal when their graphs are isomorphic with the names forgotten).
+- **β**: inlining a cell where it is used, or the reverse, factoring a phrase into a cell (`&( … )` against a named cell; Shorten's phrases and wrappers are β-expansion). Different layering is mostly β.
+- **A pushback on the naming**: "changing what goes to `&out`" (rerouting the mix) is not β in the λ sense; it is an equation of the mix algebra (decision 006: `+` and `*` commute; gains distribute) and of time (#142's laws). So three equivalences, not two: **α** (names), **β** (inline / factor), and the **algebra's laws**. A canonical form is a normal form modulo all three (#151), and the ratchet's judge compares pieces modulo them.
+
+### Meta-machines: a radio, a jukebox
+
+The owner: *pop, but with enough choice and freedom that it is not one pop song but an endless cycle of them, a radio station; and a meta-meta-machine, the shape of Cell studio itself: which `.cells` file is open is just another selector, driven by the user; the examples are points in a continuous musical phase space; at the top, `free()` sliders for genre axes derived from the corpus: a universal jukebox, a radio with a style vector.*
+
+- **It fits the tower exactly**: a radio's song selector turns once every few minutes (millihertz), the file choice slower still. Both are selectors at the bottom of the tower, gating what is above them: the owner's direction for selectors, one level further down. The library is the deepest layer of the bulk.
+- **A machine of songs is a piece with selectors and `free()` at its slowest levels**: a template (a form, a progression, a groove) whose choices are made by `chance`, by the listener, or by the clock. Nothing new is needed for a first one, beyond the selector work (#29).
+- **The phase space is not yet continuous.** Programs are discrete; two examples have no shared coordinates, and halfway between *Pop* and BWV 847 means nothing until both are written in one parameterized form. Two routes: (1) **families**: pieces that share a canonical form up to their `free()` values are a manifold (the ratchet's canonical forms find them); (2) a **learned latent space**, as MusicVAE does with its hierarchical, multiscale decoder [Roberts et al. 2018], at the price of interpretable axes. Cell studio's advantage is that its axes can stay interpretable: tempo, mode, density, swing, syncopation, register, timbre are attributes, not latent dimensions.
+- **Genre axes from the corpus** need a corpus: 68 examples are too few. The ratchet's stage 2 makes one: a MIDI corpus (e.g. the Lakh MIDI Dataset [Raffel 2016]) folded into cells is a corpus of programs, and the axes come from those (a factor analysis of their attributes and shapes). So the meta-meta-machine depends on the ratchet.
+
 ## Practical leads
 
-1. **Rows by the tower** (a layout probe like `upPull`): y ≈ −log(time constant), a node a span from its turn to its step; measure crossings and cost against today's rows (`tools/probe/`). The selectors and meters are the test: where do they land, and does the layout get better or worse?
+1. **Rows by the tower** (measured: [#239](https://github.com/yggi/cell-studio/pull/239); the best tower-shaped layout, zones with the signal path within, costs 46 crossings against today's 25 and leaves 65 % of wires going up) (a layout probe like `upPull`): y ≈ −log(time constant), a node a span from its turn to its step; measure crossings and cost against today's rows (`tools/probe/`). The selectors and meters are the test: where do they land, and does the layout get better or worse?
 2. **The tower drawn**: a log-frequency axis at the side, the zones marked (DC, sub-Hz, pulse, rhythm, audible), each node's span and a line to its anchor; audio sources tap it at the height they sound now; no `&out` node.
 3. **The isometry condition, measured**: for each parent and child (a splice, a `step=`), the ratio of the child's turn to the parent's step. Near 1, nesting is clean; far from it, something crosses a block (a disentangler, or a mismatch).
 4. **The disentangler inventory**: every row of the reference in the four primitives (shift-with-carry, dilate, look up, combine), what doesn't fit, and how it meets #151 and #179.
@@ -149,6 +189,9 @@ The owner's idea: *every output not overridden by something else is hot and wire
 7. **A rhythm scalogram**: a continuous wavelet transform of the *onsets* (not the audio) shows the metrical hierarchy as ridges from the boundary [Todd 1994; Smith & Honing 2008]. Computed from realized events it is pure TS and cheap (`engine/` or `layout/`); its ridges against the cells' turns checks the tower from outside. The audio's own scalogram (constant-Q) is the card's view; below 20 Hz only the onset scalogram sees anything.
 8. **Path consistency**: Lewin's condition as a lint over the graph's transforms.
 9. **1/f**: music's fluctuations follow roughly 1/f [Voss & Clarke 1975], the critical regime MERA was made for; a piece's onset scalogram slope would say how "critical" it is, and whether disentanglers (cross-block operations) correlate with it across the library.
+10. **The ratchet, stage 1**: every example unfolded to flat braids, Shorten run on it, scored (equal notes, description length against the original); recorded as a baseline. Then MIDI (stage 2, #203), then our own audio (stage 3).
+11. **Bach towerizes**: the isometry condition and rows by the tower on the contrapuntal pieces against the rest.
+12. **A first song machine**: *Pop*'s form, progression and groove as choices at the slowest levels, so it plays a different song each lap; the radio's selector the next level down.
 
 ## Open questions
 
@@ -157,14 +200,19 @@ The owner's idea: *every output not overridden by something else is hot and wire
 3. The implicit `&out`: always, or only without a written card.
 4. Whether soft time (swing, wow, varispeed) is a fifth primitive.
 5. Whether the tower layout replaces the layered rows or guides them (a pull, as `upPull`), and what becomes of the graph's width when everything at one scale is in one row.
+6. The ratchet's score: equal notes and shorter text, or closeness to the original's structure too (and how to measure that modulo α, β and the algebra).
+7. Whether a song machine's choices are `chance`, `free()`, or a new kind of selector driven from outside (the listener, the radio).
 
 ## References
 
+- Barendregt, H. P. (1984). *The Lambda Calculus: Its Syntax and Semantics* (rev. ed.). North-Holland.
 - Backus, J. (1962). Die Reihe: a scientific evaluation. *Perspectives of New Music* 1(1), 160–171.
+- Bittner, R. M., et al. (2022). A lightweight instrument-agnostic model for polyphonic note transcription and multipitch estimation. *ICASSP 2022*. (basic-pitch)
 - Biamonte, J. D., Clark, S. R., Jaksch, D. (2011). Categorical tensor network states. *AIP Advances* 1, 042172. [arXiv:1012.0531](https://arxiv.org/abs/1012.0531)
 - Coecke, B., Kissinger, A. (2017). *Picturing Quantum Processes*. Cambridge University Press.
 - Cowell, H. (1930). *New Musical Resources*. Knopf.
 - Daubechies, I., Sweldens, W. (1998). Factoring wavelet transforms into lifting steps. *J. Fourier Anal. Appl.* 4(3), 247–269.
+- Ellis, K., et al. (2021). DreamCoder: bootstrapping inductive program synthesis with wake-sleep library learning. *PLDI 2021*.
 - Evenbly, G., White, S. R. (2016). Entanglement renormalization and wavelets. *Phys. Rev. Lett.* 116, 140403. [arXiv:1602.01166](https://arxiv.org/abs/1602.01166)
 - Evenbly, G., White, S. R. (2018). Representation and design of wavelets using unitary circuits. *Phys. Rev. A* 97, 052314. [arXiv:1605.07312](https://arxiv.org/abs/1605.07312)
 - Fong, B., Spivak, D. I. (2019). *An Invitation to Applied Category Theory: Seven Sketches in Compositionality*. Cambridge University Press. [arXiv:1803.05316](https://arxiv.org/abs/1803.05316)
@@ -174,7 +222,11 @@ The owner's idea: *every output not overridden by something else is hot and wire
 - Lewin, D. (1987). *Generalized Musical Intervals and Transformations*. Yale University Press.
 - London, J. (2012). *Hearing in Time* (2nd ed.). Oxford University Press.
 - Mazzola, G. (2002). *The Topos of Music*. Birkhäuser.
+- Nevill-Manning, C. G., Witten, I. H. (1997). Identifying hierarchical structure in sequences: a linear-time algorithm. *J. Artificial Intelligence Research* 7, 67–82. (Sequitur)
 - Popoff, A., Andreatta, M., Ehresmann, A. (2015). A categorical generalization of Klumpenhouwer networks. *MCM 2015*, LNCS 9110; Relational poly-Klumpenhouwer networks (2018), *J. Math. Music*, [arXiv:1611.02249](https://arxiv.org/abs/1611.02249); Groupoids and wreath products of musical transformations, [arXiv:1801.02922](https://arxiv.org/abs/1801.02922).
+- Raffel, C. (2016). *Learning-based methods for comparing sequences, with applications to audio-to-MIDI alignment and matching* (PhD thesis, Columbia University). (the Lakh MIDI Dataset)
+- Rissanen, J. (1978). Modeling by shortest data description. *Automatica* 14(5), 465–471.
+- Roberts, A., Engel, J., Raffel, C., Hawthorne, C., Eck, D. (2018). A hierarchical latent vector model for learning long-term structure in music. *ICML 2018*. (MusicVAE)
 - Smith, L. M., Honing, H. (2008). Time–frequency representation of musical rhythm by continuous wavelets. *J. Math. Music* 2(2), 81–97.
 - Spivak, D. I. (2013). The operad of wiring diagrams. [arXiv:1305.0297](https://arxiv.org/abs/1305.0297)
 - Stockhausen, K. (1957). … wie die Zeit vergeht … *die Reihe* 3 (English: … how time passes …, 1959).
