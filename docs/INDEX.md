@@ -33,6 +33,7 @@ The full hierarchy of `docs/`. Start with [MEMORY.md](MEMORY.md).
 - [ui/shorten.md](ui/shorten.md) — Shorten and its promise
 - [ui/transport.md](ui/transport.md) — play, seek, sections, render
 - [ui/midi.md](ui/midi.md) — MIDI ports, the settings kept, reconnects, All notes off
+- [ui/keys.md](ui/keys.md) — the on-screen keyboard and drum pads, the dock along the bottom
 - [ui/performance.md](ui/performance.md) — the `?perf` overlay and copyable performance report
 - [ui/theme.md](ui/theme.md) — colours, sizes, motion
 
