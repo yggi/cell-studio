@@ -254,6 +254,17 @@ describe('Midi: MIDI out', () => {
     expect(midi.drums[38]).toBe(127);
   });
 
+  it("keeps a piece's kit channel (10 unless put elsewhere), clamped, in the table", async () => {
+    const { midi } = await tapped();
+    expect(midi.kitChannel).toBe(10);
+    midi.kitChannel = 3;
+    expect(midi.kitChannel).toBe(3);
+    expect(midi.table!.kitChannel).toBe(3);
+    expect(Object.values(JSON.parse(store.get('cell-studio:midi')!).kits)).toEqual([3]);
+    midi.kitChannel = 40;
+    expect(midi.kitChannel).toBe(16);
+  });
+
   it('taps the player: its sink, and its sound follows the internal-sound switch, kept', async () => {
     const { midi, player } = await tapped();
     expect(player.sink).toBe(midi);

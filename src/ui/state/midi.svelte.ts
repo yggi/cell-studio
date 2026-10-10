@@ -21,6 +21,8 @@ type Stored = {
   readonly in: Chosen;
   /** Channels chosen by hand, per piece (by its title) and voice. */
   readonly channels: Readonly<Record<string, Numbers>>;
+  /** The channel a piece's kit goes on, per piece (by its title); absent: 10. */
+  readonly kits: Numbers;
   /** Each device's drum map (by the output port's name): General MIDI note to the note it sends. */
   readonly drums: Readonly<Record<string, DrumMap>>;
   /** Whether the built-in sound is heard beside MIDI out. */
@@ -36,7 +38,7 @@ type Stored = {
 };
 
 const NONE: Chosen = { id: 'none', name: '' };
-const DEFAULTS: Stored = { out: NONE, in: NONE, channels: {}, drums: {}, internal: true, bendRange: DEFAULT_BEND_RANGE, rotate: null, clock: {}, slots: {} };
+const DEFAULTS: Stored = { out: NONE, in: NONE, channels: {}, kits: {}, drums: {}, internal: true, bendRange: DEFAULT_BEND_RANGE, rotate: null, clock: {}, slots: {} };
 const KEY = 'cell-studio:midi';
 const ALL_CHANNELS = Array.from({ length: 16 }, (_, i) => i);
 
@@ -70,6 +72,7 @@ function load(): Stored {
       out: chosen(kept.out),
       in: chosen(kept.in),
       channels: nested(kept.channels, 1, 16),
+      kits: numbers(kept.kits, 1, 16),
       drums: nested(kept.drums, 0, 127),
       internal: typeof kept.internal === 'boolean' ? kept.internal : true,
       bendRange: typeof kept.bendRange === 'number' && kept.bendRange >= 1 && kept.bendRange <= 96 ? kept.bendRange : DEFAULT_BEND_RANGE,
@@ -113,6 +116,7 @@ export class Midi implements ChosenPorts, NoteSink {
   #out = $state<Chosen>(NONE);
   #in = $state<Chosen>(NONE);
   #channels = $state.raw<Stored['channels']>({});
+  #kits = $state.raw<Stored['kits']>({});
   #drums = $state.raw<Stored['drums']>({});
   #internal = $state(true);
   #bendRange = $state(DEFAULT_BEND_RANGE);
@@ -139,7 +143,7 @@ export class Midi implements ChosenPorts, NoteSink {
   /** The open piece's channel table: its voices on their channels (as chosen here, else in order), its kit members on 10. */
   readonly table = $derived.by(() => {
     const p = this.#piece;
-    return p ? channelTable(p.program, this.#channels[p.title ?? ''] ?? {}) : null;
+    return p ? channelTable(p.program, this.#channels[p.title ?? ''] ?? {}, this.#kits[p.title ?? '']) : null;
   });
   /**
    * The output slots the open piece's MIDI cards name (map=midi(c, p)), each with the device it goes to: slot 1 the
@@ -163,6 +167,7 @@ export class Midi implements ChosenPorts, NoteSink {
     this.#out = kept.out;
     this.#in = kept.in;
     this.#channels = kept.channels;
+    this.#kits = kept.kits;
     this.#drums = kept.drums;
     this.#internal = kept.internal;
     this.#bendRange = kept.bendRange;
@@ -302,6 +307,16 @@ export class Midi implements ChosenPorts, NoteSink {
     this.#save();
   }
 
+  /** The channel the open piece's kit goes on (10 unless put elsewhere), kept for that piece in this browser. */
+  get kitChannel(): number {
+    return this.#kits[this.#piece?.title ?? ''] ?? 10;
+  }
+  set kitChannel(ch: number) {
+    const title = this.#piece?.title ?? '';
+    this.#kits = { ...this.#kits, [title]: clamped(ch, 1, 16, 10) };
+    this.#save();
+  }
+
   /** The output's drum map (kept by the port's name): General MIDI note to the note it sends. */
   get drums(): DrumMap {
     return this.#drums[this.#out.name] ?? DRUM_PRESETS.GM;
@@ -401,7 +416,7 @@ export class Midi implements ChosenPorts, NoteSink {
       for (const n of table.ports ?? []) if (n !== 1) this.#slotOut(n).setRoute(onSlot(n));
     }
     // (rotation is for a default output's microtonal voices: a piece's MIDI cards say the channels themselves)
-    const rotate = !table?.byPiece && this.#rotate ? rotationChannels(this.#rotate.from, this.#rotate.to, !!table?.kit.length) : null;
+    const rotate = !table?.byPiece && this.#rotate ? rotationChannels(this.#rotate.from, this.#rotate.to, !!table?.kit.length, table?.kitChannel) : null;
     if (this.outPort) {
       this.out.setOptions({ drums: this.drums, bendRange: this.#bendRange, rotate }, at, clock.toDeviceMs);
       for (const e of events) this.out.play(e, clock.toDeviceMs);
@@ -479,7 +494,7 @@ export class Midi implements ChosenPorts, NoteSink {
           try {
             slot.send([0xb0 | c, 123, 0]);
           } catch {
-            break; // (gone: its next statechange lets go of it)
+            continue; // (one channel's failed send doesn't leave the others sounding)
           }
     }
     const port = this.outPort;
@@ -518,6 +533,7 @@ export class Midi implements ChosenPorts, NoteSink {
         out: this.#out,
         in: this.#in,
         channels: this.#channels,
+        kits: this.#kits,
         drums: this.#drums,
         internal: this.#internal,
         bendRange: this.#bendRange,
