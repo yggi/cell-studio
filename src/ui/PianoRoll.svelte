@@ -8,7 +8,8 @@
   /**
    * The piano roll of a braid cell (#211): its steps across, its rows up (the table's entries over the laps), the notes
    * as bars. A tap toggles a note, a drag right holds it, notes in one column are a chord; the arrows, Enter, Space,
-   * Delete and Shift+arrows do the same from the keyboard. Every edit rewrites the cell's line (`edit.setBraid`); its Undo
+   * Delete and Shift+arrows do the same from the keyboard. Every edit rewrites the cell's line (`edit.setBraid`), or, for a
+   * braid left free (`free(0 2 4 ~)`, #210), is held in its place as a take is, until Keep (`ctx.setFree`); its Undo
    * (Ctrl/⌘+Z on the roll) writes back the braid an edit replaced. The model is `layout/roll.ts`; this draws it and reports pointer and keys. The drawing
    * follows Jambot's lane (`apps/web/src/components/Lane.svelte` @ 8cdb6b8): a viewBox of steps × rows, stretched
    * (`preserveAspectRatio="none"`), lines that keep their width (`vector-effect`), a dim layer under the notes.
@@ -21,6 +22,7 @@
   import {
     columnAt,
     frameOf,
+    freeBraidOf,
     ghostsOf,
     readBraid,
     remove,
@@ -68,9 +70,12 @@
   const shown = $derived(rolls(ctx.program, name));
   const table = $derived(tableOf(ctx.program, name));
   const words = $derived(shown && !spansLines(source, name) ? declWords(source, name) : null);
+  // a braid left free: its steps as they play (a take held, else as written), its edits held
+  const free = $derived(words ? freeBraidOf(ctx.program, name) : null);
+  const braidWords = $derived(free ? free.words : (words?.braid ?? null));
   const read = $derived.by(() => {
-    if (!words) return null;
-    const r = readBraid(words.braid);
+    if (!braidWords) return null;
+    const r = readBraid(braidWords);
     // (notes spread wider than the roll draws: refused, not drawn as thousands of rows)
     const wide = r.ok ? tooWide(r.roll, table.perLap) : null;
     return wide ? { ok: false as const, problem: wide } : r;
@@ -117,21 +122,22 @@
   // ---- writing: every edit is a rewrite of the line; Undo writes back the braid an edit replaced (this cell's only:
   // edits elsewhere in the code meanwhile stay), while the braid is still what the roll wrote
   let version = $state(0);
-  const written = $derived(words?.braid.join(' ') ?? '');
+  const written = $derived(braidWords?.join(' ') ?? '');
+  const commit = (tokens: readonly string[]) => (free ? ctx.setFree(free.spec, tokens.join(' ')) : onedit(setBraid(source, name, tokens)));
   const canUndo = $derived((void version, history.canUndo(piece, name, written)));
   function write(next: Roll) {
-    if (!roll || !words) return;
+    if (!roll || !braidWords) return;
     const tokens = toBraid(next);
     if (tokens.join(' ') === written) return;
-    history.push(piece, name, words.braid, tokens.join(' '));
+    history.push(piece, name, braidWords, tokens.join(' '));
     version++;
-    onedit(setBraid(source, name, tokens));
+    commit(tokens);
   }
   function undo() {
     const before = history.undo(piece, name, written);
     if (!before) return;
     version++;
-    onedit(setBraid(source, name, [...before]));
+    commit(before);
   }
 
   // ---- the keys: pressed here or held from elsewhere

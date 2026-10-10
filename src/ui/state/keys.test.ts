@@ -111,9 +111,46 @@ describe('press and release: the armed voice, through its table', () => {
 
   it('as played (a setting): the key at its own pitch', () => {
     const { keys, asked } = made();
-    keys.mode = 'played';
+    keys.mode = 'allow';
     keys.press(66);
     expect(asked).toEqual([`press 1 lead ${at(6).toFixed(2)} v100`]);
+  });
+
+  it('one setting for a key off the table (#210): snap the nearest, allow as played, ignore nothing; the on-screen keys alike', () => {
+    const { keys, asked } = made();
+    expect(keys.mode).toBe('snap');
+    keys.press(66); // F#: G
+    keys.mode = 'ignore';
+    keys.press(65); // F: off the pentatonic, nothing
+    keys.press(67); // G: on it
+    keys.mode = 'allow';
+    keys.press(61); // C#, as played
+    expect(asked).toEqual([`press 1 lead ${at(7).toFixed(2)} v100`, `press 2 lead ${at(7).toFixed(2)} v100`, `press 3 lead ${at(1).toFixed(2)} v100`]);
+  });
+
+  it("#207's two ways, kept, read as the three: as played is allow, nearest snap", () => {
+    for (const [kept, mode] of [
+      ['played', 'allow'],
+      ['nearest', 'snap'],
+      ['ignore', 'ignore'],
+      ['junk', 'snap'],
+    ]) {
+      store.set('cell-studio:keys', JSON.stringify({ mode: kept }));
+      expect(made().keys.mode, kept).toBe(mode);
+    }
+  });
+
+  it('tells its listener of every key and row, down and up, with their moments (a take records them)', () => {
+    const { keys } = made();
+    const heard: string[] = [];
+    keys.listener = { down: (at, what, ms) => void heard.push(`down ${at} ${JSON.stringify(what)} ${ms}`), up: (at, ms) => void heard.push(`up ${at} ${ms}`) };
+    keys.mode = 'ignore';
+    keys.press(65, 100, 0, 10); // (off the table: it doesn't sound, but a take hears it: it writes nothing)
+    keys.release(65, 0, 20);
+    keys.press(36, 100, 9, 30); // (a pad: not a melody's key)
+    keys.pressRow('tune', 3, 100, 40);
+    keys.releaseRow('tune', 3, 50);
+    expect(heard).toEqual(['down 0:65 {"note":65} 10', 'up 0:65 20', 'down row:tune:3 {"cell":"tune","value":3} 40', 'up row:tune:3 50']);
   });
 
   it('a key struck again while it sounds strikes again', () => {
@@ -294,9 +331,9 @@ describe('MIDI in', () => {
     const first = made();
     first.keys.thru = true;
     first.keys.thruChannel = 5;
-    first.keys.mode = 'played';
+    first.keys.mode = 'allow';
     const again = made();
-    expect([again.keys.thru, again.keys.thruChannel, again.keys.mode, again.keys.computer]).toEqual([true, 5, 'played', false]);
+    expect([again.keys.thru, again.keys.thruChannel, again.keys.mode, again.keys.computer]).toEqual([true, 5, 'allow', false]);
   });
 });
 

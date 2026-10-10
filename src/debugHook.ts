@@ -6,6 +6,7 @@ import { compileSource } from './engine/compile';
 import { codeShifts, type CompileResult } from './engine/program';
 import { blockLevels, loudness, renderLength, renderPiece, sampleHash } from './audio/render';
 import type { Player } from './audio/player';
+import { transportClock } from './audio/clock.svelte';
 
 export function installDebugHook(openPiece: () => CompileResult, player: Player): void {
   if (typeof window === 'undefined') return;
@@ -26,6 +27,8 @@ export function installDebugHook(openPiece: () => CompileResult, player: Player)
       const buf = await renderPiece(r, codeShifts(r), seconds);
       return { ...loudness(buf), hash: sampleHash(buf), blocks: blockLevels(buf) };
     },
+    // the transport: its state and where it is heard (code seconds), as the views read it (the smoke test times keys by it)
+    transport: () => ({ state: transportClock.state, seconds: transportClock.seconds }),
     // a voice's current peak level
     level: (n: string) => {
       const w = player.waveform(n);

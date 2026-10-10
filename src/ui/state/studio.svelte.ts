@@ -14,6 +14,7 @@ import { View, type Tab } from './view.svelte';
 import { Midi } from './midi.svelte';
 import { Learn } from './learn.svelte';
 import { Keys } from './keys.svelte';
+import { Recorder } from './record.svelte';
 import type { RowKeys } from '../context';
 import { Dock } from './dock.svelte';
 
@@ -32,6 +33,8 @@ export class Studio {
   readonly learn = new Learn(this.piece, this.midi, { opened: () => this.library.opened });
   /** Keys playing the armed voice live: MIDI in, the computer keys, the on-screen keys (`press`, `release`, `held`). */
   readonly keys = new Keys(this.piece, this.playback.player, this.midi, { claimed: (data) => this.learn.claims(data) });
+  /** Recording a braid left free (free(0 2 4 ~)): a pass of the armed cell's loop from the keys, held until Keep. */
+  readonly recorder = new Recorder(this.piece, this.playback, this.keys);
   /** A cell's rows played live (the piano roll's keys, #251): through the keys, as the cell plays them, whatever is armed. */
   readonly rows: RowKeys = {
     press: (cell, value) => this.keys.pressRow(cell, value),
@@ -206,6 +209,7 @@ export class Studio {
     this.playback.dispose();
     this.midi.dispose();
     this.learn.dispose();
+    this.recorder.dispose();
     this.keys.dispose();
   }
 }
