@@ -1,7 +1,8 @@
 <script lang="ts">
   /**
    * Files, a page of the sidebar: open a piece from a file, save the open one to a file or in this browser, render it
-   * to WAV, the performance report, and which build this is.
+   * to WAV, the performance report, and which build this is. What those did (saved, rendering, rendered, couldn't read)
+   * is said here, in a status line: the picker shows it too, but it is hidden while a piece is open.
    */
   import { getStudio } from './state/studio.svelte';
 
@@ -13,6 +14,7 @@
 </script>
 
 <div class="file">
+  {#if view.message}<p class="message" role="status">{view.message}</p>{/if}
   <section aria-labelledby="file-piece">
     <h4 id="file-piece">Piece</h4>
     <button onclick={() => fileInput.click()}>Open a file…</button>
@@ -78,6 +80,12 @@
   button:focus-visible {
     outline: 2px solid var(--accent);
     outline-offset: 2px;
+  }
+  .message {
+    margin: 0 4px;
+    font: 13px var(--font-ui);
+    color: var(--accent);
+    overflow-wrap: anywhere;
   }
   .version {
     margin: 0 4px;
