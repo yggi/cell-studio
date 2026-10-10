@@ -32,7 +32,8 @@ interface Values {
   audio: Sound;
 }
 
-const clamp = (x: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, x));
+// (NaN, which compares false with everything, falls to the low end)
+const clamp = (x: number, lo: number, hi: number) => (x >= lo ? Math.min(hi, x) : lo);
 const mod = (a: number, n: number) => ((a % n) + n) % n;
 
 /** A position on a grid: its hue (a rainbow per period) and its octave (0 … cycle inclusive the natural range; ±3 at most). */
@@ -63,6 +64,8 @@ export function paletteHsl<B extends Exclude<Band, 'sync'>>(band: B, value: Valu
 /** The colour of a value in its band, on its grid (pitch and audio; null: several grids, neutral). */
 export function palette<B extends Band>(band: B, value: Values[B], grid: PaletteGrid | null = null): string {
   if (band === 'sync') return `var(--meter-${clamp(Math.round(value as number), 0, 3)})`;
-  const [h, s, l] = paletteHsl(band as Exclude<Band, 'sync'>, value as Values[Exclude<Band, 'sync'>], grid);
+  const hsl = paletteHsl(band as Exclude<Band, 'sync'>, value as Values[Exclude<Band, 'sync'>], grid);
+  // (a value that is not a number draws as the neutral resting level, never as `hsl(NaN …)`)
+  const [h, s, l] = hsl.every(Number.isFinite) ? hsl : neutral(0);
   return `hsl(${+h.toFixed(2)} ${Math.round(s)}% ${Math.round(l)}%)`;
 }

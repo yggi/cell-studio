@@ -30,6 +30,11 @@ describe('palette: one function from (band, value, grid) to colour', () => {
     expect(hsl(palette('pitch', 3, null))[0]).toBe(hsl(palette('level', 0.5))[0]);
     expect(hsl(palette('audio', { position: 3, loud: 1 }, null))[1]).toBe(hsl(palette('level', 1))[1]);
   });
+  it('a value that is not a number is the resting neutral, not hsl(NaN …)', () => {
+    expect(palette('level', NaN)).toBe(palette('level', 0));
+    expect(palette('pitch', NaN, { cycle: 12 })).toBe(palette('level', 0));
+    expect(palette('sync', NaN)).toBe('var(--meter-0)');
+  });
   it('level: lightness on one neutral hue, brighter as it rises', () => {
     const [h0, s0, l0] = hsl(palette('level', 0));
     const [h1, s1, l1] = hsl(palette('level', 1));

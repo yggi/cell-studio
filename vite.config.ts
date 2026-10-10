@@ -76,6 +76,8 @@ export default defineConfig({
     }),
   ],
   test: {
+    // (the layout tests of the largest pieces run near the default 5 s when the suite runs in parallel: #215)
+    testTimeout: 20_000,
     include: ['src/**/*.test.ts', 'tools/**/*.test.ts'],
     environment: 'node',
     isolate: false,

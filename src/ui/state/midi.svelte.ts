@@ -151,7 +151,11 @@ export class Midi implements ChosenPorts, NoteSink {
     if (this.remembersPorts) void this.connect();
   }
 
+  #disposed = false;
+
   dispose(): void {
+    this.#disposed = true;
+    this.access?.close();
     if (typeof document !== 'undefined') document.removeEventListener('visibilitychange', this.#onVisible);
   }
 
@@ -190,9 +194,13 @@ export class Midi implements ChosenPorts, NoteSink {
     if (this.connecting) return;
     this.connecting = true;
     const result = await connectMidi(() => MidiAccess.connect({ onChange: () => this.#changed(), onMessage: (...m) => this.#hearers.forEach((h) => h(...m)) }), this);
-    this.access = result.access;
-    this.message = result.message;
-    this.#list();
+    // (disposed while asking: the connection comes too late for anyone, so it is let go, not kept listening)
+    if (this.#disposed) result.access?.close();
+    else {
+      this.access = result.access;
+      this.message = result.message;
+      this.#list();
+    }
     this.connecting = false;
   }
 
@@ -365,7 +373,7 @@ export class Midi implements ChosenPorts, NoteSink {
       try {
         port.send([0xb0 | c, 123, 0]);
       } catch {
-        return;
+        continue; // (one channel's failed send doesn't leave the others sounding)
       }
   }
 

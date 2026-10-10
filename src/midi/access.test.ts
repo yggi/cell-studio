@@ -33,6 +33,19 @@ describe('MidiAccess', () => {
     expect(midi.outputPort('missing')).toBeNull();
   });
 
+  it('lets go on close: no input is listened to, and a change of ports is no longer heard', async () => {
+    const keys = fakeInput('in-1', 'Keys');
+    const access = fakeAccess([keys]);
+    installMidi(access);
+    let changes = 0;
+    const midi = await connected({ onChange: () => changes++ });
+    midi.listen('all');
+    midi.close();
+    expect(keys.onmidimessage).toBeNull();
+    access.change();
+    expect(changes).toBe(0);
+  });
+
   it('delivers notes only from the input listened to, or from all of them', async () => {
     const keys = fakeInput('in-1', 'Keys');
     const pads = fakeInput('in-2', 'Pads');
