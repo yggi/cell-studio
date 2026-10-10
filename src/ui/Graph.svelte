@@ -305,6 +305,7 @@
       name={selectedName ?? ''}
       isMeter={selectedNode?.kind === 'cell' && selectedNode.isMeter}
       {source}
+      {opened}
       pinned={!!selectedNode && layout.pinned.has(selectedNode.id)}
       onpin={() => selectedNode && layout.togglePin(selectedNode.id)}
       onshowcode={() => {
