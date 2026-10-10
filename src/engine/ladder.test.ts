@@ -22,7 +22,7 @@ describe('the tutorial, in tiers', () => {
         ).toContain(p.key);
   });
 
-  test('every form of the reference is on one rung, and only on one', () => {
+  test('every form of the reference is on one tier, and only on one', () => {
     const keys = entries().map(formKey);
     expect(new Set(keys).size, 'two forms with one key').toBe(keys.length);
     const declared = TIERS.flatMap((r) => r.forms);
