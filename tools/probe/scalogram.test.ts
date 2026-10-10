@@ -17,7 +17,7 @@ import { KEY, SECONDS_PER_STEP } from '../../src/engine/fiveto12';
 import { eventsBetween, plan } from '../../src/engine/realize';
 import { PRESETS } from '../../src/engine/presets';
 import { towerSpans } from '../../src/layout/tower';
-import { MOST_RATE, PER_OCTAVE, SIGNALS, W0, around, cones, grid, reach, score, signals, type Cone } from './scalogram';
+import { MOST_RATE, PER_OCTAVE, SIGNALS, W0, around, cones, grid, novelty, reach, score, signals, swells, type Cone } from './scalogram';
 
 const log = (t: string) => appendFileSync(process.env.PROBE!, t + '\n');
 /** A piece shorter than this (s) is left out: a third of it is a bar or two. */
@@ -59,6 +59,14 @@ describe.runIf(process.env.PROBE)('the rhythm scalogram', () => {
     const short: string[] = [];
     // (the cones against the boundaries: a row a piece and a set of boundaries)
     const scored: { key: string; set: string; n: number; tolerance: number; chance: number; by: Record<string, { precision: number; recall: number }> }[] = [];
+    // (the same boundaries against the novelty and the swells: each signal alone, and the three of the combined chart)
+    const NOVEL = [...SIGNALS, 'three'] as const;
+    const novel: { key: string; set: string; by: Record<string, { precision: number; recall: number }> }[] = [];
+    const swelled: typeof novel = [];
+    // (the boundaries nobody wrote: strong swells of the three signals together that land on no section, and whether a
+    // cell's turn explains them, a phrase inside a section)
+    const unwritten: string[] = [];
+    const tallyUnwritten = { strong: 0, off: 0, turn: 0, chance: 0, pieces: 0 };
     for (const [key, p] of Object.entries(PRESETS)) {
       if (only && !only.includes(key)) continue;
       if (tag && !new RegExp(`tags="[^"]*\\b${tag}\\b`).test(p.source)) continue;
@@ -157,6 +165,41 @@ describe.runIf(process.env.PROBE)('the rhythm scalogram', () => {
               .map((c, i) => ({ at: +c.at.toFixed(2), path: c.path.map(([t, q]) => [+t.toFixed(2), +q.toPrecision(4)]), rank: i, hit: r.hits.has(c) }));
         }
         scored.push({ key, set, n: boundaries.length, tolerance, chance, by });
+        const nby: Record<string, { precision: number; recall: number }> = {};
+        const sby: Record<string, { precision: number; recall: number }> = {};
+        for (const s of NOVEL) {
+          const rows = s === 'three' ? [sig.envelope, sig.change, sig.voices] : [sig[s]];
+          nby[s] = score(novelty(rows, g.periods, window, gap), boundaries, window, tolerance);
+          sby[s] = score(swells(rows, g.periods, window, gap), boundaries, window, tolerance);
+        }
+        novel.push({ key, set, by: nby });
+        swelled.push({ key, set, by: sby });
+        if (set === 'sections') {
+          const peaks = swells([sig.envelope, sig.change, sig.voices], g.periods, window, gap);
+          // (the best twice as many as there are boundaries: room for as many again that nobody wrote)
+          const strong = peaks.slice(0, 2 * boundaries.length);
+          const off = strong.filter((x) => !boundaries.some((b) => Math.abs(b - x.at) <= tolerance));
+          // (for the combined chart: each of them, by rank, on a section or not)
+          out.swells = strong.map((x, rank) => ({ at: +x.at.toFixed(2), rank, hit: !off.includes(x) }));
+          // (a cell's turn from a quarter of the gap up to it, and over twice the tolerance: a phrase, not the bar, which
+          // would explain any moment; at a multiple of it, explained)
+          const turns = cells.filter((c) => c.turn > Math.max(2 * tolerance, gap / 4) && c.turn < gap).map((c) => ({ name: c.name, turn: c.turn }));
+          const why = (t: number) => turns.find((c) => Math.abs(t - Math.round(t / c.turn) * c.turn) <= tolerance)?.name;
+          let covered = 0;
+          for (let k = 0; k < 1000; k++) if (why(((k + 0.5) / 1000) * window)) covered++;
+          tallyUnwritten.strong += strong.length;
+          tallyUnwritten.off += off.length;
+          tallyUnwritten.turn += off.filter((x) => why(x.at)).length;
+          tallyUnwritten.chance += (covered / 1000) * off.length;
+          tallyUnwritten.pieces++;
+          if (off.length)
+            unwritten.push(
+              `${key.padEnd(14)} ${off.length}/${strong.length} of the best swells on no section (a cell's turn covers ${pct(covered / 1000)} % of the time): ${off
+                .sort((a, b) => a.at - b.at)
+                .map((x) => `${x.at < 120 ? x.at.toFixed(1) + ' s' : (x.at / 60).toFixed(1) + ' min'}${why(x.at) ? ` (&${why(x.at)})` : ''}`)
+                .join(', ')}`,
+            );
+        }
       }
       const spans = [...new Set(cells.flatMap((c) => [c.step, c.turn]).map((x) => (x < 1 ? x.toFixed(2) : x.toFixed(1))))].sort((a, b) => +a - +b);
       const how = time.ends !== null ? 'ends' : window === time.cycle ? 'cycle' : 'longest layer';
@@ -185,5 +228,25 @@ describe.runIf(process.env.PROBE)('the rhythm scalogram', () => {
         `${'mean'.padEnd(14)} ${''.padEnd(8)} ${''.padStart(3)} ${''.padStart(5)} ${pct(mean((x) => x.chance)).padStart(8)} | ${SIGNALS.map((s) => `${''.padEnd(5)}${pct(mean((x) => x.by[s].precision))} ${pct(mean((x) => x.by[s].recall))}`).join(' | ')}`,
       );
     }
+    for (const [title, rows] of [
+      ["the novelty (a change in which periods are loud, at the scale of the boundaries' median gap)", novel],
+      ['the swells (loud for a while at periods from an eighth to half the median gap)', swelled],
+    ] as const) {
+      log(`\nthe same boundaries against ${title}: as many best peaks as boundaries; P and R as above\n`);
+      log(`piece          set      | ${NOVEL.map((s) => `${s.padEnd(8)} P   R`).join(' | ')}`);
+      for (const x of rows) log(`${x.key.padEnd(14)} ${x.set.padEnd(8)} | ${NOVEL.map((s) => `${''.padEnd(5)}${pct(x.by[s].precision)} ${pct(x.by[s].recall)}`).join(' | ')}`);
+      const whole = rows.filter((x) => x.set === 'sections' || x.set === 'keys');
+      if (!whole.length) continue;
+      const mean = (f: (x: (typeof rows)[number]) => number) => whole.reduce((a, x) => a + f(x), 0) / whole.length;
+      log(`${'mean'.padEnd(14)} ${''.padEnd(8)} | ${NOVEL.map((s) => `${''.padEnd(5)}${pct(mean((x) => x.by[s].precision))} ${pct(mean((x) => x.by[s].recall))}`).join(' | ')}`);
+    }
+    log('\nthe boundaries nobody wrote: the best swells of the three signals together (twice as many as boundaries) that');
+    log('land on no section, each with the cell at a multiple of whose turn (a phrase: a quarter of the gap or more) it falls\n');
+    for (const l of unwritten) log(l);
+    const u = tallyUnwritten;
+    if (u.pieces)
+      log(
+        `\nover ${u.pieces} pieces: ${u.off} of ${u.strong} of the best swells land on no section; ${u.turn} of those on a multiple of a cell's turn (at random: ${u.chance.toFixed(1)})`,
+      );
   }, 900_000);
 });

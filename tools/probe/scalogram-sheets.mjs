@@ -108,6 +108,7 @@ const draw = ({ mode, norm, signal, pieces }) => {
       ['change: pitches, entries', MIX[1][1]],
       ['voices: density, pulse', MIX[2][1]],
       ['two: yellow, cyan, magenta; all three: white', [230, 230, 230]],
+      ['▲ swells of the three: white on a section, orange on none', [255, 153, 51]],
     ]) {
       g.fillStyle = `rgb(${colour.join(',')})`;
       g.fillRect(x, y - 8, 10, 10);
@@ -195,7 +196,7 @@ const draw = ({ mode, norm, signal, pieces }) => {
     const H = 360;
     const NOTES = 120;
     const P = d.periods;
-    const g = canvas(70 + W + 20, 60 + H + 30 + NOTES + 30);
+    const g = canvas(70 + W + 20, 60 + H + 38 + NOTES + 30);
     g.font = '12px sans-serif';
     g.fillStyle = '#ddd';
     g.fillText(`${d.key}: ${span(d.window)}, ${d.notes ?? d.events.length} notes`, 70, 18);
@@ -242,15 +243,28 @@ const draw = ({ mode, norm, signal, pieces }) => {
         g.fillStyle = colour;
         g.fillRect(54, yOf(P, top, H, p) - 1, 8, 2);
       }
+    // (the swells of the three together, best first: a triangle under the panel, white on a section, orange on none,
+    // the best as many as there are sections larger)
+    const sections = (d.sections ?? []).filter((x) => x.at > 0 && x.at < d.window).length;
+    for (const sw of d.swells ?? []) {
+      const x = 70 + (sw.at / d.window) * W;
+      const r = sw.rank < sections ? 6 : 4;
+      g.fillStyle = sw.hit ? '#fff' : '#f93';
+      g.beginPath();
+      g.moveTo(x, top + H + 1);
+      g.lineTo(x - r, top + H + 1 + 1.6 * r);
+      g.lineTo(x + r, top + H + 1 + 1.6 * r);
+      g.fill();
+    }
     // (the sections' names, those that fit, and the notes by pitch)
-    const nt = top + H + 30;
+    const nt = top + H + 38;
     let free = 0;
     g.font = '10px sans-serif';
     for (const sec of d.sections ?? []) {
       const x = 70 + (sec.at / d.window) * W + 2;
       if (x < free) continue;
       g.fillStyle = '#bbb';
-      g.fillText(sec.label.slice(0, 14), x, top + H + 14);
+      g.fillText(sec.label.slice(0, 14), x, top + H + 22);
       free = x + g.measureText(sec.label.slice(0, 14)).width + 6;
     }
     const pitches = d.events.map((e) => e[3]);
