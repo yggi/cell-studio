@@ -29,3 +29,15 @@ export function strengthOf(e: GraphEdge): number {
   // (sound weighs as one wire: a stereo pair into the sound card is two channels, not more to keep together)
   return e.band === 'cv' && e.width > 1 ? 1 + Math.log2(e.width) / 3 : 1;
 }
+
+/** What a crossing of the same kind costs over one of two kinds (two braids, two sound wires, two nets: hard to follow apart). */
+export const SAME_KIND = 2;
+
+/**
+ * What crossing two edges costs: their strengths' product, more when they are of one kind (`band`: values, sound,
+ * time). Read by the count (quality.ts) and by the force that pushes crossings apart (forces.ts), so the layout works
+ * hardest where the measure says a crossing hurts most.
+ */
+export function crossingCost(p: { readonly w: number; readonly kind?: string }, q: { readonly w: number; readonly kind?: string }): number {
+  return p.w * q.w * (p.kind !== undefined && p.kind === q.kind ? SAME_KIND : 1);
+}
