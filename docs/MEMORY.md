@@ -59,6 +59,8 @@ One line each; the record has the rationale. → [decisions/](decisions/README.m
 - 013 · `scale(name, tonic)` is a generator: a fixed mode by name over a key of its own; `shift=` walks its modes, the tonic transposes · → decisions/013-scale-generator.md
 - 014 · A splice is a bulb on its braid's track (the ring and its bulbs one curve, the hand bending into them); a cell spliced into one braid only has no node of its own; one read elsewhere is a net-ref, drawn hollow · → decisions/014-splices-are-bulbs.md
 - 015 · `&x^n` moves by degrees (`degree(&x, n)`, relative), `&x^$n` by grid steps (absolute, the old `^n`): `$` is the absolute frame · → decisions/015-caret-is-degrees.md
+- 016 · Arranging at the input: a section is a tap of the meter's bus, declared by a stepped table of names (`&parts step=&bar &keysBar …`) and switched by the selector (it restarts when switched on; it owns only what its tap steps or loops); the selector of mixes is removed (Shorten rewrites it); the switch and the gate node stay two mechanisms for now · → decisions/016-arranging-at-the-input.md
+- 017 · Two tools: Shorten suggests on the piece being written (shorter, and migrations of removed forms), Normalise converges a corpus to one canonical spelling per duplicate, as a command of its own, never offered while writing · → decisions/017-shorten-and-normalise.md
 
 ## Where things are tracked
 

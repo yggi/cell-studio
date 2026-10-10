@@ -5,7 +5,7 @@ What Cell studio doesn't do yet or does with a catch, documented rather than tra
 ## Language
 
 - Filters are one per voice (as on a monosynth): overlapping notes share the last envelope.
-- Selectors choose parts in a braid's position only; they don't read in a voice's position (orchestration) or a melody's (multiplexing). There is no `restart=&x`, and label templates have no `{lap}`.
+- Selectors switch taps of a meter's bus only ([decision 016](decisions/016-arranging-at-the-input.md)); they don't read in a voice's position (orchestration) or a melody's (multiplexing). A part switched on always starts from its top (no resume yet), and label templates have no `{lap}`.
 - A voice can't be a pitch source in a product (`&op2 * &op1` is an error: "a voice, not a pitch"); FM is `fm=` ([language/physics.md](language/physics.md)), without feedback or loops.
 - No inversion within a scale (`(7 - &theme) * &lead` mirrors in semitones; keeping the scale's steps would need something like `&theme[-]`).
 - A braid of note names turned with `shift=` climbs by its table's lap, not the root's: `&u C shift=2` is C6, where `&u 0 shift=2` is D.
@@ -34,6 +34,8 @@ What Cell studio doesn't do yet or does with a catch, documented rather than tra
 - Tags start as blocks and hubs pull a cluster as one, but clusters still touch in the largest pieces (30 overlapping pairs over the library; [notes/27-layout.md](notes/27-layout.md)); BWV 847 is wide. A meter's net crosses some edges in the densest pieces (about 12 crossings over the library).
 - A voice with more than about ten products in one mix has its junction dots stacked on its rim (they sit within 60° of 12 o'clock): they overlap rather than spread (#194).
 - A restarted part's playhead shows the global clock, not its own restarted time.
+- A piece with an `anchor=` clock shows its heads at 0 while stopped; they jump to the anchored time of day at Play.
+- Splices nest seven deep in a braid's track (`MAX_DEPTH` is 6 and the top level counts as 0, `layout/track.ts`); deeper ones are not drawn as bulbs.
 - Notes float near the top; a note can't point at the cell it explains.
 - A column pull (keeping nodes in their symmetric columns while they settle) costs crossings at every strength tried (0.005–0.06): it's a slider, off by default; the columns shape only the start.
 - The layout is more sensitive to node size than it should be: `free()` sliders hang under their node's label but aren't counted in its collision size, and giving them room (even +8 px each) shifts the waltz and per tonos into crossings.

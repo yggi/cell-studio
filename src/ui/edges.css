@@ -12,7 +12,6 @@
 .graph .svelte-flow__edge-path {
   stroke-width: 4;
   stroke-linecap: round;
-  transition: stroke-opacity 140ms ease;
 }
 /* (a live edge wears its value's colour, ui/palette.ts, which PulseEdge sets on it: no kind has a colour of its own) */
 .graph .svelte-flow__edge-path.edge-live {
