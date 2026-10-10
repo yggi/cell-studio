@@ -15,7 +15,7 @@ import type { Played } from '../engine/realize';
 import type { CompileResult, Shifts } from '../engine/program';
 import { audioContext, disposer, inputOf, type Disposable, type ToneNS } from './voice/nodes';
 import { Gate } from './gate';
-import { buildVoice, dropGates, freeVoice, letGo, playNote, type Built, type Bus, type Scope } from './voice/voice';
+import { buildVoice, dropGates, freeVoice, letGo, playNote, releaseEnd, type Built, type Bus, type Scope } from './voice/voice';
 import { keyLevel } from '../engine/keys';
 import { bow, couple, damp, driveScale, hush, resonanceOf, strikeAt } from './voice/resonator';
 import { wiring } from './wiring';
@@ -112,9 +112,11 @@ export function createVoices(Tone: ToneNS): VoiceBank {
   let gates = new Map<string, Gate>();
   let taps: ReadonlyMap<string, readonly string[]> = new Map();
   const gateKey = (voice: string, mix: string) => `${voice}\u0000${mix}`;
+  // the gates of the mixes a voice goes through: a key held on it opens them all (it names no output, as a plan's note does)
+  const gatesOf = (voice: string): Gate[] => [...gates].filter(([k]) => k.startsWith(`${voice}\u0000`)).map(([, g]) => g);
   let sinks = new Set<string>();
   // the keys held (press): each note's voice and source, by id
-  const keys = new Map<number, { b: Built; osc: AudioScheduledSourceNode }>();
+  const keys = new Map<number, { b: Built; osc: AudioScheduledSourceNode; voice: string }>();
   let lastKey = 0;
 
   const soundKey = (result: CompileResult, name: string, shifts: Shifts) => {
@@ -228,7 +230,9 @@ export function createVoices(Tone: ToneNS): VoiceBank {
           if (w.gate) {
             const gate = new Gate(g.gain);
             const now = ctx.currentTime;
-            for (const s of oldGates.get(gateKey(w.from, w.to))?.pending(now) ?? []) gate.open(s.a, s.b, now);
+            const old = oldGates.get(gateKey(w.from, w.to));
+            for (const s of old?.pending(now) ?? []) gate.open(s.a, s.b, now);
+            for (const k of old?.held() ?? []) gate.hold(k.id, k.a, now);
             gates.set(gateKey(w.from, w.to), gate);
           }
         } else if (w.kind === 'couple') {
@@ -362,7 +366,9 @@ export function createVoices(Tone: ToneNS): VoiceBank {
       const n = played && b.live.get(played.osc);
       if (played && n) {
         b.live.set(played.osc, { ...n, held: true });
-        keys.set(id, { b, osc: played.osc });
+        keys.set(id, { b, osc: played.osc, voice });
+        // its mixes' wheels hear it while it is held (#252)
+        for (const g of gatesOf(voice)) g.hold(id, played.at, ctx.currentTime);
       }
       return id;
     },
@@ -372,7 +378,10 @@ export function createVoices(Tone: ToneNS): VoiceBank {
       keys.delete(id);
       const n = k?.b.live.get(k.osc);
       // (a key let go before its note has started lets it start, then go: a quick tap is heard, not lost)
-      if (k && n) letGo(k.osc, n, Math.max(ctx.currentTime, n.at));
+      const now = Math.max(ctx.currentTime, n?.at ?? 0);
+      if (k && n) letGo(k.osc, n, now);
+      // (a voice rebuilt under the key cut it already: its wheels' gates close now, not at the hour)
+      if (k) for (const g of gatesOf(k.voice)) g.letGo(id, n ? releaseEnd(n, now) : ctx.currentTime, ctx.currentTime);
     },
 
     note(voice) {
@@ -406,6 +415,7 @@ export function createVoices(Tone: ToneNS): VoiceBank {
         if (b.res) hush(now, b.res);
         b.notes.length = 0;
       }
+      for (const [id, k] of keys) for (const g of gatesOf(k.voice)) g.letGo(id, now + 0.06, now);
       keys.clear();
       stopped.gain.cancelScheduledValues(now);
       stopped.gain.setTargetAtTime(0, now, 0.01);
