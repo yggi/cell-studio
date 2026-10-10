@@ -1,4 +1,8 @@
 {
+  "tone": {"cells":5,"crossings":0,"cost":0,"width":481,"height":649.3,"edge":0,"overlap":0,"clusters":0,"intruders":0,"aim":0,"start":0},
+  "rests": {"cells":5,"crossings":0,"cost":0,"width":470,"height":582,"edge":0,"overlap":0,"clusters":0,"intruders":0,"aim":0,"start":0},
+  "semitones": {"cells":5,"crossings":0,"cost":0,"width":461,"height":583.7,"edge":0,"overlap":0,"clusters":0,"intruders":0,"aim":0,"start":0},
+  "twovoices": {"cells":6,"crossings":0,"cost":0,"width":595.7,"height":712.7,"edge":0,"overlap":0,"clusters":0,"intruders":0,"aim":0,"start":0},
   "steps": {"cells":6,"crossings":0,"cost":0,"width":588.7,"height":693.3,"edge":0,"overlap":0,"clusters":0,"intruders":0,"aim":0,"start":0},
   "clock": {"cells":10,"crossings":0,"cost":0,"width":994,"height":785,"edge":198.7,"overlap":0,"clusters":0,"intruders":0,"aim":0,"start":0},
   "voice": {"cells":12,"crossings":0.3,"cost":0.3,"width":952.3,"height":865,"edge":208,"overlap":0,"clusters":0,"intruders":0,"aim":0,"start":0},
