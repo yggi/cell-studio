@@ -7,9 +7,23 @@ import type { GraphModel } from '../engine/graph';
 import { segmentsCross, splinePoint } from './geometry';
 import { GROUND_PULL, linkPull } from './options';
 import { nodeAt, type LayoutState, type MeterTrace, type PhysNode } from './state';
+import { UNTURNED } from './tape';
 
 /** A short straight piece of a drawn edge (its spline), with its ends. */
 export type Piece = { a: string; b: string; seg: [number, number, number, number] };
+
+/**
+ * Where a net's bulb is from its owner's centre, as the layout has turned the owner: a read head's turns with its
+ * tape (decision 021; GraphEdge.bulbAt is it unturned), a tap's stays on its table.
+ */
+function bulbOf(s: LayoutState, net: GraphModel['nets'][number]): { x: number; y: number; r: number } | undefined {
+  const at = net.bulbAt;
+  const turn = s.turns.get(net.owner);
+  if (!at || turn === undefined) return at;
+  const by = turn - (UNTURNED * Math.PI) / 180;
+  const [c, sn] = [Math.cos(by), Math.sin(by)];
+  return { x: at.x * c - at.y * sn, y: at.x * sn + at.y * c, r: at.r };
+}
 
 /**
  * A net's tree as things stand now, a ratsnest (as KiCad shows one, and lays again as a part moves): the readers
@@ -23,8 +37,8 @@ export type Piece = { a: string; b: string; seg: [number, number, number, number
 export function netTree(s: LayoutState, net: GraphModel['nets'][number], ends = s.edgeEnds): Map<string, { from: string; to: string }> {
   const out = new Map<string, { from: string; to: string }>();
   const owner = s.byId.get(net.owner);
-  // (a tap's sub-net leaves from its bulb on its table: decision 016)
-  const at = net.bulbAt;
+  // (a tap's sub-net leaves from its bulb on its table: decision 016; a read head's, from its bulb on its tape)
+  const at = bulbOf(s, net);
   const o = owner && at ? { ...owner, x: (owner.x ?? 0) + at.x, y: (owner.y ?? 0) + at.y, radius: at.r } : owner;
   // (a reader may be a product's junction: as drawn)
   const readers = net.taps.flatMap((id) => {
@@ -91,7 +105,7 @@ export function stepNets(s: LayoutState, alpha: number): void {
       const [a, b] = [s.byId.get(from), s.byId.get(to)];
       if (!a || !b) continue;
       // (from a tap's bulb, not its table's centre: decision 016)
-      const off = from === net.owner && net.bulbAt ? net.bulbAt : { x: 0, y: 0 };
+      const off = (from === net.owner && bulbOf(s, net)) || { x: 0, y: 0 };
       const [dx, dy] = [(b.x ?? 0) - (a.x ?? 0) - off.x, (b.y ?? 0) - (a.y ?? 0) - off.y];
       const l = Math.hypot(dx, dy) || 1;
       // (as d3's link: towards its length, shared by the two ends)
