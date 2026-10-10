@@ -9,7 +9,7 @@ A braid cell's sheet has a **piano roll** under its wheel: the helix unrolled, i
 - **The notes** in the colour they sound (the palette's pitch rainbow on its grid, muted by octave). Notes in one column are a chord.
 - **Ghosts**: dim notes of what else plays the same table on the same clock (a bass on the same scale), in this cell's steps, repeated round their own length. They are degrees of the same table, not pitches: a bass two octaves down shows on the same rows.
 - **The playhead**: the heard step, lit, while playing or paused (from the transport's clock, as the wheels read it).
-- **The keys** on the left, one per row, light while pressed or held. They don't sound yet: playing the cell's voice from them waits for MIDI in's `press`/`release` (#207).
+- **The keys** on the left, one per row, light while pressed or held. Pressing one plays that row on the cell's voice, as the cell plays it, through the keys' path (`studio.keys.pressRow`/`releaseRow`, [midi.md](midi.md)): the pedal holds it, thru echoes it, and a key held by the pedal stays lit (`heldRows`).
 
 ## Editing
 

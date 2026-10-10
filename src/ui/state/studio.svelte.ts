@@ -14,6 +14,7 @@ import { View, type Tab } from './view.svelte';
 import { Midi } from './midi.svelte';
 import { Learn } from './learn.svelte';
 import { Keys } from './keys.svelte';
+import type { RowKeys } from '../context';
 import { Dock } from './dock.svelte';
 
 /**
@@ -31,6 +32,12 @@ export class Studio {
   readonly learn = new Learn(this.piece, this.midi, { opened: () => this.library.opened });
   /** Keys playing the armed voice live: MIDI in, the computer keys, the on-screen keys (`press`, `release`, `held`). */
   readonly keys = new Keys(this.piece, this.playback.player, this.midi, { claimed: (data) => this.learn.claims(data) });
+  /** A cell's rows played live (the piano roll's keys, #251): through the keys, as the cell plays them, whatever is armed. */
+  readonly rows: RowKeys = {
+    press: (cell, value) => this.keys.pressRow(cell, value),
+    release: (cell, value) => this.keys.releaseRow(cell, value),
+    held: (cell) => this.keys.heldRows(cell),
+  };
   /** The dock of on-screen keys and drum pads along the bottom (#255): open or not, its tab; it plays through `keys`. */
   readonly dock = new Dock();
   /** The code editor (App binds it): showing a cell's line in it. */
@@ -55,6 +62,8 @@ export class Studio {
     this.view.message = null;
     this.library.opened++;
     this.playback.stop();
+    // (a cell chosen to play in the last piece: the keys follow this one's sheet again)
+    this.keys.chosen = '';
   }
 
   /** Open a card: an example (fetched: its own chunk) or a piece saved here. */
