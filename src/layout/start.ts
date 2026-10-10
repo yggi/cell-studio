@@ -1,8 +1,7 @@
 /**
  * Where a graph starts: each node's rank in the signal path (flowRanks) and its column (columns), the layered start
- * (layered.ts) or the forces' own (orderLayers), a fresh graph's nodes put there and an edit's new ones beside their
- * parents (startNodes), and the rows' order chosen for a graph by its shape (rowsKey; the trial itself is
- * physics.ts: bestRowOrder). A start by insertion is insertion.ts.
+ * (layered.ts), a fresh graph's nodes put there and an edit's new ones beside their parents (startNodes), and the rows'
+ * order chosen for a graph by its shape (rowsKey; the trial itself is physics.ts: bestRowOrder).
  */
 import { feeds, structureKey, type GraphModel, type GraphNode } from '../engine/graph';
 import { fitTurns, tapeFaces } from './aims';
@@ -10,49 +9,6 @@ import { layered } from './layered';
 import { massOf } from './weights';
 import type { LayoutState, PhysLink, PhysNode } from './state';
 import { loomReach } from './looms';
-
-/**
- * Starting x order for a fresh graph, layer by layer (a layer = a depth): each
- * node goes to the mean position of its neighbours, a few sweeps up and down —
- * the barycentre heuristic, which starts layered drawings with few crossings.
- * Each node sits at its wanted place, pushed apart just enough to keep one slot
- * between neighbours. Returns x in slots.
- */
-export function orderLayers(nodes: readonly { id: string; depth: number }[], edges: readonly { source: string; target: string }[], sweeps = 8): Map<string, number> {
-  const layers = new Map<number, string[]>();
-  for (const n of nodes) layers.set(n.depth, [...(layers.get(n.depth) ?? []), n.id]);
-  const x = new Map<string, number>();
-  const spread = (ids: string[]) => ids.forEach((id, i) => x.set(id, i - (ids.length - 1) / 2));
-  for (const ids of layers.values()) spread(ids);
-  const nbrs = new Map<string, string[]>();
-  for (const e of edges) {
-    if (!x.has(e.source) || !x.has(e.target) || e.source === e.target) continue;
-    nbrs.set(e.source, [...(nbrs.get(e.source) ?? []), e.target]);
-    nbrs.set(e.target, [...(nbrs.get(e.target) ?? []), e.source]);
-  }
-  const depths = [...layers.keys()].sort((a, b) => a - b);
-  for (let s = 0; s < sweeps; s++)
-    for (const d of s % 2 ? [...depths].reverse() : depths) {
-      const ids = layers.get(d)!;
-      const want = new Map(
-        ids.map((id) => [
-          id,
-          (() => {
-            const ns = nbrs.get(id) ?? [];
-            return ns.length ? ns.reduce((a, n) => a + x.get(n)!, 0) / ns.length : x.get(id)!;
-          })(),
-        ]),
-      );
-      ids.sort((a, b) => want.get(a)! - want.get(b)!);
-      // each at its wanted place, pushed apart just enough to keep a slot between neighbours
-      const placed = ids.map((id) => want.get(id)!);
-      for (let k = 1; k < placed.length; k++) placed[k] = Math.max(placed[k], placed[k - 1] + 1);
-      // shift back so the layer sits where it wanted to be on average
-      const drift = placed.reduce((a, v, k) => a + v - want.get(ids[k])!, 0) / placed.length;
-      ids.forEach((id, k) => x.set(id, placed[k] - drift));
-    }
-  return x;
-}
 
 /**
  * Each node's height in the signal path, from time (0, the meter) up to sound
@@ -213,88 +169,48 @@ function endOf(n: GraphNode): 'top' | 'bottom' | null {
 }
 
 /** Small deterministic hash so new nodes always spawn in the same place. */
-export function jitter(id: string, salt: number): number {
+function jitter(id: string, salt: number): number {
   let h = 2166136261 ^ salt;
   for (let i = 0; i < id.length; i++) h = Math.imul(h ^ id.charCodeAt(i), 16777619);
   return ((h >>> 0) / 0xffffffff - 0.5) * 40;
 }
 
 /**
- * Where a graph's nodes want to be: each at the height of its rank in the signal path and in its column (the pulls
- * kept in `s.rankY` and `s.colX`), and where a fresh graph starts — laid out in layers (`home`), or, the forces alone,
- * row by row (`ordered`, in slots). `rowOrder`: the rows' order for the layered start, asked only when it is laid out.
+ * Where a graph's nodes want to be and where a fresh graph starts: laid out in layers (`home`, layered.ts), each node's
+ * place there kept as the pulls back to it (`s.rankY` and `s.colX`). `rowOrder`: the rows' order for the layered start.
  */
-export function startPlaces(
-  s: LayoutState,
-  model: GraphModel,
-  fresh: boolean,
-  rowOrder: () => number,
-): { half: number; home: Map<string, { x: number; y: number }> | null; ordered: Map<string, number> | null } {
-  // layers by rank in the signal path, from the meter (bottom) up to the sound card (top);
-  // a fresh graph starts there, each layer in barycentre order; an edit keeps what's on screen
-  // (rows given: the frequency tower's, a probe; what it doesn't name keeps its rank in the flow)
-  const given = s.opts.ranks;
-  const ranks = given ? new Map([...flowRanks(model)].map(([id, r]) => [id, given.get(id) ?? r])) : flowRanks(model);
-  const maxRank = Math.max(1, ...ranks.values());
-  const half = (maxRank * s.opts.layerGap) / 2;
-  const layerY = (rank: number) => half - (rank / maxRank) * 2 * half;
-  s.rankY = new Map([...ranks].map(([id, r]) => [id, layerY(r)]));
-  // columns: voices by stereo place and mix order, everything else over the voices it feeds
-  const cols = columns(model);
-  const slot = s.opts.layerGap * 1.1;
-  s.colX = new Map([...cols].map(([id, c]) => [id, c * slot]));
-  // laid out in layers: each node's place is its home — where a fresh graph starts, and what it springs to
+export function startPlaces(s: LayoutState, model: GraphModel, fresh: boolean, rowOrder: () => number): { home: Map<string, { x: number; y: number }> } {
+  // layers by rank in the signal path, from the meter (bottom) up to the sound card (top); a fresh graph starts there,
+  // an edit keeps what's on screen (rows given: the frequency tower's, a probe; what it doesn't name keeps its rank in
+  // the flow). Each node's place is its home: where a fresh graph starts, and what it springs to
   s.faces = tapeFaces(model);
-  let home: Map<string, { x: number; y: number }> | null = null;
-  if (s.opts.layered) {
-    const byId = new Map(model.nodes.map((n) => [n.id, n]));
-    const lay = layered(model, {
-      gapX: s.opts.collidePad * 1.6,
-      gapY: s.opts.layerGap,
-      radius: (id) => s.opts.radius(byId.get(id)!),
-      flat: !s.opts.clusters,
-      rowOrder: rowOrder(),
-      ...(given ? { ranks } : {}),
-    });
-    const ys = [...lay.values()].map((p) => p.y);
-    const midY = (Math.min(...ys) + Math.max(...ys)) / 2;
-    home = new Map([...lay].map(([id, p]) => [id, { x: p.x, y: p.y - midY }]));
-    // each tape turned to face where the layers put what its heads connect to; then each read head's
-    // cell starts in its head's direction, just clear of the tape (a write source stays: it's a source of more)
-    // (only to place them: the tapes' turns are fitted to where everything is once it's placed, below)
-    const homeTurns = fitTurns(s, (id) => home!.get(id));
-    for (const f of s.faces) {
-      const t = home.get(f.tape);
-      if (f.write || !t || !home.has(f.to)) continue;
-      const angle = (homeTurns.get(f.tape) ?? 0) + f.offset;
-      const d = s.opts.radius(byId.get(f.tape)!) + s.opts.radius(byId.get(f.to)!) + s.opts.collidePad;
-      home.set(f.to, { x: t.x + Math.cos(angle) * d, y: t.y + Math.sin(angle) * d });
-    }
-    s.colX = new Map([...home].map(([id, p]) => [id, p.x]));
-    s.rankY = new Map([...home].map(([id, p]) => [id, p.y]));
+  const byId = new Map(model.nodes.map((n) => [n.id, n]));
+  const lay = layered(model, {
+    gapX: s.opts.collidePad * 1.6,
+    gapY: s.opts.layerGap,
+    radius: (id) => s.opts.radius(byId.get(id)!),
+    flat: !s.opts.clusters,
+    rowOrder: rowOrder(),
+    // (rows given: what they don't name keeps its rank in the flow)
+    ...(s.opts.ranks ? { ranks: new Map([...flowRanks(model)].map(([id, r]) => [id, s.opts.ranks!.get(id) ?? r])) } : {}),
+  });
+  const ys = [...lay.values()].map((p) => p.y);
+  const midY = (Math.min(...ys) + Math.max(...ys)) / 2;
+  const home = new Map([...lay].map(([id, p]) => [id, { x: p.x, y: p.y - midY }]));
+  // each tape turned to face where the layers put what its heads connect to; then each read head's
+  // cell starts in its head's direction, just clear of the tape (a write source stays: it's a source of more)
+  // (only to place them: the tapes' turns are fitted to where everything is once it's placed, below)
+  const homeTurns = fitTurns(s, (id) => home.get(id));
+  for (const f of s.faces) {
+    const t = home.get(f.tape);
+    if (f.write || !t || !home.has(f.to)) continue;
+    const angle = (homeTurns.get(f.tape) ?? 0) + f.offset;
+    const d = s.opts.radius(byId.get(f.tape)!) + s.opts.radius(byId.get(f.to)!) + s.opts.collidePad;
+    home.set(f.to, { x: t.x + Math.cos(angle) * d, y: t.y + Math.sin(angle) * d });
   }
-  let ordered =
-    fresh && !home
-      ? orderLayers(
-          model.nodes.map((n) => ({ id: n.id, depth: ranks.get(n.id)! })),
-          model.edges.filter((e) => e.port !== 'about'),
-        )
-      : null;
-  if (fresh && !home && cols.size) {
-    // a symmetric start: each node at its column, pushed apart within its row just enough
-    ordered = new Map();
-    const rows = new Map<number, string[]>();
-    for (const n of model.nodes) rows.set(ranks.get(n.id)!, [...(rows.get(ranks.get(n.id)!) ?? []), n.id]);
-    for (const ids of rows.values()) {
-      ids.sort((a, b) => (cols.get(a) ?? 0) - (cols.get(b) ?? 0));
-      const want = ids.map((id) => cols.get(id) ?? 0);
-      const placed = [...want];
-      for (let k = 1; k < placed.length; k++) placed[k] = Math.max(placed[k], placed[k - 1] + 1);
-      const drift = placed.reduce((a, v, k) => a + v - want[k], 0) / Math.max(1, placed.length);
-      ids.forEach((id, k) => ordered!.set(id, placed[k] - drift));
-    }
-  }
-  return { half, home, ordered };
+  s.colX = new Map([...home].map(([id, p]) => [id, p.x]));
+  s.rankY = new Map([...home].map(([id, p]) => [id, p.y]));
+  return { home };
 }
 
 /**
@@ -307,7 +223,7 @@ export function startNodes(
   model: GraphModel,
   fresh: boolean,
   parentOf: ReadonlyMap<string, string>,
-  { half, home, ordered }: { half: number; home: Map<string, { x: number; y: number }> | null; ordered: Map<string, number> | null },
+  { home }: { home: Map<string, { x: number; y: number }> },
 ): { next: Map<string, PhysNode>; added: number; tagLinks: PhysLink[] } {
   const next = new Map<string, PhysNode>();
   let added = 0;
@@ -322,12 +238,9 @@ export function startNodes(
       added++;
       const parent = s.byId.get(parentOf.get(n.id) ?? '');
       let x: number, y: number;
-      if (home?.has(n.id) && (fresh || !parent)) {
+      if (home.has(n.id) && (fresh || !parent)) {
         x = home.get(n.id)!.x;
         y = home.get(n.id)!.y;
-      } else if (ordered) {
-        x = (ordered.get(n.id) ?? 0) * s.opts.layerGap * 1.1;
-        y = s.rankY.get(n.id) ?? 0;
       } else if (parent?.x !== undefined && parent.y !== undefined) {
         // spawn next to the parent
         x = parent.x + s.opts.layerGap * 0.6;
@@ -352,20 +265,6 @@ export function startNodes(
     p.heavy = typeof prm?.motor === 'number' || typeof prm?.belt === 'number'; // (a piece's card: its tags are the piece's, not a cluster)
     next.set(n.id, p);
   });
-
-  // a flow from time to sound: the sound card drawn up-centre, the meters down-centre
-  // (a fresh graph starts them there; after that it's only a slight pull)
-  const outer = half;
-  s.ends = new Map();
-  // (laid out in layers, the ends are where the layers put them)
-  for (const end of home ? [] : (['top', 'bottom'] as const)) {
-    const ids = model.nodes.filter((n) => endOf(n) === end).map((n) => n.id);
-    ids.forEach((id, i) => {
-      const at = { x: (i - (ids.length - 1) / 2) * s.opts.layerGap * 1.2, y: end === 'top' ? -outer : outer };
-      s.ends.set(id, at);
-      if (ordered) Object.assign(next.get(id)!, at);
-    });
-  }
 
   // tags inside the piece: a node each (its name), among its cells — it pushes cells and edges away,
   // and its springs hold its cells round it
