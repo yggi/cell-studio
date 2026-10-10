@@ -1,11 +1,11 @@
 name: Preview cleanup
 
-# Removes a PR's preview (gh-pages/pr-<n>/, made by the `preview` job in ci.yml) when the PR closes, merged or
-# not, and says so in the preview's comment. By hand, for a preview left behind: Actions -> Preview cleanup ->
+# Removes a PR's preview (gh-pages/pr-<n>/, made by preview.yml on request) when the PR closes, merged or
+# not, or loses its `preview` label, and says so in the preview's comment. By hand, for a preview left behind: Actions -> Preview cleanup ->
 # Run workflow, with the PR's number.
 on:
   pull_request:
-    types: [closed]
+    types: [closed, unlabeled]
   workflow_dispatch:
     inputs:
       pr:
@@ -19,7 +19,12 @@ permissions:
 jobs:
   remove:
     # (a fork's or Dependabot's PR never had a preview, and their token can't write)
-    if: github.event_name == 'workflow_dispatch' || (github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'dependabot[bot]')
+    # (a PR that never had the `preview` label has nothing to remove: no run, no comment)
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'dependabot[bot]' &&
+       ((github.event.action == 'unlabeled' && github.event.label.name == 'preview') ||
+        (github.event.action == 'closed' && contains(github.event.pull_request.labels.*.name, 'preview'))))
     runs-on: ubuntu-latest
     permissions:
       contents: write

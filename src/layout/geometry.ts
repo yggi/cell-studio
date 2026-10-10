@@ -132,8 +132,10 @@ export function loomParts(
   by: number,
   gap: number,
   inner = 0,
+  exit?: number,
 ): { ring: string; run: string }[] {
-  const phi = Math.atan2(by - cy, bx - cx);
+  // (exit: the bundle leaves the ring in that direction whatever b's, as from a socket — the outputs-top probe)
+  const phi = exit ?? Math.atan2(by - cy, bx - cx);
   const [ux, uy] = [Math.cos(phi), Math.sin(phi)];
   const [nx, ny] = [-uy, ux];
   const n = turns.length;
@@ -156,7 +158,7 @@ export function loomParts(
   const v = (x: number) => x.toFixed(1);
   // on along the edge's curve — never back: a control behind where the bundle gathered would loop it
   const [qx, qy] = [2 * mx - (cx + bx) / 2, 2 * my - (cy + by) / 2];
-  const ahead = (qx - cx) * ux + (qy - cy) * uy > reach + 4;
+  const ahead = exit === undefined && (qx - cx) * ux + (qy - cy) * uy > reach + 4;
   return way.map((w, i) => {
     const a = w + phi;
     const R = track0 + rank[i] * gap;
@@ -173,6 +175,12 @@ export function loomParts(
     const round = side[i] * (w - psi) <= 1e-3 ? `L ${v(ox)} ${v(oy)}` : `A ${v(R)} ${v(R)} 0 0 ${sweep} ${v(hx)} ${v(hy)} A ${v(R)} ${v(R)} 0 0 ${sweep} ${v(ox)} ${v(oy)}`;
     const [gx, gy] = [cx + ux * reach + nx * o, cy + uy * reach + ny * o];
     const [kx, ky] = ahead ? [qx + nx * o, qy + ny * o] : [(gx + bx + nx * o) / 2, (gy + by + ny * o) / 2];
-    return { ring: `M ${v(px)} ${v(py)} L ${v(tx)} ${v(ty)} ${round}`, run: `M ${v(ox)} ${v(oy)} L ${v(gx)} ${v(gy)} Q ${v(kx)} ${v(ky)} ${v(bx + nx * o)} ${v(by + ny * o)}` };
+    const ring = `M ${v(px)} ${v(py)} L ${v(tx)} ${v(ty)} ${round}`;
+    if (exit !== undefined) {
+      // on out of the socket, straight on in its direction, then bending round to b
+      const lead = Math.min(120, 0.5 * Math.hypot(bx - gx, by - gy));
+      return { ring, run: `M ${v(ox)} ${v(oy)} L ${v(gx)} ${v(gy)} C ${v(gx + ux * lead)} ${v(gy + uy * lead)} ${v(kx)} ${v(ky)} ${v(bx + nx * o)} ${v(by + ny * o)}` };
+    }
+    return { ring, run: `M ${v(ox)} ${v(oy)} L ${v(gx)} ${v(gy)} Q ${v(kx)} ${v(ky)} ${v(bx + nx * o)} ${v(by + ny * o)}` };
   });
 }

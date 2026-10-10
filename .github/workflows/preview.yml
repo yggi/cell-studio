@@ -1,0 +1,65 @@
+name: Preview
+
+# A PR's build at …/pr-<n>/, to try on a phone before merging, ON DEMAND: put the `preview` label on the PR. It is
+# then rebuilt on every push (and removed when the label goes or the PR closes: preview-cleanup.yml). No label, no
+# build, no comment: most PRs never need one. One comment on the PR says where. By hand: Actions -> Preview -> Run
+# workflow, with the PR's number (the PR's head, built as it is).
+# It builds on its own (no tests: `check` in ci.yml does those), so labelling doesn't re-run CI.
+# Not a fork's PR, nor a Dependabot run: their token can't write.
+on:
+  pull_request:
+    types: [labeled, synchronize, reopened]
+  workflow_dispatch:
+    inputs:
+      pr:
+        description: The PR to preview
+        required: true
+        type: number
+
+permissions:
+  contents: read
+
+jobs:
+  preview:
+    # (on a push or reopening: only if the label is on; when labelled: only the `preview` label)
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'dependabot[bot]' &&
+       ((github.event.action == 'labeled' && github.event.label.name == 'preview') ||
+        (github.event.action != 'labeled' && contains(github.event.pull_request.labels.*.name, 'preview'))))
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      pages: read
+    # (a newer push to the PR replaces the preview being written; the cleanup shares this group)
+    concurrency:
+      group: pages-pr-${{ github.event.pull_request.number || inputs.pr }}
+      cancel-in-progress: true
+    env:
+      PR: ${{ github.event.pull_request.number || inputs.pr }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # (a PR: the merge with main, as `check` tests it; by hand: the PR's head)
+          ref: ${{ github.event_name == 'workflow_dispatch' && format('refs/pull/{0}/head', inputs.pr) || '' }}
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - name: Publish dist to gh-pages/pr-${{ github.event.pull_request.number || inputs.pr }}
+        run: |
+          git fetch -q --depth 1 origin "$DEFAULT_BRANCH"
+          git show "FETCH_HEAD:.github/scripts/pages.sh" > "$RUNNER_TEMP/pages.sh"
+          git show "FETCH_HEAD:.github/scripts/preview-comment.sh" > "$RUNNER_TEMP/preview-comment.sh"
+          chmod +x "$RUNNER_TEMP"/*.sh
+          "$RUNNER_TEMP/pages.sh" preview "$PR" dist
+          "$RUNNER_TEMP/preview-comment.sh" "$PR" up "$(git rev-parse HEAD)"
+        env:
+          # (the scripts as they are on the default branch, not the PR's: the PR's code runs only in the build)
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          PAGES_REMOTE: https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}
+          MESSAGE: Preview of PR ${{ github.event.pull_request.number || inputs.pr }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
