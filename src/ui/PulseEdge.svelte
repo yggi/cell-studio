@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { EDGE, noteColour } from './theme';
+  import { EDGE, PAYLOAD, noteColour } from './theme';
   import { fillColour, liveColour } from './edgeStyle';
   import { positionOf } from '../engine/helix';
   import { heardGrid } from '../layout/show';
@@ -30,6 +30,9 @@
   import { STRAND_GAP } from '../layout/looms';
   import { fanOf, layTrack, netEnds, ringOf } from '../layout/track';
   import type { Pick } from '../engine/ast';
+  import EdgePayload from './EdgePayload.svelte';
+  import { valuesOf, type Payload } from './payload';
+  import { payloadShown, watchLoad } from './payloadGate.svelte';
 
   let { id: edgeId, sourceX, sourceY, targetX, targetY, data, label, markerEnd, style }: EdgeProps = $props();
   const ctx = getGraphContext();
@@ -39,6 +42,7 @@
     data as {
       band: string;
       port: string;
+      payload?: Payload | null;
       width: number;
       from: string;
       to: string;
@@ -154,7 +158,11 @@
   });
   // (sound is a wave along the edge, whichever way it runs: a spline, or locked to its segments)
   const waved = (p: string) => (d.band === 'audio' ? rippled(p, EDGE.ripple.amp, EDGE.ripple.period) : p);
-  const path = $derived(waved(lockedPaths[0] ?? spline));
+  // (the path its payload travels: as drawn, before any ripple)
+  const carrier = $derived(lockedPaths[0] ?? spline);
+  // (at rest, sound ripples along it; while its wave travels, the carrier is plain: both made once, picked between)
+  const rest = $derived(waved(carrier));
+  const path = $derived.by(() => (shows === 'wave' ? carrier : rest));
 
   // a bus: a table read through over= (its entries), or a chord (its notes); at most 12 strands, a longer table sampled
   const view = $derived.by(() => {
@@ -279,6 +287,22 @@
     const t = lc.local / Math.max(1, ctx.program.cells.get(d.from)?.steps ?? 1);
     return source.segments.find((s) => t >= s.t0 - 1e-9 && t < s.t1 - 1e-9)?.bands.find((b) => b.kind === 'pitch' || b.kind === 'level');
   };
+  // What it carries, drawn as it travels (EdgePayload, docs/notes/edge-styles.md §2): while live, on one line (a bus,
+  // tines and picks keep their strands), when its source sends something to draw — else drawn as it was
+  // (mounted while playing, whether it is live now or not: a note's start and end only show or hide it)
+  // (held back with reduced motion and while the page is behind, payloadGate: then it is drawn as before, a colour and its dot)
+  $effect(() => (ctx.playing && d.payload ? watchLoad() : undefined));
+  const payload = $derived.by(() => {
+    const kind = ctx.playing && !count && !d.tines && !pickPaths.length && payloadShown() ? (d.payload ?? null) : null;
+    const clocked = (name: string | null) => !!name && (!!ctx.program.cells.get(name)?.clock || ctx.program.clocks.has(name));
+    if (kind === 'ticks') return clocked(d.from) && clocked(d.phaseCell) ? kind : null;
+    if (kind === 'notes' || kind === 'levels') return values && clocked(d.from) ? kind : null;
+    return kind;
+  });
+  // (what it shows now: its payload, while live)
+  const shows = $derived(isLive ? payload : null);
+  // (what its source sends at each step, for notes and levels: redrawn when the source's wheel is)
+  const values = $derived(source ? valuesOf(ctx.program, source, d.from) : null);
   // its colour now: the one rule (edgeStyle.ts), given what it reads lazily — only a live edge takes one
   const colour = $derived.by((): string | null =>
     isLive
@@ -294,7 +318,7 @@
       : null,
   );
   // (a bus draws its own strands: its core stays hidden, so it takes no colour)
-  const edgeStyle = $derived(colour && !count && !d.tines ? `${style ?? ''}; stroke: ${colour}; stroke-opacity: ${EDGE.liveOpacity}` : style);
+  const edgeStyle = $derived(colour && !count && !d.tines ? `${style ?? ''}; stroke: ${colour}; stroke-opacity: ${shows ? PAYLOAD.carrier : EDGE.liveOpacity}` : style);
 </script>
 
 {#if tineStrands.length}
@@ -336,7 +360,10 @@
     labelY={mid.y}
     labelStyle={d.off ? 'opacity: 0.3' : colour ? `border-color: ${colour}` : undefined}
   />
-  {#if dot}
+  {#if payload}
+    <EdgePayload path={carrier} kind={payload} on={!!shows} from={d.from} stepped={d.phaseCell} voice={d.voice} {values} colourOf={fillColour} {colour} />
+  {/if}
+  {#if dot && !shows}
     <circle class="pulse" cx={dot.x} cy={dot.y} r={d.band === 'sync' ? EDGE.pulse.sync : EDGE.pulse.value} style={colour ? `fill: ${colour}` : undefined} />
   {/if}
 {/if}

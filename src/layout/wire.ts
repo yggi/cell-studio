@@ -282,3 +282,82 @@ export function rippled(d: string, amp: number, period: number): string {
   }
   return `M ${line(out)}`;
 }
+
+/** A path measured: its length (px), the point at a distance along it, and the stretch between two distances. */
+export interface Measured {
+  readonly length: number;
+  at(s: number): Pt;
+  slice(from: number, to: number): string;
+}
+
+/** A path as this module and geometry.ts write it, measured along its points (a path not yet a number: length 0). */
+export function measured(d: string): Measured {
+  const pts = pathPoints(d);
+  const along: number[] = [0];
+  for (let i = 1; i < pts.length; i++) along.push(along[i - 1] + Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y));
+  const total = along[along.length - 1];
+  const length = pts.length >= 2 && Number.isFinite(total) ? total : 0;
+  // (the segment a distance falls in: binary search, the points grow along)
+  const seg = (s: number) => {
+    let [lo, hi] = [1, pts.length - 1];
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1;
+      if (along[mid] < s) lo = mid + 1;
+      else hi = mid;
+    }
+    return lo;
+  };
+  const at = (s: number): Pt => {
+    if (!length) return pts[0] ?? { x: 0, y: 0 };
+    const c = Math.max(0, Math.min(length, s));
+    const j = seg(c);
+    const u = (c - along[j - 1]) / (along[j] - along[j - 1] || 1);
+    return { x: pts[j - 1].x + (pts[j].x - pts[j - 1].x) * u, y: pts[j - 1].y + (pts[j].y - pts[j - 1].y) * u };
+  };
+  const slice = (from: number, to: number) => {
+    if (!length || !(to > from)) return '';
+    const [a, b] = [Math.max(0, from), Math.min(length, to)];
+    const inner: Pt[] = [];
+    for (let j = seg(a); j < pts.length && along[j] < b; j++) inner.push(pts[j]);
+    return `M ${line([at(a), ...inner, at(b)])}`;
+  };
+  return { length, at, slice };
+}
+
+/** The shape of one cycle of a sound, at x in [0, 1): −1 … 1. `noise`: a fixed pseudo-random wobble, the same every frame. */
+export type Shape = 'sine' | 'tri' | 'saw' | 'square' | 'noise';
+const SHAPES: Record<Shape, (x: number) => number> = {
+  sine: (x) => Math.sin(x * TAU),
+  tri: (x) => 1 - 4 * Math.abs(((x + 0.25) % 1) - 0.5),
+  saw: (x) => 2 * ((x + 0.5) % 1) - 1,
+  square: (x) => (x % 1 < 0.5 ? 1 : -1),
+  noise: (x) => {
+    const r = Math.sin(Math.floor(x * 6) * 12.9898) * 43758.5453;
+    return 2 * (r - Math.floor(r)) - 1;
+  },
+};
+
+/**
+ * Sound as it travels along a path (docs/notes/edge-styles.md, D1): a wave of its own shape, `amp` px either side, a
+ * cycle every `period` px, moved on along the flow by `phase` cycles; faded in and out at its ends (it leaves and meets
+ * its nodes straight). At most 4,000 points.
+ */
+export function waveAlong(m: Measured, amp: number, period: number, shape: Shape, phase: number): string {
+  if (!m.length || !(period > 0) || !Number.isFinite(period) || !Number.isFinite(amp) || !Number.isFinite(phase)) return '';
+  const p = Math.max(2, period);
+  const n = Math.min(4000, Math.max(8, Math.ceil((m.length / p) * (shape === 'sine' ? 6 : 12))));
+  const f = SHAPES[shape];
+  const out: Pt[] = [];
+  for (let k = 0; k <= n; k++) {
+    const s = (m.length * k) / n;
+    const [a, b] = [m.at(Math.max(0, s - 0.5)), m.at(Math.min(m.length, s + 0.5))];
+    const l = Math.hypot(b.x - a.x, b.y - a.y) || 1;
+    const t = s / m.length;
+    const w = amp * f(mod1(s / p - phase)) * Math.min(1, t * 10, (1 - t) * 10);
+    const o = m.at(s);
+    out.push({ x: o.x - ((b.y - a.y) / l) * w, y: o.y + ((b.x - a.x) / l) * w });
+  }
+  return `M ${line(out)}`;
+}
+
+const mod1 = (x: number) => x - Math.floor(x);

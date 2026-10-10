@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { polar, segmentsCross } from './geometry';
-import { bundlePaths, loomParts, loomPaths, rippled } from './wire';
+import { bundlePaths, loomParts, loomPaths, measured, rippled, waveAlong } from './wire';
 
 // (the polyline of a path: its M/L/A/Q/C points, an arc sampled along its circle, about its centre cx, cy)
 const points = (d: string, cx: number, cy: number) => {
@@ -139,5 +139,41 @@ describe('a position that is not a number yet', () => {
     expect(() => bundlePaths(0, 0, NaN, 10, 100, 0, [-2, 2])).not.toThrow();
     expect(() => bundlePaths(NaN, NaN, NaN, NaN, NaN, NaN, [0])).not.toThrow();
     expect(() => bundlePaths(0, 0, Infinity, 10, 100, 0, [2])).not.toThrow();
+  });
+});
+
+describe('a path measured, and sound travelling along it', () => {
+  const d = 'M 0 0 L 100 0 A 50 50 0 0 1 150 50';
+  const m = measured(d);
+  it('knows its length, the point at a distance, and the stretch between two', () => {
+    expect(m.length).toBeCloseTo(100 + (Math.PI * 50) / 2, 0);
+    expect(m.at(50)).toEqual({ x: 50, y: 0 });
+    expect(m.at(-5)).toEqual({ x: 0, y: 0 });
+    const piece = points(m.slice(20, 60), 0, 0);
+    expect(piece[0]).toEqual([20, 0]);
+    expect(piece[piece.length - 1]).toEqual([60, 0]);
+    expect(m.slice(60, 20)).toBe('');
+    expect(measured('M NaN NaN L 1 1').length).toBe(0);
+  });
+  it('a wave of a shape moves along the flow with its phase, and stays within its height', () => {
+    const line = measured('M 0 0 L 200 0');
+    const ys = (phase: number) => points(waveAlong(line, 3, 20, 'sine', phase), 0, 0).map((p) => p[1]);
+    for (const y of ys(0)) expect(Math.abs(y)).toBeLessThanOrEqual(3 + 1e-6);
+    // (a whole cycle on: the same wave; half a cycle on: mirrored, away from the faded ends)
+    expect(ys(1).map((y) => y.toFixed(3))).toEqual(ys(0).map((y) => y.toFixed(3)));
+    const [a, b] = [ys(0), ys(0.5)];
+    for (let i = 10; i < a.length - 10; i++) expect(b[i]).toBeCloseTo(-a[i], 3);
+    // (a square wave sits at its height)
+    const sq = points(waveAlong(line, 2, 20, 'square', 0), 0, 0).filter((p) => p[0] > 30 && p[0] < 170);
+    expect(sq.every((p) => Math.abs(Math.abs(p[1]) - 2) < 1e-6)).toBe(true);
+    expect(waveAlong(measured(''), 2, 20, 'sine', 0)).toBe('');
+    // (a height, length or phase that isn't a number draws nothing, never a path full of NaN)
+    for (const [amp, period, phase] of [
+      [NaN, 20, 0],
+      [2, NaN, 0],
+      [2, Infinity, 0],
+      [2, 20, NaN],
+    ])
+      expect(waveAlong(line, amp, period, 'sine', phase)).toBe('');
   });
 });

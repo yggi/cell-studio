@@ -15,6 +15,7 @@ import { groundsOf, meterIndex } from '../layout/meters';
 import { loomBands } from '../layout/looms';
 import type { MeterTrace } from '../layout/state';
 import type { GraphSnapshot } from './snapshot';
+import { payloadOf } from './payload';
 
 const nameOf = (id: string) => id.slice('cell:'.length);
 /** An edge's end as a cell's name: a product's junction reads as the voice it is (its sound). */
@@ -125,6 +126,8 @@ function pulseData(e: GraphEdge, program: CompileResult) {
   return {
     band: e.band,
     port: e.port,
+    // (what travels along it while it plays, drawn by EdgePayload: a pointer carries nothing that travels, D6)
+    payload: payloadOf(e.band, e.port, e.pointer),
     width: e.width,
     from: endOf(e, e.from),
     // (a table read through, over=, or looked up, map=: its strands leave its entries)
