@@ -53,6 +53,11 @@ export interface LayoutOptions {
    * the app is built (tools/examples-index.ts), so one opens without the trials.
    */
   rowOrders: ReadonlyMap<string, number>;
+  /**
+   * The rows, given (by node id, higher nearer the top) instead of the signal path's: the frequency tower's
+   * (`tower.ts: towerRanks`), a probe (docs/notes/multiscale.md). A node it doesn't name keeps its rank in the flow.
+   */
+  ranks?: ReadonlyMap<string, number>;
   /** Laid out by insertion (startInsertion): a fresh graph taken in one cell at a time from its drains, over this many ticks. 0: from the layered start. */
   insert: number;
   layerGap: number;
