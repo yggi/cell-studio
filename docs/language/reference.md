@@ -57,6 +57,7 @@ Every form the parser reads, what it means and an example: generated from the pa
 - `free(v, lo..hi)`: A number left to the performer: a slider from lo to hi, starting at v. Wherever a number goes in an attribute (a rate with its units: free(90bpm, 60..240)), in a scan, or as a gain in a mix. [→](free.md) `&bar scan(4 4 4 4) step=free(90bpm, 60..240)` · `&lead s=saw loop=C4 lpf=free(1200, 200..5000)` · `&key step=cycle(&theme) shift=free(0, 0..11)`
 - `free(marking)`: A rate as a tempo marking, a slider over its range: largo 40–60, larghetto 60–66, adagio 66–76, andante 76–108, moderato 108–120, allegro 120–156, vivace 156–176, presto 168–200 (bpm). [→](free.md) `&bar scan(4 4 4 4) step=free(andante)`
 - `free(v, lo..hi, "names")`: Named choices: the names spread evenly over the range (one per value, or every 2nd …), shown instead of the numbers. [→](free.md) `&bar meter(free(2, 0..3, "2/4 3/4 4/4 6/8")) step=90bpm`
+- `free(0 2 4 ~ …)`: A braid left to the performer: it plays as written until a take recorded from the keys (MIDI in, the computer's, the on-screen ones) is held in its place; Keep writes the take. Only as a cell's whole braid; its length in steps is the frame a take fills. Steps are numbers, rests and chords, held (@n) or repeated (!n). [→](free.md) `&riff over=&key step=&bar/4 free(0 2 4 ~ 4 2 0 ~)`
 - `free("text")`: A text left to the performer: a field to type in (for spell(…)). [→](free.md) `&dial spell(free("867 5309"), &keys, "1 2 3 4 5 6 7 8 9 0")`
 
 ## step= and loop=
@@ -82,9 +83,11 @@ Every form the parser reads, what it means and an example: generated from the pa
 - `map=db`: A volume in decibels (0 as it is, −6 about half). [→](sound.md) `&fade map=db step=&bar 0 -6 -12`
 - `map=adsr a d s r`: An envelope: attack, decay, release in seconds, sustain a level; one per note. [→](sound.md) `&pluck map=adsr .01 .3 .5 .4`
 - `map=sample`: The sound card: its entries are channels, one (mono) or two (left, right). [→](mix.md) `&out loop=SAMPLE_RATE map=sample &left &right`
+- `map=midi`: A MIDI card: its entries are MIDI channels, in order (~ skips one); a voice only here is sent, not heard. [→](midi.md) `&synth map=midi [&theme * &reed] [&bass * &sub] ~!7 &groove`
 - `map=edo`: A grid: cycle= equal steps to the octave. [→](tuning.md) `&edo19 cycle=19 map=edo`
 - `map=ratios`: A grid of ratios: one period's tones, then the period (the last). [→](tuning.md) `&just map=ratios 1 9/8 5/4 4/3 3/2 5/3 15/8 2`
 - `map=ed(r)`: A grid: cycle= equal steps to the ratio r (a number or a fraction): ed(2) the octave, ed(3/2) the fifth. [→](tuning.md) `&bp cycle=13 map=ed(3)` · `&fifths cycle=7 map=ed(3/2)`
+- `map=midi(c)` · `map=midi(c, p)`: A MIDI card on one channel c (1–16), and on output slot p (1–16; the MIDI dialog maps it to a device, 1 the default output). [→](midi.md) `&drums map=midi(10) &groove` · `&keys map=midi(1, 2) [&theme * &reed]`
 - `map=&table`: Each value looked up in a table cell first, then sounded as amp. [→](sound.md) `&shaped loop=220 map=&curve 0 1 2 3`
 
 ## Attributes
@@ -162,6 +165,10 @@ Parameters belong to voices (the sound ones keep dough's names) and to physical 
 - `at=n` · `at=free(n, lo..hi)` · `at=&clock/n`: A read head: how far after the write head it sits, in seconds of tape (or a clock: at=&bar) — on a read head (play=) [→](physics.md)
 - `wander=n` · `wander=free(n, lo..hi)`: A read head: how far it wanders either way (tape-seconds) — a flying head — on a read head (play=) [→](physics.md)
 - `wanderhz=n` · `wanderhz=free(n, lo..hi)`: A read head: how fast it wanders (times a second) — on a read head (play=) [→](physics.md)
+- `trigger=&cell`: A gate: what plays through it — each note of this cell plays the receivers in its braid (trigger=&tune) — on a gate (trigger=) [→](mix.md)
+- `gate=&cell`: A gate: how open it is over time, a level on all it lets through (gate=&solo: 1 open, 0 closed, .3 ducked); velocity= is per note, gain= fixed — on a gate (trigger=) [→](mix.md)
+- `velocity=&cell`: A gate: a level on each note it lets through, as a product’s level (velocity=&accent) — on a gate (trigger=) [→](mix.md)
+- `gain=n` · `gain=free(n, lo..hi)`: A gate: a fixed level on what it lets through, as a product’s number (gain=.5) — on a gate (trigger=) [→](mix.md)
 - `scope=word`: A scope: stack, split, xy (in time) — spectrum, waterfall (in frequency, or value); its braid lists its channels — on a scope (scope=) [→](display.md)
 - `fold=n` · `fold=free(n, lo..hi)`: A spectrum or waterfall: pitches folded by this stride into as many bins (12: by pitch class, the default) — on a scope (scope=) [→](display.md)
 - `bins=n` · `bins=free(n, lo..hi)`: A spectrum or waterfall without a fold: this many bands, low to high (1 a meter, 3 low-mid-high, 20 an equaliser) — on a scope (scope=) [→](display.md)

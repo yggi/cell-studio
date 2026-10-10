@@ -16,7 +16,9 @@
 // tempo (a held free()) moved and Pause and Play again within the look-ahead (twice, the second at once), with no All notes off from either
 // cutting what plays, and no note left sounding. The MIDI clock (#206) is on: its ticks before the tempo moved are
 // checked against the meter's (2 ms, as the notes), and Start, Stop, Song Position and Continue in order, no tick while stopped.
+// Then MIDI out from a piece's MIDI cards (#208): the channels its cards name, a MIDI-only voice sent and not sounded.
 // Then MIDI in (#207): keys from a fake input (`window.midiIn(bytes)`) sound the armed voice and let it go, thru echoes them.
+// Then a take (#210): Play in's braid left free, recorded from the fake input (● on the transport), held, then saved.
 //
 // Chromium: Playwright's, or CHROME_PATH=/path/to/chrome (CI uses the runner's Chrome). See tools/profile/playwright.mjs.
 import { preview, runnerImport } from 'vite';
@@ -306,6 +308,66 @@ const MIDI_PIECE = 'sailor';
   console.log(`${ok ? 'ok  ' : 'FAIL'} MIDI out: ${MIDI_PIECE} into a fake port${ok ? `: ${note}` : '\n       ' + [...new Set(problems)].slice(0, 3).join('\n       ')}`);
   if (!ok) failed.push('MIDI out');
 }
+// MIDI out from a piece's MIDI cards (#208): a piece that names its channels (map=midi) into the same fake port. Its
+// note-ons are the channels and keys its cards name (tools/smoke-midi.ts, slot 1), none other (the default output's
+// table doesn't send the rest); its MIDI-only voice is sent on its channel and never sounds on the built-in voices.
+const CARD_PIECE = 'midi-out';
+const CARD_ONLY = { voice: 'sub', channel: 2 };
+{
+  problems = [];
+  const { module: midiPlan } = await runnerImport('./tools/smoke-midi.ts', { configFile: false });
+  const mp = await browser.newPage({ viewport: { width: 1280, height: 800 } });
+  mp.setDefaultTimeout(8000);
+  mp.on('pageerror', (e) => problems.push(`page error: ${e.message}`));
+  mp.on('console', (m) => m.type() === 'error' && problems.push(`console error: ${m.text()}`));
+  await mp.addInitScript(() => {
+    const sent = (window.__midi = []);
+    const out = { id: 'fake-out', name: 'Fake synth', send: (data, timestamp) => sent.push({ data: [...data], timestamp: timestamp ?? performance.now() }) };
+    navigator.requestMIDIAccess = () => Promise.resolve({ inputs: new Map(), outputs: new Map([['fake-out', out]]), onstatechange: null });
+    localStorage.setItem('cell-studio:midi', JSON.stringify({ out: { id: 'fake-out', name: 'Fake synth' }, in: { id: 'none', name: '' } }));
+  });
+  const secs = 3;
+  let note = '';
+  try {
+    await mp.goto(url);
+    await mp.getByRole('radio', { name: 'Cards' }).click();
+    await mp.locator(`button.open[data-id="example:${CARD_PIECE}"]`).dispatchEvent('click');
+    await mp.waitForTimeout(300);
+    const transport = mp.locator('.transport');
+    await transport.getByRole('button', { name: 'Play' }).first().click();
+    // while it plays: the MIDI-only voice never sounds on the built-in voices, the heard one does
+    let quiet = 0;
+    let heard = 0;
+    for (let t = 0; t < secs * 10; t++) {
+      await mp.waitForTimeout(100);
+      const [a, b] = await mp.evaluate((v) => [window.cellStudio.level(v) ?? 0, window.cellStudio.level('reed') ?? 0], CARD_ONLY.voice);
+      quiet = Math.max(quiet, a);
+      heard = Math.max(heard, b);
+    }
+    await transport.getByRole('button', { name: 'Pause' }).first().click();
+    await mp.waitForTimeout(800);
+    const sent = await mp.evaluate(() => window.__midi);
+    const ons = sent.filter((m) => (m.data[0] & 0xf0) === 0x90).map((m) => ({ channel: (m.data[0] & 15) + 1, note: m.data[1] }));
+    const want = midiPlan.expectedNoteOns(CARD_PIECE, secs + 2);
+    const channels = (xs) => [...new Set(xs.map((x) => x.channel))].sort((a, b) => a - b).join(' ');
+    if (ons.length < 8) problems.push(`only ${ons.length} note-ons were sent`);
+    if (channels(ons) !== channels(want)) problems.push(`sent on channels ${channels(ons)}, the cards name ${channels(want)}`);
+    const keys = new Set(want.map((w) => `${w.channel}:${w.note}`));
+    const stray = ons.filter((o) => !keys.has(`${o.channel}:${o.note}`));
+    if (stray.length) problems.push(`${stray.length} note-ons no card names, first ${stray[0].channel}:${stray[0].note}`);
+    const sentOnly = ons.filter((o) => o.channel === CARD_ONLY.channel).length;
+    if (!sentOnly) problems.push(`&${CARD_ONLY.voice}, on a MIDI card only, was not sent on channel ${CARD_ONLY.channel}`);
+    if (quiet > 1e-4) problems.push(`&${CARD_ONLY.voice}, on a MIDI card only, sounded (peak ${quiet.toFixed(4)})`);
+    if (!(heard > 1e-3)) problems.push('&reed, on both cards, did not sound');
+    note = `${ons.length} note-ons on channels ${channels(ons)}, as the cards name them; &${CARD_ONLY.voice} sent ${sentOnly} times on ${CARD_ONLY.channel} and silent on the built-in voices (peak ${quiet.toFixed(4)}), &reed heard (peak ${heard.toFixed(3)})`;
+  } catch (e) {
+    problems.push(String(e.message).split('\n')[0]);
+  }
+  await mp.close();
+  const ok = problems.length === 0;
+  console.log(`${ok ? 'ok  ' : 'FAIL'} MIDI out from cards: ${CARD_PIECE}${ok ? `: ${note}` : '\n       ' + [...new Set(problems)].slice(0, 3).join('\n       ')}`);
+  if (!ok) failed.push('MIDI out from cards');
+}
 // MIDI in (#207): a fake input, played with `window.midiIn(bytes)` on a stopped piece. A key sounds the armed voice (the
 // first cell that plays: sailor's &tune, on &fiddle) and takes the transport to paused; its note-off lets it go; thru
 // echoes both. Made-to-analysed time of a live note (the second: the first wakes the sound engine), and the output's
@@ -388,6 +450,77 @@ const MIDI_PIECE = 'sailor';
   const ok = problems.length === 0;
   console.log(`${ok ? 'ok  ' : 'FAIL'} MIDI in: keys on ${MIDI_PIECE}${ok ? `: ${note}` : '\n       ' + [...new Set(problems)].slice(0, 3).join('\n       ')}`);
   if (!ok) failed.push('MIDI in');
+}
+// A take (#210): Play in's riff, a braid left free (16 steps at 6.4 a second: a pass of 2.5 s), armed by default. ● starts
+// play and takes the first pass; keys go in through the fake input, each a fifth of a step before its step as the
+// transport is heard (frames come up to 40 ms late, a quarter step: within half a step either way). The take is held
+// (the riff's pill shows it, the code doesn't), then Save writes it: the code line shows free(…) with the take.
+{
+  problems = [];
+  const mp = await browser.newPage({ viewport: { width: 1280, height: 800 } });
+  mp.setDefaultTimeout(8000);
+  mp.on('pageerror', (e) => problems.push(`page error: ${e.message}`));
+  mp.on('console', (m) => m.type() === 'error' && problems.push(`console error: ${m.text()}`));
+  await mp.addInitScript(() => {
+    const input = { id: 'fake-in', name: 'Fake keys', onmidimessage: null };
+    window.midiIn = (bytes) => input.onmidimessage?.({ data: new Uint8Array(bytes), timeStamp: performance.now() });
+    navigator.requestMIDIAccess = () => Promise.resolve({ inputs: new Map([['fake-in', input]]), outputs: new Map(), onstatechange: null });
+    localStorage.setItem('cell-studio:midi', JSON.stringify({ in: { id: 'fake-in', name: 'Fake keys' } }));
+  });
+  const WANT = '0 ~ [2,4]@4 ~ ~ 7 ~ ~ ~ ~ ~ ~ ~';
+  let note = '';
+  try {
+    await mp.goto(url);
+    await mp.getByRole('radio', { name: 'Cards' }).click();
+    await mp.locator('button.open[data-id="example:play-in"]').dispatchEvent('click');
+    await mp.waitForTimeout(500);
+    await mp.getByRole('button', { name: 'Record' }).click();
+    const line = await mp.evaluate(
+      () =>
+        new Promise((done) => {
+          const STEPS = 6.4;
+          // (key on or off, at a step: sent a fifth of a step before it, as heard)
+          const plan = [
+            [0, [0x90, 60, 100]],
+            [0.8, [0x80, 60, 0]],
+            [2, [0x90, 64, 100]],
+            [2, [0x90, 67, 100]],
+            [5.8, [0x80, 64, 0]],
+            [5.8, [0x80, 67, 0]],
+            [8, [0x90, 72, 100]],
+            [8.8, [0x80, 72, 0]],
+          ];
+          const t0 = performance.now();
+          let k = 0;
+          const look = () => {
+            const t = window.cellStudio.transport();
+            while (k < plan.length && t.state === 'playing' && t.seconds * STEPS >= plan[k][0] - 0.2) window.midiIn(plan[k++][1]);
+            if (k === plan.length && t.seconds > 2.7) return done({ ok: true, seconds: t.seconds });
+            if (performance.now() - t0 > 8000) return done({ ok: false, at: t });
+            setTimeout(look, 1);
+          };
+          look();
+        }),
+    );
+    if (!line.ok) problems.push(`the take did not run: ${JSON.stringify(line.at)}`);
+    await mp.waitForTimeout(200);
+    const pill = (await mp.locator('button.pill', { hasText: 'braid' }).first().textContent())?.replace(/\s+/g, ' ').trim();
+    const code = () => mp.evaluate(() => document.querySelector('textarea')?.value ?? '');
+    const before = await code();
+    if (!pill?.startsWith(`braid: ${WANT.slice(0, 12)}`)) problems.push(`the take held is not what was played: pill "${pill}", wanted ${WANT}`);
+    if (!before.includes('free(0 2 4 ~ 4 2 0 ~ 0 2 4 ~ 7@2 ~ ~)')) problems.push('the code changed before Save');
+    await mp.getByRole('button', { name: 'Save' }).click();
+    await mp.waitForTimeout(200);
+    const after = (await code()).split('\n').find((l) => l.startsWith('&riff')) ?? '';
+    if (!after.includes(`free(${WANT})`)) problems.push(`Save wrote "${after}", wanted free(${WANT})`);
+    note = `a pass recorded from the fake input and held (pill "${pill}"), then saved: ${after}`;
+  } catch (e) {
+    problems.push(String(e.message).split('\n')[0]);
+  }
+  await mp.close();
+  const ok = problems.length === 0;
+  console.log(`${ok ? 'ok  ' : 'FAIL'} A take: Play in${ok ? `: ${note}` : '\n       ' + [...new Set(problems)].slice(0, 3).join('\n       ')}`);
+  if (!ok) failed.push('A take');
 }
 await browser.close();
 await server.close();

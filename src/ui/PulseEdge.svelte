@@ -96,7 +96,7 @@
   const ringOnly = $derived(d.part === 'ring');
   const looming = (parts: { ring: string; run: string }[]) => parts.map((p) => (d.part === 'ring' ? p.ring : d.part === 'run' ? p.run : `${p.ring} L${p.run.slice(1)}`));
   // (the CV ports that carry notes; any other CV is a level: an envelope, a gain, a filter …)
-  const PITCH_PORTS = new Set(['voice', 'pitch', 'play', 'write', 'braid', 'over']);
+  const PITCH_PORTS = new Set(['voice', 'midi', 'pitch', 'play', 'write', 'braid', 'over']);
 
   // Ends locked to their segments (as a tape's heads are): a ref meets the wheel of the cell it is spliced into where it
   // sits in that braid, once for each time it is written; a table's strands leave its wheel at their entries.

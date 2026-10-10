@@ -55,6 +55,7 @@ function made(code = SONG, { drums = DRUM_PRESETS.GM as DrumMap, claimed }: { dr
   };
   const hearers = new Set<Hearer>();
   const sent: number[][] = [];
+  const letGoers = new Set<() => void>();
   const midi = {
     access: {} as MidiAccess,
     inPortId: 'Keys',
@@ -64,11 +65,16 @@ function made(code = SONG, { drums = DRUM_PRESETS.GM as DrumMap, claimed }: { dr
       return () => void hearers.delete(h);
     },
     send: (d: readonly number[]) => void sent.push([...d]),
+    letGo: (l: () => void) => {
+      letGoers.add(l);
+      return () => void letGoers.delete(l);
+    },
   };
   const keys = new Keys(piece, hands, midi, { claimed });
   cleanups.push(() => keys.dispose());
   const play = (...bytes: number[]) => hearers.forEach((h) => h(new Uint8Array(bytes), 'Keys', 0));
-  return { piece, keys, hands, asked, play, sent, midi };
+  const letGo = () => letGoers.forEach((l) => l());
+  return { piece, keys, hands, asked, play, sent, midi, letGo, letGoers };
 }
 
 describe('press and release: the armed voice, through its table', () => {
@@ -105,9 +111,46 @@ describe('press and release: the armed voice, through its table', () => {
 
   it('as played (a setting): the key at its own pitch', () => {
     const { keys, asked } = made();
-    keys.mode = 'played';
+    keys.mode = 'allow';
     keys.press(66);
     expect(asked).toEqual([`press 1 lead ${at(6).toFixed(2)} v100`]);
+  });
+
+  it('one setting for a key off the table (#210): snap the nearest, allow as played, ignore nothing; the on-screen keys alike', () => {
+    const { keys, asked } = made();
+    expect(keys.mode).toBe('snap');
+    keys.press(66); // F#: G
+    keys.mode = 'ignore';
+    keys.press(65); // F: off the pentatonic, nothing
+    keys.press(67); // G: on it
+    keys.mode = 'allow';
+    keys.press(61); // C#, as played
+    expect(asked).toEqual([`press 1 lead ${at(7).toFixed(2)} v100`, `press 2 lead ${at(7).toFixed(2)} v100`, `press 3 lead ${at(1).toFixed(2)} v100`]);
+  });
+
+  it("#207's two ways, kept, read as the three: as played is allow, nearest snap", () => {
+    for (const [kept, mode] of [
+      ['played', 'allow'],
+      ['nearest', 'snap'],
+      ['ignore', 'ignore'],
+      ['junk', 'snap'],
+    ]) {
+      store.set('cell-studio:keys', JSON.stringify({ mode: kept }));
+      expect(made().keys.mode, kept).toBe(mode);
+    }
+  });
+
+  it('tells its listener of every key and row, down and up, with their moments (a take records them)', () => {
+    const { keys } = made();
+    const heard: string[] = [];
+    keys.listener = { down: (at, what, ms) => void heard.push(`down ${at} ${JSON.stringify(what)} ${ms}`), up: (at, ms) => void heard.push(`up ${at} ${ms}`) };
+    keys.mode = 'ignore';
+    keys.press(65, 100, 0, 10); // (off the table: it doesn't sound, but a take hears it: it writes nothing)
+    keys.release(65, 0, 20);
+    keys.press(36, 100, 9, 30); // (a pad: not a melody's key)
+    keys.pressRow('tune', 3, 100, 40);
+    keys.releaseRow('tune', 3, 50);
+    expect(heard).toEqual(['down 0:65 {"note":65} 10', 'up 0:65 20', 'down row:tune:3 {"cell":"tune","value":3} 40', 'up row:tune:3 50']);
   });
 
   it('a key struck again while it sounds strikes again', () => {
@@ -228,13 +271,69 @@ describe('MIDI in', () => {
     ]);
   });
 
+  it("MIDI's let-go (All notes off, the input changed or unplugged) lets every key go and the pedal up; disposed, no longer", () => {
+    const { keys, play, asked, letGo, letGoers } = made();
+    play(0x90, 60, 100);
+    play(0xb0, 64, 127);
+    keys.press(62);
+    letGo();
+    expect(asked.filter((a) => a.startsWith('release')).sort()).toEqual(['release 1', 'release 2']);
+    expect(keys.held.size).toBe(0);
+    play(0x90, 64, 100);
+    play(0x80, 64, 0);
+    expect(asked.slice(-1)).toEqual(['release 3']);
+    keys.dispose();
+    expect(letGoers.size).toBe(0);
+  });
+
+  it('thru: the keys down get their note-offs (and the pedal comes up) when thru goes off, its channel changes, on a let-go and on Stop', () => {
+    const offs = (sent: number[][]) => sent.filter((m) => (m[0] & 0xf0) === 0x80 || (m[0] & 0xf0) === 0xb0);
+    // off
+    let m = made();
+    m.keys.thru = true;
+    m.keys.thruChannel = 2;
+    m.play(0x90, 60, 100);
+    m.play(0xb0, 64, 127);
+    m.keys.press(62);
+    m.sent.length = 0;
+    m.keys.thru = false;
+    expect(offs(m.sent)).toEqual([
+      [0x81, 60, 0],
+      [0x81, 62, 0],
+      [0xb1, 64, 0],
+    ]);
+    m.play(0x80, 60, 0);
+    expect(m.sent).toHaveLength(3); // (off now: nothing more goes out)
+    // the channel moved: offs on the old one, and the key's own note-off later on the new
+    m = made();
+    m.keys.thru = true;
+    m.keys.thruChannel = 2;
+    m.play(0x90, 60, 100);
+    m.sent.length = 0;
+    m.keys.thruChannel = 2; // (the same: nothing)
+    expect(m.sent).toEqual([]);
+    m.keys.thruChannel = 5;
+    expect(m.sent).toEqual([[0x81, 60, 0]]);
+    // a let-go and Stop
+    for (const how of ['letGo', 'stop'] as const) {
+      m = made();
+      m.keys.thru = true;
+      m.keys.thruChannel = 3;
+      m.play(0x90, 60, 100);
+      m.sent.length = 0;
+      if (how === 'letGo') m.letGo();
+      else m.hands.onKeysCut?.();
+      expect(m.sent).toEqual([[0x82, 60, 0]]);
+    }
+  });
+
   it('the settings are kept in this browser', () => {
     const first = made();
     first.keys.thru = true;
     first.keys.thruChannel = 5;
-    first.keys.mode = 'played';
+    first.keys.mode = 'allow';
     const again = made();
-    expect([again.keys.thru, again.keys.thruChannel, again.keys.mode, again.keys.computer]).toEqual([true, 5, 'played', false]);
+    expect([again.keys.thru, again.keys.thruChannel, again.keys.mode, again.keys.computer]).toEqual([true, 5, 'allow', false]);
   });
 });
 
@@ -365,6 +464,16 @@ describe("rows: the piano roll's key column (#211)", () => {
     expect(sent).toEqual([
       [0x90, 62, 100],
       [0x80, 62, 0],
+      [0x90, 62, 100],
+      [0x80, 62, 0],
+    ]);
+  });
+  it('a row down gets its note-off through thru when thru goes off', () => {
+    const { keys, sent } = made();
+    keys.thru = true;
+    keys.pressRow('tune', 1);
+    keys.thru = false;
+    expect(sent).toEqual([
       [0x90, 62, 100],
       [0x80, 62, 0],
     ]);

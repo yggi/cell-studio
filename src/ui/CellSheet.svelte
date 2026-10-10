@@ -119,9 +119,15 @@
   }
 
   // ---- the braid on the wheel, token by token
-  /** The braid as a list: written tokens, or (empty / a function) the entries it stands for. */
-  const listed = $derived.by((): { tokens: string[]; kind: 'list' | 'empty' | 'function' } => {
+  // a braid left free (free(0 2 4 ~), #210): its steps as they play (a take's while one is held), and edits held too
+  const freeBraid = $derived(cell?.frees.find((f) => f.key === 'braid') ?? null);
+  /** The braid as a list: written tokens (a braid left free: its steps as they play), or (empty / a function) the entries it stands for. */
+  const listed = $derived.by((): { tokens: string[]; kind: 'list' | 'empty' | 'function'; held?: boolean } => {
     const b = words?.braid ?? [];
+    if (b.length === 1 && freeBraid?.braid !== undefined && /^free\(/.test(b[0])) {
+      const written = b[0].slice('free('.length, -1).trim().replace(/\s+/g, ' ');
+      return { tokens: splitWords(freeBraid.braid), kind: 'list', held: freeBraid.braid !== written };
+    }
     if (b.length === 0) return { tokens: Array.from({ length: cell?.cycle ?? 12 }, (_, i) => String(i)), kind: 'empty' };
     if (b.length === 1 && /^(scan|sin)\(/.test(b[0]) && cell) {
       const vals = shiftedUnits(ctx.program, name, shown(name)).map((u) => (u.atom.kind === 'note' ? String(u.atom.value) : '~'));
@@ -141,7 +147,7 @@
     }
   });
   let editingStep = $state<number | null>(null);
-  const writeList = (tokens: string[]) => onedit(setBraid(source, name, tokens));
+  const writeList = (tokens: string[]) => (freeBraid ? ctx.setFree(freeBraid, tokens.join(' ')) : onedit(setBraid(source, name, tokens)));
   function apply(i: number, t: string) {
     const next = [...listed.tokens];
     next[i] = t.trim() || '~';
@@ -273,14 +279,24 @@
         </div>
       {/if}
       <p class="hint">
-        {listed.kind === 'empty'
-          ? 'Empty: the default grid. Tap the middle to write steps.'
-          : listed.kind === 'function'
-            ? `Made by ${words.braid[0].replace(/\(.*$/, '()')}. Tap the middle to change it.`
-            : 'Tap a step to change it, the middle to change them all.'}
+        {listed.held
+          ? 'A take, held in place of the braid written: tap a step to change it; Keep or Revert it below.'
+          : listed.kind === 'empty'
+            ? 'Empty: the default grid. Tap the middle to write steps.'
+            : listed.kind === 'function'
+              ? `Made by ${words.braid[0].replace(/\(.*$/, '()')}. Tap the middle to change it.`
+              : 'Tap a step to change it, the middle to change them all.'}
       </p>
-      <!-- a braid unrolled: its steps across, its table's rows up (#211; the keys' sound waits for #207) -->
-      {#if !isMeter}<PianoRoll {name} {source} piece={opened} {onedit} />{/if}
+      <!-- a braid unrolled: its steps across, its table's rows up (#211); its keys play the cell's voice (#251) -->
+      {#if !isMeter}<PianoRoll
+          {name}
+          {source}
+          piece={opened}
+          {onedit}
+          held={ctx.rows?.held(name)}
+          onpress={ctx.rows ? (v) => ctx.rows?.press(name, v) : undefined}
+          onrelease={ctx.rows ? (v) => ctx.rows?.release(name, v) : undefined}
+        />{/if}
     {:else if !cell.voice || braidVoice}
       <div class="dial">
         <CellGlyph {name} {isMeter} size={200} interactive fine />

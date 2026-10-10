@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { transition, type TransportEvent, type TransportState } from './transport';
+import { recordTransition, transition, type RecordEvent, type RecordState, type TransportEvent, type TransportState } from './transport';
 
 const STATES: TransportState[] = ['stopped', 'paused', 'playing'];
 const EVENTS: TransportEvent[] = ['play', 'pause', 'stop', 'touch'];
@@ -24,5 +24,23 @@ describe('the transport states', () => {
     expect(transition('stopped', 'pause')).toBe('stopped');
     expect(transition('paused', 'pause')).toBe('paused');
     expect(transition('playing', 'pause')).toBe('paused');
+  });
+});
+
+describe('recording (#210)', () => {
+  const RECORDS: RecordState[] = ['off', 'armed', 'taking'];
+  const REVENTS: RecordEvent[] = ['record', 'begin', 'done', 'cancel'];
+  it('every record state and event, playing: the whole table', () => {
+    const table = Object.fromEntries(RECORDS.map((r) => [r, REVENTS.map((e) => recordTransition(r, e, 'playing'))]));
+    //                    record   begin     done     cancel
+    expect(table).toEqual({
+      off: ['armed', 'off', 'off', 'off'],
+      armed: ['off', 'taking', 'armed', 'off'],
+      taking: ['off', 'taking', 'off', 'off'],
+    });
+  });
+  it('a pass begins only while playing', () => {
+    expect(recordTransition('armed', 'begin', 'stopped')).toBe('armed');
+    expect(recordTransition('armed', 'begin', 'paused')).toBe('armed');
   });
 });

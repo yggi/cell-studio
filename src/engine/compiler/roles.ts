@@ -3,7 +3,7 @@ import type { Span } from '../ast';
 import { SHOWS } from '../parser/cell';
 import { ATTRIBUTES, rolesText, type Role } from '../attributes';
 import { PLUGIN_SYNTAX, type ShowPlugin } from '../plugins';
-import type { Clock, ResolvedCell } from '../program';
+import { isMidiCard, type Clock, type ResolvedCell } from '../program';
 import type { Cells, Ctx } from './context';
 import type { Declared } from './declare';
 
@@ -22,6 +22,7 @@ export function checkRoles(ctx: Ctx, { decls, implicit }: Declared, cells: Cells
     if (typeof c.params.body === 'string') r.add('resonator');
     if (typeof c.params.scope === 'string') r.add('scope');
     if (typeof c.params.law === 'string') r.add('law');
+    if (typeof c.params.trigger === 'string') r.add('gate');
     if (c.sink) r.add('card');
     if (c.note) r.add('note');
     if (typeof c.params.fm === 'string') r.add('carrier');
@@ -56,8 +57,11 @@ export function checkRoles(ctx: Ctx, { decls, implicit }: Declared, cells: Cells
           `anchor= sets the clock a law reads, not the law: write it on ${c.over ? `&${c.over}` : 'its day (over=&day, a clock loop=1d)'} — the law on &${d.name} doesn't read it`,
           span,
         );
-      else if (k === 'pan' && (c.mix || c.sink))
-        warn(`pan= places a voice: on ${c.sink ? 'the sound card' : `the mix &${d.name}`} it does nothing — put it on the voice (&voice pan=${d.params.pan})`, span);
+      else if (k === 'pan' && (c.mix || c.sink || isMidiCard(c)))
+        warn(
+          `pan= places a voice: on ${c.sink ? 'the sound card' : isMidiCard(c) ? 'a MIDI card' : `the mix &${d.name}`} it does nothing — put it on the voice (&voice pan=${d.params.pan})`,
+          span,
+        );
       else if (k === 'pan' && typeof d.params.pan === 'number' && (d.params.pan < 0 || d.params.pan > 1))
         warn(`pan=${d.params.pan}: pan runs from 0 (left) to 1 (right); ${d.params.pan < 0 ? 'this plays hard left' : 'this plays hard right'}`, span);
       else if (a?.on && !a.on.some((r) => has.has(r))) warn(`${k}= acts on ${rolesText(a.on)}: on &${d.name} it does nothing`, span);

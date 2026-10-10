@@ -42,6 +42,8 @@ export function freeAmount(f: FreeSpec, v: number = f.value): string {
 /** Its value now, short (beside `freeKey`, which already says bpm): a text, a named choice, or a number. */
 export function freeValue(f: FreeSpec): string {
   if (f.key === 'text') return f.text ?? '';
+  // (a braid: its steps, the first few)
+  if (f.key === 'braid') return (f.braid ?? '').length > 18 ? `${(f.braid ?? '').slice(0, 17).trimEnd()}…` : (f.braid ?? '');
   if (f.labels) {
     const step = f.labels.length > 1 ? (f.hi - f.lo) / (f.labels.length - 1) : 1;
     return f.labels[Math.round((f.value - f.lo) / (step || 1))] ?? String(f.value);

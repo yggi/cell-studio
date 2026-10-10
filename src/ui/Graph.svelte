@@ -7,7 +7,7 @@
   import { isCellNode, type GraphModel } from '../engine/graph';
   import type { LiveState } from '../engine/live';
   import { drawn, type Routing } from '../engine/routing';
-  import { bulbAt, setGraphContext } from './context';
+  import { bulbAt, setGraphContext, type RowKeys } from './context';
   import { snapshotOf } from './snapshot';
   import { GraphLayout } from './state/graphLayout.svelte';
   import CellNode from './CellNode.svelte';
@@ -61,6 +61,7 @@
     focus,
     onsheet,
     played,
+    rows,
   }: {
     model: GraphModel;
     program: CompileResult;
@@ -97,6 +98,8 @@
     onsheet?: (name: string | null) => void;
     /** Cells sounding from the keys (graph ids): drawn live. */
     played?: ReadonlySet<string>;
+    /** A cell's rows played live (the piano roll's keys, #251). */
+    rows?: RowKeys;
   } = $props();
 
   // The piece as drawn: one snapshot (program, graph, shifts, routing), swapped whole with the nodes and edges made
@@ -128,6 +131,8 @@
     const name = selectedName ?? null;
     untrack(() => onsheet?.(name));
   });
+  // (gone, no sheet is open: the keys stop following one)
+  $effect(() => () => untrack(() => onsheet?.(null)));
 
   setGraphContext({
     get program() {
@@ -186,6 +191,9 @@
     },
     get played() {
       return played;
+    },
+    get rows() {
+      return rows;
     },
   });
 
