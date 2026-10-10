@@ -262,7 +262,7 @@
           ></button>
         {/each}
       {/if}
-      <!-- the tutorial: a cell of its own beside the wheel, its rungs in order along a thread -->
+      <!-- the tutorial: a cell of its own beside the wheel, its tiers in order along a thread -->
       {#if layout.tutorial}
         {@const t = layout.tutorial}
         {@const c = { x: px(t.x - layout.x0), y: px(t.y - layout.y0) }}
@@ -542,7 +542,7 @@
   .seg.dim {
     opacity: 0.25;
   }
-  /* the tutorial's thread: its rungs, in order */
+  /* the tutorial's thread: its tiers, in order */
   .thread {
     fill: none;
     stroke: var(--text-muted);

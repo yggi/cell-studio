@@ -8,7 +8,7 @@
  * is a colour wheel by construction.
  *
  * The tutorial (the pieces tagged `tutorial`) is a cell of its own beside the wheel: its pieces in the
- * order of their rungs along a spiral, from its middle out, grown with the rest.
+ * order of their tiers along a spiral, from its middle out, grown with the rest.
  */
 import { forceLink, forceSimulation, type SimulationNodeDatum } from 'd3-force';
 import { tagName, TUTORIAL } from '../engine/tags';
@@ -28,7 +28,7 @@ export interface LibraryLayout {
   readonly sat: ReadonlyMap<string, number>;
   /** The genres as the wheel's rim: its radius (layout units, centred on 0) and each genre's angle. */
   readonly ring: { readonly r: number; readonly genres: readonly { readonly tag: string; readonly angle: number }[] } | null;
-  /** The tutorial's cell, beside the wheel: its centre and radius, and its pieces (`p:id`) in the order of their rungs. */
+  /** The tutorial's cell, beside the wheel: its centre and radius, and its pieces (`p:id`) in the order of their tiers. */
   readonly tutorial: { readonly x: number; readonly y: number; readonly r: number; readonly order: readonly string[] } | null;
   /** Each piece's wheel, its radius now (layout units): the room free around it — wheels never overlap. */
   readonly wheel: ReadonlyMap<string, number>;
@@ -51,22 +51,23 @@ export const tagFont = (n: number) => 13 + 2.5 * Math.sqrt(n);
 export const shortTitle = (t: string) => t.split(':')[0];
 /** A piece's title pill, its words at scale 1 (layout units): at the full view a piece is its title. */
 export const PILL = 17;
-/** The tutorial's order: by rung, a piece without one at the bottom (the layout and the picker's cards agree). */
-export const byRung = (a: { readonly rung?: number | null }, b: { readonly rung?: number | null }): number => {
-  const [x, y] = [a.rung ?? Infinity, b.rung ?? Infinity];
+/** The tutorial's order: by tier, a piece without one at the bottom; the pieces of a tier stay as given (a stable sort: the library's order) (the layout and the picker's cards agree). */
+export const byTier = (a: { readonly tier?: number | null }, b: { readonly tier?: number | null }): number => {
+  const [x, y] = [a.tier ?? Infinity, b.tier ?? Infinity];
   return x === y ? 0 : x - y;
 };
 
-/** A tutorial piece's title as the library shows it: its rung, then its short title. */
-export const tutorialTitle = (e: { readonly title?: string; readonly id: string; readonly rung?: number | null }) => `${e.rung ?? ''} ${shortTitle(e.title ?? e.id)}`.trim();
+/** A tutorial piece's title as the library shows it: its tier, then its short title. */
+export const tutorialTitle = (e: { readonly title?: string; readonly id: string; readonly tier?: number | null }) =>
+  `${e.tier ? `${e.tier} · ` : ''}${shortTitle(e.title ?? e.id)}`;
 /** A pill's half-width at scale 1: its words (0.58 em a letter) and its padding, at its font. */
 const pillHalf = (words: string, font: number) => ((0.58 * words.length + 1.5) * font) / 2;
-/** What the layout needs of a piece: its tags, its title (for its pill's room), and its rung if it is in the tutorial. */
+/** What the layout needs of a piece: its tags, its title (for its pill's room), and its tier if it is in the tutorial. */
 export interface LibraryEntry {
   readonly id: string;
   readonly tags: readonly string[];
   readonly title?: string;
-  readonly rung?: number | null;
+  readonly tier?: number | null;
 }
 /** A piece of the tutorial: in its cell, not the wheel. */
 const inTutorial = (e: LibraryEntry) => e.tags.includes(TUTORIAL);
@@ -142,9 +143,9 @@ function hash(id: string, salt: number): number {
 }
 
 function start(all: readonly LibraryEntry[]) {
-  // the wheel's pieces; the tutorial's, by rung, are a cell of their own (below)
+  // the wheel's pieces; the tutorial's, by tier, are a cell of their own (below)
   const entries = all.filter((e) => !inTutorial(e));
-  const tutorial = all.filter(inTutorial).sort((a, b) => byRung(a, b) || (a.id < b.id ? -1 : 1));
+  const tutorial = all.filter(inTutorial).sort(byTier);
   const count = new Map<string, number>();
   for (const e of entries) for (const t of e.tags) count.set(t, (count.get(t) ?? 0) + 1);
   const isGenre = (t: string) => (GENRES as readonly string[]).includes(t);
@@ -394,7 +395,7 @@ function exclude(nodes: readonly Node[]) {
 
 /**
  * The tutorial's cell, laid out once at full size: its pieces' pills in rows across a disc, in the order of
- * their rungs, a row left to right and the next back (a path, as a ladder is climbed), the rows as long as the
+ * their tiers, a row left to right and the next back (a path, as a ladder is climbed), the rows as long as the
  * disc is wide there (offsets from its centre); the smallest disc that holds them; its centre to the right of
  * the wheel (whose rim is at R). Null without a tutorial.
  */
