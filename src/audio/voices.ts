@@ -341,6 +341,8 @@ export function createVoices(Tone: ToneNS): VoiceBank {
     },
 
     play(note: Played) {
+      // (sent on a MIDI card and on no sound card: MIDI out has it, nothing here sounds it)
+      if (note.unheard) return;
       const b = built.get(note.voice);
       if (!b) return;
       const sounds = playNote(Tone, ctx, b, note, (name) => built.get(name));

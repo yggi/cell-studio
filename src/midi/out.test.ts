@@ -5,7 +5,7 @@ import { compileSource } from '../engine/compile';
 import { plan, type Played } from '../engine/realize';
 import { codeShifts } from '../engine/program';
 import { windowAt } from '../engine/schedule';
-import { BEND_CENTRE, bendValue, channelTable, midiNote, router, type Route } from '../engine/midi';
+import { BEND_CENTRE, bendValue, channelTable, midiNote, router, routesOf, type Route } from '../engine/midi';
 import { MidiOut } from './out';
 import { fakePort } from './fixtures';
 import { DRUM_PRESETS } from './drum-presets';
@@ -305,7 +305,7 @@ describe('MidiOut over every example, window by window as the player plays them'
       for (let from = 0; from < SECONDS; from += WINDOW) {
         const w = windowAt(p, from, WINDOW);
         for (const e of w.events) {
-          const to = route(e);
+          const to = routesOf(route(e))[0];
           // (a send isn't heard from itself; a pitch no key reaches isn't sent)
           if (to && midiNote(e, to)) expected++;
           midi.play(e, toDeviceMs);
@@ -389,7 +389,7 @@ describe('MidiOut over every example, through a seek within the look-ahead', () 
       run(2, 6, 1.65, after);
       midi.advance(Infinity, toDeviceMs);
       for (const e of after) {
-        const to = route(e);
+        const to = routesOf(route(e))[0];
         const n = to && midiNote(e, to);
         if (!n || n.end - n.at < 0.002) continue;
         expect(sounding(port.sent, (n.channel - 1) & 15, to.drum ?? n.note, (n.at + n.end) / 2), `${e.voice} at ${e.at}`).toBe(true);

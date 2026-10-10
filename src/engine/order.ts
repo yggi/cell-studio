@@ -1,6 +1,10 @@
 /** The library's order (the files themselves sort by name). */
 export const ORDER = [
-  // the tutorial, rung by rung
+  // the tutorial, tier by tier (a piece added to a tier goes where it reads best: no numbers change)
+  'tone',
+  'rests',
+  'semitones',
+  'twovoices',
   'steps',
   'clock',
   'voice',
@@ -33,6 +37,7 @@ export const ORDER = [
   'daytime',
   'gate',
   'play-in',
+  'midi-out',
   // the pieces
   'lullaby',
   'jazz',

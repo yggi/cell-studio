@@ -70,7 +70,7 @@ describe('parse: cells', () => {
     expect(msg('&a init=2')).toMatch(/now shift=/);
     expect(msg('&a 0 out=lead')).toMatch(/now a command/);
     expect(msg('&a(&b) 0')).toMatch(/is gone/);
-    expect(msg('&a map=1')).toMatch(/map= takes amp, lin, db, adsr, sample, edo, ratios, ed\(r\) or a table/);
+    expect(msg('&a map=1')).toMatch(/map= takes amp, lin, db, adsr, sample, midi, edo, ratios, ed\(r\), midi\(c, p\) or a table/);
     expect(msg('cell &a 0')).toMatch(/cell keyword is gone/);
     expect(msg('&v s=saw gain=.5')).toMatch(/set the level in the mix/);
     expect(parse('&v s=saw pan=.2').diagnostics).toEqual([]); // (pan= is back: decision 007)
@@ -306,17 +306,17 @@ describe('a piece’s card: title= and tags= on a note', () => {
       title: 'Swing blues',
       description: 'A 12-bar blues in C, swung — key . Two scales.',
       tags: ['Jazz', 'blues', 'swing'], // (as written, once each whatever the case)
-      rung: null,
+      tier: null,
       cell: 'piece',
     });
-    expect(pieceMeta('&piece title="Steps" tags="tutorial" rung=3')?.rung).toBe(3);
+    expect(pieceMeta('&piece title="Steps" tags="tutorial" tier=3')?.tier).toBe(3);
     expect(pieceMeta('&bar step=1 0')).toBeNull();
     expect(parse('&p title=hello').diagnostics[0].message).toMatch(/title= takes a text in quotes/);
   });
-  it('rung= is a place in the tutorial: 1 or more', () => {
-    expect(parse('&p title="x" rung=0').diagnostics[0].message).toMatch(/rung= is a place in the tutorial/);
-    expect(parse('&p title="x" rung=2').diagnostics).toEqual([]);
-    expect(parse('&p title="x" rung=99999999999999999999').diagnostics[0].message).toMatch(/rung= is a place in the tutorial/);
+  it('tier= is a tier of the tutorial: 1 or more', () => {
+    expect(parse('&p title="x" tier=0').diagnostics[0].message).toMatch(/tier= is a tier of the tutorial/);
+    expect(parse('&p title="x" tier=2').diagnostics).toEqual([]);
+    expect(parse('&p title="x" tier=99999999999999999999').diagnostics[0].message).toMatch(/tier= is a tier of the tutorial/);
   });
 });
 

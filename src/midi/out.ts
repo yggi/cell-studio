@@ -18,7 +18,7 @@
  * not taken back) that a note sent since sounds across is followed by that note struck again: retriggered, not cut. A
  * bend put back after one sent ahead is said again by a note sent since that sounds across it.
  */
-import { BEND_CENTRE, bendMessage, midiNote, Rotation, type Route } from '../engine/midi';
+import { BEND_CENTRE, bendMessage, midiNote, Rotation, routesOf, type Route, type Routes } from '../engine/midi';
 import type { Played } from '../engine/realize';
 import type { MidiPort } from './access';
 import { deviceNote, type DrumMap } from './drum-presets';
@@ -49,7 +49,7 @@ export interface OutOptions {
 
 export class MidiOut {
   #port: MidiPort | null;
-  #route: (e: Played) => Route = () => null;
+  #route: (e: Played) => Routes = () => null;
   #options: OutOptions = { drums: {}, bendRange: 2, rotate: null };
   #rotation: Rotation | null = null;
   /** Notes held, by channel nibble and key, not yet resolved as released. */
@@ -92,11 +92,12 @@ export class MidiOut {
   }
 
   /**
-   * Where notes go (a piece's channel table, `engine/midi.ts` `router`), from the next note on; what is held stays held
+   * Where notes go (a piece's channel table, `engine/midi.ts` `router`: on a piece's MIDI cards, a note's entries for
+   * this output's slot), from the next note on; what is held stays held
    * and is released as it would have been (a recompile while playing). A channel table that changed is silenced first
    * by the caller (`panic`).
    */
-  setRoute(route: (e: Played) => Route): void {
+  setRoute(route: (e: Played) => Routes): void {
     this.#route = route;
   }
 
@@ -142,8 +143,11 @@ export class MidiOut {
   /** Send one note: its bend if the channel needs another, its note-on, its bends while it sounds. Its release is decided by `advance`. */
   play(e: Played, toDeviceMs: ToDeviceMs): void {
     if (!this.#port) return;
-    const route = this.#route(e);
-    if (!route) return;
+    // (on a piece's MIDI cards a note can go out on several channels: each is a note of its own)
+    for (const route of routesOf(this.#route(e))) this.#play(e, route, toDeviceMs);
+  }
+
+  #play(e: Played, route: NonNullable<Route>, toDeviceMs: ToDeviceMs): void {
     const n = midiNote(e, route, this.#options.bendRange);
     if (!n) return;
     this.advance(n.at, toDeviceMs);
