@@ -77,15 +77,14 @@ export function netTree(s: LayoutState, net: GraphModel['nets'][number], ends = 
 
 /**
  * Nets in the forces: each join of a net's tree a spring, as strong as the edge it stands for (a meter's as its
- * ground); a wheel lying on a join pushed off it to the side it is on, the join's ends the other way.
+ * ground).
  */
 export function stepNets(s: LayoutState, alpha: number): void {
   const o = s.opts;
-  if (o.netPull <= 0 && o.netClear <= 0) return;
+  if (o.netPull <= 0) return;
   // (laid again every tick: measured, it settles better than a tree kept for a few — docs/notes/nets.md; a net at
   // delays is a star, pulled by its edges' own springs: physics.ts)
   const trees = s.nets.filter((net) => !net.delayed).map((net) => ({ net, tree: netTree(s, net) }));
-  const wheels = [...s.byId.values()].filter((w) => w.role !== 'tag');
   for (const { net, tree } of trees) {
     const bus = net.port !== 'step';
     for (const { from, to } of tree.values()) {
@@ -95,37 +94,13 @@ export function stepNets(s: LayoutState, alpha: number): void {
       const off = from === net.owner && net.bulbAt ? net.bulbAt : { x: 0, y: 0 };
       const [dx, dy] = [(b.x ?? 0) - (a.x ?? 0) - off.x, (b.y ?? 0) - (a.y ?? 0) - off.y];
       const l = Math.hypot(dx, dy) || 1;
-      if (o.netPull > 0) {
-        // (as d3's link: towards its length, shared by the two ends)
-        const rest = s.size * (bus ? o.linkDistance * o.partLength : o.linkDistance);
-        const k = (((l - rest) / l) * alpha * o.netPull * (bus ? linkPull({ count: 1 }, o) : GROUND_PULL)) / 2;
-        a.vx = (a.vx ?? 0) + dx * k;
-        a.vy = (a.vy ?? 0) + dy * k;
-        b.vx = (b.vx ?? 0) - dx * k;
-        b.vy = (b.vy ?? 0) - dy * k;
-      }
-      if (o.netClear <= 0) continue;
-      for (const w of wheels) {
-        if (w === a || w === b) continue;
-        const t = (((w.x ?? 0) - (a.x ?? 0)) * dx + ((w.y ?? 0) - (a.y ?? 0)) * dy) / (l * l);
-        if (t <= 0 || t >= 1) continue;
-        const [px, py] = [(a.x ?? 0) + t * dx - (w.x ?? 0), (a.y ?? 0) + t * dy - (w.y ?? 0)];
-        const d = Math.hypot(px, py);
-        const clear = w.radius + 12;
-        if (d >= clear) continue;
-        // (off the join, to the side it lies on; dead on it, to the join's left)
-        const [ux, uy] = d > 1e-3 ? [-px / d, -py / d] : [-dy / l, dx / l];
-        const push = (clear - d) * alpha * o.netClear;
-        w.vx = (w.vx ?? 0) + ux * push;
-        w.vy = (w.vy ?? 0) + uy * push;
-        for (const [e, share] of [
-          [a, 1 - t],
-          [b, t],
-        ] as const) {
-          e.vx = (e.vx ?? 0) - ux * push * share;
-          e.vy = (e.vy ?? 0) - uy * push * share;
-        }
-      }
+      // (as d3's link: towards its length, shared by the two ends)
+      const rest = s.size * (bus ? o.linkDistance * o.partLength : o.linkDistance);
+      const k = (((l - rest) / l) * alpha * o.netPull * (bus ? linkPull({ count: 1 }, o) : GROUND_PULL)) / 2;
+      a.vx = (a.vx ?? 0) + dx * k;
+      a.vy = (a.vy ?? 0) + dy * k;
+      b.vx = (b.vx ?? 0) - dx * k;
+      b.vy = (b.vy ?? 0) - dy * k;
     }
   }
 }

@@ -5,7 +5,7 @@
  * force: the root grid sits at the centre and cells ring outward along their
  * over= chains — but everything still moves freely.
  *
- * ForceLayout holds the layout's state (state.ts) and runs it, phase by phase: the start (start.ts, insertion.ts),
+ * ForceLayout holds the layout's state (state.ts) and runs it, phase by phase: the start (start.ts, layered.ts),
  * the forces (forces.ts, aims.ts, nets.ts: stepNets), the nets (nets.ts) and the meters placed last (placement.ts),
  * under the options (options.ts).
  */
@@ -20,7 +20,6 @@ import type { LayoutState, MeterTrace, PhysLink, PhysNode } from './state';
 import { nodeAt, positionOf } from './state';
 import { folded, junctionNodes, placeJunctions, settleJunctions } from './junctions';
 import { rowsKey, startNodes, startPlaces } from './start';
-import { Insertion } from './insertion';
 import { forceUncross, stepAbout, stepBends, stepClusters, stepExclusion, stepKinds, stepSpread } from './forces';
 import { aims, fitTurns, stepAims } from './aims';
 import { hops, meterNet, netTree, stepNets, taps } from './nets';
@@ -38,10 +37,7 @@ export class ForceLayout {
   /** The rows' order of the last fresh graph (rowOrderFor): an edit keeps it, as it keeps the positions. */
   private rowChoice = 0;
   private readonly sim: Simulation<PhysNode, PhysLink>;
-  private readonly insertion: Insertion;
   private settleListeners: (() => void)[] = [];
-  /** How far a fresh graph has grown, in ticks. */
-  private growing = Infinity;
 
   constructor(onTick: () => void = () => {}, opts: Partial<LayoutOptions> = {}) {
     this.s = {
@@ -51,7 +47,6 @@ export class ForceLayout {
       springs: [],
       junctions: new Map(),
       rims: new Map(),
-      ends: new Map(),
       rankY: new Map(),
       degree: new Map(),
       colX: new Map(),
@@ -81,8 +76,6 @@ export class ForceLayout {
       .force('charge', forceManyBody<PhysNode>())
       // nodes don't overlap, labels included (this isn't tension: it only acts on contact)
       .force('collide', forceCollide<PhysNode>().strength(0.95).iterations(2))
-      // (first: the scale for this tick, while a fresh graph grows)
-      .force('grow', () => this.growStep())
       .force(
         'uncross',
         forceUncross(
@@ -90,19 +83,10 @@ export class ForceLayout {
           (n) => (n.rides ? this.s.byId.get(n.rides) : n),
         ) as never,
       )
-      // mass: a heavy node takes less of each push (inertia); d3 has none, so its velocity is scaled down
-      .force('mass', () => {
-        if (!this.s.opts.inertia) return;
-        for (const n of this.sim.nodes()) {
-          const k = 1 / Math.sqrt(1 + this.s.opts.inertia * ((n.mass ?? 1) - 1));
-          n.vx = (n.vx ?? 0) * k;
-          n.vy = (n.vy ?? 0) * k;
-        }
-      })
-      // the sound card drifts up-centre, the meter down-centre (a slight pull, not a pin); all else gently centred
+      // each node drifts sideways back to its place in the layers (a slight pull, not a pin)
       .force(
-        'endsX',
-        forceX<PhysNode>((d) => this.s.ends.get(d.id)?.x ?? this.s.colX.get(d.id) ?? 0),
+        'columnX',
+        forceX<PhysNode>((d) => this.s.colX.get(d.id) ?? 0),
       )
       // every node drifts to the height of its rank in the signal path (y only: x stays free)
       .force(
@@ -126,7 +110,6 @@ export class ForceLayout {
       // turntables: nothing overlaps them — a node that would is set at their edge
       .force('exclusion', () => stepExclusion(this.s))
       .on('tick', () => {
-        this.insertion.step();
         placeJunctions(this.s);
         onTick();
       })
@@ -138,7 +121,6 @@ export class ForceLayout {
         }
         this.settleListeners.forEach((f) => f());
       });
-    this.insertion = new Insertion(this.s, this.sim);
     this.applyOptions();
     if (!o.live) this.sim.stop();
   }
@@ -159,18 +141,6 @@ export class ForceLayout {
     this.s.opts = { ...this.s.opts, ...next };
     this.applyOptions();
     this.reheat(0.4);
-  }
-
-  /** One tick of the growing: the scale for it, and the heat kept up while it gathers and grows (the library's way). */
-  private growStep(): void {
-    if (this.growing >= this.s.opts.growGather + this.s.opts.growTicks) return;
-    const t = Math.max(0, this.growing - this.s.opts.growGather) / this.s.opts.growTicks;
-    const s0 = this.s.opts.growStart;
-    this.s.size = s0 + (1 - s0) * t * t * (3 - 2 * t);
-    this.growing++;
-    if (this.growing >= this.s.opts.growGather + this.s.opts.growTicks) this.s.size = 1;
-    this.applyOptions();
-    this.sim.alpha(Math.max(this.sim.alpha(), 0.5));
   }
 
   private applyOptions(): void {
@@ -196,13 +166,12 @@ export class ForceLayout {
       .distanceMax(o.repelRange * this.s.size);
     (this.sim.force('collide') as ReturnType<typeof forceCollide<PhysNode>>).radius((d) => (d.radius + o.collidePad) * this.s.size);
     // sideways: &bar and &out to the centre line, the rest gently to their columns (else to the centre)
-    (this.sim.force('endsX') as ReturnType<typeof forceX<PhysNode>>).strength((d) => (this.s.ends.has(d.id) ? o.endPull : this.s.colX.has(d.id) ? o.columnPull : o.centre));
+    (this.sim.force('columnX') as ReturnType<typeof forceX<PhysNode>>).strength((d) => (this.s.colX.has(d.id) ? o.columnPull : o.centre));
     (this.sim.force('rankY') as ReturnType<typeof forceY<PhysNode>>).strength(o.rankPull);
   }
 
   /** Forget every position: the next graph is laid out afresh (a piece just opened). */
   forget(): void {
-    this.insertion.end();
     this.s.byId.clear();
     this.s.placedMeters.clear();
     this.s.net = [];
@@ -220,7 +189,6 @@ export class ForceLayout {
 
   /** Merge a new graph in. Existing nodes keep position and velocity. */
   setGraph(drawn: GraphModel, structural = true): GraphDiff {
-    this.insertion.end();
     // (as drawn: a product's wires at its junction; the forces lay the graph with each junction folded into its voice,
     // and the junctions are set on their voices' rims after each tick: junctions.ts)
     this.s.drawnNets = drawn.nets ?? [];
@@ -265,17 +233,6 @@ export class ForceLayout {
         net: busTaps.has(e.id),
       }));
 
-    // a fresh graph grows (the library's way): it starts small, drawn in round its middle, and gathers before it grows
-    if (fresh && this.s.opts.grow) {
-      const s0 = this.s.opts.growStart;
-      const k = 1 - this.s.opts.growShrink * (1 - s0);
-      for (const p of next.values()) {
-        p.x = (p.x ?? 0) * k;
-        p.y = (p.y ?? 0) * k;
-      }
-      this.s.size = s0;
-      this.growing = 0;
-    }
     this.sim.nodes([...next.values()]);
     this.s.faces = this.s.faces.filter((f) => next.has(f.tape) && next.has(f.to));
     // a meter's edges (ground): kept aside, to be drawn where they cross nothing once the meter is placed
@@ -336,11 +293,10 @@ export class ForceLayout {
     );
     for (const id of [...this.s.bendAt.keys()]) if (!this.s.links.some((l) => l.id === id)) this.s.bendAt.delete(id);
     if (structural) this.reheat(fresh ? 1 : added > 0 || removed > 0 ? 0.7 : 0.3); // a fresh graph settles from scratch, like a new layout
-    if (fresh && this.s.opts.insert > 0) this.insertion.start(model, groundIds);
-    // forceX/Y cache their targets: refresh them for the new ends
+    // forceX/Y cache their targets: refresh them for the new places
     this.sim.force(
-      'endsX',
-      (this.sim.force('endsX') as ReturnType<typeof forceX<PhysNode>>).x((d) => this.s.ends.get(d.id)?.x ?? this.s.colX.get(d.id) ?? 0),
+      'columnX',
+      (this.sim.force('columnX') as ReturnType<typeof forceX<PhysNode>>).x((d) => this.s.colX.get(d.id) ?? 0),
     );
     this.applyOptions();
     this.sim.force(
@@ -467,7 +423,6 @@ export class ForceLayout {
   /** Run the simulation synchronously (pre-settle before first paint, or tests). */
   tick(n = 1): void {
     for (let i = 0; i < n; i++) {
-      this.insertion.step();
       this.sim.tick(1);
       placeJunctions(this.s);
     }
