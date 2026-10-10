@@ -265,6 +265,9 @@ const CELL_WANTS: Readonly<Record<string, string>> = {
   play: 'the tape it reads, like play=&tape',
   couple: 'the resonator it shares a table with, like couple=&fork',
   excite: 'what drives it, like excite=&mix',
+  trigger: 'the melody whose notes it plays with, like trigger=&tune',
+  velocity: 'a level cell, like velocity=&accent',
+  gate: 'a level cell, like gate=&duck',
 };
 
 /** A parameter naming a cell: fm= its modulator; write= a tape's source; play= a read head's tape … */
