@@ -33,6 +33,12 @@ export const noteHsl = (hue: number, dim = false, octave = 0): [number, number, 
  * full colour; an octave away, muted — lighter above, darker below, more so the further. (dim: a fainter one, for
  * defaults and locked steps.)
  */
+/**
+ * A selector's part k of n, by its place round the colour wheel: its barrel's ring (show=matrix) and, on a table of
+ * taps, the tap's bulb (decision 016), so a part is the same colour on both.
+ */
+export const partColour = (k: number, n: number) => noteColour((k / Math.max(1, n)) * 360);
+
 export const noteColour = (hue: number, dim = false, octave = 0) => {
   const [h, s, l] = noteHsl(hue, dim, octave);
   return `hsl(${h} ${s}% ${l}%)`;

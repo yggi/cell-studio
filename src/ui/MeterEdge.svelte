@@ -12,8 +12,14 @@
 
   let { id, sourceX, sourceY, targetX, targetY, data }: EdgeProps = $props();
   const ctx = getGraphContext();
-  const d = $derived(data as { meter: number; name: string });
-  const path = $derived(`M ${sourceX} ${sourceY} L ${targetX} ${targetY}`);
+  const d = $derived(data as { meter: number; name: string; at?: { x: number; y: number; r: number } });
+  // (a tap's sub-net: from the outside of its bulb on its table, towards the cell — decision 016)
+  const path = $derived.by(() => {
+    if (!d.at) return `M ${sourceX} ${sourceY} L ${targetX} ${targetY}`;
+    const [x, y] = [sourceX + d.at.x, sourceY + d.at.y];
+    const l = Math.hypot(targetX - x, targetY - y) || 1;
+    return `M ${x + ((targetX - x) / l) * d.at.r} ${y + ((targetY - y) / l) * d.at.r} L ${targetX} ${targetY}`;
+  });
   // how bright now: a flash at each of the meter's steps, fading through it
   const flash = $derived.by(() => {
     // (a flash is a tick sounding now: while playing)

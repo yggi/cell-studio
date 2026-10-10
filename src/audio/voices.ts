@@ -15,7 +15,8 @@ import type { Played } from '../engine/realize';
 import type { CompileResult, Shifts } from '../engine/program';
 import { audioContext, disposer, inputOf, type Disposable, type ToneNS } from './voice/nodes';
 import { Gate } from './gate';
-import { buildVoice, dropGates, freeVoice, playNote, type Built, type Bus, type Scope } from './voice/voice';
+import { buildVoice, dropGates, freeVoice, letGo, playNote, type Built, type Bus, type Scope } from './voice/voice';
+import { keyLevel } from '../engine/keys';
 import { bow, couple, damp, driveScale, hush, resonanceOf, strikeAt } from './voice/resonator';
 import { wiring } from './wiring';
 import { buildTapeNet, fadeOut, freezeTape, holdTape, scrubTape, tapeKey, tapeLevelOf, tapeSpeedOf, type TapeNet } from './voice/tape';
@@ -48,6 +49,14 @@ export interface VoiceBank {
   resonance(name: string): { modes: number[]; exciters: number[] } | null;
   damp(name: string, on: boolean): void;
   bow(name: string, amount: number | null): void;
+  /**
+   * A key pressed (MIDI in, the computer keys, on-screen keys): a note on a voice now, at a frequency, as loud as its
+   * velocity (1 … 127), with the voice's own envelope, sounding until `release`. A resonator is struck at the exciter
+   * nearest. Returns its id (null: no such voice). A pause leaves it sounding; Stop cuts it.
+   */
+  press(voice: string, freq: number, velocity: number): number | null;
+  /** The key let go: its note goes into its release. An id not pressed, or already let go, is ignored. */
+  release(id: number): void;
   /** Frequency of the voice's most recent note to have started (null if none yet). */
   note(voice: string): number | null;
   /** Live FFT (dB per bin), left and right: of a voice (after pan), a mix (the notes that go through it), or the sound card (the master). */
@@ -104,6 +113,9 @@ export function createVoices(Tone: ToneNS): VoiceBank {
   let taps: ReadonlyMap<string, readonly string[]> = new Map();
   const gateKey = (voice: string, mix: string) => `${voice}\u0000${mix}`;
   let sinks = new Set<string>();
+  // the keys held (press): each note's voice and source, by id
+  const keys = new Map<number, { b: Built; osc: AudioScheduledSourceNode }>();
+  let lastKey = 0;
 
   const soundKey = (result: CompileResult, name: string, shifts: Shifts) => {
     const c = result.cells.get(name)!;
@@ -336,6 +348,31 @@ export function createVoices(Tone: ToneNS): VoiceBank {
       if (sounds && note.output) for (const m of taps.get(note.output) ?? []) gates.get(gateKey(note.voice, m))?.open(sounds.at, sounds.end, ctx.currentTime);
     },
 
+    press(voice, freq, velocity) {
+      const b = built.get(voice);
+      if (!b || !(freq > 0)) return null;
+      const id = ++lastKey;
+      const level = keyLevel(velocity);
+      // (now, at Tone.immediate(), not through the look-ahead: playNote starts it a few milliseconds on, from silence; it
+      // lasts until released, or an hour)
+      const at = ctx.currentTime;
+      const played = playNote(Tone, ctx, b, { at, dur: 3600, voice, freq, bends: [], gains: [level, level], levels: [{ at, level: 1 }] }, (name) => built.get(name));
+      const n = played && b.live.get(played.osc);
+      if (played && n) {
+        b.live.set(played.osc, { ...n, held: true });
+        keys.set(id, { b, osc: played.osc });
+      }
+      return id;
+    },
+
+    release(id) {
+      const k = keys.get(id);
+      keys.delete(id);
+      const n = k?.b.live.get(k.osc);
+      // (a key let go before its note has started lets it start, then go: a quick tap is heard, not lost)
+      if (k && n) letGo(k.osc, n, Math.max(ctx.currentTime, n.at));
+    },
+
     note(voice) {
       const b = built.get(voice);
       if (!b) return null;
@@ -367,6 +404,7 @@ export function createVoices(Tone: ToneNS): VoiceBank {
         if (b.res) hush(now, b.res);
         b.notes.length = 0;
       }
+      keys.clear();
       stopped.gain.cancelScheduledValues(now);
       stopped.gain.setTargetAtTime(0, now, 0.01);
     },

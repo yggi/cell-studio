@@ -64,9 +64,17 @@ export interface GraphContext {
   move(id: string, phase: 'start' | 'move' | 'end', x: number, y: number): void;
   /** The sound (the Player): what plays now, and hands on it. */
   readonly sound: LiveSource;
+  /** Cells sounding from the keys now (graph ids: state/keys.svelte.ts `lit`): live, as a strike's are. */
+  readonly played?: ReadonlySet<string>;
 }
 
 export const [getGraphContext, setGraphContext] = createContext<GraphContext>();
+
+/** The cell a pointer met on a wheel when it met a bulb there (CellGlyph's `data-bulb`): its node id; else null. */
+export function bulbAt(target: EventTarget | null): string | null {
+  const name = (target as Element | null)?.closest?.('[data-bulb]')?.getAttribute('data-bulb');
+  return name ? `cell:${name}` : null;
+}
 
 /**
  * Is a wheel to show the sound itself (its analyser), not its resting picture? Not while stopped: nothing sounds. Paused or
@@ -81,5 +89,6 @@ export function hearing(ctx: GraphContext, name: string, signal: boolean): boole
 }
 
 export function nodeState(ctx: GraphContext, id: string): NodeState {
-  return nodeStateOf(id, ctx.muted, ctx.routed, ctx.lit);
+  const s = nodeStateOf(id, ctx.muted, ctx.routed, ctx.lit);
+  return s === 'idle' && ctx.played?.has(id) ? 'live' : s;
 }

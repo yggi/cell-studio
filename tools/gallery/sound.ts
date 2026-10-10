@@ -33,5 +33,7 @@ export function madeUpSound(playing: () => boolean): LiveSource {
     strike: () => {},
     damp: () => {},
     bow: () => {},
+    press: () => 0,
+    release: () => {},
   };
 }

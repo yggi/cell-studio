@@ -12,10 +12,11 @@
 //   ENGINE=worker npm run smoke               # with the engine in a Web Worker (?engine=worker, #15)
 //
 // Then MIDI out (#205): one piece played into a fake Web MIDI port, its note-ons checked against the plan's notes
-// (tools/smoke-midi.ts) to within 2 ms of their median offset (one step of a clock jump followed allowed, up to 50 ms); then the
+// (tools/smoke-midi.ts) each within 2 ms of its neighbour (a slow drift followed, and one step of a clock jump up to 50 ms); then the
 // tempo (a held free()) moved and Pause and Play again within the look-ahead (twice, the second at once), with no All notes off from either
 // cutting what plays, and no note left sounding. The MIDI clock (#206) is on: its ticks before the tempo moved are
 // checked against the meter's (2 ms, as the notes), and Start, Stop, Song Position and Continue in order, no tick while stopped.
+// Then MIDI in (#207): keys from a fake input (`window.midiIn(bytes)`) sound the armed voice and let it go, thru echoes them.
 //
 // Chromium: Playwright's, or CHROME_PATH=/path/to/chrome (CI uses the runner's Chrome). See tools/profile/playwright.mjs.
 import { preview, runnerImport } from 'vite';
@@ -216,15 +217,25 @@ const MIDI_PIECE = 'sailor';
       taken.add(best);
       offsets.push(o.ms - want[best].at * 1000);
     }
-    // (a dropped buffer moves what is heard, by about 10 ms or, on a loaded runner, a few buffers at once, and MIDI
-    // follows it: one such step is allowed, up to the clock's leap (OUTPUT.leap, 50 ms, beyond which it is another
-    // device), each side of it aligned on its own median)
+    // (MIDI follows what is heard: a dropped buffer moves it by about 10 ms, or on a loaded runner a few buffers at
+    // once, and a smaller jump is slewed in over a few readings. So what is checked is the time between neighbours:
+    // each note-on within 2 ms of the one before it, but one step up to the clock's leap (OUTPUT.leap, 50 ms, beyond
+    // which it is another device); a slow drift is followed, not counted)
     const median = (xs) => [...xs].sort((a, b) => a - b)[Math.floor(xs.length / 2)] ?? 0;
-    const steps = offsets.flatMap((d, i) => (i > 0 && Math.abs(d - offsets[i - 1]) > 2 ? [i] : []));
-    const parts = steps.length === 1 ? [offsets.slice(0, steps[0]), offsets.slice(steps[0])] : [offsets];
-    const worst = Math.max(0, ...parts.flatMap((p) => p.map((d) => Math.abs(d - median(p)))));
-    const step = steps.length === 1 ? Math.abs(median(parts[1]) - median(parts[0])) : 0;
-    if (worst > 2) problems.push(`a note-on was ${worst.toFixed(2)} ms off the plan`);
+    const neighbours = (ds) => {
+      const gaps = ds.slice(1).map((d, i) => Math.abs(d - ds[i]));
+      const big = gaps.filter((g) => g > 2);
+      const step = big.length === 1 ? big[0] : 0;
+      const worst = Math.max(0, ...(big.length === 1 ? gaps.filter((g) => g <= 2) : gaps));
+      return { worst, step };
+    };
+    const { worst, step } = neighbours(offsets);
+    const gapsOf = (ds) =>
+      ds
+        .slice(1)
+        .map((d, i) => (d - ds[i]).toFixed(1))
+        .join(' ');
+    if (worst > 2) problems.push(`a note-on was ${worst.toFixed(2)} ms off its neighbour (gaps: ${gapsOf(offsets)})`);
     if (step > 50) problems.push(`the note-ons stepped by ${step.toFixed(2)} ms`);
     // what the device plays, message by message in timestamp order (at one moment, in the order sent)
     const order = sent.map((m, i) => ({ ...m, i })).sort((a, b) => a.timestamp - b.timestamp || a.i - b.i);
@@ -251,10 +262,18 @@ const MIDI_PIECE = 'sailor';
     const wantTicks = midiPlan.expectedTicks(MIDI_PIECE, secs + 2);
     if (ticks.length < 24 * 4) problems.push(`only ${ticks.length} clock ticks before the tempo moved`);
     const tickOffsets = ticks.map((t, k) => t - wantTicks[k] * 1000);
-    const tickSteps = tickOffsets.flatMap((d, i) => (i > 0 && Math.abs(d - tickOffsets[i - 1]) > 2 ? [i] : []));
-    const tickParts = tickSteps.length === 1 ? [tickOffsets.slice(0, tickSteps[0]), tickOffsets.slice(tickSteps[0])] : [tickOffsets];
-    const tickWorst = Math.max(0, ...tickParts.flatMap((p) => p.map((d) => Math.abs(d - median(p)))));
-    if (tickWorst > 2) problems.push(`a clock tick was ${tickWorst.toFixed(2)} ms off the meter`);
+    const { worst: tickWorst, step: tickStep } = neighbours(tickOffsets);
+    if (tickWorst > 2)
+      problems.push(
+        `a clock tick was ${tickWorst.toFixed(2)} ms off its neighbour (largest gaps: ${tickOffsets
+          .slice(1)
+          .map((d, i) => Math.abs(d - tickOffsets[i]))
+          .sort((x, y) => y - x)
+          .slice(0, 4)
+          .map((g) => g.toFixed(1))
+          .join(' ')})`,
+      );
+    if (tickStep > 50) problems.push(`the clock ticks stepped by ${tickStep.toFixed(2)} ms`);
     if (Math.abs(median(tickOffsets) - median(offsets)) > 2) problems.push(`the clock is ${(median(tickOffsets) - median(offsets)).toFixed(2)} ms off the notes`);
     // in timestamp order: Start first, a tick only while running, Stop after Pause; then the Song Position, Continue
     const names = { 0xfa: 'Start', 0xfb: 'Continue', 0xfc: 'Stop', 0xf2: 'SPP' };
@@ -278,7 +297,7 @@ const MIDI_PIECE = 'sailor';
     if (clockSent.some((m, i) => i > 0 && m.timestamp < clockSent[i - 1].timestamp)) problems.push('clock messages sent out of order');
     const offs = sent.filter((m) => (m.data[0] & 0xf0) === 0x80).length;
     const all = sent.filter((m) => (m.data[0] & 0xf0) === 0x90).length;
-    note = `${ons.length} note-ons within ${worst.toFixed(3)} ms of the plan (median offset${step ? `; one step of ${step.toFixed(1)} ms, a clock jump followed` : ''}); then 4 tempo moves, Pause and Play twice: ${all} note-ons, ${offs} note-offs, ${allOff.length} All notes off, none left sounding; clock: ${ticks.length} ticks within ${tickWorst.toFixed(3)} ms of the meter, ${said.join(' ')}`;
+    note = `${ons.length} note-ons within ${worst.toFixed(3)} ms of each other${step ? ` (one step of ${step.toFixed(1)} ms, a clock jump followed)` : ''}; then 4 tempo moves, Pause and Play twice: ${all} note-ons, ${offs} note-offs, ${allOff.length} All notes off, none left sounding; clock: ${ticks.length} ticks within ${tickWorst.toFixed(3)} ms of each other, ${said.join(' ')}`;
   } catch (e) {
     problems.push(String(e.message).split('\n')[0]);
   }
@@ -286,6 +305,89 @@ const MIDI_PIECE = 'sailor';
   const ok = problems.length === 0;
   console.log(`${ok ? 'ok  ' : 'FAIL'} MIDI out: ${MIDI_PIECE} into a fake port${ok ? `: ${note}` : '\n       ' + [...new Set(problems)].slice(0, 3).join('\n       ')}`);
   if (!ok) failed.push('MIDI out');
+}
+// MIDI in (#207): a fake input, played with `window.midiIn(bytes)` on a stopped piece. A key sounds the armed voice (the
+// first cell that plays: sailor's &tune, on &fiddle) and takes the transport to paused; its note-off lets it go; thru
+// echoes both. Made-to-analysed time of a live note (the second: the first wakes the sound engine), and the output's
+// own latency, reported.
+{
+  problems = [];
+  const mp = await browser.newPage({ viewport: { width: 1280, height: 800 } });
+  mp.setDefaultTimeout(8000);
+  mp.on('pageerror', (e) => problems.push(`page error: ${e.message}`));
+  mp.on('console', (m) => m.type() === 'error' && problems.push(`console error: ${m.text()}`));
+  await mp.addInitScript(() => {
+    const sent = (window.__midi = []);
+    const out = { id: 'fake-out', name: 'Fake synth', send: (data) => sent.push([...data]) };
+    const input = { id: 'fake-in', name: 'Fake keys', onmidimessage: null };
+    window.midiIn = (bytes) => input.onmidimessage?.({ data: new Uint8Array(bytes), timeStamp: performance.now() });
+    navigator.requestMIDIAccess = () => Promise.resolve({ inputs: new Map([['fake-in', input]]), outputs: new Map([['fake-out', out]]), onstatechange: null });
+    localStorage.setItem('cell-studio:midi', JSON.stringify({ out: { id: 'fake-out', name: 'Fake synth' }, in: { id: 'fake-in', name: 'Fake keys' } }));
+    localStorage.setItem('cell-studio:keys', JSON.stringify({ thru: true, thruChannel: 2 }));
+    window.__ctx = [];
+    const A = window.AudioContext;
+    window.AudioContext = class extends A {
+      constructor(...a) {
+        super(...a);
+        window.__ctx.push(this);
+      }
+    };
+  });
+  let note = '';
+  try {
+    await mp.goto(url);
+    await mp.getByRole('radio', { name: 'Cards' }).click();
+    await mp.locator(`button.open[data-id="example:${MIDI_PIECE}"]`).dispatchEvent('click');
+    await mp.waitForTimeout(500);
+    // a key, until the voice is heard (or 3 s), then how long that took: polled about every millisecond
+    const sound = (bytes) =>
+      mp.evaluate(
+        (bytes) =>
+          new Promise((done) => {
+            const t0 = performance.now();
+            window.midiIn(bytes);
+            const look = () => {
+              const level = window.cellStudio.level('fiddle') ?? 0;
+              if (level > 0.01) return done({ ms: performance.now() - t0, level });
+              if (performance.now() - t0 > 3000) return done({ ms: null, level });
+              setTimeout(look, 1);
+            };
+            look();
+          }),
+        bytes,
+      );
+    const first = await sound([0x90, 60, 100]);
+    if (first.ms === null) problems.push('a key on an armed voice did not sound');
+    await mp.evaluate(() => window.midiIn([0x80, 60, 0]));
+    await mp.waitForTimeout(800);
+    const after = await mp.evaluate(() => window.cellStudio.level('fiddle') ?? 0);
+    if (after > 0.001) problems.push(`still sounding ${after.toFixed(4)} after the note-off`);
+    // again, the engine awake: a live note's latency
+    const lat = [];
+    for (let i = 0; i < 5; i++) {
+      const r = await sound([0x90, 62 + i, 100]);
+      if (r.ms !== null) lat.push(r.ms);
+      await mp.evaluate((n) => window.midiIn([0x80, n, 0]), 62 + i);
+      await mp.waitForTimeout(600);
+    }
+    if (lat.length < 5) problems.push(`${5 - lat.length} of 5 keys did not sound`);
+    const audio = await mp.evaluate(() => {
+      const c = window.__ctx.find((x) => x.state === 'running');
+      return c ? { baseLatency: c.baseLatency, outputLatency: c.outputLatency } : null;
+    });
+    const sent = await mp.evaluate(() => window.__midi);
+    const thru = sent.filter((m) => m[0] === 0x91 || m[0] === 0x81);
+    if (!thru.some((m) => m[0] === 0x91 && m[1] === 60 && m[2] === 100) || !thru.some((m) => m[0] === 0x81 && m[1] === 60))
+      problems.push(`thru did not echo the key on channel 2: ${JSON.stringify(thru.slice(0, 4))}`);
+    const med = [...lat].sort((a, b) => a - b)[Math.floor(lat.length / 2)] ?? NaN;
+    note = `a key sounds &fiddle (first, waking the engine: ${first.ms?.toFixed(0)} ms), its note-off lets it go; made-to-analysed ${med.toFixed(1)} ms median of ${lat.map((x) => x.toFixed(1)).join(', ')}${audio ? ` + the output's ${(1000 * ((audio.baseLatency ?? 0) + (audio.outputLatency ?? 0))).toFixed(1)} ms` : ''}; thru echoed on channel 2`;
+  } catch (e) {
+    problems.push(String(e.message).split('\n')[0]);
+  }
+  await mp.close();
+  const ok = problems.length === 0;
+  console.log(`${ok ? 'ok  ' : 'FAIL'} MIDI in: keys on ${MIDI_PIECE}${ok ? `: ${note}` : '\n       ' + [...new Set(problems)].slice(0, 3).join('\n       ')}`);
+  if (!ok) failed.push('MIDI in');
 }
 await browser.close();
 await server.close();

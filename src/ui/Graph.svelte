@@ -7,7 +7,7 @@
   import { isCellNode, type GraphModel } from '../engine/graph';
   import type { LiveState } from '../engine/live';
   import { drawn, type Routing } from '../engine/routing';
-  import { setGraphContext } from './context';
+  import { bulbAt, setGraphContext } from './context';
   import { snapshotOf } from './snapshot';
   import { GraphLayout } from './state/graphLayout.svelte';
   import CellNode from './CellNode.svelte';
@@ -54,6 +54,8 @@
     epoch = 0,
     opened = 0,
     focus,
+    onsheet,
+    played,
   }: {
     model: GraphModel;
     program: CompileResult;
@@ -86,11 +88,15 @@
     epoch?: number;
     /** A cell to open in the detail sheet once it exists (after adding it). */
     focus: { name: string; token: number } | null;
+    /** Told which cell's sheet is open (null: none): the cell the keys play unless one is chosen (state/keys.svelte.ts). */
+    onsheet?: (name: string | null) => void;
+    /** Cells sounding from the keys (graph ids): drawn live. */
+    played?: ReadonlySet<string>;
   } = $props();
 
   // The piece as drawn: one snapshot (program, graph, shifts, routing), swapped whole with the nodes and edges made
   // from it (layout.sync), so nothing here, in a node or in an edge reads one piece's program with another's graph.
-  const layout = new GraphLayout(
+  const layout: GraphLayout = new GraphLayout(
     untrack(() => snapshotOf(program, model, shifts, muted, routed)),
     () => ({ lit, live, moment: hasBelts ? liveEdges : null }),
     EXAMPLE_ROWS,
@@ -111,6 +117,12 @@
   let selected = $state<string | null>(null);
   // (a product's junction is not a cell: never selected)
   const selectedNode = $derived(selected ? shown.model.nodes.filter(isCellNode).find((n) => n.id === selected) : undefined);
+  // (or a bulb on a wheel: the cell it splices, which has no node of its own — decision 014, 016)
+  const selectedName = $derived(selectedNode?.cell.name ?? (selected && shown.model.bulbs.has(selected.slice('cell:'.length)) ? selected.slice('cell:'.length) : undefined));
+  $effect(() => {
+    const name = selectedName ?? null;
+    untrack(() => onsheet?.(name));
+  });
 
   setGraphContext({
     get program() {
@@ -151,7 +163,7 @@
     },
     open(name: string) {
       const id = `cell:${name}`;
-      if (layout.shown.model.nodes.some((n) => n.id === id)) selected = id;
+      if (layout.shown.model.nodes.some((n) => n.id === id) || layout.shown.model.bulbs.has(name)) selected = id;
     },
     toggle: (id) => ontoggle(id),
     nudge: (sec) => nudge?.(sec),
@@ -166,6 +178,9 @@
     setFree: (spec, value) => onfree(spec, value),
     get sound() {
       return sound;
+    },
+    get played() {
+      return played;
     },
   });
 
@@ -255,9 +270,9 @@
       if (targetNode) layout.dragEnd(targetNode.id);
     }}
     nodeClickDistance={6}
-    onnodeclick={({ node }) => {
-      // (a product's junction is not a cell: nothing to open)
-      if (node.type !== 'junction') selected = node.id;
+    onnodeclick={({ node, event }) => {
+      // (a product's junction is not a cell: nothing to open; a bulb on a wheel is the cell it splices)
+      if (node.type !== 'junction') selected = bulbAt(event.target) ?? node.id;
     }}
   >
     <Background gap={28} size={1.5} />
@@ -284,17 +299,17 @@
     <ForcesPanel options={layout.options} onchange={(k, v) => layout.setForce(k, v)} onreset={() => layout.resetForces()} onclose={() => (forcesOpen = false)} />
   {/if}
   <p class="hint">Tap a cell to open it. Drag to move. Hold to switch off.</p>
-  {#if selectedNode}
+  {#if selectedName}
     <!-- (read defensively: renaming moves the selection, and for a moment there's none) -->
     <CellSheet
-      name={selectedNode?.cell.name ?? ''}
+      name={selectedName ?? ''}
       isMeter={selectedNode?.kind === 'cell' && selectedNode.isMeter}
       {source}
       {opened}
       pinned={!!selectedNode && layout.pinned.has(selectedNode.id)}
       onpin={() => selectedNode && layout.togglePin(selectedNode.id)}
       onshowcode={() => {
-        const n = selectedNode?.cell.name ?? '';
+        const n = selectedName ?? '';
         selected = null;
         onshowcode(n);
       }}
