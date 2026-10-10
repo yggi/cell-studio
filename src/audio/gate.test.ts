@@ -110,4 +110,15 @@ describe('a key held keeps the tap open (#252)', () => {
     for (const k of g.held()) next.hold(k.id, k.a, 2);
     expect(next.held()).toEqual([{ id: 2, a: 6 }]);
   });
+
+  it('a key let go at once (its voice rebuilt under it) still closes the tap', () => {
+    const p = param();
+    const g = new Gate(p);
+    g.hold(1, 2, 2);
+    expect(p.at(5)).toBe(1);
+    g.letGo(1, 11, 11);
+    expect(p.at(10.5)).toBe(1);
+    expect(p.at(11.5)).toBe(0);
+    expect(p.at(100)).toBe(0);
+  });
 });

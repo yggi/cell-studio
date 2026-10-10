@@ -37,7 +37,9 @@ export class Gate {
   letGo(id: number, end: number, now: number): void {
     const h = this.holds.get(id);
     if (!h) return;
-    h.b = Math.max(h.a, end);
+    // (not before `now` + a moment: a span that ended already would be skipped, and its 0 never scheduled: a voice rebuilt
+    // under the key lets it go at once)
+    h.b = Math.max(h.a, end, now + 0.001);
     h.down = false;
     this.schedule(h.a, now);
   }
