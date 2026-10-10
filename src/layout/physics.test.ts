@@ -502,13 +502,30 @@ describe('tapes: the heads keep their spacing, the wheel turns to face them at w
       const l = new ForceLayout(undefined, { live: false });
       l.setGraph(model);
       l.tick(500);
+      // (the write head, and a read head that is a node of its own, faces it; decision 021)
+      const bulbed = new Set(model.edges.flatMap((e) => (e.bulb && e.bulbAt ? [e.to] : [])));
       for (const f of faces) {
+        if (!f.write && bulbed.has(f.to)) continue;
         const turn = (l.tapeTurn(f.tape)! * Math.PI) / 180;
         const t = l.position(f.tape)!;
         const c = l.position(f.to)!;
         const d = Math.atan2(c.y - t.y, c.x - t.x) - (turn + f.offset);
         expect(Math.abs(Math.atan2(Math.sin(d), Math.cos(d))) * (180 / Math.PI), `${f.to}${f.write ? ' (written)' : ''}`).toBeLessThan(30);
       }
+      // (a read head drawn as a bulb on its tape plays into what it can't always face — several heads into one mix —
+      // but what it plays into is seldom across its own tape: at most one such edge; tools/probe/tape-aims.test.ts)
+      let over = 0;
+      for (const e of model.edges) {
+        if (!e.bulb || !e.bulbAt || !faces.some((f) => f.tape === e.from)) continue;
+        const t = l.position(e.from)!;
+        const by = ((l.tapeTurn(e.from)! + 90) * Math.PI) / 180;
+        const a = { x: t.x + e.bulbAt.x * Math.cos(by) - e.bulbAt.y * Math.sin(by), y: t.y + e.bulbAt.x * Math.sin(by) + e.bulbAt.y * Math.cos(by) };
+        const b = l.position(e.to)!;
+        const [dx, dy] = [b.x - a.x, b.y - a.y];
+        const k = Math.max(0, Math.min(1, ((t.x - a.x) * dx + (t.y - a.y) * dy) / (dx * dx + dy * dy || 1)));
+        if (Math.hypot(a.x + dx * k - t.x, a.y + dy * k - t.y) < 70 * 0.9) over++;
+      }
+      expect(over).toBeLessThanOrEqual(1);
       l.destroy();
     });
   }

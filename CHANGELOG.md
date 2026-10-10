@@ -11,6 +11,7 @@ that makes the change. Also note changes to the language that could affect saved
 ## Unreleased
 
 ### Changed
+- **A tape's read heads are bulbs on it** ([decision 021](docs/decisions/021-tape-heads.md)): a head that takes nothing but its tape is drawn as a small wheel on the tape, just outside its rim where the head is, and what it plays into leaves from there; it stays put while the reel runs under it and turns with the tape when the layout turns it. Tap it to open it, hold it to switch it off. The heads' own wheels and their `play at=` edges are gone from the graph. Saved `.cells` pieces are not affected (only the drawing changes).
 
 - **The tutorial is nine tiers** ([decision 020](docs/decisions/020-tutorial-tiers.md)), not thirty numbered rungs: *Steps and sound*, *Time and voice*, *Melody and harmony*, *Rhythm and feel*, *Development*, *Sound and tuning*, *Physics*, *Tape, text and time*, *Gates, performing and MIDI*. A card says `tier=n` where it said `rung=n`; the pieces of a tier together show all of its forms, and a piece added to a tier renumbers nothing. A saved piece with `rung=` has to say `tier=` (only cards of the tutorial carried it; the pieces that ship are done).
 - New first pieces for the lowest tier, the smallest that sound: *A tone*, *Rests, holds and repeats*, *Semitones*, *Two voices*.

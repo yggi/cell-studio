@@ -19,6 +19,10 @@ export function tapeHeads(tape: { name: string; params: Params }, cells: Iterabl
   return { heads, length: loop ? (tape.params.length as number) : Math.max(1, ...heads.map((h) => h.at)) * 1.25 };
 }
 
+/** A cell drawn as a tape's wheel (a turntable with heads; a resonator's body or a motor drawn as theirs), and its size there before size= (px). */
+export const drawnAsTape = (c: { params: Params }) => typeof c.params.write === 'string' && typeof c.params.body !== 'string' && typeof c.params.motor !== 'number';
+export const TAPE_SIZE = 140;
+
 /** A tape's turn when nothing says otherwise, degrees (screen: 0 to the right, clockwise): the write head on top. */
 export const UNTURNED = -90;
 
@@ -40,4 +44,38 @@ export function fitTurn(faces: readonly { angle: number; offset: number; weight:
     c += f.weight * Math.cos(f.angle - f.offset);
   }
   return Math.hypot(s, c) < 1e-9 ? null : Math.atan2(s, c);
+}
+
+/** A read head drawn as a bulb on its tape's wheel: where it sits (seen from the tape's centre) and how big it is. */
+export interface HeadBulb {
+  readonly name: string;
+  readonly at: number;
+  /** How far round from the write head, degrees (headOffset). */
+  readonly offset: number;
+  /** From the tape's centre to the bulb's hub, px. */
+  readonly dist: number;
+  /** The bulb's radius, px. */
+  readonly r: number;
+}
+
+/**
+ * A tape's read heads as bulbs round its wheel (`size` px across), each just outside the rim on its head's ray: they
+ * stay where the heads are while the tape runs under them, and turn with the wheel when the layout turns it. All one
+ * size, as big as the nearest two heads (the write head among them) leave room for, between 9 and a quarter of the
+ * radius. Only heads whose place on the tape is written (`at=` seconds: a clock's isn't known to the drawing).
+ */
+export function headBulbs(tape: { name: string; params: Params }, cells: Iterable<{ name: string; params: Params }>, size: number): HeadBulb[] {
+  const all = [...cells];
+  const { heads, length } = tapeHeads(tape, all);
+  const at = new Map(all.map((c) => [c.name, c.params.at]));
+  const placed = heads.filter((h) => at.get(h.name) === undefined || typeof at.get(h.name) === 'number');
+  if (!placed.length) return [];
+  const R = size / 2;
+  const offsets = placed.map((h) => ((headOffset(h.at, length) % 360) + 360) % 360);
+  const round = [0, ...offsets].sort((a, b) => a - b);
+  const gap = Math.min(...round.map((a, i) => (i + 1 < round.length ? round[i + 1] - a : 360 - a + round[0])));
+  const s = Math.sin(((gap || 360) * Math.PI) / 360);
+  // (two neighbours' hubs (R + r + 2) out, 2r and a gap of 6 apart: 2 (R + r + 2) sin(gap / 2) ≥ 2r + 6)
+  const r = Math.max(9, Math.min(R * 0.25, ((R + 2) * s - 3) / Math.max(0.2, 1 - s)));
+  return placed.map((h, i) => ({ name: h.name, at: h.at, offset: offsets[i], dist: R + r + 2, r }));
 }
