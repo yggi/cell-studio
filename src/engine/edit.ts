@@ -30,7 +30,9 @@ function editDecl(source: string, name: string, f: (code: string, head: RegExp) 
   const lines = source.split('\n');
   const i = declLine(source, name);
   if (i < 0) return source;
-  const [code, comment] = splitComment(lines[i]);
+  // (a CRLF file: the line's \r stays at its end, whatever the edit rebuilds)
+  const cr = lines[i].endsWith('\r') ? '\r' : '';
+  const [code, comment] = splitComment(cr ? lines[i].slice(0, -1) : lines[i]);
   let next = f(code, headOf(name));
   // keep a comment's alignment where possible: pad or trim spaces before it
   if (comment) {
@@ -38,7 +40,7 @@ function editDecl(source: string, name: string, f: (code: string, head: RegExp) 
     const trimmed = next.replace(/\s+$/, '');
     next = trimmed + ' '.repeat(Math.max(1, before - trimmed.length));
   }
-  lines[i] = next + comment;
+  lines[i] = next + comment + cr;
   return lines.join('\n');
 }
 

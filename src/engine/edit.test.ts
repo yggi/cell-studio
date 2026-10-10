@@ -124,6 +124,15 @@ describe('editor operations', () => {
     expect(setBraid(src, 'mix', ['0'])).toBe(src); // a mix over several lines is left alone
   });
 
+  it('keeps a CRLF file’s line endings, with or without a comment', () => {
+    const crlf = '&bar scan(1 1) step=90bpm\r\n&tune step=&bar 0 2 4\r\n&low step=&bar 0 # a pedal\r\n&last step=&bar 1';
+    const a = setBraid(crlf, 'tune', ['0', '2', '4', '7']);
+    expect(a).toBe('&bar scan(1 1) step=90bpm\r\n&tune step=&bar 0 2 4 7\r\n&low step=&bar 0 # a pedal\r\n&last step=&bar 1');
+    expect(setBraid(crlf, 'low', ['5'])).toBe('&bar scan(1 1) step=90bpm\r\n&tune step=&bar 0 2 4\r\n&low step=&bar 5 # a pedal\r\n&last step=&bar 1');
+    expect(setBraid(crlf, 'last', ['2'])).toBe(crlf.replace(/1$/, '2'));
+    expect(setAttr(crlf, 'tune', 'label', '"t"').split('\n')[1]).toBe('&tune label="t" step=&bar 0 2 4\r');
+  });
+
   it('step and loop are one setting', () => {
     const a = setTiming(src, 'lead', 'step', '440');
     expect(attrsOf(a, 'lead').get('step')).toBe('440');
