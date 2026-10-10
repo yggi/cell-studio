@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs';
 import { compileSource } from '../src/engine/compile';
 import { codeShifts } from '../src/engine/program';
 import { eventsBetween, plan } from '../src/engine/realize';
-import { channelTable, midiNote, router } from '../src/engine/midi';
+import { channelTable, midiNote, router, routesOf } from '../src/engine/midi';
 import { ticksBetween } from '../src/engine/midiclock';
 
 /** The note-ons an example's first `seconds` send (channel 1–16, key, start in code seconds), in order. */
@@ -14,9 +14,11 @@ export function expectedNoteOns(key: string, seconds: number): { channel: number
   const route = router(r, channelTable(r));
   const out: { channel: number; note: number; at: number }[] = [];
   for (const e of eventsBetween(plan(r, codeShifts(r), r.off), 0, seconds, true)) {
-    const to = route(e);
-    const n = to && midiNote(e, to);
-    if (n) out.push({ channel: n.channel, note: n.note, at: n.at });
+    // (a piece's MIDI cards can send a note on several channels, or slots: slot 1, the default output, is the one played into)
+    for (const to of routesOf(route(e))) {
+      const n = (to.port ?? 1) === 1 ? midiNote(e, to) : null;
+      if (n) out.push({ channel: n.channel, note: n.note, at: n.at });
+    }
   }
   return out.sort((a, b) => a.at - b.at || a.channel - b.channel || a.note - b.note);
 }

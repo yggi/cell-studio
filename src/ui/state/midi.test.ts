@@ -351,6 +351,47 @@ describe('Midi: MIDI out', () => {
     }
   });
 
+  it('a piece with MIDI cards sends only what they name, on their channels and output slots, each slot kept per piece', async () => {
+    const source = `&piece title="Cards" tags="MIDI"
+&bar scan(1 1 1 1) step=2
+&theme step=&bar 0 2
+&reed s=square loop=220
+&bass step=&bar 0
+&sub loop=55
+&lone s=sine loop=330
+&out map=sample [&theme * &reed, &bass * &lone]
+&synth map=midi ~ [&theme * &reed]
+&far map=midi(3, 2) [&bass * &sub]`;
+    const out = fakePort('out-1', 'Circuit');
+    const other = fakePort('out-2', 'Juno');
+    installMidi(fakeAccess([], [out, other]));
+    const midi = await made();
+    await midi.connect();
+    midi.chooseOutput('out-1');
+    out.sent = [];
+    const program = compileSource(source);
+    midi.attach({ sink: null, internal: true }, { program, title: 'Cards' });
+    expect(midi.table!.byPiece).toBe(true);
+    expect(midi.slots).toEqual([
+      { slot: 1, id: 'out-1', name: 'Circuit' },
+      { slot: 2, id: 'none', name: '' },
+    ]);
+    midi.chooseSlot(2, 'out-2');
+    expect(JSON.parse(store.get('cell-studio:midi')!).slots).toEqual({ Cards: { 2: { id: 'out-2', name: 'Juno' } } });
+    const p = plan(program, codeShifts(program));
+    const w = retime(windowAt(p, 0, 1), 10, 1);
+    midi.play(fakeTone(10), w.events, 11);
+    const ons = (port: ReturnType<typeof fakePort>) => port.sent.filter((m) => (m.data[0] & 0xf0) === 0x90).map((m) => [m.data[0] & 0x0f, m.data[1]]);
+    // the reed on channel 2 of slot 1 (~ skipped 1), the sub, sent and not heard, on channel 3 of slot 2; &lone on no card: not sent
+    expect(new Set(ons(out).map(([c]) => c))).toEqual(new Set([1]));
+    expect(ons(out).length).toBe(w.events.filter((e) => e.voice === 'reed').length);
+    expect(ons(other)).toEqual(w.events.filter((e) => e.voice === 'sub').map((e) => [2, Math.round(69 + 12 * Math.log2(e.freq / 440))]));
+    expect(w.events.filter((e) => e.voice === 'sub').every((e) => e.unheard)).toBe(true);
+    // stopped: the second slot is silenced too
+    midi.stop(fakeTone(11));
+    expect(other.sent.some((m) => m.data[0] === 0xb2 && m.data[1] === 123)).toBe(true);
+  });
+
   it('sends nothing without an output, and the player plays on', async () => {
     const midi = await made();
     const player = { sink: null as NoteSink | null, internal: true };

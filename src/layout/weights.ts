@@ -4,6 +4,7 @@
  * them; a strong edge pulls harder, and crossing it costs more. One table, read by the forces (start.ts, physics.ts)
  * and the quality count (quality.ts).
  */
+import { isMidiCard } from '../engine/program';
 import { isTurntable, type GraphEdge, type GraphNode } from '../engine/graph';
 
 /** A node's mass: a turntable (a body) heaviest, then a meter, a net's owner, a sound; a cell 1, a petal light, a junction nothing. */
@@ -16,7 +17,7 @@ export function massOf(n: GraphNode, ownsNet: boolean): number {
   if (isTurntable(n.cell)) return 3;
   if (n.kind === 'cell' && n.isMeter) return 2.5;
   if (ownsNet) return 2;
-  if (n.kind === 'voice' || n.cell.mix || n.cell.sink) return 1.5;
+  if (n.kind === 'voice' || n.cell.mix || n.cell.sink || isMidiCard(n.cell)) return 1.5;
   return 1;
 }
 

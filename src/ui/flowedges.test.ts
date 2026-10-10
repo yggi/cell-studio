@@ -28,6 +28,13 @@ function byPort(e: GraphEdge, program: CompileResult) {
     const voice = e.sound ?? nameOf(e.source);
     return { phaseCell: trigger(voice), voice };
   }
+  // (into a MIDI card, #208: the voice its notes are played on — a voice, a product's, or what a cell named plays)
+  if (e.port === 'midi') {
+    const [from, to] = [nameOf(e.from), nameOf(e.to)];
+    const o = program.outputs.find((x) => (x.voice === from || x.cell === from || x.via.includes(from)) && x.midi?.some((m) => m.card === to));
+    const voice = e.sound ?? (program.cells.get(from)?.voice ? from : (o?.voice ?? null));
+    return { phaseCell: voice && trigger(voice), voice };
+  }
   return { phaseCell: null, voice: null };
 }
 

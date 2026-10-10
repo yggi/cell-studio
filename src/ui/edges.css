@@ -26,6 +26,13 @@
   stroke-width: 3;
   stroke-linejoin: round;
 }
+/* into a MIDI card: a note bus, gate and pitch at once (the sync and CV bands, docs/notes/nets.md) — the solid line of a
+   value broken by the gaps of a gate */
+.graph .edge-midi .svelte-flow__edge-path {
+  stroke-width: 4;
+  stroke-linecap: butt;
+  stroke-dasharray: 14 4 2 4;
+}
 /* a table's bus: its strands are drawn beside the path, which stays only for the label and the hit area */
 .graph .svelte-flow__edge .svelte-flow__edge-path.bus-core {
   stroke-opacity: 0;

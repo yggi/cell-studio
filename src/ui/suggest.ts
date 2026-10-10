@@ -139,6 +139,8 @@ export function suggestValue(key: string, text: string, names: readonly string[]
           ['ed(3/2)', 'ed(r) — a grid of equal steps to a ratio: ed(3/2) the fifth (Carlos’ alpha: cycle=9)'],
           ['ed(5)', 'ed(5) — equal steps to 5:1 (Stockhausen’s Studie II: cycle=25)'],
           ['sample', 'sample — this cell is the sound card'],
+          ['midi', 'midi — a MIDI card: its entries are channels 1, 2, 3 …'],
+          ['midi(10)', 'midi(c) — a MIDI card on one channel (midi(10, 2): on output slot 2)'],
         ]),
         ...pick(refs(), 'ref'),
       ];

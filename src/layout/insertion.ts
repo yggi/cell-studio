@@ -42,8 +42,8 @@ export class Insertion {
       join(adjacent, e.source, e.target);
       if (!grounds.has(e.id)) join(drawn, e.source, e.target);
     }
-    const cellOf = (n: (typeof cells)[number]) => n.cell as { sink?: boolean; note?: boolean; params?: Record<string, unknown> };
-    const drains = cells.filter((n) => cellOf(n).sink || typeof cellOf(n).params?.scope === 'string').map((n) => n.id);
+    const cellOf = (n: (typeof cells)[number]) => n.cell as { sink?: boolean; note?: boolean; params?: Record<string, unknown>; map?: { kind: string } | null };
+    const drains = cells.filter((n) => cellOf(n).sink || cellOf(n).map?.kind === 'midi' || typeof cellOf(n).params?.scope === 'string').map((n) => n.id);
     // (a walk from the drains, breadth first, the busiest neighbour first)
     const order: string[] = [];
     const seen = new Set<string>();
