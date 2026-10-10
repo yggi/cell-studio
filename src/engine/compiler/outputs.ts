@@ -197,7 +197,10 @@ export function outputsOf(ctx: Ctx, decls: ReadonlyMap<string, CellDecl>, cells:
   }
   // (not when a line failed: that may be the sound card's own, and its error says what's wrong)
   // a voice only on MIDI cards: its sound isn't sent (MIDI carries notes, velocity and bends), said once for the piece
-  const sentOnly = outputs.find((o) => o.midi && !o.parts.length && !o.silent && !o.kit && Object.keys(decls.get(o.voice)?.params ?? {}).some((k) => VOICE_PARAMS.has(k)));
+  const heardVoice = (v: string) => outputs.some((o) => o.voice === v && (o.parts.length || o.silent));
+  const sentOnly = outputs.find(
+    (o) => o.midi && !o.parts.length && !o.silent && !o.kit && !heardVoice(o.voice) && Object.keys(decls.get(o.voice)?.params ?? {}).some((k) => VOICE_PARAMS.has(k)),
+  );
   if (sentOnly) {
     const d = decls.get(sentOnly.voice)!;
     const sound = Object.keys(d.params).filter((k) => VOICE_PARAMS.has(k));

@@ -116,6 +116,9 @@ describe('compile: a MIDI card', () => {
       "&lead is only on a MIDI card: its sound (s= lpf=) isn't sent — MIDI carries its notes, velocity and bends; the device makes the sound",
     ]);
     expect(compiled(`${BAND}\n${OUT}\n&synth map=midi [&bass * &sub]`).warnings).toEqual([]);
+    // (a voice heard through another melody is not "only on a MIDI card")
+    const heard = `${BAND}\n&lead s=saw lpf=900 loop=110\n&synth map=midi [&theme * &lead]\n&out loop=SAMPLE_RATE map=sample [&theme * &reed, &bass * &lead]`;
+    expect(compiled(heard).warnings.filter((w) => /only on a MIDI card/.test(w))).toEqual([]);
     expect(compiled(`${BAND}\n${OUT}\n&synth pan=.3 map=midi [&bass * &sub]`).warnings[0]).toMatch(/pan= places a voice: on a MIDI card it does nothing/);
     expect(compiled(`${BAND}\n${OUT}\n&synth level=-3 map=midi [&bass * &sub]`).warnings[0]).toMatch(/level= acts on .*: on &synth it does nothing/);
   });
