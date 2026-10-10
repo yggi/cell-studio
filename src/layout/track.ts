@@ -416,6 +416,26 @@ export function netEnds(track: Track, size: number, net: string): { turn: number
   return out.sort((a, b) => a.turn - b.turn);
 }
 
+/**
+ * Where the bulb splicing `bulb` sits on `host`'s wheel, `size` px across: its hub from the wheel's centre (px) and its
+ * disc's radius, as CellGlyph draws it; null where it isn't laid (too short a splice to bend out). A tap's sub-net
+ * leaves from there (decision 016).
+ */
+export function bulbHub(result: CompileResult, host: string, bulb: string, hosts: ReadonlyMap<string, string>, size: number): { x: number; y: number; r: number } | null {
+  const { r, w } = ringOf(size);
+  const c = size / 2;
+  const find = (list: readonly Laid[]): Laid | null => {
+    for (const L of list) {
+      if (L.bulb.name === bulb) return L;
+      const inner = find(L.bulbs);
+      if (inner) return inner;
+    }
+    return null;
+  };
+  const L = find(layTrack(c, c, r, w, bulbsOf(result, host, codeShifts(result), hosts)).bulbs);
+  return L && { x: L.C[0] - c, y: L.C[1] - c, r: L.rho + L.w / 2 + 2 };
+}
+
 /** How far the track reaches from the wheel's centre (px). */
 export function trackReach(cx: number, cy: number, track: Track): number {
   return Math.max(0, ...track.p.map((p, i) => len(sub(p, [cx, cy])) + track.w[i] / 2));

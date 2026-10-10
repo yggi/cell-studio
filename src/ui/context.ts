@@ -68,6 +68,12 @@ export interface GraphContext {
 
 export const [getGraphContext, setGraphContext] = createContext<GraphContext>();
 
+/** The cell a pointer met on a wheel when it met a bulb there (CellGlyph's `data-bulb`): its node id; else null. */
+export function bulbAt(target: EventTarget | null): string | null {
+  const name = (target as Element | null)?.closest?.('[data-bulb]')?.getAttribute('data-bulb');
+  return name ? `cell:${name}` : null;
+}
+
 /**
  * Is a wheel to show the sound itself (its analyser), not its resting picture? Not while stopped: nothing sounds. Paused or
  * playing: a mix, a read head or the sound card (`signal`) always, whatever it carries; an instrument only when it is part

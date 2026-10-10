@@ -277,8 +277,11 @@ export class ForceLayout {
     this.sim.nodes([...next.values()]);
     this.s.faces = this.s.faces.filter((f) => next.has(f.tape) && next.has(f.to));
     // a meter's edges (ground): kept aside, to be drawn where they cross nothing once the meter is placed
-    this.s.grounds = model.edges.filter((e) => ground(e) && next.has(e.source) && next.has(e.target)).map((e) => ({ id: e.id, meter: e.target, cell: e.source }));
-    this.s.net = this.s.net.filter((t) => next.has(t.a) && next.has(t.b) && this.s.grounds.some((g) => g.meter === t.meter));
+    // (a tap's steps: a net of their own, from the tap's bulb on its table — decision 016)
+    this.s.grounds = model.edges
+      .filter((e) => ground(e) && next.has(e.source) && next.has(e.target))
+      .map((e) => ({ id: e.id, meter: e.target, cell: e.source, ...(e.bulb && e.bulbAt ? { bulb: e.bulb, at: { ...e.bulbAt } } : {}) }));
+    this.s.net = this.s.net.filter((t) => next.has(t.a) && next.has(t.b) && this.s.grounds.some((g) => g.meter === t.meter && g.bulb === t.bulb));
     // the tapes turned to where everything is now (an edit that doesn't move anything doesn't turn them)
     this.s.turns = fitTurns(this.s, (id) => this.position(id));
     this.s.explains = model.edges
@@ -359,7 +362,11 @@ export class ForceLayout {
           : { a: l.source, b: l.target, mid: this.s.bendAt.get(l.id) as { x: number; y: number } | undefined, runs: this.beltRuns(l), weight: l.strength };
       }),
       // (a meter's net: straight traces)
-      ...this.s.net.map((t) => ({ a: t.a, b: t.b, mid: undefined, weight: 2 })),
+      // (a tap's, from its bulb: crossing another tap's counts, though both leave the same wheel)
+      ...this.s.net.map((t) => {
+        const o = t.at && this.s.byId.get(t.a);
+        return o ? { a: `${t.a}@${t.bulb}`, b: t.b, from: { x: (o.x ?? 0) + t.at!.x, y: (o.y ?? 0) + t.at!.y }, weight: 2 } : { a: t.a, b: t.b, mid: undefined, weight: 2 };
+      }),
     ];
     return { nodes, edges };
   }

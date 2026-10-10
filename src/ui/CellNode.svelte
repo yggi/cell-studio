@@ -3,7 +3,7 @@
   import { Handle, Position, type NodeProps } from '@xyflow/svelte';
   import type { CellFlowNode } from './types';
   import CellGlyph from './CellGlyph.svelte';
-  import { getGraphContext, nodeState } from './context';
+  import { bulbAt, getGraphContext, nodeState } from './context';
   import { longpress } from './kit/attach';
   import FreePills from './FreePills.svelte';
   import SpectrumWheel from './SpectrumWheel.svelte';
@@ -55,7 +55,7 @@
     data-state={state}
     style="width: {data.size}px; height: {data.size}px"
     style:--meter={data.meterIndex !== undefined ? meterColour(data.meterIndex) : undefined}
-    {@attach longpress(() => ctx.toggle(id))}
+    {@attach longpress((at) => ctx.toggle(bulbAt(at) ?? id))}
   >
     <Handle type="target" position={Position.Top} class="center-handle" isConnectable={false} />
     {#if soundHead || (cell?.mix && !cell.sink)}

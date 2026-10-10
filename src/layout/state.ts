@@ -16,6 +16,12 @@ export interface MeterTrace {
   readonly meter: string;
   readonly a: string;
   readonly b: string;
+  /**
+   * A tap's sub-net (decision 016): the bulb on the meter's wheel (its table's) it leaves from, `a` its end there, and
+   * where that bulb's hub is from the wheel's centre (GraphEdge.bulbAt).
+   */
+  readonly bulb?: string;
+  readonly at?: { readonly x: number; readonly y: number; readonly r: number };
 }
 
 export interface PhysNode extends SimulationNodeDatum {
@@ -107,7 +113,7 @@ export interface LayoutState {
   drawnNets: GraphModel['nets'];
   drawnEnds: Map<string, string>;
   /** A meter's edges (ground, meters.ts) and which of them are drawn. */
-  grounds: { id: string; meter: string; cell: string }[];
+  grounds: { id: string; meter: string; cell: string; bulb?: string; at?: { x: number; y: number; r: number } }[];
   /** Each meter's net, as last worked out (meterNet). */
   net: MeterTrace[];
   /** Meters this layout placed (and holds there): a meter dragged elsewhere isn't placed again. */

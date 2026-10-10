@@ -612,6 +612,18 @@
         {#if b.sub}<text class="bulb-sub" x={b.L.C[0]} y={b.L.C[1]} dy="1.05em" style:font-size="{b.font * 0.8}px">{b.sub}</text>{/if}
       {/if}
     {/each}
+    <!-- in the graph, each bulb is the cell it splices: tapped, it opens; held, it switches off (Graph.svelte, CellNode.svelte);
+         switched off, it is dimmed -->
+    {#if !interactive}
+      {#each bulbs as b, i (i)}<circle
+          class="bulb-hit"
+          class:off={!!ctx.program.cells.get(b.L.bulb.name)?.off}
+          data-bulb={b.L.bulb.name}
+          cx={b.L.C[0]}
+          cy={b.L.C[1]}
+          r={b.L.rho + b.L.w / 2 + 2}
+        />{/each}
+    {/if}
   {/snippet}
   {#if interactive}
     <g
@@ -919,6 +931,14 @@
   /* a bulb (#221): its own small disc behind it; a net-ref's dotted round; its name at its hub */
   .bulb-disc {
     fill: var(--wheel-disc);
+  }
+  .bulb-hit {
+    fill: transparent;
+    cursor: pointer;
+  }
+  .bulb-hit.off {
+    fill: var(--wheel-disc);
+    fill-opacity: 0.7;
   }
   .bulb-thread {
     fill: var(--wheel-tick);

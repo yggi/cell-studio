@@ -134,9 +134,21 @@ export function flowEdgeOf(e: GraphEdge, state: State, program: CompileResult, b
   };
 }
 
-/** A trace of a meter's net (meters are ground: their edges aren't drawn, this is). `index`: the meter's place among the meters. */
+/**
+ * A trace of a meter's net (meters are ground: their edges aren't drawn, this is). `index`: the meter's place among the
+ * meters. A tap's sub-net (decision 016) leaves from its bulb on its table, and flashes on the tap's ticks.
+ */
 export function meterEdgeOf(t: MeterTrace, index: number): Edge {
-  return { id: t.id, source: t.a, target: t.b, type: 'meter', zIndex: -1, selectable: false, focusable: false, data: { meter: index, name: nameOf(t.meter) } };
+  return {
+    id: t.id,
+    source: t.a,
+    target: t.b,
+    type: 'meter',
+    zIndex: -1,
+    selectable: false,
+    focusable: false,
+    data: { meter: index, name: t.bulb ?? nameOf(t.meter), ...(t.at ? { at: t.at } : {}) },
+  };
 }
 
 /** What the edges are drawn with besides the snapshot: the wheels' sizes, the meters' nets as laid, and whether anything is lit (not stopped), and what, for a belt. */

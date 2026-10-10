@@ -32,6 +32,8 @@ export interface DrawnEdge {
   readonly runs?: readonly (readonly [number, number, number, number])[];
   /** Its strength (weights.ts): what crossing it costs (1 when not given). */
   readonly weight?: number;
+  /** Where it leaves from, when not `a`'s centre: a bulb on a wheel (a tap's sub-net, decision 016); `a` then names the bulb. */
+  readonly from?: { readonly x: number; readonly y: number };
 }
 
 export interface LayoutQuality {
@@ -84,7 +86,7 @@ function crossingsOf(nodes: readonly PlacedNode[], edges: readonly DrawnEdge[]):
   const at = new Map(nodes.map((n) => [n.id, n]));
   const hidden = (x: number, y: number) => nodes.some((n) => Math.hypot(x - n.x, y - n.y) < n.r);
   const curves = edges.flatMap((e) => {
-    const a = at.get(e.a);
+    const a = e.from ?? at.get(e.a);
     const b = at.get(e.b);
     if (!a || !b) return [];
     if (e.runs) return e.runs.map((r) => ({ a: e.a, b: e.b, pieces: [r as [number, number, number, number]], belt: true, w: e.weight ?? 1 }));
