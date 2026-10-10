@@ -97,6 +97,43 @@ describe('Midi: the settings', () => {
   });
 });
 
+describe('Midi: reconnecting on load', () => {
+  const chosen = async () => {
+    installMidi(fakeAccess([], [fakePort('out-1', 'Synth')]));
+    const first = await made();
+    await first.connect();
+    first.chooseOutput('out-1');
+  };
+  const permission = (state: string) => vi.stubGlobal('navigator', Object.assign(Object.create(navigator), { permissions: { query: () => Promise.resolve({ state }) } }));
+
+  it('waits for a click when the browser has not granted MIDI yet, and says so', async () => {
+    await chosen();
+    permission('prompt');
+    const ask = vi.fn(() => Promise.resolve(fakeAccess() as unknown as MIDIAccess));
+    navigator.requestMIDIAccess = ask;
+    const midi = await made();
+    expect(ask).not.toHaveBeenCalled();
+    expect(midi.access).toBeNull();
+    expect(midi.message).toMatch(/press Connect/);
+  });
+
+  it('connects quietly when it has', async () => {
+    await chosen();
+    permission('granted');
+    installMidi(fakeAccess([], [fakePort('out-1', 'Synth')]));
+    const midi = await made();
+    expect(midi.access).not.toBeNull();
+  });
+
+  it('reconnects for a port chosen only on an output slot of a piece', async () => {
+    store.set('cell-studio:midi', JSON.stringify({ slots: { Song: { 2: { id: 'out-2', name: 'Juno' } } } }));
+    installMidi(fakeAccess([], [fakePort('out-2', 'Juno')]));
+    const midi = await made();
+    expect(midi.remembersPorts).toBe(true);
+    expect(midi.access).not.toBeNull();
+  });
+});
+
 describe('Midi: the ports coming and going', () => {
   it('lists a port plugged in, and shows a chosen one unplugged as still chosen', async () => {
     const access = fakeAccess([], [fakePort('out-1', 'Synth')]);
@@ -155,6 +192,25 @@ describe('Midi: All notes off', () => {
     midi.send([0x93, 60, 100]);
     comeBack();
     expect(cc123(out)).toEqual([3]);
+  });
+
+  it('reaches an output slot with no default output: the button is live, and the tab coming back sends CC 123 there', async () => {
+    const other = fakePort('out-2', 'Juno');
+    installMidi(fakeAccess([], [fakePort('out-1', 'Circuit'), other]));
+    const midi = await made();
+    await midi.connect();
+    expect(midi.canPanic).toBe(false);
+    const program = compileSource(`&piece title="Slot" tags="MIDI"\n&bar scan(1 1 1 1) step=2\n&bass step=&bar 0\n&sub loop=55\n&far map=midi(3, 2) [&bass * &sub]`);
+    midi.attach({ sink: null, internal: true }, { program, title: 'Slot' });
+    expect(midi.canPanic).toBe(false);
+    midi.chooseSlot(2, 'out-2');
+    expect(midi.canPanic).toBe(true);
+    // (a note sent there: the slot has been used)
+    const p = plan(program, codeShifts(program));
+    midi.play(fakeTone(10), retime(windowAt(p, 0, 1), 10, 1).events, 11);
+    other.sent = [];
+    comeBack();
+    expect(cc123(other)).toContain(2);
   });
 
   it('stops listening for the tab once disposed', async () => {
@@ -582,6 +638,16 @@ describe('Midi: letting the keys go', () => {
     access.change();
     expect(told).not.toHaveBeenCalled();
     access.inputs.delete('in-1');
+    access.change();
+    expect(told).toHaveBeenCalledTimes(1);
+  });
+
+  it('lets go once when the input goes, not at every later change of ports', async () => {
+    const { access, told } = await listening();
+    access.inputs.delete('in-1');
+    access.change();
+    access.inputs.delete('in-2');
+    access.change();
     access.change();
     expect(told).toHaveBeenCalledTimes(1);
   });

@@ -182,7 +182,16 @@ export class Midi implements ChosenPorts, NoteSink {
     this.#slots = kept.slots;
     // a tab frozen while hidden can leave a release unscheduled and hardware sounding: silence it on coming back
     if (typeof document !== 'undefined') document.addEventListener('visibilitychange', this.#onVisible);
-    if (this.remembersPorts) void this.connect();
+    if (this.remembersPorts) void this.#reconnect();
+  }
+
+  // on load: only when the browser has granted MIDI already, or the prompt would come up unasked on every visit
+  async #reconnect(): Promise<void> {
+    this.connecting = true;
+    const granted = await MidiAccess.granted();
+    this.connecting = false;
+    if (granted) return this.connect();
+    if (!this.#disposed && !this.access) this.message = 'MIDI is chosen here but not allowed yet: press Connect.';
   }
 
   #disposed = false;
@@ -195,7 +204,7 @@ export class Midi implements ChosenPorts, NoteSink {
 
   readonly #onVisible = () => {
     if (document.visibilityState !== 'visible') return;
-    if (this.#used.size) this.panic();
+    if (this.#used.size || this.#slotOuts.size) this.panic();
     // (keys held from the input while hidden may have lost their note-offs: they let go too)
     else this.#letGoAll();
   };
@@ -236,7 +245,12 @@ export class Midi implements ChosenPorts, NoteSink {
 
   /** Whether a port was chosen before. */
   get remembersPorts(): boolean {
-    return this.#out.id !== 'none' || this.#in.id !== 'none';
+    return this.#out.id !== 'none' || this.#in.id !== 'none' || Object.values(this.#slots).some((mine) => Object.values(mine).some((c) => c.id !== 'none'));
+  }
+
+  /** Is there anything for All notes off to reach: the default output, or an output slot of the open piece? */
+  get canPanic(): boolean {
+    return !!this.outPort || this.slots.some((s) => this.slotPort(s.slot));
   }
 
   /** Connect to Web MIDI and adopt the ports chosen before. */
@@ -476,6 +490,7 @@ export class Midi implements ChosenPorts, NoteSink {
   chooseInput(id: string): void {
     if (id !== this.#in.id) this.#letGoAll();
     this.#in = { id, name: this.ports.inputs.find((p) => p.id === id)?.name ?? '' };
+    this.#heardFrom = this.#inputThere();
     this.#save();
     this.access?.listen(id);
   }
@@ -537,9 +552,17 @@ export class Midi implements ChosenPorts, NoteSink {
   #changed(): void {
     if (this.access) adoptPorts(this.access, this);
     this.#list();
-    // (the input listened to gone: its keys' note-offs will never come)
+    // (the input listened to gone: its keys' note-offs will never come; an unrelated device coming or going is not that)
+    const there = this.#inputThere();
+    if (this.#heardFrom && !there) this.#letGoAll();
+    this.#heardFrom = there;
+  }
+
+  // whether the input chosen is there to listen to ('none' and 'all' always are)
+  #heardFrom = false;
+  #inputThere(): boolean {
     const id = this.#in.id;
-    if (this.access && id !== 'none' && id !== 'all' && !this.access.inputs.some((p) => p.id === id)) this.#letGoAll();
+    return !!this.access && (id === 'none' || id === 'all' || this.access.inputs.some((p) => p.id === id));
   }
 
   #list(): void {

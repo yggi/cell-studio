@@ -158,6 +158,7 @@ const MIDI_PIECE = 'sailor';
       send: (data, timestamp) => sent.push({ data: [...data], timestamp: timestamp ?? performance.now(), sentAt: performance.now() }),
     };
     navigator.requestMIDIAccess = () => Promise.resolve({ inputs: new Map(), outputs: new Map([['fake-out', out]]), onstatechange: null });
+    Object.defineProperty(navigator, 'permissions', { value: { query: async () => ({ state: 'granted' }) }, configurable: true }); // (a page load reconnects only once MIDI is granted)
     localStorage.setItem('cell-studio:midi', JSON.stringify({ out: { id: 'fake-out', name: 'Fake synth' }, in: { id: 'none', name: '' }, clock: { 'Fake synth': true } }));
   });
   const secs = 3;
@@ -324,6 +325,7 @@ const CARD_ONLY = { voice: 'sub', channel: 2 };
     const sent = (window.__midi = []);
     const out = { id: 'fake-out', name: 'Fake synth', send: (data, timestamp) => sent.push({ data: [...data], timestamp: timestamp ?? performance.now() }) };
     navigator.requestMIDIAccess = () => Promise.resolve({ inputs: new Map(), outputs: new Map([['fake-out', out]]), onstatechange: null });
+    Object.defineProperty(navigator, 'permissions', { value: { query: async () => ({ state: 'granted' }) }, configurable: true }); // (a page load reconnects only once MIDI is granted)
     localStorage.setItem('cell-studio:midi', JSON.stringify({ out: { id: 'fake-out', name: 'Fake synth' }, in: { id: 'none', name: '' } }));
   });
   const secs = 3;
@@ -384,6 +386,7 @@ const CARD_ONLY = { voice: 'sub', channel: 2 };
     const input = { id: 'fake-in', name: 'Fake keys', onmidimessage: null };
     window.midiIn = (bytes) => input.onmidimessage?.({ data: new Uint8Array(bytes), timeStamp: performance.now() });
     navigator.requestMIDIAccess = () => Promise.resolve({ inputs: new Map([['fake-in', input]]), outputs: new Map([['fake-out', out]]), onstatechange: null });
+    Object.defineProperty(navigator, 'permissions', { value: { query: async () => ({ state: 'granted' }) }, configurable: true }); // (a page load reconnects only once MIDI is granted)
     localStorage.setItem('cell-studio:midi', JSON.stringify({ out: { id: 'fake-out', name: 'Fake synth' }, in: { id: 'fake-in', name: 'Fake keys' } }));
     localStorage.setItem('cell-studio:keys', JSON.stringify({ thru: true, thruChannel: 2 }));
     window.__ctx = [];
@@ -433,6 +436,16 @@ const CARD_ONLY = { voice: 'sub', channel: 2 };
       await mp.waitForTimeout(600);
     }
     if (lat.length < 5) problems.push(`${5 - lat.length} of 5 keys did not sound`);
+    // Stop with a key down cuts it (the 'stopped' gain), and a key pressed after Stop sounds again
+    await mp.evaluate(() => window.midiIn([0x90, 60, 100]));
+    await mp.waitForTimeout(300);
+    await mp.locator('.transport').getByRole('button', { name: 'Stop' }).first().click();
+    await mp.waitForTimeout(800);
+    const cut = await mp.evaluate(() => window.cellStudio.level('fiddle') ?? 0);
+    if (cut > 0.001) problems.push(`still sounding ${cut.toFixed(4)} after Stop with a key down`);
+    const again = await sound([0x90, 64, 100]);
+    if (again.ms === null) problems.push('a key pressed after Stop did not sound');
+    await mp.evaluate(() => window.midiIn([0x80, 64, 0]));
     const audio = await mp.evaluate(() => {
       const c = window.__ctx.find((x) => x.state === 'running');
       return c ? { baseLatency: c.baseLatency, outputLatency: c.outputLatency } : null;
@@ -465,6 +478,7 @@ const CARD_ONLY = { voice: 'sub', channel: 2 };
     const input = { id: 'fake-in', name: 'Fake keys', onmidimessage: null };
     window.midiIn = (bytes) => input.onmidimessage?.({ data: new Uint8Array(bytes), timeStamp: performance.now() });
     navigator.requestMIDIAccess = () => Promise.resolve({ inputs: new Map([['fake-in', input]]), outputs: new Map(), onstatechange: null });
+    Object.defineProperty(navigator, 'permissions', { value: { query: async () => ({ state: 'granted' }) }, configurable: true }); // (a page load reconnects only once MIDI is granted)
     localStorage.setItem('cell-studio:midi', JSON.stringify({ in: { id: 'fake-in', name: 'Fake keys' } }));
   });
   const WANT = '0 ~ [2,4]@4 ~ ~ 7 ~ ~ ~ ~ ~ ~ ~';

@@ -39,6 +39,19 @@ export class MidiAccess {
     access.onstatechange = () => this.refresh();
   }
 
+  /**
+   * Whether Web MIDI may be asked for without a prompt (the browser says it is granted), so a page load can reconnect
+   * quietly. Denied, or still to be asked: no. A browser that can't say: yes, as it was before.
+   */
+  static async granted(): Promise<boolean> {
+    try {
+      const status = await navigator.permissions.query({ name: 'midi', sysex: false } as unknown as PermissionDescriptor);
+      return status.state === 'granted';
+    } catch {
+      return true;
+    }
+  }
+
   /** Ask for Web MIDI. The connection, or in words why there is none: no Web MIDI here, or access blocked. Never throws. */
   static async connect(on: MidiHandlers = {}): Promise<MidiAccess | string> {
     if (typeof navigator === 'undefined' || !navigator.requestMIDIAccess) return 'This browser has no Web MIDI. Chrome and Edge on desktop or Android have it.';
