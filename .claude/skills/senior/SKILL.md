@@ -33,7 +33,7 @@ Never rewrite history on someone else's branch (merge `main` in; no rebase, amen
 
 ## 4. Merge
 
-**The smoke test runs on every non-draft PR** (a minute or two, again on each push): once the review is done and you mean to merge, wait for the `smoke` run on the current head. Merge only when all hold: CI green on the current head (`check` and `smoke`), no conflicts, no open serious finding, **and the owner has approved**: either the prompt said to merge on a condition that is met ("merge if you find nothing"), or the owner said yes to your summary. Otherwise stop after the summary and ask. Squash-merge (the history reads `Title (#n)`), with the PR title as the message. Never bypass a red check.
+**The smoke test runs on every non-draft PR** (about two and a half minutes, again on each push): once the review is done and you mean to merge, wait for the `smoke` and `repeatable` runs on the current head. Merge only when all hold: CI green on the current head (`check`, `smoke` and `repeatable`), no conflicts, no open serious finding, **and the owner has approved**: either the prompt said to merge on a condition that is met ("merge if you find nothing"), or the owner said yes to your summary. Otherwise stop after the summary and ask. Squash-merge (the history reads `Title (#n)`), with the PR title as the message. Never bypass a red check.
 
 After merging: the issue is closed by `Closes #n` (verify; if the PR was partial, comment on the issue what is done and what is left); file follow-ups; update `docs/roadmap.md` or `docs/limits.md` if the work changed an epic or lifted a limit (on the PR branch before merging, not on `main` after).
 
