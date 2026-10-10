@@ -333,7 +333,10 @@ export function eventsBetween(p: Plan, from: number, to: number, outputs = false
   for (const o of p.result.outputs) {
     if (p.result.cells.get(o.cell)?.params.law !== 'fiveto12') continue;
     const g = liveGains(o, p.muted);
-    if (!(g[0] > 0 || g[1] > 0)) continue;
+    // (on a MIDI card too: its notes are sent there, and heard only if a sound card hears them)
+    const midi = o.midi ? liveMidi(o, p.muted) : [];
+    const heard = g[0] > 0 || g[1] > 0;
+    if (!heard && !midi.length) continue;
     const base = p.result.cells.get(o.voice)?.freq || 261.63;
     // (it reads the day it plays in, over=&day: where that day stands when play starts, against the law's own 11:55)
     const off = lawOffset(p.result, o.cell);
@@ -347,6 +350,8 @@ export function eventsBetween(p: Plan, from: number, to: number, outputs = false
         bends: [],
         gains: [g[0] * Math.min(1, 1 - n.pan), g[1] * Math.min(1, 1 + n.pan)],
         levels: [{ at, level: n.level }],
+        ...(heard ? {} : { unheard: true as const }),
+        ...(midi.length ? { midi } : {}),
         ...(outputs ? { output: o.id } : {}),
       });
     }

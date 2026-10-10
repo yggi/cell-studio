@@ -219,3 +219,12 @@ describe('a MIDI card in the flows, the routing and the graph', () => {
     expect(model.edges.some((e) => e.from === cellId('bass') && e.to === 'junction:synth:1' && e.port === 'voice')).toBe(true);
   });
 });
+
+describe('a law on a MIDI card', () => {
+  it('its computed notes go out on the card too', () => {
+    const src = `&day scan(1!24) loop=1d anchor=11.55\n&cycle law=fiveto12 over=&day step=84bpm\n&flute s=tri loop=C4\n&out map=sample [&cycle * &flute]\n&synth map=midi(4) [&cycle * &flute]`;
+    const events = eventsOf(src, 30);
+    expect(events.length).toBeGreaterThan(0);
+    expect(events.every((e) => e.midi?.[0].channel === 4 && !e.unheard)).toBe(true);
+  });
+});
