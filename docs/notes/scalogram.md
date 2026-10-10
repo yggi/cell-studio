@@ -121,7 +121,7 @@ The question: is a written boundary heard as a cone, and is a cone a written bou
   - **Chance**: the share of the window that close to a boundary, which is what P would be with cones dropped at random.
 - The thresholds were swept on the arrangements (`CONE_LOUD`, `CONE_OCTAVES`). Strict (1.5 × the mean, 2 octaves) gives P 56–73 % and R 12–20 %; loose (1 ×, 1 octave, kept) gives P 50–67 % and R 34–51 %.
 
-**Measured** (the 10 pieces with sections, 16 s or more; %):
+**Measured** (the 11 pieces with sections, 16 s or more; %):
 
 | piece | boundaries | n | chance | impulses P / R | envelope P / R | voices P / R | change P / R |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -156,14 +156,46 @@ The question: is a written boundary heard as a cone, and is a cone a written bou
 3. **Each signal hears a kind of boundary.** **envelope** hears the breaks, where notes stop (Hypercell and Pop, every cone on a section). **change** hears the drops and entries, and it is the only one that hears 5 to 12's keys (54 % against 18 %).
 4. **The day's blocks are heard, but not as cones.** At the 2-hour blocks the scalogram has patches at periods of about 17 minutes rather than cones down to the bar. The finder gets 3 or 4 of the 11, all on a block. Folded over two hours (point 3 above), the blocks show as a whole.
 
+## Three finders: cones, novelty, swells
+
+A cone has to reach down to the beat. Two other measures don't (in `tools/probe/scalogram.ts`, scored the same way):
+- **novelty** [Foote 2000]: at each moment, how different the spectrum is just after from just before, over half the boundaries' median gap either side. It finds lasting changes of texture.
+- **swells**: the scalogram averaged over the periods from an eighth to half the gap, and its peaks in time. It finds a moment when those periods are loud: a cone cut short, a break, a fill.
+
+Each is run on one signal, or on the three of the chart together (**three**). Means over the 11 pieces with sections, their sections and 5 to 12's keys (P / R, %; chance 19):
+
+| finder | impulses | envelope | voices | change | three |
+| --- | --- | --- | --- | --- | --- |
+| cones | 64 / 39 | 72 / 37 | 63 / 41 | 75 / 39 | |
+| novelty | 43 / 42 | 33 / 32 | 42 / 39 | 40 / 38 | 37 / 35 |
+| **swells** | 67 / 61 | 56 / 50 | 70 / 64 | 64 / 60 | **72 / 62** |
+
+- **Swells find the most**, about 60 % of the sections at 56–72 % precision, the three together the most precise. The written form is mostly heard as a swell at its own scale, not as a lasting change (novelty).
+- **5 to 12's blocks are found by swells**: 82 % in impulses and voices, against 27 % by cones. Its keys stay hard: 25 % at best (change), against 18 % by chance.
+- **Repeats stay silent**: Pop's and Hypercell's are found by no finder in any signal.
+
+The combined chart marks the swells of the three under the panel: a triangle at each of the best twice as many as there are sections, larger for the best as many, white on a section, orange on none.
+
+![Korobeiniki, combined](scalogram-korobeiniki-combined.jpg)
+![5 to 12, combined](scalogram-fiveto12-combined.jpg)
+
+## The boundaries nobody wrote
+
+Of the best swells of the three together (twice as many as boundaries), those that land on no section, over the 11 pieces:
+- **28 of 144** land on no section; the written sections account for the rest.
+- **A cell's turn doesn't explain them.** 7 fall on a multiple of a cell's turn of phrase length (a quarter of the gap or more), where chance would give 11. The bar's turn would explain any moment, so it isn't counted.
+- **Korobeiniki**: 5 unwritten swells, each in the middle of an A section, with a red patch (a break) there. That looks like the halves of the tune's 8 bars, a phrase written inside the tune's notes rather than as a cell (not checked against the notes).
+- **Baustelle**: 6, several at multiples of `&edge` (a cell's turn); `chance` plays in it.
+- **5 to 12 and daytime**: 7 each inside their blocks, not on a key; unexplained.
+
 ## What is next (nothing decided)
 
-- **A better finder for slow boundaries**: the day's blocks and keys are periodic patches, better found by folding or by a change measure per period than by chaining maxima down.
-- **Boundaries nobody wrote**: the cones that land on no section (the red ones). Are they the phrases inside a section, `chance`, or something the form does that `sections` doesn't say?
+- **Korobeiniki's halves, checked**: the tune's notes at the unwritten swells. If it is a phrase, a written cell for it would make the boundary written.
+- **The keys of 5 to 12**: heard on average (folded), seldom one by one. A key change under the same rhythm may be too small a change of the notes' timing for any onset signal: a pitch-class signal (a key's notes against the last key's) would ask the question directly.
 - **Ridges in time**, not peaks in the mean: a level that holds for part of the piece (Pop's drums, BWV 847's prelude against its fugue).
 - **Loops longer than one cycle**, where the loop itself is the question (Phase): two or three cycles.
 - **What an onset is worth** stays open. The pictures suggest not choosing one: impulses or voices for the meter, change for melody, keys and phasing, the cones of any of them for the form.
 
 ## References
 
-Todd, N. P. McA. (1994), *The auditory "primal sketch": a multiscale model of rhythmic grouping*, J. New Music Research 23. Smith, L. M. & Honing, H. (2008), *Time-frequency representation of musical rhythm by continuous wavelets*, J. Mathematics and Music 2(2). Torrence, C. & Compo, G. P. (1998), *A practical guide to wavelet analysis*, BAMS 79 (the Morlet, the cone of influence). Liu, Liang & Weisberg (2007), *Rectification of the bias in the wavelet power spectrum*, J. Atmos. Oceanic Tech. 24. Mallat, S. & Hwang, W. L. (1992), *Singularity detection and processing with wavelets*, IEEE Trans. Inf. Theory 38 (cones of maxima).
+Todd, N. P. McA. (1994), *The auditory "primal sketch": a multiscale model of rhythmic grouping*, J. New Music Research 23. Smith, L. M. & Honing, H. (2008), *Time-frequency representation of musical rhythm by continuous wavelets*, J. Mathematics and Music 2(2). Torrence, C. & Compo, G. P. (1998), *A practical guide to wavelet analysis*, BAMS 79 (the Morlet, the cone of influence). Liu, Liang & Weisberg (2007), *Rectification of the bias in the wavelet power spectrum*, J. Atmos. Oceanic Tech. 24. Mallat, S. & Hwang, W. L. (1992), *Singularity detection and processing with wavelets*, IEEE Trans. Inf. Theory 38 (cones of maxima). Foote, J. (2000), *Automatic audio segmentation using a measure of audio novelty*, IEEE ICME.

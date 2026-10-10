@@ -279,3 +279,81 @@ export function score(found: readonly Cone[], boundaries: readonly number[], win
     hits: new Set(best.filter((c) => near(c.at))),
   };
 }
+
+/**
+ * Where the music changes at the scale of `span` seconds (Foote 2000's novelty, on the scalogram): at each moment, the
+ * distance between the mean spectrum over `span`/2 before it and over `span`/2 after (each period in dB against its
+ * mean, the periods up to `span`/2, every signal given one after the other), and its peaks, best first, one within
+ * `span`/4 of another kept. Unlike a cone, it doesn't need the change to reach down to the beat: a key that changes
+ * under the same rhythm, a block of two hours whose mode changes, are a change in which periods are loud.
+ */
+export function novelty(signals: readonly (readonly Float32Array[])[], periods: readonly number[], window: number, span: number): Cone[] {
+  const cols = signals[0]?.[0]?.length ?? 0;
+  const half = Math.max(1, Math.round((span / 2 / window) * cols));
+  // (the features: every row up to span/2, in dB against its mean, summed along time for a mean over any stretch)
+  const sums: Float64Array[] = [];
+  for (const rows of signals) {
+    const r = byRow(rows, periods, window);
+    r.forEach((row, i) => {
+      if (periods[i] > span / 2) return;
+      const s = new Float64Array(cols + 1);
+      for (let c = 0; c < cols; c++) s[c + 1] = s[c] + 10 * Math.log10(Math.max(1e-6, row[c]));
+      sums.push(s);
+    });
+  }
+  const curve = new Float64Array(cols);
+  for (let c = half; c <= cols - half; c++) {
+    let acc = 0;
+    for (const s of sums) {
+      const before = (s[c] - s[c - half]) / half;
+      const after = (s[c + half] - s[c]) / half;
+      acc += (after - before) ** 2;
+    }
+    curve[c] = Math.sqrt(acc / Math.max(1, sums.length));
+  }
+  const near = Math.max(1, Math.round(half / 2));
+  const found: Cone[] = [];
+  for (let c = half; c <= cols - half; c++) {
+    let top = curve[c] > 0;
+    for (let k = Math.max(0, c - near); k <= Math.min(cols - 1, c + near) && top; k++) if (curve[k] > curve[c] || (curve[k] === curve[c] && k < c)) top = false;
+    if (top) {
+      const at = ((c + 0.5) / cols) * window;
+      found.push({ at, top: span, bottom: span, score: curve[c], path: [[at, span]] });
+    }
+  }
+  return found.sort((a, b) => b.score - a.score);
+}
+
+/**
+ * Swells at the scale of `span` seconds: each signal in dB against its period's mean, averaged over the periods from
+ * `span`/8 to `span`/2 (every signal given counted alike), and the peaks of that curve in time, best first, one within
+ * `span`/4 of another kept. A boundary that doesn't reach down to the beat (a cone cut short) still swells there: 5 to
+ * 12's keys, folded over ten minutes, are loudest at the change in the 2-minute row.
+ */
+export function swells(signals: readonly (readonly Float32Array[])[], periods: readonly number[], window: number, span: number): Cone[] {
+  const cols = signals[0]?.[0]?.length ?? 0;
+  const curve = new Float64Array(cols);
+  let n = 0;
+  for (const rows of signals) {
+    const r = byRow(rows, periods, window);
+    r.forEach((row, i) => {
+      if (periods[i] < span / 8 || periods[i] > span / 2) return;
+      n++;
+      for (let c = 0; c < cols; c++) curve[c] += 10 * Math.log10(Math.max(1e-6, row[c]));
+    });
+  }
+  if (!n) return [];
+  const near = Math.max(1, Math.round((span / 4 / window) * cols));
+  const found: Cone[] = [];
+  for (let c = 0; c < cols; c++) {
+    // (clear of the window's edges at the slowest of those periods)
+    if (c < cols * reach(span / 2, window) || c > cols * (1 - reach(span / 2, window))) continue;
+    let top = true;
+    for (let k = Math.max(0, c - near); k <= Math.min(cols - 1, c + near) && top; k++) if (curve[k] > curve[c] || (curve[k] === curve[c] && k < c)) top = false;
+    if (top) {
+      const at = ((c + 0.5) / cols) * window;
+      found.push({ at, top: span, bottom: span / 8, score: curve[c] / n, path: [[at, span]] });
+    }
+  }
+  return found.sort((a, b) => b.score - a.score);
+}
