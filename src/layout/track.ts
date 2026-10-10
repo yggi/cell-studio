@@ -398,6 +398,9 @@ function band(pts: readonly { p: P; tan: P; w: number }[], j: number, n: number,
   return 'M' + [...outer, ...inner.reverse()].map((q) => `${f(q[0])} ${f(q[1])}`).join(' L') + ' Z';
 }
 
+/** The smallest inside (its radius, px) the cursor goes round; a smaller bulb bends it at its hub. */
+const ARC = 12;
+
 /**
  * The cursor, at a time in a bulb: the plain hand, jointed. Out from the hub's edge (at rFrom) towards the bulb, round
  * the inside of its ribbon (`inset` in from it) from where it came in, clockwise as its time runs, and across the
@@ -419,7 +422,9 @@ export function cursorOf(cx: number, cy: number, rFrom: number, track: Track, t:
     const [a0, a1] = [angleOf(L.C, from), angleOf(L.C, next ? next.C : head)];
     const sweep = mod(a1 - a0, 1);
     const [p0, p1] = [onCircle(L.C, r, a0), onCircle(L.C, r, a1)];
-    d += ` L${f(p0[0])} ${f(p0[1])} A${f(r)} ${f(r)} 0 ${sweep > 0.5 ? 1 : 0} 1 ${f(p1[0])} ${f(p1[1])}`;
+    // (a bulb too small to go round inside, its name overflowing it anyway: an elbow at its hub, two straight lines)
+    if (r < ARC) d += ` L${f(L.C[0])} ${f(L.C[1])}`;
+    else d += ` L${f(p0[0])} ${f(p0[1])} A${f(r)} ${f(r)} 0 ${sweep > 0.5 ? 1 : 0} 1 ${f(p1[0])} ${f(p1[1])}`;
     if (!next) {
       const out = onCircle(L.C, L.rho + L.w / 2 + 2, a1);
       d += ` L${f(out[0])} ${f(out[1])}`;
