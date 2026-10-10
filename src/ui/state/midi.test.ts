@@ -498,4 +498,11 @@ describe('Midi: letting the keys go', () => {
     access.change();
     expect(told).toHaveBeenCalledTimes(1);
   });
+
+  it('tells when the input listened to stays listed but disconnected', async () => {
+    const { access, told } = await listening();
+    (access.inputs.get('in-1') as unknown as { state: string }).state = 'disconnected';
+    access.change();
+    expect(told).toHaveBeenCalledTimes(1);
+  });
 });
