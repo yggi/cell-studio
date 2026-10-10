@@ -31,6 +31,8 @@ export function towerOf(program: CompileResult, model: GraphModel, at: TowerAt =
   // (what carries sound: a mix, a tape, a table of parts and the selector reading it: `emit` places them by it)
   const sounding = new Set(model.nodes.flatMap((n) => (n.cell?.mix && !n.cell.sink ? [n.id] : [])));
   for (const e of model.edges) if (e.band === 'audio' && cellOf.has(e.to) && !instruments.has(e.to)) sounding.add(e.to);
+  // (a pattern of voices, a kit's groove: what it sends on is their sound)
+  for (const e of model.edges) if (e.port === 'braid' && (cellOf.get(e.from)?.voice || instruments.has(e.from)) && cellOf.has(e.to) && !cellOf.get(e.to)!.sink) sounding.add(e.to);
   for (let grew = true; grew;) {
     grew = false;
     for (const e of model.edges)
