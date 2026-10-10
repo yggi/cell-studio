@@ -36,6 +36,13 @@ const draw = ({ mode, norm, signal, pieces }) => {
     return stops[i].map((v, k) => Math.round(v + (stops[i + 1][k] - v) * f));
   };
   const lp = Math.log2;
+  // (a duration in words: 1/8, 3 s, 2 min, 4 h)
+  const span = (p) => (p < 1 ? `1/${Math.round(1 / p)}` : p < 120 ? `${+p.toFixed(1)} s` : p < 7200 ? `${+(p / 60).toFixed(1)} min` : `${+(p / 3600).toFixed(1)} h`);
+  // (the piece's sections, `sections`: a line down a panel at each, white, faint)
+  const marks = (g, d, x0, top, w, h) => {
+    g.fillStyle = 'rgba(255,255,255,0.55)';
+    for (const s of d.sections ?? []) if (s.at > 0 && s.at < d.window) g.fillRect(x0 + (s.at / d.window) * w, top, 1, h);
+  };
   // (the y of a period in a panel at `top`, `h` high: fast at the top)
   const yOf = (P, top, h, p) => top + ((lp(p) - lp(P[0])) / (lp(P[P.length - 1]) - lp(P[0]))) * h;
   const heat = (g, d, rows, x0, top, w, h) => {
@@ -98,7 +105,7 @@ const draw = ({ mode, norm, signal, pieces }) => {
     g.font = '11px sans-serif';
     g.fillStyle = '#aaa';
     g.fillText(
-      `${signal}, ${norm === 'row' ? 'each period against its mean' : 'against the loudest'}; ticks: the cells' steps (blue) and turns (grey); 1/16 s at the top, 48 s at the bottom, 1 s marked`,
+      `${signal}, ${norm === 'row' ? 'each period against its mean' : 'against the loudest'}; ticks: the cells' steps (blue) and turns (grey), 1 s; fast at the top; white lines: the piece's sections; one length of each piece`,
       10,
       16,
     );
@@ -106,8 +113,9 @@ const draw = ({ mode, norm, signal, pieces }) => {
       const x0 = 10 + (i % COLS) * (TW + 30) + 18;
       const top = 30 + Math.floor(i / COLS) * (TH + PAD) + 14;
       heat(g, d, d.signals[signal].rows, x0, top, TW, TH);
+      marks(g, d, x0, top, TW, TH);
       g.fillStyle = '#ddd';
-      g.fillText(`${d.key} (${Math.round(d.window)} s)`, x0, top - 3);
+      g.fillText(`${d.key} (${span(d.window)})`, x0, top - 3);
       const P = d.periods;
       for (const c of d.cells)
         for (const [p, colour] of [
@@ -132,21 +140,28 @@ const draw = ({ mode, norm, signal, pieces }) => {
   const g = canvas(60 + W + 330, 40 + names.length * (H + 18) + NOTES + 30);
   g.font = '12px sans-serif';
   g.fillStyle = '#ddd';
-  g.fillText(`${d.key}: ${Math.round(d.window)} s, ${d.events.length} notes; ${norm === 'row' ? 'each period against its mean over time' : 'against the panel’s loudest'}`, 60, 20);
+  g.fillText(
+    `${d.key}: ${span(d.window)}, ${d.notes ?? d.events.length} notes; ${norm === 'row' ? 'each period against its mean over time' : 'against the panel’s loudest'}`,
+    60,
+    20,
+  );
   const P = d.periods;
   names.forEach((name, n) => {
     const top = 34 + n * (H + 18);
     const { rows, mean } = d.signals[name];
     heat(g, d, rows, 60, top, W, H);
+    marks(g, d, 60, top, W, H);
     g.fillStyle = '#ddd';
     g.font = '12px sans-serif';
     g.fillText(name, 4, top + 9);
     g.fillStyle = '#888';
     g.font = '10px sans-serif';
-    for (const p of [1 / 16, 1 / 8, 1 / 4, 1 / 2, 1, 2, 4, 8, 16, 32]) {
+    // (a tick an octave, labelled every other one when there are many)
+    const octaves = [];
+    for (let p = Math.pow(2, Math.ceil(lp(P[0]))); p <= P[P.length - 1]; p *= 2) octaves.push(p);
+    for (const [k, p] of octaves.entries()) {
       const y = yOf(P, top, H, p);
-      if (y < top || y > top + H) continue;
-      g.fillText(p < 1 ? `1/${1 / p}` : `${p} s`, 26, y + 3);
+      if (octaves.length <= 11 || k % 2 === 0) g.fillText(span(p), 2, y + 3);
       g.fillRect(56, y, 4, 1);
     }
     // (the global spectrum, 30 dB across)
@@ -193,7 +208,19 @@ const draw = ({ mode, norm, signal, pieces }) => {
   }
   g.fillStyle = '#888';
   g.font = '10px sans-serif';
-  for (let s = 0; s <= d.window; s += 30) g.fillText(`${s}`, 60 + (s / d.window) * W - 6, top + NOTES + 14);
+  // (the time axis: about ten marks, at a round step)
+  const every = [1, 2, 5, 10, 15, 30, 60, 120, 300, 600, 900, 1800, 3600, 7200].find((x) => d.window / x <= 12) ?? 14400;
+  for (let s = 0; s <= d.window; s += every) g.fillText(s ? span(s) : '0', 60 + (s / d.window) * W - 6, top + NOTES + 14);
+  // (the sections' names, those that fit)
+  let free = 0;
+  for (const sec of d.sections ?? []) {
+    const x = 60 + (sec.at / d.window) * W + 2;
+    if (x < free) continue;
+    g.fillStyle = '#bbb';
+    g.fillText(sec.label.slice(0, 14), x, top - 2);
+    free = x + g.measureText(sec.label.slice(0, 14)).width + 6;
+  }
+  g.fillStyle = '#888';
   g.fillText('notes', 4, top + 12);
   return [g.canvas.width, g.canvas.height];
 };
