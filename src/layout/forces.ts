@@ -7,6 +7,7 @@
  */
 import { segmentsCross, splinePoint } from './geometry';
 import { nodeAt, type LayoutState, type PhysNode } from './state';
+import { crossingCost } from './weights';
 
 type Seg = { a: { x?: number; y?: number; id: string }; b: { x?: number; y?: number; id: string } };
 
@@ -24,31 +25,33 @@ export function crossingPairs<S extends Seg>(segs: readonly S[]): [S, S][] {
 }
 
 /**
- * A force that resists crossings: for every two edges that cross, push them
- * apart along the line between their midpoints (each end gets half).
+ * A force that resists crossings: for every two edges that cross, push them apart along the line between their
+ * midpoints (each end gets half, moving as little as it weighs: a turntable holds), as hard as the crossing costs
+ * (weights.ts: crossingCost): two clocks' nets or two sound wires harder than a label's link and a melody.
  */
 export function forceUncross(strengthOf: () => number, body: (n: PhysNode) => PhysNode | undefined = (n) => n) {
-  let links: { source: PhysNode; target: PhysNode }[] = [];
+  let links: { source: PhysNode; target: PhysNode; w?: number; kind?: string }[] = [];
   const force = (alpha: number) => {
     const strength = strengthOf();
     if (strength <= 0) return;
-    const segs = links.map((l) => ({ a: l.source, b: l.target }));
+    const segs = links.map((l) => ({ a: l.source, b: l.target, w: l.w ?? 1, kind: l.kind }));
     for (const [p, q] of crossingPairs(segs)) {
+      const cost = crossingCost(p, q);
       const mx = ((p.a.x ?? 0) + (p.b.x ?? 0)) / 2 - ((q.a.x ?? 0) + (q.b.x ?? 0)) / 2;
       const my = ((p.a.y ?? 0) + (p.b.y ?? 0)) / 2 - ((q.a.y ?? 0) + (q.b.y ?? 0)) / 2;
       const len = Math.hypot(mx, my) || 1;
-      const k = (strength * alpha * 30) / len;
+      const k = (strength * cost * alpha * 30) / len;
       for (const end of [p.a, p.b]) {
         const n = body(end);
         if (!n) continue;
-        n.vx = (n.vx ?? 0) + mx * k * 0.5;
-        n.vy = (n.vy ?? 0) + my * k * 0.5;
+        n.vx = (n.vx ?? 0) + (mx * k * 0.5) / Math.max(n.mass ?? 1, 0.1);
+        n.vy = (n.vy ?? 0) + (my * k * 0.5) / Math.max(n.mass ?? 1, 0.1);
       }
       for (const end of [q.a, q.b]) {
         const n = body(end);
         if (!n) continue;
-        n.vx = (n.vx ?? 0) - mx * k * 0.5;
-        n.vy = (n.vy ?? 0) - my * k * 0.5;
+        n.vx = (n.vx ?? 0) - (mx * k * 0.5) / Math.max(n.mass ?? 1, 0.1);
+        n.vy = (n.vy ?? 0) - (my * k * 0.5) / Math.max(n.mass ?? 1, 0.1);
       }
     }
   };

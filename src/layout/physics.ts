@@ -272,11 +272,11 @@ export class ForceLayout {
     const placedIds = (id: string) => next.has(id) || this.s.junctions.has(id);
     this.s.links = drawn.edges
       .filter((e) => !ground(e) && placedIds(e.source) && placedIds(e.target) && e.source !== e.target)
-      .map((e) => ({ id: e.id, source: e.source, target: e.target, belt: !!e.belt, strength: strengthOf(e), is: e.port === 'is' }));
+      .map((e) => ({ id: e.id, source: e.source, target: e.target, belt: !!e.belt, strength: strengthOf(e), kind: e.band, is: e.port === 'is' }));
     placeJunctions(this.s);
     // crossings untangled as drawn: a product's wires at its junction (a push on a junction moves its voice)
     (this.sim.force('uncross') as unknown as ReturnType<typeof forceUncross>).links(
-      this.s.links.filter((l) => !l.is).map((l) => ({ source: nodeAt(this.s, l.source)!, target: nodeAt(this.s, l.target)! })),
+      this.s.links.filter((l) => !l.is).map((l) => ({ source: nodeAt(this.s, l.source)!, target: nodeAt(this.s, l.target)!, w: l.strength ?? 1, kind: l.kind })),
     );
     for (const id of [...this.s.bendAt.keys()]) if (!this.s.links.some((l) => l.id === id)) this.s.bendAt.delete(id);
     if (structural) this.reheat(fresh ? 1 : added > 0 || removed > 0 ? 0.7 : 0.3); // a fresh graph settles from scratch, like a new layout
@@ -323,14 +323,16 @@ export class ForceLayout {
       ...this.s.links.map((l) => {
         const h = joins.get(l.id);
         return h
-          ? { a: h.from, b: h.to, mid: undefined, weight: l.strength }
-          : { a: l.source, b: l.target, mid: this.s.bendAt.get(l.id) as { x: number; y: number } | undefined, runs: this.beltRuns(l), weight: l.strength };
+          ? { a: h.from, b: h.to, mid: undefined, weight: l.strength, kind: l.kind }
+          : { a: l.source, b: l.target, mid: this.s.bendAt.get(l.id) as { x: number; y: number } | undefined, runs: this.beltRuns(l), weight: l.strength, kind: l.kind };
       }),
       // (a meter's net: straight traces)
       // (a tap's, from its bulb: crossing another tap's counts, though both leave the same wheel)
       ...this.s.net.map((t) => {
         const o = t.at && this.s.byId.get(t.a);
-        return o ? { a: `${t.a}@${t.bulb}`, b: t.b, from: { x: (o.x ?? 0) + t.at!.x, y: (o.y ?? 0) + t.at!.y }, weight: 2 } : { a: t.a, b: t.b, mid: undefined, weight: 2 };
+        return o
+          ? { a: `${t.a}@${t.bulb}`, b: t.b, from: { x: (o.x ?? 0) + t.at!.x, y: (o.y ?? 0) + t.at!.y }, weight: 2, kind: 'sync' }
+          : { a: t.a, b: t.b, mid: undefined, weight: 2, kind: 'sync' };
       }),
     ];
     return { nodes, edges };

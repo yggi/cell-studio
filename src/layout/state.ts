@@ -71,6 +71,8 @@ interface DrawnLink {
   target: string;
   belt?: boolean;
   strength?: number;
+  /** Its band (values, sound, time): what kind of crossing it makes (weights.ts: crossingCost). */
+  kind?: string;
   /** A product's voice into its junction (`is`): drawn, but no wire to untangle (it is under the voice). */
   is?: boolean;
 }

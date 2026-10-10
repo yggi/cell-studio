@@ -6,7 +6,7 @@ import { DEFAULT_LAYOUT } from './options';
 import { columns, flowRanks } from './start';
 import { crossingPairs } from './forces';
 import { tapeFaces } from './aims';
-import { fitTurn, headAngle, tapeHeads } from './tape';
+import { fitTurn, headAngle, headBulbs, tapeHeads } from './tape';
 import { groundsOf } from './meters';
 import { splinePoint } from './geometry';
 import { buildGraph } from '../engine/graph';
@@ -503,13 +503,32 @@ describe('tapes: the heads keep their spacing, the wheel turns to face them at w
       const l = new ForceLayout(undefined, { live: false });
       l.setGraph(model);
       l.tick(500);
+      // (the write head, and a read head that is a node of its own, faces it; decision 021)
+      const bulbed = new Set(model.edges.flatMap((e) => (e.bulb && e.bulbAt ? [e.to] : [])));
       for (const f of faces) {
+        if (!f.write && bulbed.has(f.to)) continue;
         const turn = (l.tapeTurn(f.tape)! * Math.PI) / 180;
         const t = l.position(f.tape)!;
         const c = l.position(f.to)!;
         const d = Math.atan2(c.y - t.y, c.x - t.x) - (turn + f.offset);
         expect(Math.abs(Math.atan2(Math.sin(d), Math.cos(d))) * (180 / Math.PI), `${f.to}${f.write ? ' (written)' : ''}`).toBeLessThan(30);
       }
+      // (a read head drawn as a bulb on its tape plays into what it can't always face — several heads into one mix —
+      // but what it plays into is seldom across its own tape: at most one such edge; tools/probe/tape-aims.test.ts)
+      let over = 0;
+      const side = new Set(model.nodes.filter(isSide).map((n) => n.id));
+      for (const e of model.edges) {
+        // (an edge into the margin, a scope watching a head, is drawn as a mark, not across the graph: side.ts)
+        if (!e.bulb || !e.bulbAt || !faces.some((f) => f.tape === e.from) || side.has(e.to)) continue;
+        const t = l.position(e.from)!;
+        const by = ((l.tapeTurn(e.from)! + 90) * Math.PI) / 180;
+        const a = { x: t.x + e.bulbAt.x * Math.cos(by) - e.bulbAt.y * Math.sin(by), y: t.y + e.bulbAt.x * Math.sin(by) + e.bulbAt.y * Math.cos(by) };
+        const b = l.position(e.to)!;
+        const [dx, dy] = [b.x - a.x, b.y - a.y];
+        const k = Math.max(0, Math.min(1, ((t.x - a.x) * dx + (t.y - a.y) * dy) / (dx * dx + dy * dy || 1)));
+        if (Math.hypot(a.x + dx * k - t.x, a.y + dy * k - t.y) < 70 * 0.9) over++;
+      }
+      expect(over).toBeLessThanOrEqual(1);
       l.destroy();
     });
   }
@@ -524,6 +543,24 @@ describe('tapes: the heads keep their spacing, the wheel turns to face them at w
     expect(l.tapeTurn('cell:tape')).toBeCloseTo(before, 1); // (to a tenth of a degree: the last tick fitted it just before its own step)
     expect(l.quality().aim).toBe(aim);
     l.destroy();
+  });
+  it('a read head’s bulb is no bigger than a quarter of the radius, and none touches the write head or another (decision 021)', () => {
+    const cells = (...ats: number[]) => ats.map((at, i) => ({ name: `h${i}`, params: { play: 't', at } }));
+    const tape = { name: 't', params: { write: 'm', length: 6 } };
+    // (a small tape: a quarter of its radius, not 9 px)
+    for (const b of headBulbs(tape, cells(1, 3), 35)) expect(b.r).toBeLessThanOrEqual(35 / 8 + 1e-9);
+    // (forty heads round a tape: those kept are a bulb's width apart, the write head too)
+    const many = headBulbs(tape, cells(...Array.from({ length: 40 }, (_, i) => (i * 6) / 40)), 140);
+    expect(many.length).toBeGreaterThan(5);
+    expect(many.length).toBeLessThan(40);
+    const offs = [0, ...many.map((b) => b.offset)];
+    for (let i = 0; i < offs.length; i++)
+      for (let j = i + 1; j < offs.length; j++) {
+        const a = ((offs[i] - 90) * Math.PI) / 180;
+        const b = ((offs[j] - 90) * Math.PI) / 180;
+        const d = many[0].dist;
+        expect(Math.hypot(Math.cos(a) * d - Math.cos(b) * d, Math.sin(a) * d - Math.sin(b) * d)).toBeGreaterThanOrEqual(2 * many[0].r);
+      }
   });
   it('a read head sits by how far along the tape it reads: clockwise from the write head, wherever that is', () => {
     expect(tapeHeads({ name: 't', params: { length: 4 } }, [{ name: 'h', params: { play: 't', at: 1 } }])).toEqual({ heads: [{ name: 'h', at: 1 }], length: 4 });
