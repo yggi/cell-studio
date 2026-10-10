@@ -124,7 +124,8 @@ export class Learn {
 
   /** The knobs learned for the open piece, by place. */
   get bindings(): Readonly<Record<string, Knob>> {
-    return this.#kept.pieces[this.#key()] ?? {};
+    const key = this.#key();
+    return Object.hasOwn(this.#kept.pieces, key) ? this.#kept.pieces[key] : {};
   }
 
   /** Whether a slider moved by hand sends its knob's CC back (a motor fader, an LED ring follows). Off unless asked for. */
@@ -304,7 +305,7 @@ export class Learn {
     const s = this.#scope();
     const { pieces } = this.#kept;
     const renamed = s.opened === this.#home.opened && s.title !== this.#home.title;
-    return renamed && pieces[this.#home.title] && !pieces[s.title] ? this.#home.title : s.title;
+    return renamed && Object.hasOwn(pieces, this.#home.title) && !Object.hasOwn(pieces, s.title) ? this.#home.title : s.title;
   }
 
   #later: (run: () => void) => () => void;
@@ -321,14 +322,14 @@ export class Learn {
     const s = this.#scope();
     if (s.opened !== this.#home.opened) this.#home = s;
     if (s.title === this.#home.title) return;
-    if (!this.#kept.pieces[this.#home.title]) {
+    if (!Object.hasOwn(this.#kept.pieces, this.#home.title)) {
       this.#home = s;
       return;
     }
     this.#waiting = this.#later(() => {
       this.#waiting = null;
       const { [this.#home.title]: mine, ...others } = this.#kept.pieces;
-      if (mine && !others[s.title] && sameScope(this.#scope(), s)) this.#save({ ...this.#kept, pieces: { ...others, [s.title]: mine } });
+      if (mine && !Object.hasOwn(others, s.title) && sameScope(this.#scope(), s)) this.#save({ ...this.#kept, pieces: { ...others, [s.title]: mine } });
       this.#home = s;
     });
   }

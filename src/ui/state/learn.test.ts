@@ -137,6 +137,17 @@ describe('Learn: binding a knob', () => {
     expect(made(SONG.replace('Song', 'Songs')).learn.bindings).toEqual({ 'bar/step': knob });
     expect(made().learn.bindings).toEqual({});
   });
+  it("follows a title that is also a property of every object ('toString'), and one with no bindings reads none", () => {
+    const { piece, learn, play, rest } = made();
+    learn.learn('bar/step');
+    play(0xb0, 7, 20);
+    piece.code = SONG.replace('Song', 'toString');
+    learn.titleChanged();
+    rest();
+    expect(Object.keys(JSON.parse(store.get('cell-studio:midi-learn')!).pieces)).toEqual(['toString']);
+    expect(learn.bindings).toEqual({ 'bar/step': { kind: 'cc', channel: 0, number: 7 } });
+    expect(made(SONG.replace('Song', 'constructor')).learn.bindings).toEqual({});
+  });
   it('learns on under the old title while a rename waits, and carries both', () => {
     const { piece, learn, play, rest } = made();
     learn.learn('bar/step');
