@@ -29,11 +29,11 @@
   "kalimba": {"cells":8,"crossings":0,"cost":0,"width":1119.3,"height":769,"edge":234,"overlap":0,"clusters":0,"intruders":0,"aim":0,"start":0},
   "sympathy": {"cells":13,"crossings":0,"cost":0,"width":806.7,"height":1094,"edge":225.3,"overlap":0,"clusters":0,"intruders":0,"aim":0,"start":0},
   "harmonograph": {"cells":12,"crossings":0,"cost":0,"width":935,"height":949,"edge":268.3,"overlap":0,"clusters":0,"intruders":0,"aim":0,"start":0},
-  "echotape": {"cells":16,"crossings":0.7,"cost":1,"width":1174,"height":1166.3,"edge":307,"overlap":0,"clusters":0,"intruders":0,"aim":6,"start":0},
-  "worn": {"cells":13,"crossings":0,"cost":0,"width":851,"height":1291.3,"edge":277,"overlap":0,"clusters":0,"intruders":0,"aim":11,"start":1},
+  "echotape": {"cells":13,"crossings":0.3,"cost":0.3,"width":1045.3,"height":1018,"edge":276.3,"overlap":0,"clusters":0,"intruders":0,"aim":15.7,"start":0},
+  "worn": {"cells":11,"crossings":0,"cost":0,"width":814,"height":1222,"edge":268,"overlap":0,"clusters":0,"intruders":0,"aim":47,"start":0},
   "dtmf": {"cells":7,"crossings":0,"cost":0,"width":792,"height":943,"edge":298,"overlap":0,"clusters":0,"intruders":0,"aim":0,"start":0},
   "daytime": {"cells":16,"crossings":0,"cost":0,"width":1056,"height":1058,"edge":237,"overlap":0,"clusters":0,"intruders":0,"aim":0,"start":0},
-  "gate": {"cells":13,"crossings":0,"cost":0,"width":1352,"height":1024.7,"edge":250,"overlap":0,"clusters":0,"intruders":0,"aim":0,"start":0},
+  "gate": {"cells":20,"crossings":0,"cost":0,"width":1278,"height":1272.3,"edge":260.3,"overlap":0,"clusters":0,"intruders":0,"aim":0,"start":0},
   "play-in": {"cells":10,"crossings":0,"cost":0,"width":925.7,"height":909.7,"edge":227.3,"overlap":0,"clusters":0,"intruders":0,"aim":0,"start":0},
   "midi-out": {"cells":15,"crossings":0,"cost":0,"width":1017.3,"height":831,"edge":287.3,"overlap":0,"clusters":0,"intruders":0,"aim":0,"start":0},
   "lullaby": {"cells":10,"crossings":0,"cost":0,"width":840.7,"height":914.3,"edge":212.7,"overlap":0,"clusters":0,"intruders":0,"aim":0,"start":0},
@@ -69,9 +69,9 @@
   "tines": {"cells":20,"crossings":0.3,"cost":0.3,"width":1519.7,"height":1150.7,"edge":306.7,"overlap":0,"clusters":0,"intruders":0,"aim":0,"start":0},
   "phase": {"cells":15,"crossings":0,"cost":0,"width":1211.3,"height":1075.7,"edge":267.7,"overlap":0,"clusters":0,"intruders":0,"aim":0,"start":0},
   "tape": {"cells":15,"crossings":0,"cost":0,"width":1054.7,"height":900.3,"edge":224.7,"overlap":0,"clusters":0,"intruders":0,"aim":0,"start":0},
-  "soundtape": {"cells":17,"crossings":0,"cost":0,"width":960.7,"height":1375.7,"edge":306.7,"overlap":0,"clusters":0,"intruders":0,"aim":9.7,"start":2.3},
-  "testtones": {"cells":25,"crossings":0.3,"cost":0.7,"width":1377,"height":1533,"edge":317.7,"overlap":0,"clusters":0,"intruders":0,"aim":9,"start":5},
+  "soundtape": {"cells":14,"crossings":0,"cost":0,"width":1043,"height":970.3,"edge":285,"overlap":0,"clusters":0,"intruders":0,"aim":50,"start":1.7},
+  "testtones": {"cells":22,"crossings":1,"cost":3,"width":1319,"height":1472,"edge":336.7,"overlap":0,"clusters":0,"intruders":0,"aim":66,"start":4},
   "forks": {"cells":9,"crossings":0,"cost":0,"width":757,"height":954.7,"edge":243.7,"overlap":0,"clusters":0,"intruders":0,"aim":0,"start":0},
-  "resonanz": {"cells":22,"crossings":0,"cost":0,"width":1097,"height":1307,"edge":272,"overlap":0,"clusters":0,"intruders":0,"aim":9,"start":5.3},
-  "fiveto12": {"cells":16,"crossings":0.7,"cost":1.7,"width":1040.7,"height":1386.7,"edge":353.7,"overlap":0,"clusters":0,"intruders":0,"aim":6.7,"start":0}
+  "resonanz": {"cells":20,"crossings":0,"cost":0,"width":1095.7,"height":1318.7,"edge":277.7,"overlap":0,"clusters":0,"intruders":0,"aim":33.7,"start":4},
+  "fiveto12": {"cells":14,"crossings":1.3,"cost":2.7,"width":1373,"height":1153.7,"edge":393.3,"overlap":0,"clusters":0,"intruders":0,"aim":44,"start":0}
 }

@@ -383,6 +383,8 @@ export function hubLabel(result: CompileResult, name: string, shifts: Shifts, is
     if (mode) return { big: mode, small: `on ${tonic}` };
     return { big: String(es.length), small: `of ${period(result, name)}` };
   }
+  // a table of taps (decision 016): its taps are the paths the selector reading it switches between
+  if (fanOf(result, name)) return { big: String(c.steps), small: c.steps === 1 ? 'path' : 'paths' };
   return { big: String(c.steps), small: c.steps === 1 ? 'step' : 'steps' };
 }
 

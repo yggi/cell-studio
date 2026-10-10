@@ -119,6 +119,7 @@ const mid = (a: P, b: P): P => [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
 const TAU = Math.PI * 2;
 /** A point on a circle, `a` turns clockwise from 12 o'clock. */
 const onCircle = (c: P, r: number, a: number): P => [c[0] + r * Math.sin(a * TAU), c[1] - r * Math.cos(a * TAU)];
+const mod = (x: number, n: number) => ((x % n) + n) % n;
 /** Where a point is round a centre, in turns clockwise from 12 o'clock. */
 const angleOf = (c: P, p: P) => Math.atan2(p[0] - c[0], -(p[1] - c[1])) / TAU;
 
@@ -397,28 +398,40 @@ function band(pts: readonly { p: P; tan: P; w: number }[], j: number, n: number,
   return 'M' + [...outer, ...inner.reverse()].map((q) => `${f(q[0])} ${f(q[1])}`).join(' L') + ' Z';
 }
 
-/** A smooth line through points (Catmull-Rom, as cubics). */
-function smooth(pts: readonly P[]): string {
-  let d = `M${f(pts[0][0])} ${f(pts[0][1])}`;
-  for (let i = 0; i < pts.length - 1; i++) {
-    const [p0, p1, p2, p3] = [pts[Math.max(0, i - 1)], pts[i], pts[i + 1], pts[Math.min(pts.length - 1, i + 2)]];
-    const c1 = [p1[0] + (p2[0] - p0[0]) / 6, p1[1] + (p2[1] - p0[1]) / 6];
-    const c2 = [p2[0] - (p3[0] - p1[0]) / 6, p2[1] - (p3[1] - p1[1]) / 6];
-    d += ` C${f(c1[0])} ${f(c1[1])} ${f(c2[0])} ${f(c2[1])} ${f(p2[0])} ${f(p2[1])}`;
-  }
-  return d;
-}
+/** The smallest inside (its radius, px) the cursor goes round; a smaller bulb bends it at its hub. */
+const ARC = 12;
 
 /**
- * The cursor, at a time in a bulb: a line bent from the hub (at rFrom, facing the time) out through each bulb's neck
- * and hub to the step playing now, and that point. Null on the ring itself (the plain hand is drawn there).
+ * The cursor, at a time in a bulb: the plain hand, jointed. Out from the hub's edge (at rFrom) towards the bulb, round
+ * the inside of its ribbon (`inset` in from it) from where it came in, clockwise as its time runs, and across the
+ * step playing now as the plain hand crosses the ring, out to the bulb's disc; a bulb in a bulb the same, from its
+ * parent's inside. So neither end hangs loose, and the bulbs' names at their hubs stay clear (but in a bulb too small for an arc, under ARC px inside, the hand is an elbow through its hub). Null on the ring itself
+ * (the plain hand is drawn there).
  */
-export function cursorOf(cx: number, cy: number, rFrom: number, track: Track, t: number): { d: string; head: P } | null {
+export function cursorOf(cx: number, cy: number, rFrom: number, track: Track, t: number, inset = 3): string | null {
   const at = tauOf(track, t);
   if (!at.chain.length) return null;
   const head = trackAt(track, at.tau).p;
-  const pts: P[] = [onCircle([cx, cy], rFrom, t), ...at.chain.flatMap((L) => [L.neck, L.C]), head];
-  return { d: smooth(pts), head };
+  const centre: P = [cx, cy];
+  const start = onCircle(centre, rFrom, angleOf(centre, at.chain[0].C));
+  let d = `M${f(start[0])} ${f(start[1])}`;
+  let from = centre;
+  at.chain.forEach((L, i) => {
+    const r = Math.max(1, L.rho - L.w / 2 - inset);
+    const next = at.chain[i + 1];
+    const [a0, a1] = [angleOf(L.C, from), angleOf(L.C, next ? next.C : head)];
+    const sweep = mod(a1 - a0, 1);
+    const [p0, p1] = [onCircle(L.C, r, a0), onCircle(L.C, r, a1)];
+    // (a bulb too small to go round inside, its name overflowing it anyway: an elbow at its hub, two straight lines)
+    if (r < ARC) d += ` L${f(L.C[0])} ${f(L.C[1])}`;
+    else d += ` L${f(p0[0])} ${f(p0[1])} A${f(r)} ${f(r)} 0 ${sweep > 0.5 ? 1 : 0} 1 ${f(p1[0])} ${f(p1[1])}`;
+    if (!next) {
+      const out = onCircle(L.C, L.rho + L.w / 2 + 2, a1);
+      d += ` L${f(out[0])} ${f(out[1])}`;
+    }
+    from = L.C;
+  });
+  return d;
 }
 
 /**

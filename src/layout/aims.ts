@@ -1,6 +1,7 @@
 /**
  * A tape's heads in the forces: each tape turns to face its heads towards what they connect to (its write source, its
- * read heads' cells), and those turn round it towards their heads (layout/tape.ts draws the heads).
+ * read heads' cells, or what a read head drawn as a bulb on it plays into), and those turn round it towards their
+ * heads (layout/tape.ts draws the heads).
  */
 import type { GraphModel } from '../engine/graph';
 import type { Aim } from './quality';
@@ -31,6 +32,11 @@ export function tapeFaces(model: GraphModel): TapeFace[] {
       const n = byName.get(h.name);
       if (n) faces.push({ tape: tape.id, to: n.id, offset: (headOffset(h.at, length) * Math.PI) / 180, write: false });
     }
+    // a read head drawn as a bulb on the tape (decision 021): what it plays into, each towards the bulb, where the
+    // graph put it on the tape unturned
+    for (const e of model.edges)
+      if (e.bulb && e.bulbAt && e.from === tape.id && e.to !== tape.id)
+        faces.push({ tape: tape.id, to: e.to, offset: Math.atan2(e.bulbAt.y, e.bulbAt.x) - (UNTURNED * Math.PI) / 180, write: false });
   }
   return faces;
 }
