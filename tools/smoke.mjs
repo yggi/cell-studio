@@ -16,6 +16,7 @@
 // tempo (a held free()) moved and Pause and Play again within the look-ahead (twice, the second at once), with no All notes off from either
 // cutting what plays, and no note left sounding. The MIDI clock (#206) is on: its ticks before the tempo moved are
 // checked against the meter's (2 ms, as the notes), and Start, Stop, Song Position and Continue in order, no tick while stopped.
+// Then MIDI in (#207): keys from a fake input (`window.midiIn(bytes)`) sound the armed voice and let it go, thru echoes them.
 //
 // Chromium: Playwright's, or CHROME_PATH=/path/to/chrome (CI uses the runner's Chrome). See tools/profile/playwright.mjs.
 import { preview, runnerImport } from 'vite';
@@ -286,6 +287,89 @@ const MIDI_PIECE = 'sailor';
   const ok = problems.length === 0;
   console.log(`${ok ? 'ok  ' : 'FAIL'} MIDI out: ${MIDI_PIECE} into a fake port${ok ? `: ${note}` : '\n       ' + [...new Set(problems)].slice(0, 3).join('\n       ')}`);
   if (!ok) failed.push('MIDI out');
+}
+// MIDI in (#207): a fake input, played with `window.midiIn(bytes)` on a stopped piece. A key sounds the armed voice (the
+// first cell that plays: sailor's &tune, on &fiddle) and takes the transport to paused; its note-off lets it go; thru
+// echoes both. Made-to-analysed time of a live note (the second: the first wakes the sound engine), and the output's
+// own latency, reported.
+{
+  problems = [];
+  const mp = await browser.newPage({ viewport: { width: 1280, height: 800 } });
+  mp.setDefaultTimeout(8000);
+  mp.on('pageerror', (e) => problems.push(`page error: ${e.message}`));
+  mp.on('console', (m) => m.type() === 'error' && problems.push(`console error: ${m.text()}`));
+  await mp.addInitScript(() => {
+    const sent = (window.__midi = []);
+    const out = { id: 'fake-out', name: 'Fake synth', send: (data) => sent.push([...data]) };
+    const input = { id: 'fake-in', name: 'Fake keys', onmidimessage: null };
+    window.midiIn = (bytes) => input.onmidimessage?.({ data: new Uint8Array(bytes), timeStamp: performance.now() });
+    navigator.requestMIDIAccess = () => Promise.resolve({ inputs: new Map([['fake-in', input]]), outputs: new Map([['fake-out', out]]), onstatechange: null });
+    localStorage.setItem('cell-studio:midi', JSON.stringify({ out: { id: 'fake-out', name: 'Fake synth' }, in: { id: 'fake-in', name: 'Fake keys' } }));
+    localStorage.setItem('cell-studio:keys', JSON.stringify({ thru: true, thruChannel: 2 }));
+    window.__ctx = [];
+    const A = window.AudioContext;
+    window.AudioContext = class extends A {
+      constructor(...a) {
+        super(...a);
+        window.__ctx.push(this);
+      }
+    };
+  });
+  let note = '';
+  try {
+    await mp.goto(url);
+    await mp.getByRole('radio', { name: 'Cards' }).click();
+    await mp.locator(`button.open[data-id="example:${MIDI_PIECE}"]`).dispatchEvent('click');
+    await mp.waitForTimeout(500);
+    // a key, until the voice is heard (or 3 s), then how long that took: polled about every millisecond
+    const sound = (bytes) =>
+      mp.evaluate(
+        (bytes) =>
+          new Promise((done) => {
+            const t0 = performance.now();
+            window.midiIn(bytes);
+            const look = () => {
+              const level = window.cellStudio.level('fiddle') ?? 0;
+              if (level > 0.01) return done({ ms: performance.now() - t0, level });
+              if (performance.now() - t0 > 3000) return done({ ms: null, level });
+              setTimeout(look, 1);
+            };
+            look();
+          }),
+        bytes,
+      );
+    const first = await sound([0x90, 60, 100]);
+    if (first.ms === null) problems.push('a key on an armed voice did not sound');
+    await mp.evaluate(() => window.midiIn([0x80, 60, 0]));
+    await mp.waitForTimeout(800);
+    const after = await mp.evaluate(() => window.cellStudio.level('fiddle') ?? 0);
+    if (after > 0.001) problems.push(`still sounding ${after.toFixed(4)} after the note-off`);
+    // again, the engine awake: a live note's latency
+    const lat = [];
+    for (let i = 0; i < 5; i++) {
+      const r = await sound([0x90, 62 + i, 100]);
+      if (r.ms !== null) lat.push(r.ms);
+      await mp.evaluate((n) => window.midiIn([0x80, n, 0]), 62 + i);
+      await mp.waitForTimeout(600);
+    }
+    if (lat.length < 5) problems.push(`${5 - lat.length} of 5 keys did not sound`);
+    const audio = await mp.evaluate(() => {
+      const c = window.__ctx.find((x) => x.state === 'running');
+      return c ? { baseLatency: c.baseLatency, outputLatency: c.outputLatency } : null;
+    });
+    const sent = await mp.evaluate(() => window.__midi);
+    const thru = sent.filter((m) => m[0] === 0x91 || m[0] === 0x81);
+    if (!thru.some((m) => m[0] === 0x91 && m[1] === 60 && m[2] === 100) || !thru.some((m) => m[0] === 0x81 && m[1] === 60))
+      problems.push(`thru did not echo the key on channel 2: ${JSON.stringify(thru.slice(0, 4))}`);
+    const med = [...lat].sort((a, b) => a - b)[Math.floor(lat.length / 2)] ?? NaN;
+    note = `a key sounds &fiddle (first, waking the engine: ${first.ms?.toFixed(0)} ms), its note-off lets it go; made-to-analysed ${med.toFixed(1)} ms median of ${lat.map((x) => x.toFixed(1)).join(', ')}${audio ? ` + the output's ${(1000 * ((audio.baseLatency ?? 0) + (audio.outputLatency ?? 0))).toFixed(1)} ms` : ''}; thru echoed on channel 2`;
+  } catch (e) {
+    problems.push(String(e.message).split('\n')[0]);
+  }
+  await mp.close();
+  const ok = problems.length === 0;
+  console.log(`${ok ? 'ok  ' : 'FAIL'} MIDI in: keys on ${MIDI_PIECE}${ok ? `: ${note}` : '\n       ' + [...new Set(problems)].slice(0, 3).join('\n       ')}`);
+  if (!ok) failed.push('MIDI in');
 }
 await browser.close();
 await server.close();

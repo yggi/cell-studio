@@ -3,10 +3,11 @@
    * MIDI on this device: connect, the output and the input chosen, and All notes off. A port chosen before that isn't
    * plugged in shows as "Not connected". With an output, how the piece goes out (#205): the built-in sound on or off,
    * each voice's channel, the kit's members with the notes they send (a device's drum map, from a preset), the bend
-   * range and the rotation of notes over channels; whether it is sent MIDI clock (#206). The pattern is Jambot's SoundPanel (yggi/jambot apps/web/src/components/SoundPanel.svelte @ 8cdb6b8).
+   * range and the rotation of notes over channels; whether it is sent MIDI clock (#206). The keys (#207): which cell they play, the computer keys, thru. The pattern is Jambot's SoundPanel (yggi/jambot apps/web/src/components/SoundPanel.svelte @ 8cdb6b8).
    */
   import Dialog from './kit/Dialog.svelte';
   import LearnSettings from './LearnSettings.svelte';
+  import KeysSettings from './KeysSettings.svelte';
   import type { Midi } from './state/midi.svelte';
   import { DRUM_PRESETS, deviceNote, presetNameOf } from '../midi/drum-presets';
 
@@ -50,6 +51,7 @@
     </label>
     <LearnSettings />
   {/if}
+  <KeysSettings output={!!midi.access && midi.outPortId !== 'none'} />
   {#if midi.access && midi.outPortId !== 'none'}
     <div class="out">
       <label class="check"><input type="checkbox" checked={midi.internal} onchange={(e) => (midi.internal = e.currentTarget.checked)} /> Built-in sound too</label>

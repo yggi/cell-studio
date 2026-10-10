@@ -167,6 +167,22 @@ export class Learn {
     this.#gap(place, null);
   }
 
+  /**
+   * Whether a message is MIDI learn's, so the keys leave it alone (state/keys.svelte.ts): any control change or note-on
+   * while a control waits for a knob, else a knob learned in the open piece that moves its control (a CC bound, a pad
+   * within its control's choices). Asked after learn has heard it, so a knob bound by this very message is learn's.
+   */
+  claims(data: ArrayLike<number>): boolean {
+    const m = knobOf(data);
+    if (!m) return false;
+    if (this.learning !== null) return true;
+    const cells = this.#piece.program.cells;
+    return this.#bound({ kind: m.kind, channel: m.channel, number: m.number }).some(([place, bound]) => {
+      const f = freeAtPlace(cells, place);
+      return !!f && f.key !== 'text' && (m.kind === 'cc' || padValue(f, bound.number, m.number) !== null);
+    });
+  }
+
   #heard(data: ArrayLike<number>): void {
     const m = knobOf(data);
     if (!m) return;

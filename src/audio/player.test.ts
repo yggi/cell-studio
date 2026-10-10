@@ -141,3 +141,82 @@ describe('a hand on the timeline plays the notes it passes', () => {
     expect(played).toEqual([]);
   });
 });
+
+describe('keys: press and release, a hand on a voice (#207)', () => {
+  // (a voice bank that says what it was asked: its ids count from 100)
+  function keyed() {
+    const p = make();
+    const asked: string[] = [];
+    let bank = 99;
+    Object.assign(p as unknown as Record<string, unknown>, {
+      Tone: { getTransport: () => ({ stop: () => {}, clear: () => {} }), getContext: () => ({ currentTime: 0 }) },
+      voices: {
+        open: () => {},
+        press: (v: string, f: number, vel: number) => (asked.push(`press ${v} ${f} v${vel} → ${++bank}`), bank),
+        release: (id: number) => void asked.push(`release ${id}`),
+        dropGates: () => asked.push('dropGates'),
+        releaseAll: () => asked.push('releaseAll'),
+        clearTapes: () => {},
+      },
+    });
+    return { p, asked };
+  }
+  const settle = () => new Promise((r) => setTimeout(r, 0));
+  beforeEach(() => (transportClock.state = 'stopped'));
+  afterEach(() => (transportClock.state = 'stopped'));
+
+  it('a press takes a stopped transport to paused, as a strike does, and sounds; its release lets that note go', async () => {
+    const { p, asked } = keyed();
+    const id = p.press('lead', 440, 90);
+    expect(state()).toBe('paused');
+    await settle();
+    p.release(id);
+    expect(asked).toEqual(['press lead 440 v90 → 100', 'release 100']);
+  });
+  it('a release with no matching press is ignored, and so is a second one', async () => {
+    const { p, asked } = keyed();
+    p.release(7);
+    const id = p.press('lead', 440, 90);
+    await settle();
+    p.release(id);
+    p.release(id);
+    expect(asked).toEqual(['press lead 440 v90 → 100', 'release 100']);
+  });
+  it('let go before the sound engine woke: it sounds, then lets go at once (a quick tap is heard)', async () => {
+    const { p, asked } = keyed();
+    const id = p.press('lead', 440, 90);
+    p.release(id);
+    expect(asked).toEqual([]);
+    await settle();
+    expect(asked).toEqual(['press lead 440 v90 → 100', 'release 100']);
+  });
+  it('pause leaves a key held sounding (the bank drops only the plan’s gates); Stop cuts it, tells the keys, and its release is then ignored', async () => {
+    const { p, asked } = keyed();
+    const cut = vi.fn();
+    p.onKeysCut = cut;
+    const id = p.press('lead', 440, 90);
+    await settle();
+    transportClock.state = 'playing';
+    Object.assign(p as unknown as Record<string, unknown>, { repeatId: 1 });
+    p.pause();
+    expect(asked).toEqual(['press lead 440 v90 → 100', 'dropGates']);
+    p.stop();
+    expect(asked.slice(2)).toEqual(['releaseAll']);
+    expect(cut).toHaveBeenCalledOnce();
+    p.release(id);
+    expect(asked.slice(3)).toEqual([]);
+  });
+  it('pressed and cut by Stop before the engine woke: it never sounds', async () => {
+    const { p, asked } = keyed();
+    p.press('lead', 440, 90);
+    p.stop();
+    await settle();
+    expect(asked).toEqual(['releaseAll']);
+  });
+  it('while playing, a press leaves it playing', () => {
+    const { p } = keyed();
+    transportClock.state = 'playing';
+    p.press('lead', 440, 90);
+    expect(state()).toBe('playing');
+  });
+});

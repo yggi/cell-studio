@@ -71,6 +71,8 @@
       cursor={playback.cursor}
       opened={library.opened}
       focus={view.focus}
+      onsheet={(name) => (studio.keys.sheet = name)}
+      played={studio.keys.lit}
     />
     {#if piece.stale}
       <p class="stale">Showing the last version that compiled</p>

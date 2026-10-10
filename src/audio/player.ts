@@ -203,6 +203,48 @@ export class Player implements LiveSource {
     this.touch();
     void this.wake().then(() => this.voices?.strike(name, x, index));
   }
+  // the keys held: the player's id for each, and the voice bank's once the bank has answered (`settled`); `up`: let go
+  // before that, so it sounds and lets go at once
+  private keys = new Map<number, { bank: number | null; settled: boolean; up: boolean }>();
+  private lastKey = 0;
+  /** Told when Stop cuts every key held (state/keys.svelte.ts forgets them). */
+  onKeysCut: (() => void) | null = null;
+
+  /**
+   * A key pressed (MIDI in, the computer keys, on-screen keys) on a voice: a held note at once, at Tone.immediate()
+   * rather than through the look-ahead, sounding with the voice's own envelope until `release`. A hand, as a strike is:
+   * a stopped transport is paused from now on. Pause leaves it sounding (the plan's notes let go, a hand's don't);
+   * Stop cuts it.
+   */
+  press(voice: string, freq: number, velocity: number): number {
+    this.touch();
+    const id = ++this.lastKey;
+    const key = { bank: null as number | null, settled: false, up: false };
+    this.keys.set(id, key);
+    void this.wake().then(
+      () => {
+        if (this.keys.get(id) !== key) return; // (cut by Stop before it sounded)
+        key.bank = this.voices?.press(voice, freq, velocity) ?? null;
+        key.settled = true;
+        if (key.up) this.release(id);
+      },
+      () => this.keys.delete(id),
+    );
+    return id;
+  }
+
+  /** A key let go: its note goes into its release. An id never pressed, or let go already, is ignored. */
+  release(id: number): void {
+    const key = this.keys.get(id);
+    if (!key) return;
+    if (!key.settled) {
+      key.up = true;
+      return;
+    }
+    this.keys.delete(id);
+    if (key.bank !== null) this.voices?.release(key.bank);
+  }
+
   /** What something sounds like now, as a fine spectrum — for a scope's spectrum and waterfall. */
   freqs(name: string): { db: Float32Array; hz: number } | null {
     return this.voices?.freqs(name) ?? null;
@@ -393,6 +435,8 @@ export class Player implements LiveSource {
   stop(): void {
     this.pause();
     this.voices?.releaseAll();
+    this.keys.clear();
+    this.onKeysCut?.();
     this.resetState();
     this.move('stop');
   }
