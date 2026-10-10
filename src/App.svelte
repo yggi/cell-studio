@@ -75,13 +75,14 @@
       onsheet={(name) => (studio.keys.sheet = name)}
       played={studio.keys.lit}
       rows={studio.rows}
+      onlayout={(l) => (view.layout = l)}
     />
     {#if piece.stale}
       <p class="stale">Showing the last version that compiled</p>
     {/if}
   </section>
 
-  {#if view.panelOpen && (library.anyOpen || view.panel === 'midi')}
+  {#if view.panelOpen && (library.anyOpen || view.panel === 'midi' || view.panel === 'file')}
     <Sidebar />
   {/if}
   {#if dock.open && library.anyOpen && view.tab !== 'select'}

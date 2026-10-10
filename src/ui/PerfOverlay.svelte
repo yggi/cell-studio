@@ -1,6 +1,6 @@
 <script lang="ts">
   /**
-   * The performance overlay (open the app with ?perf, or Files ▾ → Performance report): live frame and
+   * The performance overlay (open the app with ?perf, or the sidebar’s Files page → Performance report): live frame and
    * main-thread numbers over the last 10 s, and a recording whose report you can copy and paste into an issue.
    * Loaded only when asked for (a dynamic import), so it costs nothing otherwise.
    */
