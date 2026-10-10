@@ -14,7 +14,14 @@ const KEY = 'cell-studio:keys';
 
 /** What this browser keeps of the keys: whether the computer keys play, thru and its channel, a key outside the scale. */
 type Stored = { readonly computer: boolean; readonly thru: boolean; readonly thruChannel: number; readonly mode: KeyMode };
-const DEFAULTS: Stored = { computer: false, thru: false, thruChannel: 1, mode: 'nearest' };
+const DEFAULTS: Stored = { computer: false, thru: false, thruChannel: 1, mode: 'snap' };
+
+/** A key outside the table, as kept: #207's two ways ('played', 'nearest') read as the three (#210) they became. */
+function modeOf(kept: unknown): KeyMode {
+  if (kept === 'allow' || kept === 'played') return 'allow';
+  if (kept === 'ignore') return 'ignore';
+  return 'snap';
+}
 
 function load(): Stored {
   try {
@@ -25,11 +32,24 @@ function load(): Stored {
       computer: kept.computer === true,
       thru: kept.thru === true,
       thruChannel: Number.isInteger(ch) && (ch as number) >= 1 && (ch as number) <= 16 ? (ch as number) : 1,
-      mode: kept.mode === 'played' ? 'played' : 'nearest',
+      mode: modeOf(kept.mode),
     };
   } catch {
     return DEFAULTS;
   }
+}
+
+/** The page's clock now (ms, as an event's `timeStamp`). */
+const now = () => (typeof performance === 'undefined' ? Date.now() : performance.now());
+
+/**
+ * Told of every key and row as it goes down and up, whether or not it sounds (a take records them, #210): where (`at`,
+ * the key's channel and note or the row), what (a MIDI note on a channel other than 10, or a row's number), and when,
+ * on the page's clock (ms: a MIDI message's or a key event's `timeStamp`).
+ */
+export interface KeyListener {
+  down(at: string, what: { readonly note: number } | { readonly cell: string; readonly value: number }, ms: number): void;
+  up(at: string, ms: number): void;
 }
 
 /** The hands the keys play with (the Player): a held note on a voice, let go; told when Stop cuts them all. */
@@ -124,7 +144,7 @@ export class Keys {
     this.#claimed = claimed;
     this.#kept = load();
     hands.onKeysCut = () => this.#forget();
-    this.#stop = midi.hear((data) => this.#heard(data));
+    this.#stop = midi.hear((data, _source, ms) => this.#heard(data, ms));
     this.#listen(this.#kept.computer);
   }
 
@@ -156,7 +176,10 @@ export class Keys {
     if (Number.isInteger(ch) && ch >= 1 && ch <= 16) this.#save({ ...this.#kept, thruChannel: ch });
   }
 
-  /** A key outside the melody's table: the nearest entry sounds, or the key as played. */
+  /** Told of every key and row, down and up (a take, `record.svelte.ts`), or null. */
+  listener: KeyListener | null = null;
+
+  /** A key outside the melody's table, played and recorded alike: as played (an accidental), the nearest entry, or nothing (#210). */
   get mode(): KeyMode {
     return this.#kept.mode;
   }
@@ -169,12 +192,13 @@ export class Keys {
    * note; else the armed voice at the key's pitch through its table. Velocity 1 … 127. A key pressed again while it
    * sounds (the pedal holding it) strikes again. Echoed to the output if thru is on.
    */
-  press(note: number, velocity = 100, channel = 0): void {
-    this.#press(note, velocity, channel, [note]);
+  press(note: number, velocity = 100, channel = 0, ms = now()): void {
+    this.#press(note, velocity, channel, [note], ms);
   }
 
   /** A key let go: its note goes into its release, or, the pedal down, sounds on until the pedal comes up. A key not down: nothing. */
-  release(note: number, channel = 0): void {
+  release(note: number, channel = 0, ms = now()): void {
+    this.listener?.up(`${channel}:${note}`, ms);
     this.#thru([0x80 | this.#thruNibble(), note, 0]);
     if (channel !== DRUM_CHANNEL) this.held.delete(note);
     this.#up(`${channel}:${note}`);
@@ -185,9 +209,10 @@ export class Keys {
    * laps, sounding as the cell plays it (`engine/keys.ts` `rowNote`), whatever is armed. As a key: velocity, the pedal,
    * a row pressed again strikes again, thru (as the MIDI note nearest). A cell that plays nothing: nothing.
    */
-  pressRow(cell: string, value: number, velocity = 100): void {
+  pressRow(cell: string, value: number, velocity = 100, ms = now()): void {
     const n = rowNote(this.piece.program, cell, value, this.piece.shifts);
     const at = `row:${cell}:${value}`;
+    this.listener?.down(at, { cell, value }, ms);
     this.#strike(at);
     if (!n) return;
     const note = noteOf(n.freq, this.piece.env.A4).note;
@@ -196,8 +221,9 @@ export class Keys {
   }
 
   /** A row of a cell let go (the piano roll's key column): as a key let go. */
-  releaseRow(cell: string, value: number): void {
+  releaseRow(cell: string, value: number, ms = now()): void {
     const at = `row:${cell}:${value}`;
+    this.listener?.up(at, ms);
     const note = this.#down.get(at)?.note;
     if (note !== undefined && note >= 0 && note <= 127) this.#thru([0x80 | this.#thruNibble(), note, 0]);
     this.#up(at);
@@ -239,10 +265,11 @@ export class Keys {
       }
   }
 
-  #press(note: number, velocity: number, channel: number, gm: readonly number[]): void {
+  #press(note: number, velocity: number, channel: number, gm: readonly number[], ms: number): void {
     this.#thru([0x90 | this.#thruNibble(), note, Math.max(1, Math.min(127, Math.round(velocity)))]);
     if (channel !== DRUM_CHANNEL) this.held.add(note);
     const at = `${channel}:${note}`;
+    if (channel !== DRUM_CHANNEL && this.#keyboard?.kind === 'voice') this.listener?.down(at, { note }, ms);
     this.#strike(at);
     const k = channel === DRUM_CHANNEL ? this.#kit : this.#keyboard;
     let voice: string | null = null;
@@ -264,7 +291,7 @@ export class Keys {
   }
 
   // a message from the MIDI input: a note, or the pedal, unless MIDI learn has it
-  #heard(data: Uint8Array): void {
+  #heard(data: Uint8Array, ms: number): void {
     // (All notes off, All sound off: a controller's panic lets every key go and the pedal up, even a CC that learn has bound)
     if ((data[0] & 0xf0) === 0xb0 && (data[1] === 123 || data[1] === 120)) return this.panic();
     if (this.#claimed(data)) return;
@@ -275,10 +302,10 @@ export class Keys {
     }
     const n = parseMidiMessage(data);
     if (!n) return;
-    if (!n.on) return this.release(n.note, n.channel);
+    if (!n.on) return this.release(n.note, n.channel, ms);
     // (a pad on channel 10, or any key with a kit armed, is the device's note: back through its drum map to General MIDI)
     const drum = n.channel === DRUM_CHANNEL || this.#keyboard?.kind === 'kit';
-    this.#press(n.note, n.velocity, n.channel, drum ? gmNotesFor(this.#midi.drums, n.note) : [n.note]);
+    this.#press(n.note, n.velocity, n.channel, drum ? gmNotesFor(this.#midi.drums, n.note) : [n.note], ms);
   }
 
   #thruNibble(): number {
@@ -299,7 +326,10 @@ export class Keys {
 
   /** Every key down lets go now, the pedal comes up: a controller's All notes off, so a lost note-off can't leave a note sounding. */
   panic(): void {
-    for (const d of this.#down.values()) this.#hands.release(d.id);
+    for (const [at, d] of this.#down) {
+      this.listener?.up(at, now());
+      this.#hands.release(d.id);
+    }
     this.#forget();
   }
 
@@ -312,7 +342,7 @@ export class Keys {
     const k = melodic !== undefined ? { note: melodic, channel: 0 } : drum !== undefined ? { note: drum, channel: DRUM_CHANNEL } : null;
     if (!k) return;
     this.#typing.set(name, k);
-    this.press(k.note, 100, k.channel);
+    this.press(k.note, 100, k.channel, e.timeStamp);
   };
   // (a key let go wherever focus is now: one pressed outside a field and released in it doesn't hang)
   readonly #onKeyUp = (e: KeyboardEvent) => {
@@ -320,7 +350,7 @@ export class Keys {
     const k = this.#typing.get(name);
     if (!k) return;
     this.#typing.delete(name);
-    this.release(k.note, k.channel);
+    this.release(k.note, k.channel, e.timeStamp);
   };
   // (the window losing focus never sends the keyups: every computer key lets go)
   readonly #onBlur = () => {

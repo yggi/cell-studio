@@ -14,6 +14,7 @@ import { View, type Tab } from './view.svelte';
 import { Midi } from './midi.svelte';
 import { Learn } from './learn.svelte';
 import { Keys } from './keys.svelte';
+import { Recorder } from './record.svelte';
 import { Dock } from './dock.svelte';
 
 /**
@@ -31,6 +32,8 @@ export class Studio {
   readonly learn = new Learn(this.piece, this.midi, { opened: () => this.library.opened });
   /** Keys playing the armed voice live: MIDI in, the computer keys, the on-screen keys (`press`, `release`, `held`). */
   readonly keys = new Keys(this.piece, this.playback.player, this.midi, { claimed: (data) => this.learn.claims(data) });
+  /** Recording a braid left free (free(0 2 4 ~)): a pass of the armed cell's loop from the keys, held until Keep. */
+  readonly recorder = new Recorder(this.piece, this.playback, this.keys);
   /** The dock of on-screen keys and drum pads along the bottom (#255): open or not, its tab; it plays through `keys`. */
   readonly dock = new Dock();
   /** The code editor (App binds it): showing a cell's line in it. */
@@ -197,6 +200,7 @@ export class Studio {
     this.playback.dispose();
     this.midi.dispose();
     this.learn.dispose();
+    this.recorder.dispose();
     this.keys.dispose();
   }
 }
