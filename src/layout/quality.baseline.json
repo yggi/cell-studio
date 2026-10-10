@@ -29,6 +29,7 @@
   "worn": {"cells":13,"crossings":0,"cost":0,"width":887,"height":1264.7,"edge":265.3,"overlap":0,"clusters":0,"intruders":0,"aim":8,"start":1},
   "dtmf": {"cells":7,"crossings":0,"cost":0,"width":792,"height":943,"edge":298,"overlap":0,"clusters":0,"intruders":0,"aim":0,"start":0},
   "daytime": {"cells":16,"crossings":0,"cost":0,"width":1056,"height":1058,"edge":237,"overlap":0,"clusters":0,"intruders":0,"aim":0,"start":0},
+  "gate": {"cells":11,"crossings":0,"cost":0,"width":842,"height":1039.7,"edge":263.3,"overlap":0,"clusters":0,"intruders":0,"aim":0,"start":0},
   "lullaby": {"cells":10,"crossings":0,"cost":0,"width":840.7,"height":914.3,"edge":212.7,"overlap":0,"clusters":0,"intruders":0,"aim":0,"start":0},
   "jazz": {"cells":16,"crossings":0.7,"cost":1.7,"width":1129,"height":975.3,"edge":302.7,"overlap":0,"clusters":0,"intruders":0,"aim":0,"start":0},
   "five": {"cells":16,"crossings":0.7,"cost":2.7,"width":1132.3,"height":959.7,"edge":288.3,"overlap":0,"clusters":0,"intruders":0,"aim":0,"start":0},

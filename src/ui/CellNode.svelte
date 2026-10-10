@@ -58,7 +58,10 @@
     {@attach longpress((at) => ctx.toggle(bulbAt(at) ?? id))}
   >
     <Handle type="target" position={Position.Top} class="center-handle" isConnectable={false} />
-    {#if soundHead || (cell?.mix && !cell.sink)}
+    <!-- (a gate is a mix as read, but draws its trigger's ring and its receivers: CellGlyph, #234) -->
+    {#if typeof cell?.params.trigger === 'string'}
+      <CellGlyph name={data.name} isMeter={false} size={data.size} />
+    {:else if soundHead || (cell?.mix && !cell.sink)}
       <WaveGlyph name={data.name} size={data.size} caption={hub ? `${hub.big} ${hub.small}` : null} />
     {:else if signal && hub}
       <SpectrumWheel name={data.name} size={data.size} {hub} />
