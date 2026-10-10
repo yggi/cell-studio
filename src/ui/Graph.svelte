@@ -28,8 +28,14 @@
   import ForcesPanel from './ForcesPanel.svelte';
   import { clusterDisc } from '../layout/clusters';
   import { EXAMPLES } from '../examples';
+  import TowerAxis from './TowerAxis.svelte';
 
   // each example's rows' order, chosen when the app was built (tools/examples-index.ts), by its graph's shape
+  // (a probe: the frequency tower drawn beside the graph, ?tower=all|ticks|tint, TowerAxis.svelte)
+  const TOWER = typeof location !== 'undefined' ? new URLSearchParams(location.search) : null;
+  const towerMode = TOWER?.get('tower') ?? null;
+  const towerCell = TOWER?.get('towerCell') ?? null;
+
   const EXAMPLE_ROWS = new Map(EXAMPLES.map((e) => [e.rows.key, e.rows.order]));
 
   let {
@@ -278,6 +284,9 @@
     <Background gap={28} size={1.5} />
     <Controls showLock={false} />
     <FitView token={layout.fitToken} />
+    {#if towerMode}
+      <TowerAxis model={shown.model} program={shown.program} nodes={layout.nodes} mode={towerMode} focus={selectedName ?? towerCell} />
+    {/if}
     <!-- clusters: cells tagged alike inside the piece (tags=), washed and named behind their members -->
     <ViewportPortal target="back">
       {#each clusters as c (c.tag)}

@@ -72,6 +72,18 @@ Re-measured on main after taps on their table ([decision 016](../decisions/016-a
 - **The tower still costs about 30 crossings** (zones: 25), half again today's. The selector pieces carry 24 of them (41.7 → 65.7), the other 59 pieces 6 (11.7 → 17.3).
 - **What the tower still turns upside down** (counted on the rows alone, no layout, `emit`): 81 meters' `step=` wires (a meter clocks a slower cell, `step=&bar*16`; drawn as the meter's net, so they hardly show as wires running down), 6 braids, 4 `over=`. Patterns of voices were 29 more; placed with their sound they are none, and the crossings did not move (87.3 → 86.3, inside the ±8 of a seed). **What the tower costs now is its rows, not wires that run the wrong way.**
 
+## The tower drawn (2026-10-10)
+
+The owner's choice after the re-measure: **the tower as a drawn axis**, today's layout kept. A probe, off by default: `src/ui/TowerAxis.svelte`, `?tower=all|ticks|tint` (`towerCell=` names the one whose line is drawn; the gallery: `TOWER=ticks TOWER_CELL=tune node tools/gallery.mjs golden 3 pop`). Each node is a span from its turn to its step (`towerSpans`, `layout/tower.ts`), a voice at its pitch in its colour, a mix just above what it carries.
+
+![the three options on Pop](tower-axis-options.jpg)
+
+- **A**: the axis at the right edge, zones marked, every node's line to its mark: the whole picture at once, and a web of lines over the graph.
+- **B**: the axis with the marks only, a line for the cell that is selected: quiet; the axis reads as a ruler of the piece's time scales.
+- **C**: no axis, each node ringed in its zone's colour: no lines at all, but four colours to learn and no scale.
+
+Seen on the way: a table of taps (`&parts`) sits at the constant, though its selector moves it: it has no clock of its own.
+
 ## Next
 
 1. The language's side (the multiscale note's "the form sends up"): with a selector that sends gates, rerun `emit`: the selector should go down by itself and its crossings with it. A rewritten *Pop* or Korobeiniki is the test.

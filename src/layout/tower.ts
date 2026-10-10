@@ -102,3 +102,26 @@ export function zoneRanks(tower: ReadonlyMap<string, number>, flow: ReadonlyMap<
   const zone = (x: number) => (x === -Infinity ? 0 : x === Infinity ? ZONES.length : ZONES.findIndex((z, i) => x >= z && x < (ZONES[i + 1] ?? Infinity)) + 1);
   return new Map([...tower].map(([id, x]) => [id, zone(x) * span + (flow.get(id) ?? 0)]));
 }
+
+/** The tower's zones drawn (docs/notes/multiscale.md: the picture), from the bottom, each from its decade up. */
+export const TOWER_ZONES = [
+  { name: 'slow', from: -Infinity },
+  { name: 'pulse', from: ZONES[1] },
+  { name: 'audible', from: ZONES[2] },
+] as const;
+
+/**
+ * Each node's span on the tower, in decades (`towerOf`): a clocked cell from its turn (how often it comes round) up to
+ * its step (how often it moves), so nesting shows (a child's turn near its parent's step); a voice at its pitch, a mix
+ * just above the sound it carries, a point. −Infinity: the constant; +Infinity: the sound card.
+ */
+export function towerSpans(program: CompileResult, model: GraphModel): Map<string, { at: number; lo: number }> {
+  const step = towerOf(program, model, 'step');
+  const turn = towerOf(program, model, 'turn');
+  return new Map(
+    [...step].map(([id, at]) => {
+      const t = turn.get(id) ?? at;
+      return [id, { at, lo: Number.isFinite(at) && Number.isFinite(t) && t < at ? t : at }];
+    }),
+  );
+}
