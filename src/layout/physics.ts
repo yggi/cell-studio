@@ -67,6 +67,7 @@ export class ForceLayout {
       grounds: [],
       net: [],
       placedMeters: new Set(),
+      riders: new Map(),
     };
     const o = this.s.opts;
     this.sim = forceSimulation<PhysNode, PhysLink>([])
@@ -194,7 +195,9 @@ export class ForceLayout {
           (d.role === 'tag' ? o.charge * 3 : o.charge * (1 + o.degreeRepel * Math.max(0, (this.s.degree.get(d.id) ?? 1) - 1)) * (1 + o.massRepel * ((d.mass ?? 1) - 1))),
       )
       .distanceMax(o.repelRange * this.s.size);
-    (this.sim.force('collide') as ReturnType<typeof forceCollide<PhysNode>>).radius((d) => (this.bodyOf.has(d.id) ? d.radius : d.radius + o.collidePad) * this.s.size);
+    (this.sim.force('collide') as ReturnType<typeof forceCollide<PhysNode>>).radius(
+      (d) => (this.bodyOf.has(d.id) || this.s.riders.has(d.id) ? d.radius * (this.s.riders.has(d.id) ? 0.2 : 1) : d.radius + o.collidePad) * this.s.size,
+    );
     // sideways: &bar and &out to the centre line, the rest gently to their columns (else to the centre)
     (this.sim.force('endsX') as ReturnType<typeof forceX<PhysNode>>).strength((d) => (this.s.ends.has(d.id) ? o.endPull : this.s.colX.has(d.id) ? o.columnPull : o.centre));
     (this.sim.force('rankY') as ReturnType<typeof forceY<PhysNode>>).strength(o.rankPull);
@@ -355,7 +358,55 @@ export class ForceLayout {
    * (its sound leaves upwards, its melody comes in from below), where the forces move it; a share of what pulls it
    * moves its voice too.
    */
+  /** (a probe, layout/taps.ts) How far each table of taps is turned, radians: its taps facing what they step. */
+  private tableTurns = new Map<string, number>();
+
+  /** A table of taps' turn, degrees (layout/taps.ts), for drawing; undefined: not a table of taps. */
+  tableTurn(id: string): number | undefined {
+    const t = this.tableTurns.get(id);
+    return t === undefined ? undefined : (t * 180) / Math.PI;
+  }
+
+  /** (a probe, layout/taps.ts) The cells that ride another's track, each at its bulb there; the rest as before. */
+  setRiders(riders: ReadonlyMap<string, { readonly host: string; readonly turn: number }>): void {
+    this.s.riders = new Map(riders);
+  }
+
   private stepBodies(): void {
+    // a table of taps turns so its taps face what they step (as a tape's heads face their cells): by the mean of how far
+    // each tap's net would have it turn, a little at a time
+    const want = new Map<string, { s: number; c: number }>();
+    for (const [id, { host, turn }] of this.s.riders) {
+      const h = this.s.byId.get(host);
+      const cells = this.s.grounds.filter((g) => g.meter === id).flatMap((g) => this.s.byId.get(g.cell) ?? []);
+      if (!h || !cells.length) continue;
+      const [mx, my] = [cells.reduce((n, c) => n + (c.x ?? 0), 0) / cells.length, cells.reduce((n, c) => n + (c.y ?? 0), 0) / cells.length];
+      const d = Math.atan2(my - (h.y ?? 0), mx - (h.x ?? 0)) - (-Math.PI / 2 + turn * 2 * Math.PI);
+      const w = want.get(host) ?? { s: 0, c: 0 };
+      want.set(host, { s: w.s + Math.sin(d), c: w.c + Math.cos(d) });
+    }
+    for (const [host, { s: sn, c }] of want) {
+      const now = this.tableTurns.get(host) ?? 0;
+      const to = Math.atan2(sn, c);
+      this.tableTurns.set(host, now + 0.15 * Math.atan2(Math.sin(to - now), Math.cos(to - now)));
+    }
+    // a rider (a tap on its table's track) at its bulb: on its host's ring at its turn, the table turned; a share of
+    // what pulls it moves its host
+    for (const [id, { host, turn }] of this.s.riders) {
+      const t = this.s.byId.get(id);
+      const h = this.s.byId.get(host);
+      if (!t || !h || t.x === undefined || h.x === undefined) continue;
+      const a = -Math.PI / 2 + turn * 2 * Math.PI + (this.tableTurns.get(host) ?? 0);
+      const r = h.radius * 0.7 * this.s.size;
+      if (h.fx == null) {
+        h.x += 0.2 * (t.x - (h.x + Math.cos(a) * r));
+        h.y = (h.y ?? 0) + 0.2 * ((t.y ?? 0) - ((h.y ?? 0) + Math.sin(a) * r));
+      }
+      t.x = h.x + Math.cos(a) * r;
+      t.y = (h.y ?? 0) + Math.sin(a) * r;
+      t.vx = h.vx;
+      t.vy = h.vy;
+    }
     for (const [jid, vid] of this.bodyOf) {
       const j = this.s.byId.get(jid);
       const v = this.s.byId.get(vid);

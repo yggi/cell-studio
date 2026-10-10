@@ -11,6 +11,8 @@ type CellNodeData = {
   meterIndex?: number;
   /** How far its bulbs reach below its wheel (px): its name goes under them (#221). */
   below?: number;
+  /** A table of taps' turn, degrees: facing what its taps step (a probe, layout/taps.ts). */
+  turn?: number;
 };
 type VoiceNodeData = { name: string; summary: string; size: number; pinned: boolean; petal?: boolean };
 export type CellFlowNode = Node<CellNodeData, 'cell'>;

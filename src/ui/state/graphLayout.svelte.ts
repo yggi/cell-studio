@@ -9,6 +9,7 @@ import { meterIndex } from '../../layout/meters';
 import { towerOf, towerRanks, zoneRanks } from '../../layout/tower';
 import { flowRanks } from '../../layout/start';
 import { gated } from '../../layout/gates';
+import { tapped, type Rider } from '../../layout/taps';
 import { flowNodeOf, PETAL, physical } from '../flownode';
 import { flowEdgesOf } from '../flowedges';
 import type { GraphSnapshot } from '../snapshot';
@@ -23,6 +24,8 @@ const ROWS = typeof location !== 'undefined' ? new URLSearchParams(location.sear
 const GATES = typeof location !== 'undefined' && new URLSearchParams(location.search).get('gates') === 'on';
 /** A probe: `?junctions=bodies` lays each product's junction out as a node of its own (LayoutOptions.junctionBodies). */
 const BODIES = typeof location !== 'undefined' && new URLSearchParams(location.search).get('junctions') === 'bodies';
+/** A probe: `?taps=on` draws a table of clock taps as one wheel, its taps as sockets on its track (layout/taps.ts). */
+const TAPS = typeof location !== 'undefined' && new URLSearchParams(location.search).get('taps') === 'on';
 /**
  * A probe: `?opts=spread:0.25,clusters:0` sets layout options (numbers; 0 and 1 for a switch), as the probes in
  * tools/probe/ do, so a variant they measure can be seen.
@@ -62,6 +65,8 @@ export class GraphLayout {
   bends = $state.raw(new Map<string, { x: number; y: number }>());
   /** Where each bus's taps come from (a ratsnest, the readers its junctions: laid again as cells move). */
   taps = $state.raw(new Map<string, Tap>());
+  /** (a probe) The taps riding their tables' tracks (layout/taps.ts). */
+  #riders: ReadonlyMap<string, Rider> = new Map();
   /** Each meter's net (its traces to the cells it steps, through each other), as laid once the layout comes to rest. */
   net = $state.raw<readonly MeterTrace[]>([]);
   /** Counts the times the view is to be framed again (a piece opened, come to rest). */
@@ -104,10 +109,14 @@ export class GraphLayout {
    */
   sync(given: GraphSnapshot, opened: number): void {
     // (a probe: `?gates=on` draws the arrangement as gates, layout/gates.ts)
-    const next = GATES ? { ...given, model: gated(given.model) } : given;
+    const gatedSnap = GATES ? { ...given, model: gated(given.model) } : given;
+    const tap = TAPS ? tapped(gatedSnap.model) : null;
+    const next = tap ? { ...gatedSnap, model: tap.model } : gatedSnap;
+    this.#riders = tap?.riders ?? new Map();
     const m = next.model;
     const layout = this.#force;
     if (BODIES && !layout.options.junctionBodies) layout.setOptions({ junctionBodies: 1 });
+    if (TAPS) layout.setRiders(this.#riders);
     if (Object.keys(OPTS).some((k) => layout.options[k as keyof LayoutOptions] !== OPTS[k as keyof LayoutOptions])) layout.setOptions(OPTS);
     // (a probe: the rows by the frequency tower instead of the signal path, docs/notes/multiscale.md)
     if (ROWS === 'tower') layout.setOptions({ ranks: towerRanks(towerOf(next.program, m)) });
@@ -154,9 +163,26 @@ export class GraphLayout {
     this.shown = next;
     const meters = { index: meterIndex(m) };
     // (an example's own place isn't marked pinned: only what the user pinned)
-    this.nodes = m.nodes.map((g: GraphNode) =>
-      flowNodeOf(g, this.#posOf(g.id) ?? { x: 0, y: 0 }, this.pinned.has(g.id) && !this.#placed.has(g.id), this.#turnOf(g.id), meters, next.program),
-    );
+    this.nodes = m.nodes.map((g: GraphNode) => {
+      // (a probe: a tap riding its table, drawn as a socket on the table's track, layout/taps.ts)
+      const rider = this.#riders.get(g.id);
+      if (rider && g.cell) {
+        const position = this.#posOf(g.id) ?? { x: 0, y: 0 };
+        const name = g.cell.name;
+        const host = rider.host.slice('cell:'.length);
+        return {
+          id: g.id,
+          type: 'junction',
+          position,
+          draggable: false,
+          selectable: false,
+          deletable: false,
+          connectable: false,
+          data: { name: g.id, voice: name, mix: host, size: 18 },
+        } as FlowNode;
+      }
+      return flowNodeOf(g, this.#posOf(g.id) ?? { x: 0, y: 0 }, this.pinned.has(g.id) && !this.#placed.has(g.id), this.#turnOf(g.id), meters, next.program);
+    });
     this.#makeEdges();
     if (fresh) this.fitToken++;
   }
@@ -254,7 +280,7 @@ export class GraphLayout {
 
   // a tape's turn (where the layout faced its heads), to the degree: its node is redrawn only when that changes
   #turnOf(id: string): number | undefined {
-    const t = this.#force.tapeTurn(id);
+    const t = this.#force.tapeTurn(id) ?? this.#force.tableTurn(id);
     return t === undefined ? undefined : Math.round(t);
   }
 

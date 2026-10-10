@@ -18,6 +18,8 @@ export function placeMeters(s: LayoutState): void {
     const node = s.byId.get(m);
     // (one the user moved stays where they put it)
     if (!node || (node.fx != null && !s.placedMeters.has(m))) continue;
+    // (a meter that rides another's track stays there: layout/taps.ts)
+    if (s.riders.has(m)) continue;
     const cells = [...new Set(s.grounds.filter((g) => g.meter === m).map((g) => g.cell))].filter((id) => s.byId.has(id)).map((id) => s.byId.get(id)!);
     const others = [...s.byId.values()].filter((n) => n.id !== m && n.role !== 'tag');
     if (!others.length || !cells.length) continue;

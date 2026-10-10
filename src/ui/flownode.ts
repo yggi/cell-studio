@@ -15,7 +15,8 @@ export const PETAL = 44;
 export const physical = (g: GraphNode) => !g.petalOf && !!g.cell && isTurntable(g.cell);
 
 /**
- * `turn`: a tape's, in degrees (where the layout faced its write head; layout/tape.ts); none: unturned.
+ * `turn`: a tape's, in degrees (where the layout faced its write head; layout/tape.ts), or a table of taps' (a probe,
+ * layout/taps.ts); none: unturned.
  * `meters`: each meter's place among the meters, for its colour (layout/meters.ts).
  * `program`: the piece, to know the plugins that draw cells (engine/plugins.ts).
  */
@@ -85,6 +86,8 @@ export function flowNodeOf(
       pinned: isPinned,
       ...(meterIndex !== undefined ? { meterIndex } : {}),
       ...(g.reach?.below ? { below: g.reach.below } : {}),
+      // (a table of taps turned to face what its taps step: a probe, layout/taps.ts)
+      ...(turn !== undefined ? { turn } : {}),
     },
   };
 }

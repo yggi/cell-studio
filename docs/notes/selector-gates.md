@@ -124,6 +124,36 @@ A part is a **tap of the meter bus**; the selector switches which taps are live;
 
 *Pop today; arranged at the input; arranged at the input with the tower's zones (`?rows=zones`).*
 
+## Round 4: the parts wheel, its taps as sub-wheels
+
+The owner's drawing:
+
+```
+&bar-wheel --- (bar bus) ---> &parts-wheel
+&parts-wheel: &keysBar &tuneBar &drumBar as sub-wheels, each with a positioned output tap
+meter edges from &tuneBar's tap to &tune, &keysBar's to &chords, &drumBar's as a real multi-segment net to &kick and &click
+the meter's net split at &parts into sub-nets, switched on and off by &song
+```
+
+Built (`src/layout/taps.ts`, `?taps=on`, the gallery's `TAPS=on`, the rows probe's `taps` rows; off by default):
+
+- **The model** (`tapped`): a table whose entries are clocks is one wheel; the meter's edges into its taps become one, into the table (the bar bus); the taps' splices into it go (they are its sub-wheels, its bulbs, decision 014); each tap is a meter, so what it steps is its net (traces, multi-segment), not edges.
+- **The layout**: each tap rides its table at its bulb (`setRiders`), as a junction rides its voice, exempt from "meters placed last", a share of its net's pull moving the table; and the table **turns** so its taps face what they step (`tableTurn`: the circular mean of how far each tap's net would turn it, a little each tick), as a tape's heads face their cells. The wheel draws its turn (`CellNode`, `turn`).
+- **The drawing**: a tap is a socket on its bulb (a junction's dot), the bulbs are the table's own.
+
+| the tutorial and Pop at the input, three seeds | crossings | cost | wires up / down |
+|---|---|---|---|
+| taps drawn as wheels of their own | 0.7 | 1.9 | 32 / 8 % |
+| taps on their table | 7.3 | 27.0 | 50 / 0 % |
+| **taps on their table, turned** | **4.0** | **14.4** | **51 / 0 %** |
+| taps on their table, turned, tower zones | 6.0 | 18.2 | 73 / 0 % |
+
+- **It is the owner's picture** (below): the bar bus into the parts wheel, a sub-net out of each tap in its own colour (`&drumBar` through `&click` to `&kick`, `&keysBar` to `&chords`, `&tuneBar` to `&tune`), `&song` reading the parts wheel as a bus, the switch. In Pop the parts wheel sits at the bottom between `&bar` and `&song`, its six sub-nets fanning up to their sections: the tower again.
+- **No wire leaves downwards** any more; the cost is the sub-nets fanning out of one wheel across the graph (crossings 0.7 → 4.0 on the two pieces). Turning the table halves it.
+- **Rough edges**: a socket sits at 0.7 of its table's room, near its bulb but not on it (the bulb's own place is the drawing's: `track.ts`); the turn rotates the whole wheel, its marker at 12 o'clock too. Only measured on these two pieces.
+
+![The tutorial and Pop at the input: the parts wheel, its taps as sub-wheels, their sub-nets](selector-gates-taps.jpg)
+
 ## A gate node: the owner's sketch, reviewed (for #10)
 
 The sketch: a junction written as a cell, taking voices as its braid, with `trigger=`, `value=`, `velocity=`, `gain=` and `map=gate`:
@@ -159,6 +189,6 @@ The lambda form, a pattern inline, then reads `trigger=&(step=&drumBar 0 ~ 0 ~)`
 
 ## Next
 
-1. **The taps drawn as switches on one bus**: the meter's net with a switch where each section's tap leaves it, the selector's net reaching the switches; no separate meter per section.
-2. **A spelling** for the tap (a part as a switched tap of the meter bus), the trigger (restart) and the gate node (#29, #10, ⚖ owner); then the engine, and Pop and BWV 847 rewritten as the tests.
-3. The rail and the junction sockets of rounds 1 and 2 are not needed for arranging any more; junction bodies stay a probe for the gate node's drawing.
+1. **Sockets on their bulbs**: the rider at its bulb's own place (`track.ts: layTrack`, as `netEnds` finds a net-ref's), and the table's marker kept at 12 o'clock while its bulbs turn.
+2. **The switch drawn**: a sub-net lit while `&song` has its tap on, dark while off (the live state knows which parts a selector picks now).
+3. **A spelling** for the tap (a part as a switched tap of the meter bus), the trigger (restart) and the gate node (#29, #10, ⚖ owner); then the engine, and Pop and BWV 847 rewritten as the tests.

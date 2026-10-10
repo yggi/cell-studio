@@ -14,6 +14,7 @@ import { PRESETS } from '../../src/engine/presets';
 import { towerOf, towerRanks, zoneRanks, type TowerAt } from '../../src/layout/tower';
 import { flowRanks } from '../../src/layout/start';
 import { gated } from '../../src/layout/gates';
+import { tapped } from '../../src/layout/taps';
 import type { LayoutOptions } from '../../src/layout/options';
 
 const log = (t: string) => appendFileSync(process.env.PROBE!, t + '\n');
@@ -75,15 +76,18 @@ interface Row {
   selectors: number[];
 }
 
-function measure(source: string, at: TowerAt | null, perDecade: number, seed: number, more: Partial<LayoutOptions>, gates = false): Row {
+function measure(source: string, at: TowerAt | null, perDecade: number, seed: number, more: Partial<LayoutOptions>, gates: boolean | 'taps' = false): Row {
   const program = compileSource(source);
   // (gates: the arrangement redrawn as gates, layout/gates.ts)
-  const model = gates ? gated(buildGraph(program)) : buildGraph(program);
+  // (taps: a table of clock taps as one wheel, its taps riding it: layout/taps.ts)
+  const tap = gates === 'taps' ? tapped(buildGraph(program)) : null;
+  const model = tap ? tap.model : gates ? gated(buildGraph(program)) : buildGraph(program);
   const tower = towerOf(program, model, at ?? 'step');
   // (perDecade 0: the tower's zones, ordered within by the signal path)
   const rows = !at ? undefined : perDecade ? towerRanks(tower, perDecade) : zoneRanks(tower, flowRanks(model));
   const opts: Partial<LayoutOptions> = { live: false, seed, ...more, ...(rows ? { ranks: rows } : {}) };
   const l = new ForceLayout(undefined, opts);
+  if (tap) l.setRiders(tap.riders);
   l.setGraph(model);
   const rhoStart = rhoOf(model, l, tower);
   l.tick(500);
@@ -149,7 +153,7 @@ describe.runIf(process.env.PROBE)('rows by the frequency tower', () => {
       ? files.map((f) => [f.replace(/^.*\//, '').replace(/\.cells$/, ''), { source: readFileSync(f, 'utf8') }] as const)
       : Object.entries(PRESETS).filter(([k]) => (!only || k.toLowerCase().includes(only.toLowerCase())) && (!named || named.includes(k)));
     const held = { rankPull: 0.3 };
-    const variants: [string, TowerAt | null, number, Partial<LayoutOptions>, boolean?][] = [
+    const variants: [string, TowerAt | null, number, Partial<LayoutOptions>, (boolean | 'taps')?][] = [
       ['today (rows by the signal path)', null, 1, {}],
       ['tower by step, 1 row a decade', 'step', 1, {}],
       ['tower by step, 2 rows a decade', 'step', 2, {}],
@@ -176,6 +180,9 @@ describe.runIf(process.env.PROBE)('rows by the frequency tower', () => {
       // (the meter not special: not placed last, no push between time and sound)
       ['the meter not special', null, 1, { placeLast: 0, kindRepel: 0 }],
       ['the meter not special, zones by the tower (emit)', 'emit', 0, { placeLast: 0, kindRepel: 0 }],
+      // (sections as taps of the meter bus, drawn on their table: layout/taps.ts)
+      ['taps on their table', null, 1, {}, 'taps'],
+      ['taps on their table, zones by the tower (emit)', 'emit', 0, {}, 'taps'],
     ];
     // (VARIANTS=0,1: only those rows of the table)
     const pick = process.env.VARIANTS?.split(',').map(Number);

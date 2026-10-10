@@ -63,7 +63,8 @@
     {:else if signal && hub}
       <SpectrumWheel name={data.name} size={data.size} {hub} />
     {:else}
-      <CellGlyph name={data.name} isMeter={data.isMeter} size={data.size} />
+      {#if data.turn}<div class="turned" style:transform="rotate({data.turn}deg)"><CellGlyph name={data.name} isMeter={data.isMeter} size={data.size} /></div>
+      {:else}<CellGlyph name={data.name} isMeter={data.isMeter} size={data.size} />{/if}
     {/if}
     {#if !data.petal}<div
         class="name"
@@ -81,6 +82,11 @@
 {/if}
 
 <style>
+  /* a table of taps turned to face what its taps step (a probe, layout/taps.ts) */
+  .turned {
+    width: 100%;
+    height: 100%;
+  }
   /* a note: a card that reads at a glance — solid, high contrast, the rainbow at its edge */
   .notecard {
     position: relative;

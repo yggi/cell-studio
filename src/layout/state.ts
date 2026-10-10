@@ -85,6 +85,8 @@ export interface LayoutState {
   ends: Map<string, { x: number; y: number }>;
   /** The height of each node's rank in the signal path. */
   rankY: Map<string, number>;
+  /** (a probe, layout/taps.ts) Cells riding another's track: each set at its bulb there, not where the forces put it. */
+  riders: Map<string, { readonly host: string; readonly turn: number }>;
   /** Edges per node (busy nodes push harder). */
   degree: Map<string, number>;
   /** Each node's column, in px (a symmetric first layout, and a gentle pull). */

@@ -40,6 +40,8 @@ if (process.env.GATES) q.set('gates', process.env.GATES);
 if (process.env.JUNCTIONS) q.set('junctions', process.env.JUNCTIONS);
 // (OPTS=spread:0.25,clusters:0: layout options, as the probes set them)
 if (process.env.OPTS) q.set('opts', process.env.OPTS);
+// (TAPS=on: a table of clock taps as one wheel, a probe: src/layout/taps.ts)
+if (process.env.TAPS) q.set('taps', process.env.TAPS);
 // (golden: CELLS=piece.cells draws that source instead, in the real Graph)
 if (process.env.CELLS) q.set('src', readFileSync(process.env.CELLS, 'utf8'));
 const url = `${server.resolvedUrls.local[0]}tools/gallery/harness.html?${q}`;
