@@ -37,34 +37,3 @@ describe('the tower fitted to the graph', () => {
     ).toBeNull();
   });
 });
-
-describe('the tower pulls the graph, weakly', () => {
-  it('a node drawn to its time scale’s height: the graph’s heights follow the tower more', async () => {
-    const { ForceLayout } = await import('./physics');
-    const { buildGraph } = await import('../engine/graph');
-    const { compileSource } = await import('../engine/compile');
-    const { PRESETS } = await import('../engine/presets');
-    const { towerSpans } = await import('./tower');
-    const program = compileSource(PRESETS.pop.source);
-    const model = buildGraph(program);
-    const tower = new Map([...towerSpans(program, model)].map(([id, s]) => [id, s.at]));
-    // (pairs on the tower in order whose graph heights are in order too: the share the graph agrees with the tower)
-    const agreement = (pull: number) => {
-      const l = new ForceLayout(undefined, { live: false, seed: 0, tower, towerPull: pull });
-      l.setGraph(model);
-      l.tick(400);
-      const pts = [...tower].flatMap(([id, at]) => (Number.isFinite(at) && l.position(id) ? [{ at, up: -l.position(id)!.y }] : []));
-      l.destroy();
-      let agree = 0;
-      let pairs = 0;
-      for (let i = 0; i < pts.length; i++)
-        for (let j = i + 1; j < pts.length; j++)
-          if (pts[i].at !== pts[j].at) {
-            pairs++;
-            if (pts[i].at < pts[j].at === pts[i].up < pts[j].up) agree++;
-          }
-      return agree / pairs;
-    };
-    expect(agreement(0.2)).toBeGreaterThan(agreement(0));
-  });
-});

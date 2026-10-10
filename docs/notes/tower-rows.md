@@ -92,26 +92,33 @@ After review (#268): the axis sits beside the graph, not over it (the flow's box
 
 The owner's ask: the tower and the graph balance each other; density in the graph moves the tower's zone borders, and
 a node's place in its zone pulls it to a height in the graph. Chosen: the axis follows, a weak pull, kept only if the
-crossings stay within the noise, and only while the tower is open.
+crossings stay within the noise, and only while the tower is open. **Decided after the review: the axis follows, the
+pull is dropped.**
 
 - `layout/towerfit.ts: towerFit`: a monotone fit (isotonic regression, pool adjacent violators) of the graph's
   heights against the tower's; a pooled stretch is flat, nodes at one height on the tower are one point.
 - **The axis** is drawn by it (`TowerAxis.svelte`): a height on the tower sits at 70 % its share of the graph's span by
   the fit and 30 % an even log scale, so dense zones are wide and the axis never folds up; panning leaves it still.
-- **The pull** (`LayoutOptions.tower`, `towerPull`; `physics.ts: stepTower`): every node with a finite height drawn
-  toward the fit's height for it, the fit made again every 20 ticks from where the nodes are.
+  It only draws: no cell moves.
 
-Measured (`tools/probe/tower-balance.test.ts`, four seeds, library sums; ρ is Spearman's of height against the tower,
-the mean over pieces):
+**The pull, tried and dropped.** Each node was drawn toward the fit's height for it (`LayoutOptions.tower`,
+`towerPull` 0.02, `physics.ts: stepTower`, the fit made again every 20 ticks), only while the tower was open. The
+branch's first table said it cost nothing; the review's re-run on the merged tree (75 pieces, eight seeds, tick 500 and
+`layNet`, tower open against closed, same seed, library sums per seed) says otherwise:
 
-| pull | crossings | cost | area Mpx² | ρ |
-|---|---|---|---|---|
-| 0 | 53.3 | 117.7 | 87.8 | 0.623 |
-| **0.02** | **53.0** | **114.5** | 88.3 | **0.647** |
-| 0.05 | 56.5 | 123.0 | 89.2 | 0.669 |
-| 0.1 | 58.8 | 128.6 | 89.6 | 0.680 |
+| measure | pull 0 | pull 0.02 | paired difference over seeds |
+|---|---|---|---|
+| crossings | 49.4 | 52.1 | +2.8 ± 4.0 (inside the noise: per-seed sd 7 to 8) |
+| cost | 154 | 174 | +20 ± 13 (6 of 8 seeds worse) |
+| intruders | 49.1 | 52.8 | +3.6 ± 2.1 (6 of 8 seeds worse) |
+| area Mpx² | 66.4 | 66.1 | −0.2 ± 0.6 |
 
-0.02 leans the graph toward the tower at no cost in crossings (`TOWER_PULL`); stronger pulls lean more and cross more.
+A pull of 0.1 cost +28.6 ± 7.4, clearly significant. The pull also moved nodes on every edit while the tower was
+open (setting the options reheats the layout: a comment line moved Hypercell's nodes by 39 px on average, 5.6 px with
+the tower closed), and opening then closing the tower did not return the layout to where it started. The heights'
+agreement with the tower (Spearman's ρ) rose only from 0.648 to 0.661. So the layout stays the signal path's, and the
+tower's axis is what follows the graph. If a pull is tried again, set the heights without reheating, and measure it on
+the merged tree first.
 
 ## Next
 

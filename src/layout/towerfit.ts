@@ -1,9 +1,8 @@
 /**
- * The tower and the graph, balanced (docs/notes/tower-rows.md: the tower balanced): the graph's heights read as a
+ * The tower's axis follows the graph (docs/notes/tower-rows.md: the tower balanced): the graph's heights read as a
  * function of the tower's. A monotone fit (isotonic regression, pool adjacent violators) of where each node sits in the
  * graph against where it sits on the tower: the axis is drawn by it, so a zone spans the heights its nodes take (where
- * the graph is dense the zone's band is wide), and a node is pulled, weakly, to the height its time scale has on it.
- * Pure geometry: the layout and the axis read the same fit.
+ * the graph is dense the zone's band is wide). Pure geometry. (Pulling the graph toward the fit was tried and dropped.)
  */
 
 /** A fit: the graph's height (y, down positive) for a height on the tower (decades). */

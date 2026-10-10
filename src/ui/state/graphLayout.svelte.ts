@@ -4,10 +4,10 @@ import { SvelteSet } from 'svelte/reactivity';
 import { structureKey, type GraphNode } from '../../engine/graph';
 import type { LiveState } from '../../engine/live';
 import { ForceLayout } from '../../layout/physics';
-import { DEFAULT_LAYOUT, TOWER_PULL, type LayoutOptions } from '../../layout/options';
+import { DEFAULT_LAYOUT, type LayoutOptions } from '../../layout/options';
 import type { MeterTrace } from '../../layout/state';
 import { meterIndex } from '../../layout/meters';
-import { towerOf, towerRanks, towerSpans, zoneRanks } from '../../layout/tower';
+import { towerOf, towerRanks, zoneRanks } from '../../layout/tower';
 import { flowRanks } from '../../layout/start';
 import { isSide, sideless } from '../../layout/side';
 import { flowNodeOf, PETAL, physical } from '../flownode';
@@ -20,9 +20,6 @@ import type { FlowNode } from '../types';
  * signal path within each, every node where its output lives (layout/tower.ts, docs/notes/tower-rows.md).
  */
 const ROWS = typeof location !== 'undefined' ? new URLSearchParams(location.search).get('rows') : null;
-/** Each node's height on the tower (decades): where its output lives, for the tower's pull. */
-const towerHeights = (s: GraphSnapshot) => new Map([...towerSpans(s.program, s.model)].map(([id, sp]) => [id, sp.at]));
-
 /** What the edges are drawn with besides the snapshot (read when they are made, not tracked). */
 export interface EdgeStyle {
   /** Not stopped (paused or playing): a routed edge is idle (PulseEdge makes it live), an unrouted one dimmed; stopped, nothing is. */
@@ -95,8 +92,6 @@ export class GraphLayout {
     // (a probe: the rows by the frequency tower instead of the signal path, docs/notes/multiscale.md)
     if (ROWS === 'tower') layout.setOptions({ ranks: towerRanks(towerOf(next.program, m)) });
     if (ROWS === 'zones') layout.setOptions({ ranks: zoneRanks(towerOf(next.program, m, 'emit'), flowRanks(m)) });
-    // (the tower open: its heights follow the piece as it changes)
-    if (this.#towered) layout.setOptions({ tower: towerHeights(next) });
     // a piece just opened: forget where the last one's cells were (even ones of the same name)
     const justOpened = opened !== this.#lastOpened;
     if (justOpened) {
@@ -199,17 +194,6 @@ export class GraphLayout {
       this.#force.unpin(id);
     }
     this.nodes = this.nodes.map((n) => (n.id === id ? ({ ...n, data: { ...n.data, pinned: on } } as FlowNode) : n));
-  }
-
-  // (the tower open: the graph leans to it, towerfit.ts)
-  #towered = false;
-
-  /** The tower opened or closed: while it is open, each node is drawn, weakly, to the height its time scale has. */
-  setTower(on: boolean): void {
-    this.#towered = on;
-    // (before the first piece: sync takes the heights when it comes)
-    if (on && !this.shown) return this.#force.setOptions({ towerPull: TOWER_PULL });
-    this.#force.setOptions(on ? { tower: towerHeights(this.shown), towerPull: TOWER_PULL } : { towerPull: 0 });
   }
 
   setForce(key: keyof LayoutOptions, value: number): void {

@@ -55,7 +55,7 @@
   // (the constant just under the axis, the sound card just over it)
   // the axis balanced with the graph (towerfit.ts): a height on the tower sits where the graph's heights put it, as a
   // share of the graph's own span (where the graph is dense, its zone is wide), mixed with an even log scale so the
-  // axis never folds up; the same fit the layout's tower pull follows. Panning and zooming leave it as it is.
+  // axis never folds up. Panning and zooming leave it as it is.
   const BALANCE = 0.7;
   const fit = $derived(towerFit(nodes.flatMap((n) => (Number.isFinite(spans.get(n.id)?.at ?? NaN) ? [{ at: spans.get(n.id)!.at, y: n.position.y }] : []))));
   const share = (d: number) => {

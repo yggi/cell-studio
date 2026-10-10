@@ -10,8 +10,6 @@ export const BELT_LENGTH = 0.8;
 export const BELT_PULL = 0.5;
 /** A meter's pull on each cell it steps (ground: not drawn): a meter settles among them. */
 export const GROUND_PULL = 0.15;
-/** The tower's pull while the tower is open (towerfit.ts): over four seeds, height follows the tower more (ρ 0.62 → 0.65) at no cost in crossings (docs/notes/tower-rows.md). */
-export const TOWER_PULL = 0.02;
 
 export interface LayoutOptions {
   /** How much a node's mass (weights.ts) scales its repulsion: 0 none, 1 full. */
@@ -46,16 +44,6 @@ export interface LayoutOptions {
    * (`tower.ts: towerRanks`), a probe (docs/notes/multiscale.md). A node it doesn't name keeps its rank in the flow.
    */
   ranks?: ReadonlyMap<string, number>;
-  /**
-   * Each node's height on the frequency tower (decades, `tower.ts: towerSpans`): with `towerPull`, the tower and the
-   * graph balance (towerfit.ts). Unset: no tower.
-   */
-  tower?: ReadonlyMap<string, number>;
-  /**
-   * How hard a node is drawn to the height its time scale has in the graph as it stands (towerfit.ts: the graph's
-   * heights fitted to the tower's): 0 off. Weak: the tower leans the graph, it doesn't lay it out.
-   */
-  towerPull: number;
   layerGap: number;
   /** Edge length at rest (px). */
   linkDistance: number;
@@ -139,7 +127,6 @@ export const DEFAULT_LAYOUT: LayoutOptions = {
   partLength: 0.8,
   rankPull: 0.05,
   upPull: 0,
-  towerPull: 0,
   centre: 0.004,
   columnPull: 0.035,
   layerGap: 130,

@@ -15,7 +15,6 @@ import { drawnCrossings, layoutQuality, type LayoutQuality } from './quality';
 import { groundsOf } from './meters';
 import { openBelt, pulleys } from './belts';
 import { strengthOf } from './weights';
-import { towerFit, type TowerFit } from './towerfit';
 import { sideless } from './side';
 import { BELT_LENGTH, BELT_PULL, DEFAULT_LAYOUT, GROUND_PULL, linkPull, type LayoutOptions } from './options';
 import type { LayoutState, MeterTrace, PhysLink, PhysNode } from './state';
@@ -104,8 +103,6 @@ export class ForceLayout {
       .force('spread', (alpha: number) => stepSpread(this.s, alpha))
       .force('kinds', (alpha: number) => stepKinds(this.s, alpha))
       .force('clusters', (alpha: number) => stepClusters(this.s, alpha))
-      // the tower: each node drawn, weakly, to the height its time scale has in the graph as it stands (towerfit.ts)
-      .force('tower', (alpha: number) => this.stepTower(alpha))
       // a tape turns so its heads face what they connect to, and those turn round it towards their heads
       .force('aims', (alpha: number) => stepAims(this.s, alpha))
       // turntables: nothing overlaps them — a node that would is set at their edge
@@ -192,7 +189,6 @@ export class ForceLayout {
   setGraph(whole: GraphModel, structural = true): GraphDiff {
     // (notes and scopes are read in the margin, not laid among the music: side.ts)
     const drawn = sideless(whole);
-    this.#towerFit = { fit: null, age: Infinity };
     // (as drawn: a product's wires at its junction; the forces lay the graph with each junction folded into its voice,
     // and the junctions are set on their voices' rims after each tick: junctions.ts)
     this.s.drawnNets = drawn.nets ?? [];
@@ -378,20 +374,6 @@ export class ForceLayout {
   drawnCrossings(): number {
     const { nodes, edges } = this.placed();
     return drawnCrossings(nodes, edges);
-  }
-
-  // (the fit the tower's pull follows, made again every so many ticks from where the nodes are: they move under it)
-  #towerFit: { fit: TowerFit | null; age: number } = { fit: null, age: Infinity };
-
-  private stepTower(alpha: number): void {
-    const k = this.s.opts.towerPull;
-    const tower = this.s.opts.tower;
-    if (k <= 0 || !tower) return;
-    const nodes = [...this.s.byId.values()].filter((n) => Number.isFinite(tower.get(n.id) ?? NaN));
-    if (++this.#towerFit.age >= 20) this.#towerFit = { fit: towerFit(nodes.map((n) => ({ at: tower.get(n.id)!, y: n.y ?? 0 }))), age: 0 };
-    const fit = this.#towerFit.fit;
-    if (!fit) return;
-    for (const n of nodes) n.vy = (n.vy ?? 0) + (fit(tower.get(n.id)!) - (n.y ?? 0)) * k * alpha;
   }
 
   /** How good the layout is now, in numbers (quality.ts). */

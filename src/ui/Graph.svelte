@@ -314,11 +314,6 @@
       if (selected && !next.model.nodes.some((n) => n.id === selected)) selected = null;
     });
   });
-  // the tower open or closed: the graph leans to it while it is open (towerfit.ts)
-  $effect(() => {
-    const on = towerOpen;
-    untrack(() => layout.setTower(on));
-  });
   // the edges again when what they're drawn with changes: lit or not, a meter's net laid again, a belt's stretch
   $effect(() => {
     void layout.shown;
