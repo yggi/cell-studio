@@ -11,7 +11,7 @@ import { playedCells } from '../engine/clocking';
 import { flatten, tapped } from '../engine/flatten';
 import { resolveIn } from '../engine/helix';
 import { bulbHosts, isTurntable } from '../engine/graph';
-import { bulbsOf, type Bulb } from './track';
+import { bulbsOf, fanOf, type Bulb } from './track';
 
 /**
  * Drawn as a grid (entries placed on the grid below) only when it's looked
@@ -278,7 +278,10 @@ export function cellView(result: CompileResult, name: string, shifts: Shifts, is
   rest(cursor, total);
   // (bars of levels stay on the ring; a scope or a turntable draws no track)
   const bulbs = levels || typeof c.params.scope === 'string' || isTurntable(c) ? [] : bulbsOf(result, name, shifts, bulbHosts(result));
-  return { mode: 'braid', segments, ticks: total, detents: Math.max(1, units.length), show, conv, ...(bulbs.length ? { bulbs } : {}) };
+  // (a table of taps fans its steps over its top, as its bulbs: track.ts)
+  const fan = fanOf(result, name);
+  const laid = fan ? segments.map((s) => ({ ...s, t0: fan(s.t0), t1: fan(s.t1) })) : segments;
+  return { mode: 'braid', segments: laid, ticks: total, detents: Math.max(1, units.length), show, conv, ...(bulbs.length ? { bulbs } : {}) };
 }
 
 /**

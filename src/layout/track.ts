@@ -42,7 +42,23 @@ function refLabel(a: { readonly transpose?: number; readonly values?: { readonly
  */
 export function bulbsOf(result: CompileResult, name: string, shifts: Shifts, hosts: ReadonlyMap<string, string>): Bulb[] {
   const c = result.cells.get(name);
-  return c ? splices(result, name, shifts, hosts, 0, 1, Math.max(1, c.steps), 0, 0) : [];
+  if (!c) return [];
+  const bulbs = splices(result, name, shifts, hosts, 0, 1, Math.max(1, c.steps), 0, 0);
+  const fan = fanOf(result, name);
+  return fan ? bulbs.map((b) => ({ ...b, t0: fan(b.t0), t1: fan(b.t1) })) : bulbs;
+}
+
+/** How much of its wheel a table of taps fans its taps over, at the top (turns). */
+const TAP_FAN = 2 / 3;
+
+/**
+ * A table of taps (decision 016) is shaped as a bulb itself: its taps fanned over the top two thirds of its wheel in
+ * braid order, left to right (8 o'clock round to 4), facing what they step; the bottom third, where its inputs come
+ * in (the meter's bus, the selector), left free. Its loop's time (turns) to where it is drawn; null for any other cell.
+ */
+export function fanOf(result: CompileResult, name: string): ((t: number) => number) | null {
+  if (![...(result.taps?.values() ?? [])].includes(name)) return null;
+  return (t) => (t - 0.5) * TAP_FAN;
 }
 
 function splices(
@@ -192,14 +208,18 @@ export function layTrack(cx: number, cy: number, r: number, w: number, bulbs: re
     if (!closed) knots.push({ p: onCircle(c, R, a1), tau: T1, w: width });
     return laid;
   };
+  // (from 12 o'clock; a table of taps' fan, which is about 12 o'clock (fanOf), from 6, its ribbon narrower: its taps,
+  // many and short, bend out where a ring's width wouldn't let them)
+  const fanned = bulbs.some((b) => b.t0 < 0);
+  const start = fanned ? -0.5 : 0;
   const top = arc(
     [cx, cy],
     r,
-    0,
-    1,
-    0,
-    1,
-    w,
+    start,
+    start + 1,
+    start,
+    start + 1,
+    fanned ? w / 2 : w,
     spans(bulbs, (t) => t),
     r * 0.62,
     true,
