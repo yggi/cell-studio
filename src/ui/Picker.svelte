@@ -50,7 +50,6 @@
    * and saving files, and saving here, live at the top.
    */
   import LibraryGraph from './LibraryGraph.svelte';
-  import MidiDialog from './MidiDialog.svelte';
   import PieceNode from './PieceNode.svelte';
   import { tagColours } from './tags';
   import { tagKind, tagName, TUTORIAL, type TagKind } from '../engine/tags';
@@ -100,7 +99,6 @@
   // cards, or the library as a graph (pieces and their tags)
   let view = $state<'cards' | 'graph'>('graph');
   let filesOpen = $state(false);
-  let midiOpen = $state(false);
   // the floating top's height (the graph keeps it free) and a request to frame it all again
   let topHeight = $state(0);
   let refit = $state(0);
@@ -242,7 +240,7 @@
               <button class="unstyled" role="menuitem" onclick={() => ((filesOpen = false), fileInput.click())}>Open a file…</button>
               <button class="unstyled" role="menuitem" disabled={!current} onclick={() => ((filesOpen = false), onsavefile())}>Save the piece to a file</button>
               <button class="unstyled" role="menuitem" disabled={!current} onclick={() => ((filesOpen = false), onrender())}>Render the piece to WAV</button>
-              <button class="unstyled" role="menuitem" onclick={() => ((filesOpen = false), (midiOpen = true))}>MIDI…</button>
+              <button class="unstyled" role="menuitem" onclick={() => ((filesOpen = false), studio.view.showPanel('midi'))}>MIDI…</button>
               {#if onperf}<button class="unstyled" role="menuitem" onclick={() => ((filesOpen = false), onperf())}>{perfOn ? 'Hide' : 'Show'} performance report</button>{/if}
               <button
                 class="unstyled"
@@ -403,7 +401,6 @@
       </div>
     </div>
   {/each}
-  {#if midiOpen}<MidiDialog midi={studio.midi} onclose={() => (midiOpen = false)} />{/if}
 </div>
 
 <style>
