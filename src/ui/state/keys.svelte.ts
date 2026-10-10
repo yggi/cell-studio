@@ -132,7 +132,7 @@ export class Keys {
   readonly #keyboard = $derived.by<Keyboard | null>(() =>
     this.armed === null ? null : keyboardOf(this.piece.program, this.armed, this.piece.shifts, { a4: this.piece.env.A4, mode: this.#kept.mode }),
   );
-  // the kit channel 10 plays: the armed one, else the first the piece plays
+  // the kit that the kit channel plays: the armed one, else the first the piece plays
   readonly #kit = $derived.by<Keyboard | null>(() => {
     if (this.#keyboard?.kind === 'kit') return this.#keyboard;
     const kit = this.armable.find((a) => a.kit);
@@ -164,7 +164,7 @@ export class Keys {
     }
   }
 
-  /** The pads of the kit channel 10 plays (the on-screen pads, #255): one per member, with its General MIDI note; none without a kit. */
+  /** The pads of the kit that the kit channel plays (the on-screen pads, #255): one per member, with its General MIDI note; none without a kit. */
   readonly pads = $derived.by<Pad[]>(() => (this.#kit ? kitPads(this.piece.program, this.#kit.cell) : []));
   /** The keys the armed melody's scale can play (the dots on the on-screen keys, #255); null: no scale (a kit, a voice no melody plays). */
   readonly scale = $derived.by<ReadonlySet<number> | null>(() => (this.armed === null ? null : scaleKeys(this.piece.program, this.armed, this.piece.shifts, this.piece.env.A4)));

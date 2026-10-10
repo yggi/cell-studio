@@ -447,10 +447,18 @@ const CARD_ONLY = { voice: 'sub', channel: 2 };
       );
     const first = await sound([0x90, 60, 100]);
     if (first.ms === null) problems.push('a key on an armed voice did not sound');
+    // the wheel of the mix the voice goes through hears the key while it is held (#252), and falls silent after
+    // (the first ask only attaches the analyser)
+    await mp.evaluate(() => window.cellStudio.level('mix'));
+    await mp.waitForTimeout(150);
+    const mixHeld = await mp.evaluate(() => window.cellStudio.level('mix') ?? 0);
+    if (mixHeld < 0.001) problems.push(`the mix's wheel does not hear a held key (${mixHeld.toFixed(4)})`);
     await mp.evaluate(() => window.midiIn([0x80, 60, 0]));
     await mp.waitForTimeout(800);
     const after = await mp.evaluate(() => window.cellStudio.level('fiddle') ?? 0);
     if (after > 0.001) problems.push(`still sounding ${after.toFixed(4)} after the note-off`);
+    const mixAfter = await mp.evaluate(() => window.cellStudio.level('mix') ?? 0);
+    if (mixAfter > 0.001) problems.push(`the mix's wheel still hears ${mixAfter.toFixed(4)} after the note-off`);
     // again, the engine awake: a live note's latency
     const lat = [];
     for (let i = 0; i < 5; i++) {

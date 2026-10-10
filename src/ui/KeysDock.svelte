@@ -1,7 +1,7 @@
 <script lang="ts">
   /**
    * The dock of on-screen keys and drum pads (#255), along the bottom (a third of the height on a phone): *Keys* plays
-   * the armed cell, *Pads* the piece's kit on channel 10, both through `studio.keys` (the path MIDI in and the computer
+   * the armed cell, *Pads* the piece's kit on its kit channel, both through `studio.keys` (the path MIDI in and the computer
    * keys take; nothing new sounds). The armed cell's name sits on it, and choosing another there is the MIDI page's
    * *Play with*. The keys shift by octaves; velocity from where a key is struck or fixed; a sustain button is the
    * pedal. Open or not, and its tab, are kept in this browser (`state/dock.svelte.ts`). Mounted only while open: closed,

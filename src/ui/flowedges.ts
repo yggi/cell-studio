@@ -15,6 +15,7 @@ import { groundsOf, meterIndex } from '../layout/meters';
 import { loomBands } from '../layout/looms';
 import type { MeterTrace } from '../layout/state';
 import type { GraphSnapshot } from './snapshot';
+import { payloadOf } from './payload';
 
 const nameOf = (id: string) => id.slice('cell:'.length);
 /** An edge's end as a cell's name: a product's junction reads as the voice it is (its sound). */
@@ -91,8 +92,16 @@ const BY_PORT: Readonly<Record<string, Carrier>> = {
     return { phaseCell: voice && trigger(p, voice), voice };
   },
 };
-/** Any other port feeds a voice (a melody playing it, its envelope, levels, pitch, parameters, FM, what excites or couples it): its note; the pulse if this is what plays it. */
+/**
+ * Any other port feeds a voice (a melody playing it, its envelope, levels, pitch, parameters, FM, what excites or couples
+ * it): its note; the pulse if this is what plays it. Sound into a voice (fm=, excite=, couple=) carries its source's
+ * sound, as every edge carries what its source pushes: the modulator's, the exciter's, pulsing with the steps that play it.
+ */
 const INTO_VOICE: Carrier = (e, p) => {
+  if (e.band === 'audio') {
+    const from = nameOf(e.from);
+    return { phaseCell: trigger(p, from), voice: from };
+  }
   // (into a product's junction: the voice it is)
   const voice = e.sound ?? nameOf(e.target);
   return { phaseCell: trigger(p, voice) === nameOf(e.source) ? nameOf(e.source) : null, voice };
@@ -117,6 +126,8 @@ function pulseData(e: GraphEdge, program: CompileResult) {
   return {
     band: e.band,
     port: e.port,
+    // (what travels along it while it plays, drawn by EdgePayload: a pointer carries nothing that travels, D6)
+    payload: payloadOf(e.band, e.port, e.pointer),
     width: e.width,
     from: endOf(e, e.from),
     // (a table read through, over=, or looked up, map=: its strands leave its entries)
