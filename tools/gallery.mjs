@@ -7,13 +7,14 @@
 //   node tools/gallery.mjs zoom [secs] pieces…               close-ups of cells in the real graph (ZOOM=parts,teile; default: every wheel with bulbs)
 //   node tools/gallery.mjs mockups                            the wheel design questions (#107)
 //   node tools/gallery.mjs roll [secs]                        a cell's piano roll in each state (#211)
+//   node tools/gallery.mjs keys                               the dock's on-screen keys and drum pads in each state (#255)
 //   node tools/gallery.mjs graphs                             every example's graph as the library's miniature (tools/graphs.mjs)
 //
 // `wheels` plays every piece in the built app (npm run build first) unless --fast; the others are always set up
 // directly (tools/gallery/fast.mjs, from the working tree). A new subject: a folder in tools/gallery/ with a Sheet
 // component, and a line in tools/gallery/harness.ts.
 const [subject, ...args] = process.argv.slice(2);
-const SUBJECTS = ['wheels', 'edges', 'golden', 'zoom', 'mockups', 'roll', 'graphs'];
+const SUBJECTS = ['wheels', 'edges', 'golden', 'zoom', 'mockups', 'roll', 'keys', 'graphs'];
 if (!SUBJECTS.includes(subject)) {
   console.error(`usage: node tools/gallery.mjs <${SUBJECTS.join('|')}> [--fast] [secs] [pieces…]`);
   process.exit(2);

@@ -10,12 +10,13 @@
   import Graph from './ui/Graph.svelte';
   import Editor from './ui/Editor.svelte';
   import UpdateToast from './ui/UpdateToast.svelte';
+  import KeysDock from './ui/KeysDock.svelte';
 
   // the app's state (ui/state/): the piece, playing it, the library, what's on screen
   const studio = new Studio();
   setStudio(studio);
   onDestroy(() => studio.dispose());
-  const { piece, playback, library, view } = studio;
+  const { piece, playback, library, view, dock } = studio;
 </script>
 
 <UpdateToast />
@@ -85,8 +86,19 @@
         <h2>Controls</h2>
         <button class="x" onclick={() => (view.panelOpen = false)} aria-label="Close">×</button>
       </header>
+      <button
+        class="dock-toggle"
+        aria-pressed={dock.open}
+        onclick={() => {
+          dock.toggle();
+          if (dock.open) view.panelOpen = false;
+        }}>{dock.open ? 'Hide' : 'Show'} the keys and pads</button
+      >
       <FreePanel />
     </aside>
+  {/if}
+  {#if dock.open && library.anyOpen && view.tab !== 'select'}
+    <div class="dock-slot"><KeysDock /></div>
   {/if}
   <section class="side" class:away={view.tab !== 'code'} inert={view.narrow && view.tab !== 'code'} aria-label="Program">
     <Editor bind:this={studio.editor} bind:value={piece.code} diagnostics={piece.result.diagnostics} />
@@ -104,8 +116,15 @@
     height: 100%;
     display: grid;
     grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: auto auto minmax(0, 1fr);
-    grid-template-areas: 'head' 'tabs' 'view';
+    grid-template-rows: auto auto minmax(0, 1fr) auto;
+    grid-template-areas: 'head' 'tabs' 'view' 'dock';
+  }
+  /* the keys and pads: under the view, so they never cover the graph; a third of the height on a phone */
+  .dock-slot {
+    grid-area: dock;
+    z-index: 3;
+    height: max(180px, 33dvh);
+    min-height: 0;
   }
   .canvas,
   .side {
@@ -181,8 +200,11 @@
     /* Desktop: two panes side by side, no tabs */
     .app {
       grid-template-columns: minmax(360px, 34%) minmax(0, 1fr);
-      grid-template-rows: auto minmax(0, 1fr);
-      grid-template-areas: 'head head' 'side canvas';
+      grid-template-rows: auto minmax(0, 1fr) auto;
+      grid-template-areas: 'head head' 'side canvas' 'dock dock';
+    }
+    .dock-slot {
+      height: clamp(170px, 26vh, 250px);
     }
     .tabs {
       display: none;
@@ -361,6 +383,21 @@
     font-size: 22px;
     padding: 0 6px;
   }
+  .dock-toggle {
+    width: 100%;
+    min-height: 40px;
+    margin-bottom: 14px;
+    border-radius: var(--radius);
+    border: 1px solid var(--line);
+    background: var(--code-bg);
+    color: var(--text);
+    font: 600 14px var(--font-ui);
+    cursor: pointer;
+  }
+  .dock-toggle[aria-pressed='true'] {
+    border-color: var(--accent);
+  }
+  .dock-toggle:focus-visible,
   .drawer .x:focus-visible {
     outline: 2px solid var(--accent);
     outline-offset: 2px;
