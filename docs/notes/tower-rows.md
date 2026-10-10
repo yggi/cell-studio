@@ -88,6 +88,31 @@ Seen on the way: a table with no clock of its own sits at the constant, though w
 
 After review (#268): the axis sits beside the graph, not over it (the flow's box stops at it, so it hides no cell), and steps to the left edge of a cell's card while one is open, so the selected cell's line is seen when it is clicked, not only through `?towerCell=`.
 
+## The tower balanced (2026-10-10)
+
+The owner's ask: the tower and the graph balance each other; density in the graph moves the tower's zone borders, and
+a node's place in its zone pulls it to a height in the graph. Chosen: the axis follows, a weak pull, kept only if the
+crossings stay within the noise, and only while the tower is open.
+
+- `layout/towerfit.ts: towerFit`: a monotone fit (isotonic regression, pool adjacent violators) of the graph's
+  heights against the tower's; a pooled stretch is flat, nodes at one height on the tower are one point.
+- **The axis** is drawn by it (`TowerAxis.svelte`): a height on the tower sits at 70 % its share of the graph's span by
+  the fit and 30 % an even log scale, so dense zones are wide and the axis never folds up; panning leaves it still.
+- **The pull** (`LayoutOptions.tower`, `towerPull`; `physics.ts: stepTower`): every node with a finite height drawn
+  toward the fit's height for it, the fit made again every 20 ticks from where the nodes are.
+
+Measured (`tools/probe/tower-balance.test.ts`, four seeds, library sums; ρ is Spearman's of height against the tower,
+the mean over pieces):
+
+| pull | crossings | cost | area Mpx² | ρ |
+|---|---|---|---|---|
+| 0 | 53.3 | 117.7 | 87.8 | 0.623 |
+| **0.02** | **53.0** | **114.5** | 88.3 | **0.647** |
+| 0.05 | 56.5 | 123.0 | 89.2 | 0.669 |
+| 0.1 | 58.8 | 128.6 | 89.6 | 0.680 |
+
+0.02 leans the graph toward the tower at no cost in crossings (`TOWER_PULL`); stronger pulls lean more and cross more.
+
 ## Next
 
 1. The language's side (the multiscale note's "the form sends up"): with a selector that sends gates, rerun `emit`: the selector should go down by itself and its crossings with it. A rewritten *Pop* or Korobeiniki is the test.

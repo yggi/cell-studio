@@ -19,6 +19,7 @@
   import type { GraphModel } from '../engine/graph';
   import { cellId } from '../engine/ids';
   import { TOWER_ZONES, towerSpans } from '../layout/tower';
+  import { towerFit } from '../layout/towerfit';
   import { noteColour } from './theme';
   import type { FlowNode } from './types';
 
@@ -56,7 +57,17 @@
   const top = 40;
   const bottom = $derived(h - 64);
   // (the constant just under the axis, the sound card just over it)
-  const yOf = (d: number) => (d === -Infinity ? bottom + 22 : d === Infinity ? top - 22 : bottom - ((d - range.lo) / Math.max(1, range.hi - range.lo)) * (bottom - top));
+  // the axis balanced with the graph (towerfit.ts): a height on the tower sits where the graph's heights put it, as a
+  // share of the graph's own span (where the graph is dense, its zone is wide), mixed with an even log scale so the
+  // axis never folds up; the same fit the layout's tower pull follows. Panning and zooming leave it as it is.
+  const BALANCE = 0.7;
+  const fit = $derived(towerFit(nodes.flatMap((n) => (Number.isFinite(spans.get(n.id)?.at ?? NaN) ? [{ at: spans.get(n.id)!.at, y: n.position.y }] : []))));
+  const share = (d: number) => {
+    const even = (d - range.lo) / Math.max(1, range.hi - range.lo);
+    const [a, b] = fit ? [fit(range.lo), fit(range.hi)] : [0, 0];
+    return a - b > 1 ? BALANCE * ((a - fit!(d)) / (a - b)) + (1 - BALANCE) * even : even;
+  };
+  const yOf = (d: number) => (d === -Infinity ? bottom + 22 : d === Infinity ? top - 22 : bottom - share(d) * (bottom - top));
   // (the strip at the right edge, or left of the card while one is open over it)
   const x0 = $derived(Math.max(NAMES, Math.min(w, cardLeft - 8) - AXIS));
 
