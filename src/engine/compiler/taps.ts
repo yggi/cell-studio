@@ -19,7 +19,9 @@ export function tapped(outputs: readonly Output[], cells: Cells, taps: ReadonlyM
       if (table) {
         const entry = cells.get(table)!.units.findIndex((u) => u.atom.kind === 'ref' && u.atom.name === tap);
         const select = readers(table).map((s) => ({ cell: s.name, entry, part: tap }));
-        return select.length ? { ...o, select: [...o.select, ...select] } : o;
+        // (the selectors, the table and the tap are on its way: live while it plays)
+        const via = [...new Set([...o.via, ...select.map((x) => x.cell), table, tap])];
+        return select.length ? { ...o, via, select: [...o.select, ...select] } : o;
       }
       c = cells.get(tap);
     }

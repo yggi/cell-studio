@@ -5,7 +5,7 @@ What Cell studio doesn't do yet or does with a catch, documented rather than tra
 ## Language
 
 - Filters are one per voice (as on a monosynth): overlapping notes share the last envelope.
-- Selectors choose parts in a braid's position only; they don't read in a voice's position (orchestration) or a melody's (multiplexing). There is no `restart=&x`, and label templates have no `{lap}`.
+- Selectors switch taps of a meter's bus only ([decision 016](decisions/016-arranging-at-the-input.md)); they don't read in a voice's position (orchestration) or a melody's (multiplexing). A part switched on always starts from its top (no resume yet), and label templates have no `{lap}`.
 - A voice can't be a pitch source in a product (`&op2 * &op1` is an error: "a voice, not a pitch"); FM is `fm=` ([language/physics.md](language/physics.md)), without feedback or loops.
 - No inversion within a scale (`(7 - &theme) * &lead` mirrors in semitones; keeping the scale's steps would need something like `&theme[-]`).
 - A braid of note names turned with `shift=` climbs by its table's lap, not the root's: `&u C shift=2` is C6, where `&u 0 shift=2` is D.
