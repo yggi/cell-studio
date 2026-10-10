@@ -54,6 +54,12 @@ After merging: the issue is closed by `Closes #n` (verify; if the PR was partial
 
 It decides nothing: a collision it can't see (two pieces on one tier, a rung number, a decision number twice) shows up as a failing gate or the warning, and renumbering is yours. Re-review what the merge brought in only when the PR itself changed since your review; a mechanical merge of `main` is not new code.
 
+### Stacked PRs and the merge strategy
+
+Merge by **squash** (the default, above): `main` reads `Title (#n)`, one commit a change. A squash is why a PR stacked on another one needs work after its parent merges (the parent's commits are not in `main`): so don't stack. Branch from `main`; when a PR needs another's code, wait for it, or retarget its base to `main` as soon as the parent is in (merge `main` in; the diff must show only its own files). A stack that has to stay one lineage (rare) is merged with a **merge commit**, for those PRs only. GitHub lets you choose per PR.
+
+`.gitattributes` marks `CHANGELOG.md`, `docs/MEMORY.md` and `snapshot.txt` as `merge=union`: a local `git merge` keeps both sides' added lines instead of conflicting. (GitHub's "Update branch" may not honour it; `tools/sync-pr.mjs` is the fallback.) Rung, tier and decision numbers are still taken by hand: take the next free number on `main` when you merge, and check `docs/decisions/` for a number used twice.
+
 ## 6. Report back (short)
 
 Per PR: verdict, what you checked beyond CI, what you fixed, what is left or filed (with issue numbers), and whether it is merged. Lead with what the owner has to decide, if anything. Don't narrate the steps.
