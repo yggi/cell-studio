@@ -191,4 +191,5 @@ The lambda form, a pattern inline, then reads `trigger=&(step=&drumBar 0 ~ 0 ~)`
 
 1. **Sockets on their bulbs**: the rider at its bulb's own place (`track.ts: layTrack`, as `netEnds` finds a net-ref's), and the table's marker kept at 12 o'clock while its bulbs turn.
 2. **The switch drawn**: a sub-net lit while `&song` has its tap on, dark while off (the live state knows which parts a selector picks now).
-3. **A spelling** for the tap (a part as a switched tap of the meter bus), the trigger (restart) and the gate node (#29, #10, ⚖ owner); then the engine, and Pop and BWV 847 rewritten as the tests.
+3. **The owner's answers** are [decision 016](../decisions/016-arranging-at-the-input.md); the gate node, under the pressure of kits, MIDI out and gating anything, is [gate-node.md](gate-node.md).
+4. **A spelling** for the tap (a part as a switched tap of the meter bus), the trigger (restart) and the gate node (#29, #10, ⚖ owner); then the engine, and Pop and BWV 847 rewritten as the tests.
