@@ -13,7 +13,8 @@ import type { LayoutState, PhysNode } from './state';
  * (crowding costs a little): its wheels are pushed apart to make room (makeRoom). Call after the layout settles.
  */
 export function placeMeters(s: LayoutState): void {
-  const meters = [...new Set(s.grounds.map((g) => g.meter))];
+  // (not a table of taps: its sub-nets leave from its bulbs, and it stays where its own edges put it)
+  const meters = [...new Set(s.grounds.filter((g) => !g.bulb).map((g) => g.meter))];
   for (const m of meters) {
     const node = s.byId.get(m);
     // (one the user moved stays where they put it)

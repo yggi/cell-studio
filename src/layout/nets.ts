@@ -22,11 +22,14 @@ export type Piece = { a: string; b: string; seg: [number, number, number, number
  */
 export function netTree(s: LayoutState, net: GraphModel['nets'][number], ends = s.edgeEnds): Map<string, { from: string; to: string }> {
   const out = new Map<string, { from: string; to: string }>();
-  const o = s.byId.get(net.owner);
+  const owner = s.byId.get(net.owner);
+  // (a tap's sub-net leaves from its bulb on its table: decision 016)
+  const at = net.bulbAt;
+  const o = owner && at ? { ...owner, x: (owner.x ?? 0) + at.x, y: (owner.y ?? 0) + at.y, radius: at.r } : owner;
   // (a reader may be a product's junction: as drawn)
   const readers = net.taps.flatMap((id) => {
     const n = nodeAt(s, ends.get(id) ?? '');
-    return n && n !== o ? [{ id, n }] : [];
+    return n && n !== owner ? [{ id, n }] : [];
   });
   if (!o || !readers.length) return out;
   // (the wheels, as plain numbers: this runs every tick, for every pair of a net's ends)
@@ -64,7 +67,7 @@ export function netTree(s: LayoutState, net: GraphModel['nets'][number], ends = 
     out.set(r.id, { from: from.id, to: r.n.id });
     // (a bus has left its owner: only the readers join on)
     left.forEach((q, i) => {
-      if (bus && best[i].from === o) best[i] = { cost: Infinity, from: o };
+      if (bus && best[i].from === o) best[i] = { cost: Infinity, from: o! };
       const c = cost(r.n, q.n);
       if (c < best[i].cost) best[i] = { cost: c, from: r.n };
     });
@@ -88,7 +91,9 @@ export function stepNets(s: LayoutState, alpha: number): void {
     for (const { from, to } of tree.values()) {
       const [a, b] = [s.byId.get(from), s.byId.get(to)];
       if (!a || !b) continue;
-      const [dx, dy] = [(b.x ?? 0) - (a.x ?? 0), (b.y ?? 0) - (a.y ?? 0)];
+      // (from a tap's bulb, not its table's centre: decision 016)
+      const off = from === net.owner && net.bulbAt ? net.bulbAt : { x: 0, y: 0 };
+      const [dx, dy] = [(b.x ?? 0) - (a.x ?? 0) - off.x, (b.y ?? 0) - (a.y ?? 0) - off.y];
       const l = Math.hypot(dx, dy) || 1;
       if (o.netPull > 0) {
         // (as d3's link: towards its length, shared by the two ends)
@@ -216,9 +221,16 @@ export function meterNet(s: LayoutState): readonly MeterTrace[] {
   const net: MeterTrace[] = [];
   // (a pair a drawn edge already joins: a trace would lie on it)
   const joined = new Set(s.links.map((l) => [l.source, l.target].sort().join('|')));
-  for (const meter of [...new Set(s.grounds.map((g) => g.meter))]) {
-    const ends = [meter, ...new Set(s.grounds.filter((g) => g.meter === meter).map((g) => g.cell))].filter((id) => s.byId.has(id));
-    const at = (id: string) => s.byId.get(id)!;
+  // (a meter's net; a tap's, from its bulb on its table, one per tap: decision 016)
+  const groups = new Map<string, { meter: string; bulb?: string; at?: { x: number; y: number; r: number } }>();
+  for (const g of s.grounds) if (!groups.has(`${g.meter}|${g.bulb ?? ''}`)) groups.set(`${g.meter}|${g.bulb ?? ''}`, { meter: g.meter, bulb: g.bulb, at: g.at });
+  for (const { meter, bulb, at: hub } of groups.values()) {
+    const ends = [meter, ...new Set(s.grounds.filter((g) => g.meter === meter && g.bulb === bulb).map((g) => g.cell))].filter((id) => s.byId.has(id));
+    // (the meter's end: its wheel, or the bulb on it)
+    const at = (id: string) => {
+      const n = s.byId.get(id)!;
+      return hub && id === meter ? { id, x: (n.x ?? 0) + hub.x, y: (n.y ?? 0) + hub.y, radius: hub.r } : n;
+    };
     const pairs: { a: string; b: string; len: number; cost: number; checked: boolean }[] = [];
     for (let i = 0; i < ends.length; i++)
       for (let j = i + 1; j < ends.length; j++) {
@@ -245,7 +257,7 @@ export function meterNet(s: LayoutState): readonly MeterTrace[] {
         }
       }
       root.set(find(p.a), find(p.b));
-      net.push({ id: `net:${p.a}~${p.b}`, meter, a: p.a, b: p.b });
+      net.push({ id: `net:${p.a}${bulb ? `@${bulb}` : ''}~${p.b}`, meter, a: p.a, b: p.b, ...(bulb && hub ? { bulb, at: hub } : {}) });
       const [a, b] = [at(p.a), at(p.b)];
       laid.push({ a: p.a, b: p.b, seg: [a.x ?? 0, a.y ?? 0, b.x ?? 0, b.y ?? 0] });
     }

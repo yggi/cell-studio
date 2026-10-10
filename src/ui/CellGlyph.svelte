@@ -6,7 +6,7 @@
 <script lang="ts">
   import { DEFAULT_FREQ } from '../engine/program';
   import { onDestroy, untrack } from 'svelte';
-  import { blockColour, noteColour } from './theme';
+  import { blockColour, noteColour, partColour } from './theme';
   import { cellView, hubLabel, type CellView, type Fill, type Segment } from '../layout/cellview';
   import { BORDER, border, coarsen } from '../layout/coarse';
   import { names, noteLabel, tonicOf, voiceBase } from '../layout/show';
@@ -16,7 +16,7 @@
   import { mod } from '../theory/modes';
   import { getGraphContext } from './context';
   import { meterNow } from '../layout/meters';
-  import { cursorOf, joins, layTrack, ribbon, stepOn, trackAt, type Laid as LaidBulb } from '../layout/track';
+  import { cursorOf, fanOf, joins, layTrack, ribbon, stepOn, trackAt, type Laid as LaidBulb } from '../layout/track';
 
   /**
    * `interactive`: the rim turns the cell (detail sheet). In the graph the whole node just drags.
@@ -82,6 +82,24 @@
     const segments = coarsen(full.segments);
     return segments === full.segments ? full : { ...full, segments };
   });
+  // a bulb from the keyboard: Enter or Space opens its cell, Shift+Enter switches it off or on (as tap and hold do)
+  const bulbKey = (e: KeyboardEvent, bulb: string) => {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.key === 'Enter' && e.shiftKey) ctx.toggle(`cell:${bulb}`);
+    else ctx.open(bulb);
+  };
+  // a table of taps (decision 016): its bulbs named by their taps, less what all of them end in (`&hatsBar` … : hats)
+  const tapsTable = $derived(!!fanOf(ctx.program, name));
+  const tapSuffix = $derived.by(() => {
+    if (!tapsTable || !cell) return '';
+    const names = cell.units.flatMap((u) => (u.atom.kind === 'ref' ? [u.atom.name] : []));
+    let k = 0;
+    while (names.every((n) => n.length > k + 2 && n[n.length - 1 - k] === names[0][names[0].length - 1 - k])) k++;
+    return k ? names[0].slice(-k) : '';
+  });
+  const tapName = (n: string) => (tapSuffix ? n.slice(0, -tapSuffix.length) : n);
   // a braid's track (#221): its splices bend out of the ring into bulbs, their steps along them
   const ringMid = $derived((rInner + rOuter) / 2);
   const ringW = $derived(rOuter - rInner);
@@ -96,10 +114,16 @@
       for (const L of list) {
         const b = L.bulb;
         const lambda = !!ctx.program.cells.get(b.name)?.lambda;
-        const text = lambda ? '' : `&${b.name}`;
+        const text = lambda ? '' : tapsTable ? tapName(b.name) : `&${b.name}`;
         const sub = [b.label, b.laps > 1 ? `×${b.laps}` : ''].filter(Boolean).join(' ');
         const room = 2 * Math.max(4, L.rho - L.w / 2) * 0.9;
-        out.push({ L, outline: b.hollow && track ? ribbon(track, L.T0, L.T1, 0, 1, 1.5) : null, text, sub, font: fitFont(room, Math.max(2, text.length, sub.length), 13, 6) });
+        out.push({
+          L,
+          outline: b.hollow && track ? ribbon(track, L.T0, L.T1, 0, 1, 1.5) : null,
+          text,
+          sub,
+          font: fitFont(room, Math.max(2, text.length, sub.length), 13, tapsTable ? 4.5 : 6),
+        });
         walk(L.bulbs);
       }
     };
@@ -222,7 +246,7 @@
         d: ringSegment(c, c, rInner + k * band + 0.8, rInner + (k + 1) * band - 0.8, st.t0 + 0.004, st.t1 - 0.004),
         on: st.rows.has(k),
         step,
-        fill: noteColour((k / rows) * 360),
+        fill: partColour(k, rows),
       })),
     );
   });
@@ -373,6 +397,22 @@
     return sums.map((v) => (hi > lo ? (v - lo) / (hi - lo) : 0.5));
   });
   const fills = $derived(view.segments.map((s, i) => (brightness ? s.bands.map(() => blockColour(brightness[i])) : s.bands.map(fillOf))));
+  // a table of taps wears the colours of the selector reading it (decision 016): each tap its part's colour on the
+  // selector's barrel; while playing, the ones the selector has off dimmed, and a cursor from the hub to each it has on
+  const tapRings = $derived(tapsTable && track ? bulbs.map((b, i) => ({ L: b.L, colour: partColour(view.segments[i]?.index ?? i, cell?.units.length ?? 1), on: lit.has(i) })) : []);
+  const tapCursors = $derived(
+    ctx.lit
+      ? tapRings.flatMap((t) => {
+          if (!t.on) return [];
+          const [dx, dy] = [t.L.C[0] - c, t.L.C[1] - c];
+          const l = Math.hypot(dx, dy) || 1;
+          // (from the hub to the tap's ring, where it meets it: its name inside stays clear)
+          const [r0, r1] = [geo.hand.r0 * 0.4, l - t.L.rho];
+          const head: [number, number] = [c + (dx / l) * r1, c + (dy / l) * r1];
+          return [{ d: `M ${c + (dx / l) * r0} ${c + (dy / l) * r0} L ${head[0]} ${head[1]}`, head, colour: t.colour }];
+        })
+      : [],
+  );
 
   // What space the wheel is drawn in: a table, scale, key or grid is laid out by pitch (the slots it takes from the
   // table below come in at its hub); a braid by time — its rim a clock, a tick a step. (A meter, a curve, an LFO, a
@@ -433,7 +473,7 @@
       : [],
   );
   const ticks = $derived(
-    space === null && view.ticks <= 48
+    space === null && view.ticks <= 48 && !tapsTable
       ? Array.from({ length: view.ticks }, (_, i) => {
           const [x1, y1] = polar(c, c, geo.tick.r0, i / view.ticks);
           const [x2, y2] = polar(c, c, geo.tick.r1, i / view.ticks);
@@ -442,9 +482,18 @@
       : [],
   );
 
-  // which segments are live: braids by time, grids by the entries being looked up
+  // which segments are live: braids by time, grids by the entries being looked up; a table of taps by the taps its
+  // selector has on now (decision 016)
   // (as a key first: the set is made again only when the lit segments change, not every tick)
   const litKey = $derived.by(() => {
+    if (tapsTable) {
+      const on: number[] = [];
+      view.segments.forEach((s, i) => {
+        const u = cell?.units[s.index];
+        if (u?.atom.kind === 'ref' && ctx.lit?.nodes.has(`cell:${u.atom.name}`)) on.push(i);
+      });
+      return on.join(',');
+    }
     if (!hasLive || view.mode !== 'braid' || liveLocal === null) return '';
     const t = liveLocal / Math.max(1, cell?.steps ?? 1);
     const on: number[] = [];
@@ -579,7 +628,7 @@
   width={size}
   height={size}
   viewBox="0 0 {size} {size}"
-  role={interactive ? 'group' : 'img'}
+  role={interactive || bulbs.length ? 'group' : 'img'}
   aria-label="&{name}: {label.big} {label.small}{spliced ? `, splicing ${spliced}` : ''}"
 >
   {#if stripes.size}
@@ -607,12 +656,22 @@
   {/snippet}
   {#snippet slots()}
     {#each bulbs as b, i (i)}<circle class="bulb-disc" cx={b.L.C[0]} cy={b.L.C[1]} r={b.L.rho + b.L.w / 2 + 2} />{/each}
-    {#each threads as d, i (i)}<path class="bulb-thread" {d} />{/each}
-    {#each geometry as slot, i}
-      <g class="slot" class:lit={lit.has(i)} stroke-width={slot.w}>
-        {#each slot.d as d, j}<path {d} fill={fills[i][j]} fill-rule="evenodd" />{/each}
-      </g>
-    {/each}
+    {#if tapRings.length}
+      <!-- a table of taps: each tap a closed ring, no track between them (its taps take no time on it) -->
+      {#each tapRings as t, i (i)}<circle class="tap-ring" class:dim={!!ctx.lit && !t.on} cx={t.L.C[0]} cy={t.L.C[1]} r={t.L.rho} stroke={t.colour} stroke-width={t.L.w} />{/each}
+      {#each tapCursors as k, i (i)}<g class="hand bent tap-hand" style:--hand={k.colour}>
+          <path class="edge" d={k.d} style:stroke-width="{geo.hand.width + 2}px" />
+          <path d={k.d} style:stroke-width="{geo.hand.width}px" />
+          <circle cx={k.head[0]} cy={k.head[1]} r={Math.max(2.5, geo.hand.width * 1.3)} />
+        </g>{/each}
+    {:else}
+      {#each threads as d, i (i)}<path class="bulb-thread" {d} />{/each}
+      {#each geometry as slot, i}
+        <g class="slot" class:lit={lit.has(i)} stroke-width={slot.w}>
+          {#each slot.d as d, j}<path {d} fill={fills[i][j]} fill-rule="evenodd" />{/each}
+        </g>
+      {/each}
+    {/if}
     {#each bulbs as b, i (i)}
       {#if b.outline}<path class="bulb-hollow" d={b.outline} />{/if}
       {#if b.font && !units.length}
@@ -620,6 +679,24 @@
         {#if b.sub}<text class="bulb-sub" x={b.L.C[0]} y={b.L.C[1]} dy="1.05em" style:font-size="{b.font * 0.8}px">{b.sub}</text>{/if}
       {/if}
     {/each}
+    <!-- in the graph, each bulb is the cell it splices: tapped, it opens; held, it switches off (Graph.svelte, CellNode.svelte);
+         switched off, it is dimmed -->
+    {#if !interactive}
+      <!-- (and for the keyboard: Enter or Space opens it, Shift+Enter switches it off or on, as a hold does) -->
+      {#each bulbs as b, i (i)}<circle
+          class="bulb-hit"
+          class:off={!!ctx.program.cells.get(b.L.bulb.name)?.off}
+          data-bulb={b.L.bulb.name}
+          role="button"
+          tabindex="0"
+          aria-label={`&${b.L.bulb.name}${ctx.program.cells.get(b.L.bulb.name)?.off ? ', off' : ''}: open it; Shift+Enter switches it ${ctx.program.cells.get(b.L.bulb.name)?.off ? 'on' : 'off'}`}
+          aria-keyshortcuts="Enter Shift+Enter"
+          onkeydown={(e) => bulbKey(e, b.L.bulb.name)}
+          cx={b.L.C[0]}
+          cy={b.L.C[1]}
+          r={b.L.rho + b.L.w / 2 + 2}
+        />{/each}
+    {/if}
   {/snippet}
   {#if interactive}
     <g
@@ -849,6 +926,20 @@
     stroke-linejoin: round;
   }
   /* the step playing now: brighter, no halo */
+  /* a table of taps (decision 016): each tap a ring in its selector's colour; off while playing, dimmed */
+  .tap-ring {
+    fill: none;
+  }
+  .tap-ring.dim {
+    opacity: 0.3;
+  }
+  /* (the selector's cursor, in the colour of the part it has on) */
+  .hand.bent.tap-hand path:not(.edge) {
+    stroke: var(--hand);
+  }
+  .hand.bent.tap-hand circle {
+    fill: var(--hand);
+  }
   .slot.lit path {
     filter: var(--wheel-lit);
   }
@@ -933,6 +1024,19 @@
   /* a bulb (#221): its own small disc behind it; a net-ref's dotted round; its name at its hub */
   .bulb-disc {
     fill: var(--wheel-disc);
+  }
+  .bulb-hit {
+    fill: transparent;
+    cursor: pointer;
+  }
+  .bulb-hit:focus-visible {
+    outline: none;
+    stroke: var(--accent);
+    stroke-width: 2;
+  }
+  .bulb-hit.off {
+    fill: var(--wheel-disc);
+    fill-opacity: 0.7;
   }
   .bulb-thread {
     fill: var(--wheel-tick);
