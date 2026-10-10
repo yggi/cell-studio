@@ -60,6 +60,7 @@ that makes the change. Also note changes to the language that could affect saved
 - *Bell and scale*, *Just intonation*, *Two Tuning Forks* and *Alpha* are pieces now, not basics.
 
 ### Fixed
+- A meter's beat numbers are brighter and carry a dark halo, so they read on the lit beat's tan and yellow as on the grey rest (the number was 2.3:1 on the tan; a test now holds the scope's small labels to 4.5:1). Saved `.cells` pieces are not affected.
 - A piece opens faster again: since products became junctions (#187) opening one took up to twice as long (a piece of your own at a 4× slower CPU: 9 s busy → 22 s); the junctions' and meters' crossing tests now skip what can't cross, and it is back to 7.5 s, the examples faster than before #187 too. Settling after a drag is about ten times quicker. Every layout is the same as before (#198). Saved `.cells` pieces are not affected.
 - `rung=` accepts 1 to 9999 (a huge number was read as 1e20), and warns on a card without the `tutorial` tag, where it was silently ignored. A piece with `rung=` over 9999 now fails to parse; none of the examples do (#186).
 - A kit member that is switched off is no longer connected to the master; it played no notes, so nothing audible changes (#166). Saved `.cells` pieces are not affected.
