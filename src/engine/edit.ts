@@ -48,7 +48,8 @@ function editDecl(source: string, name: string, f: (code: string, head: RegExp) 
   const tap = tapLine(lines, name);
   if (i < 0) {
     if (tap < 0) return source;
-    lines.splice(tap + 1, 0, `&${name}`);
+    // (with the table's line ending: a CRLF file stays CRLF)
+    lines.splice(tap + 1, 0, `&${name}${lines[tap].endsWith('\r') ? '\r' : ''}`);
     i = tap + 1;
   }
   const [code, comment] = splitComment(lines[i]);

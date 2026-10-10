@@ -66,6 +66,11 @@ describe('arranging at the input (decision 016)', () => {
     expect([r.taps?.get('drumBar'), r.cells.get('drumBar')?.clock, r.cells.get('drumBar')?.label]).toEqual(['parts', 'bar', 'the drums']);
     expect(voices(off, 1)).toEqual(new Set(['keys'])); // [0,2]: the keys; the drums are off
     expect(voices(off, 2)).toEqual(new Set(['keys', 'lead']));
+    // a tap's line with steps of its own: the error says which line, not that the other taps are unknown
+    const stepped = compileSource(SONG.replace('&parts step=&bar &keysBar &tuneBar &drumBar', '&parts step=&bar &keysBar &tuneBar &drumBar\n&drumBar 0 1'));
+    expect(stepped.diagnostics.map((d) => d.message)).toContain(
+      '&drumBar is a tap of &parts, so its line can carry attributes only (off, label=, tags=, show=), not steps or a table of its own',
+    );
     // (a bare line of a name no table names is a cell of no steps, as before)
     expect(compileSource('&x off').cells.get('x')?.clock).toBeFalsy();
   });

@@ -82,6 +82,14 @@
     const segments = coarsen(full.segments);
     return segments === full.segments ? full : { ...full, segments };
   });
+  // a bulb from the keyboard: Enter or Space opens its cell, Shift+Enter switches it off or on (as tap and hold do)
+  const bulbKey = (e: KeyboardEvent, bulb: string) => {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.key === 'Enter' && e.shiftKey) ctx.toggle(`cell:${bulb}`);
+    else ctx.open(bulb);
+  };
   // a table of taps (decision 016): its bulbs named by their taps, less what all of them end in (`&hatsBar` … : hats)
   const tapsTable = $derived(!!fanOf(ctx.program, name));
   const tapSuffix = $derived.by(() => {
@@ -604,7 +612,7 @@
   width={size}
   height={size}
   viewBox="0 0 {size} {size}"
-  role={interactive ? 'group' : 'img'}
+  role={interactive || bulbs.length ? 'group' : 'img'}
   aria-label="&{name}: {label.big} {label.small}{spliced ? `, splicing ${spliced}` : ''}"
 >
   {#if stripes.size}
@@ -648,10 +656,16 @@
     <!-- in the graph, each bulb is the cell it splices: tapped, it opens; held, it switches off (Graph.svelte, CellNode.svelte);
          switched off, it is dimmed -->
     {#if !interactive}
+      <!-- (and for the keyboard: Enter or Space opens it, Shift+Enter switches it off or on, as a hold does) -->
       {#each bulbs as b, i (i)}<circle
           class="bulb-hit"
           class:off={!!ctx.program.cells.get(b.L.bulb.name)?.off}
           data-bulb={b.L.bulb.name}
+          role="button"
+          tabindex="0"
+          aria-label={`&${b.L.bulb.name}${ctx.program.cells.get(b.L.bulb.name)?.off ? ', off' : ''}: open it; Shift+Enter switches it ${ctx.program.cells.get(b.L.bulb.name)?.off ? 'on' : 'off'}`}
+          aria-keyshortcuts="Enter Shift+Enter"
+          onkeydown={(e) => bulbKey(e, b.L.bulb.name)}
           cx={b.L.C[0]}
           cy={b.L.C[1]}
           r={b.L.rho + b.L.w / 2 + 2}
@@ -978,6 +992,11 @@
   .bulb-hit {
     fill: transparent;
     cursor: pointer;
+  }
+  .bulb-hit:focus-visible {
+    outline: none;
+    stroke: var(--accent);
+    stroke-width: 2;
   }
   .bulb-hit.off {
     fill: var(--wheel-disc);

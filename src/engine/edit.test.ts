@@ -87,6 +87,13 @@ describe('source edits', () => {
     expect(setAttr(song, 'hookBar', 'label', '"the hook"')).toMatch(/^&hookBar label="the hook"$/m);
     // (not a tap, not a cell: nothing to edit)
     expect(setOff(song, 'nowhere', true)).toBe(song);
+    // a tap's sheet turning it (it has nothing to turn): still a tap, nothing wrong
+    expect(compileSource(setShift(song, 'hookBar', 3)).diagnostics).toEqual([]);
+    // a CRLF file stays CRLF, and comes back as it was
+    const crlf = song.replace(/\n/g, '\r\n');
+    const crlfOff = setOff(crlf, 'hookBar', true);
+    expect(crlfOff.split('\n').every((l, i, all) => i === all.length - 1 || l.endsWith('\r'))).toBe(true);
+    expect(setOff(crlfOff, 'hookBar', false)).toBe(crlf);
   });
 
   it('round-trips through the compiler: what the graph sets is what the code says', () => {
