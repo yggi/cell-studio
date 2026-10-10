@@ -8,55 +8,55 @@
   --xy-edge-label-background-color: var(--surface);
   --xy-edge-label-color: var(--text);
 }
-/* edges are a key element: thick, round-capped splines */
+/* edges are a key element: thick, round-capped splines (the numbers: app.css --edge-*) */
 .graph .svelte-flow__edge-path {
-  stroke-width: 4;
+  stroke-width: var(--edge-w);
   stroke-linecap: round;
 }
 /* (a live edge wears its value's colour, ui/palette.ts, which PulseEdge sets on it: no kind has a colour of its own) */
 .graph .svelte-flow__edge-path.edge-live {
-  stroke-width: 5;
+  stroke-width: var(--edge-w-live);
 }
 /* by band (docs/notes/nets.md): a clock's ticks dotted; sound a wave, a little finer; values solid */
 .graph .band-sync .svelte-flow__edge-path {
-  stroke-width: 3;
-  stroke-dasharray: 0.5 8;
+  stroke-width: var(--edge-w-fine);
+  stroke-dasharray: var(--edge-dash-sync);
 }
 .graph .band-audio .svelte-flow__edge-path {
-  stroke-width: 3;
+  stroke-width: var(--edge-w-fine);
   stroke-linejoin: round;
 }
 /* into a MIDI card: a note bus, gate and pitch at once (the sync and CV bands, docs/notes/nets.md) — the solid line of a
    value broken by the gaps of a gate */
 .graph .edge-midi .svelte-flow__edge-path {
-  stroke-width: 4;
+  stroke-width: var(--edge-w);
   stroke-linecap: butt;
-  stroke-dasharray: 14 4 2 4;
+  stroke-dasharray: var(--edge-dash-midi);
 }
 /* a table's bus: its strands are drawn beside the path, which stays only for the label and the hit area */
 .graph .svelte-flow__edge .svelte-flow__edge-path.bus-core {
   stroke-opacity: 0;
 }
 .graph .bus.edge-idle path:not(.bus-sheath) {
-  stroke-opacity: 0.55;
+  stroke-opacity: var(--edge-bus-idle);
 }
 .graph .bus.edge-unrouted path,
 .graph .bus.edge-off path {
-  stroke-opacity: 0.2;
+  stroke-opacity: var(--edge-faded);
 }
 /* (the state is on the edge's own path, put there by PulseEdge, so a step doesn't remake the edge list: #13)
    not sounding now (playing): quieter; not part of the sound, or switched off: faded */
 .graph .svelte-flow__edge-path.edge-idle {
-  stroke-opacity: 0.45;
+  stroke-opacity: var(--edge-idle);
 }
 .graph .svelte-flow__edge-path.edge-unrouted,
 .graph .svelte-flow__edge-path.edge-off {
-  stroke-opacity: 0.2;
+  stroke-opacity: var(--edge-faded);
 }
 /* a product's voice into its junction (is): its definition, not a signal — dashed, finer (docs/notes/nets.md, decision 2) */
 .graph .edge-is .svelte-flow__edge-path {
-  stroke-width: 2.5;
-  stroke-dasharray: 5 6;
+  stroke-width: var(--edge-w-is);
+  stroke-dasharray: var(--edge-dash-is);
 }
 /* edge labels (×0.4, [<<], ⟳ …): readable pills; an off edge's label fades with it */
 .graph .svelte-flow__edge-label {
@@ -68,20 +68,20 @@
   font: 700 12.5px/1.35 var(--font-ui);
   box-shadow: 0 2px 6px rgb(0 0 0 / 0.3);
   transition:
-    opacity 200ms ease,
-    border-color 200ms ease;
+    opacity var(--edge-fade) ease,
+    border-color var(--edge-fade) ease;
 }
 .graph .svelte-flow__edge-path {
   transition:
-    stroke 200ms ease,
-    stroke-opacity 200ms ease;
+    stroke var(--edge-fade) ease,
+    stroke-opacity var(--edge-fade) ease;
 }
 
 /* a meter's net (MeterEdge): a backbone, a wide trace under everything, as ground is on a board; it lights on the beat */
 .graph .svelte-flow__edge-path.meter-trace {
   stroke: var(--trace);
   stroke-linecap: round;
-  stroke-opacity: calc(0.42 + 0.5 * var(--flash));
-  stroke-width: calc(9px + 3px * var(--flash));
+  stroke-opacity: calc(var(--edge-trace-rest) + var(--edge-trace-flash) * var(--flash));
+  stroke-width: calc(var(--edge-trace-w) + var(--edge-trace-flash-w) * var(--flash));
   filter: drop-shadow(0 0 calc(6px * var(--flash)) var(--trace));
 }

@@ -258,7 +258,7 @@ function pathPoints(d: string): Pt[] {
  * locked to its segment, a loom): `amp` px either side, about one cycle every `period` px (a whole number of them),
  * faded in and out at its ends so it leaves and meets the nodes straight.
  */
-export function rippled(d: string, amp = 2.5, period = 11): string {
+export function rippled(d: string, amp: number, period: number): string {
   const pts = pathPoints(d);
   const along: number[] = [0];
   for (let i = 1; i < pts.length; i++) along.push(along[i - 1] + Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y));

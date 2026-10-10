@@ -21,7 +21,7 @@
     { label: 'on (stopped)', state: 'on' },
     { label: 'idle', state: 'idle' },
     { label: 'live · C4', state: 'live' },
-    { label: 'live · C3', state: 'live', note: 130.81 },
+    { label: 'live · voice on C3', state: 'live', note: 130.81 },
     { label: 'live · bent', state: 'live', bend: 34 },
   ];
   const BELT: Column[] = [

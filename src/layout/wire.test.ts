@@ -123,7 +123,7 @@ describe('rippled: sound as a wave along any path', () => {
     // (a ref's end locked to its segment: out along a line, round an arc, on through a cubic)
     const d = 'M 0 0 L 40 0 A 60 60 0 0 1 100 60 C 100 120 160 160 220 160';
     const base = points(d, 40, 60);
-    const wave = points(rippled(d), 0, 0);
+    const wave = points(rippled(d, 2.5, 11), 0, 0);
     expect(wave.length).toBeGreaterThan(40);
     for (const p of wave) expect(toLine(p, base)).toBeLessThan(2.5 + 0.5); // (the test samples the curve coarsely)
     // (it does wave: somewhere it is off the path by most of its height)
