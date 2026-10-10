@@ -44,6 +44,8 @@ type MidiIo = {
   hear(hearer: (data: Uint8Array, source: string, timeStamp: number) => void): () => void;
   send(data: readonly number[], timestamp?: number): void;
   readonly drums: DrumMap;
+  /** Told when every key held from the input should let go (All notes off, the input changed or gone). */
+  letGo?(listener: () => void): () => void;
 };
 
 /** The piece the keys play (the Piece state): what it compiles to, its tables' shifts, its A4. */
@@ -123,8 +125,11 @@ export class Keys {
     this.#midi = midi;
     this.#claimed = claimed;
     this.#kept = load();
-    hands.onKeysCut = () => this.#forget();
-    this.#stop = midi.hear((data) => this.#heard(data));
+    // (Stop cut them: thru's hardware gets their note-offs too)
+    hands.onKeysCut = () => (this.#thruOffs(), this.#forget());
+    const unhear = midi.hear((data) => this.#heard(data));
+    const unletGo = midi.letGo?.(() => this.panic());
+    this.#stop = () => (unhear(), unletGo?.());
     this.#listen(this.#kept.computer);
   }
 
@@ -147,13 +152,18 @@ export class Keys {
     return this.#kept.thru;
   }
   set thru(on: boolean) {
+    // (turned off with keys down: their note-offs go first, or the hardware would hold them)
+    if (!on) this.#thruOffs();
     this.#save({ ...this.#kept, thru: on });
   }
   get thruChannel(): number {
     return this.#kept.thruChannel;
   }
   set thruChannel(ch: number) {
-    if (Number.isInteger(ch) && ch >= 1 && ch <= 16) this.#save({ ...this.#kept, thruChannel: ch });
+    if (!(Number.isInteger(ch) && ch >= 1 && ch <= 16) || ch === this.#kept.thruChannel) return;
+    // (moved with keys down: their note-offs go on the channel they were struck on)
+    this.#thruOffs();
+    this.#save({ ...this.#kept, thruChannel: ch });
   }
 
   /** A key outside the melody's table: the nearest entry sounds, or the key as played. */
@@ -289,6 +299,16 @@ export class Keys {
     if (this.#kept.thru) this.#midi.send(data);
   }
 
+  // thru: a note-off for every key and row down now (held by the pedal too), and the pedal up, on the thru channel
+  #thruOffs(): void {
+    if (!this.#kept.thru) return;
+    for (const [at, d] of this.#down) {
+      const note = at.startsWith('row:') ? d.note : Number(at.slice(at.indexOf(':') + 1));
+      if (note !== undefined && note >= 0 && note <= 127) this.#thru([0x80 | this.#thruNibble(), note, 0]);
+    }
+    if (this.#pedal) this.#thru([0xb0 | this.#thruNibble(), 64, 0]);
+  }
+
   // Stop cut everything: what was down and what the pedal held are gone (the keys still down play again when pressed)
   #forget(): void {
     this.#down.clear();
@@ -299,6 +319,7 @@ export class Keys {
 
   /** Every key down lets go now, the pedal comes up: a controller's All notes off, so a lost note-off can't leave a note sounding. */
   panic(): void {
+    this.#thruOffs();
     for (const d of this.#down.values()) this.#hands.release(d.id);
     this.#forget();
   }

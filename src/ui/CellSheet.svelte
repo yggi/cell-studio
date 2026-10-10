@@ -279,8 +279,16 @@
             ? `Made by ${words.braid[0].replace(/\(.*$/, '()')}. Tap the middle to change it.`
             : 'Tap a step to change it, the middle to change them all.'}
       </p>
-      <!-- a braid unrolled: its steps across, its table's rows up (#211; the keys' sound waits for #207) -->
-      {#if !isMeter}<PianoRoll {name} {source} piece={opened} {onedit} />{/if}
+      <!-- a braid unrolled: its steps across, its table's rows up (#211); its keys play the cell's voice (#251) -->
+      {#if !isMeter}<PianoRoll
+          {name}
+          {source}
+          piece={opened}
+          {onedit}
+          held={ctx.rows?.held(name)}
+          onpress={ctx.rows ? (v) => ctx.rows?.press(name, v) : undefined}
+          onrelease={ctx.rows ? (v) => ctx.rows?.release(name, v) : undefined}
+        />{/if}
     {:else if !cell.voice || braidVoice}
       <div class="dial">
         <CellGlyph {name} {isMeter} size={200} interactive fine />
