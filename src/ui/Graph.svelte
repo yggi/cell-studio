@@ -30,6 +30,13 @@
   import { isSide, sideEntries } from '../layout/side';
   import { channelColour } from './theme';
   import type { SideMark } from './context';
+  import TowerAxis, { TOWER_WIDTH } from './TowerAxis.svelte';
+  import FlowViewport from './FlowViewport.svelte';
+  import type { Viewport } from '@xyflow/svelte';
+
+  // (?tower: the tower open from the start, ?towerCell=tune its line, as if selected: the gallery's pictures)
+  const QUERY = typeof location !== 'undefined' ? new URLSearchParams(location.search) : null;
+  const towerCell = QUERY?.get('towerCell') ?? null;
 
   // each example's rows' order, chosen when the app was built (tools/examples-index.ts), by its graph's shape
   const EXAMPLE_ROWS = new Map(EXAMPLES.map((e) => [e.rows.key, e.rows.order]));
@@ -234,6 +241,31 @@
   const edgeTypes = { pulse: PulseEdge, belt: BeltEdge, meter: MeterEdge };
 
   let legendOpen = $state(false);
+  // the frequency tower beside the graph (TowerAxis.svelte)
+  let towerOpen = $state(QUERY?.has('tower') ?? false);
+  // (the flow's pan and zoom, for the tower drawn beside it; framed again when the tower opens or closes)
+  let viewport = $state<Viewport>({ x: 0, y: 0, zoom: 1 });
+  let towerFits = $state(0);
+  // a cell's card on a wide screen (CellSheet.svelte: 380 px, 16 px from the window's right) covers the graph's right
+  // edge: the tower stands left of it and the graph makes room there; with too little room left, it waits for the card
+  let graphEl = $state<HTMLDivElement>();
+  let graphW = $state(0);
+  let cardCover = $state(0);
+  $effect(() => {
+    void graphW;
+    const carded = !!selectedName && !!graphEl && matchMedia('(min-width: 900px)').matches;
+    cardCover = carded ? Math.max(0, graphEl!.getBoundingClientRect().right - (innerWidth - 396) + 8) : 0;
+  });
+  // (with a card beside it the tower waits unless 240 px of graph are left; with none it shows at any width, a phone's included)
+  const towerShown = $derived(towerOpen && (cardCover === 0 || graphW - cardCover - TOWER_WIDTH >= 240));
+  // (a card opened or closed beside the tower: the graph is framed again in the room left, so no cell is cut off)
+  let lastCover = 0;
+  $effect(() => {
+    const cover = towerShown ? cardCover : 0;
+    if (cover === lastCover) return;
+    lastCover = cover;
+    untrack(() => towerFits++);
+  });
 
   // clusters: the tags cells carry inside the piece (not the card's) — where their members are, now
   const clusters = $derived.by(() => {
@@ -292,7 +324,15 @@
   });
 </script>
 
-<div class="graph" class:margined={hasMargin} style:--margin-width="{MARGIN_WIDTH}px">
+<div
+  class="graph"
+  class:margined={hasMargin}
+  class:towered={towerShown}
+  style:--margin-width="{MARGIN_WIDTH}px"
+  style:--tower-width="{TOWER_WIDTH + cardCover}px"
+  bind:this={graphEl}
+  bind:clientWidth={graphW}
+>
   {#if hasMargin}<Margin model={shown.model} heightOf={(id) => layout.position(id)?.y} settled={layout.fitToken} onlight={(id) => (sideLit = id)} />{/if}
   <div class="flow">
     <SvelteFlow
@@ -324,7 +364,8 @@
     >
       <Background gap={28} size={1.5} />
       <Controls showLock={false} />
-      <FitView token={layout.fitToken + sideFits} />
+      <FitView token={layout.fitToken + sideFits + towerFits} />
+      {#if towerOpen}<FlowViewport onchange={(v) => (viewport = v)} />{/if}
       <!-- clusters: cells tagged alike inside the piece (tags=), washed and named behind their members -->
       <ViewportPortal target="back">
         {#each clusters as c (c.tag)}
@@ -334,9 +375,22 @@
       </ViewportPortal>
     </SvelteFlow>
   </div>
+  {#if towerShown}
+    <TowerAxis model={shown.model} program={shown.program} nodes={layout.nodes} {viewport} focus={selectedName ?? towerCell} right={cardCover} />
+  {/if}
   <div class="toolbar">
     <button class="add-cell" onclick={onadd} title="Add a cell (blank: the chromatic default)">+ cell</button>
     <button class="forces-toggle" class:on={legendOpen} onclick={() => (legendOpen = !legendOpen)} aria-pressed={legendOpen} title="What the colours and values mean">legend</button
+    >
+    <button
+      class="forces-toggle"
+      class:on={towerOpen}
+      onclick={() => {
+        towerOpen = !towerOpen;
+        towerFits++;
+      }}
+      aria-pressed={towerOpen}
+      title="Each cell's time scale, from the constant to the audible">tower</button
     >
     {#if hasSide}<button
         class="forces-toggle"
@@ -390,6 +444,13 @@
   }
   .graph.margined .hint {
     left: calc(var(--margin-width) + 56px);
+  }
+  /* (the tower takes its strip beside the graph: nothing is laid under it) */
+  .graph.towered .flow {
+    right: var(--tower-width);
+  }
+  .graph.towered .hint {
+    right: calc(var(--tower-width) + 16px);
   }
   .hint {
     position: absolute;
