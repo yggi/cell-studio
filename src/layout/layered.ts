@@ -33,11 +33,23 @@ export interface LayeredOptions {
    * insertion first (insertionOrder), then the sweeps; 2 insertion alone.
    */
   readonly rowOrder?: number;
+  /**
+   * Where each cell a tap steps sits on its table's fan, left to right (its bulb's x, decision 016), and a block's, the
+   * mean of its cells': worked out once for the whole piece (tapKeys), so a cluster laid out alone still knows.
+   */
+  readonly tapKey?: ReadonlyMap<string, number>;
+}
+
+/** Each cell a tap steps, by its bulb's x on its table's fan (decision 016): the order its parts should be laid out in. */
+function tapKeys(model: GraphModel): Map<string, number> {
+  return new Map(model.edges.flatMap((e) => (e.bulbAt ? [[e.to, e.bulbAt.x] as const] : [])));
 }
 
 type V = { id: string; layer: number; dummy: boolean; w: number };
 
 export function layered(model: GraphModel, o: LayeredOptions): Map<string, { x: number; y: number }> {
+  if (!o.tapKey) o = { ...o, tapKey: tapKeys(model) };
+  const tapKey = o.tapKey!;
   if (!o.flat) {
     const blocks = clustered(model, o);
     if (blocks) return blocks;
@@ -91,9 +103,19 @@ export function layered(model: GraphModel, o: LayeredOptions): Map<string, { x: 
     (down.get(hi) ?? down.set(hi, []).get(hi)!).push({ id: lo, w, self: offHi, other: offLo });
     (up.get(lo) ?? up.set(lo, []).get(lo)!).push({ id: hi, w, self: offLo, other: offHi });
   }
-  // a first order: voices by their stereo place (columns), the rest as they come
+  // a first order: voices by their stereo place (columns), the rest as they come; the cells a table's taps step in its
+  // taps' order, in the places they take in their row (decision 016)
   const cols = columns(model);
-  for (const row of layers) row.sort((a, b) => (cols.get(a) ?? 0) - (cols.get(b) ?? 0));
+  // (kept through every sort and swap below: a row's tapped cells in their taps' order, whatever else moves round them)
+  const tapOrder = (row: string[]) => {
+    const slots = row.flatMap((id, i) => (tapKey.has(id) ? [i] : []));
+    const tapped = slots.map((i) => row[i]).sort((a, b) => tapKey.get(a)! - tapKey.get(b)!);
+    slots.forEach((i, k) => (row[i] = tapped[k]));
+  };
+  for (const row of layers) {
+    row.sort((a, b) => (cols.get(a) ?? 0) - (cols.get(b) ?? 0));
+    tapOrder(row);
+  }
   const inserted = o.rowOrder ? insertionOrder(nodes, layers, vs, up, down) : null;
   const pos = new Map<string, number>();
   const index = () => layers.forEach((row) => row.forEach((id, i) => pos.set(id, i)));
@@ -126,13 +148,19 @@ export function layered(model: GraphModel, o: LayeredOptions): Map<string, { x: 
     }
     return new Map([...sums].map(([t, [sum, k]]) => [t, sum / k]));
   };
-  // first, tags apart: each row begins with its tags in order of their names
-  const tagNames = [...new Set(tagOf.values())].sort();
+  // first, tags apart: each row begins with its tags in the order of the taps that step their cells (decision 016),
+  // else of their names
+  const tagTap = (t: string) => {
+    const ks = [...tagOf].flatMap(([id, x]) => (x === t && tapKey.has(id) ? [tapKey.get(id)!] : []));
+    return ks.length ? ks.reduce((a, b) => a + b, 0) / ks.length : null;
+  };
+  const tagNames = [...new Set(tagOf.values())].sort((a, b) => (tagTap(a) ?? 0) - (tagTap(b) ?? 0) || (a < b ? -1 : a > b ? 1 : 0));
   const tagsApart = (rows: string[][]) =>
     rows.forEach((row) =>
       row.sort((a, b) => (tagOf.has(a) ? tagNames.indexOf(tagOf.get(a)!) : tagNames.length / 2) - (tagOf.has(b) ? tagNames.indexOf(tagOf.get(b)!) : tagNames.length / 2)),
     );
   if (tagNames.length && o.rowOrder !== 1 && o.rowOrder !== 2) tagsApart(layers);
+  layers.forEach(tapOrder);
   const mean = (ns: { id: string; w: number; other: number }[] | undefined, fallback: number) => {
     if (!ns?.length) return fallback;
     const w = ns.reduce((a, n) => a + n.w, 0);
@@ -142,7 +170,7 @@ export function layered(model: GraphModel, o: LayeredOptions): Map<string, { x: 
   let bestCross = total();
   if (inserted) {
     // (by insertion: the start of the sweeps, or all of it)
-    inserted.forEach((r, l) => (layers[l] = [...r]));
+    inserted.forEach((r, l) => tapOrder((layers[l] = [...r])));
     index();
     best = layers.map((r) => [...r]);
     bestCross = total();
@@ -156,6 +184,7 @@ export function layered(model: GraphModel, o: LayeredOptions): Map<string, { x: 
       const lean = (id: string, v: number) => (tagOf.has(id) ? 0.55 * v + 0.45 * tc.get(tagOf.get(id)!)! : v);
       const want = new Map(row.map((id) => [id, lean(id, mean(downward ? up.get(id) : down.get(id), pos.get(id)!))]));
       row.sort((a, b) => want.get(a)! - want.get(b)! || pos.get(a)! - pos.get(b)!);
+      tapOrder(row);
       row.forEach((id, i) => pos.set(id, i));
     }
     // neighbours swapped wherever that crosses fewer edges (with both rows around)
@@ -164,6 +193,8 @@ export function layered(model: GraphModel, o: LayeredOptions): Map<string, { x: 
       for (let improved = true, guard = 0; improved && guard < 8; guard++) {
         improved = false;
         for (let i = 0; i + 1 < row.length; i++) {
+          // (two tapped cells keep their taps' order)
+          if (tapKey.has(row[i]) && tapKey.has(row[i + 1])) continue;
           const before = (l ? crossings(l - 1) : 0) + crossings(l);
           [row[i], row[i + 1]] = [row[i + 1], row[i]];
           pos.set(row[i], i);
@@ -424,6 +455,12 @@ function clustered(model: GraphModel, o: LayeredOptions): Map<string, { x: numbe
     rankOf.set(b, (Math.min(...rs) + Math.max(...rs)) / 2);
   }
   const blockNodes = [...blocks.keys()].map((id) => ({ id, kind: 'cell', depth: 0, cell: { name: id, tags: [], params: {} } }));
+  // (a block where its cells' taps put it: their mean)
+  const tapKey = new Map(o.tapKey);
+  for (const [t, ms] of members) {
+    const ks = ms.flatMap((id) => (o.tapKey?.has(id) ? [o.tapKey.get(id)!] : []));
+    if (ks.length) tapKey.set(`block:${t}`, ks.reduce((a, b) => a + b, 0) / ks.length);
+  }
   const outer = {
     ...model,
     nodes: [...nodes.filter((n) => !blockOf.has(n.id)), ...blockNodes],
@@ -432,6 +469,7 @@ function clustered(model: GraphModel, o: LayeredOptions): Map<string, { x: numbe
   } as unknown as GraphModel;
   const placed = layered(outer, {
     ...o,
+    tapKey,
     flat: true,
     ranks: rankOf,
     radius: (id) => blocks.get(id)?.radius ?? o.radius(id),
