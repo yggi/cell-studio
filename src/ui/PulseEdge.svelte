@@ -32,6 +32,7 @@
   import type { Pick } from '../engine/ast';
   import EdgePayload from './EdgePayload.svelte';
   import { valuesOf, type Payload } from './payload';
+  import { payloadShown, watchLoad } from './payloadGate.svelte';
 
   let { id: edgeId, sourceX, sourceY, targetX, targetY, data, label, markerEnd, style }: EdgeProps = $props();
   const ctx = getGraphContext();
@@ -289,8 +290,10 @@
   // What it carries, drawn as it travels (EdgePayload, docs/notes/edge-styles.md §2): while live, on one line (a bus,
   // tines and picks keep their strands), when its source sends something to draw — else drawn as it was
   // (mounted while playing, whether it is live now or not: a note's start and end only show or hide it)
+  // (held back with reduced motion and while the page is behind, payloadGate: then it is drawn as before, a colour and its dot)
+  $effect(() => (ctx.playing && d.payload ? watchLoad() : undefined));
   const payload = $derived.by(() => {
-    const kind = ctx.playing && !count && !d.tines && !pickPaths.length ? (d.payload ?? null) : null;
+    const kind = ctx.playing && !count && !d.tines && !pickPaths.length && payloadShown() ? (d.payload ?? null) : null;
     const clocked = (name: string | null) => !!name && (!!ctx.program.cells.get(name)?.clock || ctx.program.clocks.has(name));
     if (kind === 'ticks') return clocked(d.from) && clocked(d.phaseCell) ? kind : null;
     if (kind === 'notes' || kind === 'levels') return values && clocked(d.from) ? kind : null;

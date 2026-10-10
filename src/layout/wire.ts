@@ -343,7 +343,7 @@ const SHAPES: Record<Shape, (x: number) => number> = {
  * its nodes straight). At most 4,000 points.
  */
 export function waveAlong(m: Measured, amp: number, period: number, shape: Shape, phase: number): string {
-  if (!m.length || !(period > 0)) return '';
+  if (!m.length || !(period > 0) || !Number.isFinite(period) || !Number.isFinite(amp) || !Number.isFinite(phase)) return '';
   const p = Math.max(2, period);
   const n = Math.min(4000, Math.max(8, Math.ceil((m.length / p) * (shape === 'sine' ? 6 : 12))));
   const f = SHAPES[shape];

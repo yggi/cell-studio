@@ -1,3 +1,9 @@
+<script lang="ts" module>
+  // (a voice's peak, read from its waveform at most PAYLOAD.listen times a second and shared by every edge that carries
+  // it: a waveform is a fresh 8 KB buffer, and a mix's sound runs on many wires)
+  const peaks = new Map<string, { at: number; peak: number }>();
+</script>
+
 <script lang="ts">
   /**
    * What an edge carries, drawn as it travels (docs/notes/edge-styles.md §2: the wire is a delay line at one speed,
@@ -14,6 +20,7 @@
   import type { Fill } from '../layout/cellview';
   import type { Shape } from '../layout/wire';
   import { palette } from './palette';
+  import { DEFAULT_FREQ } from '../engine/program';
 
   let {
     path,
@@ -62,10 +69,10 @@
     for (const r of runsOn(sent, now, m.length, PAYLOAD.speed)) {
       const f = values?.(r.step.local);
       if (!f) continue;
-      // (a level in eighths: its width and brightness)
-      const level = f.kind === 'level' ? Math.round(f.v * 8) / 8 : 1;
+      // (a level in PAYLOAD.levels steps: its width and brightness; a note on a level's port is a run, not a ribbon)
+      const level = f.kind === 'level' ? Math.round(f.v * PAYLOAD.levels) / PAYLOAD.levels : 1;
       const colour = f.kind === 'level' ? palette('level', level) : colourOf(f);
-      const width = kind === 'levels' ? PAYLOAD.ribbon[0] + (PAYLOAD.ribbon[1] - PAYLOAD.ribbon[0]) * level : PAYLOAD.run;
+      const width = kind === 'levels' && f.kind === 'level' ? PAYLOAD.ribbon[0] + (PAYLOAD.ribbon[1] - PAYLOAD.ribbon[0]) * level : PAYLOAD.run;
       const key = `${colour}|${width}`;
       const g = strokes.get(key) ?? { colour, width, d: [] };
       g.d.push(m.slice(r.from, r.to));
@@ -85,16 +92,20 @@
   // a wave's shape, height and length: its voice's waveform, how loud it is now, its pitch (an octave up ×1/√2)
   const shape = $derived<Shape>(shapeOf(ctx.program, voice));
   const loud = (): number => {
-    const w = voice ? ctx.sound.waveform(voice) : null;
-    if (!w?.length) return 0.5;
-    let peak = 0;
-    for (let i = 0; i < w.length; i++) peak = Math.max(peak, Math.abs(w[i]));
-    return Math.min(1, peak);
+    if (!voice) return 0.5;
+    const seen = peaks.get(voice);
+    if (seen && Math.abs(now - seen.at) < 1 / PAYLOAD.listen) return seen.peak;
+    const w = ctx.sound.waveform(voice);
+    let peak = w?.length ? 0 : 0.5;
+    for (let i = 0; i < (w?.length ?? 0); i++) if (Number.isFinite(w![i])) peak = Math.max(peak, Math.abs(w![i]));
+    peak = Math.min(1, peak);
+    peaks.set(voice, { at: now, peak });
+    return peak;
   };
   const wavelength = (): number => {
     const hz = voice ? ctx.sound.note(voice) : null;
     const { c4, min, max } = PAYLOAD.wavelength;
-    return hz ? Math.max(min, Math.min(max, c4 * Math.pow(2, -0.5 * Math.log2(hz / 261.63)))) : c4;
+    return hz && Number.isFinite(hz) && hz > 0 ? Math.max(min, Math.min(max, c4 * Math.pow(2, -0.5 * Math.log2(hz / DEFAULT_FREQ)))) : c4;
   };
   // (quantised, and kept: a frame mostly picks a path already made — the geometry, height, length and phase in steps)
   let cache = new Map<string, string>();
@@ -121,7 +132,7 @@
 </script>
 
 {#if wave}
-  <path class="payload wave" d={wave} style:stroke={colour ?? 'var(--edge)'} />
+  <path class="payload wave" d={wave} style:stroke={colour ?? 'var(--edge)'} style:stroke-width={PAYLOAD.wave} />
 {/if}
 {#each runs.strokes as r (r.colour + r.width)}
   <path class="payload run" d={r.d} style:stroke={r.colour} style:stroke-width={r.width} />
@@ -139,9 +150,6 @@
     fill: none;
     stroke-linecap: round;
     stroke-linejoin: round;
-  }
-  .wave {
-    stroke-width: 3;
   }
   path.payload.bead {
     fill: var(--wheel-hand);

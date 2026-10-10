@@ -167,5 +167,13 @@ describe('a path measured, and sound travelling along it', () => {
     const sq = points(waveAlong(line, 2, 20, 'square', 0), 0, 0).filter((p) => p[0] > 30 && p[0] < 170);
     expect(sq.every((p) => Math.abs(Math.abs(p[1]) - 2) < 1e-6)).toBe(true);
     expect(waveAlong(measured(''), 2, 20, 'sine', 0)).toBe('');
+    // (a height, length or phase that isn't a number draws nothing, never a path full of NaN)
+    for (const [amp, period, phase] of [
+      [NaN, 20, 0],
+      [2, NaN, 0],
+      [2, Infinity, 0],
+      [2, 20, NaN],
+    ])
+      expect(waveAlong(line, amp, period, 'sine', phase)).toBe('');
   });
 });
