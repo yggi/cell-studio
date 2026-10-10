@@ -107,10 +107,13 @@ export function kitNotes(members: readonly string[]): Map<string, number> {
   return out;
 }
 
-/** Where a piece's notes go: each voice it plays directly on a channel, each kit member on the kit's channel (10 unless chosen) with a note. */
+/**
+ * Where a piece's notes go: each gate (all its receivers) and each voice it plays directly on a channel, each kit member
+ * on the kit's channel (10 unless chosen) with a note.
+ */
 export interface ChannelTable {
   /**
-   * The voices played directly, in the order the piece declares them, each on its channel (1–16); set by the piece
+   * The gates and the voices played directly, in the order the piece declares them, each on its channel (1–16); set by the piece
    * (its MIDI cards), each on every channel and output slot (1 the default output) its cards put it on.
    */
   readonly voices: readonly { readonly voice: string; readonly channel: number; readonly port?: number }[];
@@ -142,10 +145,18 @@ export const melodicChannel = (i: number, kit: number = DRUM_CHANNEL): number =>
 /** A kit's members, as the voices its braid names. */
 const membersOf = (result: CompileResult, o: Output): string[] => (result.cells.get(o.voice)?.units ?? []).flatMap((u) => (u.atom.kind === 'ref' ? [u.atom.name] : []));
 
+/** The gate an output plays through (docs/language/mix.md: a gate), if any: its notes go out as the gate's. */
+const gateOf = (result: CompileResult, o: Output): string | undefined => [...o.through, ...o.via].find((n) => typeof result.cells.get(n)?.params.trigger === 'string');
+
+/** What an output's channel is kept under: its gate, else its voice. */
+const channelKey = (result: CompileResult, o: Output): string => gateOf(result, o) ?? o.voice;
+
 /**
- * The channel table of a piece: the voices it plays directly numbered 1, 2, 3 … in the order it declares them,
- * skipping the kit's channel, which its kits' members share (10, or `kitChannel`: chosen in the dialog). `kept`: channels
- * chosen by hand for some voices (the dialog), which win. A send (a voice played only into a resonator or a tape) is not heard from itself and is left out.
+ * The channel table of a piece: the gates and the voices it plays directly (a gate's receivers go out on its channel,
+ * as one part: a doubling is the synth's to layer) numbered 1, 2, 3 … in the order it declares them, skipping the kit's
+ * channel, which its kits' members share (10, or `kitChannel`: chosen in the MIDI page). `kept`: channels chosen by hand
+ * for some voices (the page), which win. A send (a voice played only into a resonator or a tape) is not heard from itself
+ * and is left out.
  */
 export function channelTable(result: CompileResult, kept: Readonly<Record<string, number>> = {}, kitChannel: number = DRUM_CHANNEL): ChannelTable {
   if (hasMidiCards(result)) return cardTable(result);
@@ -154,7 +165,7 @@ export function channelTable(result: CompileResult, kept: Readonly<Record<string
   for (const o of result.outputs) {
     if (o.silent) continue;
     if (o.kit) for (const m of membersOf(result, o)) members.add(m);
-    else voices.add(o.voice);
+    else voices.add(channelKey(result, o));
   }
   const order = byPlace(result);
   const notes = kitNotes([...members].sort(order));
@@ -229,7 +240,7 @@ export function router(result: CompileResult, table: ChannelTable): (e: Played) 
       const note = drums.get(e.voice);
       return note === undefined ? null : { channel: kitChannel, drum: note };
     }
-    const channel = channels.get(e.voice);
+    const channel = channels.get(o ? channelKey(result, o) : e.voice);
     return channel === undefined ? null : { channel, drum: null };
   };
 }

@@ -88,6 +88,9 @@
   {#if out}
     <section aria-labelledby="midi-piece">
       <h4 id="midi-piece">This piece{byPiece ? ': channels set by its MIDI cards' : ''}</h4>
+      {#if midi.table?.voices.length}
+        <p class="hint">{byPiece ? 'Voices and their channels: set by the piece' : 'Gates and voices, and their channels'}</p>
+      {/if}
       {#each midi.table?.voices ?? [] as v (`${v.voice} ${v.channel} ${v.port ?? 1}`)}
         <div class="row">
           <span class="name">&{v.voice}</span>

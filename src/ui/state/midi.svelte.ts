@@ -195,7 +195,7 @@ export class Midi implements ChosenPorts, NoteSink {
   };
 
   /**
-   * Told when the keys held from the input should all let go: All notes off (the dialog's, or on coming back into
+   * Told when the keys held from the input should all let go: All notes off (the MIDI page's, or on coming back into
    * view), and the input changed or unplugged, whose note-offs will never come. The function returned stops it.
    */
   letGo(listener: () => void): () => void {
