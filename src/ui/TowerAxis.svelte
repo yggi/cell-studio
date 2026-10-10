@@ -11,7 +11,7 @@
    * at the graph's right edge, its zones marked (the constant, the slow, the pulse, the audible, the sound card), each
    * node a mark at its height (a bar from its turn to its step), and a line from the cell selected to its mark. Beside
    * the graph (Graph.svelte leaves it `TOWER_WIDTH`), so it hides no cell; while a cell's card is open on a wide screen it
-   * steps to the card's left edge, so the line stays in sight. The layout is today's (docs/notes/tower-rows.md: rows by the tower cost crossings): height in the graph means nothing
+   * stands at the card's left edge and the graph makes room for it there too (`right`), so the line stays in sight. The layout is today's (docs/notes/tower-rows.md: rows by the tower cost crossings): height in the graph means nothing
    * here, the axis says it.
    */
   import type { Viewport } from '@xyflow/svelte';
@@ -29,23 +29,19 @@
     nodes,
     viewport,
     focus,
-    carded,
-  }: { model: GraphModel; program: CompileResult; nodes: readonly FlowNode[]; viewport: Viewport; focus: string | null; carded: boolean } = $props();
+    right,
+  }: {
+    model: GraphModel;
+    program: CompileResult;
+    nodes: readonly FlowNode[];
+    viewport: Viewport;
+    focus: string | null;
+    /** How far from the graph's right edge the strip ends (px): 0, or the width a cell's card covers. */
+    right: number;
+  } = $props();
 
   let w = $state(0);
   let h = $state(0);
-  let el = $state<HTMLDivElement>();
-  // a cell's card on a wide screen (CellSheet.svelte: 380 px, 16 px from the window's right): where it starts, here
-  let cardLeft = $state(Infinity);
-  $effect(() => {
-    void w;
-    if (!el || !carded || !matchMedia('(min-width: 900px)').matches) {
-      cardLeft = Infinity;
-      return;
-    }
-    cardLeft = innerWidth - 396 - el.getBoundingClientRect().left;
-  });
-
   const spans = $derived(towerSpans(program, model));
   // (a voice's petals, its envelope and the like, hang by it: no mark of their own)
   const petals = $derived(new Set(model.nodes.flatMap((n) => (n.petalOf ? [n.id] : []))));
@@ -68,8 +64,8 @@
     return a - b > 1 ? BALANCE * ((a - fit!(d)) / (a - b)) + (1 - BALANCE) * even : even;
   };
   const yOf = (d: number) => (d === -Infinity ? bottom + 22 : d === Infinity ? top - 22 : bottom - share(d) * (bottom - top));
-  // (the strip at the right edge, or left of the card while one is open over it)
-  const x0 = $derived(Math.max(NAMES, Math.min(w, cardLeft - 8) - AXIS));
+  // (the strip at the right edge, or left of a cell's card while one is open over the graph: `right`)
+  const x0 = $derived(w - right - AXIS);
 
   const zoneColour = (name: string) => (name === 'slow' ? 'var(--meter-2)' : name === 'pulse' ? 'var(--meter-1)' : 'var(--accent)');
   const zoneOf = (d: number) => (d === -Infinity ? 'constant' : d === Infinity ? 'card' : [...TOWER_ZONES].reverse().find((z) => d >= z.from)!.name);
@@ -151,11 +147,11 @@
   const focusId = $derived(focus ? cellId(focus) : null);
 </script>
 
-<div class="tower" bind:this={el} bind:clientWidth={w} bind:clientHeight={h}>
+<div class="tower" bind:clientWidth={w} bind:clientHeight={h}>
   {#if w && h}
     <svg width={w} height={h} aria-hidden="true">
       <!-- (its own ground: the names' gutter and the strip, beside the graph) -->
-      <rect class="ground" x={x0 - NAMES} y="0" width={NAMES + AXIS + Math.max(0, w - x0 - AXIS)} height={h} />
+      <rect class="ground" x={x0 - NAMES} y="0" width={NAMES + AXIS} height={h} />
       <rect class="strip" x={x0} y={top - 34} width={AXIS} height={bottom - top + 68} rx="8" />
       <!-- the line from the cell selected to its mark -->
       {#each marks as m (m.id)}
