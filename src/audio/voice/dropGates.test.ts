@@ -29,7 +29,8 @@ function note(at: number, release = 0.3) {
   const n = { at, amp, lvl, pitch: [frequency, detune], mods: [mod], release } as unknown as Sounding;
   return { osc, mod, amp, lvl, frequency, detune, n };
 }
-const voice = (live: [unknown, Sounding][], moving: Record<string, ReturnType<typeof param>> = {}) => ({ live: new Map(live), moving }) as unknown as Built;
+const voice = (live: [unknown, Sounding][], moving: Record<string, ReturnType<typeof param>> = {}, notes: { at: number; freq: number }[] = []) =>
+  ({ live: new Map(live), moving, notes }) as unknown as Built;
 
 describe('a pause drops every gate (dropGates)', () => {
   it('a note that sounds: its envelope, level, pitch and FM are held where they are, and it releases from there', () => {
@@ -51,6 +52,14 @@ describe('a pause drops every gate (dropGates)', () => {
     expect(a.osc.stops).toEqual([2]);
     expect(a.mod.stops).toEqual([2]);
     expect(a.amp.gain.calls).toEqual([]);
+  });
+  it("a note scheduled ahead is not what the voice sounds: it leaves the voice's notes", () => {
+    const b = voice([], {}, [
+      { at: 1, freq: 220 },
+      { at: 2.1, freq: 440 },
+    ]);
+    dropGates(b, 2);
+    expect(b.notes).toEqual([{ at: 1, freq: 220 }]);
   });
   it('a note with no release still lets go (a few milliseconds, not a click or a hang)', () => {
     const a = note(1, 0);

@@ -53,6 +53,11 @@ export interface LayoutOptions {
    * the app is built (tools/examples-index.ts), so one opens without the trials.
    */
   rowOrders: ReadonlyMap<string, number>;
+  /**
+   * The rows, given (by node id, higher nearer the top) instead of the signal path's: the frequency tower's
+   * (`tower.ts: towerRanks`), a probe (docs/notes/multiscale.md). A node it doesn't name keeps its rank in the flow.
+   */
+  ranks?: ReadonlyMap<string, number>;
   /** Laid out by insertion (startInsertion): a fresh graph taken in one cell at a time from its drains, over this many ticks. 0: from the layered start. */
   insert: number;
   layerGap: number;
@@ -80,6 +85,8 @@ export interface LayoutOptions {
   endPull: number;
   /** How strongly each node is drawn to the height of its rank in the signal path (y only). */
   rankPull: number;
+  /** Probe (outputs at 12 o'clock, docs/notes/outputs-top.md): each reader pulled above what it reads (0: off). */
+  upPull: number;
   /** A weak sideways pull of every node towards the centre line (keeps the graph balanced). */
   centre: number;
   /** A gentle sideways pull of every node towards its column (voices by stereo and mix order). */
@@ -156,6 +163,7 @@ export const DEFAULT_LAYOUT: LayoutOptions = {
   partLength: 0.8,
   endPull: 0,
   rankPull: 0.05,
+  upPull: 0,
   centre: 0.004,
   columnPull: 0.035,
   layerGap: 130,

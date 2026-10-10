@@ -39,7 +39,7 @@
     }
     return layout;
   }
-  import { libraryLayoutAsync as libraryLayoutOf, stageOf } from '../layout/library';
+  import { byRung, libraryLayoutAsync as libraryLayoutOf, stageOf } from '../layout/library';
   import { storageKey } from '../storageKey';
 </script>
 
@@ -206,7 +206,7 @@
     ),
   );
   // the tutorial, rung by rung; then the other examples, smallest first: from simple to complex
-  const tutorial = $derived(shown.filter((e) => e.kind === 'example' && e.tags.includes(TUTORIAL)).sort((a, b) => (a.rung ?? 0) - (b.rung ?? 0)));
+  const tutorial = $derived(shown.filter((e) => e.kind === 'example' && e.tags.includes(TUTORIAL)).sort(byRung));
   const examples = $derived(shown.filter((e) => e.kind === 'example' && !e.tags.includes(TUTORIAL)).sort((a, b) => (a.size ?? 0) - (b.size ?? 0)));
   // a card's wheel: as large as its card leaves room for, the petals on its rim included (≈ 1.41 × across)
   let cardWidth = $state(0);

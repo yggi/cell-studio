@@ -1,3 +1,4 @@
+import { PROBE_LAYOUT } from '../outputs';
 import type { Edge } from '@xyflow/svelte';
 import { SvelteSet } from 'svelte/reactivity';
 import { structureKey, type GraphNode } from '../../engine/graph';
@@ -6,11 +7,18 @@ import { ForceLayout } from '../../layout/physics';
 import { DEFAULT_LAYOUT, type LayoutOptions } from '../../layout/options';
 import type { MeterTrace } from '../../layout/state';
 import { meterIndex } from '../../layout/meters';
+import { towerOf, towerRanks, zoneRanks } from '../../layout/tower';
+import { flowRanks } from '../../layout/start';
 import { flowNodeOf, PETAL, physical } from '../flownode';
 import { flowEdgesOf } from '../flowedges';
 import type { GraphSnapshot } from '../snapshot';
 import type { FlowNode } from '../types';
 
+/**
+ * A probe: `?rows=tower` lays the graph out in rows by the frequency tower, `?rows=zones` in the tower's zones with the
+ * signal path within each, every node where its output lives (layout/tower.ts, docs/notes/tower-rows.md).
+ */
+const ROWS = typeof location !== 'undefined' ? new URLSearchParams(location.search).get('rows') : null;
 /** What the edges are drawn with besides the snapshot (read when they are made, not tracked). */
 export interface EdgeStyle {
   /** Not stopped (paused or playing): a routed edge is idle (PulseEdge makes it live), an unrouted one dimmed; stopped, nothing is. */
@@ -64,7 +72,7 @@ export class GraphLayout {
     this.#style = style;
     // Each physics tick copies simulated positions into the flow nodes. The node under the pointer is left alone:
     // Svelte Flow owns it while dragging.
-    this.#force = new ForceLayout(() => this.#tick(), rowOrders ? { rowOrders } : {});
+    this.#force = new ForceLayout(() => this.#tick(), { ...PROBE_LAYOUT, ...(rowOrders ? { rowOrders } : {}) });
     this.options = { ...this.#force.options };
     // (at rest again — after a drag, an edit — the meter's net is laid again from where things are; the meter stays put)
     this.#force.onSettle(() => {
@@ -80,6 +88,9 @@ export class GraphLayout {
   sync(next: GraphSnapshot, opened: number): void {
     const m = next.model;
     const layout = this.#force;
+    // (a probe: the rows by the frequency tower instead of the signal path, docs/notes/multiscale.md)
+    if (ROWS === 'tower') layout.setOptions({ ranks: towerRanks(towerOf(next.program, m)) });
+    if (ROWS === 'zones') layout.setOptions({ ranks: zoneRanks(towerOf(next.program, m, 'emit'), flowRanks(m)) });
     // a piece just opened: forget where the last one's cells were (even ones of the same name)
     const justOpened = opened !== this.#lastOpened;
     if (justOpened) {

@@ -13,6 +13,11 @@ permissions:
 jobs:
   check:
     runs-on: ubuntu-latest
+    # A newer push to a PR, or to main, replaces the check still running for the older one: the newer commit carries
+    # its changes, so its run tests them too. (Only this job: a deploy already writing is never cancelled.)
+    concurrency:
+      group: ci-${{ github.event.pull_request.number || github.ref }}
+      cancel-in-progress: true
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -68,53 +73,3 @@ jobs:
         env:
           PAGES_REMOTE: https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}
           MESSAGE: Deploy ${{ github.sha }}
-
-  # A PR's build at …/pr-<n>/, to try on a phone before merging; one comment on the PR says where.
-  # Drafts too (trying a change before it's ready is the point), but not a PR that only changes docs. Not a fork's
-  # PR, nor a Dependabot run: their token can't write. The folder goes when the PR closes (preview-cleanup.yml).
-  preview:
-    needs: check
-    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'dependabot[bot]'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      pull-requests: write
-      pages: read
-    # (a newer push to the PR replaces the preview being written; the cleanup shares this group)
-    concurrency:
-      group: pages-pr-${{ github.event.pull_request.number }}
-      cancel-in-progress: true
-    steps:
-      # A PR that only changes docs (docs/, *.md, .claude/) has nothing to try on a phone: no preview, no comment.
-      - name: Does the PR change the app?
-        id: app
-        run: |
-          if gh api --paginate "repos/$GITHUB_REPOSITORY/pulls/$PR/files" --jq '.[].filename' | grep -qvE '^(docs/|\.claude/)|\.md$'; then
-            echo "changed=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "Only docs change: no preview"
-          fi
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR: ${{ github.event.pull_request.number }}
-      - if: steps.app.outputs.changed == 'true'
-        uses: actions/checkout@v7
-        with:
-          sparse-checkout: .github/scripts
-          persist-credentials: false
-      - if: steps.app.outputs.changed == 'true'
-        uses: actions/download-artifact@v8
-        with:
-          name: dist
-          path: dist
-      - name: Publish dist to gh-pages/pr-${{ github.event.pull_request.number }}
-        if: steps.app.outputs.changed == 'true'
-        run: .github/scripts/pages.sh preview ${{ github.event.pull_request.number }} dist
-        env:
-          PAGES_REMOTE: https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}
-          MESSAGE: Preview of PR ${{ github.event.pull_request.number }} at ${{ github.event.pull_request.head.sha }}
-      - name: Say where on the PR
-        if: steps.app.outputs.changed == 'true'
-        run: .github/scripts/preview-comment.sh ${{ github.event.pull_request.number }} up ${{ github.event.pull_request.head.sha }}
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
