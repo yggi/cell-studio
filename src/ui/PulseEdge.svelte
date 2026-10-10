@@ -27,7 +27,7 @@
   import { pickIndices } from '../engine/program';
   import { tapRadius } from '../layout/wheel';
   import { STRAND_GAP } from '../layout/looms';
-  import { layTrack, netEnds, ringOf } from '../layout/track';
+  import { fanOf, layTrack, netEnds, ringOf } from '../layout/track';
   import type { Pick } from '../engine/ast';
 
   let { id: edgeId, sourceX, sourceY, targetX, targetY, data, label, markerEnd, style }: EdgeProps = $props();
@@ -159,6 +159,8 @@
   const STRANDS = 12;
   const view = $derived.by(() => {
     if (d.width < 2 || d.tines || (!d.table && d.band !== 'cv')) return null;
+    // (a table of taps is read by its selector through one plain wire, from below: no bus, no loom — decision 016)
+    if (d.table && fanOf(ctx.program, d.table)) return null;
     void ctx.turned;
     return cellView(ctx.program, d.table ?? d.from, shown, false);
   });

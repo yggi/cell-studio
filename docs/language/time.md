@@ -13,7 +13,7 @@ What moves a cell: `step=` and `loop=`, the chains that scale them, `stride=`, m
 
 Driven forms take a chain of `*n` (once per n) and `/n` (n per one), read left to right, n any positive number: `step=&bar*2/3` is triplets — three steps per two.
 
-A played cell starts at most 2,000 notes a second (`MAX_NOTES_PER_SECOND`, `src/engine/program.ts`): faster, `step=1000000`, is an error, and the player keeps the last piece that compiled. Cells at audio rate that start no notes (a voice's wave, a vibrato) aren't counted.
+A played cell starts at most 2,000 notes a second (`MAX_NOTES_PER_SECOND`, `src/engine/program.ts`): faster, `step=1000000`, is an error, and the player keeps the last piece that compiled. A rate left `free(…)` has its slider stop where the cap does, with a warning when its written range goes past it (`step=free(100bpm, 60..9999999)`). Cells at audio rate that start no notes (a voice's wave, a vibrato) aren't counted.
 
 - **`stride=n`** — each step moves a stepped table n places (`stride=7`: fifths).
 - **`cycle=n`** — how many before it comes round; see [tables.md](tables.md).
@@ -65,6 +65,6 @@ A cell with **`law=`** has its notes computed by a law instead of written: `law=
 &out loop=SAMPLE_RATE map=sample [&tune * &lead * .3, &roots * &bass * .5]
 ```
 
-A name the table declares must step something (`step=&tuneBar`), or the compiler says so; a table of names none of which steps anything is a braid of cells as before (an unknown name an error). The old form, a selector reading a table of mixes and their sound through it, is an error now; Shorten rewrites it at the input, checked to play the same notes.
+A tap may have a line of its own with attributes only, and stays a tap (`&tuneBar off` switches the tune's part off in every section; holding its bulb in the graph writes that line). A name the table declares must step something (`step=&tuneBar`), or the compiler says so; a table of names none of which steps anything is a braid of cells as before (an unknown name an error). The old form, a selector reading a table of mixes and their sound through it, is an error now; Shorten rewrites it at the input, checked to play the same notes.
 
 The transport marks a selector's sections and jumps to them ([../ui/transport.md](../ui/transport.md)). Selectors reading in a voice's or a melody's position are not built ([../limits.md](../limits.md)).
