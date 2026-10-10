@@ -32,6 +32,7 @@ What Cell studio doesn't do yet or does with a catch, documented rather than tra
 ## Layout
 
 - Tags start as blocks and hubs pull a cluster as one, but clusters still touch in the largest pieces (30 overlapping pairs over the library; [notes/27-layout.md](notes/27-layout.md)); BWV 847 is wide. A meter's net crosses some edges in the densest pieces (about 12 crossings over the library).
+- A voice with more than about ten products in one mix has its junction dots stacked on its rim (they sit within 60° of 12 o'clock): they overlap rather than spread (#194).
 - A restarted part's playhead shows the global clock, not its own restarted time.
 - Notes float near the top; a note can't point at the cell it explains.
 - A column pull (keeping nodes in their symmetric columns while they settle) costs crossings at every strength tried (0.005–0.06): it's a slider, off by default; the columns shape only the start.

@@ -164,6 +164,14 @@ describe('running a plugin', () => {
     expect(drawPlugin(junk, viewOf(day, sun, 'day', 'u', 0, false))).toEqual({ roots: [] });
   });
 
+  it('bounds texts and lists as it bounds elements, and an attribute value in length', () => {
+    expect(() => boundedTree(Array.from({ length: 3000 }, () => 'a'))).not.toThrow(); // (the list is cut, not walked)
+    expect(boundedTree(Array.from({ length: 3000 }, () => 'a')).length).toBe(2000);
+    expect(() => boundedTree(h('g', null, ...Array.from({ length: 2500 }, () => 'a')))).toThrow(/more than 2000/);
+    expect(plainAttribute('d', 'M0 0 ' + 'L1 1 '.repeat(1000))).toBeNull();
+    expect(plainAttribute('d', 'M0 0 L1 1')).toBe('M0 0 L1 1');
+  });
+
   it('gives a drawing a frozen copy of the piece, not the piece', () => {
     const view = viewOf(day, sun, 'day', 'u', 0, false);
     expect(Object.isFrozen(view) && Object.isFrozen(view.params) && Object.isFrozen(view.tokens)).toBe(true);
@@ -180,11 +188,19 @@ describe('a manifest', () => {
     for (const bad of ['red; font-size:9999px', 'url(https://evil/x)', 'red;background:url(x)', '#12', 'rgb(0 0 0)}'])
       expect(errors(block(JSON.stringify({ a: bad }))).join(), bad).toMatch(/"tokens" maps names to colours/);
   });
+  it('refuses a token called __proto__ (it would be dropped without a word)', () => {
+    expect(errors(block('{ "__proto__": "red" }')).join()).toMatch(/__proto__/);
+  });
   it('is part of what is trusted: the key changes with the manifest as with the code', () => {
     const at = (tokens: string) => pluginKey(compileSource(block(tokens)).plugins.get('ring')!);
     expect(at('{ "a": "red" }')).not.toBe(at('{ "a": "blue" }'));
     expect(at('{ "a": "red" }')).toBe(at('{ "a": "red" }'));
     expect(pluginKey(sun)).toContain('function draw(');
+  });
+  it('is the same with the line endings of another system', () => {
+    const lf = compileSource(block('{ "a": "red" }').replace('function draw() { return []; }', 'function draw() {\n  return [];\n}')).plugins.get('ring')!;
+    const crlf = compileSource(block('{ "a": "red" }').replace('function draw() { return []; }', 'function draw() {\r\n  return [];\r\n}')).plugins.get('ring')!;
+    expect(pluginKey(crlf)).toBe(pluginKey(lf));
   });
 });
 

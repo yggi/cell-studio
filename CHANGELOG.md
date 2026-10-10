@@ -59,6 +59,7 @@ that makes the change. Also note changes to the language that could affect saved
 - *Bell and scale*, *Just intonation*, *Two Tuning Forks* and *Alpha* are pieces now, not basics.
 
 ### Fixed
+- A read head's `at=&clock` is lit with the head in the live view, as a tape's `length=&clock` is (it was drawn but never lit). A plugin's drawing is bounded more tightly (texts and lists count against its size, an attribute is at most 2000 characters); a plugin token called `__proto__` is refused instead of dropped; a plugin saved with Windows line endings is trusted as the same plugin; a product's junction dot is no tab stop. Saved `.cells` pieces are not affected.
 - A piece opens faster again: since products became junctions (#187) opening one took up to twice as long (a piece of your own at a 4× slower CPU: 9 s busy → 22 s); the junctions' and meters' crossing tests now skip what can't cross, and it is back to 7.5 s, the examples faster than before #187 too. Settling after a drag is about ten times quicker. Every layout is the same as before (#198). Saved `.cells` pieces are not affected.
 - `rung=` accepts 1 to 9999 (a huge number was read as 1e20), and warns on a card without the `tutorial` tag, where it was silently ignored. A piece with `rung=` over 9999 now fails to parse; none of the examples do (#186).
 - A kit member that is switched off is no longer connected to the master; it played no notes, so nothing audible changes (#166). Saved `.cells` pieces are not affected.
