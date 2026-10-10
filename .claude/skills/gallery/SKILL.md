@@ -17,6 +17,7 @@ It fails on a page error.
 | `golden` | one graph with a value of every kind of wheel and edge, in the real Graph, stopped and live | fast |
 | `zoom` | close-ups of cells in the real Graph, stopped and live: a wheel's details as drawn among its edges | fast |
 | `mockups` | design questions, options side by side (`tools/gallery/wheels/Mockups.svelte`) | fast |
+| `roll` | a cell's piano roll (`src/ui/PianoRoll.svelte`) at a phone's width: blank, a scale, semitones, 19-EDO, chords and holds, a kit, playing (playhead, ghosts, a key held), not editable | fast |
 | `keys` | the dock's on-screen keyboard and drum pads (#255) in each state: at rest, scale dots, keys held, pads held and glowing, a phone's width (`tools/gallery/keys/Sheet.svelte`) | fast |
 | `graphs` | every example's graph as the library's miniature draws it, with its numbers from the layout's baseline (`tools/graphs.mjs`; `OUT` default `shots/graphs/`) | fast |
 
