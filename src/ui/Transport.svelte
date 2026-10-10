@@ -6,6 +6,7 @@
    * tempo of the meter that drives it (its free() value, as in the graph). Record (●, for a piece with a braid left
    * free) takes a pass of the armed cell from the keys (state/record.svelte.ts).
    */
+  import MidiLight from './MidiLight.svelte';
   import { getStudio } from './state/studio.svelte';
 
   let {
@@ -16,6 +17,11 @@
   } = $props();
 
   const { piece, playback, view, recorder, midi } = getStudio();
+  const midiName = $derived(
+    midi.access && (midi.inPortId !== 'none' || midi.outPortId !== 'none')
+      ? `MIDI: ${[midi.inPortId !== 'none' ? 'in' : '', midi.outPortId !== 'none' ? 'out' : ''].filter(Boolean).join(', ')}`
+      : 'MIDI: not connected',
+  );
   const midiLive = $derived(!!midi.access && (midi.outPortId !== 'none' || midi.inPortId !== 'none'));
   const title = $derived(piece.title);
   const playing = $derived(playback.playing);
@@ -108,8 +114,8 @@
       class:live={midiLive}
       onclick={() => view.togglePanel('midi')}
       aria-expanded={view.panelOpen && view.panel === 'midi'}
-      aria-label="MIDI"
-      title={midiLive ? 'MIDI: connected' : 'MIDI: not connected'}>MIDI</button
+      aria-label={midiName}
+      title={midiName}>MIDI<MidiLight /></button
     >
     {#if onmenu}<button class="unstyled burger" onclick={onmenu} aria-expanded={menuOpen} aria-label="Controls" title="The piece's controls">☰</button>{/if}
   </div>
