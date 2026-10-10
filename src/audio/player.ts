@@ -10,6 +10,7 @@
 import { clocking, tapeMotion } from '../engine/clocking';
 import { eventsBetween, type Plan, type Played } from '../engine/realize';
 import { isPhysical, retime, type Window } from '../engine/schedule';
+import type { ClockTicks } from '../engine/midiclock';
 import { createVoices, type VoiceBank } from './voices';
 import { transportClock } from './clock.svelte';
 import { transition, type TransportEvent, type TransportState } from './transport';
@@ -27,10 +28,10 @@ const WINDOW = 0.25; // transport quarters = code seconds
 /** After a piece's end, how long its last notes (releases, reverb, echoes) ring before the transport stops. */
 const TAIL = 2.5;
 
-/** Where the notes played also go (MIDI out, #205): each window's notes, retimed onto the audio clock, and the stops. */
+/** Where the notes played also go (MIDI out, #205): each window's notes and MIDI clock ticks (#206), retimed onto the audio clock, and the stops. */
 export interface NoteSink {
-  /** A window's notes (AudioContext seconds) and where that window ends: nothing later starts before it. */
-  play(T: ToneNS, events: readonly Played[], until: number): void;
+  /** A window's notes and clock ticks (AudioContext seconds) and where that window ends: nothing later starts before it. */
+  play(T: ToneNS, events: readonly Played[], until: number, ticks: ClockTicks | null): void;
   /** Stopped now: what was sent ahead and is still held is let go, and nothing later is sent that could cut a resume. */
   stop(T: ToneNS): void;
 }
@@ -318,11 +319,11 @@ export class Player implements LiveSource {
     // a window onto the audio clock, from `time` (its start) at `secPerQuarter`
     const play = (w: Window, time: number, secPerQuarter: number) => {
       if (run !== this.run || !this.voices) return;
-      const { events, tapes } = retime(w, time, secPerQuarter);
+      const { events, tapes, clock } = retime(w, time, secPerQuarter);
       // sound tapes on a moving clock: their speed over this window, for the delays to follow
       for (const t of tapes) this.voices.tapeSpeed(t.tape, t.points);
       for (const e of events) this.voices.play(e);
-      this.sink?.play(Tone, events, time + (w.to - w.from) * secPerQuarter);
+      this.sink?.play(Tone, events, time + (w.to - w.from) * secPerQuarter, clock);
     };
     this.repeatId = tr.scheduleRepeat(
       (time) => {

@@ -3,6 +3,8 @@
 import { MidiAccess, type MidiPort, type PortOption } from '../../midi/access';
 import { adoptPorts, connectMidi, portsMessage, type ChosenPorts } from '../../midi/routing';
 import { MidiOut } from '../../midi/out';
+import { ClockOut } from '../../midi/clock-out';
+import { mainMeter, type ClockTicks } from '../../engine/midiclock';
 import { DRUM_PRESETS, type DrumMap } from '../../midi/drum-presets';
 import { channelTable, DEFAULT_BEND_RANGE, rotationChannels, router, type ChannelTable } from '../../engine/midi';
 import type { CompileResult } from '../../engine/program';
@@ -27,10 +29,12 @@ type Stored = {
   readonly bendRange: number;
   /** The channels notes rotate over (MPE-style), or null: each voice on its own channel. */
   readonly rotate: { readonly from: number; readonly to: number } | null;
+  /** Whether each device is sent MIDI clock (by the output port's name). */
+  readonly clock: Readonly<Record<string, boolean>>;
 };
 
 const NONE: Chosen = { id: 'none', name: '' };
-const DEFAULTS: Stored = { out: NONE, in: NONE, channels: {}, drums: {}, internal: true, bendRange: DEFAULT_BEND_RANGE, rotate: null };
+const DEFAULTS: Stored = { out: NONE, in: NONE, channels: {}, drums: {}, internal: true, bendRange: DEFAULT_BEND_RANGE, rotate: null, clock: {} };
 const KEY = 'cell-studio:midi';
 const ALL_CHANNELS = Array.from({ length: 16 }, (_, i) => i);
 
@@ -43,6 +47,7 @@ const isRecord = (v: unknown): v is Record<string, unknown> => !!v && typeof v =
 const numbers = (v: unknown, lo: number, hi: number): Record<string, number> =>
   isRecord(v) ? Object.fromEntries(Object.entries(v).filter((e): e is [string, number] => Number.isInteger(e[1]) && (e[1] as number) >= lo && (e[1] as number) <= hi)) : {};
 const nested = (v: unknown, lo: number, hi: number): Record<string, Numbers> => (isRecord(v) ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, numbers(x, lo, hi)])) : {});
+const flags = (v: unknown): Record<string, boolean> => (isRecord(v) ? Object.fromEntries(Object.entries(v).filter((e): e is [string, boolean] => typeof e[1] === 'boolean')) : {});
 const channel = (v: unknown, fallback: number) => (Number.isInteger(v) && (v as number) >= 1 && (v as number) <= 16 ? (v as number) : fallback);
 /** A number typed into a field, rounded into lo … hi (not a number: `fallback`). */
 const clamped = (v: number, lo: number, hi: number, fallback: number) => (Number.isFinite(v) ? Math.max(lo, Math.min(hi, Math.round(v))) : fallback);
@@ -61,6 +66,7 @@ function load(): Stored {
       internal: typeof kept.internal === 'boolean' ? kept.internal : true,
       bendRange: typeof kept.bendRange === 'number' && kept.bendRange >= 1 && kept.bendRange <= 96 ? kept.bendRange : DEFAULT_BEND_RANGE,
       rotate,
+      clock: flags(kept.clock),
     };
   } catch {
     return DEFAULTS;
@@ -102,6 +108,7 @@ export class Midi implements ChosenPorts, NoteSink {
   #internal = $state(true);
   #bendRange = $state(DEFAULT_BEND_RANGE);
   #rotate = $state.raw<Stored['rotate']>(null);
+  #clock = $state.raw<Stored['clock']>({});
   #piece = $state.raw<OpenPiece | null>(null);
   #player: Tapped | null = null;
   /** Said when a microtonal piece's notes with different bends overlap on one channel (rotation fixes it). */
@@ -109,6 +116,8 @@ export class Midi implements ChosenPorts, NoteSink {
 
   /** What sends the notes played to the output (`midi/out.ts`), through `send`. */
   readonly out = new MidiOut({ send: (data, timestamp) => this.send(data, timestamp) });
+  /** What sends the main meter's ticks, with Start, Continue and Stop (`midi/clock-out.ts`), through `send`. */
+  readonly ticks = new ClockOut({ send: (data, timestamp) => this.send(data, timestamp) });
   // the table the out's routing was last made from, and what it said (a recompile makes a new table, often the same)
   #routed: ChannelTable | null = null;
   #routedAs: string | null = null;
@@ -120,6 +129,8 @@ export class Midi implements ChosenPorts, NoteSink {
     const p = this.#piece;
     return p ? channelTable(p.program, this.#channels[p.title ?? ''] ?? {}) : null;
   });
+  /** The open piece's main meter, which the clock's beats are (`engine/midiclock.ts`); null: it sends no clock. */
+  readonly meter = $derived(this.#piece ? mainMeter(this.#piece.program) : null);
   // the channels (0–15) sent on since the last All notes off
   #used = new Set<number>();
   // who hears every message from the input listened to (MIDI learn: state/learn.svelte.ts)
@@ -134,6 +145,7 @@ export class Midi implements ChosenPorts, NoteSink {
     this.#internal = kept.internal;
     this.#bendRange = kept.bendRange;
     this.#rotate = kept.rotate;
+    this.#clock = kept.clock;
     // a tab frozen while hidden can leave a release unscheduled and hardware sounding: silence it on coming back
     if (typeof document !== 'undefined') document.addEventListener('visibilitychange', this.#onVisible);
     if (this.remembersPorts) void this.connect();
@@ -248,13 +260,29 @@ export class Midi implements ChosenPorts, NoteSink {
     this.#save();
   }
 
+  /** Whether the output is sent MIDI clock (kept by the port's name; off unless switched on). Off while playing: Stop. */
+  get sendClock(): boolean {
+    return this.#clock[this.#out.name] ?? false;
+  }
+  set sendClock(on: boolean) {
+    if (!on) this.#stopClock();
+    this.#clock = { ...this.#clock, [this.#out.name]: on };
+    this.#save();
+  }
+
+  // Stop on the output, after the ticks already sent, if a run is going
+  #stopClock(): void {
+    const clock = this.outPort && this.#tone ? contextClock(this.#tone) : null;
+    if (clock) this.ticks.stop(this.#tone!.immediate(), clock.toDeviceMs);
+  }
+
   /** Send a General MIDI drum note as another, on this output. */
   setDrumNote(gm: number, note: number): void {
     if (Number.isFinite(note)) this.drums = { ...this.drums, [gm]: clamped(note, 0, 127, 0) };
   }
 
-  /** A window's notes from the player (NoteSink): sent to the output, timestamped for when they're heard. */
-  play(T: ToneNS, events: readonly Played[], until: number): void {
+  /** A window's notes and clock ticks from the player (NoteSink): sent to the output, timestamped for when they're heard. */
+  play(T: ToneNS, events: readonly Played[], until: number, ticks: ClockTicks | null = null): void {
     this.#tone = T;
     const clock = this.outPort && this.#piece ? contextClock(T) : null;
     if (!clock) return;
@@ -278,6 +306,8 @@ export class Midi implements ChosenPorts, NoteSink {
     this.out.setOptions({ drums: this.drums, bendRange: this.#bendRange, rotate }, at, clock.toDeviceMs);
     for (const e of events) this.out.play(e, clock.toDeviceMs);
     this.out.advance(until, clock.toDeviceMs, at);
+    if (this.sendClock) this.ticks.play(ticks, clock.toDeviceMs);
+    else this.ticks.stop(at, clock.toDeviceMs);
   }
 
   /** The player stopped (NoteSink): All notes off now, and a note-off for each note still held; nothing later, so a resume or a seek isn't cut. */
@@ -286,10 +316,12 @@ export class Midi implements ChosenPorts, NoteSink {
     const clock = this.outPort ? contextClock(T) : null;
     if (!clock) return this.out.forget();
     this.out.panic(T.immediate(), clock.toDeviceMs);
+    this.ticks.stop(T.immediate(), clock.toDeviceMs);
   }
 
   /** Send to an output by id (`'none'`: none); what the old one may still hold is silenced first. */
   chooseOutput(id: string): void {
+    if (id !== this.#out.id) this.#stopClock();
     if (id !== this.#out.id && this.#used.size) this.panic();
     // (what the old one was left ahead is its own business)
     if (id !== this.#out.id) this.out.forget();
@@ -359,6 +391,7 @@ export class Midi implements ChosenPorts, NoteSink {
         internal: this.#internal,
         bendRange: this.#bendRange,
         rotate: this.#rotate,
+        clock: this.#clock,
       };
       localStorage.setItem(storageKey(KEY), JSON.stringify(kept));
     } catch {
