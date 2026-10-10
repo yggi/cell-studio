@@ -112,5 +112,10 @@ describe('rippled: sound as a wave along any path', () => {
     expect(Math.hypot(wave[0][0], wave[0][1])).toBeLessThan(0.2);
     const [lx, ly] = wave[wave.length - 1];
     expect(Math.hypot(lx - 220, ly - 160)).toBeLessThan(0.2);
+describe('a position that is not a number yet', () => {
+  it('does not throw (the edge derives its path from the layout, which may be mid-move)', () => {
+    expect(() => bundlePaths(0, 0, NaN, 10, 100, 0, [-2, 2])).not.toThrow();
+    expect(() => bundlePaths(NaN, NaN, NaN, NaN, NaN, NaN, [0])).not.toThrow();
+    expect(() => bundlePaths(0, 0, Infinity, 10, 100, 0, [2])).not.toThrow();
   });
 });
