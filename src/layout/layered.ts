@@ -51,7 +51,9 @@ export function layered(model: GraphModel, o: LayeredOptions): Map<string, { x: 
   const vs = new Map<string, V>();
   for (const n of nodes) vs.set(n.id, { id: n.id, layer: layerOf.get(rank.get(n.id) ?? 0)!, dummy: false, w: 2 * o.radius(n.id) + o.gapX });
   // edges, between neighbouring rows: long ones through waypoints
-  const links: { a: string; b: string; w: number }[] = [];
+  // (a link's ends: an end at a table of taps meets it at its tap's bulb, left or right of its middle by where the bulb
+  // sits on its fan (decision 016) — so the taps' order written has its say in the rows' order)
+  const links: { a: string; b: string; w: number; offA: number; offB: number }[] = [];
   const seen = new Set<string>();
   for (const e of model.edges) {
     if (!vs.has(e.source) || !vs.has(e.target) || e.source === e.target || e.port === 'about') continue;
@@ -66,24 +68,28 @@ export function layered(model: GraphModel, o: LayeredOptions): Map<string, { x: 
     let [u, v] = [vs.get(e.source)!, vs.get(e.target)!];
     if (u.layer === v.layer) continue; // (same row: no say in the order)
     if (u.layer > v.layer) [u, v] = [v, u];
+    // (as many places as the fan is wide: a place a ~30 px of it)
+    const bulb = e.bulbAt ? e.bulbAt.x / 30 : 0;
+    const offAt = (id: string) => (id === e.from ? bulb : 0);
     let prev = u.id;
     for (let l = u.layer + 1; l < v.layer; l++) {
       const d = `·${e.id}·${l}`;
       vs.set(d, { id: d, layer: l, dummy: true, w: o.gapX * 0.6 });
-      links.push({ a: prev, b: d, w });
+      links.push({ a: prev, b: d, w, offA: offAt(prev), offB: 0 });
       prev = d;
     }
-    links.push({ a: prev, b: v.id, w });
+    links.push({ a: prev, b: v.id, w, offA: offAt(prev), offB: offAt(v.id) });
   }
   const layers: string[][] = [];
   for (const v of vs.values()) (layers[v.layer] ??= []).push(v.id);
   for (let l = 0; l < layers.length; l++) layers[l] ??= [];
-  const up = new Map<string, { id: string; w: number }[]>(); // neighbours in the row above
-  const down = new Map<string, { id: string; w: number }[]>(); // … and below
-  for (const { a, b, w } of links) {
-    const [hi, lo] = vs.get(a)!.layer < vs.get(b)!.layer ? [a, b] : [b, a];
-    (down.get(hi) ?? down.set(hi, []).get(hi)!).push({ id: lo, w });
-    (up.get(lo) ?? up.set(lo, []).get(lo)!).push({ id: hi, w });
+  // neighbours in the row above, and below; `self` and `other`: where the link meets each end, off its middle
+  const up = new Map<string, { id: string; w: number; self: number; other: number }[]>();
+  const down = new Map<string, { id: string; w: number; self: number; other: number }[]>();
+  for (const { a, b, w, offA, offB } of links) {
+    const [hi, lo, offHi, offLo] = vs.get(a)!.layer < vs.get(b)!.layer ? [a, b, offA, offB] : [b, a, offB, offA];
+    (down.get(hi) ?? down.set(hi, []).get(hi)!).push({ id: lo, w, self: offHi, other: offLo });
+    (up.get(lo) ?? up.set(lo, []).get(lo)!).push({ id: hi, w, self: offLo, other: offHi });
   }
   // a first order: voices by their stereo place (columns), the rest as they come
   const cols = columns(model);
@@ -96,7 +102,7 @@ export function layered(model: GraphModel, o: LayeredOptions): Map<string, { x: 
   const crossings = (l: number) => {
     if (l + 1 >= layers.length) return 0;
     const es: [number, number, number][] = [];
-    for (const id of layers[l]) for (const n of down.get(id) ?? []) es.push([pos.get(id)!, pos.get(n.id)!, n.w]);
+    for (const id of layers[l]) for (const n of down.get(id) ?? []) es.push([pos.get(id)! + n.self, pos.get(n.id)! + n.other, n.w]);
     let c = 0;
     for (let i = 0; i < es.length; i++) for (let j = i + 1; j < es.length; j++) if ((es[i][0] - es[j][0]) * (es[i][1] - es[j][1]) < 0) c += es[i][2] * es[j][2];
     return c;
@@ -127,10 +133,10 @@ export function layered(model: GraphModel, o: LayeredOptions): Map<string, { x: 
       row.sort((a, b) => (tagOf.has(a) ? tagNames.indexOf(tagOf.get(a)!) : tagNames.length / 2) - (tagOf.has(b) ? tagNames.indexOf(tagOf.get(b)!) : tagNames.length / 2)),
     );
   if (tagNames.length && o.rowOrder !== 1 && o.rowOrder !== 2) tagsApart(layers);
-  const mean = (ns: { id: string; w: number }[] | undefined, fallback: number) => {
+  const mean = (ns: { id: string; w: number; other: number }[] | undefined, fallback: number) => {
     if (!ns?.length) return fallback;
     const w = ns.reduce((a, n) => a + n.w, 0);
-    return ns.reduce((a, n) => a + pos.get(n.id)! * n.w, 0) / w;
+    return ns.reduce((a, n) => a + (pos.get(n.id)! + n.other) * n.w, 0) / w;
   };
   let best = layers.map((r) => [...r]);
   let bestCross = total();
