@@ -8,7 +8,7 @@
    * The margin beside the graph (layout/side.ts, docs/ui/graph.md): the notes and scopes of a piece, read beside the
    * music instead of laid among it. A note carries its number, worn by the cells it explains; a scope its channels'
    * colours, worn by the cells it watches. In the order of the graph, top down: each by the height of what it is about.
-   * Pointing at one lights its cells' marks; tapping a note opens it, as tapping a cell does.
+   * Pointing at one lights its cells' marks; tapping a note opens it and holding it switches it off, as for a cell.
    */
   import { untrack } from 'svelte';
   import type { GraphModel } from '../engine/graph';
@@ -17,6 +17,7 @@
   import { getGraphContext } from './context';
   import ScopeView from './ScopeView.svelte';
   import { channelColour } from './theme';
+  import { longpress } from './kit/attach';
 
   let {
     model,
@@ -60,6 +61,7 @@
         class="note"
         class:off={ctx.muted.has(e.id)}
         onclick={() => ctx.open(e.name)}
+        {@attach longpress(() => ctx.toggle(e.id))}
         onpointerenter={() => onlight(e.id)}
         onpointerleave={() => onlight(null)}
         onfocus={() => onlight(e.id)}

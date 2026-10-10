@@ -25,7 +25,6 @@ type MaterialNodeData = {
   turn?: number;
 };
 type MaterialFlowNode = Node<MaterialNodeData, 'material'>;
-/** An oscilloscope (scope=): a screen. */
 /** A cell drawn by a plugin of the piece (show=name). */
 type PluginFlowNode = Node<{ name: string; size: number; plugin: string }, 'plugin'>;
 

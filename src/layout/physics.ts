@@ -199,13 +199,12 @@ export class ForceLayout {
     // petals (unnamed cells) hang from their parent: the physics only sees named cells
     model = { ...model, nodes: model.nodes.filter((n) => !(n as { petalOf?: string }).petalOf) };
     const parentOf = new Map<string, string>();
-    for (const e of model.edges) if (e.port !== 'about' && !parentOf.has(e.target)) parentOf.set(e.target, e.source);
+    for (const e of model.edges) if (!parentOf.has(e.target)) parentOf.set(e.target, e.source);
     // (a meter's edges aren't drawn — its cells wear its ring, meters.ts — so they neither count nor pull)
     const groundIds = groundsOf(model);
     const ground = (e: (typeof model.edges)[number]) => groundIds.has(e.id);
     this.s.degree = new Map();
-    for (const e of model.edges)
-      if (e.source !== e.target && e.port !== 'about' && !ground(e)) for (const id of [e.source, e.target]) this.s.degree.set(id, (this.s.degree.get(id) ?? 0) + 1);
+    for (const e of model.edges) if (e.source !== e.target && !ground(e)) for (const id of [e.source, e.target]) this.s.degree.set(id, (this.s.degree.get(id) ?? 0) + 1);
     // mostly new (a different example that happens to share &bar, &mix, &out): lay it all out afresh
     const fresh = model.nodes.filter((n) => !this.s.byId.has(n.id)).length > model.nodes.length / 2;
     if (fresh) this.s.bendAt.clear(); // a fresh graph: no bends left over from the last one
@@ -220,8 +219,7 @@ export class ForceLayout {
     // springs Frère Jacques crosses more, 1 → 1.7 — docs/notes/nets.md, step 6)
     const busTaps = new Set(this.s.nets.flatMap((n) => (n.port === 'step' || n.delayed ? [] : n.taps)));
     const links: PhysLink[] = model.edges
-      // (a note's links, about=, are no springs: a note is in the margin, side.ts)
-      .filter((e) => e.port !== 'about' && !ground(e) && next.has(e.source) && next.has(e.target) && e.source !== e.target)
+      .filter((e) => !ground(e) && next.has(e.source) && next.has(e.target) && e.source !== e.target)
       .map((e) => ({
         id: e.id,
         source: e.source,
@@ -260,9 +258,7 @@ export class ForceLayout {
     // a meter's edges (ground): springs that aren't drawn, so a meter settles among the cells it steps
     const groundLinks: PhysLink[] = this.s.grounds.map((g) => ({ id: `${g.id}~ground`, source: g.cell, target: g.meter, count: 1, part: false, ground: true }));
     this.sim.force<ReturnType<typeof forceLink<PhysNode, PhysLink>>>('link')!.links([...links, ...tagLinks, ...groundLinks, ...muxLinks.values()]);
-    this.flows = model.edges
-      .filter((e) => e.port !== 'about' && !ground(e) && !e.belt && next.has(e.from) && next.has(e.to) && e.from !== e.to)
-      .map((e) => [next.get(e.from)!, next.get(e.to)!]);
+    this.flows = model.edges.filter((e) => !ground(e) && !e.belt && next.has(e.from) && next.has(e.to) && e.from !== e.to).map((e) => [next.get(e.from)!, next.get(e.to)!]);
     this.s.springs = links.map((l) => ({
       id: l.id,
       source: typeof l.source === 'object' ? (l.source as PhysNode).id : (l.source as string),
@@ -275,7 +271,7 @@ export class ForceLayout {
     for (const id of [...this.s.rims.keys()]) if (!this.s.junctions.has(id)) this.s.rims.delete(id);
     const placedIds = (id: string) => next.has(id) || this.s.junctions.has(id);
     this.s.links = drawn.edges
-      .filter((e) => e.port !== 'about' && !ground(e) && placedIds(e.source) && placedIds(e.target) && e.source !== e.target)
+      .filter((e) => !ground(e) && placedIds(e.source) && placedIds(e.target) && e.source !== e.target)
       .map((e) => ({ id: e.id, source: e.source, target: e.target, belt: !!e.belt, strength: strengthOf(e), is: e.port === 'is' }));
     placeJunctions(this.s);
     // crossings untangled as drawn: a product's wires at its junction (a push on a junction moves its voice)

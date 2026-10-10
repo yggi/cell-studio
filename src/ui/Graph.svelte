@@ -26,10 +26,9 @@
   import type { TransportState } from '../audio/transport';
   import ForcesPanel from './ForcesPanel.svelte';
   import { clusterDisc } from '../layout/clusters';
-  import { isSide } from '../layout/side';
   import { EXAMPLES } from '../examples';
   import Margin, { MARGIN_WIDTH } from './Margin.svelte';
-  import { sideEntries } from '../layout/side';
+  import { isSide, sideEntries } from '../layout/side';
   import { channelColour } from './theme';
   import type { SideMark } from './context';
 
@@ -194,9 +193,11 @@
     get rows() {
       return rows;
     },
-    marksOf: (name) => marks.get(name) ?? [],
+    // (only while the margin is open: a mark with no margin to read it in is noise)
+    marksOf: (name) => (hasMargin ? (marks.get(name) ?? []) : []),
     get sideLit() {
-      return sideLit;
+      // (the entry pointed at in the margin, else a note or scope whose sheet is open)
+      return sideLit ?? (selected && shown.model.nodes.some((n) => n.id === selected && isSide(n)) ? selected : null);
     },
   });
 
@@ -214,8 +215,9 @@
     return out;
   });
   const hasSide = $derived(shown.model.nodes.some(isSide));
-  // (open by default where there's room for it; on a phone a tap away)
-  let marginOpen = $state(typeof matchMedia === 'undefined' || matchMedia('(min-width: 900px)').matches);
+  // (a tap away, as the tower is: closed by default at every width, so the graph keeps its room; ?margin opens it, for
+  // the gallery's pictures)
+  let marginOpen = $state(typeof location !== 'undefined' && new URLSearchParams(location.search).has('margin'));
   const hasMargin = $derived(hasSide && marginOpen);
   // (framed again when the margin opens or closes)
   let sideFits = $state(0);

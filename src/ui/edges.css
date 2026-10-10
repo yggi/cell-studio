@@ -53,12 +53,6 @@
 .graph .svelte-flow__edge-path.edge-off {
   stroke-opacity: 0.2;
 }
-/* a note's links (about=): fine dots from the note to what it explains; never routed, never live, so never coloured */
-.graph .edge-about .svelte-flow__edge-path {
-  stroke-width: 2;
-  stroke-dasharray: 1 7;
-  stroke-opacity: 0.6;
-}
 /* a product's voice into its junction (is): its definition, not a signal — dashed, finer (docs/notes/nets.md, decision 2) */
 .graph .edge-is .svelte-flow__edge-path {
   stroke-width: 2.5;

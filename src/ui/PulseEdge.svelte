@@ -66,7 +66,7 @@
   // a hop, drawn from there (straight: the tree keeps its joins off the wheels)
   const hop = $derived(d.net ? ctx.taps?.get(id) : undefined);
   // (the outputs-top probe: a wire leaves its source at 12 o'clock, out of its rim — a tape's read head is its own socket)
-  const socket = $derived(OUTPUTS_TOP && d.port !== 'play' && d.port !== 'about' ? (hop ? hop.r : (d.sizes?.from ?? 0) / 2) : 0);
+  const socket = $derived(OUTPUTS_TOP && d.port !== 'play' ? (hop ? hop.r : (d.sizes?.from ?? 0) / 2) : 0);
   const fromX = $derived(hop ? hop.x : sourceX);
   const fromY = $derived((hop ? hop.y : sourceY) - socket);
   // (what the locked paths start from: as before unless the probe's socket is on — a hop's wire started at the source)
