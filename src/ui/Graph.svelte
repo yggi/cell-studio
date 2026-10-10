@@ -257,7 +257,7 @@
     cardCover = carded ? Math.max(0, graphEl!.getBoundingClientRect().right - (innerWidth - 396) + 8) : 0;
   });
   // (with a card beside it the tower waits unless 240 px of graph are left; with none it shows at any width, a phone's included)
-  const towerShown = $derived(towerOpen && (cardCover === 0 || graphW - cardCover - TOWER_WIDTH >= 240));
+  const towerShown = $derived(towerOpen && (cardCover === 0 || graphW - (hasMargin ? MARGIN_WIDTH : 0) - cardCover - TOWER_WIDTH >= 240));
   // (a card opened or closed beside the tower: the graph is framed again in the room left, so no cell is cut off)
   let lastCover = 0;
   $effect(() => {
