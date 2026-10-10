@@ -8,6 +8,9 @@
   import { onDestroy, untrack } from 'svelte';
   import { blockColour, noteColour, partColour } from './theme';
   import { cellView, hubLabel, type CellView, type Fill, type Segment } from '../layout/cellview';
+  import { gateOf, receiverPlaces } from '../layout/gate';
+  import { bulbHosts } from '../engine/graph';
+  import { valuesAt } from '../engine/values';
   import { BORDER, border, coarsen } from '../layout/coarse';
   import { names, noteLabel, tonicOf, voiceBase } from '../layout/show';
   import { polar, ringSegment } from '../layout/geometry';
@@ -68,11 +71,16 @@
     return untrack(() => ctx.heads.shifts) ?? still;
   });
   const shownShift = $derived(shown(name));
+  // a gate (#234) shows its trigger's notes round its ring, its hand where the trigger plays
+  const gate = $derived(gateOf(ctx.program, name));
   // a read head shows what's on its tape: its source's braid
   const drawn = $derived.by(() => {
+    if (gate && ctx.program.cells.has(gate.trigger)) return gate.trigger;
     const t = cell && typeof cell.params.play === 'string' ? ctx.program.cells.get(cell.params.play) : undefined;
     return t && typeof t.params.write === 'string' && ctx.program.cells.has(t.params.write) ? t.params.write : name;
   });
+  // (whose playhead the hand follows: its own, or a gate's trigger's)
+  const played = $derived(gate ? drawn : name);
   // every step, as the cell is written (the rim's turning works on these) …
   const full = $derived((cell && cellView(ctx.program, drawn, shown, isMeter)) || EMPTY);
   // … and what's drawn: a braid of hundreds of steps is merged into ~160 segments (a step is under a pixel
@@ -296,8 +304,8 @@
   });
   // The live state is a new object every tick. What this wheel takes from it is kept as primitives, so that what
   // depends on them runs again only when they change — not every tick, for every wheel on the graph (#13).
-  const hasLive = $derived(!!ctx.heads.cells.get(name));
-  const liveLocal = $derived(ctx.heads.cells.get(name)?.local ?? null);
+  const hasLive = $derived(!!ctx.heads.cells.get(played));
+  const liveLocal = $derived(ctx.heads.cells.get(played)?.local ?? null);
   const entriesKey = $derived.by(() => {
     const e = ctx.heads.cells.get(name)?.entries;
     return e && e.size ? [...e].join(',') : '';
@@ -497,7 +505,7 @@
       return on.join(',');
     }
     if (!hasLive || view.mode !== 'braid' || liveLocal === null) return '';
-    const t = liveLocal / Math.max(1, cell?.steps ?? 1);
+    const t = liveLocal / Math.max(1, ctx.program.cells.get(played)?.steps ?? 1);
     const on: number[] = [];
     view.segments.forEach((s, i) => {
       if (t >= s.t0 - EPS && t < s.t1 - EPS) on.push(i);
@@ -522,7 +530,25 @@
   };
 
   // the playhead: braids, and a selector's barrel (where in its sections)
-  const hand = $derived((view.mode === 'braid' || view.mode === 'matrix') && liveLocal != null ? liveLocal / Math.max(1, cell?.steps ?? 1) : null);
+  const hand = $derived((view.mode === 'braid' || view.mode === 'matrix') && liveLocal != null ? liveLocal / Math.max(1, ctx.program.cells.get(played)?.steps ?? 1) : null);
+  // how open a gate is now (gate=, a level: 1 open, 0 closed): its receivers as dim as it is closed, while playing
+  const openness = $derived.by(() => {
+    if (!gate?.open || !ctx.lit) return 1;
+    const v = valuesAt(ctx.program, ctx.shifts, gate.open, ctx.heads.seconds)[0];
+    return v === undefined ? 1 : Math.max(0, Math.min(1, v));
+  });
+  // a gate's receivers: small wheels fanned over its top (layout/gate.ts); a bulb when only the gate plays the voice, else
+  // hollow (the voice has a node of its own); each lit while its voice sounds
+  const receivers = $derived.by(() => {
+    if (!gate || interactive) return [];
+    const places = receiverPlaces(size, gate.receivers.length);
+    const hosts = bulbHosts(ctx.program);
+    return gate.receivers.map((v, i) => {
+      const p = places[i];
+      const text = `&${v}`;
+      return { name: v, x: c + p.x, y: c + p.y, r: p.r, bulb: hosts.get(v) === name, font: fitFont(2 * p.r * 0.86, text.length, 11, 5), text };
+    });
+  });
   // in a bulb, the hand bends: from the hub through each bulb's neck and hub to the step playing now (#221)
   const bent = $derived(hand !== null && track ? cursorOf(c, c, geo.hand.r0 * 0.4, track, mod(hand, 1)) : null);
 
@@ -787,6 +813,30 @@
     />
     {#if size >= 160}<text class="pen" x={c} y={c + geo.rHub * 0.62}>✎</text>{/if}
   {/if}
+  {#each receivers as v (v.name)}
+    <g
+      class="receiver"
+      class:hollow={!v.bulb}
+      class:sounding={!!ctx.lit?.nodes.has(`cell:${v.name}`)}
+      class:off={!!ctx.program.cells.get(v.name)?.off}
+      style:opacity={ctx.program.cells.get(v.name)?.off ? undefined : 0.25 + 0.75 * openness}
+    >
+      <circle class="receiver-disc" cx={v.x} cy={v.y} r={v.r} />
+      {#if v.font}<text class="receiver-name" x={v.x} y={v.y} dy="0.35em" style:font-size="{v.font}px">{v.text}</text>{/if}
+      {#if v.bulb}<circle
+          class="bulb-hit"
+          data-bulb={v.name}
+          role="button"
+          tabindex="0"
+          aria-label={`&${v.name}, a voice this gate plays: open it; Shift+Enter switches it ${ctx.program.cells.get(v.name)?.off ? 'on' : 'off'}`}
+          aria-keyshortcuts="Enter Shift+Enter"
+          onkeydown={(e) => bulbKey(e, v.name)}
+          cx={v.x}
+          cy={v.y}
+          r={v.r}
+        />{/if}
+    </g>
+  {/each}
   {#if bent}
     <g class="hand bent">
       <path class="edge" d={bent.d} style:stroke-width="{geo.hand.width + 2}px" />
@@ -1026,6 +1076,28 @@
   /* a bulb (#221): its own small disc behind it; a net-ref's dotted round; its name at its hub */
   .bulb-disc {
     fill: var(--wheel-disc);
+  }
+  /* a gate's receivers (#234): a small wheel each over its top, lit while its voice sounds */
+  .receiver-disc {
+    fill: var(--wheel-disc);
+    stroke: var(--wheel-ref);
+    stroke-width: 2;
+  }
+  .receiver.hollow .receiver-disc {
+    fill: none;
+    stroke-dasharray: 1 3;
+    stroke-linecap: round;
+  }
+  .receiver.sounding .receiver-disc {
+    stroke: var(--accent);
+  }
+  .receiver.off {
+    opacity: 0.4;
+  }
+  .receiver-name {
+    fill: var(--text);
+    font-weight: 700;
+    text-anchor: middle;
   }
   .bulb-hit {
     fill: transparent;
