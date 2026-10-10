@@ -11,7 +11,7 @@ import { playedCells } from '../engine/clocking';
 import { flatten, tapped } from '../engine/flatten';
 import { resolveIn } from '../engine/helix';
 import { bulbHosts, isTurntable } from '../engine/graph';
-import { bulbsOf, type Bulb } from './track';
+import { bulbsOf, fanOf, type Bulb } from './track';
 
 /**
  * Drawn as a grid (entries placed on the grid below) only when it's looked
@@ -151,7 +151,8 @@ export function cellView(result: CompileResult, name: string, shifts: Shifts, is
     const steps = [...byStep.values()].sort((a, b) => a.t0 - b.t0).map((g, index) => ({ ...g, index }));
     return { mode: 'matrix', segments: [], ticks: Math.round(total), detents: Math.max(1, c.units.length), show, conv, matrix: { rows, steps } };
   }
-  const pattern = show === 'pattern';
+  // (a table of taps' steps are clocks, not pitches: drawn as a pattern's beats — decision 016)
+  const pattern = show === 'pattern' || !!fanOf(result, name);
   // show=levels: each step a bar, its height the level (decibels converted)
   const levels = show === 'levels';
   const levelOf = (v: number) => (c.map?.kind === 'db' ? Math.pow(10, v / 20) : Math.max(0, Math.min(1, v)));
@@ -278,7 +279,10 @@ export function cellView(result: CompileResult, name: string, shifts: Shifts, is
   rest(cursor, total);
   // (bars of levels stay on the ring; a scope or a turntable draws no track)
   const bulbs = levels || typeof c.params.scope === 'string' || isTurntable(c) ? [] : bulbsOf(result, name, shifts, bulbHosts(result));
-  return { mode: 'braid', segments, ticks: total, detents: Math.max(1, units.length), show, conv, ...(bulbs.length ? { bulbs } : {}) };
+  // (a table of taps fans its steps over its top, as its bulbs: track.ts)
+  const fan = fanOf(result, name);
+  const laid = fan ? segments.map((s) => ({ ...s, t0: fan(s.t0), t1: fan(s.t1) })) : segments;
+  return { mode: 'braid', segments: laid, ticks: total, detents: Math.max(1, units.length), show, conv, ...(bulbs.length ? { bulbs } : {}) };
 }
 
 /**

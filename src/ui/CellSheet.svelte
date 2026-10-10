@@ -256,15 +256,18 @@
           onhub={() => (editingHub = true)}
         />
       </div>
-      <div class="turn" role="group" aria-label="Turn">
-        <button onclick={() => ctx.turn(name, shift - 1)} aria-label="Shift down">−</button>
-        <output aria-label="shift">{shift > 0 ? '+' : ''}{shift}</output>
-        <button onclick={() => ctx.turn(name, shift + 1)} aria-label="Shift up">+</button>
-        <button class="unstyled quiet" onclick={() => ctx.turn(name, 0)} disabled={shift === 0}>Reset</button>
-        {#if listed.kind !== 'function'}
-          <button class="unstyled quiet" onclick={() => writeList([...(listed.kind === 'list' ? listed.tokens : []), '0'])}>Add a step</button>
-        {/if}
-      </div>
+      <!-- (a tap of a meter's bus has one step, nothing to turn: decision 016) -->
+      {#if !ctx.program.taps?.has(name)}
+        <div class="turn" role="group" aria-label="Turn">
+          <button onclick={() => ctx.turn(name, shift - 1)} aria-label="Shift down">−</button>
+          <output aria-label="shift">{shift > 0 ? '+' : ''}{shift}</output>
+          <button onclick={() => ctx.turn(name, shift + 1)} aria-label="Shift up">+</button>
+          <button class="unstyled quiet" onclick={() => ctx.turn(name, 0)} disabled={shift === 0}>Reset</button>
+          {#if listed.kind !== 'function'}
+            <button class="unstyled quiet" onclick={() => writeList([...(listed.kind === 'list' ? listed.tokens : []), '0'])}>Add a step</button>
+          {/if}
+        </div>
+      {/if}
       <p class="hint">
         {listed.kind === 'empty'
           ? 'Empty: the default grid. Tap the middle to write steps.'
@@ -276,13 +279,16 @@
       <div class="dial">
         <CellGlyph {name} {isMeter} size={200} interactive fine />
       </div>
-      <div class="turn" role="group" aria-label="Turn">
-        <button onclick={() => ctx.turn(name, shift - 1)} aria-label="Shift down">−</button>
-        <output aria-label="shift">{shift > 0 ? '+' : ''}{shift}</output>
-        <button onclick={() => ctx.turn(name, shift + 1)} aria-label="Shift up">+</button>
-        <button class="unstyled quiet" onclick={() => ctx.turn(name, 0)} disabled={shift === 0}>Reset</button>
-        {#if overview && words}<button class="unstyled quiet" onclick={() => (editingHub = true)}>Edit steps</button>{/if}
-      </div>
+      <!-- (a tap of a meter's bus has one step, nothing to turn: decision 016) -->
+      {#if !ctx.program.taps?.has(name)}
+        <div class="turn" role="group" aria-label="Turn">
+          <button onclick={() => ctx.turn(name, shift - 1)} aria-label="Shift down">−</button>
+          <output aria-label="shift">{shift > 0 ? '+' : ''}{shift}</output>
+          <button onclick={() => ctx.turn(name, shift + 1)} aria-label="Shift up">+</button>
+          <button class="unstyled quiet" onclick={() => ctx.turn(name, 0)} disabled={shift === 0}>Reset</button>
+          {#if overview && words}<button class="unstyled quiet" onclick={() => (editingHub = true)}>Edit steps</button>{/if}
+        </div>
+      {/if}
     {/if}
 
     <!-- the numbers it leaves free: first-class controls -->

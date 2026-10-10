@@ -42,7 +42,23 @@ function refLabel(a: { readonly transpose?: number; readonly values?: { readonly
  */
 export function bulbsOf(result: CompileResult, name: string, shifts: Shifts, hosts: ReadonlyMap<string, string>): Bulb[] {
   const c = result.cells.get(name);
-  return c ? splices(result, name, shifts, hosts, 0, 1, Math.max(1, c.steps), 0, 0) : [];
+  if (!c) return [];
+  const bulbs = splices(result, name, shifts, hosts, 0, 1, Math.max(1, c.steps), 0, 0);
+  const fan = fanOf(result, name);
+  return fan ? bulbs.map((b) => ({ ...b, t0: fan(b.t0), t1: fan(b.t1) })) : bulbs;
+}
+
+/** How much of its wheel a table of taps fans its taps over, at the top (turns). */
+const TAP_FAN = 2 / 3;
+
+/**
+ * A table of taps (decision 016) is shaped as a bulb itself: its taps fanned over the top two thirds of its wheel in
+ * braid order, left to right (8 o'clock round to 4), facing what they step; the bottom third, where its inputs come
+ * in (the meter's bus, the selector), left free. Its loop's time (turns) to where it is drawn; null for any other cell.
+ */
+export function fanOf(result: CompileResult, name: string): ((t: number) => number) | null {
+  if (![...(result.taps?.values() ?? [])].includes(name)) return null;
+  return (t) => (t - 0.5) * TAP_FAN;
 }
 
 function splices(
@@ -192,14 +208,18 @@ export function layTrack(cx: number, cy: number, r: number, w: number, bulbs: re
     if (!closed) knots.push({ p: onCircle(c, R, a1), tau: T1, w: width });
     return laid;
   };
+  // (from 12 o'clock; a table of taps' fan, which is about 12 o'clock (fanOf), from 6, its ribbon narrower: its taps,
+  // many and short, bend out where a ring's width wouldn't let them)
+  const fanned = bulbs.some((b) => b.t0 < 0);
+  const start = fanned ? -0.5 : 0;
   const top = arc(
     [cx, cy],
     r,
-    0,
-    1,
-    0,
-    1,
-    w,
+    start,
+    start + 1,
+    start,
+    start + 1,
+    fanned ? w / 2 : w,
     spans(bulbs, (t) => t),
     r * 0.62,
     true,
@@ -228,6 +248,8 @@ function sample(knots: readonly Knot[], per = 10): { p: P[]; tau: number[]; w: n
   const tau: number[] = [];
   const w: number[] = [];
   const at = (i: number) => knots[((i % n) + n) % n];
+  // (a lap of τ from where it starts: 0, or a fan's −½ — layTrack)
+  const end = (knots[0]?.tau ?? 0) + 1;
   for (let i = 0; i < n; i++) {
     const [P0, P1, P2, P3] = [at(i - 1).p, at(i).p, at(i + 1).p, at(i + 2).p];
     const d = (a: P, b: P) => Math.max(1e-6, Math.sqrt(len(sub(b, a))));
@@ -250,8 +272,8 @@ function sample(knots: readonly Knot[], per = 10): { p: P[]; tau: number[]; w: n
     for (let j = 1; j <= per; j++) L.push(L[j - 1] + len(sub(j < per ? pts[j] : P2, pts[j - 1])));
     const total = L[per] || 1;
     const t0 = at(i).tau;
-    // (the last piece closes the ring: its τ runs on to 1)
-    const t1 = i === n - 1 ? 1 : at(i + 1).tau;
+    // (the last piece closes the ring: its τ runs on to a lap)
+    const t1 = i === n - 1 ? end : at(i + 1).tau;
     for (let j = 0; j < per; j++) {
       const k = L[j] / total;
       p.push(pts[j]);
@@ -260,7 +282,7 @@ function sample(knots: readonly Knot[], per = 10): { p: P[]; tau: number[]; w: n
     }
   }
   p.push(p[0]);
-  tau.push(1);
+  tau.push(end);
   w.push(w[0]);
   // (τ never runs back: rounding, a neck that takes no time)
   for (let i = 1; i < tau.length; i++) tau[i] = Math.max(tau[i], tau[i - 1]);
@@ -285,7 +307,7 @@ function find(track: Track, tau: number, early = false): { i: number; k: number 
 
 /** The track at τ: its point, its direction and the ribbon's width there (`early`: before a join at τ, not after it). */
 export function trackAt(track: Track, tau: number, early = false): { p: P; tan: P; w: number } {
-  const { i, k } = find(track, Math.max(0, Math.min(1, tau)), early);
+  const { i, k } = find(track, Math.max(track.tau[0], Math.min(track.tau[track.tau.length - 1], tau)), early);
   const j = Math.min(track.p.length - 1, i + 1);
   return { p: add(track.p[i], sub(track.p[j], track.p[i]), k), tan: unit(sub(track.p[j], track.p[i])), w: track.w[i] + (track.w[j] - track.w[i]) * k };
 }
@@ -414,6 +436,26 @@ export function netEnds(track: Track, size: number, net: string): { turn: number
   };
   walk(track.bulbs);
   return out.sort((a, b) => a.turn - b.turn);
+}
+
+/**
+ * Where the bulb splicing `bulb` sits on `host`'s wheel, `size` px across: its hub from the wheel's centre (px) and its
+ * disc's radius, as CellGlyph draws it; null where it isn't laid (too short a splice to bend out). A tap's sub-net
+ * leaves from there (decision 016).
+ */
+export function bulbHub(result: CompileResult, host: string, bulb: string, hosts: ReadonlyMap<string, string>, size: number): { x: number; y: number; r: number } | null {
+  const { r, w } = ringOf(size);
+  const c = size / 2;
+  const find = (list: readonly Laid[]): Laid | null => {
+    for (const L of list) {
+      if (L.bulb.name === bulb) return L;
+      const inner = find(L.bulbs);
+      if (inner) return inner;
+    }
+    return null;
+  };
+  const L = find(layTrack(c, c, r, w, bulbsOf(result, host, codeShifts(result), hosts)).bulbs);
+  return L && { x: L.C[0] - c, y: L.C[1] - c, r: L.rho + L.w / 2 + 2 };
 }
 
 /** How far the track reaches from the wheel's centre (px). */

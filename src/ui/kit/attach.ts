@@ -64,12 +64,14 @@ export function trap(options: TrapOptions | (() => void) = {}): Attachment<HTMLE
  * count toward a double-tap). Adds `.holding` while the timer runs. Presses that start on an
  * interactive part (`.nodrag`, e.g. a wheel rim) are left to that control.
  */
-export function longpress(onlong: () => void, ms = 450): Attachment<HTMLElement> {
+export function longpress(onlong: (target: Element | null) => void, ms = 450): Attachment<HTMLElement> {
   return (node) => {
     let timer: ReturnType<typeof setTimeout> | undefined;
     let sx = 0;
     let sy = 0;
     let fired = false;
+    // (where the press began: a part of the element, such as a bulb on a wheel, may be a cell of its own)
+    let at: Element | null = null;
 
     const cancel = () => {
       clearTimeout(timer);
@@ -80,6 +82,7 @@ export function longpress(onlong: () => void, ms = 450): Attachment<HTMLElement>
       if (e.button !== 0 || !e.isPrimary) return;
       if ((e.target as Element | null)?.closest?.('.nodrag')) return;
       fired = false;
+      at = e.target as Element | null;
       sx = e.clientX;
       sy = e.clientY;
       cancel();
@@ -89,7 +92,7 @@ export function longpress(onlong: () => void, ms = 450): Attachment<HTMLElement>
         fired = true;
         node.classList.remove('holding');
         navigator.vibrate?.(12);
-        onlong();
+        onlong(at);
       }, ms);
     };
     const move = (e: PointerEvent) => {

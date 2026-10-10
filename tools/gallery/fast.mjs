@@ -8,6 +8,8 @@
 //   node tools/gallery.mjs edges                              # every kind of edge, in every state
 //   node tools/gallery.mjs mockups                            # the design questions of #107 (Mockups.svelte)
 //   CELLS=piece.cells node tools/gallery.mjs golden           # any source in the real Graph, stopped and live
+//   ZOOM=parts node tools/gallery.mjs zoom 3 pop korobeiniki  # close-ups of &parts in each, stopped and live (default:
+//                                                              # every wheel with bulbs), tiles/<piece>-<state>-<cell>.png
 //
 // Writes <OUT>/sheet.png (the whole page), <OUT>/tiles/<kind>.png (one per kind: a <figure data-kind>), <OUT>/index.html
 // (the tiles) and <OUT>/<subject>.json. OUT defaults to shots/<subject>-fast (mockups: shots/wheel-mockups).
@@ -40,7 +42,7 @@ if (process.env.OUTPUTS) q.set('outputs', process.env.OUTPUTS);
 if (process.env.CELLS) q.set('src', readFileSync(process.env.CELLS, 'utf8'));
 const url = `${server.resolvedUrls.local[0]}tools/gallery/harness.html?${q}`;
 const browser = await chromium.launch({ args: ['--no-sandbox'] });
-const page = await browser.newPage({ viewport: { width: { edges: 2560, golden: 2840 }[subject] ?? 1500, height: 1000 }, deviceScaleFactor: scale });
+const page = await browser.newPage({ viewport: { width: { edges: 2560, golden: 2840, zoom: 1600 }[subject] ?? 1500, height: 1000 }, deviceScaleFactor: scale });
 const problems = [];
 page.on('pageerror', (e) => problems.push(e.message));
 page.on('console', (m) => m.type() === 'error' && !/Failed to load resource/.test(m.text()) && problems.push(m.text()));
@@ -61,8 +63,53 @@ if (mockups) {
   if (problems.length) console.log(`${problems.length} problems:\n  ` + problems.slice(0, 20).join('\n  '));
   process.exit(problems.length ? 1 : 0);
 }
+const slug = (s) =>
+  s
+    .replace(/[^\w@]+/g, '-')
+    .replace(/^-|-$/g, '')
+    .toLowerCase();
 await page.waitForSelector('figure[data-kind]', { timeout: 60000 });
-await page.waitForTimeout(subject === 'golden' ? 6000 : 1500); // (the spectra fill in from the made-up sound; a graph lays itself out and frames itself)
+await page.waitForTimeout(subject === 'golden' || subject === 'zoom' ? 6000 : 1500); // (the spectra fill in from the made-up sound; a graph lays itself out and frames itself)
+if (subject === 'zoom') {
+  // each frame zoomed in on its cells (ZOOM=a,b, or every wheel with bulbs), a close-up of each with room round it
+  const want = process.env.ZOOM?.split(',').filter(Boolean);
+  const frames = await page.$$eval('figure[data-kind]', (fs) => fs.map((f) => f.dataset.kind));
+  let n = 0;
+  for (const [i, key] of frames.entries()) {
+    const figure = page.locator('figure[data-kind]').nth(i);
+    const cells =
+      want ??
+      (await figure.locator('[data-bulb]').evaluateAll((bs) => [...new Set(bs.map((b) => b.closest('.svelte-flow__node')?.getAttribute('data-id')?.slice(5)).filter(Boolean))]));
+    for (const cell of cells) {
+      const node = figure.locator(`.svelte-flow__node[data-id="cell:${cell}"]`);
+      if (!(await node.count())) continue;
+      await node.scrollIntoViewIfNeeded();
+      // (zoomed by the wheel, as a hand would, centred on the cell)
+      for (let k = 0; k < 7; k++) {
+        const b = await node.boundingBox();
+        await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2);
+        await page.mouse.wheel(0, -300);
+        await page.waitForTimeout(200);
+      }
+      await page.waitForTimeout(500);
+      const b = await node.boundingBox();
+      const pad = b.width * 0.45;
+      await page.screenshot({
+        path: join(out, 'tiles', `${slug(key)}-${slug(cell)}.png`),
+        clip: { x: b.x - pad, y: b.y - pad, width: b.width + 2 * pad, height: b.height + 2 * pad },
+      });
+      // (back out, for the next cell)
+      for (let k = 0; k < 7; k++) await page.mouse.wheel(0, 300);
+      await page.waitForTimeout(300);
+      n++;
+    }
+  }
+  await browser.close();
+  await server.close();
+  console.log(`${n} close-ups → ${join(out, 'tiles')}`);
+  if (problems.length) console.log(`${problems.length} problems:\n  ` + problems.slice(0, 20).join('\n  '));
+  process.exit(problems.length ? 1 : 0);
+}
 const kinds = await page.$$eval('figure[data-kind]', (fs) =>
   fs.map((f) => ({
     key: f.dataset.kind,
@@ -70,11 +117,6 @@ const kinds = await page.$$eval('figure[data-kind]', (fs) =>
     wheels: [...f.querySelectorAll('[data-wheel]')].map((w) => [w.dataset.wheel, w.dataset.mode, w.dataset.show].filter(Boolean).join(':')),
   })),
 );
-const slug = (s) =>
-  s
-    .replace(/[^\w@]+/g, '-')
-    .replace(/^-|-$/g, '')
-    .toLowerCase();
 const figures = page.locator('figure[data-kind]');
 for (const [i, k] of kinds.entries()) {
   k.file = `${slug(k.key)}.png`;
