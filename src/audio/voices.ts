@@ -369,7 +369,8 @@ export function createVoices(Tone: ToneNS): VoiceBank {
       const k = keys.get(id);
       keys.delete(id);
       const n = k?.b.live.get(k.osc);
-      if (k && n) letGo(k.osc, n, ctx.currentTime);
+      // (a key let go before its note has started lets it start, then go: a quick tap is heard, not lost)
+      if (k && n) letGo(k.osc, n, Math.max(ctx.currentTime, n.at));
     },
 
     note(voice) {

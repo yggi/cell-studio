@@ -193,6 +193,22 @@ describe('MIDI in', () => {
     expect(asked.slice(-1)).toEqual(['release 4']);
   });
 
+  it("a controller's All notes off (CC 123) or All sound off (CC 120) lets every key go and the pedal up", () => {
+    for (const cc of [123, 120]) {
+      const { play, asked } = made();
+      play(0x90, 60, 100);
+      play(0xb0, 64, 127);
+      play(0x90, 62, 100);
+      play(0x80, 62, 0); // (held by the pedal)
+      play(0xb0, cc, 0);
+      expect(asked.filter((a) => a.startsWith('release')).sort()).toEqual(['release 1', 'release 2']);
+      // (the pedal is up: a key let go is let go, not held)
+      play(0x90, 64, 100);
+      play(0x80, 64, 0);
+      expect(asked.slice(-1)).toEqual(['release 3']);
+    }
+  });
+
   it('thru: off unless asked for; on, the keys and the pedal echoed at once on the channel chosen', () => {
     const { keys, play, sent } = made();
     play(0x90, 60, 100);

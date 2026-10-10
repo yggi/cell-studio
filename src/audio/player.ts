@@ -211,7 +211,7 @@ export class Player implements LiveSource {
   onKeysCut: (() => void) | null = null;
 
   /**
-   * A key pressed (MIDI in, the computer keys, on-screen keys) on a voice: a held note at once, at Tone.immediate()
+   * A key pressed (MIDI in, the computer keys, on-screen keys) on a voice: a held note at once, at the context clock
    * rather than through the look-ahead, sounding with the voice's own envelope until `release`. A hand, as a strike is:
    * a stopped transport is paused from now on. Pause leaves it sounding (the plan's notes let go, a hand's don't);
    * Stop cuts it.
