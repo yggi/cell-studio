@@ -21,10 +21,11 @@
     </select>
   </label>
   <label>
-    A key outside the scale
-    <select value={keys.mode} onchange={(e) => (keys.mode = e.currentTarget.value === 'played' ? 'played' : 'nearest')}>
-      <option value="nearest">Plays the nearest note of the scale</option>
-      <option value="played">Plays as played</option>
+    A key outside the scale, played and recorded
+    <select value={keys.mode} onchange={(e) => (keys.mode = e.currentTarget.value === 'allow' ? 'allow' : e.currentTarget.value === 'ignore' ? 'ignore' : 'snap')}>
+      <option value="snap">Snap: the nearest note of the scale</option>
+      <option value="allow">Allow: as played (recorded with ♯ or ♭)</option>
+      <option value="ignore">Ignore: it plays nothing</option>
     </select>
   </label>
   <label class="check"

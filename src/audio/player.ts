@@ -17,7 +17,7 @@ import { transition, type TransportEvent, type TransportState } from './transpor
 import { onFrames } from './ticker';
 import { markDuration, marks } from './stats';
 import { type Tuning, DEFAULT_TUNING } from './tuning';
-import { audioInfo, heardLatency, openContext, outputLatency, readTuning, type AudioInfo } from './device';
+import { audioInfo, contextClock, heardLatency, openContext, outputLatency, readTuning, type AudioInfo } from './device';
 import { HeldTapes } from './heldTapes';
 import { heardLag } from './heard';
 import { LocalEngine, type Engine, type PieceSource } from './engine';
@@ -382,6 +382,7 @@ export class Player implements LiveSource {
 
     const startsAt = Tone.now() + 0.05;
     tr.start(startsAt);
+    this.running = { startsAt, offset };
     this.move('play');
     this.stopFrames();
     let lagAt = 0;
@@ -411,9 +412,28 @@ export class Player implements LiveSource {
     this.stopFrames = onFrames(frame, () => 40, 'clock');
   }
 
+  // the run playing: when its transport started (audio clock) and where in the piece (code seconds)
+  private running: { startsAt: number; offset: number } | null = null;
+
+  /**
+   * Where the piece is (code seconds) heard at a moment on the page's clock (`performance.now()` ms, as a MIDI message's
+   * or a key event's `timeStamp`): the moment heard then, on the audio clock (`midi/clock.ts`, as MIDI out's timestamps),
+   * through the transport. Null while not playing. A take reads its keys' times through this (#210).
+   */
+  heardAt(ms: number): number | null {
+    const T = this.Tone;
+    const run = this.running;
+    if (!this.playing || !T || !run) return null;
+    const clock = contextClock(T);
+    const made = clock ? clock.fromDeviceMs(ms) : T.immediate() - (this.lag ?? 0) - (performance.now() - ms) / 1000;
+    const tr = T.getTransport();
+    return run.offset + (made < run.startsAt ? 0 : Math.max(0, tr.getTicksAtTime(made) / tr.PPQ));
+  }
+
   /** Pause: the clocks stand, no trigger or gate is left open, every sound tape is held where it is, what is on it kept. */
   pause(): void {
     if (!this.playing) return;
+    this.running = null;
     this.stopFrames();
     const at = transportClock.seconds;
     transportClock.seconds = 0;

@@ -3,7 +3,8 @@
   /**
    * The transport, in one place: play and pause (pausing keeps the place), stop (back to
    * the initial state), where the piece is — its sections marked and named, each a jump — and the
-   * tempo of the meter that drives it (its free() value, as in the graph).
+   * tempo of the meter that drives it (its free() value, as in the graph). Record (●, for a piece with a braid left
+   * free) takes a pass of the armed cell from the keys (state/record.svelte.ts).
    */
   import { getStudio } from './state/studio.svelte';
 
@@ -14,7 +15,7 @@
     path?: Snippet;
   } = $props();
 
-  const { piece, playback, view } = getStudio();
+  const { piece, playback, view, recorder } = getStudio();
   const title = $derived(piece.title);
   const playing = $derived(playback.playing);
   const starting = $derived(playback.starting);
@@ -31,6 +32,16 @@
   const menuOpen = $derived(view.panelOpen);
   const onchoose = () => (view.tab = 'select');
   const onplay = () => playback.toggle();
+  const onrecord = () => recorder.record();
+  const recordTitle = $derived(
+    recorder.state === 'taking'
+      ? `Taking a pass of &${recorder.target?.cell ?? ''}: press to call it off`
+      : recorder.state === 'armed'
+        ? 'Waiting for the pass to begin: press to call it off'
+        : recorder.target
+          ? `Record: play a pass of &${recorder.target.cell} on the keys; it is held until Save`
+          : 'Record: arm a cell whose braid is free(…) (its sheet, or Play with in the MIDI dialog)',
+  );
   const onstop = () => playback.stop();
   const onrevert = () => piece.revert();
   const onsave = () => piece.keep();
@@ -67,6 +78,20 @@
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.5-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5z" /></svg>
       {/if}
     </button>
+    {#if recorder.any}
+      <button
+        class="record"
+        class:armed={recorder.state === 'armed'}
+        class:taking={recorder.state === 'taking'}
+        onclick={onrecord}
+        disabled={recorder.state === 'off' && !recorder.target}
+        aria-label="Record"
+        aria-pressed={recorder.state !== 'off'}
+        title={recordTitle}
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="6" /></svg>
+      </button>
+    {/if}
     <button class="stop" class:dirty={resettable} onclick={onstop} disabled={!resettable} aria-label="Stop" title="Stop: back to the initial state">
       <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="1.5" /></svg>
     </button>
@@ -138,7 +163,8 @@
     gap: 8px;
   }
   .play,
-  .stop {
+  .stop,
+  .record {
     flex: none;
     display: grid;
     place-items: center;
@@ -171,6 +197,40 @@
   .stop svg {
     width: 16px;
     height: 16px;
+  }
+  .record {
+    width: 36px;
+    height: 36px;
+    background: var(--code-bg);
+    color: var(--danger);
+    border: 1px solid var(--line);
+  }
+  .record svg {
+    width: 16px;
+    height: 16px;
+    fill: currentColor;
+  }
+  .record.armed {
+    animation: blink 1s steps(2, start) infinite;
+  }
+  .record.taking {
+    background: var(--danger);
+    color: var(--accent-ink);
+  }
+  .record:disabled {
+    opacity: 0.4;
+    cursor: default;
+  }
+  @keyframes blink {
+    to {
+      opacity: 0.35;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .record.armed {
+      animation: none;
+      outline: 2px dashed var(--danger);
+    }
   }
   .stop:disabled {
     opacity: 0.4;

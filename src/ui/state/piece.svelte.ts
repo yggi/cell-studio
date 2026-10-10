@@ -101,13 +101,30 @@ export class Piece {
     if (i < 0) return;
     this.held = new Map(this.held).set(i, v);
   }
-  /** Write what's held into the code. */
-  keep(): void {
-    this.code = this.playedCode;
-    this.held = new Map();
+  /** Write what's held into the code: everything, or one free(…) (a braid's take, from its sheet). */
+  keep(spec?: Pick<FreeSpec, 'span'>): void {
+    if (!spec) {
+      this.code = this.playedCode;
+      this.held = new Map();
+      return;
+    }
+    const i = freeIndex(this.program, spec);
+    if (i < 0 || !this.held.has(i) || !this.result.ok) return;
+    const rest = new Map(this.held);
+    rest.delete(i);
+    this.code = withHeld(this.#code, this.result, new Map([[i, this.held.get(i)!]]));
+    this.held = rest;
   }
-  /** Let go of what's held. */
-  revert(): void {
-    if (this.held.size) this.held = new Map();
+  /** Let go of what's held: everything, or one free(…). */
+  revert(spec?: Pick<FreeSpec, 'span'>): void {
+    if (!spec) {
+      if (this.held.size) this.held = new Map();
+      return;
+    }
+    const i = freeIndex(this.program, spec);
+    if (!this.held.has(i)) return;
+    const rest = new Map(this.held);
+    rest.delete(i);
+    this.held = rest;
   }
 }
