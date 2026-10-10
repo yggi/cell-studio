@@ -4,7 +4,7 @@ import { MOVING_PARAMS } from '../attributes';
 import type { CellDecl } from '../ast';
 import type { Cells, Ctx } from './context';
 
-export function checkCells(ctx: Ctx, decls: ReadonlyMap<string, CellDecl>, cells: Cells): void {
+export function checkCells(ctx: Ctx, decls: ReadonlyMap<string, CellDecl>, cells: Cells, taps: ReadonlyMap<string, string> = new Map()): void {
   const { error, warn, unknownCell } = ctx;
   // resonators: body= one of the known bodies; couple= another resonator; excite= a mix
   for (const c of cells.values()) {
@@ -113,10 +113,16 @@ export function checkCells(ctx: Ctx, decls: ReadonlyMap<string, CellDecl>, cells
     if (!t || t.kit) continue;
     const refs = t.units.flatMap((u) => (u.atom.kind === 'ref' ? [u.atom.name] : []));
     if (!refs.length || refs.every((r) => cells.get(r)?.mix && !cells.get(r)?.sink)) continue;
+    // (a table of taps: its entries are clocks, a selector switches them: decision 016)
+    if (refs.every((r) => taps.get(r) === t.name)) continue;
     const listed = [...new Set(refs)].map((r) => '&' + r).join(' ');
     warn(
       `&${t.name} is read as a table, but its cells (${listed}) aren't entries: a table is its numbers. To play cells one after another, splice them into a braid (&${d.name} ${listed}); choosing a melody per step isn't built yet (#29)`,
       d.over!.span,
     );
   }
+  // a tap nothing is stepped or looped by: a section with nothing in it (or a name mistyped where it is used)
+  for (const [tap, table] of taps)
+    if (![...cells.values()].some((c) => c.step?.driver === tap || Object.values(c.paramClocks).some((p) => p.driver === tap)))
+      warn(`&${tap} is a tap of &${table}, but nothing is stepped by it: step=&${tap} on what it should play (or a name mistyped)`, decls.get(tap)!.span);
 }
