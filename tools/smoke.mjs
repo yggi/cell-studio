@@ -12,7 +12,7 @@
 //   ENGINE=worker npm run smoke               # with the engine in a Web Worker (?engine=worker, #15)
 //
 // Then MIDI out (#205): one piece played into a fake Web MIDI port, its note-ons checked against the plan's notes
-// (tools/smoke-midi.ts) to within 2 ms of their median offset (one step of a clock jump followed allowed, up to 50 ms); then the
+// (tools/smoke-midi.ts) each within 2 ms of its neighbour (a slow drift followed, and one step of a clock jump up to 50 ms); then the
 // tempo (a held free()) moved and Pause and Play again within the look-ahead (twice, the second at once), with no All notes off from either
 // cutting what plays, and no note left sounding. The MIDI clock (#206) is on: its ticks before the tempo moved are
 // checked against the meter's (2 ms, as the notes), and Start, Stop, Song Position and Continue in order, no tick while stopped.
@@ -216,15 +216,25 @@ const MIDI_PIECE = 'sailor';
       taken.add(best);
       offsets.push(o.ms - want[best].at * 1000);
     }
-    // (a dropped buffer moves what is heard, by about 10 ms or, on a loaded runner, a few buffers at once, and MIDI
-    // follows it: one such step is allowed, up to the clock's leap (OUTPUT.leap, 50 ms, beyond which it is another
-    // device), each side of it aligned on its own median)
+    // (MIDI follows what is heard: a dropped buffer moves it by about 10 ms, or on a loaded runner a few buffers at
+    // once, and a smaller jump is slewed in over a few readings. So what is checked is the time between neighbours:
+    // each note-on within 2 ms of the one before it, but one step up to the clock's leap (OUTPUT.leap, 50 ms, beyond
+    // which it is another device); a slow drift is followed, not counted)
     const median = (xs) => [...xs].sort((a, b) => a - b)[Math.floor(xs.length / 2)] ?? 0;
-    const steps = offsets.flatMap((d, i) => (i > 0 && Math.abs(d - offsets[i - 1]) > 2 ? [i] : []));
-    const parts = steps.length === 1 ? [offsets.slice(0, steps[0]), offsets.slice(steps[0])] : [offsets];
-    const worst = Math.max(0, ...parts.flatMap((p) => p.map((d) => Math.abs(d - median(p)))));
-    const step = steps.length === 1 ? Math.abs(median(parts[1]) - median(parts[0])) : 0;
-    if (worst > 2) problems.push(`a note-on was ${worst.toFixed(2)} ms off the plan`);
+    const neighbours = (ds) => {
+      const gaps = ds.slice(1).map((d, i) => Math.abs(d - ds[i]));
+      const big = gaps.filter((g) => g > 2);
+      const step = big.length === 1 ? big[0] : 0;
+      const worst = Math.max(0, ...(big.length === 1 ? gaps.filter((g) => g <= 2) : gaps));
+      return { worst, step };
+    };
+    const { worst, step } = neighbours(offsets);
+    const gapsOf = (ds) =>
+      ds
+        .slice(1)
+        .map((d, i) => (d - ds[i]).toFixed(1))
+        .join(' ');
+    if (worst > 2) problems.push(`a note-on was ${worst.toFixed(2)} ms off its neighbour (gaps: ${gapsOf(offsets)})`);
     if (step > 50) problems.push(`the note-ons stepped by ${step.toFixed(2)} ms`);
     // what the device plays, message by message in timestamp order (at one moment, in the order sent)
     const order = sent.map((m, i) => ({ ...m, i })).sort((a, b) => a.timestamp - b.timestamp || a.i - b.i);
@@ -251,10 +261,18 @@ const MIDI_PIECE = 'sailor';
     const wantTicks = midiPlan.expectedTicks(MIDI_PIECE, secs + 2);
     if (ticks.length < 24 * 4) problems.push(`only ${ticks.length} clock ticks before the tempo moved`);
     const tickOffsets = ticks.map((t, k) => t - wantTicks[k] * 1000);
-    const tickSteps = tickOffsets.flatMap((d, i) => (i > 0 && Math.abs(d - tickOffsets[i - 1]) > 2 ? [i] : []));
-    const tickParts = tickSteps.length === 1 ? [tickOffsets.slice(0, tickSteps[0]), tickOffsets.slice(tickSteps[0])] : [tickOffsets];
-    const tickWorst = Math.max(0, ...tickParts.flatMap((p) => p.map((d) => Math.abs(d - median(p)))));
-    if (tickWorst > 2) problems.push(`a clock tick was ${tickWorst.toFixed(2)} ms off the meter`);
+    const { worst: tickWorst, step: tickStep } = neighbours(tickOffsets);
+    if (tickWorst > 2)
+      problems.push(
+        `a clock tick was ${tickWorst.toFixed(2)} ms off its neighbour (largest gaps: ${tickOffsets
+          .slice(1)
+          .map((d, i) => Math.abs(d - tickOffsets[i]))
+          .sort((x, y) => y - x)
+          .slice(0, 4)
+          .map((g) => g.toFixed(1))
+          .join(' ')})`,
+      );
+    if (tickStep > 50) problems.push(`the clock ticks stepped by ${tickStep.toFixed(2)} ms`);
     if (Math.abs(median(tickOffsets) - median(offsets)) > 2) problems.push(`the clock is ${(median(tickOffsets) - median(offsets)).toFixed(2)} ms off the notes`);
     // in timestamp order: Start first, a tick only while running, Stop after Pause; then the Song Position, Continue
     const names = { 0xfa: 'Start', 0xfb: 'Continue', 0xfc: 'Stop', 0xf2: 'SPP' };
@@ -278,7 +296,7 @@ const MIDI_PIECE = 'sailor';
     if (clockSent.some((m, i) => i > 0 && m.timestamp < clockSent[i - 1].timestamp)) problems.push('clock messages sent out of order');
     const offs = sent.filter((m) => (m.data[0] & 0xf0) === 0x80).length;
     const all = sent.filter((m) => (m.data[0] & 0xf0) === 0x90).length;
-    note = `${ons.length} note-ons within ${worst.toFixed(3)} ms of the plan (median offset${step ? `; one step of ${step.toFixed(1)} ms, a clock jump followed` : ''}); then 4 tempo moves, Pause and Play twice: ${all} note-ons, ${offs} note-offs, ${allOff.length} All notes off, none left sounding; clock: ${ticks.length} ticks within ${tickWorst.toFixed(3)} ms of the meter, ${said.join(' ')}`;
+    note = `${ons.length} note-ons within ${worst.toFixed(3)} ms of each other${step ? ` (one step of ${step.toFixed(1)} ms, a clock jump followed)` : ''}; then 4 tempo moves, Pause and Play twice: ${all} note-ons, ${offs} note-offs, ${allOff.length} All notes off, none left sounding; clock: ${ticks.length} ticks within ${tickWorst.toFixed(3)} ms of each other, ${said.join(' ')}`;
   } catch (e) {
     problems.push(String(e.message).split('\n')[0]);
   }
