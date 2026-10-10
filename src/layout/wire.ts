@@ -13,6 +13,8 @@ const STEP = 5;
 /** Points along the cubic a → b (controls c1, c2), about STEP px apart. */
 function sampleCubic(a: Pt, c1: Pt, c2: Pt, b: Pt): Pt[] {
   const l = Math.hypot(c1.x - a.x, c1.y - a.y) + Math.hypot(c2.x - c1.x, c2.y - c1.y) + Math.hypot(b.x - c2.x, b.y - c2.y);
+  // (a position not yet a number draws nothing, as it always did, rather than throwing in the edge's derived path)
+  if (!Number.isFinite(l)) return [a, b];
   const n = Math.max(6, Math.min(96, Math.ceil(l / STEP)));
   return Array.from({ length: n + 1 }, (_, i) => {
     const t = i / n;

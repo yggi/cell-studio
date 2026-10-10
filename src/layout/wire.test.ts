@@ -98,3 +98,11 @@ describe('loomPaths: the strands round a wheel, a ring of tracks', () => {
       for (let s = 1; s < runs.length; s++) for (const p of runs[s].slice(1, -6)) expect(Math.abs(toLine(p, runs[s - 1]) - 4)).toBeLessThan(0.3);
     });
 });
+
+describe('a position that is not a number yet', () => {
+  it('does not throw (the edge derives its path from the layout, which may be mid-move)', () => {
+    expect(() => bundlePaths(0, 0, NaN, 10, 100, 0, [-2, 2])).not.toThrow();
+    expect(() => bundlePaths(NaN, NaN, NaN, NaN, NaN, NaN, [0])).not.toThrow();
+    expect(() => bundlePaths(0, 0, Infinity, 10, 100, 0, [2])).not.toThrow();
+  });
+});

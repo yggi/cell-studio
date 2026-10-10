@@ -5,6 +5,7 @@
 //   node tools/gallery.mjs edges [secs] [pieces…]             every kind of edge in every state, on bare nodes
 //   node tools/gallery.mjs golden                            the golden graph: every wheel and edge, in one real graph
 //   node tools/gallery.mjs zoom [secs] pieces…               close-ups of cells in the real graph (ZOOM=parts,teile; default: every wheel with bulbs)
+//   node tools/gallery.mjs edge-mockups                      the edge styles' options on the real Graph (docs/notes/edge-styles.md)
 //   node tools/gallery.mjs mockups                            the wheel design questions (#107)
 //   node tools/gallery.mjs roll [secs]                        a cell's piano roll in each state (#211)
 //   node tools/gallery.mjs keys                               the dock's on-screen keys and drum pads in each state (#255)
