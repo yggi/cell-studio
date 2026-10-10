@@ -32,7 +32,9 @@
 <div class="shorten">
   <button class="unstyled toggle" aria-expanded={open} onclick={() => (open = !open)}>
     <span class="caret" aria-hidden="true">{open ? '▾' : '▸'}</span> Shorten
-    {#if open && list}<span class="sum">{list.length ? `${list.length} · up to ${total} characters` : 'nothing to shorten'}</span>{/if}
+    {#if open && list}<span class="sum"
+        >{list.some((s) => s.kind === 'arrange') ? 'a rewrite' : list.length ? `${list.length} · up to ${total} characters` : 'nothing to shorten'}</span
+      >{/if}
   </button>
   {#if open}
     {#if !list}
@@ -50,7 +52,7 @@
               <code class="now">{s.after}</code>
             </div>
             <div class="row">
-              <span class="saves">−{s.saving} characters</span>
+              <span class="saves">{s.kind === 'arrange' ? 'the same notes, in the form a selector takes now' : `−${s.saving} characters`}</span>
               <button class="apply" onclick={() => onapply(s.apply(code))}>Apply</button>
             </div>
           </li>

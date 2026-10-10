@@ -10,7 +10,7 @@ import type { TransportState } from '../audio/transport';
  * Visual state of a node (engine/routing.ts decides it, for nodes and edges alike):
  *  off      — switched off by the user (hold to toggle)
  *  unrouted — on, but not part of anything that sounds
- *  on       — transport stopped (nothing is dimmed: routed or not), or part of the sound with nothing to say more
+ *  on       — transport stopped (nothing is dimmed: routed or not)
  *  idle     — part of the sound, but not sounding at the transport's time (paused or playing)
  *  live     — sounding at the transport's time
  */

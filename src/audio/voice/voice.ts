@@ -39,7 +39,6 @@ export interface Built {
   out: import('tone').Gain;
   /** Scheduled note starts, oldest first (kept short): what's sounding now. */
   notes: { at: number; freq: number }[];
-  last: number;
   /** The notes in the air (started, or scheduled to), each with what a pause must reach to drop its gate. */
   live: Map<AudioScheduledSourceNode, Sounding>;
   /** What moving parameters drive: a filter's frequency and resonance, a send's level. */
@@ -151,7 +150,7 @@ export function buildVoice(Tone: ToneNS, ctx: AudioContext, bus: Bus, result: Co
     const { real, imag } = harmonics(waveform(result, name, shifts));
     wave = ctx.createPeriodicWave(real, imag);
   }
-  return { res, key, seed: c.seed, params, head, nodes, wave, noise, scope, out, notes: [], last: -Infinity, live: new Map(), moving };
+  return { res, key, seed: c.seed, params, head, nodes, wave, noise, scope, out, notes: [], live: new Map(), moving };
 }
 
 /** Let a voice go: its sounding notes stopped, its nodes disposed. */
@@ -169,11 +168,13 @@ function hold(param: Movable, now: number): void {
 
 /**
  * A pause: every note in the air lets go. A note that has not started is never played; one that sounds drops its gate (its
- * envelope goes into its release from where it is) and stops moving (its bends, volume stream and FM stay as they are), so
+ * envelope goes into its release from where it is) and stops moving (its bends and volume stream stay as they are; its FM modulators play on until the release has ended), so
  * nothing hangs, and what rings after — release, reverb, echo — is left to ring. Parameters that move a voice's filter
  * hold where they are.
  */
 export function dropGates(b: Built, now: number): void {
+  // (a note scheduled ahead is never played: it is not what sounds now either)
+  b.notes = b.notes.filter((n) => n.at <= now);
   for (const [osc, n] of b.live) if (!n.held) letGo(osc, n, now);
   for (const p of Object.values(b.moving)) hold(p, now);
 }

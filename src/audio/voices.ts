@@ -398,9 +398,10 @@ export function createVoices(Tone: ToneNS): VoiceBank {
     releaseAll() {
       const now = ctx.currentTime;
       for (const b of built.values()) {
-        for (const o of b.live.keys()) o.stop(now + 0.02);
+        // (the master gain falls with a 10 ms time constant: 6 of them, so the notes stop at under 0.3 % level, not a click)
+        for (const o of b.live.keys()) o.stop(now + 0.06);
         if (b.res) hush(now, b.res);
-        b.last = -Infinity;
+        b.notes.length = 0;
       }
       keys.clear();
       stopped.gain.cancelScheduledValues(now);
