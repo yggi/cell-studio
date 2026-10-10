@@ -1,6 +1,6 @@
 # Edge styles: what an edge shows, and the bus's geometry
 
-**2026-10-10 · open: surveyed, planned and decided (owner, 2026-10-10: D1 C travelling, D2 C, D3 B, D4 C, D5 a constant, D6 still); step 1 built · #137, #238, #183, #150; on top of [nets.md](nets.md)**
+**2026-10-10 · open: surveyed, planned and decided (owner, 2026-10-10: D1 C travelling, D2 C, D3 B, D4 C, D5 a constant, D6 still); steps 1 and 2 built · #137, #238, #183, #150; on top of [nets.md](nets.md)**
 
 The owner's ask: edges and net segments by colour and style, the bus's geometry, one mechanism and one place for the rules. Meter nets are good as they are. The colour bus needs a constant width through bends and a clean join between the loom and the bus. The other edges: what they show should follow what their source pushes, one style per band, and the payload should drive it while playing (a wave's height and length by the sound, pulse trains on clocks). Some edges are unstyled.
 
@@ -46,7 +46,7 @@ Two faults, both in how strands are offset:
 **Built** (`src/layout/wire.ts`: `bundlePaths`, `loomParts`; tested for width and crossings in `wire.test.ts`), with two findings on the way:
 
 - **The fillets are short (1.5 gaps), and the bundle doesn't leave square.** A strand's track goes by how near it is to the exit, and its place across the bundle by its order on the bus, so the two don't nest like a ribbon. A long fillet on an inner track sweeps through the outer tracks that are still coming round, and the test's crossings went from 0 to 2. Any fillet that stays under about two gaps is safe: it rounds the corner and keeps the topology.
-- **A bus's ends settle across the chord.** On a hard bend the true normal at an end swings the bundle's end out past a small node, so over the last 20 px (under the wheel) a strand's place turns back to the chord's, as a flat bus always had it.
+- **A flat bus ends under its wheels.** On a hard bend the true normal at an end swings the bundle's end out past a small node. First fix: over the last 20 px a strand's place turned back to the chord's; the review of #272 found that this lets strands meet there (17–61 % of hard-bent chords, by how hard). So a bus whose wheels' sizes are known is cut inside each rim, by more than half its width, and stays true to its ends; the settling is left only for an end of no known size (the edge sheet's bare nodes).
 
 The same centreline serves the hop (a bus out of a reader's hub), a pick's strands, a ref written several times and the tines. The run now leaves the loom along its straight lead (a cubic, no corner at its end).
 
@@ -98,7 +98,7 @@ Decided: **D1 C, travelling · D2 C · D3 B · D4 C · D5 a constant speed · D6
 ## 4 · Order (a PR each)
 
 1. **The bus's geometry** (§1): `wire.ts` and its test, the loom's fillets, the chord bus, the hop, the reader's end. No choice needed. Verified with the `edges` and `zoom` sheets before and after, and the golden graph's crossings unchanged.
-2. **Bands right**: audio from a sounding source (closes #238); `trigger=` as the `voice` port. Saved pieces aren't affected (drawing only).
+2. **Bands right. Built.** Since decision 016 the parts play straight into the sound card, so #238's chain (part → table of parts → selector → card) no longer exists. What still carried sound on a CV wire, over the 75 examples, was always a reference: a mix spliced into the sound card (*Canon*, *Pertonos*) or a scope (*Hypercell*, *Test Tones*), a read head into a scope, and a voice in a pattern of voices (7 pieces). Now a `braid` wire is audio when its source sounds, and on up: a cell sounds if it sounds itself (`sounds()`, the rule tapes already used) or if anything its braid splices in does, so a pattern of voices spliced into another carries sound too (*IDM*'s `&pat → &break`, *Brothers*' `&break → &tracker`: found in review, #273). Its colour is the first voice it splices in. A wave follows any path now (`rippled`, `wire.ts`: lines, arcs, curves), so a reference keeps its locked end. `trigger=` is a pitch port. Left as it is: `flowRanks`' own notion of what sounds (`start.ts`). Reading the band there would move voices into patterns in the layout, a change of its own.
 3. **Rules in one place**: `edgeStyle.ts` and its tokens, the `PulseEdge` split, colour from the source; #137's duplicate transition and tokens, #183's magic numbers. The only visible change is colour from the source.
 4. **The payload** (§2), as chosen in D1 to D6: `signal.ts` and the per-band drawers, profiled.
 5. Leftovers: the belt's label (#137).
