@@ -9,6 +9,7 @@ import type { MeterTrace } from '../../layout/state';
 import { meterIndex } from '../../layout/meters';
 import { towerOf, towerRanks, zoneRanks } from '../../layout/tower';
 import { flowRanks } from '../../layout/start';
+import { isSide, sideless } from '../../layout/side';
 import { flowNodeOf, PETAL, physical } from '../flownode';
 import { flowEdgesOf } from '../flowedges';
 import type { GraphSnapshot } from '../snapshot';
@@ -133,9 +134,10 @@ export class GraphLayout {
     this.shown = next;
     const meters = { index: meterIndex(m) };
     // (an example's own place isn't marked pinned: only what the user pinned)
-    this.nodes = m.nodes.map((g: GraphNode) =>
-      flowNodeOf(g, this.#posOf(g.id) ?? { x: 0, y: 0 }, this.pinned.has(g.id) && !this.#placed.has(g.id), this.#turnOf(g.id), meters, next.program),
-    );
+    // (notes and scopes are in the margin: layout/side.ts)
+    this.nodes = m.nodes
+      .filter((g) => !isSide(g))
+      .map((g: GraphNode) => flowNodeOf(g, this.#posOf(g.id) ?? { x: 0, y: 0 }, this.pinned.has(g.id) && !this.#placed.has(g.id), this.#turnOf(g.id), meters, next.program));
     this.#makeEdges();
     if (fresh) this.fitToken++;
   }
@@ -149,7 +151,7 @@ export class GraphLayout {
   #makeEdges(): void {
     const s = this.#style();
     this.#madeFrom = [this.shown, this.net, s.lit, s.moment];
-    this.edges = flowEdgesOf(this.shown, { sizeOf: (id) => this.#sizeOf(id), net: this.net, lit: s.lit, live: s.live });
+    this.edges = flowEdgesOf({ ...this.shown, model: sideless(this.shown.model) }, { sizeOf: (id) => this.#sizeOf(id), net: this.net, lit: s.lit, live: s.live });
   }
 
   /** Where a node is now. */

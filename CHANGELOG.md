@@ -11,6 +11,7 @@ that makes the change. Also note changes to the language that could affect saved
 ## Unreleased
 
 ### Changed
+- **Notes and scopes in a margin** beside the graph: they no longer sit among the cells, so their lines cross nothing. A note is numbered, and the cells it is about wear its number; a scope's watched cells wear its channels' colours. The *notes* button shows and hides the margin (open on wide screens). The layout lays out the music alone, so pieces with notes are laid out anew.
 
 - **The tutorial is nine tiers** ([decision 020](docs/decisions/020-tutorial-tiers.md)), not thirty numbered rungs: *Steps and sound*, *Time and voice*, *Melody and harmony*, *Rhythm and feel*, *Development*, *Sound and tuning*, *Physics*, *Tape, text and time*, *Gates, performing and MIDI*. A card says `tier=n` where it said `rung=n`; the pieces of a tier together show all of its forms, and a piece added to a tier renumbers nothing. A saved piece with `rung=` has to say `tier=` (only cards of the tutorial carried it; the pieces that ship are done).
 - New first pieces for the lowest tier, the smallest that sound: *A tone*, *Rests, holds and repeats*, *Semitones*, *Two voices*.

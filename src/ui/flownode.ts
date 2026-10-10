@@ -58,8 +58,6 @@ export function flowNodeOf(
   // a cell a plugin of the piece draws (show=name): its wheel, as large as the plugin says
   const plugin = program && pluginOf(program, g.cell.name);
   if (plugin) return { id: g.id, type: 'plugin', position, data: { name: g.cell.name, size: plugin.size, plugin: plugin.name } };
-  // an oscilloscope: a screen
-  if (typeof g.cell.params.scope === 'string') return { id: g.id, type: 'scope', position, data: { name: g.cell.name, size: 200 } };
   // (size= scales it: &bar size=2 twice as large)
   if (physical(g)) {
     // a turntable: raised over everything, moved only by its axle (held)

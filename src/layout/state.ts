@@ -97,8 +97,6 @@ export interface LayoutState {
   bendAt: Map<string, { x: number; y: number }>;
   /** The layout's scale now (1 grown; less while a fresh graph gathers and grows). */
   size: number;
-  /** What each note explains (about=): the note and one cell it is about. */
-  explains: { note: PhysNode; cell: PhysNode }[];
   /** What each tape's heads connect to: its write source and its read heads' cells, each with its head's offset. */
   faces: TapeFace[];
   /** Each tape's turn, radians: where its write head sits (the heads keep their spacing; the wheel turns). */
