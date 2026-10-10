@@ -21,9 +21,9 @@ A selector read a table of parts (mixes) and their sound went through it to the 
 
 *Pop song, the taps as wheels of their own and as bulbs on `&parts`: `node tools/gallery.mjs golden 0 pop`.*
 
-![the table's wheel close up, playing and stopped: Korobeiniki, Arrangement, Pop, Baustelle](016-taps-detail.jpg)
+![the table's wheel close up, stopped and playing: Pop, Korobeiniki, Baustelle, Arrangement, Hypercell, Zelluläre Aktivität](016-taps-detail.jpg)
 
-*Close up, playing (a tap its selector has on now, in the accent) and stopped: each tap named by its cell less what all of them end in (`&hatsBar`: hats), the selector's read coming in from below.*
+*Close up, stopped and playing (`ZOOM=parts node tools/gallery.mjs zoom 3 pop …`): each tap a ring in its part's colour on the selector's barrel, named by its cell less what all of them end in (`&hatsBar`: hats); playing, the selector's cursor points into each tap it has on, the rest dimmed; the selector reads the table through one plain wire from below.*
 
 ## Why
 

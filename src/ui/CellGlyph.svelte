@@ -6,7 +6,7 @@
 <script lang="ts">
   import { DEFAULT_FREQ } from '../engine/program';
   import { onDestroy, untrack } from 'svelte';
-  import { blockColour, noteColour } from './theme';
+  import { blockColour, noteColour, partColour } from './theme';
   import { cellView, hubLabel, type CellView, type Fill, type Segment } from '../layout/cellview';
   import { BORDER, border, coarsen } from '../layout/coarse';
   import { names, noteLabel, tonicOf, voiceBase } from '../layout/show';
@@ -246,7 +246,7 @@
         d: ringSegment(c, c, rInner + k * band + 0.8, rInner + (k + 1) * band - 0.8, st.t0 + 0.004, st.t1 - 0.004),
         on: st.rows.has(k),
         step,
-        fill: noteColour((k / rows) * 360),
+        fill: partColour(k, rows),
       })),
     );
   });
@@ -397,6 +397,22 @@
     return sums.map((v) => (hi > lo ? (v - lo) / (hi - lo) : 0.5));
   });
   const fills = $derived(view.segments.map((s, i) => (brightness ? s.bands.map(() => blockColour(brightness[i])) : s.bands.map(fillOf))));
+  // a table of taps wears the colours of the selector reading it (decision 016): each tap its part's colour on the
+  // selector's barrel; while playing, the ones the selector has off dimmed, and a cursor from the hub to each it has on
+  const tapRings = $derived(tapsTable && track ? bulbs.map((b, i) => ({ L: b.L, colour: partColour(view.segments[i]?.index ?? i, cell?.units.length ?? 1), on: lit.has(i) })) : []);
+  const tapCursors = $derived(
+    ctx.lit
+      ? tapRings.flatMap((t) => {
+          if (!t.on) return [];
+          const [dx, dy] = [t.L.C[0] - c, t.L.C[1] - c];
+          const l = Math.hypot(dx, dy) || 1;
+          // (from the hub to the tap's ring, where it meets it: its name inside stays clear)
+          const [r0, r1] = [geo.hand.r0 * 0.4, l - t.L.rho];
+          const head: [number, number] = [c + (dx / l) * r1, c + (dy / l) * r1];
+          return [{ d: `M ${c + (dx / l) * r0} ${c + (dy / l) * r0} L ${head[0]} ${head[1]}`, head, colour: t.colour }];
+        })
+      : [],
+  );
 
   // What space the wheel is drawn in: a table, scale, key or grid is laid out by pitch (the slots it takes from the
   // table below come in at its hub); a braid by time — its rim a clock, a tick a step. (A meter, a curve, an LFO, a
@@ -457,7 +473,7 @@
       : [],
   );
   const ticks = $derived(
-    space === null && view.ticks <= 48
+    space === null && view.ticks <= 48 && !tapsTable
       ? Array.from({ length: view.ticks }, (_, i) => {
           const [x1, y1] = polar(c, c, geo.tick.r0, i / view.ticks);
           const [x2, y2] = polar(c, c, geo.tick.r1, i / view.ticks);
@@ -640,12 +656,22 @@
   {/snippet}
   {#snippet slots()}
     {#each bulbs as b, i (i)}<circle class="bulb-disc" cx={b.L.C[0]} cy={b.L.C[1]} r={b.L.rho + b.L.w / 2 + 2} />{/each}
-    {#each threads as d, i (i)}<path class="bulb-thread" {d} />{/each}
-    {#each geometry as slot, i}
-      <g class="slot" class:lit={lit.has(i) && !tapsTable} class:on={lit.has(i) && tapsTable} stroke-width={slot.w}>
-        {#each slot.d as d, j}<path {d} fill={fills[i][j]} fill-rule="evenodd" />{/each}
-      </g>
-    {/each}
+    {#if tapRings.length}
+      <!-- a table of taps: each tap a closed ring, no track between them (its taps take no time on it) -->
+      {#each tapRings as t, i (i)}<circle class="tap-ring" class:dim={!!ctx.lit && !t.on} cx={t.L.C[0]} cy={t.L.C[1]} r={t.L.rho} stroke={t.colour} stroke-width={t.L.w} />{/each}
+      {#each tapCursors as k, i (i)}<g class="hand bent tap-hand" style:--hand={k.colour}>
+          <path class="edge" d={k.d} style:stroke-width="{geo.hand.width + 2}px" />
+          <path d={k.d} style:stroke-width="{geo.hand.width}px" />
+          <circle cx={k.head[0]} cy={k.head[1]} r={Math.max(2.5, geo.hand.width * 1.3)} />
+        </g>{/each}
+    {:else}
+      {#each threads as d, i (i)}<path class="bulb-thread" {d} />{/each}
+      {#each geometry as slot, i}
+        <g class="slot" class:lit={lit.has(i)} stroke-width={slot.w}>
+          {#each slot.d as d, j}<path {d} fill={fills[i][j]} fill-rule="evenodd" />{/each}
+        </g>
+      {/each}
+    {/if}
     {#each bulbs as b, i (i)}
       {#if b.outline}<path class="bulb-hollow" d={b.outline} />{/if}
       {#if b.font && !units.length}
@@ -900,9 +926,19 @@
     stroke-linejoin: round;
   }
   /* the step playing now: brighter, no halo */
-  /* a table of taps: a tap its selector has on now, in the accent (decision 016) */
-  .slot.on path {
-    fill: color-mix(in oklab, var(--accent) 70%, var(--wheel-ref));
+  /* a table of taps (decision 016): each tap a ring in its selector's colour; off while playing, dimmed */
+  .tap-ring {
+    fill: none;
+  }
+  .tap-ring.dim {
+    opacity: 0.3;
+  }
+  /* (the selector's cursor, in the colour of the part it has on) */
+  .hand.bent.tap-hand path:not(.edge) {
+    stroke: var(--hand);
+  }
+  .hand.bent.tap-hand circle {
+    fill: var(--hand);
   }
   .slot.lit path {
     filter: var(--wheel-lit);

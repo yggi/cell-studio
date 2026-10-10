@@ -15,6 +15,7 @@ It fails on a page error.
 | `wheels` | every kind of wheel, each at a ladder of sizes beside its sheet | fast, or real (below) |
 | `edges` | every kind of edge in every state, on bare nodes | fast |
 | `golden` | one graph with a value of every kind of wheel and edge, in the real Graph, stopped and live | fast |
+| `zoom` | close-ups of cells in the real Graph, stopped and live: a wheel's details as drawn among its edges | fast |
 | `mockups` | design questions, options side by side (`tools/gallery/wheels/Mockups.svelte`) | fast |
 | `graphs` | every example's graph as the library's miniature draws it, with its numbers from the layout's baseline (`tools/graphs.mjs`; `OUT` default `shots/graphs/`) | fast |
 
@@ -29,6 +30,17 @@ SIZES=32,44,64 STOPPED=1 OUT=shots/fast-before node tools/gallery.mjs wheels --f
 Before / after: run it on the base commit (`git stash`) with `OUT=shots/<subject>-before`, then on the change; the
 tiles pair up by name. Show both in the PR as the "how verified" of a visual change. Open the harness yourself with
 `npx vite` and `/tools/gallery/harness.html?subject=edges&t=3&only=hypercell`.
+
+## Close-ups (`zoom`)
+`ZOOM=parts node tools/gallery.mjs zoom 3 pop korobeiniki` lays each piece out in the real Graph (as `golden 3 pop
+korobeiniki` does), then zooms each frame's flow in on each named cell with the mouse wheel, as a hand would, and keeps
+`tiles/<piece>-<stopped|live>-<cell>.png`: the wheel at about 4× with its edges' ends round it. Without `ZOOM`, every
+wheel that has bulbs (`[data-bulb]`: a braid's splices, a table of taps) is taken. `SCALE=3` for sharper tiles.
+
+Read it for what a contact sheet of the whole graph is too small to show: where an edge meets a wheel (a net from a
+bulb, a selector's wire from below), a bulb's ends and joins, names that don't fit, a cursor's colour and where it
+stops, what dims while playing. Before / after as for the rest (`OUT=shots/zoom-before`); a montage of the tiles side
+by side (PIL, in a scratch script) reads faster than one at a time.
 
 ## Edges
 `tools/gallery/edges/`: the first of each kind of edge across the examples (a live one if any is). A **kind** is what
