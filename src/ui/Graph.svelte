@@ -209,6 +209,25 @@
   // (the flow's pan and zoom, for the tower drawn beside it; framed again when the tower opens or closes)
   let viewport = $state<Viewport>({ x: 0, y: 0, zoom: 1 });
   let towerFits = $state(0);
+  // a cell's card on a wide screen (CellSheet.svelte: 380 px, 16 px from the window's right) covers the graph's right
+  // edge: the tower stands left of it and the graph makes room there; with too little room left, it waits for the card
+  let graphEl = $state<HTMLDivElement>();
+  let graphW = $state(0);
+  let cardCover = $state(0);
+  $effect(() => {
+    void graphW;
+    const carded = !!selectedName && !!graphEl && matchMedia('(min-width: 900px)').matches;
+    cardCover = carded ? Math.max(0, graphEl!.getBoundingClientRect().right - (innerWidth - 396) + 8) : 0;
+  });
+  const towerShown = $derived(towerOpen && graphW - cardCover - TOWER_WIDTH >= 240);
+  // (a card opened or closed beside the tower: the graph is framed again in the room left, so no cell is cut off)
+  let lastCover = 0;
+  $effect(() => {
+    const cover = towerShown ? cardCover : 0;
+    if (cover === lastCover) return;
+    lastCover = cover;
+    untrack(() => towerFits++);
+  });
 
   // clusters: the tags cells carry inside the piece (not the card's) — where their members are, now
   const clusters = $derived.by(() => {
@@ -267,7 +286,7 @@
   });
 </script>
 
-<div class="graph" class:towered={towerOpen} style:--tower-width="{TOWER_WIDTH}px">
+<div class="graph" class:towered={towerShown} style:--tower-width="{TOWER_WIDTH + cardCover}px" bind:this={graphEl} bind:clientWidth={graphW}>
   <div class="flow">
     <SvelteFlow
       bind:nodes={layout.nodes}
@@ -309,8 +328,8 @@
       </ViewportPortal>
     </SvelteFlow>
   </div>
-  {#if towerOpen}
-    <TowerAxis model={shown.model} program={shown.program} nodes={layout.nodes} {viewport} focus={selectedName ?? towerCell} carded={!!selectedName} />
+  {#if towerShown}
+    <TowerAxis model={shown.model} program={shown.program} nodes={layout.nodes} {viewport} focus={selectedName ?? towerCell} right={cardCover} />
   {/if}
   <div class="toolbar">
     <button class="add-cell" onclick={onadd} title="Add a cell (blank: the chromatic default)">+ cell</button>
