@@ -65,7 +65,7 @@ The arrangements: Hypercell, Cellscape, Korobeiniki, Pop. Then 5 to 12's day, BW
    - The arrangements are the richest source: their sections give the cones something to be checked against.
 3. **5 to 12, a day.**
    - Its twelve two-hour blocks (a mode each) show as cones and bright patches at periods of about 17 minutes, near the block lines.
-   - A dotted band at a few minutes runs through the whole day, most clearly in **change**. That is probably its ten-minute keys, which no cell writes: the law computes them.
+   - A dotted band at a few minutes runs through the whole day, most clearly in **change**. It is the ten-minute keys, which no cell writes (the law computes them). The 2-minute row of **change** repeats every 10–10.5 minutes, and folded over ten minutes it is loudest at the key change. In the same way, the 15-minute row of **impulses**, folded over two hours, is loudest at the block change.
    - Below that, its bar and the bell's groupings (0.71 s steps; about 1.7, 3.5 and 7.1 s) are steady.
    - `daytime` looks the same.
 4. **What one cycle can't show.** *Phase*'s drift between its two pianos is its whole cycle (100 s): one cycle shows one swell of the 1.3 s level, not a level of its own. Seeing the drift as a level takes several cycles. The loop is the slowest level, and a window of one loop can't hold it.
@@ -85,9 +85,60 @@ The arrangements: Hypercell, Cellscape, Korobeiniki, Pop. Then 5 to 12's day, BW
    The mean over time is the wrong summary for the form: averaged, a cone is spread thin. The form needs the cones found in time, not peaks in the mean.
 7. **An alias that wasn't.** In the day, peaks at 3.5 and 7.5 s first looked like aliasing (3 samples a second against a 0.71 s pulse). The same ten minutes at 50 a second have bumps there too, below the peak threshold, so they are the bell's groupings. The Gaussians stay, because rounding to so few samples would alias.
 
+## The cones against the written boundaries
+
+The question: is a written boundary heard as a cone, and is a cone a written boundary? Which signal hears which kind?
+
+**Method** (`cones` and `score` in `tools/probe/scalogram.ts`):
+- **Maxima**: each period's row against its own mean; a maximum is louder than the mean and the loudest within a quarter period either side.
+- **Chains**: from the slowest period down, each maximum is chained to the nearest maximum one period faster within a quarter period, down to 1 s (or a long piece's fastest period). A chain of at least an octave is a cone; its apex is where it ends; its score is its loudness in dB summed along it.
+- **The boundaries**: `sections` (the selector's steps, repeated over a cycle), split into **new** (a label other than the one before) and **repeats** (drop → drop); for 5 to 12, its keys too, every ten minutes apart from its blocks.
+- **Scoring**:
+  - Only cones that reach up to a tenth of the boundaries' median gap count; the best as many as there are boundaries are scored.
+  - **P**: the share of those cones that land within a tenth of the gap (at least 1 s) of a boundary.
+  - **R**: the share of boundaries that get one.
+  - **Chance**: the share of the window that close to a boundary, which is what P would be with cones dropped at random.
+- The thresholds were swept on the arrangements (`CONE_LOUD`, `CONE_OCTAVES`). Strict (1.5 × the mean, 2 octaves) gives P 56–73 % and R 12–20 %; loose (1 ×, 1 octave, kept) gives P 50–67 % and R 34–51 %.
+
+**Measured** (the 10 pieces with sections, 16 s or more; %):
+
+| piece | boundaries | n | chance | impulses P / R | envelope P / R | voices P / R | change P / R |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| arrangement | sections | 3 | 18 | 100 / 100 | 100 / 67 | 100 / 67 | 67 / 67 |
+| korobeiniki | sections | 14 | 19 | 75 / 64 | 36 / 36 | 100 / 71 | 85 / 79 |
+| | new | 6 | 16 | 0 / 0 | 0 / 0 | 50 / 50 | 50 / 50 |
+| | repeats | 8 | 21 | 100 / 75 | 38 / 38 | 63 / 63 | 43 / 38 |
+| pop | sections | 10 | 19 | 50 / 40 | 100 / 40 | 33 / 30 | 75 / 30 |
+| | new | 7 | 26 | 29 / 29 | 100 / 57 | 43 / 43 | 75 / 43 |
+| | repeats | 3 | 18 | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 |
+| zell | sections | 7 | 18 | 71 / 71 | 100 / 71 | 86 / 86 | 100 / 71 |
+| cellscape | sections | 59 | 20 | 47 / 47 | 71 / 49 | 58 / 58 | 47 / 47 |
+| baustelle | sections | 12 | 23 | 100 / 25 | 75 / 25 | 60 / 25 | 80 / 33 |
+| hypercell | sections | 14 | 19 | 100 / 43 | 100 / 50 | 71 / 36 | 67 / 14 |
+| | new | 11 | 15 | 100 / 55 | 100 / 64 | 71 / 45 | 67 / 18 |
+| | repeats | 3 | 20 | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 |
+| onemore | sections | 4 | 18 | 100 / 25 | 100 / 25 | 100 / 50 | 100 / 75 |
+| brothers | sections | 8 | 18 | 38 / 38 | 67 / 50 | 50 / 50 | 50 / 25 |
+| fiveto12 | blocks | 11 | 18 | 75 / 27 | 75 / 27 | 75 / 27 | 100 / 18 |
+| | keys | 132 | 18 | 4 / 1 | 16 / 7 | 4 / 1 | 54 / 17 |
+| daytime | blocks | 11 | 18 | 75 / 27 | 75 / 27 | 75 / 27 | 100 / 18 |
+| | keys | 132 | 18 | 0 / 0 | 16 / 7 | 4 / 1 | 54 / 17 |
+| **mean** (sections, blocks, keys) | | | **19** | **64 / 39** | **72 / 37** | **63 / 41** | **75 / 39** |
+
+(Where no new/repeats rows are shown, all of a piece's sections are new.)
+
+**What it says:**
+1. **A cone is a written boundary.** The cones found land on a section 63–75 % of the time, against 19 % by chance, in every signal.
+2. **A written boundary is a cone less often.** About 40 % are found. Part of that is the finder: it misses faint cones that the pictures show. Part of it is the music:
+   - **Repeats can be silent.** Pop's and Hypercell's repeats (verse → verse, drop → drop) have no cone in any signal: written, not heard.
+   - Korobeiniki is the other way round. Its A → A repeats are found (impulses 75 %), its changes to B are not. An A is a 13 s phrase, so its restart is a boundary you hear; the change to B keeps the texture.
+3. **Each signal hears a kind of boundary.** **envelope** hears the breaks, where notes stop (Hypercell and Pop, every cone on a section). **change** hears the drops and entries, and it is the only one that hears 5 to 12's keys (54 % against 18 %).
+4. **The day's blocks are heard, but not as cones.** At the 2-hour blocks the scalogram has patches at periods of about 17 minutes rather than cones down to the bar. The finder gets 3 or 4 of the 11, all on a block. Folded over two hours (point 3 above), the blocks show as a whole.
+
 ## What is next (nothing decided)
 
-- **Find the cones**: maxima chained across periods down to their apex, a time and a strength for each. Set them against `sections` in the arrangements and 5 to 12's blocks and keys, as a table: is a cone a written boundary, and is a written boundary a cone? Which signal finds which kind of boundary?
+- **A better finder for slow boundaries**: the day's blocks and keys are periodic patches, better found by folding or by a change measure per period than by chaining maxima down.
+- **Boundaries nobody wrote**: the cones that land on no section (the red ones). Are they the phrases inside a section, `chance`, or something the form does that `sections` doesn't say?
 - **Ridges in time**, not peaks in the mean: a level that holds for part of the piece (Pop's drums, BWV 847's prelude against its fugue).
 - **Loops longer than one cycle**, where the loop itself is the question (Phase): two or three cycles.
 - **What an onset is worth** stays open. The pictures suggest not choosing one: impulses or voices for the meter, change for melody, keys and phasing, the cones of any of them for the form.
