@@ -51,35 +51,6 @@ export function splinePoint(ax: number, ay: number, mx: number, my: number, bx: 
   return { x: u * u * ax + 2 * u * t * cx + t * t * bx, y: u * u * ay + 2 * u * t * cy + t * t * by };
 }
 
-/** A point on the spline through m and its unit normal there (the derivative turned a quarter). */
-function splineFrame(ax: number, ay: number, mx: number, my: number, bx: number, by: number, t: number) {
-  const cx = 2 * mx - (ax + bx) / 2;
-  const cy = 2 * my - (ay + by) / 2;
-  const p = splinePoint(ax, ay, mx, my, bx, by, t);
-  const dx = 2 * (1 - t) * (cx - ax) + 2 * t * (bx - cx);
-  const dy = 2 * (1 - t) * (cy - ay) + 2 * t * (by - cy);
-  const l = Math.hypot(dx, dy) || 1;
-  return { ...p, nx: -dy / l, ny: dx / l };
-}
-
-/**
- * The spline through m drawn as a wave along it (what sound looks like on an edge): `amp` px either side, one
- * period every `period` px, fading in and out at its ends so it leaves and meets the nodes straight.
- */
-export function ripplePath(ax: number, ay: number, mx: number, my: number, bx: number, by: number, amp = 2.5, period = 11): string {
-  const length = Math.hypot(mx - ax, my - ay) + Math.hypot(bx - mx, by - my);
-  const n = Math.max(8, Math.ceil((length / period) * 6));
-  const turns = Math.max(1, Math.round(length / period));
-  const pts: string[] = [];
-  for (let i = 0; i <= n; i++) {
-    const t = i / n;
-    const f = splineFrame(ax, ay, mx, my, bx, by, t);
-    const a = amp * Math.sin(t * turns * 2 * Math.PI) * Math.min(1, t * 10, (1 - t) * 10);
-    pts.push(`${(f.x + f.nx * a).toFixed(1)} ${(f.y + f.ny * a).toFixed(1)}`);
-  }
-  return `M ${pts.join(' L ')}`;
-}
-
 /**
  * A curve from a to a wheel's rim at `turns` (0 the top, clockwise), arriving along the radius from outside, as a
  * tape's head meets its reel: so the end shows on the segment it belongs to, not under the wheel. `via` pulls its

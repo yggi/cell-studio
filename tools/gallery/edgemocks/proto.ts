@@ -46,7 +46,7 @@ const SHAPES: Record<Shape, (x: number) => number> = {
 
 /**
  * A spline through m with its payload drawn on it as a wave: `amp` px either side, a cycle every `period` px, of a
- * shape, moved on by `phase` cycles (it travels along the flow); faded in and out at the ends, as ripplePath is.
+ * shape, moved on by `phase` cycles (it travels along the flow); faded in and out at the ends, as rippled is (src/layout/wire.ts).
  */
 export function wavePath(a: P, m: P, b: P, amp: number, period: number, shape: Shape = 'sine', phase = 0): string {
   const c = { x: 2 * m.x - (a.x + b.x) / 2, y: 2 * m.y - (a.y + b.y) / 2 };

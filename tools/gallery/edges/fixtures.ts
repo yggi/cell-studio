@@ -39,9 +39,16 @@ const shape = (t: Transform) =>
     .filter(Boolean)
     .join('-');
 
-/** What kind of edge: the port it is read through, the shapes of the transforms written on it, whether it counts (`×n` slots). */
+/** The ports that always carry sound: on any other, sound (a mix spliced in, a tape of sound) is drawn as a kind of its own. */
+const SOUND_PORTS = new Set(['mix', 'fm', 'excite', 'couple']);
+
+/**
+ * What kind of edge: the port it is read through, whether it carries sound where the port may carry values too (a ref,
+ * a tape's write= or play=), the shapes of the transforms written on it, whether it counts (`×n` slots).
+ */
 export function edgeKind(e: GraphEdge): string {
-  return ['edge', e.port, ...new Set(e.transforms.map(shape).filter(Boolean)), e.count > 1 && 'count'].filter(Boolean).join(':');
+  const sound = e.band === 'audio' && !SOUND_PORTS.has(e.port) && 'sound';
+  return ['edge', e.port, sound, ...new Set(e.transforms.map(shape).filter(Boolean)), e.count > 1 && 'count'].filter(Boolean).join(':');
 }
 
 /** The first of each kind of edge across these pieces (a live one if any is), and a meter's net if one has a meter. */
