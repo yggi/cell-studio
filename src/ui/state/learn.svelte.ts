@@ -1,3 +1,4 @@
+import { untrack } from 'svelte';
 import { freePosition } from '../free';
 import { freeAtPlace, freePlace, knobOf, LOOSE, padValue, readLearned, sameKnob, takeover, type Knob, type Learned, type Takeover } from '../learn';
 import { storageKey } from '../../storageKey';
@@ -7,6 +8,8 @@ import type { Piece } from './piece.svelte';
 
 const KEY = 'cell-studio:midi-learn';
 const NO_GAPS: ReadonlyMap<string, number> = new Map();
+/** How long a title must rest (ms) before the bindings follow it: a title half typed leaves nothing behind. */
+const RENAMED_AFTER = 800;
 
 /**
  * Run once at the next frame, or after 50 ms if no frame comes first; in a hidden tab (which draws no frames, while MIDI
@@ -38,7 +41,8 @@ interface Scope {
 /**
  * MIDI learn: a controller's knob, fader or pad moves a free() as its slider does (`piece.hold`). Learn a control and
  * the next control change or note binds to it; bindings are this browser's, kept by piece title and the free()'s place
- * (`learn.ts`), so they survive edits elsewhere in the code, and Stop or Keep (they bind, they hold nothing). A knob
+ * (`learn.ts`), so they survive edits elsewhere in the code, and Stop or Keep (they bind, they hold nothing). Editing
+ * the title in place carries them to the new one once it has rested (a title that has bindings of its own keeps them). A knob
  * takes over softly (it moves the value once it reaches it), and a fast knob holds at most once a frame per control,
  * since each hold compiles the piece again (`soon`: a hidden tab too). A wait for a knob, a gap and a takeover belong to
  * the piece open (its title, and `opened`, the library's count of pieces opened): another piece, a renamed one, or the
@@ -67,7 +71,14 @@ export class Learn {
   constructor(
     piece: Piece,
     midi: Pick<Midi, 'access' | 'inPortId' | 'hear' | 'send'>,
-    { frame = (run) => soon(run), opened = () => 0 }: { frame?: (run: () => void) => void; opened?: () => number } = {},
+    {
+      frame = (run) => soon(run),
+      opened = () => 0,
+      later = (run) => {
+        const t = setTimeout(run, RENAMED_AFTER);
+        return () => clearTimeout(t);
+      },
+    }: { frame?: (run: () => void) => void; opened?: () => number; later?: (run: () => void) => () => void } = {},
   ) {
     this.#piece = piece;
     this.#midi = midi;
@@ -78,7 +89,16 @@ export class Learn {
     } catch {
       // (no storage here: nothing was kept)
     }
-    this.#stop = midi.hear((data) => this.#heard(data));
+    // a title edited in place: its bindings follow once the title has rested (each keystroke starts the wait afresh)
+    this.#later = later;
+    const watch = $effect.root(() => {
+      $effect(() => {
+        this.#scope();
+        untrack(() => this.titleChanged());
+      });
+    });
+    const hear = midi.hear((data) => this.#heard(data));
+    this.#stop = () => (hear(), watch(), this.#waiting?.());
   }
 
   dispose(): void {
@@ -104,7 +124,7 @@ export class Learn {
 
   /** The knobs learned for the open piece, by place. */
   get bindings(): Readonly<Record<string, Knob>> {
-    return this.#kept.pieces[this.#piece.title] ?? {};
+    return this.#kept.pieces[this.#key()] ?? {};
   }
 
   /** Whether a slider moved by hand sends its knob's CC back (a motor fader, an LED ring follows). Off unless asked for. */
@@ -277,9 +297,46 @@ export class Learn {
     if (this.#learning && this.learning === null) this.cancel();
   }
 
+  // the title the open piece's bindings are kept under: the title it was opened with until an edit of it has rested
+  // (then they move to the new one); a title that has bindings of its own keeps them
+  #home: Scope = { title: '', opened: -1 };
+  #key(): string {
+    const s = this.#scope();
+    const { pieces } = this.#kept;
+    const renamed = s.opened === this.#home.opened && s.title !== this.#home.title;
+    return renamed && pieces[this.#home.title] && !pieces[s.title] ? this.#home.title : s.title;
+  }
+
+  #later: (run: () => void) => () => void;
+  // stops the wait for the title to rest
+  #waiting: (() => void) | null = null;
+
+  /**
+   * The title changed, or another piece opened (an effect calls it; so do the tests, as node runs no effects): carry the
+   * bindings to the new title, but only after it has rested, so a title half typed leaves nothing behind.
+   */
+  titleChanged(): void {
+    this.#waiting?.();
+    this.#waiting = null;
+    const s = this.#scope();
+    if (s.opened !== this.#home.opened) this.#home = s;
+    if (s.title === this.#home.title) return;
+    if (!this.#kept.pieces[this.#home.title]) {
+      this.#home = s;
+      return;
+    }
+    this.#waiting = this.#later(() => {
+      this.#waiting = null;
+      const { [this.#home.title]: mine, ...others } = this.#kept.pieces;
+      if (mine && !others[s.title] && sameScope(this.#scope(), s)) this.#save({ ...this.#kept, pieces: { ...others, [s.title]: mine } });
+      this.#home = s;
+    });
+  }
+
   #bind(places: Record<string, Knob>): void {
-    const { [this.#piece.title]: _old, ...others } = this.#kept.pieces;
-    this.#save({ ...this.#kept, pieces: Object.keys(places).length ? { ...others, [this.#piece.title]: places } : others });
+    const key = this.#key();
+    const { [key]: _old, ...others } = this.#kept.pieces;
+    this.#save({ ...this.#kept, pieces: Object.keys(places).length ? { ...others, [key]: places } : others });
   }
 
   #save(kept: Learned): void {

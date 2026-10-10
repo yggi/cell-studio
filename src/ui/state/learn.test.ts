@@ -29,6 +29,7 @@ const SONG = `# Song\n&bar scan(4 4 4 4) step=free(90bpm, 60..240)\n&fx lpf=free
  * (`frame`), and the library's count of pieces opened (`library.opened`).
  */
 function made(code = SONG, frameFn?: (run: () => void) => void) {
+  const waits: { run: () => void; stopped: boolean }[] = [];
   const piece = new Piece(code);
   type Hearer = (data: Uint8Array, source: string, timeStamp: number) => void;
   const hearers = new Set<Hearer>();
@@ -44,13 +45,24 @@ function made(code = SONG, frameFn?: (run: () => void) => void) {
   };
   const frames: (() => void)[] = [];
   const library = { opened: 1 };
-  const learn = new Learn(piece, midi, { frame: frameFn ?? ((run) => frames.push(run)), opened: () => library.opened });
+  const learn = new Learn(piece, midi, {
+    frame: frameFn ?? ((run) => frames.push(run)),
+    opened: () => library.opened,
+    later: (run) => {
+      const w = { run, stopped: false };
+      waits.push(w);
+      return () => void (w.stopped = true);
+    },
+  });
+  learn.titleChanged();
   cleanups.push(() => learn.dispose());
   const play = (...bytes: number[]) => hearers.forEach((h) => h(new Uint8Array(bytes), 'Knobs', 0));
   const frame = () => frames.splice(0).forEach((run) => run());
   const value = (place: string) => [...piece.program.cells.values()].flatMap((c) => c.frees).find((f) => learn.placeOf(f) === place)?.value;
   const spec = (place: string) => [...piece.program.cells.values()].flatMap((c) => c.frees).find((f) => learn.placeOf(f) === place)!;
-  return { piece, learn, play, frame, frames, sent, value, spec, midi, library };
+  // the title has rested: whatever wait was not stopped runs
+  const rest = () => waits.splice(0).forEach((w) => !w.stopped && w.run());
+  return { piece, learn, play, frame, frames, sent, value, spec, midi, library, rest };
 }
 
 describe('Learn: binding a knob', () => {
@@ -106,6 +118,60 @@ describe('Learn: binding a knob', () => {
     play(0xb0, 7, 20);
     expect(made().learn.bindings).toEqual({ 'bar/step': { kind: 'cc', channel: 0, number: 7 } });
     expect(made(SONG.replace('Song', 'Other')).learn.bindings).toEqual({});
+  });
+  it('follows the title edited in place, once it has rested, and leaves nothing under the old one', () => {
+    const { piece, learn, play, rest } = made();
+    learn.learn('bar/step');
+    play(0xb0, 7, 20);
+    const knob = { kind: 'cc', channel: 0, number: 7 };
+    // half typed: still the old title's, and the knob still shows; nothing stored under the halves
+    piece.code = SONG.replace('Song', 'S');
+    learn.titleChanged();
+    piece.code = SONG.replace('Song', 'Songs');
+    learn.titleChanged();
+    expect(learn.bindings).toEqual({ 'bar/step': knob });
+    expect(Object.keys(JSON.parse(store.get('cell-studio:midi-learn')!).pieces)).toEqual(['Song']);
+    rest();
+    expect(Object.keys(JSON.parse(store.get('cell-studio:midi-learn')!).pieces)).toEqual(['Songs']);
+    expect(learn.bindings).toEqual({ 'bar/step': knob });
+    expect(made(SONG.replace('Song', 'Songs')).learn.bindings).toEqual({ 'bar/step': knob });
+    expect(made().learn.bindings).toEqual({});
+  });
+  it('learns on under the old title while a rename waits, and carries both', () => {
+    const { piece, learn, play, rest } = made();
+    learn.learn('bar/step');
+    play(0xb0, 7, 20);
+    piece.code = SONG.replace('Song', 'Songs');
+    learn.titleChanged();
+    learn.learn('fx/param:lpf');
+    play(0xb0, 8, 20);
+    rest();
+    expect(Object.keys(learn.bindings).sort()).toEqual(['bar/step', 'fx/param:lpf']);
+    expect(Object.keys(JSON.parse(store.get('cell-studio:midi-learn')!).pieces)).toEqual(['Songs']);
+  });
+  it('does not take the bindings of another piece when a title is edited into its name, and keeps its own', () => {
+    const { learn, play } = made(SONG.replace('Song', 'Other'));
+    learn.learn('bar/step');
+    play(0xb0, 9, 20);
+    const song = made();
+    song.learn.learn('bar/step');
+    song.play(0xb0, 7, 20);
+    song.piece.code = SONG.replace('Song', 'Other');
+    song.learn.titleChanged();
+    song.rest();
+    expect(song.learn.bindings).toEqual({ 'bar/step': { kind: 'cc', channel: 0, number: 9 } });
+    expect(Object.keys(JSON.parse(store.get('cell-studio:midi-learn')!).pieces).sort()).toEqual(['Other', 'Song']);
+  });
+  it('another piece opened: nothing is carried to its title', () => {
+    const { piece, learn, play, library, rest } = made();
+    learn.learn('bar/step');
+    play(0xb0, 7, 20);
+    library.opened++;
+    piece.code = SONG.replace('Song', 'Elsewhere');
+    learn.titleChanged();
+    rest();
+    expect(learn.bindings).toEqual({});
+    expect(Object.keys(JSON.parse(store.get('cell-studio:midi-learn')!).pieces)).toEqual(['Song']);
   });
   it('keeps nothing in a private window, and still learns', () => {
     vi.stubGlobal('localStorage', {
