@@ -14,7 +14,7 @@
 // directly (tools/gallery/fast.mjs, from the working tree). A new subject: a folder in tools/gallery/ with a Sheet
 // component, and a line in tools/gallery/harness.ts.
 const [subject, ...args] = process.argv.slice(2);
-const SUBJECTS = ['wheels', 'edges', 'golden', 'zoom', 'mockups', 'roll', 'keys', 'graphs'];
+const SUBJECTS = ['wheels', 'edges', 'edge-mockups', 'golden', 'zoom', 'mockups', 'roll', 'keys', 'graphs'];
 if (!SUBJECTS.includes(subject)) {
   console.error(`usage: node tools/gallery.mjs <${SUBJECTS.join('|')}> [--fast] [secs] [pieces…]`);
   process.exit(2);
