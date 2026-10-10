@@ -12,6 +12,7 @@ import type { Played } from '../../engine/realize';
 import { contextClock } from '../../audio/device';
 import type { NoteSink } from '../../audio/player';
 import { storageKey } from '../../storageKey';
+import { Activity } from '../activity';
 
 type ToneNS = Parameters<NoteSink['play']>[0];
 type Chosen = { readonly id: string; readonly name: string };
@@ -21,6 +22,8 @@ type Stored = {
   readonly in: Chosen;
   /** Channels chosen by hand, per piece (by its title) and voice. */
   readonly channels: Readonly<Record<string, Numbers>>;
+  /** The channel a piece's kit goes on, per piece (by its title); absent: 10. */
+  readonly kits: Numbers;
   /** Each device's drum map (by the output port's name): General MIDI note to the note it sends. */
   readonly drums: Readonly<Record<string, DrumMap>>;
   /** Whether the built-in sound is heard beside MIDI out. */
@@ -36,7 +39,7 @@ type Stored = {
 };
 
 const NONE: Chosen = { id: 'none', name: '' };
-const DEFAULTS: Stored = { out: NONE, in: NONE, channels: {}, drums: {}, internal: true, bendRange: DEFAULT_BEND_RANGE, rotate: null, clock: {}, slots: {} };
+const DEFAULTS: Stored = { out: NONE, in: NONE, channels: {}, kits: {}, drums: {}, internal: true, bendRange: DEFAULT_BEND_RANGE, rotate: null, clock: {}, slots: {} };
 const KEY = 'cell-studio:midi';
 const ALL_CHANNELS = Array.from({ length: 16 }, (_, i) => i);
 
@@ -45,6 +48,8 @@ const chosen = (v: unknown): Chosen => {
   return c && typeof c.id === 'string' && typeof c.name === 'string' ? { id: c.id, name: c.name } : NONE;
 };
 
+/** A value kept under a key of its own: a piece titled `constructor` or `__proto__` has none (not the object's). */
+const own = <T>(o: Readonly<Record<string, T>>, key: string): T | undefined => (Object.hasOwn(o, key) ? o[key] : undefined);
 const isRecord = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v);
 const numbers = (v: unknown, lo: number, hi: number): Record<string, number> =>
   isRecord(v) ? Object.fromEntries(Object.entries(v).filter((e): e is [string, number] => Number.isInteger(e[1]) && (e[1] as number) >= lo && (e[1] as number) <= hi)) : {};
@@ -70,6 +75,7 @@ function load(): Stored {
       out: chosen(kept.out),
       in: chosen(kept.in),
       channels: nested(kept.channels, 1, 16),
+      kits: numbers(kept.kits, 1, 16),
       drums: nested(kept.drums, 0, 127),
       internal: typeof kept.internal === 'boolean' ? kept.internal : true,
       bendRange: typeof kept.bendRange === 'number' && kept.bendRange >= 1 && kept.bendRange <= 96 ? kept.bendRange : DEFAULT_BEND_RANGE,
@@ -113,6 +119,7 @@ export class Midi implements ChosenPorts, NoteSink {
   #out = $state<Chosen>(NONE);
   #in = $state<Chosen>(NONE);
   #channels = $state.raw<Stored['channels']>({});
+  #kits = $state.raw<Stored['kits']>({});
   #drums = $state.raw<Stored['drums']>({});
   #internal = $state(true);
   #bendRange = $state(DEFAULT_BEND_RANGE);
@@ -123,6 +130,9 @@ export class Midi implements ChosenPorts, NoteSink {
   #player: Tapped | null = null;
   /** Said when a microtonal piece's notes with different bends overlap on one channel (rotation fixes it). */
   warning = $state<string | null>(null);
+
+  /** When a message last came in and went out, for the transport's light (#262). */
+  readonly activity = new Activity();
 
   /** What sends the notes played to the output (`midi/out.ts`), through `send`. */
   readonly out = new MidiOut({ send: (data, timestamp) => this.send(data, timestamp) });
@@ -139,7 +149,7 @@ export class Midi implements ChosenPorts, NoteSink {
   /** The open piece's channel table: its voices on their channels (as chosen here, else in order), its kit members on 10. */
   readonly table = $derived.by(() => {
     const p = this.#piece;
-    return p ? channelTable(p.program, this.#channels[p.title ?? ''] ?? {}) : null;
+    return p ? channelTable(p.program, own(this.#channels, p.title ?? '') ?? {}, own(this.#kits, p.title ?? '')) : null;
   });
   /**
    * The output slots the open piece's MIDI cards name (map=midi(c, p)), each with the device it goes to: slot 1 the
@@ -163,6 +173,7 @@ export class Midi implements ChosenPorts, NoteSink {
     this.#out = kept.out;
     this.#in = kept.in;
     this.#channels = kept.channels;
+    this.#kits = kept.kits;
     this.#drums = kept.drums;
     this.#internal = kept.internal;
     this.#bendRange = kept.bendRange;
@@ -190,7 +201,7 @@ export class Midi implements ChosenPorts, NoteSink {
   };
 
   /**
-   * Told when the keys held from the input should all let go: All notes off (the dialog's, or on coming back into
+   * Told when the keys held from the input should all let go: All notes off (the MIDI page's, or on coming back into
    * view), and the input changed or unplugged, whose note-offs will never come. The function returned stops it.
    */
   letGo(listener: () => void): () => void {
@@ -233,7 +244,7 @@ export class Midi implements ChosenPorts, NoteSink {
     if (this.connecting) return;
     this.connecting = true;
     const result = await connectMidi(
-      () => MidiAccess.connect({ onChange: () => this.#changed(), onMessage: (...m) => this.#hearers.forEach((h) => h(...m)) }),
+      () => MidiAccess.connect({ onChange: () => this.#changed(), onMessage: (...m) => this.#heard(...m) }),
       this,
       () => !this.#disposed,
     );
@@ -245,6 +256,12 @@ export class Midi implements ChosenPorts, NoteSink {
       this.#list();
     }
     this.connecting = false;
+  }
+
+  // a message from the input: the light flashes (not for system messages: a device's active sensing), then it is heard
+  #heard(data: Uint8Array, source: string, timeStamp: number): void {
+    if (data[0] < 0xf0) this.activity.hit('in');
+    for (const h of this.#hearers) h(data, source, timeStamp);
   }
 
   /** Hear every message from the input listened to, raw; the function returned stops it. */
@@ -298,7 +315,17 @@ export class Midi implements ChosenPorts, NoteSink {
   /** Put a voice of the open piece on a channel, kept for that piece in this browser. */
   setChannel(voice: string, ch: number): void {
     const title = this.#piece?.title ?? '';
-    this.#channels = { ...this.#channels, [title]: { ...this.#channels[title], [voice]: clamped(ch, 1, 16, 1) } };
+    this.#channels = { ...this.#channels, [title]: { ...own(this.#channels, title), [voice]: clamped(ch, 1, 16, 1) } };
+    this.#save();
+  }
+
+  /** The channel the open piece's kit goes on (10 unless put elsewhere), kept for that piece in this browser. */
+  get kitChannel(): number {
+    return own(this.#kits, this.#piece?.title ?? '') ?? 10;
+  }
+  set kitChannel(ch: number) {
+    const title = this.#piece?.title ?? '';
+    this.#kits = { ...this.#kits, [title]: clamped(ch, 1, 16, 10) };
     this.#save();
   }
 
@@ -328,7 +355,9 @@ export class Midi implements ChosenPorts, NoteSink {
   }
 
   #slotChoice(slot: number): Chosen {
-    return slot === 1 ? this.#out : (this.#slots[this.#piece?.title ?? '']?.[slot] ?? NONE);
+    if (slot === 1) return this.#out;
+    const mine = own(this.#slots, this.#piece?.title ?? '');
+    return (mine && own(mine, String(slot))) || NONE;
   }
 
   /** The live port an output slot goes to now (slot 1: the default output), or null. */
@@ -347,7 +376,7 @@ export class Midi implements ChosenPorts, NoteSink {
     out?.forget();
     const title = this.#piece?.title ?? '';
     const name = id === 'none' ? '' : (this.ports.outputs.find((p) => p.id === id)?.name ?? '');
-    this.#slots = { ...this.#slots, [title]: { ...this.#slots[title], [slot]: { id, name } } };
+    this.#slots = { ...this.#slots, [title]: { ...own(this.#slots, title), [slot]: { id, name } } };
     this.#save();
   }
 
@@ -360,6 +389,7 @@ export class Midi implements ChosenPorts, NoteSink {
           send: (data, timestamp) => {
             try {
               this.slotPort(slot)?.send(data, timestamp);
+              this.#flash(data, timestamp);
             } catch {
               // (gone: its next statechange lets go of it)
             }
@@ -401,7 +431,7 @@ export class Midi implements ChosenPorts, NoteSink {
       for (const n of table.ports ?? []) if (n !== 1) this.#slotOut(n).setRoute(onSlot(n));
     }
     // (rotation is for a default output's microtonal voices: a piece's MIDI cards say the channels themselves)
-    const rotate = !table?.byPiece && this.#rotate ? rotationChannels(this.#rotate.from, this.#rotate.to, !!table?.kit.length) : null;
+    const rotate = !table?.byPiece && this.#rotate ? rotationChannels(this.#rotate.from, this.#rotate.to, !!table?.kit.length, table?.kitChannel) : null;
     if (this.outPort) {
       this.out.setOptions({ drums: this.drums, bendRange: this.#bendRange, rotate }, at, clock.toDeviceMs);
       for (const e of events) this.out.play(e, clock.toDeviceMs);
@@ -450,6 +480,11 @@ export class Midi implements ChosenPorts, NoteSink {
     this.access?.listen(id);
   }
 
+  // a note or a control sent (not the clock's ticks) flashes the light, at the moment it is heard
+  #flash(data: readonly number[], timestamp?: number): void {
+    if (data[0] >= 0x80 && data[0] < 0xf0) this.activity.hit('out', timestamp);
+  }
+
   /** Send a message to the output, noting its channel for All notes off. A port unplugged mid-send throws: nothing is sent. */
   send(data: readonly number[], timestamp?: number): void {
     const port = this.outPort;
@@ -457,6 +492,7 @@ export class Midi implements ChosenPorts, NoteSink {
     if (data[0] >= 0x80 && data[0] < 0xf0) this.#used.add(data[0] & 0x0f);
     try {
       port.send(data, timestamp);
+      this.#flash(data, timestamp);
     } catch {
       // (gone: its next statechange lets go of it)
     }
@@ -479,7 +515,7 @@ export class Midi implements ChosenPorts, NoteSink {
           try {
             slot.send([0xb0 | c, 123, 0]);
           } catch {
-            break; // (gone: its next statechange lets go of it)
+            continue; // (one channel's failed send doesn't leave the others sounding)
           }
     }
     const port = this.outPort;
@@ -518,6 +554,7 @@ export class Midi implements ChosenPorts, NoteSink {
         out: this.#out,
         in: this.#in,
         channels: this.#channels,
+        kits: this.#kits,
         drums: this.#drums,
         internal: this.#internal,
         bendRange: this.#bendRange,

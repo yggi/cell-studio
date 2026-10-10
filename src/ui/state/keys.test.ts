@@ -95,7 +95,7 @@ describe('press and release: the armed voice, through its table', () => {
     expect(asked).toEqual([`press 1 lead ${C4.toFixed(2)} v100`, 'release 1']);
   });
 
-  it('the open sheet arms its cell; one chosen in the dialog wins; a cell that plays nothing arms nothing', () => {
+  it('the open sheet arms its cell; one chosen in the MIDI page wins; a cell that plays nothing arms nothing', () => {
     const { keys, asked } = made();
     keys.sheet = 'bass';
     expect(keys.armed).toBe('bass');

@@ -24,7 +24,17 @@ const VIEWS = {
   start: async () => {},
   files: byText(/^Files/),
   shorten: byText(/Shorten/),
-  forces: click('[title^="Layout forces"]'),
+  forces: async (p) => {
+    await byText(/^Cards$/)(p);
+    await p.locator('button.open').first().dispatchEvent('click');
+    await p.waitForTimeout(1500);
+    await click('[aria-label="Controls"]')(p);
+    await tab(/^Forces$/)(p);
+  },
+  midi: async (p) => {
+    await byText(/^Files/)(p);
+    await tab(/^MIDI/)(p);
+  },
   legend: click('[title^="What the colours"]'),
   'add-cell': byText(/^\+/),
   cards: byText(/^Cards$/),

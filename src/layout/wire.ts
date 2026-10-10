@@ -65,13 +65,41 @@ const line = (pts: readonly Pt[]) => pts.map((p) => `${v(p.x)} ${v(p.y)}`).join(
 
 /**
  * A flat bus along the spline from a to b through m (a chord's notes, a hop out of a reader's hub): each strand the
- * curve moved by its offset (px, positive to the left looking along it), so it is the same width everywhere it shows
- * (its ends, under the wheels, settle across the chord).
+ * curve moved by its offset (px, positive to the left looking along it), so it is the same width everywhere it shows.
+ * `rims`: the radii of the wheels at its ends. There the bus is cut inside the rim (by more than half its width, so
+ * every strand's end is under the wheel) and stays true to the end; at an end of no known size its strands settle
+ * across the chord instead (offsetPoints), which on a hard bend can make two meet there, under the node.
  */
-export function bundlePaths(ax: number, ay: number, mx: number, my: number, bx: number, by: number, offsets: readonly number[]): string[] {
+export function bundlePaths(
+  ax: number,
+  ay: number,
+  mx: number,
+  my: number,
+  bx: number,
+  by: number,
+  offsets: readonly number[],
+  rims: { readonly a?: number; readonly b?: number } = {},
+): string[] {
   const q = { x: 2 * mx - (ax + bx) / 2, y: 2 * my - (ay + by) / 2 };
   const centre = sampleQuad({ x: ax, y: ay }, q, { x: bx, y: by });
-  return offsets.map((o) => `M ${line(offsetPoints(centre, o, { a: true, b: true }))}`);
+  const half = Math.max(0, ...offsets.map(Math.abs)) + 2;
+  const [ca, cb] = [Math.max(0, (rims.a ?? 0) - half), Math.max(0, (rims.b ?? 0) - half)];
+  // (the last point inside each cut: the strands start and end just under the wheels)
+  const i0 = ca ? Math.max(0, centre.findIndex((p) => Math.hypot(p.x - ax, p.y - ay) >= ca) - 1) : 0;
+  const i1 = cb
+    ? Math.min(
+        centre.length - 1,
+        centre.length -
+          centre
+            .slice()
+            .reverse()
+            .findIndex((p) => Math.hypot(p.x - bx, p.y - by) >= cb),
+      )
+    : centre.length - 1;
+  // (wheels so near they cover the bus: as without them)
+  const cut = i1 - i0 >= 3 ? centre.slice(i0, i1 + 1) : centre;
+  const ends = cut === centre ? { a: true, b: true } : { a: !ca, b: !cb };
+  return offsets.map((o) => `M ${line(offsetPoints(cut, o, ends))}`);
 }
 
 /**
@@ -169,4 +197,88 @@ export function loomParts(
     }
     return { ring, run: `M ${line(run)}` };
   });
+}
+
+/** An arc's points (SVG's endpoint form, a circle: rx = ry, no rotation) from p0 to p1, about every STEP px. */
+function arcPoints(p0: Pt, r: number, large: boolean, sweep: boolean, p1: Pt): Pt[] {
+  // (the centre, from the endpoints: SVG implementation notes F.6.5, with a radius too small for the chord grown to fit)
+  const [dx, dy] = [(p0.x - p1.x) / 2, (p0.y - p1.y) / 2];
+  const rr = Math.max(r, Math.hypot(dx, dy));
+  const k = (large !== sweep ? 1 : -1) * Math.sqrt(Math.max(0, (rr * rr - dx * dx - dy * dy) / (dx * dx + dy * dy || 1)));
+  const c = { x: k * dy + (p0.x + p1.x) / 2, y: -k * dx + (p0.y + p1.y) / 2 };
+  const a0 = Math.atan2(p0.y - c.y, p0.x - c.x);
+  let span = Math.atan2(p1.y - c.y, p1.x - c.x) - a0;
+  if (sweep && span < 0) span += TAU;
+  if (!sweep && span > 0) span -= TAU;
+  const n = Math.max(2, Math.ceil((Math.abs(span) * rr) / STEP));
+  return Array.from({ length: n }, (_, i) => {
+    const a = a0 + (span * (i + 1)) / n;
+    return { x: c.x + rr * Math.cos(a), y: c.y + rr * Math.sin(a) };
+  });
+}
+
+/** The points along a path as this module and geometry.ts write them (M, L, Q, C, A with absolute coordinates). */
+function pathPoints(d: string): Pt[] {
+  const tok = d
+    .replace(/([MLQCA])/g, ' $1 ')
+    .trim()
+    .split(/[\s,]+/);
+  const out: Pt[] = [];
+  const last = () => out[out.length - 1] ?? { x: 0, y: 0 };
+  let cmd = 'M';
+  for (let i = 0; i < tok.length;) {
+    if (/^[MLQCA]$/.test(tok[i])) cmd = tok[i++];
+    const num = () => +tok[i++];
+    if (cmd === 'M' || cmd === 'L') out.push({ x: num(), y: num() });
+    else if (cmd === 'Q') {
+      const [q, b] = [
+        { x: num(), y: num() },
+        { x: num(), y: num() },
+      ];
+      out.push(...sampleQuad(last(), q, b).slice(1));
+    } else if (cmd === 'C') {
+      const [c1, c2, b] = [
+        { x: num(), y: num() },
+        { x: num(), y: num() },
+        { x: num(), y: num() },
+      ];
+      out.push(...sampleCubic(last(), c1, c2, b).slice(1));
+    } else if (cmd === 'A') {
+      const r = num();
+      i += 2;
+      const [large, sweep] = [num() === 1, num() === 1];
+      out.push(...arcPoints(last(), r, large, sweep, { x: num(), y: num() }));
+    } else i++;
+  }
+  return out;
+}
+
+/**
+ * A path drawn as a wave along it (what sound looks like on an edge, whatever way the edge runs: a spline, a ref's end
+ * locked to its segment, a loom): `amp` px either side, about one cycle every `period` px (a whole number of them),
+ * faded in and out at its ends so it leaves and meets the nodes straight.
+ */
+export function rippled(d: string, amp = 2.5, period = 11): string {
+  const pts = pathPoints(d);
+  const along: number[] = [0];
+  for (let i = 1; i < pts.length; i++) along.push(along[i - 1] + Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y));
+  const length = along[along.length - 1];
+  // (a position not yet a number: as it is, never a loop without end)
+  if (pts.length < 2 || !(length >= 1) || !Number.isFinite(length)) return d;
+  const turns = Math.max(1, Math.round(length / period));
+  // (six points a cycle; at most 4,000, as long as any edge drawn: a runaway length can't build a runaway path)
+  const n = Math.min(4000, Math.max(8, Math.ceil((length / period) * 6)));
+  const out: Pt[] = [];
+  for (let k = 0, j = 1; k <= n; k++) {
+    const s = (length * k) / n;
+    while (j < pts.length - 1 && along[j] < s) j++;
+    const [p, q] = [pts[j - 1], pts[j]];
+    const seg = along[j] - along[j - 1] || 1;
+    const u = Math.max(0, Math.min(1, (s - along[j - 1]) / seg));
+    const t = s / length;
+    const w = amp * Math.sin(t * turns * TAU) * Math.min(1, t * 10, (1 - t) * 10);
+    const [nx, ny] = [-(q.y - p.y) / seg, (q.x - p.x) / seg];
+    out.push({ x: p.x + (q.x - p.x) * u + nx * w, y: p.y + (q.y - p.y) * u + ny * w });
+  }
+  return `M ${line(out)}`;
 }

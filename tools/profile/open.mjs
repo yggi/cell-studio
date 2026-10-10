@@ -59,8 +59,11 @@ for (let r = 0; r < Number(runs); r++) {
   const m = async () => Object.fromEntries((await cdp.send('Performance.getMetrics')).metrics.map((x) => [x.name, x.value]));
   const m0 = await m();
   await p.evaluate(() => (window.__t0 = performance.now()));
-  if (file) await p.locator('input[type=file]').setInputFiles(file);
-  else await card.dispatchEvent('click');
+  if (file) {
+    // (the file input is on the sidebar's Files page)
+    await p.getByRole('button', { name: /^Files/ }).click();
+    await p.locator('input[type=file]').setInputFiles(file);
+  } else await card.dispatchEvent('click');
   // wait for rest: nodes appeared, then no node moved for QUIET ms
   const w0 = Date.now();
   let st;

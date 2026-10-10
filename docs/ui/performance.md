@@ -1,7 +1,7 @@
 # Performance report
 
 How to see what the page feels like on the device in your hand, with no cable. Open the app with **`?perf`**
-(it stays on until `?perf=off`), or use **Files ▾ → Show performance report**. A small pill appears at the
+(it stays on until `?perf=off`), or use **Files ▾ (the sidebar’s Files page) → Show performance report**. A small pill appears at the
 bottom left (`perf · 59 fps · 0 long`); its border turns amber, then red, as the page struggles. Tap it for the panel.
 
 ## The panel
@@ -58,7 +58,7 @@ Three different delays, easily confused:
 16 runs; the audio-thread report was not available on that phone (no `renderCapacity`), so underruns inside the audio thread were not
 visible: that is why `balanced`, with twice `interactive`'s buffer, is the default. `?latency=interactive` is there to try; if a piece clicks, `?latency=playback`.
 
-**The automated test.** In the overlay (Files ▾ → Performance report, or `?perf`), **▶ Run full test** does all of this and
+**The automated test.** In the overlay (the sidebar’s Files page → Performance report, or `?perf`), **▶ Run full test** does all of this and
 gives one report. It plays Hypercell, Bach's Prelude and Fugue, Test Tones on Tape and Baustelle II: Resonanz for 25 s each (after the 3 s start-up that
 reports leave out) on four settings, from the safest down: `playback` (the old default), `balanced` (the default now), `interactive`, and `interactive` with a
 0.1 s look-ahead, about 8 minutes in all. Before each setting it makes a new audio context (a context's latency is fixed when it is

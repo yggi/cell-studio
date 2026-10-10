@@ -1,5 +1,5 @@
 <script lang="ts">
-  /** Sliders for the layout's main forces. Changes apply live; Reset restores the defaults. */
+  /** Sliders for the layout's main forces, a page of the sidebar. Changes apply live; Reset restores the defaults. */
   import type { LayoutOptions } from '../layout/options';
 
   type Key =
@@ -23,12 +23,10 @@
     options,
     onchange,
     onreset,
-    onclose,
   }: {
     options: Readonly<LayoutOptions>;
     onchange: (key: Key, value: number) => void;
     onreset: () => void;
-    onclose: () => void;
   } = $props();
 
   const groups: { title: string; rows: { key: Key; label: string; min: number; max: number; step: number; hint: string }[] }[] = [
@@ -86,65 +84,52 @@
   const fmt = (v: number) => (Math.abs(v) >= 10 ? String(Math.round(v)) : v.toFixed(2));
 </script>
 
-<div class="panel" role="dialog" aria-label="Layout forces">
-  <header>
-    <h3>forces</h3>
-    <button class="unstyled close" onclick={onclose} aria-label="Close">×</button>
-  </header>
-  {#each groups as g}
-    <h4>{g.title}</h4>
-    {#each g.rows as r}
-      <label title={r.hint}>
-        <span class="name">{r.label}</span>
-        <input type="range" min={r.min} max={r.max} step={r.step} value={options[r.key]} oninput={(e) => onchange(r.key, +e.currentTarget.value)} />
-        <output>{fmt(options[r.key])}</output>
-      </label>
-    {/each}
+<div class="panel">
+  {#each groups as g (g.title)}
+    <section>
+      <h4>{g.title}</h4>
+      {#each g.rows as r (r.key)}
+        <label title={r.hint}>
+          <span class="name">{r.label}</span>
+          <input type="range" min={r.min} max={r.max} step={r.step} value={options[r.key]} oninput={(e) => onchange(r.key, +e.currentTarget.value)} />
+          <output>{fmt(options[r.key])}</output>
+        </label>
+      {/each}
+    </section>
   {/each}
   <button class="reset" onclick={onreset}>Reset to defaults</button>
 </div>
 
 <style>
   .panel {
-    position: absolute;
-    top: 12px;
-    right: 12px;
-    z-index: 20;
-    width: min(320px, calc(100% - 24px));
-    max-height: calc(100% - 24px);
-    overflow: auto;
-    padding: 10px 14px 14px;
-    border-radius: 12px;
+    display: grid;
+    gap: 12px;
+  }
+  section {
+    display: grid;
+    gap: 2px;
+    padding: 10px 12px 8px;
     border: 1px solid var(--line);
-    background: var(--surface);
-    box-shadow: var(--shadow);
-  }
-  header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
-  h3 {
-    margin: 0;
-    font: 700 16px var(--font-ui);
+    border-radius: var(--radius);
+    background: var(--code-bg);
   }
   h4 {
-    margin: 10px 0 4px;
-    font: 600 11px var(--font-ui);
-    color: var(--text-muted);
-    text-transform: uppercase;
+    margin: 0 0 4px;
+    font: 700 12px var(--font-ui);
     letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text);
   }
   label {
     display: grid;
-    grid-template-columns: 7.5em 1fr 3.2em;
+    grid-template-columns: 6.5em minmax(0, 1fr) 3em;
     align-items: center;
     gap: 8px;
     min-height: 36px;
     font-size: 13px;
   }
   .name {
-    color: var(--text);
+    color: var(--text-muted);
   }
   input[type='range'] {
     width: 100%;
@@ -155,13 +140,7 @@
     font: 600 12px var(--font-code);
     color: var(--text-muted);
   }
-  .close {
-    font-size: 22px;
-    color: var(--text-muted);
-    padding: 0 4px;
-  }
   .reset {
-    margin-top: 12px;
     min-height: 36px;
     padding: 0 12px;
     border-radius: 8px;
@@ -170,5 +149,9 @@
     color: var(--text);
     font: 600 13px var(--font-ui);
     cursor: pointer;
+  }
+  .reset:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
   }
 </style>

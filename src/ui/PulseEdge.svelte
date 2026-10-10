@@ -16,8 +16,8 @@
    */
   import { BaseEdge, type EdgeProps } from '@xyflow/svelte';
   import { untrack } from 'svelte';
-  import { polar, radialPath, ripplePath, splinePoint } from '../layout/geometry';
-  import { bundlePaths, loomParts, loomPaths } from '../layout/wire';
+  import { polar, radialPath, splinePoint } from '../layout/geometry';
+  import { bundlePaths, loomParts, loomPaths, rippled } from '../layout/wire';
   import { cellView, type Fill, type Segment } from '../layout/cellview';
   import { pluginOf } from '../layout/show';
   import { isTurntable } from '../engine/graph';
@@ -96,8 +96,9 @@
   // a loom round the source: the part this edge draws (its ring above every run, its run with the rest; whole if not split)
   const ringOnly = $derived(d.part === 'ring');
   const looming = (parts: { ring: string; run: string }[]) => parts.map((p) => (d.part === 'ring' ? p.ring : d.part === 'run' ? p.run : `${p.ring} L${p.run.slice(1)}`));
-  // (the CV ports that carry notes; any other CV is a level: an envelope, a gain, a filter …)
-  const PITCH_PORTS = new Set(['voice', 'midi', 'pitch', 'play', 'write', 'braid', 'over']);
+  // (the CV ports that carry notes — a gate's trigger= is a melody, as a voice's is; any other CV is a level: an
+  // envelope, a gain, a filter …)
+  const PITCH_PORTS = new Set(['voice', 'trigger', 'midi', 'pitch', 'play', 'write', 'braid', 'over']);
 
   // Ends locked to their segments (as a tape's heads are): a ref meets the wheel of the cell it is spliced into where it
   // sits in that braid, once for each time it is written; a table's strands leave its wheel at their entries.
@@ -154,7 +155,9 @@
       ? loomPaths(targetX, targetY, rimOf(d.sizes?.to), occurrences, mid.x, mid.y, lockX, lockY, 2.5 * GAP)
       : occurrences.map((t) => radialPath(lockX, lockY, control, targetX, targetY, rimOf(d.sizes?.to), t));
   });
-  const path = $derived(d.band === 'audio' ? ripplePath(fromX, fromY, mid.x, mid.y, targetX, targetY) : (lockedPaths[0] ?? spline));
+  // (sound is a wave along the edge, whichever way it runs: a spline, or locked to its segments)
+  const waved = (p: string) => (d.band === 'audio' ? rippled(p) : p);
+  const path = $derived(waved(lockedPaths[0] ?? spline));
 
   // a bus: a table read through over= (its entries), or a chord (its notes); at most 12 strands, a longer table sampled
   const STRANDS = 12;
@@ -175,10 +178,12 @@
   const strandPaths = $derived.by(() => {
     const r = d.sizes?.from ? tapRadius(d.sizes.from) : 0;
     const exits = d.table && r ? Array.from({ length: count }, (_, i) => entryOf(i)) : [];
-    if (!exits.length || exits.some((s) => !s)) return bundlePaths(fromX, fromY, mid.x, mid.y, targetX, targetY, across(count));
+    // (a flat bus, cut inside its wheels' rims: from a reader's hub when it hops on from there)
+    const rims = { a: hop ? hop.r : (d.sizes?.from ?? 0) / 2, b: (d.sizes?.to ?? 0) / 2 };
+    if (!exits.length || exits.some((s) => !s)) return bundlePaths(fromX, fromY, mid.x, mid.y, targetX, targetY, across(count), rims);
     const turns = exits.map((s) => tapOf(view!, s!));
     // a hop: the bus goes on out of the hub of the reader it came into, flat, in the table's order
-    if (hop) return ringOnly ? [] : bundlePaths(fromX, fromY, mid.x, mid.y, targetX, targetY, across(turns.length));
+    if (hop) return ringOnly ? [] : bundlePaths(fromX, fromY, mid.x, mid.y, targetX, targetY, across(turns.length), rims);
     // out of each entry's tap, round the source's loom, into a bundle towards the reader
     return looming(loomParts(sourceX, sourceY, r, turns, mid.x, mid.y, targetX, targetY, GAP, d.ring ?? 0, LOOM_EXIT));
   });
@@ -319,7 +324,7 @@
 {/if}
 {#if !ringOnly}
   {#each lockedPaths.slice(1) as p, i (i)}
-    <path class={`svelte-flow__edge-path edge-${state}`} d={p} style={edgeStyle} />
+    <path class={`svelte-flow__edge-path edge-${state}`} d={waved(p)} style={edgeStyle} />
   {/each}
   <BaseEdge
     {id}

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { polar, segmentsCross } from './geometry';
-import { bundlePaths, loomParts, loomPaths } from './wire';
+import { bundlePaths, loomParts, loomPaths, rippled } from './wire';
 
 // (the polyline of a path: its M/L/A/Q/C points, an arc sampled along its circle, about its centre cx, cy)
 const points = (d: string, cx: number, cy: number) => {
@@ -73,6 +73,25 @@ describe('bundlePaths: a flat bus, the same width everywhere', () => {
     });
 });
 
+describe('bundlePaths between wheels: cut under their rims, true to the ends', () => {
+  it('a hard bend between two wheels: no strands meet anywhere, and they are a gap apart all along', () => {
+    for (const [m, ra, rb] of [
+      [[30, 50], 40, 40],
+      [[320, 330], 32, 60],
+      [[-80, 150], 22, 22],
+    ] as const) {
+      const ps = bundlePaths(0, 300, m[0], m[1], 300, 0, [-6, -2, 2, 6], { a: ra, b: rb }).map((d) => points(d, 0, 0));
+      expect(crossings(ps)).toBe(0);
+      for (let s = 1; s < ps.length; s++) for (const p of ps[s].slice(1, -1)) expect(Math.abs(toLine(p, ps[s - 1]) - 4)).toBeLessThan(0.3);
+      // (each strand starts and ends under its wheel)
+      for (const p of ps) {
+        expect(Math.hypot(p[0][0], p[0][1] - 300)).toBeLessThan(ra);
+        expect(Math.hypot(p[p.length - 1][0] - 300, p[p.length - 1][1])).toBeLessThan(rb);
+      }
+    }
+  });
+});
+
 describe('loomPaths: the strands round a wheel, a ring of tracks', () => {
   for (const [what, b] of [
     ['up', [0, -400]],
@@ -97,6 +116,22 @@ describe('loomPaths: the strands round a wheel, a ring of tracks', () => {
       const runs = loomParts(0, 0, 60, turns, b[0] / 2, b[1] / 2, b[0], b[1], 4).map((p) => points(p.run, 0, 0));
       for (let s = 1; s < runs.length; s++) for (const p of runs[s].slice(1, -6)) expect(Math.abs(toLine(p, runs[s - 1]) - 4)).toBeLessThan(0.3);
     });
+});
+
+describe('rippled: sound as a wave along any path', () => {
+  it('follows a path of lines, an arc and a curve, within its height of it, straight at its ends', () => {
+    // (a ref's end locked to its segment: out along a line, round an arc, on through a cubic)
+    const d = 'M 0 0 L 40 0 A 60 60 0 0 1 100 60 C 100 120 160 160 220 160';
+    const base = points(d, 40, 60);
+    const wave = points(rippled(d), 0, 0);
+    expect(wave.length).toBeGreaterThan(40);
+    for (const p of wave) expect(toLine(p, base)).toBeLessThan(2.5 + 0.5); // (the test samples the curve coarsely)
+    // (it does wave: somewhere it is off the path by most of its height)
+    expect(Math.max(...wave.map((p) => toLine(p, base)))).toBeGreaterThan(2);
+    expect(Math.hypot(wave[0][0], wave[0][1])).toBeLessThan(0.2);
+    const [lx, ly] = wave[wave.length - 1];
+    expect(Math.hypot(lx - 220, ly - 160)).toBeLessThan(0.2);
+  });
 });
 
 describe('a position that is not a number yet', () => {
