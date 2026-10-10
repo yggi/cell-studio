@@ -1,3 +1,4 @@
+import { isSide } from './side';
 import { afterAll, describe, expect, it } from 'vitest';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { ForceLayout } from './physics';
@@ -27,7 +28,7 @@ afterAll(() => made.forEach((l) => l.destroy()));
 describe('no overlaps', () => {
   it('settled examples have no overlapping nodes', () => {
     for (const { key, model, layout: l } of library) {
-      const nodes = model.nodes.filter((n) => !n.petalOf);
+      const nodes = model.nodes.filter((n) => !n.petalOf && !isSide(n));
       let worst = 0;
       for (let i = 0; i < nodes.length; i++)
         for (let j = i + 1; j < nodes.length; j++) {
@@ -46,7 +47,7 @@ describe('drawn crossings', () => {
     // read seven shared parts, which can't be drawn without crossings)
     let total = 0;
     for (const { key, model, layout: l } of library) {
-      const cells = model.nodes.filter((n) => !n.petalOf).length;
+      const cells = model.nodes.filter((n) => !n.petalOf && !isSide(n)).length;
       const c = l.drawnCrossings();
       total += c;
       expect(c, key).toBeLessThanOrEqual(cells <= 25 ? 8 : Math.ceil(cells * 1.1));

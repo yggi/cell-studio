@@ -1,9 +1,10 @@
 import { MediaQuery } from 'svelte/reactivity';
 import { keepPerf, perfWanted } from '../perfSwitch';
+import type { GraphLayout } from './graphLayout.svelte';
 
 export type Tab = 'select' | 'graph' | 'code';
-/** What the sidebar shows: the piece's controls, or MIDI (its ports, channels, keys and learned knobs). */
-export type Panel = 'controls' | 'midi';
+/** What the sidebar shows: the piece's controls, MIDI (ports, channels, keys, learned knobs), the graph's layout forces, or files. */
+export type Panel = 'controls' | 'midi' | 'forces' | 'file';
 
 /** What's on screen: the view (a tab on a phone), the controls drawer, the performance overlay, a line of news. */
 export class View {
@@ -16,6 +17,8 @@ export class View {
   panelOpen = $state(false);
   /** Which of the sidebar's two pages shows. */
   panel = $state<Panel>('controls');
+  /** The open graph's layout, for the sidebar's forces (the graph says it on mounting, and null on going). */
+  layout = $state.raw<GraphLayout | null>(null);
   /** The performance overlay (ui/perfSwitch.ts): loaded only when on. */
   perf = $state(perfWanted());
   /** A line for the picker: saved, rendered, couldn't load … */

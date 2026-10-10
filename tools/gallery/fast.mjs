@@ -38,6 +38,11 @@ if (process.env.STOPPED) q.set('stopped', '');
 if (process.env.ROWS) q.set('rows', process.env.ROWS);
 // (OUTPUTS=top: the outputs-top probe, src/ui/outputs.ts)
 if (process.env.OUTPUTS) q.set('outputs', process.env.OUTPUTS);
+// (MARGIN=1: the graph's margin open, its notes and scopes: src/ui/Margin.svelte)
+if (process.env.MARGIN) q.set('margin', process.env.MARGIN);
+// (TOWER=1: the frequency tower open beside the graph, src/ui/TowerAxis.svelte; TOWER_CELL=tune: its line, as if selected)
+if (process.env.TOWER) q.set('tower', process.env.TOWER);
+if (process.env.TOWER_CELL) q.set('towerCell', process.env.TOWER_CELL);
 // (golden: CELLS=piece.cells draws that source instead, in the real Graph)
 if (process.env.CELLS) q.set('src', readFileSync(process.env.CELLS, 'utf8'));
 const url = `${server.resolvedUrls.local[0]}tools/gallery/harness.html?${q}`;

@@ -1,3 +1,4 @@
+import { isSide } from '../../layout/side';
 import { afterEach, describe, expect, it } from 'vitest';
 import { compileSource } from '../../engine/compile';
 import { buildGraph } from '../../engine/graph';
@@ -17,7 +18,13 @@ const snapshot = (key: keyof typeof PRESETS): GraphSnapshot => {
 function expectConsistent(layout: GraphLayout, what: string) {
   const { program, model } = layout.shown;
   const ids = new Set(layout.nodes.map((n) => n.id));
-  expect(layout.nodes.map((n) => n.id).sort(), what).toEqual(model.nodes.map((n) => n.id).sort());
+  // (notes and scopes are in the margin, not the flow: layout/side.ts)
+  expect(layout.nodes.map((n) => n.id).sort(), what).toEqual(
+    model.nodes
+      .filter((n) => !isSide(n))
+      .map((n) => n.id)
+      .sort(),
+  );
   // (a product's junction reads its voice and its mix)
   for (const n of layout.nodes)
     for (const name of n.type === 'junction' ? [n.data.voice, n.data.mix] : [n.data.name]) expect(program.cells.has(name), `${what}: node ${n.id} reads ${name}`).toBe(true);

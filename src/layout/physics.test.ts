@@ -1,3 +1,4 @@
+import { isSide } from './side';
 import { describe, expect, it } from 'vitest';
 import { parse } from '../engine/parser';
 import { ForceLayout } from './physics';
@@ -23,7 +24,7 @@ describe('ForceLayout', () => {
     const l = new ForceLayout(undefined, { live: false });
     l.setGraph(g);
     l.tick(400);
-    for (const n of g.nodes.filter((x) => !x.petalOf)) {
+    for (const n of g.nodes.filter((x) => !x.petalOf && !isSide(x))) {
       const p = l.position(n.id)!;
       expect(Number.isFinite(p.x) && Number.isFinite(p.y)).toBe(true);
     }
@@ -38,7 +39,7 @@ describe('ForceLayout', () => {
     const l = new ForceLayout(undefined, { live: false });
     l.setGraph(g);
     l.tick(400);
-    const ids = g.nodes.filter((n) => !n.petalOf).map((n) => n.id); // petals hang from their parent
+    const ids = g.nodes.filter((n) => !n.petalOf && !isSide(n)).map((n) => n.id); // petals hang from their parent
     for (let i = 0; i < ids.length; i++) for (let j = i + 1; j < ids.length; j++) expect(dist(l.position(ids[i])!, l.position(ids[j])!)).toBeGreaterThan(70);
   });
 
@@ -195,7 +196,7 @@ describe('initial layout', () => {
     const r = compileSource(PRESETS.rhythm.source);
     const meters = model.nodes.filter((n) => n.kind === 'cell' && n.isMeter && !r.outputs.some((o) => o.cell === n.cell.name)).map((n) => n.id);
     expect(meters.length).toBeGreaterThan(0);
-    const lowest = Math.max(...model.nodes.filter((n) => !n.petalOf).map((n) => l.position(n.id)!.y));
+    const lowest = Math.max(...model.nodes.filter((n) => !n.petalOf && !isSide(n)).map((n) => l.position(n.id)!.y));
     expect(meters.every((id) => Math.abs(l.position(id)!.y - lowest) < DEFAULT_LAYOUT.layerGap / 2)).toBe(true); // (a little jitter keeps edges off nodes)
     expect(new Set(meters.map((id) => l.position(id)!.x)).size).toBe(meters.length);
     l.destroy();
@@ -349,7 +350,7 @@ describe('options', () => {
       l.setGraph(model);
       l.setOptions(o);
       l.tick(400);
-      const ps = model.nodes.filter((n) => !n.petalOf).map((n) => l.position(n.id)!);
+      const ps = model.nodes.filter((n) => !n.petalOf && !isSide(n)).map((n) => l.position(n.id)!);
       // the area it covers (its width alone is set largely by the columns it starts in)
       const w = (Math.max(...ps.map((p) => p.x)) - Math.min(...ps.map((p) => p.x))) * (Math.max(...ps.map((p) => p.y)) - Math.min(...ps.map((p) => p.y)));
       l.destroy();
@@ -362,7 +363,7 @@ describe('options', () => {
 describe('balance (per tonos)', () => {
   it('parts cluster under their users: no ten-wide row, about as wide as tall, centred', () => {
     const full = folded(buildGraph(compileSource(PRESETS.pertonos.source)));
-    const model = { ...full, nodes: full.nodes.filter((n) => !n.petalOf) }; // the motifs are petals of &alto now
+    const model = { ...full, nodes: full.nodes.filter((n) => !n.petalOf && !isSide(n)) }; // the motifs are petals of &alto now
     const r = flowRanks(model);
     const rows = new Map<number, number>();
     for (const v of r.values()) rows.set(v, (rows.get(v) ?? 0) + 1);
@@ -466,7 +467,7 @@ describe('tags inside a piece: a node each, pushing cells and edges off its name
       const tagAt = tags.map((t) => ({ t, p: l.position(`tag:${t}`)!, r: 40 + 13 * t.length }));
       for (const { p } of tagAt) expect(p).toBeTruthy();
       // no cell on a name
-      for (const n of model.nodes.filter((n) => !n.petalOf && n.cell)) {
+      for (const n of model.nodes.filter((n) => !n.petalOf && !isSide(n) && n.cell)) {
         const q = l.position(n.id)!;
         for (const { t, p, r } of tagAt) expect(Math.hypot(q.x - p.x, q.y - p.y), `${n.cell?.name} on ${t}`).toBeGreaterThan(r * 0.8);
       }
@@ -515,8 +516,10 @@ describe('tapes: the heads keep their spacing, the wheel turns to face them at w
       // (a read head drawn as a bulb on its tape plays into what it can't always face — several heads into one mix —
       // but what it plays into is seldom across its own tape: at most one such edge; tools/probe/tape-aims.test.ts)
       let over = 0;
+      const side = new Set(model.nodes.filter(isSide).map((n) => n.id));
       for (const e of model.edges) {
-        if (!e.bulb || !e.bulbAt || !faces.some((f) => f.tape === e.from)) continue;
+        // (an edge into the margin, a scope watching a head, is drawn as a mark, not across the graph: side.ts)
+        if (!e.bulb || !e.bulbAt || !faces.some((f) => f.tape === e.from) || side.has(e.to)) continue;
         const t = l.position(e.from)!;
         const by = ((l.tapeTurn(e.from)! + 90) * Math.PI) / 180;
         const a = { x: t.x + e.bulbAt.x * Math.cos(by) - e.bulbAt.y * Math.sin(by), y: t.y + e.bulbAt.x * Math.sin(by) + e.bulbAt.y * Math.cos(by) };
@@ -635,7 +638,7 @@ describe('meters, joined to their cells by a net', () => {
         ).toEqual([]);
         // and the meter sits clear of every wheel
         const p = l.position(m)!;
-        for (const n of model.nodes.filter((n) => !n.petalOf && n.id !== m)) {
+        for (const n of model.nodes.filter((n) => !n.petalOf && !isSide(n) && n.id !== m)) {
           const q = l.position(n.id);
           if (q) expect(Math.hypot(p.x - q.x, p.y - q.y), `${m} on ${n.id}`).toBeGreaterThan(DEFAULT_LAYOUT.radius(byId.get(m)!) + DEFAULT_LAYOUT.radius(n));
         }

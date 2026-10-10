@@ -1,8 +1,8 @@
 <script lang="ts">
   /**
-   * The sidebar, a drawer on the right: two pages, the piece's controls (every free() in it, and the keys and pads) and
-   * MIDI (the ports, how the piece goes out, the keys, learned knobs). The tab strip says which (arrow keys, Home and
-   * End move along it); a dot on MIDI says whether anything is connected. Focus moves into the drawer when it opens and
+   * The sidebar, a drawer on the right: four pages, the piece's controls (every free() in it, and the keys and pads),
+   * MIDI (the ports, how the piece goes out, the keys, learned knobs), the graph's layout forces, and files. The tab
+   * strip says which (arrow keys, Home and End move along it); a dot on MIDI says whether anything is connected. Focus moves into the drawer when it opens and
    * back to where it was when it closes; Escape closes it.
    */
   import { onMount } from 'svelte';
@@ -10,14 +10,18 @@
   import type { Panel } from './state/view.svelte';
   import FreePanel from './FreePanel.svelte';
   import MidiPanel from './MidiPanel.svelte';
+  import ForcesPanel from './ForcesPanel.svelte';
+  import FilePanel from './FilePanel.svelte';
 
   const { view, library, dock, midi } = getStudio();
   const live = $derived(!!midi.access && (midi.outPortId !== 'none' || midi.inPortId !== 'none'));
   const PAGES: readonly (readonly [Panel, string])[] = [
     ['controls', 'Controls'],
     ['midi', 'MIDI'],
+    ['forces', 'Forces'],
+    ['file', 'Files'],
   ];
-  const enabled = (page: Panel) => library.anyOpen || page !== 'controls';
+  const enabled = (page: Panel) => library.anyOpen || (page !== 'controls' && page !== 'forces');
 
   let drawer: HTMLElement;
   // the tab strip as a roving tabindex: the page showing is the one Tab reaches; the arrows move along the enabled ones
@@ -76,6 +80,14 @@
   <div id="sidebar-page" role="tabpanel" aria-labelledby="sidebar-tab-{view.panel}">
     {#if view.panel === 'midi'}
       <MidiPanel {midi} />
+    {:else if view.panel === 'forces'}
+      {#if view.layout}
+        <ForcesPanel options={view.layout.options} onchange={(k, v) => view.layout?.setForce(k, v)} onreset={() => view.layout?.resetForces()} />
+      {:else}
+        <p class="none">Open a piece to move the forces of its graph.</p>
+      {/if}
+    {:else if view.panel === 'file'}
+      <FilePanel />
     {:else}
       <button
         class="dock-toggle"
@@ -118,14 +130,14 @@
   }
   .tabs {
     display: flex;
-    gap: 4px;
+    gap: 0;
   }
   .tabs button {
     position: relative;
     min-height: 44px;
-    padding: 0 12px;
+    padding: 0 9px;
     color: var(--text-muted);
-    font: 700 var(--text-md) var(--font-ui);
+    font: 700 var(--text-sm, 13px) var(--font-ui);
     cursor: pointer;
   }
   .tabs button.on {
@@ -134,8 +146,8 @@
   .tabs button.on::after {
     content: '';
     position: absolute;
-    left: 10px;
-    right: 10px;
+    left: 6px;
+    right: 6px;
     bottom: -1px;
     height: 3px;
     border-radius: 3px 3px 0 0;
@@ -156,6 +168,11 @@
   }
   .dot.live {
     background: var(--meter-1);
+  }
+  .none {
+    margin: 0;
+    color: var(--text-muted);
+    font: 500 14px var(--font-ui);
   }
   .x {
     font-size: 22px;

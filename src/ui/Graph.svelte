@@ -18,16 +18,25 @@
   import PulseEdge from './PulseEdge.svelte';
   import MeterEdge from './MeterEdge.svelte';
   import MaterialNode from './MaterialNode.svelte';
-  import ScopeNode from './ScopeNode.svelte';
   import PluginNode from './PluginNode.svelte';
   import GraphLegend from './GraphLegend.svelte';
   import BeltEdge from './BeltEdge.svelte';
   import './edges.css';
   import type { LiveSource } from '../audio/live';
   import type { TransportState } from '../audio/transport';
-  import ForcesPanel from './ForcesPanel.svelte';
   import { clusterDisc } from '../layout/clusters';
   import { EXAMPLES } from '../examples';
+  import Margin, { MARGIN_WIDTH } from './Margin.svelte';
+  import { isSide, sideEntries } from '../layout/side';
+  import { channelColour } from './theme';
+  import type { SideMark } from './context';
+  import TowerAxis, { TOWER_WIDTH } from './TowerAxis.svelte';
+  import FlowViewport from './FlowViewport.svelte';
+  import type { Viewport } from '@xyflow/svelte';
+
+  // (?tower: the tower open from the start, ?towerCell=tune its line, as if selected: the gallery's pictures)
+  const QUERY = typeof location !== 'undefined' ? new URLSearchParams(location.search) : null;
+  const towerCell = QUERY?.get('towerCell') ?? null;
 
   // each example's rows' order, chosen when the app was built (tools/examples-index.ts), by its graph's shape
   const EXAMPLE_ROWS = new Map(EXAMPLES.map((e) => [e.rows.key, e.rows.order]));
@@ -57,6 +66,7 @@
     onsheet,
     played,
     rows,
+    onlayout,
   }: {
     model: GraphModel;
     program: CompileResult;
@@ -95,6 +105,8 @@
     played?: ReadonlySet<string>;
     /** A cell's rows played live (the piano roll's keys, #251). */
     rows?: RowKeys;
+    /** Told the layout on mounting (the sidebar's forces), null when it goes. */
+    onlayout?: (layout: GraphLayout | null) => void;
   } = $props();
 
   // The piece as drawn: one snapshot (program, graph, shifts, routing), swapped whole with the nodes and edges made
@@ -105,6 +117,11 @@
     EXAMPLE_ROWS,
   );
   onDestroy(() => layout.destroy());
+  // (the sidebar's forces move this layout)
+  $effect(() => {
+    untrack(() => onlayout?.(layout));
+    return () => untrack(() => onlayout?.(null));
+  });
   const shown = $derived(layout.shown);
 
   // open a newly added cell as soon as it appears in the graph
@@ -190,13 +207,65 @@
     get rows() {
       return rows;
     },
+    // (only while the margin is open: a mark with no margin to read it in is noise)
+    marksOf: (name) => (hasMargin ? (marks.get(name) ?? []) : []),
+    get sideLit() {
+      // (the entry pointed at in the margin, else a note or scope whose sheet is open)
+      return sideLit ?? (selected && shown.model.nodes.some((n) => n.id === selected && isSide(n)) ? selected : null);
+    },
   });
 
-  const nodeTypes = { cell: CellNode, voice: VoiceNode, material: MaterialNode, scope: ScopeNode, plugin: PluginNode, junction: JunctionNode } as NodeTypes;
+  // the margin (layout/side.ts): what each cell wears for the notes and scopes about it
+  const marks = $derived.by(() => {
+    const out = new Map<string, SideMark[]>();
+    for (const e of sideEntries(shown.model)) {
+      const chans = (shown.program.cells.get(e.name)?.units ?? []).flatMap((u) => (u.atom.kind === 'ref' ? [u.atom.name] : []));
+      for (const id of e.about) {
+        const name = id.slice('cell:'.length);
+        const k = chans.indexOf(name);
+        (out.get(name) ?? out.set(name, []).get(name)!).push(e.kind === 'note' ? { entry: e.id, mark: e.mark } : { entry: e.id, mark: 0, colour: channelColour(Math.max(0, k)) });
+      }
+    }
+    return out;
+  });
+  const hasSide = $derived(shown.model.nodes.some(isSide));
+  // (a tap away, as the tower is: closed by default at every width, so the graph keeps its room; ?margin opens it, for
+  // the gallery's pictures)
+  let marginOpen = $state(typeof location !== 'undefined' && new URLSearchParams(location.search).has('margin'));
+  const hasMargin = $derived(hasSide && marginOpen);
+  // (framed again when the margin opens or closes)
+  let sideFits = $state(0);
+  let sideLit = $state<string | null>(null);
+
+  const nodeTypes = { cell: CellNode, voice: VoiceNode, material: MaterialNode, plugin: PluginNode, junction: JunctionNode } as NodeTypes;
   const edgeTypes = { pulse: PulseEdge, belt: BeltEdge, meter: MeterEdge };
 
-  let forcesOpen = $state(false);
   let legendOpen = $state(false);
+  // the frequency tower beside the graph (TowerAxis.svelte)
+  let towerOpen = $state(QUERY?.has('tower') ?? false);
+  // (the flow's pan and zoom, for the tower drawn beside it; framed again when the tower opens or closes)
+  let viewport = $state<Viewport>({ x: 0, y: 0, zoom: 1 });
+  let towerFits = $state(0);
+  // a cell's card on a wide screen (CellSheet.svelte: 380 px, 16 px from the window's right) covers the graph's right
+  // edge: the tower stands left of it and the graph makes room there; with too little room left, it waits for the card
+  let graphEl = $state<HTMLDivElement>();
+  let graphW = $state(0);
+  let cardCover = $state(0);
+  $effect(() => {
+    void graphW;
+    const carded = !!selectedName && !!graphEl && matchMedia('(min-width: 900px)').matches;
+    cardCover = carded ? Math.max(0, graphEl!.getBoundingClientRect().right - (innerWidth - 396) + 8) : 0;
+  });
+  // (with a card beside it the tower waits unless 240 px of graph are left; with none it shows at any width, a phone's included)
+  const towerShown = $derived(towerOpen && (cardCover === 0 || graphW - cardCover - TOWER_WIDTH >= 240));
+  // (a card opened or closed beside the tower: the graph is framed again in the room left, so no cell is cut off)
+  let lastCover = 0;
+  $effect(() => {
+    const cover = towerShown ? cardCover : 0;
+    if (cover === lastCover) return;
+    lastCover = cover;
+    untrack(() => towerFits++);
+  });
 
   // clusters: the tags cells carry inside the piece (not the card's) — where their members are, now
   const clusters = $derived.by(() => {
@@ -255,56 +324,87 @@
   });
 </script>
 
-<div class="graph">
-  <SvelteFlow
-    bind:nodes={layout.nodes}
-    bind:edges={layout.edges}
-    {nodeTypes}
-    {edgeTypes}
-    nodeOrigin={[0.5, 0.5]}
-    nodesConnectable={false}
-    elementsSelectable={false}
-    onbeforedelete={async () => false}
-    colorMode="dark"
-    minZoom={0.15}
-    maxZoom={2.5}
-    onnodedragstart={({ targetNode }) => {
-      if (targetNode) layout.dragStart(targetNode.id, targetNode.position.x, targetNode.position.y);
-    }}
-    onnodedrag={({ targetNode }) => {
-      if (targetNode) layout.drag(targetNode.id, targetNode.position.x, targetNode.position.y);
-    }}
-    onnodedragstop={({ targetNode }) => {
-      if (targetNode) layout.dragEnd(targetNode.id);
-    }}
-    nodeClickDistance={6}
-    onnodeclick={({ node, event }) => {
-      // (a product's junction is not a cell: nothing to open; a bulb on a wheel is the cell it splices)
-      if (node.type !== 'junction') selected = bulbAt(event.target) ?? node.id;
-    }}
-  >
-    <Background gap={28} size={1.5} />
-    <Controls showLock={false} />
-    <FitView token={layout.fitToken} />
-    <!-- clusters: cells tagged alike inside the piece (tags=), washed and named behind their members -->
-    <ViewportPortal target="back">
-      {#each clusters as c (c.tag)}
-        <div class="cluster" style:left="{c.x}px" style:top="{c.y}px" style:width="{c.r * 2}px" style:height="{c.r * 2}px" style:--hue={c.colour}></div>
-        <div class="cluster-name" style:left="{c.nx}px" style:top="{c.ny}px" style:--hue={c.colour}>{c.tag}</div>
-      {/each}
-    </ViewportPortal>
-  </SvelteFlow>
+<div
+  class="graph"
+  class:margined={hasMargin}
+  class:towered={towerShown}
+  style:--margin-width="{MARGIN_WIDTH}px"
+  style:--tower-width="{TOWER_WIDTH + cardCover}px"
+  bind:this={graphEl}
+  bind:clientWidth={graphW}
+>
+  {#if hasMargin}<Margin model={shown.model} heightOf={(id) => layout.position(id)?.y} settled={layout.fitToken} onlight={(id) => (sideLit = id)} />{/if}
+  <div class="flow">
+    <SvelteFlow
+      bind:nodes={layout.nodes}
+      bind:edges={layout.edges}
+      {nodeTypes}
+      {edgeTypes}
+      nodeOrigin={[0.5, 0.5]}
+      nodesConnectable={false}
+      elementsSelectable={false}
+      onbeforedelete={async () => false}
+      colorMode="dark"
+      minZoom={0.15}
+      maxZoom={2.5}
+      onnodedragstart={({ targetNode }) => {
+        if (targetNode) layout.dragStart(targetNode.id, targetNode.position.x, targetNode.position.y);
+      }}
+      onnodedrag={({ targetNode }) => {
+        if (targetNode) layout.drag(targetNode.id, targetNode.position.x, targetNode.position.y);
+      }}
+      onnodedragstop={({ targetNode }) => {
+        if (targetNode) layout.dragEnd(targetNode.id);
+      }}
+      nodeClickDistance={6}
+      onnodeclick={({ node, event }) => {
+        // (a product's junction is not a cell: nothing to open; a bulb on a wheel is the cell it splices)
+        if (node.type !== 'junction') selected = bulbAt(event.target) ?? node.id;
+      }}
+    >
+      <Background gap={28} size={1.5} />
+      <Controls showLock={false} />
+      <FitView token={layout.fitToken + sideFits + towerFits} />
+      {#if towerOpen}<FlowViewport onchange={(v) => (viewport = v)} />{/if}
+      <!-- clusters: cells tagged alike inside the piece (tags=), washed and named behind their members -->
+      <ViewportPortal target="back">
+        {#each clusters as c (c.tag)}
+          <div class="cluster" style:left="{c.x}px" style:top="{c.y}px" style:width="{c.r * 2}px" style:height="{c.r * 2}px" style:--hue={c.colour}></div>
+          <div class="cluster-name" style:left="{c.nx}px" style:top="{c.ny}px" style:--hue={c.colour}>{c.tag}</div>
+        {/each}
+      </ViewportPortal>
+    </SvelteFlow>
+  </div>
+  {#if towerShown}
+    <TowerAxis model={shown.model} program={shown.program} nodes={layout.nodes} {viewport} focus={selectedName ?? towerCell} right={cardCover} />
+  {/if}
   <div class="toolbar">
     <button class="add-cell" onclick={onadd} title="Add a cell (blank: the chromatic default)">+ cell</button>
-    <button class="forces-toggle" class:on={forcesOpen} onclick={() => (forcesOpen = !forcesOpen)} aria-pressed={forcesOpen} title="Layout forces">forces</button>
     <button class="forces-toggle" class:on={legendOpen} onclick={() => (legendOpen = !legendOpen)} aria-pressed={legendOpen} title="What the colours and values mean">legend</button
     >
+    <button
+      class="forces-toggle"
+      class:on={towerOpen}
+      onclick={() => {
+        towerOpen = !towerOpen;
+        towerFits++;
+      }}
+      aria-pressed={towerOpen}
+      title="Each cell's time scale, from the constant to the audible">tower</button
+    >
+    {#if hasSide}<button
+        class="forces-toggle"
+        class:on={marginOpen}
+        onclick={() => {
+          marginOpen = !marginOpen;
+          sideFits++;
+        }}
+        aria-pressed={marginOpen}
+        title="The piece's notes and scopes, beside the graph">notes</button
+      >{/if}
   </div>
   {#if legendOpen}
     <div class="legend-wrap"><GraphLegend program={shown.program} shifts={shown.shifts} {source} /></div>
-  {/if}
-  {#if forcesOpen}
-    <ForcesPanel options={layout.options} onchange={(k, v) => layout.setForce(k, v)} onreset={() => layout.resetForces()} onclose={() => (forcesOpen = false)} />
   {/if}
   <p class="hint">Tap a cell to open it. Drag to move. Hold to switch off.</p>
   {#if selectedName}
@@ -333,6 +433,24 @@
     position: relative;
     width: 100%;
     height: 100%;
+  }
+  .flow {
+    position: absolute;
+    inset: 0;
+  }
+  /* (the margin takes its column beside the graph: layout/side.ts) */
+  .graph.margined .flow {
+    left: var(--margin-width);
+  }
+  .graph.margined .hint {
+    left: calc(var(--margin-width) + 56px);
+  }
+  /* (the tower takes its strip beside the graph: nothing is laid under it) */
+  .graph.towered .flow {
+    right: var(--tower-width);
+  }
+  .graph.towered .hint {
+    right: calc(var(--tower-width) + 16px);
   }
   .hint {
     position: absolute;
