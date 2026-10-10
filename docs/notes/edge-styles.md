@@ -1,6 +1,6 @@
 # Edge styles: what an edge shows, and the bus's geometry
 
-**2026-10-10 · open: surveyed, planned and decided (owner, 2026-10-10: D1 C travelling, D2 C, D3 B, D4 C, D5 a constant, D6 still); step 1 built · #137, #238, #183, #150; on top of [nets.md](nets.md)**
+**2026-10-10 · open: surveyed, planned and decided (owner, 2026-10-10: D1 C travelling, D2 C, D3 B, D4 C, D5 a constant, D6 still); steps 1 and 2 built · #137, #238, #183, #150; on top of [nets.md](nets.md)**
 
 The owner's ask: edges and net segments by colour and style, the bus's geometry, one mechanism and one place for the rules. Meter nets are good as they are. The colour bus needs a constant width through bends and a clean join between the loom and the bus. The other edges: what they show should follow what their source pushes, one style per band, and the payload should drive it while playing (a wave's height and length by the sound, pulse trains on clocks). Some edges are unstyled.
 
@@ -98,7 +98,7 @@ Decided: **D1 C, travelling · D2 C · D3 B · D4 C · D5 a constant speed · D6
 ## 4 · Order (a PR each)
 
 1. **The bus's geometry** (§1): `wire.ts` and its test, the loom's fillets, the chord bus, the hop, the reader's end. No choice needed. Verified with the `edges` and `zoom` sheets before and after, and the golden graph's crossings unchanged.
-2. **Bands right**: audio from a sounding source (closes #238); `trigger=` as the `voice` port. Saved pieces aren't affected (drawing only).
+2. **Bands right. Built.** Since decision 016 the parts play straight into the sound card, so #238's chain (part → table of parts → selector → card) no longer exists. What still carried sound on a CV wire, over the 75 examples, was always a reference: a mix spliced into the sound card (*Canon*, *Pertonos*) or a scope (*Hypercell*, *Test Tones*), a read head into a scope, and a voice in a pattern of voices (7 pieces). Now a `braid` wire is audio when its source sounds (`sounds()`, the rule tapes already used), and its colour is its source's sound. A wave follows any path now (`rippled`, `wire.ts`: lines, arcs, curves), so a reference keeps its locked end. `trigger=` is a pitch port. Left as it is: `flowRanks`' own notion of what sounds (`start.ts`). Reading the band there would move voices into patterns in the layout, a change of its own.
 3. **Rules in one place**: `edgeStyle.ts` and its tokens, the `PulseEdge` split, colour from the source; #137's duplicate transition and tokens, #183's magic numbers. The only visible change is colour from the source.
 4. **The payload** (§2), as chosen in D1 to D6: `signal.ts` and the per-band drawers, profiled.
 5. Leftovers: the belt's label (#137).

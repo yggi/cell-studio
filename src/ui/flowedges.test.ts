@@ -28,6 +28,8 @@ function byPort(e: GraphEdge, program: CompileResult) {
     const voice = e.sound ?? nameOf(e.source);
     return { phaseCell: trigger(voice), voice };
   }
+  // (a sound spliced into its reader, #238: a mix into the sound card or a scope, a voice into a pattern of voices)
+  if (e.port === 'braid' && e.band === 'audio') return { phaseCell: null, voice: nameOf(e.from) };
   // (into a MIDI card, #208: the voice its notes are played on — a voice, a product's, or what a cell named plays)
   if (e.port === 'midi') {
     const [from, to] = [nameOf(e.from), nameOf(e.to)];
@@ -64,6 +66,26 @@ describe('what an edge carries: one lookup by band and port', () => {
     expect(carried(edge('step'), program)).toEqual({ phaseCell: 'tune', voice: null });
     expect(carried(edge('voice'), program)).toEqual({ phaseCell: 'tune', voice: 'lead' });
     expect(carried(edge('over'), program)).toEqual({ phaseCell: null, voice: null });
+  });
+
+  it('carries a sound spliced into its reader as sound (#238); a melody spliced in stays a value', () => {
+    const program = compileSource(`&bar scan(1 1 1 1) step=120bpm
+&bd s=sine loop=C2
+&sd s=white
+&groove step=&bar &bd ~ &sd ~
+&riff 0 2
+&tune step=&bar &riff 4
+&alt step=&bar &riff 7
+&lead s=tri
+&left [&groove * .5, &tune * &lead, &alt * &lead]
+&out map=sample &left &left`);
+    const model = buildGraph(program);
+    const edge = (from: string, to: string) => model.edges.find((e) => e.from === `cell:${from}` && e.to === `cell:${to}`)!;
+    expect(edge('bd', 'groove').band).toBe('audio');
+    expect(carried(edge('bd', 'groove'), program)).toEqual({ phaseCell: null, voice: 'bd' });
+    expect(edge('left', 'out').band).toBe('audio');
+    expect(edge('riff', 'tune').band).toBe('cv');
+    expect(carried(edge('riff', 'tune'), program)).toEqual({ phaseCell: null, voice: null });
   });
 });
 

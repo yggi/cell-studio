@@ -69,9 +69,10 @@ const BY_BAND: Readonly<Partial<Record<GraphEdge['band'], Carrier>>> = {
 };
 /** By port, for the other bands. */
 const BY_PORT: Readonly<Record<string, Carrier>> = {
-  // a table read through, a cell spliced in: the reader's own wheel shows it
+  // a table read through, a cell spliced in: the reader's own wheel shows it — unless what is spliced in sounds (a mix
+  // into the sound card or a scope, a voice into a pattern of voices): then its sound, as a mix's entry carries it
   over: NOTHING,
-  braid: NOTHING,
+  braid: (e) => (e.band === 'audio' ? { phaseCell: null, voice: nameOf(e.from) } : { phaseCell: null, voice: null }),
   // a tape's edges take the colour of what's on them: a read head's notes, as played; what's being written, as its source plays it
   play: (e, p) => ({ phaseCell: null, voice: p.outputs.find((x) => x.tape?.head === nameOf(e.target))?.voice ?? null }),
   write: (e, p) => ({ phaseCell: null, voice: p.outputs.find((x) => x.cell === nameOf(e.source) && !x.tape)?.voice ?? null }),

@@ -254,6 +254,8 @@ export function buildGraph(result: CompileResult, opts: { readonly bulbs?: boole
     to: back ? source : target,
   });
   const chord = chordWidth(result);
+  // (what sounds: a wire out of it carries sound — into a tape, a read head, or spliced into a reader: a mix into the
+  // sound card or a scope, a voice into a pattern of voices; #238)
   const sounds = (name: string) => {
     const c = result.cells.get(name);
     return !!c && (c.voice || !!c.mix || c.kit || result.tapes.some((t) => t.name === name) || result.returns.some((r) => r.head === name));
@@ -286,7 +288,7 @@ export function buildGraph(result: CompileResult, opts: { readonly bulbs?: boole
           target: cellId(child),
           count,
           transforms: Array.from({ length: count }, () => []),
-          ...wire('braid', 'cv', id, cellId(child), 1, true, true),
+          ...wire('braid', sounds(child) ? 'audio' : 'cv', id, cellId(child), 1, true, true),
         });
     }
     // resonators: coupled through the table (couple=), and what excites them
@@ -368,7 +370,7 @@ export function buildGraph(result: CompileResult, opts: { readonly bulbs?: boole
         count,
         // (each place it is written in this cell's steps: its pick or shift, operations, transposition)
         transforms: c.units.flatMap((u) => (u.atom.kind === 'ref' && u.atom.name === child ? [refTransform(u.atom)] : [])),
-        ...wire('braid', 'cv', id, cellId(child), chord(child), true, true),
+        ...wire('braid', sounds(child) ? 'audio' : 'cv', id, cellId(child), chord(child), true, true),
       });
     }
     // a note's links: what it explains
