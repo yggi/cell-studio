@@ -105,6 +105,11 @@ describe('source edits', () => {
     expect(compileSource(setOff(setShift(setShift(base, 'key', 5), 'key', 0), 'theme', false).replace(/\s+$/gm, '')).cells.get('key')!.shift).toBe(0);
   });
 
+  it('splitComment leaves a quoted # or // alone, and setBraid keeps the label', () => {
+    expect(splitComment('&m label="Intro # 1" 0 2 # c')).toEqual(['&m label="Intro # 1" 0 2 ', '# c']);
+    expect(splitComment('&m label="a // b" 0')).toEqual(['&m label="a // b" 0', '']);
+    expect(setBraid('&m step=4 label="Intro # 1" 0 2 4', 'm', ['0', '2', '5'])).toBe('&m step=4 label="Intro # 1" 0 2 5');
+  });
   it('splitComment knows # from a sharp', () => {
     expect(splitComment('&a 6# 7 # comment')).toEqual(['&a 6# 7 ', '# comment']);
     expect(splitComment('&a 0 // x # y')).toEqual(['&a 0 ', '// x # y']);

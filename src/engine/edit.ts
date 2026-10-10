@@ -5,16 +5,15 @@
  * the line as written. Pure string → string, so the code view stays 1:1.
  */
 
-/** Split a line into code and its trailing comment (`//`, or `#` at start / after a space). */
+/** Split a line into code and its trailing comment (`//`, or `#` at start / after a space; neither inside quotes). */
 export function splitComment(line: string): [string, string] {
-  let cut = line.indexOf('//');
-  if (cut < 0) cut = line.length;
-  for (let i = 0; i < cut; i++)
-    if (line[i] === '#' && (i === 0 || /\s/.test(line[i - 1]))) {
-      cut = i;
-      break;
-    }
-  return [line.slice(0, cut), line.slice(cut)];
+  let quoted = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (c === '"') quoted = !quoted;
+    else if (!quoted && ((c === '/' && line[i + 1] === '/') || (c === '#' && (i === 0 || /\s/.test(line[i - 1]))))) return [line.slice(0, i), line.slice(i)];
+  }
+  return [line, ''];
 }
 
 const headOf = (name: string) => new RegExp(`^(\\s*&${name})(?=\\s|$)`);
