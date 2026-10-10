@@ -127,6 +127,7 @@ export const LADDER: readonly { readonly concept: string; readonly forms: readon
   },
   { concept: 'text: spell()', forms: ['generator spell("text", &table, "names")', 'free free("text")'] },
   { concept: 'clock time and a law', forms: ['rate nmin', 'rate nh', 'rate nd', 'rate nwk', 'parameter anchor', 'parameter law'] },
+  { concept: 'a gate: a product with a name', forms: ['parameter trigger', 'parameter velocity', 'parameter gate', 'parameter gain'] },
   { concept: 'MIDI out: a MIDI card, its entries channels', forms: ['map map=midi', 'map map=midi(c)'] },
 ];
 
