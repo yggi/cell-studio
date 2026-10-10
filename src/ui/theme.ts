@@ -56,6 +56,24 @@ export const LEVEL = { hue: 224, s: 11, l0: 46, l1: 86 } as const;
  * lightness (%) from silence to full — dark when quiet, as bright as it is loud. */
 export const SOUND = { s: 90, l0: 6, l1: 56, lo: 3, hi: 85, octave: 6 } as const;
 
+/**
+ * What an edge carries, drawn as it travels (EdgePayload.svelte, docs/notes/edge-styles.md §2): the one speed every
+ * payload moves at (px a second), and how often it is redrawn (a second); a wave's height (px either side, silent … loud) and its length (px: C4, and the
+ * range), in how many phases a cycle it is drawn; a melody's run width, a level's ribbon (px, 0 … 1); a note's bead and a
+ * tick's (the bar's first, the others), px.
+ */
+export const PAYLOAD = {
+  speed: 90,
+  fps: 30,
+  amp: [1, 5],
+  wavelength: { c4: 14, min: 5, max: 28 },
+  phases: 16,
+  run: 5,
+  ribbon: [1.5, 7],
+  bead: 3.4,
+  tick: [4, 2.6],
+} as const;
+
 /** A mode's colour by how bright it is (Lydian 1 … Locrian 0): show=brightness, and what a plugin draws a day's blocks with. */
 export const blockColour = (light: number) => `hsl(45 ${30 + 60 * light}% ${14 + 62 * light}%)`;
 
