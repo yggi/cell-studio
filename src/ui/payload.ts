@@ -51,8 +51,10 @@ export function valuesOf(program: CompileResult, view: CellView | null, cell: st
 export type Payload = 'wave' | 'ticks' | 'notes' | 'levels';
 const NOTE_PORTS = new Set(['voice', 'trigger', 'midi', 'pitch', 'play', 'write']);
 export function payloadOf(band: string, port: string, pointer: boolean): Payload | null {
+  // (a reference stays still whatever it points at, D6: a pointer to a sound shows where it comes from, it carries none)
+  if (pointer) return null;
   if (band === 'audio') return 'wave';
   if (band === 'sync') return 'ticks';
-  if (band !== 'cv' || pointer) return null;
+  if (band !== 'cv') return null;
   return NOTE_PORTS.has(port) ? 'notes' : 'levels';
 }

@@ -8,13 +8,12 @@ import { payloadOf, shapeOf, valuesOf } from './payload';
 describe('which payload an edge carries while it plays (docs/notes/edge-styles.md §2)', () => {
   it('sound a wave, a clock’s ticks a train, a melody its notes, any other value a level', () => {
     expect(payloadOf('audio', 'mix', false)).toBe('wave');
-    // (a sound spliced in travels too, though the wire is a reference)
-    expect(payloadOf('audio', 'braid', true)).toBe('wave');
     expect(payloadOf('sync', 'step', false)).toBe('ticks');
     for (const port of ['voice', 'trigger', 'midi', 'pitch', 'play', 'write']) expect(payloadOf('cv', port, false)).toBe('notes');
     for (const port of ['lpf', 'level', 'env', 'velocity', 'gate']) expect(payloadOf('cv', port, false)).toBe('levels');
   });
-  it('a pointer stays still (D6), and a note’s link carries nothing', () => {
+  it('a pointer stays still (D6), a sound it splices in too, and a note’s link carries nothing', () => {
+    expect(payloadOf('audio', 'braid', true)).toBeNull();
     expect(payloadOf('cv', 'braid', true)).toBeNull();
     expect(payloadOf('cv', 'over', true)).toBeNull();
     expect(payloadOf('none', 'about', false)).toBeNull();
