@@ -29,7 +29,7 @@ function byPort(e: GraphEdge, program: CompileResult) {
     return { phaseCell: trigger(voice), voice };
   }
   // (a sound spliced into its reader, #238: a mix into the sound card or a scope, a voice into a pattern of voices)
-  if (e.port === 'braid' && e.band === 'audio') return { phaseCell: null, voice: nameOf(e.from) };
+  if (e.port === 'braid' && e.band === 'audio') return { phaseCell: null, voice: e.sound ?? nameOf(e.from) };
   // (into a MIDI card, #208: the voice its notes are played on — a voice, a product's, or what a cell named plays)
   if (e.port === 'midi') {
     const [from, to] = [nameOf(e.from), nameOf(e.to)];
@@ -100,6 +100,27 @@ describe('what an edge carries: one lookup by band and port', () => {
     expect(edge('left', 'out').band).toBe('audio');
     expect(edge('riff', 'tune').band).toBe('cv');
     expect(carried(edge('riff', 'tune'), program)).toEqual({ phaseCell: null, voice: null });
+  });
+});
+
+describe('sound up through patterns (#273): a pattern of voices spliced into another carries sound', () => {
+  const edge = (source: string, from: string, to: string) => {
+    const program = compileSource(source);
+    const e = buildGraph(program).edges.find((x) => x.from === `cell:${from}` && x.to === `cell:${to}`);
+    return { e: e!, program };
+  };
+  it('IDM: the voice into its pattern and the pattern into the break are both sound, the break coloured by its first voice', () => {
+    expect(edge(PRESETS.idm.source, 'bd', 'pat').e.band).toBe('audio');
+    const { e, program } = edge(PRESETS.idm.source, 'pat', 'break');
+    expect(e.band).toBe('audio');
+    expect(carried(e, program).voice).toBe('bd');
+  });
+  it('Brothers: the break into its tracker is sound', () => {
+    expect(edge(PRESETS.brothers.source, 'break', 'tracker').e.band).toBe('audio');
+  });
+  it('Drums with a song of grooves: the groove into the song is sound', () => {
+    const { e } = edge(`${PRESETS.drums.source}\n&song step=&bar &groove &groove`, 'groove', 'song');
+    expect(e.band).toBe('audio');
   });
 });
 

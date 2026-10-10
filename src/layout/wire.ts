@@ -266,7 +266,8 @@ export function rippled(d: string, amp = 2.5, period = 11): string {
   // (a position not yet a number: as it is, never a loop without end)
   if (pts.length < 2 || !(length >= 1) || !Number.isFinite(length)) return d;
   const turns = Math.max(1, Math.round(length / period));
-  const n = Math.max(8, Math.ceil((length / period) * 6));
+  // (six points a cycle; at most 4,000, as long as any edge drawn: a runaway length can't build a runaway path)
+  const n = Math.min(4000, Math.max(8, Math.ceil((length / period) * 6)));
   const out: Pt[] = [];
   for (let k = 0, j = 1; k <= n; k++) {
     const s = (length * k) / n;
