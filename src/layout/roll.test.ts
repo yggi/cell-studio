@@ -5,7 +5,7 @@ import { parse } from '../engine/parser';
 import { PRESETS } from '../engine/presets';
 import { codeShifts } from '../engine/program';
 import { playedCells } from '../engine/clocking';
-import { frameOf, fromBraid, ghostsOf, MAX_ROWS, readBraid, remove, resize, rolls, rowRange, rowsFor, tableOf, tooWide, toBraid, toggle, type Roll } from './roll';
+import { frameOf, freeBraidOf, fromBraid, ghostsOf, MAX_ROWS, readBraid, remove, resize, rolls, rowRange, rowsFor, tableOf, tooWide, toBraid, toggle, type Roll } from './roll';
 
 const roll = (text: string): Roll => {
   const r = readBraid(text.split(' ').filter(Boolean));
@@ -330,5 +330,21 @@ describe('which cells roll, and their ghosts', () => {
       [1, 0.5, 0],
       [1.5, 0.5, 2],
     ]);
+  });
+});
+
+describe('a braid left free in the roll (#210)', () => {
+  const RIFF = '&key scan(2 2 1 2 2 2 1)\n&riff over=&key step=4 free(0 2 4 ~ [0,4]@2 ~ ~)\n&v s=sine\n&out map=sample [&riff * &v]';
+  it('reads its steps as they play (a take held, else as written); an edit is the text a take would hold', () => {
+    const r = compileSource(RIFF);
+    expect(rolls(r, 'riff')).toBe(true);
+    const free = freeBraidOf(r, 'riff')!;
+    expect(free.spec.key).toBe('braid');
+    const read = readBraid(free.words);
+    expect(read.ok && toBraid(read.roll)).toEqual(['0', '2', '4', '~', '[0,4]@2', '~@2']);
+    const held = compileSource(RIFF.replace('free(0 2 4 ~ [0,4]@2 ~ ~)', 'free(7 ~ 0@2 ~ ~ ~ ~)'));
+    const again = readBraid(freeBraidOf(held, 'riff')!.words);
+    expect(again.ok && toBraid(toggle(again.roll, 1, 2))).toEqual(['7', '2', '0@2', '~@4']);
+    expect(freeBraidOf(r, 'key')).toBeNull();
   });
 });

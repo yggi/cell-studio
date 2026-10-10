@@ -41,6 +41,7 @@ Tests are `*.test.ts` beside their source, in node (no isolation between files, 
   - `await cellStudio.measure(seconds?)` renders offline, returns `{ rms, peak, clipped }` (dB below full scale; `clipped` counts samples at the ceiling).
   - `cellStudio.length()`: default render length in seconds.
   - `cellStudio.level(name)`: a voice's current peak level, or `null`.
+  - `cellStudio.transport()`: `{ state, seconds }`, the transport's state and where the piece is heard (code seconds).
   - `await cellStudio.render(source, seconds?)`: renders any source (not only the open piece); adds `hash` (of the samples) and `blocks` (the level of every 2048 samples).
   - `cellStudio.engine()`: how the engine's windows went (which engine, how many, compute and round-trip ms, how many a worker answered too late).
 - **The same sound** means two renders whose levels agree block by block (every 2048 samples) within −100 dB: far below hearing and below the 0.1 dB the loudness checks work in. Bit for bit is neither reachable nor needed (below).

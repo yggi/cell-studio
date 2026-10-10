@@ -4,7 +4,7 @@
  * to the audible (a voice at its pitch), with the sound card outside, above everything. As rows for the layered drawing
  * (`towerRanks`), the rows by time instead of by the signal path: a probe (`LayoutOptions.ranks`), off by default.
  */
-import type { CompileResult } from '../engine/program';
+import { isMidiCard, type CompileResult } from '../engine/program';
 import type { GraphModel } from '../engine/graph';
 import { cellId } from '../engine/ids';
 
@@ -34,13 +34,14 @@ export function towerOf(program: CompileResult, model: GraphModel, at: TowerAt =
   for (let grew = true; grew;) {
     grew = false;
     for (const e of model.edges)
-      if ((e.port === 'braid' || e.port === 'over') && sounding.has(e.from) && !sounding.has(e.to) && !cellOf.get(e.to)?.sink) {
+      if ((e.port === 'braid' || e.port === 'over') && sounding.has(e.from) && !sounding.has(e.to) && !cellOf.get(e.to)?.sink && !isMidiCard(cellOf.get(e.to))) {
         sounding.add(e.to);
         grew = true;
       }
   }
   for (const [id, c] of cellOf) {
-    if (c.sink) v.set(id, Infinity);
+    // (the sound card and a MIDI card: where the notes end, above everything)
+    if (c.sink || isMidiCard(c)) v.set(id, Infinity);
     else if (c.voice && c.freq > 0) v.set(id, Math.log10(c.freq));
     // (an instrument with no pitch, noise, a kit, a resonator: in the audible zone all the same, at its filter if it has one)
     else if (c.voice || instruments.has(id)) v.set(id, Math.log10(Number(c.params.hpf ?? c.params.lpf) || 1000));

@@ -3,6 +3,7 @@
  * (layered.ts), a fresh graph's nodes put there and an edit's new ones beside their parents (startNodes), and the rows'
  * order chosen for a graph by its shape (rowsKey; the trial itself is physics.ts: bestRowOrder).
  */
+import { isMidiCard } from '../engine/program';
 import { feeds, structureKey, type GraphModel, type GraphNode } from '../engine/graph';
 import { fitTurns, tapeFaces } from './aims';
 import { layered } from './layered';
@@ -161,9 +162,9 @@ export function columns(model: {
   return col;
 }
 
-/** Where a node is drawn to: the sound card up-centre, meters down-centre. */
+/** Where a node is drawn to: the sound card (and a MIDI card) up-centre, meters down-centre. */
 function endOf(n: GraphNode): 'top' | 'bottom' | null {
-  if (n.cell?.sink) return 'top';
+  if (n.cell?.sink || isMidiCard(n.cell)) return 'top';
   if (n.kind === 'cell' && n.isMeter) return 'bottom';
   return null;
 }

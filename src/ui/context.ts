@@ -66,6 +66,15 @@ export interface GraphContext {
   readonly sound: LiveSource;
   /** Cells sounding from the keys now (graph ids: state/keys.svelte.ts `lit`): live, as a strike's are. */
   readonly played?: ReadonlySet<string>;
+  /** A cell's rows played live (the piano roll's key column, #251), through the keys' path (state/keys.svelte.ts); absent: the keys only light. */
+  readonly rows?: RowKeys;
+}
+
+/** A row of a cell (a number written in it, with laps) pressed and let go, and the rows down now (pressed or held by the pedal). */
+export interface RowKeys {
+  press(cell: string, value: number): void;
+  release(cell: string, value: number): void;
+  held(cell: string): ReadonlySet<number>;
 }
 
 export const [getGraphContext, setGraphContext] = createContext<GraphContext>();

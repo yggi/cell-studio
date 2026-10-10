@@ -341,6 +341,8 @@ export function createVoices(Tone: ToneNS): VoiceBank {
     },
 
     play(note: Played) {
+      // (sent on a MIDI card and on no sound card: MIDI out has it, nothing here sounds it)
+      if (note.unheard) return;
       const b = built.get(note.voice);
       if (!b) return;
       const sounds = playNote(Tone, ctx, b, note, (name) => built.get(name));
@@ -356,7 +358,7 @@ export function createVoices(Tone: ToneNS): VoiceBank {
       // (now, at Tone.immediate(), not through the look-ahead: playNote starts it a few milliseconds on, from silence; it
       // lasts until released, or an hour)
       const at = ctx.currentTime;
-      const played = playNote(Tone, ctx, b, { at, dur: 3600, voice, freq, bends: [], gains: [level, level], levels: [{ at, level: 1 }] }, (name) => built.get(name));
+      const played = playNote(Tone, ctx, b, { at, dur: 3600, voice, freq, bends: [], gains: [level, level], levels: [{ at, level: 1 }] }, (name) => built.get(name), true);
       const n = played && b.live.get(played.osc);
       if (played && n) {
         b.live.set(played.osc, { ...n, held: true });

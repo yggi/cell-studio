@@ -3,12 +3,14 @@
    * One free(…) value as a control: a slider, a keypad (named choices) or a text field. `row` is the
    * compact one of the controls drawer (its name, the control, its value); `large` the one of a cell's
    * sheet (the value above the slider, its range under it). What it changes, `onfree` writes. With MIDI connected it
-   * can learn a knob (LearnButton); a knob not yet at the value shows on the slider as the gap between them.
+   * can learn a knob (LearnButton); a knob not yet at the value shows on the slider as the gap between them. A braid left
+   * free (free(0 2 4 ~)) shows its steps, a take's while one is held, with Keep and Revert for it.
    */
   import type { FreeSpec } from '../engine/ast';
   import Keypad from './Keypad.svelte';
   import LearnButton from './LearnButton.svelte';
   import { getStudio } from './state/studio.svelte';
+  import { freeIndex } from '../engine/held';
   import { freeAmount, freeAt, freeKey, freeLabel, freePosition, freeSteps, freeValue } from './free';
 
   let {
@@ -24,7 +26,9 @@
     owner?: string;
   } = $props();
 
-  const { learn } = getStudio();
+  const { learn, piece, recorder } = getStudio();
+  // a braid: a take held in its place (Keep writes it, Revert lets it go)
+  const held = $derived(f.key === 'braid' && piece.held.has(freeIndex(piece.program, f)));
   // the slider runs over whole steps 0…n, through the control's own scale (free.ts: a knob goes the same way)
   const steps = $derived(freeSteps(f));
   const at = $derived(Math.round(freePosition(f, f.value) * steps));
@@ -37,7 +41,7 @@
     onfree(f, v);
     learn.moved(f, v);
   };
-  const place = $derived(learn.connected && f.key !== 'text' ? learn.placeOf(f) : '');
+  const place = $derived(learn.connected && f.key !== 'text' && f.key !== 'braid' ? learn.placeOf(f) : '');
   const name = $derived(owner ? `${owner}: ${freeKey(f)}` : freeKey(f));
   // a knob that hasn't reached the value yet: the stretch between the two, in % of the slider
   const gap = $derived.by(() => {
@@ -60,7 +64,28 @@
   </span>
 {/snippet}
 
-{#if variant === 'row'}
+{#snippet braid()}
+  <div class="braidfree" class:row={variant === 'row'}>
+    <span class="what">{held ? 'braid, held (not in the code yet)' : 'braid'}</span>
+    <code>{f.braid}</code>
+    {#if held}
+      <span class="takes">
+        <button class="unstyled" onclick={() => piece.revert(f)} title="Back to the braid the code says">Revert</button>
+        <button class="unstyled keep" onclick={() => piece.keep(f)} title="Write it into the code">Keep</button>
+      </span>
+    {:else if variant === 'large'}
+      <span class="hint"
+        >{recorder.target?.spec.span.line === f.span.line && recorder.target?.spec.span.col === f.span.col
+          ? 'Press ● (record) and play a pass on the keys: it is held here until Keep.'
+          : 'Arm this cell (its sheet open, or Play with in the MIDI dialog), then ● records a pass from the keys.'}</span
+      >
+    {/if}
+  </div>
+{/snippet}
+
+{#if f.key === 'braid'}
+  {@render braid()}
+{:else if variant === 'row'}
   <div class="ctl" class:midi={!!place}>
     <span class="k">{freeKey(f)}</span>
     {#if f.key === 'text'}
@@ -173,6 +198,48 @@
     border: 1px solid var(--line);
     background: var(--code-bg);
     color: var(--text);
+  }
+
+  /* ---- a braid left free: its steps, a take held, Keep and Revert */
+  .braidfree {
+    display: grid;
+    gap: 4px;
+  }
+  .braidfree.row {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 8px;
+    margin: 4px 0;
+  }
+  .braidfree .what {
+    font: 600 13px var(--font-ui);
+    color: var(--text-muted);
+  }
+  .braidfree code {
+    font: 700 15px var(--font-code);
+    color: var(--text);
+    overflow-wrap: anywhere;
+  }
+  .braidfree.row code {
+    font-size: 12px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .takes {
+    display: flex;
+    gap: 12px;
+  }
+  .takes button {
+    font: 600 13px var(--font-ui);
+    color: var(--text-muted);
+  }
+  .takes .keep {
+    color: var(--accent);
+  }
+  .braidfree .hint {
+    font: 12px var(--font-ui);
+    color: var(--text-faint);
   }
 
   /* ---- large: a cell's sheet */

@@ -20,6 +20,7 @@ The full hierarchy of `docs/`. Start with [MEMORY.md](MEMORY.md).
 - [language/free.md](language/free.md) — `free()`
 - [language/mix.md](language/mix.md) — mixes and the sound card
 - [language/sound.md](language/sound.md) — voices, envelopes, volumes
+- [language/midi.md](language/midi.md) — MIDI cards: `map=midi`, a piece's MIDI channels
 - [language/physics.md](language/physics.md) — motors, belts, tape, resonators, FM
 - [language/display.md](language/display.md) — titles, tags, labels, `show=`, `level=`
 - [language/plugins.md](language/plugins.md) — a piece's own `show=`: a block of code in the piece

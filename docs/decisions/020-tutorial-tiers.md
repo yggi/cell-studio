@@ -1,10 +1,10 @@
-# 018 · The tutorial is eight stable tiers, not thirty numbered rungs
+# 020 · The tutorial is nine stable tiers, not thirty numbered rungs
 
 **Date:** 2026-10-10 · **Status:** accepted (owner's request) · supersedes the rungs of [009](009-tutorial-ladder.md)
 
 ## Decision
 
-- **The rungs collapse into eight tiers**, consecutive runs of the old rungs, so every old piece keeps its prerequisites: 1 Steps and sound · 2 Time and voice · 3 Melody and harmony · 4 Rhythm and feel · 5 Development · 6 Sound and tuning · 7 Physics · 8 Tape, text and time. `TIERS` in `engine/ladder.ts` lists each tier's forms.
+- **The rungs collapse into eight tiers**, consecutive runs of the old rungs, so every old piece keeps its prerequisites: 1 Steps and sound · 2 Time and voice · 3 Melody and harmony · 4 Rhythm and feel · 5 Development · 6 Sound and tuning · 7 Physics · 8 Tape, text and time. A ninth was added at the end for what came after (the gate, a braid left to the performer, the MIDI card): 9 Gates, performing and MIDI. A tier is added at the end, never between. `TIERS` in `engine/ladder.ts` lists each tier's forms.
 - **`tier=n` replaces `rung=n` on the card.** A piece has a tier and no number of its own; the order within a tier is the library's (`ORDER`).
 - **A tier's pieces together show all of its forms** (the old rule was one piece per concept, showing all of it). A piece may use the forms of its tier and of the tiers before it, not later ones. The test checks both, and that each form is on exactly one tier.
 - **A variation is a new file** in the tier, listed in `ORDER` where it reads best: no renumbering, no card changes. A new tier goes at the end.

@@ -165,9 +165,9 @@ export function cellView(result: CompileResult, name: string, shifts: Shifts, is
     }
   };
 
-  if (c.mix || c.sink) {
-    // a mix: one slice per voice; the sound card: one per channel
-    const k = c.mix ? c.mix.length : c.units.length;
+  if (c.mix || c.sink || c.map?.kind === 'midi') {
+    // a mix: one slice per voice; the sound card, a MIDI card: one per channel (a MIDI card's x!n takes n)
+    const k = c.mix ? c.mix.length : c.map?.kind === 'midi' && c.map.channel === null ? c.units.reduce((n, u) => n + u.repeat, 0) : c.units.length;
     const segments = Array.from({ length: k }, (_, index) => ({ t0: index / k, t1: (index + 1) / k, index, bands: [{ kind: 'ref' } as Fill] }));
     return { mode: 'grid', segments, ticks: k, detents: 1 };
   }
@@ -330,6 +330,10 @@ export function hubLabel(result: CompileResult, name: string, shifts: Shifts, is
     return { big: c.units.length === 2 ? 'L R' : String(c.mix.length), small: rate ? `${+(rate / 1000).toFixed(1)}k` : 'out' };
   }
   if (c.mix) return { big: String(c.mix.length), small: c.mix.length === 1 ? 'voice' : 'voices' };
+  if (c.map?.kind === 'midi') {
+    const slot = c.map.port === 1 ? '' : ` · slot ${c.map.port}`;
+    return c.map.channel === null ? { big: 'MIDI', small: `ch 1–${c.units.reduce((n, u) => n + u.repeat, 0)}${slot}` } : { big: 'MIDI', small: `ch ${c.map.channel}${slot}` };
+  }
   if (c.sink) {
     const clock = result.clocks.get(name);
     const rate = clock ? clock.perSecond / Math.max(1, c.steps) : 0;

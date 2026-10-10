@@ -33,7 +33,7 @@ The first cell with `title=` is the piece's card: its title names the piece (and
 
 ## The tutorial: tier=
 
-**tier=n** on a piece's card puts it in a tier of the tutorial, which runs from the first steps to physics in eight tiers: `&piece title="Steps: a tune on one line" tags="tutorial" tier=1 …`. The library draws the tutorial as a cell of its own beside the wheel of pieces, tier by tier; a piece with `tier=` carries the `tutorial` tag. Only a card takes it (anywhere else it is an error).
+**tier=n** on a piece's card puts it in a tier of the tutorial, which runs from the first steps to physics in nine tiers: `&piece title="Steps: a tune on one line" tags="tutorial" tier=1 …`. The library draws the tutorial as a cell of its own beside the wheel of pieces, tier by tier; a piece with `tier=` carries the `tutorial` tag. Only a card takes it (anywhere else it is an error).
 
 A tier is a stretch of the language: a set of forms of the [reference](reference.md), each form on exactly one tier. Its pieces, as many as it needs (the lowest tier has the most, and the smallest), together show every form the tier introduces, and none uses a form of a later tier. `TIERS` in `src/engine/ladder.ts` lists the forms of each tier and the tiers' names; its test reads what every piece uses and fails on a form used before its tier, a form of a tier that none of its pieces shows, or a form on no tier. A new form in the reference needs a tier (and a piece of that tier needs to use it).
 

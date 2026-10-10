@@ -3,7 +3,8 @@
    * MIDI on this device: connect, the output and the input chosen, and All notes off. A port chosen before that isn't
    * plugged in shows as "Not connected". With an output, how the piece goes out (#205): the built-in sound on or off,
    * each voice's channel, the kit's members with the notes they send (a device's drum map, from a preset), the bend
-   * range and the rotation of notes over channels; whether it is sent MIDI clock (#206). The keys (#207): which cell they play, the computer keys, thru. The pattern is Jambot's SoundPanel (yggi/jambot apps/web/src/components/SoundPanel.svelte @ 8cdb6b8).
+   * range and the rotation of notes over channels; whether it is sent MIDI clock (#206). A piece with MIDI cards (#208)
+   * sets its channels itself: the table says so, and the output slots its cards name each get a device here. The keys (#207): which cell they play, the computer keys, thru. The pattern is Jambot's SoundPanel (yggi/jambot apps/web/src/components/SoundPanel.svelte @ 8cdb6b8).
    */
   import Dialog from './kit/Dialog.svelte';
   import LearnSettings from './LearnSettings.svelte';
@@ -50,6 +51,29 @@
       </select>
     </label>
     <LearnSettings />
+    {#if midi.slots.length}
+      <table>
+        <caption>Output slots this piece uses</caption>
+        <tbody>
+          {#each midi.slots as s (s.slot)}
+            <tr>
+              <th scope="row">Slot {s.slot}</th>
+              <td>
+                {#if s.slot === 1}
+                  {midi.outPortId === 'none' ? 'No device: choose an output above' : absent(midi.ports.outputs, midi.outPortId) ? 'Not connected' : 'The output above'}
+                {:else}
+                  <select aria-label="Device of slot {s.slot}" value={s.id} onchange={(e) => midi.chooseSlot(s.slot, e.currentTarget.value)}>
+                    <option value="none">No device: not sent</option>
+                    {#each midi.ports.outputs as p (p.id)}<option value={p.id}>{p.name}</option>{/each}
+                    {#if absent(midi.ports.outputs, s.id)}<option value={s.id}>Not connected</option>{/if}
+                  </select>
+                {/if}
+              </td>
+            </tr>
+          {/each}
+        </tbody>
+      </table>
+    {/if}
   {/if}
   <KeysSettings output={!!midi.access && midi.outPortId !== 'none'} />
   {#if midi.access && midi.outPortId !== 'none'}
@@ -59,15 +83,19 @@
       {#if midi.sendClock && !midi.meter}<p class="message" role="status">This piece has no meter, so no clock is sent.</p>{/if}
       {#if midi.table?.voices.length}
         <table>
-          <caption>Voices and their channels</caption>
+          <caption>Voices and their channels{midi.table.byPiece ? ': set by the piece' : ''}</caption>
           <tbody>
-            {#each midi.table.voices as v (v.voice)}
+            {#each midi.table.voices as v (`${v.voice} ${v.channel} ${v.port ?? 1}`)}
               <tr>
                 <th scope="row">&{v.voice}</th>
                 <td>
-                  <select aria-label="Channel of {v.voice}" value={v.channel} onchange={(e) => midi.setChannel(v.voice, num(e))}>
-                    {#each CHANNELS as c (c)}<option value={c}>Channel {c}</option>{/each}
-                  </select>
+                  {#if midi.table.byPiece}
+                    Channel {v.channel}{midi.slots.length > 1 ? `, slot ${v.port ?? 1}` : ''}
+                  {:else}
+                    <select aria-label="Channel of {v.voice}" value={v.channel} onchange={(e) => midi.setChannel(v.voice, num(e))}>
+                      {#each CHANNELS as c (c)}<option value={c}>Channel {c}</option>{/each}
+                    </select>
+                  {/if}
                 </td>
               </tr>
             {/each}
@@ -77,7 +105,7 @@
       {#if midi.table?.kit.length}
         <table>
           <caption>
-            Kit on channel 10
+            {midi.table.byPiece ? 'Kit, on the channel its card says' : 'Kit on channel 10'}
             <select
               aria-label="Drum map"
               value={preset}
@@ -130,7 +158,7 @@
       </label>
       <label class="check">
         <input type="checkbox" checked={midi.rotate !== null} onchange={(e) => (midi.rotate = e.currentTarget.checked ? { from: 2, to: 16 } : null)} />
-        A channel for each note (MPE), for microtonal pieces
+        A channel for each note (MPE), for microtonal pieces{midi.table?.byPiece ? ' (not for a piece with MIDI cards: they say the channels)' : ''}
       </label>
       {#if midi.rotate}
         <label class="inline">
