@@ -85,6 +85,27 @@ The arrangements: Hypercell, Cellscape, Korobeiniki, Pop. Then 5 to 12's day, BW
    The mean over time is the wrong summary for the form: averaged, a cone is spread thin. The form needs the cones found in time, not peaks in the mean.
 7. **An alias that wasn't.** In the day, peaks at 3.5 and 7.5 s first looked like aliasing (3 samples a second against a 0.71 s pulse). The same ten minutes at 50 a second have bumps there too, below the peak threshold, so they are the bell's groupings. The Gaussians stay, because rounding to so few samples would alias.
 
+## One chart, three signals
+
+Each signal hears a kind of boundary (below), so the three that differ most share one chart, a colour each, added:
+- **red**: envelope (sound against silence: breaks);
+- **green**: change (new pitches, entries);
+- **blue**: voices (density, pulse; it largely covers impulses).
+
+Two together mix (yellow: red and green; cyan: green and blue; magenta: red and blue), and all three make white. A colour's brightness is how far its signal stands above its period's mean, from the mean to 10 dB above. Each signal's cones are rings in its colour, filled when they land on a section (`node tools/probe/scalogram-sheets.mjs json/ pics/ combined`, or `contact combined`).
+
+![Hypercell, combined](scalogram-hypercell-combined.jpg)
+![Pop, combined](scalogram-pop-combined.jpg)
+![the library, combined](scalogram-library-combined.jpg)
+
+In Hypercell each kind of section has its colour:
+- the first drop (the beat coming in) is blue;
+- the breaks are red;
+- the drops after a build are white (all three at once);
+- groove and build are thin green.
+
+In Pop the verse's entry and the choruses are yellow-white, and the break and the outro are red and magenta.
+
 ## The cones against the written boundaries
 
 The question: is a written boundary heard as a cone, and is a cone a written boundary? Which signal hears which kind?
