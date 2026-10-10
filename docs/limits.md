@@ -33,6 +33,8 @@ What Cell studio doesn't do yet or does with a catch, documented rather than tra
 
 - Tags start as blocks and hubs pull a cluster as one, but clusters still touch in the largest pieces (30 overlapping pairs over the library; [notes/27-layout.md](notes/27-layout.md)); BWV 847 is wide. A meter's net crosses some edges in the densest pieces (about 12 crossings over the library).
 - A restarted part's playhead shows the global clock, not its own restarted time.
+- A piece with an `anchor=` clock shows its heads at 0 while stopped; they jump to the anchored time of day at Play.
+- Splices nest six deep in a braid's track (`MAX_DEPTH` in `layout/track.ts`); deeper ones are not drawn as bulbs.
 - Notes float near the top; a note can't point at the cell it explains.
 - A column pull (keeping nodes in their symmetric columns while they settle) costs crossings at every strength tried (0.005–0.06): it's a slider, off by default; the columns shape only the start.
 - The layout is more sensitive to node size than it should be: `free()` sliders hang under their node's label but aren't counted in its collision size, and giving them room (even +8 px each) shifts the waltz and per tonos into crossings.

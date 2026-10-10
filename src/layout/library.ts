@@ -51,6 +51,12 @@ export const tagFont = (n: number) => 13 + 2.5 * Math.sqrt(n);
 export const shortTitle = (t: string) => t.split(':')[0];
 /** A piece's title pill, its words at scale 1 (layout units): at the full view a piece is its title. */
 export const PILL = 17;
+/** The tutorial's order: by rung, a piece without one at the bottom (the layout and the picker's cards agree). */
+export const byRung = (a: { readonly rung?: number | null }, b: { readonly rung?: number | null }): number => {
+  const [x, y] = [a.rung ?? Infinity, b.rung ?? Infinity];
+  return x === y ? 0 : x - y;
+};
+
 /** A tutorial piece's title as the library shows it: its rung, then its short title. */
 export const tutorialTitle = (e: { readonly title?: string; readonly id: string; readonly rung?: number | null }) => `${e.rung ?? ''} ${shortTitle(e.title ?? e.id)}`.trim();
 /** A pill's half-width at scale 1: its words (0.58 em a letter) and its padding, at its font. */
@@ -138,7 +144,7 @@ function hash(id: string, salt: number): number {
 function start(all: readonly LibraryEntry[]) {
   // the wheel's pieces; the tutorial's, by rung, are a cell of their own (below)
   const entries = all.filter((e) => !inTutorial(e));
-  const tutorial = all.filter(inTutorial).sort((a, b) => (a.rung ?? Infinity) - (b.rung ?? Infinity) || (a.id < b.id ? -1 : 1));
+  const tutorial = all.filter(inTutorial).sort((a, b) => byRung(a, b) || (a.id < b.id ? -1 : 1));
   const count = new Map<string, number>();
   for (const e of entries) for (const t of e.tags) count.set(t, (count.get(t) ?? 0) + 1);
   const isGenre = (t: string) => (GENRES as readonly string[]).includes(t);

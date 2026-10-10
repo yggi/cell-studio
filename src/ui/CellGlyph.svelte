@@ -4,6 +4,7 @@
 </script>
 
 <script lang="ts">
+  import { DEFAULT_FREQ } from '../engine/program';
   import { onDestroy, untrack } from 'svelte';
   import { blockColour, noteColour } from './theme';
   import { cellView, hubLabel, type CellView, type Fill, type Segment } from '../layout/cellview';
@@ -105,6 +106,13 @@
     walk(track?.bulbs ?? []);
     return out;
   });
+  // (their names, for a screen reader: the wheel's label says what is spliced in)
+  const spliced = $derived(
+    bulbs
+      .map((b) => b.text)
+      .filter(Boolean)
+      .join(' '),
+  );
   // (motion is a hint for slow cells — a step a second or slower; on faster ones it's noise: none)
   const fast = $derived.by(() => {
     if (!cell?.clock) return false;
@@ -153,7 +161,7 @@
     lastBig = big;
   });
   // show=notes, midi, do, degrees: each step named on the ring (when there's room)
-  const base = $derived(cell ? voiceBase(ctx.program, name) : 261.63);
+  const base = $derived(cell ? voiceBase(ctx.program, name) : DEFAULT_FREQ);
   const tonic = $derived(cell ? tonicOf(ctx.program, name) : 0);
   const labels = $derived.by(() => {
     if (tokens?.length || !view.show || !names(view.show)) return [];
@@ -572,7 +580,7 @@
   height={size}
   viewBox="0 0 {size} {size}"
   role={interactive ? 'group' : 'img'}
-  aria-label="&{name}: {label.big} {label.small}"
+  aria-label="&{name}: {label.big} {label.small}{spliced ? `, splicing ${spliced}` : ''}"
 >
   {#if stripes.size}
     <defs>

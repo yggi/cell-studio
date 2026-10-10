@@ -166,7 +166,7 @@ function hold(param: Movable, now: number): void {
 
 /**
  * A pause: every note in the air lets go. A note that has not started is never played; one that sounds drops its gate (its
- * envelope goes into its release from where it is) and stops moving (its bends, volume stream and FM stay as they are), so
+ * envelope goes into its release from where it is) and stops moving (its bends and volume stream stay as they are; its FM modulators play on until the release has ended), so
  * nothing hangs, and what rings after — release, reverb, echo — is left to ring. Parameters that move a voice's filter
  * hold where they are.
  */

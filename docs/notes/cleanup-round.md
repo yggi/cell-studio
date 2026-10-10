@@ -44,7 +44,7 @@ Suggested for one sitting: 1 + 2 + 3 (about a morning). Session 4 after, if a vi
 - #137: `tools/shots.mjs` is merged into the gallery (after the graph probes).
 - #230: bindings are kept across a rename.
 
-Session 1 is done (this branch).
+Sessions 1 and 2 are done (this branch, one PR).
 
 ## Closable now
 
