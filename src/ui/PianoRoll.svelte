@@ -310,7 +310,7 @@
             <!-- the notes -->
             {#each roll.columns as c (c.start)}
               {#each c.rows as r (r)}
-                {#if r >= lo && r <= hi && !(drag?.hit === c && drag.moved)}
+                {#if r >= lo && r <= hi && !(drag?.hit?.start === c.start && drag.moved)}
                   <rect
                     class="note"
                     class:lit={heard !== null && heard >= c.start && heard < c.start + c.len}
