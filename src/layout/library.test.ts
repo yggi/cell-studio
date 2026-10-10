@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { GENRES, PILL, libraryLayout, libraryLayoutAsync, shortTitle, stageOf } from './library';
+import { GENRES, PILL, byRung, libraryLayout, libraryLayoutAsync, shortTitle, stageOf } from './library';
 import { PRESETS } from '../engine/presets';
 import { pieceMeta } from '../engine/parser';
 import { canonicalTags, TUTORIAL } from '../engine/tags';
@@ -146,5 +146,12 @@ describe('a library of nothing but the tutorial', () => {
     const l = libraryLayout(only);
     expect(l.tutorial).toBeTruthy();
     for (const e of only) expect(l.at.get(`p:${e.id}`), e.id).toBeDefined();
+  });
+});
+
+describe('the tutorial order', () => {
+  it('goes by rung, and a piece without one is at the bottom', () => {
+    const pieces = [{ id: 'none' }, { id: 'nine', rung: 9 }, { id: 'null', rung: null }, { id: 'one', rung: 1 }];
+    expect(pieces.sort(byRung).map((p) => p.id)).toEqual(['one', 'nine', 'none', 'null']);
   });
 });

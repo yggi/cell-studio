@@ -11,6 +11,7 @@
   import { getGraphContext, hearing } from './context';
   import { bandFreq, bandsFromFFT, hslToRgb, restingProfile, wheelLUT } from '../layout/spectrum';
   import { gridName, positionOf } from '../engine/helix';
+  import { DEFAULT_FREQ } from '../engine/program';
   import { heardGrid } from '../layout/show';
   import { paletteHsl } from './palette';
   import { noteName } from '../theory/modes';
@@ -20,8 +21,6 @@
   import { timed } from '../audio/stats';
   import { fitFont, hubMax } from '../layout/dial';
   import { wheelGeometry } from '../layout/wheel';
-
-  const C4 = 261.63;
 
   /** hub: what the hub says; without it, the note a voice sounds now (at rest, its pitch 0). */
   let { name, size = 120, hub: fixed = null }: { name: string; size?: number; hub?: { big: string; small: string } | null } = $props();
@@ -51,7 +50,7 @@
     const out = new Uint8ClampedArray(BANDS * LEVELS * 3);
     const g = heardGrid(ctx.program, name);
     const grid = g ? { cycle: ctx.program.cells.get(g)?.cycle ?? 12 } : null;
-    const base = cell?.voice && cell.freq > 0 ? cell.freq : C4;
+    const base = cell?.voice && cell.freq > 0 ? cell.freq : DEFAULT_FREQ;
     for (let b = 0; b < BANDS; b++) {
       const position = g ? positionOf(ctx.program, g, 12 * Math.log2(bandFreq(b, BANDS) / base)) : null;
       for (let i = 0; i < LEVELS; i++) {

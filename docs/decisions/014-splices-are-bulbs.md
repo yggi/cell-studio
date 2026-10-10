@@ -26,4 +26,4 @@ The owner's proposal: the code says which notes come from which motif, and the d
 
 - No sound changes: only the graph is drawn differently (`GraphModel.bulbs`, `layout/track.ts`).
 - The library's layout improves: 100 fewer nodes, crossings 34.8 → 25.2, overlap 12.7 → 0 (`src/layout/quality.baseline.json`).
-- ~~A cell drawn as a bulb can't be tapped open from the graph on its own.~~ Amended with [016](016-arranging-at-the-input.md) (the owner, on the taps' wheel): a bulb is the cell it splices, tapped it opens that cell's sheet, held it switches it off (dimmed); a tap of a meter's bus is a bulb on its table, its sub-net leaving from there (`GraphEdge.bulb`, `bulbAt`).
+- ~~A cell drawn as a bulb can't be tapped open from the graph on its own.~~ Amended with [016](016-arranging-at-the-input.md) (the owner, on the taps' wheel): a bulb is the cell it splices: tapped, it opens that cell's sheet; held, it switches it off (dimmed); a tap of a meter's bus is a bulb on its table, its sub-net leaving from there (`GraphEdge.bulb`, `bulbAt`). It still can't be soloed or dragged on its own: it has no node. (A cell read elsewhere too is a net-ref, drawn hollow.)

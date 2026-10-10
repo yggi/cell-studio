@@ -6,7 +6,7 @@ import type { Edge } from '@xyflow/svelte';
 import type { GraphEdge } from '../engine/graph';
 import { isJunction } from '../engine/ids';
 import { edgeLabel } from '../engine/transform';
-import type { CompileResult } from '../engine/program';
+import { DEFAULT_FREQ, type CompileResult } from '../engine/program';
 import { drawn, edgeStateOf, type State } from '../engine/routing';
 import type { LiveState } from '../engine/live';
 import { physicsOf } from '../engine/clocking';
@@ -45,7 +45,7 @@ function tinesOf(e: GraphEdge, program: CompileResult): number[] | null {
   const c = e.port === 'voice' ? program.cells.get(e.sound ?? nameOf(e.to)) : e.port === 'over' ? program.cells.get(nameOf(e.from)) : undefined;
   if (!c || typeof c.params.body !== 'string' || (c.exciters?.length ?? 0) < 2) return null;
   const f0 = c.freq > 0 ? c.freq : 440;
-  return c.exciters!.map((x) => 12 * Math.log2(f0 / 261.63) + x.shift);
+  return c.exciters!.map((x) => 12 * Math.log2(f0 / DEFAULT_FREQ) + x.shift);
 }
 
 /** What travels along an edge while it is live: whose steps pulse along it (a cell's name), and which voice's note colours it. */
