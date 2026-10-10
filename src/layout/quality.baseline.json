@@ -33,7 +33,7 @@
   "worn": {"cells":10,"crossings":0,"cost":0,"width":646.7,"height":1091.3,"edge":259.7,"overlap":0,"clusters":0,"intruders":0,"aim":5,"start":0.7},
   "dtmf": {"cells":5,"crossings":0,"cost":0,"width":446.7,"height":902.7,"edge":298,"overlap":0,"clusters":0,"intruders":0,"aim":0,"start":0},
   "daytime": {"cells":12,"crossings":0,"cost":0,"width":1099.3,"height":901.7,"edge":197.7,"overlap":0,"clusters":0,"intruders":0,"aim":0,"start":0},
-  "gate": {"cells":9,"crossings":0,"cost":0,"width":903,"height":717,"edge":224,"overlap":0,"clusters":0,"intruders":0,"aim":0,"start":0},
+  "gate": {"cells":15,"crossings":0.3,"cost":0.6,"width":1039.7,"height":951,"edge":271,"overlap":0,"clusters":0,"intruders":0,"aim":0,"start":0},
   "play-in": {"cells":7,"crossings":0,"cost":0,"width":457.3,"height":752.7,"edge":213.3,"overlap":0,"clusters":0,"intruders":0,"aim":0,"start":0},
   "midi-out": {"cells":12,"crossings":0,"cost":0,"width":756.7,"height":734.7,"edge":249.3,"overlap":0,"clusters":0,"intruders":0,"aim":0,"start":0},
   "lullaby": {"cells":8,"crossings":0,"cost":0,"width":570.3,"height":806.7,"edge":213,"overlap":0,"clusters":0,"intruders":0,"aim":0,"start":0},

@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { SAILOR_WITH_KIT } from '../engine/fixtures';
 import { compileSource } from '../engine/compile';
@@ -98,6 +99,14 @@ describe('kits and voices', () => {
     const r2 = compileSource('&bd s=sine step=55\n&sd s=white\n&kit &bd &sd');
     expect(cellView(r2, 'kit', codeShifts(r2), false)!.segments).toHaveLength(2);
     expect(hubLabel(r2, 'kit', codeShifts(r2), false, null)).toEqual({ big: '2', small: 'voices' });
+  });
+});
+
+describe('a table of taps', () => {
+  it('counts its taps as paths at its hub, not steps', () => {
+    const src = readFileSync('tools/gallery/golden/golden.cells', 'utf8');
+    const r = compileSource(src);
+    expect(hubLabel(r, 'parts', codeShifts(r), false, null)).toEqual({ big: '2', small: 'paths' });
   });
 });
 

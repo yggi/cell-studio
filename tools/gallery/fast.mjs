@@ -68,7 +68,13 @@ const slug = (s) =>
     .replace(/[^\w@]+/g, '-')
     .replace(/^-|-$/g, '')
     .toLowerCase();
-await page.waitForSelector('figure[data-kind]', { timeout: 60000 });
+// (nothing drawn: say what the page said, not only that it timed out)
+await page.waitForSelector('figure[data-kind]', { timeout: 60000 }).catch(async (e) => {
+  console.error(problems.length ? problems.join('\n') : e.message);
+  await browser.close();
+  await server.close();
+  process.exit(1);
+});
 await page.waitForTimeout(subject === 'golden' || subject === 'zoom' ? 6000 : 1500); // (the spectra fill in from the made-up sound; a graph lays itself out and frames itself)
 if (subject === 'zoom') {
   // each frame zoomed in on its cells (ZOOM=a,b, or every wheel with bulbs), a close-up of each with room round it
