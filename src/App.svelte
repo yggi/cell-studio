@@ -74,6 +74,7 @@
       focus={view.focus}
       onsheet={(name) => (studio.keys.sheet = name)}
       played={studio.keys.lit}
+      rows={studio.rows}
     />
     {#if piece.stale}
       <p class="stale">Showing the last version that compiled</p>

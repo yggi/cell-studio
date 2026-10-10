@@ -209,6 +209,8 @@ export function playNote(
   b: Built,
   note: Played,
   voiceOf: (name: string) => Built | undefined,
+  /** A key played now (`press`): it starts just after now by design, so it isn't counted late. */
+  live = false,
 ): { at: number; end: number; osc: AudioScheduledSourceNode } | null {
   const { freq, gains, env: noteEnv } = note;
   let { at: time, dur: duration, bends, levels, params } = note;
@@ -229,12 +231,12 @@ export function playNote(
   // much later (> 50 ms), leave it out: it would sound in the wrong place anyway
   const now = ctx.currentTime;
   if (time < now + 0.003) {
-    noteStats.worstLateMs = Math.max(noteStats.worstLateMs, (now - time) * 1000);
+    if (!live) noteStats.worstLateMs = Math.max(noteStats.worstLateMs, (now - time) * 1000);
     if (time < now - 0.05) {
       noteStats.dropped++;
       return null;
     }
-    noteStats.late++;
+    if (!live) noteStats.late++;
     const late = now + 0.003 - time;
     time += late;
     duration = Math.max(0.02, duration - late);

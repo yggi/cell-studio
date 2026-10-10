@@ -23,8 +23,9 @@ export interface MidiHandlers {
   onChange?: () => void;
 }
 
-/** A port's entries, in the order the device gives them. */
-const portOptions = (ports: ReadonlyMap<string, { readonly name: string | null }>): PortOption[] => [...ports].map(([id, port]) => ({ id, name: port.name ?? 'MIDI' }));
+/** A port's entries, in the order the device gives them (a browser may keep an unplugged port listed, marked disconnected: not an entry). */
+const portOptions = (ports: ReadonlyMap<string, { readonly name: string | null; readonly state?: string }>): PortOption[] =>
+  [...ports].filter(([, port]) => port.state !== 'disconnected').map(([id, port]) => ({ id, name: port.name ?? 'MIDI' }));
 
 /** A live Web MIDI connection: the ports plugged in, and which input is listened to. */
 export class MidiAccess {

@@ -183,8 +183,24 @@ export class Midi implements ChosenPorts, NoteSink {
   }
 
   readonly #onVisible = () => {
-    if (document.visibilityState === 'visible' && this.#used.size) this.panic();
+    if (document.visibilityState !== 'visible') return;
+    if (this.#used.size) this.panic();
+    // (keys held from the input while hidden may have lost their note-offs: they let go too)
+    else this.#letGoAll();
   };
+
+  /**
+   * Told when the keys held from the input should all let go: All notes off (the dialog's, or on coming back into
+   * view), and the input changed or unplugged, whose note-offs will never come. The function returned stops it.
+   */
+  letGo(listener: () => void): () => void {
+    this.#letGoers.add(listener);
+    return () => this.#letGoers.delete(listener);
+  }
+  #letGoers = new Set<() => void>();
+  #letGoAll(): void {
+    for (const l of this.#letGoers) l();
+  }
 
   get outPortId(): string {
     return this.#out.id;
@@ -216,7 +232,11 @@ export class Midi implements ChosenPorts, NoteSink {
   async connect(): Promise<void> {
     if (this.connecting) return;
     this.connecting = true;
-    const result = await connectMidi(() => MidiAccess.connect({ onChange: () => this.#changed(), onMessage: (...m) => this.#hearers.forEach((h) => h(...m)) }), this);
+    const result = await connectMidi(
+      () => MidiAccess.connect({ onChange: () => this.#changed(), onMessage: (...m) => this.#hearers.forEach((h) => h(...m)) }),
+      this,
+      () => !this.#disposed,
+    );
     // (disposed while asking: the connection comes too late for anyone, so it is let go, not kept listening)
     if (this.#disposed) result.access?.close();
     else {
@@ -424,6 +444,7 @@ export class Midi implements ChosenPorts, NoteSink {
 
   /** Listen to an input by id, `'all'` or `'none'`. */
   chooseInput(id: string): void {
+    if (id !== this.#in.id) this.#letGoAll();
     this.#in = { id, name: this.ports.inputs.find((p) => p.id === id)?.name ?? '' };
     this.#save();
     this.access?.listen(id);
@@ -446,6 +467,7 @@ export class Midi implements ChosenPorts, NoteSink {
    * forgotten. While playing, a note-off goes too for each note sent ahead, at its start, which CC 123 now can't reach.
    */
   panic(): void {
+    this.#letGoAll();
     // (the piece's other output slots: what was sent there, and All notes off on every channel)
     for (const [n, out] of this.#slotOuts) {
       const slot = this.slotPort(n);
@@ -479,6 +501,9 @@ export class Midi implements ChosenPorts, NoteSink {
   #changed(): void {
     if (this.access) adoptPorts(this.access, this);
     this.#list();
+    // (the input listened to gone: its keys' note-offs will never come)
+    const id = this.#in.id;
+    if (this.access && id !== 'none' && id !== 'all' && !this.access.inputs.some((p) => p.id === id)) this.#letGoAll();
   }
 
   #list(): void {

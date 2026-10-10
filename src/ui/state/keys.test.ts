@@ -55,6 +55,7 @@ function made(code = SONG, { drums = DRUM_PRESETS.GM as DrumMap, claimed }: { dr
   };
   const hearers = new Set<Hearer>();
   const sent: number[][] = [];
+  const letGoers = new Set<() => void>();
   const midi = {
     access: {} as MidiAccess,
     inPortId: 'Keys',
@@ -64,11 +65,16 @@ function made(code = SONG, { drums = DRUM_PRESETS.GM as DrumMap, claimed }: { dr
       return () => void hearers.delete(h);
     },
     send: (d: readonly number[]) => void sent.push([...d]),
+    letGo: (l: () => void) => {
+      letGoers.add(l);
+      return () => void letGoers.delete(l);
+    },
   };
   const keys = new Keys(piece, hands, midi, { claimed });
   cleanups.push(() => keys.dispose());
   const play = (...bytes: number[]) => hearers.forEach((h) => h(new Uint8Array(bytes), 'Keys', 0));
-  return { piece, keys, hands, asked, play, sent, midi };
+  const letGo = () => letGoers.forEach((l) => l());
+  return { piece, keys, hands, asked, play, sent, midi, letGo, letGoers };
 }
 
 describe('press and release: the armed voice, through its table', () => {
@@ -228,6 +234,62 @@ describe('MIDI in', () => {
     ]);
   });
 
+  it("MIDI's let-go (All notes off, the input changed or unplugged) lets every key go and the pedal up; disposed, no longer", () => {
+    const { keys, play, asked, letGo, letGoers } = made();
+    play(0x90, 60, 100);
+    play(0xb0, 64, 127);
+    keys.press(62);
+    letGo();
+    expect(asked.filter((a) => a.startsWith('release')).sort()).toEqual(['release 1', 'release 2']);
+    expect(keys.held.size).toBe(0);
+    play(0x90, 64, 100);
+    play(0x80, 64, 0);
+    expect(asked.slice(-1)).toEqual(['release 3']);
+    keys.dispose();
+    expect(letGoers.size).toBe(0);
+  });
+
+  it('thru: the keys down get their note-offs (and the pedal comes up) when thru goes off, its channel changes, on a let-go and on Stop', () => {
+    const offs = (sent: number[][]) => sent.filter((m) => (m[0] & 0xf0) === 0x80 || (m[0] & 0xf0) === 0xb0);
+    // off
+    let m = made();
+    m.keys.thru = true;
+    m.keys.thruChannel = 2;
+    m.play(0x90, 60, 100);
+    m.play(0xb0, 64, 127);
+    m.keys.press(62);
+    m.sent.length = 0;
+    m.keys.thru = false;
+    expect(offs(m.sent)).toEqual([
+      [0x81, 60, 0],
+      [0x81, 62, 0],
+      [0xb1, 64, 0],
+    ]);
+    m.play(0x80, 60, 0);
+    expect(m.sent).toHaveLength(3); // (off now: nothing more goes out)
+    // the channel moved: offs on the old one, and the key's own note-off later on the new
+    m = made();
+    m.keys.thru = true;
+    m.keys.thruChannel = 2;
+    m.play(0x90, 60, 100);
+    m.sent.length = 0;
+    m.keys.thruChannel = 2; // (the same: nothing)
+    expect(m.sent).toEqual([]);
+    m.keys.thruChannel = 5;
+    expect(m.sent).toEqual([[0x81, 60, 0]]);
+    // a let-go and Stop
+    for (const how of ['letGo', 'stop'] as const) {
+      m = made();
+      m.keys.thru = true;
+      m.keys.thruChannel = 3;
+      m.play(0x90, 60, 100);
+      m.sent.length = 0;
+      if (how === 'letGo') m.letGo();
+      else m.hands.onKeysCut?.();
+      expect(m.sent).toEqual([[0x82, 60, 0]]);
+    }
+  });
+
   it('the settings are kept in this browser', () => {
     const first = made();
     first.keys.thru = true;
@@ -365,6 +427,16 @@ describe("rows: the piano roll's key column (#211)", () => {
     expect(sent).toEqual([
       [0x90, 62, 100],
       [0x80, 62, 0],
+      [0x90, 62, 100],
+      [0x80, 62, 0],
+    ]);
+  });
+  it('a row down gets its note-off through thru when thru goes off', () => {
+    const { keys, sent } = made();
+    keys.thru = true;
+    keys.pressRow('tune', 1);
+    keys.thru = false;
+    expect(sent).toEqual([
       [0x90, 62, 100],
       [0x80, 62, 0],
     ]);

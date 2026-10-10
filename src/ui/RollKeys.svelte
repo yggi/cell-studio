@@ -1,7 +1,7 @@
 <script lang="ts">
   /**
    * The piano roll's key column: one on-screen key per row, aligned with the rows, top the highest. A key reports press
-   * and release (a live note on the cell's voice, once #207's `press`/`release` are wired) and lights while held. The
+   * and release (a live note on the cell's voice, through `studio.keys`) and lights while held. The
    * pointer pattern is Jambot's (`apps/web/src/components/Keyboard.svelte` @ 8cdb6b8): capture on press (in a try: a
    * synthetic or vanished pointer can't be captured), release on up, cancel, a lost capture or the keys going away, so no key sticks.
    */

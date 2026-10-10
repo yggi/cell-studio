@@ -42,6 +42,21 @@ describe('connectMidi', () => {
     expect(message).toBe('MIDI connected: 1 input, 1 output.');
   });
 
+  it('adopts nothing when its owner is gone by the time the connection comes', async () => {
+    const out = fakePort('out-1', 'Synth');
+    const keys = fakeInput('in-1', 'Keys');
+    const settings = chosen('out-1', 'Synth', 'in-1', 'Keys');
+    installMidi(fakeAccess([keys], [out]));
+    const { access } = await connectMidi(
+      () => MidiAccess.connect({}),
+      settings,
+      () => false,
+    );
+    expect(access).not.toBeNull();
+    expect(settings.outPort).toBeNull();
+    expect(keys.onmidimessage).toBeNull();
+  });
+
   it('has no output where none is chosen', async () => {
     const settings = chosen();
     await connect(fakeAccess([], [fakePort('out-1', 'Synth')]), settings);

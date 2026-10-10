@@ -493,3 +493,57 @@ describe('Midi: hearing the input', () => {
     ]);
   });
 });
+
+describe('Midi: letting the keys go', () => {
+  async function listening() {
+    const keys = fakeInput('in-1', 'Keys');
+    const access = fakeAccess([keys, fakeInput('in-2', 'Pads')], [fakePort('out-1', 'Synth')]);
+    installMidi(access);
+    const midi = await made();
+    await midi.connect();
+    midi.chooseInput('in-1');
+    const told = vi.fn();
+    const stop = midi.letGo(told);
+    return { midi, access, told, stop };
+  }
+
+  it('tells on All notes off, on coming back into view (sent anything or not), and until stopped', async () => {
+    const { midi, told, stop } = await listening();
+    midi.panic();
+    expect(told).toHaveBeenCalledTimes(1);
+    comeBack();
+    expect(told).toHaveBeenCalledTimes(2);
+    midi.chooseOutput('out-1');
+    midi.send([0x90, 60, 100]);
+    comeBack(); // (through All notes off: once)
+    expect(told).toHaveBeenCalledTimes(3);
+    stop();
+    midi.panic();
+    expect(told).toHaveBeenCalledTimes(3);
+  });
+
+  it('tells when another input is chosen, not when the same one is', async () => {
+    const { midi, told } = await listening();
+    midi.chooseInput('in-1');
+    expect(told).not.toHaveBeenCalled();
+    midi.chooseInput('all');
+    expect(told).toHaveBeenCalledTimes(1);
+  });
+
+  it('tells when the input listened to is unplugged, not when another port comes or goes', async () => {
+    const { access, told } = await listening();
+    access.inputs.delete('in-2');
+    access.change();
+    expect(told).not.toHaveBeenCalled();
+    access.inputs.delete('in-1');
+    access.change();
+    expect(told).toHaveBeenCalledTimes(1);
+  });
+
+  it('tells when the input listened to stays listed but disconnected', async () => {
+    const { access, told } = await listening();
+    (access.inputs.get('in-1') as unknown as { state: string }).state = 'disconnected';
+    access.change();
+    expect(told).toHaveBeenCalledTimes(1);
+  });
+});
