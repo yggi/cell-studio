@@ -17,6 +17,16 @@ async function connect(access: ReturnType<typeof fakeAccess>, settings: ChosenPo
   return result;
 }
 
+describe('adoptPorts: a port replugged under another id', () => {
+  it('goes by name, and with two ports of one name the first listed is taken', () => {
+    const [a, b] = [fakePort('out-2', 'Synth'), fakePort('out-3', 'Synth')];
+    const settings = chosen('out-1', 'Synth');
+    const ports = [a, b].map((p) => ({ id: p.id, name: p.name }));
+    adoptPorts({ inputs: [], outputs: ports, outputPort: (id) => [a, b].find((p) => p.id === id) ?? null, listen: () => {} }, settings);
+    expect([settings.outPortId, settings.outPort]).toEqual(['out-2', a]);
+  });
+});
+
 describe('connectMidi', () => {
   it('passes on the words when there is no connection', async () => {
     expect(await connectMidi(async () => 'This browser has no Web MIDI.', chosen())).toEqual({ access: null, message: 'This browser has no Web MIDI.' });

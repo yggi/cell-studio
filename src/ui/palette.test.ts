@@ -30,6 +30,11 @@ describe('palette: one function from (band, value, grid) to colour', () => {
     expect(hsl(palette('pitch', 3, null))[0]).toBe(hsl(palette('level', 0.5))[0]);
     expect(hsl(palette('audio', { position: 3, loud: 1 }, null))[1]).toBe(hsl(palette('level', 1))[1]);
   });
+  it('a value that is not a number is the resting neutral, not hsl(NaN …)', () => {
+    expect(palette('level', NaN)).toBe(palette('level', 0));
+    expect(palette('pitch', NaN, { cycle: 12 })).toBe(palette('level', 0));
+    expect(palette('sync', NaN)).toBe('var(--meter-0)');
+  });
   it('level: lightness on one neutral hue, brighter as it rises', () => {
     const [h0, s0, l0] = hsl(palette('level', 0));
     const [h1, s1, l1] = hsl(palette('level', 1));
@@ -124,5 +129,32 @@ describe("tickLevel: the level of a meter's tick", () => {
     expect(bar.leveled).toBe(true);
     expect([0, 1, 2, 3, 8].map((b) => tickLevel(bar, b + 0.3))).toEqual([0, 3, 1, 3, 0]);
     expect([0, 1.5, 2].map((b) => tickLevel(compileSource('&plain scan(1 1 1) step=1').cells.get('plain'), b))).toEqual([0, 1, 1]);
+  });
+});
+
+describe('the scope', () => {
+  it('its small labels (the bins, the ticks) read on the tube: 4.5:1 at least', () => {
+    const css = readFileSync('src/app.css', 'utf8');
+    const hex = (name: string) => {
+      const h = css.match(new RegExp(`--${name}: #([0-9a-f]{6})`))![1];
+      return [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16));
+    };
+    const rgba = (name: string) =>
+      css
+        .match(new RegExp(`--${name}: rgb\\((\\d+) (\\d+) (\\d+) / ([0-9.]+)\\)`))!
+        .slice(1)
+        .map(Number);
+    const lum = ([r, g, b]: number[]) => {
+      const c = (v: number) => (v / 255 <= 0.03928 ? v / 255 / 12.92 : ((v / 255 + 0.055) / 1.055) ** 2.4);
+      return 0.2126 * c(r) + 0.7152 * c(g) + 0.0722 * c(b);
+    };
+    for (const ink of ['scope-ink', 'scope-tick'])
+      for (const face of ['scope-face', 'scope-black']) {
+        const [r, g, b, a] = rgba(ink);
+        const bg = hex(face);
+        const over = [r, g, b].map((v, i) => v * a + bg[i] * (1 - a));
+        const [x, y] = [lum(over), lum(bg)].sort((p, q) => q - p);
+        expect((x + 0.05) / (y + 0.05), `${ink} on ${face}`).toBeGreaterThanOrEqual(4.5);
+      }
   });
 });

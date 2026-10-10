@@ -265,6 +265,8 @@ export class Keys {
 
   // a message from the MIDI input: a note, or the pedal, unless MIDI learn has it
   #heard(data: Uint8Array): void {
+    // (All notes off, All sound off: a controller's panic lets every key go and the pedal up, even a CC that learn has bound)
+    if ((data[0] & 0xf0) === 0xb0 && (data[1] === 123 || data[1] === 120)) return this.panic();
     if (this.#claimed(data)) return;
     const pedal = parseSustain(data);
     if (pedal) {
@@ -292,6 +294,13 @@ export class Keys {
     this.#down.clear();
     this.held.clear();
     this.#typing.clear();
+    this.#pedal = false;
+  }
+
+  /** Every key down lets go now, the pedal comes up: a controller's All notes off, so a lost note-off can't leave a note sounding. */
+  panic(): void {
+    for (const d of this.#down.values()) this.#hands.release(d.id);
+    this.#forget();
   }
 
   readonly #onKeyDown = (e: KeyboardEvent) => {

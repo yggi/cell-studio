@@ -82,7 +82,12 @@ export class RouteAcc {
     for (let g = 0; at && g < 64; g++) {
       const st: ResolvedCell['step'] = this.result.cells.get(at)?.step ?? null;
       if (!st || this.off(st.driver)) break;
-      this.edge(at, st.driver, stepEdgeId(cellId(at), cellId(st.driver)));
+      // (a tap's clock is its table's bus, decision 016: the table reads the tap, the bus clocks the table)
+      const table = this.result.taps?.get(at);
+      if (table && !this.off(table)) {
+        this.edge(table, at);
+        this.edge(table, st.driver, stepEdgeId(cellId(table), cellId(st.driver)));
+      } else if (!table) this.edge(at, st.driver, stepEdgeId(cellId(at), cellId(st.driver)));
       at = st.driver;
     }
     const clock = this.result.cells.get(name)?.clock;
@@ -254,6 +259,8 @@ function route(result: CompileResult, muted: ReadonlySet<string>, outs: readonly
   // the notes of what's heard, and what moves the tapes that are
   for (const o of outs) if (heard.has(sourceOf(o))) notesOf(sound, o, how);
   for (const n of heard) if (keeps(result, n)) sound.clock(n);
+  // a read head's at= clock, as a tape's length=: a tap of the clock (the head sounds, not a tape of notes: notesOf has no say)
+  for (const n of heard) sound.timed(n);
   // an oscilloscope watches: on when what it watches is
   for (const c of result.cells.values())
     if (typeof c.params.scope === 'string' && !sound.off(c.name)) for (const k of c.children.keys()) if (sound.nodes.has(cellId(k))) sound.edge(c.name, k);

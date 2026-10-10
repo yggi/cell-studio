@@ -166,12 +166,42 @@ describe('Midi: All notes off', () => {
     expect(cc123(out)).toEqual([]);
   });
 
+  it('lets go of the ports once disposed, also when the connection comes after', async () => {
+    const keys = fakeInput('in-1', 'Keys');
+    const access = fakeAccess([keys]);
+    navigator.requestMIDIAccess = () => Promise.resolve(access as unknown as MIDIAccess);
+    const midi = new Midi();
+    const asking = midi.connect();
+    midi.dispose();
+    await asking;
+    expect(midi.access).toBeNull();
+    expect(access.onstatechange).toBeNull();
+    expect(keys.onmidimessage).toBeNull();
+  });
+
   it('silences the old output before another is chosen', async () => {
     const { midi, out } = await withOutput();
     midi.send([0x94, 60, 100]);
     midi.chooseOutput('none');
     expect(cc123(out)).toEqual([4]);
     expect(midi.outPort).toBeNull();
+  });
+
+  it('goes on to the other channels when one send fails', async () => {
+    const { midi, out } = await withOutput();
+    midi.send([0x91, 60, 100]);
+    midi.send([0x93, 60, 100]);
+    const send = out.send;
+    let first = true;
+    out.send = (data, timestamp) => {
+      if (data[0] === 0xb1 && first) {
+        first = false;
+        throw new Error('gone');
+      }
+      send(data, timestamp);
+    };
+    midi.panic();
+    expect(cc123(out)).toEqual([3]);
   });
 
   it('survives a port unplugged mid-send', async () => {
