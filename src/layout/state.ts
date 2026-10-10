@@ -87,8 +87,6 @@ export interface LayoutState {
   junctions: Map<string, PhysNode>;
   /** Each junction's angle on its voice's rim, radians. */
   rims: Map<string, number>;
-  /** Where the sound card (top) and the meters (bottom) are drawn to, sideways. */
-  ends: Map<string, { x: number; y: number }>;
   /** The height of each node's rank in the signal path. */
   rankY: Map<string, number>;
   /** Edges per node (busy nodes push harder). */

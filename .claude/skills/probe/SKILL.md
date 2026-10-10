@@ -14,7 +14,10 @@ PROBE=/path/out.txt npx vitest run tools/probe/<topic>.test.ts && cat /path/out.
 
 Probes so far: `tower.test.ts` (every cell's time constants: the frequency tower, selectors, what nothing reads;
 `docs/notes/multiscale.md`), `outputs-top.test.ts` (which way each wire leaves its source, `upPull` and `spread`
-variants; `docs/notes/outputs-top.md`, PR #236).
+variants; `docs/notes/outputs-top.md`, PR #236), `tap-order.test.ts` (whether the layout keeps a table's taps in their
+order, at the start and at rest), `forces.test.ts` (what each force does: the library with one switched off at a time,
+`CUSTOM=` for several; `docs/notes/forces.md`). The library's layout is chaotic: about ±8 crossings between seeds, so
+compare variants on the same several seeds.
 
 ## Writing one
 
