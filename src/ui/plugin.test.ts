@@ -113,6 +113,9 @@ describe('running a plugin', () => {
     ])
       expect(plainAttribute('style', style), style).toBeNull();
     expect(plainAttribute('style', 'fill:image-set(x 1x);stroke:red;position:fixed')).toBe('stroke:red');
+    // a style as long as a value is the limit; longer is dropped whole, however innocent each declaration
+    expect(plainAttribute('style', 'fill:red;'.repeat(1e5))).toBeNull();
+    expect(plainAttribute('style', 'fill:red;'.repeat(200))).not.toBeNull();
   });
 
   it('lets no url( through unless it is closed and the drawing’s own (an unterminated one is a fetch)', () => {

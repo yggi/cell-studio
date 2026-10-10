@@ -86,7 +86,8 @@ function plainStyle(style: string): string | null {
 export function plainAttribute(name: string, value: string | number): string | null {
   if (!ATTRIBUTES.has(name)) return null;
   const text = String(value);
-  if (name === 'style') return plainStyle(text);
+  // (the whole style is bounded like any value, before its declarations are read one by one)
+  if (name === 'style') return text.length > LIMITS.value ? null : plainStyle(text);
   // (an id is the drawing's own: view.uid starts it, so it cannot be one of the app's)
   if (name === 'id') return /^plugin[A-Za-z0-9_-]*$/.test(text) ? text : null;
   return plainValue(text) ? text : null;
