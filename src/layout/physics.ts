@@ -347,7 +347,6 @@ export class ForceLayout {
     return { added, removed, total: next.size, structural };
   }
 
-  /** Where everything is now, as quality.ts reads it: the nodes (a tag's name hides edges, but isn't a cell) and the edges as drawn. */
   /** (probe) What each reader reads, along the flow: [from, to]. */
   private flows: [PhysNode, PhysNode][] = [];
 
@@ -365,6 +364,7 @@ export class ForceLayout {
     }
   }
 
+  /** Where everything is now, as quality.ts reads it: the nodes (a tag's name hides edges, but isn't a cell) and the edges as drawn. */
   private placed() {
     const nodes = [
       ...[...this.s.byId.values()].map((n) => ({ id: n.id, x: n.x ?? 0, y: n.y ?? 0, r: n.radius, tags: n.tags, label: n.role === 'tag' })),

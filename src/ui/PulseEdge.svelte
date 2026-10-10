@@ -68,6 +68,9 @@
   const socket = $derived(OUTPUTS_TOP && d.port !== 'play' && d.port !== 'about' ? (hop ? hop.r : (d.sizes?.from ?? 0) / 2) : 0);
   const fromX = $derived(hop ? hop.x : sourceX);
   const fromY = $derived((hop ? hop.y : sourceY) - socket);
+  // (what the locked paths start from: as before unless the probe's socket is on — a hop's wire started at the source)
+  const lockX = $derived(socket ? fromX : sourceX);
+  const lockY = $derived(socket ? fromY : sourceY);
   // a quadratic spline through the layout's bend point (straight when nothing is in the way)
   const mid = $derived((hop ? undefined : ctx.bends.get(id)) ?? { x: (fromX + targetX) / 2, y: (fromY + targetY) / 2 });
   const control = $derived({ x: 2 * mid.x - (fromX + targetX) / 2, y: 2 * mid.y - (fromY + targetY) / 2 });
@@ -128,7 +131,7 @@
   // (written more than once: a bus, a strand to each place, gathered towards the cell spliced in, through the loom; to
   // bulbs, the loom round the farthest, each strand on in to its own)
   const lockedPaths = $derived.by(() => {
-    if (bulbEnds.length === 1) return [radialPath(fromX, fromY, control, targetX, targetY, bulbEnds[0].r, bulbEnds[0].turn)];
+    if (bulbEnds.length === 1) return [radialPath(lockX, lockY, control, targetX, targetY, bulbEnds[0].r, bulbEnds[0].turn)];
     if (bulbEnds.length > 1) {
       const R = Math.max(...bulbEnds.map((e) => e.r));
       return loomPaths(
@@ -138,8 +141,8 @@
         bulbEnds.map((e) => e.turn),
         mid.x,
         mid.y,
-        fromX,
-        fromY,
+        lockX,
+        lockY,
         2.5 * GAP,
       ).map((p, i) => {
         const [x, y] = polar(targetX, targetY, bulbEnds[i].r, bulbEnds[i].turn);
@@ -147,8 +150,8 @@
       });
     }
     return occurrences.length > 1
-      ? loomPaths(targetX, targetY, rimOf(d.sizes?.to), occurrences, mid.x, mid.y, fromX, fromY, 2.5 * GAP)
-      : occurrences.map((t) => radialPath(fromX, fromY, control, targetX, targetY, rimOf(d.sizes?.to), t));
+      ? loomPaths(targetX, targetY, rimOf(d.sizes?.to), occurrences, mid.x, mid.y, lockX, lockY, 2.5 * GAP)
+      : occurrences.map((t) => radialPath(lockX, lockY, control, targetX, targetY, rimOf(d.sizes?.to), t));
   });
   const path = $derived(d.band === 'audio' ? ripplePath(fromX, fromY, mid.x, mid.y, targetX, targetY) : (lockedPaths[0] ?? spline));
 
