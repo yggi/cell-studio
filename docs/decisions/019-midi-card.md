@@ -1,4 +1,4 @@
-# 018 · MIDI out in the language: a MIDI card, its entries channels
+# 019 · MIDI out in the language: a MIDI card, its entries channels
 
 **Date:** 2026-10-10 · **Status:** accepted (owner, #208)
 

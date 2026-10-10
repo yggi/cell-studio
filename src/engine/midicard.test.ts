@@ -1,4 +1,4 @@
-// A MIDI card (#208, decision 018): map=midi, its entries channels — parsed, compiled, planned, routed, drawn.
+// A MIDI card (#208, decision 019): map=midi, its entries channels — parsed, compiled, planned, routed, drawn.
 import { describe, expect, it } from 'vitest';
 import { parse } from './parser';
 import { compileSource } from './compile';

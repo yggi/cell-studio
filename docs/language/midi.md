@@ -1,6 +1,6 @@
 # MIDI cards
 
-A piece can say where its notes go on MIDI: which voice on which channel, and voices that only go to MIDI. A cell with `map=midi` is a **MIDI card**, the sound card's sibling ([mix.md](mix.md)): the sound card's entries are its audio channels, a MIDI card's are its MIDI channels, in order ([decision 018](../decisions/018-midi-card.md)).
+A piece can say where its notes go on MIDI: which voice on which channel, and voices that only go to MIDI. A cell with `map=midi` is a **MIDI card**, the sound card's sibling ([mix.md](mix.md)): the sound card's entries are its audio channels, a MIDI card's are its MIDI channels, in order ([decision 019](../decisions/019-midi-card.md)).
 
 ```cells
 &theme step=1 0 2 4 5

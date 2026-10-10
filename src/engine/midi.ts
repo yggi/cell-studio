@@ -4,7 +4,7 @@
  * channel 10 under General MIDI drum notes picked by their names. Sending it, at the right moment and with the
  * note-offs worked out, is the browser's business (`src/midi/out.ts`).
  *
- * Two ways a piece's notes find their channels (decision 018): a piece with MIDI cards (map=midi) says it — each note
+ * Two ways a piece's notes find their channels (decision 019): a piece with MIDI cards (map=midi) says it — each note
  * goes where its cards' entries say (`Played.midi`), on their channels and output slots, and nothing else is sent; a
  * piece with none goes out as the app's default output, every voice heard on a channel of its own in the order the
  * piece declares them, which the dialog can change and this browser keeps (docs/ui/midi.md).

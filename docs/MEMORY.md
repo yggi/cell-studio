@@ -62,7 +62,7 @@ One line each; the record has the rationale. → [decisions/](decisions/README.m
 - 015 · `&x^n` moves by degrees (`degree(&x, n)`, relative), `&x^$n` by grid steps (absolute, the old `^n`): `$` is the absolute frame · → decisions/015-caret-is-degrees.md
 - 016 · Arranging at the input: a section is a tap of the meter's bus, declared by a stepped table of names (`&parts step=&bar &keysBar …`) and switched by the selector (it restarts when switched on; it owns only what its tap steps or loops); the selector of mixes is removed (Shorten rewrites it); the switch and the gate node stay two mechanisms for now · → decisions/016-arranging-at-the-input.md
 - 017 · Two tools: Shorten suggests on the piece being written (shorter, and migrations of removed forms), Normalise converges a corpus to one canonical spelling per duplicate, as a command of its own, never offered while writing · → decisions/017-shorten-and-normalise.md
-- 018 · MIDI out in the language: a MIDI card, `map=midi`, its entries channels; `midi(c)` one channel, `midi(c, p)` an output slot the MIDI dialog maps to a device in this browser; a voice only on a card is sent, not heard; a piece with a card sends only what its cards name, one without keeps the default output · → decisions/018-midi-card.md
+- 019 · MIDI out in the language: a MIDI card, `map=midi`, its entries channels; `midi(c)` one channel, `midi(c, p)` an output slot the MIDI dialog maps to a device in this browser; a voice only on a card is sent, not heard; a piece with a card sends only what its cards name, one without keeps the default output · → decisions/019-midi-card.md
 
 ## Where things are tracked
 
