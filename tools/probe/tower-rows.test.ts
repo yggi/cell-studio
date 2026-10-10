@@ -6,7 +6,7 @@
 // the last rows: the arrangement redrawn as gates, layout/gates.ts;
 // VARIANTS=0,1: only those rows)
 import { describe, it } from 'vitest';
-import { appendFileSync } from 'node:fs';
+import { appendFileSync, readFileSync } from 'node:fs';
 import { ForceLayout } from '../../src/layout/physics';
 import { buildGraph } from '../../src/engine/graph';
 import { compileSource } from '../../src/engine/compile';
@@ -143,7 +143,11 @@ describe.runIf(process.env.PROBE)('rows by the frequency tower', () => {
     const only = process.env.ONLY;
     // (PIECES=a,b: exactly those examples, by key)
     const named = process.env.PIECES?.split(',');
-    const pieces = Object.entries(PRESETS).filter(([k]) => (!only || k.toLowerCase().includes(only.toLowerCase())) && (!named || named.includes(k)));
+    // (CELLS=a.cells,b.cells: those sources instead of the examples)
+    const files = process.env.CELLS?.split(',');
+    const pieces = files
+      ? files.map((f) => [f.replace(/^.*\//, '').replace(/\.cells$/, ''), { source: readFileSync(f, 'utf8') }] as const)
+      : Object.entries(PRESETS).filter(([k]) => (!only || k.toLowerCase().includes(only.toLowerCase())) && (!named || named.includes(k)));
     const held = { rankPull: 0.3 };
     const variants: [string, TowerAt | null, number, Partial<LayoutOptions>, boolean?][] = [
       ['today (rows by the signal path)', null, 1, {}],
@@ -169,6 +173,9 @@ describe.runIf(process.env.PROBE)('rows by the frequency tower', () => {
       ['junctions as nodes, gated, spread ½, no clusters, arc 90°', null, 1, { junctionBodies: 1, spread: 0.25, clusters: false, junctionArc: 90 }, true],
       ['junctions as nodes, gated, spread ½, no clusters, arc 150°', null, 1, { junctionBodies: 1, spread: 0.25, clusters: false, junctionArc: 150 }, true],
       ['junctions as nodes, spread ½, no clusters', null, 1, { junctionBodies: 1, spread: 0.25, clusters: false }],
+      // (the meter not special: not placed last, no push between time and sound)
+      ['the meter not special', null, 1, { placeLast: 0, kindRepel: 0 }],
+      ['the meter not special, zones by the tower (emit)', 'emit', 0, { placeLast: 0, kindRepel: 0 }],
     ];
     // (VARIANTS=0,1: only those rows of the table)
     const pick = process.env.VARIANTS?.split(',').map(Number);

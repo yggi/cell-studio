@@ -1,0 +1,22 @@
+&piece title="Arrangement at the input (a probe)" tags="tutorial, arrangement" label="The arrangement tutorial rewired at the input: the song switches which bar each part is stepped by, instead of which part's sound reaches the card." about=&out
+&bar scan(1 1 1 1) step=free(moderato)
+&major scale(major)
+
+# a part is a tap of the bar: what is stepped by it plays, what isn't stands still
+&keysBar step=&bar 0
+&tuneBar step=&bar 0
+&drumBar step=&bar 0
+&parts &keysBar &tuneBar &drumBar
+&song over=&parts step=&bar*16 laps=1 label="intro · verse · chorus · end" 0 [0,2] [0,1,2] 0
+
+&chords over=&major step=&keysBar*4 [0,2,4] [3,5,7] [4,6,8] [0,2,4]
+&tune over=&major step=&tuneBar/2 4 4 5 7 7 5 4 2 0 0 2 4 4@2 2@2
+&kick step=&drumBar 0 ~ 0 ~
+&click off step=&drumBar 12 0 0 0
+
+&keys s=tri loop=C4 env=&(map=adsr .01 .5 .3 .3)
+&lead s=square loop=C5 lpf=2500 env=&(map=adsr .01 .2 .5 .2)
+&rim s=sine loop=E5 env=&(map=adsr 0 .03 0 .02)
+&bd s=sine loop=A1 pitch=0..24 * &(map=adsr 0 .04 0 0) env=&(map=adsr 0 .3 0 .05)
+
+&out map=sample level=6 [&chords * &keys * .15, &tune * &lead * .2, &kick * &bd * .6, &click * &rim * .1]

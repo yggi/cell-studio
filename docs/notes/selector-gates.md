@@ -96,8 +96,69 @@ The cost is everywhere, not in the selectors: the 58 pieces without one go 11.7 
 
 *Pop, the same:* the three tiers, and the gate net running along the junctions as a rail in the middle.
 
+## Round 3: arranging at the input
+
+The owner: *rewire arrangement selection on the other end: not at the output of a mixer, with an inactive section running and stepped but not rendered (which is what leads to the tacets and other couplings), but at the input: switching a section's connection to the meter bus on and off. The meter is not special; unify the buses.*
+
+```
+&parts step=&bar &keysBar &tuneBar &drumBar
+&song over=&parts step=&bar*16 laps=1 label="intro · verse · chorus · end" 0 [0,2] [0,1,2] 0
+&kick step=&drumBar 0 ~ 0 ~
+```
+
+A part is a **tap of the meter bus**; the selector switches which taps are live; whatever a tap steps plays, whatever it doesn't stands still. The parts' sound goes straight out, through no selector. Today this compiles (with #29's warning that a table of cells isn't entries) and draws with every wire written as a token: `&bar → &drumBar → &kick`, `&drumBar → &parts → &song`, `&kick * &bd → &out`. It doesn't sound gated yet; for the layout it is the real graph. The probe pieces are in `tools/probe/pieces/` (`arrangement-input.cells`, `pop-input.cells`; the examples are untouched); the rows probe reads them with `CELLS=`.
+
+| three seeds | crossings | cost | wires up / down |
+|---|---|---|---|
+| Pop today | 0.0 | 0.0 | — |
+| Pop gated at its junctions (the best of round 2, per piece) | ≈ 3–5 | — | — |
+| **Pop arranged at the input**, today's rows | **0.7** | 1.9 | 47 / 4 % |
+| Pop arranged at the input, tower zones | **0.7** | 2.6 | 51 / 5 % |
+| the arrangement tutorial: today / at the input | 0.3 / 0.0 | | |
+
+- **At the input it is nearly free** where every way of gating at the output cost 5 to 35 crossings: the selector gates clocks, not sound, so nothing runs down into it, and no gate wire has to reach the top of the graph.
+- **The tower comes out by itself** (picture below): the form (`&song`, `&parts`) at the bottom, a row of section taps over `&bar`, the melodies over them, the voices and their products on top by `&out`. Trigger at the bottom, sound at the top, as the owner drew it.
+- **The meter is not special already**: each section tap is drawn as a meter of its own (its own colour, its own net), which is right and also a hint for the drawing: the taps are switches *on one bus* (`&bar`'s), and should be drawn as such, not as separate meters. "Meter not special" in the forces (not placed last, no push between time and sound) measured over the library (three seeds): crossings 25.3 → 31.7, most of it in the selector pieces (13.7 → 19.0; the other 58 11.7 → 12.7). So in the forces the meter's own placement (laid out last, where its net costs least) still earns its keep; what unifies is the bus, not the placement: a meter's net is a bus like any other, and its sections are switches on it.
+
+![Pop: today, arranged at the input, at the input with the tower's zones](selector-gates-pop-input.jpg)
+
+*Pop today; arranged at the input; arranged at the input with the tower's zones (`?rows=zones`).*
+
+## A gate node: the owner's sketch, reviewed (for #10)
+
+The sketch: a junction written as a cell, taking voices as its braid, with `trigger=`, `value=`, `velocity=`, `gain=` and `map=gate`:
+
+```
+&leadOut trigger=&tune value=&tune map=gate gain=0.5 velocity=&(1.0 0.5 0.8 0.5) &lead
+&kickOut trigger=&drumBar map=gate &kick
+&kick trigger=&drumBar map=gate &(0 ~ 0 ~)
+```
+
+**What it gets right.**
+- It names what the product hides: today `[&tune * &lead * .5]` folds a trigger (when), a value (which pitch), a level and a voice into one `*`. As ports they get bands (#150): `trigger=` sync, `value=` and `velocity=` CV, the braid audio. The nets note already said melody → voice is a two-wire bus (gate and pitch); this writes the two wires.
+- It makes the junction a named cell, so a node with a body, where a gate can land: round 2's prerequisite, in the language.
+- The product stays as its anonymous form, as `&( … )` is for a named cell (nets decision 2): `[&tune * &lead * .5]` ≡ `&( trigger=&tune map=gate gain=.5 &lead )`. One canonical form, the product its shorthand (#151).
+- With arranging at the input it needs no section gate at all: a part that isn't stepped doesn't trigger. The gate node is a *note* gate; the sections live on the meter bus. Two mechanisms, two scales.
+
+**Where the three lines disagree with each other.** The braid means three different things: a voice (`&lead`), a pattern (`&kick`, which in the sketch above is `0 ~ 0 ~`, not a voice), an inline pattern (`&(0 ~ 0 ~)`). A cell's braid should mean one thing. Proposed: **the braid is what sounds** (voices; several are a kit, picked by `value=`), `trigger=` says when, `value=` which (a pitch for a voice, an index into a kit), and `value=` defaults to the trigger's own values, which is the common case:
+
+```
+&leadOut trigger=&tune map=gate gain=.5 velocity=&(1 .5 .8 .5) &lead   # value= is &tune's
+&kickOut trigger=&kick map=gate &bd                                     # the pattern triggers, the voice sounds
+&drums  trigger=&beat map=gate &bd &sd &hh                              # a kit: &beat's values pick
+```
+
+The lambda form, a pattern inline, then reads `trigger=&(step=&drumBar 0 ~ 0 ~)`: the anonymous cell where the pattern goes.
+
+**Questions it raises.**
+1. **`trigger=` against `step=`.** `step=` advances a cell; `trigger=` fires a note on each onset of another (its rests fire nothing). Is `trigger=&drumBar` (a clock, every tick fires) the same port as `trigger=&kick` (a pattern, its onsets fire)? Proposed yes: a clock is a pattern with an onset every step.
+2. **Resume or restart.** A part whose tap is switched off stands still; switched on again, it goes on from where it stood (a gate). Today's selector restarts a part from its top (a trigger). Both are needed: verse 2 should start at the top of the verse. So the selector sends both, a gate (the tap) and a trigger (a reset of the part's clock on its rising edge): #29's `restart=` ("one rule, two triggers") is that reset.
+3. **What a section owns.** Only what is stepped from its tap (downstream in the step chain) is switched; a vibrato on `loop=6`, a drone on its own clock, a tape's motor go on. That is a rule a beginner can see in the graph (the tap's net), and BWV 847's movements become two taps of `&tempo` (`&form step=&tempo 0@624 1@511` over them), its `&tacet`s gone.
+4. **`map=gate`.** `map=` says how a cell's values become output (`amp`, `lin`, `sample`, `adsr`): `gate` (its braid sounds when triggered) fits. Whether `trigger=` alone should imply it is a spelling choice.
+5. **Velocity and gain** are both levels at the junction: `gain=` constant, `velocity=` per note. They multiply, as factors in a product do today (decision 006).
+
 ## Next
 
-1. **A gate rail**: lay a selector's gates as a bus bar along its junctions' height (their row, or the tree costed to keep to it), the selector at its end, at the bottom of its meter's family (it is stepped by `&bar*16`), its rail running up beside the meter's net: a bus of buses.
-2. **Sockets** on the junctions (#236): their sound out of the top, so the parts' mixes above them take it straight.
-3. The spelling (#29, ⚖ owner), once the drawing pays; until then the gates are a drawing of the model, not the model.
+1. **The taps drawn as switches on one bus**: the meter's net with a switch where each section's tap leaves it, the selector's net reaching the switches; no separate meter per section.
+2. **A spelling** for the tap (a part as a switched tap of the meter bus), the trigger (restart) and the gate node (#29, #10, ⚖ owner); then the engine, and Pop and BWV 847 rewritten as the tests.
+3. The rail and the junction sockets of rounds 1 and 2 are not needed for arranging any more; junction bodies stay a probe for the gate node's drawing.
