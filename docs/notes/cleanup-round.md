@@ -36,14 +36,15 @@ Suggested for one sitting: 1 + 2 + 3 (about a morning). Session 4 after, if a vi
 - After the **graph probes**: #238 banded CV (graph.ts + `flowRanks`), #235 `spread` 0.5 → lower, #194 row-order on the folded model (then drop the timeout bumps), #223 held `free()` re-render, #153, the #229 drawing items, #137 geometry tokens.
 - Own sitting: #228 held tapes (L, browser-verified), #232 `free()` tempo jump (L, after #241 touches `clocking.ts`).
 
-## Owner decisions
+## Owner decisions (2026-10-10)
 
-- #186: where a rung-less `basics` piece sorts (`library.ts` says last, `Picker.svelte` first).
-- #195: a `free()` rate cap at runtime (clamp) or only the compile check.
-- #209: a huge `shift=`: warn or clamp.
-- #137: `tools/shots.mjs`: fold into the gallery or delete.
-- #230: carry on rename (recommended) / prune / key by identity.
-- #209: the layout-quality item is mostly met (crossings 25.2, was 31.5); aim is slightly worse. Close?
+- #186: a tutorial piece without `rung=` goes to the bottom (`Picker.svelte:209` to follow `library.ts`): session 2.
+- #195: `free()` gets a runtime rate clamp.
+- #209 → #195: a huge `shift=` warns. #209 is closed; its items moved to #195 and #190.
+- #137: `tools/shots.mjs` is merged into the gallery (after the graph probes).
+- #230: bindings are kept across a rename.
+
+Session 1 is done (this branch).
 
 ## Closable now
 

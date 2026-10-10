@@ -67,6 +67,12 @@ export class MidiAccess {
     this.#on.onChange?.();
   }
 
+  /** Let go: no input is listened to and the ports' changes are no longer heard. */
+  close(): void {
+    this.listen('none');
+    this.#access.onstatechange = null;
+  }
+
   /** Listen to one input by id, `'all'` of them, or `'none'`. */
   listen(id: string): void {
     this.#listening = id;
