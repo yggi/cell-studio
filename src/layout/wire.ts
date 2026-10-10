@@ -65,13 +65,41 @@ const line = (pts: readonly Pt[]) => pts.map((p) => `${v(p.x)} ${v(p.y)}`).join(
 
 /**
  * A flat bus along the spline from a to b through m (a chord's notes, a hop out of a reader's hub): each strand the
- * curve moved by its offset (px, positive to the left looking along it), so it is the same width everywhere it shows
- * (its ends, under the wheels, settle across the chord).
+ * curve moved by its offset (px, positive to the left looking along it), so it is the same width everywhere it shows.
+ * `rims`: the radii of the wheels at its ends. There the bus is cut inside the rim (by more than half its width, so
+ * every strand's end is under the wheel) and stays true to the end; at an end of no known size its strands settle
+ * across the chord instead (offsetPoints), which on a hard bend can make two meet there, under the node.
  */
-export function bundlePaths(ax: number, ay: number, mx: number, my: number, bx: number, by: number, offsets: readonly number[]): string[] {
+export function bundlePaths(
+  ax: number,
+  ay: number,
+  mx: number,
+  my: number,
+  bx: number,
+  by: number,
+  offsets: readonly number[],
+  rims: { readonly a?: number; readonly b?: number } = {},
+): string[] {
   const q = { x: 2 * mx - (ax + bx) / 2, y: 2 * my - (ay + by) / 2 };
   const centre = sampleQuad({ x: ax, y: ay }, q, { x: bx, y: by });
-  return offsets.map((o) => `M ${line(offsetPoints(centre, o, { a: true, b: true }))}`);
+  const half = Math.max(0, ...offsets.map(Math.abs)) + 2;
+  const [ca, cb] = [Math.max(0, (rims.a ?? 0) - half), Math.max(0, (rims.b ?? 0) - half)];
+  // (the last point inside each cut: the strands start and end just under the wheels)
+  const i0 = ca ? Math.max(0, centre.findIndex((p) => Math.hypot(p.x - ax, p.y - ay) >= ca) - 1) : 0;
+  const i1 = cb
+    ? Math.min(
+        centre.length - 1,
+        centre.length -
+          centre
+            .slice()
+            .reverse()
+            .findIndex((p) => Math.hypot(p.x - bx, p.y - by) >= cb),
+      )
+    : centre.length - 1;
+  // (wheels so near they cover the bus: as without them)
+  const cut = i1 - i0 >= 3 ? centre.slice(i0, i1 + 1) : centre;
+  const ends = cut === centre ? { a: true, b: true } : { a: !ca, b: !cb };
+  return offsets.map((o) => `M ${line(offsetPoints(cut, o, ends))}`);
 }
 
 /**
@@ -235,7 +263,8 @@ export function rippled(d: string, amp = 2.5, period = 11): string {
   const along: number[] = [0];
   for (let i = 1; i < pts.length; i++) along.push(along[i - 1] + Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y));
   const length = along[along.length - 1];
-  if (pts.length < 2 || length < 1) return d;
+  // (a position not yet a number: as it is, never a loop without end)
+  if (pts.length < 2 || !(length >= 1) || !Number.isFinite(length)) return d;
   const turns = Math.max(1, Math.round(length / period));
   const n = Math.max(8, Math.ceil((length / period) * 6));
   const out: Pt[] = [];

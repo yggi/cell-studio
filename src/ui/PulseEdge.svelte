@@ -178,10 +178,12 @@
   const strandPaths = $derived.by(() => {
     const r = d.sizes?.from ? tapRadius(d.sizes.from) : 0;
     const exits = d.table && r ? Array.from({ length: count }, (_, i) => entryOf(i)) : [];
-    if (!exits.length || exits.some((s) => !s)) return bundlePaths(fromX, fromY, mid.x, mid.y, targetX, targetY, across(count));
+    // (a flat bus, cut inside its wheels' rims: from a reader's hub when it hops on from there)
+    const rims = { a: hop ? hop.r : (d.sizes?.from ?? 0) / 2, b: (d.sizes?.to ?? 0) / 2 };
+    if (!exits.length || exits.some((s) => !s)) return bundlePaths(fromX, fromY, mid.x, mid.y, targetX, targetY, across(count), rims);
     const turns = exits.map((s) => tapOf(view!, s!));
     // a hop: the bus goes on out of the hub of the reader it came into, flat, in the table's order
-    if (hop) return ringOnly ? [] : bundlePaths(fromX, fromY, mid.x, mid.y, targetX, targetY, across(turns.length));
+    if (hop) return ringOnly ? [] : bundlePaths(fromX, fromY, mid.x, mid.y, targetX, targetY, across(turns.length), rims);
     // out of each entry's tap, round the source's loom, into a bundle towards the reader
     return looming(loomParts(sourceX, sourceY, r, turns, mid.x, mid.y, targetX, targetY, GAP, d.ring ?? 0, LOOM_EXIT));
   });

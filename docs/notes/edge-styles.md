@@ -46,7 +46,7 @@ Two faults, both in how strands are offset:
 **Built** (`src/layout/wire.ts`: `bundlePaths`, `loomParts`; tested for width and crossings in `wire.test.ts`), with two findings on the way:
 
 - **The fillets are short (1.5 gaps), and the bundle doesn't leave square.** A strand's track goes by how near it is to the exit, and its place across the bundle by its order on the bus, so the two don't nest like a ribbon. A long fillet on an inner track sweeps through the outer tracks that are still coming round, and the test's crossings went from 0 to 2. Any fillet that stays under about two gaps is safe: it rounds the corner and keeps the topology.
-- **A bus's ends settle across the chord.** On a hard bend the true normal at an end swings the bundle's end out past a small node, so over the last 20 px (under the wheel) a strand's place turns back to the chord's, as a flat bus always had it.
+- **A flat bus ends under its wheels.** On a hard bend the true normal at an end swings the bundle's end out past a small node. First fix: over the last 20 px a strand's place turned back to the chord's; the review of #272 found that this lets strands meet there (17–61 % of hard-bent chords, by how hard). So a bus whose wheels' sizes are known is cut inside each rim, by more than half its width, and stays true to its ends; the settling is left only for an end of no known size (the edge sheet's bare nodes).
 
 The same centreline serves the hop (a bus out of a reader's hub), a pick's strands, a ref written several times and the tines. The run now leaves the loom along its straight lead (a cubic, no corner at its end).
 

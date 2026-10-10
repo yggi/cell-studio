@@ -73,6 +73,25 @@ describe('bundlePaths: a flat bus, the same width everywhere', () => {
     });
 });
 
+describe('bundlePaths between wheels: cut under their rims, true to the ends', () => {
+  it('a hard bend between two wheels: no strands meet anywhere, and they are a gap apart all along', () => {
+    for (const [m, ra, rb] of [
+      [[30, 50], 40, 40],
+      [[320, 330], 32, 60],
+      [[-80, 150], 22, 22],
+    ] as const) {
+      const ps = bundlePaths(0, 300, m[0], m[1], 300, 0, [-6, -2, 2, 6], { a: ra, b: rb }).map((d) => points(d, 0, 0));
+      expect(crossings(ps)).toBe(0);
+      for (let s = 1; s < ps.length; s++) for (const p of ps[s].slice(1, -1)) expect(Math.abs(toLine(p, ps[s - 1]) - 4)).toBeLessThan(0.3);
+      // (each strand starts and ends under its wheel)
+      for (const p of ps) {
+        expect(Math.hypot(p[0][0], p[0][1] - 300)).toBeLessThan(ra);
+        expect(Math.hypot(p[p.length - 1][0] - 300, p[p.length - 1][1])).toBeLessThan(rb);
+      }
+    }
+  });
+});
+
 describe('loomPaths: the strands round a wheel, a ring of tracks', () => {
   for (const [what, b] of [
     ['up', [0, -400]],
@@ -112,6 +131,9 @@ describe('rippled: sound as a wave along any path', () => {
     expect(Math.hypot(wave[0][0], wave[0][1])).toBeLessThan(0.2);
     const [lx, ly] = wave[wave.length - 1];
     expect(Math.hypot(lx - 220, ly - 160)).toBeLessThan(0.2);
+  });
+});
+
 describe('a position that is not a number yet', () => {
   it('does not throw (the edge derives its path from the layout, which may be mid-move)', () => {
     expect(() => bundlePaths(0, 0, NaN, 10, 100, 0, [-2, 2])).not.toThrow();
