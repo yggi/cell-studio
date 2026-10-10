@@ -28,13 +28,15 @@
   import ForcesPanel from './ForcesPanel.svelte';
   import { clusterDisc } from '../layout/clusters';
   import { EXAMPLES } from '../examples';
-  import TowerAxis from './TowerAxis.svelte';
+  import TowerAxis, { TOWER_WIDTH } from './TowerAxis.svelte';
+  import FlowViewport from './FlowViewport.svelte';
+  import type { Viewport } from '@xyflow/svelte';
 
-  // each example's rows' order, chosen when the app was built (tools/examples-index.ts), by its graph's shape
   // (?tower: the tower open from the start, ?towerCell=tune its line, as if selected: the gallery's pictures)
   const QUERY = typeof location !== 'undefined' ? new URLSearchParams(location.search) : null;
   const towerCell = QUERY?.get('towerCell') ?? null;
 
+  // each example's rows' order, chosen when the app was built (tools/examples-index.ts), by its graph's shape
   const EXAMPLE_ROWS = new Map(EXAMPLES.map((e) => [e.rows.key, e.rows.order]));
 
   let {
@@ -204,6 +206,9 @@
   let legendOpen = $state(false);
   // the frequency tower beside the graph (TowerAxis.svelte)
   let towerOpen = $state(QUERY?.has('tower') ?? false);
+  // (the flow's pan and zoom, for the tower drawn beside it; framed again when the tower opens or closes)
+  let viewport = $state<Viewport>({ x: 0, y: 0, zoom: 1 });
+  let towerFits = $state(0);
 
   // clusters: the tags cells carry inside the piece (not the card's) — where their members are, now
   const clusters = $derived.by(() => {
@@ -262,48 +267,51 @@
   });
 </script>
 
-<div class="graph">
-  <SvelteFlow
-    bind:nodes={layout.nodes}
-    bind:edges={layout.edges}
-    {nodeTypes}
-    {edgeTypes}
-    nodeOrigin={[0.5, 0.5]}
-    nodesConnectable={false}
-    elementsSelectable={false}
-    onbeforedelete={async () => false}
-    colorMode="dark"
-    minZoom={0.15}
-    maxZoom={2.5}
-    onnodedragstart={({ targetNode }) => {
-      if (targetNode) layout.dragStart(targetNode.id, targetNode.position.x, targetNode.position.y);
-    }}
-    onnodedrag={({ targetNode }) => {
-      if (targetNode) layout.drag(targetNode.id, targetNode.position.x, targetNode.position.y);
-    }}
-    onnodedragstop={({ targetNode }) => {
-      if (targetNode) layout.dragEnd(targetNode.id);
-    }}
-    nodeClickDistance={6}
-    onnodeclick={({ node, event }) => {
-      // (a product's junction is not a cell: nothing to open; a bulb on a wheel is the cell it splices)
-      if (node.type !== 'junction') selected = bulbAt(event.target) ?? node.id;
-    }}
-  >
-    <Background gap={28} size={1.5} />
-    <Controls showLock={false} />
-    <FitView token={layout.fitToken} />
-    {#if towerOpen}
-      <TowerAxis model={shown.model} program={shown.program} nodes={layout.nodes} focus={selectedName ?? towerCell} />
-    {/if}
-    <!-- clusters: cells tagged alike inside the piece (tags=), washed and named behind their members -->
-    <ViewportPortal target="back">
-      {#each clusters as c (c.tag)}
-        <div class="cluster" style:left="{c.x}px" style:top="{c.y}px" style:width="{c.r * 2}px" style:height="{c.r * 2}px" style:--hue={c.colour}></div>
-        <div class="cluster-name" style:left="{c.nx}px" style:top="{c.ny}px" style:--hue={c.colour}>{c.tag}</div>
-      {/each}
-    </ViewportPortal>
-  </SvelteFlow>
+<div class="graph" class:towered={towerOpen} style:--tower-width="{TOWER_WIDTH}px">
+  <div class="flow">
+    <SvelteFlow
+      bind:nodes={layout.nodes}
+      bind:edges={layout.edges}
+      {nodeTypes}
+      {edgeTypes}
+      nodeOrigin={[0.5, 0.5]}
+      nodesConnectable={false}
+      elementsSelectable={false}
+      onbeforedelete={async () => false}
+      colorMode="dark"
+      minZoom={0.15}
+      maxZoom={2.5}
+      onnodedragstart={({ targetNode }) => {
+        if (targetNode) layout.dragStart(targetNode.id, targetNode.position.x, targetNode.position.y);
+      }}
+      onnodedrag={({ targetNode }) => {
+        if (targetNode) layout.drag(targetNode.id, targetNode.position.x, targetNode.position.y);
+      }}
+      onnodedragstop={({ targetNode }) => {
+        if (targetNode) layout.dragEnd(targetNode.id);
+      }}
+      nodeClickDistance={6}
+      onnodeclick={({ node, event }) => {
+        // (a product's junction is not a cell: nothing to open; a bulb on a wheel is the cell it splices)
+        if (node.type !== 'junction') selected = bulbAt(event.target) ?? node.id;
+      }}
+    >
+      <Background gap={28} size={1.5} />
+      <Controls showLock={false} />
+      <FitView token={layout.fitToken + towerFits} />
+      {#if towerOpen}<FlowViewport onchange={(v) => (viewport = v)} />{/if}
+      <!-- clusters: cells tagged alike inside the piece (tags=), washed and named behind their members -->
+      <ViewportPortal target="back">
+        {#each clusters as c (c.tag)}
+          <div class="cluster" style:left="{c.x}px" style:top="{c.y}px" style:width="{c.r * 2}px" style:height="{c.r * 2}px" style:--hue={c.colour}></div>
+          <div class="cluster-name" style:left="{c.nx}px" style:top="{c.ny}px" style:--hue={c.colour}>{c.tag}</div>
+        {/each}
+      </ViewportPortal>
+    </SvelteFlow>
+  </div>
+  {#if towerOpen}
+    <TowerAxis model={shown.model} program={shown.program} nodes={layout.nodes} {viewport} focus={selectedName ?? towerCell} carded={!!selectedName} />
+  {/if}
   <div class="toolbar">
     <button class="add-cell" onclick={onadd} title="Add a cell (blank: the chromatic default)">+ cell</button>
     <button class="forces-toggle" class:on={forcesOpen} onclick={() => (forcesOpen = !forcesOpen)} aria-pressed={forcesOpen} title="Layout forces">forces</button>
@@ -312,7 +320,10 @@
     <button
       class="forces-toggle"
       class:on={towerOpen}
-      onclick={() => (towerOpen = !towerOpen)}
+      onclick={() => {
+        towerOpen = !towerOpen;
+        towerFits++;
+      }}
       aria-pressed={towerOpen}
       title="Each cell's time scale, from the constant to the audible">tower</button
     >
@@ -350,6 +361,17 @@
     position: relative;
     width: 100%;
     height: 100%;
+  }
+  .flow {
+    position: absolute;
+    inset: 0;
+  }
+  /* (the tower takes its strip beside the graph: nothing is laid under it) */
+  .graph.towered .flow {
+    right: var(--tower-width);
+  }
+  .graph.towered .hint {
+    right: calc(var(--tower-width) + 16px);
   }
   .hint {
     position: absolute;

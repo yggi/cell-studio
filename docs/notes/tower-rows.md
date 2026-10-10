@@ -84,7 +84,9 @@ The owner's choice after the re-measure: **the tower as a drawn axis**, today's 
 
 **Chosen: B** (2026-10-10), built as the graph's *tower* button ([graph.md](../ui/graph.md)); A and C were dropped. The gallery opens it with `TOWER=1` (`TOWER_CELL=tune`: its line, as if selected).
 
-Seen on the way: a table of taps (`&parts`) sits at the constant, though its selector moves it: it has no clock of its own.
+Seen on the way: a table with no clock of its own sits at the constant, though what reads it moves it: a table of taps (`&parts`, its selector), a kit (Metronome's `&clicks`, read over `&bar`).
+
+After review (#268): the axis sits beside the graph, not over it (the flow's box stops at it, so it hides no cell), and steps to the left edge of a cell's card while one is open, so the selected cell's line is seen when it is clicked, not only through `?towerCell=`.
 
 ## Next
 

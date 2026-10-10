@@ -1,12 +1,20 @@
+<script lang="ts" module>
+  /** The axis's strip (px), and the names beside it: the width the graph leaves the tower. */
+  const AXIS = 96;
+  const NAMES = 64;
+  export const TOWER_WIDTH = AXIS + NAMES;
+</script>
+
 <script lang="ts">
   /**
    * The frequency tower drawn beside the graph (docs/notes/multiscale.md: the picture; lead 2): a logarithmic axis of time
    * at the graph's right edge, its zones marked (the constant, the slow, the pulse, the audible, the sound card), each
-   * node a mark at its height (a bar from its turn to its step), and a line from the cell selected to its mark. The
-   * layout is today's (docs/notes/tower-rows.md: rows by the tower cost crossings): height in the graph means nothing
+   * node a mark at its height (a bar from its turn to its step), and a line from the cell selected to its mark. Beside
+   * the graph (Graph.svelte leaves it `TOWER_WIDTH`), so it hides no cell; while a cell's card is open on a wide screen it
+   * steps to the card's left edge, so the line stays in sight. The layout is today's (docs/notes/tower-rows.md: rows by the tower cost crossings): height in the graph means nothing
    * here, the axis says it.
    */
-  import { useStore } from '@xyflow/svelte';
+  import type { Viewport } from '@xyflow/svelte';
   import type { CompileResult } from '../engine/program';
   import type { GraphModel } from '../engine/graph';
   import { cellId } from '../engine/ids';
@@ -14,11 +22,28 @@
   import { noteColour } from './theme';
   import type { FlowNode } from './types';
 
-  let { model, program, nodes, focus }: { model: GraphModel; program: CompileResult; nodes: readonly FlowNode[]; focus: string | null } = $props();
+  let {
+    model,
+    program,
+    nodes,
+    viewport,
+    focus,
+    carded,
+  }: { model: GraphModel; program: CompileResult; nodes: readonly FlowNode[]; viewport: Viewport; focus: string | null; carded: boolean } = $props();
 
-  const store = useStore();
   let w = $state(0);
   let h = $state(0);
+  let el = $state<HTMLDivElement>();
+  // a cell's card on a wide screen (CellSheet.svelte: 380 px, 16 px from the window's right): where it starts, here
+  let cardLeft = $state(Infinity);
+  $effect(() => {
+    void w;
+    if (!el || !carded || !matchMedia('(min-width: 900px)').matches) {
+      cardLeft = Infinity;
+      return;
+    }
+    cardLeft = innerWidth - 396 - el.getBoundingClientRect().left;
+  });
 
   const spans = $derived(towerSpans(program, model));
   // (a voice's petals, its envelope and the like, hang by it: no mark of their own)
@@ -28,12 +53,12 @@
     const finite = [...spans.values()].flatMap((s) => [s.at, s.lo]).filter(Number.isFinite);
     return { lo: Math.floor(Math.min(0, ...finite)), hi: Math.ceil(Math.max(3, ...finite)) };
   });
-  const AXIS = 96;
   const top = 40;
   const bottom = $derived(h - 64);
   // (the constant just under the axis, the sound card just over it)
   const yOf = (d: number) => (d === -Infinity ? bottom + 22 : d === Infinity ? top - 22 : bottom - ((d - range.lo) / Math.max(1, range.hi - range.lo)) * (bottom - top));
-  const x0 = $derived(w - AXIS);
+  // (the strip at the right edge, or left of the card while one is open over it)
+  const x0 = $derived(Math.max(NAMES, Math.min(w, cardLeft - 8) - AXIS));
 
   const zoneColour = (name: string) => (name === 'slow' ? 'var(--meter-2)' : name === 'pulse' ? 'var(--meter-1)' : 'var(--accent)');
   const zoneOf = (d: number) => (d === -Infinity ? 'constant' : d === Infinity ? 'card' : [...TOWER_ZONES].reverse().find((z) => d >= z.from)!.name);
@@ -50,13 +75,14 @@
     if (hz >= 1000) return `${hz / 1000} kHz`;
     if (hz >= 1) return `${hz} Hz`;
     const s = 1 / hz;
-    return s >= 3600 ? `${+(s / 3600).toPrecision(2)} h` : s >= 60 ? `${+(s / 60).toPrecision(2)} min` : `${s} s`;
+    return s >= 86400 ? `${+(s / 86400).toPrecision(2)} d` : s >= 3600 ? `${+(s / 3600).toPrecision(2)} h` : s >= 60 ? `${+(s / 60).toPrecision(2)} min` : `${s} s`;
   };
   const decades = $derived(Array.from({ length: range.hi - range.lo + 1 }, (_, i) => range.lo + i));
 
   // a voice by its pitch class (the palette's hue), the rest by its zone
+  const cells = $derived(new Map(model.nodes.map((n) => [n.id, n.cell])));
   const colourOf = (id: string, d: number) => {
-    const c = model.nodes.find((n) => n.id === id)?.cell;
+    const c = cells.get(id);
     if (c?.voice && c.freq > 0) return noteColour(((((Math.round(69 + 12 * Math.log2(c.freq / 440)) % 12) + 12) % 12) * 30) % 360);
     const z = zoneOf(d);
     return z === 'constant' ? 'var(--text-faint)' : z === 'card' ? 'var(--text)' : zoneColour(z);
@@ -77,7 +103,7 @@
     return out;
   });
   const marks = $derived.by(() => {
-    const vp = store.viewport;
+    const vp = viewport;
     return nodes.flatMap((n) => {
       const s = spans.get(n.id);
       const name = n.type === 'junction' || petals.has(n.id) ? null : n.id.replace(/^cell:/, '');
@@ -114,16 +140,18 @@
   const focusId = $derived(focus ? cellId(focus) : null);
 </script>
 
-<div class="tower" bind:clientWidth={w} bind:clientHeight={h}>
+<div class="tower" bind:this={el} bind:clientWidth={w} bind:clientHeight={h}>
   {#if w && h}
     <svg width={w} height={h} aria-hidden="true">
+      <!-- (its own ground: the names' gutter and the strip, beside the graph) -->
+      <rect class="ground" x={x0 - NAMES} y="0" width={NAMES + AXIS + Math.max(0, w - x0 - AXIS)} height={h} />
+      <rect class="strip" x={x0} y={top - 34} width={AXIS} height={bottom - top + 68} rx="8" />
       <!-- the line from the cell selected to its mark -->
       {#each marks as m (m.id)}
         {#if m.id === focusId}
           <line class="leader" x1={m.x + m.r} y1={m.y} x2={x0 + 12 + m.lane * 7} y2={m.at} stroke={m.colour} />
         {/if}
       {/each}
-      <rect class="strip" x={x0} y={top - 34} width={AXIS} height={bottom - top + 68} rx="8" />
       {#each zones as z (z.name)}
         <rect x={x0 + 4} y={z.y0} width="6" height={z.y1 - z.y0} fill={z.colour} opacity="0.8" />
         <text class="zone" transform="translate({x0 - 4} {(z.y0 + z.y1) / 2}) rotate(-90)" fill={z.colour}>{z.name}</text>
@@ -138,7 +166,7 @@
         {#if m.lo !== m.at}<line class="span" x1={x0 + 12 + m.lane * 7} x2={x0 + 12 + m.lane * 7} y1={m.lo} y2={m.at} stroke={m.colour} />{/if}
         <circle cx={x0 + 12 + m.lane * 7} cy={m.at} r={m.id === focusId ? 4.5 : 3} fill={m.colour} />
         {#if named.has(m.id) || m.id === focusId}
-          <text class="name" class:focus={m.id === focusId} x={x0 - 20} y={m.at + 4}>{m.name}</text>
+          <text class="name" class:focus={m.id === focusId} x={x0 - 14} y={m.at + 4}>{m.name}</text>
         {/if}
       {/each}
     </svg>
@@ -155,6 +183,9 @@
   svg {
     display: block;
     font-family: var(--font-ui);
+  }
+  .ground {
+    fill: var(--bg);
   }
   .strip {
     fill: color-mix(in oklab, var(--surface) 88%, transparent);
