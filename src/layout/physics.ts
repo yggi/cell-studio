@@ -15,12 +15,13 @@ import { drawnCrossings, layoutQuality, type LayoutQuality } from './quality';
 import { groundsOf } from './meters';
 import { openBelt, pulleys } from './belts';
 import { strengthOf } from './weights';
+import { sideless } from './side';
 import { BELT_LENGTH, BELT_PULL, DEFAULT_LAYOUT, GROUND_PULL, linkPull, type LayoutOptions } from './options';
 import type { LayoutState, MeterTrace, PhysLink, PhysNode } from './state';
 import { nodeAt, positionOf } from './state';
 import { folded, junctionNodes, placeJunctions, settleJunctions } from './junctions';
 import { rowsKey, startNodes, startPlaces } from './start';
-import { forceUncross, stepAbout, stepBends, stepClusters, stepExclusion, stepKinds, stepSpread } from './forces';
+import { forceUncross, stepBends, stepClusters, stepExclusion, stepKinds, stepSpread } from './forces';
 import { aims, fitTurns, stepAims } from './aims';
 import { hops, meterNet, netTree, stepNets, taps } from './nets';
 import { placeMeters } from './placement';
@@ -52,7 +53,6 @@ export class ForceLayout {
       colX: new Map(),
       bendAt: new Map(),
       size: 1,
-      explains: [],
       faces: [],
       turns: new Map(),
       nets: [],
@@ -103,8 +103,6 @@ export class ForceLayout {
       .force('spread', (alpha: number) => stepSpread(this.s, alpha))
       .force('kinds', (alpha: number) => stepKinds(this.s, alpha))
       .force('clusters', (alpha: number) => stepClusters(this.s, alpha))
-      // a note drifts towards the cells it explains (and only it: they don't feel it)
-      .force('about', (alpha: number) => stepAbout(this.s, alpha))
       // a tape turns so its heads face what they connect to, and those turn round it towards their heads
       .force('aims', (alpha: number) => stepAims(this.s, alpha))
       // turntables: nothing overlaps them — a node that would is set at their edge
@@ -188,7 +186,9 @@ export class ForceLayout {
   }
 
   /** Merge a new graph in. Existing nodes keep position and velocity. */
-  setGraph(drawn: GraphModel, structural = true): GraphDiff {
+  setGraph(whole: GraphModel, structural = true): GraphDiff {
+    // (notes and scopes are read in the margin, not laid among the music: side.ts)
+    const drawn = sideless(whole);
     // (as drawn: a product's wires at its junction; the forces lay the graph with each junction folded into its voice,
     // and the junctions are set on their voices' rims after each tick: junctions.ts)
     this.s.drawnNets = drawn.nets ?? [];
@@ -199,13 +199,12 @@ export class ForceLayout {
     // petals (unnamed cells) hang from their parent: the physics only sees named cells
     model = { ...model, nodes: model.nodes.filter((n) => !(n as { petalOf?: string }).petalOf) };
     const parentOf = new Map<string, string>();
-    for (const e of model.edges) if (e.port !== 'about' && !parentOf.has(e.target)) parentOf.set(e.target, e.source);
+    for (const e of model.edges) if (!parentOf.has(e.target)) parentOf.set(e.target, e.source);
     // (a meter's edges aren't drawn — its cells wear its ring, meters.ts — so they neither count nor pull)
     const groundIds = groundsOf(model);
     const ground = (e: (typeof model.edges)[number]) => groundIds.has(e.id);
     this.s.degree = new Map();
-    for (const e of model.edges)
-      if (e.source !== e.target && e.port !== 'about' && !ground(e)) for (const id of [e.source, e.target]) this.s.degree.set(id, (this.s.degree.get(id) ?? 0) + 1);
+    for (const e of model.edges) if (e.source !== e.target && !ground(e)) for (const id of [e.source, e.target]) this.s.degree.set(id, (this.s.degree.get(id) ?? 0) + 1);
     // mostly new (a different example that happens to share &bar, &mix, &out): lay it all out afresh
     const fresh = model.nodes.filter((n) => !this.s.byId.has(n.id)).length > model.nodes.length / 2;
     if (fresh) this.s.bendAt.clear(); // a fresh graph: no bends left over from the last one
@@ -220,8 +219,7 @@ export class ForceLayout {
     // springs Frère Jacques crosses more, 1 → 1.7 — docs/notes/nets.md, step 6)
     const busTaps = new Set(this.s.nets.flatMap((n) => (n.port === 'step' || n.delayed ? [] : n.taps)));
     const links: PhysLink[] = model.edges
-      // (a note's links, about=, are not springs: they only draw a note towards what it explains, see stepAbout)
-      .filter((e) => e.port !== 'about' && !ground(e) && next.has(e.source) && next.has(e.target) && e.source !== e.target)
+      .filter((e) => !ground(e) && next.has(e.source) && next.has(e.target) && e.source !== e.target)
       .map((e) => ({
         id: e.id,
         source: e.source,
@@ -243,9 +241,6 @@ export class ForceLayout {
     this.s.net = this.s.net.filter((t) => next.has(t.a) && next.has(t.b) && this.s.grounds.some((g) => g.meter === t.meter && g.bulb === t.bulb));
     // the tapes turned to where everything is now (an edit that doesn't move anything doesn't turn them)
     this.s.turns = fitTurns(this.s, (id) => this.position(id));
-    this.s.explains = model.edges
-      .filter((e) => e.port === 'about' && next.has(e.source) && next.has(e.target))
-      .map((e) => ({ note: next.get(e.source)!, cell: next.get(e.target)! }));
     // a hub's edges into a cluster: each keeps part of its pull, the cluster's tag takes the rest, once per hub (`mux`)
     // (none at all when it's off: d3 balances each spring by how many its ends have, so even a slack one would count)
     const muxLinks = new Map<string, PhysLink>();
@@ -263,15 +258,8 @@ export class ForceLayout {
     // a meter's edges (ground): springs that aren't drawn, so a meter settles among the cells it steps
     const groundLinks: PhysLink[] = this.s.grounds.map((g) => ({ id: `${g.id}~ground`, source: g.cell, target: g.meter, count: 1, part: false, ground: true }));
     this.sim.force<ReturnType<typeof forceLink<PhysNode, PhysLink>>>('link')!.links([...links, ...tagLinks, ...groundLinks, ...muxLinks.values()]);
-    this.flows = model.edges
-      .filter((e) => e.port !== 'about' && !ground(e) && !e.belt && next.has(e.from) && next.has(e.to) && e.from !== e.to)
-      .map((e) => [next.get(e.from)!, next.get(e.to)!]);
-    // (a scope watches: its edges neither untangle the music's layout nor count as its crossings)
-    const scopes = new Set(model.nodes.filter((n) => typeof (n as { cell?: { params?: Record<string, unknown> } }).cell?.params?.scope === 'string').map((n) => n.id));
-    const watcher = (id: string) => scopes.has(id);
-    const idOf = (x: unknown) => (typeof x === 'object' ? (x as PhysNode).id : (x as string));
-    const own = links.filter((l) => !watcher(idOf(l.source)) && !watcher(idOf(l.target)));
-    this.s.springs = own.map((l) => ({
+    this.flows = model.edges.filter((e) => !ground(e) && !e.belt && next.has(e.from) && next.has(e.to) && e.from !== e.to).map((e) => [next.get(e.from)!, next.get(e.to)!]);
+    this.s.springs = links.map((l) => ({
       id: l.id,
       source: typeof l.source === 'object' ? (l.source as PhysNode).id : (l.source as string),
       target: typeof l.target === 'object' ? (l.target as PhysNode).id : (l.target as string),
@@ -283,8 +271,7 @@ export class ForceLayout {
     for (const id of [...this.s.rims.keys()]) if (!this.s.junctions.has(id)) this.s.rims.delete(id);
     const placedIds = (id: string) => next.has(id) || this.s.junctions.has(id);
     this.s.links = drawn.edges
-      .filter((e) => e.port !== 'about' && !ground(e) && placedIds(e.source) && placedIds(e.target) && e.source !== e.target)
-      .filter((e) => !watcher(e.source) && !watcher(e.target))
+      .filter((e) => !ground(e) && placedIds(e.source) && placedIds(e.target) && e.source !== e.target)
       .map((e) => ({ id: e.id, source: e.source, target: e.target, belt: !!e.belt, strength: strengthOf(e), kind: e.band, is: e.port === 'is' }));
     placeJunctions(this.s);
     // crossings untangled as drawn: a product's wires at its junction (a push on a junction moves its voice)

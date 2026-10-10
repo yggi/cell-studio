@@ -52,7 +52,7 @@ an edge looks like: its port (`voice`, `fm`, `step` …), the shapes of the tran
 no example uses is missing (add the example, or a fixture). Each kind is drawn by the **real edge components**
 (`PulseEdge`, `BeltEdge`, `MeterEdge`, made by `src/ui/flowedge.ts`, styled by `src/ui/edges.css`: exactly what
 `Graph.svelte` uses) on two bare nodes, with the graph's context (the piece at that moment, the note on the voice,
-the layout's bend), in seven columns: off, unrouted, on (stopped), idle, live on C4, live on C3 (the octave rule, where an edge's colour is a voice's sound; a melody's follows its source's wheel),
+the layout's bend), in seven columns: off, unrouted, on (stopped), idle, live on C4, live with the voice on C3 (the octave rule, where an edge's colour is a voice's sound; a melody's follows its source's wheel),
 live and bent. A belt is shown by its stretch (at rest, pulling both ways, slipping), a meter's net by its beat.
 A meter's own step edges aren't drawn in the graph (ground) and so aren't here; the net is.
 

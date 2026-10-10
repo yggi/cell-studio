@@ -57,6 +57,69 @@ Today · tower by step · zones (`emit`) with the signal path within, each stopp
 
 - **The sound through a selector is labelled CV.** A part's mix into its table of parts, the table into its selector and the selector into the sound card are wires of band `cv` in the model, though they carry sound; so they are drawn as plain lines, not ripples: [#238](https://github.com/yggi/cell-studio/issues/238).
 
+## After taps (2026-10-10)
+
+Re-measured on main after taps on their table ([decision 016](../decisions/016-arranging-at-the-input.md)) and the simpler forces (#263), 69 examples, three seeds. The probe now finds a selector written with taps (`over=` reading a table of taps), and `emit` places a pattern of voices (a kit's groove, `&groove &bd &sd`) with the sound it sends on.
+
+| rows | crossings | wires up / down | ρ settled | selectors' height |
+|---|---|---|---|---|
+| **today** (the signal path) | **53.3** | 58 / 2 % | 0.62 | **0.04** |
+| tower by step, a row a decade | 83.0 | 58 / 6 % | 0.78 | 0.10 |
+| tower, `emit` | 86.3 | 58 / 4 % | 0.77 | 0.08 |
+| zones by the tower (`emit`), the signal path within | 78.3 | 66 / 3 % | 0.71 | 0.06 |
+
+- **Taps took the selector's inversion away.** Today's layout already puts the selectors at the bottom of their pieces (0.04; before taps 0.90), and "a part's sound into its table of parts" running down fell from 47 wires a seed to 5: the form sends up, as the multiscale note asked, without the tower.
+- **The tower still costs about 30 crossings** (zones: 25), half again today's. The selector pieces carry 24 of them (41.7 → 65.7), the other 59 pieces 6 (11.7 → 17.3).
+- **What the tower still turns upside down** (counted on the rows alone, no layout, `emit`): 81 meters' `step=` wires (a meter clocks a slower cell, `step=&bar*16`; drawn as the meter's net, so they hardly show as wires running down), 6 braids, 4 `over=`. Patterns of voices were 29 more; placed with their sound they are none, and the crossings did not move (87.3 → 86.3, inside the ±8 of a seed). **What the tower costs now is its rows, not wires that run the wrong way.**
+
+## The tower drawn (2026-10-10)
+
+The owner's choice after the re-measure: **the tower as a drawn axis**, today's layout kept. Mocked first as three variants of `src/ui/TowerAxis.svelte` on the real Graph. Each node is a span from its turn to its step (`towerSpans`, `layout/tower.ts`), a voice at its pitch in its colour, a mix just above what it carries.
+
+![the three options on Pop](tower-axis-options.jpg)
+
+- **A**: the axis at the right edge, zones marked, every node's line to its mark: the whole picture at once, and a web of lines over the graph.
+- **B**: the axis with the marks only, a line for the cell that is selected: quiet; the axis reads as a ruler of the piece's time scales.
+- **C**: no axis, each node ringed in its zone's colour: no lines at all, but four colours to learn and no scale.
+
+**Chosen: B** (2026-10-10), built as the graph's *tower* button ([graph.md](../ui/graph.md)); A and C were dropped. The gallery opens it with `TOWER=1` (`TOWER_CELL=tune`: its line, as if selected).
+
+Seen on the way: a table with no clock of its own sits at the constant, though what reads it moves it: a table of taps (`&parts`, its selector), a kit (Metronome's `&clicks`, read over `&bar`).
+
+After review (#268): the axis sits beside the graph, not over it (the flow's box stops at it, so it hides no cell), and steps to the left edge of a cell's card while one is open, so the selected cell's line is seen when it is clicked, not only through `?towerCell=`.
+
+## The tower balanced (2026-10-10)
+
+The owner's ask: the tower and the graph balance each other; density in the graph moves the tower's zone borders, and
+a node's place in its zone pulls it to a height in the graph. Chosen: the axis follows, a weak pull, kept only if the
+crossings stay within the noise, and only while the tower is open. **Decided after the review: the axis follows, the
+pull is dropped.**
+
+- `layout/towerfit.ts: towerFit`: a monotone fit (isotonic regression, pool adjacent violators) of the graph's
+  heights against the tower's; a pooled stretch is flat, nodes at one height on the tower are one point.
+- **The axis** is drawn by it (`TowerAxis.svelte`): a height on the tower sits at 70 % its share of the graph's span by
+  the fit and 30 % an even log scale, so dense zones are wide and the axis never folds up; panning leaves it still.
+  It only draws: no cell moves.
+
+**The pull, tried and dropped.** Each node was drawn toward the fit's height for it (`LayoutOptions.tower`,
+`towerPull` 0.02, `physics.ts: stepTower`, the fit made again every 20 ticks), only while the tower was open. The
+branch's first table said it cost nothing; the review's re-run on the merged tree (75 pieces, eight seeds, tick 500 and
+`layNet`, tower open against closed, same seed, library sums per seed) says otherwise:
+
+| measure | pull 0 | pull 0.02 | paired difference over seeds |
+|---|---|---|---|
+| crossings | 49.4 | 52.1 | +2.8 ± 4.0 (inside the noise: per-seed sd 7 to 8) |
+| cost | 154 | 174 | +20 ± 13 (6 of 8 seeds worse) |
+| intruders | 49.1 | 52.8 | +3.6 ± 2.1 (6 of 8 seeds worse) |
+| area Mpx² | 66.4 | 66.1 | −0.2 ± 0.6 |
+
+A pull of 0.1 cost +28.6 ± 7.4, clearly significant. The pull also moved nodes on every edit while the tower was
+open (setting the options reheats the layout: a comment line moved Hypercell's nodes by 39 px on average, 5.6 px with
+the tower closed), and opening then closing the tower did not return the layout to where it started. The heights'
+agreement with the tower (Spearman's ρ) rose only from 0.648 to 0.661. So the layout stays the signal path's, and the
+tower's axis is what follows the graph. If a pull is tried again, set the heights without reheating, and measure it on
+the merged tree first.
+
 ## Next
 
 1. The language's side (the multiscale note's "the form sends up"): with a selector that sends gates, rerun `emit`: the selector should go down by itself and its crossings with it. A rewritten *Pop* or Korobeiniki is the test.

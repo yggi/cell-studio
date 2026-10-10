@@ -66,7 +66,7 @@
   // a hop, drawn from there (straight: the tree keeps its joins off the wheels)
   const hop = $derived(d.net ? ctx.taps?.get(id) : undefined);
   // (the outputs-top probe: a wire leaves its source at 12 o'clock, out of its rim — a tape's read head is its own socket)
-  const socket = $derived(OUTPUTS_TOP && d.port !== 'play' && d.port !== 'about' ? (hop ? hop.r : (d.sizes?.from ?? 0) / 2) : 0);
+  const socket = $derived(OUTPUTS_TOP && d.port !== 'play' ? (hop ? hop.r : (d.sizes?.from ?? 0) / 2) : 0);
   const fromX = $derived(hop ? hop.x : sourceX);
   const fromY = $derived((hop ? hop.y : sourceY) - socket);
   // (what the locked paths start from: as before unless the probe's socket is on — a hop's wire started at the source)
@@ -244,16 +244,22 @@
   const phase = $derived(isLive && d.phaseCell ? ctx.heads.phases.get(d.phaseCell) : undefined);
   const dot = $derived(phase === undefined ? null : splinePoint(fromX, fromY, mid.x, mid.y, targetX, targetY, phase));
 
-  // the grid its voice's colours follow (a voice's notes', a mix's by the owner's rule: null, several, no colour)
-  const grid = $derived.by(() => {
-    const g = d.voice ? heardGrid(ctx.program, d.voice) : null;
+  // the grid a voice's colours follow (a voice's notes', a mix's by the owner's rule: null, several, no colour)
+  const gridOf = (voice: string | null) => {
+    const g = voice ? heardGrid(ctx.program, voice) : null;
     return g ? { name: g, cycle: ctx.program.cells.get(g)?.cycle ?? 12 } : null;
-  });
-  // the note its voice sounds now, as a position on that grid (from the voice's pitch 0); null: none
-  const notePosition = (): number | null => {
-    const f = d.voice ? ctx.sound.note(d.voice) : null;
-    const base = d.voice ? (ctx.program.cells.get(d.voice)?.freq ?? 0) : 0;
-    return f && base > 0 && grid ? positionOf(ctx.program, grid.name, 12 * Math.log2(f / base)) : null;
+  };
+  // its voice's (what it carries), and, for sound into a voice, the voice it feeds (the fallback: a modulator never played)
+  const grid = $derived(gridOf(d.voice));
+  const fedGrid = $derived(d.band === 'audio' ? gridOf(d.to) : null);
+  // the note a voice sounds now, as a position on its grid (from the voice's pitch 0); null: none
+  // (read every frame: what a voice sounds is not reactive, so the colour reads the frame with it — else it would keep
+  // the note it caught as the edge went live, often none yet, the start of its first note)
+  const placed = (voice: string | null, g: { name: string; cycle: number } | null) => {
+    void ctx.heads.seconds;
+    const f = voice ? ctx.sound.note(voice) : null;
+    const base = voice ? (ctx.program.cells.get(voice)?.freq ?? 0) : 0;
+    return { position: f && base > 0 && g ? positionOf(ctx.program, g.name, 12 * Math.log2(f / base)) : null, grid: g };
   };
   // what the cell it comes from plays now (a braid's step under its playhead, a table's entry looked up), for a CV edge
   // that carries no voice's note; redrawn when a table turns, read every frame
@@ -280,9 +286,10 @@
           band: d.band,
           port: d.port,
           tick: () => tickLevel(ctx.program.cells.get(d.from), ctx.heads.beatAt.get(d.from) ?? 1),
-          sound: () => ({ position: notePosition(), grid }),
+          sound: () => placed(d.voice, grid),
           fill: fillNow,
-          heard: () => ({ position: notePosition(), grid }),
+          // (a note: the voice it plays; sound: the voice it feeds, when its own source sounds no note)
+          heard: () => (d.band === 'audio' ? placed(d.to, fedGrid) : placed(d.voice, grid)),
         })
       : null,
   );

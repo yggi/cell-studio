@@ -2,7 +2,8 @@
  * The edges' colour rule, in one place (docs/notes/edge-styles.md, step 3): a live edge takes the colour of what its
  * source pushes now, one palette for all (palette.ts), whatever kind of edge it is:
  *  - sync (a clock's ticks): the level of the tick;
- *  - audio: the hue of the sound's fundamental on its grid (a mix's, several: neutral);
+ *  - audio: the hue of the sound's fundamental on its grid (a mix's, several: neutral); a source that sounds no note
+ *    of its own (a modulator never played) takes the note of the voice it feeds;
  *  - CV into a port of notes: the note its source plays now, as the source's own wheel colours it; when the source
  *    shows none (a tape, a generator), the note the voice it feeds sounds now;
  *  - any other CV (an envelope, a gain, lpf=): a level on the neutral hue, the source's now.
@@ -34,7 +35,7 @@ export interface EdgeNow {
   readonly sound?: () => Placed;
   /** CV: what its source pushes now (a braid's step under its playhead, a table's entry looked up). */
   readonly fill?: () => Fill | undefined;
-  /** CV into a port of notes: the note the voice it feeds sounds now (when the source shows none). */
+  /** The note the voice it feeds sounds now: for CV into a port of notes, or sound, when the source shows none. */
   readonly heard?: () => Placed;
 }
 
@@ -43,7 +44,10 @@ export function liveColour(now: EdgeNow): string | null {
   if (now.band === 'none') return null;
   if (now.band === 'sync') return palette('sync', now.tick?.() ?? 1);
   if (now.band === 'audio') {
-    const s = now.sound?.() ?? { position: null, grid: null };
+    // (its source's fundamental; when the source sounds no note of its own — a modulator, an exciter never played —
+    // the note of the voice it feeds, as a melody whose source shows none takes its voice's)
+    const own = now.sound?.() ?? { position: null, grid: null };
+    const s = own.position === null && now.heard ? now.heard() : own;
     return palette('audio', { position: s.position, loud: 1 }, s.grid);
   }
   const f = now.fill?.();

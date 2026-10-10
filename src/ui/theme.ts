@@ -39,6 +39,9 @@ export const noteHsl = (hue: number, dim = false, octave = 0): [number, number, 
  */
 export const partColour = (k: number, n: number) => noteColour((k / Math.max(1, n)) * 360);
 
+/** A scope's channel k: the chromatic colour of its place in the scope's braid (ScopeView), worn by what it watches. */
+export const channelColour = (k: number) => noteColour((((k % 12) + 12) % 12) * 30);
+
 export const noteColour = (hue: number, dim = false, octave = 0) => {
   const [h, s, l] = noteHsl(hue, dim, octave);
   return `hsl(${h} ${s}% ${l}%)`;

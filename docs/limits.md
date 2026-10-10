@@ -37,7 +37,7 @@ What Cell studio doesn't do yet or does with a catch, documented rather than tra
 - A restarted part's playhead shows the global clock, not its own restarted time.
 - A piece with an `anchor=` clock shows its heads at 0 while stopped; they jump to the anchored time of day at Play.
 - Splices nest seven deep in a braid's track (`MAX_DEPTH` is 6 and the top level counts as 0, `layout/track.ts`); deeper ones are not drawn as bulbs.
-- Notes float near the top; a note can't point at the cell it explains.
+- A note about a cell drawn as a bulb (not a node) has no rim to wear its number; a cell watched by several scopes wears one dot per scope, which tells them apart only while a scope is pointed at in the margin.
 - A column pull (keeping nodes in their symmetric columns while they settle) costs crossings at every strength tried (0.005–0.06): it's a slider, off by default; the columns shape only the start.
 - The layout is more sensitive to node size than it should be: `free()` sliders hang under their node's label but aren't counted in its collision size, and giving them room (even +8 px each) shifts the waltz and per tonos into crossings.
 - Sailor (the densest example) settles with a few drawn crossings; Lullaby's `&sink` drifts away from `&song`; in the waltz's physics without its fixed layout, the outer motif `&V` settles level with the meter.

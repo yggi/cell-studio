@@ -74,18 +74,10 @@
   const { library } = studio;
   const entries = $derived(library.entries);
   const current = $derived(library.currentId);
-  const storageOk = library.storageOk;
   const message = $derived(studio.view.message);
-  const perfOn = $derived(studio.view.perf);
   const onpick = (id: string) => studio.pick(id);
   const onclose = () => (studio.view.tab = 'graph');
-  const onsavefile = () => studio.saveFile();
-  const onopenfile = (file: File) => studio.openFile(file);
-  const onsavebrowser = () => studio.saveHere();
   const onremove = (id: string) => library.remove(id);
-  const onrender = () => studio.render();
-  /** Show or hide the performance overlay. */
-  const onperf = () => studio.view.togglePerf();
 
   let query = $state('');
   // the tag lit in the graph
@@ -98,7 +90,6 @@
   const clearFilter = () => (filter = { genre: null, artist: null, topic: null });
   // cards, or the library as a graph (pieces and their tags)
   let view = $state<'cards' | 'graph'>('graph');
-  let filesOpen = $state(false);
   // the floating top's height (the graph keeps it free) and a request to frame it all again
   let topHeight = $state(0);
   let refit = $state(0);
@@ -211,7 +202,6 @@
   const wheel = $derived(cardWidth ? Math.min(136, Math.floor((cardWidth - 8) / 1.41)) : 136);
   const when = (iso?: string) => (iso ? new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short' }) : '');
 
-  let fileInput: HTMLInputElement;
   function onkeydown(e: KeyboardEvent) {
     if (e.key !== 'Escape') return;
     if (detail) detail = null;
@@ -233,37 +223,7 @@
     <header class:quiet={embedded}>
       <h2>Choose a piece</h2>
       <div class="end">
-        <div class="files" role="group" aria-label="Files">
-          <button class="unstyled filesbtn" aria-expanded={filesOpen} onclick={() => (filesOpen = !filesOpen)}>Files ▾</button>
-          {#if filesOpen}
-            <div class="menu" role="menu">
-              <button class="unstyled" role="menuitem" onclick={() => ((filesOpen = false), fileInput.click())}>Open a file…</button>
-              <button class="unstyled" role="menuitem" disabled={!current} onclick={() => ((filesOpen = false), onsavefile())}>Save the piece to a file</button>
-              <button class="unstyled" role="menuitem" disabled={!current} onclick={() => ((filesOpen = false), onrender())}>Render the piece to WAV</button>
-              <button class="unstyled" role="menuitem" onclick={() => ((filesOpen = false), studio.view.showPanel('midi'))}>MIDI…</button>
-              {#if onperf}<button class="unstyled" role="menuitem" onclick={() => ((filesOpen = false), onperf())}>{perfOn ? 'Hide' : 'Show'} performance report</button>{/if}
-              <button
-                class="unstyled"
-                role="menuitem"
-                disabled={!current || !storageOk}
-                title={storageOk ? undefined : 'This browser can’t keep pieces here'}
-                onclick={() => ((filesOpen = false), onsavebrowser())}>Save it in this browser</button
-              >
-              <p class="version">Cell studio {__APP_VERSION__}</p>
-            </div>
-          {/if}
-          <input
-            bind:this={fileInput}
-            type="file"
-            accept=".cells,.txt,text/plain"
-            hidden
-            onchange={(e) => {
-              const f = e.currentTarget.files?.[0];
-              if (f) onopenfile(f);
-              e.currentTarget.value = '';
-            }}
-          />
-        </div>
+        <button class="unstyled filesbtn" aria-label="Files, MIDI and more" onclick={() => studio.view.showPanel('file')}>Files ▾</button>
         {#if embedded}
           {#if current}<button class="unstyled back" onclick={onclose}>Back to the piece →</button>{/if}
         {:else}
@@ -627,23 +587,6 @@
     background: var(--hue, var(--accent));
     color: var(--ink-on-note);
   }
-  .files {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px 14px;
-  }
-  .files button {
-    font: 600 13.5px var(--font-ui);
-    color: var(--text-muted);
-    padding: 4px 0;
-  }
-  .files button:hover {
-    color: var(--accent);
-  }
-  .files button:disabled {
-    opacity: 0.4;
-    cursor: default;
-  }
   .message {
     margin: -4px 0 0;
     font-size: 13px;
@@ -816,10 +759,6 @@
     flex-direction: column;
     gap: 10px;
   }
-  .files {
-    position: relative;
-    align-self: flex-start;
-  }
   .filesbtn {
     font: 600 13px var(--font-ui);
     color: var(--text-muted);
@@ -828,40 +767,6 @@
   .filesbtn:focus-visible {
     outline: 2px solid var(--accent);
     border-radius: 4px;
-  }
-  .menu {
-    position: absolute;
-    z-index: 5;
-    top: 100%;
-    right: 0;
-    min-width: 230px;
-    display: flex;
-    flex-direction: column;
-    padding: 6px;
-    border-radius: 12px;
-    background: var(--surface);
-    border: 1px solid var(--line);
-    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45);
-  }
-  .menu button {
-    padding: 9px 10px;
-    border-radius: 8px;
-    font: 600 14px var(--font-ui);
-    color: var(--text);
-  }
-  .menu button:hover:not(:disabled),
-  .menu button:focus-visible {
-    background: var(--code-bg);
-  }
-  .menu .version {
-    margin: 4px 10px 2px;
-    font: 12px var(--font-ui);
-    color: var(--text-faint);
-    user-select: text;
-  }
-  .menu button:disabled {
-    color: var(--text-faint);
-    cursor: default;
   }
   button.big {
     align-self: center;

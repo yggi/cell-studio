@@ -4,6 +4,7 @@
 </script>
 
 <script lang="ts">
+  import SideMarks from './SideMarks.svelte';
   /**
    * A cell drawn by a plugin of the piece (`show=name`, engine/plugins.ts): the node of the graph, with its drawing, its
    * dial if it has one (stopped, turning it moves where play starts) and its name. The drawing is the plugin's;
@@ -119,6 +120,7 @@
   {#if allowed && plugin && !plugin.builtin}
     <button type="button" class="stop" onclick={() => revoke(trustKey)} title="Stop running this plugin: it will ask again">stop plugin</button>
   {/if}
+  <SideMarks name={d.name} />
   <Handle type="source" position={Position.Bottom} class="center-handle" isConnectable={false} />
 </div>
 

@@ -12,6 +12,7 @@ import type { Played } from '../../engine/realize';
 import { contextClock } from '../../audio/device';
 import type { NoteSink } from '../../audio/player';
 import { storageKey } from '../../storageKey';
+import { Activity } from '../activity';
 
 type ToneNS = Parameters<NoteSink['play']>[0];
 type Chosen = { readonly id: string; readonly name: string };
@@ -130,6 +131,9 @@ export class Midi implements ChosenPorts, NoteSink {
   /** Said when a microtonal piece's notes with different bends overlap on one channel (rotation fixes it). */
   warning = $state<string | null>(null);
 
+  /** When a message last came in and went out, for the transport's light (#262). */
+  readonly activity = new Activity();
+
   /** What sends the notes played to the output (`midi/out.ts`), through `send`. */
   readonly out = new MidiOut({ send: (data, timestamp) => this.send(data, timestamp) });
   /** What sends the main meter's ticks, with Start, Continue and Stop (`midi/clock-out.ts`), through `send`. */
@@ -240,7 +244,7 @@ export class Midi implements ChosenPorts, NoteSink {
     if (this.connecting) return;
     this.connecting = true;
     const result = await connectMidi(
-      () => MidiAccess.connect({ onChange: () => this.#changed(), onMessage: (...m) => this.#hearers.forEach((h) => h(...m)) }),
+      () => MidiAccess.connect({ onChange: () => this.#changed(), onMessage: (...m) => this.#heard(...m) }),
       this,
       () => !this.#disposed,
     );
@@ -252,6 +256,12 @@ export class Midi implements ChosenPorts, NoteSink {
       this.#list();
     }
     this.connecting = false;
+  }
+
+  // a message from the input: the light flashes (not for system messages: a device's active sensing), then it is heard
+  #heard(data: Uint8Array, source: string, timeStamp: number): void {
+    if (data[0] < 0xf0) this.activity.hit('in');
+    for (const h of this.#hearers) h(data, source, timeStamp);
   }
 
   /** Hear every message from the input listened to, raw; the function returned stops it. */
@@ -379,6 +389,7 @@ export class Midi implements ChosenPorts, NoteSink {
           send: (data, timestamp) => {
             try {
               this.slotPort(slot)?.send(data, timestamp);
+              this.#flash(data, timestamp);
             } catch {
               // (gone: its next statechange lets go of it)
             }
@@ -469,6 +480,11 @@ export class Midi implements ChosenPorts, NoteSink {
     this.access?.listen(id);
   }
 
+  // a note or a control sent (not the clock's ticks) flashes the light, at the moment it is heard
+  #flash(data: readonly number[], timestamp?: number): void {
+    if (data[0] >= 0x80 && data[0] < 0xf0) this.activity.hit('out', timestamp);
+  }
+
   /** Send a message to the output, noting its channel for All notes off. A port unplugged mid-send throws: nothing is sent. */
   send(data: readonly number[], timestamp?: number): void {
     const port = this.outPort;
@@ -476,6 +492,7 @@ export class Midi implements ChosenPorts, NoteSink {
     if (data[0] >= 0x80 && data[0] < 0xf0) this.#used.add(data[0] & 0x0f);
     try {
       port.send(data, timestamp);
+      this.#flash(data, timestamp);
     } catch {
       // (gone: its next statechange lets go of it)
     }

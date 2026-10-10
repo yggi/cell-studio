@@ -20,6 +20,17 @@ describe('a live edge takes the colour of what its source pushes now (edgeStyle.
     expect(liveColour({ band: 'audio', port: 'mix', sound: () => ({ position: null, grid: null }) })).toBe(palette('audio', { position: null, loud: 1 }, null));
   });
 
+  it('sound from a source that sounds no note of its own (a modulator never played): the note of the voice it feeds', () => {
+    const fed = () => ({ position: 4, grid: C12 });
+    expect(liveColour({ band: 'audio', port: 'fm', sound: () => ({ position: null, grid: C12 }), heard: fed })).toBe(palette('audio', { position: 4, loud: 1 }, C12));
+    // (its own note when it has one)
+    expect(liveColour({ band: 'audio', port: 'fm', sound: () => ({ position: 7, grid: C12 }), heard: fed })).toBe(palette('audio', { position: 7, loud: 1 }, C12));
+    // (into a mix, which sounds several: neutral still)
+    expect(liveColour({ band: 'audio', port: 'mix', sound: () => ({ position: null, grid: null }), heard: () => ({ position: null, grid: null }) })).toBe(
+      palette('audio', { position: null, loud: 1 }, null),
+    );
+  });
+
   it('a melody: the note its source shows now, before what the voice sounds (a transposition is on the label)', () => {
     const heard = () => ({ position: -24, grid: C12 });
     // (&roots − 24 into its voice: the root as &roots' wheel shows it, not two octaves down)
