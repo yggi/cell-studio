@@ -123,6 +123,9 @@
   --scope-grid: rgb(120 255 180 / 0.08);
   --scope-ink: rgb(200 255 220 / 0.6);
   --scope-tick: rgb(200 255 220 / 0.7);
+  /* the on-screen keys (#255): ivory and ebony, as a piano's, whatever the theme */
+  --key-white: #ece6da;
+  --key-black: #16181e;
 
   /* shape */
   --radius-sm: 6px;

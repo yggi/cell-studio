@@ -2,7 +2,7 @@
 // apps/web/src/instruments.svelte.ts (the computer keys and MIDI into one route) @ 8cdb6b8.
 
 import { SvelteMap, SvelteSet } from 'svelte/reactivity';
-import { armable, keyboardOf, rowNote, type Armable, type Keyboard, type KeyMode } from '../../engine/keys';
+import { armable, keyboardOf, kitPads, rowNote, scaleKeys, type Armable, type Keyboard, type KeyMode, type Pad } from '../../engine/keys';
 import { noteOf } from '../../engine/midi';
 import { cellId } from '../../engine/ids';
 import { gmNotesFor, type DrumMap } from '../../midi/drum-presets';
@@ -80,7 +80,7 @@ export class Keys {
   #kept = $state.raw<Stored>(DEFAULTS);
   // what sounds, by channel and key ("0:60"), the ones the pedal holds included
   #down = new SvelteMap<string, Down>();
-  #pedal = false;
+  #pedal = $state(false);
   #hands: Hands;
   #midi: MidiIo;
   #claimed: (data: Uint8Array) => boolean;
@@ -106,6 +106,10 @@ export class Keys {
     const kit = this.armable.find((a) => a.kit);
     return kit ? keyboardOf(this.piece.program, kit.cell, this.piece.shifts) : null;
   });
+  /** The pads of the kit channel 10 plays (the on-screen pads, #255): one per member, with its General MIDI note; none without a kit. */
+  readonly pads = $derived.by<Pad[]>(() => (this.#kit ? kitPads(this.piece.program, this.#kit.cell) : []));
+  /** The keys the armed melody's scale can play (the dots on the on-screen keys, #255); null: no scale (a kit, a voice no melody plays). */
+  readonly scale = $derived.by<ReadonlySet<number> | null>(() => (this.armed === null ? null : scaleKeys(this.piece.program, this.armed, this.piece.shifts, this.piece.env.A4)));
   /** The cells sounding from the keys now (graph ids): the voice played and the cell armed light as a strike's do. */
   readonly lit = $derived<ReadonlySet<string>>(new Set([...this.#down.values()].flatMap((d) => [cellId(d.voice), cellId(d.cell)])));
 
@@ -217,6 +221,11 @@ export class Keys {
     }
     this.#down.delete(at);
     this.#hands.release(d.id);
+  }
+
+  /** Whether the sustain pedal is down (a MIDI pedal's, or the on-screen keys' button). */
+  get pedal(): boolean {
+    return this.#pedal;
   }
 
   /** The sustain pedal: down, releases wait; up, every key it held lets go. */
