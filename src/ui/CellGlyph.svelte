@@ -10,6 +10,7 @@
   import { cellView, hubLabel, type CellView, type Fill, type Segment } from '../layout/cellview';
   import { gateOf, receiverPlaces } from '../layout/gate';
   import { bulbHosts } from '../engine/graph';
+  import { valuesAt } from '../engine/values';
   import { BORDER, border, coarsen } from '../layout/coarse';
   import { names, noteLabel, tonicOf, voiceBase } from '../layout/show';
   import { polar, ringSegment } from '../layout/geometry';
@@ -528,6 +529,12 @@
 
   // the playhead: braids, and a selector's barrel (where in its sections)
   const hand = $derived((view.mode === 'braid' || view.mode === 'matrix') && liveLocal != null ? liveLocal / Math.max(1, ctx.program.cells.get(played)?.steps ?? 1) : null);
+  // how open a gate is now (gate=, a level: 1 open, 0 closed): its receivers as dim as it is closed, while playing
+  const openness = $derived.by(() => {
+    if (!gate?.open || !ctx.lit) return 1;
+    const v = valuesAt(ctx.program, ctx.shifts, gate.open, ctx.heads.seconds)[0];
+    return v === undefined ? 1 : Math.max(0, Math.min(1, v));
+  });
   // a gate's receivers: small wheels fanned over its top (layout/gate.ts); a bulb when only the gate plays the voice, else
   // hollow (the voice has a node of its own); each lit while its voice sounds
   const receivers = $derived.by(() => {
@@ -805,7 +812,13 @@
     {#if size >= 160}<text class="pen" x={c} y={c + geo.rHub * 0.62}>✎</text>{/if}
   {/if}
   {#each receivers as v (v.name)}
-    <g class="receiver" class:hollow={!v.bulb} class:sounding={!!ctx.lit?.nodes.has(`cell:${v.name}`)} class:off={!!ctx.program.cells.get(v.name)?.off}>
+    <g
+      class="receiver"
+      class:hollow={!v.bulb}
+      class:sounding={!!ctx.lit?.nodes.has(`cell:${v.name}`)}
+      class:off={!!ctx.program.cells.get(v.name)?.off}
+      style:opacity={ctx.program.cells.get(v.name)?.off ? undefined : 0.25 + 0.75 * openness}
+    >
       <circle class="receiver-disc" cx={v.x} cy={v.y} r={v.r} />
       {#if v.font}<text class="receiver-name" x={v.x} y={v.y} dy="0.35em" style:font-size="{v.font}px">{v.text}</text>{/if}
       {#if v.bulb}<circle

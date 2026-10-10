@@ -171,9 +171,10 @@ export function voiceGrooves(decls: ReadonlyMap<string, CellDecl>): { voices: Re
 }
 
 /**
- * Gates (#234, the gate node, first increment): a named junction. `&leadOut trigger=&tune velocity=&accent gain=.5 &lead`
- * plays its receivers (the voices in its braid) with each note of its trigger, at the velocity's level and the gain:
- * exactly the product `&leadOut [&tune * &accent * &lead * .5]`, which is what it is read as (one product per receiver).
+ * Gates (#234, the gate node): a named junction. `&leadOut trigger=&tune velocity=&accent gate=&solo gain=.5 &lead`
+ * plays its receivers (the voices in its braid) with each note of its trigger, at three levels of one family: the
+ * velocity's (per note), the gate's (how open it is over time) and the gain (fixed). Exactly the product
+ * `&leadOut [&tune * &accent * &solo * &lead * .5]`, which is what it is read as (one product per receiver).
  * So it sounds, routes and draws as that named mix does; the product stays its anonymous form.
  */
 function gates(decls: Map<string, CellDecl>, error: Ctx['error']): void {
@@ -188,6 +189,7 @@ function gates(decls: Map<string, CellDecl>, error: Ctx['error']): void {
     }
     const ref = (name: string, span: Span): Expr => ({ k: 'ref', ref: { name, pick: null, shift: 0, span } });
     const velocity = d.params.velocity;
+    const open = d.params.gate;
     const gain = d.params.gain;
     const exprs: Expr[] = receivers.map((r) => ({
       k: 'prod',
@@ -195,6 +197,7 @@ function gates(decls: Map<string, CellDecl>, error: Ctx['error']): void {
       factors: [
         ref(trigger, d.paramSpans.trigger ?? d.span),
         ...(typeof velocity === 'string' ? [ref(velocity, d.paramSpans.velocity ?? d.span)] : []),
+        ...(typeof open === 'string' ? [ref(open, d.paramSpans.gate ?? d.span)] : []),
         ref(r.name, r.span),
         ...(typeof gain === 'number' ? [{ k: 'num', value: gain, span: d.paramSpans.gain ?? d.span } as Expr] : []),
       ],

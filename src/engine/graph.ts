@@ -419,7 +419,7 @@ export function buildGraph(result: CompileResult, opts: { readonly bulbs?: boole
     // (the written pairs the routing knows: each term into each voice it plays, each voice into the gate)
     const flows = receivers.map((b) => edgeId(cellId(b.voice.name), into));
     for (const f of flows) through.add(f);
-    for (const key of ['trigger', 'velocity'] as const) {
+    for (const key of ['trigger', 'velocity', 'gate'] as const) {
       const name = c.params[key];
       if (typeof name !== 'string' || !result.cells.has(name)) continue;
       const pairs = receivers.flatMap((b) => soundsOf(result, b.voice.name).map((v) => edgeId(cellId(name), cellId(v))));

@@ -130,6 +130,12 @@ export const PARAMS: Readonly<Record<string, Attribute>> = {
   wanderhz: physics('a read head: how fast it wanders (times a second)', ['head'], { hz: true }),
   // a gate: a named junction (docs/language/mix.md: a gate)
   trigger: { help: 'a gate: what plays through it — each note of this cell plays the receivers in its braid (trigger=&tune)', doc: 'mix.md', value: 'cell', on: ['gate'] },
+  gate: {
+    help: 'a gate: how open it is over time, a level on all it lets through (gate=&solo: 1 open, 0 closed, .3 ducked); velocity= is per note, gain= fixed',
+    doc: 'mix.md',
+    value: 'cell',
+    on: ['gate'],
+  },
   velocity: { help: 'a gate: a level on each note it lets through, as a product’s level (velocity=&accent)', doc: 'mix.md', value: 'cell', on: ['gate'] },
   gain: { help: 'a gate: a fixed level on what it lets through, as a product’s number (gain=.5)', doc: 'mix.md', value: 'number', on: ['gate'] },
   // scopes

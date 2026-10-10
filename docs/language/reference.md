@@ -163,6 +163,7 @@ Parameters belong to voices (the sound ones keep dough's names) and to physical 
 - `wander=n` · `wander=free(n, lo..hi)`: A read head: how far it wanders either way (tape-seconds) — a flying head — on a read head (play=) [→](physics.md)
 - `wanderhz=n` · `wanderhz=free(n, lo..hi)`: A read head: how fast it wanders (times a second) — on a read head (play=) [→](physics.md)
 - `trigger=&cell`: A gate: what plays through it — each note of this cell plays the receivers in its braid (trigger=&tune) — on a gate (trigger=) [→](mix.md)
+- `gate=&cell`: A gate: how open it is over time, a level on all it lets through (gate=&solo: 1 open, 0 closed, .3 ducked); velocity= is per note, gain= fixed — on a gate (trigger=) [→](mix.md)
 - `velocity=&cell`: A gate: a level on each note it lets through, as a product’s level (velocity=&accent) — on a gate (trigger=) [→](mix.md)
 - `gain=n` · `gain=free(n, lo..hi)`: A gate: a fixed level on what it lets through, as a product’s number (gain=.5) — on a gate (trigger=) [→](mix.md)
 - `scope=word`: A scope: stack, split, xy (in time) — spectrum, waterfall (in frequency, or value); its braid lists its channels — on a scope (scope=) [→](display.md)

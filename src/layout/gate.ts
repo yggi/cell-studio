@@ -6,12 +6,13 @@
 import type { CompileResult } from '../engine/program';
 import { wheelGeometry } from './wheel';
 
-/** A gate's trigger and its receivers (the voices in its braid, as read), or null: not a gate. */
-export function gateOf(result: CompileResult, name: string): { trigger: string; receivers: readonly string[] } | null {
+/** A gate's trigger, its receivers (the voices in its braid, as read) and its gate= cell, or null: not a gate. */
+export function gateOf(result: CompileResult, name: string): { trigger: string; receivers: readonly string[]; open: string | null } | null {
   const c = result.cells.get(name);
   const trigger = c?.params.trigger;
   if (!c || typeof trigger !== 'string') return null;
-  return { trigger, receivers: (c.mix ?? []).map((b) => b.voice.name) };
+  const open = c.params.gate;
+  return { trigger, receivers: (c.mix ?? []).map((b) => b.voice.name), open: typeof open === 'string' && result.cells.has(open) ? open : null };
 }
 
 /**
