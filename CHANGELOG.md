@@ -11,6 +11,7 @@ that makes the change. Also note changes to the language that could affect saved
 ## Unreleased
 
 ### Changed
+- **Crossings weigh what they cross**: two sound wires, two braids or two of a meter's traces crossing count double, a note's link little; the layout pushes crossings apart as hard as they cost, each cell moving as little as it weighs (a tape holds), so pieces are laid out a little differently.
 - **A bus keeps its width** (an `over=` table's strands, a chord's notes, a ref's picks): its strands follow one curve side by side through every bend instead of closing up in it, and turn off their loom round the wheel through a short curve instead of a corner. Saved `.cells` pieces are not affected (drawing only).
 - **The tutorial is nine tiers** ([decision 020](docs/decisions/020-tutorial-tiers.md)), not thirty numbered rungs: *Steps and sound*, *Time and voice*, *Melody and harmony*, *Rhythm and feel*, *Development*, *Sound and tuning*, *Physics*, *Tape, text and time*, *Gates, performing and MIDI*. A card says `tier=n` where it said `rung=n`; the pieces of a tier together show all of its forms, and a piece added to a tier renumbers nothing. A saved piece with `rung=` has to say `tier=` (only cards of the tutorial carried it; the pieces that ship are done).
 - New first pieces for the lowest tier, the smallest that sound: *A tone*, *Rests, holds and repeats*, *Semitones*, *Two voices*.

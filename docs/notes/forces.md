@@ -66,3 +66,28 @@ Four other seeds (2–5), stopped after three rows:
    halved as a variant (`CUSTOM=`).
 3. Record the baseline once the set holds over six seeds; widen the gate to more seeds if one start's luck keeps
    deciding it.
+
+## Crossings by kind (2026-10-10)
+
+The owner's ask: different crossings count differently (a label's link less, two of one kind more), in the measure
+and in the force. `weights.ts: crossingCost`: the two edges' strengths (`strengthOf`) times 2 when both are of one
+band (two sound wires, two braids or other values, two of a meter's traces); a label's link weighs 0.3. The quality
+count (`cost`) and `forceUncross` read it, so the layout pushes hardest where a crossing costs most.
+
+Eight seeds (`tools/probe/forces.test.ts`, `SEEDS=0..7`), library sums, means; cost by the new rule throughout:
+
+| variant | crossings | cost | area |
+|---|---|---|---|
+| before (every pair pushed alike, `uncross` 0.6) | 58.2 | 183.1 | 89.2 |
+| pushed by cost, `uncross` 0.6 | 52.5 | 176.8 | 90.4 |
+| pushed by cost, `uncross` 1 | 52.3 | 160.8 | 92.3 |
+| pushed by cost, `uncross` 1.2 | 48.7 | 159.4 | 93.4 |
+| **pushed by cost, each end by its mass, `uncross` 1** | **55.3** | **179.1** | 90.4 |
+| the same, `uncross` 0.8 / 1.2 | 55.5 / 58.1 | 180.5 / 186.9 | 90.1 / 90.8 |
+
+- Pushed by cost alone, the layout wins most, but it turns tapes away from their heads: the library's aim 45 → 62, and
+  Test Tones' tape test fails (a head 46° off what it connects to). A push that moves each end as little as it weighs
+  keeps the tapes (aim 45 → 51, the tests pass) for a smaller gain: 58 → 55 crossings, cost 183 → 179. Sparing only the
+  turntables doesn't keep them: what a head connects to is an ordinary voice.
+- **Chosen by the owner: by cost, each end by its mass, `uncross` 1.** The baseline (seeds 0–2) goes 53.3 → 51.0
+  crossings, aim 44.6 → 51.4, area +2.8 %; its cost is on the new rule (117 → 163 is the rule, not the layout).

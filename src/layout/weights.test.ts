@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { compileSource } from '../engine/compile';
 import { buildGraph } from '../engine/graph';
-import { massOf, strengthOf } from './weights';
+import { crossingCost, massOf, SAME_KIND, strengthOf } from './weights';
 
 // The layout's weights (docs/notes/nets.md): a node's mass by what it is, an edge's strength by what it carries.
 describe('weights', () => {
@@ -33,5 +33,14 @@ describe('weights', () => {
     expect(strength('mode', 'theme')).toBeGreaterThan(1);
     expect(strength('walk', 'lead')).toBe(1);
     expect(strength('piece', 'out')).toBeLessThan(1);
+  });
+
+  it('a crossing costs the two strengths, more for two of one kind', () => {
+    expect(crossingCost({ w: 1, kind: 'cv' }, { w: 1, kind: 'audio' })).toBe(1);
+    expect(crossingCost({ w: 1, kind: 'audio' }, { w: 1, kind: 'audio' })).toBe(SAME_KIND);
+    expect(crossingCost({ w: 2, kind: 'sync' }, { w: 2, kind: 'sync' })).toBe(4 * SAME_KIND);
+    // (a label's link: weak, whatever it crosses; no kind given, no kind shared)
+    expect(crossingCost({ w: 0.3, kind: 'none' }, { w: 1, kind: 'cv' })).toBeCloseTo(0.3);
+    expect(crossingCost({ w: 1 }, { w: 1 })).toBe(1);
   });
 });
