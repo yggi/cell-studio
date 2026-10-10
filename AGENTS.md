@@ -6,7 +6,7 @@ Cell studio: a minimal music language where everything is a cell, as a browser a
 
 - **Work:** open issues (labels `language` `audio` `ui` `bug` …; epics in [docs/roadmap.md](docs/roadmap.md)); rough edges that are documented, not tracked, in [docs/limits.md](docs/limits.md).
 - **Code:** `docs/architecture.md` says what lives where and how data flows; the `docs/language/` pages say what each attribute means.
-- **Tools:** `npm test` (vitest), `npm run check` (svelte-check), `npm run lint` (ESLint), `npm run format` (Prettier), `npm run knip` (unused code), `npm run smoke` (every piece started in a real browser, a set covering every kind of sound played), the `profile` skill (main-thread load), the `gallery` skill (contact sheets of every wheel and every edge, design mock-ups), the `probe` skill (a design question measured over the whole library), `window.cellStudio.measure` (loudness). [docs/testing.md](docs/testing.md).
+- **Tools:** `npm test` (vitest), `npm run check` (svelte-check), `npm run lint` (ESLint), `npm run format` (Prettier), `npm run knip` (unused code), `npm run smoke` (every piece started in a real browser, a set covering every kind of sound played), the `profile` skill (main-thread load), the `gallery` skill (contact sheets of every wheel and every edge, design mock-ups), the `probe` skill (a design question measured over the whole library), `window.cellStudio.measure` (loudness), `node tools/sync-pr.mjs <pr>` (merge `main` into a PR whose conflicts are mechanical: the `senior` skill). [docs/testing.md](docs/testing.md).
 
 ## Checks
 

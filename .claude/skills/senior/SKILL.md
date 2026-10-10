@@ -40,13 +40,19 @@ After merging: the issue is closed by `Closes #n` (verify; if the PR was partial
 ## 5. Several PRs at once
 
 1. Order them: independent and safest first, those others depend on before their dependents, docs-only anytime. Conflicts are resolved once, at the later PR.
-2. For each in turn: merge `main` into its branch (`update_pull_request_branch`; if it conflicts, do it locally), resolve, run `npm test && npm run check`, push to the PR branch, wait for CI and its smoke run, merge, next.
+2. For each in turn: merge `main` into its branch (`update_pull_request_branch`; if it conflicts, do it locally: `node tools/sync-pr.mjs <pr>` does the mechanical conflicts, see below), resolve, run `npm test && npm run check`, push to the PR branch, wait for CI and its smoke run, merge, next.
 3. Resolving: read both PRs' intent first (descriptions, issues), then the code.
    - **Docs and `CHANGELOG.md`/`INDEX.md`**: keep both sides' facts, remove duplicates; the docs tests tell you if a block or link broke.
    - **Lockfile**: regenerate with `npm install`, never merge by hand.
    - **Behavioural conflicts** (e.g. the order in which things are inserted into the audio graph): don't choose by which text looks nicer. Work out what each PR needs, write or adjust a test that pins the order, and run the smoke test on the pieces that use it.
    - If resolving changes what either PR does beyond the mechanical, stop and ask the owner.
 4. Report the order you merged in and anything you changed beyond the conflicts.
+
+### Mechanical conflicts: `tools/sync-pr.mjs`
+
+`node tools/sync-pr.mjs <pr> [--push] [--no-gate] [--keep]` brings a PR up to date with `main` in a worktree of its own. It resolves only the files that conflict mechanically, because both sides *added* to them: `CHANGELOG.md`, `docs/MEMORY.md`, `snapshot.txt`, `quality.baseline.json`, `order.ts`, `ladder.ts` (both sides' lines, main's first; the baseline's commas fixed), and the generated `docs/examples.md` and `reference.md` (main's, regenerated). Any other conflicted file stops it (exit 2, files named): that is for you to resolve by hand. It then runs the gate (`check`, `eslint`, `knip`, `prettier --check`, `vitest`; exit 3 on a failure, worktree kept) and warns when two decisions share a number. With `--push` it pushes to the PR branch only if the author hasn't pushed since it fetched (exit 4: run it again).
+
+It decides nothing: a collision it can't see (two pieces on one tier, a rung number, a decision number twice) shows up as a failing gate or the warning, and renumbering is yours. Re-review what the merge brought in only when the PR itself changed since your review; a mechanical merge of `main` is not new code.
 
 ## 6. Report back (short)
 
