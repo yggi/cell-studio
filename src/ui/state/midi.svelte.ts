@@ -47,6 +47,8 @@ const chosen = (v: unknown): Chosen => {
   return c && typeof c.id === 'string' && typeof c.name === 'string' ? { id: c.id, name: c.name } : NONE;
 };
 
+/** A value kept under a key of its own: a piece titled `constructor` or `__proto__` has none (not the object's). */
+const own = <T>(o: Readonly<Record<string, T>>, key: string): T | undefined => (Object.hasOwn(o, key) ? o[key] : undefined);
 const isRecord = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v);
 const numbers = (v: unknown, lo: number, hi: number): Record<string, number> =>
   isRecord(v) ? Object.fromEntries(Object.entries(v).filter((e): e is [string, number] => Number.isInteger(e[1]) && (e[1] as number) >= lo && (e[1] as number) <= hi)) : {};
@@ -143,7 +145,7 @@ export class Midi implements ChosenPorts, NoteSink {
   /** The open piece's channel table: its voices on their channels (as chosen here, else in order), its kit members on 10. */
   readonly table = $derived.by(() => {
     const p = this.#piece;
-    return p ? channelTable(p.program, this.#channels[p.title ?? ''] ?? {}, this.#kits[p.title ?? '']) : null;
+    return p ? channelTable(p.program, own(this.#channels, p.title ?? '') ?? {}, own(this.#kits, p.title ?? '')) : null;
   });
   /**
    * The output slots the open piece's MIDI cards name (map=midi(c, p)), each with the device it goes to: slot 1 the
@@ -303,13 +305,13 @@ export class Midi implements ChosenPorts, NoteSink {
   /** Put a voice of the open piece on a channel, kept for that piece in this browser. */
   setChannel(voice: string, ch: number): void {
     const title = this.#piece?.title ?? '';
-    this.#channels = { ...this.#channels, [title]: { ...this.#channels[title], [voice]: clamped(ch, 1, 16, 1) } };
+    this.#channels = { ...this.#channels, [title]: { ...own(this.#channels, title), [voice]: clamped(ch, 1, 16, 1) } };
     this.#save();
   }
 
   /** The channel the open piece's kit goes on (10 unless put elsewhere), kept for that piece in this browser. */
   get kitChannel(): number {
-    return this.#kits[this.#piece?.title ?? ''] ?? 10;
+    return own(this.#kits, this.#piece?.title ?? '') ?? 10;
   }
   set kitChannel(ch: number) {
     const title = this.#piece?.title ?? '';
@@ -343,7 +345,9 @@ export class Midi implements ChosenPorts, NoteSink {
   }
 
   #slotChoice(slot: number): Chosen {
-    return slot === 1 ? this.#out : (this.#slots[this.#piece?.title ?? '']?.[slot] ?? NONE);
+    if (slot === 1) return this.#out;
+    const mine = own(this.#slots, this.#piece?.title ?? '');
+    return (mine && own(mine, String(slot))) || NONE;
   }
 
   /** The live port an output slot goes to now (slot 1: the default output), or null. */
@@ -362,7 +366,7 @@ export class Midi implements ChosenPorts, NoteSink {
     out?.forget();
     const title = this.#piece?.title ?? '';
     const name = id === 'none' ? '' : (this.ports.outputs.find((p) => p.id === id)?.name ?? '');
-    this.#slots = { ...this.#slots, [title]: { ...this.#slots[title], [slot]: { id, name } } };
+    this.#slots = { ...this.#slots, [title]: { ...own(this.#slots, title), [slot]: { id, name } } };
     this.#save();
   }
 

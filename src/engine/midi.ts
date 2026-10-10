@@ -7,7 +7,7 @@
  * Two ways a piece's notes find their channels (decision 019): a piece with MIDI cards (map=midi) says it — each note
  * goes where its cards' entries say (`Played.midi`), on their channels and output slots, and nothing else is sent; a
  * piece with none goes out as the app's default output, every voice heard on a channel of its own in the order the
- * piece declares them, which the dialog can change and this browser keeps (docs/ui/midi.md).
+ * piece declares them, which the MIDI page can change and this browser keeps (docs/ui/midi.md).
  */
 import type { Played } from './realize';
 import { isMidiCard, type CompileResult, type Output } from './program';
