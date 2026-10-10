@@ -132,14 +132,14 @@ describe('voices.sync wires from the flows the graph draws (#132)', () => {
     // &einsturz hears only the notes &tag plays it for, at the end; before, its voices play in their own parts
     const crash = hears('einsturz');
     expect(crash.length).toBeGreaterThan(0);
-    for (const n of crash) expect(out.get(n.output!)!.select.map((x) => x.part)).toEqual(['einsturz']);
+    for (const n of crash) expect(out.get(n.output!)!.select.map((x) => x.part)).toEqual(['einsturzBar']); // (the tap it is stepped through, decision 016)
     const from = Math.min(...crash.map((n) => n.at));
     const before = notes.filter((n) => n.at < from && ['beamv', 'platev', 'sub'].includes(n.voice));
     expect(new Set(before.map((n) => n.voice))).toEqual(new Set(['beamv', 'platev', 'sub']));
     for (const n of before) expect(w.taps.get(n.output!)).not.toContain('einsturz');
     expect(from).toBeGreaterThan(0.9 * Math.max(...notes.map((n) => n.at)));
-    // (and the voices' own parts hear them: &beams' notes in &metalPart)
-    expect(new Set(before.filter((n) => n.voice === 'beamv').flatMap((n) => w.taps.get(n.output!)!))).toEqual(new Set(['metalPart']));
+    // (and the voices' own parts hear them: &beams' notes in &metalPart, and &out, a chord of the parts)
+    expect(new Set(before.filter((n) => n.voice === 'beamv').flatMap((n) => w.taps.get(n.output!)!))).toEqual(new Set(['metalPart', 'out']));
   });
 
   it("a kit's stream in a mix is heard by that mix's wheel: each member, opened by its notes (#166)", () => {

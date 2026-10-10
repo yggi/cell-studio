@@ -9,6 +9,7 @@ import type { ShowPlugin } from '../engine/plugins';
 import { entries, resolveIn, resolvePitch, semitones } from '../engine/helix';
 import { modeName, mod } from '../theory/modes';
 import { SHOWS } from '../engine/parser';
+import { selects } from '../engine/clocking';
 
 /** The shows the language has. A piece can carry more (plugins: engine/plugins.ts). */
 export type CoreShow = (typeof SHOWS)[number];
@@ -104,10 +105,9 @@ export function kindOf(result: CompileResult, name: string): Kind {
   return readAsTable && !played ? 'table' : 'braid';
 }
 
-/** A selector: a cell reading a table whose entries are mixes (parts) — its numbers pick which play. */
+/** A selector: a cell reading a table of taps (decision 016) — its numbers pick which play. */
 export function isSelector(result: CompileResult, name: string): boolean {
-  const t = result.cells.get(result.cells.get(name)?.over ?? '');
-  return !!t && t.units.length > 0 && t.units.every((u) => u.atom.kind === 'ref' && !!result.cells.get(u.atom.name)?.mix && !result.cells.get(u.atom.name)?.sink);
+  return selects(result, name);
 }
 
 /** The show a cell has without show=: what it has always looked like. */
