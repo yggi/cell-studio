@@ -8,8 +8,9 @@
  */
 import { effectiveShow, pluginOf } from '../layout/show';
 import { bulbHub, trackRoom } from '../layout/track';
-import type { CompileResult, ResolvedCell } from './program';
-import type { Pick, ValueMap } from './ast';
+import { gateRoom } from '../layout/gate';
+import { isMidiCard, type CompileResult, type ResolvedCell } from './program';
+import type { Binding, Pick, ValueMap } from './ast';
 import { cellId, clockTapId, edgeId, junctionId, stepEdgeId } from './ids';
 import type { Transform } from './transform';
 
@@ -77,6 +78,7 @@ type Band = 'sync' | 'cv' | 'audio' | 'none';
 interface Wire {
   /**
    * Where the code reads it: `over`, `step`, `braid` (a ref), `voice` (a melody playing it), `env`, `level`, `pitch`, `mix`,
+   * `midi` (a MIDI card's entry: notes, a bus of gate and pitch),
    * `is` (a product's voice, its definition), `about`, or the attribute (`lpf`, `fm`, `write`, `play` …).
    */
   readonly port: string;
@@ -123,8 +125,8 @@ export interface GraphEdge extends Wire {
   readonly bulbAt?: { readonly x: number; readonly y: number; readonly r: number };
 }
 
-/** The ports that make the graph's structure rather than feed what plays: a table read, a ref, a step, a mix's entry, a product's voice, a note's link. */
-const STRUCTURE = new Set(['over', 'braid', 'step', 'mix', 'is', 'about']);
+/** The ports that make the graph's structure rather than feed what plays: a table read, a ref, a step, a mix's or a MIDI card's entry, a product's voice, a note's link. */
+const STRUCTURE = new Set(['over', 'braid', 'step', 'mix', 'midi', 'is', 'about']);
 /**
  * A wire into what plays it: a melody into its voice, its envelope, levels, pitch, parameters, FM, what excites, couples,
  * writes or plays it. Not ticks: a parameter's clock (`delaytime=&bar*3/4`) is timing, as a step is.
@@ -211,6 +213,10 @@ export function buildGraph(result: CompileResult, opts: { readonly bulbs?: boole
       if (c.root) d = 0;
       else if (c.mix) {
         for (const b of c.mix) d = Math.max(d, depthOf(b.voice.name, guard + 1) + 1);
+      } else if (c.chords) {
+        // (a MIDI card: past what it sends, as a sound card is past what it hears)
+        for (const b of c.chords.flatMap((x) => x ?? [])) d = Math.max(d, depthOf(b.voice.name, guard + 1) + 1);
+        for (const k of c.children.keys()) d = Math.max(d, depthOf(k, guard + 1) + 1);
       } else if (c.voice || c.kit) {
         for (const p of playedBy.get(name) ?? []) d = Math.max(d, depthOf(p, guard + 1) + 1);
         for (const o of result.outputs)
@@ -350,6 +356,11 @@ export function buildGraph(result: CompileResult, opts: { readonly bulbs?: boole
       for (const f of pc.factors)
         if (result.cells.has(f)) link({ id: edgeId(cellId(f), id), source: cellId(f), target: id, count: 1, transforms: AS_IS, ...wire(key, 'cv', cellId(f), id) });
     for (const [child, count] of c.children) {
+      // a cell named as a MIDI card's entry: its notes go out there, a note bus into the card (along the flow, as a mix's entry)
+      if (isMidiCard(c)) {
+        link({ id: edgeId(id, cellId(child)), source: id, target: cellId(child), count, transforms: AS_IS, ...wire('midi', 'cv', id, cellId(child), 1, true) });
+        continue;
+      }
       link({
         id: edgeId(id, cellId(child)),
         source: id,
@@ -408,69 +419,117 @@ export function buildGraph(result: CompileResult, opts: { readonly bulbs?: boole
   const junctions: GraphNode[] = [];
   /** Written pairs the routing knows that are drawn through a junction (its wires' `routes`). */
   const through = new Set<string>();
-  for (const c of result.cells.values())
-    (c.mix ?? []).forEach((b, entry) => {
-      if (!result.cells.has(b.voice.name)) return;
-      const voice = cellId(b.voice.name);
-      const into = cellId(c.name);
-      const width = c.sink && c.units.length === 2 ? 2 : 1;
-      const gain: readonly Transform[] = [b.gain !== 1 ? [{ kind: 'gain', by: b.gain }] : []];
-      // (the routing's flow from the sound into the mix: flows.ts)
-      const flow = edgeId(voice, into);
-      const terms = b.pitches.filter((t) => result.cells.has(t.ref.name));
-      if (!terms.length) {
-        link({ id: flow, source: voice, target: into, count: 1, transforms: gain, ...wire('mix', 'audio', voice, into, width) });
-        return;
-      }
-      const j = junctionId(c.name, entry);
-      const tags = c.tags.length ? c.tags : (result.cells.get(b.voice.name)?.tags ?? []);
-      junctions.push({ id: j, kind: 'junction', depth: depthOf(b.voice.name), mix: c.name, entry, voice: b.voice.name, tags });
-      through.add(flow);
-      const sound = b.voice.name;
-      // (the voices the routing plays it on: an instrument's own, a kit for a pattern read through one)
-      const voices = soundsOf(result, b.voice.name);
-      const byTerm = new Map<string, typeof terms>();
-      for (const t of terms) byTerm.set(t.ref.name, [...(byTerm.get(t.ref.name) ?? []), t]);
-      // the term that starts notes: an output's, where it is written (a product written again, in another mix, is the
-      // same output: its term by name)
-      const startsAt = (t: (typeof terms)[number]) =>
-        result.outputs.some((o) => {
-          const at = `${o.voice}:${o.cell}:${t.ref.span.line}:${t.ref.span.col}`;
-          return o.id === at || o.id.startsWith(at + '@');
-        });
-      const starter = terms.find(startsAt) ?? terms.find((t) => result.outputs.some((o) => voices.includes(o.voice) && (o.tape?.head ?? o.cell) === t.ref.name && !o.gate));
-      for (const [name, ts] of byTerm) {
-        const t = ts[0];
-        const c0 = result.cells.get(name)!;
-        // what the term is in the product: the one that starts notes, an envelope, a level, a pitch
-        const lead = !!starter && starter.ref.name === name;
-        const port = lead ? 'voice' : c0.map?.kind === 'adsr' ? 'env' : isLevel(c0, !!t.inSum) ? 'level' : 'pitch';
-        const pairs = voices.map((v) => edgeId(cellId(name), cellId(v)));
-        for (const id of pairs) through.add(id);
-        link({
-          id: edgeId(cellId(name), j),
-          source: cellId(name),
-          target: j,
-          count: ts.length,
-          transforms: ts.map((x) => [
-            ...refTransform({ ...x.ref, sign: port === 'level' || port === 'env' ? 1 : x.sign }),
-            ...(lead && x === t && b.offset ? [{ kind: 'transpose', by: b.offset, unit: 'semitone' } as const] : []),
-          ]),
-          sound,
-          routes: [pairs, [flow]],
-          ...wire(
-            port,
-            port === 'pitch' && isWave(result, name) ? 'audio' : 'cv',
-            cellId(name),
-            j,
-            lead ? tines(result, b.voice.name) || chord(name) : port === 'env' ? 1 : chord(name),
-          ),
-        });
-      }
-      link({ id: edgeId(voice, j), source: voice, target: j, count: 1, transforms: AS_IS, sound, routes: [[flow]], ...wire('is', 'none', voice, j, 1, false, true) });
-      // (a product goes into one channel: one wire)
-      link({ id: edgeId(j, into), source: j, target: into, count: 1, transforms: gain, sound, routes: [[flow]], ...wire('mix', 'audio', j, into) });
-    });
+  // a gate (trigger=, #234): a named junction, drawn as a node of its own — its trigger and velocity in on ports of
+  // their own, its receivers (the voices in its braid) as its braid; no junction for each of its products
+  const isGate = (c: ResolvedCell) => typeof c.params.trigger === 'string';
+  for (const c of result.cells.values()) {
+    if (!isGate(c)) continue;
+    const into = cellId(c.name);
+    const receivers = (c.mix ?? []).filter((b) => result.cells.has(b.voice.name));
+    // (the written pairs the routing knows: each term into each voice it plays, each voice into the gate)
+    const flows = receivers.map((b) => edgeId(cellId(b.voice.name), into));
+    for (const f of flows) through.add(f);
+    for (const key of ['trigger', 'velocity', 'gate'] as const) {
+      const name = c.params[key];
+      if (typeof name !== 'string' || !result.cells.has(name)) continue;
+      const pairs = receivers.flatMap((b) => soundsOf(result, b.voice.name).map((v) => edgeId(cellId(name), cellId(v))));
+      for (const id of pairs) through.add(id);
+      const b0 = receivers[0];
+      link({
+        id: edgeId(cellId(name), into),
+        source: cellId(name),
+        target: into,
+        count: 1,
+        transforms: AS_IS,
+        ...(b0 ? { sound: b0.voice.name } : {}),
+        routes: [pairs, flows],
+        ...wire(key, 'cv', cellId(name), into, key === 'trigger' ? chord(name) : 1),
+      });
+    }
+    for (const b of receivers) {
+      const v = cellId(b.voice.name);
+      link({
+        id: edgeId(v, into),
+        source: v,
+        target: into,
+        count: 1,
+        transforms: AS_IS,
+        sound: b.voice.name,
+        routes: [[edgeId(v, into)]],
+        ...wire('braid', 'none', v, into, 1, false, true),
+      });
+    }
+  }
+  // A MIDI card's entries are drawn the same way, into a port of their own (`midi`): a note bus, gate and pitch (the
+  // sync and CV bands at once, the way MIDI to CV does: docs/notes/nets.md), not sound.
+  const product = (c: ResolvedCell, b: Binding, entry: number, port: 'mix' | 'midi') => {
+    if (!result.cells.has(b.voice.name)) return;
+    const voice = cellId(b.voice.name);
+    const into = cellId(c.name);
+    const width = c.sink && c.units.length === 2 ? 2 : 1;
+    const band: Band = port === 'midi' ? 'cv' : 'audio';
+    const gain: readonly Transform[] = [b.gain !== 1 ? [{ kind: 'gain', by: b.gain }] : []];
+    // (the routing's flow from the sound into the mix: flows.ts)
+    const flow = edgeId(voice, into);
+    const terms = b.pitches.filter((t) => result.cells.has(t.ref.name));
+    if (!terms.length) {
+      link({ id: flow, source: voice, target: into, count: 1, transforms: gain, ...wire(port, band, voice, into, width) });
+      return;
+    }
+    const j = junctionId(c.name, entry);
+    const tags = c.tags.length ? c.tags : (result.cells.get(b.voice.name)?.tags ?? []);
+    junctions.push({ id: j, kind: 'junction', depth: depthOf(b.voice.name), mix: c.name, entry, voice: b.voice.name, tags });
+    through.add(flow);
+    const sound = b.voice.name;
+    // (the voices the routing plays it on: an instrument's own, a kit for a pattern read through one)
+    const voices = soundsOf(result, b.voice.name);
+    const byTerm = new Map<string, typeof terms>();
+    for (const t of terms) byTerm.set(t.ref.name, [...(byTerm.get(t.ref.name) ?? []), t]);
+    // the term that starts notes: an output's, where it is written (a product written again, in another mix, is the
+    // same output: its term by name)
+    const startsAt = (t: (typeof terms)[number]) =>
+      result.outputs.some((o) => {
+        const at = `${o.voice}:${o.cell}:${t.ref.span.line}:${t.ref.span.col}`;
+        return o.id === at || o.id.startsWith(at + '@');
+      });
+    const starter = terms.find(startsAt) ?? terms.find((t) => result.outputs.some((o) => voices.includes(o.voice) && (o.tape?.head ?? o.cell) === t.ref.name && !o.gate));
+    for (const [name, ts] of byTerm) {
+      const t = ts[0];
+      const c0 = result.cells.get(name)!;
+      // what the term is in the product: the one that starts notes, an envelope, a level, a pitch
+      const lead = !!starter && starter.ref.name === name;
+      const port = lead ? 'voice' : c0.map?.kind === 'adsr' ? 'env' : isLevel(c0, !!t.inSum) ? 'level' : 'pitch';
+      const pairs = voices.map((v) => edgeId(cellId(name), cellId(v)));
+      for (const id of pairs) through.add(id);
+      link({
+        id: edgeId(cellId(name), j),
+        source: cellId(name),
+        target: j,
+        count: ts.length,
+        transforms: ts.map((x) => [
+          ...refTransform({ ...x.ref, sign: port === 'level' || port === 'env' ? 1 : x.sign }),
+          ...(lead && x === t && b.offset ? [{ kind: 'transpose', by: b.offset, unit: 'semitone' } as const] : []),
+        ]),
+        sound,
+        routes: [pairs, [flow]],
+        ...wire(
+          port,
+          port === 'pitch' && isWave(result, name) ? 'audio' : 'cv',
+          cellId(name),
+          j,
+          lead ? tines(result, b.voice.name) || chord(name) : port === 'env' ? 1 : chord(name),
+        ),
+      });
+    }
+    link({ id: edgeId(voice, j), source: voice, target: j, count: 1, transforms: AS_IS, sound, routes: [[flow]], ...wire('is', 'none', voice, j, 1, false, true) });
+    // (a product goes into one channel: one wire)
+    link({ id: edgeId(j, into), source: j, target: into, count: 1, transforms: gain, sound, routes: [[flow]], ...wire(port, band, j, into) });
+  };
+  for (const c of result.cells.values()) {
+    if (!isGate(c)) (c.mix ?? []).forEach((b, entry) => product(c, b, entry, 'mix'));
+    // (a MIDI card's products, numbered on from its own: their junctions are its entries)
+    (c.chords ?? []).flatMap((bs) => bs ?? []).forEach((b, entry) => product(c, b, entry, 'midi'));
+  }
   // voices: where they sit in stereo, and in what order the mix names them
   // (an instrument — a mix used like a voice — is what sits in the stereo field, not the voices inside it)
   const sounding = (o: (typeof result.outputs)[number]) => o.through[0] ?? o.voice;
@@ -632,6 +691,11 @@ function petals(result: CompileResult, allNodes: GraphNode[], allEdges: GraphEdg
   const byName = new Map([...bulbs].map(([id, host]) => [names(id), names(host)]));
   // (a braid's wheel is 128 px across, size= scaling it: ui/flownode.ts)
   const reached = drawn.map((n) => {
+    // (a gate: its receivers fanned over its top, #234)
+    if (n.kind === 'cell' && !n.petalOf && typeof n.cell.params.trigger === 'string') {
+      const room = gateRoom(128 * n.cell.size, (n.cell.mix ?? []).length);
+      return room ? { ...n, reach: { room, below: 0 } } : n;
+    }
     if (n.kind !== 'cell' || n.petalOf || !isTrack(result, n)) return n;
     const reach = trackRoom(result, n.cell.name, byName, 128 * n.cell.size);
     return reach ? { ...n, reach } : n;
@@ -666,8 +730,8 @@ const isTrack = (result: CompileResult, n: GraphNode): boolean =>
 
 /**
  * The splices drawn as bulbs (#221), by node id, each to its host's: a cell read by one edge only, a ref without a pick
- * or a delay (a tap, a canon's copy: a net), both it and the braid that splices it drawn as tracks; and a tap of a
- * meter's bus, on its table (decision 016).
+ * or a delay (a tap, a canon's copy: a net), both it and the braid that splices it drawn as tracks; a tap of a meter's
+ * bus, on its table (decision 016); a voice only a gate plays, on the gate (#234).
  */
 function bulbsOf(result: CompileResult, nodes: readonly GraphNode[], edges: readonly GraphEdge[]): Map<string, string> {
   const byId = new Map(nodes.map((n) => [n.id, n]));
@@ -684,7 +748,10 @@ function bulbsOf(result: CompileResult, nodes: readonly GraphNode[], edges: read
     }
     const r = reads.get(n.id) ?? [];
     if (r.length !== 1 || r[0].port !== 'braid' || r[0].transforms.some((t) => t.some((x) => x.kind === 'pick' || x.kind === 'delay'))) continue;
-    if (track(n) && track(byId.get(r[0].to))) out.set(n.id, r[0].to);
+    // a voice only a gate plays: a bulb on the gate's wheel (#234, the gate wheel)
+    const host = byId.get(r[0].to);
+    if (n.kind === 'voice' && host?.kind === 'cell' && typeof host.cell.params.trigger === 'string') out.set(n.id, r[0].to);
+    else if (track(n) && track(host)) out.set(n.id, r[0].to);
   }
   return out;
 }

@@ -17,6 +17,12 @@ type Live = Pick<MidiAccess, 'inputs' | 'outputs' | 'outputPort' | 'listen'>;
 const idNow = (ports: readonly PortOption[], id: string, name: string): string =>
   id === 'none' || id === 'all' || ports.some((p) => p.id === id) ? id : (ports.find((p) => name && p.name === name)?.id ?? id);
 
+/** The live output a port chosen resolves to now (by id, else by name: see `idNow`), or null: none chosen, or not plugged in. */
+export function outputNow(access: Pick<MidiAccess, 'outputs' | 'outputPort'>, chosen: PortOption): MidiPort | null {
+  if (chosen.id === 'none') return null;
+  return access.outputPort(idNow(access.outputs, chosen.id, chosen.name));
+}
+
 /**
  * Adopt the ports chosen from the connection as it is now: the output by its id (or its name: see `idNow`), none if it
  * is gone or was never chosen, and the input listened to. A port unplugged and plugged in again is a new object, so this
@@ -37,10 +43,17 @@ export function portsMessage(ports: { readonly inputs: readonly unknown[]; reado
   return `MIDI connected: ${count(ports.inputs, 'input')}, ${count(ports.outputs, 'output')}.`;
 }
 
-/** Connect, then adopt the ports already chosen: the connection and what was found, or why it couldn't connect. */
-export async function connectMidi(connect: () => Promise<MidiAccess | string>, chosen: ChosenPorts): Promise<{ access: MidiAccess | null; message: string }> {
+/**
+ * Connect, then adopt the ports already chosen: the connection and what was found, or why it couldn't connect. `alive`
+ * false once the connection comes (its owner gone while asking): nothing is adopted, the caller closes it.
+ */
+export async function connectMidi(
+  connect: () => Promise<MidiAccess | string>,
+  chosen: ChosenPorts,
+  alive: () => boolean = () => true,
+): Promise<{ access: MidiAccess | null; message: string }> {
   const result = await connect();
   if (typeof result === 'string') return { access: null, message: result };
-  adoptPorts(result, chosen);
+  if (alive()) adoptPorts(result, chosen);
   return { access: result, message: portsMessage(result) };
 }

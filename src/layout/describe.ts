@@ -108,7 +108,11 @@ export function summary(result: CompileResult, name: string): Bit[] {
     }
     case 'mix':
       return [
-        c.sink ? `The sound card: ${c.units.length === 1 ? 'one channel' : 'left and right'}` : `Mixes ${plural(c.mix?.length ?? 0, 'sound')}`,
+        c.sink
+          ? `The sound card: ${c.units.length === 1 ? 'one channel' : 'left and right'}`
+          : c.map?.kind === 'midi'
+            ? `A MIDI card: ${c.map.channel === null ? 'its entries on channels 1, 2, 3 …' : `on channel ${c.map.channel}`}${c.map.port === 1 ? '' : `, output slot ${c.map.port}`}`
+            : `Mixes ${plural(c.mix?.length ?? 0, 'sound')}`,
         ...tail('goes to', ', into '),
         '.',
       ];

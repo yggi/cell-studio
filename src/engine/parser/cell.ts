@@ -4,9 +4,9 @@ import { TIME_PARAMS } from '../attributes';
 import { RETIRED_PARAMS } from '../dough-params';
 import { LABEL_FIELDS } from '../program';
 import { CELL_PARAMS, CORE, PARAMS, nearestAttribute } from '../attributes';
-import { IDENT, type LineScanner } from './scanner';
+import { IDENT, LineScanner } from './scanner';
 import { OPERATIONS, parseToken } from './braid';
-import { parseFree } from './free';
+import { FREE_BRAID_WHOLE, parseFree } from './free';
 import { isGenerator, parseFifths, parseGenerator, parseScale } from './generators';
 import { parseMap, parseStep } from './values';
 import { syntax, type Syntax } from './syntax';
@@ -26,7 +26,7 @@ interface Body {
   laps: number | null;
   title: string | null;
   tags: string | null;
-  rung: number | null;
+  tier: number | null;
   about: Ref[] | null;
   chance: number | null;
   seed: number | null;
@@ -225,14 +225,14 @@ export const KEYS: Readonly<Record<keyof typeof CORE, Key>> = {
     examples: ['&piece title="Swing blues" tags="genre:jazz, rhythm"', '&lead tags="melody" s=saw loop=C4'],
     read: text('tags', 'tags="jazz, blues"'),
   },
-  rung: {
-    form: 'rung=n',
-    examples: ['&piece title="Steps: a tune on one line" tags="tutorial" rung=1 label="Numbers, rests, holds and repeats."'],
+  tier: {
+    form: 'tier=n',
+    examples: ['&piece title="Steps: a tune on one line" tags="tutorial" tier=1 label="Numbers, rests, holds and repeats."'],
     read: (s, b, word, at) => {
-      // its place in the tutorial: 1, 2, 3 …
+      // its tier of the tutorial: 1, 2, 3 …
       const n = s.match(/[0-9]+(?![0-9.])/y);
-      if (n === null || !(parseInt(n, 10) >= 1 && parseInt(n, 10) <= 9999)) s.fail('rung= is a place in the tutorial, 1 to 9999: rung=1', at, word.length + 1);
-      b.rung = parseInt(n!, 10);
+      if (n === null || !(parseInt(n, 10) >= 1 && parseInt(n, 10) <= 9999)) s.fail('tier= is a tier of the tutorial, 1 to 9999: tier=1', at, word.length + 1);
+      b.tier = parseInt(n!, 10);
     },
   },
   about: {
@@ -265,6 +265,9 @@ const CELL_WANTS: Readonly<Record<string, string>> = {
   play: 'the tape it reads, like play=&tape',
   couple: 'the resonator it shares a table with, like couple=&fork',
   excite: 'what drives it, like excite=&mix',
+  trigger: 'the melody whose notes it plays with, like trigger=&tune',
+  velocity: 'a level cell, like velocity=&accent',
+  gate: 'a level cell, like gate=&duck',
 };
 
 /** A parameter naming a cell: fm= its modulator; write= a tape's source; play= a read head's tape … */
@@ -370,6 +373,36 @@ export const LINE_SYNTAX: readonly Syntax[] = [
   ),
 ];
 
+/**
+ * free(0 2 4 ~ …) at the scanner (it's at 'free'): a braid left to the performer, the cell's whole braid. Its steps are
+ * numbers (accidentals and names too), rests and chords, with their modifiers; its length in steps is the frame a
+ * recording fills (`hi`). Its free() is pushed with the scanner's others, so it is held, kept and reverted as they are.
+ */
+function parseFreeBraid(s: LineScanner): Braid {
+  const start = s.i;
+  s.i += 'free('.length;
+  if (s.peek() === '"') s.fail('free("…") is a text, for spell(…): a braid left free is steps, free(0 2 4 ~)', start, 6);
+  // (a braid of steps has no parentheses: the first ')' closes it)
+  const close = s.text.indexOf(')', s.i);
+  if (close < 0) s.fail(`')' to close free(…)`, start, s.i - start);
+  const inner = new LineScanner(s.text.slice(s.i, close), s.line, s.offset + s.i, s.lambdas, s.parts, s.warnings, s.depth);
+  const tokens: Token[] = [];
+  for (;;) {
+    inner.skipSpace();
+    if (inner.done()) break;
+    const at = inner.i;
+    const t = parseToken(inner);
+    if (t.atom.kind !== 'note' && t.atom.kind !== 'rest' && t.atom.kind !== 'chord')
+      inner.fail('A braid left free holds steps: numbers, rests (~) and chords ([0,4]), held (@n) or repeated (!n)', at, inner.i - at);
+    tokens.push(t);
+  }
+  if (!tokens.length) s.fail('free(…) around a braid needs steps: free(0 2 4 ~)', start, close - start + 1);
+  s.i = close + 1;
+  const length = tokens.reduce((n, t) => n + t.repeat * t.elongate, 0);
+  s.frees.push({ key: 'braid', value: 0, unit: '', lo: 0, hi: length, span: s.place(start), braid: inner.text.trim().replace(/\s+/g, ' ') });
+  return { kind: 'list', tokens };
+}
+
 /** A cell's body: attributes and braid, up to the end of the scanner's text. */
 export function parseBody(s: LineScanner, head: Ref): CellDecl {
   const b: Body = {
@@ -386,7 +419,7 @@ export function parseBody(s: LineScanner, head: Ref): CellDecl {
     laps: null,
     title: null,
     tags: null,
-    rung: null,
+    tier: null,
     about: null,
     chance: null,
     seed: null,
@@ -402,6 +435,8 @@ export function parseBody(s: LineScanner, head: Ref): CellDecl {
   let generator: Braid | null = null;
   let scaleKey: Ref | null = null;
   let fifthsShift: number | null = null;
+  // the braid is free(…): nothing else may be braid
+  let freeBraid = false;
 
   while (!s.done()) {
     const at = s.i;
@@ -428,8 +463,16 @@ export function parseBody(s: LineScanner, head: Ref): CellDecl {
       if (!s.atBoundary()) s.fail(`Unexpected '${s.peek()}'`);
       continue;
     }
+    if (word === 'free' && s.peek() === '(') {
+      // free(0 2 4 ~ …): a braid left to the performer, the cell's whole braid
+      if (generator || tokens.length) s.fail(FREE_BRAID_WHOLE, at, word.length);
+      s.i = at;
+      generator = parseFreeBraid(s);
+      freeBraid = true;
+      continue;
+    }
     if (word !== null && isGenerator(word) && s.peek() === '(') {
-      if (generator || tokens.length) s.fail('A cell has one braid: a generator or a list of steps', at, word.length);
+      if (generator || tokens.length) s.fail(freeBraid ? FREE_BRAID_WHOLE : 'A cell has one braid: a generator or a list of steps', at, word.length);
       if (word === 'fifths') {
         // fifths(n): the circle, turned n fifths round (the cell's shift)
         const f = parseFifths(s, at);
@@ -445,7 +488,7 @@ export function parseBody(s: LineScanner, head: Ref): CellDecl {
     }
     if (word !== null && (OPERATIONS as readonly string[]).includes(word) && s.peek() === '(') {
       // degree(&x, n), inverse(&x): a step, read with its modifiers
-      if (generator) s.fail('A cell has one braid: a generator or a list of steps');
+      if (generator) s.fail(freeBraid ? FREE_BRAID_WHOLE : 'A cell has one braid: a generator or a list of steps');
       s.i = at;
       tokens.push(parseToken(s));
       continue;
@@ -458,11 +501,16 @@ export function parseBody(s: LineScanner, head: Ref): CellDecl {
     // a note by name is a step (C, Bb3): read again as one
     if (word !== null && /^[A-G](?:b?-?[0-9]*)$/.test(word)) s.i = at;
     else if (word !== null) s.fail(`Unexpected '${word}'`, at, word.length);
-    if (generator) s.fail('A cell has one braid: a generator or a list of steps');
+    if (generator) s.fail(freeBraid ? FREE_BRAID_WHOLE : 'A cell has one braid: a generator or a list of steps', at, 1);
     tokens.push(parseToken(s));
   }
 
   const braid: Braid = generator ?? (tokens.length ? { kind: 'list', tokens } : { kind: 'blank' });
+  // (gain= is a gate's level, on the line of a gate (trigger=) only; anywhere else it is dough's, retired)
+  if ('gain' in b.params && !('trigger' in b.params)) {
+    const at = b.paramSpans.gain;
+    s.fail(RETIRED_PARAMS.gain, at ? at.col - 1 : 0, 4);
+  }
   if (fifthsShift !== null && fifthsShift !== 0) {
     if (b.shift !== null) s.fail('fifths(n) turns it already: write fifths() and shift=, or fifths(n) alone');
     b.shift = fifthsShift;
@@ -471,7 +519,7 @@ export function parseBody(s: LineScanner, head: Ref): CellDecl {
     if (b.over) s.fail('scale(…) reads through a key of its own: drop over=, or write the key as a cell (&mode over=&key scan(…))', b.over.span.col - 1, b.over.span.len);
     b.over = scaleKey;
   }
-  const { over, shift, step, map, stride, cycle, env, pitch, show, label, title, tags, rung, about, laps, chance, seed, size, params, paramSpans, paramCells, paramClocks } = b;
+  const { over, shift, step, map, stride, cycle, env, pitch, show, label, title, tags, tier, about, laps, chance, seed, size, params, paramSpans, paramCells, paramClocks } = b;
   return {
     name: head.name,
     span: head.span,
@@ -488,7 +536,7 @@ export function parseBody(s: LineScanner, head: Ref): CellDecl {
     label,
     title,
     tags,
-    rung,
+    tier,
     about: about ?? undefined,
     laps,
     chance,

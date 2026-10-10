@@ -179,7 +179,7 @@ export class Learn {
     const cells = this.#piece.program.cells;
     return this.#bound({ kind: m.kind, channel: m.channel, number: m.number }).some(([place, bound]) => {
       const f = freeAtPlace(cells, place);
-      return !!f && f.key !== 'text' && (m.kind === 'cc' || padValue(f, bound.number, m.number) !== null);
+      return !!f && f.key !== 'text' && f.key !== 'braid' && (m.kind === 'cc' || padValue(f, bound.number, m.number) !== null);
     });
   }
 
@@ -200,7 +200,7 @@ export class Learn {
     const cells = this.#piece.program.cells;
     for (const [place, bound] of this.#bound(knob)) {
       const f = freeAtPlace(cells, place);
-      if (!f || f.key === 'text') continue;
+      if (!f || f.key === 'text' || f.key === 'braid') continue;
       if (m.kind === 'note') {
         const v = padValue(f, bound.number, m.number);
         if (v !== null) this.#hold(place, v);

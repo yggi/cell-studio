@@ -162,11 +162,15 @@ export type StepSpec = { readonly whole: boolean } & (
  *           last the period: map=ratios 1 9/8 5/4 4/3 3/2 5/3 15/8 2 (just intonation)
  *   db      a volume in decibels: 0 full, −6 about half, −20 a tenth (rests silent)
  *   adsr    an envelope: attack decay sustain release (seconds; sustain a level) for each note
+ *   midi    the cell is a MIDI card: its entries are MIDI channels, in order; midi(c) all on channel c,
+ *           midi(c, p) on output slot p (a device the MIDI dialog maps it to; slot 1 the default output)
  */
 export type MapSpec =
   | { readonly kind: 'amp' | 'lin' | 'sample' | 'adsr' | 'ratios' | 'db'; readonly span: Span }
   /** A grid: cycle= equal steps to the period — 2 (an octave) for map=edo, r for map=ed(r). */
   | { readonly kind: 'edo'; readonly period: number; readonly span: Span }
+  /** A MIDI card: each entry a channel in order (channel null), or all on one channel; on an output slot (1 the default output). */
+  | { readonly kind: 'midi'; readonly channel: number | null; readonly port: number; readonly span: Span }
   | { readonly kind: 'table'; readonly table: Ref; readonly span: Span };
 
 /**
@@ -176,7 +180,7 @@ export type MapSpec =
  */
 export interface FreeSpec {
   /** What it sets: a rate (step / loop), shift, stride, or a gain in a mix. */
-  readonly key: 'step' | 'loop' | 'shift' | 'stride' | 'gain' | 'interval' | 'chance' | 'text' | 'choice' | 'param' | 'tonic';
+  readonly key: 'step' | 'loop' | 'shift' | 'stride' | 'gain' | 'interval' | 'chance' | 'text' | 'choice' | 'param' | 'tonic' | 'braid';
   /** For key 'param': which setting (lpf, swing …) it is. */
   readonly param?: string;
   readonly value: number;
@@ -192,6 +196,11 @@ export interface FreeSpec {
   readonly byName?: true;
   /** A text left free (free("867 5309")): drawn as a text field (key 'text'). */
   readonly text?: string;
+  /**
+   * A braid left free (free(0 2 4 ~ …), key 'braid'): its steps as written, the cell's whole braid. `hi` is its length in
+   * steps (`lo` 0), the frame a recording fills, as `lo..hi` is a number's range.
+   */
+  readonly braid?: string;
 }
 
 export interface CellDecl {
@@ -222,8 +231,8 @@ export interface CellDecl {
   readonly title?: string | null;
   /** On a note: the piece's tags, comma-separated. */
   readonly tags?: string | null;
-  /** On a piece's card: its place in the tutorial (the ladder of basics), 1 the first. */
-  readonly rung?: number | null;
+  /** On a piece's card: its tier of the tutorial (1 the first). */
+  readonly tier?: number | null;
   /** On a note: the cells it explains, drawn as links from the note (`about=&fenv`, `about=(&fenv &accent)`). */
   readonly about?: readonly Ref[];
   /**

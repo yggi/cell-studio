@@ -16,7 +16,8 @@
    */
   import { BaseEdge, type EdgeProps } from '@xyflow/svelte';
   import { untrack } from 'svelte';
-  import { loomParts, loomPaths, polar, radialPath, ripplePath, splinePoint, strandPath } from '../layout/geometry';
+  import { polar, radialPath, ripplePath, splinePoint } from '../layout/geometry';
+  import { bundlePaths, loomParts, loomPaths } from '../layout/wire';
   import { cellView, type Fill, type Segment } from '../layout/cellview';
   import { pluginOf } from '../layout/show';
   import { isTurntable } from '../engine/graph';
@@ -96,7 +97,7 @@
   const ringOnly = $derived(d.part === 'ring');
   const looming = (parts: { ring: string; run: string }[]) => parts.map((p) => (d.part === 'ring' ? p.ring : d.part === 'run' ? p.run : `${p.ring} L${p.run.slice(1)}`));
   // (the CV ports that carry notes; any other CV is a level: an envelope, a gain, a filter …)
-  const PITCH_PORTS = new Set(['voice', 'pitch', 'play', 'write', 'braid', 'over']);
+  const PITCH_PORTS = new Set(['voice', 'midi', 'pitch', 'play', 'write', 'braid', 'over']);
 
   // Ends locked to their segments (as a tape's heads are): a ref meets the wheel of the cell it is spliced into where it
   // sits in that braid, once for each time it is written; a table's strands leave its wheel at their entries.
@@ -169,14 +170,15 @@
   const entryOf = (i: number) => view?.segments[Math.floor((i * view.segments.length) / count)];
   // a strand leaves its entry's tap (where the wheel draws it: the entry's own place, turned as it stands)
   const tapOf = (v: NonNullable<typeof view>, sg: Segment) => v.taps?.[sg.index] ?? sg.at ?? (sg.t0 + sg.t1) / 2;
+  // (each strand's place across a flat bus, its first on the left looking along it)
+  const across = (n: number) => Array.from({ length: n }, (_, i) => (i - (n - 1) / 2) * GAP);
   const strandPaths = $derived.by(() => {
     const r = d.sizes?.from ? tapRadius(d.sizes.from) : 0;
     const exits = d.table && r ? Array.from({ length: count }, (_, i) => entryOf(i)) : [];
-    if (!exits.length || exits.some((s) => !s))
-      return Array.from({ length: count }, (_, i) => strandPath(fromX, fromY, mid.x, mid.y, targetX, targetY, (i - (count - 1) / 2) * GAP));
+    if (!exits.length || exits.some((s) => !s)) return bundlePaths(fromX, fromY, mid.x, mid.y, targetX, targetY, across(count));
     const turns = exits.map((s) => tapOf(view!, s!));
     // a hop: the bus goes on out of the hub of the reader it came into, flat, in the table's order
-    if (hop) return ringOnly ? [] : turns.map((_, i) => strandPath(fromX, fromY, mid.x, mid.y, targetX, targetY, (i - (turns.length - 1) / 2) * GAP));
+    if (hop) return ringOnly ? [] : bundlePaths(fromX, fromY, mid.x, mid.y, targetX, targetY, across(turns.length));
     // out of each entry's tap, round the source's loom, into a bundle towards the reader
     return looming(loomParts(sourceX, sourceY, r, turns, mid.x, mid.y, targetX, targetY, GAP, d.ring ?? 0, LOOM_EXIT));
   });

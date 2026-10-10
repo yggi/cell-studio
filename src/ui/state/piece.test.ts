@@ -73,3 +73,35 @@ describe('Piece: the code and what it compiles to', () => {
     expect(p.held.size).toBe(0);
   });
 });
+
+describe('Piece: a braid left free, held (#210)', () => {
+  const RIFF = `&key scan(2 2 1 2 2 2 1)
+&bar scan(1 1 1 1) step=free(120bpm, 60..180)
+&riff over=&key step=&bar/4 free(0 2 4 ~)
+&lead s=sine
+&out map=sample [&riff * &lead]`;
+  it('holds a take: it plays, the code keeps the braid written; Keep writes that one, the tempo held stays held', () => {
+    const p = new Piece(RIFF);
+    const [tempo, braid] = [p.program.cells.get('bar')!.frees[0], p.program.cells.get('riff')!.frees[0]];
+    p.hold(tempo, 90);
+    p.hold(braid, '7 ~ [0,4]@2');
+    expect(p.code).toContain('free(0 2 4 ~)');
+    expect(p.program.cells.get('riff')!.frees[0].braid).toBe('7 ~ [0,4]@2');
+    p.keep(p.program.cells.get('riff')!.frees[0]);
+    expect(p.code).toContain('&riff over=&key step=&bar/4 free(7 ~ [0,4]@2)');
+    expect(p.code).toContain('free(120bpm');
+    expect([...p.held.values()]).toEqual([90]);
+  });
+  it('Revert one lets go of that one; all of them, of everything', () => {
+    const p = new Piece(RIFF);
+    const braid = p.program.cells.get('riff')!.frees[0];
+    p.hold(p.program.cells.get('bar')!.frees[0], 90);
+    p.hold(braid, '7 7 7 7');
+    p.revert(p.program.cells.get('riff')!.frees[0]);
+    expect(p.program.cells.get('riff')!.frees[0].braid).toBe('0 2 4 ~');
+    expect(p.held.size).toBe(1);
+    p.hold(braid, '7 7 7 7');
+    p.revert();
+    expect(p.held.size).toBe(0);
+  });
+});

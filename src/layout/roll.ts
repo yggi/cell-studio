@@ -7,7 +7,8 @@
  * Pure: `ui/PianoRoll.svelte` draws it and reports pointer and keys. Ideas from Jambot @ 8cdb6b8
  * (`apps/web/src/components/Lane.svelte`, `Contour.svelte`): a step grid in a viewBox, one row per degree.
  */
-import type { Braid, Token } from '../engine/ast';
+import type { Braid, FreeSpec, Token } from '../engine/ast';
+import { splitWords } from '../engine/edit';
 import { parse } from '../engine/parser';
 import { entries, resolvePitch, semitones } from '../engine/helix';
 import type { CompileResult, ResolvedCell, Shifts, Unit } from '../engine/program';
@@ -79,6 +80,15 @@ export function fromBraid(braid: Braid | readonly (Unit | Token)[]): Read {
 }
 
 /** A braid as written (its words, as `edit.declWords` gives them): a generator by name is reported, the rest read. */
+/**
+ * A braid left free (`free(0 2 4 ~)`, #210) as the roll edits it: its free() and its steps as they play (a take held,
+ * else as written). The roll's edits are held in its place, as a take is, until Keep. Null: the braid isn't left free.
+ */
+export function freeBraidOf(result: CompileResult, name: string): { readonly spec: FreeSpec; readonly words: string[] } | null {
+  const spec = result.cells.get(name)?.frees.find((f) => f.key === 'braid');
+  return spec?.braid === undefined ? null : { spec, words: splitWords(spec.braid) };
+}
+
 export function readBraid(words: readonly string[]): Read {
   const made = words.find((w) => /^[a-z]+\(/.test(w));
   if (made) return no(`it is made by ${made.replace(/\(.*$/s, '()')}`);

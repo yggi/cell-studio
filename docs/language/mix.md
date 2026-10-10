@@ -1,6 +1,6 @@
 # Mixes and the sound card
 
-Output is cells too. A chord of sounds is a mix, and a cell with `map=sample` is the sound card.
+Output is cells too. A chord of sounds is a mix, and a cell with `map=sample` is the sound card. Its sibling, a cell with `map=midi`, is a MIDI card, whose entries are MIDI channels: [midi.md](midi.md).
 
 ```cells
 &theme step=1 0 2 4 5
@@ -41,6 +41,27 @@ A **plain value**, a number or a `map=lin` cell, has no sort of its own. It take
 - `(p + q) * s = p * (q * s) = (p * q) * s` for pitches `p`, `q`: transposing twice adds.
 
 The law is about pitches, so it doesn't apply to `12` in `12 * &lead`, which is a gain. To transpose by a constant in a product, write the sum: `(&theme + 12) * &lead`.
+
+## A gate: a product with a name
+
+A product that plays a voice can be written as a cell of its own, a **gate**: `trigger=` names what plays through it,
+and its braid lists the voices it plays (its receivers). Three levels of one family say how much passes: `velocity=` on
+each note, `gate=` over time (how open it is: 1 open, 0 closed, .3 ducked; a solo, a break, a fade) and `gain=` fixed.
+It is read as the product it stands for, one for each receiver, so it sounds as the product does:
+
+```cells
+&bar scan(1 1 1 1) step=120bpm
+&tune step=&bar 0 2 4 7
+&accent map=amp step=&bar 1 .5 .8 .5
+&solo map=amp step=&bar*4 1 .3                                   # open, then ducked
+&lead s=tri loop=C4 env=&(map=adsr .01 .2 .4 .2)
+&leadOut trigger=&tune velocity=&accent gate=&solo gain=.5 &lead      # is [&tune * &accent * &solo * &lead * .5]
+&out loop=SAMPLE_RATE map=sample [&leadOut]
+```
+
+A gate is where notes become sound, named: the graph draws it as a node of its own, its receivers as dim as the gate is
+closed. The next steps (#234: a kit's or a MIDI channel's receivers) land on it. The anonymous
+product, `[&tune * &accent * &solo * &lead * .5]`, stays its short form.
 
 ## The sound card
 
