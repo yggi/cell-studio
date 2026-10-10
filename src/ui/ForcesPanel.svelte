@@ -13,7 +13,6 @@
     | 'contract'
     | 'uncross'
     | 'rankPull'
-    | 'endPull'
     | 'centre'
     | 'straighten'
     | 'avoid'
@@ -57,7 +56,6 @@
       title: 'order',
       rows: [
         { key: 'rankPull', label: 'flow order', min: 0, max: 0.3, step: 0.01, hint: 'pull to the height of each node’s rank in the signal path' },
-        { key: 'endPull', label: 'centre line', min: 0, max: 0.3, step: 0.01, hint: 'pull of &bar and &out to the centre line' },
         {
           key: 'columnPull',
           label: 'columns',

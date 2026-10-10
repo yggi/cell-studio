@@ -12,27 +12,13 @@ export const BELT_PULL = 0.5;
 export const GROUND_PULL = 0.15;
 
 export interface LayoutOptions {
-  /**
-   * Grown, as the library is (layout/library.ts): a fresh graph starts small — its nodes at `growStart` of their size,
-   * its edges as short — while its edges contract it into its groups, then grows to full size. 0: laid out at full size.
-   */
-  grow: number;
-  growStart: number;
-  /** The growing, in ticks: gathering small, then growing to full size; and whether the start is drawn in too. */
-  growGather: number;
-  growTicks: number;
-  growShrink: number;
-  /** How much a node's mass (weights.ts) scales its repulsion, its inertia, and an edge's strength its spring: 0 none, 1 full. */
+  /** How much a node's mass (weights.ts) scales its repulsion: 0 none, 1 full. */
   massRepel: number;
-  inertia: number;
-  strengthPull: number;
   /**
    * Nets in the forces (docs/notes/nets.md): a net's springs run along its tree as it's laid now (netTree) instead of
-   * from its owner to every reader (`netPull`, 0 off, 1 on); and a wheel lying on a net's join is pushed off it, the
-   * join's ends the other way (`netClear`, its strength).
+   * from its owner to every reader (`netPull`, 0 off, 1 on).
    */
   netPull: number;
-  netClear: number;
   /**
    * Meters placed last (#27, retired once, back with the nets): once the layout has settled — the meter among its
    * cells, held by its net's springs — each meter is put where its net costs least and held there (placeMeters). 0 off.
@@ -58,8 +44,6 @@ export interface LayoutOptions {
    * (`tower.ts: towerRanks`), a probe (docs/notes/multiscale.md). A node it doesn't name keeps its rank in the flow.
    */
   ranks?: ReadonlyMap<string, number>;
-  /** Laid out by insertion (startInsertion): a fresh graph taken in one cell at a time from its drains, over this many ticks. 0: from the layered start. */
-  insert: number;
   layerGap: number;
   /** Edge length at rest (px). */
   linkDistance: number;
@@ -81,8 +65,6 @@ export interface LayoutOptions {
   straighten: number;
   /** How far an edge keeps off a node's centre, as a fraction of its radius (0: passes straight over). */
   avoid: number;
-  /** How strongly the sound card and the meters are drawn up- and down-centre. */
-  endPull: number;
   /** How strongly each node is drawn to the height of its rank in the signal path (y only). */
   rankPull: number;
   /** Probe (outputs at 12 o'clock, docs/notes/outputs-top.md): each reader pulled above what it reads (0: off). */
@@ -110,12 +92,6 @@ export interface LayoutOptions {
   clusters: boolean;
   /** Which of the small, fixed nudges each new node gets (0: the app's): other seeds measure a change over several starts. */
   seed: number;
-  /**
-   * Lay the graph out in layers (rows by signal flow, order without tangles, columns
-   * by neighbours: layered.ts) and let the physics only relax it: each node springs
-   * to its place, nothing overlaps. Off: the forces alone (the library's cloud).
-   */
-  layered: boolean;
   radius: (node: GraphNode) => number;
 }
 
@@ -124,28 +100,15 @@ export interface LayoutOptions {
 // room for their labels, edges spread round each node (stars, symmetries), time and sound keep apart,
 // tagged cells cluster; edges straighten a little and keep well off nodes.
 export const DEFAULT_LAYOUT: LayoutOptions = {
-  // (grown as the library is, measured over the examples: 102–111 crossings against 83, though the golden graph's 11
-  // fall to 4–6: off — docs/notes/nets.md)
-  grow: 0,
-  growStart: 0.15,
-  growGather: 120,
-  growTicks: 220,
-  growShrink: 1,
-  // (measured over the library, docs/notes/nets.md: mass as repulsion 89 → 83 crossings; inertia and strength as
-  // stiffness made it worse as tried, so they are off: strength weighs only what a crossing costs)
+  // (measured over the library, docs/notes/nets.md: mass as repulsion 89 → 83 crossings; as inertia or as stiffness it
+  // made it worse, and both were removed)
   massRepel: 1,
-  inertia: 0,
-  strengthPull: 0,
-  // (measured over the library at six seeds, docs/notes/nets.md: the trees' springs 103 → 82 crossings, with voices' and mixes' nets 75; keeping wheels
-  // off the joins made it worse, the trees' costs already keep them off: so it is off)
+  // (measured over the library at six seeds, docs/notes/nets.md: the trees' springs 103 → 82 crossings, with voices' and
+  // mixes' nets 75)
   netPull: 1,
-  netClear: 0,
   // (tried again with the nets' springs, docs/notes/nets.md: over six seeds 80 → 63 crossings, its cost 127 → 90; the
   // meter is laid out with its cells by its net's springs, then put where its net costs least)
   placeLast: 1,
-  // (by insertion, from the drains, measured over the library, docs/notes/nets.md: 63 → 98–114 crossings, worse in
-  // nearly every piece, though fewer cells in a foreign cluster: off)
-  insert: 0,
   // (each row's order: both the sweeps and insertion then the sweeps tried, the one that crosses less kept; over six
   // seeds 63 → 47 crossings, cost 90 → 65, for 2–3 times the layout's time when a piece opens: docs/notes/nets.md)
   rowOrder: 3,
@@ -161,7 +124,6 @@ export const DEFAULT_LAYOUT: LayoutOptions = {
   avoid: 0.6,
   contract: 0.75,
   partLength: 0.8,
-  endPull: 0,
   rankPull: 0.05,
   upPull: 0,
   centre: 0.004,
@@ -170,7 +132,6 @@ export const DEFAULT_LAYOUT: LayoutOptions = {
   linkDistance: 120,
   charge: -320,
   live: true,
-  layered: true,
   spread: 0.5,
   kindRepel: 0.6,
   tagPull: 0.2,
@@ -200,24 +161,7 @@ function roomFor(n: GraphNode): number {
 /** A product's junction's room (engine/graph.ts, junctions.ts): a dot where its wires meet. */
 export const JUNCTION_ROOM = 14;
 
-/** The layout before layers: the forces alone, every one on (each still an option; their tests use this). */
-export const FORCES_ALONE: Partial<LayoutOptions> = {
-  layered: false,
-  uncross: 0.5,
-  repelRange: 340,
-  degreeRepel: 0.15,
-  collidePad: 26,
-  straighten: 0.25,
-  avoid: 0.3,
-  contract: 0.6,
-  endPull: 0.04,
-  rankPull: 0.08,
-  centre: 0.01,
-  columnPull: 0,
-  charge: -260,
-};
-
 /** An edge's spring, as strong as it is (a net's tree takes the same, netTree). */
 export function linkPull(l: { count: number; keep?: number; muxed?: boolean; strength?: number }, o: LayoutOptions): number {
-  return Math.min(0.2, 0.08 + 0.02 * l.count) * o.contract * (l.muxed ? o.mux : 1 - (1 - (l.keep ?? 1)) * o.mux) * (1 + o.strengthPull * ((l.strength ?? 1) - 1));
+  return Math.min(0.2, 0.08 + 0.02 * l.count) * o.contract * (l.muxed ? o.mux : 1 - (1 - (l.keep ?? 1)) * o.mux);
 }

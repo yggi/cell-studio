@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { parse } from '../engine/parser';
 import { ForceLayout } from './physics';
-import { DEFAULT_LAYOUT, FORCES_ALONE } from './options';
-import { columns, flowRanks, orderLayers } from './start';
+import { DEFAULT_LAYOUT } from './options';
+import { columns, flowRanks } from './start';
 import { crossingPairs } from './forces';
 import { tapeFaces } from './aims';
 import { fitTurn, headAngle, tapeHeads } from './tape';
@@ -59,7 +59,7 @@ describe('ForceLayout', () => {
   });
 
   it('a dragged node follows the pointer and drags its neighbours along', () => {
-    const l = new ForceLayout(undefined, { ...FORCES_ALONE, live: false });
+    const l = new ForceLayout(undefined, { live: false });
     l.setGraph(graphOf('&m step=1\n&A step=&m &B\n&B 0\n&v s=saw\n&mix_ [&A * &v]\n&out_ loop=44k map=sample &mix_'));
     l.tick(300);
     const b0 = l.position('cell:B')!;
@@ -77,31 +77,6 @@ describe('ForceLayout', () => {
 });
 
 describe('crossing-free layout', () => {
-  it('orders layers by their neighbours: two families stay apart', () => {
-    const x = orderLayers(
-      [
-        { id: 'A', depth: 1 },
-        { id: 'B', depth: 1 },
-        { id: 'a1', depth: 2 },
-        { id: 'b1', depth: 2 },
-        { id: 'a2', depth: 2 },
-        { id: 'b2', depth: 2 },
-      ],
-      [
-        { source: 'a1', target: 'A' },
-        { source: 'a2', target: 'A' },
-        { source: 'b1', target: 'B' },
-        { source: 'b2', target: 'B' },
-      ],
-    );
-    // each family on its parent's side
-    const side = (id: string) => Math.sign(x.get(id)!);
-    expect(side('a1')).toBe(side('A'));
-    expect(side('a2')).toBe(side('A'));
-    expect(side('b1')).toBe(side('B'));
-    expect(side('A')).not.toBe(side('B'));
-  });
-
   it('counts crossings', () => {
     const segs = [
       { a: { id: 'p', x: 0, y: 0 }, b: { id: 'q', x: 10, y: 10 } },
@@ -136,7 +111,7 @@ describe('spline edges', () => {
   });
 
   it('stay straight when nothing is in the way', () => {
-    const l = new ForceLayout(undefined, { ...FORCES_ALONE, live: false });
+    const l = new ForceLayout(undefined, { live: false });
     l.setGraph(model);
     hold(l, 'a', -300, 0);
     hold(l, 'b', 300, 0);
@@ -148,7 +123,7 @@ describe('spline edges', () => {
   });
 
   it('slip freely over a node, keeping only off its centre (a small bend)', () => {
-    const l = new ForceLayout(undefined, { ...FORCES_ALONE, live: false });
+    const l = new ForceLayout(undefined, { live: false });
     l.setGraph(model);
     hold(l, 'a', -300, 0);
     hold(l, 'b', 300, 0);
@@ -157,7 +132,7 @@ describe('spline edges', () => {
     const m = l.bend('a->b')!;
     const r = DEFAULT_LAYOUT.radius({ id: 'c', depth: 1, kind: 'cell' } as never);
     // off c's centre, but still over c: a small bend, not an arc around it
-    expect(Math.hypot(m.x, m.y)).toBeGreaterThan(r * FORCES_ALONE.avoid! * 0.5); // (the avoid in force here)
+    expect(Math.hypot(m.x, m.y)).toBeGreaterThan(r * DEFAULT_LAYOUT.avoid * 0.5); // (the avoid in force here)
     expect(Math.hypot(m.x, m.y)).toBeLessThan(r);
     // and a node just off the line pushes it to the far side
     hold(l, 'c', 0, 5);
@@ -188,19 +163,6 @@ describe('dragging', () => {
     l.dragEnd(id, true);
     l.tick(200);
     expect(l.position(id)).toEqual(drop);
-    l.destroy();
-  });
-});
-
-describe('laid out by insertion (an option)', () => {
-  it('takes in every cell, from the sound card outwards, and leaves none overlapping', () => {
-    const model = buildGraph(compileSource(PRESETS.twinkle.source));
-    const l = new ForceLayout(undefined, { live: false, insert: 100 });
-    l.setGraph(model);
-    l.tick(400);
-    const ids = model.nodes.filter((n) => !n.petalOf).map((n) => n.id);
-    expect(ids.filter((id) => !l.position(id))).toEqual([]);
-    expect(l.quality().overlap).toBeLessThan(10);
     l.destroy();
   });
 });
@@ -247,7 +209,7 @@ describe('initial layout', () => {
       ],
       edges: [],
     } as unknown as Parameters<ForceLayout['setGraph']>[0];
-    const l = new ForceLayout(undefined, { ...FORCES_ALONE, live: false, centre: 0 }); // repulsion alone
+    const l = new ForceLayout(undefined, { live: false, centre: 0, columnPull: 0, rankPull: 0 }); // repulsion alone
     l.setGraph(model);
     const r = 2 * DEFAULT_LAYOUT.layerGap; // 480 px apart: beyond the near field
     for (const [id, x] of [
@@ -359,7 +321,7 @@ describe('drawn crossings', () => {
         { id: 'c->d', source: 'c', target: 'd', port: 'braid', count: 1, transforms: [[]] },
       ],
     } as unknown as Parameters<ForceLayout['setGraph']>[0];
-    const l = new ForceLayout(undefined, { ...FORCES_ALONE, live: false, avoid: 0 });
+    const l = new ForceLayout(undefined, { live: false, avoid: 0 });
     l.setGraph(model);
     for (const [id, x, y] of [
       ['a', -300, 0],
@@ -431,7 +393,7 @@ describe('busy nodes push harder', () => {
         .concat([{ id: 'x->y', source: 'x', target: 'y', port: 'braid', count: 1, transforms: [[]] }]),
     } as unknown as Parameters<ForceLayout['setGraph']>[0];
     const gap = (degreeRepel: number) => {
-      const l = new ForceLayout(undefined, { ...FORCES_ALONE, live: false, degreeRepel, centre: 0, rankPull: 0 });
+      const l = new ForceLayout(undefined, { live: false, degreeRepel, centre: 0, rankPull: 0, columnPull: 0 });
       l.setGraph(model);
       l.tick(400);
       const h = l.position('hub')!;
