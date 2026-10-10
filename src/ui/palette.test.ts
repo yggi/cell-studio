@@ -131,3 +131,30 @@ describe("tickLevel: the level of a meter's tick", () => {
     expect([0, 1.5, 2].map((b) => tickLevel(compileSource('&plain scan(1 1 1) step=1').cells.get('plain'), b))).toEqual([0, 1, 1]);
   });
 });
+
+describe('the scope', () => {
+  it('its small labels (the bins, the ticks) read on the tube: 4.5:1 at least', () => {
+    const css = readFileSync('src/app.css', 'utf8');
+    const hex = (name: string) => {
+      const h = css.match(new RegExp(`--${name}: #([0-9a-f]{6})`))![1];
+      return [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16));
+    };
+    const rgba = (name: string) =>
+      css
+        .match(new RegExp(`--${name}: rgb\\((\\d+) (\\d+) (\\d+) / ([0-9.]+)\\)`))!
+        .slice(1)
+        .map(Number);
+    const lum = ([r, g, b]: number[]) => {
+      const c = (v: number) => (v / 255 <= 0.03928 ? v / 255 / 12.92 : ((v / 255 + 0.055) / 1.055) ** 2.4);
+      return 0.2126 * c(r) + 0.7152 * c(g) + 0.0722 * c(b);
+    };
+    for (const ink of ['scope-ink', 'scope-tick'])
+      for (const face of ['scope-face', 'scope-black']) {
+        const [r, g, b, a] = rgba(ink);
+        const bg = hex(face);
+        const over = [r, g, b].map((v, i) => v * a + bg[i] * (1 - a));
+        const [x, y] = [lum(over), lum(bg)].sort((p, q) => q - p);
+        expect((x + 0.05) / (y + 0.05), `${ink} on ${face}`).toBeGreaterThanOrEqual(4.5);
+      }
+  });
+});

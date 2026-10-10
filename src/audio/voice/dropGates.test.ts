@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { dropGates, type Built, type Sounding } from './voice';
+import { dropGates, letGo, type Built, type Sounding } from './voice';
 
 /** A parameter that records what was done to it, in order. */
 function param(value = 1) {
@@ -19,14 +19,14 @@ const source = () => {
   return { stops, stop: (t: number) => stops.push(t) };
 };
 
-function note(at: number, release = 0.3) {
+function note(at: number, release = 0.3, held = false) {
   const osc = source();
   const mod = source();
   const amp = { gain: param(0.35) };
   const lvl = { gain: param(0.8) };
   const frequency = param(440);
   const detune = param(25);
-  const n = { at, amp, lvl, pitch: [frequency, detune], mods: [mod], release } as unknown as Sounding;
+  const n = { at, amp, lvl, pitch: [frequency, detune], mods: [mod], release, held } as unknown as Sounding;
   return { osc, mod, amp, lvl, frequency, detune, n };
 }
 const voice = (live: [unknown, Sounding][], moving: Record<string, ReturnType<typeof param>> = {}, notes: { at: number; freq: number }[] = []) =>
@@ -70,5 +70,28 @@ describe('a pause drops every gate (dropGates)', () => {
     const lpf = param(900);
     dropGates(voice([], { lpf }), 2);
     expect(lpf.calls).toEqual(['cancel@2', 'set 900@2']);
+  });
+});
+
+describe('a key held (press) and let go (release)', () => {
+  it("a pause leaves a key held sounding: it is a hand's, not the plan's", () => {
+    const key = note(1, 0.3, true);
+    const planned = note(1);
+    dropGates(
+      voice([
+        [key.osc, key.n],
+        [planned.osc, planned.n],
+      ]),
+      2,
+    );
+    expect(key.amp.gain.calls).toEqual([]);
+    expect(key.osc.stops).toEqual([]);
+    expect(planned.osc.stops).toEqual([2 + 0.3 * 4 + 0.05]);
+  });
+  it('a key let go goes into its own release from where it is, as a pause does to a note', () => {
+    const key = note(1, 0.2, true);
+    letGo(key.osc as unknown as AudioScheduledSourceNode, key.n, 3);
+    expect(key.amp.gain.calls).toEqual(['cancel@3', 'set 0.35@3', 'target 0@3 k=0.0667']);
+    expect(key.osc.stops).toEqual([3 + 0.2 * 4 + 0.05]);
   });
 });

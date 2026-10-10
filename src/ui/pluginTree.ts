@@ -57,6 +57,7 @@ const FUNCTIONS: ReadonlySet<string> = new Set(['rgb', 'rgba', 'hsl', 'hsla', 'v
 
 /** A value that paints or places: no escapes, control characters, quotes or markup; parentheses that close; only the functions above; and every `url(` a closed reference to the drawing's own ids (an unterminated one is a fetch the closed-form check would never see). */
 function plainValue(value: string): boolean {
+  if (value.length > LIMITS.value) return false;
   // eslint-disable-next-line no-control-regex -- control characters are what this rejects
   if (/[\\"'<>{};@\u0000-\u001f]|\/\*/.test(value)) return false;
   let open = 0;
@@ -85,7 +86,8 @@ function plainStyle(style: string): string | null {
 export function plainAttribute(name: string, value: string | number): string | null {
   if (!ATTRIBUTES.has(name)) return null;
   const text = String(value);
-  if (name === 'style') return plainStyle(text);
+  // (the whole style is bounded like any value, before its declarations are read one by one)
+  if (name === 'style') return text.length > LIMITS.value ? null : plainStyle(text);
   // (an id is the drawing's own: view.uid starts it, so it cannot be one of the app's)
   if (name === 'id') return /^plugin[A-Za-z0-9_-]*$/.test(text) ? text : null;
   return plainValue(text) ? text : null;
@@ -101,8 +103,8 @@ export function attributesOf(e: PElement): Record<string, string> {
   return out;
 }
 
-/** What one drawing may be: so many elements, so deep, so long a text (a shared subtree is counted each time it appears). */
-const LIMITS = { nodes: 2000, depth: 12, text: 400, attributes: 24 };
+/** What one drawing may be: so many elements and texts, so deep, so long a text or an attribute (a shared subtree is counted each time it appears). */
+const LIMITS = { nodes: 2000, depth: 12, text: 400, attributes: 24, value: 2000 };
 
 /**
  * What `draw` returned, as a copy of our own: only elements of the allowed tags with the allowed attributes (already
@@ -111,18 +113,22 @@ const LIMITS = { nodes: 2000, depth: 12, text: 400, attributes: 24 };
 export function boundedTree(returned: unknown): PNode[] {
   let nodes = 0;
   const copy = (n: unknown, depth: number): PNode | null => {
-    if (typeof n === 'string') return n.slice(0, LIMITS.text);
+    if (typeof n === 'string') {
+      if (++nodes > LIMITS.nodes) throw new Error(`the drawing has more than ${LIMITS.nodes} elements and texts`);
+      return n.slice(0, LIMITS.text);
+    }
     if (typeof n === 'number') return Number.isFinite(n) ? n : null;
     if (typeof n !== 'object' || n === null) return null;
-    const e = n as { t?: unknown; a?: unknown; c?: unknown };
-    if (typeof e.t !== 'string' || !TAGS.has(e.t)) return null;
-    if (++nodes > LIMITS.nodes) throw new Error(`the drawing has more than ${LIMITS.nodes} elements`);
+    // (each field read once: a getter could answer differently the second time)
+    const { t, a: attributes, c: children } = n as { t?: unknown; a?: unknown; c?: unknown };
+    if (typeof t !== 'string' || !TAGS.has(t)) return null;
+    if (++nodes > LIMITS.nodes) throw new Error(`the drawing has more than ${LIMITS.nodes} elements and texts`);
     if (depth > LIMITS.depth) throw new Error(`the drawing is nested deeper than ${LIMITS.depth}`);
-    const attrs = typeof e.a === 'object' && e.a !== null ? Object.entries(e.a as Record<string, unknown>).slice(0, LIMITS.attributes) : [];
-    const a = attributesOf({ t: e.t, a: Object.fromEntries(attrs.filter(([, v]) => typeof v === 'string' || typeof v === 'number')) as Record<string, string | number>, c: [] });
-    const kids = Array.isArray(e.c) ? e.c : [];
-    return { t: e.t, a, c: kids.flatMap((k) => copy(k, depth + 1) ?? []) };
+    const attrs = typeof attributes === 'object' && attributes !== null ? Object.entries(attributes as Record<string, unknown>).slice(0, LIMITS.attributes) : [];
+    const a = attributesOf({ t, a: Object.fromEntries(attrs.filter(([, v]) => typeof v === 'string' || typeof v === 'number')) as Record<string, string | number>, c: [] });
+    const kids = Array.isArray(children) ? children.slice(0, LIMITS.nodes) : [];
+    return { t, a, c: kids.flatMap((k) => copy(k, depth + 1) ?? []) };
   };
-  const roots = Array.isArray(returned) ? returned : [returned];
+  const roots = Array.isArray(returned) ? returned.slice(0, LIMITS.nodes) : [returned];
   return roots.flatMap((r) => copy(r, 0) ?? []);
 }

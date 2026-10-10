@@ -60,6 +60,8 @@ export interface Sounding {
   readonly mods: readonly OscillatorNode[];
   /** Its release (seconds): how long it rings after the gate drops. */
   readonly release: number;
+  /** A key held (`press`): a hand's, not the plan's, so a pause leaves it sounding until it is released. */
+  readonly held?: boolean;
 }
 
 /** Build a voice cell's chain (`key`: its sound, to tell when it must be built again). */
@@ -173,26 +175,41 @@ function hold(param: Movable, now: number): void {
 export function dropGates(b: Built, now: number): void {
   // (a note scheduled ahead is never played: it is not what sounds now either)
   b.notes = b.notes.filter((n) => n.at <= now);
-  for (const [osc, n] of b.live) {
-    if (n.at > now) {
-      osc.stop(now);
-      for (const m of n.mods) m.stop(now);
-      continue;
-    }
-    hold(n.amp.gain, now);
-    hold(n.lvl.gain, now);
-    for (const p of n.pitch) hold(p, now);
-    const release = Math.max(n.release, 0.005);
-    n.amp.gain.setTargetAtTime(0, now, release / 3);
-    const end = now + release * 4 + 0.05;
-    osc.stop(end);
-    for (const m of n.mods) m.stop(end);
-  }
+  for (const [osc, n] of b.live) if (!n.held) letGo(osc, n, now);
   for (const p of Object.values(b.moving)) hold(p, now);
 }
 
-/** Play a note on a voice (`voiceOf`: the others, for FM modulators). Returns when it sounds (audio seconds; null: not played, or a strike). */
-export function playNote(Tone: ToneNS, ctx: AudioContext, b: Built, note: Played, voiceOf: (name: string) => Built | undefined): { at: number; end: number } | null {
+/**
+ * One note lets go now: not yet started, it is never played; sounding, its gate drops (its envelope goes into its
+ * release from where it is) and it stops moving. A pause does this to every note the plan played; a key released, to its own.
+ */
+export function letGo(osc: AudioScheduledSourceNode, n: Sounding, now: number): void {
+  if (n.at > now) {
+    osc.stop(now);
+    for (const m of n.mods) m.stop(now);
+    return;
+  }
+  hold(n.amp.gain, now);
+  hold(n.lvl.gain, now);
+  for (const p of n.pitch) hold(p, now);
+  const release = Math.max(n.release, 0.005);
+  n.amp.gain.setTargetAtTime(0, now, release / 3);
+  const end = now + release * 4 + 0.05;
+  osc.stop(end);
+  for (const m of n.mods) m.stop(end);
+}
+
+/**
+ * Play a note on a voice (`voiceOf`: the others, for FM modulators). Returns when it sounds (audio seconds) and its
+ * source (null: not played, or a strike).
+ */
+export function playNote(
+  Tone: ToneNS,
+  ctx: AudioContext,
+  b: Built,
+  note: Played,
+  voiceOf: (name: string) => Built | undefined,
+): { at: number; end: number; osc: AudioScheduledSourceNode } | null {
   const { freq, gains, env: noteEnv } = note;
   let { at: time, dur: duration, bends, levels, params } = note;
   // a resonator: a note plucks the exciter nearest its pitch
@@ -321,5 +338,5 @@ export function playNote(Tone: ToneNS, ctx: AudioContext, b: Built, note: Played
     lvl.disconnect();
     pan.disconnect();
   };
-  return { at: time, end };
+  return { at: time, end, osc };
 }

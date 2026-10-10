@@ -5,12 +5,12 @@ import { compileSource } from '../engine/compile';
 import { flowNodeOf } from './flownode';
 
 describe('flowNodeOf', () => {
-  it('a product’s junction is a dot: nothing to drag, select, delete or connect', () => {
+  it('a product’s junction is a dot: nothing to drag, select, delete, connect or tab to', () => {
     const g = buildGraph(compileSource(readFileSync('tools/gallery/golden/golden.cells', 'utf8')));
     const junctions = g.nodes.filter((n) => n.kind === 'junction');
     expect(junctions.length).toBeGreaterThan(0);
     for (const j of junctions)
-      expect(flowNodeOf(j, { x: 0, y: 0 }, false)).toMatchObject({ type: 'junction', draggable: false, selectable: false, deletable: false, connectable: false });
+      expect(flowNodeOf(j, { x: 0, y: 0 }, false)).toMatchObject({ type: 'junction', draggable: false, selectable: false, deletable: false, connectable: false, focusable: false });
     // (a cell stays draggable)
     expect(
       flowNodeOf(

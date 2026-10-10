@@ -766,7 +766,13 @@
     font-family: var(--font-ui);
     font-weight: 700;
     fill: var(--text);
-    fill-opacity: 0.55;
+    fill-opacity: 0.8;
+    /* a dark halo: the number reads on the grey rest, and on the lit beat's tan and yellow (4.0:1 at best without it) */
+    stroke: var(--wheel-disc);
+    stroke-opacity: 0.85;
+    stroke-width: 0.18em;
+    stroke-linejoin: round;
+    paint-order: stroke;
     pointer-events: none;
   }
   .steplabel {

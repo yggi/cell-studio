@@ -54,6 +54,8 @@
     epoch = 0,
     opened = 0,
     focus,
+    onsheet,
+    played,
   }: {
     model: GraphModel;
     program: CompileResult;
@@ -86,6 +88,10 @@
     epoch?: number;
     /** A cell to open in the detail sheet once it exists (after adding it). */
     focus: { name: string; token: number } | null;
+    /** Told which cell's sheet is open (null: none): the cell the keys play unless one is chosen (state/keys.svelte.ts). */
+    onsheet?: (name: string | null) => void;
+    /** Cells sounding from the keys (graph ids): drawn live. */
+    played?: ReadonlySet<string>;
   } = $props();
 
   // The piece as drawn: one snapshot (program, graph, shifts, routing), swapped whole with the nodes and edges made
@@ -111,6 +117,10 @@
   let selected = $state<string | null>(null);
   // (a product's junction is not a cell: never selected)
   const selectedNode = $derived(selected ? shown.model.nodes.filter(isCellNode).find((n) => n.id === selected) : undefined);
+  $effect(() => {
+    const name = selectedNode?.cell.name ?? null;
+    untrack(() => onsheet?.(name));
+  });
 
   setGraphContext({
     get program() {
@@ -166,6 +176,9 @@
     setFree: (spec, value) => onfree(spec, value),
     get sound() {
       return sound;
+    },
+    get played() {
+      return played;
     },
   });
 

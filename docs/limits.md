@@ -32,6 +32,7 @@ What Cell studio doesn't do yet or does with a catch, documented rather than tra
 ## Layout
 
 - Tags start as blocks and hubs pull a cluster as one, but clusters still touch in the largest pieces (30 overlapping pairs over the library; [notes/27-layout.md](notes/27-layout.md)); BWV 847 is wide. A meter's net crosses some edges in the densest pieces (about 12 crossings over the library).
+- A voice with more than about ten products in one mix has its junction dots stacked on its rim (they sit within 60° of 12 o'clock): they overlap rather than spread (#194).
 - A restarted part's playhead shows the global clock, not its own restarted time.
 - A piece with an `anchor=` clock shows its heads at 0 while stopped; they jump to the anchored time of day at Play.
 - Splices nest seven deep in a braid's track (`MAX_DEPTH` is 6 and the top level counts as 0, `layout/track.ts`); deeper ones are not drawn as bulbs.
