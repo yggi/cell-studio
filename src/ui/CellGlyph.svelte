@@ -523,8 +523,8 @@
 
   // the playhead: braids, and a selector's barrel (where in its sections)
   const hand = $derived((view.mode === 'braid' || view.mode === 'matrix') && liveLocal != null ? liveLocal / Math.max(1, cell?.steps ?? 1) : null);
-  // in a bulb, the hand bends: from the hub through each bulb's neck and hub to the step playing now (#221)
-  const bent = $derived(hand !== null && track ? cursorOf(c, c, geo.hand.r0 * 0.4, track, mod(hand, 1)) : null);
+  // in a bulb, the hand bends: from the hub's edge round the inside of each bulb it is in, and across the step playing now (#221)
+  const bent = $derived(hand !== null && track ? cursorOf(c, c, geo.hand.r0, track, mod(hand, 1), rInner - geo.hand.r0) : null);
 
   // a meter as it plays: the wheel stays put, the step it's in now goes round, outlined and glowing in its colour
   const beatAt = $derived(isMeter ? (ctx.heads.beatAt.get(name) ?? null) : null);
@@ -789,9 +789,8 @@
   {/if}
   {#if bent}
     <g class="hand bent">
-      <path class="edge" d={bent.d} style:stroke-width="{geo.hand.width + 2}px" />
-      <path d={bent.d} style:stroke-width="{geo.hand.width}px" />
-      <circle cx={bent.head[0]} cy={bent.head[1]} r={Math.max(2.5, geo.hand.width * 1.3)} />
+      <path class="edge" d={bent} style:stroke-width="{geo.hand.width + 2}px" />
+      <path d={bent} style:stroke-width="{geo.hand.width}px" />
     </g>
   {:else if hand !== null}
     <g class="hand" style="transform: rotate({hand * 360}deg); transform-origin: {c}px {c}px">
@@ -1009,11 +1008,12 @@
   .hand line.edge {
     stroke: var(--wheel-hand-edge);
   }
-  /* the hand bent into a bulb: a line, and a dot on the step playing */
+  /* the hand bent into a bulb: one line, jointed */
   .hand.bent path {
     fill: none;
     stroke: var(--wheel-hand);
     stroke-linecap: round;
+    stroke-linejoin: round;
   }
   .hand.bent path.edge {
     stroke: var(--wheel-hand-edge);
