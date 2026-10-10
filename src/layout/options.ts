@@ -85,6 +85,8 @@ export interface LayoutOptions {
   endPull: number;
   /** How strongly each node is drawn to the height of its rank in the signal path (y only). */
   rankPull: number;
+  /** Probe (outputs at 12 o'clock, docs/notes/outputs-top.md): each reader pulled above what it reads (0: off). */
+  upPull: number;
   /** A weak sideways pull of every node towards the centre line (keeps the graph balanced). */
   centre: number;
   /** A gentle sideways pull of every node towards its column (voices by stereo and mix order). */
@@ -161,6 +163,7 @@ export const DEFAULT_LAYOUT: LayoutOptions = {
   partLength: 0.8,
   endPull: 0,
   rankPull: 0.05,
+  upPull: 0,
   centre: 0.004,
   columnPull: 0.035,
   layerGap: 130,
