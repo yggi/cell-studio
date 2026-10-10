@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { noteColour } from './theme';
-  import { palette } from './palette';
+  import { EDGE, noteColour } from './theme';
+  import { fillColour, liveColour } from './edgeStyle';
   import { positionOf } from '../engine/helix';
   import { heardGrid } from '../layout/show';
   import { tickLevel } from '../layout/meters';
@@ -96,9 +96,6 @@
   // a loom round the source: the part this edge draws (its ring above every run, its run with the rest; whole if not split)
   const ringOnly = $derived(d.part === 'ring');
   const looming = (parts: { ring: string; run: string }[]) => parts.map((p) => (d.part === 'ring' ? p.ring : d.part === 'run' ? p.run : `${p.ring} L${p.run.slice(1)}`));
-  // (the CV ports that carry notes — a gate's trigger= is a melody, as a voice's is; any other CV is a level: an
-  // envelope, a gain, a filter …)
-  const PITCH_PORTS = new Set(['voice', 'trigger', 'midi', 'pitch', 'play', 'write', 'braid', 'over']);
 
   // Ends locked to their segments (as a tape's heads are): a ref meets the wheel of the cell it is spliced into where it
   // sits in that braid, once for each time it is written; a table's strands leave its wheel at their entries.
@@ -156,11 +153,10 @@
       : occurrences.map((t) => radialPath(lockX, lockY, control, targetX, targetY, rimOf(d.sizes?.to), t));
   });
   // (sound is a wave along the edge, whichever way it runs: a spline, or locked to its segments)
-  const waved = (p: string) => (d.band === 'audio' ? rippled(p) : p);
+  const waved = (p: string) => (d.band === 'audio' ? rippled(p, EDGE.ripple.amp, EDGE.ripple.period) : p);
   const path = $derived(waved(lockedPaths[0] ?? spline));
 
   // a bus: a table read through over= (its entries), or a chord (its notes); at most 12 strands, a longer table sampled
-  const STRANDS = 12;
   const view = $derived.by(() => {
     if (d.width < 2 || d.tines || (!d.table && d.band !== 'cv')) return null;
     // (a table of taps is read by its selector through one plain wire, from below: no bus, no loom — decision 016)
@@ -168,7 +164,7 @@
     void ctx.turned;
     return cellView(ctx.program, d.table ?? d.from, shown, false);
   });
-  const count = $derived(view ? Math.min(STRANDS, d.width) : 0);
+  const count = $derived(view ? Math.min(EDGE.strands, d.width) : 0);
   // (a strand's place in the table: the entry it carries; a chord's strands run side by side)
   const entryOf = (i: number) => view?.segments[Math.floor((i * view.segments.length) / count)];
   // a strand leaves its entry's tap (where the wheel draws it: the entry's own place, turned as it stands)
@@ -214,9 +210,6 @@
       ? [radialPath(targetX, targetY, control, sourceX, sourceY, r, turns[0], true)]
       : looming(loomParts(sourceX, sourceY, r, turns, mid.x, mid.y, targetX, targetY, GAP, d.ring ?? 0, LOOM_EXIT));
   });
-  // a wheel's fill, coloured as its wheel colours it: a note its pitch colour (the palette's, its place on its grid
-  // already found), a level on the neutral hue
-  const fillColour = (f: Fill | undefined) => (f?.kind === 'pitch' ? noteColour(f.hue, false, f.octave ?? 0) : f?.kind === 'level' ? palette('level', f.v) : 'var(--edge)');
   // a resonator's tines: a strand into each pad (round its body, as MaterialNode lays them), lit while it rings
   const tinePaths = $derived.by(() => {
     if (!d.tines || !d.sizes) return [];
@@ -280,22 +273,21 @@
     const t = lc.local / Math.max(1, ctx.program.cells.get(d.from)?.steps ?? 1);
     return source.segments.find((s) => t >= s.t0 - 1e-9 && t < s.t1 - 1e-9)?.bands.find((b) => b.kind === 'pitch' || b.kind === 'level');
   };
-  const colour = $derived.by((): string | null => {
-    // (a note's link carries nothing: no value, no colour)
-    if (!isLive || d.band === 'none') return null;
-    // sync: the level of the tick of the clock it carries
-    if (d.band === 'sync') return palette('sync', tickLevel(ctx.program.cells.get(d.from), ctx.heads.beatAt.get(d.from) ?? 1));
-    // audio: the hue of its fundamental (a mix carries several: neutral), as bright as it is loud
-    if (d.band === 'audio') return palette('audio', { position: notePosition(), loud: 1 }, grid);
-    // CV: a level (an envelope, a gain, lpf=) on the neutral hue; a pitch the note's colour on its grid
-    const f = fillNow();
-    if (!PITCH_PORTS.has(d.port)) return palette('level', f?.kind === 'level' ? f.v : 1);
-    const p = notePosition();
-    if (p !== null) return palette('pitch', p, grid);
-    return f?.kind === 'pitch' || f?.kind === 'level' ? fillColour(f) : palette('level', 1);
-  });
+  // its colour now: the one rule (edgeStyle.ts), given what it reads lazily — only a live edge takes one
+  const colour = $derived.by((): string | null =>
+    isLive
+      ? liveColour({
+          band: d.band,
+          port: d.port,
+          tick: () => tickLevel(ctx.program.cells.get(d.from), ctx.heads.beatAt.get(d.from) ?? 1),
+          sound: () => ({ position: notePosition(), grid }),
+          fill: fillNow,
+          heard: () => ({ position: notePosition(), grid }),
+        })
+      : null,
+  );
   // (a bus draws its own strands: its core stays hidden, so it takes no colour)
-  const edgeStyle = $derived(colour && !count && !d.tines ? `${style ?? ''}; stroke: ${colour}; stroke-opacity: 0.9` : style);
+  const edgeStyle = $derived(colour && !count && !d.tines ? `${style ?? ''}; stroke: ${colour}; stroke-opacity: ${EDGE.liveOpacity}` : style);
 </script>
 
 {#if tineStrands.length}
@@ -338,7 +330,7 @@
     labelStyle={d.off ? 'opacity: 0.3' : colour ? `border-color: ${colour}` : undefined}
   />
   {#if dot}
-    <circle class="pulse" cx={dot.x} cy={dot.y} r={d.band === 'sync' ? 4.5 : 6} style={colour ? `fill: ${colour}` : undefined} />
+    <circle class="pulse" cx={dot.x} cy={dot.y} r={d.band === 'sync' ? EDGE.pulse.sync : EDGE.pulse.value} style={colour ? `fill: ${colour}` : undefined} />
   {/if}
 {/if}
 
@@ -350,16 +342,16 @@
   }
   .bus path {
     fill: none;
-    stroke-width: 2.5;
+    stroke-width: var(--edge-strand-w);
     stroke-linecap: round;
     pointer-events: none;
     transition: stroke-opacity 200ms ease;
   }
   .bus path.dim {
-    stroke-opacity: 0.25;
+    stroke-opacity: var(--edge-strand-dim);
   }
   .bus .bus-sheath {
     stroke: var(--bg);
-    stroke-opacity: 0.55;
+    stroke-opacity: var(--edge-sheath);
   }
 </style>

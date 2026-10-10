@@ -62,3 +62,16 @@ export const blockColour = (light: number) => `hsl(45 ${30 + 60 * light}% ${14 +
 /** A scope's spectrogram: a band at its note's hue, as bright as it is loud; silence the tube's black (`--scope-black`). */
 const SCOPE_BLACK = '#050b08';
 export const scopeBand = (hue: number, level: number) => (level > 0.01 ? `hsl(${hue} 80% ${Math.round(8 + level * 52)}%)` : SCOPE_BLACK);
+
+/**
+ * The numbers the edges are drawn with in code (the ones in CSS are app.css --edge-*): a bus's most strands, a live
+ * edge's opacity, the pulse's radius by band, sound's ripple (its height and length, px), a meter's flash (how fast it
+ * fades, how bright off the bar's first, how much of the tick's colour it takes).
+ */
+export const EDGE = {
+  strands: 12,
+  liveOpacity: 0.9,
+  pulse: { sync: 4.5, value: 6 },
+  ripple: { amp: 2.5, period: 11 },
+  flash: { decay: 5, offBeat: 0.6, mix: 1.6 },
+} as const;
