@@ -11,6 +11,14 @@ describe('the MIDI light', () => {
     expect(glow(500, 100)).toBe(0);
   });
 
+  it('counts a time that is not a number as now, so the light stays sane', () => {
+    const a = new Activity();
+    a.hit('out', NaN);
+    a.hit('in', Infinity);
+    expect(Number.isFinite(a.level('out'))).toBe(true);
+    expect(a.level('in')).toBeGreaterThan(0.9);
+  });
+
   it('counts each direction on its own and tells the light on a hit', () => {
     const a = new Activity();
     const woke = vi.fn();

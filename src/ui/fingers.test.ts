@@ -4,7 +4,6 @@ import { Fingers, type Touch } from './fingers';
 import { Keys, type Hands } from './state/keys.svelte';
 import { Piece } from './state/piece.svelte';
 import { DRUM_PRESETS } from '../midi/drum-presets';
-import { DRUM_CHANNEL } from '../midi/surfaces';
 import type { MidiAccess } from '../midi/access';
 
 const store = new Map<string, string>();
@@ -53,7 +52,7 @@ function made() {
   cleanups.push(() => keys.dispose());
   // (as KeysDock wires them)
   const piano = new Fingers({ press: (n, v) => keys.press(n, v), release: (n) => keys.release(n) });
-  const pads = new Fingers({ press: (n, v) => keys.press(n, v, DRUM_CHANNEL), release: (n) => keys.release(n, DRUM_CHANNEL) });
+  const pads = new Fingers({ press: (n, v) => keys.pressPad(n, v), release: (n) => keys.releasePad(n) });
   return { keys, asked, piano, pads };
 }
 

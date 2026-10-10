@@ -21,6 +21,8 @@ export class Activity {
 
   /** A message at `at`: now, or, for a note sent ahead, the moment it sounds. */
   hit(direction: Direction, at: number = performance.now()): void {
+    // (a NaN or infinite time would poison `level`: it counts as now)
+    if (!Number.isFinite(at)) at = performance.now();
     const times = this.#times[direction];
     // (the ones that have faded out are let go as new ones come: the list is only what is on its way or still lit)
     const now = Math.min(at, performance.now());

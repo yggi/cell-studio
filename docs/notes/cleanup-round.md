@@ -28,6 +28,11 @@ Each is one PR, no sound change unless said.
 4. **Contrast pass** (#120, with #135). S-M, needs the `gallery` skill (`wheels --fast`): scope labels, beat numbers at 55 %, node labels at small sizes.
 5. **Optional, M**: #230 carry a learned binding along on a title change (owner chose nothing yet).
 
+6. **MIDI** (#222, #260, #230, #252; the plan agreed 2026-10-10, three PRs):
+   - **Tidy** (done on this branch): keys keep their input's name (two inputs under *All inputs*), pads and drum keys follow `midi.kitChannel`, slot-only setups reconnect / panic / enable *All notes off*, auto-reconnect only when `navigator.permissions` says granted, the roll's lit key and renamed-cell release, `Activity.hit` NaN, a Stop-then-press smoke step. Closes #222 and #260 except: a voice kept across a param-only change (stays a `limits.md` line), the per-voice `setRoute` diff (dropped), and the real-device and phone-width checks (go to the phone session, #154).
+   - **#230** carry learned bindings on a title change (debounced; `learn.svelte.ts`, `learn.ts`).
+   - **#252** live keys open the mix taps: `Gate` needs a hold-open and close; `voices.press` / `release` use `taps`; check strike and bow on resonators; verify with `cellStudio.measure`.
+
 Suggested for one sitting: 1 + 2 + 3 (about a morning). Session 4 after, if a visual pass is wanted.
 
 ## Wait for the in-flight PRs

@@ -51,6 +51,8 @@
   } = $props();
 
   const ctx = getGraphContext();
+  // the roll's keys down, by the cell they were pressed on: a cell renamed meanwhile still lets the right key go
+  const rowsDown = new Map<number, string>();
   const cell = $derived(ctx.program.cells.get(name));
   const shift = $derived(ctx.shifts(name));
   // live while playing, as the graph is: shifts as tables turn, and the playhead
@@ -294,8 +296,8 @@
           piece={opened}
           {onedit}
           held={ctx.rows?.held(name)}
-          onpress={ctx.rows ? (v) => ctx.rows?.press(name, v) : undefined}
-          onrelease={ctx.rows ? (v) => ctx.rows?.release(name, v) : undefined}
+          onpress={ctx.rows ? (v) => (rowsDown.set(v, name), ctx.rows?.press(name, v)) : undefined}
+          onrelease={ctx.rows ? (v) => (ctx.rows?.release(rowsDown.get(v) ?? name, v), rowsDown.delete(v)) : undefined}
         />{/if}
     {:else if !cell.voice || braidVoice}
       <div class="dial">

@@ -27,6 +27,9 @@ export interface MidiHandlers {
 const portOptions = (ports: ReadonlyMap<string, { readonly name: string | null; readonly state?: string }>): PortOption[] =>
   [...ports].filter(([, port]) => port.state !== 'disconnected').map(([id, port]) => ({ id, name: port.name ?? 'MIDI' }));
 
+/** How long the permission query may take before it is taken as unanswered (ms). */
+const ASK_FOR = 1000;
+
 /** A live Web MIDI connection: the ports plugged in, and which input is listened to. */
 export class MidiAccess {
   #access: MIDIAccess;
@@ -37,6 +40,23 @@ export class MidiAccess {
     this.#access = access;
     this.#on = on;
     access.onstatechange = () => this.refresh();
+  }
+
+  /**
+   * Whether Web MIDI may be asked for without a prompt (the browser says it is granted), so a page load can reconnect
+   * quietly. Denied, or still to be asked: no. A browser that can't say: yes, as it was before.
+   */
+  static async granted(): Promise<boolean> {
+    try {
+      // (a query that never answers is not a reason to wait: about a second, then as it was before)
+      const status = await Promise.race([
+        navigator.permissions.query({ name: 'midi', sysex: false } as unknown as PermissionDescriptor),
+        new Promise<null>((resolve) => setTimeout(resolve, ASK_FOR)),
+      ]);
+      return status === null || status.state === 'granted';
+    } catch {
+      return true;
+    }
   }
 
   /** Ask for Web MIDI. The connection, or in words why there is none: no Web MIDI here, or access blocked. Never throws. */

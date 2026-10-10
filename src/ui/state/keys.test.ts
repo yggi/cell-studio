@@ -41,7 +41,7 @@ const at = (semis: number) => C4 * Math.pow(2, semis / 12);
 type Hearer = (data: Uint8Array, source: string, timeStamp: number) => void;
 
 /** Keys on a piece, with hands that say what they were asked, and a MIDI input a test plays into (`play`). */
-function made(code = SONG, { drums = DRUM_PRESETS.GM as DrumMap, claimed }: { drums?: DrumMap; claimed?: (d: Uint8Array) => boolean } = {}) {
+function made(code = SONG, { drums = DRUM_PRESETS.GM as DrumMap, claimed, padChannel }: { drums?: DrumMap; claimed?: (d: Uint8Array) => boolean; padChannel?: number } = {}) {
   const piece = new Piece(code);
   const asked: string[] = [];
   let id = 0;
@@ -55,17 +55,18 @@ function made(code = SONG, { drums = DRUM_PRESETS.GM as DrumMap, claimed }: { dr
   };
   const hearers = new Set<Hearer>();
   const sent: number[][] = [];
-  const letGoers = new Set<() => void>();
+  const letGoers = new Set<(alive?: ReadonlySet<string>) => void>();
   const midi = {
     access: {} as MidiAccess,
     inPortId: 'Keys',
     drums,
+    padChannel,
     hear: (h: Hearer) => {
       hearers.add(h);
       return () => void hearers.delete(h);
     },
     send: (d: readonly number[]) => void sent.push([...d]),
-    letGo: (l: () => void) => {
+    letGo: (l: (alive?: ReadonlySet<string>) => void) => {
       letGoers.add(l);
       return () => void letGoers.delete(l);
     },
@@ -73,9 +74,65 @@ function made(code = SONG, { drums = DRUM_PRESETS.GM as DrumMap, claimed }: { dr
   const keys = new Keys(piece, hands, midi, { claimed });
   cleanups.push(() => keys.dispose());
   const play = (...bytes: number[]) => hearers.forEach((h) => h(new Uint8Array(bytes), 'Keys', 0));
-  const letGo = () => letGoers.forEach((l) => l());
-  return { piece, keys, hands, asked, play, sent, midi, letGo, letGoers };
+  const playFrom = (source: string, ...bytes: number[]) => hearers.forEach((h) => h(new Uint8Array(bytes), source, 0));
+  const letGo = (alive?: ReadonlySet<string>) => letGoers.forEach((l) => l(alive));
+  return { piece, keys, hands, asked, play, playFrom, sent, midi, letGo, letGoers };
 }
+
+describe('two inputs, and a kit put on another channel', () => {
+  it('two inputs playing the same key are two keys: one let go leaves the other sounding', () => {
+    const { playFrom, asked } = made();
+    playFrom('Keys', 0x90, 60, 100);
+    playFrom('Pads', 0x90, 60, 100);
+    playFrom('Keys', 0x80, 60, 0);
+    expect(asked).toEqual([`press 1 lead ${C4.toFixed(2)} v100`, `press 2 lead ${C4.toFixed(2)} v100`, 'release 1']);
+    playFrom('Pads', 0x80, 60, 0);
+    expect(asked.at(-1)).toBe('release 2');
+  });
+
+  it("the pads and a controller's kit channel are the piece's kit channel, 10 unless put elsewhere", () => {
+    const on10 = made();
+    expect(on10.keys.drumChannel).toBe(9);
+    const on3 = made(SONG, { padChannel: 3 });
+    expect(on3.keys.drumChannel).toBe(2);
+    on3.play(0x92, 36, 100); // channel 3: the kick
+    on3.play(0x99, 36, 100); // channel 10 is a melody's key now: not the kit
+    expect(on3.asked[0]).toMatch(/^press 1 bd /);
+    expect(on3.asked[1]).toMatch(/^press 2 lead /);
+    on3.keys.pressPad(36); // (a pad)
+    expect(on3.asked[2]).toMatch(/^press 3 bd /);
+  });
+
+  it("a kit on channel 1 is not the computer keys' or the screen's: they stay melodic, and a controller's channel 1 is the kit", () => {
+    const { keys, play, asked } = made(SONG, { padChannel: 1 });
+    keys.press(60); // (an on-screen key)
+    keys.release(60);
+    expect(asked[0]).toMatch(/^press 1 lead /);
+    play(0x90, 36, 100); // a controller on channel 1
+    expect(asked[2]).toMatch(/^press 2 bd /);
+  });
+
+  it('a pad let go finds the channel it was pressed on, though the kit was moved while it was down', () => {
+    let channel = 10;
+    const made_ = made();
+    const { keys, asked } = made_;
+    Object.defineProperty(made_.midi, 'padChannel', { get: () => channel });
+    keys.pressPad(36);
+    channel = 4;
+    keys.releasePad(36);
+    expect(asked).toEqual([expect.stringMatching(/^press 1 bd /), 'release 1']);
+  });
+
+  it('under All inputs, an input unplugged lets go of the keys held from it, and only those', () => {
+    const { playFrom, asked, letGo } = made();
+    playFrom('Keys', 0x90, 62, 100);
+    playFrom('Pads', 0x90, 62, 100);
+    letGo(new Set(['Keys']));
+    expect(asked.slice(2)).toEqual(['release 2']);
+    letGo(new Set(['Keys']));
+    expect(asked.slice(2)).toEqual(['release 2']);
+  });
+});
 
 describe('press and release: the armed voice, through its table', () => {
   it('nothing chosen and no sheet open: the first cell that plays, in reading order (the melody, on its voice)', () => {

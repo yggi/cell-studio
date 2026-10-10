@@ -60,7 +60,7 @@
       </label>
       <div class="buttons">
         <button onclick={() => midi.refresh()}>Refresh ports</button>
-        <button onclick={() => midi.panic()} disabled={!midi.outPort}>All notes off</button>
+        <button onclick={() => midi.panic()} disabled={!midi.canPanic}>All notes off</button>
       </div>
     </section>
 
