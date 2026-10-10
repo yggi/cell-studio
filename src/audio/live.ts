@@ -25,4 +25,8 @@ export interface LiveSource {
   strike(name: string, x: number, index?: number): void;
   damp(name: string, on: boolean): void;
   bow(name: string, amount: number | null): void;
+  /** A key pressed on a voice, now (a hand: stopped becomes paused), until `release(id)`; velocity 1 … 127. */
+  press(voice: string, freq: number, velocity: number): number;
+  /** The key pressed as `id` let go (one never pressed, or let go already, is ignored). */
+  release(id: number): void;
 }

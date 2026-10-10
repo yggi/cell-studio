@@ -1,4 +1,4 @@
-// Lifted from yggi/jambot apps/web/src/midi/surfaces.ts @ 8cdb6b8 (parseMidiMessage only).
+// Lifted from yggi/jambot apps/web/src/midi/surfaces.ts @ 8cdb6b8 (parseMidiMessage, the computer keys, ignoreKeyEvent).
 
 /** A note read off a raw MIDI message. */
 export interface ParsedNote {
@@ -25,4 +25,47 @@ export function parseMidiMessage(data: ArrayLike<number>, timeStamp?: number): P
   if (command === 0x90 && velocity > 0) return { on: true, note, velocity, channel, timeStamp };
   if (command === 0x80 || command === 0x90) return { on: false, note, velocity: 0, channel, timeStamp };
   return null;
+}
+
+/** The sustain pedal (CC 64) read off a raw message: down (64 … 127) or up, its channel; null for anything else. */
+export function parseSustain(data: ArrayLike<number>): { readonly down: boolean; readonly channel: number } | null {
+  const status = data[0];
+  if (status === undefined || (status & 0xf0) !== 0xb0 || data[1] !== 64) return null;
+  return { down: (data[2] ?? 0) >= 64, channel: status & 0x0f };
+}
+
+/** General MIDI's drum channel, 10, counted from 0 as a status byte's nibble is. */
+export const DRUM_CHANNEL = 9;
+
+/** a–l for the white keys, w e t y u o for the black ones, C4 to D5. */
+export const COMPUTER_KEY_MAP: Readonly<Record<string, number>> = {
+  a: 60,
+  w: 61,
+  s: 62,
+  e: 63,
+  d: 64,
+  f: 65,
+  t: 66,
+  g: 67,
+  y: 68,
+  h: 69,
+  u: 70,
+  j: 71,
+  k: 72,
+  o: 73,
+  l: 74,
+};
+
+/** 1–7 for a kit, by General MIDI drum note: kick, snare, closed hat, open hat, pedal hat, rim, ride. */
+export const DRUM_KEY_MAP: Readonly<Record<string, number>> = { '1': 36, '2': 38, '3': 42, '4': 46, '5': 44, '6': 37, '7': 51 };
+
+/**
+ * Whether a keyboard event is to be left alone: a repeat, a modifier chord, or typing into a field. A field is an input,
+ * a select, a text area or anything editable (the code editor is a contenteditable, which Jambot's version missed).
+ */
+export function ignoreKeyEvent(target: EventTarget | null, repeat: boolean, modifier: boolean): boolean {
+  if (repeat || modifier) return true;
+  const el = target as { tagName?: unknown; isContentEditable?: unknown } | null;
+  if (!el || typeof el.tagName !== 'string') return false;
+  return el.tagName === 'INPUT' || el.tagName === 'SELECT' || el.tagName === 'TEXTAREA' || el.isContentEditable === true;
 }

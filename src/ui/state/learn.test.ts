@@ -382,3 +382,31 @@ describe('soon: a knob moves its control in a tab that draws no frames', () => {
     expect(value('bar/step')).toBe(151);
   });
 });
+
+describe('Learn.claims: what the keys leave to learn (#207)', () => {
+  it('while a control waits for a knob, every control change and note-on is learn’s; a note-off or the clock is not', () => {
+    const { learn } = made();
+    learn.learn('bar/step');
+    expect(learn.claims([0xb0, 64, 127])).toBe(true);
+    expect(learn.claims([0x90, 60, 100])).toBe(true);
+    expect(learn.claims([0x80, 60, 0])).toBe(false);
+    expect(learn.claims([0xf8])).toBe(false);
+  });
+  it('a CC learned is learn’s (CC 64 learned is not the pedal), another is not', () => {
+    const { learn, play } = made();
+    learn.learn('bar/step');
+    play(0xb0, 64, 20);
+    expect(learn.claims([0xb0, 64, 127])).toBe(true);
+    expect(learn.claims([0xb1, 64, 127])).toBe(false);
+    expect(learn.claims([0xb0, 7, 127])).toBe(false);
+  });
+  it('a pad learned and the pads above it within its choices are learn’s; past its choices, or below it, they are keys', () => {
+    const { learn, play } = made();
+    learn.learn('pad/choice');
+    play(0x99, 36, 100);
+    for (const n of [36, 37, 38, 39]) expect(learn.claims([0x99, n, 100]), `pad ${n}`).toBe(true);
+    expect(learn.claims([0x99, 40, 100])).toBe(false);
+    expect(learn.claims([0x99, 35, 100])).toBe(false);
+    expect(learn.claims([0x90, 36, 100])).toBe(false);
+  });
+});

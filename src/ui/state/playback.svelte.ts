@@ -58,6 +58,8 @@ export class Playback {
       strike: (n, x, i) => p.strike(n, x, i),
       damp: (n, on) => p.damp(n, on),
       bow: (n, a) => p.bow(n, a),
+      press: (v, f, vel) => p.press(v, f, vel),
+      release: (id) => p.release(id),
     };
     p.onEnded = (end) => {
       this.#endedAt = end;
