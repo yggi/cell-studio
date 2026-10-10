@@ -172,6 +172,19 @@ describe('channels', () => {
     expect(route(events.find((e) => e.voice === 'rim')!)).toEqual({ channel: 1, drum: null });
   });
 
+  it('a kit put on another channel: its members go there, and voices skip it instead of 10', () => {
+    const r = compileSource(PRESETS.drums.source);
+    const t = channelTable(r, {}, 1);
+    expect(t.kitChannel).toBe(1);
+    expect(t.voices).toEqual([{ voice: 'rim', channel: 2 }]);
+    const route = router(r, t);
+    const events = eventsBetween(planOf(PRESETS.drums.source), 0, 4, true);
+    expect(route(events.find((e) => e.voice === 'bd')!)).toEqual({ channel: 1, drum: 36 });
+    expect(Array.from({ length: 5 }, (_, i) => melodicChannel(i, 3))).toEqual([1, 2, 4, 5, 6]);
+    expect(rotationChannels(1, 4, true, 3)).toEqual([1, 2, 4]);
+    expect(channelTable(r, {}, 99).kitChannel).toBe(10);
+  });
+
   it('a channel chosen by hand wins; one out of range does not', () => {
     const r = compileSource(PRESETS.sailor.source);
     expect(channelTable(r).voices).toEqual([
@@ -182,6 +195,21 @@ describe('channels', () => {
       { voice: 'fiddle', channel: 1 },
       { voice: 'bass', channel: 5 },
     ]);
+  });
+
+  it('a gate is one part: its receivers on its channel, a kit gate on 10', () => {
+    const r = compileSource(PRESETS.gate.source);
+    const t = channelTable(r);
+    // (&leadOut plays &lead and &bell; &bass is played directly; &drumOut plays the kit)
+    expect(t.voices).toEqual([
+      { voice: 'bass', channel: 1 },
+      { voice: 'leadOut', channel: 2 },
+    ]);
+    expect(t.kit.map((k) => k.member)).toEqual(['bd', 'sd', 'hh']);
+    const route = router(r, channelTable(r, { leadOut: 7 }));
+    const events = eventsBetween(planOf(PRESETS.gate.source), 0, 4, true);
+    for (const v of ['lead', 'bell']) expect(route(events.find((e) => e.voice === v)!)).toEqual({ channel: 7, drum: null });
+    expect(route(events.find((e) => e.voice === 'bd')!)).toEqual({ channel: 10, drum: 36 });
   });
 
   it('rotation takes a free channel, the one free longest, else the first to free', () => {

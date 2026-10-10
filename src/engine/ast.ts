@@ -75,8 +75,11 @@ export type Atom =
   /** transpose: grid steps up (or down) after its tables, absolute: &subject^$7, &subject^$-12 (&subject^1 is a degree: values). */
   /** values: degree(…) / inverse(…) around it — its values moved before its tables read them. */
   | { readonly kind: 'ref'; readonly name: string; readonly pick: Pick | null; readonly shift: number; readonly transpose?: number; readonly values?: ValueMap }
-  /** A mix chord `[&theme * &lead, …]`: its expressions as written; compile types them (algebra.ts). */
-  | { readonly kind: 'mix'; readonly exprs: readonly Expr[] };
+  /**
+   * A mix chord `[&theme * &lead, …]`: its expressions as written; compile types them (algebra.ts). `gate`: the gate it
+   * stands for (`declare.ts: gates`): a kit among its receivers is played as its voice, picked by the trigger.
+   */
+  | { readonly kind: 'mix'; readonly exprs: readonly Expr[]; readonly gate?: string };
 
 /** An expression in a mix chord, as written: sums and products of cells and numbers. */
 export type Expr =
@@ -163,7 +166,7 @@ export type StepSpec = { readonly whole: boolean } & (
  *   db      a volume in decibels: 0 full, −6 about half, −20 a tenth (rests silent)
  *   adsr    an envelope: attack decay sustain release (seconds; sustain a level) for each note
  *   midi    the cell is a MIDI card: its entries are MIDI channels, in order; midi(c) all on channel c,
- *           midi(c, p) on output slot p (a device the MIDI dialog maps it to; slot 1 the default output)
+ *           midi(c, p) on output slot p (a device the MIDI page maps it to; slot 1 the default output)
  */
 export type MapSpec =
   | { readonly kind: 'amp' | 'lin' | 'sample' | 'adsr' | 'ratios' | 'db'; readonly span: Span }

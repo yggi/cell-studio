@@ -1,6 +1,6 @@
 <script lang="ts">
   /**
-   * The keys in the MIDI dialog (#207): which cell they play (the open sheet's unless one is chosen), what a key outside
+   * The keys in the MIDI page of the sidebar (#207): which cell they play (the open sheet's unless one is chosen), what a key outside
    * the melody's table does, the computer keys (off by default, so they stay the page's), and thru to the MIDI output
    * on a channel. Works without MIDI too: the computer keys and the on-screen keys play through the same path.
    */
@@ -12,7 +12,7 @@
 </script>
 
 <div class="keys">
-  <h4>Keys</h4>
+  <h4 id="midi-keys">Keys</h4>
   <label>
     Play with
     <select value={keys.chosen} onchange={(e) => (keys.chosen = e.currentTarget.value)}>
@@ -45,13 +45,14 @@
   .keys {
     display: grid;
     gap: 8px;
-    margin: 0 4px;
     font: 13px var(--font-ui);
     color: var(--text-muted);
   }
   h4 {
     margin: 0;
-    font: 600 14px var(--font-ui);
+    font: 700 12px var(--font-ui);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
     color: var(--text);
   }
   label {
@@ -71,7 +72,7 @@
     padding: 0 6px;
     border-radius: 8px;
     border: 1px solid var(--line);
-    background: var(--code-bg);
+    background: var(--surface);
     color: var(--text);
     font: 14px var(--font-ui);
   }

@@ -77,7 +77,7 @@
       <span class="hint"
         >{recorder.target?.spec.span.line === f.span.line && recorder.target?.spec.span.col === f.span.col
           ? 'Press ● (record) and play a pass on the keys: it is held here until Keep.'
-          : 'Arm this cell (its sheet open, or Play with in the MIDI dialog), then ● records a pass from the keys.'}</span
+          : 'Arm this cell (its sheet open, or Play with in the MIDI page), then ● records a pass from the keys.'}</span
       >
     {/if}
   </div>

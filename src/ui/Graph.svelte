@@ -25,7 +25,6 @@
   import './edges.css';
   import type { LiveSource } from '../audio/live';
   import type { TransportState } from '../audio/transport';
-  import ForcesPanel from './ForcesPanel.svelte';
   import { clusterDisc } from '../layout/clusters';
   import { EXAMPLES } from '../examples';
   import TowerAxis, { TOWER_WIDTH } from './TowerAxis.svelte';
@@ -64,6 +63,7 @@
     onsheet,
     played,
     rows,
+    onlayout,
   }: {
     model: GraphModel;
     program: CompileResult;
@@ -102,6 +102,8 @@
     played?: ReadonlySet<string>;
     /** A cell's rows played live (the piano roll's keys, #251). */
     rows?: RowKeys;
+    /** Told the layout on mounting (the sidebar's forces), null when it goes. */
+    onlayout?: (layout: GraphLayout | null) => void;
   } = $props();
 
   // The piece as drawn: one snapshot (program, graph, shifts, routing), swapped whole with the nodes and edges made
@@ -112,6 +114,11 @@
     EXAMPLE_ROWS,
   );
   onDestroy(() => layout.destroy());
+  // (the sidebar's forces move this layout)
+  $effect(() => {
+    untrack(() => onlayout?.(layout));
+    return () => untrack(() => onlayout?.(null));
+  });
   const shown = $derived(layout.shown);
 
   // open a newly added cell as soon as it appears in the graph
@@ -202,7 +209,6 @@
   const nodeTypes = { cell: CellNode, voice: VoiceNode, material: MaterialNode, scope: ScopeNode, plugin: PluginNode, junction: JunctionNode } as NodeTypes;
   const edgeTypes = { pulse: PulseEdge, belt: BeltEdge, meter: MeterEdge };
 
-  let forcesOpen = $state(false);
   let legendOpen = $state(false);
   // the frequency tower beside the graph (TowerAxis.svelte)
   let towerOpen = $state(QUERY?.has('tower') ?? false);
@@ -334,7 +340,6 @@
   {/if}
   <div class="toolbar">
     <button class="add-cell" onclick={onadd} title="Add a cell (blank: the chromatic default)">+ cell</button>
-    <button class="forces-toggle" class:on={forcesOpen} onclick={() => (forcesOpen = !forcesOpen)} aria-pressed={forcesOpen} title="Layout forces">forces</button>
     <button class="forces-toggle" class:on={legendOpen} onclick={() => (legendOpen = !legendOpen)} aria-pressed={legendOpen} title="What the colours and values mean">legend</button
     >
     <button
@@ -350,9 +355,6 @@
   </div>
   {#if legendOpen}
     <div class="legend-wrap"><GraphLegend program={shown.program} shifts={shown.shifts} {source} /></div>
-  {/if}
-  {#if forcesOpen}
-    <ForcesPanel options={layout.options} onchange={(k, v) => layout.setForce(k, v)} onreset={() => layout.resetForces()} onclose={() => (forcesOpen = false)} />
   {/if}
   <p class="hint">Tap a cell to open it. Drag to move. Hold to switch off.</p>
   {#if selectedName}

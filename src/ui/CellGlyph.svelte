@@ -408,7 +408,7 @@
   });
   const fills = $derived(view.segments.map((s, i) => (brightness ? s.bands.map(() => blockColour(brightness[i])) : s.bands.map(fillOf))));
   // a table of taps wears the colours of the selector reading it (decision 016): each tap its part's colour on the
-  // selector's barrel; while playing, the ones the selector has off dimmed, and a cursor from the hub to each it has on
+  // selector's barrel; while playing, the ones the selector has off dimmed, and a hand from the hub across each it has on
   const tapRings = $derived(tapsTable && track ? bulbs.map((b, i) => ({ L: b.L, colour: partColour(view.segments[i]?.index ?? i, cell?.units.length ?? 1), on: lit.has(i) })) : []);
   const tapCursors = $derived(
     ctx.lit
@@ -416,10 +416,10 @@
           if (!t.on) return [];
           const [dx, dy] = [t.L.C[0] - c, t.L.C[1] - c];
           const l = Math.hypot(dx, dy) || 1;
-          // (from the hub to the tap's ring, where it meets it: its name inside stays clear)
-          const [r0, r1] = [geo.hand.r0 * 0.4, l - t.L.rho];
-          const head: [number, number] = [c + (dx / l) * r1, c + (dy / l) * r1];
-          return [{ d: `M ${c + (dx / l) * r0} ${c + (dy / l) * r0} L ${head[0]} ${head[1]}`, head, colour: t.colour }];
+          // (a hand from the hub's edge across the tap's ring, over the hub where it overlaps it; it stops at the
+          // ring's inside: its name stays clear)
+          const [r0, r1] = [geo.rHub, l - t.L.rho + t.L.w / 2];
+          return [`M ${c + (dx / l) * r0} ${c + (dy / l) * r0} L ${c + (dx / l) * r1} ${c + (dy / l) * r1}`];
         })
       : [],
   );
@@ -549,8 +549,8 @@
       return { name: v, x: c + p.x, y: c + p.y, r: p.r, bulb: hosts.get(v) === name, font: fitFont(2 * p.r * 0.86, text.length, 11, 5), text };
     });
   });
-  // in a bulb, the hand bends: from the hub through each bulb's neck and hub to the step playing now (#221)
-  const bent = $derived(hand !== null && track ? cursorOf(c, c, geo.hand.r0 * 0.4, track, mod(hand, 1)) : null);
+  // in a bulb, the hand bends: from the hub's edge round the inside of each bulb it is in, and across the step playing now (#221)
+  const bent = $derived(hand !== null && track ? cursorOf(c, c, geo.hand.r0, track, mod(hand, 1), rInner - geo.hand.r0) : null);
 
   // a meter as it plays: the wheel stays put, the step it's in now goes round, outlined and glowing in its colour
   const beatAt = $derived(isMeter ? (ctx.heads.beatAt.get(name) ?? null) : null);
@@ -687,11 +687,6 @@
     {#if tapRings.length}
       <!-- a table of taps: each tap a closed ring, no track between them (its taps take no time on it) -->
       {#each tapRings as t, i (i)}<circle class="tap-ring" class:dim={!!ctx.lit && !t.on} cx={t.L.C[0]} cy={t.L.C[1]} r={t.L.rho} stroke={t.colour} stroke-width={t.L.w} />{/each}
-      {#each tapCursors as k, i (i)}<g class="hand bent tap-hand" style:--hand={k.colour}>
-          <path class="edge" d={k.d} style:stroke-width="{geo.hand.width + 2}px" />
-          <path d={k.d} style:stroke-width="{geo.hand.width}px" />
-          <circle cx={k.head[0]} cy={k.head[1]} r={Math.max(2.5, geo.hand.width * 1.3)} />
-        </g>{/each}
     {:else}
       {#each threads as d, i (i)}<path class="bulb-thread" {d} />{/each}
       {#each geometry as slot, i}
@@ -837,11 +832,19 @@
         />{/if}
     </g>
   {/each}
+  {#if tapCursors.length}
+    <!-- (over the hub, which overlaps the taps; turned with the rim) -->
+    <g style={interactive ? undefined : `transform: rotate(${spin}deg); transform-origin: ${c}px ${c}px`}>
+      {#each tapCursors as d, i (i)}<g class="hand bent">
+          <path class="edge" {d} style:stroke-width="{geo.hand.width + 2}px" />
+          <path {d} style:stroke-width="{geo.hand.width}px" />
+        </g>{/each}
+    </g>
+  {/if}
   {#if bent}
     <g class="hand bent">
-      <path class="edge" d={bent.d} style:stroke-width="{geo.hand.width + 2}px" />
-      <path d={bent.d} style:stroke-width="{geo.hand.width}px" />
-      <circle cx={bent.head[0]} cy={bent.head[1]} r={Math.max(2.5, geo.hand.width * 1.3)} />
+      <path class="edge" d={bent} style:stroke-width="{geo.hand.width + 2}px" />
+      <path d={bent} style:stroke-width="{geo.hand.width}px" />
     </g>
   {:else if hand !== null}
     <g class="hand" style="transform: rotate({hand * 360}deg); transform-origin: {c}px {c}px">
@@ -985,13 +988,6 @@
   .tap-ring.dim {
     opacity: 0.3;
   }
-  /* (the selector's cursor, in the colour of the part it has on) */
-  .hand.bent.tap-hand path:not(.edge) {
-    stroke: var(--hand);
-  }
-  .hand.bent.tap-hand circle {
-    fill: var(--hand);
-  }
   .slot.lit path {
     filter: var(--wheel-lit);
   }
@@ -1059,19 +1055,15 @@
   .hand line.edge {
     stroke: var(--wheel-hand-edge);
   }
-  /* the hand bent into a bulb: a line, and a dot on the step playing */
+  /* the hand bent into a bulb: one line, jointed */
   .hand.bent path {
     fill: none;
     stroke: var(--wheel-hand);
     stroke-linecap: round;
+    stroke-linejoin: round;
   }
   .hand.bent path.edge {
     stroke: var(--wheel-hand-edge);
-  }
-  .hand.bent circle {
-    fill: var(--wheel-hand);
-    stroke: var(--wheel-hand-edge);
-    stroke-width: 1.5;
   }
   /* a bulb (#221): its own small disc behind it; a net-ref's dotted round; its name at its hub */
   .bulb-disc {
