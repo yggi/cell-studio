@@ -34,7 +34,7 @@ Details are on the linked pages; this list is only a pointer. → [language/over
 - `over=&t` `scale(name, tonic)` `shift=n` `cycle=n` → [tables](language/tables.md)
 - `step=` `loop=` (rates, `&x`, `cycle(&x)`, `*n` `/n`), `stride=`, `laps=` → [time](language/time.md)
 - `map=edo|ed(r)|ratios`, note names → [tuning](language/tuning.md)
-- `free(default, lo..hi)` → [free](language/free.md)
+- `free(default, lo..hi)`, `free(0 2 4 ~)` a braid, recorded → [free](language/free.md)
 - `[a * &voice, …]` mixes (sorts, `+` `*` commute), `map=sample` → [mix](language/mix.md)
 - voices `s=` `loop=`, `env=` `pitch=` `map=adsr|amp|lin|db` → [sound](language/sound.md)
 - belts, tape, resonators, FM → [physics](language/physics.md)
@@ -61,6 +61,7 @@ One line each; the record has the rationale. → [decisions/](decisions/README.m
 - 015 · `&x^n` moves by degrees (`degree(&x, n)`, relative), `&x^$n` by grid steps (absolute, the old `^n`): `$` is the absolute frame · → decisions/015-caret-is-degrees.md
 - 016 · Arranging at the input: a section is a tap of the meter's bus, declared by a stepped table of names (`&parts step=&bar &keysBar …`) and switched by the selector (it restarts when switched on; it owns only what its tap steps or loops); the selector of mixes is removed (Shorten rewrites it); the switch and the gate node stay two mechanisms for now · → decisions/016-arranging-at-the-input.md
 - 017 · Two tools: Shorten suggests on the piece being written (shorter, and migrations of removed forms), Normalise converges a corpus to one canonical spelling per duplicate, as a command of its own, never offered while writing · → decisions/017-shorten-and-normalise.md
+- 018 · `free(0 2 4 ~)` is a braid left to the performer, a cell's whole braid; its length the frame a take fills; record (a flag on the transport) takes one pass of the armed cell from the keys, quantised through its time map, held until Keep; keys off the table: one setting, allow / snap / ignore, for playing and recording · → decisions/018-free-braid.md
 
 ## Where things are tracked
 

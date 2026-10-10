@@ -66,12 +66,12 @@
 
 {#snippet braid()}
   <div class="braidfree" class:row={variant === 'row'}>
-    <span class="what">{held ? 'braid: a take, held' : 'braid'}</span>
+    <span class="what">{held ? 'braid, held (not in the code yet)' : 'braid'}</span>
     <code>{f.braid}</code>
     {#if held}
       <span class="takes">
         <button class="unstyled" onclick={() => piece.revert(f)} title="Back to the braid the code says">Revert</button>
-        <button class="unstyled keep" onclick={() => piece.keep(f)} title="Write the take into the code">Keep</button>
+        <button class="unstyled keep" onclick={() => piece.keep(f)} title="Write it into the code">Keep</button>
       </span>
     {:else if variant === 'large'}
       <span class="hint"

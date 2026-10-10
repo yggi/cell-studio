@@ -119,15 +119,14 @@
   }
 
   // ---- the braid on the wheel, token by token
-  /** The braid as a list: written tokens, or (empty / a function) the entries it stands for. */
-  // a braid left free (free(0 2 4 ~)): its steps as written, or a take's while one is held (Keep or Revert it, below)
+  // a braid left free (free(0 2 4 ~), #210): its steps as they play (a take's while one is held), and edits held too
   const freeBraid = $derived(cell?.frees.find((f) => f.key === 'braid') ?? null);
-  const listed = $derived.by((): { tokens: string[]; kind: 'list' | 'empty' | 'function' | 'held' } => {
+  /** The braid as a list: written tokens (a braid left free: its steps as they play), or (empty / a function) the entries it stands for. */
+  const listed = $derived.by((): { tokens: string[]; kind: 'list' | 'empty' | 'function'; held?: boolean } => {
     const b = words?.braid ?? [];
-    if (b.length === 1 && freeBraid && /^free\(/.test(b[0])) {
+    if (b.length === 1 && freeBraid?.braid !== undefined && /^free\(/.test(b[0])) {
       const written = b[0].slice('free('.length, -1).trim().replace(/\s+/g, ' ');
-      const now = freeBraid.braid ?? written;
-      return { tokens: splitWords(now), kind: now === written ? 'list' : 'held' };
+      return { tokens: splitWords(freeBraid.braid), kind: 'list', held: freeBraid.braid !== written };
     }
     if (b.length === 0) return { tokens: Array.from({ length: cell?.cycle ?? 12 }, (_, i) => String(i)), kind: 'empty' };
     if (b.length === 1 && /^(scan|sin)\(/.test(b[0]) && cell) {
@@ -148,7 +147,7 @@
     }
   });
   let editingStep = $state<number | null>(null);
-  const writeList = (tokens: string[]) => onedit(setBraid(source, name, tokens));
+  const writeList = (tokens: string[]) => (freeBraid ? ctx.setFree(freeBraid, tokens.join(' ')) : onedit(setBraid(source, name, tokens)));
   function apply(i: number, t: string) {
     const next = [...listed.tokens];
     next[i] = t.trim() || '~';
@@ -262,7 +261,7 @@
           size={232}
           interactive
           fine
-          tokens={listed.kind === 'list' || listed.kind === 'held' ? tokenLabels : undefined}
+          tokens={listed.kind === 'list' ? tokenLabels : undefined}
           onpick={listed.kind === 'list' ? (i) => (editingStep = i) : undefined}
           onhub={() => (editingHub = true)}
         />
@@ -274,14 +273,14 @@
           <output aria-label="shift">{shift > 0 ? '+' : ''}{shift}</output>
           <button onclick={() => ctx.turn(name, shift + 1)} aria-label="Shift up">+</button>
           <button class="unstyled quiet" onclick={() => ctx.turn(name, 0)} disabled={shift === 0}>Reset</button>
-          {#if listed.kind !== 'function' && listed.kind !== 'held'}
+          {#if listed.kind !== 'function'}
             <button class="unstyled quiet" onclick={() => writeList([...(listed.kind === 'list' ? listed.tokens : []), '0'])}>Add a step</button>
           {/if}
         </div>
       {/if}
       <p class="hint">
-        {listed.kind === 'held'
-          ? 'A take, held in place of the braid written: Keep or Revert it below.'
+        {listed.held
+          ? 'A take, held in place of the braid written: tap a step to change it; Keep or Revert it below.'
           : listed.kind === 'empty'
             ? 'Empty: the default grid. Tap the middle to write steps.'
             : listed.kind === 'function'

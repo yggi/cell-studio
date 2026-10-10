@@ -35,14 +35,15 @@ export interface RecordTarget {
 }
 
 /**
- * Where a take goes (the cell armed for the keys, #207): the cell armed, if its braid is left free and it plays notes;
+ * Where a take goes (the cell armed for the keys, #207): the cell armed, if its braid is left free, it steps on a clock and it plays notes;
  * a voice armed, the first such cell (in reading order) that plays it. Null: nothing to record into.
  */
 export function recordTarget(result: CompileResult, armed: string | null): RecordTarget | null {
   if (armed === null) return null;
   const of = (cell: string): RecordTarget | null => {
     const spec = result.cells.get(cell)?.frees.find((f) => f.key === 'braid');
-    const out = spec ? melodicOut(result, cell) : null;
+    // (stepped by a clock: a take is counted in its steps)
+    const out = spec && result.cells.get(cell)?.clock ? melodicOut(result, cell) : null;
     return spec && out ? { cell, spec, out } : null;
   };
   const own = of(armed);
