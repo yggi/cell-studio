@@ -765,9 +765,16 @@ function bulbsOf(result: CompileResult, nodes: readonly GraphNode[], edges: read
       out.set(n.id, cellId(table));
       continue;
     }
-    // a tape's read head that takes nothing but the tape: a bulb on it, where the head is (decision 021)
+    // a tape's read head that takes nothing but the tape: a bulb on it, where the head is (decision 021); not one the
+    // tape also records (a loop of its own: what it writes is an edge to draw)
     const tape = n.kind === 'cell' && typeof n.cell.params.play === 'string' ? byId.get(cellId(n.cell.params.play)) : undefined;
-    if (tape?.kind === 'cell' && n.kind === 'cell' && headOf(result, tape.cell, n.cell.name) && !edges.some((e) => e.to === n.id && e.from !== tape.id && e.port !== 'about')) {
+    if (
+      tape?.kind === 'cell' &&
+      n.kind === 'cell' &&
+      tape.cell.params.write !== n.cell.name &&
+      headOf(result, tape.cell, n.cell.name) &&
+      !edges.some((e) => e.to === n.id && e.from !== tape.id && e.port !== 'about')
+    ) {
       out.set(n.id, tape.id);
       continue;
     }

@@ -60,22 +60,29 @@ export interface HeadBulb {
 
 /**
  * A tape's read heads as bulbs round its wheel (`size` px across), each just outside the rim on its head's ray: they
- * stay where the heads are while the tape runs under them, and turn with the wheel when the layout turns it. All one
- * size, as big as the nearest two heads (the write head among them) leave room for, between 9 and a quarter of the
- * radius. Only heads whose place on the tape is written (`at=` seconds: a clock's isn't known to the drawing).
+ * stay where the heads are while the tape runs under them, and turn with the wheel when the layout turns it. Only heads
+ * whose place on the tape is written (`at=` seconds: a clock's isn't known to the drawing), and only those with room:
+ * clockwise from the write head, a head whose bulb, at the smallest (9 px, or a quarter of the radius on a small tape),
+ * would touch the write head or a bulb before it stays a node of its own (two heads at one place, a head on the write
+ * head). All one size, as big as the nearest two leave room for, up to a quarter of the radius.
  */
 export function headBulbs(tape: { name: string; params: Params }, cells: Iterable<{ name: string; params: Params }>, size: number): HeadBulb[] {
   const all = [...cells];
   const { heads, length } = tapeHeads(tape, all);
   const at = new Map(all.map((c) => [c.name, c.params.at]));
   const placed = heads.filter((h) => at.get(h.name) === undefined || typeof at.get(h.name) === 'number');
-  if (!placed.length) return [];
   const R = size / 2;
-  const offsets = placed.map((h) => ((headOffset(h.at, length) % 360) + 360) % 360);
-  const round = [0, ...offsets].sort((a, b) => a - b);
-  const gap = Math.min(...round.map((a, i) => (i + 1 < round.length ? round[i + 1] - a : 360 - a + round[0])));
-  const s = Math.sin(((gap || 360) * Math.PI) / 360);
+  const [least, most] = [Math.min(9, R * 0.25), R * 0.25];
   // (two neighbours' hubs (R + r + 2) out, 2r and a gap of 6 apart: 2 (R + r + 2) sin(gap / 2) ≥ 2r + 6)
-  const r = Math.max(9, Math.min(R * 0.25, ((R + 2) * s - 3) / Math.max(0.2, 1 - s)));
-  return placed.map((h, i) => ({ name: h.name, at: h.at, offset: offsets[i], dist: R + r + 2, r }));
+  const room = (r: number) => (2 * Math.asin(Math.min(1, (r + 3) / (R + r + 2))) * 180) / Math.PI;
+  const apart = (a: number, b: number) => Math.min(Math.abs(a - b), 360 - Math.abs(a - b));
+  const kept: { name: string; at: number; offset: number }[] = [];
+  for (const h of placed.map((h) => ({ ...h, offset: ((headOffset(h.at, length) % 360) + 360) % 360 })).sort((a, b) => a.offset - b.offset))
+    if ([0, ...kept.map((k) => k.offset)].every((o) => apart(o, h.offset) >= room(least))) kept.push(h);
+  if (!kept.length) return [];
+  const round = [0, ...kept.map((k) => k.offset)];
+  const gap = Math.min(...round.map((a, i) => (i + 1 < round.length ? round[i + 1] - a : 360 - a)));
+  const s = Math.sin((gap * Math.PI) / 360);
+  const r = Math.max(least, Math.min(most, ((R + 2) * s - 3) / Math.max(0.2, 1 - s)));
+  return kept.map((h) => ({ ...h, dist: R + r + 2, r }));
 }

@@ -5,7 +5,7 @@ import { DEFAULT_LAYOUT } from './options';
 import { columns, flowRanks } from './start';
 import { crossingPairs } from './forces';
 import { tapeFaces } from './aims';
-import { fitTurn, headAngle, tapeHeads } from './tape';
+import { fitTurn, headAngle, headBulbs, tapeHeads } from './tape';
 import { groundsOf } from './meters';
 import { splinePoint } from './geometry';
 import { buildGraph } from '../engine/graph';
@@ -540,6 +540,24 @@ describe('tapes: the heads keep their spacing, the wheel turns to face them at w
     expect(l.tapeTurn('cell:tape')).toBeCloseTo(before, 1); // (to a tenth of a degree: the last tick fitted it just before its own step)
     expect(l.quality().aim).toBe(aim);
     l.destroy();
+  });
+  it('a read head’s bulb is no bigger than a quarter of the radius, and none touches the write head or another (decision 021)', () => {
+    const cells = (...ats: number[]) => ats.map((at, i) => ({ name: `h${i}`, params: { play: 't', at } }));
+    const tape = { name: 't', params: { write: 'm', length: 6 } };
+    // (a small tape: a quarter of its radius, not 9 px)
+    for (const b of headBulbs(tape, cells(1, 3), 35)) expect(b.r).toBeLessThanOrEqual(35 / 8 + 1e-9);
+    // (forty heads round a tape: those kept are a bulb's width apart, the write head too)
+    const many = headBulbs(tape, cells(...Array.from({ length: 40 }, (_, i) => (i * 6) / 40)), 140);
+    expect(many.length).toBeGreaterThan(5);
+    expect(many.length).toBeLessThan(40);
+    const offs = [0, ...many.map((b) => b.offset)];
+    for (let i = 0; i < offs.length; i++)
+      for (let j = i + 1; j < offs.length; j++) {
+        const a = ((offs[i] - 90) * Math.PI) / 180;
+        const b = ((offs[j] - 90) * Math.PI) / 180;
+        const d = many[0].dist;
+        expect(Math.hypot(Math.cos(a) * d - Math.cos(b) * d, Math.sin(a) * d - Math.sin(b) * d)).toBeGreaterThanOrEqual(2 * many[0].r);
+      }
   });
   it('a read head sits by how far along the tape it reads: clockwise from the write head, wherever that is', () => {
     expect(tapeHeads({ name: 't', params: { length: 4 } }, [{ name: 'h', params: { play: 't', at: 1 } }])).toEqual({ heads: [{ name: 'h', at: 1 }], length: 4 });

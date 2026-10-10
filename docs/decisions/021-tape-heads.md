@@ -20,7 +20,7 @@ A tape (`&tape step=&reel write=&tune length=6`) was drawn as a turntable with i
 - The edge from the host to the bulb is the host's drawing, not an edge. A bulb's other edges: a splice's are drawn from its braid (it has no place of its own off the track); a tap's and a read head's **leave from the bulb**, where it is on its host.
 - Any bulb is its cell: tapped, it opens its sheet; held, it switches it off (dimmed).
 - **A tape turns two ways, and the heads follow only one.** The reel runs under its heads (the rim, the recording and the reel's hand turn); the heads stay put, so their bulbs do too. The layout turns the whole wheel to face its heads at what they play into (`fitTurn`: it still keeps their spacing): the bulbs turn with it, and so do the edges leaving them (the drawing through the head's handle, the layout by turning `GraphEdge.bulbAt`, which the graph gives unturned).
-- A head that takes more than its tape (`level=&lfo`), or reads at a clock (`at=&bar`, whose place the drawing doesn't know), stays a node, its mark and `play` edge as before.
+- A head stays a node, its mark and `play` edge as before, when it takes more than its tape (`level=&lfo`), reads at a clock (`at=&bar`, whose place the drawing doesn't know), is what the tape records (`&tape write=&a`, `&a play=&tape`: a loop, whose write edge is drawn), or has no room: clockwise from the write head, a head whose bulb at the smallest size would touch the write head or a bulb before it (two heads at one `at=`, a stereo pair; `at=0` or a whole `length=` round, on the write head) keeps its node, so each head can be tapped.
 
 ![before and after: Echo Tape, Sound on Tape](021-tape-heads.png)
 
@@ -36,4 +36,5 @@ Measured over the library's six tape pieces, three seeds (`tools/probe/tape-head
 
 - The tape no longer faces its heads' cells (they have none) but what its heads play into. Several heads into one hub (`&out`, one mix) can't all face it at their fixed spacing: the layout's aim term, which measures that, rose 44.6 → 260.7 and isn't comparable across the change. What the eye sees is an edge from a bulb across its own tape: 3 of 60 over the six pieces and three seeds, as before; the tape test allows one a piece.
 - Saved `.cells` pieces are not affected: only the drawing changes.
+- A note `about=` a head is drawn to its tape (`about=(&near &mid &far)` is one note to `&tape`): the head has no node to point at.
 - The `play` edges and their `at=` labels are gone from the graph; the head's place is its delay (its sheet and the code still say it). How sub-wheels and their edges are labelled, and names that don't fit: [#274](https://github.com/yggi/cell-studio/issues/274).

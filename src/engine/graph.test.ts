@@ -185,6 +185,32 @@ describe('a tape’s read heads are bulbs on it (decision 021)', () => {
     expect(buildGraph(compileSource(src('&h play=&tape at=1 level=&lfo'))).bulbs.has('h')).toBe(false);
     expect(buildGraph(compileSource(src('&h play=&tape at=&reel'))).bulbs.has('h')).toBe(false);
   });
+
+  it('heads with no room for their bulbs stay nodes: two at one place, one on the write head, one the tape records', () => {
+    const src = (...heads: string[]) =>
+      [
+        '&reel motor=1',
+        '&mel step=1 0 2',
+        '&v loop=C4',
+        '&tape step=&reel write=&mel length=6',
+        ...heads,
+        `&out loop=44k map=sample [${heads.map((h) => `${h.split(' ')[0]} * &v`).join(', ')}]`,
+      ].join('\n');
+    // (a stereo pair at one place: the first a bulb, the second a node of its own, so each can be tapped)
+    const pair = buildGraph(compileSource(src('&l play=&tape at=2', '&r play=&tape at=2')));
+    expect([pair.bulbs.get('l'), pair.bulbs.has('r')]).toEqual(['tape', false]);
+    expect(pair.edges.some((e) => e.port === 'play' && e.to === 'cell:r')).toBe(true);
+    // (on the write head: at=0, or a whole length round)
+    for (const at of ['0', '6']) expect(buildGraph(compileSource(src(`&h play=&tape at=${at}`))).bulbs.has('h')).toBe(false);
+    // (a head the tape records, a loop: its write edge and its play edge are both drawn)
+    const loop = buildGraph(
+      compileSource(['&reel motor=1', '&v loop=C4', '&a play=&tape at=1', '&tape step=&reel write=&a length=4', '&out loop=44k map=sample [&a * &v]'].join('\n')),
+    );
+    expect(loop.bulbs.has('a')).toBe(false);
+    expect(loop.edges.filter((e) => e.port === 'write' || e.port === 'play').map((e) => `${e.from}->${e.to}:${e.port}`)).toEqual(
+      expect.arrayContaining(['cell:a->cell:tape:write', 'cell:tape->cell:a:play']),
+    );
+  });
 });
 
 describe('a product is a junction (docs/notes/nets.md, decision 2)', () => {
