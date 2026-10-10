@@ -75,13 +75,19 @@ describe('the track: a bulb for each splice', () => {
     expect(netEnds(track, 128, 'up')).toEqual([]);
   });
 
-  it('the cursor bends from the hub into the bulb the time is in; on the ring, the plain hand', () => {
+  it('the cursor bends from the hub round the inside of the bulb the time is in, and across its step; on the ring, the plain hand', () => {
     const track = layTrack(100, 100, 50, 20, bulbs);
     expect(cursorOf(100, 100, 10, track, 0.5 / 49)).toBeNull();
     const t = bulbs[0].t0 + 0.01;
-    const at = cursorOf(100, 100, 10, track, t);
-    expect(at?.d.startsWith('M')).toBe(true);
-    const p = trackAt(track, tauOf(track, t).tau).p;
-    expect(at!.head).toEqual(p);
+    const d = cursorOf(100, 100, 10, track, t)!;
+    const nums = [...d.matchAll(/-?[\d.]+/g)].map((m) => Number(m[0]));
+    // (it starts on the hub's edge, and ends past the step, on the line from the bulb's hub through it)
+    expect(Math.hypot(nums[0] - 100, nums[1] - 100)).toBeCloseTo(10, 1);
+    const L = tauOf(track, t).chain[0];
+    const head = trackAt(track, tauOf(track, t).tau).p;
+    const end = nums.slice(-2);
+    expect(Math.hypot(end[0] - L.C[0], end[1] - L.C[1])).toBeCloseTo(L.rho + L.w / 2 + 2, 1);
+    const [u, v] = [Math.atan2(end[1] - L.C[1], end[0] - L.C[0]), Math.atan2(head[1] - L.C[1], head[0] - L.C[0])];
+    expect(Math.abs(u - v)).toBeLessThan(0.01);
   });
 });
