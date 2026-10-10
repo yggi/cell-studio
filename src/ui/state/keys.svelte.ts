@@ -85,7 +85,7 @@ interface Down {
 /**
  * Keys playing the piece's voices live (#207): a MIDI keyboard, the computer keys (a setting, off by default) and the
  * on-screen keys (the piano roll's, #211) all go through `press` and `release`, onto the **armed** cell: the one chosen
- * in the MIDI dialog, else the one whose sheet is open, else the first cell that plays (in reading order). Arming is app state, not
+ * in the MIDI page, else the one whose sheet is open, else the first cell that plays (in reading order). Arming is app state, not
  * code. A melody's key goes through its table (`engine/keys.ts`); channel 10, or a kit armed, plays the kit's members by
  * General MIDI note, a device's note mapped back through its drum map. Velocity gives the level, the sustain pedal
  * (CC 64) holds releases, thru echoes the keys to the MIDI output at once. MIDI learn's knobs are its own (`claimed`),
@@ -94,7 +94,7 @@ interface Down {
 export class Keys {
   /** The cell whose sheet is open (the graph says), or null. */
   sheet = $state<string | null>(null);
-  /** The cell chosen in the MIDI dialog to play, or '' to follow the open sheet. */
+  /** The cell chosen in the MIDI page to play, or '' to follow the open sheet. */
   chosen = $state('');
   /** The keys down now, by note (any channel but 10, the pads): what the on-screen keys light. */
   readonly held = new SvelteSet<number>();
@@ -110,7 +110,7 @@ export class Keys {
   // the computer keys down, by the key's name, and what each plays
   #typing = new Map<string, { note: number; channel: number }>();
 
-  /** The cells a keyboard can play, in reading order (the dialog's "Play with"). */
+  /** The cells a keyboard can play, in reading order (the MIDI page's "Play with"). */
   readonly armable = $derived.by<Armable[]>(() => armable(this.piece.program));
   /** The cell the keys play: the one chosen, else the sheet open, else the first that plays (not a kit, if any); null: nothing to play. */
   readonly armed = $derived.by(() => {

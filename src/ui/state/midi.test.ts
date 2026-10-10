@@ -204,6 +204,41 @@ describe('Midi: All notes off', () => {
     expect(cc123(out)).toEqual([3]);
   });
 
+  it('goes on to the other channels of an output slot when one send fails, and a piece titled like an object key has none of its own', async () => {
+    const out = fakePort('out-1', 'Circuit');
+    const other = fakePort('out-2', 'Juno');
+    installMidi(fakeAccess([], [out, other]));
+    const midi = await made();
+    await midi.connect();
+    midi.chooseOutput('out-1');
+    const source = `&piece title="constructor" tags="MIDI"
+&bar scan(1 1 1 1) step=2
+&bass step=&bar 0
+&sub loop=55
+&far map=midi(3, 2) [&bass * &sub]`;
+    const program = compileSource(source);
+    midi.attach({ sink: null, internal: true }, { program, title: 'constructor' });
+    // (nothing kept under that title: not Object.prototype.constructor)
+    expect(midi.kitChannel).toBe(10);
+    expect(midi.slots).toEqual([{ slot: 2, id: 'none', name: '' }]);
+    midi.chooseSlot(2, 'out-2');
+    const p = plan(program, codeShifts(program));
+    midi.play(fakeTone(10), retime(windowAt(p, 0, 1), 10, 1).events, 11);
+    const send = other.send;
+    let first = true;
+    other.send = (data, timestamp) => {
+      if (data[0] === 0xb0 && data[1] === 123 && first) {
+        first = false;
+        throw new Error('gone');
+      }
+      send(data, timestamp);
+    };
+    other.sent = [];
+    midi.panic();
+    // (channel 1, the one whose send threw, is the only one missing)
+    expect(new Set(cc123(other))).toEqual(new Set(Array.from({ length: 15 }, (_, i) => i + 1)));
+  });
+
   it('survives a port unplugged mid-send', async () => {
     const { midi, out } = await withOutput();
     out.send = () => {
@@ -252,6 +287,17 @@ describe('Midi: MIDI out', () => {
     expect(midi.table!.voices.find((v) => v.voice === 'bass')!.channel).toBe(16);
     midi.setDrumNote(38, 300);
     expect(midi.drums[38]).toBe(127);
+  });
+
+  it("keeps a piece's kit channel (10 unless put elsewhere), clamped, in the table", async () => {
+    const { midi } = await tapped();
+    expect(midi.kitChannel).toBe(10);
+    midi.kitChannel = 3;
+    expect(midi.kitChannel).toBe(3);
+    expect(midi.table!.kitChannel).toBe(3);
+    expect(Object.values(JSON.parse(store.get('cell-studio:midi')!).kits)).toEqual([3]);
+    midi.kitChannel = 40;
+    expect(midi.kitChannel).toBe(16);
   });
 
   it('taps the player: its sink, and its sound follows the internal-sound switch, kept', async () => {

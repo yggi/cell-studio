@@ -6,7 +6,7 @@
   import Shorten from './ui/Shorten.svelte';
   import Transport from './ui/Transport.svelte';
   import QuickPick from './ui/QuickPick.svelte';
-  import FreePanel from './ui/FreePanel.svelte';
+  import Sidebar from './ui/Sidebar.svelte';
   import Graph from './ui/Graph.svelte';
   import Editor from './ui/Editor.svelte';
   import UpdateToast from './ui/UpdateToast.svelte';
@@ -81,22 +81,8 @@
     {/if}
   </section>
 
-  {#if view.panelOpen && library.anyOpen}
-    <aside class="drawer" aria-label="The piece's controls">
-      <header>
-        <h2>Controls</h2>
-        <button class="x" onclick={() => (view.panelOpen = false)} aria-label="Close">×</button>
-      </header>
-      <button
-        class="dock-toggle"
-        aria-pressed={dock.open}
-        onclick={() => {
-          dock.toggle();
-          if (dock.open) view.panelOpen = false;
-        }}>{dock.open ? 'Hide' : 'Show'} the keys and pads</button
-      >
-      <FreePanel />
-    </aside>
+  {#if view.panelOpen && (library.anyOpen || view.panel === 'midi')}
+    <Sidebar />
   {/if}
   {#if dock.open && library.anyOpen && view.tab !== 'select'}
     <div class="dock-slot"><KeysDock /></div>
@@ -349,58 +335,5 @@
   .tabs button:disabled {
     color: var(--text-faint);
     cursor: default;
-  }
-  /* the controls: a drawer on the right */
-  .drawer {
-    position: fixed;
-    z-index: 50;
-    top: 0;
-    right: 0;
-    bottom: 0;
-    width: min(360px, 92vw);
-    overflow: auto;
-    padding: 0 16px 24px;
-    background: var(--surface);
-    border-left: 1px solid var(--line);
-    box-shadow: -12px 0 30px rgba(0, 0, 0, 0.45);
-  }
-  .drawer header {
-    position: sticky;
-    top: 0;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 14px 0 10px;
-    background: var(--surface);
-    z-index: 1;
-  }
-  .drawer h2 {
-    margin: 0;
-    font: 800 16px var(--font-ui);
-  }
-  .drawer .x {
-    all: unset;
-    cursor: pointer;
-    font-size: 22px;
-    padding: 0 6px;
-  }
-  .dock-toggle {
-    width: 100%;
-    min-height: 40px;
-    margin-bottom: 14px;
-    border-radius: var(--radius);
-    border: 1px solid var(--line);
-    background: var(--code-bg);
-    color: var(--text);
-    font: 600 14px var(--font-ui);
-    cursor: pointer;
-  }
-  .dock-toggle[aria-pressed='true'] {
-    border-color: var(--accent);
-  }
-  .dock-toggle:focus-visible,
-  .drawer .x:focus-visible {
-    outline: 2px solid var(--accent);
-    outline-offset: 2px;
   }
 </style>
