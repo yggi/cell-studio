@@ -1,8 +1,7 @@
 /**
- * Prototypes for the edge mock-ups (docs/notes/edge-styles.md): a bus as true offsets of one centreline (constant width
- * through every bend), its strands turning off the loom's ring with a fillet instead of a corner, and an edge's payload
- * drawn along it as if it travelled at a constant speed (a wave by its pitch and level, a clock's pulse train). Not used by
- * the app: what is chosen moves into `src/layout/geometry.ts`.
+ * Prototypes for the edge mock-ups (docs/notes/edge-styles.md): an edge's payload drawn along it as if it travelled at a
+ * constant speed (a wave by its pitch and level, a clock's pulse train, a level's ribbon). Not used by the app: what
+ * was chosen moves into `src/layout/` (the bus's geometry already has: `wire.ts`).
  */
 type P = { x: number; y: number };
 const TAU = Math.PI * 2;
@@ -35,76 +34,6 @@ export function offset(pts: P[], o: number): P[] {
 }
 
 export const toPath = (pts: P[]) => `M ${pts.map((p) => `${v1(p.x)} ${v1(p.y)}`).join(' L ')}`;
-
-/** A spline's strands (a chord's bus, a hop): offsets of the one curve through m. */
-export function bundle(a: P, m: P, b: P, offsets: number[]): string[] {
-  const c = { x: 2 * m.x - (a.x + b.x) / 2, y: 2 * m.y - (a.y + b.y) / 2 };
-  const centre = sampleQuad(a, c, b);
-  return offsets.map((o) => toPath(offset(centre, o)));
-}
-
-/**
- * The loom as loomParts lays it (the same tracks, ranks and seam), its strands drawn anew: round its track, off it
- * through a fillet `fillet` px long (tangent to the track and to the run, no corner), then on as an offset of one
- * centreline (straight out of the ring, then the curve to b): so the bundle keeps its width through every bend.
- */
-export function loomStrands(c: P, r: number, turns: readonly number[], m: P, b: P, gap: number, fillet = 10): string[] {
-  const phi = Math.atan2(b.y - c.y, b.x - c.x);
-  const [ux, uy] = [Math.cos(phi), Math.sin(phi)];
-  const n = turns.length;
-  const wrap = (t: number) => ((t % 1) + 1) % 1;
-  const out = wrap((phi + Math.PI / 2) / TAU);
-  const seam = n > 1 ? turns[n - 1] + wrap(turns[0] - turns[n - 1]) / 2 : out + 0.5;
-  const way = turns.map((t) => (wrap(t - seam) - wrap(out - seam)) * TAU);
-  const rank = way.map((d, i) => way.filter((e, j) => Math.abs(e) < Math.abs(d) || (Math.abs(e) === Math.abs(d) && j < i)).length);
-  const across = way.map((_, i) => (i - (n - 1) / 2) * gap);
-  const track0 = r + 1.5 * gap;
-  const outer = track0 + Math.max(0, ...rank) * gap;
-  const d = Math.hypot(b.x - c.x, b.y - c.y) || 1;
-  const reach = Math.max(outer + fillet + 12, Math.min(outer + 60, r + 0.5 * (d - r)));
-  const g = { x: c.x + ux * reach, y: c.y + uy * reach };
-  const q = { x: 2 * m.x - (c.x + b.x) / 2, y: 2 * m.y - (c.y + b.y) / 2 };
-  const ahead = (q.x - c.x) * ux + (q.y - c.y) * uy > reach + 4;
-  const k = ahead ? q : { x: (g.x + b.x) / 2, y: (g.y + b.y) / 2 };
-  // the centreline: straight out from the ring to g, then on round to b
-  const straight = Array.from({ length: Math.ceil((reach - r) / 3) + 1 }, (_, i) => {
-    const s = r + ((reach - r) * i) / Math.ceil((reach - r) / 3);
-    return { x: c.x + ux * s, y: c.y + uy * s };
-  });
-  const centre = [...straight, ...sampleQuad(g, k, b).slice(1)];
-  const along = (p: P) => (p.x - c.x) * ux + (p.y - c.y) * uy;
-  return way.map((w, i) => {
-    const a = w + phi;
-    const R = track0 + rank[i] * gap;
-    const o = across[i];
-    const psi = Math.asin(Math.max(-0.95, Math.min(0.95, o / R)));
-    const corner = phi + psi;
-    const dir = Math.sign(corner - a) || 1;
-    // (the arc stops short of the corner by the fillet, and the run starts that far past it)
-    // (every run starts at one distance out, so the bundle leaves the loom square: an inner track's fillet is longer and
-    // gentler, an outer one's tighter — nested, like a harness bending round one corner)
-    const F = outer + fillet - R * Math.cos(psi);
-    const back = Math.min(Math.abs(corner - a), F / R);
-    const aEnd = corner - dir * back;
-    const tap = { x: c.x + r * Math.cos(a), y: c.y + r * Math.sin(a) };
-    const onTrack = { x: c.x + R * Math.cos(a), y: c.y + R * Math.sin(a) };
-    const A = { x: c.x + R * Math.cos(aEnd), y: c.y + R * Math.sin(aEnd) };
-    const sweep = dir > 0 ? 1 : 0;
-    const span = Math.abs(aEnd - a);
-    const half = (a + aEnd) / 2;
-    const H = { x: c.x + R * Math.cos(half), y: c.y + R * Math.sin(half) };
-    const arc = span > 1e-3 ? `A ${v1(R)} ${v1(R)} 0 0 ${sweep} ${v1(H.x)} ${v1(H.y)} A ${v1(R)} ${v1(R)} 0 0 ${sweep} ${v1(A.x)} ${v1(A.y)}` : '';
-    const run = offset(centre, o);
-    const start = outer + fillet;
-    const from = run.findIndex((p, j) => j >= straight.length - 1 || along(p) >= start);
-    const B = run[from];
-    // (tangent to the track where the arc ends, along the run where it starts)
-    const tA = { x: -Math.sin(aEnd) * dir, y: Math.cos(aEnd) * dir };
-    const h = 0.55 * F;
-    const fil = `C ${v1(A.x + tA.x * h)} ${v1(A.y + tA.y * h)} ${v1(B.x - ux * h)} ${v1(B.y - uy * h)} ${v1(B.x)} ${v1(B.y)}`;
-    return `M ${v1(tap.x)} ${v1(tap.y)} L ${v1(onTrack.x)} ${v1(onTrack.y)} ${arc} ${fil} L${toPath(run.slice(from + 1)).slice(1)}`;
-  });
-}
 
 /** One cycle of a sound's shape, at x in [0, 1): −1 … 1. */
 export type Shape = 'sine' | 'tri' | 'saw' | 'square';

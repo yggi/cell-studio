@@ -3,35 +3,13 @@
    * Edge mock-ups (docs/notes/edge-styles.md): the open questions of how an edge is drawn, each option a row, plain SVG
    * on the app's theme (not the real components: these are what they could become). `node tools/gallery.mjs edge-mockups`.
    */
-  import { loomParts, ripplePath, splinePoint, strandPath } from '../../../src/layout/geometry';
+  import { ripplePath, splinePoint } from '../../../src/layout/geometry';
   import { noteColour } from '../../../src/ui/theme';
   import { palette } from '../../../src/ui/palette';
-  import { bundle, loomStrands, offset, sampleQuad, SPEED, toPath, wavelength, wavePath, type Shape } from './proto';
+  import { offset, sampleQuad, SPEED, toPath, wavelength, wavePath, type Shape } from './proto';
 
   type P = { x: number; y: number };
-  const GAP = 4;
   const pc = (semis: number) => noteColour((((semis % 12) + 12) % 12) * 30, false, Math.floor(semis / 12));
-
-  // ---- 1. the bus: a table's loom and its run to the reader -------------------------------------------------------
-  const SCALE = [0, 2, 3, 5, 7, 8, 10];
-  const CHROM = Array.from({ length: 12 }, (_, i) => i);
-  const busCases = [
-    { name: 'reader above, straight', c: { x: 180, y: 300 }, b: { x: 200, y: 30 }, m: null, steps: SCALE },
-    { name: 'reader up-right, bent', c: { x: 150, y: 300 }, b: { x: 330, y: 60 }, m: { x: 300, y: 230 }, steps: SCALE },
-    { name: 'reader beside, hard bend', c: { x: 120, y: 220 }, b: { x: 340, y: 60 }, m: { x: 150, y: 70 }, steps: SCALE },
-    { name: '12 strands, reader near', c: { x: 170, y: 250 }, b: { x: 60, y: 60 }, m: { x: 160, y: 110 }, steps: CHROM },
-  ];
-  const R = 62;
-  const busOf = (k: (typeof busCases)[number], kind: 'today' | 'new') => {
-    const turns = k.steps.map((s) => s / 12);
-    const m = k.m ?? { x: (k.c.x + k.b.x) / 2, y: (k.c.y + k.b.y) / 2 };
-    const paths =
-      kind === 'today' ? loomParts(k.c.x, k.c.y, R, turns, m.x, m.y, k.b.x, k.b.y, GAP).map((p) => `${p.ring} L${p.run.slice(1)}`) : loomStrands(k.c, R, turns, m, k.b, GAP);
-    return { paths, turns, m, colours: k.steps.map(pc) };
-  };
-  // a chord's bus (no loom): strandPath against true offsets, on a hard bend
-  const chord = { a: { x: 40, y: 300 }, b: { x: 330, y: 40 }, m: { x: 70, y: 90 } };
-  const chordOffsets = [-1.5, -0.5, 0.5, 1.5].map((i) => i * GAP);
 
   // ---- 2. sound on a wire ------------------------------------------------------------------------------------------
   const A = { x: 24, y: 70 };
@@ -123,48 +101,6 @@
 <main class="graph">
   <h1>Edge mock-ups</h1>
   <p class="meta">Options for docs/notes/edge-styles.md, plain SVG on the app's theme · <code>node tools/gallery.mjs edge-mockups</code></p>
-
-  <section>
-    <h2>1 · The colour bus: constant width, and a clean turn off the loom</h2>
-    {#each busCases as k (k.name)}
-      <figure data-kind={`1-bus-${k.name.replace(/\W+/g, '-')}`}>
-        <figcaption><b>{k.name}</b><span>today (loomParts + strandPath) · new (one centreline, true offsets, a fillet off the ring)</span></figcaption>
-        <div class="row">
-          {#each ['today', 'new'] as const as kind (kind)}
-            {@const bus = busOf(k, kind)}
-            <div class="cell">
-              <svg width="380" height="380" viewBox="0 0 380 380">
-                <circle cx={k.b.x} cy={k.b.y} r="26" class="node" />
-                {#each bus.paths as p, i (i)}<path d={p} class="strand" style:stroke={bus.colours[i]} />{/each}
-                <circle cx={k.c.x} cy={k.c.y} r={R - 4} class="wheel" />
-                {#each bus.turns as t, i (i)}
-                  <circle cx={k.c.x + R * Math.sin(t * 2 * Math.PI)} cy={k.c.y - R * Math.cos(t * 2 * Math.PI)} r="3.2" style:fill={bus.colours[i]} />
-                {/each}
-              </svg>
-              <span class="col">{kind}</span>
-            </div>
-          {/each}
-        </div>
-      </figure>
-    {/each}
-    <figure data-kind="1-bus-chord">
-      <figcaption><b>a chord's bus, hard bend</b><span>today: the control point moved (narrows in the bend) · new: the curve moved</span></figcaption>
-      <div class="row">
-        {#each ['today', 'new'] as const as kind (kind)}
-          {@const paths =
-            kind === 'today'
-              ? chordOffsets.map((o) => strandPath(chord.a.x, chord.a.y, chord.m.x, chord.m.y, chord.b.x, chord.b.y, o))
-              : bundle(chord.a, chord.m, chord.b, chordOffsets)}
-          <div class="cell">
-            <svg width="380" height="340" viewBox="0 0 380 340">
-              {#each paths as p, i (i)}<path d={p} class="strand" style:stroke={pc([0, 4, 7, 11][i])} />{/each}
-            </svg>
-            <span class="col">{kind}</span>
-          </div>
-        {/each}
-      </div>
-    </figure>
-  </section>
 
   <section>
     <h2>2 · Sound: the wave by what it carries</h2>
@@ -382,16 +318,6 @@
   .node {
     fill: var(--surface-2);
     stroke: var(--line);
-  }
-  .wheel {
-    fill: var(--surface-2);
-    stroke: var(--line);
-  }
-  .strand {
-    fill: none;
-    stroke-width: 2.5;
-    stroke-linecap: round;
-    stroke-linejoin: round;
   }
   .audio {
     fill: none;

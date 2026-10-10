@@ -1,6 +1,6 @@
 # Edge styles: what an edge shows, and the bus's geometry
 
-**2026-10-10 · open: surveyed and planned, mock-ups drawn; waiting on the owner's choices (below) · #137, #238, #183, #150; on top of [nets.md](nets.md)**
+**2026-10-10 · open: surveyed, planned and decided (owner, 2026-10-10: D1 C travelling, D2 C, D3 B, D4 C, D5 a constant, D6 still); step 1 built · #137, #238, #183, #150; on top of [nets.md](nets.md)**
 
 The owner's ask: edges and net segments by colour and style, the bus's geometry, one mechanism and one place for the rules. Meter nets are good as they are. The colour bus needs a constant width through bends and a clean join between the loom and the bus. The other edges: what they show should follow what their source pushes, one style per band, and the payload should drive it while playing (a wave's height and length by the sound, pulse trains on clocks). Some edges are unstyled.
 
@@ -43,7 +43,12 @@ Two faults, both in how strands are offset:
 - **Width.** `strandPath` and `loomParts`' run move a strand by moving the spline's control point along one fixed normal (the chord's, or the exit's). In a bend the normal turns, so the bundle narrows (a chord's bus on a hard bend, right). Where it meets the reader the curve no longer runs along the exit's direction, so the strands close up there too (*Chords*: `&minor → &chords`). Fix: one centreline per bus, sampled; each strand is its true offset (`offset()` in `proto.ts`). The width is then the same along the whole length.
 - **The join.** A strand comes round its track and turns off it at a right angle onto the run (`L` after the arc), each at its own distance out, so the bundle leaves the loom in steps. Fix: every run starts at one distance out (the bundle leaves square), and each strand turns through a fillet tangent to its track and to its run. An inner track's fillet is longer and gentler, an outer one's tighter, so they nest like a harness bending round a corner.
 
-Left for the build: the one strand that comes from the far side of the seam (the red one at 12 o'clock) still makes an S to reach its place; it wants a shorter fillet or its own side. The same centreline also serves the hop (a bus out of a reader's hub), a pick's strands and the tines.
+**Built** (`src/layout/wire.ts`: `bundlePaths`, `loomParts`; tested for width and crossings in `wire.test.ts`), with two findings on the way:
+
+- **The fillets are short (1.5 gaps), and the bundle doesn't leave square.** A strand's track goes by how near it is to the exit, and its place across the bundle by its order on the bus, so the two don't nest like a ribbon. A long fillet on an inner track sweeps through the outer tracks that are still coming round, and the test's crossings went from 0 to 2. Any fillet that stays under about two gaps is safe: it rounds the corner and keeps the topology.
+- **A bus's ends settle across the chord.** On a hard bend the true normal at an end swings the bundle's end out past a small node, so over the last 20 px (under the wheel) a strand's place turns back to the chord's, as a flat bus always had it.
+
+The same centreline serves the hop (a bus out of a reader's hub), a pick's strands, a ref written several times and the tines. The run now leaves the loom along its straight lead (a cubic, no corner at its end).
 
 ## 2 · One mechanism: the wire is a delay line
 
@@ -58,7 +63,9 @@ While playing, what is *s* px along a wire is what its source pushed *s* / SPEED
 
 So the edge's state is the source's (what it pushes, before the transform on the tap), one style per band, and the payload drives it. A net's taps share their owner's signal, so it is computed once per source per frame, not per edge. Meter nets stay as they are: they draw the same sync signal, flashing on the tick.
 
-### The choices (owner)
+### The choices (owner, decided 2026-10-10)
+
+Decided: **D1 C, travelling · D2 C · D3 B · D4 C · D5 a constant speed · D6 pointers stay still.** The options as they were put:
 
 **D1 · Sound.** A today · B a sine, its height the level, its length the pitch · C the sound's own shape (sine, triangle, saw, square), height and length the same. A fourth, D, is C travelling along the flow at the wire's speed (four frames on the mock-up sheet).
 ![sound on a wire: A, B, C](edge-styles-audio.jpg)
