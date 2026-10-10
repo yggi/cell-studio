@@ -253,21 +253,81 @@ export function rowsFor(result: CompileResult, name: string, shifts: Shifts, lo:
   return out;
 }
 
-/** The rows to draw: the first lap and the step that closes it (tonic to octave), widened to every note, and by `more` laps below and above. */
+/** The most rows the roll draws (a few laps: each row is a lane and a key), and so the widest a braid's notes may spread. */
+export const MAX_ROWS = 128;
+
+/** The lowest and the highest note of a roll (0 and 0 with none). */
+function extent(roll: Roll): [number, number] {
+  let lo = Infinity;
+  let hi = -Infinity;
+  for (const c of roll.columns)
+    for (const r of c.rows) {
+      if (r < lo) lo = r;
+      if (r > hi) hi = r;
+    }
+  return lo > hi ? [0, 0] : [lo, hi];
+}
+
+/**
+ * Why the roll can't hold these notes, if it can't: they spread over more than MAX_ROWS rows (`&a 0 5000`), or one lies more
+ * than that outside its table's first lap (`&a 1000000000`). Either would be thousands of rows to draw.
+ */
+export function tooWide(roll: Roll, perLap: number): string | null {
+  const [lo, hi] = extent(roll);
+  return hi - lo + 1 > MAX_ROWS || lo < -MAX_ROWS || hi > perLap + MAX_ROWS ? 'a note far outside its table' : null;
+}
+
+/**
+ * The rows to draw: the first lap and the step that closes it (tonic to octave), widened to every note, and by `more` laps
+ * below and above; at most MAX_ROWS, a window round the notes (laps asked for past it are left out, from the top).
+ */
 export function rowRange(roll: Roll, perLap: number, kit: boolean, more: { below: number; above: number } = { below: 0, above: 0 }): [number, number] {
-  const rows = roll.columns.flatMap((c) => c.rows);
-  const lo = Math.min(0, ...rows) - more.below * perLap;
-  const hi = Math.max(kit ? perLap - 1 : perLap, ...rows) + more.above * perLap;
+  const [low, high] = extent(roll);
+  let lo = Math.min(0, low) - more.below * perLap;
+  let hi = Math.max(kit ? perLap - 1 : perLap, high) + more.above * perLap;
+  if (hi - lo + 1 > MAX_ROWS) {
+    hi = Math.max(high, Math.min(hi, lo + MAX_ROWS - 1));
+    lo = hi - MAX_ROWS + 1;
+  }
   return [lo, hi];
 }
 
 // ------------------------------------------------------------------ which cells, and their ghosts
 
-/** Does the sheet show a roll for this cell? A braid (a melody, a bass, chords) on a single line: not a voice, a mix, a meter, a table, a curve. */
+/** What makes a cell something other than notes, whatever its braid: a tape, a tape's read head, a law, a scope, a motor, a resonator. */
+const NOT_NOTES = ['write', 'play', 'law', 'scope', 'motor', 'body'];
+/** Steps a second from which a braid is a waveform (`step=8k`), not a melody. */
+const AUDIO_RATE = 50;
+
+/** Does another cell refer to this one through an attribute (step=, map=, write=, play=, a clocked or moving parameter …)? */
+function referred(result: CompileResult, name: string): boolean {
+  for (const x of result.cells.values()) {
+    if (x.name === name) continue;
+    if (x.step?.driver === name || (x.map?.kind === 'table' && x.map.table === name)) return true;
+    if (Object.values(x.params).includes(name)) return true;
+    if (Object.values(x.paramClocks).some((s) => s.driver === name)) return true;
+    if (Object.values(x.paramCells).some((p) => p.factors.includes(name))) return true;
+  }
+  return false;
+}
+
+/**
+ * Does the sheet show a roll for this cell? A braid (a melody, a bass, chords) on a single line: not a voice, a mix, a
+ * meter, a table, a curve; not a tape, its heads, a law or a scope (their braid isn't notes); not a clock or a table an
+ * attribute reads that nothing plays (a tap of the bar, a reel, map=&curve); not a waveform at audio rate. A blank cell
+ * rolls only when something plays it as a melody (it plays its table): a blank tape or head is no melody to write into.
+ */
 export function rolls(result: CompileResult, name: string): boolean {
   const c = result.cells.get(name);
   if (!c || c.lambda || c.map || (c.braid !== 'list' && c.braid !== 'blank')) return false;
-  return kindOf(result, name) === 'braid';
+  if (NOT_NOTES.some((k) => c.params[k] !== undefined)) return false;
+  if (result.tapes.some((t) => t.name === name || t.heads.some((h) => h.head === name))) return false;
+  if (kindOf(result, name) !== 'braid') return false;
+  const perSecond = c.clock ? (result.clocks.get(c.clock)?.perSecond ?? 0) * c.rate : 0;
+  if (perSecond >= AUDIO_RATE) return false;
+  const played = playedCells(result).has(name);
+  if (c.braid === 'blank') return played;
+  return played || !referred(result, name);
 }
 
 /** A dim note under the roll: what else plays the same table on the same clock, in this cell's steps. */

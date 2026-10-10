@@ -4,7 +4,8 @@ import { declWords, setBraid } from '../engine/edit';
 import { parse } from '../engine/parser';
 import { PRESETS } from '../engine/presets';
 import { codeShifts } from '../engine/program';
-import { frameOf, fromBraid, ghostsOf, readBraid, remove, resize, rolls, rowRange, rowsFor, tableOf, toBraid, toggle, type Roll } from './roll';
+import { playedCells } from '../engine/clocking';
+import { frameOf, fromBraid, ghostsOf, MAX_ROWS, readBraid, remove, resize, rolls, rowRange, rowsFor, tableOf, tooWide, toBraid, toggle, type Roll } from './roll';
 
 const roll = (text: string): Roll => {
   const r = readBraid(text.split(' ').filter(Boolean));
@@ -165,6 +166,38 @@ describe('editing in the roll', () => {
   });
 });
 
+describe('how far the rows go', () => {
+  const tooFar = (text: string) => {
+    const t0 = performance.now();
+    const r = readBraid(text.split(' '));
+    const problem = r.ok ? tooWide(r.roll, 12) : r.problem;
+    return { problem, ms: performance.now() - t0 };
+  };
+
+  it('a note far outside the table is refused, at once (not drawn as thousands of rows)', () => {
+    for (const t of ['0 5000', '0 100000', '0 1000000000', '1000000000', '-5000 2', '-1000000000']) {
+      const { problem, ms } = tooFar(t);
+      expect(problem, t).toBe('a note far outside its table');
+      expect(ms, t).toBeLessThan(50);
+    }
+    expect(tooFar('0 2 4 24 -12').problem).toBeNull();
+    expect(tooFar(`0 ${MAX_ROWS - 1}`).problem).toBeNull();
+    expect(tooFar(`0 ${MAX_ROWS}`).problem).not.toBeNull();
+    // within a table larger than the roll: not far outside it
+    expect(tooWide(roll('300 310'), 500)).toBeNull();
+  });
+
+  it('never more than MAX_ROWS rows: laps asked for past it, or a table larger than it, are windowed round the notes', () => {
+    const span = ([lo, hi]: [number, number]) => hi - lo + 1;
+    expect(span(rowRange(roll('0 2 4'), 12, false, { below: 20, above: 20 }))).toBe(MAX_ROWS);
+    // a 500-entry table: its first lap doesn't fit, the notes do
+    const [lo, hi] = rowRange(roll('300 310'), 500, false);
+    expect([lo <= 300, hi >= 310, hi - lo + 1]).toEqual([true, true, MAX_ROWS]);
+    const [lo2, hi2] = rowRange(roll('3 100'), 500, false);
+    expect([lo2 <= 3, hi2 >= 100, hi2 - lo2 + 1]).toEqual([true, true, MAX_ROWS]);
+  });
+});
+
 describe('the frame', () => {
   it('bars and beats from its meter, in its own steps', () => {
     const q = compileSource('&bar scan(4 4 4 4) step=84bpm\n&tune step=&bar 0 2 4\n&fast step=&bar/4 0 1\n&slow step=&bar*2 0');
@@ -232,6 +265,54 @@ describe('which cells roll, and their ghosts', () => {
     expect(readBraid(declWords(PRESETS.royal.source, 'theme')!.braid)).toMatchObject({ ok: false, problem: /accidental/ });
     expect(['bar', 'key', 'scale', 'fifths12TET'].some((n) => rolls(q, n))).toBe(false);
     for (const [name, c] of q.cells) if (c.voice || c.mix || c.sink) expect(rolls(q, name), name).toBe(false);
+  });
+
+  it('a tape, its read heads and a law are not melodies: no roll (echotape, fiveto12)', () => {
+    const echo = compileSource(PRESETS.echotape.source);
+    for (const n of ['tape', 'near', 'mid', 'far', 'reel']) expect(rolls(echo, n), `echotape: &${n}`).toBe(false);
+    // (what the tape records is a melody, and plays: it rolls)
+    expect(rolls(echo, 'tune')).toBe(true);
+    const day = compileSource(PRESETS.fiveto12.source);
+    for (const n of ['cycle', 'memory', 'recall', 'message']) expect(rolls(day, n), `fiveto12: &${n}`).toBe(false);
+  });
+
+  it('a blank cell rolls only when something plays it as a melody', () => {
+    const src = (extra: string) => `&bar scan(1 1 1 1) step=100bpm\n&lead s=saw\n&up over=scale(major) step=&bar\n${extra}`;
+    // played: it plays its table, and a note written here makes it a braid
+    expect(rolls(compileSource(src('&out loop=SAMPLE_RATE map=sample [&up * &lead]')), 'up')).toBe(true);
+    // nothing plays it, or something only reads it: not a melody
+    expect(rolls(compileSource(src('&out loop=SAMPLE_RATE map=sample [&lead]')), 'up')).toBe(false);
+    // a tap of the bar, a clock no one plays, a table map= reads, a waveform at audio rate
+    const q = compileSource(
+      '&bar scan(1 1 1 1) step=100bpm\n&tap step=&bar 1 0\n&t step=&tap 0 2\n&curve 0 1 .3 -1\n&shaped loop=262hz map=&curve 0 1 2 3\n&chip step=8k 1!2 -1!2',
+    );
+    for (const n of ['tap', 'curve', 'chip']) expect(rolls(q, n), n).toBe(false);
+    expect(rolls(q, 't')).toBe(true);
+  });
+
+  // the sweep: in every example, what the roll accepts is a melody — a braid of notes, or a blank something plays
+  it('over every example, the cells that roll are melodic braids, or blanks played as melodies', () => {
+    let count = 0;
+    for (const [key, { source }] of Object.entries(PRESETS)) {
+      const q = compileSource(source);
+      const played = playedCells(q);
+      const tapeCells = new Set(q.tapes.flatMap((t) => [t.name, ...t.heads.map((h) => h.head)]));
+      const driving = new Set([...q.cells.values()].flatMap((x) => (x.step ? [x.step.driver] : [])));
+      for (const [name, c] of q.cells) {
+        if (!rolls(q, name)) continue;
+        count++;
+        const where = `${key}: &${name}`;
+        expect(c.braid === 'list' || c.braid === 'blank', where).toBe(true);
+        for (const k of ['write', 'play', 'law', 'scope', 'motor', 'body']) expect(c.params[k], `${where} ${k}=`).toBeUndefined();
+        expect(tapeCells.has(name), where).toBe(false);
+        expect(c.voice || c.mix || c.sink || c.root || c.note || !!c.map, where).toBe(false);
+        if (c.braid === 'blank') expect(played.has(name), `${where}: a blank nothing plays`).toBe(true);
+        else if (!played.has(name)) expect(driving.has(name), `${where}: a clock no one plays`).toBe(false);
+        // its steps are notes, rests or splices (never levels, a waveform, a list of mixes)
+        for (const u of c.units) expect(['note', 'chord', 'rest', 'ref', 'choice'], `${where} ${u.atom.kind}`).toContain(u.atom.kind);
+      }
+    }
+    expect(count).toBeGreaterThan(150);
   });
 
   it('ghosts: what else plays the same table on the same clock, in this cell’s steps', () => {
