@@ -1,5 +1,5 @@
 /**
- * The looms round the wheels (geometry.ts loomPaths): which buses leave a wheel round it, the band of tracks each takes,
+ * The looms round the wheels (wire.ts loomPaths): which buses leave a wheel round it, the band of tracks each takes,
  * and how far out they reach — so the edges draw them in bands, and the layout gives each wheel the room its loom takes.
  */
 import type { GraphEdge, GraphModel } from '../engine/graph';
