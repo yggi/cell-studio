@@ -179,6 +179,9 @@ export function dropGates(b: Built, now: number): void {
   for (const p of Object.values(b.moving)) hold(p, now);
 }
 
+/** When a note let go at `now` has rung out (audio seconds). */
+export const releaseEnd = (n: Sounding, now: number): number => now + Math.max(n.release, 0.005) * 4 + 0.05;
+
 /**
  * One note lets go now: not yet started, it is never played; sounding, its gate drops (its envelope goes into its
  * release from where it is) and it stops moving. A pause does this to every note the plan played; a key released, to its own.
@@ -194,7 +197,7 @@ export function letGo(osc: AudioScheduledSourceNode, n: Sounding, now: number): 
   for (const p of n.pitch) hold(p, now);
   const release = Math.max(n.release, 0.005);
   n.amp.gain.setTargetAtTime(0, now, release / 3);
-  const end = now + release * 4 + 0.05;
+  const end = releaseEnd(n, now);
   osc.stop(end);
   for (const m of n.mods) m.stop(end);
 }
