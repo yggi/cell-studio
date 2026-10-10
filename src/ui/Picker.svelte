@@ -1,8 +1,8 @@
 <script lang="ts" module>
   // the library's layout, kept between openings (the same pieces: the same wheel)
   let kept: { key: string; layout: import('../layout/library').LibraryLayout } | null = null;
-  const keyOf = (entries: readonly { id: string; title?: string; tags: readonly string[]; rung?: number | null }[]) =>
-    entries.map((e) => `${e.id}:${e.title ?? ''}:${e.tags.join(',')}:${e.rung ?? ''}`).join('|');
+  const keyOf = (entries: readonly { id: string; title?: string; tags: readonly string[]; tier?: number | null }[]) =>
+    entries.map((e) => `${e.id}:${e.title ?? ''}:${e.tags.join(',')}:${e.tier ?? ''}`).join('|');
   // (and kept in the browser between visits: the next visit's opening is a replay, not the physics again)
   const STORE = storageKey('cell-studio:library-layout:v6');
   type Stored = { key: string; layout: Record<string, unknown> };
@@ -39,7 +39,7 @@
     }
     return layout;
   }
-  import { byRung, libraryLayoutAsync as libraryLayoutOf, stageOf } from '../layout/library';
+  import { byTier, libraryLayoutAsync as libraryLayoutOf, stageOf } from '../layout/library';
   import { storageKey } from '../storageKey';
 </script>
 
@@ -205,8 +205,8 @@
         .map((e) => e.id),
     ),
   );
-  // the tutorial, rung by rung; then the other examples, smallest first: from simple to complex
-  const tutorial = $derived(shown.filter((e) => e.kind === 'example' && e.tags.includes(TUTORIAL)).sort(byRung));
+  // the tutorial, tier by tier (the library's order within one); then the other examples, smallest first: from simple to complex
+  const tutorial = $derived(shown.filter((e) => e.kind === 'example' && e.tags.includes(TUTORIAL)).sort(byTier));
   const examples = $derived(shown.filter((e) => e.kind === 'example' && !e.tags.includes(TUTORIAL)).sort((a, b) => (a.size ?? 0) - (b.size ?? 0)));
   // a card's wheel: as large as its card leaves room for, the petals on its rim included (≈ 1.41 × across)
   let cardWidth = $state(0);
@@ -307,7 +307,7 @@
       <!-- (one target: the wheel is a picture, its tags chosen from the chips) -->
       <button class="unstyled open" data-id={e.id} onclick={() => onpick(e.id)} aria-label="Open {e.title}">
         <span class="mini"><PieceNode entry={e} {colours} size={wheel} labels current={e.id === current} /></span>
-        <span class="title">{e.rung && e.tags.includes(TUTORIAL) ? `${e.rung}. ${e.title}` : e.title}</span>
+        <span class="title">{e.tier && e.tags.includes(TUTORIAL) ? `${e.tier} · ${e.title}` : e.title}</span>
         {#if e.description}<span class="desc">{e.description}</span>{/if}
         {#if e.id === current || e.saved}
           <span class="meta">

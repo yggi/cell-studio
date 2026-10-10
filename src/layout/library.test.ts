@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { GENRES, PILL, byRung, libraryLayout, libraryLayoutAsync, shortTitle, stageOf } from './library';
+import { GENRES, PILL, byTier, libraryLayout, libraryLayoutAsync, shortTitle, stageOf } from './library';
 import { PRESETS } from '../engine/presets';
 import { pieceMeta } from '../engine/parser';
 import { canonicalTags, TUTORIAL } from '../engine/tags';
 
-// the library as the app lists it: every example with its card's title, tags and rung
+// the library as the app lists it: every example with its card's title, tags and tier
 const entries = Object.entries(PRESETS).map(([key, p]) => {
   const m = pieceMeta(p.source);
-  return { id: `example:${key}`, title: m?.title ?? key, tags: canonicalTags(m?.tags ?? []), rung: m?.rung ?? null };
+  return { id: `example:${key}`, title: m?.title ?? key, tags: canonicalTags(m?.tags ?? []), tier: m?.tier ?? null };
 });
 const t0 = performance.now();
 const lib = libraryLayout(entries);
@@ -15,7 +15,7 @@ const ms = performance.now() - t0;
 const everyPiece = entries.map((e) => ({ ...e, p: lib.at.get(`p:${e.id}`)! }));
 // the wheel's pieces (the tutorial's are a cell of their own)
 const pieces = everyPiece.filter((e) => !e.tags.includes(TUTORIAL));
-const ladder = everyPiece.filter((e) => e.tags.includes(TUTORIAL)).sort((a, b) => a.rung! - b.rung!);
+const ladder = everyPiece.filter((e) => e.tags.includes(TUTORIAL)).sort((a, b) => a.tier! - b.tier!);
 
 describe('the library laid out', () => {
   it('is grown and at rest, quickly', () => {
@@ -119,7 +119,7 @@ describe('the library laid out', () => {
     }
     expect(cos / n).toBeGreaterThan(0.5); // (0.72 when written; 1 would be every piece straight towards its genres)
   });
-  it('draws the tutorial as a cell of its own beside the wheel, its rungs in rows from the top, a path', () => {
+  it('draws the tutorial as a cell of its own beside the wheel, its tiers in rows from the top, a path', () => {
     const c = lib.tutorial!;
     expect(c.order).toEqual(ladder.map((e) => `p:${e.id}`));
     expect(ladder.length).toBeGreaterThan(20);
@@ -127,7 +127,7 @@ describe('the library laid out', () => {
     expect(c.x - c.r).toBeGreaterThan(lib.ring!.r + 64);
     expect(lib.x0 + lib.w).toBeGreaterThanOrEqual(c.x + c.r);
     for (const e of ladder) expect(Math.hypot(e.p.x - c.x, e.p.y - c.y) + lib.wheel.get(`p:${e.id}`)!, e.id).toBeLessThanOrEqual(c.r);
-    // each rung beside the one before, in its row, or just below it: a path that never jumps
+    // each tier beside the one before, in its row, or just below it: a path that never jumps
     const f = PILL * lib.tagScale;
     for (let i = 1; i < ladder.length; i++) {
       const [a, b] = [ladder[i - 1].p, ladder[i].p];
@@ -150,8 +150,8 @@ describe('a library of nothing but the tutorial', () => {
 });
 
 describe('the tutorial order', () => {
-  it('goes by rung, and a piece without one is at the bottom', () => {
-    const pieces = [{ id: 'none' }, { id: 'nine', rung: 9 }, { id: 'null', rung: null }, { id: 'one', rung: 1 }];
-    expect(pieces.sort(byRung).map((p) => p.id)).toEqual(['one', 'nine', 'none', 'null']);
+  it('goes by tier, and a piece without one is at the bottom', () => {
+    const pieces = [{ id: 'none' }, { id: 'nine', tier: 9 }, { id: 'null', tier: null }, { id: 'one', tier: 1 }];
+    expect(pieces.sort(byTier).map((p) => p.id)).toEqual(['one', 'nine', 'none', 'null']);
   });
 });

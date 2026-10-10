@@ -13,7 +13,7 @@
     current,
     onpick,
   }: {
-    entries: readonly { readonly id: string; readonly title: string; readonly tags: readonly string[]; readonly rung?: number | null }[];
+    entries: readonly { readonly id: string; readonly title: string; readonly tags: readonly string[]; readonly tier?: number | null }[];
     /** The piece open now, if any. */
     current: string | null;
     onpick: (id: string) => void;
@@ -39,11 +39,11 @@
   );
   const tags = $derived(tagsOf(kind));
   const tag = $derived(mine?.tag ?? piece?.tags.find((t) => tagKind(t) === kind) ?? tags[0]?.[0] ?? null);
-  // (the tutorial's pieces by rung, numbered: the next one is the next rung)
+  // (the tutorial's pieces by tier, numbered with their tier, the library's order within one: the next one is the next piece)
   const pieces = $derived(
-    tag ? entries.filter((e) => e.tags.includes(tag)).sort((a, b) => (tag === TUTORIAL ? (a.rung ?? 0) - (b.rung ?? 0) : a.title.localeCompare(b.title))) : [],
+    tag ? entries.filter((e) => e.tags.includes(tag)).sort((a, b) => (tag === TUTORIAL ? (a.tier ?? 0) - (b.tier ?? 0) : a.title.localeCompare(b.title))) : [],
   );
-  const named = (e: (typeof entries)[number]) => (tag === TUTORIAL && e.rung ? `${e.rung}. ${e.title}` : e.title);
+  const named = (e: (typeof entries)[number]) => (tag === TUTORIAL && e.tier ? `${e.tier} · ${e.title}` : e.title);
   const here = $derived(pieces.some((e) => e.id === current) ? current! : '');
 </script>
 
