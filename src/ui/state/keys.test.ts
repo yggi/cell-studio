@@ -315,3 +315,42 @@ describe('the computer keys', () => {
     expect(asked).toEqual([`press 1 lead ${C4.toFixed(2)} v100`, 'release 1']);
   });
 });
+
+describe("rows: the piano roll's key column (#211)", () => {
+  it('a row of a cell sounds as the cell plays it, whatever is armed; let go, it releases; the rows down are lit', () => {
+    const { keys, asked } = made();
+    keys.chosen = 'bass';
+    keys.pressRow('tune', 5, 80); // (a lap up: C5)
+    expect([...keys.heldRows('tune')]).toEqual([5]);
+    expect(keys.heldRows('bass').size).toBe(0);
+    expect([...keys.lit].sort()).toEqual(['cell:lead', 'cell:tune']);
+    keys.releaseRow('tune', 5);
+    keys.releaseRow('tune', 5);
+    expect(keys.heldRows('tune').size).toBe(0);
+    expect(asked).toEqual([`press 1 lead ${at(12).toFixed(2)} v80`, 'release 1']);
+  });
+  it("a kit's row is its member; a cell that plays nothing, nothing", () => {
+    const { keys, asked } = made();
+    keys.pressRow('drums', 2);
+    keys.pressRow('penta', 0);
+    expect(asked.map((a) => a.split(' ').slice(0, 3).join(' '))).toEqual(['press 1 sd']);
+  });
+  it('the pedal holds a row; a row pressed again strikes again; thru sends the MIDI note nearest', () => {
+    const { keys, asked, sent } = made();
+    keys.thru = true;
+    keys.sustain(true);
+    keys.pressRow('tune', 1);
+    keys.releaseRow('tune', 1);
+    keys.pressRow('tune', 1);
+    keys.sustain(false);
+    expect(asked.slice(-1)).toEqual(['press 2 lead ' + at(2).toFixed(2) + ' v100']);
+    keys.releaseRow('tune', 1);
+    expect(asked).toEqual([`press 1 lead ${at(2).toFixed(2)} v100`, 'release 1', `press 2 lead ${at(2).toFixed(2)} v100`, 'release 2']);
+    expect(sent).toEqual([
+      [0x90, 62, 100],
+      [0x80, 62, 0],
+      [0x90, 62, 100],
+      [0x80, 62, 0],
+    ]);
+  });
+});

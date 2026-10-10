@@ -7,6 +7,7 @@
 import type { CompileResult, Output, Shifts } from './program';
 import { resolvePitch, semitones } from './helix';
 import { kitNotes } from './midi';
+import { voiceFor } from './realize';
 
 /** What a key outside the melody's table does: the nearest entry sounds, or the key as played (tuned from A4). */
 export type KeyMode = 'nearest' | 'played';
@@ -143,4 +144,21 @@ export function keyboardOf(result: CompileResult, cell: string, shifts: Shifts, 
       return s === null ? null : base * Math.pow(2, s / 12);
     },
   };
+}
+
+/**
+ * A row of a cell as the note it plays (the piano roll's keys, #211): `value` is a number written in the cell (an
+ * entry of its table, laps beyond climbing), read through its tables down to its grid's tuning as a played note is
+ * (`realize.ts`), on the voice its out plays; a kit's row picks its member. A voice is read through the first melody
+ * that plays it. Null: the cell plays nothing.
+ */
+export function rowNote(result: CompileResult, cell: string, value: number, shifts: Shifts): { readonly voice: string; readonly freq: number } | null {
+  const plays = (x: Output) => !x.silent && !x.tape && !x.gate;
+  const o = result.outputs.find((x) => plays(x) && x.cell === cell) ?? result.outputs.find((x) => plays(x) && x.voice === cell);
+  if (!o) return null;
+  if (o.kit) return voiceFor(result, o, value);
+  const base = result.cells.get(o.voice)?.freq ?? 0;
+  const r = resolvePitch(result, o.cell, value, 0, shifts);
+  const freq = base * Math.pow(2, (o.sign * semitones(result, r.root, r.position) + o.offset) / 12);
+  return freq > 0 && Number.isFinite(freq) ? { voice: o.voice, freq } : null;
 }

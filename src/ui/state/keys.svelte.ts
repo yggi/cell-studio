@@ -2,7 +2,8 @@
 // apps/web/src/instruments.svelte.ts (the computer keys and MIDI into one route) @ 8cdb6b8.
 
 import { SvelteMap, SvelteSet } from 'svelte/reactivity';
-import { armable, keyboardOf, type Armable, type Keyboard, type KeyMode } from '../../engine/keys';
+import { armable, keyboardOf, rowNote, type Armable, type Keyboard, type KeyMode } from '../../engine/keys';
+import { noteOf } from '../../engine/midi';
 import { cellId } from '../../engine/ids';
 import { gmNotesFor, type DrumMap } from '../../midi/drum-presets';
 import { COMPUTER_KEY_MAP, DRUM_CHANNEL, DRUM_KEY_MAP, ignoreKeyEvent, parseMidiMessage, parseSustain } from '../../midi/surfaces';
@@ -55,6 +56,8 @@ interface Down {
   readonly cell: string;
   /** Let go while the sustain pedal was down: it sounds until the pedal comes up. */
   sustained: boolean;
+  /** A row's nearest MIDI note, for thru. */
+  readonly note?: number;
 }
 
 /**
@@ -170,7 +173,42 @@ export class Keys {
   release(note: number, channel = 0): void {
     this.#thru([0x80 | this.#thruNibble(), note, 0]);
     if (channel !== DRUM_CHANNEL) this.held.delete(note);
-    const at = `${channel}:${note}`;
+    this.#up(`${channel}:${note}`);
+  }
+
+  /**
+   * A row of a cell pressed (the piano roll's key column, #211): `value` a number written in the cell, an entry with
+   * laps, sounding as the cell plays it (`engine/keys.ts` `rowNote`), whatever is armed. As a key: velocity, the pedal,
+   * a row pressed again strikes again, thru (as the MIDI note nearest). A cell that plays nothing: nothing.
+   */
+  pressRow(cell: string, value: number, velocity = 100): void {
+    const n = rowNote(this.piece.program, cell, value, this.piece.shifts);
+    const at = `row:${cell}:${value}`;
+    this.#strike(at);
+    if (!n) return;
+    const note = noteOf(n.freq, this.piece.env.A4).note;
+    if (note >= 0 && note <= 127) this.#thru([0x90 | this.#thruNibble(), note, Math.max(1, Math.min(127, Math.round(velocity)))]);
+    this.#down.set(at, { id: this.#hands.press(n.voice, n.freq, velocity), voice: n.voice, cell, sustained: false, note });
+  }
+
+  /** A row of a cell let go (the piano roll's key column): as a key let go. */
+  releaseRow(cell: string, value: number): void {
+    const at = `row:${cell}:${value}`;
+    const note = this.#down.get(at)?.note;
+    if (note !== undefined && note >= 0 && note <= 127) this.#thru([0x80 | this.#thruNibble(), note, 0]);
+    this.#up(at);
+  }
+
+  /** The rows of a cell down now (pressed with `pressRow`, or held by the pedal): what the piano roll's keys light. */
+  heldRows(cell: string): ReadonlySet<number> {
+    const out = new Set<number>();
+    const prefix = `row:${cell}:`;
+    for (const at of this.#down.keys()) if (at.startsWith(prefix)) out.add(Number(at.slice(prefix.length)));
+    return out;
+  }
+
+  // what sounds at `at` let go: into its release, or held by the pedal
+  #up(at: string): void {
     const d = this.#down.get(at);
     if (!d || d.sustained) return;
     if (this.#pedal) {
@@ -196,11 +234,7 @@ export class Keys {
     this.#thru([0x90 | this.#thruNibble(), note, Math.max(1, Math.min(127, Math.round(velocity)))]);
     if (channel !== DRUM_CHANNEL) this.held.add(note);
     const at = `${channel}:${note}`;
-    const again = this.#down.get(at);
-    if (again) {
-      this.#down.delete(at);
-      this.#hands.release(again.id);
-    }
+    this.#strike(at);
     const k = channel === DRUM_CHANNEL ? this.#kit : this.#keyboard;
     let voice: string | null = null;
     let freq: number | null = null;
@@ -210,6 +244,14 @@ export class Keys {
     } else if (k) [voice, freq] = [k.voice, k.key(note)];
     if (!k || voice === null || freq === null) return;
     this.#down.set(at, { id: this.#hands.press(voice, freq, velocity), voice, cell: k.cell, sustained: false });
+  }
+
+  // what sounds at `at` (a key or a row struck again) lets go first: a new press, not a second voice on one key
+  #strike(at: string): void {
+    const again = this.#down.get(at);
+    if (!again) return;
+    this.#down.delete(at);
+    this.#hands.release(again.id);
   }
 
   // a message from the MIDI input: a note, or the pedal, unless MIDI learn has it

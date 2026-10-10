@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { compileSource } from './compile';
 import { codeShifts, type CompileResult } from './program';
-import { armable, keyboardOf, keyFrequency, keyLevel, type Keyboard } from './keys';
+import { armable, keyboardOf, keyFrequency, keyLevel, rowNote, type Keyboard } from './keys';
 import { velocityOf } from './midi';
 
 const compiled = (src: string, A4 = 440) => {
@@ -133,5 +133,34 @@ describe('keyLevel: velocity to level, the inverse of what MIDI out sends', () =
     expect(keyLevel(500)).toBe(1);
     expect(keyLevel(0)).toBe(keyLevel(1));
     expect(keyLevel(NaN)).toBe(keyLevel(100));
+  });
+});
+
+describe('rowNote: a row of a cell as the note it plays (the piano roll, #211)', () => {
+  it('a melody: its number through its table, laps climbing, on its voice; its voice reads through it', () => {
+    const r = compiled(PENTA);
+    const at = (cell: string, v: number) => rowNote(r, cell, v, codeShifts(r));
+    for (const [v, semis] of [
+      [0, 0],
+      [1, 2],
+      [4, 9],
+      [5, 12],
+      [-1, -3],
+    ] as const) {
+      expect(at('tune', v)?.voice).toBe('v');
+      expect(fromC4(at('tune', v)?.freq ?? null)).toBeCloseTo(semis, 9);
+      expect(fromC4(at('v', v)?.freq ?? null)).toBeCloseTo(semis, 9);
+    }
+  });
+  it("over 19-EDO: the table's steps of the 19", () => {
+    const r = compiled(`&edo19 cycle=19 map=edo\n&v s=sine loop=C4\n&s over=&edo19 0 3 6 8 11 14 17\n&tune over=&s step=2 0 1 2\n&mix map=sample [&tune * &v]`);
+    expect(fromC4(rowNote(r, 'tune', 2, codeShifts(r))?.freq ?? null)).toBeCloseTo((6 * 12) / 19, 9);
+    expect(fromC4(rowNote(r, 'tune', 7, codeShifts(r))?.freq ?? null)).toBeCloseTo(12, 9);
+  });
+  it('a kit: a row picks its member; a cell that plays nothing, nothing', () => {
+    const r = compiled(`&bar step=4\n&drums step=&bar &bd &hh &sd\n&bd s=sine loop=A1\n&sd s=white\n&hh s=white\n&mix map=sample [&drums]`);
+    expect(rowNote(r, 'drums', 0, codeShifts(r))).toEqual({ voice: 'bd', freq: 55 });
+    expect(rowNote(r, 'drums', 2, codeShifts(r))?.voice).toBe('sd');
+    expect(rowNote(r, 'bar', 0, codeShifts(r))).toBeNull();
   });
 });
