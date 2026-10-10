@@ -37,10 +37,17 @@ export function portsMessage(ports: { readonly inputs: readonly unknown[]; reado
   return `MIDI connected: ${count(ports.inputs, 'input')}, ${count(ports.outputs, 'output')}.`;
 }
 
-/** Connect, then adopt the ports already chosen: the connection and what was found, or why it couldn't connect. */
-export async function connectMidi(connect: () => Promise<MidiAccess | string>, chosen: ChosenPorts): Promise<{ access: MidiAccess | null; message: string }> {
+/**
+ * Connect, then adopt the ports already chosen: the connection and what was found, or why it couldn't connect. `alive`
+ * false once the connection comes (its owner gone while asking): nothing is adopted, the caller closes it.
+ */
+export async function connectMidi(
+  connect: () => Promise<MidiAccess | string>,
+  chosen: ChosenPorts,
+  alive: () => boolean = () => true,
+): Promise<{ access: MidiAccess | null; message: string }> {
   const result = await connect();
   if (typeof result === 'string') return { access: null, message: result };
-  adoptPorts(result, chosen);
+  if (alive()) adoptPorts(result, chosen);
   return { access: result, message: portsMessage(result) };
 }
