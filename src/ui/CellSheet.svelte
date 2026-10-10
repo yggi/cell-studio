@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { DEFAULT_FREQ } from '../engine/program';
   import CellGlyph from './CellGlyph.svelte';
   import { getGraphContext } from './context';
   import { hubLabel } from '../layout/cellview';
@@ -92,7 +93,7 @@
   // ---- how it's shown: show= here, inherited from a cell above, or inferred
   const shown_ = $derived(cell ? effectiveShow(ctx.program, name) : null);
   const fits = $derived(cell ? FITS[kindOf(ctx.program, name)] : []);
-  const base = $derived(cell ? voiceBase(ctx.program, name) : 261.63);
+  const base = $derived(cell ? voiceBase(ctx.program, name) : DEFAULT_FREQ);
   const tonic = $derived(cell ? tonicOf(ctx.program, name) : 0);
   /** A token's name under the show (notes, midi, do, degrees), or null. */
   function nameOf(token: string): string | null {

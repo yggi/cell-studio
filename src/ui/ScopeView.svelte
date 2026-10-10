@@ -10,7 +10,7 @@
   import { NOTE_NAMES } from '../theory/modes';
   import { clocking } from '../engine/clocking';
   import { notesAt, valueAt, valuesAt } from '../engine/values';
-  import { adsrOf } from '../engine/program';
+  import { adsrOf, DEFAULT_FREQ } from '../engine/program';
   import { resolvePitch, semitones } from '../engine/helix';
   import { voiceBase } from '../layout/show';
   import { noteColour, scopeBand } from './theme';
@@ -81,7 +81,9 @@
       fold: f,
       n,
       labels: Array.from({ length: n }, (_, k) => (f === 12 ? NAMES12[k] : f > 0 ? String(k) : '')),
-      hues: Array.from({ length: n }, (_, k) => (f > 0 ? (k / f) * 360 : (((Math.round(12 * Math.log2((LO * Math.pow(HI / LO, (k + 0.5) / n)) / 261.63)) % 12) + 12) % 12) * 30)),
+      hues: Array.from({ length: n }, (_, k) =>
+        f > 0 ? (k / f) * 360 : (((Math.round(12 * Math.log2((LO * Math.pow(HI / LO, (k + 0.5) / n)) / DEFAULT_FREQ)) % 12) + 12) % 12) * 30,
+      ),
     };
   });
   type Layout = typeof layout;

@@ -26,4 +26,4 @@ The owner's proposal: the code says which notes come from which motif, and the d
 
 - No sound changes: only the graph is drawn differently (`GraphModel.bulbs`, `layout/track.ts`).
 - The library's layout improves: 100 fewer nodes, crossings 34.8 → 25.2, overlap 12.7 → 0 (`src/layout/quality.baseline.json`).
-- A cell drawn as a bulb can't be tapped open from the graph on its own; its line in the code is where it is edited, and its notes are on its player's wheel.
+- A cell drawn as a bulb can't be tapped open from the graph on its own; its line in the code is where it is edited, and its notes are on its player's wheel. For the same reason it can't be muted, soloed or dragged on its own: it has no node. (A cell read elsewhere too is a net-ref, drawn hollow.)
