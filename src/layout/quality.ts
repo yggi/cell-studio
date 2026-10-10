@@ -4,6 +4,7 @@
  * The examples are the benchmark: `physics.library.test.ts` measures each one and compares the library
  * with `quality.baseline.json` (docs/testing.md).
  */
+import { crossingCost } from './weights';
 import { clusterDisc } from './clusters';
 import { segmentsCross, splinePoint } from './geometry';
 
@@ -32,6 +33,8 @@ export interface DrawnEdge {
   readonly runs?: readonly (readonly [number, number, number, number])[];
   /** Its strength (weights.ts): what crossing it costs (1 when not given). */
   readonly weight?: number;
+  /** Its kind (its band: values, sound, time): two of one kind crossing cost more (weights.ts: crossingCost). */
+  readonly kind?: string;
   /** Where it leaves from, when not `a`'s centre: a bulb on a wheel (a tap's sub-net, decision 016); `a` then names the bulb. */
   readonly from?: { readonly x: number; readonly y: number };
 }
@@ -41,7 +44,7 @@ export interface LayoutQuality {
   readonly cells: number;
   /** Pairs of edges that cross as drawn (see drawnCrossings). */
   readonly crossings: number;
-  /** The crossings weighed by what they cross (weights.ts): a crossing costs the product of the two edges' strengths. */
+  /** The crossings weighed by what they cross (weights.ts: crossingCost): the two edges' strengths, more for two of one kind. */
   readonly cost: number;
   /** The bounding box of the cells' rooms, px. */
   readonly width: number;
@@ -89,7 +92,7 @@ function crossingsOf(nodes: readonly PlacedNode[], edges: readonly DrawnEdge[]):
     const a = e.from ?? at.get(e.a);
     const b = at.get(e.b);
     if (!a || !b) return [];
-    if (e.runs) return e.runs.map((r) => ({ a: e.a, b: e.b, pieces: [r as [number, number, number, number]], belt: true, w: e.weight ?? 1 }));
+    if (e.runs) return e.runs.map((r) => ({ a: e.a, b: e.b, pieces: [r as [number, number, number, number]], belt: true, w: e.weight ?? 1, kind: e.kind }));
     const m = e.mid ?? { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
     const pts = Array.from({ length: 17 }, (_, k) => splinePoint(a.x, a.y, m.x, m.y, b.x, b.y, k / 16));
     const pieces: [number, number, number, number][] = [];
@@ -97,7 +100,7 @@ function crossingsOf(nodes: readonly PlacedNode[], edges: readonly DrawnEdge[]):
       const [p, q] = [pts[k], pts[k + 1]];
       if (!hidden((p.x + q.x) / 2, (p.y + q.y) / 2)) pieces.push([p.x, p.y, q.x, q.y]);
     }
-    return [{ a: e.a, b: e.b, pieces, belt: false, w: e.weight ?? 1 }];
+    return [{ a: e.a, b: e.b, pieces, belt: false, w: e.weight ?? 1, kind: e.kind }];
   });
   let n = 0;
   let cost = 0;
@@ -115,7 +118,7 @@ function crossingsOf(nodes: readonly PlacedNode[], edges: readonly DrawnEdge[]):
       if (p.a === q.a || p.a === q.b || p.b === q.a || p.b === q.b) continue;
       if (p.pieces.some((u) => q.pieces.some((v) => segmentsCross(u[0], u[1], u[2], u[3], v[0], v[1], v[2], v[3])))) {
         n++;
-        cost += p.w * q.w;
+        cost += crossingCost(p, q);
       }
     }
   return { count: n, cost: Math.round(cost * 10) / 10 };

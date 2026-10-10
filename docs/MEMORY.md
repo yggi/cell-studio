@@ -65,6 +65,7 @@ One line each; the record has the rationale. → [decisions/](decisions/README.m
 - 018 · `free(0 2 4 ~)` is a braid left to the performer, a cell's whole braid; its length the frame a take fills; record (a flag on the transport) takes one pass of the armed cell from the keys, quantised through its time map, held until Keep; keys off the table: one setting, allow / snap / ignore, for playing and recording · → decisions/018-free-braid.md
 - 019 · MIDI out in the language: a MIDI card, `map=midi`, its entries channels; `midi(c)` one channel, `midi(c, p)` an output slot the MIDI dialog maps to a device in this browser; a voice only on a card is sent, not heard; a piece with a card sends only what its cards name, one without keeps the default output · → decisions/019-midi-card.md
 - 020 · The tutorial is nine stable tiers (`tier=n` on the card, in place of the 30 numbered rungs): a tier's pieces together show all of its forms, a variation is a new file with no renumbering, and the lowest tier has the smallest pieces · → decisions/020-tutorial-tiers.md
+- 021 · One rule for every sub-wheel: a cell that is only part of another is drawn on it as a bulb, placed by the host's own coordinate (a splice by its time, a tap and a gate's voice in their fan, a tape's read head by `at=` of `length=`); a tap's and a head's edges leave from the bulb; a tape's head bulbs stay put while the reel turns and turn with the layout's turn of the tape · → decisions/021-tape-heads.md
 
 ## Where things are tracked
 

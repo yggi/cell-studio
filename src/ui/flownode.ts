@@ -6,6 +6,7 @@ import { isTurntable, type GraphNode } from '../engine/graph';
 import type { CompileResult } from '../engine/program';
 import { pluginOf } from '../layout/show';
 import { JUNCTION_ROOM } from '../layout/options';
+import { TAPE_SIZE } from '../layout/tape';
 import type { FlowNode } from './types';
 
 /** An unnamed cell, hung small on its parent. */
@@ -71,7 +72,7 @@ export function flowNodeOf(
       position,
       draggable: false,
       zIndex: 10,
-      data: { name: g.cell.name, size: (role === 'motor' ? 168 : 140) * g.cell.size, role, pinned: true, ...(role === 'tape' && turn !== undefined ? { turn } : {}) },
+      data: { name: g.cell.name, size: (role === 'motor' ? 168 : TAPE_SIZE) * g.cell.size, role, pinned: true, ...(role === 'tape' && turn !== undefined ? { turn } : {}) },
     };
   }
   const size = (g.cell.root ? 176 : g.isMeter ? 148 : 128) * g.cell.size;
