@@ -474,7 +474,7 @@ const CARD_ONLY = { voice: 'sub', channel: 2 };
     await mp.getByRole('radio', { name: 'Cards' }).click();
     await mp.locator('button.open[data-id="example:play-in"]').dispatchEvent('click');
     await mp.waitForTimeout(500);
-    await mp.getByRole('button', { name: 'Record' }).click();
+    await mp.getByRole('button', { name: 'Record', exact: true }).click();
     const line = await mp.evaluate(
       () =>
         new Promise((done) => {
@@ -509,7 +509,7 @@ const CARD_ONLY = { voice: 'sub', channel: 2 };
     const before = await code();
     if (!pill?.startsWith(`braid: ${WANT.slice(0, 12)}`)) problems.push(`the take held is not what was played: pill "${pill}", wanted ${WANT}`);
     if (!before.includes('free(0 2 4 ~ 4 2 0 ~ 0 2 4 ~ 7@2 ~ ~)')) problems.push('the code changed before Save');
-    await mp.getByRole('button', { name: 'Save' }).click();
+    await mp.getByRole('button', { name: 'Save', exact: true }).click();
     await mp.waitForTimeout(200);
     const after = (await code()).split('\n').find((l) => l.startsWith('&riff')) ?? '';
     if (!after.includes(`free(${WANT})`)) problems.push(`Save wrote "${after}", wanted free(${WANT})`);

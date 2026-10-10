@@ -6,6 +6,7 @@ import { buildGraph, isCellNode } from '../../../src/engine/graph';
 import { cellView } from '../../../src/layout/cellview';
 import { effectiveShow } from '../../../src/layout/show';
 import { flowNodeOf } from '../../../src/ui/flownode';
+import { isSide } from '../../../src/layout/side';
 import { meterIndex } from '../../../src/layout/meters';
 import type { FlowNode } from '../../../src/ui/types';
 import type { CompileResult, Shifts } from '../../../src/engine/program';
@@ -26,7 +27,7 @@ function kindOf(p: CompileResult, n: FlowNode, shifts: Shifts): string {
   const where = 'petal' in n.data && n.data.petal ? 'petal' : 'graph';
   const cell = p.cells.get(n.data.name)!;
   if (n.type === 'material') return `${where}:material:${n.data.role}`;
-  if (n.type === 'scope' || n.type === 'plugin') return `${where}:${n.type}`;
+  if (n.type === 'plugin') return `${where}:${n.type}`;
   if (n.type === 'voice') return `${where}:${effectiveShow(p, n.data.name).show === 'wave' ? 'wave' : 'spectrum'}`;
   if (cell.mix || cell.sink) return `${where}:spectrum`;
   const isMeter = 'isMeter' in n.data && n.data.isMeter;
@@ -40,13 +41,16 @@ function kindOf(p: CompileResult, n: FlowNode, shifts: Shifts): string {
 export function wheelsOf(piece: Piece): { name: string; key: string; node: FlowNode; live: boolean }[] {
   const model = buildGraph(piece.program);
   const meters = { index: meterIndex(model) };
-  return model.nodes
-    .filter(isCellNode)
-    .filter((g) => !g.cell.note)
-    .map((g) => {
-      const node = flowNodeOf(g, { x: 0, y: 0 }, false, undefined, meters, piece.program);
-      return { name: g.cell.name, key: kindOf(piece.program, node, piece.shifts), node, live: piece.live.nodes.has(g.id) };
-    });
+  return (
+    model.nodes
+      .filter(isCellNode)
+      // (notes and scopes are the margin's: layout/side.ts; the golden graph shows it)
+      .filter((g) => !isSide(g))
+      .map((g) => {
+        const node = flowNodeOf(g, { x: 0, y: 0 }, false, undefined, meters, piece.program);
+        return { name: g.cell.name, key: kindOf(piece.program, node, piece.shifts), node, live: piece.live.nodes.has(g.id) };
+      })
+  );
 }
 
 /** The first of each kind of wheel across these pieces (a live one if any is). */

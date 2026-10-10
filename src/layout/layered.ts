@@ -333,24 +333,12 @@ export function layered(model: GraphModel, o: LayeredOptions): Map<string, { x: 
       return [n.id, { x: x.get(n.id)! - mid, y: rowY[v.layer] + (sub.get(n.id) ?? 0) * o.gapY * (tracks.has(v.layer) ? 0.8 : 0.55) }];
     }),
   );
-  // notes (a label alone: nothing to order them by) beside the top, to the right of everything
-  const isNote = (n: (typeof nodes)[number]) => !!(n as { cell?: { note?: boolean } }).cell?.note;
-  const notes = nodes.filter(isNote);
-  if (notes.length) {
-    const rest = nodes.filter((n) => !isNote(n)).map((n) => out.get(n.id)!.x + vs.get(n.id)!.w / 2);
-    let at = (rest.length ? Math.max(...rest) : 0) + o.gapX;
-    for (const n of notes) {
-      const w = vs.get(n.id)!.w;
-      out.set(n.id, { x: at + w / 2, y: 0 });
-      at += w;
-    }
-  }
   return out;
 }
 
 /**
- * The rows filled by insertion (the owner's idea, within the layers): a walk from the top row (the sound card) and the
- * scopes, breadth first along the edges between rows, the heaviest first, takes in one node at a time; each goes into
+ * The rows filled by insertion (the owner's idea, within the layers): a walk from the top row (the sound card),
+ * breadth first along the edges between rows, the heaviest first, takes in one node at a time; each goes into
  * its row at the place where it crosses the fewest edges to the nodes already in (then nearest its neighbours there).
  */
 function insertionOrder(
@@ -361,8 +349,7 @@ function insertionOrder(
   down: Map<string, { id: string; w: number }[]>,
 ): string[][] {
   const nbrs = (id: string) => [...(up.get(id) ?? []), ...(down.get(id) ?? [])].sort((a, b) => b.w - a.w);
-  const scopes = nodes.filter((n) => typeof (n.cell as { params?: Record<string, unknown> } | undefined)?.params?.scope === 'string').map((n) => n.id);
-  const start = [...(layers[0] ?? []), ...scopes.filter((id) => !layers[0]?.includes(id))];
+  const start = [...(layers[0] ?? [])];
   const order: string[] = [];
   const seen = new Set(start);
   const queue = [...start];

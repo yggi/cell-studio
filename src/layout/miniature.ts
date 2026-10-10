@@ -8,6 +8,7 @@
  * The colour is a kind (a negative code) or a note's hue (0 ≤ h < 360, to a tenth), never a CSS value: the theme resolves
  * it when it's drawn (MiniGraph.svelte). Sizes and the frame are derived here, per card or wheel.
  */
+import { isSide } from './side';
 import { compileSource } from '../engine/compile';
 import { codeShifts, type CompileResult } from '../engine/program';
 import { buildGraph } from '../engine/graph';
@@ -54,7 +55,7 @@ function colourOf(result: CompileResult, shifts: ReturnType<typeof codeShifts>, 
 export function miniature(source: string, rowOrder?: number): Miniature | null {
   const result = compileSource(source);
   const model = buildGraph(result);
-  const nodes = model.nodes.filter((n) => !n.petalOf && !n.cell?.note);
+  const nodes = model.nodes.filter((n) => !n.petalOf && !isSide(n));
   if (nodes.length === 0) return null;
   // (the rows' order, when it is known: chosen already, it needn't be tried again)
   const l = new ForceLayout(undefined, rowOrder === undefined ? { live: false } : { live: false, rowOrder });

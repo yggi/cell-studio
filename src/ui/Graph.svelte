@@ -18,7 +18,6 @@
   import PulseEdge from './PulseEdge.svelte';
   import MeterEdge from './MeterEdge.svelte';
   import MaterialNode from './MaterialNode.svelte';
-  import ScopeNode from './ScopeNode.svelte';
   import PluginNode from './PluginNode.svelte';
   import GraphLegend from './GraphLegend.svelte';
   import BeltEdge from './BeltEdge.svelte';
@@ -27,6 +26,10 @@
   import type { TransportState } from '../audio/transport';
   import { clusterDisc } from '../layout/clusters';
   import { EXAMPLES } from '../examples';
+  import Margin, { MARGIN_WIDTH } from './Margin.svelte';
+  import { isSide, sideEntries } from '../layout/side';
+  import { channelColour } from './theme';
+  import type { SideMark } from './context';
   import TowerAxis, { TOWER_WIDTH } from './TowerAxis.svelte';
   import FlowViewport from './FlowViewport.svelte';
   import type { Viewport } from '@xyflow/svelte';
@@ -204,9 +207,37 @@
     get rows() {
       return rows;
     },
+    // (only while the margin is open: a mark with no margin to read it in is noise)
+    marksOf: (name) => (hasMargin ? (marks.get(name) ?? []) : []),
+    get sideLit() {
+      // (the entry pointed at in the margin, else a note or scope whose sheet is open)
+      return sideLit ?? (selected && shown.model.nodes.some((n) => n.id === selected && isSide(n)) ? selected : null);
+    },
   });
 
-  const nodeTypes = { cell: CellNode, voice: VoiceNode, material: MaterialNode, scope: ScopeNode, plugin: PluginNode, junction: JunctionNode } as NodeTypes;
+  // the margin (layout/side.ts): what each cell wears for the notes and scopes about it
+  const marks = $derived.by(() => {
+    const out = new Map<string, SideMark[]>();
+    for (const e of sideEntries(shown.model)) {
+      const chans = (shown.program.cells.get(e.name)?.units ?? []).flatMap((u) => (u.atom.kind === 'ref' ? [u.atom.name] : []));
+      for (const id of e.about) {
+        const name = id.slice('cell:'.length);
+        const k = chans.indexOf(name);
+        (out.get(name) ?? out.set(name, []).get(name)!).push(e.kind === 'note' ? { entry: e.id, mark: e.mark } : { entry: e.id, mark: 0, colour: channelColour(Math.max(0, k)) });
+      }
+    }
+    return out;
+  });
+  const hasSide = $derived(shown.model.nodes.some(isSide));
+  // (a tap away, as the tower is: closed by default at every width, so the graph keeps its room; ?margin opens it, for
+  // the gallery's pictures)
+  let marginOpen = $state(typeof location !== 'undefined' && new URLSearchParams(location.search).has('margin'));
+  const hasMargin = $derived(hasSide && marginOpen);
+  // (framed again when the margin opens or closes)
+  let sideFits = $state(0);
+  let sideLit = $state<string | null>(null);
+
+  const nodeTypes = { cell: CellNode, voice: VoiceNode, material: MaterialNode, plugin: PluginNode, junction: JunctionNode } as NodeTypes;
   const edgeTypes = { pulse: PulseEdge, belt: BeltEdge, meter: MeterEdge };
 
   let legendOpen = $state(false);
@@ -293,7 +324,16 @@
   });
 </script>
 
-<div class="graph" class:towered={towerShown} style:--tower-width="{TOWER_WIDTH + cardCover}px" bind:this={graphEl} bind:clientWidth={graphW}>
+<div
+  class="graph"
+  class:margined={hasMargin}
+  class:towered={towerShown}
+  style:--margin-width="{MARGIN_WIDTH}px"
+  style:--tower-width="{TOWER_WIDTH + cardCover}px"
+  bind:this={graphEl}
+  bind:clientWidth={graphW}
+>
+  {#if hasMargin}<Margin model={shown.model} heightOf={(id) => layout.position(id)?.y} settled={layout.fitToken} onlight={(id) => (sideLit = id)} />{/if}
   <div class="flow">
     <SvelteFlow
       bind:nodes={layout.nodes}
@@ -324,7 +364,7 @@
     >
       <Background gap={28} size={1.5} />
       <Controls showLock={false} />
-      <FitView token={layout.fitToken + towerFits} />
+      <FitView token={layout.fitToken + sideFits + towerFits} />
       {#if towerOpen}<FlowViewport onchange={(v) => (viewport = v)} />{/if}
       <!-- clusters: cells tagged alike inside the piece (tags=), washed and named behind their members -->
       <ViewportPortal target="back">
@@ -352,6 +392,16 @@
       aria-pressed={towerOpen}
       title="Each cell's time scale, from the constant to the audible">tower</button
     >
+    {#if hasSide}<button
+        class="forces-toggle"
+        class:on={marginOpen}
+        onclick={() => {
+          marginOpen = !marginOpen;
+          sideFits++;
+        }}
+        aria-pressed={marginOpen}
+        title="The piece's notes and scopes, beside the graph">notes</button
+      >{/if}
   </div>
   {#if legendOpen}
     <div class="legend-wrap"><GraphLegend program={shown.program} shifts={shown.shifts} {source} /></div>
@@ -387,6 +437,13 @@
   .flow {
     position: absolute;
     inset: 0;
+  }
+  /* (the margin takes its column beside the graph: layout/side.ts) */
+  .graph.margined .flow {
+    left: var(--margin-width);
+  }
+  .graph.margined .hint {
+    left: calc(var(--margin-width) + 56px);
   }
   /* (the tower takes its strip beside the graph: nothing is laid under it) */
   .graph.towered .flow {

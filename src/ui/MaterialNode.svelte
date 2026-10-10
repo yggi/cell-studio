@@ -4,6 +4,7 @@
 </script>
 
 <script lang="ts">
+  import SideMarks from './SideMarks.svelte';
   /**
    * A physical cell (a meter with a motor, a belted cell) as a turntable: a raised disc of
    * material, its rim knurled, an axle at its centre. It turns at its true angle (spin-up, sag,
@@ -538,6 +539,7 @@
   {/each}
   <span class="name" style:margin-top={exciters.length > 1 ? `${R * 0.42}px` : below ? `${below}px` : undefined}>&{d.name}</span>
   {#if cell?.frees.length}<FreePills frees={cell.frees} name={d.name} />{/if}
+  <SideMarks name={d.name} />
   <Handle type="source" position={Position.Bottom} class="center-handle" isConnectable={false} />
   {#if tape}
     <!-- edges meet the tape at its heads -->

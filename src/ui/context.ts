@@ -68,6 +68,20 @@ export interface GraphContext {
   readonly played?: ReadonlySet<string>;
   /** A cell's rows played live (the piano roll's key column, #251), through the keys' path (state/keys.svelte.ts); absent: the keys only light. */
   readonly rows?: RowKeys;
+  /**
+   * What the margin says about a cell (layout/side.ts): the numbers of the notes about it, and the colours of the scope
+   * channels that watch it; absent: nothing.
+   */
+  marksOf?(name: string): readonly SideMark[];
+  /** The margin's entry pointed at (hovered or focused), by its node id: its cells' marks light. */
+  readonly sideLit?: string | null;
+}
+
+/** A mark a cell wears for the margin: a note's number, or a scope channel's colour. */
+export interface SideMark {
+  readonly entry: string;
+  readonly mark: number;
+  readonly colour?: string;
 }
 
 /** A row of a cell (a number written in it, with laps) pressed and let go, and the rows down now (pressed or held by the pedal). */

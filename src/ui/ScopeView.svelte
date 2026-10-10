@@ -13,7 +13,7 @@
   import { adsrOf, DEFAULT_FREQ } from '../engine/program';
   import { resolvePitch, semitones } from '../engine/helix';
   import { voiceBase } from '../layout/show';
-  import { noteColour, scopeBand } from './theme';
+  import { noteColour, channelColour, scopeBand } from './theme';
   import { onFrames } from '../audio/ticker';
   import { timed } from '../audio/stats';
   import { onScreen } from './kit/attach';
@@ -206,7 +206,7 @@
         return {
           name,
           pts: norm.map((y, i) => (y === null ? null : { x: i / (norm.length - 1), y })),
-          colour: (i: number) => noteColour(single && raw[i] !== null ? pc(raw[i]!) : pc(ci)),
+          colour: (i: number) => (single && raw[i] !== null ? noteColour(pc(raw[i]!)) : channelColour(ci)),
         };
       });
     };
