@@ -1,7 +1,8 @@
 // Probe (not part of the gate): what each force of the layout does to the library's drawing. The whole library laid
 // out with today's options, with the start alone (no physics), and with each force switched off in turn; per variant
 // the library's sums of the layout's numbers (quality.ts), the mean over seeds.
-// Run: PROBE=out.txt npx vitest run tools/probe/forces.test.ts   (SEEDS=0,1,2  VARIANTS=name,name  TICKS=500)
+// Run: PROBE=out.txt npx vitest run tools/probe/forces.test.ts
+// (SEEDS=0,1,2, VARIANTS=name,name, TICKS=500, CUSTOM="half spread:spread=0.25;…")
 import { describe, it } from 'vitest';
 import { appendFileSync } from 'node:fs';
 import { PRESETS } from '../../src/engine/presets';
@@ -37,6 +38,24 @@ const VARIANTS: [string, Partial<LayoutOptions>, number?][] = [
     ] as (keyof LayoutOptions)[]
   ).map(off),
 ];
+
+// (CUSTOM="name:key=v,key=v;name:…": variants of several changes at once, after these)
+const custom: [string, Partial<LayoutOptions>][] = (process.env.CUSTOM ?? '')
+  .split(';')
+  .filter(Boolean)
+  .map((v) => {
+    const [name, kv] = v.split(':');
+    return [
+      name,
+      Object.fromEntries(
+        (kv ?? '')
+          .split(',')
+          .filter(Boolean)
+          .map((p) => [p.split('=')[0], Number(p.split('=')[1])]),
+      ),
+    ];
+  });
+VARIANTS.push(...custom);
 
 describe.runIf(process.env.PROBE)('the forces, one at a time', () => {
   it('lays the library out under each variant', () => {
