@@ -88,6 +88,13 @@
       if (by.length) out.push(['played by', [...new Set(by.map((o) => `&${o.cell}`))].join(', ')]);
       const mixes = [...new Set(by.flatMap((o) => o.parts.map((p) => p.mix)))];
       if (mixes.length) out.push(['in', mixes.map((m) => `&${m}`).join(', ')]);
+      // on MIDI cards: where it goes out, and what of it doesn't (said once, here)
+      const sent = by.flatMap((o) => o.midi ?? []);
+      if (sent.length) {
+        const where = [...new Set(sent.map((m) => `&${m.card} channel ${m.channel}${m.port === 1 ? '' : `, slot ${m.port}`}`))];
+        const heard = by.some((o) => o.parts.length > 0);
+        out.push(['MIDI', `${where.join('; ')}${heard ? '' : ' (sent, not heard)'} · notes, velocity and bends go out; its sound parameters don't`]);
+      }
       if (by[0]?.envelope) {
         const e = by[0].envelope;
         out.push(['envelope', `attack ${e.attack} s · decay ${e.decay} s · sustain ${e.sustain} · release ${e.release} s`]);

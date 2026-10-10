@@ -80,6 +80,14 @@ const BY_PORT: Readonly<Record<string, Carrier>> = {
     const voice = e.sound ?? nameOf(e.source);
     return { phaseCell: trigger(p, voice), voice };
   },
+  // into a MIDI card: the notes it sends, coloured by their pitch and pulsing with the steps that play them (a voice, a
+  // product's junction, or a cell named as the entry: the voice its output plays)
+  midi: (e, p) => {
+    const [from, to] = [nameOf(e.from), nameOf(e.to)];
+    const voice =
+      e.sound ?? (p.cells.get(from)?.voice ? from : (p.outputs.find((o) => o.midi?.some((m) => m.card === to) && (o.cell === from || o.via.includes(from)))?.voice ?? null));
+    return { phaseCell: voice && trigger(p, voice), voice };
+  },
 };
 /** Any other port feeds a voice (a melody playing it, its envelope, levels, pitch, parameters, FM, what excites or couples it): its note; the pulse if this is what plays it. */
 const INTO_VOICE: Carrier = (e, p) => {

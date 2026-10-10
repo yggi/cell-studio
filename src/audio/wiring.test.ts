@@ -30,7 +30,8 @@ const onTheWay = (r: CompileResult) =>
  * it is on the way of something that sounds, and the mix's wheel hears it.
  */
 const wired = (r: CompileResult, f: Flow) => {
-  if (f.kind === 'channel' || f.kind === 'part') return false;
+  // (a MIDI card's entries carry notes, not sound: the MIDI sink reads them, sync wires nothing)
+  if (f.kind === 'channel' || f.kind === 'part' || f.kind === 'midi') return false;
   if (f.kind !== 'mix') return true;
   if (isHead(r, f.from))
     return !!flows(r)

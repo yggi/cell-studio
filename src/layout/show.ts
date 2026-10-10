@@ -93,7 +93,7 @@ export function kindOf(result: CompileResult, name: string): Kind {
   if (c.voice) return 'voice';
   if (c.map?.kind === 'adsr') return 'adsr';
   if (c.root) return 'grid';
-  if (c.mix || c.sink || c.kit) return 'mix';
+  if (c.mix || c.sink || c.kit || c.map?.kind === 'midi') return 'mix';
   if (result.clocks.get(name)?.positional) return 'meter';
   // a bar written as levels (meter(…)): a meter, whatever it reads through
   if (result.clocks.has(name) && c.leveled) return 'meter';
