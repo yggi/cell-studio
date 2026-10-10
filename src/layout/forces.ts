@@ -25,11 +25,9 @@ export function crossingPairs<S extends Seg>(segs: readonly S[]): [S, S][] {
 }
 
 /**
- * A force that resists crossings: for every two edges that cross, push them
- * apart along the line between their midpoints (each end gets half, moving as little as it weighs: a turntable
- * holds), as hard as
- * the crossing costs (weights.ts: crossingCost): two clocks' nets or two sound wires
- * harder than a label's link and a melody.
+ * A force that resists crossings: for every two edges that cross, push them apart along the line between their
+ * midpoints (each end gets half, moving as little as it weighs: a turntable holds), as hard as the crossing costs
+ * (weights.ts: crossingCost): two clocks' nets or two sound wires harder than a label's link and a melody.
  */
 export function forceUncross(strengthOf: () => number, body: (n: PhysNode) => PhysNode | undefined = (n) => n) {
   let links: { source: PhysNode; target: PhysNode; w?: number; kind?: string }[] = [];
@@ -46,14 +44,14 @@ export function forceUncross(strengthOf: () => number, body: (n: PhysNode) => Ph
       for (const end of [p.a, p.b]) {
         const n = body(end);
         if (!n) continue;
-        n.vx = (n.vx ?? 0) + (mx * k * 0.5) / (n.mass ?? 1);
-        n.vy = (n.vy ?? 0) + (my * k * 0.5) / (n.mass ?? 1);
+        n.vx = (n.vx ?? 0) + (mx * k * 0.5) / Math.max(n.mass ?? 1, 0.1);
+        n.vy = (n.vy ?? 0) + (my * k * 0.5) / Math.max(n.mass ?? 1, 0.1);
       }
       for (const end of [q.a, q.b]) {
         const n = body(end);
         if (!n) continue;
-        n.vx = (n.vx ?? 0) - (mx * k * 0.5) / (n.mass ?? 1);
-        n.vy = (n.vy ?? 0) - (my * k * 0.5) / (n.mass ?? 1);
+        n.vx = (n.vx ?? 0) - (mx * k * 0.5) / Math.max(n.mass ?? 1, 0.1);
+        n.vy = (n.vy ?? 0) - (my * k * 0.5) / Math.max(n.mass ?? 1, 0.1);
       }
     }
   };

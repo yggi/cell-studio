@@ -91,3 +91,5 @@ Eight seeds (`tools/probe/forces.test.ts`, `SEEDS=0..7`), library sums, means; c
   turntables doesn't keep them: what a head connects to is an ordinary voice.
 - **Chosen by the owner: by cost, each end by its mass, `uncross` 1.** The baseline (seeds 0–2) goes 53.3 → 51.0
   crossings, aim 44.6 → 51.4, area +2.8 %; its cost is on the new rule (117 → 163 is the rule, not the layout).
+
+A note for later probes: #275 (a tape's read heads as bulbs) changed what the tape-aim metric measures (the baseline's sum went 44.6 → 260.7 with no layout change worth the name), so aim figures from before and after it are not comparable. And `crossingCost` (weights.ts) is the one table the measure and the push read: change a weight there, not in both places.
