@@ -151,6 +151,24 @@ const draw = ({ mode, norm, signal, pieces }) => {
     const { rows, mean } = d.signals[name];
     heat(g, d, rows, 60, top, W, H);
     marks(g, d, 60, top, W, H);
+    // (the cones found, best first: a line from the slowest period down to the apex, green on a section, red off one;
+    // the apex a dot, its rank beside)
+    for (const cone of d.signals[name].cones ?? []) {
+      const colour = cone.hit ? '#3f6' : '#f44';
+      g.strokeStyle = colour;
+      g.lineWidth = 1.5;
+      g.beginPath();
+      cone.path.forEach(([t, q], k) => (k ? g.lineTo : g.moveTo).call(g, 60 + (t / d.window) * W, yOf(P, top, H, q)));
+      g.stroke();
+      const [t, q] = cone.path[cone.path.length - 1];
+      g.fillStyle = colour;
+      g.beginPath();
+      g.arc(60 + (t / d.window) * W, yOf(P, top, H, q), 3, 0, 2 * Math.PI);
+      g.fill();
+      g.font = '9px sans-serif';
+      g.fillText(String(cone.rank + 1), 60 + (t / d.window) * W + 4, yOf(P, top, H, q) + 3);
+    }
+    g.lineWidth = 1;
     g.fillStyle = '#ddd';
     g.font = '12px sans-serif';
     g.fillText(name, 4, top + 9);
