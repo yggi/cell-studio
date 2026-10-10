@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { towerOf, towerRanks, zoneRanks } from './tower';
+import { towerOf, towerRanks, towerSpans, zoneRanks } from './tower';
 import { flowRanks } from './start';
 import { buildGraph } from '../engine/graph';
 import { compileSource } from '../engine/compile';
@@ -66,5 +66,19 @@ describe('the frequency tower', () => {
     expect(z('tune')).toBeGreaterThan(z('song'));
     expect(z('song')).toBeGreaterThan(z('major'));
     expect(z('out')).toBeGreaterThan(z('lead'));
+  });
+
+  it('draws a clocked cell as a span from its turn up to its step; a voice and a mix as a point', () => {
+    const program = compileSource(SONG);
+    const model = buildGraph(program);
+    const spans = towerSpans(program, model);
+    const span = (name: string) => spans.get(`cell:${name}`)!;
+    // (&tune: a step a beat, four steps round)
+    expect(10 ** span('tune').at).toBeCloseTo(100 / 60, 3);
+    expect(10 ** span('tune').lo).toBeCloseTo(100 / 60 / 4, 3);
+    expect(span('lead').lo).toBe(span('lead').at);
+    expect(span('tunePart').lo).toBe(span('tunePart').at);
+    expect(span('major')).toEqual({ at: -Infinity, lo: -Infinity });
+    expect(span('out')).toEqual({ at: Infinity, lo: Infinity });
   });
 });

@@ -74,13 +74,15 @@ Re-measured on main after taps on their table ([decision 016](../decisions/016-a
 
 ## The tower drawn (2026-10-10)
 
-The owner's choice after the re-measure: **the tower as a drawn axis**, today's layout kept. A probe, off by default: `src/ui/TowerAxis.svelte`, `?tower=all|ticks|tint` (`towerCell=` names the one whose line is drawn; the gallery: `TOWER=ticks TOWER_CELL=tune node tools/gallery.mjs golden 3 pop`). Each node is a span from its turn to its step (`towerSpans`, `layout/tower.ts`), a voice at its pitch in its colour, a mix just above what it carries.
+The owner's choice after the re-measure: **the tower as a drawn axis**, today's layout kept. Mocked first as three variants of `src/ui/TowerAxis.svelte` on the real Graph. Each node is a span from its turn to its step (`towerSpans`, `layout/tower.ts`), a voice at its pitch in its colour, a mix just above what it carries.
 
 ![the three options on Pop](tower-axis-options.jpg)
 
 - **A**: the axis at the right edge, zones marked, every node's line to its mark: the whole picture at once, and a web of lines over the graph.
 - **B**: the axis with the marks only, a line for the cell that is selected: quiet; the axis reads as a ruler of the piece's time scales.
 - **C**: no axis, each node ringed in its zone's colour: no lines at all, but four colours to learn and no scale.
+
+**Chosen: B** (2026-10-10), built as the graph's *tower* button ([graph.md](../ui/graph.md)); A and C were dropped. The gallery opens it with `TOWER=1` (`TOWER_CELL=tune`: its line, as if selected).
 
 Seen on the way: a table of taps (`&parts`) sits at the constant, though its selector moves it: it has no clock of its own.
 

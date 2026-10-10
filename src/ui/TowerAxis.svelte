@@ -2,9 +2,9 @@
   /**
    * The frequency tower drawn beside the graph (docs/notes/multiscale.md: the picture; lead 2): a logarithmic axis of time
    * at the graph's right edge, its zones marked (the constant, the slow, the pulse, the audible, the sound card), each
-   * node a mark at its height (a bar from its turn to its step), and lines from the nodes to their marks. The layout is
-   * today's: height in the graph means nothing here, the axis says it. A probe: `?tower=all` (every node's line),
-   * `?tower=ticks` (the marks only, a line for `towerCell=`), `?tower=tint` (no axis: each node ringed in its zone's colour).
+   * node a mark at its height (a bar from its turn to its step), and a line from the cell selected to its mark. The
+   * layout is today's (docs/notes/tower-rows.md: rows by the tower cost crossings): height in the graph means nothing
+   * here, the axis says it.
    */
   import { useStore } from '@xyflow/svelte';
   import type { CompileResult } from '../engine/program';
@@ -14,7 +14,7 @@
   import { noteColour } from './theme';
   import type { FlowNode } from './types';
 
-  let { model, program, nodes, mode, focus }: { model: GraphModel; program: CompileResult; nodes: readonly FlowNode[]; mode: string; focus: string | null } = $props();
+  let { model, program, nodes, focus }: { model: GraphModel; program: CompileResult; nodes: readonly FlowNode[]; focus: string | null } = $props();
 
   const store = useStore();
   let w = $state(0);
@@ -94,7 +94,6 @@
           lo: yOf(s.lo),
           colour: colourOf(n.id, s.at),
           lane: lanes.get(n.id) ?? 0,
-          zone: zoneOf(s.at),
         },
       ];
     });
@@ -118,50 +117,30 @@
 <div class="tower" bind:clientWidth={w} bind:clientHeight={h}>
   {#if w && h}
     <svg width={w} height={h} aria-hidden="true">
-      {#if mode === 'tint'}
-        {#each marks as m (m.id)}
-          <circle
-            cx={m.x}
-            cy={m.y}
-            r={m.r + 6}
-            fill="none"
-            stroke={m.zone === 'constant' ? 'var(--text-faint)' : m.zone === 'card' ? 'var(--text)' : zoneColour(m.zone)}
-            stroke-width="4"
-            opacity="0.7"
-          />
-        {/each}
-        <g class="key" transform="translate({w - 150} {top})">
-          {#each ['card', 'audible', 'pulse', 'slow', 'constant'] as z, i (z)}
-            <circle cx="8" cy={i * 20} r="6" fill="none" stroke-width="3" stroke={z === 'constant' ? 'var(--text-faint)' : z === 'card' ? 'var(--text)' : zoneColour(z)} />
-            <text x="22" y={i * 20 + 4}>{z}</text>
-          {/each}
-        </g>
-      {:else}
-        <!-- leaders: every node's (all), or the one in focus -->
-        {#each marks as m (m.id)}
-          {#if mode === 'all' || m.id === focusId}
-            <line class="leader" class:focus={m.id === focusId} x1={m.x + m.r} y1={m.y} x2={x0 + 12 + m.lane * 7} y2={m.at} stroke={m.colour} />
-          {/if}
-        {/each}
-        <rect class="strip" x={x0} y={top - 34} width={AXIS} height={bottom - top + 68} rx="8" />
-        {#each zones as z (z.name)}
-          <rect x={x0 + 4} y={z.y0} width="6" height={z.y1 - z.y0} fill={z.colour} opacity="0.8" />
-          <text class="zone" transform="translate({x0 - 4} {(z.y0 + z.y1) / 2}) rotate(-90)" fill={z.colour}>{z.name}</text>
-        {/each}
-        {#each decades as d (d)}
-          <line class="tick" x1={x0 + 4} x2={x0 + AXIS - 4} y1={yOf(d)} y2={yOf(d)} />
-          <text class="decade" x={x0 + AXIS - 6} y={yOf(d) - 3}>{label(d)}</text>
-        {/each}
-        <text class="cap" x={x0 + AXIS / 2} y={top - 18}>sound card</text>
-        <text class="cap" x={x0 + AXIS / 2} y={bottom + 30}>constant</text>
-        {#each marks as m (m.id)}
-          {#if m.lo !== m.at}<line class="span" x1={x0 + 12 + m.lane * 7} x2={x0 + 12 + m.lane * 7} y1={m.lo} y2={m.at} stroke={m.colour} />{/if}
-          <circle cx={x0 + 12 + m.lane * 7} cy={m.at} r={m.id === focusId ? 4.5 : 3} fill={m.colour} />
-          {#if named.has(m.id) || m.id === focusId}
-            <text class="name" class:focus={m.id === focusId} x={x0 - 20} y={m.at + 4}>{m.name}</text>
-          {/if}
-        {/each}
-      {/if}
+      <!-- the line from the cell selected to its mark -->
+      {#each marks as m (m.id)}
+        {#if m.id === focusId}
+          <line class="leader" x1={m.x + m.r} y1={m.y} x2={x0 + 12 + m.lane * 7} y2={m.at} stroke={m.colour} />
+        {/if}
+      {/each}
+      <rect class="strip" x={x0} y={top - 34} width={AXIS} height={bottom - top + 68} rx="8" />
+      {#each zones as z (z.name)}
+        <rect x={x0 + 4} y={z.y0} width="6" height={z.y1 - z.y0} fill={z.colour} opacity="0.8" />
+        <text class="zone" transform="translate({x0 - 4} {(z.y0 + z.y1) / 2}) rotate(-90)" fill={z.colour}>{z.name}</text>
+      {/each}
+      {#each decades as d (d)}
+        <line class="tick" x1={x0 + 4} x2={x0 + AXIS - 4} y1={yOf(d)} y2={yOf(d)} />
+        <text class="decade" x={x0 + AXIS - 6} y={yOf(d) - 3}>{label(d)}</text>
+      {/each}
+      <text class="cap" x={x0 + AXIS / 2} y={top - 18}>sound card</text>
+      <text class="cap" x={x0 + AXIS / 2} y={bottom + 30}>constant</text>
+      {#each marks as m (m.id)}
+        {#if m.lo !== m.at}<line class="span" x1={x0 + 12 + m.lane * 7} x2={x0 + 12 + m.lane * 7} y1={m.lo} y2={m.at} stroke={m.colour} />{/if}
+        <circle cx={x0 + 12 + m.lane * 7} cy={m.at} r={m.id === focusId ? 4.5 : 3} fill={m.colour} />
+        {#if named.has(m.id) || m.id === focusId}
+          <text class="name" class:focus={m.id === focusId} x={x0 - 20} y={m.at + 4}>{m.name}</text>
+        {/if}
+      {/each}
     </svg>
   {/if}
 </div>
@@ -210,20 +189,12 @@
     font-weight: 700;
   }
   .leader {
-    stroke-width: 1;
-    opacity: 0.28;
-    stroke-dasharray: 3 4;
-  }
-  .leader.focus {
     stroke-width: 2;
     opacity: 0.9;
+    stroke-dasharray: 3 4;
   }
   .span {
     stroke-width: 2;
     opacity: 0.55;
-  }
-  .key text {
-    fill: var(--text-muted);
-    font-size: 12px;
   }
 </style>

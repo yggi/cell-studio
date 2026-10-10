@@ -31,10 +31,9 @@
   import TowerAxis from './TowerAxis.svelte';
 
   // each example's rows' order, chosen when the app was built (tools/examples-index.ts), by its graph's shape
-  // (a probe: the frequency tower drawn beside the graph, ?tower=all|ticks|tint, TowerAxis.svelte)
-  const TOWER = typeof location !== 'undefined' ? new URLSearchParams(location.search) : null;
-  const towerMode = TOWER?.get('tower') ?? null;
-  const towerCell = TOWER?.get('towerCell') ?? null;
+  // (?tower: the tower open from the start, ?towerCell=tune its line, as if selected: the gallery's pictures)
+  const QUERY = typeof location !== 'undefined' ? new URLSearchParams(location.search) : null;
+  const towerCell = QUERY?.get('towerCell') ?? null;
 
   const EXAMPLE_ROWS = new Map(EXAMPLES.map((e) => [e.rows.key, e.rows.order]));
 
@@ -195,6 +194,8 @@
 
   let forcesOpen = $state(false);
   let legendOpen = $state(false);
+  // the frequency tower beside the graph (TowerAxis.svelte)
+  let towerOpen = $state(QUERY?.has('tower') ?? false);
 
   // clusters: the tags cells carry inside the piece (not the card's) — where their members are, now
   const clusters = $derived.by(() => {
@@ -284,8 +285,8 @@
     <Background gap={28} size={1.5} />
     <Controls showLock={false} />
     <FitView token={layout.fitToken} />
-    {#if towerMode}
-      <TowerAxis model={shown.model} program={shown.program} nodes={layout.nodes} mode={towerMode} focus={selectedName ?? towerCell} />
+    {#if towerOpen}
+      <TowerAxis model={shown.model} program={shown.program} nodes={layout.nodes} focus={selectedName ?? towerCell} />
     {/if}
     <!-- clusters: cells tagged alike inside the piece (tags=), washed and named behind their members -->
     <ViewportPortal target="back">
@@ -299,6 +300,13 @@
     <button class="add-cell" onclick={onadd} title="Add a cell (blank: the chromatic default)">+ cell</button>
     <button class="forces-toggle" class:on={forcesOpen} onclick={() => (forcesOpen = !forcesOpen)} aria-pressed={forcesOpen} title="Layout forces">forces</button>
     <button class="forces-toggle" class:on={legendOpen} onclick={() => (legendOpen = !legendOpen)} aria-pressed={legendOpen} title="What the colours and values mean">legend</button
+    >
+    <button
+      class="forces-toggle"
+      class:on={towerOpen}
+      onclick={() => (towerOpen = !towerOpen)}
+      aria-pressed={towerOpen}
+      title="Each cell's time scale, from the constant to the audible">tower</button
     >
   </div>
   {#if legendOpen}

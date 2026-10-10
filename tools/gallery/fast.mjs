@@ -38,7 +38,7 @@ if (process.env.STOPPED) q.set('stopped', '');
 if (process.env.ROWS) q.set('rows', process.env.ROWS);
 // (OUTPUTS=top: the outputs-top probe, src/ui/outputs.ts)
 if (process.env.OUTPUTS) q.set('outputs', process.env.OUTPUTS);
-// (TOWER=all|ticks|tint: the frequency tower drawn beside the graph, a probe: src/ui/TowerAxis.svelte; TOWER_CELL=song: its leader)
+// (TOWER=1: the frequency tower open beside the graph, src/ui/TowerAxis.svelte; TOWER_CELL=tune: its line, as if selected)
 if (process.env.TOWER) q.set('tower', process.env.TOWER);
 if (process.env.TOWER_CELL) q.set('towerCell', process.env.TOWER_CELL);
 // (golden: CELLS=piece.cells draws that source instead, in the real Graph)
