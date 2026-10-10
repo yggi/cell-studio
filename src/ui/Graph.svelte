@@ -18,7 +18,6 @@
   import PulseEdge from './PulseEdge.svelte';
   import MeterEdge from './MeterEdge.svelte';
   import MaterialNode from './MaterialNode.svelte';
-  import ScopeNode from './ScopeNode.svelte';
   import PluginNode from './PluginNode.svelte';
   import GraphLegend from './GraphLegend.svelte';
   import BeltEdge from './BeltEdge.svelte';
@@ -27,6 +26,10 @@
   import type { TransportState } from '../audio/transport';
   import { clusterDisc } from '../layout/clusters';
   import { EXAMPLES } from '../examples';
+  import Margin, { MARGIN_WIDTH } from './Margin.svelte';
+  import { isSide, sideEntries } from '../layout/side';
+  import { channelColour } from './theme';
+  import type { SideMark } from './context';
 
   // each example's rows' order, chosen when the app was built (tools/examples-index.ts), by its graph's shape
   const EXAMPLE_ROWS = new Map(EXAMPLES.map((e) => [e.rows.key, e.rows.order]));
@@ -197,9 +200,37 @@
     get rows() {
       return rows;
     },
+    // (only while the margin is open: a mark with no margin to read it in is noise)
+    marksOf: (name) => (hasMargin ? (marks.get(name) ?? []) : []),
+    get sideLit() {
+      // (the entry pointed at in the margin, else a note or scope whose sheet is open)
+      return sideLit ?? (selected && shown.model.nodes.some((n) => n.id === selected && isSide(n)) ? selected : null);
+    },
   });
 
-  const nodeTypes = { cell: CellNode, voice: VoiceNode, material: MaterialNode, scope: ScopeNode, plugin: PluginNode, junction: JunctionNode } as NodeTypes;
+  // the margin (layout/side.ts): what each cell wears for the notes and scopes about it
+  const marks = $derived.by(() => {
+    const out = new Map<string, SideMark[]>();
+    for (const e of sideEntries(shown.model)) {
+      const chans = (shown.program.cells.get(e.name)?.units ?? []).flatMap((u) => (u.atom.kind === 'ref' ? [u.atom.name] : []));
+      for (const id of e.about) {
+        const name = id.slice('cell:'.length);
+        const k = chans.indexOf(name);
+        (out.get(name) ?? out.set(name, []).get(name)!).push(e.kind === 'note' ? { entry: e.id, mark: e.mark } : { entry: e.id, mark: 0, colour: channelColour(Math.max(0, k)) });
+      }
+    }
+    return out;
+  });
+  const hasSide = $derived(shown.model.nodes.some(isSide));
+  // (a tap away, as the tower is: closed by default at every width, so the graph keeps its room; ?margin opens it, for
+  // the gallery's pictures)
+  let marginOpen = $state(typeof location !== 'undefined' && new URLSearchParams(location.search).has('margin'));
+  const hasMargin = $derived(hasSide && marginOpen);
+  // (framed again when the margin opens or closes)
+  let sideFits = $state(0);
+  let sideLit = $state<string | null>(null);
+
+  const nodeTypes = { cell: CellNode, voice: VoiceNode, material: MaterialNode, plugin: PluginNode, junction: JunctionNode } as NodeTypes;
   const edgeTypes = { pulse: PulseEdge, belt: BeltEdge, meter: MeterEdge };
 
   let legendOpen = $state(false);
@@ -261,49 +292,62 @@
   });
 </script>
 
-<div class="graph">
-  <SvelteFlow
-    bind:nodes={layout.nodes}
-    bind:edges={layout.edges}
-    {nodeTypes}
-    {edgeTypes}
-    nodeOrigin={[0.5, 0.5]}
-    nodesConnectable={false}
-    elementsSelectable={false}
-    onbeforedelete={async () => false}
-    colorMode="dark"
-    minZoom={0.15}
-    maxZoom={2.5}
-    onnodedragstart={({ targetNode }) => {
-      if (targetNode) layout.dragStart(targetNode.id, targetNode.position.x, targetNode.position.y);
-    }}
-    onnodedrag={({ targetNode }) => {
-      if (targetNode) layout.drag(targetNode.id, targetNode.position.x, targetNode.position.y);
-    }}
-    onnodedragstop={({ targetNode }) => {
-      if (targetNode) layout.dragEnd(targetNode.id);
-    }}
-    nodeClickDistance={6}
-    onnodeclick={({ node, event }) => {
-      // (a product's junction is not a cell: nothing to open; a bulb on a wheel is the cell it splices)
-      if (node.type !== 'junction') selected = bulbAt(event.target) ?? node.id;
-    }}
-  >
-    <Background gap={28} size={1.5} />
-    <Controls showLock={false} />
-    <FitView token={layout.fitToken} />
-    <!-- clusters: cells tagged alike inside the piece (tags=), washed and named behind their members -->
-    <ViewportPortal target="back">
-      {#each clusters as c (c.tag)}
-        <div class="cluster" style:left="{c.x}px" style:top="{c.y}px" style:width="{c.r * 2}px" style:height="{c.r * 2}px" style:--hue={c.colour}></div>
-        <div class="cluster-name" style:left="{c.nx}px" style:top="{c.ny}px" style:--hue={c.colour}>{c.tag}</div>
-      {/each}
-    </ViewportPortal>
-  </SvelteFlow>
+<div class="graph" class:margined={hasMargin} style:--margin-width="{MARGIN_WIDTH}px">
+  {#if hasMargin}<Margin model={shown.model} heightOf={(id) => layout.position(id)?.y} settled={layout.fitToken} onlight={(id) => (sideLit = id)} />{/if}
+  <div class="flow">
+    <SvelteFlow
+      bind:nodes={layout.nodes}
+      bind:edges={layout.edges}
+      {nodeTypes}
+      {edgeTypes}
+      nodeOrigin={[0.5, 0.5]}
+      nodesConnectable={false}
+      elementsSelectable={false}
+      onbeforedelete={async () => false}
+      colorMode="dark"
+      minZoom={0.15}
+      maxZoom={2.5}
+      onnodedragstart={({ targetNode }) => {
+        if (targetNode) layout.dragStart(targetNode.id, targetNode.position.x, targetNode.position.y);
+      }}
+      onnodedrag={({ targetNode }) => {
+        if (targetNode) layout.drag(targetNode.id, targetNode.position.x, targetNode.position.y);
+      }}
+      onnodedragstop={({ targetNode }) => {
+        if (targetNode) layout.dragEnd(targetNode.id);
+      }}
+      nodeClickDistance={6}
+      onnodeclick={({ node, event }) => {
+        // (a product's junction is not a cell: nothing to open; a bulb on a wheel is the cell it splices)
+        if (node.type !== 'junction') selected = bulbAt(event.target) ?? node.id;
+      }}
+    >
+      <Background gap={28} size={1.5} />
+      <Controls showLock={false} />
+      <FitView token={layout.fitToken + sideFits} />
+      <!-- clusters: cells tagged alike inside the piece (tags=), washed and named behind their members -->
+      <ViewportPortal target="back">
+        {#each clusters as c (c.tag)}
+          <div class="cluster" style:left="{c.x}px" style:top="{c.y}px" style:width="{c.r * 2}px" style:height="{c.r * 2}px" style:--hue={c.colour}></div>
+          <div class="cluster-name" style:left="{c.nx}px" style:top="{c.ny}px" style:--hue={c.colour}>{c.tag}</div>
+        {/each}
+      </ViewportPortal>
+    </SvelteFlow>
+  </div>
   <div class="toolbar">
     <button class="add-cell" onclick={onadd} title="Add a cell (blank: the chromatic default)">+ cell</button>
     <button class="forces-toggle" class:on={legendOpen} onclick={() => (legendOpen = !legendOpen)} aria-pressed={legendOpen} title="What the colours and values mean">legend</button
     >
+    {#if hasSide}<button
+        class="forces-toggle"
+        class:on={marginOpen}
+        onclick={() => {
+          marginOpen = !marginOpen;
+          sideFits++;
+        }}
+        aria-pressed={marginOpen}
+        title="The piece's notes and scopes, beside the graph">notes</button
+      >{/if}
   </div>
   {#if legendOpen}
     <div class="legend-wrap"><GraphLegend program={shown.program} shifts={shown.shifts} {source} /></div>
@@ -335,6 +379,17 @@
     position: relative;
     width: 100%;
     height: 100%;
+  }
+  .flow {
+    position: absolute;
+    inset: 0;
+  }
+  /* (the margin takes its column beside the graph: layout/side.ts) */
+  .graph.margined .flow {
+    left: var(--margin-width);
+  }
+  .graph.margined .hint {
+    left: calc(var(--margin-width) + 56px);
   }
   .hint {
     position: absolute;
