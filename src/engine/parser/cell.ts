@@ -463,6 +463,11 @@ export function parseBody(s: LineScanner, head: Ref): CellDecl {
   }
 
   const braid: Braid = generator ?? (tokens.length ? { kind: 'list', tokens } : { kind: 'blank' });
+  // (gain= is a gate's level, on the line of a gate (trigger=) only; anywhere else it is dough's, retired)
+  if ('gain' in b.params && !('trigger' in b.params)) {
+    const at = b.paramSpans.gain;
+    s.fail(RETIRED_PARAMS.gain, at ? at.col - 1 : 0, 4);
+  }
   if (fifthsShift !== null && fifthsShift !== 0) {
     if (b.shift !== null) s.fail('fifths(n) turns it already: write fifths() and shift=, or fifths(n) alone');
     b.shift = fifthsShift;
