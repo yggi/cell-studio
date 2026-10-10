@@ -27,8 +27,9 @@ function plain(x: unknown): unknown {
 }
 /**
  * The notes of a piece apart from how its tables spell them: voice, onset, length and pitch. `events` also holds each
- * note's table index and value, which respelling a piece (another table, an octave written another way) may change
- * without changing a sound, so a change in `events` alone needs a look, and one in `notes` is a change in what plays.
+ * note's table index and value (which respelling a piece may change without changing a sound), and its level, pan,
+ * bend, parameters and envelope (which are audible): a change in `events` alone needs a look, one in `notes` is a
+ * change in what plays.
  */
 const notesOf = (events: ReturnType<typeof eventsBetween>) => events.map((e) => [e.voice, e.at, e.dur, e.freq]);
 const hash = (x: unknown) =>

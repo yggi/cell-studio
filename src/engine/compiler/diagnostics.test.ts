@@ -52,8 +52,15 @@ describe('a degree or a shift that leaves hearing', () => {
   it('degree(&m, 1000000000) says its notes are dropped', () => {
     const d = diags('&bar step=1\n&m step=&bar 0 2\n&t step=&bar degree(&m, 1000000000)\n&v s=sine\n&out map=sample [&t * &v]');
     expect(d).toEqual([
-      expect.objectContaining({ severity: 'warning', line: 3, message: expect.stringMatching(/degree\(&m, 1000000000\) moves it 1,000,000,000 steps: .*above 20 kHz/) }),
+      expect.objectContaining({
+        severity: 'warning',
+        line: 3,
+        message: expect.stringMatching(/degree\(&m, 1000000000\) moves it 1,000,000,000 steps, over a hundred octaves: .*above 20 kHz/),
+      }),
     ]);
+  });
+  it('a large grid has more steps to an octave: 1500 steps of a 1200 step grid is quiet', () => {
+    expect(messages('&e cycle=1200 map=edo\n&bar step=1\n&m step=&bar 0 2\n&t over=&e step=&bar degree(&m, 1500)\n&v s=sine\n&out map=sample [&t * &v]')).toEqual([]);
   });
   it('an ordinary degree is quiet', () => {
     expect(messages('&bar step=1\n&m step=&bar 0 2\n&t step=&bar degree(&m, -7)\n&v s=sine\n&out map=sample [&t * &v]')).toEqual([]);

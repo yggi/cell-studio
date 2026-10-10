@@ -139,15 +139,17 @@ export function checkCells(ctx: Ctx, decls: ReadonlyMap<string, CellDecl>, cells
     if (![...cells.values()].some((c) => c.step?.driver === tap || Object.values(c.paramClocks).some((p) => p.driver === tap)))
       warn(`&${tap} is a tap of &${table}, but nothing is stepped by it: step=&${tap} on what it should play (or a name mistyped)`, decls.get(tap)!.span);
   // a degree or a shift that carries notes out of hearing: they are dropped (above 20 kHz), or climb a lap of the grid for every turn
+  // (the limit counts grid steps, so it grows with the biggest grid's cycle: a 1200 step grid has far more steps to an octave)
+  const farDegrees = Math.max(12, ...[...cells.values()].filter((c) => c.root).map((c) => c.cycle)) * FAR_OCTAVES;
   for (const c of cells.values()) {
     const d = decls.get(c.name);
     if (!d || c.implicit) continue;
     const toks = d.braid.kind === 'list' ? d.braid.tokens : [];
     c.units.forEach((u, i) => {
       const a = u.atom;
-      if (a.kind !== 'ref' || !a.values || Math.abs(a.values.add) <= FAR_DEGREES) return;
+      if (a.kind !== 'ref' || !a.values || Math.abs(a.values.add) <= farDegrees) return;
       warn(
-        `degree(&${a.name}, ${a.values.add}) moves it ${Math.abs(a.values.add).toLocaleString('en')} steps: its notes land above 20 kHz and are dropped, nothing plays`,
+        `degree(&${a.name}, ${a.values.add}) moves it ${Math.abs(a.values.add).toLocaleString('en')} steps, over a hundred octaves: ${a.values.add > 0 ? 'its notes land above 20 kHz and are dropped' : 'its notes fall below hearing'}, nothing plays`,
         toks[i]?.span ?? c.span,
       );
     });
@@ -160,7 +162,7 @@ export function checkCells(ctx: Ctx, decls: ReadonlyMap<string, CellDecl>, cells
   }
 }
 
-/** A degree this far moves a note over a hundred octaves of the 12 tone grid: out of hearing for any voice. */
-const FAR_DEGREES = 1200;
+/** A degree this many octaves of the grid (its cycle a time) moves a note out of hearing for any voice. */
+const FAR_OCTAVES = 100;
 /** A shift past this many laps of its braid climbs past twenty octaves. */
 const FAR_LAPS = 20;
