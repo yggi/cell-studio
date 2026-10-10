@@ -22,4 +22,4 @@
 
 &leadOut trigger=&tune velocity=&accent gate=&duck gain=.4 &lead &bell
 &drumOut trigger=&beat gain=.5 &kit
-&out map=sample level=6 [&leadOut, &drumOut, &roots * &bass * .5]
+&out map=sample level=0 [&leadOut, &drumOut, &roots * &bass * .5]
