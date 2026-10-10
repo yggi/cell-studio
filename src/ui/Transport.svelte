@@ -6,6 +6,7 @@
    * tempo of the meter that drives it (its free() value, as in the graph). Record (●, for a piece with a braid left
    * free) takes a pass of the armed cell from the keys (state/record.svelte.ts).
    */
+  import MidiLight from './MidiLight.svelte';
   import { getStudio } from './state/studio.svelte';
 
   let {
@@ -15,7 +16,13 @@
     path?: Snippet;
   } = $props();
 
-  const { piece, playback, view, recorder } = getStudio();
+  const { piece, playback, view, recorder, midi } = getStudio();
+  const midiName = $derived(
+    midi.access && (midi.inPortId !== 'none' || midi.outPortId !== 'none')
+      ? `MIDI: ${[midi.inPortId !== 'none' ? 'in' : '', midi.outPortId !== 'none' ? 'out' : ''].filter(Boolean).join(', ')}`
+      : 'MIDI: not connected',
+  );
+  const midiLive = $derived(!!midi.access && (midi.outPortId !== 'none' || midi.inPortId !== 'none'));
   const title = $derived(piece.title);
   const playing = $derived(playback.playing);
   const starting = $derived(playback.starting);
@@ -29,7 +36,7 @@
   const resettable = $derived(playback.resettable);
   /** free() values moved by hand: revert or save them. */
   const held = $derived(piece.held.size > 0);
-  const menuOpen = $derived(view.panelOpen);
+  const menuOpen = $derived(view.panelOpen && view.panel === 'controls');
   const onchoose = () => (view.tab = 'select');
   const onplay = () => playback.toggle();
   const onrecord = () => recorder.record();
@@ -40,12 +47,12 @@
         ? 'Waiting for the pass to begin: press to call it off'
         : recorder.target
           ? `Record: play a pass of &${recorder.target.cell} on the keys; it is held until Save`
-          : 'Record: arm a cell whose braid is free(…) (its sheet, or Play with in the MIDI dialog)',
+          : 'Record: arm a cell whose braid is free(…) (its sheet, or Play with in the MIDI page)',
   );
   const onstop = () => playback.stop();
   const onrevert = () => piece.revert();
   const onsave = () => piece.keep();
-  const onmenu = () => (view.panelOpen = !view.panelOpen);
+  const onmenu = () => view.togglePanel('controls');
   const onseek = (t: number) => playback.seek(t);
   const ontempo = (v: number) => piece.mainMeter && piece.hold(piece.mainMeter.free, v);
 
@@ -102,6 +109,14 @@
         {#if current}<span class="where">{current.label}</span>{/if}
       </span>
     </span>
+    <button
+      class="unstyled burger midi"
+      class:live={midiLive}
+      onclick={() => view.togglePanel('midi')}
+      aria-expanded={view.panelOpen && view.panel === 'midi'}
+      aria-label={midiName}
+      title={midiName}>MIDI<MidiLight /></button
+    >
     {#if onmenu}<button class="unstyled burger" onclick={onmenu} aria-expanded={menuOpen} aria-label="Controls" title="The piece's controls">☰</button>{/if}
   </div>
   <div class="lower">
@@ -441,6 +456,17 @@
     margin-left: auto;
     font-size: 16px;
     padding: 2px 10px;
+  }
+  .burger.midi {
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+  .burger.midi.live {
+    color: var(--text);
+    border-color: var(--meter-1);
+  }
+  .burger.midi + .burger {
+    margin-left: 6px;
   }
   .heldslot button:focus-visible,
   .burger:focus-visible {

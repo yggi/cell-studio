@@ -8,6 +8,7 @@ import { buildGraph } from '../src/engine/graph';
 import { ORDER, type PresetKey } from '../src/engine/order';
 import { pieceMeta } from '../src/engine/parser';
 import { miniature, type Miniature } from '../src/layout/miniature';
+import { isSide } from '../src/layout/side';
 import { bestRowOrder } from '../src/layout/physics';
 import { rowsKey } from '../src/layout/start';
 import { canonicalTags } from '../src/engine/tags';
@@ -47,7 +48,7 @@ export function buildExamplesMeta(dir = 'examples'): (ExampleMeta & { source: st
       description: m?.description ?? '',
       tags: canonicalTags(m?.tags ?? []),
       tier: m?.tier ?? null,
-      size: graph.nodes.filter((n) => !n.petalOf && n.cell && !n.cell.note).length,
+      size: graph.nodes.filter((n) => !n.petalOf && n.cell && !isSide(n)).length,
       time: pieceTime(r),
       bytes: Buffer.byteLength(source),
       source,

@@ -3,7 +3,8 @@
    * Edge mock-ups (docs/notes/edge-styles.md): the open questions of how an edge is drawn, each option a row, plain SVG
    * on the app's theme (not the real components: these are what they could become). `node tools/gallery.mjs edge-mockups`.
    */
-  import { ripplePath, splinePoint } from '../../../src/layout/geometry';
+  import { splinePoint } from '../../../src/layout/geometry';
+  import { rippled } from '../../../src/layout/wire';
   import { noteColour } from '../../../src/ui/theme';
   import { palette } from '../../../src/ui/palette';
   import { offset, sampleQuad, SPEED, toPath, wavelength, wavePath, type Shape } from './proto';
@@ -110,11 +111,7 @@
         <div class="row">
           {#each SOUNDS as s (s.label)}
             {@const d =
-              row.id === 'a'
-                ? ripplePath(A.x, A.y, M.x, M.y, B.x, B.y)
-                : s.hz === null
-                  ? wavePath(A, M, B, 1, 14)
-                  : wavePath(A, M, B, AMP(s.loud), wavelength(s.hz), row.id === 'c' ? s.shape : 'sine')}
+              row.id === 'a' ? rippled(spline) : s.hz === null ? wavePath(A, M, B, 1, 14) : wavePath(A, M, B, AMP(s.loud), wavelength(s.hz), row.id === 'c' ? s.shape : 'sine')}
             <div class="cell">
               <svg width="300" height="100">
                 {@render ends()}

@@ -2,7 +2,7 @@
  * The forces of the layout beyond d3's own (link, charge, collide, x, y), each a step of one tick on the layout's
  * state: crossing edges pushed apart (forceUncross), bent edges straightened and kept off wheels (stepBends), the
  * edges at a node spread round it (stepSpread), time and sound apart (stepKinds), tagged cells in clusters
- * (stepClusters), a note drawn to what it explains (stepAbout), nothing on a turntable (stepExclusion). The tapes'
+ * (stepClusters), nothing on a turntable (stepExclusion). The tapes'
  * aims are aims.ts; the nets' springs nets.ts.
  */
 import { segmentsCross, splinePoint } from './geometry';
@@ -149,25 +149,6 @@ export function stepSpread(s: LayoutState, alpha: number): void {
       q.n.vx = (q.n.vx ?? 0) - Math.sin(q.a) * push;
       q.n.vy = (q.n.vy ?? 0) + Math.cos(q.a) * push;
     }
-  }
-}
-
-/** A note is drawn towards the cells it explains, to a short distance from them: they feel nothing, so a note can't pull the music's layout about. */
-export function stepAbout(s: LayoutState, alpha: number): void {
-  const byNote = new Map<PhysNode, PhysNode[]>();
-  for (const { note, cell } of s.explains) (byNote.get(note) ?? byNote.set(note, []).get(note)!).push(cell);
-  for (const [note, cells] of byNote) {
-    const cx = cells.reduce((s, c) => s + (c.x ?? 0), 0) / cells.length;
-    const cy = cells.reduce((s, c) => s + (c.y ?? 0), 0) / cells.length;
-    const dx = cx - (note.x ?? 0);
-    const dy = cy - (note.y ?? 0);
-    const d = Math.hypot(dx, dy) || 1;
-    // (at rest just clear of what it explains: touching, they'd push each other about)
-    const rest = note.radius + Math.max(...cells.map((c) => c.radius)) + s.opts.collidePad + 20;
-    if (d <= rest) continue;
-    const k = (0.3 * alpha * (d - rest)) / d;
-    note.vx = (note.vx ?? 0) + dx * k;
-    note.vy = (note.vy ?? 0) + dy * k;
   }
 }
 

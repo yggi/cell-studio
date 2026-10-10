@@ -2,7 +2,7 @@
   /**
    * The dock of on-screen keys and drum pads (#255), along the bottom (a third of the height on a phone): *Keys* plays
    * the armed cell, *Pads* the piece's kit on channel 10, both through `studio.keys` (the path MIDI in and the computer
-   * keys take; nothing new sounds). The armed cell's name sits on it, and choosing another there is the MIDI dialog's
+   * keys take; nothing new sounds). The armed cell's name sits on it, and choosing another there is the MIDI page's
    * *Play with*. The keys shift by octaves; velocity from where a key is struck or fixed; a sustain button is the
    * pedal. Open or not, and its tab, are kept in this browser (`state/dock.svelte.ts`). Mounted only while open: closed,
    * it costs nothing.
@@ -38,7 +38,7 @@
 
 <section class="dock" aria-label="Keys and pads">
   <div class="bar">
-    <label class="armed" title="The cell the keys play (as Play with in the MIDI dialog)">
+    <label class="armed" title="The cell the keys play (as Play with in the MIDI page)">
       <span class="name">{keys.armed ? `&${keys.armed}` : 'Nothing to play'}</span><span aria-hidden="true">▾</span>
       <select aria-label="Play with" value={keys.chosen} onchange={(e) => (keys.chosen = e.currentTarget.value)}>
         <option value="">The open sheet{keys.armed && !keys.chosen ? ` (now &${keys.armed})` : ''}</option>
