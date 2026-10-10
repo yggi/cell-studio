@@ -16,6 +16,7 @@ It fails on a page error.
 | `edges` | every kind of edge in every state, on bare nodes | fast |
 | `golden` | one graph with a value of every kind of wheel and edge, in the real Graph, stopped and live | fast |
 | `mockups` | design questions, options side by side (`tools/gallery/wheels/Mockups.svelte`) | fast |
+| `roll` | a cell's piano roll (`src/ui/PianoRoll.svelte`) at a phone's width: blank, a scale, semitones, 19-EDO, chords and holds, a kit, playing (playhead, ghosts, a key held), not editable | fast |
 | `graphs` | every example's graph as the library's miniature draws it, with its numbers from the layout's baseline (`tools/graphs.mjs`; `OUT` default `shots/graphs/`) | fast |
 
 A piece in the built app, playing: `tools/shots.mjs` (not part of the gallery yet).

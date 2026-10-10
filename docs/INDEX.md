@@ -30,6 +30,7 @@ The full hierarchy of `docs/`. Start with [MEMORY.md](MEMORY.md).
 - [ui/library.md](ui/library.md) — the picker and the library graph
 - [ui/graph.md](ui/graph.md) — drawing, arrangement, touch
 - [ui/editor.md](ui/editor.md) — editing in the graph and the code editor
+- [ui/roll.md](ui/roll.md) — a braid cell's piano roll: its steps across, its table's rows up
 - [ui/shorten.md](ui/shorten.md) — Shorten and its promise
 - [ui/transport.md](ui/transport.md) — play, seek, sections, render
 - [ui/midi.md](ui/midi.md) — MIDI ports, the settings kept, reconnects, All notes off

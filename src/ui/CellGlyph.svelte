@@ -177,6 +177,8 @@
   const units = $derived.by(() => {
     if (!tokens?.length || (view.mode !== 'braid' && view.mode !== 'grid')) return [];
     const n = tokens.length;
+    // (the text can be a step ahead of the compiled program: wait for it, or two steps would share a token)
+    if (n !== ctx.program.cells.get(name)?.units.length) return [];
     const spans = new Map<number, { t0: number; t1: number }>();
     for (const sg of view.segments) {
       const sp = spans.get(sg.index);
