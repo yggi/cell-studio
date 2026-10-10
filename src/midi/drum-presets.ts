@@ -28,3 +28,14 @@ export function presetNameOf(map: DrumMap): string {
   }
   return 'Custom';
 }
+
+/**
+ * The General MIDI drum notes a device's note stands for under a map, the other way round from `deviceNote`: every
+ * note the map sends as it, in order (a Circuit's 62 is the rim, the snare, the clap and the toms). A note the device
+ * sends that nothing is mapped onto, and that isn't itself mapped elsewhere, is General MIDI already.
+ */
+export function gmNotesFor(map: DrumMap, note: number): number[] {
+  const out: number[] = [];
+  for (let gm = 0; gm <= 127; gm++) if (deviceNote(map, gm) === note) out.push(gm);
+  return out;
+}

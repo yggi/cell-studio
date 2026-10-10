@@ -64,6 +64,8 @@ export interface GraphContext {
   move(id: string, phase: 'start' | 'move' | 'end', x: number, y: number): void;
   /** The sound (the Player): what plays now, and hands on it. */
   readonly sound: LiveSource;
+  /** Cells sounding from the keys now (graph ids: state/keys.svelte.ts `lit`): live, as a strike's are. */
+  readonly played?: ReadonlySet<string>;
 }
 
 export const [getGraphContext, setGraphContext] = createContext<GraphContext>();
@@ -87,5 +89,6 @@ export function hearing(ctx: GraphContext, name: string, signal: boolean): boole
 }
 
 export function nodeState(ctx: GraphContext, id: string): NodeState {
-  return nodeStateOf(id, ctx.muted, ctx.routed, ctx.lit);
+  const s = nodeStateOf(id, ctx.muted, ctx.routed, ctx.lit);
+  return s === 'idle' && ctx.played?.has(id) ? 'live' : s;
 }

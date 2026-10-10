@@ -13,6 +13,7 @@ import { Library, type Open } from './library.svelte';
 import { View, type Tab } from './view.svelte';
 import { Midi } from './midi.svelte';
 import { Learn } from './learn.svelte';
+import { Keys } from './keys.svelte';
 
 /**
  * The app's state, in four parts — the piece (its code and what it compiles to), playing it, the
@@ -27,6 +28,8 @@ export class Studio {
   readonly midi = new Midi();
   /** MIDI learn: a controller's knobs moving the piece's free() values. */
   readonly learn = new Learn(this.piece, this.midi, { opened: () => this.library.opened });
+  /** Keys playing the armed voice live: MIDI in, the computer keys, the on-screen keys (`press`, `release`, `held`). */
+  readonly keys = new Keys(this.piece, this.playback.player, this.midi, { claimed: (data) => this.learn.claims(data) });
   /** The code editor (App binds it): showing a cell's line in it. */
   editor = $state<{ showLine(line: number): void } | undefined>();
   rendering = $state(false);
@@ -191,6 +194,7 @@ export class Studio {
     this.playback.dispose();
     this.midi.dispose();
     this.learn.dispose();
+    this.keys.dispose();
   }
 }
 

@@ -38,6 +38,8 @@ export function flowNodeOf(
       selectable: false,
       deletable: false,
       connectable: false,
+      // (nothing to do on it, so no tab stop either)
+      focusable: false,
       data: { name: g.id, voice: g.voice, mix: g.mix, size: JUNCTION_ROOM },
     };
   if (g.petalOf) {
