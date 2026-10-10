@@ -42,6 +42,6 @@ The face error grows because several heads, at their fixed spacing, often play i
 
 ## What's next
 
-- Long head names (`&message`, `&second`) get small in a bulb; a sub-label (`at=`) doesn't fit at all. The head's sheet says it.
+- Labels on sub-wheels and the edges that pointed at them, and long names that get small or clipped in a bulb (`&message`, `&second`): [#274](https://github.com/yggi/cell-studio/issues/274).
 - A resonator's exciters are pads round its wheel already: a row of the same table, if they ever need to be cells drawn there.
 - A splice's other edges are drawn from its braid, not from its bulb (a tap's and a head's leave from the bulb). Leaving from the bulb would be the same rule all the way; not measured.

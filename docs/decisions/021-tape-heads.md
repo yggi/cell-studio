@@ -1,6 +1,6 @@
 # 021 · A tape's read heads are bulbs on it: one rule for every sub-wheel
 
-**Date:** 2026-10-10 · **Status:** proposed (the owner's request; accepted with its PR)
+**Date:** 2026-10-10 · **Status:** accepted (owner: the request, and the layout baseline it records)
 
 ## Context
 
@@ -36,4 +36,4 @@ Measured over the library's six tape pieces, three seeds (`tools/probe/tape-head
 
 - The tape no longer faces its heads' cells (they have none) but what its heads play into. Several heads into one hub (`&out`, one mix) can't all face it at their fixed spacing: the layout's aim term, which measures that, rose 44.6 → 260.7 and isn't comparable across the change. What the eye sees is an edge from a bulb across its own tape: 3 of 60 over the six pieces and three seeds, as before; the tape test allows one a piece.
 - Saved `.cells` pieces are not affected: only the drawing changes.
-- The `play` edges and their `at=` labels are gone from the graph; the head's place is its delay (its sheet and the code still say it).
+- The `play` edges and their `at=` labels are gone from the graph; the head's place is its delay (its sheet and the code still say it). How sub-wheels and their edges are labelled, and names that don't fit: [#274](https://github.com/yggi/cell-studio/issues/274).
