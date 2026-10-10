@@ -119,8 +119,8 @@ const mid = (a: P, b: P): P => [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
 const TAU = Math.PI * 2;
 /** A point on a circle, `a` turns clockwise from 12 o'clock. */
 const onCircle = (c: P, r: number, a: number): P => [c[0] + r * Math.sin(a * TAU), c[1] - r * Math.cos(a * TAU)];
-/** Where a point is round a centre, in turns clockwise from 12 o'clock. */
 const mod = (x: number, n: number) => ((x % n) + n) % n;
+/** Where a point is round a centre, in turns clockwise from 12 o'clock. */
 const angleOf = (c: P, p: P) => Math.atan2(p[0] - c[0], -(p[1] - c[1])) / TAU;
 
 /**
@@ -405,7 +405,7 @@ const ARC = 12;
  * The cursor, at a time in a bulb: the plain hand, jointed. Out from the hub's edge (at rFrom) towards the bulb, round
  * the inside of its ribbon (`inset` in from it) from where it came in, clockwise as its time runs, and across the
  * step playing now as the plain hand crosses the ring, out to the bulb's disc; a bulb in a bulb the same, from its
- * parent's inside. So neither end hangs loose, and the bulbs' names at their hubs stay clear. Null on the ring itself
+ * parent's inside. So neither end hangs loose, and the bulbs' names at their hubs stay clear (but in a bulb too small for an arc, under ARC px inside, the hand is an elbow through its hub). Null on the ring itself
  * (the plain hand is drawn there).
  */
 export function cursorOf(cx: number, cy: number, rFrom: number, track: Track, t: number, inset = 3): string | null {
