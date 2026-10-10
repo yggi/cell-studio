@@ -232,7 +232,9 @@ export function startPlaces(
 ): { half: number; home: Map<string, { x: number; y: number }> | null; ordered: Map<string, number> | null } {
   // layers by rank in the signal path, from the meter (bottom) up to the sound card (top);
   // a fresh graph starts there, each layer in barycentre order; an edit keeps what's on screen
-  const ranks = flowRanks(model);
+  // (rows given: the frequency tower's, a probe; what it doesn't name keeps its rank in the flow)
+  const given = s.opts.ranks;
+  const ranks = given ? new Map([...flowRanks(model)].map(([id, r]) => [id, given.get(id) ?? r])) : flowRanks(model);
   const maxRank = Math.max(1, ...ranks.values());
   const half = (maxRank * s.opts.layerGap) / 2;
   const layerY = (rank: number) => half - (rank / maxRank) * 2 * half;
@@ -252,6 +254,7 @@ export function startPlaces(
       radius: (id) => s.opts.radius(byId.get(id)!),
       flat: !s.opts.clusters,
       rowOrder: rowOrder(),
+      ...(given ? { ranks } : {}),
     });
     const ys = [...lay.values()].map((p) => p.y);
     const midY = (Math.min(...ys) + Math.max(...ys)) / 2;

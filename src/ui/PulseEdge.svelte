@@ -22,6 +22,7 @@
   import { isTurntable } from '../engine/graph';
   import { getGraphContext } from './context';
   import { LOOM } from './flowedges';
+  import { LOOM_EXIT, OUTPUTS_TOP } from './outputs';
   import { pitchHue } from '../theory/modes';
   import { pickIndices } from '../engine/program';
   import { tapRadius } from '../layout/wheel';
@@ -63,12 +64,23 @@
   // leaves the owner's wheel once, to the reader nearest; every other tap comes on from a reader, out of its wheel —
   // a hop, drawn from there (straight: the tree keeps its joins off the wheels)
   const hop = $derived(d.net ? ctx.taps?.get(id) : undefined);
+  // (the outputs-top probe: a wire leaves its source at 12 o'clock, out of its rim — a tape's read head is its own socket)
+  const socket = $derived(OUTPUTS_TOP && d.port !== 'play' && d.port !== 'about' ? (hop ? hop.r : (d.sizes?.from ?? 0) / 2) : 0);
   const fromX = $derived(hop ? hop.x : sourceX);
-  const fromY = $derived(hop ? hop.y : sourceY);
+  const fromY = $derived((hop ? hop.y : sourceY) - socket);
+  // (what the locked paths start from: as before unless the probe's socket is on — a hop's wire started at the source)
+  const lockX = $derived(socket ? fromX : sourceX);
+  const lockY = $derived(socket ? fromY : sourceY);
   // a quadratic spline through the layout's bend point (straight when nothing is in the way)
   const mid = $derived((hop ? undefined : ctx.bends.get(id)) ?? { x: (fromX + targetX) / 2, y: (fromY + targetY) / 2 });
   const control = $derived({ x: 2 * mid.x - (fromX + targetX) / 2, y: 2 * mid.y - (fromY + targetY) / 2 });
-  const spline = $derived(`M ${fromX} ${fromY} Q ${control.x} ${control.y} ${targetX} ${targetY}`);
+  // (out of a socket: straight up first, then round to the reader)
+  const lead = $derived(Math.min(120, 0.5 * Math.hypot(targetX - fromX, targetY - fromY)));
+  const spline = $derived(
+    socket
+      ? `M ${fromX} ${fromY} C ${fromX} ${fromY - lead} ${control.x} ${control.y} ${targetX} ${targetY}`
+      : `M ${fromX} ${fromY} Q ${control.x} ${control.y} ${targetX} ${targetY}`,
+  );
 
   // the shifts its wheels are drawn with (CellGlyph's rule): as they stand now, redrawn when a table turns, not every
   // frame — so a locked end and a lit strand mean the segment the wheel shows there
@@ -119,7 +131,7 @@
   // (written more than once: a bus, a strand to each place, gathered towards the cell spliced in, through the loom; to
   // bulbs, the loom round the farthest, each strand on in to its own)
   const lockedPaths = $derived.by(() => {
-    if (bulbEnds.length === 1) return [radialPath(sourceX, sourceY, control, targetX, targetY, bulbEnds[0].r, bulbEnds[0].turn)];
+    if (bulbEnds.length === 1) return [radialPath(lockX, lockY, control, targetX, targetY, bulbEnds[0].r, bulbEnds[0].turn)];
     if (bulbEnds.length > 1) {
       const R = Math.max(...bulbEnds.map((e) => e.r));
       return loomPaths(
@@ -129,8 +141,8 @@
         bulbEnds.map((e) => e.turn),
         mid.x,
         mid.y,
-        sourceX,
-        sourceY,
+        lockX,
+        lockY,
         2.5 * GAP,
       ).map((p, i) => {
         const [x, y] = polar(targetX, targetY, bulbEnds[i].r, bulbEnds[i].turn);
@@ -138,8 +150,8 @@
       });
     }
     return occurrences.length > 1
-      ? loomPaths(targetX, targetY, rimOf(d.sizes?.to), occurrences, mid.x, mid.y, sourceX, sourceY, 2.5 * GAP)
-      : occurrences.map((t) => radialPath(sourceX, sourceY, control, targetX, targetY, rimOf(d.sizes?.to), t));
+      ? loomPaths(targetX, targetY, rimOf(d.sizes?.to), occurrences, mid.x, mid.y, lockX, lockY, 2.5 * GAP)
+      : occurrences.map((t) => radialPath(lockX, lockY, control, targetX, targetY, rimOf(d.sizes?.to), t));
   });
   const path = $derived(d.band === 'audio' ? ripplePath(fromX, fromY, mid.x, mid.y, targetX, targetY) : (lockedPaths[0] ?? spline));
 
@@ -162,9 +174,9 @@
       return Array.from({ length: count }, (_, i) => strandPath(fromX, fromY, mid.x, mid.y, targetX, targetY, (i - (count - 1) / 2) * GAP));
     const turns = exits.map((s) => tapOf(view!, s!));
     // a hop: the bus goes on out of the hub of the reader it came into, flat, in the table's order
-    if (hop) return ringOnly ? [] : turns.map((_, i) => strandPath(hop.x, hop.y, mid.x, mid.y, targetX, targetY, (i - (turns.length - 1) / 2) * GAP));
+    if (hop) return ringOnly ? [] : turns.map((_, i) => strandPath(fromX, fromY, mid.x, mid.y, targetX, targetY, (i - (turns.length - 1) / 2) * GAP));
     // out of each entry's tap, round the source's loom, into a bundle towards the reader
-    return looming(loomParts(sourceX, sourceY, r, turns, mid.x, mid.y, targetX, targetY, GAP, d.ring ?? 0));
+    return looming(loomParts(sourceX, sourceY, r, turns, mid.x, mid.y, targetX, targetY, GAP, d.ring ?? 0, LOOM_EXIT));
   });
   // A reference that picks (&key[0], &maj's &key[0] &key[4] &key[7]): a strand from each tap it reads, in the colour
   // the wheel pushes there — one straight out of its tap, several through the loom; as written ($): from the hub.
@@ -191,7 +203,7 @@
     const turns = picked.taps.map((x) => x.t);
     return turns.length === 1
       ? [radialPath(targetX, targetY, control, sourceX, sourceY, r, turns[0], true)]
-      : looming(loomParts(sourceX, sourceY, r, turns, mid.x, mid.y, targetX, targetY, GAP, d.ring ?? 0));
+      : looming(loomParts(sourceX, sourceY, r, turns, mid.x, mid.y, targetX, targetY, GAP, d.ring ?? 0, LOOM_EXIT));
   });
   // a wheel's fill, coloured as its wheel colours it: a note its pitch colour (the palette's, its place on its grid
   // already found), a level on the neutral hue
@@ -203,7 +215,7 @@
     const turns = d.tines.map((_, i) => i / n);
     // (the resonator is the edge's end when the tune plays it, its start when the tune reads through it)
     return d.port === 'over'
-      ? looming(loomParts(sourceX, sourceY, (d.sizes.from / 2) * 1.2, turns, mid.x, mid.y, targetX, targetY, GAP, d.ring ?? 0))
+      ? looming(loomParts(sourceX, sourceY, (d.sizes.from / 2) * 1.2, turns, mid.x, mid.y, targetX, targetY, GAP, d.ring ?? 0, LOOM_EXIT))
       : loomPaths(targetX, targetY, (d.sizes.to / 2) * 1.2, turns, mid.x, mid.y, sourceX, sourceY, GAP);
   });
   const tineStrands = $derived.by(() => {
