@@ -53,7 +53,7 @@ export interface LayoutOptions {
   partLength: number;
   /** Node repulsion (negative: push apart). */
   charge: number;
-  /** How hard crossing edges push each other apart (gently: edges may cross). */
+  /** How hard crossing edges push each other apart, each pair as hard as its crossing costs (weights.ts: crossingCost). */
   uncross: number;
   /** How far node repulsion reaches (px): near field. */
   repelRange: number;
@@ -115,8 +115,9 @@ export const DEFAULT_LAYOUT: LayoutOptions = {
   trial: 120,
   rowOrders: new Map(),
   // (uncross and contract: measured over the examples, docs/notes/27-layout.md — stronger untangling and softer
-  // springs cross a quarter less than 0.3 / 0.9, for about 6 % more room)
-  uncross: 0.6,
+  // springs cross a quarter less than 0.3 / 0.9, for about 6 % more room; uncross 1 with each pair pushed by its cost,
+  // over eight seeds: 58 → 52 crossings, cost 183 → 161, for 3.5 % more room, docs/notes/forces.md)
+  uncross: 1,
   repelRange: 380,
   degreeRepel: 0.08,
   collidePad: 34, // (room for the label under each node)
