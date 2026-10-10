@@ -21,6 +21,10 @@ A selector read a table of parts (mixes) and their sound went through it to the 
 
 *Pop song, the taps as wheels of their own and as bulbs on `&parts`: `node tools/gallery.mjs golden 0 pop`.*
 
+![the table's wheel close up, playing and stopped: Korobeiniki, Arrangement, Pop, Baustelle](016-taps-detail.jpg)
+
+*Close up, playing (a tap its selector has on now, in the accent) and stopped: each tap named by its cell less what all of them end in (`&hatsBar`: hats), the selector's read coming in from below.*
+
 ## Why
 
 The selector is the slowest thing in a piece, and its job is the form: it belongs at the bottom of the tower, sending time up, not at the top taking sound in. Switching time, not sound, removes the running-but-unheard sections and their couplings (the tacets) and lets sections differ in length: BWV 847 written this way plays its 1765 notes exactly, and says the breath between the movements (`0@609 ~@15 1@496`) where the tacets hid it. The old form was a special case: `over=` maps numbers to values everywhere else, and only there routed sound, carried by machinery of its own; everything it said, the new form says.

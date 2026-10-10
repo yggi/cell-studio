@@ -15,7 +15,7 @@
   import { mod } from '../theory/modes';
   import { getGraphContext } from './context';
   import { meterNow } from '../layout/meters';
-  import { cursorOf, joins, layTrack, ribbon, stepOn, trackAt, type Laid as LaidBulb } from '../layout/track';
+  import { cursorOf, fanOf, joins, layTrack, ribbon, stepOn, trackAt, type Laid as LaidBulb } from '../layout/track';
 
   /**
    * `interactive`: the rim turns the cell (detail sheet). In the graph the whole node just drags.
@@ -81,6 +81,16 @@
     const segments = coarsen(full.segments);
     return segments === full.segments ? full : { ...full, segments };
   });
+  // a table of taps (decision 016): its bulbs named by their taps, less what all of them end in (`&hatsBar` … : hats)
+  const tapsTable = $derived(!!fanOf(ctx.program, name));
+  const tapSuffix = $derived.by(() => {
+    if (!tapsTable || !cell) return '';
+    const names = cell.units.flatMap((u) => (u.atom.kind === 'ref' ? [u.atom.name] : []));
+    let k = 0;
+    while (names.every((n) => n.length > k + 2 && n[n.length - 1 - k] === names[0][names[0].length - 1 - k])) k++;
+    return k ? names[0].slice(-k) : '';
+  });
+  const tapName = (n: string) => (tapSuffix ? n.slice(0, -tapSuffix.length) : n);
   // a braid's track (#221): its splices bend out of the ring into bulbs, their steps along them
   const ringMid = $derived((rInner + rOuter) / 2);
   const ringW = $derived(rOuter - rInner);
@@ -95,10 +105,16 @@
       for (const L of list) {
         const b = L.bulb;
         const lambda = !!ctx.program.cells.get(b.name)?.lambda;
-        const text = lambda ? '' : `&${b.name}`;
+        const text = lambda ? '' : tapsTable ? tapName(b.name) : `&${b.name}`;
         const sub = [b.label, b.laps > 1 ? `×${b.laps}` : ''].filter(Boolean).join(' ');
         const room = 2 * Math.max(4, L.rho - L.w / 2) * 0.9;
-        out.push({ L, outline: b.hollow && track ? ribbon(track, L.T0, L.T1, 0, 1, 1.5) : null, text, sub, font: fitFont(room, Math.max(2, text.length, sub.length), 13, 6) });
+        out.push({
+          L,
+          outline: b.hollow && track ? ribbon(track, L.T0, L.T1, 0, 1, 1.5) : null,
+          text,
+          sub,
+          font: fitFont(room, Math.max(2, text.length, sub.length), 13, tapsTable ? 4.5 : 6),
+        });
         walk(L.bulbs);
       }
     };
@@ -434,9 +450,18 @@
       : [],
   );
 
-  // which segments are live: braids by time, grids by the entries being looked up
+  // which segments are live: braids by time, grids by the entries being looked up; a table of taps by the taps its
+  // selector has on now (decision 016)
   // (as a key first: the set is made again only when the lit segments change, not every tick)
   const litKey = $derived.by(() => {
+    if (tapsTable) {
+      const on: number[] = [];
+      view.segments.forEach((s, i) => {
+        const u = cell?.units[s.index];
+        if (u?.atom.kind === 'ref' && ctx.lit?.nodes.has(`cell:${u.atom.name}`)) on.push(i);
+      });
+      return on.join(',');
+    }
     if (!hasLive || view.mode !== 'braid' || liveLocal === null) return '';
     const t = liveLocal / Math.max(1, cell?.steps ?? 1);
     const on: number[] = [];
@@ -601,7 +626,7 @@
     {#each bulbs as b, i (i)}<circle class="bulb-disc" cx={b.L.C[0]} cy={b.L.C[1]} r={b.L.rho + b.L.w / 2 + 2} />{/each}
     {#each threads as d, i (i)}<path class="bulb-thread" {d} />{/each}
     {#each geometry as slot, i}
-      <g class="slot" class:lit={lit.has(i)} stroke-width={slot.w}>
+      <g class="slot" class:lit={lit.has(i) && !tapsTable} class:on={lit.has(i) && tapsTable} stroke-width={slot.w}>
         {#each slot.d as d, j}<path {d} fill={fills[i][j]} fill-rule="evenodd" />{/each}
       </g>
     {/each}
@@ -847,6 +872,10 @@
     stroke-linejoin: round;
   }
   /* the step playing now: brighter, no halo */
+  /* a table of taps: a tap its selector has on now, in the accent (decision 016) */
+  .slot.on path {
+    fill: color-mix(in oklab, var(--accent) 70%, var(--wheel-ref));
+  }
   .slot.lit path {
     filter: var(--wheel-lit);
   }

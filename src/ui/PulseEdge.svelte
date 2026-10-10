@@ -26,7 +26,7 @@
   import { pickIndices } from '../engine/program';
   import { tapRadius } from '../layout/wheel';
   import { STRAND_GAP } from '../layout/looms';
-  import { layTrack, netEnds, ringOf } from '../layout/track';
+  import { fanOf, layTrack, netEnds, ringOf } from '../layout/track';
   import type { Pick } from '../engine/ast';
 
   let { id: edgeId, sourceX, sourceY, targetX, targetY, data, label, markerEnd, style }: EdgeProps = $props();
@@ -157,9 +157,12 @@
   const tapOf = (v: NonNullable<typeof view>, sg: Segment) => v.taps?.[sg.index] ?? sg.at ?? (sg.t0 + sg.t1) / 2;
   const strandPaths = $derived.by(() => {
     const r = d.sizes?.from ? tapRadius(d.sizes.from) : 0;
-    const exits = d.table && r ? Array.from({ length: count }, (_, i) => entryOf(i)) : [];
+    // (a table of taps is read from below, its selector an input: a flat bundle out of its hub, no loom round its fan —
+    // decision 016)
+    const fanned = !!d.table && !!fanOf(ctx.program, d.table);
+    const exits = d.table && r && !fanned ? Array.from({ length: count }, (_, i) => entryOf(i)) : [];
     if (!exits.length || exits.some((s) => !s))
-      return Array.from({ length: count }, (_, i) => strandPath(fromX, fromY, mid.x, mid.y, targetX, targetY, (i - (count - 1) / 2) * GAP));
+      return ringOnly ? [] : Array.from({ length: count }, (_, i) => strandPath(fromX, fromY, mid.x, mid.y, targetX, targetY, (i - (count - 1) / 2) * GAP));
     const turns = exits.map((s) => tapOf(view!, s!));
     // a hop: the bus goes on out of the hub of the reader it came into, flat, in the table's order
     if (hop) return ringOnly ? [] : turns.map((_, i) => strandPath(hop.x, hop.y, mid.x, mid.y, targetX, targetY, (i - (turns.length - 1) / 2) * GAP));
