@@ -39,6 +39,9 @@ function load(): Stored {
   }
 }
 
+/** The channel of a key pressed on the computer or the screen: none, so a kit put on channel 1 isn't theirs (a controller's channel 1 is). */
+const LOCAL = -1;
+
 /** A key's id: its channel and note, with the input's name before when it came from one (two inputs may play the same key). */
 const keyAt = (channel: number, note: number, source: string): string => (source ? `${source}|${channel}:${note}` : `${channel}:${note}`);
 
@@ -67,10 +70,10 @@ type MidiIo = {
   hear(hearer: (data: Uint8Array, source: string, timeStamp: number) => void): () => void;
   send(data: readonly number[], timestamp?: number): void;
   readonly drums: DrumMap;
-  /** The channel (1 … 16) the open piece's kit is on; 10 if not said. */
-  readonly kitChannel?: number;
+  /** The channel (1 … 16) the kit keys are on: the open piece's kit channel; 10 if not said. */
+  readonly padChannel?: number;
   /** Told when every key held from the input should let go (All notes off, the input changed or gone). */
-  letGo?(listener: () => void): () => void;
+  letGo?(listener: (alive?: ReadonlySet<string>) => void): () => void;
 };
 
 /** The piece the keys play (the Piece state): what it compiles to, its tables' shifts, its A4. */
@@ -81,6 +84,8 @@ interface Down {
   readonly id: number;
   readonly voice: string;
   readonly cell: string;
+  /** The input it came from (under All inputs), or ''. */
+  readonly source?: string;
   /** Let go while the sustain pedal was down: it sounds until the pedal comes up. */
   sustained: boolean;
   /** A row's nearest MIDI note, for thru. */
@@ -133,6 +138,32 @@ export class Keys {
     const kit = this.armable.find((a) => a.kit);
     return kit ? keyboardOf(this.piece.program, kit.cell, this.piece.shifts) : null;
   });
+  /** A pad pressed: the kit's note on the kit channel as it is now, remembered so its release finds it if the channel is changed meanwhile. */
+  pressPad(note: number, velocity = 100): void {
+    const channel = this.drumChannel;
+    this.#pads.set(note, channel);
+    this.press(note, velocity, channel);
+  }
+  releasePad(note: number): void {
+    const channel = this.#pads.get(note) ?? this.drumChannel;
+    this.#pads.delete(note);
+    this.release(note, channel);
+  }
+  #pads = new Map<number, number>();
+
+  // the keys held from an input that is gone (under All inputs) let go; the others' stay
+  #letGoUnless(alive: ReadonlySet<string>): void {
+    for (const [at, d] of [...this.#down]) {
+      if (!d.source || alive.has(d.source)) continue;
+      const note = Number(at.slice(at.lastIndexOf(':') + 1));
+      this.listener?.up(at, now());
+      this.#thru([0x80 | this.#thruNibble(), note, 0]);
+      this.#hands.release(d.id);
+      this.#down.delete(at);
+      this.held.delete(note);
+    }
+  }
+
   /** The pads of the kit channel 10 plays (the on-screen pads, #255): one per member, with its General MIDI note; none without a kit. */
   readonly pads = $derived.by<Pad[]>(() => (this.#kit ? kitPads(this.piece.program, this.#kit.cell) : []));
   /** The keys the armed melody's scale can play (the dots on the on-screen keys, #255); null: no scale (a kit, a voice no melody plays). */
@@ -153,7 +184,7 @@ export class Keys {
     // (Stop cut them: thru's hardware gets their note-offs too)
     hands.onKeysCut = () => (this.#thruOffs(), this.#forget());
     const unhear = midi.hear((data, source, ms) => this.#heard(data, ms, source));
-    const unletGo = midi.letGo?.(() => this.panic());
+    const unletGo = midi.letGo?.((alive) => (alive ? this.#letGoUnless(alive) : this.panic()));
     this.#stop = () => (unhear(), unletGo?.());
     this.#listen(this.#kept.computer);
   }
@@ -207,17 +238,17 @@ export class Keys {
    * note; else the armed voice at the key's pitch through its table. Velocity 1 … 127. A key pressed again while it
    * sounds (the pedal holding it) strikes again. Echoed to the output if thru is on.
    */
-  press(note: number, velocity = 100, channel = 0, ms = now(), source = ''): void {
+  press(note: number, velocity = 100, channel = LOCAL, ms = now(), source = ''): void {
     this.#press(note, velocity, channel, [note], ms, source);
   }
 
   /** The channel the pads and a kit's keys are on (counted from 0): the open piece's kit channel, 10 unless put elsewhere. */
   get drumChannel(): number {
-    return (this.#midi.kitChannel ?? 10) - 1;
+    return (this.#midi.padChannel ?? 10) - 1;
   }
 
   /** A key let go: its note goes into its release, or, the pedal down, sounds on until the pedal comes up. A key not down: nothing. */
-  release(note: number, channel = 0, ms = now(), source = ''): void {
+  release(note: number, channel = LOCAL, ms = now(), source = ''): void {
     const at = keyAt(channel, note, source);
     this.listener?.up(at, ms);
     this.#thru([0x80 | this.#thruNibble(), note, 0]);
@@ -301,7 +332,7 @@ export class Keys {
       [voice, freq] = hit ? [hit.voice, hit.freq] : [null, null];
     } else if (k) [voice, freq] = [k.voice, k.key(note)];
     if (!k || voice === null || freq === null) return;
-    this.#down.set(at, { id: this.#hands.press(voice, freq, velocity), voice, cell: k.cell, sustained: false });
+    this.#down.set(at, { id: this.#hands.press(voice, freq, velocity), voice, cell: k.cell, sustained: false, source });
   }
 
   // what sounds at `at` (a key or a row struck again) lets go first: a new press, not a second voice on one key
@@ -372,7 +403,7 @@ export class Keys {
     if (this.#typing.has(name)) return;
     const melodic = COMPUTER_KEY_MAP[name];
     const drum = DRUM_KEY_MAP[name];
-    const k = melodic !== undefined ? { note: melodic, channel: 0 } : drum !== undefined ? { note: drum, channel: this.drumChannel } : null;
+    const k = melodic !== undefined ? { note: melodic, channel: LOCAL } : drum !== undefined ? { note: drum, channel: this.drumChannel } : null;
     if (!k) return;
     this.#typing.set(name, k);
     this.press(k.note, 100, k.channel, e.timeStamp);

@@ -27,6 +27,9 @@ export interface MidiHandlers {
 const portOptions = (ports: ReadonlyMap<string, { readonly name: string | null; readonly state?: string }>): PortOption[] =>
   [...ports].filter(([, port]) => port.state !== 'disconnected').map(([id, port]) => ({ id, name: port.name ?? 'MIDI' }));
 
+/** How long the permission query may take before it is taken as unanswered (ms). */
+const ASK_FOR = 1000;
+
 /** A live Web MIDI connection: the ports plugged in, and which input is listened to. */
 export class MidiAccess {
   #access: MIDIAccess;
@@ -45,8 +48,12 @@ export class MidiAccess {
    */
   static async granted(): Promise<boolean> {
     try {
-      const status = await navigator.permissions.query({ name: 'midi', sysex: false } as unknown as PermissionDescriptor);
-      return status.state === 'granted';
+      // (a query that never answers is not a reason to wait: about a second, then as it was before)
+      const status = await Promise.race([
+        navigator.permissions.query({ name: 'midi', sysex: false } as unknown as PermissionDescriptor),
+        new Promise<null>((resolve) => setTimeout(resolve, ASK_FOR)),
+      ]);
+      return status === null || status.state === 'granted';
     } catch {
       return true;
     }

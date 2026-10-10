@@ -117,6 +117,22 @@ describe('Midi: reconnecting on load', () => {
     expect(midi.message).toMatch(/press Connect/);
   });
 
+  it('does not wait for a permission query that never answers', async () => {
+    vi.useFakeTimers();
+    try {
+      await chosen();
+      vi.stubGlobal('navigator', Object.assign(Object.create(navigator), { permissions: { query: () => new Promise(() => {}) } }));
+      installMidi(fakeAccess([], [fakePort('out-1', 'Synth')]));
+      const midi = new Midi();
+      cleanups.push(() => midi.dispose());
+      await vi.advanceTimersByTimeAsync(1500);
+      await vi.waitFor(() => expect(midi.connecting).toBe(false));
+      expect(midi.access).not.toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('connects quietly when it has', async () => {
     await chosen();
     permission('granted');
@@ -192,6 +208,22 @@ describe('Midi: All notes off', () => {
     midi.send([0x93, 60, 100]);
     comeBack();
     expect(cc123(out)).toEqual([3]);
+  });
+
+  it('keeps the pads on 10 for a piece with MIDI cards, whatever kit channel is stored for its title', async () => {
+    installMidi(fakeAccess([], [fakePort('out-1', 'Circuit')]));
+    const midi = await made();
+    await midi.connect();
+    const source = `&piece title="Cards" tags="MIDI"\n&bar scan(1 1 1 1) step=2\n&bass step=&bar 0\n&sub loop=55\n&far map=midi(5) [&bass * &sub]`;
+    midi.attach({ sink: null, internal: true }, { program: compileSource(source), title: 'Cards' });
+    midi.kitChannel = 3;
+    expect(midi.padChannel).toBe(10);
+    midi.attach(
+      { sink: null, internal: true },
+      { program: compileSource('&piece title="Plain"\n&bar scan(1 1 1 1) step=2\n&a step=&bar 0\n&v loop=55\n&m [&a * &v]'), title: 'Plain' },
+    );
+    midi.kitChannel = 3;
+    expect(midi.padChannel).toBe(3);
   });
 
   it('reaches an output slot with no default output: the button is live, and the tab coming back sends CC 123 there', async () => {
@@ -650,6 +682,28 @@ describe('Midi: letting the keys go', () => {
     access.change();
     access.change();
     expect(told).toHaveBeenCalledTimes(1);
+  });
+
+  it('tells once when an input remembered from the last visit is unplugged, though nothing was chosen this time', async () => {
+    store.set('cell-studio:midi', JSON.stringify({ in: { id: 'in-1', name: 'Keys' } }));
+    const access = fakeAccess([fakeInput('in-1', 'Keys')], []);
+    installMidi(access);
+    const midi = await made();
+    const told = vi.fn();
+    midi.letGo(told);
+    access.inputs.delete('in-1');
+    access.change();
+    expect(told).toHaveBeenCalledTimes(1);
+  });
+
+  it('under All inputs, says which inputs are still there, so only the keys of one unplugged let go', async () => {
+    const { midi, access, told } = await listening();
+    midi.chooseInput('all');
+    told.mockClear();
+    access.inputs.delete('in-2');
+    access.change();
+    expect(told).toHaveBeenCalledTimes(1);
+    expect(told.mock.calls[0][0]).toEqual(new Set(['Keys']));
   });
 
   it('tells when the input listened to stays listed but disconnected', async () => {

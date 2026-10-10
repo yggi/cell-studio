@@ -191,7 +191,7 @@ export class Midi implements ChosenPorts, NoteSink {
     const granted = await MidiAccess.granted();
     this.connecting = false;
     if (granted) return this.connect();
-    if (!this.#disposed && !this.access) this.message = 'MIDI is chosen here but not allowed yet: press Connect.';
+    if (!this.#disposed && !this.access) this.message = 'MIDI is chosen here, but the browser has not allowed it (yet): press Connect.';
   }
 
   #disposed = false;
@@ -213,13 +213,14 @@ export class Midi implements ChosenPorts, NoteSink {
    * Told when the keys held from the input should all let go: All notes off (the MIDI page's, or on coming back into
    * view), and the input changed or unplugged, whose note-offs will never come. The function returned stops it.
    */
-  letGo(listener: () => void): () => void {
+  letGo(listener: (alive?: ReadonlySet<string>) => void): () => void {
     this.#letGoers.add(listener);
     return () => this.#letGoers.delete(listener);
   }
-  #letGoers = new Set<() => void>();
-  #letGoAll(): void {
-    for (const l of this.#letGoers) l();
+  #letGoers = new Set<(alive?: ReadonlySet<string>) => void>();
+  // all of them let go; or, told which inputs are still there, only the keys held from an input that is not
+  #letGoAll(alive?: ReadonlySet<string>): void {
+    for (const l of this.#letGoers) l(alive);
   }
 
   get outPortId(): string {
@@ -268,6 +269,8 @@ export class Midi implements ChosenPorts, NoteSink {
       this.access = result.access;
       this.message = result.message;
       this.#list();
+      // (the input chosen is there or not from now on: its being unplugged later is a change)
+      this.#heardFrom = this.#inputThere();
     }
     this.connecting = false;
   }
@@ -341,6 +344,14 @@ export class Midi implements ChosenPorts, NoteSink {
     const title = this.#piece?.title ?? '';
     this.#kits = { ...this.#kits, [title]: clamped(ch, 1, 16, 10) };
     this.#save();
+  }
+
+  /**
+   * The channel MIDI in's kit keys are on (1 … 16): the open piece's kit channel; a piece with MIDI cards names its own
+   * channels, so the pads stay on General MIDI's 10 there.
+   */
+  get padChannel(): number {
+    return this.table?.byPiece ? 10 : this.kitChannel;
   }
 
   /** The output's drum map (kept by the port's name): General MIDI note to the note it sends. */
@@ -555,6 +566,8 @@ export class Midi implements ChosenPorts, NoteSink {
     // (the input listened to gone: its keys' note-offs will never come; an unrelated device coming or going is not that)
     const there = this.#inputThere();
     if (this.#heardFrom && !there) this.#letGoAll();
+    // (under All inputs, one of them unplugged: the keys held from it let go, the others' stay)
+    else if (this.#in.id === 'all' && this.access) this.#letGoAll(new Set(this.access.inputs.map((p) => p.name)));
     this.#heardFrom = there;
   }
 

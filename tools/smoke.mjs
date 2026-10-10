@@ -397,6 +397,30 @@ const CARD_ONLY = { voice: 'sub', channel: 2 };
         window.__ctx.push(this);
       }
     };
+    // what reaches the speakers, after the master and the Stop gain: an analyser per context beside whatever connects to
+    // its destination (the page makes more than one context, and Tone more than one node into each)
+    const connect = AudioNode.prototype.connect;
+    const taps = (window.__taps = new Map());
+    AudioNode.prototype.connect = function (dest, ...rest) {
+      if (dest === this.context.destination) {
+        if (!taps.has(this.context)) taps.set(this.context, Object.assign(this.context.createAnalyser(), { fftSize: 2048 }));
+        connect.call(this, taps.get(this.context));
+      }
+      return connect.call(this, dest, ...rest);
+    };
+    window.__outPeak = () => {
+      let peak = null;
+      for (const [ctx, a] of taps) {
+        if (ctx.state !== 'running') continue;
+        const buf = new Float32Array(a.fftSize);
+        a.getFloatTimeDomainData(buf);
+        peak = Math.max(
+          peak ?? 0,
+          buf.reduce((m, x) => Math.max(m, Math.abs(x)), 0),
+        );
+      }
+      return peak;
+    };
   });
   let note = '';
   try {
@@ -443,8 +467,24 @@ const CARD_ONLY = { voice: 'sub', channel: 2 };
     await mp.waitForTimeout(800);
     const cut = await mp.evaluate(() => window.cellStudio.level('fiddle') ?? 0);
     if (cut > 0.001) problems.push(`still sounding ${cut.toFixed(4)} after Stop with a key down`);
-    const again = await sound([0x90, 64, 100]);
-    if (again.ms === null) problems.push('a key pressed after Stop did not sound');
+    // (heard at the output, past the Stop gain: the voice's own analyser sits before it and can't tell)
+    const outCut = await mp.evaluate(() => window.__outPeak?.() ?? null);
+    if (outCut === null) problems.push('no tap on the output to measure Stop with');
+    else if (outCut > 0.001) problems.push(`the output still carries ${outCut.toFixed(4)} after Stop with a key down`);
+    await mp.evaluate(() => window.midiIn([0x90, 64, 100]));
+    const heard = await mp.evaluate(
+      () =>
+        new Promise((done) => {
+          const t0 = performance.now();
+          const look = () => {
+            if ((window.__outPeak?.() ?? 0) > 0.001) return done(true);
+            if (performance.now() - t0 > 3000) return done(false);
+            setTimeout(look, 5);
+          };
+          look();
+        }),
+    );
+    if (!heard) problems.push('a key pressed after Stop was not heard at the output');
     await mp.evaluate(() => window.midiIn([0x80, 64, 0]));
     const audio = await mp.evaluate(() => {
       const c = window.__ctx.find((x) => x.state === 'running');

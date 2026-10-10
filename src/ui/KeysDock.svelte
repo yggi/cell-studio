@@ -87,8 +87,8 @@
         down={(m) => keys.lit.has(cellId(m))}
         sounding={(m) => !!voices?.has(cellId(m))}
         velocity={FIXED_VELOCITY}
-        onpress={(n, v) => keys.press(n, v, keys.drumChannel)}
-        onrelease={(n) => keys.release(n, keys.drumChannel)}
+        onpress={(n, v) => keys.pressPad(n, v)}
+        onrelease={(n) => keys.releasePad(n)}
       />
     {:else}
       <p class="none">This piece has no kit, so there are no pads.</p>
