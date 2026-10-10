@@ -27,6 +27,7 @@
     name,
     isMeter,
     source,
+    opened = 0,
     pinned,
     onpin,
     onshowcode,
@@ -37,6 +38,8 @@
     name: string;
     isMeter: boolean;
     source: string;
+    /** Counts the pieces opened (the library's): the roll's Undo is kept per piece. */
+    opened?: number;
     pinned: boolean;
     onpin: () => void;
     onshowcode: () => void;
@@ -274,7 +277,7 @@
             : 'Tap a step to change it, the middle to change them all.'}
       </p>
       <!-- a braid unrolled: its steps across, its table's rows up (#211; the keys' sound waits for #207) -->
-      {#if !isMeter}<PianoRoll {name} {source} {onedit} />{/if}
+      {#if !isMeter}<PianoRoll {name} {source} piece={opened} {onedit} />{/if}
     {:else if !cell.voice || braidVoice}
       <div class="dial">
         <CellGlyph {name} {isMeter} size={200} interactive fine />

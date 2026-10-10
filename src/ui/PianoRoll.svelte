@@ -1,6 +1,7 @@
 <script module lang="ts">
-  /** The roll's edits, by cell: the braid before and after each, kept while the sheet comes and goes (it is remade as the program is). */
-  const histories = new Map<string, { before: string[]; after: string }[]>();
+  import { RollHistory } from './rollHistory';
+  /** The roll's edits, by piece and cell: kept while the sheet comes and goes (it is remade as the program is). */
+  const history = new RollHistory();
 </script>
 
 <script lang="ts">
@@ -31,6 +32,8 @@
     tableOf,
     toBraid,
     toggle,
+    tooWide,
+    MAX_ROWS,
     type Column,
     type Roll,
     type Row,
@@ -39,6 +42,7 @@
   let {
     name,
     source,
+    piece = 0,
     onedit,
     held = new Set<number>(),
     onpress,
@@ -46,6 +50,8 @@
   }: {
     name: string;
     source: string;
+    /** Which piece is open (the library's count of pieces opened): Undo is kept per piece. */
+    piece?: number;
     /** Write a changed source (the sheet's: an edit of the code). */
     onedit: (source: string) => void;
     /** Rows held from elsewhere (MIDI in): lit on the keys and across the roll. */
@@ -60,10 +66,16 @@
   const MIN_COL = 14;
 
   const shown = $derived(rolls(ctx.program, name));
-  const words = $derived(shown && !spansLines(source, name) ? declWords(source, name) : null);
-  const read = $derived(words ? readBraid(words.braid) : null);
-  const roll = $derived(read?.ok ? read.roll : null);
   const table = $derived(tableOf(ctx.program, name));
+  const words = $derived(shown && !spansLines(source, name) ? declWords(source, name) : null);
+  const read = $derived.by(() => {
+    if (!words) return null;
+    const r = readBraid(words.braid);
+    // (notes spread wider than the roll draws: refused, not drawn as thousands of rows)
+    const wide = r.ok ? tooWide(r.roll, table.perLap) : null;
+    return wide ? { ok: false as const, problem: wide } : r;
+  });
+  const roll = $derived(read?.ok ? read.roll : null);
   const kit = $derived(!!table.table?.kit);
   const frame = $derived(frameOf(ctx.program, name, roll?.length ?? 0));
 
@@ -73,6 +85,7 @@
   const lo = $derived(range[0]);
   const hi = $derived(range[1]);
   const n = $derived(hi - lo + 1);
+  const roomForLap = $derived(n + table.perLap <= MAX_ROWS);
   /** Top to bottom. */
   const rows = $derived(rowsFor(ctx.program, name, ctx.shifts, lo, hi).reverse());
   const y = (value: number) => hi - value;
@@ -105,22 +118,20 @@
   // edits elsewhere in the code meanwhile stay), while the braid is still what the roll wrote
   let version = $state(0);
   const written = $derived(words?.braid.join(' ') ?? '');
-  const canUndo = $derived((void version, histories.get(name)?.at(-1)?.after === written));
+  const canUndo = $derived((void version, history.canUndo(piece, name, written)));
   function write(next: Roll) {
     if (!roll || !words) return;
     const tokens = toBraid(next);
     if (tokens.join(' ') === written) return;
-    histories.set(name, [...(histories.get(name) ?? []).slice(-49), { before: [...words.braid], after: tokens.join(' ') }]);
+    history.push(piece, name, words.braid, tokens.join(' '));
     version++;
     onedit(setBraid(source, name, tokens));
   }
   function undo() {
-    const list = histories.get(name) ?? [];
-    const last = list.at(-1);
-    if (!last || last.after !== written) return;
-    histories.set(name, list.slice(0, -1));
+    const before = history.undo(piece, name, written);
+    if (!before) return;
     version++;
-    onedit(setBraid(source, name, last.before));
+    onedit(setBraid(source, name, [...before]));
   }
 
   // ---- the keys: pressed here or held from elsewhere
@@ -139,7 +150,25 @@
     const row = hi - clamp(Math.floor(((e.clientY - r.top) / r.height) * n), 0, n - 1);
     return { step, row };
   }
+  // ---- two fingers pan sideways (one taps and drags, and the sheet scrolls up and down: touch-action pan-y)
+  let scroller = $state<HTMLDivElement | null>(null);
+  const touches = new Map<number, number>();
+  let pan: { x: number; left: number } | null = null;
+  const mid = () => [...touches.values()].reduce((a, b) => a + b, 0) / touches.size;
+  function lift(e: PointerEvent) {
+    touches.delete(e.pointerId);
+    if (touches.size < 2) pan = null;
+  }
   function down(e: PointerEvent) {
+    if (e.pointerType === 'touch') {
+      touches.set(e.pointerId, e.clientX);
+      if (touches.size >= 2) {
+        // (a second finger: a pan, not an edit — the first finger's tap or drag is dropped)
+        drag = null;
+        pan = { x: mid(), left: scroller?.scrollLeft ?? 0 };
+        return;
+      }
+    }
     if (!roll || !svg || (e.pointerType === 'mouse' && e.button !== 0)) return;
     const p = cellAt(e);
     const c = columnAt(roll, p.step);
@@ -154,12 +183,18 @@
     }
   }
   function move(e: PointerEvent) {
+    if (touches.has(e.pointerId)) touches.set(e.pointerId, e.clientX);
+    if (pan) {
+      if (scroller) scroller.scrollLeft = pan.left - (mid() - pan.x);
+      return;
+    }
     if (!drag) return;
     const p = cellAt(e);
     if (p.step !== drag.at) drag.moved = true;
     if (drag.moved) drag.len = clamp(p.step - drag.start + 1, 1, drag.max);
   }
-  function up() {
+  function up(e: PointerEvent) {
+    lift(e);
     if (!drag || !roll) return (drag = null);
     const d = drag;
     drag = null;
@@ -174,11 +209,13 @@
   let cursor = $state({ step: 0, row: 0 });
   let focused = $state(false);
   function key(e: KeyboardEvent) {
-    if (!roll) return;
+    if (!roll || e.altKey) return;
+    const plain = !e.ctrlKey && !e.metaKey;
     const c = columnAt(roll, cursor.step);
     const note = c?.rows.includes(cursor.row) ? c : null;
     const go = (step: number, row: number) => (cursor = { step: clamp(step, 0, frame.steps - 1), row: clamp(row, lo, hi) });
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') undo();
+    else if (!plain) return;
     else if (e.shiftKey && (e.key === 'ArrowRight' || e.key === 'ArrowLeft')) {
       if (note) write(resize(roll, note.start, note.len + (e.key === 'ArrowRight' ? 1 : -1)));
     } else if (e.key === 'ArrowRight') go(cursor.step + 1, cursor.row);
@@ -209,6 +246,9 @@
   });
 
   const tidy = (x: number) => +x.toFixed(4);
+  const tapHint = $derived(
+    'Tap to add or take away a note, drag right to hold it. Notes in one column are a chord.' + (svgWidth > width + 1 ? ' Two fingers scroll it sideways.' : ''),
+  );
 </script>
 
 {#if shown && words}
@@ -219,8 +259,8 @@
         <span class="laps">
           <button class="unstyled" type="button" onclick={undo} disabled={!canUndo}>Undo</button>
           {#if !kit}
-            <button class="unstyled" type="button" onclick={() => (more.above += 1)} aria-label="Show a lap more above">+ above</button>
-            <button class="unstyled" type="button" onclick={() => (more.below += 1)} aria-label="Show a lap more below">+ below</button>
+            <button class="unstyled" type="button" onclick={() => (more.above += 1)} disabled={!roomForLap} aria-label="Show a lap more above">+ above</button>
+            <button class="unstyled" type="button" onclick={() => (more.below += 1)} disabled={!roomForLap} aria-label="Show a lap more below">+ below</button>
           {/if}
         </span>
       {/if}
@@ -230,7 +270,7 @@
     {:else if roll}
       <div class="body">
         <RollKeys {rows} rowHeight={ROW} held={lit} {colourOf} onpress={press} onrelease={release} />
-        <div class="scroll" bind:clientWidth={width}>
+        <div class="scroll" bind:this={scroller} bind:clientWidth={width}>
           <!-- (an application: one focusable surface, its cursor told in its label; the cells are too many to tab through) -->
           <!-- svelte-ignore a11y_no_noninteractive_tabindex, a11y_no_noninteractive_element_interactions -->
           <svg
@@ -246,7 +286,7 @@
             onpointerdown={down}
             onpointermove={move}
             onpointerup={up}
-            onpointercancel={() => (drag = null)}
+            onpointercancel={(e) => (lift(e), (drag = null))}
             onkeydown={key}
             onfocus={() => (focused = true)}
             onblur={() => (focused = false)}
@@ -293,8 +333,7 @@
         </div>
       </div>
       <p class="hint" aria-live="polite">
-        {#if roll.length === 0}Blank: it plays its table. A note written here makes it a braid.{:else if focused}{status}{:else}Tap to add or take away a note, drag right to hold
-          it. Notes in one column are a chord.{/if}
+        {#if roll.length === 0}Blank: it plays its table. A note written here makes it a braid.{:else if focused}{status}{:else}{tapHint}{/if}
       </p>
     {/if}
   </section>
