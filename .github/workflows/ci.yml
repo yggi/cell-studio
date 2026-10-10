@@ -11,12 +11,15 @@ permissions:
   contents: read
 
 jobs:
-  check:
+  # The static checks and the build (about a minute), beside the tests, which run in two halves: a PR waits for the
+  # slowest of them, not for the sum. `check` below is the one status the ruleset requires; it passes when all three do.
+  # (Each job has a concurrency group of its own: sharing one, they would cancel each other. A newer push to a PR, or to
+  # main, replaces the jobs still running for the older one: the newer commit carries its changes, so its run tests them
+  # too. Only these jobs: a deploy already writing is never cancelled.)
+  static:
     runs-on: ubuntu-latest
-    # A newer push to a PR, or to main, replaces the check still running for the older one: the newer commit carries
-    # its changes, so its run tests them too. (Only this job: a deploy already writing is never cancelled.)
     concurrency:
-      group: ci-${{ github.event.pull_request.number || github.ref }}
+      group: ci-static-${{ github.event.pull_request.number || github.ref }}
       cancel-in-progress: true
     steps:
       - uses: actions/checkout@v7
@@ -29,7 +32,6 @@ jobs:
       - run: npm run lint
       - run: npm run format:check
       - run: npm run knip
-      - run: npm test
       - run: npm run build
       - uses: actions/upload-artifact@v7
         with:
@@ -37,7 +39,39 @@ jobs:
           path: dist
           retention-days: 3
 
-  # Publishes the build `check` made (the same commit, the same tests): no second test or build run.
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2]
+    concurrency:
+      group: ci-test-${{ matrix.shard }}-${{ github.event.pull_request.number || github.ref }}
+      cancel-in-progress: true
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      # (--bail: the first failing test ends this half, so a red run is red in seconds, not after the whole suite)
+      - run: npm test -- --shard=${{ matrix.shard }}/2 --bail 1
+
+  # The required status: the static checks, the build and both halves of the tests, passed on this commit.
+  check:
+    needs: [static, test]
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    concurrency:
+      group: ci-check-${{ github.event.pull_request.number || github.ref }}
+      cancel-in-progress: true
+    steps:
+      - run: |
+          echo "static: ${{ needs.static.result }}, test: ${{ needs.test.result }}"
+          [ "${{ needs.static.result }}" = success ] && [ "${{ needs.test.result }}" = success ]
+
+  # Publishes the build `static` made (the same commit, the same tests, which `check` has seen pass): no second test or build run.
   # Every writer of gh-pages (this, `preview`, preview-cleanup.yml) goes through .github/scripts/pages.sh,
   # which pushes with a lease and writes again if gh-pages moved: none overwrites another's folder.
   deploy:

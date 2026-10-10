@@ -33,20 +33,32 @@ Never rewrite history on someone else's branch (merge `main` in; no rebase, amen
 
 ## 4. Merge
 
-**The smoke test runs on every non-draft PR** (a minute or two, again on each push): once the review is done and you mean to merge, wait for the `smoke` run on the current head. Merge only when all hold: CI green on the current head (`check` and `smoke`), no conflicts, no open serious finding, **and the owner has approved**: either the prompt said to merge on a condition that is met ("merge if you find nothing"), or the owner said yes to your summary. Otherwise stop after the summary and ask. Squash-merge (the history reads `Title (#n)`), with the PR title as the message. Never bypass a red check.
+**The smoke test runs on every non-draft PR** (about two and a half minutes, again on each push): once the review is done and you mean to merge, wait for the `smoke` and `repeatable` runs on the current head. Merge only when all hold: CI green on the current head (`check`, `smoke` and `repeatable`), no conflicts, no open serious finding, **and the owner has approved**: either the prompt said to merge on a condition that is met ("merge if you find nothing"), or the owner said yes to your summary. Otherwise stop after the summary and ask. Squash-merge (the history reads `Title (#n)`), with the PR title as the message. Never bypass a red check.
 
 After merging: the issue is closed by `Closes #n` (verify; if the PR was partial, comment on the issue what is done and what is left); file follow-ups; update `docs/roadmap.md` or `docs/limits.md` if the work changed an epic or lifted a limit (on the PR branch before merging, not on `main` after).
 
 ## 5. Several PRs at once
 
 1. Order them: independent and safest first, those others depend on before their dependents, docs-only anytime. Conflicts are resolved once, at the later PR.
-2. For each in turn: merge `main` into its branch (`update_pull_request_branch`; if it conflicts, do it locally), resolve, run `npm test && npm run check`, push to the PR branch, wait for CI and its smoke run, merge, next.
+2. For each in turn: merge `main` into its branch (`update_pull_request_branch`; if it conflicts, do it locally: `node tools/sync-pr.mjs <pr>` does the mechanical conflicts, see below), resolve, run `npm test && npm run check`, push to the PR branch, wait for CI and its smoke run, merge, next.
 3. Resolving: read both PRs' intent first (descriptions, issues), then the code.
    - **Docs and `CHANGELOG.md`/`INDEX.md`**: keep both sides' facts, remove duplicates; the docs tests tell you if a block or link broke.
    - **Lockfile**: regenerate with `npm install`, never merge by hand.
    - **Behavioural conflicts** (e.g. the order in which things are inserted into the audio graph): don't choose by which text looks nicer. Work out what each PR needs, write or adjust a test that pins the order, and run the smoke test on the pieces that use it.
    - If resolving changes what either PR does beyond the mechanical, stop and ask the owner.
 4. Report the order you merged in and anything you changed beyond the conflicts.
+
+### Mechanical conflicts: `tools/sync-pr.mjs`
+
+`node tools/sync-pr.mjs <pr> [--push] [--no-gate] [--keep]` brings a PR up to date with `main` in a worktree of its own. It resolves only the files that conflict mechanically, because both sides *added* to them: `CHANGELOG.md`, `docs/MEMORY.md`, `snapshot.txt`, `quality.baseline.json`, `order.ts`, `ladder.ts` (both sides' lines, main's first; the baseline's commas fixed), and the generated `docs/examples.md` and `reference.md` (main's, regenerated). Any other conflicted file stops it (exit 2, files named): that is for you to resolve by hand. It then runs the gate (`check`, `eslint`, `knip`, `prettier --check`, `vitest`; exit 3 on a failure, worktree kept) and warns when two decisions share a number. With `--push` it pushes to the PR branch only if the author hasn't pushed since it fetched (exit 4: run it again).
+
+It decides nothing: a collision it can't see (two pieces on one tier, a rung number, a decision number twice) shows up as a failing gate or the warning, and renumbering is yours. Re-review what the merge brought in only when the PR itself changed since your review; a mechanical merge of `main` is not new code.
+
+### Stacked PRs and the merge strategy
+
+Merge by **squash** (the default, above): `main` reads `Title (#n)`, one commit a change. A squash is why a PR stacked on another one needs work after its parent merges (the parent's commits are not in `main`): so don't stack. Branch from `main`; when a PR needs another's code, wait for it, or retarget its base to `main` as soon as the parent is in (merge `main` in; the diff must show only its own files). A stack that has to stay one lineage (rare) is merged with a **merge commit**, for those PRs only. GitHub lets you choose per PR.
+
+`.gitattributes` marks `CHANGELOG.md`, `docs/MEMORY.md` and `snapshot.txt` as `merge=union`: a local `git merge` keeps both sides' added lines instead of conflicting. (GitHub's "Update branch" may not honour it; `tools/sync-pr.mjs` is the fallback.) Rung, tier and decision numbers are still taken by hand: take the next free number on `main` when you merge, and check `docs/decisions/` for a number used twice.
 
 ## 6. Report back (short)
 

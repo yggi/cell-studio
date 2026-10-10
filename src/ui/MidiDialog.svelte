@@ -83,7 +83,7 @@
       {#if midi.sendClock && !midi.meter}<p class="message" role="status">This piece has no meter, so no clock is sent.</p>{/if}
       {#if midi.table?.voices.length}
         <table>
-          <caption>Voices and their channels{midi.table.byPiece ? ': set by the piece' : ''}</caption>
+          <caption>{midi.table.byPiece ? 'Voices and their channels: set by the piece' : 'Gates and voices, and their channels'}</caption>
           <tbody>
             {#each midi.table.voices as v (`${v.voice} ${v.channel} ${v.port ?? 1}`)}
               <tr>

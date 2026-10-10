@@ -20,7 +20,8 @@
   import { onFrames } from '../audio/ticker';
   import { timed } from '../audio/stats';
   import FreePills from './FreePills.svelte';
-  import { headAngle as tapeHeadAngle, tapeHeads, UNTURNED } from '../layout/tape';
+  import { headAngle as tapeHeadAngle, headBulbs, tapeHeads, UNTURNED } from '../layout/tape';
+  import { bulbHosts } from '../engine/graph';
   import { polar as onCircle } from '../layout/geometry';
   import { angleOf, turnDelta } from '../layout/dial';
   import { NOTE_NAMES as NAMES } from '../theory/modes';
@@ -107,6 +108,32 @@
   // along the tape it reads: layout/tape.ts)
   const turn = $derived(d.turn ?? UNTURNED);
   const headAngle = (at: number) => (tape ? tapeHeadAngle(at, tape.L, turn) : turn);
+  // (its read heads drawn as bulbs on it, decision 021: just outside the rim, each on its head's ray; they stay where
+  // the heads are while the tape runs under them, and turn with the wheel when the layout turns it)
+  const bulbs = $derived.by(() => {
+    if (!tape || !cell) return [];
+    const hosts = bulbHosts(ctx.program);
+    return headBulbs(cell, ctx.program.cells.values(), S)
+      .filter((h) => hosts.get(h.name) === d.name)
+      .map((h) => ({ ...h, look: nodeState(ctx, `cell:${h.name}`) }));
+  });
+  // (held, a head's bulb switches it off or on: the wheel is no place to drag from, so not kit/attach's longpress)
+  let bulbHold: ReturnType<typeof setTimeout> | undefined;
+  let bulbHeld = false;
+  function bulbDown(e: PointerEvent, name: string) {
+    e.stopPropagation();
+    if (e.button !== 0) return;
+    bulbHeld = false;
+    clearTimeout(bulbHold);
+    bulbHold = setTimeout(() => {
+      bulbHeld = true;
+      navigator.vibrate?.(12);
+      ctx.toggle(`cell:${name}`);
+    }, 450);
+  }
+  const bulbUp = () => clearTimeout(bulbHold);
+  // (how far they reach below the wheel: its name goes under them)
+  const below = $derived(Math.max(0, ...bulbs.map((b) => polar(headAngle(b.at), b.dist).y + b.r - S)));
   // (degrees here, 0 at 3 o'clock, as SVG's rotate() counts them)
   const polar = (deg: number, r: number) => {
     const [x, y] = onCircle(R, R, r, (deg + 90) / 360);
@@ -362,6 +389,7 @@
   // gone mid-gesture (a code edit, another piece): no timer left running, no hand left on it
   onDestroy(() => {
     if (hold) clearTimeout(hold);
+    clearTimeout(bulbHold);
     if (renew) clearInterval(renew);
     if (mode === 'grab') ctx.sound.grab(d.name, null);
     else if (mode === 'damp') ctx.sound.damp(d.name, false);
@@ -486,7 +514,29 @@
       >
     {/each}
   {/if}
-  <span class="name" style:margin-top={exciters.length > 1 ? `${R * 0.42}px` : undefined}>&{d.name}</span>
+  {#each bulbs as b (b.name)}
+    {@const p = polar(headAngle(b.at), b.dist)}
+    <!-- a read head: tapped, it opens; held, it switches off (Graph.svelte); playing into nothing that sounds, dimmed -->
+    <button
+      class="head-bulb"
+      class:live={b.look === 'live'}
+      class:off={b.look === 'off' || b.look === 'unrouted'}
+      data-bulb={b.name}
+      style:left="{p.x}px"
+      style:top="{p.y}px"
+      style:width="{b.r * 2}px"
+      style:height="{b.r * 2}px"
+      style:font-size="{Math.max(6, Math.min(11, (b.r * 2.6) / Math.max(3, b.name.length + 1)))}px"
+      aria-label="&{b.name}: a read head {b.at} s along the tape; Shift+Enter switches it {b.look === 'off' ? 'on' : 'off'}"
+      onpointerdown={(e) => bulbDown(e, b.name)}
+      onpointerup={bulbUp}
+      onpointerleave={bulbUp}
+      onpointercancel={bulbUp}
+      onclick={(e) => (e.stopPropagation(), bulbHeld ? (bulbHeld = false) : ctx.open(b.name))}
+      onkeydown={(e) => e.key === 'Enter' && e.shiftKey && (e.preventDefault(), ctx.toggle(`cell:${b.name}`))}>&{b.name}</button
+    >
+  {/each}
+  <span class="name" style:margin-top={exciters.length > 1 ? `${R * 0.42}px` : below ? `${below}px` : undefined}>&{d.name}</span>
   {#if cell?.frees.length}<FreePills frees={cell.frees} name={d.name} />{/if}
   <Handle type="source" position={Position.Bottom} class="center-handle" isConnectable={false} />
   {#if tape}
@@ -494,7 +544,8 @@
     {@const w = polar(turn, R * 1.02)}
     <Handle type="target" id="head-write" position={Position.Top} class="head-handle" style="left: {w.x}px; top: {w.y}px" isConnectable={false} />
     {#each tape.heads as h (h.name)}
-      {@const p = polar(headAngle(h.at), R * 1.02)}
+      <!-- (a head drawn as a bulb: its edges leave from the bulb's hub, under it) -->
+      {@const p = polar(headAngle(h.at), bulbs.find((b) => b.name === h.name)?.dist ?? R * 1.02)}
       <Handle type="source" id="head-{h.name}" position={Position.Bottom} class="head-handle" style="left: {p.x}px; top: {p.y}px" isConnectable={false} />
     {/each}
   {/if}
@@ -604,6 +655,28 @@
     box-shadow: 0 0 calc(var(--glow) * 14px) color-mix(in srgb, var(--pad-glow) calc(var(--glow) * 90%), transparent);
     filter: brightness(calc(0.85 + var(--glow) * 0.5));
     z-index: 2;
+  }
+  /* a read head as a bulb on its tape (decision 021): a small wheel in the read head's colour, its name inside */
+  .head-bulb {
+    position: absolute;
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+    border: 3px solid var(--head-read);
+    background: var(--wheel-disc);
+    color: var(--text);
+    font-weight: 700;
+    font-family: var(--font-ui);
+    padding: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    cursor: pointer;
+    z-index: 2;
+  }
+  .head-bulb.live {
+    box-shadow: 0 0 10px color-mix(in srgb, var(--head-read) 70%, transparent);
+  }
+  .head-bulb.off {
+    opacity: 0.35;
   }
   .pad:active {
     transform: translate(-50%, -50%) scale(0.92);

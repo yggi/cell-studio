@@ -97,8 +97,17 @@ const INTO_VOICE: Carrier = (e, p) => {
   return { phaseCell: trigger(p, voice) === nameOf(e.source) ? nameOf(e.source) : null, voice };
 };
 
+/** An edge from a read head drawn as a bulb on its tape (decision 021): leaving the tape, it is the head's. */
+const headBulb = (e: GraphEdge, program: CompileResult) => !!e.bulb && program.cells.get(e.bulb)?.params.play === nameOf(e.from);
+
 /** What an edge carries: one lookup by (band, port). */
 export function carried(e: GraphEdge, program: CompileResult): Carried {
+  // (from a head's bulb: what the head carries, as if its own node drew it)
+  if (headBulb(e, program)) {
+    const head = `cell:${e.bulb}`;
+    const tape = e.from;
+    e = { ...e, from: head, source: e.source === tape ? head : e.source, target: e.target === tape ? head : e.target };
+  }
   return (BY_BAND[e.band] ?? BY_PORT[e.port] ?? INTO_VOICE)(e, program);
 }
 
@@ -126,7 +135,15 @@ function pulseData(e: GraphEdge, program: CompileResult) {
 export function flowEdgeOf(e: GraphEdge, state: State, program: CompileResult, belt?: BeltDrawn, sizes?: EndSizes, net?: NetPlace, ring?: number): Edge {
   if (belt) return { id: e.id, source: e.source, target: e.target, type: 'belt', zIndex: 5, selectable: false, data: { ...belt } };
   // a tape's edges meet it at its heads: the write head (what it records), each read head (what it plays)
-  const heads = e.port === 'write' ? { targetHandle: 'head-write' } : e.port === 'play' ? { sourceHandle: `head-${nameOf(e.target)}` } : {};
+  // (a read head drawn as a bulb on its tape, decision 021: what it plays into leaves from the bulb)
+  const heads =
+    e.port === 'write'
+      ? { targetHandle: 'head-write' }
+      : e.port === 'play'
+        ? { sourceHandle: `head-${nameOf(e.target)}` }
+        : headBulb(e, program)
+          ? { sourceHandle: `head-${e.bulb}` }
+          : {};
   // drawn along the flow (docs/notes/nets.md): from what is read to the cell that reads it
   return {
     id: e.id,

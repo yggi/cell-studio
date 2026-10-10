@@ -51,12 +51,26 @@ describe('what an edge carries: one lookup by band and port', () => {
     let n = 0;
     for (const [key, { source }] of Object.entries(PRESETS)) {
       const program = compileSource(source);
-      for (const e of buildGraph(program).edges) {
+      // (every cell its own node: the edges as the code writes them)
+      for (const e of buildGraph(program, { bulbs: false }).edges) {
         expect(carried(e, program), `${key}: ${e.id} (${e.port} ${e.band})`).toEqual(byPort(e, program));
         n++;
       }
     }
     expect(n).toBeGreaterThan(500);
+  });
+
+  it('from a read head drawn as a bulb on its tape: what the head’s own edge carries (decision 021)', () => {
+    let n = 0;
+    for (const key of ['echotape', 'soundtape', 'worn', 'resonanz'] as const) {
+      const program = compileSource(PRESETS[key].source);
+      const own = new Map(buildGraph(program, { bulbs: false }).edges.map((e) => [e.id, e]));
+      for (const e of buildGraph(program).edges.filter((x) => x.bulb && own.has(x.id))) {
+        expect(carried(e, program), `${key}: ${e.id}`).toEqual(carried(own.get(e.id)!, program));
+        n++;
+      }
+    }
+    expect(n).toBeGreaterThan(5);
   });
 
   it('pulses a clock’s ticks with the cell they drive, and a melody into its voice with its steps', () => {
