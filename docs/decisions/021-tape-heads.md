@@ -8,7 +8,7 @@ A tape (`&tape step=&reel write=&tune length=6`) was drawn as a turntable with i
 
 ## Decision
 
-**A cell that is only part of another is drawn on it, as a bulb, not as a node of its own.** Where it sits is the host's own coordinate for it, written in the code:
+**A cell that is only part of another is drawn on it, as a bulb, not as a node of its own.** The rules are one table in the code, `src/layout/subwheels.ts`, tried in order. Where it sits is the host's own coordinate for it, written in the code:
 
 | bulb | on | when | where (from the code) | turns with |
 |---|---|---|---|---|
