@@ -2,7 +2,9 @@ import { createContext, tick } from 'svelte';
 import { codeShifts } from '../../engine/program';
 import { declLine } from '../../engine/edit';
 import { FIRST_SOURCE, loadExample, type PresetKey } from '../../examples';
-import { fileName, readFile, saveFile, savePiece } from '../../library';
+import { download, fileName, readFile, saveFile, savePiece, titleOf } from '../../library';
+import { pieceMidi } from '../../engine/midiexport';
+import { writeMidi } from '../../engine/midifile';
 import { loudness, renderLength, renderPiece, wav } from '../../audio/render';
 import { transportClock } from '../../audio/clock.svelte';
 import { installDebugHook } from '../../debugHook';
@@ -104,6 +106,17 @@ export class Studio {
   /** Save the code as a .cells file. */
   saveFile(): void {
     saveFile(this.piece.code);
+  }
+
+  /** Save the piece's notes as a MIDI file (#307): as MIDI out sends them, a track a channel, its tempo map as tempos. */
+  saveMidi(): void {
+    const result = this.piece.result;
+    if (!result.ok) return;
+    const { smf, dropped } = pieceMidi(result, codeShifts(result), result.off, titleOf(this.piece.code));
+    const bytes = writeMidi(smf);
+    download(new Blob([bytes.buffer as ArrayBuffer], { type: 'audio/midi' }), fileName(this.piece.code).replace(/\.cells$/, '.mid'));
+    const notes = smf.tracks.reduce((n, t) => n + t.notes.length, 0);
+    this.view.message = `Saved as MIDI: ${notes} notes on ${smf.tracks.length} channel${smf.tracks.length === 1 ? '' : 's'}${dropped ? `; ${dropped} out of MIDI’s range left out` : ''}.`;
   }
 
   /** Save the code in this browser; it's then the piece open. */

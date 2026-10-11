@@ -1,7 +1,7 @@
 <script lang="ts">
   /**
    * Files, a page of the sidebar: open a piece from a file, save the open one to a file or in this browser, render it
-   * to WAV, the performance report, and which build this is. What those did (saved, rendering, rendered, couldn't read)
+   * to WAV, save its notes as MIDI, the performance report, and which build this is. What those did (saved, rendering, rendered, couldn't read)
    * is said here, in a status line: the picker shows it too, but it is hidden while a piece is open.
    */
   import { getStudio } from './state/studio.svelte';
@@ -23,6 +23,9 @@
       >Save it in this browser</button
     >
     <button disabled={!current} onclick={() => studio.render()}>Render the piece to WAV</button>
+    <button disabled={!current} title="Its notes as MIDI out sends them: a track a channel, its tempo map as tempos" onclick={() => studio.saveMidi()}
+      >Save its notes as MIDI</button
+    >
     <input
       bind:this={fileInput}
       type="file"

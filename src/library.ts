@@ -88,16 +88,21 @@ export function fileName(source: string): string {
   return `${slug || 'piece'}.cells`;
 }
 
-/** Download the piece as a text file. */
-export function saveFile(source: string): void {
-  const url = URL.createObjectURL(new Blob([source], { type: 'text/plain;charset=utf-8' }));
+/** Download a file. */
+export function download(blob: Blob, name: string): void {
+  const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = fileName(source);
+  a.download = name;
   document.body.append(a);
   a.click();
   a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+/** Download the piece as a text file. */
+export function saveFile(source: string): void {
+  download(new Blob([source], { type: 'text/plain;charset=utf-8' }), fileName(source));
 }
 
 /** Read a chosen file's text. */
