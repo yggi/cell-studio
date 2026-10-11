@@ -1,6 +1,6 @@
-# The tower strip: the sound card as the tower, the graph laid by it (mock-ups)
+# The tower strip: the sound card as the tower, the graph laid by it
 
-Date: 2026-10-11 · Status: open (mock-ups for the owner; nothing built) · Issue: [#234](https://github.com/yggi/cell-studio/issues/234) (the multiscale epic) · Follows [tower-rows.md](tower-rows.md) and [outputs-top.md](outputs-top.md)
+Date: 2026-10-11 · Status: open (built as a layout of its own, off by default) · Issue: [#234](https://github.com/yggi/cell-studio/issues/234) (the multiscale epic) · Follows [tower-rows.md](tower-rows.md) and [outputs-top.md](outputs-top.md)
 
 ## The ask, read back
 
@@ -40,14 +40,44 @@ Stereo in A (if the strings had `pan=-.6`):
 - **The pulse row is crowded**: four wheels at one height, the meter's net a straight trace along it. Pieces with many melodies at one rate will make wide rows (the tower-rows probe's main cost).
 - **Wires to the strip cross the graph** at their pitch's height: a low voice far from the strip passes under the higher ones. The layout's x should pull sound sources toward the strip, lowest first.
 
-## Open questions for the owner
+## Chosen (the owner, 2026-10-11)
 
-1. One strip (A: halves are L and R) or two (B: a strip at each side)? And which side for A (mock: right)?
-2. The vertical scale: an even log scale (the mock: 250 px a decade, so 5 decades ≈ 1250 px), or empty decades squeezed (the waltz has nothing between 3 and 65 Hz)?
-3. Does a voice's centre sit at its base frequency, or its socket (its top, as mocked, so the wire runs level)?
-4. A sub-mix that is not the sound card (a mix of mixes) keeps its node, its own output into the strip at the height of what it carries?
-5. Cells with no height (a table nothing steps, a scope, a note): at the bottom (the constant), or free?
+1. **B**: two strips, the left channel at the graph's left edge, the right at its right.
+2. **An even scale** on the strip (a rainbow: a band a semitone, in its note's colour), the same as the graph's.
+3. **A voice's top** sits at its base frequency (its wire runs level).
+4. A mix that isn't the card keeps its node and sends its own wire into the strips.
+5. Cells with no height: wherever the layout puts them, **minimal forces**, heights fixed; a separate graph layout, `tower`.
+
+## Built
+
+- `layout/towerlayout.ts`: `towerHeights` (each node's y held: a voice's top at `towerY(log10 f0)`, a stepped cell's centre at its step, `TOWER_PX` = 360 px a decade), `withoutCard` (the graph drawn without the sound card's node and its edges), `towerOuts` / `towerIns` (what went into the card, and where its wire leaves).
+- `LayoutOptions.heights` (`physics.ts: hold`): each named node ends every tick at its height (d3's `fy`), dragged too; `TOWER_LAYOUT` the few forces left (no rows, columns, spread, kinds, tags; one row order; meters not placed last).
+- `GraphLayout.mode` (`'flow' | 'tower'`, `setMode` lays the piece out afresh); the toolbar's *tower layout*, `?layout=tower` (`?strips`: opened); the gallery: `LAYOUT=tower STRIPS=1 node tools/gallery.mjs golden 3 waltz`.
+- `TowerStrips.svelte` (the strips: a canvas each, the rainbow, the zones, the spectra per band, the connectors), `TowerWires.svelte` (the wires, behind the cells, in the graph's coordinates).
+- `towerlayout.test.ts`: the waltz's heights, no card, a two-channel card split left and right, heights held through the forces and a drag.
+
+### Seen (the real Graph, the gallery's made-up sound)
+
+The waltz, stopped with the strips open, and live with them folded:
+
+![the waltz, strips open](tower-strip-waltz-open.jpg)
+
+![the waltz, live](tower-strip-waltz.jpg)
+
+*Pop* and the *Ricercar*, stopped:
+
+![Pop](tower-strip-pop.jpg)
+
+![the Ricercar](tower-strip-ricercar.jpg)
+
+- The rows fall out of the tower by themselves: the beat (the bar and what it steps), the voices at their pitch, the form and the constant tables (free) lower down. Pop's drums nest by rate (the bar, the kick and snare, the hats); the Ricercar's tables sink under the voices.
+- **Wires run level over what is in their way**: the tuba's crosses under the flute and the strings, Pop's mixes' wires over its voices' caps. A force that keeps a held cell off another's wire row (sideways), or wires taking lanes round a cell, is the next step.
+- The colours of live wires and the live spectra in these pictures are the gallery's made-up sound (every voice on C4); the app's are the piece's.
+- Not measured yet: crossings and the rest of the quality numbers in the tower layout against the signal path's (the probe skill's pattern; the layout's own metrics will move: a crossing with a wire into the strips isn't counted, the card's edges are gone).
 
 ## Next
 
-Once the shape is chosen: `LayoutOptions` gets a tower mode (y fixed per node from `towerOf`, x by the forces), the sink's node and its edges drop from the drawing, the strip replaces `TowerAxis.svelte` with the live spectra per source (the audio side has each voice's analyser), and the waltz and the probe's metrics are measured both ways.
+1. Measure the tower layout over the library (crossings, wires over cells), against the signal path's.
+2. Wires and held cells: keep cells off the wires' rows, or route wires round them.
+3. A mix's own height: today a mix sits a hair above the highest sound it carries (`towerOf`), its centre there, so its wire leaves its top just above; whether a mix should sit where its own output is read (its top) as a voice does.
+4. The tower's axis (the signal path's layout's *tower* button) and the strips: one of them, once the layout is chosen.

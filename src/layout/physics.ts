@@ -107,6 +107,8 @@ export class ForceLayout {
       .force('aims', (alpha: number) => stepAims(this.s, alpha))
       // turntables: nothing overlaps them — a node that would is set at their edge
       .force('exclusion', () => stepExclusion(this.s))
+      // (the tower layout) heights held: whatever moved a node, it ends the tick at its height
+      .force('heights', () => this.hold())
       .on('tick', () => {
         placeJunctions(this.s);
         onTick();
@@ -214,6 +216,7 @@ export class ForceLayout {
     const removed = [...this.s.byId.keys()].filter((id) => !next.has(id)).length;
     this.s.byId.clear();
     for (const [k, v] of next) this.s.byId.set(k, v);
+    this.hold();
 
     // (a net at delays is a star from its owner, which its edges' own springs already are: measured, as the net's
     // springs Frère Jacques crosses more, 1 → 1.7 — docs/notes/nets.md, step 6)
@@ -310,6 +313,19 @@ export class ForceLayout {
     }
   }
 
+  /** (the tower layout) Each node `heights` names held at its height: only x is free (d3 sets y to fy each tick). */
+  private hold(): void {
+    const h = this.s.opts.heights;
+    if (!h) return;
+    for (const n of this.s.byId.values()) {
+      const y = h.get(n.id);
+      if (y === undefined) continue;
+      n.fy = y;
+      n.y = y;
+      n.vy = 0;
+    }
+  }
+
   /** Where everything is now, as quality.ts reads it: the nodes (a tag's name hides edges, but isn't a cell) and the edges as drawn. */
   private placed() {
     const nodes = [
@@ -355,6 +371,7 @@ export class ForceLayout {
    */
   layNet(): void {
     if (this.s.opts.placeLast) this.placeMeters();
+    this.hold();
     // (the products' junctions, where their wires cross least: junctions.ts)
     settleJunctions(this.s, (l) => this.beltRuns(l));
     this.meterNet();
@@ -429,7 +446,7 @@ export class ForceLayout {
     const p = this.s.byId.get(id);
     if (!p) return;
     p.fx = x;
-    p.fy = y;
+    p.fy = this.s.opts.heights?.get(id) ?? y;
     this.sim.alphaTarget(0.3);
     if (this.s.opts.live) this.sim.restart();
   }
@@ -438,7 +455,7 @@ export class ForceLayout {
     const p = this.s.byId.get(id);
     if (!p) return;
     p.fx = x;
-    p.fy = y;
+    p.fy = this.s.opts.heights?.get(id) ?? y;
   }
 
   /** Release a dragged node back into the simulation, or keep it pinned. */

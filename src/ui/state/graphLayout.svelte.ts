@@ -4,7 +4,8 @@ import { SvelteSet } from 'svelte/reactivity';
 import { structureKey, type GraphNode } from '../../engine/graph';
 import type { LiveState } from '../../engine/live';
 import { ForceLayout } from '../../layout/physics';
-import { DEFAULT_LAYOUT, type LayoutOptions } from '../../layout/options';
+import { DEFAULT_LAYOUT, TOWER_LAYOUT, type LayoutOptions } from '../../layout/options';
+import { towerHeights, towerOuts, withoutCard, type TowerOut } from '../../layout/towerlayout';
 import type { MeterTrace } from '../../layout/state';
 import { meterIndex } from '../../layout/meters';
 import { towerOf, towerRanks, zoneRanks } from '../../layout/tower';
@@ -31,6 +32,9 @@ export interface EdgeStyle {
 
 type Tap = { from: string; x: number; y: number; r: number } | null;
 
+/** The graph's layouts: the signal path's (`flow`), or the frequency tower's (`tower`: towerlayout.ts). */
+export type LayoutMode = 'flow' | 'tower';
+
 /**
  * The graph as laid out: the snapshot drawn (one piece's program and graph, `shown`), the flow's nodes and edges made
  * from it, and where they are (a `ForceLayout`, pins, petals' slots, the splines' bends, the nets' taps, the meters'
@@ -52,6 +56,10 @@ export class GraphLayout {
   fitToken = $state(0);
   /** The forces, adjustable live. */
   options = $state.raw<LayoutOptions>({ ...DEFAULT_LAYOUT });
+  /** Which layout lays the graph out (switched by `setMode`: laid out afresh). */
+  mode = $state<LayoutMode>('flow');
+  /** In the tower layout: what goes into the sound card (its node not drawn), as wires into the strips. */
+  outs = $state.raw<readonly TowerOut[]>([]);
   /** Pinned by the user (or held where they were dropped, or a turntable: see `#placed`). */
   readonly pinned = new SvelteSet<string>();
 
@@ -68,12 +76,18 @@ export class GraphLayout {
   #madeFrom: readonly unknown[] = [];
 
   /** `rowOrders`: rows' orders chosen ahead (the examples': tools/examples-index.ts). `style`: read when edges are made. */
-  constructor(first: GraphSnapshot, style: () => EdgeStyle, rowOrders?: LayoutOptions['rowOrders']) {
+  // the last snapshot given (as the piece has it, the card included): laid out again when the mode changes
+  #given: GraphSnapshot;
+  #opened = 0;
+
+  constructor(first: GraphSnapshot, style: () => EdgeStyle, rowOrders?: LayoutOptions['rowOrders'], mode: LayoutMode = 'flow') {
     this.shown = first;
+    this.#given = first;
+    this.mode = mode;
     this.#style = style;
     // Each physics tick copies simulated positions into the flow nodes. The node under the pointer is left alone:
     // Svelte Flow owns it while dragging.
-    this.#force = new ForceLayout(() => this.#tick(), { ...PROBE_LAYOUT, ...(rowOrders ? { rowOrders } : {}) });
+    this.#force = new ForceLayout(() => this.#tick(), { ...PROBE_LAYOUT, ...(rowOrders ? { rowOrders } : {}), ...(mode === 'tower' ? TOWER_LAYOUT : {}) });
     this.options = { ...this.#force.options };
     // (at rest again — after a drag, an edit — the meter's net is laid again from where things are; the meter stays put)
     this.#force.onSettle(() => {
@@ -86,9 +100,16 @@ export class GraphLayout {
    * Take the next snapshot: lay it out (a piece just opened, `opened` changed: afresh, and framed once it has come to
    * rest; an edit: from where things are) and make its nodes and edges, all at once.
    */
-  sync(next: GraphSnapshot, opened: number): void {
-    const m = next.model;
+  sync(given: GraphSnapshot, opened: number): void {
+    this.#given = given;
+    this.#opened = opened;
     const layout = this.#force;
+    // (the tower layout: no card's node, its edges wires into the strips; each node at its height on the tower)
+    const tower = this.mode === 'tower';
+    const next = tower ? { ...given, model: withoutCard(given.model) } : given;
+    const m = next.model;
+    this.outs = tower ? towerOuts(given.program, given.model) : [];
+    if (tower) layout.setOptions({ heights: towerHeights(next.program, m) });
     // (a probe: the rows by the frequency tower instead of the signal path, docs/notes/multiscale.md)
     if (ROWS === 'tower') layout.setOptions({ ranks: towerRanks(towerOf(next.program, m)) });
     if (ROWS === 'zones') layout.setOptions({ ranks: zoneRanks(towerOf(next.program, m, 'emit'), flowRanks(m)) });
@@ -140,6 +161,17 @@ export class GraphLayout {
       .map((g: GraphNode) => flowNodeOf(g, this.#posOf(g.id) ?? { x: 0, y: 0 }, this.pinned.has(g.id) && !this.#placed.has(g.id), this.#turnOf(g.id), meters, next.program));
     this.#makeEdges();
     if (fresh) this.fitToken++;
+  }
+
+  /** Switch layouts: the forces' preset and the heights change, and the piece is laid out afresh and framed. */
+  setMode(mode: LayoutMode): void {
+    if (mode === this.mode) return;
+    this.mode = mode;
+    const { live: _live, radius: _radius, ...defaults } = DEFAULT_LAYOUT;
+    this.#force.setOptions({ ...defaults, ...PROBE_LAYOUT, rowOrders: this.#force.options.rowOrders, heights: undefined, ...(mode === 'tower' ? TOWER_LAYOUT : {}) });
+    this.options = { ...this.#force.options };
+    this.#lastOpened = -1;
+    this.sync(this.#given, this.#opened);
   }
 
   /** Make the edges again if what they're drawn with changed (routing, lit, a meter's net, a belt's stretch). */
@@ -201,8 +233,8 @@ export class GraphLayout {
     this.options = { ...this.#force.options };
   }
   resetForces(): void {
-    const { live: _live, radius: _radius, ...defaults } = DEFAULT_LAYOUT;
-    this.#force.setOptions(defaults);
+    const { live: _live, radius: _radius, rowOrders: _rows, ...defaults } = DEFAULT_LAYOUT;
+    this.#force.setOptions({ ...defaults, ...(this.mode === 'tower' ? TOWER_LAYOUT : {}) });
     this.options = { ...this.#force.options };
   }
 

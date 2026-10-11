@@ -44,6 +44,11 @@ export interface LayoutOptions {
    * (`tower.ts: towerRanks`), a probe (docs/notes/multiscale.md). A node it doesn't name keeps its rank in the flow.
    */
   ranks?: ReadonlyMap<string, number>;
+  /**
+   * Heights held (by node id, the graph's y): the tower layout's (`towerlayout.ts: towerHeights`); a node it names
+   * moves only sideways, dragged too. Unset: every node is free.
+   */
+  heights?: ReadonlyMap<string, number>;
   layerGap: number;
   /** Edge length at rest (px). */
   linkDistance: number;
@@ -141,6 +146,25 @@ export const DEFAULT_LAYOUT: LayoutOptions = {
   clusters: true,
   seed: 0,
   radius: (n) => roomFor(n),
+};
+
+/**
+ * The tower layout's forces (docs/notes/tower-strip.md): heights are held (`heights`), so the pulls to rows and columns,
+ * the spread and the kinds' and tags' pushes are off; what is left keeps nodes apart and draws what is joined together,
+ * sideways. Rows in one order (no trials), and meters stay where the forces put them.
+ */
+export const TOWER_LAYOUT: Partial<LayoutOptions> = {
+  rankPull: 0,
+  columnPull: 0,
+  upPull: 0,
+  spread: 0,
+  kindRepel: 0,
+  tagPull: 0,
+  tagRepel: 0,
+  mux: 0,
+  clusters: false,
+  rowOrder: 0,
+  placeLast: 0,
 };
 
 /**
