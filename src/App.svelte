@@ -11,6 +11,7 @@
   import Editor from './ui/Editor.svelte';
   import UpdateToast from './ui/UpdateToast.svelte';
   import KeysDock from './ui/KeysDock.svelte';
+  import TimeView from './ui/TimeView.svelte';
 
   // the app's state (ui/state/): the piece, playing it, the library, what's on screen
   const studio = new Studio();
@@ -26,7 +27,7 @@
   {/await}
 {/if}
 
-<div class="app" class:selecting={view.tab === 'select'}>
+<div class="app" class:selecting={view.tab === 'select'} class:timing={view.tab === 'time'}>
   <header>
     <h1 aria-label="Cell studio">
       {#each [...'Cell studio'] as ch, i}<span style:color={ch === ' ' ? undefined : noteColour((i * 7 * 30) % 360)}>{ch}</span>{/each}
@@ -47,6 +48,7 @@
     <button role="tab" aria-selected={view.tab === 'code'} class:on={view.tab === 'code'} disabled={!library.anyOpen} onclick={() => (view.tab = 'code')}>
       Code{#if piece.errors}<span class="badge" aria-label="{piece.errors} errors">{piece.errors}</span>{/if}
     </button>
+    <button role="tab" aria-selected={view.tab === 'time'} class:on={view.tab === 'time'} disabled={!library.anyOpen} onclick={() => (view.tab = 'time')}>Time</button>
   </div>
 
   <section class="canvas" class:away={view.tab !== 'graph'} inert={view.narrow && view.tab !== 'graph'} aria-label="Cell graph">
@@ -76,6 +78,7 @@
       played={studio.keys.lit}
       rows={studio.rows}
       onlayout={(l) => (view.layout = l)}
+      ontime={view.narrow ? undefined : () => (view.tab = 'time')}
     />
     {#if piece.stale}
       <p class="stale">Showing the last version that compiled</p>
@@ -88,6 +91,9 @@
   {#if dock.open && library.anyOpen && view.tab !== 'select'}
     <div class="dock-slot"><KeysDock /></div>
   {/if}
+  <section class="time" class:away={view.tab !== 'time'} inert={view.tab !== 'time'} aria-label="The piece in time">
+    <TimeView active={view.tab === 'time' && library.anyOpen} ongraph={view.narrow ? undefined : () => (view.tab = 'graph')} />
+  </section>
   <section class="side" class:away={view.tab !== 'code'} inert={view.narrow && view.tab !== 'code'} aria-label="Program">
     <Editor bind:this={studio.editor} bind:value={piece.code} diagnostics={piece.result.diagnostics} />
     <Shorten code={piece.code} onapply={(next) => (piece.code = next)} />
@@ -115,7 +121,8 @@
     min-height: 0;
   }
   .canvas,
-  .side {
+  .side,
+  .time {
     grid-area: view;
     min-height: 0;
     z-index: 1;
@@ -202,6 +209,15 @@
     }
     .side {
       grid-area: side;
+    }
+    /* the time view: in the graph's pane, instead of the graph (which stays mounted underneath, truly hidden) */
+    .time {
+      grid-area: canvas;
+      z-index: 2;
+    }
+    .time.away,
+    .timing .canvas {
+      visibility: hidden;
     }
     .away {
       z-index: 1;

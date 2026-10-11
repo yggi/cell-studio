@@ -67,6 +67,7 @@
     played,
     rows,
     onlayout,
+    ontime,
   }: {
     model: GraphModel;
     program: CompileResult;
@@ -107,6 +108,8 @@
     rows?: RowKeys;
     /** Told the layout on mounting (the sidebar's forces), null when it goes. */
     onlayout?: (layout: GraphLayout | null) => void;
+    /** On a wide screen: show the time view in the graph's pane (a button in the toolbar). */
+    ontime?: () => void;
   } = $props();
 
   // The piece as drawn: one snapshot (program, graph, shifts, routing), swapped whole with the nodes and edges made
@@ -392,6 +395,7 @@
       aria-pressed={towerOpen}
       title="Each cell's time scale, from the constant to the audible">tower</button
     >
+    {#if ontime}<button class="forces-toggle" onclick={ontime} title="The piece in time: a tracker of its notes, its scalogram and its sound">time</button>{/if}
     {#if hasSide}<button
         class="forces-toggle"
         class:on={marginOpen}

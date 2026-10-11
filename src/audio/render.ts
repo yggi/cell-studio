@@ -5,7 +5,7 @@
  * can't hear.
  */
 import { eventsBetween, plan, type Plan } from '../engine/realize';
-import { tapeSpeeds } from '../engine/schedule';
+import { retime, tapeSpeeds, windowAt } from '../engine/schedule';
 import type { CompileResult, Shifts } from '../engine/program';
 import { pieceTime } from '../engine/duration';
 import { createVoices } from './voices';
@@ -20,7 +20,8 @@ interface Rendered {
   readonly clipped: number;
 }
 
-async function renderOffline(plan: Plan, seconds: number, tail = 2): Promise<Rendered> {
+/** `from`: begin there rather than at the start (the notes from then on, moved to the buffer's start: what rang into it is left out). */
+async function renderOffline(plan: Plan, seconds: number, tail = 2, from = 0): Promise<Rendered> {
   (globalThis as { TONE_SILENCE_LOGGING?: boolean }).TONE_SILENCE_LOGGING = true;
   const Tone = await import('tone');
   const out = await Tone.Offline(
@@ -29,9 +30,16 @@ async function renderOffline(plan: Plan, seconds: number, tail = 2): Promise<Ren
       voices.sync(plan.result, plan.statics, plan.muted);
       // (the reverb prepares its impulse first: without it, the first notes would ring dry)
       await voices.ready();
-      for (const e of eventsBetween(plan, 0, seconds, true)) voices.play(e);
-      // sound tapes on a moving clock: their speed over the whole render
-      for (const t of tapeSpeeds(plan, 0, seconds)) voices.tapeSpeed(t.tape, t.points);
+      if (from > 0) {
+        // (the live player's window, moved to the buffer's start: the same notes, bends and tapes)
+        const w = retime(windowAt(plan, from, seconds), 0, 1);
+        for (const e of w.events) voices.play(e);
+        for (const t of w.tapes) voices.tapeSpeed(t.tape, t.points);
+      } else {
+        for (const e of eventsBetween(plan, 0, seconds, true)) voices.play(e);
+        // sound tapes on a moving clock: their speed over the whole render
+        for (const t of tapeSpeeds(plan, 0, seconds)) voices.tapeSpeed(t.tape, t.points);
+      }
     },
     seconds + tail,
     2,
@@ -39,6 +47,14 @@ async function renderOffline(plan: Plan, seconds: number, tail = 2): Promise<Ren
   );
   const buffer = out.get() as AudioBuffer;
   return { buffer, ...loudness(buffer) };
+}
+
+/**
+ * A stretch of a piece, rendered without a tail: `seconds` from `from` (for the time view, which renders a piece a
+ * stretch at a time: a render's cost grows faster than its length, a minute and a half of Pop takes minutes at once).
+ */
+export async function renderStretch(result: CompileResult, shifts: Shifts, from: number, seconds: number, muted: ReadonlySet<string> = result.off): Promise<AudioBuffer> {
+  return (await renderOffline(plan(result, shifts, muted), seconds, 0, from)).buffer;
 }
 
 /** 16-bit PCM WAV, interleaved. */

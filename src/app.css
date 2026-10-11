@@ -146,6 +146,14 @@
   --scope-grid: rgb(120 255 180 / 0.08);
   --scope-ink: rgb(200 255 220 / 0.6);
   --scope-tick: rgb(200 255 220 / 0.7);
+  /* the time view (#286): its face, grid and ink, the zones' bands, the sections' lines, a boundary heard */
+  --time-face: #07090d;
+  --time-grid: rgb(255 255 255 / 0.08);
+  --time-ink: rgb(220 228 240 / 0.72);
+  --time-zone: rgb(255 255 255 / 0.035);
+  --time-section: rgb(255 255 255 / 0.5);
+  --time-heard: #ff9933;
+  --time-veil: rgb(7 9 13 / 0.78);
   /* the on-screen keys (#255): ivory and ebony, as a piano's, whatever the theme */
   --key-white: #ece6da;
   --key-black: #16181e;

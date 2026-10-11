@@ -2,13 +2,14 @@ import { MediaQuery } from 'svelte/reactivity';
 import { keepPerf, perfWanted } from '../perfSwitch';
 import type { GraphLayout } from './graphLayout.svelte';
 
-export type Tab = 'select' | 'graph' | 'code';
+export type Tab = 'select' | 'graph' | 'code' | 'time';
 /** What the sidebar shows: the piece's controls, MIDI (ports, channels, keys, learned knobs), the graph's layout forces, or files. */
 export type Panel = 'controls' | 'midi' | 'forces' | 'file';
 
 /** What's on screen: the view (a tab on a phone), the controls drawer, the performance overlay, a line of news. */
 export class View {
-  /** The first view is choosing a piece (the library as a graph); then the piece's graph and its code. */
+  /** The first view is choosing a piece (the library as a graph); then the piece's graph, its code, and it in time (on a
+   * wide screen the graph's pane shows the graph or the time view). */
   tab = $state<Tab>('select');
   readonly #wide = new MediaQuery('min-width: 900px');
   /** Tabs only on narrow screens (matches the CSS breakpoint). */
