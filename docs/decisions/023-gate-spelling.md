@@ -35,7 +35,9 @@ One canonical form per family (#10): one intensity, one look-up, one meaning for
 
 - Saved pieces are not affected: the old spelling plays as before. A gate written the new way with several bare voices
   picks one of them (the old one played all); Shorten's rewrite writes them as a chord, so it plays the same.
-- `level=` means two things by where it is (dB on the sound card, a linear product on a gate). Left as it is; a gate's
-  level and the card's could meet if the card becomes implicit (the implicit `&out`, deferred).
+- `level=` means two things by where it is (dB on the sound card, a linear product on a gate). The owner: this is the
+  prime case of the **lin/log domain seam** that appears from several sides (#9, #134, #179): a value that is linear in
+  one place and logarithmic in another, and the spelling that says which. Left as it is here; it belongs to that thread
+  (and a gate's level and the card's could meet if the card becomes implicit, the implicit `&out`, deferred).
 - Not done: a MIDI receiver telling the factors apart by rate (the ones that step with the notes as velocity, the slower
   ones as channel volume).

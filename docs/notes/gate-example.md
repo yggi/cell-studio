@@ -90,3 +90,9 @@ And: *our wires are wrong: audio comes out of the gate node and the voices have 
 ### What is still two things: the edges
 
 The colour of an edge (`ui/edgeStyle.ts`), what travels along it (`ui/payload.ts`) and what it carries (`ui/flowedges.ts: carried`, one lookup by band and port) are each in one place already. What is not one: **a meter's trace is drawn by a component of its own** (`MeterEdge.svelte`: a wide line in the meter's colour that blinks on its steps, no pulse) while every other net segment is a `PulseEdge` (a bus's strands, a sync wire's tick train). With the meter's net now laid as a bus's, the next step would be to draw its traces as the sync band's net segments (`PulseEdge`, its ticks travelling), and retire `MeterEdge` and the ground special case (`groundsOf`): the meter's colour and its blink would then be the sync band's style. That changes how every piece looks, so it waits for the owner: keep the meter's own look (a backbone that blinks), or make it a sync bus like any other?
+
+## Round 3
+
+- `&duck` out of the example; a voice's envelope on its top, then (round 3) a box as wide as the voice, filled to the level now, the voice's sound leaving from its top, the waveform in its note's colour, the voice 160 px (PR #295).
+- **`level=`, linear or dB**: the owner names it the prime case of the lin/log domain seam (#9, #134, #179), recorded in [decision 023](../decisions/023-gate-spelling.md). Not decided here.
+- The work is a stack of PRs: #290 (drawing), #291 (decision 022), #292 (decision 023), #293 (nets and wheels in one place), #294 (the example, the envelope on top), #295 (the larger voice and its envelope box).
