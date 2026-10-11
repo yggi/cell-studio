@@ -8,10 +8,9 @@
   import { onDestroy, untrack } from 'svelte';
   import { blockColour, noteColour, partColour } from './theme';
   import { cellView, hubLabel, type CellView, type Fill, type Segment } from '../layout/cellview';
-  import { gateOf, receiverPlaces } from '../layout/gate';
+  import { gateOf } from '../layout/gate';
   import { kitOf, memberPlaces } from '../layout/kit';
   import { bulbHosts } from '../engine/graph';
-  import { valuesAt } from '../engine/values';
   import { BORDER, border, coarsen } from '../layout/coarse';
   import { names, noteLabel, tonicOf, voiceBase } from '../layout/show';
   import { polar, ringSegment } from '../layout/geometry';
@@ -532,20 +531,13 @@
 
   // the playhead: braids, and a selector's barrel (where in its sections)
   const hand = $derived((view.mode === 'braid' || view.mode === 'matrix') && liveLocal != null ? liveLocal / Math.max(1, ctx.program.cells.get(played)?.steps ?? 1) : null);
-  // how open a gate is now (gate=, a level: 1 open, 0 closed): its receivers as dim as it is closed, while playing
-  const openness = $derived.by(() => {
-    if (!gate?.open || !ctx.lit) return 1;
-    const v = valuesAt(ctx.program, ctx.shifts, gate.open, ctx.heads.seconds)[0];
-    return v === undefined ? 1 : Math.max(0, Math.min(1, v));
-  });
-  // a gate's receivers: small wheels fanned over its top (layout/gate.ts); a bulb when only the gate plays the voice, else
-  // hollow (the voice has a node of its own); each lit while its voice sounds
-  // (a kit's members the same way, each just outside its own slice: where the number that picks it points)
+  // a kit's members: a small wheel each, just outside its own slice (layout/kit.ts: where the number that picks it
+  // points); a bulb when only the kit plays the voice, else hollow (the voice has a node of its own); lit while it sounds
   const kit = $derived(kitOf(ctx.program, name));
   const receivers = $derived.by(() => {
-    const members = gate?.receivers ?? kit;
+    const members = kit;
     if (!members || interactive) return [];
-    const places = gate ? receiverPlaces(size, members.length) : memberPlaces(size, members.length);
+    const places = memberPlaces(size, members.length);
     const hosts = bulbHosts(ctx.program);
     return members.map((v, i) => {
       const p = places[i];
@@ -813,13 +805,7 @@
     {#if size >= 160}<text class="pen" x={c} y={c + geo.rHub * 0.62}>✎</text>{/if}
   {/if}
   {#each receivers as v (v.name)}
-    <g
-      class="receiver"
-      class:hollow={!v.bulb}
-      class:sounding={!!ctx.lit?.nodes.has(`cell:${v.name}`)}
-      class:off={!!ctx.program.cells.get(v.name)?.off}
-      style:opacity={ctx.program.cells.get(v.name)?.off ? undefined : 0.25 + 0.75 * openness}
-    >
+    <g class="receiver" class:hollow={!v.bulb} class:sounding={!!ctx.lit?.nodes.has(`cell:${v.name}`)} class:off={!!ctx.program.cells.get(v.name)?.off}>
       <circle class="receiver-disc" cx={v.x} cy={v.y} r={v.r} />
       {#if v.font}<text class="receiver-name" x={v.x} y={v.y} dy="0.35em" style:font-size="{v.font}px">{v.text}</text>{/if}
       {#if v.bulb}<circle
@@ -827,7 +813,7 @@
           data-bulb={v.name}
           role="button"
           tabindex="0"
-          aria-label={`&${v.name}, a voice this ${gate ? 'gate' : 'kit'} plays: open it; Shift+Enter switches it ${ctx.program.cells.get(v.name)?.off ? 'on' : 'off'}`}
+          aria-label={`&${v.name}, a voice this kit plays: open it; Shift+Enter switches it ${ctx.program.cells.get(v.name)?.off ? 'on' : 'off'}`}
           aria-keyshortcuts="Enter Shift+Enter"
           onkeydown={(e) => bulbKey(e, v.name)}
           cx={v.x}
@@ -1073,7 +1059,7 @@
   .bulb-disc {
     fill: var(--wheel-disc);
   }
-  /* a gate's receivers (#234), a kit's members: a small wheel each, lit while its voice sounds */
+  /* a kit's members: a small wheel each, lit while its voice sounds */
   .receiver-disc {
     fill: var(--wheel-disc);
     stroke: var(--wheel-ref);

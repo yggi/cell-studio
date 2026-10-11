@@ -14,7 +14,7 @@ A tape (`&tape step=&reel write=&tune length=6`) was drawn as a turntable with i
 |---|---|---|---|---|
 | a splice | a braid | read by its braid only, once, no pick or delay | its time on the track | the braid's rim (`shift=`) |
 | a tap | its table | a name in a stepped table of names | its place in the table, fanned over the top | nothing: the fan stays |
-| a voice | a gate | played by the gate only | its place in the gate's braid, fanned over the top | nothing: the fan stays |
+| ~~a voice~~ | ~~a gate~~ | (dropped: a gate's voices are not part of it, they keep their nodes and their sound is wired into the gate; a kit's are, below) | | |
 | a voice | a kit (a table of voices) | played by the kit only | just outside its own slice (its index in the kit) | nothing |
 | **a read head** | **its tape** | **takes nothing but the tape; `at=` in seconds** | **`at=` of `length=`, clockwise from the write head** | **the layout's turn of the tape, not the reel** |
 
