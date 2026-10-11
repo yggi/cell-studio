@@ -142,7 +142,8 @@
 
   // ---- the keys: pressed here or held from elsewhere
   const pressed = new SvelteSet<number>();
-  const lit = $derived(new Set([...held, ...pressed]));
+  // (with live keys wired the keys' own state is the truth: a key let go from elsewhere goes dark though a pointer is still down)
+  const lit = $derived(onpress ? new Set(held) : new Set([...held, ...pressed]));
   const press = (v: number) => (pressed.add(v), onpress?.(v));
   const release = (v: number) => (pressed.delete(v), onrelease?.(v));
 

@@ -158,6 +158,7 @@ const MIDI_PIECE = 'sailor';
       send: (data, timestamp) => sent.push({ data: [...data], timestamp: timestamp ?? performance.now(), sentAt: performance.now() }),
     };
     navigator.requestMIDIAccess = () => Promise.resolve({ inputs: new Map(), outputs: new Map([['fake-out', out]]), onstatechange: null });
+    Object.defineProperty(navigator, 'permissions', { value: { query: async () => ({ state: 'granted' }) }, configurable: true }); // (a page load reconnects only once MIDI is granted)
     localStorage.setItem('cell-studio:midi', JSON.stringify({ out: { id: 'fake-out', name: 'Fake synth' }, in: { id: 'none', name: '' }, clock: { 'Fake synth': true } }));
   });
   const secs = 3;
@@ -324,6 +325,7 @@ const CARD_ONLY = { voice: 'sub', channel: 2 };
     const sent = (window.__midi = []);
     const out = { id: 'fake-out', name: 'Fake synth', send: (data, timestamp) => sent.push({ data: [...data], timestamp: timestamp ?? performance.now() }) };
     navigator.requestMIDIAccess = () => Promise.resolve({ inputs: new Map(), outputs: new Map([['fake-out', out]]), onstatechange: null });
+    Object.defineProperty(navigator, 'permissions', { value: { query: async () => ({ state: 'granted' }) }, configurable: true }); // (a page load reconnects only once MIDI is granted)
     localStorage.setItem('cell-studio:midi', JSON.stringify({ out: { id: 'fake-out', name: 'Fake synth' }, in: { id: 'none', name: '' } }));
   });
   const secs = 3;
@@ -384,6 +386,7 @@ const CARD_ONLY = { voice: 'sub', channel: 2 };
     const input = { id: 'fake-in', name: 'Fake keys', onmidimessage: null };
     window.midiIn = (bytes) => input.onmidimessage?.({ data: new Uint8Array(bytes), timeStamp: performance.now() });
     navigator.requestMIDIAccess = () => Promise.resolve({ inputs: new Map([['fake-in', input]]), outputs: new Map([['fake-out', out]]), onstatechange: null });
+    Object.defineProperty(navigator, 'permissions', { value: { query: async () => ({ state: 'granted' }) }, configurable: true }); // (a page load reconnects only once MIDI is granted)
     localStorage.setItem('cell-studio:midi', JSON.stringify({ out: { id: 'fake-out', name: 'Fake synth' }, in: { id: 'fake-in', name: 'Fake keys' } }));
     localStorage.setItem('cell-studio:keys', JSON.stringify({ thru: true, thruChannel: 2 }));
     window.__ctx = [];
@@ -393,6 +396,30 @@ const CARD_ONLY = { voice: 'sub', channel: 2 };
         super(...a);
         window.__ctx.push(this);
       }
+    };
+    // what reaches the speakers, after the master and the Stop gain: an analyser per context beside whatever connects to
+    // its destination (the page makes more than one context, and Tone more than one node into each)
+    const connect = AudioNode.prototype.connect;
+    const taps = (window.__taps = new Map());
+    AudioNode.prototype.connect = function (dest, ...rest) {
+      if (dest === this.context.destination) {
+        if (!taps.has(this.context)) taps.set(this.context, Object.assign(this.context.createAnalyser(), { fftSize: 2048 }));
+        connect.call(this, taps.get(this.context));
+      }
+      return connect.call(this, dest, ...rest);
+    };
+    window.__outPeak = () => {
+      let peak = null;
+      for (const [ctx, a] of taps) {
+        if (ctx.state !== 'running') continue;
+        const buf = new Float32Array(a.fftSize);
+        a.getFloatTimeDomainData(buf);
+        peak = Math.max(
+          peak ?? 0,
+          buf.reduce((m, x) => Math.max(m, Math.abs(x)), 0),
+        );
+      }
+      return peak;
     };
   });
   let note = '';
@@ -420,10 +447,18 @@ const CARD_ONLY = { voice: 'sub', channel: 2 };
       );
     const first = await sound([0x90, 60, 100]);
     if (first.ms === null) problems.push('a key on an armed voice did not sound');
+    // the wheel of the mix the voice goes through hears the key while it is held (#252), and falls silent after
+    // (the first ask only attaches the analyser)
+    await mp.evaluate(() => window.cellStudio.level('mix'));
+    await mp.waitForTimeout(150);
+    const mixHeld = await mp.evaluate(() => window.cellStudio.level('mix') ?? 0);
+    if (mixHeld < 0.001) problems.push(`the mix's wheel does not hear a held key (${mixHeld.toFixed(4)})`);
     await mp.evaluate(() => window.midiIn([0x80, 60, 0]));
     await mp.waitForTimeout(800);
     const after = await mp.evaluate(() => window.cellStudio.level('fiddle') ?? 0);
     if (after > 0.001) problems.push(`still sounding ${after.toFixed(4)} after the note-off`);
+    const mixAfter = await mp.evaluate(() => window.cellStudio.level('mix') ?? 0);
+    if (mixAfter > 0.001) problems.push(`the mix's wheel still hears ${mixAfter.toFixed(4)} after the note-off`);
     // again, the engine awake: a live note's latency
     const lat = [];
     for (let i = 0; i < 5; i++) {
@@ -433,6 +468,32 @@ const CARD_ONLY = { voice: 'sub', channel: 2 };
       await mp.waitForTimeout(600);
     }
     if (lat.length < 5) problems.push(`${5 - lat.length} of 5 keys did not sound`);
+    // Stop with a key down cuts it (the 'stopped' gain), and a key pressed after Stop sounds again
+    await mp.evaluate(() => window.midiIn([0x90, 60, 100]));
+    await mp.waitForTimeout(300);
+    await mp.locator('.transport').getByRole('button', { name: 'Stop' }).first().click();
+    await mp.waitForTimeout(800);
+    const cut = await mp.evaluate(() => window.cellStudio.level('fiddle') ?? 0);
+    if (cut > 0.001) problems.push(`still sounding ${cut.toFixed(4)} after Stop with a key down`);
+    // (heard at the output, past the Stop gain: the voice's own analyser sits before it and can't tell)
+    const outCut = await mp.evaluate(() => window.__outPeak?.() ?? null);
+    if (outCut === null) problems.push('no tap on the output to measure Stop with');
+    else if (outCut > 0.001) problems.push(`the output still carries ${outCut.toFixed(4)} after Stop with a key down`);
+    await mp.evaluate(() => window.midiIn([0x90, 64, 100]));
+    const heard = await mp.evaluate(
+      () =>
+        new Promise((done) => {
+          const t0 = performance.now();
+          const look = () => {
+            if ((window.__outPeak?.() ?? 0) > 0.001) return done(true);
+            if (performance.now() - t0 > 3000) return done(false);
+            setTimeout(look, 5);
+          };
+          look();
+        }),
+    );
+    if (!heard) problems.push('a key pressed after Stop was not heard at the output');
+    await mp.evaluate(() => window.midiIn([0x80, 64, 0]));
     const audio = await mp.evaluate(() => {
       const c = window.__ctx.find((x) => x.state === 'running');
       return c ? { baseLatency: c.baseLatency, outputLatency: c.outputLatency } : null;
@@ -465,6 +526,7 @@ const CARD_ONLY = { voice: 'sub', channel: 2 };
     const input = { id: 'fake-in', name: 'Fake keys', onmidimessage: null };
     window.midiIn = (bytes) => input.onmidimessage?.({ data: new Uint8Array(bytes), timeStamp: performance.now() });
     navigator.requestMIDIAccess = () => Promise.resolve({ inputs: new Map([['fake-in', input]]), outputs: new Map(), onstatechange: null });
+    Object.defineProperty(navigator, 'permissions', { value: { query: async () => ({ state: 'granted' }) }, configurable: true }); // (a page load reconnects only once MIDI is granted)
     localStorage.setItem('cell-studio:midi', JSON.stringify({ in: { id: 'fake-in', name: 'Fake keys' } }));
   });
   const WANT = '0 ~ [2,4]@4 ~ ~ 7 ~ ~ ~ ~ ~ ~ ~';

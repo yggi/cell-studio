@@ -34,9 +34,6 @@ export function parseSustain(data: ArrayLike<number>): { readonly down: boolean;
   return { down: (data[2] ?? 0) >= 64, channel: status & 0x0f };
 }
 
-/** General MIDI's drum channel, 10, counted from 0 as a status byte's nibble is. */
-export const DRUM_CHANNEL = 9;
-
 /** a–l for the white keys, w e t y u o for the black ones, C4 to D5. */
 export const COMPUTER_KEY_MAP: Readonly<Record<string, number>> = {
   a: 60,

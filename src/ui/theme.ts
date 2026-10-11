@@ -59,9 +59,48 @@ export const LEVEL = { hue: 224, s: 11, l0: 46, l1: 86 } as const;
  * lightness (%) from silence to full — dark when quiet, as bright as it is loud. */
 export const SOUND = { s: 90, l0: 6, l1: 56, lo: 3, hi: 85, octave: 6 } as const;
 
+/**
+ * What an edge carries, drawn as it travels (EdgePayload.svelte, docs/notes/edge-styles.md §2): the one speed every
+ * payload moves at (px a second), and how often it is redrawn (a second). A wave's height (px either side, silent … loud),
+ * its length (px: C4, and the range; no shorter than 9 px, about three frames' travel, so it reads as moving along the
+ * flow, not back or shimmering), in how many phases a cycle it is drawn, its width, and how often its loudness is read (a second). A melody's run width, a level's
+ * ribbon (px, 0 … 1) and in how many steps a level is drawn; a note's bead and a tick's (the bar's first, the others), px;
+ * the opacity of the edge's own line under it (its carrier). When it is held back for load (payloadGate.ts): over which
+ * load scale (the ticker's), and how long the page must keep up before it comes back (s: first, at most).
+ */
+export const PAYLOAD = {
+  speed: 90,
+  fps: 30,
+  amp: [1, 5],
+  wavelength: { c4: 14, min: 9, max: 28 },
+  phases: 16,
+  wave: 3,
+  listen: 8,
+  run: 5,
+  ribbon: [1.5, 7],
+  levels: 8,
+  bead: 3.4,
+  tick: [4, 2.6],
+  carrier: 0.22,
+  ease: { over: 1.2, hold: 5, most: 60 },
+} as const;
+
 /** A mode's colour by how bright it is (Lydian 1 … Locrian 0): show=brightness, and what a plugin draws a day's blocks with. */
 export const blockColour = (light: number) => `hsl(45 ${30 + 60 * light}% ${14 + 62 * light}%)`;
 
 /** A scope's spectrogram: a band at its note's hue, as bright as it is loud; silence the tube's black (`--scope-black`). */
 const SCOPE_BLACK = '#050b08';
 export const scopeBand = (hue: number, level: number) => (level > 0.01 ? `hsl(${hue} 80% ${Math.round(8 + level * 52)}%)` : SCOPE_BLACK);
+
+/**
+ * The numbers the edges are drawn with in code (the ones in CSS are app.css --edge-*): a bus's most strands, a live
+ * edge's opacity, the pulse's radius by band, sound's ripple (its height and length, px), a meter's flash (how fast it
+ * fades, how bright off the bar's first, how much of the tick's colour it takes).
+ */
+export const EDGE = {
+  strands: 12,
+  liveOpacity: 0.9,
+  pulse: { sync: 4.5, value: 6 },
+  ripple: { amp: 2.5, period: 11 },
+  flash: { decay: 5, offBeat: 0.6, mix: 1.6 },
+} as const;

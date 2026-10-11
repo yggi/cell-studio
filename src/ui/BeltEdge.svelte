@@ -35,12 +35,12 @@
 <style>
   .belt {
     fill: none;
-    stroke: color-mix(in oklab, var(--tick) calc(45% + var(--t, 0) * 55%), var(--edge));
+    stroke: color-mix(in oklab, var(--tick) calc(var(--belt-rest) + var(--t, 0) * var(--belt-pull)), var(--edge));
     stroke-linecap: round;
     filter: drop-shadow(0 3px 3px rgba(0, 0, 0, 0.55));
   }
   .belt.slack {
-    stroke: color-mix(in oklab, var(--tick) 25%, var(--edge));
+    stroke: color-mix(in oklab, var(--tick) var(--belt-slack), var(--edge));
   }
   .belt.slip {
     stroke: var(--danger);
