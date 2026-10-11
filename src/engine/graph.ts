@@ -46,8 +46,9 @@ export type GraphNode =
   | {
       /**
        * A product in a mix (`&theme * &flute * .4`): an unnamed node, as `&( … )` is an unnamed cell (docs/notes/nets.md,
-       * decision 2). Its terms go in (the melody, levels, pitches, an envelope), the voice is its definition (an `is`
-       * wire, dotted), and its sound goes out into the mix. Not a cell: nothing to open, turn or switch off.
+       * decision 2), drawn as an unnamed gate (#234): its terms go in (the melody, levels, pitches, an envelope), its
+       * notes go out to its voice (an `is` wire), and the voice's sound goes on into the mix from the voice. Not a cell:
+       * nothing to open, turn or switch off.
        */
       readonly id: string;
       readonly kind: 'junction';
@@ -59,6 +60,10 @@ export type GraphNode =
       readonly voice: string;
       /** Its mix's tags (else its voice's): the cluster it is laid out in. */
       readonly tags: readonly string[];
+      /** What it plays, as a gate's meter draws it (#234): the term that starts its notes, its levels, its gain. */
+      readonly notes: string | null;
+      readonly levels: readonly string[];
+      readonly gain: number;
       readonly cell?: undefined;
       readonly petalOf?: undefined;
       readonly pan?: undefined;
@@ -115,6 +120,8 @@ export interface GraphEdge extends Wire {
    * of voices spliced into another (a braid wire of sound): the first voice it splices in.
    */
   readonly sound?: string;
+  /** A note wire out of a gate or a product's junction (#234): the cell whose notes it carries (its steps pulse along it). */
+  readonly notes?: string;
   /**
    * A wire at a product's junction stands for written pairs the routing knows (engine/routing.ts: the melody into its
    * voice, the voice into the mix): it is routed (and live) when, of each group, one of these is (`drawn`).
@@ -515,6 +522,7 @@ export function buildGraph(result: CompileResult, opts: { readonly bulbs?: boole
         count: 1,
         transforms: AS_IS,
         sound: b.voice.name,
+        ...(trigger ? { notes: trigger } : {}),
         routes: pairs.length ? [pairs, [edgeId(v, into)]] : [[edgeId(v, into)]],
         ...wire('voice', 'cv', into, v, trigger ? chord(trigger) : 1),
       });
@@ -559,7 +567,6 @@ export function buildGraph(result: CompileResult, opts: { readonly bulbs?: boole
     }
     const j = junctionId(c.name, entry);
     const tags = c.tags.length ? c.tags : (result.cells.get(b.voice.name)?.tags ?? []);
-    junctions.push({ id: j, kind: 'junction', depth: depthOf(b.voice.name), mix: c.name, entry, voice: b.voice.name, tags });
     through.add(flow);
     const sound = b.voice.name;
     // (the voices the routing plays it on: an instrument's own, a kit for a pattern read through one)
@@ -574,12 +581,28 @@ export function buildGraph(result: CompileResult, opts: { readonly bulbs?: boole
         return o.id === at || o.id.startsWith(at + '@');
       });
     const starter = terms.find(startsAt) ?? terms.find((t) => result.outputs.some((o) => voices.includes(o.voice) && (o.tape?.head ?? o.cell) === t.ref.name && !o.gate));
+    // what each term is in the product: the one that starts notes, an envelope, a level, a pitch
+    const portOf = (name: string, inSum: boolean) => {
+      const c0 = result.cells.get(name)!;
+      return starter?.ref.name === name ? 'voice' : c0.map?.kind === 'adsr' ? 'env' : isLevel(c0, inSum) ? 'level' : 'pitch';
+    };
+    const levels = [...byTerm].flatMap(([name, ts]) => (portOf(name, !!ts[0].inSum) === 'level' ? [name] : []));
+    junctions.push({
+      id: j,
+      kind: 'junction',
+      depth: depthOf(b.voice.name),
+      mix: c.name,
+      entry,
+      voice: b.voice.name,
+      tags,
+      notes: starter?.ref.name ?? null,
+      levels,
+      gain: b.gain,
+    });
     for (const [name, ts] of byTerm) {
       const t = ts[0];
-      const c0 = result.cells.get(name)!;
-      // what the term is in the product: the one that starts notes, an envelope, a level, a pitch
       const lead = !!starter && starter.ref.name === name;
-      const port = lead ? 'voice' : c0.map?.kind === 'adsr' ? 'env' : isLevel(c0, !!t.inSum) ? 'level' : 'pitch';
+      const port = portOf(name, !!t.inSum);
       const pairs = voices.map((v) => edgeId(cellId(name), cellId(v)));
       for (const id of pairs) through.add(id);
       link({
@@ -602,9 +625,24 @@ export function buildGraph(result: CompileResult, opts: { readonly bulbs?: boole
         ),
       });
     }
-    link({ id: edgeId(voice, j), source: voice, target: j, count: 1, transforms: AS_IS, sound, routes: [[flow]], ...wire('is', 'none', voice, j, 1, false, true) });
-    // (a product goes into one channel: one wire)
-    link({ id: edgeId(j, into), source: j, target: into, count: 1, transforms: gain, sound, routes: [[flow]], ...wire(port, band, j, into) });
+    // its notes out to its voice (the junction is the voice played: `is`), as wide as its notes at once; the voice's sound
+    // goes on into the mix from the voice's own wheel
+    const notesWidth = starter ? tines(result, b.voice.name) || chord(starter.ref.name) : 1;
+    link({
+      id: edgeId(j, voice),
+      source: j,
+      target: voice,
+      count: 1,
+      transforms: AS_IS,
+      sound,
+      ...(starter ? { notes: starter.ref.name } : {}),
+      routes: [[flow]],
+      ...wire('is', 'cv', j, voice, notesWidth),
+    });
+    // (one wire from a voice into a mix, however many of its products go in: its gain on it only when it is one)
+    const twins = (port === 'midi' ? (c.chords ?? []).flatMap((bs) => bs ?? []) : (c.mix ?? [])).filter((x) => x.voice.name === b.voice.name).length;
+    through.delete(flow);
+    link({ id: flow, source: voice, target: into, count: 1, transforms: twins > 1 ? AS_IS : gain, sound, routes: [[flow]], ...wire(port, band, voice, into) });
   };
   for (const c of result.cells.values()) {
     if (!isGate(c)) (c.mix ?? []).forEach((b, entry) => product(c, b, entry, 'mix'));
@@ -715,7 +753,7 @@ function petals(result: CompileResult, allNodes: GraphNode[], allEdges: GraphEdg
       if (parent) parentOf.set(n.id, cellId(parent.name));
     } else if (effectiveShow(result, n.cell.name).show === 'petal') {
       // show=petal: hung from the cell that uses it (a voice: the mix it's in, or the mix of a product it is)
-      const product = nodes.find((j) => j.kind === 'junction' && edges.some((e) => e.source === n.id && e.target === j.id && e.port === 'is'));
+      const product = nodes.find((j) => j.kind === 'junction' && edges.some((e) => e.source === j.id && e.target === n.id && e.port === 'is'));
       const user =
         edges.find((e) => e.target === n.id && (e.port === 'braid' || e.port === 'over'))?.source ??
         edges.find((e) => e.source === n.id && (e.port === 'mix' || feeds(e)))?.target ??

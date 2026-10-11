@@ -28,7 +28,7 @@ export function flowNodeOf(
   meters?: { index: ReadonlyMap<string, number> },
   program?: CompileResult,
 ): FlowNode {
-  // a product's junction (graph.ts): a dot where its wires meet, set on its voice's rim (layout/junctions.ts); not a
+  // a product's junction (graph.ts): an unnamed gate, a small meter set on its voice's rim (layout/junctions.ts); not a
   // cell, so nothing to open, drag, select or delete
   if (g.kind === 'junction')
     return {
@@ -41,7 +41,7 @@ export function flowNodeOf(
       connectable: false,
       // (nothing to do on it, so no tab stop either)
       focusable: false,
-      data: { name: g.id, voice: g.voice, mix: g.mix, size: JUNCTION_ROOM },
+      data: { name: g.id, voice: g.voice, mix: g.mix, size: 2 * JUNCTION_ROOM, notes: g.notes, levels: g.levels, gain: g.gain },
     };
   if (g.petalOf) {
     if (g.kind === 'voice') return { id: g.id, type: 'voice', position, draggable: false, data: { name: g.cell.name, summary: '', size: PETAL, pinned: false, petal: true } };

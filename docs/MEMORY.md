@@ -66,6 +66,7 @@ One line each; the record has the rationale. → [decisions/](decisions/README.m
 - 019 · MIDI out in the language: a MIDI card, `map=midi`, its entries channels; `midi(c)` one channel, `midi(c, p)` an output slot the MIDI page maps to a device in this browser; a voice only on a card is sent, not heard; a piece with a card sends only what its cards name, one without keeps the default output · → decisions/019-midi-card.md
 - 020 · The tutorial is nine stable tiers (`tier=n` on the card, in place of the 30 numbered rungs): a tier's pieces together show all of its forms, a variation is a new file with no renumbering, and the lowest tier has the smallest pieces · → decisions/020-tutorial-tiers.md
 - 021 · One rule for every sub-wheel: a cell that is only part of another is drawn on it as a bulb, placed by the host's own coordinate (a splice by its time, a tap in its fan, a kit's voice at its slice, a tape's read head by `at=` of `length=`; a gate's voices are not part of it and keep their nodes); a tap's and a head's edges leave from the bulb; a tape's head bulbs stay put while the reel turns and turn with the layout's turn of the tape · → decisions/021-tape-heads.md
+- 022 · A gate sends notes, the sound leaves from the voice: a gate's (and a product's junction's, an unnamed gate drawn as a small meter) one output is a note bus to its voices; each voice's sound goes into each mix it is in, one wire per mix; drawing only · → decisions/022-gates-send-notes.md
 
 ## Where things are tracked
 

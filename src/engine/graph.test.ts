@@ -232,25 +232,26 @@ describe('a product is a junction (docs/notes/nets.md, decision 2)', () => {
   const g = buildGraph(compileSource(readFileSync('tools/gallery/golden/golden.cells', 'utf8')));
   const junctionsOf = (model: GraphModel, voice: string) => model.nodes.filter((n) => n.kind === 'junction' && n.voice === voice);
 
-  it('its terms go in, the voice is its definition, its sound goes out into the mix: no edge from a melody to its voice', () => {
+  it('its terms go in, its notes go out to its voice (`is`), and the voice’s sound into the mix (#234: an unnamed gate)', () => {
     const m = buildGraph(compileSource('&t step=1 0 2\n&acc map=amp step=1 1 .5\n&v s=sine loop=C4\n&out loop=SAMPLE_RATE map=sample [&t * &acc * &v * .4]'));
-    expect(m.nodes.filter((n) => n.kind === 'junction')).toEqual([expect.objectContaining({ id: 'junction:out:0', mix: 'out', entry: 0, voice: 'v' })]);
+    expect(m.nodes.filter((n) => n.kind === 'junction')).toEqual([
+      expect.objectContaining({ id: 'junction:out:0', mix: 'out', entry: 0, voice: 'v', notes: 't', levels: ['acc'], gain: 0.4 }),
+    ]);
     const wires = m.edges.map((e) => [e.from, e.to, e.port, e.band, transformLabel(e.transforms[0])]);
     expect(wires).toEqual(
       expect.arrayContaining([
         ['cell:t', 'junction:out:0', 'voice', 'cv', ''],
         ['cell:acc', 'junction:out:0', 'level', 'cv', ''],
-        ['cell:v', 'junction:out:0', 'is', 'none', ''],
-        ['junction:out:0', 'cell:out', 'mix', 'audio', '×0.4'],
+        ['junction:out:0', 'cell:v', 'is', 'cv', ''],
+        ['cell:v', 'cell:out', 'mix', 'audio', '×0.4'],
       ]),
     );
     expect(m.edges.some((e) => e.from === 'cell:t' && e.to === 'cell:v')).toBe(false);
-    expect(m.edges.some((e) => e.from === 'cell:v' && e.to === 'cell:out')).toBe(false);
+    expect(m.edges.some((e) => e.from === 'junction:out:0' && e.to === 'cell:out')).toBe(false);
   });
 
-  it('a voice stops being a hub: in the golden graph &lead has no melody in and no mix out, only its products', () => {
-    expect(g.edges.filter((e) => e.to === 'cell:lead')).toEqual([]);
-    expect(g.edges.filter((e) => e.from === 'cell:lead').map((e) => e.port)).toEqual(['is', 'is', 'is', 'is', 'is']);
+  it('a voice is where sound leaves: in the golden graph &lead takes notes from each of its products, its sound into each mix once', () => {
+    expect(g.edges.filter((e) => e.to === 'cell:lead').map((e) => e.port)).toEqual(['is', 'is', 'is', 'is', 'is']);
     // which melody goes to which mix: each product says
     for (const j of junctionsOf(g, 'lead'))
       expect(
@@ -262,12 +263,17 @@ describe('a product is a junction (docs/notes/nets.md, decision 2)', () => {
         .map((j) => (j.kind === 'junction' ? j.mix : ''))
         .sort(),
     ).toEqual(['leadA', 'leadB', 'out', 'out', 'out']);
+    expect(
+      g.edges
+        .filter((e) => e.from === 'cell:lead' && e.port === 'mix')
+        .map((e) => e.to)
+        .sort(),
+    ).toEqual(['cell:leadA', 'cell:leadB', 'cell:out']);
   });
 
-  it('a voice in several products is a definition of each, not a net; a sound alone goes into its mix as it is', () => {
+  it('a voice in several mixes is a net of sound; a sound alone goes into its mix as it is', () => {
     // (each junction sits on its voice's rim: layout/junctions.ts)
-    expect(g.nets.find((n) => n.owner === 'cell:lead')).toBeUndefined();
-    expect(g.edges.filter((e) => e.from === 'cell:lead' && e.port === 'is')).toHaveLength(5);
+    expect(g.nets.find((n) => n.owner === 'cell:lead')?.port).toBe('mix');
     expect(wireOf(g, 'leadA', 'out')).toMatchObject({ port: 'mix', band: 'audio' }); // [&leadA, …]
   });
 
@@ -547,7 +553,11 @@ describe('every name written is one wire carrying the transform it writes, and e
           // (its voice, `is`; a term, with the transform written on it), one for each product it is written in
           const into = model.edges.filter((x) => x.from === cellId(name) && junctions.get(x.to)?.mix === c.name);
           const alone = model.edges.find((x) => x.from === cellId(name) && x.to === cellId(c.name) && (x.port === 'mix' || x.port === 'midi'));
-          const count = into.reduce((a, x) => a + x.count, 0) + (alone ? 1 : 0);
+          // (a product's voice: its notes come from the product's junction, its sound goes into the mix once — #234)
+          const asVoice = [...junctions.values()].filter(
+            (j) => j.kind === 'junction' && j.mix === c.name && j.voice === name && model.edges.some((x) => x.from === j.id && x.to === cellId(name) && x.port === 'is'),
+          );
+          const count = into.reduce((a, x) => a + x.count, 0) + asVoice.length + (alone && !asVoice.length ? 1 : 0);
           // (a sound alone in both channels of a sound card is one wire, a pair: L R)
           const pair = alone && alone.width === 2 && ts.length === count + 1;
           // (no exceptions: only a cell show=off hides, and then it is not in the graph at all)
@@ -612,7 +622,9 @@ describe('every name written is one wire carrying the transform it writes, and e
         : e.port === 'about'
           ? `${nameOf(e.from)}|${nameOf(e.to)}|about`
           : `${nameOf(e.to)}|${nameOf(e.from)}|${e.port}`;
-      return matched.has(key) ? [] : [`${e.id} (${e.port})`];
+      // (a product's voice into a MIDI card: written in the card's products, as into a mix)
+      const asEntry = e.port === 'midi' ? `${nameOf(e.to)}|${nameOf(e.from)}|mix` : key;
+      return matched.has(key) || matched.has(asEntry) ? [] : [`${e.id} (${e.port})`];
     });
     expect(unwritten).toEqual([]);
   });

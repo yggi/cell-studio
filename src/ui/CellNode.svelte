@@ -7,6 +7,7 @@
   import { longpress } from './kit/attach';
   import FreePills from './FreePills.svelte';
   import GateMeter from './GateMeter.svelte';
+  import { gateOf } from '../layout/gate';
   import SideMarks from './SideMarks.svelte';
   import SpectrumWheel from './SpectrumWheel.svelte';
   import WaveGlyph from './WaveGlyph.svelte';
@@ -26,6 +27,7 @@
   const freeCell = $derived(ctx.program.cells.get(data.name));
   // mixes and the sound card are signals: a mix shows its waveform (as a read head does), the sound card its spectrum
   const cell = $derived(ctx.program.cells.get(data.name));
+  const gate = $derived(gateOf(ctx.program, data.name));
   // (a read head of a sound tape: what it plays back is sound — its waveform, with where it reads)
   const soundHead = $derived(!!cell && typeof cell.params.play === 'string' && ctx.program.tapes.some((t) => t.name === cell.params.play));
   const signal = $derived(!!cell && (!!cell.mix || cell.sink || soundHead));
@@ -52,8 +54,8 @@
 >
   <Handle type="target" position={Position.Top} class="center-handle" isConnectable={false} />
   <!-- (a gate is a mix as read, but draws a level meter: its notes as bars, #234) -->
-  {#if typeof cell?.params.trigger === 'string'}
-    <GateMeter name={data.name} size={data.size} />
+  {#if gate}
+    <GateMeter notes={gate.trigger} levels={gate.levels} gain={gate.gain} size={data.size} label="&{data.name}: a gate, its notes as bars" />
   {:else if soundHead || (cell?.mix && !cell.sink)}
     <WaveGlyph name={data.name} size={data.size} caption={hub ? `${hub.big} ${hub.small}` : null} />
   {:else if signal && hub}

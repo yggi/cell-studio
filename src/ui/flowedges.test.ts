@@ -20,13 +20,12 @@ function byPort(e: GraphEdge, program: CompileResult) {
     const o = e.port === 'play' ? program.outputs.find((x) => x.tape?.head === nameOf(e.target)) : program.outputs.find((x) => x.cell === nameOf(e.source) && !x.tape);
     return { phaseCell: null, voice: o?.voice ?? null };
   }
+  // (a gate's note bus to its voices, a junction to its voice: the notes it carries, #234)
+  if (e.notes) return { phaseCell: e.notes, voice: e.sound ?? nameOf(e.target) };
   // (sound into a voice, fm= excite= couple=: its source's, #137 step 3 — every edge carries what its source pushes)
   if (feeds(e) && e.band === 'audio') return { phaseCell: trigger(nameOf(e.from)), voice: nameOf(e.from) };
   if (feeds(e)) {
     const voice = e.sound ?? nameOf(e.target);
-    // (a gate's note bus to its voices: its trigger's notes, #234)
-    const t = program.cells.get(nameOf(e.from))?.params.trigger;
-    if (typeof t === 'string') return { phaseCell: t, voice };
     return { phaseCell: trigger(voice) === nameOf(e.source) ? nameOf(e.source) : null, voice };
   }
   if (e.port === 'mix') {

@@ -20,11 +20,6 @@ import { payloadOf } from './payload';
 const nameOf = (id: string) => id.slice('cell:'.length);
 /** An edge's end as a cell's name: a product's junction reads as the voice it is (its sound). */
 const endOf = (e: GraphEdge, id: string) => (isJunction(id) ? (e.sound ?? null) : nameOf(id));
-/** A gate's trigger, if the node is a gate (#234): the notes its note bus carries are its trigger's. */
-const gateTrigger = (program: CompileResult, id: string): string | null => {
-  const t = isJunction(id) ? undefined : program.cells.get(nameOf(id))?.params.trigger;
-  return typeof t === 'string' && program.cells.has(t) ? t : null;
-};
 
 /** A belt between two turntables as it is now (BeltEdge). */
 export interface BeltDrawn {
@@ -109,9 +104,6 @@ const INTO_VOICE: Carrier = (e, p) => {
   }
   // (into a product's junction: the voice it is)
   const voice = e.sound ?? nameOf(e.target);
-  // (a gate's note bus: its trigger's notes, pulsing with its steps)
-  const notes = gateTrigger(p, e.from);
-  if (notes) return { phaseCell: notes, voice };
   return { phaseCell: trigger(p, voice) === nameOf(e.source) ? nameOf(e.source) : null, voice };
 };
 
@@ -120,6 +112,8 @@ const headBulb = (e: GraphEdge, program: CompileResult) => !!e.bulb && program.c
 
 /** What an edge carries: one lookup by (band, port). */
 export function carried(e: GraphEdge, program: CompileResult): Carried {
+  // (a gate's note bus, a product's junction to its voice: the notes it carries, pulsing with their steps — #234)
+  if (e.notes) return { phaseCell: e.notes, voice: e.sound ?? nameOf(e.target) };
   // (from a head's bulb: what the head carries, as if its own node drew it)
   if (headBulb(e, program)) {
     const head = `cell:${e.bulb}`;
@@ -137,7 +131,7 @@ function pulseData(e: GraphEdge, program: CompileResult) {
     // (what travels along it while it plays, drawn by EdgePayload: a pointer carries nothing that travels, D6)
     payload: payloadOf(e.band, e.port, e.pointer),
     width: e.width,
-    from: gateTrigger(program, e.from) ?? endOf(e, e.from),
+    from: e.notes ?? endOf(e, e.from),
     // (a table read through, over=, or looked up, map=: its strands leave its entries)
     table: e.port === 'over' || e.port === 'map' ? nameOf(e.from) : null,
     tines: tinesOf(e, program),
