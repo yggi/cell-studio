@@ -94,5 +94,5 @@ The colour of an edge (`ui/edgeStyle.ts`), what travels along it (`ui/payload.ts
 ## Round 3
 
 - `&duck` out of the example; a voice's envelope on its top, then (round 3) a box as wide as the voice, filled to the level now, the voice's sound leaving from its top, the waveform in its note's colour, the voice 160 px (PR #295).
-- **`level=`, linear or dB**: the owner names it the prime case of the lin/log domain seam (#9, #134, #179), recorded in [decision 023](../decisions/023-gate-spelling.md). Not decided here.
+- **`level=`, linear or dB**: the owner names it the prime case of the lin/log domain seam (#9, #234, #179), recorded in [decision 023](../decisions/023-gate-spelling.md). Not decided here.
 - The work is a stack of PRs: #290 (drawing), #291 (decision 022), #292 (decision 023), #293 (nets and wheels in one place), #294 (the example, the envelope on top), #295 (the larger voice and its envelope box).
