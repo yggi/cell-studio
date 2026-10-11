@@ -16,6 +16,7 @@ export interface TimeLayers {
   readonly cells: boolean;
   readonly splices: boolean;
   readonly patterns: boolean;
+  readonly meter: boolean;
 }
 type Stored = TimeLayers & { readonly signal: TimeSignal };
 const DEFAULTS: Stored = {
@@ -28,6 +29,7 @@ const DEFAULTS: Stored = {
   cells: true,
   splices: true,
   patterns: false,
+  meter: true,
   signal: 'mix',
 };
 
@@ -46,6 +48,7 @@ function load(): Stored {
       cells: on('cells'),
       splices: on('splices'),
       patterns: on('patterns'),
+      meter: on('meter'),
       signal: kept.signal === 'mix' || SIGNALS.includes(kept.signal as Signal) ? (kept.signal as TimeSignal) : 'mix',
     };
   } catch {
