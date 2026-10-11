@@ -1,0 +1,144 @@
+/**
+ * Foldings: a piece's cyclic patterns, heard at every level, and the same pattern found at more than one. A necklace is
+ * `n` slots round a cycle with some marked: the strokes of a bell in its twelve pulses, the notes of a scale in the
+ * twelve semitones. Seen as its steps (the gaps between marks) it doesn't depend on where the cycle starts, so the
+ * West African bell x.x.xx.x.x.x and the major scale are one necklace, 2 2 1 2 2 2 1 (examples/bell.cells writes them
+ * as one scan). The same necklace at two levels is a piece folded the same way at two scales: a fixed point of
+ * renormalization (docs/notes/multiscale.md), and a candidate for one cell where the code has two.
+ */
+import type { Played } from '../realize';
+
+/** `n` slots round a cycle, the marked ones (ascending, in [0, n)). */
+export interface Necklace {
+  readonly n: number;
+  readonly marks: readonly number[];
+}
+
+/** The gaps between marks, round the cycle, starting at the first mark. */
+export function steps(x: Necklace): number[] {
+  return x.marks.map((m, i) => (i + 1 < x.marks.length ? x.marks[i + 1] - m : x.n - m + x.marks[0]));
+}
+
+/**
+ * The necklace's name, the same whatever slot the cycle starts at: its steps from the rotation that reads largest (the
+ * major scale and the standard bell both read "2 2 2 1 2 2 1", the rotation that starts at the scale's fourth degree).
+ */
+export function canonical(x: Necklace): string {
+  const s = steps(x);
+  let best = s;
+  for (let r = 1; r < s.length; r++) {
+    const rot = [...s.slice(r), ...s.slice(0, r)];
+    for (let k = 0; k < rot.length; k++)
+      if (rot[k] !== best[k]) {
+        if (rot[k] > best[k]) best = rot;
+        break;
+      }
+  }
+  return best.join(' ');
+}
+
+/**
+ * Maximally even (Clough & Douthett 1991): the marks as evenly spread as `n` slots allow; for each span of d marks,
+ * the slots it covers take at most two sizes, one apart. The diatonic scale, the bell, the pentatonic, the tresillo
+ * x..x..x. are; the clave son isn't.
+ */
+export function maximallyEven(x: Necklace): boolean {
+  const k = x.marks.length;
+  if (k < 2) return true;
+  for (let d = 1; d < k; d++) {
+    const sizes = new Set(x.marks.map((m, i) => (x.marks[(i + d) % k] - m + x.n) % x.n || x.n));
+    if (sizes.size > 2 || Math.max(...sizes) - Math.min(...sizes) > 1) return false;
+  }
+  return true;
+}
+
+/**
+ * The rhythm of onsets (s) folded round a cycle of `cycle` seconds with `pulse` seconds a slot: a slot is marked when
+ * an onset lands on it in at least half the turns heard (a fill or a variation doesn't change the pattern). Onsets off
+ * the pulse grid by more than a quarter pulse leave the pattern null: the pulse doesn't fit them.
+ */
+export function rhythm(onsets: readonly number[], cycle: number, pulse: number, from = 0): Necklace | null {
+  const n = Math.round(cycle / pulse);
+  if (n < 2 || Math.abs(n * pulse - cycle) > pulse / 4 || !onsets.length) return null;
+  const hits = new Map<number, Set<number>>();
+  let turns = 0;
+  for (const t of onsets) {
+    const local = (t - from) / pulse;
+    const slot = Math.round(local);
+    if (Math.abs(local - slot) > 0.25) return null;
+    const turn = Math.floor(slot / n);
+    turns = Math.max(turns, turn + 1);
+    const at = ((slot % n) + n) % n;
+    if (!hits.has(at)) hits.set(at, new Set());
+    hits.get(at)!.add(turn);
+  }
+  const marks = [...hits].filter(([, ts]) => ts.size * 2 >= turns).map(([slot]) => slot);
+  return marks.length ? { n, marks: marks.sort((a, b) => a - b) } : null;
+}
+
+/** The pitch classes heard (frequencies, A = 440 Hz), as a necklace of the twelve semitones. */
+export function pitchClasses(freqs: readonly number[]): Necklace | null {
+  const marks = new Set<number>();
+  for (const f of freqs) if (f > 0) marks.add((((Math.round(12 * Math.log2(f / 440)) + 9) % 12) + 12) % 12);
+  return marks.size ? { n: 12, marks: [...marks].sort((a, b) => a - b) } : null;
+}
+
+/** The finest pulse heard: the most common gap (to the millisecond) between successive onsets of any voice. */
+export function pulseOf(onsets: readonly number[]): number | null {
+  const sorted = [...onsets].sort((a, b) => a - b);
+  const count = new Map<number, number>();
+  for (let i = 1; i < sorted.length; i++) {
+    const gap = Math.round((sorted[i] - sorted[i - 1]) * 1000);
+    if (gap > 0) count.set(gap, (count.get(gap) ?? 0) + 1);
+  }
+  let best: [number, number] | null = null;
+  for (const [gap, c] of count) if (!best || c > best[1] || (c === best[1] && gap < best[0])) best = [gap, c];
+  return best ? best[0] / 1000 : null;
+}
+
+/** A level to fold at: a cycle (s) with its pulse (s), named for what writes or hears it (a cell, a ridge). */
+export interface Level {
+  readonly name: string;
+  readonly cycle: number;
+  readonly pulse: number;
+}
+
+/** A necklace heard: in whose notes, at which level (or in pitch), and its name. */
+export interface Folding {
+  readonly voice: string;
+  readonly level: string;
+  readonly kind: 'rhythm' | 'pitch';
+  readonly necklace: Necklace;
+  readonly name: string;
+  readonly even: boolean;
+}
+
+/**
+ * Every folding of a piece's notes: each voice's rhythm round each level, and each voice's pitch classes. Trivial
+ * ones (one mark, or every slot) are left out: every pulse is a necklace of those.
+ */
+export function foldings(events: readonly Pick<Played, 'at' | 'voice' | 'freq'>[], levels: readonly Level[]): Folding[] {
+  const byVoice = new Map<string, Pick<Played, 'at' | 'voice' | 'freq'>[]>();
+  for (const e of events) byVoice.set(e.voice, [...(byVoice.get(e.voice) ?? []), e]);
+  const out: Folding[] = [];
+  const keep = (voice: string, level: string, kind: Folding['kind'], x: Necklace | null) => {
+    if (!x || x.marks.length < 2 || x.marks.length >= x.n) return;
+    out.push({ voice, level, kind, necklace: x, name: canonical(x), even: maximallyEven(x) });
+  };
+  for (const [voice, notes] of byVoice) {
+    const onsets = [...new Set(notes.map((e) => +e.at.toFixed(4)))];
+    for (const l of levels) keep(voice, l.name, 'rhythm', rhythm(onsets, l.cycle, l.pulse));
+    keep(voice, 'octave', 'pitch', pitchClasses(notes.map((e) => e.freq)));
+  }
+  return out;
+}
+
+/** The same necklace at more than one level or kind: groups of foldings with one name, across levels, largest first. */
+export function alike(fs: readonly Folding[]): { name: string; even: boolean; where: Folding[] }[] {
+  const by = new Map<string, Folding[]>();
+  for (const f of fs) by.set(f.name, [...(by.get(f.name) ?? []), f]);
+  return [...by]
+    .map(([name, where]) => ({ name, even: where[0].even, where }))
+    .filter((g) => new Set(g.where.map((f) => `${f.kind}:${f.level}`)).size > 1)
+    .sort((a, b) => b.where.length - a.where.length);
+}
