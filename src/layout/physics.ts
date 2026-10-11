@@ -365,7 +365,7 @@ export class ForceLayout {
     placeMeters(this.s);
   }
 
-  /** Each meter's net (nets.ts: meterNet), worked out from where everything is now; call once the layout is at rest. */
+  /** Each meter's net (nets.ts: meterNet), laid as a bus's is from where everything is now. */
   meterNet(): readonly MeterTrace[] {
     return meterNet(this.s);
   }
