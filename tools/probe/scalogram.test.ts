@@ -17,7 +17,9 @@ import { KEY, SECONDS_PER_STEP } from '../../src/engine/fiveto12';
 import { eventsBetween, plan } from '../../src/engine/realize';
 import { PRESETS } from '../../src/engine/presets';
 import { towerSpans } from '../../src/layout/tower';
-import { MOST_RATE, PER_OCTAVE, SIGNALS, W0, around, cones, grid, novelty, reach, score, signals, swells, type Cone } from './scalogram';
+import { MOST_RATE, PER_OCTAVE, grid, reach, type Scalogram } from '../../src/engine/time/wavelet';
+import { SIGNALS, scalograms } from '../../src/engine/time/signals';
+import { cones, novelty, score, sectionsOver, swells, type Boundary } from '../../src/engine/time/boundaries';
 
 const log = (t: string) => appendFileSync(process.env.PROBE!, t + '\n');
 /** A piece shorter than this (s) is left out: a third of it is a bar or two. */
@@ -53,7 +55,7 @@ describe.runIf(process.env.PROBE)('the rhythm scalogram', () => {
     const sheets = process.env.SHEETS;
     if (sheets) mkdirSync(sheets, { recursive: true });
     const tag = process.env.TAG;
-    log(`one length of each piece (mainLength), at most ${MOST_RATE} Hz; periods from 1/16 s to a third of it, ${PER_OCTAVE} an octave; Morlet ω0=${W0}`);
+    log(`one length of each piece (mainLength), at most ${MOST_RATE} Hz; periods from 1/16 s to a third of it, ${PER_OCTAVE} an octave; Morlet ω0=6`);
     log(`a peak matches a cell when within 1/6 octave of its step or its turn; * a match, ½ a half (or ⅓) of a peak that matches\n`);
     const tally = Object.fromEntries(SIGNALS.map((s) => [s, { peaks: 0, matched: 0, harmonic: 0, slow: 0 }]));
     const short: string[] = [];
@@ -96,7 +98,7 @@ describe.runIf(process.env.PROBE)('the rhythm scalogram', () => {
       // (the written boundaries: the sections' starts, and of those apart the ones into something new (a label other than
       // the one before: verse → chorus) and the repeats (drop → drop); 5 to 12's keys too, every ten minutes, apart from
       // its blocks)
-      const written = around(sections(program) ?? [], window);
+      const written = sectionsOver(sections(program) ?? [], window);
       const inside = written.flatMap((s, i) => (s.at > 0 && s.at < window ? [{ at: s.at, repeat: i > 0 && s.label === written[i - 1].label }] : []));
       const sets: [string, number[]][] = [
         ['sections', inside.map((s) => s.at)],
@@ -109,7 +111,7 @@ describe.runIf(process.env.PROBE)('the rhythm scalogram', () => {
         sets.push(['keys', keys]);
       }
       const near = (a: number, b: number) => Math.abs(Math.log2(a / b)) < 1 / 6;
-      const sig = signals(events, window, g);
+      const sig = scalograms(events, g) as Record<(typeof SIGNALS)[number], Scalogram>;
       const out: Record<string, unknown> = {
         key,
         window,
@@ -124,9 +126,9 @@ describe.runIf(process.env.PROBE)('the rhythm scalogram', () => {
         signals: {},
       };
       const line: string[] = [];
-      const found = new Map<string, Cone[]>();
+      const found = new Map<string, Boundary[]>();
       for (const s of SIGNALS) {
-        const { mean, peaks } = profile(sig[s], window, g.periods);
+        const { mean, peaks } = profile(sig[s].rows as Float32Array[], window, g.periods);
         const marks = peaks.map((i) => {
           const q = g.periods[i];
           const hit = cells.some((c) => near(q, c.step) || near(q, c.turn));
@@ -141,8 +143,8 @@ describe.runIf(process.env.PROBE)('the rhythm scalogram', () => {
         line.push(`${s} ${marks.join(' ') || '–'}`);
         // (CONE_LOUD=, CONE_OCTAVES=: how loud a maximum, how long a chain; see `cones`)
         const opts = { loud: Number(process.env.CONE_LOUD ?? 1), octaves: Number(process.env.CONE_OCTAVES ?? 1) };
-        found.set(s, cones(sig[s], g.periods, window, { ...opts, fastest: Math.max(1, g.periods[0]), merge: Math.max(1, window / 400) }));
-        (out.signals as Record<string, unknown>)[s] = { rows: sig[s].map(thin), mean: mean.map((v) => +v.toPrecision(3)) };
+        found.set(s, cones(sig[s], { ...opts, fastest: Math.max(1, g.periods[0]), merge: Math.max(1, window / 400) }));
+        (out.signals as Record<string, unknown>)[s] = { rows: sig[s].rows.map(thin), mean: mean.map((v) => +v.toPrecision(3)) };
       }
       // (the cones scored against each set of boundaries with two or more in the window: a tolerance of a tenth of their
       // median gap, at least 1 s; the cones that reach up to a tenth of it too)
@@ -169,13 +171,13 @@ describe.runIf(process.env.PROBE)('the rhythm scalogram', () => {
         const sby: Record<string, { precision: number; recall: number }> = {};
         for (const s of NOVEL) {
           const rows = s === 'three' ? [sig.envelope, sig.change, sig.voices] : [sig[s]];
-          nby[s] = score(novelty(rows, g.periods, window, gap), boundaries, window, tolerance);
-          sby[s] = score(swells(rows, g.periods, window, gap), boundaries, window, tolerance);
+          nby[s] = score(novelty(rows, gap), boundaries, window, tolerance);
+          sby[s] = score(swells(rows, gap), boundaries, window, tolerance);
         }
         novel.push({ key, set, by: nby });
         swelled.push({ key, set, by: sby });
         if (set === 'sections') {
-          const peaks = swells([sig.envelope, sig.change, sig.voices], g.periods, window, gap);
+          const peaks = swells([sig.envelope, sig.change, sig.voices], gap);
           // (the best twice as many as there are boundaries: room for as many again that nobody wrote)
           const strong = peaks.slice(0, 2 * boundaries.length);
           const off = strong.filter((x) => !boundaries.some((b) => Math.abs(b - x.at) <= tolerance));
