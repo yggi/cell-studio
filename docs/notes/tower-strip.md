@@ -73,11 +73,30 @@ The waltz, stopped with the strips open, and live with them folded:
 - The rows fall out of the tower by themselves: the beat (the bar and what it steps), the voices at their pitch, the form and the constant tables (free) lower down. Pop's drums nest by rate (the bar, the kick and snare, the hats); the Ricercar's tables sink under the voices.
 - **Wires run level over what is in their way**: the tuba's crosses under the flute and the strings, Pop's mixes' wires over its voices' caps. A force that keeps a held cell off another's wire row (sideways), or wires taking lanes round a cell, is the next step.
 - The colours of live wires and the live spectra in these pictures are the gallery's made-up sound (every voice on C4); the app's are the piece's.
-- Not measured yet: crossings and the rest of the quality numbers in the tower layout against the signal path's (the probe skill's pattern; the layout's own metrics will move: a crossing with a wire into the strips isn't counted, the card's edges are gone).
+- Measured over the library below.
+
+## Measured (75 examples, three seeds)
+
+`tools/probe/tower-layout.test.ts` (`PROBE=out.txt npx vitest run tools/probe/tower-layout.test.ts`, ~2 min): every example laid out as the app does (500 ticks, `layNet`), library sums, mean over seeds. *Over a cell*: a wire into a strip passing over another cell's body (0.7 of its room, at its height); *over an edge*: crossing a drawn edge (straight, centre to centre); each strand counted, so a wire into both strips counts twice.
+
+| layout | crossings | cost | area Mpx² | pieces with an overlap | wires into the strips | over a cell | over an edge | wire length kpx |
+|---|---|---|---|---|---|---|---|---|
+| today (the signal path) | 46.3 | 134.6 | 73.7 | 0 | — | — | — | — |
+| today, no card node | 33.3 | 118.1 | 65.4 | 0 | — | — | — | — |
+| **tower** (heights held, few forces) | 130.0 | 397.9 | 124.6 | 0 | 480 | 152.7 | 406.0 | 366 |
+| tower, today's forces | 80.0 | 255.0 | 104.3 | 29.3 | 480 | 154.3 | 402.0 | 341 |
+
+57 % of nodes are held at a height (742 of 1305); the rest (constant tables, cells no clock reaches, tags) are free.
+
+- **The card's node alone costs 13 crossings in today's layout** (46.3 → 33.3, −28 %, far outside the seeds' ±8): every voice's wire converging on one node. Taking it out is a win whatever the layout.
+- **The tower layout costs crossings**: against today's layout without the card (the same edges drawn), 33 → 130, about four times, and 1.9× the area. Its pieces most hurt are the selector pieces again (Baustelle 9.7 → 17.7, Korobeiniki 5 → 13, Cellscape 3.7 → 11) and the tape and resonator pieces (Resonanz, Ghosts, Echotape 0 → 5–7); helped or even: Pop 1.7 → 0.7, BWV 847 0.7 → 0.3, the waltz 0 → 0.
+- **Its wires into the strips cost more than the crossings**: 406 crossings with edges and 153 passes over cells, about one wire in three over a cell. Baustelle's alone: +22 over cells, +65 over edges. Two strips double it (each wire runs both ways); they are the price of option B.
+- **Today's forces with heights held** cross less (80) but overlap in 29 pieces: the forces built for free nodes push in y, where nothing can move, and outweigh the collision sideways. The few forces keep nothing overlapping. A middle set (today's sideways forces, no y pushes) is worth a run.
+- So, as [tower-rows.md](tower-rows.md) found for rows by the tower: **height by the tower costs crossings in today's language**, most where it arranges with selectors, tapes and resonators; contrapuntal and song-form pieces fit it. What the tower layout adds of its own is the wires' cost, the first thing to work on.
 
 ## Next
 
-1. Measure the tower layout over the library (crossings, wires over cells), against the signal path's.
-2. Wires and held cells: keep cells off the wires' rows, or route wires round them.
+1. Wires and held cells: keep cells off the wires' rows (a sideways push off another's wire, measured with the probe's *over a cell*), or a wire takes the strip on its own side only when its source is nearer it (stereo kept on the strip, not on the wire).
+2. A middle set of forces: today's sideways ones, nothing pushing in y; and the card's node dropped from today's layout too (−13 crossings), its own issue.
 3. A mix's own height: today a mix sits a hair above the highest sound it carries (`towerOf`), its centre there, so its wire leaves its top just above; whether a mix should sit where its own output is read (its top) as a voice does.
 4. The tower's axis (the signal path's layout's *tower* button) and the strips: one of them, once the layout is chosen.
