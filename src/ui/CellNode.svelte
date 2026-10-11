@@ -7,6 +7,7 @@
   import { longpress } from './kit/attach';
   import FreePills from './FreePills.svelte';
   import GateMeter from './GateMeter.svelte';
+  import KitGlyph from './KitGlyph.svelte';
   import { gateOf } from '../layout/gate';
   import { glyphOf, soundHeadOf } from '../layout/wheels';
   import SideMarks from './SideMarks.svelte';
@@ -58,6 +59,8 @@
   <!-- (a gate is a mix as read, but draws a level meter: its notes as bars, #234) -->
   {#if glyph === 'gate' && gate}
     <GateMeter notes={gate.trigger} levels={gate.levels} gain={gate.gain} size={data.size} label="&{data.name}: a gate, its notes as bars" />
+  {:else if glyph === 'kit'}
+    <KitGlyph name={data.name} size={data.size} />
   {:else if glyph === 'wave'}
     <WaveGlyph name={data.name} size={data.size} caption={hub ? `${hub.big} ${hub.small}` : null} />
   {:else if glyph === 'spectrum' && hub}

@@ -293,8 +293,8 @@ describe('the natural order (royal)', () => {
     // &key steps per cycle of &theme and &scale per cycle of &key — but they're tables &theme reads through:
     // tuning a row under what it tunes (the scale under the theme, the key under the scale)
     expect([at('scale'), at('key')]).toEqual([0, -1]);
-    // the vibrato is unnamed, the lead's own (pitch=): a petal of &lead, not ranked
-    expect(model.nodes.find((n) => n.cell?.lambda && n.cell.map?.kind === 'lin')!.petalOf).toBe('cell:lead');
+    // the vibrato is unnamed, the lead's own (pitch=): a chip of &lead's wheel (layout/voice.ts), no node, not ranked
+    expect(model.nodes.some((n) => n.cell?.lambda && n.cell.map?.kind === 'lin')).toBe(false);
     expect([at('lead'), at('bass')]).toEqual([2, 2]);
     expect(at('mix')).toBe(3); // the mix is the sound card
   });

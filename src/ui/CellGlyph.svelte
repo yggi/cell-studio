@@ -9,8 +9,6 @@
   import { blockColour, noteColour, partColour } from './theme';
   import { cellView, hubLabel, type CellView, type Fill, type Segment } from '../layout/cellview';
   import { gateOf } from '../layout/gate';
-  import { kitOf, memberPlaces } from '../layout/kit';
-  import { bulbHosts } from '../engine/graph';
   import { BORDER, border, coarsen } from '../layout/coarse';
   import { names, noteLabel, tonicOf, voiceBase } from '../layout/show';
   import { polar, ringSegment } from '../layout/geometry';
@@ -550,20 +548,6 @@
 
   // the playhead: braids, and a selector's barrel (where in its sections)
   const hand = $derived((view.mode === 'braid' || view.mode === 'matrix') && liveLocal != null ? liveLocal / Math.max(1, ctx.program.cells.get(played)?.steps ?? 1) : null);
-  // a kit's members: a small wheel each, just outside its own slice (layout/kit.ts: where the number that picks it
-  // points); a bulb when only the kit plays the voice, else hollow (the voice has a node of its own); lit while it sounds
-  const kit = $derived(kitOf(ctx.program, name));
-  const receivers = $derived.by(() => {
-    const members = kit;
-    if (!members || interactive) return [];
-    const places = memberPlaces(size, members.length);
-    const hosts = bulbHosts(ctx.program);
-    return members.map((v, i) => {
-      const p = places[i];
-      const text = `&${v}`;
-      return { name: v, x: c + p.x, y: c + p.y, r: p.r, bulb: hosts.get(v) === name, font: fitFont(2 * p.r * 0.86, text.length, 11, 5), text };
-    });
-  });
   // in a bulb, the hand bends: from the hub's edge round the inside of each bulb it is in, and across the step playing now (#221)
   const bent = $derived(hand !== null && track ? cursorOf(c, c, geo.hand.r0, track, mod(hand, 1), rInner - geo.hand.r0) : null);
 
@@ -828,24 +812,6 @@
     />
     {#if size >= 160}<text class="pen" x={c} y={c + geo.rHub * 0.62}>✎</text>{/if}
   {/if}
-  {#each receivers as v (v.name)}
-    <g class="receiver" class:hollow={!v.bulb} class:sounding={!!ctx.lit?.nodes.has(`cell:${v.name}`)} class:off={!!ctx.program.cells.get(v.name)?.off}>
-      <circle class="receiver-disc" cx={v.x} cy={v.y} r={v.r} />
-      {#if v.font}<text class="receiver-name" x={v.x} y={v.y} dy="0.35em" style:font-size="{v.font}px">{v.text}</text>{/if}
-      {#if v.bulb}<circle
-          class="bulb-hit"
-          data-bulb={v.name}
-          role="button"
-          tabindex="0"
-          aria-label={`&${v.name}, a voice this kit plays: open it; Shift+Enter switches it ${ctx.program.cells.get(v.name)?.off ? 'on' : 'off'}`}
-          aria-keyshortcuts="Enter Shift+Enter"
-          onkeydown={(e) => bulbKey(e, v.name)}
-          cx={v.x}
-          cy={v.y}
-          r={v.r}
-        />{/if}
-    </g>
-  {/each}
   {#if tapCursors.length}
     <!-- (over the hub, which overlaps the taps; turned with the rim) -->
     <g style={interactive ? undefined : `transform: rotate(${spin}deg); transform-origin: ${c}px ${c}px`}>
@@ -1091,28 +1057,6 @@
   /* a bulb (#221): its own small disc behind it; a net-ref's dotted round; its name at its hub */
   .bulb-disc {
     fill: var(--wheel-disc);
-  }
-  /* a kit's members: a small wheel each, lit while its voice sounds */
-  .receiver-disc {
-    fill: var(--wheel-disc);
-    stroke: var(--wheel-ref);
-    stroke-width: 2;
-  }
-  .receiver.hollow .receiver-disc {
-    fill: none;
-    stroke-dasharray: 1 3;
-    stroke-linecap: round;
-  }
-  .receiver.sounding .receiver-disc {
-    stroke: var(--accent);
-  }
-  .receiver.off {
-    opacity: 0.4;
-  }
-  .receiver-name {
-    fill: var(--text);
-    font-weight: 700;
-    text-anchor: middle;
   }
   .bulb-hit {
     fill: transparent;

@@ -119,6 +119,11 @@
   --disc-tape-0: #3b3f46;
   --disc-tape-1: #22252b;
   --disc-tape-2: #121418;
+  /* a drum kit (KitGlyph): a drum's shell and head, a cymbal's brass (the resonator's) */
+  --kit-shell: #343947;
+  --kit-head: #cfc9bb;
+  --kit-cymbal: #c9a24e;
+  --kit-cymbal-edge: #7d5f22;
   --disc-resonator-0: #e7c46a;
   --disc-resonator-1: #a87b2c;
   --disc-resonator-2: #5e4214;
