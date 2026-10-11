@@ -200,56 +200,18 @@ export function hits(s: LayoutState, x: number, y: number, r: number, from: stri
 
 /**
  * Each meter's net (#27): every cell a meter steps is joined to it, not each by an edge of its own but through the
- * others, like ground on a circuit board — a tree of straight traces between the meter and its cells (a spanning
- * tree, Kruskal's: the shortest first, each costed by what it crosses — drawn edges, wheels it passes, the traces
- * already laid). Worked out from where everything is now; call once the layout is at rest.
+ * others, like ground on a circuit board. Laid as every net is (netTree, the owner's appearance aside): a ratsnest,
+ * each cell joined to the nearest one already joined, wherever that is (ground: the meter or another of its cells), a
+ * join through a wheel costing as much again for each wheel; laid again whenever it is asked for, so it follows a
+ * moved cell as a bus does. A tap's sub-net leaves from its bulb on its table (decision 016).
  */
 export function meterNet(s: LayoutState): readonly MeterTrace[] {
-  const drawn = drawnPieces(s, () => false);
-  const laid: Piece[] = [];
   const net: MeterTrace[] = [];
-  // (a pair a drawn edge already joins: a trace would lie on it)
-  const joined = new Set(s.links.map((l) => [l.source, l.target].sort().join('|')));
-  // (a meter's net; a tap's, from its bulb on its table, one per tap: decision 016)
-  const groups = new Map<string, { meter: string; bulb?: string; at?: { x: number; y: number; r: number } }>();
-  for (const g of s.grounds) if (!groups.has(`${g.meter}|${g.bulb ?? ''}`)) groups.set(`${g.meter}|${g.bulb ?? ''}`, { meter: g.meter, bulb: g.bulb, at: g.at });
-  for (const { meter, bulb, at: hub } of groups.values()) {
-    const ends = [meter, ...new Set(s.grounds.filter((g) => g.meter === meter && g.bulb === bulb).map((g) => g.cell))].filter((id) => s.byId.has(id));
-    // (the meter's end: its wheel, or the bulb on it)
-    const at = (id: string) => {
-      const n = s.byId.get(id)!;
-      return hub && id === meter ? { id, x: (n.x ?? 0) + hub.x, y: (n.y ?? 0) + hub.y, radius: hub.r } : n;
-    };
-    const pairs: { a: string; b: string; len: number; cost: number; checked: boolean }[] = [];
-    for (let i = 0; i < ends.length; i++)
-      for (let j = i + 1; j < ends.length; j++) {
-        const [a, b] = [at(ends[i]), at(ends[j])];
-        const len = Math.hypot((a.x ?? 0) - (b.x ?? 0), (a.y ?? 0) - (b.y ?? 0));
-        const hit = hits(s, a.x ?? 0, a.y ?? 0, a.radius, a.id, b.id, drawn);
-        pairs.push({ a: a.id, b: b.id, len, cost: len * (1 + 2 * hit) * (joined.has([a.id, b.id].sort().join('|')) ? 3 : 1), checked: false });
-      }
-    const root = new Map(ends.map((id) => [id, id]));
-    const find = (id: string): string => (root.get(id) === id ? id : find(root.get(id)!));
-    pairs.sort((p, q) => p.cost - q.cost);
-    while (pairs.length) {
-      const p = pairs.shift()!;
-      if (find(p.a) === find(p.b)) continue;
-      if (!p.checked && laid.length) {
-        // (the traces laid since it was costed: crossing one costs as much as crossing an edge)
-        const a = at(p.a);
-        const extra = hits(s, a.x ?? 0, a.y ?? 0, a.radius, p.a, p.b, laid) - hits(s, a.x ?? 0, a.y ?? 0, a.radius, p.a, p.b, []);
-        p.checked = true;
-        if (extra > 0) {
-          p.cost += p.len * 2 * extra;
-          pairs.splice(pairs.findIndex((q) => q.cost > p.cost) >>> 0, 0, p);
-          continue;
-        }
-      }
-      root.set(find(p.a), find(p.b));
-      net.push({ id: `net:${p.a}${bulb ? `@${bulb}` : ''}~${p.b}`, meter, a: p.a, b: p.b, ...(bulb && hub ? { bulb, at: hub } : {}) });
-      const [a, b] = [at(p.a), at(p.b)];
-      laid.push({ a: p.a, b: p.b, seg: [a.x ?? 0, a.y ?? 0, b.x ?? 0, b.y ?? 0] });
-    }
+  for (const n of s.drawnNets) {
+    if (n.port !== 'step' || !s.byId.has(n.owner)) continue;
+    const bulb = n.bulb && n.bulbAt ? { bulb: n.bulb, at: n.bulbAt } : {};
+    for (const { from, to } of netTree(s, n, s.drawnEnds).values())
+      if (s.byId.has(from) && s.byId.has(to)) net.push({ id: `net:${from}${n.bulb ? `@${n.bulb}` : ''}~${to}`, meter: n.owner, a: from, b: to, ...bulb });
   }
   s.net = net;
   return net;

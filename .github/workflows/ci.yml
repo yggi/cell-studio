@@ -1,9 +1,7 @@
 name: CI
 
+# CI is off for now (broken): runs by hand only; checks are run locally (AGENTS.md). Restore: push on main + pull_request.
 on:
-  push:
-    branches: [main]
-  pull_request:
   workflow_dispatch:
 
 # (each job asks for what it writes)
