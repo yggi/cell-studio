@@ -6,6 +6,7 @@
   import { bulbAt, getGraphContext, nodeState } from './context';
   import { longpress } from './kit/attach';
   import FreePills from './FreePills.svelte';
+  import GateMeter from './GateMeter.svelte';
   import SideMarks from './SideMarks.svelte';
   import SpectrumWheel from './SpectrumWheel.svelte';
   import WaveGlyph from './WaveGlyph.svelte';
@@ -50,9 +51,9 @@
   {@attach longpress((at) => ctx.toggle(bulbAt(at) ?? id))}
 >
   <Handle type="target" position={Position.Top} class="center-handle" isConnectable={false} />
-  <!-- (a gate is a mix as read, but draws its trigger's ring and its receivers: CellGlyph, #234) -->
+  <!-- (a gate is a mix as read, but draws a level meter: its notes as bars, #234) -->
   {#if typeof cell?.params.trigger === 'string'}
-    <CellGlyph name={data.name} isMeter={false} size={data.size} />
+    <GateMeter name={data.name} size={data.size} />
   {:else if soundHead || (cell?.mix && !cell.sink)}
     <WaveGlyph name={data.name} size={data.size} caption={hub ? `${hub.big} ${hub.small}` : null} />
   {:else if signal && hub}

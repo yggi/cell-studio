@@ -10,10 +10,8 @@ that makes the change. Also note changes to the language that could affect saved
 
 ## Unreleased
 
-### Fixed
-- **A gate's sound out is drawn as its sound**: the wire from a gate (`&leadOut trigger=&tune … &lead &bell`) into the sound card was grey while playing; it now takes the colour of the note its first voice sounds and that voice's wave, as a product in the sound card does. A kit's gate stays neutral (a kit has no one pitch). Drawing only.
-
 ### Changed
+- **A gate is drawn as a level meter** (#234): `&leadOut trigger=&tune velocity=&accent gate=&duck …` shows a bar for each note its trigger sounds now (several side by side for a chord), in the note's colour, as tall as `velocity=` says; `gate=` is a dashed ceiling the bars rise to. It replaces the ring of the trigger's notes. Saved `.cells` pieces are not affected (drawing only).
 - **A gate's voices are wheels of their own again**: `&lead` and `&bell` in `&leadOut trigger=&tune … &lead &bell` are no longer bulbs on the gate; each keeps its node and its sound is drawn as sound into the gate (a wave, its colour), as a kit's voices are part of the kit and a gate's are only played by it. Saved `.cells` pieces are not affected (drawing only).
 - **A kit's voices are bulbs on it** ([decision 021](docs/decisions/021-tape-heads.md)): a voice only a kit plays (`&kit &bd &sd &hh`) is drawn as a small wheel on the kit, just outside its own slice (where the number that picks it points: 0 the first, clockwise from the top), not as a wheel of its own wired to it. Tap it to open it, hold it to switch it off. Saved `.cells` pieces are not affected (drawing only).
 - **MIDI tidy-ups** (#222, #260): MIDI in's on-screen pads, the computer's drum keys and a controller follow a piece's *Kit* channel; two inputs under *All inputs* no longer share a key; a port chosen only on an output slot reconnects on load, and the tab coming back and *All notes off* reach it; a page load reconnects only when the browser has granted MIDI (else it waits for Connect, with a line saying so); an input unplugged under *All inputs* lets go of its own keys only; the roll's key goes dark when the key is let go from elsewhere, and a cell renamed while one is held lets the right key go. Nothing saved changes.
@@ -40,6 +38,7 @@ that makes the change. Also note changes to the language that could affect saved
 - A pick reads its cell as it is turned: `&key[0]` with `&key shift=2` is D (a fixed tap on a turning wheel), and it follows a key that steps or is turned live; `&key[$0]` is the new form for *as written* (C). Slices too: `&x[1:3]`, `&x[$1:3]` (#10). **Saved pieces:** a pick from a cell with a `shift=` (or a stepped one, read in another cell's braid) now plays the turned entry; write `[$…]` to keep the old notes. No example's sound changes.
 
 ### Fixed
+- **A gate's sound out is drawn as its sound**: the wire from a gate (`&leadOut trigger=&tune … &lead &bell`) into the sound card was grey while playing; it now takes the colour of the note its first voice sounds and that voice's wave, as a product in the sound card does. A kit's gate stays neutral (a kit has no one pitch). Drawing only.
 - MIDI in lets every key go (on the device too, through thru) when the page comes back into view, the input is changed or unplugged, or *All notes off* is pressed; switching thru off or changing its channel sends the note-offs for the keys still down first. A key played live no longer counts as a late note. Opening another piece forgets the cell *Play with* chose in the last one. Saved `.cells` pieces are not affected.
 
 ### Added

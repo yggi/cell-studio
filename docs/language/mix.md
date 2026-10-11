@@ -75,8 +75,8 @@ already plays it as well:
 &out loop=SAMPLE_RATE map=sample [&drums]
 ```
 
-A gate is where notes become sound, named: the graph draws it as a node of its own, its receivers as dim as the gate is
-closed. On a MIDI card a gate is an entry as any mix is (`&synth map=midi &leadOut ~!8 &drums`: all its receivers on that channel, a kit's by drum note, [midi.md](midi.md)); without a card, MIDI out sends each gate as one part. The anonymous product,
+A gate is where notes become sound, named: the graph draws it as a level meter, a bar per note in its colour, as tall as
+its velocity, under the gate's ceiling ([graph.md](../ui/graph.md)). On a MIDI card a gate is an entry as any mix is (`&synth map=midi &leadOut ~!8 &drums`: all its receivers on that channel, a kit's by drum note, [midi.md](midi.md)); without a card, MIDI out sends each gate as one part. The anonymous product,
 `[&tune * &accent * &solo * &lead * .5]`, stays its short form.
 
 ## The sound card
