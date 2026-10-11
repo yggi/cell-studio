@@ -13,9 +13,23 @@ export interface TimeLayers {
   readonly waveform: boolean;
   readonly sections: boolean;
   readonly heard: boolean;
+  readonly cells: boolean;
+  readonly splices: boolean;
+  readonly patterns: boolean;
 }
 type Stored = TimeLayers & { readonly signal: TimeSignal };
-const DEFAULTS: Stored = { scalogram: true, notes: true, waterfall: false, waveform: false, sections: true, heard: true, signal: 'mix' };
+const DEFAULTS: Stored = {
+  scalogram: true,
+  notes: true,
+  waterfall: false,
+  waveform: false,
+  sections: true,
+  heard: true,
+  cells: true,
+  splices: true,
+  patterns: false,
+  signal: 'mix',
+};
 
 function load(): Stored {
   try {
@@ -29,6 +43,9 @@ function load(): Stored {
       waveform: on('waveform'),
       sections: on('sections'),
       heard: on('heard'),
+      cells: on('cells'),
+      splices: on('splices'),
+      patterns: on('patterns'),
       signal: kept.signal === 'mix' || SIGNALS.includes(kept.signal as Signal) ? (kept.signal as TimeSignal) : 'mix',
     };
   } catch {

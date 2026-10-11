@@ -4,6 +4,7 @@
 //   keys    the scalogram listening to new pitch classes alone (5 to 12's keys)
 //   sound   the waterfall and the waveform on (rendered, the first five minutes at most)
 //   zoom    zoomed in eight times, a third of the way in
+//   patterns  the motifs heard at two time scales boxed, the foldings alike listed
 //   phone   at a phone's width, the Time tab
 // Writes <OUT>/tiles/<piece>-<state>.png and <OUT>/index.html; OUT defaults to shots/time. STATES=mix,keys picks states.
 // Pieces by their example names (default: hypercell pop korobeiniki fiveto12 pachelbel). Fails on a page error.
@@ -14,7 +15,7 @@ import { chromium } from '../profile/playwright.mjs';
 
 const pieces = process.argv.slice(2).filter((a) => Number.isNaN(Number(a)));
 const wanted = pieces.length ? pieces : ['hypercell', 'pop', 'korobeiniki', 'fiveto12', 'pachelbel'];
-const states = (process.env.STATES ?? 'mix,keys,sound,zoom,phone').split(',');
+const states = (process.env.STATES ?? 'mix,keys,sound,zoom,patterns,phone').split(',');
 const out = process.env.OUT ?? 'shots/time';
 rmSync(join(out, 'tiles'), { recursive: true, force: true });
 mkdirSync(join(out, 'tiles'), { recursive: true });
@@ -53,6 +54,7 @@ for (const piece of wanted)
   for (const state of states) {
     const page = await open(piece, state !== 'phone');
     if (state === 'keys') await page.locator('.time select').selectOption('harmony');
+    if (state === 'patterns') await toggle(page, 'patterns');
     if (state === 'sound') {
       await toggle(page, 'waterfall');
       await toggle(page, 'waveform');

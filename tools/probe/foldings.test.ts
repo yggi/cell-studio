@@ -1,5 +1,6 @@
 // Probe (not part of the gate): foldings and motifs over the library (#286, docs/notes/scalogram.md). For every piece,
-// one length of it (`mainLength`, at most 10 minutes):
+// a hearing of it (`listening`: whole, or three cycles of a loop; at most ten minutes: a folding is a local pattern, and
+// over half an hour 5 to 12's glass varies with its keys):
 // - the foldings (src/engine/time/necklace.ts): each voice's rhythm round each clocked cell's cycle (its turn, with
 //   its step as the pulse), and each voice's pitch classes round the octave; the same necklace at two levels or kinds
 //   is a piece folded the same way at two scales (the bell and the major scale: examples/bell.cells);
@@ -11,11 +12,12 @@ import { appendFileSync } from 'node:fs';
 import { buildGraph } from '../../src/engine/graph';
 import { compileSource } from '../../src/engine/compile';
 import { codeShifts } from '../../src/engine/program';
-import { mainLength, pieceTime } from '../../src/engine/duration';
+import { pieceTime } from '../../src/engine/duration';
+import { listening } from '../../src/engine/time/span';
 import { eventsBetween, plan } from '../../src/engine/realize';
 import { PRESETS } from '../../src/engine/presets';
 import { towerSpans } from '../../src/layout/tower';
-import { alike, foldings, pulseOf, type Level } from '../../src/engine/time/necklace';
+import { alike, foldings, levelsOf, pulseOf } from '../../src/engine/time/necklace';
 import { motifs, multiscale } from '../../src/engine/time/motifs';
 
 const log = (t: string) => appendFileSync(process.env.PROBE!, t + '\n');
@@ -35,29 +37,15 @@ describe.runIf(process.env.PROBE)('foldings and motifs', () => {
       if (only && !only.includes(key)) continue;
       const program = compileSource(p.source);
       if (!program.ok) continue;
-      const window = Math.min(LONGEST, mainLength(pieceTime(program)) ?? 60);
+      const window = Math.min(LONGEST, listening(pieceTime(program))?.seconds ?? 60);
       const model = buildGraph(program);
       const events = eventsBetween(plan(program, codeShifts(program)), 0, window);
-      // (the levels: any clocked cell's turn as the cycle, with any cell's step, or the finest pulse heard, as its pulse,
-      // whole slots a cycle: the bell's bar is &beat's turn, its pulse &pulse's step; voices and the card aren't levels)
-      const cycles: { name: string; s: number }[] = [];
-      const pulses: number[] = [];
-      for (const [id, { at, lo }] of towerSpans(program, model)) {
+      // (the levels: engine/time/necklace.ts levelsOf, from the cells' spans on the tower)
+      const spans = [...towerSpans(program, model)].flatMap(([id, { at, lo }]) => {
         const node = model.nodes.find((n) => n.id === id);
-        if (!node?.cell || node.kind !== 'cell' || !Number.isFinite(at) || !Number.isFinite(lo)) continue;
-        pulses.push(Math.pow(10, -at));
-        if (Math.pow(10, -lo) <= window) cycles.push({ name: `&${node.cell.name}`, s: Math.pow(10, -lo) });
-      }
-      // (the finest pulse heard, unless a written one is within 2 % of it)
-      const heard = pulseOf(events.map((e) => e.at));
-      if (heard && !pulses.some((q) => Math.abs(q / heard - 1) < 0.02)) pulses.push(heard);
-      const levels: Level[] = [];
-      for (const c of cycles)
-        for (const pulse of pulses) {
-          const n = Math.round(c.s / pulse);
-          if (n < 3 || n > MOST_SLOTS || Math.abs(n * pulse - c.s) > 0.02 * pulse) continue;
-          if (!levels.some((l) => Math.abs(l.cycle - c.s) < 1e-6 && Math.abs(l.pulse - pulse) < 1e-6)) levels.push({ name: `${c.name}/${n}`, cycle: c.s, pulse });
-        }
+        return node?.cell && node.kind === 'cell' && Number.isFinite(at) && Number.isFinite(lo) ? [{ name: node.cell.name, step: Math.pow(10, -at), turn: Math.pow(10, -lo) }] : [];
+      });
+      const levels = levelsOf(spans, pulseOf(events.map((e) => e.at)), window, MOST_SLOTS);
       pieces++;
       if (process.env.DEBUG)
         log(

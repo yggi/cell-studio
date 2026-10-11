@@ -198,6 +198,20 @@ Of the best swells of the three together (twice as many as boundaries), those th
   sounds that hasn't for 8 s), finds them: cones on 131 of the 132 keys (99 % precision and recall, against 25 % at
   best for the onset signals), every block (swells 100 %), and Cellscape's 59 scenes, which are key changes (100 %).
 
+## Loops over three rounds, and the splices
+
+- **Three rounds of a loop** (`engine/time/span.ts` `listening`; the probes and the view): one cycle can't show what the
+  loop itself does. Phase's drift is its whole cycle (100 s): over three rounds the change signal repeats as three arches
+  and the 1.3 s level swells and fades with them. With three rounds, 59 of the 75 examples are 16 s or longer (16 left
+  out, against 42 at one round), and the finders hold: swells of the three signals 74 % precision, 65 % recall (chance
+  25 %).
+- **The splices** (`engine/time/splices.ts`): where a braid turns from one spliced cell to the next and its output then
+  plays. Of the 36 best swells over the 12 pieces with sections that land on no section, **15 land on a splice**, where
+  chance would give 8.4; all 13 of Korobeiniki's (`&end` → `&c`, the tune's second half). What is left is 5 to 12's
+  and daytime's (a law: no braid to splice; inside its blocks, not on a key) and Baustelle's (`chance` plays in it).
+  So a boundary heard and not written as a section is mostly written after all, inside a braid: the splice tree is the
+  piece's own account of its phrases.
+
 ## Into the app: engine/time and the time view
 
 The probe's arithmetic is now `src/engine/time/` (pure, tested; the probes use it), and its first consumer in the app
@@ -240,9 +254,10 @@ pulse, the notes and the waterfall in the audible, the waveform at the top. Pict
 
 ## What is next (nothing decided)
 
-- The splice tree as boundaries: Shorten's tree of a piece against its swells and cones.
-- In the time view: the cells' spans on the tower axis (TowerAxis's marks), the motifs and foldings as marks.
-- Loops longer than one cycle, where the loop itself is the question (Phase): two or three cycles.
+- Shorten's tree (its folds, not only the splices written) against the swells and cones: does what Shorten would fold
+  match what is heard as a phrase?
+- The splices, cells and patterns are in the time view (its *splices*, *cells* and *patterns* layers); the splices
+  are worked out on the main thread (a day's take a second or two): into the worker if that shows.
 
 ## References
 

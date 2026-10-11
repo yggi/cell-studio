@@ -7,10 +7,14 @@
  */
 import type { Played } from '../realize';
 
-/** A figure heard: its shape's name, and where (voice, time, its first gap in seconds: its scale). */
+/** A figure heard: where (voice, from its first note to its last, its lowest and highest pitch, Hz) and its scale (its
+ * first gap, s). */
 interface Occurrence {
   readonly voice: string;
   readonly at: number;
+  readonly to: number;
+  readonly lo: number;
+  readonly hi: number;
   readonly scale: number;
 }
 
@@ -31,7 +35,7 @@ const SAME_SCALE = 1.06;
  */
 export function motifs(events: readonly Pick<Played, 'at' | 'voice' | 'freq'>[], { length = 5, times = 2 } = {}): Motif[] {
   const byVoice = new Map<string, Pick<Played, 'at' | 'voice' | 'freq'>[]>();
-  for (const e of events) if (e.freq > 0) byVoice.set(e.voice, [...(byVoice.get(e.voice) ?? []), e]);
+  for (const e of events) if (e.freq > 0) push(byVoice, e.voice, e);
   const found = new Map<string, Occurrence[]>();
   for (const [voice, notes] of byVoice) {
     // (one note an onset: a chord's top note, its first heard)
@@ -46,7 +50,8 @@ export function motifs(events: readonly Pick<Played, 'at' | 'voice' | 'freq'>[],
       // (a gap under an eighth of the first: a grace, a chord spread; not a figure's rhythm)
       if (rhythm.some((r) => r === 0)) continue;
       const shape = `${steps.join(' ')} | 1 ${rhythm.join(' ')}`;
-      found.set(shape, [...(found.get(shape) ?? []), { voice, at: fig[0].at, scale: first }]);
+      const fs = fig.map((e) => e.freq);
+      push(found, shape, { voice, at: fig[0].at, to: fig[fig.length - 1].at, lo: Math.min(...fs), hi: Math.max(...fs), scale: first });
     }
   }
   return [...found]
@@ -64,4 +69,11 @@ export function multiscale(ms: readonly Motif[], ratio = 1.4): Motif[] {
   return ms
     .filter((m) => m.scales[m.scales.length - 1] / m.scales[0] >= ratio)
     .sort((a, b) => b.scales[b.scales.length - 1] / b.scales[0] - a.scales[a.scales.length - 1] / a.scales[0]);
+}
+
+/** Add `x` to the list kept under `key`. */
+function push<K, V>(m: Map<K, V[]>, key: K, x: V): void {
+  const xs = m.get(key);
+  if (xs) xs.push(x);
+  else m.set(key, [x]);
 }

@@ -156,3 +156,30 @@ describe('the motifs', () => {
     expect(multiscale(ms)[0].shape).toBe(m.shape);
   });
 });
+
+describe('how long to listen', () => {
+  it('to the whole of a piece that ends, to three rounds of a loop', async () => {
+    const { listening } = await import('./span');
+    expect(listening({ ends: 96, cycle: null, chance: false, longest: 96 })).toEqual({ seconds: 96, cycle: null, rounds: 1 });
+    expect(listening({ ends: null, cycle: 100, chance: false, longest: 100 })).toEqual({ seconds: 300, cycle: 100, rounds: 3 });
+    expect(listening({ ends: null, cycle: 50000, chance: false, longest: 50000 })!.rounds).toBe(1);
+    expect(listening({ ends: null, cycle: null, chance: false, longest: null })).toBeNull();
+  });
+});
+
+describe('the splices', () => {
+  it("find Korobeiniki's tune turning to its second half, where the A sections play it", async () => {
+    const { splices } = await import('./splices');
+    const { compileSource } = await import('../compile');
+    const { codeShifts } = await import('../program');
+    const { plan } = await import('../realize');
+    const { PRESETS } = await import('../presets');
+    const r = compileSource(PRESETS.korobeiniki.source);
+    const s = splices(plan(r, codeShifts(r)), 90);
+    // (the second half begins: &end then &c, as at the unwritten swells heard at 19.7, 60.3, 86.5 s)
+    const halves = s.filter((x) => x.after === 'end' && x.cell === 'c').map((x) => x.at);
+    for (const t of [20.21, 60.21, 86.88]) expect(halves.some((h) => Math.abs(h - t) < 0.01)).toBe(true);
+    // (the B sections, 26.7 to 53.3 s, play another part: no splice of the tune heard there)
+    expect(s.some((x) => x.at > 27 && x.at < 53)).toBe(false);
+  });
+});

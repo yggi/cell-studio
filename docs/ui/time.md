@@ -5,8 +5,10 @@ wide screen the **time** button in the graph's toolbar shows it in the graph's p
 
 ## What it shows
 
-- **Across: time**, from the piece's start to its end, or one cycle of a loop (`mainLength`, as the transport's slider
-  has it; 5 to 12: a day). The playhead is a line; while playing, the view pages on with it.
+- **Across: time**, from the piece's start to its end, or three rounds of a loop (`listening` in `engine/time/span.ts`:
+  three of the cycle the transport's slider has, so what the loop itself does shows, as Phase's drift; 5 to 12: a day).
+  Each round's start is a dashed line. The playhead is a line, round the three rounds while playing (a click plays from
+  the same place in the cycle); while playing, the view pages on with it.
 - **Up: frequency, on the tower's axis** ([multiscale](../notes/multiscale.md), `layout/tower.ts`): from the piece's
   slowest level at the bottom through the slow (below 0.5 Hz) and the pulse to the audible (from 20 Hz) and the sound
   card's samples (from 20 kHz) at the top. The marks read as times below 20 Hz (1 min, 1 s, 0.1 s) and as frequencies
@@ -21,7 +23,14 @@ wide screen the **time** button in the graph's toolbar shows it in the graph's p
   - **waveform**: the rendered sound, in the card's octave at the top.
   - **sections**: the sections the code writes (the selector's steps, `sections`), as lines with their names.
   - **heard**: boundaries heard in the scalogram (swells of the three signals at the sections' scale; with no sections,
-    cones of entries), marks under the notes: white on a section, orange on none.
+    cones of entries), marks under the notes: white on a section, teal on a splice, orange on neither.
+  - **splices**: a tick where a braid turns to its next spliced cell (`&tune &a &b &end …`; `engine/time/splices.ts`),
+    where the output then plays: phrases written inside a braid rather than as a clock.
+  - **cells**: each clocked cell's span on the tower (from its step down to its turn, `towerSpans`), a bar at the left:
+    a cone or a ridge against the cell that writes it.
+  - **patterns** (off by default): the motifs heard at two time scales (`engine/time/motifs.ts`), boxed round their notes
+    with their ratio, and the foldings alike at two levels or in rhythm and pitch (`engine/time/necklace.ts`), listed at
+    the bottom; over the first ten minutes.
 
   Which layers are on, and the scalogram's signal, are kept in this browser.
 

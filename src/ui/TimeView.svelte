@@ -14,11 +14,17 @@
   import { TimeSettings, type TimeLayers, type TimeSignal } from './state/time.svelte';
   import { eventsBetween, plan, type Played } from '../engine/realize';
   import { codeShifts } from '../engine/program';
-  import { mainLength, pieceTime } from '../engine/duration';
+  import { pieceTime } from '../engine/duration';
+  import { listening } from '../engine/time/span';
+  import { transportClock } from '../audio/clock.svelte';
   import { SIGNALS, type Signal } from '../engine/time/signals';
   import { reach, type Scalogram } from '../engine/time/wavelet';
   import { sectionsOver, swells, cones, type Boundary } from '../engine/time/boundaries';
   import { peaks } from '../engine/time/spectrogram';
+  import { splices } from '../engine/time/splices';
+  import { motifs, multiscale } from '../engine/time/motifs';
+  import { alike, foldings, levelsOf, pulseOf } from '../engine/time/necklace';
+  import { towerSpans } from '../layout/tower';
   import { CARD, follow, frameFor, freqTicks, pan, tOf, timeTicks, xOf, yOf, zones, zoom, type Frame } from '../layout/timeview';
   import { noteColour, TIME } from './theme';
   import type { TimeAnswer, TimeJob } from './time.worker';
@@ -38,12 +44,40 @@
   let canvas = $state<HTMLCanvasElement>();
 
   /** The piece's length as the transport has it: the whole piece, or one cycle; at least a few seconds. */
-  const length = $derived.by(() => {
-    if (!piece.program.ok) return 30;
-    return playback.span ?? Math.max(4, Math.min(mainLength(pieceTime(piece.program)) ?? 30, 86400));
-  });
+  /** How long it is heard: a piece that ends, the whole of it; a loop, three rounds (engine/time/span.ts), so what the
+   * loop itself does shows (Phase's drift); at least a few seconds. */
+  const heard = $derived(piece.program.ok ? listening(pieceTime(piece.program)) : null);
+  const length = $derived(Math.max(4, heard?.seconds ?? 30));
+  /** Where the transport is in that: the clock's own place while playing (all three rounds), else where play starts. */
+  const now = $derived(playback.playing ? transportClock.seconds % length : playback.cursor);
   /** Its notes over that length (worked out only while the view is shown). */
-  const notes = $derived.by((): Played[] => (active && piece.program.ok ? eventsBetween(plan(piece.program, piece.shifts, piece.muted), 0, length) : []));
+  const planned = $derived(active && piece.program.ok ? plan(piece.program, piece.shifts, piece.muted) : null);
+  const notes = $derived.by((): Played[] => (planned ? eventsBetween(planned, 0, length) : []));
+  /** Each clocked cell's span on the tower, in seconds: from its step (how often it moves) to its turn. */
+  const spans = $derived.by(() => {
+    if (!active || !piece.program.ok) return [];
+    const model = piece.graph;
+    return [...towerSpans(piece.program, model)].flatMap(([id, { at, lo }]) => {
+      const node = model.nodes.find((n) => n.id === id);
+      return node?.cell && node.kind === 'cell' && Number.isFinite(at) && Number.isFinite(lo) ? [{ name: node.cell.name, step: Math.pow(10, -at), turn: Math.pow(10, -lo) }] : [];
+    });
+  });
+  /** Where a braid turns to its next spliced cell, heard (engine/time/splices.ts). */
+  const spliced = $derived(planned && settings.layers.splices ? splices(planned, length) : []);
+  /** The patterns: motifs heard at two time scales, and foldings alike at two levels, over the first ten minutes at most. */
+  const PATTERNS = 600;
+  const patterns = $derived.by(() => {
+    if (!settings.layers.patterns || !notes.length) return null;
+    const early = notes.filter((e) => e.at < PATTERNS);
+    const within = Math.min(length, PATTERNS);
+    const levels = levelsOf(spans, pulseOf(early.map((e) => e.at)), within);
+    return {
+      motifs: multiscale(motifs(early)).slice(0, 4),
+      folded: alike(foldings(early, levels))
+        .filter((g) => g.name.split(' ').length >= 3)
+        .slice(0, 3),
+    };
+  });
   const written = $derived(sectionsOver(piece.sections ?? [], length).filter((s) => s.at > 0 && s.at < length));
 
   let frame = $state<Frame>(frameFor(30, 1, 1));
@@ -59,8 +93,8 @@
   // playing: the view pages on with the playhead
   $effect(() => {
     if (!playback.playing || !active) return;
-    const now = playback.now;
-    untrack(() => (frame = follow(frame, now, length)));
+    const at = now;
+    untrack(() => (frame = follow(frame, at, length)));
   });
 
   // ── the worker's answers ──────────────────────────────────────────────────────────────────────────────────────
@@ -68,9 +102,9 @@
   let fall = $state.raw<{ freqs: readonly number[]; times: readonly number[]; rows: Float32Array[]; seconds: number } | null>(null);
   let wave = $state.raw<{ peaks: Float32Array; seconds: number; done: number } | null>(null);
   /** What the worker or the render is doing, if anything: the scalogram's, and the sound's. */
-  let listening = $state(false);
+  let working = $state(false);
   let sounding = $state<string | null>(null);
-  const busy = $derived(sounding ?? (listening ? 'listening' : null));
+  const busy = $derived(sounding ?? (working ? 'listening' : null));
   let worker: Worker | null = null;
   const job = (j: TimeJob, transfer: ArrayBuffer[] = []) =>
     new Promise<TimeAnswer>((resolve, reject) => {
@@ -93,14 +127,14 @@
     const [events, window] = [notes, length];
     const onsets = events.map((e) => ({ at: e.at, dur: e.dur, voice: e.voice, freq: e.freq, gains: e.gains }));
     const timer = setTimeout(async () => {
-      listening = true;
+      working = true;
       try {
         const a = await job({ kind: 'scalogram', window, events: onsets, signals: SIGNALS });
         if (a.kind === 'scalogram') scal = { window: a.window, periods: a.periods, rows: a.rows };
       } catch {
         // (ended for a newer job)
       } finally {
-        listening = false;
+        working = false;
       }
     }, 400);
     return () => clearTimeout(timer);
@@ -223,7 +257,7 @@
   const fallBitmap = $derived(toBitmap(fallImage?.img));
 
   /** The boundaries heard: swells of the three signals at the sections' scale; with no sections, the cones of change. */
-  const heard = $derived.by((): Boundary[] => {
+  const heardMarks = $derived.by((): Boundary[] => {
     if (!scal) return [];
     const s = (k: Signal): Scalogram => ({ window: scal!.window, periods: scal!.periods, rows: scal!.rows[k] ?? [] });
     if (written.length >= 2) {
@@ -245,7 +279,7 @@
   $effect(() => {
     const f = frame;
     const layers: TimeLayers = settings.layers;
-    const [sb, fb, w, n, ws, hd] = [scalBitmap, fallBitmap, wave, notes, written, heard];
+    const [sb, fb, w, n, ws, hd, cy, sp, cs, pt] = [scalBitmap, fallBitmap, wave, notes, written, heardMarks, heard?.cycle ?? null, spliced, spans, patterns];
     if (!canvas || f.width < 2 || f.height < 2) return;
     const dpr = window.devicePixelRatio || 1;
     canvas.width = Math.round(f.width * dpr);
@@ -334,6 +368,22 @@
     g.textAlign = 'right';
     for (const z of zones(f)) if (yOf(f, z.lo) - yOf(f, z.hi) > 16) g.fillText(z.name, f.width - 8, yOf(f, z.hi) + 14);
     g.textAlign = 'left';
+    // a loop's rounds: where each begins again
+    if (cy) {
+      g.setLineDash([6, 6]);
+      g.strokeStyle = css('--time-ink');
+      for (let k = 1; k * cy < length - 1e-6; k++) {
+        const x = Math.round(xOf(f, k * cy)) + 0.5;
+        if (x < 0 || x > f.width) continue;
+        g.beginPath();
+        g.moveTo(x, 0);
+        g.lineTo(x, f.height);
+        g.stroke();
+        g.fillStyle = css('--time-ink');
+        g.fillText(`round ${k + 1}`, x + 4, yOf(f, CARD) + 28);
+      }
+      g.setLineDash([]);
+    }
     // the sections written, and the boundaries heard
     if (layers.sections) {
       g.fillStyle = css('--time-section');
@@ -349,14 +399,66 @@
       for (const b of hd) {
         if (b.at < f.from || b.at > f.to) continue;
         const x = xOf(f, b.at);
-        const on = ws.some((s) => Math.abs(s.at - b.at) <= Math.max(1, (f.to - f.from) / 200));
-        g.fillStyle = on ? css('--time-section') : css('--time-heard');
+        const near = Math.max(1, (f.to - f.from) / 200);
+        const on = ws.some((s) => Math.abs(s.at - b.at) <= near);
+        const inBraid = !on && sp.some((s) => Math.abs(s.at - b.at) <= near);
+        g.fillStyle = on ? css('--time-section') : inBraid ? css('--time-splice') : css('--time-heard');
         g.beginPath();
         g.moveTo(x, y - 9);
         g.lineTo(x - 5, y);
         g.lineTo(x + 5, y);
         g.fill();
       }
+    }
+    // the splices: a tick where a braid turns to its next spliced cell, just above the heard marks
+    if (layers.splices) {
+      const y = yOf(f, 20) - 14;
+      g.fillStyle = css('--time-splice');
+      for (const s of sp) if (s.at >= f.from && s.at <= f.to) g.fillRect(Math.round(xOf(f, s.at)), y - 8, 1.5, 8);
+    }
+    // the cells: each a bar at the left from its step down to its turn, in lanes, named where there is room
+    if (layers.cells) {
+      const lanes: number[] = [];
+      g.font = '10px system-ui, sans-serif';
+      for (const c of [...cs].sort((a, b) => a.step - b.step)) {
+        const top = yOf(f, 1 / c.step);
+        const bottom = yOf(f, 1 / c.turn);
+        if (bottom < 0 || top > f.height) continue;
+        let lane = lanes.findIndex((end) => end < top - 2);
+        if (lane < 0) lane = lanes.length;
+        if (lane > 10) continue;
+        lanes[lane] = Math.max(bottom, top + 12);
+        const x = 48 + lane * 6;
+        g.fillStyle = css('--time-cell');
+        g.fillRect(x, top, 3, Math.max(2, bottom - top));
+        g.fillRect(x - 2, top - 1, 7, 2);
+      }
+    }
+    // the patterns: each motif heard at two time scales boxed round its notes (a colour a motif, its ratio beside), and
+    // the foldings alike listed at the bottom
+    if (pt) {
+      g.lineWidth = 1.5;
+      g.font = '11px system-ui, sans-serif';
+      pt.motifs.forEach((m, k) => {
+        const colour = noteColour((k * 97 + 40) % 360);
+        g.strokeStyle = colour;
+        g.fillStyle = colour;
+        for (const o of m.heard) {
+          if (o.to < f.from || o.at > f.to) continue;
+          const x0 = xOf(f, o.at) - 2;
+          const x1 = xOf(f, o.to + o.scale * 0.6) + 2;
+          const y0 = yOf(f, o.hi) - 5;
+          const y1 = yOf(f, o.lo) + 5;
+          g.strokeRect(x0, y0, x1 - x0, y1 - y0);
+          if (o.scale > m.scales[0] * 1.06) g.fillText(`×${(o.scale / m.scales[0]).toFixed(1)}`, x0, y0 - 3);
+        }
+      });
+      g.lineWidth = 1;
+      g.fillStyle = css('--time-ink');
+      pt.folded.forEach((fd, k) => {
+        const where = fd.where.slice(0, 4).map((x) => `${x.voice} ${x.kind === 'pitch' ? 'pitch' : `rhythm round ${x.level}`}`);
+        g.fillText(`folded alike · ${fd.name}${fd.even ? ' (maximally even)' : ''}: ${where.join(', ')}`, 70, f.height - 40 - 14 * k);
+      });
     }
   });
 
@@ -389,7 +491,11 @@
   }
   function up(e: PointerEvent) {
     pointers.delete(e.pointerId);
-    if (dragFrom && !dragFrom.moved && pointers.size === 0) void playback.seek(Math.max(0, Math.min(length, tOf(frame, local(e)))));
+    // (a loop's later rounds play from the same place in its cycle)
+    if (dragFrom && !dragFrom.moved && pointers.size === 0) {
+      const t = Math.max(0, Math.min(length, tOf(frame, local(e))));
+      void playback.seek(heard?.cycle ? t % heard.cycle : t);
+    }
     if (pointers.size < 2) pinchFrom = null;
     if (pointers.size === 0) dragFrom = null;
   }
@@ -399,7 +505,7 @@
     else frame = zoom(frame, tOf(frame, local(e)), Math.exp(e.deltaY * 0.002), length);
   }
   const fit = () => (frame = frameFor(length, frame.width, frame.height));
-  const cursorX = $derived(xOf(frame, playback.now));
+  const cursorX = $derived(xOf(frame, now));
 
   const LAYERS: { key: keyof TimeLayers; label: string; title: string }[] = [
     { key: 'scalogram', label: 'scalogram', title: 'The notes’ wavelet transform: which time scales are loud, when' },
@@ -407,7 +513,10 @@
     { key: 'waterfall', label: 'waterfall', title: 'The sound’s spectrum over time (rendered: the first five minutes at most)' },
     { key: 'waveform', label: 'waveform', title: 'The sound itself, at the top (rendered: the first five minutes at most)' },
     { key: 'sections', label: 'sections', title: 'The sections the code writes' },
-    { key: 'heard', label: 'heard', title: 'Boundaries heard in the scalogram: white on a section, orange on none' },
+    { key: 'heard', label: 'heard', title: 'Boundaries heard in the scalogram: white on a section, teal on a splice, orange on neither' },
+    { key: 'splices', label: 'splices', title: 'Where a braid turns to its next spliced cell (&tune &a &b …)' },
+    { key: 'cells', label: 'cells', title: 'Each cell’s span on the tower, from its step to its turn, at the left' },
+    { key: 'patterns', label: 'patterns', title: 'Motifs heard at two time scales, boxed; foldings alike at two levels, listed' },
   ];
   const SIGNAL_LABEL: Record<TimeSignal, string> = {
     mix: 'breaks · entries · density',

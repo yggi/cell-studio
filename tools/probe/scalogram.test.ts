@@ -1,6 +1,6 @@
 // Probe (not part of the gate): the rhythm scalogram (#286, docs/notes/multiscale.md lead 7). Every example's notes
-// (`eventsBetween`, code seconds) over one length of the piece (`mainLength`: the whole piece if it ends, one cycle if
-// it loops; 5 to 12 a day), turned into a signal four ways, a continuous Morlet wavelet transform of each, and the
+// (`eventsBetween`, code seconds) over a hearing of the piece (`listening`: the whole piece if it ends, three cycles if
+// it loops (CYCLES=n); 5 to 12 a day), turned into a signal four ways, a continuous Morlet wavelet transform of each, and the
 // cells' spans on the tower (`towerSpans`) and the piece's sections (`sections`) beside it, to see which written levels
 // are heard and what is heard that nobody wrote. Then the cones (a change of section, seen from every period) against
 // the written boundaries: is a written boundary a cone, and is a cone a written boundary? The arithmetic is in
@@ -12,7 +12,8 @@ import { join } from 'node:path';
 import { buildGraph } from '../../src/engine/graph';
 import { compileSource } from '../../src/engine/compile';
 import { codeShifts } from '../../src/engine/program';
-import { mainLength, pieceTime, sections } from '../../src/engine/duration';
+import { pieceTime, sections } from '../../src/engine/duration';
+import { listening } from '../../src/engine/time/span';
 import { KEY, SECONDS_PER_STEP } from '../../src/engine/fiveto12';
 import { eventsBetween, plan } from '../../src/engine/realize';
 import { PRESETS } from '../../src/engine/presets';
@@ -20,6 +21,7 @@ import { towerSpans } from '../../src/layout/tower';
 import { MOST_RATE, PER_OCTAVE, grid, reach, type Scalogram } from '../../src/engine/time/wavelet';
 import { SIGNALS, scalograms } from '../../src/engine/time/signals';
 import { cones, novelty, score, sectionsOver, swells, type Boundary } from '../../src/engine/time/boundaries';
+import { splices } from '../../src/engine/time/splices';
 
 const log = (t: string) => appendFileSync(process.env.PROBE!, t + '\n');
 /** A piece shorter than this (s) is left out: a third of it is a bar or two. */
@@ -55,7 +57,9 @@ describe.runIf(process.env.PROBE)('the rhythm scalogram', () => {
     const sheets = process.env.SHEETS;
     if (sheets) mkdirSync(sheets, { recursive: true });
     const tag = process.env.TAG;
-    log(`one length of each piece (mainLength), at most ${MOST_RATE} Hz; periods from 1/16 s to a third of it, ${PER_OCTAVE} an octave; Morlet ω0=6`);
+    log(
+      `each piece heard whole, a loop ${process.env.CYCLES ?? 3} cycles (listening), at most ${MOST_RATE} Hz; periods from 1/16 s to a third of it, ${PER_OCTAVE} an octave; Morlet ω0=6`,
+    );
     log(`a peak matches a cell when within 1/6 octave of its step or its turn; * a match, ½ a half (or ⅓) of a peak that matches\n`);
     const tally = Object.fromEntries(SIGNALS.map((s) => [s, { peaks: 0, matched: 0, harmonic: 0, slow: 0 }]));
     const short: string[] = [];
@@ -68,7 +72,7 @@ describe.runIf(process.env.PROBE)('the rhythm scalogram', () => {
     // (the boundaries nobody wrote: strong swells of the three signals together that land on no section, and whether a
     // cell's turn explains them, a phrase inside a section)
     const unwritten: string[] = [];
-    const tallyUnwritten = { strong: 0, off: 0, turn: 0, chance: 0, pieces: 0 };
+    const tallyUnwritten = { strong: 0, off: 0, turn: 0, chance: 0, splice: 0, spliceChance: 0, pieces: 0 };
     for (const [key, p] of Object.entries(PRESETS)) {
       if (only && !only.includes(key)) continue;
       if (tag && !new RegExp(`tags="[^"]*\\b${tag}\\b`).test(p.source)) continue;
@@ -77,7 +81,8 @@ describe.runIf(process.env.PROBE)('the rhythm scalogram', () => {
       // (one length of the piece, as the transport has it: the whole piece if it ends, its cycle if it loops)
       const time = pieceTime(program);
       // (LENGTH=s: a length of its own instead, from the start: a day's first ten minutes, say)
-      const window = process.env.LENGTH ? Number(process.env.LENGTH) : mainLength(time);
+      const heard = listening(time, Number(process.env.CYCLES ?? 3));
+      const window = process.env.LENGTH ? Number(process.env.LENGTH) : (heard?.seconds ?? null);
       if (window === null || window < SHORTEST) {
         short.push(`${key} ${window === null ? '–' : window.toFixed(1)}`);
         continue;
@@ -85,7 +90,10 @@ describe.runIf(process.env.PROBE)('the rhythm scalogram', () => {
       // (RATE=n: at most n samples a second, to see what the few samples of a long piece do to a short one)
       const g = grid(window, Number(process.env.RATE ?? MOST_RATE));
       const model = buildGraph(program);
-      const events = eventsBetween(plan(program, codeShifts(program)), 0, window);
+      const played = plan(program, codeShifts(program));
+      const events = eventsBetween(played, 0, window);
+      // (the splices' boundaries heard: where a braid turns from one spliced cell to the next, engine/time/splices.ts)
+      const spliced = splices(played, window).map((x) => x.at);
       // (the cells' spans in seconds, from the tower: a span from its step to its turn; voices and the card are audible)
       const cells = [...towerSpans(program, model)].flatMap(([id, { at, lo }]) => {
         const node = model.nodes.find((n) => n.id === id);
@@ -193,18 +201,24 @@ describe.runIf(process.env.PROBE)('the rhythm scalogram', () => {
           tallyUnwritten.off += off.length;
           tallyUnwritten.turn += off.filter((x) => why(x.at)).length;
           tallyUnwritten.chance += (covered / 1000) * off.length;
+          // (or on a splice's boundary: a phrase written inside a braid; and how much of the time is that close to one)
+          const onSplice = (t: number) => spliced.some((b) => Math.abs(b - t) <= tolerance);
+          let near = 0;
+          for (let k = 0; k < 1000; k++) if (onSplice(((k + 0.5) / 1000) * window)) near++;
+          tallyUnwritten.splice += off.filter((x) => onSplice(x.at)).length;
+          tallyUnwritten.spliceChance += (near / 1000) * off.length;
           tallyUnwritten.pieces++;
           if (off.length)
             unwritten.push(
               `${key.padEnd(14)} ${off.length}/${strong.length} of the best swells on no section (a cell's turn covers ${pct(covered / 1000)} % of the time): ${off
                 .sort((a, b) => a.at - b.at)
-                .map((x) => `${x.at < 120 ? x.at.toFixed(1) + ' s' : (x.at / 60).toFixed(1) + ' min'}${why(x.at) ? ` (&${why(x.at)})` : ''}`)
+                .map((x) => `${x.at < 120 ? x.at.toFixed(1) + ' s' : (x.at / 60).toFixed(1) + ' min'}${why(x.at) ? ` (&${why(x.at)})` : ''}${onSplice(x.at) ? ' (splice)' : ''}`)
                 .join(', ')}`,
             );
         }
       }
       const spans = [...new Set(cells.flatMap((c) => [c.step, c.turn]).map((x) => (x < 1 ? x.toFixed(2) : x.toFixed(1))))].sort((a, b) => +a - +b);
-      const how = time.ends !== null ? 'ends' : window === time.cycle ? 'cycle' : 'longest layer';
+      const how = time.ends !== null ? 'ends' : `${heard?.rounds ?? 1}× its ${heard?.cycle === time.cycle ? 'cycle' : 'longest layer'}`;
       log(`${key.padEnd(14)} ${String(events.length).padStart(6)} notes in ${window.toFixed(0)} s (${how}${time.chance ? ', chance' : ''}) | cells ${spans.join(' ')}`);
       for (const l of line) log(`${''.padEnd(21)}${l}`);
       if (sheets) writeFileSync(join(sheets, `${key}.json`), JSON.stringify(out));
@@ -248,7 +262,7 @@ describe.runIf(process.env.PROBE)('the rhythm scalogram', () => {
     const u = tallyUnwritten;
     if (u.pieces)
       log(
-        `\nover ${u.pieces} pieces: ${u.off} of ${u.strong} of the best swells land on no section; ${u.turn} of those on a multiple of a cell's turn (at random: ${u.chance.toFixed(1)})`,
+        `\nover ${u.pieces} pieces: ${u.off} of ${u.strong} of the best swells land on no section; ${u.turn} of those on a multiple of a cell's turn (at random: ${u.chance.toFixed(1)}), ${u.splice} on a splice's boundary (at random: ${u.spliceChance.toFixed(1)})`,
       );
   }, 900_000);
 });

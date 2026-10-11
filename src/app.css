@@ -154,6 +154,8 @@
   --time-section: rgb(255 255 255 / 0.5);
   --time-heard: #ff9933;
   --time-veil: rgb(7 9 13 / 0.78);
+  --time-cell: rgb(120 200 255 / 0.85); /* a cell's span on the tower, at the left */
+  --time-splice: #6fd3c4; /* where a braid turns to its next spliced cell */
   /* the on-screen keys (#255): ivory and ebony, as a piano's, whatever the theme */
   --key-white: #ece6da;
   --key-black: #16181e;

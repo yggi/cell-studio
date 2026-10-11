@@ -110,6 +110,27 @@ export interface Level {
   readonly pulse: number;
 }
 
+/**
+ * The levels to fold a piece at: any clocked cell's turn as the cycle, with any cell's step (or the finest pulse heard,
+ * unless a written one is within 2 % of it) as the pulse, whole slots a cycle, 3 to `most`, the cycle within `longest`
+ * seconds. The bell's bar is &beat's turn, its pulse &pulse's step: no one cell has both. Spans in seconds (a cell's
+ * step and turn: layout/tower.ts `towerSpans`, as decades there).
+ */
+export function levelsOf(spans: readonly { readonly name: string; readonly step: number; readonly turn: number }[], heard: number | null, longest: number, most = 64): Level[] {
+  const pulses = spans.map((x) => x.step);
+  if (heard && !pulses.some((q) => Math.abs(q / heard - 1) < 0.02)) pulses.push(heard);
+  const out: Level[] = [];
+  for (const c of spans) {
+    if (!(c.turn <= longest)) continue;
+    for (const pulse of pulses) {
+      const n = Math.round(c.turn / pulse);
+      if (n < 3 || n > most || Math.abs(n * pulse - c.turn) > 0.02 * pulse) continue;
+      if (!out.some((l) => Math.abs(l.cycle - c.turn) < 1e-6 && Math.abs(l.pulse - pulse) < 1e-6)) out.push({ name: `&${c.name}/${n}`, cycle: c.turn, pulse });
+    }
+  }
+  return out;
+}
+
 /** A necklace heard: in whose notes, at which level (or in pitch) and at what pulse (s; a semitone in pitch), and its name. */
 export interface Folding {
   readonly voice: string;
@@ -127,7 +148,11 @@ export interface Folding {
  */
 export function foldings(events: readonly Pick<Played, 'at' | 'voice' | 'freq'>[], levels: readonly Level[]): Folding[] {
   const byVoice = new Map<string, Pick<Played, 'at' | 'voice' | 'freq'>[]>();
-  for (const e of events) byVoice.set(e.voice, [...(byVoice.get(e.voice) ?? []), e]);
+  for (const e of events) {
+    const notes = byVoice.get(e.voice);
+    if (notes) notes.push(e);
+    else byVoice.set(e.voice, [e]);
+  }
   const out: Folding[] = [];
   const keep = (voice: string, level: string, kind: Folding['kind'], pulse: number, x: Necklace | null) => {
     if (!x || x.marks.length < 2 || x.marks.length >= x.n || new Set(steps(x)).size === 1) return;
