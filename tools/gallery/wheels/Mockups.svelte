@@ -7,6 +7,7 @@
    * `node tools/gallery.mjs mockups` for a picture of each question.
    */
   import MockWheel from './MockWheel.svelte';
+  import BodyMock from './BodyMock.svelte';
 
   type Option = { label: string; note: string; cls?: string; vars?: Record<string, string> };
   const style = (vars?: Record<string, string>) =>
@@ -42,6 +43,26 @@
   ];
   q1[1].vars = flatTinted;
   q1[1].cls = 'flat';
+
+  // 2 · a resonator's body: each body= with exciters as the examples write it (most: one)
+  const bodies: { body: string; shifts: number[]; seen: string }[] = [
+    { body: 'fork', shifts: [0], seen: 'Two Tuning Forks, Sympathy, Five to 12 (6×, one exciter)' },
+    { body: 'bell', shifts: [0, 3, 7, 12], seen: 'none yet (a chime set)' },
+    { body: 'bar', shifts: [0, 2, 4, 7, 9], seen: 'Resonanz (&girder, one); a marimba' },
+    { body: 'plate', shifts: [0], seen: 'Resonanz (&plate, one)' },
+    { body: 'box', shifts: [0, 5, 7], seen: 'none (every board=box: the shared board)' },
+    { body: 'tine', shifts: [0, 2, 4, 7, 9, 12], seen: 'Kalimba, golden (built: #302)' },
+    { body: 'pipe', shifts: [0, 7, 12], seen: 'Harmonograph (2×, one, excite=)' },
+    { body: 'wire', shifts: [0, 7, 12, 19], seen: 'Resonanz, Sympathy (strings 0 7 12 19), Harmonograph' },
+    { body: 'spring', shifts: [0], seen: 'Resonanz (&spring, one)' },
+  ];
+  const q2 = [
+    { option: 'now', label: 'A · now', note: 'brass disc, mode rings; brass pads round it when more than one exciter' },
+    { option: 'shape', label: 'B · exciters take the body', note: 'each exciter drawn as its body’s element where its pad is, out to its strand (the tines, for all)' },
+    { option: 'face', label: 'C · B + the body on its face', note: 'the body engraved on the disc: what a single exciter, the usual case, shows' },
+    { option: 'material', label: 'D · C + its material', note: 'the disc of the body’s material: steel, wood, brass, organ metal' },
+    { option: 'material', label: 'D · ringing', note: 'the moving part ghosted, the struck exciter glowing', ringing: 1 },
+  ] as const;
 </script>
 
 <main>
@@ -63,8 +84,27 @@
             <MockWheel piece="fiveto12" name="memory" />
             <MockWheel piece="forks" name="forkA" />
           </div>
-          <div class="row tight"><MockWheel piece="fiveto12" name="sun" /><MockWheel piece="transpose" name="key" size={128} /></div>
+          <div class="row tight"><MockWheel piece="fiveto12" name="day" /><MockWheel piece="transpose" name="key" size={128} /></div>
         </div>
+      {/each}
+    </div>
+  </section>
+
+  <section data-mock="2-resonator-bodies">
+    <h2>2 · A resonator’s body: how each body= could look</h2>
+    <div class="bodies">
+      <div></div>
+      {#each q2 as o (o.label)}<div class="head">
+          <h3>{o.label}</h3>
+          <p>{o.note}</p>
+        </div>{/each}
+      {#each bodies as b (b.body)}
+        <div class="who">
+          <h3>body={b.body}</h3>
+          <p>{b.shifts.join(' ')}</p>
+          <p>{b.seen}</p>
+        </div>
+        {#each q2 as o (o.label)}<div class="cell"><BodyMock body={b.body} shifts={b.shifts} option={o.option} ringing={'ringing' in o ? o.ringing : 0} /></div>{/each}
       {/each}
     </div>
   </section>
@@ -131,6 +171,24 @@
   }
   .row.tight {
     gap: 6px;
+  }
+  .bodies {
+    display: grid;
+    grid-template-columns: 170px repeat(5, 190px);
+    gap: 6px 10px;
+    align-items: center;
+  }
+  .bodies .head p,
+  .bodies .who p {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin: 2px 0 0;
+  }
+  .bodies .cell {
+    background: var(--bg);
+    border-radius: var(--radius);
+    display: flex;
+    justify-content: center;
   }
   /* 1 · flat: no gradient shading or drop shadows on the physical wheels */
   .flat :global(.turntable),
