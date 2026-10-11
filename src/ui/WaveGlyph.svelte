@@ -14,6 +14,9 @@
   import { getGraphContext, hearing } from './context';
   import { fitFont, hubMax } from '../layout/dial';
   import { wheelGeometry } from '../layout/wheel';
+  import { heardGrid } from '../layout/show';
+  import { positionOf } from '../engine/helix';
+  import { palette } from './palette';
 
   /** caption: what it says under the wave (a read head: where it reads); a voice says its note. */
   let { name, size = 120, caption = null }: { name: string; size?: number; caption?: string | null } = $props();
@@ -54,6 +57,19 @@
   // a mix or a read head carries whatever sounds; an instrument shows its sound while it is routed (ui/context.ts hearing)
   const signal = $derived(typeof cell?.params.play === 'string' || !!cell?.mix);
 
+  // a voice's wave in the colour of the note it sounds now, on its grid (the palette's sound, as its wire takes it)
+  const grid = $derived.by(() => {
+    if (!cell?.voice) return null;
+    const g = heardGrid(ctx.program, name);
+    return g ? { name: g, cycle: ctx.program.cells.get(g)?.cycle ?? 12 } : null;
+  });
+  let colour = $state<string | null>(null);
+  const noteColourNow = (): string | null => {
+    const f = grid ? ctx.sound.note(name) : null;
+    const base = cell?.freq ?? 0;
+    return f && base > 0 && grid ? palette('audio', { position: positionOf(ctx.program, grid.name, 12 * Math.log2(f / base)), loud: 1 }, grid) : null;
+  };
+
   // the sound now, while it plays (~15 a second, only on screen)
   let live = $state('');
   let visible = true;
@@ -62,8 +78,11 @@
     const w = visible && hearing(ctx, name, signal) ? ctx.sound.waveform(name) : null;
     if (!w) {
       if (live) live = '';
+      if (colour) colour = null;
       return;
     }
+    const now = noteColourNow();
+    if (now !== colour) colour = now;
     const n = Math.min(240, w.length >> 1);
     let start = 0;
     for (let i = 1; i < w.length - n; i++)
@@ -87,7 +106,7 @@
 <svg {@attach onScreen((v) => (visible = v))} data-wheel="wave" width={size} height={size} viewBox="0 0 {size} {size}" role="img" aria-label="&{name}: its waveform">
   <circle class="disc" cx={geo.c} cy={geo.c} r={geo.rDisc} />
   <line class="axis" x1={size * 0.14} y1={size / 2} x2={size * 0.86} y2={size / 2} />
-  <polyline class="wave" class:live={!!live} points={live || points} />
+  <polyline class="wave" class:live={!!live} points={live || points} style:stroke={live && colour ? colour : undefined} />
   {#if noteFont}<text x={geo.c} y={size * 0.84} style:font-size="{noteFont}px">{note}</text>{/if}
 </svg>
 

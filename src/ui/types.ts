@@ -28,7 +28,10 @@ type MaterialFlowNode = Node<MaterialNodeData, 'material'>;
 /** A cell drawn by a plugin of the piece (show=name). */
 type PluginFlowNode = Node<{ name: string; size: number; plugin: string }, 'plugin'>;
 
-/** A product's junction (graph.ts): the voice it is and the mix it goes into (`name`: its id, no cell's). */
-type JunctionNodeData = { name: string; voice: string; mix: string; size: number };
+/** A product's junction (graph.ts): the voice it plays, the mix it goes into (`name`: its id, no cell's), and what its meter draws. */
+type JunctionNodeData = { name: string; voice: string; mix: string; size: number; notes: string | null; levels: readonly string[]; gain: number };
 export type JunctionFlowNode = Node<JunctionNodeData, 'junction'>;
-export type FlowNode = CellFlowNode | VoiceFlowNode | MaterialFlowNode | PluginFlowNode | JunctionFlowNode;
+/** A voice's own envelope, a box on its top (layout/voice.ts). */
+type EnvelopeNodeData = { name: string; voice: string; width: number; height: number; size: number };
+export type EnvelopeFlowNode = Node<EnvelopeNodeData, 'envelope'>;
+export type FlowNode = CellFlowNode | VoiceFlowNode | MaterialFlowNode | PluginFlowNode | JunctionFlowNode | EnvelopeFlowNode;

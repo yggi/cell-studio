@@ -8,13 +8,15 @@
   import { onDestroy, untrack } from 'svelte';
   import { blockColour, noteColour, partColour } from './theme';
   import { cellView, hubLabel, type CellView, type Fill, type Segment } from '../layout/cellview';
-  import { gateOf, receiverPlaces } from '../layout/gate';
+  import { gateOf } from '../layout/gate';
+  import { kitOf, memberPlaces } from '../layout/kit';
   import { bulbHosts } from '../engine/graph';
-  import { valuesAt } from '../engine/values';
   import { BORDER, border, coarsen } from '../layout/coarse';
   import { names, noteLabel, tonicOf, voiceBase } from '../layout/show';
   import { polar, ringSegment } from '../layout/geometry';
   import { envelopeNames, wheelGeometry } from '../layout/wheel';
+  import { envelopeAt, envelopeAxis } from '../layout/envelope';
+  import { lastNoteAt } from '../engine/values';
   import { angleOf, fitFont, hubMax, turnDelta } from '../layout/dial';
   import { mod } from '../theory/modes';
   import { getGraphContext } from './context';
@@ -269,9 +271,8 @@
   // show=adsr: the envelope as a curve across the ring — rising, falling, holding, releasing
   const curve = $derived.by(() => {
     if (view.mode !== 'curve' || !view.curve) return null;
-    const { attack, decay, sustain, release } = view.curve;
-    const hold = Math.max(0.15, (attack + decay + release) * 0.4);
-    const total = attack + decay + hold + release || 1;
+    const { attack, decay, sustain } = view.curve;
+    const { hold, total } = envelopeAxis(view.curve);
     const w = rOuter * 1.5;
     const h = rOuter * 0.9;
     const x0 = c - w / 2;
@@ -287,6 +288,24 @@
     return pts;
   });
   const curvePoints = $derived(curve ? curve.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(' ') : '');
+  // while it plays: where the latest note through it is on the curve, two lines crossing there — its time now and its
+  // level now (the notes of whatever plays a voice with this envelope, or a product it shapes: layout/envelope.ts)
+  const envNotes = $derived(
+    view.mode === 'curve' ? [...new Set(ctx.program.outputs.filter((o) => ctx.program.cells.get(o.voice)?.env === name || o.envelopeCell === name).map((o) => o.cell))] : [],
+  );
+  const envNow = $derived.by(() => {
+    if (!curve || !view.curve || !ctx.lit || !envNotes.length) return null;
+    const t = ctx.heads.seconds;
+    const notes = envNotes.flatMap((n) => lastNoteAt(ctx.program, ctx.shifts, n, t) ?? []);
+    if (!notes.length) return null;
+    const last = notes.reduce((a, b) => (b.since < a.since ? b : a));
+    const at = envelopeAt(view.curve, last.since, last.length);
+    if (!at) return null;
+    const { total } = envelopeAxis(view.curve);
+    const [x0, x1] = [curve[0][0], curve[4][0]];
+    const [y0, y1] = [curve[0][1], curve[1][1]];
+    return { x: x0 + (at.t / total) * (x1 - x0), y: y0 + at.level * (y1 - y0), x0, x1, top: y1, bottom: y0 };
+  });
   // its values named on their stretches of the curve (#107): attack by the peak, decay along its fall, sustain
   // under its hold, release by its end — from 112 px up (smaller, the curve alone)
   const envFont = $derived(Math.min(11, size * 0.06));
@@ -531,19 +550,15 @@
 
   // the playhead: braids, and a selector's barrel (where in its sections)
   const hand = $derived((view.mode === 'braid' || view.mode === 'matrix') && liveLocal != null ? liveLocal / Math.max(1, ctx.program.cells.get(played)?.steps ?? 1) : null);
-  // how open a gate is now (gate=, a level: 1 open, 0 closed): its receivers as dim as it is closed, while playing
-  const openness = $derived.by(() => {
-    if (!gate?.open || !ctx.lit) return 1;
-    const v = valuesAt(ctx.program, ctx.shifts, gate.open, ctx.heads.seconds)[0];
-    return v === undefined ? 1 : Math.max(0, Math.min(1, v));
-  });
-  // a gate's receivers: small wheels fanned over its top (layout/gate.ts); a bulb when only the gate plays the voice, else
-  // hollow (the voice has a node of its own); each lit while its voice sounds
+  // a kit's members: a small wheel each, just outside its own slice (layout/kit.ts: where the number that picks it
+  // points); a bulb when only the kit plays the voice, else hollow (the voice has a node of its own); lit while it sounds
+  const kit = $derived(kitOf(ctx.program, name));
   const receivers = $derived.by(() => {
-    if (!gate || interactive) return [];
-    const places = receiverPlaces(size, gate.receivers.length);
+    const members = kit;
+    if (!members || interactive) return [];
+    const places = memberPlaces(size, members.length);
     const hosts = bulbHosts(ctx.program);
-    return gate.receivers.map((v, i) => {
+    return members.map((v, i) => {
       const p = places[i];
       const text = `&${v}`;
       return { name: v, x: c + p.x, y: c + p.y, r: p.r, bulb: hosts.get(v) === name, font: fitFont(2 * p.r * 0.86, text.length, 11, 5), text };
@@ -783,6 +798,11 @@
   {/each}
   {#if curve}
     <polyline class="curve" points={curvePoints} />
+    {#if envNow}
+      <line class="env-now" x1={envNow.x} x2={envNow.x} y1={envNow.top} y2={envNow.bottom} />
+      <line class="env-now" x1={envNow.x0} x2={envNow.x1} y1={envNow.y} y2={envNow.y} />
+      <circle class="env-dot" cx={envNow.x} cy={envNow.y} r={Math.max(2, size / 40)} />
+    {/if}
   {:else}
     <circle class="hub" cx={c} cy={c} r={view.hub ? hubRing.r0 - 1 : geo.rHub} />
   {/if}
@@ -809,13 +829,7 @@
     {#if size >= 160}<text class="pen" x={c} y={c + geo.rHub * 0.62}>✎</text>{/if}
   {/if}
   {#each receivers as v (v.name)}
-    <g
-      class="receiver"
-      class:hollow={!v.bulb}
-      class:sounding={!!ctx.lit?.nodes.has(`cell:${v.name}`)}
-      class:off={!!ctx.program.cells.get(v.name)?.off}
-      style:opacity={ctx.program.cells.get(v.name)?.off ? undefined : 0.25 + 0.75 * openness}
-    >
+    <g class="receiver" class:hollow={!v.bulb} class:sounding={!!ctx.lit?.nodes.has(`cell:${v.name}`)} class:off={!!ctx.program.cells.get(v.name)?.off}>
       <circle class="receiver-disc" cx={v.x} cy={v.y} r={v.r} />
       {#if v.font}<text class="receiver-name" x={v.x} y={v.y} dy="0.35em" style:font-size="{v.font}px">{v.text}</text>{/if}
       {#if v.bulb}<circle
@@ -823,7 +837,7 @@
           data-bulb={v.name}
           role="button"
           tabindex="0"
-          aria-label={`&${v.name}, a voice this gate plays: open it; Shift+Enter switches it ${ctx.program.cells.get(v.name)?.off ? 'on' : 'off'}`}
+          aria-label={`&${v.name}, a voice this kit plays: open it; Shift+Enter switches it ${ctx.program.cells.get(v.name)?.off ? 'on' : 'off'}`}
           aria-keyshortcuts="Enter Shift+Enter"
           onkeydown={(e) => bulbKey(e, v.name)}
           cx={v.x}
@@ -914,6 +928,15 @@
     font-weight: 700;
     fill: var(--ink-on-note);
     pointer-events: none;
+  }
+  /* where a note is on its envelope now: its time and its level, crossing on the curve */
+  .env-now {
+    stroke: var(--text);
+    stroke-width: 1;
+    opacity: 0.7;
+  }
+  .env-dot {
+    fill: var(--text);
   }
   /* an envelope's values, on their stretches of the curve */
   .envlabel {
@@ -1069,7 +1092,7 @@
   .bulb-disc {
     fill: var(--wheel-disc);
   }
-  /* a gate's receivers (#234): a small wheel each over its top, lit while its voice sounds */
+  /* a kit's members: a small wheel each, lit while its voice sounds */
   .receiver-disc {
     fill: var(--wheel-disc);
     stroke: var(--wheel-ref);

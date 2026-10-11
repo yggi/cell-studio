@@ -1,13 +1,15 @@
 <script lang="ts">
   /**
-   * A product's junction (engine/graph.ts, docs/notes/nets.md decision 2): a dot where a product's wires meet — its
-   * terms in, its voice (`is`, dotted) and its sound out into the mix. Not a cell: nothing to open, turn or switch off;
-   * it is in the sound while its voice goes into its mix (the flow it stands for), live while that is.
+   * A product's junction (engine/graph.ts, docs/notes/nets.md decision 2): an unnamed gate (#234), drawn as a small
+   * gate meter — its terms in, its notes out to its voice (`is`), whose sound goes on into the mix. Not a cell: nothing
+   * to open, turn or switch off; it is in the sound while its voice goes into its mix (the flow it stands for), live
+   * while that is.
    */
   import { Handle, Position, type NodeProps } from '@xyflow/svelte';
   import type { JunctionFlowNode } from './types';
   import { getGraphContext } from './context';
   import { cellId, edgeId } from '../engine/ids';
+  import GateMeter from './GateMeter.svelte';
 
   let { data }: NodeProps<JunctionFlowNode> = $props();
   const ctx = getGraphContext();
@@ -26,6 +28,7 @@
 </script>
 
 <div class="junction" data-state={state} style:--size="{data.size}px" title="&{data.voice} in &{data.mix}">
+  <GateMeter notes={data.notes} levels={data.levels} gain={data.gain} size={data.size} label="&{data.voice} in &{data.mix}: its notes as bars" />
   <Handle type="target" position={Position.Top} class="center-handle" isConnectable={false} />
   <Handle type="source" position={Position.Bottom} class="center-handle" isConnectable={false} />
 </div>
@@ -35,14 +38,10 @@
     position: relative;
     width: var(--size);
     height: var(--size);
-    border-radius: 50%;
-    background: var(--edge);
-    border: 2px solid var(--bg);
-    box-sizing: border-box;
     transition: opacity 200ms ease;
   }
-  .junction[data-state='live'] {
-    background: var(--accent);
+  .junction > :global(svg) {
+    display: block;
   }
   .junction[data-state='idle'] {
     opacity: 0.6;

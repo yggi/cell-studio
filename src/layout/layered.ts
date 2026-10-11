@@ -322,8 +322,11 @@ export function layered(model: GraphModel, o: LayeredOptions): Map<string, { x: 
   const spanOf = (l: number) => Math.max(0, ...layers[l].map((id) => o.span?.(id) ?? 0));
   const rowY: number[] = [];
   let yAt = 0;
+  // (and two rows at least as far apart as their largest wheels reach: a large voice doesn't sit on the row above)
+  const isNode = new Set(nodes.map((n) => n.id));
+  const reachOf = (l: number) => Math.max(0, ...layers[l].map((id) => (isNode.has(id) ? o.radius(id) : 0)));
   for (let l = 0; l < layers.length; l++) {
-    if (l) yAt += (spanOf(l - 1) + spanOf(l)) / 2;
+    if (l) yAt = Math.max(yAt + (spanOf(l - 1) + spanOf(l)) / 2, rowY[l - 1] + reachOf(l - 1) + reachOf(l));
     rowY[l] = yAt;
     yAt += o.gapY * (1 + (subRows[l] - 1) * (tracks.has(l) ? 0.8 : 0.55));
   }

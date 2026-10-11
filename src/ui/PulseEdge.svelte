@@ -51,6 +51,8 @@
       phaseCell: string | null;
       voice: string | null;
       sizes?: { from: number; to: number };
+      /** How far above its source's centre it leaves, straight up (a voice's envelope's top). */
+      socket?: number;
       picks?: Pick[];
       ring?: number;
       /** A bus round a loom is drawn in two parts: its run, and its ring as an edge of its own above every run. */
@@ -70,7 +72,8 @@
   // a hop, drawn from there (straight: the tree keeps its joins off the wheels)
   const hop = $derived(d.net ? ctx.taps?.get(id) : undefined);
   // (the outputs-top probe: a wire leaves its source at 12 o'clock, out of its rim — a tape's read head is its own socket)
-  const socket = $derived(OUTPUTS_TOP && d.port !== 'play' ? (hop ? hop.r : (d.sizes?.from ?? 0) / 2) : 0);
+  // (a voice with its own envelope on its top: its sound leaves from the envelope's top, layout/voice.ts)
+  const socket = $derived(d.socket ?? (OUTPUTS_TOP && d.port !== 'play' ? (hop ? hop.r : (d.sizes?.from ?? 0) / 2) : 0));
   const fromX = $derived(hop ? hop.x : sourceX);
   const fromY = $derived((hop ? hop.y : sourceY) - socket);
   // (what the locked paths start from: as before unless the probe's socket is on — a hop's wire started at the source)

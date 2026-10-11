@@ -5,6 +5,8 @@
 import { isTurntable, type GraphNode } from '../engine/graph';
 import type { CompileResult } from '../engine/program';
 import { pluginOf } from '../layout/show';
+import { wheelOf } from '../layout/wheels';
+import { envelopeBox, envelopeOf, VOICE_SIZE } from '../layout/voice';
 import { JUNCTION_ROOM } from '../layout/options';
 import { TAPE_SIZE } from '../layout/tape';
 import type { FlowNode } from './types';
@@ -28,7 +30,7 @@ export function flowNodeOf(
   meters?: { index: ReadonlyMap<string, number> },
   program?: CompileResult,
 ): FlowNode {
-  // a product's junction (graph.ts): a dot where its wires meet, set on its voice's rim (layout/junctions.ts); not a
+  // a product's junction (graph.ts): an unnamed gate, a small meter set on its voice's rim (layout/junctions.ts); not a
   // cell, so nothing to open, drag, select or delete
   if (g.kind === 'junction')
     return {
@@ -41,38 +43,45 @@ export function flowNodeOf(
       connectable: false,
       // (nothing to do on it, so no tab stop either)
       focusable: false,
-      data: { name: g.id, voice: g.voice, mix: g.mix, size: JUNCTION_ROOM },
+      data: { name: g.id, voice: g.voice, mix: g.mix, size: 2 * JUNCTION_ROOM, notes: g.notes, levels: g.levels, gain: g.gain },
     };
+  // (what draws it: layout/wheels.ts)
+  const wheel = wheelOf(g, program);
   if (g.petalOf) {
+    // (a voice's own envelope: a box as wide as the voice on its top, layout/voice.ts)
+    const voice = program && g.kind === 'cell' ? envelopeOf(program, g.cell.name, g.petalOf.slice('cell:'.length)) : null;
+    if (voice) {
+      const { width, height } = envelopeBox(VOICE_SIZE * (program!.cells.get(voice)?.size ?? 1));
+      return { id: g.id, type: 'envelope', position, draggable: false, data: { name: g.cell.name, voice, width, height, size: width } };
+    }
     if (g.kind === 'voice') return { id: g.id, type: 'voice', position, draggable: false, data: { name: g.cell.name, summary: '', size: PETAL, pinned: false, petal: true } };
     return { id: g.id, type: 'cell', position, draggable: false, data: { name: g.cell.name, isMeter: false, size: PETAL, pinned: false, petal: true } };
   }
-  if (g.kind === 'voice') {
-    // (a resonator is a voice too — but a body: a turntable, struck and damped and bowed by hand)
-    if (typeof g.cell.params.body === 'string')
-      return { id: g.id, type: 'material', position, draggable: false, zIndex: 10, data: { name: g.cell.name, size: 140 * g.cell.size, role: 'resonator', pinned: true } };
-    const p = g.cell.params;
-    const src = p.s === undefined ? `braid${g.cell.map ? ' ' + (g.cell.map.kind === 'table' ? '&' + g.cell.map.table : g.cell.map.kind) : ''}` : String(p.s);
-    const summary = ['white', 'pink', 'brown'].includes(src) ? src : `${src} · ${+g.cell.freq.toFixed(2)}`;
-    return { id: g.id, type: 'voice', position, data: { name: g.cell.name, summary, size: 120 * g.cell.size, pinned: isPinned } };
-  }
-  // a cell a plugin of the piece draws (show=name): its wheel, as large as the plugin says
-  const plugin = program && pluginOf(program, g.cell.name);
-  if (plugin) return { id: g.id, type: 'plugin', position, data: { name: g.cell.name, size: plugin.size, plugin: plugin.name } };
-  // (size= scales it: &bar size=2 twice as large)
-  if (physical(g)) {
-    // a turntable: raised over everything, moved only by its axle (held)
-    const role =
-      typeof g.cell.params.body === 'string' ? 'resonator' : typeof g.cell.params.motor === 'number' ? 'motor' : typeof g.cell.params.write === 'string' ? 'tape' : 'belt';
+  // a turntable: raised over everything, moved only by its axle (held); size= scales it
+  if (wheel === 'resonator' || wheel === 'motor' || wheel === 'tape' || wheel === 'belt')
     return {
       id: g.id,
       type: 'material',
       position,
       draggable: false,
       zIndex: 10,
-      data: { name: g.cell.name, size: (role === 'motor' ? 168 : TAPE_SIZE) * g.cell.size, role, pinned: true, ...(role === 'tape' && turn !== undefined ? { turn } : {}) },
+      data: {
+        name: g.cell.name,
+        size: (wheel === 'resonator' ? 140 : wheel === 'motor' ? 168 : TAPE_SIZE) * g.cell.size,
+        role: wheel,
+        pinned: true,
+        ...(wheel === 'tape' && turn !== undefined ? { turn } : {}),
+      },
     };
+  if (g.kind === 'voice') {
+    const p = g.cell.params;
+    const src = p.s === undefined ? `braid${g.cell.map ? ' ' + (g.cell.map.kind === 'table' ? '&' + g.cell.map.table : g.cell.map.kind) : ''}` : String(p.s);
+    const summary = ['white', 'pink', 'brown'].includes(src) ? src : `${src} · ${+g.cell.freq.toFixed(2)}`;
+    return { id: g.id, type: 'voice', position, data: { name: g.cell.name, summary, size: VOICE_SIZE * g.cell.size, pinned: isPinned } };
   }
+  // a cell a plugin of the piece draws (show=name): its wheel, as large as the plugin says
+  const plugin = wheel === 'plugin' && program ? pluginOf(program, g.cell.name) : null;
+  if (plugin) return { id: g.id, type: 'plugin', position, data: { name: g.cell.name, size: plugin.size, plugin: plugin.name } };
   const size = (g.cell.root ? 176 : g.isMeter ? 148 : 128) * g.cell.size;
   const meterIndex = meters?.index.get(g.id);
   return {
