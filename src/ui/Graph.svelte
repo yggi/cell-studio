@@ -17,7 +17,6 @@
   import CellSheet from './CellSheet.svelte';
   import PulseEdge from './PulseEdge.svelte';
   import MeterEdge from './MeterEdge.svelte';
-  import EnvelopeNode from './EnvelopeNode.svelte';
   import MaterialNode from './MaterialNode.svelte';
   import PluginNode from './PluginNode.svelte';
   import GraphLegend from './GraphLegend.svelte';
@@ -238,7 +237,7 @@
   let sideFits = $state(0);
   let sideLit = $state<string | null>(null);
 
-  const nodeTypes = { cell: CellNode, voice: VoiceNode, material: MaterialNode, plugin: PluginNode, junction: JunctionNode, envelope: EnvelopeNode } as NodeTypes;
+  const nodeTypes = { cell: CellNode, voice: VoiceNode, material: MaterialNode, plugin: PluginNode, junction: JunctionNode } as NodeTypes;
   const edgeTypes = { pulse: PulseEdge, belt: BeltEdge, meter: MeterEdge };
 
   let legendOpen = $state(false);

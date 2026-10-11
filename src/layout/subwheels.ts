@@ -9,7 +9,7 @@
 import type { GraphEdge, GraphNode } from '../engine/graph';
 import { cellId } from '../engine/ids';
 import type { CompileResult, ResolvedCell } from '../engine/program';
-import { kitOf, kitRoom, memberPlaces } from './kit';
+import { drumPlaces, kitOf } from './kit';
 import { effectiveShow, pluginOf } from './show';
 import { drawnAsTape, headBulbs, TAPE_SIZE, UNTURNED } from './tape';
 import { bulbHub, trackRoom } from './track';
@@ -125,24 +125,21 @@ const RULES: readonly Rule[] = [
     leaves: true,
   },
   {
-    // a voice only a kit plays, on the kit: just outside its own slice, where the number that picks it points (a gate's
-    // voices are not part of it: they keep their nodes, decision 022)
+    // a voice only a kit plays, on the kit: its piece of the drum kit, by its name (layout/kit.ts; a gate's voices are not
+    // part of it: they keep their nodes, decision 022)
     kind: 'a voice, on its kit',
     host: (n, s) => {
       const r = n.kind === 'voice' ? plainRead(n, s) : null;
       const host = r ? s.byId.get(r.to) : undefined;
       return r && host?.kind === 'cell' && kitOf(s.result, host.cell.name) ? r.to : null;
     },
-    reach: (result, host, hosts) => {
-      const kit = host.kind === 'cell' && isHost(host, hosts) ? kitOf(result, host.cell.name) : null;
-      const room = kit && host.kind === 'cell' ? kitRoom(128 * host.cell.size, kit.length) : 0;
-      return room ? { room, below: room } : null;
-    },
+    // (its members are its pieces, inside its wheel: no room round it)
+    reach: () => null,
     mine: (result, host, bulb) => !!kitOf(result, host)?.includes(bulb),
     at: (result, host, bulb, _hosts, size) => {
       const kit = kitOf(result, host);
       const i = kit?.indexOf(bulb) ?? -1;
-      return kit && i >= 0 ? memberPlaces(size, kit.length)[i] : null;
+      return kit && i >= 0 ? drumPlaces(size, kit)[i] : null;
     },
     leaves: false,
   },

@@ -6,7 +6,7 @@ import { isTurntable, type GraphNode } from '../engine/graph';
 import type { CompileResult } from '../engine/program';
 import { pluginOf } from '../layout/show';
 import { wheelOf } from '../layout/wheels';
-import { envelopeBox, envelopeOf, VOICE_SIZE } from '../layout/voice';
+import { VOICE_SIZE } from '../layout/voice';
 import { JUNCTION_ROOM } from '../layout/options';
 import { TAPE_SIZE } from '../layout/tape';
 import type { FlowNode } from './types';
@@ -48,12 +48,6 @@ export function flowNodeOf(
   // (what draws it: layout/wheels.ts)
   const wheel = wheelOf(g, program);
   if (g.petalOf) {
-    // (a voice's own envelope: a box as wide as the voice on its top, layout/voice.ts)
-    const voice = program && g.kind === 'cell' ? envelopeOf(program, g.cell.name, g.petalOf.slice('cell:'.length)) : null;
-    if (voice) {
-      const { width, height } = envelopeBox(VOICE_SIZE * (program!.cells.get(voice)?.size ?? 1));
-      return { id: g.id, type: 'envelope', position, draggable: false, data: { name: g.cell.name, voice, width, height, size: width } };
-    }
     if (g.kind === 'voice') return { id: g.id, type: 'voice', position, draggable: false, data: { name: g.cell.name, summary: '', size: PETAL, pinned: false, petal: true } };
     return { id: g.id, type: 'cell', position, draggable: false, data: { name: g.cell.name, isMeter: false, size: PETAL, pinned: false, petal: true } };
   }
@@ -82,7 +76,8 @@ export function flowNodeOf(
   // a cell a plugin of the piece draws (show=name): its wheel, as large as the plugin says
   const plugin = wheel === 'plugin' && program ? pluginOf(program, g.cell.name) : null;
   if (plugin) return { id: g.id, type: 'plugin', position, data: { name: g.cell.name, size: plugin.size, plugin: plugin.name } };
-  const size = (g.cell.root ? 176 : g.isMeter ? 148 : 128) * g.cell.size;
+  // (a drum kit: its pieces inside it, a little larger)
+  const size = (g.cell.root ? 176 : g.isMeter ? 148 : wheel === 'kit' ? 168 : 128) * g.cell.size;
   const meterIndex = meters?.index.get(g.id);
   return {
     id: g.id,

@@ -6,9 +6,10 @@
 import { isTurntable, type GraphNode } from '../engine/graph';
 import type { CompileResult } from '../engine/program';
 import { pluginOf } from './show';
+import { kitOf } from './kit';
 
-/** What a cell's own node draws: a gate's meter, a wave (a mix, a sound tape's read head), the sound card's spectrum, its glyph. */
-export type Glyph = 'gate' | 'wave' | 'spectrum' | 'glyph';
+/** What a cell's own node draws: a gate's meter, a drum kit, a wave (a mix, a sound tape's read head), the sound card's spectrum, its glyph. */
+export type Glyph = 'gate' | 'kit' | 'wave' | 'spectrum' | 'glyph';
 export type Wheel = 'junction' | 'resonator' | 'motor' | 'tape' | 'belt' | 'voice' | 'plugin' | Glyph;
 
 /** A read head of a sound tape: what it plays back is sound. */
@@ -22,6 +23,7 @@ export function glyphOf(program: CompileResult, name: string): Glyph {
   const c = program.cells.get(name);
   if (!c) return 'glyph';
   if (c.gate) return 'gate';
+  if (kitOf(program, name)) return 'kit';
   if (soundHeadOf(program, name) || (c.mix && !c.sink)) return 'wave';
   if (c.sink) return 'spectrum';
   return 'glyph';

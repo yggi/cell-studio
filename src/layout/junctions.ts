@@ -54,10 +54,15 @@ const wrap = (a: number) => Math.atan2(Math.sin(a), Math.cos(a));
 /** Off a wheel's name: the arc under it (radians either side of straight down) where its label is drawn. */
 const LABEL = 0.8;
 const DOWN = Math.PI / 2;
-/** An angle on the rim, moved out of the label's arc to its nearer side. */
+/** Off a voice's envelope: the arc over it (radians either side of straight up) where its cap sits (layout/voice.ts). */
+const CAP = 1.0;
+const UP = -Math.PI / 2;
+/** An angle on the rim, moved out of the label's arc and the envelope's cap to the nearer side of each. */
 const offLabel = (a: number) => {
   const d = wrap(a - DOWN);
-  return Math.abs(d) >= LABEL ? a : DOWN + (d < 0 ? -LABEL : LABEL);
+  const below = Math.abs(d) >= LABEL ? a : DOWN + (d < 0 ? -LABEL : LABEL);
+  const u = wrap(below - UP);
+  return Math.abs(u) >= CAP ? below : UP + (u < 0 ? -CAP : CAP);
 };
 
 /** A junction for each product, as the layout keeps it: its voice, and its dot's room. */

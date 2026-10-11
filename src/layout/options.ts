@@ -152,7 +152,9 @@ function roomFor(n: GraphNode): number {
   if (n.kind === 'junction') return JUNCTION_ROOM;
   const cell = (n as { cell?: { size?: number; label?: string | null; frees?: readonly { key: string; labels?: readonly string[] }[] } }).cell;
   // (a voice: its wheel, 160 px across, layout/voice.ts; its envelope's box rides on its top, where its sound leaves)
-  const base = (n.kind === 'voice' ? 86 : n.depth === 0 ? 92 : 68) * (cell?.size ?? 1);
+  // (a drum kit: its pieces inside a wheel of 168 px, ui/KitGlyph.svelte)
+  const kit = !!(n as { cell?: { kit?: boolean; step?: unknown } }).cell?.kit && !(n as { cell?: { step?: unknown } }).cell?.step;
+  const base = (n.kind === 'voice' ? 86 : kit ? 86 : n.depth === 0 ? 92 : 68) * (cell?.size ?? 1);
   const label = cell?.label ? Math.min(220, cell.label.length * 5.5) / 2 : 0;
   // (its free() values: pills under it, a row or two)
   const pills = cell?.frees?.length ?? 0;

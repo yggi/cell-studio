@@ -41,7 +41,9 @@ describe('the golden graph', () => {
     // crosses little: docs/notes/nets.md)
     // 6 → 13 when the tape's step on the capstan became a belt (rigid): the three turntables now sit together as one
     // machine, and the tape's write and play edges reach across to its source and its head
-    expect(crossings).toBeLessThanOrEqual(13);
+    // 13 → 16 when the graph gained a drum kit played by a gate and a gate of two voices (&bell, &pad): five more wires
+    // into the card's mix, and its row is full
+    expect(crossings).toBeLessThanOrEqual(16);
     layout.destroy();
   });
 });
