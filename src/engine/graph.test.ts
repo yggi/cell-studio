@@ -86,6 +86,16 @@ describe('edges as wires', () => {
     expect(wireOf(fm, 'op', 'v')).toMatchObject({ port: 'pitch', band: 'audio' });
   });
 
+  it("a gate: its voices' sound goes into it, and its own out carries the first voice's (its colour and wave)", () => {
+    const r = compileSource(PRESETS.gate.source);
+    const m = buildGraph(r);
+    expect(wireOf(m, 'lead', 'leadOut')).toMatchObject({ port: 'braid', band: 'audio', pointer: false });
+    expect(between(m, 'leadOut', 'out')).toMatchObject({ port: 'mix', band: 'audio', sound: 'lead' });
+    expect(between(m, 'drumOut', 'out')).toMatchObject({ band: 'audio', sound: 'kit' });
+    // (a gate's voices keep their nodes; a kit's, played by it only, are bulbs on it)
+    expect(['lead', 'bell'].map((v) => m.bulbs.get(v))).toEqual([undefined, undefined]);
+    expect(['bd', 'sd', 'hh'].map((v) => m.bulbs.get(v))).toEqual(['kit', 'kit', 'kit']);
+  });
   it('a table read by several is a net: one trunk, a tap for each reader', () => {
     const net = g.nets.find((n) => n.owner === 'cell:mode');
     expect(net).toMatchObject({ port: 'over', band: 'cv' });

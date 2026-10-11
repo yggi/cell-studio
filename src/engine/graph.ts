@@ -510,7 +510,10 @@ export function buildGraph(result: CompileResult, opts: { readonly bulbs?: boole
     const flow = edgeId(voice, into);
     const terms = b.pitches.filter((t) => result.cells.has(t.ref.name));
     if (!terms.length) {
-      link({ id: flow, source: voice, target: into, count: 1, transforms: gain, ...wire(port, band, voice, into, width) });
+      // (a gate's sound is the voices it plays: the first one's colours it and shapes its wave, as a product's junction
+      // carries its voice's)
+      const played = isGate(result.cells.get(b.voice.name)!) ? result.outputs.find((o) => o.through.includes(b.voice.name))?.voice : undefined;
+      link({ id: flow, source: voice, target: into, count: 1, transforms: gain, ...(played ? { sound: played } : {}), ...wire(port, band, voice, into, width) });
       return;
     }
     const j = junctionId(c.name, entry);

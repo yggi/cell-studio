@@ -10,6 +10,9 @@ that makes the change. Also note changes to the language that could affect saved
 
 ## Unreleased
 
+### Fixed
+- **A gate's sound out is drawn as its sound**: the wire from a gate (`&leadOut trigger=&tune … &lead &bell`) into the sound card was grey while playing; it now takes the colour of the note its first voice sounds and that voice's wave, as a product in the sound card does. A kit's gate stays neutral (a kit has no one pitch). Drawing only.
+
 ### Changed
 - **A gate's voices are wheels of their own again**: `&lead` and `&bell` in `&leadOut trigger=&tune … &lead &bell` are no longer bulbs on the gate; each keeps its node and its sound is drawn as sound into the gate (a wave, its colour), as a kit's voices are part of the kit and a gate's are only played by it. Saved `.cells` pieces are not affected (drawing only).
 - **A kit's voices are bulbs on it** ([decision 021](docs/decisions/021-tape-heads.md)): a voice only a kit plays (`&kit &bd &sd &hh`) is drawn as a small wheel on the kit, just outside its own slice (where the number that picks it points: 0 the first, clockwise from the top), not as a wheel of its own wired to it. Tap it to open it, hold it to switch it off. Saved `.cells` pieces are not affected (drawing only).
