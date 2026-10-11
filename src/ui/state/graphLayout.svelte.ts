@@ -60,7 +60,7 @@ export class GraphLayout {
   // pinned as placed (a turntable where it was first laid, a cell moved by its axle): not a user's pin mark
   readonly #placed = new Set<string>();
   // unnamed cells are petals: not simulated, hung on an arc above their parent
-  #petalSlot = new Map<string, { parent: string; i: number; n: number }>();
+  #petalSlot = new Map<string, { parent: string; i: number; n: number; top?: boolean }>();
   #dragging: string | null = null;
   #lastKey = '';
   #lastOpened = -1;
@@ -110,8 +110,14 @@ export class GraphLayout {
     for (const id of [...this.pinned]) if (!m.nodes.some((n) => n.id === id)) this.pinned.delete(id);
     // petals hang from their parent: the physics only sees the named cells
     const kids = new Map<string, string[]>();
-    for (const n of m.nodes) if (n.petalOf) kids.set(n.petalOf, [...(kids.get(n.petalOf) ?? []), n.id]);
-    this.#petalSlot = new Map([...kids].flatMap(([parent, ids]) => ids.map((id, i) => [id, { parent, i, n: ids.length }] as const)));
+    // (a voice's envelope sits at its top, 12 o'clock; the other petals fan out on its outer side)
+    const envOf = (n: GraphNode) => !!n.petalOf && next.program.cells.get(n.petalOf.slice('cell:'.length))?.env === n.cell?.name;
+    const tops = new Set(m.nodes.filter(envOf).map((n) => n.id));
+    for (const n of m.nodes) if (n.petalOf && !tops.has(n.id)) kids.set(n.petalOf, [...(kids.get(n.petalOf) ?? []), n.id]);
+    this.#petalSlot = new Map([
+      ...[...kids].flatMap(([parent, ids]) => ids.map((id, i) => [id, { parent, i, n: ids.length }] as const)),
+      ...m.nodes.filter((n) => tops.has(n.id)).map((n) => [n.id, { parent: n.petalOf!, i: 0, n: 1, top: true }] as const),
+    ]);
     const diff = layout.setGraph({ ...m, nodes: m.nodes.filter((n) => !n.petalOf) }, structural);
     // Mostly new graph (first load, preset switch): settle before first paint, then frame it.
     const fresh = justOpened || diff.added > diff.total / 2;
@@ -228,7 +234,7 @@ export class GraphLayout {
     const parentSize = this.#sizeOf(slot.parent) ?? 128;
     // fanned out on the outer side (away from the centre line): the flow runs up and down, labels hang below
     const outward = p.x < -20 ? Math.PI : 0;
-    const a = outward + (slot.i - (slot.n - 1) / 2) * (slot.n > 3 ? 0.55 : 0.68);
+    const a = slot.top ? -Math.PI / 2 : outward + (slot.i - (slot.n - 1) / 2) * (slot.n > 3 ? 0.55 : 0.68);
     const d = parentSize / 2 + PETAL / 2 + 2;
     return { x: p.x + Math.cos(a) * d, y: p.y + Math.sin(a) * d };
   }
