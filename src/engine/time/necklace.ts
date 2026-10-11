@@ -19,12 +19,19 @@ export function steps(x: Necklace): number[] {
   return x.marks.map((m, i) => (i + 1 < x.marks.length ? x.marks[i + 1] - m : x.n - m + x.marks[0]));
 }
 
+/** The shortest stretch of steps the necklace repeats (two bars of a bell: one bar). */
+function primitive(s: readonly number[]): number[] {
+  for (let p = 1; p < s.length; p++) if (s.length % p === 0 && s.every((v, i) => v === s[i % p])) return s.slice(0, p);
+  return [...s];
+}
+
 /**
- * The necklace's name, the same whatever slot the cycle starts at: its steps from the rotation that reads largest (the
- * major scale and the standard bell both read "2 2 2 1 2 2 1", the rotation that starts at the scale's fourth degree).
+ * The necklace's name, the same whatever slot the cycle starts at and however many times round it repeats: its steps
+ * (one repeat) from the rotation that reads largest (the major scale and the standard bell both read "2 2 2 1 2 2 1",
+ * the rotation that starts at the scale's fourth degree).
  */
 export function canonical(x: Necklace): string {
-  const s = steps(x);
+  const s = primitive(steps(x));
   let best = s;
   for (let r = 1; r < s.length; r++) {
     const rot = [...s.slice(r), ...s.slice(0, r)];
@@ -103,11 +110,12 @@ export interface Level {
   readonly pulse: number;
 }
 
-/** A necklace heard: in whose notes, at which level (or in pitch), and its name. */
+/** A necklace heard: in whose notes, at which level (or in pitch) and at what pulse (s; a semitone in pitch), and its name. */
 export interface Folding {
   readonly voice: string;
   readonly level: string;
   readonly kind: 'rhythm' | 'pitch';
+  readonly pulse: number;
   readonly necklace: Necklace;
   readonly name: string;
   readonly even: boolean;
@@ -115,30 +123,36 @@ export interface Folding {
 
 /**
  * Every folding of a piece's notes: each voice's rhythm round each level, and each voice's pitch classes. Trivial
- * ones (one mark, or every slot) are left out: every pulse is a necklace of those.
+ * ones (one mark, every slot, or marks evenly spaced) are left out: every pulse is a necklace of those.
  */
 export function foldings(events: readonly Pick<Played, 'at' | 'voice' | 'freq'>[], levels: readonly Level[]): Folding[] {
   const byVoice = new Map<string, Pick<Played, 'at' | 'voice' | 'freq'>[]>();
   for (const e of events) byVoice.set(e.voice, [...(byVoice.get(e.voice) ?? []), e]);
   const out: Folding[] = [];
-  const keep = (voice: string, level: string, kind: Folding['kind'], x: Necklace | null) => {
-    if (!x || x.marks.length < 2 || x.marks.length >= x.n) return;
-    out.push({ voice, level, kind, necklace: x, name: canonical(x), even: maximallyEven(x) });
+  const keep = (voice: string, level: string, kind: Folding['kind'], pulse: number, x: Necklace | null) => {
+    if (!x || x.marks.length < 2 || x.marks.length >= x.n || new Set(steps(x)).size === 1) return;
+    out.push({ voice, level, kind, pulse, necklace: x, name: canonical(x), even: maximallyEven(x) });
   };
   for (const [voice, notes] of byVoice) {
     const onsets = [...new Set(notes.map((e) => +e.at.toFixed(4)))];
-    for (const l of levels) keep(voice, l.name, 'rhythm', rhythm(onsets, l.cycle, l.pulse));
-    keep(voice, 'octave', 'pitch', pitchClasses(notes.map((e) => e.freq)));
+    for (const l of levels) keep(voice, l.name, 'rhythm', l.pulse, rhythm(onsets, l.cycle, l.pulse));
+    keep(voice, 'octave', 'pitch', 0, pitchClasses(notes.map((e) => e.freq)));
   }
   return out;
 }
 
-/** The same necklace at more than one level or kind: groups of foldings with one name, across levels, largest first. */
+/**
+ * The same necklace at more than one scale: groups of foldings with one name heard at two pulses or more, or in rhythm
+ * and in pitch (the same pattern repeated round a longer cycle at the same pulse is one scale), largest first.
+ */
 export function alike(fs: readonly Folding[]): { name: string; even: boolean; where: Folding[] }[] {
   const by = new Map<string, Folding[]>();
   for (const f of fs) by.set(f.name, [...(by.get(f.name) ?? []), f]);
-  return [...by]
-    .map(([name, where]) => ({ name, even: where[0].even, where }))
-    .filter((g) => new Set(g.where.map((f) => `${f.kind}:${f.level}`)).size > 1)
-    .sort((a, b) => b.where.length - a.where.length);
+  return (
+    [...by]
+      .map(([name, where]) => ({ name, even: where[0].even, where }))
+      // (pulses within a twenty-fourth of an octave are one: a pulse heard to the millisecond against one written)
+      .filter((g) => new Set(g.where.map((f) => `${f.kind}:${f.pulse > 0 ? Math.round(24 * Math.log2(f.pulse)) : 0}`)).size > 1)
+      .sort((a, b) => b.where.length - a.where.length)
+  );
 }
