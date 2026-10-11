@@ -8,7 +8,7 @@
 import type { Played } from '../realize';
 
 /** A figure heard: its shape's name, and where (voice, time, its first gap in seconds: its scale). */
-export interface Occurrence {
+interface Occurrence {
   readonly voice: string;
   readonly at: number;
   readonly scale: number;

@@ -188,13 +188,57 @@ Of the best swells of the three together (twice as many as boundaries), those th
 - **Baustelle**: 6, several at multiples of `&edge` (a cell's turn); `chance` plays in it.
 - **5 to 12 and daytime**: 7 each inside their blocks, not on a key; unexplained.
 
+## Checked since
+
+- **Korobeiniki's unwritten swells are written, inside a braid.** `&tune` is `&a &b &end &c &d &end`, and `&end` (a rest
+  in it, "closes both halves") ends the first half of every A. The boundary is a splice in a braid, not a clocked
+  cell's turn, so the check by turns missed it. A boundary heard should be checked against the braid's splice tree
+  too: the tree Shorten folds. That is the bridge between the scalogram and renormalization (multiscale.md, lead 6).
+- **5 to 12's keys are a change of pitch, not of time.** A sixth signal, **harmony** (an impulse where a pitch class
+  sounds that hasn't for 8 s), finds them: cones on 131 of the 132 keys (99 % precision and recall, against 25 % at
+  best for the onset signals), every block (swells 100 %), and Cellscape's 59 scenes, which are key changes (100 %).
+
+## Into the app: engine/time
+
+The probe's arithmetic is now `src/engine/time/` (pure, tested; the probes use it), for the app to build on: a time
+view is its first consumer (its own PR).
+
+## Foldings and motifs (the machinery, beyond boundaries)
+
+`tools/probe/foldings.test.ts`, over the library:
+- **Foldings** (`necklace.ts`): each voice's rhythm round every level (any clocked cell's turn as the cycle, any
+  cell's step or the finest pulse heard as the pulse), and its pitch classes round the octave, as necklaces (the steps
+  between marks, whatever slot the cycle starts at, one repeat). The same necklace at two pulses, or in rhythm and in
+  pitch, is a piece folded the same way at two scales.
+  - **5 to 12**: the glass's rhythm round a 12-pulse cycle and its pitch classes are one necklace, 2 2 2 1 2 2 1 (the
+    standard bell and the major scale), maximally even. The only one in the library.
+  - **Bell** (examples/bell.cells) writes the same thing in its code, one scan for both, but within one cycle its
+    melody sounds five of the scale's seven pitch classes: heard, the pitch side is a pentatonic subset. The folding is
+    the code's, and a code-side check (one cell read as a clock and as a table, `step=` and `over=`) would find it.
+- **Motifs** (`motifs.ts`): a five-note figure (its intervals, its rhythm against its first gap) heard again; those
+  heard at time scales 1.4 or more apart (not a tempo that drifts: Musicbox's ×1.15 is it running down).
+  - **Korobeiniki**: two figures at 0.83 s and 1.67 s a note (×2) in the square and the pulse: the B section,
+    "slower, in half notes", heard as the same figures at half the speed (not yet checked note by note).
+  - **BWV 847**: three figures at 0.139 s and 0.417 s (×3), in four voices: the prelude's figuration and the fugue at
+    their tempos (to check against the score).
+
+## What this could do for what we have (proposals, nothing decided)
+
+- **Shorten and Normalise** (#244): a motif at two scales is one cell played at two rates; a folding in rhythm and in
+  pitch is one table read as a clock and as a scale (Bell's idiom). Both are candidates Shorten could suggest from the
+  sound, so from MIDI too (the ratchet's stage 2, #203), where there is no code to read them in.
+- **Renormalization targets** (#234): a level the sound has and no cell writes (Korobeiniki's half phrases, Phase's
+  drift, the keys a law computes) is where the tower is missing a node; a folding at two scales is a fixed point. A
+  time view could show both against the cells' spans.
+- **The isometry condition** (#234, lead 3) measured from the sound: whether a child's turn meets its parent's step,
+  as the cones and ridges say, beside what the text says.
+- **A time view as an editor's ruler**: a section boundary that is written and not heard (Pop's and Hypercell's
+  repeats) is a place where the arrangement does nothing; one heard and not written is a place to cut.
+
 ## What is next (nothing decided)
 
-- **Korobeiniki's halves, checked**: the tune's notes at the unwritten swells. If it is a phrase, a written cell for it would make the boundary written.
-- **The keys of 5 to 12**: heard on average (folded), seldom one by one. A key change under the same rhythm may be too small a change of the notes' timing for any onset signal: a pitch-class signal (a key's notes against the last key's) would ask the question directly.
-- **Ridges in time**, not peaks in the mean: a level that holds for part of the piece (Pop's drums, BWV 847's prelude against its fugue).
-- **Loops longer than one cycle**, where the loop itself is the question (Phase): two or three cycles.
-- **What an onset is worth** stays open. The pictures suggest not choosing one: impulses or voices for the meter, change for melody, keys and phasing, the cones of any of them for the form.
+- The splice tree as boundaries: Shorten's tree of a piece against its swells and cones.
+- Loops longer than one cycle, where the loop itself is the question (Phase): two or three cycles.
 
 ## References
 
