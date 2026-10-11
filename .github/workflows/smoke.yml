@@ -5,9 +5,8 @@ name: Smoke
 # which the unit tests can't build. In a job beside it, every example is rendered twice (`repeatable`, tools/repeatable.mjs). It runs on every PR (opened, pushed to, reopened, taken out of draft), so the
 # result is always for the head; `main` after a merge doesn't run it. By hand: Actions -> Smoke -> Run workflow.
 # It is not a required check (ruleset: only `check`): the `senior` skill waits for it before merging.
+# Off for now with ci.yml: by hand only. Restore: pull_request types [opened, synchronize, reopened, ready_for_review].
 on:
-  pull_request:
-    types: [opened, synchronize, reopened, ready_for_review]
   workflow_dispatch:
 
 concurrency:
