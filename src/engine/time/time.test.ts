@@ -140,3 +140,19 @@ describe('the sound', () => {
     expect(p[1]).toBeCloseTo(0.5, 2);
   });
 });
+
+describe('the motifs', () => {
+  it('find a figure, and the same figure twice as slow', async () => {
+    const { motifs, multiscale } = await import('./motifs');
+    const tune = [0, 2, 4, 5, 7].map((s) => 440 * Math.pow(2, s / 12));
+    const notes = [
+      ...[0, 4].flatMap((start) => tune.map((freq, i) => ({ at: start + i * 0.25, voice: 'high', freq }))),
+      ...tune.map((freq, i) => ({ at: 8 + i * 0.5, voice: 'low', freq: freq / 2 })),
+    ];
+    const ms = motifs(notes);
+    const m = ms.find((x) => x.shape === '2 2 1 2 | 1 1 1 1')!;
+    expect(m.heard).toHaveLength(3);
+    expect(m.scales).toEqual([0.25, 0.5]);
+    expect(multiscale(ms)[0].shape).toBe(m.shape);
+  });
+});
