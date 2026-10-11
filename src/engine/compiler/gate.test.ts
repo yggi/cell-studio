@@ -86,6 +86,9 @@ describe('a gate (trigger=): a product with a name', () => {
     const r = compileSource(BASE + '&beat step=&bar/2 0 2 1 2\n&drums trigger=&beat velocity=&accent &kit\n&out map=sample &drums');
     const g = buildGraph(r);
     const into = g.edges.filter((e) => e.to === 'cell:drums').map((e) => `${e.from} ${e.port}`);
-    expect(into).toEqual(expect.arrayContaining(['cell:beat trigger', 'cell:accent velocity', 'cell:kit braid']));
+    expect(into).toEqual(expect.arrayContaining(['cell:beat trigger', 'cell:accent velocity']));
+    // (its notes out to what it plays, whose sound goes on into the card)
+    expect(g.edges.filter((e) => e.from === 'cell:drums').map((e) => `${e.to} ${e.port}`)).toEqual(['cell:kit voice']);
+    expect(g.edges.some((e) => e.from === 'cell:kit' && e.to === 'cell:out' && e.band === 'audio')).toBe(true);
   });
 });

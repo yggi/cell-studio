@@ -86,12 +86,17 @@ describe('edges as wires', () => {
     expect(wireOf(fm, 'op', 'v')).toMatchObject({ port: 'pitch', band: 'audio' });
   });
 
-  it("a gate: its voices' sound goes into it, and its own out carries the first voice's (its colour and wave)", () => {
+  it('a gate: a note bus out to its voices, their sound out of their own wheels into the mix (#234)', () => {
     const r = compileSource(PRESETS.gate.source);
     const m = buildGraph(r);
-    expect(wireOf(m, 'lead', 'leadOut')).toMatchObject({ port: 'braid', band: 'audio', pointer: false });
-    expect(between(m, 'leadOut', 'out')).toMatchObject({ port: 'mix', band: 'audio', sound: 'lead' });
-    expect(between(m, 'drumOut', 'out')).toMatchObject({ band: 'audio', sound: 'kit' });
+    expect(wireOf(m, 'leadOut', 'lead')).toMatchObject({ port: 'voice', band: 'cv' });
+    expect(wireOf(m, 'leadOut', 'bell')).toMatchObject({ port: 'voice', band: 'cv' });
+    expect(between(m, 'leadOut', 'out')).toBeUndefined();
+    expect(between(m, 'lead', 'out')).toMatchObject({ port: 'mix', band: 'audio', sound: 'lead' });
+    expect(between(m, 'bell', 'out')).toMatchObject({ port: 'mix', band: 'audio', sound: 'bell' });
+    expect(between(m, 'kit', 'out')).toMatchObject({ port: 'mix', band: 'audio', sound: 'kit' });
+    // (one net: the gate's notes to every voice it plays)
+    expect(m.nets.find((n) => n.id === 'net:cell:leadOut:voice')?.taps).toHaveLength(2);
     // (a gate's voices keep their nodes; a kit's, played by it only, are bulbs on it)
     expect(['lead', 'bell'].map((v) => m.bulbs.get(v))).toEqual([undefined, undefined]);
     expect(['bd', 'sd', 'hh'].map((v) => m.bulbs.get(v))).toEqual(['kit', 'kit', 'kit']);
@@ -546,7 +551,15 @@ describe('every name written is one wire carrying the transform it writes, and e
           // (a sound alone in both channels of a sound card is one wire, a pair: L R)
           const pair = alone && alone.width === 2 && ts.length === count + 1;
           // (no exceptions: only a cell show=off hides, and then it is not in the graph at all)
-          if (count === 0 && model.nodes.some((n) => n.id === cellId(name))) missing.push(`&${c.name}: &${name} (in the mix)`);
+          // (a gate in a mix goes in as the voices it plays, each from its own wheel: #234)
+          const gate = program.cells.get(name);
+          const voices = typeof gate?.params.trigger === 'string' ? (gate.mix ?? []).map((b) => b.voice.name) : [];
+          if (voices.length)
+            expect(
+              voices.every((v) => model.edges.some((x) => x.from === cellId(v) && x.to === cellId(c.name))),
+              `&${c.name}: &${name}'s voices`,
+            ).toBe(true);
+          else if (count === 0 && model.nodes.some((n) => n.id === cellId(name))) missing.push(`&${c.name}: &${name} (in the mix)`);
           else if (count) expect(pair ? count + 1 : count, `&${c.name}: &${name}, written ${ts.length} times in the mix`).toBe(ts.length);
           // each wire carries what is written on the name in its product: a pick, a shift (a number in the sum is the
           // product's: its label goes on after it), each token's once
@@ -589,6 +602,11 @@ describe('every name written is one wire carrying the transform it writes, and e
     const nameOf = (id: string) => id.slice('cell:'.length);
     const unwritten = model.edges.flatMap((e) => {
       if (junctions.has(e.from) || forPetals.has(e.id)) return [];
+      // (a gate's note bus is its braid as written, and a gate in a mix goes in as its voices: #234)
+      const gateOf = (n: string) => typeof program.cells.get(n)?.params.trigger === 'string';
+      if (e.port === 'voice' && gateOf(nameOf(e.from))) return [];
+      const into = program.cells.get(nameOf(e.to));
+      if (e.port === 'mix' && into?.mix?.some((b) => gateOf(b.voice.name) && program.cells.get(b.voice.name)!.mix?.some((r) => r.voice.name === nameOf(e.from)))) return [];
       const key = junctions.has(e.to)
         ? `${junctions.get(e.to)!.mix}|${nameOf(e.from)}|mix`
         : e.port === 'about'

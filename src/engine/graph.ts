@@ -258,6 +258,8 @@ export function buildGraph(result: CompileResult, opts: { readonly bulbs?: boole
     to: back ? source : target,
   });
   const chord = chordWidth(result);
+  /** Written pairs the routing knows that are drawn through a junction (its wires' `routes`). */
+  const through = new Set<string>();
   // What sounds: a wire out of it carries sound — into a tape, a read head, or spliced into a reader: a mix into the
   // sound card or a scope, a voice into a pattern of voices, and so on up (#238): a cell whose braid splices in
   // something that sounds sounds too (a pattern of voices spliced into another, &break &pat &pat[::-1])
@@ -396,6 +398,26 @@ export function buildGraph(result: CompileResult, opts: { readonly bulbs?: boole
         link({ id: edgeId(id, cellId(child)), source: id, target: cellId(child), count, transforms: AS_IS, ...wire('midi', 'cv', id, cellId(child), 1, true) });
         continue;
       }
+      // a gate spliced in (`&out map=sample &drums`): its sound is the voices it plays, each in from its own wheel (#234)
+      const gate = result.cells.get(child);
+      if (gate && typeof gate.params.trigger === 'string' && spliceBand(child) === 'audio') {
+        through.add(edgeId(id, cellId(child)));
+        for (const r of gate.mix ?? []) {
+          const v = cellId(r.voice.name);
+          if (!result.cells.has(r.voice.name)) continue;
+          link({
+            id: edgeId(id, v),
+            source: id,
+            target: v,
+            count,
+            transforms: AS_IS,
+            sound: r.voice.name,
+            routes: [[edgeId(v, cellId(child))], [edgeId(id, cellId(child))]],
+            ...wire('braid', 'audio', id, v, 1, true),
+          });
+        }
+        continue;
+      }
       link({
         id: edgeId(id, cellId(child)),
         source: id,
@@ -453,10 +475,8 @@ export function buildGraph(result: CompileResult, opts: { readonly bulbs?: boole
   // melody that plays it, levels, pitches, an envelope, with what is written on it), the voice is its definition (`is`),
   // and its sound goes out into the mix. Into a sound card of two channels, a pair (L R).
   const junctions: GraphNode[] = [];
-  /** Written pairs the routing knows that are drawn through a junction (its wires' `routes`). */
-  const through = new Set<string>();
-  // a gate (trigger=, #234): a named junction, drawn as a node of its own — its trigger and velocity in on ports of
-  // their own, its receivers (the voices in its braid) as its braid; no junction for each of its products
+  // a gate (trigger=, #234): a named junction, drawn as a node of its own — its trigger and levels in on ports of their
+  // own, its notes out to the voices in its braid; no junction for each of its products
   const isGate = (c: ResolvedCell) => typeof c.params.trigger === 'string';
   for (const c of result.cells.values()) {
     if (!isGate(c)) continue;
@@ -482,18 +502,21 @@ export function buildGraph(result: CompileResult, opts: { readonly bulbs?: boole
         ...wire(key, 'cv', cellId(name), into, key === 'trigger' ? chord(name) : 1),
       });
     }
+    // its one output: a note bus to the voices it plays (a strand per note at once, the trigger's chords), each voice
+    // reading its notes there; their sound leaves from the voices themselves (below, `product`), not from the gate
+    const trigger = typeof c.params.trigger === 'string' && result.cells.has(c.params.trigger) ? c.params.trigger : null;
     for (const b of receivers) {
       const v = cellId(b.voice.name);
+      const pairs = trigger ? soundsOf(result, b.voice.name).map((s) => edgeId(cellId(trigger), cellId(s))) : [];
       link({
-        id: edgeId(v, into),
-        source: v,
-        target: into,
+        id: edgeId(into, v),
+        source: into,
+        target: v,
         count: 1,
         transforms: AS_IS,
         sound: b.voice.name,
-        routes: [[edgeId(v, into)]],
-        // (its sound, into the gate that plays it and on through it)
-        ...wire('braid', 'audio', v, into),
+        routes: pairs.length ? [pairs, [edgeId(v, into)]] : [[edgeId(v, into)]],
+        ...wire('voice', 'cv', into, v, trigger ? chord(trigger) : 1),
       });
     }
   }
@@ -509,11 +532,29 @@ export function buildGraph(result: CompileResult, opts: { readonly bulbs?: boole
     // (the routing's flow from the sound into the mix: flows.ts)
     const flow = edgeId(voice, into);
     const terms = b.pitches.filter((t) => result.cells.has(t.ref.name));
+    // a gate into a mix: its sound is the voices it plays, so each of them goes in, from its own wheel (the gate sends
+    // them notes, above); the written pairs are the voice into the gate and the gate into the mix
+    const gate = result.cells.get(b.voice.name)!;
+    if (!terms.length && port === 'mix' && isGate(gate)) {
+      through.add(flow);
+      for (const r of gate.mix ?? []) {
+        if (!result.cells.has(r.voice.name)) continue;
+        const v = cellId(r.voice.name);
+        link({
+          id: edgeId(v, into),
+          source: v,
+          target: into,
+          count: 1,
+          transforms: gain,
+          sound: r.voice.name,
+          routes: [[edgeId(v, voice)], [flow]],
+          ...wire(port, band, v, into, width),
+        });
+      }
+      return;
+    }
     if (!terms.length) {
-      // (a gate's sound is the voices it plays: the first one's colours it and shapes its wave, as a product's junction
-      // carries its voice's)
-      const played = isGate(result.cells.get(b.voice.name)!) ? result.outputs.find((o) => o.through.includes(b.voice.name))?.voice : undefined;
-      link({ id: flow, source: voice, target: into, count: 1, transforms: gain, ...(played ? { sound: played } : {}), ...wire(port, band, voice, into, width) });
+      link({ id: flow, source: voice, target: into, count: 1, transforms: gain, ...wire(port, band, voice, into, width) });
       return;
     }
     const j = junctionId(c.name, entry);

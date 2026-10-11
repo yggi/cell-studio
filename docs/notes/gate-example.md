@@ -10,6 +10,7 @@ The owner went through `examples/gate.cells` and asked for four changes to how i
 2. **A gate is a level meter** (`ui/GateMeter.svelte`, `layout/gate.ts`): a bar per note its trigger sounds now, side by side for a chord, in the note's colour, as tall as `velocity=`; `gate=` a dashed ceiling.
 3. **A gate's wire out carries its voice's sound** (it was grey: the edge named the gate as its sound, and no voice is called that). A kit's gate stays neutral: a kit has no one pitch.
 4. **`&lead` and `&bell` are not bulbs on `&leadOut`**: a gate plays its voices, they are not part of it (a kit's are). Their edges into the gate are sound now.
+5. **The wires follow the notes, then the sound** (the owner, on the first round): the gate has one output, a note bus to its voices; their sound goes from their own wheels into `&out`, and the gate has no edge to `&out`.
 
 The layout baseline was recorded with 1 and 4: crossings over the library 47.9 → 48.
 

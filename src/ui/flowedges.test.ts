@@ -24,6 +24,9 @@ function byPort(e: GraphEdge, program: CompileResult) {
   if (feeds(e) && e.band === 'audio') return { phaseCell: trigger(nameOf(e.from)), voice: nameOf(e.from) };
   if (feeds(e)) {
     const voice = e.sound ?? nameOf(e.target);
+    // (a gate's note bus to its voices: its trigger's notes, #234)
+    const t = program.cells.get(nameOf(e.from))?.params.trigger;
+    if (typeof t === 'string') return { phaseCell: t, voice };
     return { phaseCell: trigger(voice) === nameOf(e.source) ? nameOf(e.source) : null, voice };
   }
   if (e.port === 'mix') {
