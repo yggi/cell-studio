@@ -16,6 +16,7 @@ import { loomBands } from '../layout/looms';
 import type { MeterTrace } from '../layout/state';
 import type { GraphSnapshot } from './snapshot';
 import { payloadOf } from './payload';
+import { ownEnvelope, socketOf, VOICE_SIZE } from '../layout/voice';
 
 const nameOf = (id: string) => id.slice('cell:'.length);
 /** An edge's end as a cell's name: a product's junction reads as the voice it is (its sound). */
@@ -110,6 +111,16 @@ const INTO_VOICE: Carrier = (e, p) => {
 /** An edge from a read head drawn as a bulb on its tape (decision 021): leaving the tape, it is the head's. */
 const headBulb = (e: GraphEdge, program: CompileResult) => !!e.bulb && program.cells.get(e.bulb)?.params.play === nameOf(e.from);
 
+/**
+ * Where a voice's sound leaves it: from the top of its own envelope's box when it has one on its top (layout/voice.ts),
+ * straight up from there, as a socket; else from its wheel.
+ */
+function socketOfEdge(e: GraphEdge, program: CompileResult): { socket?: number } {
+  if (e.band !== 'audio' || isJunction(e.from)) return {};
+  const voice = program.cells.get(nameOf(e.from));
+  return voice?.voice && ownEnvelope(program, voice.name) ? { socket: socketOf(VOICE_SIZE * voice.size) } : {};
+}
+
 /** A gate's play= (decision 023): its notes into the gate, not a tape under a read head. */
 const gatePlay = (e: GraphEdge, program: CompileResult) => e.port === 'play' && !!program.cells.get(nameOf(e.to))?.gate;
 
@@ -172,7 +183,17 @@ export function flowEdgeOf(e: GraphEdge, state: State, program: CompileResult, b
     type: 'pulse',
     // (only a live edge carries a note's colour and pulses: an edge into what doesn't sound now stays still)
     // (a bus round a loom: its run here, its ring as an edge of its own, LOOM)
-    data: { ...pulseData(e, program), off: state === 'off' || state === 'unrouted', state, sizes, to: endOf(e, e.to), net, ring, ...(ring === undefined ? {} : { part: 'run' }) },
+    data: {
+      ...pulseData(e, program),
+      off: state === 'off' || state === 'unrouted',
+      state,
+      sizes,
+      to: endOf(e, e.to),
+      net,
+      ring,
+      ...(ring === undefined ? {} : { part: 'run' }),
+      ...socketOfEdge(e, program),
+    },
     label: edgeLabel(e),
     class: `edge-${e.port} band-${e.band}${e.pointer ? ' pointer' : ''}`,
     selectable: false,

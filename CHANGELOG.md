@@ -11,6 +11,7 @@ that makes the change. Also note changes to the language that could affect saved
 ## Unreleased
 
 ### Changed
+- **A voice is larger, its envelope a box on its top**: a voice's wheel is 160 px (it was 120); its own envelope (`env=&(map=adsr …)` written in place) is a box as wide as the voice on its top, its curve filled from below up to the level now while it plays, the lines crossing at the note's time and level; the voice's sound leaves from the top of that box. While it sounds, a voice's waveform takes its note's colour. Rows are spaced by their largest wheels, so pieces are laid out a little larger. Drawing only.
 - **A voice's envelope sits at its top and moves**: `env=&(map=adsr …)` written in place hangs at the voice's 12 o'clock (its other petals stay at its side), and while the piece plays two lines cross on the curve at the latest note's time and level now: up the attack, down the decay, along the sustain, down the release after the note ends. Drawing only.
 - **The *A gate* example is smaller**: `&duck` is gone, its gate plays at `level=&accent*.4`; its third bar is no longer ducked to a quarter (it sounds louder there).
 - **A meter's net is laid as a bus's is**: each cell joined to the nearest one already joined (the meter or another of its cells), and laid again as things move, so a dragged cell's trace snaps to the nearer cell as a table's bus does (it was worked out once the layout came to rest, by a tree of its own). Over the library: drawn crossings 52.7 → 49.2. Drawing only.

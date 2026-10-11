@@ -4,6 +4,7 @@ import { SvelteSet } from 'svelte/reactivity';
 import { structureKey, type GraphNode } from '../../engine/graph';
 import type { LiveState } from '../../engine/live';
 import { ForceLayout } from '../../layout/physics';
+import { envelopeBox } from '../../layout/voice';
 import { DEFAULT_LAYOUT, type LayoutOptions } from '../../layout/options';
 import type { MeterTrace } from '../../layout/state';
 import { meterIndex } from '../../layout/meters';
@@ -232,6 +233,8 @@ export class GraphLayout {
     const p = this.#force.position(slot.parent);
     if (!p) return undefined;
     const parentSize = this.#sizeOf(slot.parent) ?? 128;
+    // (a voice's own envelope: its box on the voice's top, layout/voice.ts)
+    if (slot.top) return { x: p.x, y: p.y - envelopeBox(parentSize).above };
     // fanned out on the outer side (away from the centre line): the flow runs up and down, labels hang below
     const outward = p.x < -20 ? Math.PI : 0;
     const a = slot.top ? -Math.PI / 2 : outward + (slot.i - (slot.n - 1) / 2) * (slot.n > 3 ? 0.55 : 0.68);
