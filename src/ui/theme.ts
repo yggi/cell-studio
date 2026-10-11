@@ -104,3 +104,23 @@ export const EDGE = {
   ripple: { amp: 2.5, period: 11 },
   flash: { decay: 5, offBeat: 0.6, mix: 1.6 },
 } as const;
+
+/**
+ * The time view's colours computed in code (the rest are app.css --time-*): the scalogram's three signals added, a
+ * colour each, as RGB (envelope red: breaks; change green: pitches, entries; voices blue: density, pulse); one signal
+ * alone, and the waterfall, on a ramp from black through blue, magenta and orange to pale yellow.
+ */
+export const TIME = {
+  mix: {
+    envelope: [255, 40, 40],
+    change: [40, 255, 40],
+    voices: [60, 90, 255],
+  },
+  ramp: [
+    [0, 0, 0],
+    [30, 30, 120],
+    [160, 40, 140],
+    [240, 120, 40],
+    [255, 250, 190],
+  ],
+} as const;

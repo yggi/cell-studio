@@ -21,6 +21,7 @@ It fails on a page error.
 | `roll` | a cell's piano roll (`src/ui/PianoRoll.svelte`) at a phone's width: blank, a scale, semitones, 19-EDO, chords and holds, a kit, playing (playhead, ghosts, a key held), not editable | fast |
 | `keys` | the dock's on-screen keyboard and drum pads (#255) in each state: at rest, scale dots, keys held, pads held and glowing, a phone's width (`tools/gallery/keys/Sheet.svelte`) | fast |
 | `graphs` | every example's graph as the library's miniature draws it, with its numbers from the layout's baseline (`tools/graphs.mjs`; `OUT` default `shots/graphs/`) | fast |
+| `time` | the time view (`src/ui/TimeView.svelte`, #286) of each piece in the real app, in each state: `mix` (the default layers), `keys` (the scalogram on new pitch classes), `sound` (waterfall and waveform), `zoom` (8× in), `patterns` (motifs at two time scales boxed, foldings listed), `phone` (`tools/gallery/time.mjs`; `OUT` default `shots/time/`, `STATES=mix,keys`; default pieces Hypercell, Pop, Korobeiniki, 5 to 12, Pachelbel) | real app, ~1 min a piece |
 
 A piece in the built app, playing: `tools/shots.mjs` (not part of the gallery yet).
 
@@ -33,6 +34,16 @@ SIZES=32,44,64 STOPPED=1 OUT=shots/fast-before node tools/gallery.mjs wheels --f
 Before / after: run it on the base commit (`git stash`) with `OUT=shots/<subject>-before`, then on the change; the
 tiles pair up by name. Show both in the PR as the "how verified" of a visual change. Open the harness yourself with
 `npx vite` and `/tools/gallery/harness.html?subject=edges&t=3&only=hypercell`.
+
+## The time view (`time`)
+`node tools/gallery.mjs time pop fiveto12` opens each piece in the real app (the dev server, the working tree), shows
+the time view (wide: the graph toolbar's *time*; `phone`: the Time tab), waits until the worker and the render are
+done (`.busy` gone: a day's scalogram takes a minute, five minutes of sound longer) and keeps
+`tiles/<piece>-<state>.png`. Read it for: whether each layer sits at its height on the tower (scalogram below 20 Hz,
+notes and waterfall in the audible, waveform in the card's octave at the top), the cones under the section lines,
+white marks on sections against orange ones off them, the veil at the window's edges, labels that collide (the
+sections' names, the zones'), and the phone's toolbar wrapping. The analysis behind it is `src/engine/time/` and its
+probe `tools/probe/scalogram.test.ts` ([scalogram.md](../../../docs/notes/scalogram.md)).
 
 ## Close-ups (`zoom`)
 `ZOOM=parts node tools/gallery.mjs zoom 3 pop korobeiniki` lays each piece out in the real Graph (as `golden 3 pop
