@@ -9,6 +9,7 @@
   import { blockColour, noteColour, partColour } from './theme';
   import { cellView, hubLabel, type CellView, type Fill, type Segment } from '../layout/cellview';
   import { gateOf, receiverPlaces } from '../layout/gate';
+  import { kitOf, memberPlaces } from '../layout/kit';
   import { bulbHosts } from '../engine/graph';
   import { valuesAt } from '../engine/values';
   import { BORDER, border, coarsen } from '../layout/coarse';
@@ -539,11 +540,14 @@
   });
   // a gate's receivers: small wheels fanned over its top (layout/gate.ts); a bulb when only the gate plays the voice, else
   // hollow (the voice has a node of its own); each lit while its voice sounds
+  // (a kit's members the same way, each just outside its own slice: where the number that picks it points)
+  const kit = $derived(kitOf(ctx.program, name));
   const receivers = $derived.by(() => {
-    if (!gate || interactive) return [];
-    const places = receiverPlaces(size, gate.receivers.length);
+    const members = gate?.receivers ?? kit;
+    if (!members || interactive) return [];
+    const places = gate ? receiverPlaces(size, members.length) : memberPlaces(size, members.length);
     const hosts = bulbHosts(ctx.program);
-    return gate.receivers.map((v, i) => {
+    return members.map((v, i) => {
       const p = places[i];
       const text = `&${v}`;
       return { name: v, x: c + p.x, y: c + p.y, r: p.r, bulb: hosts.get(v) === name, font: fitFont(2 * p.r * 0.86, text.length, 11, 5), text };
@@ -823,7 +827,7 @@
           data-bulb={v.name}
           role="button"
           tabindex="0"
-          aria-label={`&${v.name}, a voice this gate plays: open it; Shift+Enter switches it ${ctx.program.cells.get(v.name)?.off ? 'on' : 'off'}`}
+          aria-label={`&${v.name}, a voice this ${gate ? 'gate' : 'kit'} plays: open it; Shift+Enter switches it ${ctx.program.cells.get(v.name)?.off ? 'on' : 'off'}`}
           aria-keyshortcuts="Enter Shift+Enter"
           onkeydown={(e) => bulbKey(e, v.name)}
           cx={v.x}
@@ -1069,7 +1073,7 @@
   .bulb-disc {
     fill: var(--wheel-disc);
   }
-  /* a gate's receivers (#234): a small wheel each over its top, lit while its voice sounds */
+  /* a gate's receivers (#234), a kit's members: a small wheel each, lit while its voice sounds */
   .receiver-disc {
     fill: var(--wheel-disc);
     stroke: var(--wheel-ref);

@@ -111,8 +111,8 @@ describe('routing: one model for what the graph draws as part of the sound (#11)
   it('a kit: its members are part of the sound, and the one struck now is live', () => {
     const r = compileSource(SAILOR_WITH_KIT);
     expect(['bd', 'sd', 'hh', 'kit', 'drums'].every((n) => on(r).nodes.has(`cell:${n}`))).toBe(true);
-    const s = states(r, 0.05); // the kick
-    expect([s.get('kit->bd'), s.get('bd'), s.get('kit->hh'), s.get('hh')]).toEqual(['live', 'live', 'idle', 'idle']);
+    const s = states(r, 0.05); // the kick (each member a bulb on the kit: no edge of its own)
+    expect([s.get('kit->bd'), s.get('bd'), s.get('kit->hh'), s.get('hh')]).toEqual([undefined, 'live', undefined, 'idle']);
   });
   it('a groove: a chord of voices lights each of them while it sounds', () => {
     const r = src('&g step=2 [&bd, &hh] ~', '&bd s=sine loop=A1', '&hh s=white', `${OUT} [&g]`);

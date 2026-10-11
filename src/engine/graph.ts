@@ -10,6 +10,7 @@ import { effectiveShow, pluginOf } from '../layout/show';
 import { bulbHub, trackRoom } from '../layout/track';
 import { drawnAsTape, headBulbs, TAPE_SIZE, UNTURNED } from '../layout/tape';
 import { gateRoom } from '../layout/gate';
+import { kitOf, kitRoom } from '../layout/kit';
 import { isMidiCard, type CompileResult, type ResolvedCell } from './program';
 import type { Binding, Pick, ValueMap } from './ast';
 import { cellId, clockTapId, edgeId, junctionId, stepEdgeId } from './ids';
@@ -735,6 +736,12 @@ function petals(result: CompileResult, allNodes: GraphNode[], allEdges: GraphEdg
       const room = gateRoom(128 * n.cell.size, (n.cell.mix ?? []).length);
       return room ? { ...n, reach: { room, below: 0 } } : n;
     }
+    // (a kit: its members round its wheel, each at its slice)
+    const kit = n.kind === 'cell' && !n.petalOf ? kitOf(result, n.cell.name) : null;
+    if (n.kind === 'cell' && kit && [...byName.values()].includes(n.cell.name)) {
+      const room = kitRoom(128 * n.cell.size, kit.length);
+      return room ? { ...n, reach: { room, below: room } } : n;
+    }
     // (a tape's head bulbs round its wheel: their room all round, whichever way the layout turns it — decision 021)
     if (n.kind === 'cell' && !n.petalOf && drawnAsTape(n.cell) && [...byName.values()].includes(n.cell.name)) {
       const h = headBulbs(n.cell, result.cells.values(), TAPE_SIZE * n.cell.size)[0];
@@ -784,7 +791,8 @@ const isTrack = (result: CompileResult, n: GraphNode): boolean =>
 /**
  * The splices drawn as bulbs (#221), by node id, each to its host's: a cell read by one edge only, a ref without a pick
  * or a delay (a tap, a canon's copy: a net), both it and the braid that splices it drawn as tracks; a tap of a meter's
- * bus, on its table (decision 016); a voice only a gate plays, on the gate (#234); a tape's read head that takes
+ * bus, on its table (decision 016); a voice only a gate plays, on the gate (#234); a voice only a kit plays, on the
+ * kit; a tape's read head that takes
  * nothing but the tape, on the tape (decision 021).
  */
 function bulbsOf(result: CompileResult, nodes: readonly GraphNode[], edges: readonly GraphEdge[]): Map<string, string> {
@@ -818,6 +826,8 @@ function bulbsOf(result: CompileResult, nodes: readonly GraphNode[], edges: read
     // a voice only a gate plays: a bulb on the gate's wheel (#234, the gate wheel)
     const host = byId.get(r[0].to);
     if (n.kind === 'voice' && host?.kind === 'cell' && typeof host.cell.params.trigger === 'string') out.set(n.id, r[0].to);
+    // a voice only a kit plays: a bulb on the kit's wheel, at its slice
+    else if (n.kind === 'voice' && host?.kind === 'cell' && kitOf(result, host.cell.name)) out.set(n.id, r[0].to);
     else if (track(n) && track(host)) out.set(n.id, r[0].to);
   }
   return out;
