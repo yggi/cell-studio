@@ -10,8 +10,7 @@
    * - `material`: `face`, on a disc of the body's material (wood, steel, brass, organ metal)
    */
   import { BODIES } from '../../../src/engine/program';
-  // (where a strand meets its exciter, in parts of the wheel's radius: layout/tines.ts EXCITER_RING once #302 is in)
-  const EXCITER_RING = 1.2;
+  import { EXCITER_RING } from '../../../src/layout/exciters';
 
   let { body, shifts, option, ringing = 0 }: { body: string; shifts: number[]; option: 'now' | 'shape' | 'face' | 'material'; ringing?: number } = $props();
 

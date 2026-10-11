@@ -1,6 +1,6 @@
 # How a resonator's body could look
 
-Date: 2026-10-11 · Status: open (options for the owner) · Issues: [#234](https://github.com/yggi/cell-studio/issues/234) (the visual pass) · Follows #302 (a kalimba's exciters as tines)
+Date: 2026-10-11 · Status: done (the owner chose D: [decision 024](../decisions/024-resonator-bodies.md)) · Issues: [#234](https://github.com/yggi/cell-studio/issues/234) (the visual pass) · Follows #302 (a kalimba's exciters as tines)
 
 #302 drew `body=tine` as a kalimba: each exciter a tine where its pad was, reaching out to its strand. The owner asked for the same pass over the other bodies (`fork bell bar plate box pipe wire spring`, [physics.md](../language/physics.md#resonators)). Mock-ups: `node tools/gallery.mjs mockups` → `shots/wheel-mockups/2-resonator-bodies.png` (`tools/gallery/wheels/BodyMock.svelte`, SVG only: nothing in the app changes).
 
@@ -65,3 +65,7 @@ Gotchas found in the mock-ups:
 1. Which column: B, C, or D?
 2. Mode rings: replaced by the face (C), or kept under it?
 3. `wire` with several exciters: radial strings (as tines), or strings across the face?
+
+## The owner's answers
+
+1. **D**: the disc of the body's material. 2. **The engraving over the mode rings.** 3. **Strings point outward**, as tines do. And: a bus into several exciters goes through the loom, a single strand straight to its element. Built: [decision 024](../decisions/024-resonator-bodies.md).
