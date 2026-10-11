@@ -33,6 +33,7 @@
   import EdgePayload from './EdgePayload.svelte';
   import { valuesOf, type Payload } from './payload';
   import { payloadShown, watchLoad } from './payloadGate.svelte';
+  import { EXCITER_RING } from '../layout/tines';
 
   let { id: edgeId, sourceX, sourceY, targetX, targetY, data, label, markerEnd, style }: EdgeProps = $props();
   const ctx = getGraphContext();
@@ -221,15 +222,15 @@
       ? [radialPath(targetX, targetY, control, sourceX, sourceY, r, turns[0], true)]
       : looming(loomParts(sourceX, sourceY, r, turns, mid.x, mid.y, targetX, targetY, GAP, d.ring ?? 0, LOOM_EXIT));
   });
-  // a resonator's tines: a strand into each pad (round its body, as MaterialNode lays them), lit while it rings
+  // a resonator's tines: a strand into each pad or tine (round its body, as layout/tines.ts lays them), lit while it rings
   const tinePaths = $derived.by(() => {
     if (!d.tines || !d.sizes) return [];
     const n = d.tines.length;
     const turns = d.tines.map((_, i) => i / n);
     // (the resonator is the edge's end when the tune plays it, its start when the tune reads through it)
     return d.port === 'over'
-      ? looming(loomParts(sourceX, sourceY, (d.sizes.from / 2) * 1.2, turns, mid.x, mid.y, targetX, targetY, GAP, d.ring ?? 0, LOOM_EXIT))
-      : loomPaths(targetX, targetY, (d.sizes.to / 2) * 1.2, turns, mid.x, mid.y, sourceX, sourceY, GAP);
+      ? looming(loomParts(sourceX, sourceY, (d.sizes.from / 2) * EXCITER_RING, turns, mid.x, mid.y, targetX, targetY, GAP, d.ring ?? 0, LOOM_EXIT))
+      : loomPaths(targetX, targetY, (d.sizes.to / 2) * EXCITER_RING, turns, mid.x, mid.y, sourceX, sourceY, GAP);
   });
   const tineStrands = $derived.by(() => {
     if (!d.tines) return [];

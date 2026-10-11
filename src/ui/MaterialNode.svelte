@@ -26,6 +26,7 @@
   import { polar as onCircle } from '../layout/geometry';
   import { angleOf, turnDelta } from '../layout/dial';
   import { NOTE_NAMES as NAMES } from '../theory/modes';
+  import { bridgeOf, EXCITER_RING, tinePlaces } from '../layout/tines';
 
   let { id, data }: NodeProps = $props();
   const d = $derived(data as { name: string; size: number; role: 'motor' | 'belt' | 'tape' | 'resonator'; turn?: number });
@@ -47,6 +48,15 @@
       return { name: NAMES[((midi % 12) + 12) % 12] + Math.floor(midi / 12 - 1) };
     });
   });
+  // (a body of tines is drawn as a kalimba: each exciter a tine where its pad would be, under a bridge ring — layout/tines.ts)
+  const tines = $derived.by(() =>
+    cell?.params.body === 'tine' && (cell.exciters?.length ?? 0) > 1
+      ? tinePlaces(
+          R,
+          cell.exciters!.map((x) => x.shift),
+        )
+      : [],
+  );
   let wobble = $state('none');
   // (a shimmer, set from here: the reduced-motion rule in app.css only reaches CSS animations)
   $effect(() => {
@@ -492,12 +502,35 @@
       {/each}
     {/if}
   </svg>
-  {#if exciters.length > 1}
+  {#if tines.length}
+    <!-- its tines: steel tongues where its pads would be, held under a bridge ring, their free ends out to their strands —
+         tap one to play it -->
+    {#each tines as t, i (i)}
+      {@const p = polar(-90 + t.turn * 360, (t.inner + t.outer) / 2)}
+      <button
+        class="tine"
+        style:left="{p.x}px"
+        style:top="{p.y}px"
+        style:width="{t.width}px"
+        style:height="{t.outer - t.inner}px"
+        style:transform="translate(-50%, -50%) rotate({t.turn * 360}deg)"
+        style:font-size="{Math.max(6, Math.min(10, t.width * 0.8))}px"
+        style:--glow={pads[i] ?? 0}
+        aria-label="Play {exciters[i].name}"
+        onpointerdown={(e) => e.stopPropagation()}
+        onclick={(e) => {
+          e.stopPropagation();
+          ctx.sound.strike(d.name, 0.5, i);
+        }}><span style:transform="rotate({-t.turn * 360}deg)">{t.width >= 7 ? exciters[i].name.replace(/-?\d+$/, '') : ''}</span></button
+      >
+    {/each}
+    <span class="bridge" style:left="{R - bridgeOf(R)}px" style:top="{R - bridgeOf(R)}px" style:width="{bridgeOf(R) * 2}px" style:height="{bridgeOf(R) * 2}px"></span>
+  {:else if exciters.length > 1}
     <!-- its exciters: petal pads round the wheel — tap one to play it -->
     {#each exciters as x, i (i)}
       {@const deg = -90 + (i / exciters.length) * 360}
-      {@const pr = Math.max(9, Math.min(16, (Math.PI * R * 1.2) / exciters.length - 2))}
-      {@const p = polar(deg, R * 1.2)}
+      {@const pr = Math.max(9, Math.min(16, (Math.PI * R * EXCITER_RING) / exciters.length - 2))}
+      {@const p = polar(deg, R * EXCITER_RING)}
       <button
         class="pad"
         style:left="{p.x}px"
@@ -657,6 +690,44 @@
     box-shadow: 0 0 calc(var(--glow) * 14px) color-mix(in srgb, var(--pad-glow) calc(var(--glow) * 90%), transparent);
     filter: brightness(calc(0.85 + var(--glow) * 0.5));
     z-index: 2;
+  }
+  /* a tine: a steel tongue, its free end (out, to its strand) rounded, glowing as it rings; its note at its free end */
+  .tine {
+    position: absolute;
+    border-radius: 999px 999px 2px 2px;
+    border: 1px solid rgba(0, 0, 0, 0.55);
+    background: linear-gradient(90deg, var(--tine-1), var(--tine-0) 45%, var(--tine-1));
+    color: var(--tine-ink);
+    font-weight: 800;
+    font-family: var(--font-ui);
+    line-height: 1;
+    padding: 2px 0 0;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    overflow: hidden;
+    cursor: pointer;
+    box-shadow: 0 0 calc(var(--glow) * 12px) color-mix(in srgb, var(--pad-glow) calc(var(--glow) * 90%), transparent);
+    filter: brightness(calc(0.9 + var(--glow) * 0.5));
+    z-index: 2;
+  }
+  .tine span {
+    display: block;
+  }
+  .tine:active {
+    filter: brightness(1.3);
+  }
+  /* the ring that holds the tines down on the body */
+  .bridge {
+    position: absolute;
+    box-sizing: border-box;
+    border-radius: 50%;
+    border: 4px solid var(--tine-bridge);
+    box-shadow:
+      inset 0 0 0 1px rgba(0, 0, 0, 0.5),
+      0 0 0 1px rgba(0, 0, 0, 0.5);
+    pointer-events: none;
+    z-index: 3;
   }
   /* a read head as a bulb on its tape (decision 021): a small wheel in the read head's colour, its name inside */
   .head-bulb {
