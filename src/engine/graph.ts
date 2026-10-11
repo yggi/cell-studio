@@ -407,19 +407,18 @@ export function buildGraph(result: CompileResult, opts: { readonly bulbs?: boole
       }
       // a gate spliced in (`&out map=sample &drums`): its sound is the voices it plays, each in from its own wheel (#234)
       const gate = result.cells.get(child);
-      if (gate && typeof gate.params.trigger === 'string' && spliceBand(child) === 'audio') {
+      if (gate?.gate && spliceBand(child) === 'audio') {
         through.add(edgeId(id, cellId(child)));
-        for (const r of gate.mix ?? []) {
-          const v = cellId(r.voice.name);
-          if (!result.cells.has(r.voice.name)) continue;
+        for (const r of gateVoices(result, gate)) {
+          const v = cellId(r.name);
           link({
             id: edgeId(id, v),
             source: id,
             target: v,
             count,
             transforms: AS_IS,
-            sound: r.voice.name,
-            routes: [[edgeId(v, cellId(child))], [edgeId(id, cellId(child))]],
+            sound: r.name,
+            routes: [[edgeId(cellId(r.via), cellId(child))], [edgeId(id, cellId(child))]],
             ...wire('braid', 'audio', id, v, 1, true),
           });
         }
@@ -482,49 +481,47 @@ export function buildGraph(result: CompileResult, opts: { readonly bulbs?: boole
   // melody that plays it, levels, pitches, an envelope, with what is written on it), the voice is its definition (`is`),
   // and its sound goes out into the mix. Into a sound card of two channels, a pair (L R).
   const junctions: GraphNode[] = [];
-  // a gate (trigger=, #234): a named junction, drawn as a node of its own — its trigger and levels in on ports of their
-  // own, its notes out to the voices in its braid; no junction for each of its products
-  const isGate = (c: ResolvedCell) => typeof c.params.trigger === 'string';
+  // a gate (play=, #234, decision 022): a named junction, drawn as a node of its own — its notes and levels in on ports
+  // of their own, its notes out to the voices it plays; no junction for each of its products
   for (const c of result.cells.values()) {
-    if (!isGate(c)) continue;
+    const g = c.gate;
+    if (!g) continue;
     const into = cellId(c.name);
-    const receivers = (c.mix ?? []).filter((b) => result.cells.has(b.voice.name));
+    const receivers = gateVoices(result, c);
     // (the written pairs the routing knows: each term into each voice it plays, each voice into the gate)
-    const flows = receivers.map((b) => edgeId(cellId(b.voice.name), into));
+    const flows = [...new Set(receivers.map((r) => edgeId(cellId(r.via), into)))];
     for (const f of flows) through.add(f);
-    for (const key of ['trigger', 'velocity', 'gate'] as const) {
-      const name = c.params[key];
-      if (typeof name !== 'string' || !result.cells.has(name)) continue;
-      const pairs = receivers.flatMap((b) => soundsOf(result, b.voice.name).map((v) => edgeId(cellId(name), cellId(v))));
+    for (const { name, port } of [{ name: g.notes, port: g.port as string }, ...g.levels]) {
+      if (!result.cells.has(name)) continue;
+      const pairs = receivers.flatMap((r) => soundsOf(result, r.via).map((v) => edgeId(cellId(name), cellId(v))));
       for (const id of pairs) through.add(id);
-      const b0 = receivers[0];
       link({
         id: edgeId(cellId(name), into),
         source: cellId(name),
         target: into,
         count: 1,
         transforms: AS_IS,
-        ...(b0 ? { sound: b0.voice.name } : {}),
+        ...(receivers[0] ? { sound: receivers[0].name } : {}),
         routes: [pairs, flows],
-        ...wire(key, 'cv', cellId(name), into, key === 'trigger' ? chord(name) : 1),
+        ...wire(port, 'cv', cellId(name), into, name === g.notes ? chord(name) : 1),
       });
     }
-    // its one output: a note bus to the voices it plays (a strand per note at once, the trigger's chords), each voice
+    // its one output: a note bus to the voices it plays (a strand per note at once, its notes' chords), each voice
     // reading its notes there; their sound leaves from the voices themselves (below, `product`), not from the gate
-    const trigger = typeof c.params.trigger === 'string' && result.cells.has(c.params.trigger) ? c.params.trigger : null;
-    for (const b of receivers) {
-      const v = cellId(b.voice.name);
-      const pairs = trigger ? soundsOf(result, b.voice.name).map((s) => edgeId(cellId(trigger), cellId(s))) : [];
+    const notes = result.cells.has(g.notes) ? g.notes : null;
+    for (const r of receivers) {
+      const v = cellId(r.name);
+      const pairs = notes ? soundsOf(result, r.via).map((x) => edgeId(cellId(notes), cellId(x))) : [];
       link({
         id: edgeId(into, v),
         source: into,
         target: v,
         count: 1,
         transforms: AS_IS,
-        sound: b.voice.name,
-        ...(trigger ? { notes: trigger } : {}),
-        routes: pairs.length ? [pairs, [edgeId(v, into)]] : [[edgeId(v, into)]],
-        ...wire('voice', 'cv', into, v, trigger ? chord(trigger) : 1),
+        sound: r.name,
+        ...(notes ? { notes } : {}),
+        routes: pairs.length ? [pairs, [edgeId(cellId(r.via), into)]] : [[edgeId(cellId(r.via), into)]],
+        ...wire('voice', 'cv', into, v, notes ? chord(notes) : 1),
       });
     }
   }
@@ -543,19 +540,18 @@ export function buildGraph(result: CompileResult, opts: { readonly bulbs?: boole
     // a gate into a mix: its sound is the voices it plays, so each of them goes in, from its own wheel (the gate sends
     // them notes, above); the written pairs are the voice into the gate and the gate into the mix
     const gate = result.cells.get(b.voice.name)!;
-    if (!terms.length && port === 'mix' && isGate(gate)) {
+    if (!terms.length && port === 'mix' && gate.gate) {
       through.add(flow);
-      for (const r of gate.mix ?? []) {
-        if (!result.cells.has(r.voice.name)) continue;
-        const v = cellId(r.voice.name);
+      for (const r of gateVoices(result, gate)) {
+        const v = cellId(r.name);
         link({
           id: edgeId(v, into),
           source: v,
           target: into,
           count: 1,
           transforms: gain,
-          sound: r.voice.name,
-          routes: [[edgeId(v, voice)], [flow]],
+          sound: r.name,
+          routes: [[edgeId(cellId(r.via), voice)], [flow]],
           ...wire(port, band, v, into, width),
         });
       }
@@ -645,7 +641,7 @@ export function buildGraph(result: CompileResult, opts: { readonly bulbs?: boole
     link({ id: flow, source: voice, target: into, count: 1, transforms: twins > 1 ? AS_IS : gain, sound, routes: [[flow]], ...wire(port, band, voice, into) });
   };
   for (const c of result.cells.values()) {
-    if (!isGate(c)) (c.mix ?? []).forEach((b, entry) => product(c, b, entry, 'mix'));
+    if (!c.gate) (c.mix ?? []).forEach((b, entry) => product(c, b, entry, 'mix'));
     // (a MIDI card's products, numbered on from its own: their junctions are its entries)
     (c.chords ?? []).flatMap((bs) => bs ?? []).forEach((b, entry) => product(c, b, entry, 'midi'));
   }
@@ -670,6 +666,16 @@ export function buildGraph(result: CompileResult, opts: { readonly bulbs?: boole
 const isLevel = (c: ResolvedCell, inSum: boolean) => c.map?.kind === 'amp' || c.map?.kind === 'db' || (c.map?.kind === 'lin' && !inSum);
 
 /** The voices a mix's entry plays on (as compile expands it): an instrument's own, the kit a pattern is read through. */
+/**
+ * The voices a gate plays, as drawn (decision 022): each receiver it names, with the voice its product plays (`via`):
+ * the receiver itself, or the kit it made of several bare voices (declare.ts: gates).
+ */
+function gateVoices(result: CompileResult, c: ResolvedCell): { name: string; via: string }[] {
+  const vias = new Set((c.mix ?? []).map((b) => b.voice.name));
+  const kit = `${c.name}:kit`;
+  return (c.gate?.receivers ?? []).filter((r) => result.cells.has(r)).map((name) => ({ name, via: vias.has(name) ? name : vias.has(kit) ? kit : name }));
+}
+
 function soundsOf(result: CompileResult, name: string, guard = 0): string[] {
   const c = result.cells.get(name);
   if (c?.mix && !c.sink && guard < 16) return c.mix.flatMap((b) => soundsOf(result, b.voice.name, guard + 1));

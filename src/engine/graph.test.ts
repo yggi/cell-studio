@@ -563,13 +563,20 @@ describe('every name written is one wire carrying the transform it writes, and e
           // (no exceptions: only a cell show=off hides, and then it is not in the graph at all)
           // (a gate in a mix goes in as the voices it plays, each from its own wheel: #234)
           const gate = program.cells.get(name);
-          const voices = typeof gate?.params.trigger === 'string' ? (gate.mix ?? []).map((b) => b.voice.name) : [];
+          const voices = gate?.gate?.receivers ?? [];
           if (voices.length)
             expect(
               voices.every((v) => model.edges.some((x) => x.from === cellId(v) && x.to === cellId(c.name))),
               `&${c.name}: &${name}'s voices`,
             ).toBe(true);
-          else if (count === 0 && model.nodes.some((n) => n.id === cellId(name))) missing.push(`&${c.name}: &${name} (in the mix)`);
+          // (a voice written on a gate's line, in a chord: the gate's notes go to it — its note bus)
+          else if (c.gate?.receivers.includes(name)) {
+            expect(
+              model.edges.some((x) => x.from === cellId(c.name) && x.to === cellId(name) && x.port === 'voice'),
+              `&${c.name} → &${name}`,
+            ).toBe(true);
+            matched.add(`${c.name}|${name}|mix`);
+          } else if (count === 0 && model.nodes.some((n) => n.id === cellId(name))) missing.push(`&${c.name}: &${name} (in the mix)`);
           else if (count) expect(pair ? count + 1 : count, `&${c.name}: &${name}, written ${ts.length} times in the mix`).toBe(ts.length);
           // each wire carries what is written on the name in its product: a pick, a shift (a number in the sum is the
           // product's: its label goes on after it), each token's once
@@ -613,10 +620,10 @@ describe('every name written is one wire carrying the transform it writes, and e
     const unwritten = model.edges.flatMap((e) => {
       if (junctions.has(e.from) || forPetals.has(e.id)) return [];
       // (a gate's note bus is its braid as written, and a gate in a mix goes in as its voices: #234)
-      const gateOf = (n: string) => typeof program.cells.get(n)?.params.trigger === 'string';
+      const gateOf = (n: string) => !!program.cells.get(n)?.gate;
       if (e.port === 'voice' && gateOf(nameOf(e.from))) return [];
       const into = program.cells.get(nameOf(e.to));
-      if (e.port === 'mix' && into?.mix?.some((b) => gateOf(b.voice.name) && program.cells.get(b.voice.name)!.mix?.some((r) => r.voice.name === nameOf(e.from)))) return [];
+      if (e.port === 'mix' && into?.mix?.some((b) => gateOf(b.voice.name) && program.cells.get(b.voice.name)!.gate!.receivers.includes(nameOf(e.from)))) return [];
       const key = junctions.has(e.to)
         ? `${junctions.get(e.to)!.mix}|${nameOf(e.from)}|mix`
         : e.port === 'about'

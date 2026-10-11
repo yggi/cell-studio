@@ -16,6 +16,11 @@ function byPort(e: GraphEdge, program: CompileResult) {
   if (e.port === 'step') return { phaseCell: nameOf(e.to), voice: null };
   // (a parameter's clock, delaytime=&bar*3/4: its reader doesn't step, the clock's own steps pulse — #178)
   if (e.band === 'sync') return { phaseCell: nameOf(e.from), voice: null };
+  // (a gate's play=: its notes into it, as a melody into its voice — decision 023)
+  if (e.port === 'play' && program.cells.get(nameOf(e.to))?.gate) {
+    const voice = e.sound ?? nameOf(e.target);
+    return { phaseCell: trigger(voice) === nameOf(e.source) ? nameOf(e.source) : null, voice };
+  }
   if (e.port === 'play' || e.port === 'write') {
     const o = e.port === 'play' ? program.outputs.find((x) => x.tape?.head === nameOf(e.target)) : program.outputs.find((x) => x.cell === nameOf(e.source) && !x.tape);
     return { phaseCell: null, voice: o?.voice ?? null };

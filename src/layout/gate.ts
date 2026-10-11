@@ -8,11 +8,9 @@ import { wheelGeometry } from './wheel';
 
 /** What a gate's meter draws: whose notes it plays, its level streams and its gain; null: not a gate. */
 export function gateOf(result: CompileResult, name: string): { trigger: string; levels: readonly string[]; gain: number } | null {
-  const c = result.cells.get(name);
-  const trigger = c?.params.trigger;
-  if (!c || typeof trigger !== 'string') return null;
-  const levels = [c.params.velocity, c.params.gate].filter((l): l is string => typeof l === 'string' && result.cells.has(l));
-  return { trigger, levels, gain: typeof c.params.gain === 'number' ? c.params.gain : 1 };
+  const g = result.cells.get(name)?.gate;
+  if (!g) return null;
+  return { trigger: g.notes, levels: g.levels.map((l) => l.name).filter((l) => result.cells.has(l)), gain: g.gain };
 }
 
 /** A gate's meter, `size` px across: its well (a square inside the disc) and a bar per note, side by side. */

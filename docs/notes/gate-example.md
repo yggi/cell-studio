@@ -1,6 +1,6 @@
 # The *A gate* example, one change at a time
 
-Date: 2026-10-11 · Status: open (the drawing changes done; the language questions are the owner's) · Issues: [#234](https://github.com/yggi/cell-studio/issues/234) (the minimal grammar, the implicit `&out`), [#10](https://github.com/yggi/cell-studio/issues/10) (the shakedown) · Follows [gate-node.md](gate-node.md)
+Date: 2026-10-11 · Status: open (round 2 built: the wiring, junctions as gates, the spelling; the consolidation and the implicit `&out` open) · Issues: [#234](https://github.com/yggi/cell-studio/issues/234) (the minimal grammar, the implicit `&out`), [#10](https://github.com/yggi/cell-studio/issues/10) (the shakedown) · Follows [gate-node.md](gate-node.md)
 
 The owner went through `examples/gate.cells` and asked for four changes to how it is drawn and four questions to be thought through against #10 and #234's minimal grammar (four primitives: shift-with-carry, dilate, look up, combine: [multiscale.md](multiscale.md)).
 
@@ -72,3 +72,15 @@ The cheapest way to try it is in the compiler, before bindings: no `map=sample` 
 2. Junctions drawn as small gate meters (a)?
 3. `trigger=` renamed (`play=`?), and a gate's braid read as a kit reads, layering as a chord?
 4. The implicit `&out` only when no card is written, and where the master `level=` goes?
+
+## Round 2: the owner's answers, and what was built
+
+1. **One `level=`**: yes. 2. **Unnamed products as small gate meters**: yes. 3. **`play=`, the braid read as a kit, layering as a chord**: yes, try it. 4. **The implicit `&out`**: deferred, `&out` stays.
+
+And: *our wires are wrong: audio comes out of the gate node and the voices have no output.* A gate's one output is a note bus to its voices, whose sound goes on into `&out`.
+
+- **The wiring** ([decision 022](../decisions/022-gates-send-notes.md)): `&leadOut` → `&lead`, `&bell` (a note net, a strand per note at once), `&lead`, `&bell` → `&out` (sound); no edge from the gate to `&out`. A product's junction the same (its notes to its voice, `is`; the voice's sound into the mix, one wire per mix). Drawing only.
+- **Junctions as small gate meters** (32 px, on the voice's rim). One meter component for both: bars as tall as the product of the level streams and the gain. Layout baseline 48 → 52.7 crossings (Cellscape, Zell better; Korobeiniki, Hypercell worse: a voice in several mixes fans out).
+- **The spelling** ([decision 023](../decisions/023-gate-spelling.md)): `&leadOut play=&tune level=&accent*&duck*.4 [&lead, &bell]`; the example is written so and plays the same notes (40 s compared). The old spelling still reads; Shorten rewrites it.
+
+Still open from round 2: the consolidation of the sub-wheel rules and the edge and net-segment drawing, and the meter bus that doesn't snap to the nearer node as `&key`'s bus does (below, when done).
