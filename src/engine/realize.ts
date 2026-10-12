@@ -175,6 +175,13 @@ const driverMuted = (result: CompileResult, name: string, muted: ReadonlySet<str
 };
 
 /** An output's level per channel, leaving out mixes (or sound cards) that are switched off. */
+/** A voice's own gain (`level=` on a voice: a number, 1 by default), times every gain it is played at. */
+function voiceLevel(result: CompileResult, voice: string): number {
+  const c = result.cells.get(voice);
+  const l = c?.voice ? c.params.level : undefined;
+  return typeof l === 'number' && Number.isFinite(l) && l >= 0 ? l : 1;
+}
+
 export function liveGains(o: Output, muted: ReadonlySet<string>): [number, number] {
   // a send (a mix played only into a resonator or a tape): its own gain, unless its mix is off
   // (a MIDI card it is also on takes nothing away from what it feeds)
@@ -348,7 +355,7 @@ export function eventsBetween(p: Plan, from: number, to: number, outputs = false
         voice: o.voice,
         freq: base * Math.pow(2, n.semis / 12),
         bends: [],
-        gains: [g[0] * Math.min(1, 1 - n.pan), g[1] * Math.min(1, 1 + n.pan)],
+        gains: [g[0] * Math.min(1, 1 - n.pan) * voiceLevel(p.result, o.voice), g[1] * Math.min(1, 1 + n.pan) * voiceLevel(p.result, o.voice)],
         levels: [{ at, level: n.level }],
         ...(heard ? {} : { unheard: true as const }),
         ...(midi.length ? { midi } : {}),
@@ -473,11 +480,13 @@ function plainEvents(p: Plan, from: number, to: number, outputs: boolean): Playe
       const freq = v.freq * Math.pow(2, semis / 12);
       const params = paramTracks(p, v.voice, at, dur);
       const env = t.output.envelope ?? (t.output.kit ? memberEnvelope(result, v.voice) : null);
-      // a kit's member placed by its own pan= (a voice's own is in its output's gains already)
+      // a kit's member placed by its own pan= (a voice's own is in its output's gains already); every voice at its own
+      // level= (a kit member's balance)
       const memberPan = (g: [number, number]): [number, number] => {
-        if (!t.output.kit) return g;
+        const k = voiceLevel(result, v.voice);
+        if (!t.output.kit) return [g[0] * k, g[1] * k];
         const [l, r] = balance(result.cells.get(v.voice)?.params.pan);
-        return [g[0] * l, g[1] * r];
+        return [g[0] * l * k, g[1] * r * k];
       };
       const gains = memberPan(liveGains(t.output, p.muted));
       const midi = t.output.midi ? liveMidi(t.output, p.muted) : [];

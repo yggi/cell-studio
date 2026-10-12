@@ -104,10 +104,10 @@ export const PARAMS: Readonly<Record<string, Attribute>> = {
   excite: physics('a resonator: sound that drives it (excite=&mix) — it answers where the sound meets its modes', ['resonator'], { value: 'cell' }),
   // the sound card
   level: {
-    help: 'on the sound card: the overall level in dB (0 as it is, −6 about half); on a gate: how loud, a product of level cells and a gain (level=&accent*&duck*.4)',
+    help: 'on the sound card: the overall level in dB (0 as it is, −6 about half); on a gate: how loud, a product of level cells and a gain (level=&accent*&duck*.4); on a voice: its own gain, times every gain it is played at (1 by default; a kit member’s balance)',
     doc: 'display.md',
     value: 'number',
-    on: ['card', 'gate'],
+    on: ['card', 'gate', 'voice'],
   },
   // meters and their physics
   beat: { help: 'on a meter: how many of its steps make a beat — its bpm counts beats (beat=4: steps in sixteenths)', doc: 'time.md', value: 'number', on: ['clock'] },

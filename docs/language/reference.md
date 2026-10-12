@@ -140,7 +140,7 @@ Parameters belong to voices (the sound ones keep dough's names) and to physical 
 - `couple=&cell`: A resonator: another it shares a table with (couple=&other) — each sets the other ringing — on a resonator (body=) [→](physics.md)
 - `coupling=n` · `coupling=free(n, lo..hi)`: A resonator: how strongly it is coupled (.01 faint, .05 strong) — on a resonator (body=) [→](physics.md)
 - `excite=&cell`: A resonator: sound that drives it (excite=&mix) — it answers where the sound meets its modes — on a resonator (body=) [→](physics.md)
-- `level=n` · `level=free(n, lo..hi)`: On the sound card: the overall level in dB (0 as it is, −6 about half); on a gate: how loud, a product of level cells and a gain (level=&accent*&duck*.4) — on the sound card (map=sample) or a gate (play= with a braid) [→](display.md)
+- `level=n` · `level=free(n, lo..hi)`: On the sound card: the overall level in dB (0 as it is, −6 about half); on a gate: how loud, a product of level cells and a gain (level=&accent*&duck*.4); on a voice: its own gain, times every gain it is played at (1 by default; a kit member’s balance) — on the sound card (map=sample), a gate (play= with a braid) or a voice. [→](display.md)
 - `beat=n` · `beat=free(n, lo..hi)`: On a meter: how many of its steps make a beat — its bpm counts beats (beat=4: steps in sixteenths) — on a meter (step= a rate) [→](time.md)
 - `swing=n` · `swing=free(n, lo..hi)`: On a meter: of each pair of steps, the second comes this far through (.5 straight, .67 triplet swing) — on a meter (step= a rate) [→](time.md)
 - `motor=n` · `motor=free(n, lo..hi)`: On a meter: it turns physically — a motor this strong pulls it to its tempo (from rest) — on a meter (step= a rate) [→](physics.md)
