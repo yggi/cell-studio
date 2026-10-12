@@ -1,6 +1,6 @@
 # #10, an examples pass: drums on a kit, no extra mixers
 
-Date: 2026-10-12 · Status: open (the section mixes folded into the cards in 9 pieces, one Shorten run applied; the drums wait on the owner) · Issue: [#10](https://github.com/yggi/cell-studio/issues/10) · Follows [10-corpus.md](10-corpus.md), [gate-example.md](gate-example.md)
+Date: 2026-10-12 · Status: open (section mixes folded in 9 pieces; drums moved onto a kit with a voice's `level=` in 5 pieces; the rest of the drums wait on the findings below) · Issue: [#10](https://github.com/yggi/cell-studio/issues/10) · Follows [10-corpus.md](10-corpus.md), [gate-example.md](gate-example.md)
 
 The owner asked for a pass over the 75 examples with the current best practices (drums go on a kit, no extra mixers, the gate spelling of [decision 023](../decisions/023-gate-spelling.md), what Shorten still suggests), and for what it teaches #10: what is open, what reads badly, what is redundant, what the true shape is. The rule for the pass: no piece may sound different. Every rewrite was checked note for note before it was kept or dropped: `tools/corpus.mjs` (voice, onset, length, frequency, gains) and a stricter scratch compare of every field of every event over 0–120 s (levels, envelopes, bends, parameters too). Read from the working tree on 2026-10-12.
 
@@ -28,6 +28,26 @@ The owner asked for a pass over the 75 examples with the current best practices 
 - `hypercell`: `&beat`, `&bassPart`, `&hookPart`, `&padPart`: the spectrum scope `&eq` reads them.
 - `baustelle`: `&metalPart` and `&einsturz`. `src/audio/wiring.test.ts` reads them by name (*a mix's wheel hears only the notes that go through it: Baustelle's &einsturz …*, #77, which also expects `&beams`' notes in `&metalPart`): a real case of what a mix's wheel hears, so they stay until that test has a fixture of its own. (`pop`'s `&hookPart`, kept at first for `describe.test.ts`, is folded: the test now has its own mix.)
 
+### The kit pass: a drum's gain on its voice
+
+After 5db16a7 (*level= on a voice, its own gain*, [sound.md](../language/sound.md)), a drum's gain moves from its product onto the voice (`&bd level=.8`), and the drums that share a clock become one groove of voices. Base re-recorded on 6810161 (`/tmp/corpus-base2.json`).
+
+| piece | before | after |
+|---|---|---|
+| `acid` | `&kick map=amp step=&bar 1 1 1 1`, `&clap map=amp step=&bar ~ 1 ~ 1`; `&kick * &bd * .8, &clap * &cp * .35` | `&beat step=&bar &bd [&bd,&cp] &bd [&bd,&cp]`; `&bd level=.8`, `&cp level=.35`; `&beat` in the card |
+| `arrangement` | `&kick step=&drumBar 0 ~ 0 ~`; `&kick * &bd * .6` | `&kick step=&drumBar &bd ~ &bd ~`; `&bd level=.6`; `&kick` in the card |
+| `hypercell` | `&kick … 0!4`, `&clap … ~ 0 ~ 0`, `&hats …/2 ~ 0 …`, `&roll … 0!8 0*2!4 …`; `&beat [&kick * &bd * .8, &hats * &hh * .2, &clap * &cp * .35]`, `&roll * &sn * .25` | `&kick step=&beatBar &bd [&bd,&cp] &bd [&bd,&cp]`, `&hats … ~ &hh ~ &hh …`, `&roll … &sn!8 &sn*2!4 …`; `level=` .8 .2 .35 .25 on `&bd` `&hh` `&cp` `&sn`; `&beat [&kick, &hats]`, `&roll` in the card |
+| `pop` | `&kick map=amp … 1 ~ 1 ~`, `&snare map=amp … ~ 1 ~ 1`; `&kick * &bd * .8, &snare * &sd * .4` | `&beat tags="drums" step=&beatBar &bd &sd &bd &sd`; `&bd level=.8`, `&sd level=.4`; `&beat` in the card |
+| `zell` | the same as `pop`, the snare at .35 | `&beat tags="beat" step=&beatBar &bd &sd &bd &sd`; `&bd level=.8`, `&sd level=.35` |
+
+**Checked:**
+
+- `node tools/corpus.mjs --check /tmp/corpus-base2.json`: all five `same notes`; `total: chars -52, lines -4, cells +1; 0 pieces changed sound unexpectedly`. Characters grew where a comment was added (*the kick, and the clap on two and four*); `arrangement` gained the groove's implicit kit as a cell.
+- The strict compare covers every field: onset, length, pitch, gains, levels per hit, envelope, bends, parameters and `instrument`. All five are identical. Only the event's `value` differs: it is now the kit index (`0` or `2`) where it was the pitch `0` or the amp value `1`.
+- The snapshot was refreshed: in each piece `notes` and the count are unchanged, `events` moved by `value` alone, `values` and `live` because the drum cells changed (a groove, renamed or merged).
+- `docs/examples.md`: its generator (`tools/examples-doc.ts`, `levelOf`) took the first `level=` in a file as the card's; with a voice's `level=` above the card it would have listed the drum's. Fixed to read the card's line (the one with `map=sample`); regenerated, the one row that moves is `gate`'s, listed at `.5` (its `&drumOut`'s) before and at its card's `0` now: a bug that was already there.
+- **The layout baseline** (`physics.library.test.ts`, crossings weighed by what they cross) passes. Per piece against 6810161, seeds 0–2: `pop` 3.3 → 1.1, `acid` 0 → 0.7, `zell` 6.3 → 7.3, `hypercell` 19.7 → 25.2, `arrangement` 0 → 0. **`onemore` was moved as well and put back**: its kit took it from 0.3 to 7.1 and the library over the baseline (134.7 → 137.5). Its kit form (`&kick step=&grooveBar &bd [&bd,&cp] &bd [&bd,&cp]`, `&open … ~ &oh …`, levels .8 .3 .15) plays note for note the same; it waits on the layout, not the language: a kit is drawn as one wheel its members' wires leave, and in `onemore` that crosses its other parts.
+
 The library was already further along than the request assumed:
 
 - **No old gate spelling is left.** No piece writes `trigger=`, `velocity=`, `gate=` or `gain=`. One piece has gates (`gate`, two of them); it already writes `play=` and `level=`.
@@ -37,31 +57,33 @@ The library was already further along than the request assumed:
 
 ## 2. Not changed, and why
 
-**Drums onto one kit: blocked by per-drum gains, in 12 pieces.** The best form is one pattern for all drums, read through a kit: `&beat step=&beatBar &bd &sd &bd &sd`, then `&drums play=&beat level=… &kit` or `[&beat * .6]`. A kit had one gain for all its members when this was measured (5db16a7, *level= on a voice*, landed during the pass: section 3, item 1). Every piece that writes its drums per drum gives each one a gain of its own:
+**Drums onto one kit: what stayed, and why.** Before 5db16a7 every one of the 12 pieces was blocked by its per-drum gains: a kit had one gain for all its members. The voice's `level=` removed that block, and 5 pieces moved (section 1; a sixth, `onemore`, was put back for its layout). What still stays a product, per piece:
 
-| piece | the drum products (pattern × voice × gain) |
-|---|---|
-| `acid` | `&kick * &bd * .8, &clap * &cp * .35, &closed * &hh * .25, &open * &oh * .2` |
-| `arrangement` | `&kick * &bd * .6, &click * &rim * .1` (the click pitched: `12 0!3`) |
-| `bell` | `&strokes * &gankogui * .25, &drum * &dundun * .7, &pulse * &shekere * .15` |
-| `bossa` | `&rim * &click * .3, &shaker * &shh * .12` |
-| `five` | `&ride * &cym * .22, &rim * &click * .3` |
-| `ghosts` | `&kick * &bd * .55, &metal * &tick * .1, &glitch * &blip * .07` (the glitch pitched) |
-| `hypercell` | `&beat [&kick * &bd * .8, &hats * &hh * .2, &clap * &cp * .35]`, `&roll * &sn * .25` |
-| `onemore` | `&kick * &bd * .8, &clap * &cp * .3, &open * &oh * .15, &shake * &sh * .1` |
-| `pop` | `&kick * &bd * .8, &snare * &sd * .4`, `&hats * &hh * .2` |
-| `rhythm` | `&kick * &bd, &hats * &hh * 0.4, &shake * &sh * 0.3` (tutorial, tier 4: map=amp as gates) |
-| `tape` | `&hats * &hh * .1, &kick * &bd * .5` |
-| `zell` | `&kick * &bd * .8, &snare * &sd * .35`, `&ticks * &metal * .12` |
+| piece | stays | why |
+|---|---|---|
+| `acid` | `&closed * &hh * .25`, `&open * &oh * .2` | each hit's own level (`.3 .2 .5 .2`; the open hat's `.5`): a level pattern on the kit would act on the kick and clap too, and a groove note's level is 1 |
+| `arrangement` | `&click * &rim * .1` | pitched (`12 0!3`) |
+| `bell` | all three | each hit's own level (`&strokes`, `&drum`, `&pulse`), at three different rates |
+| `bossa` | both | each hit's own level (`&rim`, `&shaker`) |
+| `chance` | both | chance keyed on the voice (below); the tutorial for `?` |
+| `five` | both | each hit's own level (`&ride`, `&rim`) |
+| `ghosts` | all three | chance keyed on the voice (`0?`, `0?.25`), and the glitch is pitched (`[0|7|12]`) |
+| `hypercell` | — | (its hats, eighths, are a groove of their own beside the kick's quarters: below) |
+| `onemore` | all its drums (`&shake * &sh * .1`: chance keyed on the voice, `0? 0?.3`; the rest: the layout, section 1) | |
+| `pop` | `&hats * &hh * .2` | each hit's own level |
+| `rhythm` | all three | the tutorial for a volume as a gate (tier 4, `map=amp`), and the hats' and shaker's own levels |
+| `tape` | both | a kit drum doesn't follow the capstan's varispeed (below) |
+| `zell` | `&ticks * &metal * .12` | each hit's own level |
+| `swing` | `&ride * &cymbal * .1` | pitched (`12!3`) |
 
-Three ways round it were measured, none note-identical:
+**One groove holds one clock.** A note of a groove lasts its step. A quarter-note kick and an eighth-note hat on the off-beat can't share one braid: the hat starts inside the kick's step, and a chord gives both the same length. So `hypercell`'s and `onemore`'s eighth-note hats are a second groove line (`&hats … ~ &hh ~ &hh`), on the same implicit kit, beside the quarter-note one. Written at the eighths, the kick would last half as long, and its release would come sooner.
 
-- **Move the balance into a level pattern.** Where drums never sound together (pop's and zell's kick and snare alternate), `&beat step=&beatBar &bd &sd &bd &sd` with `level=&weight`, `&weight map=amp step=&beatBar .8 .4`, plays every note at the same onset, length and pitch, and the same product of gain and level. But the corpus compares gains, and these move from the channel gain into the note's level: pop reads `bd … 0.8000` before and `1.0000` after (with level .8). It is also what MIDI out sends as velocity, so it is a change for a synth, if not for the ear. Where drums do sound together at different gains (acid's kick and clap on 2 and 4, hypercell's, onemore's, bossa's, rhythm's, five's), no level pattern can say it: one step has one level for the chord.
-- **A groove per drum** (`&kick step=&beatBar &bd ~ &bd ~`, then `[&kick * .8, &snare * .4]`). Note-identical where the line is plain hits: checked on `hypercell` (kick, hats, clap, roll: 2106 events, every field the same), `pop` (kick, snare) and `acid` (kick, clap). It is still one pattern per drum, the form the request wants gone, so it was not applied. It would make a later merge mechanical.
-- **Not even that, in three cases:**
-  - *Chance draws by voice.* A note's chance is keyed on its cell, **its voice**, its lap and its step (`realize.ts`, `chanceOf`). In a groove the voice is the groove's kit, so the same `?` rolls other dice: `chance` (`&hats … 0?.3` into `&hh?.3`) went from 1300 to 1340 notes, and `onemore` (`&shake … 0?`) from 3658 to 3604.
-  - *A kit drum doesn't follow its clock's varispeed.* `tape` runs on a varispeed capstan: its kick, a product, bends with the tape (30.12 Hz, sliding); as a groove it is a kit member, played at pitch 0 (36.71 Hz, steady). Same for pitch modulation: a kit read takes none (`realize.ts`: `!t.output.kit`).
-  - *Pitched hits.* A kit plays its member at its own pitch; a groove's voice can't be transposed (`&hh^12` is no groove). `swing`'s ride (`12!3`), `arrangement`'s click (`12 0!3`) and `ghosts`' glitch (`[0|7|12]`) stay products.
+**What else was measured before 5db16a7, and why it didn't hold:**
+
+- **Move the balance into a level pattern.** Where drums never sound together (pop's and zell's kick and snare alternate), `&beat step=&beatBar &bd &sd &bd &sd` with `level=&weight` (`&weight map=amp step=&beatBar .8 .4`) plays the same onsets, lengths, pitches, and the same product of gain and level. But the gain moves into the note's level, which is what MIDI out sends as velocity. Where drums do sound together at different gains, no level pattern can say it. The voice's `level=` keeps the gain a gain, so this is no longer needed.
+- **Chance draws by voice.** A note's chance is keyed on its cell, **its voice**, its lap and its step (`realize.ts`, `chanceOf`). In a groove, the voice is the groove's kit, so the same `?` rolls other dice. `chance` (`&hats … 0?.3` written as `&hh?.3`) went from 1300 to 1340 notes; `onemore` (`&shake … 0?`) from 3658 to 3604.
+- **A kit drum doesn't follow its clock's varispeed.** `tape` runs on a varispeed capstan. Its kick, a product, bends with the tape (30.12 Hz, sliding); as a groove it is a kit member, played at pitch 0 (36.71 Hz, steady). The same holds for pitch modulation: a kit read takes none (`realize.ts`: `!t.output.kit`).
+- **Pitched hits.** A kit plays its member at the member's own pitch, and a groove's voice can't be transposed (`&hh^12` is no groove).
 
 **Shorten's two other suggestions:**
 
@@ -72,13 +94,13 @@ Three ways round it were measured, none note-identical:
 
 ## 3. Open for the language to decide
 
-1. **A kit member's balance.** The one thing between 12 pieces and one kit each. The options, all open:
-   - a gain on the voice (`&sd … level=.4`). Landed while this pass ran: 5db16a7, *level= on a voice, its own gain (a kit member's balance)*. Moving the 12 pieces onto one kit with it is the next pass, checked note for note as this one;
-   - a gain per member on the kit (the spelling is open: `*` in a groove is already the ratchet, `&hh*2`);
-   - accept that the balance moves into the note's level (MIDI velocity changes; the ear doesn't), and Shorten rewrites it;
-   - keep one product per drum as the canonical form for a balanced kit, and the groove for one level.
+1. **A kit member's balance: settled by a voice's `level=` (5db16a7).** A drum's gain is its own, times every gain it is played at. With it, 5 of the 12 pieces play their plain drums as one groove of voices, note for note. What it leaves open:
+   - **Per-hit levels for one member.** A drum with accents of its own (acid's closed hat `.3 .2 .5 .2`, pop's and zell's hats, bell's, bossa's, five's, rhythm's: 13 lines in 7 pieces) can't join the kit. A gate's `level=&accent` acts on every drum at that step, and a groove's notes have level 1. It needs an accent per member, or a pattern whose steps carry a level (the spelling is open).
+   - **One clock per groove.** Drums at two rates make two groove lines (section 2).
+   - **`level=` now means three things** (item 5).
+   - The voice's level also acts on every other place the voice plays. No drum in the library plays anywhere else, but `baustelle`'s `&sub` (a kick and the rubble of the collapse) would.
 2. **Chance keyed on the voice.** Respelling a line (a voice renamed, a pattern moved onto a kit) rolls new dice. Should the key be the cell and the step only? It would change every piece with `?` or `[a|b]` once (9 pieces use one of them), and never again.
-3. **What a kit drum follows.** A kit read takes no pitch modulation and no varispeed: a tape stop bends the bass but not the kick. Is that the meaning of a kit (a drum has no pitch), or a gap?
+3. **What a kit drum follows.** A kit read takes no pitch modulation and no varispeed: a tape stop bends the bass but not the kick (`tape` stays a product for it). Is that the meaning of a kit (a drum has no pitch), or a gap?
 4. **A section's mix: done, in the library; the form is not.** Since 016 a tap switches a section and its mix only grouped it: 54 mixes in 9 pieces, each read by the card (4 also by a scope). This pass folded 48 into their cards, note for note (section 1), as `arrangement`, the tutorial for arranging, already wrote it. What stays open: nothing stops a piece writing them again (Shorten could suggest the fold for a mix read only by the card, as it does for wrappers); the tag a section mix carried (`tags="drums"`) now lives only on its cells; and a send or a bus (#149) would be the one reason for a mix of its own. One test in `src/` still reads two of them by name (section 1).
 5. **`level=` means three things.** dB on the card (75 of 75 pieces write one), a linear product on a gate, and now a voice's own gain (5db16a7, item 1): three meanings. Every piece also has a linear gain on nearly every product. The lin/log seam of decision 023, from a third side.
 6. **A motif with a change.** BWV 847 writes its subject seven times because each entry bends a note or holds the last one longer. A form for "&subject, its 13th step a semitone up" (a pick written into, `&subject[$12]+1`?) would let a fugue say what it is. #141's sequence and #31's pitch spaces are where it belongs.
@@ -108,7 +130,7 @@ Three ways round it were measured, none note-identical:
 
 The library converges on few things. **Cells** hold braids, and a braid is steps, rests, holds, chords, motifs and choices. **Clocks** are cells too: a bar (`scan(1 1 1 1)` at a tempo), its subdivisions, a swing, a meter, a belt, a tape's reel; everything moves by `step=` on one of them. **Tables** turn numbers into something: a scale into pitches (`over=`), a kit into voices, a table of taps into sections. **Voices** are sources with an envelope and parameters that move with cells. **Products** meet a pattern, its levels and a voice; named, a product is a **gate**. The **card** is the last mix, with its stereo pair and its master level.
 
-Read that way, a drum part is a pattern read through a table of voices, exactly as a melody is a pattern read through a scale. The 8 pieces on a kit already write it so; the 12 that don't are held back mostly by one thing, the balance between drums (section 3, item 1); a few lines also by chance keys, varispeed or a pitched hit (section 2). With that settled, a piece's drums are one groove line, and `* &bd` products, zero-patterns and one-patterns as drum hits leave the library.
+Read that way, a drum part is a pattern read through a table of voices, exactly as a melody is a pattern read through a scale. The 8 pieces that were on a kit already wrote it so, and with a voice's `level=` 5 more do (`acid`, `arrangement`, `hypercell`, `onemore`, `pop`, `zell`). What still keeps a drum off the kit is narrower now: an accent of its own (section 3, item 1), a chance key, varispeed or a pitched hit (section 2). With those settled, a piece's drums are one groove line per clock, and `* &bd` products, zero-patterns and one-patterns as drum hits leave the library.
 
 Arranging the same way: since 016 a section is a switched tap of the clock, so its mix is only a group. With the section mixes folded, the arranged pieces' cards read their products directly, as `arrangement` does: one table of taps, one selector, one card.
 

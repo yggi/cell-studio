@@ -104,7 +104,7 @@ Introduces a gate: a product with a name; a braid left to the performer, recorde
 
 | piece | file | about | level | length |
 |---|---|---|---|---|
-| A gate: a product with a name | [`gate`](../examples/gate.cells) | Where notes become sound, named: a gate plays its voices with each note of what it plays. | .5 | 0:05 loop |
+| A gate: a product with a name | [`gate`](../examples/gate.cells) | Where notes become sound, named: a gate plays its voices with each note of what it plays. | 0 | 0:05 loop |
 | Play in: a braid left to the performer | [`play-in`](../examples/play-in.cells) | A riff left to the performer: free(…) around a braid. It plays as written until you play in. | 8 | 0:03 loop |
 | MIDI out: a band on a synth | [`midi-out`](../examples/midi-out.cells) | The piece names where its notes go: a melody and a bass on a synth's channels 1 and 2, the drums on 10. The bass is sent, not heard. | -1 | 0:05 loop |
 
