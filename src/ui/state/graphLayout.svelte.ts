@@ -23,6 +23,9 @@ import type { FlowNode } from '../types';
 const ROWS = typeof location !== 'undefined' ? new URLSearchParams(location.search).get('rows') : null;
 /** The tower layout's way into the sound card: a socket each (the default), or `?outs=nets`, wires into the strip. */
 const OUTS = typeof location !== 'undefined' ? new URLSearchParams(location.search).get('outs') : null;
+/** The tower layout's height pull, another to compare (`?pull=.1`; 0: held): its default is TOWER_LAYOUT's. */
+const PULL = typeof location !== 'undefined' && new URLSearchParams(location.search).has('pull') ? Number(new URLSearchParams(location.search).get('pull')) : null;
+const towerOptions = (): Partial<LayoutOptions> => ({ ...TOWER_LAYOUT, ...(PULL !== null && Number.isFinite(PULL) ? { heightPull: PULL } : {}) });
 
 /** A socket's flow node (the tower layout): the edge into the card it ends, and whose sound that is. */
 function socketNode(id: string, m: { edges: readonly { id: string; to: string; from: string }[] }, position: { x: number; y: number }): FlowNode {
@@ -104,7 +107,7 @@ export class GraphLayout {
     this.#style = style;
     // Each physics tick copies simulated positions into the flow nodes. The node under the pointer is left alone:
     // Svelte Flow owns it while dragging.
-    this.#force = new ForceLayout(() => this.#tick(), { ...PROBE_LAYOUT, ...(rowOrders ? { rowOrders } : {}), ...(mode === 'tower' ? TOWER_LAYOUT : {}) });
+    this.#force = new ForceLayout(() => this.#tick(), { ...PROBE_LAYOUT, ...(rowOrders ? { rowOrders } : {}), ...(mode === 'tower' ? towerOptions() : {}) });
     this.options = { ...this.#force.options };
     // (at rest again — after a drag, an edit — the meter's net is laid again from where things are; the meter stays put)
     this.#force.onSettle(() => {
@@ -197,7 +200,7 @@ export class GraphLayout {
       ...PROBE_LAYOUT,
       rowOrders: this.#force.options.rowOrders,
       heights: undefined,
-      ...(mode === 'tower' ? TOWER_LAYOUT : {}),
+      ...(mode === 'tower' ? towerOptions() : {}),
     });
     this.options = { ...this.#force.options };
     this.#lastOpened = -1;
@@ -264,7 +267,7 @@ export class GraphLayout {
   }
   resetForces(): void {
     const { live: _live, radius: _radius, rowOrders: _rows, ...defaults } = DEFAULT_LAYOUT;
-    this.#force.setOptions({ ...defaults, ...(this.mode === 'tower' ? TOWER_LAYOUT : {}) });
+    this.#force.setOptions({ ...defaults, ...(this.mode === 'tower' ? towerOptions() : {}) });
     this.options = { ...this.#force.options };
   }
 

@@ -63,7 +63,7 @@ describe('the tower layout', () => {
     const { program, model } = waltz();
     const drawn = withoutCard(model);
     const heights = towerHeights(program, drawn);
-    const layout = new ForceLayout(() => {}, { ...TOWER_LAYOUT, heights, live: false });
+    const layout = new ForceLayout(() => {}, { ...TOWER_LAYOUT, heightPull: 0, heights, live: false });
     layout.setGraph({ ...drawn, nodes: drawn.nodes.filter((n) => !n.petalOf) });
     layout.tick(200);
     layout.layNet();
@@ -96,7 +96,7 @@ describe('the tower layout', () => {
     const { program, model } = waltz();
     const drawn = withoutCard(model);
     const heights = towerHeights(program, drawn);
-    const layout = new ForceLayout(() => {}, { ...TOWER_LAYOUT, heights, live: false });
+    const layout = new ForceLayout(() => {}, { ...TOWER_LAYOUT, heightPull: 0, heights, live: false });
     layout.setGraph({ ...drawn, nodes: drawn.nodes.filter((n) => !n.petalOf) });
     // (both at x 0, one on top of the other, then let go)
     layout.dragStart('cell:strings', 0, 0);
@@ -168,5 +168,24 @@ describe('the tower layout', () => {
     expect(sockets).toHaveLength(3);
     expect(Math.min(...sockets)).toBeCloseTo(Math.log10(65.41), 3);
     expect(at('cell:tuba')).toBeLessThan(Math.min(...sockets));
+  });
+
+  it('draws the layers by a gentle spring: the sockets over the voices over the structure, in order on average', () => {
+    const program = compileSource(readFileSync('examples/pop.cells', 'utf8'));
+    const model = buildGraph(program);
+    const drawn = withSockets(model);
+    const { targets, layers } = towerLayers(program, model, drawn);
+    const layout = new ForceLayout(() => {}, { ...TOWER_LAYOUT, heights: targets, live: false });
+    layout.setGraph({ ...drawn, nodes: drawn.nodes.filter((n) => !n.petalOf) });
+    layout.tick(500);
+    layout.layNet();
+    const mean = (layer: string) => {
+      const ys = [...layers].flatMap(([id, l]) => (l === layer && layout.position(id) ? [layout.position(id)!.y] : []));
+      return ys.reduce((a, b) => a + b, 0) / ys.length;
+    };
+    expect(TOWER_LAYOUT.heightPull).toBeGreaterThan(0);
+    expect(mean('audible')).toBeLessThan(mean('voice'));
+    expect(mean('voice')).toBeLessThan(mean('structure'));
+    layout.destroy();
   });
 });

@@ -155,9 +155,11 @@ export const DEFAULT_LAYOUT: LayoutOptions = {
  * The tower layout's forces (docs/notes/tower-strip.md): today's, with heights held (`heights`), but no meter placed
  * last (it would be put at a height of its own; held to its row it overlapped others in 7 pieces of 75). Measured over
  * the library against the few forces first tried (no rows, columns, spread, kinds or tags): crossings 130 → 91, area
- * 125 → 108 Mpx², no overlaps either way.
+ * 125 → 108 Mpx², no overlaps either way. Heights drawn by a gentle spring (heightPull .05), not held: with the
+ * layers and a socket each, crossings 124 held → 40 drawn, its nodes .6 of a decade off their heights on average
+ * (docs/notes/tower-strip.md: the forces).
  */
-export const TOWER_LAYOUT: Partial<LayoutOptions> = { placeLast: 0 };
+export const TOWER_LAYOUT: Partial<LayoutOptions> = { placeLast: 0, heightPull: 0.05 };
 
 /**
  * A node's room: the wheel itself (size= scales it), and what hangs under it — its label, as wide as

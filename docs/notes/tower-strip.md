@@ -178,6 +178,35 @@ So the sockets cross less than half of what the nets did with the layout's own (
 
 ![Korobeiniki](tower-strip-sockets-korobeiniki.jpg)
 
+## Layers and a scale force (2026-10-12)
+
+The owner's next: **a gentle scale force** pulling every node to its height instead of holding it there; **layers**: tables nothing steps pulled to the bottom, the structure (each stepped cell at its rate), **the voices between the structure and the audible** (voices, mixes, kits, tapes, resonators: one row), **only the sockets in the audible**.
+
+- `towerLayers` (`towerlayout.ts`): each node's target and layer. The voices' row sits half-way between the structure's top and the lowest socket, a layer's gap (0.6 decade) over the structure at least; the tables a gap under the structure's bottom.
+- `LayoutOptions.heightPull` (`physics.ts: hold`): 0 holds each node at its height (a rail, as before); more draws it towards it by a spring of that strength (a target). The tower layout's default: .05 (`TOWER_LAYOUT`); `?pull=.1` (the gallery's `PULL=.1`) to compare.
+
+| tower layout, a socket each (76 × 3) | crossings | cost | area Mpx² | off its height, decades (mean, most) |
+|---|---|---|---|---|
+| today, no card node | 24.0 | 80.4 | 58.9 | — |
+| heights held as before (voices at their pitch) | 117.3 | 316.5 | 123.7 | 0 |
+| layers, held | 123.7 | 443.4 | 128.6 | 0 |
+| layers, pull .02 | 40.0 | 122.8 | 74.5 | .80, 3.95 |
+| **layers, pull .05** | **39.7** | **121.8** | 77.2 | .62, 3.08 |
+| layers, pull .1 | 47.3 | 161.7 | 83.4 | .46, 2.53 |
+| layers, pull .2 | 52.7 | 192.0 | 91.0 | .31, 1.82 |
+
+- **The scale force takes the tower layout from 3× today's crossings to 1.7×** (124 held → 40 at .05), at a fidelity of .6 of a decade on average: the layers read in order (the sockets over the voices over the structure, on average, a test checks), and a node gives way where its links pull harder (Hypercell's drums' sockets sit by their drums).
+- Held rails cost: the layers held cross more than the per-pitch heights held (124 against 117), since one voices' row puts every voice level with every other.
+- Resonators and tapes sit in the voices' layer (the owner's call); the pull lets a tape's heads and what they play find their places round it.
+
+![Pop, layers at .05](tower-strip-layers-pop.jpg)
+
+![Hypercell, layers at .05](tower-strip-layers-hypercell.jpg)
+
+![Hypercell, layers at .1](tower-strip-layers-hypercell-pull1.jpg)
+
+*Pop and Hypercell* (stopped): sockets on top, the voices' row under them, the structure, the form at the bottom; at .1 (the last) the rows are a little tighter, for 8 more crossings over the library.
+
 ## Next
 
 1. The tower layout still crosses about three times today's (91 against 33, the card left out of both), most in the pieces arranged with selectors, tapes and resonators (#234's language side: a selector that sends gates).
