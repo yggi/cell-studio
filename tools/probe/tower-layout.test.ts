@@ -18,8 +18,6 @@ import { routeWire, towerHeights, towerIns, towerOuts, towerRows, withoutCard } 
 const log = (t: string) => appendFileSync(process.env.PROBE!, t + '\n');
 
 type Variant = { name: string; tower: boolean; card: boolean; opts: Partial<LayoutOptions> };
-// (the tower's own pair, held.ts: pushed apart sideways, free cells off the wires' rows)
-const OWN = { sideCollide: TOWER_LAYOUT.sideCollide, rowClear: TOWER_LAYOUT.rowClear };
 const FEW = { ...TOWER_LAYOUT, sideCollide: 0, rowClear: 0 };
 const VARIANTS: Variant[] = [
   { name: 'today (the signal path)', tower: false, card: true, opts: {} },
@@ -27,14 +25,13 @@ const VARIANTS: Variant[] = [
   { name: 'tower, few forces (as first built)', tower: true, card: false, opts: FEW },
   { name: 'tower, few forces + its own (TOWER_LAYOUT)', tower: true, card: false, opts: TOWER_LAYOUT },
   { name: "tower, today's forces", tower: true, card: false, opts: {} },
-  { name: "tower, today's forces + its own", tower: true, card: false, opts: OWN },
-  // a middle set: one of today's forces back at a time
-  { name: '… + spread', tower: true, card: false, opts: { ...TOWER_LAYOUT, spread: 0.5 } },
-  { name: '… + kinds apart', tower: true, card: false, opts: { ...TOWER_LAYOUT, kindRepel: 0.6 } },
-  { name: '… + tags', tower: true, card: false, opts: { ...TOWER_LAYOUT, tagPull: 0.2, tagRepel: 1.5, mux: 0.8, clusters: true } },
-  { name: '… + columns', tower: true, card: false, opts: { ...TOWER_LAYOUT, columnPull: 0.035 } },
-  { name: '… + row trials', tower: true, card: false, opts: { ...TOWER_LAYOUT, rowOrder: 3 } },
-  { name: '… + meters last', tower: true, card: false, opts: { ...TOWER_LAYOUT, placeLast: 1 } },
+  // a middle set: one of today's forces back at a time, then together (meters last now held to their row)
+  { name: '… + spread', tower: true, card: false, opts: { ...FEW, spread: 0.5 } },
+  { name: '… + columns', tower: true, card: false, opts: { ...FEW, columnPull: 0.035 } },
+  { name: '… + row trials', tower: true, card: false, opts: { ...FEW, rowOrder: 3 } },
+  { name: '… + meters last (on their row)', tower: true, card: false, opts: { ...FEW, placeLast: 1 } },
+  { name: '… + row trials, spread, columns', tower: true, card: false, opts: { ...FEW, rowOrder: 3, spread: 0.5, columnPull: 0.035 } },
+  { name: '… + row trials, spread, columns, meters last', tower: true, card: false, opts: { ...FEW, rowOrder: 3, spread: 0.5, columnPull: 0.035, placeLast: 1 } },
 ];
 
 interface Row {
