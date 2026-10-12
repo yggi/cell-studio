@@ -69,6 +69,7 @@ One line each; the record has the rationale. → [decisions/](decisions/README.m
 - 022 · A gate sends notes, the sound leaves from the voice: a gate's (and a product's junction's, an unnamed gate drawn as a small meter) one output is a note bus to its voices; each voice's sound goes into each mix it is in, one wire per mix; drawing only · → decisions/022-gates-send-notes.md
 - 023 · A gate is `play=&x` (the notes), `level=&a*&b*n` (one intensity, a product) and what it plays: a voice or a kit, a chord of voices (all), several bare voices (a kit, one picked); the old `trigger=` `velocity=` `gate=` `gain=` still read, Shorten rewrites them · → decisions/023-gate-spelling.md
 - 024 · A resonator is drawn as its body: its disc of its material, the body engraved over its mode rings, each exciter its body's element at its turn out to its strand (a bus through the loom, a single strand straight to it) · → decisions/024-resonator-bodies.md
+- 025 · A MIDI file opens as it is: its text in the code editor (`engine/miditext.ts`), playing through its notes written out behind the scenes; the graph waits; Convert to cells is an action · → decisions/025-midi-documents.md
 
 ## Where things are tracked
 

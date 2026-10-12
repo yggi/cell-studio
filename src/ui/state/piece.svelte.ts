@@ -8,19 +8,34 @@ import { mainTempo, sections } from '../../engine/duration';
 import { titleOf } from '../../library';
 import type { PieceSource } from '../../audio/engine';
 import type { FreeSpec } from '../../engine/ast';
+import { isMidiText, parseMidiText } from '../../engine/miditext';
+import { cellsFromMidi } from '../../engine/midiimport';
 
 /**
  * The open piece: its code — the single source of truth, and this the only place that writes it —
  * what it compiles to, and the free() values moved by hand. Every edit (a wheel turned, a cell
  * switched off, added, renamed, a value kept) is a rewrite of the code through engine/edit.ts.
+ *
+ * The code can be a MIDI file's text (engine/miditext.ts, decision 025): then it plays as it is, its notes written out
+ * as cells behind the scenes (`cells`, engine/midiimport.ts) and compiled; what the graph would edit isn't written
+ * (there are no cells in the text to rewrite) until it is converted (`studio.convert`).
  */
 export class Piece {
   #code = $state('');
   /** The device's sample rate, once audio runs: a value the environment provides to the code. */
   sampleRate = $state(48000);
   readonly env = $derived({ SAMPLE_RATE: this.sampleRate, A4: 440 });
-  /** The code as written, compiled (its diagnostics are the editor's). */
-  readonly result = $derived(compileSource(this.#code, this.env));
+  /** A MIDI file's text, read (its lines that say nothing are its diagnostics); null for a piece's code. */
+  readonly midi = $derived(isMidiText(this.#code) ? parseMidiText(this.#code) : null);
+  /** The cells that play: the code, or a MIDI file's notes written out (a fixed tempo: nothing is kept in its text). */
+  readonly cells = $derived(this.midi ? cellsFromMidi(this.midi.smf, this.midi.smf.name ?? 'MIDI file', { free: false }).source : this.#code);
+  /** The code as written, compiled (its diagnostics are the editor's: a MIDI file's are its text's). */
+  readonly result = $derived.by(() => {
+    const r = compileSource(this.cells, this.env);
+    if (!this.midi) return r;
+    const errors = this.midi.diagnostics.some((d) => d.severity === 'error');
+    return { ...r, ok: r.ok && !errors, diagnostics: this.midi.diagnostics };
+  });
   /** Its title, from its card as it stands (it follows edits). */
   readonly title = $derived(titleOf(this.#code));
   readonly errors = $derived(this.result.diagnostics.filter((d) => d.severity === 'error').length);
@@ -32,8 +47,8 @@ export class Piece {
    * among the code's free()s (the first, the second …), so rewriting can't lose them.
    */
   held = $state.raw<Map<number, number | string>>(new Map());
-  readonly playedCode = $derived(this.held.size && this.result.ok ? withHeld(this.#code, this.result, this.held) : this.#code);
-  readonly playedResult = $derived(this.playedCode === this.#code ? this.result : compileSource(this.playedCode, this.env));
+  readonly playedCode = $derived(this.held.size && this.result.ok && !this.midi ? withHeld(this.#code, this.result, this.held) : this.cells);
+  readonly playedResult = $derived(this.playedCode === this.cells ? this.result : compileSource(this.playedCode, this.env));
 
   // (the last version that compiled, and the text it was compiled from: an engine in a worker compiles
   // the same piece from it. A remembered value, not state: it only changes as `good` is read.)
@@ -59,8 +74,9 @@ export class Piece {
 
   constructor(code: string) {
     this.#code = code;
-    const first = compileSource(code);
-    this.#lastGood = { result: first, source: { code } };
+    const cells = isMidiText(code) ? cellsFromMidi(parseMidiText(code).smf, 'MIDI file', { free: false }).source : code;
+    const first = compileSource(cells);
+    this.#lastGood = { result: first, source: { code: cells } };
     this.#frees = first.ok ? freeList(first).length : 0;
   }
 
@@ -80,17 +96,19 @@ export class Piece {
 
   /** Turn a cell; one whose shift is free(…) moves its free value (the wheel and its slider are one control). */
   turn(name: string, shift: number): void {
+    if (this.midi) return;
     const free = this.program.cells.get(name)?.frees.find((f) => f.key === 'shift');
     this.code = free ? setFree(this.code, free, shift) : setShift(this.code, name, shift);
   }
   /** Switch a cell (a graph id, `cell:<name>`) on or off; any other node (a product's junction) is not a cell: nothing. */
   toggle(id: string): void {
-    if (!id.startsWith('cell:')) return;
+    if (!id.startsWith('cell:') || this.midi) return;
     const name = id.slice('cell:'.length);
     this.code = setOff(this.code, name, !this.program.cells.get(name)?.off);
   }
   /** Add a new cell; its name. */
   add(): string {
+    if (this.midi) return '';
     const r = addCell(this.code);
     this.code = r.source;
     return r.name;
@@ -98,7 +116,7 @@ export class Piece {
   /** Move a free(…) value by hand: it plays, and the code keeps what's written until `keep`. */
   hold(spec: Pick<FreeSpec, 'span'>, v: number | string): void {
     const i = freeIndex(this.program, spec);
-    if (i < 0) return;
+    if (i < 0 || this.midi) return;
     this.held = new Map(this.held).set(i, v);
   }
   /** Write what's held into the code: everything, or one free(…) (a braid's take, from its sheet). */

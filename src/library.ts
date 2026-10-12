@@ -43,8 +43,10 @@ function write(all: readonly SavedPiece[]): void {
   localStorage.setItem(KEY, JSON.stringify(all));
 }
 
-/** A piece's title: its card's, or the first comment line, or "Untitled". */
+/** A piece's title: its card's (a MIDI file's text: its name), or the first comment line, or "Untitled". */
 export function titleOf(source: string): string {
+  const midi = /^midi\b[^\n]*\bname="([^"]*)"/m.exec(source);
+  if (midi) return midi[1].trim().slice(0, 60) || 'MIDI file';
   const meta = pieceMeta(source);
   if (meta) return meta.title;
   const comment = source.split('\n').find((l) => l.startsWith('#'));
@@ -88,16 +90,21 @@ export function fileName(source: string): string {
   return `${slug || 'piece'}.cells`;
 }
 
-/** Download the piece as a text file. */
-export function saveFile(source: string): void {
-  const url = URL.createObjectURL(new Blob([source], { type: 'text/plain;charset=utf-8' }));
+/** Download a file. */
+export function download(blob: Blob, name: string): void {
+  const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = fileName(source);
+  a.download = name;
   document.body.append(a);
   a.click();
   a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+/** Download the piece as a text file. */
+export function saveFile(source: string): void {
+  download(new Blob([source], { type: 'text/plain;charset=utf-8' }), fileName(source));
 }
 
 /** Read a chosen file's text. */
