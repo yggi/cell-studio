@@ -85,6 +85,12 @@ export const PARAMS: Readonly<Record<string, Attribute>> = {
   delay: sound('delay send 0–1', { moves: true }),
   delaytime: sound('echo time, seconds — or a clock: &bar/2 (an eighth at the tempo)', { clock: true }),
   delayfeedback: sound('echo feedback 0–1'),
+  glide: {
+    help: 'tied notes (each starting as the one before ends) play as one: its envelope once, each next a slide there over this many seconds (dough’s glide; 0 or none: each note its own)',
+    doc: 'sound.md',
+    value: 'number',
+    on: ['voice'],
+  },
   pan: sound('where it sits in stereo: 0 left, .5 centre (as without it), 1 right — the far side fades'),
   distort: sound('distortion: 0 clean, .3 gritty, 1 and more harsh'),
   crush: sound('bit depth: 16 clean, 8 grainy, 3 and fewer: rubble'),
@@ -105,10 +111,10 @@ export const PARAMS: Readonly<Record<string, Attribute>> = {
   excite: physics('a resonator: sound that drives it (excite=&mix) — it answers where the sound meets its modes', ['resonator'], { value: 'cell' }),
   // the sound card
   level: {
-    help: 'on the sound card: the overall level in dB (0 as it is, −6 about half); on a gate: how loud, a product of level cells and a gain (level=&accent*&duck*.4); on a voice: its own gain, times every gain it is played at (1 by default; a kit member’s balance)',
+    help: 'on the sound card: the overall level in dB (0 as it is, −6 about half); on a gate: how loud, a product of level cells and a gain (level=&accent*&duck*.4)',
     doc: 'display.md',
     value: 'number',
-    on: ['card', 'gate', 'voice'],
+    on: ['card', 'gate'],
   },
   // meters and their physics
   beat: { help: 'on a meter: how many of its steps make a beat — its bpm counts beats (beat=4: steps in sixteenths)', doc: 'time.md', value: 'number', on: ['clock'] },
@@ -145,7 +151,12 @@ export const PARAMS: Readonly<Record<string, Attribute>> = {
   trigger: { help: 'a gate, the old spelling of play=: the notes it plays (trigger=&tune)', doc: 'mix.md', value: 'cell', on: ['gate'], old: 'play=' },
   gate: { help: 'a gate, the old spelling: a level over time, one factor of level= (gate=&duck)', doc: 'mix.md', value: 'cell', on: ['gate'], old: 'level=' },
   velocity: { help: 'a gate, the old spelling: a level, one factor of level= (velocity=&accent)', doc: 'mix.md', value: 'cell', on: ['gate'], old: 'level=' },
-  gain: { help: 'a gate, the old spelling: its gain, the number in level= (gain=.5)', doc: 'mix.md', value: 'number', on: ['gate'], old: 'level=' },
+  gain: {
+    help: 'on a voice: its own gain, dough’s, times every gain it is played at (1 by default; a kit member’s balance); on a gate written the old way (trigger=): the number in level=',
+    doc: 'sound.md',
+    value: 'number',
+    on: ['voice', 'gate'],
+  },
   // scopes
   scope: {
     help: 'a scope: stack, split, xy (in time) — spectrum, waterfall (in frequency, or value); its braid lists its channels',

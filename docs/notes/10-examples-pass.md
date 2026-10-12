@@ -2,6 +2,8 @@
 
 Date: 2026-10-12 · Status: open (section mixes folded in 9 pieces; drums moved onto a kit with a voice's `level=` in 5 pieces; the rest of the drums wait on the findings below) · Issue: [#10](https://github.com/yggi/cell-studio/issues/10) · Follows [10-corpus.md](10-corpus.md), [gate-example.md](gate-example.md)
 
+> **Respelled since** (decision 027, #306's notes): a voice's `level=` is `gain=`, `x%n` is Strudel's `&x:0:g`, `legato` is `glide=t`. The text below keeps the spellings of the time.
+
 The owner asked for a pass over the 75 examples with the current best practices (drums go on a kit, no extra mixers, the gate spelling of [decision 023](../decisions/023-gate-spelling.md), what Shorten still suggests), and for what it teaches #10: what is open, what reads badly, what is redundant, what the true shape is. The rule for the pass: no piece may sound different. Every rewrite was checked note for note before it was kept or dropped: `tools/corpus.mjs` (voice, onset, length, frequency, gains) and a stricter scratch compare of every field of every event over 0–120 s (levels, envelopes, bends, parameters too). Read from the working tree on 2026-10-12.
 
 ## 1. What was changed

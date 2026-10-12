@@ -1,7 +1,7 @@
 /** A braid's steps: numbers, rests, chords, choices, cells (picked, shifted, transposed) and their modifiers. */
 import type { Atom, Token, ValueMap } from '../ast';
 import { MAX_REPS, type LineScanner } from './scanner';
-import { parseLevel } from './level';
+import { parseFields } from './level';
 import { isMixChord, parseMixChord } from './mix';
 import { syntax, type Syntax } from './syntax';
 
@@ -190,9 +190,9 @@ export const CHANCE_SYNTAX = syntax(
 
 export const LEVEL_SYNTAX = syntax(
   'modifier',
-  'x%n',
-  "Level: the step at n percent (x%50), or as a fraction with a point (x%.5, the same); %150 or %1.5 louder. A hit's own accent, in a groove too: [&bd, &hh%40].",
-  ['&hats step=4 0 0%40 0%70 0%40', '&beat step=8 [&bd,&hh] &hh%40 [&sd,&hh] &hh%40'],
+  '&x:0:gain',
+  'A hit\'s own gain, as Strudel spells a sound\'s fields (s("hh:0:.4")): its number in its table (0; a pitched hit is not yet), then its gain, linear (1 as it is). In a groove, and in its chords: [&bd, &hh:0:.4].',
+  ['&beat step=8 [&bd,&hh] &hh:0:.4 [&sd,&hh] &hh:0:.4'],
   'cell.md',
 );
 
@@ -203,14 +203,9 @@ export function parseToken(s: LineScanner): Token {
   let chance: number | null | undefined;
   let level: number | undefined;
   const seen = new Set<string>();
-  while (s.peek() in MODIFIERS || s.peek() === '?' || s.peek() === '%') {
-    if (s.peek() === '%') {
-      // x%n: its level
-      if (level !== undefined) s.fail(`'%' can only appear once per step`);
-      s.i++;
-      level = parseLevel(s);
-      continue;
-    }
+  // (a voice's hit fields, &hh:0:.4: its gain)
+  if (atom.kind === 'ref') level = parseFields(s);
+  while (s.peek() in MODIFIERS || s.peek() === '?') {
     if (s.peek() === '?') {
       // x?p: it sounds with probability p; x? alone: the cell's chance=
       if (chance !== undefined) s.fail(`'?' can only appear once per step`);

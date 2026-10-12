@@ -41,7 +41,7 @@ export interface StepEvent {
   readonly via?: { readonly cell: string; readonly index: number; readonly ctx: string; readonly mul: 1 | -1; readonly add: number };
   /** x?p: the probability it sounds (each time round, reproducibly). */
   readonly chance?: number;
-  /** x%n: its level (a fraction), times every level it was spliced at. */
+  /** &x:0:g: its gain, times every level it was spliced at. */
   readonly level?: number;
   /** [a|b|c]: what it chooses from (value is the first, for drawing). */
   readonly options?: readonly { readonly value: number; readonly alter: number }[];
@@ -95,7 +95,7 @@ export function flatten(
             // x?p: its probability (a bare ? takes the cell's chance=)
             const odds = {
               ...(u.chance === undefined ? {} : { chance: u.chance === null ? (cell.chance ?? 0.5) : u.chance }),
-              // x%n: its level
+              // &x:0:g: its gain
               ...(u.level === undefined ? {} : { level: u.level }),
             };
             // (a note by name is a pitch: a place on the grid at the root of its tables, not an index into them)

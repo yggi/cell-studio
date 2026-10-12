@@ -16,7 +16,7 @@ describe('the attribute table', () => {
   });
 
   test('… and nothing else (the retired ones say what replaced them)', () => {
-    expect(parse('&a gain=1').diagnostics[0].message).toMatch(/gain= is gone/);
+    expect(parse('&a attack=1').diagnostics[0].message).toMatch(/attack= is gone/);
     expect(parse('&a fmh=1').diagnostics[0].message).toMatch(/^Unknown attribute fmh=/);
   });
 
@@ -32,7 +32,7 @@ describe('the attribute table', () => {
     expect([...VOICE_PARAMS].sort()).toEqual(
       ['s', 'lpf', 'lpq', 'hpf', 'hpq', 'room', 'delay', 'delaytime', 'delayfeedback', 'pan', 'distort', 'crush', 'fm', 'ratio', 'index', 'body', 'ring', 'hard'].sort(),
     );
-    expect(Object.keys(PARAMS).length).toBe(57);
+    expect(Object.keys(PARAMS).length).toBe(58);
   });
 
   test('a misspelling finds its nearest attribute', () => {
@@ -52,7 +52,7 @@ describe('an attribute where it does nothing is a warning', () => {
   };
   test.each([
     ['swing= on a voice', '&t step=4 0 1' + tail.replace('s=saw', 's=saw swing=.6'), 'swing= acts on a meter (step= a rate): on &v it does nothing'],
-    ['level= off the sound card', '&t step=4 level=-3 0 1' + tail, 'level= acts on the sound card (map=sample), a gate (play= with a braid) or a voice: on &t it does nothing'],
+    ['level= off the sound card', '&t step=4 level=-3 0 1' + tail, 'level= acts on the sound card (map=sample) or a gate (play= with a braid): on &t it does nothing'],
     ['wow= without a motor', '&m step=90bpm wow=.01\n&t step=&m 0 1' + tail, 'wow= acts on a meter with a motor=: on &m it does nothing'],
     ['ratio= on a voice no fm= names', '&t step=4 0 1' + tail.replace('s=saw', 's=saw ratio=2'), 'ratio= acts on a voice another’s fm= names: on &v it does nothing'],
     ['title= on a cell that plays', '&t step=4 title="x" 0 1' + tail, 'title= acts on a note (a label= and nothing else): on &t it does nothing'],

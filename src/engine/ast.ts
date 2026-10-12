@@ -102,7 +102,7 @@ export interface Token {
   readonly elongate: number;
   /** x?p: it sounds with probability p (x? alone: the cell's chance=, else ½). */
   readonly chance?: number | null;
-  /** x%n: its level (x%50 or x%.5: half; a whole number is a percent, a number with a point a fraction). */
+  /** &x:0:g: a hit's own gain (Strudel's sound fields: &hh:0:.5 half). */
   readonly level?: number;
   readonly span: Span;
 }
@@ -243,8 +243,6 @@ export interface CellDecl {
   readonly off: boolean;
   /** `oneshot`: a voice plays each note as long as its envelope's attack and decay, whatever its step (a drum hit). */
   readonly oneshot?: boolean;
-  /** `legato`: a voice plays a run of tied notes (each starting as the one before ends) as one, its envelope once. */
-  readonly legato?: boolean;
   readonly step: StepSpec | null;
   readonly map: MapSpec | null;
   /** How far each step moves a stepped table (stride=7 walks a 12-cycle in fifths). */

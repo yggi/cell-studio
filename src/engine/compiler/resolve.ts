@@ -121,7 +121,7 @@ export function resolveCells(ctx: Ctx, { decls, implicit, implicitRoot, overOk }
       shift: d.shift ?? 0,
       off: d.off,
       oneshot: !!d.oneshot,
-      legato: !!d.legato,
+      glide: typeof d.params.glide === 'number' && d.params.glide > 0 ? d.params.glide : 0,
       children,
       steps,
       unitSteps,

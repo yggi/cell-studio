@@ -38,7 +38,7 @@ export interface Unit {
   readonly elongate: number;
   /** x?p: its probability; null: the cell's chance=. */
   readonly chance?: number | null;
-  /** x%n: its level (a fraction: %50 is .5). */
+  /** &x:0:g: a hit's own gain (.5 half). */
   readonly level?: number;
 }
 
@@ -111,8 +111,8 @@ export interface ResolvedCell {
   readonly off: boolean;
   /** `oneshot` as written: a voice's note lasts its envelope's attack and decay, not its step. */
   readonly oneshot: boolean;
-  /** `legato` as written: a run of tied notes is one note, its envelope once (realize.ts). */
-  readonly legato: boolean;
+  /** `glide=` as written, seconds (0 off): a run of tied notes is one note, its envelope once, each next sliding there (realize.ts). */
+  readonly glide: number;
   /** Cells spliced in with &ref, with how many slots reference each. */
   readonly children: ReadonlyMap<string, number>;
   /** Length in steps (a &ref takes the referenced cell's steps). */
