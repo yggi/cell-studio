@@ -77,6 +77,7 @@ One line each; the record has the rationale. → [decisions/](decisions/README.m
 - 030 · FM: `fm=n` `fmh=r` with Strudel's meanings, a voice's built-in modulator; feedback from a fixed wavetable; operator cells in the algebra (`(&tune + &op) * &carrier`); built with the feedback work · → decisions/030-fm-feedback.md
 - 031 · Chance is keyed on the seed, the cell, the lap and the step, not the voice: a respelling keeps its dice · → decisions/031-chance-keyed-on-time.md
 - 032 · `restart=` names what switching a part on does to its time: `restart` (default), `resume`, `free`; the last two parse and warn, not yet implemented · → decisions/032-restart-policies.md
+- 033 · The folder writes a converted piece in degrees of its key where that's shorter (`&key scale(minor, C)`, lines `over=&key`, phrases `&m^1`); an accidental moves with its note under `^n`; Strudel's `6s`/`7f` and `scale("C:minor")` read as ours · → decisions/033-degrees.md
 
 ## Where things are tracked
 

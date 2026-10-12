@@ -26,8 +26,8 @@ import type { RowKeys } from '../context';
 import { Dock } from './dock.svelte';
 
 /** What Convert to cells says it made. */
-function convertedText({ notes, lines, perQuarter, moved, dropped, folded }: Imported): string {
-  return `Converted to cells: ${notes} notes in ${lines} line${lines === 1 ? '' : 's'}, ${perQuarter} steps a quarter note${moved ? `, ${moved} moved onto that grid` : ''}${dropped ? `, ${dropped} drum notes with no drum voice left out` : ''}, ${folded ? 'folded: what comes back written as cells of its own' : 'written out in full'}.`;
+function convertedText({ notes, lines, perQuarter, moved, dropped, folded, inKey }: Imported): string {
+  return `Converted to cells: ${notes} notes in ${lines} line${lines === 1 ? '' : 's'}, ${perQuarter} steps a quarter note${moved ? `, ${moved} moved onto that grid` : ''}${dropped ? `, ${dropped} drum notes with no drum voice left out` : ''}, ${folded ? `folded: what comes back written as cells of its own${inKey ? `, in degrees of ${inKey}` : ''}` : 'written out in full'}.`;
 }
 
 /**
