@@ -37,7 +37,7 @@ export function declare(ctx: Ctx): Declared {
   for (const name of decls.keys()) if (name.startsWith('key:') || name.startsWith('scale:')) implicit.add(name);
   // a stepped braid of voices (&groove step=&bar/4 &bd ~ &hh [&bd,&hh]) plays them, and so do the unstepped
   // braids of voices it splices (drum motifs: &groove … &fill &fill[::-1]): each is a pattern of numbers read
-  // through one kit of all their voices, in the order first written (that kit unnamed, not drawn)
+  // through one kit of all their voices, in the order first written (that kit unnamed; the graph draws it as the piece's drum kit, the grooves reading it)
   const grooves = voiceGrooves(decls);
   if (grooves) {
     decls.set(VOICE_KIT, {
@@ -103,7 +103,7 @@ export function declare(ctx: Ctx): Declared {
 }
 
 /** The kit that grooves and their motifs read: every voice they name. */
-const VOICE_KIT = 'kit:voices';
+export const VOICE_KIT = 'kit:voices';
 
 /**
  * Grooves: stepped cells whose steps are voices, rests, chords of voices and drum motifs; drum motifs:

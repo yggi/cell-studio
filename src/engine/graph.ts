@@ -11,6 +11,7 @@ import { bulbAt, leavesFromBulb, reachOf, subWheels } from '../layout/subwheels'
 import { isMidiCard, type CompileResult, type ResolvedCell } from './program';
 import type { Binding, Pick, ValueMap } from './ast';
 import { cellId, clockTapId, edgeId, junctionId, stepEdgeId } from './ids';
+import { VOICE_KIT } from './compiler/declare';
 import type { Transform } from './transform';
 
 export type GraphNode =
@@ -243,7 +244,9 @@ export function buildGraph(result: CompileResult, opts: { readonly bulbs?: boole
     return d;
   };
 
-  const shown = (name: string) => !result.cells.get(name)?.implicit;
+  // (the implicit cells stay hidden, but for the kit the grooves read: drawn as the piece's drum kit, the voices only
+  // grooves play its pieces, each name a groove writes a wire into its piece; decision 021, tower-strip.md)
+  const shown = (name: string) => !result.cells.get(name)?.implicit || name === VOICE_KIT;
   const nodes: GraphNode[] = [];
   const seen = new Set<string>();
   // (the tables of taps whose bus is drawn already)
@@ -304,7 +307,8 @@ export function buildGraph(result: CompileResult, opts: { readonly bulbs?: boole
     const id = cellId(c.name);
     if (c.voice) nodes.push({ id, kind: 'voice', depth: depthOf(c.name), cell: c });
     else nodes.push({ id, kind: 'cell', depth: depthOf(c.name), cell: c, isMeter: meters.has(c.name) });
-    if (c.over)
+    // (a groove reads the drums' kit, but writes no over=: its wires are the names it writes, below)
+    if (c.over && c.over !== VOICE_KIT)
       link({
         id: edgeId(id, cellId(c.over)),
         source: id,
@@ -810,6 +814,8 @@ function petals(result: CompileResult, allNodes: GraphNode[], allEdges: GraphEdg
   const alias = new Map<string, string | undefined>();
   for (const r of redrawn) alias.set(r.id, r.pair === null ? undefined : ids.has(r.pair) ? r.pair : byPair.get(r.pair));
   for (const e of allEdges) if (hidden.has(e.source) || hidden.has(e.target)) alias.set(e.id, undefined);
+  // (a groove reads the drums' kit, but its over= isn't written: its wires are the drums it names, from their pieces)
+  for (const c of result.cells.values()) if (c.over === VOICE_KIT) alias.set(edgeId(cellId(c.name), cellId(VOICE_KIT)), undefined);
   const drawnIds = new Set(out.map((e) => e.id));
   for (const id of through) if (!drawnIds.has(id) && !alias.has(id)) alias.set(id, undefined);
   // (an unnamed cell written on a voice's line, its envelope and its other modifiers, is drawn as part of the voice's

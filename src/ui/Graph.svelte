@@ -35,6 +35,7 @@
   import TowerStrips, { STRIP, STRIP_OPEN } from './TowerStrips.svelte';
   import TowerWires from './TowerWires.svelte';
   import { towerIns, type TowerObstacle } from '../layout/towerlayout';
+  import { VOICE_KIT } from '../engine/compiler/declare';
   import { socketOf } from '../layout/voice';
   import { cellId } from '../engine/ids';
   import type { Viewport } from '@xyflow/svelte';
@@ -398,7 +399,9 @@
       nodeClickDistance={6}
       onnodeclick={({ node, event }) => {
         // (a product's junction is not a cell: nothing to open; a bulb on a wheel is the cell it splices)
-        if (node.type !== 'junction') selected = bulbAt(event.target) ?? node.id;
+        // (the drums' kit the grooves read has no line of its own: a drum on it opens, the kit doesn't)
+        const hit = bulbAt(event.target);
+        if (node.type !== 'junction' && (hit || node.id !== `cell:${VOICE_KIT}`)) selected = hit ?? node.id;
       }}
     >
       <Background gap={28} size={1.5} />

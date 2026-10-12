@@ -8,6 +8,9 @@
   import FreePills from './FreePills.svelte';
   import GateMeter from './GateMeter.svelte';
   import KitGlyph from './KitGlyph.svelte';
+  import { VOICE_KIT } from '../engine/compiler/declare';
+  import { bulbHosts } from '../engine/graph';
+  import { drumPlaces, kitOf } from '../layout/kit';
   import { gateOf } from '../layout/gate';
   import { glyphOf, soundHeadOf } from '../layout/wheels';
   import SideMarks from './SideMarks.svelte';
@@ -45,6 +48,15 @@
   // label=: the name shown (a template, filled in live); a cell that is only a label is a note, in the margin
   const shown = $derived(stillShifts);
   const label = $derived(cell?.label ? formatLabel(ctx.program, data.name, cell.label, shown) : null);
+  // the drums' kit the grooves read (unnamed, VOICE_KIT): its wires leave from the drums they name, its pieces
+  const drumsKit = $derived(data.name === VOICE_KIT);
+  const pieceHandles = $derived.by(() => {
+    if (!drumsKit) return [];
+    const members = kitOf(ctx.program, data.name) ?? [];
+    const hosts = bulbHosts(ctx.program);
+    const c = data.size / 2;
+    return drumPlaces(data.size * 1.02, members).flatMap((p, i) => (hosts.get(members[i]) === data.name ? [{ name: members[i], x: c + p.x, y: c + p.y }] : []));
+  });
 </script>
 
 <div
@@ -74,13 +86,17 @@
       class:lambda={!!cell?.lambda}
       title={cell?.lambda ? `&(${cell.lambda})` : label ? `&${data.name}` : undefined}
     >
-      {#if label}<span class="label">{@html label}</span><small>&amp;{data.name}</small>
+      {#if drumsKit}drums
+      {:else if label}<span class="label">{@html label}</span><small>&amp;{data.name}</small>
       {:else}{cell?.lambda ? `&(${cell.lambda.length > 14 ? cell.lambda.slice(0, 13) + '…' : cell.lambda})` : '&' + data.name}{/if}
     </div>{/if}
   {#if !data.petal}<SideMarks name={data.name} />{/if}
   {#if data.pinned}<span class="pin" title="Pinned"></span>{/if}
   {#if freeCell?.frees.length && !data.petal}<FreePills frees={freeCell.frees} name={data.name} />{/if}
   <Handle type="source" position={Position.Bottom} class="center-handle" isConnectable={false} />
+  {#each pieceHandles as h (h.name)}
+    <Handle type="source" id="head-{h.name}" position={Position.Bottom} class="head-handle" style="left: {h.x}px; top: {h.y}px" isConnectable={false} />
+  {/each}
 </div>
 
 <style>
