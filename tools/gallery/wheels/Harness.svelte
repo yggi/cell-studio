@@ -7,7 +7,7 @@
   import { tagColours } from '../../../src/ui/tags';
   import type { Entry } from '../../../src/ui/entries';
   import { compileSource } from '../../../src/engine/compile';
-  import { buildGraph } from '../../../src/engine/graph';
+  import { buildGraph } from '../../../src/layout/drawn';
   import { pieceTime } from '../../../src/engine/duration';
   import { PRESETS } from '../../../src/engine/presets';
 

@@ -3,7 +3,8 @@
  * where a kind is what the edge looks like — the port it is read through, the shape of the transforms written on it —
  * so a new way to write an edge turns up here by itself. Beside them, the edges that aren't in the model: a meter's net.
  */
-import { buildGraph, type GraphEdge } from '../../../src/engine/graph';
+import { type GraphEdge } from '../../../src/engine/graph';
+import { buildGraph } from '../../../src/layout/drawn';
 import type { Transform } from '../../../src/engine/transform';
 import { groundsOf, meterIndex } from '../../../src/layout/meters';
 import type { Piece } from '../pieces';

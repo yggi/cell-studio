@@ -4,7 +4,7 @@
 // Run: PROBE=out.txt npx vitest run tools/probe/tower.test.ts
 import { describe, it } from 'vitest';
 import { appendFileSync } from 'node:fs';
-import { buildGraph } from '../../src/engine/graph';
+import { buildGraph } from '../../src/layout/drawn';
 import { compileSource } from '../../src/engine/compile';
 import { PRESETS } from '../../src/engine/presets';
 

@@ -6,8 +6,8 @@ import { liveAt } from '../engine/live';
 import { setAttr } from '../engine/edit';
 import { PRESETS } from '../engine/presets';
 import { cellView, hubLabel } from './cellview';
-import { buildGraph } from '../engine/graph';
-import { flowRanks } from './start';
+import { buildGraph } from './drawn';
+import { flowRanks } from './ranks';
 import { FITS, effectiveShow, inferShow, kindOf, noteLabel, pluginOf, tonicOf, voiceBase } from './show';
 
 const twinkle = (show: string) => setAttr(PRESETS.twinkle.source, 'tune', 'show', show);

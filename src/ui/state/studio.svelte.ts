@@ -204,7 +204,7 @@ export class Studio {
     await tick(); // the code view has to be visible before it can take focus
     // an unnamed cell lives inside the line it's written on: λ<line>_<column>
     const lambda = /^λ(\d+)_/.exec(name);
-    const i = lambda ? +lambda[1] - 1 : declLine(this.piece.code, name);
+    const i = lambda ? +lambda[1]! - 1 : declLine(this.piece.code, name);
     if (i >= 0) this.editor?.showLine(i + 1);
   }
 

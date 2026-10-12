@@ -100,7 +100,7 @@ export function buildResonator(raw: AudioContext, c: ResolvedCell, type: string,
       out.connect(own);
       disposers.push(() => (sum.disconnect(), delay.disconnect(), dark.disconnect(), fb!.disconnect(), out.disconnect()));
     } else
-      for (const [r, t, a] of BODIES[type]) {
+      for (const [r, t, a] of BODIES[type]!) {
         const fm = f * r;
         if (fm > 18000) continue;
         const inG = raw.createGain();
@@ -211,7 +211,7 @@ export const driveScale = (_r: Resonator) => 0.1;
 // the exciter a note plays: the nearest by pitch
 export const nearest = (r: Resonator, freq: number) => {
   const semis = 12 * Math.log2(Math.max(1e-6, freq) / r.f0);
-  return r.parts.reduce((a, p) => (Math.abs(p.shift - semis) < Math.abs(a.shift - semis) ? p : a), r.parts[0]);
+  return r.parts.reduce((a, p) => (Math.abs(p.shift - semis) < Math.abs(a.shift - semis) ? p : a), r.parts[0]!); // (a caller checks there are parts)
 };
 
 /** How strongly each mode (the strongest of it across the exciters) and each exciter (its fundamental) rings now, 0 … 1. */
@@ -222,7 +222,7 @@ export function resonanceOf(raw: AudioContext, r: Resonator): { modes: number[];
   const at = (f: number) => {
     const i = Math.round(f / hz);
     let top = -Infinity;
-    for (let k = Math.max(0, i - 2); k <= Math.min(bins.length - 1, i + 2); k++) top = Math.max(top, bins[k]);
+    for (let k = Math.max(0, i - 2); k <= Math.min(bins.length - 1, i + 2); k++) top = Math.max(top, bins[k]!);
     return Math.min(1, Math.max(0, (top + 90) / 60));
   };
   const n = Math.max(0, ...r.parts.map((p) => p.modes.length));

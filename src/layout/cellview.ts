@@ -10,7 +10,8 @@ import { NOTE_NAMES, mod, modeName } from '../theory/modes';
 import { playedCells } from '../engine/clocking';
 import { flatten, tapped } from '../engine/flatten';
 import { resolveIn } from '../engine/helix';
-import { bulbHosts, isTurntable } from '../engine/graph';
+import { isTurntable } from '../engine/graph';
+import { bulbHosts } from './drawn';
 import { bulbsOf, fanOf, type Bulb } from './track';
 
 /**
@@ -101,7 +102,8 @@ export interface CellView {
   readonly detents: number;
 }
 
-const pitchFill = (result: CompileResult, cell: string, value: number, alter: number, shifts: Shifts): Fill => {
+/** A pitch's fill: its hue and octave on the grid it resolves to, read through `cell`'s table. */
+export const pitchFill = (result: CompileResult, cell: string, value: number, alter: number, shifts: Shifts): Extract<Fill, { kind: 'pitch' }> => {
   const r = resolvePitch(result, cell, value, alter, shifts);
   return { kind: 'pitch', hue: positionHue(result, r.root, r.position), octave: positionOctave(result, r.root, r.position), alter };
 };
