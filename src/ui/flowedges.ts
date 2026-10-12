@@ -60,7 +60,7 @@ type Carrier = (e: GraphEdge, program: CompileResult) => Carried;
 
 const NOTHING: Carrier = () => ({ phaseCell: null, voice: null });
 /** The cell whose output plays a voice (its steps are the voice's notes). */
-const trigger = (program: CompileResult, voice: string) => program.outputs.find((o) => o.voice === voice)?.cell ?? null;
+const trigger = (program: CompileResult, voice: string) => program.outputs.find((o) => o.voice === voice && !o.drone)?.cell ?? null;
 
 /**
  * By band: ticks pulse with the steps of the cell they drive (a clock's), or a parameter's clock with the clock's own
