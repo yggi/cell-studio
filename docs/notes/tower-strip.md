@@ -124,9 +124,32 @@ The owner's next two: cut the wires' cost, and a middle set of forces. Same prob
 
 ![Pop, routed](tower-strip-routed-pop.jpg)
 
+## One strip, nets (2026-10-12)
+
+The owner's next: **the strip to the right** (one strip, its halves the channels: option A after all), **wires into the strip crossing each other don't count**, and **the audio edge and nets** instead of plain wires: each base frequency a net, instruments on one base frequency tapping into it.
+
+Built: `TowerStrips.svelte` one strip at the right (L half, R half, mirrored about the centre; a dot at its inner edge where each net comes in); `towerNets` (the wires gathered by their height, within half a pixel), `netPaths` (a trunk from the source furthest from the strip, routed; a riser from each other source); `TowerWires.svelte` draws them as an edge of sound (`.band-audio`, rippled at rest, `EdgePayload`'s wave while it sounds, the note's colour live).
+
+Same probe, 75 examples × 3 seeds, nets counted once, their crossings with each other not at all:
+
+| layout | crossings | area Mpx² | overlaps | wires (nets) | over a cell → hops | over an edge | wire length kpx |
+|---|---|---|---|---|---|---|---|
+| today, no card node | 33.3 | 65.4 | 0 | — | — | — | — |
+| tower, `TOWER_LAYOUT`, two strips, a wire a source | 90.7 | 108.3 | 0 | 480 | 152 → 137 | 403 | 341 |
+| **tower, `TOWER_LAYOUT`, one strip, a net a base frequency** | 90.7 | 108.3 | 0 | **175** | **63 → 63** | **171** | **133** |
+
+- The nets' crossings with edges fall by 58 % (403 → 171), their passes over cells by 58 % (152 → 63, each now a hop), their length by 61 %. Half of it is the one strip (a wire no longer spans the whole width, only from its source to the right), the rest the nets (sources on one pitch share a trunk: 480 wires were 175 heights).
+- The layout itself is unchanged (the nets don't pull on it): 91 crossings against today's 33 without the card.
+
+![the waltz, nets into one strip](tower-strip-nets-waltz.jpg)
+
+![Pop, nets into one strip](tower-strip-nets-pop.jpg)
+
+*The waltz* (live, the gallery's made-up sound): the C4 net leaves the flute, the strings join it; the tuba's net dips under their labels. *Pop*: the parts' mixes sit just above C4 and share one net; the bass's part its own.
+
 ## Next
 
 1. The tower layout still crosses about three times today's (91 against 33, the card left out of both), most in the pieces arranged with selectors, tapes and resonators (#234's language side: a selector that sends gates).
-2. The wires' crossings with edges: one strip (stereo on its two halves, option A) would halve them; or a wire runs to the near strip only, its other channel drawn on the strip itself.
+2. A net's crossings with edges: the layout could pull a net's sources toward the strip (the nearer, the shorter its trunk), measured as `over an edge`.
 3. Meters placed last on their row without overlapping (room made sideways), then measured again: today's forces with them crossed 77.
 4. A mix's own height (centre vs top), and the tower's axis against the strips: one of them, once the layout is chosen.

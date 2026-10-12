@@ -4,7 +4,7 @@ import { buildGraph } from '../engine/graph';
 import { compileSource } from '../engine/compile';
 import { ForceLayout } from './physics';
 import { TOWER_LAYOUT } from './options';
-import { routeWire, towerAt, towerHeights, towerIns, towerOuts, towerY, withoutCard } from './towerlayout';
+import { netPaths, routeWire, towerAt, towerNets, towerHeights, towerIns, towerOuts, towerY, withoutCard } from './towerlayout';
 import { socketOf, VOICE_SIZE } from './voice';
 
 const waltz = () => {
@@ -79,17 +79,17 @@ describe('the tower layout', () => {
   it('routes a wire over a cell in its way, under one it passes low through, and not round its own', () => {
     const box = (of: string, x: number, top: number, bottom: number) => ({ of, x0: x - 40, x1: x + 40, top, bottom });
     // its row through the upper part of a cell: over it
-    const over = routeWire(0, 100, 1000, [box('a', 400, 80, 200)], 'src');
+    const over = routeWire(0, 100, 1000, [box('a', 400, 80, 200)], new Set(['src']));
     expect(over.hops).toBe(1);
     expect(over.d).toContain(',70 ');
     // through its lower part: under it
-    const under = routeWire(0, 180, 1000, [box('a', 400, 80, 200)], 'src');
+    const under = routeWire(0, 180, 1000, [box('a', 400, 80, 200)], new Set(['src']));
     expect(under.d).toContain(',210 ');
     // two cells close together: one hop; its own cell, a cell off the row and one behind it: none
-    expect(routeWire(0, 100, 1000, [box('a', 400, 80, 200), box('b', 470, 60, 160)], 'src').hops).toBe(1);
-    expect(routeWire(0, 100, 1000, [box('src', 400, 80, 200), box('c', 400, 120, 300), box('d', -400, 80, 200)], 'src').hops).toBe(0);
+    expect(routeWire(0, 100, 1000, [box('a', 400, 80, 200), box('b', 470, 60, 160)], new Set(['src'])).hops).toBe(1);
+    expect(routeWire(0, 100, 1000, [box('src', 400, 80, 200), box('c', 400, 120, 300), box('d', -400, 80, 200)], new Set(['src'])).hops).toBe(0);
     // leftwards alike
-    expect(routeWire(0, 100, -1000, [box('d', -400, 80, 200)], 'src').hops).toBe(1);
+    expect(routeWire(0, 100, -1000, [box('d', -400, 80, 200)], new Set(['src'])).hops).toBe(1);
   });
 
   it('keeps held cells apart: the flute and the strings, one row, dropped on one place', () => {
@@ -108,5 +108,23 @@ describe('the tower layout', () => {
     expect(Math.abs(f.x - s.x)).toBeGreaterThan(150);
     expect(layout.quality().overlap).toBeLessThan(1);
     layout.destroy();
+  });
+
+  it('gathers the wires into one net a base frequency, the others tapping into its trunk', () => {
+    const { program, model } = waltz();
+    const at: Record<string, number> = { 'cell:flute': 400, 'cell:strings': 100, 'cell:tuba': 250 };
+    const ins = towerIns(towerOuts(program, model), program, (id) => ({
+      x: at[id],
+      y: towerY(id === 'cell:tuba' ? Math.log10(65.41) : Math.log10(261.63)) + socketOf(VOICE_SIZE),
+    }));
+    const nets = towerNets(ins);
+    expect(nets).toHaveLength(2);
+    const c4 = nets.find((n) => n.taps.length === 2)!;
+    // (the trunk from the source furthest from the strip: the strings, the flute tapping in)
+    expect(c4.taps.map((t) => t.from)).toEqual(['cell:strings', 'cell:flute']);
+    const paths = netPaths(c4, 1000, [{ of: 'cell:flute', x0: 360, x1: 440, top: c4.top - 10, bottom: c4.top + 200 }]);
+    // (its own sources are no obstacle to it)
+    expect(paths.hops).toBe(0);
+    expect(paths.risers).toHaveLength(1);
   });
 });

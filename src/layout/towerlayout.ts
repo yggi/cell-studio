@@ -3,7 +3,8 @@
  * height is its place on the frequency tower (`towerOf`, by its step), on one even log scale (`TOWER_PX` a decade, up
  * high), and only its x is left to the forces. A voice's top (where its sound leaves) sits at its base frequency; a
  * stepped cell's centre at its step; a cell with no height (a table nothing steps) is left free. The sound card has no
- * node: what goes into it goes into the tower's strips, a left one and a right one (`towerOuts`).
+ * node: what goes into it goes into the tower's strip at the graph's right, its left channel the strip's left half and
+ * its right channel the right half (`towerOuts`), one net a base frequency (`towerNets`).
  */
 import type { CompileResult } from '../engine/program';
 import type { GraphModel } from '../engine/graph';
@@ -32,7 +33,7 @@ export interface TowerOut {
   readonly right: boolean;
 }
 
-/** The edges into the sound card, as wires into the strips: a card of two channels sends its first left, its second right. */
+/** The edges into the sound card, as wires into the strip: a card of two channels sends its first left, its second right. */
 export function towerOuts(program: CompileResult, model: GraphModel): TowerOut[] {
   const card = cards(model);
   return model.edges.flatMap((e) => {
@@ -110,16 +111,16 @@ const BEND = 14;
 
 /**
  * A sound wire's path from its source's top (x, y) to a strip's inner edge at `to`: straight up a little, then level
- * at its height; where a cell is in the way (`obstacles`, its source's own left out) it hops over it, or under it when
+ * at its height; where a cell is in the way (`obstacles`, its sources' own, `own`, left out) it hops over it, or under it when
  * its row is nearer the cell's bottom, and comes back to its height after. Cells close together are one hop.
  */
-export function routeWire(x: number, y: number, to: number, obstacles: readonly TowerObstacle[], from: string): { d: string; hops: number } {
+export function routeWire(x: number, y: number, to: number, obstacles: readonly TowerObstacle[], own: ReadonlySet<string>): { d: string; hops: number } {
   const dir = to >= x ? 1 : -1;
   const hop = 28;
   const start = x + dir * hop * 1.6;
   // what is in the way along the row, nearest first, overlapping spans merged
   const along = obstacles
-    .filter((o) => o.of !== from && o.top < y && o.bottom > y && (dir > 0 ? o.x1 > start && o.x0 < to : o.x0 < start && o.x1 > to))
+    .filter((o) => !own.has(o.of) && o.top < y && o.bottom > y && (dir > 0 ? o.x1 > start && o.x0 < to : o.x0 < start && o.x1 > to))
     .map((o) => ({ a: dir > 0 ? o.x0 - CLEAR : o.x1 + CLEAR, b: dir > 0 ? o.x1 + CLEAR : o.x0 - CLEAR, top: o.top, bottom: o.bottom }))
     .sort((p, q) => dir * (p.a - q.a));
   const spans: { a: number; b: number; top: number; bottom: number }[] = [];
@@ -138,4 +139,43 @@ export function routeWire(x: number, y: number, to: number, obstacles: readonly 
     d += ` L${a - dir * BEND},${y} C${a},${y} ${a},${h} ${a + dir * BEND},${h} L${s.b - dir * BEND},${h} C${s.b},${h} ${s.b},${y} ${s.b + dir * BEND},${y}`;
   }
   return { d: d + ` L${to},${y}`, hops: spans.length };
+}
+
+/**
+ * One net a base frequency: the sources whose wires leave at one height (the same base frequency, or the same row), its
+ * trunk from the first of them (furthest from the strip) to the strip, the others tapping into it where they stand.
+ */
+export interface TowerNet {
+  readonly id: string;
+  readonly top: number;
+  /** Its sources, the one furthest from the strip first. */
+  readonly taps: readonly TowerIn[];
+  /** The halves of the strip it reaches: the union of its sources'. */
+  readonly left: boolean;
+  readonly right: boolean;
+}
+
+/** The wires into the strip, gathered into a net per height (within half a pixel), its sources by x. */
+export function towerNets(ins: readonly TowerIn[]): TowerNet[] {
+  const by = new Map<number, TowerIn[]>();
+  for (const w of ins) {
+    const k = Math.round(w.top * 2) / 2;
+    (by.get(k) ?? by.set(k, []).get(k)!).push(w);
+  }
+  return [...by].map(([top, taps]) => {
+    const sorted = [...taps].sort((a, b) => a.x - b.x);
+    return { id: sorted.map((t) => t.id).join('+'), top, taps: sorted, left: sorted.some((t) => t.left), right: sorted.some((t) => t.right) };
+  });
+}
+
+/**
+ * A net's paths to the strip's inner edge at `to` (right of the graph): its trunk from its first source, round the
+ * cells in its way, and a riser from each other source into it.
+ */
+export function netPaths(net: TowerNet, to: number, obstacles: readonly TowerObstacle[]): { trunk: string; risers: string[]; hops: number } {
+  const own = new Set(net.taps.map((t) => t.from));
+  const [first, ...rest] = net.taps;
+  const { d, hops } = routeWire(first.x, net.top, to, obstacles, own);
+  const hop = 28;
+  return { trunk: d, risers: rest.map((t) => `M${t.x},${net.top} C${t.x},${net.top - hop} ${t.x + hop},${net.top} ${t.x + hop * 1.6},${net.top}`), hops };
 }

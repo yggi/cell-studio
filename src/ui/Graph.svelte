@@ -252,7 +252,7 @@
   const edgeTypes = { pulse: PulseEdge, belt: BeltEdge, meter: MeterEdge };
 
   let legendOpen = $state(false);
-  // the tower layout (towerlayout.ts): the graph by the tower, the sound card its two strips (TowerStrips.svelte)
+  // the tower layout (towerlayout.ts): the graph by the tower, the sound card its strip at the right (TowerStrips.svelte)
   const towered = $derived(layout.mode === 'tower');
   let stripsOpen = $state(QUERY?.has('strips') ?? false);
   const stripW = $derived(stripsOpen ? STRIP_OPEN : STRIP);
@@ -418,7 +418,7 @@
     </SvelteFlow>
   </div>
   {#if towered}
-    <div class="strip-box"><TowerStrips {ins} {viewport} open={stripsOpen} ontoggle={() => (stripsOpen = !stripsOpen)} /></div>
+    <TowerStrips {ins} {viewport} open={stripsOpen} ontoggle={() => (stripsOpen = !stripsOpen)} />
   {/if}
   {#if towerShown}
     <TowerAxis model={shown.model} program={shown.program} nodes={layout.nodes} {viewport} focus={selectedName ?? towerCell} right={cardCover} />
@@ -432,7 +432,7 @@
       class:on={towered}
       onclick={() => layout.setMode(towered ? 'flow' : 'tower')}
       aria-pressed={towered}
-      title="Lay the graph out by the frequency tower: each cell at its time scale, the sound card two strips">tower layout</button
+      title="Lay the graph out by the frequency tower: each cell at its time scale, the sound card a strip at the right">tower layout</button
     >
     {#if !towered}<button
         class="forces-toggle"
@@ -505,27 +505,12 @@
   .graph.towered .hint {
     right: calc(var(--tower-width) + 16px);
   }
-  /* (the tower layout: a strip at each side, the graph between them) */
+  /* (the tower layout: its strip at the right, the graph beside it) */
   .graph.stripped .flow {
-    left: var(--strip-width);
     right: var(--strip-width);
   }
-  .graph.stripped.margined .flow {
-    left: calc(var(--margin-width) + var(--strip-width));
-  }
   .graph.stripped .hint {
-    left: calc(var(--strip-width) + 56px);
-  }
-  .graph.stripped .toolbar {
-    left: calc(var(--strip-width) + var(--space-2));
-  }
-  .strip-box {
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-  }
-  .graph.margined .strip-box {
-    left: var(--margin-width);
+    right: calc(var(--strip-width) + 16px);
   }
   .hint {
     position: absolute;

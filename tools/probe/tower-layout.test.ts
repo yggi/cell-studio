@@ -2,8 +2,8 @@
 // signal path's, over the library, three seeds. Each example laid out as the app lays it out (500 ticks, layNet):
 // today; today without the card's node (the same edges the tower layout draws, so crossings compare like for like);
 // the tower layout (heights held, its few forces); the tower layout with today's forces. Measured: crossings and their
-// cost between drawn edges, area, overlaps, and the tower's own wires into the strips: what they cross (cells in their
-// way, drawn edges) and how long they are.
+// cost between drawn edges, area, overlaps, and the tower's own nets into the strip (one a base frequency): what their
+// trunks cross (cells in their way, drawn edges; not each other) and how long they are.
 // Run: PROBE=out.txt npx vitest run tools/probe/tower-layout.test.ts   (ONLY=word: the examples with it in their key;
 // VARIANTS=0,2: only those rows; SEEDS=0,1,2)
 import { describe, it } from 'vitest';
@@ -13,7 +13,7 @@ import { buildGraph, type GraphModel } from '../../src/engine/graph';
 import { compileSource } from '../../src/engine/compile';
 import { PRESETS } from '../../src/engine/presets';
 import { TOWER_LAYOUT, type LayoutOptions } from '../../src/layout/options';
-import { routeWire, towerHeights, towerIns, towerOuts, withoutCard } from '../../src/layout/towerlayout';
+import { netPaths, towerHeights, towerIns, towerNets, towerOuts, withoutCard } from '../../src/layout/towerlayout';
 
 const log = (t: string) => appendFileSync(process.env.PROBE!, t + '\n');
 
@@ -98,9 +98,8 @@ function measure(source: string, v: Variant, seed: number): Row {
   if (v.tower) {
     const placed = (l as unknown as { placed(): Placed }).placed();
     const at = new Map(placed.nodes.map((n) => [n.id, n]));
-    // (the strips stand just outside the graph's box)
+    // (the strip stands just outside the graph's box, at its right)
     const cells = placed.nodes.filter((n) => !n.label);
-    const xl = Math.min(...cells.map((n) => n.x - n.r)) - 40;
     const xr = Math.max(...cells.map((n) => n.x + n.r)) + 40;
     // (a voice's room is its wheel and its label: its body, the part a wire visibly crosses, about 0.7 of it)
     const obstacles = placed.nodes
@@ -110,28 +109,26 @@ function measure(source: string, v: Variant, seed: number): Row {
       const n = at.get(id);
       return n && { x: n.x, y: n.y, height: n.r * 1.4 };
     });
-    for (const w of ins) {
-      for (const [x0, x1, on] of [
-        [xl, w.x, w.left],
-        [w.x, xr, w.right],
-      ] as const) {
-        if (!on) continue;
-        row.wires++;
-        row.length += Math.abs(x1 - x0);
-        for (const n of placed.nodes) {
-          if (n.id === w.from || n.of === w.from || (n.label && !n.of)) continue;
-          if (Math.abs(n.y - w.top) < n.r * 0.7 && n.x > Math.min(x0, x1) && n.x < Math.max(x0, x1)) {
-            row.overCells++;
-            if (!heights!.has(n.of ?? n.id)) row.overFree++;
-          }
+    // one net a base frequency, its trunk from its first source to the strip at the right (its wires crossing each
+    // other don't count: they are one bus into the card)
+    for (const net of towerNets(ins)) {
+      const own = new Set(net.taps.map((t) => t.from));
+      const x0 = net.taps[0].x;
+      row.wires++;
+      row.length += xr - x0;
+      for (const n of placed.nodes) {
+        if (own.has(n.id) || own.has(n.of ?? '') || (n.label && !n.of)) continue;
+        if (Math.abs(n.y - net.top) < n.r * 0.7 && n.x > x0 && n.x < xr) {
+          row.overCells++;
+          if (!heights!.has(n.of ?? n.id)) row.overFree++;
         }
-        row.hops += routeWire(w.x, w.top, x0 === w.x ? x1 : x0, obstacles, w.from).hops;
-        for (const e of placed.edges) {
-          if (e.a === w.from || e.b === w.from) continue;
-          const p = at.get(e.a);
-          const r = at.get(e.b);
-          if (p && r && crossesLevel(w.top, x0, x1, p, r)) row.overEdges++;
-        }
+      }
+      row.hops += netPaths(net, xr, obstacles).hops;
+      for (const e of placed.edges) {
+        if (own.has(e.a) || own.has(e.b)) continue;
+        const p = at.get(e.a);
+        const r = at.get(e.b);
+        if (p && r && crossesLevel(net.top, x0, xr, p, r)) row.overEdges++;
       }
     }
   }
@@ -147,7 +144,7 @@ describe.runIf(process.env.PROBE)('the tower layout', () => {
     const variants = pick ? VARIANTS.filter((_, i) => pick.includes(i)) : VARIANTS;
     const seeds = (process.env.SEEDS ?? '0,1,2').split(',').map(Number);
     log(`# The tower layout (${pieces.length} pieces × ${seeds.length} seeds; library sums, mean over seeds)\n`);
-    log('| layout | crossings | cost | area Mpx² | pieces with an overlap | wires into the strips | over a cell (of them free) | hops routed | over an edge | wire length kpx |');
+    log('| layout | crossings | cost | area Mpx² | pieces with an overlap | nets into the strip | over a cell (of them free) | hops routed | over an edge | wire length kpx |');
     log('|---|---|---|---|---|---|---|---|---|---|');
     const perPiece = new Map<string, Map<string, Row>>();
     let held = 0;
