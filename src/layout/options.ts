@@ -57,6 +57,8 @@ export interface LayoutOptions {
   loomOrder: number;
   /** (the tower layout) Each socket into the card straight above its source: its x its source's, only its height free. */
   socketsAbove: boolean;
+  /** (the tower layout) With `heightPull`: each socket held at its height (its row in the audible), not drawn there. */
+  socketsHeld: boolean;
   layerGap: number;
   /** Edge length at rest (px). */
   linkDistance: number;
@@ -144,6 +146,7 @@ export const DEFAULT_LAYOUT: LayoutOptions = {
   tapLoom: false,
   loomOrder: 0,
   socketsAbove: false,
+  socketsHeld: false,
   centre: 0.004,
   columnPull: 0.035,
   layerGap: 130,
@@ -168,7 +171,7 @@ export const DEFAULT_LAYOUT: LayoutOptions = {
  * layers and a socket each, crossings 124 held → 40 drawn, its nodes .6 of a decade off their heights on average
  * (docs/notes/tower-strip.md: the forces).
  */
-export const TOWER_LAYOUT: Partial<LayoutOptions> = { placeLast: 0, heightPull: 0.05, tapLoom: true, socketsAbove: true };
+export const TOWER_LAYOUT: Partial<LayoutOptions> = { placeLast: 0, heightPull: 0.05, tapLoom: true, socketsAbove: true, socketsHeld: true };
 
 /**
  * A node's room: the wheel itself (size= scales it), and what hangs under it — its label, as wide as

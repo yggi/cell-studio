@@ -380,7 +380,11 @@ export class ForceLayout {
       for (const n of this.s.byId.values()) {
         const y = h.get(n.id);
         if (y === undefined || n.y === undefined) continue;
-        n.vy = (n.vy ?? 0) + (y - n.y) * k * alpha;
+        // (socketsHeld: a socket at its height whatever pulls it, the rest drawn there by the spring)
+        if (this.s.opts.socketsHeld && n.id.startsWith('socket:')) {
+          n.y = y;
+          n.vy = 0;
+        } else n.vy = (n.vy ?? 0) + (y - n.y) * k * alpha;
       }
       return;
     }

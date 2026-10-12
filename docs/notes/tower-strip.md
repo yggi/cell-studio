@@ -272,6 +272,29 @@ The upper part is cleaner, as asked: the outs rise straight from their voices an
 - Kept: each piece compiled once (not per variant and seed), `TICKS=`, `TIMES=1`, and `COMPARE=1` (crossings by piece between the first two variants picked).
 - What would make it faster: the pieces across the machine's four cores (a shard per worker, the rows summed after), or a cheaper `stepBends`.
 
+## Every socket in the audible; the probe on every core (2026-10-13)
+
+Asked: all sockets sit in the audible layer; and the probe faster (the four-core split).
+
+- **The audible's floor** (`towerLayers`): a layer's gap (.6 decade) over the voice row. A socket sits at its sound's frequency, or at the floor when that is lower: a groove's lowest drum (A1, 55 Hz), a bass. 39 of the library's 237 sockets are lifted.
+- **Held there** (`LayoutOptions.socketsHeld`, on in `TOWER_LAYOUT`): drawn by the gentle pull (.05), a socket still sank toward its source; the drums' outs stood in the structure. Now a socket's height is held each tick; everything else keeps the spring.
+- **Found on the way:** the voice row rested on the structure's top, and a braid stepped at an audio rate (Waveforms) put that top in the kHz, a socket lifted to 127 kHz. The voices now rest on the structure below 20 Hz.
+
+| layout | crossings | area Mpx² | off its height, decades |
+|---|---|---|---|
+| today's, without the card | 24.0 | 58.9 | — |
+| before: loom, sockets above, drawn to their frequency | 51.0 | 77.2 | .62 |
+| the floor, drawn (not held) | 50.0 | 77.5 | .62 |
+| **the floor, held (default)** | **48.0** | 95.4 | .35 |
+| the floor, held, taps as traces | 38.0 | 95.6 | .35 |
+| the floor, held, sockets where the forces put them | 56.7 | 96.8 | .35 |
+
+The outs form the top row; the graph is taller (the outs at their real heights). Taps as traces now cross 10 fewer than the loom: the loom's place is open again.
+
+![Hypercell, every socket in the audible](tower-strip-audible.jpg)
+
+**The probe on every core:** `node tools/probe/parallel.mjs out.txt` (the same variables) runs a shard of the pieces per core (`SHARD=k/n`, each one's layouts as JSON) and merges them into one report (`MERGE=`). The four main rows: 89 s → 40 s, byte for byte the same table. (A shard is a vitest of its own: its start-up and the shards' uneven lengths keep it from a quarter.)
+
 ## Next
 
 1. The tower layout still crosses about three times today's (91 against 33, the card left out of both), most in the pieces arranged with selectors, tapes and resonators (#234's language side: a selector that sends gates).

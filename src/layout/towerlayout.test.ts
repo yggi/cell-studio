@@ -204,4 +204,39 @@ describe('the tower layout', () => {
     }
     layout.destroy();
   });
+
+  it("puts every socket in the audible, over the voices: a groove's lowest drum lifted to its floor", () => {
+    const program = compileSource(`&bar scan(1 1 1 1) step=120bpm
+&bd oneshot s=sine loop=A1 env=&(map=adsr 0 .3 0 .05)
+&hh s=white hpf=8000 env=&(map=adsr 0 .04 0 .02)
+&lead s=saw loop=C5
+&tune step=&bar*2 0 2 4 7
+&beat step=&bar*2 &bd &hh &bd &hh
+&out map=sample [&beat, &tune * &lead]`);
+    const model = buildGraph(program);
+    const drawn = withSockets(model);
+    const own = socketHeights(program, model, drawn);
+    const { targets, layers } = towerLayers(program, model, drawn);
+    const voice = Math.max(...[...layers].filter(([, l]) => l === 'voice').map(([id]) => towerAt(targets.get(id)!)));
+    const sockets = [...layers].filter(([, l]) => l === 'audible').map(([id]) => id);
+    expect(sockets).toHaveLength(2);
+    for (const id of sockets) expect(towerAt(targets.get(id)!)).toBeGreaterThanOrEqual(voice + 0.6 - 1e-9);
+    // (the groove's socket, at A1 by its lowest drum, lifted; the lead's, at C5, kept at its pitch)
+    const [groove, lead] = [sockets.find((id) => id.includes('beat'))!, sockets.find((id) => id.includes('lead'))!];
+    expect(targets.get(groove)).toBeLessThan(own.get(groove)!);
+    expect(targets.get(lead)).toBeCloseTo(own.get(lead)!, 6);
+  });
+
+  it('rests the voices on the structure below hearing: a braid at an audio rate keeps its own height', () => {
+    const program = compileSource(`&bar scan(1 1 1 1) step=120bpm
+&wave map=lin step=440 0 1 0 -1
+&lead s=saw loop=C4
+&tune step=&bar 0 2 4 7
+&out map=sample [&tune * &lead * &wave]`);
+    const model = buildGraph(program);
+    const drawn = withSockets(model);
+    const { targets } = towerLayers(program, model, drawn);
+    // (the voice row between the bar and the lead's socket, not over the wave's 440 Hz)
+    expect(towerAt(targets.get('cell:lead')!)).toBeLessThan(Math.log10(261.63));
+  });
 });

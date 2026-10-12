@@ -6,9 +6,9 @@
 // trunks cross (cells in their way, drawn edges; not each other) and how long they are.
 // Run: PROBE=out.txt npx vitest run tools/probe/tower-layout.test.ts   (ONLY=word: the examples with it in their key;
 // VARIANTS=0,2: only those rows; SEEDS=0,1,2; TICKS=500; TIMES=1: where the time went; COMPARE=1: crossings by piece,
-// the first two variants picked)
+// the first two variants picked). On every core: node tools/probe/parallel.mjs out.txt (the same variables)
 import { describe, it } from 'vitest';
-import { appendFileSync } from 'node:fs';
+import { appendFileSync, readFileSync, writeFileSync } from 'node:fs';
 import { ForceLayout } from '../../src/layout/physics';
 import { type GraphModel } from '../../src/engine/graph';
 import { buildGraph } from '../../src/layout/drawn';
@@ -44,6 +44,7 @@ const VARIANTS: Variant[] = [
     layers: true,
   },
   { name: 'sockets where the forces put them (as before)', tower: true, card: false, opts: { ...TOWER_LAYOUT, socketsAbove: false }, sockets: true, layers: true },
+  { name: 'sockets above, drawn to their height (not held)', tower: true, card: false, opts: { ...TOWER_LAYOUT, socketsHeld: false }, sockets: true, layers: true },
   { name: 'loom, in order .02', tower: true, card: false, opts: { ...TOWER_LAYOUT, loomOrder: 0.02 }, sockets: true, layers: true },
   { name: 'loom, in order .05', tower: true, card: false, opts: { ...TOWER_LAYOUT, loomOrder: 0.05 }, sockets: true, layers: true },
   { name: 'loom, in order .1', tower: true, card: false, opts: { ...TOWER_LAYOUT, loomOrder: 0.1 }, sockets: true, layers: true },
@@ -193,66 +194,85 @@ function measure(source: string, v: Variant, seed: number): Row {
   return row;
 }
 
+/** One layout measured: which variant, which piece, which seed. */
+type Measured = { variant: string; key: string; seed: number; row: Row };
+
+/** The table and the pieces most hurt, from every layout measured (one run's, or the shards' merged). */
+function report(all: readonly Measured[], variants: readonly Variant[], pieces: number, seeds: readonly number[]): void {
+  log(`# The tower layout (${pieces} pieces × ${seeds.length} seeds; library sums, mean over seeds)\n`);
+  log(
+    '| layout | crossings | cost | area Mpx² | pieces with an overlap | nets into the strip | over a cell (of them free) | hops routed | over an edge | wire length kpx | off its height, decades (mean, most) |',
+  );
+  log('|---|---|---|---|---|---|---|---|---|---|---|');
+  const perPiece = new Map<string, Map<string, Row>>();
+  let held = 0;
+  let nodes = 0;
+  for (const v of variants) {
+    const mine = all.filter((m) => m.variant === v.name);
+    const rows = mine.map((m) => m.row);
+    for (const { key, seed, row: r } of mine) {
+      const m = perPiece.get(key) ?? new Map<string, Row>();
+      const acc = m.get(v.name);
+      m.set(v.name, acc ? { ...acc, crossings: acc.crossings + r.crossings, overCells: acc.overCells + r.overCells, overEdges: acc.overEdges + r.overEdges } : { ...r });
+      perPiece.set(key, m);
+      if (v.tower && seed === seeds[0] && v === variants.find((x) => x.tower)) {
+        held += r.held;
+        nodes += r.nodes;
+      }
+    }
+    const sum = (f: (r: Row) => number) => rows.reduce((n, r) => n + f(r), 0) / seeds.length;
+    const t = v.tower;
+    log(
+      `| ${v.name} | ${sum((r) => r.crossings).toFixed(1)} | ${sum((r) => r.cost).toFixed(1)} | ${sum((r) => r.area).toFixed(1)} | ${sum((r) => r.overlap).toFixed(1)} | ${t ? sum((r) => r.wires).toFixed(0) : '—'} | ${t ? `${sum((r) => r.overCells).toFixed(1)} (${sum((r) => r.overFree).toFixed(1)})` : '—'} | ${t ? sum((r) => r.hops).toFixed(1) : '—'} | ${t ? sum((r) => r.overEdges).toFixed(1) : '—'} | ${t ? (sum((r) => r.length) / 1000).toFixed(0) : '—'} | ${t ? `${(sum((r) => r.off) / pieces).toFixed(3)}, ${Math.max(...rows.map((r) => r.offMax)).toFixed(2)}` : '—'} |`,
+    );
+  }
+  if (process.env.TIMES)
+    log(
+      `\ntimes (s): ${Object.entries(T)
+        .map(([k, t]) => `${k} ${(t / 1000).toFixed(1)}`)
+        .join(', ')}`,
+    );
+  if (nodes) log(`\nheld at a height: ${held} of ${nodes} nodes (${Math.round((100 * held) / nodes)} %)`);
+  // the pieces the tower layout helps or hurts most, crossings against today without the card (mean of the seeds);
+  // COMPARE: the first two variants picked
+  const [base, tower] = process.env.COMPARE ? variants : [variants.find((v) => !v.tower && !v.card), variants.find((v) => v.opts === TOWER_LAYOUT)];
+  if (!base || !tower) return;
+  const d = [...perPiece]
+    .map(([k, m]) => ({
+      k,
+      base: (m.get(base.name)?.crossings ?? 0) / seeds.length,
+      tower: (m.get(tower.name)?.crossings ?? 0) / seeds.length,
+      cells: (m.get(tower.name)?.overCells ?? 0) / seeds.length,
+      edges: (m.get(tower.name)?.overEdges ?? 0) / seeds.length,
+    }))
+    .sort((a, b) => b.tower - b.base - (a.tower - a.base) || a.k.localeCompare(b.k));
+  log(`\ncrossings by piece, ${base.name} → ${tower.name} (+ its wires over cells / over edges), the most hurt first:`);
+  for (const r of d.slice(0, 10)) log(`  ${r.k.padEnd(28)} ${r.base.toFixed(1)} → ${r.tower.toFixed(1)}  (+${r.cells.toFixed(1)} / +${r.edges.toFixed(1)})`);
+  log('  …');
+  for (const r of d.slice(-6)) log(`  ${r.k.padEnd(28)} ${r.base.toFixed(1)} → ${r.tower.toFixed(1)}  (+${r.cells.toFixed(1)} / +${r.edges.toFixed(1)})`);
+  log(`\nwaltz: ${JSON.stringify(d.find((r) => r.k.includes('waltz')))}`);
+}
+
+// (SHARD=k/n: every n-th piece from the k-th, its layouts written raw to PROBE as JSON; MERGE=a.json,b.json,…: the
+// shards' layouts read back and reported as one run. tools/probe/parallel.mjs runs the shards side by side, then the
+// merge: the same numbers, a core each)
 describe.runIf(process.env.PROBE)('the tower layout', () => {
   it('measures the library', () => {
     const only = process.env.ONLY;
-    const pieces = Object.entries(PRESETS).filter(([k]) => !only || k.toLowerCase().includes(only.toLowerCase()));
+    const all = Object.entries(PRESETS).filter(([k]) => !only || k.toLowerCase().includes(only.toLowerCase()));
     const pick = process.env.VARIANTS?.split(',').map(Number);
     const variants = pick ? VARIANTS.filter((_, i) => pick.includes(i)) : VARIANTS;
     const seeds = (process.env.SEEDS ?? '0,1,2').split(',').map(Number);
-    log(`# The tower layout (${pieces.length} pieces × ${seeds.length} seeds; library sums, mean over seeds)\n`);
-    log(
-      '| layout | crossings | cost | area Mpx² | pieces with an overlap | nets into the strip | over a cell (of them free) | hops routed | over an edge | wire length kpx | off its height, decades (mean, most) |',
-    );
-    log('|---|---|---|---|---|---|---|---|---|---|---|');
-    const perPiece = new Map<string, Map<string, Row>>();
-    let held = 0;
-    let nodes = 0;
-    for (const v of variants) {
-      const rows: Row[] = [];
-      for (const seed of seeds)
-        for (const [key, p] of pieces) {
-          const r = measure(p.source, v, seed);
-          rows.push(r);
-          const m = perPiece.get(key) ?? new Map<string, Row>();
-          const acc = m.get(v.name);
-          m.set(v.name, acc ? { ...acc, crossings: acc.crossings + r.crossings, overCells: acc.overCells + r.overCells, overEdges: acc.overEdges + r.overEdges } : { ...r });
-          perPiece.set(key, m);
-          if (v.tower && seed === seeds[0] && v === variants.find((x) => x.tower)) {
-            held += r.held;
-            nodes += r.nodes;
-          }
-        }
-      const sum = (f: (r: Row) => number) => rows.reduce((n, r) => n + f(r), 0) / seeds.length;
-      const t = v.tower;
-      log(
-        `| ${v.name} | ${sum((r) => r.crossings).toFixed(1)} | ${sum((r) => r.cost).toFixed(1)} | ${sum((r) => r.area).toFixed(1)} | ${sum((r) => r.overlap).toFixed(1)} | ${t ? sum((r) => r.wires).toFixed(0) : '—'} | ${t ? `${sum((r) => r.overCells).toFixed(1)} (${sum((r) => r.overFree).toFixed(1)})` : '—'} | ${t ? sum((r) => r.hops).toFixed(1) : '—'} | ${t ? sum((r) => r.overEdges).toFixed(1) : '—'} | ${t ? (sum((r) => r.length) / 1000).toFixed(0) : '—'} | ${t ? `${(sum((r) => r.off) / pieces.length).toFixed(3)}, ${Math.max(...rows.map((r) => r.offMax)).toFixed(2)}` : '—'} |`,
-      );
+    if (process.env.MERGE) {
+      const measured = process.env.MERGE.split(',').flatMap((f) => JSON.parse(readFileSync(f, 'utf8')) as Measured[]);
+      report(measured, variants, all.length, seeds);
+      return;
     }
-    if (process.env.TIMES)
-      log(
-        `\ntimes (s): ${Object.entries(T)
-          .map(([k, t]) => `${k} ${(t / 1000).toFixed(1)}`)
-          .join(', ')}`,
-      );
-    if (nodes) log(`\nheld at a height: ${held} of ${nodes} nodes (${Math.round((100 * held) / nodes)} %)`);
-    // the pieces the tower layout helps or hurts most, crossings against today without the card (mean of the seeds);
-    // COMPARE: the first two variants picked
-    const [base, tower] = process.env.COMPARE ? variants : [variants.find((v) => !v.tower && !v.card), variants.find((v) => v.opts === TOWER_LAYOUT)];
-    if (!base || !tower) return;
-    const d = [...perPiece]
-      .map(([k, m]) => ({
-        k,
-        base: (m.get(base.name)?.crossings ?? 0) / seeds.length,
-        tower: (m.get(tower.name)?.crossings ?? 0) / seeds.length,
-        cells: (m.get(tower.name)?.overCells ?? 0) / seeds.length,
-        edges: (m.get(tower.name)?.overEdges ?? 0) / seeds.length,
-      }))
-      .sort((a, b) => b.tower - b.base - (a.tower - a.base));
-    log(`\ncrossings by piece, ${base.name} → ${tower.name} (+ its wires over cells / over edges), the most hurt first:`);
-    for (const r of d.slice(0, 10)) log(`  ${r.k.padEnd(28)} ${r.base.toFixed(1)} → ${r.tower.toFixed(1)}  (+${r.cells.toFixed(1)} / +${r.edges.toFixed(1)})`);
-    log('  …');
-    for (const r of d.slice(-6)) log(`  ${r.k.padEnd(28)} ${r.base.toFixed(1)} → ${r.tower.toFixed(1)}  (+${r.cells.toFixed(1)} / +${r.edges.toFixed(1)})`);
-    log(`\nwaltz: ${JSON.stringify(d.find((r) => r.k.includes('waltz')))}`);
+    const [k, n] = (process.env.SHARD ?? '0/1').split('/').map(Number);
+    const pieces = all.filter((_, i) => i % n === k);
+    const measured: Measured[] = [];
+    for (const v of variants) for (const seed of seeds) for (const [key, p] of pieces) measured.push({ variant: v.name, key, seed, row: measure(p.source, v, seed) });
+    if (process.env.SHARD) writeFileSync(process.env.PROBE!, JSON.stringify(measured));
+    else report(measured, variants, all.length, seeds);
   }, 3_600_000);
 });

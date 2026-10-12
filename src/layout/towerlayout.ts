@@ -273,13 +273,18 @@ export function towerLayers(program: CompileResult, model: GraphModel, drawn: Gr
     }
   }
   const of = (layer: TowerLayer) => [...layers].flatMap(([id, l]) => (l === layer && decades.has(id) ? [decades.get(id)!] : []));
-  const structure = of('structure');
+  // (the voices rest on the structure below hearing: a braid stepped at an audio rate, a wave, keeps its own height)
+  const structure = of('structure').filter((d) => d < Math.log10(20));
   const audible = of('audible');
   const top = structure.length ? Math.max(...structure) : 0;
   const bottom = structure.length ? Math.min(...structure) : 0;
   // (the voices: a row between the structure's top and the lowest socket, a layer's gap over the structure at least)
   const voice = Math.max(top + LAYER_GAP, audible.length ? (top + Math.min(...audible)) / 2 : top + LAYER_GAP);
+  // (every socket in the audible, a layer's gap over the voices at least: at its sound's frequency, or the audible's
+  // floor when that is lower — a groove's lowest drum)
+  const floor = voice + LAYER_GAP;
   const targets = new Map<string, number>();
-  for (const [id, l] of layers) targets.set(id, towerY(l === 'voice' ? voice : l === 'table' ? bottom - LAYER_GAP : decades.get(id)!));
+  for (const [id, l] of layers)
+    targets.set(id, towerY(l === 'voice' ? voice : l === 'table' ? bottom - LAYER_GAP : l === 'audible' ? Math.max(floor, decades.get(id)!) : decades.get(id)!));
   return { targets, layers };
 }
