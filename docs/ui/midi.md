@@ -120,6 +120,13 @@ as MIDI** in the Files page.
     skipping ahead where they pile up: a fold of under a second is seen in a few); the strip at its foot says the round
     and the move, **Stop** keeps the piece as far as it got. At the end, the fold taken: the one with variants or the
     one without (`STRUCTURE`), or the notes written out if a fold doesn't play the same.
+  - *In degrees* ([decision 028](../decisions/028-degrees.md), #344): the folder folds the piece twice, in semitones
+    and in degrees of its key, and keeps the shorter. The key is the scale (major, minor or harmonic minor, on any
+    tonic) its notes need fewest accidentals over, a tie going to the one whose tonic the bass ends on
+    (`engine/fold/degrees.ts`). Folded in degrees, the piece declares it (`&key scale(minor, C)`), each line reads
+    through it (`over=&key`), a note is its degree (`6#`: the seventh raised a semitone) and a phrase comes back a step
+    of the scale higher as itself moved (`&m3^1`), as a sequence does. Figures over chord tables are looked for in
+    semitones only. The status line says which: *folded … in degrees of C minor*.
 
 ## The MIDI library
 

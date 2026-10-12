@@ -25,7 +25,7 @@ self.onmessage = (e: MessageEvent<FoldJob>) => {
     credit,
     watch: (source, { tool, round }) => {
       const now = performance.now();
-      if (tool !== 'start' && tool !== 'done' && now - last < every) return;
+      if (tool !== 'start' && tool !== 'folded' && tool !== 'done' && now - last < every) return;
       last = now;
       postMessage({ kind: 'step', source: source(), tool, round } satisfies FoldAnswer);
     },
