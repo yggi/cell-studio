@@ -42,11 +42,12 @@ export interface NetPlace {
   readonly id: string;
 }
 
-/** A note into a resonator with tines picks one (or reads through them): each tine's pitch (semitones from C4), for the strands at its pads. */
+/** A note into a resonator picks one of its exciters (or reads through them): each one's pitch (semitones from C4), for a strand to each. */
 function tinesOf(e: GraphEdge, program: CompileResult): number[] | null {
-  // (a tune plays the tines — the resonator at the edge's end; or reads through them, over= — at its start)
-  const c = e.port === 'voice' ? program.cells.get(e.sound ?? nameOf(e.to)) : e.port === 'over' ? program.cells.get(nameOf(e.from)) : undefined;
-  if (!c || typeof c.params.body !== 'string' || (c.exciters?.length ?? 0) < 2) return null;
+  // (a tune plays them, or a product's notes go to them, `is` — the resonator at the edge's end; or a tune reads
+  // through them, over= — at its start)
+  const c = e.port === 'voice' || e.port === 'is' ? program.cells.get(e.sound ?? nameOf(e.to)) : e.port === 'over' ? program.cells.get(nameOf(e.from)) : undefined;
+  if (!c || typeof c.params.body !== 'string' || !c.exciters?.length) return null;
   const f0 = c.freq > 0 ? c.freq : 440;
   return c.exciters!.map((x) => 12 * Math.log2(f0 / DEFAULT_FREQ) + x.shift);
 }

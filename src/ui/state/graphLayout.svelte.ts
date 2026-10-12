@@ -9,7 +9,7 @@ import { towerHeights, towerOuts, withoutCard, type TowerOut } from '../../layou
 import type { MeterTrace } from '../../layout/state';
 import { meterIndex } from '../../layout/meters';
 import { towerOf, towerRanks, zoneRanks } from '../../layout/tower';
-import { flowRanks } from '../../layout/start';
+import { flowRanks } from '../../layout/ranks';
 import { isSide, sideless } from '../../layout/side';
 import { flowNodeOf, PETAL, physical } from '../flownode';
 import { flowEdgesOf } from '../flowedges';
@@ -294,5 +294,5 @@ export class GraphLayout {
   }
 }
 
-const sameNet = (a: readonly MeterTrace[], b: readonly MeterTrace[]) => a.length === b.length && a.every((t, i) => t.id === b[i].id);
+const sameNet = (a: readonly MeterTrace[], b: readonly MeterTrace[]) => a.length === b.length && a.every((t, i) => t.id === b[i]!.id);
 const same = (a: readonly unknown[], b: readonly unknown[]) => a.length === b.length && a.every((x, i) => x === b[i]);

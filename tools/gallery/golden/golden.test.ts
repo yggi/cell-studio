@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { compileSource } from '../../../src/engine/compile';
-import { buildGraph } from '../../../src/engine/graph';
+import { buildGraph } from '../../../src/layout/drawn';
 import { ForceLayout } from '../../../src/layout/physics';
 import { coverage } from './coverage';
 import { golden } from './golden';

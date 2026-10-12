@@ -37,13 +37,13 @@ export function tokenize(line: string): Token[] {
   while (i < line.length) {
     const rest = line.slice(i);
     // a comment: # at the line's start or after a space, or //
-    if ((rest[0] === '#' && (i === 0 || /\s/.test(line[i - 1]))) || rest.startsWith('//')) {
+    if ((rest[0] === '#' && (i === 0 || /\s/.test(line[i - 1]!))) || rest.startsWith('//')) {
       push(rest, 'comment');
       break;
     }
     const fn = FUNCS.exec(rest);
     if (fn) {
-      push(fn[1], 'func');
+      push(fn[1]!, 'func');
       push('(', 'punct');
       i += fn[0].length;
       continue;
@@ -59,7 +59,7 @@ export function tokenize(line: string): Token[] {
       }
     }
     if (!matched) {
-      push(rest[0], 'punct');
+      push(rest[0]!, 'punct');
       i++;
     }
   }

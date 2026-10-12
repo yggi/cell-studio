@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { buildGraph } from '../engine/graph';
+import { buildGraph } from './drawn';
 import { compileSource } from '../engine/compile';
 import { ForceLayout } from './physics';
 import { TOWER_LAYOUT } from './options';

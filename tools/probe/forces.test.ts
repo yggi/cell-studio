@@ -7,7 +7,7 @@ import { describe, it } from 'vitest';
 import { appendFileSync } from 'node:fs';
 import { PRESETS } from '../../src/engine/presets';
 import { compileSource } from '../../src/engine/compile';
-import { buildGraph } from '../../src/engine/graph';
+import { buildGraph } from '../../src/layout/drawn';
 import { ForceLayout } from '../../src/layout/physics';
 import type { LayoutOptions } from '../../src/layout/options';
 

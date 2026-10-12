@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { compileSource } from '../engine/compile';
-import { buildGraph } from '../engine/graph';
+import { buildGraph } from './drawn';
 import { crossingCost, massOf, SAME_KIND, strengthOf } from './weights';
 
 // The layout's weights (docs/notes/nets.md): a node's mass by what it is, an edge's strength by what it carries.

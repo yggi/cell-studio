@@ -68,6 +68,8 @@ One line each; the record has the rationale. → [decisions/](decisions/README.m
 - 021 · One rule for every sub-wheel: a cell that is only part of another is drawn on it as a bulb, placed by the host's own coordinate (a splice by its time, a tap in its fan, a kit's voice as its piece of a drum kit, by its name, a tape's read head by `at=` of `length=`; a gate's voices are not part of it and keep their nodes); a tap's and a head's edges leave from the bulb; a tape's head bulbs stay put while the reel turns and turn with the layout's turn of the tape · → decisions/021-tape-heads.md
 - 022 · A gate sends notes, the sound leaves from the voice: a gate's (and a product's junction's, an unnamed gate drawn as a small meter) one output is a note bus to its voices; each voice's sound goes into each mix it is in, one wire per mix; drawing only · → decisions/022-gates-send-notes.md
 - 023 · A gate is `play=&x` (the notes), `level=&a*&b*n` (one intensity, a product) and what it plays: a voice or a kit, a chord of voices (all), several bare voices (a kit, one picked); the old `trigger=` `velocity=` `gate=` `gain=` still read, Shorten rewrites them · → decisions/023-gate-spelling.md
+- 024 · A resonator is drawn as its body: its disc of its material, the body engraved over its mode rings, each exciter its body's element at its turn out to its strand (a bus through the loom, a single strand straight to it) · → decisions/024-resonator-bodies.md
+- 025 · A MIDI file opens as it is: its text in the code editor (`engine/miditext.ts`), playing through its notes written out behind the scenes; the graph waits; Convert to cells is an action · → decisions/025-midi-documents.md
 
 ## Where things are tracked
 

@@ -52,34 +52,45 @@
   </div>
 
   <section class="canvas" class:away={view.tab !== 'graph'} inert={view.narrow && view.tab !== 'graph'} aria-label="Cell graph">
-    <Graph
-      model={piece.graph}
-      program={piece.program}
-      muted={piece.muted}
-      routed={piece.routed}
-      heads={playback.heads}
-      transport={playback.state}
-      shifts={piece.shifts}
-      ontoggle={(id) => piece.toggle(id)}
-      onturn={(name, shift) => piece.turn(name, shift)}
-      onshowcode={(name) => studio.showInCode(name)}
-      source={piece.code}
-      sound={playback.sound}
-      onedit={(s) => (piece.code = s)}
-      onadd={() => studio.add()}
-      onrename={(s, to) => studio.rename(s, to)}
-      onfree={(spec, v) => piece.hold(spec, v)}
-      epoch={playback.epoch}
-      nudge={(sec) => playback.nudge(sec)}
-      cursor={playback.cursor}
-      opened={library.opened}
-      focus={view.focus}
-      onsheet={(name) => (studio.keys.sheet = name)}
-      played={studio.keys.lit}
-      rows={studio.rows}
-      onlayout={(l) => (view.layout = l)}
-      ontime={view.narrow ? undefined : () => (view.tab = 'time')}
-    />
+    {#if piece.midi}
+      <!-- a MIDI file has no cells to draw until it is converted (decision 025) -->
+      <div class="midi-graph">
+        <p>A MIDI file, open as it is: it plays, and the time view shows it. Its cells and their graph come when it is converted.</p>
+        <div class="actions">
+          <button class="primary" onclick={() => studio.convert()}>Convert to cells</button>
+          <button onclick={() => (view.tab = 'time')}>Show it in time</button>
+        </div>
+      </div>
+    {:else}
+      <Graph
+        model={piece.graph}
+        program={piece.program}
+        muted={piece.muted}
+        routed={piece.routed}
+        heads={playback.heads}
+        transport={playback.state}
+        shifts={piece.shifts}
+        ontoggle={(id) => piece.toggle(id)}
+        onturn={(name, shift) => piece.turn(name, shift)}
+        onshowcode={(name) => studio.showInCode(name)}
+        source={piece.code}
+        sound={playback.sound}
+        onedit={(s) => (piece.code = s)}
+        onadd={() => studio.add()}
+        onrename={(s, to) => studio.rename(s, to)}
+        onfree={(spec, v) => piece.hold(spec, v)}
+        epoch={playback.epoch}
+        nudge={(sec) => playback.nudge(sec)}
+        cursor={playback.cursor}
+        opened={library.opened}
+        focus={view.focus}
+        onsheet={(name) => (studio.keys.sheet = name)}
+        played={studio.keys.lit}
+        rows={studio.rows}
+        onlayout={(l) => (view.layout = l)}
+        ontime={view.narrow ? undefined : () => (view.tab = 'time')}
+      />
+    {/if}
     {#if piece.stale}
       <p class="stale">Showing the last version that compiled</p>
     {/if}
@@ -96,7 +107,14 @@
   </section>
   <section class="side" class:away={view.tab !== 'code'} inert={view.narrow && view.tab !== 'code'} aria-label="Program">
     <Editor bind:this={studio.editor} bind:value={piece.code} diagnostics={piece.result.diagnostics} />
-    <Shorten code={piece.code} onapply={(next) => (piece.code = next)} />
+    {#if piece.midi}
+      <div class="convert">
+        <span>A MIDI file, as text: {piece.midi.smf.tracks.reduce((n, t) => n + t.notes.length, 0)} notes in {piece.midi.smf.tracks.length} tracks</span>
+        <button onclick={() => studio.convert()}>Convert to cells</button>
+      </div>
+    {:else}
+      <Shorten code={piece.code} onapply={(next) => (piece.code = next)} />
+    {/if}
   </section>
   <section class="select" class:away={view.tab !== 'select'} class:front={view.tab === 'select'} inert={view.tab !== 'select'} aria-label="Choose a piece">
     <Picker embedded />
@@ -104,6 +122,50 @@
 </div>
 
 <style>
+  /* a MIDI file: no graph until it is converted; under its text, what it is and the action */
+  .midi-graph {
+    height: 100%;
+    display: grid;
+    place-content: center;
+    gap: var(--space-3);
+    padding: var(--space-4);
+    max-width: 34rem;
+    margin: 0 auto;
+    color: var(--text-muted);
+    font: 500 var(--text-md) var(--font-ui);
+    text-align: center;
+  }
+  .midi-graph .actions {
+    display: flex;
+    gap: var(--space-2);
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  .midi-graph button,
+  .convert button {
+    min-height: 36px;
+    padding: 0 14px;
+    border-radius: var(--radius-pill);
+    border: 1px solid var(--line);
+    background: var(--surface);
+    color: var(--text);
+    font: 600 var(--text-sm) var(--font-ui);
+    cursor: pointer;
+  }
+  .midi-graph button.primary,
+  .convert button {
+    border-color: var(--accent);
+  }
+  .convert {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+    border-top: 1px solid var(--line);
+    color: var(--text-muted);
+    font: 500 var(--text-sm) var(--font-ui);
+  }
   /* Phone: header, tabs, and one full-size view — the graph or the code.
      Both stay mounted (the hidden one keeps its size), so switching is instant. */
   .app {

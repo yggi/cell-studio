@@ -80,7 +80,7 @@ export function wav(buffer: AudioBuffer): Blob {
   let at = 44;
   for (let i = 0; i < len; i++)
     for (let c = 0; c < chs; c++) {
-      const v = Math.max(-1, Math.min(1, channels[c][i]));
+      const v = Math.max(-1, Math.min(1, channels[c]![i]!));
       data.setInt16(at, v < 0 ? v * 0x8000 : v * 0x7fff, true);
       at += 2;
     }
@@ -108,7 +108,7 @@ export function loudness(buffer: AudioBuffer): { rms: number; peak: number; clip
   for (let ch = 0; ch < buffer.numberOfChannels; ch++) {
     const d = buffer.getChannelData(ch);
     for (let i = 0; i < d.length; i++) {
-      const v = Math.abs(d[i]);
+      const v = Math.abs(d[i]!);
       sum += v * v;
       if (v > top) top = v;
       if (v >= 0.999) clipped++;
@@ -124,7 +124,7 @@ export function sampleHash(buffer: AudioBuffer): string {
   let h = 0x811c9dc5;
   for (let ch = 0; ch < buffer.numberOfChannels; ch++) {
     const bits = new Uint32Array(Float32Array.from(buffer.getChannelData(ch)).buffer);
-    for (let i = 0; i < bits.length; i++) h = Math.imul(h ^ bits[i], 0x01000193) >>> 0;
+    for (let i = 0; i < bits.length; i++) h = Math.imul(h ^ bits[i]!, 0x01000193) >>> 0;
   }
   return h.toString(16).padStart(8, '0');
 }
@@ -136,7 +136,7 @@ export function blockLevels(buffer: AudioBuffer, size = 2048): number[] {
   for (let at = 0; at < buffer.length; at += size) {
     let sum = 0;
     const end = Math.min(buffer.length, at + size);
-    for (const d of chs) for (let i = at; i < end; i++) sum += d[i] * d[i];
+    for (const d of chs) for (let i = at; i < end; i++) sum += d[i]! * d[i]!;
     out.push(Math.sqrt(sum / ((end - at) * chs.length)));
   }
   return out;

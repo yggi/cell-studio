@@ -4,13 +4,12 @@
 </script>
 
 <script lang="ts">
-  import { DEFAULT_FREQ } from '../engine/program';
   import { onDestroy, untrack } from 'svelte';
   import { blockColour, noteColour, partColour } from './theme';
   import { cellView, hubLabel, type CellView, type Fill, type Segment } from '../layout/cellview';
   import { gateOf } from '../layout/gate';
   import { BORDER, border, coarsen } from '../layout/coarse';
-  import { names, noteLabel, tonicOf, voiceBase } from '../layout/show';
+  import { names, noteFrame, noteLabel } from '../layout/show';
   import { polar, ringSegment } from '../layout/geometry';
   import { envelopeNames, wheelGeometry } from '../layout/wheel';
   import { envelopeAt, envelopeAxis } from '../layout/envelope';
@@ -193,8 +192,7 @@
     lastBig = big;
   });
   // show=notes, midi, do, degrees: each step named on the ring (when there's room)
-  const base = $derived(cell ? voiceBase(ctx.program, name) : DEFAULT_FREQ);
-  const tonic = $derived(cell ? tonicOf(ctx.program, name) : 0);
+  const frame = $derived(noteFrame(ctx.program, name));
   const labels = $derived.by(() => {
     if (tokens?.length || !view.show || !names(view.show)) return [];
     const r = (rInner + rOuter) / 2;
@@ -207,7 +205,7 @@
       const ends = on ? [trackAt(track!, on.tau0).p, trackAt(track!, on.tau1).p] : null;
       const span = ends ? Math.hypot(ends[1][0] - ends[0][0], ends[1][1] - ends[0][1]) : (sg.t1 - sg.t0) * 2 * Math.PI * r;
       if (span < 11) return [];
-      const text = noteLabel(view.show!, n, base, tonic, view.conv);
+      const text = noteLabel(view.show!, n, frame.base, frame.tonic, view.conv);
       if (!text) return [];
       const [x, y] = on ? trackAt(track!, (on.tau0 + on.tau1) / 2).p : polar(c, c, r, (sg.t0 + sg.t1) / 2);
       return [{ x, y, text, wide: span / (2 * Math.PI * r) }];

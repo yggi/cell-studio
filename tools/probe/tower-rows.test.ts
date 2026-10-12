@@ -7,11 +7,11 @@
 import { describe, it } from 'vitest';
 import { appendFileSync } from 'node:fs';
 import { ForceLayout } from '../../src/layout/physics';
-import { buildGraph } from '../../src/engine/graph';
+import { buildGraph } from '../../src/layout/drawn';
 import { compileSource } from '../../src/engine/compile';
 import { PRESETS } from '../../src/engine/presets';
 import { towerOf, towerRanks, zoneRanks, type TowerAt } from '../../src/layout/tower';
-import { flowRanks } from '../../src/layout/start';
+import { flowRanks } from '../../src/layout/ranks';
 import type { LayoutOptions } from '../../src/layout/options';
 
 const log = (t: string) => appendFileSync(process.env.PROBE!, t + '\n');

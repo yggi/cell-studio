@@ -76,7 +76,8 @@
     // (a phone that dims or locks its screen mid-test would stop the page: ask it to stay awake, where it can)
     let lock: { release(): Promise<void> } | null = null;
     try {
-      lock = (await (navigator as unknown as { wakeLock?: { request(t: 'screen'): Promise<{ release(): Promise<void> }> } }).wakeLock?.request('screen')) ?? null;
+      // (lib.dom has it; not every browser does)
+      lock = (await navigator.wakeLock?.request('screen')) ?? null;
     } catch {
       /* not allowed here */
     }

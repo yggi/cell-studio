@@ -1,5 +1,5 @@
 /** A mix chord, `[&theme * &lead, …]`: sums and products of cells and numbers, kept as written (compile types them: algebra.ts). */
-import { parseLevel } from './braid';
+import { parseLevel } from './level';
 import type { Atom, Expr } from '../ast';
 import { MAX_NESTING, NUM, type LineScanner } from './scanner';
 import { parseFree } from './free';

@@ -1,8 +1,9 @@
 // The time view's sheet (`node tools/gallery.mjs time [pieces…]`, #286): each piece opened in the real app (vite's dev
 // server, the working tree, no build), the time view shown, and a picture of each state once the worker has answered.
-//   mix     the default layers: the notes, the scalogram as breaks · entries · density, the sections, the boundaries heard
+//   mix     the default layers: the notes, the scalogram as breaks · entries · density, the meter and the levels heard,
+//           the sections, the boundaries heard
 //   keys    the scalogram listening to new pitch classes alone (5 to 12's keys)
-//   sound   the waterfall and the waveform on (rendered, the first five minutes at most)
+//   sound   the waterfall (each band in its voice's colour) and the waveform on (rendered: one round, five minutes at most)
 //   zoom    zoomed in eight times, a third of the way in
 //   patterns  the motifs heard at two time scales boxed, the foldings alike listed
 //   phone   at a phone's width, the Time tab

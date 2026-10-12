@@ -9,7 +9,8 @@ import { describe, it } from 'vitest';
 import { appendFileSync } from 'node:fs';
 import { PRESETS } from '../../src/engine/presets';
 import { compileSource } from '../../src/engine/compile';
-import { buildGraph, type GraphModel } from '../../src/engine/graph';
+import { type GraphModel } from '../../src/engine/graph';
+import { buildGraph } from '../../src/layout/drawn';
 import { effectiveShow } from '../../src/layout/show';
 import { ForceLayout } from '../../src/layout/physics';
 

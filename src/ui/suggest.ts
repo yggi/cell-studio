@@ -42,7 +42,7 @@ export function suggest(word: string, names: readonly string[], functions = fals
   const out: Suggestion[] = [];
   // &name[ → bracket forms for that cell
   const br = /^&([A-Za-z_][A-Za-z0-9_]*)\[([^\]]*)$/.exec(w);
-  if (br && names.includes(br[1])) {
+  if (br && names.includes(br[1]!)) {
     for (const [b, what] of BRACKETS) if (b.startsWith(`[${br[2]}`)) out.push({ text: `&${br[1]}${b}`, label: `&${br[1]}${b} — ${what}`, kind: 'bracket' });
     return out;
   }
@@ -63,7 +63,7 @@ export function lastWord(line: string): { before: string; word: string } {
   // a word can hold brackets: &m[<<], [0, 4, 7]
   let depth = 0;
   for (let i = line.length - 1; i >= 0; i--) {
-    const c = line[i];
+    const c = line[i]!;
     if (c === ']' || c === ')') depth++;
     else if (c === '[' || c === '(') depth = Math.max(0, depth - 1);
     else if (/\s/.test(c) && depth === 0) return { before: line.slice(0, i + 1), word: line.slice(i + 1) };
@@ -74,7 +74,7 @@ export function lastWord(line: string): { before: string; word: string } {
 /** A number token: value, accidentals, modifiers (`6#@2` → 6, '#', '@2'); null for anything else. */
 export function numberToken(t: string): { value: number; acc: string; mods: string } | null {
   const m = /^(-?(?:\d+(?:\.\d+)?|\.\d+))([#b]*)((?:[!*@]\d+)*)$/.exec(t.trim());
-  return m ? { value: parseFloat(m[1]), acc: m[2], mods: m[3] } : null;
+  return m ? { value: parseFloat(m[1]!), acc: m[2]!, mods: m[3]! } : null;
 }
 
 /** Move a number token by `by` (a step, or an octave = the length of its table), keeping accidentals and modifiers. */
