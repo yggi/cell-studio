@@ -41,7 +41,9 @@
     g.clearRect(0, 0, S, S);
     const playing = ctx.state !== 'stopped';
     // (what it hears: its source, or a groove's drums, which sound for it)
-    const kit = ctx.program.cells.get(ctx.program.cells.get(data.source)?.over ?? '');
+    // (the drums' kit, or a groove read through one: its drums)
+    const own = ctx.program.cells.get(data.source);
+    const kit = own?.kit ? own : ctx.program.cells.get(own?.over ?? '');
     const sources = kit?.kit ? kit.units.flatMap((u) => (u.atom.kind === 'ref' ? [u.atom.name] : [])) : [data.source];
     const l = new Float32Array(BANDS);
     const r = new Float32Array(BANDS);

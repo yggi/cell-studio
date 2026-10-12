@@ -221,8 +221,8 @@ describe('the tower layout', () => {
     const sockets = [...layers].filter(([, l]) => l === 'audible').map(([id]) => id);
     expect(sockets).toHaveLength(2);
     for (const id of sockets) expect(towerAt(targets.get(id)!)).toBeGreaterThanOrEqual(voice + 0.6 - 1e-9);
-    // (the groove's socket, at A1 by its lowest drum, lifted; the lead's, at C5, kept at its pitch)
-    const [groove, lead] = [sockets.find((id) => id.includes('beat'))!, sockets.find((id) => id.includes('lead'))!];
+    // (the drums' socket, from the kit, at A1 by its lowest drum, lifted; the lead's, at C5, kept at its pitch)
+    const [groove, lead] = [sockets.find((id) => id.includes('kit:voices'))!, sockets.find((id) => id.includes('lead'))!];
     expect(targets.get(groove)).toBeLessThan(own.get(groove)!);
     expect(targets.get(lead)).toBeCloseTo(own.get(lead)!, 6);
   });

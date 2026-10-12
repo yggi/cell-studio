@@ -219,7 +219,9 @@ export function socketHeights(program: CompileResult, model: GraphModel, drawn: 
   const base = (id: string): number | undefined => {
     const d = at.get(id);
     if (d !== undefined && Number.isFinite(d)) return d;
-    const kit = program.cells.get(program.cells.get(id.slice('cell:'.length))?.over ?? '');
+    // (a kit itself, the drums' one wire into the card; or a pattern read through one)
+    const own = program.cells.get(id.slice('cell:'.length));
+    const kit = own?.kit ? own : program.cells.get(own?.over ?? '');
     if (!kit?.kit) return undefined;
     // (a drum drawn as a piece of its kit has no node: its own pitch, else its filter, else 1 kHz, as towerOf reads a voice)
     const pitch = (name: string) => {

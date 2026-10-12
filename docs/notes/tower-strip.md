@@ -313,6 +313,25 @@ It costs 3.3 crossings, piece by piece both ways: better in Brothers (7.3 → 4.
 
 ![Hypercell, the drums' kit held with the voices](tower-strip-kit.jpg)
 
+## The drums' wires, simplified (2026-10-13)
+
+Asked: one audio wire from the drums to out, and one wire in per gate (a groove).
+
+- `drawn.ts`: the wires a groove's drum names made (one a name, from its piece on the kit) are one wire, the groove reading the kit as a table is read (`over`); every groove gets it, a drum with its own node too. A groove's sound wires out of the drums (into a mix) are drawn from the kit: one wire, however many grooves. A drum motif spliced into a groove keeps its own wire. The engine's graph is unchanged: every name written is still its wire there (`alias` maps each to the one drawn).
+- The tests that read the drawing follow: `graph.test` (a groove in a mix goes in as the drums' kit, as a gate goes in as its voices), `grooves.test`, `flowedges.test`.
+
+| layout | crossings before | after |
+|---|---|---|
+| today's (the card node) | 45.0 | **36.3** |
+| today's, no card node | 24.0 | 21.7 |
+| tower, taps as traces | 45.0 | 39.7 |
+| tower, loom (default) | 51.3 | 53.3 |
+
+The layout baseline is recorded again (the library's drawn crossings 46.3 → 36.5). In the tower layout the loom loses a little (its strands meet the grooves' wires into the kit); traces gain.
+
+![Hypercell, today's layout: the drums' one wire](tower-strip-kitwires-flow.jpg)
+![Hypercell, the tower layout](tower-strip-kitwires.jpg)
+
 ## Next
 
 1. The tower layout still crosses about three times today's (91 against 33, the card left out of both), most in the pieces arranged with selectors, tapes and resonators (#234's language side: a selector that sends gates).
