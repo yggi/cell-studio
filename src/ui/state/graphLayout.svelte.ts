@@ -318,7 +318,7 @@ export class GraphLayout {
       return p ? { ...turned, position: p } : turned;
     });
     this.bends = this.#force.bends();
-    this.taps = new Map([...this.#force.taps()].map(([id, t]) => [id, t && { ...t, r: (this.#sizeOf(t.from) ?? 0) / 2 }]));
+    this.taps = new Map([...this.#force.taps()].map(([id, t]) => [id, t && { ...t, r: t.loom ? 0 : (this.#sizeOf(t.from) ?? 0) / 2 }]));
     // (a meter's net is laid as a bus's is, again as things move: each cell joined to the nearest already joined)
     const laid = this.#force.meterNet();
     if (!sameNet(laid, this.net)) this.net = laid;

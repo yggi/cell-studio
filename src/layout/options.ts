@@ -53,6 +53,8 @@ export interface LayoutOptions {
   heightPull: number;
   /** A selector's taps as a loom over its table (taploom.ts), counted so, its strands' crossings with each other not. */
   tapLoom: boolean;
+  /** With `tapLoom`: what a selector's taps step drifts sideways over it, in its sections' order, by a spring this strong. */
+  loomOrder: number;
   layerGap: number;
   /** Edge length at rest (px). */
   linkDistance: number;
@@ -138,6 +140,7 @@ export const DEFAULT_LAYOUT: LayoutOptions = {
   upPull: 0,
   heightPull: 0,
   tapLoom: false,
+  loomOrder: 0,
   centre: 0.004,
   columnPull: 0.035,
   layerGap: 130,

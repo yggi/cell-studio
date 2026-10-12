@@ -23,7 +23,7 @@ import { folded, junctionNodes, placeJunctions, settleJunctions } from './juncti
 import { rowsKey, startNodes, startPlaces } from './start';
 import { forceUncross, stepBends, stepClusters, stepExclusion, stepKinds, stepSpread } from './forces';
 import { aims, fitTurns, stepAims } from './aims';
-import { hops, meterNet, netTree, stepNets, taps } from './nets';
+import { hops, loomsOf, meterNet, netTree, stepNets, taps } from './nets';
 import { placeMeters } from './placement';
 import { tapLoom, type LoomStrand } from './taploom';
 
@@ -110,6 +110,8 @@ export class ForceLayout {
       .force('exclusion', () => stepExclusion(this.s))
       // (the tower layout) heights held: whatever moved a node, it ends the tick at its height
       .force('heights', (alpha: number) => this.hold(alpha))
+      // (the tower layout, tapLoom) what a selector's taps step, over it in its sections' order
+      .force('looms', (alpha: number) => this.order(alpha))
       .on('tick', () => {
         placeJunctions(this.s);
         onTick();
@@ -318,6 +320,38 @@ export class ForceLayout {
    * (the tower layout) Each node `heights` names held at its height: only x is free (d3 sets y to fy each tick); or,
    * with `heightPull`, drawn towards it, gently, as a spring would (its height a target, not a rail).
    */
+  /**
+   * (loomOrder) Each cell a selector's taps step drifts sideways to its slot over the table: the taps' order (their
+   * bulbs, left to right), a slot each, centred on the table; a cell several taps step, between theirs. The table
+   * drifts under them a little.
+   */
+  private order(alpha: number): void {
+    const k = this.s.opts.tapLoom ? this.s.opts.loomOrder : 0;
+    if (!k) return;
+    const by = new Map<string, { bulbs: Map<string, number>; cells: Map<string, number[]> }>();
+    for (const g of this.s.grounds) {
+      if (!g.bulb || !g.at) continue;
+      const l = by.get(g.meter) ?? by.set(g.meter, { bulbs: new Map(), cells: new Map() }).get(g.meter)!;
+      l.bulbs.set(g.bulb, g.at.x);
+      l.cells.set(g.cell, [...(l.cells.get(g.cell) ?? []), g.at.x]);
+    }
+    for (const [table, l] of by) {
+      const t = this.s.byId.get(table);
+      if (t?.x === undefined) continue;
+      const xs = [...new Set(l.bulbs.values())].sort((a, b) => a - b);
+      const cells = [...l.cells].flatMap(([id, at]) => {
+        const c = this.s.byId.get(id);
+        return c?.x === undefined || c.fx != null ? [] : [{ c, slot: at.reduce((a, x) => a + xs.indexOf(x), 0) / at.length }];
+      });
+      const gap = Math.max(...cells.map(({ c }) => 2 * c.radius)) + this.s.opts.collidePad;
+      for (const { c, slot } of cells) {
+        const dx = (t.x + (slot - (xs.length - 1) / 2) * gap - c.x!) * k * alpha;
+        c.vx = (c.vx ?? 0) + dx;
+        t.vx = (t.vx ?? 0) - (dx * 0.5) / cells.length;
+      }
+    }
+  }
+
   private hold(alpha = 1): void {
     const h = this.s.opts.heights;
     if (!h) return;
@@ -345,6 +379,9 @@ export class ForceLayout {
    */
   tapLooms(): { table: string; strands: LoomStrand[] }[] {
     const by = new Map<string, Map<string, { at: { x: number; y: number }; to: string[] }>>();
+    // (what the bus a table is stepped by goes on to out of its loom: netTree)
+    const from = new Map<string, string[]>();
+    for (const { from: f, to } of hops(this.s).values()) from.set(f, [...(from.get(f) ?? []), to]);
     for (const g of this.s.grounds) {
       if (!g.bulb || !g.at) continue;
       const taps = by.get(g.meter) ?? by.set(g.meter, new Map()).get(g.meter)!;
@@ -363,7 +400,11 @@ export class ForceLayout {
           return c && c.x !== undefined && c.y !== undefined ? [{ id, x: c.x, y: c.y, r: c.radius * 0.7 }] : [];
         }),
       }));
-      return [{ table, strands: tapLoom({ x: n.x, y: n.y, r: n.radius * 0.7 }, loom) }];
+      const readers = (from.get(table) ?? []).flatMap((id) => {
+        const c = nodeAt(this.s, id);
+        return c?.x !== undefined && c.y !== undefined ? [{ id, x: c.x, y: c.y, r: c.radius * 0.7 }] : [];
+      });
+      return [{ table, strands: tapLoom({ x: n.x, y: n.y, r: n.radius * 0.7 }, loom, readers) }];
     });
   }
 
@@ -376,12 +417,17 @@ export class ForceLayout {
     ];
     // (a bus's tap that comes on from another reader: drawn from there, straight)
     const joins = hops(this.s);
+    const looms = loomsOf(this.s);
     const edges = [
-      ...this.s.links.map((l) => {
+      ...this.s.links.flatMap((l) => {
         const h = joins.get(l.id);
-        return h
-          ? { a: h.from, b: h.to, mid: undefined, weight: l.strength, kind: l.kind }
-          : { a: l.source, b: l.target, mid: this.s.bendAt.get(l.id) as { x: number; y: number } | undefined, runs: this.beltRuns(l), weight: l.strength, kind: l.kind };
+        // (out of a loom's source lane: its strand, below)
+        if (h && looms.has(h.from)) return [];
+        return [
+          h
+            ? { a: h.from, b: h.to, mid: undefined, weight: l.strength, kind: l.kind }
+            : { a: l.source, b: l.target, mid: this.s.bendAt.get(l.id) as { x: number; y: number } | undefined, runs: this.beltRuns(l), weight: l.strength, kind: l.kind },
+        ];
       }),
       // (a selector's taps as a loom over its table, tapLoom: its strands, which don't cross each other)
       ...(this.s.opts.tapLoom
@@ -464,7 +510,7 @@ export class ForceLayout {
   }
 
   /** Where each tap of a bus comes from, for drawing (nets.ts: taps). */
-  taps(): Map<string, { from: string; x: number; y: number } | null> {
+  taps(): Map<string, { from: string; x: number; y: number; loom?: true } | null> {
     return taps(this.s);
   }
 

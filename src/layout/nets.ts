@@ -8,6 +8,26 @@ import { segmentsCross, splinePoint } from './geometry';
 import { GROUND_PULL, linkPull } from './options';
 import { nodeAt, type LayoutState, type MeterTrace, type PhysNode } from './state';
 import { UNTURNED } from './tape';
+import { loomLane } from './taploom';
+
+/**
+ * (the tower layout, tapLoom) Each selector drawn as a loom (taploom.ts), by its table's id: its wheel as the loom
+ * reads it, its source's lane and the loom's span (its bulbs and the cells its taps step).
+ */
+export function loomsOf(s: LayoutState): Map<string, { x: number; y: number; r: number; lane: number; x0: number; x1: number }> {
+  const out = new Map<string, { x: number; y: number; r: number; lane: number; x0: number; x1: number }>();
+  if (!s.opts.tapLoom) return out;
+  for (const g of s.grounds) {
+    if (!g.bulb || !g.at) continue;
+    const [t, c] = [s.byId.get(g.meter), s.byId.get(g.cell)];
+    if (t?.x === undefined || t.y === undefined) continue;
+    const w = { x: t.x, y: t.y, r: t.radius * 0.7 };
+    const l = out.get(g.meter) ?? { ...w, lane: loomLane(w, 0), x0: t.x, x1: t.x };
+    for (const x of [t.x + g.at.x, c?.x ?? t.x]) [l.x0, l.x1] = [Math.min(l.x0, x), Math.max(l.x1, x)];
+    out.set(g.meter, l);
+  }
+  return out;
+}
 
 /** A short straight piece of a drawn edge (its spline), with its ends. */
 export type Piece = { a: string; b: string; seg: [number, number, number, number] };
@@ -72,8 +92,9 @@ export function netTree(s: LayoutState, net: GraphModel['nets'][number], ends = 
     return out;
   }
   const left = [...readers];
-  // (the tower layout, tapLoom: a selector's table passes nothing on, its top is its loom's)
-  const looms = s.opts.tapLoom ? new Set(s.grounds.flatMap((g) => (g.bulb ? [g.meter] : []))) : undefined;
+  // (the tower layout, tapLoom: a selector's table passes its bus on only out of its loom's source lane, anywhere
+  // along it, straight up to a reader over it)
+  const looms = loomsOf(s);
   // (each reader's cheapest join so far, and what to)
   const best = left.map((r) => ({ cost: cost(o, r.n), from: o }));
   while (left.length) {
@@ -84,8 +105,10 @@ export function netTree(s: LayoutState, net: GraphModel['nets'][number], ends = 
     // (a bus has left its owner: only the readers join on)
     left.forEach((q, i) => {
       if (bus && best[i].from === o) best[i] = { cost: Infinity, from: o! };
-      if (looms?.has(r.n.id)) return;
-      const c = cost(r.n, q.n);
+      const l = looms.get(r.n.id);
+      const top = (q.n.y ?? 0) + q.n.radius * 0.7;
+      if (l && top >= l.lane) return;
+      const c = l ? l.lane - top + Math.max(0, l.x0 - (q.n.x ?? 0), (q.n.x ?? 0) - l.x1) : cost(r.n, q.n);
       if (c < best[i].cost) best[i] = { cost: c, from: r.n };
     });
   }
@@ -127,13 +150,21 @@ export function stepNets(s: LayoutState, alpha: number): void {
  * wheel; else the reader it comes on from (its node, where it is now). Laid again whenever it's asked for, so it
  * follows a moved cell.
  */
-export function taps(s: LayoutState): Map<string, { from: string; x: number; y: number } | null> {
-  const out = new Map<string, { from: string; x: number; y: number } | null>();
+export function taps(s: LayoutState): Map<string, { from: string; x: number; y: number; loom?: true } | null> {
+  const out = new Map<string, { from: string; x: number; y: number; loom?: true } | null>();
+  const looms = loomsOf(s);
   for (const net of s.drawnNets) {
     if (net.port === 'step') continue;
-    for (const [id, { from }] of netTree(s, net, s.drawnEnds)) {
+    for (const [id, { from, to }] of netTree(s, net, s.drawnEnds)) {
       if (from === net.owner) {
         out.set(id, null);
+        continue;
+      }
+      // (out of a loom's source lane, under the reader)
+      const l = looms.get(from);
+      const r = l && nodeAt(s, to);
+      if (l && r?.x !== undefined) {
+        out.set(id, { from, x: r.x, y: l.lane, loom: true });
         continue;
       }
       // (a tap whose node has gone: not drawn)

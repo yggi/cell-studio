@@ -228,6 +228,24 @@ So, counted honestly, the loom crosses more than the traces did (46.0 against 39
 
 What it would take: the layout placing a selector's consumers in their sections' order over it (then the lanes are short and the loom fans out), or the loom in a band of its own that the rest of the graph keeps clear.
 
+### In section order, the source out of the loom (2026-10-12)
+
+Asked: place the consumers in section order; the selector's source (the bus it is stepped by, `&bar`) may go out of the loom anywhere, several times, the net choosing it where that crosses less.
+
+- **The source's lane** (on): a loom's lowest lane is its source's. In the bus's tree (`nets.ts: netTree`) a reader over the loom may join from it anywhere along it, costed by the riser (and how far past the loom's ends); its strand runs from the table along the lane (`TapLooms`, the edges' colour), and the bus's own edge rises from the lane straight up (`taps`: `loom`, from the lane under the reader). Crossings: 46.0 → **45.7**.
+- **Section order** (`LayoutOptions.loomOrder`, a spring, off): each cell the taps step drifts to its slot over the table, the taps' order a slot each, centred on it (a cell several step: between theirs).
+
+| order | crossings | cost |
+|---|---|---|
+| off (default) | 45.7 | 170.7 |
+| slots, .02 | 49.7 | 186.6 |
+| slots, .05 | 47.7 | 180.2 |
+| slots, .1 | 52.0 | 198.9 |
+| slots, .2 | 62.0 | 231.3 |
+| only inversions pushed apart, .02 / .05 / .1 | 56.0 / 50.3 / 51.7 | |
+
+Ordered or not, the strands cross about the same (seed 0: 84 crossings with a strand either way): what they cross are the consumers' own wires (a voice's to its scale, cv; its step, sync), not each other's lanes. And the order fights the tags: the consumers of a selector sit in their tags' clusters (Baustelle's metal, low, tools, scream), which aren't in its taps' order. Next to try: the clusters themselves ordered by the taps (a tag's slot, not a cell's).
+
 ![Baustelle, the tower layout with the loom](tower-strip-loom.jpg)
 
 *Baustelle*: `&teile`'s nine taps, each a lane, straight up to the parts they step.

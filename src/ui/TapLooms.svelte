@@ -11,7 +11,8 @@
   const drawn = $derived(
     looms.flatMap((l) => {
       const n = Math.max(1, ...l.strands.map((s) => s.tap + 1));
-      return l.strands.map((s) => ({ id: `${l.table}:${s.bulb}:${s.to}`, d: s.d, colour: partColour(s.tap, n) }));
+      // (the source's lane: as a wire is)
+      return l.strands.map((s) => ({ id: `${l.table}:${s.bulb}:${s.to}`, d: s.d, colour: s.tap < 0 ? 'var(--edge)' : partColour(s.tap, n) }));
     }),
   );
 </script>

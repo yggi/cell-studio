@@ -49,4 +49,15 @@ describe("a selector's loom", () => {
     // (an edge across the loom's verticals counts)
     expect(drawnCrossings(nodes, [...edges('t'), { a: 'p', b: 'q' }])).toBeGreaterThan(0);
   });
+
+  it("runs its source's lane lowest, out to each reader over it, the reader's riser left to the bus's own edge", () => {
+    const strands = tapLoom(table, taps, [{ id: 'r', x: 300, y: -400, r: 40 }]);
+    const [src] = strands;
+    expect(src).toMatchObject({ bulb: '', tap: -1, to: 'r' });
+    // (the source's lane under the taps')
+    expect(src.pieces[1][1]).toBeGreaterThan(strands[1].pieces[1][1]);
+    // (drawn to the lane; counted on up to the reader)
+    expect(src.d.endsWith(`L300.0,${src.pieces[1][1].toFixed(1)}`)).toBe(true);
+    expect(src.pieces[2]).toEqual([300, src.pieces[1][1], 300, -360]);
+  });
 });

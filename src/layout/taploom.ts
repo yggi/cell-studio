@@ -14,6 +14,12 @@ interface Wheel extends At {
   readonly r: number;
 }
 
+/** A cell the table's source (the bus it is stepped by) goes on to out of the loom: from its lane, straight up. */
+export type LoomReader = Wheel & { readonly id: string };
+
+/** The height of a loom's lane k (0 the source's, the lowest; the taps' from 1). */
+export const loomLane = (table: Wheel, k: number) => table.y - table.r - CLEAR - k * LANE;
+
 /** One tap of a table: its bulb's name, where its bulb is, and the cells it steps. */
 export interface LoomTap {
   readonly bulb: string;
@@ -24,7 +30,7 @@ export interface LoomTap {
 /** A strand of a loom: from a tap's bulb to one cell it steps, as straight pieces and as a path. */
 export interface LoomStrand {
   readonly bulb: string;
-  /** Its tap's place among the table's (0 the first): its lane, and its section's colour. */
+  /** Its tap's place among the table's (0 the first): its section's colour; -1, the source's lane. */
   readonly tap: number;
   readonly to: string;
   readonly pieces: readonly (readonly [number, number, number, number])[];
@@ -37,19 +43,23 @@ const LANE = 9;
 /** How round a strand's corners are (px). */
 const ROUND = 8;
 
-/** The loom of a table (its wheel) and its taps, in their order: a strand for each tap and cell it steps. */
-export function tapLoom(table: Wheel, taps: readonly LoomTap[]): LoomStrand[] {
-  const top = table.y - table.r;
-  return taps.flatMap((t, k) => {
-    const lane = top - CLEAR - k * LANE;
-    return t.to.map((c) => {
-      // (to its cell's bottom when it sits over the lane, else its top)
-      const end = c.y < lane ? c.y + c.r : c.y - c.r;
-      const pts: At[] = [t.from, { x: t.from.x, y: lane }, { x: c.x, y: lane }, { x: c.x, y: end }];
-      const pieces = pts.slice(1).map((q, i) => [pts[i].x, pts[i].y, q.x, q.y] as const);
-      return { bulb: t.bulb, tap: k, to: c.id, pieces, d: rounded(pts) };
-    });
-  });
+/**
+ * The loom of a table (its wheel) and its taps, in their order: a strand for each tap and cell it steps. Its lowest
+ * lane is its source's: a strand out of the table's centre along it to each reader the bus goes on to (`readers`),
+ * its riser drawn as the bus's own edge (`d` stops at the lane; `pieces` go on up, to be counted).
+ */
+export function tapLoom(table: Wheel, taps: readonly LoomTap[], readers: readonly LoomReader[] = []): LoomStrand[] {
+  const strand = (bulb: string, tap: number, from: At, lane: number, c: Wheel & { id: string }, riser: boolean) => {
+    // (to its cell's bottom when it sits over the lane, else its top)
+    const end = c.y < lane ? c.y + c.r : c.y - c.r;
+    const pts: At[] = [from, { x: from.x, y: lane }, { x: c.x, y: lane }, { x: c.x, y: end }];
+    const pieces = pts.slice(1).map((q, i) => [pts[i].x, pts[i].y, q.x, q.y] as const);
+    return { bulb, tap, to: c.id, pieces, d: rounded(riser ? pts : pts.slice(0, 3)) };
+  };
+  return [
+    ...readers.map((c) => strand('', -1, table, loomLane(table, 0), c, false)),
+    ...taps.flatMap((t, k) => t.to.map((c) => strand(t.bulb, k, t.from, loomLane(table, k + 1), c, true))),
+  ];
 }
 
 /** A polyline with its corners rounded (a quarter of a circle, at most ROUND, as the turns allow). */
