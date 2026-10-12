@@ -20,8 +20,9 @@ export interface Frame {
 /** Where the audible ends and the card's samples begin (Hz), and the top of the axis: an octave of room for the waveform. */
 export const CARD = 20000;
 const TOP = 2 * CARD;
-/** The slowest level shown: a third of the window (the scalogram's slowest period), at most. */
-const bottomOf = (window: number) => 3 / Math.max(window, 1);
+/** The slowest level shown: the window itself (below the scalogram's slowest period, a third of it, the structure's
+ * longest nodes: a section, the line). */
+const bottomOf = (window: number) => 1 / Math.max(window, 1);
 
 /** A frame for a window of `window` seconds, all of it in view. */
 export function frameFor(window: number, width: number, height: number): Frame {
