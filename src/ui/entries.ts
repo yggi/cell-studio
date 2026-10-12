@@ -7,7 +7,7 @@ import { buildGraph } from '../layout/drawn';
 import { pieceMeta } from '../engine/parser';
 import { canonicalTags, MIDI_FILE, tagName, type TagKind } from '../engine/tags';
 import { EXAMPLES, loadExample, type PresetKey } from '../examples';
-import { creditOf, loadMidiFile, MIDI_FILES, type Credit } from '../corpus';
+import { creditOf, loadMidiFile, MIDI_FILES, MIDI_SETS, type Credit } from '../corpus';
 import { cellsFromMidi } from '../engine/midiimport';
 import type { Miniature } from '../layout/miniature';
 import type { SavedPiece } from '../library';
@@ -28,6 +28,8 @@ export interface Entry {
   readonly miniature?: Miniature | null;
   /** A file of the MIDI library: where it came from and on what terms (its details show it). */
   readonly credit?: Credit;
+  /** A file of the MIDI library: its collection's name (its cell in the library, and one of its tags). */
+  readonly collection?: string;
   /** For saved pieces: when. */
   readonly saved?: string;
   /** How many cells its graph has. */
@@ -71,16 +73,24 @@ export const exampleEntries: readonly Entry[] = EXAMPLES.map((e) => ({
   time: e.time,
 }));
 
-/** The MIDI library's cards (src/corpus.ts): a file is fetched when its wheel or the file is opened. */
-export const midiEntries: readonly Entry[] = MIDI_FILES.map((m) => ({
-  id: `midi:${m.key}`,
-  kind: 'midi',
-  title: m.title,
-  description: `Bach, Das Wohltemperierte Clavier ${m.book === 1 ? 'I' : 'II'}, BWV ${m.bwv}, ${m.tonality}: a MIDI file from the Mutopia Project, to play as it is or convert to cells.`,
-  credit: creditOf(m),
-  tags: [MIDI_FILE, 'artist:Bach', 'genre:classical', ...(m.part === 'fugue' ? ['counterpoint'] : [])],
-  load: () => loadMidiFile(m.key).then((smf) => cellsFromMidi(smf, m.title, { free: false }).source),
-}));
+/** Pieces in more than one voice that imitate each other: counterpoint (a fugue, an invention, a sinfonia). */
+const IMITATIVE = /Fug|Invention|Sinfonia/i;
+
+/** The MIDI library's cards (src/corpus.ts), each in its collection: a file is fetched when its wheel or the file is
+ * opened. */
+export const midiEntries: readonly Entry[] = MIDI_FILES.map((m) => {
+  const collection = MIDI_SETS.find((s) => s.id === m.set)!.title;
+  return {
+    id: `midi:${m.key}`,
+    kind: 'midi',
+    title: m.title,
+    description: `Bach, ${collection}, ${m.opus}${m.tonality ? `, ${m.tonality}` : ''}: a MIDI file from the Mutopia Project, to play as it is or convert to cells.`,
+    credit: creditOf(m),
+    collection,
+    tags: [collection, MIDI_FILE, 'artist:Bach', 'genre:classical', ...(IMITATIVE.test(m.original) ? ['counterpoint'] : [])],
+    load: () => loadMidiFile(m.key).then((smf) => cellsFromMidi(smf, m.title, { free: false }).source),
+  };
+});
 
 /** Whether a card matches the words searched for (lower case): in its title, its description or a tag's name. */
 export const matches = (e: Entry, words: string): boolean =>

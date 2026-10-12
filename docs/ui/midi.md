@@ -123,18 +123,26 @@ as MIDI** in the Files page.
 
 ## The MIDI library
 
-MIDI files that come with the app, a cell of their own in the library (*MIDI*, to the left of the wheel; the tutorial
-is to its right) and a section of the cards (*MIDI files*): for now Bach's Well-Tempered Clavier as the
-[Mutopia Project](https://www.mutopiaproject.org/) has it, 37 of the 96 preludes and fugues
-([midi/wtc/](../../midi/wtc/README.md): each file as published, its typesetter and its licence, public domain or
-CC BY-SA). `src/corpus.ts` lists them (`midi/wtc/index.json`); a file is fetched when it opens, and opens as any MIDI
-file does, as text, playing, for **Convert to cells**. Its card's wheel is drawn from its notes as cells, written out.
+MIDI files that come with the app, in collections: each a cell of its own in the library, stacked to the left of the
+wheel (the tutorial is to its right), and a section of the cards. For now three of Bach's, as the
+[Mutopia Project](https://www.mutopiaproject.org/) has them, each file as published with its typesetter and its
+licence (public domain or CC BY-SA) in its collection's README:
+
+- **Well-Tempered Clavier** ([midi/wtc/](../../midi/wtc/README.md)): 37 of the 96 preludes and fugues;
+- **Inventions and Sinfonias** ([midi/inventions/](../../midi/inventions/README.md)): all 30;
+- **Anna Magdalena Notebook** ([midi/anna/](../../midi/anna/README.md)): its 19 keyboard pieces, the minuets and
+  polonaises among them.
+
+`src/corpus.ts` lists them (`MIDI_SETS`, each `midi/<set>/index.json`); a collection's name is a tag of its files and
+the entry's `collection`, which puts it in its cell (`layout/library.ts` `sideOf`). A file is fetched when it opens, and
+opens as any MIDI file does, as text, playing, for **Convert to cells**. Its card's wheel is drawn from its notes as
+cells, written out.
 Each file's credit (`src/corpus.ts` `creditOf`: the piece, who typeset it, its licence linked, its Mutopia page) is in
 its details in the library, in its copyright field (the text's `copyright "…"` line, so a `.mid` saved from it carries
 it), and as comments at the top of the cells it converts to; a CC BY-SA file's say that what is made from it shares
 that licence.
-The tag `MIDI file` puts a piece in the cell (`engine/tags.ts` `MIDI_FILE`; `layout/library.ts` `sideOf`). The folder's
-ratchet over them: `tools/probe/wtc.test.ts` ([notes/fold.md](../notes/fold.md)).
+Every one also carries the tag `MIDI file` (`engine/tags.ts` `MIDI_FILE`). The folder over them: the probe
+`tools/probe/midi.test.ts`, the ratchet `src/engine/fold/midi.test.ts` ([notes/fold.md](../notes/fold.md)).
 
 ## The code
 

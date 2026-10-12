@@ -48,7 +48,7 @@
   {#if d.description}<p class="full">{d.description}</p>{/if}
   {#if d.time}<p class="full time">{timeSentence(d)}{d.size ? ` ${d.size} cells.` : ''}</p>{/if}
   {#if d.credit}
-    <!-- a file of the MIDI library: what it is, who typeset it, its licence, where it came from (midi/wtc/README.md) -->
+    <!-- a file of the MIDI library: what it is, who typeset it, its licence, where it came from (midi/<set>/README.md) -->
     <dl class="credit">
       <dt>Piece</dt>
       <dd>{d.credit.piece}</dd>
