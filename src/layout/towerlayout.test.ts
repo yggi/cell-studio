@@ -188,4 +188,20 @@ describe('the tower layout', () => {
     expect(mean('voice')).toBeLessThan(mean('structure'));
     layout.destroy();
   });
+
+  it('sets each socket straight above its source (socketsAbove)', () => {
+    const { program, model } = waltz();
+    const drawn = withSockets(model);
+    const layout = new ForceLayout(() => {}, { ...TOWER_LAYOUT, heights: towerLayers(program, model, drawn).targets, live: false });
+    layout.setGraph({ ...drawn, nodes: drawn.nodes.filter((n) => !n.petalOf) });
+    layout.tick(300);
+    const into = model.edges.filter((e) => e.to === 'cell:mix' && e.port !== 'about');
+    expect(into.length).toBe(3);
+    for (const e of into) {
+      const [s, src] = [layout.position(socketId(e.id))!, layout.position(e.from)!];
+      expect(s.x, e.from).toBeCloseTo(src.x, 1);
+      expect(s.y, e.from).toBeLessThan(src.y);
+    }
+    layout.destroy();
+  });
 });

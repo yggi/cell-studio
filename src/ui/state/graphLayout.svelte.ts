@@ -26,7 +26,13 @@ const ROWS = typeof location !== 'undefined' ? new URLSearchParams(location.sear
 const OUTS = typeof location !== 'undefined' ? new URLSearchParams(location.search).get('outs') : null;
 /** The tower layout's height pull, another to compare (`?pull=.1`; 0: held): its default is TOWER_LAYOUT's. */
 const PULL = typeof location !== 'undefined' && new URLSearchParams(location.search).has('pull') ? Number(new URLSearchParams(location.search).get('pull')) : null;
-const towerOptions = (): Partial<LayoutOptions> => ({ ...TOWER_LAYOUT, ...(PULL !== null && Number.isFinite(PULL) ? { heightPull: PULL } : {}) });
+// (?above=0: the sockets where the forces put them, not straight above their sources, to compare: docs/notes/tower-strip.md)
+const ABOVE = typeof location !== 'undefined' ? new URLSearchParams(location.search).get('above') : null;
+const towerOptions = (): Partial<LayoutOptions> => ({
+  ...TOWER_LAYOUT,
+  ...(PULL !== null && Number.isFinite(PULL) ? { heightPull: PULL } : {}),
+  ...(ABOVE === '0' ? { socketsAbove: false } : {}),
+});
 
 /** A socket's flow node (the tower layout): the edge into the card it ends, and whose sound that is. */
 function socketNode(id: string, m: { edges: readonly { id: string; to: string; from: string }[] }, position: { x: number; y: number }): FlowNode {

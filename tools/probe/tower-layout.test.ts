@@ -5,7 +5,8 @@
 // cost between drawn edges, area, overlaps, and the tower's own nets into the strip (one a base frequency): what their
 // trunks cross (cells in their way, drawn edges; not each other) and how long they are.
 // Run: PROBE=out.txt npx vitest run tools/probe/tower-layout.test.ts   (ONLY=word: the examples with it in their key;
-// VARIANTS=0,2: only those rows; SEEDS=0,1,2)
+// VARIANTS=0,2: only those rows; SEEDS=0,1,2; TICKS=500; TIMES=1: where the time went; COMPARE=1: crossings by piece,
+// the first two variants picked)
 import { describe, it } from 'vitest';
 import { appendFileSync } from 'node:fs';
 import { ForceLayout } from '../../src/layout/physics';
@@ -16,6 +17,9 @@ import { PRESETS } from '../../src/engine/presets';
 import { TOWER_LAYOUT, type LayoutOptions } from '../../src/layout/options';
 import { netPaths, socketHeights, towerHeights, towerIns, towerLayers, towerNets, towerOuts, withoutCard, withSockets } from '../../src/layout/towerlayout';
 
+// (how long each layout runs: TICKS=160, a miniature's glimpse, is a third faster and ranks the variants alike, but
+// squeezes their differences: for a quick look only — docs/notes/tower-strip.md)
+const TICKS = Number(process.env.TICKS ?? 500);
 const log = (t: string) => appendFileSync(process.env.PROBE!, t + '\n');
 
 type Variant = { name: string; tower: boolean; card: boolean; opts: Partial<LayoutOptions>; sockets?: boolean; layers?: boolean };
@@ -31,7 +35,15 @@ const VARIANTS: Variant[] = [
   { name: 'layers, held', tower: true, card: false, opts: TOWER_LAYOUT, sockets: true, layers: true },
   { name: 'layers, pull .02', tower: true, card: false, opts: { ...TOWER_LAYOUT, heightPull: 0.02 }, sockets: true, layers: true },
   { name: 'layers, pull .05, taps as traces', tower: true, card: false, opts: { ...TOWER_LAYOUT, heightPull: 0.05, tapLoom: false }, sockets: true, layers: true },
-  { name: 'layers, pull .05, taps as a loom (TOWER_LAYOUT)', tower: true, card: false, opts: { ...TOWER_LAYOUT, heightPull: 0.05 }, sockets: true, layers: true },
+  {
+    name: 'layers, pull .05, taps as a loom, sockets above their sources (TOWER_LAYOUT)',
+    tower: true,
+    card: false,
+    opts: { ...TOWER_LAYOUT, heightPull: 0.05 },
+    sockets: true,
+    layers: true,
+  },
+  { name: 'sockets where the forces put them (as before)', tower: true, card: false, opts: { ...TOWER_LAYOUT, socketsAbove: false }, sockets: true, layers: true },
   { name: 'loom, in order .02', tower: true, card: false, opts: { ...TOWER_LAYOUT, loomOrder: 0.02 }, sockets: true, layers: true },
   { name: 'loom, in order .05', tower: true, card: false, opts: { ...TOWER_LAYOUT, loomOrder: 0.05 }, sockets: true, layers: true },
   { name: 'loom, in order .1', tower: true, card: false, opts: { ...TOWER_LAYOUT, loomOrder: 0.1 }, sockets: true, layers: true },
@@ -87,9 +99,19 @@ function crossesLevel(y: number, x0: number, x1: number, p: { x: number; y: numb
   return x > Math.min(x0, x1) && x < Math.max(x0, x1);
 }
 
+// (each piece compiled once, not for every variant and seed. Its rows' order is still tried for every seed, as the
+// app tries it: one order chosen once, as the examples' are for the miniatures, crossed 59.3 against 45.7)
+const compiled = new Map<string, { program: ReturnType<typeof compileSource>; whole: GraphModel }>();
+const T: Record<string, number> = {};
+const lap = (k: string, t0: number) => ((T[k] = (T[k] ?? 0) + performance.now() - t0), performance.now());
 function measure(source: string, v: Variant, seed: number): Row {
-  const program = compileSource(source);
-  const whole = buildGraph(program);
+  let t0 = performance.now();
+  if (!compiled.has(source)) {
+    const program = compileSource(source);
+    compiled.set(source, { program, whole: buildGraph(program) });
+  }
+  const { program, whole } = compiled.get(source)!;
+  t0 = lap('compile', t0);
   const model: GraphModel = v.card ? whole : v.sockets ? withSockets(whole) : withoutCard(whole);
   const heights = v.layers
     ? towerLayers(program, whole, model).targets
@@ -99,9 +121,13 @@ function measure(source: string, v: Variant, seed: number): Row {
   const outs = towerOuts(program, whole);
   const l = new ForceLayout(undefined, { live: false, seed, ...v.opts, ...(heights ? { heights } : {}) });
   l.setGraph({ ...model, nodes: model.nodes.filter((n) => !n.petalOf) });
-  l.tick(500);
+  t0 = lap('setGraph', t0);
+  l.tick(TICKS);
+  t0 = lap('ticks', t0);
   l.layNet();
+  t0 = lap('layNet', t0);
   const q = l.quality();
+  lap('quality', t0);
   const row: Row = {
     crossings: q.crossings,
     cost: q.cost,
@@ -203,9 +229,16 @@ describe.runIf(process.env.PROBE)('the tower layout', () => {
         `| ${v.name} | ${sum((r) => r.crossings).toFixed(1)} | ${sum((r) => r.cost).toFixed(1)} | ${sum((r) => r.area).toFixed(1)} | ${sum((r) => r.overlap).toFixed(1)} | ${t ? sum((r) => r.wires).toFixed(0) : '—'} | ${t ? `${sum((r) => r.overCells).toFixed(1)} (${sum((r) => r.overFree).toFixed(1)})` : '—'} | ${t ? sum((r) => r.hops).toFixed(1) : '—'} | ${t ? sum((r) => r.overEdges).toFixed(1) : '—'} | ${t ? (sum((r) => r.length) / 1000).toFixed(0) : '—'} | ${t ? `${(sum((r) => r.off) / pieces.length).toFixed(3)}, ${Math.max(...rows.map((r) => r.offMax)).toFixed(2)}` : '—'} |`,
       );
     }
+    if (process.env.TIMES)
+      log(
+        `\ntimes (s): ${Object.entries(T)
+          .map(([k, t]) => `${k} ${(t / 1000).toFixed(1)}`)
+          .join(', ')}`,
+      );
     if (nodes) log(`\nheld at a height: ${held} of ${nodes} nodes (${Math.round((100 * held) / nodes)} %)`);
-    // the pieces the tower layout helps or hurts most, crossings against today without the card (mean of the seeds)
-    const [base, tower] = [variants.find((v) => !v.tower && !v.card), variants.find((v) => v.opts === TOWER_LAYOUT)];
+    // the pieces the tower layout helps or hurts most, crossings against today without the card (mean of the seeds);
+    // COMPARE: the first two variants picked
+    const [base, tower] = process.env.COMPARE ? variants : [variants.find((v) => !v.tower && !v.card), variants.find((v) => v.opts === TOWER_LAYOUT)];
     if (!base || !tower) return;
     const d = [...perPiece]
       .map(([k, m]) => ({

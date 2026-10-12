@@ -112,6 +112,8 @@ export class ForceLayout {
       .force('heights', (alpha: number) => this.hold(alpha))
       // (the tower layout, tapLoom) what a selector's taps step, over it in its sections' order
       .force('looms', (alpha: number) => this.order(alpha))
+      // (the tower layout, socketsAbove) a socket rides above its source
+      .force('sockets', () => this.above())
       .on('tick', () => {
         placeJunctions(this.s);
         onTick();
@@ -349,6 +351,24 @@ export class ForceLayout {
         c.vx = (c.vx ?? 0) + dx;
         t.vx = (t.vx ?? 0) - (dx * 0.5) / cells.length;
       }
+    }
+  }
+
+  /** (socketsAbove) Each socket at its source's x (several from one source side by side), moved by nothing else sideways. */
+  private above(): void {
+    if (!this.s.opts.socketsAbove) return;
+    const by = new Map<string, PhysNode[]>();
+    for (const l of this.s.links) {
+      const [a, b] = [nodeAt(this.s, l.source), nodeAt(this.s, l.target)];
+      if (a && b?.id.startsWith('socket:')) by.set(a.id, [...(by.get(a.id) ?? []), b]);
+    }
+    for (const [src, sockets] of by) {
+      const a = this.s.byId.get(src);
+      if (a?.x === undefined) continue;
+      sockets.forEach((n, k) => {
+        n.x = a.x! + (k - (sockets.length - 1) / 2) * 2 * n.radius;
+        n.vx = 0;
+      });
     }
   }
 

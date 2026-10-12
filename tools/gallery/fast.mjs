@@ -48,6 +48,7 @@ if (process.env.LAYOUT) q.set('layout', process.env.LAYOUT);
 if (process.env.STRIPS) q.set('strips', process.env.STRIPS);
 // (PULL=.1: the tower layout's height pull, another to compare; 0: held)
 if (process.env.PULL) q.set('pull', process.env.PULL);
+if (process.env.ABOVE) q.set('above', process.env.ABOVE);
 // (golden: CELLS=piece.cells draws that source instead, in the real Graph)
 if (process.env.CELLS) q.set('src', readFileSync(process.env.CELLS, 'utf8'));
 const url = `${server.resolvedUrls.local[0]}tools/gallery/harness.html?${q}`;

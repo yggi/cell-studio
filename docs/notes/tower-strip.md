@@ -250,6 +250,28 @@ Ordered or not, the strands cross about the same (seed 0: 84 crossings with a st
 
 *Baustelle*: `&teile`'s nine taps, each a lane, straight up to the parts they step.
 
+## Sockets straight above their sources; a faster probe (2026-10-12)
+
+Asked: each socket straight above its source, to help with the tangles in the upper part; and whether the miniatures can make the crossings probe faster.
+
+- **`LayoutOptions.socketsAbove`** (on in `TOWER_LAYOUT`; `?above=0` off): each socket's x is its source's every tick (several from one source side by side), its height still drawn to its sound. Its wire is a riser.
+
+| sockets | taps as traces | taps as a loom |
+|---|---|---|
+| where the forces put them | 39.7 | 45.7 |
+| straight above their sources (default) | 44.7 | 51.0 |
+
+The upper part is cleaner, as asked: the outs rise straight from their voices and no longer cross over each other (seed 0: the socket wires' own crossings about 32 → 20). The total goes up because the layout around changes: the loom's strands cross the sync wires about twice as often (32 → 62), spread over many pieces, a crossing or two each (Hypercell +2, Baustelle +1.7, Cellscape +1.3; Arrangement −1.3, Echo tape −0.7). In the pictures, a groove's socket, held at its lowest drum, stands in the middle of the structure, in the loom. Tried and dropped: a soft pull to the source's x (.05 / .2 / .5: 56.3 / 59.7 / 56.3).
+
+![Hypercell, sockets above their sources](tower-strip-above.jpg)
+
+**The probe's time** (`TIMES=1`, one variant, 76 pieces × 3 seeds, about 25 s): the ticks 14 s, `setGraph` 9 s (of it, the rows' order tried for each seed, 3 s, and the start's own ticks), compiling under 1 s. The time is the forces (`stepBends` alone 27 %, collide 12 %).
+
+- **The miniatures can't stand in.** They are today's layout (no heights, no sockets) after 160 ticks, worked out when the app is built. Run at their length (`TICKS=160`) the probe is a third faster and ranks the variants alike, but squeezes their differences (sockets above against the loom: 5.3 → 1.3 crossings) and moves the base (today 24.0 → 21.7): for a quick look, not a number to keep.
+- **Their rows' order can't either.** The examples' order (chosen once, as for the miniatures) instead of a trial per seed takes `setGraph` from 8.6 s to 0.3 s, but crosses 59.3 against 45.7: the trial picks the order that suits that seed's layout. The app tries it per graph too, so the probe keeps doing so.
+- Kept: each piece compiled once (not per variant and seed), `TICKS=`, `TIMES=1`, and `COMPARE=1` (crossings by piece between the first two variants picked).
+- What would make it faster: the pieces across the machine's four cores (a shard per worker, the rows summed after), or a cheaper `stepBends`.
+
 ## Next
 
 1. The tower layout still crosses about three times today's (91 against 33, the card left out of both), most in the pieces arranged with selectors, tapes and resonators (#234's language side: a selector that sends gates).

@@ -11,6 +11,7 @@ that makes the change. Also note changes to the language that could affect saved
 ## Unreleased
 
 ### Added
+- **The tower layout sets each socket straight above its source**: its wire into the card rises straight up. Drawing only.
 - **The tower layout draws a selector's taps as a loom**: over a table of taps, a lane a tap, each strand in its section's colour along its lane and straight up to the cell it steps; the bus stepping the selector runs along the loom's lowest lane and rises out of it to a reader above. Drawing only.
 - **The tower layout's sound card is everywhere**: no card node; each thing the card hears goes into a socket of its own, a small level meter (ten octaves stacked, left channel to the left, right to the right) drawn to that thing's frequency on the tower. The layout is in layers, by a gentle pull: tables at the bottom, the structure at its rates, the voices in one row over it, the sockets alone in the audible. Drawing only.
 - **`glide=t`** on a voice (dough's `glide`): a run of tied notes (each starting as the one before ends; a rest or a chord ends it) plays as one note, its envelope once and its pitch sliding to each next note over t seconds. **`&hh:0:.5`**: a hit's own gain, as Strudel spells a sound's fields (`s("hh:0:.5")`), in a groove and a groove's chord (`[&bd, &hh:0:.4]`); on MIDI out, its velocity. Spelled to agree with Strudel and dough (decision 027, #337). Saved `.cells` pieces are not affected.

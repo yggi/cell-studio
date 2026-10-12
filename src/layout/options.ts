@@ -55,6 +55,8 @@ export interface LayoutOptions {
   tapLoom: boolean;
   /** With `tapLoom`: what a selector's taps step drifts sideways over it, in its sections' order, by a spring this strong. */
   loomOrder: number;
+  /** (the tower layout) Each socket into the card straight above its source: its x its source's, only its height free. */
+  socketsAbove: boolean;
   layerGap: number;
   /** Edge length at rest (px). */
   linkDistance: number;
@@ -141,6 +143,7 @@ export const DEFAULT_LAYOUT: LayoutOptions = {
   heightPull: 0,
   tapLoom: false,
   loomOrder: 0,
+  socketsAbove: false,
   centre: 0.004,
   columnPull: 0.035,
   layerGap: 130,
@@ -165,7 +168,7 @@ export const DEFAULT_LAYOUT: LayoutOptions = {
  * layers and a socket each, crossings 124 held → 40 drawn, its nodes .6 of a decade off their heights on average
  * (docs/notes/tower-strip.md: the forces).
  */
-export const TOWER_LAYOUT: Partial<LayoutOptions> = { placeLast: 0, heightPull: 0.05, tapLoom: true };
+export const TOWER_LAYOUT: Partial<LayoutOptions> = { placeLast: 0, heightPull: 0.05, tapLoom: true, socketsAbove: true };
 
 /**
  * A node's room: the wheel itself (size= scales it), and what hangs under it — its label, as wide as
