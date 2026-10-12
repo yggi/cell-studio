@@ -1,4 +1,4 @@
-# 028 · The folder writes a piece in degrees of its key where that is shorter; an accidental moves with its note
+# 033 · The folder writes a piece in degrees of its key where that is shorter; an accidental moves with its note
 
 **Date:** 2026-10-12 · **Status:** accepted (owner, on #344: options 1c, 2a, 3a; the Strudel spellings with it) · Issues: #344, #307, #10
 

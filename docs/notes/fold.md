@@ -99,7 +99,7 @@ taken, 626 cells, 159 copies; 30 s.** The examples' ratchet at the same time: 56
   written out (16,820 of them), 18 K of that their lengths (`@2`). Counterpoint that never comes back at a chromatic
   transposition is most of it.
 
-## Degrees (#344, decision 028)
+## Degrees (#344, decision 033)
 
 `degrees.ts` writes the lines in degrees of the piece's key (the scale of the twelve tonics × major, minor, harmonic minor
 whose accidentals over the notes are fewest; a tie to the tonic the bass ends on), each note its degree and accidental
