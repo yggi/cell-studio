@@ -89,7 +89,22 @@ as MIDI** in the Files page.
   With no main meter, 120 bpm. A piece that ends is written whole, a loop one cycle, an hour at most.
 - **Reading** (`engine/midifile.ts` `readMidi`): format 0 and 1, notes (a note-on at velocity 0 ends one; a key struck
   again while held ends the earlier strike), bends, programs, tempos, time signatures, track names; SMPTE timing as
-  seconds. Not yet opened in the app: that is #307's next step (notes into a flat `.cells` piece).
+  seconds.
+- **Opening one** (*Open a file…* takes `.mid` too; `engine/midiimport.ts` `cellsFromMidi`): its notes written out flat,
+  every one kept, a piece to play and for Shorten to fold (#307's next steps).
+  - *The grid*: the coarsest step every start falls on (a quarter note, an eighth, a triplet … a 64th; within a 96th
+    of a quarter and an eighth of the step); a file played in, on none, is laid on sixteenths, and the status line says
+    how many notes moved.
+  - *The time*: one meter, `&tempo scan(…) step=free(…bpm) beat=… laps=1`, a step a grid step, each as long as the
+    file's tempo map makes it (a scan's steps are its weights against their mean; the commonest length weighs 1), so
+    the piece ends where the file does and its tempo is a slider.
+  - *The lines*: a line a track and channel, named after the track; notes that start and end together are a chord, one
+    that overlaps goes in a line beside (`&piano2`); a melody in semitones from C4 on a triangle voice at C4; channel 10
+    as drum voices by their General MIDI names (`&bd`, `&sd`, `&hh` …; a drum with no voice is left out and counted).
+    Each line runs to the end with a rest, so nothing comes round again.
+  - *Not kept*: velocities, bends, programs, controllers.
+  - BWV 847 saved as MIDI and opened again: all 1,765 notes, starts and lengths within 10 ms, in 5 lines, 6,805
+    characters (the example: 9,810 with its labels and notes). Today's Shorten folds that to 5,012 in 6.6 s.
 
 ## The code
 

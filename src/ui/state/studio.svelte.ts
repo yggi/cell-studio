@@ -4,7 +4,8 @@ import { declLine } from '../../engine/edit';
 import { FIRST_SOURCE, loadExample, type PresetKey } from '../../examples';
 import { download, fileName, readFile, saveFile, savePiece, titleOf } from '../../library';
 import { pieceMidi } from '../../engine/midiexport';
-import { writeMidi } from '../../engine/midifile';
+import { isMidi, readMidi, writeMidi } from '../../engine/midifile';
+import { cellsFromMidi } from '../../engine/midiimport';
 import { loudness, renderLength, renderPiece, wav } from '../../audio/render';
 import { transportClock } from '../../audio/clock.svelte';
 import { installDebugHook } from '../../debugHook';
@@ -95,6 +96,16 @@ export class Studio {
   async openFile(file: File): Promise<void> {
     const mine = ++this.#choice;
     try {
+      if (isMidi(new Uint8Array(await file.slice(0, 4).arrayBuffer()))) {
+        const smf = readMidi(new Uint8Array(await file.arrayBuffer()));
+        // (titled by the file's own name, else its file name)
+        const opened = cellsFromMidi(smf, smf.name?.trim() || file.name.replace(/\.(midi?|smf)$/i, ''));
+        if (mine !== this.#choice) return;
+        this.#opened({ kind: 'file', name: file.name.replace(/\.(midi?|smf)$/i, '.cells') }, opened.source);
+        const { notes, lines, perQuarter, moved, dropped } = opened;
+        this.view.message = `Opened ${file.name} from MIDI: ${notes} notes in ${lines} line${lines === 1 ? '' : 's'}, ${perQuarter} steps a quarter note${moved ? `, ${moved} moved onto that grid` : ''}${dropped ? `, ${dropped} drum notes with no drum voice left out` : ''}. Shorten folds it.`;
+        return;
+      }
       const text = await readFile(file);
       if (mine !== this.#choice) return;
       this.#opened({ kind: 'file', name: file.name }, text);

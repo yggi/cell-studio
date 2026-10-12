@@ -43,6 +43,9 @@ const DEFAULT_MICROS = 500_000;
 /** Why a file can't be read. */
 export class SmfError extends Error {}
 
+/** Do these bytes start as a MIDI file does (MThd)? */
+export const isMidi = (bytes: Uint8Array): boolean => bytes.length >= 4 && bytes[0] === 0x4d && bytes[1] === 0x54 && bytes[2] === 0x68 && bytes[3] === 0x64;
+
 /** A file's bytes as a Smf. Throws SmfError when they aren't a MIDI file (or end too soon). */
 export function readMidi(bytes: Uint8Array): Smf {
   let at = 0;

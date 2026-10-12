@@ -1,8 +1,9 @@
 <script lang="ts">
   /**
-   * Files, a page of the sidebar: open a piece from a file, save the open one to a file or in this browser, render it
-   * to WAV, save its notes as MIDI, the performance report, and which build this is. What those did (saved, rendering, rendered, couldn't read)
-   * is said here, in a status line: the picker shows it too, but it is hidden while a piece is open.
+   * Files, a page of the sidebar: open a piece from a file (a MIDI file too: its notes written out,
+   * engine/midiimport.ts), save the open one to a file or in this browser, render it to WAV, save its notes as MIDI,
+   * the performance report, and which build this is. What those did (saved, rendering, rendered, couldn't read) is
+   * said here, in a status line: the picker shows it too, but it is hidden while a piece is open.
    */
   import { getStudio } from './state/studio.svelte';
 
@@ -29,7 +30,7 @@
     <input
       bind:this={fileInput}
       type="file"
-      accept=".cells,.txt,text/plain"
+      accept=".cells,.txt,text/plain,.mid,.midi,audio/midi"
       hidden
       onchange={(e) => {
         const f = e.currentTarget.files?.[0];
