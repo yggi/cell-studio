@@ -5,7 +5,7 @@ import { compileSource } from '../engine/compile';
 import { pieceTime, type PieceTime } from '../engine/duration';
 import { buildGraph } from '../engine/graph';
 import { pieceMeta } from '../engine/parser';
-import { canonicalTags } from '../engine/tags';
+import { canonicalTags, tagName, type TagKind } from '../engine/tags';
 import { EXAMPLES, loadExample, type PresetKey } from '../examples';
 import type { Miniature } from '../layout/miniature';
 import type { SavedPiece } from '../library';
@@ -65,3 +65,12 @@ export const exampleEntries: readonly Entry[] = EXAMPLES.map((e) => ({
   size: e.size,
   time: e.time,
 }));
+
+/** Whether a card matches the words searched for (lower case): in its title, its description or a tag's name. */
+export const matches = (e: Entry, words: string): boolean =>
+  !words || e.title.toLowerCase().includes(words) || e.description.toLowerCase().includes(words) || e.tags.some((t) => tagName(t).toLowerCase().includes(words));
+
+/** A kind of tag the cards are filtered by (the tutorial has its own section). */
+export type FilterKind = Exclude<TagKind, 'tutorial'>;
+/** The kinds of tag the cards are filtered by, in the order the filters stand. */
+export const FILTER_KINDS: readonly FilterKind[] = ['genre', 'artist', 'topic'];
