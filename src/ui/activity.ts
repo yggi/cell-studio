@@ -26,7 +26,7 @@ export class Activity {
     const times = this.#times[direction];
     // (the ones that have faded out are let go as new ones come: the list is only what is on its way or still lit)
     const now = Math.min(at, performance.now());
-    if (times.length && times[0] + DECAY <= now) this.#times[direction] = times.filter((t) => t + DECAY > now);
+    if (times.length && times[0]! + DECAY <= now) this.#times[direction] = times.filter((t) => t + DECAY > now);
     this.#times[direction].push(at);
     this.onhit?.();
   }

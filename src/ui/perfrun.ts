@@ -139,7 +139,7 @@ export async function runScenario(
         stoppedBecause = 'cancelled';
         break;
       }
-      const { piece, setting } = steps[i];
+      const { piece, setting } = steps[i]!;
       const where = { index: i + 1, total: steps.length, piece: piece.label, setting: setting.label, of: o.seconds + WARMUP_S };
       io.onProgress({ ...where, elapsed: 0 });
       if (tuned !== setting.id) {

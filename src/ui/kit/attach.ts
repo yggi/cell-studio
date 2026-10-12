@@ -36,8 +36,8 @@ export function trap(options: TrapOptions | (() => void) = {}): Attachment<HTMLE
       if (e.key !== 'Tab' || e.defaultPrevented) return;
       const items = [...node.querySelectorAll<HTMLElement>(FOCUSABLE)];
       if (!items.length) return;
-      const first = items[0];
-      const last = items[items.length - 1];
+      const first = items[0]!; // (items is not empty)
+      const last = items[items.length - 1]!;
       if (e.shiftKey && (document.activeElement === first || document.activeElement === node)) (e.preventDefault(), last.focus());
       else if (!e.shiftKey && document.activeElement === last) (e.preventDefault(), first.focus());
     };
