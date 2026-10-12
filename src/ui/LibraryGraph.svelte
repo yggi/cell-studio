@@ -5,8 +5,8 @@
    * size of how many pieces carry it. Pieces sharing tags gather. Laid out by the
    * same physics as the pieces' graphs, without its ranks: a cloud, not a flow.
    */
-  import { GENRES, PILL, shortTitle, tagFont, tutorialTitle, type LibraryLayout } from '../layout/library';
-  import { tagName, TUTORIAL } from '../engine/tags';
+  import { GENRES, PILL, shortTitle, sideOf, sideTitle, tagFont, type LibraryLayout } from '../layout/library';
+  import { tagName } from '../engine/tags';
   import { tick } from 'svelte';
   import PieceNode from './PieceNode.svelte';
   import { clusterDisc } from '../layout/clusters';
@@ -152,11 +152,11 @@
   // lit: what the chosen tag carries; dim: what the search leaves out
   // zoomed out, a tag only one piece carries says little: left out (and its wash)
   const shownTag = (t: string) => zoom >= 0.6 || (tags.get(t) ?? 0) > 1 || tag === t;
-  // (on the wheel, the genres are its rim, and the tutorial its cell's: no pill, no wash of their own)
+  // (on the wheel, the genres are its rim, and the tutorial and the MIDI library their cells': no pill, no wash of their own)
   const asNode = (t: string) => shownTag(t) && tagHasVisible(t) && !onRim(t);
   const isGenre = (t: string) => (GENRES as readonly string[]).includes(t);
-  const onRim = (t: string) => (!!layout.ring && isGenre(t)) || (!!layout.tutorial && t === TUTORIAL);
-  const inTutorial = (e: Entry) => !!layout.tutorial && e.tags.includes(TUTORIAL);
+  const onRim = (t: string) => (!!layout.ring && isGenre(t)) || layout.sides.some((s) => s.tag === t);
+  const inSide = (e: Entry) => layout.sides.some((s) => s.tag === sideOf(e));
   // searching: what doesn't match is gone (as in the cards), not dimmed — and a tag left with no
   // piece showing goes with it
   const searching = $derived(shown.size < entries.length);
@@ -191,9 +191,9 @@
     [...tags]
       .filter(([t, n]) => n > 1 && shownTag(t) && !onRim(t))
       .map(([t]) => {
-        // (the wheel's pieces: the tutorial's cell has its own rim, no washes)
+        // (the wheel's pieces: a cell beside it has its own rim, no washes)
         const ms = entries
-          .filter((e) => visible(e.id) && e.tags.includes(t) && !inTutorial(e))
+          .filter((e) => visible(e.id) && e.tags.includes(t) && !inSide(e))
           .map((e) => layout.at.get(`p:${e.id}`))
           .filter((p): p is { x: number; y: number } => !!p);
         if (ms.length < 2) return null;
@@ -262,24 +262,29 @@
           ></button>
         {/each}
       {/if}
-      <!-- the tutorial: a cell of its own beside the wheel, its tiers in order along a thread -->
-      {#if layout.tutorial}
-        {@const t = layout.tutorial}
+      <!-- the tutorial and the MIDI library: cells of their own beside the wheel, their pieces in order along a thread -->
+      {#each layout.sides as t, i (t.tag)}
         {@const c = { x: px(t.x - layout.x0), y: px(t.y - layout.y0) }}
         {@const R = px(t.r)}
         {@const band = px(40)}
         {@const pt = (r: number, a: number) => `${c.x + r * Math.cos(a)},${c.y + r * Math.sin(a)}`}
         <svg class="ring" width={px(layout.w)} height={px(layout.h)} aria-hidden="true">
           <defs>
-            <radialGradient id="tutorial-disc">
+            <radialGradient id="side-disc-{i}">
               <stop offset="0%" stop-color="var(--surface)" />
               <stop offset="100%" stop-color="var(--wheel-disc)" />
             </radialGradient>
           </defs>
-          <circle cx={c.x} cy={c.y} r={R - band / 2} fill="url(#tutorial-disc)" />
-          <circle class="seg" class:dim={tag !== null && tag !== TUTORIAL} cx={c.x} cy={c.y} r={R} fill="none" stroke-width={band} style:stroke={colours.get(TUTORIAL)} />
-          <path id="tutorial-rim" d="M{pt(R, Math.PI)} A{R},{R} 0 0 1 {pt(R, 0)}" fill="none" />
-          <text class="segname" font-size={Math.max(12, px(26))} dy="0.35em"><textPath href="#tutorial-rim" startOffset="50%" text-anchor="middle">TUTORIAL</textPath></text>
+          <circle cx={c.x} cy={c.y} r={R - band / 2} fill="url(#side-disc-{i})" />
+          <circle class="seg" class:dim={tag !== null && tag !== t.tag} cx={c.x} cy={c.y} r={R} fill="none" stroke-width={band} style:stroke={colours.get(t.tag)} />
+          <path id="side-rim-{i}" d="M{pt(R, Math.PI)} A{R},{R} 0 0 1 {pt(R, 0)}" fill="none" />
+          <text class="segname" font-size={Math.max(12, px(26))} dy="0.35em"
+            ><textPath href="#side-rim-{i}" startOffset="50%" text-anchor="middle"
+              >{tagName(t.tag)
+                .replace(/ file$/, '')
+                .toUpperCase()}</textPath
+            ></text
+          >
           <polyline
             class="thread"
             points={t.order
@@ -295,11 +300,11 @@
           style:top="{c.y - R}px"
           style:width="{px(300)}px"
           style:height="{px(70)}px"
-          onclick={() => (tag = tag === TUTORIAL ? null : TUTORIAL)}
-          aria-pressed={tag === TUTORIAL}
-          aria-label="tutorial: light its pieces"
+          onclick={() => (tag = tag === t.tag ? null : t.tag)}
+          aria-pressed={tag === t.tag}
+          aria-label="{tagName(t.tag)}: light its pieces"
         ></button>
-      {/if}
+      {/each}
       <!-- clusters: the pieces a tag gathers, washed in its colour (as cells tagged alike in a piece's graph) -->
       {#each clusters as c (c.tag)}
         <div
@@ -376,7 +381,7 @@
                 ><PieceNode entry={e} {colours} size={d} petals={d * g >= 96} podsAt={d / 2 + (foot - d / 2) / g} current={e.id === current} miniature={lib.done} /></span
               >
             {/if}
-            <span class="title" style:top="{50 + 24 * g}%" style:font-size="{pillFont}px">{inTutorial(e) ? tutorialTitle(e) : shortTitle(e.title)}</span>
+            <span class="title" style:top="{50 + 24 * g}%" style:font-size="{pillFont}px">{inSide(e) ? sideTitle(e) : shortTitle(e.title)}</span>
           </button>
         {/if}
       {/each}

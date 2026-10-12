@@ -5,24 +5,29 @@ import { compileSource } from '../engine/compile';
 import { pieceTime, type PieceTime } from '../engine/duration';
 import { buildGraph } from '../layout/drawn';
 import { pieceMeta } from '../engine/parser';
-import { canonicalTags, tagName, type TagKind } from '../engine/tags';
+import { canonicalTags, MIDI_FILE, tagName, type TagKind } from '../engine/tags';
 import { EXAMPLES, loadExample, type PresetKey } from '../examples';
+import { creditOf, loadMidiFile, MIDI_FILES, type Credit } from '../corpus';
+import { cellsFromMidi } from '../engine/midiimport';
 import type { Miniature } from '../layout/miniature';
 import type { SavedPiece } from '../library';
 
 export interface Entry {
   readonly id: string;
-  readonly kind: 'example' | 'saved';
+  readonly kind: 'example' | 'saved' | 'midi';
   readonly title: string;
   readonly description: string;
   readonly tags: readonly string[];
   /** Its tier of the tutorial (its card's tier=), if it is one of its pieces. */
   readonly tier?: number | null;
-  /** Its text: a saved piece has it; an example's is fetched when it opens (`load`). */
+  /** Its text: a saved piece has it; an example's is fetched when it opens (`load`); a MIDI file's, its notes as cells
+   * (its miniature: it opens as the file). */
   readonly source?: string;
   readonly load?: () => Promise<string>;
   /** An example's graph in miniature, from the index (a saved piece's is worked out from its text). */
   readonly miniature?: Miniature | null;
+  /** A file of the MIDI library: where it came from and on what terms (its details show it). */
+  readonly credit?: Credit;
   /** For saved pieces: when. */
   readonly saved?: string;
   /** How many cells its graph has. */
@@ -66,11 +71,22 @@ export const exampleEntries: readonly Entry[] = EXAMPLES.map((e) => ({
   time: e.time,
 }));
 
+/** The MIDI library's cards (src/corpus.ts): a file is fetched when its wheel or the file is opened. */
+export const midiEntries: readonly Entry[] = MIDI_FILES.map((m) => ({
+  id: `midi:${m.key}`,
+  kind: 'midi',
+  title: m.title,
+  description: `Bach, Das Wohltemperierte Clavier ${m.book === 1 ? 'I' : 'II'}, BWV ${m.bwv}, ${m.tonality}: a MIDI file from the Mutopia Project, to play as it is or convert to cells.`,
+  credit: creditOf(m),
+  tags: [MIDI_FILE, 'artist:Bach', 'genre:classical', ...(m.part === 'fugue' ? ['counterpoint'] : [])],
+  load: () => loadMidiFile(m.key).then((smf) => cellsFromMidi(smf, m.title, { free: false }).source),
+}));
+
 /** Whether a card matches the words searched for (lower case): in its title, its description or a tag's name. */
 export const matches = (e: Entry, words: string): boolean =>
   !words || e.title.toLowerCase().includes(words) || e.description.toLowerCase().includes(words) || e.tags.some((t) => tagName(t).toLowerCase().includes(words));
 
-/** A kind of tag the cards are filtered by (the tutorial has its own section). */
+/** A kind of tag the cards are filtered by (the tutorial has its own section, as the MIDI library has). */
 export type FilterKind = Exclude<TagKind, 'tutorial'>;
 /** The kinds of tag the cards are filtered by, in the order the filters stand. */
 export const FILTER_KINDS: readonly FilterKind[] = ['genre', 'artist', 'topic'];

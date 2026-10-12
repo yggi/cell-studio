@@ -2,13 +2,13 @@ import { FIRST, type PresetKey } from '../../examples';
 import { listSaved, removeSaved, storageAvailable, type SavedPiece } from '../../library';
 import { freezeLayout, layoutKey, libraryLayoutAsync, stageOf, thawLayout, type FrozenLayout, type LibraryLayout } from '../../layout/library';
 import { storageKey } from '../../storageKey';
-import { exampleEntries, savedEntry, type Entry } from '../entries';
+import { exampleEntries, midiEntries, savedEntry, type Entry } from '../entries';
 
 // (the library's layout kept in the browser between visits: the next visit's opening is a replay, not the physics again)
-const STORE = storageKey('cell-studio:library-layout:v6');
+const STORE = storageKey('cell-studio:library-layout:v7');
 type Stored = { key: string; layout: FrozenLayout };
 try {
-  for (const v of ['v2', 'v3', 'v4', 'v5']) localStorage.removeItem(`cell-studio:library-layout:${v}`);
+  for (const v of ['v2', 'v3', 'v4', 'v5', 'v6']) localStorage.removeItem(`cell-studio:library-layout:${v}`);
 } catch {
   // (no storage)
 }
@@ -28,10 +28,10 @@ function storeLayout(key: string, layout: LibraryLayout): void {
   }
 }
 
-/** What's open: an example, a piece saved here, a file. */
-export type Open = { kind: 'example'; key: PresetKey } | { kind: 'saved'; id: string } | { kind: 'file'; name: string };
+/** What's open: an example, a piece saved here, a file of the MIDI library, a file. */
+export type Open = { kind: 'example'; key: PresetKey } | { kind: 'saved'; id: string } | { kind: 'midi'; key: string } | { kind: 'file'; name: string };
 
-/** The pieces to choose from (the examples and those saved in this browser), and which is open. */
+/** The pieces to choose from (the examples, the MIDI library and those saved in this browser), and which is open. */
 export class Library {
   saved = $state.raw<SavedPiece[]>(listSaved());
   readonly storageOk = storageAvailable();
@@ -39,9 +39,9 @@ export class Library {
   /** Counts the pieces opened: a new one is laid out afresh. 0: nothing chosen yet (the front door). */
   opened = $state(0);
   readonly anyOpen = $derived(this.opened > 0);
-  readonly entries = $derived<Entry[]>([...this.saved.map(savedEntry), ...exampleEntries]);
+  readonly entries = $derived<Entry[]>([...this.saved.map(savedEntry), ...exampleEntries, ...midiEntries]);
   /** The card of the piece open now (none for a file, or before anything is chosen). */
-  readonly currentId = $derived(!this.anyOpen ? null : this.open.kind === 'example' ? `example:${this.open.key}` : this.open.kind === 'saved' ? `saved:${this.open.id}` : null);
+  readonly currentId = $derived(!this.anyOpen || this.open.kind === 'file' ? null : `${this.open.kind}:${this.open.kind === 'saved' ? this.open.id : this.open.key}`);
 
   /** The library as a graph, kept between openings while the same pieces carry the same tags (`layoutKey`). */
   #kept: { key: string; layout: LibraryLayout } | null = null;
