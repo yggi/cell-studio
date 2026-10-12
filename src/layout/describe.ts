@@ -58,7 +58,7 @@ export function connections(result: CompileResult, name: string): Connection[] {
       relation: 'plays on',
       cells: c.voice || c.mix || c.sink ? [] : uniq(result.outputs.filter((o) => !o.kit && plays(o.cell)).map((o) => o.voice)),
     },
-    { relation: 'played by', cells: c.voice ? uniq(result.outputs.filter((o) => o.voice === name).map((o) => o.cell)) : [] },
+    { relation: 'played by', cells: c.voice ? uniq(result.outputs.filter((o) => o.voice === name && !o.drone).map((o) => o.cell)) : [] },
     {
       relation: 'shaped by',
       cells: c.voice ? uniq([c.env, c.pitch, ...Object.values(c.paramCells ?? {}).flatMap((p) => p.factors)]).filter((n) => !!result.cells.get(n)) : [],

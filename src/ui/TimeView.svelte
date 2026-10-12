@@ -88,7 +88,7 @@
   const now = $derived((playback.playing ? transportClock.seconds : playback.cursor) % length);
   /** The notes listened to (all the rounds; worked out only while the view is shown). */
   const planned = $derived(active && piece.program.ok ? plan(piece.program, piece.shifts, piece.muted) : null);
-  const heardNotes = $derived.by((): Played[] => (planned ? eventsBetween(planned, 0, listened) : []));
+  const heardNotes = $derived.by((): Played[] => (planned ? eventsBetween(planned, 0, listened, false, { until: listened }) : []));
   /**
    * The notes shown, by when they start: one round; with chance (no two rounds alike), every round's, folded onto the
    * one, so what varies shows as more than one note in a place.
@@ -206,7 +206,13 @@
         if (gone || !mono) return;
         sounding = 'listening';
         // (the notes as rendered, at the code's tempo: whose each band of the waterfall is)
-        const sounded = eventsBetween(plan(program, shifts, muted), 0, seconds).map((e) => ({ at: e.at, dur: e.dur, freq: e.freq, voice: e.voice, gains: e.gains }));
+        const sounded = eventsBetween(plan(program, shifts, muted), 0, seconds, false, { until: seconds }).map((e) => ({
+          at: e.at,
+          dur: e.dur,
+          freq: e.freq,
+          voice: e.voice,
+          gains: e.gains,
+        }));
         const names = [...new Set(sounded.map((e) => e.voice))];
         const a = await job({ kind: 'waterfall', samples: mono, rate, notes: sounded, voices: names }, [mono.buffer as ArrayBuffer]);
         if (!gone && a.kind === 'waterfall') fall = { freqs: a.freqs, times: a.times, rows: a.rows, owner: a.owner, voices: names, seconds };

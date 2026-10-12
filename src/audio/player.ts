@@ -89,7 +89,8 @@ export class Player implements LiveSource {
       const scale = Math.min(1.5, Math.max(0.02, took / 1000 / (hi - lo)));
       const start = this.Tone.getContext().currentTime + 0.01;
       // (at most 32, the ones nearest where the hand started)
-      const passed = eventsBetween(plan, lo, hi, true);
+      // (a drone's held note isn't a note a hand passes: it sounds while playing)
+      const passed = eventsBetween(plan, lo, hi, true).filter((e) => !e.held);
       for (const e of from < to ? passed.slice(0, 32) : passed.slice(-32)) {
         // (where the hand passes it: forward from the low end, backward from the high)
         const at = start + (from < to ? e.at - lo : hi - e.at) * scale;
@@ -372,7 +373,8 @@ export class Player implements LiveSource {
         const from = Math.round((tr.getTicksAtTime(time) / ppq) * 4) / 4 + offset;
         const secPerQuarter = 60 / tr.bpm.getValueAtTime(time);
         if (!this.plan) return;
-        const w = this.engine.window(from, WINDOW);
+        // (a drone starts where this run began: decision 028)
+        const w = this.engine.window(from, WINDOW, offset);
         if (w instanceof Promise) void w.then((x) => play(x, time, secPerQuarter));
         else play(w, time, secPerQuarter);
       },

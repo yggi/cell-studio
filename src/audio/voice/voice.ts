@@ -245,14 +245,15 @@ export function playNote(
     duration = Math.max(0.02, duration - late);
   }
   noteStats.played++;
+  // a note is articulated, its gate open for 90 % of its length; a drone's held note (decision 028) for all of it
+  const dur = Math.max(0.02, note.held ? duration : duration * 0.9);
   // its moving parameters, over this note
   for (const [k, track] of Object.entries(params ?? {})) {
     const target = b.moving[k];
-    if (target) schedule(target, k, track, time, Math.max(0.02, duration * 0.9));
+    if (target) schedule(target, k, track, time, dur);
   }
   b.notes.push({ at: time, freq });
   if (b.notes.length > 32) b.notes.splice(0, b.notes.length - 32);
-  const dur = Math.max(0.02, duration * 0.9);
   // a map=adsr factor shapes this note; otherwise the voice's own envelope
   const env = noteEnv ?? envelope(b.params);
   // noise: its buffer, looping from somewhere else each note (from the cell's seed, so the same every time);
