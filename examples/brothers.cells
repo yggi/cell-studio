@@ -20,7 +20,7 @@
 &lift tags="build" step=&buildBar*32 0
 &up tags="build" map=lin loop=&bar*32 0 .3 1 0
 
-&bd tags="break" s=sine loop=A1 pitch=0..24 * &(map=adsr 0 .06 0 0) distort=.5 env=&(map=adsr 0 .3 0 .05)
+&bd tags="break" oneshot s=sine loop=A1 pitch=0..24 * &(map=adsr 0 .06 0 0) distort=.5 env=&(map=adsr 0 .3 0 .05)
 &sd tags="break" s=white hpf=900 distort=.6 crush=7 env=&(map=adsr 0 .12 0 .05)
 &ch tags="break" s=white hpf=7000 crush=6 env=&(map=adsr 0 .03 0 .02)
 &tb tags="acid" s=saw loop=E2 lpf=120..3600 * &(map=adsr .003 .17 .1 .06) * &accent lpq=14 distort=.3 env=&(map=adsr .002 .14 .6 .05)

@@ -12,14 +12,14 @@
 &tune tags="hook" over=&major step=&hookBar/2 &hook 2@2 0@2 &hook 2@2 ~@2 &hook^1 4@2 2@2 3 3 2 1 0@4           # … a step up in bar 3
 
 &beat tags="drums" step=&beatBar &bd &sd &bd &sd
-&hats tags="drums" map=amp step=&hatsBar/2 .5 .25 .5 .25 .5 .25 .5 .3
+&hats tags="drums" step=&hatsBar/2 &hh%50 &hh%25 &hh%50 &hh%25 &hh%50 &hh%25 &hh%50 &hh%30
 
 &lead tags="hook" s=square loop=C5 lpf=3000 env=&(map=adsr .01 .2 .6 .2) pitch=&(map=lin loop=5 0 .1 0 -.1 0)
 &keys tags="keys" s=tri loop=C4 env=&(map=adsr .005 .3 .3 .2)
 &bass tags="bass" s=square loop=C2 lpf=500 env=&(map=adsr .005 .15 .5 .05)
 &bd tags="drums" level=.8 s=sine loop=A1 pitch=0..24 * &(map=adsr 0 .04 0 0) env=&(map=adsr 0 .3 0 .05)
 &sd tags="drums" level=.4 s=white hpf=1200 env=&(map=adsr 0 .15 0 .05)
-&hh tags="drums" s=white hpf=8000 env=&(map=adsr 0 .04 0 .02)
+&hh tags="drums" level=.2 s=white hpf=8000 env=&(map=adsr 0 .04 0 .02)
 
 &final tags="keys" over=&major step=&endBar [0,2,4,7]@4                  # the last chord: C
 
@@ -28,7 +28,7 @@
 &parts step=&bar &hatsBar &beatBar &bassBar &keysBar &hookBar &endBar
 &song over=&parts step=&bar*16 laps=1 label="intro · verse · verse · chorus · chorus · break · chorus · chorus · outro · end" [0,3] [0,1,2,3]!2 [0,1,2,3,4]!2 [3,4] [0,1,2,3,4]!2 [3] 5
 
-&out level=5 map=sample [&hats * &hh * .2,
+&out level=5 map=sample [&hats,
                          &beat,
                          &roots * &bass * .5,
                          &chords * &keys * .15,

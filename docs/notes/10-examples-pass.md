@@ -92,6 +92,64 @@ The library was already further along than the request assumed:
 
 **Two cards a piece, `&mix` and `&out`**: 19 pieces name the card `&mix`, 56 `&out`. A rename changes no note, but it is naming (#150), and the implicit `&out` is deferred ([gate-example.md](gate-example.md)): left.
 
+## oneshot, legato and `%`
+
+Three forms from the working tree (uncommitted when this was written; [sound.md](../language/sound.md), [cell.md](../language/cell.md)): `oneshot` on a voice (each note lasts its envelope's attack and decay, whatever its step), `x%n` (a step's own level), `legato` on a voice (a run of tied notes is one note, the pitch bending to each next one). Base recorded first: `node tools/corpus.mjs > /tmp/corpus-base4.json`.
+
+The pieces were compared with a strict compare: the same note means the same voice, onset and pitch, with every other field equal (gains, levels per hit, envelope, bends, params, `instrument`).
+
+- A rule-1 change ("same sound") may differ only in two ways:
+  - the event's `value` (now a kit index);
+  - a `oneshot` note's length, and only when the note was already long enough for its whole envelope (old length ≥ attack + decay + release, with sustain 0): the envelope has ended before the step does.
+- Everything else is listed under the sound changes below.
+
+### Simpler, same sound (rule 1)
+
+| piece | what | the lengths that moved |
+|---|---|---|
+| `pop` | hats `map=amp … .5 .25 …` → `&hats step=&hatsBar/2 &hh%50 &hh%25 …`, `&hh level=.2` | none |
+| `korobeiniki` | hats → `&noise%50 &noise%15 &noise …`, `&noise level=.2` | none |
+| `idm` | hats (seven to the bar) → `&tick%60 &tick%30 …`, `&tick level=.2` | none |
+| `coltrane`, `jazz` | ride → `&ride step=&swing &cym%90 ~ &cym%60 &cym%50 …`, `&cym level=.22` / `.25` | none |
+| `bossa` | rim on the clave and shaker → `&rim step=&clave &click &click%80 …`, `&shaker step=&bar/4 &shh%50 …`, levels on the voices; two lines kept, so the rim still steps with the clave (the piece's point) | none |
+| `bell` | the bell's strokes → `&strokes step=&bell &gankogui &gankogui%50 …` (still on the bell's scan, the piece's point); the low drum and the pulses in one groove on the twelve pulses, `[&dundun,&shekere%50] &shekere%20 …`, `&dundun oneshot` | 200 dundun notes: a beat (0.6 s) → 0.35 s, its envelope's end |
+| `five` | ride and the rim on 3 and 5 in one groove on the swing: `… [&cym%90,&click%70] …`, `&click oneshot` | 137 click notes: a beat → 0.03 s |
+| `hypercell` | kick, clap and hats in one groove on the eighths: `&beat step=&beatBar/2 &bd &hh [&bd,&cp] &hh …`, `&bd` `&cp` oneshot; the `&beat` mix gone (the groove is `&beat`, which `&eq` reads); `&fourFloorNote` about `&beat` | 384 kick and clap notes: a quarter (0.375 s) → 0.28 s / 0.12 s |
+| `onemore` | kick, clap and open hat in one groove on the eighths, `&bd` `&cp` oneshot; `&fourFloorNote` about `&beat` (the shaker stays: chance keyed on the voice) | 288 kick and clap notes: a quarter (0.49 s) → 0.3 s / 0.14 s |
+| `acid` | kick, clap, closed and open hats in one groove on the sixteenths, two motifs: `&b1 [&bd,&hh%30] &hh%20 [&hh%50,&oh%50] &hh%20`, `&b2` with the clap; `&bd` `&cp` `&oh` oneshot | 378 kick and clap notes inaudible; the open hat's 252 notes are a sound change (below) |
+
+All are checked note for note. `corpus --check` shows `same notes` for `pop`, `korobeiniki`, `idm`, `coltrane` and `jazz` (their levels moved into `%`, which the corpus doesn't hash, and the strict compare finds them equal). It shows `notes changed (expected)` for the oneshot pieces, because the corpus fingerprints each note's length.
+
+`%` costs characters: `&hh%50 &hh%25` is longer than `.5 .25`. The gain is in cells and products: no `map=amp` drum pattern is left outside `rhythm`, and no `* &voice * gain` for a drum outside the exceptions.
+
+### Sound changes (rule 2 and the tutorial)
+
+- **`acid`, the open hat.** `oneshot` on a sixteenth grid: 252 notes from 0.238 s (an eighth) to 0.2 s, its attack and decay. Its decay ends at 0.2 s with sustain 0, so the tail after it is silent either way. By the rule (old length < a + d + r = 0.3 s) it counts as a change.
+- **`brothers`, the break's kick** (`&bd oneshot`): 160 notes rang 0.134 s (a sixteenth) of a 0.3 s decay. Now they ring the whole decay: a fuller kick under the break.
+- **`idm`, the break's kick** (`&bd oneshot`): 320 notes, 0.094 s → 0.2 s. The ratcheted snare stays cut, because the cut is the drill.
+- **`musicbox`, the comb** (`&comb`, `&combLow` oneshot): a music box's tines ring. They were cut at their step: 149 notes, e.g. 0.51 s → 1.1 s and 0.85 s → 1.4 s.
+- **`tines`, the bells** (`&bell oneshot`): FM bells with a 3 s decay were cut at an eighth (0.357 s). 136 notes now ring 3 s.
+- **`bossa`, the flute** (`&flute legato`): its phrases (`4@3 3 2@2 ~@2 …`) are each one breath. 987 → 943 notes: the tied ones are now bends of the first.
+- **`stereo`, the cello** (`&cello legato`, tutorial tier 6, with `&legatoNote`): the bass line is one bow, each note a change of pitch with no new attack. 86 → 56 notes. The line has no rest, so a run is restarted only by the 256-note limit (or a repeated note: it merges).
+- **`drums`** (tutorial tier 4, with `&levelNote`): the off-beat hats at half, `&beat &bd ~ &hh%50 ~ &sd ~ &hh%50 [&bd,&hh]`. 86 notes from level 1 to 0.5. The corpus shows `same notes`, because it doesn't hash levels.
+- The tier test passes: `%` is shown in tier 4 (`drums`), `legato` in tier 6 (`stereo`).
+
+### Tried and taken back
+
+- **`pertonos`, the reed `legato`.** Musically right (a blown line with rests, the King's theme), but `src/engine/realize.test.ts` (*canon per tonos: rises a whole tone every pass*) reads the reed's notes one by one. Legato turns the tied ones into bends, so the test sees *D D*. It is reverted. It needs the test to read pitches through bends.
+- **`zell`, the ticks to `%`.** Note-identical, but the drawing of the new groove raised the library's drawn crossings from 46.3 to 46.7 (zell 1.3 → 3). It is reverted, to keep the layout baseline. With zell reverted the library passes.
+
+### What still doesn't fit
+
+- **The live view doesn't know `oneshot`.** `src/engine/routing.test.ts` (*the drawn states agree with each other and with what plays*) fails for `acid`, `bell`, `brothers`, `hypercell`, `idm` and `onemore`, e.g. *&bd sounds at 0.71 s, not live*. A oneshot note sounds past its step, but `live.ts` (no mention of `oneshot`) marks the voice live only for the step. `musicbox`, `tines` and `five` pass, because the same voice is live from a neighbouring note or the oneshot is shorter than its step. This is an engine fix in `live.ts`, not in the examples. Until it lands those 6 tests fail.
+- **Stays a product:**
+  - `rhythm` (tier 4 teaches the `map=amp` gate);
+  - `chance` and `ghosts` (chance keyed on the voice), and `onemore`'s shaker for the same reason;
+  - `tape` (varispeed);
+  - the pitched hits (`swing`, `arrangement`'s click, `ghosts`' glitch).
+- **The roll ratchets** (`hypercell`'s `&sn*8`, `idm`'s `&sd*4`) stay cut on purpose: `oneshot` would smear them.
+- **`legato` was not put** on the 303 lines (`acid`, `moving`, `brothers`: the filter envelope fires per note), on plucks, on stabs and chops (`onemore`), or on bells. It was not put on `pachelbel`'s violins either, though they are bowed: the line has no rest, and a canon of three copies on one voice would blur.
+
 ## 3. Open for the language to decide
 
 1. **A kit member's balance: settled by a voice's `level=` (5db16a7).** A drum's gain is its own, times every gain it is played at. With it, 5 of the 12 pieces play their plain drums as one groove of voices, note for note. What it leaves open:
