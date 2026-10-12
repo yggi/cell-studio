@@ -105,3 +105,32 @@ describe('Piece: a braid left free, held (#210)', () => {
     expect(p.held.size).toBe(0);
   });
 });
+
+describe('Piece: a MIDI file, as it is', () => {
+  const MIDI = `midi format=1 ppq=96 name="Two notes"
+tempo 1:1:0 120
+track "lead"
+1:1:0 ch1 C4 96 v100
+1:2:0 ch1 E4 96 v100`;
+
+  it('plays its notes, written out as cells behind the scenes, and keeps its text', () => {
+    const p = new Piece(MIDI);
+    expect(p.midi).not.toBeNull();
+    expect(p.title).toBe('Two notes');
+    expect(p.result.ok).toBe(true);
+    expect(p.program.cells.has('lead')).toBe(true);
+    expect(p.result.diagnostics).toEqual([]);
+    p.toggle('cell:lead');
+    p.turn('lead', 2);
+    expect(p.code).toBe(MIDI);
+  });
+
+  it('says which lines of its text it cannot read, and plays the last version that could', () => {
+    const p = new Piece(MIDI);
+    const before = p.program;
+    p.code = `${MIDI}\n1:3:0 ch1 nope`;
+    expect(p.result.diagnostics.map((d) => d.span.line)).toEqual([6]);
+    expect(p.stale).toBe(true);
+    expect(p.program).toBe(before);
+  });
+});

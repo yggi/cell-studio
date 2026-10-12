@@ -5,6 +5,7 @@ import { FIRST_SOURCE, loadExample, type PresetKey } from '../../examples';
 import { download, fileName, readFile, saveFile, savePiece, titleOf } from '../../library';
 import { pieceMidi } from '../../engine/midiexport';
 import { isMidi, readMidi, writeMidi } from '../../engine/midifile';
+import { midiText } from '../../engine/miditext';
 import { cellsFromMidi } from '../../engine/midiimport';
 import { loudness, renderLength, renderPiece, wav } from '../../audio/render';
 import { transportClock } from '../../audio/clock.svelte';
@@ -96,14 +97,14 @@ export class Studio {
   async openFile(file: File): Promise<void> {
     const mine = ++this.#choice;
     try {
+      // a MIDI file opens as it is: as text (engine/miditext.ts), playing; Convert to cells writes it as a piece
       if (isMidi(new Uint8Array(await file.slice(0, 4).arrayBuffer()))) {
         const smf = readMidi(new Uint8Array(await file.arrayBuffer()));
-        // (titled by the file's own name, else its file name)
-        const opened = cellsFromMidi(smf, smf.name?.trim() || file.name.replace(/\.(midi?|smf)$/i, ''));
         if (mine !== this.#choice) return;
-        this.#opened({ kind: 'file', name: file.name.replace(/\.(midi?|smf)$/i, '.cells') }, opened.source);
-        const { notes, lines, perQuarter, moved, dropped } = opened;
-        this.view.message = `Opened ${file.name} from MIDI: ${notes} notes in ${lines} line${lines === 1 ? '' : 's'}, ${perQuarter} steps a quarter note${moved ? `, ${moved} moved onto that grid` : ''}${dropped ? `, ${dropped} drum notes with no drum voice left out` : ''}. Shorten folds it.`;
+        this.#opened({ kind: 'file', name: file.name }, midiText(smf, file.name));
+        this.view.tab = 'time';
+        const notes = smf.tracks.reduce((n, t) => n + t.notes.length, 0);
+        this.view.message = `Opened ${file.name}: ${notes} notes in ${smf.tracks.length} track${smf.tracks.length === 1 ? '' : 's'}, as it is. Convert it to cells to fold it into a piece.`;
         return;
       }
       const text = await readFile(file);
@@ -114,9 +115,27 @@ export class Studio {
     }
   }
 
-  /** Save the code as a .cells file. */
+  /** Save the code as a .cells file; a MIDI file's text as the MIDI file. */
   saveFile(): void {
-    saveFile(this.piece.code);
+    const midi = this.piece.midi;
+    if (!midi) return saveFile(this.piece.code);
+    const open = this.library.open;
+    const name = open.kind === 'file' && /\.(midi?|smf)$/i.test(open.name) ? open.name : fileName(this.piece.code).replace(/\.cells$/, '.mid');
+    download(new Blob([writeMidi(midi.smf).buffer as ArrayBuffer], { type: 'audio/midi' }), name);
+  }
+
+  /** A MIDI file's text, converted: its notes written out as cells (engine/midiimport.ts), the piece open now. */
+  convert(): void {
+    const midi = this.piece.midi;
+    if (!midi) return;
+    const open = this.library.open;
+    const name = open.kind === 'file' ? open.name.replace(/\.(midi?|smf)$/i, '') : 'MIDI file';
+    const made = cellsFromMidi(midi.smf, midi.smf.name?.trim() || name);
+    this.piece.code = made.source;
+    if (open.kind === 'file') this.library.open = { kind: 'file', name: `${name}.cells` };
+    this.view.tab = 'graph';
+    const { notes, lines, perQuarter, moved, dropped } = made;
+    this.view.message = `Converted to cells: ${notes} notes in ${lines} line${lines === 1 ? '' : 's'}, ${perQuarter} steps a quarter note${moved ? `, ${moved} moved onto that grid` : ''}${dropped ? `, ${dropped} drum notes with no drum voice left out` : ''}. Shorten folds it.`;
   }
 
   /** Save the piece's notes as a MIDI file (#307): as MIDI out sends them, a track a channel, its tempo map as tempos. */
@@ -168,6 +187,7 @@ export class Studio {
 
   /** Add a new cell: it opens in its sheet. */
   add(): void {
+    if (this.piece.midi) return;
     this.view.focusOn(this.piece.add());
   }
 

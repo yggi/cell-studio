@@ -43,8 +43,10 @@ function write(all: readonly SavedPiece[]): void {
   localStorage.setItem(KEY, JSON.stringify(all));
 }
 
-/** A piece's title: its card's, or the first comment line, or "Untitled". */
+/** A piece's title: its card's (a MIDI file's text: its name), or the first comment line, or "Untitled". */
 export function titleOf(source: string): string {
+  const midi = /^midi\b[^\n]*\bname="([^"]*)"/m.exec(source);
+  if (midi) return midi[1].trim().slice(0, 60) || 'MIDI file';
   const meta = pieceMeta(source);
   if (meta) return meta.title;
   const comment = source.split('\n').find((l) => l.startsWith('#'));

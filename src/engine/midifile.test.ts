@@ -80,9 +80,8 @@ describe('writing a MIDI file', () => {
     expect(back.name).toBe('piece');
     expect(back.tempos).toEqual(smf.tempos);
     expect(back.meters).toEqual(smf.meters);
-    // (the conductor track first: no notes)
-    expect(back.tracks.map((t) => t.notes.length)).toEqual([0, 2, 1]);
-    expect(back.tracks.slice(1)).toEqual(smf.tracks);
+    // (the conductor track is the header: the tracks are those written)
+    expect(back.tracks).toEqual(smf.tracks);
   });
 });
 
@@ -115,7 +114,7 @@ describe('a piece as a MIDI file', () => {
     // (a sixteenth a step, four a beat: the prelude, Presto, Adagio, Allegro and the fugue as a handful of tempos)
     expect(file.tempos.length).toBeGreaterThan(3);
     expect(file.tempos.length).toBeLessThan(12);
-    expect(file.tracks.slice(1).map((t) => t.name)).toEqual(['saw', 'pulse', 'reed', 'brass', 'moog']);
+    expect(file.tracks.map((t) => t.name)).toEqual(['saw', 'pulse', 'reed', 'brass', 'moog']);
     // (every note on a sixteenth's grid: 120 ticks)
     expect(file.tracks.every((t) => t.notes.every((n) => n.tick % 120 === 0))).toBe(true);
   });

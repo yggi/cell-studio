@@ -3,7 +3,8 @@
  * 0 and 1 are read (2, independent sequences, as if 1); format 1 is written, a conductor track (tempos, meters, the
  * piece's name) first. What is read: notes (note-on with velocity 0 ends one, as note-off does; a key struck again
  * before it is let go ends the earlier strike), pitch bends, program changes, tempos, time signatures, track names.
- * Everything else (controllers, sysex, other metas) is skipped. Times are ticks; `secondsAt` lays them through the
+ * Everything else (controllers, sysex, other metas) is skipped; format 1's conductor track (only tempos, meters, a name)
+ * is the file's header, not a track. Times are ticks; `secondsAt` lays them through the
  * tempo map.
  */
 
@@ -189,6 +190,9 @@ export function readMidi(bytes: Uint8Array): Smf {
   }
   tempos.sort((a, b) => a.tick - b.tick);
   meters.sort((a, b) => a.tick - b.tick);
+  // (format 1's first track with nothing but metas is its conductor: its tempos, meters and name are the file's)
+  const first = tracks[0];
+  if (format === 1 && first && !first.notes.length && !first.bends.length && !first.programs.length) tracks.shift();
   return { format, ppq, ...(name !== undefined ? { name } : {}), tracks, tempos, meters };
 }
 

@@ -122,8 +122,8 @@ function braidOf(chords: readonly { at: number; dur: number; values: string[] }[
   return out.join(' ');
 }
 
-/** A MIDI file as a piece's source: every note it plays, flat. */
-export function cellsFromMidi(smf: Smf, title: string): Imported {
+/** A MIDI file as a piece's source: every note it plays, flat. `free`: its tempo a slider (else fixed). */
+export function cellsFromMidi(smf: Smf, title: string, { free = true }: { free?: boolean } = {}): Imported {
   // the parts: a track's notes by channel
   const parts: { name: string; drums: boolean; notes: SmfNote[] }[] = [];
   smf.tracks.forEach((t, i) => {
@@ -154,7 +154,9 @@ export function cellsFromMidi(smf: Smf, title: string): Imported {
   // (the scan's steps are its weights against their mean: the bpm makes the whole as long as the file)
   const total = lengths.reduce((a, b) => a + b, 0);
   const bpm = (60 * length) / (total * perQuarter);
-  const tempo = `&tempo scan(${runs.join(' ')}) step=free(${short(bpm, 6)}bpm, ${Math.floor(bpm * 0.6)}..${Math.ceil(bpm * 1.5)}) beat=${perQuarter} laps=1`;
+  // (free: a slider; not, for a MIDI file played as it is, where nothing is kept)
+  const rate = free ? `free(${short(bpm, 6)}bpm, ${Math.floor(bpm * 0.6)}..${Math.ceil(bpm * 1.5)})` : `${short(bpm, 6)}bpm`;
+  const tempo = `&tempo scan(${runs.join(' ')}) step=${rate} beat=${perQuarter} laps=1`;
 
   // the lines: chords where notes start and end together, a line beside for a note that overlaps
   const taken = new Set(TAKEN);

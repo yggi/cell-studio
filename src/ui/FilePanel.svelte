@@ -9,7 +9,9 @@
 
   const studio = getStudio();
   const { library, view } = studio;
-  const current = $derived(library.currentId);
+  // (a file open, or a piece: there is something to save)
+  const open = $derived(library.anyOpen);
+  const midi = $derived(studio.piece.midi);
   const storageOk = library.storageOk;
   let fileInput: HTMLInputElement;
 </script>
@@ -19,14 +21,13 @@
   <section aria-labelledby="file-piece">
     <h4 id="file-piece">Piece</h4>
     <button onclick={() => fileInput.click()}>Open a file…</button>
-    <button disabled={!current} onclick={() => studio.saveFile()}>Save the piece to a file</button>
-    <button disabled={!current || !storageOk} title={storageOk ? undefined : 'This browser can’t keep pieces here'} onclick={() => studio.saveHere()}
-      >Save it in this browser</button
-    >
-    <button disabled={!current} onclick={() => studio.render()}>Render the piece to WAV</button>
-    <button disabled={!current} title="Its notes as MIDI out sends them: a track a channel, its tempo map as tempos" onclick={() => studio.saveMidi()}
-      >Save its notes as MIDI</button
-    >
+    <button disabled={!open} onclick={() => studio.saveFile()}>{midi ? 'Save the MIDI file' : 'Save the piece to a file'}</button>
+    {#if midi}<button onclick={() => studio.convert()}>Convert to cells</button>{/if}
+    <button disabled={!open || !storageOk} title={storageOk ? undefined : 'This browser can’t keep pieces here'} onclick={() => studio.saveHere()}>Save it in this browser</button>
+    <button disabled={!open} onclick={() => studio.render()}>Render the piece to WAV</button>
+    {#if !midi}<button disabled={!open} title="Its notes as MIDI out sends them: a track a channel, its tempo map as tempos" onclick={() => studio.saveMidi()}
+        >Save its notes as MIDI</button
+      >{/if}
     <input
       bind:this={fileInput}
       type="file"
