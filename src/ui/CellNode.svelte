@@ -9,7 +9,7 @@
   import GateMeter from './GateMeter.svelte';
   import KitGlyph from './KitGlyph.svelte';
   import { VOICE_KIT } from '../engine/compiler/declare';
-  import { bulbHosts } from '../engine/graph';
+  import { bulbHosts } from '../layout/drawn';
   import { drumPlaces, kitOf } from '../layout/kit';
   import { gateOf } from '../layout/gate';
   import { glyphOf, soundHeadOf } from '../layout/wheels';
