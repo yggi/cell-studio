@@ -34,16 +34,23 @@ function commonest(lines: readonly (readonly Tok[])[]): { key: string; count: nu
   return best;
 }
 
-/** Fold the commonest pair into a symbol, again and again, while one comes twice. */
+/**
+ * Fold the commonest pair into a symbol, again and again, while one comes twice: in the lines and in the symbols'
+ * own steps alike (the same move at every level), but not in a phrase that variants copy (`base=` counts its steps as
+ * written), nor in a variant.
+ */
 export const pairs: Tool = (f: Folded) => {
-  let lines = f.lines.map((l) => l.toks);
+  const copied = new Set([...f.rules.values()].flatMap((r) => (r.of ? [r.of] : [])));
+  const inside = [...f.rules.values()].filter((r) => !r.of && !copied.has(r.key)).map((r) => r.key);
+  // (the lines, then the symbols' steps as tokens at their offsets)
+  let seqs: Tok[][] = [...f.lines.map((l) => [...l.toks]), ...inside.map((k) => f.rules.get(k)!.kids.map((c) => ({ key: c.key, base: c.off })))];
   const rules = new Map(f.rules);
   let made = 0;
   let next = Math.max(0, ...[...rules.keys()].map((k) => Number(k.slice(1)) || 0)) + 1;
-  for (let best = commonest(lines); best; best = commonest(lines)) {
+  for (let best = commonest(seqs); best; best = commonest(seqs)) {
     const name = `s${next++}`;
     let rule: Rule | null = null;
-    lines = lines.map((toks) => {
+    seqs = seqs.map((toks) => {
       const out: Tok[] = [];
       for (let i = 0; i < toks.length; i++) {
         if (i + 1 < toks.length) {
@@ -68,5 +75,7 @@ export const pairs: Tool = (f: Folded) => {
     rules.set(name, rule!);
     made++;
   }
-  return made ? { lines: f.lines.map((l, i) => ({ ...l, toks: lines[i] })), rules, looks: f.looks } : null;
+  if (!made) return null;
+  inside.forEach((k, i) => rules.set(k, { key: k, kids: seqs[f.lines.length + i].map((t) => ({ key: t.key, off: t.base })) }));
+  return { lines: f.lines.map((l, i) => ({ ...l, toks: seqs[i] })), rules, looks: f.looks };
 };

@@ -26,10 +26,16 @@ export interface Tok {
   readonly base: number | null;
 }
 
-/** A symbol: what it stands for, each child at an offset from its base (null: a child with no pitch). */
+/**
+ * A symbol: what it stands for, each child at an offset from its base (null: a child with no pitch). A variant
+ * (`variants.ts`) is another symbol's steps with a few changed: `of` that symbol, `patched` which children differ; it
+ * prints as a copy of it (`base=`, decision 026), its children all there for the tools that expand it.
+ */
 export interface Rule {
   readonly key: string;
   readonly kids: readonly { readonly key: string; readonly off: number | null }[];
+  readonly of?: string;
+  readonly patched?: readonly boolean[];
 }
 
 /**

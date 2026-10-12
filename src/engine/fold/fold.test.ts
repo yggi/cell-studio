@@ -4,6 +4,7 @@ import { tokensOf, elementText } from './transpose';
 import { pairs } from './pairs';
 import { beta } from './beta';
 import { figure } from './figure';
+import { variants } from './variants';
 import { compileSource } from '../compile';
 import { codeShifts } from '../program';
 import { eventsBetween, plan } from '../realize';
@@ -95,6 +96,26 @@ describe('the folder', () => {
       '&run1 over=&chords1 &figure1!24',
     ]);
     expect(lines.get('rh')).toBe('&run1');
+  });
+
+  it('writes a phrase that returns bent as one cell and a copy of it with what differs (a variant, base=)', () => {
+    const subject = [12, 11, 12, 7, 8, 12, 11, 12, 14, 7, 12, 11, 12, 14, 5, 7, 8, 7, 5, 3];
+    const answer = subject.map((p, i) => (i === 3 ? 12 : p + 7));
+    const bass = subject.map((p) => p - 12);
+    // (each line the phrase where it enters, rests round it)
+    const at = (name: string, start: number, ps: number[]) =>
+      line(
+        name,
+        ps.map((p, i) => [start + i, 1, p]),
+        40,
+      );
+    const lines = [at('alto', 0, subject), at('sop', 20, answer), at('low', 10, bass)];
+    const f = variants({ lines: lines.map((l) => ({ name: l.name, toks: tokensOf(l) })), rules: new Map() })!;
+    const { defs } = printFolded(f);
+    // (the subject at its full length, the answer a copy of it written in its own frame: the line splices it a fifth
+    // up, so -7 sounds as the answer's 12)
+    expect(defs).toEqual(['&m1 0 -1 0 -5 -4 0 -1 0 2 -5 0 -1 0 2 -7 -5 -4 -5 -7 -9', '&m2 base=&m1 _!3 -7']);
+    expect(plays(lines)).toEqual(expected(lines));
   });
 
   it('plays the same notes folded, phrases, transpositions, figures, chords and rests alike', () => {

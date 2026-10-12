@@ -22,7 +22,8 @@ function uses(f: Folded): Map<string, number[]> {
     });
   };
   for (const l of f.lines) count(l.toks);
-  for (const r of f.rules.values()) count(kidsOf(r));
+  // (a variant names its phrase once, and its own steps are elements)
+  for (const r of f.rules.values()) count(r.of ? [{ key: r.of, base: null }] : kidsOf(r));
   return n;
 }
 
@@ -46,7 +47,14 @@ export const beta: Tool = (f: Folded) => {
     for (const [key, r] of now.rules) {
       const body = written(kidsOf(r), names);
       const ref = 4 + 1 + (r.kids.some((c) => c.off !== null) ? 4 : 0);
-      const def = 1 + 3 + 1 + body;
+      // (a variant is written as its changes over its phrase: `base=&m1 _!3 12@2`)
+      const def = r.of
+        ? 22 +
+          written(
+            kidsOf(r).filter((_, i) => r.patched![i]),
+            names,
+          )
+        : 1 + 3 + 1 + body;
       // (each place: written out, its run n times over, against its name once, `!n` added for a run)
       const gain = (n.get(key) ?? []).reduce((g, k) => g + k * body - ref - (k > 1 ? 2 : 0), 0) - def;
       if (gain <= 0 && (!worst || gain < worst.gain)) worst = { key, gain };
@@ -57,7 +65,9 @@ export const beta: Tool = (f: Folded) => {
     const rules = new Map<string, Rule>();
     for (const [key, r] of now.rules) {
       if (key === worst.key) continue;
-      rules.set(key, { key, kids: inline(kidsOf(r)).map((t) => ({ key: t.key, off: t.base })) });
+      // (a variant of what goes is written out: its steps are all there)
+      if (r.of) rules.set(key, r.of === worst.key ? { key, kids: r.kids } : r);
+      else rules.set(key, { key, kids: inline(kidsOf(r)).map((t) => ({ key: t.key, off: t.base })) });
     }
     now = { lines: now.lines.map((l) => ({ ...l, toks: inline(l.toks) })), rules, looks: now.looks };
     changed = true;

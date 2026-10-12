@@ -32,11 +32,35 @@ a pipeline from notes to cells: a reader, a set of tools, a printer, a judge.
 
 A tool is a function `Folded → Folded | null` (`ir.ts`: `Tool`); a new one is a file and a place in the list.
 
+## Variants: a phrase and its copies (`variants.ts`, decision 026)
+
+A disentangler in #234's sense, lifting's predict and update: a long phrase that comes back nearly the same (a step
+changed, a note held longer, transposed or not) is written once at its own length, and each return as that cell
+spliced (`&m6^$-12`) or as a copy of it with what differs (`&m17 base=&m6 _!3 [-1,2]@2`). How it finds them:
+
+- **Seeds**: five steps alike in shape anywhere (a seed heard more than 48 times is a run, left to pairs); from each
+  pair of places, a phrase grown step by step while it changes in at most two steps or a sixth of it.
+- **The phrase as its family has it**: of the places it returns to, the one the others differ from least (BWV 847's
+  first entry in line order is the soprano's tonal answer, a bent one); grown either way, the length that saves the most
+  is taken, so a return that changes too much at full length drops out (and is folded otherwise).
+- **Only lengths where something returns changed**: exact returns alone are pairs' to fold, shared across lines.
+- **Taken when it costs little**: the driver folds with and without variants, and takes variants when they are at most
+  5 % longer (`STRUCTURE`): a phrase said as a phrase is worth a little length (BWV 847: +3 %); where they cost more
+  (Pop: +28 %), not.
+
+**BWV 847** converted from MIDI: the subject comes back as one cell, its last 15 steps (`&m6 0 -1 0@2 2@2 -5@2 …`),
+entered eight times and twice more as copies (the last entry's chord, an ending held); the countersubject as another
+(`&m9 0 -2 -4 -6 -7 -9@2 6@2 …`) with a copy that holds its end; near-repeats of the free counterpoint as copies too. Its
+first five steps are where the entries bend (the tonal answer's leap, the modulated entry in E♭ changes three steps
+over the whole subject): the description length prefers the phrase without them, which is itself a finding about the
+fugue. The whole subject would need a larger budget of changes or a stronger preference for structure: the owner's call.
+
 ## What it does (the ratchet, `tools/probe/ratchet.test.ts`; [ratchet.md](ratchet.md) has the baseline)
 
-**73 pieces through MIDI: the scores 26,931 characters written, 198,100 flat; `shortenAll` 60,810 (226 % of
-written, 30 s); the folder 55,645 (207 %, 2.8 s). Phrases back 52 of 185 either way. Notes kept by 63 either way (the
-10 others lose them in the MIDI path, before folding).**
+**74 pieces through MIDI (with variants): the scores 27,174 characters written, 198,352 flat; `shortenAll` 61,050
+(225 % of written, 30 s); the folder 55,950 (206 %, 8.1 s: it folds twice, with and without variants). Phrases back 58
+of 191 either way. Notes kept by 64 either way (the 10 others lose them in the MIDI path, before folding).** (Before
+variants, 73 pieces: 207 %, 2.8 s.)
 
 - **BWV 847**: the prelude comes back as the hand example writes it, both hands one figure over their chord tables:
   `&figure1 0 1 2 1 3 1 2 1`, `&chords1 step=&tempo*16 [12,3,2,0] [8,5,4,0] …` (its `&rhShapes`), `&run1 over=&chords1
@@ -62,9 +86,8 @@ written, 30 s); the folder 55,645 (207 %, 2.8 s). Phrases back 52 of 185 either 
 
 ## Next (step 5 and after)
 
-- **The subject**: the fugue's entries are phrases of 20 notes, some bent (a tonal answer, one note changed). An
-  approximate match (a phrase and a few notes that differ, written as the phrase and a patch) is a disentangler that
-  isn't there yet.
+- **The whole subject** (above): a budget of changes per return, or a preference for structure, that keeps its head.
+- **Variants' cost**: 8.1 s for the library against 2.8 s; folding twice and the search per round are where it goes.
 - **Phrases with `^$k` at their right length**: Re-Pair's symbols are binary; a phrase of five is three symbols. A
   tool that, after pairs, flattens a chain of symbols used only together into one cell (β inside out) would give the
   phrase its own cell, as `shortenAll` does.

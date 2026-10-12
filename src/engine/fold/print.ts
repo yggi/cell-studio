@@ -29,6 +29,18 @@ function runs(texts: readonly string[]): string {
 /** Tokens as a braid: their texts, a run of one written `x!n`. */
 const braid = (toks: readonly Tok[], names: ReadonlyMap<string, string>): string => runs(toks.map((t) => tokText(t, names)));
 
+/**
+ * A variant as a copy of its phrase (decision 026): `base=&m1` (`^$n` where its own base sits elsewhere), then its steps
+ * over the phrase's, `_` for each it keeps (`_!n`), the changed ones as they sound; nothing after the last change.
+ */
+function variantText(v: Rule, phrase: Rule, names: ReadonlyMap<string, string>): string {
+  const j = v.kids.findIndex((k, i) => !v.patched![i] && k.off !== null && phrase.kids[i].off !== null);
+  const by = j < 0 ? 0 : v.kids[j].off! - phrase.kids[j].off!;
+  const steps = v.kids.map((k, i) => (v.patched![i] ? tokText({ key: k.key, base: k.off }, names) : '_'));
+  while (steps.length && steps[steps.length - 1] === '_') steps.pop();
+  return `base=&${names.get(phrase.key) ?? phrase.key}${by ? `^$${by}` : ''} ${runs(steps)}`;
+}
+
 /** A symbol's children as tokens at their offsets (its base 0). */
 export const kidsOf = (r: Rule): Tok[] => r.kids.map((k) => ({ key: k.key, base: k.off }));
 
@@ -45,12 +57,17 @@ export function printFolded(f: Folded, prefix = 'm', clock = '&tempo'): { defs: 
       if (!isElement(t.key) && !isLook(t.key) && !seen.has(t.key)) {
         seen.add(t.key);
         order.push(t.key);
-        visit(kidsOf(f.rules.get(t.key)!));
+        const r = f.rules.get(t.key)!;
+        // (a variant names the phrase it copies)
+        visit(r.of ? [{ key: r.of, base: null }] : kidsOf(r));
       }
   };
   for (const l of f.lines) visit(l.toks);
   const names = new Map(order.map((k, i) => [k, `${prefix}${i + 1}`]));
-  const defs = order.map((k) => `&${names.get(k)} ${braid(kidsOf(f.rules.get(k)!), names)}`);
+  const defs = order.map((k) => {
+    const r = f.rules.get(k)!;
+    return `&${names.get(k)} ${r.of ? variantText(r, f.rules.get(r.of)!, names) : braid(kidsOf(r), names)}`;
+  });
   // the figurations: a figure cell for each figure, a table and a run for each
   const figures = new Map<string, string>();
   let n = 0;
