@@ -15,4 +15,4 @@ tools/gallery/harness.html
 node_modules
 dist
 .svelte-check
-src/engine/fold/ratchet.wtc.json
+src/engine/fold/ratchet.midi.json

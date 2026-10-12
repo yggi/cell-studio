@@ -40,8 +40,8 @@ export interface Engine {
   readonly kind: 'local' | 'worker';
   /** The piece from now on: its plan (here) and the source it was compiled from (for an engine elsewhere; null: none). */
   load(plan: Plan, source: PieceSource | null): void;
-  /** The window [from, from + length): at once, or when the worker answers. */
-  window(from: number, length: number): Window | Promise<Window>;
+  /** The window [from, from + length) of a run of windows that began at `begins` (a drone starts there): at once, or when the worker answers. */
+  window(from: number, length: number, begins?: number): Window | Promise<Window>;
   /** A hand on a physical cell at transport second t (null lets go). */
   grab(cell: string, t: number, speed: number | null): void;
   /** Every hand forgotten (Reset). */
@@ -61,9 +61,9 @@ export class LocalEngine implements Engine {
   load(plan: Plan): void {
     this.plan = plan;
   }
-  window(from: number, length: number): Window {
+  window(from: number, length: number, begins = 0): Window {
     const t0 = now();
-    const w = this.plan ? windowAt(this.plan, from, length) : emptyWindow(from, length);
+    const w = this.plan ? windowAt(this.plan, from, length, { begins }) : emptyWindow(from, length);
     const ms = now() - t0;
     this.s.windows++;
     this.s.computeMs += ms;
@@ -141,20 +141,20 @@ export class WorkerEngine implements Engine {
     this.port?.postMessage({ type: 'load', code: source.code, env: source.env });
   }
 
-  window(from: number, length: number): Window | Promise<Window> {
-    if (!this.port) return this.local.window(from, length);
+  window(from: number, length: number, begins = 0): Window | Promise<Window> {
+    if (!this.port) return this.local.window(from, length, begins);
     const id = ++this.seq;
     this.s.windows++;
-    this.port.postMessage({ type: 'window', id, from, length });
+    this.port.postMessage({ type: 'window', id, from, length, begins });
     return new Promise((resolve) => {
       const timer = setTimeout(() => {
         if (!this.pending.delete(id)) return;
         this.s.late++;
-        resolve(this.local.window(from, length));
+        resolve(this.local.window(from, length, begins));
       }, this.deadline);
       this.pending.set(id, {
         asked: now(),
-        done: (w) => (clearTimeout(timer), resolve(w ?? this.local.window(from, length))),
+        done: (w) => (clearTimeout(timer), resolve(w ?? this.local.window(from, length, begins))),
       });
     });
   }

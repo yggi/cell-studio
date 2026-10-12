@@ -21,6 +21,7 @@ What Cell studio doesn't do yet or does with a catch, documented rather than tra
 - Scopes, spectrum wheels and tape levels read the signal as it is made, so they run ahead of the speaker by the output lag (about 55 ms with the default `balanced` hint; the position, notes, cells and edges are held back to match what is heard: [decision 005](decisions/005-balanced-latency-and-heard-pictures.md)).
 - Tape Machine peaks at −0.2 dB, a little over the −1 dB convention, and its average level doesn't follow its parts' gains as expected ([#95](https://github.com/yggi/cell-studio/issues/95)).
 - A key held live (MIDI in, the computer keys, the dock, the piano roll's keys) is cut when its voice is rebuilt: an edit to the voice's line, or a `free()` moved on its params, while the key is down.
+- A drone (a voice alone, held: [decision 028](decisions/028-the-smallest-piece.md)) is one note held ten minutes at a time (`HELD`, engine/realize.ts), then struck again, a fresh attack over the old one's release; what moves in it (its `pitch=`, levels, moving parameters) is worked out and scheduled a note at a time, so a fast vibrato costs one window about 20 ms when play starts. Playing from the middle starts it there; scrubbing by hand doesn't strike it. MIDI out sends it as one note, let go at Pause or Stop; its envelope's playhead isn't drawn.
 - The live views, not the audio, are what loads the main thread; on a slow phone a large graph can still saturate it (measure with [testing.md](testing.md); the numbers are in the profile skill's README).
 
 ## Editor

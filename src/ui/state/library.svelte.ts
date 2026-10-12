@@ -5,10 +5,10 @@ import { storageKey } from '../../storageKey';
 import { exampleEntries, midiEntries, savedEntry, type Entry } from '../entries';
 
 // (the library's layout kept in the browser between visits: the next visit's opening is a replay, not the physics again)
-const STORE = storageKey('cell-studio:library-layout:v7');
+const STORE = storageKey('cell-studio:library-layout:v8');
 type Stored = { key: string; layout: FrozenLayout };
 try {
-  for (const v of ['v2', 'v3', 'v4', 'v5', 'v6']) localStorage.removeItem(`cell-studio:library-layout:${v}`);
+  for (const v of ['v2', 'v3', 'v4', 'v5', 'v6', 'v7']) localStorage.removeItem(`cell-studio:library-layout:${v}`);
 } catch {
   // (no storage)
 }

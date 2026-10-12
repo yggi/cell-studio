@@ -31,8 +31,9 @@
   // the tutorial, tier by tier (the library's order within one); then the other examples, smallest first
   const tutorial = $derived(shown.filter((e) => e.kind === 'example' && e.tags.includes(TUTORIAL)).sort(byTier));
   const examples = $derived(shown.filter((e) => e.kind === 'example' && !e.tags.includes(TUTORIAL)).sort((a, b) => (a.size ?? 0) - (b.size ?? 0)));
-  // the MIDI library, in the order of its books
+  // the MIDI library, a section a collection, each in its own order
   const midi = $derived(shown.filter((e) => e.kind === 'midi'));
+  const collections = $derived([...new Set(midi.map((e) => e.collection ?? 'MIDI files'))]);
   // a card's wheel: as large as its card leaves room for, the petals on its rim included (≈ 1.41 × across)
   let cardWidth = $state(0);
   const wheel = $derived(cardWidth ? Math.min(136, Math.floor((cardWidth - 8) / 1.41)) : 136);
@@ -83,14 +84,14 @@
     <p class="empty">Nothing matches. <button class="unstyled link" onclick={onreset}>Show everything</button></p>
   {/if}
 </section>
-{#if midi.length}
+{#each collections as c (c)}
   <section>
-    <h3 class="section">MIDI files</h3>
+    <h3 class="section">{c} <span class="kind">MIDI files</span></h3>
     <div class="grid">
-      {#each midi as e (e.id)}{@render card(e)}{/each}
+      {#each midi.filter((e) => (e.collection ?? 'MIDI files') === c) as e (e.id)}{@render card(e)}{/each}
     </div>
   </section>
-{/if}
+{/each}
 
 <style>
   section {
@@ -102,6 +103,11 @@
     margin: 6px 0 0;
     font: 600 14px var(--font-ui);
     color: var(--text-muted);
+  }
+  .section .kind {
+    font-weight: 400;
+    font-size: 12.5px;
+    margin-left: 6px;
   }
   .grid {
     display: grid;

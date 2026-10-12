@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { Piece } from './piece.svelte';
 
 const SRC = `&bar step=free(120bpm, 60..180)
-&tune 0 2 4 shift=free(0, 0..7) over=&bar
+&tune step=&bar 0 2 4 shift=free(0, 0..7) over=&bar
 &lead s=sine
 &out [&tune * &lead]`;
 
