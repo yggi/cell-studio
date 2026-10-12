@@ -30,7 +30,7 @@ describe('the time view', () => {
   });
   it('ticks time and the tower, and names its zones', () => {
     expect(timeTicks(f).map((t) => t.at)).toEqual([0, 15, 30, 45, 60, 75, 90, 105, 120]);
-    expect(freqTicks(f).map((t) => t.label)).toEqual(['10 s', '1 s', '0.1 s', '100 Hz', '1 kHz', '10 kHz']);
+    expect(freqTicks(f).map((t) => t.label)).toEqual(['60 s', '10 s', '1 s', '0.1 s', '100 Hz', '1 kHz', '10 kHz']);
     expect(zones(f).map((z) => z.name)).toEqual(['slow', 'pulse', 'audible', 'card']);
     expect(zones(f).find((z) => z.name === 'card')!.lo).toBe(CARD);
   });

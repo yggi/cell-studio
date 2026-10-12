@@ -22,6 +22,7 @@
   import { sectionsOver, swells, cones, type Boundary } from '../engine/time/boundaries';
   import { peaks } from '../engine/time/spectrogram';
   import { splices } from '../engine/time/splices';
+  import { structure } from '../engine/time/structure';
   import { motifs, multiscale } from '../engine/time/motifs';
   import { alike, foldings, levelsOf, pulseOf } from '../engine/time/necklace';
   import { towerSpans } from '../layout/tower';
@@ -81,6 +82,29 @@
       return node?.cell && node.kind === 'cell' && Number.isFinite(at) && Number.isFinite(lo) ? [{ name: node.cell.name, step: Math.pow(10, -at), turn: Math.pow(10, -lo) }] : [];
     });
   });
+  /** Each cell where it plays, nested (engine/time/structure.ts): one round. */
+  const nodes = $derived.by(() => {
+    if (!planned || !settings.layers.structure) return [];
+    // (nodes of one length that overlap in time stack in lanes under each other, as chords' notes would)
+    const ends = new Map<number, number[]>();
+    return structure(planned, length)
+      .sort((a, b) => a.at - b.at || a.depth - b.depth)
+      .map((n) => {
+        const row = Math.round(12 * Math.log2(Math.max(1e-3, n.to - n.at)));
+        const lanes = ends.get(row) ?? [];
+        let lane = lanes.findIndex((end) => end <= n.at + 1e-6);
+        if (lane < 0) lane = lanes.length;
+        lanes[lane] = n.to;
+        ends.set(row, lanes);
+        return { ...n, lane };
+      });
+  });
+  /** A family's hue (a copy takes its base's: its variants read as one phrase). */
+  const familyHue = (name: string) => {
+    let h = 0;
+    for (const ch of name) h = (h * 31 + ch.charCodeAt(0)) % 360;
+    return (h * 7) % 360;
+  };
   /** Where a braid turns to its next spliced cell, heard (engine/time/splices.ts). */
   const spliced = $derived(planned && settings.layers.splices ? splices(planned, length) : []);
   /** The patterns: motifs heard at two time scales, and foldings alike at two levels, over the first ten minutes (of
@@ -406,7 +430,7 @@
   $effect(() => {
     const f = frame;
     const layers: TimeLayers = settings.layers;
-    const [sb, fb, w, n, ws, hd, sp, cs, pt, vs, back, mt, rg] = [
+    const [sb, fb, w, n, ws, hd, sp, cs, pt, vs, back, mt, rg, st] = [
       scalBitmap,
       fallBitmap,
       wave,
@@ -420,6 +444,7 @@
       longest,
       meter,
       heardLevels,
+      nodes,
     ];
     if (!canvas || f.width < 2 || f.height < 2) return;
     style = new Map();
@@ -493,6 +518,34 @@
       }
     }
     g.imageSmoothingEnabled = true;
+    // the structure: each cell where it plays at the height of its own length (a phrase of 4 s on the scalogram's 4 s
+    // row), as a note sits at its pitch: the splice tree by scale, over the ridges it makes; a copy (base=) in its
+    // base's colour, dashed
+    if (layers.structure && st.length) {
+      const bottom = yOf(f, f.lo);
+      g.font = '10px system-ui, sans-serif';
+      g.lineWidth = 1;
+      for (const node of st) {
+        if (node.to < f.from || node.at > f.to || !(node.to > node.at)) continue;
+        const x0 = xOf(f, node.at);
+        const x1 = xOf(f, node.to);
+        const y = Math.min(bottom - 4, yOf(f, 1 / (node.to - node.at)) + 9 * node.lane);
+        const colour = noteColour(familyHue(node.base ?? node.cell));
+        g.globalAlpha = 0.35;
+        g.fillStyle = colour;
+        g.fillRect(x0 + 0.5, y - 3, Math.max(1, x1 - x0 - 1), 6);
+        g.globalAlpha = 0.9;
+        g.strokeStyle = colour;
+        g.setLineDash(node.base ? [3, 2] : []);
+        g.strokeRect(x0 + 0.5, y - 3, Math.max(1, x1 - x0 - 1), 6);
+        if (x1 - x0 > 8 * (node.cell.length + 1)) {
+          g.fillStyle = colour;
+          g.fillText(`&${node.cell}`, x0 + 3, y - 5);
+        }
+      }
+      g.setLineDash([]);
+      g.globalAlpha = 1;
+    }
     // the notes: at their pitch, a semitone high, a colour a voice
     if (layers.notes) {
       const semi = Math.max(1.5, yOf(f, 440) - yOf(f, 440 * Math.pow(2, 1 / 12)));
@@ -714,6 +767,11 @@
     { key: 'heard', label: 'heard', title: 'Boundaries heard in the scalogram: white on a section, teal on a splice, orange on neither' },
     { key: 'splices', label: 'splices', title: 'Where a braid turns to its next spliced cell (&tune &a &b …)' },
     { key: 'cells', label: 'cells', title: 'Each cell’s span on the tower, from its step to its turn, at the left' },
+    {
+      key: 'structure',
+      label: 'structure',
+      title: 'Each cell where it plays, at the height of its own length: the splice tree by scale, over the scalogram (a copy, base=, dashed in its base’s colour)',
+    },
     { key: 'meter', label: 'meter', title: 'The beat, the bar and the sections’ length across the scalogram; at the right, the levels it hears most, named after what makes them' },
     { key: 'patterns', label: 'patterns', title: 'Motifs heard at two time scales, boxed; foldings alike at two levels, listed' },
   ];
