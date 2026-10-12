@@ -233,6 +233,8 @@ export interface CellDecl {
   readonly shift: number | null;
   /** `off`: switched off — silences it and everything that reads through it or plays it. */
   readonly off: boolean;
+  /** `oneshot`: a voice plays each note as long as its envelope's attack and decay, whatever its step (a drum hit). */
+  readonly oneshot?: boolean;
   readonly step: StepSpec | null;
   readonly map: MapSpec | null;
   /** How far each step moves a stepped table (stride=7 walks a 12-cycle in fifths). */

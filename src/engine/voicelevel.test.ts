@@ -43,3 +43,35 @@ describe("a voice's level=", () => {
     expect(r.diagnostics.filter((d) => /level/.test(d.message))).toEqual([]);
   });
 });
+
+describe('oneshot', () => {
+  const at = (src: string) => {
+    const r = compileSource(src);
+    expect(r.diagnostics.filter((d) => d.severity === 'error')).toEqual([]);
+    return eventsBetween(
+      plan(r, () => 0),
+      0,
+      4,
+    ).map((e) => ({ voice: e.voice, at: +e.at.toFixed(3), dur: +e.dur.toFixed(3) }));
+  };
+  const SRC = (word: string) => `&bar scan(1 1 1 1) step=240bpm
+&bd ${word} s=sine loop=A1 env=&(map=adsr 0 .3 0 .05)
+&hh s=white env=&(map=adsr 0 .04 0 .02)
+&beat step=&bar/2 &bd &hh &bd &hh
+&out map=sample [&beat]`;
+
+  it('plays a voice its envelope through, whatever its step: a kick on eighths rings its decay', () => {
+    const plain = at(SRC(''));
+    const hit = at(SRC('oneshot'));
+    // (eighths at 240 bpm: an eighth is 0.125 s, the kick's decay 0.3 s)
+    expect(plain.find((e) => e.voice === 'bd')!.dur).toBeCloseTo(0.125, 3);
+    expect(hit.find((e) => e.voice === 'bd')!.dur).toBeCloseTo(0.3, 3);
+    // the same notes at the same times, and the hats as they were
+    expect(hit.map((e) => [e.voice, e.at])).toEqual(plain.map((e) => [e.voice, e.at]));
+    expect(hit.filter((e) => e.voice === 'hh')).toEqual(plain.filter((e) => e.voice === 'hh'));
+  });
+
+  it('is given once', () => {
+    expect(compileSource(SRC('oneshot oneshot')).diagnostics.some((d) => /oneshot is given twice/.test(d.message))).toBe(true);
+  });
+});

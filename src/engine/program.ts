@@ -105,6 +105,8 @@ export interface ResolvedCell {
   readonly shift: number;
   /** `off` as written. */
   readonly off: boolean;
+  /** `oneshot` as written: a voice's note lasts its envelope's attack and decay, not its step. */
+  readonly oneshot: boolean;
   /** Cells spliced in with &ref, with how many slots reference each. */
   readonly children: ReadonlyMap<string, number>;
   /** Length in steps (a &ref takes the referenced cell's steps). */

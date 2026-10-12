@@ -430,9 +430,11 @@ function plainEvents(p: Plan, from: number, to: number, outputs: boolean): Playe
       if (at >= t.end - EPS) return;
       // (a note whose clock stops beneath it never reaches its end: it rings 8 s at most)
       const ends = Math.min(tm.q(upto / t.rate), t.end);
-      const dur = Number.isFinite(ends) ? ends - at : 8;
       const v = voiceFor(result, t.output, e.value);
       if (!v || p.muted.has(cellId(v.voice))) return;
+      // (a oneshot voice: a hit, as long as its envelope's attack and decay, whatever its step)
+      const hit = result.cells.get(v.voice)?.oneshot ? (t.output.envelope ?? memberEnvelope(result, v.voice)) : null;
+      const dur = hit ? hit.attack + hit.decay : Number.isFinite(ends) ? ends - at : 8;
       // a gate starts notes at pitch 0, at its own level
       let semis = t.output.kit || t.output.gate ? t.output.offset : t.sign * pitchOf(p, e, at) + t.output.offset;
       // modulation: the sum at the start sets the pitch; later changes become bends

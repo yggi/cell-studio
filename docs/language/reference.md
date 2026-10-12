@@ -9,6 +9,7 @@ Every form the parser reads, what it means and an example: generated from the pa
 - `&name …`: A cell: one per line, its name first, then its attributes (key=value) and its braid, in any order. [→](cell.md) `&theme over=&major step=&bar 0 2 4 5`
 - `&name label="…"`: A note: a cell with only a label= (and title=, tags=, about=) explains, in the graph; it does nothing. [→](display.md) `&why label="The bass walks down a fifth each bar."`
 - `off`: Switched off: it, and everything that reads through it or plays it, is silent (and hidden from the graph). [→](cell.md) `&drums off over=&kit step=&bar 0 1`
+- `oneshot`: On a voice: each note plays its envelope through (its attack and decay), whatever its step: a drum hit on any grid. [→](sound.md) `&bd oneshot s=sine loop=A1 env=&(map=adsr 0 .3 0 .05)`
 - `# …` · `// …`: A comment, to the end of the line: # at the start of a line or after a space (a # glued to a number is a sharp), // anywhere. [→](cell.md) `&tune step=2 0 2 4  # the opening`
 - `… +` · `… *` · `… ,` · `… [`: A line ending in +, *, a comma or [ continues on the next one (a long mix). [→](cell.md)
 - `&parts step=&bar &a &b`: Taps of a meter's bus (decision 016): a stepped table of names declares them, each stepped as the table is. What a tap steps plays while a selector reading the table picks it (`over=&parts`), from its top each time: an arrangement. [→](time.md) `&parts step=&bar &verseBar &chorusBar`

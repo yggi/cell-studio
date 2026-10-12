@@ -382,6 +382,13 @@ export const LINE_SYNTAX: readonly Syntax[] = [
   ),
   syntax(
     'line',
+    'oneshot',
+    'On a voice: each note plays its envelope through (its attack and decay), whatever its step: a drum hit on any grid.',
+    ['&bd oneshot s=sine loop=A1 env=&(map=adsr 0 .3 0 .05)'],
+    'sound.md',
+  ),
+  syntax(
+    'line',
     '# … · // …',
     'A comment, to the end of the line: # at the start of a line or after a space (a # glued to a number is a sharp), // anywhere.',
     ['&tune step=2 0 2 4  # the opening'],
@@ -455,6 +462,7 @@ export function parseBody(s: LineScanner, head: Ref): CellDecl {
   };
   const seen = new Set<string>();
   let off = false;
+  let oneshot = false;
   const tokens: Token[] = [];
   let generator: Braid | null = null;
   let scaleKey: Ref | null = null;
@@ -522,6 +530,11 @@ export function parseBody(s: LineScanner, head: Ref): CellDecl {
       off = true;
       continue;
     }
+    if (word === 'oneshot' && s.atBoundary()) {
+      if (oneshot) s.fail('oneshot is given twice', at, word.length);
+      oneshot = true;
+      continue;
+    }
     // a note by name is a step (C, Bb3): read again as one
     if (word !== null && /^[A-G](?:b?-?[0-9]*)$/.test(word)) s.i = at;
     else if (word !== null) s.fail(`Unexpected '${word}'`, at, word.length);
@@ -550,6 +563,7 @@ export function parseBody(s: LineScanner, head: Ref): CellDecl {
     over,
     shift,
     off,
+    ...(oneshot ? { oneshot } : {}),
     step,
     map,
     stride,
