@@ -192,7 +192,7 @@ export class MidiOut {
     for (const [key, holders] of this.#open) {
       const due = holders.filter((h) => h.end <= horizon);
       if (due.length === 0) continue;
-      const [channel, note] = key.split(':').map(Number);
+      const [channel, note] = key.split(':').map(Number) as [number, number]; // (a key is "channel:note")
       // (two holders ending together, a note struck twice at once, release it once: the strike after the first retriggered it)
       const released = new Set<number>();
       for (const h of due) {
@@ -234,7 +234,7 @@ export class MidiOut {
     for (const c of this.#used) this.#send([CONTROL_CHANGE | c, ALL_NOTES_OFF, 0], now, toDeviceMs);
     for (const o of this.#offs) if (o.at > now) this.#struck.push(o);
     for (const [key, holders] of this.#open) {
-      const [channel, note] = key.split(':').map(Number);
+      const [channel, note] = key.split(':').map(Number) as [number, number];
       for (const at of new Set(holders.map((h) => Math.max(now, h.start)))) {
         const ms = this.#note([NOTE_OFF | channel, note, 0], key, at, toDeviceMs);
         if (at > now) this.#struck.push({ key, at, ms });
@@ -262,7 +262,7 @@ export class MidiOut {
 
   #sendAt(data: readonly number[], ms: number): void {
     if (!this.#port) return;
-    this.#used.add(data[0] & 0x0f);
+    this.#used.add(data[0]! & 0x0f);
     try {
       this.#port.send(data, ms);
     } catch {

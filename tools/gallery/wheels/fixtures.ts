@@ -2,7 +2,8 @@
  * Which wheels the harness shows: the first of each kind across the examples (a live one if any is), named
  * as `tools/gallery/real.mjs` names them from the page (`data-wheel`, `data-mode`, `data-show`, and where it sits).
  */
-import { buildGraph, isCellNode } from '../../../src/engine/graph';
+import { isCellNode } from '../../../src/engine/graph';
+import { buildGraph } from '../../../src/layout/drawn';
 import { cellView } from '../../../src/layout/cellview';
 import { effectiveShow } from '../../../src/layout/show';
 import { flowNodeOf } from '../../../src/ui/flownode';

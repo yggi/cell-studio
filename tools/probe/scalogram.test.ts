@@ -9,7 +9,7 @@
 import { describe, it } from 'vitest';
 import { appendFileSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { buildGraph } from '../../src/engine/graph';
+import { buildGraph } from '../../src/layout/drawn';
 import { compileSource } from '../../src/engine/compile';
 import { codeShifts } from '../../src/engine/program';
 import { pieceTime, sections } from '../../src/engine/duration';

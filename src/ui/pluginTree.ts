@@ -66,7 +66,7 @@ function plainValue(value: string): boolean {
     else if (ch === ')' && --open < 0) return false;
   }
   if (open !== 0) return false;
-  for (const m of value.matchAll(/([a-zA-Z-]+)\(/g)) if (!FUNCTIONS.has(m[1].toLowerCase())) return false;
+  for (const m of value.matchAll(/([a-zA-Z-]+)\(/g)) if (!FUNCTIONS.has(m[1]!.toLowerCase())) return false;
   const urls = value.match(/url\(/gi) ?? [];
   const own = value.match(/url\(\s*#plugin[A-Za-z0-9_-]*\s*\)/gi) ?? [];
   return urls.length === own.length;
@@ -77,7 +77,10 @@ function plainStyle(style: string): string | null {
   const kept = style
     .split(';')
     .map((d) => d.split(/:(.*)/s))
-    .filter(([prop, value]) => prop && value !== undefined && STYLE.has(prop.trim().toLowerCase()) && plainValue(value))
+    .filter((d): d is [string, string] => {
+      const [prop, value] = d;
+      return !!prop && value !== undefined && STYLE.has(prop.trim().toLowerCase()) && plainValue(value);
+    })
     .map(([prop, value]) => `${prop.trim().toLowerCase()}:${value.trim()}`);
   return kept.length ? kept.join(';') : null;
 }

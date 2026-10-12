@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { layered } from './layered';
 import { DEFAULT_LAYOUT } from './options';
-import { buildGraph } from '../engine/graph';
+import { buildGraph } from './drawn';
 import { folded } from './junctions';
 import { compileSource } from '../engine/compile';
 import { PRESETS } from '../engine/presets';

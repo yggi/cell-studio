@@ -53,7 +53,7 @@ export class Gate {
   open(a: number, b: number, now: number): void {
     if (!(b > a) || !Number.isFinite(a) || !Number.isFinite(b) || b <= now) return;
     // (what has rung out is done: forget it)
-    while (this.spans.length && this.spans[0].b <= now) this.spans.shift();
+    while (this.spans.length && this.spans[0]!.b <= now) this.spans.shift();
     const last = this.spans[this.spans.length - 1];
     if ((!last || a > last.b) && !this.holds.size) {
       // the usual case: after everything scheduled

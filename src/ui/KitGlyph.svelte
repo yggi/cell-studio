@@ -7,7 +7,7 @@
    * glows while its voice sounds.
    */
   import { drumPlaces, kitOf } from '../layout/kit';
-  import { bulbHosts } from '../engine/graph';
+  import { bulbHosts } from '../layout/drawn';
   import { fitFont } from '../layout/dial';
   import { wheelGeometry } from '../layout/wheel';
   import { getGraphContext } from './context';

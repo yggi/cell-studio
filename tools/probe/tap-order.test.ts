@@ -8,7 +8,8 @@ import { describe, it } from 'vitest';
 import { appendFileSync } from 'node:fs';
 import { PRESETS } from '../../src/engine/presets';
 import { compileSource } from '../../src/engine/compile';
-import { buildGraph, type GraphModel } from '../../src/engine/graph';
+import { type GraphModel } from '../../src/engine/graph';
+import { buildGraph } from '../../src/layout/drawn';
 import { ForceLayout } from '../../src/layout/physics';
 
 /** Each table's taps, left to right on its fan, with the cells each steps. */
