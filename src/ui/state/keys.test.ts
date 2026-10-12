@@ -3,7 +3,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Keys, type Hands } from './keys.svelte';
 import { Learn } from './learn.svelte';
 import { Piece } from './piece.svelte';
-import { DRUM_PRESETS, type DrumMap } from '../../midi/drum-presets';
+import { DRUM_PRESETS, deviceNote, type DrumMap } from '../../midi/drum-presets';
+import { gmDrumNote, noteOf } from '../../engine/midi';
 import type { MidiAccess } from '../../midi/access';
 
 const store = new Map<string, string>();
@@ -41,7 +42,18 @@ const at = (semis: number) => C4 * Math.pow(2, semis / 12);
 type Hearer = (data: Uint8Array, source: string, timeStamp: number) => void;
 
 /** Keys on a piece, with hands that say what they were asked, and a MIDI input a test plays into (`play`). */
-function made(code = SONG, { drums = DRUM_PRESETS.GM as DrumMap, claimed, padChannel }: { drums?: DrumMap; claimed?: (d: Uint8Array) => boolean; padChannel?: number } = {}) {
+/** Where the fake routing sends each voice: the lead on channel 1 of the first output, the kit on 10, the rest nowhere. */
+const ROUTES: Readonly<Record<string, readonly { port: number; channel: number }[]>> = { lead: [{ port: 1, channel: 1 }], kit: [{ port: 1, channel: 10 }] };
+
+function made(
+  code = SONG,
+  {
+    drums = DRUM_PRESETS.GM as DrumMap,
+    claimed,
+    padChannel,
+    routes = ROUTES,
+  }: { drums?: DrumMap; claimed?: (d: Uint8Array) => boolean; padChannel?: number; routes?: Readonly<Record<string, readonly { port: number; channel: number }[]>> } = {},
+) {
   const piece = new Piece(code);
   const asked: string[] = [];
   let id = 0;
@@ -54,18 +66,25 @@ function made(code = SONG, { drums = DRUM_PRESETS.GM as DrumMap, claimed, padCha
     onKeysCut: null,
   };
   const hearers = new Set<Hearer>();
+  // what thru sent, and to which output
   const sent: number[][] = [];
+  const sentTo: number[][] = [];
   const letGoers = new Set<(alive?: ReadonlySet<string>) => void>();
   const midi = {
     access: {} as MidiAccess,
     inPortId: 'Keys',
-    drums,
+    drumsFrom: () => drums,
     padChannel,
     hear: (h: Hearer) => {
       hearers.add(h);
       return () => void hearers.delete(h);
     },
-    send: (d: readonly number[]) => void sent.push([...d]),
+    thruOf: (voice: string, freq: number, kit: boolean, a4 = 440) =>
+      (routes[kit ? 'kit' : voice] ?? []).map((r) => ({ ...r, note: kit ? deviceNote(drums, gmDrumNote(voice) ?? 0) : noteOf(freq, a4).note })),
+    sendTo: (port: number, d: readonly number[]) => {
+      sent.push([...d]);
+      sentTo.push([port, ...d]);
+    },
     letGo: (l: (alive?: ReadonlySet<string>) => void) => {
       letGoers.add(l);
       return () => void letGoers.delete(l);
@@ -76,7 +95,7 @@ function made(code = SONG, { drums = DRUM_PRESETS.GM as DrumMap, claimed, padCha
   const play = (...bytes: number[]) => hearers.forEach((h) => h(new Uint8Array(bytes), 'Keys', 0));
   const playFrom = (source: string, ...bytes: number[]) => hearers.forEach((h) => h(new Uint8Array(bytes), source, 0));
   const letGo = (alive?: ReadonlySet<string>) => letGoers.forEach((l) => l(alive));
-  return { piece, keys, hands, asked, play, playFrom, sent, midi, letGo, letGoers };
+  return { piece, keys, hands, asked, play, playFrom, sent, sentTo, midi, letGo, letGoers };
 }
 
 describe('two inputs, and a kit put on another channel', () => {
@@ -309,23 +328,48 @@ describe('MIDI in', () => {
     }
   });
 
-  it('thru: off unless asked for; on, the keys and the pedal echoed at once on the channel chosen', () => {
-    const { keys, play, sent } = made();
+  it('thru: off unless asked for; on, the keys and the pedal echoed at once wherever the voice they play goes out', () => {
+    const { keys, play, sent, sentTo } = made(SONG, {
+      routes: {
+        lead: [
+          { port: 1, channel: 3 },
+          { port: 2, channel: 5 },
+        ],
+        kit: [{ port: 2, channel: 10 }],
+      },
+    });
     play(0x90, 60, 100);
     play(0x80, 60, 0);
     expect(sent).toEqual([]);
     keys.thru = true;
-    keys.thruChannel = 3;
     play(0x90, 60, 100);
     play(0xb0, 64, 127);
     play(0x80, 60, 0);
     keys.press(62, 80); // (the computer keys and the on-screen keys too)
-    expect(sent).toEqual([
-      [0x92, 60, 100],
-      [0xb2, 64, 127],
-      [0x82, 60, 0],
-      [0x92, 62, 80],
+    keys.pressPad(38); // (a pad: the kit's row)
+    expect(sentTo).toEqual([
+      [1, 0x92, 60, 100],
+      [2, 0x94, 60, 100],
+      [1, 0xb2, 64, 127],
+      [2, 0xb4, 64, 127],
+      [1, 0x82, 60, 0],
+      [2, 0x84, 60, 0],
+      [1, 0x92, 62, 80],
+      [2, 0x94, 62, 80],
+      [2, 0x99, 38, 100],
     ]);
+  });
+
+  it('thru sends what the voice sounds: a key snapped to the scale as the note it sounds, and nothing for a voice that goes out nowhere', () => {
+    const { keys, sent } = made(SONG, { routes: {} });
+    keys.thru = true;
+    keys.press(60);
+    expect(sent).toEqual([]);
+    const m = made();
+    m.keys.thru = true;
+    m.keys.press(61); // (C sharp over the pentatonic: snapped)
+    expect(m.sent).toHaveLength(1);
+    expect(m.sent[0]![1]).not.toBe(61);
   });
 
   it("MIDI's let-go (All notes off, the input changed or unplugged) lets every key go and the pedal up; disposed, no longer", () => {
@@ -343,12 +387,11 @@ describe('MIDI in', () => {
     expect(letGoers.size).toBe(0);
   });
 
-  it('thru: the keys down get their note-offs (and the pedal comes up) when thru goes off, its channel changes, on a let-go and on Stop', () => {
+  it('thru: the keys down get their note-offs (and the pedal comes up) when thru goes off, on a let-go and on Stop', () => {
     const offs = (sent: number[][]) => sent.filter((m) => (m[0] & 0xf0) === 0x80 || (m[0] & 0xf0) === 0xb0);
     // off
-    let m = made();
+    let m = made(SONG, { routes: { lead: [{ port: 1, channel: 2 }] } });
     m.keys.thru = true;
-    m.keys.thruChannel = 2;
     m.play(0x90, 60, 100);
     m.play(0xb0, 64, 127);
     m.keys.press(62);
@@ -361,21 +404,10 @@ describe('MIDI in', () => {
     ]);
     m.play(0x80, 60, 0);
     expect(m.sent).toHaveLength(3); // (off now: nothing more goes out)
-    // the channel moved: offs on the old one, and the key's own note-off later on the new
-    m = made();
-    m.keys.thru = true;
-    m.keys.thruChannel = 2;
-    m.play(0x90, 60, 100);
-    m.sent.length = 0;
-    m.keys.thruChannel = 2; // (the same: nothing)
-    expect(m.sent).toEqual([]);
-    m.keys.thruChannel = 5;
-    expect(m.sent).toEqual([[0x81, 60, 0]]);
     // a let-go and Stop
     for (const how of ['letGo', 'stop'] as const) {
-      m = made();
+      m = made(SONG, { routes: { lead: [{ port: 1, channel: 3 }] } });
       m.keys.thru = true;
-      m.keys.thruChannel = 3;
       m.play(0x90, 60, 100);
       m.sent.length = 0;
       if (how === 'letGo') m.letGo();
@@ -387,10 +419,9 @@ describe('MIDI in', () => {
   it('the settings are kept in this browser', () => {
     const first = made();
     first.keys.thru = true;
-    first.keys.thruChannel = 5;
     first.keys.mode = 'allow';
     const again = made();
-    expect([again.keys.thru, again.keys.thruChannel, again.keys.mode, again.keys.computer]).toEqual([true, 5, 'allow', false]);
+    expect([again.keys.thru, again.keys.mode, again.keys.computer]).toEqual([true, 'allow', false]);
   });
 });
 
@@ -410,7 +441,17 @@ describe('MIDI learn and the keys', () => {
     let id = 0;
     const hands: Hands = { press: (_v, _f, vel) => (asked.push(`press ${++id} v${vel}`), id), release: (i) => void asked.push(`release ${i}`), onKeysCut: null };
     const hearers = new Set<Hearer>();
-    const midi = { access: {} as MidiAccess, inPortId: 'Keys', drums: DRUM_PRESETS.GM, hear: (h: Hearer) => (hearers.add(h), () => void hearers.delete(h)), send: () => {} };
+    const midi = {
+      access: {} as MidiAccess,
+      inPortId: 'Keys',
+      drumsFrom: () => DRUM_PRESETS.GM!,
+      hear: (h: Hearer) => (hearers.add(h), () => void hearers.delete(h)),
+      thruOf: () => [],
+      sendTo: () => {},
+      send: () => {},
+      echo: () => {},
+      reaches: () => true,
+    };
     // (made in the Studio's order: learn hears a message first)
     const learn = new Learn(piece, midi, { frame: () => {} });
     const keys = new Keys(piece, hands, midi, { claimed: (d) => learn.claims(d) });
@@ -419,7 +460,7 @@ describe('MIDI learn and the keys', () => {
     // learn CC 64 for the bar's step, then play: the pedal is the slider's
     learn.learn('bar/step');
     play(0xb0, 64, 127);
-    expect(learn.bindings['bar/step']).toEqual({ kind: 'cc', channel: 0, number: 64 });
+    expect(learn.bindings['bar/step']).toEqual({ kind: 'cc', channel: 0, number: 64, from: 'Keys' });
     play(0x90, 60, 100);
     play(0xb0, 64, 127);
     play(0x80, 60, 0);
@@ -437,7 +478,7 @@ describe('MIDI learn and the keys', () => {
     play(0x90, 72, 100);
     play(0x80, 72, 0);
     expect(asked.length).toBe(4);
-    expect(learn.bindings['bar/step']).toEqual({ kind: 'note', channel: 0, number: 72 });
+    expect(learn.bindings['bar/step']).toEqual({ kind: 'note', channel: 0, number: 72, from: 'Keys' });
   });
 });
 

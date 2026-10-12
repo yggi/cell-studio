@@ -182,6 +182,16 @@ export function routable(result: CompileResult): { voices: string[]; members: st
 }
 
 /**
+ * The rows of the routing a voice played directly goes out as (its gates, or itself; on a piece's MIDI cards, itself
+ * where a card names it): where a key played on it live is echoed (thru). None: it isn't sent.
+ */
+export function rowsOf(result: CompileResult, voice: string): string[] {
+  const cards = hasMidiCards(result);
+  const rows = result.outputs.filter((o) => o.voice === voice && !o.kit && (cards ? !!o.midi?.length : !o.silent)).map((o) => (cards ? o.voice : channelKey(result, o)));
+  return [...new Set(rows)];
+}
+
+/**
  * The channel table of a piece: on each output (`outputs`, the MIDI page's matrix; none chosen: one), each gate and
  * voice on the channel chosen there. Not chosen: on the first output they are numbered 1, 2, 3 … in the order the piece
  * declares them, skipping the kit's channel (10, or the one chosen), which its kits' members share; on the others,

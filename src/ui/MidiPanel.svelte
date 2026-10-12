@@ -5,7 +5,7 @@
    * routing of the piece (#205), a matrix of its voices (rows) and the outputs (columns), each crossing the channel the
    * voice goes out on there, or none; the kit's members with the note each output sends them as. A piece with MIDI
    * cards (#208) sets its crossings itself: the matrix shows them, its slots the outputs. The built-in sound on or
-   * off, the bend range and the rotation of notes over channels. The keys (#207): which cell they play, the computer
+   * off; each output's bend range and rotation of notes over channels (MPE). The keys (#207): which cell they play, the computer
    * keys, thru; and the knobs learned. The pattern is Jambot's SoundPanel (yggi/jambot
    * apps/web/src/components/SoundPanel.svelte @ 8cdb6b8).
    */
@@ -18,7 +18,7 @@
 
   const absent = (ports: readonly { id: string }[], id: string) => id !== 'none' && id !== 'all' && !ports.some((p) => p.id === id);
   const CHANNELS = Array.from({ length: 16 }, (_, i) => i + 1);
-  const out = $derived(!!midi.access && midi.outPortId !== 'none');
+  const out = $derived(!!midi.access && midi.sending);
   const routing = $derived(!!midi.access && midi.sending);
   const byPiece = $derived(!!midi.table?.byPiece);
   const num = (e: Event) => Number((e.currentTarget as HTMLInputElement).value);
@@ -195,58 +195,71 @@
 
     <section aria-labelledby="midi-pitch">
       <h4 id="midi-pitch">Pitch</h4>
-      <label class="inline">
-        Bend range ±
-        <input
-          type="number"
-          min="1"
-          max="96"
-          value={midi.bendRange}
-          onchange={(e) =>
-            typed(
-              e,
-              (n) => (midi.bendRange = n),
-              () => midi.bendRange,
-            )}
-        />
-        semitones
-      </label>
-      <label class="check">
-        <input type="checkbox" checked={midi.rotate !== null} onchange={(e) => (midi.rotate = e.currentTarget.checked ? { from: 2, to: 16 } : null)} />
-        A channel for each note (MPE), for microtonal pieces{byPiece ? ' (not with MIDI cards: they say the channels)' : ''}
-      </label>
-      {#if midi.rotate}
-        <label class="inline">
-          Channels
-          <input
-            type="number"
-            min="1"
-            max="16"
-            aria-label="First channel"
-            value={midi.rotate.from}
-            onchange={(e) =>
-              typed(
-                e,
-                (n) => (midi.rotate = { from: n, to: midi.rotate!.to }),
-                () => midi.rotate!.from,
-              )}
-          />
-          to
-          <input
-            type="number"
-            min="1"
-            max="16"
-            aria-label="Last channel"
-            value={midi.rotate.to}
-            onchange={(e) =>
-              typed(
-                e,
-                (n) => (midi.rotate = { from: midi.rotate!.from, to: n }),
-                () => midi.rotate!.to,
-              )}
-          />
-        </label>
-      {/if}
+      <p class="hint">
+        Per output: the synth's bend range, and a channel for each note (MPE), for microtonal pieces{byPiece ? ' (not with MIDI cards: they say the channels)' : ''}
+      </p>
+      {#each midi.columns.filter((c) => c.key && c.id !== 'none') as c (c.key)}
+        {@const range = midi.rotateOf(c.port)}
+        <div class="pitch">
+          <span class="num" aria-hidden="true">{c.port}</span>
+          <label class="inline">
+            ±
+            <input
+              type="number"
+              min="1"
+              max="96"
+              aria-label="Bend range of output {c.port}, in semitones"
+              value={midi.bendOf(c.port)}
+              onchange={(e) =>
+                typed(
+                  e,
+                  (n) => midi.setBend(c.port, n),
+                  () => midi.bendOf(c.port),
+                )}
+            />
+          </label>
+          <label class="check">
+            <input
+              type="checkbox"
+              aria-label="A channel for each note on output {c.port} (MPE)"
+              checked={range !== null}
+              onchange={(e) => midi.setRotate(c.port, e.currentTarget.checked ? { from: 2, to: 16 } : null)}
+            /> MPE
+          </label>
+          {#if range}
+            <label class="inline">
+              channels
+              <input
+                type="number"
+                min="1"
+                max="16"
+                aria-label="First channel of output {c.port}"
+                value={range.from}
+                onchange={(e) =>
+                  typed(
+                    e,
+                    (n) => midi.setRotate(c.port, { from: n, to: range.to }),
+                    () => midi.rotateOf(c.port)!.from,
+                  )}
+              />
+              to
+              <input
+                type="number"
+                min="1"
+                max="16"
+                aria-label="Last channel of output {c.port}"
+                value={range.to}
+                onchange={(e) =>
+                  typed(
+                    e,
+                    (n) => midi.setRotate(c.port, { from: range.from, to: n }),
+                    () => midi.rotateOf(c.port)!.to,
+                  )}
+              />
+            </label>
+          {/if}
+        </div>
+      {/each}
       {#if midi.warning}<p class="hint warning" role="status">{midi.warning}</p>{/if}
     </section>
   {/if}
@@ -334,6 +347,13 @@
   .remove {
     width: 36px;
     padding: 0;
+  }
+  /* an output's pitch: its number, its bend range, MPE and its channels */
+  .pitch {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 12px;
   }
   .spare {
     display: flex;

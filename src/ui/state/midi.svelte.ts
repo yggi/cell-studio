@@ -5,8 +5,8 @@ import { adoptPorts, connectMidi, outputNow, portsMessage, type ChosenPorts } fr
 import { MidiOut } from '../../midi/out';
 import { ClockOut } from '../../midi/clock-out';
 import { mainMeter, type ClockTicks } from '../../engine/midiclock';
-import { DRUM_PRESETS, type DrumMap } from '../../midi/drum-presets';
-import { channelTable, DEFAULT_BEND_RANGE, rotationChannels, routable, router, routesOf, type ChannelTable, type OutputChoice } from '../../engine/midi';
+import { DRUM_PRESETS, deviceNote, type DrumMap } from '../../midi/drum-presets';
+import { channelTable, DEFAULT_BEND_RANGE, noteOf, rotationChannels, routable, router, rowsOf, routesOf, type ChannelTable, type OutputChoice } from '../../engine/midi';
 import type { CompileResult } from '../../engine/program';
 import type { Played } from '../../engine/realize';
 import { contextClock } from '../../audio/device';
@@ -19,6 +19,7 @@ type Chosen = { readonly id: string; readonly name: string };
 /** An output of the matrix: the device it sends to (by id and name), under a key its routing is kept by. */
 type Column = Chosen & { readonly key: string };
 type Numbers = Readonly<Record<string, number>>;
+type Range = { readonly from: number; readonly to: number };
 type Stored = {
   /** The outputs, in order (at least one: the first is where every voice goes unless routed elsewhere). */
   readonly outputs: readonly Column[];
@@ -32,10 +33,14 @@ type Stored = {
   readonly drums: Readonly<Record<string, DrumMap>>;
   /** Whether the built-in sound is heard beside MIDI out. */
   readonly internal: boolean;
-  /** The synth's pitch-bend range, in semitones each way. */
+  /** The pitch-bend range a device has none of its own takes, in semitones each way. */
   readonly bendRange: number;
-  /** The channels notes rotate over (MPE-style), or null: each voice on its own channel. */
-  readonly rotate: { readonly from: number; readonly to: number } | null;
+  /** The channels notes rotate over (MPE-style) on a device with none of its own, or null: each voice on its own channel. */
+  readonly rotate: Range | null;
+  /** Each device's pitch-bend range (by the output port's name). */
+  readonly bends: Numbers;
+  /** Each device's rotation (by the output port's name): the channels notes rotate over, or null. */
+  readonly rotates: Readonly<Record<string, Range | null>>;
   /** Whether each device is sent MIDI clock (by the output port's name). */
   readonly clock: Readonly<Record<string, boolean>>;
 };
@@ -43,7 +48,18 @@ type Stored = {
 const NONE: Chosen = { id: 'none', name: '' };
 /** What the kit's channel is kept under in a piece's routes: no cell can be named so. */
 const KIT = '*';
-const DEFAULTS: Stored = { outputs: [{ key: 'o1', ...NONE }], in: NONE, routes: {}, drums: {}, internal: true, bendRange: DEFAULT_BEND_RANGE, rotate: null, clock: {} };
+const DEFAULTS: Stored = {
+  outputs: [{ key: 'o1', ...NONE }],
+  in: NONE,
+  routes: {},
+  drums: {},
+  internal: true,
+  bendRange: DEFAULT_BEND_RANGE,
+  rotate: null,
+  bends: {},
+  rotates: {},
+  clock: {},
+};
 const KEY = 'cell-studio:midi';
 const ALL_CHANNELS = Array.from({ length: 16 }, (_, i) => i);
 
@@ -59,6 +75,8 @@ const numbers = (v: unknown, lo: number, hi: number): Record<string, number> =>
   isRecord(v) ? Object.fromEntries(Object.entries(v).filter((e): e is [string, number] => Number.isInteger(e[1]) && (e[1] as number) >= lo && (e[1] as number) <= hi)) : {};
 const nested = (v: unknown, lo: number, hi: number): Record<string, Numbers> => (isRecord(v) ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, numbers(x, lo, hi)])) : {});
 const flags = (v: unknown): Record<string, boolean> => (isRecord(v) ? Object.fromEntries(Object.entries(v).filter((e): e is [string, boolean] => typeof e[1] === 'boolean')) : {});
+const rangeOf = (v: unknown): Range | null => (isRecord(v) ? { from: channel(v.from, 2), to: channel(v.to, 16) } : null);
+const rangesOf = (v: unknown): Record<string, Range | null> => (isRecord(v) ? Object.fromEntries(Object.entries(v).map(([k, r]) => [k, rangeOf(r)])) : {});
 const channel = (v: unknown, fallback: number) => (Number.isInteger(v) && (v as number) >= 1 && (v as number) <= 16 ? (v as number) : fallback);
 /** A number typed into a field, rounded into lo … hi (not a number: `fallback`). */
 const clamped = (v: number, lo: number, hi: number, fallback: number) => (Number.isFinite(v) ? Math.max(lo, Math.min(hi, Math.round(v))) : fallback);
@@ -97,7 +115,6 @@ function load(): Stored {
   try {
     const kept = JSON.parse(localStorage.getItem(storageKey(KEY)) ?? 'null') as Record<string, unknown> | null;
     if (!isRecord(kept)) return DEFAULTS;
-    const rotate = isRecord(kept.rotate) ? { from: channel(kept.rotate.from, 2), to: channel(kept.rotate.to, 16) } : null;
     const matrix =
       'outputs' in kept
         ? {
@@ -111,7 +128,9 @@ function load(): Stored {
       drums: nested(kept.drums, 0, 127),
       internal: typeof kept.internal === 'boolean' ? kept.internal : true,
       bendRange: typeof kept.bendRange === 'number' && kept.bendRange >= 1 && kept.bendRange <= 96 ? kept.bendRange : DEFAULT_BEND_RANGE,
-      rotate,
+      rotate: rangeOf(kept.rotate),
+      bends: numbers(kept.bends, 1, 96),
+      rotates: rangesOf(kept.rotates),
       clock: flags(kept.clock),
     };
   } catch {
@@ -161,6 +180,8 @@ export class Midi implements ChosenPorts, NoteSink {
   #internal = $state(true);
   #bendRange = $state(DEFAULT_BEND_RANGE);
   #rotate = $state.raw<Stored['rotate']>(null);
+  #bends = $state.raw<Stored['bends']>({});
+  #rotates = $state.raw<Stored['rotates']>({});
   #clock = $state.raw<Stored['clock']>({});
   #piece = $state.raw<OpenPiece | null>(null);
   #player: Tapped | null = null;
@@ -233,6 +254,8 @@ export class Midi implements ChosenPorts, NoteSink {
     this.#internal = kept.internal;
     this.#bendRange = kept.bendRange;
     this.#rotate = kept.rotate;
+    this.#bends = kept.bends;
+    this.#rotates = kept.rotates;
     this.#clock = kept.clock;
     // a tab frozen while hidden can leave a release unscheduled and hardware sounding: silence it on coming back
     if (typeof document !== 'undefined') document.addEventListener('visibilitychange', this.#onVisible);
@@ -378,23 +401,45 @@ export class Midi implements ChosenPorts, NoteSink {
     this.#save();
   }
 
-  /** The synth's bend range, in semitones each way (2 for most, 48 for MPE). */
-  get bendRange(): number {
-    return this.#bendRange;
+  // an output's device name ('' for none, or no such output): what its settings are kept under
+  #nameOf(port: number): string {
+    return this.columns[port - 1]?.name ?? '';
   }
-  set bendRange(semitones: number) {
-    this.#bendRange = clamped(semitones, 1, 96, this.#bendRange);
+
+  /** An output's bend range, in semitones each way (2 for most, 48 for MPE), kept per device. */
+  bendOf(port: number): number {
+    return own(this.#bends, this.#nameOf(port)) ?? this.#bendRange;
+  }
+  setBend(port: number, semitones: number): void {
+    this.#bends = { ...this.#bends, [this.#nameOf(port)]: clamped(semitones, 1, 96, this.bendOf(port)) };
     this.#save();
   }
 
-  /** The channels notes rotate over (one per sounding note, for microtonal pieces on an MPE synth), or null. */
-  get rotate(): Stored['rotate'] {
-    return this.#rotate;
+  /** The channels an output's notes rotate over (one per sounding note, for microtonal pieces on an MPE synth), or null; kept per device. */
+  rotateOf(port: number): Range | null {
+    const name = this.#nameOf(port);
+    return Object.hasOwn(this.#rotates, name) ? this.#rotates[name]! : this.#rotate;
   }
-  set rotate(range: Stored['rotate']) {
-    this.#rotate = range && { from: clamped(range.from, 1, 16, 2), to: clamped(range.to, 1, 16, 16) };
+  setRotate(port: number, range: Range | null): void {
+    this.#rotates = { ...this.#rotates, [this.#nameOf(port)]: range && { from: clamped(range.from, 1, 16, 2), to: clamped(range.to, 1, 16, 16) } };
     this.warning = null;
     this.#save();
+  }
+
+  /** The first output's bend range. */
+  get bendRange(): number {
+    return this.bendOf(1);
+  }
+  set bendRange(semitones: number) {
+    this.setBend(1, semitones);
+  }
+
+  /** The first output's rotation. */
+  get rotate(): Range | null {
+    return this.rotateOf(1);
+  }
+  set rotate(range: Range | null) {
+    this.setRotate(1, range);
   }
 
   /** The channels a voice of the open piece goes out on, on an output (1 the first): none, not sent there. */
@@ -442,6 +487,65 @@ export class Midi implements ChosenPorts, NoteSink {
   /** The channel MIDI in's kit keys are on (1 … 16): `kitChannel`. */
   get padChannel(): number {
     return this.kitChannel;
+  }
+
+  /**
+   * Where thru echoes a key played live on a voice (the keys, `state/keys.svelte.ts`): every output and channel its row
+   * of the matrix goes to (a gate's, for a voice played through one), and the note it is there: a kit member's drum note
+   * through each output's drum map, else the key nearest the frequency it sounds. None: the voice isn't sent.
+   */
+  thruOf(voice: string, freq: number, kit: boolean, a4 = 440): { port: number; channel: number; note: number }[] {
+    const p = this.#piece;
+    const table = this.table;
+    if (!p || !table) return [];
+    if (kit) {
+      const gm = table.kit.find((k) => k.member === voice)?.note;
+      return gm === undefined ? [] : table.kits.map((k) => ({ port: k.port, channel: k.channel, note: deviceNote(this.drumsOf(k.port), gm) }));
+    }
+    const note = noteOf(freq, a4).note;
+    if (!(note >= 0 && note <= 127)) return [];
+    const rows = new Set(rowsOf(p.program, voice));
+    return table.voices.filter((v) => rows.has(v.voice)).map((v) => ({ port: v.port, channel: v.channel, note }));
+  }
+
+  /** Send a message to an output (1 the first), noting its channel for All notes off. */
+  sendTo(port: number, data: readonly number[]): void {
+    const c = this.#outputs[port - 1];
+    if (c) this.#sendTo(c.key, data);
+  }
+
+  /** The channels (1–16) MIDI in plays the kit on: every channel the open piece's kit goes on, on any output; none, `kitChannel`. */
+  get drumChannels(): readonly number[] {
+    const kits = (this.table?.kits ?? []).map((k) => k.channel);
+    return kits.length ? [...new Set(kits)] : [this.kitChannel];
+  }
+
+  /** The drum map of the device a message came from (by the port's name: kept with its output's), General MIDI if it has none. */
+  drumsFrom(source: string): DrumMap {
+    return own(this.#drums, source) ?? DRUM_PRESETS.GM!;
+  }
+
+  // the live output port named as an input is (a controller's other half), or null
+  #portNamed(name: string): MidiPort | null {
+    const p = this.access?.outputs.find((o) => o.name === name);
+    return p ? (this.access?.outputPort(p.id) ?? null) : null;
+  }
+
+  /** Whether an echo to a controller can go out: to its output port (by the input's name), or, from a knob learned before that was kept, the first output. */
+  reaches(controller: string | undefined): boolean {
+    return controller === undefined ? !!this.outPort : !!this.#portNamed(controller);
+  }
+
+  /** Send a learned knob's value back to its controller (motor faders, LED rings): to the output port of its name, not to a synth. */
+  echo(controller: string | undefined, data: readonly number[]): void {
+    if (controller === undefined) return this.send(data);
+    const port = this.#portNamed(controller);
+    try {
+      port?.send(data);
+      if (port) this.#flash(data);
+    } catch {
+      // (gone: its next statechange lets go of it)
+    }
   }
 
   /** An output's drum map (kept by its device's name): General MIDI note to the note it sends. */
@@ -603,15 +707,16 @@ export class Midi implements ChosenPorts, NoteSink {
         const out = this.#lane(c.key).out;
         out.setRoute((e) => routesOf(route(e)).filter((r) => (r.port ?? 1) === i + 1));
         out.onClash = () =>
-          (this.warning = 'Notes with different bends overlap on one channel, so some sound out of tune. Rotate the notes over channels (for an MPE synth) to give each its own.');
+          (this.warning = `Notes with different bends overlap on one channel of output ${i + 1}${c.name ? ` (${c.name})` : ''}, so some sound out of tune. Rotate its notes over channels (for an MPE synth) to give each its own.`);
       });
     }
     for (const { c, port } of live) {
       const lane = this.#lane(c.key);
       // (rotation is for voices routed here: a piece's MIDI cards say the channels themselves)
       const kit = this.kitChannelsOf(port);
-      const rotate = !table?.byPiece && this.#rotate ? rotationChannels(this.#rotate.from, this.#rotate.to, kit.length > 0, kit[0]) : null;
-      lane.out.setOptions({ drums: this.drumsOf(port), bendRange: this.#bendRange, rotate }, at, clock.toDeviceMs);
+      const range = this.rotateOf(port);
+      const rotate = !table?.byPiece && range ? rotationChannels(range.from, range.to, kit.length > 0, kit[0]) : null;
+      lane.out.setOptions({ drums: this.drumsOf(port), bendRange: this.bendOf(port), rotate }, at, clock.toDeviceMs);
       for (const e of events) lane.out.play(e, clock.toDeviceMs);
       lane.out.advance(until, clock.toDeviceMs, at);
       if (this.clockOf(port)) lane.ticks.play(ticks, clock.toDeviceMs);
@@ -728,6 +833,8 @@ export class Midi implements ChosenPorts, NoteSink {
         internal: this.#internal,
         bendRange: this.#bendRange,
         rotate: this.#rotate,
+        bends: this.#bends,
+        rotates: this.#rotates,
         clock: this.#clock,
       };
       localStorage.setItem(storageKey(KEY), JSON.stringify(kept));

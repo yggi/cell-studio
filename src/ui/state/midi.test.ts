@@ -652,6 +652,74 @@ describe('Midi: MIDI out', () => {
     expect(JSON.parse(store.get('cell-studio:midi')!).clock).toEqual({ Drums: true });
   });
 
+  it("says where thru sends a key: every crossing of its voice's row, a kit member as each output's drum note; the kit's channels for a controller", async () => {
+    const out = fakePort('out-1', 'Circuit');
+    const other = fakePort('out-2', 'Juno');
+    installMidi(fakeAccess([], [out, other]));
+    const midi = await made();
+    await midi.connect();
+    midi.chooseOutput('out-1');
+    midi.addOutput('out-2');
+    midi.attach({ sink: null, internal: true }, { program: compileSource(PRESETS.sailor.source), title: 'Sailor' });
+    midi.setChannel('bass', 6, 2);
+    midi.setKitChannel(3, 2);
+    midi.setDrums(2, DRUM_PRESETS['Novation Circuit']);
+    expect(midi.thruOf('bass', 220, false)).toEqual([
+      { port: 1, channel: 2, note: 57 },
+      { port: 2, channel: 6, note: 57 },
+    ]);
+    expect(midi.thruOf('bd', 0, true)).toEqual([
+      { port: 1, channel: 10, note: 36 },
+      { port: 2, channel: 3, note: 60 },
+    ]);
+    expect(midi.thruOf('nobody', 220, false)).toEqual([]);
+    expect([...midi.drumChannels].sort((a, b) => a - b)).toEqual([3, 10]);
+    // (a device's notes come back through its own map, by the name it sends under)
+    expect([midi.drumsFrom('Juno')[36], midi.drumsFrom('Circuit')[36], midi.drumsFrom('Keys')[36]]).toEqual([60, undefined, undefined]);
+    midi.sendTo(2, [0x95, 57, 100]);
+    expect(other.sent.at(-1)!.data).toEqual([0x95, 57, 100]);
+  });
+
+  it('keeps the bend range and the rotation per device, each output sending with its own', async () => {
+    const out = fakePort('out-1', 'Circuit');
+    const other = fakePort('out-2', 'Seaboard');
+    installMidi(fakeAccess([], [out, other]));
+    const midi = await made();
+    await midi.connect();
+    midi.chooseOutput('out-1');
+    midi.addOutput('out-2');
+    midi.attach({ sink: null, internal: true }, { program: compileSource(PRESETS.sailor.source), title: 'Sailor' });
+    midi.setBend(2, 48);
+    midi.setRotate(2, { from: 2, to: 4 });
+    expect([midi.bendOf(1), midi.bendOf(2), midi.rotateOf(1), midi.rotateOf(2)]).toEqual([2, 48, null, { from: 2, to: 4 }]);
+    const kept = JSON.parse(store.get('cell-studio:midi')!);
+    expect([kept.bends, kept.rotates]).toEqual([{ Seaboard: 48 }, { Seaboard: { from: 2, to: 4 } }]);
+    midi.setChannel('bass', 1, 2);
+    // three quarter-tone-sharp notes at once: on the Seaboard each on a channel of its own, bent for ±48
+    const sharp = (at: number): Played => ({ ...note('bass', at), freq: 220 * Math.pow(2, 0.5 / 12), dur: 1 });
+    midi.play(fakeTone(10), [sharp(10.3), sharp(10.3), sharp(10.3)], 10.4);
+    const ons = (port: ReturnType<typeof fakePort>) => port.sent.filter((m) => (m.data[0] & 0xf0) === 0x90).map((m) => (m.data[0] & 0x0f) + 1);
+    expect(ons(other)).toEqual([2, 3, 4]);
+    expect(other.sent.find((m) => (m.data[0] & 0xf0) === 0xe0)!.data).toEqual([0xe1, 43, 63]); // (57.5 is 58, 50 cents down: 8192 - 85)
+    expect(new Set(ons(out))).toEqual(new Set([2]));
+  });
+
+  it("echoes a learned knob to its controller's own output port, by the input's name, whether or not it is an output", async () => {
+    const synth = fakePort('out-1', 'Circuit');
+    const faders = fakePort('out-2', 'Faders');
+    installMidi(fakeAccess([], [synth, faders]));
+    const midi = await made();
+    await midi.connect();
+    midi.chooseOutput('out-1');
+    expect([midi.reaches('Faders'), midi.reaches('Knobs'), midi.reaches(undefined)]).toEqual([true, false, true]);
+    midi.echo('Faders', [0xb0, 7, 64]);
+    midi.echo('Knobs', [0xb0, 7, 64]);
+    expect([synth.sent, faders.sent]).toEqual([[], [{ data: [0xb0, 7, 64], timestamp: undefined }]]);
+    // (a knob kept from before, with no controller: the first output, as it was)
+    midi.echo(undefined, [0xb0, 7, 1]);
+    expect(synth.sent.map((m) => m.data)).toEqual([[0xb0, 7, 1]]);
+  });
+
   it('sends nothing without an output, and the player plays on', async () => {
     const midi = await made();
     const player = { sink: null as NoteSink | null, internal: true };

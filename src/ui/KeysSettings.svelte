@@ -1,14 +1,13 @@
 <script lang="ts">
   /**
    * The keys in the MIDI page of the sidebar (#207): which cell they play (the open sheet's unless one is chosen), what a key outside
-   * the melody's table does, the computer keys (off by default, so they stay the page's), and thru to the MIDI output
-   * on a channel. Works without MIDI too: the computer keys and the on-screen keys play through the same path.
+   * the melody's table does, the computer keys (off by default, so they stay the page's), and thru: the keys echoed
+   * where the routing matrix sends the voice they play. Works without MIDI too: the computer keys and the on-screen keys play through the same path.
    */
   import { getStudio } from './state/studio.svelte';
 
   let { output }: { output: boolean } = $props();
   const { keys } = getStudio();
-  const CHANNELS = Array.from({ length: 16 }, (_, i) => i + 1);
 </script>
 
 <div class="keys">
@@ -33,10 +32,7 @@
   >
   {#if output}
     <label class="check">
-      <input type="checkbox" checked={keys.thru} onchange={(e) => (keys.thru = e.currentTarget.checked)} /> Thru: echo the keys to the output on
-      <select aria-label="Thru channel" value={keys.thruChannel} onchange={(e) => (keys.thruChannel = Number(e.currentTarget.value))}>
-        {#each CHANNELS as c (c)}<option value={c}>channel {c}</option>{/each}
-      </select>
+      <input type="checkbox" checked={keys.thru} onchange={(e) => (keys.thru = e.currentTarget.checked)} /> Thru: echo the keys where the voice they play goes out
     </label>
   {/if}
 </div>
