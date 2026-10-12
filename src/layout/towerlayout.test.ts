@@ -4,7 +4,7 @@ import { buildGraph } from './drawn';
 import { compileSource } from '../engine/compile';
 import { ForceLayout } from './physics';
 import { TOWER_LAYOUT } from './options';
-import { netPaths, routeWire, towerAt, towerNets, towerHeights, towerIns, towerOuts, towerY, withoutCard } from './towerlayout';
+import { netPaths, routeWire, socketHeights, socketId, towerAt, towerNets, towerHeights, towerIns, towerOuts, towerY, withoutCard, withSockets } from './towerlayout';
 import { socketOf, VOICE_SIZE } from './voice';
 
 const waltz = () => {
@@ -126,5 +126,30 @@ describe('the tower layout', () => {
     // (its own sources are no obstacle to it)
     expect(paths.hops).toBe(0);
     expect(paths.risers).toHaveLength(1);
+  });
+
+  it("puts the card everywhere: a socket each thing it hears, at that thing's sound on the tower", () => {
+    const { program, model } = waltz();
+    const drawn = withSockets(model);
+    expect(drawn.nodes.some((n) => n.id === 'cell:mix')).toBe(false);
+    const into = model.edges.filter((e) => e.to === 'cell:mix' && e.port !== 'about');
+    // (each edge into the card keeps its id, ending at a socket of its own)
+    for (const e of into) expect(drawn.edges.find((x) => x.id === e.id)?.to).toBe(socketId(e.id));
+    expect(drawn.nodes.filter((n) => n.id.startsWith('socket:'))).toHaveLength(3);
+    const h = socketHeights(program, model, drawn);
+    const flute = into.find((e) => e.from === 'cell:flute')!;
+    expect(towerAt(h.get(socketId(flute.id))!)).toBeCloseTo(Math.log10(261.63), 3);
+  });
+
+  it("holds a groove's socket at its lowest drum", () => {
+    const program = compileSource(`&bar scan(1 1 1 1) step=120bpm
+&bd s=sine loop=A1 env=&(map=adsr 0 .3 0 .05)
+&hh s=white hpf=8000 env=&(map=adsr 0 .04 0 .02)
+&beat step=&bar &bd &hh &bd &hh
+&out map=sample [&beat]`);
+    const model = buildGraph(program);
+    const drawn = withSockets(model);
+    const [h] = socketHeights(program, model, drawn).values();
+    expect(10 ** towerAt(h)).toBeCloseTo(55, 1);
   });
 });

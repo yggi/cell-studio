@@ -5,7 +5,7 @@ import { structureKey, type GraphNode } from '../../engine/graph';
 import type { LiveState } from '../../engine/live';
 import { ForceLayout } from '../../layout/physics';
 import { DEFAULT_LAYOUT, TOWER_LAYOUT, type LayoutOptions } from '../../layout/options';
-import { towerHeights, towerOuts, withoutCard, type TowerOut } from '../../layout/towerlayout';
+import { isSocket, SOCKET_SIZE, socketHeights, towerHeights, towerOuts, withoutCard, withSockets, type TowerOut } from '../../layout/towerlayout';
 import type { MeterTrace } from '../../layout/state';
 import { meterIndex } from '../../layout/meters';
 import { towerOf, towerRanks, zoneRanks } from '../../layout/tower';
@@ -21,6 +21,23 @@ import type { FlowNode } from '../types';
  * signal path within each, every node where its output lives (layout/tower.ts, docs/notes/tower-rows.md).
  */
 const ROWS = typeof location !== 'undefined' ? new URLSearchParams(location.search).get('rows') : null;
+/** The tower layout's way into the sound card: a socket each (the default), or `?outs=nets`, wires into the strip. */
+const OUTS = typeof location !== 'undefined' ? new URLSearchParams(location.search).get('outs') : null;
+
+/** A socket's flow node (the tower layout): the edge into the card it ends, and whose sound that is. */
+function socketNode(id: string, m: { edges: readonly { id: string; to: string; from: string }[] }, position: { x: number; y: number }): FlowNode {
+  const e = m.edges.find((x) => x.to === id);
+  return {
+    id,
+    type: 'socket',
+    position,
+    draggable: true,
+    selectable: false,
+    deletable: false,
+    connectable: false,
+    data: { name: id, edge: e?.id ?? '', source: e?.from.slice('cell:'.length) ?? '', size: SOCKET_SIZE },
+  };
+}
 /** What the edges are drawn with besides the snapshot (read when they are made, not tracked). */
 export interface EdgeStyle {
   /** Not stopped (paused or playing): a routed edge is idle (PulseEdge makes it live), an unrouted one dimmed; stopped, nothing is. */
@@ -106,10 +123,12 @@ export class GraphLayout {
     const layout = this.#force;
     // (the tower layout: no card's node, its edges wires into the strips; each node at its height on the tower)
     const tower = this.mode === 'tower';
-    const next = tower ? { ...given, model: withoutCard(given.model) } : given;
+    // (sockets: the card everywhere, a socket each thing it hears, at that thing's height; ?outs=nets: wires into the strip)
+    const sockets = tower && OUTS !== 'nets';
+    const next = tower ? { ...given, model: sockets ? withSockets(given.model) : withoutCard(given.model) } : given;
     const m = next.model;
-    this.outs = tower ? towerOuts(given.program, given.model) : [];
-    if (tower) layout.setOptions({ heights: towerHeights(next.program, m) });
+    this.outs = tower && !sockets ? towerOuts(given.program, given.model) : [];
+    if (tower) layout.setOptions({ heights: new Map([...towerHeights(next.program, m), ...(sockets ? socketHeights(next.program, given.model, m) : [])]) });
     // (a probe: the rows by the frequency tower instead of the signal path, docs/notes/multiscale.md)
     if (ROWS === 'tower') layout.setOptions({ ranks: towerRanks(towerOf(next.program, m)) });
     if (ROWS === 'zones') layout.setOptions({ ranks: zoneRanks(towerOf(next.program, m, 'emit'), flowRanks(m)) });
@@ -158,7 +177,11 @@ export class GraphLayout {
     // (notes and scopes are in the margin: layout/side.ts)
     this.nodes = m.nodes
       .filter((g) => !isSide(g))
-      .map((g: GraphNode) => flowNodeOf(g, this.#posOf(g.id) ?? { x: 0, y: 0 }, this.pinned.has(g.id) && !this.#placed.has(g.id), this.#turnOf(g.id), meters, next.program));
+      .map((g: GraphNode): FlowNode =>
+        isSocket(g.id)
+          ? socketNode(g.id, m, this.#posOf(g.id) ?? { x: 0, y: 0 })
+          : flowNodeOf(g, this.#posOf(g.id) ?? { x: 0, y: 0 }, this.pinned.has(g.id) && !this.#placed.has(g.id), this.#turnOf(g.id), meters, next.program),
+      );
     this.#makeEdges();
     if (fresh) this.fitToken++;
   }

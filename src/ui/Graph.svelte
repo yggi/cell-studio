@@ -13,6 +13,7 @@
   import CellNode from './CellNode.svelte';
   import VoiceNode from './VoiceNode.svelte';
   import JunctionNode from './JunctionNode.svelte';
+  import SocketNode from './SocketNode.svelte';
   import FitView from './FitView.svelte';
   import CellSheet from './CellSheet.svelte';
   import PulseEdge from './PulseEdge.svelte';
@@ -249,7 +250,7 @@
   let sideFits = $state(0);
   let sideLit = $state<string | null>(null);
 
-  const nodeTypes = { cell: CellNode, voice: VoiceNode, material: MaterialNode, plugin: PluginNode, junction: JunctionNode } as NodeTypes;
+  const nodeTypes = { cell: CellNode, voice: VoiceNode, material: MaterialNode, plugin: PluginNode, junction: JunctionNode, socket: SocketNode } as NodeTypes;
   const edgeTypes = { pulse: PulseEdge, belt: BeltEdge, meter: MeterEdge };
 
   let legendOpen = $state(false);
@@ -400,6 +401,8 @@
       onnodeclick={({ node, event }) => {
         // (a product's junction is not a cell: nothing to open; a bulb on a wheel is the cell it splices)
         // (the drums' kit the grooves read has no line of its own: a drum on it opens, the kit doesn't)
+        // (a socket into the card opens what goes into it)
+        if (node.type === 'socket') return void (selected = `cell:${(node.data as { source: string }).source}`);
         const hit = bulbAt(event.target);
         if (node.type !== 'junction' && (hit || node.id !== `cell:${VOICE_KIT}`)) selected = hit ?? node.id;
       }}

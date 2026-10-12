@@ -147,6 +147,37 @@ Same probe, 75 examples × 3 seeds, nets counted once, their crossings with each
 
 *The waltz* (live, the gallery's made-up sound): the C4 net leaves the flute, the strings join it; the tuba's net dips under their labels. *Pop*: the parts' mixes sit just above C4 and share one net; the bass's part its own.
 
+## The card everywhere: a socket each (2026-10-12)
+
+**Crossings on main (#332), 76 examples × 3 seeds:** today's layout 45.0 (cost 137.1), today's without the card's node **24.0** (80.4: the card's node alone is half of today's crossings, #309), the tower layout 99.7 (337.0) and its nets into the strip a further 165.3 crossings with edges.
+
+The owner's next: **no single out-node; each thing that goes into the card goes into a socket of its own**, by its audio edge; **a socket is a multiband level meter**, symmetric and stacked; **held at its frequency on the strip's scale**.
+
+- `withSockets` (`towerlayout.ts`): the card's node goes; each edge into it keeps its id (what it carries, its live state) and ends at a socket (`socket:<edge>`, a small node in the layout, room 40). `socketHeights`: a socket is held where its source's sound sits on the tower (`towerOf … 'emit'`): a voice at its base frequency, level with its top; a groove at its lowest drum (its drums are pieces of the drums' kit, no node of their own).
+- `SocketNode.svelte`: ten octaves stacked, the low at the bottom; each a bar out from the centre line, the left channel to the left, the right to the right (mono: alike); in its source's note's colour (drums: neutral). Stopped, its source's partials (a groove's drums together), faint; playing, its live spectrum. Tapping a socket opens its source.
+- The strip stays at the right as the tower's scale and the piece's whole spectrum; the nets into it are gone (`?outs=nets` brings them back, to compare).
+
+| tower layout (76 × 3) | crossings | cost | area Mpx² |
+|---|---|---|---|
+| nets into the strip | 99.7 (+165.3 nets over edges) | 337.0 | 103.0 |
+| **a socket each** | **117.3** (its socket edges included) | 316.5 | 123.7 |
+
+So the sockets cross less than half of what the nets did with the layout's own (117 against 265), at 20 % more area: a socket is a node of its own beside its source.
+
+![a socket, close](tower-strip-sockets-zoom.jpg)
+
+*The waltz* (live, the gallery's made-up sound): the flute's and the strings' sockets beside their tops, the meter's bands on C4.
+
+![the waltz](tower-strip-sockets-waltz.jpg)
+
+![Pop](tower-strip-sockets-pop.jpg)
+
+*Pop* (stopped): the hook's, the keys' and the bass's sockets at their pitches; the hats' and the beat's at their kick's, A1.
+
+![Hypercell](tower-strip-sockets-hypercell.jpg)
+
+![Korobeiniki](tower-strip-sockets-korobeiniki.jpg)
+
 ## Next
 
 1. The tower layout still crosses about three times today's (91 against 33, the card left out of both), most in the pieces arranged with selectors, tapes and resonators (#234's language side: a selector that sends gates).

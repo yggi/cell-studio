@@ -163,6 +163,8 @@ export const TOWER_LAYOUT: Partial<LayoutOptions> = { placeLast: 0 };
 function roomFor(n: GraphNode): number {
   // (a product's junction: a dot, junctions.ts)
   if (n.kind === 'junction') return JUNCTION_ROOM;
+  // (a socket into the sound card, the tower layout's: a small wheel, towerlayout.ts)
+  if (n.id.startsWith('socket:')) return 40;
   const cell = (n as { cell?: { size?: number; label?: string | null; frees?: readonly { key: string; labels?: readonly string[] }[] } }).cell;
   // (a voice: its wheel, 160 px across, layout/voice.ts; its envelope's box rides on its top, where its sound leaves)
   // (a drum kit: its pieces inside a wheel of 168 px, ui/KitGlyph.svelte)

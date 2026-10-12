@@ -7,7 +7,7 @@
  * its right channel the right half (`towerOuts`), one net a base frequency (`towerNets`).
  */
 import type { CompileResult } from '../engine/program';
-import type { GraphModel } from '../engine/graph';
+import type { GraphModel, GraphNode } from '../engine/graph';
 import { towerOf } from './tower';
 import { socketOf, VOICE_SIZE } from './voice';
 
@@ -178,4 +178,61 @@ export function netPaths(net: TowerNet, to: number, obstacles: readonly TowerObs
   const { d, hops } = routeWire(first.x, net.top, to, obstacles, own);
   const hop = 28;
   return { trunk: d, risers: rest.map((t) => `M${t.x},${net.top} C${t.x},${net.top - hop} ${t.x + hop},${net.top} ${t.x + hop * 1.6},${net.top}`), hops };
+}
+
+/** A socket's wheel, px across: where one thing goes into the sound card (towerSockets). */
+export const SOCKET_SIZE = 72;
+
+/** A socket's node id, by the edge into the card it ends (the edge keeps its id: what it carries, and its state). */
+export const socketId = (edge: string) => `socket:${edge}`;
+export const isSocket = (id: string) => id.startsWith('socket:');
+
+/**
+ * The sound card everywhere (docs/notes/tower-strip.md): no card's node; each edge into it ends at a socket of its own,
+ * a small wheel beside its source (its id `socketId(edge)`, the card's cell its cell), the edge keeping its id. Edges at
+ * the card that bring no sound (an `about=`) go.
+ */
+export function withSockets(model: GraphModel): GraphModel {
+  const card = cards(model);
+  if (!card.size) return model;
+  const sockets: GraphNode[] = [];
+  const edges = model.edges.flatMap((e) => {
+    if (!card.has(e.to) && !card.has(e.from) && !card.has(e.source) && !card.has(e.target)) return [e];
+    if (!card.has(e.to) || card.has(e.from) || e.port === 'about') return [];
+    const host = model.nodes.find((n) => n.id === e.to);
+    if (!host || host.kind === 'junction') return [];
+    const id = socketId(e.id);
+    sockets.push({ ...host, id });
+    return [{ ...e, to: id, ...(e.target === e.to ? { target: id } : { source: id }) }];
+  });
+  const kept = new Set(edges.map((e) => e.id));
+  const nets = model.nets.map((n) => ({ ...n, taps: n.taps.filter((t) => kept.has(t)) })).filter((n) => n.taps.length && !card.has(n.owner));
+  return { ...model, nodes: [...model.nodes.filter((n) => !card.has(n.id)), ...sockets], edges, nets };
+}
+
+/** Each socket's height (the graph's y, its centre): where its source's sound sits on the tower, a voice's base frequency. */
+export function socketHeights(program: CompileResult, model: GraphModel, drawn: GraphModel): Map<string, number> {
+  // (by the sound it carries: a voice at its pitch, a groove or a mix at its sound's, `emit`)
+  const at = towerOf(program, model, 'emit');
+  const out = new Map<string, number>();
+  // (a pattern read through a kit, a groove: its lowest drum's, its base as a voice's pitch is)
+  const base = (id: string): number | undefined => {
+    const d = at.get(id);
+    if (d !== undefined && Number.isFinite(d)) return d;
+    const kit = program.cells.get(program.cells.get(id.slice('cell:'.length))?.over ?? '');
+    if (!kit?.kit) return undefined;
+    // (a drum drawn as a piece of its kit has no node: its own pitch, else its filter, else 1 kHz, as towerOf reads a voice)
+    const pitch = (name: string) => {
+      const c = program.cells.get(name);
+      return c?.voice ? Math.log10(c.freq > 0 ? c.freq : Number(c.params.hpf ?? c.params.lpf) || 1000) : undefined;
+    };
+    const members = kit.units.flatMap((u) => (u.atom.kind === 'ref' ? [pitch(u.atom.name)] : [])).filter((x): x is number => x !== undefined && Number.isFinite(x));
+    return members.length ? Math.min(...members) : undefined;
+  };
+  for (const e of drawn.edges) {
+    if (!isSocket(e.to)) continue;
+    const d = base(e.from);
+    if (d !== undefined) out.set(e.to, towerY(d));
+  }
+  return out;
 }

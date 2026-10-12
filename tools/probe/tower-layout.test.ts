@@ -9,15 +9,16 @@
 import { describe, it } from 'vitest';
 import { appendFileSync } from 'node:fs';
 import { ForceLayout } from '../../src/layout/physics';
-import { buildGraph, type GraphModel } from '../../src/engine/graph';
+import { type GraphModel } from '../../src/engine/graph';
+import { buildGraph } from '../../src/layout/drawn';
 import { compileSource } from '../../src/engine/compile';
 import { PRESETS } from '../../src/engine/presets';
 import { TOWER_LAYOUT, type LayoutOptions } from '../../src/layout/options';
-import { netPaths, towerHeights, towerIns, towerNets, towerOuts, withoutCard } from '../../src/layout/towerlayout';
+import { netPaths, socketHeights, towerHeights, towerIns, towerNets, towerOuts, withoutCard, withSockets } from '../../src/layout/towerlayout';
 
 const log = (t: string) => appendFileSync(process.env.PROBE!, t + '\n');
 
-type Variant = { name: string; tower: boolean; card: boolean; opts: Partial<LayoutOptions> };
+type Variant = { name: string; tower: boolean; card: boolean; opts: Partial<LayoutOptions>; sockets?: boolean };
 // (the few forces first tried)
 const FEW: Partial<LayoutOptions> = { rankPull: 0, columnPull: 0, upPull: 0, spread: 0, kindRepel: 0, tagPull: 0, tagRepel: 0, mux: 0, clusters: false, rowOrder: 0, placeLast: 0 };
 const VARIANTS: Variant[] = [
@@ -25,6 +26,7 @@ const VARIANTS: Variant[] = [
   { name: 'today, no card node', tower: false, card: false, opts: {} },
   { name: 'tower, few forces (as first built)', tower: true, card: false, opts: FEW },
   { name: 'tower, TOWER_LAYOUT', tower: true, card: false, opts: TOWER_LAYOUT },
+  { name: 'tower, TOWER_LAYOUT, a socket each into the card', tower: true, card: false, opts: TOWER_LAYOUT, sockets: true },
   { name: "tower, today's forces", tower: true, card: false, opts: {} },
   // a middle set: one of today's forces back at a time, then together (meters last now held to their row)
   { name: '… + spread', tower: true, card: false, opts: { ...FEW, spread: 0.5 } },
@@ -73,8 +75,8 @@ function crossesLevel(y: number, x0: number, x1: number, p: { x: number; y: numb
 function measure(source: string, v: Variant, seed: number): Row {
   const program = compileSource(source);
   const whole = buildGraph(program);
-  const model: GraphModel = v.card ? whole : withoutCard(whole);
-  const heights = v.tower ? towerHeights(program, model) : undefined;
+  const model: GraphModel = v.card ? whole : v.sockets ? withSockets(whole) : withoutCard(whole);
+  const heights = v.tower ? new Map([...towerHeights(program, model), ...(v.sockets ? socketHeights(program, whole, model) : [])]) : undefined;
   const outs = towerOuts(program, whole);
   const l = new ForceLayout(undefined, { live: false, seed, ...v.opts, ...(heights ? { heights } : {}) });
   l.setGraph({ ...model, nodes: model.nodes.filter((n) => !n.petalOf) });
@@ -95,7 +97,7 @@ function measure(source: string, v: Variant, seed: number): Row {
     held: heights?.size ?? 0,
     nodes: model.nodes.filter((n) => !n.petalOf).length,
   };
-  if (v.tower) {
+  if (v.tower && !v.sockets) {
     const placed = (l as unknown as { placed(): Placed }).placed();
     const at = new Map(placed.nodes.map((n) => [n.id, n]));
     // (the strip stands just outside the graph's box, at its right)
