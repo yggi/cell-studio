@@ -8,7 +8,7 @@ import { PRESETS } from '../engine/presets';
 import { cellView, hubLabel } from './cellview';
 import { buildGraph } from './drawn';
 import { flowRanks } from './ranks';
-import { FITS, effectiveShow, inferShow, kindOf, noteLabel, pluginOf, tonicOf, voiceBase } from './show';
+import { FITS, effectiveShow, gridOf, heardPosition, inferShow, kindOf, noteLabel, pluginOf, tonicOf, voiceBase } from './show';
 
 const twinkle = (show: string) => setAttr(PRESETS.twinkle.source, 'tune', 'show', show);
 const labels = (src: string, cell: string) => {
@@ -189,5 +189,30 @@ describe('show=lfo: what moves other cells', () => {
     expect(at(10)).toBeGreaterThan(at(5));
     // it oscillates; it doesn't turn like a table (its range stays its own)
     expect(liveAt(r, codeShifts(r), new Set(), 30).shifts('breath')).toBe(0);
+  });
+});
+
+describe("a voice's grid, and where a note it sounds is on it", () => {
+  const r = compileSource(`&edo19 cycle=19 map=edo
+&bar scan(1 1 1 1) step=1
+&a step=&bar 0 2 4
+&b over=&edo19 step=&bar 0 3 6
+&v1 s=sine loop=C4
+&v2 s=saw loop=C4
+&both [&a * &v1, &b * &v2]
+&out map=sample [&both * .3]`);
+  it('gridOf: heardGrid with its cycle; null where heardGrid is', () => {
+    expect(gridOf(r, 'v1')).toEqual({ name: 'fifths12TET', cycle: 12 });
+    expect(gridOf(r, 'v2')).toEqual({ name: 'edo19', cycle: 19 });
+    expect(gridOf(r, 'both')).toBeNull();
+  });
+  it("heardPosition: from the voice's pitch 0, on the grid; null without a note, a grid or a pitch 0", () => {
+    const base = r.cells.get('v1')!.freq;
+    expect(heardPosition(r, 'v1', gridOf(r, 'v1'), base * Math.pow(2, 7 / 12))).toBeCloseTo(7);
+    expect(heardPosition(r, 'v2', gridOf(r, 'v2'), base * 2)).toBeCloseTo(19);
+    expect(heardPosition(r, 'v1', gridOf(r, 'v1'), null)).toBeNull();
+    expect(heardPosition(r, 'v1', gridOf(r, 'v1'), 0)).toBeNull();
+    expect(heardPosition(r, 'v1', null, base)).toBeNull();
+    expect(heardPosition(r, 'nothing', gridOf(r, 'v1'), base)).toBeNull();
   });
 });

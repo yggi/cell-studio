@@ -7,8 +7,9 @@
    * one: the colour of its value as it goes.
    */
   import { getGraphContext } from './context';
-  import { NOTE_NAMES } from '../theory/modes';
+  import { midiOf, mod, NOTE_NAMES } from '../theory/modes';
   import { clocking } from '../engine/clocking';
+  import { refsOf } from '../engine/readers';
   import { notesAt, valueAt, valuesAt } from '../engine/values';
   import { adsrOf, DEFAULT_FREQ } from '../engine/program';
   import { resolvePitch, semitones } from '../engine/helix';
@@ -22,7 +23,7 @@
   const ctx = getGraphContext();
   const cell = $derived(ctx.program.cells.get(name));
   const mode = $derived(cell && typeof cell.params.scope === 'string' ? cell.params.scope : 'stack');
-  const channels = $derived(cell ? cell.units.flatMap((u) => (u.atom.kind === 'ref' ? [u.atom.name] : [])) : []);
+  const channels = $derived(refsOf(cell));
   const W = $derived(w);
   const H = $derived(h);
   const pc = (semis: number) => (((Math.round(semis) % 12) + 12) % 12) * 30;
@@ -88,7 +89,7 @@
   });
   type Layout = typeof layout;
   const bandOfFreq = (L: Layout, f: number) => {
-    if (L.fold > 0) return ((Math.round(69 + 12 * Math.log2(f / 440)) % L.fold) + L.fold) % L.fold;
+    if (L.fold > 0) return mod(Math.round(midiOf(f)), L.fold);
     return Math.min(L.n - 1, Math.max(0, Math.floor((Math.log(f / LO) / Math.log(HI / LO)) * L.n)));
   };
   // a channel's kit, if it plays through one: its tokens are its bins
@@ -199,7 +200,7 @@
         if (w) {
           // (one channel: the colour of the note it sounds; several: the colour of its place)
           const f = single ? ctx.sound.note(name) : null;
-          const hue = f ? pc(12 * Math.log2(f / 440) + 69) : pc(ci);
+          const hue = f ? pc(midiOf(f)) : pc(ci);
           return { name, pts: w.map((y, i) => ({ x: i / (w.length - 1), y })), colour: () => noteColour(hue) };
         }
         const { raw, norm } = values(name, now);

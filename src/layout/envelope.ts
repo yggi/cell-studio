@@ -2,6 +2,9 @@
  * An envelope as its wheel draws it (CellGlyph, show=adsr): its curve's stretches (attack, decay, a hold drawn for the
  * sustain, release), and where a note is on it now, for the lines that cross on the curve while it plays.
  */
+import { adsrOf, type CompileResult, type Shifts } from '../engine/program';
+import { lastNoteAt } from '../engine/values';
+
 interface Adsr {
   readonly attack: number;
   readonly decay: number;
@@ -35,4 +38,27 @@ export function envelopeAt(e: Adsr, since: number, length: number): { t: number;
   if (r >= e.release) return null;
   const from = held(e, length);
   return { t: e.attack + e.decay + a.hold + r, level: from * (1 - r / Math.max(1e-9, e.release)) };
+}
+
+/** A voice's envelope as written (env=&…, a map=adsr cell); null: none, or not an ADSR. */
+export function envelopeOf(result: CompileResult, voice: string): Adsr | null {
+  const name = result.cells.get(voice)?.env;
+  const cell = name ? result.cells.get(name) : undefined;
+  return cell ? adsrOf(cell) : null;
+}
+
+/** The cells whose notes an envelope shapes: whatever plays a voice it is the env= of, or a product it shapes. */
+export function envelopeNotes(result: CompileResult, envelope: string): string[] {
+  return [...new Set(result.outputs.filter((o) => result.cells.get(o.voice)?.env === envelope || o.envelopeCell === envelope).map((o) => o.cell))];
+}
+
+/** The cells that play a voice. */
+export function voiceNotes(result: CompileResult, voice: string): string[] {
+  return [...new Set(result.outputs.filter((o) => o.voice === voice).map((o) => o.cell))];
+}
+
+/** Of the notes these cells sound at real second t (or sounded last), the latest to begin; null: none. */
+export function latestNoteAt(result: CompileResult, statics: Shifts, cells: readonly string[], t: number): { since: number; length: number } | null {
+  const notes = cells.flatMap((n) => lastNoteAt(result, statics, n, t) ?? []);
+  return notes.length ? notes.reduce((a, b) => (b.since < a.since ? b : a)) : null;
 }

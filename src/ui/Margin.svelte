@@ -12,6 +12,7 @@
    */
   import { untrack } from 'svelte';
   import type { GraphModel } from '../engine/graph';
+  import { refsOf } from '../engine/readers';
   import { sideEntries } from '../layout/side';
   import { formatLabel } from '../layout/labels';
   import { getGraphContext } from './context';
@@ -51,7 +52,7 @@
     const c = ctx.program.cells.get(name);
     return c?.label ? formatLabel(ctx.program, name, c.label, untrack(() => ctx.heads.shifts) ?? ctx.shifts) : '';
   };
-  const channels = (name: string) => (ctx.program.cells.get(name)?.units ?? []).flatMap((u) => (u.atom.kind === 'ref' ? [u.atom.name] : []));
+  const channels = (name: string) => refsOf(ctx.program.cells.get(name));
 </script>
 
 <aside class="margin" aria-label="Notes and scopes">

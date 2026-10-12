@@ -6,6 +6,7 @@
    */
   import { onDestroy, onMount } from 'svelte';
   import { load } from '../audio/ticker';
+  import { clockText } from '../engine/duration';
   import { buildReport, PerfCollector, type PerfSources } from './perf';
   import { combinedReport, estimateMinutes, parseRunOptions, planSteps, runScenario, type Progress, type RunController } from './perfrun';
 
@@ -127,7 +128,7 @@
     }
   }
 
-  const clock = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+  const clock = (s: number) => clockText(s);
   // a colour for the pill: how the last 10 s went
   const health = $derived(live.longMaxMs > 100 || live.fps < 30 ? 'bad' : live.longMaxMs > 50 || live.blockedPct > 15 || live.scale > 1.2 ? 'warn' : 'ok');
 </script>
