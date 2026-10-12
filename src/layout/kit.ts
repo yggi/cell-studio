@@ -8,12 +8,13 @@
  */
 import type { CompileResult } from '../engine/program';
 import { gmDrumNote } from '../engine/midi';
+import { refsOf } from '../engine/readers';
 
 /** A kit's members (the voices in its braid, in order: 0 the first), or null: not a table of voices (a groove steps). */
 export function kitOf(result: CompileResult, name: string): readonly string[] | null {
   const c = result.cells.get(name);
   if (!c?.kit || c.step || typeof c.params.scope === 'string') return null;
-  return c.units.flatMap((u) => (u.atom.kind === 'ref' ? [u.atom.name] : []));
+  return refsOf(c);
 }
 
 /** What a member is in a drum kit. */

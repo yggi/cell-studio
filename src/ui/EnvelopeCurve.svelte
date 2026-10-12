@@ -5,15 +5,12 @@
    * lines cross on the curve where the latest note is (its time and its level now), and the curve is filled from below
    * up to that level (layout/envelope.ts). `x`, `y`: where the cap is in the wheel's drawing.
    */
-  import { envelopeAt, envelopeAxis } from '../layout/envelope';
-  import { adsrOf } from '../engine/program';
-  import { lastNoteAt } from '../engine/values';
+  import { envelopeAt, envelopeAxis, envelopeOf, latestNoteAt, voiceNotes } from '../layout/envelope';
   import { getGraphContext } from './context';
 
   let { voice, x, y, width, height }: { voice: string; x: number; y: number; width: number; height: number } = $props();
   const ctx = getGraphContext();
-  const name = $derived(ctx.program.cells.get(voice)?.env ?? null);
-  const written = $derived(name && ctx.program.cells.get(name) ? adsrOf(ctx.program.cells.get(name)!) : null);
+  const written = $derived(envelopeOf(ctx.program, voice));
   // (none written: a square envelope, the voice's own default)
   const env = $derived(written ?? { attack: 0, decay: 0, sustain: 1, release: 0 });
   const pad = $derived(Math.max(4, height * 0.16));
@@ -32,13 +29,12 @@
   });
   const points = $derived(curve.map(([px, py]) => `${px.toFixed(1)},${py.toFixed(1)}`).join(' '));
   // the notes that play it: whatever plays the voice
-  const notes = $derived([...new Set(ctx.program.outputs.filter((o) => o.voice === voice).map((o) => o.cell))]);
+  const notes = $derived(voiceNotes(ctx.program, voice));
   const now = $derived.by(() => {
     if (!ctx.lit || !notes.length) return null;
     const t = ctx.heads.seconds;
-    const all = notes.flatMap((n) => lastNoteAt(ctx.program, ctx.shifts, n, t) ?? []);
-    if (!all.length) return null;
-    const last = all.reduce((a, b) => (b.since < a.since ? b : a));
+    const last = latestNoteAt(ctx.program, ctx.shifts, notes, t);
+    if (!last) return null;
     const at = envelopeAt(env, last.since, last.length);
     return at ? { x: X(at.t, envelopeAxis(env).total), y: Y(at.level) } : null;
   });

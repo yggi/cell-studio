@@ -4,6 +4,7 @@
  * For the detail view (the sheet): read at a glance, every cell one tap away.
  */
 import { adsrOf, codeShifts, type CompileResult } from '../engine/program';
+import { refsOf } from '../engine/readers';
 import { entries, resolvePitch, semitones } from '../engine/helix';
 import { modeName, mod, noteName } from '../theory/modes';
 import { isSelector, kindOf } from './show';
@@ -50,7 +51,7 @@ export function connections(result: CompileResult, name: string): Connection[] {
   const out: Connection[] = [
     { relation: 'reads', cells: uniq([c.over]).filter(named) },
     { relation: 'stepped by', cells: uniq([c.step?.driver]).filter(named) },
-    { relation: 'made of', cells: uniq(c.units.flatMap((u) => (u.atom.kind === 'ref' ? [u.atom.name] : []))).filter(named) },
+    { relation: 'made of', cells: uniq(refsOf(c)).filter(named) },
     {
       relation: 'plays on',
       cells: c.voice || c.mix || c.sink ? [] : uniq(result.outputs.filter((o) => !o.kit && plays(o.cell)).map((o) => o.voice)),
@@ -68,7 +69,7 @@ export function connections(result: CompileResult, name: string): Connection[] {
           ? uniq(all.filter((x) => x.sink && x.units.some((u) => u.atom.kind === 'ref' && u.atom.name === name)).map((x) => x.name))
           : [],
     },
-    { relation: 'picks', cells: isSelector(result, name) ? uniq(result.cells.get(c.over!)!.units.flatMap((u) => (u.atom.kind === 'ref' ? [u.atom.name] : []))) : [] },
+    { relation: 'picks', cells: isSelector(result, name) ? uniq(refsOf(result.cells.get(c.over!)!)) : [] },
     {
       // what it moves: voices whose parameters, pitch or envelope it drives; voices whose notes it bends or shapes
       relation: 'moves',

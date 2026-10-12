@@ -6,8 +6,8 @@
  */
 import { codeShifts, DEFAULT_FREQ, ROOT, type CompileResult } from '../engine/program';
 import type { ShowPlugin } from '../engine/plugins';
-import { entries, resolveIn, resolvePitch, semitones } from '../engine/helix';
-import { modeName, mod } from '../theory/modes';
+import { entries, positionOf, resolveIn, resolvePitch, semitones } from '../engine/helix';
+import { midiOf, modeName, mod } from '../theory/modes';
 import { SHOWS } from '../engine/parser';
 import { selects } from '../engine/clocking';
 
@@ -200,6 +200,21 @@ export function heardGrid(result: CompileResult, name: string): string | null {
   return grids.size > 1 ? null : ([...grids][0] ?? ROOT);
 }
 
+/** The grid a voice, a mix or the sound card wears (heardGrid), with its cycle (12 if it isn't a cell); null: none. */
+export function gridOf(result: CompileResult, name: string): { name: string; cycle: number } | null {
+  const g = heardGrid(result, name);
+  return g ? { name: g, cycle: result.cells.get(g)?.cycle ?? 12 } : null;
+}
+
+/**
+ * Where a note a voice sounds (`freq`, Hz) is on a grid, counted from the voice's pitch 0 (positionOf); null without a
+ * note, a grid, or a pitch 0 to count from.
+ */
+export function heardPosition(result: CompileResult, voice: string, grid: { name: string } | null, freq: number | null | undefined): number | null {
+  const base = result.cells.get(voice)?.freq ?? 0;
+  return freq && base > 0 && grid ? positionOf(result, grid.name, 12 * Math.log2(freq / base)) : null;
+}
+
 /** The pitch 0 of the voice that plays a cell (directly or as a part), in Hz; C4 if none. */
 export function voiceBase(result: CompileResult, name: string): number {
   const containsIt = (cell: string, seen = new Set<string>()): boolean => {
@@ -237,7 +252,7 @@ export interface Named {
  */
 export function noteLabel(show: Show, n: Named, base: number, tonic: number, conv = ''): string | null {
   const freq = base * Math.pow(2, n.semis / 12);
-  const midi = 69 + 12 * Math.log2(freq / 440);
+  const midi = midiOf(freq);
   switch (show) {
     case 'notes': {
       const m = Math.round(midi);

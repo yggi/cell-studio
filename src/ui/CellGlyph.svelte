@@ -12,8 +12,8 @@
   import { names, noteFrame, noteLabel } from '../layout/show';
   import { polar, ringSegment } from '../layout/geometry';
   import { envelopeNames, wheelGeometry } from '../layout/wheel';
-  import { envelopeAt, envelopeAxis } from '../layout/envelope';
-  import { lastNoteAt } from '../engine/values';
+  import { envelopeAt, envelopeAxis, envelopeNotes, latestNoteAt } from '../layout/envelope';
+  import { lapOf, refsOf, stepsPerSecond } from '../engine/readers';
   import { angleOf, fitFont, hubMax, turnDelta } from '../layout/dial';
   import { mod } from '../theory/modes';
   import { getGraphContext } from './context';
@@ -101,7 +101,7 @@
   const tapsTable = $derived(!!fanOf(ctx.program, name));
   const tapSuffix = $derived.by(() => {
     if (!tapsTable || !cell) return '';
-    const names = cell.units.flatMap((u) => (u.atom.kind === 'ref' ? [u.atom.name] : []));
+    const names = refsOf(cell);
     let k = 0;
     while (names.every((n) => n.length > k + 2 && n[n.length - 1 - k] === names[0][names[0].length - 1 - k])) k++;
     return k ? names[0].slice(-k) : '';
@@ -145,11 +145,7 @@
       .join(' '),
   );
   // (motion is a hint for slow cells — a step a second or slower; on faster ones it's noise: none)
-  const fast = $derived.by(() => {
-    if (!cell?.clock) return false;
-    const per = ctx.program.clocks.get(cell.clock)?.perSecond ?? 0;
-    return per * (cell.clock === name ? 1 : cell.rate) > 1;
-  });
+  const fast = $derived((stepsPerSecond(ctx.program, name) ?? 0) > 1);
 
   // motion, subtle: a turn eases into place; a hub value that changes pops, once
   let spin = $state(0);
@@ -286,15 +282,12 @@
   const curvePoints = $derived(curve ? curve.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(' ') : '');
   // while it plays: where the latest note through it is on the curve, two lines crossing there — its time now and its
   // level now (the notes of whatever plays a voice with this envelope, or a product it shapes: layout/envelope.ts)
-  const envNotes = $derived(
-    view.mode === 'curve' ? [...new Set(ctx.program.outputs.filter((o) => ctx.program.cells.get(o.voice)?.env === name || o.envelopeCell === name).map((o) => o.cell))] : [],
-  );
+  const envNotes = $derived(view.mode === 'curve' ? envelopeNotes(ctx.program, name) : []);
   const envNow = $derived.by(() => {
     if (!curve || !view.curve || !ctx.lit || !envNotes.length) return null;
     const t = ctx.heads.seconds;
-    const notes = envNotes.flatMap((n) => lastNoteAt(ctx.program, ctx.shifts, n, t) ?? []);
-    if (!notes.length) return null;
-    const last = notes.reduce((a, b) => (b.since < a.since ? b : a));
+    const last = latestNoteAt(ctx.program, ctx.shifts, envNotes, t);
+    if (!last) return null;
     const at = envelopeAt(view.curve, last.since, last.length);
     if (!at) return null;
     const { total } = envelopeAxis(view.curve);
@@ -520,7 +513,7 @@
       return on.join(',');
     }
     if (!hasLive || view.mode !== 'braid' || liveLocal === null) return '';
-    const t = liveLocal / Math.max(1, ctx.program.cells.get(played)?.steps ?? 1);
+    const t = liveLocal / lapOf(ctx.program, played);
     const on: number[] = [];
     view.segments.forEach((s, i) => {
       if (t >= s.t0 - EPS && t < s.t1 - EPS) on.push(i);
@@ -545,7 +538,7 @@
   };
 
   // the playhead: braids, and a selector's barrel (where in its sections)
-  const hand = $derived((view.mode === 'braid' || view.mode === 'matrix') && liveLocal != null ? liveLocal / Math.max(1, ctx.program.cells.get(played)?.steps ?? 1) : null);
+  const hand = $derived((view.mode === 'braid' || view.mode === 'matrix') && liveLocal != null ? liveLocal / lapOf(ctx.program, played) : null);
   // in a bulb, the hand bends: from the hub's edge round the inside of each bulb it is in, and across the step playing now (#221)
   const bent = $derived(hand !== null && track ? cursorOf(c, c, geo.hand.r0, track, mod(hand, 1), rInner - geo.hand.r0) : null);
 

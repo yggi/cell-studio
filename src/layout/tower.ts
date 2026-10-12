@@ -7,6 +7,7 @@
 import { isMidiCard, type CompileResult } from '../engine/program';
 import type { GraphModel } from '../engine/graph';
 import { cellId } from '../engine/ids';
+import { ownRate } from '../engine/readers';
 
 /**
  * Where on the tower a clocked cell sits: its step (how often it moves), its turn (how often it comes round), or between;
@@ -51,7 +52,7 @@ export function towerOf(program: CompileResult, model: GraphModel, at: TowerAt =
     else if (c.clock) {
       const info = program.clocks.get(c.clock);
       if (!info) continue;
-      const step = info.perSecond * (c.clock === c.name ? 1 : c.rate);
+      const step = info.perSecond * ownRate(c);
       const turn = step / Math.max(1, c.steps);
       const hz = at === 'step' ? step : at === 'turn' ? turn : Math.sqrt(step * turn);
       if (hz > 0) v.set(id, Math.log10(hz));
