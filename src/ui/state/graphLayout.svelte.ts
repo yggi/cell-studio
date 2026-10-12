@@ -5,6 +5,7 @@ import { structureKey, type GraphNode } from '../../engine/graph';
 import type { LiveState } from '../../engine/live';
 import { ForceLayout } from '../../layout/physics';
 import { DEFAULT_LAYOUT, TOWER_LAYOUT, type LayoutOptions } from '../../layout/options';
+import type { LoomStrand } from '../../layout/taploom';
 import { isSocket, SOCKET_SIZE, towerHeights, towerLayers, towerOuts, withoutCard, withSockets, type TowerOut } from '../../layout/towerlayout';
 import type { MeterTrace } from '../../layout/state';
 import { meterIndex } from '../../layout/meters';
@@ -80,6 +81,8 @@ export class GraphLayout {
   mode = $state<LayoutMode>('flow');
   /** In the tower layout: what goes into the sound card (its node not drawn), as wires into the strips. */
   outs = $state.raw<readonly TowerOut[]>([]);
+  /** (the tower layout) Each selector's loom over its table: its strands (taploom.ts), laid again as things move. */
+  looms = $state.raw<readonly { table: string; strands: readonly LoomStrand[] }[]>([]);
   /** Pinned by the user (or held where they were dropped, or a turntable: see `#placed`). */
   readonly pinned = new SvelteSet<string>();
 
@@ -216,7 +219,9 @@ export class GraphLayout {
   #makeEdges(): void {
     const s = this.#style();
     this.#madeFrom = [this.shown, this.net, s.lit, s.moment];
-    this.edges = flowEdgesOf({ ...this.shown, model: sideless(this.shown.model) }, { sizeOf: (id) => this.#sizeOf(id), net: this.net, lit: s.lit, live: s.live });
+    // (a selector's taps drawn as its loom, tapLoom: their traces aren't drawn)
+    const net = this.#force.options.tapLoom ? this.net.filter((t) => !t.bulb) : this.net;
+    this.edges = flowEdgesOf({ ...this.shown, model: sideless(this.shown.model) }, { sizeOf: (id) => this.#sizeOf(id), net, lit: s.lit, live: s.live });
   }
 
   /** Where a node is now. */
@@ -317,6 +322,7 @@ export class GraphLayout {
     // (a meter's net is laid as a bus's is, again as things move: each cell joined to the nearest already joined)
     const laid = this.#force.meterNet();
     if (!sameNet(laid, this.net)) this.net = laid;
+    this.looms = this.#force.options.tapLoom ? this.#force.tapLooms() : [];
     // (an example opens with its rows in the order chosen when the app was built: no trials)
   }
 }

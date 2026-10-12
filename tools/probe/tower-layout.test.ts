@@ -30,7 +30,8 @@ const VARIANTS: Variant[] = [
   // the layers (tables, structure, voices, the audible: sockets only), held or drawn by a scale force
   { name: 'layers, held', tower: true, card: false, opts: TOWER_LAYOUT, sockets: true, layers: true },
   { name: 'layers, pull .02', tower: true, card: false, opts: { ...TOWER_LAYOUT, heightPull: 0.02 }, sockets: true, layers: true },
-  { name: 'layers, pull .05', tower: true, card: false, opts: { ...TOWER_LAYOUT, heightPull: 0.05 }, sockets: true, layers: true },
+  { name: 'layers, pull .05, taps as traces', tower: true, card: false, opts: { ...TOWER_LAYOUT, heightPull: 0.05, tapLoom: false }, sockets: true, layers: true },
+  { name: 'layers, pull .05, taps as a loom (TOWER_LAYOUT)', tower: true, card: false, opts: { ...TOWER_LAYOUT, heightPull: 0.05 }, sockets: true, layers: true },
   { name: 'layers, pull .1', tower: true, card: false, opts: { ...TOWER_LAYOUT, heightPull: 0.1 }, sockets: true, layers: true },
   { name: 'layers, pull .2', tower: true, card: false, opts: { ...TOWER_LAYOUT, heightPull: 0.2 }, sockets: true, layers: true },
   { name: "layers, pull .05, today's rows too", tower: true, card: false, opts: { heightPull: 0.05, placeLast: 0 }, sockets: true, layers: true },

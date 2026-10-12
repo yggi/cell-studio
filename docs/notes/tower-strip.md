@@ -207,6 +207,31 @@ The owner's next: **a gentle scale force** pulling every node to its height inst
 
 *Pop and Hypercell* (stopped): sockets on top, the voices' row under them, the structure, the form at the bottom; at .1 (the last) the rows are a little tighter, for 8 more crossings over the library.
 
+## A selector's loom (2026-10-12)
+
+Asked: the wires out of a selector's taps as a horizontal loom over it, each strand in its section's colour, run along to its consumer's x and straight up to it; crossings inside the loom don't count.
+
+- `layout/taploom.ts: tapLoom`: a lane a tap over the table (the first 26 px over its top, each next 9 px higher), the strand up from its bulb, along its lane, straight up to its cell's bottom (or down to its top), corners rounded. `ForceLayout.tapLooms()` lays them from where everything is; `TapLooms.svelte` draws them behind the cells, tinted by `partColour` as the bulbs are; the taps' traces aren't drawn. `LayoutOptions.tapLoom`, on in `TOWER_LAYOUT`.
+- `quality.ts`: an edge drawn as a `path` is counted as drawn (its ends needn't be nodes: a strand leaves a bulb), and two strands of one `loom` never cross.
+- A bus doesn't hop on from a loom's table (`nets.ts: netTree`): its clock went on out of the table's top, straight through the lanes.
+
+Measured (76 pieces × 3 seeds, the layers at pull .05; area and height fidelity the same):
+
+| taps as | crossings | cost |
+|---|---|---|
+| traces (before) | 39.7 | 121.8 |
+| a loom, its strands not counted against other edges (a bug, first reported as 25.0) | 25.0 | 67.2 |
+| a loom, counted | 47.7 | 183.8 |
+| a loom, counted, no hops from its table | **46.0** | 166.1 |
+
+So, counted honestly, the loom crosses more than the traces did (46.0 against 39.7). Of its strands' crossings, about four in five are lanes (a lane is long: median ~400 px, up to 900), with the edges leaving the cells beside the table; the rest the straight risers. Tried and dropped: the lanes higher, under their cells (49.3) or half way (46.7); a pull drawing each consumer over its tap's bulb (`loomPull` .02 to .2: 44.7 to 57.7, noise or worse).
+
+What it would take: the layout placing a selector's consumers in their sections' order over it (then the lanes are short and the loom fans out), or the loom in a band of its own that the rest of the graph keeps clear.
+
+![Baustelle, the tower layout with the loom](tower-strip-loom.jpg)
+
+*Baustelle*: `&teile`'s nine taps, each a lane, straight up to the parts they step.
+
 ## Next
 
 1. The tower layout still crosses about three times today's (91 against 33, the card left out of both), most in the pieces arranged with selectors, tapes and resonators (#234's language side: a selector that sends gates).

@@ -35,6 +35,7 @@
   import FlowViewport from './FlowViewport.svelte';
   import TowerStrips, { STRIP, STRIP_OPEN } from './TowerStrips.svelte';
   import TowerWires from './TowerWires.svelte';
+  import TapLooms from './TapLooms.svelte';
   import { towerIns, type TowerObstacle } from '../layout/towerlayout';
   import { VOICE_KIT } from '../engine/compiler/declare';
   import { socketOf } from '../layout/voice';
@@ -413,6 +414,7 @@
       {#if towerOpen || towered}<FlowViewport onchange={(v) => (viewport = v)} />{/if}
       {#if towered}
         <ViewportPortal target="back"><TowerWires {ins} {obstacles} {viewport} width={flowW} /></ViewportPortal>
+        {#if layout.looms.length}<ViewportPortal target="back"><TapLooms looms={layout.looms} /></ViewportPortal>{/if}
       {/if}
       <!-- clusters: cells tagged alike inside the piece (tags=), washed and named behind their members -->
       <ViewportPortal target="back">

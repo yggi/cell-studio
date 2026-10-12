@@ -72,6 +72,8 @@ export function netTree(s: LayoutState, net: GraphModel['nets'][number], ends = 
     return out;
   }
   const left = [...readers];
+  // (the tower layout, tapLoom: a selector's table passes nothing on, its top is its loom's)
+  const looms = s.opts.tapLoom ? new Set(s.grounds.flatMap((g) => (g.bulb ? [g.meter] : []))) : undefined;
   // (each reader's cheapest join so far, and what to)
   const best = left.map((r) => ({ cost: cost(o, r.n), from: o }));
   while (left.length) {
@@ -82,6 +84,7 @@ export function netTree(s: LayoutState, net: GraphModel['nets'][number], ends = 
     // (a bus has left its owner: only the readers join on)
     left.forEach((q, i) => {
       if (bus && best[i].from === o) best[i] = { cost: Infinity, from: o! };
+      if (looms?.has(r.n.id)) return;
       const c = cost(r.n, q.n);
       if (c < best[i].cost) best[i] = { cost: c, from: r.n };
     });

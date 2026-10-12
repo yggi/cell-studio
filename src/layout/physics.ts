@@ -25,6 +25,7 @@ import { forceUncross, stepBends, stepClusters, stepExclusion, stepKinds, stepSp
 import { aims, fitTurns, stepAims } from './aims';
 import { hops, meterNet, netTree, stepNets, taps } from './nets';
 import { placeMeters } from './placement';
+import { tapLoom, type LoomStrand } from './taploom';
 
 export interface GraphDiff {
   added: number;
@@ -338,6 +339,34 @@ export class ForceLayout {
     }
   }
 
+  /**
+   * (tapLoom) Each table of taps' loom (taploom.ts): its taps, left to right as its bulbs are, each a lane, a strand to
+   * each cell it steps, from where everything is now.
+   */
+  tapLooms(): { table: string; strands: LoomStrand[] }[] {
+    const by = new Map<string, Map<string, { at: { x: number; y: number }; to: string[] }>>();
+    for (const g of this.s.grounds) {
+      if (!g.bulb || !g.at) continue;
+      const taps = by.get(g.meter) ?? by.set(g.meter, new Map()).get(g.meter)!;
+      const t = taps.get(g.bulb) ?? taps.set(g.bulb, { at: g.at, to: [] }).get(g.bulb)!;
+      if (!t.to.includes(g.cell)) t.to.push(g.cell);
+    }
+    return [...by].flatMap(([table, taps]) => {
+      const n = this.s.byId.get(table);
+      if (!n || n.x === undefined || n.y === undefined) return [];
+      const ordered = [...taps].sort((a, b) => a[1].at.x - b[1].at.x);
+      const loom = ordered.map(([bulb, t]) => ({
+        bulb,
+        from: { x: n.x! + t.at.x, y: n.y! + t.at.y },
+        to: t.to.flatMap((id) => {
+          const c = this.s.byId.get(id);
+          return c && c.x !== undefined && c.y !== undefined ? [{ id, x: c.x, y: c.y, r: c.radius * 0.7 }] : [];
+        }),
+      }));
+      return [{ table, strands: tapLoom({ x: n.x, y: n.y, r: n.radius * 0.7 }, loom) }];
+    });
+  }
+
   /** Where everything is now, as quality.ts reads it: the nodes (a tag's name hides edges, but isn't a cell) and the edges as drawn. */
   private placed() {
     const nodes = [
@@ -354,14 +383,20 @@ export class ForceLayout {
           ? { a: h.from, b: h.to, mid: undefined, weight: l.strength, kind: l.kind }
           : { a: l.source, b: l.target, mid: this.s.bendAt.get(l.id) as { x: number; y: number } | undefined, runs: this.beltRuns(l), weight: l.strength, kind: l.kind };
       }),
+      // (a selector's taps as a loom over its table, tapLoom: its strands, which don't cross each other)
+      ...(this.s.opts.tapLoom
+        ? this.tapLooms().flatMap((l) => l.strands.map((st) => ({ a: `${l.table}@${st.bulb}`, b: st.to, path: st.pieces, loom: l.table, weight: 2, kind: 'sync' })))
+        : []),
       // (a meter's net: straight traces)
       // (a tap's, from its bulb: crossing another tap's counts, though both leave the same wheel)
-      ...this.s.net.map((t) => {
-        const o = t.at && this.s.byId.get(t.a);
-        return o
-          ? { a: `${t.a}@${t.bulb}`, b: t.b, from: { x: (o.x ?? 0) + t.at!.x, y: (o.y ?? 0) + t.at!.y }, weight: 2, kind: 'sync' }
-          : { a: t.a, b: t.b, mid: undefined, weight: 2, kind: 'sync' };
-      }),
+      ...this.s.net
+        .filter((t) => !(this.s.opts.tapLoom && t.bulb))
+        .map((t) => {
+          const o = t.at && this.s.byId.get(t.a);
+          return o
+            ? { a: `${t.a}@${t.bulb}`, b: t.b, from: { x: (o.x ?? 0) + t.at!.x, y: (o.y ?? 0) + t.at!.y }, weight: 2, kind: 'sync' }
+            : { a: t.a, b: t.b, mid: undefined, weight: 2, kind: 'sync' };
+        }),
     ];
     return { nodes, edges };
   }

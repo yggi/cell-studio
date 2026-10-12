@@ -51,6 +51,8 @@ export interface LayoutOptions {
   heights?: ReadonlyMap<string, number>;
   /** With `heights`: 0, each held there (a rail); more, each drawn towards it by a spring this strong (a target). */
   heightPull: number;
+  /** A selector's taps as a loom over its table (taploom.ts), counted so, its strands' crossings with each other not. */
+  tapLoom: boolean;
   layerGap: number;
   /** Edge length at rest (px). */
   linkDistance: number;
@@ -135,6 +137,7 @@ export const DEFAULT_LAYOUT: LayoutOptions = {
   rankPull: 0.05,
   upPull: 0,
   heightPull: 0,
+  tapLoom: false,
   centre: 0.004,
   columnPull: 0.035,
   layerGap: 130,
@@ -159,7 +162,7 @@ export const DEFAULT_LAYOUT: LayoutOptions = {
  * layers and a socket each, crossings 124 held → 40 drawn, its nodes .6 of a decade off their heights on average
  * (docs/notes/tower-strip.md: the forces).
  */
-export const TOWER_LAYOUT: Partial<LayoutOptions> = { placeLast: 0, heightPull: 0.05 };
+export const TOWER_LAYOUT: Partial<LayoutOptions> = { placeLast: 0, heightPull: 0.05, tapLoom: true };
 
 /**
  * A node's room: the wheel itself (size= scales it), and what hangs under it — its label, as wide as
