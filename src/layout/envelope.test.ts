@@ -30,7 +30,7 @@ describe("a voice's envelope and the notes through it", () => {
   const r = compileSource(`&bar scan(4) step=120bpm
 &env map=adsr .01 .2 .5 .3
 &tune step=&bar 0 2 4 5
-&bass step=&bar*2 0 3
+&bass step=&bar/2 0 3
 &lead s=saw loop=C4 env=&env
 &pad s=sine loop=C3
 &mix map=sample [&tune * &lead, &bass * &lead, &tune * &pad]`);

@@ -6,7 +6,7 @@ import { runsOn, sentSince, ticksOn } from './signal';
 // (a step a beat, at 120 bpm: every half second; a bar of four)
 const SRC = `&bar scan(1 1 1 1) step=120bpm
 &tune step=&bar 0 2 4 5
-&slow step=&bar*2 0 7`;
+&slow step=&bar/2 0 7`;
 const program = compileSource(SRC);
 const shifts = codeShifts(program);
 

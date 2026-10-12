@@ -1,7 +1,7 @@
 /**
  * A belt between two pulleys, drawn as a real one is: its two runs are the outer tangents
  * of the two circles (an open belt). Pulleys sized by the step ratio: a cell stepped at half
- * its driver's rate (step=&bar*2) has a pulley twice the size.
+ * its driver's rate (step=&bar/2) has a pulley twice the size.
  */
 export type P = { x: number; y: number };
 

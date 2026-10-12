@@ -36,7 +36,7 @@ The engine behind `engine.window` is local (in this thread, on the app's plan: t
 - `parser/` (`parse`, `pieceMeta`), `ast.ts`: one cell per line, read by construct:
   - `scanner.ts`: a line (continued lines joined), names, numbers, references with picks, shifts, `^n` and `^$n`.
   - `cell.ts`: a cell's line, its attributes and its braid in any order.
-  - `braid.ts`: steps (numbers, rests, chords, choices, cells) and their modifiers.
+  - `braid.ts`: steps (numbers, rests, chords, subsequences, choices, cells) and their modifiers.
   - `generators.ts`, `free.ts`, `values.ts` (`step=`/`loop=`, `map=`), `units.ts` (a rate's units), `mix.ts` (a mix chord, kept as an expression).
 - `attributes.ts`: every attribute in one table (what it means, takes and acts on; its doc page); the parser, compile, the node editor and the docs test read it.
 - `algebra.ts`: the mix algebra ([decision 006](decisions/006-mix-algebra.md)): a mix's expressions typed by sort and distributed, one binding per voice.
@@ -48,6 +48,7 @@ The engine behind `engine.window` is local (in this thread, on the app's plan: t
 - `realize.ts`: `plan` (every output's braid flattened once), `eventsBetween` (the notes that start in a window: tapes' echoes, laws, selectors, chance); the gates the scheduler uses (`outputSounds`, `endOf`, `picksNow`, `liveGains`). Its parts:
   - `clocking.ts`: time. `timeMap` (swing, positions in a bar, a motor or a belt), `clocking` (a program's clocks at a moment), `shiftsAt` (tables turning), `playedCells`, `physicsOf`, `tapeMotion`.
   - `flatten.ts`: a braid as numbers in its own steps (`flatten`, `unitsFor`, `stepsOf`, `StepEvent`).
+  - `subseq.ts`: subsequences (`[0 2 4]`, `[0 2, 4]`, decision 027): where each step inside plays (`slots`, which flatten, the live view and the time view's structure share), what a step holds at the bottom (`leaves`), its numbers moved (`mapLeaves`).
   - `series.ts`: a cell read as a stream over a note (`modulation`, `levelSeries`, `paramTracks`, `pitchOf`).
   - `values.ts`: what a cell sounds at a moment, for views (`valueAt`, `valuesAt`, `notesAt`).
   - `ids.ts`: graph ids (`cellId`, `edgeId`, `stepEdgeId`), shared with `muted` sets.

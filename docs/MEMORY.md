@@ -70,7 +70,8 @@ One line each; the record has the rationale. → [decisions/](decisions/README.m
 - 023 · A gate is `play=&x` (the notes), `level=&a*&b*n` (one intensity, a product) and what it plays: a voice or a kit, a chord of voices (all), several bare voices (a kit, one picked); the old `trigger=` `velocity=` `gate=` `gain=` still read, Shorten rewrites them · → decisions/023-gate-spelling.md
 - 024 · A resonator is drawn as its body: its disc of its material, the body engraved over its mode rings, each exciter its body's element at its turn out to its strand (a bus through the loom, a single strand straight to it) · → decisions/024-resonator-bodies.md
 - 025 · A MIDI file opens as it is: its text in the code editor (`engine/miditext.ts`), playing through its notes written out behind the scenes; the graph waits; Convert to cells is an action · → decisions/025-midi-documents.md
-- 026 · A cell can be a copy of another, changed where it says: `&foo base=&bar _!3 12@2` (`_` keeps a step, a value changes it, `^$n` transposes the copy), resolved when parsed · → decisions/026-base.md
+- 026 · A cell can be a copy of another, changed where it says: `&foo base=&bar =!3 12@2` (`=` keeps a step, `_` before decision 027; a value changes it, `^$n` transposes the copy), resolved when parsed · → decisions/026-base.md
+- 027 · Cells sits on top of Strudel: a spelling shared with its mini-notation keeps Strudel's meaning (`[a b]` a subsequence, chords with commas; `?p` drops; `*` on a clock faster; euclid rotates as Strudel's); a clean cut, no compatibility, until the first release · → decisions/027-on-top-of-strudel.md
 
 ## Where things are tracked
 

@@ -31,9 +31,9 @@ describe('what a source sends at each step', () => {
     expect(v(0)).not.toEqual(v(1));
   });
   it('an oscillator its wheel draws as a curve: its numbers as levels (map=lin as written, map=db as a gain)', () => {
-    const lin = at('&bar scan(1 1 1 1) step=120bpm\n&swell map=lin loop=&bar*4 .2 1 .2', 'swell')!;
+    const lin = at('&bar scan(1 1 1 1) step=120bpm\n&swell map=lin loop=&bar/4 .2 1 .2', 'swell')!;
     expect([0, 1, 2].map((i) => lin(i))).toEqual([0.2, 1, 0.2].map((v) => ({ kind: 'level', v })));
-    const db = at('&bar scan(1 1 1 1) step=120bpm\n&duck map=db loop=&bar*4 0 -6', 'duck')!;
+    const db = at('&bar scan(1 1 1 1) step=120bpm\n&duck map=db loop=&bar/4 0 -6', 'duck')!;
     expect((db(1) as { v: number }).v).toBeCloseTo(0.501, 3);
   });
   it('a moving piece’s swell, as the edge sheet shows it', () => {
