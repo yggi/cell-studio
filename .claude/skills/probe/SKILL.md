@@ -12,7 +12,7 @@ skipped in `npm test`, and writes its tables to a file:
 PROBE=/path/out.txt npx vitest run tools/probe/<topic>.test.ts && cat /path/out.txt   # (the scratchpad for the path)
 ```
 
-Probes so far: `scalogram.test.ts` (the rhythm scalogram: every piece's notes as a wavelet transform beside the cells' spans, pictures by `scalogram-sheets.mjs`; `docs/notes/scalogram.md`), `tower.test.ts` (every cell's time constants: the frequency tower, selectors, what nothing reads;
+Probes so far: `ratchet.test.ts` (the Shorten ratchet: every example through MIDI and folded again, scored on notes, size and phrases; `docs/notes/ratchet.md`), `scalogram.test.ts` (the rhythm scalogram: every piece's notes as a wavelet transform beside the cells' spans, pictures by `scalogram-sheets.mjs`; `docs/notes/scalogram.md`), `tower.test.ts` (every cell's time constants: the frequency tower, selectors, what nothing reads;
 `docs/notes/multiscale.md`), `outputs-top.test.ts` (which way each wire leaves its source, `upPull` and `spread`
 variants; `docs/notes/outputs-top.md`, PR #236), `tap-order.test.ts` (whether the layout keeps a table's taps in their
 order, at the start and at rest), `forces.test.ts` (what each force does: the library with one switched off at a time,
