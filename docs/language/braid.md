@@ -62,8 +62,8 @@ A reference's numbers are indices into the table it is read through, so they can
 **`base=&x`** makes a cell a copy of &x, changed where it says ([decision 026](../decisions/026-base.md)): an overdub,
 a delta. A fugue's entries are this: one subject, each entry a little bent.
 
-- **Its braid goes over the base's, step by step.** `_` keeps the base's step as it is there; a value in its place
-  changes it; `_!n` keeps n steps, `_@n` keeps one's pitch held n; what goes past the base's end is added, and nothing
+- **Its braid goes over the base's, step by step.** `=` keeps the base's step as it is there (read "the same"); a value
+  in its place changes it; `=!n` keeps n steps, `=@n` keeps one's pitch held n; what goes past the base's end is added, and nothing
   written is the base as it is. A run in the base (`x!3`) counts as its steps.
 - **Transposed:** `base=&x^$n` moves what it keeps n steps of the grid (a cell that reads no table: semitones), `base=&x^n`
   n steps of its table. What the cell writes itself is what it plays.
@@ -74,8 +74,8 @@ a delta. A fugue's entries are this: one subject, each entry a little bent.
 ```cells
 &bar scan(1 1 1 1) step=90bpm
 &subject 0 -1 0@2 -5@2 -4@2 0 -1 0 2 -5@4
-&answer base=&subject^$7 _!3 0@2
-&last base=&subject^$-12 _!9 _@8
+&answer base=&subject^$7 =!3 0@2
+&last base=&subject^$-12 =!9 =@8
 &tune step=&bar*4 &subject &answer &last
 &v s=tri loop=C4
 &out map=sample [&tune * &v * .4]

@@ -117,7 +117,7 @@ From [scalogram.md](scalogram.md) and #286. The language changes nothing by it; 
 
 - **I9 accepted**, with a clean cut: saved pieces don't bind the language until the first release ([decision 027](../decisions/027-on-top-of-strudel.md)).
 - **Aligned with Strudel:** `[a b]` (a subsequence; chords take commas), euclid's rotation, `?p` (drops), and `*`/`/` on a clock (faster/slower). Being built on this branch.
-- **#306 and `_`:** advice asked for (§7).
+- **#306 and `_`:** advice asked for (§7), then taken as written: `glide=`, `&bd:n:gain` and voice `gain=` for #306 (its author applies them there); `_` is Strudel's elongation and `base=` keeps a step with `=` (built on this branch).
 - **The multiscale approach is the frame for generalising**, and the cells, operations and wheels are mapped onto it (§8).
 
 Still open, each on its issue:

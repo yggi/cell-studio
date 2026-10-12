@@ -22,11 +22,12 @@ export const STEP_SYNTAX: readonly Syntax[] = [
   ),
   syntax('step', 'n/d', 'A fraction: 9/8, 3/2 (the ratios of a map=ratios grid).', ['&just map=ratios 1 9/8 5/4 3/2 2'], 'tuning.md'),
   syntax('step', '~', 'A rest: a step that plays nothing.', ['&tune step=2 0 ~ 4 ~'], 'cell.md'),
+  syntax('step', '_', "The step before it, one step longer, as Strudel's elongation: 0 _ _ is 0@3 (inside brackets too: [0 _ 2]).", ['&tune step=2 0 _ _ 2 4 _'], 'cell.md'),
   syntax(
     'step',
-    '_',
-    "In a cell with base=: the base's step here, as it is there (_@2: its pitch, held 2; _!n: n of them). A value in its place changes that step.",
-    ['&answer base=&subject^$7 _!3 12@2'],
+    '=',
+    "In a cell with base=: the base's step here, as it is there (=@2: its pitch, held 2; =!n: n of them). A value in its place changes that step.",
+    ['&answer base=&subject^$7 =!3 12@2'],
     'braid.md',
   ),
   syntax(
@@ -116,10 +117,15 @@ function parseAtom(s: LineScanner, depth: number): Atom {
     s.i++;
     return { kind: 'rest' };
   }
-  // (_: the base's step, in a cell with base=: parser/base.ts puts it there)
-  if (c === '_') {
+  // (=: the base's step, in a cell with base=: parser/base.ts puts it there)
+  if (c === '=') {
     s.i++;
     return { kind: 'rest', keep: true };
+  }
+  // (_: the step before it, one step longer, as in Strudel: pushStep merges it)
+  if (c === '_') {
+    s.i++;
+    return { kind: 'rest', hold: true };
   }
   if (c === '[') {
     if (isMixChord(s.text, s.i)) return parseMixChord(s);
@@ -158,7 +164,7 @@ function parseBracket(s: LineScanner, depth: number): Atom {
       s.i++;
       continue;
     }
-    layers[layers.length - 1].push(parseToken(s, depth + 1));
+    pushStep(s, layers[layers.length - 1], parseToken(s, depth + 1));
   }
   s.i++;
   if (!layers[layers.length - 1].length)
@@ -181,6 +187,24 @@ function parseBracket(s: LineScanner, depth: number): Atom {
     return { kind: 'chord', notes: notes.map((n) => n.value), alters: notes.map((n) => n.alter), ...(pitched.some(Boolean) ? { pitched } : {}) };
   }
   return { kind: 'seq', layers };
+}
+
+/**
+ * Adds a step to a list, or, for `_`, lengthens the step before it by one (Strudel's elongation: `0 _ _` is `0@3`;
+ * decision 027).
+ */
+export function pushStep(s: LineScanner, tokens: Token[], t: Token): void {
+  if (!(t.atom.kind === 'rest' && t.atom.hold)) {
+    tokens.push(t);
+    return;
+  }
+  const at = t.span.col - 1 - s.offset;
+  const prev = tokens[tokens.length - 1];
+  if (t.repeat !== 1 || t.subdivide !== 1 || t.elongate !== 1 || t.chance !== undefined)
+    s.fail('_ lengthens the step before it by one, and takes no modifiers: 0 _ _ is 0@3', at, t.span.len);
+  if (!prev) s.fail('_ lengthens the step before it: 0 _ _ is 0@3 (in a cell with base=, = keeps a step of the base)', at, t.span.len);
+  if (prev.repeat !== 1) s.fail('_ after x!n would lengthen only the last copy: write the copies out, or x@n', at, t.span.len);
+  tokens[tokens.length - 1] = { ...prev, elongate: prev.elongate + 1, span: { ...prev.span, len: t.span.col - prev.span.col + t.span.len } };
 }
 
 /** A step's modifiers, each at most once; the parser reads them through this table (and ? for chance). */

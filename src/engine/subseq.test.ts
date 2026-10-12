@@ -265,20 +265,20 @@ describe('cells inside a subsequence', () => {
     expect(play('&fill &bd', '&fill &sd [&sd &sd]\n')).toEqual(play('&sd &sd*2 &bd'));
   });
 
-  it('base= moves a subsequence as a step, and _ keeps whole steps only', () => {
-    expect(steps('base=&a^$7 _ 9', '&a [0 2] 4\n', 'b')).toEqual([
+  it('base= moves a subsequence as a step, and = keeps whole steps only', () => {
+    expect(steps('base=&a^$7 = 9', '&a [0 2] 4\n', 'b')).toEqual([
       [0, 0.5, 7],
       [0.5, 0.5, 9],
       [1, 1, 9],
     ]);
-    expect(steps('base=&a _ [5 7]', '&a [0 2] 4\n', 'b')).toEqual([
+    expect(steps('base=&a = [5 7]', '&a [0 2] 4\n', 'b')).toEqual([
       [0, 0.5, 0],
       [0.5, 0.5, 2],
       [1, 0.5, 5],
       [1.5, 0.5, 7],
     ]);
-    expect(err('&a 0 4\n&b base=&a [_ 2]')).toMatch(/_ keeps a whole step of the base, not part of one/);
-    expect(err('&b [_ 2]')).toMatch(/_ keeps a whole step of the base, not part of one/);
+    expect(err('&a 0 4\n&b base=&a [= 2]')).toMatch(/= keeps a whole step of the base, not part of one/);
+    expect(err('&b [= 2]')).toMatch(/= keeps a whole step of the base, not part of one/);
   });
 
   it('a braid left free holds subsequences of numbers', () => {

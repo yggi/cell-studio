@@ -4,6 +4,8 @@
 delta-copy of any other cell, prototype or template … `&foo base=&bar`") · Issues: #307, #10 (the examples pass, item
 4: "a motif with a change"), #234
 
+**Since [decision 027](027-on-top-of-strudel.md):** the sign that keeps a step of the base is `=`, not `_` (Strudel's `_` elongates).
+
 ## Context
 
 BWV 847 writes its subject seven times, because each entry changes one step (a tonal answer, a modulation) or holds the

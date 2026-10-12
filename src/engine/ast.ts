@@ -69,7 +69,8 @@ export interface Ref {
 export type Atom =
   | { readonly kind: 'note'; readonly value: number; readonly alter: number; readonly pitched?: true }
   /** `~`; `_` in a cell with base= is `keep`: the base's step, as it is there (parser/base.ts replaces it). */
-  | { readonly kind: 'rest'; readonly keep?: true }
+  // (keep: =, the base's step, for parser/base.ts; hold: _, merged into the step before it by the parser)
+  | { readonly kind: 'rest'; readonly keep?: true; readonly hold?: true }
   /** `[0, 4, 7]`: numbers (or names) sounding together, in one step. */
   | { readonly kind: 'chord'; readonly notes: readonly number[]; readonly alters: readonly number[]; readonly pitched?: readonly boolean[] }
   /**

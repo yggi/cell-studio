@@ -114,7 +114,7 @@ describe('the folder', () => {
     const { defs } = printFolded(f);
     // (the subject at its full length, the answer a copy of it written in its own frame: the line splices it a fifth
     // up, so -7 sounds as the answer's 12)
-    expect(defs).toEqual(['&m1 0 -1 0 -5 -4 0 -1 0 2 -5 0 -1 0 2 -7 -5 -4 -5 -7 -9', '&m2 base=&m1 _!3 -7']);
+    expect(defs).toEqual(['&m1 0 -1 0 -5 -4 0 -1 0 2 -5 0 -1 0 2 -7 -5 -4 -5 -7 -9', '&m2 base=&m1 =!3 -7']);
     expect(plays(lines)).toEqual(expected(lines));
   });
 

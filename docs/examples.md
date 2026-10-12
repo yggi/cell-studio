@@ -52,7 +52,7 @@ Introduces meter and feel: a bent bar, gates; drums: a groove of voices, ratchet
 
 ### Tier 5 · Development
 
-Introduces canon: a theme shifted; mirrors: retrograde, slices, picks, transposing, inverse(); variations: a copy changed where it says (base=, _); chance and choice; turning tables: stride=, cycle(&x), the circle of fifths; arrangement: parts as taps of the bar, a selector, laps=, off.
+Introduces canon: a theme shifted; mirrors: retrograde, slices, picks, transposing, inverse(); variations: a copy changed where it says (base=, =); chance and choice; turning tables: stride=, cycle(&x), the circle of fifths; arrangement: parts as taps of the bar, a selector, laps=, off.
 
 | piece | file | about | level | length |
 |---|---|---|---|---|
