@@ -141,7 +141,10 @@ export class GraphLayout {
     const m = next.model;
     this.outs = tower && !sockets ? towerOuts(given.program, given.model) : [];
     // (with sockets: the layers, tables, structure, voices and the audible; with nets: each at its own height)
-    if (tower) layout.setOptions({ heights: sockets ? towerLayers(next.program, given.model, m).targets : towerHeights(next.program, m) });
+    if (tower) {
+      const layered = sockets ? towerLayers(next.program, given.model, m) : null;
+      layout.setOptions(layered ? { heights: layered.targets, held: layered.held } : { heights: towerHeights(next.program, m), held: undefined });
+    }
     // (a probe: the rows by the frequency tower instead of the signal path, docs/notes/multiscale.md)
     if (ROWS === 'tower') layout.setOptions({ ranks: towerRanks(towerOf(next.program, m)) });
     if (ROWS === 'zones') layout.setOptions({ ranks: zoneRanks(towerOf(next.program, m, 'emit'), flowRanks(m)) });
@@ -209,6 +212,7 @@ export class GraphLayout {
       ...PROBE_LAYOUT,
       rowOrders: this.#force.options.rowOrders,
       heights: undefined,
+      held: undefined,
       ...(mode === 'tower' ? towerOptions() : {}),
     });
     this.options = { ...this.#force.options };

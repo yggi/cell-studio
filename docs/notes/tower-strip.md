@@ -295,6 +295,24 @@ The outs form the top row; the graph is taller (the outs at their real heights).
 
 **The probe on every core:** `node tools/probe/parallel.mjs out.txt` (the same variables) runs a shard of the pieces per core (`SHARD=k/n`, each one's layouts as JSON) and merges them into one report (`MERGE=`). The four main rows: 89 s → 40 s, byte for byte the same table. (A shard is a vitest of its own: its start-up and the shards' uneven lengths keep it from a quarter.)
 
+## A kit with the voices (2026-10-13)
+
+Asked: a kit sits with the voices, between the sockets and the structure.
+
+- Every kit was in the voice layer already (`towerLayers`: 25 over the library, 18 of them a piece's drums' kit), but drawn there by the gentle pull it sank: it is wired to every groove that plays it, and the grooves are in the structure. In Hypercell *drums* stood under `&beat` and `&roll`.
+- Now `towerLayers` says what is **held** at its height (`held`: the sockets and the kits; `LayoutOptions.held`, in place of `socketsHeld`); the rest keeps the spring.
+
+| layout | crossings | area Mpx² |
+|---|---|---|
+| sockets held, kits drawn (before) | 48.0 | 95.4 |
+| **sockets and kits held (default)** | **51.3** | 95.3 |
+| the same, taps as traces | 45.0 | 95.2 |
+| nothing held | 50.0 | 77.5 |
+
+It costs 3.3 crossings, piece by piece both ways: better in Brothers (7.3 → 4.7), Bell, Coltrane; worse in Zell (2.0 → 4.7), Jazz, IDM, Bossa. A groove's wires now rise from the structure to its drums on the kit, and its socket's riser passes beside them. Tried and dropped: a groove's socket over its kit instead of over the groove (53.0).
+
+![Hypercell, the drums' kit held with the voices](tower-strip-kit.jpg)
+
 ## Next
 
 1. The tower layout still crosses about three times today's (91 against 33, the card left out of both), most in the pieces arranged with selectors, tapes and resonators (#234's language side: a selector that sends gates).

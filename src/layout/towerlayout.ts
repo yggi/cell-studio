@@ -248,7 +248,7 @@ const LAYER_GAP = 0.6;
  * cell at its rate; the voices, between the structure and the audible: voices, mixes, kits, tapes, resonators, one row;
  * the audible, only the sockets into the card, each at its sound's frequency). The graph's y for each, and its layer.
  */
-export function towerLayers(program: CompileResult, model: GraphModel, drawn: GraphModel): { targets: Map<string, number>; layers: Map<string, TowerLayer> } {
+export function towerLayers(program: CompileResult, model: GraphModel, drawn: GraphModel): { targets: Map<string, number>; layers: Map<string, TowerLayer>; held: Set<string> } {
   const step = towerOf(program, model, 'step');
   const sockets = socketHeights(program, model, drawn);
   const layers = new Map<string, TowerLayer>();
@@ -286,5 +286,9 @@ export function towerLayers(program: CompileResult, model: GraphModel, drawn: Gr
   const targets = new Map<string, number>();
   for (const [id, l] of layers)
     targets.set(id, towerY(l === 'voice' ? voice : l === 'table' ? bottom - LAYER_GAP : l === 'audible' ? Math.max(floor, decades.get(id)!) : decades.get(id)!));
-  return { targets, layers };
+  // (held at their heights, not drawn there: the sockets in the audible, and the kits with the voices — a kit's
+  // grooves, in the structure, would pull it down among them)
+  const kits = new Set(drawn.nodes.flatMap((n) => (n.cell?.kit && layers.get(n.id) === 'voice' ? [n.id] : [])));
+  const held = new Set([...layers].flatMap(([id, l]) => (l === 'audible' || kits.has(id) ? [id] : [])));
+  return { targets, layers, held };
 }

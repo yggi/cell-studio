@@ -239,4 +239,21 @@ describe('the tower layout', () => {
     // (the voice row between the bar and the lead's socket, not over the wave's 440 Hz)
     expect(towerAt(targets.get('cell:lead')!)).toBeLessThan(Math.log10(261.63));
   });
+
+  it('sits a kit with the voices, held there over the grooves that play it', () => {
+    const program = compileSource(readFileSync('examples/pop.cells', 'utf8'));
+    const model = buildGraph(program);
+    const drawn = withSockets(model);
+    const { targets, layers, held } = towerLayers(program, model, drawn);
+    const kit = drawn.nodes.find((n) => n.cell?.kit && n.cell.implicit)!.id;
+    expect(layers.get(kit)).toBe('voice');
+    expect(held.has(kit)).toBe(true);
+    const layout = new ForceLayout(() => {}, { ...TOWER_LAYOUT, heights: targets, held, live: false });
+    layout.setGraph({ ...drawn, nodes: drawn.nodes.filter((n) => !n.petalOf) });
+    layout.tick(300);
+    expect(layout.position(kit)!.y).toBeCloseTo(targets.get(kit)!, 6);
+    // (above the grooves it plays, in the structure)
+    for (const g of ['beat', 'hats']) expect(layout.position(kit)!.y).toBeLessThan(layout.position(`cell:${g}`)!.y);
+    layout.destroy();
+  });
 });

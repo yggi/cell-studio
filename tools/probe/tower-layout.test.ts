@@ -22,7 +22,17 @@ import { netPaths, socketHeights, towerHeights, towerIns, towerLayers, towerNets
 const TICKS = Number(process.env.TICKS ?? 500);
 const log = (t: string) => appendFileSync(process.env.PROBE!, t + '\n');
 
-type Variant = { name: string; tower: boolean; card: boolean; opts: Partial<LayoutOptions>; sockets?: boolean; layers?: boolean };
+// (hold, with layers: what is held at its height, not drawn there — towerLayers' sockets and kits, the sockets alone, none)
+type Variant = {
+  name: string;
+  tower: boolean;
+  card: boolean;
+  opts: Partial<LayoutOptions>;
+  sockets?: boolean;
+  layers?: boolean;
+  hold?: 'all' | 'sockets' | 'none';
+  anchor?: false;
+};
 // (the few forces first tried)
 const FEW: Partial<LayoutOptions> = { rankPull: 0, columnPull: 0, upPull: 0, spread: 0, kindRepel: 0, tagPull: 0, tagRepel: 0, mux: 0, clusters: false, rowOrder: 0, placeLast: 0 };
 const VARIANTS: Variant[] = [
@@ -44,7 +54,8 @@ const VARIANTS: Variant[] = [
     layers: true,
   },
   { name: 'sockets where the forces put them (as before)', tower: true, card: false, opts: { ...TOWER_LAYOUT, socketsAbove: false }, sockets: true, layers: true },
-  { name: 'sockets above, drawn to their height (not held)', tower: true, card: false, opts: { ...TOWER_LAYOUT, socketsHeld: false }, sockets: true, layers: true },
+  { name: 'sockets held, kits drawn to the voices (as before)', tower: true, card: false, opts: TOWER_LAYOUT, sockets: true, layers: true, hold: 'sockets' },
+  { name: 'nothing held, all drawn to their heights', tower: true, card: false, opts: TOWER_LAYOUT, sockets: true, layers: true, hold: 'none' },
   { name: 'loom, in order .02', tower: true, card: false, opts: { ...TOWER_LAYOUT, loomOrder: 0.02 }, sockets: true, layers: true },
   { name: 'loom, in order .05', tower: true, card: false, opts: { ...TOWER_LAYOUT, loomOrder: 0.05 }, sockets: true, layers: true },
   { name: 'loom, in order .1', tower: true, card: false, opts: { ...TOWER_LAYOUT, loomOrder: 0.1 }, sockets: true, layers: true },
@@ -114,13 +125,18 @@ function measure(source: string, v: Variant, seed: number): Row {
   const { program, whole } = compiled.get(source)!;
   t0 = lap('compile', t0);
   const model: GraphModel = v.card ? whole : v.sockets ? withSockets(whole) : withoutCard(whole);
-  const heights = v.layers
-    ? towerLayers(program, whole, model).targets
-    : v.tower
-      ? new Map([...towerHeights(program, model), ...(v.sockets ? socketHeights(program, whole, model) : [])])
-      : undefined;
+  const layered = v.layers ? towerLayers(program, whole, model) : null;
+  const held = layered && v.hold !== 'none' ? new Set([...layered.held].filter((id) => v.hold !== 'sockets' || id.startsWith('socket:'))) : undefined;
+  const heights = layered ? layered.targets : v.tower ? new Map([...towerHeights(program, model), ...(v.sockets ? socketHeights(program, whole, model) : [])]) : undefined;
   const outs = towerOuts(program, whole);
-  const l = new ForceLayout(undefined, { live: false, seed, ...v.opts, ...(heights ? { heights } : {}) });
+  const l = new ForceLayout(undefined, {
+    live: false,
+    seed,
+    ...v.opts,
+    ...(heights ? { heights } : {}),
+    ...(held ? { held } : {}),
+    ...(layered && v.anchor !== false ? { anchors: layered.anchors } : {}),
+  });
   l.setGraph({ ...model, nodes: model.nodes.filter((n) => !n.petalOf) });
   t0 = lap('setGraph', t0);
   l.tick(TICKS);
