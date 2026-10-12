@@ -85,7 +85,10 @@
     // who plays it / what it plays
     if (c.voice) {
       const by = result.outputs.filter((o) => o.voice === name);
-      if (by.length) out.push(['played by', [...new Set(by.map((o) => `&${o.cell}`))].join(', ')]);
+      const notes = by.filter((o) => !o.drone);
+      if (notes.length) out.push(['played by', [...new Set(notes.map((o) => `&${o.cell}`))].join(', ')]);
+      // (a voice alone: decision 028)
+      if (by.some((o) => o.drone)) out.push(['plays', 'its own pitch, held']);
       const mixes = [...new Set(by.flatMap((o) => o.parts.map((p) => p.mix)))];
       if (mixes.length) out.push(['in', mixes.map((m) => `&${m}`).join(', ')]);
       // on MIDI cards: where it goes out, and what of it doesn't (said once, here)
@@ -120,7 +123,9 @@
     return result.outputs
       .filter((o) => o.parts.some((p) => p.mix === name || p.sink === name) || o.through.includes(name))
       .map((o) => {
-        const pitch = [`&${o.cell}${o.pick ? '[…]' : ''}`, ...o.mods.map((m) => `${m.sign > 0 ? '+' : '−'} &${m.cell.startsWith('λ') ? '(…)' : m.cell}`)].join(' ');
+        const pitch = [o.drone ? 'held' : `&${o.cell}${o.pick ? '[…]' : ''}`, ...o.mods.map((m) => `${m.sign > 0 ? '+' : '−'} &${m.cell.startsWith('λ') ? '(…)' : m.cell}`)].join(
+          ' ',
+        );
         const offset = o.offset ? ` ${o.offset > 0 ? '+' : '−'} ${Math.abs(o.offset)}` : '';
         const vols = o.levels.map((l) => `× &${l.cell.startsWith('λ') ? '(…)' : l.cell}`).join(' ');
         const voice = o.through.length ? `&${o.through[0]} (&${o.voice})` : `&${o.voice}`;

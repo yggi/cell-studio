@@ -12,7 +12,7 @@ import { stepsOf, unitsFor } from './flatten';
 import { slots, type Slot } from './subseq';
 import type { Atom } from './ast';
 import { cellId, edgeId } from './ids';
-import { endOf, eventsBetween, outputPlays, picksNow, plan, voiceFor, type Plan } from './realize';
+import { droneEnd, endOf, eventsBetween, outputPlays, picksNow, plan, voiceFor, type Plan } from './realize';
 import { liveRouting, type NotesOf, type RouteAcc } from './routing';
 import { mod } from '../theory/modes';
 
@@ -136,8 +136,8 @@ export function liveAt(result: CompileResult, statics: Shifts, muted: ReadonlySe
   const members = new Map<Output, string[]>();
   for (const o of result.outputs) {
     if (!outputPlays(result, o, muted)) continue;
-    // after its end, nothing; picked by selectors, only while they pick it
-    if (seconds >= endOf(result, statics, o)) continue;
+    // after its end, nothing; picked by selectors, only while they pick it (a drone: until the piece ends)
+    if (seconds >= (o.drone ? droneEnd(result, statics) : endOf(result, statics, o))) continue;
     if (o.select.length && !o.select.every((x) => picksNow(result, statics, x.cell, seconds).has(x.entry))) continue;
     active.push(o);
     const way: Descent = [];
@@ -154,6 +154,8 @@ export function liveAt(result: CompileResult, statics: Shifts, muted: ReadonlySe
       const live = mark(m.cell);
       if (mc.clock) live.local = mod(clk.stepOf(mc.clock) * mc.rate, Math.max(1, mc.steps));
     }
+    // (a drone, a voice alone: no braid of notes to descend, it holds its own pitch)
+    if (o.drone) continue;
 
     // descend the braid to the step under the playhead
     let at = o.cell;

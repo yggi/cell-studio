@@ -13,7 +13,7 @@
   let { program, shifts, source }: { program: CompileResult; shifts: Shifts; source: string } = $props();
 
   // the piece's main grid: what its first melody plays through
-  const main = $derived(program.outputs.find((o) => !o.kit && !o.tape)?.cell ?? null);
+  const main = $derived(program.outputs.find((o) => !o.kit && !o.tape && !o.drone)?.cell ?? null);
   const card = $derived(pieceMeta(source)?.cell ?? null);
   const shown = $derived.by(() => {
     const s = (card && program.cells.get(card)?.show) || 'notes';

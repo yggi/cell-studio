@@ -223,7 +223,8 @@ export function writtenGraph(result: CompileResult): WrittenGraph {
   const playedBy = new Map<string, string[]>();
   // (an output played off a tape comes from its read head, not the tape's source)
   const from = (o: (typeof result.outputs)[number]) => (o.tape ? o.tape.head : o.cell);
-  for (const o of result.outputs) playedBy.set(o.voice, [...(playedBy.get(o.voice) ?? []), from(o)]);
+  // (a drone plays its voice alone: nothing plays it)
+  for (const o of result.outputs) if (!o.drone) playedBy.set(o.voice, [...(playedBy.get(o.voice) ?? []), from(o)]);
 
   const depthOf = (name: string, guard = 0): number => {
     const hit = depth.get(name);
@@ -256,7 +257,7 @@ export function writtenGraph(result: CompileResult): WrittenGraph {
   };
 
   // (the implicit cells stay hidden, but for the kit the grooves read: drawn as the piece's drum kit, the voices only
-  // grooves play its pieces, each name a groove writes a wire into its piece; decision 021, tower-strip.md)
+  // grooves play its pieces, each name a groove writes a wire into its piece; decision 021; docs/ui/graph.md)
   const shown = (name: string) => !result.cells.get(name)?.implicit || name === VOICE_KIT;
   const nodes: GraphNode[] = [];
   const seen = new Set<string>();

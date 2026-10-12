@@ -72,6 +72,12 @@ One line each; the record has the rationale. → [decisions/](decisions/README.m
 - 025 · A MIDI file opens as it is: its text in the code editor (`engine/miditext.ts`), playing through its notes written out behind the scenes; the graph waits; Convert to cells is an action · → decisions/025-midi-documents.md
 - 026 · A cell can be a copy of another, changed where it says: `&foo base=&bar =!3 12@2` (`=` keeps a step, `_` before decision 027; a value changes it, `^$n` transposes the copy), resolved when parsed · → decisions/026-base.md
 - 027 · Cells sits on top of Strudel: a spelling shared with its mini-notation keeps Strudel's meaning (`[a b]` a subsequence, chords with commas; `?p` drops; `*` on a clock faster; euclid rotates as Strudel's); a clean cut, no compatibility, until the first release · → decisions/027-on-top-of-strudel.md
+- 028 · The smallest piece that sounds is `&a loop=A4`: a voice alone plays its own pitch, held (the pitch identity); with no card written, a built-in card (the built-in mixer, master gain .8) hears every sound nothing reads; the blank braid's staircase saw stays · → decisions/028-the-smallest-piece.md
+- 029 · A kit read only selects: the product's pitch, volumes and varispeed act on the voice it picks (decision 006's law) · → decisions/029-kits-pass-pitch.md
+- 030 · FM: `fm=n` `fmh=r` with Strudel's meanings, a voice's built-in modulator; feedback from a fixed wavetable; operator cells in the algebra (`(&tune + &op) * &carrier`); built with the feedback work · → decisions/030-fm-feedback.md
+- 031 · Chance is keyed on the seed, the cell, the lap and the step, not the voice: a respelling keeps its dice · → decisions/031-chance-keyed-on-time.md
+- 032 · `restart=` names what switching a part on does to its time: `restart` (default), `resume`, `free`; the last two parse and warn, not yet implemented · → decisions/032-restart-policies.md
+- 033 · The folder writes a converted piece in degrees of its key where that's shorter (`&key scale(minor, C)`, lines `over=&key`, phrases `&m^1`); an accidental moves with its note under `^n`; Strudel's `6s`/`7f` and `scale("C:minor")` read as ours · → decisions/033-degrees.md
 
 ## Where things are tracked
 

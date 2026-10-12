@@ -1,5 +1,6 @@
 <script lang="ts">
   import { Background, Controls, SvelteFlow, ViewportPortal, type NodeTypes } from '@xyflow/svelte';
+  import { VOICE_KIT } from '../engine/compiler/declare';
   import { noteColour } from './theme';
   import '@xyflow/svelte/dist/style.css';
   import { onDestroy, untrack } from 'svelte';
@@ -38,7 +39,6 @@
   import TowerWires from './TowerWires.svelte';
   import TapLooms from './TapLooms.svelte';
   import { towerIns, type TowerObstacle } from '../layout/towerlayout';
-  import { VOICE_KIT } from '../engine/compiler/declare';
   import { socketOf } from '../layout/voice';
   import { cellId } from '../engine/ids';
   import type { Viewport } from '@xyflow/svelte';
