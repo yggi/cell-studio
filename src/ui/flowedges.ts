@@ -2,6 +2,7 @@
  * What the flow draws for an edge of the graph: which component, what it carries, how it is labelled. Pure: the graph
  * (`ui/state/graphLayout.svelte.ts`) and the gallery's edge sheet (`tools/gallery/edges/`) both make their edges here.
  */
+import { VOICE_KIT } from '../engine/compiler/declare';
 import type { Edge } from '@xyflow/svelte';
 import type { GraphEdge } from '../engine/graph';
 import { isJunction } from '../engine/ids';
@@ -110,7 +111,8 @@ const INTO_VOICE: Carrier = (e, p) => {
 };
 
 /** An edge from a read head drawn as a bulb on its tape (decision 021): leaving the tape, it is the head's. */
-const headBulb = (e: GraphEdge, program: CompileResult) => !!e.bulb && program.cells.get(e.bulb)?.params.play === nameOf(e.from);
+const headBulb = (e: GraphEdge, program: CompileResult) =>
+  !!e.bulb && (program.cells.get(e.bulb)?.params.play === nameOf(e.from) || (nameOf(e.from) === VOICE_KIT && !!program.cells.get(e.bulb)?.voice));
 
 /** Where a voice's sound leaves it: from the top of its envelope's cap (layout/voice.ts), straight up from there. */
 function socketOfEdge(e: GraphEdge, program: CompileResult): { socket?: number } {
@@ -126,7 +128,7 @@ const gatePlay = (e: GraphEdge, program: CompileResult) => e.port === 'play' && 
 export function carried(e: GraphEdge, program: CompileResult): Carried {
   // (a gate's note bus, a product's junction to its voice: the notes it carries, pulsing with their steps — #234)
   if (e.notes) return { phaseCell: e.notes, voice: e.sound ?? nameOf(e.target) };
-  // (from a head's bulb: what the head carries, as if its own node drew it)
+  // (from a head's bulb, or a drum's on the drums' kit: what it carries, as if its own node drew it)
   if (headBulb(e, program)) {
     const head = `cell:${e.bulb}`;
     const tape = e.from;

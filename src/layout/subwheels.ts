@@ -10,6 +10,7 @@ import type { GraphEdge, GraphNode } from '../engine/graph';
 import { cellId } from '../engine/ids';
 import type { CompileResult, ResolvedCell } from '../engine/program';
 import { drumPlaces, kitOf } from './kit';
+import { VOICE_KIT } from '../engine/compiler/declare';
 import { effectiveShow, pluginOf } from './show';
 import { drawnAsTape, headBulbs, TAPE_SIZE, UNTURNED } from './tape';
 import { bulbHub, trackRoom } from './track';
@@ -38,7 +39,7 @@ interface Rule {
   /** Where a bulb sits from its host's centre (px, its host unturned), its host `size` px across; host and bulb by name. */
   readonly at: (result: CompileResult, host: string, bulb: string, hosts: ReadonlyMap<string, string>, size: number) => At | null;
   /** Its own edges (what it steps, what it plays into) leave from the bulb; else they are drawn from its host. */
-  readonly leaves: boolean;
+  readonly leaves: boolean | ((host: string) => boolean);
 }
 
 /** The shows that draw a cell as a track of steps in time (where a splice can be a bulb). */
@@ -65,9 +66,9 @@ const isTrack = (result: CompileResult, n: GraphNode | undefined): boolean =>
 const headOf = (result: CompileResult, tape: ResolvedCell, head: string) =>
   drawnAsTape(tape) ? headBulbs(tape, result.cells.values(), TAPE_SIZE * tape.size).find((h) => h.name === head) : undefined;
 
-/** The one edge reading a node, plainly (a splice: no pick, no delay), or null. */
-const plainRead = (n: GraphNode, s: Scene): GraphEdge | null => {
-  const r = s.reads.get(n.id) ?? [];
+/** The one edge reading a node, plainly (a splice: no pick, no delay), or null; `skip`: reads that don't count. */
+const plainRead = (n: GraphNode, s: Scene, skip: (e: GraphEdge) => boolean = () => false): GraphEdge | null => {
+  const r = (s.reads.get(n.id) ?? []).filter((e) => !skip(e));
   return r.length === 1 && r[0].port === 'braid' && !r[0].transforms.some((t) => t.some((x) => x.kind === 'pick' || x.kind === 'delay')) ? r[0] : null;
 };
 
@@ -128,8 +129,9 @@ const RULES: readonly Rule[] = [
     // a voice only a kit plays, on the kit: its piece of the drum kit, by its name (layout/kit.ts; a gate's voices are not
     // part of it: they keep their nodes, decision 022)
     kind: 'a voice, on its kit',
+    // (a groove names its drums, read through the drums' kit, VOICE_KIT: its wires come into the kit, not against it)
     host: (n, s) => {
-      const r = n.kind === 'voice' ? plainRead(n, s) : null;
+      const r = n.kind === 'voice' ? plainRead(n, s, (e) => s.result.cells.get(e.to.slice('cell:'.length))?.over === VOICE_KIT) : null;
       const host = r ? s.byId.get(r.to) : undefined;
       return r && host?.kind === 'cell' && kitOf(s.result, host.cell.name) ? r.to : null;
     },
@@ -141,7 +143,8 @@ const RULES: readonly Rule[] = [
       const i = kit?.indexOf(bulb) ?? -1;
       return kit && i >= 0 ? drumPlaces(size, kit)[i] : null;
     },
-    leaves: false,
+    // (the grooves' wires, one a name written, leave from the drum they name, on the drums' kit)
+    leaves: (host) => host === VOICE_KIT,
   },
   {
     // a splice (#221, decision 014): a cell read by one edge only, a ref without a pick or a delay, both it and the
@@ -189,7 +192,8 @@ const ruleOf = (result: CompileResult, host: string, bulb: string) => RULES.find
 
 /** Whether a bulb's own edges leave from it (a tap, a read head), not from its host: host and bulb by name. */
 export function leavesFromBulb(result: CompileResult, host: string, bulb: string): boolean {
-  return !!ruleOf(result, host, bulb)?.leaves;
+  const leaves = ruleOf(result, host, bulb)?.leaves;
+  return typeof leaves === 'function' ? leaves(host) : !!leaves;
 }
 
 /** Where a bulb's edges leave from, from its host's centre (GraphEdge.bulbAt), its host `size` px across; by name. */

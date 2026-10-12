@@ -8,7 +8,8 @@ import { parseTag, tagName, TUTORIAL } from '../src/engine/tags';
 import { buildExamplesMeta, type ExampleMeta } from './examples-index';
 
 /** The level= of the sound card, in dB (the examples all carry one). */
-const levelOf = (source: string): string => /\blevel=(-?[\d.]+)/.exec(source)?.[1] ?? '';
+// (the sound card's: the line with map=sample, not a gate's or a voice's level=)
+const levelOf = (source: string): string => /\blevel=(-?[\d.]+)/.exec(source.split('\n').find((l) => /^&\S+(?=.*\bmap=sample\b)(?=.*\blevel=)/.test(l)) ?? '')?.[1] ?? '';
 
 const cell = (s: string): string => s.replace(/\|/g, '\\|');
 
