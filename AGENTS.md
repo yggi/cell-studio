@@ -14,7 +14,7 @@ CI runs `check`, `lint`, `format:check`, `knip`, `test` and `build` on every PR;
 
 ## Rules
 
-Enforced (a failing test or CI says so): `engine/` and `layout/` stay pure TS, no DOM, Tone, Svelte, `audio/` or `ui/` imports; docs' ```` ```cells ```` blocks compile and `docs/INDEX.md` lists every page; every example compiles with a title, tags and `level=`; Shorten preserves every note; the code is formatted by Prettier, has no ESLint errors and no unused exports or files (knip).
+Enforced (a failing test or CI says so): `engine/` and `layout/` stay pure TS, no DOM, Tone, Svelte, `audio/` or `ui/` imports; docs' ```` ```cells ```` blocks compile and `docs/INDEX.md` lists every page; every example compiles with a title and tags, its card's level a `postgain=` (or no card: the built-in one); Shorten preserves every note; the code is formatted by Prettier, has no ESLint errors and no unused exports or files (knip).
 
 Judgment (nothing checks these; you do):
 - The code (text) is the single source of truth; every graph edit rewrites a cell's line (`src/engine/edit.ts`).
