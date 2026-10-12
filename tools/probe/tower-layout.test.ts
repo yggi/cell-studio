@@ -13,16 +13,28 @@ import { buildGraph, type GraphModel } from '../../src/engine/graph';
 import { compileSource } from '../../src/engine/compile';
 import { PRESETS } from '../../src/engine/presets';
 import { TOWER_LAYOUT, type LayoutOptions } from '../../src/layout/options';
-import { towerHeights, towerIns, towerOuts, withoutCard } from '../../src/layout/towerlayout';
+import { routeWire, towerHeights, towerIns, towerOuts, towerRows, withoutCard } from '../../src/layout/towerlayout';
 
 const log = (t: string) => appendFileSync(process.env.PROBE!, t + '\n');
 
 type Variant = { name: string; tower: boolean; card: boolean; opts: Partial<LayoutOptions> };
+// (the tower's own pair, held.ts: pushed apart sideways, free cells off the wires' rows)
+const OWN = { sideCollide: TOWER_LAYOUT.sideCollide, rowClear: TOWER_LAYOUT.rowClear };
+const FEW = { ...TOWER_LAYOUT, sideCollide: 0, rowClear: 0 };
 const VARIANTS: Variant[] = [
   { name: 'today (the signal path)', tower: false, card: true, opts: {} },
   { name: 'today, no card node', tower: false, card: false, opts: {} },
-  { name: 'tower (heights held, few forces)', tower: true, card: false, opts: TOWER_LAYOUT },
+  { name: 'tower, few forces (as first built)', tower: true, card: false, opts: FEW },
+  { name: 'tower, few forces + its own (TOWER_LAYOUT)', tower: true, card: false, opts: TOWER_LAYOUT },
   { name: "tower, today's forces", tower: true, card: false, opts: {} },
+  { name: "tower, today's forces + its own", tower: true, card: false, opts: OWN },
+  // a middle set: one of today's forces back at a time
+  { name: '… + spread', tower: true, card: false, opts: { ...TOWER_LAYOUT, spread: 0.5 } },
+  { name: '… + kinds apart', tower: true, card: false, opts: { ...TOWER_LAYOUT, kindRepel: 0.6 } },
+  { name: '… + tags', tower: true, card: false, opts: { ...TOWER_LAYOUT, tagPull: 0.2, tagRepel: 1.5, mux: 0.8, clusters: true } },
+  { name: '… + columns', tower: true, card: false, opts: { ...TOWER_LAYOUT, columnPull: 0.035 } },
+  { name: '… + row trials', tower: true, card: false, opts: { ...TOWER_LAYOUT, rowOrder: 3 } },
+  { name: '… + meters last', tower: true, card: false, opts: { ...TOWER_LAYOUT, placeLast: 1 } },
 ];
 
 interface Row {
@@ -33,6 +45,10 @@ interface Row {
   /** The tower's wires into the strips: how many, the cells they pass over, the drawn edges they cross, their length (px). */
   wires: number;
   overCells: number;
+  /** Of those, cells with no height (they can move off a row). */
+  overFree: number;
+  /** Hops the routed wires make round cells, and how much longer they are for it (px). */
+  hops: number;
   overEdges: number;
   length: number;
   /** Nodes held at a height, and all nodes laid out. */
@@ -57,7 +73,9 @@ function measure(source: string, v: Variant, seed: number): Row {
   const whole = buildGraph(program);
   const model: GraphModel = v.card ? whole : withoutCard(whole);
   const heights = v.tower ? towerHeights(program, model) : undefined;
-  const l = new ForceLayout(undefined, { live: false, seed, ...v.opts, ...(heights ? { heights } : {}) });
+  const outs = towerOuts(program, whole);
+  const wireRows = heights ? towerRows(outs, program, model, heights) : undefined;
+  const l = new ForceLayout(undefined, { live: false, seed, ...v.opts, ...(heights ? { heights, wireRows } : {}) });
   l.setGraph({ ...model, nodes: model.nodes.filter((n) => !n.petalOf) });
   l.tick(500);
   l.layNet();
@@ -69,6 +87,8 @@ function measure(source: string, v: Variant, seed: number): Row {
     overlap: q.overlap > 1 ? 1 : 0,
     wires: 0,
     overCells: 0,
+    overFree: 0,
+    hops: 0,
     overEdges: 0,
     length: 0,
     held: heights?.size ?? 0,
@@ -82,7 +102,10 @@ function measure(source: string, v: Variant, seed: number): Row {
     const xl = Math.min(...cells.map((n) => n.x - n.r)) - 40;
     const xr = Math.max(...cells.map((n) => n.x + n.r)) + 40;
     // (a voice's room is its wheel and its label: its body, the part a wire visibly crosses, about 0.7 of it)
-    const ins = towerIns(towerOuts(program, whole), program, (id) => {
+    const obstacles = placed.nodes
+      .filter((n) => !n.label || n.of)
+      .map((n) => ({ of: n.of ?? n.id, x0: n.x - n.r * 0.7, x1: n.x + n.r * 0.7, top: n.y - n.r * 0.7, bottom: n.y + n.r * 0.7 }));
+    const ins = towerIns(outs, program, (id) => {
       const n = at.get(id);
       return n && { x: n.x, y: n.y, height: n.r * 1.4 };
     });
@@ -95,9 +118,13 @@ function measure(source: string, v: Variant, seed: number): Row {
         row.wires++;
         row.length += Math.abs(x1 - x0);
         for (const n of placed.nodes) {
-          if (n.id === w.from || n.of === w.from) continue;
-          if (Math.abs(n.y - w.top) < n.r * 0.7 && n.x > Math.min(x0, x1) && n.x < Math.max(x0, x1)) row.overCells++;
+          if (n.id === w.from || n.of === w.from || (n.label && !n.of)) continue;
+          if (Math.abs(n.y - w.top) < n.r * 0.7 && n.x > Math.min(x0, x1) && n.x < Math.max(x0, x1)) {
+            row.overCells++;
+            if (!heights!.has(n.of ?? n.id)) row.overFree++;
+          }
         }
+        row.hops += routeWire(w.x, w.top, x0 === w.x ? x1 : x0, obstacles, w.from).hops;
         for (const e of placed.edges) {
           if (e.a === w.from || e.b === w.from) continue;
           const p = at.get(e.a);
@@ -119,8 +146,8 @@ describe.runIf(process.env.PROBE)('the tower layout', () => {
     const variants = pick ? VARIANTS.filter((_, i) => pick.includes(i)) : VARIANTS;
     const seeds = (process.env.SEEDS ?? '0,1,2').split(',').map(Number);
     log(`# The tower layout (${pieces.length} pieces × ${seeds.length} seeds; library sums, mean over seeds)\n`);
-    log('| layout | crossings | cost | area Mpx² | pieces with an overlap | wires into the strips | over a cell | over an edge | wire length kpx |');
-    log('|---|---|---|---|---|---|---|---|---|');
+    log('| layout | crossings | cost | area Mpx² | pieces with an overlap | wires into the strips | over a cell (of them free) | hops routed | over an edge | wire length kpx |');
+    log('|---|---|---|---|---|---|---|---|---|---|');
     const perPiece = new Map<string, Map<string, Row>>();
     let held = 0;
     let nodes = 0;
@@ -142,12 +169,12 @@ describe.runIf(process.env.PROBE)('the tower layout', () => {
       const sum = (f: (r: Row) => number) => rows.reduce((n, r) => n + f(r), 0) / seeds.length;
       const t = v.tower;
       log(
-        `| ${v.name} | ${sum((r) => r.crossings).toFixed(1)} | ${sum((r) => r.cost).toFixed(1)} | ${sum((r) => r.area).toFixed(1)} | ${sum((r) => r.overlap).toFixed(1)} | ${t ? sum((r) => r.wires).toFixed(0) : '—'} | ${t ? sum((r) => r.overCells).toFixed(1) : '—'} | ${t ? sum((r) => r.overEdges).toFixed(1) : '—'} | ${t ? (sum((r) => r.length) / 1000).toFixed(0) : '—'} |`,
+        `| ${v.name} | ${sum((r) => r.crossings).toFixed(1)} | ${sum((r) => r.cost).toFixed(1)} | ${sum((r) => r.area).toFixed(1)} | ${sum((r) => r.overlap).toFixed(1)} | ${t ? sum((r) => r.wires).toFixed(0) : '—'} | ${t ? `${sum((r) => r.overCells).toFixed(1)} (${sum((r) => r.overFree).toFixed(1)})` : '—'} | ${t ? sum((r) => r.hops).toFixed(1) : '—'} | ${t ? sum((r) => r.overEdges).toFixed(1) : '—'} | ${t ? (sum((r) => r.length) / 1000).toFixed(0) : '—'} |`,
       );
     }
     if (nodes) log(`\nheld at a height: ${held} of ${nodes} nodes (${Math.round((100 * held) / nodes)} %)`);
     // the pieces the tower layout helps or hurts most, crossings against today without the card (mean of the seeds)
-    const [base, tower] = [variants.find((v) => !v.tower && !v.card), variants.find((v) => v.tower)];
+    const [base, tower] = [variants.find((v) => !v.tower && !v.card), variants.find((v) => v.opts === TOWER_LAYOUT)];
     if (!base || !tower) return;
     const d = [...perPiece]
       .map(([k, m]) => ({

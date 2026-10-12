@@ -49,6 +49,12 @@ export interface LayoutOptions {
    * moves only sideways, dragged too. Unset: every node is free.
    */
   heights?: ReadonlyMap<string, number>;
+  /** (the tower layout, held.ts) The heights the sound wires run along (the graph's y): free nodes kept off them by `rowClear`. */
+  wireRows?: readonly number[];
+  /** (held.ts) How hard a free node is pushed off a sound wire's row (0: off). */
+  rowClear: number;
+  /** (held.ts) How hard two nodes, one of them held, overlapping are pushed apart sideways (0: off; d3's collision alone). */
+  sideCollide: number;
   layerGap: number;
   /** Edge length at rest (px). */
   linkDistance: number;
@@ -132,6 +138,8 @@ export const DEFAULT_LAYOUT: LayoutOptions = {
   partLength: 0.8,
   rankPull: 0.05,
   upPull: 0,
+  rowClear: 0,
+  sideCollide: 0,
   centre: 0.004,
   columnPull: 0.035,
   layerGap: 130,
@@ -165,6 +173,8 @@ export const TOWER_LAYOUT: Partial<LayoutOptions> = {
   clusters: false,
   rowOrder: 0,
   placeLast: 0,
+  rowClear: 0.5,
+  sideCollide: 1,
 };
 
 /**

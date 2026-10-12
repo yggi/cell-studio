@@ -9,6 +9,7 @@ import type { CompileResult } from '../engine/program';
 import type { GraphModel } from '../engine/graph';
 import { towerOf } from './tower';
 import { socketOf, VOICE_SIZE } from './voice';
+import { DEFAULT_LAYOUT } from './options';
 
 /** Pixels to a decade on the tower, the same in the graph and on its strips (even: the rainbow keeps its width). */
 const TOWER_PX = 360;
@@ -93,4 +94,64 @@ export function towerIns(outs: readonly TowerOut[], program: CompileResult, at: 
     const top = c?.voice && !c.lambda ? p.y - socketOf(VOICE_SIZE * c.size) : p.y - (p.height ?? 60) / 2;
     return [{ ...o, name, x: p.x, top }];
   });
+}
+
+/**
+ * The heights the sound wires run along (the graph's y), from the held heights: a voice's top (its base frequency),
+ * anything else's top as its room puts it. A source with no height has none here (its wire goes where it is).
+ */
+export function towerRows(outs: readonly TowerOut[], program: CompileResult, model: GraphModel, heights: ReadonlyMap<string, number>): number[] {
+  const nodes = new Map(model.nodes.map((n) => [n.id, n]));
+  return outs.flatMap((o) => {
+    const h = heights.get(o.from);
+    const n = nodes.get(o.from);
+    if (h === undefined || !n) return [];
+    const c = program.cells.get(o.from.slice('cell:'.length));
+    return [c?.voice && !c.lambda ? h - socketOf(VOICE_SIZE * c.size) : h - DEFAULT_LAYOUT.radius(n) * 0.6];
+  });
+}
+
+/** A cell a sound wire must not pass over: its box (the graph's coordinates), and whose it is (a junction, a petal: its voice's). */
+export interface TowerObstacle {
+  readonly of: string;
+  readonly x0: number;
+  readonly x1: number;
+  readonly top: number;
+  readonly bottom: number;
+}
+
+/** How far a wire keeps off a cell it goes round (px), and how long its bend into the hop is. */
+const CLEAR = 10;
+const BEND = 14;
+
+/**
+ * A sound wire's path from its source's top (x, y) to a strip's inner edge at `to`: straight up a little, then level
+ * at its height; where a cell is in the way (`obstacles`, its source's own left out) it hops over it, or under it when
+ * its row is nearer the cell's bottom, and comes back to its height after. Cells close together are one hop.
+ */
+export function routeWire(x: number, y: number, to: number, obstacles: readonly TowerObstacle[], from: string): { d: string; hops: number } {
+  const dir = to >= x ? 1 : -1;
+  const hop = 28;
+  const start = x + dir * hop * 1.6;
+  // what is in the way along the row, nearest first, overlapping spans merged
+  const along = obstacles
+    .filter((o) => o.of !== from && o.top < y && o.bottom > y && (dir > 0 ? o.x1 > start && o.x0 < to : o.x0 < start && o.x1 > to))
+    .map((o) => ({ a: dir > 0 ? o.x0 - CLEAR : o.x1 + CLEAR, b: dir > 0 ? o.x1 + CLEAR : o.x0 - CLEAR, top: o.top, bottom: o.bottom }))
+    .sort((p, q) => dir * (p.a - q.a));
+  const spans: { a: number; b: number; top: number; bottom: number }[] = [];
+  for (const o of along) {
+    const last = spans[spans.length - 1];
+    if (last && dir * (o.a - last.b) < BEND * 2) {
+      last.b = dir > 0 ? Math.max(last.b, o.b) : Math.min(last.b, o.b);
+      last.top = Math.min(last.top, o.top);
+      last.bottom = Math.max(last.bottom, o.bottom);
+    } else spans.push({ ...o });
+  }
+  let d = `M${x},${y} C${x},${y - hop} ${x + dir * hop},${y} ${start},${y}`;
+  for (const s of spans) {
+    const a = dir > 0 ? Math.max(s.a, start + BEND) : Math.min(s.a, start - BEND);
+    const h = y - s.top < s.bottom - y ? s.top - CLEAR : s.bottom + CLEAR;
+    d += ` L${a - dir * BEND},${y} C${a},${y} ${a},${h} ${a + dir * BEND},${h} L${s.b - dir * BEND},${h} C${s.b},${h} ${s.b},${y} ${s.b + dir * BEND},${y}`;
+  }
+  return { d: d + ` L${to},${y}`, hops: spans.length };
 }

@@ -2,15 +2,15 @@
   /**
    * The tower layout's sound wires (docs/notes/tower-strip.md), behind the cells, in the graph's own coordinates: what
    * goes into the sound card leaves its source's top (a voice's: its base frequency on the tower), straight up a
-   * little, and runs level to the strips, one strand left and one right (a two-channel card's first only left, its
+   * little, and runs level to the strips (hopping over a cell in its way, `routeWire`), one strand left and one right (a two-channel card's first only left, its
    * second only right). Live, a strand takes its source's note's colour; at rest it is an edge's.
    */
   import type { Viewport } from '@xyflow/svelte';
   import { getGraphContext, nodeState } from './context';
-  import type { TowerIn } from '../layout/towerlayout';
+  import { routeWire, type TowerIn, type TowerObstacle } from '../layout/towerlayout';
   import { noteColour } from './theme';
 
-  let { ins, viewport, width }: { ins: readonly TowerIn[]; viewport: Viewport; width: number } = $props();
+  let { ins, obstacles, viewport, width }: { ins: readonly TowerIn[]; obstacles: readonly TowerObstacle[]; viewport: Viewport; width: number } = $props();
   const ctx = getGraphContext();
 
   // (the strips' inner edges, where the flow's box ends, in the graph's coordinates)
@@ -23,10 +23,9 @@
   };
   const wires = $derived(
     ins.map((o) => {
-      const { x, top: y, name } = o;
-      const hop = 28;
-      const path = (to: number, dir: number) => `M${x},${y} C${x},${y - hop} ${x + dir * hop},${y} ${x + dir * hop * 1.6},${y} L${to},${y}`;
-      return { id: o.id, d: [o.left ? path(xl, -1) : '', o.right ? path(xr, 1) : ''].join(' '), colour: colourOf(name), off: nodeState(ctx, o.from) === 'off' };
+      // (round the cells in its way: towerlayout.ts routeWire)
+      const path = (to: number) => routeWire(o.x, o.top, to, obstacles, o.from).d;
+      return { id: o.id, d: [o.left ? path(xl) : '', o.right ? path(xr) : ''].join(' '), colour: colourOf(o.name), off: nodeState(ctx, o.from) === 'off' };
     }),
   );
 </script>

@@ -4,7 +4,7 @@ import { buildGraph } from '../engine/graph';
 import { compileSource } from '../engine/compile';
 import { ForceLayout } from './physics';
 import { TOWER_LAYOUT } from './options';
-import { towerAt, towerHeights, towerIns, towerOuts, towerY, withoutCard } from './towerlayout';
+import { routeWire, towerAt, towerHeights, towerIns, towerOuts, towerRows, towerY, withoutCard } from './towerlayout';
 import { socketOf, VOICE_SIZE } from './voice';
 
 const waltz = () => {
@@ -73,6 +73,42 @@ describe('the tower layout', () => {
     layout.drag('cell:tuba', 600, -999);
     layout.tick(1);
     expect(layout.position('cell:tuba')).toMatchObject({ x: 600, y: heights.get('cell:tuba') });
+    layout.destroy();
+  });
+
+  it('routes a wire over a cell in its way, under one it passes low through, and not round its own', () => {
+    const box = (of: string, x: number, top: number, bottom: number) => ({ of, x0: x - 40, x1: x + 40, top, bottom });
+    // its row through the upper part of a cell: over it
+    const over = routeWire(0, 100, 1000, [box('a', 400, 80, 200)], 'src');
+    expect(over.hops).toBe(1);
+    expect(over.d).toContain(',70 ');
+    // through its lower part: under it
+    const under = routeWire(0, 180, 1000, [box('a', 400, 80, 200)], 'src');
+    expect(under.d).toContain(',210 ');
+    // two cells close together: one hop; its own cell, a cell off the row and one behind it: none
+    expect(routeWire(0, 100, 1000, [box('a', 400, 80, 200), box('b', 470, 60, 160)], 'src').hops).toBe(1);
+    expect(routeWire(0, 100, 1000, [box('src', 400, 80, 200), box('c', 400, 120, 300), box('d', -400, 80, 200)], 'src').hops).toBe(0);
+    // leftwards alike
+    expect(routeWire(0, 100, -1000, [box('d', -400, 80, 200)], 'src').hops).toBe(1);
+  });
+
+  it('pushes held cells apart sideways: the flute and the strings, one row, dropped on one place', () => {
+    const { program, model } = waltz();
+    const drawn = withoutCard(model);
+    const heights = towerHeights(program, drawn);
+    const wireRows = towerRows(towerOuts(program, model), program, drawn, heights);
+    expect(wireRows).toHaveLength(3);
+    const layout = new ForceLayout(() => {}, { ...TOWER_LAYOUT, heights, wireRows, live: false });
+    layout.setGraph({ ...drawn, nodes: drawn.nodes.filter((n) => !n.petalOf) });
+    // (both at x 0, one on top of the other, then let go)
+    layout.dragStart('cell:strings', 0, 0);
+    layout.dragStart('cell:flute', 0, 0);
+    layout.dragEnd('cell:strings');
+    layout.dragEnd('cell:flute');
+    layout.tick(300);
+    const [f, s] = [layout.position('cell:flute')!, layout.position('cell:strings')!];
+    expect(Math.abs(f.x - s.x)).toBeGreaterThan(150);
+    expect(layout.quality().overlap).toBeLessThan(1);
     layout.destroy();
   });
 });

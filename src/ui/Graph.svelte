@@ -34,7 +34,9 @@
   import FlowViewport from './FlowViewport.svelte';
   import TowerStrips, { STRIP, STRIP_OPEN } from './TowerStrips.svelte';
   import TowerWires from './TowerWires.svelte';
-  import { towerIns } from '../layout/towerlayout';
+  import { towerIns, type TowerObstacle } from '../layout/towerlayout';
+  import { socketOf } from '../layout/voice';
+  import { cellId } from '../engine/ids';
   import type { Viewport } from '@xyflow/svelte';
 
   // (?tower: the tower open from the start, ?towerCell=tune its line, as if selected: the gallery's pictures)
@@ -264,6 +266,18 @@
         })
       : [],
   );
+  // what the wires go round: each cell's box (a voice's from its cap's top), a junction's and a petal's its voice's
+  const obstacles = $derived.by((): TowerObstacle[] => {
+    if (!towered) return [];
+    const owner = new Map(shown.model.nodes.map((g) => [g.id, g.kind === 'junction' ? cellId(g.voice) : (g.petalOf ?? g.id)]));
+    return layout.nodes.map((n) => {
+      const { x, y } = n.position;
+      const size = (n.data as { size?: number }).size ?? 60;
+      const [w, h] = n.type === 'voice' ? [size, size] : [n.measured?.width ?? size, n.measured?.height ?? size];
+      const top = n.type === 'voice' ? y - socketOf(size) : y - h / 2;
+      return { of: owner.get(n.id) ?? n.id, x0: x - w / 2, x1: x + w / 2, top, bottom: y + h / 2 };
+    });
+  });
   // the frequency tower beside the graph (TowerAxis.svelte), in the signal path's layout
   let towerOpen = $state(QUERY?.has('tower') ?? false);
   // (the flow's pan and zoom, for the tower drawn beside it; framed again when the tower opens or closes)
@@ -392,7 +406,7 @@
       <FitView token={layout.fitToken + sideFits + towerFits} />
       {#if towerOpen || towered}<FlowViewport onchange={(v) => (viewport = v)} />{/if}
       {#if towered}
-        <ViewportPortal target="back"><TowerWires {ins} {viewport} width={flowW} /></ViewportPortal>
+        <ViewportPortal target="back"><TowerWires {ins} {obstacles} {viewport} width={flowW} /></ViewportPortal>
       {/if}
       <!-- clusters: cells tagged alike inside the piece (tags=), washed and named behind their members -->
       <ViewportPortal target="back">

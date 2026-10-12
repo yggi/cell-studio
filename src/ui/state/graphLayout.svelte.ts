@@ -5,7 +5,7 @@ import { structureKey, type GraphNode } from '../../engine/graph';
 import type { LiveState } from '../../engine/live';
 import { ForceLayout } from '../../layout/physics';
 import { DEFAULT_LAYOUT, TOWER_LAYOUT, type LayoutOptions } from '../../layout/options';
-import { towerHeights, towerOuts, withoutCard, type TowerOut } from '../../layout/towerlayout';
+import { towerHeights, towerOuts, towerRows, withoutCard, type TowerOut } from '../../layout/towerlayout';
 import type { MeterTrace } from '../../layout/state';
 import { meterIndex } from '../../layout/meters';
 import { towerOf, towerRanks, zoneRanks } from '../../layout/tower';
@@ -109,7 +109,10 @@ export class GraphLayout {
     const next = tower ? { ...given, model: withoutCard(given.model) } : given;
     const m = next.model;
     this.outs = tower ? towerOuts(given.program, given.model) : [];
-    if (tower) layout.setOptions({ heights: towerHeights(next.program, m) });
+    if (tower) {
+      const heights = towerHeights(next.program, m);
+      layout.setOptions({ heights, wireRows: towerRows(this.outs, next.program, m, heights) });
+    }
     // (a probe: the rows by the frequency tower instead of the signal path, docs/notes/multiscale.md)
     if (ROWS === 'tower') layout.setOptions({ ranks: towerRanks(towerOf(next.program, m)) });
     if (ROWS === 'zones') layout.setOptions({ ranks: zoneRanks(towerOf(next.program, m, 'emit'), flowRanks(m)) });
@@ -168,7 +171,14 @@ export class GraphLayout {
     if (mode === this.mode) return;
     this.mode = mode;
     const { live: _live, radius: _radius, ...defaults } = DEFAULT_LAYOUT;
-    this.#force.setOptions({ ...defaults, ...PROBE_LAYOUT, rowOrders: this.#force.options.rowOrders, heights: undefined, ...(mode === 'tower' ? TOWER_LAYOUT : {}) });
+    this.#force.setOptions({
+      ...defaults,
+      ...PROBE_LAYOUT,
+      rowOrders: this.#force.options.rowOrders,
+      heights: undefined,
+      wireRows: undefined,
+      ...(mode === 'tower' ? TOWER_LAYOUT : {}),
+    });
     this.options = { ...this.#force.options };
     this.#lastOpened = -1;
     this.sync(this.#given, this.#opened);
