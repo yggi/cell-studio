@@ -4,7 +4,7 @@
 import { readFileSync } from 'node:fs';
 import { compileSource } from '../src/engine/compile';
 import { pieceTime, type PieceTime } from '../src/engine/duration';
-import { buildGraph } from '../src/engine/graph';
+import { buildGraph } from '../src/layout/drawn';
 import { ORDER, type PresetKey } from '../src/engine/order';
 import { pieceMeta } from '../src/engine/parser';
 import { miniature, type Miniature } from '../src/layout/miniature';

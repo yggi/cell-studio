@@ -13,7 +13,7 @@
  *     apart by its width — columns appear where they're natural.
  */
 import type { GraphModel } from '../engine/graph';
-import { columns, flowRanks } from './start';
+import { columns, flowRanks } from './ranks';
 
 export interface LayeredOptions {
   /** Room between rows, per rank. */

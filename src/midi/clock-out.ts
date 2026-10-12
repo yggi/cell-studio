@@ -62,8 +62,8 @@ export class ClockOut {
     if (!this.#port || !ticks) return;
     for (let i = 0; i < ticks.at.length; i++) {
       const k = ticks.first + i;
-      const at = ticks.at[i];
-      const before = i ? ticks.at[i - 1] : ticks.before;
+      const at = ticks.at[i]!;
+      const before = i ? ticks.at[i - 1]! : ticks.before;
       if (!Number.isFinite(at) || at <= this.#lastAt + SAME) continue;
       if (this.#running) {
         const follows = k === this.#lastK + 1 && Math.abs(before - this.#lastAt) <= SAME;

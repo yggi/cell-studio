@@ -14,7 +14,7 @@ import { capacity, marks, type CapacityProbe } from '../audio/stats';
 export function percentile(sorted: readonly number[], p: number): number {
   if (!sorted.length) return 0;
   const i = Math.min(sorted.length - 1, Math.max(0, Math.ceil((p / 100) * sorted.length) - 1));
-  return sorted[i];
+  return sorted[i]!;
 }
 
 export interface FrameStats {
@@ -36,7 +36,7 @@ export function summarizeFrames(deltas: readonly number[], seconds: number): Fra
     fps: seconds > 0 ? s.length / seconds : 0,
     medianMs: percentile(s, 50),
     p95Ms: percentile(s, 95),
-    maxMs: s.length ? s[s.length - 1] : 0,
+    maxMs: s.length ? s[s.length - 1]! : 0,
     over50: s.filter((d) => d > 50).length,
     over100: s.filter((d) => d > 100).length,
   };
@@ -127,7 +127,7 @@ export function summarizeMarks(events: readonly { name: string; d: number }[]): 
     .map(([name, ds]) => {
       const s = [...ds].sort((a, b) => a - b);
       const total = ds.reduce((a, b) => a + b, 0);
-      return { name, count: ds.length, totalMs: total, meanMs: total / ds.length, p95Ms: percentile(s, 95), maxMs: s[s.length - 1] };
+      return { name, count: ds.length, totalMs: total, meanMs: total / ds.length, p95Ms: percentile(s, 95), maxMs: s[s.length - 1]! };
     })
     .sort((a, b) => b.totalMs - a.totalMs);
 }
@@ -411,8 +411,9 @@ export class PerfCollector {
     });
     this.observe('long-animation-frame', (e) => {
       this.hasLoaf = true;
-      const scripts = ((e as unknown as { scripts?: { invoker?: string; invokerType?: string }[] }).scripts ?? []).map((s) => s.invokerType ?? s.invoker ?? '?');
-      const blocking = (e as unknown as { blockingDuration?: number }).blockingDuration ?? 0;
+      const loaf = e as PerformanceLongAnimationFrameTiming;
+      const scripts = (loaf.scripts ?? []).map((s) => s.invokerType ?? s.invoker ?? '?');
+      const blocking = loaf.blockingDuration ?? 0;
       this.push(this.loafs, { t: e.startTime, l: { duration: e.duration, blocking, invokers: scripts }, p: this.steady() });
     });
   }
@@ -454,7 +455,7 @@ export class PerfCollector {
     // (the timer runs every 100 ms for the responsiveness probe; the samples are every 500 ms)
     if (this.ticks++ % 5 !== 0) return;
     const a = this.src.audio();
-    const heap = (performance as unknown as { memory?: { usedJSHeapSize: number } }).memory?.usedJSHeapSize ?? null;
+    const heap = performance.memory?.usedJSHeapSize ?? null;
     this.push(this.samples, {
       t: performance.now(),
       playing: this.steady(),
@@ -507,16 +508,16 @@ export class PerfCollector {
     let clockRatio: number | null = null;
     const withClock = ps.filter((s) => s.audioTime !== null);
     if (withClock.length >= 4) {
-      const a = withClock[0];
-      const b = withClock[withClock.length - 1];
+      const a = withClock[0]!;
+      const b = withClock[withClock.length - 1]!;
       const wall = (b.t - a.t) / 1000;
       if (wall >= 2) clockRatio = (b.audioTime! - a.audioTime!) / wall;
     }
     let playout: ReportData['audio']['playout'] = null;
     const withPlayout = samples.filter((s) => s.playout);
     if (withPlayout.length >= 2) {
-      const a = withPlayout[0].playout!;
-      const b = withPlayout[withPlayout.length - 1].playout!;
+      const a = withPlayout[0]!.playout!;
+      const b = withPlayout[withPlayout.length - 1]!.playout!;
       playout = {
         events: b.underrunEvents - a.underrunEvents,
         seconds: b.underrunDuration - a.underrunDuration,
@@ -531,10 +532,10 @@ export class PerfCollector {
       let at = -1;
       while (lo <= hi) {
         const mid = (lo + hi) >> 1;
-        if (this.samples[mid].t <= t) ((at = mid), (lo = mid + 1));
+        if (this.samples[mid]!.t <= t) ((at = mid), (lo = mid + 1));
         else hi = mid - 1;
       }
-      return at >= 0 && this.samples[at].playing;
+      return at >= 0 && this.samples[at]!.playing;
     };
     const markEvents = marks.events.filter((e) => win(e.t) && (basis === 'all' || steadyAt(e.t)));
     const queueDs = this.queue
@@ -545,8 +546,8 @@ export class PerfCollector {
     const notes: NoteStats | null =
       withNotes.length >= 2
         ? (() => {
-            const a = withNotes[0].notes!;
-            const b = withNotes[withNotes.length - 1].notes!;
+            const a = withNotes[0]!.notes!;
+            const b = withNotes[withNotes.length - 1]!.notes!;
             // (each sample carries the worst since the one before it: the window's worst is the largest after its first)
             return {
               played: b.played - a.played,
@@ -589,7 +590,7 @@ export class PerfCollector {
       long,
       loaf,
       marks: markEvents.length ? summarizeMarks(markEvents) : null,
-      queue: queueDs.length ? { medianMs: percentile(queueDs, 50), p95Ms: percentile(queueDs, 95), maxMs: queueDs[queueDs.length - 1] } : null,
+      queue: queueDs.length ? { medianMs: percentile(queueDs, 50), p95Ms: percentile(queueDs, 95), maxMs: queueDs[queueDs.length - 1]! } : null,
       notes,
       loadScale: { mean: scales.length ? scales.reduce((a, b) => a + b, 0) / scales.length : 1, max: scales.length ? Math.max(...scales) : 1 },
       audio: {

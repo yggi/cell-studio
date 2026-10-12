@@ -79,7 +79,7 @@ function due(phase: Phase, t: number): void {
   const began = performance.now();
   let ran = 0;
   for (let k = 0; k < n; k++) {
-    const job = list[(start + k) % n];
+    const job = list[(start + k) % n]!; // (k < n)
     if (job.done || t - job.last < job.every() * load.scale) continue;
     // (the clock always runs; a view waits for the next frame once this one's budget is spent)
     if (phase === 'view' && ran > 0 && performance.now() - began > BUDGET) {

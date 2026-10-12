@@ -16,7 +16,7 @@ export interface Knob {
 /** A message from a knob (a control change) or a pad (a note-on), with its value (0–127); anything else is null. */
 export function knobOf(data: ArrayLike<number>): (Knob & { value: number }) | null {
   if (data.length < 3) return null;
-  const [status, number, value] = [data[0], data[1], data[2]];
+  const [status, number, value] = [data[0]!, data[1]!, data[2]!]; // (length checked above)
   const channel = status & 0x0f;
   if ((status & 0xf0) === 0xb0) return { kind: 'cc', channel, number, value };
   if ((status & 0xf0) === 0x90 && value > 0) return { kind: 'note', channel, number, value };
@@ -40,7 +40,7 @@ export function freePlace(cells: Cells, spec: Pick<FreeSpec, 'span'>): string {
   for (const c of cells.values()) {
     const i = c.frees.findIndex((f) => f.span.line === spec.span.line && f.span.col === spec.span.col);
     if (i < 0) continue;
-    const f = c.frees[i];
+    const f = c.frees[i]!;
     const nth = c.frees.slice(0, i).filter((g) => what(g) === what(f)).length;
     return `${c.name}/${what(f)}${nth ? `#${nth}` : ''}`;
   }

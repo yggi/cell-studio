@@ -9,7 +9,7 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "check": "svelte-check --tsconfig ./tsconfig.json --tsgo",
+    "check": "svelte-check --tsconfig ./tsconfig.json --tsgo && node tools/strict.mjs",
     "smoke": "node tools/smoke.mjs",
     "docs:examples": "UPDATE_EXAMPLES_DOC=1 vitest run src/examplesDoc.test.ts",
     "format": "prettier --write .",

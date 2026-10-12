@@ -438,3 +438,33 @@ function tutorialCell(pieces: readonly LibraryEntry[], full: number, R: number) 
   const radius = Math.max(...[...at.values()].map((p) => Math.hypot(Math.abs(p.x) + pitch / 2, Math.abs(p.y) + pitch / 2))) + 40;
   return { x: R + 140 + radius, y: 0, r: radius, at };
 }
+
+/** A layout as plain data (its maps as entry lists), to keep in the browser between visits: `thawLayout` reads it back. */
+export type FrozenLayout = Omit<LibraryLayout, 'at' | 'hue' | 'count' | 'sat' | 'wheel'> & {
+  readonly at: readonly (readonly [string, { x: number; y: number }])[];
+  readonly hue: readonly (readonly [string, number])[];
+  readonly count: readonly (readonly [string, number])[];
+  readonly sat: readonly (readonly [string, number])[];
+  readonly wheel: readonly (readonly [string, number])[];
+};
+
+const MAPS = ['at', 'hue', 'count', 'sat', 'wheel'] as const;
+
+/** A layout as plain data, for JSON. */
+export function freezeLayout(l: LibraryLayout): FrozenLayout {
+  return { ...l, at: [...l.at], hue: [...l.hue], count: [...l.count], sat: [...l.sat], wheel: [...l.wheel] };
+}
+
+/** A layout read back from what `freezeLayout` made (through JSON); null for anything else (an older shape, damage). */
+export function thawLayout(o: unknown): LibraryLayout | null {
+  if (typeof o !== 'object' || o === null) return null;
+  const f = o as Record<string, unknown>;
+  const pairs = (v: unknown) => Array.isArray(v) && v.every((p) => Array.isArray(p) && p.length === 2 && typeof p[0] === 'string');
+  if (!MAPS.every((k) => pairs(f[k]))) return null;
+  if (!['x0', 'y0', 'w', 'h', 'piece', 'tagScale', 'fullScale'].every((k) => typeof f[k] === 'number') || !Array.isArray(f.edges)) return null;
+  const l = o as FrozenLayout;
+  return { ...l, at: new Map(l.at), hue: new Map(l.hue), count: new Map(l.count), sat: new Map(l.sat), wheel: new Map(l.wheel) };
+}
+
+/** What a layout depends on, as a key: the pieces, their titles, tags and tiers (the same: the same wheel). */
+export const layoutKey = (entries: readonly LibraryEntry[]): string => entries.map((e) => `${e.id}:${e.title ?? ''}:${e.tags.join(',')}:${e.tier ?? ''}`).join('|');

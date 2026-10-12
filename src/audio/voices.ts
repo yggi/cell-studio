@@ -388,7 +388,7 @@ export function createVoices(Tone: ToneNS): VoiceBank {
       const b = built.get(voice);
       if (!b) return null;
       const now = ctx.currentTime;
-      for (let i = b.notes.length - 1; i >= 0; i--) if (b.notes[i].at <= now) return b.notes[i].freq;
+      for (let i = b.notes.length - 1; i >= 0; i--) if (b.notes[i]!.at <= now) return b.notes[i]!.freq;
       return null;
     },
 

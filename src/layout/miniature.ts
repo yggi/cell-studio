@@ -11,7 +11,7 @@
 import { isSide } from './side';
 import { compileSource } from '../engine/compile';
 import { codeShifts, type CompileResult } from '../engine/program';
-import { buildGraph } from '../engine/graph';
+import { buildGraph } from './drawn';
 import { cellView } from './cellview';
 import { ForceLayout } from './physics';
 import { kindOf } from './show';

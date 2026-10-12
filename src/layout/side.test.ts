@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildGraph } from '../engine/graph';
+import { buildGraph } from './drawn';
 import { compileSource } from '../engine/compile';
 import { PRESETS } from '../engine/presets';
 import { isSide, sideEntries, sideless } from './side';

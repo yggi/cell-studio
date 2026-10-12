@@ -125,7 +125,7 @@ export class Learn {
   /** The knobs learned for the open piece, by place. */
   get bindings(): Readonly<Record<string, Knob>> {
     const key = this.#key();
-    return Object.hasOwn(this.#kept.pieces, key) ? this.#kept.pieces[key] : {};
+    return Object.hasOwn(this.#kept.pieces, key) ? this.#kept.pieces[key]! : {};
   }
 
   /** Whether a slider moved by hand sends its knob's CC back (a motor fader, an LED ring follows). Off unless asked for. */

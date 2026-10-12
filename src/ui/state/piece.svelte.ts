@@ -2,7 +2,7 @@ import { compileSource } from '../../engine/compile';
 import { codeShifts, type CompileResult } from '../../engine/program';
 import { addCell, setFree, setOff, setShift } from '../../engine/edit';
 import { freeIndex, freeList, withHeld } from '../../engine/held';
-import { buildGraph } from '../../engine/graph';
+import { buildGraph } from '../../layout/drawn';
 import { routing } from '../../engine/routing';
 import { mainTempo, sections } from '../../engine/duration';
 import { titleOf } from '../../library';

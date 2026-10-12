@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { GENRES, PILL, byTier, libraryLayout, libraryLayoutAsync, shortTitle, stageOf } from './library';
+import { GENRES, PILL, byTier, freezeLayout, layoutKey, libraryLayout, libraryLayoutAsync, shortTitle, stageOf, thawLayout } from './library';
 import { PRESETS } from '../engine/presets';
 import { pieceMeta } from '../engine/parser';
 import { canonicalTags, TUTORIAL } from '../engine/tags';
@@ -153,5 +153,18 @@ describe('the tutorial order', () => {
   it('goes by tier, and a piece without one is at the bottom', () => {
     const pieces = [{ id: 'none' }, { id: 'nine', tier: 9 }, { id: 'null', tier: null }, { id: 'one', tier: 1 }];
     expect(pieces.sort(byTier).map((p) => p.id)).toEqual(['one', 'nine', 'none', 'null']);
+  });
+});
+
+describe('a layout kept between visits', () => {
+  it('reads back what it wrote, through JSON', () => {
+    expect(thawLayout(JSON.parse(JSON.stringify(freezeLayout(lib))))).toEqual(lib);
+  });
+  it('reads nothing that is not one', () => {
+    for (const o of [null, 1, 'x', {}, { ...freezeLayout(lib), at: 'x' }, { ...freezeLayout(lib), w: '1' }]) expect(thawLayout(o)).toBeNull();
+  });
+  it('is keyed by the pieces, their titles, tags and tiers', () => {
+    expect(layoutKey(entries)).toBe(layoutKey(entries.map((e) => ({ ...e }))));
+    expect(layoutKey(entries)).not.toBe(layoutKey([{ ...entries[0], tags: [] }, ...entries.slice(1)]));
   });
 });

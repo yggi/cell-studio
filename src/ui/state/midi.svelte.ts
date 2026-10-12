@@ -277,7 +277,7 @@ export class Midi implements ChosenPorts, NoteSink {
 
   // a message from the input: the light flashes (not for system messages: a device's active sensing), then it is heard
   #heard(data: Uint8Array, source: string, timeStamp: number): void {
-    if (data[0] < 0xf0) this.activity.hit('in');
+    if (data[0]! < 0xf0) this.activity.hit('in');
     for (const h of this.#hearers) h(data, source, timeStamp);
   }
 
@@ -356,7 +356,7 @@ export class Midi implements ChosenPorts, NoteSink {
 
   /** The output's drum map (kept by the port's name): General MIDI note to the note it sends. */
   get drums(): DrumMap {
-    return this.#drums[this.#out.name] ?? DRUM_PRESETS.GM;
+    return this.#drums[this.#out.name] ?? DRUM_PRESETS.GM!; // (GM is one of the presets)
   }
   set drums(map: DrumMap) {
     this.#drums = { ...this.#drums, [this.#out.name]: map };
@@ -464,7 +464,7 @@ export class Midi implements ChosenPorts, NoteSink {
     }
     for (const n of slots) {
       const out = this.#slotOut(n);
-      out.setOptions({ drums: this.#drums[this.#slotChoice(n).name] ?? DRUM_PRESETS.GM, bendRange: this.#bendRange, rotate: null }, at, clock.toDeviceMs);
+      out.setOptions({ drums: this.#drums[this.#slotChoice(n).name] ?? DRUM_PRESETS.GM!, bendRange: this.#bendRange, rotate: null }, at, clock.toDeviceMs);
       for (const e of events) out.play(e, clock.toDeviceMs);
       out.advance(until, clock.toDeviceMs, at);
     }
@@ -508,14 +508,14 @@ export class Midi implements ChosenPorts, NoteSink {
 
   // a note or a control sent (not the clock's ticks) flashes the light, at the moment it is heard
   #flash(data: readonly number[], timestamp?: number): void {
-    if (data[0] >= 0x80 && data[0] < 0xf0) this.activity.hit('out', timestamp);
+    if (data[0]! >= 0x80 && data[0]! < 0xf0) this.activity.hit('out', timestamp);
   }
 
   /** Send a message to the output, noting its channel for All notes off. A port unplugged mid-send throws: nothing is sent. */
   send(data: readonly number[], timestamp?: number): void {
     const port = this.outPort;
     if (!port) return;
-    if (data[0] >= 0x80 && data[0] < 0xf0) this.#used.add(data[0] & 0x0f);
+    if (data[0]! >= 0x80 && data[0]! < 0xf0) this.#used.add(data[0]! & 0x0f);
     try {
       port.send(data, timestamp);
       this.#flash(data, timestamp);

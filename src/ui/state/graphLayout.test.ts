@@ -1,7 +1,7 @@
 import { isSide } from '../../layout/side';
 import { afterEach, describe, expect, it } from 'vitest';
 import { compileSource } from '../../engine/compile';
-import { buildGraph } from '../../engine/graph';
+import { buildGraph } from '../../layout/drawn';
 import { codeShifts } from '../../engine/program';
 import { routing } from '../../engine/routing';
 import { PRESETS } from '../../engine/presets';

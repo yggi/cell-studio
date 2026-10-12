@@ -22,7 +22,7 @@
   import { timed } from '../audio/stats';
   import FreePills from './FreePills.svelte';
   import { headAngle as tapeHeadAngle, headBulbs, tapeHeads, UNTURNED } from '../layout/tape';
-  import { bulbHosts } from '../engine/graph';
+  import { bulbHosts } from '../layout/drawn';
   import { polar as onCircle } from '../layout/geometry';
   import { angleOf, turnDelta } from '../layout/dial';
   import { NOTE_NAMES as NAMES } from '../theory/modes';
