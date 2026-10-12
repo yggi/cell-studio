@@ -77,7 +77,6 @@ export const midiEntries: readonly Entry[] = MIDI_FILES.map((m) => ({
   description: `Bach, Das Wohltemperierte Clavier ${m.book === 1 ? 'I' : 'II'}, BWV ${m.bwv}: the MIDI file of the Mutopia Project (${m.licence}, typeset by ${m.maintainer}), to convert to cells.`,
   tags: [MIDI_FILE, 'artist:Bach', 'genre:classical', ...(m.part === 'fugue' ? ['counterpoint'] : [])],
   load: () => loadMidiFile(m.key).then((smf) => cellsFromMidi(smf, m.title, { free: false }).source),
-  miniature: null,
 }));
 
 /** Whether a card matches the words searched for (lower case): in its title, its description or a tag's name. */
