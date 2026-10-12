@@ -110,6 +110,15 @@ describe("a hit's gain: &x:0:g", () => {
     ]);
   });
 
+  it('is kept inside a subsequence', () => {
+    const a = levels(`${V}&t step=&bar [&hh:0:.5 &hh] &bd\n&out map=sample [&t]`);
+    expect(a.slice(0, 3).map((e) => [e.voice, e.at, e.level])).toEqual([
+      ['hh', 0, 0.5],
+      ['hh', 0.25, 1],
+      ['bd', 0.5, 1],
+    ]);
+  });
+
   it('a splice at a gain plays every step of it at that gain', () => {
     const a = levels(`${V}&fill &bd &bd:0:.5\n&t step=&bar &fill:0:.5 &bd\n&out map=sample [&t]`);
     expect(a.slice(0, 3).map((e) => e.level)).toEqual([0.5, 0.25, 1]);
