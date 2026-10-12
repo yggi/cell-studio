@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { compileSource } from '../engine/compile';
 import { codeShifts } from '../engine/program';
-import { bulbHosts } from '../engine/graph';
+import { bulbHosts } from './drawn';
 import { bulbsOf, cursorOf, layTrack, netEnds, stepOn, tauOf, trackAt, trackReach } from './track';
 
 // Twinkle's shape (#221): &up here only, &down read elsewhere too, &mid (here only) holding a &down, twice round.

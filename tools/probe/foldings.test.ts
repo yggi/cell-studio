@@ -9,7 +9,7 @@
 // Run: PROBE=out.txt [ONLY=bell,canon] npx vitest run tools/probe/foldings.test.ts
 import { describe, it } from 'vitest';
 import { appendFileSync } from 'node:fs';
-import { buildGraph } from '../../src/engine/graph';
+import { buildGraph } from '../../src/layout/drawn';
 import { compileSource } from '../../src/engine/compile';
 import { codeShifts } from '../../src/engine/program';
 import { pieceTime } from '../../src/engine/duration';

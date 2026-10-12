@@ -13,7 +13,7 @@
   import SpectrumWheel from '../../../src/ui/SpectrumWheel.svelte';
   import { compileSource } from '../../../src/engine/compile';
   import { codeShifts } from '../../../src/engine/program';
-  import { buildGraph } from '../../../src/engine/graph';
+  import { buildGraph } from '../../../src/layout/drawn';
   import { liveAt } from '../../../src/engine/live';
   import { PRESETS, type PresetKey } from '../../../src/engine/presets';
   import { routing } from '../../../src/engine/routing';

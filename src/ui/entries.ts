@@ -3,7 +3,7 @@
  */
 import { compileSource } from '../engine/compile';
 import { pieceTime, type PieceTime } from '../engine/duration';
-import { buildGraph } from '../engine/graph';
+import { buildGraph } from '../layout/drawn';
 import { pieceMeta } from '../engine/parser';
 import { canonicalTags } from '../engine/tags';
 import { EXAMPLES, loadExample, type PresetKey } from '../examples';

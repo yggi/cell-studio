@@ -7,7 +7,7 @@
    * ?src= a source of its own (`CELLS=piece.cells node tools/gallery.mjs golden`).
    */
   import Graph from '../../../src/ui/Graph.svelte';
-  import { buildGraph } from '../../../src/engine/graph';
+  import { buildGraph } from '../../../src/layout/drawn';
   import { pieceOf, pieces } from '../pieces';
   import { madeUpSound } from '../sound';
   import { golden } from './golden';
