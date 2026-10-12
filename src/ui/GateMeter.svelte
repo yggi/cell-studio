@@ -14,6 +14,7 @@
   import { gateBars } from '../layout/gate';
   import { wheelGeometry } from '../layout/wheel';
   import { valuesAt } from '../engine/values';
+  import { lapOf } from '../engine/readers';
   import { getGraphContext } from './context';
   import { fillColour } from './edgeStyle';
 
@@ -23,7 +24,7 @@
   const c = $derived(geo.c);
   // (the notes' steps as their own wheel draws them: their colours, chords as several bands)
   const view = $derived(notes && ctx.program.cells.has(notes) ? cellView(ctx.program, notes, ctx.shifts, false) : null);
-  const steps = $derived(notes ? Math.max(1, ctx.program.cells.get(notes)?.steps ?? 1) : 1);
+  const steps = $derived(notes ? lapOf(ctx.program, notes) : 1);
   // how loud now: each level stream's value (a rest in it: nothing), times the gain
   const level = $derived(
     levels.reduce((a, l) => {

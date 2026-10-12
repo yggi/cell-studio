@@ -17,6 +17,7 @@
   import { Handle, Position, useSvelteFlow, type NodeProps } from '@xyflow/svelte';
   import { getGraphContext, nodeState } from './context';
   import { clocking } from '../engine/clocking';
+  import { ownRate, stepsAt } from '../engine/readers';
   import { BODIES } from '../engine/program';
   import { onFrames } from '../audio/ticker';
   import { timed } from '../audio/stats';
@@ -25,7 +26,7 @@
   import { bulbHosts } from '../layout/drawn';
   import { polar as onCircle } from '../layout/geometry';
   import { angleOf, turnDelta } from '../layout/dial';
-  import { NOTE_NAMES as NAMES } from '../theory/modes';
+  import { noteName } from '../theory/modes';
   import { bridgeOf, exciterPlaces, materialOf } from '../layout/exciters';
   import ExciterShape from './ExciterShape.svelte';
   import BodyFace from './BodyFace.svelte';
@@ -46,8 +47,7 @@
     if (d.role !== 'resonator' || !cell?.exciters) return [];
     const f0 = cell.freq > 0 ? cell.freq : 440;
     return cell.exciters.map((x) => {
-      const midi = Math.round(69 + 12 * Math.log2((f0 * Math.pow(2, x.shift / 12)) / 440));
-      return { name: NAMES[((midi % 12) + 12) % 12] + Math.floor(midi / 12 - 1) };
+      return { name: noteName(f0 * Math.pow(2, x.shift / 12)) };
     });
   });
   // (a resonator is drawn as its body: its disc of its material, the body engraved on it, each exciter its element round
@@ -216,7 +216,7 @@
     if (scrubbing) return handAngle;
     if (!followsClock || !cell) return preview;
     try {
-      const steps = clocking(ctx.program, ctx.shifts, ctx.heads.seconds).stepOf(cell.clock ?? d.name) * (cell.clock === d.name ? 1 : cell.rate);
+      const steps = stepsAt(clocking(ctx.program, ctx.shifts, ctx.heads.seconds), cell);
       return ((steps % lap) / lap) * 360 + reelOffset;
     } catch {
       return preview;
@@ -225,7 +225,7 @@
   const clockAngle = () => {
     if (!followsClock || !cell) return preview;
     try {
-      const steps = clocking(ctx.program, ctx.shifts, ctx.heads.seconds).stepOf(cell.clock ?? d.name) * (cell.clock === d.name ? 1 : cell.rate);
+      const steps = stepsAt(clocking(ctx.program, ctx.shifts, ctx.heads.seconds), cell);
       return ((steps % lap) / lap) * 360;
     } catch {
       return preview;
@@ -234,7 +234,7 @@
   // its nominal angular speed (rad/s): a lap of its steps at its clock's rate — what speed 1 means
   const omega0 = $derived.by(() => {
     const clk = ctx.program.clocks.get(cell?.clock ?? d.name);
-    return clk ? (2 * Math.PI * clk.perSecond * (cell?.clock === d.name ? 1 : (cell?.rate ?? 1))) / lap : 1;
+    return clk ? (2 * Math.PI * clk.perSecond * (cell ? ownRate(cell) : 1)) / lap : 1;
   });
 
   let mode: 'none' | 'axle' | 'move' | 'grab' | 'scrub' | 'touch' | 'damp' | 'bowing' = 'none';
@@ -365,7 +365,7 @@
     if (cell?.clock)
       try {
         const m = clocking(ctx.program, ctx.shifts, 0).map(cell.clock);
-        const turn = m.q(lap / (cell.clock === d.name ? 1 : cell.rate)) - m.q(0);
+        const turn = m.q(lap / ownRate(cell)) - m.q(0);
         if (Number.isFinite(turn) && turn > 0) ctx.nudge((da / (2 * Math.PI)) * turn);
       } catch {
         // (a clock that can't say: it just turns)

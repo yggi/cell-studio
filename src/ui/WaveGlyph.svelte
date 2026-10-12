@@ -14,8 +14,7 @@
   import { getGraphContext, hearing } from './context';
   import { fitFont, hubMax } from '../layout/dial';
   import { wheelGeometry } from '../layout/wheel';
-  import { heardGrid } from '../layout/show';
-  import { positionOf } from '../engine/helix';
+  import { gridOf, heardPosition } from '../layout/show';
   import { palette } from './palette';
 
   /** caption: what it says under the wave (a read head: where it reads); a voice says its note. */
@@ -58,16 +57,12 @@
   const signal = $derived(typeof cell?.params.play === 'string' || !!cell?.mix);
 
   // a voice's wave in the colour of the note it sounds now, on its grid (the palette's sound, as its wire takes it)
-  const grid = $derived.by(() => {
-    if (!cell?.voice) return null;
-    const g = heardGrid(ctx.program, name);
-    return g ? { name: g, cycle: ctx.program.cells.get(g)?.cycle ?? 12 } : null;
-  });
+  const grid = $derived(cell?.voice ? gridOf(ctx.program, name) : null);
   let colour = $state<string | null>(null);
   const noteColourNow = (): string | null => {
     const f = grid ? ctx.sound.note(name) : null;
-    const base = cell?.freq ?? 0;
-    return f && base > 0 && grid ? palette('audio', { position: positionOf(ctx.program, grid.name, 12 * Math.log2(f / base)), loud: 1 }, grid) : null;
+    const position = heardPosition(ctx.program, name, grid, f);
+    return position !== null && grid ? palette('audio', { position, loud: 1 }, grid) : null;
   };
 
   // the sound now, while it plays (~15 a second, only on screen)

@@ -1,8 +1,8 @@
 <script lang="ts">
   import { EDGE, PAYLOAD, noteColour } from './theme';
   import { fillColour, liveColour } from './edgeStyle';
-  import { positionOf } from '../engine/helix';
-  import { heardGrid } from '../layout/show';
+  import { gridOf, heardPosition } from '../layout/show';
+  import { lapOf } from '../engine/readers';
   import { tickLevel } from '../layout/meters';
   /**
    * An edge drawn by what it carries (its band, docs/notes/nets.md), from what is read to the cell that reads it:
@@ -251,7 +251,7 @@
     if (d.table) return Array.from({ length: count }, (_, i) => ({ colour: fillColour(entryOf(i)?.bands[0]), dim: false }));
     // a chord: the notes under the playhead of the cell it comes from (stopped, or a rest: every strand still)
     const local = isLive ? ctx.heads.cells.get(d.from)?.local : null;
-    const t = local == null ? null : local / Math.max(1, ctx.program.cells.get(d.from)?.steps ?? 1);
+    const t = local == null ? null : local / lapOf(ctx.program, d.from);
     const here = t === null ? undefined : view.segments.find((s) => t >= s.t0 - 1e-9 && t < s.t1 - 1e-9);
     const notes = here?.bands.filter((b) => b.kind === 'pitch') ?? [];
     return Array.from({ length: count }, (_, i) => ({ colour: notes[i] ? fillColour(notes[i]) : 'var(--edge)', dim: t !== null && !notes[i] }));
@@ -262,21 +262,17 @@
   const dot = $derived(phase === undefined ? null : splinePoint(fromX, fromY, mid.x, mid.y, targetX, targetY, phase));
 
   // the grid a voice's colours follow (a voice's notes', a mix's by the owner's rule: null, several, no colour)
-  const gridOf = (voice: string | null) => {
-    const g = voice ? heardGrid(ctx.program, voice) : null;
-    return g ? { name: g, cycle: ctx.program.cells.get(g)?.cycle ?? 12 } : null;
-  };
+  const gridFor = (voice: string | null) => (voice ? gridOf(ctx.program, voice) : null);
   // its voice's (what it carries), and, for sound into a voice, the voice it feeds (the fallback: a modulator never played)
-  const grid = $derived(gridOf(d.voice));
-  const fedGrid = $derived(d.band === 'audio' ? gridOf(d.to) : null);
+  const grid = $derived(gridFor(d.voice));
+  const fedGrid = $derived(d.band === 'audio' ? gridFor(d.to) : null);
   // the note a voice sounds now, as a position on its grid (from the voice's pitch 0); null: none
   // (read every frame: what a voice sounds is not reactive, so the colour reads the frame with it — else it would keep
   // the note it caught as the edge went live, often none yet, the start of its first note)
   const placed = (voice: string | null, g: { name: string; cycle: number } | null) => {
     void ctx.heads.seconds;
     const f = voice ? ctx.sound.note(voice) : null;
-    const base = voice ? (ctx.program.cells.get(voice)?.freq ?? 0) : 0;
-    return { position: f && base > 0 && g ? positionOf(ctx.program, g.name, 12 * Math.log2(f / base)) : null, grid: g };
+    return { position: voice ? heardPosition(ctx.program, voice, g, f) : null, grid: g };
   };
   // what the cell it comes from plays now (a braid's step under its playhead, a table's entry looked up), for a CV edge
   // that carries no voice's note; redrawn when a table turns, read every frame
@@ -293,7 +289,7 @@
       return source.segments.find((s) => s.index === i)?.bands[0];
     }
     if (lc.local == null) return undefined;
-    const t = lc.local / Math.max(1, ctx.program.cells.get(d.from)?.steps ?? 1);
+    const t = lc.local / lapOf(ctx.program, d.from);
     return source.segments.find((s) => t >= s.t0 - 1e-9 && t < s.t1 - 1e-9)?.bands.find((b) => b.kind === 'pitch' || b.kind === 'level');
   };
   // What it carries, drawn as it travels (EdgePayload, docs/notes/edge-styles.md §2): while live, on one line (a bus,

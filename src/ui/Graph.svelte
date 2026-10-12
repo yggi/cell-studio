@@ -7,6 +7,7 @@
   import { isCellNode, type GraphModel } from '../engine/graph';
   import type { LiveState } from '../engine/live';
   import { drawn, type Routing } from '../engine/routing';
+  import { refsOf } from '../engine/readers';
   import { bulbAt, setGraphContext, type RowKeys } from './context';
   import { snapshotOf } from './snapshot';
   import { GraphLayout } from './state/graphLayout.svelte';
@@ -225,7 +226,7 @@
   const marks = $derived.by(() => {
     const out = new Map<string, SideMark[]>();
     for (const e of sideEntries(shown.model)) {
-      const chans = (shown.program.cells.get(e.name)?.units ?? []).flatMap((u) => (u.atom.kind === 'ref' ? [u.atom.name] : []));
+      const chans = refsOf(shown.program.cells.get(e.name));
       for (const id of e.about) {
         const name = id.slice('cell:'.length);
         const k = chans.indexOf(name);
