@@ -7,7 +7,7 @@
 &chords over=&major step=&keysBar*4 [0,2,4] [3,5,7] [4,6,8] [0,2,4]
 &tune over=&major step=&tuneBar/2 4 4 5 7 7 5 4 2 0 0 2 4 4@2 2@2
 &kick step=&drumBar 0 ~ 0 ~
-&click off step=&drumBar 12 0 0 0                     # a click on the beat, switched off
+&click off step=&drumBar 12 0!3                       # a click on the beat, switched off
 
 &keys s=tri loop=C4 env=&(map=adsr .01 .5 .3 .3)
 &lead s=square loop=C5 lpf=2500 env=&(map=adsr .01 .2 .5 .2)

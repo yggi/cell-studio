@@ -34,15 +34,14 @@
 &padv tags="synths" s=saw loop=C4 lpf=1600 room=.5 env=&(map=adsr .8 .5 .8 1.5)
 &riser tags="rise" s=white lpf=300..9000 * &up lpq=6 env=&(map=adsr 1 .5 .9 .5)
 
+# the four mixes the spectrum (&eq) reads; the other parts go straight into the card
 &beat [&kick * &bd * .8, &hats * &hh * .2, &clap * &cp * .35]
 &bassPart [(&off + &prog) * &bass * .35]
-&stabPart [&stabs * &stab * .1]
 &hookPart [&hook * &sawA * .13, &hook * &sawB * .13]
-&risePart [&lift * &riser * .12]
 &padPart [&held * &padv * .08]
-&rollPart [&roll * &sn * .25]
 &parts step=&bar &beatBar &bassBar &stabBar &hookBar &riseBar &padBar &rollBar
 &song over=&parts step=&bar*32 laps=1 label="intro · groove · build · drop · drop · break · build · drop · drop · bass · break · build · drop · drop · out" [0] [0,1] [0,1,4,6] [0,1,2,3]!2 [5,3] [5,4,6] [0,1,2,3]!2 [0,1] 5 [5,4,6] [0,1,2,3]!2 0
 
-&out level=3 map=sample [&beat, &bassPart, &stabPart, &hookPart, &risePart, &padPart, &rollPart]
+&out level=3 map=sample [&beat, &bassPart, &stabs * &stab * .1, &hookPart,
+                         &lift * &riser * .12, &padPart, &roll * &sn * .25]
 &eq scope=spectrum bins=20 label="the whole track, in 20 bands" &beat &bassPart &hookPart &padPart

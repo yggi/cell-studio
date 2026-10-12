@@ -27,11 +27,10 @@
 &oh tags="groove" s=white hpf=7000 env=&(map=adsr 0 .18 0 .08)
 &sh tags="groove" s=white hpf=10000 env=&(map=adsr 0 .03 0 .02)
 
-&groove tags="groove" [&kick * &bd * .8, &clap * &cp * .3, &open * &oh * .15, &shake * &sh * .1]
-&choppy tags="chords" [(&chop + &prog) * &pump * &keys * .07]
-&disc tags="bass" [(&disco + &prog) * &bass * .35]
-&rob tags="robot" [&robot * &lead * .1]
 &parts step=&bar &grooveBar &choppyBar &discBar &robBar
 &song over=&parts step=&bar*32 label="filtered · groove · lead · breakdown" [0,1] [0,1,2] [0,1,2,3] [1,3]
 
-&out level=-0.5 map=sample [&groove, &choppy, &disc, &rob]
+&out level=-0.5 map=sample [&kick * &bd * .8, &clap * &cp * .3, &open * &oh * .15, &shake * &sh * .1,
+                            (&chop + &prog) * &pump * &keys * .07,
+                            (&disco + &prog) * &bass * .35,
+                            &robot * &lead * .1]
