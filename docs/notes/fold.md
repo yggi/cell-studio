@@ -36,7 +36,7 @@ A tool is a function `Folded → Folded | null` (`ir.ts`: `Tool`); a new one is 
 
 A disentangler in #234's sense, lifting's predict and update: a long phrase that comes back nearly the same (a step
 changed, a note held longer, transposed or not) is written once at its own length, and each return as that cell
-spliced (`&m6^$-12`) or as a copy of it with what differs (`&m17 base=&m6 _!3 [-1,2]@2`). How it finds them:
+spliced (`&m6^$-12`) or as a copy of it with what differs (`&m17 base=&m6 =!3 [-1,2]@2`). How it finds them:
 
 - **Seeds**: five steps alike in shape anywhere (a seed heard more than 48 times is a run, left to pairs); from each
   pair of places, a phrase grown step by step while it changes in at most two steps or a sixth of it.
@@ -50,8 +50,8 @@ spliced (`&m6^$-12`) or as a copy of it with what differs (`&m17 base=&m6 _!3 [-
   weight changed nothing); over the library 58 → 62. Pop still folds without (+28 %).
 
 **BWV 847** converted from MIDI: the **whole subject** comes back as one cell (`&m6 0 -1 0@2 -5@2 -4@2 0 -1 0@2 2@2 …`,
-20 steps), used nine times, its bent entries copies of it: the tonal answer (`base=&m6 _!3 -7@2`), the entry in E♭
-(`base=&m6 _!4 -3@2 _!11 -3@4 _!2 -8`), the last entry with its chord and long final note (`base=&m6 _!8 [-1,2]@2 _!10
+20 steps), used nine times, its bent entries copies of it: the tonal answer (`base=&m6 =!3 -7@2`), the entry in E♭
+(`base=&m6 =!4 -3@2 =!11 -3@4 =!2 -8`), the last entry with its chord and long final note (`base=&m6 =!8 [-1,2]@2 =!10
 -8@8`); the countersubject as another (`&m9 …`) with a copy that holds its end; near-repeats of the free counterpoint as
 copies too. Its first five steps are where the entries bend: on characters alone the description length prefers the
 subject without them (it did, before the preference for structure: its last 15 steps), itself a finding about the fugue.
