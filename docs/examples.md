@@ -42,17 +42,17 @@ Introduces tables: over=, scale(), shift=; show= and size=; motifs: splicing, re
 
 ### Tier 4 · Rhythm and feel
 
-Introduces meter and feel: a bent bar, gates; drums: a groove of voices, ratchets, euclid, a kit; swing: a swing clock, swing= and beat=.
+Introduces meter and feel: a bent bar, gates; drums: a groove of voices, ratchets, a subsequence, euclid, a kit; swing: a swing clock, swing= and beat=.
 
 | piece | file | about | level | length |
 |---|---|---|---|---|
 | Meter and rhythm: the tresillo | [`rhythm`](../examples/rhythm.cells) | The tresillo over a meter of its own, with hats, triplets and chords on the beat. | 3 | 0:07 loop |
-| Drums: a groove of voices | [`drums`](../examples/drums.cells) | A drum part written with the drums' names: a beat, a fill with ratchets, a Euclidean rhythm and a kit. | -0.5 | 0:08 loop |
+| Drums: a groove of voices | [`drums`](../examples/drums.cells) | A drum part written with the drums' names: a beat, a fill with ratchets and a subsequence, a Euclidean rhythm and a kit. | -0.5 | 0:08 loop |
 | Swing: the long and the short | [`swing`](../examples/swing.cells) | Eighths played long and short: a swing clock, and the same feel from swing= on the bar. | 5.5 | 0:04 loop |
 
 ### Tier 5 · Development
 
-Introduces canon: a theme shifted; mirrors: retrograde, slices, picks, transposing, inverse(); variations: a copy changed where it says (base=, _); chance and choice; turning tables: stride=, cycle(&x), the circle of fifths; arrangement: parts as taps of the bar, a selector, laps=, off.
+Introduces canon: a theme shifted; mirrors: retrograde, slices, picks, transposing, inverse(); variations: a copy changed where it says (base=, =); chance and choice; turning tables: stride=, cycle(&x), the circle of fifths; arrangement: parts as taps of the bar, a selector, laps=, off.
 
 | piece | file | about | level | length |
 |---|---|---|---|---|

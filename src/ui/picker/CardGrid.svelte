@@ -31,6 +31,8 @@
   // the tutorial, tier by tier (the library's order within one); then the other examples, smallest first
   const tutorial = $derived(shown.filter((e) => e.kind === 'example' && e.tags.includes(TUTORIAL)).sort(byTier));
   const examples = $derived(shown.filter((e) => e.kind === 'example' && !e.tags.includes(TUTORIAL)).sort((a, b) => (a.size ?? 0) - (b.size ?? 0)));
+  // the MIDI library, in the order of its books
+  const midi = $derived(shown.filter((e) => e.kind === 'midi'));
   // a card's wheel: as large as its card leaves room for, the petals on its rim included (≈ 1.41 × across)
   let cardWidth = $state(0);
   const wheel = $derived(cardWidth ? Math.min(136, Math.floor((cardWidth - 8) / 1.41)) : 136);
@@ -77,10 +79,18 @@
     <div class="grid">
       {#each examples as e (e.id)}{@render card(e)}{/each}
     </div>
-  {:else if !tutorial.length}
+  {:else if !tutorial.length && !midi.length}
     <p class="empty">Nothing matches. <button class="unstyled link" onclick={onreset}>Show everything</button></p>
   {/if}
 </section>
+{#if midi.length}
+  <section>
+    <h3 class="section">MIDI files</h3>
+    <div class="grid">
+      {#each midi as e (e.id)}{@render card(e)}{/each}
+    </div>
+  </section>
+{/if}
 
 <style>
   section {

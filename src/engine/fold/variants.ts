@@ -2,15 +2,17 @@
  * A disentangler (docs/notes/fold.md): lifting's predict and update. A long phrase that comes back nearly the same — a
  * step changed, the last note held longer, transposed or not — is the phrase (the prediction) and what differs there
  * (the residual): written once as a cell of its own, the phrase at its own length, and at each return as that cell
- * spliced (`&m1^$-12`) or, where steps differ, a copy of it with the steps that do (`&v1 base=&m1 _!3 12@2`, decision
+ * spliced (`&m1^$-12`) or, where steps differ, a copy of it with the steps that do (`&v1 base=&m1 =!3 12@2`, decision
  * 026). BWV 847's subject, entered seven times, each a little bent.
  */
 import type { Folded, Rule, Tok, Tool } from './ir';
 import { elementText, isElement } from './transpose';
 
-/** A phrase: at least this many steps; at most this many changed where it returns: two, or a sixth of it. */
-const SHORTEST = 8;
-const CHANGES = (n: number) => Math.max(2, Math.floor(n / 6));
+/** A phrase: at least this many steps; at most this many changed where it returns: two, or a quarter of it. Measured
+ * over the library and the WTC (docs/notes/fold.md): 12 and a quarter fold both shorter than 8 and a sixth, and bring
+ * back as many phrases. */
+const SHORTEST = 12;
+const CHANGES = (n: number) => Math.max(2, Math.floor(n / 4));
 /**
  * A phrase said as a phrase is worth this much (characters, a step a return it explains) beyond what it saves: the
  * preference for structure. Measured by the ratchet (`fold/ratchet.test.ts`): 2 brings BWV 847's whole subject back
@@ -27,7 +29,7 @@ const LONGEST = 64;
 type At = { line: number; i: number };
 
 /** Each line's steps compared in shape: the key, and the base against the first pitched step's. */
-export const variants: Tool = (f: Folded) => {
+export const variants: Tool = (f: Folded, see) => {
   const lines = f.lines.map((l) => [...l.toks]);
   const used = lines.map((t) => t.map(() => false));
   const rules = new Map(f.rules);
@@ -208,6 +210,12 @@ export const variants: Tool = (f: Folded) => {
       used[at.line]!.splice(at.i, n, true);
     }
     made++;
+    see?.(now);
   }
-  return made ? { ...f, lines: f.lines.map((l, i) => ({ ...l, toks: lines[i]! })), rules } : null;
+  return made ? now() : null;
+
+  /** The lines and the symbols as folded so far. */
+  function now(): Folded {
+    return { ...f, lines: f.lines.map((l, i) => ({ ...l, toks: [...lines[i]!] })), rules: new Map(rules) };
+  }
 };

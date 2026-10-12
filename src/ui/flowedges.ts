@@ -65,7 +65,7 @@ const trigger = (program: CompileResult, voice: string) => program.outputs.find(
 
 /**
  * By band: ticks pulse with the steps of the cell they drive (a clock's), or a parameter's clock with the clock's own
- * (`delaytime=&bar*3/4`: its reader doesn't step); a note's link carries nothing.
+ * (`delaytime=&bar*4/3`: its reader doesn't step); a note's link carries nothing.
  */
 const BY_BAND: Readonly<Partial<Record<GraphEdge['band'], Carrier>>> = {
   sync: (e) => ({ phaseCell: nameOf(e.port === 'step' ? e.to : e.from), voice: null }),

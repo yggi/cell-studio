@@ -57,7 +57,7 @@ describe('oneshot', () => {
   const SRC = (word: string) => `&bar scan(1 1 1 1) step=240bpm
 &bd ${word} s=sine loop=A1 env=&(map=adsr 0 .3 0 .05)
 &hh s=white env=&(map=adsr 0 .04 0 .02)
-&beat step=&bar/2 &bd &hh &bd &hh
+&beat step=&bar*2 &bd &hh &bd &hh
 &out map=sample [&beat]`;
 
   it('plays a voice its envelope through, whatever its step: a kick on eighths rings its decay', () => {

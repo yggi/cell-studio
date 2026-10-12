@@ -36,8 +36,8 @@
     { label: 'on the bar', beat: 4, rate: 2 },
     { label: '+0.4 of a beat', beat: 4.4, rate: 2 },
     { label: 'beat 2', beat: 5, rate: 2 },
-    { label: '&bar/4 (×4 faster)', beat: 16.3, rate: 8 },
-    { label: '&bar*4 (×4 slower)', beat: 1.3, rate: 0.5 },
+    { label: '&bar*4 (×4 faster)', beat: 16.3, rate: 8 },
+    { label: '&bar/4 (×4 slower)', beat: 1.3, rate: 0.5 },
   ];
   const wire = sampleQuad(A, { x: 2 * M.x - (A.x + B.x) / 2, y: 2 * M.y - (A.y + B.y) / 2 }, B, 1);
   const lengths = wire.reduce<number[]>((acc, p, i) => [...acc, i ? acc[i - 1] + Math.hypot(p.x - wire[i - 1].x, p.y - wire[i - 1].y) : 0], []);

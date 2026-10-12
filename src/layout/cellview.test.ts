@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { SAILOR_WITH_KIT } from '../engine/fixtures';
 import { compileSource } from '../engine/compile';
 import { codeShifts, type Shifts } from '../engine/program';
-import { cellView, hubLabel, isGrid, type CellView } from './cellview';
+import { cellView, drawnOf, hubLabel, isGrid, type CellView } from './cellview';
 import { PRESETS } from '../engine/presets';
 
 const r = compileSource(PRESETS.royal.source);
@@ -120,7 +120,7 @@ describe('voices', () => {
 
 describe('played cells', () => {
   it('a one-step braid that is played is drawn as a braid (with a hand), not as a set', () => {
-    const r2 = compileSource('&m step=1\n&s scan(2 1 2 2 1 2 2)\n&pedal over=&s step=&m/2 0\n&v loop=65\n&mix_ [&pedal * &v]\n&out_ loop=44k map=sample &mix_');
+    const r2 = compileSource('&m step=1\n&s scan(2 1 2 2 1 2 2)\n&pedal over=&s step=&m*2 0\n&v loop=65\n&mix_ [&pedal * &v]\n&out_ loop=44k map=sample &mix_');
     expect(cellView(r2, 'pedal', codeShifts(r2), false)!).toMatchObject({ mode: 'braid', segments: [{ t0: 0, t1: 1 }] });
     expect(hubLabel(r2, 'pedal', codeShifts(r2), false, null)).toEqual({ big: '1', small: 'step' });
     // the same braid used as a table stays a grid
@@ -213,4 +213,15 @@ describe('a turn eases from where the wheel was', () => {
         expect(colourAt(at(delta), t - turn), `at ${t}`).toBe(colourAt(old, t));
       }
     });
+});
+
+describe('drawnOf', () => {
+  it('a gate draws its trigger’s braid, a read head its tape’s source, any other cell its own', () => {
+    const gate = compileSource(PRESETS.gate.source);
+    expect([drawnOf(gate, 'leadOut'), drawnOf(gate, 'drumOut')]).toEqual(['tune', 'beat']);
+    const tape = compileSource(PRESETS.echotape.source);
+    expect(['near', 'mid', 'far'].map((n) => drawnOf(tape, n))).toEqual(['tune', 'tune', 'tune']);
+    expect(drawnOf(r, 'theme')).toBe('theme');
+    expect(drawnOf(r, 'noSuchCell')).toBe('noSuchCell');
+  });
 });

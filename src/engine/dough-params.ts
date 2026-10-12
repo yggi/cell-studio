@@ -8,7 +8,7 @@ import { PARAMS } from './attributes';
  */
 export const DOUGH_PARAMS: Readonly<Record<string, string>> = Object.fromEntries(Object.entries(PARAMS).map(([k, a]) => [k, a.help]));
 
-/** Dough's other names for the same parameters: not read here (#143); writing one is an error that names ours. */
+/** Strudel's and dough's other names for the same parameters (`cutoff` is Strudel's, `verb` dough's own): not read here (#143); writing one is an error that names ours. */
 export const DOUGH_ALIASES: Readonly<Record<string, string>> = {
   sound: 's',
   cutoff: 'lpf',
@@ -45,5 +45,5 @@ export const RETIRED_PARAMS: Readonly<Record<string, string>> = {
   release: ENVELOPE('release'),
   penv: PITCH_DROP('penv'),
   pdec: PITCH_DROP('pdec'),
-  ...Object.fromEntries(Object.entries(DOUGH_ALIASES).map(([k, ours]) => [k, `${k}= is dough's other name for ${ours}=, and isn't read here: write ${ours}=`])),
+  ...Object.fromEntries(Object.entries(DOUGH_ALIASES).map(([k, ours]) => [k, `${k}= is Strudel's or dough's name for ${ours}=, and isn't read here: write ${ours}=`])),
 };

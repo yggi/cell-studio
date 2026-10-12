@@ -8,6 +8,7 @@
 import { codeShifts, type CompileResult, type Shifts } from '../engine/program';
 import { shiftedUnits } from '../engine/helix';
 import { stepsOf } from '../engine/flatten';
+import { slots } from '../engine/subseq';
 import { wheelGeometry } from './wheel';
 
 /** A splice on a track, in the host's time. */
@@ -102,6 +103,17 @@ function splices(
         });
       else out.push({ t0, t1, name: a.name, hollow, net: hollow ? a.name : null, laps, label: refLabel(a), bulbs: inner });
     }
+    // a splice inside a subsequence: a bulb in its slot (each place it plays, its steps squeezed into it)
+    if (a.kind === 'seq')
+      for (const x of slots([u], () => 1)) {
+        const r = x.atom;
+        if (r.kind !== 'ref' || r.pick || !result.cells.has(r.name)) continue;
+        const t0 = from + (at + x.at) * scale;
+        const t1 = from + (at + x.at + x.dur) * scale;
+        const hollow = hosts.get(r.name) !== name;
+        const inner = splices(result, r.name, shifts, hosts, t0, t1, stepsOf(result, r.name, null) || 1, r.shift, depth + 1);
+        out.push({ t0, t1, name: r.name, hollow, net: hollow ? r.name : null, laps: 1, label: refLabel(r), bulbs: inner });
+      }
     at += span;
   }
   return out;

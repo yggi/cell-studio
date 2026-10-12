@@ -6,20 +6,52 @@
 <script lang="ts">
   import { onDestroy, untrack } from 'svelte';
   import { blockColour, noteColour, partColour } from './theme';
-  import { cellView, hubLabel, type CellView, type Fill, type Segment } from '../layout/cellview';
+  import { cellView, drawnOf, hubLabel, type CellView, type Fill } from '../layout/cellview';
   import { gateOf } from '../layout/gate';
-  import { BORDER, border, coarsen } from '../layout/coarse';
-  import { names, noteFrame, noteLabel } from '../layout/show';
-  import { polar, ringSegment } from '../layout/geometry';
-  import { envelopeNames, wheelGeometry } from '../layout/wheel';
-  import { envelopeAt, envelopeAxis, envelopeNotes, latestNoteAt } from '../layout/envelope';
+  import { coarsen } from '../layout/coarse';
+  import { noteFrame } from '../layout/show';
+  import { ringSegment } from '../layout/geometry';
+  import { wheelGeometry } from '../layout/wheel';
+  import { curvePoints, envelopeCrossing, envelopeCurve, envelopeLabels, envelopeNotes, latestNoteAt } from '../layout/envelope';
   import { lapOf, refsOf, stepsPerSecond } from '../engine/readers';
   import { angleOf, fitFont, hubMax, turnDelta } from '../layout/dial';
   import { mod } from '../theory/modes';
   import { getGraphContext } from './context';
   import { meterNow } from '../layout/meters';
-  import { cursorOf, fanOf, joins, layTrack, ribbon, stepOn, trackAt, type Laid as LaidBulb } from '../layout/track';
-
+  import { cursorOf, fanOf, joins, layTrack } from '../layout/track';
+  import {
+    SlotCache,
+    accessedOf,
+    barrelNow,
+    barrelPins,
+    beatLabels as beatLabelsOf,
+    borderOf,
+    brightnessOf,
+    bulbLabels,
+    clockTicks as clockTicksOf,
+    firstOf,
+    handOf,
+    hubGears,
+    hubRingOf,
+    hubSlots as hubSlotsOf,
+    lfoDotOf,
+    lfoPathOf,
+    litSet,
+    litSteps,
+    litTaps,
+    markerOf,
+    plainTicks,
+    readAt,
+    segmentPaths,
+    sieveOf,
+    spaceOf,
+    stepLabels,
+    stepUnits,
+    tapCursors as tapCursorsOf,
+    tapDots,
+    tapRings as tapRingsOf,
+    tapSuffix as tapSuffixOf,
+  } from '../layout/glyph';
   /**
    * `interactive`: the rim turns the cell (detail sheet). In the graph the whole node just drags.
    * `fine`: draw every step of a long braid; by default one over ~160 segments is drawn coarser (`coarsen`).
@@ -50,13 +82,11 @@
   // (the one wheel geometry: layout/wheel.ts)
   const geo = $derived(wheelGeometry(size));
   const c = $derived(geo.c);
-  const margin = $derived(geo.margin);
   const rOuter = $derived(geo.rOuter);
   const k = $derived(geo.k);
   const rInner = $derived(geo.rInner);
-  const EPS = 1e-9;
   // (a table's hub that selects: the slots coming in, a ring inside the hub)
-  const hubRing = $derived({ r0: geo.rHub * 0.58, r1: geo.rHub * 0.86 });
+  const hubRing = $derived(hubRingOf(geo));
 
   // A node can outlive its cell for a frame when the program changes (preset switch); render empty then.
   const EMPTY: CellView = { mode: 'grid', segments: [], ticks: 0, detents: 1 };
@@ -70,14 +100,9 @@
     return untrack(() => ctx.heads.shifts) ?? still;
   });
   const shownShift = $derived(shown(name));
-  // a gate (#234) shows its trigger's notes round its ring, its hand where the trigger plays
+  // a gate (#234) shows its trigger's notes round its ring, its hand where the trigger plays; a read head its tape's
   const gate = $derived(gateOf(ctx.program, name));
-  // a read head shows what's on its tape: its source's braid
-  const drawn = $derived.by(() => {
-    if (gate && ctx.program.cells.has(gate.trigger)) return gate.trigger;
-    const t = cell && typeof cell.params.play === 'string' ? ctx.program.cells.get(cell.params.play) : undefined;
-    return t && typeof t.params.write === 'string' && ctx.program.cells.has(t.params.write) ? t.params.write : name;
-  });
+  const drawn = $derived(drawnOf(ctx.program, name));
   // (whose playhead the hand follows: its own, or a gate's trigger's)
   const played = $derived(gate ? drawn : name);
   // every step, as the cell is written (the rim's turning works on these) …
@@ -99,14 +124,7 @@
   };
   // a table of taps (decision 016): its bulbs named by their taps, less what all of them end in (`&hatsBar` … : hats)
   const tapsTable = $derived(!!fanOf(ctx.program, name));
-  const tapSuffix = $derived.by(() => {
-    if (!tapsTable || !cell) return '';
-    const names = refsOf(cell);
-    let k = 0;
-    while (names.every((n) => n.length > k + 2 && n[n.length - 1 - k] === names[0][names[0].length - 1 - k])) k++;
-    return k ? names[0].slice(-k) : '';
-  });
-  const tapName = (n: string) => (tapSuffix ? n.slice(0, -tapSuffix.length) : n);
+  const tapSuffix = $derived(tapsTable && cell ? tapSuffixOf(refsOf(cell)) : '');
   // a braid's track (#221): its splices bend out of the ring into bulbs, their steps along them
   const ringMid = $derived((rInner + rOuter) / 2);
   const ringW = $derived(rOuter - rInner);
@@ -115,28 +133,7 @@
   // where it takes no time (back to the ring between two bulbs): a thread
   const threads = $derived(track ? joins(track, Math.max(2, ringW * 0.14)) : []);
   // each bulb: a disc behind it (its own small wheel), a dotted outline when it is a net-ref, its name at its hub
-  const bulbs = $derived.by(() => {
-    const out: { L: LaidBulb; outline: string | null; text: string; sub: string; font: number | null }[] = [];
-    const walk = (list: readonly LaidBulb[]) => {
-      for (const L of list) {
-        const b = L.bulb;
-        const lambda = !!ctx.program.cells.get(b.name)?.lambda;
-        const text = lambda ? '' : tapsTable ? tapName(b.name) : `&${b.name}`;
-        const sub = [b.label, b.laps > 1 ? `×${b.laps}` : ''].filter(Boolean).join(' ');
-        const room = 2 * Math.max(4, L.rho - L.w / 2) * 0.9;
-        out.push({
-          L,
-          outline: b.hollow && track ? ribbon(track, L.T0, L.T1, 0, 1, 1.5) : null,
-          text,
-          sub,
-          font: fitFont(room, Math.max(2, text.length, sub.length), 13, tapsTable ? 4.5 : 6),
-        });
-        walk(L.bulbs);
-      }
-    };
-    walk(track?.bulbs ?? []);
-    return out;
-  });
+  const bulbs = $derived(bulbLabels(ctx.program, track, tapsTable, tapSuffix));
   // (their names, for a screen reader: the wheel's label says what is spliced in)
   const spliced = $derived(
     bulbs
@@ -189,127 +186,28 @@
   });
   // show=notes, midi, do, degrees: each step named on the ring (when there's room)
   const frame = $derived(noteFrame(ctx.program, name));
-  const labels = $derived.by(() => {
-    if (tokens?.length || !view.show || !names(view.show)) return [];
-    const r = (rInner + rOuter) / 2;
-    return view.segments.flatMap((sg) => {
-      const n = sg.notes?.[sg.notes.length - 1];
-      if (!n) return [];
-      // a label where its step has room for it (long braids: the longer steps); on a track, along it
-      const on = track ? stepOn(track, sg.t0, sg.t1) : null;
-      if (track && !on) return [];
-      const ends = on ? [trackAt(track!, on.tau0).p, trackAt(track!, on.tau1).p] : null;
-      const span = ends ? Math.hypot(ends[1][0] - ends[0][0], ends[1][1] - ends[0][1]) : (sg.t1 - sg.t0) * 2 * Math.PI * r;
-      if (span < 11) return [];
-      const text = noteLabel(view.show!, n, frame.base, frame.tonic, view.conv);
-      if (!text) return [];
-      const [x, y] = on ? trackAt(track!, (on.tau0 + on.tau1) / 2).p : polar(c, c, r, (sg.t0 + sg.t1) / 2);
-      return [{ x, y, text, wide: span / (2 * Math.PI * r) }];
-    });
-  });
+  const labels = $derived(stepLabels(view, track, geo, frame, tokens));
   // the sheet: each written step's span on the ring (its segments, as turned), and its token there
-  const units = $derived.by(() => {
-    if (!tokens?.length || (view.mode !== 'braid' && view.mode !== 'grid')) return [];
-    const n = tokens.length;
-    // (the text can be a step ahead of the compiled program: wait for it, or two steps would share a token)
-    if (n !== ctx.program.cells.get(name)?.units.length) return [];
-    const spans = new Map<number, { t0: number; t1: number }>();
-    for (const sg of view.segments) {
-      const sp = spans.get(sg.index);
-      spans.set(sg.index, sp ? { t0: Math.min(sp.t0, sg.t0), t1: Math.max(sp.t1, sg.t1) } : { t0: sg.t0, t1: sg.t1 });
-    }
-    const r = (rInner + rOuter) / 2;
-    return [...spans].map(([index, sp]) => {
-      const written = mod(index + shownShift, n);
-      const text = tokens[written] ?? '';
-      // (a splice: its token at its bulb's hub)
-      const L = track?.bulbs.find((x) => Math.abs(x.bulb.t0 - sp.t0) < 1e-6 && Math.abs(x.bulb.t1 - sp.t1) < 1e-6);
-      if (L && track) {
-        const font = Math.max(7, fitFont(2 * (L.rho - L.w / 2) * 0.9, Math.max(2, text.length), 15, 0) ?? 7);
-        return { written, x: L.C[0], y: L.C[1] + font * 1.2, text, font, d: ribbon(track, L.T0, L.T1) };
-      }
-      // (a step on a track: its stretch of it)
-      const on = track ? stepOn(track, sp.t0, sp.t1) : null;
-      if (on && track) {
-        const [x, y] = trackAt(track, (on.tau0 + on.tau1) / 2).p;
-        const font = Math.max(7, fitFont(ringW * 0.9, Math.max(2, text.length), 15, 0) ?? 7);
-        return { written, x, y, text, font, d: ribbon(track, on.tau0, on.tau1) };
-      }
-      const [x, y] = polar(c, c, r, (sp.t0 + sp.t1) / 2);
-      const font = Math.max(7, fitFont(Math.min((sp.t1 - sp.t0) * Math.PI * (rInner + rOuter), rOuter - rInner) * 0.9, Math.max(2, text.length), 15, 0) ?? 7);
-      return { written, x, y, text, font, d: ringSegment(c, c, rInner, rOuter, sp.t0, sp.t1) };
-    });
-  });
+  const units = $derived(stepUnits(view, tokens, ctx.program.cells.get(name)?.units.length, shownShift, track, geo));
   // show=matrix: a selector's barrel — a ring per part, a pin where a step picks it
-  const pins = $derived.by(() => {
-    if (view.mode !== 'matrix' || !view.matrix) return [];
-    const { rows, steps } = view.matrix;
-    const band = (rOuter - rInner) / Math.max(1, rows);
-    return steps.flatMap((st, step) =>
-      Array.from({ length: rows }, (_, k) => ({
-        d: ringSegment(c, c, rInner + k * band + 0.8, rInner + (k + 1) * band - 0.8, st.t0 + 0.004, st.t1 - 0.004),
-        on: st.rows.has(k),
-        step,
-        fill: partColour(k, rows),
-      })),
-    );
-  });
+  const pins = $derived(barrelPins(view, geo).map((p) => ({ ...p, fill: partColour(p.row, p.rows) })));
   // the section under the playhead: its pins at full colour (the rest quieter while playing). Apart from the pins,
   // so that the playhead moving does not draw them all again.
-  const nowStep = $derived.by(() => {
-    if (view.mode !== 'matrix' || !view.matrix || hand === null) return -1;
-    return view.matrix.steps.findIndex((st) => hand >= st.t0 - EPS && hand < st.t1 - EPS);
-  });
+  const nowStep = $derived.by(() => barrelNow(view, hand));
   // show=adsr: the envelope as a curve across the ring — rising, falling, holding, releasing
-  const curve = $derived.by(() => {
-    if (view.mode !== 'curve' || !view.curve) return null;
-    const { attack, decay, sustain } = view.curve;
-    const { hold, total } = envelopeAxis(view.curve);
-    const w = rOuter * 1.5;
-    const h = rOuter * 0.9;
-    const x0 = c - w / 2;
-    const y0 = c + h / 2;
-    const X = (t: number) => x0 + (t / total) * w;
-    const pts = [
-      [X(0), y0],
-      [X(attack), y0 - h],
-      [X(attack + decay), y0 - h * sustain],
-      [X(attack + decay + hold), y0 - h * sustain],
-      [X(total), y0],
-    ];
-    return pts;
-  });
-  const curvePoints = $derived(curve ? curve.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(' ') : '');
+  const curve = $derived(view.mode === 'curve' && view.curve ? envelopeCurve(view.curve, c, rOuter) : null);
+  const curvePts = $derived(curve ? curvePoints(curve) : '');
   // while it plays: where the latest note through it is on the curve, two lines crossing there — its time now and its
   // level now (the notes of whatever plays a voice with this envelope, or a product it shapes: layout/envelope.ts)
   const envNotes = $derived(view.mode === 'curve' ? envelopeNotes(ctx.program, name) : []);
   const envNow = $derived.by(() => {
     if (!curve || !view.curve || !ctx.lit || !envNotes.length) return null;
-    const t = ctx.heads.seconds;
-    const last = latestNoteAt(ctx.program, ctx.shifts, envNotes, t);
-    if (!last) return null;
-    const at = envelopeAt(view.curve, last.since, last.length);
-    if (!at) return null;
-    const { total } = envelopeAxis(view.curve);
-    const [x0, x1] = [curve[0][0], curve[4][0]];
-    const [y0, y1] = [curve[0][1], curve[1][1]];
-    return { x: x0 + (at.t / total) * (x1 - x0), y: y0 + at.level * (y1 - y0), x0, x1, top: y1, bottom: y0 };
+    const last = latestNoteAt(ctx.program, ctx.shifts, envNotes, ctx.heads.seconds);
+    return last && envelopeCrossing(curve, view.curve, last);
   });
-  // its values named on their stretches of the curve (#107): attack by the peak, decay along its fall, sustain
-  // under its hold, release by its end — from 112 px up (smaller, the curve alone)
+  // its values named on their stretches of the curve (#107) — from 112 px up (smaller, the curve alone)
   const envFont = $derived(Math.min(11, size * 0.06));
-  const envLabels = $derived.by(() => {
-    if (!curve || !view.curve || size < 112) return [];
-    const n = envelopeNames(view.curve);
-    const [, peak, fall, held, end] = curve;
-    const f = envFont;
-    return [
-      { x: peak[0] + f * 0.3, y: peak[1] - f * 0.5, text: n.a, anchor: 'start' },
-      { x: (peak[0] + fall[0]) / 2 + f * 0.6, y: (peak[1] + fall[1]) / 2 - f * 0.4, text: n.d, anchor: 'start' },
-      { x: (fall[0] + held[0]) / 2, y: fall[1] + f * 1.2, text: n.s, anchor: 'middle' },
-      { x: end[0], y: Math.min(held[1], end[1]) - f * 0.8, text: n.r, anchor: 'end' },
-    ];
-  });
+  const envLabels = $derived(curve && view.curve && size >= 112 ? envelopeLabels(curve, view.curve, envFont) : []);
   // The live state is a new object every tick. What this wheel takes from it is kept as primitives, so that what
   // depends on them runs again only when they change — not every tick, for every wheel on the graph (#13).
   const hasLive = $derived(!!ctx.heads.cells.get(played));
@@ -354,191 +252,48 @@
             ? 'color-mix(in oklab, var(--accent) 70%, var(--wheel-ref))'
             : 'var(--wheel-ref)';
 
-  // What a glyph draws is two things that change at different rates. Where each band goes (`d`) depends on the
-  // segments' times, band counts and levels, and not on which note is where: a table turning leaves it as it was.
-  // The fills are the notes' colours, and are what a turn changes. So the geometry is kept from one view to the next
-  // while its layout is the same (the very same array, so nothing downstream even looks at it), and the paths' `d`
-  // are only ever written when a wheel's layout changes (#41).
-  const levelOf = (f: Fill) => (f.kind === 'level' ? f.v : -1);
-  const sameLayout = (a: Segment, b: Segment) =>
-    a.t0 === b.t0 &&
-    a.t1 === b.t1 &&
-    a.bands.length === b.bands.length &&
-    a.bands.every((f, j) => (f.kind === 'level') === (b.bands[j].kind === 'level') && levelOf(f) === levelOf(b.bands[j]));
-  const draw = (s: Segment) => {
-    // (on a track: along it, the ring and its bulbs one curve; in a bulb's later lap: drawn once, on its first)
-    if (track) {
-      const on = stepOn(track, s.t0, s.t1);
-      return on ? s.bands.map((_, j) => ribbon(track, on.tau0, on.tau1, j, s.bands.length)) : [];
-    }
-    const band = (rOuter - rInner) / s.bands.length;
-    return s.bands.map((f, j) =>
-      // a level is a bar from the inner ring, as tall as the level
-      f.kind === 'level'
-        ? ringSegment(c, c, rInner, rInner + Math.max(0.04, f.v) * (rOuter - rInner), s.t0, s.t1)
-        : ringSegment(c, c, rInner + j * band, rInner + (j + 1) * band, s.t0, s.t1),
-    );
-  };
-  // The border between segments (a stroke in the disc's colour): 1.5 px, as ever. On a wheel the cap merged it
-  // would eat most of a segment (2.25° is ~3 px at the rim), so there it tapers with the segment's width: none
-  // under 2.5°, full from 6° (`border`, long steps keep theirs). A function of the layout, so it is kept with it.
+  // Where each band goes (`d`) is kept from one view to the next while the wheel's layout is the same, and written
+  // only when it changes; the fills are what a turn changes (#41: layout/glyph.ts, SlotCache). The border tapers on
+  // a wheel the cap merged (`borderOf`), so it is kept with the layout.
   const merged = $derived(view.segments !== full.segments);
-  const borderOf = (s: Segment) => (merged ? border(s.t1 - s.t0) : BORDER);
-  type Laid = { d: string[]; w: number };
-  let laid: { key: string; segments: readonly Segment[]; slots: Laid[] } | null = null;
-  const geometry = $derived.by(() => {
-    const segments = view.segments;
-    const key = `${c} ${rInner} ${rOuter} ${merged} ${trackKey}`;
-    const before = laid && laid.key === key ? laid : null;
-    let changed = !before || before.segments.length !== segments.length;
-    const slots = segments.map((s, i) => {
-      const old = before?.segments[i];
-      if (before && old && sameLayout(old, s)) return before.slots[i];
-      changed = true;
-      return { d: draw(s), w: borderOf(s) };
-    });
-    if (before && !changed) {
-      laid = { ...before, segments }; // (the same drawing, for these segments)
-      return before.slots;
-    }
-    laid = { key, segments, slots };
-    return slots;
-  });
-  // show=brightness: each degree of a table shaded by the mode that starts on it — the sum of that mode's steps up from
-  // it, against the others' (Lydian brightest … Locrian darkest), in the sun's gold
-  const brightness = $derived.by(() => {
-    if (view.show !== 'brightness' || view.mode !== 'grid' || view.ticks < 2) return null;
-    const lap = view.ticks;
-    const at = view.segments.map((sg) => Math.round((sg.at ?? sg.t0) * lap));
-    const sums = at.map((p) => at.reduce((sum, q) => sum + ((((q - p) % lap) + lap) % lap), 0));
-    const [lo, hi] = [Math.min(...sums), Math.max(...sums)];
-    return sums.map((v) => (hi > lo ? (v - lo) / (hi - lo) : 0.5));
-  });
+  const slotCache = new SlotCache();
+  const geometry = $derived(slotCache.slots(`${c} ${rInner} ${rOuter} ${merged} ${trackKey}`, view.segments, (s) => ({ d: segmentPaths(s, geo, track), w: borderOf(s, merged) })));
+  // show=brightness: each degree of a table shaded by the mode that starts on it (Lydian brightest … Locrian
+  // darkest), in the sun's gold
+  const brightness = $derived(brightnessOf(view));
   const fills = $derived(view.segments.map((s, i) => (brightness ? s.bands.map(() => blockColour(brightness[i])) : s.bands.map(fillOf))));
   // a table of taps wears the colours of the selector reading it (decision 016): each tap its part's colour on the
   // selector's barrel; while playing, the ones the selector has off dimmed, and a hand from the hub across each it has on
-  const tapRings = $derived(tapsTable && track ? bulbs.map((b, i) => ({ L: b.L, colour: partColour(view.segments[i]?.index ?? i, cell?.units.length ?? 1), on: lit.has(i) })) : []);
-  const tapCursors = $derived(
-    ctx.lit
-      ? tapRings.flatMap((t) => {
-          if (!t.on) return [];
-          const [dx, dy] = [t.L.C[0] - c, t.L.C[1] - c];
-          const l = Math.hypot(dx, dy) || 1;
-          // (a hand from the hub's edge across the tap's ring, over the hub where it overlaps it; it stops at the
-          // ring's inside: its name stays clear)
-          const [r0, r1] = [geo.rHub, l - t.L.rho + t.L.w / 2];
-          return [`M ${c + (dx / l) * r0} ${c + (dy / l) * r0} L ${c + (dx / l) * r1} ${c + (dy / l) * r1}`];
-        })
-      : [],
-  );
+  const tapRings = $derived.by(() => (tapsTable && track ? tapRingsOf(bulbs, view, cell?.units.length ?? 1, lit).map((t) => ({ ...t, colour: partColour(t.part, t.parts) })) : []));
+  const tapCursors = $derived(ctx.lit ? tapCursorsOf(tapRings, geo) : []);
 
-  // What space the wheel is drawn in: a table, scale, key or grid is laid out by pitch (the slots it takes from the
-  // table below come in at its hub); a braid by time — its rim a clock, a tick a step. (A meter, a curve, an LFO, a
-  // barrel: their own.)
-  const pitched = $derived(view.segments.some((sg) => sg.bands[0]?.kind === 'pitch'));
-  const space = $derived(isMeter || !pitched ? null : view.mode === 'grid' ? 'pitch' : view.mode === 'braid' ? 'time' : null);
-  // the hub of a table that selects (a mode from its key): the slots coming in, a ring inside the hub, the ones it
-  // takes bright; and the gear, a wire from each slot taken out to its entry. They turn with the ring.
-  const hubSlots = $derived(
-    view.hub?.slots.map((sl) => ({ d: ringSegment(c, c, hubRing.r0, hubRing.r1, sl.t0 + 0.003, sl.t1 - 0.003), fill: fillOf(sl.fill), held: sl.held })) ?? [],
-  );
-  const gears = $derived(
-    view.hub?.gears.map((g) => {
-      const [x1, y1] = polar(c, c, hubRing.r1, g.from);
-      const [qx, qy] = polar(c, c, (hubRing.r1 + rInner) / 2, (g.from + g.to + (Math.abs(g.to - g.from) > 0.5 ? 1 : 0)) / 2);
-      const [x2, y2] = polar(c, c, rInner, g.to);
-      return { d: `M${x1.toFixed(1)},${y1.toFixed(1)} Q${qx.toFixed(1)},${qy.toFixed(1)} ${x2.toFixed(1)},${y2.toFixed(1)}`, stroke: fillOf(g.fill) };
-    }) ?? [],
-  );
+  // What space the wheel is drawn in: by pitch (a table: the slots it takes from the table below come in at its hub),
+  // by time (a braid: its rim a clock), or its own (layout/glyph.ts, spaceOf). The hub of a table that selects: its
+  // slots, the ones it takes bright, and the gear, a wire from each slot taken out to its entry; they turn with the ring.
+  const space = $derived(spaceOf(view, isMeter));
+  const hubSlots = $derived(hubSlotsOf(view, geo).map((sl) => ({ ...sl, fill: fillOf(sl.fill) })));
+  const gears = $derived(hubGears(view, geo).map((g) => ({ d: g.d, stroke: fillOf(g.fill) })));
   // the taps: where each entry leaves the wheel, on a ring of their own outside it (drawn whether wired or not)
-  const tapR = $derived(geo.rTap);
-  const taps = $derived(
-    (view.taps ?? []).map((t, i) => {
-      const [x, y] = polar(c, c, tapR, t);
-      const sg = view.segments.find((s) => s.index === i);
-      return { x, y, fill: sg ? fillOf(sg.bands[0]) : 'var(--edge)' };
-    }),
-  );
+  const taps = $derived(tapDots(view, geo).map((t) => ({ x: t.x, y: t.y, fill: t.fill ? fillOf(t.fill) : 'var(--edge)' })));
   // the marker: fixed at 12 o'clock, over the first entry (a table's always; a braid's once it is turned)
-  const marker = $derived.by(() => {
-    if (!(view.mode === 'grid' && view.taps) && !(view.mode === 'braid' && shownShift !== 0)) return null;
-    const w = Math.max(4, size * 0.05);
-    const tip = c - rOuter + 1;
-    const top = c - rOuter - margin - w * 0.6;
-    return `M${c - w * 0.7},${top} L${c + w * 0.7},${top} L${c},${tip} Z`;
-  });
+  const marker = $derived(markerOf(view, shownShift, geo, size));
   // the first entry, under the marker: outlined
-  const first = $derived.by(() => {
-    if (!view.taps) return null;
-    const sg = view.segments.find((s) => s.index === 0);
-    return sg ? ringSegment(c, c, rInner, rOuter, sg.t0, sg.t1) : null;
-  });
-  // the sieve: a table's wedge is bright for its own step of the grid; the steps it leaves out, to its next entry, dark
-  // (show=equal: every entry the same width, nothing to sieve)
-  const sieve = $derived.by(() => {
-    if (space !== 'pitch' || view.ticks < 2 || view.show === 'equal') return [];
-    const step = 1 / view.ticks;
-    return view.segments.filter((sg) => sg.t1 - sg.t0 > step * 1.01).map((sg) => ringSegment(c, c, rInner, rOuter, sg.t0 + step, sg.t1));
-  });
-  const clockTicks = $derived(
-    space === 'time' && view.ticks <= 64 && !track
-      ? Array.from({ length: view.ticks }, (_, i) => {
-          const long = i === 0 || (view.ticks % 4 === 0 && i % 4 === 0);
-          const [x1, y1] = polar(c, c, geo.tick.r0, i / view.ticks);
-          const [x2, y2] = polar(c, c, geo.tick.r1 + (long ? 2.5 * k : 0), i / view.ticks);
-          return { x1, y1, x2, y2, long };
-        })
-      : [],
-  );
-  const ticks = $derived(
-    space === null && view.ticks <= 48 && !tapsTable
-      ? Array.from({ length: view.ticks }, (_, i) => {
-          const [x1, y1] = polar(c, c, geo.tick.r0, i / view.ticks);
-          const [x2, y2] = polar(c, c, geo.tick.r1, i / view.ticks);
-          return { x1, y1, x2, y2 };
-        })
-      : [],
-  );
+  const first = $derived(firstOf(view, geo));
+  // the sieve: the steps of the grid a table's entry leaves out, to its next entry, dark
+  const sieve = $derived(sieveOf(view, space, geo));
+  const clockTicks = $derived(clockTicksOf(view, space, track, geo));
+  const ticks = $derived(plainTicks(view, space, tapsTable, geo));
 
   // which segments are live: braids by time, grids by the entries being looked up; a table of taps by the taps its
   // selector has on now (decision 016)
   // (as a key first: the set is made again only when the lit segments change, not every tick)
-  const litKey = $derived.by(() => {
-    if (tapsTable) {
-      const on: number[] = [];
-      view.segments.forEach((s, i) => {
-        const u = cell?.units[s.index];
-        if (u?.atom.kind === 'ref' && ctx.lit?.nodes.has(`cell:${u.atom.name}`)) on.push(i);
-      });
-      return on.join(',');
-    }
-    if (!hasLive || view.mode !== 'braid' || liveLocal === null) return '';
-    const t = liveLocal / lapOf(ctx.program, played);
-    const on: number[] = [];
-    view.segments.forEach((s, i) => {
-      if (t >= s.t0 - EPS && t < s.t1 - EPS) on.push(i);
-    });
-    return on.join(',');
-  });
-  const lit = $derived(new Set(litKey ? litKey.split(',').map(Number) : []));
+  const litKey = $derived(tapsTable ? litTaps(view, cell, ctx.lit?.nodes) : litSteps(view, () => (hasLive && liveLocal !== null ? liveLocal / lapOf(ctx.program, played) : null)));
+  const lit = $derived(litSet(litKey));
   // a table: the entries being read now (accessed) — a dot in each, like a read head …
-  const accessed = $derived.by(() => {
-    const set = new Set<number>();
-    if (!hasLive || view.mode === 'braid') return set;
-    const k = view.detents;
-    for (const e of entriesKey ? entriesKey.split(',').map(Number) : [])
-      view.segments.forEach((s, i) => {
-        if (s.index === mod(e, k)) set.add(i);
-      });
-    return set;
-  });
-  const polarAt = (t: number, r: number) => {
-    const [x, y] = polar(c, c, r, t);
-    return { x, y };
-  };
+  const accessed = $derived(hasLive && view.mode !== 'braid' ? accessedOf(view, entriesKey) : new Set<number>());
 
   // the playhead: braids, and a selector's barrel (where in its sections)
-  const hand = $derived((view.mode === 'braid' || view.mode === 'matrix') && liveLocal != null ? liveLocal / lapOf(ctx.program, played) : null);
+  const hand = $derived(handOf(view, () => liveLocal, lapOf(ctx.program, played)));
   // in a bulb, the hand bends: from the hub's edge round the inside of each bulb it is in, and across the step playing now (#221)
   const bent = $derived(hand !== null && track ? cursorOf(c, c, geo.hand.r0, track, mod(hand, 1), rInner - geo.hand.r0) : null);
 
@@ -548,36 +303,10 @@
   const meterLit = $derived(meterAt ? ringSegment(c, c, rInner, rOuter, view.segments[meterAt.at].t0, view.segments[meterAt.at].t1) : null);
 
   // show=lfo: one cycle round the ring — its value the radius; a dot at its phase while playing
-  const lfoPath = $derived.by(() => {
-    if (view.mode !== 'lfo' || !view.wave) return null;
-    const w = view.wave;
-    const r = (v: number) => rInner + (rOuter - rInner) * (0.12 + 0.76 * v);
-    return (
-      w
-        .map((v, i) => {
-          const [x, y] = polar(c, c, r(v), i / w.length);
-          return `${i ? 'L' : 'M'}${x.toFixed(1)},${y.toFixed(1)}`;
-        })
-        .join(' ') + 'Z'
-    );
-  });
-  const lfoDot = $derived.by(() => {
-    if (view.mode !== 'lfo' || !view.wave || liveLocal == null) return null;
-    const t = liveLocal / Math.max(1e-9, cell?.steps ?? 1);
-    const w = view.wave;
-    const v = w[Math.floor((((t % 1) + 1) % 1) * w.length) % w.length];
-    const [x, y] = polar(c, c, rInner + (rOuter - rInner) * (0.12 + 0.76 * v), t);
-    return { x, y };
-  });
+  const lfoPath = $derived(lfoPathOf(view, geo));
+  const lfoDot = $derived(lfoDotOf(view, () => liveLocal, cell?.steps ?? 1, geo));
   // a meter's beats, numbered
-  const beatLabels = $derived.by(() => {
-    if (!isMeter || view.mode !== 'grid' || view.segments.length > 16 || size < 64) return [];
-    const r = (rInner + rOuter) / 2;
-    return view.segments.map((sg, i) => {
-      const [x, y] = polar(c, c, r, (sg.t0 + sg.t1) / 2);
-      return { x, y, text: String(i + 1) };
-    });
-  });
+  const beatLabels = $derived(beatLabelsOf(view, isMeter, size, geo));
 
   // ---- turning the rim changes shift: one detent per 1/k of a turn
   let svg: SVGSVGElement;
@@ -772,7 +501,7 @@
     <text class="steplabel" x={l.x} y={l.y} font-size={Math.max(6, Math.min(11, size / 12, l.wide * size * 1.2))}>{l.text}</text>
   {/each}
   {#if curve}
-    <polyline class="curve" points={curvePoints} />
+    <polyline class="curve" points={curvePts} />
     {#if envNow}
       <line class="env-now" x1={envNow.x} x2={envNow.x} y1={envNow.top} y2={envNow.bottom} />
       <line class="env-now" x1={envNow.x0} x2={envNow.x1} y1={envNow.y} y2={envNow.y} />
@@ -825,7 +554,7 @@
   {/if}
   {#each meterAt ? [] : [...accessed] as i (i)}
     {@const sg = view.segments[i]}
-    {@const p = polarAt(sg.at ?? (sg.t0 + sg.t1) / 2, rInner + (rOuter - rInner) * 0.22)}
+    {@const p = readAt(sg, geo)}
     <circle class="read" cx={p.x} cy={p.y} r={Math.max(2.2, size * 0.022)} />
   {/each}
 </svg>

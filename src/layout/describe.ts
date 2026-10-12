@@ -35,6 +35,8 @@ function list(cells: readonly string[], max = 3): Bit[] {
   return out;
 }
 
+/** The cells a braid splices, subsequences opened, in order. */
+
 /** Everything a cell connects to, by relation (only relations that have cells). */
 export function connections(result: CompileResult, name: string): Connection[] {
   const c = result.cells.get(name);
@@ -46,7 +48,7 @@ export function connections(result: CompileResult, name: string): Connection[] {
     if (seen.has(cell)) return false;
     seen.add(cell);
     const x = result.cells.get(cell);
-    return !!x && ((!!x.over && plays(x.over, seen)) || x.units.some((u) => u.atom.kind === 'ref' && plays(u.atom.name, seen)));
+    return !!x && ((!!x.over && plays(x.over, seen)) || refsOf(x).some((r) => plays(r, seen)));
   };
   const out: Connection[] = [
     { relation: 'reads', cells: uniq([c.over]).filter(named) },
@@ -81,7 +83,7 @@ export function connections(result: CompileResult, name: string): Connection[] {
     { relation: 'steps', cells: uniq(all.filter((x) => x.step?.driver === name).map((x) => x.name)).filter(named) },
     {
       relation: 'used by',
-      cells: uniq(all.filter((x) => x.name !== name && (x.over === name || x.units.some((u) => u.atom.kind === 'ref' && u.atom.name === name))).map((x) => x.name)),
+      cells: uniq(all.filter((x) => x.name !== name && (x.over === name || refsOf(x).includes(name))).map((x) => x.name)),
     },
   ];
   return out.filter((x) => x.cells.length > 0);
