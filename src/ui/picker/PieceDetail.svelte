@@ -3,7 +3,7 @@
   import PieceNode from '../PieceNode.svelte';
   import { durationText } from '../../engine/duration';
   import { tagName } from '../../engine/tags';
-  import { trap } from '../kit/attach';
+  import Sheet from '../kit/Sheet.svelte';
   import type { Entry } from '../entries';
 
   let {
@@ -40,12 +40,8 @@
   const when = (iso?: string) => (iso ? new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short' }) : '');
 </script>
 
-<div class="scrim" onclick={onclose} role="presentation"></div>
-<div class="bottom-sheet detail" role="dialog" aria-modal="true" aria-label={d.title} {@attach trap({ onescape: onclose, focus: '.primary' })}>
-  <header>
-    <h3>{d.title}</h3>
-    <button class="unstyled close" onclick={onclose} aria-label="Close">×</button>
-  </header>
+<Sheet label={d.title} {onclose} layer={61} focus=".primary" class="detail">
+  {#snippet header()}<h3>{d.title}</h3>{/snippet}
   <button class="unstyled big" onclick={() => (onclose(), onpick(d.id))} aria-label="Open {d.title}"
     ><PieceNode entry={d} {colours} size={220} labels current={d.id === current} /></button
   >
@@ -64,19 +60,15 @@
     <button class="primary" onclick={() => (onclose(), onpick(d.id))}>Open</button>
     {#if d.kind === 'saved'}<button class="unstyled remove" onclick={() => (onclose(), onremove(d.id))}>Remove from this browser</button>{/if}
   </div>
-</div>
+</Sheet>
 
 <style>
-  .scrim {
-    position: fixed;
-    inset: 0;
-    z-index: 61;
-    background: var(--scrim);
-  }
-  .detail {
-    z-index: 62;
+  /* the card's own look over kit/Sheet's: its padding, height and rise, no shadow; on a wide screen, a card at the
+     bottom right */
+  :global(.bottom-sheet.sheet.detail) {
     max-height: 86svh;
     padding: 14px 16px calc(16px + env(safe-area-inset-bottom));
+    box-shadow: none;
     animation: rise 200ms cubic-bezier(0.2, 0.8, 0.2, 1);
   }
   @keyframes rise {
@@ -86,7 +78,7 @@
     }
   }
   @media (min-width: 900px) {
-    .detail {
+    :global(.bottom-sheet.sheet.detail) {
       left: auto;
       right: 24px;
       bottom: 24px;
@@ -95,21 +87,15 @@
       border: 1px solid var(--line);
     }
   }
-  header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
+  :global(.sheet.detail > header) {
     gap: 12px;
   }
-  .detail h3 {
+  :global(.sheet.detail > header .close) {
+    font-size: 28px;
+  }
+  h3 {
     margin: 0;
     font: 800 19px/1.25 var(--font-ui);
-  }
-  .close {
-    font-size: 28px;
-    line-height: 1;
-    padding: 2px 8px;
-    color: var(--text-muted);
   }
   .big {
     align-self: center;
