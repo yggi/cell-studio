@@ -32,11 +32,13 @@ async function renderOffline(plan: Plan, seconds: number, tail = 2, from = 0): P
       await voices.ready();
       if (from > 0) {
         // (the live player's window, moved to the buffer's start: the same notes, bends and tapes)
-        const w = retime(windowAt(plan, from, seconds), 0, 1);
+        // (a drone held from the start sounds from the buffer's start: as it does when play starts there)
+        const w = retime(windowAt(plan, from, seconds, { begins: from, until: from + seconds }), 0, 1);
         for (const e of w.events) voices.play(e);
         for (const t of w.tapes) voices.tapeSpeed(t.tape, t.points);
       } else {
-        for (const e of eventsBetween(plan, 0, seconds, true)) voices.play(e);
+        // (a drone's note held to the end of the buffer, not ten minutes)
+        for (const e of eventsBetween(plan, 0, seconds, true, { until: seconds })) voices.play(e);
         // sound tapes on a moving clock: their speed over the whole render
         for (const t of tapeSpeeds(plan, 0, seconds)) voices.tapeSpeed(t.tape, t.points);
       }

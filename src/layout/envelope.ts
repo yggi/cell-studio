@@ -51,12 +51,12 @@ export function envelopeOf(result: CompileResult, voice: string): Adsr | null {
 
 /** The cells whose notes an envelope shapes: whatever plays a voice it is the env= of, or a product it shapes. */
 export function envelopeNotes(result: CompileResult, envelope: string): string[] {
-  return [...new Set(result.outputs.filter((o) => result.cells.get(o.voice)?.env === envelope || o.envelopeCell === envelope).map((o) => o.cell))];
+  return [...new Set(result.outputs.filter((o) => !o.drone && (result.cells.get(o.voice)?.env === envelope || o.envelopeCell === envelope)).map((o) => o.cell))];
 }
 
 /** The cells that play a voice. */
 export function voiceNotes(result: CompileResult, voice: string): string[] {
-  return [...new Set(result.outputs.filter((o) => o.voice === voice).map((o) => o.cell))];
+  return [...new Set(result.outputs.filter((o) => o.voice === voice && !o.drone).map((o) => o.cell))];
 }
 
 /** Of the notes these cells sound at real second t (or sounded last), the latest to begin; null: none. */
