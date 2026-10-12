@@ -36,7 +36,7 @@ A tool is a function `Folded → Folded | null` (`ir.ts`: `Tool`); a new one is 
 
 A disentangler in #234's sense, lifting's predict and update: a long phrase that comes back nearly the same (a step
 changed, a note held longer, transposed or not) is written once at its own length, and each return as that cell
-spliced (`&m6^$-12`) or as a copy of it with what differs (`&m17 base=&m6 _!3 [-1,2]@2`). How it finds them:
+spliced (`&m6^$-12`) or as a copy of it with what differs (`&m17 base=&m6 =!3 [-1,2]@2`). How it finds them:
 
 - **Seeds**: five steps alike in shape anywhere (a seed heard more than 48 times is a run, left to pairs); from each
   pair of places, a phrase grown step by step while it changes in at most two steps or a sixth of it.
@@ -50,8 +50,8 @@ spliced (`&m6^$-12`) or as a copy of it with what differs (`&m17 base=&m6 _!3 [-
   weight changed nothing); over the library 58 → 62. Pop still folds without (+28 %).
 
 **BWV 847** converted from MIDI: the **whole subject** comes back as one cell (`&m6 0 -1 0@2 -5@2 -4@2 0 -1 0@2 2@2 …`,
-20 steps), used nine times, its bent entries copies of it: the tonal answer (`base=&m6 _!3 -7@2`), the entry in E♭
-(`base=&m6 _!4 -3@2 _!11 -3@4 _!2 -8`), the last entry with its chord and long final note (`base=&m6 _!8 [-1,2]@2 _!10
+20 steps), used nine times, its bent entries copies of it: the tonal answer (`base=&m6 =!3 -7@2`), the entry in E♭
+(`base=&m6 =!4 -3@2 =!11 -3@4 =!2 -8`), the last entry with its chord and long final note (`base=&m6 =!8 [-1,2]@2 =!10
 -8@8`); the countersubject as another (`&m9 …`) with a copy that holds its end; near-repeats of the free counterpoint as
 copies too. Its first five steps are where the entries bend: on characters alone the description length prefers the
 subject without them (it did, before the preference for structure: its last 15 steps), itself a finding about the fugue.
@@ -77,7 +77,7 @@ variants, 73 pieces: 207 %, 2.8 s.)
 ## The WTC run (#333)
 
 The MIDI library (`midi/wtc`, 37 preludes and fugues, 34,200 notes) folded as the files come
-(`tools/probe/wtc.test.ts`; `src/engine/fold/wtc.test.ts` is its ratchet). **Before: the score 153,783 characters flat,
+(`tools/probe/midi.test.ts`; `src/engine/fold/midi.test.ts` is its ratchet, over every collection since). **Before: the score 153,783 characters flat,
 123,735 folded (80.5 %), every fold taken, 633 cells, 212 of them copies; 29 s. After: 120,755 (78.5 %), every fold
 taken, 626 cells, 159 copies; 30 s.** The examples' ratchet at the same time: 56,125 → 55,974, phrases back 62 → 62.
 
@@ -99,6 +99,18 @@ taken, 626 cells, 159 copies; 30 s.** The examples' ratchet at the same time: 56
   written out (16,820 of them), 18 K of that their lengths (`@2`). Counterpoint that never comes back at a chromatic
   transposition is most of it.
 
+## Two more collections (#333)
+
+The Inventions and Sinfonias (30 files, 17,439 notes) and the Anna Magdalena Notebook (19 files, 3,467 notes) joined the
+MIDI library, and its ratchet (`ratchet.midi.json`). Folded as today's folder does, with nothing tuned for them:
+
+- **Inventions and Sinfonias:** 72,413 characters flat, 57,672 folded (**79.6 %**), every fold taken; 334 cells, 82 of
+  them copies; 10.5 s.
+- **Anna Magdalena:** 18,811 flat, 16,160 folded (**85.9 %**); 14 of 19 folded. The other five (the Polonaise in
+  G minor, three chorale settings, an aria) are short, and a fold isn't shorter than the notes written out.
+- The minuets fold little (Anh. 114: 92 %) because their repeats are played once in Mutopia's files (LilyPond writes
+  a repeat once unless it is unfolded): a dance's form is mostly in its repeats.
+
 ## Degrees (#344, decision 033)
 
 `degrees.ts` writes the lines in degrees of the piece's key (the scale of the twelve tonics × major, minor, harmonic minor
@@ -114,6 +126,8 @@ whose accidentals over the notes are fewest; a tie to the tonic the bass ends on
   C♯ major fugues, the D♯ minor fugue, the E minor prelude …), 23 in semitones, one the same (the chromatic B minor
   fugue is 18 % longer in degrees). The keys found are mostly the pieces' own (A minor for the A minor fugue, B minor
   for the B minor); the F minor fugue comes out in E♭ major, its accidentals fewest there.
+- **The Inventions and Sinfonias: 57,672 → 56,917 (−1.3 %); Anna Magdalena unchanged (16,160).** The whole MIDI
+  library 194,587 → 191,430, the same 81 folds taken.
 - Why not more on the WTC: a fugue's voices sit in two hands' lines, mixed into chords (the WTC run above), and its
   modulations need accidentals in one key for the piece (option 3a). A key per section (#346) is the next measure.
 
