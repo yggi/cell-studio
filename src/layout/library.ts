@@ -74,8 +74,7 @@ export const byTier = (a: { readonly tier?: number | null }, b: { readonly tier?
 };
 
 /** A tutorial piece's title as the library shows it: its tier, then its short title. */
-const tutorialTitle = (e: { readonly title?: string; readonly id: string; readonly tier?: number | null }) =>
-  `${e.tier ? `${e.tier} · ` : ''}${shortTitle(e.title ?? e.id)}`;
+const tutorialTitle = (e: { readonly title?: string; readonly id: string; readonly tier?: number | null }) => `${e.tier ? `${e.tier} · ` : ''}${shortTitle(e.title ?? e.id)}`;
 /** A pill's half-width at scale 1: its words (0.58 em a letter) and its padding, at its font. */
 const pillHalf = (words: string, font: number) => ((0.58 * words.length + 1.5) * font) / 2;
 /** A piece's title as a cell beside the wheel shows it: the tutorial's with its tier, the others short. */

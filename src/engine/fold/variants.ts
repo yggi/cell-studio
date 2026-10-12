@@ -8,9 +8,11 @@
 import type { Folded, Rule, Tok, Tool } from './ir';
 import { elementText, isElement } from './transpose';
 
-/** A phrase: at least this many steps; at most this many changed where it returns: two, or a sixth of it. */
-const SHORTEST = 8;
-const CHANGES = (n: number) => Math.max(2, Math.floor(n / 6));
+/** A phrase: at least this many steps; at most this many changed where it returns: two, or a quarter of it. Measured
+ * over the library and the WTC (docs/notes/fold.md): 12 and a quarter fold both shorter than 8 and a sixth, and bring
+ * back as many phrases. */
+const SHORTEST = 12;
+const CHANGES = (n: number) => Math.max(2, Math.floor(n / 4));
 /**
  * A phrase said as a phrase is worth this much (characters, a step a return it explains) beyond what it saves: the
  * preference for structure. Measured by the ratchet (`fold/ratchet.test.ts`): 2 brings BWV 847's whole subject back

@@ -65,9 +65,19 @@ export const beta: Tool = (f: Folded, see) => {
     const rules = new Map<string, Rule>();
     for (const [key, r] of now.rules) {
       if (key === worst.key) continue;
-      // (a variant of what goes is written out: its steps are all there)
-      if (r.of) rules.set(key, r.of === worst.key ? { key, kids: r.kids } : r);
-      else rules.set(key, { key, kids: inline(kidsOf(r)).map((t) => ({ key: t.key, off: t.base })) });
+      if (r.of) {
+        // (a symbol that goes from a phrase goes from its copies' kept steps too, each step of it kept; a variant of
+        // what goes is written out: its steps are all there)
+        const kids: Rule['kids'][number][] = [];
+        const patched: boolean[] = [];
+        r.kids.forEach((k, i) => {
+          for (const t of k.key === worst!.key ? expand(gone, k.off) : [{ key: k.key, base: k.off }]) {
+            kids.push({ key: t.key, off: t.base });
+            patched.push(r.patched![i]);
+          }
+        });
+        rules.set(key, r.of === worst.key ? { key, kids } : { ...r, kids, patched });
+      } else rules.set(key, { key, kids: inline(kidsOf(r)).map((t) => ({ key: t.key, off: t.base })) });
     }
     now = { lines: now.lines.map((l) => ({ ...l, toks: inline(l.toks) })), rules, looks: now.looks };
     changed = true;
