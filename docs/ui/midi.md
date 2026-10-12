@@ -96,7 +96,9 @@ as MIDI** in the Files page.
   plays as it is (its notes written out behind the scenes, a fixed tempo) and opens on the time view; edit it there (a
   line it can't read is an error on that line), save it (*Save the MIDI file*: a `.mid` again, event for event). The
   graph waits for **Convert to cells** (the graph pane, the strip under the editor, the Files page), which writes it as
-  a piece (`engine/midiimport.ts` `cellsFromMidi`), every note kept, for Shorten to fold (#307's next steps):
+  a piece (`engine/midiimport.ts` `cellsFromMidi`), every note kept, folded by `engine/fold` where that plays the same
+  and is shorter ([the folder](../notes/fold.md): figures over chord tables, phrases and their transpositions as cells,
+  slower clocks):
   - *The grid*: the coarsest step every start falls on (a quarter note, an eighth, a triplet … a 64th; within a 96th
     of a quarter and an eighth of the step); a file played in, on none, is laid on sixteenths, and the status line says
     how many notes moved.
