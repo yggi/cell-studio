@@ -22,7 +22,9 @@ export type Role =
   | 'note' // a label and nothing else: an explanation in the graph
   | 'carrier' // a voice with fm=
   | 'modulator' // a voice another's fm= names
-  | 'gate'; // play= with a braid: a named junction, where notes become sound (#234)
+  | 'gate' // play= with a braid: a named junction, where notes become sound (#234)
+  | 'tap' // a tap of a meter's bus: a name a stepped table of names declares (decision 016)
+  | 'selector'; // a cell reading a table of taps (over=&parts): it switches them
 
 export interface Attribute {
   /** What it means, as the node editor shows it. */
@@ -43,6 +45,8 @@ export interface Attribute {
   readonly hz?: true;
   /** An old spelling, still read and rewritten by Shorten: what says it now. Not in the reference. */
   readonly old?: string;
+  /** Named before it is built (some of its values warn and play as the default): in the reference, taught on no tier yet. */
+  readonly stub?: true;
 }
 
 const core = (help: string, doc: string, on?: readonly Role[]): Attribute => ({ help, doc, value: 'syntax', ...(on ? { on } : {}) });
@@ -172,6 +176,14 @@ export const PARAMS: Readonly<Record<string, Attribute>> = {
     on: ['scope'],
   },
   channels: { help: 'a spectrum or waterfall: sum (one, the default) or split (each channel its own)', doc: 'display.md', value: 'word', on: ['scope'] },
+  // arranging: what switching a part on does to its time (decision 032)
+  restart: {
+    help: 'what switching a part on does to its time (on a selector: for all its taps) — restart (from its top, the default), resume (where it stopped; not yet built), free (its time runs on, only its sound is switched; not yet built)',
+    doc: 'time.md',
+    value: 'word',
+    on: ['tap', 'selector'],
+    stub: true,
+  },
   // laws
   law: { help: 'a law that computes the notes (law=fiveto12: the 5 to 12 cycle, a day of music)', doc: 'time.md', value: 'word', on: ['law'] },
   anchor: {
@@ -214,6 +226,8 @@ export function rolesText(on: readonly Role[]): string {
     carrier: 'a voice with fm=',
     modulator: 'a voice another’s fm= names',
     gate: 'a gate (play= with a braid)',
+    tap: 'a tap (a name a stepped table of names declares)',
+    selector: 'a selector (over= a table of taps)',
   };
   const ws = on.map((r) => NAMES[r]);
   return ws.length < 2 ? (ws[0] ?? '') : `${ws.slice(0, -1).join(', ')} or ${ws[ws.length - 1]}`;

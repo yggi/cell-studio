@@ -13,6 +13,17 @@ import { SORT_RULES } from './compiler/sorts';
 import { parse } from './parser';
 import { stripComment } from './parser/scanner';
 import { DEFAULT_ENV } from './program';
+import { CORE, PARAMS } from './attributes';
+
+/** Forms named before they are built (an attribute's `stub`, restart=: decision 032): in the reference, on no tier until they are. */
+export const STUBS: ReadonlySet<string> = new Set([
+  ...Object.keys(CORE)
+    .filter((k) => CORE[k].stub)
+    .map((k) => `attribute ${k}`),
+  ...Object.keys(PARAMS)
+    .filter((k) => PARAMS[k].stub)
+    .map((k) => `parameter ${k}`),
+]);
 
 /**
  * A form's key, from its reference entry: an attribute or a parameter by its word (`over`, `lpf`);
