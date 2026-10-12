@@ -11,6 +11,12 @@ import { elementText, isElement } from './transpose';
 /** A phrase: at least this many steps; at most this many changed where it returns: two, or a sixth of it. */
 const SHORTEST = 8;
 const CHANGES = (n: number) => Math.max(2, Math.floor(n / 6));
+/**
+ * A phrase said as a phrase is worth this much (characters, a step a return it explains) beyond what it saves: the
+ * preference for structure. Measured by the ratchet (`fold/ratchet.test.ts`): 2 brings BWV 847's whole subject back
+ * (its head, where the entries bend, included), more changes nothing.
+ */
+const SAID = 2;
 /** Seeds: this many steps alike start a comparison; a seed heard more often than this is a run, left to pairs. */
 const SEED = 5;
 const COMMON = 48;
@@ -132,7 +138,7 @@ export const variants: Tool = (f: Folded) => {
         },
         9 + written + 6,
       );
-      return (returns.length + 1) * written - cost;
+      return (returns.length + 1) * written - cost + SAID * n * returns.length;
     };
     for (const first of [...found.values()].sort((x, y) => y.score - x.score).slice(0, 4)) {
       let { proto, n } = first;

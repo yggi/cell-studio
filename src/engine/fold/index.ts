@@ -43,7 +43,7 @@ const sizeOf = (f: Folded) => {
 
 /** A phrase said as a phrase (a variant, `base=`) is worth a little length: a fold with variants is taken when it is
  * at most this much longer than the fold without. */
-const STRUCTURE = 1.05;
+const STRUCTURE = 1.15;
 
 /** Lines folded by a set of tools, round after round while the printed piece gets shorter. */
 function run(lines: readonly Line[], tools: readonly Tool[]): { f: Folded; size: number } {

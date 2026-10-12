@@ -44,16 +44,17 @@ spliced (`&m6^$-12`) or as a copy of it with what differs (`&m17 base=&m6 _!3 [-
   first entry in line order is the soprano's tonal answer, a bent one); grown either way, the length that saves the most
   is taken, so a return that changes too much at full length drops out (and is folded otherwise).
 - **Only lengths where something returns changed**: exact returns alone are pairs' to fold, shared across lines.
-- **Taken when it costs little**: the driver folds with and without variants, and takes variants when they are at most
-  5 % longer (`STRUCTURE`): a phrase said as a phrase is worth a little length (BWV 847: +3 %); where they cost more
-  (Pop: +28 %), not.
+- **A preference for structure**: a phrase said as a phrase earns 2 characters a step for each return it explains
+  (`SAID`), beyond what it saves; and the driver folds with and without variants and takes variants when they are at
+  most 15 % longer (`STRUCTURE`). Tuned on ten pieces by the ratchet's phrases back: 16 → 20 for +0.5 % of score (more
+  weight changed nothing); over the library 58 → 62. Pop still folds without (+28 %).
 
-**BWV 847** converted from MIDI: the subject comes back as one cell, its last 15 steps (`&m6 0 -1 0@2 2@2 -5@2 …`),
-entered eight times and twice more as copies (the last entry's chord, an ending held); the countersubject as another
-(`&m9 0 -2 -4 -6 -7 -9@2 6@2 …`) with a copy that holds its end; near-repeats of the free counterpoint as copies too. Its
-first five steps are where the entries bend (the tonal answer's leap, the modulated entry in E♭ changes three steps
-over the whole subject): the description length prefers the phrase without them, which is itself a finding about the
-fugue. The whole subject would need a larger budget of changes or a stronger preference for structure: the owner's call.
+**BWV 847** converted from MIDI: the **whole subject** comes back as one cell (`&m6 0 -1 0@2 -5@2 -4@2 0 -1 0@2 2@2 …`,
+20 steps), used nine times, its bent entries copies of it: the tonal answer (`base=&m6 _!3 -7@2`), the entry in E♭
+(`base=&m6 _!4 -3@2 _!11 -3@4 _!2 -8`), the last entry with its chord and long final note (`base=&m6 _!8 [-1,2]@2 _!10
+-8@8`); the countersubject as another (`&m9 …`) with a copy that holds its end; near-repeats of the free counterpoint as
+copies too. Its first five steps are where the entries bend: on characters alone the description length prefers the
+subject without them (it did, before the preference for structure: its last 15 steps), itself a finding about the fugue.
 
 ## What it does (the ratchet, `tools/probe/ratchet.test.ts`; [ratchet.md](ratchet.md) has the baseline)
 
@@ -86,7 +87,6 @@ variants, 73 pieces: 207 %, 2.8 s.)
 
 ## Next (step 5 and after)
 
-- **The whole subject** (above): a budget of changes per return, or a preference for structure, that keeps its head.
 - **Variants' cost**: 8.1 s for the library against 2.8 s; folding twice and the search per round are where it goes.
 - **Phrases with `^$k` at their right length**: Re-Pair's symbols are binary; a phrase of five is three symbols. A
   tool that, after pairs, flattens a chain of symbols used only together into one cell (β inside out) would give the
