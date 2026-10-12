@@ -26,6 +26,9 @@
   import { polar as onCircle } from '../layout/geometry';
   import { angleOf, turnDelta } from '../layout/dial';
   import { NOTE_NAMES as NAMES } from '../theory/modes';
+  import { bridgeOf, exciterPlaces, materialOf } from '../layout/exciters';
+  import ExciterShape from './ExciterShape.svelte';
+  import BodyFace from './BodyFace.svelte';
 
   let { id, data }: NodeProps = $props();
   const d = $derived(data as { name: string; size: number; role: 'motor' | 'belt' | 'tape' | 'resonator'; turn?: number });
@@ -47,6 +50,21 @@
       return { name: NAMES[((midi % 12) + 12) % 12] + Math.floor(midi / 12 - 1) };
     });
   });
+  // (a resonator is drawn as its body: its disc of its material, the body engraved on it, each exciter its element round
+  // it, out to its strand — layout/exciters.ts)
+  const body = $derived.by(() => (d.role === 'resonator' && typeof cell?.params.body === 'string' ? cell.params.body : null));
+  const material = $derived(materialOf(body ?? undefined));
+  const places = $derived.by(() =>
+    body && cell?.exciters?.length
+      ? exciterPlaces(
+          body,
+          R,
+          cell.exciters.map((x) => x.shift),
+        )
+      : [],
+  );
+  // (its disc's tokens: a resonator's by its body's material, brass its own; every other turntable's by its role)
+  const discOf = $derived(body && material !== 'brass' ? `body-${material}` : `disc-${d.role}`);
   let wobble = $state('none');
   // (a shimmer, set from here: the reduced-motion rule in app.css only reaches CSS animations)
   $effect(() => {
@@ -413,6 +431,9 @@
   bind:this={el}
   style:width="{S}px"
   style:height="{S}px"
+  style:--face-ink="var(--body-{material}-ink)"
+  style:--face-light="var(--body-{material}-light)"
+  style:--resonator-mode={material === 'brass' ? undefined : 'var(--body-' + material + '-mode)'}
   onpointerdown={down}
   onpointermove={move}
   onpointerup={up}
@@ -428,9 +449,9 @@
   <svg viewBox="0 0 {S} {S}" width={S} height={S} aria-hidden="true" style:transform={wobble} style:transform-origin="50% 50%">
     <defs>
       <radialGradient id="{uid}-disc" cx="40%" cy="35%" r="75%">
-        <stop offset="0%" style:stop-color="var(--disc-{d.role}-0)" />
-        <stop offset="70%" style:stop-color="var(--disc-{d.role}-1)" />
-        <stop offset="100%" style:stop-color="var(--disc-{d.role}-2)" />
+        <stop offset="0%" style:stop-color="var(--{discOf}-0)" />
+        <stop offset="70%" style:stop-color="var(--{discOf}-1)" />
+        <stop offset="100%" style:stop-color="var(--{discOf}-2)" />
       </radialGradient>
       <radialGradient id="{uid}-axle" cx="35%" cy="30%" r="80%">
         <stop offset="0%" style:stop-color="var(--axle-0)" />
@@ -453,6 +474,8 @@
       {#if d.role === 'resonator'}
         <!-- a body: rings where its modes are (the higher, the further in) -->
         {#each modeRings as k, i (i)}<circle cx={R} cy={R} r={R * k} class="modering" style:stroke-opacity={0.35 + 0.65 * (amps[i] ?? 0)} />{/each}
+        <!-- and the body itself, engraved over them -->
+        {#if body}<BodyFace {body} cx={R} cy={R} r={R} ringing={amps[0] ?? 0} />{/if}
       {:else if d.role === 'tape'}
         <!-- a reel: the wound tape (oxide brown), its layers, and the hub's three spokes -->
         <circle cx={R} cy={R} r={R * 0.78} class="pack" />
@@ -492,28 +515,34 @@
       {/each}
     {/if}
   </svg>
-  {#if exciters.length > 1}
-    <!-- its exciters: petal pads round the wheel — tap one to play it -->
-    {#each exciters as x, i (i)}
-      {@const deg = -90 + (i / exciters.length) * 360}
-      {@const pr = Math.max(9, Math.min(16, (Math.PI * R * 1.2) / exciters.length - 2))}
-      {@const p = polar(deg, R * 1.2)}
+  {#if places.length}
+    <!-- its exciters: each its body's element at its turn, its free end out to its strand — tap one to play it -->
+    {#each places as t, i (i)}
+      {@const p = polar(-90 + t.turn * 360, (t.inner + t.outer) / 2)}
       <button
-        class="pad"
+        class="exciter"
         style:left="{p.x}px"
         style:top="{p.y}px"
-        style:width="{pr * 2}px"
-        style:height="{pr * 2}px"
-        style:font-size="{Math.max(7, pr * 0.62)}px"
+        style:width="{t.width}px"
+        style:height="{t.outer - t.inner}px"
+        style:transform="translate(-50%, -50%) rotate({t.turn * 360}deg)"
+        style:font-size="{Math.max(7, Math.min(10, t.width * 0.8))}px"
         style:--glow={pads[i] ?? 0}
-        aria-label="Play {x.name}"
+        aria-label="Play {exciters[i].name}"
         onpointerdown={(e) => e.stopPropagation()}
         onclick={(e) => {
           e.stopPropagation();
-          ctx.sound.strike(d.name, 0.5, i); // (playing or not: a body rings whether or not the clocks run)
-        }}>{x.name.replace(/-?\d+$/, '')}</button
+          ctx.sound.strike(d.name, 0.5, i);
+        }}
+        ><ExciterShape body={body ?? 'tine'} w={t.width} h={t.outer - t.inner} scale={t.scale} /><span
+          class="note"
+          style:transform="translate(-50%, -100%) rotate({-t.turn * 360}deg)">{exciters[i].name.replace(/-?\d+$/, '')}</span
+        ></button
       >
     {/each}
+    {#if body === 'tine'}
+      <span class="bridge" style:left="{R - bridgeOf(R)}px" style:top="{R - bridgeOf(R)}px" style:width="{bridgeOf(R) * 2}px" style:height="{bridgeOf(R) * 2}px"></span>
+    {/if}
   {/if}
   {#each bulbs as b (b.name)}
     {@const p = polar(headAngle(b.at), b.dist)}
@@ -642,21 +671,41 @@
     opacity: 0;
     transform: translate(-50%, -50%) !important;
   }
-  /* an exciter's pad: brass, glowing as it rings */
-  .pad {
+  /* an exciter: its body's element (ExciterShape), glowing as it rings; its note just past its free end */
+  .exciter {
     position: absolute;
-    transform: translate(-50%, -50%);
-    border-radius: 50%;
-    border: 1px solid rgba(0, 0, 0, 0.5);
-    background: radial-gradient(circle at 35% 30%, var(--pad-0), var(--pad-1) 70%);
-    color: var(--pad-ink);
+    padding: 0;
+    border: none;
+    background: none;
+    color: var(--text);
     font-weight: 800;
     font-family: var(--font-ui);
-    padding: 0;
+    line-height: 1;
     cursor: pointer;
-    box-shadow: 0 0 calc(var(--glow) * 14px) color-mix(in srgb, var(--pad-glow) calc(var(--glow) * 90%), transparent);
-    filter: brightness(calc(0.85 + var(--glow) * 0.5));
+    filter: brightness(calc(0.9 + var(--glow) * 0.5)) drop-shadow(0 0 calc(var(--glow) * 6px) var(--pad-glow));
     z-index: 2;
+  }
+  .exciter:active {
+    filter: brightness(1.3);
+  }
+  .exciter .note {
+    position: absolute;
+    left: 50%;
+    top: -2px;
+    transform-origin: 50% 100%;
+    pointer-events: none;
+  }
+  /* the ring that holds a kalimba's tines down on its body */
+  .bridge {
+    position: absolute;
+    box-sizing: border-box;
+    border-radius: 50%;
+    border: 4px solid var(--tine-bridge);
+    box-shadow:
+      inset 0 0 0 1px rgba(0, 0, 0, 0.5),
+      0 0 0 1px rgba(0, 0, 0, 0.5);
+    pointer-events: none;
+    z-index: 3;
   }
   /* a read head as a bulb on its tape (decision 021): a small wheel in the read head's colour, its name inside */
   .head-bulb {
@@ -679,8 +728,5 @@
   }
   .head-bulb.off {
     opacity: 0.35;
-  }
-  .pad:active {
-    transform: translate(-50%, -50%) scale(0.92);
   }
 </style>

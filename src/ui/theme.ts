@@ -123,4 +123,6 @@ export const TIME = {
     [240, 120, 40],
     [255, 250, 190],
   ],
+  /** The waterfall where no note explains the sound (a drum, noise, an effect's tail); the rest in its voice's colour. */
+  unowned: [170, 170, 176],
 } as const;
