@@ -1,20 +1,27 @@
 import { describe, expect, it } from 'vitest';
-import { GENRES, PILL, byTier, freezeLayout, layoutKey, libraryLayout, libraryLayoutAsync, shortTitle, stageOf, thawLayout } from './library';
+import { GENRES, PILL, byTier, sideOf, freezeLayout, layoutKey, libraryLayout, libraryLayoutAsync, shortTitle, stageOf, thawLayout } from './library';
 import { PRESETS } from '../engine/presets';
 import { pieceMeta } from '../engine/parser';
-import { canonicalTags, TUTORIAL } from '../engine/tags';
+import { canonicalTags, MIDI_FILE, TUTORIAL } from '../engine/tags';
+import midiIndex from '../../midi/wtc/index.json';
 
-// the library as the app lists it: every example with its card's title, tags and tier
-const entries = Object.entries(PRESETS).map(([key, p]) => {
-  const m = pieceMeta(p.source);
-  return { id: `example:${key}`, title: m?.title ?? key, tags: canonicalTags(m?.tags ?? []), tier: m?.tier ?? null };
-});
+// the library as the app lists it: every example with its card's title, tags and tier, and the MIDI library (as
+// ui/entries.ts lists it)
+const entries = [
+  ...Object.entries(PRESETS).map(([key, p]) => {
+    const m = pieceMeta(p.source);
+    return { id: `example:${key}`, title: m?.title ?? key, tags: canonicalTags(m?.tags ?? []), tier: m?.tier ?? null };
+  }),
+  ...midiIndex.map((m) => ({ id: `midi:${m.key}`, title: m.title, tags: [MIDI_FILE, 'artist:Bach', 'genre:classical'], tier: null })),
+];
 const t0 = performance.now();
 const lib = libraryLayout(entries);
 const ms = performance.now() - t0;
 const everyPiece = entries.map((e) => ({ ...e, p: lib.at.get(`p:${e.id}`)! }));
-// the wheel's pieces (the tutorial's are a cell of their own)
-const pieces = everyPiece.filter((e) => !e.tags.includes(TUTORIAL));
+// the wheel's pieces (the tutorial's and the MIDI library's are cells of their own)
+const pieces = everyPiece.filter((e) => !sideOf(e));
+const files = everyPiece.filter((e) => e.tags.includes(MIDI_FILE));
+const side = (tag: string) => lib.sides.find((s) => s.tag === tag)!;
 const ladder = everyPiece.filter((e) => e.tags.includes(TUTORIAL)).sort((a, b) => a.tier! - b.tier!);
 
 describe('the library laid out', () => {
@@ -95,7 +102,7 @@ describe('the library laid out', () => {
     const p = pieces[0].p;
     expect(Math.hypot(first.at.get(`p:${pieces[0].id}`)!.x, first.at.get(`p:${pieces[0].id}`)!.y)).toBeLessThan(Math.hypot(p.x, p.y) * 0.2 + 1e-9);
     // (the tutorial's pieces from the middle of their own cell)
-    const c = lib.tutorial!;
+    const c = side(TUTORIAL);
     const q = ladder[ladder.length - 1];
     const at = first.at.get(`p:${q.id}`)!;
     expect(Math.hypot(at.x - c.x, at.y - c.y)).toBeLessThan(Math.hypot(q.p.x - c.x, q.p.y - c.y) * 0.2 + 1e-9);
@@ -120,7 +127,7 @@ describe('the library laid out', () => {
     expect(cos / n).toBeGreaterThan(0.5); // (0.72 when written; 1 would be every piece straight towards its genres)
   });
   it('draws the tutorial as a cell of its own beside the wheel, its tiers in rows from the top, a path', () => {
-    const c = lib.tutorial!;
+    const c = side(TUTORIAL);
     expect(c.order).toEqual(ladder.map((e) => `p:${e.id}`));
     expect(ladder.length).toBeGreaterThan(20);
     // (beside the wheel, clear of its rim and the genres' names)
@@ -138,13 +145,23 @@ describe('the library laid out', () => {
     expect(lib.at.get(`t:${TUTORIAL}`)).toEqual({ x: c.x, y: c.y - c.r });
     expect(lib.edges.filter((e) => e.target === `t:${TUTORIAL}`)).toHaveLength(ladder.length);
   });
+  it('draws the MIDI library as a cell of its own on the other side of the wheel, in the order of its books', () => {
+    const c = side(MIDI_FILE);
+    expect(c.order).toEqual(files.map((e) => `p:${e.id}`));
+    expect(c.x + c.r).toBeLessThan(-lib.ring!.r - 64);
+    expect(lib.x0).toBeLessThanOrEqual(c.x - c.r);
+    for (const e of files) expect(Math.hypot(e.p.x - c.x, e.p.y - c.y) + lib.wheel.get(`p:${e.id}`)!, e.id).toBeLessThanOrEqual(c.r);
+    expect(lib.at.get(`t:${MIDI_FILE}`)).toEqual({ x: c.x, y: c.y - c.r });
+    // (its pieces' other tags are the wheel's: Bach, classical)
+    expect(lib.edges.filter((e) => e.target === 't:artist:Bach' && e.source.startsWith('p:midi:'))).toHaveLength(files.length);
+  });
 });
 
 describe('a library of nothing but the tutorial', () => {
   it('still returns, with the tutorial laid out', () => {
     const only = entries.filter((e) => e.tags.includes(TUTORIAL));
     const l = libraryLayout(only);
-    expect(l.tutorial).toBeTruthy();
+    expect(l.sides.map((s) => s.tag)).toEqual([TUTORIAL]);
     for (const e of only) expect(l.at.get(`p:${e.id}`), e.id).toBeDefined();
   });
 });

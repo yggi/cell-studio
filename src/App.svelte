@@ -83,6 +83,7 @@
         nudge={(sec) => playback.nudge(sec)}
         cursor={playback.cursor}
         opened={library.opened}
+        refit={studio.foldFrames}
         focus={view.focus}
         onsheet={(name) => (studio.keys.sheet = name)}
         played={studio.keys.lit}
@@ -93,6 +94,14 @@
     {/if}
     {#if piece.stale}
       <p class="stale">Showing the last version that compiled</p>
+    {/if}
+    {#if studio.folding}
+      <!-- Convert to cells, watched: the folder's move and round, the piece as far as it got drawn beneath -->
+      <p class="folding" role="status">
+        <span class="spin" aria-hidden="true"></span>
+        Folding{studio.folding.round ? ` · round ${studio.folding.round}: ${studio.folding.tool}` : ''}
+        <button class="unstyled" onclick={() => studio.stopFolding()}>Stop</button>
+      </p>
     {/if}
   </section>
 
@@ -346,6 +355,47 @@
     border: 1px solid var(--danger);
     font-size: 13px;
     white-space: nowrap;
+  }
+  /* the folder at work: what it's doing, and a stop */
+  .folding {
+    position: absolute;
+    bottom: 14px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 5;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 0;
+    padding: 6px 8px 6px 12px;
+    border-radius: 999px;
+    background: var(--surface);
+    border: 1px solid var(--accent);
+    font-size: 13px;
+    white-space: nowrap;
+  }
+  .folding button {
+    padding: 2px 10px;
+    border-radius: 999px;
+    border: 1px solid var(--line);
+  }
+  .spin {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    border: 2px solid var(--accent);
+    border-right-color: transparent;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin {
+    to {
+      transform: rotate(1turn);
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .spin {
+      animation: none;
+    }
   }
 
   .side {
