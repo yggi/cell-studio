@@ -346,7 +346,7 @@ export class Keys {
   // a message from the MIDI input: a note, or the pedal, unless MIDI learn has it
   #heard(data: Uint8Array, ms: number, source = ''): void {
     // (All notes off, All sound off: a controller's panic lets every key go and the pedal up, even a CC that learn has bound)
-    if ((data[0] & 0xf0) === 0xb0 && (data[1] === 123 || data[1] === 120)) return this.panic();
+    if ((data[0]! & 0xf0) === 0xb0 && (data[1] === 123 || data[1] === 120)) return this.panic();
     if (this.#claimed(data)) return;
     const pedal = parseSustain(data);
     if (pedal) {

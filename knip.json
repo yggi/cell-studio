@@ -2,5 +2,5 @@
   "$schema": "https://unpkg.com/knip@6/schema.json",
   "entry": ["tools/**/*.{ts,mjs,svelte}", "src/ui/PerfOverlay.svelte"],
   "project": ["src/**/*.{ts,svelte}", "tools/**/*.{ts,mjs,svelte}"],
-  "ignoreDependencies": ["@typescript/native-preview", "playwright"]
+  "ignoreDependencies": ["playwright"]
 }
