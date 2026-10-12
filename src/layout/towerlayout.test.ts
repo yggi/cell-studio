@@ -4,7 +4,7 @@ import { buildGraph } from '../engine/graph';
 import { compileSource } from '../engine/compile';
 import { ForceLayout } from './physics';
 import { TOWER_LAYOUT } from './options';
-import { routeWire, towerAt, towerHeights, towerIns, towerOuts, towerRows, towerY, withoutCard } from './towerlayout';
+import { routeWire, towerAt, towerHeights, towerIns, towerOuts, towerY, withoutCard } from './towerlayout';
 import { socketOf, VOICE_SIZE } from './voice';
 
 const waltz = () => {
@@ -92,13 +92,11 @@ describe('the tower layout', () => {
     expect(routeWire(0, 100, -1000, [box('d', -400, 80, 200)], 'src').hops).toBe(1);
   });
 
-  it('pushes held cells apart sideways: the flute and the strings, one row, dropped on one place', () => {
+  it('keeps held cells apart: the flute and the strings, one row, dropped on one place', () => {
     const { program, model } = waltz();
     const drawn = withoutCard(model);
     const heights = towerHeights(program, drawn);
-    const wireRows = towerRows(towerOuts(program, model), program, drawn, heights);
-    expect(wireRows).toHaveLength(3);
-    const layout = new ForceLayout(() => {}, { ...TOWER_LAYOUT, heights, wireRows, live: false });
+    const layout = new ForceLayout(() => {}, { ...TOWER_LAYOUT, heights, live: false });
     layout.setGraph({ ...drawn, nodes: drawn.nodes.filter((n) => !n.petalOf) });
     // (both at x 0, one on top of the other, then let go)
     layout.dragStart('cell:strings', 0, 0);

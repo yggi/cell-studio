@@ -49,12 +49,6 @@ export interface LayoutOptions {
    * moves only sideways, dragged too. Unset: every node is free.
    */
   heights?: ReadonlyMap<string, number>;
-  /** (the tower layout, held.ts) The heights the sound wires run along (the graph's y): free nodes kept off them by `rowClear`. */
-  wireRows?: readonly number[];
-  /** (held.ts) How hard a free node is pushed off a sound wire's row (0: off). */
-  rowClear: number;
-  /** (held.ts) How hard two nodes, one of them held, overlapping are pushed apart sideways (0: off; d3's collision alone). */
-  sideCollide: number;
   layerGap: number;
   /** Edge length at rest (px). */
   linkDistance: number;
@@ -138,8 +132,6 @@ export const DEFAULT_LAYOUT: LayoutOptions = {
   partLength: 0.8,
   rankPull: 0.05,
   upPull: 0,
-  rowClear: 0,
-  sideCollide: 0,
   centre: 0.004,
   columnPull: 0.035,
   layerGap: 130,
@@ -157,25 +149,12 @@ export const DEFAULT_LAYOUT: LayoutOptions = {
 };
 
 /**
- * The tower layout's forces (docs/notes/tower-strip.md): heights are held (`heights`), so the pulls to rows and columns,
- * the spread and the kinds' and tags' pushes are off; what is left keeps nodes apart and draws what is joined together,
- * sideways. Rows in one order (no trials), and meters stay where the forces put them.
+ * The tower layout's forces (docs/notes/tower-strip.md): today's, with heights held (`heights`), but no meter placed
+ * last (it would be put at a height of its own; held to its row it overlapped others in 7 pieces of 75). Measured over
+ * the library against the few forces first tried (no rows, columns, spread, kinds or tags): crossings 130 → 91, area
+ * 125 → 108 Mpx², no overlaps either way.
  */
-export const TOWER_LAYOUT: Partial<LayoutOptions> = {
-  rankPull: 0,
-  columnPull: 0,
-  upPull: 0,
-  spread: 0,
-  kindRepel: 0,
-  tagPull: 0,
-  tagRepel: 0,
-  mux: 0,
-  clusters: false,
-  rowOrder: 0,
-  placeLast: 0,
-  rowClear: 0.5,
-  sideCollide: 1,
-};
+export const TOWER_LAYOUT: Partial<LayoutOptions> = { placeLast: 0 };
 
 /**
  * A node's room: the wheel itself (size= scales it), and what hangs under it — its label, as wide as

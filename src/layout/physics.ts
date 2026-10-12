@@ -9,7 +9,6 @@
  * the forces (forces.ts, aims.ts, nets.ts: stepNets), the nets (nets.ts) and the meters placed last (placement.ts),
  * under the options (options.ts).
  */
-import { stepHeld } from './held';
 import { forceX, forceY, forceCollide, forceLink, forceManyBody, forceSimulation, type Simulation } from 'd3-force';
 import type { GraphModel } from '../engine/graph';
 import { drawnCrossings, layoutQuality, type LayoutQuality } from './quality';
@@ -109,10 +108,7 @@ export class ForceLayout {
       // turntables: nothing overlaps them — a node that would is set at their edge
       .force('exclusion', () => stepExclusion(this.s))
       // (the tower layout) heights held: whatever moved a node, it ends the tick at its height
-      .force('heights', (alpha: number) => {
-        stepHeld(this.s, alpha);
-        this.hold();
-      })
+      .force('heights', () => this.hold())
       .on('tick', () => {
         placeJunctions(this.s);
         onTick();

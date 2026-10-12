@@ -51,7 +51,7 @@ Stereo in A (if the strings had `pan=-.6`):
 ## Built
 
 - `layout/towerlayout.ts`: `towerHeights` (each node's y held: a voice's top at `towerY(log10 f0)`, a stepped cell's centre at its step, `TOWER_PX` = 360 px a decade), `withoutCard` (the graph drawn without the sound card's node and its edges), `towerOuts` / `towerIns` (what went into the card, and where its wire leaves).
-- `LayoutOptions.heights` (`physics.ts: hold`): each named node ends every tick at its height (d3's `fy`), dragged too; `TOWER_LAYOUT` the few forces left (no rows, columns, spread, kinds, tags; one row order; meters not placed last).
+- `LayoutOptions.heights` (`physics.ts: hold`): each named node ends every tick at its height (d3's `fy`), dragged too; `TOWER_LAYOUT` the forces (first few: no rows, columns, spread, kinds, tags; now today's without the meters placed last, below).
 - `GraphLayout.mode` (`'flow' | 'tower'`, `setMode` lays the piece out afresh); the toolbar's *tower layout*, `?layout=tower` (`?strips`: opened); the gallery: `LAYOUT=tower STRIPS=1 node tools/gallery.mjs golden 3 waltz`.
 - `TowerStrips.svelte` (the strips: a canvas each, the rainbow, the zones, the spectra per band, the connectors), `TowerWires.svelte` (the wires, behind the cells, in the graph's coordinates).
 - `towerlayout.test.ts`: the waltz's heights, no card, a two-channel card split left and right, heights held through the forces and a drag.
@@ -94,9 +94,39 @@ The waltz, stopped with the strips open, and live with them folded:
 - **Today's forces with heights held** cross less (80) but overlap in 29 pieces: the forces built for free nodes push in y, where nothing can move, and outweigh the collision sideways. The few forces keep nothing overlapping. A middle set (today's sideways forces, no y pushes) is worth a run.
 - So, as [tower-rows.md](tower-rows.md) found for rows by the tower: **height by the tower costs crossings in today's language**, most where it arranges with selectors, tapes and resonators; contrapuntal and song-form pieces fit it. What the tower layout adds of its own is the wires' cost, the first thing to work on.
 
+## Wires and forces (2026-10-12)
+
+The owner's next two: cut the wires' cost, and a middle set of forces. Same probe, 75 examples × 3 seeds (`hops routed`: the hops the wires make round cells, below).
+
+| layout | crossings | cost | area Mpx² | pieces with an overlap | over a cell (of them free) | hops routed | over an edge |
+|---|---|---|---|---|---|---|---|
+| today, no card node | 33.3 | 118.1 | 65.4 | 0 | — | — | — |
+| tower, few forces (as first built) | 130.0 | 397.9 | 124.6 | 0 | 149.3 (0.7) | 136.7 | 406.0 |
+| … + a sideways collision and free cells off the wires' rows (tried, dropped) | 132.7 | 433.4 | 144.0 | 0.3 | 151.3 (0.3) | 136.7 | 401.0 |
+| … + spread | 135.3 | 437.7 | 122.1 | 0 | 148.3 | 136.3 | 406.0 |
+| … + columns | 122.0 | 384.3 | 117.0 | 0 | 150.0 | 138.0 | 407.7 |
+| … + row trials | 102.3 | 323.8 | 122.7 | 0 | 151.3 | 137.0 | 408.7 |
+| … + meters last, held to their row | 118.0 | 365.1 | 123.0 | 8.7 | 148.7 | 136.0 | 407.7 |
+| … + row trials, spread, columns | 108.3 | 352.2 | 116.5 | 0 | 151.0 | 137.0 | 406.3 |
+| tower, today's forces (meters last held to their row) | 77.3 | 249.6 | 105.8 | 7.3 | 154.0 | 138.3 | 401.3 |
+| **tower, today's forces, no meters last** (`TOWER_LAYOUT`) | **90.7** | **301.9** | **108.3** | **0** | 152.0 | 137.0 | 403.0 |
+| … and no kinds apart | 93.3 | 318.1 | 108.2 | 0 | 152.3 | 136.7 | 402.0 |
+| … and no tags | 102.3 | 350.9 | 110.7 | 0 | 150.0 | 136.0 | 406.3 |
+
+- **With two strips a wire spans the whole graph** (from the left strip through its source to the right one), so no sideways move takes a cell off another's wire. And the cells under wires are held ones (149 of 150): a free cell is under a wire 0.7 times in the library. So pushing free cells off the rows (`rowClear`) had nothing to do, and a sideways collision for held cells (d3's pushes along the line of centres, and a held cell drops the vertical part) changed no overlap; both were dropped.
+- **So the wires go round**: `routeWire` (`towerlayout.ts`) runs a wire level at its height and hops it over a cell in its way, or under it when its row passes through the cell's lower part, cells close together one hop; about 137 hops in the library, and no wire passes over a wheel any more. Its crossings with edges (~400) stay: an edge from below a row to above it crosses a wire that spans the whole width, whatever the layout does. They are the price of option B; one strip would halve them.
+- **The forces: today's, without the meters placed last.** The overlaps with today's forces were the meters placed last: put at the best (x, y), then pulled back to their height onto a neighbour. A held meter is now sought along its own row only (`placement.ts`), which takes the overlaps from 29 pieces to 7, still not none; without it, none, and 91 crossings against the first build's 130 (area 125 → 108 Mpx²). Of today's forces, the row trials and the tags do the most; kinds apart a little; spread alone nothing.
+- Seen (stopped, the real Graph): the waltz's tuba wire dips under the flute and the strings; *Baustelle*'s wires hop over its mixes, a dense web at the top but none through a wheel; *Pop*.
+
+![the waltz, routed](tower-strip-routed-waltz.jpg)
+
+![Baustelle, routed](tower-strip-routed-baustelle.jpg)
+
+![Pop, routed](tower-strip-routed-pop.jpg)
+
 ## Next
 
-1. Wires and held cells: keep cells off the wires' rows (a sideways push off another's wire, measured with the probe's *over a cell*), or a wire takes the strip on its own side only when its source is nearer it (stereo kept on the strip, not on the wire).
-2. A middle set of forces: today's sideways ones, nothing pushing in y; and the card's node dropped from today's layout too (−13 crossings), its own issue.
-3. A mix's own height: today a mix sits a hair above the highest sound it carries (`towerOf`), its centre there, so its wire leaves its top just above; whether a mix should sit where its own output is read (its top) as a voice does.
-4. The tower's axis (the signal path's layout's *tower* button) and the strips: one of them, once the layout is chosen.
+1. The tower layout still crosses about three times today's (91 against 33, the card left out of both), most in the pieces arranged with selectors, tapes and resonators (#234's language side: a selector that sends gates).
+2. The wires' crossings with edges: one strip (stereo on its two halves, option A) would halve them; or a wire runs to the near strip only, its other channel drawn on the strip itself.
+3. Meters placed last on their row without overlapping (room made sideways), then measured again: today's forces with them crossed 77.
+4. A mix's own height (centre vs top), and the tower's axis against the strips: one of them, once the layout is chosen.

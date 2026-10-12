@@ -13,17 +13,18 @@ import { buildGraph, type GraphModel } from '../../src/engine/graph';
 import { compileSource } from '../../src/engine/compile';
 import { PRESETS } from '../../src/engine/presets';
 import { TOWER_LAYOUT, type LayoutOptions } from '../../src/layout/options';
-import { routeWire, towerHeights, towerIns, towerOuts, towerRows, withoutCard } from '../../src/layout/towerlayout';
+import { routeWire, towerHeights, towerIns, towerOuts, withoutCard } from '../../src/layout/towerlayout';
 
 const log = (t: string) => appendFileSync(process.env.PROBE!, t + '\n');
 
 type Variant = { name: string; tower: boolean; card: boolean; opts: Partial<LayoutOptions> };
-const FEW = { ...TOWER_LAYOUT, sideCollide: 0, rowClear: 0 };
+// (the few forces first tried)
+const FEW: Partial<LayoutOptions> = { rankPull: 0, columnPull: 0, upPull: 0, spread: 0, kindRepel: 0, tagPull: 0, tagRepel: 0, mux: 0, clusters: false, rowOrder: 0, placeLast: 0 };
 const VARIANTS: Variant[] = [
   { name: 'today (the signal path)', tower: false, card: true, opts: {} },
   { name: 'today, no card node', tower: false, card: false, opts: {} },
   { name: 'tower, few forces (as first built)', tower: true, card: false, opts: FEW },
-  { name: 'tower, few forces + its own (TOWER_LAYOUT)', tower: true, card: false, opts: TOWER_LAYOUT },
+  { name: 'tower, TOWER_LAYOUT', tower: true, card: false, opts: TOWER_LAYOUT },
   { name: "tower, today's forces", tower: true, card: false, opts: {} },
   // a middle set: one of today's forces back at a time, then together (meters last now held to their row)
   { name: '… + spread', tower: true, card: false, opts: { ...FEW, spread: 0.5 } },
@@ -32,6 +33,10 @@ const VARIANTS: Variant[] = [
   { name: '… + meters last (on their row)', tower: true, card: false, opts: { ...FEW, placeLast: 1 } },
   { name: '… + row trials, spread, columns', tower: true, card: false, opts: { ...FEW, rowOrder: 3, spread: 0.5, columnPull: 0.035 } },
   { name: '… + row trials, spread, columns, meters last', tower: true, card: false, opts: { ...FEW, rowOrder: 3, spread: 0.5, columnPull: 0.035, placeLast: 1 } },
+  // today's forces, the meters where the forces leave them
+  { name: "tower, today's forces, no meters last", tower: true, card: false, opts: { placeLast: 0 } },
+  { name: '… and no kinds apart', tower: true, card: false, opts: { placeLast: 0, kindRepel: 0 } },
+  { name: '… and no tags', tower: true, card: false, opts: { placeLast: 0, tagPull: 0, tagRepel: 0, mux: 0, clusters: false } },
 ];
 
 interface Row {
@@ -71,8 +76,7 @@ function measure(source: string, v: Variant, seed: number): Row {
   const model: GraphModel = v.card ? whole : withoutCard(whole);
   const heights = v.tower ? towerHeights(program, model) : undefined;
   const outs = towerOuts(program, whole);
-  const wireRows = heights ? towerRows(outs, program, model, heights) : undefined;
-  const l = new ForceLayout(undefined, { live: false, seed, ...v.opts, ...(heights ? { heights, wireRows } : {}) });
+  const l = new ForceLayout(undefined, { live: false, seed, ...v.opts, ...(heights ? { heights } : {}) });
   l.setGraph({ ...model, nodes: model.nodes.filter((n) => !n.petalOf) });
   l.tick(500);
   l.layNet();

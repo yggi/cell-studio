@@ -9,7 +9,6 @@ import type { CompileResult } from '../engine/program';
 import type { GraphModel } from '../engine/graph';
 import { towerOf } from './tower';
 import { socketOf, VOICE_SIZE } from './voice';
-import { DEFAULT_LAYOUT } from './options';
 
 /** Pixels to a decade on the tower, the same in the graph and on its strips (even: the rainbow keeps its width). */
 const TOWER_PX = 360;
@@ -93,21 +92,6 @@ export function towerIns(outs: readonly TowerOut[], program: CompileResult, at: 
     const c = program.cells.get(name);
     const top = c?.voice && !c.lambda ? p.y - socketOf(VOICE_SIZE * c.size) : p.y - (p.height ?? 60) / 2;
     return [{ ...o, name, x: p.x, top }];
-  });
-}
-
-/**
- * The heights the sound wires run along (the graph's y), from the held heights: a voice's top (its base frequency),
- * anything else's top as its room puts it. A source with no height has none here (its wire goes where it is).
- */
-export function towerRows(outs: readonly TowerOut[], program: CompileResult, model: GraphModel, heights: ReadonlyMap<string, number>): number[] {
-  const nodes = new Map(model.nodes.map((n) => [n.id, n]));
-  return outs.flatMap((o) => {
-    const h = heights.get(o.from);
-    const n = nodes.get(o.from);
-    if (h === undefined || !n) return [];
-    const c = program.cells.get(o.from.slice('cell:'.length));
-    return [c?.voice && !c.lambda ? h - socketOf(VOICE_SIZE * c.size) : h - DEFAULT_LAYOUT.radius(n) * 0.6];
   });
 }
 
