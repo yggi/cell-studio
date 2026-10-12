@@ -7,7 +7,7 @@
   import type { CompileResult, Shifts } from '../engine/program';
   import { period, positionHue, positionOctave, resolvePitch, semitones } from '../engine/helix';
   import { pieceMeta } from '../engine/parser';
-  import { noteLabel, tonicOf, voiceBase, type Show } from '../layout/show';
+  import { noteFrame, noteLabel, type Show } from '../layout/show';
   import { noteColour } from './theme';
 
   let { program, shifts, source }: { program: CompileResult; shifts: Shifts; source: string } = $props();
@@ -23,8 +23,7 @@
   const MARK = ['*', '+', '-', '.', ','];
   const rows = $derived.by(() => {
     if (!main) return [];
-    const base = voiceBase(program, main);
-    const tonic = tonicOf(program, main);
+    const { base, tonic } = noteFrame(program, main);
     return Array.from({ length: 13 }, (_, v) => {
       const r = resolvePitch(program, main, v, 0, shifts);
       const semis = semitones(program, r.root, r.position);
