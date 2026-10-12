@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { compileSource } from '../engine/compile';
-import { buildGraph, feeds, type GraphEdge } from '../engine/graph';
+import { feeds, type GraphEdge } from '../engine/graph';
+import { buildGraph } from '../layout/drawn';
 import { codeShifts, type CompileResult } from '../engine/program';
 import { routing } from '../engine/routing';
 import { PRESETS } from '../engine/presets';

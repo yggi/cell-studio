@@ -10,7 +10,8 @@ import { NOTE_NAMES, mod, modeName } from '../theory/modes';
 import { playedCells } from '../engine/clocking';
 import { flatten, tapped } from '../engine/flatten';
 import { resolveIn } from '../engine/helix';
-import { bulbHosts, isTurntable } from '../engine/graph';
+import { isTurntable } from '../engine/graph';
+import { bulbHosts } from './drawn';
 import { bulbsOf, fanOf, type Bulb } from './track';
 
 /**
