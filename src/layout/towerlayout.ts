@@ -280,7 +280,6 @@ export function towerLayers(program: CompileResult, model: GraphModel, drawn: Gr
   // (the voices: a row between the structure's top and the lowest socket, a layer's gap over the structure at least)
   const voice = Math.max(top + LAYER_GAP, audible.length ? (top + Math.min(...audible)) / 2 : top + LAYER_GAP);
   const targets = new Map<string, number>();
-  for (const [id, l] of layers)
-    targets.set(id, towerY(l === 'voice' ? voice : l === 'table' ? bottom - LAYER_GAP : decades.get(id)!));
+  for (const [id, l] of layers) targets.set(id, towerY(l === 'voice' ? voice : l === 'table' ? bottom - LAYER_GAP : decades.get(id)!));
   return { targets, layers };
 }
