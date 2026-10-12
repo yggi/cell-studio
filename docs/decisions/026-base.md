@@ -31,7 +31,7 @@ it in the parser keeps the compiler, the graph and the engine as they are.
 
 ## Consequences
 
-- The graph shows a copy as the plain cell it resolves to: no edge to its base yet (a follow-up: draw `base=` as a link).
+- The graph draws a copy's base as a wire from the base into the copy, the transposition written on it (`engine/graph.ts`); the copy's node is the plain cell it resolves to.
 - Free values (`free(…)`) in a base aren't copied as sliders of their own: the copy plays the base's written value.
 - The folder writes variants this way (`engine/fold/variants.ts`); BWV 847 converted from MIDI has its subject as one
   cell and its bent entries as copies.

@@ -12,7 +12,7 @@ A voice is a cell looped at audio rate: `loop=440` plays its braid 440 times a s
 
 With no braid a voice holds 0…11 of the 12 grid: a 12-step saw. Or name a built-in waveform with dough's **`s=`** (sine tri saw square pulse white pink brown). Levels and stereo are the mix's job; envelopes are cells, `map=adsr`. A voice with no envelope in its product plays quick and full. Rendering uses Tone.js.
 
-Sound parameters use dough's names; any of them makes a cell a voice. Dough's other names for them (`cutoff=`, `verb=` …, listed in [reference.md](reference.md)) aren't read: each is an error that names ours.
+Sound parameters use dough's names; any of them makes a cell a voice. Strudel's and dough's other names for them (`cutoff=`, `verb=` …, listed in [reference.md](reference.md)) aren't read: each is an error that names ours.
 
 | parameter | what |
 |---|---|
@@ -24,7 +24,7 @@ Sound parameters use dough's names; any of them makes a cell a voice. Dough's ot
 | `distort=` | distortion: 0 clean, .3 gritty, 1 and more harsh |
 | `crush=` | bit depth: 16 clean, 8 grainy, 3 and fewer rubble |
 
-FM (`fm=` `ratio=` `index=`) and resonators (`body=` `ring=` `hard=`) are on [physics.md](physics.md). Dough's other names for these (`cutoff`, `reverb` …) still read, with a warning naming ours. Each parameter's meaning, and what it acts on, is in one table in the code, `src/engine/attributes.ts`; on a cell where it does nothing it is a warning.
+FM (`fm=` `ratio=` `index=`) and resonators (`body=` `ring=` `hard=`) are on [physics.md](physics.md). Each parameter's meaning, and what it acts on, is in one table in the code, `src/engine/attributes.ts`; on a cell where it does nothing it is a warning.
 
 ```cells
 &square loop=220 0 1

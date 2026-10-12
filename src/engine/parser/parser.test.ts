@@ -101,18 +101,18 @@ describe('parse: rates, stride and voices', () => {
     expect(one('&key step=cycle(&theme) stride=7').stride).toBe(7);
   });
 
-  it("reads dough parameters on voices; dough's other names are errors that name ours", () => {
+  it("reads dough parameters on voices; Strudel's and dough's other names are errors that name ours", () => {
     const c = one('&lead s=saw step=261.63 lpf=1800 lpq=2 room=.4');
     expect(c.params).toEqual({ s: 'saw', lpf: 1800, lpq: 2, room: 0.4 });
     const r = parse('&lead s=saw reverb=.4');
     expect(r.cells).toEqual([]);
     expect(r.diagnostics).toEqual([
-      { severity: 'error', message: "reverb= is dough's other name for room=, and isn't read here: write room=", span: { line: 1, col: 13, len: 6 } },
+      { severity: 'error', message: "reverb= is Strudel's or dough's name for room=, and isn't read here: write room=", span: { line: 1, col: 13, len: 6 } },
     ]);
     // every one of them, inside an unnamed cell too
     for (const [alias, ours] of Object.entries(DOUGH_ALIASES))
       expect(parse(`&a [&t * &(s=saw ${alias}=300)]`).diagnostics.map((d) => [d.severity, d.message])).toEqual([
-        ['error', `${alias}= is dough's other name for ${ours}=, and isn't read here: write ${ours}=`],
+        ['error', `${alias}= is Strudel's or dough's name for ${ours}=, and isn't read here: write ${ours}=`],
       ]);
     // envelopes are cells now
     for (const k of ['attack', 'decay', 'sustain', 'release'])
