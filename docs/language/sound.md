@@ -34,7 +34,7 @@ FM (`fm=` `ratio=` `index=`) and resonators (`body=` `ring=` `hard=`) are on [ph
 &lead s=saw loop=261.63 lpf=2200
 ```
 
-**A stepped braid of voices plays them:** `&groove step=&bar/4 &bd ~ &hh ~ [&bd,&sd] ~ &hh &hh*2` is a drum pattern by name, mixed as it is (`[&groove * .6]`); a chord of voices sounds together, and repeats, ratchets, holds and chance work as on any step. A braid of voices without `step=` that a groove splices is a drum motif: `&fill &sd &sd*2 ~ &hh`, then `&groove step=&bar/4 &bd ~ &fill &fill[::-1]` (spliced, reversed, nested as any braid). It is the pattern below, read through a kit of its voices, without writing the kit; a braid of voices that something reads with `over=` stays that kit.
+**A stepped braid of voices plays them:** `&groove step=&bar/4 &bd ~ &hh ~ [&bd,&sd] ~ &hh &hh*2` is a drum pattern by name, mixed as it is (`[&groove * .6]`); a chord of voices sounds together, a subsequence squeezes them into a step (`&bd [&hh &hh]`, `[&hh ~ &hh, &bd]`), and repeats, ratchets, holds and chance work as on any step. A braid of voices without `step=` that a groove splices is a drum motif: `&fill &sd &sd*2 ~ &hh`, then `&groove step=&bar/4 &bd ~ &fill &fill[::-1]` (spliced, reversed, nested as any braid). It is the pattern below, read through a kit of its voices, without writing the kit; a braid of voices that something reads with `over=` stays that kit.
 
 ```cells
 &bar scan(1 1 1 1) step=120bpm

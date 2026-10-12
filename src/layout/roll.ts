@@ -43,6 +43,7 @@ function rowsOf(u: Unit | Token): readonly number[] | string {
   if (a.kind === 'ref') return `it splices &${a.name}`;
   if (a.kind === 'choice') return 'a choice ([a|b]) chooses its note';
   if (a.kind === 'mix') return 'it is a mix';
+  if (a.kind === 'seq') return 'a subsequence ([a b]) plays inside one step';
   if (a.kind === 'note') {
     if (a.pitched) return 'a note by name is a pitch, not a row';
     if (a.alter) return 'an accidental falls between rows';

@@ -65,6 +65,15 @@ describe('shorten', () => {
     expect(next).toContain('&t step=&bar 4 2 0@2 ~');
     expect(sounds(next)).toEqual(sounds(src));
   });
+  it('subsequences: a run of them counted, a fraction divided outside them only (decision 027)', () => {
+    const run = '&t step=4 [0 2] [0 2] [0 2] 4' + tail;
+    expect(first(run, 'run').apply(run)).toContain('&t step=4 [0 2]!3 4');
+    expect(sounds(first(run, 'run').apply(run))).toEqual(sounds(run));
+    const src = '&bar step=120bpm 0 0 0 0\n&t step=&bar/2 [4@2 2@2]@2 2@2 0@4' + tail;
+    const next = first(src, 'fraction').apply(src);
+    expect(next).toContain('&t step=&bar [4@2 2@2] 2 0@2');
+    expect(sounds(next)).toEqual(sounds(src));
+  });
   it('a phrase too short to pay for its own line is left as it is', () => {
     const src = '&t step=4 0 4 7 2 5 9 1 0 4 7 2 5 9' + tail;
     expect(shorten(src).filter((x) => x.kind === 'phrase')).toEqual([]);

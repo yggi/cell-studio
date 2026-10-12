@@ -7,7 +7,8 @@
  * it reads through and the cells it splices in; voices sit beyond what they play.
  */
 import { isMidiCard, type CompileResult, type ResolvedCell } from './program';
-import type { Binding, Pick, ValueMap } from './ast';
+import type { Atom, Binding, Pick, ValueMap } from './ast';
+import { leaves } from './subseq';
 import { cellId, clockTapId, edgeId, junctionId, stepEdgeId } from './ids';
 import type { Transform } from './transform';
 
@@ -327,8 +328,8 @@ export function writtenGraph(result: CompileResult): WrittenGraph {
     if (voiceKit?.implicit && voiceKit.kit) {
       const members = voiceKit.units.map((u) => (u.atom.kind === 'ref' ? u.atom.name : ''));
       const written = new Map<string, number>();
-      for (const u of c.units)
-        for (const i of u.atom.kind === 'note' ? [u.atom.value] : u.atom.kind === 'chord' ? u.atom.notes : []) written.set(members[i], (written.get(members[i]) ?? 0) + 1);
+      for (const a of c.units.flatMap((u) => leaves(u.atom)))
+        for (const i of a.kind === 'note' ? [a.value] : a.kind === 'chord' ? a.notes : []) written.set(members[i], (written.get(members[i]) ?? 0) + 1);
       for (const [child, count] of written)
         link({
           id: edgeId(id, cellId(child)),
@@ -437,7 +438,7 @@ export function writtenGraph(result: CompileResult): WrittenGraph {
         target: cellId(child),
         count,
         // (each place it is written in this cell's steps: its pick or shift, operations, transposition)
-        transforms: c.units.flatMap((u) => (u.atom.kind === 'ref' && u.atom.name === child ? [refTransform(u.atom)] : [])),
+        transforms: c.units.flatMap((u) => leaves(u.atom).flatMap((a) => (a.kind === 'ref' && a.name === child ? [refTransform(a)] : []))),
         ...spliceSound(child),
         ...wire('braid', spliceBand(child), id, cellId(child), chord(child), true, true),
       });
@@ -728,11 +729,17 @@ function chordWidth(result: CompileResult): (name: string) => number {
   const of = (name: string, guard = 0): number => {
     const hit = memo.get(name);
     if (hit !== undefined) return hit;
+    // (a stack, [0 2, 4], as wide as its layers side by side; a subsequence as its widest step)
+    const width = (a: Atom): number =>
+      a.kind === 'chord'
+        ? a.notes.length
+        : a.kind === 'ref' && guard < 64
+          ? of(a.name, guard + 1)
+          : a.kind === 'seq'
+            ? a.layers.reduce((n, l) => n + Math.max(1, ...l.map((t) => width(t.atom))), 0)
+            : 1;
     let w = 1;
-    for (const u of result.cells.get(name)?.units ?? []) {
-      if (u.atom.kind === 'chord') w = Math.max(w, u.atom.notes.length);
-      else if (u.atom.kind === 'ref' && guard < 64) w = Math.max(w, of(u.atom.name, guard + 1));
-    }
+    for (const u of result.cells.get(name)?.units ?? []) w = Math.max(w, width(u.atom));
     memo.set(name, w);
     return w;
   };
