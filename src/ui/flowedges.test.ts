@@ -104,7 +104,8 @@ describe('what an edge carries: one lookup by band and port', () => {
 &left [&groove * .5, &tune * &lead, &alt * &lead]
 &out map=sample &left &left`);
     const model = buildGraph(program);
-    const edge = (from: string, to: string) => model.edges.find((e) => e.from === `cell:${from}` && e.to === `cell:${to}`)!;
+    // (a voice a groove names leaves from its piece on the drums' kit: its wire, its bulb)
+    const edge = (from: string, to: string) => model.edges.find((e) => (e.from === `cell:${from}` || e.bulb === from) && e.to === `cell:${to}`)!;
     expect(edge('bd', 'groove').band).toBe('audio');
     expect(carried(edge('bd', 'groove'), program)).toEqual({ phaseCell: null, voice: 'bd' });
     expect(edge('left', 'out').band).toBe('audio');
@@ -116,7 +117,7 @@ describe('what an edge carries: one lookup by band and port', () => {
 describe('sound up through patterns (#273): a pattern of voices spliced into another carries sound', () => {
   const edge = (source: string, from: string, to: string) => {
     const program = compileSource(source);
-    const e = buildGraph(program).edges.find((x) => x.from === `cell:${from}` && x.to === `cell:${to}`);
+    const e = buildGraph(program).edges.find((x) => (x.from === `cell:${from}` || x.bulb === from) && x.to === `cell:${to}`);
     return { e: e!, program };
   };
   it('IDM: the voice into its pattern and the pattern into the break are both sound, the break coloured by its first voice', () => {

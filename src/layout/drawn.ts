@@ -4,6 +4,7 @@
  * host (decision 014, every sub-wheel: decision 021), the room a host's bulbs take and where their edges leave from.
  */
 import { cellId, edgeId } from '../engine/ids';
+import { VOICE_KIT } from '../engine/compiler/declare';
 import type { CompileResult } from '../engine/program';
 import { feeds, netsOf, writtenGraph, type GraphEdge, type GraphModel, type GraphNode, type WrittenGraph } from '../engine/graph';
 import { effectiveShow } from './show';
@@ -96,6 +97,8 @@ function petals(result: CompileResult, written: WrittenGraph, withBulbs: boolean
   const alias = new Map<string, string | undefined>();
   for (const r of redrawn) alias.set(r.id, r.pair === null ? undefined : ids.has(r.pair) ? r.pair : byPair.get(r.pair));
   for (const e of allEdges) if (hidden.has(e.source) || hidden.has(e.target)) alias.set(e.id, undefined);
+  // (a groove reads the drums' kit, but its over= isn't written: its wires are the drums it names, from their pieces)
+  for (const c of result.cells.values()) if (c.over === VOICE_KIT) alias.set(edgeId(cellId(c.name), cellId(VOICE_KIT)), undefined);
   const drawnIds = new Set(out.map((e) => e.id));
   for (const id of through) if (!drawnIds.has(id) && !alias.has(id)) alias.set(id, undefined);
   // (an unnamed cell written on a voice's line, its envelope and its other modifiers, is drawn as part of the voice's

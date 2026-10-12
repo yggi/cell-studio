@@ -1,6 +1,7 @@
 /** A braid's steps: numbers, rests, chords, subsequences, choices, cells (picked, shifted, transposed) and their modifiers. */
 import type { Atom, Token, ValueMap } from '../ast';
 import { MAX_NESTING, MAX_REPS, type LineScanner } from './scanner';
+import { parseFields } from './level';
 import { isMixChord, parseMixChord } from './mix';
 import { syntax, type Syntax } from './syntax';
 
@@ -15,9 +16,9 @@ export const STEP_SYNTAX: readonly Syntax[] = [
   ),
   syntax(
     'step',
-    'n# · nb',
-    'A number with accidentals: one step up (#) or down (b) on the grid below the table it reads — 6# over a scale is its 7th degree raised a semitone.',
-    ['&tune over=&major step=2 0 4 6# 7 3b'],
+    'n# · nb · ns · nf',
+    'A number with accidentals: one step up (# or s) or down (b or f) on the grid below the table it reads — 6# over a scale is its 7th degree raised a semitone; s and f are Strudel’s spelling of the same, mixed and repeated as it allows (6s, 2sb).',
+    ['&tune over=&major step=2 0 4 6# 7 3b', '&tune over=&major step=2 0 4 6s 7 3f'],
     'tables.md',
   ),
   syntax('step', 'n/d', 'A fraction: 9/8, 3/2 (the ratios of a map=ratios grid).', ['&just map=ratios 1 9/8 5/4 3/2 2'], 'tuning.md'),
@@ -133,7 +134,10 @@ function parseAtom(s: LineScanner, depth: number): Atom {
   }
   if (c === '-' || c === '.' || (c >= '0' && c <= '9')) {
     const n = s.num('a number');
-    return { kind: 'note', value: n.value, alter: n.alter };
+    // (Strudel's other spelling of an accidental on a degree: s a sharp, f a flat, mixed with # and b: `6s`, `7f`)
+    const more = s.match(/[#bsf]+(?![A-Za-z0-9_])/y) ?? '';
+    const alter = n.alter + [...more].reduce((a, ch) => a + (ch === '#' || ch === 's' ? 1 : -1), 0);
+    return { kind: 'note', value: n.value, alter };
   }
   // a note by name: a pitch, whatever the tables (C, F#, Bb3; octave 4 left out)
   const name = s.noteName();
@@ -222,12 +226,23 @@ export const CHANCE_SYNTAX = syntax(
   'cell.md',
 );
 
+export const LEVEL_SYNTAX = syntax(
+  'modifier',
+  '&x:0:gain',
+  'A hit\'s own gain, as Strudel spells a sound\'s fields (s("hh:0:.4")): its number in its table (0; a pitched hit is not yet), then its gain, linear (1 as it is). In a groove, and in its chords: [&bd, &hh:0:.4].',
+  ['&beat step=8 [&bd,&hh] &hh:0:.4 [&sd,&hh] &hh:0:.4'],
+  'cell.md',
+);
+
 export function parseToken(s: LineScanner, depth = 0): Token {
   const start = s.i;
   const atom = parseAtom(s, depth);
   const mods = { repeat: 1, subdivide: 1, elongate: 1 };
   let chance: number | null | undefined;
+  let level: number | undefined;
   const seen = new Set<string>();
+  // (a voice's hit fields, &hh:0:.4: its gain)
+  if (atom.kind === 'ref') level = parseFields(s);
   while (s.peek() in MODIFIERS || s.peek() === '?') {
     if (s.peek() === '?') {
       // x?p: it is dropped with probability p; x? alone: the cell's chance=
@@ -250,5 +265,5 @@ export function parseToken(s: LineScanner, depth = 0): Token {
   }
   // (inside brackets a step ends at the bracket, a comma or a bar too)
   if (!s.atBoundary() && !(depth > 0 && /[\],|]/.test(s.peek()))) s.fail(`Unexpected '${s.peek()}' — separate steps with spaces`);
-  return { atom, ...mods, ...(chance !== undefined ? { chance } : {}), span: s.span(start) };
+  return { atom, ...mods, ...(chance !== undefined ? { chance } : {}), ...(level !== undefined ? { level } : {}), span: s.span(start) };
 }

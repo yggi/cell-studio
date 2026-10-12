@@ -29,7 +29,8 @@ describe('a cell in words', () => {
   it('a selector and a mix', () => {
     const pop = compileSource(PRESETS.pop.source);
     expect(text(summary(pop, 'song'))).toBe('Arranges 6 parts over 10 sections, once.');
-    expect(text(summary(pop, 'hookPart'))).toBe('Mixes 1 sound.');
+    const mix = compileSource('&lead s=saw loop=C4\n&tune 0 2 4 step=2\n&hookPart [&tune * &lead * .35]\n&out map=sample [&hookPart]');
+    expect(text(summary(mix, 'hookPart'))).toBe('Mixes 1 sound.');
   });
   it('its connections, grouped, every one a cell', () => {
     const c = Object.fromEntries(connections(royal, 'theme').map((x) => [x.relation, x.cells]));
