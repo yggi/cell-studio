@@ -25,7 +25,7 @@ function commonest(lines: readonly (readonly Tok[])[], held: readonly (readonly 
     let lastAt = -2;
     for (let i = 0; i + 1 < toks.length; i++) {
       if (h && (h[i] || h[i + 1])) continue;
-      const k = pairOf(toks[i], toks[i + 1]).key;
+      const k = pairOf(toks[i]!, toks[i + 1]!).key;
       if (k === last && lastAt === i - 1) continue;
       counts.set(k, (counts.get(k) ?? 0) + 1);
       last = k;
@@ -68,38 +68,39 @@ export const pairs: Tool = (f: Folded, see) => {
     const nextHeld: (boolean[] | null)[] = [];
     seqs = seqs.map((toks, l) => {
       const h = held[l];
-      const vs = l >= f.lines.length ? copies.get(inside[l - f.lines.length]) : undefined;
+      const vs = l >= f.lines.length ? copies.get(inside[l - f.lines.length]!) : undefined;
       const out: Tok[] = [];
       const outHeld: boolean[] = [];
       const kept = vs?.map(() => ({ kids: [] as Rule['kids'][number][], patched: [] as boolean[] }));
       for (let i = 0; i < toks.length; i++) {
         if (i + 1 < toks.length && !(h && (h[i] || h[i + 1]))) {
-          const p = pairOf(toks[i], toks[i + 1]);
+          const p = pairOf(toks[i]!, toks[i + 1]!);
           if (p.key === best!.key) {
             rule ??= {
               key: name,
               kids: [
-                { key: toks[i].key, off: p.offA },
-                { key: toks[i + 1].key, off: p.offB },
+                { key: toks[i]!.key, off: p.offA },
+                { key: toks[i + 1]!.key, off: p.offB },
               ],
             };
             out.push({ key: name, base: p.base });
             outHeld.push(false);
             // (in each copy, the same two kept steps: one, the symbol at the copy's own base)
             vs?.forEach((v, c) => {
-              const q = pairOf({ key: v.kids[i].key, base: v.kids[i].off }, { key: v.kids[i + 1].key, base: v.kids[i + 1].off });
-              kept![c].kids.push({ key: name, off: q.base });
-              kept![c].patched.push(false);
+              const [a, b] = [v.kids[i]!, v.kids[i + 1]!];
+              const q = pairOf({ key: a.key, base: a.off }, { key: b.key, base: b.off });
+              kept![c]!.kids.push({ key: name, off: q.base });
+              kept![c]!.patched.push(false);
             });
             i++;
             continue;
           }
         }
-        out.push(toks[i]);
+        out.push(toks[i]!);
         outHeld.push(h?.[i] ?? false);
         vs?.forEach((v, c) => {
-          kept![c].kids.push(v.kids[i]);
-          kept![c].patched.push(v.patched![i]);
+          kept![c]!.kids.push(v.kids[i]!);
+          kept![c]!.patched.push(v.patched![i]!);
         });
       }
       vs?.forEach((v, c) => Object.assign(v, kept![c]));
@@ -116,8 +117,8 @@ export const pairs: Tool = (f: Folded, see) => {
   /** The lines and the symbols as folded so far. */
   function now(): Folded {
     const out = new Map(rules);
-    inside.forEach((k, i) => out.set(k, { key: k, kids: seqs[f.lines.length + i].map((t) => ({ key: t.key, off: t.base })) }));
+    inside.forEach((k, i) => out.set(k, { key: k, kids: seqs[f.lines.length + i]!.map((t) => ({ key: t.key, off: t.base })) }));
     for (const vs of copies.values()) for (const v of vs) out.set(v.key, { ...v, kids: [...v.kids], patched: [...v.patched!] });
-    return { lines: f.lines.map((l, i) => ({ ...l, toks: seqs[i] })), rules: out, looks: f.looks };
+    return { lines: f.lines.map((l, i) => ({ ...l, toks: seqs[i]! })), rules: out, looks: f.looks };
   }
 };

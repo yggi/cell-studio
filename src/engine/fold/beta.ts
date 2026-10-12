@@ -73,7 +73,7 @@ export const beta: Tool = (f: Folded, see) => {
         r.kids.forEach((k, i) => {
           for (const t of k.key === worst!.key ? expand(gone, k.off) : [{ key: k.key, base: k.off }]) {
             kids.push({ key: t.key, off: t.base });
-            patched.push(r.patched![i]);
+            patched.push(r.patched![i]!);
           }
         });
         rules.set(key, r.of === worst.key ? { key, kids } : { ...r, kids, patched });
