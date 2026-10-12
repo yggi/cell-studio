@@ -11,6 +11,7 @@ the MIDI library has a ratchet of its own (`src/engine/fold/midi.test.ts`, `ratc
 taken, the score 120,755. With the Inventions and Sinfonias and the Anna Magdalena Notebook (fold.md): 86 files, 81
 folds taken, the score 194,587. Folding in degrees too (decision 033): the examples 51,810, phrases back 67;
 the MIDI library 191,430 (the WTC 118,353, the Inventions and Sinfonias 56,917, Anna Magdalena 16,160), 81 folds
+taken. With passages at another speed (#345): the examples 51,713, phrases back 68; the MIDI library 183,046, 84 folds
 taken.
 
 `tools/probe/ratchet.test.ts` takes every example the way a MIDI file comes into the app (saved as MIDI and opened

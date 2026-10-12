@@ -171,7 +171,7 @@ describe('the fold watched as it runs (Convert to cells, live)', () => {
     expect(steps.at(-1)!.source.length).toBeLessThan(steps[0].source.length);
     // (two folds, in semitones and in degrees of its key, each to its end; then the one taken)
     expect(new Set(steps.map((s) => s.tool.replace(/, in .*$/, '')))).toEqual(
-      new Set(['start', 'phrases and their variants', 'pairs', 'taking back what doesn’t pay', 'folded', 'done']),
+      new Set(['start', 'passages at another speed', 'phrases and their variants', 'pairs', 'taking back what doesn’t pay', 'folded', 'done']),
     );
     expect(steps.some((s) => s.tool.endsWith('in degrees of C minor'))).toBe(true);
     // every step a piece that plays the same notes (a dozen of them, spread over the fold)

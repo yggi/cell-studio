@@ -127,6 +127,8 @@ as MIDI** in the Files page.
     through it (`over=&key`), a note is its degree (`6#`: the seventh raised a semitone) and a phrase comes back a step
     of the scale higher as itself moved (`&m3^1`), as a sequence does. Figures over chord tables are looked for in
     semitones only. The status line says which: *folded … in degrees of C minor*.
+  - *At another speed* (#345): a passage of 12 steps or more whose notes all share a length (eighths among sixteenths)
+    is a cell at its own speed, spliced slower: `&m3^$-7@2`; the same passage at two speeds is one cell.
 
 ## The MIDI library
 

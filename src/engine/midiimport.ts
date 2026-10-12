@@ -234,7 +234,7 @@ export function cellsFromMidi(
     for (const n of names) mix.push(voice ? `&${n} * &${voice} * .25` : `&${n} * .4`);
   }
   const write = (body: string[], how: string) => {
-    const label = `Opened from a MIDI file: ${count} notes in ${lines.length} line${lines.length === 1 ? '' : 's'}, ${perQuarter} steps a quarter note, ${how}.`;
+    const label = `Opened from a MIDI file: ${count} notes in ${lines.length} line${lines.length === 1 ? '' : 's'}, ${perQuarter} step${perQuarter === 1 ? '' : 's'} a quarter note, ${how}.`;
     return [
       `&piece title="${title.replace(/"/g, "'")}" tags="midi" label="${label}" about=&out`,
       // (where the file came from and on what terms: comments the piece keeps)
