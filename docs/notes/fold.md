@@ -143,7 +143,8 @@ runs before the variants and pairs, on the notes as written.
 - **The MIDI library: 191,430 → 183,046 (−4.4 %); folds taken 81 → 84** (three Anna Magdalena pieces fold now: the
   chorale BWV 510 opens each hand on a passage at half speed, `&m1^$5@2`, `&m3^$-7@2`). The WTC 118,353 → 112,818
   (−4.7 %), the Inventions and Sinfonias 56,917 → 55,129, Anna Magdalena 16,160 → 15,099.
-- **The examples: 51,810 → 51,713, phrases back 67 → 68**, notes kept by the same 64.
+- **The examples: 56,513 → 56,422, phrases back the same 65**, notes kept by the same 56 (the baseline as the examples pass,
+  #351, left it).
 - *Measured and left*: after pairs, it finds little (the lines are symbols by then: −38 characters); before them with
   runs from 4 steps, the MIDI library −4.1 % but the examples lose 6 phrases back (a stretched run hides a phrase from the
   variants); between variants and pairs, −2.9 %. Runs from 10 steps fold as 12 do; from 16, less.
