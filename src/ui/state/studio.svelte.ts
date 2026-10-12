@@ -124,18 +124,19 @@ export class Studio {
     download(new Blob([writeMidi(midi.smf).buffer as ArrayBuffer], { type: 'audio/midi' }), name);
   }
 
-  /** A MIDI file's text, converted: its notes written out as cells (engine/midiimport.ts), the piece open now. */
+  /** A MIDI file's text, converted: its notes as cells (engine/midiimport.ts), folded where that plays the same
+   * (engine/fold: figures, phrases, transpositions), the piece open now. */
   convert(): void {
     const midi = this.piece.midi;
     if (!midi) return;
     const open = this.library.open;
     const name = open.kind === 'file' ? open.name.replace(/\.(midi?|smf)$/i, '') : 'MIDI file';
-    const made = cellsFromMidi(midi.smf, midi.smf.name?.trim() || name);
+    const made = cellsFromMidi(midi.smf, midi.smf.name?.trim() || name, { shorten: true });
     this.piece.code = made.source;
     if (open.kind === 'file') this.library.open = { kind: 'file', name: `${name}.cells` };
     this.view.tab = 'graph';
-    const { notes, lines, perQuarter, moved, dropped } = made;
-    this.view.message = `Converted to cells: ${notes} notes in ${lines} line${lines === 1 ? '' : 's'}, ${perQuarter} steps a quarter note${moved ? `, ${moved} moved onto that grid` : ''}${dropped ? `, ${dropped} drum notes with no drum voice left out` : ''}. Shorten folds it.`;
+    const { notes, lines, perQuarter, moved, dropped, folded } = made;
+    this.view.message = `Converted to cells: ${notes} notes in ${lines} line${lines === 1 ? '' : 's'}, ${perQuarter} steps a quarter note${moved ? `, ${moved} moved onto that grid` : ''}${dropped ? `, ${dropped} drum notes with no drum voice left out` : ''}, ${folded ? 'folded: what comes back written as cells of its own' : 'written out in full'}.`;
   }
 
   /** Save the piece's notes as a MIDI file (#307): as MIDI out sends them, a track a channel, its tempo map as tempos. */

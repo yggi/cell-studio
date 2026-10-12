@@ -135,7 +135,7 @@ export const TIERS: readonly { readonly name: string; readonly concept: string; 
   {
     name: 'Development',
     concept:
-      'canon: a theme shifted; mirrors: retrograde, slices, picks, transposing, inverse(); chance and choice; turning tables: stride=, cycle(&x), the circle of fifths; arrangement: parts as taps of the bar, a selector, laps=, off',
+      'canon: a theme shifted; mirrors: retrograde, slices, picks, transposing, inverse(); variations: a copy changed where it says (base=, _); chance and choice; turning tables: stride=, cycle(&x), the circle of fifths; arrangement: parts as taps of the bar, a selector, laps=, off',
     forms: [
       // canon
       'reference &name[<<n]',
@@ -144,6 +144,9 @@ export const TIERS: readonly { readonly name: string; readonly concept: string; 
       'reference &name[a:b]',
       'reference &name^$n',
       'reference inverse(&name)',
+      // variations: a copy, changed where it says
+      'attribute base',
+      'step _',
       // chance
       'modifier x?',
       'step [a|b|c]',
@@ -297,6 +300,8 @@ export function formsUsed(source: string): Set<string> {
     if (/[+*,[]\s*$/.test(line)) use('line … +');
     code += line.replace(/"[^"]*"/g, '""') + '\n';
   }
+  // (_, a step kept from the base: gone once parsed, so read from the text)
+  if (/(^|\s)_(?=[\s!@]|$)/m.test(code)) use('step _');
   for (const [word, form] of [
     ['scan', 'scan(i …)'],
     ['euclid', 'euclid(k, n)'],
@@ -403,6 +408,10 @@ export function formsUsed(source: string): Set<string> {
       ref(d.over);
     }
     if (d.step) use(d.step.whole ? 'attribute loop' : 'attribute step');
+    if (d.base) {
+      use('attribute base');
+      ref(d.base);
+    }
     for (const [k, v] of [
       ['shift', d.shift],
       ['stride', d.stride],

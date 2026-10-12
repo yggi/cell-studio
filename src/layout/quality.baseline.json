@@ -15,6 +15,7 @@
   "swing": {"cells":10,"crossings":0,"cost":0,"width":852,"height":728.7,"edge":239,"overlap":0,"clusters":0,"intruders":0,"aim":0,"start":0},
   "canon": {"cells":9,"crossings":0,"cost":0,"width":883.7,"height":958.3,"edge":348,"overlap":0,"clusters":0,"intruders":0,"aim":0,"start":4},
   "mirrors": {"cells":8,"crossings":0,"cost":0,"width":842.3,"height":976.3,"edge":303,"overlap":0,"clusters":0,"intruders":0,"aim":0,"start":0},
+  "variations": {"cells":9,"crossings":0,"cost":0,"width":800.3,"height":903,"edge":288.3,"overlap":0,"clusters":0,"intruders":0,"aim":0,"start":0},
   "chance": {"cells":9,"crossings":0,"cost":0,"width":774.3,"height":863.7,"edge":243,"overlap":0,"clusters":0,"intruders":0,"aim":0,"start":0},
   "fifths": {"cells":6,"crossings":0,"cost":0,"width":788,"height":769.7,"edge":257,"overlap":0,"clusters":0,"intruders":0,"aim":0,"start":0},
   "arrangement": {"cells":13,"crossings":0,"cost":0,"width":890.7,"height":1022,"edge":269.7,"overlap":0,"clusters":0,"intruders":0,"aim":0,"start":0},

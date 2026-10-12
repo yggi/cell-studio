@@ -34,6 +34,13 @@ wide screen the **time** button in the graph's toolbar shows it in the graph's p
     where the output then plays: phrases written inside a braid rather than as a clock.
   - **cells**: each clocked cell's span on the tower (from its step down to its turn, `towerSpans`), a bar at the left:
     a cone or a ridge against the cell that writes it.
+  - **structure**: each cell where it plays (`engine/time/structure.ts`: a line's splice tree, lap after lap), a bar at
+    the height of its own length on the tower, as the piano roll puts a note at its pitch: a phrase of 4 s on the
+    scalogram's 4 s row, spanning the time it plays, the sections and the line below (the view reaches down to the whole
+    window, below the scalogram's slowest period). Its colour is its family's: a copy (`base=`, decision 026) takes its
+    base's, dashed; nodes of one length at one time stack in lanes; a line that splices nothing shows none. So the splice
+    tree is drawn by scale over the ridges it makes: Pop's `&tune` sits on the 9.6 s row where the meter's *section* line
+    is; a MIDI file converted to cells shows the folder's phrases and their copies where they return.
   - **meter**: dashed lines across the scalogram at the beat and the bar of the meter that drives the piece (its tempo
     cell's step and turn, `mainTempo`) and the sections' usual length, labelled; the bars' lines where they are far
     enough apart to see. At the right, the levels the scalogram hears most (`ridges`: the peaks of each row's mean
