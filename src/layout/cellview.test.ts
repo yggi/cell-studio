@@ -120,7 +120,7 @@ describe('voices', () => {
 
 describe('played cells', () => {
   it('a one-step braid that is played is drawn as a braid (with a hand), not as a set', () => {
-    const r2 = compileSource('&m step=1\n&s scan(2 1 2 2 1 2 2)\n&pedal over=&s step=&m/2 0\n&v loop=65\n&mix_ [&pedal * &v]\n&out_ loop=44k map=sample &mix_');
+    const r2 = compileSource('&m step=1\n&s scan(2 1 2 2 1 2 2)\n&pedal over=&s step=&m*2 0\n&v loop=65\n&mix_ [&pedal * &v]\n&out_ loop=44k map=sample &mix_');
     expect(cellView(r2, 'pedal', codeShifts(r2), false)!).toMatchObject({ mode: 'braid', segments: [{ t0: 0, t1: 1 }] });
     expect(hubLabel(r2, 'pedal', codeShifts(r2), false, null)).toEqual({ big: '1', small: 'step' });
     // the same braid used as a table stays a grid

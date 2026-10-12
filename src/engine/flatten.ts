@@ -40,7 +40,7 @@ export interface StepEvent {
    * for its lap), times mul plus add (degree(…), inverse(…)); `value` is that entry as the code has it.
    */
   readonly via?: { readonly cell: string; readonly index: number; readonly ctx: string; readonly mul: 1 | -1; readonly add: number };
-  /** x?p: the probability it sounds (each time round, reproducibly). */
+  /** x?p: the probability it is dropped (each time round, reproducibly). */
   readonly chance?: number;
   /** [a|b|c]: what it chooses from (value is the first, for drawing). */
   readonly options?: readonly { readonly value: number; readonly alter: number }[];
@@ -91,7 +91,7 @@ export function flatten(
               tableShift: tShift,
               ...(taps ? { via: { cell: name, index: taps[n], ctx: table, mul: 1 as const, add: 0 } } : {}),
             };
-            // x?p: its probability (a bare ? takes the cell's chance=)
+            // x?p: the probability it is dropped (a bare ? takes the cell's chance=)
             const odds = u.chance === undefined ? {} : { chance: u.chance === null ? (cell.chance ?? 0.5) : u.chance };
             // (a note by name is a pitch: a place on the grid at the root of its tables, not an index into them)
             const pitch = (semis: number) => ({

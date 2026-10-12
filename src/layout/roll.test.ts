@@ -200,7 +200,7 @@ describe('how far the rows go', () => {
 
 describe('the frame', () => {
   it('bars and beats from its meter, in its own steps', () => {
-    const q = compileSource('&bar scan(4 4 4 4) step=84bpm\n&tune step=&bar 0 2 4\n&fast step=&bar/4 0 1\n&slow step=&bar*2 0');
+    const q = compileSource('&bar scan(4 4 4 4) step=84bpm\n&tune step=&bar 0 2 4\n&fast step=&bar*4 0 1\n&slow step=&bar/2 0');
     expect(frameOf(q, 'tune', 3)).toEqual({ length: 3, steps: 4, bar: 4, beat: 1 });
     expect(frameOf(q, 'fast', 2)).toEqual({ length: 2, steps: 16, bar: 16, beat: 4 });
     // a beat of two bar-steps doesn't fall on its own steps
@@ -317,7 +317,7 @@ describe('which cells roll, and their ghosts', () => {
 
   it('ghosts: what else plays the same table on the same clock, in this cell’s steps', () => {
     const q = compileSource(
-      '&bar scan(1 1 1 1) step=100bpm\n&lead s=saw\n&tune over=&s step=&bar 0 2\n&low over=&s step=&bar*2 4\n&s scale(major)\n&out loop=SAMPLE_RATE map=sample [&tune * &lead, &low * &lead]',
+      '&bar scan(1 1 1 1) step=100bpm\n&lead s=saw\n&tune over=&s step=&bar 0 2\n&low over=&s step=&bar/2 4\n&s scale(major)\n&out loop=SAMPLE_RATE map=sample [&tune * &lead, &low * &lead]',
     );
     const g = ghostsOf(q, 'tune', 4);
     expect(g.map((x) => [x.start, x.len, x.row, x.from])).toEqual([

@@ -136,7 +136,7 @@ export interface GraphEdge extends Wire {
 const STRUCTURE = new Set(['over', 'braid', 'step', 'mix', 'midi', 'is', 'about', 'base']);
 /**
  * A wire into what plays it: a melody into its voice, its envelope, levels, pitch, parameters, FM, what excites, couples,
- * writes or plays it. Not ticks: a parameter's clock (`delaytime=&bar*3/4`) is timing, as a step is.
+ * writes or plays it. Not ticks: a parameter's clock (`delaytime=&bar*4/3`) is timing, as a step is.
  */
 export const feeds = (e: { readonly port: string; readonly band: string }) => !STRUCTURE.has(e.port) && e.band !== 'sync';
 
@@ -481,7 +481,7 @@ export function writtenGraph(result: CompileResult): WrittenGraph {
         ...beltOf(c, result.cells.get(c.step.driver)),
         ...wire('step', 'sync', id, cellId(c.step.driver), 1, true),
       });
-    // a parameter given as a clock (delaytime=&bar*3/4, length=, at=): a tap of the clock's ticks, at its rate as written;
+    // a parameter given as a clock (delaytime=&bar*4/3, length=, at=): a tap of the clock's ticks, at its rate as written;
     // into a meter, a tap of its net (ground), as a step is
     for (const [key, k] of Object.entries(c.paramClocks))
       if (result.cells.has(k.driver))
@@ -701,10 +701,10 @@ function soundsOf(result: CompileResult, name: string, guard = 0): string[] {
   return [kit?.kit ? kit.name : name];
 }
 
-/** A step's rate as written (step=&x*2/3, cycle(&x), loop=, belt=); nothing when it is the driver's own. */
+/** A step's rate as written (step=&x*3/2, cycle(&x), loop=, belt=); nothing when it is the driver's own. */
 const rateOf = (c: ResolvedCell): Transform => rateTransform(c.step!, typeof c.params.belt === 'number' ? c.params.belt : undefined);
 
-/** A clock's rate as written (`&x*2/3`, `cycle(&x)`, the whole braid, through a belt); nothing when it is the clock's own. */
+/** A clock's rate as written (`&x*3/2`, `cycle(&x)`, the whole braid, through a belt); nothing when it is the clock's own. */
 function rateTransform(s: NonNullable<ResolvedCell['step']>, belt?: number): Transform {
   if (!s.chain.length && !s.cycle && !s.whole && belt === undefined) return [];
   return [{ kind: 'rate', by: s.chain, per: s.cycle ? 'cycle' : 'step', whole: s.whole, ...(belt !== undefined ? { belt } : {}) }];
@@ -769,7 +769,7 @@ const isDelayed = (e: GraphEdge) => e.transforms.some((t) => t.some((s) => s.kin
 /**
  * The nets among the edges: a table read by two or more (over=), a melody or a voice by two or more, a cell read at
  * delays (a canon's copies, a tape's heads: docs/decisions/010-canon-copies.md), and each meter's ticks to every cell
- * it steps or that takes a time from it (a step or a parameter's clock into a meter, `delaytime=&bar*3/4`; not through
+ * it steps or that takes a time from it (a step or a parameter's clock into a meter, `delaytime=&bar*4/3`; not through
  * a belt: a belt is a body, drawn). A meter's net is its `step` net, whichever port each tap reads it through.
  */
 export function netsOf(nodes: readonly GraphNode[], edges: readonly GraphEdge[]): GraphNet[] {

@@ -1,6 +1,6 @@
 /**
  * Fractions: every step's length shares a factor (4@2 2@2 0@4) — divide it out, and
- * slow the clock to match (4 2 0@2, step=&bar*2).
+ * slow the clock to match (4 2 0@2, step=&bar/2).
  */
 import { attrsOf, setAttr, setBraid } from '../edit';
 import { measured, type Candidate, type Result, type Suggestion } from './harness';
@@ -35,12 +35,12 @@ export function fractions(source: string, cells: readonly Candidate[], result: R
     });
     const g = held.reduce(gcd);
     if (g < 2) continue;
-    // the clock, slowed by g: &x*n/d becomes &x*(n·g)/d, reduced; a plain rate divides
+    // the clock, slowed by g: &x*n/d becomes &x*n/(d·g), reduced; a plain rate divides
     let slower: string | null = null;
     const driven = /^&([A-Za-z_][A-Za-z0-9_]*)(?:\*([0-9]+))?(?:\/([0-9]+))?$/.exec(step);
     if (driven) {
-      let n = (driven[2] ? +driven[2] : 1) * g;
-      let d = driven[3] ? +driven[3] : 1;
+      let n = driven[2] ? +driven[2] : 1;
+      let d = (driven[3] ? +driven[3] : 1) * g;
       const k = gcd(n, d);
       n /= k;
       d /= k;

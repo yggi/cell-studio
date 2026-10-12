@@ -35,7 +35,7 @@ export function declare(ctx: Ctx): Declared {
   const implicitRoot = !decls.has(ROOT);
   // scale(name, tonic): the key and the table it declares, unnamed and not drawn
   for (const name of decls.keys()) if (name.startsWith('key:') || name.startsWith('scale:')) implicit.add(name);
-  // a stepped braid of voices (&groove step=&bar/4 &bd ~ &hh [&bd,&hh]) plays them, and so do the unstepped
+  // a stepped braid of voices (&groove step=&bar*4 &bd ~ &hh [&bd,&hh]) plays them, and so do the unstepped
   // braids of voices it splices (drum motifs: &groove … &fill &fill[::-1]): each is a pattern of numbers read
   // through one kit of all their voices, in the order first written (that kit unnamed, not drawn)
   const grooves = voiceGrooves(decls);

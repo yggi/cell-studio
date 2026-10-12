@@ -95,7 +95,7 @@ export class RouteAcc {
     if (clock && !this.off(clock)) this.tables(clock);
     this.timed(name);
   }
-  /** The clocks its parameters take their times from (delaytime=&bar*3/4, a tape's length=, a head's at=). */
+  /** The clocks its parameters take their times from (delaytime=&bar*4/3, a tape's length=, a head's at=). */
   timed(name: string) {
     for (const [key, k] of Object.entries(this.result.cells.get(name)?.paramClocks ?? {}))
       if (!this.off(k.driver)) {

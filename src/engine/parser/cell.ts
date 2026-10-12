@@ -215,9 +215,9 @@ export const KEYS: Readonly<Record<keyof typeof CORE, Key>> = {
   },
   chance: {
     form: 'chance=p · chance=free(p, 0..1)',
-    examples: ['&ghost chance=.2 step=4 0? 0? 0? 0?', '&ghost chance=free(.3, 0..1) step=4 0? 0?'],
+    examples: ['&ghost chance=.8 step=4 0? 0? 0? 0?', '&ghost chance=free(.7, 0..1) step=4 0? 0?'],
     read: (s, b) => {
-      // what a bare x? means in this cell: a probability, or a slider for one
+      // what a bare x? means in this cell: the probability it is dropped, or a slider for one
       if (s.text.startsWith('free(', s.i)) b.chance = parseFree(s, 'chance', false).value;
       else {
         const at2 = s.i;
@@ -313,10 +313,10 @@ function readParam(s: LineScanner, b: Body, key: string): void {
     b.paramSpans[key] = s.span(vs);
     return;
   }
-  // a time as a clock: delaytime=&bar/2
+  // a time as a clock: delaytime=&bar*2
   if (s.peek() === '&' && TIME_PARAMS.has(key)) {
     const st = parseStep(s, false);
-    if (st.kind !== 'driven') s.fail(`${key}= takes seconds, or a clock: ${key}=&bar/2`, vs, s.i - vs);
+    if (st.kind !== 'driven') s.fail(`${key}= takes seconds, or a clock: ${key}=&bar*2`, vs, s.i - vs);
     b.paramClocks[key] = st;
     b.paramSpans[key] = s.span(vs);
     return;

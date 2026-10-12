@@ -6,7 +6,7 @@ What goes inside a cell: generators, and how to pick from, shift and transpose a
 
 - **`scan(intervals)`** — running totals, its lap their sum. `scan(2 2 1 2 2 2 1)` is the major scale (0 2 4 5 7 9 11, lap 12); `scan(3 3 2)` the tresillo (lap 8); `scan(27 23 26 24)` a bent 4/4 bar (beats at 0 27 50 76 % of a lap of 100). Turning a scan walks its modes.
 - An interval can be **`geo(r, n, k …)`**: r^(k/n) for each k, a geometric series; `x!n` repeats it n times.
-- **`euclid(k, n)`** — k hits spread evenly over n steps (`euclid(3, 8)` is the tresillo); `euclid(k, n, shift)` turned.
+- **`euclid(k, n)`** — k hits spread evenly over n steps (`euclid(3, 8)` is the tresillo); `euclid(k, n, shift)` turned right by shift steps, as Strudel's `(k, n, r)`: `euclid(3, 8, 2)` is `x.x..x..`.
 - **`sin(n)`** — one cycle of a sine in n steps (a voice's waveform).
 - **A root** is a bare grid: `&edo19 cycle=19` ([tuning.md](tuning.md)).
 
@@ -76,7 +76,7 @@ a delta. A fugue's entries are this: one subject, each entry a little bent.
 &subject 0 -1 0@2 -5@2 -4@2 0 -1 0 2 -5@4
 &answer base=&subject^$7 _!3 0@2
 &last base=&subject^$-12 _!9 _@8
-&tune step=&bar/4 &subject &answer &last
+&tune step=&bar*4 &subject &answer &last
 &v s=tri loop=C4
 &out map=sample [&tune * &v * .4]
 ```

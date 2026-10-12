@@ -182,8 +182,8 @@ type ModKey = keyof typeof MODIFIERS;
 export const CHANCE_SYNTAX = syntax(
   'modifier',
   'x? · x?p',
-  "Chance: the step sounds with probability p (x? alone: the cell's chance=, ½ unless set). Reproducible: the same every time the piece is played; seed= gives another sequence.",
-  ['&hats step=4 0 0? 0?.3 0', '&ghost chance=.2 step=4 0? 0? 0? 0?'],
+  "Chance, as Strudel's degradeBy: the step is dropped with probability p (x? alone: the cell's chance=, ½ unless set). Reproducible: the same every time the piece is played; seed= gives another sequence.",
+  ['&hats step=4 0 0? 0?.3 0', '&ghost chance=.8 step=4 0? 0? 0? 0?'],
   'cell.md',
 );
 
@@ -195,7 +195,7 @@ export function parseToken(s: LineScanner): Token {
   const seen = new Set<string>();
   while (s.peek() in MODIFIERS || s.peek() === '?') {
     if (s.peek() === '?') {
-      // x?p: it sounds with probability p; x? alone: the cell's chance=
+      // x?p: it is dropped with probability p; x? alone: the cell's chance=
       if (chance !== undefined) s.fail(`'?' can only appear once per step`);
       s.i++;
       const at = s.i;

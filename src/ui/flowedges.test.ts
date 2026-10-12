@@ -15,7 +15,7 @@ const nameOf = (id: string) => id.slice('cell:'.length);
 function byPort(e: GraphEdge, program: CompileResult) {
   const trigger = (voice: string) => program.outputs.find((o) => o.voice === voice)?.cell ?? null;
   if (e.port === 'step') return { phaseCell: nameOf(e.to), voice: null };
-  // (a parameter's clock, delaytime=&bar*3/4: its reader doesn't step, the clock's own steps pulse — #178)
+  // (a parameter's clock, delaytime=&bar*4/3: its reader doesn't step, the clock's own steps pulse — #178)
   if (e.band === 'sync') return { phaseCell: nameOf(e.from), voice: null };
   // (a gate's play=: its notes into it, as a melody into its voice — decision 023)
   if (e.port === 'play' && program.cells.get(nameOf(e.to))?.gate) {
@@ -52,7 +52,7 @@ function byPort(e: GraphEdge, program: CompileResult) {
 
 const SRC = `&bar scan(1 1 1 1) step=120bpm
 &minor scan(2 1 2 2 1 2 2)
-&tune 0 2 4 over=&minor step=&bar/4
+&tune 0 2 4 over=&minor step=&bar*4
 &lead s=sine
 &mix loop=SAMPLE_RATE map=sample [&tune * &lead]`;
 

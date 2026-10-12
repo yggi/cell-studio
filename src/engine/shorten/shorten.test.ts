@@ -59,7 +59,7 @@ describe('shorten', () => {
     expect(sounds(s.apply(src))).toEqual(sounds(src));
   });
   it('fractions: every step held twice — divide by 2, step twice as slow', () => {
-    const src = '&bar step=120bpm 0 0 0 0\n&t step=&bar/2 4@2 2@2 0@4 ~@2' + tail;
+    const src = '&bar step=120bpm 0 0 0 0\n&t step=&bar*2 4@2 2@2 0@4 ~@2' + tail;
     const s = first(src, 'fraction');
     const next = s.apply(src);
     expect(next).toContain('&t step=&bar 4 2 0@2 ~');
@@ -155,11 +155,11 @@ describe('shorten: whole lines (#10)', () => {
     const elsewhere = '&scale over=scale(0,5)\n&down 3 2 1 0\n&mid over=&scale[>>] &down\n&t step=4 &down &mid' + tail;
     expect(shorten(elsewhere).some((x) => x.kind === 'degree')).toBe(false);
   });
-  it('a transposing progression written loop=&bar*N is step=&bar*(N/k), then its runs count', () => {
+  it('a transposing progression written loop=&bar/N is step=&bar/(N/k), then its runs count', () => {
     const src =
-      '&bar step=120bpm 0 0 0 0\n&changes loop=&bar*32 0 0 0 0 5 5 0 0\n&walk step=&bar 0 4 7 10\n&v s=sine loop=C4\n&out loop=SAMPLE_RATE map=sample [(&walk + &changes) * &v]';
+      '&bar step=120bpm 0 0 0 0\n&changes loop=&bar/32 0 0 0 0 5 5 0 0\n&walk step=&bar 0 4 7 10\n&v s=sine loop=C4\n&out loop=SAMPLE_RATE map=sample [(&walk + &changes) * &v]';
     const s = shorten(src).find((x) => x.kind === 'progression')!;
-    expect(s.apply(src)).toContain('&changes step=&bar*4 0 0 0 0 5 5 0 0');
+    expect(s.apply(src)).toContain('&changes step=&bar/4 0 0 0 0 5 5 0 0');
     expect(sounds(s.apply(src), 40)).toEqual(sounds(src, 40));
     expect(shortenAll(src).source).toContain('0!4 5!2 0!2');
   });
@@ -209,7 +209,7 @@ describe('a selector of mixes, written before decision 016: the one suggestion i
 &partA [&a * &v]
 &partB [&b * &w]
 &parts &partA &partB
-&song over=&parts step=&bar*4 laps=1 0 [0,1] ~ 1
+&song over=&parts step=&bar/4 laps=1 0 [0,1] ~ 1
 &v s=tri loop=C4
 &w s=sine loop=C4
 &out loop=SAMPLE_RATE map=sample &song`;
