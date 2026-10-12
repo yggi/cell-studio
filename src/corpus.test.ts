@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync, readdirSync } from 'node:fs';
 import { creditLines, creditOf, MIDI_FILES } from './corpus';
-import { readMidi } from './engine/midifile';
+import { readMidi, writeMidi } from './engine/midifile';
 import { cellsFromMidi } from './engine/midiimport';
 import { midiText, parseMidiText } from './engine/miditext';
 import { compileSource } from './engine/compile';
@@ -26,7 +26,7 @@ describe('the MIDI library (midi/wtc)', () => {
       expect(cellsFromMidi(smf, m.title, { free: false }).notes, m.key).toBe(notes);
     }
   });
-  it('credits each file: in its details, in its text, and as comments in the cells it converts to', () => {
+  it('credits each file: in its details, in its copyright field, and as comments in the cells it converts to', () => {
     for (const m of MIDI_FILES) {
       const c = creditOf(m);
       expect(c.piece, m.key).toContain(`BWV ${m.bwv}`);
@@ -37,9 +37,13 @@ describe('the MIDI library (midi/wtc)', () => {
     const m = MIDI_FILES.find((f) => f.key === 'wtc1-02-fugue')!;
     const smf = readMidi(new Uint8Array(readFileSync(`midi/wtc/${m.key}.mid`)));
     const lines = creditLines(m);
-    const text = midiText(smf, `${m.key}.mid`, lines);
-    for (const l of lines) expect(text).toContain(`# ${l}`);
-    expect(parseMidiText(text).diagnostics).toEqual([]);
+    // (in its copyright field, as the library opens it: through its text and saved again, the .mid carries it)
+    const opened = { ...smf, copyright: lines.join(' ') };
+    const text = midiText(opened, `${m.key}.mid`);
+    expect(text).toContain(`copyright "${lines.join(' ')}"`);
+    const parsed = parseMidiText(text);
+    expect(parsed.diagnostics).toEqual([]);
+    expect(readMidi(writeMidi(parsed.smf)).copyright).toBe(lines.join(' '));
     const made = cellsFromMidi(smf, m.title, { shorten: true, credit: lines });
     expect(made.source.split('\n').slice(1, 6)).toEqual(['', ...lines.map((l) => `# ${l}`), '']);
     expect(made.folded).toBe(true);

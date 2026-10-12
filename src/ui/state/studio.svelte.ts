@@ -89,16 +89,17 @@ export class Studio {
 
   /** A MIDI file, open as it is: as text (engine/miditext.ts), playing, in time; Convert to cells writes it as a piece. */
   #openedMidi(open: Open, smf: Smf, name: string): void {
-    this.#opened(open, midiText(smf, name, this.#credit(open)));
+    this.#opened(open, midiText(smf, name));
     this.view.tab = 'time';
     const notes = smf.tracks.reduce((n, t) => n + t.notes.length, 0);
     this.view.message = `Opened ${name}: ${notes} notes in ${smf.tracks.length} track${smf.tracks.length === 1 ? '' : 's'}, as it is. Convert it to cells to fold it into a piece.`;
   }
 
-  /** Where a file of the MIDI library came from and on what terms, as lines (none for any other file). */
-  #credit(open: Open): string[] {
+  /** Where a file came from and on what terms, as lines for the cells it converts to: a file of the MIDI library's
+   * credit; another's copyright notice, if it has one. */
+  #credit(open: Open, smf: Smf): string[] {
     const m = open.kind === 'midi' ? MIDI_FILES.find((f) => f.key === open.key) : undefined;
-    return m ? creditLines(m) : [];
+    return m ? creditLines(m) : smf.copyright ? [`Copyright: ${smf.copyright}`] : [];
   }
 
   /** Open a card: an example (fetched: its own chunk), a file of the MIDI library (fetched) or a piece saved here. */
@@ -174,7 +175,7 @@ export class Studio {
     const renamed = () => {
       if (open.kind === 'file' || open.kind === 'midi') this.library.open = { kind: 'file', name: `${name}.cells` };
     };
-    const job: FoldJob = { smf: midi.smf, title: midi.smf.name?.trim() || name, credit: this.#credit(open), every: 15 };
+    const job: FoldJob = { smf: midi.smf, title: midi.smf.name?.trim() || name, credit: this.#credit(open, midi.smf), every: 15 };
     let worker: Worker;
     try {
       worker = new Worker(new URL('../fold.worker.ts', import.meta.url), { type: 'module' });

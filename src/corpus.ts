@@ -71,7 +71,7 @@ export function creditLines(m: MidiInfo): string[] {
 const urls = import.meta.glob('/midi/wtc/*.mid', { query: '?url', import: 'default' }) as Record<string, () => Promise<string>>;
 const loaded = new Map<string, Promise<Smf>>();
 
-/** A file of the MIDI library, read (its name: the library's title); fetched on first use. */
+/** A file of the MIDI library, read (its name: the library's title; its copyright: its credit); fetched on first use. */
 export function loadMidiFile(key: string): Promise<Smf> {
   let p = loaded.get(key);
   if (!p) {
@@ -84,7 +84,11 @@ export function loadMidiFile(key: string): Promise<Smf> {
         if (!r.ok) throw new Error(`${r.status}`);
         return r.arrayBuffer();
       })
-      .then((b) => ({ ...readMidi(new Uint8Array(b)), name: `${info.title} (BWV ${info.bwv})` }));
+      .then((b) => {
+        const smf = readMidi(new Uint8Array(b));
+        // (its credit in its copyright field, where it has none of its own: a .mid saved from it carries it)
+        return { ...smf, name: `${info.title} (BWV ${info.bwv})`, copyright: smf.copyright ?? creditLines(info).join(' ') };
+      });
     p.catch(() => loaded.delete(key)); // offline, a failed fetch: try again next time
     loaded.set(key, p);
   }

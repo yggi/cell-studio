@@ -88,8 +88,10 @@ as MIDI** in the Files page.
   the grid (BWV 847: 1,765 notes, every one on a sixteenth, at its time within 2 ms). A swing is tempos that alternate.
   With no main meter, 120 bpm. A piece that ends is written whole, a loop one cycle, an hour at most.
 - **Reading** (`engine/midifile.ts` `readMidi`): format 0 and 1, notes (a note-on at velocity 0 ends one; a key struck
-  again while held ends the earlier strike), bends, programs, tempos, time signatures, track names; SMPTE timing as
-  seconds.
+  again while held ends the earlier strike), bends, programs, tempos, time signatures, track names, the copyright
+  notice; SMPTE timing as seconds. Text (names, the notice) is written as UTF-8 and read as UTF-8 where it is that,
+  else as Latin-1. The notice is a line of the text of its own (`copyright "…"`), saved back into the file's copyright
+  field; a file converted to cells says it as a comment under the card.
 - **Opening one** ([decision 025](../decisions/025-midi-documents.md); *Open a file…* takes `.mid` too) shows it as it
   is: its text in the code editor (`engine/miditext.ts`): a header, the tempos and meters, then a track at a time, a
   line an event at bar:beat:tick (`1:1:0 ch1 C5 120 v90`; keys by name, sharps or flats; `program`, `bend` lines). It
@@ -128,8 +130,9 @@ is to its right) and a section of the cards (*MIDI files*): for now Bach's Well-
 CC BY-SA). `src/corpus.ts` lists them (`midi/wtc/index.json`); a file is fetched when it opens, and opens as any MIDI
 file does, as text, playing, for **Convert to cells**. Its card's wheel is drawn from its notes as cells, written out.
 Each file's credit (`src/corpus.ts` `creditOf`: the piece, who typeset it, its licence linked, its Mutopia page) is in
-its details in the library, and said as comments at the top of its text and of the cells it converts to; a CC BY-SA
-file's say that what is made from it shares that licence.
+its details in the library, in its copyright field (the text's `copyright "…"` line, so a `.mid` saved from it carries
+it), and as comments at the top of the cells it converts to; a CC BY-SA file's say that what is made from it shares
+that licence.
 The tag `MIDI file` puts a piece in the cell (`engine/tags.ts` `MIDI_FILE`; `layout/library.ts` `sideOf`). The folder's
 ratchet over them: `tools/probe/wtc.test.ts` ([notes/fold.md](../notes/fold.md)).
 

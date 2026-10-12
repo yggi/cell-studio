@@ -1,7 +1,7 @@
 # The MIDI library: Bach, Das Wohltemperierte Clavier
 
-MIDI files the app comes with (its library shows them as a cell of their own, beside the tutorial; [docs/ui/midi.md](../../docs/ui/midi.md)). Each is the file as the [Mutopia Project](https://www.mutopiaproject.org/) publishes it, renamed `wtc<book>-<number>-<prelude|fugue>.mid`; [index.json](index.json) says the same as this table, for the app, which shows each file's credit in its details and writes it as comments into the MIDI text and the
-cells it converts to. Mutopia has 37 of the 96 preludes and fugues as keyboard pieces; the rest are not typeset there yet.
+MIDI files the app comes with (its library shows them as a cell of their own, beside the tutorial; [docs/ui/midi.md](../../docs/ui/midi.md)). Each is the file as the [Mutopia Project](https://www.mutopiaproject.org/) publishes it, renamed `wtc<book>-<number>-<prelude|fugue>.mid`; [index.json](index.json) says the same as this table, for the app, which shows each file's credit in its details, puts it in the copyright field of a `.mid` saved from it and writes it as
+comments into the cells it converts to. Mutopia has 37 of the 96 preludes and fugues as keyboard pieces; the rest are not typeset there yet.
 
 The music is in the public domain. A typesetting under Creative Commons Attribution-ShareAlike (CC BY-SA 3.0 or 4.0) is used here under that licence: credit to its typesetter and to the Mutopia Project, and what is made from the file itself shares it alike.
 
