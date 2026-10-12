@@ -47,9 +47,24 @@
   >
   {#if d.description}<p class="full">{d.description}</p>{/if}
   {#if d.time}<p class="full time">{timeSentence(d)}{d.size ? ` ${d.size} cells.` : ''}</p>{/if}
+  {#if d.credit}
+    <!-- a file of the MIDI library: what it is, who typeset it, its licence, where it came from (midi/wtc/README.md) -->
+    <dl class="credit">
+      <dt>Piece</dt>
+      <dd>{d.credit.piece}</dd>
+      <dt>Typeset by</dt>
+      <dd>{d.credit.by}, for the Mutopia Project</dd>
+      <dt>Licence</dt>
+      <dd>
+        {#if d.credit.licenceUrl}<a href={d.credit.licenceUrl} target="_blank" rel="noopener noreferrer">{d.credit.licence}</a>{:else}{d.credit.licence}{/if}
+      </dd>
+      <dt>Source</dt>
+      <dd><a href={d.credit.source} target="_blank" rel="noopener noreferrer">{d.credit.id}</a></dd>
+    </dl>
+  {/if}
   <p class="when">
     {#if d.id === current}<b>Open now</b>{/if}
-    {#if d.saved}Saved in this browser, {when(d.saved)}{:else}An example{/if}
+    {#if d.saved}Saved in this browser, {when(d.saved)}{:else if d.kind === 'midi'}A MIDI file{:else}An example{/if}
   </p>
   <div class="dtags">
     {#each d.tags as t (t)}
@@ -109,6 +124,25 @@
     font-size: 14.5px;
     line-height: 1.5;
     color: var(--text);
+  }
+  .credit {
+    margin: 0;
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 2px 10px;
+    font-size: 13px;
+    line-height: 1.45;
+  }
+  .credit dt {
+    color: var(--text-muted);
+  }
+  .credit dd {
+    margin: 0;
+    color: var(--text);
+    overflow-wrap: anywhere;
+  }
+  .credit a {
+    color: var(--accent);
   }
   .when {
     margin: 0;

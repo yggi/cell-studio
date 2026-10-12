@@ -29,6 +29,45 @@ export interface MidiInfo {
 /** Every file of the MIDI library, in the order of the books. */
 export const MIDI_FILES = index as readonly MidiInfo[];
 
+/** Where a file came from and on what terms: the piece, who typeset it, its licence (and where its text is), its page. */
+export interface Credit {
+  readonly piece: string;
+  readonly by: string;
+  readonly licence: string;
+  readonly licenceUrl: string | null;
+  readonly source: string;
+  readonly id: string;
+}
+
+/** A licence's text, by its name as Mutopia gives it (public domain: none to link). */
+const LICENCES: Readonly<Record<string, string>> = {
+  'Creative Commons Attribution-ShareAlike 3.0': 'https://creativecommons.org/licenses/by-sa/3.0/',
+  'Creative Commons Attribution-ShareAlike 4.0': 'https://creativecommons.org/licenses/by-sa/4.0/',
+};
+
+/** A file's credit. */
+export const creditOf = (m: MidiInfo): Credit => ({
+  piece: `Johann Sebastian Bach, ${m.original}, BWV ${m.bwv}`,
+  by: m.maintainer,
+  licence: m.licence,
+  licenceUrl: LICENCES[m.licence] ?? null,
+  source: m.source,
+  id: m.mutopia,
+});
+
+/** A file's credit as lines of text, for comments: what it is, who typeset it, its licence, where it came from (and,
+ * share-alike, that what is made from it shares it too). */
+export function creditLines(m: MidiInfo): string[] {
+  const c = creditOf(m);
+  return [
+    `${c.piece}.`,
+    `Typeset by ${c.by} for the Mutopia Project (${c.id}): ${c.source}`,
+    c.licenceUrl
+      ? `Licence: ${c.licence} (${c.licenceUrl}); a transcription of it is shared under the same licence, crediting the typesetter and the Mutopia Project.`
+      : `Licence: ${c.licence}.`,
+  ];
+}
+
 const urls = import.meta.glob('/midi/wtc/*.mid', { query: '?url', import: 'default' }) as Record<string, () => Promise<string>>;
 const loaded = new Map<string, Promise<Smf>>();
 

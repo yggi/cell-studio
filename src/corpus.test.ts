@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync, readdirSync } from 'node:fs';
-import { MIDI_FILES } from './corpus';
+import { creditLines, creditOf, MIDI_FILES } from './corpus';
 import { readMidi } from './engine/midifile';
 import { cellsFromMidi } from './engine/midiimport';
+import { midiText, parseMidiText } from './engine/miditext';
+import { compileSource } from './engine/compile';
 
 describe('the MIDI library (midi/wtc)', () => {
   it('lists every file it has, and has every file it lists, each with where it came from and its licence', () => {
@@ -23,5 +25,24 @@ describe('the MIDI library (midi/wtc)', () => {
       expect(notes, m.key).toBeGreaterThan(300);
       expect(cellsFromMidi(smf, m.title, { free: false }).notes, m.key).toBe(notes);
     }
+  });
+  it('credits each file: in its details, in its text, and as comments in the cells it converts to', () => {
+    for (const m of MIDI_FILES) {
+      const c = creditOf(m);
+      expect(c.piece, m.key).toContain(`BWV ${m.bwv}`);
+      // (share-alike: its licence linked, and said to carry over to what is made from it)
+      if (m.licence.startsWith('Creative Commons')) expect(creditLines(m).join(' '), m.key).toMatch(/creativecommons\.org\/licenses\/by-sa\/[34]\.0\/.*same licence/);
+      else expect(c.licenceUrl, m.key).toBeNull();
+    }
+    const m = MIDI_FILES.find((f) => f.key === 'wtc1-02-fugue')!;
+    const smf = readMidi(new Uint8Array(readFileSync(`midi/wtc/${m.key}.mid`)));
+    const lines = creditLines(m);
+    const text = midiText(smf, `${m.key}.mid`, lines);
+    for (const l of lines) expect(text).toContain(`# ${l}`);
+    expect(parseMidiText(text).diagnostics).toEqual([]);
+    const made = cellsFromMidi(smf, m.title, { shorten: true, credit: lines });
+    expect(made.source.split('\n').slice(1, 6)).toEqual(['', ...lines.map((l) => `# ${l}`), '']);
+    expect(made.folded).toBe(true);
+    expect(compileSource(made.source).ok).toBe(true);
   });
 });

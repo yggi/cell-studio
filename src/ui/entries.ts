@@ -7,7 +7,7 @@ import { buildGraph } from '../layout/drawn';
 import { pieceMeta } from '../engine/parser';
 import { canonicalTags, MIDI_FILE, tagName, type TagKind } from '../engine/tags';
 import { EXAMPLES, loadExample, type PresetKey } from '../examples';
-import { loadMidiFile, MIDI_FILES } from '../corpus';
+import { creditOf, loadMidiFile, MIDI_FILES, type Credit } from '../corpus';
 import { cellsFromMidi } from '../engine/midiimport';
 import type { Miniature } from '../layout/miniature';
 import type { SavedPiece } from '../library';
@@ -26,6 +26,8 @@ export interface Entry {
   readonly load?: () => Promise<string>;
   /** An example's graph in miniature, from the index (a saved piece's is worked out from its text). */
   readonly miniature?: Miniature | null;
+  /** A file of the MIDI library: where it came from and on what terms (its details show it). */
+  readonly credit?: Credit;
   /** For saved pieces: when. */
   readonly saved?: string;
   /** How many cells its graph has. */
@@ -74,7 +76,8 @@ export const midiEntries: readonly Entry[] = MIDI_FILES.map((m) => ({
   id: `midi:${m.key}`,
   kind: 'midi',
   title: m.title,
-  description: `Bach, Das Wohltemperierte Clavier ${m.book === 1 ? 'I' : 'II'}, BWV ${m.bwv}: the MIDI file of the Mutopia Project (${m.licence}, typeset by ${m.maintainer}), to convert to cells.`,
+  description: `Bach, Das Wohltemperierte Clavier ${m.book === 1 ? 'I' : 'II'}, BWV ${m.bwv}, ${m.tonality}: a MIDI file from the Mutopia Project, to play as it is or convert to cells.`,
+  credit: creditOf(m),
   tags: [MIDI_FILE, 'artist:Bach', 'genre:classical', ...(m.part === 'fugue' ? ['counterpoint'] : [])],
   load: () => loadMidiFile(m.key).then((smf) => cellsFromMidi(smf, m.title, { free: false }).source),
 }));

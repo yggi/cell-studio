@@ -9,6 +9,8 @@ import { cellsFromMidi, type Imported } from '../engine/midiimport';
 export interface FoldJob {
   readonly smf: Smf;
   readonly title: string;
+  /** Where the file came from, said as comments in the piece. */
+  readonly credit: readonly string[];
   /** The least time between two steps sent (ms). */
   readonly every: number;
 }
@@ -16,10 +18,11 @@ export interface FoldJob {
 export type FoldAnswer = { readonly kind: 'step'; readonly source: string; readonly tool: string; readonly round: number } | { readonly kind: 'done'; readonly made: Imported };
 
 self.onmessage = (e: MessageEvent<FoldJob>) => {
-  const { smf, title, every } = e.data;
+  const { smf, title, credit, every } = e.data;
   let last = -Infinity;
   const made = cellsFromMidi(smf, title, {
     shorten: true,
+    credit,
     watch: (source, { tool, round }) => {
       const now = performance.now();
       if (tool !== 'start' && tool !== 'done' && now - last < every) return;

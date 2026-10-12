@@ -7,7 +7,7 @@ import { pieceMidi } from '../../engine/midiexport';
 import { isMidi, readMidi, writeMidi } from '../../engine/midifile';
 import { midiText } from '../../engine/miditext';
 import { cellsFromMidi, type Imported } from '../../engine/midiimport';
-import { loadMidiFile } from '../../corpus';
+import { creditLines, loadMidiFile, MIDI_FILES } from '../../corpus';
 import type { Smf } from '../../engine/midifile';
 import type { FoldAnswer, FoldJob } from '../fold.worker';
 import { loudness, renderLength, renderPiece, wav } from '../../audio/render';
@@ -89,10 +89,16 @@ export class Studio {
 
   /** A MIDI file, open as it is: as text (engine/miditext.ts), playing, in time; Convert to cells writes it as a piece. */
   #openedMidi(open: Open, smf: Smf, name: string): void {
-    this.#opened(open, midiText(smf, name));
+    this.#opened(open, midiText(smf, name, this.#credit(open)));
     this.view.tab = 'time';
     const notes = smf.tracks.reduce((n, t) => n + t.notes.length, 0);
     this.view.message = `Opened ${name}: ${notes} notes in ${smf.tracks.length} track${smf.tracks.length === 1 ? '' : 's'}, as it is. Convert it to cells to fold it into a piece.`;
+  }
+
+  /** Where a file of the MIDI library came from and on what terms, as lines (none for any other file). */
+  #credit(open: Open): string[] {
+    const m = open.kind === 'midi' ? MIDI_FILES.find((f) => f.key === open.key) : undefined;
+    return m ? creditLines(m) : [];
   }
 
   /** Open a card: an example (fetched: its own chunk), a file of the MIDI library (fetched) or a piece saved here. */
@@ -168,13 +174,13 @@ export class Studio {
     const renamed = () => {
       if (open.kind === 'file' || open.kind === 'midi') this.library.open = { kind: 'file', name: `${name}.cells` };
     };
-    const job: FoldJob = { smf: midi.smf, title: midi.smf.name?.trim() || name, every: 15 };
+    const job: FoldJob = { smf: midi.smf, title: midi.smf.name?.trim() || name, credit: this.#credit(open), every: 15 };
     let worker: Worker;
     try {
       worker = new Worker(new URL('../fold.worker.ts', import.meta.url), { type: 'module' });
     } catch {
       // (no workers: folded here, at once)
-      const made = cellsFromMidi(job.smf, job.title, { shorten: true });
+      const made = cellsFromMidi(job.smf, job.title, { shorten: true, credit: job.credit });
       this.piece.code = made.source;
       renamed();
       this.view.tab = 'graph';

@@ -133,12 +133,17 @@ function braidOf(chords: readonly Chord[], length: number): string {
  * A MIDI file as a piece's source: every note it plays, flat; `shorten`, folded (engine/fold) where that plays the same
  * and is shorter. `free`: its tempo a slider (else fixed). `watch`: the fold as it runs, each move the piece as it is
  * by then (a thunk: printed only if wanted), the last the fold taken (`done`; the piece returned is that, or the flat
- * one where the fold doesn't play the same).
+ * one where the fold doesn't play the same). `credit`: lines said as comments under the card (where the file came from).
  */
 export function cellsFromMidi(
   smf: Smf,
   title: string,
-  { free = true, shorten = false, watch }: { free?: boolean; shorten?: boolean; watch?: (source: () => string, stage: Stage) => void } = {},
+  {
+    free = true,
+    shorten = false,
+    credit = [],
+    watch,
+  }: { free?: boolean; shorten?: boolean; credit?: readonly string[]; watch?: (source: () => string, stage: Stage) => void } = {},
 ): Imported {
   // the parts: a track's notes by channel
   const parts: { name: string; drums: boolean; notes: SmfNote[] }[] = [];
@@ -222,6 +227,8 @@ export function cellsFromMidi(
     const label = `Opened from a MIDI file: ${count} notes in ${lines.length} line${lines.length === 1 ? '' : 's'}, ${perQuarter} steps a quarter note, ${how}.`;
     return [
       `&piece title="${title.replace(/"/g, "'")}" tags="midi" label="${label}" about=&out`,
+      // (where the file came from and on what terms: comments the piece keeps)
+      ...(credit.length ? ['', ...credit.map((l) => `# ${l}`)] : []),
       '',
       `# the file's tempo map: a step each ${perQuarter === 4 ? 'sixteenth' : `1/${perQuarter} of a quarter note`}; laps=1, so the piece ends`,
       tempo,

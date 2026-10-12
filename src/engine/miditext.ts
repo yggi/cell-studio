@@ -93,13 +93,15 @@ class Bars {
   }
 }
 
-/** A MIDI file as text: its header, tempos and meters, then its tracks. `file`: its name, said in the first comment. */
-export function midiText(smf: Smf, file?: string): string {
+/** A MIDI file as text: its header, tempos and meters, then its tracks. `file`: its name, said in the first comment;
+ * `credit`: lines said as comments after it (where the file came from). */
+export function midiText(smf: Smf, file?: string, credit: readonly string[] = []): string {
   const bars = new Bars(smf.ppq, smf.meters);
   const quote = (s: string) => `"${s.replace(/"/g, "'")}"`;
   const lines = [
     `# ${file ? `${file}: ` : ''}a MIDI file, as text: a line a note (where in bar:beat:tick, its channel, key, ticks and velocity).`,
     '# It plays as it is; edit it, save it (a .mid again), or convert it to cells: a piece written out, for Shorten to fold.',
+    ...credit.map((l) => `# ${l}`),
     `midi format=${smf.format} ppq=${smf.ppq}${smf.name !== undefined ? ` name=${quote(smf.name)}` : ''}`,
     ...smf.tempos.map((t) => `tempo ${bars.place(t.tick)} ${+(60e6 / t.micros).toFixed(4)}`),
     ...smf.meters.map((m) => `meter ${bars.place(m.tick)} ${m.num}/${m.den}`),

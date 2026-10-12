@@ -127,6 +127,9 @@ is to its right) and a section of the cards (*MIDI files*): for now Bach's Well-
 ([midi/wtc/](../../midi/wtc/README.md): each file as published, its typesetter and its licence, public domain or
 CC BY-SA). `src/corpus.ts` lists them (`midi/wtc/index.json`); a file is fetched when it opens, and opens as any MIDI
 file does, as text, playing, for **Convert to cells**. Its card's wheel is drawn from its notes as cells, written out.
+Each file's credit (`src/corpus.ts` `creditOf`: the piece, who typeset it, its licence linked, its Mutopia page) is in
+its details in the library, and said as comments at the top of its text and of the cells it converts to; a CC BY-SA
+file's say that what is made from it shares that licence.
 The tag `MIDI file` puts a piece in the cell (`engine/tags.ts` `MIDI_FILE`; `layout/library.ts` `sideOf`). The folder's
 ratchet over them: `tools/probe/wtc.test.ts` ([notes/fold.md](../notes/fold.md)).
 
