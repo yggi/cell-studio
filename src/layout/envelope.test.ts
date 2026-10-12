@@ -2,7 +2,10 @@ import { describe, expect, it } from 'vitest';
 import { compileSource } from '../engine/compile';
 import { codeShifts } from '../engine/program';
 import { lastNoteAt } from '../engine/values';
-import { envelopeAt, envelopeAxis, envelopeNotes, envelopeOf, latestNoteAt, voiceNotes } from './envelope';
+import { PRESETS } from '../engine/presets';
+import { cellView } from './cellview';
+import { wheelGeometry } from './wheel';
+import { curvePoints, envelopeAt, envelopeAxis, envelopeCrossing, envelopeCurve, envelopeLabels, envelopeNotes, envelopeOf, latestNoteAt, voiceNotes } from './envelope';
 
 const E = { attack: 0.1, decay: 0.2, sustain: 0.5, release: 0.4 };
 
@@ -49,5 +52,32 @@ describe("a voice's envelope and the notes through it", () => {
     expect(latestNoteAt(r, s, ['tune', 'bass'], t)).toEqual(each.reduce((a, b) => (b.since < a.since ? b : a)));
     expect(latestNoteAt(r, s, ['tune', 'bass'], t)!.since).toBeLessThan(Math.max(...each.map((n) => n.since)));
     expect(latestNoteAt(r, s, [], t)).toBeNull();
+  });
+});
+
+describe('an envelope as its wheel draws it (CellGlyph, show=adsr)', () => {
+  // (Transpose's voice's envelope: attack 20 ms, decay 300 ms, sustain 50 %, release 300 ms, on a 128 px wheel)
+  const t = compileSource(PRESETS.transpose.source);
+  const e = cellView(t, 'λ12_34', codeShifts(t), false)!.curve!;
+  const g = wheelGeometry(128);
+  const curve = envelopeCurve(e, g.c, g.rOuter);
+  it('a curve across the ring: up to its peak, down to the sustain, held, released', () => {
+    expect(e).toEqual({ attack: 0.02, decay: 0.3, sustain: 0.5, release: 0.3 });
+    expect(curvePoints(curve)).toBe('21.3,89.7 23.2,38.4 52.8,64.0 77.2,64.0 106.8,89.7');
+  });
+  it('its values named on their stretches', () => {
+    expect(envelopeLabels(curve, e, 7.68).map((l) => [l.text, l.anchor])).toEqual([
+      ['A 20 ms', 'start'],
+      ['D 300 ms', 'start'],
+      ['S 50 %', 'middle'],
+      ['R 300 ms', 'end'],
+    ]);
+  });
+  it('where a note is on it now: the lines cross there; rung out, none', () => {
+    const at = envelopeCrossing(curve, e, { since: 0.1, length: 0.5 })!;
+    expect(at).toMatchObject({ x0: 21.25, x1: 106.75, top: 38.35, bottom: 89.65 });
+    expect(at.x).toBeCloseTo(31.1, 1);
+    expect(at.y).toBeCloseTo(45.19, 2);
+    expect(envelopeCrossing(curve, e, { since: 5, length: 0.5 })).toBeNull();
   });
 });

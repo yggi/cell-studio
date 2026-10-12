@@ -12,6 +12,7 @@ import { flatten, tapped } from '../engine/flatten';
 import { resolveIn } from '../engine/helix';
 import { isTurntable } from '../engine/graph';
 import { bulbHosts } from './drawn';
+import { gateOf } from './gate';
 import { bulbsOf, fanOf, type Bulb } from './track';
 
 /**
@@ -118,6 +119,18 @@ export function isGrid(result: CompileResult, name: string): boolean {
     vals.push(u.atom.value + u.atom.alter);
   }
   return vals.every((v, i) => i === 0 || v > vals[i - 1]) && vals[vals.length - 1] - vals[0] < period(result, name);
+}
+
+/**
+ * Whose braid a cell's wheel shows: a gate's (#234) its trigger's notes round its ring, a read head's what is on its
+ * tape (its source's braid); any other its own.
+ */
+export function drawnOf(result: CompileResult, name: string): string {
+  const gate = gateOf(result, name);
+  if (gate && result.cells.has(gate.trigger)) return gate.trigger;
+  const play = result.cells.get(name)?.params.play;
+  const tape = typeof play === 'string' ? result.cells.get(play) : undefined;
+  return tape && typeof tape.params.write === 'string' && result.cells.has(tape.params.write) ? tape.params.write : name;
 }
 
 /** What a cell's wheel draws; null for a name the program doesn't have (one piece's name asked of another's program). */
