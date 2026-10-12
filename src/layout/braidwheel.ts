@@ -11,6 +11,7 @@ import { splitWords } from '../engine/edit';
 import { pitchFill } from './cellview';
 import { effectiveShow, names, noteFrame, noteLabel } from './show';
 import { stepText } from './wheel';
+import { leaves } from '../engine/subseq';
 
 /**
  * What a cell's sheet draws as its picture, before its wheel: a note's text, a signal's spectrum (a mix, the sound
@@ -33,7 +34,7 @@ export function sheetWheel(c: ResolvedCell): boolean {
   return picture === null || (picture === 'voice' && braidVoice(c));
 }
 
-/** One written token (`3`, `[0 4 7]`, `{0|2}`, `&bass`) read as the atom it is, or null if it isn't one. */
+/** One written token (`3`, `[0, 4, 7]`, `[0 2]`, `[0|2]`, `&bass`) read as the atom it is, or null if it isn't one. */
 export function atomOf(token: string): Atom | null {
   const b = parse(`&probe ${token}`).cells[0]?.braid;
   return b?.kind === 'list' ? (b.tokens[0]?.atom ?? null) : null;
@@ -44,15 +45,22 @@ export function tokenHues(result: CompileResult, name: string, shifts: Shifts, t
   const atom = atomOf(token);
   if (!atom || !result.cells.get(name)) return null;
   const hue = (v: number, alter: number) => pitchFill(result, name, v, alter, shifts).hue;
+  const huesOf = (a: Atom): number[] =>
+    a.kind === 'note'
+      ? [hue(a.value, a.alter)]
+      : a.kind === 'chord'
+        ? a.notes.map((v, i) => hue(v, a.alters[i]))
+        : // a choice: the colour of its first option (as a chord takes its root's)
+          a.kind === 'choice'
+          ? [hue(a.values[0], a.alters[0])]
+          : [];
   try {
-    if (atom.kind === 'note') return [hue(atom.value, atom.alter)];
-    if (atom.kind === 'chord') return atom.notes.map((v, i) => hue(v, atom.alters[i]));
-    // a choice: the colour of its first option (as a chord takes its root's)
-    if (atom.kind === 'choice') return [hue(atom.values[0], atom.alters[0])];
+    // (a subsequence: the hues of its notes in order, as a chord's, so its step is drawn split among them)
+    const out = leaves(atom).flatMap(huesOf);
+    return out.length ? out : null;
   } catch {
     return null;
   }
-  return null;
 }
 
 /** A token's name under the cell's show (notes, midi, do, degrees), or null. */

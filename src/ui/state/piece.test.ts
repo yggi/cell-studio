@@ -77,7 +77,7 @@ describe('Piece: the code and what it compiles to', () => {
 describe('Piece: a braid left free, held (#210)', () => {
   const RIFF = `&key scan(2 2 1 2 2 2 1)
 &bar scan(1 1 1 1) step=free(120bpm, 60..180)
-&riff over=&key step=&bar/4 free(0 2 4 ~)
+&riff over=&key step=&bar*4 free(0 2 4 ~)
 &lead s=sine
 &out map=sample [&riff * &lead]`;
   it('holds a take: it plays, the code keeps the braid written; Keep writes that one, the tempo held stays held', () => {
@@ -88,7 +88,7 @@ describe('Piece: a braid left free, held (#210)', () => {
     expect(p.code).toContain('free(0 2 4 ~)');
     expect(p.program.cells.get('riff')!.frees[0].braid).toBe('7 ~ [0,4]@2');
     p.keep(p.program.cells.get('riff')!.frees[0]);
-    expect(p.code).toContain('&riff over=&key step=&bar/4 free(7 ~ [0,4]@2)');
+    expect(p.code).toContain('&riff over=&key step=&bar*4 free(7 ~ [0,4]@2)');
     expect(p.code).toContain('free(120bpm');
     expect([...p.held.values()]).toEqual([90]);
   });

@@ -14,7 +14,7 @@ const SONG = `
 &tunePart [&tune * &lead * .3]
 &bassPart [&roots * &bass * .5]
 &parts &tunePart &bassPart
-&song over=&parts step=&bar*4 laps=1 [1] [0,1] [0,1]
+&song over=&parts step=&bar/4 laps=1 [1] [0,1] [0,1]
 &out loop=SAMPLE_RATE map=sample &song
 `;
 

@@ -45,7 +45,7 @@
     {
       kind: 'playing',
       caption: 'playing: the playhead on the heard step, a bass on the same table as ghosts, a key held',
-      source: `${BAR}&s scale(minor, A)\n&tune over=&s step=&bar 4 ~ 2 3 4@2 2 0 1 2@2 ~ 4 3@2 2\n&low over=&s step=&bar*2 0 0 -2 -3 -2 -2 0 ~\n&mix map=sample [&tune * &lead, &low * &bass]`,
+      source: `${BAR}&s scale(minor, A)\n&tune over=&s step=&bar 4 ~ 2 3 4@2 2 0 1 2@2 ~ 4 3@2 2\n&low over=&s step=&bar/2 0 0 -2 -3 -2 -2 0 ~\n&mix map=sample [&tune * &lead, &low * &bass]`,
       name: 'tune',
       playing: true,
       held: [4],

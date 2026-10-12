@@ -17,7 +17,8 @@ const piece = (key: keyof typeof PRESETS) => {
 describe('braidwheel: what the sheet shows of a braid', () => {
   it('reads one token as its atom', () => {
     expect(atomOf('4')).toMatchObject({ kind: 'note', value: 4, alter: 0 });
-    expect(atomOf('[0 4 7]')).toMatchObject({ kind: 'chord', notes: [0, 4, 7] });
+    expect(atomOf('[0, 4, 7]')).toMatchObject({ kind: 'chord', notes: [0, 4, 7] });
+    expect(atomOf('[0 4 7]')).toMatchObject({ kind: 'seq', layers: [[{ atom: { value: 0 } }, { atom: { value: 4 } }, { atom: { value: 7 } }]] });
     expect(atomOf('[2|4|7]')).toMatchObject({ kind: 'choice', values: [2, 4, 7] });
     expect(atomOf('&up')).toMatchObject({ kind: 'ref', name: 'up' });
   });
@@ -34,9 +35,11 @@ describe('braidwheel: what the sheet shows of a braid', () => {
     expect(tokenLabels(result, 'tune', shifts, tune.tokens)).toEqual(['&up', '&down', '&mid', '&up', '&down']);
     expect(tune.tokens.map((t) => tokenHues(result, 'tune', shifts, t))).toEqual([null, null, null, null, null]);
     // a chord takes a hue per note, a choice its first option's; a chord has no name
-    expect(tokenHues(result, 'up', shifts, '[0 4 7]')).toEqual([0, 210, 0]);
+    expect(tokenHues(result, 'up', shifts, '[0, 4, 7]')).toEqual([0, 210, 0]);
+    // (a subsequence: its notes' hues in order, nested ones opened; a rest in it adds none)
+    expect(tokenHues(result, 'up', shifts, '[0 [4 ~ 7]]')).toEqual([0, 210, 0]);
     expect(tokenHues(result, 'up', shifts, '[2|4|7]')).toEqual([120]);
-    expect(tokenName(result, 'up', shifts, '[0 4 7]')).toBeNull();
+    expect(tokenName(result, 'up', shifts, '[0, 4, 7]')).toBeNull();
     expect(tokenName(result, 'up', shifts, '1')).toBe('re');
   });
 
