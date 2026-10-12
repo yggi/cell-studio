@@ -126,6 +126,7 @@ export const TIERS: readonly { readonly name: string; readonly concept: string; 
       'generator euclid(k, n)',
       'sort signal: a pattern read through a kit',
       'line oneshot',
+      'modifier x%n',
       // swing
       'parameter swing',
       'parameter beat',
@@ -166,6 +167,8 @@ export const TIERS: readonly { readonly name: string; readonly concept: string; 
     forms: [
       // stereo
       'parameter pan',
+      // how a voice plays its notes
+      'line legato',
       // waveforms
       'sort wave: a braid turning at an audio rate',
       'generator sin(n)',
@@ -354,6 +357,7 @@ export function formsUsed(source: string): Set<string> {
     if (t.subdivide > 1) use('modifier x*n');
     if (t.elongate !== 1) use('modifier x@n');
     if (t.chance !== undefined) use('modifier x?');
+    if (t.level !== undefined) use('modifier x%n');
     const a = t.atom;
     if (a.kind === 'note') {
       use('step n');
@@ -389,6 +393,7 @@ export function formsUsed(source: string): Set<string> {
     if (c?.note) use('line &name label="…"');
     if (d.off) use('line off');
     if (d.oneshot) use('line oneshot');
+    if (d.legato) use('line legato');
     // (a stepped table of names that declares taps: decision 016)
     if ([...(compiled.taps?.values() ?? [])].includes(d.name)) use('line &parts step=&bar &a &b');
     if (d.lambda) use('reference &( … )');

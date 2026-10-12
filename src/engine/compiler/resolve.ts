@@ -120,6 +120,7 @@ export function resolveCells(ctx: Ctx, { decls, implicit, implicitRoot, overOk }
       shift: d.shift ?? 0,
       off: d.off,
       oneshot: !!d.oneshot,
+      legato: !!d.legato,
       children,
       steps,
       unitSteps,

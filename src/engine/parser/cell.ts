@@ -389,6 +389,13 @@ export const LINE_SYNTAX: readonly Syntax[] = [
   ),
   syntax(
     'line',
+    'legato',
+    'On a voice: a run of notes, each starting as the one before ends, is played as one: its envelope once, the pitch moving to each next note. A rest or a chord ends the run.',
+    ['&bass legato s=saw loop=C2 env=&(map=adsr .01 .2 .6 .1)'],
+    'sound.md',
+  ),
+  syntax(
+    'line',
     '# … · // …',
     'A comment, to the end of the line: # at the start of a line or after a space (a # glued to a number is a sharp), // anywhere.',
     ['&tune step=2 0 2 4  # the opening'],
@@ -463,6 +470,7 @@ export function parseBody(s: LineScanner, head: Ref): CellDecl {
   const seen = new Set<string>();
   let off = false;
   let oneshot = false;
+  let legato = false;
   const tokens: Token[] = [];
   let generator: Braid | null = null;
   let scaleKey: Ref | null = null;
@@ -532,7 +540,14 @@ export function parseBody(s: LineScanner, head: Ref): CellDecl {
     }
     if (word === 'oneshot' && s.atBoundary()) {
       if (oneshot) s.fail('oneshot is given twice', at, word.length);
+      if (legato) s.fail('oneshot or legato: a voice plays its notes one way', at, word.length);
       oneshot = true;
+      continue;
+    }
+    if (word === 'legato' && s.atBoundary()) {
+      if (legato) s.fail('legato is given twice', at, word.length);
+      if (oneshot) s.fail('oneshot or legato: a voice plays its notes one way', at, word.length);
+      legato = true;
       continue;
     }
     // a note by name is a step (C, Bb3): read again as one
@@ -564,6 +579,7 @@ export function parseBody(s: LineScanner, head: Ref): CellDecl {
     shift,
     off,
     ...(oneshot ? { oneshot } : {}),
+    ...(legato ? { legato } : {}),
     step,
     map,
     stride,

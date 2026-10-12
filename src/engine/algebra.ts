@@ -77,6 +77,9 @@ export function distribute(e: Expr, sortOf: (name: string) => Sort, why?: (names
 function typeOf(e: Expr, sortOf: (name: string) => Sort, mode: Mode = 'auto'): Typed {
   if (e.k === 'num') return { k: 'num', value: e.value };
   if (e.k === 'ref') {
+    // (x%n is a step's level, in a braid or a groove's chord: in a mix a gain is a number, &x * .5)
+    if (e.level !== undefined)
+      throw new AlgebraError(`&${e.ref.name}%… is a step's level, in a braid or a groove: in a mix, a gain is a number (&${e.ref.name} * ${+e.level.toFixed(3)})`, e.ref.span);
     const s = sortOf(e.ref.name);
     if (s === 'signal' || (s === 'wave' && mode === 'auto')) return { k: 'signal', bindings: [{ voice: e.ref, pitches: [], offset: 0, gain: 1 }] };
     if (s === 'plain') return { ...ACT, plain: [e.ref] };

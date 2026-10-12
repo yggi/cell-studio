@@ -69,7 +69,7 @@ export interface Ref {
 export type Atom =
   | { readonly kind: 'note'; readonly value: number; readonly alter: number; readonly pitched?: true }
   | { readonly kind: 'rest' }
-  | { readonly kind: 'chord'; readonly notes: readonly number[]; readonly alters: readonly number[]; readonly pitched?: readonly boolean[] }
+  | { readonly kind: 'chord'; readonly notes: readonly number[]; readonly alters: readonly number[]; readonly pitched?: readonly boolean[]; readonly levels?: readonly number[] }
   /** [a|b|c]: one of them, chosen afresh each time round (reproducibly). */
   | { readonly kind: 'choice'; readonly values: readonly number[]; readonly alters: readonly number[] }
   /** transpose: grid steps up (or down) after its tables, absolute: &subject^$7, &subject^$-12 (&subject^1 is a degree: values). */
@@ -83,7 +83,7 @@ export type Atom =
 
 /** An expression in a mix chord, as written: sums and products of cells and numbers. */
 export type Expr =
-  | { readonly k: 'ref'; readonly ref: Ref }
+  | { readonly k: 'ref'; readonly ref: Ref; readonly level?: number }
   | { readonly k: 'num'; readonly value: number; readonly span: Span }
   | { readonly k: 'sum'; readonly items: readonly { readonly e: Expr; readonly sign: 1 | -1 }[]; readonly span: Span }
   | { readonly k: 'prod'; readonly factors: readonly Expr[]; readonly span: Span };
@@ -101,6 +101,8 @@ export interface Token {
   readonly elongate: number;
   /** x?p: it sounds with probability p (x? alone: the cell's chance=, else ½). */
   readonly chance?: number | null;
+  /** x%n: its level (x%50 or x%.5: half; a whole number is a percent, a number with a point a fraction). */
+  readonly level?: number;
   readonly span: Span;
 }
 
@@ -235,6 +237,8 @@ export interface CellDecl {
   readonly off: boolean;
   /** `oneshot`: a voice plays each note as long as its envelope's attack and decay, whatever its step (a drum hit). */
   readonly oneshot?: boolean;
+  /** `legato`: a voice plays a run of tied notes (each starting as the one before ends) as one, its envelope once. */
+  readonly legato?: boolean;
   readonly step: StepSpec | null;
   readonly map: MapSpec | null;
   /** How far each step moves a stepped table (stride=7 walks a 12-cycle in fifths). */

@@ -159,8 +159,11 @@ export function voiceGrooves(decls: ReadonlyMap<string, CellDecl>): { voices: Re
       if (a.kind === 'ref' && isVoiceDecl(a.name)) atom = { kind: 'note', value: index(a.name, t.span), alter: 0 };
       else if (a.kind === 'ref') rewrite(decls.get(a.name)!);
       else if (a.kind === 'mix') {
-        const notes = a.exprs.map((e) => index((e as { ref: Ref }).ref.name, t.span));
-        atom = { kind: 'chord', notes, alters: notes.map(() => 0) };
+        const refs = a.exprs as readonly { ref: Ref; level?: number }[];
+        const notes = refs.map((e) => index(e.ref.name, t.span));
+        // (a drum's own level in the chord, [&bd, &hh%40])
+        const levels = refs.some((e) => e.level !== undefined) ? refs.map((e) => e.level ?? 1) : undefined;
+        atom = { kind: 'chord', notes, alters: notes.map(() => 0), ...(levels ? { levels } : {}) };
       }
       return { ...t, atom };
     });

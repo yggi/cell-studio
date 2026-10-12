@@ -41,6 +41,8 @@ export interface StepEvent {
   readonly via?: { readonly cell: string; readonly index: number; readonly ctx: string; readonly mul: 1 | -1; readonly add: number };
   /** x?p: the probability it sounds (each time round, reproducibly). */
   readonly chance?: number;
+  /** x%n: its level (a fraction), times every level it was spliced at. */
+  readonly level?: number;
   /** [a|b|c]: what it chooses from (value is the first, for drawing). */
   readonly options?: readonly { readonly value: number; readonly alter: number }[];
 }
@@ -91,7 +93,11 @@ export function flatten(
               ...(taps ? { via: { cell: name, index: taps[n], ctx: table, mul: 1 as const, add: 0 } } : {}),
             };
             // x?p: its probability (a bare ? takes the cell's chance=)
-            const odds = u.chance === undefined ? {} : { chance: u.chance === null ? (cell.chance ?? 0.5) : u.chance };
+            const odds = {
+              ...(u.chance === undefined ? {} : { chance: u.chance === null ? (cell.chance ?? 0.5) : u.chance }),
+              // x%n: its level
+              ...(u.level === undefined ? {} : { level: u.level }),
+            };
             // (a note by name is a pitch: a place on the grid at the root of its tables, not an index into them)
             const pitch = (semis: number) => ({
               ...ev,
@@ -101,7 +107,13 @@ export function flatten(
               alter: 0,
             });
             if (a.kind === 'note') out.push(a.pitched ? { ...pitch(a.value), ...odds } : { ...ev, value: a.value, alter: a.alter, ...odds });
-            else if (a.kind === 'chord') a.notes.forEach((v, j) => out.push(a.pitched?.[j] ? { ...pitch(v), ...odds } : { ...ev, value: v, alter: a.alters[j], ...odds }));
+            else if (a.kind === 'chord')
+              a.notes.forEach((v, j) => {
+                // (a member's own level, [&bd, &hh%40], times the step's)
+                const own = a.levels?.[j];
+                const lv = own === undefined ? {} : { level: own * (u.level ?? 1) };
+                out.push(a.pitched?.[j] ? { ...pitch(v), ...odds, ...lv } : { ...ev, value: v, alter: a.alters[j], ...odds, ...lv });
+              });
             else if (a.kind === 'choice') out.push({ ...ev, value: a.values[0], alter: a.alters[0], ...odds, options: a.values.map((v, j) => ({ value: v, alter: a.alters[j] })) });
             else if (a.kind === 'ref') {
               const k = dur / (stepsOf(result, a.name, a.pick) || 1);
@@ -119,7 +131,14 @@ export function flatten(
                       ...(e.via ? { via: { ...e.via, mul: (m.mul * e.via.mul) as 1 | -1, add: m.mul * e.via.add + m.add } } : {}),
                     };
               for (const e of walk(a.name, a.pick, a.shift, table, tShift))
-                out.push({ ...moved(e), step: at + e.step * k, duration: e.duration * k, ...(up || e.transpose ? { transpose: (e.transpose ?? 0) + up } : {}) });
+                out.push({
+                  ...moved(e),
+                  step: at + e.step * k,
+                  duration: e.duration * k,
+                  ...(up || e.transpose ? { transpose: (e.transpose ?? 0) + up } : {}),
+                  // (a splice at a level, &fill%50: every step of it at that level too)
+                  ...(u.level !== undefined ? { level: (e.level ?? 1) * u.level } : {}),
+                });
             }
             if (out.length > MAX_EVENTS) throw new ExpansionLimit(name);
           }

@@ -10,6 +10,7 @@ Every form the parser reads, what it means and an example: generated from the pa
 - `&name label="…"`: A note: a cell with only a label= (and title=, tags=, about=) explains, in the graph; it does nothing. [→](display.md) `&why label="The bass walks down a fifth each bar."`
 - `off`: Switched off: it, and everything that reads through it or plays it, is silent (and hidden from the graph). [→](cell.md) `&drums off over=&kit step=&bar 0 1`
 - `oneshot`: On a voice: each note plays its envelope through (its attack and decay), whatever its step: a drum hit on any grid. [→](sound.md) `&bd oneshot s=sine loop=A1 env=&(map=adsr 0 .3 0 .05)`
+- `legato`: On a voice: a run of notes, each starting as the one before ends, is played as one: its envelope once, the pitch moving to each next note. A rest or a chord ends the run. [→](sound.md) `&bass legato s=saw loop=C2 env=&(map=adsr .01 .2 .6 .1)`
 - `# …` · `// …`: A comment, to the end of the line: # at the start of a line or after a space (a # glued to a number is a sharp), // anywhere. [→](cell.md) `&tune step=2 0 2 4  # the opening`
 - `… +` · `… *` · `… ,` · `… [`: A line ending in +, *, a comma or [ continues on the next one (a long mix). [→](cell.md)
 - `&parts step=&bar &a &b`: Taps of a meter's bus (decision 016): a stepped table of names declares them, each stepped as the table is. What a tap steps plays while a selector reading the table picks it (`over=&parts`), from its top each time: an arrangement. [→](time.md) `&parts step=&bar &verseBar &chorusBar`
@@ -31,6 +32,7 @@ Every form the parser reads, what it means and an example: generated from the pa
 - `x*n`: Ratchet: the step played n times within its own length. [→](cell.md) `&hats step=2 0 0*2 0 0*3`
 - `x@n`: Hold: the step lasts n steps. [→](cell.md) `&tune step=2 0@2 2 4@3`
 - `x?` · `x?p`: Chance: the step sounds with probability p (x? alone: the cell's chance=, ½ unless set). Reproducible: the same every time the piece is played; seed= gives another sequence. [→](cell.md) `&hats step=4 0 0? 0?.3 0` · `&ghost chance=.2 step=4 0? 0? 0? 0?`
+- `x%n`: Level: the step at n percent (x%50), or as a fraction with a point (x%.5, the same); %150 or %1.5 louder. A hit's own accent, in a groove too: [&bd, &hh%40]. [→](cell.md) `&hats step=4 0 0%40 0%70 0%40` · `&beat step=8 [&bd,&hh] &hh%40 [&sd,&hh] &hh%40`
 
 ## References
 

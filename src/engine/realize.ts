@@ -330,6 +330,9 @@ function lawOffset(result: Plan['result'], cell: string): number {
  * `outputs`: each note names the output it comes from (for the audio: which mixes' wheels hear it); left out,
  * a note is only what sounds.
  */
+/** A legato run's most notes: it starts again after this many (an endless tie, a loop with no rest, ends). */
+const RUN = 256;
+
 export function eventsBetween(p: Plan, from: number, to: number, outputs = false): Played[] {
   // (a law's cell plays only what its law computes — not its steps counted as values)
   const lawful = (t: PlanTrack) => p.result.cells.get(t.output.cell)?.params.law !== undefined;
@@ -424,14 +427,14 @@ function plainEvents(p: Plan, from: number, to: number, outputs: boolean): Playe
     const c1 = tm.stepAt(Math.max(0, until)) * t.rate;
     if (!Number.isFinite(c0) || !Number.isFinite(c1) || c1 <= c0) continue; // (a clock gone wild: nothing from it)
     // a note at step s, lasting until step `upto` (a window's end cuts it)
-    const emit = (s: number, e: StepEvent, upto: number) => {
+    const make = (s: number, e: StepEvent, upto: number): Played | null => {
       const at = tm.q(s / t.rate);
-      if (!Number.isFinite(at)) return; // (a clock run down: this step never comes)
-      if (at >= t.end - EPS) return;
+      if (!Number.isFinite(at)) return null; // (a clock run down: this step never comes)
+      if (at >= t.end - EPS) return null;
       // (a note whose clock stops beneath it never reaches its end: it rings 8 s at most)
       const ends = Math.min(tm.q(upto / t.rate), t.end);
       const v = voiceFor(result, t.output, e.value);
-      if (!v || p.muted.has(cellId(v.voice))) return;
+      if (!v || p.muted.has(cellId(v.voice))) return null;
       // (a oneshot voice: a hit, as long as its envelope's attack and decay, whatever its step)
       const hit = result.cells.get(v.voice)?.oneshot ? (t.output.envelope ?? memberEnvelope(result, v.voice)) : null;
       const dur = hit ? hit.attack + hit.decay : Number.isFinite(ends) ? ends - at : 8;
@@ -456,7 +459,7 @@ function plainEvents(p: Plan, from: number, to: number, outputs: boolean): Playe
       if (vs && tm.speed && !t.output.kit && !t.output.gate) {
         const sp = (x: number) => Math.max(1e-3, tm.speed!(x));
         const s0 = sp(at);
-        if (s0 < 0.05) return; // (tape at a standstill: nothing sounds)
+        if (s0 < 0.05) return null; // (tape at a standstill: nothing sounds)
         semis += 12 * vs * Math.log2(s0);
         if (!bends.length)
           for (let x = at + 0.04, n = 0; x < at + dur && n < 400; x += 0.04, n++) {
@@ -466,7 +469,8 @@ function plainEvents(p: Plan, from: number, to: number, outputs: boolean): Playe
       }
       // volume: the product of the streams (and a gate's own value), over the note
       const own = t.db ? Math.pow(10, (e.value + e.alter) / 20) : Math.max(0, e.value + e.alter);
-      const level: { at: number; level: number; ramp?: boolean }[] = [{ at, level: t.output.gate ? own : 1 }];
+      // (x%n: the step's own level)
+      const level: { at: number; level: number; ramp?: boolean }[] = [{ at, level: (t.output.gate ? own : 1) * (e.level ?? 1) }];
       if (t.levels.length) {
         const series = t.levels.map((m) => levelSeries(p, m, at, at + dur));
         const times = [...new Set(series.flatMap((s) => s.map((x) => x.at)))].sort((a, b) => a - b);
@@ -492,32 +496,75 @@ function plainEvents(p: Plan, from: number, to: number, outputs: boolean): Playe
       };
       const gains = memberPan(liveGains(t.output, p.muted));
       const midi = t.output.midi ? liveMidi(t.output, p.muted) : [];
-      if (freq > 0 && freq < 20000 && level.some((l) => l.level > 0))
-        out.push({
-          at,
-          dur,
-          voice: v.voice,
-          freq,
-          bends,
-          value: e.value + e.alter,
-          gains,
-          levels: level,
-          // (on MIDI cards only, or its sound card switched off: sent, not heard)
-          ...(!t.output.silent && !(gains[0] > 0 || gains[1] > 0) ? { unheard: true as const } : {}),
-          ...(midi.length ? { midi } : {}),
-          ...(env ? { env } : {}),
-          ...(t.output.through.length ? { instrument: t.output.through[0] } : {}),
-          ...(params ? { params } : {}),
-          ...(outputs ? { output: t.output.id } : {}),
-        });
+      if (!(freq > 0 && freq < 20000 && level.some((l) => l.level > 0))) return null;
+      return {
+        at,
+        dur,
+        voice: v.voice,
+        freq,
+        bends,
+        value: e.value + e.alter,
+        gains,
+        levels: level,
+        // (on MIDI cards only, or its sound card switched off: sent, not heard)
+        ...(!t.output.silent && !(gains[0] > 0 || gains[1] > 0) ? { unheard: true as const } : {}),
+        ...(midi.length ? { midi } : {}),
+        ...(env ? { env } : {}),
+        ...(t.output.through.length ? { instrument: t.output.through[0] } : {}),
+        ...(params ? { params } : {}),
+        ...(outputs ? { output: t.output.id } : {}),
+      };
+    };
+    // legato (a voice's `legato`): a run of single notes, each starting as the one before ends, is one note: its
+    // envelope once, the later notes bends of it. Each run is played from its first note, whatever window it falls
+    // in (looked ahead along the track's own steps), and a note tied to the one before plays nothing of its own.
+    const legato = !t.output.kit && !t.output.gate && !!result.cells.get(t.output.voice)?.legato;
+    const n = t.events.length;
+    // (a step with one note on it: a chord isn't tied)
+    const single = (i: number) => (i === 0 || t.events[i - 1].step !== t.events[i].step) && (i === n - 1 || t.events[i + 1].step !== t.events[i].step);
+    // (the note before event i of lap `lap`, its lap, and whether it ends where i starts)
+    const before = (i: number, lap: number): [number, number] => (i > 0 ? [i - 1, lap] : [n - 1, lap - 1]);
+    // (`minLap`: in a selector's window, from its start, no note before lap 0 plays)
+    // (a run starts again every RUN notes along the track, the same wherever a window cuts it: an endless tie ends)
+    const tied = (i: number, lap: number, minLap: number): boolean => {
+      if (!legato || !single(i) || mod(lap * n + i, RUN) === 0) return false;
+      const [k, kl] = before(i, lap);
+      const end = kl * t.period + t.events[k].step + t.events[k].duration;
+      const start = lap * t.period + t.events[i].step;
+      return single(k) && kl >= minLap && Math.abs(end - start) < EPS && !!thrown(result, t, t.events[k], kl);
+    };
+    // emit: a note, or (legato) the run it starts, up to `bound` (its window's end; `base` the window's first step)
+    const emit = (s: number, e: StepEvent, upto: number, i = -1, lap = 0, base = 0, minLap = 0, bound = Infinity) => {
+      if (i >= 0 && tied(i, lap, minLap)) return;
+      const first = make(s, e, upto);
+      if (!first) return;
+      if (i < 0 || !legato || !single(i)) return void out.push(first);
+      let run: Played = first;
+      let [j, jl] = [i, lap];
+      for (let guard = 0; guard < RUN; guard++) {
+        [j, jl] = j < n - 1 ? [j + 1, jl] : [0, jl + 1];
+        const sj = base + jl * t.period + t.events[j].step;
+        if (sj >= bound - EPS || !tied(j, jl, minLap)) break;
+        const r = thrown(result, t, t.events[j], jl);
+        const next = r && make(sj, r, Math.min(sj + t.events[j].duration, bound));
+        if (!next) break;
+        const cents = 1200 * Math.log2(next.freq / run.freq);
+        run = {
+          ...run,
+          dur: next.at + next.dur - run.at,
+          bends: [...run.bends, { at: next.at, cents }, ...next.bends.map((b) => ({ ...b, cents: b.cents + cents }))],
+          levels: [...run.levels, ...next.levels.filter((l) => l.at >= next.at)],
+        };
+      }
+      out.push(run);
     };
     if (t.selects.length === 0) {
       for (let lap = Math.floor(c0 / t.period) - 1; lap * t.period < c1; lap++)
-        for (const e of t.events) {
+        for (const [i, e] of t.events.entries()) {
           const s = lap * t.period + e.step;
           if (s < c0 - EPS || s >= c1 - EPS) continue;
           const r = thrown(result, t, e, lap);
-          if (r) emit(s, r, s + e.duration);
+          if (r) emit(s, r, s + e.duration, i, lap);
         }
       continue;
     }
@@ -534,11 +581,11 @@ function plainEvents(p: Plan, from: number, to: number, outputs: boolean): Playe
       const hi = Math.min(c1, sB);
       if (hi <= lo) continue;
       for (let lap = Math.floor((lo - sA) / t.period) - 1; sA + lap * t.period < hi; lap++)
-        for (const e of t.events) {
+        for (const [i, e] of t.events.entries()) {
           const s = sA + lap * t.period + e.step;
           if (lap < 0 || s < lo - EPS || s >= hi - EPS) continue;
           const r = thrown(result, t, e, lap);
-          if (r) emit(s, r, Math.min(s + e.duration, sB));
+          if (r) emit(s, r, Math.min(s + e.duration, sB), i, lap, sA, 0, sB);
         }
     }
   }

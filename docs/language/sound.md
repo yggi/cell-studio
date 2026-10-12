@@ -49,6 +49,8 @@ A braid of voices with no `step=` (`&kit &bd &sd &hh`) is a table of voices: a p
 
 **`oneshot`** on a voice's line makes it a hit: each note plays its envelope through (its attack and decay), whatever its step, as a drum machine's does. Without it a note lasts its step, so a kick with a .3 s decay on a grid of .125 s eighths is cut short; with it, kicks and hats can share one fine grid (`&beat step=&bar/2 &bd &hh [&bd,&cp] &hh`) and the kick still rings. It is opt-in: a voice without it plays as before.
 
+**`legato`** on a voice's line is the other way round: a run of single notes, each starting as the one before ends, is played as one note: its envelope once (no new attack), the pitch moving to each next note, as a bowed or blown line does. A rest or a chord ends the run, a hold (`@`) is part of it. `&lead legato s=tri …` with `&tune step=&bar/2 0 2 4 ~ 5 4 2@2` plays two phrases, each one breath. A voice is `oneshot` or `legato` or neither, not both. (A run starts again after 256 notes: a loop with no rest is still breathed now and then.)
+
 ```cells
 &bar scan(1 1 1 1) step=120bpm
 &bd oneshot s=sine loop=A1 env=&(map=adsr 0 .3 0 .05)

@@ -175,13 +175,37 @@ export const CHANCE_SYNTAX = syntax(
   'cell.md',
 );
 
+export const LEVEL_SYNTAX = syntax(
+  'modifier',
+  'x%n',
+  "Level: the step at n percent (x%50), or as a fraction with a point (x%.5, the same); %150 or %1.5 louder. A hit's own accent, in a groove too: [&bd, &hh%40].",
+  ['&hats step=4 0 0%40 0%70 0%40', '&beat step=8 [&bd,&hh] &hh%40 [&sd,&hh] &hh%40'],
+  'cell.md',
+);
+
+/** x%n's level: a whole number is a percent, a number with a point a fraction (%50 = %.5, %150 = %1.5). */
+export function parseLevel(s: LineScanner): number {
+  const at = s.i;
+  const n = s.match(/[0-9]*\.[0-9]+|[0-9]+/y);
+  if (n === null) return s.fail('A level after %: a percent (%50) or a fraction (%.5)', at, 1);
+  return n.includes('.') ? parseFloat(n) : parseInt(n, 10) / 100;
+}
+
 export function parseToken(s: LineScanner): Token {
   const start = s.i;
   const atom = parseAtom(s);
   const mods = { repeat: 1, subdivide: 1, elongate: 1 };
   let chance: number | null | undefined;
+  let level: number | undefined;
   const seen = new Set<string>();
-  while (s.peek() in MODIFIERS || s.peek() === '?') {
+  while (s.peek() in MODIFIERS || s.peek() === '?' || s.peek() === '%') {
+    if (s.peek() === '%') {
+      // x%n: its level
+      if (level !== undefined) s.fail(`'%' can only appear once per step`);
+      s.i++;
+      level = parseLevel(s);
+      continue;
+    }
     if (s.peek() === '?') {
       // x?p: it sounds with probability p; x? alone: the cell's chance=
       if (chance !== undefined) s.fail(`'?' can only appear once per step`);
@@ -202,5 +226,5 @@ export function parseToken(s: LineScanner): Token {
     mods[MODIFIERS[op].field] = n;
   }
   if (!s.atBoundary()) s.fail(`Unexpected '${s.peek()}' — separate steps with spaces`);
-  return { atom, ...mods, ...(chance !== undefined ? { chance } : {}), span: s.span(start) };
+  return { atom, ...mods, ...(chance !== undefined ? { chance } : {}), ...(level !== undefined ? { level } : {}), span: s.span(start) };
 }
