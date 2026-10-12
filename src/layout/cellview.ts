@@ -102,7 +102,8 @@ export interface CellView {
   readonly detents: number;
 }
 
-const pitchFill = (result: CompileResult, cell: string, value: number, alter: number, shifts: Shifts): Fill => {
+/** A pitch's fill: its hue and octave on the grid it resolves to, read through `cell`'s table. */
+export const pitchFill = (result: CompileResult, cell: string, value: number, alter: number, shifts: Shifts): Extract<Fill, { kind: 'pitch' }> => {
   const r = resolvePitch(result, cell, value, alter, shifts);
   return { kind: 'pitch', hue: positionHue(result, r.root, r.position), octave: positionOctave(result, r.root, r.position), alter };
 };

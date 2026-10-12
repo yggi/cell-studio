@@ -4,7 +4,7 @@
  * the cell (its parts, &refs, and its tables, over=) — wherever it fits.
  * step= drivers aren't below in this sense: a melody's show never renames its meter.
  */
-import { codeShifts, ROOT, type CompileResult } from '../engine/program';
+import { codeShifts, DEFAULT_FREQ, ROOT, type CompileResult } from '../engine/program';
 import type { ShowPlugin } from '../engine/plugins';
 import { entries, resolveIn, resolvePitch, semitones } from '../engine/helix';
 import { modeName, mod } from '../theory/modes';
@@ -260,6 +260,15 @@ export function noteLabel(show: Show, n: Named, base: number, tonic: number, con
 
 /** Does a show name notes (so wheels label their steps)? */
 export const names = (s: Show) => s === 'notes' || s === 'midi' || s === 'do' || s === 'degrees';
+
+/**
+ * What a cell's steps are named against (`noteLabel`): its voice's base frequency and its tonic (movable do).
+ * A name the program doesn't have: the default pitch and 0.
+ */
+export function noteFrame(result: CompileResult, name: string): { base: number; tonic: number } {
+  if (!result.cells.get(name)) return { base: DEFAULT_FREQ, tonic: 0 };
+  return { base: voiceBase(result, name), tonic: tonicOf(result, name) };
+}
 
 /**
  * The tonic for movable do: 0 of the table a cell reads — as the table turns (a
