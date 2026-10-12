@@ -149,6 +149,29 @@ runs before the variants and pairs, on the notes as written.
   runs from 4 steps, the MIDI library −4.1 % but the examples lose 6 phrases back (a stretched run hides a phrase from the
   variants); between variants and pairs, −2.9 %. Runs from 10 steps fold as 12 do; from 16, less.
 
+## Sections by key (#346)
+
+`sections.ts`: the piece's key areas, a bar a time, each bar's notes priced in accidentals in each of 36 collections (the
+twelve major scales with their relative minors, the twelve harmonic and twelve melodic minors), the path of fewest with a
+change of key costing 12 (a Viterbi path: a key where it lasts, not for a chord), areas under two bars their neighbours'.
+Each is named in its collection (a major scale's notes as its major or its relative minor, by the tonic the bass starts or
+ends on; on one tonic a minor natural, harmonic or melodic is one key). Each line is cut at each area's start, or where a
+note is held across it, at the nearest step within a bar where none is; each part is a cell read through its section's key
+(`&upB over=&key2`), the line splices its parts (`&up step=&tempo &upA &upB@2 &upC &upD &upE`), a part all rest a rest,
+a part written alike the same cell. The parts are folded together in degrees of their own keys, so an entry in the
+dominant is the same degrees as the one in the tonic.
+
+- **It doesn't pay in characters.** On every piece with more than one key area it is 2–45 % longer than the best fold
+  without (the key cells, a cell a part, and phrases that can't fold across a cut). So it is taken for reading, with an
+  allowance as variants are (`SECTIONS` in `midiimport.ts`, 1.15 as `STRUCTURE`): **7 pieces of the MIDI library come
+  out in sections** (the G major fugue as G major, E minor, B minor, G major; Sinfonia 2 as C minor, G minor, C minor;
+  the E♭ major prelude of book I, the F minor, A minor and B minor fugues, Sinfonia 7), **the library 183,046 → 184,880
+  (+1.0 %)**, none of the examples (they modulate little through MIDI), their ratchet unchanged.
+- *Measured*: at 1.05 one piece takes sections, at 1.2 eleven (the examples then 3 % longer, phrases back 65 → 66). A
+  change costing 24 instead of 12 makes fewer, longer areas and saves little.
+- *Next*: sections at the boundaries the time engine hears (the swells, `time/boundaries.ts`), where a piece repeats
+  itself in one key (a dance's halves, a pop song's verse and chorus).
+
 ## What was tried and left out (measured on seven pieces)
 
 - **Repeats as a tool of their own** (a block k times in a row, `&r!k`), before pairs: Pachelbel 3,309 → 7,951,
