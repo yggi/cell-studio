@@ -5,7 +5,7 @@ import { structureKey, type GraphNode } from '../../engine/graph';
 import type { LiveState } from '../../engine/live';
 import { ForceLayout } from '../../layout/physics';
 import { DEFAULT_LAYOUT, TOWER_LAYOUT, type LayoutOptions } from '../../layout/options';
-import { isSocket, SOCKET_SIZE, socketHeights, towerHeights, towerOuts, withoutCard, withSockets, type TowerOut } from '../../layout/towerlayout';
+import { isSocket, SOCKET_SIZE, towerHeights, towerLayers, towerOuts, withoutCard, withSockets, type TowerOut } from '../../layout/towerlayout';
 import type { MeterTrace } from '../../layout/state';
 import { meterIndex } from '../../layout/meters';
 import { towerOf, towerRanks, zoneRanks } from '../../layout/tower';
@@ -128,7 +128,8 @@ export class GraphLayout {
     const next = tower ? { ...given, model: sockets ? withSockets(given.model) : withoutCard(given.model) } : given;
     const m = next.model;
     this.outs = tower && !sockets ? towerOuts(given.program, given.model) : [];
-    if (tower) layout.setOptions({ heights: new Map([...towerHeights(next.program, m), ...(sockets ? socketHeights(next.program, given.model, m) : [])]) });
+    // (with sockets: the layers, tables, structure, voices and the audible; with nets: each at its own height)
+    if (tower) layout.setOptions({ heights: sockets ? towerLayers(next.program, given.model, m).targets : towerHeights(next.program, m) });
     // (a probe: the rows by the frequency tower instead of the signal path, docs/notes/multiscale.md)
     if (ROWS === 'tower') layout.setOptions({ ranks: towerRanks(towerOf(next.program, m)) });
     if (ROWS === 'zones') layout.setOptions({ ranks: zoneRanks(towerOf(next.program, m, 'emit'), flowRanks(m)) });

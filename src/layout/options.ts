@@ -49,6 +49,8 @@ export interface LayoutOptions {
    * moves only sideways, dragged too. Unset: every node is free.
    */
   heights?: ReadonlyMap<string, number>;
+  /** With `heights`: 0, each held there (a rail); more, each drawn towards it by a spring this strong (a target). */
+  heightPull: number;
   layerGap: number;
   /** Edge length at rest (px). */
   linkDistance: number;
@@ -132,6 +134,7 @@ export const DEFAULT_LAYOUT: LayoutOptions = {
   partLength: 0.8,
   rankPull: 0.05,
   upPull: 0,
+  heightPull: 0,
   centre: 0.004,
   columnPull: 0.035,
   layerGap: 130,

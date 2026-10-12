@@ -108,7 +108,7 @@ export class ForceLayout {
       // turntables: nothing overlaps them — a node that would is set at their edge
       .force('exclusion', () => stepExclusion(this.s))
       // (the tower layout) heights held: whatever moved a node, it ends the tick at its height
-      .force('heights', () => this.hold())
+      .force('heights', (alpha: number) => this.hold(alpha))
       .on('tick', () => {
         placeJunctions(this.s);
         onTick();
@@ -313,10 +313,22 @@ export class ForceLayout {
     }
   }
 
-  /** (the tower layout) Each node `heights` names held at its height: only x is free (d3 sets y to fy each tick). */
-  private hold(): void {
+  /**
+   * (the tower layout) Each node `heights` names held at its height: only x is free (d3 sets y to fy each tick); or,
+   * with `heightPull`, drawn towards it, gently, as a spring would (its height a target, not a rail).
+   */
+  private hold(alpha = 1): void {
     const h = this.s.opts.heights;
     if (!h) return;
+    const k = this.s.opts.heightPull;
+    if (k > 0) {
+      for (const n of this.s.byId.values()) {
+        const y = h.get(n.id);
+        if (y === undefined || n.y === undefined) continue;
+        n.vy = (n.vy ?? 0) + (y - n.y) * k * alpha;
+      }
+      return;
+    }
     for (const n of this.s.byId.values()) {
       const y = h.get(n.id);
       if (y === undefined) continue;
@@ -371,7 +383,7 @@ export class ForceLayout {
    */
   layNet(): void {
     if (this.s.opts.placeLast) this.placeMeters();
-    this.hold();
+    if (!this.s.opts.heightPull) this.hold();
     // (the products' junctions, where their wires cross least: junctions.ts)
     settleJunctions(this.s, (l) => this.beltRuns(l));
     this.meterNet();
@@ -446,7 +458,7 @@ export class ForceLayout {
     const p = this.s.byId.get(id);
     if (!p) return;
     p.fx = x;
-    p.fy = this.s.opts.heights?.get(id) ?? y;
+    p.fy = (this.s.opts.heightPull ? undefined : this.s.opts.heights?.get(id)) ?? y;
     this.sim.alphaTarget(0.3);
     if (this.s.opts.live) this.sim.restart();
   }
@@ -455,7 +467,7 @@ export class ForceLayout {
     const p = this.s.byId.get(id);
     if (!p) return;
     p.fx = x;
-    p.fy = this.s.opts.heights?.get(id) ?? y;
+    p.fy = (this.s.opts.heightPull ? undefined : this.s.opts.heights?.get(id)) ?? y;
   }
 
   /** Release a dragged node back into the simulation, or keep it pinned. */

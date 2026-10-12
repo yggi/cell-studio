@@ -14,11 +14,11 @@ import { buildGraph } from '../../src/layout/drawn';
 import { compileSource } from '../../src/engine/compile';
 import { PRESETS } from '../../src/engine/presets';
 import { TOWER_LAYOUT, type LayoutOptions } from '../../src/layout/options';
-import { netPaths, socketHeights, towerHeights, towerIns, towerNets, towerOuts, withoutCard, withSockets } from '../../src/layout/towerlayout';
+import { netPaths, socketHeights, towerHeights, towerIns, towerLayers, towerNets, towerOuts, withoutCard, withSockets } from '../../src/layout/towerlayout';
 
 const log = (t: string) => appendFileSync(process.env.PROBE!, t + '\n');
 
-type Variant = { name: string; tower: boolean; card: boolean; opts: Partial<LayoutOptions>; sockets?: boolean };
+type Variant = { name: string; tower: boolean; card: boolean; opts: Partial<LayoutOptions>; sockets?: boolean; layers?: boolean };
 // (the few forces first tried)
 const FEW: Partial<LayoutOptions> = { rankPull: 0, columnPull: 0, upPull: 0, spread: 0, kindRepel: 0, tagPull: 0, tagRepel: 0, mux: 0, clusters: false, rowOrder: 0, placeLast: 0 };
 const VARIANTS: Variant[] = [
@@ -27,6 +27,13 @@ const VARIANTS: Variant[] = [
   { name: 'tower, few forces (as first built)', tower: true, card: false, opts: FEW },
   { name: 'tower, TOWER_LAYOUT', tower: true, card: false, opts: TOWER_LAYOUT },
   { name: 'tower, TOWER_LAYOUT, a socket each into the card', tower: true, card: false, opts: TOWER_LAYOUT, sockets: true },
+  // the layers (tables, structure, voices, the audible: sockets only), held or drawn by a scale force
+  { name: 'layers, held', tower: true, card: false, opts: TOWER_LAYOUT, sockets: true, layers: true },
+  { name: 'layers, pull .02', tower: true, card: false, opts: { ...TOWER_LAYOUT, heightPull: 0.02 }, sockets: true, layers: true },
+  { name: 'layers, pull .05', tower: true, card: false, opts: { ...TOWER_LAYOUT, heightPull: 0.05 }, sockets: true, layers: true },
+  { name: 'layers, pull .1', tower: true, card: false, opts: { ...TOWER_LAYOUT, heightPull: 0.1 }, sockets: true, layers: true },
+  { name: 'layers, pull .2', tower: true, card: false, opts: { ...TOWER_LAYOUT, heightPull: 0.2 }, sockets: true, layers: true },
+  { name: "layers, pull .05, today's rows too", tower: true, card: false, opts: { heightPull: 0.05, placeLast: 0 }, sockets: true, layers: true },
   { name: "tower, today's forces", tower: true, card: false, opts: {} },
   // a middle set: one of today's forces back at a time, then together (meters last now held to their row)
   { name: '… + spread', tower: true, card: false, opts: { ...FEW, spread: 0.5 } },
@@ -55,6 +62,9 @@ interface Row {
   hops: number;
   overEdges: number;
   length: number;
+  /** How far, on average, a node with a height ended from it (decades), and the most. */
+  off: number;
+  offMax: number;
   /** Nodes held at a height, and all nodes laid out. */
   held: number;
   nodes: number;
@@ -76,7 +86,11 @@ function measure(source: string, v: Variant, seed: number): Row {
   const program = compileSource(source);
   const whole = buildGraph(program);
   const model: GraphModel = v.card ? whole : v.sockets ? withSockets(whole) : withoutCard(whole);
-  const heights = v.tower ? new Map([...towerHeights(program, model), ...(v.sockets ? socketHeights(program, whole, model) : [])]) : undefined;
+  const heights = v.layers
+    ? towerLayers(program, whole, model).targets
+    : v.tower
+      ? new Map([...towerHeights(program, model), ...(v.sockets ? socketHeights(program, whole, model) : [])])
+      : undefined;
   const outs = towerOuts(program, whole);
   const l = new ForceLayout(undefined, { live: false, seed, ...v.opts, ...(heights ? { heights } : {}) });
   l.setGraph({ ...model, nodes: model.nodes.filter((n) => !n.petalOf) });
@@ -95,8 +109,18 @@ function measure(source: string, v: Variant, seed: number): Row {
     overEdges: 0,
     length: 0,
     held: heights?.size ?? 0,
+    off: 0,
+    offMax: 0,
     nodes: model.nodes.filter((n) => !n.petalOf).length,
   };
+  if (heights?.size) {
+    const offs = [...heights].flatMap(([id, y]) => {
+      const p = l.position(id);
+      return p ? [Math.abs(p.y - y) / 360] : [];
+    });
+    row.off = offs.reduce((a, b) => a + b, 0) / Math.max(1, offs.length);
+    row.offMax = Math.max(0, ...offs);
+  }
   if (v.tower && !v.sockets) {
     const placed = (l as unknown as { placed(): Placed }).placed();
     const at = new Map(placed.nodes.map((n) => [n.id, n]));
@@ -146,8 +170,10 @@ describe.runIf(process.env.PROBE)('the tower layout', () => {
     const variants = pick ? VARIANTS.filter((_, i) => pick.includes(i)) : VARIANTS;
     const seeds = (process.env.SEEDS ?? '0,1,2').split(',').map(Number);
     log(`# The tower layout (${pieces.length} pieces × ${seeds.length} seeds; library sums, mean over seeds)\n`);
-    log('| layout | crossings | cost | area Mpx² | pieces with an overlap | nets into the strip | over a cell (of them free) | hops routed | over an edge | wire length kpx |');
-    log('|---|---|---|---|---|---|---|---|---|---|');
+    log(
+      '| layout | crossings | cost | area Mpx² | pieces with an overlap | nets into the strip | over a cell (of them free) | hops routed | over an edge | wire length kpx | off its height, decades (mean, most) |',
+    );
+    log('|---|---|---|---|---|---|---|---|---|---|---|');
     const perPiece = new Map<string, Map<string, Row>>();
     let held = 0;
     let nodes = 0;
@@ -169,7 +195,7 @@ describe.runIf(process.env.PROBE)('the tower layout', () => {
       const sum = (f: (r: Row) => number) => rows.reduce((n, r) => n + f(r), 0) / seeds.length;
       const t = v.tower;
       log(
-        `| ${v.name} | ${sum((r) => r.crossings).toFixed(1)} | ${sum((r) => r.cost).toFixed(1)} | ${sum((r) => r.area).toFixed(1)} | ${sum((r) => r.overlap).toFixed(1)} | ${t ? sum((r) => r.wires).toFixed(0) : '—'} | ${t ? `${sum((r) => r.overCells).toFixed(1)} (${sum((r) => r.overFree).toFixed(1)})` : '—'} | ${t ? sum((r) => r.hops).toFixed(1) : '—'} | ${t ? sum((r) => r.overEdges).toFixed(1) : '—'} | ${t ? (sum((r) => r.length) / 1000).toFixed(0) : '—'} |`,
+        `| ${v.name} | ${sum((r) => r.crossings).toFixed(1)} | ${sum((r) => r.cost).toFixed(1)} | ${sum((r) => r.area).toFixed(1)} | ${sum((r) => r.overlap).toFixed(1)} | ${t ? sum((r) => r.wires).toFixed(0) : '—'} | ${t ? `${sum((r) => r.overCells).toFixed(1)} (${sum((r) => r.overFree).toFixed(1)})` : '—'} | ${t ? sum((r) => r.hops).toFixed(1) : '—'} | ${t ? sum((r) => r.overEdges).toFixed(1) : '—'} | ${t ? (sum((r) => r.length) / 1000).toFixed(0) : '—'} | ${t ? `${(sum((r) => r.off) / pieces.length).toFixed(3)}, ${Math.max(...rows.map((r) => r.offMax)).toFixed(2)}` : '—'} |`,
       );
     }
     if (nodes) log(`\nheld at a height: ${held} of ${nodes} nodes (${Math.round((100 * held) / nodes)} %)`);

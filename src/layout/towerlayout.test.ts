@@ -4,7 +4,7 @@ import { buildGraph } from './drawn';
 import { compileSource } from '../engine/compile';
 import { ForceLayout } from './physics';
 import { TOWER_LAYOUT } from './options';
-import { netPaths, routeWire, socketHeights, socketId, towerAt, towerNets, towerHeights, towerIns, towerOuts, towerY, withoutCard, withSockets } from './towerlayout';
+import { netPaths, routeWire, socketHeights, socketId, towerAt, towerLayers, towerNets, towerHeights, towerIns, towerOuts, towerY, withoutCard, withSockets } from './towerlayout';
 import { socketOf, VOICE_SIZE } from './voice';
 
 const waltz = () => {
@@ -151,5 +151,22 @@ describe('the tower layout', () => {
     const drawn = withSockets(model);
     const [h] = socketHeights(program, model, drawn).values();
     expect(10 ** towerAt(h)).toBeCloseTo(55, 1);
+  });
+
+  it('lays the layers: tables at the bottom, the structure at its rates, the voices in one row over it, the sockets alone in the audible', () => {
+    const { program, model } = waltz();
+    const drawn = withSockets(model);
+    const { targets, layers } = towerLayers(program, model, drawn);
+    const at = (id: string) => towerAt(targets.get(id)!);
+    expect(layers.get('cell:bar')).toBe('structure');
+    expect(10 ** at('cell:bar')).toBeCloseTo(168 / 60, 3);
+    // (the voices in one row, over the structure, under the lowest socket)
+    for (const v of ['flute', 'strings', 'tuba']) expect(layers.get(`cell:${v}`)).toBe('voice');
+    expect(at('cell:flute')).toBeCloseTo(at('cell:tuba'), 6);
+    expect(at('cell:tuba')).toBeGreaterThan(at('cell:bar'));
+    const sockets = [...layers].filter(([, l]) => l === 'audible').map(([id]) => at(id));
+    expect(sockets).toHaveLength(3);
+    expect(Math.min(...sockets)).toBeCloseTo(Math.log10(65.41), 3);
+    expect(at('cell:tuba')).toBeLessThan(Math.min(...sockets));
   });
 });
