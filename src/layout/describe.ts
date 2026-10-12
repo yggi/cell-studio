@@ -3,8 +3,8 @@
  * it mentions as links; and its connections, grouped by how they relate.
  * For the detail view (the sheet): read at a glance, every cell one tap away.
  */
-import { adsrOf, codeShifts, type CompileResult, type ResolvedCell } from '../engine/program';
-import { leaves } from '../engine/subseq';
+import { adsrOf, codeShifts, type CompileResult } from '../engine/program';
+import { refsOf } from '../engine/readers';
 import { entries, resolvePitch, semitones } from '../engine/helix';
 import { modeName, mod, noteName } from '../theory/modes';
 import { isSelector, kindOf } from './show';
@@ -36,7 +36,6 @@ function list(cells: readonly string[], max = 3): Bit[] {
 }
 
 /** The cells a braid splices, subsequences opened, in order. */
-const refsOf = (c: ResolvedCell): string[] => c.units.flatMap((u) => leaves(u.atom).flatMap((a) => (a.kind === 'ref' ? [a.name] : [])));
 
 /** Everything a cell connects to, by relation (only relations that have cells). */
 export function connections(result: CompileResult, name: string): Connection[] {
@@ -72,7 +71,7 @@ export function connections(result: CompileResult, name: string): Connection[] {
           ? uniq(all.filter((x) => x.sink && x.units.some((u) => u.atom.kind === 'ref' && u.atom.name === name)).map((x) => x.name))
           : [],
     },
-    { relation: 'picks', cells: isSelector(result, name) ? uniq(result.cells.get(c.over!)!.units.flatMap((u) => (u.atom.kind === 'ref' ? [u.atom.name] : []))) : [] },
+    { relation: 'picks', cells: isSelector(result, name) ? uniq(refsOf(result.cells.get(c.over!)!)) : [] },
     {
       // what it moves: voices whose parameters, pitch or envelope it drives; voices whose notes it bends or shapes
       relation: 'moves',
