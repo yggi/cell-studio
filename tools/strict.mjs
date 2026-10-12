@@ -25,6 +25,9 @@ const CLEAN = [
   /^src\/engine\/fold\//,
   /^src\/engine\/midiimport\.ts$/,
   /^src\/engine\/time\/structure\.ts$/,
+  // (the layout, a part at a time)
+  /^src\/layout\/timelayers\.ts$/,
+  /^src\/layout\/timepictures\.ts$/,
 ];
 
 const require = createRequire(import.meta.url);
