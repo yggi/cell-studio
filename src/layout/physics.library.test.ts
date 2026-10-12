@@ -4,7 +4,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { ForceLayout } from './physics';
 import { DEFAULT_LAYOUT } from './options';
 import type { LayoutQuality } from './quality';
-import { buildGraph } from '../engine/graph';
+import { buildGraph } from './drawn';
 import { compileSource } from '../engine/compile';
 import { PRESETS } from '../engine/presets';
 

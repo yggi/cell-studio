@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
-import { buildGraph } from '../engine/graph';
+import { buildGraph } from '../layout/drawn';
 import { compileSource } from '../engine/compile';
 import { flowNodeOf } from './flownode';
 

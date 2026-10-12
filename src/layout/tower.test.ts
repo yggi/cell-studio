@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { towerOf, towerRanks, towerSpans, zoneRanks } from './tower';
-import { flowRanks } from './start';
-import { buildGraph } from '../engine/graph';
+import { flowRanks } from './ranks';
+import { buildGraph } from './drawn';
 import { compileSource } from '../engine/compile';
 
 const SONG = `
