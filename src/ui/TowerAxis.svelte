@@ -21,6 +21,7 @@
   import { TOWER_ZONES, towerSpans } from '../layout/tower';
   import { towerFit } from '../layout/towerfit';
   import { noteColour } from './theme';
+  import { midiOf, pitchHue } from '../theory/modes';
   import type { FlowNode } from './types';
 
   let {
@@ -90,7 +91,7 @@
   const cells = $derived(new Map(model.nodes.map((n) => [n.id, n.cell])));
   const colourOf = (id: string, d: number) => {
     const c = cells.get(id);
-    if (c?.voice && c.freq > 0) return noteColour(((((Math.round(69 + 12 * Math.log2(c.freq / 440)) % 12) + 12) % 12) * 30) % 360);
+    if (c?.voice && c.freq > 0) return noteColour(pitchHue(midiOf(c.freq)));
     const z = zoneOf(d);
     return z === 'constant' ? 'var(--text-faint)' : z === 'card' ? 'var(--text)' : zoneColour(z);
   };

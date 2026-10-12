@@ -1,6 +1,6 @@
 // The strictness ratchet (#314): type-checks src/**/*.ts with `noUncheckedIndexedAccess`
 // (tsconfig.strict.json, which extends tsconfig.json) and fails if any error lands in a
-// folder on the clean list below. Errors elsewhere are listed as a count and allowed, until
+// folder (or file) on the clean list below. Errors elsewhere are listed as a count and allowed, until
 // that folder is cleaned and added here; a folder on the list never goes back.
 //
 // Test files (*.test.ts) are left out (tsconfig.strict.json excludes them): indexing into
@@ -14,7 +14,23 @@ import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const CLEAN = [/^src\/audio\//, /^src\/midi\//, /^src\/theory\//, /^src\/ui\/[^/]+\.ts$/, /^src\/ui\/state\//, /^src\/ui\/kit\//];
+const CLEAN = [
+  /^src\/audio\//,
+  /^src\/midi\//,
+  /^src\/theory\//,
+  /^src\/ui\/[^/]+\.ts$/,
+  /^src\/ui\/state\//,
+  /^src\/ui\/kit\//,
+  // (the engine, a part at a time: new code goes on clean, #320)
+  /^src\/engine\/fold\//,
+  /^src\/engine\/midiimport\.ts$/,
+  /^src\/engine\/time\/structure\.ts$/,
+  /^src\/engine\/readers\.ts$/,
+  // (the layout, a part at a time)
+  /^src\/layout\/envelope\.ts$/,
+  /^src\/layout\/timelayers\.ts$/,
+  /^src\/layout\/timepictures\.ts$/,
+];
 
 const require = createRequire(import.meta.url);
 const tsgo = join(dirname(require.resolve('@typescript/native-preview/package.json')), 'bin', 'tsgo');

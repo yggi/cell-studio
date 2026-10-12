@@ -7,6 +7,7 @@
    * free) takes a pass of the armed cell from the keys (state/record.svelte.ts).
    */
   import MidiLight from './MidiLight.svelte';
+  import { clockText } from '../engine/duration';
   import { getStudio } from './state/studio.svelte';
 
   let {
@@ -57,10 +58,7 @@
   const ontempo = (v: number) => piece.mainMeter && piece.hold(piece.mainMeter.free, v);
 
   // (an hour or more: hours too)
-  const clock = (sec: number) =>
-    sec >= 3600 || (span ?? 0) >= 3600
-      ? `${Math.floor(sec / 3600)}:${String(Math.floor((sec % 3600) / 60)).padStart(2, '0')}:${String(Math.floor(sec % 60)).padStart(2, '0')}`
-      : `${Math.floor(sec / 60)}:${String(Math.floor(sec % 60)).padStart(2, '0')}`;
+  const clock = (sec: number) => clockText(sec, sec >= 3600 || (span ?? 0) >= 3600);
   // the section it's in now
   const current = $derived(sections ? ([...sections].reverse().find((s) => s.at <= now + 1e-6) ?? null) : null);
   let width = $state(300);

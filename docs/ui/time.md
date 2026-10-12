@@ -68,7 +68,9 @@ drag) plays from there (`playback.seek`); a double click, or **fit**, shows the 
   length (Pop's 96 s at once took over two minutes in a headless browser; 40 s of Korobeiniki takes 1.9 s in five
   second stretches, 2.4 s in ten, 6.3 s at once), so stretches keep it linear and the waveform fills in as they
   come. The waterfall is worked out from it in the worker. A note ringing across a stretch's start is cut there.
-- The geometry (the axes, zoom, pan, follow, ticks, zones) is `layout/timeview.ts`; the drawing `ui/TimeView.svelte`;
-  the settings `ui/state/time.svelte.ts`; the colours `--time-*` (app.css) and `TIME` (theme.ts).
+- The geometry (the axes, zoom, pan, follow, ticks, zones) is `layout/timeview.ts`; what each layer shows (the notes
+  of a round, the cells' spans, the structure's lanes, the patterns, the meter, the levels and the boundaries heard)
+  `layout/timelayers.ts`; the scalogram's, the waterfall's and the notes' pixels `layout/timepictures.ts`; each layer
+  drawn `ui/timedraw.ts`; the view itself (its state, the worker, the render, the hands) `ui/TimeView.svelte`; the settings `ui/state/time.svelte.ts`; the colours `--time-*` (app.css) and `TIME` (theme.ts).
 
 Pictures: `node tools/gallery.mjs time [pieces…]` (the gallery skill), each piece in each state.

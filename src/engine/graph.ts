@@ -10,6 +10,7 @@ import { isMidiCard, type CompileResult, type ResolvedCell } from './program';
 import type { Binding, Pick, ValueMap } from './ast';
 import { cellId, clockTapId, edgeId, junctionId, stepEdgeId } from './ids';
 import { VOICE_KIT } from './compiler/declare';
+import { refsOf } from './readers';
 import type { Transform } from './transform';
 
 export type GraphNode =
@@ -284,7 +285,7 @@ export function writtenGraph(result: CompileResult): WrittenGraph {
   // (what a cell's braid splices in: its refs, and the voices of an unnamed kit it reads, `over=&(&bd &sd)`)
   const spliced = (c: ResolvedCell): string[] => {
     const kit = c.over ? result.cells.get(c.over) : undefined;
-    return [...c.children.keys(), ...(kit?.implicit && kit.kit ? kit.units.flatMap((u) => (u.atom.kind === 'ref' ? [u.atom.name] : [])) : [])];
+    return [...c.children.keys(), ...(kit?.implicit && kit.kit ? refsOf(kit) : [])];
   };
   const heard = new Set([...result.cells.values()].filter(soundsItself).map((c) => c.name));
   for (let grew = true; grew;) {

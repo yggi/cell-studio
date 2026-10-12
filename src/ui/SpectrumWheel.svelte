@@ -12,7 +12,7 @@
   import { bandFreq, bandsFromFFT, hslToRgb, restingProfile, wheelLUT } from '../layout/spectrum';
   import { gridName, positionOf } from '../engine/helix';
   import { DEFAULT_FREQ } from '../engine/program';
-  import { heardGrid } from '../layout/show';
+  import { gridOf } from '../layout/show';
   import { paletteHsl } from './palette';
   import { noteName } from '../theory/modes';
   import { DOUGH_SOURCES } from '../engine/dough-params';
@@ -48,11 +48,10 @@
   const cell = $derived(ctx.program.cells.get(name));
   const palette = $derived.by(() => {
     const out = new Uint8ClampedArray(BANDS * LEVELS * 3);
-    const g = heardGrid(ctx.program, name);
-    const grid = g ? { cycle: ctx.program.cells.get(g)?.cycle ?? 12 } : null;
+    const grid = gridOf(ctx.program, name);
     const base = cell?.voice && cell.freq > 0 ? cell.freq : DEFAULT_FREQ;
     for (let b = 0; b < BANDS; b++) {
-      const position = g ? positionOf(ctx.program, g, 12 * Math.log2(bandFreq(b, BANDS) / base)) : null;
+      const position = grid ? positionOf(ctx.program, grid.name, 12 * Math.log2(bandFreq(b, BANDS) / base)) : null;
       for (let i = 0; i < LEVELS; i++) {
         const loud = Math.pow(i / (LEVELS - 1), 0.6); // lift quiet partials
         const [h, s, l] = paletteHsl('audio', { position, loud }, grid);
