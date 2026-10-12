@@ -20,10 +20,11 @@ Every form the parser reads, what it means and an example: generated from the pa
 - `n/d`: A fraction: 9/8, 3/2 (the ratios of a map=ratios grid). [→](tuning.md) `&just map=ratios 1 9/8 5/4 3/2 2`
 - `~`: A rest: a step that plays nothing. [→](cell.md) `&tune step=2 0 ~ 4 ~`
 - `_`: In a cell with base=: the base's step here, as it is there (_@2: its pitch, held 2; _!n: n of them). A value in its place changes that step. [→](braid.md) `&answer base=&subject^$7 _!3 12@2`
-- `[a, b, c]` · `[a b c]`: A chord: the numbers sound together, in one step. Its notes can be names, pitches whatever the tables: [C, E, G]. [→](time.md) `&chords step=1 [0,2,4] [3 5 7]` · `&chords step=1 [C, E, G] [F, A, C5]`
+- `[a, b, c]`: A chord: the numbers sound together, in one step, commas between them. Its notes can be names, pitches whatever the tables: [C, E, G]. [→](time.md) `&chords step=1 [0,2,4] [3, 5, 7]` · `&chords step=1 [C, E, G] [F, A, C5]`
+- `[a b c]` · `[a b, c]`: A subsequence, as in Strudel's mini-notation: its steps squeezed into the one step it takes, each as long as its modifiers say ([0 2@2]: a third, then two thirds), nested as deep as you like. A modifier on the bracket acts on all of it ([0 2]*2: twice in the step). Commas stack them, each spanning the step: [0 2, 4]. A cell spliced inside lasts its slot, its steps squeezed into it. [→](cell.md) `&tune step=1 0 [2 4] [5 [7 9]] [0 2@2]` · `&tune step=1 [0 ~ 4]!2 [0 2]*2 [0 2, 7]` · `&groove step=2 &bd [&hh &hh] &sd [&hh ~ &hh]`
 - `[a|b|c]`: A choice: one of them, chosen afresh each time round (the same every time it is played). [→](braid.md) `&tune step=2 0 [2|4|7] 4`
 - `&x`: A cell, spliced in: its braid plays in this one's step (as long as its own steps). Picks, shifts and transposing are under References. [→](braid.md) `&theme step=2 &motif &motif^$7 0`
-- `&voice (stepped)`: In a stepped braid of voices (and rests), each step plays its voice: a drum pattern by name. Chords of voices sound together, [&bd, &hh]; modifiers work as on any step. Unstepped, a braid of voices is a kit, read by number. [→](sound.md) `&groove step=4 &bd ~ &hh [&bd, &sd] &hh*2 ~`
+- `&voice (stepped)`: In a stepped braid of voices (and rests), each step plays its voice: a drum pattern by name. Chords of voices sound together, [&bd, &hh]; a subsequence squeezes them into one step, [&hh &hh]; modifiers work as on any step. Unstepped, a braid of voices is a kit, read by number. [→](sound.md) `&groove step=4 &bd ~ &hh [&bd, &sd] &hh*2 ~`
 
 ## Modifiers
 

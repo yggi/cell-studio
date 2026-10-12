@@ -3,9 +3,9 @@
  * the text is parsed, so compile sees plain cells: `&answer base=&subject^$7 _!3 12@2` is the subject a fifth up, its
  * fourth step 12 held 2 instead.
  *
- *  - **Its braid** goes over the base's step by step (a run `x!n` counts as n steps): `_` keeps the base's step as it
- *    is, `_@n` keeps its pitch held n, a value replaces it, and what goes past the base's end is added. Nothing written:
- *    the base as it is.
+ *  - **Its braid** goes over the base's step by step (a run `x!n` counts as n steps, a subsequence `[0 2]` as one): `_`
+ *    keeps the base's step as it is, `_@n` keeps its pitch held n, a value replaces it, and what goes past the base's end
+ *    is added. Nothing written: the base as it is. `_` keeps a whole step, so it stands outside brackets.
  *  - **Transposed**: `base=&x^$n` moves what it keeps n grid steps (a cell that reads no table: semitones), `^n` n steps
  *    of its table (a degree); what the cell writes itself is as it sounds.
  *  - **Its attributes**: what it doesn't set, the base's — its table, its clock, its shift, a voice's sound — not its
@@ -15,6 +15,7 @@
  * left on the cell, for compile to say (`Unknown cell`), as it does of every reference.
  */
 import type { Atom, CellDecl, Diagnostic, ParseResult, Ref, Token } from '../ast';
+import { innerSteps, mapLeaves } from '../subseq';
 
 /** What a cell takes from its base when it sets none of its own. */
 const INHERITED = ['over', 'shift', 'step', 'map', 'stride', 'cycle', 'env', 'pitch', 'show', 'chance', 'seed', 'size'] as const;
@@ -29,6 +30,9 @@ function moved(a: Atom, ref: Ref): Atom {
   if (!grid && !degree) return a;
   const by = grid + degree;
   switch (a.kind) {
+    // (a subsequence: every step in it moved)
+    case 'seq':
+      return mapLeaves(a, (l) => moved(l, ref));
     case 'note':
       return { ...a, value: a.value + by };
     case 'chord':
@@ -44,7 +48,7 @@ function moved(a: Atom, ref: Ref): Atom {
 
 /** The cells of a parse with every `base=` resolved into a plain cell; an error where one can't be. */
 export function applyBases(p: ParseResult): ParseResult {
-  if (!p.cells.some((c) => c.base || keeps(c))) return p;
+  if (!p.cells.some((c) => c.base || keeps(c) || keepsInside(c))) return p;
   const byName = new Map(p.cells.map((c) => [c.name, c]));
   const diagnostics: Diagnostic[] = [...p.diagnostics];
   const done = new Map<string, CellDecl>();
@@ -66,11 +70,21 @@ export function applyBases(p: ParseResult): ParseResult {
         resolving.delete(c.name);
       }
     } else if (keeps(c)) diagnostics.push({ severity: 'error', message: `_ keeps a step of the base: only in a cell with base= (&${c.name} base=&other _ 4 _)`, span: c.span });
+    // (_ keeps a whole step: one inside a subsequence would keep part of one)
+    if (keepsInside(c))
+      diagnostics.push({
+        severity: 'error',
+        message: `_ keeps a whole step of the base, not part of one: write it outside brackets (&${c.name} base=&other _ [0 2])`,
+        span: c.span,
+      });
     done.set(c.name, out);
     return out;
   };
   return { ...p, cells: p.cells.map(resolve), diagnostics };
 }
+
+/** Does a cell's braid hold `_` inside a subsequence (which can't keep a whole step)? */
+const keepsInside = (c: CellDecl) => c.braid.kind === 'list' && c.braid.tokens.some((t) => innerSteps<Token>(t.atom).some((x) => x.atom.kind === 'rest' && x.atom.keep));
 
 /** Does a cell's braid keep steps (`_`)? */
 const keeps = (c: CellDecl) => c.braid.kind === 'list' && c.braid.tokens.some((t) => t.atom.kind === 'rest' && t.atom.keep);

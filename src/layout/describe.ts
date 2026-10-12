@@ -3,7 +3,8 @@
  * it mentions as links; and its connections, grouped by how they relate.
  * For the detail view (the sheet): read at a glance, every cell one tap away.
  */
-import { adsrOf, codeShifts, type CompileResult } from '../engine/program';
+import { adsrOf, codeShifts, type CompileResult, type ResolvedCell } from '../engine/program';
+import { leaves } from '../engine/subseq';
 import { entries, resolvePitch, semitones } from '../engine/helix';
 import { modeName, mod, noteName } from '../theory/modes';
 import { isSelector, kindOf } from './show';
@@ -34,6 +35,9 @@ function list(cells: readonly string[], max = 3): Bit[] {
   return out;
 }
 
+/** The cells a braid splices, subsequences opened, in order. */
+const refsOf = (c: ResolvedCell): string[] => c.units.flatMap((u) => leaves(u.atom).flatMap((a) => (a.kind === 'ref' ? [a.name] : [])));
+
 /** Everything a cell connects to, by relation (only relations that have cells). */
 export function connections(result: CompileResult, name: string): Connection[] {
   const c = result.cells.get(name);
@@ -45,12 +49,12 @@ export function connections(result: CompileResult, name: string): Connection[] {
     if (seen.has(cell)) return false;
     seen.add(cell);
     const x = result.cells.get(cell);
-    return !!x && ((!!x.over && plays(x.over, seen)) || x.units.some((u) => u.atom.kind === 'ref' && plays(u.atom.name, seen)));
+    return !!x && ((!!x.over && plays(x.over, seen)) || refsOf(x).some((r) => plays(r, seen)));
   };
   const out: Connection[] = [
     { relation: 'reads', cells: uniq([c.over]).filter(named) },
     { relation: 'stepped by', cells: uniq([c.step?.driver]).filter(named) },
-    { relation: 'made of', cells: uniq(c.units.flatMap((u) => (u.atom.kind === 'ref' ? [u.atom.name] : []))).filter(named) },
+    { relation: 'made of', cells: uniq(refsOf(c)).filter(named) },
     {
       relation: 'plays on',
       cells: c.voice || c.mix || c.sink ? [] : uniq(result.outputs.filter((o) => !o.kit && plays(o.cell)).map((o) => o.voice)),
@@ -80,7 +84,7 @@ export function connections(result: CompileResult, name: string): Connection[] {
     { relation: 'steps', cells: uniq(all.filter((x) => x.step?.driver === name).map((x) => x.name)).filter(named) },
     {
       relation: 'used by',
-      cells: uniq(all.filter((x) => x.name !== name && (x.over === name || x.units.some((u) => u.atom.kind === 'ref' && u.atom.name === name))).map((x) => x.name)),
+      cells: uniq(all.filter((x) => x.name !== name && (x.over === name || refsOf(x).includes(name))).map((x) => x.name)),
     },
   ];
   return out.filter((x) => x.cells.length > 0);

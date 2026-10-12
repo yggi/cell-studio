@@ -1,4 +1,5 @@
 /** A cell's line: its name, then attributes and its braid, in any order. */
+import { leaves } from '../subseq';
 import type { Braid, CellDecl, MapSpec, ParamCells, Ref, Span, StepSpec, Token } from '../ast';
 import { TIME_PARAMS } from '../attributes';
 import { RETIRED_PARAMS } from '../dough-params';
@@ -408,7 +409,7 @@ export const LINE_SYNTAX: readonly Syntax[] = [
 
 /**
  * free(0 2 4 ~ …) at the scanner (it's at 'free'): a braid left to the performer, the cell's whole braid. Its steps are
- * numbers (accidentals and names too), rests and chords, with their modifiers; its length in steps is the frame a
+ * numbers (accidentals and names too), rests, chords and subsequences of them, with their modifiers; its length in steps is the frame a
  * recording fills (`hi`). Its free() is pushed with the scanner's others, so it is held, kept and reverted as they are.
  */
 function parseFreeBraid(s: LineScanner): Braid {
@@ -425,8 +426,8 @@ function parseFreeBraid(s: LineScanner): Braid {
     if (inner.done()) break;
     const at = inner.i;
     const t = parseToken(inner);
-    if (t.atom.kind !== 'note' && t.atom.kind !== 'rest' && t.atom.kind !== 'chord')
-      inner.fail('A braid left free holds steps: numbers, rests (~) and chords ([0,4]), held (@n) or repeated (!n)', at, inner.i - at);
+    if (leaves(t.atom).some((a) => a.kind !== 'note' && a.kind !== 'rest' && a.kind !== 'chord'))
+      inner.fail('A braid left free holds steps: numbers, rests (~), chords ([0,4]) and subsequences of them ([0 2]), held (@n) or repeated (!n)', at, inner.i - at);
     tokens.push(t);
   }
   if (!tokens.length) s.fail('free(…) around a braid needs steps: free(0 2 4 ~)', start, close - start + 1);

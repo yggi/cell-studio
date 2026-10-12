@@ -40,7 +40,7 @@ describe('braid ↔ roll', () => {
       ],
     });
     expect(roll('')).toEqual({ length: 0, columns: [] });
-    expect(roll('-3 [7 4]@3!2')).toEqual({
+    expect(roll('-3 [7, 4]@3!2')).toEqual({
       length: 7,
       columns: [
         { start: 0, len: 1, rows: [-3] },
@@ -308,8 +308,8 @@ describe('which cells roll, and their ghosts', () => {
         expect(c.voice || c.mix || c.sink || c.root || c.note || !!c.map, where).toBe(false);
         if (c.braid === 'blank') expect(played.has(name), `${where}: a blank nothing plays`).toBe(true);
         else if (!played.has(name)) expect(driving.has(name), `${where}: a clock no one plays`).toBe(false);
-        // its steps are notes, rests or splices (never levels, a waveform, a list of mixes)
-        for (const u of c.units) expect(['note', 'chord', 'rest', 'ref', 'choice'], `${where} ${u.atom.kind}`).toContain(u.atom.kind);
+        // its steps are notes, rests, splices or subsequences of them (never levels, a waveform, a list of mixes)
+        for (const u of c.units) expect(['note', 'chord', 'rest', 'ref', 'choice', 'seq'], `${where} ${u.atom.kind}`).toContain(u.atom.kind);
       }
     }
     expect(count).toBeGreaterThan(150);

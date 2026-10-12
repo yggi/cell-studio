@@ -115,7 +115,7 @@ export const TIERS: readonly { readonly name: string; readonly concept: string; 
   },
   {
     name: 'Rhythm and feel',
-    concept: 'meter and feel: a bent bar, gates; drums: a groove of voices, ratchets, euclid, a kit; swing: a swing clock, swing= and beat=',
+    concept: 'meter and feel: a bent bar, gates; drums: a groove of voices, ratchets, a subsequence, euclid, a kit; swing: a swing clock, swing= and beat=',
     forms: [
       // meter and feel
       'map map=amp',
@@ -123,6 +123,7 @@ export const TIERS: readonly { readonly name: string; readonly concept: string; 
       // drums
       'step &voice (stepped)',
       'modifier x*n',
+      'step [a b c]',
       'generator euclid(k, n)',
       'sort signal: a pattern read through a kit',
       // swing
@@ -370,6 +371,9 @@ export function formsUsed(source: string): Set<string> {
     } else if (a.kind === 'choice') {
       use('step [a|b|c]');
       if (a.alters.some(Boolean)) use('step n#');
+    } else if (a.kind === 'seq') {
+      use('step [a b c]');
+      for (const l of a.layers) for (const x of l) token(x, groove, card);
     } else if (a.kind === 'ref' && card) {
       // (a sound card's or a MIDI card's entries are its channels: a mix there is a channel, not an instrument)
       ref(a);
