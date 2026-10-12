@@ -268,6 +268,7 @@
         {@const R = px(t.r)}
         {@const band = px(40)}
         {@const pt = (r: number, a: number) => `${c.x + r * Math.cos(a)},${c.y + r * Math.sin(a)}`}
+        {@const name = tagName(t.tag).toUpperCase()}
         <svg class="ring" width={px(layout.w)} height={px(layout.h)} aria-hidden="true">
           <defs>
             <radialGradient id="side-disc-{i}">
@@ -278,12 +279,9 @@
           <circle cx={c.x} cy={c.y} r={R - band / 2} fill="url(#side-disc-{i})" />
           <circle class="seg" class:dim={tag !== null && tag !== t.tag} cx={c.x} cy={c.y} r={R} fill="none" stroke-width={band} style:stroke={colours.get(t.tag)} />
           <path id="side-rim-{i}" d="M{pt(R, Math.PI)} A{R},{R} 0 0 1 {pt(R, 0)}" fill="none" />
-          <text class="segname" font-size={Math.max(12, px(26))} dy="0.35em"
-            ><textPath href="#side-rim-{i}" startOffset="50%" text-anchor="middle"
-              >{tagName(t.tag)
-                .replace(/ file$/, '')
-                .toUpperCase()}</textPath
-            ></text
+          <!-- (its name along the upper half of its rim, as large as the genres' but over the top of it only: clear of the pills along its sides) -->
+          <text class="segname" font-size={Math.min(Math.max(12, px(26)), (Math.PI * R * 0.55) / (0.84 * name.length))} dy="0.35em"
+            ><textPath href="#side-rim-{i}" startOffset="50%" text-anchor="middle">{name}</textPath></text
           >
           <polyline
             class="thread"

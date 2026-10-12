@@ -9,7 +9,7 @@
   import PieceDetail from './picker/PieceDetail.svelte';
   import TagFilters from './picker/TagFilters.svelte';
   import { tagColours } from './tags';
-  import { MIDI_FILE, TUTORIAL } from '../engine/tags';
+  import { MIDI_FILE } from '../engine/tags';
   import { noteColour } from './theme';
   import type { LibraryLayout } from '../layout/library';
   import { FILTER_KINDS, matches, type Entry, type FilterKind } from './entries';
@@ -71,8 +71,9 @@
     lib
       ? new Map(
           [...lib.hue].map(([t, h]) => {
-            // (the tutorial and the MIDI library are no genres: a neutral of their own, not their angle's colour)
-            if (t === TUTORIAL || t === MIDI_FILE) return [t, 'var(--tutorial)'];
+            // (the cells beside the wheel, the tutorial and the MIDI library's collections, are no genres: a neutral of
+            // their own, not their angle's colour)
+            if (t === MIDI_FILE || lib!.sides.some((s) => s.tag === t)) return [t, 'var(--tutorial)'];
             // saturation by distance from the centre: grey in the middle, full at the border
             const pct = Math.round(25 + 75 * (lib!.sat.get(t) ?? 1));
             return [t, `color-mix(in oklab, ${noteColour(h)} ${pct}%, #8b909a)`];

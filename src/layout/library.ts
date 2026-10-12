@@ -8,11 +8,11 @@
  * is a colour wheel by construction.
  *
  * The tutorial (the pieces tagged `tutorial`) is a cell of its own beside the wheel, to its right: its pieces in the
- * order of their tiers, row by row, grown with the rest. The MIDI library (tagged `MIDI file`) is another, to its
- * left, in the order of its books.
+ * order of their tiers, row by row, grown with the rest. Each collection of the MIDI library (a piece's `collection`,
+ * one of its tags) is another, stacked to the wheel's left, its files in their order.
  */
 import { forceLink, forceSimulation, type SimulationNodeDatum } from 'd3-force';
-import { MIDI_FILE, tagName, TUTORIAL } from '../engine/tags';
+import { tagName, TUTORIAL } from '../engine/tags';
 
 export interface LibraryLayout {
   readonly at: ReadonlyMap<string, { x: number; y: number }>;
@@ -29,8 +29,8 @@ export interface LibraryLayout {
   readonly sat: ReadonlyMap<string, number>;
   /** The genres as the wheel's rim: its radius (layout units, centred on 0) and each genre's angle. */
   readonly ring: { readonly r: number; readonly genres: readonly { readonly tag: string; readonly angle: number }[] } | null;
-  /** The cells beside the wheel (the tutorial's, the MIDI library's), each by its tag: its centre and radius, and its
-   * pieces (`p:id`) in their order. */
+  /** The cells beside the wheel (the tutorial's, the MIDI library's collections), each by its tag: its centre and
+   * radius, and its pieces (`p:id`) in their order. */
   readonly sides: readonly SideCell[];
   /** Each piece's wheel, its radius now (layout units): the room free around it — wheels never overlap. */
   readonly wheel: ReadonlyMap<string, number>;
@@ -53,10 +53,9 @@ interface SideCell {
   readonly order: readonly string[];
 }
 
-/** The cells beside the wheel, by their tags: the first to its right, the second to its left. */
-const SIDES = [TUTORIAL, MIDI_FILE] as const;
-/** The cell beside the wheel a piece is in (its tag), or null: on the wheel. */
-export const sideOf = (e: { readonly tags: readonly string[] }): string | null => SIDES.find((t) => e.tags.includes(t)) ?? null;
+/** The cell beside the wheel a piece is in (its tag: the tutorial's, or its collection's), or null: on the wheel. */
+export const sideOf = (e: { readonly tags: readonly string[]; readonly collection?: string | null }): string | null =>
+  e.tags.includes(TUTORIAL) ? TUTORIAL : (e.collection ?? null);
 
 /** The five main genres (of `genre:` tags): pinned at even angles round the border, so every colour (an angle) stays where it is. */
 export const GENRES = ['genre:classical', 'genre:jazz', 'genre:electronic', 'genre:experimental', 'genre:world'] as const;
@@ -86,6 +85,8 @@ export interface LibraryEntry {
   readonly tags: readonly string[];
   readonly title?: string;
   readonly tier?: number | null;
+  /** A file of the MIDI library: its collection (its cell beside the wheel; also one of its tags). */
+  readonly collection?: string | null;
 }
 
 /** How much of the wheel's disc the nodes' rooms fill when grown. */
@@ -161,7 +162,9 @@ function hash(id: string, salt: number): number {
 function start(all: readonly LibraryEntry[]) {
   // the wheel's pieces; the tutorial's, by tier, and the MIDI library's are cells of their own (below)
   const entries = all.filter((e) => !sideOf(e));
-  const besides = SIDES.map((tag) => all.filter((e) => sideOf(e) === tag).sort(tag === TUTORIAL ? byTier : () => 0));
+  // (the tutorial first, then the collections as the pieces come)
+  const sides = [...new Set(all.map(sideOf).filter((t) => t !== null))].sort((a, b) => +(b === TUTORIAL) - +(a === TUTORIAL));
+  const besides = sides.map((tag) => all.filter((e) => sideOf(e) === tag).sort(tag === TUTORIAL ? byTier : () => 0));
   const count = new Map<string, number>();
   for (const e of entries) for (const t of e.tags) count.set(t, (count.get(t) ?? 0) + 1);
   const isGenre = (t: string) => (GENRES as readonly string[]).includes(t);
@@ -199,11 +202,17 @@ function start(all: readonly LibraryEntry[]) {
   const area = nodes.filter((n) => !n.genre).reduce((a, n) => a + 4 * n.bw * n.bh, 0);
   // (no pieces on the wheel, only those beside it: no area to fill, so layout units as they are)
   const full = area > 0 ? inner * Math.sqrt((FILL * Math.PI) / area) : 1;
-  // (the first to the right of the wheel, the second to its left)
-  const cells = SIDES.map((tag, k) => {
-    const c = sideCell(besides[k], full);
-    return c && { ...c, tag, pieces: besides[k], x: (k ? -1 : 1) * (R + 140 + c.r), y: 0 };
-  }).filter((c) => c !== null);
+  // (the first to the right of the wheel; the others stacked to its left, top to bottom, centred on it)
+  const sized = sides.map((tag, k) => ({ ...sideCell(besides[k]!, full)!, tag, pieces: besides[k]! }));
+  const GAP = 80;
+  const stack = sized.slice(1).reduce((h, c) => h + 2 * c.r, 0) + GAP * Math.max(0, sized.length - 2);
+  let top = -stack / 2;
+  const cells = sized.map((c, k) => {
+    if (k === 0) return { ...c, x: R + 140 + c.r, y: 0 };
+    const y = top + c.r;
+    top += 2 * c.r + GAP;
+    return { ...c, x: -(R + 140 + c.r), y };
+  });
 
   // the tag edges pull: a piece to each of its tags, to touching (the rim's genres lean, below)
   const onRim = (t: string) => isGenre(t) && genres.length > 0;
@@ -320,9 +329,11 @@ function start(all: readonly LibraryEntry[]) {
     }
     const ring = genres.length ? { r: R, genres: genres.map((g, k) => ({ tag: g, angle: (k / genres.length) * 2 * Math.PI - Math.PI / 2 })) } : null;
     // (the frame: the wheel, the genres' names included, and the cells beside it — the same at every stage)
-    const m = Math.max(R + 140, ...cells.map((c) => c.r + 80));
+    const m = R + 140;
     const right = Math.max(m, ...cells.map((c) => c.x + c.r + 80));
     const left = Math.max(m, ...cells.map((c) => -c.x + c.r + 80));
+    const above = Math.max(m, ...cells.map((c) => -c.y + c.r + 80));
+    const below = Math.max(m, ...cells.map((c) => c.y + c.r + 80));
     // each piece's wheel: the room free around it, half the way to the next piece (zoomed in, it grows behind
     // its title, the tags' words over it: wheels never overlap) — and no larger than a few titles high
     const pieces = [...at].filter(([id]) => id.startsWith('p:')).map(([id, p]) => ({ id, ...p }));
@@ -338,9 +349,9 @@ function start(all: readonly LibraryEntry[]) {
     return {
       at,
       x0: -left,
-      y0: -m,
+      y0: -above,
       w: left + right,
-      h: 2 * m,
+      h: above + below,
       edges: [
         ...edges,
         ...cells.flatMap((c) => c.pieces.flatMap((e) => e.tags.filter((t) => at.has(`t:${t}`)).map((t) => ({ id: `p:${e.id}->t:${t}`, source: `p:${e.id}`, target: `t:${t}` })))),
@@ -461,7 +472,8 @@ function sideCell(pieces: readonly LibraryEntry[], full: number) {
       x += 2 * w[i];
     }
   });
-  const radius = Math.max(...[...at.values()].map((p) => Math.hypot(Math.abs(p.x) + pitch / 2, Math.abs(p.y) + pitch / 2))) + 40;
+  // (the disc holds each piece's wheel too, zoomed in: at most 2.2 of its rooms' half-heights, 1.1 rows)
+  const radius = Math.max(...[...at.values()].map((p) => Math.hypot(p.x, p.y) + 1.1 * pitch)) + 8;
   return { r: radius, at };
 }
 
