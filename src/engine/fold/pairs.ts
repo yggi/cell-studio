@@ -39,7 +39,7 @@ function commonest(lines: readonly (readonly Tok[])[]): { key: string; count: nu
  * own steps alike (the same move at every level), but not in a phrase that variants copy (`base=` counts its steps as
  * written), nor in a variant.
  */
-export const pairs: Tool = (f: Folded) => {
+export const pairs: Tool = (f: Folded, see) => {
   const copied = new Set([...f.rules.values()].flatMap((r) => (r.of ? [r.of] : [])));
   const inside = [...f.rules.values()].filter((r) => !r.of && !copied.has(r.key)).map((r) => r.key);
   // (the lines, then the symbols' steps as tokens at their offsets)
@@ -74,8 +74,14 @@ export const pairs: Tool = (f: Folded) => {
     });
     rules.set(name, rule!);
     made++;
+    see?.(now);
   }
-  if (!made) return null;
-  inside.forEach((k, i) => rules.set(k, { key: k, kids: seqs[f.lines.length + i]!.map((t) => ({ key: t.key, off: t.base })) }));
-  return { lines: f.lines.map((l, i) => ({ ...l, toks: seqs[i]! })), rules, looks: f.looks };
+  return made ? now() : null;
+
+  /** The lines and the symbols as folded so far. */
+  function now(): Folded {
+    const out = new Map(rules);
+    inside.forEach((k, i) => out.set(k, { key: k, kids: seqs[f.lines.length + i]!.map((t) => ({ key: t.key, off: t.base })) }));
+    return { lines: f.lines.map((l, i) => ({ ...l, toks: seqs[i]! })), rules: out, looks: f.looks };
+  }
 };

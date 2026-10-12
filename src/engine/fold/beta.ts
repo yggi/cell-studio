@@ -36,7 +36,7 @@ function expand(r: Rule, base: number | null): Tok[] {
 const written = (toks: readonly Tok[], names: ReadonlyMap<string, string>) => toks.reduce((n, t) => n + tokText(t, names).length + 1, 0);
 
 /** Inline every symbol that doesn't pay, the cheapest saving first, until all that is left pays. */
-export const beta: Tool = (f: Folded) => {
+export const beta: Tool = (f: Folded, see) => {
   let now = f;
   let changed = false;
   for (;;) {
@@ -71,6 +71,8 @@ export const beta: Tool = (f: Folded) => {
     }
     now = { lines: now.lines.map((l) => ({ ...l, toks: inline(l.toks) })), rules, looks: now.looks };
     changed = true;
+    const seen = now;
+    see?.(() => seen);
   }
   return changed ? now : null;
 };

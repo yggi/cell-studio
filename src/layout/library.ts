@@ -7,11 +7,12 @@
  * happens: the library's opening animation. A tag's colour is its angle round the centre: the wheel
  * is a colour wheel by construction.
  *
- * The tutorial (the pieces tagged `tutorial`) is a cell of its own beside the wheel: its pieces in the
- * order of their tiers along a spiral, from its middle out, grown with the rest.
+ * The tutorial (the pieces tagged `tutorial`) is a cell of its own beside the wheel, to its right: its pieces in the
+ * order of their tiers, row by row, grown with the rest. The MIDI library (tagged `MIDI file`) is another, to its
+ * left, in the order of its books.
  */
 import { forceLink, forceSimulation, type SimulationNodeDatum } from 'd3-force';
-import { tagName, TUTORIAL } from '../engine/tags';
+import { MIDI_FILE, tagName, TUTORIAL } from '../engine/tags';
 
 export interface LibraryLayout {
   readonly at: ReadonlyMap<string, { x: number; y: number }>;
@@ -28,8 +29,9 @@ export interface LibraryLayout {
   readonly sat: ReadonlyMap<string, number>;
   /** The genres as the wheel's rim: its radius (layout units, centred on 0) and each genre's angle. */
   readonly ring: { readonly r: number; readonly genres: readonly { readonly tag: string; readonly angle: number }[] } | null;
-  /** The tutorial's cell, beside the wheel: its centre and radius, and its pieces (`p:id`) in the order of their tiers. */
-  readonly tutorial: { readonly x: number; readonly y: number; readonly r: number; readonly order: readonly string[] } | null;
+  /** The cells beside the wheel (the tutorial's, the MIDI library's), each by its tag: its centre and radius, and its
+   * pieces (`p:id`) in their order. */
+  readonly sides: readonly SideCell[];
   /** Each piece's wheel, its radius now (layout units): the room free around it — wheels never overlap. */
   readonly wheel: ReadonlyMap<string, number>;
   /** A piece's wheel, typically (the middle of them). */
@@ -41,6 +43,20 @@ export interface LibraryLayout {
   /** Grown and come to rest (else a stage on the way). */
   readonly done: boolean;
 }
+
+/** A cell of its own beside the wheel: the pieces carrying its tag. */
+interface SideCell {
+  readonly tag: string;
+  readonly x: number;
+  readonly y: number;
+  readonly r: number;
+  readonly order: readonly string[];
+}
+
+/** The cells beside the wheel, by their tags: the first to its right, the second to its left. */
+const SIDES = [TUTORIAL, MIDI_FILE] as const;
+/** The cell beside the wheel a piece is in (its tag), or null: on the wheel. */
+export const sideOf = (e: { readonly tags: readonly string[] }): string | null => SIDES.find((t) => e.tags.includes(t)) ?? null;
 
 /** The five main genres (of `genre:` tags): pinned at even angles round the border, so every colour (an angle) stays where it is. */
 export const GENRES = ['genre:classical', 'genre:jazz', 'genre:electronic', 'genre:experimental', 'genre:world'] as const;
@@ -58,10 +74,13 @@ export const byTier = (a: { readonly tier?: number | null }, b: { readonly tier?
 };
 
 /** A tutorial piece's title as the library shows it: its tier, then its short title. */
-export const tutorialTitle = (e: { readonly title?: string; readonly id: string; readonly tier?: number | null }) =>
+const tutorialTitle = (e: { readonly title?: string; readonly id: string; readonly tier?: number | null }) =>
   `${e.tier ? `${e.tier} · ` : ''}${shortTitle(e.title ?? e.id)}`;
 /** A pill's half-width at scale 1: its words (0.58 em a letter) and its padding, at its font. */
 const pillHalf = (words: string, font: number) => ((0.58 * words.length + 1.5) * font) / 2;
+/** A piece's title as a cell beside the wheel shows it: the tutorial's with its tier, the others short. */
+export const sideTitle = (e: { readonly title?: string; readonly id: string; readonly tier?: number | null; readonly tags: readonly string[] }) =>
+  e.tags.includes(TUTORIAL) ? tutorialTitle(e) : shortTitle(e.title ?? e.id);
 /** What the layout needs of a piece: its tags, its title (for its pill's room), and its tier if it is in the tutorial. */
 export interface LibraryEntry {
   readonly id: string;
@@ -69,8 +88,6 @@ export interface LibraryEntry {
   readonly title?: string;
   readonly tier?: number | null;
 }
-/** A piece of the tutorial: in its cell, not the wheel. */
-const inTutorial = (e: LibraryEntry) => e.tags.includes(TUTORIAL);
 
 /** How much of the wheel's disc the nodes' rooms fill when grown. */
 const FILL = 0.45;
@@ -117,13 +134,13 @@ export async function libraryLayoutAsync(entries: readonly LibraryEntry[], onFra
 export function stageOf(l: LibraryLayout, t: number): LibraryLayout {
   const e = t * t * (3 - 2 * t);
   const f = START + (1 - START) * e;
-  const rim = (id: string) => (!!l.ring && (GENRES as readonly string[]).includes(id.slice(2))) || id === `t:${TUTORIAL}`;
-  // (the tutorial's pieces grow from the middle of their own cell)
-  const tut = new Set(l.tutorial?.order);
+  const rim = (id: string) => (!!l.ring && (GENRES as readonly string[]).includes(id.slice(2))) || l.sides.some((s) => id === `t:${s.tag}`);
+  // (the pieces beside the wheel grow from the middle of their own cell)
+  const side = new Map(l.sides.flatMap((s) => s.order.map((id) => [id, s] as const)));
   const at = new Map(
     [...l.at].map(([id, p]) => {
       if (rim(id)) return [id, p];
-      const c = tut.has(id) ? l.tutorial! : { x: 0, y: 0 };
+      const c = side.get(id) ?? { x: 0, y: 0 };
       return [id, { x: c.x + (p.x - c.x) * f, y: c.y + (p.y - c.y) * f }];
     }),
   );
@@ -143,9 +160,9 @@ function hash(id: string, salt: number): number {
 }
 
 function start(all: readonly LibraryEntry[]) {
-  // the wheel's pieces; the tutorial's, by tier, are a cell of their own (below)
-  const entries = all.filter((e) => !inTutorial(e));
-  const tutorial = all.filter(inTutorial).sort(byTier);
+  // the wheel's pieces; the tutorial's, by tier, and the MIDI library's are cells of their own (below)
+  const entries = all.filter((e) => !sideOf(e));
+  const besides = SIDES.map((tag) => all.filter((e) => sideOf(e) === tag).sort(tag === TUTORIAL ? byTier : () => 0));
   const count = new Map<string, number>();
   for (const e of entries) for (const t of e.tags) count.set(t, (count.get(t) ?? 0) + 1);
   const isGenre = (t: string) => (GENRES as readonly string[]).includes(t);
@@ -181,9 +198,13 @@ function start(all: readonly LibraryEntry[]) {
 
   // full size: the scale at which the nodes' rooms fill FILL of the disc (the genres are the rim, not in it)
   const area = nodes.filter((n) => !n.genre).reduce((a, n) => a + 4 * n.bw * n.bh, 0);
-  // (no pieces on the wheel, only the tutorial's: no area to fill, so layout units as they are)
+  // (no pieces on the wheel, only those beside it: no area to fill, so layout units as they are)
   const full = area > 0 ? inner * Math.sqrt((FILL * Math.PI) / area) : 1;
-  const cell = tutorialCell(tutorial, full, R);
+  // (the first to the right of the wheel, the second to its left)
+  const cells = SIDES.map((tag, k) => {
+    const c = sideCell(besides[k], full);
+    return c && { ...c, tag, pieces: besides[k], x: (k ? -1 : 1) * (R + 140 + c.r), y: 0 };
+  }).filter((c) => c !== null);
 
   // the tag edges pull: a piece to each of its tags, to touching (the rim's genres lean, below)
   const onRim = (t: string) => isGenre(t) && genres.length > 0;
@@ -281,24 +302,28 @@ function start(all: readonly LibraryEntry[]) {
 
   const snapshot = (): LibraryLayout => {
     const at = new Map(nodes.map((n) => [n.id, { x: n.x!, y: n.y! }]));
-    // the tutorial's pieces, grown as the wheel's are (from the middle of their cell), and its tag on its rim
+    // the pieces beside the wheel, grown as the wheel's are (from the middle of their cell), and its tag on its rim
     const k = scale / full;
-    for (const [id, p] of cell?.at ?? []) at.set(id, { x: cell!.x + p.x * k, y: cell!.y + p.y * k });
-    if (cell) at.set(`t:${TUTORIAL}`, { x: cell.x, y: cell.y - cell.r });
+    for (const c of cells) {
+      for (const [id, p] of c.at) at.set(id, { x: c.x + p.x * k, y: c.y + p.y * k });
+      at.set(`t:${c.tag}`, { x: c.x, y: c.y - c.r });
+    }
     const counts = new Map(count);
-    for (const e of tutorial) for (const t of e.tags) counts.set(t, (counts.get(t) ?? 0) + 1);
+    for (const c of cells) for (const e of c.pieces) for (const t of e.tags) counts.set(t, (counts.get(t) ?? 0) + 1);
     const hue = new Map<string, number>();
     const sat = new Map<string, number>();
     for (const t of counts.keys()) {
-      // (a tag only the tutorial carries is coloured from where the tutorial is)
-      const p = at.get(`t:${t}`) ?? { x: cell!.x, y: cell!.y };
+      // (a tag only the pieces beside the wheel carry is coloured from where their cell is)
+      const c = cells.find((c) => c.pieces.some((e) => e.tags.includes(t)));
+      const p = at.get(`t:${t}`) ?? { x: c?.x ?? 0, y: c?.y ?? 0 };
       hue.set(t, ((Math.atan2(p.y, p.x) * 180) / Math.PI + 450) % 360);
       sat.set(t, Math.max(0.2, Math.min(1, Math.hypot(p.x, p.y) / R)));
     }
     const ring = genres.length ? { r: R, genres: genres.map((g, k) => ({ tag: g, angle: (k / genres.length) * 2 * Math.PI - Math.PI / 2 })) } : null;
-    // (the frame: the wheel, the genres' names included, and the tutorial's cell — the same at every stage)
-    const m = Math.max(R + 140, cell ? cell.r + 80 : 0);
-    const right = cell ? cell.x + cell.r + 80 : m;
+    // (the frame: the wheel, the genres' names included, and the cells beside it — the same at every stage)
+    const m = Math.max(R + 140, ...cells.map((c) => c.r + 80));
+    const right = Math.max(m, ...cells.map((c) => c.x + c.r + 80));
+    const left = Math.max(m, ...cells.map((c) => -c.x + c.r + 80));
     // each piece's wheel: the room free around it, half the way to the next piece (zoomed in, it grows behind
     // its title, the tags' words over it: wheels never overlap) — and no larger than a few titles high
     const pieces = [...at].filter(([id]) => id.startsWith('p:')).map(([id, p]) => ({ id, ...p }));
@@ -313,16 +338,19 @@ function start(all: readonly LibraryEntry[]) {
     const sizes = [...wheel.values()].sort((a, b) => a - b);
     return {
       at,
-      x0: -m,
+      x0: -left,
       y0: -m,
-      w: m + right,
+      w: left + right,
       h: 2 * m,
-      edges: [...edges, ...tutorial.flatMap((e) => e.tags.filter((t) => at.has(`t:${t}`)).map((t) => ({ id: `p:${e.id}->t:${t}`, source: `p:${e.id}`, target: `t:${t}` })))],
+      edges: [
+        ...edges,
+        ...cells.flatMap((c) => c.pieces.flatMap((e) => e.tags.filter((t) => at.has(`t:${t}`)).map((t) => ({ id: `p:${e.id}->t:${t}`, source: `p:${e.id}`, target: `t:${t}` })))),
+      ],
       hue,
       count: counts,
       sat,
       ring,
-      tutorial: cell ? { x: cell.x, y: cell.y, r: cell.r, order: tutorial.map((e) => `p:${e.id}`) } : null,
+      sides: cells.map((c) => ({ tag: c.tag, x: c.x, y: c.y, r: c.r, order: c.pieces.map((e) => `p:${e.id}`) })),
       wheel,
       piece: sizes[sizes.length >> 1] ?? 0,
       tagScale: scale,
@@ -394,15 +422,14 @@ function exclude(nodes: readonly Node[]) {
 }
 
 /**
- * The tutorial's cell, laid out once at full size: its pieces' pills in rows across a disc, in the order of
- * their tiers, a row left to right and the next back (a path, as a ladder is climbed), the rows as long as the
- * disc is wide there (offsets from its centre); the smallest disc that holds them; its centre to the right of
- * the wheel (whose rim is at R). Null without a tutorial.
+ * A cell beside the wheel, laid out once at full size: its pieces' pills in rows across a disc, in their order (the
+ * tutorial's: by tier), a row left to right and the next back (a path, as a ladder is climbed), the rows as long as
+ * the disc is wide there (offsets from its centre); the smallest disc that holds them. Null without pieces.
  */
-function tutorialCell(pieces: readonly LibraryEntry[], full: number, R: number) {
+function sideCell(pieces: readonly LibraryEntry[], full: number) {
   if (!pieces.length) return null;
   // (each piece's room as in the wheel: its pill, a little either side, and room above and below for its wheel)
-  const w = pieces.map((e) => pillHalf(tutorialTitle(e), PILL) * 1.15 * full);
+  const w = pieces.map((e) => pillHalf(sideTitle(e), PILL) * 1.15 * full);
   const pitch = 2 * PILL * 1.6 * full;
   // rows in a disc of radius r: as many pieces in each as its chord holds (null: they don't all fit)
   const rows = (r: number): number[][] | null => {
@@ -436,7 +463,7 @@ function tutorialCell(pieces: readonly LibraryEntry[], full: number, R: number) 
     }
   });
   const radius = Math.max(...[...at.values()].map((p) => Math.hypot(Math.abs(p.x) + pitch / 2, Math.abs(p.y) + pitch / 2))) + 40;
-  return { x: R + 140 + radius, y: 0, r: radius, at };
+  return { r: radius, at };
 }
 
 /** A layout as plain data (its maps as entry lists), to keep in the browser between visits: `thawLayout` reads it back. */

@@ -27,7 +27,7 @@ const LONGEST = 64;
 type At = { line: number; i: number };
 
 /** Each line's steps compared in shape: the key, and the base against the first pitched step's. */
-export const variants: Tool = (f: Folded) => {
+export const variants: Tool = (f: Folded, see) => {
   const lines = f.lines.map((l) => [...l.toks]);
   const used = lines.map((t) => t.map(() => false));
   const rules = new Map(f.rules);
@@ -208,6 +208,12 @@ export const variants: Tool = (f: Folded) => {
       used[at.line]!.splice(at.i, n, true);
     }
     made++;
+    see?.(now);
   }
-  return made ? { ...f, lines: f.lines.map((l, i) => ({ ...l, toks: lines[i]! })), rules } : null;
+  return made ? now() : null;
+
+  /** The lines and the symbols as folded so far. */
+  function now(): Folded {
+    return { ...f, lines: f.lines.map((l, i) => ({ ...l, toks: [...lines[i]!] })), rules: new Map(rules) };
+  }
 };

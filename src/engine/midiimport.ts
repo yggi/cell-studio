@@ -17,7 +17,8 @@
  *   triangle), controllers.
  */
 import { secondsAt, type Smf, type SmfNote } from './midifile';
-import { fold, printFolded, type Chord, type Line } from './fold';
+import { fold, printFolded, type Chord, type Line, type Stage } from './fold';
+import type { Folded } from './fold/ir';
 import { compileSource } from './compile';
 import { codeShifts } from './program';
 import { eventsBetween, plan } from './realize';
@@ -130,9 +131,15 @@ function braidOf(chords: readonly Chord[], length: number): string {
 
 /**
  * A MIDI file as a piece's source: every note it plays, flat; `shorten`, folded (engine/fold) where that plays the same
- * and is shorter. `free`: its tempo a slider (else fixed).
+ * and is shorter. `free`: its tempo a slider (else fixed). `watch`: the fold as it runs, each move the piece as it is
+ * by then (a thunk: printed only if wanted), the last the fold taken (`done`; the piece returned is that, or the flat
+ * one where the fold doesn't play the same).
  */
-export function cellsFromMidi(smf: Smf, title: string, { free = true, shorten = false }: { free?: boolean; shorten?: boolean } = {}): Imported {
+export function cellsFromMidi(
+  smf: Smf,
+  title: string,
+  { free = true, shorten = false, watch }: { free?: boolean; shorten?: boolean; watch?: (source: () => string, stage: Stage) => void } = {},
+): Imported {
   // the parts: a track's notes by channel
   const parts: { name: string; drums: boolean; notes: SmfNote[] }[] = [];
   smf.tracks.forEach((t, i) => {
@@ -238,17 +245,20 @@ export function cellsFromMidi(smf: Smf, title: string, { free = true, shorten = 
   let folded = false;
   if (shorten && lines.length) {
     // (the folder, engine/fold: its symbols as cells above the lines; taken only if it plays the same notes, and is shorter)
-    const { defs, lines: braids, scales } = printFolded(fold(lines));
-    const candidate = write(
-      [
-        '# what comes back, as cells of its own (a phrase, a phrase made of phrases, …); ^$n: n semitones up',
-        ...defs,
-        '',
-        '# every note, a line a track; melodies as semitones from C4',
-        ...lines.map((l) => `&${l.name} step=&tempo${scales.get(l.name) === 1 ? '' : `*${scales.get(l.name)}`} ${braids.get(l.name)}`),
-      ],
-      'folded (engine/fold)',
-    );
+    const printed = (f: Folded) => {
+      const { defs, lines: braids, scales } = printFolded(f);
+      return write(
+        [
+          '# what comes back, as cells of its own (a phrase, a phrase made of phrases, …); ^$n: n semitones up',
+          ...defs,
+          '',
+          '# every note, a line a track; melodies as semitones from C4',
+          ...lines.map((l) => `&${l.name} step=&tempo${scales.get(l.name) === 1 ? '' : `*${scales.get(l.name)}`} ${braids.get(l.name)}`),
+        ],
+        'folded (engine/fold)',
+      );
+    };
+    const candidate = printed(fold(lines, watch && ((now, stage) => watch(() => printed(now()), stage))));
     if (candidate.length < flat.length && sameNotes(flat, candidate)) [source, folded] = [candidate, true];
   }
   return { source, notes: count, lines: lines.length, perQuarter, moved, dropped, folded };

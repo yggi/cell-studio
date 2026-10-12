@@ -62,6 +62,7 @@
     cursor = 0,
     epoch = 0,
     opened = 0,
+    refit = 0,
     focus,
     onsheet,
     played,
@@ -91,6 +92,8 @@
     onrename: (source: string, to: string) => void;
     /** Counts the pieces opened: a new one is laid out afresh and framed (an edit keeps what's on screen). */
     opened?: number;
+    /** Counts requests to frame the graph again (a fold watched as it runs: the camera follows it). */
+    refit?: number;
     /** A free(…) slider moved. */
     onfree: (spec: import('../engine/ast').FreeSpec, value: number | string) => void;
     nudge?: (seconds: number) => void;
@@ -367,7 +370,7 @@
     >
       <Background gap={28} size={1.5} />
       <Controls showLock={false} />
-      <FitView token={layout.fitToken + sideFits + towerFits} />
+      <FitView token={layout.fitToken + sideFits + towerFits + refit} />
       {#if towerOpen}<FlowViewport onchange={(v) => (viewport = v)} />{/if}
       <!-- clusters: cells tagged alike inside the piece (tags=), washed and named behind their members -->
       <ViewportPortal target="back">

@@ -112,6 +112,23 @@ as MIDI** in the Files page.
   - *Not kept*: velocities, bends, programs, controllers.
   - BWV 847 saved as MIDI and opened again: all 1,765 notes, starts and lengths within 10 ms, in 5 lines, 6,805
     characters (the example: 9,810 with its labels and notes). Today's Shorten folds that to 5,012 in 6.6 s.
+  - *Watched*: the folder runs in a worker (`ui/fold.worker.ts`) and is watched as it runs (`cellsFromMidi`'s `watch`,
+    `engine/fold` `Watch`: each pair made, each phrase and its copies found, each symbol taken back, the piece as it is
+    by then). The graph shows each step, framed as it grows, replayed at a pace to follow (one at least every 110 ms,
+    skipping ahead where they pile up: a fold of under a second is seen in a few); the strip at its foot says the round
+    and the move, **Stop** keeps the piece as far as it got. At the end, the fold taken: the one with variants or the
+    one without (`STRUCTURE`), or the notes written out if a fold doesn't play the same.
+
+## The MIDI library
+
+MIDI files that come with the app, a cell of their own in the library (*MIDI*, to the left of the wheel; the tutorial
+is to its right) and a section of the cards (*MIDI files*): for now Bach's Well-Tempered Clavier as the
+[Mutopia Project](https://www.mutopiaproject.org/) has it, 37 of the 96 preludes and fugues
+([midi/wtc/](../../midi/wtc/README.md): each file as published, its typesetter and its licence, public domain or
+CC BY-SA). `src/corpus.ts` lists them (`midi/wtc/index.json`); a file is fetched when it opens, and opens as any MIDI
+file does, as text, playing, for **Convert to cells**. Its card's wheel is drawn from its notes as cells, written out.
+The tag `MIDI file` puts a piece in the cell (`engine/tags.ts` `MIDI_FILE`; `layout/library.ts` `sideOf`). The folder's
+ratchet over them: `tools/probe/wtc.test.ts` ([notes/fold.md](../notes/fold.md)).
 
 ## The code
 
