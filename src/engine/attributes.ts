@@ -110,11 +110,11 @@ export const PARAMS: Readonly<Record<string, Attribute>> = {
   coupling: physics('a resonator: how strongly it is coupled (.01 faint, .05 strong)', ['resonator']),
   excite: physics('a resonator: sound that drives it (excite=&mix) — it answers where the sound meets its modes', ['resonator'], { value: 'cell' }),
   // the sound card
-  level: {
-    help: 'on the sound card: the overall level in dB (0 as it is, −6 about half); on a gate: how loud, a product of level cells and a gain (level=&accent*&duck*.4)',
-    doc: 'display.md',
+  postgain: {
+    help: 'on the sound card: its master, a linear gain after everything (Strudel’s postgain: 1 as it is, .5 half; free(.8, 0..1) a slider)',
+    doc: 'mix.md',
     value: 'number',
-    on: ['card', 'gate'],
+    on: ['card'],
   },
   // meters and their physics
   beat: { help: 'on a meter: how many of its steps make a beat — its bpm counts beats (beat=4: steps in sixteenths)', doc: 'time.md', value: 'number', on: ['clock'] },
@@ -147,6 +147,12 @@ export const PARAMS: Readonly<Record<string, Attribute>> = {
   wander: physics('a read head: how far it wanders either way (tape-seconds) — a flying head', ['head']),
   wanderhz: physics('a read head: how fast it wanders (times a second)', ['head'], { hz: true }),
   // a gate: a named junction (docs/language/mix.md: a gate)
+  level: {
+    help: 'on a gate: how loud, a product of level cells and a gain (level=&accent*&duck*.4)',
+    doc: 'mix.md',
+    value: 'number',
+    on: ['gate'],
+  },
   // (the old spelling of a gate, still read; Shorten rewrites it: decision 023)
   trigger: { help: 'a gate, the old spelling of play=: the notes it plays (trigger=&tune)', doc: 'mix.md', value: 'cell', on: ['gate'], old: 'play=' },
   gate: { help: 'a gate, the old spelling: a level over time, one factor of level= (gate=&duck)', doc: 'mix.md', value: 'cell', on: ['gate'], old: 'level=' },

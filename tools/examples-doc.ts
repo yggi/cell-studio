@@ -7,9 +7,16 @@ import { TIERS } from '../src/engine/ladder';
 import { parseTag, tagName, TUTORIAL } from '../src/engine/tags';
 import { buildExamplesMeta, type ExampleMeta } from './examples-index';
 
-/** The level= of the sound card, in dB (the examples all carry one). */
-// (the sound card's: the line with map=sample, not a gate's or a voice's level=)
-const levelOf = (source: string): string => /\blevel=(-?[\d.]+)/.exec(source.split('\n').find((l) => /^&\S+(?=.*\bmap=sample\b)(?=.*\blevel=)/.test(l)) ?? '')?.[1] ?? '';
+/** The sound card's postgain= (linear): 1 when its card leaves it out, .8 when it writes none (the built-in card, decision 028; none when it writes only MIDI cards). */
+const postgainOf = (source: string): string => {
+  // (the line that is the card: map=sample outside the quotes, not a note that mentions it)
+  const card = source
+    .split('\n')
+    .map((l) => l.replace(/"[^"]*"/g, '""'))
+    .find((l) => /^&\S+.*\bmap=sample\b/.test(l));
+  if (card === undefined) return /\bmap=midi\b/.test(source) ? '' : '.8';
+  return /\bpostgain=(\.?\d[\d.]*)/.exec(card)?.[1] ?? '1';
+};
 
 const cell = (s: string): string => s.replace(/\|/g, '\\|');
 
@@ -48,23 +55,23 @@ export function buildExamplesDoc(dir = 'examples'): string {
     'A tier is a stretch of the language; its pieces together show all of what it introduces and use nothing from a later tier. The numbers of the tiers are stable: a piece added to a tier changes none ([display.md](language/display.md#the-tutorial-tier)).',
   ];
   TIERS.forEach((tier, i) => {
-    out.push('', `### Tier ${i + 1} · ${tier.name}`, '', `Introduces ${tier.concept}.`, '', '| piece | file | about | level | length |', '|---|---|---|---|---|');
+    out.push('', `### Tier ${i + 1} · ${tier.name}`, '', `Introduces ${tier.concept}.`, '', '| piece | file | about | postgain | length |', '|---|---|---|---|---|');
     // (the pieces of a tier in the library's order)
     for (const e of tutorial.filter((t) => t.tier === i + 1)) {
       const source = readFileSync(`${dir}/${e.key}.cells`, 'utf8');
       out.push(
-        `| ${cell(e.title)} | [\`${e.key}\`](../examples/${e.key}.cells) | ${cell(pieceMeta(source)?.description ?? e.description)} | ${levelOf(source)} | ${lengthOf(e)} |`,
+        `| ${cell(e.title)} | [\`${e.key}\`](../examples/${e.key}.cells) | ${cell(pieceMeta(source)?.description ?? e.description)} | ${postgainOf(source)} | ${lengthOf(e)} |`,
       );
     }
   });
   for (const [genre, items] of groups) {
     out.push('', `## ${genre[0].toUpperCase()}${genre.slice(1)}`, '');
-    out.push('| piece | file | tags | about | level | length |', '|---|---|---|---|---|---|');
+    out.push('| piece | file | tags | about | postgain | length |', '|---|---|---|---|---|---|');
     for (const e of items) {
       const source = readFileSync(`${dir}/${e.key}.cells`, 'utf8');
       const tags = e.tags.map(tagName).join(', ');
       out.push(
-        `| ${cell(e.title)} | [\`${e.key}\`](../examples/${e.key}.cells) | ${cell(tags)} | ${cell(pieceMeta(source)?.description ?? e.description)} | ${levelOf(source)} | ${lengthOf(e)} |`,
+        `| ${cell(e.title)} | [\`${e.key}\`](../examples/${e.key}.cells) | ${cell(tags)} | ${cell(pieceMeta(source)?.description ?? e.description)} | ${postgainOf(source)} | ${lengthOf(e)} |`,
       );
     }
   }

@@ -22,4 +22,4 @@
 &sd tags="drums" s=white hpf=1200 env=&(map=adsr 0 .15 0 .05)
 &hh tags="drums" s=white hpf=8000 env=&(map=adsr 0 .04 0 .02)
 
-&out level=5 map=sample [&hats * &hh * .2, &kick * &bd * .8, &snare * &sd * .4, &roots * &bass * .5, &chords * &keys * .15, &tune * &lead * .35, &final * &keys * .2]
+&out postgain=1.78 map=sample [&hats * &hh * .2, &kick * &bd * .8, &snare * &sd * .4, &roots * &bass * .5, &chords * &keys * .15, &tune * &lead * .35, &final * &keys * .2]
