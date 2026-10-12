@@ -77,7 +77,7 @@ variants, 73 pieces: 207 %, 2.8 s.)
 ## The WTC run (#333)
 
 The MIDI library (`midi/wtc`, 37 preludes and fugues, 34,200 notes) folded as the files come
-(`tools/probe/wtc.test.ts`; `src/engine/fold/wtc.test.ts` is its ratchet). **Before: the score 153,783 characters flat,
+(`tools/probe/midi.test.ts`; `src/engine/fold/midi.test.ts` is its ratchet, over every collection since). **Before: the score 153,783 characters flat,
 123,735 folded (80.5 %), every fold taken, 633 cells, 212 of them copies; 29 s. After: 120,755 (78.5 %), every fold
 taken, 626 cells, 159 copies; 30 s.** The examples' ratchet at the same time: 56,125 → 55,974, phrases back 62 → 62.
 
@@ -98,6 +98,18 @@ taken, 626 cells, 159 copies; 30 s.** The examples' ratchet at the same time: 56
 - *Where the characters are* (after): 93 K in the lines, 28 K in the cells they splice; of the lines, 72 K are notes
   written out (16,820 of them), 18 K of that their lengths (`@2`). Counterpoint that never comes back at a chromatic
   transposition is most of it.
+
+## Two more collections (#333)
+
+The Inventions and Sinfonias (30 files, 17,439 notes) and the Anna Magdalena Notebook (19 files, 3,467 notes) joined the
+MIDI library, and its ratchet (`ratchet.midi.json`). Folded as today's folder does, with nothing tuned for them:
+
+- **Inventions and Sinfonias:** 72,413 characters flat, 57,672 folded (**79.6 %**), every fold taken; 334 cells, 82 of
+  them copies; 10.5 s.
+- **Anna Magdalena:** 18,811 flat, 16,160 folded (**85.9 %**); 14 of 19 folded. The other five (the Polonaise in
+  G minor, three chorale settings, an aria) are short, and a fold isn't shorter than the notes written out.
+- The minuets fold little (Anh. 114: 92 %) because their repeats are played once in Mutopia's files (LilyPond writes
+  a repeat once unless it is unfolded): a dance's form is mostly in its repeats.
 
 ## What was tried and left out (measured on seven pieces)
 
