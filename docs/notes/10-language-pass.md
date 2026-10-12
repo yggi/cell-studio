@@ -1,6 +1,6 @@
 # The language pass: more with less, on top of Strudel
 
-Date: 2026-10-12 · Status: open (proposals; nothing in the language changed) · Issue: [#10](https://github.com/yggi/cell-studio/issues/10); the pass's threads are [#337](https://github.com/yggi/cell-studio/issues/337) (Strudel), [#179](https://github.com/yggi/cell-studio/issues/179) (operators), [#151](https://github.com/yggi/cell-studio/issues/151) (canonical forms)
+Date: 2026-10-12 · Status: open (round 2: the owner's answers, §6–8) · Issue: [#10](https://github.com/yggi/cell-studio/issues/10); the pass's threads are [#337](https://github.com/yggi/cell-studio/issues/337) (Strudel), [#179](https://github.com/yggi/cell-studio/issues/179) (operators), [#151](https://github.com/yggi/cell-studio/issues/151) (canonical forms)
 
 The owner's brief: another pass over the language itself (#10, #179, #250, the scalogram work). Aim for a language that can say more with fewer forms. Consolidate the issues. Don't force decisions: follow the invariants first. Align with Strudel and dough where possible, because cells sits on top of them as TypeScript sits on JavaScript.
 
@@ -24,7 +24,7 @@ These answer most of what is open, so they come first. Every row below says whic
 | I7 | Every port has a band (sync, CV, audio); its units, and whether it can move, follow from the band. | [notes/nets.md](nets.md) (the model); [#150](https://github.com/yggi/cell-studio/issues/150) (building it) |
 | I8 | The examples sound the same; anything that could change a saved piece is the owner's call. | AGENTS.md, roadmap target 5 |
 
-**Proposed I9 (the owner's to accept): cells is a superset of Strudel's mini-notation.** Where a step form is spelled as in Strudel, it means what it means in Strudel. Cells adds to that (cells, tables, the helix, sorts, nets): the "types" on top. It never gives a Strudel spelling another meaning. This is the TypeScript rule: valid JavaScript is valid TypeScript with the same meaning. I9 says nothing about Strudel's method chains or its global `cps`, which are another model, not a spelling. Sound parameter names extend I9 to dough and Strudel: a name they share with cells means the same, and their aliases may be read, with Normalise writing one spelling (I2).
+**I9, accepted ([decision 027](../decisions/027-on-top-of-strudel.md)): cells is a superset of Strudel's mini-notation.** Where a step form is spelled as in Strudel, it means what it means in Strudel. Cells adds to that (cells, tables, the helix, sorts, nets): the "types" on top. It never gives a Strudel spelling another meaning. This is the TypeScript rule: valid JavaScript is valid TypeScript with the same meaning. I9 says nothing about Strudel's method chains or its global `cps`, which are another model, not a spelling. Sound parameter names extend I9 to dough and Strudel: a name they share with cells means the same, and their aliases may be read, with Normalise writing one spelling (I2).
 
 ## 2. Where cells stands against Strudel and dough
 
@@ -113,16 +113,90 @@ From [scalogram.md](scalogram.md) and #286. The language changes nothing by it; 
 | #163, #173 | diagnostics leftovers | closed: every item done, moved or accepted |
 | #29 | selectors | re-scoped to what decision 016 left: `restart=` as resume, `{lap}`, a restarted part's playhead, kits that pass pitch |
 
-## 6. Decisions for the owner, cheapest first
+## 6. The owner's answers (round 2)
 
-1. **I9**, the superset rule. Accept it, and everything additive in §2 follows with no further decision.
-2. **#306's `x%n` and `legato`**: choose them against Strudel before #306 merges. After that, saved pieces carry them.
-3. **`_` in `base=`**, against Strudel's elongation: one piece today.
-4. **`[a b]` as a subsequence** (chords keep the comma) and **euclid's rotation**: no example relies on either, so it is the cheapest alignment that also adds power.
-5. **`x?p`**: the probability of sounding or of dropping (3 pieces; a saved piece would change silently).
-6. **`step=&x*n`**: keep "slower" and document it, or move to Strudel's direction with a migration (44 pieces, and saved pieces can't be told apart).
-7. The rest are open as before, each on its issue:
-   - where loudness lives (#150)
-   - what a respelling may change: chance keyed on the voice, a kit drum and varispeed (#151)
-   - whether `&>` sends are still wanted (#149)
-   - FM feedback (#28)
+- **I9 accepted**, with a clean cut: saved pieces don't bind the language until the first release ([decision 027](../decisions/027-on-top-of-strudel.md)).
+- **Aligned with Strudel:** `[a b]` (a subsequence; chords take commas), euclid's rotation, `?p` (drops), and `*`/`/` on a clock (faster/slower). Being built on this branch.
+- **#306 and `_`:** advice asked for (§7).
+- **The multiscale approach is the frame for generalising**, and the cells, operations and wheels are mapped onto it (§8).
+
+Still open, each on its issue:
+- where loudness lives (#150; §7 proposes one step)
+- what a respelling may change (#151)
+- `&>` sends (#149)
+- FM feedback (#28)
+
+## 7. A shape for #306's forms and for `base=`'s `_`
+
+Checked against Strudel's `controls.mjs` (`@strudel/core` on unpkg) and dough's reference (`dough-synth` 0.4.0).
+
+- **`legato` → `glide=`.** What #306's flag does (a run of tied notes plays as one, the later notes bends) is dough's **`glide`**, word for word: "creates a pitch slide when changing the frequency of an active voice". So:
+  - it becomes `glide=t` on the voice: the slide's time in seconds, `0` or absent off; a note followed by another without a rest is tied;
+  - `legato=` stays free for Strudel's meaning, its synonym of `clip`: a note's length × n. That is an addition for later (`legato=.5` staccato), and no conflict.
+- **`x%n` → the sound's `:` fields.** Strudel already spells a per-hit level in the mini-notation: a sound takes `name:n:gain` (`s("bd:0:.3")`, `registerControl(['s', 'n', 'gain'])`). In a groove of voices that is:
+  - `&bd:0:.3` (a hit at .3);
+  - `&bd:2` (a hit two steps up its table: the "pitched hits" #306 leaves as products);
+  - `[&bd, &hh:0:.5]` (inside a chord).
+
+  A melody's numbers have no gain field in Strudel (`note`'s second field is `n`). A melody's per-note level stays a level pattern, as Strudel's `.velocity("1 .5")` is: a `map=amp` cell, or a gate's `level=&accent`. `%` stays free for Strudel's polymeter (`{a b c}%4`).
+- **A voice's `level=` → `gain=`.** dough's `gain` is "the gain of the sound before it goes into the fx", and superdough's is linear by default (its doc says "exponential", but `gainCurveFunc` is the identity). That is #306's voice level. Naming it `gain=` takes one of `level=`'s three meanings away (#150): `level=` is then a gate's (linear) and the card's (dB). The old `gain=` of decision 023 is gone, and the clean cut lets the name come back with dough's meaning.
+- **`oneshot`** has no counterpart to conflict with: Strudel's samples are one-shot by default and `clip` cuts them. It stays.
+- **`_` in `base=` → `=`.** Under I9, `_` must elongate the step before it (`0 _ _` is `0@3`). The "as the base" marker needs a sign Strudel doesn't use: **`=`**, read "the same". So `&answer base=&subject^$7 =!3 0@2`, and `=@2` holds the base's pitch for 2. A lone `=` can't be confused with `key=value`. In §8's terms it is a zero detail coefficient.
+
+## 8. The language as a MERA: cells, operations and wheels
+
+[multiscale.md](multiscale.md) holds the theory and the side-by-side table; this section takes it one step further. It maps each form of the language onto a role: an **isometry** (coarse ↔ fine: one block of a level is several of the level below), a **disentangler** (an operation across the edge of a block, before coarse-graining), a **contraction** (a lookup or a junction), and **renormalization** (going inward, from the notes to the cells). Read generatively, from the bulk to the boundary: the cells are the bulk, the sound card the boundary.
+
+### Two towers, not one
+
+Cells has two towers that meet at the junction.
+
+- **The time tower:** samples · notes · steps · bars · sections · the form · the day.
+- **The pitch tower:** the root grid (the 12, an EDO) · a key · a scale · a chord · a degree.
+
+`over=` is to pitch what `step=` is to time: each links a cell to the level below it. A pitch is a mixed-radix number (degree + 7 × octave), and so is a time (step + n × bar). The **carry** between digits is the helix, the lap, and both towers have it.
+
+### The forms, by role
+
+| role | time tower | pitch tower | elsewhere |
+|---|---|---|---|
+| **isometry** (one coarse block → k finer ones) | `step=&x*n` (decision 027: `*` refines); `[a b c]` (inline: one step → 3); `x*n` (a ratchet: k equal children); `x@n` (a child spanning n); a meter's levels (`meter("4/4", 2)`: a binary tree); a splice `&m` in a step; a tap of the bar (a section) | `over=&scale` (Z₇ embedded in Z₁₂, injective: w†w = 1 holds); a chord over a scale (Z₃ in Z₇); `map=edo` (the finest grid) | the junction `*`: a note → thousands of samples ([multiscale.md](multiscale.md#the-junction-projects)) |
+| **disentangler** (across a block's edge) | `[<<n]` (a delay carrying into the previous lap); `x@n` across a beat; an anacrusis; `_` (Strudel's, elongation across a step); `glide=` (a tie across steps); swing (soft) | `^n` (a degree carrying into the octave); an accidental (`6#`: a step of the level below); `shift=` and `stride=` (a table turned with carry) | `base=` (§7: a copy and its detail) |
+| **contraction** (a lookup, an index from below) | a selector reading `over=&parts` | `over=` read by a melody; a pick `&x[i]`; `map=&table` | a kit read by number; a gate's `play=` |
+| **weight sharing** | `x!n`, a cell played many times, `stride=` | a scale read by many cells | the graph is the network folded over time |
+| **boundary** (the UV, observed) | the sound card; scopes; the time view | spectrum, waterfall | — |
+| **the top** (the IR) | `laps=`, the form's selector, the day (`loop=1d`, `show=sun`) | `&key` (DC), the chromatic stack | — |
+
+**The `$` frame is a layer index.** `^n` moves on the layer the cell reads (its table); `^$n` on the bottom layer (the root grid). `[i]` picks on the layer as turned, `[$i]` as written. So the empty cells of #179's grid are shifts on a named layer of the tower:
+- `[<<$n]` is a delay in steps of the bottom clock: seconds, or the meter's own steps;
+- a moving amount, `degree(&triad, &prog)`, is a shift whose amount comes from a coarser layer: a disentangler driven from above, as in a MERA whose tensors vary with position.
+
+The only unaddressed layers are the ones between the top and the bottom. They are the one generalisation this reading suggests: a shift on any named layer, not just the nearest or the root. That waits for a piece that needs it.
+
+### The wheels, by role
+
+- **A wheel is a layer's block.** The ring is a cyclic group Zₙ, one turn one block. Its lap counter is the carry into the next layer, so a cell glyph is a digit of the mixed-radix number. Turning it is a translation on its layer.
+- **A bulb on a wheel** (decision 021: a cell that is only part of another, drawn on it by the host's coordinate) is the isometry's child drawn inside its parent's block. A splice's bulb sits at its time, a kit's voice at its piece of the kit, a tape's head at its place on the tape.
+- **A fixed tap on a turning wheel** (decision 012) is an output leg of a layer: it reads the block, turned.
+- **Turntables, belts, tape** are soft time: a warp of a layer's clock, not a re-blocking.
+- **The sun** is the top of the time tower (a day); **`&key`'s wheel** the top of the pitch tower.
+- **Spectrum, wave, scope** observe the boundary.
+- **The tower's axis** is the scale coordinate, the MERA's radial direction. A node's span (from its turn to its step) is the stretch of layers it occupies.
+- **The time view's scalogram** is the analysis MERA, built inward from the boundary (a wavelet transform of the notes). The graph is the generative one, built outward from the bulk. Where the two agree (a ridge on a cell's step: 73 of 75 pieces), the code's levels are the heard ones. Where they don't, the code has a level the ear doesn't (repeats written, not heard) or the ear one the code doesn't (Korobeiniki's half phrases). That is the isometry condition, measured from both sides.
+
+### Renormalization: the tools that go inward
+
+- **The folder and Shorten** coarse-grain a program: they find repeated blocks (weight sharing) and factor them into cells (β-expansion in [multiscale.md](multiscale.md)'s terms).
+- **`base=` is lifting.** Lifting factors a wavelet transform into *predict* and *update*. The base is the prediction, the delta is the detail coefficients, and `=` is a zero coefficient. A fugue's bent entries are a subject plus small details, which is why the folder found `base=` useful.
+- **Normalise is the flow to a fixed point.** A canonical form is a program that coarse-graining no longer changes (Shorten's idempotence, #142).
+- **Relevant and irrelevant.** What survives coarse-graining is a piece's relevant structure: the key, the form, the tempo map, the bar. What vanishes is the ornament: ratchets, chance, an accidental. This is a measure the scalogram can give per piece (ridge strength by level), and a guide for the folder: keep a level as a named cell when it is relevant, inline it (`[a b]`, `x*n`) when it isn't.
+
+### What this generalises in the language
+
+These follow from the mapping and need no new primitive. The owner's approval is for the direction; each lands as its own item.
+
+1. **One isometry, written at any scale.** `[a b c]`, `x*n`, `x@n`, `step=&x*n` and a splice are one operation (refine a block), inline or named. The folder and Normalise may move between them: a level used once inline, a level shared named (#151's canonical rule for the *dilate* families).
+2. **One disentangler: a shift with carry on a layer.** Time and pitch alike, the layer the cell's own, or `$` the root. It fills #179's grid without new signs.
+3. **Lookups are contractions with an index from below.** `over=`, picks, kits, a gate's `play=`, a selector: one primitive (#151's *look up* row), so the gate's `play=` and `over=` are one form, two spellings.
+4. **The detail is first-class.** `base=` with `=` is the language's lifting step; the folder writes it, and the scalogram can say where a detail is heard.
+5. **A check across both sides:** per piece, the code's levels (`towerSpans`) against the heard ones (the scalogram's ridges and swells). This is the isometry condition as a report in the time view, not a warning. It is lead 3 of [multiscale.md](multiscale.md), now with both halves built.
