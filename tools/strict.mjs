@@ -28,6 +28,7 @@ const CLEAN = [
   /^src\/engine\/readers\.ts$/,
   // (the layout, a part at a time)
   /^src\/layout\/envelope\.ts$/,
+  /^src\/layout\/glyph\.ts$/,
   /^src\/layout\/timelayers\.ts$/,
   /^src\/layout\/timepictures\.ts$/,
 ];
