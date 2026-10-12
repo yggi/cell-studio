@@ -42,6 +42,18 @@ A **plain value**, a number or a `map=lin` cell, has no sort of its own. It take
 
 The law is about pitches, so it doesn't apply to `12` in `12 * &lead`, which is a gain. To transpose by a constant in a product, write the sum: `(&theme + 12) * &lead`.
 
+**A kit read only selects** ([decision 029](../decisions/029-kits-pass-pitch.md)). A pattern read through a kit picks a member by its number and adds no pitch; the rest of the product acts on the member picked as on any voice: its pitch terms transpose it, its volumes scale it, a clock's varispeed bends it. With no other pitch term (plain drums) each member plays at its own pitch. Of the terms that step, the finest starts notes, as in any product: a melody over a slower kit read plays on the voice the read picks, held while it lasts (orchestration):
+
+```cells
+&bar scan(1 1 1 1) step=120bpm
+&lead s=saw loop=C4 env=&(map=adsr .01 .2 .4 .2)
+&organ s=square loop=C3 lpf=1500
+&band &lead &organ
+&orch over=&band step=&bar/4 0 1                # a bar on the lead, a bar on the organ
+&theme step=&bar 0 2 4 7
+&out loop=SAMPLE_RATE map=sample [&theme * &orch * .3]
+```
+
 ## A gate: a product with a name
 
 A product that plays a voice can be written as a cell of its own, a **gate** ([decision 023](../decisions/023-gate-spelling.md)):
