@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { fillColour, liveColour } from './edgeStyle';
+import { beatFlash, fillColour, liveColour } from './edgeStyle';
 import { palette } from './palette';
 
 const C12 = { cycle: 12 };
@@ -46,5 +46,14 @@ describe('a live edge takes the colour of what its source pushes now (edgeStyle.
     expect(liveColour({ band: 'cv', port: 'lpf', fill: () => ({ kind: 'level', v: 0.25 }), heard })).toBe(palette('level', 0.25));
     expect(liveColour({ band: 'cv', port: 'level', fill: () => undefined, heard })).toBe(palette('level', 1));
     expect(asked).toBe(false);
+  });
+});
+
+describe("a meter's flash (a net's traces, a selector's lanes)", () => {
+  it('is full on the bar, less on a beat, fades through the step, and nothing when not playing', () => {
+    expect(beatFlash(undefined)).toBe(0);
+    expect(beatFlash(0)).toBeCloseTo(1, 6);
+    expect(beatFlash(1)).toBeLessThan(1);
+    expect(beatFlash(1.5)).toBeLessThan(beatFlash(1));
   });
 });

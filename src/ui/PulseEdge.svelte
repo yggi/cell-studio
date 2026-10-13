@@ -1,6 +1,7 @@
 <script lang="ts">
-  import { EDGE, PAYLOAD, noteColour } from './theme';
+  import { EDGE, PAYLOAD, noteColour, tapTint } from './theme';
   import { fillColour, liveColour } from './edgeStyle';
+  import { palette } from './palette';
   import { gridOf, heardPosition } from '../layout/show';
   import { lapOf } from '../engine/readers';
   import { tickLevel } from '../layout/meters';
@@ -17,7 +18,7 @@
   import { BaseEdge, type EdgeProps } from '@xyflow/svelte';
   import { untrack } from 'svelte';
   import { polar, radialPath, splinePoint } from '../layout/geometry';
-  import { bundlePaths, loomParts, loomPaths, rippled } from '../layout/wire';
+  import { bundleCubic, bundlePaths, loomParts, loomPaths, rippled } from '../layout/wire';
   import { cellView, type Fill, type Segment } from '../layout/cellview';
   import { pluginOf } from '../layout/show';
   import { isTurntable } from '../engine/graph';
@@ -31,12 +32,26 @@
   import { fanOf, layTrack, netEnds, ringOf } from '../layout/track';
   import type { Pick } from '../engine/ast';
   import EdgePayload from './EdgePayload.svelte';
-  import { valuesOf, type Payload } from './payload';
+  import { carriesNotes, valuesOf, type Payload } from './payload';
   import { payloadShown, watchLoad } from './payloadGate.svelte';
   import { EXCITER_RING } from '../layout/exciters';
 
-  let { id: edgeId, sourceX, sourceY, targetX, targetY, data, label, markerEnd, style }: EdgeProps = $props();
+  type Pt = { x: number; y: number };
+  type Cubic = { a: Pt; c1: Pt; c2: Pt; b: Pt };
+  const cubicPath = (c: Cubic) => `M ${c.a.x} ${c.a.y} C ${c.c1.x} ${c.c1.y} ${c.c2.x} ${c.c2.y} ${c.b.x} ${c.b.y}`;
+
+  let { id: edgeId, source: sourceId, target: targetId, sourceX: rimSX, sourceY: rimSY, targetX: rimTX, targetY: rimTY, data, label, markerEnd, style }: EdgeProps = $props();
   const ctx = getGraphContext();
+  // (an end on a node drawn otherwise than as a wheel round its centre, a selector's pill: where the layout says it
+  // meets it — a port, or the outline nearest the other end; else its handle)
+  const ends = $derived({
+    source: ctx.anchor?.(sourceId, targetId, { x: rimTX, y: rimTY }),
+    target: ctx.anchor?.(targetId, sourceId, { x: rimSX, y: rimSY }),
+  });
+  const sourceX = $derived(ends.source?.x ?? rimSX);
+  const sourceY = $derived(ends.source?.y ?? rimSY);
+  const targetX = $derived(ends.target?.x ?? rimTX);
+  const targetY = $derived(ends.target?.y ?? rimTY);
   // (a loom's ring is drawn as an edge of its own: it reads the bus's bends, taps and liveness)
   const id = $derived(edgeId.endsWith(LOOM) ? edgeId.slice(0, -LOOM.length) : edgeId);
   const d = $derived(
@@ -59,6 +74,8 @@
       /** A bus round a loom is drawn in two parts: its run, and its ring as an edge of its own above every run. */
       part?: 'run' | 'ring';
       net?: { id: string };
+      /** A groove reading its kit (over=): its hits go up into the kit, read from the groove (`to`), as a melody into its voice. */
+      groove?: boolean;
       off?: boolean;
       state?: string;
     },
@@ -67,6 +84,10 @@
   // when the live set says so — each edge reads that for itself, so the list isn't remade at every step (#13).
   const state = $derived(d.state === 'idle' && ctx.liveEdges?.has(id) ? 'live' : (d.state ?? 'on'));
   const isLive = $derived(state === 'live');
+  // (a table of taps read by its chooser, decision 016: the selection, a strand a section — its tap's tint, lit while chosen)
+  const selection = $derived(d.port === 'over' && d.table && fanOf(ctx.program, d.table) ? (ctx.program.cells.get(d.table)?.units.length ?? 0) : 0);
+  // (whose values travel on it: the groove's, up into its kit; else its source's)
+  const sender = $derived(d.groove ? d.to : d.from);
 
   // A bus read by several (a net) is laid as a ratsnest whose junctions are its readers (ForceLayout.netTree): its trunk
   // leaves the owner's wheel once, to the reader nearest; every other tap comes on from a reader, out of its wheel —
@@ -87,17 +108,18 @@
   const lead = $derived(Math.min(120, 0.5 * Math.hypot(targetX - fromX, targetY - fromY)));
   // (the tower layout: a plain edge, one reader's, not a bus's, runs as a sigmoid between the strata — out of the lower
   // end's top, into the upper end's bottom, upright at both)
-  const sigmoid = $derived.by(() => {
+  const sigmoid = $derived.by((): Cubic | null => {
     if (!ctx.towered || hop || d.net || socket) return null;
     const up = fromY > targetY;
-    const [ra, rb] = [(d.sizes?.from ?? 0) / 2, (d.sizes?.to ?? 0) / 2];
+    // (an anchored end is met exactly: no rim round it)
+    const [ra, rb] = [ends.source ? 0 : (d.sizes?.from ?? 0) / 2, ends.target ? 0 : (d.sizes?.to ?? 0) / 2];
     const [ay, by] = up ? [fromY - ra, targetY + rb] : [fromY + ra, targetY - rb];
     if (up ? ay <= by : ay >= by) return null;
     const my = (ay + by) / 2;
-    return `M ${fromX} ${ay} C ${fromX} ${my} ${targetX} ${my} ${targetX} ${by}`;
+    return { a: { x: fromX, y: ay }, c1: { x: fromX, y: my }, c2: { x: targetX, y: my }, b: { x: targetX, y: by } };
   });
   const spline = $derived(
-    sigmoid ??
+    (sigmoid && cubicPath(sigmoid)) ??
       (socket
         ? `M ${fromX} ${fromY} C ${fromX} ${fromY - lead} ${control.x} ${control.y} ${targetX} ${targetY}`
         : `M ${fromX} ${fromY} Q ${control.x} ${control.y} ${targetX} ${targetY}`),
@@ -182,13 +204,14 @@
 
   // a bus: a table read through over= (its entries), or a chord (its notes); at most 12 strands, a longer table sampled
   const view = $derived.by(() => {
-    if (d.width < 2 || d.tines || (!d.table && d.band !== 'cv')) return null;
+    // (a groove's wire carries its hits, one line, not its kit's members as a bus)
+    if (d.width < 2 || d.tines || d.groove || (!d.table && d.band !== 'cv')) return null;
     // (a table of taps is read by its selector through one plain wire, from below: no bus, no loom — decision 016)
     if (d.table && fanOf(ctx.program, d.table)) return null;
     void ctx.turned;
     return cellView(ctx.program, d.table ?? d.from, shown, false);
   });
-  const count = $derived(view ? Math.min(EDGE.strands, d.width) : 0);
+  const count = $derived(selection || (view ? Math.min(EDGE.strands, d.width) : 0));
   // (a strand's place in the table: the entry it carries; a chord's strands run side by side)
   const entryOf = (i: number) => view?.segments[Math.floor((i * view.segments.length) / count)];
   // a strand leaves its entry's tap (where the wheel draws it: the entry's own place, turned as it stands)
@@ -196,10 +219,13 @@
   // (each strand's place across a flat bus, its first on the left looking along it)
   const across = (n: number) => Array.from({ length: n }, (_, i) => (i - (n - 1) / 2) * GAP);
   const strandPaths = $derived.by(() => {
+    // (the selection: a flat bus along its wire, its sections in the taps' order)
+    if (selection)
+      return sigmoid ? bundleCubic(sigmoid.a, sigmoid.c1, sigmoid.c2, sigmoid.b, across(count)) : bundlePaths(fromX, fromY, mid.x, mid.y, targetX, targetY, across(count));
     const r = d.sizes?.from ? tapRadius(d.sizes.from) : 0;
     const exits = d.table && r ? Array.from({ length: count }, (_, i) => entryOf(i)) : [];
     // (a flat bus, cut inside its wheels' rims: from a reader's hub when it hops on from there)
-    const rims = { a: hop ? hop.r : (d.sizes?.from ?? 0) / 2, b: (d.sizes?.to ?? 0) / 2 };
+    const rims = { a: hop ? hop.r : ends.source ? 0 : (d.sizes?.from ?? 0) / 2, b: ends.target ? 0 : (d.sizes?.to ?? 0) / 2 };
     if (!exits.length || exits.some((s) => !s)) return bundlePaths(fromX, fromY, mid.x, mid.y, targetX, targetY, across(count), rims);
     const turns = exits.map((s) => tapOf(view!, s!));
     // a hop: the bus goes on out of the hub of the reader it came into, flat, in the table's order
@@ -258,15 +284,22 @@
     }));
   });
   const strands = $derived.by((): { colour: string; dim: boolean }[] => {
+    // the selection: a section a strand, in its tap's tint; while playing, the ones not chosen now dim
+    if (selection) {
+      const chosen = ctx.heads.cells.get(d.to)?.entries;
+      return Array.from({ length: count }, (_, k) => ({ colour: tapTint(k, count), dim: ctx.playing && !chosen?.has(k) }));
+    }
     if (!view) return [];
     // the table's entries, as its wheel colours them: what it pushes, whoever reads which
     if (d.table) return Array.from({ length: count }, (_, i) => ({ colour: fillColour(entryOf(i)?.bands[0]), dim: false }));
-    // a chord: the notes under the playhead of the cell it comes from (stopped, or a rest: every strand still)
-    const local = isLive ? ctx.heads.cells.get(d.from)?.local : null;
+    // a chord: the notes under the playhead of the cell it comes from (a rest: every strand still); stopped, the ones
+    // its wheel shows at the cursor (its first step when it isn't playing there)
+    const lc = ctx.heads.cells.get(d.from);
+    const local = isLive ? lc?.local : state === 'on' ? (lc?.local ?? 0) : null;
     const t = local == null ? null : local / lapOf(ctx.program, d.from);
     const here = t === null ? undefined : view.segments.find((s) => t >= s.t0 - 1e-9 && t < s.t1 - 1e-9);
     const notes = here?.bands.filter((b) => b.kind === 'pitch') ?? [];
-    return Array.from({ length: count }, (_, i) => ({ colour: notes[i] ? fillColour(notes[i]) : 'var(--edge)', dim: t !== null && !notes[i] }));
+    return Array.from({ length: count }, (_, i) => ({ colour: notes[i] ? fillColour(notes[i]) : 'var(--edge)', dim: isLive && !notes[i] }));
   });
 
   // only a live edge (what it carries sounds now) pulses and takes the colour of its value (ui/palette.ts)
@@ -288,22 +321,27 @@
   };
   // what the cell it comes from plays now (a braid's step under its playhead, a table's entry looked up), for a CV edge
   // that carries no voice's note; redrawn when a table turns, read every frame
+  // (and stopped: what it shows at rest)
   const source = $derived.by(() => {
-    if (d.band !== 'cv' || count || d.tines || d.state !== 'idle') return null;
+    if (d.band !== 'cv' || count || d.tines || (d.state !== 'idle' && d.state !== 'on')) return null;
     void ctx.turned;
-    return cellView(ctx.program, d.from, shown, false);
+    return cellView(ctx.program, sender, shown, false);
   });
-  const fillNow = (): Fill | undefined => {
-    const lc = ctx.heads.cells.get(d.from);
-    if (!source || !lc) return undefined;
-    if (d.port === 'over') {
-      const i = lc.entries.values().next().value;
-      return source.segments.find((s) => s.index === i)?.bands[0];
+  // (`rest`: stopped, where its wheel is at the cursor — its first step when it isn't playing there)
+  const fillAt = (rest: boolean): Fill | undefined => {
+    const lc = ctx.heads.cells.get(sender);
+    if (!source) return undefined;
+    if (d.port === 'over' && !d.groove) {
+      const i = lc?.entries.values().next().value;
+      return i === undefined ? undefined : source.segments.find((s) => s.index === i)?.bands[0];
     }
-    if (lc.local == null) return undefined;
-    const t = lc.local / lapOf(ctx.program, d.from);
-    return source.segments.find((s) => t >= s.t0 - 1e-9 && t < s.t1 - 1e-9)?.bands.find((b) => b.kind === 'pitch' || b.kind === 'level');
+    const local = lc?.local ?? (rest ? 0 : null);
+    if (local == null) return undefined;
+    const t = local / lapOf(ctx.program, sender);
+    // (a wheel with no segments there, an oscillator's curve: its value at the step, valuesOf's rule)
+    return source.segments.find((s) => t >= s.t0 - 1e-9 && t < s.t1 - 1e-9)?.bands.find((b) => b.kind === 'pitch' || b.kind === 'level') ?? values?.(local);
   };
+  const fillNow = () => fillAt(false);
   // What it carries, drawn as it travels (EdgePayload, docs/notes/edge-styles.md §2): while live, on one line (a bus,
   // tines and picks keep their strands), when its source sends something to draw — else drawn as it was
   // (mounted while playing, whether it is live now or not: a note's start and end only show or hide it)
@@ -313,13 +351,13 @@
     const kind = ctx.playing && !count && !d.tines && !pickPaths.length && payloadShown() ? (d.payload ?? null) : null;
     const clocked = (name: string | null) => !!name && (!!ctx.program.cells.get(name)?.clock || ctx.program.clocks.has(name));
     if (kind === 'ticks') return clocked(d.from) && clocked(d.phaseCell) ? kind : null;
-    if (kind === 'notes' || kind === 'levels') return values && clocked(d.from) ? kind : null;
+    if (kind === 'notes' || kind === 'levels') return values && clocked(sender) ? kind : null;
     return kind;
   });
   // (what it shows now: its payload, while live)
   const shows = $derived(isLive ? payload : null);
   // (what its source sends at each step, for notes and levels: redrawn when the source's wheel is)
-  const values = $derived(source ? valuesOf(ctx.program, source, d.from) : null);
+  const values = $derived(source ? valuesOf(ctx.program, source, sender) : null);
   // its colour now: the one rule (edgeStyle.ts), given what it reads lazily — only a live edge takes one
   const colour = $derived.by((): string | null =>
     isLive
@@ -334,8 +372,39 @@
         })
       : null,
   );
+  // stopped, a wire of notes wears the note its source's wheel shows at the cursor (a melody, a groove's hit): grey is
+  // only a wire with nothing to carry
+  // a ref (a pointer, D6: coloured by what it points at), and a level, the same: its value at the cursor, a level as
+  // wide and bright as it is (D4's ribbon, still)
+  const restColour = $derived.by((): string | null => {
+    if (state !== 'on' || count || d.tines || d.band !== 'cv' || (d.port === 'over' && !d.groove) || d.port === 'map') return null;
+    const f = fillAt(true);
+    return f?.kind === 'pitch' ? fillColour(f) : f?.kind === 'level' ? palette('level', f.v) : null;
+  });
+  // (a level's width, at rest or live when no ribbon travels on it: its value now)
+  const levelWidth = $derived.by((): number | null => {
+    if (count || d.tines || d.band !== 'cv' || carriesNotes(d.port) || d.port === 'braid' || d.port === 'over' || d.port === 'map' || shows) return null;
+    if (state !== 'on' && !isLive) return null;
+    const f = fillAt(state === 'on');
+    return f?.kind === 'level' ? PAYLOAD.ribbon[0] + (PAYLOAD.ribbon[1] - PAYLOAD.ribbon[0]) * f.v : null;
+  });
+  const width = $derived(levelWidth === null ? '' : `; stroke-width: ${levelWidth.toFixed(1)}px`);
   // (a bus draws its own strands: its core stays hidden, so it takes no colour)
-  const edgeStyle = $derived(colour && !count && !d.tines ? `${style ?? ''}; stroke: ${colour}; stroke-opacity: ${shows ? PAYLOAD.carrier : EDGE.liveOpacity}` : style);
+  const edgeStyle = $derived(
+    colour && !count && !d.tines
+      ? `${style ?? ''}; stroke: ${colour}; stroke-opacity: ${shows ? PAYLOAD.carrier : EDGE.liveOpacity}${width}`
+      : restColour
+        ? `${style ?? ''}; stroke: ${restColour}${width}`
+        : style,
+  );
+  // (what travels runs from its sender: a groove's hits up from the groove into its kit, against the edge's own way)
+  const travel = $derived(
+    !d.groove
+      ? carrier
+      : sigmoid
+        ? cubicPath({ a: sigmoid.b, c1: sigmoid.c2, c2: sigmoid.c1, b: sigmoid.a })
+        : `M ${targetX} ${targetY} Q ${control.x} ${control.y} ${fromX} ${fromY}`,
+  );
 </script>
 
 {#if tineStrands.length}
@@ -378,7 +447,7 @@
     labelStyle={d.off ? 'opacity: 0.3' : colour ? `border-color: ${colour}` : undefined}
   />
   {#if payload}
-    <EdgePayload path={carrier} kind={payload} on={!!shows} from={d.from} stepped={d.phaseCell} voice={d.voice} {values} colourOf={fillColour} {colour} />
+    <EdgePayload path={travel} kind={payload} on={!!shows} from={sender} stepped={d.phaseCell} voice={d.voice} {values} colourOf={fillColour} {colour} />
   {/if}
   {#if dot && !shows}
     <circle class="pulse" cx={dot.x} cy={dot.y} r={d.band === 'sync' ? EDGE.pulse.sync : EDGE.pulse.value} style={colour ? `fill: ${colour}` : undefined} />

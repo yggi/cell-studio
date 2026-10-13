@@ -32,6 +32,7 @@ type Variant = {
   strata?: false;
   mixers?: false;
   lift?: false;
+  columns?: false;
 };
 const VARIANTS: Variant[] = [
   { name: 'today (the signal path)', tower: false, card: true, opts: {} },
@@ -53,6 +54,7 @@ const VARIANTS: Variant[] = [
   { name: 'min rise 60', tower: true, card: false, opts: { ...TOWER_LAYOUT, minRise: 60 } },
   { name: 'min rise 90', tower: true, card: false, opts: { ...TOWER_LAYOUT, minRise: 90 } },
   { name: 'tables at the bottom, not lifted to their readers', tower: true, card: false, opts: TOWER_LAYOUT, lift: false },
+  { name: 'no columns (a voice over its one player)', tower: true, card: false, opts: TOWER_LAYOUT, columns: false },
   { name: "tower, today's forces", tower: true, card: false, opts: { heightPull: 0.05, placeLast: 0 } },
 ];
 
@@ -101,7 +103,7 @@ function measure(source: string, v: Variant, seed: number): Row {
     ...(heights ? { heights } : {}),
     ...(held ? { held } : {}),
     ...(layered && v.strata !== false ? { strata: layered.strata } : {}),
-    ...(layered ? { between: layered.between, lineUp: layered.lineUp, aside: layered.aside } : {}),
+    ...(layered ? { between: layered.between, lineUp: layered.lineUp, aside: layered.aside, columns: v.columns === false ? undefined : layered.columns } : {}),
   });
   l.setGraph({ ...model, nodes: model.nodes.filter((n) => !n.petalOf) });
   t0 = lap('setGraph', t0);
@@ -139,7 +141,7 @@ function measure(source: string, v: Variant, seed: number): Row {
     // (a loom's top lane: its strands' highest; what it steps, its wheel's lower edge over it)
     const radius = new Map((l as unknown as { placed(): Placed }).placed().nodes.map((n) => [n.id, n.r]));
     for (const { strands } of l.tapLooms()) {
-      const lane = Math.min(...strands.map((st) => st.pieces[1][1]));
+      const lane = Math.min(...strands.filter((st) => !st.join).map((st) => st.pieces[1][1]));
       for (const id of new Set(strands.filter((st) => st.tap >= 0).map((st) => st.to))) {
         const p = l.position(id);
         if (p && p.y + (radius.get(id) ?? 0) * 0.7 > lane + 1) row.underLoom++;

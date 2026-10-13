@@ -38,6 +38,7 @@
   import TowerStrips, { STRIP, STRIP_OPEN } from './TowerStrips.svelte';
   import TapLooms from './TapLooms.svelte';
   import { towerIns } from '../layout/towerlayout';
+  import { pillAnchor } from '../layout/taploom';
   import type { Viewport } from '@xyflow/svelte';
 
   // (?tower: the tower open from the start, ?towerCell=tune its line, as if selected: the gallery's pictures)
@@ -71,6 +72,7 @@
     epoch = 0,
     opened = 0,
     refit = 0,
+    growing = false,
     locked,
     focus,
     onsheet,
@@ -103,6 +105,8 @@
     opened?: number;
     /** Counts requests to frame the graph again (a fold watched as it runs: the camera follows it). */
     refit?: number;
+    /** A conversion playing (#390): each version laid out gently from the last, the view framed only when it must. */
+    growing?: boolean;
     /**
      * Read only (a MIDI file's machine, #390): opening a cell, switching, turning, a free value or adding a cell does
      * nothing but this (it says to convert first). Moving a cell still moves it.
@@ -203,6 +207,10 @@
     get towered() {
       return towered;
     },
+    anchor: (node, other, from) => {
+      const l = pillsBy.get(node);
+      return l && pillAnchor(l, other, from);
+    },
     get lit() {
       return live;
     },
@@ -273,6 +281,7 @@
   // the tower layout (towerlayout.ts): the graph by the tower, the sound card its strip at the right (TowerStrips.svelte)
   const towered = $derived(layout.mode === 'tower');
   const pills = $derived(towered ? new Set(layout.looms.map((l) => l.table)) : undefined);
+  const pillsBy = $derived(new Map(towered ? layout.looms.map((l) => [l.table, l] as const) : []));
   let stripsOpen = $state(QUERY?.has('strips') ?? false);
   const stripW = $derived(stripsOpen ? STRIP_OPEN : STRIP);
   let flowW = $state(0);
@@ -375,7 +384,7 @@
     const next = snapshotOf(program, model, shifts, muted, routed);
     const o = opened;
     untrack(() => {
-      layout.sync(next, o);
+      layout.sync(next, o, growing);
       if (selected && !next.model.nodes.some((n) => n.id === selected)) selected = null;
     });
   });
@@ -435,7 +444,7 @@
     >
       <Background gap={28} size={1.5} />
       <Controls showLock={false} />
-      <FitView token={layout.fitToken + sideFits + towerFits + refit} />
+      <FitView token={layout.fitToken + sideFits + towerFits + refit} calm={growing} />
       {#if towerOpen || towered}<FlowViewport onchange={(v) => (viewport = v)} />{/if}
       {#if towered}
         {#if layout.looms.length}<ViewportPortal target="back"><TapLooms looms={layout.looms} /></ViewportPortal>{/if}

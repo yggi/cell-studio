@@ -30,6 +30,8 @@
     slipping?: boolean;
     /** A meter's place in its cycle, in beats (none: stopped). */
     beat?: number;
+    /** Drawn as the tower layout draws it (a plain wire a sigmoid, from the lower end's top to the upper's bottom). */
+    towered?: boolean;
   };
   let props: { fixture: EdgeFixture; column: Column } = $props();
   const { fixture: f, column: c } = untrack(() => props);
@@ -70,6 +72,9 @@
   const mid = { x: (top.x + bottom.x) / 2 + (c.bend ?? 0), y: (top.y + bottom.y) / 2 };
   const playing = c.state === 'idle' || c.state === 'live' || c.beat !== undefined;
   const live = playing ? (f.meter ? { ...f.piece.live, beatAt: new Map([[f.meter.name, c.beat ?? 0]]) } : f.piece.live) : null;
+  // (a live column whose source has no playhead at this moment: the edge is forced live, but what it shows there is a
+  // fallback, not what the app draws — the app makes an edge live only while its source sounds)
+  const silent = c.state === 'live' && !!live && !f.meter && f.edge.band !== 'sync' && f.edge.band !== 'none' && live.cells.get(nameOf(f.edge.from))?.local == null;
   setGraphContext({
     program: f.piece.program,
     muted: new Set(),
@@ -85,6 +90,7 @@
     setFree() {},
     open() {},
     bends: new Map([[e.id, mid]]),
+    towered: c.towered,
     toggle() {},
     nudge() {},
     cursor: 0,
@@ -113,7 +119,9 @@
       proOptions={{ hideAttribution: true }}
     />
   </div>
-  <div class="cap">{c.label}</div>
+  <div class="cap" class:silent title={silent ? 'its source is silent at this moment: a fallback, not what the app draws' : undefined}>
+    {c.label}{silent ? ' · silent' : ''}
+  </div>
 </div>
 
 <style>
@@ -128,5 +136,8 @@
   .cap {
     font: 11px var(--font-ui);
     color: var(--text-muted);
+  }
+  .cap.silent {
+    color: var(--warning);
   }
 </style>

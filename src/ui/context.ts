@@ -55,6 +55,11 @@ export interface GraphContext {
   readonly taps?: ReadonlyMap<string, { from: string; x: number; y: number; r: number } | null>;
   /** (the tower layout) The selectors drawn as pills (TapLooms.svelte): their own wheel left out, the pill draws them. */
   readonly pills?: ReadonlySet<string>;
+  /**
+   * Where an edge from `other` (its node id, and where that end is) meets `node`, when `node` isn't drawn as a wheel
+   * round its centre (the tower layout's selectors, drawn as pills: their ports, their outline); else undefined, the rim.
+   */
+  anchor?(node: string, other: string, from: { x: number; y: number }): { x: number; y: number } | undefined;
   /** The tower layout is on: a plain edge runs as a sigmoid, from the lower end's top to the upper end's bottom. */
   readonly towered?: boolean;
   toggle(id: string): void;

@@ -27,6 +27,8 @@
   --edge-dash-sync: 0.5 8;
   --edge-dash-midi: 14 4 2 4;
   --edge-dash-is: 5 6;
+  --edge-w-about: 1.5; /* a note's link: a hairline (dots are a clock's) … */
+  --edge-about: 60%; /* … and faint */
   --edge-idle: 0.45; /* not sounding now (playing) */
   --edge-faded: 0.2; /* not part of the sound, or switched off */
   --edge-bus-idle: 0.55;
@@ -34,6 +36,7 @@
   --edge-strand-dim: 0.25;
   --edge-sheath: 0.55;
   --edge-fade: 200ms;
+  --cell-in: 450ms; /* a cell or a wire coming into the graph */
   --edge-trace-w: 9px; /* a meter's net at rest … */
   --edge-trace-flash-w: 3px; /* … and how much wider on a tick */
   --edge-trace-rest: 0.42;
@@ -404,4 +407,31 @@ select {
   border-radius: 50%;
   background: radial-gradient(circle, color-mix(in oklab, var(--hue) 34%, transparent) 0%, color-mix(in oklab, var(--hue) 16%, transparent) 55%, transparent 72%);
   pointer-events: none;
+}
+
+/* ---- a cell or a wire coming into the piece's graph (an edit, a conversion's story, #390): it fades and grows in, so
+   nothing appears at once. `scale` (not `transform`, which the flow places nodes with) ---- */
+.canvas .svelte-flow__node {
+  animation: cell-in var(--cell-in) ease-out both;
+  transform-origin: center;
+}
+.canvas .svelte-flow__edge {
+  animation: wire-in var(--cell-in) ease-out both;
+}
+@keyframes cell-in {
+  from {
+    opacity: 0;
+    scale: 0.6;
+  }
+}
+@keyframes wire-in {
+  from {
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .canvas .svelte-flow__node,
+  .canvas .svelte-flow__edge {
+    animation: none;
+  }
 }

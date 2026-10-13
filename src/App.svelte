@@ -83,6 +83,7 @@
       cursor={playback.cursor}
       opened={library.opened}
       refit={studio.foldFrames}
+      growing={!!studio.folding}
       focus={view.focus}
       onsheet={(name) => (studio.keys.sheet = name)}
       played={studio.keys.lit}

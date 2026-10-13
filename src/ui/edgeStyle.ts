@@ -11,7 +11,7 @@
  */
 import type { Fill } from '../layout/cellview';
 import { palette, type PaletteGrid } from './palette';
-import { noteColour } from './theme';
+import { EDGE, noteColour } from './theme';
 
 /** The CV ports that carry notes (a gate's trigger= is a melody, as a voice's is); any other CV is a level. */
 const PITCH_PORTS = new Set(['voice', 'trigger', 'midi', 'pitch', 'play', 'write', 'braid', 'over']);
@@ -56,4 +56,14 @@ export function liveColour(now: EdgeNow): string | null {
   if (f?.kind === 'pitch' || f?.kind === 'level') return fillColour(f);
   const h = now.heard?.();
   return h && h.position !== null && h.grid ? palette('pitch', h.position, h.grid) : palette('level', 1);
+}
+
+/**
+ * How bright a meter's trace is at a place in its cycle (`at`, in beats; undefined: not playing): a flash at each of its
+ * steps, fading through it, the bar's first full (MeterEdge, a selector's lanes in TapLooms).
+ */
+export function beatFlash(at: number | undefined): number {
+  if (at === undefined) return 0;
+  const into = at - Math.floor(at + 1e-9);
+  return Math.exp(-EDGE.flash.decay * into) * (Math.floor(at + 1e-9) === 0 ? 1 : EDGE.flash.offBeat);
 }

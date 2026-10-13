@@ -66,6 +66,8 @@ export interface LayoutOptions {
   between?: ReadonlyMap<string, readonly string[]>;
   /** (the tower layout) Rows in order, left to right (`towerLayers`: the sources' row, the meter first). */
   lineUp?: readonly (readonly string[])[];
+  /** (the tower layout) Columns (`towerLayers`): a voice or a kit and the one cell that plays it, at one x. */
+  columns?: readonly { readonly lo: string; readonly hi: string; readonly via?: string }[];
   /** (the tower layout) Cells kept left of a selector's pill (by the table's id): the frame, its bus up beside it. */
   aside?: ReadonlyMap<string, string>;
   /** (the tower layout) A plain edge's wheels at least this far apart upwards (px, rim to rim), what feeds below what it feeds: pushed so (0: none). */
