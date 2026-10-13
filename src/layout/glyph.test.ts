@@ -51,7 +51,7 @@ const trackOf = (v: CellView) => (v.bulbs?.length ? layTrack(g.c, g.c, (g.rInner
 const pop = compileSource(PRESETS.pop.source);
 const transpose = compileSource(PRESETS.transpose.source);
 
-describe('a table of taps (Pop’s &parts: &hatsBar &beatBar …)', () => {
+describe('a table of taps (Pop’s &parts: &bassBar &keysBar …)', () => {
   const parts = view(pop, 'parts');
   const track = trackOf(parts);
   const cell = pop.cells.get('parts');
@@ -62,21 +62,21 @@ describe('a table of taps (Pop’s &parts: &hatsBar &beatBar …)', () => {
     expect(tapSuffix(['x', 'y'])).toBe('');
     expect(tapSuffix([])).toBe('');
     const bulbs = bulbLabels(pop, track, true, 'Bar');
-    expect(bulbs.map((b) => b.text)).toEqual(['hats', 'beat', 'bass', 'keys', 'hook', 'end']);
+    expect(bulbs.map((b) => b.text)).toEqual(['bass', 'keys', 'hook', 'hats', 'beat', 'end']);
     expect(bulbs.map((b) => b.font)).toEqual([7.9, 7.9, 7.9, 7.9, 7.9, 10.5]);
     expect(bulbs.every((b) => b.sub === '' && b.outline === null)).toBe(true);
   });
   it('lit where its selector has a tap on; each ring its part’s, a hand across those on', () => {
     const key = litTaps(parts, cell, new Set(['cell:beatBar', 'cell:keysBar']));
-    expect(key).toBe('1,3');
+    expect(key).toBe('1,4');
     expect(litTaps(parts, cell, undefined)).toBe('');
     const rings = tapRings(bulbLabels(pop, track, true, 'Bar'), parts, 6, litSet(key));
     expect(rings.map((t) => [t.part, t.parts, t.on])).toEqual([
       [0, 6, false],
       [1, 6, true],
       [2, 6, false],
-      [3, 6, true],
-      [4, 6, false],
+      [3, 6, false],
+      [4, 6, true],
       [5, 6, false],
     ]);
     const hands = tapCursors(rings, g);
@@ -96,7 +96,8 @@ describe('a selector’s barrel (Pop’s &song, show=matrix)', () => {
     expect(pins.filter((p) => p.on)).toHaveLength(34);
     expect(pins[0]).toEqual({
       d: 'M 64.862 29.711 A 34.3 34.3 0 0 1 83.457 35.753 L 81.88 38.042 A 31.52 31.52 0 0 0 64.792 32.49 Z',
-      on: true,
+      // (the bass's row: the intro is keys and hats)
+      on: false,
       step: 0,
       row: 0,
       rows: 6,

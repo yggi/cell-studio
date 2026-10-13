@@ -11,7 +11,7 @@ import type { LayoutState, PhysLink, PhysNode } from './state';
 import { loomReach } from './looms';
 
 /** Small deterministic hash so new nodes always spawn in the same place. */
-function jitter(id: string, salt: number): number {
+export function jitter(id: string, salt: number): number {
   let h = 2166136261 ^ salt;
   for (let i = 0; i < id.length; i++) h = Math.imul(h ^ id.charCodeAt(i), 16777619);
   return ((h >>> 0) / 0xffffffff - 0.5) * 40;

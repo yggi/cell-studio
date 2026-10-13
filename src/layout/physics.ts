@@ -20,7 +20,7 @@ import { BELT_LENGTH, BELT_PULL, DEFAULT_LAYOUT, GROUND_PULL, linkPull, type Lay
 import type { LayoutState, MeterTrace, PhysLink, PhysNode } from './state';
 import { nodeAt, positionOf } from './state';
 import { folded, junctionNodes, placeJunctions, settleJunctions } from './junctions';
-import { rowsKey, startNodes, startPlaces } from './start';
+import { rowsKey, startNodes, startPlaces, jitter } from './start';
 import { forceUncross, stepBends, stepClusters, stepExclusion, stepKinds, stepSpread } from './forces';
 import { aims, fitTurns, stepAims } from './aims';
 import { hops, loomsOf, meterNet, netTree, stepNets, taps } from './nets';
@@ -42,6 +42,14 @@ export interface Loom {
 const PILL_PAD = 16;
 /** The most a node moves in a tick after an edit (px): inserted cells push the others gently, nothing flies. */
 const CALM = 12;
+/** How much of a too short plain edge's missing rise is made up each tick. */
+const RISE = 0.2;
+/** The room between neighbours in a row lined up (px). */
+const LINE_GAP = 40;
+/** (seedUp) The columns' spacing a fresh graph is seeded with, a tap each (px). */
+const SEED_GAP = 220;
+/** (seedUp) How many levels up what the tapped cells feed is seeded over them. */
+const SEED_LEVELS = 6;
 /** The room over a pill a cell reading it keeps: the pill's pad, and the cell's name under it (px). */
 const PILL_ROOM = PILL_PAD + 30;
 
@@ -136,6 +144,7 @@ export class ForceLayout {
       .force('upright', (alpha: number) => this.lean(alpha))
       // (netLead) a bus's owner at its net's left end, level with its readers: it feeds the net left to right
       .force('lead', (alpha: number) => this.lead(alpha))
+      .force('rise', () => this.rise())
       // (calm) after an edit, no node faster than CALM px a tick: what comes in eases the others aside
       .force('calm', () => this.calm())
       .on('tick', () => {
@@ -272,6 +281,7 @@ export class ForceLayout {
       .filter((e) => ground(e) && next.has(e.source) && next.has(e.target))
       .map((e) => ({ id: e.id, meter: e.target, cell: e.source, ...(e.bulb && e.bulbAt ? { bulb: e.bulb, at: { ...e.bulbAt } } : {}) }));
     this.s.net = this.s.net.filter((t) => next.has(t.a) && next.has(t.b) && this.s.grounds.some((g) => g.meter === t.meter && g.bulb === t.bulb));
+    if (fresh && this.s.opts.tapLoom && this.s.opts.seedUp) this.seedUp(model);
     // the tapes turned to where everything is now (an edit that doesn't move anything doesn't turn them)
     this.s.turns = fitTurns(this.s, (id) => this.position(id));
     // a hub's edges into a cluster: each keeps part of its pull, the cluster's tag takes the rest, once per hub (`mux`)
@@ -347,6 +357,36 @@ export class ForceLayout {
    * (the tower layout) Each node `heights` names held at its height: only x is free (d3 sets y to fy each tick); or,
    * with `heightPull`, drawn towards it, gently, as a spring would (its height a target, not a rail).
    */
+  /**
+   * (seedUp, the tower layout) A fresh graph seeded bottom-up: what a selector's taps step spread left to right in the
+   * taps' order over its table, a column a tap; what each feeds, up to the voices and their mixers, over what feeds it
+   * (the mean of its feeders). The forces start from the sections in order.
+   */
+  private seedUp(model: GraphModel): void {
+    const x = new Map<string, number[]>();
+    for (const table of new Set(this.s.grounds.flatMap((g) => (g.bulb ? [g.meter] : [])))) {
+      const t = this.s.byId.get(table);
+      if (t?.x === undefined) continue;
+      const taps = [...new Map(this.s.grounds.flatMap((g) => (g.meter === table && g.bulb && g.at ? [[g.bulb, g.at.x] as const] : []))).entries()].sort((a, b) => a[1] - b[1]);
+      taps.forEach(([bulb], k) => {
+        for (const g of this.s.grounds) if (g.meter === table && g.bulb === bulb) x.set(g.cell, [...(x.get(g.cell) ?? []), t.x! + (k - (taps.length - 1) / 2) * SEED_GAP]);
+      });
+    }
+    const at = new Map([...x].map(([id, xs]) => [id, xs.reduce((a, b) => a + b, 0) / xs.length]));
+    // (up what each feeds, a level at a time: a node reached from several, between them)
+    for (let level = 0, front = [...at.keys()]; level < SEED_LEVELS && front.length; level++) {
+      const reached = new Map<string, number[]>();
+      for (const e of model.edges)
+        if (front.includes(e.source) && !at.has(e.target) && this.s.byId.has(e.target)) reached.set(e.target, [...(reached.get(e.target) ?? []), at.get(e.source)!]);
+      for (const [id, xs] of reached) at.set(id, xs.reduce((a, b) => a + b, 0) / xs.length);
+      front = [...reached.keys()];
+    }
+    for (const [id, nx] of at) {
+      const n = this.s.byId.get(id);
+      if (n && n.fx == null) n.x = nx + jitter(id, 3 + 2 * this.s.opts.seed);
+    }
+  }
+
   /** After an edit (not a fresh graph): set each node's speed to CALM px a tick at most. */
   private calmed = false;
   private calm(): void {
@@ -455,6 +495,26 @@ export class ForceLayout {
           n.vy = 0;
         }
       }
+    // (aside) a cell left of a selector's pill, its bus going up beside it, not through it
+    if (this.s.opts.tapLoom)
+      for (const [id, table] of this.s.opts.aside ?? []) {
+        const [n, l] = [this.s.byId.get(id), loomsOf(this.s).get(table)];
+        if (n?.x === undefined || !l || n.fx != null) continue;
+        n.x = Math.min(n.x, l.x0 - PILL_PAD - n.radius * 0.7 - LINE_GAP);
+      }
+    // (lineUp) a row in its order, left to right: neighbours out of it, or too close, set apart
+    for (const row of this.s.opts.lineUp ?? [])
+      for (let pass = 0; pass < 3; pass++)
+        for (let i = 1; i < row.length; i++) {
+          const [a, b] = [this.s.byId.get(row[i - 1]), this.s.byId.get(row[i])];
+          if (a?.x === undefined || b?.x === undefined) continue;
+          const short = a.x + (a.radius + b.radius) * 0.7 + LINE_GAP - b.x;
+          if (short <= 0) continue;
+          const [ma, mb] = [a.fx == null ? 1 : 0, b.fx == null ? 1 : 0];
+          if (!ma && !mb) continue;
+          a.x -= (short * ma) / (ma + mb);
+          b.x += (short * mb) / (ma + mb);
+        }
     for (const n of this.s.byId.values()) clamp(n);
   }
 
@@ -476,6 +536,33 @@ export class ForceLayout {
     }
   }
 
+  /**
+   * (minRise) What feeds sits at least so far under what it feeds, in another stratum — a plain wire a sigmoid with
+   * room to turn: the free end moved, part of the way each tick, within its stratum; the strata grow apart.
+   */
+  private rise(): void {
+    const min = this.s.opts.minRise;
+    if (!min) return;
+    // (a table's bus, read over=, lies flat along its row: not a plain wire; a value several read is)
+    const buses = new Set(this.s.nets.flatMap((n) => (n.port === 'over' ? n.taps : [])));
+    const held = this.s.opts.held;
+    const bands = this.s.opts.strata;
+    for (const l of this.s.links) {
+      if (buses.has(l.id)) continue;
+      // (a product's junction stands for its voice: its wire rises to the voice's row)
+      const [a, b] = [nodeAt(this.s, l.source), nodeAt(this.s, l.target)];
+      if (a?.y === undefined || b?.y === undefined || a.y < b.y) continue;
+      // (between the strata: two cells of one stratum stay as their row has them)
+      const [ba, bb] = [bands?.get(a.id), bands?.get(b.id)];
+      if (ba && bb && ba[0] === bb[0] && ba[1] === bb[1]) continue;
+      // (from the upper wheel's bottom to the lower one's top)
+      const short = (min + (a.radius + b.radius) * 0.7 - (a.y - b.y)) * RISE;
+      if (short <= 0) continue;
+      if (!held?.has(a.id) && a.fy == null) a.y = Math.min(bands?.get(a.id)?.[1] ?? Infinity, a.y + short);
+      else if (!held?.has(b.id) && b.fy == null) b.y = Math.max(bands?.get(b.id)?.[0] ?? -Infinity, b.y - short);
+    }
+  }
+
   private lead(alpha: number): void {
     const k = this.s.opts.netLead;
     if (!k) return;
@@ -488,9 +575,10 @@ export class ForceLayout {
         return n && n !== o && n.x !== undefined && n.y !== undefined ? [n] : [];
       });
       if (!o || o.x === undefined || o.y === undefined || rs.length < 2) continue;
-      const left = Math.min(...rs.map((r) => r.x! - r.radius));
+      // (its wheel's edge a gap left of its leftmost reader's: the wheels, not the room their looms take)
+      const left = Math.min(...rs.map((r) => r.x! - r.radius * 0.7)) - LINE_GAP - o.radius * 0.7;
       const y = rs.reduce((a, r) => a + r.y!, 0) / rs.length;
-      if (o.fx == null && o.x + o.radius > left) o.vx = (o.vx ?? 0) + (left - o.radius - o.x) * k * alpha;
+      o.vx = o.fx == null ? (o.vx ?? 0) + (left - o.x) * k * alpha : o.vx;
       if (o.fy == null && !this.s.opts.held?.has(o.id)) o.vy = (o.vy ?? 0) + (y - o.y) * k * alpha;
     }
   }

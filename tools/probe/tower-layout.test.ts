@@ -49,6 +49,10 @@ const VARIANTS: Variant[] = [
   { name: 'contraction .75', tower: true, card: false, opts: { ...TOWER_LAYOUT, contract: 0.75 } },
   { name: 'no net lead', tower: true, card: false, opts: { ...TOWER_LAYOUT, netLead: 0 } },
   { name: 'net lead .1', tower: true, card: false, opts: { ...TOWER_LAYOUT, netLead: 0.1 } },
+  { name: 'no min rise', tower: true, card: false, opts: { ...TOWER_LAYOUT, minRise: 0 } },
+  { name: 'min rise 60', tower: true, card: false, opts: { ...TOWER_LAYOUT, minRise: 60 } },
+  { name: 'min rise 90', tower: true, card: false, opts: { ...TOWER_LAYOUT, minRise: 90 } },
+  { name: 'seeded bottom-up, a column a tap', tower: true, card: false, opts: { ...TOWER_LAYOUT, seedUp: true } },
   { name: 'tables at the bottom, not lifted to their readers', tower: true, card: false, opts: TOWER_LAYOUT, lift: false },
   { name: "tower, today's forces", tower: true, card: false, opts: { heightPull: 0.05, placeLast: 0 } },
 ];
@@ -98,7 +102,7 @@ function measure(source: string, v: Variant, seed: number): Row {
     ...(heights ? { heights } : {}),
     ...(held ? { held } : {}),
     ...(layered && v.strata !== false ? { strata: layered.strata } : {}),
-    ...(layered ? { between: layered.between } : {}),
+    ...(layered ? { between: layered.between, lineUp: layered.lineUp, aside: layered.aside } : {}),
   });
   l.setGraph({ ...model, nodes: model.nodes.filter((n) => !n.petalOf) });
   t0 = lap('setGraph', t0);

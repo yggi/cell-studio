@@ -64,6 +64,14 @@ export interface LayoutOptions {
   strata?: ReadonlyMap<string, readonly [number, number]>;
   /** (the tower layout) A mixer's sources (`towerLayers`): its x held between theirs. */
   between?: ReadonlyMap<string, readonly string[]>;
+  /** (the tower layout) Rows in order, left to right (`towerLayers`: the sources' row, the meter first). */
+  lineUp?: readonly (readonly string[])[];
+  /** (the tower layout) Cells kept left of a selector's pill (by the table's id): the frame, its bus up beside it. */
+  aside?: ReadonlyMap<string, string>;
+  /** (the tower layout) A plain edge's wheels at least this far apart upwards (px, rim to rim), what feeds below what it feeds: pushed so (0: none). */
+  minRise: number;
+  /** (the tower layout, tapLoom) A fresh graph seeded bottom-up: a column a tap in the taps' order, what each feeds over it. */
+  seedUp: boolean;
   /** (tapLoom) A ride on a loom carrying the bus costs this times its length (1: as a straight join). */
   loomRide: number;
   /** (tapLoom) A loom is kept clear: no other node stands in its band. */
@@ -167,6 +175,8 @@ export const DEFAULT_LAYOUT: LayoutOptions = {
   upright: 0,
   feedUnder: 0,
   netLead: 0,
+  minRise: 0,
+  seedUp: false,
   socketsAbove: false,
   centre: 0.004,
   columnPull: 0.035,
@@ -203,6 +213,8 @@ export const TOWER_LAYOUT: Partial<LayoutOptions> = {
   upright: 0.01,
   feedUnder: 0.05,
   netLead: 0.3,
+  minRise: 90,
+  seedUp: false,
   contract: 0.4,
 };
 

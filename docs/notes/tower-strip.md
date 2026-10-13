@@ -440,6 +440,32 @@ Not done: start positions bottom-up, following the feeds in the sections' order 
 ![Hypercell: the flat selector, its ports](tower-strip-flat-hypercell.jpg)
 ![Baustelle](tower-strip-flat-baustelle.jpg)
 
+## The bottom row in order, wires with room to turn, the examples in order (2026-10-13)
+
+Asked (on a picture of Cellscape): the sigmoids a minimal height, a force that pushes the strata apart; the crossing at the very bottom (`&scenes`' wire over `&bar`'s) gone; the affected examples rewritten so their parts' order is logical and crosses less; `&key` to the very left of the pill, or below it beside `&bar`: `&key · &bar · &scenes`, or `&bar · &key · &scenes` since `&bar` feeds the meter's bus from the left.
+
+- **The frame in the sources' row** (`towerLayers`): a cell the selector's own meter steps, at its sections' rate or slower (the chooser's), read only by tables — `&key`, `step=&bar/32`, read by `&lydian` — is a source too, under the pill. `&up` (Hypercell) runs at the same rate off the same bar, but is a curve a voice reads: it stays with the rise section.
+- **The row in order** (`lineUp`): the frame, the meter, the choosers, left to right, set apart where they are out of order or too close. Of the two orders asked, `&key · &bar · &scenes`: with `&key` left of `&bar` its bus goes straight up to `&lydian` beside the pill (`aside`: kept left of it), where right of `&bar` it crossed the pill's end. The crossing at the bottom is gone: the meter's wire and the chooser's no longer pass each other.
+- **Room to turn** (`minRise` 90, `physics.ts: rise`): a plain wire between two strata (one a table's bus is not; a value several read, `&breath`, is) keeps its upper wheel's bottom at least 90 px over its lower wheel's top, the free end moved part of the way each tick. Within one stratum nothing is pushed (it pulled the canon's follower out of the harmony row).
+- **The examples** (Hypercell, Pop, Zell, Brothers): a selector's taps reordered to read bass, the pitched parts, the drums, then the rest, near the order the graph lays them out, the chooser's sections renumbered to match (`[0,1,4,6]` → `[0,4,5,6]`). Every note the same over each whole piece (`plan` + `eventsBetween`, 600 s, as Shorten's promise checks). The looms' inversions (a tap's cells out of the taps' order, left to right): Hypercell 6 → 2, Pop 8 → 3, Zell 3 → 0, Brothers 2 → 1. Korobeiniki is left: its parts are in pairs (lead A, lead B …), already in an order that reads. Today's layout records them too: 36.5 → 37.2 crossings over the library (Zell +1, Hypercell −0.3).
+- **Seeded bottom-up** (`seedUp`, off): a fresh graph seeded with a column a tap in the taps' order, and what each feeds over it, up to the voices. It crossed more (45.3, and 43.0 seeding the tapped cells only, against 41.3 unseeded): the forces settle elsewhere from it. Kept as a probe row.
+
+| layout | crossings |
+|---|---|
+| the round before | 39.7 |
+| **default now** (`minRise` 90, the examples rewritten) | **41.3** |
+| … no `minRise` | 38.3 |
+| … `minRise` 60 | 38.7 |
+| … `minRise` 120 | 43.0 |
+| … seeded bottom-up | 45.3 |
+| today's, with the tower's sockets | 28.7 |
+
+(77 pieces, three seeds; ±2 between runs. The rows before the examples were rewritten.) `minRise` 90 costs about 1.7 for the room it makes; 120 costs 4.7.
+
+![Cellscape: &key · &bar · &scenes, &key under &lydian](tower-strip-row-cellscape.jpg)
+![Hypercell](tower-strip-row-hypercell.jpg)
+![Pop](tower-strip-row-pop.jpg)
+
 ## Next
 
 1. The tower layout still crosses about three times today's (91 against 33, the card left out of both), most in the pieces arranged with selectors, tapes and resonators (#234's language side: a selector that sends gates).
