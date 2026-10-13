@@ -29,10 +29,10 @@
     looms.map((l) => {
       const n = Math.max(1, l.contacts.length);
       const strands = l.strands.map((s) => ({ id: `${l.table}:${s.bulb}:${s.to}`, tap: s.tap, d: s.d, colour: tint(s.tap, n) }));
-      // (an output a riser: where it leaves the pill's top, one bulb each)
+      // (an output a riser: where it leaves the pill's top, one bulb each — not a join, nor a strand down to a cell under it)
       const outs = new Map<string, { x: number; colour: string }>();
       for (const s of l.strands) {
-        if (s.join) continue;
+        if (s.join || s.pieces[2][3] >= s.pieces[2][1]) continue;
         const x = s.pieces[2][0];
         outs.set(`${s.tap}:${Math.round(x)}`, { x, colour: tint(s.tap, n) });
       }

@@ -59,7 +59,7 @@ export interface GraphContext {
    * Where an edge from `other` (its node id, and where that end is) meets `node`, when `node` isn't drawn as a wheel
    * round its centre (the tower layout's selectors, drawn as pills: their ports, their outline); else undefined, the rim.
    */
-  anchor?(node: string, other: string, from: { x: number; y: number }): { x: number; y: number } | undefined;
+  anchor?(node: string, other: string, from: { x: number; y: number }, meter?: boolean): { x: number; y: number } | undefined;
   /** The tower layout is on: a plain edge runs as a sigmoid, from the lower end's top to the upper end's bottom. */
   readonly towered?: boolean;
   toggle(id: string): void;

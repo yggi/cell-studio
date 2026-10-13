@@ -196,9 +196,9 @@
     get towered() {
       return towered;
     },
-    anchor: (node, other, from) => {
+    anchor: (node, other, from, meter) => {
       const l = pillsBy.get(node);
-      return l && pillAnchor(l, other, from);
+      return l && pillAnchor(l, other, from, meter);
     },
     get lit() {
       return live;

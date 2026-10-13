@@ -504,6 +504,20 @@ Built (the owner chose 1–3):
 
 ![The arrangement stopped: the selection a bus of the sections' tints, the melodies and the groove in their notes](tower-strip-edges-arrangement.jpg)
 
+## The pill's outline and what stays clear of it (2026-10-13)
+
+Asked: the outer outputs of a pill on its outline (they floated over its round ends); the pill and its surroundings in the selector pieces and the golden graph in the tower layout.
+
+- **Outputs on the outline** (`taploom.ts: pillOf`): the round ends start half the pill's height beyond the outermost riser, so every output bulb sits on the flat top; a strand down to a cell under the pill has no bulb on its top (`TapLooms`).
+- **The meter's port faces its wire** (`physics.ts: tapLooms`): the port is placed toward the meter's net's neighbour of the table, not the meter — in the golden graph the net reaches `&parts` through `&tetris`, the chooser, and the trace from there met the pill's outline across the selection's bus. Two wires from one cell: the ports side by side, the meter's left; `pillAnchor` tells a meter's trace (the meter port) from the chooser's wire (the selection's).
+- **Nothing crosses a pill** (`physics.ts: strata`, *clear*): a cell under a pill whose wire runs up past it, to a cell over it, goes out along that wire's line until it passes the pill as drawn (its riders included) with half a bus's room: the frame's `aside`, for any such wire. The golden's `&key` bus to `&mode` went through the pill's end.
+
+Library: crossings 45.3 → 45.7, cost 106.5 → 112.2, pieces with an overlap 3 → 2.7 (77 pieces, three seeds; within the runs' spread).
+
+Seen and left (open issues): strands crossing inside a pill where the taps' order isn't the readers' (#377: Korobeiniki, Baustelle, Pop); a tag's name pushed out of a pill landing away from its cells (#375: Baustelle's *metal*, Korobeiniki's and Pop's *drums*); readers' names close over the pill's top.
+
+![The golden graph in the tower layout: &key beside the pill](tower-strip-golden-pill.jpg)
+
 ## Next
 
 1. The tower layout still crosses about three times today's (91 against 33, the card left out of both), most in the pieces arranged with selectors, tapes and resonators (#234's language side: a selector that sends gates).
