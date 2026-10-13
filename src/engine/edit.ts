@@ -125,10 +125,12 @@ export const setOff = (source: string, name: string, off: boolean) => setFlag(so
 
 // ------------------------------------------------------------------ whole-line edits
 
-/** Split code into words at whitespace outside brackets, parentheses and quotes (`[0, 4, 7]`, `label="a b"` stay one word). */
+/** Split code into words at whitespace outside brackets, parentheses, alternations and quotes (`[0, 4, 7]`, `<0 2>`, `label="a b"` stay one word). */
 export function splitWords(code: string): string[] {
   const out: string[] = [];
   let depth = 0;
+  // (<…>: counted only outside brackets, where &x[<<] has its own)
+  let angle = 0;
   let quoted = false;
   let cur = '';
   for (const ch of code) {
@@ -136,7 +138,9 @@ export function splitWords(code: string): string[] {
     if (ch === '"') quoted = !quoted;
     if (!quoted && (ch === '[' || ch === '(')) depth++;
     if (!quoted && (ch === ']' || ch === ')')) depth = Math.max(0, depth - 1);
-    if (/\s/.test(ch) && depth === 0 && !quoted) {
+    if (!quoted && depth === 0 && ch === '<') angle++;
+    if (!quoted && depth === 0 && ch === '>') angle = Math.max(0, angle - 1);
+    if (/\s/.test(ch) && depth === 0 && angle === 0 && !quoted) {
       if (cur) out.push(cur);
       cur = '';
     } else cur += ch;

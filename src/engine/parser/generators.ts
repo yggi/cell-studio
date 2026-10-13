@@ -68,7 +68,7 @@ function parseScan(s: LineScanner, start: number): Braid {
  * Bjorklund's algorithm: k hits and n − k rests, the leftovers paired again and again until
  * one group is left — the Euclidean rhythms in their usual form (Toussaint): 3 in 8 x..x..x.
  */
-function bjorklund(k: number, n: number): boolean[] {
+export function bjorklund(k: number, n: number): boolean[] {
   if (k <= 0) return Array(n).fill(false);
   let a: boolean[][] = Array.from({ length: k }, () => [true]);
   let b: boolean[][] = Array.from({ length: n - k }, () => [false]);
