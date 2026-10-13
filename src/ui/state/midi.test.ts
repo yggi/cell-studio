@@ -141,12 +141,42 @@ describe('Midi: reconnecting on load', () => {
     expect(midi.access).not.toBeNull();
   });
 
-  it('reconnects for a port chosen only on an output slot of a piece', async () => {
-    store.set('cell-studio:midi', JSON.stringify({ slots: { Song: { 2: { id: 'out-2', name: 'Juno' } } } }));
+  it('reconnects for a port chosen only on a second output', async () => {
+    store.set(
+      'cell-studio:midi',
+      JSON.stringify({
+        outputs: [
+          { key: 'o1', id: 'none', name: '' },
+          { key: 'o2', id: 'out-2', name: 'Juno' },
+        ],
+      }),
+    );
     installMidi(fakeAccess([], [fakePort('out-2', 'Juno')]));
     const midi = await made();
     expect(midi.remembersPorts).toBe(true);
     expect(midi.access).not.toBeNull();
+  });
+
+  it("reads a store from before the matrix: the output first, each piece's channels and kit on it, a slot's device as that output", async () => {
+    store.set(
+      'cell-studio:midi',
+      JSON.stringify({
+        out: { id: 'out-1', name: 'Circuit' },
+        channels: { Sailor: { bass: 7 } },
+        kits: { Sailor: 3 },
+        slots: { Song: { 2: { id: 'out-2', name: 'Juno' } } },
+      }),
+    );
+    installMidi(fakeAccess([], [fakePort('out-1', 'Circuit'), fakePort('out-2', 'Juno')]));
+    const midi = await made();
+    expect(midi.columns.map((c) => [c.port, c.id, c.name])).toEqual([
+      [1, 'out-1', 'Circuit'],
+      [2, 'out-2', 'Juno'],
+    ]);
+    midi.attach({ sink: null, internal: true }, { program: compileSource(PRESETS.sailor.source), title: 'Sailor' });
+    expect(midi.channelsOf('bass', 1)).toEqual([7]);
+    expect(midi.channelsOf('bass', 2)).toEqual([]);
+    expect(midi.kitChannel).toBe(3);
   });
 });
 
@@ -167,7 +197,7 @@ describe('Midi: the ports coming and going', () => {
     access.change();
     expect(midi.outPort).toBe(back);
     expect(midi.outPortId).toBe('out-2');
-    expect(JSON.parse(store.get('cell-studio:midi')!).out).toEqual({ id: 'out-2', name: 'Synth' });
+    expect(JSON.parse(store.get('cell-studio:midi')!).outputs).toEqual([{ key: 'o1', id: 'out-2', name: 'Synth' }]);
   });
 });
 
@@ -235,7 +265,11 @@ describe('Midi: All notes off', () => {
     const program = compileSource(`&piece title="Slot" tags="MIDI"\n&bar scan(1 1 1 1) step=2\n&bass step=&bar 0\n&sub loop=55\n&far map=midi(3, 2) [&bass * &sub]`);
     midi.attach({ sink: null, internal: true }, { program, title: 'Slot' });
     expect(midi.canPanic).toBe(false);
-    midi.chooseSlot(2, 'out-2');
+    expect(midi.columns.map((c) => [c.port, c.key])).toEqual([
+      [1, 'o1'],
+      [2, null],
+    ]);
+    midi.chooseDevice(2, 'out-2');
     expect(midi.canPanic).toBe(true);
     // (a note sent there: the slot has been used)
     const p = plan(program, codeShifts(program));
@@ -292,7 +326,7 @@ describe('Midi: All notes off', () => {
     expect(cc123(out)).toEqual([3]);
   });
 
-  it('goes on to the other channels of an output slot when one send fails, and a piece titled like an object key has none of its own', async () => {
+  it('goes on to the other channels of a second output when one send fails, and a piece titled like an object key has none of its own', async () => {
     const out = fakePort('out-1', 'Circuit');
     const other = fakePort('out-2', 'Juno');
     installMidi(fakeAccess([], [out, other]));
@@ -308,10 +342,11 @@ describe('Midi: All notes off', () => {
     midi.attach({ sink: null, internal: true }, { program, title: 'constructor' });
     // (nothing kept under that title: not Object.prototype.constructor)
     expect(midi.kitChannel).toBe(10);
-    expect(midi.slots).toEqual([{ slot: 2, id: 'none', name: '' }]);
-    midi.chooseSlot(2, 'out-2');
-    const p = plan(program, codeShifts(program));
-    midi.play(fakeTone(10), retime(windowAt(p, 0, 1), 10, 1).events, 11);
+    expect(midi.columns.map((c) => [c.port, c.id])).toEqual([
+      [1, 'out-1'],
+      [2, 'none'],
+    ]);
+    midi.chooseDevice(2, 'out-2');
     const send = other.send;
     let first = true;
     other.send = (data, timestamp) => {
@@ -382,8 +417,8 @@ describe('Midi: MIDI out', () => {
     expect(midi.kitChannel).toBe(10);
     midi.kitChannel = 3;
     expect(midi.kitChannel).toBe(3);
-    expect(midi.table!.kitChannel).toBe(3);
-    expect(Object.values(JSON.parse(store.get('cell-studio:midi')!).kits)).toEqual([3]);
+    expect(midi.table!.kits).toEqual([{ port: 1, channel: 3 }]);
+    expect(JSON.parse(store.get('cell-studio:midi')!).routes).toEqual({ Sailor: { o1: { '*': 3 } } });
     midi.kitChannel = 40;
     expect(midi.kitChannel).toBe(16);
   });
@@ -399,8 +434,8 @@ describe('Midi: MIDI out', () => {
   it('sends what the player plays, timestamped for when it is heard, on the channel table; each kit member on 10', async () => {
     const { midi, out } = await tapped();
     expect(midi.table!.voices).toEqual([
-      { voice: 'fiddle', channel: 1 },
-      { voice: 'bass', channel: 2 },
+      { voice: 'fiddle', channel: 1, port: 1 },
+      { voice: 'bass', channel: 2, port: 1 },
     ]);
     const kit = compileSource(PRESETS.sailor.source).outputs.find((o) => o.kit)!.id;
     midi.play(fakeTone(10), [note('bass', 10.3), note('sd', 10.3, kit)], 10.5);
@@ -420,7 +455,7 @@ describe('Midi: MIDI out', () => {
     midi.bendRange = 48;
     midi.rotate = { from: 2, to: 9 };
     const kept = JSON.parse(store.get('cell-studio:midi')!);
-    expect(kept.channels).toEqual({ Sailor: { bass: 7 } });
+    expect(kept.routes).toEqual({ Sailor: { o1: { bass: 7 } } });
     expect(kept.drums.Circuit[38]).toBe(63);
     const again = await made();
     expect([again.drums[36], again.drums[38], again.bendRange, again.rotate]).toEqual([60, 63, 48, { from: 2, to: 9 }]);
@@ -485,7 +520,7 @@ describe('Midi: MIDI out', () => {
     }
   });
 
-  it('a piece with MIDI cards sends only what they name, on their channels and output slots, each slot kept per piece', async () => {
+  it('a piece with MIDI cards sends only what they name, on their channels and output slots (slot n the nth output)', async () => {
     const source = `&piece title="Cards" tags="MIDI"
 &bar scan(1 1 1 1) step=2
 &theme step=&bar 0 2
@@ -506,12 +541,15 @@ describe('Midi: MIDI out', () => {
     const program = compileSource(source);
     midi.attach({ sink: null, internal: true }, { program, title: 'Cards' });
     expect(midi.table!.byPiece).toBe(true);
-    expect(midi.slots).toEqual([
-      { slot: 1, id: 'out-1', name: 'Circuit' },
-      { slot: 2, id: 'none', name: '' },
+    expect(midi.columns.map((c) => [c.port, c.id, c.name])).toEqual([
+      [1, 'out-1', 'Circuit'],
+      [2, 'none', ''],
     ]);
-    midi.chooseSlot(2, 'out-2');
-    expect(JSON.parse(store.get('cell-studio:midi')!).slots).toEqual({ Cards: { 2: { id: 'out-2', name: 'Juno' } } });
+    midi.chooseDevice(2, 'out-2');
+    expect(JSON.parse(store.get('cell-studio:midi')!).outputs).toEqual([
+      { key: 'o1', id: 'out-1', name: 'Circuit' },
+      { key: 'o2', id: 'out-2', name: 'Juno' },
+    ]);
     const p = plan(program, codeShifts(program));
     const w = retime(windowAt(p, 0, 1), 10, 1);
     midi.play(fakeTone(10), w.events, 11);
@@ -524,6 +562,162 @@ describe('Midi: MIDI out', () => {
     // stopped: the second slot is silenced too
     midi.stop(fakeTone(11));
     expect(other.sent.some((m) => m.data[0] === 0xb2 && m.data[1] === 123)).toBe(true);
+  });
+
+  it('a matrix: a voice on any output and channel, the kit on each with its own drum map, kept per piece; the outputs kept for all', async () => {
+    const out = fakePort('out-1', 'Circuit');
+    const other = fakePort('out-2', 'Juno');
+    const third = fakePort('out-3', 'Pads');
+    installMidi(fakeAccess([], [out, other, third]));
+    const midi = await made();
+    await midi.connect();
+    midi.chooseOutput('out-1');
+    midi.attach({ sink: null, internal: true }, { program: compileSource(PRESETS.sailor.source), title: 'Sailor' });
+    // (everything on the first; the add button offers the other two)
+    expect(midi.spare.map((p) => p.name)).toEqual(['Juno', 'Pads']);
+    midi.addOutput('out-2');
+    expect(midi.spare.map((p) => p.name)).toEqual(['Pads']);
+    expect(midi.channelsOf('bass', 2)).toEqual([]);
+    midi.setChannel('bass', 5, 2);
+    midi.setChannel('bass', 0, 1);
+    midi.setKitChannel(10, 2);
+    midi.setDrums(2, DRUM_PRESETS['Novation Circuit']);
+    expect([midi.channelsOf('bass', 1), midi.channelsOf('bass', 2), midi.kitChannelsOf(2)]).toEqual([[], [5], [10]]);
+    const kit = compileSource(PRESETS.sailor.source).outputs.find((o) => o.kit)!.id;
+    out.sent = [];
+    midi.play(fakeTone(10), [note('bass', 10.3), note('fiddle', 10.3), note('bd', 10.3, kit)], 10.5);
+    const ons = (port: ReturnType<typeof fakePort>) => port.sent.filter((m) => (m.data[0] & 0xf0) === 0x90).map((m) => [(m.data[0] & 0x0f) + 1, m.data[1]]);
+    // the bass on 5 of the second alone; the fiddle on the first alone; the kick on both, sent as each device's note
+    expect(ons(out)).toEqual([
+      [1, 57],
+      [10, 36],
+    ]);
+    expect(ons(other)).toEqual([
+      [5, 57],
+      [10, 60],
+    ]);
+    const kept = JSON.parse(store.get('cell-studio:midi')!);
+    expect(kept.routes).toEqual({ Sailor: { o1: { bass: 0 }, o2: { bass: 5, '*': 10 } } });
+    // (another piece: the outputs are there, its routing the default: all on the first)
+    midi.attach({ sink: null, internal: true }, { program: compileSource(PRESETS.sailor.source), title: 'Other' });
+    expect(midi.columns.map((c) => c.name)).toEqual(['Circuit', 'Juno']);
+    expect([midi.channelsOf('bass', 1), midi.channelsOf('bass', 2), midi.kitChannelsOf(2)]).toEqual([[2], [], []]);
+  });
+
+  it('removes an output: silenced, its routing gone, the next taking its place; the first removed, the second is first', async () => {
+    const out = fakePort('out-1', 'Circuit');
+    const other = fakePort('out-2', 'Juno');
+    installMidi(fakeAccess([], [out, other]));
+    const midi = await made();
+    await midi.connect();
+    midi.chooseOutput('out-1');
+    midi.addOutput('out-2');
+    midi.attach({ sink: null, internal: true }, { program: compileSource(PRESETS.sailor.source), title: 'Sailor' });
+    midi.setChannel('bass', 4, 2);
+    midi.play(fakeTone(10), [{ ...note('bass', 10.3), dur: 2 }], 10.5);
+    other.sent = [];
+    midi.removeOutput(1);
+    expect(midi.columns.map((c) => [c.port, c.name])).toEqual([[1, 'Juno']]);
+    expect(midi.outPort).toBe(other);
+    // (the bass was on 4 of what is now the first: still there)
+    expect(midi.channelsOf('bass', 1)).toEqual([4]);
+    // the last is never removed
+    midi.removeOutput(1);
+    expect(midi.columns).toHaveLength(1);
+    midi.addOutput('out-1');
+    out.sent = [];
+    midi.removeOutput(1);
+    expect(other.sent.some((m) => m.data[0] === 0xb3 && m.data[1] === 123)).toBe(true);
+    expect(midi.columns.map((c) => c.name)).toEqual(['Circuit']);
+    expect(JSON.parse(store.get('cell-studio:midi')!).routes).toEqual({ Sailor: {} });
+  });
+
+  it('sends MIDI clock to each output switched on, kept per device', async () => {
+    const out = fakePort('out-1', 'Circuit');
+    const other = fakePort('out-2', 'Drums');
+    installMidi(fakeAccess([], [out, other]));
+    const midi = await made();
+    await midi.connect();
+    midi.chooseOutput('out-1');
+    midi.addOutput('out-2');
+    const program = compileSource(PRESETS.sailor.source);
+    midi.attach({ sink: null, internal: true }, { program, title: 'Sailor' });
+    midi.setClock(2, true);
+    expect([midi.sendClock, midi.clockOf(2), midi.clocking]).toEqual([false, true, true]);
+    const p = plan(program, codeShifts(program));
+    midi.play(fakeTone(9.7), [], 10.25, retime(windowAt(p, 0, 0.25), 10, 1).clock);
+    const ticks = (port: ReturnType<typeof fakePort>) => port.sent.filter((m) => m.data[0] === 0xf8).length;
+    expect(ticks(out)).toBe(0);
+    expect(ticks(other)).toBeGreaterThan(0);
+    expect(JSON.parse(store.get('cell-studio:midi')!).clock).toEqual({ Drums: true });
+  });
+
+  it("says where thru sends a key: every crossing of its voice's row, a kit member as each output's drum note; the kit's channels for a controller", async () => {
+    const out = fakePort('out-1', 'Circuit');
+    const other = fakePort('out-2', 'Juno');
+    installMidi(fakeAccess([], [out, other]));
+    const midi = await made();
+    await midi.connect();
+    midi.chooseOutput('out-1');
+    midi.addOutput('out-2');
+    midi.attach({ sink: null, internal: true }, { program: compileSource(PRESETS.sailor.source), title: 'Sailor' });
+    midi.setChannel('bass', 6, 2);
+    midi.setKitChannel(3, 2);
+    midi.setDrums(2, DRUM_PRESETS['Novation Circuit']);
+    expect(midi.thruOf('bass', 220, false)).toEqual([
+      { port: 1, channel: 2, note: 57 },
+      { port: 2, channel: 6, note: 57 },
+    ]);
+    expect(midi.thruOf('bd', 0, true)).toEqual([
+      { port: 1, channel: 10, note: 36 },
+      { port: 2, channel: 3, note: 60 },
+    ]);
+    expect(midi.thruOf('nobody', 220, false)).toEqual([]);
+    expect([...midi.drumChannels].sort((a, b) => a - b)).toEqual([3, 10]);
+    // (a device's notes come back through its own map, by the name it sends under)
+    expect([midi.drumsFrom('Juno')[36], midi.drumsFrom('Circuit')[36], midi.drumsFrom('Keys')[36]]).toEqual([60, undefined, undefined]);
+    midi.sendTo(2, [0x95, 57, 100]);
+    expect(other.sent.at(-1)!.data).toEqual([0x95, 57, 100]);
+  });
+
+  it('keeps the bend range and the rotation per device, each output sending with its own', async () => {
+    const out = fakePort('out-1', 'Circuit');
+    const other = fakePort('out-2', 'Seaboard');
+    installMidi(fakeAccess([], [out, other]));
+    const midi = await made();
+    await midi.connect();
+    midi.chooseOutput('out-1');
+    midi.addOutput('out-2');
+    midi.attach({ sink: null, internal: true }, { program: compileSource(PRESETS.sailor.source), title: 'Sailor' });
+    midi.setBend(2, 48);
+    midi.setRotate(2, { from: 2, to: 4 });
+    expect([midi.bendOf(1), midi.bendOf(2), midi.rotateOf(1), midi.rotateOf(2)]).toEqual([2, 48, null, { from: 2, to: 4 }]);
+    const kept = JSON.parse(store.get('cell-studio:midi')!);
+    expect([kept.bends, kept.rotates]).toEqual([{ Seaboard: 48 }, { Seaboard: { from: 2, to: 4 } }]);
+    midi.setChannel('bass', 1, 2);
+    // three quarter-tone-sharp notes at once: on the Seaboard each on a channel of its own, bent for ±48
+    const sharp = (at: number): Played => ({ ...note('bass', at), freq: 220 * Math.pow(2, 0.5 / 12), dur: 1 });
+    midi.play(fakeTone(10), [sharp(10.3), sharp(10.3), sharp(10.3)], 10.4);
+    const ons = (port: ReturnType<typeof fakePort>) => port.sent.filter((m) => (m.data[0] & 0xf0) === 0x90).map((m) => (m.data[0] & 0x0f) + 1);
+    expect(ons(other)).toEqual([2, 3, 4]);
+    expect(other.sent.find((m) => (m.data[0] & 0xf0) === 0xe0)!.data).toEqual([0xe1, 43, 63]); // (57.5 is 58, 50 cents down: 8192 - 85)
+    expect(new Set(ons(out))).toEqual(new Set([2]));
+  });
+
+  it("echoes a learned knob to its controller's own output port, by the input's name, whether or not it is an output", async () => {
+    const synth = fakePort('out-1', 'Circuit');
+    const faders = fakePort('out-2', 'Faders');
+    installMidi(fakeAccess([], [synth, faders]));
+    const midi = await made();
+    await midi.connect();
+    midi.chooseOutput('out-1');
+    expect([midi.reaches('Faders'), midi.reaches('Knobs'), midi.reaches(undefined)]).toEqual([true, false, true]);
+    midi.echo('Faders', [0xb0, 7, 64]);
+    midi.echo('Knobs', [0xb0, 7, 64]);
+    expect([synth.sent, faders.sent]).toEqual([[], [{ data: [0xb0, 7, 64], timestamp: undefined }]]);
+    // (a knob kept from before, with no controller: the first output, as it was)
+    midi.echo(undefined, [0xb0, 7, 1]);
+    expect(synth.sent.map((m) => m.data)).toEqual([[0xb0, 7, 1]]);
   });
 
   it('sends nothing without an output, and the player plays on', async () => {

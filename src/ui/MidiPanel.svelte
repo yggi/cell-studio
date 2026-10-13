@@ -1,11 +1,12 @@
 <script lang="ts">
   /**
    * MIDI, a page of the sidebar: the connection and the ports (a port chosen before that isn't plugged in shows as
-   * "Not connected"), and, with an output, how the piece goes out (#205): the built-in sound on or off, each voice's
-   * channel, the kit's channel and the notes of its members (a device's drum map, from a preset), the bend range and
-   * the rotation of notes over channels, MIDI clock (#206). A piece with MIDI cards (#208) sets its channels itself:
-   * the page says so, and the output slots its cards name each get a device here. The keys (#207): which cell they
-   * play, the computer keys, thru; and the knobs learned. The pattern is Jambot's SoundPanel (yggi/jambot
+   * "Not connected"); the outputs, each a device with its drum map and MIDI clock (#206), added and removed; and the
+   * routing of the piece (#205), a matrix of its voices (rows) and the outputs (columns), each crossing the channel the
+   * voice goes out on there, or none; the kit's members with the note each output sends them as. A piece with MIDI
+   * cards (#208) sets its crossings itself: the matrix shows them, its slots the outputs. The built-in sound on or
+   * off; each output's bend range and rotation of notes over channels (MPE). The keys (#207): which cell they play, the computer
+   * keys, thru; and the knobs learned. The pattern is Jambot's SoundPanel (yggi/jambot
    * apps/web/src/components/SoundPanel.svelte @ 8cdb6b8).
    */
   import KeysSettings from './KeysSettings.svelte';
@@ -17,8 +18,8 @@
 
   const absent = (ports: readonly { id: string }[], id: string) => id !== 'none' && id !== 'all' && !ports.some((p) => p.id === id);
   const CHANNELS = Array.from({ length: 16 }, (_, i) => i + 1);
-  const preset = $derived(presetNameOf(midi.drums));
-  const out = $derived(!!midi.access && midi.outPortId !== 'none');
+  const out = $derived(!!midi.access && midi.sending);
+  const routing = $derived(!!midi.access && midi.sending);
   const byPiece = $derived(!!midi.table?.byPiece);
   const num = (e: Event) => Number((e.currentTarget as HTMLInputElement).value);
   // a number typed, set (the setter clamps it), and the field showing what was kept: a value clamped to the one already
@@ -27,6 +28,8 @@
     set(num(e));
     (e.currentTarget as HTMLInputElement).value = String(kept());
   };
+  const deviceName = (c: { id: string; name: string }) => (c.id === 'none' ? 'No device' : absent(midi.ports.outputs, c.id) ? `${c.name || 'A device'} (not connected)` : c.name);
+  const listed = (channels: readonly number[]) => (channels.length ? channels.join(', ') : '—');
 </script>
 
 <div class="midi">
@@ -39,16 +42,56 @@
   </section>
 
   {#if midi.access}
+    <section aria-labelledby="midi-outputs">
+      <h4 id="midi-outputs">Outputs</h4>
+      {#each midi.columns as c (c.key ?? `slot ${c.port}`)}
+        <div class="output">
+          <span class="num" aria-hidden="true">{c.port}</span>
+          <select aria-label="Device of output {c.port}" value={c.id} onchange={(e) => midi.chooseDevice(c.port, e.currentTarget.value)}>
+            <option value="none">{c.port === 1 ? 'No MIDI output' : 'No device: not sent'}</option>
+            {#each midi.ports.outputs as p (p.id)}<option value={p.id}>{p.name}</option>{/each}
+            {#if absent(midi.ports.outputs, c.id)}<option value={c.id}>Not connected</option>{/if}
+          </select>
+          <button
+            class="remove"
+            aria-label="Remove output {c.port}"
+            title="Remove this output"
+            disabled={!c.key || midi.columns.length < 2}
+            onclick={() => midi.removeOutput(c.port)}>×</button
+          >
+          {#if c.id !== 'none'}
+            <div class="extras">
+              <label class="check"><input type="checkbox" checked={midi.clockOf(c.port)} onchange={(e) => midi.setClock(c.port, e.currentTarget.checked)} /> Clock</label>
+              {#if midi.rows.kit}
+                {@const preset = presetNameOf(midi.drumsOf(c.port))}
+                <select
+                  aria-label="Drum map of output {c.port}"
+                  value={preset}
+                  onchange={(e) => {
+                    const map = DRUM_PRESETS[e.currentTarget.value];
+                    if (map) midi.setDrums(c.port, map);
+                  }}
+                >
+                  {#each Object.keys(DRUM_PRESETS) as name (name)}<option value={name}>Drums: {name}</option>{/each}
+                  {#if preset === 'Custom'}<option value="Custom" disabled>Drums: Custom</option>{/if}
+                </select>
+              {/if}
+            </div>
+          {/if}
+        </div>
+      {/each}
+      {#if midi.spare.length && midi.columns.length < 16}
+        <div class="spare">
+          {#each midi.spare as p (p.id)}
+            <button onclick={() => midi.addOutput(p.id)} title="Add an output sending to {p.name}">+ {p.name}</button>
+          {/each}
+        </div>
+      {/if}
+      {#if midi.clocking && !midi.meter}<p class="hint" role="status">This piece has no meter, so no clock is sent.</p>{/if}
+    </section>
+
     <section aria-labelledby="midi-ports">
-      <h4 id="midi-ports">Devices</h4>
-      <label>
-        Send to
-        <select value={midi.outPortId} onchange={(e) => midi.chooseOutput(e.currentTarget.value)}>
-          <option value="none">No MIDI output</option>
-          {#each midi.ports.outputs as p (p.id)}<option value={p.id}>{p.name}</option>{/each}
-          {#if absent(midi.ports.outputs, midi.outPortId)}<option value={midi.outPortId}>Not connected</option>{/if}
-        </select>
-      </label>
+      <h4 id="midi-ports">Input</h4>
       <label>
         Listen to
         <select value={midi.inPortId} onchange={(e) => midi.chooseInput(e.currentTarget.value)}>
@@ -63,154 +106,160 @@
         <button onclick={() => midi.panic()} disabled={!midi.canPanic}>All notes off</button>
       </div>
     </section>
-
-    {#if midi.slots.length}
-      <section aria-labelledby="midi-slots">
-        <h4 id="midi-slots">Output slots this piece uses</h4>
-        {#each midi.slots as s (s.slot)}
-          <div class="row">
-            <span class="name">Slot {s.slot}</span>
-            {#if s.slot === 1}
-              <span class="plain">{midi.outPortId === 'none' ? 'Choose an output above' : absent(midi.ports.outputs, midi.outPortId) ? 'Not connected' : 'The output above'}</span>
-            {:else}
-              <select aria-label="Device of slot {s.slot}" value={s.id} onchange={(e) => midi.chooseSlot(s.slot, e.currentTarget.value)}>
-                <option value="none">No device: not sent</option>
-                {#each midi.ports.outputs as p (p.id)}<option value={p.id}>{p.name}</option>{/each}
-                {#if absent(midi.ports.outputs, s.id)}<option value={s.id}>Not connected</option>{/if}
-              </select>
-            {/if}
-          </div>
-        {/each}
-      </section>
-    {/if}
   {/if}
 
-  {#if out}
+  {#if routing}
     <section aria-labelledby="midi-piece">
-      <h4 id="midi-piece">This piece{byPiece ? ': channels set by its MIDI cards' : ''}</h4>
-      {#if midi.table?.voices.length}
-        <p class="hint">{byPiece ? 'Voices and their channels: set by the piece' : 'Gates and voices, and their channels'}</p>
-      {/if}
-      {#each midi.table?.voices ?? [] as v (`${v.voice} ${v.channel} ${v.port ?? 1}`)}
-        <div class="row">
-          <span class="name">&{v.voice}</span>
-          {#if byPiece}
-            <span class="plain">Channel {v.channel}{midi.slots.length > 1 ? `, slot ${v.port ?? 1}` : ''}</span>
-          {:else}
-            <select aria-label="Channel of {v.voice}" value={v.channel} onchange={(e) => midi.setChannel(v.voice, num(e))}>
-              {#each CHANNELS as c (c)}<option value={c}>Channel {c}</option>{/each}
-            </select>
-          {/if}
+      <h4 id="midi-piece">This piece{byPiece ? ': routed by its MIDI cards' : ''}</h4>
+      {#if midi.rows.voices.length || midi.rows.kit}
+        <p class="hint">{byPiece ? 'The channels its cards send each voice on, by output slot' : 'Each voice’s channel on each output; — is not sent there'}</p>
+        <div class="matrix">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col"><span class="hidden">Voice</span></th>
+                {#each midi.columns as c (c.key ?? `slot ${c.port}`)}
+                  <th scope="col" title={deviceName(c)}>{c.port}<span class="device">{deviceName(c)}</span></th>
+                {/each}
+              </tr>
+            </thead>
+            <tbody>
+              {#each midi.rows.voices as voice (voice)}
+                <tr>
+                  <th scope="row">&{voice}</th>
+                  {#each midi.columns as c (c.key ?? `slot ${c.port}`)}
+                    {@const channels = midi.channelsOf(voice, c.port)}
+                    <td>
+                      {#if byPiece}
+                        <span class="plain">{listed(channels)}</span>
+                      {:else}
+                        <select aria-label="Channel of {voice} on output {c.port}" value={channels[0] ?? 0} onchange={(e) => midi.setChannel(voice, num(e), c.port)}>
+                          <option value={0}>—</option>
+                          {#each CHANNELS as ch (ch)}<option value={ch}>{ch}</option>{/each}
+                        </select>
+                      {/if}
+                    </td>
+                  {/each}
+                </tr>
+              {/each}
+              {#if midi.rows.kit}
+                <tr>
+                  <th scope="row">Kit</th>
+                  {#each midi.columns as c (c.key ?? `slot ${c.port}`)}
+                    {@const channels = midi.kitChannelsOf(c.port)}
+                    <td>
+                      {#if byPiece}
+                        <span class="plain">{listed(channels)}</span>
+                      {:else}
+                        <select aria-label="Channel of the kit on output {c.port}" value={channels[0] ?? 0} onchange={(e) => midi.setKitChannel(num(e), c.port)}>
+                          <option value={0}>—</option>
+                          {#each CHANNELS as ch (ch)}<option value={ch}>{ch}{ch === 10 ? ' GM' : ''}</option>{/each}
+                        </select>
+                      {/if}
+                    </td>
+                  {/each}
+                </tr>
+                {#each midi.table?.kit ?? [] as k (k.member)}
+                  <tr class="member">
+                    <th scope="row">&{k.member}</th>
+                    {#each midi.columns as c (c.key ?? `slot ${c.port}`)}
+                      <td>
+                        {#if midi.kitChannelsOf(c.port).length}
+                          <input
+                            type="number"
+                            min="0"
+                            max="127"
+                            aria-label="Note of {k.member} on output {c.port}"
+                            value={deviceNote(midi.drumsOf(c.port), k.note)}
+                            onchange={(e) =>
+                              typed(
+                                e,
+                                (n) => midi.setDrumNote(k.note, n, c.port),
+                                () => deviceNote(midi.drumsOf(c.port), k.note),
+                              )}
+                          />
+                        {/if}
+                      </td>
+                    {/each}
+                  </tr>
+                {/each}
+              {/if}
+            </tbody>
+          </table>
         </div>
-      {/each}
-      {#if midi.table?.kit.length}
-        <div class="row">
-          <span class="name">Kit</span>
-          {#if byPiece}
-            <span class="plain">On the channel its card says</span>
-          {:else}
-            <select aria-label="Channel of the kit" value={midi.kitChannel} onchange={(e) => (midi.kitChannel = num(e))}>
-              {#each CHANNELS as c (c)}<option value={c}>Channel {c}{c === 10 ? ' (GM)' : ''}</option>{/each}
-            </select>
-          {/if}
-        </div>
-        <div class="row">
-          <span class="name">Drum map</span>
-          <select
-            aria-label="Drum map"
-            value={preset}
-            onchange={(e) => {
-              const map = DRUM_PRESETS[e.currentTarget.value];
-              if (map) midi.drums = map;
-            }}
-          >
-            {#each Object.keys(DRUM_PRESETS) as name (name)}<option value={name}>{name}</option>{/each}
-            {#if preset === 'Custom'}<option value="Custom" disabled>Custom</option>{/if}
-          </select>
-        </div>
-        <div class="notes">
-          {#each midi.table.kit as k (k.member)}
-            <label class="note">
-              <span class="name">&{k.member}</span>
-              <input
-                type="number"
-                min="0"
-                max="127"
-                aria-label="Note of {k.member}"
-                value={deviceNote(midi.drums, k.note)}
-                onchange={(e) =>
-                  typed(
-                    e,
-                    (n) => midi.setDrumNote(k.note, n),
-                    () => deviceNote(midi.drums, k.note),
-                  )}
-              />
-            </label>
-          {/each}
-        </div>
-      {/if}
-      {#if !midi.table?.voices.length && !midi.table?.kit.length}
+      {:else}
         <p class="hint">Nothing in this piece is sent.</p>
       {/if}
       <label class="check"><input type="checkbox" checked={midi.internal} onchange={(e) => (midi.internal = e.currentTarget.checked)} /> Built-in sound too</label>
     </section>
 
-    <section aria-labelledby="midi-clock">
-      <h4 id="midi-clock">Clock and pitch</h4>
-      <label class="check"><input type="checkbox" checked={midi.sendClock} onchange={(e) => (midi.sendClock = e.currentTarget.checked)} /> Send MIDI clock</label>
-      {#if midi.sendClock && !midi.meter}<p class="hint" role="status">This piece has no meter, so no clock is sent.</p>{/if}
-      <label class="inline">
-        Bend range ±
-        <input
-          type="number"
-          min="1"
-          max="96"
-          value={midi.bendRange}
-          onchange={(e) =>
-            typed(
-              e,
-              (n) => (midi.bendRange = n),
-              () => midi.bendRange,
-            )}
-        />
-        semitones
-      </label>
-      <label class="check">
-        <input type="checkbox" checked={midi.rotate !== null} onchange={(e) => (midi.rotate = e.currentTarget.checked ? { from: 2, to: 16 } : null)} />
-        A channel for each note (MPE), for microtonal pieces{byPiece ? ' (not with MIDI cards: they say the channels)' : ''}
-      </label>
-      {#if midi.rotate}
-        <label class="inline">
-          Channels
-          <input
-            type="number"
-            min="1"
-            max="16"
-            aria-label="First channel"
-            value={midi.rotate.from}
-            onchange={(e) =>
-              typed(
-                e,
-                (n) => (midi.rotate = { from: n, to: midi.rotate!.to }),
-                () => midi.rotate!.from,
-              )}
-          />
-          to
-          <input
-            type="number"
-            min="1"
-            max="16"
-            aria-label="Last channel"
-            value={midi.rotate.to}
-            onchange={(e) =>
-              typed(
-                e,
-                (n) => (midi.rotate = { from: midi.rotate!.from, to: n }),
-                () => midi.rotate!.to,
-              )}
-          />
-        </label>
-      {/if}
+    <section aria-labelledby="midi-pitch">
+      <h4 id="midi-pitch">Pitch</h4>
+      <p class="hint">
+        Per output: the synth's bend range, and a channel for each note (MPE), for microtonal pieces{byPiece ? ' (not with MIDI cards: they say the channels)' : ''}
+      </p>
+      {#each midi.columns.filter((c) => c.key && c.id !== 'none') as c (c.key)}
+        {@const range = midi.rotateOf(c.port)}
+        <div class="pitch">
+          <span class="num" aria-hidden="true">{c.port}</span>
+          <label class="inline">
+            ±
+            <input
+              type="number"
+              min="1"
+              max="96"
+              aria-label="Bend range of output {c.port}, in semitones"
+              value={midi.bendOf(c.port)}
+              onchange={(e) =>
+                typed(
+                  e,
+                  (n) => midi.setBend(c.port, n),
+                  () => midi.bendOf(c.port),
+                )}
+            />
+          </label>
+          <label class="check">
+            <input
+              type="checkbox"
+              aria-label="A channel for each note on output {c.port} (MPE)"
+              checked={range !== null}
+              onchange={(e) => midi.setRotate(c.port, e.currentTarget.checked ? { from: 2, to: 16 } : null)}
+            /> MPE
+          </label>
+          {#if range}
+            <label class="inline">
+              channels
+              <input
+                type="number"
+                min="1"
+                max="16"
+                aria-label="First channel of output {c.port}"
+                value={range.from}
+                onchange={(e) =>
+                  typed(
+                    e,
+                    (n) => midi.setRotate(c.port, { from: n, to: range.to }),
+                    () => midi.rotateOf(c.port)!.from,
+                  )}
+              />
+              to
+              <input
+                type="number"
+                min="1"
+                max="16"
+                aria-label="Last channel of output {c.port}"
+                value={range.to}
+                onchange={(e) =>
+                  typed(
+                    e,
+                    (n) => midi.setRotate(c.port, { from: range.from, to: n }),
+                    () => midi.rotateOf(c.port)!.to,
+                  )}
+              />
+            </label>
+          {/if}
+        </div>
+      {/each}
       {#if midi.warning}<p class="hint warning" role="status">{midi.warning}</p>{/if}
     </section>
   {/if}
@@ -275,29 +324,97 @@
     gap: 8px;
     font-weight: normal;
   }
-  .row {
+  /* an output: its number, its device, remove; under them its clock and drum map */
+  .output {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr);
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 6px 8px;
+  }
+  .num {
+    min-width: 1.5em;
+    font: 700 13px var(--font-code);
+    color: var(--text);
+    text-align: center;
+  }
+  .extras {
+    grid-column: 2 / -1;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
     align-items: center;
     gap: 8px;
   }
-  .name {
-    font: 13px var(--font-code);
+  .remove {
+    width: 36px;
+    padding: 0;
+  }
+  /* an output's pitch: its number, its bend range, MPE and its channels */
+  .pitch {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 12px;
+  }
+  .spare {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  /* the routing: voices down, outputs across; wider than the drawer, it scrolls sideways, the voices' names staying */
+  .matrix {
+    overflow-x: auto;
+  }
+  table {
+    border-collapse: collapse;
+    width: 100%;
+  }
+  th,
+  td {
+    padding: 2px 3px;
+    text-align: center;
+    font-weight: normal;
+  }
+  thead th {
+    font: 700 12px var(--font-code);
     color: var(--text);
+    max-width: 88px;
+  }
+  .device {
+    display: block;
     overflow: hidden;
     text-overflow: ellipsis;
+    white-space: nowrap;
+    font: 11px var(--font-ui);
+    color: var(--text-muted);
+  }
+  .hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+  tbody th {
+    position: sticky;
+    left: 0;
+    max-width: 110px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    text-align: left;
+    font: 13px var(--font-code);
+    color: var(--text);
+    background: var(--code-bg);
+  }
+  .member th {
+    padding-left: 14px;
+    color: var(--text-muted);
+  }
+  td select {
+    min-width: 56px;
   }
   .plain {
     color: var(--text-muted);
-  }
-  .notes {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 6px 12px;
-  }
-  .note {
-    grid-template-columns: minmax(0, 1fr) auto;
-    align-items: center;
   }
   .hint {
     margin: 0;

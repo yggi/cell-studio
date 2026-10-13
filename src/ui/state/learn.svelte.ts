@@ -56,7 +56,7 @@ export class Learn {
 
   #kept = $state.raw<Learned>(readLearned(null));
   #piece: Piece;
-  #midi: Pick<Midi, 'access' | 'inPortId' | 'hear' | 'send'>;
+  #midi: Pick<Midi, 'access' | 'inPortId' | 'hear' | 'echo' | 'reaches'>;
   #frame: (run: () => void) => void;
   #opened: () => number;
   #stop: () => void;
@@ -70,7 +70,7 @@ export class Learn {
 
   constructor(
     piece: Piece,
-    midi: Pick<Midi, 'access' | 'inPortId' | 'hear' | 'send'>,
+    midi: Pick<Midi, 'access' | 'inPortId' | 'hear' | 'echo' | 'reaches'>,
     {
       frame = (run) => soon(run),
       opened = () => 0,
@@ -97,7 +97,7 @@ export class Learn {
         untrack(() => this.titleChanged());
       });
     });
-    const hear = midi.hear((data) => this.#heard(data));
+    const hear = midi.hear((data, source) => this.#heard(data, source));
     this.#stop = () => (hear(), watch(), this.#waiting?.());
   }
 
@@ -128,7 +128,15 @@ export class Learn {
     return Object.hasOwn(this.#kept.pieces, key) ? this.#kept.pieces[key]! : {};
   }
 
-  /** Whether a slider moved by hand sends its knob's CC back (a motor fader, an LED ring follows). Off unless asked for. */
+  /**
+   * The controllers of the open piece's knobs that an echo can't reach: no output port has the name of the input they
+   * were learned from (most controllers are an input and an output of one name). The page says so.
+   */
+  get unreachable(): string[] {
+    return [...new Set(Object.values(this.bindings).flatMap((k) => (k.kind === 'cc' && k.from !== undefined && !this.#midi.reaches(k.from) ? [k.from] : [])))];
+  }
+
+  /** Whether a slider moved by hand sends its knob's CC back to its controller (a motor fader, an LED ring follows). Off unless asked for. */
   get echo(): boolean {
     return this.#kept.echo;
   }
@@ -183,7 +191,7 @@ export class Learn {
     const knob = this.bindings[place];
     if (knob?.kind !== 'cc') return;
     const at = freePosition(spec, value);
-    this.#midi.send([0xb0 | knob.channel, knob.number, Math.round(at * 127)]);
+    this.#midi.echo(knob.from, [0xb0 | knob.channel, knob.number, Math.round(at * 127)]);
     this.#takeover.set(place, { knob: at, set: null });
     this.#gap(place, null);
   }
@@ -204,11 +212,11 @@ export class Learn {
     });
   }
 
-  #heard(data: ArrayLike<number>): void {
+  #heard(data: ArrayLike<number>, source = ''): void {
     const m = knobOf(data);
     if (!m) return;
     this.#fresh();
-    const knob: Knob = { kind: m.kind, channel: m.channel, number: m.number };
+    const knob: Knob = { kind: m.kind, channel: m.channel, number: m.number, ...(source ? { from: source } : {}) };
     const place = this.learning;
     if (place !== null) {
       const others = Object.entries(this.bindings).filter(([p, k]) => p !== place && !sameKnob(k, knob));

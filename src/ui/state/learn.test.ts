@@ -34,14 +34,22 @@ function made(code = SONG, frameFn?: (run: () => void) => void) {
   type Hearer = (data: Uint8Array, source: string, timeStamp: number) => void;
   const hearers = new Set<Hearer>();
   const sent: number[][] = [];
-  const midi: { access: MidiAccess | null; inPortId: string; hear: (h: Hearer) => () => void; send: (d: readonly number[]) => void } = {
-    access: {} as MidiAccess,
+  // (the controllers an echo reaches: those with an output port of their name)
+  const ports = new Set(['Knobs']);
+  const sentTo: string[] = [];
+  const midi = {
+    access: {} as MidiAccess | null,
     inPortId: 'Knobs',
     hear: (h: Hearer) => {
       hearers.add(h);
       return () => void hearers.delete(h);
     },
-    send: (d: readonly number[]) => void sent.push([...d]),
+    reaches: (from: string | undefined) => from === undefined || ports.has(from),
+    echo: (from: string | undefined, d: readonly number[]) => {
+      if (from !== undefined && !ports.has(from)) return;
+      sent.push([...d]);
+      sentTo.push(from ?? '(first output)');
+    },
   };
   const frames: (() => void)[] = [];
   const library = { opened: 1 };
@@ -62,7 +70,8 @@ function made(code = SONG, frameFn?: (run: () => void) => void) {
   const spec = (place: string) => [...piece.program.cells.values()].flatMap((c) => c.frees).find((f) => learn.placeOf(f) === place)!;
   // the title has rested: whatever wait was not stopped runs
   const rest = () => waits.splice(0).forEach((w) => !w.stopped && w.run());
-  return { piece, learn, play, frame, frames, sent, value, spec, midi, library, rest };
+  const playFrom = (source: string, ...bytes: number[]) => hearers.forEach((h) => h(new Uint8Array(bytes), source, 0));
+  return { piece, learn, play, playFrom, frame, frames, sent, sentTo, ports, value, spec, midi, library, rest };
 }
 
 describe('Learn: binding a knob', () => {
@@ -72,7 +81,7 @@ describe('Learn: binding a knob', () => {
     expect(learn.learning).toBe('bar/step');
     play(0xb0, 7, 20);
     expect(learn.learning).toBeNull();
-    expect(learn.bindings).toEqual({ 'bar/step': { kind: 'cc', channel: 0, number: 7 } });
+    expect(learn.bindings).toEqual({ 'bar/step': { kind: 'cc', channel: 0, number: 7, from: 'Knobs' } });
   });
   it('binds a pad (a note-on), never a note-off or the clock', () => {
     const { learn, play } = made();
@@ -81,7 +90,7 @@ describe('Learn: binding a knob', () => {
     play(0xf8);
     expect(learn.learning).toBe('pad/choice');
     play(0x99, 36, 100);
-    expect(learn.bindings['pad/choice']).toEqual({ kind: 'note', channel: 9, number: 36 });
+    expect(learn.bindings['pad/choice']).toEqual({ kind: 'note', channel: 9, number: 36, from: 'Knobs' });
   });
   it('Esc cancels learning before anything else hears it; asked again, it stops too', () => {
     const { learn, play } = made();
@@ -116,14 +125,14 @@ describe('Learn: binding a knob', () => {
     const { learn, play } = made();
     learn.learn('bar/step');
     play(0xb0, 7, 20);
-    expect(made().learn.bindings).toEqual({ 'bar/step': { kind: 'cc', channel: 0, number: 7 } });
+    expect(made().learn.bindings).toEqual({ 'bar/step': { kind: 'cc', channel: 0, number: 7, from: 'Knobs' } });
     expect(made(SONG.replace('Song', 'Other')).learn.bindings).toEqual({});
   });
   it('follows the title edited in place, once it has rested, and leaves nothing under the old one', () => {
     const { piece, learn, play, rest } = made();
     learn.learn('bar/step');
     play(0xb0, 7, 20);
-    const knob = { kind: 'cc', channel: 0, number: 7 };
+    const knob = { kind: 'cc', channel: 0, number: 7, from: 'Knobs' };
     // half typed: still the old title's, and the knob still shows; nothing stored under the halves
     piece.code = SONG.replace('Song', 'S');
     learn.titleChanged();
@@ -145,7 +154,7 @@ describe('Learn: binding a knob', () => {
     learn.titleChanged();
     rest();
     expect(Object.keys(JSON.parse(store.get('cell-studio:midi-learn')!).pieces)).toEqual(['toString']);
-    expect(learn.bindings).toEqual({ 'bar/step': { kind: 'cc', channel: 0, number: 7 } });
+    expect(learn.bindings).toEqual({ 'bar/step': { kind: 'cc', channel: 0, number: 7, from: 'Knobs' } });
     expect(made(SONG.replace('Song', 'constructor')).learn.bindings).toEqual({});
   });
   it('learns on under the old title while a rename waits, and carries both', () => {
@@ -170,7 +179,7 @@ describe('Learn: binding a knob', () => {
     song.piece.code = SONG.replace('Song', 'Other');
     song.learn.titleChanged();
     song.rest();
-    expect(song.learn.bindings).toEqual({ 'bar/step': { kind: 'cc', channel: 0, number: 9 } });
+    expect(song.learn.bindings).toEqual({ 'bar/step': { kind: 'cc', channel: 0, number: 9, from: 'Knobs' } });
     expect(Object.keys(JSON.parse(store.get('cell-studio:midi-learn')!).pieces).sort()).toEqual(['Other', 'Song']);
   });
   it('another piece opened: nothing is carried to its title', () => {
@@ -333,6 +342,24 @@ describe('Learn: echo out', () => {
       [0xb2, 7, 127],
     ]);
     expect(made().learn.echo).toBe(true);
+  });
+
+  it('goes back to the controller a knob was learned from, not to a synth; one with no output port of its name is said, and sent nothing', () => {
+    const t = made();
+    t.learn.echo = true;
+    t.learn.learn('bar/step');
+    t.play(0xb2, 7, 0);
+    t.learn.learn('fx/param:lpf');
+    t.playFrom('Faders', 0xb0, 9, 0);
+    expect(t.learn.bindings['bar/step']!.from).toBe('Knobs');
+    expect(t.learn.unreachable).toEqual(['Faders']);
+    t.learn.moved(t.spec('bar/step'), 150);
+    t.learn.moved(t.spec('fx/param:lpf'), 1000);
+    expect(t.sentTo).toEqual(['Knobs']);
+    t.ports.add('Faders');
+    expect(t.learn.unreachable).toEqual([]);
+    t.learn.moved(t.spec('fx/param:lpf'), 1000);
+    expect(t.sentTo).toEqual(['Knobs', 'Faders']);
   });
 });
 
