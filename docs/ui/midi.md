@@ -97,9 +97,10 @@ as MIDI** in the Files page.
 - **Opening one** ([decision 025](../decisions/025-midi-documents.md); *Open a file…* takes `.mid` too) shows it as it
   is: its text in the code editor (`engine/miditext.ts`): a header, the tempos and meters, then a track at a time, a
   line an event at bar:beat:tick (`1:1:0 ch1 C5 120 v90`; keys by name, sharps or flats; `program`, `bend` lines). It
-  plays as it is (its notes written out behind the scenes, a fixed tempo) and opens on the time view; edit it there (a
-  line it can't read is an error on that line), save it (*Save the MIDI file*: a `.mid` again, event for event). The
-  graph waits for **Convert to cells** (the graph pane, the strip under the editor, the Files page), which writes it as
+  plays as it is (its notes written out behind the scenes, a fixed tempo); edit it there (a line it can't read is an
+  error on that line), save it (*Save the MIDI file*: a `.mid` again, event for event). Its graph is its **machine**
+  ([decision 034](../decisions/034-midi-machine.md)): the cells it plays through, read only (*Convert to cells first*).
+  **Convert to cells** (the button over the machine, the strip under the editor, the Files page) writes it as
   a piece (`engine/midiimport.ts` `cellsFromMidi`), every note kept, folded by `engine/fold` where that plays the same
   and is shorter ([the folder](../notes/fold.md): figures over chord tables, phrases and their transpositions as cells,
   slower clocks):

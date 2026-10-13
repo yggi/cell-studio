@@ -87,10 +87,10 @@ export class Studio {
     this.keys.chosen = '';
   }
 
-  /** A MIDI file, open as it is: as text (engine/miditext.ts), playing, in time; Convert to cells writes it as a piece. */
+  /** A MIDI file, open as it is: as text (engine/miditext.ts), playing, its machine in the graph (decision 034); Convert
+   * to cells writes it as a piece. */
   #openedMidi(open: Open, smf: Smf, name: string): void {
     this.#opened(open, midiText(smf, name));
-    this.view.tab = 'time';
     const notes = smf.tracks.reduce((n, t) => n + t.notes.length, 0);
     this.view.message = `Opened ${name}: ${notes} notes in ${smf.tracks.length} track${smf.tracks.length === 1 ? '' : 's'}, as it is. Convert it to cells to fold it into a piece.`;
   }

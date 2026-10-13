@@ -1,6 +1,6 @@
 # 025 · A MIDI file opens as it is: its text, playing
 
-**Date:** 2026-10-12 · **Status:** accepted (owner, on #312; the owner's direction on #307: "midi-files should open as they are and shown in
+**Date:** 2026-10-12 · **Status:** accepted; its graph superseded by [034](034-midi-machine.md) (owner, on #312; the owner's direction on #307: "midi-files should open as they are and shown in
 the code editor … playable as unconverted midi; 'convert to cells' is an action") · Issues: #307, #234
 
 ## Context
