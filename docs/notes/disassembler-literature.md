@@ -162,9 +162,9 @@ here.
 - **IDyOM's bits a note.** No counterpart: we describe a piece, it predicts from a corpus.
 
 **Next.**
-- An issue: *the fold's choice of repeat* (Sidorov's F with a shallow backtrack, as a variant of `pairs.ts`, judged on
+- #380: *the fold's choice of repeat* (Sidorov's F with a shallow backtrack, as a variant of `pairs.ts`, judged on
   the bench).
-- An issue: *the higher-order finder by translation vectors* (SIA's vector table over all notes, morphetic pitch).
+- #381: *the higher-order finder by translation vectors* (SIA's vector table over all notes, morphetic pitch).
   - Its test is the canon per tonos' plan (`higher.test.ts`).
   - It goes into `higher.ts`.
 - The bench: a compression factor column comparable with COSIATEC's, and the spell-check as a corpus tool (later, with
