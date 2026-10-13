@@ -1,11 +1,11 @@
 # The disassembler's literature: what to reuse, which swamps to avoid
 
-Date: 2026-10-13 · Status: open (topics 1–6 of 9 done; one topic a session) · Issues: #365, the epic #364, the frame
+Date: 2026-10-13 · Status: open (topics 1–7 of 9 done; one topic a session) · Issues: #365, the epic #364, the frame
 [disassembler.md](disassembler.md)
 
 One section a topic. Each answers five questions: the state of the art, what we take, what we leave, the nearest
 swamp, and our numbers against theirs. Every reference below was opened and read at least to its abstract and results;
-where a number comes from the full text, the section says so. The leads for topics 7–9 are in the issue, not repeated
+where a number comes from the full text, the section says so. The leads for topics 8–9 are in the issue, not repeated
 here.
 
 ## 1. Compression as analysis
@@ -906,7 +906,7 @@ For #347: a file played in falls on no grid, so it needs a tempo map from its no
 **Next.**
 - #391: *the fold's structure against analysts* (Essen phrase boundaries offline, the GTTM database's grouping
   trees, boundary F at 0.5 / 3 s beside ours).
-- Topic 7 (audio to notes) next session.
+- Topic 7 (audio to notes): below.
 
 **References.**
 - [Foo00] J. Foote, "Automatic audio segmentation using a measure of audio novelty", IEEE ICME 2000, 452–455.
@@ -936,7 +936,128 @@ For #347: a file played in falls on no grid, so it needs a tempo map from its no
 
 ## 7. Audio → notes
 
-Not yet.
+**Where we are.**
+- `time/spectrogram.ts` has a `waterfall` and spectral `peaks`. `owners` gives each band to a voice, *given the notes*.
+- Nothing finds notes from sound. [disassembler.md](disassembler.md) proposes the audio layer as a loop (guess, render,
+  subtract, explain the residual), with a published transcriber as its loader.
+
+**State of the art.**
+- **The surveys:**
+  - Benetos et al. 2013 [BDG+13]: accuracies "seem to have reached a limit"; tailor methods to use cases; train on
+    scores aligned to audio.
+  - Benetos et al. 2019 [BDDE19]: AMT is "still … a challenging and open problem". The two families are **NMF**
+    (spectral templates times activations) and **neural networks**.
+- **NMF:** Smaragdis & Brown [SB03] model a polyphonic passage of notes with a fixed harmonic spectrum (the piano)
+  as a non-negative basis times activations. It learns each note's spectrum and timing from the audio itself, with
+  no training data. The 2019 survey's caveat: a plain NMF confuses notes whose partials overlap, which is most
+  simultaneous notes in tonal music.
+- **Piano, neural.** Note F1 with onsets only (and with offsets):
+  - **Onsets and Frames** [HES+18], about 18M parameters: 82.3 (50.2) on MAPS, against Melodyne's 54.0 (18.4).
+  - Its later MAESTRO-trained version scores 0.96 onset F1 (as MT3 tabulates it).
+  - **Kong et al.** [KLS+21] regress onset and offset times: **96.72 %** onset F1 on MAESTRO, 20,218,778
+    parameters. Code: PyTorch, **Apache-2.0** (`piano_transcription_inference`).
+  - **The pattern:** solo piano is nearly solved.
+- **Many instruments.** **MT3** [GSME22] is a T5 "small" transformer (about 60M parameters) from spectrogram to MIDI
+  tokens, trained on six datasets at once. Onset F1:
+
+  | MAESTRO | Cerberus4 | GuitarSet | MusicNet | Slakh2100 | URMP |
+  |---|---|---|---|---|---|
+  | 0.95 | 0.92 | 0.90 | 0.50 | 0.76 | 0.77 |
+
+  - Onset + offset F1 is 0.33–0.80, and Melodyne's onset F1 0.04–0.52.
+  - Code: JAX / T5X, **Apache-2.0**, run by Colab ("we do not (easily) support training").
+- **Lightweight and instrument-agnostic.** **Basic Pitch** [BBR+22] jointly predicts onsets, notes and multipitch
+  with pitch bends. The paper's model has 16,782 parameters.
+  - Note F without offsets: GuitarSet 0.79, MAESTRO 0.71 (Onsets and Frames: 0.95), Slakh 0.42, Phenicx (orchestral)
+    0.49, Molina (vocals) 0.52.
+  - It is far below the specialists on piano, and their equal on monophonic vocals and guitar.
+  - Peak memory 951 MB and 24 s for a 7′45″ file, in Python on a laptop.
+
+**The key questions: which can run in the app, and which offline as a loader?**
+
+| model | what | size (measured where marked) | runtime | licence (code) | in the app? |
+|---|---|---|---|---|---|
+| Basic Pitch (`@spotify/basic-pitch` 1.0.1) | any instrument, notes + bends | **185,598 parameters, a 742 KB weights file** (measured from the npm package's model) | TensorFlow.js 3 (browser, Node) | Apache-2.0 | **yes**, the only one |
+| Onsets and Frames (`@magenta/music` 1.23.1) | solo piano | **60 MB** (30 MB quantised); 15,635,248 parameters (measured from its weights manifest) | TensorFlow.js; the Magenta repo is "inactive" | Apache-2.0 | possible, heavy, piano only |
+| Kong et al. | solo piano, pedal | ≈ 20M parameters (paper) | PyTorch | Apache-2.0 | no: offline loader |
+| MT3 | multi-instrument, labelled | ≈ 60M parameters (paper) | JAX / T5X, Colab | Apache-2.0 | no: offline loader |
+| NMF with templates | instruments whose spectra we know | a matrix product | pure TS | — (a method) | yes, and fits `engine/` |
+
+- **A caveat on the data.** Basic Pitch, Kong et al. and MT3 were trained on MAESTRO, among other sets (their papers' dataset tables). MAESTRO is **CC BY-NC-SA 4.0**. The browser Onsets and Frames checkpoint's page doesn't say what it was trained on. Code and weights are released under Apache-2.0, but what the training data's terms mean for
+  the weights is not settled.
+  - That is the owner's call (decision-sized, outward-facing) before any of them ships in the app.
+  - Offline use as a loader, for research, raises the question less.
+
+**What we take.**
+1. **In the app, for real recordings: Basic Pitch** (TS, 742 KB, Apache-2.0).
+   - It goes in a loader beside `midiimport.ts`, outside `engine/`, since TensorFlow.js is a dependency `engine/`'s
+     rules forbid.
+   - Audio → its notes and bends → `cellsFromMidi`. The bends are a reason to keep: a played file's glides are
+     `glide=` (#334).
+   - Measured the ratchet's way: notes kept against a known score.
+2. **Offline, for the bench and for piano: Kong et al.** (Apache-2.0, 96.7 % on piano) as the reference transcriber.
+   **MT3** for multi-instrument references.
+3. **For audio we rendered ourselves: NMF with fixed templates.**
+   - We know our voices' spectra: we can render each voice's every pitch. So NMF needs no learning, only the
+     activations, which is the easy half. The 2019 survey's overlap problem is softened by knowing the templates
+     exactly.
+   - Pure TS, in `engine/time/` beside `spectrogram.ts`.
+   - This is the analysis-by-synthesis loop's first step (guess notes from known instruments), and its test is
+     exact: render an example, transcribe it, and compare with its own notes.
+4. **The metric:** `mir_eval.transcription` (MIT): note F1 with and without offsets, 50 ms onset tolerance. It is
+   what every table above uses.
+
+**What we leave, and why.**
+- **MT3 and Kong et al. in the app:** 20–60M parameters, and PyTorch or JAX.
+- **Onsets and Frames in the app:** 60 MB for piano only, from an inactive repository. Basic Pitch covers more at
+  1/80 of the size. Kong is better on piano offline.
+- **Training our own transcriber:** 2013's advice (use cases, aligned scores) is what the published models did. We
+  have nothing to add there, and a loader does the job.
+- **Melodyne-style DSP:** 0.04–0.52 onset F1 in MT3's table.
+
+**The nearest swamp.**
+- **Transcription from scratch**, confirmed: a decade of work, then models trained on thousands of hours. Use a
+  loader; our contribution is what comes after the notes.
+- **Polyphonic offsets and multi-instrument labels.** Even MT3's onset-and-offset F1 is 0.33 on MusicNet and 0.57 on
+  Slakh.
+  - Take onsets and pitches as the reliable part. Let the fold's fidelity gate judge the rest by rendering: a render
+    within a tolerance, not the transcriber's offsets.
+
+**Our numbers against theirs.**
+- None: nothing in the app transcribes audio.
+- The first comparable number would be note F1 (`mir_eval.transcription`) of NMF-with-our-templates on our own
+  renders. There the ground truth is exact, and a perfect score is reachable in principle. That makes it the right
+  first test, before any recording.
+
+**Next.**
+- #399: *audio → notes, two loaders*:
+  - NMF with our voices' templates on our own renders, pure TS, note F1;
+  - Basic Pitch as the loader for recordings, outside `engine/`, measured against Kong et al. offline.
+  - The training-data licence question goes to the owner first.
+- Topic 8 (residual and analysis by synthesis) next session.
+
+**References.**
+- [BBR+22] R. M. Bittner, J. J. Bosch, D. Rubinstein, G. Meseguer-Brocal, S. Ewert, "A lightweight
+  instrument-agnostic model for polyphonic note transcription and multipitch estimation", ICASSP 2022.
+  arXiv:2203.09893. Code: github.com/spotify/basic-pitch, github.com/spotify/basic-pitch-ts (Apache-2.0).
+- [BDDE19] E. Benetos, S. Dixon, Z. Duan, S. Ewert, "Automatic music transcription: an overview", IEEE Signal
+  Processing Magazine 36(1):20–30, 2019. doi:10.1109/MSP.2018.2869928. Author copy:
+  https://labsites.rochester.edu/air/publications/benetatos19automaticmusic.pdf
+- [BDG+13] E. Benetos, S. Dixon, D. Giannoulis, H. Kirchhoff, A. Klapuri, "Automatic music transcription: challenges
+  and future directions", J. Intelligent Information Systems 41(3):407–434, 2013. doi:10.1007/s10844-013-0258-3.
+  Postprint: https://openaccess.city.ac.uk/id/eprint/2524/
+- [GSME22] J. Gardner, I. Simon, E. Manilow, C. Hawthorne, J. Engel, "MT3: multi-task multitrack music
+  transcription", ICLR 2022. arXiv:2111.03017. Code: github.com/magenta/mt3 (Apache-2.0).
+- [HES+18] C. Hawthorne, E. Elsen, J. Song, A. Roberts, I. Simon, C. Raffel, J. Engel, S. Oore, D. Eck, "Onsets and
+  frames: dual-objective piano transcription", ISMIR 2018. arXiv:1710.11153. Browser checkpoints:
+  github.com/magenta/magenta-js (music/checkpoints, `@magenta/music`, Apache-2.0).
+- [KLS+21] Q. Kong, B. Li, X. Song, Y. Wan, Y. Wang, "High-resolution piano transcription with pedals by regressing
+  onset and offset times", arXiv:2010.01815 (v3, 2021). Code: github.com/bytedance/piano_transcription
+  (Apache 2.0).
+- [MAESTRO] MAESTRO dataset, Google LLC, CC BY-NC-SA 4.0. https://magenta.tensorflow.org/datasets/maestro
+- [SB03] P. Smaragdis, J. C. Brown, "Non-negative matrix factorization for polyphonic music transcription", IEEE
+  WASPAA 2003, 177–180. doi:10.1109/ASPAA.2003.1285860. MERL TR2003-139:
+  https://www.merl.com/publications/TR2003-139
 
 ## 8. Residual and analysis by synthesis
 
