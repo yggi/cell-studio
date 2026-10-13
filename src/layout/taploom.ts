@@ -132,6 +132,21 @@ const toward = (from: At, to: At, r: number): At => {
   return { x: from.x + ((to.x - from.x) / l) * r, y: from.y + ((to.y - from.y) / l) * r };
 };
 
+/** The room round a selector's loom inside its pill (px). */
+export const PILL_PAD = 16;
+
+/**
+ * The pill a selector is drawn as, round its loom (PILL_PAD round it): its lanes inside, its outputs along its top, the
+ * selector at its bottom — its contacts, its hub, its ports on the pill's edge. A tap's joins between the cells it steps
+ * lie outside it.
+ */
+export function pillOf(hub: At, contacts: readonly At[], ports: { meter: At; select: At }, strands: readonly LoomStrand[], pad = PILL_PAD) {
+  const inside = strands.filter((st) => !st.join);
+  const xs = [...contacts.map((c) => c.x), ports.meter.x, ports.select.x, ...inside.flatMap((st) => st.pieces.map((p) => p[2]))];
+  const top = Math.min(hub.y - pad, ...inside.map((st) => st.pieces[0][3]));
+  return { x0: Math.min(...xs) - pad, x1: Math.max(...xs) + pad, y0: top - pad, y1: ports.meter.y };
+}
+
 /** What an edge needs of a selector drawn as a pill to meet it: the pill, its ports, and who comes in at them. */
 export interface PillEnds {
   readonly pill: { readonly x0: number; readonly x1: number; readonly y0: number; readonly y1: number };

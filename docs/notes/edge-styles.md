@@ -12,7 +12,7 @@ Pictures: `node tools/gallery.mjs edges` (every kind today), `golden 3 chords po
 
 | band | kinds | stopped | live | gap |
 |---|---|---|---|---|
-| none | `about`, `is` | fine dots, dashes | never live | none: structure |
+| none | `about`, `is`, `base` | a faint hairline (`about`); dashes (`is`, `base=`: definitions) | `is` takes its voice's colour; the others never live | none: structure |
 | sync | `step`, `step·cycle`, `step·loop`, a belt, the meter's net | dotted (`0.5 8`) | the tick's colour, one dot at the step's phase | the dot says where in a step, not the clock: a ×4 clock looks like a ÷4 one |
 | cv · pointer | `braid` (refs, picks, `[<<]`, `^n`), `over`, `map` | solid; a bus as strands | the note under the source's playhead | a bus narrows in bends and kinks off its loom (below) |
 | cv · value | `voice`, `pitch`, `level`, `lpf` `hpf` `lpq`, `write`/`play` of notes, `trigger` `velocity` `gate` | solid | one colour along the whole wire: the voice's note, or the level's brightness | the payload's shape never shows; `trigger=` is white (below) |
@@ -95,7 +95,17 @@ Decided: **D1 C, travelling · D2 C · D3 B · D4 C · D5 a constant speed · D6
 - `PulseEdge` becomes a dispatcher over per-band drawers that share the centreline (bus, wave, pulse train, runs, ribbon); `MeterEdge` and `BeltEdge` read the same sync signal; `carried()` names the source, not the target's voice.
 - Cost: one signal per source per frame; pulse trains and runs by dash offsets on a fixed path where they can be (no path rebuilt); waves quantised (height and length in buckets), so a path is rebuilt only when its bucket changes. Measured with the `profile` skill before and after, on Bach 847 (#36) and Pop.
 
-## 4 · Order (a PR each)
+## A pass over every kind (2026-10-13, #398)
+
+The edge sheet, 39 kinds × 7 states, read for kinds left unstyled or half-developed. Built:
+
+- **Structure** (band `none`): only `is` had a style. `about` is a faint hairline (`--edge-w-about`, `--edge-about`: dots are a clock's), `base=` dashed as `is` (a definition, a copy).
+- **At rest, a value**: a reference (`braid`, `^`, `×n`, `[<<]`) wears the note its source's wheel shows at the cursor (D6: coloured by what it points at), as a melody does since #393; a level its value as width and brightness (D4's ribbon, still), live too where no ribbon travels (a slow LFO with no clock, Cellscape II's `hpf=`: read from its curve, `valuesOf`).
+- **A groove over a kit of several drums** is one wire of hits (#393's rule), not a bus of the kit's members in grey.
+- **The pill's lanes** flash on their clock's beat while their section is chosen, the bypass always (`beatFlash`, shared with a meter's net).
+
+The sheet itself (`tools/gallery/edges/`): kinds split where `over=` reads something drawn otherwise (`over·kit`, `over·taps`); a column for the tower layout (its sigmoid); a row for the selector's pill (`PillCell`: the layout's own `tapLoom`/`pillOf`, at rest, on the beat with all or one section chosen, off it); and a live tile whose source has no playhead at that moment is marked *silent* — what it shows there is a fallback the app never draws (an edge is live only while its source sounds), the cause of what looked like refs and chord strands losing their colour live.
+
 
 1. **The bus's geometry** (§1): `wire.ts` and its test, the loom's fillets, the chord bus, the hop, the reader's end. No choice needed. Verified with the `edges` and `zoom` sheets before and after, and the golden graph's crossings unchanged.
 2. **Bands right. Built.** Since decision 016 the parts play straight into the sound card, so #238's chain (part → table of parts → selector → card) no longer exists. What still carried sound on a CV wire, over the 75 examples, was always a reference: a mix spliced into the sound card (*Canon*, *Pertonos*) or a scope (*Hypercell*, *Test Tones*), a read head into a scope, and a voice in a pattern of voices (7 pieces). Now a `braid` wire is audio when its source sounds, and on up: a cell sounds if it sounds itself (`sounds()`, the rule tapes already used) or if anything its braid splices in does, so a pattern of voices spliced into another carries sound too (*IDM*'s `&pat → &break`, *Brothers*' `&break → &tracker`: found in review, #273). Its colour is the first voice it splices in. A wave follows any path now (`rippled`, `wire.ts`: lines, arcs, curves), so a reference keeps its locked end. `trigger=` is a pitch port. Left as it is: `flowRanks`' own notion of what sounds (`start.ts`). Reading the band there would move voices into patterns in the layout, a change of its own.

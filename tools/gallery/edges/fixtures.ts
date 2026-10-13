@@ -8,6 +8,7 @@ import { buildGraph } from '../../../src/layout/drawn';
 import type { Transform } from '../../../src/engine/transform';
 import { groundsOf, meterIndex } from '../../../src/layout/meters';
 import type { Piece } from '../pieces';
+import type { CompileResult } from '../../../src/engine/program';
 
 export interface EdgeFixture {
   /** The kind, as a tile is named: `edge:fm`, `edge:step:div`. */
@@ -45,11 +46,14 @@ const SOUND_PORTS = new Set(['mix', 'fm', 'excite', 'couple']);
 
 /**
  * What kind of edge: the port it is read through, whether it carries sound where the port may carry values too (a ref,
- * a tape's write= or play=), the shapes of the transforms written on it, whether it counts (`×n` slots).
+ * a tape's write= or play=), what an over= reads where it is drawn otherwise (a kit, a groove's hits; a table of taps, a
+ * selection), the shapes of the transforms written on it, whether it counts (`×n` slots).
  */
-export function edgeKind(e: GraphEdge): string {
+export function edgeKind(e: GraphEdge, program: CompileResult): string {
   const sound = e.band === 'audio' && !SOUND_PORTS.has(e.port) && 'sound';
-  return ['edge', e.port, sound, ...new Set(e.transforms.map(shape).filter(Boolean)), e.count > 1 && 'count'].filter(Boolean).join(':');
+  const table = e.port === 'over' ? e.from.slice('cell:'.length) : '';
+  const read = table && (program.cells.get(table)?.kit ? 'kit' : [...(program.taps?.values() ?? [])].includes(table) ? 'taps' : false);
+  return ['edge', e.port, sound, read, ...new Set(e.transforms.map(shape).filter(Boolean)), e.count > 1 && 'count'].filter(Boolean).join(':');
 }
 
 /** The first of each kind of edge across these pieces (a live one if any is), and a meter's net if one has a meter. */
@@ -69,7 +73,7 @@ export function edgeFixtures(list: readonly Piece[]): EdgeFixture[] {
         else if (had) had.pieces.add(piece.key);
         continue;
       }
-      const key = edgeKind(e);
+      const key = edgeKind(e, piece.program);
       const live = piece.live.edges.has(e.id);
       const had = kinds.get(key);
       const having = had?.pieces ?? new Set<string>();

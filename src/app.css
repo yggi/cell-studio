@@ -27,6 +27,8 @@
   --edge-dash-sync: 0.5 8;
   --edge-dash-midi: 14 4 2 4;
   --edge-dash-is: 5 6;
+  --edge-w-about: 1.5; /* a note's link: a hairline (dots are a clock's) … */
+  --edge-about: 60%; /* … and faint */
   --edge-idle: 0.45; /* not sounding now (playing) */
   --edge-faded: 0.2; /* not part of the sound, or switched off */
   --edge-bus-idle: 0.55;
