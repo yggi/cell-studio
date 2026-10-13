@@ -3,6 +3,7 @@ import { codeShifts, type CompileResult } from '../../engine/program';
 import { addCell, setFree, setOff, setShift } from '../../engine/edit';
 import { freeIndex, freeList, withHeld } from '../../engine/held';
 import { buildGraph } from '../../layout/drawn';
+import { showProblems } from '../../layout/show';
 import { routing } from '../../engine/routing';
 import { mainTempo, sections } from '../../engine/duration';
 import { titleOf } from '../../library';
@@ -32,7 +33,9 @@ export class Piece {
   /** The code as written, compiled (its diagnostics are the editor's: a MIDI file's are its text's). */
   readonly result = $derived.by(() => {
     const r = compileSource(this.cells, this.env);
-    if (!this.midi) return r;
+    // (and what only the layout can tell: a plugin on a cell it doesn't fit)
+    const shows = r.ok ? showProblems(r) : [];
+    if (!this.midi) return shows.length ? { ...r, diagnostics: [...r.diagnostics, ...shows] } : r;
     const errors = this.midi.diagnostics.some((d) => d.severity === 'error');
     return { ...r, ok: r.ok && !errors, diagnostics: this.midi.diagnostics };
   });

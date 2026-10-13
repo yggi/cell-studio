@@ -104,6 +104,18 @@ export function summary(result: CompileResult, name: string): Bit[] {
     const sc = c.over?.startsWith('scale:') ? result.cells.get(c.over)?.lambda : undefined;
     return sc ? [`${words}${sc}`] : [];
   };
+  // a tap of a meter's bus (decision 016): not a phrase of one step, a switch for what it steps
+  const table = result.taps?.get(name);
+  if (table) {
+    const of: Bit[] = c.step?.driver ? ['A tap of ', { ref: c.step.driver }, ' on '] : ['A tap on '];
+    const readers = [...result.cells.values()].filter((x) => x.over === table && x.clock).map((x) => x.name);
+    const when: Bit[] = c.off
+      ? [': switched off, what it steps stands still']
+      : readers.length
+        ? [': what it steps plays while ', ...list(readers), ` ${readers.length === 1 ? 'has' : 'have'} it on`]
+        : [': what it steps plays, and no selector switches it'];
+    return [...of, { ref: table }, ...when, '.'];
+  }
   switch (kind) {
     case 'voice': {
       const src = c.params.s ? `A ${String(c.params.s)} voice` : 'A voice shaped by its braid';

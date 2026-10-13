@@ -10,6 +10,7 @@
   import { attrsOf, setAttr, setTiming } from '../engine/edit';
   import { DOUGH_PARAMS, DOUGH_SOURCES } from '../engine/dough-params';
   import { parse } from '../engine/parser';
+  import { canonicalParam } from '../engine/attributes';
 
   let {
     name,
@@ -32,7 +33,11 @@
   const attrs = $derived(attrsOf(source, name));
   const rows = $derived([...attrs].filter(([k]) => k !== 'off'));
   const allKeys = $derived<readonly [string, string][]>(audio ? [...PARAM_KEYS, ...Object.entries(DOUGH_PARAMS)] : PARAM_KEYS);
-  const meaning = new Map<string, string>([...PARAM_KEYS, ...Object.entries(DOUGH_PARAMS)]);
+  const meanings = new Map<string, string>([...PARAM_KEYS, ...Object.entries(DOUGH_PARAMS)]);
+  // (an alias, Strudel's or dough's name, means ours: cutoff is lpf)
+  const meaning = { get: (k: string) => meanings.get(k) ?? meanings.get(canonicalParam(k)) };
+  // what is set, by our names: lpf isn't offered beside a cutoff
+  const set = $derived(new Set([...attrs.keys()].map(canonicalParam)));
 
   let editing = $state<{ key: string; from: string | null; value: string } | null>(null);
   // keys you can pick: the one being edited, and those not set yet (step and loop are one setting)
@@ -42,7 +47,8 @@
         ([k]) =>
           k === editing?.key ||
           k === editing?.from ||
-          (!attrs.has(k) && !((k === 'step' || k === 'loop') && (attrs.has('step') || attrs.has('loop')) && editing?.from !== 'step' && editing?.from !== 'loop')),
+          (editing?.from != null && k === canonicalParam(editing.from)) ||
+          (!set.has(k) && !((k === 'step' || k === 'loop') && (attrs.has('step') || attrs.has('loop')) && editing?.from !== 'step' && editing?.from !== 'loop')),
       )
       .map(([k]) => ({ value: k, label: k })),
   );
@@ -51,7 +57,7 @@
   const showChoices = (t: string) =>
     shows.filter((x) => x.startsWith(t.trim())).map((x) => ({ text: x, label: `${x} — ${SHOW_MEANING[x as keyof typeof SHOW_MEANING]}`, kind: 'value' as const }));
   function startAdd() {
-    const first = allKeys.find(([k]) => !attrs.has(k) && !((k === 'step' || k === 'loop') && (attrs.has('step') || attrs.has('loop'))));
+    const first = allKeys.find(([k]) => !set.has(k) && !((k === 'step' || k === 'loop') && (attrs.has('step') || attrs.has('loop'))));
     if (first) editing = { key: first[0], from: null, value: '' };
   }
   function check(key: string, value: string) {

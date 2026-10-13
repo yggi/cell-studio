@@ -14,6 +14,12 @@ describe('suggest', () => {
     expect(suggest('&tune[<', names).map((s) => s.text)).toEqual(['&tune[<<]']);
     expect(suggest('&nope[', names)).toEqual([]);
   });
+  it('offers its moves: by degrees (^1) and by grid steps (^$7), once a cell is named in full or given a ^', () => {
+    expect(suggest('&tune', names).map((s) => s.text)).toEqual(['&tune', '&tune^1', '&tune^$7']);
+    expect(suggest('&tune^', names).map((s) => s.text)).toEqual(['&tune^1', '&tune^-1', '&tune^$7', '&tune^$-12']);
+    expect(suggest('&tune^$', names).map((s) => s.text)).toEqual(['&tune^$7', '&tune^$-12']);
+    expect(suggest('&nope^', names)).toEqual([]);
+  });
   it('offers a rest, and functions only for a whole braid', () => {
     expect(suggest('', names).some((s) => s.kind === 'rest')).toBe(true);
     expect(suggest('sc', names).some((s) => s.kind === 'function')).toBe(false);

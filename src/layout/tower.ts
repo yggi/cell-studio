@@ -11,7 +11,7 @@ import { ownRate } from '../engine/readers';
 
 /**
  * Where on the tower a clocked cell sits: its step (how often it moves), its turn (how often it comes round), or between;
- * `emit`: by its step, but a cell that carries sound (a mix, a table of parts, the selector reading it, a tape) where its
+ * `emit`: by its step, but a cell that carries sound (a mix, a tape) where its
  * output lives, by the sound it carries: a node sits at the rate of what it sends on, not of its own clock.
  */
 export type TowerAt = 'step' | 'turn' | 'mid' | 'emit';
@@ -29,7 +29,7 @@ export function towerOf(program: CompileResult, model: GraphModel, at: TowerAt =
   const cellOf = new Map(model.nodes.flatMap((n) => (n.cell && !n.cell.note ? [[n.id, n.cell] as const] : [])));
   // (an instrument: a voice, or what a product's junction is: a resonator, a kit)
   const instruments = new Set(model.edges.flatMap((e) => (e.port === 'is' ? [e.to] : [])));
-  // (what carries sound: a mix, a tape, a table of parts and the selector reading it: `emit` places them by it)
+  // (what carries sound: a mix, a tape: `emit` places them by it)
   const sounding = new Set(model.nodes.flatMap((n) => (n.cell?.mix && !n.cell.sink ? [n.id] : [])));
   for (const e of model.edges) if (e.band === 'audio' && cellOf.has(e.to) && !instruments.has(e.to)) sounding.add(e.to);
   // (a pattern of voices, a kit's groove: what it sends on is their sound)
