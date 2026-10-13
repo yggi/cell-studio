@@ -44,6 +44,12 @@ const PILL_PAD = 16;
 const CALM = 12;
 /** How much of a too short plain edge's missing rise is made up each tick. */
 const RISE = 0.2;
+/** How warm an edit leaves the layout when it is gentle (`setGraph`, a conversion growing the graph, #390). With
+ * GENTLE_CALM, measured over the MIDI library's conversions: the most a node moves in a frame 648 → 162 px, at the
+ * same crossings (the probe and its table come with the conversion's replay, #390). */
+const GENTLE_HEAT = 0.25;
+/** The most a node moves in a tick after a gentle edit (px): the graph reflows slowly enough to follow. */
+const GENTLE_CALM = 3;
 /** The room between neighbours in a row lined up (px). */
 const LINE_GAP = 40;
 /** The room over a pill a cell reading it keeps: the pill's pad, and the cell's name under it (px). */
@@ -222,7 +228,7 @@ export class ForceLayout {
   }
 
   /** Merge a new graph in. Existing nodes keep position and velocity. */
-  setGraph(whole: GraphModel, structural = true): GraphDiff {
+  setGraph(whole: GraphModel, structural = true, { gentle = false }: { readonly gentle?: boolean } = {}): GraphDiff {
     // (notes and scopes are read in the margin, not laid among the music: side.ts)
     const drawn = sideless(whole);
     // (as drawn: a product's wires at its junction; the forces lay the graph with each junction folded into its voice,
@@ -242,9 +248,11 @@ export class ForceLayout {
     this.s.degree = new Map();
     for (const e of model.edges) if (e.source !== e.target && !ground(e)) for (const id of [e.source, e.target]) this.s.degree.set(id, (this.s.degree.get(id) ?? 0) + 1);
     // mostly new (a different example that happens to share &bar, &mix, &out): lay it all out afresh
-    const fresh = model.nodes.filter((n) => !this.s.byId.has(n.id)).length > model.nodes.length / 2;
+    // (gently, as a conversion's story grows the graph a cell at a time, #390: never afresh, everything where it is)
+    const fresh = !gentle && model.nodes.filter((n) => !this.s.byId.has(n.id)).length > model.nodes.length / 2;
     if (fresh) this.s.bendAt.clear(); // a fresh graph: no bends left over from the last one
     this.calmed = !fresh;
+    this.cap = gentle ? GENTLE_CALM : CALM;
     const start = startPlaces(this.s, model, fresh, () => (fresh ? (this.rowChoice = this.rowOrderFor(drawn)) : this.rowChoice));
     const { next, added, tagLinks } = startNodes(this.s, model, fresh, parentOf, start);
 
@@ -317,7 +325,8 @@ export class ForceLayout {
       this.s.links.filter((l) => !l.is).map((l) => ({ source: nodeAt(this.s, l.source)!, target: nodeAt(this.s, l.target)!, w: l.strength ?? 1, kind: l.kind })),
     );
     for (const id of [...this.s.bendAt.keys()]) if (!this.s.links.some((l) => l.id === id)) this.s.bendAt.delete(id);
-    if (structural) this.reheat(fresh ? 1 : added > 0 || removed > 0 ? 0.7 : 0.3); // a fresh graph settles from scratch, like a new layout
+    // a fresh graph settles from scratch, like a new layout; gently, only enough for what came to find its place
+    if (structural) this.reheat(fresh ? 1 : gentle ? GENTLE_HEAT : added > 0 || removed > 0 ? 0.7 : 0.3);
     // forceX/Y cache their targets: refresh them for the new places
     this.sim.force(
       'columnX',
@@ -354,12 +363,15 @@ export class ForceLayout {
    */
   /** After an edit (not a fresh graph): set each node's speed to CALM px a tick at most. */
   private calmed = false;
+  /** The speed it calms to: CALM, or GENTLE_CALM after a gentle edit. */
+  private cap = CALM;
   private calm(): void {
     if (!this.calmed) return;
     const keep = 1 - this.sim.velocityDecay();
+    const cap = this.cap;
     for (const n of this.s.byId.values()) {
       const v = Math.hypot(n.vx ?? 0, n.vy ?? 0) * keep;
-      if (v > CALM) ((n.vx = ((n.vx ?? 0) * CALM) / v), (n.vy = ((n.vy ?? 0) * CALM) / v));
+      if (v > cap) ((n.vx = ((n.vx ?? 0) * cap) / v), (n.vy = ((n.vy ?? 0) * cap) / v));
     }
   }
 
