@@ -186,8 +186,8 @@ export function picksNow(result: CompileResult, statics: Shifts, name: string, s
 }
 
 /**
- * When a selector picks an entry, in [from, to): its windows, in seconds. Reading a
- * table of parts splices: each window is where the picked part starts again.
+ * When a selector picks an entry, in [from, to): its windows, in seconds. Switching a
+ * tap restarts: each window is where the picked part starts again.
  */
 function windowsOf(p: Plan, sel: PlanTrack['selects'][number], from: number, to: number): { a: number; b: number }[] {
   const m = sel.series;

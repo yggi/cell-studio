@@ -23,7 +23,7 @@ export function outputsOf(ctx: Ctx, decls: ReadonlyMap<string, CellDecl>, cells:
     const [a, b] = [stepsPerSecond(by[0].c), stepsPerSecond(by[1].c)];
     return a - b > 1e-9 * Math.max(a, b) ? by[0] : null;
   };
-  for (const { b, span, gains, via, parts, through, select, silent, midi } of bindings) {
+  for (const { b, span, gains, via, parts, through, silent, midi } of bindings) {
     const known = (r: { name: string; span: Span }) => {
       if (decls.has(r.name)) return true;
       unknownCell(r.name, r.span);
@@ -157,7 +157,7 @@ export function outputsOf(ctx: Ctx, decls: ReadonlyMap<string, CellDecl>, cells:
       offset: b.offset,
       gains: [gains[0] * pl, gains[1] * pr] as const,
       parts: parts.map((x) => ({ ...x, gains: [x.gains[0] * pl, x.gains[1] * pr] as [number, number] })),
-      select,
+      select: [],
       ...(silent ? { silent: true } : {}),
       ...(midi?.length ? { midi } : {}),
       through: [...through],
@@ -169,7 +169,7 @@ export function outputsOf(ctx: Ctx, decls: ReadonlyMap<string, CellDecl>, cells:
     // a voice alone (no pitch in its product but its own pitch=, nothing that starts notes): its own pitch, held as long
     // as the piece plays — the pitch identity, as a missing volume is 1 (decision 028)
     const ownTerms = new Set<unknown>(own);
-    if (lead.length === 0 && !voice.kit && !select.length && pitches.every((x) => ownTerms.has(x.t))) {
+    if (lead.length === 0 && !voice.kit && pitches.every((x) => ownTerms.has(x.t))) {
       outputs.push({
         id: `${voice.name}:${voice.name}:${b.voice.span.line}:${b.voice.span.col}`,
         ...common,
@@ -215,7 +215,7 @@ export function outputsOf(ctx: Ctx, decls: ReadonlyMap<string, CellDecl>, cells:
       continue;
     }
     outputs.push({
-      id: `${voice.name}:${cell.name}:${t.ref.span.line}:${t.ref.span.col}${select.map((x) => `@${x.cell}:${x.entry}`).join('')}`,
+      id: `${voice.name}:${cell.name}:${t.ref.span.line}:${t.ref.span.col}`,
       ...common,
       cell: cell.name,
       pick: t.ref.pick,

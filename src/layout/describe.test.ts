@@ -29,6 +29,10 @@ describe('a cell in words', () => {
   it('a selector and a mix', () => {
     const pop = compileSource(PRESETS.pop.source);
     expect(text(summary(pop, 'song'))).toBe('Arranges 6 parts over 10 sections, once.');
+    // a tap: what it is, not a phrase of one step (decision 016)
+    expect(text(summary(pop, 'hookBar'))).toBe('A tap of &bar on &parts: what it steps plays while &song has it on.');
+    const off = compileSource(PRESETS.pop.source.replace(/^&parts .*$/m, '$&\n&hookBar off'));
+    expect(text(summary(off, 'hookBar'))).toBe('A tap of &bar on &parts: switched off, what it steps stands still.');
     const mix = compileSource('&lead s=saw loop=C4\n&tune 0 2 4 step=2\n&hookPart [&tune * &lead * .35]\n&out map=sample [&hookPart]');
     expect(text(summary(mix, 'hookPart'))).toBe('Mixes 1 sound.');
   });

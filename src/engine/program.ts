@@ -299,7 +299,7 @@ export interface Output {
   /** Where its level comes from: each mix and sound card it's in, and what that mix adds per channel. */
   readonly parts: readonly { readonly mix: string; readonly sink: string; readonly gains: readonly [number, number] }[];
   /**
-   * Selectors it plays through (a cell reading a table of parts): it sounds while each picks its
+   * Selectors it plays through (a cell reading a table of taps, the tap that steps it: decision 016): it sounds while each picks its
    * entry, and starts again from its beginning each time it's picked — reading a table splices.
    */
   readonly select: readonly { readonly cell: string; readonly entry: number; readonly part: string }[];
