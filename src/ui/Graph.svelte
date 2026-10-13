@@ -180,9 +180,6 @@
     get taps() {
       return layout.taps;
     },
-    get pills() {
-      return pills;
-    },
     get state() {
       return transport;
     },
