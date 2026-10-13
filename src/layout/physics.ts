@@ -36,6 +36,8 @@ export interface Loom {
 
 /** The room round a selector's loom inside its pill (px). */
 const PILL_PAD = 16;
+/** The most a node moves in a tick after an edit (px): inserted cells push the others gently, nothing flies. */
+const CALM = 12;
 /** The room over a pill a cell reading it keeps: the pill's pad, and the cell's name under it (px). */
 const PILL_ROOM = PILL_PAD + 30;
 
@@ -122,13 +124,14 @@ export class ForceLayout {
       .force('exclusion', () => stepExclusion(this.s))
       // (the tower layout) heights held: whatever moved a node, it ends the tick at its height
       .force('heights', (alpha: number) => this.hold(alpha))
-      // (the tower layout, tapLoom) what a selector's taps step, over it in its sections' order
       // (the tower layout, socketsAbove) a socket rides above its source
       .force('sockets', () => this.above())
       // (the tower layout) the strata strict, the looms levels: last, so nothing moves a node out after
       .force('strata', () => this.strata())
       // (upright) every other edge leans upright: its ends drawn to one x
       .force('upright', (alpha: number) => this.lean(alpha))
+      // (calm) after an edit, no node faster than CALM px a tick: what comes in eases the others aside
+      .force('calm', () => this.calm())
       .on('tick', () => {
         placeJunctions(this.s);
         onTick();
@@ -230,6 +233,7 @@ export class ForceLayout {
     // mostly new (a different example that happens to share &bar, &mix, &out): lay it all out afresh
     const fresh = model.nodes.filter((n) => !this.s.byId.has(n.id)).length > model.nodes.length / 2;
     if (fresh) this.s.bendAt.clear(); // a fresh graph: no bends left over from the last one
+    this.calmed = !fresh;
     const start = startPlaces(this.s, model, fresh, () => (fresh ? (this.rowChoice = this.rowOrderFor(drawn)) : this.rowChoice));
     const { next, added, tagLinks } = startNodes(this.s, model, fresh, parentOf, start);
 
@@ -337,6 +341,17 @@ export class ForceLayout {
    * (the tower layout) Each node `heights` names held at its height: only x is free (d3 sets y to fy each tick); or,
    * with `heightPull`, drawn towards it, gently, as a spring would (its height a target, not a rail).
    */
+  /** After an edit (not a fresh graph): set each node's speed to CALM px a tick at most. */
+  private calmed = false;
+  private calm(): void {
+    if (!this.calmed) return;
+    const keep = 1 - this.sim.velocityDecay();
+    for (const n of this.s.byId.values()) {
+      const v = Math.hypot(n.vx ?? 0, n.vy ?? 0) * keep;
+      if (v > CALM) ((n.vx = ((n.vx ?? 0) * CALM) / v), (n.vy = ((n.vy ?? 0) * CALM) / v));
+    }
+  }
+
   /** (socketsAbove) Each socket at its source's x (several from one source side by side), moved by nothing else sideways. */
   private above(): void {
     // (a mixer between what it mixes: its x the mean of its sources')

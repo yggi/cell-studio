@@ -51,6 +51,7 @@ The physics only relaxes it — a spring to each node's place, no overlaps — a
 
 ## Touch
 
+- **An edit moves the graph gently**: what survives keeps its place, a new cell comes in beside its parent, and for a while no node moves faster than 12 px a frame (`CALM`, `physics.ts: calm`), so a cell added, or a fold watched as it forms the graph, eases its neighbours aside instead of throwing them; a piece just opened is laid out afresh, without the limit.
 - **Tap** a cell: a detail sheet to turn it (drag the rim, − / +: writes `shift=`), switch it on/off (writes `off`), pin it in the layout, or jump to its line in the code (*Show in code*).
 - **Hold**: quick toggle of `off`.
 - **Drag**: moves the cell (physics keeps the rest arranged). Drag a hub to move, a rim to shift; double-tap pins.
