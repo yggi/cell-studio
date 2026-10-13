@@ -257,7 +257,9 @@ export function cellsFromMidi(
   for (const [pi, p] of parts.entries()) {
     const layers: Chord[][] = [];
     const kit = kits[pi];
-    for (const n of [...p.notes].sort((a, b) => a.tick - b.tick || a.key - b.key)) {
+    // (a legato line, each note held into the next by one slide: a glide's run, its notes tied, the voice gliding)
+    const legato = p.drums ? null : legatoOf(p.notes, smf);
+    for (const n of legato?.notes ?? [...p.notes].sort((a, b) => a.tick - b.tick || a.key - b.key)) {
       const value = kit ? kit.get(n.key) : p.drums ? DRUM_OF[n.key] : String(n.key - 60);
       if (value === undefined) {
         dropped++;
@@ -282,7 +284,7 @@ export function cellsFromMidi(
     const voice = p.drums ? null : unique(`${p.name}Voice`);
     const names = layers.map(() => unique(p.name));
     layers.forEach((chords, i) => lines.push({ name: names[i]!, chords, length }));
-    if (voice) voices.push(`&${voice} s=tri loop=C4 env=&(map=adsr .005 .2 .6 .15)`);
+    if (voice) voices.push(`&${voice} s=tri loop=C4${legato ? ` glide=${legato.glide}` : ''} env=&(map=adsr .005 .2 .6 .15)`);
     for (const n of names) mix.push(voice ? `&${n} * &${voice} * .25` : `&${n} * .4`);
   }
   const write = (body: string[], how: string) => {
@@ -445,6 +447,36 @@ export function cellsFromMidi(
   }
   return { source, notes: count, lines: lines.length, perQuarter, moved, dropped, folded, inKey };
 }
+
+/**
+ * A line played legato (#334): single notes, each held into the next by one slide in seconds (or by the next one's
+ * length, where that is shorter; one on the same key only meets it), as MIDI out sends a glide's run (`legatoNotes`,
+ * engine/midi.ts). Its notes each ending where the next starts (tied, as the run was written), and the slide (its
+ * voice's `glide=`, to the millisecond); null for a line that isn't (no overlaps, a chord, or overlaps that differ: a
+ * file played in).
+ */
+function legatoOf(notes: readonly SmfNote[], smf: Smf): { notes: SmfNote[]; glide: number } | null {
+  const ns = [...notes].sort((a, b) => a.tick - b.tick || a.key - b.key);
+  if (ns.some((n, i) => i > 0 && n.tick === ns[i - 1]!.tick)) return null;
+  const sec = (tick: number) => secondsAt(smf, tick);
+  // (each overlap, and how long the note it overlaps into sounds: to the next start, or its own end; in seconds, as
+  // the slide is, whatever the tempo map does to it in ticks)
+  const overlaps = ns.flatMap((n, i) => {
+    const next = ns[i + 1];
+    if (!next || n.end <= next.tick) return [];
+    const after = ns[i + 2];
+    const room = (after && after.tick < next.end ? sec(after.tick) : sec(next.end)) - sec(next.tick);
+    return [{ i, by: sec(n.end) - sec(next.tick), room }];
+  });
+  if (overlaps.length < 2) return null;
+  const slide = Math.max(...overlaps.map((o) => o.by));
+  if (!overlaps.every((o) => Math.abs(o.by - Math.min(slide, o.room)) <= LEGATO_EPS)) return null;
+  const at = new Set(overlaps.map((x) => x.i));
+  return { notes: ns.map((n, i) => (at.has(i) ? { ...n, end: ns[i + 1]!.tick } : n)), glide: Math.round(slide * 1000) / 1000 };
+}
+
+/** How far two overlaps of a legato line may differ (s): a few ticks, where a file's ticks round its seconds. */
+const LEGATO_EPS = 0.004;
 
 /** A piece in sections (#346) reads as its form: taken when at most this much longer than the shortest fold without, as
  * a phrase said as a phrase is (`STRUCTURE`, engine/fold). Measured: at 1.05 one piece of the MIDI library takes

@@ -323,6 +323,23 @@ export interface MidiNote {
 }
 
 /**
+ * A played note as the notes MIDI sends: itself, or a glide's run (`Played.legato`, #334) as the notes it is made of,
+ * each held into the next by the slide (at most the next one's length; into one on the same key, up to it): the
+ * overlap a synth glides on (legato), and Convert to cells reads back as `glide=`.
+ */
+export function legatoNotes(e: Played): Played[] {
+  if (!e.legato) return [e];
+  const { legato, ...one } = e;
+  const ns = legato.notes;
+  return ns.map((n, k) => {
+    const next = ns[k + 1];
+    // (a note into the next on the same key only meets it: a key can't overlap itself, its note-on would end the first)
+    const into = next && noteOf(next.freq).note !== noteOf(n.freq).note ? Math.min(legato.glide, next.dur) : 0;
+    return { ...one, at: n.at, dur: next ? next.at - n.at + into : n.dur, freq: n.freq, bends: n.bends };
+  });
+}
+
+/**
  * A played note as MIDI, on the route given: its key and the bend for the cents it is off it, then its bends as
  * bend messages (a ramp glides there from the point before, sampled). A drum is its drum note, unbent. Null for a
  * note no MIDI key can play (below note 0 or above 127, or no frequency).

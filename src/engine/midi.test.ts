@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { compileSource } from './compile';
 import { planOf } from './host';
 import { eventsBetween, type Played } from './realize';
-import { BEND_CENTRE, bendValue, channelTable, gmDrumNote, kitNotes, melodicChannel, midiNote, noteOf, Rotation, rotationChannels, router, velocityOf } from './midi';
+import { BEND_CENTRE, bendValue, channelTable, gmDrumNote, kitNotes, legatoNotes, melodicChannel, midiNote, noteOf, Rotation, rotationChannels, router, velocityOf } from './midi';
 import { PRESETS } from './presets';
 import { codeShifts } from './program';
 import { pieceMidi } from './midiexport';
@@ -275,5 +275,24 @@ describe('channels', () => {
     expect(rot.take(3)).toBe(3);
     expect(rotationChannels(2, 16, true)).toEqual([2, 3, 4, 5, 6, 7, 8, 9, 11, 12, 13, 14, 15, 16]);
     expect(rotationChannels(9, 11, false)).toEqual([9, 10, 11]);
+  });
+});
+
+describe('a glide’s run as MIDI (#334)', () => {
+  it('sends the run’s notes, each held into the next by the slide, into a repeat of its key only up to it', () => {
+    // (a run of four: C, F, G, then C again, a step each; the voice slides .1 s)
+    const run = eventsBetween(planOf('&t step=60bpm 0 5 7 7 0 ~\n&v glide=.1 s=saw loop=C3\n&out map=sample [&t * &v]'), 0, 6).filter((e) => e.legato);
+    expect(run).toHaveLength(1);
+    const notes = legatoNotes(run[0]!);
+    expect(notes.map((n) => [n.at, Number(n.dur.toFixed(3)), noteOf(n.freq).note])).toEqual([
+      [0, 1.1, 48],
+      [1, 1.1, 53],
+      [2, 1, 55],
+      [3, 1.1, 55],
+      [4, 1, 48],
+    ]);
+    // (a note alone is itself)
+    const one = { ...run[0]!, legato: undefined };
+    expect(legatoNotes(one)).toEqual([one]);
   });
 });

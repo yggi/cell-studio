@@ -6,7 +6,7 @@
  * sits where it sounds). A piece with no main meter is laid at 120 bpm. A piece that ends is written whole; a loop,
  * one cycle (`mainLength`); an hour at most.
  */
-import { channelTable, midiNote, noteOf, routesOf, router, BEND_CENTRE } from './midi';
+import { legatoNotes, channelTable, midiNote, noteOf, routesOf, router, BEND_CENTRE } from './midi';
 import { keyName } from './miditext';
 import { mainMeter } from './midiclock';
 import { clocking } from './clocking';
@@ -28,7 +28,11 @@ export function pieceMidi(result: CompileResult, shifts: Shifts, muted: Readonly
   const seconds = Math.min(LONGEST, Number.isFinite(p.end) ? p.end : (mainLength(pieceTime(result)) ?? 60));
   // (each note with its output: the router reads a kit's from it)
   // (a drone's note held to the file's end: decision 028)
-  const events = eventsBetween(p, 0, seconds, true, { until: seconds });
+  // (a glide's run as its notes, each into the next, legato (#334); the run's notes past the file's end left out, as any
+  // note starting there is: a run is looked ahead along its track, and goes on for up to 256 notes)
+  const events = eventsBetween(p, 0, seconds, true, { until: seconds })
+    .flatMap(legatoNotes)
+    .filter((e) => e.at < seconds);
 
   // the meter's steps, through its time map, as far as the last note sounds (or eighths at 120 bpm), each a fixed
   // number of ticks (a beat a quarter note) and the tempo its length: a note on a step falls on the grid

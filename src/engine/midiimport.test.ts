@@ -157,3 +157,33 @@ describe('a MIDI file as a piece', () => {
     expect(worst('dur')).toBeLessThan(0.01);
   });
 });
+
+describe('a glide’s run through MIDI and back (#334)', () => {
+  it('reads a legato line (each note held into the next by one slide) as a run on a gliding voice, the same notes', () => {
+    for (const [key, glide] of [
+      ['stereo', 0.12],
+      ['bossa', 0.08],
+    ] as const) {
+      const r = compileSource(PRESETS[key]!.source);
+      const smf = readMidi(writeMidi(pieceMidi(r, codeShifts(r)).smf));
+      const made = cellsFromMidi(smf, key);
+      expect(made.source, key).toContain(` glide=${glide} `);
+      const p = plan(compileSource(made.source), codeShifts(compileSource(made.source)));
+      const seconds = p.end;
+      const notes = (source: string) =>
+        notesOf(source)
+          .filter((n) => n.at < seconds - 1e-6)
+          .map((n) => `${n.key} ${n.at.toFixed(2)}`);
+      expect(notes(made.source), key).toEqual(notes(PRESETS[key]!.source));
+    }
+  });
+  it('leaves a line whose overlaps differ (played in) as it is', () => {
+    const notes = [
+      [0, 110, 60],
+      [100, 230, 62],
+      [200, 300, 64],
+    ].map(([tick, end, key]) => ({ channel: 1, key: key!, velocity: 90, tick: tick!, end: end! }));
+    const made = cellsFromMidi({ format: 1, ppq: 100, tracks: [{ name: 'lead', notes, bends: [], programs: [] }], tempos: [], meters: [] }, 'played');
+    expect(made.source).not.toContain('glide=');
+  });
+});
