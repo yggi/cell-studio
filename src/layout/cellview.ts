@@ -14,6 +14,7 @@ import { isTurntable } from '../engine/graph';
 import { bulbHosts } from './drawn';
 import { gateOf } from './gate';
 import { bulbsOf, fanOf, type Bulb } from './track';
+import { footOf } from '../engine/subseq';
 
 /**
  * Drawn as a grid (entries placed on the grid below) only when it's looked
@@ -243,7 +244,7 @@ export function cellView(result: CompileResult, name: string, shifts: Shifts, is
     let at = 0;
     for (const u of units) {
       bounds.push(at);
-      const unit = u.atom.kind === 'ref' ? (result.cells.get(u.atom.name)?.steps ?? 1) : 1;
+      const unit = footOf(u.atom, (x) => (x.kind === 'ref' ? (result.cells.get(x.name)?.steps ?? 1) : 1));
       at += unit * u.elongate * u.repeat;
     }
   }
@@ -288,8 +289,9 @@ export function cellView(result: CompileResult, name: string, shifts: Shifts, is
   for (const g of [...groups.values()].sort((a, b) => a.step - b.step)) {
     rest(cursor, g.step);
     const sorted = g.fills.sort((a, b) => a.v - b.v);
-    segments.push({ t0: g.step / total, t1: (g.step + g.duration) / total, index: unitAt(g.step), bands: sorted.map((x) => x.f), notes: sorted.map((x) => x.n) });
-    cursor = Math.max(cursor, g.step + g.duration);
+    segments.push({ t0: g.step / total, t1: Math.min(total, g.step + g.duration) / total, index: unitAt(g.step), bands: sorted.map((x) => x.f), notes: sorted.map((x) => x.n) });
+    // (x/n on a lone step: held past the lap, drawn to its end)
+    cursor = Math.max(cursor, Math.min(total, g.step + g.duration));
   }
   rest(cursor, total);
   // (bars of levels stay on the ring; a scope or a turntable draws no track)

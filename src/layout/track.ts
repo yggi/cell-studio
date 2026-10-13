@@ -8,7 +8,7 @@
 import { codeShifts, type CompileResult, type Shifts } from '../engine/program';
 import { shiftedUnits } from '../engine/helix';
 import { stepsOf } from '../engine/flatten';
-import { slots } from '../engine/subseq';
+import { footOf, slots, type Leaf } from '../engine/subseq';
 import { wheelGeometry } from './wheel';
 
 /** A splice on a track, in the host's time. */
@@ -79,7 +79,8 @@ function splices(
   let at = 0;
   for (const u of shiftedUnits(result, name, shifts(name) + extra)) {
     const a = u.atom;
-    const foot = (a.kind === 'ref' ? stepsOf(result, a.name, a.pick) || 1 : 1) * u.elongate;
+    const unit = (x: Leaf) => (x.kind === 'ref' ? stepsOf(result, x.name, x.pick) || 1 : 1);
+    const foot = footOf(a, unit) * u.elongate;
     const span = foot * u.repeat;
     if (a.kind === 'ref' && !a.pick && result.cells.has(a.name)) {
       const t0 = from + at * scale;
@@ -105,7 +106,7 @@ function splices(
     }
     // a splice inside a subsequence: a bulb in its slot (each place it plays, its steps squeezed into it)
     if (a.kind === 'seq')
-      for (const x of slots([u], () => 1)) {
+      for (const x of slots([u], unit)) {
         const r = x.atom;
         if (r.kind !== 'ref' || r.pick || !result.cells.has(r.name)) continue;
         const t0 = from + (at + x.at) * scale;
