@@ -19,14 +19,15 @@ const vitest = (a, env = {}) => spawnSync('npx', ['vitest', ...a], { stdio: 'inh
 const VALUED = new Set(['--bail', '--shard', '-t', '--testNamePattern', '--project', '--reporter', '--outputFile', '--maxWorkers', '--changed', '--retry']);
 if (args.some((a, i) => !a.startsWith('-') && !VALUED.has(args[i - 1]))) process.exit(vitest(['run', ...args]));
 
+const ref = process.env.TEST_BASE ?? 'origin/main';
 const base = (() => {
   try {
-    return execFileSync('git', ['rev-parse', '--verify', '-q', process.env.TEST_BASE ?? 'origin/main'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+    return execFileSync('git', ['rev-parse', '--verify', '-q', ref], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
   } catch {
     return null;
   }
 })();
-const why = all ? '--all' : process.env.CI ? 'on CI' : !base ? 'no origin/main to compare with' : null;
+const why = all ? '--all' : process.env.CI ? 'on CI' : !base ? `no ${ref} to compare with` : null;
 if (why) {
   console.log(`test: every test, the slow ones too (${why})`);
   process.exit(vitest(['run', ...args]));
@@ -45,9 +46,9 @@ try {
 }
 const rel = (f) => f.replace(`${process.cwd()}/`, '');
 if (!slow.length) {
-  console.log(`test: the quick tests; no slow test is reached by the change from origin/main (${base.slice(0, 7)}): \`npm run test:all\` runs them`);
+  console.log(`test: the quick tests; no slow test is reached by the change from ${ref} (${base.slice(0, 7)}): \`npm run test:all\` runs them`);
   process.exit(vitest(['run', '--project', 'quick', ...args]));
 }
-console.log(`test: the quick tests, and the slow tests the change from origin/main (${base.slice(0, 7)}) reaches: ${slow.map(rel).join(', ')}`);
+console.log(`test: the quick tests, and the slow tests the change from ${ref} (${base.slice(0, 7)}) reaches: ${slow.map(rel).join(', ')}`);
 // (vite.config.ts narrows the slow project to these: one run, the workers shared)
 process.exit(vitest(['run', ...args], { SLOW_TESTS: JSON.stringify(slow.map(rel)) }));
