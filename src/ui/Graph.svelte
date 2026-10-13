@@ -72,6 +72,7 @@
     epoch = 0,
     opened = 0,
     refit = 0,
+    growing = false,
     focus,
     onsheet,
     played,
@@ -103,6 +104,8 @@
     opened?: number;
     /** Counts requests to frame the graph again (a fold watched as it runs: the camera follows it). */
     refit?: number;
+    /** A conversion playing (#390): each version laid out gently from the last, the view framed only when it must. */
+    growing?: boolean;
     /** A free(…) slider moved. */
     onfree: (spec: import('../engine/ast').FreeSpec, value: number | string) => void;
     nudge?: (seconds: number) => void;
@@ -373,7 +376,7 @@
     const next = snapshotOf(program, model, shifts, muted, routed);
     const o = opened;
     untrack(() => {
-      layout.sync(next, o);
+      layout.sync(next, o, growing);
       if (selected && !next.model.nodes.some((n) => n.id === selected)) selected = null;
     });
   });
@@ -433,7 +436,7 @@
     >
       <Background gap={28} size={1.5} />
       <Controls showLock={false} />
-      <FitView token={layout.fitToken + sideFits + towerFits + refit} />
+      <FitView token={layout.fitToken + sideFits + towerFits + refit} calm={growing} />
       {#if towerOpen || towered}<FlowViewport onchange={(v) => (viewport = v)} />{/if}
       {#if towered}
         {#if layout.looms.length}<ViewportPortal target="back"><TapLooms looms={layout.looms} /></ViewportPortal>{/if}
