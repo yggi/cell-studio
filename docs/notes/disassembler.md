@@ -170,7 +170,7 @@ this yet.
 - **Keys:** the index's `tonality` (69 files).
 - **Not yet in it:**
   - the canon per tonos (no typesetting on Mutopia; `higher.test.ts` uses its plan);
-  - the examples' own sections, cells and phrases. The examples' ratchet has them (`fold/ratchet.test.ts`), the
+  - the examples' own sections, cells and phrases. The examples' ratchet has them (`fold/ratchet.slow.test.ts`), the
     bench doesn't yet.
 
 **Tools** (analyzers): the folder's tools, `degrees`, `sections`, `voices`, and the time engine. A tool is a file and
@@ -192,7 +192,7 @@ a place in a list (`fold/index.ts`).
 6. **Time.**
 
 **The bench:** `BENCH=out.md [SET=wtc] [ONLY=fugue] [HEARD=1] npx vitest run tools/disasm/bench.test.ts`. It writes
-a row a file and a sum a set. It is not a gate; the ratchets stay the gates (`fold/midi.test.ts`, `fold/ratchet.test.ts`).
+a row a file and a sum a set. It is not a gate; the ratchets stay the gates (`fold/midiRatchet.ts`, a file a set; `fold/ratchet.slow.test.ts`).
 
 ## First numbers (2026-10-13)
 

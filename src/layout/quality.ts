@@ -37,6 +37,10 @@ export interface DrawnEdge {
   readonly kind?: string;
   /** Where it leaves from, when not `a`'s centre: a bulb on a wheel (a tap's sub-net, decision 016); `a` then names the bulb. */
   readonly from?: { readonly x: number; readonly y: number };
+  /** Drawn as these straight pieces (a loom's strand, taploom.ts), not a spline from `a` to `b`. */
+  readonly path?: readonly (readonly [number, number, number, number])[];
+  /** Its loom (a selector's, taploom.ts): two strands of one loom are laid side by side there, so never cross. */
+  readonly loom?: string;
 }
 
 export interface LayoutQuality {
@@ -89,10 +93,32 @@ function crossingsOf(nodes: readonly PlacedNode[], edges: readonly DrawnEdge[]):
   const at = new Map(nodes.map((n) => [n.id, n]));
   const hidden = (x: number, y: number) => nodes.some((n) => Math.hypot(x - n.x, y - n.y) < n.r);
   const curves = edges.flatMap((e) => {
+    // (a path is drawn as it is: its ends needn't be nodes, a loom's strand leaves a bulb)
+    if (e.path)
+      return [
+        {
+          a: e.a,
+          b: e.b,
+          pieces: e.path.filter((p) => !hidden((p[0] + p[2]) / 2, (p[1] + p[3]) / 2)) as [number, number, number, number][],
+          belt: false,
+          w: e.weight ?? 1,
+          kind: e.kind,
+          loom: e.loom,
+        },
+      ];
     const a = e.from ?? at.get(e.a);
     const b = at.get(e.b);
     if (!a || !b) return [];
-    if (e.runs) return e.runs.map((r) => ({ a: e.a, b: e.b, pieces: [r as [number, number, number, number]], belt: true, w: e.weight ?? 1, kind: e.kind }));
+    if (e.runs)
+      return e.runs.map((r) => ({
+        a: e.a,
+        b: e.b,
+        pieces: [r as [number, number, number, number]],
+        belt: true,
+        w: e.weight ?? 1,
+        kind: e.kind,
+        loom: undefined as string | undefined,
+      }));
     const m = e.mid ?? { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
     const pts = Array.from({ length: 17 }, (_, k) => splinePoint(a.x, a.y, m.x, m.y, b.x, b.y, k / 16));
     const pieces: [number, number, number, number][] = [];
@@ -100,7 +126,7 @@ function crossingsOf(nodes: readonly PlacedNode[], edges: readonly DrawnEdge[]):
       const [p, q] = [pts[k], pts[k + 1]];
       if (!hidden((p.x + q.x) / 2, (p.y + q.y) / 2)) pieces.push([p.x, p.y, q.x, q.y]);
     }
-    return [{ a: e.a, b: e.b, pieces, belt: false, w: e.weight ?? 1, kind: e.kind }];
+    return [{ a: e.a, b: e.b, pieces, belt: false, w: e.weight ?? 1, kind: e.kind, loom: undefined as string | undefined }];
   });
   let n = 0;
   let cost = 0;
@@ -116,6 +142,8 @@ function crossingsOf(nodes: readonly PlacedNode[], edges: readonly DrawnEdge[]):
     for (let j = i + 1; j < curves.length; j++) {
       const [p, q] = [curves[i], curves[j]];
       if (p.a === q.a || p.a === q.b || p.b === q.a || p.b === q.b) continue;
+      // (two strands of one loom are laid side by side there: not a crossing)
+      if (p.loom && p.loom === q.loom) continue;
       if (p.pieces.some((u) => q.pieces.some((v) => segmentsCross(u[0], u[1], u[2], u[3], v[0], v[1], v[2], v[3])))) {
         n++;
         cost += crossingCost(p, q);

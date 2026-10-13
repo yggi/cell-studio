@@ -59,6 +59,20 @@ describe('ForceLayout', () => {
     expect(l.position('cell:B')).toBeUndefined();
   });
 
+  it('moves gently after an edit: a cell dropped onto the others pushes them aside slowly, nothing flies', () => {
+    const l = new ForceLayout(undefined, { live: false });
+    const src = '&m step=1\n&A step=&m &B\n&B 0\n&v s=saw\n&mix_ [&A * &v]\n&out_ loop=44k map=sample &mix_';
+    l.setGraph(graphOf(src));
+    l.tick(300);
+    // (three cells at once, spawned beside &A, on top of one another)
+    l.setGraph(graphOf(src.replace('&A step=&m &B', '&A step=&m &B &C &D &E') + '\n&C 1\n&D 2\n&E 3'));
+    for (let k = 0; k < 30; k++) {
+      const before = new Map(['cell:A', 'cell:B', 'cell:m', 'cell:v'].map((id) => [id, { ...l.position(id)! }]));
+      l.tick(1);
+      for (const [id, p] of before) expect(dist(l.position(id)!, p), id).toBeLessThanOrEqual(12.5);
+    }
+  });
+
   it('a dragged node follows the pointer and drags its neighbours along', () => {
     const l = new ForceLayout(undefined, { live: false });
     l.setGraph(graphOf('&m step=1\n&A step=&m &B\n&B 0\n&v s=saw\n&mix_ [&A * &v]\n&out_ loop=44k map=sample &mix_'));
