@@ -1,11 +1,11 @@
 # The disassembler's literature: what to reuse, which swamps to avoid
 
-Date: 2026-10-13 · Status: open (topics 1–5 of 9 done; one topic a session) · Issues: #365, the epic #364, the frame
+Date: 2026-10-13 · Status: open (topics 1–6 of 9 done; one topic a session) · Issues: #365, the epic #364, the frame
 [disassembler.md](disassembler.md)
 
 One section a topic. Each answers five questions: the state of the art, what we take, what we leave, the nearest
 swamp, and our numbers against theirs. Every reference below was opened and read at least to its abstract and results;
-where a number comes from the full text, the section says so. The leads for topics 6–9 are in the issue, not repeated
+where a number comes from the full text, the section says so. The leads for topics 7–9 are in the issue, not repeated
 here.
 
 ## 1. Compression as analysis
@@ -775,7 +775,7 @@ For #347: a file played in falls on no grid, so it needs a tempo map from its no
 
 **Next.**
 - #389: *the key's tie-break by a profile, and When-in-Rome's WTC I preludes for local keys and chords*.
-- Topic 6 (structure and form) next session.
+- Topic 6 (structure and form): below.
 
 **References.**
 - [AS13] J. Albrecht, D. Shanahan, "The use of large corpora to train a new type of key-finding algorithm", Music Perception 31(1):59–67, 2013. doi:10.1525/mp.2013.31.1.59 (abstract
@@ -805,7 +805,134 @@ For #347: a file played in falls on no grid, so it needs a tempo map from its no
 
 ## 6. Structure and form
 
-Not yet.
+**Where we are.**
+- **Sections by key:** `sections.ts`.
+- **Boundaries heard in the scalograms:** `time/boundaries.ts`, with three finders:
+  - cones (Mallat & Hwang);
+  - novelty (Foote 2000);
+  - swells.
+- **The fold's splice tree** (`time/structure.ts`): which cell plays where, nested.
+- **Two measures, both boundary precision / recall within a tolerance** of at least 1 s:
+  - Swells against the examples' written sections find about 60 % at 56–72 % precision, chance 19 %
+    ([scalogram.md](scalogram.md)).
+  - The fold's phrases against the swells (`tools/disasm/heard.ts`): dances 52 / 30 (chance 27), counterpoint
+    25 / 24 (chance 20) ([disassembler.md](disassembler.md)).
+
+**State of the art.**
+- **Audio structure analysis.** Paulus, Müller & Klapuri [PMK10] sort methods three ways:
+  - **repetition** (the fold's kind: what comes back);
+  - **novelty** (Foote's checkerboard kernel on a self-similarity matrix [Foo00]: what changes);
+  - **homogeneity** (what stays alike: the swells are closest to it).
+
+  "None of the approaches is clearly superior." Two people annotating the same pieces agree at **89.4 %** F, where a
+  method reached **62.4 %**.
+- **McFee & Ellis' spectral clustering** [ME14] reads repetition structure off the eigenvectors of a recurrence
+  graph, and gives a hierarchy of segmentations, one per number of segment types. Boundary F at 0.5 s and at 3 s:
+
+  | corpus | McFee & Ellis | with the best level per piece | Serrà et al. |
+  |---|---|---|---|
+  | Beatles (174) | 0.31 / 0.58 | 0.41 / 0.68 | 0.29 / 0.70 |
+  | SALAMI (735) | 0.30 / 0.46 | 0.41 / 0.58 | — |
+
+  Code: librosa.
+- **Symbolic phrase boundaries** (melodies, Essen folk songs [PMW08]). Precision / recall / F1 against the phrase
+  marks:
+
+  | model | P | R | F1 |
+  |---|---|---|---|
+  | a logistic hybrid of the four below | 0.87 | 0.56 | 0.66 |
+  | Temperley's Grouper | 0.71 | 0.62 | 0.66 |
+  | Cambouropoulos' LBDM | 0.70 | 0.60 | 0.63 |
+  | GTTM's GPR2a (a rest) | 0.99 | 0.45 | 0.58 |
+  | IDyOM (unexpectedness) | 0.76 | 0.50 | 0.58 |
+  | "always a boundary" | 0.13 | 1.00 | 0.22 |
+
+  The journal version [PMW10] extends the comparison to listeners' boundaries.
+- **GTTM implemented.** Hamanaka, Hirata & Tojo's ATTA [HHT05; HHT06] implements 26 of GTTM's 36 rules with adjustable parameters. Hand-tuned, it beats its default settings on 100 eight-bar melodies;
+  its per-piece F-measures are in a figure we couldn't extract.
+  - The **GTTM database** [HHT14] has 300 eight-bar monophonic classical pieces with grouping, metrical and time-span
+    analyses (gttm.jp).
+  - Two musicologists agreed on 267 of the 300. On the other 33, 233 of 2,310 time-spans differed.
+- **Schenkerian reduction by learning.** Kirlin [KJ11; Kir15] represents an analysis as a maximal outerplanar graph
+  and learns triangle probabilities from SCHENKER41 (41 excerpts, 907 triangles). The most probable analysis is found
+  by dynamic programming.
+  - Edge accuracy beats a random baseline (in a figure).
+  - Three experts graded its analyses **half to a full letter grade below** the textbook's.
+  - Marsden [Mar10] is the earlier proof of concept by search.
+
+**What we take.**
+1. **The literature's boundary metric, for comparison:** boundary F at 0.5 s and 3 s (`mir_eval.segment`, MIT), beside
+   our tolerance-scaled score in `boundaries.ts` and `heard.ts`. Report both: ours scales with the phrase, theirs is
+   what everyone else prints.
+2. **Symbolic phrase boundaries as ground truth for the fold.**
+   - Essen folk songs' phrase marks (music21 ships 31 ABC files of them; **non-commercial permission, legal status
+     "unclear"**: offline only).
+   - Score the fold's phrase starts (`time/structure.ts`) by boundary F1 against Grouper's 0.66, LBDM's 0.63, IDyOM's
+     0.58 and "always"'s 0.22.
+   - This asks what `heard.ts` asks, but against analysts instead of the sound. It is the symbolic counterpart of the
+     counterpoint gap (25 / 24) that the swells leave.
+3. **The GTTM database's grouping trees as ground truth for the splice tree's nesting:** 300 pieces, two analysts at
+   267 / 300.
+   - The fold is repetition-based and GTTM's grouping isn't. A large disagreement is a finding, not a bug.
+   - The data's licence is not stated in the paper; check before fetching.
+4. **The repetition / novelty / homogeneity frame** for `boundaries.ts`' docs. Our three finders map onto two of the
+   three, and the fold is the third.
+
+**What we leave, and why.**
+- **Spectral clustering on audio** [ME14]. It is the audio epic's tool. On symbolic input, the fold's splice tree is a
+  repetition hierarchy already, with exact rather than approximate repeats.
+- **ATTA as an analyzer.** Dozens of hand-tuned parameters for GTTM's preference rules. GTTM's **well-formedness** is the useful part, already in the frame
+  ([disassembler.md](disassembler.md), *Known swamps*).
+- **Schenkerian reduction.** It is a reduction to the *Urlinie*, not a description of repetition. 41 excerpts of
+  training data, graded a letter below a textbook. It is far from the fold's job.
+
+**The nearest swamp.**
+- **One true structure.** Annotators agree at 89 % on audio sections and 267 / 300 on GTTM trees. Hierarchies differ
+  by level, and a method that picks its level per piece gains 10 points of F [ME14].
+  - So score every level of the splice tree, and take the best match per piece as a reading, never as a target.
+  - Report how far apart the analysts are, where a dataset has two.
+- **GTTM in full** (confirmed). The preference rules interact, and the implementations spent a decade tuning them.
+  Take well-formedness, and let description length prefer.
+
+**Our numbers against theirs.**
+- **Same kind of metric, different data.**
+  - Our swells find the examples' written sections at about 60 % recall and 56–72 % precision with a tolerance of
+    ≥ 1 s, close to F3-level tolerance. Audio methods reach F3 0.46–0.70 on SALAMI and the Beatles. Our examples'
+    sections are cleaner than a song's, so this is not a win.
+  - The fold's phrases against swells score F ≈ 0.38 in the dances and 0.24 in the counterpoint. That is not against
+    annotations at all.
+- The Essen and GTTM scores (*What we take*, 2–3) would put the fold in the literature's tables.
+
+**Next.**
+- #391: *the fold's structure against analysts* (Essen phrase boundaries offline, the GTTM database's grouping
+  trees, boundary F at 0.5 / 3 s beside ours).
+- Topic 7 (audio to notes) next session.
+
+**References.**
+- [Foo00] J. Foote, "Automatic audio segmentation using a measure of audio novelty", IEEE ICME 2000, 452–455.
+  doi:10.1109/ICME.2000.869637 (record; the method as `boundaries.ts` and [PMK10] describe it)
+- [HHT05] M. Hamanaka, K. Hirata, S. Tojo, "ATTA: automatic time-span tree analyzer based on extended GTTM", ISMIR
+  2005. https://archives.ismir.net/ismir2005/paper/000015.pdf
+- [HHT06] M. Hamanaka, K. Hirata, S. Tojo, "Implementing 'A Generative Theory of Tonal Music'", JNMR 35(4):249–277,
+  2006. doi:10.1080/09298210701563238 (record only)
+- [HHT14] M. Hamanaka, K. Hirata, S. Tojo, "Musical structural analysis database based on GTTM", ISMIR 2014 (CC BY 4.0).
+  https://archives.ismir.net/ismir2014/paper/000257.pdf Data: http://www.gttm.jp/
+- [Kir15] P. B. Kirlin, D. D. Jensen, "Learning to uncover deep musical structure", AAAI 2015.
+  https://www.cs.rhodes.edu/~kirlinp/papers/kirlin15using.pdf
+- [KJ11] P. B. Kirlin, D. D. Jensen, "Probabilistic modeling of hierarchical music analysis", ISMIR 2011, 393–398.
+  https://archives.ismir.net/ismir2011/paper/000091.pdf
+- [Mar10] A. Marsden, "Schenkerian analysis by computer: a proof of concept", JNMR 39(3):269–289, 2010.
+  doi:10.1080/09298215.2010.503898 (record only)
+- [ME14] B. McFee, D. P. W. Ellis, "Analyzing song structure with spectral clustering", ISMIR 2014.
+  https://archives.ismir.net/ismir2014/paper/000319.pdf
+- [PMK10] J. Paulus, M. Müller, A. Klapuri, "Audio-based music structure analysis" (state of the art report), ISMIR
+  2010, 625–636.
+  https://www.audiolabs-erlangen.com/content/05_fau/professor/00_mueller/03_publications/2010_PaulusMuellerKlapuri_STAR-MusicStructure_ISMIR.pdf
+- [PMW08] M. T. Pearce, D. Müllensiefen, G. A. Wiggins, "A comparison of statistical and rule-based models of melodic
+  segmentation", ISMIR 2008, 89–94. http://ismir2008.ismir.net/papers/ISMIR2008_228.pdf
+- [PMW10] M. T. Pearce, D. Müllensiefen, G. A. Wiggins, "The role of expectation and probabilistic learning in auditory
+  boundary perception: a model comparison", Perception 39(10):1367–1391, 2010. doi:10.1068/p6507
+  (abstract read)
 
 ## 7. Audio → notes
 
