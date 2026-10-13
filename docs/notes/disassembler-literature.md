@@ -1,11 +1,11 @@
 # The disassembler's literature: what to reuse, which swamps to avoid
 
-Date: 2026-10-13 · Status: open (topics 1–7 of 9 done; one topic a session) · Issues: #365, the epic #364, the frame
+Date: 2026-10-13 · Status: open (topics 1–8 of 9 done; one topic a session) · Issues: #365, the epic #364, the frame
 [disassembler.md](disassembler.md)
 
 One section a topic. Each answers five questions: the state of the art, what we take, what we leave, the nearest
 swamp, and our numbers against theirs. Every reference below was opened and read at least to its abstract and results;
-where a number comes from the full text, the section says so. The leads for topics 8–9 are in the issue, not repeated
+where a number comes from the full text, the section says so. The leads for topic 9 are in the issue, not repeated
 here.
 
 ## 1. Compression as analysis
@@ -1034,7 +1034,7 @@ For #347: a file played in falls on no grid, so it needs a tempo map from its no
   - NMF with our voices' templates on our own renders, pure TS, note F1;
   - Basic Pitch as the loader for recordings, outside `engine/`, measured against Kong et al. offline.
   - The training-data licence question goes to the owner first.
-- Topic 8 (residual and analysis by synthesis) next session.
+- Topic 8 (residual and analysis by synthesis): below.
 
 **References.**
 - [BBR+22] R. M. Bittner, J. J. Bosch, D. Rubinstein, G. Meseguer-Brocal, S. Ewert, "A lightweight
@@ -1061,7 +1061,141 @@ For #347: a file played in falls on no grid, so it needs a tempo map from its no
 
 ## 8. Residual and analysis by synthesis
 
-Not yet.
+**Where we are.**
+- **Voices** ([sound.md](../language/sound.md)): a waveform `s=` (sine tri saw square pulse white pink brown),
+  `lpf=` / `hpf=`, an ADSR `env=`, a `pitch=` envelope and `gain=`. That is a handful of numbers a voice.
+- **Resonators** ([physics.md](../language/physics.md)): `body=` one of nine mode sets, `loop=` the fundamental,
+  `ring=`, `hard=`, `coupling=`.
+- **Tapes:** `tone=` (a loss in Hz), `drive=`, `hiss=`, `wow=` (at a fixed 0.55 Hz), `print=`, `dropout=`.
+- **Rendering:** Tone.js in an offline audio context (`audio/render.ts`), so in a browser, as the smoke test and the
+  profile skill already run it. **It is not differentiable.**
+
+**State of the art.**
+- **Sinusoidal and spectral modelling:**
+  - McAulay & Quatieri [MQ86]: sound as tracked sinusoids.
+  - Serra & Smith's **SMS** [SS90]: *deterministic plus stochastic*, partials plus a filtered-noise residual.
+  - Verma & Meng [VM00] add a third part for transients.
+  - sms-tools [sms-tools] implements the sinusoidal, harmonic, stochastic, harmonic-plus-residual and
+    harmonic-plus-stochastic models. Python, **AGPL-3.0**.
+  - The classical analysis needs no learning; DDSP's own paper places itself after these.
+- **DDSP** [EHGR20]: a harmonic oscillator plus filtered noise plus a reverb, driven by a network, trained on audio
+  through a multi-scale spectral loss.
+  - **It takes f0 from a pretrained pitch tracker (CREPE)** in its supervised setting.
+  - It was trained on NSynth and on **13 minutes of one violinist**.
+  - It re-synthesises that violin "very accurately" and transfers timbre.
+- **Why f0 is given:**
+  - **Frequency is not learnable by gradient descent on an audio loss.** "The error function is non-convex and densely
+    populated with local minima" [HSF23a].
+  - Even for a single sinusoid, most losses' gradients are "uninformative" about the true frequency (Turian & Henry
+    2020, as the review reports it [HSF24]).
+  - Hayes et al. give a surrogate that makes it work [HSF23a]; the field mostly gives frequencies from analysis instead.
+- **Synthesizer sound matching** [HSF24 §2.1.4, §4]:
+  - It finds a synth's parameters for a target sound: genetic algorithms historically, deep networks lately.
+  - With a differentiable subtractive synth, **a spectral loss alone was ineffective**. Oscillator frequency and
+    chorus delay were poorly optimised by it (Masuda & Saito 2021, 2023, as the review reports them).
+  - Parameter losses on synthetic data, where the parameters are known, worked better.
+- **Modal bodies from recordings:**
+  - Ren, Yeh & Lin [RYL13] estimate a modal model's *material* parameters from a recorded clip, by an optimisation
+    guided by perceptual features. A **second step compensates the residual** between the recording and the modal
+    synthesis. The parameters transfer to other shapes and sizes, and listeners judged them close to real
+    recordings.
+  - Diaz et al. [DHS+23] train a network to output a bank of **differentiable IIR modal resonators** for a shape and
+    material, with an audio loss. Shown on synthetic objects, "paving the way" for learning from recordings.
+- **Source separation:** **HT Demucs** [RMD23] reaches **9.20 dB SDR** on MUSDB (with extra training data), in four
+  stems: drums, bass, other, vocals.
+  - The six-stem model's piano is "not working great".
+  - Code **MIT**, needs 3–7 GB of GPU memory. **Archived** in January 2025 and no longer maintained.
+
+**The key question: what does it take to fit our own voices, resonators and tapes to a recording?**
+
+Less than DDSP, if the hard half comes from analysis rather than from the fit:
+
+1. **Pitches and onsets from the transcriber** (topic 7, #399). Never fit frequencies by the render loss: that is
+   the swamp [HSF23a; HSF24].
+2. **For each note, an SMS analysis:** its harmonics' amplitudes over time, and the residual (sms-tools offline as
+   the reference; our own in `time/spectrogram.ts`, which has peaks already). The voice's parameters follow almost in
+   closed form:
+   - **`s=`:** the harmonic profile. Saw falls as 1/k, square has only odd harmonics at 1/k, triangle odd ones at
+     1/k² (textbook Fourier series). A discrete choice by best match.
+   - **`env=`:** the ADSR fitted to the harmonics' summed energy curve.
+   - **`lpf=` / `hpf=`:** the tilt of the harmonic profile against the waveform's own.
+   - **`gain=`:** the level.
+3. **Resonators, the same way:** a strike's partials and their decays give `loop=` (the lowest mode), `ring=` (the
+   decay), `hard=` (the upper modes' weight), and `body=` (which of the nine mode sets fits the frequency ratios
+   best, again a discrete choice). [RYL13] is this with materials instead of named bodies, and the residual
+   compensated afterwards.
+4. **Tapes** read off what is left: `wow=` from the f0 track's slow modulation, `hiss=` from the noise floor,
+   `tone=` from the roll-off. No paper read here treats tape parameters; this is our extrapolation.
+5. **The judge renders and compares.**
+   - A multi-scale spectral loss (DDSP's) over the few parameters left, with a derivative-free search: a grid on the
+     discrete choices, a local search on the continuous ones. A spectral loss is fine for amplitudes and envelopes;
+     the frequencies are already fixed.
+   - The render is the browser's (Tone.js offline), as `audio/render.ts` does.
+   - This is the folder's `sameNotes` gate at the audio layer, "renders within N dB" ([disassembler.md](disassembler.md)).
+6. **The residual left after that** is SMS's stochastic part: filtered noise (`s=white|pink|brown` with filters), or
+   a resonator's `excite=` for a body that rings with it.
+
+**What we take.**
+- **SMS's decomposition** (harmonics plus residual) as the analysis, with sms-tools (**AGPL-3.0**) offline as the
+  reference only. AGPL code doesn't go in the app; our own analysis is `spectrogram.ts`'s peaks grown into tracks.
+- **DDSP's lesson, not its network:** give the frequencies, fit the rest. Its multi-scale spectral loss is the judge.
+- **[RYL13]'s two steps for resonators:** fit the modal parameters, then explain the residual.
+- **The first test on our own renders** (exact ground truth, as for #399): render an example's voice, fit a voice to
+  it, compare parameters and renders. A perfect fit is reachable.
+
+**What we leave, and why.**
+- **A DDSP model per instrument.** Minutes to hours of one instrument's audio, a neural network, and the voice it
+  learns isn't a cell anyone can read or edit. Our voices are the point.
+- **Making Tone.js differentiable**, or porting our voices to an autodiff framework, to fit by gradients. A few
+  parameters per voice don't need gradients, and the frequencies, which would need them, shouldn't be fitted that
+  way.
+- **Differentiable modal resonators** [DHS+23]: shown on synthetic objects only, and our bodies have named mode
+  sets, which a discrete choice covers.
+- **Demucs in the app or for our renders.** We render each line on its own; separation is for recordings only.
+  - For recordings it is an optional offline step: MIT, but archived, GPU-hungry, and four stems (its piano stem is
+    weak).
+  - Separating a band recording's drums from the rest before transcription is its use.
+
+**The nearest swamp.**
+- **Fitting frequencies through the render.** Non-convex, local minima everywhere, gradients uninformative
+  [HSF23a; HSF24]. Every successful system gives f0 from analysis.
+- **A spectral loss for everything.** It fails on subtractive-synth parameters and on delays, as Masuda & Saito found.
+  Fit what has a closed-form reading (harmonic profile, envelope) from the analysis, and use the loss only to judge
+  and polish.
+- **General source separation as the front door.** 9 dB SDR is good, not clean. Every artefact it leaves becomes a
+  note or a residual to explain. Use it only where the instruments are unknown.
+
+**Our numbers against theirs.** None: nothing fits voices yet. The first number would be the parameter error and
+the render distance of a fitted voice against the voice that made the render, on our own examples.
+
+**Next.**
+- #400: *fit a voice and a resonator to a note, analysis first*: SMS-style harmonics and residual from
+  `spectrogram.ts`; waveform, ADSR, filters and body read off; a rendered judge with derivative-free polish; tested on
+  our own renders.
+- Topic 9 (higher-order and cross-scale relations) next session.
+
+**References.**
+- [DHS+23] R. Diaz, B. Hayes, C. Saitis, G. Fazekas, M. Sandler, "Rigid-body sound synthesis with differentiable modal
+  resonators", ICASSP 2023. doi:10.1109/ICASSP49357.2023.10095139, arXiv:2210.15306.
+- [EHGR20] J. Engel, L. Hantrakul, C. Gu, A. Roberts, "DDSP: differentiable digital signal processing", ICLR 2020.
+  arXiv:2001.04643.
+- [HSF23a] B. Hayes, C. Saitis, G. Fazekas, "Sinusoidal frequency estimation by gradient descent", ICASSP 2023.
+  arXiv:2210.14476.
+- [HSF24] B. Hayes, J. Shier, G. Fazekas, A. McPherson, C. Saitis, "A review of differentiable digital signal
+  processing for music and speech synthesis", Frontiers in Signal Processing 3, 2024. doi:10.3389/frsip.2023.1284100
+  (open access; its accounts of Turian & Henry 2020 and Masuda & Saito 2021, 2023 are used here, those papers not read)
+- [MQ86] R. J. McAulay, T. F. Quatieri, "Speech analysis/synthesis based on a sinusoidal representation", IEEE Trans.
+  ASSP 34(4):744–754, 1986. doi:10.1109/TASSP.1986.1164910 (record only)
+- [RMD23] S. Rouard, F. Massa, A. Défossez, "Hybrid transformers for music source separation", ICASSP 2023.
+  arXiv:2211.08553. Code: github.com/facebookresearch/demucs (MIT; archived 2025).
+- [RYL13] Z. Ren, H. Yeh, M. C. Lin, "Example-guided physically based modal sound synthesis", ACM Trans. Graphics 32(1),
+  2013. https://gamma.cs.unc.edu/AUDIO_MATERIAL (project page and abstract read)
+- [sms-tools] X. Serra et al., sms-tools. github.com/MTG/sms-tools (AGPL-3.0; read from its README)
+- [SS90] X. Serra, J. O. Smith, "Spectral modeling synthesis: a sound analysis/synthesis system based on a
+  deterministic plus stochastic decomposition", Computer Music Journal 14(4):12–24, 1990. doi:10.2307/3680788
+  (record only)
+- [VM00] T. S. Verma, T. H. Y. Meng, "Extending spectral modeling synthesis with transient modeling synthesis",
+  Computer Music Journal 24(2):47–59, 2000. doi:10.1162/014892600559317 (record only)
 
 ## 9. Higher-order and cross-scale relations
 
