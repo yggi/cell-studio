@@ -18,7 +18,7 @@
  * not taken back) that a note sent since sounds across is followed by that note struck again: retriggered, not cut. A
  * bend put back after one sent ahead is said again by a note sent since that sounds across it.
  */
-import { BEND_CENTRE, bendMessage, midiNote, Rotation, routesOf, type Route, type Routes } from '../engine/midi';
+import { BEND_CENTRE, bendMessage, legatoNotes, midiNote, Rotation, routesOf, type Route, type Routes } from '../engine/midi';
 import type { Played } from '../engine/realize';
 import type { MidiPort } from './access';
 import { deviceNote, type DrumMap } from './drum-presets';
@@ -60,6 +60,8 @@ export class MidiOut {
   #sounding = new Map<number, { end: number; bend: number; moving: boolean }[]>();
   /** Bends sent ahead of the horizon only (`advance`), so a stop leaves none behind it. */
   #pending: { channel: number; value: number; at: number }[] = [];
+  /** A glide's run's later notes (`legatoNotes`), struck as the horizon reaches each (`advance`): a stop leaves none behind. */
+  #later: { e: Played; route: NonNullable<Route> }[] = [];
   /** The channel nibbles sent on since the last stop. */
   #used = new Set<number>();
   /** Per channel nibble, the latest moment a bend was sent for. */
@@ -131,6 +133,7 @@ export class MidiOut {
   #reset(): void {
     this.#open.clear();
     this.#pending = [];
+    this.#later = [];
     this.#sounding.clear();
     this.#rotation?.forget();
     this.#used.clear();
@@ -143,8 +146,13 @@ export class MidiOut {
   /** Send one note: its bend if the channel needs another, its note-on, its bends while it sounds. Its release is decided by `advance`. */
   play(e: Played, toDeviceMs: ToDeviceMs): void {
     if (!this.#port) return;
-    // (on a piece's MIDI cards a note can go out on several channels: each is a note of its own)
-    for (const route of routesOf(this.#route(e))) this.#play(e, route, toDeviceMs);
+    // (on a piece's MIDI cards a note can go out on several channels: each is a note of its own; a glide's run, its
+    // notes each into the next, the first now and the others as the horizon reaches them)
+    const [first, ...rest] = legatoNotes(e);
+    for (const route of routesOf(this.#route(e))) {
+      this.#play(first!, route, toDeviceMs);
+      for (const n of rest) this.#later.push({ e: n, route });
+    }
   }
 
   #play(e: Played, route: NonNullable<Route>, toDeviceMs: ToDeviceMs): void {
@@ -183,6 +191,11 @@ export class MidiOut {
    */
   advance(horizon: number, toDeviceMs: ToDeviceMs, now = -Infinity): void {
     if (!this.#port) return;
+    if (this.#later.length) {
+      const due = this.#later.filter((l) => l.e.at <= horizon).sort((a, b) => a.e.at - b.e.at);
+      this.#later = this.#later.filter((l) => l.e.at > horizon);
+      for (const l of due) this.#play(l.e, l.route, toDeviceMs);
+    }
     if (this.#offs.length) this.#offs = this.#offs.filter((o) => o.at >= now);
     if (this.#pending.length) {
       const due = this.#pending.filter((b) => b.at <= horizon).sort((a, b) => a.at - b.at);
