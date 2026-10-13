@@ -165,6 +165,8 @@
     flex: 1;
     min-height: 0;
     display: flex;
+    /* the hidden mirror below is as tall as the whole text: it must not stretch the page (dead space under it) */
+    overflow: clip;
     background: var(--code-bg);
     --lh: 1.55;
     font: var(--size) / var(--lh) var(--font-code);
