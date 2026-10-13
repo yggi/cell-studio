@@ -1,11 +1,11 @@
 # The disassembler's literature: what to reuse, which swamps to avoid
 
-Date: 2026-10-13 · Status: open (topic 1 of 9 done; one topic a session) · Issues: #365, the epic #364, the frame
+Date: 2026-10-13 · Status: open (topics 1–2 of 9 done; one topic a session) · Issues: #365, the epic #364, the frame
 [disassembler.md](disassembler.md)
 
 One section a topic. Each answers five questions: the state of the art, what we take, what we leave, the nearest
 swamp, and our numbers against theirs. Every reference below was opened and read at least to its abstract and results;
-where a number comes from the full text, the section says so. The leads for topics 2–9 are in the issue, not repeated
+where a number comes from the full text, the section says so. The leads for topics 3–9 are in the issue, not repeated
 here.
 
 ## 1. Compression as analysis
@@ -169,8 +169,7 @@ here.
   - It goes into `higher.ts`.
 - The bench: a compression factor column comparable with COSIATEC's, and the spell-check as a corpus tool (later, with
   the corpus' own issue).
-- Topic 2 (the JKU-PDD and its metrics) next session: it decides whether the bench can report three-layer F1 next to
-  `bare`.
+- Topic 2 (the JKU-PDD and its metrics): below.
 
 **References** (each opened; DOIs checked against Crossref).
 - [Bjö22] O. Björklund, "SIATEC-C: computationally efficient repeated pattern discovery in polyphonic music",
@@ -213,7 +212,143 @@ here.
 
 ## 2. Pattern discovery benchmarks
 
-Not yet (next session).
+**State of the art.**
+- **The task.** MIREX's *Discovery of Repeated Themes & Sections* ran from 2013 to 2017, captained by Collins and
+  later by Janssen, Ren, Collins and Volk [MX13; MX17].
+  - An algorithm reads one piece and returns patterns. A pattern is a set of (onset, pitch) points heard at least twice,
+    each with its occurrences, exact or not.
+  - There are four versions: symbolic or audio, crossed with polyphonic or monophonic. In the monophonic version a
+    fugue's voices are laid end to end.
+- **The data.**
+  - The **JKU Patterns Development Database** (JKU-PDD, August 2013) [JKU] is public: 5 pieces, about 40 MB without
+    audio.
+    - Bach's fugue BWV 889 (WTC II/20), Beethoven op. 2/1 iii, Chopin op. 24/4, Gibbons' *The Silver Swan* and Mozart
+      K. 282 ii.
+    - Each comes as kern, csv (onset in crotchets, MIDI pitch, morphetic pitch, duration, staff), MIDI and a PDF of
+      the score.
+    - By my count (the readme's annotation folders): **27 polyphonic patterns**.
+    - BWV 889 has 3 patterns, after Bruhn's analysis (subject and countersubjects): 21 occurrences over 733 notes.
+  - The ground truth comes from Barlow & Morgenstern's dictionary of themes, Schoenberg, Bruhn, the repeat signs, and
+    the captain's own annotations.
+  - The **test database** (JKUPTD) is another 5 pieces. The results pages don't publish it.
+  - **MTC-ANN** is monophonic: 360 Dutch folk songs, 1,657 annotated occurrences of motifs in 26 tune families
+    [Ren20], under **CC BY-NC-SA 3.0** [MTC].
+  - **BPS-Motif** [HHC+23] covers the first movements of Beethoven's 32 sonatas: 263 motifs, 4,944 occurrences, 28.9 %
+    of 126,943 notes. Its repository states no licence.
+- **The metrics** [MX13; mir_eval]:
+  - Similarity between two occurrences is |P ∩ Q| / max(|P|, |Q|) (cardinality).
+  - **Establishment** P/R/F: was each pattern found once, scored by its best match?
+  - **Occurrence** P/R/F at c = .75 and .5: of the patterns found, were all their occurrences found?
+  - **Three-layer** P/R/F (Meredith): F1 nested over notes, occurrences and patterns.
+  - Also: first-five precision and target proportion, runtime, and the strict standard P/R/F, which needs exact
+    patterns up to translation.
+  - 2017 added *coverage* and *lossless compression* [MX17].
+- **The results** (symbolic polyphonic, on the test database; means over 5 pieces, from MIREX's own csv files):
+
+  | year | algorithm | F_est | F_occ(.75) | three-layer F | standard F |
+  |---|---|---|---|---|---|
+  | 2014 | SIATECSegment (DM10, Meredith) | 0.55 | 0.64 | 0.46 | 0.00 |
+  | 2014 | motives_poly (NF2, Nieto & Farbood) | 0.40 | 0.52 | 0.29 | 0.00 |
+  | 2016 | SIATECCompress-TLR (DM3, Meredith) | 0.54 | 0.61 | 0.46 | 0.00 |
+
+  - Every algorithm scores standard F about 0: none finds a pattern exactly.
+  - In 2013 the captain's conclusion: repeated sections are "addressed well"; themes and motifs "require more
+    attention" [MX13 results].
+  - **In 2017, compression and retrieval disagreed.** The compression measures were "not highly correlated" with
+    retrieval. Overlapping patterns (a motif inside a theme, as annotators write them) compress worse [MX17].
+- **On JKU-PDD itself, the numbers depend on who ran the code** [HHC+23 Table 2b]. Their Python SIA family:
+
+  | algorithm | three-layer F |
+  |---|---|
+  | SIATEC | 0.12 |
+  | COSIATEC | 0.10 |
+  | SIATECCompress | 0.15 |
+  | their own motif finder | 0.16 (F_est 0.34) |
+
+  Meredith's own runs of the same family reach about 0.49 (topic 1, [Mer16], "Segment" mode).
+- **What the algorithms agree on** [Ren20]:
+  - They diverge from the annotators and from each other.
+  - Rhythmic features explain most of the gap: many algorithms ignore meter.
+  - Ren et al. recommend inspecting and choosing algorithms per application over a single ranking, and synthetic
+    pieces with planted patterns.
+
+**What we take.**
+1. **JKU-PDD as the bench's pattern ground truth, fetched rather than committed.**
+   - No licence is stated, and the kern comes from KernScores. So a script downloads the zip into a gitignored cache.
+     Unlike `midi/`, which is committed, these files stay out of the repo.
+   - A loader reads its csv: onset, MIDI pitch, duration, staff, a staff a track.
+   - The readme discourages its MIDI files: they are shifted and end with an extra quiet note.
+   - BWV 889 comes with it; it is a fugue that isn't in `midi/wtc` yet.
+2. **The fold's patterns, in MIREX's format.**
+   - A cell spliced twice or more is a pattern, and each place it plays is an occurrence: `engine/time/structure.ts`
+     already gives each node's cell, output and time.
+   - A copy (`base=`) is an inexact occurrence of its base, as JKU's are.
+   - Occurrences are written as (onset in crotchets, MIDI pitch): MIREX's output format.
+3. **The metrics, ported from mir_eval** (`mir_eval.pattern`, **MIT**) to TypeScript in `tools/disasm/`.
+   - Port: establishment, occurrence (.75) and three-layer P/R/F.
+   - The JKU zip has a test fixture for free: seven made-up outputs for the Mozart piece and the MATLAB scores in
+     `matlab/results/results.txt`. Algorithm 1 is the ground truth itself, which must score 1.
+4. **The scoring rule for the bench:** three-layer F and establishment F as the headline, occurrence F (.75) beside
+   them, per piece, with the means over the 5. Those are the columns MIREX and [HHC+23] report.
+
+**What we leave, and why.**
+- **The audio versions:** synthesised from the same kern files. The audio layer is its own epic.
+- **The monophonic versions:** they lay voices end to end, which is our voices step done by hand.
+- **MTC-ANN, for now.** It is non-commercial share-alike and its tunes are monophonic, so it tests the folder's motifs
+  but not voices. It is a later corpus, if folk tunes become a set.
+- **BPS-Motif, for now.** Its repository has no licence, it is only first movements, and its motifs are short. It is
+  the next pattern corpus if its licence is clarified, and the largest there is.
+- **First-five measures and runtime.** We don't rank our patterns, and time is already a column.
+
+**The nearest swamp.**
+- **Tuning to five pieces.**
+  - The development and test databases are 5 pieces each.
+  - Implementation, "mode" (raw, segment or bounding box) and post-processing move the same algorithm family from
+    0.10 to 0.49 on them.
+  - A bench number is a reading, not a target. The gates stay fidelity and size; pattern F is reported and never
+    tuned on.
+- **Compression against annotations.**
+  - [LM16] (topic 1) found shorter descriptions closer to the analysts; MIREX 2017 found compression and retrieval
+    poorly correlated.
+  - Both are true: annotators nest patterns (a motif inside a theme), and a cover that partitions the notes can't
+    report both levels.
+  - Our splice tree does nest. So report every level of the tree as patterns, not only the cover's top.
+
+**The key question: can the bench run on it, and how do we score?** **Yes, with a loader and a writer.**
+- The loader reads JKU's csv into notes.
+- The writer turns the fold's splice tree into MIREX patterns.
+- The score is a port of mir_eval's three metrics, checked against JKU's own `results.txt`.
+- Nothing in the language or the folder changes.
+
+**Our numbers against theirs.** None yet: the bench can't read JKU-PDD until the loader exists. Two partial
+readings:
+- The ratchet's *phrases back* (`fold/ratchet.slow.test.ts`: 62 of 191 over the examples) is an establishment recall
+  at similarity 1, on our own examples rather than on annotations.
+- The bench has no fugue in common with JKU-PDD: BWV 889 is not in `midi/wtc`.
+
+**Next.**
+- #383: *the bench reads JKU-PDD and scores the fold's patterns* (the loader, the writer, the metrics port with
+  its fixture).
+- Topic 3 (voice separation) next session.
+
+**References.**
+- [HHC+23] Y.-W. Hsiao, T.-Y. Hung, T.-P. Chen, L. Su, "BPS-Motif: a dataset for repeated pattern discovery of
+  polyphonic symbolic music", ISMIR 2023, 281–288 (CC BY 4.0). https://archives.ismir.net/ismir2023/paper/000032.pdf
+  Data: github.com/Wiilly07/Beethoven_motif (no licence stated). Code: github.com/Tsung-Ping/motif_discovery.
+- [JKU] T. Collins, JKU Patterns Development Database, August 2013.
+  http://tomcollinsresearch.net/research/data/mirex/JKUPDD-noAudio-Aug2013.zip (downloaded and read: the readme,
+  the ground truth folders, the MATLAB example results; no licence stated).
+- [mir_eval] `mir_eval.pattern`, MIT. https://mir-eval.readthedocs.io/stable/api/pattern.html,
+  github.com/mir-evaluation/mir_eval
+- [MTC] The Meertens Tune Collections, CC BY-NC-SA 3.0. https://www.liederenbank.nl/mtc/
+- [MX13] T. Collins, "2013: Discovery of Repeated Themes & Sections", MIREX wiki (task, data, metrics).
+  https://music-ir.org/mirex/wiki/2013:Discovery_of_Repeated_Themes_%26_Sections. Results:
+  https://music-ir.org/mirex/wiki/2013:Discovery_of_Repeated_Themes_%26_Sections_Results. 2014 and 2016 results:
+  the same pages for those years, and their csv files (`/mirex/results/<year>/drts/symPolyResults<year>.csv`).
+- [MX17] B. Janssen, I. Ren, T. Collins, A. Volk, "2017: Discovery of Repeated Themes & Sections Results", MIREX
+  wiki. https://music-ir.org/mirex/wiki/2017:Discovery_of_Repeated_Themes_%26_Sections_Results
+- [Ren20] I. Y. Ren, A. Volk, W. Swierstra, R. C. Veltkamp, "A computational evaluation of musical pattern discovery
+  algorithms", arXiv:2010.12325.
 
 ## 3. Voice separation
 
