@@ -3,23 +3,36 @@
 Date: 2026-10-13 · Status: done (all 9 topics) · Issues: #365, the epic #364, the frame
 [disassembler.md](disassembler.md)
 
-One section a topic. Each answers five questions: the state of the art, what we take, what we leave, the nearest
-swamp, and our numbers against theirs. Every reference below was opened and read at least to its abstract and results;
-where a number comes from the full text, the section says so. The leads are in the issue, not repeated here.
+## Introduction
 
-**In one screen:**
+**Why this note.** Before the disassembler grows further ([disassembler.md](disassembler.md), #364), #365 asked what
+the literature already has: algorithms, datasets and metrics to reuse, and the dead ends others have spent years in.
 
-| topic | the finding | issues |
-|---|---|---|
-| 1. Compression as analysis | Point sets (SIA) complement voices: both routes score F1 ≈ 0.12 on fugue subjects. Pick the repeat that saves most; read SIA's vectors as a path. | #380, #381 |
-| 2. Pattern benchmarks | The bench can run on JKU-PDD with a loader, a writer and `mir_eval.pattern`. MIREX best: three-layer F 0.46. | #383 |
-| 3. Voice separation | `voiceAgreement` is the field's link P/R: within 2 points on the sinfonias, recall 6 behind on fugues. MCMA as a common ground truth. | #384 |
-| 4. Meter, beat, tempo | Beats from performance MIDI ≈ 80–86 F, downbeats 14–28. A DP tracker on ASAP; our losses are several pulses, so a grid per line. | #387, #388 |
-| 5. Key and harmony | Ours 65 / 69, profile methods 61–65, errors that don't overlap (a vote: 68). When-in-Rome for local keys and chords. | #389 |
-| 6. Structure and form | Score the fold against analysts (Essen phrases, GTTM trees) and report boundary F at 0.5 / 3 s. | #391 |
-| 7. Audio → notes | In the app only Basic Pitch fits (742 KB). NMF with our templates for our renders. ⚖ The training data's NC licence. | #399 |
-| 8. Residual, analysis by synthesis | Frequencies from analysis, never from the fit. Our voices' parameters read off an SMS analysis, then a rendered judge. | #400 |
-| 9. Higher-order relations | Rhythm–scale relations have finders (we have them). Repeated transformations have none published; that is ours to build. | #381, #401 |
+**How it was done.**
+- Nine topics, one a session, each answering five questions: the state of the art, what we take, what we leave, the
+  nearest swamp, and our numbers against theirs.
+- Every reference was opened and read at least to its abstract and results. Where only a record or a secondary
+  account was readable, the reference says so.
+- Where the literature and our code measure the same thing, ours was measured on the same files today: the bench,
+  music21's key finders, probes of the importer. The leads are in the issue, not repeated here.
+
+**What came out, in three lines.**
+1. **Where we could compare, our methods hold up.**
+   - Keys: 65 of 69, against 61–65 for five classic methods.
+   - Voices: link F1 within 2 points of the best published on the sinfonias, by the field's own metric.
+   - The description-length frame itself: shorter descriptions are measurably closer to analysts' readings.
+2. **What the bench lacks is the field's ground truths and metrics, not its algorithms.** Most of what we take is
+   measurement:
+   - JKU-PDD (patterns), MCMA (voices), ASAP (beats), When-in-Rome (keys and chords), Essen and the GTTM database
+     (phrases and grouping);
+   - `mir_eval`'s metrics.
+3. **The literature has solved by learning what we should load, and left open what is ours.**
+   - Transcription and beats from performances are learned models, so we take them as loaders.
+   - A repeated transformation found in a piece has no published finder: a path of transpositions shared by lines,
+     one structure at two scales. That is where the project adds something.
+
+The [summary and outlook](#summary-and-outlook) at the end distils the nine topics, the lessons that cut across them,
+an order of work, and the decisions left for the owner.
 
 ## 1. Compression as analysis
 
@@ -1340,3 +1353,68 @@ the render distance of a fitted voice against the voice that made the render, on
   (abstract read)
 - [Tym11] D. Tymoczko, *A Geometry of Music*, Oxford UP 2011 (record, via its review in Computer Music Journal 36(1),
   doi:10.1162/COMJ_r_00108)
+
+## Summary and outlook
+
+**The nine topics in one table.**
+
+| topic | the finding | issues |
+|---|---|---|
+| 1. Compression as analysis | Point sets (SIA) complement voices: both routes score F1 ≈ 0.12 on fugue subjects. Pick the repeat that saves most; read SIA's vectors as a path. | #380, #381 |
+| 2. Pattern benchmarks | The bench can run on JKU-PDD with a loader, a writer and `mir_eval.pattern`. MIREX best: three-layer F 0.46. | #383 |
+| 3. Voice separation | `voiceAgreement` is the field's link P/R: within 2 points on the sinfonias, recall 6 behind on fugues. MCMA as a common ground truth. | #384 |
+| 4. Meter, beat, tempo | Beats from performance MIDI ≈ 80–86 F, downbeats 14–28. A DP tracker on ASAP; our losses are several pulses, so a grid per line. | #387, #388 |
+| 5. Key and harmony | Ours 65 / 69, profile methods 61–65, errors that don't overlap (a vote: 68). When-in-Rome for local keys and chords. | #389 |
+| 6. Structure and form | Score the fold against analysts (Essen phrases, GTTM trees) and report boundary F at 0.5 / 3 s. | #391 |
+| 7. Audio → notes | In the app only Basic Pitch fits (742 KB). NMF with our templates for our renders. ⚖ The training data's NC licence. | #399 |
+| 8. Residual, analysis by synthesis | Frequencies from analysis, never from the fit. Our voices' parameters read off an SMS analysis, then a rendered judge. | #400 |
+| 9. Higher-order relations | Rhythm–scale relations have finders (we have them). Repeated transformations have none published; that is ours to build. | #381, #401 |
+
+**What cuts across the topics.**
+- **Description length is a good preference and a poor target.**
+  - Shorter descriptions sit closer to analysts (topic 1, Louboutin & Meredith).
+  - But compression and annotation part ways where analysts nest patterns (topic 2, MIREX 2017), and a learned reduction is graded half to a full letter below a textbook (topic 6).
+  - So keep fidelity as the gate and size as the judge, and report every level of the splice tree against
+    analysts, as readings.
+- **Ground truth is plural, and numbers depend on who ran the code.**
+  - Analysts agree at 89 % on audio sections and on 267 of 300 GTTM trees.
+  - Choosing the best level per piece adds about 10 points.
+  - One algorithm family scores 0.10 to 0.49 on the same five pieces, depending on its implementation.
+  - Every benchmark here is a reading to report, never a constant to tune on (topics 2, 3, 5, 6).
+- **Give what analysis can give; fit only the rest.**
+  - DDSP takes f0 from a pitch tracker because frequency can't be fitted by gradient (topic 8).
+  - Beats come from a tracker before notes are quantised (topic 4).
+  - A key is chosen by two signals whose errors don't overlap (topic 5).
+  - In each case the hard, non-convex part comes from analysis, and the search is small.
+- **Several of everything.** Our importer's losses are several pulses at once (topic 4), our voices several lines
+  (topic 3), our patterns several levels (topics 2, 6). The literature mostly assumes one beat, one segmentation,
+  one voice per stream. Our IR (lines on their own clocks, a splice tree) already holds the plural; the finders should
+  too.
+- **Licences shape the bench.** Much of the ground truth is non-commercial or unclear: ASAP, MAESTRO, MTC-ANN,
+  Essen; JKU-PDD and the GTTM data state none. Fetch them, don't commit them. Nothing trained on non-commercial data
+  ships in the app without the owner's decision.
+
+**Outlook: an order of work.** Each step makes the next measurable.
+1. **Measure first.** Cheap, and it turns later changes into numbers:
+   - #383 and #391 share one writer, the splice tree as patterns and boundaries, scored against JKU-PDD, Essen and
+     the GTTM trees;
+   - #384 puts MCMA's voices and link F1 on the bench;
+   - #389's When-in-Rome preludes give local keys and chords.
+2. **Then the folder, judged by those numbers:**
+   - #389's key tie-break (small, already measured);
+   - #380's choice of repeat;
+   - #381's path shared by lines, then #401's named transformations and the bell found in the code.
+3. **Time, for the importer:**
+   - #388's grid per line first: it recovers the examples that lose notes today;
+   - then #387's beat tracker on ASAP, which is #347's tempo map.
+4. **Audio, as a loop:**
+   - #399's NMF on our own renders (exact ground truth);
+   - #400's fitted voices and resonators;
+   - then recordings through Basic Pitch, whose performed timing goes through #387.
+
+**Decisions for the owner.**
+- ⚖ **Models trained on MAESTRO** (CC BY-NC-SA) in the app: Basic Pitch, Kong et al., MT3 (#399).
+- **Inversion and retrograde in the language.** Richer transformation classes didn't improve compression on folk
+  songs (topic 1, Meredith 2022). Ask the canons once #381 and #401 can find them, not before.
+
+**Still open from #365.** A typeset canon per tonos is not on Mutopia, and neither it nor the Musical Offering's other canons is among MCMA's listed collections. The Art of Fugue with voices is in MCMA (#384).
