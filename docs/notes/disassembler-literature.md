@@ -1,0 +1,244 @@
+# The disassembler's literature: what to reuse, which swamps to avoid
+
+Date: 2026-10-13 · Status: open (topic 1 of 9 done; one topic a session) · Issues: #365, the epic #364, the frame
+[disassembler.md](disassembler.md)
+
+One section a topic. Each answers five questions: the state of the art, what we take, what we leave, the nearest
+swamp, and our numbers against theirs. Every reference below was opened and read at least to its abstract and results;
+where a number comes from the full text, the section says so. The leads for topics 2–9 are in the issue, not repeated
+here.
+
+## 1. Compression as analysis
+
+**State of the art.**
+- **Grammar induction.**
+  - Sequitur [NW97] builds a grammar online in linear time, by two constraints: no pair twice, every rule used at
+    least twice. Re-Pair [LM00] is offline: the most frequent pair becomes a rule, again and again, in linear time and
+    space. That is our `fold/pairs.ts`.
+  - The smallest grammar is NP-hard, and hard to approximate within a constant factor [CLL+05]. The best
+    polynomial ratio proved is O(log(n/g*)). For Re-Pair the lower bound is now Ω(log n / log log n) [BHH+19]: no
+    guarantee, but good in practice.
+  - **On music**, Sidorov, Jones & Marshall [SJM14] take each voice of a fugue as a string of diatonic intervals
+    (transposition-free, rhythm ignored). They search for the smallest grammar by iterative repeat replacement:
+    - each step takes the "locally most compressive" repeat, F = L·N − (L + 1 + N), over maximal repeats (found by
+      suffix array);
+    - it backtracks over the w best candidates to a depth of 2–3 ("more … usually does not yield any further
+      reduction").
+  - Their results:
+    - The rules match a musicologist's analysis of WTC I/10 (|G| = 217).
+    - Their grammar is smaller than Sequitur's on two chorales: 50 against 59.
+    - As a spell-checker: undoing one wrong note shrinks the grammar. The error ranks among the top 1.55 % (I/10)
+      to 16.71 % (a Berlioz string part) of all notes.
+- **MDL.** Rissanen [Ris78]: the best model is the shortest description. Grünwald [Grü04; Grü07] separates *crude*
+  two-part MDL (minimise L(H) + L(D|H), with L(H) chosen by hand) from *refined* MDL. Its §1.4 names the weak spot of
+  crude MDL: the hypothesis' code L(H) is arbitrary.
+- **Point sets** (SIA and its family; Meredith's survey [Mer16] has the full text and every number below):
+  - A piece is a set of points (onset, pitch), with every voice in it.
+  - **SIA** [MLW02] finds every maximal translatable pattern (MTP), the points that a vector (Δt, Δp) maps onto other
+    points. It takes Θ(kn² log n) time and Θ(kn²) space.
+  - **SIATEC** adds each pattern's translational equivalence class (TEC): the pattern and every vector it occurs at.
+    It takes O(kn³) time.
+  - **COSIATEC** covers the piece greedily. At each step it takes the TEC with the best compression factor (points
+    covered ÷ (pattern points + translators)), breaking ties by compactness.
+  - Morphetic (diatonic) pitch works better than chromatic for tonal music.
+  - On BWV 846's fugue (728 notes), COSIATEC reaches a compression factor of **2.90** (3.12 without its residual of
+    26 notes). The subject's entries (less their first note) are one TEC.
+  - **Folk-song tune families** (the Annotated Corpus, 360 melodies, 1-nearest neighbour on a compression distance):
+    COSIATEC classifies **84 %**, against BZIP2's 12.5 %. BZIP2 compresses best (2.77 against 1.58) and still classifies
+    worst.
+  - **JKU-PDD themes and sections:** a mean three-layer F1 of about 0.49, rising to 0.71 for one piece. The journal
+    version [Mer15] (best SIATECCompress variants): themes 45 % precision / 60 % recall; fugue subject and
+    countersubject entries 21 % / 55 %.
+  - **General-purpose compressors on fugues** [LM16]:
+    - With no voice information, COSIATEC finds subject and countersubject entries at a mean F1 of **0.123**,
+      against LZ77's 0.053.
+    - Fed a voice at a time, LZ77 reaches **0.124**.
+    - Across all algorithms, compression and F1 are significantly correlated.
+  - **Later work:**
+    - RecurSIA-RRT [Mer19] runs the cover recursively within each pattern: more compression, less precision.
+    - SIATEC-C [Bjö22] is subquadratic in space and no less accurate on JKU-PDD. Plugged into COSIATEC, it didn't
+      improve COSIATEC.
+    - Maximal transformable patterns [Mer22] find patterns related by inversion, retrograde, augmentation and
+      diminution in polynomial time. These classes improved folk-song classification but **not, on average,
+      compression**.
+- **IDyOM** (Pearce [Pea05], from Conklin & Witten's multiple viewpoints [CW95]) is a prediction model:
+  - variable-order Markov models over several viewpoints (pitch, interval, scale degree, …), combined, long-term
+    (the corpus) and short-term (the piece);
+  - on 185 Bach chorale melodies (10-fold), pitch at **1.953 bits a note** with the viewpoints it selects, against
+    2.342 for chromatic pitch alone (thesis §7.5);
+  - since then, one model for expectation, segmentation, memory, similarity and meter [Pea18].
+
+**What we take.**
+1. **Sidorov's choice of repeat, as a variant of `fold/pairs.ts`.**
+   - Our Re-Pair takes the *most frequent pair*. [SJM14] instead takes the repeat of any length that saves the most,
+     F = L·N − (L + 1 + N), with a shallow backtrack, and beats the greedy grammar (50 against 59 on the chorales).
+   - The bench decides whether it pays in our characters: a tool in `fold/index.ts`'s list, judged on `bare`. Only the
+     algorithm is taken; the paper is CC BY 4.0.
+   - Our `variants.ts` seeds (phrases grown from five steps) are already halfway there.
+2. **The point-set view, for the higher-order tool.**
+   - A TEC is a pattern and its vectors (Δt, Δp). With morphetic pitch, a canon per tonos is one TEC: the whole
+     canon at vectors (a pass, +1 scale step), (two passes, +2), …
+   - That is the *path shared by lines* that [disassembler.md](disassembler.md) names as the next tool, found
+     without separating voices.
+   - Take SIATEC's vector table (SIA's sorted inter-point vectors) as how `tools/disasm/higher.ts` looks for a path
+     across lines. Port it: about 50 lines from [Mer16]'s pseudocode.
+   - For reference runs, offline and outside the repo:
+     - OMNISIA (Java, **GPL-3.0**, github.com/chromamorph/omnisia-recursia-rrt-mml-2019: SIA, SIATEC, COSIATEC,
+       SIATECCompress, Forth, RecurSIA);
+     - ostinato (Python SIATEC, **MIT**, github.com/pauldhein/ostinato).
+     - The repo states no licence of its own, so no GPL code goes in.
+3. **A comparable size column on the bench.**
+   - Meredith's compression factor is notes ÷ (pattern points + translators).
+   - Ours, as near as the cells allow: notes ÷ (notes written in cells + splices). Then `bare` stays the judge and the
+     factor is the bridge to the literature (*Our numbers*, below).
+4. **Sidorov's spell-check, as a corpus tool.**
+   - Our Mutopia MIDI and the voices written are typeset by hand. A note whose correction shortens the fold a lot is
+     a suspect. The same move as their Table 2, on `bare`.
+5. **The name for what we do.**
+   - `bare` plus `STRUCTURE` (15 %) and `SAID` (2 a step) is crude two-part MDL: the two constants are our hand-chosen
+     L(H).
+   - That is [Grü04] §1.4's objection, and the bench is our answer: the constants are tuned on phrases back, not
+     argued.
+   - [LM16]'s correlation (shorter is closer to the analyst) is the evidence that the frame holds.
+
+**What we leave, and why.**
+- **The smallest grammar as a target.** It is NP-hard, and [SJM14] saw no gain past a backtrack of 2–3. Take the
+  better heuristic, not optimality.
+- **Sequitur.** Online and greedier than Re-Pair, and worse on music ([SJM14]: 59 against 50). We have the whole piece.
+- **COSIATEC as the folder.**
+  - A cell is a line on a clock. A TEC is a set of points that can span voices and leave gaps, so it can't be printed
+    as one cell unless the language grows a polyphonic, gapped cell (decision-sized: stop and recommend).
+  - It also drops durations, and our fidelity gate (`sameNotes`) needs them.
+  - So it is a reference and a finder, not the folder.
+- **General-purpose compressors and normalised compression distance.** BZIP2 compresses best and classifies worst
+  (12.5 %). Compression without the music's moves isn't analysis.
+- **IDyOM, for now.**
+  - It is GPL-3.0 Common Lisp, trained on a corpus, and it predicts. Its bits a note are a listener's surprise, not a
+    piece's description.
+  - It is a lead for the *heard* metric (topic 6): its information content predicts where listeners segment
+    [Pea18]. That is where `tools/disasm/heard.ts` falls short on counterpoint.
+
+**The nearest swamp.**
+- **Too many patterns.**
+  - SIA finds O(n²) patterns, and almost all of them are musically meaningless [Bjö22, §1].
+  - A decade went into choosing among them: compactness trawlers, SIAR, categorisation, CFP [Mer16; Bjö22]. Each one
+    trades precision against recall on five JKU-PDD pieces.
+  - We have a selection principle they lack: the fold must play the notes and be shorter. Don't import the trawler
+    zoo; use the point set to *find* candidates and let `bare` choose.
+- **Richer transformations.** Inversion, retrograde and augmentation as pattern classes [Mer22] cost an algorithm
+  each and didn't improve compression on folk songs. Evidence for the language question in
+  [disassembler.md](disassembler.md): ask the canons, not the general case.
+
+**The key question: is SIA an alternative to the voices step or a complement?** **A complement.**
+- [LM16] measured both routes on Bach's fugues:
+  - SIA without voices: F1 0.123;
+  - a string compressor a voice at a time: 0.124.
+  - The two are equal, and both are low.
+- The voice route is the one the cells can print (a line a voice), and ours is better than the typesetters' split by
+  hand (`voices.ts`: 96 % / 93 %).
+- SIA adds what the voice route can't see:
+  - a pattern handed between voices;
+  - a pattern in two voices at once (a subject in thirds);
+  - the shared path of a canon per tonos, found as one vector set.
+- Run it after the voices, over all the notes, as the higher-order finder. Its patterns that cross voices are also
+  evidence against the voice split (a check on `voices.ts`, not a replacement).
+
+**Our numbers against theirs.**
+- **WTC I/1 fugue (BWV 846), 728 notes.** It is the same note count as [Mer16]'s, so it is the same piece and the
+  same notes. (`BENCH=… SET=wtc ONLY=wtc1-01-fugue,wtc1-10-fugue npx vitest run tools/disasm/bench.test.ts`, today.)
+
+  | | ratio | unit |
+  |---|---|---|
+  | ours, a line a hand | 3,722 → 2,994 = **1.24** | characters (`bare`) |
+  | ours, a line a voice (the typesetter's) | 3,722 → 2,620 = **1.42** | characters |
+  | COSIATEC [Mer16] | **2.90** | points ÷ (pattern points + translators), durations dropped |
+
+  This is not the same measure. A point or a vector costs COSIATEC 1, whatever its size. We count every character,
+  durations and syntax included. The comparable column (*What we take*, 3) closes the gap.
+- **WTC I/10 fugue, 811 notes, 2 voices:**
+  - [SJM14]: |G| = 217 symbols, for intervals without rhythm.
+  - Ours: 2,651 → 1,416 characters (1.87), with rhythm.
+  - Not comparable either. A count of our tokens with durations stripped would be.
+- **IDyOM's bits a note.** No counterpart: we describe a piece, it predicts from a corpus.
+
+**Next.**
+- An issue: *the fold's choice of repeat* (Sidorov's F with a shallow backtrack, as a variant of `pairs.ts`, judged on
+  the bench).
+- An issue: *the higher-order finder by translation vectors* (SIA's vector table over all notes, morphetic pitch).
+  - Its test is the canon per tonos' plan (`higher.test.ts`).
+  - It goes into `higher.ts`.
+- The bench: a compression factor column comparable with COSIATEC's, and the spell-check as a corpus tool (later, with
+  the corpus' own issue).
+- Topic 2 (the JKU-PDD and its metrics) next session: it decides whether the bench can report three-layer F1 next to
+  `bare`.
+
+**References** (each opened; DOIs checked against Crossref).
+- [Bjö22] O. Björklund, "SIATEC-C: computationally efficient repeated pattern discovery in polyphonic music",
+  ISMIR 2022. https://archives.ismir.net/ismir2022/paper/000006.pdf
+- [BHH+19] H. Bannai, M. Hirayama, D. Hucke, S. Inenaga, A. Jeż, M. Lohrey, C. P. Reh, "The smallest grammar problem
+  revisited", arXiv:1908.06428 (short version SPIRE 2016).
+- [CLL+05] M. Charikar, E. Lehman, D. Liu, R. Panigrahy, M. Prabhakaran, A. Sahai, a. shelat, "The smallest grammar
+  problem", IEEE Trans. Inf. Theory 51(7):2554–2576, 2005. doi:10.1109/TIT.2005.850116. The preprint was read
+  ("Approximating the smallest grammar", 2002).
+- [CW95] D. Conklin, I. H. Witten, "Multiple viewpoint systems for music prediction", JNMR 24(1):51–73, 1995.
+  doi:10.1080/09298219508570672. Its number was read as cited in [Pea05]: 1.87 bits an event.
+- [Grü04] P. Grünwald, "A tutorial introduction to the minimum description length principle", arXiv:math/0406077.
+- [Grü07] P. Grünwald, *The Minimum Description Length Principle*, MIT Press, 2007. doi:10.7551/mitpress/4643.001.0001
+- [LM00] N. J. Larsson, A. Moffat, "Off-line dictionary-based compression", Proc. IEEE 88(11):1722–1732, 2000.
+  doi:10.1109/5.892708
+- [LM16] C. Louboutin, D. Meredith, "Using general-purpose compression algorithms for music analysis", JNMR
+  45(1):1–16, 2016. doi:10.1080/09298215.2015.1133656
+- [Mer15] D. Meredith, "Music analysis and point-set compression", JNMR 44(3):245–270, 2015.
+  doi:10.1080/09298215.2015.1045003. Read as its abstract (on vbn.aau.dk); the full text read is [Mer16]'s.
+- [Mer16] D. Meredith, "Analysing music with point-set compression algorithms", in D. Meredith (ed.),
+  *Computational Music Analysis*, Springer, 2016, 335–366. doi:10.1007/978-3-319-25931-4_13. Full text:
+  https://vbn.aau.dk/ws/files/221242362/MeredithCMA2016.pdf
+- [Mer19] D. Meredith, "RecurSIA-RRT: recursive translatable point-set pattern discovery with removal of redundant
+  translators", arXiv:1906.12286 (MML 2019).
+- [Mer22] D. Meredith, "Understanding and compressing music with maximal transformable patterns", arXiv:2201.11085.
+- [MLW02] D. Meredith, K. Lemström, G. A. Wiggins, "Algorithms for discovering repeated patterns in multidimensional
+  representations of polyphonic music", JNMR 31(4):321–345, 2002. doi:10.1076/jnmr.31.4.321.14162. No open full
+  text; its algorithms were read in [Mer16].
+- [NW97] C. G. Nevill-Manning, I. H. Witten, "Identifying hierarchical structure in sequences: a linear-time
+  algorithm", JAIR 7:67–82, 1997. doi:10.1613/jair.374, arXiv:cs/9709102
+- [Pea05] M. T. Pearce, *The construction and evaluation of statistical models of melodic structure in music
+  perception and composition*, PhD thesis, City University London, 2005. https://openaccess.city.ac.uk/id/eprint/8459/
+  Code: IDyOM, github.com/mtpearce/idyom, GPL-3.0.
+- [Pea18] M. T. Pearce, "Statistical learning and probabilistic prediction in music cognition", Ann. N.Y. Acad. Sci.
+  1423:378–395, 2018. doi:10.1111/nyas.13654
+- [Ris78] J. Rissanen, "Modeling by shortest data description", Automatica 14(5):465–471, 1978.
+  doi:10.1016/0005-1098(78)90005-5
+- [SJM14] K. Sidorov, A. Jones, D. Marshall, "Music analysis as a smallest grammar problem", ISMIR 2014, 301–306.
+  https://archives.ismir.net/ismir2014/paper/000226.pdf
+
+## 2. Pattern discovery benchmarks
+
+Not yet (next session).
+
+## 3. Voice separation
+
+Not yet.
+
+## 4. Meter, beat and tempo
+
+Not yet.
+
+## 5. Key and harmony
+
+Not yet.
+
+## 6. Structure and form
+
+Not yet.
+
+## 7. Audio → notes
+
+Not yet.
+
+## 8. Residual and analysis by synthesis
+
+Not yet.
+
+## 9. Higher-order and cross-scale relations
+
+Not yet.
