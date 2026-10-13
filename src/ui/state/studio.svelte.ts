@@ -69,7 +69,7 @@ export class Studio {
 
   constructor() {
     // `window.cellStudio`, for measuring from outside (docs/testing.md): the open piece as written
-    installDebugHook(() => this.piece.result, this.playback.player);
+    installDebugHook(() => this.piece.result, this.playback.player, this.recorder);
     // MIDI out: the notes the player plays go to the output chosen too
     this.midi.attach(this.playback.player, this.piece);
   }

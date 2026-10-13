@@ -155,7 +155,7 @@ its details in the library, in its copyright field (the text's `copyright "…"`
 it), and as comments at the top of the cells it converts to; a CC BY-SA file's say that what is made from it shares
 that licence.
 Every one also carries the tag `MIDI file` (`engine/tags.ts` `MIDI_FILE`). The folder over them: the probe
-`tools/probe/midi.test.ts`, the ratchet `src/engine/fold/midi.test.ts` ([notes/fold.md](../notes/fold.md)).
+`tools/probe/midi.test.ts`, the ratchet `src/engine/fold/midiRatchet.ts` ([notes/fold.md](../notes/fold.md)).
 
 ## The code
 
