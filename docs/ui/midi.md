@@ -142,20 +142,29 @@ as MIDI** in the Files page.
     section's key (`&upB over=&key2`), the line splicing its parts in order (`&up step=&tempo &upA &upB@2 &upC`). It
     is taken where at most 15 % longer than the shortest fold without (it reads as the piece's form); the status line
     names the sections' keys.
+  - *In voices* (#366): where a track holds several voices (a fugue's hands), the notes are given to voices
+    (`fold/voices.ts`: as many as sound at once, each note to the free voice it moves least) and folded a line a voice
+    (`&soprano`, `&alto` …), taken where shorter than a line a track: a subject stays in one line, whichever hand
+    plays it.
   - *At another speed* (#345): a passage of 12 steps or more whose notes all share a length (eighths among sixteenths)
     is a cell at its own speed, spliced slower: `&m3^$-7@2`; the same passage at two speeds is one cell.
 
 ## The MIDI library
 
 MIDI files that come with the app, in collections: each a cell of its own in the library, stacked to the left of the
-wheel (the tutorial is to its right), and a section of the cards. For now three of Bach's, as the
-[Mutopia Project](https://www.mutopiaproject.org/) has them, each file as published with its typesetter and its
-licence (public domain or CC BY-SA) in its collection's README:
+wheel (the tutorial is to its right), and a section of the cards. For now four of Bach's, as the
+[Mutopia Project](https://www.mutopiaproject.org/) has them, each file as published (or, where it has repeats, built from
+its LilyPond source with the repeats played: `tools/mutopia.py`) with its typesetter and its licence (public domain or
+CC BY-SA) in its collection's README:
 
 - **Well-Tempered Clavier** ([midi/wtc/](../../midi/wtc/README.md)): 37 of the 96 preludes and fugues;
 - **Inventions and Sinfonias** ([midi/inventions/](../../midi/inventions/README.md)): all 30;
 - **Anna Magdalena Notebook** ([midi/anna/](../../midi/anna/README.md)): its 19 keyboard pieces, the minuets and
-  polonaises among them.
+  polonaises among them, their repeats played;
+- **Musical Offering** ([midi/offering/](../../midi/offering/README.md)): the Ricercar a 3 and the Ricercar a 6.
+
+Each collection's `voices/` has its files again with a track a voice, the ground truth of the disassembler's bench
+([notes/disassembler.md](../notes/disassembler.md)); the app doesn't ship them.
 
 `src/corpus.ts` lists them (`MIDI_SETS`, each `midi/<set>/index.json`); a collection's name is a tag of its files and
 the entry's `collection`, which puts it in its cell (`layout/library.ts` `sideOf`). A file is fetched when it opens, and
