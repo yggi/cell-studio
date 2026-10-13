@@ -241,10 +241,12 @@ export function socketHeights(program: CompileResult, model: GraphModel, drawn: 
 }
 
 /** The tower layout's strata, from the bottom (docs/notes/tower-strip.md: the forces): strict, a node can't leave its own. */
-export type TowerLayer = 'constant' | 'stepped' | 'gate' | 'voice' | 'mixer' | 'audible';
+export type TowerLayer = 'constant' | 'source' | 'selector' | 'stepped' | 'gate' | 'voice' | 'mixer' | 'audible';
 
 /** Decades between layers: the voice layer's room above the structure, the tables' below it. */
 const LAYER_GAP = 0.6;
+/** Decades between the voices and the mixers over them: room for a voice's cap, a gain and a mixer's name. */
+const MIX_GAP = 1;
 
 /**
  * Where each node is drawn to, in strata (the owner's: the constant structure, tables nothing steps, at the bottom; the
@@ -252,7 +254,7 @@ const LAYER_GAP = 0.6;
  * voices; the voices, between the structure and the audible: voices, kits, tapes, resonators, one row; the mixers
  * over them, each between what it mixes (`between`); the audible, only the sockets into the card, each at its sound's frequency). Each stratum is a band of heights, its
  * edges halfway between the rows (`strata`, the graph's y, top to bottom): no force takes a node out of its own.
- * `held`: drawn exactly to their rows, not by the spring — the sockets, the kits, the gates.
+ * `held`: drawn exactly to their rows, not by the spring — every stratum but the stepped and the constant.
  */
 export function towerLayers(
   program: CompileResult,
@@ -296,6 +298,19 @@ export function towerLayers(
       else if (d === -Infinity) layers.set(n.id, 'constant');
     }
   }
+  // (a selector, a table of taps, a stratum of its own under what it feeds: what feeds it — the clock it steps on, a
+  // chooser reading it with over= — under it, so nothing stands in its pill)
+  const tables = new Set([...(program.taps?.values() ?? [])].map(cellId));
+  // (a table is a list, constant, or stepped itself; a chooser's own clock feeds the selector through it, a source too)
+  for (const id of tables) if (layers.get(id) === 'stepped' || layers.get(id) === 'constant') layers.set(id, 'selector');
+  for (let more = true; more;) {
+    more = false;
+    for (const e of model.edges) {
+      const [to, from] = [layers.get(e.to), layers.get(e.from)];
+      const into = (to === 'selector' || to === 'source') && e.port === 'step' ? e.from : from === 'selector' && e.port === 'over' ? e.to : undefined;
+      if (into && layers.get(into) === 'stepped') (layers.set(into, 'source'), (more = true));
+    }
+  }
   const of = (layer: TowerLayer) => [...layers].flatMap(([id, l]) => (l === layer && decades.has(id) ? [decades.get(id)!] : []));
   const stepped = of('stepped');
   const audible = of('audible');
@@ -305,11 +320,17 @@ export function towerLayers(
   const voice = Math.max(top + LAYER_GAP, audible.length ? (top + Math.min(...audible)) / 2 : top + LAYER_GAP);
   const gate = voice - LAYER_GAP / 2;
   // (the mixers a layer's gap over the voices, when there are any)
-  const mixer = voice + LAYER_GAP;
+  const mixer = voice + MIX_GAP;
   const mixes = [...layers.values()].includes('mixer');
   // (every socket in the audible, a layer's gap over the mixers (or the voices) at least: at its sound's frequency, or
   // the audible's floor when that is lower — a groove's lowest drum)
   const floor = (mixes ? mixer : voice) + LAYER_GAP;
+  // (under the stepped structure, the selectors, their sources, then the constant)
+  const selects = [...layers.values()].includes('selector');
+  const fed = [...layers.values()].includes('source');
+  const selector = bottom - LAYER_GAP;
+  const source = selector - LAYER_GAP;
+  const base = (fed ? source : selects ? selector : bottom) - LAYER_GAP;
   const row = (id: string, l: TowerLayer): number =>
     l === 'voice'
       ? decades.has(id)
@@ -320,25 +341,34 @@ export function towerLayers(
         : l === 'gate'
           ? gate
           : l === 'constant'
-            ? bottom - LAYER_GAP
-            : l === 'audible'
-              ? Math.max(floor, decades.get(id)!)
-              : decades.get(id)!;
+            ? base
+            : l === 'selector'
+              ? selector
+              : l === 'source'
+                ? source
+                : l === 'audible'
+                  ? Math.max(floor, decades.get(id)!)
+                  : decades.get(id)!;
   // (each stratum's band, in decades, its edges halfway between the rows)
   const edges = {
     audible: floor - LAYER_GAP / 2,
-    mixer: voice + LAYER_GAP / 2,
+    mixer: voice + MIX_GAP / 2,
     voice: voice - LAYER_GAP / 4,
     gate: (top + gate) / 2,
     stepped: bottom - LAYER_GAP / 2,
+    selector: selector - LAYER_GAP / 2,
+    source: source - LAYER_GAP / 2,
   };
   const band: Record<TowerLayer, readonly [number, number]> = {
     audible: [Infinity, edges.audible],
-    mixer: [edges.audible, edges.mixer],
-    voice: [mixes ? edges.mixer : edges.audible, edges.voice],
+    // (between the voices and the mixers, a layer of air: neither reaches into it)
+    mixer: [edges.audible, Math.max(edges.mixer, mixer - LAYER_GAP / 2)],
+    voice: [mixes ? Math.min(edges.mixer, voice + LAYER_GAP / 2) : edges.audible, edges.voice],
     gate: [edges.voice, edges.gate],
     stepped: [edges.gate, edges.stepped],
-    constant: [edges.stepped, -Infinity],
+    selector: [edges.stepped, edges.selector],
+    source: [edges.selector, edges.source],
+    constant: [fed ? edges.source : selects ? edges.selector : edges.stepped, -Infinity],
   };
   const targets = new Map<string, number>();
   const strata = new Map<string, readonly [number, number]>();
@@ -348,10 +378,9 @@ export function towerLayers(
     const [hi, lo] = band[l];
     strata.set(id, [towerY(Math.max(hi, l === 'voice' ? row(id, l) : hi)), towerY(lo)]);
   }
-  // (held at their heights, not drawn there: the sockets in the audible, the kits with the voices and what plays
-  // them under them — drawn by the spring, the structure's wires (a bar's steps, a selector's taps) pull them down)
-  const kits = new Set(drawn.nodes.flatMap((n) => (n.cell?.kit && layers.get(n.id) === 'voice' ? [n.id] : [])));
-  const held = new Set([...layers].flatMap(([id, l]) => (l === 'audible' || l === 'gate' || l === 'mixer' || kits.has(id) ? [id] : [])));
+  // (held at their heights, not drawn there: all but the structure, drawn by the spring — the structure's wires (a
+  // bar's steps, a selector's taps) pull it down; the voices held too, or the sockets above draw them into the mixers' air)
+  const held = new Set([...layers].flatMap(([id, l]) => (l === 'audible' || l === 'gate' || l === 'mixer' || l === 'selector' || l === 'source' || l === 'voice' ? [id] : [])));
   // (a mixer between what it mixes: its sources, a product's by its voice)
   const owner = new Map(drawn.nodes.flatMap((n) => (n.kind === 'junction' ? [[n.id, cellId(n.voice)] as const] : [])));
   const between = new Map<string, string[]>();

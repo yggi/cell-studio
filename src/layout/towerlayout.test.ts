@@ -352,4 +352,28 @@ describe('the tower layout', () => {
     expect(placed.edges.some((e) => e.a === 'cell:teile' && e.b === 'cell:accent' && !e.path)).toBe(false);
     layout.destroy();
   });
+  it('makes a selector a stratum: what it feeds strictly over its pill, its clock and its chooser strictly under', () => {
+    for (const [piece, table, under] of [
+      ['hypercell', 'cell:parts', ['cell:bar', 'cell:song']],
+      ['baustelle', 'cell:teile', ['cell:bar', 'cell:tag']],
+    ] as const) {
+      const { layout, layers } = laid(piece);
+      expect(layers.get(table), piece).toBe('selector');
+      for (const id of under) expect(layers.get(id), `${piece}: ${id}`).toBe('source');
+      const { pill, strands } = layout.tapLooms().find((l) => l.table === table)!;
+      for (const id of under) expect(layout.position(id)!.y, `${piece}: ${id}`).toBeGreaterThan(pill.y1);
+      // (what reads it, its name too, over the pill's top)
+      for (const id of new Set(strands.map((st) => st.to))) {
+        const at = layout.position(id);
+        if (at) expect(at.y, `${piece}: ${id}`).toBeLessThan(pill.y0);
+      }
+      layout.destroy();
+    }
+  });
+
+  it('holds the voices on their row: the mixers keep their air', () => {
+    const { layout, layers, targets } = laid('hypercell');
+    for (const [id, l] of layers) if (l === 'voice' && layout.position(id)) expect(layout.position(id)!.y, id).toBeCloseTo(targets.get(id)!, 0);
+    layout.destroy();
+  });
 });

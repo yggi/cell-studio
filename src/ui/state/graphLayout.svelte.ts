@@ -5,7 +5,7 @@ import { structureKey, type GraphNode } from '../../engine/graph';
 import type { LiveState } from '../../engine/live';
 import { ForceLayout } from '../../layout/physics';
 import { DEFAULT_LAYOUT, TOWER_LAYOUT, type LayoutOptions } from '../../layout/options';
-import type { LoomStrand } from '../../layout/taploom';
+import type { Loom } from '../../layout/physics';
 import { isSocket, SOCKET_SIZE, towerHeights, towerLayers, towerOuts, withoutCard, withSockets, type TowerOut } from '../../layout/towerlayout';
 import type { MeterTrace } from '../../layout/state';
 import { meterIndex } from '../../layout/meters';
@@ -88,7 +88,7 @@ export class GraphLayout {
   /** In the tower layout: what goes into the sound card (its node not drawn), as wires into the strips. */
   outs = $state.raw<readonly TowerOut[]>([]);
   /** (the tower layout) Each selector's loom over its table: its strands (taploom.ts), laid again as things move. */
-  looms = $state.raw<readonly { table: string; strands: readonly LoomStrand[] }[]>([]);
+  looms = $state.raw<readonly Loom[]>([]);
   /** Pinned by the user (or held where they were dropped, or a turntable: see `#placed`). */
   readonly pinned = new SvelteSet<string>();
 

@@ -27,6 +27,18 @@ import { hops, loomsOf, meterNet, netTree, stepNets, taps } from './nets';
 import { placeMeters } from './placement';
 import { loomLane, tapLoom, type LoomStrand } from './taploom';
 
+/** A selector's loom as drawn: its strands, and the pill round it (the graph's coordinates). */
+export interface Loom {
+  readonly table: string;
+  readonly strands: LoomStrand[];
+  readonly pill: { readonly x0: number; readonly x1: number; readonly y0: number; readonly y1: number };
+}
+
+/** The room round a selector's loom inside its pill (px). */
+const PILL_PAD = 16;
+/** The room over a pill a cell reading it keeps: the pill's pad, and the cell's name under it (px). */
+const PILL_ROOM = PILL_PAD + 30;
+
 export interface GraphDiff {
   added: number;
   removed: number;
@@ -419,7 +431,7 @@ export class ForceLayout {
         for (const id of l.cells) {
           const c = this.s.byId.get(id);
           if (c?.y === undefined) continue;
-          const over = c.y + c.radius * 0.7 - lane;
+          const over = c.y + c.radius * 0.7 + PILL_ROOM - lane;
           if (over <= 0) continue;
           const top = bands.get(id)?.[0] ?? -Infinity;
           const free = !this.s.opts.held?.has(id) && c.fy == null;
@@ -438,7 +450,7 @@ export class ForceLayout {
           const [nx, ny] = [n.x, n.y];
           if (n.id === table || steps.has(n.id) || nx === undefined || ny === undefined || n.fx != null || n.role === 'tag') continue;
           const r = n.radius * 0.7;
-          const [x0, x1, y0, y1] = [l.x0 - r, l.x1 + r, l.top - r, l.y - l.r + r];
+          const [x0, x1, y0, y1] = [l.x0 - r, l.x1 + r, l.top - PILL_ROOM - r, l.y - l.r + r];
           if (nx <= x0 || nx >= x1 || ny <= y0 || ny >= y1) continue;
           const band: readonly [number, number] = bands.get(n.id) ?? [-Infinity, Infinity];
           // (a held node keeps its height: it goes aside)
@@ -460,16 +472,19 @@ export class ForceLayout {
 
   /** (upright) Every edge that isn't a bus's join leans upright: its two ends drawn towards one x. */
   private lean(alpha: number): void {
-    const k = this.s.opts.upright;
-    if (!k) return;
+    const [k, under] = [this.s.opts.upright, this.s.opts.feedUnder];
+    if (!k && !under) return;
     const buses = new Set(this.s.nets.flatMap((n) => n.taps));
     for (const l of this.s.links) {
       if (buses.has(l.id)) continue;
       const [a, b] = [nodeAt(this.s, l.source), nodeAt(this.s, l.target)];
-      if (a?.x === undefined || b?.x === undefined) continue;
+      if (a?.x === undefined || b?.x === undefined || a.y === undefined || b.y === undefined) continue;
       const dx = (b.x - a.x) * k * alpha * 0.5;
       a.vx = (a.vx ?? 0) + dx;
       b.vx = (b.vx ?? 0) - dx;
+      // (feedUnder: what feeds a node above it moves under it — the lower end only, the loom carries the shift)
+      const [lo, hi] = a.y > b.y ? [a, b] : [b, a];
+      if (under && lo.fx == null) lo.vx = (lo.vx ?? 0) + (hi.x! - lo.x!) * under * alpha;
     }
   }
 
@@ -502,7 +517,7 @@ export class ForceLayout {
    * (tapLoom) Each table of taps' loom (taploom.ts): its taps, left to right as its bulbs are, each a lane, a strand to
    * each cell it steps, from where everything is now.
    */
-  tapLooms(): { table: string; strands: LoomStrand[] }[] {
+  tapLooms(): Loom[] {
     const by = new Map<string, Map<string, { at: { x: number; y: number }; to: string[] }>>();
     // (what the bus a table is stepped by goes on to out of its loom: netTree)
     const from = new Map<string, string[]>();
@@ -533,7 +548,12 @@ export class ForceLayout {
         const c = nodeAt(this.s, id);
         return c?.x !== undefined && c.y !== undefined ? [{ id, x: c.x, y: c.y, r: c.radius * 0.7, rise: rising.has(`${table}~${id}`) }] : [];
       });
-      return [{ table, strands: tapLoom({ x: n.x, y: n.y, r: n.radius * 0.7 }, loom, readers) }];
+      const strands = tapLoom({ x: n.x, y: n.y, r: n.radius * 0.7 }, loom, readers);
+      // (the selector drawn as a pill round its loom: its lanes inside, its outputs along its top)
+      const xs = [n.x - n.radius * 0.7, n.x + n.radius * 0.7, ...strands.flatMap((st) => st.pieces.map((p) => p[2]))];
+      const top = Math.min(...strands.map((st) => st.pieces[1][1]));
+      const pill = { x0: Math.min(...xs) - PILL_PAD, x1: Math.max(...xs) + PILL_PAD, y0: top - PILL_PAD, y1: n.y + n.radius * 0.35 };
+      return [{ table, strands, pill }];
     });
   }
 

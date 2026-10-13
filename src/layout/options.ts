@@ -74,6 +74,8 @@ export interface LayoutOptions {
   flatNets: number;
   /** Every other edge leans upright, its ends drawn to one x, by a spring this strong (0: none). */
   upright: number;
+  /** A node drawn sideways under what it feeds above it (its wire straight up), by a spring this strong (0: none). */
+  feedUnder: number;
   layerGap: number;
   /** Edge length at rest (px). */
   linkDistance: number;
@@ -164,6 +166,7 @@ export const DEFAULT_LAYOUT: LayoutOptions = {
   loomClear: false,
   flatNets: 0,
   upright: 0,
+  feedUnder: 0,
   socketsAbove: false,
   centre: 0.004,
   columnPull: 0.035,
@@ -194,10 +197,11 @@ export const TOWER_LAYOUT: Partial<LayoutOptions> = {
   heightPull: 0.05,
   tapLoom: true,
   socketsAbove: true,
-  loomRide: 0.2,
+  loomRide: 0,
   loomClear: true,
   flatNets: 0.1,
   upright: 0.01,
+  feedUnder: 0.05,
   contract: 0.4,
 };
 

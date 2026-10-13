@@ -183,6 +183,9 @@
     get taps() {
       return layout.taps;
     },
+    get pills() {
+      return pills;
+    },
     get state() {
       return transport;
     },
@@ -261,6 +264,7 @@
   let legendOpen = $state(false);
   // the tower layout (towerlayout.ts): the graph by the tower, the sound card its strip at the right (TowerStrips.svelte)
   const towered = $derived(layout.mode === 'tower');
+  const pills = $derived(towered ? new Set(layout.looms.map((l) => l.table)) : undefined);
   let stripsOpen = $state(QUERY?.has('strips') ?? false);
   const stripW = $derived(stripsOpen ? STRIP_OPEN : STRIP);
   let flowW = $state(0);

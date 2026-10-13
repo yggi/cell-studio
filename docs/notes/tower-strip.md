@@ -387,6 +387,30 @@ Out of their strata and under their looms: none, in every row. The flat nets cos
 ![Baustelle](tower-strip-four-baustelle.jpg)
 ![Hypercell](tower-strip-four-hypercell.jpg)
 
+## A selector a pill, a stratum of its own; the clock white (2026-10-13)
+
+Asked (on pictures of Hypercell and Baustelle): more air for the mixers; `&song`'s meter wire to `&parts` not linked up to its readers (`&up`); the rise section at the far right, with the general principle behind it; the loom's strands as meter traces, the raw clock's as it is and the taps' tinted a section each; the raw clock white, split into its spectrum at the selector, a prism; whether a selector is a full stratum; the selector drawn as a long pill, its loom inside, its outputs bulbs along its top, the wires leaving straight up.
+
+- **The principle: a node sits under what it feeds**, so its wire goes straight up, and the loom carries the shift sideways. A reader of a selector's taps lines up under the voice it steps, wherever its bulb is on the table; the loom's lane takes it there (`feedUnder` .05 in `lean()`: the lower end of an edge drawn under the upper's x; `upright` .01 the same for any edge, more weakly). In Hypercell the rise section goes to the far right under `&riser`, and `&up` takes `&bar` off the loom instead of a trace from `&song` (a meter's ride is a strand, `loomRide` 0: the ride forced whenever the selector reads that clock).
+- **A selector is a full stratum** (`selector` in `towerLayers`): yes. Anything a table of taps steps sits strictly over its pill, its name too (`PILL_ROOM`); what feeds it sits strictly under it in a stratum of its own (`source`): the clock it steps on, the chooser reading it with `over=` (`&song`, `&tag`) and the chooser's clock (`&bar`). A table of taps is usually a constant list (`&parts`, `&teile`); it moves up into the selector stratum all the same. Nothing else stands in the pill (`loomClear`, the zone grown to the pill and its readers' names).
+- **The pill** (`Loom.pill`, `TapLooms.svelte`): a rounded bar round the loom and its table, the table's own wheel left blank (`pill-core`); each strand a meter's trace (the net's width and rest opacity), the raw clock in `--meter-0`, a tap's tinted with its section's colour (65 %); each output a bulb on the pill's top, in its colour, its wire leaving straight up.
+- **The clock is white** (`--clock`, so `--meter-0`, everywhere, not the tower layout only): the bar's first tick and the raw meter's trace, which a selector splits into its sections' colours and passes through.
+- **The voices are held** in their row. Before, the sockets' pull drew a voice up to the top of its band, into the mixers' air (`&padv` and `&sawB` in Hypercell), and two sockets over close sources overlapped.
+
+| layout | crossings | area Mpx² | pieces with an overlap |
+|---|---|---|---|
+| the step before's default (for reference, then) | 53.3 | 106.1 | — |
+| **default now** | **49.3** | 110.5 | 4 |
+| all four of the step before off | 41.7 | 108.6 | 2 |
+| no mixer stratum | 46.3 | 111.5 | 2 |
+| the pill not kept clear | 39.3 | 109.7 | 4 |
+
+Out of their strata and under their looms: none, in every row. Holding the voices and the selector strata took the default from 53.3 to 49.3, and the rows without the step before's changes further (59.3 → 41.7): those changes now cost 7.6. Most of it is the clear pill in two pieces: cellscape 3.7 → 10.3 and korobeiniki 1.3 → 4.7. In cellscape `&key` goes over the pill and the scale it reads, `&lydian`, a constant, stays under it, so its bus crosses the pill's lanes: the price of strictly over or strictly under. A constant that reads nothing of the selector could stand beside the pill instead; not done.
+
+![Hypercell: &bar and &song under the pill, the rise section at the right](tower-strip-pill-hypercell.jpg)
+![Baustelle: &bar and &tag under &teile's pill, its readers over it](tower-strip-pill-baustelle.jpg)
+![Cellscape: &lydian's bus through &layers' pill](tower-strip-pill-cellscape.jpg)
+
 ## Next
 
 1. The tower layout still crosses about three times today's (91 against 33, the card left out of both), most in the pieces arranged with selectors, tapes and resonators (#234's language side: a selector that sends gates).
