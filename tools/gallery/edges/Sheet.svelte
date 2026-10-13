@@ -5,6 +5,7 @@
    * by their stretch, a meter's net by its beat. The real edge components, as `flowedges.ts` makes them.
    */
   import EdgeCell, { type Column } from './EdgeCell.svelte';
+  import PillCell, { type PillColumn } from './PillCell.svelte';
   import { edgeFixtures } from './fixtures';
   import { edgeLabel } from '../../../src/engine/transform';
   import { pieces } from '../pieces';
@@ -23,6 +24,7 @@
     { label: 'live · C4', state: 'live' },
     { label: 'live · voice on C3', state: 'live', note: 130.81 },
     { label: 'live · bent', state: 'live', bend: 34 },
+    { label: 'tower · stopped', state: 'on', towered: true },
   ];
   const BELT: Column[] = [
     { label: 'at rest', state: 'on' },
@@ -35,6 +37,13 @@
     { label: 'step 1', state: 'live', beat: 0 },
     { label: '+0.3 of a step', state: 'live', beat: 0.3 },
     { label: 'step 3', state: 'live', beat: 2 },
+  ];
+  // (the tower layout's selector, a pill: its lanes at rest, on the beat with every section chosen or one, and off it)
+  const PILL: PillColumn[] = [
+    { label: 'stopped' },
+    { label: 'beat 1 · all chosen', beat: 0, chosen: [0, 1, 2] },
+    { label: '+0.3 of a beat', beat: 0.3, chosen: [0, 1, 2] },
+    { label: 'beat 2 · one chosen', beat: 1, chosen: [1] },
   ];
   const columnsOf = (f: (typeof list)[number]) =>
     f.meter ? METER : f.edge.port === 'step' && f.piece.program.cells.get(f.edge.source.slice(5))?.params.belt !== undefined ? BELT : STATES;
@@ -49,6 +58,16 @@
     {list.length} kinds, drawn by the graph's own edge components on bare nodes: {seconds} s into each piece, a made-up sound ·
     <code>node tools/gallery.mjs edges</code>
   </p>
+  <h2>tower · the selector's pill</h2>
+  <figure data-kind="edge:tower:pill">
+    <figcaption>
+      <b>tower · pill</b>
+      <span>a table of three taps, the last stepping two cells (one net): its lanes, the bypass, the ports; joins outside it</span>
+    </figcaption>
+    <div class="row">
+      {#each PILL as c (c.label)}<PillCell column={c} />{/each}
+    </div>
+  </figure>
   {#each groups as grp (grp.g)}
     <h2>{grp.g} · {grp.items.length}</h2>
     <div class="list">
@@ -94,7 +113,7 @@
   }
   .list {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(1200px, max-content));
+    grid-template-columns: max-content;
     gap: 10px;
   }
   figure {

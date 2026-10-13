@@ -1,6 +1,7 @@
 <script lang="ts">
   import { EDGE, PAYLOAD, noteColour, tapTint } from './theme';
   import { fillColour, liveColour } from './edgeStyle';
+  import { palette } from './palette';
   import { gridOf, heardPosition } from '../layout/show';
   import { lapOf } from '../engine/readers';
   import { tickLevel } from '../layout/meters';
@@ -203,7 +204,8 @@
 
   // a bus: a table read through over= (its entries), or a chord (its notes); at most 12 strands, a longer table sampled
   const view = $derived.by(() => {
-    if (d.width < 2 || d.tines || (!d.table && d.band !== 'cv')) return null;
+    // (a groove's wire carries its hits, one line, not its kit's members as a bus)
+    if (d.width < 2 || d.tines || d.groove || (!d.table && d.band !== 'cv')) return null;
     // (a table of taps is read by its selector through one plain wire, from below: no bus, no loom — decision 016)
     if (d.table && fanOf(ctx.program, d.table)) return null;
     void ctx.turned;
@@ -336,7 +338,8 @@
     const local = lc?.local ?? (rest ? 0 : null);
     if (local == null) return undefined;
     const t = local / lapOf(ctx.program, sender);
-    return source.segments.find((s) => t >= s.t0 - 1e-9 && t < s.t1 - 1e-9)?.bands.find((b) => b.kind === 'pitch' || b.kind === 'level');
+    // (a wheel with no segments there, an oscillator's curve: its value at the step, valuesOf's rule)
+    return source.segments.find((s) => t >= s.t0 - 1e-9 && t < s.t1 - 1e-9)?.bands.find((b) => b.kind === 'pitch' || b.kind === 'level') ?? values?.(local);
   };
   const fillNow = () => fillAt(false);
   // What it carries, drawn as it travels (EdgePayload, docs/notes/edge-styles.md §2): while live, on one line (a bus,
@@ -371,17 +374,27 @@
   );
   // stopped, a wire of notes wears the note its source's wheel shows at the cursor (a melody, a groove's hit): grey is
   // only a wire with nothing to carry
+  // a ref (a pointer, D6: coloured by what it points at), and a level, the same: its value at the cursor, a level as
+  // wide and bright as it is (D4's ribbon, still)
   const restColour = $derived.by((): string | null => {
-    if (state !== 'on' || count || d.tines || !(d.groove || (d.band === 'cv' && carriesNotes(d.port)))) return null;
+    if (state !== 'on' || count || d.tines || d.band !== 'cv' || (d.port === 'over' && !d.groove) || d.port === 'map') return null;
     const f = fillAt(true);
-    return f?.kind === 'pitch' ? fillColour(f) : null;
+    return f?.kind === 'pitch' ? fillColour(f) : f?.kind === 'level' ? palette('level', f.v) : null;
   });
+  // (a level's width, at rest or live when no ribbon travels on it: its value now)
+  const levelWidth = $derived.by((): number | null => {
+    if (count || d.tines || d.band !== 'cv' || carriesNotes(d.port) || d.port === 'braid' || d.port === 'over' || d.port === 'map' || shows) return null;
+    if (state !== 'on' && !isLive) return null;
+    const f = fillAt(state === 'on');
+    return f?.kind === 'level' ? PAYLOAD.ribbon[0] + (PAYLOAD.ribbon[1] - PAYLOAD.ribbon[0]) * f.v : null;
+  });
+  const width = $derived(levelWidth === null ? '' : `; stroke-width: ${levelWidth.toFixed(1)}px`);
   // (a bus draws its own strands: its core stays hidden, so it takes no colour)
   const edgeStyle = $derived(
     colour && !count && !d.tines
-      ? `${style ?? ''}; stroke: ${colour}; stroke-opacity: ${shows ? PAYLOAD.carrier : EDGE.liveOpacity}`
+      ? `${style ?? ''}; stroke: ${colour}; stroke-opacity: ${shows ? PAYLOAD.carrier : EDGE.liveOpacity}${width}`
       : restColour
-        ? `${style ?? ''}; stroke: ${restColour}`
+        ? `${style ?? ''}; stroke: ${restColour}${width}`
         : style,
   );
   // (what travels runs from its sender: a groove's hits up from the groove into its kit, against the edge's own way)

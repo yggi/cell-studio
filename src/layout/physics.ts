@@ -25,7 +25,7 @@ import { forceUncross, stepBends, stepClusters, stepExclusion, stepKinds, stepSp
 import { aims, fitTurns, stepAims } from './aims';
 import { hops, loomsOf, meterNet, netTree, stepNets, taps } from './nets';
 import { placeMeters } from './placement';
-import { loomContact, loomLane, loomPorts, tapLoom, type LoomStrand } from './taploom';
+import { loomContact, loomLane, loomPorts, PILL_PAD, pillOf, tapLoom, type LoomStrand } from './taploom';
 
 /** A selector's loom as drawn: its strands, and the pill round it (the graph's coordinates). */
 export interface Loom {
@@ -40,8 +40,6 @@ export interface Loom {
   readonly feeds: { readonly meter?: string; readonly select?: string };
 }
 
-/** The room round a selector's loom inside its pill (px). */
-const PILL_PAD = 16;
 /** The most a node moves in a tick after an edit (px): inserted cells push the others gently, nothing flies. */
 const CALM = 12;
 /** How much of a too short plain edge's missing rise is made up each tick. */
@@ -654,13 +652,7 @@ export class ForceLayout {
       const chooserId = this.s.links.map(other).find((id) => id !== undefined && id !== meterId && (nodeAt(this.s, id)?.y ?? -Infinity) > n.y!);
       const ports = loomPorts(hub, meter, at(chooserId));
       const strands = tapLoom({ x: n.x, y: n.y, r: n.radius * 0.7 }, loom, readers, ports.meter);
-      // (the selector drawn as a pill round its loom: its lanes inside, its outputs along its top, the selector at its
-      // bottom — its contacts, its hub, its ports on the pill's edge)
-      // (a tap's joins between the cells it steps lie outside the pill)
-      const inside = strands.filter((st) => !st.join);
-      const xs = [...contacts.map((c) => c.x), ports.meter.x, ports.select.x, ...inside.flatMap((st) => st.pieces.map((p) => p[2]))];
-      const top = Math.min(hub.y - PILL_PAD, ...inside.map((st) => st.pieces[0][3]));
-      const pill = { x0: Math.min(...xs) - PILL_PAD, x1: Math.max(...xs) + PILL_PAD, y0: top - PILL_PAD, y1: ports.meter.y };
+      const pill = pillOf(hub, contacts, ports, strands);
       return [{ table, strands, pill, hub, contacts, ports, feeds: { meter: meterId, select: chooserId } }];
     });
   }

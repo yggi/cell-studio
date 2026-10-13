@@ -9,14 +9,26 @@
    */
   import type { Loom } from '../layout/physics';
   import { tapTint } from './theme';
+  import { getGraphContext } from './context';
+  import { beatFlash } from './edgeStyle';
 
   let { looms }: { looms: readonly Loom[] } = $props();
+  const ctx = getGraphContext();
+  // (while playing, a lane lights on its clock's beat as a meter's net does: the bypass always, a tap's while its
+  // section is chosen — what goes on through the selector now)
+  const lit = (l: Loom) => {
+    const name = (id?: string) => id?.slice('cell:'.length);
+    const meter = name(l.feeds.meter);
+    const flash = beatFlash(ctx.playing && meter ? ctx.heads.beatAt.get(meter) : undefined);
+    const chosen = ctx.heads.cells.get(name(l.feeds.select) ?? '')?.entries;
+    return (tap: number) => (tap < 0 || chosen?.has(tap) ? flash : 0);
+  };
   // (the raw clock: white; a tap's: the clock tinted its section's colour)
   const tint = (tap: number, n: number) => (tap < 0 ? 'var(--meter-0)' : tapTint(tap, n));
   const drawn = $derived(
     looms.map((l) => {
       const n = Math.max(1, l.contacts.length);
-      const strands = l.strands.map((s) => ({ id: `${l.table}:${s.bulb}:${s.to}`, d: s.d, colour: tint(s.tap, n) }));
+      const strands = l.strands.map((s) => ({ id: `${l.table}:${s.bulb}:${s.to}`, tap: s.tap, d: s.d, colour: tint(s.tap, n) }));
       // (an output a riser: where it leaves the pill's top, one bulb each)
       const outs = new Map<string, { x: number; colour: string }>();
       for (const s of l.strands) {
@@ -25,7 +37,7 @@
         outs.set(`${s.tap}:${Math.round(x)}`, { x, colour: tint(s.tap, n) });
       }
       const contacts = l.contacts.map((c, k) => ({ ...c, colour: tint(k, n) }));
-      return { id: l.table, pill: l.pill, hub: l.hub, ports: l.ports, contacts, strands, outs: [...outs].map(([k, o]) => ({ k, ...o })) };
+      return { loom: l, id: l.table, pill: l.pill, hub: l.hub, ports: l.ports, contacts, strands, outs: [...outs].map(([k, o]) => ({ k, ...o })) };
     }),
   );
 </script>
@@ -33,6 +45,7 @@
 <svg class="looms" aria-hidden="true">
   {#each drawn as l (l.id)}
     {@const h = l.pill.y1 - l.pill.y0}
+    {@const flash = lit(l.loom)}
     <rect class="pill" x={l.pill.x0} y={l.pill.y0} width={l.pill.x1 - l.pill.x0} height={h} rx={h / 2} />
     <!-- (the ports' connectors into the hub: the meter, the selection) -->
     <path class="connector meter" d="M{l.ports.meter.x},{l.ports.meter.y} L{l.hub.x},{l.hub.y}" />
@@ -41,7 +54,7 @@
       <path class="arm" d="M{l.hub.x},{l.hub.y} L{c.x},{c.y}" style:--trace={c.colour} />
     {/each}
     {#each l.strands as s (s.id)}
-      <path class="strand" d={s.d} style:--trace={s.colour} />
+      <path class="strand" d={s.d} style:--trace={s.colour} style:--flash={flash(s.tap)} />
     {/each}
     <circle class="hub" cx={l.hub.x} cy={l.hub.y} r="13" />
     {#each l.contacts as c, k (k)}
@@ -78,8 +91,8 @@
   /* (a meter's trace, as MeterEdge draws one: edges.css .meter-trace) */
   .strand {
     stroke: var(--trace);
-    stroke-width: var(--edge-trace-w);
-    stroke-opacity: var(--edge-trace-rest);
+    stroke-width: calc(var(--edge-trace-w) + var(--edge-trace-flash-w) * var(--flash, 0));
+    stroke-opacity: calc(var(--edge-trace-rest) + var(--edge-trace-flash) * var(--flash, 0));
   }
   .arm {
     stroke: var(--trace);

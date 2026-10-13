@@ -6,6 +6,7 @@
    */
   import { BaseEdge, type EdgeProps } from '@xyflow/svelte';
   import { getGraphContext } from './context';
+  import { beatFlash } from './edgeStyle';
   import { EDGE, meterColour } from './theme';
   import { palette } from './palette';
   import { tickLevel } from '../layout/meters';
@@ -25,13 +26,8 @@
     return `M ${x + ((targetX - x) / l) * d.at.r} ${y + ((targetY - y) / l) * d.at.r} L ${targetX} ${targetY}`;
   });
   // how bright now: a flash at each of the meter's steps, fading through it
-  const flash = $derived.by(() => {
-    // (a flash is a tick sounding now: while playing)
-    const at = ctx.playing ? ctx.heads.beatAt.get(d.name) : undefined;
-    if (at === undefined) return 0;
-    const into = at - Math.floor(at + 1e-9);
-    return Math.exp(-EDGE.flash.decay * into) * (Math.floor(at + 1e-9) === 0 ? 1 : EDGE.flash.offBeat);
-  });
+  // (a flash is a tick sounding now: while playing)
+  const flash = $derived(beatFlash(ctx.playing ? ctx.heads.beatAt.get(d.name) : undefined));
   // its colour: at rest the meter's own (the ring its cells wear, its name's); on a tick the palette's sync value, the
   // tick's level (ui/palette.ts: the bar's first --meter-0, a beat --meter-1, finer --meter-2 … 3), fading back with the flash
   const tick = $derived.by(() => {
