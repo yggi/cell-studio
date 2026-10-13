@@ -14,7 +14,7 @@
   let { id, source, target, sourceX: rimSX, sourceY: rimSY, targetX: rimTX, targetY: rimTY, data }: EdgeProps = $props();
   const ctx = getGraphContext();
   // (an end on a selector's pill: its port, or its outline — PulseEdge's rule)
-  const ends = $derived({ source: ctx.anchor?.(source, target, { x: rimTX, y: rimTY }), target: ctx.anchor?.(target, source, { x: rimSX, y: rimSY }) });
+  const ends = $derived({ source: ctx.anchor?.(source, target, { x: rimTX, y: rimTY }, true), target: ctx.anchor?.(target, source, { x: rimSX, y: rimSY }, true) });
   const [sourceX, sourceY] = $derived([ends.source?.x ?? rimSX, ends.source?.y ?? rimSY]);
   const [targetX, targetY] = $derived([ends.target?.x ?? rimTX, ends.target?.y ?? rimTY]);
   const d = $derived(data as { meter: number; name: string; at?: { x: number; y: number; r: number } });

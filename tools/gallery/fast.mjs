@@ -139,7 +139,12 @@ for (const [i, k] of kinds.entries()) {
   k.file = `${slug(k.key)}.png`;
   await figures.nth(i).screenshot({ path: join(out, 'tiles', k.file) });
 }
-await page.screenshot({ path: join(out, 'sheet.png'), fullPage: true });
+// (the whole page as one picture: too tall to take in time with many big frames — `golden` of several pieces — the tiles
+// and the index are the sheet then)
+const sheet = await page
+  .screenshot({ path: join(out, 'sheet.png'), fullPage: true, timeout: 90000 })
+  .then(() => true)
+  .catch((e) => (console.log(`no sheet.png (${e.name}: the page is too big to take whole): the tiles and index.html are written`), false));
 await browser.close();
 await server.close();
 
@@ -151,7 +156,7 @@ writeFileSync(
 ${kinds.map((k) => `<div>${esc(k.caption)}</div><img src="tiles/${esc(k.file)}" alt="${esc(k.key)}">`).join('\n')}${problems.length ? `<h2>Problems</h2><pre>${esc(problems.join('\n'))}</pre>` : ''}`,
 );
 writeFileSync(join(out, `${subject}.json`), JSON.stringify(kinds, null, 1));
-console.log(`${kinds.length} kinds → ${join(out, 'sheet.png')}, ${join(out, 'index.html')}`);
+console.log(`${kinds.length} kinds → ${sheet ? `${join(out, 'sheet.png')}, ` : ''}${join(out, 'index.html')}`);
 if (problems.length) {
   console.log(`${problems.length} problems:\n  ` + problems.slice(0, 20).join('\n  '));
   process.exitCode = 1;

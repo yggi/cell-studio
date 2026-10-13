@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { loomContact, loomLane, loomPorts, pillAnchor, tapLoom } from './taploom';
+import { loomContact, loomLane, loomPorts, pillAnchor, pillOf, tapLoom } from './taploom';
 import { drawnCrossings } from './quality';
 
 describe("a selector's loom", () => {
@@ -92,5 +92,22 @@ describe("a selector's loom", () => {
     const end = pillAnchor(l, 'x', { x: 500, y: 50 });
     expect(end.x).toBeCloseTo(300, 6);
     expect(end.y).toBeCloseTo(50, 6);
+  });
+
+  it('draws its pill wide enough that every output sits on its flat top, none over a round end', () => {
+    const hub = { x: 0, y: 0 };
+    const contacts = [0, 1, 2].map((k) => loomContact(hub, k, 3));
+    const ports = loomPorts(hub);
+    const cells = [[{ id: 'l', x: -200, y: -300, r: 20 }], [{ id: 'm', x: 0, y: -300, r: 20 }], [{ id: 'r', x: 260, y: -300, r: 20 }]];
+    const strands = tapLoom(
+      { ...hub, r: 20 },
+      cells.map((to, k) => ({ bulb: `t${k}`, from: contacts[k], to })),
+      [],
+      ports.meter,
+    );
+    const pill = pillOf(hub, contacts, ports, strands);
+    const r = (pill.y1 - pill.y0) / 2;
+    expect(pill.x0).toBeLessThanOrEqual(-200 - r + 1e-9);
+    expect(pill.x1).toBeGreaterThanOrEqual(260 + r - 1e-9);
   });
 });
