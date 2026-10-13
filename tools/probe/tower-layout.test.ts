@@ -31,6 +31,7 @@ type Variant = {
   hold?: 'none';
   strata?: false;
   mixers?: false;
+  lift?: false;
 };
 const VARIANTS: Variant[] = [
   { name: 'today (the signal path)', tower: false, card: true, opts: {} },
@@ -46,6 +47,12 @@ const VARIANTS: Variant[] = [
   { name: 'no flat nets', tower: true, card: false, opts: { ...TOWER_LAYOUT, flatNets: 0 } },
   { name: 'nothing fed under', tower: true, card: false, opts: { ...TOWER_LAYOUT, feedUnder: 0, upright: 0 } },
   { name: 'contraction .75', tower: true, card: false, opts: { ...TOWER_LAYOUT, contract: 0.75 } },
+  { name: 'no net lead', tower: true, card: false, opts: { ...TOWER_LAYOUT, netLead: 0 } },
+  { name: 'net lead .1', tower: true, card: false, opts: { ...TOWER_LAYOUT, netLead: 0.1 } },
+  { name: 'no min rise', tower: true, card: false, opts: { ...TOWER_LAYOUT, minRise: 0 } },
+  { name: 'min rise 60', tower: true, card: false, opts: { ...TOWER_LAYOUT, minRise: 60 } },
+  { name: 'min rise 90', tower: true, card: false, opts: { ...TOWER_LAYOUT, minRise: 90 } },
+  { name: 'tables at the bottom, not lifted to their readers', tower: true, card: false, opts: TOWER_LAYOUT, lift: false },
   { name: "tower, today's forces", tower: true, card: false, opts: { heightPull: 0.05, placeLast: 0 } },
 ];
 
@@ -84,7 +91,7 @@ function measure(source: string, v: Variant, seed: number): Row {
   const { program, whole } = compiled.get(source)!;
   t0 = lap('compile', t0);
   const model: GraphModel = v.card ? whole : withSockets(whole);
-  const layered = v.tower ? towerLayers(program, whole, model, { mixers: v.mixers !== false }) : null;
+  const layered = v.tower ? towerLayers(program, whole, model, { mixers: v.mixers !== false, lift: v.lift !== false }) : null;
   const held = layered && v.hold !== 'none' ? layered.held : undefined;
   const heights = layered?.targets;
   const l = new ForceLayout(undefined, {
@@ -94,7 +101,7 @@ function measure(source: string, v: Variant, seed: number): Row {
     ...(heights ? { heights } : {}),
     ...(held ? { held } : {}),
     ...(layered && v.strata !== false ? { strata: layered.strata } : {}),
-    ...(layered ? { between: layered.between } : {}),
+    ...(layered ? { between: layered.between, lineUp: layered.lineUp, aside: layered.aside } : {}),
   });
   l.setGraph({ ...model, nodes: model.nodes.filter((n) => !n.petalOf) });
   t0 = lap('setGraph', t0);

@@ -139,7 +139,7 @@ export class GraphLayout {
     this.outs = tower ? towerOuts(given.program, given.model) : [];
     if (tower) {
       const layered = towerLayers(next.program, given.model, m);
-      layout.setOptions({ heights: layered.targets, held: layered.held, strata: layered.strata, between: layered.between });
+      layout.setOptions({ heights: layered.targets, held: layered.held, strata: layered.strata, between: layered.between, lineUp: layered.lineUp, aside: layered.aside });
     }
     // (a probe: the rows by the frequency tower instead of the signal path, docs/notes/multiscale.md)
     if (ROWS === 'tower') layout.setOptions({ ranks: towerRanks(towerOf(next.program, m)) });

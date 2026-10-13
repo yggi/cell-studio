@@ -175,14 +175,16 @@ export function towerLayers(
   program: CompileResult,
   model: GraphModel,
   drawn: GraphModel,
-  // (mixers: false, a mix with the voices — the probe's comparison)
-  { mixers = true }: { readonly mixers?: boolean } = {},
+  // (mixers: false, a mix with the voices; lift: false, every table nothing steps at the bottom — the probe's comparisons)
+  { mixers = true, lift = true }: { readonly mixers?: boolean; readonly lift?: boolean } = {},
 ): {
   targets: Map<string, number>;
   layers: Map<string, TowerLayer>;
   held: Set<string>;
   strata: Map<string, readonly [number, number]>;
   between: Map<string, string[]>;
+  lineUp: string[][];
+  aside: Map<string, string>;
 } {
   const step = towerOf(program, model, 'step');
   const sockets = socketHeights(program, model, drawn);
@@ -226,6 +228,41 @@ export function towerLayers(
       if (into && layers.get(into) === 'stepped') (layers.set(into, 'source'), (more = true));
     }
   }
+  // (the frame: a cell the selectors' own meter steps, at their sections' rate or slower, read only by tables — the key
+  // a piece turns through — in the sources' row too, under the pills: it drives the frame, not a part)
+  const meters = new Set(model.edges.flatMap((e) => (layers.get(e.to) === 'selector' && e.port === 'step' ? [e.from] : [])));
+  const choosers = [...layers].flatMap(([id, l]) => (l === 'source' && !meters.has(id) ? [id] : []));
+  const slowest = Math.max(...choosers.map((id) => decades.get(id) ?? -Infinity));
+  for (const e of model.edges) {
+    const d = decades.get(e.to);
+    if (!meters.has(e.from) || e.port !== 'step' || layers.get(e.to) !== 'stepped' || d === undefined || d > slowest + 1e-6) continue;
+    const reads = model.edges.filter((x) => x.from === e.to && x.to !== e.to);
+    if (reads.length && reads.every((x) => layers.get(x.to) === 'constant')) layers.set(e.to, 'source');
+  }
+  // (the sources' row in order: the frame at its left, under the tables it feeds (they lead their nets from the left);
+  // the meter, feeding the meter's bus; the choosers)
+  const frame = [...layers].flatMap(([id, l]) => (l === 'source' && !meters.has(id) && !choosers.includes(id) ? [id] : []));
+  // (and left of the pills, the frame's bus going up beside them)
+  const aside = new Map(
+    frame.flatMap((id) =>
+      [...tables]
+        .filter((t) => layers.get(t) === 'selector')
+        .slice(0, 1)
+        .map((t) => [id, t] as const),
+    ),
+  );
+  const lineUp = choosers.length ? [[...frame, ...[...meters].filter((id) => layers.get(id) === 'source'), ...choosers]] : [];
+  // (a table nothing steps, read only over the selectors: at the lowest stratum it is used in, level with its lowest
+  // reader, its bus in from the side — not under a pill it would cross. Read by a selector or what feeds one, it stays down)
+  const order: readonly TowerLayer[] = ['constant', 'source', 'selector', 'stepped', 'gate', 'voice', 'mixer', 'audible'];
+  for (const [id, l] of [...layers]) {
+    if (!lift || l !== 'constant' || tables.has(id)) continue;
+    const readers = [...new Set(model.edges.flatMap((e) => (e.from === id && e.to !== id && layers.has(e.to) ? [e.to] : [])))];
+    if (!readers.length || readers.some((r) => order.indexOf(layers.get(r)!) < order.indexOf('stepped'))) continue;
+    const at = readers.flatMap((r) => (layers.get(r) === 'stepped' && decades.has(r) ? [decades.get(r)!] : []));
+    layers.set(id, 'stepped');
+    if (at.length) decades.set(id, at.reduce((a, d) => a + d, 0) / at.length);
+  }
   const of = (layer: TowerLayer) => [...layers].flatMap(([id, l]) => (l === layer && decades.has(id) ? [decades.get(id)!] : []));
   const stepped = of('stepped');
   const audible = of('audible');
@@ -263,7 +300,7 @@ export function towerLayers(
                 ? source
                 : l === 'audible'
                   ? Math.max(floor, decades.get(id)!)
-                  : decades.get(id)!;
+                  : (decades.get(id) ?? top);
   // (each stratum's band, in decades, its edges halfway between the rows)
   const edges = {
     audible: floor - LAYER_GAP / 2,
@@ -304,5 +341,5 @@ export function towerLayers(
     const from = owner.get(e.source) ?? e.source;
     if (from !== e.target) between.set(e.target, [...new Set([...(between.get(e.target) ?? []), from])]);
   }
-  return { targets, layers, held, strata, between };
+  return { targets, layers, held, strata, between, lineUp, aside };
 }

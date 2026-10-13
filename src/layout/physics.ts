@@ -25,19 +25,27 @@ import { forceUncross, stepBends, stepClusters, stepExclusion, stepKinds, stepSp
 import { aims, fitTurns, stepAims } from './aims';
 import { hops, loomsOf, meterNet, netTree, stepNets, taps } from './nets';
 import { placeMeters } from './placement';
-import { loomLane, tapLoom, type LoomStrand } from './taploom';
+import { loomContact, loomLane, loomPorts, tapLoom, type LoomStrand } from './taploom';
 
 /** A selector's loom as drawn: its strands, and the pill round it (the graph's coordinates). */
 export interface Loom {
   readonly table: string;
   readonly strands: LoomStrand[];
   readonly pill: { readonly x0: number; readonly x1: number; readonly y0: number; readonly y1: number };
+  /** The selector at the pill's bottom: its hub, a contact a tap (in the strands' tap order), and its two ports. */
+  readonly hub: { readonly x: number; readonly y: number };
+  readonly contacts: readonly { readonly x: number; readonly y: number }[];
+  readonly ports: { readonly meter: { readonly x: number; readonly y: number }; readonly select: { readonly x: number; readonly y: number } };
 }
 
 /** The room round a selector's loom inside its pill (px). */
 const PILL_PAD = 16;
 /** The most a node moves in a tick after an edit (px): inserted cells push the others gently, nothing flies. */
 const CALM = 12;
+/** How much of a too short plain edge's missing rise is made up each tick. */
+const RISE = 0.2;
+/** The room between neighbours in a row lined up (px). */
+const LINE_GAP = 40;
 /** The room over a pill a cell reading it keeps: the pill's pad, and the cell's name under it (px). */
 const PILL_ROOM = PILL_PAD + 30;
 
@@ -130,6 +138,9 @@ export class ForceLayout {
       .force('strata', () => this.strata())
       // (upright) every other edge leans upright: its ends drawn to one x
       .force('upright', (alpha: number) => this.lean(alpha))
+      // (netLead) a bus's owner at its net's left end, level with its readers: it feeds the net left to right
+      .force('lead', (alpha: number) => this.lead(alpha))
+      .force('rise', () => this.rise())
       // (calm) after an edit, no node faster than CALM px a tick: what comes in eases the others aside
       .force('calm', () => this.calm())
       .on('tick', () => {
@@ -408,8 +419,8 @@ export class ForceLayout {
       for (const [table, l] of looms) {
         const t = this.s.byId.get(table);
         if (t?.y === undefined) continue;
-        // (its top lane: the source's lowest, then a lane a tap)
-        const lane = loomLane({ x: t.x ?? 0, y: t.y, r: t.radius * 0.7 }, l.bulbs.size);
+        // (its top lane: a lane a tap over the table, the source's under it)
+        const lane = loomLane({ x: t.x ?? 0, y: t.y }, l.bulbs.size);
         for (const id of l.cells) {
           const c = this.s.byId.get(id);
           if (c?.y === undefined) continue;
@@ -430,9 +441,9 @@ export class ForceLayout {
         const steps = new Set(this.s.grounds.flatMap((g) => (g.meter === table && g.bulb ? [g.cell] : [])));
         for (const n of this.s.byId.values()) {
           const [nx, ny] = [n.x, n.y];
-          if (n.id === table || steps.has(n.id) || nx === undefined || ny === undefined || n.fx != null || n.role === 'tag') continue;
+          if (n.id === table || steps.has(n.id) || nx === undefined || ny === undefined || n.fx != null) continue;
           const r = n.radius * 0.7;
-          const [x0, x1, y0, y1] = [l.x0 - r, l.x1 + r, l.top - PILL_ROOM - r, l.y - l.r + r];
+          const [x0, x1, y0, y1] = [l.x0 - PILL_PAD - r, l.x1 + PILL_PAD + r, l.top - PILL_ROOM - r, l.lane + PILL_PAD + r];
           if (nx <= x0 || nx >= x1 || ny <= y0 || ny >= y1) continue;
           const band: readonly [number, number] = bands.get(n.id) ?? [-Infinity, Infinity];
           // (a held node keeps its height: it goes aside)
@@ -449,6 +460,26 @@ export class ForceLayout {
           n.vy = 0;
         }
       }
+    // (aside) a cell left of a selector's pill, its bus going up beside it, not through it
+    if (this.s.opts.tapLoom)
+      for (const [id, table] of this.s.opts.aside ?? []) {
+        const [n, l] = [this.s.byId.get(id), loomsOf(this.s).get(table)];
+        if (n?.x === undefined || !l || n.fx != null) continue;
+        n.x = Math.min(n.x, l.x0 - PILL_PAD - n.radius * 0.7 - LINE_GAP);
+      }
+    // (lineUp) a row in its order, left to right: neighbours out of it, or too close, set apart
+    for (const row of this.s.opts.lineUp ?? [])
+      for (let pass = 0; pass < 3; pass++)
+        for (let i = 1; i < row.length; i++) {
+          const [a, b] = [this.s.byId.get(row[i - 1]), this.s.byId.get(row[i])];
+          if (a?.x === undefined || b?.x === undefined) continue;
+          const short = a.x + (a.radius + b.radius) * 0.7 + LINE_GAP - b.x;
+          if (short <= 0) continue;
+          const [ma, mb] = [a.fx == null ? 1 : 0, b.fx == null ? 1 : 0];
+          if (!ma && !mb) continue;
+          a.x -= (short * ma) / (ma + mb);
+          b.x += (short * mb) / (ma + mb);
+        }
     for (const n of this.s.byId.values()) clamp(n);
   }
 
@@ -467,6 +498,53 @@ export class ForceLayout {
       // (feedUnder: what feeds a node above it moves under it — the lower end only, the loom carries the shift)
       const [lo, hi] = a.y > b.y ? [a, b] : [b, a];
       if (under && lo.fx == null) lo.vx = (lo.vx ?? 0) + (hi.x! - lo.x!) * under * alpha;
+    }
+  }
+
+  /**
+   * (minRise) What feeds sits at least so far under what it feeds, in another stratum — a plain wire a sigmoid with
+   * room to turn: the free end moved, part of the way each tick, within its stratum; the strata grow apart.
+   */
+  private rise(): void {
+    const min = this.s.opts.minRise;
+    if (!min) return;
+    // (a table's bus, read over=, lies flat along its row: not a plain wire; a value several read is)
+    const buses = new Set(this.s.nets.flatMap((n) => (n.port === 'over' ? n.taps : [])));
+    const held = this.s.opts.held;
+    const bands = this.s.opts.strata;
+    for (const l of this.s.links) {
+      if (buses.has(l.id)) continue;
+      // (a product's junction stands for its voice: its wire rises to the voice's row)
+      const [a, b] = [nodeAt(this.s, l.source), nodeAt(this.s, l.target)];
+      if (a?.y === undefined || b?.y === undefined || a.y < b.y) continue;
+      // (between the strata: two cells of one stratum stay as their row has them)
+      const [ba, bb] = [bands?.get(a.id), bands?.get(b.id)];
+      if (ba && bb && ba[0] === bb[0] && ba[1] === bb[1]) continue;
+      // (from the upper wheel's bottom to the lower one's top)
+      const short = (min + (a.radius + b.radius) * 0.7 - (a.y - b.y)) * RISE;
+      if (short <= 0) continue;
+      if (!held?.has(a.id) && a.fy == null) a.y = Math.min(bands?.get(a.id)?.[1] ?? Infinity, a.y + short);
+      else if (!held?.has(b.id) && b.fy == null) b.y = Math.max(bands?.get(b.id)?.[0] ?? -Infinity, b.y - short);
+    }
+  }
+
+  private lead(alpha: number): void {
+    const k = this.s.opts.netLead;
+    if (!k) return;
+    for (const net of this.s.nets) {
+      // (a bus: a table or a value read by several; not a meter's net, a tap's sub-net, sound or a canon's copies)
+      if (net.port === 'step' || net.band === 'audio' || net.delayed || net.bulb) continue;
+      const o = this.s.byId.get(net.owner);
+      const rs = net.taps.flatMap((id) => {
+        const n = nodeAt(this.s, this.s.edgeEnds.get(id) ?? '');
+        return n && n !== o && n.x !== undefined && n.y !== undefined ? [n] : [];
+      });
+      if (!o || o.x === undefined || o.y === undefined || rs.length < 2) continue;
+      // (its wheel's edge a gap left of its leftmost reader's: the wheels, not the room their looms take)
+      const left = Math.min(...rs.map((r) => r.x! - r.radius * 0.7)) - LINE_GAP - o.radius * 0.7;
+      const y = rs.reduce((a, r) => a + r.y!, 0) / rs.length;
+      o.vx = o.fx == null ? (o.vx ?? 0) + (left - o.x) * k * alpha : o.vx;
+      if (o.fy == null && !this.s.opts.held?.has(o.id)) o.vy = (o.vy ?? 0) + (y - o.y) * k * alpha;
     }
   }
 
@@ -518,9 +596,11 @@ export class ForceLayout {
       const n = this.s.byId.get(table);
       if (!n || n.x === undefined || n.y === undefined) return [];
       const ordered = [...taps].sort((a, b) => a[1].at.x - b[1].at.x);
-      const loom = ordered.map(([bulb, t]) => ({
+      const hub = { x: n.x, y: n.y };
+      const contacts = ordered.map((_, k) => loomContact(hub, k, ordered.length));
+      const loom = ordered.map(([bulb, t], k) => ({
         bulb,
-        from: { x: n.x! + t.at.x, y: n.y! + t.at.y },
+        from: contacts[k],
         to: t.to.flatMap((id) => {
           const c = this.s.byId.get(id);
           return c && c.x !== undefined && c.y !== undefined ? [{ id, x: c.x, y: c.y, r: c.radius * 0.7 }] : [];
@@ -530,12 +610,23 @@ export class ForceLayout {
         const c = nodeAt(this.s, id);
         return c?.x !== undefined && c.y !== undefined ? [{ id, x: c.x, y: c.y, r: c.radius * 0.7, rise: rising.has(`${table}~${id}`) }] : [];
       });
-      const strands = tapLoom({ x: n.x, y: n.y, r: n.radius * 0.7 }, loom, readers);
-      // (the selector drawn as a pill round its loom: its lanes inside, its outputs along its top)
-      const xs = [n.x - n.radius * 0.7, n.x + n.radius * 0.7, ...strands.flatMap((st) => st.pieces.map((p) => p[2]))];
-      const top = Math.min(...strands.map((st) => st.pieces[1][1]));
-      const pill = { x0: Math.min(...xs) - PILL_PAD, x1: Math.max(...xs) + PILL_PAD, y0: top - PILL_PAD, y1: n.y + n.radius * 0.35 };
-      return [{ table, strands, pill }];
+      // (its ports where the wires into it cross the pill's edge: its meter's, its chooser's — a reader under it)
+      const at = (id: string | undefined) => {
+        const c = id ? nodeAt(this.s, id) : undefined;
+        return c?.x !== undefined && c.y !== undefined ? { x: c.x, y: c.y } : undefined;
+      };
+      const meterId = this.s.grounds.find((g) => g.cell === table && !g.bulb)?.meter;
+      const meter = at(meterId);
+      const other = (l: { source: string; target: string }) => (l.source === table ? l.target : l.target === table ? l.source : undefined);
+      const chooser = at(this.s.links.map(other).find((id) => id !== undefined && id !== meterId && (nodeAt(this.s, id)?.y ?? -Infinity) > n.y!));
+      const ports = loomPorts(hub, meter, chooser);
+      const strands = tapLoom({ x: n.x, y: n.y, r: n.radius * 0.7 }, loom, readers, ports.meter);
+      // (the selector drawn as a pill round its loom: its lanes inside, its outputs along its top, the selector at its
+      // bottom — its contacts, its hub, its ports on the pill's edge)
+      const xs = [...contacts.map((c) => c.x), ports.meter.x, ports.select.x, ...strands.flatMap((st) => st.pieces.map((p) => p[2]))];
+      const top = Math.min(hub.y - PILL_PAD, ...strands.map((st) => st.pieces[0][3]));
+      const pill = { x0: Math.min(...xs) - PILL_PAD, x1: Math.max(...xs) + PILL_PAD, y0: top - PILL_PAD, y1: ports.meter.y };
+      return [{ table, strands, pill, hub, contacts, ports }];
     });
   }
 

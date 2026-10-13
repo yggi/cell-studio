@@ -60,9 +60,9 @@
 >
   <Handle type="target" position={Position.Top} class="center-handle" isConnectable={false} />
   <!-- (a gate is a mix as read, but draws a level meter: its notes as bars, #234) -->
-  <!-- (the tower layout: a selector is a pill round its loom, drawn behind — its node its name) -->
+  <!-- (the tower layout: a selector is drawn by its pill, TapLooms.svelte — its node keeps its name) -->
   {#if ctx.pills?.has(id)}
-    <div class="pill-core" style="width: {data.size}px; height: {data.size}px"></div>
+    <!-- (no wheel) -->
   {:else if glyph === 'gate' && gate}
     <GateMeter notes={gate.trigger} levels={gate.levels} gain={gate.gain} size={data.size} label="&{data.name}: a gate, its notes as bars" />
   {:else if glyph === 'kit'}
@@ -91,9 +91,6 @@
 </div>
 
 <style>
-  .pill-core {
-    border-radius: 50%;
-  }
   .label {
     display: block;
     font: 700 13px var(--font-ui);

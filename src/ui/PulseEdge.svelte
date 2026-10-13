@@ -85,10 +85,22 @@
   const control = $derived({ x: 2 * mid.x - (fromX + targetX) / 2, y: 2 * mid.y - (fromY + targetY) / 2 });
   // (out of a socket: straight up first, then round to the reader)
   const lead = $derived(Math.min(120, 0.5 * Math.hypot(targetX - fromX, targetY - fromY)));
+  // (the tower layout: a plain edge, one reader's, not a bus's, runs as a sigmoid between the strata — out of the lower
+  // end's top, into the upper end's bottom, upright at both)
+  const sigmoid = $derived.by(() => {
+    if (!ctx.towered || hop || d.net || socket) return null;
+    const up = fromY > targetY;
+    const [ra, rb] = [(d.sizes?.from ?? 0) / 2, (d.sizes?.to ?? 0) / 2];
+    const [ay, by] = up ? [fromY - ra, targetY + rb] : [fromY + ra, targetY - rb];
+    if (up ? ay <= by : ay >= by) return null;
+    const my = (ay + by) / 2;
+    return `M ${fromX} ${ay} C ${fromX} ${my} ${targetX} ${my} ${targetX} ${by}`;
+  });
   const spline = $derived(
-    socket
-      ? `M ${fromX} ${fromY} C ${fromX} ${fromY - lead} ${control.x} ${control.y} ${targetX} ${targetY}`
-      : `M ${fromX} ${fromY} Q ${control.x} ${control.y} ${targetX} ${targetY}`,
+    sigmoid ??
+      (socket
+        ? `M ${fromX} ${fromY} C ${fromX} ${fromY - lead} ${control.x} ${control.y} ${targetX} ${targetY}`
+        : `M ${fromX} ${fromY} Q ${control.x} ${control.y} ${targetX} ${targetY}`),
   );
 
   // the shifts its wheels are drawn with (CellGlyph's rule): as they stand now, redrawn when a table turns, not every

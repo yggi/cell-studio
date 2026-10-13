@@ -276,7 +276,16 @@ describe('the tower layout', () => {
     const model = buildGraph(program);
     const drawn = withSockets(model);
     const t = towerLayers(program, model, drawn);
-    const layout = new ForceLayout(() => {}, { ...TOWER_LAYOUT, heights: t.targets, held: t.held, strata: t.strata, between: t.between, live: false });
+    const layout = new ForceLayout(() => {}, {
+      ...TOWER_LAYOUT,
+      heights: t.targets,
+      held: t.held,
+      strata: t.strata,
+      between: t.between,
+      lineUp: t.lineUp,
+      aside: t.aside,
+      live: false,
+    });
     layout.setGraph({ ...drawn, nodes: drawn.nodes.filter((n) => !n.petalOf) });
     layout.tick(400);
     layout.layNet();
@@ -336,6 +345,39 @@ describe('the tower layout', () => {
   it('holds the voices on their row: the mixers keep their air', () => {
     const { layout, layers, targets } = laid('hypercell');
     for (const [id, l] of layers) if (l === 'voice' && layout.position(id)) expect(layout.position(id)!.y, id).toBeCloseTo(targets.get(id)!, 0);
+    layout.destroy();
+  });
+
+  it("lifts a table read only over the selectors to its readers' stratum, its net led from the left", () => {
+    const { layout, layers } = laid('cellscape');
+    expect(layers.get('cell:lydian')).toBe('stepped');
+    expect(layers.get('cell:layers')).toBe('selector');
+    const { pill } = layout.tapLooms().find((l) => l.table === 'cell:layers')!;
+    expect(layout.position('cell:lydian')!.y).toBeLessThan(pill.y0);
+    // (at the left end of the harmony net: left of every cell reading it over=)
+    const readers = ['pad', 'arp', 'melody', 'canon', 'bells', 'pulse', 'shimmer'].map((c) => layout.position(`cell:${c}`)!.x);
+    expect(layout.position('cell:lydian')!.x).toBeLessThan(Math.min(...readers));
+    layout.destroy();
+  });
+
+  it("puts the frame in the sources' row, left of the meter and the chooser, and beside the pill", () => {
+    const { layout, layers, lineUp } = laid('cellscape');
+    // (&key: stepped by &bar at the sections' rate, read only by the scale)
+    expect(layers.get('cell:key')).toBe('source');
+    expect(lineUp).toEqual([['cell:key', 'cell:bar', 'cell:scenes']]);
+    const x = (id: string) => layout.position(id)!.x;
+    expect(x('cell:key')).toBeLessThan(x('cell:bar'));
+    expect(x('cell:bar')).toBeLessThan(x('cell:scenes'));
+    const { pill } = layout.tapLooms().find((l) => l.table === 'cell:layers')!;
+    expect(x('cell:key')).toBeLessThan(pill.x0);
+    layout.destroy();
+  });
+
+  it('keeps a plain wire between the strata tall: what feeds sits well under what it feeds', () => {
+    const { layout } = laid('cellscape');
+    // (&breath, the drone's filter, read by two voices)
+    const [breath, padv] = [layout.position('cell:breath')!, layout.position('cell:padv')!];
+    expect(breath.y - padv.y).toBeGreaterThan(TOWER_LAYOUT.minRise ?? 0);
     layout.destroy();
   });
 });

@@ -411,6 +411,61 @@ Out of their strata and under their looms: none, in every row. Holding the voice
 ![Baustelle: &bar and &tag under &teile's pill, its readers over it](tower-strip-pill-baustelle.jpg)
 ![Cellscape: &lydian's bus through &layers' pill](tower-strip-pill-cellscape.jpg)
 
+## The flat selector, tables at their readers, a net led from the left (2026-10-13)
+
+Asked (on pictures of Cellscape): `&key` and `&lydian` to the side, out of the pill they crossed, feeding the harmony bus; the source of a shared net at its left end, level with the rest of the net, feeding it left to right; the pill lower, its selector flatter at its bottom, fed by two connectors, the meter and the selection; the raw bypass at the bottom; plain wires as sigmoids; the tags' colours from their sections' tints. And, in the round before: a gentle layout when nodes come in live (the fold watched), a rearrange button or a way to untangle by hand and feed it back, start positions following the feeds, and a PR of what is stable (#368).
+
+- **A table at its readers** (`towerLayers`): a table nothing steps, read only by cells over the selectors (a scale, `&lydian`), is lifted out of the constant stratum to the lowest one it is used in, at its readers' mean height; read by a selector or what feeds one, it stays at the bottom. Its bus no longer crosses a pill to reach them.
+- **A net led from the left** (`netLead` .3, `physics.ts: lead`): a bus's owner (a table read by two or more, not a meter's net, a tap's sub-net, sound or a canon's copies) is drawn to its net's left end and to its readers' mean height. In Cellscape `&lydian` heads the harmony row (`&pad`, the sequence, the canon, the bells, the pulse, the glass), `&key` under it, its clock off the pill's bypass. With feedUnder, the rule reads: a node sits under what it feeds, and a bus's source at the left end of the row it feeds.
+- **The flat selector** (`loomContact`, `loomPorts`, `TapLooms.svelte`): the table's own wheel is left out; at the pill's bottom a hub, its arms to a flat fan of contacts (a tap each, in order), the lanes over the fan, the bypass under the hub, and two ports on the pill's edge, each where its wire crosses it: the meter (white, the bypass leaving from it) and the selection. The pill is about half as tall.
+- **Sigmoids** (`PulseEdge.svelte`, the tower layout only): a plain wire, one reader's, runs from the lower end's top to the upper end's bottom, upright at both.
+- **Tags in their sections' tints** (`Graph.svelte`, both layouts): a tag whose cells a selector's tap steps (most of them) takes that tap's tint, as its strands wear it; other tags keep a hue of their own.
+- **Gentle edits** (both layouts, in #368): after an edit no node moves more than 12 px a tick (`CALM`). A minuet's fold replayed (199 steps, 7 ticks each, as the studio paces it): the most a surviving cell jumped in a step went from 958 to 191 px (tower: 983 to 86).
+
+| layout | crossings | area Mpx² |
+|---|---|---|
+| the round before (#368) | 49.3 | 110.5 |
+| **default now** | **39.7** | 109.4 |
+| … no net lead | 36.7 | 104.9 |
+| … net lead .1 | 36.3 | 106.8 |
+| … tables at the bottom, not lifted | 48.0 | 114.0 |
+| … the loom not kept clear | 38.0 | 108.3 |
+| today's, with the tower's sockets | 28.7 | 71.5 |
+
+(77 pieces, three seeds.) Lifting the tables gains 8.3. The net lead costs 3 at .3, and nothing at .1 — but at .1 `&lydian` stays under `&pad` instead of at the row's left end, so the default is .3, the layout drawn.
+
+Not done: start positions bottom-up, following the feeds in the sections' order (and examples written in that order); a rearrange button; untangling by hand, saved and fed back as rules (a proposal below).
+
+![Cellscape: the harmony row, &lydian at its left, &key under it](tower-strip-flat-cellscape.jpg)
+![Hypercell: the flat selector, its ports](tower-strip-flat-hypercell.jpg)
+![Baustelle](tower-strip-flat-baustelle.jpg)
+
+## The bottom row in order, wires with room to turn, the examples in order (2026-10-13)
+
+Asked (on a picture of Cellscape): the sigmoids a minimal height, a force that pushes the strata apart; the crossing at the very bottom (`&scenes`' wire over `&bar`'s) gone; the affected examples rewritten so their parts' order is logical and crosses less; `&key` to the very left of the pill, or below it beside `&bar`: `&key · &bar · &scenes`, or `&bar · &key · &scenes` since `&bar` feeds the meter's bus from the left.
+
+- **The frame in the sources' row** (`towerLayers`): a cell the selector's own meter steps, at its sections' rate or slower (the chooser's), read only by tables — `&key`, `step=&bar/32`, read by `&lydian` — is a source too, under the pill. `&up` (Hypercell) runs at the same rate off the same bar, but is a curve a voice reads: it stays with the rise section.
+- **The row in order** (`lineUp`): the frame, the meter, the choosers, left to right, set apart where they are out of order or too close. Of the two orders asked, `&key · &bar · &scenes`: with `&key` left of `&bar` its bus goes straight up to `&lydian` beside the pill (`aside`: kept left of it), where right of `&bar` it crossed the pill's end. The crossing at the bottom is gone: the meter's wire and the chooser's no longer pass each other.
+- **Room to turn** (`minRise` 90, `physics.ts: rise`): a plain wire between two strata (one a table's bus is not; a value several read, `&breath`, is) keeps its upper wheel's bottom at least 90 px over its lower wheel's top, the free end moved part of the way each tick. Within one stratum nothing is pushed (it pulled the canon's follower out of the harmony row).
+- **The examples** (Hypercell, Pop, Zell, Brothers): a selector's taps reordered to read bass, the pitched parts, the drums, then the rest, near the order the graph lays them out, the chooser's sections renumbered to match (`[0,1,4,6]` → `[0,4,5,6]`). Every note the same over each whole piece (`plan` + `eventsBetween`, 600 s, as Shorten's promise checks). The looms' inversions (a tap's cells out of the taps' order, left to right): Hypercell 6 → 2, Pop 8 → 3, Zell 3 → 0, Brothers 2 → 1. Korobeiniki is left: its parts are in pairs (lead A, lead B …), already in an order that reads. Today's layout records them too: 36.5 → 37.2 crossings over the library (Zell +1, Hypercell −0.3).
+- **Seeded bottom-up** (`seedUp`, off): a fresh graph seeded with a column a tap in the taps' order, and what each feeds over it, up to the voices. It crossed more (45.3, and 43.0 seeding the tapped cells only, against 41.3 unseeded): the forces settle elsewhere from it. Removed before review.
+
+| layout | crossings |
+|---|---|
+| the round before | 39.7 |
+| **default now** (`minRise` 90, the examples rewritten) | **41.3** |
+| … no `minRise` | 38.3 |
+| … `minRise` 60 | 38.7 |
+| … `minRise` 120 | 43.0 |
+| … seeded bottom-up | 45.3 |
+| today's, with the tower's sockets | 28.7 |
+
+(77 pieces, three seeds; ±2 between runs. The rows before the examples were rewritten.) `minRise` 90 costs about 1.7 for the room it makes; 120 costs 4.7.
+
+![Cellscape: &key · &bar · &scenes, &key under &lydian](tower-strip-row-cellscape.jpg)
+![Hypercell](tower-strip-row-hypercell.jpg)
+![Pop](tower-strip-row-pop.jpg)
+
 ## Next
 
 1. The tower layout still crosses about three times today's (91 against 33, the card left out of both), most in the pieces arranged with selectors, tapes and resonators (#234's language side: a selector that sends gates).
