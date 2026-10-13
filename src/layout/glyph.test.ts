@@ -65,6 +65,12 @@ describe('a table of taps (Pop’s &parts: &bassBar &keysBar …)', () => {
     expect(bulbs.map((b) => b.text)).toEqual(['bass', 'keys', 'hook', 'hats', 'beat', 'end']);
     expect(bulbs.map((b) => b.font)).toEqual([7.9, 7.9, 7.9, 7.9, 7.9, 10.5]);
     expect(bulbs.every((b) => b.sub === '' && b.outline === null)).toBe(true);
+    // (they fit inside: nothing round a rim)
+    expect(bulbs.every((b) => b.rim === null)).toBe(true);
+    // (a name too long for its bulb goes round its rim, at a readable size)
+    const long = bulbLabels(pop, track, true, '').filter((b) => b.rim);
+    expect(long.length).toBeGreaterThan(0);
+    for (const b of long) expect([b.font, b.rim!.font >= 7, b.rim!.d.startsWith('M ')]).toEqual([null, true, true]);
   });
   it('lit where its selector has a tap on; each ring its part’s, a hand across those on', () => {
     const key = litTaps(parts, cell, new Set(['cell:beatBar', 'cell:keysBar']));

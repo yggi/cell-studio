@@ -70,7 +70,7 @@ export function flowNodeOf(
   if (g.kind === 'voice') {
     const p = g.cell.params;
     const src = p.s === undefined ? `braid${g.cell.map ? ' ' + (g.cell.map.kind === 'table' ? '&' + g.cell.map.table : g.cell.map.kind) : ''}` : String(p.s);
-    const summary = ['white', 'pink', 'brown'].includes(src) ? src : `${src} · ${+g.cell.freq.toFixed(2)}`;
+    const summary = ['white', 'pink', 'brown'].includes(src) ? src : `${src} · ${+g.cell.freq.toFixed(2)} Hz`;
     return { id: g.id, type: 'voice', position, data: { name: g.cell.name, summary, size: VOICE_SIZE * g.cell.size, pinned: isPinned } };
   }
   // a cell a plugin of the piece draws (show=name): its wheel, as large as the plugin says

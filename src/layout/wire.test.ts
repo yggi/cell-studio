@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { polar, segmentsCross } from './geometry';
-import { bundleCubic, bundlePaths, loomParts, loomPaths, measured, rippled, waveAlong } from './wire';
+import { bundleCubic, bundlePaths, readingAngle, wireLabel, loomParts, loomPaths, measured, rippled, waveAlong } from './wire';
 
 // (the polyline of a path: its M/L/A/Q/C points, an arc sampled along its circle, about its centre cx, cy)
 const points = (d: string, cx: number, cy: number) => {
@@ -203,5 +203,25 @@ describe('a bus along a sigmoid', () => {
       expect(near).toBeGreaterThan(5.5);
       expect(near).toBeLessThan(6.5);
     }
+  });
+});
+
+describe('a label on a wire (#137)', () => {
+  it('reads along it, upright, level where it is steep', () => {
+    expect(readingAngle(1, 0)).toBe(0);
+    expect(readingAngle(-1, 0)).toBeCloseTo(0, 6);
+    expect(readingAngle(1, 1)).toBeCloseTo(45, 6);
+    expect(readingAngle(-1, -1)).toBeCloseTo(45, 6);
+    expect(readingAngle(0.2, 1)).toBe(0);
+  });
+  it('sits at the middle, or slides along to the first place clear of a wheel', () => {
+    const m = measured('M 0 0 L 300 0');
+    expect(wireLabel(m, 40)).toMatchObject({ x: 150, y: 0, angle: 0 });
+    // (a wheel over the middle: it moves off it, still on the wire)
+    const p = wireLabel(m, 40, [{ x: 150, y: 0, r: 30 }])!;
+    expect(Math.abs(p.x - 150)).toBeGreaterThan(30 + 20);
+    expect(p.y).toBe(0);
+    // (near the end: a tap's, back from its socket)
+    expect(wireLabel(m, 40, [], 6, 20)!.x).toBeCloseTo(260, 0);
   });
 });

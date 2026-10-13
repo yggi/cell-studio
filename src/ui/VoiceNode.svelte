@@ -72,9 +72,12 @@
       <EnvelopeCurve voice={data.name} x={capRect.x} y={capRect.y} width={capRect.w} height={capRect.h} />
     </svg>
   {/if}
+  <!-- its name in a pill, what it is under it, small (#137: as every node's) -->
   {#if !data.petal}<div class="name" title={lambda ? `&(${lambda})` : undefined}>
-      {#if label}<span class="label">{@html label}</span> <span class="summary">&amp;{data.name}</span>
-      {:else}{lambda ? `&(${lambda.length > 14 ? lambda.slice(0, 13) + '…' : lambda})` : '&' + data.name} <span class="summary">{data.summary}</span>{/if}
+      <span class="pill"
+        >{#if label}<span class="label">{@html label}</span>{:else}{lambda ? `&(${lambda.length > 14 ? lambda.slice(0, 13) + '…' : lambda})` : '&' + data.name}{/if}</span
+      >
+      <span class="summary">{label ? `&${data.name}` : data.summary}</span>
     </div>{/if}
   {#if !data.petal}<SideMarks name={data.name} />{/if}
   {#if data.pinned}<span class="pin" title="Pinned"></span>{/if}
@@ -117,9 +120,15 @@
     top: 100%;
     left: 50%;
     transform: translate(-50%, 6px);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1px;
     white-space: nowrap;
     font: 600 13px/1.2 var(--font-code);
     color: var(--accent);
+  }
+  .pill {
     background: var(--surface);
     padding: 3px 8px;
     border-radius: 6px;
@@ -129,11 +138,15 @@
     color: var(--text-muted);
     font-weight: 500;
     font-size: 11px;
+    /* (a faint plate: the wires under it don't run through its letters) */
+    background: color-mix(in oklab, var(--surface) 80%, transparent);
+    padding: 0 5px;
+    border-radius: 4px;
   }
-  [data-state='live'] .name {
+  [data-state='live'] .pill {
     border-color: var(--accent);
   }
-  [data-state='off'] .name {
+  [data-state='off'] .pill {
     text-decoration: line-through;
   }
 </style>

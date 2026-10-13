@@ -167,7 +167,7 @@ function pulseData(e: GraphEdge, program: CompileResult) {
  * (each edge reads that for itself).
  */
 export function flowEdgeOf(e: GraphEdge, state: State, program: CompileResult, belt?: BeltDrawn, sizes?: EndSizes, net?: NetPlace, ring?: number): Edge {
-  if (belt) return { id: e.id, source: e.source, target: e.target, type: 'belt', zIndex: 5, selectable: false, data: { ...belt } };
+  if (belt) return { id: e.id, source: e.source, target: e.target, type: 'belt', zIndex: 5, selectable: false, data: { ...belt, label: edgeLabel(e) ?? null } };
   // a tape's edges meet it at its heads: the write head (what it records), each read head (what it plays)
   // (a read head drawn as a bulb on its tape, decision 021: what it plays into leaves from the bulb)
   const heads =

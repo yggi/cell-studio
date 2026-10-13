@@ -4,6 +4,7 @@
 </script>
 
 <script lang="ts">
+  import { rimArc } from '../layout/glyph';
   import SideMarks from './SideMarks.svelte';
   /**
    * A physical cell (a meter with a motor, a belted cell) as a turntable: a raised disc of
@@ -546,6 +547,8 @@
   {/if}
   {#each bulbs as b (b.name)}
     {@const p = polar(headAngle(b.at), b.dist)}
+    <!-- (its name inside while it fits at 7 px; longer, round its outer rim, #137) -->
+    {@const fits = (b.r * 2.6) / Math.max(3, b.name.length + 1) >= 7}
     <!-- a read head: tapped, it opens; held, it switches off (Graph.svelte); playing into nothing that sounds, dimmed -->
     <button
       class="head-bulb"
@@ -556,15 +559,24 @@
       style:top="{p.y}px"
       style:width="{b.r * 2}px"
       style:height="{b.r * 2}px"
-      style:font-size="{Math.max(6, Math.min(11, (b.r * 2.6) / Math.max(3, b.name.length + 1)))}px"
+      style:font-size="{Math.min(11, (b.r * 2.6) / Math.max(3, b.name.length + 1))}px"
       aria-label="&{b.name}: a read head {b.at} s along the tape; Shift+Enter switches it {b.look === 'off' ? 'on' : 'off'}"
       onpointerdown={(e) => bulbDown(e, b.name)}
       onpointerup={bulbUp}
       onpointerleave={bulbUp}
       onpointercancel={bulbUp}
       onclick={(e) => (e.stopPropagation(), bulbHeld ? (bulbHeld = false) : ctx.open(b.name))}
-      onkeydown={(e) => e.key === 'Enter' && e.shiftKey && (e.preventDefault(), ctx.toggle(`cell:${b.name}`))}>&{b.name}</button
+      onkeydown={(e) => e.key === 'Enter' && e.shiftKey && (e.preventDefault(), ctx.toggle(`cell:${b.name}`))}>{fits ? `&${b.name}` : ''}</button
     >
+    {#if !fits}
+      {@const R2 = b.r + 12}
+      <svg class="head-rim" style:left="{p.x - R2 - 4}px" style:top="{p.y - R2 - 4}px" width={2 * R2 + 8} height={2 * R2 + 8} aria-hidden="true">
+        <path id="{d.name}-{b.name}-rim" d={rimArc([R2 + 4, R2 + 4], b.r + 4)} fill="none" />
+        {#each ['halo', 'ink'] as layer (layer)}
+          <text class={layer}><textPath href="#{d.name}-{b.name}-rim" startOffset="50%" text-anchor="middle">&{b.name}</textPath></text>
+        {/each}
+      </svg>
+    {/if}
   {/each}
   <span class="name" style:margin-top={exciters.length > 1 ? `${R * 0.42}px` : below ? `${below}px` : undefined}>&{d.name}</span>
   {#if cell?.frees.length}<FreePills frees={cell.frees} name={d.name} />{/if}
@@ -728,5 +740,22 @@
   }
   .head-bulb.off {
     opacity: 0.35;
+  }
+  /* (a head's name too long for it: round its outer rim) */
+  .head-rim {
+    position: absolute;
+    pointer-events: none;
+    overflow: visible;
+    z-index: 2;
+  }
+  .head-rim text {
+    font: 700 9px var(--font-ui);
+    fill: var(--text);
+  }
+  .head-rim .halo {
+    fill: none;
+    stroke: var(--bg);
+    stroke-width: 3.5px;
+    stroke-linejoin: round;
   }
 </style>

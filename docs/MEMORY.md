@@ -78,6 +78,7 @@ One line each; the record has the rationale. → [decisions/](decisions/README.m
 - 031 · Chance is keyed on the seed, the cell, the lap and the step, not the voice: a respelling keeps its dice · → decisions/031-chance-keyed-on-time.md
 - 032 · `restart=` names what switching a part on does to its time: `restart` (default), `resume`, `free`; the last two parse and warn, not yet implemented · → decisions/032-restart-policies.md
 - 033 · The folder writes a converted piece in degrees of its key where that's shorter (`&key scale(minor, C)`, lines `over=&key`, phrases `&m^1`); an accidental moves with its note under `^n`; Strudel's `6s`/`7f` and `scale("C:minor")` read as ours · → decisions/033-degrees.md
+- 034 · Labels sit on what they name: an edge's on its wire (along it, upright, level where steep, off the wheels), a net's name once on its trunk and each tap's change at its socket on the reader's rim, a name too long for its bulb round its rim, a node's name a pill with what it is under it (round its rim when small and crowded), a belt's along its run · → decisions/034-labels.md
 
 ## Where things are tracked
 

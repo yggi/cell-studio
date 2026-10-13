@@ -50,8 +50,22 @@ interface BulbLabel {
   readonly text: string;
   /** Its label and laps (×2). */
   readonly sub: string;
-  /** The font that fits its hub; null: none does. */
+  /** The font that fits its hub; null: none does at BULB_MIN, and its name goes round its rim (`rim`). */
   readonly font: number | null;
+  /**
+   * Its name round the bulb's outer rim (#137, #274: a name that doesn't fit inside), when it doesn't fit: the arc's path,
+   * over the top from low left to low right, and the font. Null when it fits inside, or has no name.
+   */
+  readonly rim: { readonly d: string; readonly font: number } | null;
+}
+
+/** The smallest a name is drawn inside its bulb (px); smaller, it goes round the rim. */
+const BULB_MIN = 7;
+
+/** The arc a bulb's name runs along, round its outer rim (radius r about c): 240° over the top, read left to right. */
+export function rimArc(c: readonly [number, number], r: number): string {
+  const at = (deg: number) => [c[0] + r * Math.cos((deg * Math.PI) / 180), c[1] - r * Math.sin((deg * Math.PI) / 180)].map((v) => v.toFixed(1)).join(' ');
+  return `M ${at(210)} A ${r.toFixed(1)} ${r.toFixed(1)} 0 1 1 ${at(-30)}`;
 }
 
 /**
@@ -67,12 +81,16 @@ export function bulbLabels(result: CompileResult, track: Track | null, tapsTable
       const text = lambda ? '' : tapsTable ? tapName(b.name, suffix) : `&${b.name}`;
       const sub = [b.label, b.laps > 1 ? `×${b.laps}` : ''].filter(Boolean).join(' ');
       const room = 2 * Math.max(4, L.rho - L.w / 2) * 0.9;
+      const font = fitFont(room, Math.max(2, text.length, sub.length), 13, BULB_MIN);
+      // (round the rim, outside: as large as a small inside name, just clear of the ring)
+      const rimFont = Math.max(BULB_MIN, Math.min(11, L.rho * 0.55));
       out.push({
         L,
         outline: b.hollow && track ? ribbon(track, L.T0, L.T1, 0, 1, 1.5) : null,
         text,
         sub,
-        font: fitFont(room, Math.max(2, text.length, sub.length), 13, tapsTable ? 4.5 : 6),
+        font,
+        rim: font === null && text ? { d: rimArc(L.C, L.rho + L.w / 2 + 2 + rimFont * 0.3), font: rimFont } : null,
       });
       walk(L.bulbs);
     }

@@ -395,11 +395,7 @@ export function wireLabel(
   if (m.length < width * 0.6) return null;
   const place = (s: number) => {
     const [a, b] = [m.at(s - 4), m.at(s + 4)];
-    let angle = (Math.atan2(b.y - a.y, b.x - a.x) * 180) / Math.PI;
-    if (angle > 90) angle -= 180;
-    if (angle < -90) angle += 180;
-    if (Math.abs(angle) > STEEP) angle = 0;
-    return { ...m.at(s), angle };
+    return { ...m.at(s), angle: readingAngle(b.x - a.x, b.y - a.y) };
   };
   // (how far its ends and middle, as it would be drawn there, keep from the nearest wheel's rim: clear past `room`;
   // where no place is, the roomiest)
@@ -427,6 +423,14 @@ export function wireLabel(
       if (clear(p)) return p;
     }
   return (best as { p: { x: number; y: number; angle: number } } | null)?.p ?? place(half);
+}
+
+/** The angle a label along a line of this direction reads at (degrees): along it, upright, level where it is steep. */
+export function readingAngle(dx: number, dy: number): number {
+  let angle = (Math.atan2(dy, dx) * 180) / Math.PI;
+  if (angle > 90) angle -= 180;
+  if (angle < -90) angle += 180;
+  return Math.abs(angle) > STEEP ? 0 : angle;
 }
 
 /** Steeper than this (degrees from level), a label on a wire reads level. */
