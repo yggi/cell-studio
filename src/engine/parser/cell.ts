@@ -4,7 +4,7 @@ import type { Braid, CellDecl, MapSpec, ParamCells, Ref, Span, StepSpec, Token }
 import { TIME_PARAMS } from '../attributes';
 import { RETIRED_PARAMS } from '../dough-params';
 import { LABEL_FIELDS } from '../program';
-import { CELL_PARAMS, CORE, PARAMS, nearestAttribute } from '../attributes';
+import { CELL_PARAMS, CORE, PARAMS, PARAM_ALIASES, nearestAttribute } from '../attributes';
 import { IDENT, LineScanner } from './scanner';
 import { OPERATIONS, parseToken, pushStep } from './braid';
 import { FREE_BRAID_WHOLE, parseFree } from './free';
@@ -471,7 +471,8 @@ export function parseBody(s: LineScanner, head: Ref): CellDecl {
     paramCells: {},
     paramClocks: {},
   };
-  const seen = new Set<string>();
+  // each setting, as it was first written
+  const seen = new Map<string, string>();
   let off = false;
   let oneshot = false;
   const tokens: Token[] = [];
@@ -486,7 +487,8 @@ export function parseBody(s: LineScanner, head: Ref): CellDecl {
     const word = s.match(IDENT);
     if (word !== null && s.peek() === '=') {
       s.i++;
-      const key = word in KEYS || word in PARAMS ? word : null;
+      // (an alias, Strudel's or dough's other name, reads as ours: cutoff= is lpf=)
+      const key = word in KEYS || word in PARAMS ? word : (PARAM_ALIASES[word] ?? null);
       if (key === null) {
         if (word in RETIRED_KEYS) s.fail(RETIRED_KEYS[word], at, word.length);
         const near = nearestAttribute(word);
@@ -498,11 +500,21 @@ export function parseBody(s: LineScanner, head: Ref): CellDecl {
       }
       // each at most once (step= and loop= are one setting)
       const slot = key === 'loop' ? 'step' : key;
-      if (seen.has(slot))
-        s.fail(slot === 'step' && b.step!.whole !== (word === 'loop') ? 'step= and loop= say the same thing two ways — pick one' : `${word}= is given twice`, at, word.length);
-      seen.add(slot);
+      if (seen.has(slot)) {
+        const first = seen.get(slot)!;
+        s.fail(
+          slot === 'step' && b.step!.whole !== (word === 'loop')
+            ? 'step= and loop= say the same thing two ways — pick one'
+            : first !== word
+              ? `${word}= and ${first}= are one parameter, ${key}= — given twice`
+              : `${word}= is given twice`,
+          at,
+          word.length,
+        );
+      }
+      seen.set(slot, word);
       const read = (KEYS as Readonly<Record<string, Key>>)[key]?.read ?? (CELL_PARAMS.has(key) ? readCellParam : readParam);
-      read(s, b, word, at);
+      read(s, b, key, at);
       if (!s.atBoundary()) s.fail(`Unexpected '${s.peek()}'`);
       continue;
     }

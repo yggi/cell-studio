@@ -138,8 +138,11 @@ export type Braid =
   | { readonly kind: 'list'; readonly tokens: readonly Token[]; readonly perBeat?: number }
   /** Running totals of intervals: scan(2 2 1 2 2 2 1) → 0 2 4 5 7 9 11, lap 12. Scales, meters, rhythms. */
   | { readonly kind: 'scan'; readonly steps: readonly number[]; readonly span: Span }
-  /** One cycle of a sine in n steps: sin(2πi/n), −1 … 1. */
-  | { readonly kind: 'sin'; readonly n: number; readonly span: Span };
+  /** One cycle of a waveform in n steps, −1 … 1, as Strudel's bipolar signals sampled at each step's start: sin(n) sin(2πi/n), saw(n) a ramp up, tri(n) up then down, square(n) −1 then 1. */
+  | { readonly kind: 'wave'; readonly shape: WaveShape; readonly n: number; readonly span: Span };
+
+/** The waveforms a braid can be written as (sin(n), saw(n), tri(n), square(n)). */
+export type WaveShape = 'sin' | 'saw' | 'tri' | 'square';
 
 /**
  * How a cell moves. `step=` counts single steps, `loop=` whole turns of the braid:

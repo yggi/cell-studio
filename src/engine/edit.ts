@@ -80,6 +80,11 @@ export function setAttr(source: string, name: string, key: string, value: string
   });
 }
 
+/** Respell a `key=` on &name as `to=`, its value and place kept (an alias as ours: cutoff=800 → lpf=800). */
+export function renameAttr(source: string, name: string, from: string, to: string): string {
+  return editDecl(source, name, (code) => code.replace(new RegExp(`(\\s)${from}=`), `$1${to}=`));
+}
+
 /** Add or remove a bare flag (`off`) on &name. */
 function setFlag(source: string, name: string, flag: string, on: boolean): string {
   return editDecl(source, name, (code, head) => {

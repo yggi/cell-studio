@@ -75,7 +75,7 @@ describe('braid ↔ roll', () => {
     expect(why('.5')).toMatch(/decimal/);
     expect(why('[0,0]')).toMatch(/doubles/);
     expect(why('degree(&m, 1)')).toMatch(/degree\(\)/);
-    expect(fromBraid({ kind: 'sin', n: 12, span: { line: 1, col: 1, len: 1 } }).ok).toBe(false);
+    expect(fromBraid({ kind: 'wave', shape: 'sin', n: 12, span: { line: 1, col: 1, len: 1 } }).ok).toBe(false);
   });
 
   // the law: toBraid(fromBraid(b)) is b, or its canonical equal — over every braid of every example the roll can show

@@ -323,6 +323,10 @@ export function formsUsed(source: string): Set<string> {
     ['scan', 'scan(i …)'],
     ['euclid', 'euclid(k, n)'],
     ['sin', 'sin(n)'],
+    // (the waveforms are one form: saw(n), tri(n), square(n) beside sin(n))
+    ['saw', 'sin(n)'],
+    ['tri', 'sin(n)'],
+    ['square', 'sin(n)'],
     ['meter', 'meter("sig")'],
     ['spell', 'spell("text", &table, "names")'],
     ['scale', 'scale(name)'],
