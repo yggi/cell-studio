@@ -52,7 +52,6 @@ const VARIANTS: Variant[] = [
   { name: 'no min rise', tower: true, card: false, opts: { ...TOWER_LAYOUT, minRise: 0 } },
   { name: 'min rise 60', tower: true, card: false, opts: { ...TOWER_LAYOUT, minRise: 60 } },
   { name: 'min rise 90', tower: true, card: false, opts: { ...TOWER_LAYOUT, minRise: 90 } },
-  { name: 'seeded bottom-up, a column a tap', tower: true, card: false, opts: { ...TOWER_LAYOUT, seedUp: true } },
   { name: 'tables at the bottom, not lifted to their readers', tower: true, card: false, opts: TOWER_LAYOUT, lift: false },
   { name: "tower, today's forces", tower: true, card: false, opts: { heightPull: 0.05, placeLast: 0 } },
 ];

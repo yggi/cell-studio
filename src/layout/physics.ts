@@ -20,7 +20,7 @@ import { BELT_LENGTH, BELT_PULL, DEFAULT_LAYOUT, GROUND_PULL, linkPull, type Lay
 import type { LayoutState, MeterTrace, PhysLink, PhysNode } from './state';
 import { nodeAt, positionOf } from './state';
 import { folded, junctionNodes, placeJunctions, settleJunctions } from './junctions';
-import { rowsKey, startNodes, startPlaces, jitter } from './start';
+import { rowsKey, startNodes, startPlaces } from './start';
 import { forceUncross, stepBends, stepClusters, stepExclusion, stepKinds, stepSpread } from './forces';
 import { aims, fitTurns, stepAims } from './aims';
 import { hops, loomsOf, meterNet, netTree, stepNets, taps } from './nets';
@@ -46,10 +46,6 @@ const CALM = 12;
 const RISE = 0.2;
 /** The room between neighbours in a row lined up (px). */
 const LINE_GAP = 40;
-/** (seedUp) The columns' spacing a fresh graph is seeded with, a tap each (px). */
-const SEED_GAP = 220;
-/** (seedUp) How many levels up what the tapped cells feed is seeded over them. */
-const SEED_LEVELS = 6;
 /** The room over a pill a cell reading it keeps: the pill's pad, and the cell's name under it (px). */
 const PILL_ROOM = PILL_PAD + 30;
 
@@ -281,7 +277,6 @@ export class ForceLayout {
       .filter((e) => ground(e) && next.has(e.source) && next.has(e.target))
       .map((e) => ({ id: e.id, meter: e.target, cell: e.source, ...(e.bulb && e.bulbAt ? { bulb: e.bulb, at: { ...e.bulbAt } } : {}) }));
     this.s.net = this.s.net.filter((t) => next.has(t.a) && next.has(t.b) && this.s.grounds.some((g) => g.meter === t.meter && g.bulb === t.bulb));
-    if (fresh && this.s.opts.tapLoom && this.s.opts.seedUp) this.seedUp(model);
     // the tapes turned to where everything is now (an edit that doesn't move anything doesn't turn them)
     this.s.turns = fitTurns(this.s, (id) => this.position(id));
     // a hub's edges into a cluster: each keeps part of its pull, the cluster's tag takes the rest, once per hub (`mux`)
@@ -357,36 +352,6 @@ export class ForceLayout {
    * (the tower layout) Each node `heights` names held at its height: only x is free (d3 sets y to fy each tick); or,
    * with `heightPull`, drawn towards it, gently, as a spring would (its height a target, not a rail).
    */
-  /**
-   * (seedUp, the tower layout) A fresh graph seeded bottom-up: what a selector's taps step spread left to right in the
-   * taps' order over its table, a column a tap; what each feeds, up to the voices and their mixers, over what feeds it
-   * (the mean of its feeders). The forces start from the sections in order.
-   */
-  private seedUp(model: GraphModel): void {
-    const x = new Map<string, number[]>();
-    for (const table of new Set(this.s.grounds.flatMap((g) => (g.bulb ? [g.meter] : [])))) {
-      const t = this.s.byId.get(table);
-      if (t?.x === undefined) continue;
-      const taps = [...new Map(this.s.grounds.flatMap((g) => (g.meter === table && g.bulb && g.at ? [[g.bulb, g.at.x] as const] : []))).entries()].sort((a, b) => a[1] - b[1]);
-      taps.forEach(([bulb], k) => {
-        for (const g of this.s.grounds) if (g.meter === table && g.bulb === bulb) x.set(g.cell, [...(x.get(g.cell) ?? []), t.x! + (k - (taps.length - 1) / 2) * SEED_GAP]);
-      });
-    }
-    const at = new Map([...x].map(([id, xs]) => [id, xs.reduce((a, b) => a + b, 0) / xs.length]));
-    // (up what each feeds, a level at a time: a node reached from several, between them)
-    for (let level = 0, front = [...at.keys()]; level < SEED_LEVELS && front.length; level++) {
-      const reached = new Map<string, number[]>();
-      for (const e of model.edges)
-        if (front.includes(e.source) && !at.has(e.target) && this.s.byId.has(e.target)) reached.set(e.target, [...(reached.get(e.target) ?? []), at.get(e.source)!]);
-      for (const [id, xs] of reached) at.set(id, xs.reduce((a, b) => a + b, 0) / xs.length);
-      front = [...reached.keys()];
-    }
-    for (const [id, nx] of at) {
-      const n = this.s.byId.get(id);
-      if (n && n.fx == null) n.x = nx + jitter(id, 3 + 2 * this.s.opts.seed);
-    }
-  }
-
   /** After an edit (not a fresh graph): set each node's speed to CALM px a tick at most. */
   private calmed = false;
   private calm(): void {
