@@ -199,6 +199,9 @@
     get towered() {
       return towered;
     },
+    get wheels() {
+      return wheels;
+    },
     anchor: (node, other, from, meter) => {
       const l = pillsBy.get(node);
       return l && pillAnchor(l, other, from, meter);
@@ -273,6 +276,16 @@
   // the tower layout (towerlayout.ts): the graph by the tower, the sound card its strip at the right (TowerStrips.svelte)
   const towered = $derived(layout.mode === 'tower');
   const pills = $derived(towered ? new Set(layout.looms.map((l) => l.table)) : undefined);
+  // (where every wheel is now, and its name under it: an edge's label keeps off them — a name as a disc as wide as it)
+  const wheels = $derived(
+    layout.nodes.flatMap((n) => {
+      const data = n.data as { size?: number; name?: string };
+      const size = n.measured?.width ?? data.size;
+      if (!size) return [];
+      const name = data.name ? Math.max(24, (data.name.length + 1) * 4.4 + 8) : 0;
+      return [{ x: n.position.x, y: n.position.y, r: size / 2 }, ...(name ? [{ x: n.position.x, y: n.position.y + size / 2 + 16, r: name }] : [])];
+    }),
+  );
   const pillsBy = $derived(new Map(towered ? layout.looms.map((l) => [l.table, l] as const) : []));
   let stripsOpen = $state(QUERY?.has('strips') ?? false);
   const stripW = $derived(stripsOpen ? STRIP_OPEN : STRIP);

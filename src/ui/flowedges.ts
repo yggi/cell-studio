@@ -16,6 +16,7 @@ import { loomBands } from '../layout/looms';
 import type { MeterTrace } from '../layout/state';
 import type { GraphSnapshot } from './snapshot';
 import { payloadOf } from './payload';
+import { VOICE_KIT } from '../engine/compiler/declare';
 import { socketOf, VOICE_SIZE } from '../layout/voice';
 
 const nameOf = (id: string) => id.slice('cell:'.length);
@@ -39,6 +40,8 @@ export interface EndSizes {
 /** An edge's place in a net (GraphModel.nets): which (the layout says where it attaches: ForceLayout.taps). */
 export interface NetPlace {
   readonly id: string;
+  /** Its shared name (#137): its owner's, drawn once on its trunk. */
+  readonly name: string;
 }
 
 /** A note into a resonator picks one of its exciters (or reads through them): each one's pitch (semitones from C4), for a strand to each. */
@@ -240,7 +243,9 @@ export function flowEdgesOf(s: GraphSnapshot, scene: EdgeScene): Edge[] {
   const routed = drawn(model, s.routed);
   const live = scene.lit ? NO_LIVE : null;
   // each edge's place in a net (a table read by several: one trunk, a branch to each reader)
-  const netPlaces = new Map(model.nets.flatMap((n) => n.taps.map((id) => [id, { id: n.id }] as const)));
+  // (named as its owner's node is: the grooves' unnamed kit, drums)
+  const netName = (owner: string) => (nameOf(owner) === VOICE_KIT ? 'drums' : `&${nameOf(owner)}`);
+  const netPlaces = new Map(model.nets.flatMap((n) => n.taps.map((id) => [id, { id: n.id, name: netName(n.owner) }] as const)));
   const rings = loomBands(model).inner;
   const grounds = groundsOf(model);
   const index = meterIndex(model);
