@@ -1,12 +1,25 @@
 # The disassembler's literature: what to reuse, which swamps to avoid
 
-Date: 2026-10-13 · Status: open (topics 1–8 of 9 done; one topic a session) · Issues: #365, the epic #364, the frame
+Date: 2026-10-13 · Status: done (all 9 topics) · Issues: #365, the epic #364, the frame
 [disassembler.md](disassembler.md)
 
 One section a topic. Each answers five questions: the state of the art, what we take, what we leave, the nearest
 swamp, and our numbers against theirs. Every reference below was opened and read at least to its abstract and results;
-where a number comes from the full text, the section says so. The leads for topic 9 are in the issue, not repeated
-here.
+where a number comes from the full text, the section says so. The leads are in the issue, not repeated here.
+
+**In one screen:**
+
+| topic | the finding | issues |
+|---|---|---|
+| 1. Compression as analysis | Point sets (SIA) complement voices: both routes score F1 ≈ 0.12 on fugue subjects. Pick the repeat that saves most; read SIA's vectors as a path. | #380, #381 |
+| 2. Pattern benchmarks | The bench can run on JKU-PDD with a loader, a writer and `mir_eval.pattern`. MIREX best: three-layer F 0.46. | #383 |
+| 3. Voice separation | `voiceAgreement` is the field's link P/R: within 2 points on the sinfonias, recall 6 behind on fugues. MCMA as a common ground truth. | #384 |
+| 4. Meter, beat, tempo | Beats from performance MIDI ≈ 80–86 F, downbeats 14–28. A DP tracker on ASAP; our losses are several pulses, so a grid per line. | #387, #388 |
+| 5. Key and harmony | Ours 65 / 69, profile methods 61–65, errors that don't overlap (a vote: 68). When-in-Rome for local keys and chords. | #389 |
+| 6. Structure and form | Score the fold against analysts (Essen phrases, GTTM trees) and report boundary F at 0.5 / 3 s. | #391 |
+| 7. Audio → notes | In the app only Basic Pitch fits (742 KB). NMF with our templates for our renders. ⚖ The training data's NC licence. | #399 |
+| 8. Residual, analysis by synthesis | Frequencies from analysis, never from the fit. Our voices' parameters read off an SMS analysis, then a rendered judge. | #400 |
+| 9. Higher-order relations | Rhythm–scale relations have finders (we have them). Repeated transformations have none published; that is ours to build. | #381, #401 |
 
 ## 1. Compression as analysis
 
@@ -1172,7 +1185,7 @@ the render distance of a fitted voice against the voice that made the render, on
 - #400: *fit a voice and a resonator to a note, analysis first*: SMS-style harmonics and residual from
   `spectrogram.ts`; waveform, ADSR, filters and body read off; a rendered judge with derivative-free polish; tested on
   our own renders.
-- Topic 9 (higher-order and cross-scale relations) next session.
+- Topic 9 (higher-order and cross-scale relations): below.
 
 **References.**
 - [DHS+23] R. Diaz, B. Hayes, C. Saitis, G. Fazekas, M. Sandler, "Rigid-body sound synthesis with differentiable modal
@@ -1199,4 +1212,131 @@ the render distance of a fitted voice against the voice that made the render, on
 
 ## 9. Higher-order and cross-scale relations
 
-Not yet.
+**Where we are.**
+- **`time/necklace.ts`** writes a rhythm round a cycle and a scale round the octave in one form, the steps between
+  marks whatever the starting slot. So the West African standard bell and the major scale are one necklace, 2 2 2 1 2
+  2 1. It also tests maximal evenness (after Clough & Douthett).
+  - Over the library it finds one such folding heard in sound: *5 to 12*'s rhythm and pitch classes, maximally even.
+  - *Bell* writes it in its code, but heard within a cycle its melody is a pentatonic subset, so only a check on the
+    code (one cell read by `step=` and by `over=`) would find it ([scalogram.md](scalogram.md)).
+- **`time/motifs.ts`** finds a figure at two time scales (Korobeiniki's B section at half speed).
+- **`tools/disasm/higher.ts`** finds runs of one cell at moving bases (a path of transpositions). After the fold
+  there are 3 in the MIDI library, worth 16 characters, because Re-Pair folds a path into pieces itself. A path
+  *shared by lines* (the canon per tonos) isn't looked for (#381).
+- **The scalogram** (`time/wavelet.ts`) is Smith & Honing's continuous wavelet transform of rhythm.
+
+**State of the art.**
+- **Transformations as objects.** Lewin's *Generalized Musical Intervals and Transformations* [Lew87]: an interval is
+  a transformation, and transformations compose. So a repeated transformation (a sequence, a canon per tonos) is a
+  structure of its own, one level up.
+  - Opycleid [Pop18] implements transformational theory's groups and categories in Python (**BSD-3**): the T/I group
+    on pitch classes, the neo-Riemannian PRL group on triads.
+  - It answers "which transformation takes this to that" (C major to B minor: I6). It **does not find** which
+    objects in a piece to relate.
+- **Geometry of chords and voice leading.** Tymoczko [Tym06; Tym11]: chords are points in an orbifold, and a voice
+  leading is a line segment. Composers use short segments between nearly symmetrical chords. A *description* of
+  which relations are near, with the measure (voice-leading size) that a finder would need.
+- **Evenness, rhythm and scale as one structure:**
+  - Clough & Douthett [CD91]: *maximally even sets*, the diatonic and pentatonic among them.
+  - Toussaint [Tou05; Tou13]: the **Euclidean algorithm generates** the traditional timelines.
+  - Demaine et al. [DGM+09] prove that Euclidean rhythms are exactly the ones that maximise evenness (the sum of
+    distances between onsets on the circle), that almost all are *deep*, and that **"all of our results for musical
+    rhythms apply equally well to musical scales"**.
+  - Pressing [Pre83] first argued that the diatonic scale's interval pattern and the West African bell are a
+    *cognitive isomorphism* (read through London 2002's account; no open copy).
+- **Wavelets for rhythm.** Smith & Honing [SH08]: a continuous wavelet transform of the inter-onset intervals
+  splits a rhythm into components over many time scales. It shows metrical structure and expressive timing (rubato as
+  a gradual change, not as noise). The time-varying components are *ridges*, and choosing the most salient as the
+  tactus models a beat tracker.
+- **Compression and beauty.** Schmidhuber [Sch09]: data is interesting while an observer *learns to compress it
+  better* ("compression progress"), and beauty is compressibility. A principle, not an algorithm for music.
+
+**The key question: which of these relations has a published algorithm for *finding* it, not only describing it?**
+
+| relation | describing | finding: published | finding: ours |
+|---|---|---|---|
+| maximally even / Euclidean (rhythm and scale) | [CD91], [Tou13] | **yes**: a test from the definition [CD91]; generation by the Euclidean algorithm and its proven equivalence to maximal evenness [DGM+09] | `maximallyEven` ✓ |
+| one necklace as rhythm and as scale (the bell) | [Pre83] | **no** finder read | `necklace.ts` canonical form ✓ (heard); in the code, not yet |
+| a transformation between two given objects | [Lew87], [Tym06] | **yes**, as a calculator: Opycleid (which T/I or PRL operation) | — (`degrees.ts` does transposition) |
+| a repeated transformation in a piece (a sequence, canon per tonos) | [Lew87] | **partly**: point-set translators and transformation classes (topic 1: SIATEC [MLW02], maximal transformable patterns [Mer22]). They find patterns related by a class, not "a path of transformations" as such | `higher.ts` (one line); a shared path, #381 |
+| periodicity across time scales | [SH08] | **yes**: wavelet ridges [SH08] | `time/wavelet.ts`, `ridges` ✓ |
+| beauty as compression | [Sch09] | no (a principle) | the fold's description length is the working version |
+
+- **What this shows:** the *rhythm–scale* relations have exact finders (evenness is a test, Euclidean rhythms a
+  generator, necklaces a canonical form), and we have them.
+- **Transformational relations** have calculators (given two things, which transformation) but no published finder
+  of where a piece *repeats a transformation*.
+- That finder is the higher-order tool [disassembler.md](disassembler.md) already names: SIA's translation vectors
+  read as a path (#381), and Meredith's transformation classes for inversion and retrograde [Mer22]. This is the gap
+  the project would fill rather than reuse.
+
+**What we take.**
+1. **Demaine et al.'s results as tests** for `necklace.ts`. Euclidean rhythms E(k, n) are the maximally even
+   necklaces, so `maximallyEven` and the language's `euclid` must agree on every k, n: a property test, no
+   literature needed beyond the theorem.
+2. **The bell check in the code:** one cell read by `step=` and by `over=`, a check on the source and not the sound,
+   since *Bell* shows that hearing alone misses it (scalogram.md). Pressing's isomorphism, found where it's written.
+3. **Smith & Honing's ridges as the tempo source** for topic 4's beat tracker (#387). That links the two topics: the
+   scalogram's strongest ridge in the beat band is the tactus.
+4. **A transformation as a value** (Lewin): the higher-order finder (#381) should report *which* transformation
+   repeats (T by a step, a fifth, I), as Opycleid names them, not only "a path of bases". Opycleid (BSD-3) offline
+   is the reference for the names.
+5. **Tymoczko's voice-leading size** as the cost when the finder compares chord paths: a short voice leading is a
+   near relation [Tym06]. Read to its abstract only; for later.
+
+**What we leave, and why.**
+- **The orbifold geometry as an analyzer.** It describes; we need a finder and a cost, which we take.
+- **Schmidhuber's compression progress.** It is the philosophy our MDL frame already is (topic 1). There is no
+  algorithm to take.
+- **Neo-Riemannian analysis of triads** (Opycleid's PRL): a harmonic vocabulary for chromatic Romantic music. Our
+  corpus is Bach, and the folder needs transposition and inversion first.
+
+**The nearest swamp.**
+- **Describing without finding.** Transformational theory and the chord geometries are rich in description and give
+  little to search. Every relation a tool adds must come with a finder and a test on the corpus (the canon per tonos
+  for paths, the bell for necklaces), or it stays in this note.
+- **Relations everywhere.** Any two things are related by *some* transformation. A finder that reports every
+  relation reports nothing. As in topic 2 (SIA's too many patterns), the description length decides: a relation is
+  kept when saying it shortens the piece.
+
+**Our numbers against theirs.**
+- **Ours only, nothing to compare:**
+  - one rhythm–scale folding heard over the library (*5 to 12*), and one written but not heard (*Bell*);
+  - 3 runs of a path left after the fold, worth 16 characters ([disassembler.md](disassembler.md)).
+- None of the papers here measures a finder on a corpus. Demaine et al.'s results are theorems, and Smith & Honing's
+  paper shows examples.
+
+**Next.**
+- #401: *higher-order relations: Euclidean ≡ maximally even as a property test, the bell found in the code, the
+  transformation named by the higher-order finder*. #381 holds the path itself; #387 holds the ridges.
+- #365's corpus leads (the canon per tonos, the Musical Offering's canons, the Art of Fugue with voices): MCMA has the
+  Art of Fugue with a track a voice (topic 3, #384). The canons and a typeset canon per tonos are not in MCMA's
+  listed collections; they stay open.
+
+**References.**
+- [CD91] J. Clough, J. Douthett, "Maximally even sets", Journal of Music Theory 35(1/2):93–173, 1991.
+  doi:10.2307/843811 (record; the definition as `necklace.ts` implements it)
+- [DGM+09] E. D. Demaine, F. Gomez-Martin, H. Meijer, D. Rappaport, P. Taslakian, G. T. Toussaint, T. Winograd, D. R.
+  Wood, "The distance geometry of music", Computational Geometry 42(5):429–454, 2009. doi:10.1016/j.comgeo.2008.04.005,
+  arXiv:0705.4085
+- [Lew87] D. Lewin, *Generalized Musical Intervals and Transformations*, 1987 (Oxford UP edition, 2007).
+  doi:10.1093/acprof:oso/9780195317138.001.0001 (record)
+- [MLW02], [Mer22]: topic 1.
+- [Pop18] A. Popoff, "Opycleid: a Python package for transformational music theory", JOSS 2018.
+  doi:10.21105/joss.00981. Code: github.com/AlexPof/opycleid (BSD-3).
+- [Pre83] J. Pressing, "Cognitive isomorphisms between pitch and rhythm in world musics: West Africa, the Balkans and
+  Western tonality", Studies in Music 17:38–61, 1983 (not read: no open copy; its claim as J. London, JMT 2002,
+  reports it)
+- [Sch09] J. Schmidhuber, "Driven by compression progress: a simple principle explains essential aspects of subjective
+  beauty, novelty, surprise, interestingness, attention, curiosity, creativity, art, science, music, jokes",
+  arXiv:0812.4360, 2009.
+- [SH08] L. M. Smith, H. Honing, "Time–frequency representation of musical rhythm by continuous wavelets", Journal of
+  Mathematics and Music 2(2):81–97, 2008. doi:10.1080/17459730802305336 (abstract read)
+- [Tou05] G. T. Toussaint, "The Euclidean algorithm generates traditional musical rhythms", BRIDGES 2005, 47–56.
+  https://cgm.cs.mcgill.ca/~godfried/publications/banff.pdf
+- [Tou13] G. T. Toussaint, *The Geometry of Musical Rhythm: What Makes a "Good" Rhythm Good?*, Chapman & Hall/CRC,
+  2013 (record)
+- [Tym06] D. Tymoczko, "The geometry of musical chords", Science 313(5783):72–74, 2006. doi:10.1126/science.1126287
+  (abstract read)
+- [Tym11] D. Tymoczko, *A Geometry of Music*, Oxford UP 2011 (record, via its review in Computer Music Journal 36(1),
+  doi:10.1162/COMJ_r_00108)
