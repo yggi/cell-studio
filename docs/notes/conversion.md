@@ -33,6 +33,9 @@ each collection), 172 frames, three seeds:
 | tower, gentle | 0 | 162 | 108 | 7.3 (mean 4.1) | 14.4 |
 | tower, gentle, nothing held | 0 | 205 | 110 | 36.4 (mean 8.3) | 12.3 |
 
+Run again on `main` after #393 (its tower changes: a flat selector, tables at their readers, looms): every number
+the same. A converted piece has no selector, loom or table read by several, so nothing #393 changed reaches it.
+
 - **No frame lays the graph out afresh**, even today: a story adds one cell to a graph of many.
 - **Today, a growing graph never settles.** Each frame reheats it (α 0.7), and the nodes then move at the cap
   (`CALM`, 12 px a tick) for the whole frame, 648 px in a frame on the longer stories.
