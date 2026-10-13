@@ -40,7 +40,7 @@ After merging: the issue is closed by `Closes #n` (verify; if the PR was partial
 ## 5. Several PRs at once
 
 1. Order them: independent and safest first, those others depend on before their dependents, docs-only anytime. Conflicts are resolved once, at the later PR.
-2. For each in turn: merge `main` into its branch (`update_pull_request_branch`; if it conflicts, do it locally: `node tools/sync-pr.mjs <pr>` does the mechanical conflicts, see below), resolve, run `npm test && npm run check`, push to the PR branch, wait for CI and its smoke run, merge, next.
+2. For each in turn: merge `main` into its branch (`update_pull_request_branch`; if it conflicts, do it locally: `node tools/sync-pr.mjs <pr>` does the mechanical conflicts, see below), resolve, run `npm run test:all && npm run check` (every test: `npm test` picks the slow ones by what changed; while CI is off, #300, this is the gate), push to the PR branch, wait for CI and its smoke run, merge, next.
 3. Resolving: read both PRs' intent first (descriptions, issues), then the code.
    - **Docs and `CHANGELOG.md`/`INDEX.md`**: keep both sides' facts, remove duplicates; the docs tests tell you if a block or link broke.
    - **Lockfile**: regenerate with `npm install`, never merge by hand.

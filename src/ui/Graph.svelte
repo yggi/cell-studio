@@ -15,6 +15,7 @@
   import CellNode from './CellNode.svelte';
   import VoiceNode from './VoiceNode.svelte';
   import JunctionNode from './JunctionNode.svelte';
+  import SocketNode from './SocketNode.svelte';
   import FitView from './FitView.svelte';
   import CellSheet from './CellSheet.svelte';
   import PulseEdge from './PulseEdge.svelte';
@@ -34,11 +35,16 @@
   import type { SideMark } from './context';
   import TowerAxis, { TOWER_WIDTH } from './TowerAxis.svelte';
   import FlowViewport from './FlowViewport.svelte';
+  import TowerStrips, { STRIP, STRIP_OPEN } from './TowerStrips.svelte';
+  import TapLooms from './TapLooms.svelte';
+  import { towerIns } from '../layout/towerlayout';
   import type { Viewport } from '@xyflow/svelte';
 
   // (?tower: the tower open from the start, ?towerCell=tune its line, as if selected: the gallery's pictures)
   const QUERY = typeof location !== 'undefined' ? new URLSearchParams(location.search) : null;
   const towerCell = QUERY?.get('towerCell') ?? null;
+  // (?layout=tower: the tower layout from the start, docs/notes/tower-strip.md; ?strips: its strips opened)
+  const LAYOUT = QUERY?.get('layout') === 'tower' ? 'tower' : 'flow';
 
   // each example's rows' order, chosen when the app was built (tools/examples-index.ts), by its graph's shape
   const EXAMPLE_ROWS = new Map(EXAMPLES.map((e) => [e.rows.key, e.rows.order]));
@@ -123,6 +129,7 @@
     untrack(() => snapshotOf(program, model, shifts, muted, routed)),
     () => ({ lit, live, moment: hasBelts ? liveEdges : null }),
     EXAMPLE_ROWS,
+    LAYOUT,
   );
   onDestroy(() => layout.destroy());
   // (the sidebar's forces move this layout)
@@ -172,6 +179,9 @@
     },
     get taps() {
       return layout.taps;
+    },
+    get pills() {
+      return pills;
     },
     get state() {
       return transport;
@@ -245,11 +255,26 @@
   let sideFits = $state(0);
   let sideLit = $state<string | null>(null);
 
-  const nodeTypes = { cell: CellNode, voice: VoiceNode, material: MaterialNode, plugin: PluginNode, junction: JunctionNode } as NodeTypes;
+  const nodeTypes = { cell: CellNode, voice: VoiceNode, material: MaterialNode, plugin: PluginNode, junction: JunctionNode, socket: SocketNode } as NodeTypes;
   const edgeTypes = { pulse: PulseEdge, belt: BeltEdge, meter: MeterEdge };
 
   let legendOpen = $state(false);
-  // the frequency tower beside the graph (TowerAxis.svelte)
+  // the tower layout (towerlayout.ts): the graph by the tower, the sound card its strip at the right (TowerStrips.svelte)
+  const towered = $derived(layout.mode === 'tower');
+  const pills = $derived(towered ? new Set(layout.looms.map((l) => l.table)) : undefined);
+  let stripsOpen = $state(QUERY?.has('strips') ?? false);
+  const stripW = $derived(stripsOpen ? STRIP_OPEN : STRIP);
+  let flowW = $state(0);
+  // what goes into the card, where its wire leaves now (its top)
+  const ins = $derived(
+    towered
+      ? towerIns(layout.outs, shown.program, (id) => {
+          const n = layout.nodes.find((m) => m.id === id);
+          return n && { ...n.position, height: n.measured?.height };
+        })
+      : [],
+  );
+  // the frequency tower beside the graph (TowerAxis.svelte), in the signal path's layout
   let towerOpen = $state(QUERY?.has('tower') ?? false);
   // (the flow's pan and zoom, for the tower drawn beside it; framed again when the tower opens or closes)
   let viewport = $state<Viewport>({ x: 0, y: 0, zoom: 1 });
@@ -265,7 +290,7 @@
     cardCover = carded ? Math.max(0, graphEl!.getBoundingClientRect().right - (innerWidth - 396) + 8) : 0;
   });
   // (with a card beside it the tower waits unless 240 px of graph are left; with none it shows at any width, a phone's included)
-  const towerShown = $derived(towerOpen && (cardCover === 0 || graphW - (hasMargin ? MARGIN_WIDTH : 0) - cardCover - TOWER_WIDTH >= 240));
+  const towerShown = $derived(!towered && towerOpen && (cardCover === 0 || graphW - (hasMargin ? MARGIN_WIDTH : 0) - cardCover - TOWER_WIDTH >= 240));
   // (a card opened or closed beside the tower: the graph is framed again in the room left, so no cell is cut off)
   let lastCover = 0;
   $effect(() => {
@@ -336,13 +361,15 @@
   class="graph"
   class:margined={hasMargin}
   class:towered={towerShown}
+  class:stripped={towered}
+  style:--strip-width="{stripW}px"
   style:--margin-width="{MARGIN_WIDTH}px"
   style:--tower-width="{TOWER_WIDTH + cardCover}px"
   bind:this={graphEl}
   bind:clientWidth={graphW}
 >
   {#if hasMargin}<Margin model={shown.model} heightOf={(id) => layout.position(id)?.y} settled={layout.fitToken} onlight={(id) => (sideLit = id)} />{/if}
-  <div class="flow">
+  <div class="flow" bind:clientWidth={flowW}>
     <SvelteFlow
       bind:nodes={layout.nodes}
       bind:edges={layout.edges}
@@ -368,6 +395,8 @@
       onnodeclick={({ node, event }) => {
         // (a product's junction is not a cell: nothing to open; a bulb on a wheel is the cell it splices)
         // (the drums' kit the grooves read has no line of its own: a drum on it opens, the kit doesn't)
+        // (a socket into the card opens what goes into it)
+        if (node.type === 'socket') return void (selected = `cell:${(node.data as { source: string }).source}`);
         const hit = bulbAt(event.target);
         if (node.type !== 'junction' && (hit || node.id !== `cell:${VOICE_KIT}`)) selected = hit ?? node.id;
       }}
@@ -375,7 +404,10 @@
       <Background gap={28} size={1.5} />
       <Controls showLock={false} />
       <FitView token={layout.fitToken + sideFits + towerFits + refit} />
-      {#if towerOpen}<FlowViewport onchange={(v) => (viewport = v)} />{/if}
+      {#if towerOpen || towered}<FlowViewport onchange={(v) => (viewport = v)} />{/if}
+      {#if towered}
+        {#if layout.looms.length}<ViewportPortal target="back"><TapLooms looms={layout.looms} /></ViewportPortal>{/if}
+      {/if}
       <!-- clusters: cells tagged alike inside the piece (tags=), washed and named behind their members -->
       <ViewportPortal target="back">
         {#each clusters as c (c.tag)}
@@ -385,6 +417,9 @@
       </ViewportPortal>
     </SvelteFlow>
   </div>
+  {#if towered}
+    <TowerStrips {ins} {viewport} open={stripsOpen} ontoggle={() => (stripsOpen = !stripsOpen)} />
+  {/if}
   {#if towerShown}
     <TowerAxis model={shown.model} program={shown.program} nodes={layout.nodes} {viewport} focus={selectedName ?? towerCell} right={cardCover} />
   {/if}
@@ -394,14 +429,21 @@
     >
     <button
       class="forces-toggle"
-      class:on={towerOpen}
-      onclick={() => {
-        towerOpen = !towerOpen;
-        towerFits++;
-      }}
-      aria-pressed={towerOpen}
-      title="Each cell's time scale, from the constant to the audible">tower</button
+      class:on={towered}
+      onclick={() => layout.setMode(towered ? 'flow' : 'tower')}
+      aria-pressed={towered}
+      title="Lay the graph out by the frequency tower: each cell at its time scale, the sound card a strip at the right">tower layout</button
     >
+    {#if !towered}<button
+        class="forces-toggle"
+        class:on={towerOpen}
+        onclick={() => {
+          towerOpen = !towerOpen;
+          towerFits++;
+        }}
+        aria-pressed={towerOpen}
+        title="Each cell's time scale, from the constant to the audible">tower</button
+      >{/if}
     {#if ontime}<button class="forces-toggle" onclick={ontime} title="The piece in time: a tracker of its notes, its scalogram and its sound">time</button>{/if}
     {#if hasSide}<button
         class="forces-toggle"
@@ -462,6 +504,13 @@
   }
   .graph.towered .hint {
     right: calc(var(--tower-width) + 16px);
+  }
+  /* (the tower layout: its strip at the right, the graph beside it) */
+  .graph.stripped .flow {
+    right: var(--strip-width);
+  }
+  .graph.stripped .hint {
+    right: calc(var(--strip-width) + 16px);
   }
   .hint {
     position: absolute;

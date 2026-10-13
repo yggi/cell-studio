@@ -50,7 +50,10 @@ export function placeMeters(s: LayoutState): void {
     const [x0, x1, y0, y1] = [Math.min(...xs) - reach, Math.max(...xs) + reach, Math.min(...ys) - reach, Math.max(...ys) + reach];
     const step = Math.max(40, Math.max(x1 - x0, y1 - y0) / 40);
     let best: { x: number; y: number; cost: number; crowd: number } | null = null;
-    for (let y = y0; y <= y1; y += step)
+    // (a meter held at a height, the tower layout: sought along its row only)
+    const held = s.opts.heightPull ? undefined : s.opts.heights?.get(m);
+    const [ya, yb] = held === undefined ? [y0, y1] : [held, held];
+    for (let y = ya; y <= yb; y += step)
       for (let x = x0; x <= x1; x += step) {
         // (not on a wheel; nearer than it should be is crowding — room is made for it)
         let crowd = 0;

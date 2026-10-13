@@ -39,7 +39,7 @@ interface Rule {
   /** Where a bulb sits from its host's centre (px, its host unturned), its host `size` px across; host and bulb by name. */
   readonly at: (result: CompileResult, host: string, bulb: string, hosts: ReadonlyMap<string, string>, size: number) => At | null;
   /** Its own edges (what it steps, what it plays into) leave from the bulb; else they are drawn from its host. */
-  readonly leaves: boolean | ((host: string) => boolean);
+  readonly leaves: boolean;
 }
 
 /** The shows that draw a cell as a track of steps in time (where a splice can be a bulb). */
@@ -143,8 +143,8 @@ const RULES: readonly Rule[] = [
       const i = kit?.indexOf(bulb) ?? -1;
       return kit && i >= 0 ? drumPlaces(size, kit)[i] : null;
     },
-    // (the grooves' wires, one a name written, leave from the drum they name, on the drums' kit)
-    leaves: (host) => host === VOICE_KIT,
+    // (a groove's wire comes into the kit, one a groove, whatever drums it names: its pieces send none of their own)
+    leaves: false,
   },
   {
     // a splice (#221, decision 014): a cell read by one edge only, a ref without a pick or a delay, both it and the
@@ -192,8 +192,7 @@ const ruleOf = (result: CompileResult, host: string, bulb: string) => RULES.find
 
 /** Whether a bulb's own edges leave from it (a tap, a read head), not from its host: host and bulb by name. */
 export function leavesFromBulb(result: CompileResult, host: string, bulb: string): boolean {
-  const leaves = ruleOf(result, host, bulb)?.leaves;
-  return typeof leaves === 'function' ? leaves(host) : !!leaves;
+  return !!ruleOf(result, host, bulb)?.leaves;
 }
 
 /** Where a bulb's edges leave from, from its host's centre (GraphEdge.bulbAt), its host `size` px across; by name. */

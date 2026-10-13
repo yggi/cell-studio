@@ -43,6 +43,12 @@ if (process.env.MARGIN) q.set('margin', process.env.MARGIN);
 // (TOWER=1: the frequency tower open beside the graph, src/ui/TowerAxis.svelte; TOWER_CELL=tune: its line, as if selected)
 if (process.env.TOWER) q.set('tower', process.env.TOWER);
 if (process.env.TOWER_CELL) q.set('towerCell', process.env.TOWER_CELL);
+// (LAYOUT=tower: the tower layout, its strips the sound card: src/layout/towerlayout.ts; STRIPS=1: the strips opened)
+if (process.env.LAYOUT) q.set('layout', process.env.LAYOUT);
+if (process.env.STRIPS) q.set('strips', process.env.STRIPS);
+// (PULL=.1: the tower layout's height pull, another to compare; 0: held)
+if (process.env.PULL) q.set('pull', process.env.PULL);
+if (process.env.ABOVE) q.set('above', process.env.ABOVE);
 // (golden: CELLS=piece.cells draws that source instead, in the real Graph)
 if (process.env.CELLS) q.set('src', readFileSync(process.env.CELLS, 'utf8'));
 const url = `${server.resolvedUrls.local[0]}tools/gallery/harness.html?${q}`;
