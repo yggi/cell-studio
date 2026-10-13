@@ -73,6 +73,7 @@
     opened = 0,
     refit = 0,
     growing = false,
+    locked,
     focus,
     onsheet,
     played,
@@ -106,6 +107,11 @@
     refit?: number;
     /** A conversion playing (#390): each version laid out gently from the last, the view framed only when it must. */
     growing?: boolean;
+    /**
+     * Read only (a MIDI file's machine, #390): opening a cell, switching, turning, a free value or adding a cell does
+     * nothing but this (it says to convert first). Moving a cell still moves it.
+     */
+    locked?: () => void;
     /** A free(…) slider moved. */
     onfree: (spec: import('../engine/ast').FreeSpec, value: number | string) => void;
     nudge?: (seconds: number) => void;
@@ -154,6 +160,8 @@
 
   // Tapping a node opens its detail sheet; the code is what it edits.
   let selected = $state<string | null>(null);
+  /** Open a cell's sheet (read only: says to convert first). */
+  const select = (id: string) => (locked ? locked() : void (selected = id));
   // (a product's junction is not a cell: never selected)
   const selectedNode = $derived(selected ? shown.model.nodes.filter(isCellNode).find((n) => n.id === selected) : undefined);
   // (or a bulb on a wheel: the cell it splices, which has no node of its own — decision 014, 016)
@@ -214,9 +222,9 @@
     },
     open(name: string) {
       const id = `cell:${name}`;
-      if (layout.shown.model.nodes.some((n) => n.id === id) || layout.shown.model.bulbs.has(name)) selected = id;
+      if (layout.shown.model.nodes.some((n) => n.id === id) || layout.shown.model.bulbs.has(name)) select(id);
     },
-    toggle: (id) => ontoggle(id),
+    toggle: (id) => (locked ? locked() : ontoggle(id)),
     nudge: (sec) => nudge?.(sec),
     get epoch() {
       return epoch;
@@ -225,8 +233,8 @@
       return cursor;
     },
     move: (id, phase, x, y) => layout.move(id, phase, x, y),
-    turn: (name, shift) => onturn(name, shift),
-    setFree: (spec, value) => onfree(spec, value),
+    turn: (name, shift) => (locked ? locked() : onturn(name, shift)),
+    setFree: (spec, value) => (locked ? locked() : onfree(spec, value)),
     get sound() {
       return sound;
     },
@@ -429,9 +437,9 @@
         // (a product's junction is not a cell: nothing to open; a bulb on a wheel is the cell it splices)
         // (the drums' kit the grooves read has no line of its own: a drum on it opens, the kit doesn't)
         // (a socket into the card opens what goes into it)
-        if (node.type === 'socket') return void (selected = `cell:${(node.data as { source: string }).source}`);
+        if (node.type === 'socket') return select(`cell:${(node.data as { source: string }).source}`);
         const hit = bulbAt(event.target);
-        if (node.type !== 'junction' && (hit || node.id !== `cell:${VOICE_KIT}`)) selected = hit ?? node.id;
+        if (node.type !== 'junction' && (hit || node.id !== `cell:${VOICE_KIT}`)) select(hit ?? node.id);
       }}
     >
       <Background gap={28} size={1.5} />
@@ -457,7 +465,7 @@
     <TowerAxis model={shown.model} program={shown.program} nodes={layout.nodes} {viewport} focus={selectedName ?? towerCell} right={cardCover} />
   {/if}
   <div class="toolbar">
-    <button class="add-cell" onclick={onadd} title="Add a cell (blank: the chromatic default)">+ cell</button>
+    {#if !locked}<button class="add-cell" onclick={onadd} title="Add a cell (blank: the chromatic default)">+ cell</button>{/if}
     <button class="forces-toggle" class:on={legendOpen} onclick={() => (legendOpen = !legendOpen)} aria-pressed={legendOpen} title="What the colours and values mean">legend</button
     >
     <button
@@ -492,7 +500,7 @@
   {#if legendOpen}
     <div class="legend-wrap"><GraphLegend program={shown.program} shifts={shown.shifts} {source} /></div>
   {/if}
-  <p class="hint">Tap a cell to open it. Drag to move. Hold to switch off.</p>
+  <p class="hint">{locked ? 'A MIDI file’s machine, as it plays: convert it to cells to open or change a cell.' : 'Tap a cell to open it. Drag to move. Hold to switch off.'}</p>
   {#if selectedName}
     <!-- (read defensively: renaming moves the selection, and for a moment there's none) -->
     <CellSheet
