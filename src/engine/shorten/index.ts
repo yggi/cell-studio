@@ -12,6 +12,7 @@
  *  - stereo.ts:    a sound card's two chords that differ only in gains — one chord, and pan= on each voice
  *  - wrappers.ts:  a cell that only reads motifs through a shifted table — &motif^k where it's used
  *  - arrange.ts:   not shorter, a migration: a selector of mixes (an error now) rewritten at the input (decision 016)
+ *  - aliases.ts:   Strudel's or dough's name for a parameter where ours is shorter: cutoff= → lpf= (decision 027)
  *  - gates.ts:     a migration: a gate written the old way (trigger=, velocity=, gate=, gain=) as play= and level= (decision 023)
  *
  * Each suggestion carries its rewrite; its saving is measured on the result
@@ -28,6 +29,7 @@ import { wrappers } from './wrappers';
 import { stereo } from './stereo';
 import { arrangeAtInput } from './arrange';
 import { gates } from './gates';
+import { aliases } from './aliases';
 
 export type { Suggestion } from './harness';
 
@@ -45,6 +47,7 @@ export function shorten(source: string): Suggestion[] {
     ...wrappers(source, result),
     ...stereo(source, result),
     ...gates(source, result),
+    ...aliases(source, result),
   ].sort((a, b) => b.saving - a.saving);
 }
 

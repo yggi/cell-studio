@@ -28,7 +28,7 @@ const turns = (d: CellDecl, { rateOf }: Seen): number | null => {
   if (!d.step || d.step.kind === 'driven') return null;
   const r = rateOf(d.step);
   const b = d.braid;
-  const k = b.kind === 'list' ? b.tokens.length : b.kind === 'scan' ? b.steps.length : b.kind === 'sin' ? b.n : 1;
+  const k = b.kind === 'list' ? b.tokens.length : b.kind === 'scan' ? b.steps.length : b.kind === 'wave' ? b.n : 1;
   return r === null ? null : d.step.whole ? r : r / Math.max(1, k);
 };
 const over = (d: CellDecl, { decls }: Seen) => (d.over ? decls.get(d.over.name) : undefined);
