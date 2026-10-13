@@ -1,11 +1,11 @@
 # The disassembler's literature: what to reuse, which swamps to avoid
 
-Date: 2026-10-13 · Status: open (topics 1–3 of 9 done; one topic a session) · Issues: #365, the epic #364, the frame
+Date: 2026-10-13 · Status: open (topics 1–4 of 9 done; one topic a session) · Issues: #365, the epic #364, the frame
 [disassembler.md](disassembler.md)
 
 One section a topic. Each answers five questions: the state of the art, what we take, what we leave, the nearest
 swamp, and our numbers against theirs. Every reference below was opened and read at least to its abstract and results;
-where a number comes from the full text, the section says so. The leads for topics 4–9 are in the issue, not repeated
+where a number comes from the full text, the section says so. The leads for topics 5–9 are in the issue, not repeated
 here.
 
 ## 1. Compression as analysis
@@ -471,7 +471,7 @@ readings:
 **Next.**
 - #384: *voices on the literature's terms* (MCMA as `voices/`, link F1 and a strict mode, McLeod's HMM run
   offline on the same files).
-- Topic 4 (meter, beat and tempo) next session.
+- Topic 4 (meter, beat and tempo): below.
 
 **References.**
 - [AKMN21] A. Aljanaki, S. Kalonaris, G. Micchi, E. Nichols, "MCMA: a symbolic multitrack contrapuntal music
@@ -506,7 +506,158 @@ readings:
 
 ## 4. Meter, beat and tempo
 
-Not yet.
+For #347: a file played in falls on no grid, so it needs a tempo map from its notes.
+
+**Where we are.**
+- The importer takes the coarsest grid every start falls on, within a 96th of a quarter (`midiimport.ts` `gridOf`).
+  The file's own tempo map becomes the scan of the steps.
+- Nothing infers a beat from the notes. The time view draws the meter from the tempo cell, which is known, not found.
+- The 10 examples that lose notes in the MIDI path ([ratchet.md](ratchet.md)) don't lose them to rubato:
+  - **two clocks at a ratio:** Phase (80:81), 888 starts moved;
+  - **ratchets and tuplets:** IDM, Cellscape 2;
+  - **a motor slowing down:** Musicbox;
+  - **pitches that are no MIDI key:** DTMF, the Metronome.
+- So #347 has two problems, and the literature mostly addresses only the first:
+  - a *performed* single pulse (rubato, loose starts);
+  - *several* pulses at once.
+
+**State of the art.**
+- **Symbolic meter, from durations and onsets:**
+  - Longuet-Higgins & Lee [LHL82; LHL84] infer meter from note lengths, building and discarding hypotheses as the
+    sequence unfolds. Monophonic, and tested on examples. Their rule: prefer the reading that isn't syncopated.
+  - Desain & Honing [DH89] quantise with a connectionist network, also monophonic and without a benchmark number.
+  - Temperley [Tem09] uses one probabilistic model for meter, harmony and stream.
+  - **Inner metric analysis** (PRIMA [dHV16]) gets meter and first downbeat from onsets alone:
+    - duple / triple right in 94–97 % of ragtime and pop MIDI files, against MIDI Toolbox's autocorrelation at 74–76 %;
+    - the exact time signature in 80–94 %.
+- **Rhythm quantisation of performances:**
+  - Cemgil & Kappen [CK03] treat tempo as the hidden state of a switching state-space model and quantisation as MAP
+    inference, by particle filter or MCMC. Abstract read; their test pieces are small.
+  - Nakamura, Yoshii & Sagayama [NYS17] use a **merged-output HMM, a voice at a time**, so voices may be loosely
+    synchronised or polyrhythmic. On classical piano MIDI it beats the other methods by more than 12 points of
+    accuracy on polyrhythmic pieces, and roughly ties the best elsewhere. Code released.
+- **Meter and alignment of performed MIDI:** McLeod & Steedman [MS18b] use an HMM with a lexicalised PCFG of
+  rhythms and label bar, beat and sub-beat. Code: Java, **MIT**. Their metrical F (every grouping at three levels):
+
+  | method | metronomic (48 WTC fugues, 15 inventions) | live (13 WTC files, CrestMusePEDB) |
+  |---|---|---|
+  | Temperley [Tem09] | 67.7 | 47.6 |
+  | McLeod & Steedman | 78.7 | 39.6 |
+  | McLeod & Steedman, all options | 80.5 | 56.5 |
+
+- **Neural beat tracking of performance MIDI:**
+  - **PM2S** [LKMB22] uses a CRNN that predicts which notes fall on beats, then dynamic programming for the beats
+    between notes. It outputs beats, downbeats, time signature, key, note values and hands. Code: PyTorch, **MIT**.
+    - Beat F 85.7–86.2, downbeat F 63.3–69.8 on its own test set.
+    - On MV2H, metrical alignment 61.7 against Finale's 9.9 and MuseScore's 15.3.
+  - **A transformer, MIDI to beat tokens** [MH25]. On ASAP, beat / downbeat F as that paper measures them:
+
+    | method | beat F | downbeat F |
+    |---|---|---|
+    | PM2S | 82.95 | 14.14 |
+    | the transformer | 78.13 | 27.81 |
+    | Shibata et al.'s HMM | 43.6–47.7 | ≈ 13.5 |
+
+    On A-MAPS (score MIDI with its tempo varied), the transformer reaches 98.0 / 76.6.
+  - **The pattern:** beats from a performance are nearly solved (≈ 80–86 F). **Downbeats are not** (14–28 F on
+    real performances).
+- **Audio** (for the audio epic, not #347):
+  - Ellis [Ell07] estimates a global tempo, then runs dynamic programming over an onset-strength envelope: the local
+    match against a transition cost for a steady beat. "Just under 60 %" beat accuracy on the MIREX-06 data. It
+    follows tempo changes of ±10 %.
+  - madmom [BKS+16] has RNN beat and downbeat trackers with a DBN. Code **BSD**; its trained models are
+    **CC BY-NC-SA 4.0**.
+- **Data: ASAP** [FMK+20] has 222 scores aligned with 1,067 performances (MIDI, about 92 h; audio via MAESTRO).
+  - It has beats, downbeats, time and key signatures, and note alignments (n)ASAP.
+  - Bach among its 15 composers. **CC BY-NC-SA 4.0**.
+
+**What we take.**
+1. **ASAP as #347's measure**, fetched and not committed, because it is NC. It is exactly the issue's "played files
+   with known scores", with beats annotated. It is also the set the MIDI beat trackers report on, so our number sits
+   in their table.
+2. **The metric:** beat F at ±70 ms (`mir_eval.beat`, **MIT**), with the ratchet's own beside it: notes kept, their
+   timing, the folded size. Downbeat F is reported but not targeted.
+3. **The method in the app: Ellis' dynamic programming, over the notes instead of audio.**
+   - The onset strength is the time engine's `impulses` signal (`time/signals.ts`), and the global tempo is the
+     scalogram's strongest ridge in the beat band (`time/wavelet.ts` `ridges`).
+   - It is pure TS, about 100 lines, no model, and it fits `engine/`'s rules. The beats become the tempo map (#347's
+     step 1), and notes land on a grid within it.
+   - PM2S (MIT) is run offline on ASAP as the reference to beat. A gap of more than about 10 points of beat F would
+     argue for a learned model later; it shouldn't be guessed now.
+4. **For several pulses** (Phase, IDM, Cellscape 2): Nakamura's idea, *a voice at a time*.
+   - Run the grid finder (and later the beat tracker) per line, not per file. Each line gets its own clock:
+     `ratchet.md`'s "a meter per clock".
+   - The language already says a line on its own clock. This is the case the literature's single-pulse trackers
+     can't handle and our IR can.
+5. **Meter for a file without a time signature:** PRIMA's idea (inner metric analysis folded into a bar profile) is
+   cheap and accurate (94–97 % duple / triple). It is a later step: our files carry their time signatures.
+
+**What we leave, and why.**
+- **Learned beat trackers in the app.** PM2S and the transformer are PyTorch models. The gain over a DP tracker on
+  *our* files is unmeasured. Measure first (above).
+- **Particle filters and switching state-space models** [CK03]: heavy, and the HMM and neural lines superseded them
+  on the benchmarks.
+- **Longuet-Higgins & Lee, Desain & Honing, Temperley:** historical, monophonic, or outperformed (Table 1 of
+  [MS18b]). Their *preference for the unsyncopated reading* is still the right tie-break for the grid finder.
+- **madmom in the app:** its models are non-commercial, and it is the audio epic's question.
+
+**The nearest swamp.**
+- **Bars from a performance.** Downbeat F is 14–28 on ASAP even for the best MIDI trackers.
+  - Take the beat from the notes and the bar from the file's time signature, or from the fold (a phrase's length).
+  - Don't promise bars from a played file.
+- **Quantising away the performance.**
+  - A played file's timing is much of what it is. #347 already asks for a tolerance the user chooses, and velocities
+    as levels.
+  - Keep the residual (what moved, and by how much) rather than snapping silently. The literature's MV2H scores
+    quantisation, not keeping.
+- **One pulse for everything.** Every benchmark above assumes one beat per piece. Our own losses are two clocks at
+  80:81 and tuplets. Measure the per-line grid on the examples before tuning a single-pulse tracker on ASAP.
+
+**Our numbers against theirs.**
+- None on played files: we have no beat tracker yet, and ASAP isn't in the bench.
+- On score MIDI the grid finder moves few notes. Measured today with `cellsFromMidi`'s `moved`:
+  - the MIDI library (WTC, Inventions, Anna Magdalena, Offering): **122 notes in 24 of the 88 files**, at most 26
+    (anh117b's polonaise). Most likely ornaments and tuplets in LilyPond's MIDI; not checked note by note;
+  - the examples: every note in 64 of the 74.
+- The 10 examples that lose notes are multi-clock or off-key pitches, not rubato. That is the A-MAPS end of the table
+  (score MIDI, tempo varied), where the transformer gets 98 % beat F. The open ground is ASAP's: real performances.
+
+**Next.**
+- #387: *a beat tracker from the notes, measured on ASAP*: Ellis' DP over `impulses`, the scalogram's tempo,
+  PM2S offline as the reference, beat F and the ratchet's measures. A step of #347.
+- #388: *a grid per line* (ratchet.md's meter per clock), measured on the 10 examples that lose notes and the
+  24 library files that move some.
+- Topic 5 (key and harmony) next session.
+
+**References.**
+- [BKS+16] S. Böck, F. Korzeniowski, J. Schlüter, F. Krebs, G. Widmer, "madmom: a new Python audio and music signal
+  processing library", ACM Multimedia 2016, 1174–1178. doi:10.1145/2964284.2973795, arXiv:1605.07008. Code:
+  github.com/CPJKU/madmom (BSD; models CC BY-NC-SA 4.0).
+- [CK03] A. T. Cemgil, B. Kappen, "Monte Carlo methods for tempo tracking and rhythm quantization", JAIR 18:45–81,
+  2003. doi:10.1613/jair.1121, arXiv:1106.4863 (abstract read).
+- [DH89] P. Desain, H. Honing, "The quantization of musical time: a connectionist approach", Computer Music Journal
+  13(3):56–66, 1989. doi:10.2307/3680012 (record only: no open copy read).
+- [dHV16] W. B. de Haas, A. Volk, "Meter detection in symbolic music using inner metric analysis", ISMIR 2016.
+  https://archives.ismir.net/ismir2016/paper/000033.pdf
+- [Ell07] D. P. W. Ellis, "Beat tracking by dynamic programming", JNMR 36(1):51–60, 2007.
+  doi:10.1080/09298210701653344
+- [FMK+20] F. Foscarin, A. McLeod, P. Rigaux, F. Jacquemard, M. Sakai, "ASAP: a dataset of aligned scores and
+  performances for piano transcription", ISMIR 2020. https://zenodo.org/records/4245490 Data: github.com/CPJKU/asap-dataset (CC BY-NC-SA 4.0; read
+  from its README).
+- [LHL82] H. C. Longuet-Higgins, C. S. Lee, "The perception of musical rhythms", Perception 11(2):115–128, 1982.
+  doi:10.1068/p110115 (abstract read)
+- [LHL84] H. C. Longuet-Higgins, C. S. Lee, "The rhythmic interpretation of monophonic music", Music Perception
+  1(4):424–441, 1984. doi:10.2307/40285271 (abstract read)
+- [LKMB22] L. Liu, Q. Kong, V. Morfi, E. Benetos, "Performance MIDI-to-score conversion by neural beat tracking",
+  ISMIR 2022. https://zenodo.org/records/7316682 Code: github.com/cheriell/PM2S (MIT).
+- [MH25] S. Murgul, M. Heizmann, "Beat and downbeat tracking in performance MIDI using an end-to-end transformer
+  architecture", arXiv:2507.00466.
+- [MS18b] A. McLeod, M. Steedman, "Meter detection and alignment of MIDI performance", ISMIR 2018, 113–119.
+  https://ismir2018.ismir.net/doc/pdfs/136_Paper.pdf Code: github.com/apmcleod/met-align (MIT).
+- [NYS17] E. Nakamura, K. Yoshii, S. Sagayama, "Rhythm transcription of polyphonic piano music based on merged-output
+  HMM for multiple voices", IEEE/ACM TASLP 25(4):794–806, 2017. arXiv:1701.08343 (abstract read)
+- [Tem09] D. Temperley, "A unified probabilistic model for polyphonic music analysis", JNMR 38(1):3–18, 2009.
+  doi:10.1080/09298210902928495 (its numbers read as [MS18b] reports them)
 
 ## 5. Key and harmony
 
