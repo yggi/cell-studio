@@ -1,6 +1,6 @@
 // The disassembler's bench (docs/notes/disassembler.md, the workspace): every file of the MIDI library through the
-// folder, measured against what is known about it. Not a gate (the ratchets are: src/engine/fold/midi.test.ts and
-// ratchet.test.ts); a table to decide by. Each row a file:
+// folder, measured against what is known about it. Not a gate (the ratchets are: src/engine/fold/midiRatchet.ts and
+// ratchet.slow.test.ts); a table to decide by. Each row a file:
 // - **size**: the score flat and folded (fold/score.ts `bare`), and whether the fold was taken (it plays the notes);
 // - **key**: the key the folder reads (`bestKey`, one for the piece) against the one its index names (`tonality`);
 // - **voices found** (`fold/voices.ts`, `byVoice`): how many, and how far they agree with the voices written (pairs of

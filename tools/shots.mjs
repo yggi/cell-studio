@@ -10,10 +10,12 @@ import { preview } from 'vite';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { chromium } from './profile/playwright.mjs';
+import { freshBuild } from './fresh-build.mjs';
 
 const [secs = '3', ...titles] = process.argv.slice(2);
 const out = process.env.OUT ?? 'shots';
 mkdirSync(out, { recursive: true });
+if (!process.env.DIST) freshBuild();
 const server = await preview({ preview: { port: 0, host: '127.0.0.1' }, build: process.env.DIST ? { outDir: process.env.DIST } : {}, logLevel: 'error' });
 const url = server.resolvedUrls.local[0];
 const browser = await chromium.launch({ args: ['--autoplay-policy=no-user-gesture-required', '--no-sandbox'] });

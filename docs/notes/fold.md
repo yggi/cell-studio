@@ -77,7 +77,7 @@ variants, 73 pieces: 207 %, 2.8 s.)
 ## The WTC run (#333)
 
 The MIDI library (`midi/wtc`, 37 preludes and fugues, 34,200 notes) folded as the files come
-(`tools/probe/midi.test.ts`; `src/engine/fold/midi.test.ts` is its ratchet, over every collection since). **Before: the score 153,783 characters flat,
+(`tools/probe/midi.test.ts`; `src/engine/fold/midiRatchet.ts` is its ratchet, over every collection since). **Before: the score 153,783 characters flat,
 123,735 folded (80.5 %), every fold taken, 633 cells, 212 of them copies; 29 s. After: 120,755 (78.5 %), every fold
 taken, 626 cells, 159 copies; 30 s.** The examples' ratchet at the same time: 56,125 → 55,974, phrases back 62 → 62.
 
@@ -103,7 +103,7 @@ taken, 626 cells, 159 copies; 30 s.** The examples' ratchet at the same time: 56
 ## Two more collections (#333)
 
 The Inventions and Sinfonias (30 files, 17,439 notes) and the Anna Magdalena Notebook (19 files, 3,467 notes) joined the
-MIDI library, and its ratchet (`ratchet.midi.json`). Folded as today's folder does, with nothing tuned for them:
+MIDI library, and its ratchet (`ratchet.midi.<set>.json`). Folded as today's folder does, with nothing tuned for them:
 
 - **Inventions and Sinfonias:** 72,413 characters flat, 57,672 folded (**79.6 %**), every fold taken; 334 cells, 82 of
   them copies; 10.5 s.
@@ -191,16 +191,17 @@ one voice, a line a voice (`byVoice`), and takes the shorter (`split: 'auto'`). 
   voices or more whose typesetters wrote clean voices): 96 % of pairs of notes one after the other in a voice found are
   in one voice written (precision), 93 % the other way (recall). At most-ever-sounding instead of 6 %: 96 / 91, and five
   fugues get a voice too many.
-- **The MIDI library: 204,121 → 198,957 (−2.5 %)**, every fold taken. Voices are taken in 12 of the Sinfonias (3 to 14), in the WTC I/3, I/8, I/11, I/12 and I/20 fugues and the I/24
-  prelude (I/8 5,459 → 4,737, I/12 6,751 → 5,812). The examples: 56,286, phrases back the same 65, notes kept by the
+- **The MIDI library: 204,121 → 198,957 (−2.5 %)**, every fold taken. Voices are taken in the Ricercar a 3 (7,859 → 7,060), 12 of the Sinfonias (3 to 14), the WTC I/3, I/8,
+  I/11, I/12 and I/20 fugues and the I/24 prelude (I/8 5,459 → 4,737, I/12 6,751 → 5,812). The examples: 56,286, phrases back the same 65, notes kept by the
   same 57 (main records 56,502, but main's own code already gives 56,374: #363 found the drift).
 - What perfect voices would give (the typesetters', folded): 6.1 % shorter on the 64 clean files. The voices found are
   not always taken: a voice that holds a note across another's start makes the importer add a line beside it
-  (`upper2`), and the Ricercar a 3 and Sinfonias 1 and 2 stay in hands for that.
+  (`upper2`), and Sinfonias 1 and 2 stay in hands for that.
 - **A rest of more than 4,096 steps** (a voice entering late in a long piece) was written `~@n` past the parser's
-  limit, so the flat piece didn't compile and no fold could be checked against it. It is written in holds the parser
+  limit, so the flat piece didn't compile and no fold could be checked against it (the Ricercar a 3's voices). It is written in holds the parser
   takes now (`~@4096 ~@903`).
-- *Cost*: the library's ratchet folds every polyphonic file twice: 114 s → 210 s.
+- *Cost*: every polyphonic file is folded twice: the library's ratchet (a set a worker, `midiRatchet.ts`) about
+  twice as long, the WTC's the longest.
 
 ## What was tried and left out (measured on seven pieces)
 

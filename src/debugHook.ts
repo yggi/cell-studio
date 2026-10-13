@@ -6,9 +6,10 @@ import { compileSource } from './engine/compile';
 import { codeShifts, type CompileResult } from './engine/program';
 import { blockLevels, loudness, renderLength, renderPiece, sampleHash } from './audio/render';
 import type { Player } from './audio/player';
+import type { Recorder } from './ui/state/record.svelte';
 import { transportClock } from './audio/clock.svelte';
 
-export function installDebugHook(openPiece: () => CompileResult, player: Player): void {
+export function installDebugHook(openPiece: () => CompileResult, player: Player, recorder: Recorder): void {
   if (typeof window === 'undefined') return;
   (window as unknown as { cellStudio: unknown }).cellStudio = {
     // measure(seconds?) renders the open piece and returns {rms, peak, clipped} in dB below full scale
@@ -29,6 +30,11 @@ export function installDebugHook(openPiece: () => CompileResult, player: Player)
     },
     // the transport: its state and where it is heard (code seconds), as the views read it (the smoke test times keys by it)
     transport: () => ({ state: transportClock.state, seconds: transportClock.seconds }),
+    // where the piece is heard (code seconds) at a moment on the page's clock (ms, as a MIDI message's timeStamp), or
+    // null while not playing: what a take reads a key's time through (the smoke test stamps its keys by it, not by a frame)
+    heardAt: (ms: number) => player.heardAt(ms),
+    // a take: the recorder's state and the step its pass starts on (null until placed)
+    take: () => ({ state: recorder.state, start: recorder.start }),
     // a voice's current peak level
     level: (n: string) => {
       const w = player.waveform(n);
