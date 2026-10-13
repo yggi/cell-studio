@@ -6,7 +6,7 @@ import type { LiveState } from '../../engine/live';
 import { ForceLayout } from '../../layout/physics';
 import { DEFAULT_LAYOUT, TOWER_LAYOUT, type LayoutOptions } from '../../layout/options';
 import type { Loom } from '../../layout/physics';
-import { isSocket, SOCKET_SIZE, towerHeights, towerLayers, towerOuts, withoutCard, withSockets, type TowerOut } from '../../layout/towerlayout';
+import { isSocket, SOCKET_SIZE, towerLayers, towerOuts, withSockets, type TowerOut } from '../../layout/towerlayout';
 import type { MeterTrace } from '../../layout/state';
 import { meterIndex } from '../../layout/meters';
 import { towerOf, towerRanks, zoneRanks } from '../../layout/tower';
@@ -22,8 +22,6 @@ import type { FlowNode } from '../types';
  * signal path within each, every node where its output lives (layout/tower.ts, docs/notes/tower-rows.md).
  */
 const ROWS = typeof location !== 'undefined' ? new URLSearchParams(location.search).get('rows') : null;
-/** The tower layout's way into the sound card: a socket each (the default), or `?outs=nets`, wires into the strip. */
-const OUTS = typeof location !== 'undefined' ? new URLSearchParams(location.search).get('outs') : null;
 /** The tower layout's height pull, another to compare (`?pull=.1`; 0: held): its default is TOWER_LAYOUT's. */
 const PULL = typeof location !== 'undefined' && new URLSearchParams(location.search).has('pull') ? Number(new URLSearchParams(location.search).get('pull')) : null;
 // (?above=0: the sockets where the forces put them, not straight above their sources, to compare: docs/notes/tower-strip.md)
@@ -133,21 +131,15 @@ export class GraphLayout {
     this.#given = given;
     this.#opened = opened;
     const layout = this.#force;
-    // (the tower layout: no card's node, its edges wires into the strips; each node at its height on the tower)
+    // (the tower layout: no card's node, the card everywhere: a socket each thing it hears, at that thing's height, the
+    // strip at the right showing what goes in; the layers, tables, structure, voices and the audible)
     const tower = this.mode === 'tower';
-    // (sockets: the card everywhere, a socket each thing it hears, at that thing's height; ?outs=nets: wires into the strip)
-    const sockets = tower && OUTS !== 'nets';
-    const next = tower ? { ...given, model: sockets ? withSockets(given.model) : withoutCard(given.model) } : given;
+    const next = tower ? { ...given, model: withSockets(given.model) } : given;
     const m = next.model;
-    this.outs = tower && !sockets ? towerOuts(given.program, given.model) : [];
-    // (with sockets: the layers, tables, structure, voices and the audible; with nets: each at its own height)
+    this.outs = tower ? towerOuts(given.program, given.model) : [];
     if (tower) {
-      const layered = sockets ? towerLayers(next.program, given.model, m) : null;
-      layout.setOptions(
-        layered
-          ? { heights: layered.targets, held: layered.held, strata: layered.strata, between: layered.between }
-          : { heights: towerHeights(next.program, m), held: undefined, strata: undefined, between: undefined },
-      );
+      const layered = towerLayers(next.program, given.model, m);
+      layout.setOptions({ heights: layered.targets, held: layered.held, strata: layered.strata, between: layered.between });
     }
     // (a probe: the rows by the frequency tower instead of the signal path, docs/notes/multiscale.md)
     if (ROWS === 'tower') layout.setOptions({ ranks: towerRanks(towerOf(next.program, m)) });

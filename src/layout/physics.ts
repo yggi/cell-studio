@@ -123,7 +123,6 @@ export class ForceLayout {
       // (the tower layout) heights held: whatever moved a node, it ends the tick at its height
       .force('heights', (alpha: number) => this.hold(alpha))
       // (the tower layout, tapLoom) what a selector's taps step, over it in its sections' order
-      .force('looms', (alpha: number) => this.order(alpha))
       // (the tower layout, socketsAbove) a socket rides above its source
       .force('sockets', () => this.above())
       // (the tower layout) the strata strict, the looms levels: last, so nothing moves a node out after
@@ -338,38 +337,6 @@ export class ForceLayout {
    * (the tower layout) Each node `heights` names held at its height: only x is free (d3 sets y to fy each tick); or,
    * with `heightPull`, drawn towards it, gently, as a spring would (its height a target, not a rail).
    */
-  /**
-   * (loomOrder) Each cell a selector's taps step drifts sideways to its slot over the table: the taps' order (their
-   * bulbs, left to right), a slot each, centred on the table; a cell several taps step, between theirs. The table
-   * drifts under them a little.
-   */
-  private order(alpha: number): void {
-    const k = this.s.opts.tapLoom ? this.s.opts.loomOrder : 0;
-    if (!k) return;
-    const by = new Map<string, { bulbs: Map<string, number>; cells: Map<string, number[]> }>();
-    for (const g of this.s.grounds) {
-      if (!g.bulb || !g.at) continue;
-      const l = by.get(g.meter) ?? by.set(g.meter, { bulbs: new Map(), cells: new Map() }).get(g.meter)!;
-      l.bulbs.set(g.bulb, g.at.x);
-      l.cells.set(g.cell, [...(l.cells.get(g.cell) ?? []), g.at.x]);
-    }
-    for (const [table, l] of by) {
-      const t = this.s.byId.get(table);
-      if (t?.x === undefined) continue;
-      const xs = [...new Set(l.bulbs.values())].sort((a, b) => a - b);
-      const cells = [...l.cells].flatMap(([id, at]) => {
-        const c = this.s.byId.get(id);
-        return c?.x === undefined || c.fx != null ? [] : [{ c, slot: at.reduce((a, x) => a + xs.indexOf(x), 0) / at.length }];
-      });
-      const gap = Math.max(...cells.map(({ c }) => 2 * c.radius)) + this.s.opts.collidePad;
-      for (const { c, slot } of cells) {
-        const dx = (t.x + (slot - (xs.length - 1) / 2) * gap - c.x!) * k * alpha;
-        c.vx = (c.vx ?? 0) + dx;
-        t.vx = (t.vx ?? 0) - (dx * 0.5) / cells.length;
-      }
-    }
-  }
-
   /** (socketsAbove) Each socket at its source's x (several from one source side by side), moved by nothing else sideways. */
   private above(): void {
     // (a mixer between what it mixes: its x the mean of its sources')
@@ -693,7 +660,7 @@ export class ForceLayout {
     const p = this.s.byId.get(id);
     if (!p) return;
     p.fx = x;
-    p.fy = (this.s.opts.heightPull ? undefined : this.s.opts.heights?.get(id)) ?? y;
+    p.fy = (this.s.opts.heightPull && !this.s.opts.held?.has(id) ? undefined : this.s.opts.heights?.get(id)) ?? y;
     this.sim.alphaTarget(0.3);
     if (this.s.opts.live) this.sim.restart();
   }
@@ -702,7 +669,7 @@ export class ForceLayout {
     const p = this.s.byId.get(id);
     if (!p) return;
     p.fx = x;
-    p.fy = (this.s.opts.heightPull ? undefined : this.s.opts.heights?.get(id)) ?? y;
+    p.fy = (this.s.opts.heightPull && !this.s.opts.held?.has(id) ? undefined : this.s.opts.heights?.get(id)) ?? y;
   }
 
   /** Release a dragged node back into the simulation, or keep it pinned. */

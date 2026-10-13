@@ -45,7 +45,7 @@ export interface LayoutOptions {
    */
   ranks?: ReadonlyMap<string, number>;
   /**
-   * Heights held (by node id, the graph's y): the tower layout's (`towerlayout.ts: towerHeights`); a node it names
+   * Heights held (by node id, the graph's y): the tower layout's (`towerlayout.ts: towerLayers`); a node it names
    * moves only sideways, dragged too. Unset: every node is free.
    */
   heights?: ReadonlyMap<string, number>;
@@ -53,8 +53,6 @@ export interface LayoutOptions {
   heightPull: number;
   /** A selector's taps as a loom over its table (taploom.ts), counted so, its strands' crossings with each other not. */
   tapLoom: boolean;
-  /** With `tapLoom`: what a selector's taps step drifts sideways over it, in its sections' order, by a spring this strong. */
-  loomOrder: number;
   /** (the tower layout) Each socket into the card straight above its source: its x its source's, only its height free. */
   socketsAbove: boolean;
   /** (the tower layout) With `heightPull`: these held at their heights, not drawn there (`towerLayers`: the sockets, the kits). */
@@ -161,7 +159,6 @@ export const DEFAULT_LAYOUT: LayoutOptions = {
   upPull: 0,
   heightPull: 0,
   tapLoom: false,
-  loomOrder: 0,
   loomRide: 1,
   loomClear: false,
   flatNets: 0,
