@@ -100,7 +100,7 @@ function parseSpell(s: LineScanner, start: number): Braid {
   s.skipSpace();
   s.expect(',', `',' then the table, like spell("867", &keys, "1 2 3 …")`);
   s.skipSpace();
-  const table = s.ref('the table its characters pick from, like &keys');
+  const table = s.cellRef('the table its characters pick from, like &keys', 'in spell(…)');
   s.skipSpace();
   s.expect(',', `',' then the names of the table's entries, in quotes`);
   s.skipSpace();
@@ -364,7 +364,17 @@ export function parseFifths(s: LineScanner, start: number): { braid: Braid; shif
     const name = s.noteName();
     if (name !== null) shift = ((((name % 12) + 12) % 12) * 7) % 12;
     else shift = s.int('how many fifths round it starts (fifths(1): on G), or the note it starts on: fifths(G)');
-    if (name === null && Math.abs(shift) > 11) s.warn(`fifths(${shift}): the circle comes round after 12`, at, s.i - at);
+    if (name === null && Math.abs(shift) > 11) {
+      // (a turn past a lap climbs one, as every shift= does; a note's name is a pitch class and never climbs)
+      const laps = Math.trunc(shift / 12);
+      const rest = shift % 12;
+      const note = 'C G D A E B F# C# Ab Eb Bb F'.split(' ')[(rest + 12) % 12];
+      s.warn(
+        `fifths(${shift}): the circle comes round after 12, and a turn past a lap climbs one, as every shift does: fifths(${rest}) ${laps > 0 ? 'up' : 'down'} ${Math.abs(laps)} octave${Math.abs(laps) === 1 ? '' : 's'}${rest ? ` (fifths(${note}) names the note, no octave)` : ''}`,
+        at,
+        s.i - at,
+      );
+    }
     s.skipSpace();
   }
   s.expect(')', "')' to close fifths(…)");

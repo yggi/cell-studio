@@ -97,11 +97,17 @@ const FIFTHS = ['C', 'G', 'D', 'A', 'E', 'B', 'F#', 'C#', 'Ab', 'Eb', 'Bb', 'F']
  * is turned there: by name if it was written by name, `fifths()` at 0.
  */
 export function setShift(source: string, name: string, shift: number): string {
+  // (a tap is one step, stepped as its table is: a turn changes nothing, so none is written; one already written can go)
+  const lines = source.split('\n');
+  const own = declLine(source, name);
+  if (tapLine(lines, name) >= 0 && (own < 0 || (splitWords(splitComment(lines[own])[0]).slice(1).every(isAttrWord) && !/\sshift=/.test(lines[own])))) return source;
   let circle = false;
   const turned = editDecl(source, name, (code) => {
     const m = /\bfifths\(([^)]*)\)/.exec(code);
     if (!m || /\sshift=/.test(code)) return code;
     circle = true;
+    // (an argument with parentheses of its own, fifths(free(G)): not a turn written here, so not one to rewrite)
+    if (m[1].includes('(')) return code;
     const byName = /^\s*[A-G]/.test(m[1]);
     const arg = shift === 0 && !byName ? '' : byName ? FIFTHS[((shift % 12) + 12) % 12] : String(shift);
     return code.replace(m[0], `fifths(${arg})`);

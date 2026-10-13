@@ -8,7 +8,7 @@ import { PRESETS } from '../engine/presets';
 import { cellView, hubLabel } from './cellview';
 import { buildGraph } from './drawn';
 import { flowRanks } from './ranks';
-import { FITS, effectiveShow, gridOf, heardPosition, inferShow, kindOf, noteLabel, pluginOf, tonicOf, voiceBase } from './show';
+import { FITS, effectiveShow, gridOf, heardPosition, inferShow, kindOf, noteLabel, pluginOf, showProblems, tonicOf, voiceBase } from './show';
 
 const twinkle = (show: string) => setAttr(PRESETS.twinkle.source, 'tune', 'show', show);
 const labels = (src: string, cell: string) => {
@@ -43,6 +43,16 @@ describe('show=', () => {
     // (it draws a meter; the tune it steps is not one, and a plugin's show is a wheel, not a default for what is below)
     expect(pluginOf(r, 'tune')).toBeNull();
     expect(effectiveShow(r, 'tune').from).toBe('inferred');
+  });
+  it('a plugin on a cell it doesn’t fit is drawn as that cell is, and says so at its show= (#195)', () => {
+    const r = compileSource('&bar step=1\n&mel step=&bar 0 2 show=sun\n&v s=sine\n&out map=sample [&mel * &v]');
+    expect(r.diagnostics).toEqual([]);
+    expect(showProblems(r)).toEqual([
+      { severity: 'warning', message: 'show=sun draws a meter, and &mel is a braid: it is drawn as one, without the plugin', span: { line: 2, col: 25, len: 3 } },
+    ]);
+    // (on a cell it fits: quiet; and every example is)
+    expect(showProblems(compileSource('&bar scan(1 1 1 1) step=60bpm show=sun\n&mel step=&bar 0 2\n&v s=sine\n&out map=sample [&mel * &v]'))).toEqual([]);
+    for (const [key, p] of Object.entries(PRESETS)) expect(showProblems(compileSource(p.source)), key).toEqual([]);
   });
   it('the block is blanked in the cells’ text: the cells keep their line numbers', () => {
     const r = compileSource(['=== plugin ring ===', '{ "fits": ["meter"] }', 'function draw() { return []; }', '=== end ===', '&bar scan(1 1) step=60bpm show=nope'].join('\n'));

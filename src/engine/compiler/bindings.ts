@@ -184,7 +184,12 @@ export function bindVoices(ctx: Ctx, decls: ReadonlyMap<string, CellDecl>, given
         if (c.mix && !c.sink) entry = { bindings: c.mix, mix: name };
         else if (partsOf(c) || throughKit(name) || c.voice || c.kit) entry = { bindings: [alone], mix: null };
         else {
-          error(`&${name} is a melody without a voice: a MIDI channel plays notes on a voice, [&${name} * &voice]`, span);
+          error(
+            isMidiCard(c)
+              ? `&${name} is a MIDI card: a card's entries are what it sends (a mix, a mix cell, a pattern read through a kit), not another card — name &${name}'s entries here`
+              : `&${name} is a melody without a voice: a MIDI channel plays notes on a voice, [&${name} * &voice]`,
+            span,
+          );
           return;
         }
       } else {

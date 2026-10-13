@@ -90,6 +90,7 @@ export function resolveCells(ctx: Ctx, { decls, implicit, implicitRoot, overOk }
       lambda: d.lambda ?? null,
       frees: d.frees ?? [],
       show: d.show ?? null,
+      ...(d.paramSpans?.show ? { showSpan: d.paramSpans.show } : {}),
       laps: d.laps ?? null,
       loops: !!d.step?.whole,
       chance: d.chance ?? 0.5,
