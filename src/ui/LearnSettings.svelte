@@ -1,7 +1,7 @@
 <script lang="ts">
   /**
    * MIDI learn in the MIDI page of the sidebar: how many knobs the open piece has learned (Forget all), and whether a slider moved by
-   * hand sends its knob's CC back, for controllers with motor faders or LED rings (off unless asked for).
+   * hand sends its knob's CC back to its controller, for motor faders or LED rings (off unless asked for; said when it can't reach one).
    */
   import { getStudio } from './state/studio.svelte';
 
@@ -20,6 +20,9 @@
   <label class="check"
     ><input type="checkbox" checked={learn.echo} onchange={(e) => (learn.echo = e.currentTarget.checked)} /> Send a slider's moves back to its knob (motor faders, LED rings)</label
   >
+  {#if learn.echo && learn.unreachable.length}
+    <p role="status">No output port is named {learn.unreachable.join(', ')}, so its knobs aren't sent their moves.</p>
+  {/if}
 </div>
 
 <style>

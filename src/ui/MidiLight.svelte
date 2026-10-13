@@ -11,9 +11,9 @@
   const { midi } = getStudio();
   const absent = (ports: readonly { id: string }[], id: string) => id !== 'all' && !ports.some((p) => p.id === id);
   const inOn = $derived(midi.inPortId !== 'none');
-  const outOn = $derived(midi.outPortId !== 'none');
+  const outOn = $derived(midi.sending);
   const inGone = $derived(inOn && absent(midi.ports.inputs, midi.inPortId));
-  const outGone = $derived(outOn && absent(midi.ports.outputs, midi.outPortId));
+  const outGone = $derived(outOn && midi.sendingNowhere);
   let inDot: HTMLElement | undefined = $state();
   let outDot: HTMLElement | undefined = $state();
 

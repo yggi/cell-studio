@@ -44,6 +44,44 @@ export interface LayoutOptions {
    * (`tower.ts: towerRanks`), a probe (docs/notes/multiscale.md). A node it doesn't name keeps its rank in the flow.
    */
   ranks?: ReadonlyMap<string, number>;
+  /**
+   * Heights held (by node id, the graph's y): the tower layout's (`towerlayout.ts: towerLayers`); a node it names
+   * moves only sideways, dragged too. Unset: every node is free.
+   */
+  heights?: ReadonlyMap<string, number>;
+  /** With `heights`: 0, each held there (a rail); more, each drawn towards it by a spring this strong (a target). */
+  heightPull: number;
+  /** A selector's taps as a loom over its table (taploom.ts), counted so, its strands' crossings with each other not. */
+  tapLoom: boolean;
+  /** (the tower layout) Each socket into the card straight above its source: its x its source's, only its height free. */
+  socketsAbove: boolean;
+  /** (the tower layout) With `heightPull`: these held at their heights, not drawn there (`towerLayers`: the sockets, the kits). */
+  held?: ReadonlySet<string>;
+  /**
+   * (the tower layout) Each node's stratum, the graph's y from its top to its bottom (`towerLayers`): no force takes
+   * it out. With `tapLoom`, a selector's loom is a level too: what its taps step sits over its lanes.
+   */
+  strata?: ReadonlyMap<string, readonly [number, number]>;
+  /** (the tower layout) A mixer's sources (`towerLayers`): its x held between theirs. */
+  between?: ReadonlyMap<string, readonly string[]>;
+  /** (the tower layout) Rows in order, left to right (`towerLayers`: the sources' row, the meter first). */
+  lineUp?: readonly (readonly string[])[];
+  /** (the tower layout) Cells kept left of a selector's pill (by the table's id): the frame, its bus up beside it. */
+  aside?: ReadonlyMap<string, string>;
+  /** (the tower layout) A plain edge's wheels at least this far apart upwards (px, rim to rim), what feeds below what it feeds: pushed so (0: none). */
+  minRise: number;
+  /** (tapLoom) A ride on a loom carrying the bus costs this times its length (1: as a straight join). */
+  loomRide: number;
+  /** (tapLoom) A loom is kept clear: no other node stands in its band. */
+  loomClear: boolean;
+  /** A net's join between two of its readers (a bus's, a meter's) is drawn flat, by a spring this strong (0: none). */
+  flatNets: number;
+  /** Every other edge leans upright, its ends drawn to one x, by a spring this strong (0: none). */
+  upright: number;
+  /** A node drawn sideways under what it feeds above it (its wire straight up), by a spring this strong (0: none). */
+  feedUnder: number;
+  /** A bus's owner (a table read by several) leads its net: at its left end, level with its readers, by a spring this strong (0: none). */
+  netLead: number;
   layerGap: number;
   /** Edge length at rest (px). */
   linkDistance: number;
@@ -127,6 +165,16 @@ export const DEFAULT_LAYOUT: LayoutOptions = {
   partLength: 0.8,
   rankPull: 0.05,
   upPull: 0,
+  heightPull: 0,
+  tapLoom: false,
+  loomRide: 1,
+  loomClear: false,
+  flatNets: 0,
+  upright: 0,
+  feedUnder: 0,
+  netLead: 0,
+  minRise: 0,
+  socketsAbove: false,
   centre: 0.004,
   columnPull: 0.035,
   layerGap: 130,
@@ -144,12 +192,37 @@ export const DEFAULT_LAYOUT: LayoutOptions = {
 };
 
 /**
+ * The tower layout's forces (docs/notes/tower-strip.md): today's, with heights held (`heights`), but no meter placed
+ * last (it would be put at a height of its own; held to its row it overlapped others in 7 pieces of 75). Measured over
+ * the library against the few forces first tried (no rows, columns, spread, kinds or tags): crossings 130 → 91, area
+ * 125 → 108 Mpx², no overlaps either way. Heights drawn by a gentle spring (heightPull .05), not held: with the
+ * layers and a socket each, crossings 124 held → 40 drawn, its nodes .6 of a decade off their heights on average
+ * (docs/notes/tower-strip.md: the forces).
+ */
+export const TOWER_LAYOUT: Partial<LayoutOptions> = {
+  placeLast: 0,
+  heightPull: 0.05,
+  tapLoom: true,
+  socketsAbove: true,
+  loomRide: 0,
+  loomClear: true,
+  flatNets: 0.1,
+  upright: 0.01,
+  feedUnder: 0.05,
+  netLead: 0.3,
+  minRise: 90,
+  contract: 0.4,
+};
+
+/**
  * A node's room: the wheel itself (size= scales it), and what hangs under it — its label, as wide as
  * it is, and its free() controls (sliders, a text field, a keypad's rows) — so nothing settles on them.
  */
 function roomFor(n: GraphNode): number {
   // (a product's junction: a dot, junctions.ts)
   if (n.kind === 'junction') return JUNCTION_ROOM;
+  // (a socket into the sound card, the tower layout's: a small wheel, towerlayout.ts)
+  if (n.id.startsWith('socket:')) return 40;
   const cell = (n as { cell?: { size?: number; label?: string | null; frees?: readonly { key: string; labels?: readonly string[] }[] } }).cell;
   // (a voice: its wheel, 160 px across, layout/voice.ts; its envelope's box rides on its top, where its sound leaves)
   // (a drum kit: its pieces inside a wheel of 168 px, ui/KitGlyph.svelte)

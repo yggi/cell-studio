@@ -27,7 +27,7 @@ import { Dock } from './dock.svelte';
 
 /** What Convert to cells says it made. */
 function convertedText({ notes, lines, perQuarter, moved, dropped, folded, inKey }: Imported): string {
-  return `Converted to cells: ${notes} notes in ${lines} line${lines === 1 ? '' : 's'}, ${perQuarter} steps a quarter note${moved ? `, ${moved} moved onto that grid` : ''}${dropped ? `, ${dropped} drum notes with no drum voice left out` : ''}, ${folded ? `folded: what comes back written as cells of its own${inKey ? `, in degrees of ${inKey}` : ''}` : 'written out in full'}.`;
+  return `Converted to cells: ${notes} notes in ${lines} line${lines === 1 ? '' : 's'}, ${perQuarter} step${perQuarter === 1 ? '' : 's'} a quarter note${moved ? `, ${moved} moved onto that grid` : ''}${dropped ? `, ${dropped} drum notes with no drum voice left out` : ''}, ${folded ? `folded: what comes back written as cells of its own${inKey ? `, in degrees of ${inKey}` : ''}` : 'written out in full'}.`;
 }
 
 /**
@@ -69,7 +69,7 @@ export class Studio {
 
   constructor() {
     // `window.cellStudio`, for measuring from outside (docs/testing.md): the open piece as written
-    installDebugHook(() => this.piece.result, this.playback.player);
+    installDebugHook(() => this.piece.result, this.playback.player, this.recorder);
     // MIDI out: the notes the player plays go to the output chosen too
     this.midi.attach(this.playback.player, this.piece);
   }

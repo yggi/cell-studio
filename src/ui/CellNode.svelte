@@ -9,8 +9,6 @@
   import GateMeter from './GateMeter.svelte';
   import KitGlyph from './KitGlyph.svelte';
   import { VOICE_KIT } from '../engine/compiler/declare';
-  import { bulbHosts } from '../layout/drawn';
-  import { drumPlaces, kitOf } from '../layout/kit';
   import { gateOf } from '../layout/gate';
   import { glyphOf, soundHeadOf } from '../layout/wheels';
   import SideMarks from './SideMarks.svelte';
@@ -48,15 +46,8 @@
   // label=: the name shown (a template, filled in live); a cell that is only a label is a note, in the margin
   const shown = $derived(stillShifts);
   const label = $derived(cell?.label ? formatLabel(ctx.program, data.name, cell.label, shown) : null);
-  // the drums' kit the grooves read (unnamed, VOICE_KIT): its wires leave from the drums they name, its pieces
+  // the drums' kit the grooves read (unnamed, VOICE_KIT): named drums
   const drumsKit = $derived(data.name === VOICE_KIT);
-  const pieceHandles = $derived.by(() => {
-    if (!drumsKit) return [];
-    const members = kitOf(ctx.program, data.name) ?? [];
-    const hosts = bulbHosts(ctx.program);
-    const c = data.size / 2;
-    return drumPlaces(data.size * 1.02, members).flatMap((p, i) => (hosts.get(members[i]) === data.name ? [{ name: members[i], x: c + p.x, y: c + p.y }] : []));
-  });
 </script>
 
 <div
@@ -69,7 +60,10 @@
 >
   <Handle type="target" position={Position.Top} class="center-handle" isConnectable={false} />
   <!-- (a gate is a mix as read, but draws a level meter: its notes as bars, #234) -->
-  {#if glyph === 'gate' && gate}
+  <!-- (the tower layout: a selector is drawn by its pill, TapLooms.svelte — its node keeps its name) -->
+  {#if ctx.pills?.has(id)}
+    <!-- (no wheel) -->
+  {:else if glyph === 'gate' && gate}
     <GateMeter notes={gate.trigger} levels={gate.levels} gain={gate.gain} size={data.size} label="&{data.name}: a gate, its notes as bars" />
   {:else if glyph === 'kit'}
     <KitGlyph name={data.name} size={data.size} />
@@ -94,9 +88,6 @@
   {#if data.pinned}<span class="pin" title="Pinned"></span>{/if}
   {#if freeCell?.frees.length && !data.petal}<FreePills frees={freeCell.frees} name={data.name} />{/if}
   <Handle type="source" position={Position.Bottom} class="center-handle" isConnectable={false} />
-  {#each pieceHandles as h (h.name)}
-    <Handle type="source" id="head-{h.name}" position={Position.Bottom} class="head-handle" style="left: {h.x}px; top: {h.y}px" isConnectable={false} />
-  {/each}
 </div>
 
 <style>

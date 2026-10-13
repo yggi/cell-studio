@@ -1,13 +1,15 @@
 /**
  * MIDI out, the pure part (#205): a played note (`Played`, realize.ts) as MIDI — its note and the cents it is off a
  * key, its velocity, its pitch bends — and which channel each voice of a piece goes to, with a kit's members on
- * channel 10 under General MIDI drum notes picked by their names. Sending it, at the right moment and with the
+ * channel 10 under General MIDI drum notes picked by their names (a kit read beside a pitch term is transposed, decision
+ * 029: its members go out at their pitch, as voices). Sending it, at the right moment and with the
  * note-offs worked out, is the browser's business (`src/midi/out.ts`).
  *
  * Two ways a piece's notes find their channels (decision 019): a piece with MIDI cards (map=midi) says it — each note
  * goes where its cards' entries say (`Played.midi`), on their channels and output slots, and nothing else is sent; a
- * piece with none goes out as the app's default output, every voice heard on a channel of its own in the order the
- * piece declares them, which the MIDI page can change and this browser keeps (docs/ui/midi.md).
+ * piece with none goes out on the app's outputs, by default every voice heard on the first, on a channel of its own in
+ * the order the piece declares them; the MIDI page's matrix puts each on any output and channel, and this browser keeps
+ * it (docs/ui/midi.md).
  */
 import type { Played } from './realize';
 import { isMidiCard, type CompileResult, type Output } from './program';
@@ -110,23 +112,33 @@ export function kitNotes(members: readonly string[]): Map<string, number> {
 }
 
 /**
- * Where a piece's notes go: each gate (all its receivers) and each voice it plays directly on a channel, each kit member
- * on the kit's channel (10 unless chosen) with a note.
+ * Where a piece's notes go: each gate (all its receivers) and each voice it plays directly on a channel of an output, each
+ * kit member with a note on the kit's channel of each output it goes to.
  */
 export interface ChannelTable {
   /**
-   * The gates and the voices played directly, in the order the piece declares them, each on its channel (1–16); set by the piece
-   * (its MIDI cards), each on every channel and output slot (1 the default output) its cards put it on.
+   * The gates and the voices played directly, in the order the piece declares them, each on a channel (1–16) of an
+   * output (`port`: 1 the first); a voice sent to several outputs, or set by the piece's MIDI cards on several channels,
+   * has an entry for each.
    */
-  readonly voices: readonly { readonly voice: string; readonly channel: number; readonly port?: number }[];
+  readonly voices: readonly { readonly voice: string; readonly channel: number; readonly port: number }[];
   /** The kits' members, in the order the piece declares them, each with its General MIDI drum note. */
   readonly kit: readonly { readonly member: string; readonly note: number }[];
-  /** The channel the kits' members go on (1–16; 10, General MIDI's, unless chosen). Absent on a piece's MIDI cards: they say it. */
-  readonly kitChannel?: number;
+  /** The outputs the kits' members go to, each on a channel (10, General MIDI's, on the first unless chosen). */
+  readonly kits: readonly { readonly port: number; readonly channel: number }[];
   /** Set by the piece: its MIDI cards say where each note goes (the channels above can't be chosen by hand). */
   readonly byPiece?: true;
-  /** The output slots its MIDI cards name, in order (none: the default output alone). */
+  /** The output slots its MIDI cards name, in order (none: the first output alone). */
   readonly ports?: readonly number[];
+}
+
+/**
+ * What a person chose on one output (the MIDI page's matrix): a channel for some gates and voices, and for the kit; 0
+ * is not sent there. Left out: on the first output, the channel in order (the kit on 10); on any other, not sent.
+ */
+export interface OutputChoice {
+  readonly voices?: Readonly<Record<string, number>>;
+  readonly kit?: number;
 }
 
 /** Does the piece name its MIDI channels itself (a MIDI card, map=midi)? */
@@ -154,28 +166,70 @@ const gateOf = (result: CompileResult, o: Output): string | undefined => [...o.t
 const channelKey = (result: CompileResult, o: Output): string => gateOf(result, o) ?? o.voice;
 
 /**
- * The channel table of a piece: the gates and the voices it plays directly (a gate's receivers go out on its channel,
- * as one part: a doubling is the synth's to layer) numbered 1, 2, 3 … in the order it declares them, skipping the kit's
- * channel, which its kits' members share (10, or `kitChannel`: chosen in the MIDI page). `kept`: channels chosen by hand
- * for some voices (the page), which win. A send (a voice played only into a resonator or a tape) is not heard from itself
- * and is left out.
+ * A kit read beside a pitch term (decision 029: a melody it is held under, another pitch term, a number in the sum):
+ * the member it picks is transposed, so its notes go out at their pitch, as the member's own, not as its drum note.
+ * A kit read alone (plain drums) is a drum part.
  */
-export function channelTable(result: CompileResult, kept: Readonly<Record<string, number>> = {}, kitChannel: number = DRUM_CHANNEL): ChannelTable {
-  if (hasMidiCards(result)) return cardTable(result);
+const pitchedKit = (o: Output): boolean => o.kit && (o.mods.length > 0 || o.offset !== 0);
+
+/** Does an output send drum notes (a kit read, not transposed)? */
+const drumKit = (o: Output): boolean => o.kit && !pitchedKit(o);
+
+/**
+ * The gates and voices of a piece without MIDI cards that can be routed, in the order it declares them (a gate's
+ * receivers go out on its channel, as one part: a doubling is the synth's to layer), and its kits' members. A send (a
+ * voice played only into a resonator or a tape) is not heard from itself and is left out.
+ */
+export function routable(result: CompileResult): { voices: string[]; members: string[] } {
   const voices = new Set<string>();
   const members = new Set<string>();
   for (const o of result.outputs) {
     if (o.silent) continue;
-    if (o.kit) for (const m of membersOf(result, o)) members.add(m);
+    if (drumKit(o)) for (const m of membersOf(result, o)) members.add(m);
+    // (a transposed kit's members are voices: each on its own row, or its gate's)
+    else if (o.kit) for (const m of membersOf(result, o)) voices.add(gateOf(result, o) ?? m);
     else voices.add(channelKey(result, o));
   }
   const order = byPlace(result);
-  const notes = kitNotes([...members].sort(order));
-  const kit = validChannel(kitChannel) ?? DRUM_CHANNEL;
+  return { voices: [...voices].sort(order), members: [...members].sort(order) };
+}
+
+/**
+ * The rows of the routing a voice played directly goes out as (its gates, or itself; on a piece's MIDI cards, itself
+ * where a card names it): where a key played on it live is echoed (thru). None: it isn't sent.
+ */
+export function rowsOf(result: CompileResult, voice: string): string[] {
+  const cards = hasMidiCards(result);
+  const rows = result.outputs.filter((o) => o.voice === voice && !o.kit && (cards ? !!o.midi?.length : !o.silent)).map((o) => (cards ? o.voice : channelKey(result, o)));
+  return [...new Set(rows)];
+}
+
+/**
+ * The channel table of a piece: on each output (`outputs`, the MIDI page's matrix; none chosen: one), each gate and
+ * voice on the channel chosen there. Not chosen: on the first output they are numbered 1, 2, 3 … in the order the piece
+ * declares them, skipping the kit's channel (10, or the one chosen), which its kits' members share; on the others,
+ * nothing is sent until chosen.
+ */
+export function channelTable(result: CompileResult, outputs: readonly OutputChoice[] = [{}]): ChannelTable {
+  if (hasMidiCards(result)) return cardTable(result);
+  const { voices, members } = routable(result);
+  const notes = kitNotes(members);
+  const table: { voice: string; channel: number; port: number }[] = [];
+  const kits: { port: number; channel: number }[] = [];
+  (outputs.length ? outputs : [{}]).forEach((o, i) => {
+    const first = i === 0;
+    const kit = onOff(o.kit) ?? (first ? DRUM_CHANNEL : 0);
+    if (kit && notes.size) kits.push({ port: i + 1, channel: kit });
+    voices.forEach((voice, k) => {
+      const channel = onOff(o.voices?.[voice]) ?? (first ? melodicChannel(k, kit || DRUM_CHANNEL) : 0);
+      if (channel) table.push({ voice, channel, port: i + 1 });
+    });
+  });
+  const order = byPlace(result);
   return {
-    voices: [...voices].sort(order).map((voice, i) => ({ voice, channel: validChannel(kept[voice]) ?? melodicChannel(i, kit) })),
+    voices: table.sort((a, b) => order(a.voice, b.voice) || a.port - b.port),
     kit: [...notes].map(([member, note]) => ({ member, note })),
-    kitChannel: kit,
+    kits,
   };
 }
 
@@ -187,23 +241,29 @@ function cardTable(result: CompileResult): ChannelTable {
   const order = byPlace(result);
   const voices = new Map<string, { voice: string; channel: number; port: number }>();
   const members = new Set<string>();
+  const kits = new Map<string, { port: number; channel: number }>();
   const ports = new Set<number>();
   for (const o of result.outputs)
     for (const m of o.midi ?? []) {
       ports.add(m.port);
-      if (o.kit) for (const k of membersOf(result, o)) members.add(k);
-      else voices.set(`${o.voice}|${m.channel}|${m.port}`, { voice: o.voice, channel: m.channel, port: m.port });
+      if (drumKit(o)) {
+        for (const k of membersOf(result, o)) members.add(k);
+        kits.set(`${m.port}|${m.channel}`, { port: m.port, channel: m.channel });
+      } else for (const v of o.kit ? membersOf(result, o) : [o.voice]) voices.set(`${v}|${m.channel}|${m.port}`, { voice: v, channel: m.channel, port: m.port });
     }
   for (const c of result.cells.values()) if (c.map?.kind === 'midi') ports.add(c.map.port);
   const notes = kitNotes([...members].sort(order));
   return {
     voices: [...voices.values()].sort((a, b) => order(a.voice, b.voice) || a.port - b.port || a.channel - b.channel),
     kit: [...notes].map(([member, note]) => ({ member, note })),
+    kits: notes.size ? [...kits.values()].sort((a, b) => a.port - b.port || a.channel - b.channel) : [],
     byPiece: true,
     ports: [...ports].sort((a, b) => a - b),
   };
 }
 
+/** A channel chosen (1–16), or 0: not sent; anything else: not chosen. */
+const onOff = (c: number | undefined) => (c === 0 ? 0 : validChannel(c));
 const validChannel = (c: number | undefined) => (typeof c === 'number' && Number.isInteger(c) && c >= 1 && c <= 16 ? c : null);
 
 /**
@@ -219,31 +279,33 @@ export type Routes = Route | readonly NonNullable<Route>[];
 export const routesOf = (r: Routes): readonly NonNullable<Route>[] => (r === null ? [] : Array.isArray(r) ? r : [r as NonNullable<Route>]);
 
 /**
- * A piece's routing: where each played note goes, from its channel table. Set by the piece (MIDI cards): each entry
- * the note is on (`Played.midi`, those switched on), a kit's member as its drum note, and nothing for a note on none.
+ * A piece's routing: where each played note goes, from its channel table: every output and channel it is on there.
+ * Set by the piece (MIDI cards): each entry the note is on (`Played.midi`, those switched on), a kit's member as its
+ * drum note, and nothing for a note on none.
  */
 export function router(result: CompileResult, table: ChannelTable): (e: Played) => Routes {
   const outputs = new Map(result.outputs.map((o) => [o.id, o]));
-  const channels = new Map(table.voices.map((v) => [v.voice, v.channel]));
+  const channels = new Map<string, { channel: number; port: number }[]>();
+  for (const v of table.voices) channels.set(v.voice, [...(channels.get(v.voice) ?? []), { channel: v.channel, port: v.port }]);
   const drums = new Map(table.kit.map((k) => [k.member, k.note]));
-  const kitChannel = table.kitChannel ?? DRUM_CHANNEL;
   if (table.byPiece)
     return (e) => {
       if (!e.midi?.length) return null;
       const o = e.output === undefined ? undefined : outputs.get(e.output);
-      const drum = o?.kit ? drums.get(e.voice) : null;
+      const drum = o && drumKit(o) ? drums.get(e.voice) : null;
       if (drum === undefined) return null;
       return e.midi.map((m) => ({ channel: m.channel, drum, port: m.port, gain: m.gain }));
     };
   return (e) => {
     const o = e.output === undefined ? undefined : outputs.get(e.output);
     if (o?.silent) return null;
-    if (o?.kit) {
+    if (o && drumKit(o)) {
       const note = drums.get(e.voice);
-      return note === undefined ? null : { channel: kitChannel, drum: note };
+      return note === undefined ? null : table.kits.map((k) => ({ channel: k.channel, drum: note, port: k.port }));
     }
-    const channel = channels.get(o ? channelKey(result, o) : e.voice);
-    return channel === undefined ? null : { channel, drum: null };
+    // (a transposed kit's member: on its own row, or its gate's)
+    const key = !o ? e.voice : o.kit ? (gateOf(result, o) ?? e.voice) : channelKey(result, o);
+    return (channels.get(key) ?? []).map((c) => ({ channel: c.channel, drum: null, port: c.port }));
   };
 }
 
@@ -258,6 +320,23 @@ export interface MidiNote {
   readonly bend: number;
   /** Bends while it sounds (its `bends`, ramps sampled every BEND_STEP), each a change from the one before. */
   readonly bends: readonly { readonly at: number; readonly value: number }[];
+}
+
+/**
+ * A played note as the notes MIDI sends: itself, or a glide's run (`Played.legato`, #334) as the notes it is made of,
+ * each held into the next by the slide (at most the next one's length; into one on the same key, up to it): the
+ * overlap a synth glides on (legato), and Convert to cells reads back as `glide=`.
+ */
+export function legatoNotes(e: Played): Played[] {
+  if (!e.legato) return [e];
+  const { legato, ...one } = e;
+  const ns = legato.notes;
+  return ns.map((n, k) => {
+    const next = ns[k + 1];
+    // (a note into the next on the same key only meets it: a key can't overlap itself, its note-on would end the first)
+    const into = next && noteOf(next.freq).note !== noteOf(n.freq).note ? Math.min(legato.glide, next.dur) : 0;
+    return { ...one, at: n.at, dur: next ? next.at - n.at + into : n.dur, freq: n.freq, bends: n.bends };
+  });
 }
 
 /**

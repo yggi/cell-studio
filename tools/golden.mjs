@@ -15,6 +15,7 @@
 import { readFileSync, readdirSync } from 'node:fs';
 import { preview } from 'vite';
 import { chromium } from './profile/playwright.mjs';
+import { freshBuild } from './fresh-build.mjs';
 
 const args = process.argv.slice(2);
 const check = args.includes('--check') ? JSON.parse(readFileSync(args[args.indexOf('--check') + 1], 'utf8')) : null;
@@ -24,6 +25,7 @@ const files = readdirSync('examples')
   .filter((f) => f.endsWith('.cells'))
   .sort();
 
+freshBuild();
 const server = await preview({ preview: { port: 0, host: '127.0.0.1' }, logLevel: 'error' });
 const browser = await chromium.launch({ args: ['--no-sandbox'] });
 const page = await browser.newPage();

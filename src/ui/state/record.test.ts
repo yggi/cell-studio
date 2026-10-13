@@ -31,7 +31,7 @@ const RIFF = `&key scan(2 2 1 2 2 2 1)
 function made() {
   const piece = new Piece(RIFF);
   const hands: Hands = { press: () => 1, release: () => {}, onKeysCut: null };
-  const midi = { hear: () => () => {}, send: () => {}, drums: DRUM_PRESETS.GM };
+  const midi = { hear: () => () => {}, thruOf: () => [], sendTo: () => {}, drumsFrom: () => DRUM_PRESETS.GM! };
   const keys = new Keys(piece, hands, midi);
   const playback = {
     playing: false,

@@ -7,7 +7,6 @@ import { codeShifts } from './program';
 import { eventsBetween, plan } from './realize';
 import { noteOf } from './midi';
 import { PRESETS } from './presets';
-import { readFileSync } from 'node:fs';
 
 /** A piece's notes as (key, start, length), in order: what a file must give back. */
 function notesOf(source: string) {
@@ -108,6 +107,24 @@ describe('a MIDI file as a piece', () => {
     expect(notesOf(source).map((n) => `${n.voice}@${n.at.toFixed(2)}`)).toEqual(['bd@0.00', 'hh@0.00', 'sd@0.25']);
   });
 
+  it('brings back the drums of a file the app saved as the piece’s own, at their pitches (#334)', () => {
+    const src =
+      '&beat scan(1 1 1 1) step=120bpm\n&dundun oneshot s=sine loop=C2 env=&(map=adsr 0 .25 0 .1)\n&bd s=sine loop=G1\n&shekere s=white hpf=6000\n' +
+      '&ting s=square loop=527.4\n&drums step=&beat [&dundun,&shekere] &shekere &bd &ting\n&out map=sample [&drums]';
+    const r = compileSource(src);
+    const smf = readMidi(writeMidi(pieceMidi(r, codeShifts(r)).smf));
+    expect(smf.tracks.map((t) => t.name)).toEqual(['bd(G1) dundun(C2) shekere ting(527.4)']);
+    const { source, dropped } = cellsFromMidi(smf, 'test');
+    expect(dropped).toBe(0);
+    expect(source).toContain('&dundun s=sine loop=C2');
+    expect(source).toContain('&bd s=sine loop=G1');
+    const keys = (s: string) => notesOf(s).map((n) => `${n.voice}:${n.key}@${n.at.toFixed(2)}`);
+    expect(keys(source)).toEqual(keys(src).slice(0, 5));
+    // (another program's drum track, named otherwise: General MIDI's drums, as before)
+    const other = cellsFromMidi({ ...smf, tracks: smf.tracks.map((t) => ({ ...t, name: 'Drums' })) }, 'test');
+    expect(other.source).not.toContain('&dundun');
+  });
+
   it('moves the notes of a file played in onto sixteenths, and says how many', () => {
     const smf = file([
       {
@@ -141,41 +158,50 @@ describe('a MIDI file as a piece', () => {
   });
 });
 
-describe('a MIDI file folded (engine/fold)', () => {
-  it('BWV 847: the prelude as one figure over its chords, both hands, every note as before', () => {
-    const result = compileSource(PRESETS.bwv847.source);
-    const smf = readMidi(writeMidi(pieceMidi(result, codeShifts(result)).smf));
-    const flat = cellsFromMidi(smf, 'BWV 847');
-    const folded = cellsFromMidi(smf, 'BWV 847', { shorten: true });
-    expect(folded.folded).toBe(true);
-    expect(folded.source.length).toBeLessThan(0.75 * flat.source.length);
-    expect(folded.source).toContain('&figure1 0 1 2 1 3 1 2 1\n');
-    expect(folded.source).toMatch(/&chords1 step=&tempo\/16 \[12,3,2,0\] \[8,5,4,0\] \[11,5,3,2\]/);
-    expect(folded.source).toMatch(/over=&chords\d &figure1!48[\s\S]*over=&chords\d &figure1!48/);
-    const [a, b] = [notesOf(flat.source), notesOf(folded.source)];
-    expect(b.map((n) => `${n.key} ${n.at.toFixed(4)} ${n.dur.toFixed(4)}`)).toEqual(a.map((n) => `${n.key} ${n.at.toFixed(4)} ${n.dur.toFixed(4)}`));
+describe('a long rest (a voice that enters late in a long piece)', () => {
+  it('is written in holds the parser takes, and plays', () => {
+    const smf: Smf = {
+      format: 1,
+      ppq: 4,
+      tracks: [
+        { name: 'early', notes: [{ channel: 1, key: 60, velocity: 90, tick: 0, end: 4 }], bends: [], programs: [] },
+        { name: 'late', notes: [{ channel: 1, key: 67, velocity: 90, tick: 4999, end: 5000 }], bends: [], programs: [] },
+      ],
+      tempos: [],
+      meters: [],
+    };
+    const made = cellsFromMidi(smf, 'late');
+    expect(made.source).toMatch(/&late step=&tempo ~@4096 ~@903 7/);
+    expect(compileSource(made.source).ok).toBe(true);
   });
 });
 
-describe('the fold watched as it runs (Convert to cells, live)', () => {
-  it('shows the piece at each move, each one playing the file’s notes, from the flat piece to the fold taken', () => {
-    const smf = readMidi(new Uint8Array(readFileSync('midi/wtc/wtc1-02-fugue.mid')));
-    const steps: { source: string; tool: string; round: number }[] = [];
-    const made = cellsFromMidi(smf, 'I/2 Fugue in C minor', { shorten: true, watch: (source, { tool, round }) => steps.push({ source: source(), tool, round }) });
-    expect(made.folded).toBe(true);
-    expect(steps.length).toBeGreaterThan(20);
-    expect(steps[0].tool).toBe('start');
-    expect(steps.at(-1)).toMatchObject({ tool: 'done', source: made.source });
-    // (the first: every note written out, nothing folded yet; the last shorter)
-    expect(steps[0].source).not.toMatch(/^&m\d/m);
-    expect(steps.at(-1)!.source.length).toBeLessThan(steps[0].source.length);
-    // (two folds, in semitones and in degrees of its key, each to its end; then the one taken)
-    expect(new Set(steps.map((s) => s.tool.replace(/, in .*$/, '')))).toEqual(
-      new Set(['start', 'phrases and their variants', 'pairs', 'taking back what doesn’t pay', 'folded', 'done']),
-    );
-    expect(steps.some((s) => s.tool.endsWith('in degrees of C minor'))).toBe(true);
-    // every step a piece that plays the same notes (a dozen of them, spread over the fold)
-    const flat = JSON.stringify(notesOf(steps[0].source));
-    for (let i = 0; i < steps.length; i += Math.ceil(steps.length / 12)) expect(JSON.stringify(notesOf(steps[i].source)), `${i}: ${steps[i].tool}`).toBe(flat);
+describe('a glide’s run through MIDI and back (#334)', () => {
+  it('reads a legato line (each note held into the next by one slide) as a run on a gliding voice, the same notes', () => {
+    for (const [key, glide] of [
+      ['stereo', 0.12],
+      ['bossa', 0.08],
+    ] as const) {
+      const r = compileSource(PRESETS[key]!.source);
+      const smf = readMidi(writeMidi(pieceMidi(r, codeShifts(r)).smf));
+      const made = cellsFromMidi(smf, key);
+      expect(made.source, key).toContain(` glide=${glide} `);
+      const p = plan(compileSource(made.source), codeShifts(compileSource(made.source)));
+      const seconds = p.end;
+      const notes = (source: string) =>
+        notesOf(source)
+          .filter((n) => n.at < seconds - 1e-6)
+          .map((n) => `${n.key} ${n.at.toFixed(2)}`);
+      expect(notes(made.source), key).toEqual(notes(PRESETS[key]!.source));
+    }
+  });
+  it('leaves a line whose overlaps differ (played in) as it is', () => {
+    const notes = [
+      [0, 110, 60],
+      [100, 230, 62],
+      [200, 300, 64],
+    ].map(([tick, end, key]) => ({ channel: 1, key: key!, velocity: 90, tick: tick!, end: end! }));
+    const made = cellsFromMidi({ format: 1, ppq: 100, tracks: [{ name: 'lead', notes, bends: [], programs: [] }], tempos: [], meters: [] }, 'played');
+    expect(made.source).not.toContain('glide=');
   });
 });

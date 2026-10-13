@@ -3,7 +3,6 @@
 
 import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 import { armable, keyboardOf, kitPads, rowNote, scaleKeys, type Armable, type Keyboard, type KeyMode, type Pad } from '../../engine/keys';
-import { noteOf } from '../../engine/midi';
 import { cellId } from '../../engine/ids';
 import { gmNotesFor, type DrumMap } from '../../midi/drum-presets';
 import { COMPUTER_KEY_MAP, DRUM_KEY_MAP, ignoreKeyEvent, parseMidiMessage, parseSustain } from '../../midi/surfaces';
@@ -12,9 +11,9 @@ import { storageKey } from '../../storageKey';
 
 const KEY = 'cell-studio:keys';
 
-/** What this browser keeps of the keys: whether the computer keys play, thru and its channel, a key outside the scale. */
-type Stored = { readonly computer: boolean; readonly thru: boolean; readonly thruChannel: number; readonly mode: KeyMode };
-const DEFAULTS: Stored = { computer: false, thru: false, thruChannel: 1, mode: 'snap' };
+/** What this browser keeps of the keys: whether the computer keys play, thru, a key outside the scale. */
+type Stored = { readonly computer: boolean; readonly thru: boolean; readonly mode: KeyMode };
+const DEFAULTS: Stored = { computer: false, thru: false, mode: 'snap' };
 
 /** A key outside the table, as kept: #207's two ways ('played', 'nearest') read as the three (#210) they became. */
 function modeOf(kept: unknown): KeyMode {
@@ -27,11 +26,9 @@ function load(): Stored {
   try {
     const kept = JSON.parse(localStorage.getItem(storageKey(KEY)) ?? 'null') as Partial<Stored> | null;
     if (!kept || typeof kept !== 'object') return DEFAULTS;
-    const ch = kept.thruChannel;
     return {
       computer: kept.computer === true,
       thru: kept.thru === true,
-      thruChannel: Number.isInteger(ch) && (ch as number) >= 1 && (ch as number) <= 16 ? (ch as number) : 1,
       mode: modeOf(kept.mode),
     };
   } catch {
@@ -65,13 +62,25 @@ export interface Hands {
   onKeysCut: (() => void) | null;
 }
 
-/** The MIDI the keys hear and echo through (the Midi state): its input, its output, the output's drum map. */
+/** Where thru sends a key: an output (1 the first), a channel (1–16), and the note it is there. */
+export interface ThruTo {
+  readonly port: number;
+  readonly channel: number;
+  readonly note: number;
+}
+
+/** The MIDI the keys hear and echo through (the Midi state): its input, where thru sends a key, the drum maps. */
 type MidiIo = {
   hear(hearer: (data: Uint8Array, source: string, timeStamp: number) => void): () => void;
-  send(data: readonly number[], timestamp?: number): void;
-  readonly drums: DrumMap;
-  /** The channel (1 … 16) the kit keys are on: the open piece's kit channel; 10 if not said. */
+  /** Where thru sends a key played on a voice (a kit's member, `kit`): its row of the routing matrix. */
+  thruOf(voice: string, freq: number, kit: boolean, a4?: number): ThruTo[];
+  sendTo(port: number, data: readonly number[]): void;
+  /** The drum map of the device a message came from (by its name): a pad's note back to General MIDI. */
+  drumsFrom(source: string): DrumMap;
+  /** The channel (1 … 16) the on-screen pads and the computer's drum keys are on: the open piece's kit channel; 10 if not said. */
   readonly padChannel?: number;
+  /** The channels (1 … 16) a controller plays the kit on: every one the kit goes out on; `padChannel` if not said. */
+  readonly drumChannels?: readonly number[];
   /** Told when every key held from the input should let go (All notes off, the input changed or gone). */
   letGo?(listener: (alive?: ReadonlySet<string>) => void): () => void;
 };
@@ -88,8 +97,8 @@ interface Down {
   readonly source?: string;
   /** Let go while the sustain pedal was down: it sounds until the pedal comes up. */
   sustained: boolean;
-  /** A row's nearest MIDI note, for thru. */
-  readonly note?: number;
+  /** Where thru sent its note-on, until its note-off has gone too. */
+  thru: readonly ThruTo[];
 }
 
 /**
@@ -150,6 +159,8 @@ export class Keys {
     this.release(note, channel);
   }
   #pads = new Map<number, number>();
+  // where thru sent the pedal down, for its coming up
+  #pedalTo: readonly { port: number; channel: number }[] = [];
 
   // the keys held from an input that is gone (under All inputs) let go; the others' stay
   #letGoUnless(alive: ReadonlySet<string>): void {
@@ -157,7 +168,7 @@ export class Keys {
       if (!d.source || alive.has(d.source)) continue;
       const note = Number(at.slice(at.lastIndexOf(':') + 1));
       this.listener?.up(at, now());
-      this.#thru([0x80 | this.#thruNibble(), note, 0]);
+      this.#thruOff(d);
       this.#hands.release(d.id);
       this.#down.delete(at);
       this.held.delete(note);
@@ -203,7 +214,10 @@ export class Keys {
     this.#listen(on);
   }
 
-  /** Whether the keys are echoed to the MIDI output, at once, on `thruChannel`. */
+  /**
+   * Whether the keys are echoed to MIDI out at once: each key to every output and channel the routing matrix sends the
+   * voice it plays to (a kit's member as its drum note there), so thru sounds as the piece will.
+   */
   get thru(): boolean {
     return this.#kept.thru;
   }
@@ -211,15 +225,6 @@ export class Keys {
     // (turned off with keys down: their note-offs go first, or the hardware would hold them)
     if (!on) this.#thruOffs();
     this.#save({ ...this.#kept, thru: on });
-  }
-  get thruChannel(): number {
-    return this.#kept.thruChannel;
-  }
-  set thruChannel(ch: number) {
-    if (!(Number.isInteger(ch) && ch >= 1 && ch <= 16) || ch === this.#kept.thruChannel) return;
-    // (moved with keys down: their note-offs go on the channel they were struck on)
-    this.#thruOffs();
-    this.#save({ ...this.#kept, thruChannel: ch });
   }
 
   /** Told of every key and row, down and up (a take, `record.svelte.ts`), or null. */
@@ -236,10 +241,10 @@ export class Keys {
   /**
    * A key pressed: on channel 10 (9 counted from 0), or with a kit armed, the kit member with that General MIDI drum
    * note; else the armed voice at the key's pitch through its table. Velocity 1 … 127. A key pressed again while it
-   * sounds (the pedal holding it) strikes again. Echoed to the output if thru is on.
+   * sounds (the pedal holding it) strikes again. Echoed where the voice goes out if thru is on.
    */
   press(note: number, velocity = 100, channel = LOCAL, ms = now(), source = ''): void {
-    this.#press(note, velocity, channel, [note], ms, source);
+    this.#press(note, velocity, channel, channel === this.drumChannel, [note], ms, source);
   }
 
   /** The channel the pads and a kit's keys are on (counted from 0): the open piece's kit channel, 10 unless put elsewhere. */
@@ -251,7 +256,8 @@ export class Keys {
   release(note: number, channel = LOCAL, ms = now(), source = ''): void {
     const at = keyAt(channel, note, source);
     this.listener?.up(at, ms);
-    this.#thru([0x80 | this.#thruNibble(), note, 0]);
+    const d = this.#down.get(at);
+    if (d) this.#thruOff(d);
     if (channel !== this.drumChannel) this.held.delete(note);
     this.#up(at);
   }
@@ -259,7 +265,7 @@ export class Keys {
   /**
    * A row of a cell pressed (the piano roll's key column, #211): `value` a number written in the cell, an entry with
    * laps, sounding as the cell plays it (`engine/keys.ts` `rowNote`), whatever is armed. As a key: velocity, the pedal,
-   * a row pressed again strikes again, thru (as the MIDI note nearest). A cell that plays nothing: nothing.
+   * a row pressed again strikes again, thru (as the MIDI note nearest, where its voice goes out). A cell that plays nothing: nothing.
    */
   pressRow(cell: string, value: number, velocity = 100, ms = now()): void {
     const n = rowNote(this.piece.program, cell, value, this.piece.shifts);
@@ -267,17 +273,16 @@ export class Keys {
     this.listener?.down(at, { cell, value }, ms);
     this.#strike(at);
     if (!n) return;
-    const note = noteOf(n.freq, this.piece.env.A4).note;
-    if (note >= 0 && note <= 127) this.#thru([0x90 | this.#thruNibble(), note, Math.max(1, Math.min(127, Math.round(velocity)))]);
-    this.#down.set(at, { id: this.#hands.press(n.voice, n.freq, velocity), voice: n.voice, cell, sustained: false, note });
+    const thru = this.#thruOn(n.voice, n.freq, false, velocity);
+    this.#down.set(at, { id: this.#hands.press(n.voice, n.freq, velocity), voice: n.voice, cell, sustained: false, thru });
   }
 
   /** A row of a cell let go (the piano roll's key column): as a key let go. */
   releaseRow(cell: string, value: number, ms = now()): void {
     const at = `row:${cell}:${value}`;
     this.listener?.up(at, ms);
-    const note = this.#down.get(at)?.note;
-    if (note !== undefined && note >= 0 && note <= 127) this.#thru([0x80 | this.#thruNibble(), note, 0]);
+    const d = this.#down.get(at);
+    if (d) this.#thruOff(d);
     this.#up(at);
   }
 
@@ -317,14 +322,12 @@ export class Keys {
       }
   }
 
-  #press(note: number, velocity: number, channel: number, gm: readonly number[], ms: number, source = ''): void {
-    this.#thru([0x90 | this.#thruNibble(), note, Math.max(1, Math.min(127, Math.round(velocity)))]);
-    const drumChannel = this.drumChannel;
-    if (channel !== drumChannel) this.held.add(note);
+  #press(note: number, velocity: number, channel: number, drum: boolean, gm: readonly number[], ms: number, source = ''): void {
+    if (!drum) this.held.add(note);
     const at = keyAt(channel, note, source);
-    if (channel !== drumChannel && this.#keyboard?.kind === 'voice') this.listener?.down(at, { note }, ms);
+    if (!drum && this.#keyboard?.kind === 'voice') this.listener?.down(at, { note }, ms);
     this.#strike(at);
-    const k = channel === drumChannel ? this.#kit : this.#keyboard;
+    const k = drum ? this.#kit : this.#keyboard;
     let voice: string | null = null;
     let freq: number | null = null;
     if (k?.kind === 'kit') {
@@ -332,13 +335,15 @@ export class Keys {
       [voice, freq] = hit ? [hit.voice, hit.freq] : [null, null];
     } else if (k) [voice, freq] = [k.voice, k.key(note)];
     if (!k || voice === null || freq === null) return;
-    this.#down.set(at, { id: this.#hands.press(voice, freq, velocity), voice, cell: k.cell, sustained: false, source });
+    const thru = this.#thruOn(voice, freq, k.kind === 'kit', velocity);
+    this.#down.set(at, { id: this.#hands.press(voice, freq, velocity), voice, cell: k.cell, sustained: false, source, thru });
   }
 
   // what sounds at `at` (a key or a row struck again) lets go first: a new press, not a second voice on one key
   #strike(at: string): void {
     const again = this.#down.get(at);
     if (!again) return;
+    this.#thruOff(again);
     this.#down.delete(at);
     this.#hands.release(again.id);
   }
@@ -350,33 +355,51 @@ export class Keys {
     if (this.#claimed(data)) return;
     const pedal = parseSustain(data);
     if (pedal) {
-      this.#thru([0xb0 | this.#thruNibble(), 64, pedal.down ? 127 : 0]);
+      this.#thruPedal(pedal.down);
       return this.sustain(pedal.down);
     }
     const n = parseMidiMessage(data);
     if (!n) return;
+    // (a pad on a channel the kit goes out on, or 10, or any key with a kit armed, is the device's note: back through
+    // its drum map to General MIDI)
+    const drum = (this.#midi.drumChannels ?? [this.drumChannel + 1]).includes(n.channel + 1) || this.#keyboard?.kind === 'kit';
     if (!n.on) return this.release(n.note, n.channel, ms, source);
-    // (a pad on channel 10, or any key with a kit armed, is the device's note: back through its drum map to General MIDI)
-    const drum = n.channel === this.drumChannel || this.#keyboard?.kind === 'kit';
-    this.#press(n.note, n.velocity, n.channel, drum ? gmNotesFor(this.#midi.drums, n.note) : [n.note], ms, source);
+    this.#press(n.note, n.velocity, n.channel, drum, drum ? gmNotesFor(this.#midi.drumsFrom(source), n.note) : [n.note], ms, source);
   }
 
-  #thruNibble(): number {
-    return this.#kept.thruChannel - 1;
+  // thru: a key's note-on where the voice it plays goes out; where it went, for its note-off
+  #thruOn(voice: string, freq: number, kit: boolean, velocity: number): readonly ThruTo[] {
+    if (!this.#kept.thru) return [];
+    const to = this.#midi.thruOf(voice, freq, kit, this.piece.env.A4);
+    const v = Math.max(1, Math.min(127, Math.round(velocity)));
+    for (const t of to) this.#midi.sendTo(t.port, [0x90 | (t.channel - 1), t.note, v]);
+    return to;
   }
 
-  #thru(data: number[]): void {
-    if (this.#kept.thru) this.#midi.send(data);
+  // thru: a key's note-off, where its note-on went (once)
+  #thruOff(d: Down): void {
+    for (const t of d.thru) this.#midi.sendTo(t.port, [0x80 | (t.channel - 1), t.note, 0]);
+    d.thru = [];
   }
 
-  // thru: a note-off for every key and row down now (held by the pedal too), and the pedal up, on the thru channel
-  #thruOffs(): void {
-    if (!this.#kept.thru) return;
-    for (const [at, d] of this.#down) {
-      const note = at.startsWith('row:') ? d.note : Number(at.slice(at.lastIndexOf(':') + 1));
-      if (note !== undefined && note >= 0 && note <= 127) this.#thru([0x80 | this.#thruNibble(), note, 0]);
+  // thru: the pedal, to every output and channel the armed voice goes out on (its row of the matrix); up where it went down
+  #thruPedal(down: boolean): void {
+    if (!down) {
+      for (const t of this.#pedalTo) this.#midi.sendTo(t.port, [0xb0 | (t.channel - 1), 64, 0]);
+      this.#pedalTo = [];
+      return;
     }
-    if (this.#pedal) this.#thru([0xb0 | this.#thruNibble(), 64, 0]);
+    const k = this.#keyboard;
+    if (!this.#kept.thru || k?.kind !== 'voice') return;
+    const to = this.#midi.thruOf(k.voice, 440, false).filter((t, i, all) => all.findIndex((o) => o.port === t.port && o.channel === t.channel) === i);
+    for (const t of to) this.#midi.sendTo(t.port, [0xb0 | (t.channel - 1), 64, 127]);
+    this.#pedalTo = [...this.#pedalTo, ...to];
+  }
+
+  // thru: a note-off for every key and row down now (held by the pedal too), and the pedal up
+  #thruOffs(): void {
+    for (const d of this.#down.values()) this.#thruOff(d);
+    this.#thruPedal(false);
   }
 
   // Stop cut everything: what was down and what the pedal held are gone (the keys still down play again when pressed)

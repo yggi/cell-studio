@@ -53,6 +53,10 @@ export interface GraphContext {
   readonly bends: ReadonlyMap<string, { x: number; y: number }>;
   /** Where each bus's tap comes from (by edge id): null, the trunk, out of the owner; else the reader it comes on from (its centre and its wheel's radius). */
   readonly taps?: ReadonlyMap<string, { from: string; x: number; y: number; r: number } | null>;
+  /** (the tower layout) The selectors drawn as pills (TapLooms.svelte): their own wheel left out, the pill draws them. */
+  readonly pills?: ReadonlySet<string>;
+  /** The tower layout is on: a plain edge runs as a sigmoid, from the lower end's top to the upper end's bottom. */
+  readonly towered?: boolean;
   toggle(id: string): void;
   /** Not playing: move where play starts by so many seconds (a turntable turned by hand). */
   nudge(seconds: number): void;
