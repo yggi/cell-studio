@@ -35,8 +35,18 @@
   import { payloadShown, watchLoad } from './payloadGate.svelte';
   import { EXCITER_RING } from '../layout/exciters';
 
-  let { id: edgeId, sourceX, sourceY, targetX, targetY, data, label, markerEnd, style }: EdgeProps = $props();
+  let { id: edgeId, source: sourceId, target: targetId, sourceX: rimSX, sourceY: rimSY, targetX: rimTX, targetY: rimTY, data, label, markerEnd, style }: EdgeProps = $props();
   const ctx = getGraphContext();
+  // (an end on a node drawn otherwise than as a wheel round its centre, a selector's pill: where the layout says it
+  // meets it — a port, or the outline nearest the other end; else its handle)
+  const ends = $derived({
+    source: ctx.anchor?.(sourceId, targetId, { x: rimTX, y: rimTY }),
+    target: ctx.anchor?.(targetId, sourceId, { x: rimSX, y: rimSY }),
+  });
+  const sourceX = $derived(ends.source?.x ?? rimSX);
+  const sourceY = $derived(ends.source?.y ?? rimSY);
+  const targetX = $derived(ends.target?.x ?? rimTX);
+  const targetY = $derived(ends.target?.y ?? rimTY);
   // (a loom's ring is drawn as an edge of its own: it reads the bus's bends, taps and liveness)
   const id = $derived(edgeId.endsWith(LOOM) ? edgeId.slice(0, -LOOM.length) : edgeId);
   const d = $derived(
@@ -90,7 +100,8 @@
   const sigmoid = $derived.by(() => {
     if (!ctx.towered || hop || d.net || socket) return null;
     const up = fromY > targetY;
-    const [ra, rb] = [(d.sizes?.from ?? 0) / 2, (d.sizes?.to ?? 0) / 2];
+    // (an anchored end is met exactly: no rim round it)
+    const [ra, rb] = [ends.source ? 0 : (d.sizes?.from ?? 0) / 2, ends.target ? 0 : (d.sizes?.to ?? 0) / 2];
     const [ay, by] = up ? [fromY - ra, targetY + rb] : [fromY + ra, targetY - rb];
     if (up ? ay <= by : ay >= by) return null;
     const my = (ay + by) / 2;
@@ -199,7 +210,7 @@
     const r = d.sizes?.from ? tapRadius(d.sizes.from) : 0;
     const exits = d.table && r ? Array.from({ length: count }, (_, i) => entryOf(i)) : [];
     // (a flat bus, cut inside its wheels' rims: from a reader's hub when it hops on from there)
-    const rims = { a: hop ? hop.r : (d.sizes?.from ?? 0) / 2, b: (d.sizes?.to ?? 0) / 2 };
+    const rims = { a: hop ? hop.r : ends.source ? 0 : (d.sizes?.from ?? 0) / 2, b: ends.target ? 0 : (d.sizes?.to ?? 0) / 2 };
     if (!exits.length || exits.some((s) => !s)) return bundlePaths(fromX, fromY, mid.x, mid.y, targetX, targetY, across(count), rims);
     const turns = exits.map((s) => tapOf(view!, s!));
     // a hop: the bus goes on out of the hub of the reader it came into, flat, in the table's order

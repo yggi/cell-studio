@@ -20,6 +20,7 @@
       // (an output a riser: where it leaves the pill's top, one bulb each)
       const outs = new Map<string, { x: number; colour: string }>();
       for (const s of l.strands) {
+        if (s.join) continue;
         const x = s.pieces[2][0];
         outs.set(`${s.tap}:${Math.round(x)}`, { x, colour: tint(s.tap, n) });
       }

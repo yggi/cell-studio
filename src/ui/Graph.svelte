@@ -38,6 +38,7 @@
   import TowerStrips, { STRIP, STRIP_OPEN } from './TowerStrips.svelte';
   import TapLooms from './TapLooms.svelte';
   import { towerIns } from '../layout/towerlayout';
+  import { pillAnchor } from '../layout/taploom';
   import type { Viewport } from '@xyflow/svelte';
 
   // (?tower: the tower open from the start, ?towerCell=tune its line, as if selected: the gallery's pictures)
@@ -195,6 +196,10 @@
     get towered() {
       return towered;
     },
+    anchor: (node, other, from) => {
+      const l = pillsBy.get(node);
+      return l && pillAnchor(l, other, from);
+    },
     get lit() {
       return live;
     },
@@ -265,6 +270,7 @@
   // the tower layout (towerlayout.ts): the graph by the tower, the sound card its strip at the right (TowerStrips.svelte)
   const towered = $derived(layout.mode === 'tower');
   const pills = $derived(towered ? new Set(layout.looms.map((l) => l.table)) : undefined);
+  const pillsBy = $derived(new Map(towered ? layout.looms.map((l) => [l.table, l] as const) : []));
   let stripsOpen = $state(QUERY?.has('strips') ?? false);
   const stripW = $derived(stripsOpen ? STRIP_OPEN : STRIP);
   let flowW = $state(0);

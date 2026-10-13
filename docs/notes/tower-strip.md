@@ -466,6 +466,36 @@ Asked (on a picture of Cellscape): the sigmoids a minimal height, a force that p
 ![Hypercell](tower-strip-row-hypercell.jpg)
 ![Pop](tower-strip-row-pop.jpg)
 
+## Columns, one net a tap, wires that meet their pill (2026-10-13)
+
+Asked (on pictures of the arrangement tutorial): the edge from `&song` to `&parts` doesn't meet its anchor (generalise edge anchoring, make it robust); the drum kit above its source, `&kick`; the pill wider, so the vertical edges run straight (`&chords` to `&keys`); `&click` and `&kick` sharing their tap's net between their nodes, not a riser each out of the selector; and what to do with the edges drawn unstyled.
+
+- **Anchors** (`taploom.ts: pillAnchor`, `GraphContext.anchor`): a node drawn otherwise than as a wheel round its centre says where an edge meets it. A selector's pill meets its chooser at the selection port and its meter at the meter port (`Loom.feeds` names who comes in where), anything else on the pill's outline at the point nearest the other end; never at the table's hidden centre. `PulseEdge` and `MeterEdge` both ask for either end, and an anchored end has no rim round it (the sigmoid, a bus's cut). `&song`'s wire now ends at the port.
+- **Columns** (`towerLayers: columns`, `physics.ts: above`): a voice or a kit played by one cell alone, and that cell, share one x — a melody under the product's junction it enters (junctions keep off the arc under a voice, its name's), a groove under its kit. The pill widens by itself: its lanes run to the readers wherever they stand. Under a kit the players' row sits a whole layer under the voices (half a layer otherwise), and a player is pushed down to clear its kit's wheel and name; where its stratum has no room for that, the column gives way.
+- **One net a tap** (`tapLoom`): a tap stepping several cells leaves the pill once, to its lowest cell; the others join on from the nearest already reached, straight, as a meter's net is laid (`LoomStrand.join`). The joins lie outside the pill (not in its bounds), and count as plain edges.
+
+| layout | crossings | cost | pieces with an overlap |
+|---|---|---|---|
+| the round before | 41.3 | 105.0 | 4 |
+| **default now** | **45.3** | 106.5 | 3 |
+| … no columns | 47.3 | 119.5 | 4 |
+| … columns, a riser each (no joins) | 43.7 | 104.3 | 3 |
+
+(77 pieces, three seeds; the probe is deterministic, a rerun gives the same row, but variants move by ±2.) The joins cost about 2 crossings (a diagonal from one player to the next is counted, the risers inside the pill weren't); the columns gain 2, and much of the crossings' cost (119.5 → 106.5). The players' row at half a layer under a kit overlapped the player and its kit in 16 pieces; with the push and the full layer, none.
+
+![The arrangement before and after: the parts under their voices, the drums on &kick, &click and &kick one net, &song in at its port](tower-strip-columns-arrangement.jpg)
+
+### The edges still drawn plain (a proposal, not built)
+
+In the arrangement, stopped, four kinds of edge are a neutral grey line:
+
+1. **`&song → &parts` (`over=`, the selection).** Drawn plain since decision 016 ("a table of taps is read by its selector through one plain wire"). It carries which sections play: the existing rule for a table's bus (`over=`, strands in the table's colours) fits, with the sections' tints (`partColour`) as the colours — the strands lit for the sections chosen now, as the pill's strands are tinted. Proposal: a bus of the taps' tints into the selection port.
+2. **`&kick → drums` (`over=` a kit, a groove).** Plain, though it is a stream of hits, not a pointer. Proposal: draw it as the `voice` port is (D3 B: runs and beads), each bead in its drum's colour — a groove into its kit is a melody into its voice whose notes are drums.
+3. **The melodies into their junctions (`&chords → &keys`, `&tune → &lead`, `&click → &rim`).** Styled while playing (D3 B: the notes travel), neutral stopped and idle by design. Proposal: stopped, wear the note the source's wheel shows at the cursor, as a bus already does — so grey means only *nothing to carry*.
+4. **The `is` stubs** (a junction into its voice): dashed and fine, as nets.md decides — fine as it is.
+
+1 and 2 are new rules in `PulseEdge`/`payload.ts` (the payload of a tapped table's selection, and of a kit), 3 a change to the rest state in `edgeStyle.ts`.
+
 ## Next
 
 1. The tower layout still crosses about three times today's (91 against 33, the card left out of both), most in the pieces arranged with selectors, tapes and resonators (#234's language side: a selector that sends gates).

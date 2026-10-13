@@ -36,6 +36,8 @@ export interface Loom {
   readonly hub: { readonly x: number; readonly y: number };
   readonly contacts: readonly { readonly x: number; readonly y: number }[];
   readonly ports: { readonly meter: { readonly x: number; readonly y: number }; readonly select: { readonly x: number; readonly y: number } };
+  /** The nodes whose wires come in at its ports (by node id): the meter it steps on, its chooser. */
+  readonly feeds: { readonly meter?: string; readonly select?: string };
 }
 
 /** The room round a selector's loom inside its pill (px). */
@@ -44,6 +46,8 @@ const PILL_PAD = 16;
 const CALM = 12;
 /** How much of a too short plain edge's missing rise is made up each tick. */
 const RISE = 0.2;
+/** The room between a column's player and the kit over it, beyond their rooms: the kit's name, under its wheel (px). */
+const COLUMN_GAP = 30;
 /** The room between neighbours in a row lined up (px). */
 const LINE_GAP = 40;
 /** The room over a pill a cell reading it keeps: the pill's pad, and the cell's name under it (px). */
@@ -376,6 +380,23 @@ export class ForceLayout {
       m.x = xs.reduce((a, b) => a + b, 0) / xs.length;
       m.vx = 0;
     }
+    // (a column: a voice and the one cell that plays it at one x — under its junction, when it plays through one — moving
+    // together; straight under a kit, the player clears it, its name too, pushed down within its stratum: where that has
+    // no room, no column, the player beside it)
+    for (const { lo, hi, via } of this.s.opts.columns ?? []) {
+      const [a, b] = [this.s.byId.get(lo), this.s.byId.get(hi)];
+      if (a?.x === undefined || b?.x === undefined || a.y === undefined || b.y === undefined) continue;
+      const [ma, mb] = [a.fx == null ? 1 : 0, b.fx == null ? 1 : 0];
+      if (!ma && !mb) continue;
+      const clear = via ? -Infinity : b.y + a.radius + b.radius + COLUMN_GAP;
+      if (clear > a.y && (!ma || clear > (this.s.opts.strata?.get(a.id)?.[1] ?? Infinity))) continue;
+      const j = via ? this.s.junctions.get(via) : undefined;
+      const off = j?.x !== undefined ? j.x - b.x : 0;
+      const x = ma && mb ? (a.x + b.x + off) / 2 : ma ? b.x + off : a.x;
+      const v = ((a.vx ?? 0) * ma + (b.vx ?? 0) * mb) / (ma + mb);
+      if (ma) ((a.x = x), (a.vx = v), (a.y = Math.max(a.y, clear)));
+      if (mb) ((b.x = x - off), (b.vx = v));
+    }
     if (!this.s.opts.socketsAbove) return;
     const by = new Map<string, PhysNode[]>();
     for (const l of this.s.links) {
@@ -618,15 +639,17 @@ export class ForceLayout {
       const meterId = this.s.grounds.find((g) => g.cell === table && !g.bulb)?.meter;
       const meter = at(meterId);
       const other = (l: { source: string; target: string }) => (l.source === table ? l.target : l.target === table ? l.source : undefined);
-      const chooser = at(this.s.links.map(other).find((id) => id !== undefined && id !== meterId && (nodeAt(this.s, id)?.y ?? -Infinity) > n.y!));
-      const ports = loomPorts(hub, meter, chooser);
+      const chooserId = this.s.links.map(other).find((id) => id !== undefined && id !== meterId && (nodeAt(this.s, id)?.y ?? -Infinity) > n.y!);
+      const ports = loomPorts(hub, meter, at(chooserId));
       const strands = tapLoom({ x: n.x, y: n.y, r: n.radius * 0.7 }, loom, readers, ports.meter);
       // (the selector drawn as a pill round its loom: its lanes inside, its outputs along its top, the selector at its
       // bottom — its contacts, its hub, its ports on the pill's edge)
-      const xs = [...contacts.map((c) => c.x), ports.meter.x, ports.select.x, ...strands.flatMap((st) => st.pieces.map((p) => p[2]))];
-      const top = Math.min(hub.y - PILL_PAD, ...strands.map((st) => st.pieces[0][3]));
+      // (a tap's joins between the cells it steps lie outside the pill)
+      const inside = strands.filter((st) => !st.join);
+      const xs = [...contacts.map((c) => c.x), ports.meter.x, ports.select.x, ...inside.flatMap((st) => st.pieces.map((p) => p[2]))];
+      const top = Math.min(hub.y - PILL_PAD, ...inside.map((st) => st.pieces[0][3]));
       const pill = { x0: Math.min(...xs) - PILL_PAD, x1: Math.max(...xs) + PILL_PAD, y0: top - PILL_PAD, y1: ports.meter.y };
-      return [{ table, strands, pill, hub, contacts, ports }];
+      return [{ table, strands, pill, hub, contacts, ports, feeds: { meter: meterId, select: chooserId } }];
     });
   }
 
@@ -658,7 +681,13 @@ export class ForceLayout {
       }),
       // (a selector's taps as a loom over its table, tapLoom: its strands, which don't cross each other)
       ...(this.s.opts.tapLoom
-        ? this.tapLooms().flatMap((l) => l.strands.map((st) => ({ a: `${l.table}@${st.bulb}`, b: st.to, path: st.pieces, loom: l.table, weight: 2, kind: 'sync' })))
+        ? this.tapLooms().flatMap((l) =>
+            l.strands.map((st) =>
+              st.join
+                ? { a: st.join, b: st.to, path: st.pieces, weight: 2, kind: 'sync' }
+                : { a: `${l.table}@${st.bulb}`, b: st.to, path: st.pieces, loom: l.table, weight: 2, kind: 'sync' },
+            ),
+          )
         : []),
       // (a meter's net: straight traces)
       // (a tap's, from its bulb: crossing another tap's counts, though both leave the same wheel)

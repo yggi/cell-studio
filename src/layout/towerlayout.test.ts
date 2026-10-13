@@ -251,7 +251,7 @@ describe('the tower layout', () => {
         expect(y, `${piece}: ${id}`).toBeLessThanOrEqual(bottom + 1e-6);
       }
       for (const { strands } of layout.tapLooms()) {
-        const lane = Math.min(...strands.map((st) => st.pieces[1][1]));
+        const lane = Math.min(...strands.filter((st) => !st.join).map((st) => st.pieces[1][1]));
         for (const st of strands.filter((x) => x.tap >= 0)) {
           const y = layout.position(st.to)?.y;
           if (y !== undefined) expect(y, `${piece}: ${st.to}`).toBeLessThan(lane);
@@ -284,6 +284,7 @@ describe('the tower layout', () => {
       between: t.between,
       lineUp: t.lineUp,
       aside: t.aside,
+      columns: t.columns,
       live: false,
     });
     layout.setGraph({ ...drawn, nodes: drawn.nodes.filter((n) => !n.petalOf) });
@@ -310,8 +311,9 @@ describe('the tower layout', () => {
     const at = new Map(placed.nodes.map((n) => [n.id, n]));
     const loom = layout.tapLooms().find((l) => l.table === 'cell:teile')!;
     const table = at.get('cell:teile')!;
-    const xs = loom.strands.flatMap((st) => st.pieces.flatMap((p) => [p[0], p[2]]));
-    const top = Math.min(...loom.strands.map((st) => st.pieces[1][1]));
+    const inside = loom.strands.filter((st) => !st.join);
+    const xs = inside.flatMap((st) => st.pieces.flatMap((p) => [p[0], p[2]]));
+    const top = Math.min(...inside.map((st) => st.pieces[1][1]));
     const steps = new Set(loom.strands.map((st) => st.to));
     for (const n of placed.nodes) {
       if (n.id === 'cell:teile' || steps.has(n.id) || n.id.startsWith('tag:')) continue;
@@ -378,6 +380,23 @@ describe('the tower layout', () => {
     // (&breath, the drone's filter, read by two voices)
     const [breath, padv] = [layout.position('cell:breath')!, layout.position('cell:padv')!];
     expect(breath.y - padv.y).toBeGreaterThan(TOWER_LAYOUT.minRise ?? 0);
+    layout.destroy();
+  });
+
+  it('stands each voice and kit over the one cell that plays it, and the selector meets its chooser at its port', () => {
+    const { layout, columns } = laid('arrangement');
+    expect(columns.map(({ lo, hi }) => `${lo}<${hi}`).sort()).toEqual(['cell:chords<cell:keys', 'cell:click<cell:rim', 'cell:kick<cell:kit:voices', 'cell:tune<cell:lead']);
+    // (straight under what it enters: the kit, or the product's junction on the voice's rim)
+    for (const { lo, hi, via } of columns) expect(layout.position(lo)!.x, lo).toBeCloseTo(layout.position(via ?? hi)!.x, 0);
+    // (a player clears its kit)
+    const [kick, kit] = [layout.position('cell:kick')!, layout.position('cell:kit:voices')!];
+    expect(kick.y - kit.y).toBeGreaterThan(130);
+    const loom = layout.tapLooms().find((l) => l.table === 'cell:parts')!;
+    expect(loom.feeds).toEqual({ meter: 'cell:bar', select: 'cell:song' });
+    // (the drums' tap: one strand out of the pill, &click and &kick joined on one net)
+    const drums = loom.strands.filter((st) => st.bulb === 'drumBar');
+    expect(drums.filter((st) => !st.join)).toHaveLength(1);
+    expect(drums.filter((st) => st.join)).toHaveLength(1);
     layout.destroy();
   });
 });

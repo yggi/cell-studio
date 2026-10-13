@@ -57,6 +57,8 @@ export interface LoomStrand {
   readonly to: string;
   readonly pieces: readonly (readonly [number, number, number, number])[];
   readonly d: string;
+  /** A join of the tap's net between two cells it steps (`from` the one it comes on from), not a strand out of the pill. */
+  readonly join?: string;
 }
 
 /** The first lane's distance over the hub, and a lane's height (px). */
@@ -89,7 +91,25 @@ export function tapLoom(table: Wheel, taps: readonly LoomTap[], readers: readonl
   return [
     // (the source's: in at the meter's port, up to the bypass, along it and straight up to its reader)
     ...readers.map((c) => strand('', -1, meter, loomLane(table, 0), c, !!c.rise)),
-    ...taps.flatMap((t, k) => t.to.map((c) => strand(t.bulb, k, t.from, loomLane(table, k + 1), c, true))),
+    ...taps.flatMap((t, k) => {
+      if (!t.to.length) return [];
+      // (a tap's net: one strand out of the pill, to its lowest cell; the others join on from the nearest already
+      // reached, straight, as a meter's net is laid — one net between its cells, not a riser each)
+      const lane = loomLane(table, k + 1);
+      const entry = t.to.reduce((p, c) => (c.y > p.y + 1e-6 || (Math.abs(c.y - p.y) <= 1e-6 && Math.abs(c.x - t.from.x) < Math.abs(p.x - t.from.x)) ? c : p));
+      const reached = [entry];
+      const out: LoomStrand[] = [strand(t.bulb, k, t.from, lane, entry, true)];
+      const left = t.to.filter((c) => c !== entry);
+      while (left.length) {
+        let best = { i: 0, from: reached[0], d: Infinity };
+        left.forEach((c, i) => reached.forEach((r) => Math.hypot(c.x - r.x, c.y - r.y) < best.d && (best = { i, from: r, d: Math.hypot(c.x - r.x, c.y - r.y) })));
+        const [c] = left.splice(best.i, 1);
+        const a = best.from;
+        out.push({ bulb: t.bulb, tap: k, to: c.id, join: a.id, pieces: [[a.x, a.y, c.x, c.y]], d: rounded([a, c]) });
+        reached.push(c);
+      }
+      return out;
+    }),
   ];
 }
 
@@ -111,3 +131,25 @@ const toward = (from: At, to: At, r: number): At => {
   const l = Math.hypot(to.x - from.x, to.y - from.y) || 1;
   return { x: from.x + ((to.x - from.x) / l) * r, y: from.y + ((to.y - from.y) / l) * r };
 };
+
+/** What an edge needs of a selector drawn as a pill to meet it: the pill, its ports, and who comes in at them. */
+export interface PillEnds {
+  readonly pill: { readonly x0: number; readonly x1: number; readonly y0: number; readonly y1: number };
+  readonly ports: { readonly meter: At; readonly select: At };
+  readonly feeds: { readonly meter?: string; readonly select?: string };
+}
+
+/**
+ * Where an edge from `other` (its node id, and where its end is) meets a selector drawn as a pill: its meter and its
+ * chooser at their ports, anything else on the pill's outline, at the point nearest it — never at the table's centre,
+ * which nothing draws.
+ */
+export function pillAnchor(l: PillEnds, other: string, from: At): At {
+  if (other === l.feeds.select) return l.ports.select;
+  if (other === l.feeds.meter) return l.ports.meter;
+  // (the outline: a stadium, its straight part from x0 + r to x1 - r, r half its height)
+  const r = (l.pill.y1 - l.pill.y0) / 2;
+  const q = { x: Math.max(l.pill.x0 + r, Math.min(l.pill.x1 - r, from.x)), y: l.pill.y0 + r };
+  const d = Math.hypot(from.x - q.x, from.y - q.y);
+  return d ? { x: q.x + ((from.x - q.x) / d) * r, y: q.y + ((from.y - q.y) / d) * r } : { x: q.x, y: l.pill.y0 };
+}
