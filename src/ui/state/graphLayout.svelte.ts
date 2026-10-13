@@ -143,7 +143,9 @@ export class GraphLayout {
     // (with sockets: the layers, tables, structure, voices and the audible; with nets: each at its own height)
     if (tower) {
       const layered = sockets ? towerLayers(next.program, given.model, m) : null;
-      layout.setOptions(layered ? { heights: layered.targets, held: layered.held } : { heights: towerHeights(next.program, m), held: undefined });
+      layout.setOptions(
+        layered ? { heights: layered.targets, held: layered.held, strata: layered.strata } : { heights: towerHeights(next.program, m), held: undefined, strata: undefined },
+      );
     }
     // (a probe: the rows by the frequency tower instead of the signal path, docs/notes/multiscale.md)
     if (ROWS === 'tower') layout.setOptions({ ranks: towerRanks(towerOf(next.program, m)) });
@@ -213,6 +215,7 @@ export class GraphLayout {
       rowOrders: this.#force.options.rowOrders,
       heights: undefined,
       held: undefined,
+      strata: undefined,
       ...(mode === 'tower' ? towerOptions() : {}),
     });
     this.options = { ...this.#force.options };

@@ -59,6 +59,11 @@ export interface LayoutOptions {
   socketsAbove: boolean;
   /** (the tower layout) With `heightPull`: these held at their heights, not drawn there (`towerLayers`: the sockets, the kits). */
   held?: ReadonlySet<string>;
+  /**
+   * (the tower layout) Each node's stratum, the graph's y from its top to its bottom (`towerLayers`): no force takes
+   * it out. With `tapLoom`, a selector's loom is a level too: what its taps step sits over its lanes.
+   */
+  strata?: ReadonlyMap<string, readonly [number, number]>;
   layerGap: number;
   /** Edge length at rest (px). */
   linkDistance: number;

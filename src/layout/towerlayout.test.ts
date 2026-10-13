@@ -158,7 +158,7 @@ describe('the tower layout', () => {
     const drawn = withSockets(model);
     const { targets, layers } = towerLayers(program, model, drawn);
     const at = (id: string) => towerAt(targets.get(id)!);
-    expect(layers.get('cell:bar')).toBe('structure');
+    expect(layers.get('cell:bar')).toBe('stepped');
     expect(10 ** at('cell:bar')).toBeCloseTo(168 / 60, 3);
     // (the voices in one row, over the structure, under the lowest socket)
     for (const v of ['flute', 'strings', 'tuba']) expect(layers.get(`cell:${v}`)).toBe('voice');
@@ -185,7 +185,7 @@ describe('the tower layout', () => {
     };
     expect(TOWER_LAYOUT.heightPull).toBeGreaterThan(0);
     expect(mean('audible')).toBeLessThan(mean('voice'));
-    expect(mean('voice')).toBeLessThan(mean('structure'));
+    expect(mean('voice')).toBeLessThan(mean('stepped'));
     layout.destroy();
   });
 
@@ -264,11 +264,48 @@ describe('the tower layout', () => {
     const { targets, layers, held } = towerLayers(program, model, drawn);
     const kit = drawn.nodes.find((n) => n.cell?.kit && n.cell.implicit)!.id;
     for (const g of ['cell:beat', 'cell:hats']) {
-      expect(layers.get(g), g).toBe('player');
+      expect(layers.get(g), g).toBe('gate');
       expect(held.has(g), g).toBe(true);
       // (below the kit on the page, above the bar)
       expect(targets.get(g)!).toBeGreaterThan(targets.get(kit)!);
       expect(targets.get(g)!).toBeLessThan(targets.get('cell:bar')!);
     }
+  });
+
+  it('keeps every node in its stratum, and what a selector steps over its loom', () => {
+    for (const piece of ['hypercell', 'baustelle', 'pop']) {
+      const program = compileSource(readFileSync(`examples/${piece}.cells`, 'utf8'));
+      const model = buildGraph(program);
+      const drawn = withSockets(model);
+      const { targets, held, strata } = towerLayers(program, model, drawn);
+      // (the strata in order, top to bottom, none overlapping)
+      const layout = new ForceLayout(() => {}, { ...TOWER_LAYOUT, heights: targets, held, strata, live: false });
+      layout.setGraph({ ...drawn, nodes: drawn.nodes.filter((n) => !n.petalOf) });
+      layout.tick(400);
+      for (const [id, [top, bottom]] of strata) {
+        const y = layout.position(id)?.y;
+        if (y === undefined) continue;
+        expect(y, `${piece}: ${id}`).toBeGreaterThanOrEqual(top - 1e-6);
+        expect(y, `${piece}: ${id}`).toBeLessThanOrEqual(bottom + 1e-6);
+      }
+      for (const { strands } of layout.tapLooms()) {
+        const lane = Math.min(...strands.map((st) => st.pieces[1][1]));
+        for (const st of strands.filter((x) => x.tap >= 0)) {
+          const y = layout.position(st.to)?.y;
+          if (y !== undefined) expect(y, `${piece}: ${st.to}`).toBeLessThan(lane);
+        }
+      }
+      layout.destroy();
+    }
+  });
+
+  it('orders the strata: audible over voice over gate over stepped over constant', () => {
+    const program = compileSource(readFileSync('examples/hypercell.cells', 'utf8'));
+    const model = buildGraph(program);
+    const drawn = withSockets(model);
+    const { layers, strata } = towerLayers(program, model, drawn);
+    const band = (l: string) => strata.get([...layers].find(([, x]) => x === l)![0])!;
+    const order = ['audible', 'voice', 'gate', 'stepped'];
+    for (let i = 0; i + 1 < order.length; i++) expect(band(order[i])[1], order[i]).toBeLessThanOrEqual(band(order[i + 1])[0] + 1e-6);
   });
 });

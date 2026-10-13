@@ -25,7 +25,7 @@ import { forceUncross, stepBends, stepClusters, stepExclusion, stepKinds, stepSp
 import { aims, fitTurns, stepAims } from './aims';
 import { hops, loomsOf, meterNet, netTree, stepNets, taps } from './nets';
 import { placeMeters } from './placement';
-import { tapLoom, type LoomStrand } from './taploom';
+import { loomLane, tapLoom, type LoomStrand } from './taploom';
 
 export interface GraphDiff {
   added: number;
@@ -114,6 +114,8 @@ export class ForceLayout {
       .force('looms', (alpha: number) => this.order(alpha))
       // (the tower layout, socketsAbove) a socket rides above its source
       .force('sockets', () => this.above())
+      // (the tower layout) the strata strict, the looms levels: last, so nothing moves a node out after
+      .force('strata', () => this.strata())
       .on('tick', () => {
         placeJunctions(this.s);
         onTick();
@@ -370,6 +372,51 @@ export class ForceLayout {
         n.vx = 0;
       });
     }
+  }
+
+  /**
+   * (strata) Each node kept in its stratum: where the tick would carry it past an edge, its velocity stops it there.
+   * (tapLoom) A selector's loom a level: what its taps step sits over its top lane (its radius clear); one held, or at
+   * its stratum's top, takes the table down instead.
+   */
+  private strata(): void {
+    const bands = this.s.opts.strata;
+    if (!bands) return;
+    const keep = 1 - this.sim.velocityDecay();
+    const clamp = (n: PhysNode) => {
+      const b = bands.get(n.id);
+      if (!b || n.y === undefined || n.fy != null) return;
+      const next = n.y + (n.vy ?? 0) * keep;
+      const y = Math.min(b[1], Math.max(b[0], next));
+      if (y !== next) n.vy = (y - n.y) / keep;
+    };
+    if (this.s.opts.tapLoom) {
+      const looms = new Map<string, { bulbs: Set<string>; cells: Set<string> }>();
+      for (const g of this.s.grounds) {
+        if (!g.bulb) continue;
+        const l = looms.get(g.meter) ?? looms.set(g.meter, { bulbs: new Set(), cells: new Set() }).get(g.meter)!;
+        l.bulbs.add(g.bulb);
+        l.cells.add(g.cell);
+      }
+      for (const [table, l] of looms) {
+        const t = this.s.byId.get(table);
+        if (t?.y === undefined) continue;
+        // (its top lane: the source's lowest, then a lane a tap)
+        const lane = loomLane({ x: t.x ?? 0, y: t.y, r: t.radius * 0.7 }, l.bulbs.size);
+        for (const id of l.cells) {
+          const c = this.s.byId.get(id);
+          if (c?.y === undefined) continue;
+          const over = c.y + c.radius * 0.7 - lane;
+          if (over <= 0) continue;
+          const top = bands.get(id)?.[0] ?? -Infinity;
+          const free = !this.s.opts.held?.has(id) && c.fy == null;
+          const up = free ? Math.min(over, c.y - top) : 0;
+          if (up > 0) ((c.y -= up), (c.vy = Math.min(c.vy ?? 0, 0)));
+          if (over - up > 0 && t.fy == null) ((t.y += over - up), (t.vy = Math.max(t.vy ?? 0, 0)));
+        }
+      }
+    }
+    for (const n of this.s.byId.values()) clamp(n);
   }
 
   private hold(alpha = 1): void {

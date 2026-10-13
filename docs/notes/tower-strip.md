@@ -345,6 +345,24 @@ Asked (on a picture of Hypercell): `&beat` and `&roll` sit with the kit, not bel
 
 ![Hypercell: the grooves under their kit](tower-strip-players.jpg)
 
+## Strict strata, the loom a level (2026-10-13)
+
+Asked: the layers as strict boundaries, audible · voice · gate · stepped structure · constant structure; no node pulled out of its stratum; a selector's loom an implicit level, what its output steps never below it.
+
+- `towerLayers` gives each node its **stratum** and the stratum's band (`strata`, the graph's y), its edges halfway between the rows. The strata: `audible` (the sockets), `voice` (voices, mixes, kits, tapes, resonators; a braid stepped at an audio rate, a wave, at its own height), `gate` (a gate, a groove: what plays voices or a kit), `stepped`, `constant` (tables nothing steps).
+- `physics.ts: strata` (the last force): where a tick would carry a node past its stratum's edge, its velocity stops it there. With the loom on, what a selector's taps step is lifted over its top lane; one held, or at its stratum's top, takes the selector down instead.
+
+| layout | crossings | area Mpx² | out of its stratum | under its loom |
+|---|---|---|---|---|
+| strata not strict (before) | 52.3 | 97.3 | 292 | 31.7 |
+| **strict (default)** | **54.7** | 103.7 | **0** | **0** |
+| strict, taps as traces (no loom level) | 51.3 | 103.7 | 0 | — |
+
+(The library's sums, 76 pieces, the mean of three seeds; "out of its stratum" counts nodes, "under its loom" cells a selector steps.)
+
+![Hypercell, strict strata](tower-strip-strata-hypercell.jpg)
+![Baustelle, strict strata: &teile under everything it steps](tower-strip-strata-baustelle.jpg)
+
 ## Next
 
 1. The tower layout still crosses about three times today's (91 against 33, the card left out of both), most in the pieces arranged with selectors, tapes and resonators (#234's language side: a selector that sends gates).

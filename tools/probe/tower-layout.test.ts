@@ -31,7 +31,7 @@ type Variant = {
   sockets?: boolean;
   layers?: boolean;
   hold?: 'all' | 'sockets' | 'none';
-  anchor?: false;
+  strata?: false;
 };
 // (the few forces first tried)
 const FEW: Partial<LayoutOptions> = { rankPull: 0, columnPull: 0, upPull: 0, spread: 0, kindRepel: 0, tagPull: 0, tagRepel: 0, mux: 0, clusters: false, rowOrder: 0, placeLast: 0 };
@@ -55,6 +55,7 @@ const VARIANTS: Variant[] = [
   },
   { name: 'sockets where the forces put them (as before)', tower: true, card: false, opts: { ...TOWER_LAYOUT, socketsAbove: false }, sockets: true, layers: true },
   { name: 'sockets held, kits drawn to the voices (as before)', tower: true, card: false, opts: TOWER_LAYOUT, sockets: true, layers: true, hold: 'sockets' },
+  { name: 'strata not strict (as before)', tower: true, card: false, opts: TOWER_LAYOUT, sockets: true, layers: true, strata: false },
   { name: 'nothing held, all drawn to their heights', tower: true, card: false, opts: TOWER_LAYOUT, sockets: true, layers: true, hold: 'none' },
   { name: 'loom, in order .02', tower: true, card: false, opts: { ...TOWER_LAYOUT, loomOrder: 0.02 }, sockets: true, layers: true },
   { name: 'loom, in order .05', tower: true, card: false, opts: { ...TOWER_LAYOUT, loomOrder: 0.05 }, sockets: true, layers: true },
@@ -94,6 +95,9 @@ interface Row {
   /** How far, on average, a node with a height ended from it (decades), and the most. */
   off: number;
   offMax: number;
+  /** Nodes outside their stratum (px past its edge), and cells a selector steps that sit under its loom's top lane. */
+  strays: number;
+  underLoom: number;
   /** Nodes held at a height, and all nodes laid out. */
   held: number;
   nodes: number;
@@ -135,7 +139,7 @@ function measure(source: string, v: Variant, seed: number): Row {
     ...v.opts,
     ...(heights ? { heights } : {}),
     ...(held ? { held } : {}),
-    ...(layered && v.anchor !== false ? { anchors: layered.anchors } : {}),
+    ...(layered && v.strata !== false ? { strata: layered.strata } : {}),
   });
   l.setGraph({ ...model, nodes: model.nodes.filter((n) => !n.petalOf) });
   t0 = lap('setGraph', t0);
@@ -159,6 +163,8 @@ function measure(source: string, v: Variant, seed: number): Row {
     held: heights?.size ?? 0,
     off: 0,
     offMax: 0,
+    strays: 0,
+    underLoom: 0,
     nodes: model.nodes.filter((n) => !n.petalOf).length,
   };
   if (heights?.size) {
@@ -168,6 +174,21 @@ function measure(source: string, v: Variant, seed: number): Row {
     });
     row.off = offs.reduce((a, b) => a + b, 0) / Math.max(1, offs.length);
     row.offMax = Math.max(0, ...offs);
+  }
+  if (layered) {
+    for (const [id, [top, bottom]] of layered.strata) {
+      const p = l.position(id);
+      if (p && (p.y < top - 1 || p.y > bottom + 1)) row.strays++;
+    }
+    // (a loom's top lane: its strands' highest; what it steps, its wheel's lower edge over it)
+    const radius = new Map((l as unknown as { placed(): Placed }).placed().nodes.map((n) => [n.id, n.r]));
+    for (const { strands } of l.tapLooms()) {
+      const lane = Math.min(...strands.map((st) => st.pieces[1][1]));
+      for (const id of new Set(strands.filter((st) => st.tap >= 0).map((st) => st.to))) {
+        const p = l.position(id);
+        if (p && p.y + (radius.get(id) ?? 0) * 0.7 > lane + 1) row.underLoom++;
+      }
+    }
   }
   if (v.tower && !v.sockets) {
     const placed = (l as unknown as { placed(): Placed }).placed();
@@ -217,9 +238,9 @@ type Measured = { variant: string; key: string; seed: number; row: Row };
 function report(all: readonly Measured[], variants: readonly Variant[], pieces: number, seeds: readonly number[]): void {
   log(`# The tower layout (${pieces} pieces × ${seeds.length} seeds; library sums, mean over seeds)\n`);
   log(
-    '| layout | crossings | cost | area Mpx² | pieces with an overlap | nets into the strip | over a cell (of them free) | hops routed | over an edge | wire length kpx | off its height, decades (mean, most) |',
+    '| layout | crossings | cost | area Mpx² | pieces with an overlap | nets into the strip | over a cell (of them free) | hops routed | over an edge | wire length kpx | off its height, decades (mean, most) | out of its stratum | under its loom |',
   );
-  log('|---|---|---|---|---|---|---|---|---|---|---|');
+  log('|---|---|---|---|---|---|---|---|---|---|---|---|---|');
   const perPiece = new Map<string, Map<string, Row>>();
   let held = 0;
   let nodes = 0;
@@ -239,7 +260,7 @@ function report(all: readonly Measured[], variants: readonly Variant[], pieces: 
     const sum = (f: (r: Row) => number) => rows.reduce((n, r) => n + f(r), 0) / seeds.length;
     const t = v.tower;
     log(
-      `| ${v.name} | ${sum((r) => r.crossings).toFixed(1)} | ${sum((r) => r.cost).toFixed(1)} | ${sum((r) => r.area).toFixed(1)} | ${sum((r) => r.overlap).toFixed(1)} | ${t ? sum((r) => r.wires).toFixed(0) : '—'} | ${t ? `${sum((r) => r.overCells).toFixed(1)} (${sum((r) => r.overFree).toFixed(1)})` : '—'} | ${t ? sum((r) => r.hops).toFixed(1) : '—'} | ${t ? sum((r) => r.overEdges).toFixed(1) : '—'} | ${t ? (sum((r) => r.length) / 1000).toFixed(0) : '—'} | ${t ? `${(sum((r) => r.off) / pieces).toFixed(3)}, ${Math.max(...rows.map((r) => r.offMax)).toFixed(2)}` : '—'} |`,
+      `| ${v.name} | ${sum((r) => r.crossings).toFixed(1)} | ${sum((r) => r.cost).toFixed(1)} | ${sum((r) => r.area).toFixed(1)} | ${sum((r) => r.overlap).toFixed(1)} | ${t ? sum((r) => r.wires).toFixed(0) : '—'} | ${t ? `${sum((r) => r.overCells).toFixed(1)} (${sum((r) => r.overFree).toFixed(1)})` : '—'} | ${t ? sum((r) => r.hops).toFixed(1) : '—'} | ${t ? sum((r) => r.overEdges).toFixed(1) : '—'} | ${t ? (sum((r) => r.length) / 1000).toFixed(0) : '—'} | ${t ? `${(sum((r) => r.off) / pieces).toFixed(3)}, ${Math.max(...rows.map((r) => r.offMax)).toFixed(2)}` : '—'} | ${t ? sum((r) => r.strays).toFixed(1) : '—'} | ${t ? sum((r) => r.underLoom).toFixed(1) : '—'} |`,
     );
   }
   if (process.env.TIMES)

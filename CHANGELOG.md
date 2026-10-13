@@ -11,6 +11,7 @@ that makes the change. Also note changes to the language that could affect saved
 ## Unreleased
 
 ### Added
+- **The tower layout's strata are strict**: audible, voice, gate, stepped, constant; no node leaves its own, and what a selector steps sits over its loom. Drawing only.
 - **The tower layout holds a kit with the voices**, and the grooves that play it in a row just under it, over the structure; the sockets above. Drawing only.
 - **The tower layout puts every socket in the audible**: a row over the voices, each at its sound's frequency or the audible's floor (a groove, a bass), held there. Drawing only.
 - **The tower layout sets each socket straight above its source**: its wire into the card rises straight up. Drawing only.
