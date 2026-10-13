@@ -1,13 +1,15 @@
 /**
  * The MIDI library (docs/ui/midi.md): MIDI files that come with the app, in collections, each a cell of the library
- * beside the tutorial and the examples. For now three of Bach's from the Mutopia Project: the Well-Tempered Clavier,
- * the Inventions and Sinfonias, and the Notebook for Anna Magdalena (midi/<set>/: each file as published, its licence
- * and who typeset it in midi/<set>/index.json and its README). A file is fetched when it opens, as an example's source
+ * beside the tutorial and the examples. For now four of Bach's from the Mutopia Project: the Well-Tempered Clavier,
+ * the Inventions and Sinfonias, the Notebook for Anna Magdalena and the Musical Offering's ricercars (midi/<set>/: each
+ * file as published, or rebuilt with its repeats played; its licence and who typeset it in midi/<set>/index.json and
+ * its README; midi/<set>/voices/ the same a track a voice, for the disassembler's bench, not the app). A file is fetched when it opens, as an example's source
  * is; it opens as a MIDI document (text, playing), for Convert to cells to fold.
  */
 import wtc from '../midi/wtc/index.json';
 import inventions from '../midi/inventions/index.json';
 import anna from '../midi/anna/index.json';
+import offering from '../midi/offering/index.json';
 import { readMidi, type Smf } from './engine/midifile';
 
 /** A collection: its folder in midi/, and its name (the library's cell, and a tag its files carry). */
@@ -40,9 +42,10 @@ export const MIDI_SETS: readonly MidiSet[] = [
   { id: 'wtc', title: 'Well-Tempered Clavier' },
   { id: 'inventions', title: 'Inventions and Sinfonias' },
   { id: 'anna', title: 'Anna Magdalena Notebook' },
+  { id: 'offering', title: 'Musical Offering' },
 ];
 
-const INDEX: Readonly<Record<string, readonly Omit<MidiInfo, 'set'>[]>> = { wtc, inventions, anna };
+const INDEX: Readonly<Record<string, readonly Omit<MidiInfo, 'set'>[]>> = { wtc, inventions, anna, offering };
 
 /** Every file of the MIDI library: set by set, each in its own order (the books, the catalogue). */
 export const MIDI_FILES: readonly MidiInfo[] = MIDI_SETS.flatMap((s) => INDEX[s.id]!.map((m) => ({ ...m, set: s.id })));

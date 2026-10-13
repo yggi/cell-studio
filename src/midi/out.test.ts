@@ -4,8 +4,8 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { compileSource } from '../engine/compile';
 import { plan, type Played } from '../engine/realize';
 import { codeShifts } from '../engine/program';
-import { windowAt } from '../engine/schedule';
-import { BEND_CENTRE, bendValue, channelTable, midiNote, router, routesOf, type Route } from '../engine/midi';
+import { retime, windowAt } from '../engine/schedule';
+import { BEND_CENTRE, bendValue, channelTable, legatoNotes, midiNote, router, routesOf, type Route } from '../engine/midi';
 import { MidiOut } from './out';
 import { fakePort } from './fixtures';
 import { DRUM_PRESETS } from './drum-presets';
@@ -306,8 +306,8 @@ describe('MidiOut over every example, window by window as the player plays them'
         const w = windowAt(p, from, WINDOW);
         for (const e of w.events) {
           const to = routesOf(route(e))[0];
-          // (a send isn't heard from itself; a pitch no key reaches isn't sent)
-          if (to && midiNote(e, to)) expected++;
+          // (a send isn't heard from itself; a pitch no key reaches isn't sent; a glide's run is its notes, #334)
+          if (to) expected += legatoNotes(e).filter((n) => midiNote(n, to)).length;
           midi.play(e, toDeviceMs);
         }
         midi.advance(w.to, toDeviceMs);
@@ -375,7 +375,7 @@ describe('MidiOut over every example, through a seek within the look-ahead', () 
         for (let t = from; t < to; t += WINDOW) {
           const w = windowAt(p, t, WINDOW);
           for (const e of w.events) {
-            const moved = { ...e, at: e.at + shift };
+            const moved = retime({ from: 0, to: 0, events: [e], tapes: [] }, shift, 1).events[0]!;
             if (played) played.push(moved);
             midi.play(moved, toDeviceMs);
           }
@@ -388,7 +388,7 @@ describe('MidiOut over every example, through a seek within the look-ahead', () 
       const after: Played[] = [];
       run(2, 6, 1.65, after);
       midi.advance(Infinity, toDeviceMs);
-      for (const e of after) {
+      for (const e of after.flatMap(legatoNotes)) {
         const to = routesOf(route(e))[0];
         const n = to && midiNote(e, to);
         if (!n || n.end - n.at < 0.002) continue;
