@@ -24,6 +24,7 @@ import { Keys } from './keys.svelte';
 import { Recorder } from './record.svelte';
 import type { RowKeys } from '../context';
 import { Dock } from './dock.svelte';
+import { Conversion } from './convert.svelte';
 
 /** What Convert to cells says it made. */
 function convertedText({ notes, lines, perQuarter, moved, dropped, folded, inKey }: Imported): string {
@@ -58,11 +59,21 @@ export class Studio {
   /** The code editor (App binds it): showing a cell's line in it. */
   editor = $state<{ showLine(line: number): void } | undefined>();
   rendering = $state(false);
-  /** Convert to cells, while the folder works (a worker): the tool at work and the round. */
-  folding = $state<{ tool: string; round: number } | null>(null);
-  /** Counts the fold's steps shown: the graph framed again at each (it follows the fold). */
+  /** Convert to cells, watched (#390): folding, then its story replayed a frame at a time (state/convert.svelte.ts). */
+  readonly conversion = new Conversion(
+    (source) => {
+      this.piece.code = source;
+      this.foldFrames++;
+    },
+    () => this.piece.code,
+    () => {
+      if (this.#converted) this.view.message = convertedText(this.#converted);
+    },
+  );
+  /** Counts the conversion's frames shown: the graph framed again as it grows (it follows the fold). */
   foldFrames = $state(0);
   #folder: Worker | null = null;
+  #converted: Imported | null = null;
 
   // the piece last asked for (a card or a file): one still being fetched or read gives way to a later choice
   #choice = 0;
@@ -87,10 +98,10 @@ export class Studio {
     this.keys.chosen = '';
   }
 
-  /** A MIDI file, open as it is: as text (engine/miditext.ts), playing, in time; Convert to cells writes it as a piece. */
+  /** A MIDI file, open as it is: as text (engine/miditext.ts), playing, its machine in the graph (decision 034); Convert
+   * to cells writes it as a piece. */
   #openedMidi(open: Open, smf: Smf, name: string): void {
     this.#opened(open, midiText(smf, name));
-    this.view.tab = 'time';
     const notes = smf.tracks.reduce((n, t) => n + t.notes.length, 0);
     this.view.message = `Opened ${name}: ${notes} notes in ${smf.tracks.length} track${smf.tracks.length === 1 ? '' : 's'}, as it is. Convert it to cells to fold it into a piece.`;
   }
@@ -163,85 +174,59 @@ export class Studio {
 
   /**
    * A MIDI file's text, converted: its notes as cells (engine/midiimport.ts), folded where that plays the same
-   * (engine/fold: figures, phrases, transpositions), the piece open now. The folder works in a worker (fold.worker.ts)
-   * and is watched: the piece as it is by then, step by step, its graph forming as it folds (replayed at a pace to
-   * follow); at the end, the fold taken.
+   * (engine/fold: figures, phrases, transpositions), the piece open now. The folder works in a worker (fold.worker.ts);
+   * then its story is replayed (`conversion`, #390): the code set a frame at a time, from the notes written out to the
+   * piece folded, a cell coming in each, the graph forming as it goes.
    */
   convert(): void {
     const midi = this.piece.midi;
-    if (!midi || this.folding) return;
+    if (!midi || this.conversion.phase) return;
     const open = this.library.open;
     const name = open.kind === 'file' ? open.name.replace(/\.(midi?|smf)$/i, '') : open.kind === 'midi' ? open.key : 'MIDI file';
-    const renamed = () => {
+    const job: FoldJob = { smf: midi.smf, title: midi.smf.name?.trim() || name, credit: this.#credit(open, midi.smf) };
+    this.view.tab = 'graph';
+    this.view.message = null;
+    const play = (made: Imported) => {
+      // (the file now a piece: its name .cells, from the first frame on)
       if (open.kind === 'file' || open.kind === 'midi') this.library.open = { kind: 'file', name: `${name}.cells` };
+      this.#converted = made;
+      this.conversion.play(made.story ?? [{ source: made.source, says: '' }]);
     };
-    const job: FoldJob = { smf: midi.smf, title: midi.smf.name?.trim() || name, credit: this.#credit(open, midi.smf), every: 15 };
     let worker: Worker;
     try {
       worker = new Worker(new URL('../fold.worker.ts', import.meta.url), { type: 'module' });
     } catch {
-      // (no workers: folded here, at once)
-      const made = cellsFromMidi(job.smf, job.title, { shorten: true, credit: job.credit });
-      this.piece.code = made.source;
-      renamed();
-      this.view.tab = 'graph';
-      this.view.message = convertedText(made);
-      return;
+      // (no workers: folded here, at once, then replayed)
+      return play(cellsFromMidi(job.smf, job.title, { shorten: true, credit: job.credit, story: true }));
     }
     this.#folder = worker;
-    this.folding = { tool: 'start', round: 0 };
-    this.view.tab = 'graph';
-    this.view.message = null;
-    // the steps replayed at a pace the eye and the graph can follow (a fold can take less than a second): one at
-    // least every PACE ms, skipping ahead where they pile up, so the whole is seen in a few seconds; then the fold taken
-    const PACE = 110;
-    const steps: { source: string; tool: string; round: number }[] = [];
-    let made: Imported | null = null;
-    let first = true;
-    const next = () => {
-      if (this.#folder !== worker) return;
-      if (steps.length) {
-        const k = Math.max(1, Math.ceil(steps.length / 30));
-        const s = steps.splice(0, k).pop()!;
-        if (first) renamed();
-        first = false;
-        this.folding = { tool: s.tool, round: s.round };
-        this.piece.code = s.source;
-        this.foldFrames++;
-      } else if (made) {
-        this.#folder = null;
-        worker.terminate();
-        this.folding = null;
-        this.piece.code = made.source;
-        this.foldFrames++;
-        renamed();
-        this.view.message = convertedText(made);
-        return;
-      }
-      setTimeout(() => requestAnimationFrame(next), PACE);
+    this.conversion.folding();
+    const done = () => {
+      if (this.#folder === worker) this.#folder = null;
+      worker.terminate();
     };
-    next();
     worker.onmessage = (e: MessageEvent<FoldAnswer>) => {
       if (this.#folder !== worker) return;
-      const a = e.data;
-      if (a.kind === 'done') made = a.made;
-      else if (a.tool !== 'done') steps.push(a);
+      done();
+      play(e.data.made);
     };
     worker.onerror = () => {
       if (this.#folder !== worker) return;
-      this.stopFolding(false);
-      this.view.message = 'The folder stopped with an error: the piece is as far as it got.';
+      done();
+      this.conversion.stop();
+      this.view.message = 'The folder stopped with an error: the MIDI file is as it was.';
     };
     worker.postMessage(job);
   }
 
-  /** Stop a fold on its way (`convert`): the piece as far as it got (`say`: told so). */
+  /** Stop a conversion on its way (`convert`): while folding, the MIDI file as it was; while replaying, the piece as far as it got (`say`: told so). */
   stopFolding(say = true): void {
-    if (!this.#folder) return;
-    this.#folder.terminate();
+    const phase = this.conversion.phase;
+    if (!phase) return;
+    this.#folder?.terminate();
     this.#folder = null;
-    this.folding = null;
-    if (say) this.view.message = 'Stopped folding: the piece is as far as it got.';
+    this.conversion.stop();
+    if (say) this.view.message = phase === 'folding' ? 'Stopped: the MIDI file is as it was.' : 'Stopped converting: the piece is as far as it got, and plays the same.';
   }
 
   /** Save the piece's notes as a MIDI file (#307): as MIDI out sends them, a track a channel, its tempo map as tempos. */

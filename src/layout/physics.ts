@@ -50,7 +50,7 @@ const BUS_HALF = 12;
 const COLUMN_GAP = 30;
 /** How warm an edit leaves the layout when it is gentle (`setGraph`, a conversion growing the graph, #390). With
  * GENTLE_CALM, measured over the MIDI library's conversions: the most a node moves in a frame 648 → 162 px, at the
- * same crossings (the probe and its table come with the conversion's replay, #390). */
+ * same crossings (tools/probe/story-motion.test.ts, docs/notes/conversion.md). */
 const GENTLE_HEAT = 0.25;
 /** The most a node moves in a tick after a gentle edit (px): the graph reflows slowly enough to follow. */
 const GENTLE_CALM = 3;
