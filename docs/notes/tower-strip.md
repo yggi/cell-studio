@@ -485,7 +485,7 @@ Asked (on pictures of the arrangement tutorial): the edge from `&song` to `&part
 
 ![The arrangement before and after: the parts under their voices, the drums on &kick, &click and &kick one net, &song in at its port](tower-strip-columns-arrangement.jpg)
 
-### The edges still drawn plain (a proposal, not built)
+### The edges still drawn plain (proposed, then built: below)
 
 In the arrangement, stopped, four kinds of edge are a neutral grey line:
 
@@ -495,6 +495,14 @@ In the arrangement, stopped, four kinds of edge are a neutral grey line:
 4. **The `is` stubs** (a junction into its voice): dashed and fine, as nets.md decides — fine as it is.
 
 1 and 2 are new rules in `PulseEdge`/`payload.ts` (the payload of a tapped table's selection, and of a kit), 3 a change to the rest state in `edgeStyle.ts`.
+
+Built (the owner chose 1–3):
+
+- **The selection** (`PulseEdge`: `selection`): a chooser's wire into a table of taps is a bus of the taps' tints (`theme.ts: tapTint`, the pill's own), a strand a section in the taps' order, laid along the tower layout's sigmoid (`wire.ts: bundleCubic`, true offsets of the cubic); while playing, the sections the chooser picks now lit, the others dim; once the song ends (`laps=1`) the bus rests.
+- **A groove into its kit** (`flowedges.ts: groove`, `payloadOf(…, groove)`): not a pointer though written `over=`: it carries the groove's hits as a melody carries its notes (D3 B, runs and a bead at each hit), read from the groove and travelling up into the kit, against the edge's own way; its colour the hit's as the groove's wheel shows it (`&bd` red).
+- **At rest** (`PulseEdge: restColour`): stopped, a wire of notes (a melody into its junction, a chord's strands, a groove) wears the note its source's wheel shows at the cursor, its first step when it isn't playing there. The edge sheet's `voice` row: *on (stopped)* is the note now, not grey.
+
+![The arrangement stopped: the selection a bus of the sections' tints, the melodies and the groove in their notes](tower-strip-edges-arrangement.jpg)
 
 ## Next
 

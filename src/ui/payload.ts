@@ -50,7 +50,11 @@ export function valuesOf(program: CompileResult, view: CellView | null, cell: st
 /** Which payload an edge carries while live, or none: a pointer stays still (D6), a note's link carries nothing. */
 export type Payload = 'wave' | 'ticks' | 'notes' | 'levels';
 const NOTE_PORTS = new Set(['voice', 'trigger', 'midi', 'pitch', 'play', 'write']);
-export function payloadOf(band: string, port: string, pointer: boolean): Payload | null {
+/** A port whose wire carries notes (a melody into its voice, a gate's trigger=). */
+export const carriesNotes = (port: string) => NOTE_PORTS.has(port);
+export function payloadOf(band: string, port: string, pointer: boolean, groove = false): Payload | null {
+  // (a groove reading its kit: its hits, as a melody's notes into its voice — not a pointer, though written over=)
+  if (groove) return 'notes';
   // (a reference stays still whatever it points at, D6: a pointer to a sound shows where it comes from, it carries none)
   if (pointer) return null;
   if (band === 'audio') return 'wave';

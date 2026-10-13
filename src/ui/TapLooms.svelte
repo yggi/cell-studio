@@ -8,11 +8,11 @@
    * leaving straight up. Behind the cells, in the graph's coordinates.
    */
   import type { Loom } from '../layout/physics';
-  import { partColour } from './theme';
+  import { tapTint } from './theme';
 
   let { looms }: { looms: readonly Loom[] } = $props();
   // (the raw clock: white; a tap's: the clock tinted its section's colour)
-  const tint = (tap: number, n: number) => (tap < 0 ? 'var(--meter-0)' : `color-mix(in oklab, ${partColour(tap, n)} 65%, var(--meter-0))`);
+  const tint = (tap: number, n: number) => (tap < 0 ? 'var(--meter-0)' : tapTint(tap, n));
   const drawn = $derived(
     looms.map((l) => {
       const n = Math.max(1, l.contacts.length);
