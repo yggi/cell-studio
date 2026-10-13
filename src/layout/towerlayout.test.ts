@@ -256,4 +256,19 @@ describe('the tower layout', () => {
     for (const g of ['beat', 'hats']) expect(layout.position(kit)!.y).toBeLessThan(layout.position(`cell:${g}`)!.y);
     layout.destroy();
   });
+
+  it('sits what plays a kit (a groove) with it: just under the voices, over the structure, held there', () => {
+    const program = compileSource(readFileSync('examples/pop.cells', 'utf8'));
+    const model = buildGraph(program);
+    const drawn = withSockets(model);
+    const { targets, layers, held } = towerLayers(program, model, drawn);
+    const kit = drawn.nodes.find((n) => n.cell?.kit && n.cell.implicit)!.id;
+    for (const g of ['cell:beat', 'cell:hats']) {
+      expect(layers.get(g), g).toBe('player');
+      expect(held.has(g), g).toBe(true);
+      // (below the kit on the page, above the bar)
+      expect(targets.get(g)!).toBeGreaterThan(targets.get(kit)!);
+      expect(targets.get(g)!).toBeLessThan(targets.get('cell:bar')!);
+    }
+  });
 });

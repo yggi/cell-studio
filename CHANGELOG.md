@@ -11,7 +11,7 @@ that makes the change. Also note changes to the language that could affect saved
 ## Unreleased
 
 ### Added
-- **The tower layout holds a kit with the voices**: over the grooves that play it, under the sockets. Drawing only.
+- **The tower layout holds a kit with the voices**, and the grooves that play it in a row just under it, over the structure; the sockets above. Drawing only.
 - **The tower layout puts every socket in the audible**: a row over the voices, each at its sound's frequency or the audible's floor (a groove, a bass), held there. Drawing only.
 - **The tower layout sets each socket straight above its source**: its wire into the card rises straight up. Drawing only.
 - **The tower layout draws a selector's taps as a loom**: over a table of taps, a lane a tap, each strand in its section's colour along its lane and straight up to the cell it steps; the bus stepping the selector runs along the loom's lowest lane and rises out of it to a reader above. Drawing only.

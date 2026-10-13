@@ -332,6 +332,19 @@ The layout baseline is recorded again (the library's drawn crossings 46.3 → 36
 ![Hypercell, today's layout: the drums' one wire](tower-strip-kitwires-flow.jpg)
 ![Hypercell, the tower layout](tower-strip-kitwires.jpg)
 
+## The grooves with their kit (2026-10-13)
+
+Asked (on a picture of Hypercell): `&beat` and `&roll` sit with the kit, not below the loom.
+
+- A stepped cell that reads a kit (a groove, a pattern over a written kit) is a **player** (`towerLayers`): a row half a layer's gap under the voices, over the structure, held there with the kits and the sockets. Drawn by the spring alone they stayed down: the bar's steps, the selector's taps and their tag's cluster pull them there.
+
+| layout | crossings before | after |
+|---|---|---|
+| tower, loom (default) | 53.3 | 52.3 |
+| tower, taps as traces | 39.7 | 41.7 |
+
+![Hypercell: the grooves under their kit](tower-strip-players.jpg)
+
 ## Next
 
 1. The tower layout still crosses about three times today's (91 against 33, the card left out of both), most in the pieces arranged with selectors, tapes and resonators (#234's language side: a selector that sends gates).

@@ -240,14 +240,15 @@ export function socketHeights(program: CompileResult, model: GraphModel, drawn: 
 }
 
 /** The tower layout's layers, from the bottom (docs/notes/tower-strip.md: the forces). */
-export type TowerLayer = 'table' | 'structure' | 'voice' | 'audible';
+export type TowerLayer = 'table' | 'structure' | 'player' | 'voice' | 'audible';
 
 /** Decades between layers: the voice layer's room above the structure, the tables' below it. */
 const LAYER_GAP = 0.6;
 
 /**
  * Where each node is drawn to, in layers (the owner's: tables nothing steps at the bottom; the structure, each stepped
- * cell at its rate; the voices, between the structure and the audible: voices, mixes, kits, tapes, resonators, one row;
+ * cell at its rate; what plays a kit (a groove), a row just under the voices; the voices, between the structure and the
+ * audible: voices, mixes, kits, tapes, resonators, one row;
  * the audible, only the sockets into the card, each at its sound's frequency). The graph's y for each, and its layer.
  */
 export function towerLayers(program: CompileResult, model: GraphModel, drawn: GraphModel): { targets: Map<string, number>; layers: Map<string, TowerLayer>; held: Set<string> } {
@@ -268,6 +269,8 @@ export function towerLayers(program: CompileResult, model: GraphModel, drawn: Gr
     const c = n.cell;
     if (c.note) continue;
     if (n.kind === 'voice' || (sounds(c) && !c.step)) layers.set(n.id, 'voice');
+    // (what plays a kit, a groove: with the kit, a row just under the voices, not down among the structure)
+    else if (c.step && c.over && program.cells.get(c.over)?.kit) layers.set(n.id, 'player');
     else {
       const d = step.get(n.id);
       if (d !== undefined && Number.isFinite(d)) (layers.set(n.id, 'structure'), decades.set(n.id, d));
@@ -287,10 +290,23 @@ export function towerLayers(program: CompileResult, model: GraphModel, drawn: Gr
   const floor = voice + LAYER_GAP;
   const targets = new Map<string, number>();
   for (const [id, l] of layers)
-    targets.set(id, towerY(l === 'voice' ? voice : l === 'table' ? bottom - LAYER_GAP : l === 'audible' ? Math.max(floor, decades.get(id)!) : decades.get(id)!));
-  // (held at their heights, not drawn there: the sockets in the audible, and the kits with the voices — a kit's
-  // grooves, in the structure, would pull it down among them)
+    targets.set(
+      id,
+      towerY(
+        l === 'voice'
+          ? voice
+          : l === 'player'
+            ? voice - LAYER_GAP / 2
+            : l === 'table'
+              ? bottom - LAYER_GAP
+              : l === 'audible'
+                ? Math.max(floor, decades.get(id)!)
+                : decades.get(id)!,
+      ),
+    );
+  // (held at their heights, not drawn there: the sockets in the audible, the kits with the voices and what plays
+  // them under them — drawn by the spring, the structure's wires (a bar's steps, a selector's taps) pull them down)
   const kits = new Set(drawn.nodes.flatMap((n) => (n.cell?.kit && layers.get(n.id) === 'voice' ? [n.id] : [])));
-  const held = new Set([...layers].flatMap(([id, l]) => (l === 'audible' || kits.has(id) ? [id] : [])));
+  const held = new Set([...layers].flatMap(([id, l]) => (l === 'audible' || l === 'player' || kits.has(id) ? [id] : [])));
   return { targets, layers, held };
 }
