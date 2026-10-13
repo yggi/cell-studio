@@ -116,6 +116,8 @@ export class ForceLayout {
       .force('sockets', () => this.above())
       // (the tower layout) the strata strict, the looms levels: last, so nothing moves a node out after
       .force('strata', () => this.strata())
+      // (upright) every other edge leans upright: its ends drawn to one x
+      .force('upright', (alpha: number) => this.lean(alpha))
       .on('tick', () => {
         placeJunctions(this.s);
         onTick();
@@ -358,6 +360,17 @@ export class ForceLayout {
 
   /** (socketsAbove) Each socket at its source's x (several from one source side by side), moved by nothing else sideways. */
   private above(): void {
+    // (a mixer between what it mixes: its x the mean of its sources')
+    for (const [id, from] of this.s.opts.between ?? []) {
+      const m = this.s.byId.get(id);
+      const xs = from.flatMap((f) => {
+        const n = nodeAt(this.s, f);
+        return n?.x === undefined ? [] : [n.x];
+      });
+      if (!m || !xs.length || m.fx != null) continue;
+      m.x = xs.reduce((a, b) => a + b, 0) / xs.length;
+      m.vx = 0;
+    }
     if (!this.s.opts.socketsAbove) return;
     const by = new Map<string, PhysNode[]>();
     for (const l of this.s.links) {
@@ -416,7 +429,48 @@ export class ForceLayout {
         }
       }
     }
+    // (loomClear) a loom's band, from its top lane to its table's top over its span, kept clear: a node standing in it
+    // goes out by the nearer way its stratum allows (up over the lanes, down under the table's top, or aside)
+    if (this.s.opts.tapLoom && this.s.opts.loomClear)
+      for (const [table, l] of loomsOf(this.s)) {
+        const steps = new Set(this.s.grounds.flatMap((g) => (g.meter === table && g.bulb ? [g.cell] : [])));
+        for (const n of this.s.byId.values()) {
+          const [nx, ny] = [n.x, n.y];
+          if (n.id === table || steps.has(n.id) || nx === undefined || ny === undefined || n.fx != null || n.role === 'tag') continue;
+          const r = n.radius * 0.7;
+          const [x0, x1, y0, y1] = [l.x0 - r, l.x1 + r, l.top - r, l.y - l.r + r];
+          if (nx <= x0 || nx >= x1 || ny <= y0 || ny >= y1) continue;
+          const band: readonly [number, number] = bands.get(n.id) ?? [-Infinity, Infinity];
+          // (a held node keeps its height: it goes aside)
+          const fixed = !!this.s.opts.held?.has(n.id);
+          const ways: { d: number; go: () => void }[] = [
+            ...(!fixed && y0 >= band[0] ? [{ d: ny - y0, go: () => (n.y = y0) }] : []),
+            ...(!fixed && y1 <= band[1] ? [{ d: y1 - ny, go: () => (n.y = y1) }] : []),
+            { d: nx - x0, go: () => (n.x = x0) },
+            { d: x1 - nx, go: () => (n.x = x1) },
+          ];
+          const way = ways.reduce((p, q) => (q.d < p.d ? q : p));
+          way.go();
+          n.vx = 0;
+          n.vy = 0;
+        }
+      }
     for (const n of this.s.byId.values()) clamp(n);
+  }
+
+  /** (upright) Every edge that isn't a bus's join leans upright: its two ends drawn towards one x. */
+  private lean(alpha: number): void {
+    const k = this.s.opts.upright;
+    if (!k) return;
+    const buses = new Set(this.s.nets.flatMap((n) => n.taps));
+    for (const l of this.s.links) {
+      if (buses.has(l.id)) continue;
+      const [a, b] = [nodeAt(this.s, l.source), nodeAt(this.s, l.target)];
+      if (a?.x === undefined || b?.x === undefined) continue;
+      const dx = (b.x - a.x) * k * alpha * 0.5;
+      a.vx = (a.vx ?? 0) + dx;
+      b.vx = (b.vx ?? 0) - dx;
+    }
   }
 
   private hold(alpha = 1): void {
@@ -453,6 +507,10 @@ export class ForceLayout {
     // (what the bus a table is stepped by goes on to out of its loom: netTree)
     const from = new Map<string, string[]>();
     for (const { from: f, to } of hops(this.s).values()) from.set(f, [...(from.get(f) ?? []), to]);
+    // (a meter's trace from a selector's table is a ride on its loom too: drawn whole, its riser with it)
+    const tables = new Set(this.s.grounds.flatMap((g) => (g.bulb ? [g.meter] : [])));
+    const rising = new Set<string>();
+    for (const t of this.s.net) if (!t.bulb && tables.has(t.a)) (from.set(t.a, [...(from.get(t.a) ?? []), t.b]), rising.add(`${t.a}~${t.b}`));
     for (const g of this.s.grounds) {
       if (!g.bulb || !g.at) continue;
       const taps = by.get(g.meter) ?? by.set(g.meter, new Map()).get(g.meter)!;
@@ -473,10 +531,15 @@ export class ForceLayout {
       }));
       const readers = (from.get(table) ?? []).flatMap((id) => {
         const c = nodeAt(this.s, id);
-        return c?.x !== undefined && c.y !== undefined ? [{ id, x: c.x, y: c.y, r: c.radius * 0.7 }] : [];
+        return c?.x !== undefined && c.y !== undefined ? [{ id, x: c.x, y: c.y, r: c.radius * 0.7, rise: rising.has(`${table}~${id}`) }] : [];
       });
       return [{ table, strands: tapLoom({ x: n.x, y: n.y, r: n.radius * 0.7 }, loom, readers) }];
     });
+  }
+
+  /** (tapLoom) The selectors drawn as looms, by their table's id: a meter's trace out of one is its strand. */
+  loomTables(): Set<string> {
+    return new Set(loomsOf(this.s).keys());
   }
 
   /** Where everything is now, as quality.ts reads it: the nodes (a tag's name hides edges, but isn't a cell) and the edges as drawn. */
@@ -507,7 +570,7 @@ export class ForceLayout {
       // (a meter's net: straight traces)
       // (a tap's, from its bulb: crossing another tap's counts, though both leave the same wheel)
       ...this.s.net
-        .filter((t) => !(this.s.opts.tapLoom && t.bulb))
+        .filter((t) => !(this.s.opts.tapLoom && (t.bulb || looms.has(t.a))))
         .map((t) => {
           const o = t.at && this.s.byId.get(t.a);
           return o

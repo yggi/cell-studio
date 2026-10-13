@@ -144,7 +144,9 @@ export class GraphLayout {
     if (tower) {
       const layered = sockets ? towerLayers(next.program, given.model, m) : null;
       layout.setOptions(
-        layered ? { heights: layered.targets, held: layered.held, strata: layered.strata } : { heights: towerHeights(next.program, m), held: undefined, strata: undefined },
+        layered
+          ? { heights: layered.targets, held: layered.held, strata: layered.strata, between: layered.between }
+          : { heights: towerHeights(next.program, m), held: undefined, strata: undefined, between: undefined },
       );
     }
     // (a probe: the rows by the frequency tower instead of the signal path, docs/notes/multiscale.md)
@@ -216,6 +218,7 @@ export class GraphLayout {
       heights: undefined,
       held: undefined,
       strata: undefined,
+      between: undefined,
       ...(mode === 'tower' ? towerOptions() : {}),
     });
     this.options = { ...this.#force.options };
@@ -233,7 +236,8 @@ export class GraphLayout {
     const s = this.#style();
     this.#madeFrom = [this.shown, this.net, s.lit, s.moment];
     // (a selector's taps drawn as its loom, tapLoom: their traces aren't drawn)
-    const net = this.#force.options.tapLoom ? this.net.filter((t) => !t.bulb) : this.net;
+    const looms = this.#force.loomTables();
+    const net = this.#force.options.tapLoom ? this.net.filter((t) => !t.bulb && !looms.has(t.a)) : this.net;
     this.edges = flowEdgesOf({ ...this.shown, model: sideless(this.shown.model) }, { sizeOf: (id) => this.#sizeOf(id), net, lit: s.lit, live: s.live });
   }
 

@@ -32,6 +32,7 @@ type Variant = {
   layers?: boolean;
   hold?: 'all' | 'sockets' | 'none';
   strata?: false;
+  mixers?: false;
 };
 // (the few forces first tried)
 const FEW: Partial<LayoutOptions> = { rankPull: 0, columnPull: 0, upPull: 0, spread: 0, kindRepel: 0, tagPull: 0, tagRepel: 0, mux: 0, clusters: false, rowOrder: 0, placeLast: 0 };
@@ -56,6 +57,26 @@ const VARIANTS: Variant[] = [
   { name: 'sockets where the forces put them (as before)', tower: true, card: false, opts: { ...TOWER_LAYOUT, socketsAbove: false }, sockets: true, layers: true },
   { name: 'sockets held, kits drawn to the voices (as before)', tower: true, card: false, opts: TOWER_LAYOUT, sockets: true, layers: true, hold: 'sockets' },
   { name: 'strata not strict (as before)', tower: true, card: false, opts: TOWER_LAYOUT, sockets: true, layers: true, strata: false },
+  {
+    name: 'all four off (as before)',
+    tower: true,
+    card: false,
+    opts: { ...TOWER_LAYOUT, contract: 0.75, flatNets: 0, loomClear: false, loomRide: 1 },
+    sockets: true,
+    layers: true,
+    mixers: false,
+  },
+  { name: 'only the loom ride .2', tower: true, card: false, opts: { ...TOWER_LAYOUT, contract: 0.75, flatNets: 0, loomClear: false }, sockets: true, layers: true, mixers: false },
+  { name: 'only the loom kept clear', tower: true, card: false, opts: { ...TOWER_LAYOUT, contract: 0.75, flatNets: 0, loomRide: 1 }, sockets: true, layers: true, mixers: false },
+  { name: 'mixes with the voices (no mixer stratum)', tower: true, card: false, opts: TOWER_LAYOUT, sockets: true, layers: true, mixers: false },
+  { name: 'contract .75 (as before)', tower: true, card: false, opts: { ...TOWER_LAYOUT, contract: 0.75 }, sockets: true, layers: true },
+  { name: 'contract .2', tower: true, card: false, opts: { ...TOWER_LAYOUT, contract: 0.2 }, sockets: true, layers: true },
+  { name: 'flat nets off', tower: true, card: false, opts: { ...TOWER_LAYOUT, flatNets: 0 }, sockets: true, layers: true },
+  { name: 'flat nets .3', tower: true, card: false, opts: { ...TOWER_LAYOUT, flatNets: 0.3 }, sockets: true, layers: true },
+  { name: 'upright .01', tower: true, card: false, opts: { ...TOWER_LAYOUT, upright: 0.01 }, sockets: true, layers: true },
+  { name: 'upright .05', tower: true, card: false, opts: { ...TOWER_LAYOUT, upright: 0.05 }, sockets: true, layers: true },
+  { name: 'loom not kept clear', tower: true, card: false, opts: { ...TOWER_LAYOUT, loomClear: false }, sockets: true, layers: true },
+  { name: 'loom ride as a join (1)', tower: true, card: false, opts: { ...TOWER_LAYOUT, loomRide: 1 }, sockets: true, layers: true },
   { name: 'nothing held, all drawn to their heights', tower: true, card: false, opts: TOWER_LAYOUT, sockets: true, layers: true, hold: 'none' },
   { name: 'loom, in order .02', tower: true, card: false, opts: { ...TOWER_LAYOUT, loomOrder: 0.02 }, sockets: true, layers: true },
   { name: 'loom, in order .05', tower: true, card: false, opts: { ...TOWER_LAYOUT, loomOrder: 0.05 }, sockets: true, layers: true },
@@ -129,7 +150,7 @@ function measure(source: string, v: Variant, seed: number): Row {
   const { program, whole } = compiled.get(source)!;
   t0 = lap('compile', t0);
   const model: GraphModel = v.card ? whole : v.sockets ? withSockets(whole) : withoutCard(whole);
-  const layered = v.layers ? towerLayers(program, whole, model) : null;
+  const layered = v.layers ? towerLayers(program, whole, model, { mixers: v.mixers !== false }) : null;
   const held = layered && v.hold !== 'none' ? new Set([...layered.held].filter((id) => v.hold !== 'sockets' || id.startsWith('socket:'))) : undefined;
   const heights = layered ? layered.targets : v.tower ? new Map([...towerHeights(program, model), ...(v.sockets ? socketHeights(program, whole, model) : [])]) : undefined;
   const outs = towerOuts(program, whole);
@@ -140,6 +161,7 @@ function measure(source: string, v: Variant, seed: number): Row {
     ...(heights ? { heights } : {}),
     ...(held ? { held } : {}),
     ...(layered && v.strata !== false ? { strata: layered.strata } : {}),
+    ...(layered ? { between: layered.between } : {}),
   });
   l.setGraph({ ...model, nodes: model.nodes.filter((n) => !n.petalOf) });
   t0 = lap('setGraph', t0);

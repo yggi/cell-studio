@@ -64,6 +64,16 @@ export interface LayoutOptions {
    * it out. With `tapLoom`, a selector's loom is a level too: what its taps step sits over its lanes.
    */
   strata?: ReadonlyMap<string, readonly [number, number]>;
+  /** (the tower layout) A mixer's sources (`towerLayers`): its x held between theirs. */
+  between?: ReadonlyMap<string, readonly string[]>;
+  /** (tapLoom) A ride on a loom carrying the bus costs this times its length (1: as a straight join). */
+  loomRide: number;
+  /** (tapLoom) A loom is kept clear: no other node stands in its band. */
+  loomClear: boolean;
+  /** A net's join between two of its readers (a bus's, a meter's) is drawn flat, by a spring this strong (0: none). */
+  flatNets: number;
+  /** Every other edge leans upright, its ends drawn to one x, by a spring this strong (0: none). */
+  upright: number;
   layerGap: number;
   /** Edge length at rest (px). */
   linkDistance: number;
@@ -150,6 +160,10 @@ export const DEFAULT_LAYOUT: LayoutOptions = {
   heightPull: 0,
   tapLoom: false,
   loomOrder: 0,
+  loomRide: 1,
+  loomClear: false,
+  flatNets: 0,
+  upright: 0,
   socketsAbove: false,
   centre: 0.004,
   columnPull: 0.035,
@@ -175,7 +189,17 @@ export const DEFAULT_LAYOUT: LayoutOptions = {
  * layers and a socket each, crossings 124 held → 40 drawn, its nodes .6 of a decade off their heights on average
  * (docs/notes/tower-strip.md: the forces).
  */
-export const TOWER_LAYOUT: Partial<LayoutOptions> = { placeLast: 0, heightPull: 0.05, tapLoom: true, socketsAbove: true };
+export const TOWER_LAYOUT: Partial<LayoutOptions> = {
+  placeLast: 0,
+  heightPull: 0.05,
+  tapLoom: true,
+  socketsAbove: true,
+  loomRide: 0.2,
+  loomClear: true,
+  flatNets: 0.1,
+  upright: 0.01,
+  contract: 0.4,
+};
 
 /**
  * A node's room: the wheel itself (size= scales it), and what hangs under it — its label, as wide as

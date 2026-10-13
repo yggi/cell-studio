@@ -15,7 +15,7 @@ interface Wheel extends At {
 }
 
 /** A cell the table's source (the bus it is stepped by) goes on to out of the loom: from its lane, straight up. */
-export type LoomReader = Wheel & { readonly id: string };
+export type LoomReader = Wheel & { readonly id: string; readonly rise?: boolean };
 
 /** The height of a loom's lane k (0 the source's, the lowest; the taps' from 1). */
 export const loomLane = (table: Wheel, k: number) => table.y - table.r - CLEAR - k * LANE;
@@ -57,7 +57,7 @@ export function tapLoom(table: Wheel, taps: readonly LoomTap[], readers: readonl
     return { bulb, tap, to: c.id, pieces, d: rounded(riser ? pts : pts.slice(0, 3)) };
   };
   return [
-    ...readers.map((c) => strand('', -1, table, loomLane(table, 0), c, false)),
+    ...readers.map((c) => strand('', -1, table, loomLane(table, 0), c, !!c.rise)),
     ...taps.flatMap((t, k) => t.to.map((c) => strand(t.bulb, k, t.from, loomLane(table, k + 1), c, true))),
   ];
 }

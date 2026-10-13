@@ -308,4 +308,48 @@ describe('the tower layout', () => {
     const order = ['audible', 'voice', 'gate', 'stepped'];
     for (let i = 0; i + 1 < order.length; i++) expect(band(order[i])[1], order[i]).toBeLessThanOrEqual(band(order[i + 1])[0] + 1e-6);
   });
+
+  const laid = (piece: string) => {
+    const program = compileSource(readFileSync(`examples/${piece}.cells`, 'utf8'));
+    const model = buildGraph(program);
+    const drawn = withSockets(model);
+    const t = towerLayers(program, model, drawn);
+    const layout = new ForceLayout(() => {}, { ...TOWER_LAYOUT, heights: t.targets, held: t.held, strata: t.strata, between: t.between, live: false });
+    layout.setGraph({ ...drawn, nodes: drawn.nodes.filter((n) => !n.petalOf) });
+    layout.tick(400);
+    layout.layNet();
+    return { layout, ...t };
+  };
+
+  it('sits a mixer over the voices, between what it mixes', () => {
+    const { layout, layers, between, strata } = laid('hypercell');
+    const sources = between.get('cell:hookPart')!.filter((id) => layout.position(id));
+    expect(layers.get('cell:hookPart')).toBe('mixer');
+    expect(sources.length).toBeGreaterThan(1);
+    const mean = sources.reduce((a, id) => a + layout.position(id)!.x, 0) / sources.length;
+    expect(layout.position('cell:hookPart')!.x).toBeCloseTo(mean, 0);
+    // (its band over the voices')
+    expect(strata.get('cell:hookPart')![1]).toBeLessThanOrEqual(strata.get(sources[0])![0] + 1e-6);
+    layout.destroy();
+  });
+
+  it("keeps a loom clear, and draws a meter's ride on it as a strand, not a trace through it", () => {
+    const { layout } = laid('baustelle');
+    const placed = (layout as unknown as { placed(): { nodes: { id: string; x: number; y: number; r: number }[]; edges: { a: string; b: string; path?: unknown }[] } }).placed();
+    const at = new Map(placed.nodes.map((n) => [n.id, n]));
+    const loom = layout.tapLooms().find((l) => l.table === 'cell:teile')!;
+    const table = at.get('cell:teile')!;
+    const xs = loom.strands.flatMap((st) => st.pieces.flatMap((p) => [p[0], p[2]]));
+    const top = Math.min(...loom.strands.map((st) => st.pieces[1][1]));
+    const steps = new Set(loom.strands.map((st) => st.to));
+    for (const n of placed.nodes) {
+      if (n.id === 'cell:teile' || steps.has(n.id) || n.id.startsWith('tag:')) continue;
+      const inside = n.x > Math.min(...xs) && n.x < Math.max(...xs) && n.y > top && n.y < table.y - table.r * 0.7;
+      expect(inside, n.id).toBe(false);
+    }
+    // (&accent takes &bar off the loom: a strand, its riser too; no trace from the table)
+    expect(loom.strands.some((st) => st.tap < 0 && st.to === 'cell:accent')).toBe(true);
+    expect(placed.edges.some((e) => e.a === 'cell:teile' && e.b === 'cell:accent' && !e.path)).toBe(false);
+    layout.destroy();
+  });
 });

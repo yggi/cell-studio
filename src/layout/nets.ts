@@ -14,19 +14,43 @@ import { loomLane } from './taploom';
  * (the tower layout, tapLoom) Each selector drawn as a loom (taploom.ts), by its table's id: its wheel as the loom
  * reads it, its source's lane and the loom's span (its bulbs and the cells its taps step).
  */
-export function loomsOf(s: LayoutState): Map<string, { x: number; y: number; r: number; lane: number; x0: number; x1: number }> {
-  const out = new Map<string, { x: number; y: number; r: number; lane: number; x0: number; x1: number }>();
+export function loomsOf(s: LayoutState): Map<string, Loom> {
+  const out = new Map<string, Loom>();
   if (!s.opts.tapLoom) return out;
+  const bulbs = new Map<string, Set<string>>();
   for (const g of s.grounds) {
     if (!g.bulb || !g.at) continue;
     const [t, c] = [s.byId.get(g.meter), s.byId.get(g.cell)];
     if (t?.x === undefined || t.y === undefined) continue;
     const w = { x: t.x, y: t.y, r: t.radius * 0.7 };
-    const l = out.get(g.meter) ?? { ...w, lane: loomLane(w, 0), x0: t.x, x1: t.x };
+    const l = out.get(g.meter) ?? { ...w, lane: loomLane(w, 0), top: 0, x0: t.x, x1: t.x };
     for (const x of [t.x + g.at.x, c?.x ?? t.x]) [l.x0, l.x1] = [Math.min(l.x0, x), Math.max(l.x1, x)];
+    bulbs.set(g.meter, (bulbs.get(g.meter) ?? new Set()).add(g.bulb));
     out.set(g.meter, l);
   }
+  for (const [id, l] of out) l.top = loomLane(l, bulbs.get(id)!.size);
   return out;
+}
+
+/** A selector's loom as the forces see it: its table's wheel, its source's lane, its top lane, its span. */
+interface Loom {
+  x: number;
+  y: number;
+  r: number;
+  /** The source's lane (the lowest) and the top lane, the graph's y. */
+  lane: number;
+  top: number;
+  x0: number;
+  x1: number;
+}
+
+/** Does the straight segment a–b pass through a loom's band (from its top lane to its table's top, over its span)? */
+function throughLoom(l: Loom, ax: number, ay: number, bx: number, by: number): boolean {
+  for (let k = 1; k < 8; k++) {
+    const [x, y] = [ax + ((bx - ax) * k) / 8, ay + ((by - ay) * k) / 8];
+    if (x > l.x0 && x < l.x1 && y > l.top && y < l.y - l.r) return true;
+  }
+  return false;
 }
 
 /** A short straight piece of a drawn edge (its spline), with its ends. */
@@ -95,8 +119,12 @@ export function netTree(s: LayoutState, net: GraphModel['nets'][number], ends = 
   // (the tower layout, tapLoom: a selector's table passes its bus on only out of its loom's source lane, anywhere
   // along it, straight up to a reader over it)
   const looms = loomsOf(s);
+  // (loomRide: a ride on a loom that carries the bus is that much cheaper; a join through one costs ten times over)
+  const carriers = readers.flatMap((r) => (looms.has(r.n.id) ? [looms.get(r.n.id)!] : []));
+  const crossing = (a: PhysNode, b: PhysNode) => (carriers.some((l) => throughLoom(l, a.x ?? 0, a.y ?? 0, b.x ?? 0, b.y ?? 0)) ? 10 : 1);
+  const ride = s.opts.loomRide;
   // (each reader's cheapest join so far, and what to)
-  const best = left.map((r) => ({ cost: cost(o, r.n), from: o }));
+  const best = left.map((r) => ({ cost: cost(o, r.n) * crossing(o, r.n), from: o }));
   while (left.length) {
     const k = best.reduce((b, c, i) => (c.cost < best[b].cost ? i : b), 0);
     const [r] = left.splice(k, 1);
@@ -108,7 +136,7 @@ export function netTree(s: LayoutState, net: GraphModel['nets'][number], ends = 
       const l = looms.get(r.n.id);
       const top = (q.n.y ?? 0) + q.n.radius * 0.7;
       if (l && top >= l.lane) return;
-      const c = l ? l.lane - top + Math.max(0, l.x0 - (q.n.x ?? 0), (q.n.x ?? 0) - l.x1) : cost(r.n, q.n);
+      const c = l ? (l.lane - top + Math.max(0, l.x0 - (q.n.x ?? 0), (q.n.x ?? 0) - l.x1)) * ride : cost(r.n, q.n) * crossing(r.n, q.n);
       if (c < best[i].cost) best[i] = { cost: c, from: r.n };
     });
   }
@@ -125,6 +153,7 @@ export function stepNets(s: LayoutState, alpha: number): void {
   // (laid again every tick: measured, it settles better than a tree kept for a few — docs/notes/nets.md; a net at
   // delays is a star, pulled by its edges' own springs: physics.ts)
   const trees = s.nets.filter((net) => !net.delayed).map((net) => ({ net, tree: netTree(s, net) }));
+  const looms = loomsOf(s);
   for (const { net, tree } of trees) {
     const bus = net.port !== 'step';
     for (const { from, to } of tree.values()) {
@@ -141,6 +170,13 @@ export function stepNets(s: LayoutState, alpha: number): void {
       a.vy = (a.vy ?? 0) + dy * k;
       b.vx = (b.vx ?? 0) - dx * k;
       b.vy = (b.vy ?? 0) - dy * k;
+      // (flatNets: a net's join between two of its readers wants to lie flat, a bus's or a meter's — not a ride up off
+      // a loom)
+      if (o.flatNets > 0 && from !== net.owner && !looms.has(from)) {
+        const f = dy * o.flatNets * alpha * 0.5;
+        a.vy = (a.vy ?? 0) + f;
+        b.vy = (b.vy ?? 0) - f;
+      }
     }
   }
 }

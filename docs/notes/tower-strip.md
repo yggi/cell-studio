@@ -363,6 +363,30 @@ Asked: the layers as strict boundaries, audible · voice · gate · stepped stru
 ![Hypercell, strict strata](tower-strip-strata-hypercell.jpg)
 ![Baustelle, strict strata: &teile under everything it steps](tower-strip-strata-baustelle.jpg)
 
+## Mixers, loom rides, a clear loom, flat nets (2026-10-13)
+
+Asked (on pictures of Hypercell and Baustelle), four changes:
+
+1. **A mixer stratum** between the voices and the audible: a mix sits a layer over the voices, held, its x the mean of its sources' (`towerLayers`: `mixer`, `between`; physics: `above`). The audible's floor goes a layer over the mixers.
+2. **A net rides the loom that carries it.** A reader of a bus or a meter over a selector's loom, when the selector reads that net too, takes it off the loom's source lane (`loomRide` .2: that much cheaper than a straight join), and a join through such a loom costs ten times over (`nets.ts: netTree`, `throughLoom`). A meter's ride is drawn as a strand, its riser with it; its straight trace is gone (`physics.ts: tapLooms`, the traces filtered in `placed` and `graphLayout`). In Baustelle `&accent` and `&slide` take `&bar` off `&teile`'s loom; `&bar`, `&tag` and `&teile` lie in a row under it.
+3. **A loom is an exclusion zone** (`loomClear`): its band, from its top lane to its table's top over its span, is kept clear; a node standing in it goes out the nearer way its stratum allows (up, down, or aside when it is held).
+4. **Forces:** contraction .75 → .4 (`contract`); a net's join between two readers, a bus's or a meter's, lies flat (`flatNets` .1); other edges lean upright a little (`upright` .01; .05 was worse).
+
+| layout | crossings | area Mpx² |
+|---|---|---|
+| all four off | 59.3 | 103.4 |
+| **all four (default)** | **53.3** | 106.1 |
+| … without the mixer stratum | 58.0 | 106.7 |
+| … without the loom kept clear | 51.7 | 106.4 |
+| … the loom ride as a straight join | 51.0 | 106.3 |
+| … without flat nets | 49.7 | 106.4 |
+| … contraction .75 | 53.3 | 102.0 |
+
+Out of their strata and under their looms: none, in every row. The flat nets cost 3.6 crossings for the rows they lay; the clear loom and the ride are within the seeds' noise (±2).
+
+![Baustelle](tower-strip-four-baustelle.jpg)
+![Hypercell](tower-strip-four-hypercell.jpg)
+
 ## Next
 
 1. The tower layout still crosses about three times today's (91 against 33, the card left out of both), most in the pieces arranged with selectors, tapes and resonators (#234's language side: a selector that sends gates).
