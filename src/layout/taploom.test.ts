@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { tapLoom } from './taploom';
+import { loomContact, loomLane, loomPorts, tapLoom } from './taploom';
 import { drawnCrossings } from './quality';
 
 describe("a selector's loom", () => {
@@ -59,5 +59,25 @@ describe("a selector's loom", () => {
     // (drawn to the lane; counted on up to the reader)
     expect(src.d.endsWith(`L300.0,${src.pieces[1][1].toFixed(1)}`)).toBe(true);
     expect(src.pieces[2]).toEqual([300, src.pieces[1][1], 300, -360]);
+  });
+
+  it('sets the selector at the bottom: a flat fan of contacts over its hub, the bypass under it, its ports on the edge', () => {
+    const hub = { x: 0, y: 0 };
+    const fan = [0, 1, 2, 3, 4].map((k) => loomContact(hub, k, 5));
+    // (in order, left to right, over the hub; the middle highest, flat: within a few px)
+    for (let k = 1; k < 5; k++) expect(fan[k].x).toBeGreaterThan(fan[k - 1].x);
+    for (const c of fan) expect(c.y).toBeLessThan(0);
+    expect(Math.max(...fan.map((c) => c.y)) - Math.min(...fan.map((c) => c.y))).toBeLessThan(10);
+    // (the taps' lanes over the fan, the bypass under the hub, the ports under that)
+    expect(loomLane(hub, 1)).toBeLessThan(Math.min(...fan.map((c) => c.y)));
+    expect(loomLane(hub, 0)).toBeGreaterThan(0);
+    const beside = loomPorts(hub);
+    expect(beside.meter.y).toBeGreaterThan(loomLane(hub, 0));
+    expect(beside.meter.x).toBeLessThan(0);
+    expect(beside.select.x).toBeGreaterThan(0);
+    // (a port where the wire from its source into the hub crosses the edge)
+    const from = { x: -100, y: 200 };
+    const { meter } = loomPorts(hub, from);
+    expect(meter.x / meter.y).toBeCloseTo(from.x / from.y, 6);
   });
 });

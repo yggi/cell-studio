@@ -1,7 +1,7 @@
 <script lang="ts">
   import { Background, Controls, SvelteFlow, ViewportPortal, type NodeTypes } from '@xyflow/svelte';
   import { VOICE_KIT } from '../engine/compiler/declare';
-  import { noteColour } from './theme';
+  import { noteColour, partColour } from './theme';
   import '@xyflow/svelte/dist/style.css';
   import { onDestroy, untrack } from 'svelte';
   import type { CompileResult, Shifts } from '../engine/program';
@@ -180,9 +180,6 @@
     get taps() {
       return layout.taps;
     },
-    get pills() {
-      return pills;
-    },
     get state() {
       return transport;
     },
@@ -191,6 +188,12 @@
     },
     get heads() {
       return heads;
+    },
+    get pills() {
+      return pills;
+    },
+    get towered() {
+      return towered;
     },
     get lit() {
       return live;
@@ -310,11 +313,32 @@
       for (const t of g.cell.tags) (byTag.get(t) ?? byTag.set(t, []).get(t)!).push({ x: n.position.x, y: n.position.y, size });
     }
     const tags = [...byTag.keys()].sort();
+    // (a tag the taps of a selector step: its section's tint, as its strands wear it — a pastel shade of the rainbow;
+    // else a hue of its own)
+    const sections = new Map<string, { k: number; n: number }>();
+    for (const table of new Set(shown.program.taps?.values() ?? [])) {
+      const taps = [...(shown.program.taps ?? [])].flatMap(([tap, t]) => (t === table ? [tap] : []));
+      taps.forEach((tap, k) => sections.set(tap, { k, n: taps.length }));
+    }
+    const sectionOf = new Map<string, { k: number; n: number }>();
+    for (const tag of tags) {
+      const votes = new Map<string, number>();
+      for (const e of shown.model.edges) {
+        const s = e.bulb ? sections.get(e.bulb) : undefined;
+        if (s && shown.model.nodes.find((m) => m.id === e.to)?.cell?.tags.includes(tag)) votes.set(e.bulb!, (votes.get(e.bulb!) ?? 0) + 1);
+      }
+      const best = [...votes].sort((a, b) => b[1] - a[1])[0];
+      if (best) sectionOf.set(tag, sections.get(best[0])!);
+    }
+    const colourOf = (tag: string) => {
+      const s = sectionOf.get(tag);
+      return s ? `color-mix(in oklab, ${partColour(s.k, s.n)} 65%, var(--meter-0))` : noteColour(((tags.indexOf(tag) * 7) % 12) * 30);
+    };
     return [...byTag].map(([tag, ms]) => {
       const { x, y, r } = clusterDisc(ms, 90, 120);
       // its name: where its tag node is (a node of the layout, keeping cells and edges off it)
       const at = layout.position(`tag:${tag}`) ?? { x, y: y - r };
-      return { tag, x, y, r, nx: at.x, ny: at.y, colour: noteColour(((tags.indexOf(tag) * 7) % 12) * 30) };
+      return { tag, x, y, r, nx: at.x, ny: at.y, colour: colourOf(tag) };
     });
   });
 

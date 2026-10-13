@@ -338,4 +338,16 @@ describe('the tower layout', () => {
     for (const [id, l] of layers) if (l === 'voice' && layout.position(id)) expect(layout.position(id)!.y, id).toBeCloseTo(targets.get(id)!, 0);
     layout.destroy();
   });
+
+  it("lifts a table read only over the selectors to its readers' stratum, its net led from the left", () => {
+    const { layout, layers } = laid('cellscape');
+    expect(layers.get('cell:lydian')).toBe('stepped');
+    expect(layers.get('cell:layers')).toBe('selector');
+    const { pill } = layout.tapLooms().find((l) => l.table === 'cell:layers')!;
+    expect(layout.position('cell:lydian')!.y).toBeLessThan(pill.y0);
+    // (at the left end of the harmony net: left of every cell reading it over=)
+    const readers = ['pad', 'arp', 'melody', 'canon', 'bells', 'pulse', 'shimmer'].map((c) => layout.position(`cell:${c}`)!.x);
+    expect(layout.position('cell:lydian')!.x).toBeLessThan(Math.min(...readers));
+    layout.destroy();
+  });
 });

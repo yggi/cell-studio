@@ -175,8 +175,8 @@ export function towerLayers(
   program: CompileResult,
   model: GraphModel,
   drawn: GraphModel,
-  // (mixers: false, a mix with the voices — the probe's comparison)
-  { mixers = true }: { readonly mixers?: boolean } = {},
+  // (mixers: false, a mix with the voices; lift: false, every table nothing steps at the bottom — the probe's comparisons)
+  { mixers = true, lift = true }: { readonly mixers?: boolean; readonly lift?: boolean } = {},
 ): {
   targets: Map<string, number>;
   layers: Map<string, TowerLayer>;
@@ -226,6 +226,17 @@ export function towerLayers(
       if (into && layers.get(into) === 'stepped') (layers.set(into, 'source'), (more = true));
     }
   }
+  // (a table nothing steps, read only over the selectors: at the lowest stratum it is used in, level with its lowest
+  // reader, its bus in from the side — not under a pill it would cross. Read by a selector or what feeds one, it stays down)
+  const order: readonly TowerLayer[] = ['constant', 'source', 'selector', 'stepped', 'gate', 'voice', 'mixer', 'audible'];
+  for (const [id, l] of [...layers]) {
+    if (!lift || l !== 'constant' || tables.has(id)) continue;
+    const readers = [...new Set(model.edges.flatMap((e) => (e.from === id && e.to !== id && layers.has(e.to) ? [e.to] : [])))];
+    if (!readers.length || readers.some((r) => order.indexOf(layers.get(r)!) < order.indexOf('stepped'))) continue;
+    const at = readers.flatMap((r) => (layers.get(r) === 'stepped' && decades.has(r) ? [decades.get(r)!] : []));
+    layers.set(id, 'stepped');
+    if (at.length) decades.set(id, at.reduce((a, d) => a + d, 0) / at.length);
+  }
   const of = (layer: TowerLayer) => [...layers].flatMap(([id, l]) => (l === layer && decades.has(id) ? [decades.get(id)!] : []));
   const stepped = of('stepped');
   const audible = of('audible');
@@ -263,7 +274,7 @@ export function towerLayers(
                 ? source
                 : l === 'audible'
                   ? Math.max(floor, decades.get(id)!)
-                  : decades.get(id)!;
+                  : (decades.get(id) ?? top);
   // (each stratum's band, in decades, its edges halfway between the rows)
   const edges = {
     audible: floor - LAYER_GAP / 2,

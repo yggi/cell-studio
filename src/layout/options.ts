@@ -74,6 +74,8 @@ export interface LayoutOptions {
   upright: number;
   /** A node drawn sideways under what it feeds above it (its wire straight up), by a spring this strong (0: none). */
   feedUnder: number;
+  /** A bus's owner (a table read by several) leads its net: at its left end, level with its readers, by a spring this strong (0: none). */
+  netLead: number;
   layerGap: number;
   /** Edge length at rest (px). */
   linkDistance: number;
@@ -164,6 +166,7 @@ export const DEFAULT_LAYOUT: LayoutOptions = {
   flatNets: 0,
   upright: 0,
   feedUnder: 0,
+  netLead: 0,
   socketsAbove: false,
   centre: 0.004,
   columnPull: 0.035,
@@ -199,6 +202,7 @@ export const TOWER_LAYOUT: Partial<LayoutOptions> = {
   flatNets: 0.1,
   upright: 0.01,
   feedUnder: 0.05,
+  netLead: 0.3,
   contract: 0.4,
 };
 
