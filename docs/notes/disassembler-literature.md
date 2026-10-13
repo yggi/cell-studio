@@ -1,11 +1,11 @@
 # The disassembler's literature: what to reuse, which swamps to avoid
 
-Date: 2026-10-13 · Status: open (topics 1–4 of 9 done; one topic a session) · Issues: #365, the epic #364, the frame
+Date: 2026-10-13 · Status: open (topics 1–5 of 9 done; one topic a session) · Issues: #365, the epic #364, the frame
 [disassembler.md](disassembler.md)
 
 One section a topic. Each answers five questions: the state of the art, what we take, what we leave, the nearest
 swamp, and our numbers against theirs. Every reference below was opened and read at least to its abstract and results;
-where a number comes from the full text, the section says so. The leads for topics 5–9 are in the issue, not repeated
+where a number comes from the full text, the section says so. The leads for topics 6–9 are in the issue, not repeated
 here.
 
 ## 1. Compression as analysis
@@ -627,7 +627,7 @@ For #347: a file played in falls on no grid, so it needs a tempo map from its no
   PM2S offline as the reference, beat F and the ratchet's measures. A step of #347.
 - #388: *a grid per line* (ratchet.md's meter per clock), measured on the 10 examples that lose notes and the
   24 library files that move some.
-- Topic 5 (key and harmony) next session.
+- Topic 5 (key and harmony): below.
 
 **References.**
 - [BKS+16] S. Böck, F. Korzeniowski, J. Schlüter, F. Krebs, G. Widmer, "madmom: a new Python audio and music signal
@@ -661,7 +661,147 @@ For #347: a file played in falls on no grid, so it needs a tempo map from its no
 
 ## 5. Key and harmony
 
-Not yet.
+**Where we are.**
+- **One key for a piece:** `fold/degrees.ts` `bestKey` takes, of 36 keys (major, natural and harmonic minor on 12
+  tonics), the one whose notes need the fewest accidentals. Ties go to the tonic the bass ends on.
+- **Keys per section:** `fold/sections.ts` runs a Viterbi a bar at a time over 36 collections. A change of key costs 12
+  accidentals, and an area lasts at least 2 bars.
+- **Chords:** none as such. `figure.ts` finds a figure over a table of chords, but doesn't name them.
+
+**State of the art.**
+- **Key profiles:**
+  - Krumhansl & Kessler [KK82] measured how well each pitch class fits a key, by listeners' ratings: the *probe-tone
+    profiles*.
+  - The **Krumhansl–Schmuckler** algorithm [Kru90] correlates a piece's duration-weighted pitch-class distribution
+    with the 24 rotated profiles.
+  - **Temperley** [Tem99] revised it in four ways: a simpler match, new profile values, pitch classes *present or
+    absent* per short segment instead of summed durations, and a penalty for changing key between segments. Tested on
+    the 48 WTC fugue subjects and the Kostka–Payne excerpts.
+  - **Bayesian:** Temperley's MIREX 2005 model [Tem05] finds the most probable key *structure* (a key per segment,
+    staying in key with probability 0.998). It got 1,127 of 1,252 excerpts right (91.4 % with partial credit).
+  - **Trained on corpora:** Albrecht & Shanahan [AS13] use Euclidean distance instead of correlation, trained on 490
+    kern pieces and tested on 492. They are better than the earlier models, especially on **minor-mode pieces, where
+    most models are weaker**.
+- **Geometry:** Chew's spiral array [Che00; Che02] puts pitches, chords and keys on one helix. Its *centre of effect*
+  of the notes so far, nearest to a key, finds the key of the 24 WTC I fugue subjects sooner on average than the
+  earlier methods (thesis abstract). It also finds key boundaries.
+- **Chords:** Pardo & Birmingham [PB02] split chord labelling into segmenting the music and labelling the segments.
+  Abstract only, via a review of the issue.
+- **Functional harmony (Roman numerals) by neural networks** [NGF21], AugmentedNet. Accuracy on the held-out test
+  sets, a frame at a time:
+
+  | test set | key | full Roman numeral |
+  |---|---|---|
+  | all six datasets | 82.9 | 46.4–51.5 |
+  | WTC I preludes | 77.2 | 46.2–47.9 |
+  | BPS | 85.0 | 45.4 |
+
+  Earlier models are lower (Chen & Su 2018–21; Micchi et al. 2020). Code on GitHub.
+- **Data for harmony:** **When-in-Rome** [WiR] gathers Roman-numeral analyses in RomanText. Among them are **all 24
+  preludes of WTC I** and the 371 chorales. New content is **CC BY-SA 4.0**; analyses from elsewhere keep their own
+  licences.
+
+**The key question: does our Viterbi over accidentals hold up against these on the 69 named keys?**
+- **For the one key of a piece, yes.**
+  - I ran music21's (**BSD-3**) implementations of the profile methods on the same 69 MIDI files: WTC 37, Inventions
+    and Sinfonias 30, the two ricercars. Each profile method correlates duration-weighted pitch classes with its
+    profiles.
+
+    | method | right, of 69 |
+    |---|---|
+    | **ours** (`bestKey`) | **65** |
+    | Krumhansl–Schmuckler | 64 |
+    | Aarden–Essen | 64 |
+    | Bellman–Budge | 62 |
+    | Temperley–Kostka–Payne | 61 |
+    | Sapp's simple weights | 65 |
+
+  - **The errors are complementary.** Ours misses 4, and every profile method gets those 4 right:
+
+    | piece | written | ours |
+    |---|---|---|
+    | Invention 2 | C minor | B♭ major |
+    | Invention 9 | F minor | E♭ major |
+    | Sinfonia 7 | E minor | D major |
+    | WTC I/12 fugue | F minor | E♭ major |
+
+    Each is **a minor piece read as the major a tone below its tonic**. That major is the tonic's Dorian: B♭ major holds C minor's ♭3 and ♭7 and the raised 6th of its melodic minor. Our key counts accidentals and nothing else, so a piece that uses the melodic minor going up and the natural minor going down reads best there. That is my reading of the four, not checked note by note.
+  - The profile methods miss 14 other files that ours gets right. They give the relative major or minor (WTC I/11 prelude, F major → D minor by four of the five), or a key a fifth away.
+  - A vote of the six gets **68 of 69**.
+  - A simpler rule gets 68 as well: take Krumhansl–Schmuckler's key where it agrees with Aarden–Essen and differs
+    from ours. That fixes our 4 and breaks one (WTC I/11 prelude).
+  - 69 files are too few to choose between the two rules; the finding is that the methods' errors don't overlap.
+- **For keys per section, not measured.** Our corpus names one key a piece and no local keys.
+  - AugmentedNet's frame-wise key accuracy (77–89 %) is the comparable number.
+  - When-in-Rome's WTC I preludes give local keys to measure `sections.ts` against.
+
+**What we take.**
+1. **A profile's tonic weighting as `bestKey`'s tie-break** instead of the last bass alone.
+   - It goes where the accidentals are close: within a few accidentals of the best, take the key whose
+     Krumhansl–Schmuckler correlation is highest.
+   - That is the minor pieces' fix, measured above. The profiles are published numbers [KK82]; take them as music21
+     has them.
+   - Where: `fold/degrees.ts`. Judge it on the bench's keys (69) and the ratchets: a key changes the degrees, and so
+     the fold.
+2. **When-in-Rome's WTC I preludes as ground truth for local keys and chords.**
+   - Local keys: `sections.ts` against the analysts' keys, a frame at a time, AugmentedNet's measure.
+   - Chords: `figure.ts`'s chord tables against the Roman numerals' roots and qualities. BWV 847's prelude (I/2) is the example that already folds into a figure over chords. The other figuration preludes among the 24 (I/1 first) are the test.
+   - CC BY-SA 4.0: fetch it, don't commit it (#365's rule for data with terms).
+3. **Temperley's two revisions for `sections.ts`.**
+   - *Pitch classes present per segment* rather than counted. Our accidentals are counted per note, so a long run of
+     one chromatic note weighs heavily.
+   - A *probabilistic* change cost instead of the fixed 12 (`SWITCH`), so its size has a meaning.
+   - Both are judged on When-in-Rome's local keys before anything changes.
+
+**What we leave, and why.**
+- **AugmentedNet and the neural Roman-numeral models in the app.** They are trained models, at 46–52 % for a full
+  Roman numeral, and the language has no Roman numerals. We need the key and the chord's notes, which the fold
+  already has. They are a reference.
+- **The spiral array as the key finder.** Its strength is speed (fewest notes to the key), which a whole-file
+  importer doesn't need. Its *geometry* (keys, chords and pitches as one space) is topic 9's.
+- **Chord labelling in its own right** [PB02]. The cells say chords as tables of notes; naming them is for display,
+  not the fold.
+
+**The nearest swamp.**
+- **Functional harmony as a target.** Even the best model gets a full Roman numeral right about half the time, on
+  analyses that differ between analysts. The fold needs *which notes are a chord, and which key reads them*, not
+  their names.
+- **Tuning on 69 files.** Every method here is between 61 and 65. Two more right is a vote's worth, so take the
+  complementary signal, not a new constant.
+
+**Our numbers against theirs.** Above:
+- **Global key:** ours 65 / 69, the five profile methods 61–65 / 69, a vote 68 / 69, all on the same files.
+- **Local keys and chords:** not yet measured.
+
+**Next.**
+- #389: *the key's tie-break by a profile, and When-in-Rome's WTC I preludes for local keys and chords*.
+- Topic 6 (structure and form) next session.
+
+**References.**
+- [AS13] J. Albrecht, D. Shanahan, "The use of large corpora to train a new type of key-finding algorithm", Music Perception 31(1):59–67, 2013. doi:10.1525/mp.2013.31.1.59 (abstract
+  read)
+- [Che00] E. Chew, *Towards a mathematical model of tonality*, PhD thesis, MIT, 2000.
+  https://dspace.mit.edu/handle/1721.1/9139 (abstract as the repository record summarises it; the page itself was rate-limited)
+- [Che02] E. Chew, "The spiral array: an algorithm for determining key boundaries", ICMAI 2002, LNCS 2445, 18–31.
+  doi:10.1007/3-540-45722-4_4 (record only)
+- [KK82] C. L. Krumhansl, E. J. Kessler, "Tracing the dynamic changes in perceived tonal organization in a spatial
+  representation of musical keys", Psychological Review 89(4):334–368, 1982. doi:10.1037/0033-295X.89.4.334 (record;
+  its profiles used as music21 implements them)
+- [Kru90] C. L. Krumhansl, *Cognitive Foundations of Musical Pitch*, Oxford University Press, 1990 (2001 online).
+  doi:10.1093/acprof:oso/9780195148367.001.0001 (record)
+- [music21] `music21.analysis.discrete`: KrumhanslSchmuckler, AardenEssen, TemperleyKostkaPayne, BellmanBudge,
+  SimpleWeights; music21 10.5.0, BSD-3-Clause. The run was a one-off script over `midi/` (not committed); its results are above.
+- [NGF21] N. Nápoles López, M. Gotham, I. Fujinaga, "AugmentedNet: a Roman numeral analysis network with synthetic
+  training examples and additional tonal tasks", ISMIR 2021.
+  https://archives.ismir.net/ismir2021/paper/000050.pdf Code: github.com/napulen/AugmentedNet.
+- [PB02] B. Pardo, W. P. Birmingham, "Algorithms for chordal analysis", Computer Music Journal 26(2):27–49, 2002.
+  doi:10.1162/014892602760137167 (not read: no open copy; its scheme as a review of the issue describes it)
+- [Tem05] D. Temperley, "A Bayesian key-finding model", MIREX 2005 abstract.
+  https://music.informatics.indiana.edu/courses/I546/pdf/temperley.pdf
+- [Tem99] D. Temperley, "What's key for key? The Krumhansl–Schmuckler key-finding algorithm reconsidered", Music
+  Perception 17(1):65–100, 1999. doi:10.2307/40285812 (abstract read)
+- [WiR] M. Gotham et al., When in Rome: Roman-numeral analyses in RomanText. github.com/MarkGotham/When-in-Rome (new
+  content CC BY-SA 4.0; WTC I preludes 24, chorales 371; read from its README)
 
 ## 6. Structure and form
 
