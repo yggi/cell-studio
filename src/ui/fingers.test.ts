@@ -47,7 +47,7 @@ function made() {
     release: (i) => void asked.push(`release ${i}`),
     onKeysCut: null,
   };
-  const midi = { access: {} as MidiAccess, drums: DRUM_PRESETS.GM, hear: () => () => {}, send: () => {} };
+  const midi = { access: {} as MidiAccess, drumsFrom: () => DRUM_PRESETS.GM!, hear: () => () => {}, thruOf: () => [], sendTo: () => {} };
   const keys = new Keys(piece, hands, midi);
   cleanups.push(() => keys.dispose());
   // (as KeysDock wires them)
