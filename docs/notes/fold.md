@@ -191,9 +191,8 @@ one voice, a line a voice (`byVoice`), and takes the shorter (`split: 'auto'`). 
   voices or more whose typesetters wrote clean voices): 96 % of pairs of notes one after the other in a voice found are
   in one voice written (precision), 93 % the other way (recall). At most-ever-sounding instead of 6 %: 96 / 91, and five
   fugues get a voice too many.
-- **The MIDI library: 204,121 → 198,957 (−2.5 %)**, every fold taken. Voices are taken in the Ricercar a 3 (7,859 → 7,060), 12 of the Sinfonias (3 to 14), the WTC I/3, I/8,
-  I/11, I/12 and I/20 fugues and the I/24 prelude (I/8 5,459 → 4,737, I/12 6,751 → 5,812). The examples: 56,286, phrases back the same 65, notes kept by the
-  same 57 (main records 56,502, but main's own code already gives 56,374: #363 found the drift).
+- **The MIDI library: 204,121 → 198,859 (−2.6 %)**, every fold taken. Voices are taken in the Ricercar a 3 (7,859 → 7,060), 12 of the Sinfonias (3 to 14), the WTC I/3, I/8,
+  I/11, I/12 and I/20 fugues and the I/24 prelude (I/8 5,459 → 4,737, I/12 6,751 → 5,812). The examples: 53,236 → 53,148, phrases back the same 66, notes kept by the same 66.
 - What perfect voices would give (the typesetters', folded): 6.1 % shorter on the 64 clean files. The voices found are
   not always taken: a voice that holds a note across another's start makes the importer add a line beside it
   (`upper2`), and Sinfonias 1 and 2 stay in hands for that.
