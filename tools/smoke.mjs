@@ -23,6 +23,7 @@
 // Chromium: Playwright's, or CHROME_PATH=/path/to/chrome (CI uses the runner's Chrome). See tools/profile/playwright.mjs.
 import { preview, runnerImport } from 'vite';
 import { chromium } from './profile/playwright.mjs';
+import { freshBuild } from './fresh-build.mjs';
 
 const args = process.argv.slice(2);
 const flag = (f) => args.includes(f) && args.splice(args.indexOf(f), 1);
@@ -36,6 +37,7 @@ if (list) {
   process.exit(0);
 }
 const full = new Set(picks.map((p) => `example:${p.key}`)); // (as the library names an example: src/App.svelte)
+freshBuild();
 const server = await preview({ preview: { port: 0, host: '127.0.0.1' }, logLevel: 'error' });
 const engine = process.env.ENGINE;
 const url = server.resolvedUrls.local[0] + (engine ? `?engine=${engine}` : '');
@@ -520,9 +522,10 @@ const CARD_ONLY = { voice: 'sub', channel: 2 };
   if (!ok) failed.push('MIDI in');
 }
 // A take (#210): Play in's riff, a braid left free (16 steps at 6.4 a second: a pass of 2.5 s), armed by default. ● starts
-// play and takes the first pass; keys go in through the fake input, each a fifth of a step before its step as the
-// transport is heard (frames come up to 40 ms late, a quarter step: within half a step either way). The take is held
-// (the riff's pill shows it, the code doesn't), then Save writes it: the code line shows free(…) with the take.
+// play and the recorder places the pass it takes; each key goes in through the fake input stamped with the moment its
+// step is heard (`cellStudio.heardAt`, as a real MIDI message carries its `timeStamp`), sent once that moment has come:
+// the take reads a key's time from its stamp, so a loaded machine sending it late doesn't move it (#360). The take is
+// held (the riff's pill shows it, the code doesn't), then Save writes it: the code line shows free(…) with the take.
 {
   problems = [];
   const mp = await browser.newPage({ viewport: { width: 1280, height: 800 } });
@@ -531,7 +534,7 @@ const CARD_ONLY = { voice: 'sub', channel: 2 };
   mp.on('console', (m) => m.type() === 'error' && problems.push(`console error: ${m.text()}`));
   await mp.addInitScript(() => {
     const input = { id: 'fake-in', name: 'Fake keys', onmidimessage: null };
-    window.midiIn = (bytes) => input.onmidimessage?.({ data: new Uint8Array(bytes), timeStamp: performance.now() });
+    window.midiIn = (bytes, at = performance.now()) => input.onmidimessage?.({ data: new Uint8Array(bytes), timeStamp: at });
     navigator.requestMIDIAccess = () => Promise.resolve({ inputs: new Map([['fake-in', input]]), outputs: new Map(), onstatechange: null });
     Object.defineProperty(navigator, 'permissions', { value: { query: async () => ({ state: 'granted' }) }, configurable: true }); // (a page load reconnects only once MIDI is granted)
     localStorage.setItem('cell-studio:midi', JSON.stringify({ in: { id: 'fake-in', name: 'Fake keys' } }));
@@ -548,7 +551,7 @@ const CARD_ONLY = { voice: 'sub', channel: 2 };
       () =>
         new Promise((done) => {
           const STEPS = 6.4;
-          // (key on or off, at a step: sent a fifth of a step before it, as heard)
+          // (key on or off, at a step of the pass: a twentieth of a step after it, as heard)
           const plan = [
             [0, [0x90, 60, 100]],
             [0.8, [0x80, 60, 0]],
@@ -559,19 +562,33 @@ const CARD_ONLY = { voice: 'sub', channel: 2 };
             [8, [0x90, 72, 100]],
             [8.8, [0x80, 72, 0]],
           ];
+          // the page's moment (ms) a piece's time (code seconds) is heard: heardAt rises with ms, so halve the span
+          const momentOf = (seconds) => {
+            let [lo, hi] = [performance.now() - 10_000, performance.now() + 10_000];
+            for (let i = 0; i < 50; i++) {
+              const mid = (lo + hi) / 2;
+              if ((window.cellStudio.heardAt(mid) ?? -1) < seconds) lo = mid;
+              else hi = mid;
+            }
+            return hi;
+          };
           const t0 = performance.now();
+          let stamps = null;
           let k = 0;
           const look = () => {
+            const take = window.cellStudio.take();
             const t = window.cellStudio.transport();
-            while (k < plan.length && t.state === 'playing' && t.seconds * STEPS >= plan[k][0] - 0.2) window.midiIn(plan[k++][1]);
-            if (k === plan.length && t.seconds > 2.7) return done({ ok: true, seconds: t.seconds });
-            if (performance.now() - t0 > 8000) return done({ ok: false, at: t });
+            if (!stamps && take.start !== null && t.state === 'playing' && window.cellStudio.heardAt(performance.now()) !== null)
+              stamps = plan.map(([step]) => momentOf((take.start + step + 0.05) / STEPS));
+            while (stamps && k < plan.length && performance.now() >= stamps[k]) window.midiIn(plan[k][1], stamps[k++]);
+            if (k === plan.length && take.state === 'off') return done({ ok: true, seconds: t.seconds });
+            if (performance.now() - t0 > 12_000) return done({ ok: false, at: t, take, sent: k });
             setTimeout(look, 1);
           };
           look();
         }),
     );
-    if (!line.ok) problems.push(`the take did not run: ${JSON.stringify(line.at)}`);
+    if (!line.ok) problems.push(`the take did not run: ${JSON.stringify(line)}`);
     await mp.waitForTimeout(200);
     const pill = (await mp.locator('button.pill', { hasText: 'braid' }).first().textContent())?.replace(/\s+/g, ' ').trim();
     const code = () => mp.evaluate(() => document.querySelector('textarea')?.value ?? '');

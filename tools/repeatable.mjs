@@ -21,6 +21,7 @@
 import { readdirSync } from 'node:fs';
 import { preview } from 'vite';
 import { chromium } from './profile/playwright.mjs';
+import { freshBuild } from './fresh-build.mjs';
 
 const args = process.argv.slice(2);
 const secs = Number(args.find((a) => /^\d+(\.\d+)?$/.test(a)) ?? 6);
@@ -34,6 +35,7 @@ const files = readdirSync('examples')
   .sort()
   .filter((f) => !words.length || words.some((w) => f.includes(w)));
 
+freshBuild();
 const server = await preview({ preview: { port: 0, host: '127.0.0.1' }, logLevel: 'error' });
 const browser = await chromium.launch({ args: ['--no-sandbox'] });
 const page = await browser.newPage();
