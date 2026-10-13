@@ -127,7 +127,7 @@ export class GraphLayout {
    * Take the next snapshot: lay it out (a piece just opened, `opened` changed: afresh, and framed once it has come to
    * rest; an edit: from where things are) and make its nodes and edges, all at once.
    */
-  sync(given: GraphSnapshot, opened: number): void {
+  sync(given: GraphSnapshot, opened: number, gentle = false): void {
     this.#given = given;
     this.#opened = opened;
     const layout = this.#force;
@@ -164,9 +164,10 @@ export class GraphLayout {
     const kids = new Map<string, string[]>();
     for (const n of m.nodes) if (n.petalOf) kids.set(n.petalOf, [...(kids.get(n.petalOf) ?? []), n.id]);
     this.#petalSlot = new Map([...kids].flatMap(([parent, ids]) => ids.map((id, i) => [id, { parent, i, n: ids.length }] as const)));
-    const diff = layout.setGraph({ ...m, nodes: m.nodes.filter((n) => !n.petalOf) }, structural);
+    // (gently: a conversion's story, #390, the graph grown a cell at a time from where it is, nothing settled at once)
+    const diff = layout.setGraph({ ...m, nodes: m.nodes.filter((n) => !n.petalOf) }, structural, { gentle: gentle && !justOpened });
     // Mostly new graph (first load, preset switch): settle before first paint, then frame it.
-    const fresh = justOpened || diff.added > diff.total / 2;
+    const fresh = justOpened || (!gentle && diff.added > diff.total / 2);
     if (fresh) {
       layout.tick(220);
       // meters last: where most of their edges cross nothing; those are drawn (layout/meters.ts)
