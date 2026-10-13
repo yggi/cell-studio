@@ -10,7 +10,11 @@ Cell studio: a minimal music language where everything is a cell, as a browser a
 
 ## Checks
 
-CI runs `check`, `lint`, `format:check`, `knip`, every test and `build` on every PR; it is the gate (off for now, #300: `node tools/deploy.mjs` is the gated way to deploy by hand). The smoke test (every piece started in a browser, a covering set played) and the repeatable renders run on every PR that isn't a draft ([testing.md](docs/testing.md)); they aren't required, but wait for both before merging. Before pushing run `npm test && npm run check && npm run lint && npm run format:check` (`npm run format` fixes the last). While iterating, run one file: `npx vitest run src/engine/parser/parser.test.ts`. Don't run `build` or the full smoke test locally unless you changed what they cover (`vite.config.ts`, `index.html`, assets, audio or UI wiring: then `npm run build && npm run smoke -- 2 "<a piece>"`). Don't repeat what CI repeats.
+CI runs `check`, `lint`, `format:check`, `knip`, every test and `build` on every PR; it is the gate (off for now, #300: `node tools/deploy.mjs` is the gated way to deploy by hand). The smoke test (every piece started in a browser, a covering set played) and the repeatable renders run on every PR that isn't a draft ([testing.md](docs/testing.md)); they aren't required, but wait for both before merging. Before pushing, run only the checks your change reaches:
+- **Docs only:** `npx vitest run src/docs.test.ts` and `npx prettier --check` on the changed files.
+- **Code:** the tests of what you changed (`npx vitest run <file>`, or `npm test`, which picks the slow ones the change reaches), plus `npm run check`, `npm run lint` and `npm run format:check` (`npm run format` fixes the last).
+
+While iterating, run one file: `npx vitest run src/engine/parser/parser.test.ts`. Don't run `build` or the full smoke test locally unless you changed what they cover (`vite.config.ts`, `index.html`, assets, audio or UI wiring: then `npm run build && npm run smoke -- 2 "<a piece>"`). Don't repeat what CI repeats.
 
 ## Rules
 
