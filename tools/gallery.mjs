@@ -6,6 +6,7 @@
 //   node tools/gallery.mjs golden                            the golden graph: every wheel and edge, in one real graph
 //   node tools/gallery.mjs zoom [secs] pieces…               close-ups of cells in the real graph (ZOOM=parts,teile; default: every wheel with bulbs)
 //   node tools/gallery.mjs edge-mockups                      the edge styles' options on the real Graph (docs/notes/edge-styles.md)
+//   node tools/gallery.mjs labels                            how edges, nets, sub-wheels, nodes and belts could be labelled (#137, #274)
 //   node tools/gallery.mjs mockups                            the wheel design questions (#107)
 //   node tools/gallery.mjs roll [secs]                        a cell's piano roll in each state (#211)
 //   node tools/gallery.mjs keys                               the dock's on-screen keys and drum pads in each state (#255)
@@ -16,7 +17,7 @@
 // directly (tools/gallery/fast.mjs, from the working tree). A new subject: a folder in tools/gallery/ with a Sheet
 // component, and a line in tools/gallery/harness.ts.
 const [subject, ...args] = process.argv.slice(2);
-const SUBJECTS = ['wheels', 'edges', 'edge-mockups', 'golden', 'zoom', 'mockups', 'roll', 'keys', 'graphs', 'time'];
+const SUBJECTS = ['wheels', 'edges', 'edge-mockups', 'golden', 'zoom', 'mockups', 'roll', 'keys', 'labels', 'graphs', 'time'];
 if (!SUBJECTS.includes(subject)) {
   console.error(`usage: node tools/gallery.mjs <${SUBJECTS.join('|')}> [--fast] [secs] [pieces…]`);
   process.exit(2);
