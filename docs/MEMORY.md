@@ -79,6 +79,7 @@ One line each; the record has the rationale. → [decisions/](decisions/README.m
 - 032 · `restart=` names what switching a part on does to its time: `restart` (default), `resume`, `free`; the last two parse and warn, not yet implemented · → decisions/032-restart-policies.md
 - 033 · The folder writes a converted piece in degrees of its key where that's shorter (`&key scale(minor, C)`, lines `over=&key`, phrases `&m^1`); an accidental moves with its note under `^n`; Strudel's `6s`/`7f` and `scale("C:minor")` read as ours · → decisions/033-degrees.md
 - 034 · A MIDI file's graph is its machine (the cells it plays through), read only (*Convert to cells first*); Convert to cells folds first, then replays the fold's story, the code set a frame at a time, a cell coming in each (supersedes 025's waiting graph) · → decisions/034-midi-machine.md
+- 034 · A MIDI file's graph is its machine (the cells it plays through), read only (*Convert to cells first*), with Convert to cells over it; a MIDI file opens on it (supersedes 025's waiting graph) · → decisions/034-midi-machine.md
 
 ## Where things are tracked
 

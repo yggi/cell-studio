@@ -36,6 +36,7 @@ the app doesn't already have.
 
 ## Consequences
 
+- A MIDI file's Stats (#390) are its machine's.
 - The tower layout crosses a little less during a story but moves more and drifts out of view, so the flow layout
   stays the conversion's default ([notes/conversion.md](../notes/conversion.md)).
 - A cell spliced into one braid is a bulb (decision 014). When a later frame uses it in a second place it becomes a
