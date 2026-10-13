@@ -27,7 +27,7 @@ These read a braid *as written* or moved. They go where a braid is used — brai
 - **`&t[<<n]`**, **`&t[>>n]`** — &t shifted back / forward by n (default 1), on top of its own rotation; wrapped entries climb a lap. `&john[<<]` is the theme one unit behind; `over=&scale[<<]` reads one step lower. In `out` the brackets keep shifts apart from pitch arithmetic: `(&alto[<<] - 7) * &cello` — a bar behind, a fifth below.
 - Slices rotate too, without the climb: `&x[-1:] &x[:-1]`.
 - **`&x^n`** moves a reference n steps of the table it is read through (degrees: relative), **`&x^$n`** n steps of the grid after its tables (semitones on the 12: absolute): `&m^1` a degree up, `&m^$7` a fifth up ([decision 015](../decisions/015-caret-is-degrees.md); below).
-- **`shift=n`** rotates the braid by n (wrapped entries climb a lap).
+- **`shift=n`** rotates the braid by n (wrapped entries climb a lap: a shift of more than twenty laps carries its notes out of hearing, and warns).
 
 ```cells-fragment
 &canon [&theme * &lead, &theme[<<] * &lead, &theme[<<2] * &lead]
@@ -45,7 +45,7 @@ These read a braid *as written* or moved. They go where a braid is used — brai
 
 A reference's numbers are indices into the table it is read through, so they can move before the table reads them. Two operations do that, by name; they go where a step goes, in a braid:
 
-- **`degree(&x, n)`**, short **`&x^n`** — &x moved n steps of its table: a degree up the scale (`&x^-1` one down, past the tonic into the octave below). Not `&x^$n`, which moves grid steps after the table: over C major, `&m^1` makes C D E into D E F, `&m^$1` into C♯ D♯ F. `$` is the absolute frame, as in a pick (`&x[$0]`: as written).
+- **`degree(&x, n)`**, short **`&x^n`** — &x moved n steps of its table: a degree up the scale (`&x^-1` one down, past the tonic into the octave below). Not `&x^$n`, which moves grid steps after the table: over C major, `&m^1` makes C D E into D E F, `&m^$1` into C♯ D♯ F. `$` is the absolute frame, as in a pick (`&x[$0]`: as written). n is a whole number, signed or not, spaces allowed (`degree( &x , +1 )`); one `^` per reference (nest with `degree(…)`), and only where a braid plays the cell or `base=` copies it: after `over=`, `step=` and the like it would be ignored, and warns. A degree of more than a hundred octaves of the grid carries the notes out of hearing (above 20 kHz they are dropped), and warns.
 - **`inverse(&x)`** — &x mirrored round its table's first entry: inversion within the scale, its steps kept (C D E into C B A). An accidental is mirrored with its note.
 - They nest, innermost first: `degree(inverse(&x), 4)` is 4 − each value, mirrored round the third degree; `inverse(inverse(&x))` is `&x`. Picks and modifiers work as on any reference: `degree(&x[::-1], 2)!2`.
 

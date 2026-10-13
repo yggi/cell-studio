@@ -1,5 +1,5 @@
 /** Phase 5: what the physical and sounding cells refer to, and what their values say — resonators, tapes, FM, moving parameters, envelopes, grids. */
-import { BODIES } from '../program';
+import { BODIES, isMidiCard } from '../program';
 import { MOVING_PARAMS } from '../attributes';
 import { refsOf } from '../readers';
 import type { CellDecl } from '../ast';
@@ -77,7 +77,7 @@ export function checkCells(ctx: Ctx, decls: ReadonlyMap<string, CellDecl>, cells
       if (envs > 1) error(`${key}=: one envelope (map=adsr) at most — the other factors scale it`, pc.span);
       if (envs && !pc.range) error(`${key}=&env: an envelope runs 0 to 1 — give it a range: ${key}=200..3000 * &env`, pc.span);
     }
-  for (const d of decls.values()) if (d.stride !== null && d.step?.kind !== 'driven') warn(`stride= only matters with step=&cell`, d.span);
+  for (const d of decls.values()) if (d.stride !== null && d.step?.kind !== 'driven') warn(`stride= only matters with step=&cell`, d.paramSpans?.stride ?? d.span);
   for (const d of decls.values()) {
     for (const [key, r] of [
       ['env', d.env],
@@ -126,6 +126,40 @@ export function checkCells(ctx: Ctx, decls: ReadonlyMap<string, CellDecl>, cells
   for (const [tap, table] of taps)
     if (![...cells.values()].some((c) => c.step?.driver === tap || Object.values(c.paramClocks).some((p) => p.driver === tap)))
       warn(`&${tap} is a tap of &${table}, but nothing is stepped by it: step=&${tap} on what it should play (or a name mistyped)`, decls.get(tap)!.span);
+  // map=&table reads a table's numbers: a mix or a card has none
+  for (const d of decls.values()) {
+    const t = d.map?.kind === 'table' ? cells.get(d.map.table.name) : undefined;
+    if (t && (t.mix || t.sink || isMidiCard(t)))
+      warn(
+        `map=&${t.name}: a map reads a table's numbers, and &${t.name} is ${isMidiCard(t) ? 'a MIDI card' : t.sink ? 'the sound card' : 'a mix'}, which has none: nothing is mapped`,
+        d.map!.span,
+      );
+  }
+  // a MIDI card on one channel (map=midi(3)): a repeated entry sends each of its notes again on that channel
+  for (const c of cells.values()) {
+    const channel = c.map?.kind === 'midi' ? c.map.channel : null;
+    if (channel === null) continue;
+    const d = decls.get(c.name);
+    const toks = d?.braid.kind === 'list' ? d.braid.tokens : [];
+    toks.forEach((t) => {
+      if (t.repeat > 1 && t.atom.kind !== 'rest')
+        warn(
+          `!${t.repeat} on a card with one channel (map=midi(${channel})): each note goes out ${t.repeat.toLocaleString('en')} times on it, at once — leave out the !${t.repeat}`,
+          t.span,
+        );
+    });
+  }
+  // a table of taps nothing selects: every tap stays on, so every part plays all the time
+  for (const table of new Set(taps.values()))
+    if (![...decls.values()].some((d) => d.over?.name === table)) {
+      const names = [...taps].filter(([, t]) => t === table).map(([tap]) => tap);
+      const st = decls.get(names[0])?.step;
+      const clock = st?.kind === 'driven' ? st.driver.name : 'bar';
+      warn(
+        `&${table} declares taps (${names.map((n) => '&' + n).join(' ')}), and nothing selects them: every part plays all the time. A selector reads the table and switches them, a section per step: &song over=&${table} step=&${clock}/16 0 [0,1]`,
+        decls.get(table)!.span,
+      );
+    }
   // a degree or a shift that carries notes out of hearing: they are dropped (above 20 kHz), or climb a lap of the grid for every turn
   // (the limit counts grid steps, so it grows with the biggest grid's cycle: a 1200 step grid has far more steps to an octave)
   const farDegrees = Math.max(12, ...[...cells.values()].filter((c) => c.root).map((c) => c.cycle)) * FAR_OCTAVES;
@@ -136,15 +170,16 @@ export function checkCells(ctx: Ctx, decls: ReadonlyMap<string, CellDecl>, cells
     c.units.forEach((u, i) => {
       const a = u.atom;
       if (a.kind !== 'ref' || !a.values || Math.abs(a.values.add) <= farDegrees) return;
+      const moved = cells.get(a.name);
       warn(
-        `degree(&${a.name}, ${a.values.add}) moves it ${Math.abs(a.values.add).toLocaleString('en')} steps, over a hundred octaves: ${a.values.add > 0 ? 'its notes land above 20 kHz and are dropped' : 'its notes fall below hearing'}, nothing plays`,
+        `degree(${moved?.lambda ? '&( … )' : '&' + a.name}, ${a.values.add}) moves it ${Math.abs(a.values.add).toLocaleString('en')} steps, over a hundred octaves: ${a.values.add > 0 ? 'its notes land above 20 kHz and are dropped' : 'its notes fall below hearing'}, nothing plays`,
         toks[i]?.span ?? c.span,
       );
     });
     const laps = Math.abs(c.shift) / Math.max(1, c.units.length);
     if (laps > FAR_LAPS)
       warn(
-        `shift=${c.shift} turns &${c.name} about ${Math.round(laps).toLocaleString('en')} laps, and every lap climbs a lap of the grid: its notes leave hearing`,
+        `shift=${c.shift} turns ${c.lambda ? 'an unnamed cell &( … )' : '&' + c.name} about ${Math.round(laps).toLocaleString('en')} laps, and every lap climbs a lap of the grid: its notes leave hearing`,
         d.paramSpans?.shift ?? d.span,
       );
   }

@@ -6,6 +6,7 @@
  */
 import { codeShifts, DEFAULT_FREQ, ROOT, type CompileResult } from '../engine/program';
 import type { ShowPlugin } from '../engine/plugins';
+import type { Diagnostic } from '../engine/ast';
 import { entries, positionOf, resolveIn, resolvePitch, semitones } from '../engine/helix';
 import { midiOf, modeName, mod } from '../theory/modes';
 import { SHOWS } from '../engine/parser';
@@ -55,6 +56,27 @@ export function pluginOf(result: CompileResult, name: string): ShowPlugin | null
   const own = parseShow(result, result.cells.get(name)?.show);
   const plugin = own && result.plugins.get(own.show);
   return plugin && fitsOf(result, kindOf(result, name)).includes(plugin.name) ? plugin : null;
+}
+
+/**
+ * A cell whose own show= names a plugin that doesn't fit what it is (show=sun on a braid): the plugin isn't drawn, and
+ * says so. A warning from the layout, which knows what a cell is (kindOf); the editor shows it with the compiler's.
+ */
+export function showProblems(result: CompileResult): Diagnostic[] {
+  const out: Diagnostic[] = [];
+  const a = (k: string) => (/^[aeiou]/.test(k) ? `an ${k}` : `a ${k}`);
+  for (const c of result.cells.values()) {
+    const own = parseShow(result, c.show);
+    const plugin = own && result.plugins.get(own.show);
+    if (!plugin || pluginOf(result, c.name)) continue;
+    const kind = kindOf(result, c.name);
+    out.push({
+      severity: 'warning',
+      message: `show=${plugin.name} draws ${plugin.fits.map(a).join(' or ')}, and &${c.name} is ${a(kind)}: it is drawn as one, without the plugin`,
+      span: c.showSpan ?? c.span,
+    });
+  }
+  return out;
 }
 
 /** What each show does, for the picker. */

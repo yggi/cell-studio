@@ -63,6 +63,22 @@ describe('highlighting', () => {
       'punct:]',
     ]);
   });
+  it('a move by grid steps (^$7) is one modifier, as a degree (^1) is; a slower clock (/2) as a faster one (*2)', () => {
+    expect(kinds('&answer step=&bar/2 &subject^$7 &subject^$-12 &subject^1')).toEqual([
+      'ref:&answer',
+      'attr:step',
+      'punct:=',
+      'ref:&bar',
+      'mod:/2',
+      'ref:&subject',
+      'mod:^$7',
+      'ref:&subject',
+      'mod:^$-12',
+      'ref:&subject',
+      'mod:^1',
+    ]);
+    expect(kinds('&song step=&bar/16*3/2')).toEqual(['ref:&song', 'attr:step', 'punct:=', 'ref:&bar', 'mod:/16*3/2']);
+  });
   it('quoted text is one piece — a # inside it isn’t a comment', () => {
     expect(kinds('&why label="C major #1: a triad" # real')).toEqual(['ref:&why', 'attr:label', 'punct:=', 'string:"C major #1: a triad"', 'comment:# real']);
   });

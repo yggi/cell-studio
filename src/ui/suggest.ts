@@ -22,6 +22,14 @@ const BRACKETS: readonly [string, string][] = [
   ['[::-1]', 'backwards (retrograde)'],
 ];
 
+/** Moves of a reference in a braid: by degrees of its table (relative), or by grid steps (absolute, $). */
+const MOVES: readonly [string, string][] = [
+  ['^1', 'a degree up its table (degree(&x, 1))'],
+  ['^-1', 'a degree down'],
+  ['^$7', '7 grid steps up: a fifth on the 12'],
+  ['^$-12', '12 grid steps down: an octave on the 12'],
+];
+
 const FUNCTIONS: readonly [string, string][] = [
   ['scan(2 2 1 2 2 2 1)', 'scan(intervals) — the major scale (lap 12)'],
   ['scan(2 1 2 2 1 2 2)', 'scan — the minor (Aeolian) scale'],
@@ -46,12 +54,22 @@ export function suggest(word: string, names: readonly string[], functions = fals
     for (const [b, what] of BRACKETS) if (b.startsWith(`[${br[2]}`)) out.push({ text: `&${br[1]}${b}`, label: `&${br[1]}${b} — ${what}`, kind: 'bracket' });
     return out;
   }
+  // &name^ → its moves, by degrees or grid steps
+  const mv = /^&([A-Za-z_][A-Za-z0-9_]*)(\^\$?-?[0-9]*)$/.exec(w);
+  if (mv && names.includes(mv[1]!)) {
+    for (const [m, what] of MOVES) if (m.startsWith(mv[2]!)) out.push({ text: `&${mv[1]}${m}`, label: `&${mv[1]}${m} — ${what}`, kind: 'bracket' });
+    return out;
+  }
   // cells by name (with or without the &)
   const q = w.replace(/^&/, '').toLowerCase();
   if (w === '' || /^&?[A-Za-z_][A-Za-z0-9_]*$/.test(w) || w === '&') {
     const hits = names.filter((n) => n.toLowerCase().includes(q));
     hits.sort((a, b) => Number(!a.toLowerCase().startsWith(q)) - Number(!b.toLowerCase().startsWith(q)));
     for (const n of hits.slice(0, 8)) out.push({ text: `&${n}`, label: `&${n}`, kind: 'ref' });
+    // (the name in full: how it moves, too)
+    const exact = names.find((n) => n === w.slice(1));
+    if (w.startsWith('&') && exact)
+      for (const [m, what] of MOVES.filter((x) => x[0] === '^1' || x[0] === '^$7')) out.push({ text: `&${exact}${m}`, label: `&${exact}${m} — ${what}`, kind: 'bracket' });
     if (functions) for (const [f, what] of FUNCTIONS) if (f.startsWith(q)) out.push({ text: f, label: what, kind: 'function' });
   }
   if (w === '' || w === '~') out.push({ text: '~', label: '~ rest', kind: 'rest' });
