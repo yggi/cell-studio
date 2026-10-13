@@ -76,11 +76,37 @@ export default defineConfig({
     }),
   ],
   test: {
-    // (the layout tests of the largest pieces run near the default 5 s when the suite runs in parallel: #215)
-    testTimeout: 20_000,
-    include: ['src/**/*.test.ts', 'tools/**/*.test.ts'],
     environment: 'node',
     isolate: false,
     fsModuleCache: true,
+    // (a test past 5 s shows its time in the report: in the quick project, a candidate for the slow one)
+    slowTestThreshold: 5_000,
+    // (`--changed` runs every test when one of these moves: what tests read from disk, not import; vitest's own defaults too)
+    forceRerunTriggers: ['**/package.json/**', '**/package-lock.json/**', '**/vite.config.*/**', 'examples/**', 'midi/**', 'tools/bwv847.reference.json'],
+    // Two projects (docs/testing.md): `quick`, every test but the heavy sweeps, in every `npm test`; `slow` (`*.slow.test.ts`:
+    // the folder over whole pieces and libraries, a minute or two), run by `npm test` only when the change reaches them
+    // (tools/test.mjs), and always by `npm run test:all` and CI.
+    projects: [
+      {
+        extends: true,
+        test: {
+          name: 'quick',
+          include: ['src/**/*.test.ts', 'tools/**/*.test.ts'],
+          exclude: ['**/*.slow.test.ts', '**/node_modules/**'],
+          // (the layout tests of the largest pieces run near the default 5 s when the suite runs in parallel: #215)
+          testTimeout: 20_000,
+        },
+      },
+      {
+        extends: true,
+        test: {
+          name: 'slow',
+          // (tools/test.mjs narrows it to the files a change reaches)
+          include: process.env.SLOW_TESTS ? (JSON.parse(process.env.SLOW_TESTS) as string[]) : ['src/**/*.slow.test.ts', 'tools/**/*.slow.test.ts'],
+          // (a budget for a loaded machine, not a measure: each takes 15–60 s idle, and a slow test fails on what it finds)
+          testTimeout: 600_000,
+        },
+      },
+    ],
   },
 });
