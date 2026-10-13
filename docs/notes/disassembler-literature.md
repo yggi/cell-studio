@@ -1,11 +1,11 @@
 # The disassembler's literature: what to reuse, which swamps to avoid
 
-Date: 2026-10-13 · Status: open (topics 1–2 of 9 done; one topic a session) · Issues: #365, the epic #364, the frame
+Date: 2026-10-13 · Status: open (topics 1–3 of 9 done; one topic a session) · Issues: #365, the epic #364, the frame
 [disassembler.md](disassembler.md)
 
 One section a topic. Each answers five questions: the state of the art, what we take, what we leave, the nearest
 swamp, and our numbers against theirs. Every reference below was opened and read at least to its abstract and results;
-where a number comes from the full text, the section says so. The leads for topics 3–9 are in the issue, not repeated
+where a number comes from the full text, the section says so. The leads for topics 4–9 are in the issue, not repeated
 here.
 
 ## 1. Compression as analysis
@@ -329,7 +329,7 @@ readings:
 **Next.**
 - #383: *the bench reads JKU-PDD and scores the fold's patterns* (the loader, the writer, the metrics port with
   its fixture).
-- Topic 3 (voice separation) next session.
+- Topic 3 (voice separation): below.
 
 **References.**
 - [HHC+23] Y.-W. Hsiao, T.-Y. Hung, T.-P. Chen, L. Su, "BPS-Motif: a dataset for repeated pattern discovery of
@@ -352,7 +352,157 @@ readings:
 
 ## 3. Voice separation
 
-Not yet.
+**State of the art.**
+- **What a voice is.**
+  - Cambouropoulos [Cam08] separates the *voice* a score writes from the *stream* a listener hears. A stream may hold
+    synchronous notes (a chord), and a voice in the narrow sense is monophonic.
+  - Most methods and every benchmark below take monophonic voices.
+  - Kilian & Hoos [KH02] allow chords in a voice (stochastic local search over slices, a cost for voice leading and
+    for grouping). They show their results on typical problems, not with a benchmark number.
+  - So does the piano engraving work of 2024 [FKN+24].
+- **Rule-based and probabilistic methods:**
+  - **Chew & Wu's contig mapping** [CW04] is what `fold/voices.ts` follows.
+    - It cuts the piece into *contigs* where the number of sounding voices is constant, and connects voices across contig boundaries by the smallest pitch distance.
+    - Its project sheet reports "90 % precision on Bach's pieces" [VoSA]. As de Valk et al. tabulate it, its *average
+      voice consistency* is 84.39 % on 48 fugues of 3–5 voices [dVWB13, Table 5].
+    - I could not read the paper itself (Springer, no open copy). Its method is read from these secondary sources and
+      our own code's comment.
+  - **Jordanous** [Jor08], a Markov model learned per note, scores note precision / recall 80.88 / 80.85 on 45
+    fugues of 3–4 voices (as tabulated in [dVWB13]).
+  - **Duane & Pardo** [DP09] cast it as constraint satisfaction plus sequence alignment. They define the metric that
+    became standard: precision and recall over *links*, pairs of notes that are consecutive in one voice.
+  - **McLeod & Steedman** [MS16] use an HMM over voice assignments with Huron's two principles (small pitch steps,
+    short gaps), with an incremental, pruned search. It works on performed MIDI too. Code: Java, **MIT**.
+- **Learned methods:**
+  - **de Valk et al.** [dVWB13] use a neural network over note features, built for lute tablature and also tested on
+    the first 10 fugues of WTC I: **soundness / completeness 94.07 / 93.42**.
+  - **Gray & Bunescu** [GB20] rank voices per note or per chord, with a voice allowed to split and to merge:
+    - 95.30 / 96.01 on the same 10 fugues;
+    - 95.72 / 95.90 on 30 inventions and sinfonias plus 48 fugues.
+  - **Karystinaios, Foscarin & Widmer** [KFW23] treat it as link prediction with a graph neural network.
+    - They trained on 1,136 pieces: MCMA and KernScores (chorales, Haydn and Mozart quartets). Code: Python, **MIT**.
+    - Link F1, with McLeod & Steedman's numbers as they report them:
+
+    | set | McLeod & Steedman | graph network |
+    |---|---|---|
+    | Inventions | 0.992 | 0.997 |
+    | Sinfonias | 0.982 | 0.985 |
+    | WTC I fugues (12) | 0.964 | 0.976 |
+    | WTC II fugues (12) | 0.964 | 0.972 |
+    | Haydn quartets | 0.781 | 0.872 |
+
+    - Before scoring they keep only the highest note where a voice sounds two at once, which removes 0.72 % of the
+      notes (as McLeod did).
+  - **Foscarin, Karystinaios et al.** [FKN+24] separate homophonic voices (chords allowed) and staves for piano:
+    voice F1 96.6 on J-Pop, 89.9 on the DCML Romantic corpus. Code: **MIT**.
+- **The metrics** [MS18 §2.2; dVWB13 §7]:
+  - **Average voice consistency** (Chew & Wu): one note a voice scores 100 %.
+  - **Note precision / recall** (Jordanous).
+  - **Soundness / completeness** (Kirlin & Utgoff [KU05]): of the consecutive pairs in a voice found, the share in
+    one voice written, and the other way round.
+  - **Link P/R/F1** (Duane & Pardo): the same pairs, as a binary classification.
+  - McLeod's MV2H [MS18] uses link F1 for its voice score, after removing notes the transcription missed.
+  - The definitions aren't always used as written: de Valk et al. note that Madsen & Widmer's (2006) text and
+    numbers disagree.
+
+**The key question: are their numbers comparable to our 96 % / 93 %, and which metric?**
+- **The metric is the same kind.** `voiceAgreement` (`tools/disasm/truth.ts`) is soundness and completeness: pairs of
+  notes one after another in a voice found, and in a voice written. That is the link P/R the field reports. Keep it,
+  and report F1 beside it.
+- **The numbers are close but not yet strictly comparable.** Three things differ:
+  - **The ground truth:** our voices are Mutopia's LilyPond voices (`tools/mutopia.py voice`). Theirs are KernScores'
+    spines or MCMA's tracks.
+  - **The pieces:** ours are those whose voices are clean, 29 of 3 voices or more. Theirs are all 12 fugues of a book,
+    or 10.
+  - **The preprocessing:** a chord in a written voice is kept in ours and cut to its top note in theirs. A unison
+    counts once in ours, and is dropped as a duplicate in theirs.
+- With that said, ours against theirs by set (`BENCH=… SET=<set> npx vitest run tools/disasm/bench.test.ts`, today):
+
+  | set | ours P / R (files) | ours F | McLeod F | graph network F |
+  |---|---|---|---|---|
+  | Sinfonias | 97 / 96 (15) | ≈ 96.5 | 98.2 | 98.5 |
+  | WTC fugues | 95 / 90 (13) | ≈ 92.4 | 96.4 | 97.2–97.6 |
+  | Ricercar a 3 | 96 / 96 (1) | 96 | — | — |
+  | all | 96 / 93 (29) | ≈ 94.5 | | |
+
+  The first 10 fugues of WTC I, de Valk et al.: 94.07 / 93.42.
+- **Reading:**
+  - On the sinfonias we are within 2 points of the best published, with no training and three constants.
+  - On the fugues our **recall** lags by about 6 points: we split a written voice where they keep it.
+  - That is where to look: a voice crossing (our cost `CROSS` penalises it heavily), and an entry after a long rest. McLeod's
+    gap probability handles the second.
+  - Our constant `THICK` was tuned on these same 29 pieces. Theirs are trained or tuned elsewhere and tested
+    held-out, so ours is a little flattered.
+
+**What we take.**
+1. **The metric's name and its F1:** soundness / completeness = link P/R, F1 beside them in the bench.
+   - A strict mode with their preprocessing (a voice's top note where it holds a chord) makes the numbers directly
+     comparable.
+   - Where: `tools/disasm/truth.ts`, `bench.test.ts`.
+2. **MCMA** [AKMN21] as the voice ground truth for comparison. It is **CC BY 4.0**, one track a voice.
+   - It has the WTC (both books), the Inventions and Sinfonias, the Goldberg Variations, and **the Art of Fugue
+     (21)**: the issue's corpus lead.
+   - Its pieces are the ones [KFW23] tested on, so the same files give the same comparison.
+   - Fetch it as `midi/<set>/voices/` (a set of its own, not shipped).
+3. **McLeod & Steedman's HMM (MIT) as an offline reference.** Run it on the same files to separate "our method" from
+   "our ground truth" in the gap. Not ported: it is a Java tool.
+4. **Two ideas for `voices.ts`, each to be judged on the bench:**
+   - a gap term, so a voice can rest and come back (McLeod's second principle);
+   - a voice crossing that is allowed when both voices continue by step.
+
+**What we leave, and why.**
+- **The graph networks in the app.** They are trained models in Python on PyTorch, with a few points to gain on Bach,
+  and we have a rule-based method within reach of them. They are a ceiling to cite, not a dependency.
+- **Average voice consistency.** It is gameable: one note a voice scores 100 % [MS18].
+- **Cambouropoulos' streams, for counterpoint.** A fugue's voices are the written lines. For homophonic music (pop,
+  the examples' chords), though, a *stream with chords* is what our IR already is: a line of chords. So [KH02] and
+  [FKN+24] are the leads when the bench gets non-contrapuntal pieces. Note it, don't build it.
+- **Global optimisation** (Duane & Pardo's constraint satisfaction). It is exponential in voices and length; the
+  literature moved to incremental search and to learned links.
+
+**The nearest swamp.**
+- **The metric zoo and its definitions.** Five metrics, papers that mislabel them, and preprocessing that drops
+  notes. A number without its ground truth, its pieces and its preprocessing isn't comparable.
+  - We have already been bitten once: `disassembler.md` first had voices making the fold 6.6 % longer, from a
+    heuristic split.
+  - So the bench pins all three: MCMA, the same files, the strict mode.
+- **Chasing the last points on Bach.** The graph network's 97–99 % comes from training on 1,000 pieces. The size gain is bounded: the typesetters' voices fold 6.1 % shorter than hands (64 files), and the importer's own split already saves 2.6 % over the library. Measure what a point of recall buys in `bare` before chasing it.
+
+**Next.**
+- #384: *voices on the literature's terms* (MCMA as `voices/`, link F1 and a strict mode, McLeod's HMM run
+  offline on the same files).
+- Topic 4 (meter, beat and tempo) next session.
+
+**References.**
+- [AKMN21] A. Aljanaki, S. Kalonaris, G. Micchi, E. Nichols, "MCMA: a symbolic multitrack contrapuntal music
+  archive", Empirical Musicology Review 16(1):99–105, 2021. https://mcma.readthedocs.io/ (collections: WTC I 48,
+  WTC II 48, Goldberg 31, Kunst der Fuge 21, Inventions 15, Sinfonias 15). Licence CC BY 4.0, per the release
+  announcement: https://auditory.org/postings/2020/657.html
+- [Cam08] E. Cambouropoulos, "Voice and stream: perceptual and computational modeling of voice separation", Music
+  Perception 26(1):75–94, 2008. doi:10.1525/mp.2008.26.1.75 (abstract read)
+- [CW04] E. Chew, X. Wu, "Separating voices in polyphonic music: a contig mapping approach", CMMR 2004, LNCS 3310,
+  1–20. doi:10.1007/978-3-540-31807-1_1 (not read in full: no open copy)
+- [DP09] B. Duane, B. Pardo, "Streaming from MIDI using constraint satisfaction optimization and sequence alignment",
+  ICMC 2009 (its metric read as described in [MS18] §2.2)
+- [dVWB13] R. de Valk, T. Weyde, E. Benetos, "A machine learning approach to voice separation in lute tablature",
+  ISMIR 2013, 555–560. https://archives.ismir.net/ismir2013/paper/000221.pdf
+- [FKN+24] F. Foscarin, E. Karystinaios, E. Nakamura, G. Widmer, "Cluster and separate: a GNN approach to voice and
+  staff prediction for score engraving", arXiv:2407.21030. Code: github.com/CPJKU/piano_svsep (MIT).
+- [GB20] P. Gray, R. Bunescu, "From note-level to chord-level neural network models for voice separation in
+  symbolic music", arXiv:2011.03028.
+- [Jor08] A. Jordanous, voice separation by a Markov model (2008). Its numbers were read as tabulated in [dVWB13].
+- [KFW23] E. Karystinaios, F. Foscarin, G. Widmer, "Musical voice separation as link prediction: modeling a musical
+  perception task as a multi-trajectory tracking problem", IJCAI 2023, 3866–3874. doi:10.24963/ijcai.2023/430,
+  arXiv:2304.14848. Code: github.com/manoskary/vocsep_ijcai2023 (MIT).
+- [KH02] J. Kilian, H. H. Hoos, "Voice separation: a local optimisation approach", ISMIR 2002.
+  https://www.cs.ubc.ca/~hoos/Publ/KilHoo02.pdf
+- [KU05] P. Kirlin, P. Utgoff, "VOISE: learning to segregate voices in explicit and implicit polyphony", ISMIR 2005, 552–557. Its metric was read as defined in [MS18] and [dVWB13].
+- [MS16] A. McLeod, M. Steedman, "HMM-based voice separation of MIDI performance", JNMR 45(1):17–26, 2016.
+  doi:10.1080/09298215.2015.1136650 (abstract read; the full text is behind a 403). Code:
+  github.com/apmcleod/voice-splitting (MIT).
+- [MS18] A. McLeod, M. Steedman, "Evaluating automatic polyphonic music transcription", ISMIR 2018, 42–49.
+  https://ismir2018.ismir.net/doc/pdfs/148_Paper.pdf
+- [VoSA] E. Chew, X. Wu, VoSA project sheet, USC IMSC. https://infolab.usc.edu/imsc/research/project/vosa/vosa_tech.pdf
 
 ## 4. Meter, beat and tempo
 
