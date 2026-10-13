@@ -11,7 +11,7 @@
 //
 //   npm run build && node tools/repeatable.mjs 6 [piece words…]
 //
-//   3. A loudness ceiling (#92; the convention in docs/language/display.md, level=): no sample clipped, the peak at or
+//   3. A loudness ceiling (#92; the convention in docs/language/display.md, the card's postgain=): no sample clipped, the peak at or
 //      under PEAK (−1 dB) and the average at or under RMS (−18 dB), over the seconds rendered. Only a ceiling: a short
 //      render of a piece with a quiet start averages far under the −24 dB of the whole piece, so there is no floor.
 //
