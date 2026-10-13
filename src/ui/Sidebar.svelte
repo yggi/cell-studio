@@ -1,7 +1,8 @@
 <script lang="ts">
   /**
-   * The sidebar, a drawer on the right: four pages, the piece's controls (every free() in it, and the keys and pads),
-   * MIDI (the ports, how the piece goes out, the keys, learned knobs), the graph's layout forces, and files. The tab
+   * The sidebar, a drawer on the right: five pages, the piece's controls (every free() in it, and the keys and pads),
+   * MIDI (the ports, how the piece goes out, the keys, learned knobs), the graph's layout forces, files, and the piece's
+   * numbers (Stats). The tab
    * strip says which (arrow keys, Home and End move along it); a dot on MIDI says whether anything is connected. Focus moves into the drawer when it opens and
    * back to where it was when it closes; Escape closes it.
    */
@@ -12,6 +13,7 @@
   import MidiPanel from './MidiPanel.svelte';
   import ForcesPanel from './ForcesPanel.svelte';
   import FilePanel from './FilePanel.svelte';
+  import StatsPanel from './StatsPanel.svelte';
 
   const { view, library, dock, midi } = getStudio();
   const live = $derived(!!midi.access && (midi.sending || midi.inPortId !== 'none'));
@@ -20,8 +22,9 @@
     ['midi', 'MIDI'],
     ['forces', 'Forces'],
     ['file', 'Files'],
+    ['stats', 'Stats'],
   ];
-  const enabled = (page: Panel) => library.anyOpen || (page !== 'controls' && page !== 'forces');
+  const enabled = (page: Panel) => library.anyOpen || (page !== 'controls' && page !== 'forces' && page !== 'stats');
 
   let drawer: HTMLElement;
   // the tab strip as a roving tabindex: the page showing is the one Tab reaches; the arrows move along the enabled ones
@@ -88,6 +91,8 @@
       {/if}
     {:else if view.panel === 'file'}
       <FilePanel />
+    {:else if view.panel === 'stats'}
+      <StatsPanel />
     {:else}
       <button
         class="dock-toggle"
