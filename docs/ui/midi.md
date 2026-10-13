@@ -81,7 +81,9 @@ A piece's notes saved as a Standard MIDI File (#307, the first step of opening o
 as MIDI** in the Files page.
 
 - **What is written** is what MIDI out sends (decision 005): the same channel table, routes, keys, velocities and bends
-  (`engine/midi.ts`), a track a channel named after its voices, a kit on channel 10 as its drum notes. A note no MIDI
+  (`engine/midi.ts`), a track a channel named after its voices, a kit on channel 10 as its drum notes. A kit's track is named after its
+  members in order, each with its pitch where it has one of its own (`bd(A1) dundun(C2) shekere`; a key, or Hz between
+  keys), so the file says which drum each note is and how it is tuned (#334). A note no MIDI
   key can carry is left out, and the status line says how many.
 - **Time** is the main meter's (`engine/midiclock.ts`): a quarter note a beat (`beat=` steps), each step a fixed number
   of ticks and the tempo its length, so a scan's or a motor's tempo map is the file's tempos and a note on a step is on
@@ -110,6 +112,11 @@ as MIDI** in the Files page.
   - *The lines*: a line a track and channel, named after the track; notes that start and end together are a chord, one
     that overlaps goes in a line beside (`&piano2`); a melody in semitones from C4 on a triangle voice at C4; channel 10
     as drum voices by their General MIDI names (`&bd`, `&sd`, `&hh` …; a drum with no voice is left out and counted).
+    A drum track the app saved (named as above, every note one of its members' notes) comes back as the piece's own
+    drums: each note its member, a voice at the member's pitch (a General MIDI name's sound, else a sine where it has
+    a pitch and a noise where it hasn't). Why the file and not the export: a kit's drums stay drum notes on channel
+    10 for a drum machine; their tuning is only the app's to read back, so it rides in the track's name, which every
+    program keeps and none plays (#334).
     Each line runs to the end with a rest, so nothing comes round again.
   - *Not kept*: velocities, bends, programs, controllers.
   - BWV 847 saved as MIDI and opened again: all 1,765 notes, starts and lengths within 10 ms, in 5 lines, 6,805

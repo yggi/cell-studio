@@ -108,6 +108,24 @@ describe('a MIDI file as a piece', () => {
     expect(notesOf(source).map((n) => `${n.voice}@${n.at.toFixed(2)}`)).toEqual(['bd@0.00', 'hh@0.00', 'sd@0.25']);
   });
 
+  it('brings back the drums of a file the app saved as the piece’s own, at their pitches (#334)', () => {
+    const src =
+      '&beat scan(1 1 1 1) step=120bpm\n&dundun oneshot s=sine loop=C2 env=&(map=adsr 0 .25 0 .1)\n&bd s=sine loop=G1\n&shekere s=white hpf=6000\n' +
+      '&ting s=square loop=527.4\n&drums step=&beat [&dundun,&shekere] &shekere &bd &ting\n&out map=sample [&drums]';
+    const r = compileSource(src);
+    const smf = readMidi(writeMidi(pieceMidi(r, codeShifts(r)).smf));
+    expect(smf.tracks.map((t) => t.name)).toEqual(['bd(G1) dundun(C2) shekere ting(527.4)']);
+    const { source, dropped } = cellsFromMidi(smf, 'test');
+    expect(dropped).toBe(0);
+    expect(source).toContain('&dundun s=sine loop=C2');
+    expect(source).toContain('&bd s=sine loop=G1');
+    const keys = (s: string) => notesOf(s).map((n) => `${n.voice}:${n.key}@${n.at.toFixed(2)}`);
+    expect(keys(source)).toEqual(keys(src).slice(0, 5));
+    // (another program's drum track, named otherwise: General MIDI's drums, as before)
+    const other = cellsFromMidi({ ...smf, tracks: smf.tracks.map((t) => ({ ...t, name: 'Drums' })) }, 'test');
+    expect(other.source).not.toContain('&dundun');
+  });
+
   it('moves the notes of a file played in onto sixteenths, and says how many', () => {
     const smf = file([
       {

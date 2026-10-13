@@ -6,12 +6,13 @@
  * sits where it sounds). A piece with no main meter is laid at 120 bpm. A piece that ends is written whole; a loop,
  * one cycle (`mainLength`); an hour at most.
  */
-import { channelTable, midiNote, routesOf, router, BEND_CENTRE } from './midi';
+import { channelTable, midiNote, noteOf, routesOf, router, BEND_CENTRE } from './midi';
+import { keyName } from './miditext';
 import { mainMeter } from './midiclock';
 import { clocking } from './clocking';
 import { mainLength, pieceTime } from './duration';
 import { eventsBetween, plan } from './realize';
-import type { CompileResult, Shifts } from './program';
+import { DEFAULT_FREQ, type CompileResult, type Shifts } from './program';
 import type { Smf, SmfNote, SmfTrack } from './midifile';
 
 /** Ticks a quarter note in a written file. */
@@ -94,7 +95,7 @@ export function pieceMidi(result: CompileResult, shifts: Shifts, muted: Readonly
   }
   const names = new Map<number, string[]>();
   for (const v of table.voices) names.set(v.channel, [...(names.get(v.channel) ?? []), v.voice]);
-  for (const k of table.kits) names.set(k.channel, [...(names.get(k.channel) ?? []), table.kit.map((m) => m.member).join(' ')]);
+  for (const k of table.kits) names.set(k.channel, [...(names.get(k.channel) ?? []), kitName(result, table.kit)]);
   const tracks: SmfTrack[] = [...byChannel]
     .sort(([a], [b]) => a - b)
     .map(([channel, t]) => ({
@@ -104,4 +105,20 @@ export function pieceMidi(result: CompileResult, shifts: Shifts, muted: Readonly
       programs: [],
     }));
   return { smf: { format: 1, ppq: PPQ, ...(name !== undefined ? { name } : {}), tracks, tempos, meters: [] }, dropped };
+}
+
+/**
+ * A kit's track name: its members in order, each with its pitch where it has one of its own (`dundun(C2) shekere`), so
+ * a file the app saved opens with the piece's own drums (`midiimport.ts`: the members' notes are `kitNotes` of these
+ * names, as MIDI out gave them). A pitch is a key's name, or Hz for one between keys.
+ */
+function kitName(result: CompileResult, kit: readonly { readonly member: string }[]): string {
+  return kit
+    .map(({ member }) => {
+      const freq = result.cells.get(member)?.freq ?? DEFAULT_FREQ;
+      if (!(freq > 0) || Math.abs(freq - DEFAULT_FREQ) < 0.01) return member;
+      const { note, cents } = noteOf(freq);
+      return `${member}(${Math.abs(cents) < 0.5 && note >= 0 && note <= 127 ? keyName(note) : Number(freq.toPrecision(6))})`;
+    })
+    .join(' ');
 }
