@@ -18,6 +18,15 @@
   setStudio(studio);
   onDestroy(() => studio.dispose());
   const { piece, playback, library, view, dock } = studio;
+  // (a MIDI file's machine is read only: a try at a change, or at a cell's details, says to convert first, a moment)
+  let tried = $state(0);
+  let trying = $state(false);
+  $effect(() => {
+    if (!tried) return;
+    trying = true;
+    const t = setTimeout(() => (trying = false), 2600);
+    return () => clearTimeout(t);
+  });
 </script>
 
 <UpdateToast />
@@ -52,45 +61,48 @@
   </div>
 
   <section class="canvas" class:away={view.tab !== 'graph'} inert={view.narrow && view.tab !== 'graph'} aria-label="Cell graph">
-    {#if piece.midi}
-      <!-- a MIDI file has no cells to draw until it is converted (decision 025) -->
-      <div class="midi-graph">
-        <p>A MIDI file, open as it is: it plays, and the time view shows it. Its cells and their graph come when it is converted.</p>
+    <Graph
+      model={piece.graph}
+      program={piece.program}
+      muted={piece.muted}
+      routed={piece.routed}
+      heads={playback.heads}
+      transport={playback.state}
+      shifts={piece.shifts}
+      ontoggle={(id) => piece.toggle(id)}
+      onturn={(name, shift) => piece.turn(name, shift)}
+      onshowcode={(name) => studio.showInCode(name)}
+      source={piece.code}
+      sound={playback.sound}
+      onedit={(s) => (piece.code = s)}
+      onadd={() => studio.add()}
+      onrename={(s, to) => studio.rename(s, to)}
+      onfree={(spec, v) => piece.hold(spec, v)}
+      epoch={playback.epoch}
+      nudge={(sec) => playback.nudge(sec)}
+      cursor={playback.cursor}
+      opened={library.opened}
+      refit={studio.foldFrames}
+      focus={view.focus}
+      onsheet={(name) => (studio.keys.sheet = name)}
+      played={studio.keys.lit}
+      rows={studio.rows}
+      onlayout={(l) => (view.layout = l)}
+      ontime={view.narrow ? undefined : () => (view.tab = 'time')}
+      locked={piece.midi ? () => tried++ : undefined}
+    />
+    {#if piece.midi && !studio.folding}
+      <!-- a MIDI file's machine (#390, decision 034): the cells it plays through, read only; converting it is the action -->
+      <div class="hero" role="group" aria-label="A MIDI file">
+        <p>A MIDI file, as it plays: fold its notes into cells.</p>
         <div class="actions">
           <button class="primary" onclick={() => studio.convert()}>Convert to cells</button>
           <button onclick={() => (view.tab = 'time')}>Show it in time</button>
         </div>
       </div>
-    {:else}
-      <Graph
-        model={piece.graph}
-        program={piece.program}
-        muted={piece.muted}
-        routed={piece.routed}
-        heads={playback.heads}
-        transport={playback.state}
-        shifts={piece.shifts}
-        ontoggle={(id) => piece.toggle(id)}
-        onturn={(name, shift) => piece.turn(name, shift)}
-        onshowcode={(name) => studio.showInCode(name)}
-        source={piece.code}
-        sound={playback.sound}
-        onedit={(s) => (piece.code = s)}
-        onadd={() => studio.add()}
-        onrename={(s, to) => studio.rename(s, to)}
-        onfree={(spec, v) => piece.hold(spec, v)}
-        epoch={playback.epoch}
-        nudge={(sec) => playback.nudge(sec)}
-        cursor={playback.cursor}
-        opened={library.opened}
-        refit={studio.foldFrames}
-        focus={view.focus}
-        onsheet={(name) => (studio.keys.sheet = name)}
-        played={studio.keys.lit}
-        rows={studio.rows}
-        onlayout={(l) => (view.layout = l)}
-        ontime={view.narrow ? undefined : () => (view.tab = 'time')}
-      />
+      {#if trying}
+        <p class="first" role="status">Convert to cells first: a MIDI file's machine is read only.</p>
+      {/if}
     {/if}
     {#if piece.stale}
       <p class="stale">Showing the last version that compiled</p>
@@ -131,26 +143,38 @@
 </div>
 
 <style>
-  /* a MIDI file: no graph until it is converted; under its text, what it is and the action */
-  .midi-graph {
-    height: 100%;
-    display: grid;
-    place-content: center;
-    gap: var(--space-3);
-    padding: var(--space-4);
-    max-width: 34rem;
-    margin: 0 auto;
+  /* a MIDI file's machine (#390): the graph as it plays, read only, and over it the action, large; under its text the same */
+  .hero {
+    position: absolute;
+    left: 50%;
+    bottom: 44px;
+    transform: translateX(-50%);
+    z-index: 5;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: var(--space-2) var(--space-3);
+    width: max-content;
+    max-width: calc(100% - 32px);
+    padding: var(--space-2) var(--space-2) var(--space-2) var(--space-4);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    background: var(--surface);
+    box-shadow: 0 12px 32px rgb(0 0 0 / 0.4);
     color: var(--text-muted);
-    font: 500 var(--text-md) var(--font-ui);
-    text-align: center;
+    font: 500 var(--text-sm) var(--font-ui);
   }
-  .midi-graph .actions {
+  .hero p {
+    margin: 0;
+  }
+  .hero .actions {
     display: flex;
     gap: var(--space-2);
     justify-content: center;
     flex-wrap: wrap;
   }
-  .midi-graph button,
+  .hero button,
   .convert button {
     min-height: 36px;
     padding: 0 14px;
@@ -161,9 +185,37 @@
     font: 600 var(--text-sm) var(--font-ui);
     cursor: pointer;
   }
-  .midi-graph button.primary,
+  .hero button.primary {
+    min-height: 48px;
+    padding: 0 28px;
+    border-color: var(--accent);
+    background: var(--accent);
+    color: var(--accent-ink);
+    font: 700 var(--text-md) var(--font-ui);
+  }
+  .hero button:focus-visible,
+  .convert button:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
   .convert button {
     border-color: var(--accent);
+  }
+  /* a try at a change in the machine: what to do first */
+  .first {
+    position: absolute;
+    top: 56px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 6;
+    margin: 0;
+    padding: 6px 14px;
+    border-radius: var(--radius-pill);
+    border: 1px solid var(--accent);
+    background: var(--surface);
+    color: var(--text);
+    font: 600 var(--text-sm) var(--font-ui);
+    white-space: nowrap;
   }
   .convert {
     display: flex;
