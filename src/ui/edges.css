@@ -85,3 +85,15 @@
   stroke-width: calc(var(--edge-trace-w) + var(--edge-trace-flash-w) * var(--flash));
   filter: drop-shadow(0 0 calc(6px * var(--flash)) var(--trace));
 }
+
+/* structure, not a signal (band none): a note's link (about=) a faint hairline, not dots (a clock's); a copy (base=)
+   dashed, as a product's `is` — a definition (docs/notes/edge-styles.md) */
+.graph .edge-about .svelte-flow__edge-path {
+  stroke-width: var(--edge-w-about);
+  /* (faint in its colour, so a state's own opacity still fades it further) */
+  stroke: color-mix(in oklab, var(--edge) var(--edge-about), transparent);
+}
+.graph .edge-base .svelte-flow__edge-path {
+  stroke-width: var(--edge-w-is);
+  stroke-dasharray: var(--edge-dash-is);
+}

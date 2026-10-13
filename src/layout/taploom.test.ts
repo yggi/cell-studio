@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { loomContact, loomLane, loomPorts, tapLoom } from './taploom';
+import { loomContact, loomLane, loomPorts, pillAnchor, tapLoom } from './taploom';
 import { drawnCrossings } from './quality';
 
 describe("a selector's loom", () => {
@@ -18,18 +18,20 @@ describe("a selector's loom", () => {
 
   it('runs each tap up to a lane of its own over the table, along it, and straight to each cell it steps', () => {
     const strands = tapLoom(table, taps);
-    expect(strands.map((s) => [s.bulb, s.tap, s.to])).toEqual([
-      ['a', 0, 'c1'],
-      ['b', 1, 'c2'],
-      ['b', 1, 'c3'],
+    // (a tap stepping two: one strand, to the lower; the other joins on from it, one net between them)
+    expect(strands.map((s) => [s.bulb, s.tap, s.to, s.join])).toEqual([
+      ['a', 0, 'c1', undefined],
+      ['b', 1, 'c3', undefined],
+      ['b', 1, 'c2', 'c3'],
     ]);
+    expect(strands[2].pieces).toEqual([[100, 200, -200, -300]]);
     const lane = (s: (typeof strands)[number]) => s.pieces[1][1];
     // (the first tap's lane lowest, each next over it, all over the table's top)
     expect(lane(strands[0])).toBeLessThan(-50);
     expect(lane(strands[1])).toBeLessThan(lane(strands[0]));
     // (straight up to a cell over it, to its bottom; down to one under it, to its top)
     expect(strands[0].pieces[2]).toEqual([200, lane(strands[0]), 200, -260]);
-    expect(strands[2].pieces[2]).toEqual([100, lane(strands[2]), 100, 160]);
+    expect(strands[1].pieces[2]).toEqual([100, lane(strands[1]), 100, 160]);
   });
 
   it("doesn't count its strands crossing each other, but does count them crossing another edge", () => {
@@ -79,5 +81,16 @@ describe("a selector's loom", () => {
     const from = { x: -100, y: 200 };
     const { meter } = loomPorts(hub, from);
     expect(meter.x / meter.y).toBeCloseTo(from.x / from.y, 6);
+  });
+
+  it('meets a pill at its ports, and anything else on its outline nearest it', () => {
+    const l = { pill: { x0: 0, x1: 300, y0: 0, y1: 100 }, ports: { meter: { x: 100, y: 100 }, select: { x: 140, y: 100 } }, feeds: { meter: 'm', select: 's' } };
+    expect(pillAnchor(l, 's', { x: 400, y: 500 })).toEqual({ x: 140, y: 100 });
+    expect(pillAnchor(l, 'm', { x: -400, y: 500 })).toEqual({ x: 100, y: 100 });
+    // (straight above its flat part: its top; beside its end: on the round)
+    expect(pillAnchor(l, 'x', { x: 150, y: -200 })).toEqual({ x: 150, y: 0 });
+    const end = pillAnchor(l, 'x', { x: 500, y: 50 });
+    expect(end.x).toBeCloseTo(300, 6);
+    expect(end.y).toBeCloseTo(50, 6);
   });
 });

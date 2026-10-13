@@ -25,7 +25,7 @@ import { forceUncross, stepBends, stepClusters, stepExclusion, stepKinds, stepSp
 import { aims, fitTurns, stepAims } from './aims';
 import { hops, loomsOf, meterNet, netTree, stepNets, taps } from './nets';
 import { placeMeters } from './placement';
-import { loomContact, loomLane, loomPorts, tapLoom, type LoomStrand } from './taploom';
+import { loomContact, loomLane, loomPorts, PILL_PAD, pillOf, tapLoom, type LoomStrand } from './taploom';
 
 /** A selector's loom as drawn: its strands, and the pill round it (the graph's coordinates). */
 export interface Loom {
@@ -36,14 +36,22 @@ export interface Loom {
   readonly hub: { readonly x: number; readonly y: number };
   readonly contacts: readonly { readonly x: number; readonly y: number }[];
   readonly ports: { readonly meter: { readonly x: number; readonly y: number }; readonly select: { readonly x: number; readonly y: number } };
+  /** The nodes whose wires come in at its ports (by node id): the meter it steps on, its chooser. */
+  readonly feeds: { readonly meter?: string; readonly select?: string };
 }
 
-/** The room round a selector's loom inside its pill (px). */
-const PILL_PAD = 16;
 /** The most a node moves in a tick after an edit (px): inserted cells push the others gently, nothing flies. */
 const CALM = 12;
 /** How much of a too short plain edge's missing rise is made up each tick. */
 const RISE = 0.2;
+/** The room between a column's player and the kit over it, beyond their rooms: the kit's name, under its wheel (px). */
+const COLUMN_GAP = 30;
+/** How warm an edit leaves the layout when it is gentle (`setGraph`, a conversion growing the graph, #390). With
+ * GENTLE_CALM, measured over the MIDI library's conversions: the most a node moves in a frame 648 → 162 px, at the
+ * same crossings (the probe and its table come with the conversion's replay, #390). */
+const GENTLE_HEAT = 0.25;
+/** The most a node moves in a tick after a gentle edit (px): the graph reflows slowly enough to follow. */
+const GENTLE_CALM = 3;
 /** The room between neighbours in a row lined up (px). */
 const LINE_GAP = 40;
 /** The room over a pill a cell reading it keeps: the pill's pad, and the cell's name under it (px). */
@@ -222,7 +230,7 @@ export class ForceLayout {
   }
 
   /** Merge a new graph in. Existing nodes keep position and velocity. */
-  setGraph(whole: GraphModel, structural = true): GraphDiff {
+  setGraph(whole: GraphModel, structural = true, { gentle = false }: { readonly gentle?: boolean } = {}): GraphDiff {
     // (notes and scopes are read in the margin, not laid among the music: side.ts)
     const drawn = sideless(whole);
     // (as drawn: a product's wires at its junction; the forces lay the graph with each junction folded into its voice,
@@ -242,9 +250,11 @@ export class ForceLayout {
     this.s.degree = new Map();
     for (const e of model.edges) if (e.source !== e.target && !ground(e)) for (const id of [e.source, e.target]) this.s.degree.set(id, (this.s.degree.get(id) ?? 0) + 1);
     // mostly new (a different example that happens to share &bar, &mix, &out): lay it all out afresh
-    const fresh = model.nodes.filter((n) => !this.s.byId.has(n.id)).length > model.nodes.length / 2;
+    // (gently, as a conversion's story grows the graph a cell at a time, #390: never afresh, everything where it is)
+    const fresh = !gentle && model.nodes.filter((n) => !this.s.byId.has(n.id)).length > model.nodes.length / 2;
     if (fresh) this.s.bendAt.clear(); // a fresh graph: no bends left over from the last one
     this.calmed = !fresh;
+    this.cap = gentle ? GENTLE_CALM : CALM;
     const start = startPlaces(this.s, model, fresh, () => (fresh ? (this.rowChoice = this.rowOrderFor(drawn)) : this.rowChoice));
     const { next, added, tagLinks } = startNodes(this.s, model, fresh, parentOf, start);
 
@@ -317,7 +327,8 @@ export class ForceLayout {
       this.s.links.filter((l) => !l.is).map((l) => ({ source: nodeAt(this.s, l.source)!, target: nodeAt(this.s, l.target)!, w: l.strength ?? 1, kind: l.kind })),
     );
     for (const id of [...this.s.bendAt.keys()]) if (!this.s.links.some((l) => l.id === id)) this.s.bendAt.delete(id);
-    if (structural) this.reheat(fresh ? 1 : added > 0 || removed > 0 ? 0.7 : 0.3); // a fresh graph settles from scratch, like a new layout
+    // a fresh graph settles from scratch, like a new layout; gently, only enough for what came to find its place
+    if (structural) this.reheat(fresh ? 1 : gentle ? GENTLE_HEAT : added > 0 || removed > 0 ? 0.7 : 0.3);
     // forceX/Y cache their targets: refresh them for the new places
     this.sim.force(
       'columnX',
@@ -354,12 +365,15 @@ export class ForceLayout {
    */
   /** After an edit (not a fresh graph): set each node's speed to CALM px a tick at most. */
   private calmed = false;
+  /** The speed it calms to: CALM, or GENTLE_CALM after a gentle edit. */
+  private cap = CALM;
   private calm(): void {
     if (!this.calmed) return;
     const keep = 1 - this.sim.velocityDecay();
+    const cap = this.cap;
     for (const n of this.s.byId.values()) {
       const v = Math.hypot(n.vx ?? 0, n.vy ?? 0) * keep;
-      if (v > CALM) ((n.vx = ((n.vx ?? 0) * CALM) / v), (n.vy = ((n.vy ?? 0) * CALM) / v));
+      if (v > cap) ((n.vx = ((n.vx ?? 0) * cap) / v), (n.vy = ((n.vy ?? 0) * cap) / v));
     }
   }
 
@@ -375,6 +389,23 @@ export class ForceLayout {
       if (!m || !xs.length || m.fx != null) continue;
       m.x = xs.reduce((a, b) => a + b, 0) / xs.length;
       m.vx = 0;
+    }
+    // (a column: a voice and the one cell that plays it at one x — under its junction, when it plays through one — moving
+    // together; straight under a kit, the player clears it, its name too, pushed down within its stratum: where that has
+    // no room, no column, the player beside it)
+    for (const { lo, hi, via } of this.s.opts.columns ?? []) {
+      const [a, b] = [this.s.byId.get(lo), this.s.byId.get(hi)];
+      if (a?.x === undefined || b?.x === undefined || a.y === undefined || b.y === undefined) continue;
+      const [ma, mb] = [a.fx == null ? 1 : 0, b.fx == null ? 1 : 0];
+      if (!ma && !mb) continue;
+      const clear = via ? -Infinity : b.y + a.radius + b.radius + COLUMN_GAP;
+      if (clear > a.y && (!ma || clear > (this.s.opts.strata?.get(a.id)?.[1] ?? Infinity))) continue;
+      const j = via ? this.s.junctions.get(via) : undefined;
+      const off = j?.x !== undefined ? j.x - b.x : 0;
+      const x = ma && mb ? (a.x + b.x + off) / 2 : ma ? b.x + off : a.x;
+      const v = ((a.vx ?? 0) * ma + (b.vx ?? 0) * mb) / (ma + mb);
+      if (ma) ((a.x = x), (a.vx = v), (a.y = Math.max(a.y, clear)));
+      if (mb) ((b.x = x - off), (b.vx = v));
     }
     if (!this.s.opts.socketsAbove) return;
     const by = new Map<string, PhysNode[]>();
@@ -618,15 +649,11 @@ export class ForceLayout {
       const meterId = this.s.grounds.find((g) => g.cell === table && !g.bulb)?.meter;
       const meter = at(meterId);
       const other = (l: { source: string; target: string }) => (l.source === table ? l.target : l.target === table ? l.source : undefined);
-      const chooser = at(this.s.links.map(other).find((id) => id !== undefined && id !== meterId && (nodeAt(this.s, id)?.y ?? -Infinity) > n.y!));
-      const ports = loomPorts(hub, meter, chooser);
+      const chooserId = this.s.links.map(other).find((id) => id !== undefined && id !== meterId && (nodeAt(this.s, id)?.y ?? -Infinity) > n.y!);
+      const ports = loomPorts(hub, meter, at(chooserId));
       const strands = tapLoom({ x: n.x, y: n.y, r: n.radius * 0.7 }, loom, readers, ports.meter);
-      // (the selector drawn as a pill round its loom: its lanes inside, its outputs along its top, the selector at its
-      // bottom — its contacts, its hub, its ports on the pill's edge)
-      const xs = [...contacts.map((c) => c.x), ports.meter.x, ports.select.x, ...strands.flatMap((st) => st.pieces.map((p) => p[2]))];
-      const top = Math.min(hub.y - PILL_PAD, ...strands.map((st) => st.pieces[0][3]));
-      const pill = { x0: Math.min(...xs) - PILL_PAD, x1: Math.max(...xs) + PILL_PAD, y0: top - PILL_PAD, y1: ports.meter.y };
-      return [{ table, strands, pill, hub, contacts, ports }];
+      const pill = pillOf(hub, contacts, ports, strands);
+      return [{ table, strands, pill, hub, contacts, ports, feeds: { meter: meterId, select: chooserId } }];
     });
   }
 
@@ -658,7 +685,13 @@ export class ForceLayout {
       }),
       // (a selector's taps as a loom over its table, tapLoom: its strands, which don't cross each other)
       ...(this.s.opts.tapLoom
-        ? this.tapLooms().flatMap((l) => l.strands.map((st) => ({ a: `${l.table}@${st.bulb}`, b: st.to, path: st.pieces, loom: l.table, weight: 2, kind: 'sync' })))
+        ? this.tapLooms().flatMap((l) =>
+            l.strands.map((st) =>
+              st.join
+                ? { a: st.join, b: st.to, path: st.pieces, weight: 2, kind: 'sync' }
+                : { a: `${l.table}@${st.bulb}`, b: st.to, path: st.pieces, loom: l.table, weight: 2, kind: 'sync' },
+            ),
+          )
         : []),
       // (a meter's net: straight traces)
       // (a tap's, from its bulb: crossing another tap's counts, though both leave the same wheel)

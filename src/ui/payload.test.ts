@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { compileSource } from '../engine/compile';
 import { codeShifts } from '../engine/program';
 import { cellView } from '../layout/cellview';
-import { payloadOf, shapeOf, valuesOf } from './payload';
+import { carriesNotes, payloadOf, shapeOf, valuesOf } from './payload';
 
 describe('which payload an edge carries while it plays (docs/notes/edge-styles.md §2)', () => {
   it('sound a wave, a clock’s ticks a train, a melody its notes, any other value a level', () => {
@@ -17,6 +17,11 @@ describe('which payload an edge carries while it plays (docs/notes/edge-styles.m
     expect(payloadOf('cv', 'braid', true)).toBeNull();
     expect(payloadOf('cv', 'over', true)).toBeNull();
     expect(payloadOf('none', 'about', false)).toBeNull();
+  });
+  it('a groove reading its kit carries its hits, as a melody its notes, though written over=', () => {
+    expect(payloadOf('cv', 'over', true, true)).toBe('notes');
+    expect(carriesNotes('voice')).toBe(true);
+    expect(carriesNotes('lpf')).toBe(false);
   });
 });
 

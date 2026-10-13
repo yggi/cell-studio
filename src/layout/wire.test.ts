@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { polar, segmentsCross } from './geometry';
-import { bundlePaths, loomParts, loomPaths, measured, rippled, waveAlong } from './wire';
+import { bundleCubic, bundlePaths, loomParts, loomPaths, measured, rippled, waveAlong } from './wire';
 
 // (the polyline of a path: its M/L/A/Q/C points, an arc sampled along its circle, about its centre cx, cy)
 const points = (d: string, cx: number, cy: number) => {
@@ -175,5 +175,33 @@ describe('a path measured, and sound travelling along it', () => {
       [2, 20, NaN],
     ])
       expect(waveAlong(line, amp, period, 'sine', phase)).toBe('');
+  });
+});
+
+describe('a bus along a sigmoid', () => {
+  it('keeps its strands their gap apart from end to end, true to both ends', () => {
+    const [a, c1, c2, b] = [
+      { x: 0, y: 0 },
+      { x: 0, y: 100 },
+      { x: 200, y: 100 },
+      { x: 200, y: 200 },
+    ];
+    const strands = bundleCubic(a, c1, c2, b, [-3, 3]).map((d) =>
+      d
+        .slice(2)
+        .split(' L ')
+        .map((p) => p.split(' ').map(Number)),
+    );
+    // (upright at both ends: the strands side by side across x there, 6 px apart)
+    for (const i of [0, strands[0].length - 1]) {
+      expect(Math.abs(strands[0][i][0] - strands[1][i][0])).toBeCloseTo(6, 0);
+      expect(strands[0][i][1]).toBeCloseTo(strands[1][i][1], 0);
+    }
+    // (and the gap kept through the bend)
+    for (const p of strands[0]) {
+      const near = Math.min(...strands[1].map((q) => Math.hypot(p[0] - q[0], p[1] - q[1])));
+      expect(near).toBeGreaterThan(5.5);
+      expect(near).toBeLessThan(6.5);
+    }
   });
 });

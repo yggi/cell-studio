@@ -11,6 +11,7 @@ import type { PieceSource } from '../../audio/engine';
 import type { FreeSpec } from '../../engine/ast';
 import { isMidiText, parseMidiText } from '../../engine/miditext';
 import { cellsFromMidi } from '../../engine/midiimport';
+import { pieceStats } from '../../engine/stats';
 
 /**
  * The open piece: its code — the single source of truth, and this the only place that writes it —
@@ -63,6 +64,8 @@ export class Piece {
   /** What's shown and played: the last version that compiled. */
   readonly program = $derived(this.good.result);
   readonly graph = $derived(buildGraph(this.program));
+  /** Its numbers (engine/stats.ts), for the sidebar's Stats: a MIDI text's are the cells it plays through. */
+  readonly stats = $derived(pieceStats(this.program, this.graph, this.good.source.code));
   readonly shifts = $derived(codeShifts(this.program));
   readonly muted = $derived(this.program.off);
   /** What can sound (engine/routing.ts). */

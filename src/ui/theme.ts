@@ -39,6 +39,9 @@ export const noteHsl = (hue: number, dim = false, octave = 0): [number, number, 
  */
 export const partColour = (k: number, n: number) => noteColour((k / Math.max(1, n)) * 360);
 
+/** A selector's clock tinted its part k of n (TapLooms' strands, the selection's bus): the white clock through a prism. */
+export const tapTint = (k: number, n: number) => `color-mix(in oklab, ${partColour(k, n)} 65%, var(--meter-0))`;
+
 /** A scope's channel k: the chromatic colour of its place in the scope's braid (ScopeView), worn by what it watches. */
 export const channelColour = (k: number) => noteColour((((k % 12) + 12) % 12) * 30);
 

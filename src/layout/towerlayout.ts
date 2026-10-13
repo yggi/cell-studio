@@ -158,6 +158,16 @@ export function socketHeights(program: CompileResult, model: GraphModel, drawn: 
 /** The tower layout's strata, from the bottom (docs/notes/tower-strip.md: the forces): strict, a node can't leave its own. */
 export type TowerLayer = 'constant' | 'source' | 'selector' | 'stepped' | 'gate' | 'voice' | 'mixer' | 'audible';
 
+/**
+ * A column (`towerLayers`): a voice or a kit (`hi`) and the one cell that plays it (`lo`), alone in playing it, at one x;
+ * through a product's junction (`via`), the player under the junction, which sits on the voice's rim.
+ */
+export interface Column {
+  readonly lo: string;
+  readonly hi: string;
+  readonly via?: string;
+}
+
 /** Decades between layers: the voice layer's room above the structure, the tables' below it. */
 const LAYER_GAP = 0.6;
 /** Decades between the voices and the mixers over them: room for a voice's cap, a gain and a mixer's name. */
@@ -185,6 +195,7 @@ export function towerLayers(
   between: Map<string, string[]>;
   lineUp: string[][];
   aside: Map<string, string>;
+  columns: Column[];
 } {
   const step = towerOf(program, model, 'step');
   const sockets = socketHeights(program, model, drawn);
@@ -270,7 +281,27 @@ export function towerLayers(
   const bottom = stepped.length ? Math.min(...stepped) : 0;
   // (the voices: a row between the structure's top and the lowest socket, a layer's gap over the structure at least)
   const voice = Math.max(top + LAYER_GAP, audible.length ? (top + Math.min(...audible)) / 2 : top + LAYER_GAP);
-  const gate = voice - LAYER_GAP / 2;
+  const voiceOf = new Map(drawn.nodes.flatMap((n) => (n.kind === 'junction' ? [[n.id, cellId(n.voice)] as const] : [])));
+  // (a column: a voice or a kit and the one cell that plays it, alone in playing it — a melody through its product's
+  // junction, a groove reading its kit — one x, so the wire between them runs straight up)
+  const plays = new Map<string, Set<string>>();
+  const players = new Map<string, Set<string>>();
+  const via = new Map<string, string>();
+  for (const e of model.edges) {
+    const [lo, hi] = e.port === 'voice' ? [e.from, voiceOf.get(e.to)] : e.port === 'over' && layers.get(e.to) === 'gate' ? [e.to, e.from] : [];
+    if (!lo || !hi || layers.get(hi) !== 'voice' || (layers.get(lo) !== 'stepped' && layers.get(lo) !== 'gate')) continue;
+    (plays.get(lo) ?? plays.set(lo, new Set()).get(lo)!).add(hi);
+    (players.get(hi) ?? players.set(hi, new Set()).get(hi)!).add(lo);
+    if (e.port === 'voice') via.set(lo, e.to);
+  }
+  const columns = [...plays].flatMap(([lo, his]) => {
+    const [hi] = his;
+    const j = via.get(lo);
+    return his.size === 1 && players.get(hi)?.size === 1 ? [{ lo, hi, ...(j ? { via: j } : {}) }] : [];
+  });
+  // (the players' row half a layer under the voices; a whole one when a player stands under its kit: room for the kit's
+  // wheel, its name and the player's wheel)
+  const gate = voice - (columns.some((c) => !c.via) ? LAYER_GAP : LAYER_GAP / 2);
   // (the mixers a layer's gap over the voices, when there are any)
   const mixer = voice + MIX_GAP;
   const mixes = [...layers.values()].includes('mixer');
@@ -341,5 +372,5 @@ export function towerLayers(
     const from = owner.get(e.source) ?? e.source;
     if (from !== e.target) between.set(e.target, [...new Set([...(between.get(e.target) ?? []), from])]);
   }
-  return { targets, layers, held, strata, between, lineUp, aside };
+  return { targets, layers, held, strata, between, lineUp, aside, columns };
 }
