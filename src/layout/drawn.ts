@@ -69,9 +69,25 @@ function petals(result: CompileResult, written: WrittenGraph, withBulbs: boolean
   for (const e of edges) if (!parentOf.has(e.source) && !parentOf.has(e.target)) pairs.add(key(e.source, e.target));
   // (an edge redrawn, or left out because one is drawn between the same two already: drawn as that one)
   const redrawn: { id: string; pair: string | null }[] = [];
+  // (a groove's sound is its drums': drawn as the kit's, one wire from the kit however many grooves play it — out of
+  // the drums, into a mix; a motif spliced into a groove stays its own wire)
+  const drums = cellId(VOICE_KIT);
+  const kitHas = nodes.some((n) => n.id === drums);
+  const readsKit = (id: string) => result.cells.get(id.slice('cell:'.length))?.over === VOICE_KIT;
+  const sounding = (e: GraphEdge) => (kitHas && e.band === 'audio' && readsKit(e.source) && !readsKit(e.target) ? drums : up(e.source));
+  const grooves = new Set<string>();
   for (const e of edges) {
-    const source = up(e.source);
+    const source = sounding(e);
     const target = up(e.target);
+    // (the drums a groove names, from their pieces on the kit: one wire, the groove reading the kit as a table is read)
+    if (kitHas && source === drums && e.source !== drums && readsKit(target)) {
+      const id = edgeId(target, drums);
+      redrawn.push({ id: e.id, pair: id });
+      if (grooves.has(id)) continue;
+      grooves.add(id);
+      out.push({ ...e, id, source: target, target: drums, from: drums, to: target, port: 'over', band: 'cv', pointer: true, width: 1, transforms: [[]] });
+      continue;
+    }
     if (source === e.source && target === e.target) {
       out.push(e);
       continue;
@@ -89,7 +105,18 @@ function petals(result: CompileResult, written: WrittenGraph, withBulbs: boolean
     redrawn.push({ id: e.id, pair: source === target ? null : key(source, target) });
     if (source === target || pairs.has(key(source, target))) continue;
     pairs.add(key(source, target));
-    out.push({ ...e, id: edgeId(source, target) + (e.port === 'step' ? '~' : ''), source, target, from: up(e.from), to: up(e.to) });
+    // (a groove's sound drawn from the kit: its end there too)
+    const end = (x: string) => (source === drums && x === e.source ? drums : up(x));
+    out.push({ ...e, id: edgeId(source, target) + (e.port === 'step' ? '~' : ''), source, target, from: end(e.from), to: end(e.to) });
+  }
+  // (every groove reads the kit by one wire, whether or not a drum it names is a piece of it: one with a node of its
+  // own keeps its wire too)
+  const nodeIds = new Set(nodes.map((n) => n.id));
+  for (const c of result.cells.values()) {
+    const id = edgeId(cellId(c.name), drums);
+    if (c.over !== VOICE_KIT || !kitHas || grooves.has(id) || !nodeIds.has(cellId(c.name)) || parentOf.has(cellId(c.name))) continue;
+    grooves.add(id);
+    out.push({ id, source: cellId(c.name), target: drums, from: drums, to: cellId(c.name), count: 1, transforms: [[]], port: 'over', band: 'cv', pointer: true, width: 1 });
   }
   const byPair = new Map<string, string>();
   for (const e of out) if (!byPair.has(key(e.source, e.target))) byPair.set(key(e.source, e.target), e.id);
@@ -97,8 +124,6 @@ function petals(result: CompileResult, written: WrittenGraph, withBulbs: boolean
   const alias = new Map<string, string | undefined>();
   for (const r of redrawn) alias.set(r.id, r.pair === null ? undefined : ids.has(r.pair) ? r.pair : byPair.get(r.pair));
   for (const e of allEdges) if (hidden.has(e.source) || hidden.has(e.target)) alias.set(e.id, undefined);
-  // (a groove reads the drums' kit, but its over= isn't written: its wires are the drums it names, from their pieces)
-  for (const c of result.cells.values()) if (c.over === VOICE_KIT) alias.set(edgeId(cellId(c.name), cellId(VOICE_KIT)), undefined);
   const drawnIds = new Set(out.map((e) => e.id));
   for (const id of through) if (!drawnIds.has(id) && !alias.has(id)) alias.set(id, undefined);
   // (an unnamed cell written on a voice's line, its envelope and its other modifiers, is drawn as part of the voice's

@@ -47,6 +47,11 @@ export class Recorder {
   last = $state<string | null>(null);
 
   #taking: Taking | null = null;
+
+  /** The step the take's pass starts on, once placed; null: no take, or not placed yet. */
+  get start(): number | null {
+    return this.#taking?.take.start ?? null;
+  }
   readonly #stop: () => void;
 
   constructor(

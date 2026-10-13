@@ -104,10 +104,10 @@ describe('what an edge carries: one lookup by band and port', () => {
 &left [&groove * .5, &tune * &lead, &alt * &lead]
 &out map=sample &left &left`);
     const model = buildGraph(program);
-    // (a voice a groove names leaves from its piece on the drums' kit: its wire, its bulb)
-    const edge = (from: string, to: string) => model.edges.find((e) => (e.from === `cell:${from}` || e.bulb === from) && e.to === `cell:${to}`)!;
-    expect(edge('bd', 'groove').band).toBe('audio');
-    expect(carried(edge('bd', 'groove'), program)).toEqual({ phaseCell: null, voice: 'bd' });
+    const edge = (from: string, to: string) => model.edges.find((e) => e.from === `cell:${from}` && e.to === `cell:${to}`)!;
+    // (a groove's sound is the drums' kit's: its one wire into the mix carries sound, the groove's own into the kit a value)
+    expect(edge('kit:voices', 'left').band).toBe('audio');
+    expect(edge('kit:voices', 'groove').band).toBe('cv');
     expect(edge('left', 'out').band).toBe('audio');
     expect(edge('riff', 'tune').band).toBe('cv');
     expect(carried(edge('riff', 'tune'), program)).toEqual({ phaseCell: null, voice: null });
@@ -117,11 +117,11 @@ describe('what an edge carries: one lookup by band and port', () => {
 describe('sound up through patterns (#273): a pattern of voices spliced into another carries sound', () => {
   const edge = (source: string, from: string, to: string) => {
     const program = compileSource(source);
-    const e = buildGraph(program).edges.find((x) => (x.from === `cell:${from}` || x.bulb === from) && x.to === `cell:${to}`);
+    const e = buildGraph(program).edges.find((x) => x.from === `cell:${from}` && x.to === `cell:${to}`);
     return { e: e!, program };
   };
-  it('IDM: the voice into its pattern and the pattern into the break are both sound, the break coloured by its first voice', () => {
-    expect(edge(PRESETS.idm.source, 'bd', 'pat').e.band).toBe('audio');
+  it('IDM: the pattern reads the drums by one wire; spliced into the break it is sound, coloured by its first voice', () => {
+    expect(edge(PRESETS.idm.source, 'kit:voices', 'pat').e.port).toBe('over');
     const { e, program } = edge(PRESETS.idm.source, 'pat', 'break');
     expect(e.band).toBe('audio');
     expect(carried(e, program).voice).toBe('bd');
