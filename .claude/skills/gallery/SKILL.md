@@ -64,7 +64,10 @@ no example uses is missing (add the example, or a fixture). Each kind is drawn b
 (`PulseEdge`, `BeltEdge`, `MeterEdge`, made by `src/ui/flowedge.ts`, styled by `src/ui/edges.css`: exactly what
 `Graph.svelte` uses) on two bare nodes, with the graph's context (the piece at that moment, the note on the voice,
 the layout's bend), in seven columns: off, unrouted, on (stopped), idle, live on C4, live with the voice on C3 (the octave rule, where an edge's colour is a voice's sound; a melody's follows its source's wheel),
-live and bent. A belt is shown by its stretch (at rest, pulling both ways, slipping), a meter's net by its beat.
+live and bent, and the tower layout's (a sigmoid). A live tile marked *silent* is one whose source has no playhead at
+that moment: what it shows is a fallback the app never draws (it makes an edge live only while its source sounds); name a
+piece and a moment where it plays (`edges 20 arrangement`) to see the real thing. A row of its own draws the tower
+layout's selector, its pill, at rest and on the beat (`PillCell.svelte`). A belt is shown by its stretch (at rest, pulling both ways, slipping), a meter's net by its beat.
 A meter's own step edges aren't drawn in the graph (ground) and so aren't here; the net is.
 
 Read it for: whether kinds can be told apart without their label, state contrast (idle / unrouted / off against

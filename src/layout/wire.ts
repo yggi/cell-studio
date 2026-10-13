@@ -64,6 +64,15 @@ function offsetPoints(pts: readonly Pt[], o: number, ends: { a?: boolean; b?: bo
 const line = (pts: readonly Pt[]) => pts.map((p) => `${v(p.x)} ${v(p.y)}`).join(' L ');
 
 /**
+ * A flat bus along the cubic a → b (controls c1, c2): each strand the curve moved by its offset (px, positive to the
+ * left looking along it), true to both ends — the tower layout's sigmoid, whose ends are exact (a wheel's top, a port).
+ */
+export function bundleCubic(a: Pt, c1: Pt, c2: Pt, b: Pt, offsets: readonly number[]): string[] {
+  const centre = sampleCubic(a, c1, c2, b);
+  return offsets.map((o) => `M ${line(offsetPoints(centre, o))}`);
+}
+
+/**
  * A flat bus along the spline from a to b through m (a chord's notes, a hop out of a reader's hub): each strand the
  * curve moved by its offset (px, positive to the left looking along it), so it is the same width everywhere it shows.
  * `rims`: the radii of the wheels at its ends. There the bus is cut inside the rim (by more than half its width, so

@@ -139,11 +139,14 @@ export function carried(e: GraphEdge, program: CompileResult): Carried {
 
 /** What PulseEdge reads of an edge (its `data`). */
 function pulseData(e: GraphEdge, program: CompileResult) {
+  // (a groove reading its kit: its hits go up into the kit)
+  const groove = e.port === 'over' && !!program.cells.get(nameOf(e.from))?.kit;
   return {
+    groove,
     band: e.band,
     port: e.port,
     // (what travels along it while it plays, drawn by EdgePayload: a pointer carries nothing that travels, D6)
-    payload: payloadOf(e.band, e.port, e.pointer),
+    payload: payloadOf(e.band, e.port, e.pointer, groove),
     width: e.width,
     from: e.notes ?? endOf(e, e.from),
     // (a table read through, over=, or looked up, map=: its strands leave its entries)

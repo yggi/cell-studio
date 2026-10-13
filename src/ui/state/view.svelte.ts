@@ -3,8 +3,8 @@ import { keepPerf, perfWanted } from '../perfSwitch';
 import type { GraphLayout } from './graphLayout.svelte';
 
 export type Tab = 'select' | 'graph' | 'code' | 'time';
-/** What the sidebar shows: the piece's controls, MIDI (ports, channels, keys, learned knobs), the graph's layout forces, or files. */
-export type Panel = 'controls' | 'midi' | 'forces' | 'file';
+/** What the sidebar shows: the piece's controls, MIDI (ports, channels, keys, learned knobs), the graph's layout forces, files, or the piece's numbers. */
+export type Panel = 'controls' | 'midi' | 'forces' | 'file' | 'stats';
 
 /** What's on screen: the view (a tab on a phone), the controls drawer, the performance overlay, a line of news. */
 export class View {
