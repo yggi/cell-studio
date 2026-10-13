@@ -255,6 +255,11 @@ interface PitchTerm {
   readonly pick: Pick | null;
   readonly shift: number;
   readonly sign: 1 | -1;
+  /**
+   * A kit read that doesn't start notes (decision 029): held under the term that does, its number picks the kit's
+   * member; it adds no pitch.
+   */
+  readonly picks?: true;
 }
 
 /** A resolved out(&voice, &theme + &mod …). */
@@ -314,7 +319,7 @@ export interface MidiDest {
   /** A mix named as the entry (`&synth map=midi &lead`), whose switching off takes it away; null: written on the card. */
   readonly mix: string | null;
   readonly channel: number;
-  /** The output slot (1 the default output). */
+  /** The output slot (the MIDI page's output of that number, 1 the first). */
   readonly port: number;
   /** The numbers in its product on the card (velocity reads them, as it reads a sound card's gains). */
   readonly gain: number;

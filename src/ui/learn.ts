@@ -6,11 +6,12 @@
 import type { FreeSpec } from '../engine/ast';
 import { freeAt, freePosition, freeSteps } from './free';
 
-/** A knob, fader or pad: a control change or a note, on a channel (0–15). */
+/** A knob, fader or pad: a control change or a note, on a channel (0–15); and the controller it was learned from (its input's name), where known. */
 export interface Knob {
   readonly kind: 'cc' | 'note';
   readonly channel: number;
   readonly number: number;
+  readonly from?: string;
 }
 
 /** A message from a knob (a control change) or a pad (a note-on), with its value (0–127); anything else is null. */
@@ -110,7 +111,10 @@ export function readLearned(text: string | null): Learned {
     const pieces: Record<string, Record<string, Knob>> = {};
     for (const [title, places] of Object.entries(o.pieces ?? {})) {
       const kept = Object.entries(places ?? {}).filter(([, k]) => isKnob(k));
-      if (kept.length) pieces[title] = Object.fromEntries(kept.map(([p, k]) => [p, { kind: k.kind, channel: k.channel, number: k.number }]));
+      if (kept.length)
+        pieces[title] = Object.fromEntries(
+          kept.map(([p, k]) => [p, { kind: k.kind, channel: k.channel, number: k.number, ...(typeof k.from === 'string' ? { from: k.from } : {}) }]),
+        );
     }
     return { echo: o.echo === true, pieces };
   } catch {

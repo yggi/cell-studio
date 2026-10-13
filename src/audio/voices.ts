@@ -77,7 +77,7 @@ export interface VoiceBank {
 
 export function createVoices(Tone: ToneNS): VoiceBank {
   const ctx = audioContext(Tone);
-  // the sound card's level (level=, dB) and then a limiter: nothing past full scale
+  // the sound card's master (postgain=, linear) and then a limiter: nothing past full scale
   const limiter = new Tone.Limiter(-1).toDestination();
   // (and before it a switch: Stop closes it, so that the reverb and the echo, which would ring on for seconds, are not heard)
   const stopped = new Tone.Gain(1).connect(limiter);
@@ -150,10 +150,9 @@ export function createVoices(Tone: ToneNS): VoiceBank {
     sync(result, shifts, muted = new Set<string>()) {
       // what to connect: worked out from where sound goes (./wiring.ts, engine/flows.ts), off applied there once
       const plan = wiring(result, muted);
-      // the sound card's level: level= in dB on the (first) sound card
+      // the sound card's master: postgain= on the (first) sound card, linear (the built-in card's is Strudel's .8)
       const card = [...result.cells.values()].find((c) => c.sink);
-      const db = typeof card?.params.level === 'number' ? card.params.level : 0;
-      master.gain.value = Math.pow(10, db / 20);
+      master.gain.value = typeof card?.params.postgain === 'number' ? Math.max(0, card.params.postgain) : 1;
       for (const [name, b] of built) {
         const c = result.cells.get(name);
         if (!c?.voice || soundKey(result, name, shifts) !== b.key) {

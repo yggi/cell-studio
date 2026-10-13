@@ -5,8 +5,8 @@ import { adoptPorts, connectMidi, outputNow, portsMessage, type ChosenPorts } fr
 import { MidiOut } from '../../midi/out';
 import { ClockOut } from '../../midi/clock-out';
 import { mainMeter, type ClockTicks } from '../../engine/midiclock';
-import { DRUM_PRESETS, type DrumMap } from '../../midi/drum-presets';
-import { channelTable, DEFAULT_BEND_RANGE, rotationChannels, router, routesOf, type ChannelTable } from '../../engine/midi';
+import { DRUM_PRESETS, deviceNote, type DrumMap } from '../../midi/drum-presets';
+import { channelTable, DEFAULT_BEND_RANGE, noteOf, rotationChannels, routable, router, rowsOf, routesOf, type ChannelTable, type OutputChoice } from '../../engine/midi';
 import type { CompileResult } from '../../engine/program';
 import type { Played } from '../../engine/realize';
 import { contextClock } from '../../audio/device';
@@ -16,30 +16,50 @@ import { Activity } from '../activity';
 
 type ToneNS = Parameters<NoteSink['play']>[0];
 type Chosen = { readonly id: string; readonly name: string };
+/** An output of the matrix: the device it sends to (by id and name), under a key its routing is kept by. */
+type Column = Chosen & { readonly key: string };
 type Numbers = Readonly<Record<string, number>>;
+type Range = { readonly from: number; readonly to: number };
 type Stored = {
-  readonly out: Chosen;
+  /** The outputs, in order (at least one: the first is where every voice goes unless routed elsewhere). */
+  readonly outputs: readonly Column[];
   readonly in: Chosen;
-  /** Channels chosen by hand, per piece (by its title) and voice. */
-  readonly channels: Readonly<Record<string, Numbers>>;
-  /** The channel a piece's kit goes on, per piece (by its title); absent: 10. */
-  readonly kits: Numbers;
+  /**
+   * The matrix chosen by hand, per piece (by its title) and output (by its key): a channel for a gate or voice, or for
+   * the kit (under `KIT`); 0 is not sent there.
+   */
+  readonly routes: Readonly<Record<string, Readonly<Record<string, Numbers>>>>;
   /** Each device's drum map (by the output port's name): General MIDI note to the note it sends. */
   readonly drums: Readonly<Record<string, DrumMap>>;
   /** Whether the built-in sound is heard beside MIDI out. */
   readonly internal: boolean;
-  /** The synth's pitch-bend range, in semitones each way. */
+  /** The pitch-bend range a device has none of its own takes, in semitones each way. */
   readonly bendRange: number;
-  /** The channels notes rotate over (MPE-style), or null: each voice on its own channel. */
-  readonly rotate: { readonly from: number; readonly to: number } | null;
+  /** The channels notes rotate over (MPE-style) on a device with none of its own, or null: each voice on its own channel. */
+  readonly rotate: Range | null;
+  /** Each device's pitch-bend range (by the output port's name). */
+  readonly bends: Numbers;
+  /** Each device's rotation (by the output port's name): the channels notes rotate over, or null. */
+  readonly rotates: Readonly<Record<string, Range | null>>;
   /** Whether each device is sent MIDI clock (by the output port's name). */
   readonly clock: Readonly<Record<string, boolean>>;
-  /** The device each output slot a piece's MIDI cards name goes to, per piece (by its title) and slot (2–16; slot 1 is `out`). */
-  readonly slots: Readonly<Record<string, Readonly<Record<string, Chosen>>>>;
 };
 
 const NONE: Chosen = { id: 'none', name: '' };
-const DEFAULTS: Stored = { out: NONE, in: NONE, channels: {}, kits: {}, drums: {}, internal: true, bendRange: DEFAULT_BEND_RANGE, rotate: null, clock: {}, slots: {} };
+/** What the kit's channel is kept under in a piece's routes: no cell can be named so. */
+const KIT = '*';
+const DEFAULTS: Stored = {
+  outputs: [{ key: 'o1', ...NONE }],
+  in: NONE,
+  routes: {},
+  drums: {},
+  internal: true,
+  bendRange: DEFAULT_BEND_RANGE,
+  rotate: null,
+  bends: {},
+  rotates: {},
+  clock: {},
+};
 const KEY = 'cell-studio:midi';
 const ALL_CHANNELS = Array.from({ length: 16 }, (_, i) => i);
 
@@ -54,38 +74,74 @@ const isRecord = (v: unknown): v is Record<string, unknown> => !!v && typeof v =
 const numbers = (v: unknown, lo: number, hi: number): Record<string, number> =>
   isRecord(v) ? Object.fromEntries(Object.entries(v).filter((e): e is [string, number] => Number.isInteger(e[1]) && (e[1] as number) >= lo && (e[1] as number) <= hi)) : {};
 const nested = (v: unknown, lo: number, hi: number): Record<string, Numbers> => (isRecord(v) ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, numbers(x, lo, hi)])) : {});
-const slotsOf = (v: unknown): Stored['slots'] =>
-  isRecord(v)
-    ? Object.fromEntries(
-        Object.entries(v).map(([title, x]) => [title, isRecord(x) ? Object.fromEntries(Object.entries(x).flatMap(([n, c]) => (chosen(c) === NONE ? [] : [[n, chosen(c)]]))) : {}]),
-      )
-    : {};
 const flags = (v: unknown): Record<string, boolean> => (isRecord(v) ? Object.fromEntries(Object.entries(v).filter((e): e is [string, boolean] => typeof e[1] === 'boolean')) : {});
+const rangeOf = (v: unknown): Range | null => (isRecord(v) ? { from: channel(v.from, 2), to: channel(v.to, 16) } : null);
+const rangesOf = (v: unknown): Record<string, Range | null> => (isRecord(v) ? Object.fromEntries(Object.entries(v).map(([k, r]) => [k, rangeOf(r)])) : {});
 const channel = (v: unknown, fallback: number) => (Number.isInteger(v) && (v as number) >= 1 && (v as number) <= 16 ? (v as number) : fallback);
 /** A number typed into a field, rounded into lo … hi (not a number: `fallback`). */
 const clamped = (v: number, lo: number, hi: number, fallback: number) => (Number.isFinite(v) ? Math.max(lo, Math.min(hi, Math.round(v))) : fallback);
 
+/** The outputs kept (at least one), each under a key of its own. */
+function outputsOf(v: unknown): Column[] {
+  const out: Column[] = [];
+  if (Array.isArray(v)) for (const x of v) if (isRecord(x) && typeof x.key === 'string' && x.key && !out.some((c) => c.key === x.key)) out.push({ key: x.key, ...chosen(x) });
+  return out.length ? out : [{ key: 'o1', ...NONE }];
+}
+
+/**
+ * What a store from before the matrix kept, as the matrix: the one output as the first (`o1`), each piece's channels
+ * and kit channel as its routes there, and the devices of the output slots a piece's MIDI cards named (slot n) as the
+ * nth output, where that is still free.
+ */
+function migrated(kept: Record<string, unknown>): Pick<Stored, 'outputs' | 'routes'> {
+  const outputs: Column[] = [{ key: 'o1', ...chosen(kept.out) }];
+  const routes: Record<string, Record<string, Numbers>> = {};
+  for (const [title, voices] of Object.entries(nested(kept.channels, 1, 16))) routes[title] = { o1: voices };
+  for (const [title, kit] of Object.entries(numbers(kept.kits, 1, 16))) routes[title] = { o1: { ...routes[title]?.o1, [KIT]: kit } };
+  if (isRecord(kept.slots))
+    for (const slots of Object.values(kept.slots))
+      if (isRecord(slots))
+        for (const [n, c] of Object.entries(slots)) {
+          const i = Number(n) - 1;
+          if (!Number.isInteger(i) || i < 1 || i > 15 || chosen(c) === NONE) continue;
+          while (outputs.length <= i) outputs.push({ key: `o${outputs.length + 1}`, ...NONE });
+          if (outputs[i]!.id === 'none') outputs[i] = { key: outputs[i]!.key, ...chosen(c) };
+        }
+  return { outputs, routes };
+}
+
 /** What this browser kept, merged over the defaults (nothing kept, junk, or no storage: the defaults). */
 function load(): Stored {
   try {
-    const kept = JSON.parse(localStorage.getItem(storageKey(KEY)) ?? 'null') as Partial<Stored> | null;
+    const kept = JSON.parse(localStorage.getItem(storageKey(KEY)) ?? 'null') as Record<string, unknown> | null;
     if (!isRecord(kept)) return DEFAULTS;
-    const rotate = isRecord(kept.rotate) ? { from: channel(kept.rotate.from, 2), to: channel(kept.rotate.to, 16) } : null;
+    const matrix =
+      'outputs' in kept
+        ? {
+            outputs: outputsOf(kept.outputs),
+            routes: isRecord(kept.routes) ? Object.fromEntries(Object.entries(kept.routes).map(([t, r]) => [t, nested(r, 0, 16)])) : {},
+          }
+        : migrated(kept);
     return {
-      out: chosen(kept.out),
+      ...matrix,
       in: chosen(kept.in),
-      channels: nested(kept.channels, 1, 16),
-      kits: numbers(kept.kits, 1, 16),
       drums: nested(kept.drums, 0, 127),
       internal: typeof kept.internal === 'boolean' ? kept.internal : true,
       bendRange: typeof kept.bendRange === 'number' && kept.bendRange >= 1 && kept.bendRange <= 96 ? kept.bendRange : DEFAULT_BEND_RANGE,
-      rotate,
+      rotate: rangeOf(kept.rotate),
+      bends: numbers(kept.bends, 1, 96),
+      rotates: rangesOf(kept.rotates),
       clock: flags(kept.clock),
-      slots: slotsOf(kept.slots),
     };
   } catch {
     return DEFAULTS;
   }
+}
+
+/** One output's senders: its notes (`midi/out.ts`) and its clock (`midi/clock-out.ts`). */
+interface Lane {
+  readonly out: MidiOut;
+  readonly ticks: ClockOut;
 }
 
 /** The player MIDI out taps (audio/player.ts): its sink, and whether its own sound is heard. */
@@ -101,9 +157,10 @@ interface OpenPiece {
 }
 
 /**
- * MIDI on this device: the Web MIDI connection, the ports plugged in, the output and input chosen (kept in this browser
- * by id and name), and All notes off. A port chosen before is connected again on load without a click (a permission
- * already granted needs no gesture); a first visit asks for nothing until Connect. `dispose` when it goes.
+ * MIDI on this device: the Web MIDI connection, the ports plugged in, the outputs and the input chosen (kept in this
+ * browser by id and name), the matrix of which voice goes to which output on which channel (kept per piece), and All
+ * notes off. A port chosen before is connected again on load without a click (a permission already granted needs no
+ * gesture); a first visit asks for nothing until Connect. `dispose` when it goes.
  */
 export class Midi implements ChosenPorts, NoteSink {
   /** The connection, once made. */
@@ -113,19 +170,19 @@ export class Midi implements ChosenPorts, NoteSink {
   /** What happened, in words: the ports found, or why there is no connection. */
   message = $state('Not connected. Without MIDI, everything plays on the built-in sound.');
   connecting = $state(false);
-  /** The live port the output chosen resolves to, once connected. */
+  /** The live port the first output resolves to, once connected. */
   outPort = $state.raw<MidiPort | null>(null);
 
-  #out = $state<Chosen>(NONE);
+  #outputs = $state.raw<readonly Column[]>(DEFAULTS.outputs);
   #in = $state<Chosen>(NONE);
-  #channels = $state.raw<Stored['channels']>({});
-  #kits = $state.raw<Stored['kits']>({});
+  #routes = $state.raw<Stored['routes']>({});
   #drums = $state.raw<Stored['drums']>({});
   #internal = $state(true);
   #bendRange = $state(DEFAULT_BEND_RANGE);
   #rotate = $state.raw<Stored['rotate']>(null);
+  #bends = $state.raw<Stored['bends']>({});
+  #rotates = $state.raw<Stored['rotates']>({});
   #clock = $state.raw<Stored['clock']>({});
-  #slots = $state.raw<Stored['slots']>({});
   #piece = $state.raw<OpenPiece | null>(null);
   #player: Tapped | null = null;
   /** Said when a microtonal piece's notes with different bends overlap on one channel (rotation fixes it). */
@@ -134,52 +191,72 @@ export class Midi implements ChosenPorts, NoteSink {
   /** When a message last came in and went out, for the transport's light (#262). */
   readonly activity = new Activity();
 
-  /** What sends the notes played to the output (`midi/out.ts`), through `send`. */
-  readonly out = new MidiOut({ send: (data, timestamp) => this.send(data, timestamp) });
-  /** What sends the main meter's ticks, with Start, Continue and Stop (`midi/clock-out.ts`), through `send`. */
-  readonly ticks = new ClockOut({ send: (data, timestamp) => this.send(data, timestamp) });
-  /** What sends to the output slots 2–16 a piece's MIDI cards name (slot 1 is `out`), made when first used. */
-  readonly #slotOuts = new Map<number, MidiOut>();
-  // the table the out's routing was last made from, and what it said (a recompile makes a new table, often the same)
+  /** Each output's senders, by its key, made when first used. */
+  readonly #lanes = new Map<string, Lane>();
+  // the table the lanes' routing was last made from, the outputs it was made for, and what it said (a recompile makes
+  // a new table, often the same)
   #routed: ChannelTable | null = null;
+  #routedFor = '';
   #routedAs: string | null = null;
   // Tone, as the player last handed it over: All notes off while playing silences on its clock
   #tone: ToneNS | null = null;
-
-  /** The open piece's channel table: its voices on their channels (as chosen here, else in order), its kit members on 10. */
-  readonly table = $derived.by(() => {
-    const p = this.#piece;
-    return p ? channelTable(p.program, own(this.#channels, p.title ?? '') ?? {}, own(this.#kits, p.title ?? '')) : null;
-  });
-  /**
-   * The output slots the open piece's MIDI cards name (map=midi(c, p)), each with the device it goes to: slot 1 the
-   * default output, the others chosen here per piece. None: the piece has no MIDI card, and goes out on the default.
-   */
-  readonly slots = $derived.by(() =>
-    (this.table?.ports ?? []).map((slot) => {
-      const c = this.#slotChoice(slot);
-      return { slot, id: c.id, name: c.name };
-    }),
-  );
-  /** The open piece's main meter, which the clock's beats are (`engine/midiclock.ts`); null: it sends no clock. */
-  readonly meter = $derived(this.#piece ? mainMeter(this.#piece.program) : null);
-  // the channels (0–15) sent on since the last All notes off
-  #used = new Set<number>();
+  // per output (by key), the channels (0–15) sent on since the last All notes off
+  #used = new Map<string, Set<number>>();
   // who hears every message from the input listened to (MIDI learn: state/learn.svelte.ts)
   #hearers = new Set<(data: Uint8Array, source: string, timeStamp: number) => void>();
 
+  /** The open piece's choices on each output, from its routes (none chosen: the defaults, `engine/midi.ts`). */
+  #choices(): OutputChoice[] {
+    const mine = own(this.#routes, this.#piece?.title ?? '') ?? {};
+    return this.#outputs.map((c) => {
+      const { [KIT]: kit, ...voices } = own(mine, c.key) ?? {};
+      return { voices, kit };
+    });
+  }
+
+  /** The open piece's channel table: each voice on its channels of each output, as chosen here (else on the first, in order), its kit members' notes. */
+  readonly table = $derived.by(() => {
+    const p = this.#piece;
+    return p ? channelTable(p.program, this.#choices()) : null;
+  });
+
+  /**
+   * The outputs, as the matrix's columns: each with its number (1 the first; on a piece's MIDI cards, the slot `map=midi(c, n)`
+   * names), the key its routing is kept under, and the device it sends to. A piece whose cards name a slot past the
+   * outputs has a column for it too, with no device (null key) until one is chosen.
+   */
+  readonly columns = $derived.by(() => {
+    const cols = this.#outputs.map((c, i) => ({ port: i + 1, key: c.key as string | null, id: c.id, name: c.name }));
+    for (let n = cols.length + 1; n <= Math.max(0, ...(this.table?.ports ?? [])); n++) cols.push({ port: n, key: null, id: 'none', name: '' });
+    return cols;
+  });
+
+  /** The matrix's rows: the gates and voices of the open piece (on MIDI cards, those they name), in its order; and whether it has a kit. */
+  readonly rows = $derived.by(() => {
+    const p = this.#piece;
+    if (!p || !this.table) return { voices: [] as string[], kit: false };
+    const voices = this.table.byPiece ? [...new Set(this.table.voices.map((v) => v.voice))] : routable(p.program).voices;
+    return { voices, kit: this.table.kit.length > 0 };
+  });
+
+  /** The ports plugged in that no output sends to yet: the outputs the page offers to add. */
+  readonly spare = $derived(this.ports.outputs.filter((p) => !this.#outputs.some((c) => c.id === p.id)));
+
+  /** The open piece's main meter, which the clock's beats are (`engine/midiclock.ts`); null: it sends no clock. */
+  readonly meter = $derived(this.#piece ? mainMeter(this.#piece.program) : null);
+
   constructor() {
     const kept = load();
-    this.#out = kept.out;
+    this.#outputs = kept.outputs;
     this.#in = kept.in;
-    this.#channels = kept.channels;
-    this.#kits = kept.kits;
+    this.#routes = kept.routes;
     this.#drums = kept.drums;
     this.#internal = kept.internal;
     this.#bendRange = kept.bendRange;
     this.#rotate = kept.rotate;
+    this.#bends = kept.bends;
+    this.#rotates = kept.rotates;
     this.#clock = kept.clock;
-    this.#slots = kept.slots;
     // a tab frozen while hidden can leave a release unscheduled and hardware sounding: silence it on coming back
     if (typeof document !== 'undefined') document.addEventListener('visibilitychange', this.#onVisible);
     if (this.remembersPorts) void this.#reconnect();
@@ -204,7 +281,7 @@ export class Midi implements ChosenPorts, NoteSink {
 
   readonly #onVisible = () => {
     if (document.visibilityState !== 'visible') return;
-    if (this.#used.size || this.#slotOuts.size) this.panic();
+    if ([...this.#used.values()].some((u) => u.size) || this.#lanes.size) this.panic();
     // (keys held from the input while hidden may have lost their note-offs: they let go too)
     else this.#letGoAll();
   };
@@ -223,15 +300,19 @@ export class Midi implements ChosenPorts, NoteSink {
     for (const l of this.#letGoers) l(alive);
   }
 
+  get #first(): Column {
+    return this.#outputs[0]!; // (there is always one)
+  }
+
   get outPortId(): string {
-    return this.#out.id;
+    return this.#first.id;
   }
   set outPortId(id: string) {
-    this.#out = { id, name: this.#out.name };
+    this.#outputs = [{ ...this.#first, id }, ...this.#outputs.slice(1)];
     this.#save();
   }
   get outPortName(): string {
-    return this.#out.name;
+    return this.#first.name;
   }
   get inPortId(): string {
     return this.#in.id;
@@ -244,14 +325,24 @@ export class Midi implements ChosenPorts, NoteSink {
     return this.#in.name;
   }
 
-  /** Whether a port was chosen before. */
-  get remembersPorts(): boolean {
-    return this.#out.id !== 'none' || this.#in.id !== 'none' || Object.values(this.#slots).some((mine) => Object.values(mine).some((c) => c.id !== 'none'));
+  /** Whether any output sends to a device (chosen, plugged in or not). */
+  get sending(): boolean {
+    return this.#outputs.some((c) => c.id !== 'none');
   }
 
-  /** Is there anything for All notes off to reach: the default output, or an output slot of the open piece? */
+  /** Whether every output chosen is absent (unplugged): nothing can go out. */
+  get sendingNowhere(): boolean {
+    return this.#outputs.every((c) => c.id === 'none' || !this.ports.outputs.some((p) => p.id === c.id));
+  }
+
+  /** Whether a port was chosen before. */
+  get remembersPorts(): boolean {
+    return this.sending || this.#in.id !== 'none';
+  }
+
+  /** Is there anything for All notes off to reach: an output plugged in? */
   get canPanic(): boolean {
-    return !!this.outPort || this.slots.some((s) => this.slotPort(s.slot));
+    return this.#outputs.some((_, i) => this.portOf(i + 1));
   }
 
   /** Connect to Web MIDI and adopt the ports chosen before. */
@@ -292,7 +383,7 @@ export class Midi implements ChosenPorts, NoteSink {
     this.access?.refresh();
   }
 
-  /** Tap a player: the notes it plays go to the output too, and its own sound follows the internal-sound switch. */
+  /** Tap a player: the notes it plays go to the outputs too, and its own sound follows the internal-sound switch. */
   attach(player: Tapped, piece: OpenPiece): void {
     this.#player = player;
     this.#piece = piece;
@@ -310,191 +401,338 @@ export class Midi implements ChosenPorts, NoteSink {
     this.#save();
   }
 
-  /** The synth's bend range, in semitones each way (2 for most, 48 for MPE). */
-  get bendRange(): number {
-    return this.#bendRange;
+  // an output's device name ('' for none, or no such output): what its settings are kept under
+  #nameOf(port: number): string {
+    return this.columns[port - 1]?.name ?? '';
   }
-  set bendRange(semitones: number) {
-    this.#bendRange = clamped(semitones, 1, 96, this.#bendRange);
+
+  /** An output's bend range, in semitones each way (2 for most, 48 for MPE), kept per device. */
+  bendOf(port: number): number {
+    return own(this.#bends, this.#nameOf(port)) ?? this.#bendRange;
+  }
+  setBend(port: number, semitones: number): void {
+    this.#bends = { ...this.#bends, [this.#nameOf(port)]: clamped(semitones, 1, 96, this.bendOf(port)) };
     this.#save();
   }
 
-  /** The channels notes rotate over (one per sounding note, for microtonal pieces on an MPE synth), or null. */
-  get rotate(): Stored['rotate'] {
-    return this.#rotate;
+  /** The channels an output's notes rotate over (one per sounding note, for microtonal pieces on an MPE synth), or null; kept per device. */
+  rotateOf(port: number): Range | null {
+    const name = this.#nameOf(port);
+    return Object.hasOwn(this.#rotates, name) ? this.#rotates[name]! : this.#rotate;
   }
-  set rotate(range: Stored['rotate']) {
-    this.#rotate = range && { from: clamped(range.from, 1, 16, 2), to: clamped(range.to, 1, 16, 16) };
+  setRotate(port: number, range: Range | null): void {
+    this.#rotates = { ...this.#rotates, [this.#nameOf(port)]: range && { from: clamped(range.from, 1, 16, 2), to: clamped(range.to, 1, 16, 16) } };
     this.warning = null;
     this.#save();
   }
 
-  /** Put a voice of the open piece on a channel, kept for that piece in this browser. */
-  setChannel(voice: string, ch: number): void {
+  /** The first output's bend range. */
+  get bendRange(): number {
+    return this.bendOf(1);
+  }
+  set bendRange(semitones: number) {
+    this.setBend(1, semitones);
+  }
+
+  /** The first output's rotation. */
+  get rotate(): Range | null {
+    return this.rotateOf(1);
+  }
+  set rotate(range: Range | null) {
+    this.setRotate(1, range);
+  }
+
+  /** The channels a voice of the open piece goes out on, on an output (1 the first): none, not sent there. */
+  channelsOf(voice: string, port: number): number[] {
+    return (this.table?.voices ?? []).filter((v) => v.voice === voice && v.port === port).map((v) => v.channel);
+  }
+
+  /** The channels the open piece's kit goes out on, on an output (1 the first): none, not sent there. */
+  kitChannelsOf(port: number): number[] {
+    return (this.table?.kits ?? []).filter((k) => k.port === port).map((k) => k.channel);
+  }
+
+  // keep a crossing of the matrix (a voice, or KIT) for the open piece: a channel on an output, 0 not sent there
+  #route(what: string, ch: number, port: number): void {
+    const key = this.#outputs[port - 1]?.key;
+    if (!key) return;
     const title = this.#piece?.title ?? '';
-    this.#channels = { ...this.#channels, [title]: { ...own(this.#channels, title), [voice]: clamped(ch, 1, 16, 1) } };
+    const mine = own(this.#routes, title) ?? {};
+    this.#routes = { ...this.#routes, [title]: { ...mine, [key]: { ...own(mine, key), [what]: ch } } };
     this.#save();
   }
 
-  /** The channel the open piece's kit goes on (10 unless put elsewhere), kept for that piece in this browser. */
-  get kitChannel(): number {
-    return own(this.#kits, this.#piece?.title ?? '') ?? 10;
+  /** Put a voice of the open piece on a channel of an output (1 the first; 0: not sent there), kept for that piece in this browser. */
+  setChannel(voice: string, ch: number, port = 1): void {
+    this.#route(voice, clamped(ch, 0, 16, 0), port);
   }
-  set kitChannel(ch: number) {
-    const title = this.#piece?.title ?? '';
-    this.#kits = { ...this.#kits, [title]: clamped(ch, 1, 16, 10) };
-    this.#save();
+
+  /** Put the open piece's kit on a channel of an output (1 the first; 0: not sent there), kept for that piece in this browser. */
+  setKitChannel(ch: number, port = 1): void {
+    this.#route(KIT, clamped(ch, 0, 16, 0), port);
   }
 
   /**
-   * The channel MIDI in's kit keys are on (1 … 16): the open piece's kit channel; a piece with MIDI cards names its own
-   * channels, so the pads stay on General MIDI's 10 there.
+   * The channel the open piece's kit goes on on the first output (10 unless put elsewhere; its MIDI card's, on a piece
+   * with cards), and so the channel MIDI in's kit keys are on; General MIDI's 10 when it goes on none there. Set: kept
+   * for that piece in this browser.
    */
-  get padChannel(): number {
-    return this.table?.byPiece ? 10 : this.kitChannel;
+  get kitChannel(): number {
+    return (this.table?.byPiece ? this.kitChannelsOf(1)[0] : this.#choices()[0]?.kit) || 10;
+  }
+  set kitChannel(ch: number) {
+    this.setKitChannel(clamped(ch, 1, 16, 10));
   }
 
-  /** The output's drum map (kept by the port's name): General MIDI note to the note it sends. */
+  /** The channel MIDI in's kit keys are on (1 … 16): `kitChannel`. */
+  get padChannel(): number {
+    return this.kitChannel;
+  }
+
+  /**
+   * Where thru echoes a key played live on a voice (the keys, `state/keys.svelte.ts`): every output and channel its row
+   * of the matrix goes to (a gate's, for a voice played through one), and the note it is there: a kit member's drum note
+   * through each output's drum map, else the key nearest the frequency it sounds. None: the voice isn't sent.
+   */
+  thruOf(voice: string, freq: number, kit: boolean, a4 = 440): { port: number; channel: number; note: number }[] {
+    const p = this.#piece;
+    const table = this.table;
+    if (!p || !table) return [];
+    if (kit) {
+      const gm = table.kit.find((k) => k.member === voice)?.note;
+      return gm === undefined ? [] : table.kits.map((k) => ({ port: k.port, channel: k.channel, note: deviceNote(this.drumsOf(k.port), gm) }));
+    }
+    const note = noteOf(freq, a4).note;
+    if (!(note >= 0 && note <= 127)) return [];
+    const rows = new Set(rowsOf(p.program, voice));
+    return table.voices.filter((v) => rows.has(v.voice)).map((v) => ({ port: v.port, channel: v.channel, note }));
+  }
+
+  /** Send a message to an output (1 the first), noting its channel for All notes off. */
+  sendTo(port: number, data: readonly number[]): void {
+    const c = this.#outputs[port - 1];
+    if (c) this.#sendTo(c.key, data);
+  }
+
+  /** The channels (1–16) MIDI in plays the kit on: every channel the open piece's kit goes on, on any output; none, `kitChannel`. */
+  get drumChannels(): readonly number[] {
+    const kits = (this.table?.kits ?? []).map((k) => k.channel);
+    return kits.length ? [...new Set(kits)] : [this.kitChannel];
+  }
+
+  /** The drum map of the device a message came from (by the port's name: kept with its output's), General MIDI if it has none. */
+  drumsFrom(source: string): DrumMap {
+    return own(this.#drums, source) ?? DRUM_PRESETS.GM!;
+  }
+
+  // the live output port named as an input is (a controller's other half), or null
+  #portNamed(name: string): MidiPort | null {
+    const p = this.access?.outputs.find((o) => o.name === name);
+    return p ? (this.access?.outputPort(p.id) ?? null) : null;
+  }
+
+  /** Whether an echo to a controller can go out: to its output port (by the input's name), or, from a knob learned before that was kept, the first output. */
+  reaches(controller: string | undefined): boolean {
+    return controller === undefined ? !!this.outPort : !!this.#portNamed(controller);
+  }
+
+  /** Send a learned knob's value back to its controller (motor faders, LED rings): to the output port of its name, not to a synth. */
+  echo(controller: string | undefined, data: readonly number[]): void {
+    if (controller === undefined) return this.send(data);
+    const port = this.#portNamed(controller);
+    try {
+      port?.send(data);
+      if (port) this.#flash(data);
+    } catch {
+      // (gone: its next statechange lets go of it)
+    }
+  }
+
+  /** An output's drum map (kept by its device's name): General MIDI note to the note it sends. */
+  drumsOf(port: number): DrumMap {
+    return this.#drums[this.columns[port - 1]?.name ?? ''] ?? DRUM_PRESETS.GM!; // (GM is one of the presets)
+  }
+  /** Set an output's drum map, kept for its device. */
+  setDrums(port: number, map: DrumMap): void {
+    const name = this.columns[port - 1]?.name;
+    if (name === undefined) return;
+    this.#drums = { ...this.#drums, [name]: map };
+    this.#save();
+  }
+
+  /** The first output's drum map (MIDI in reads a device's notes back through it). */
   get drums(): DrumMap {
-    return this.#drums[this.#out.name] ?? DRUM_PRESETS.GM!; // (GM is one of the presets)
+    return this.drumsOf(1);
   }
   set drums(map: DrumMap) {
-    this.#drums = { ...this.#drums, [this.#out.name]: map };
+    this.setDrums(1, map);
+  }
+
+  /** Send a General MIDI drum note as another, on an output (1 the first). */
+  setDrumNote(gm: number, note: number, port = 1): void {
+    if (Number.isFinite(note)) this.setDrums(port, { ...this.drumsOf(port), [gm]: clamped(note, 0, 127, 0) });
+  }
+
+  /** Whether an output is sent MIDI clock (kept by its device's name; off unless switched on). Off while playing: Stop. */
+  clockOf(port: number): boolean {
+    return this.#clock[this.columns[port - 1]?.name ?? ''] ?? false;
+  }
+  setClock(port: number, on: boolean): void {
+    const c = this.#outputs[port - 1];
+    if (!c) return;
+    if (!on) this.#stopClock(c.key);
+    this.#clock = { ...this.#clock, [c.name]: on };
     this.#save();
   }
 
-  /** Whether the output is sent MIDI clock (kept by the port's name; off unless switched on). Off while playing: Stop. */
+  /** Whether the first output is sent MIDI clock. */
   get sendClock(): boolean {
-    return this.#clock[this.#out.name] ?? false;
+    return this.clockOf(1);
   }
   set sendClock(on: boolean) {
-    if (!on) this.#stopClock();
-    this.#clock = { ...this.#clock, [this.#out.name]: on };
-    this.#save();
+    this.setClock(1, on);
   }
 
-  // Stop on the output, after the ticks already sent, if a run is going
-  #stopClock(): void {
-    const clock = this.outPort && this.#tone ? contextClock(this.#tone) : null;
-    if (clock) this.ticks.stop(this.#tone!.immediate(), clock.toDeviceMs);
+  /** Whether any output is sent MIDI clock. */
+  get clocking(): boolean {
+    return this.#outputs.some((_, i) => this.clockOf(i + 1));
   }
 
-  #slotChoice(slot: number): Chosen {
-    if (slot === 1) return this.#out;
-    const mine = own(this.#slots, this.#piece?.title ?? '');
-    return (mine && own(mine, String(slot))) || NONE;
+  // Stop on an output, after the ticks already sent, if a run is going
+  #stopClock(key: string): void {
+    const lane = this.#lanes.get(key);
+    const clock = lane && this.#tone && this.portOf(this.#portNumber(key)) ? contextClock(this.#tone) : null;
+    if (clock) lane!.ticks.stop(this.#tone!.immediate(), clock.toDeviceMs);
   }
 
-  /** The live port an output slot goes to now (slot 1: the default output), or null. */
-  slotPort(slot: number): MidiPort | null {
-    if (slot === 1) return this.outPort;
-    return this.access ? outputNow(this.access, this.#slotChoice(slot)) : null;
+  // an output's number now (1 the first), by its key; 0: gone
+  #portNumber(key: string): number {
+    return this.#outputs.findIndex((c) => c.key === key) + 1;
   }
 
-  /** Send an output slot of the open piece to a device by id (`'none'`: none), kept for that piece; slot 1 is the default output. */
-  chooseSlot(slot: number, id: string): void {
-    if (slot === 1) return this.chooseOutput(id);
-    if (id === this.#slotChoice(slot).id) return;
-    const out = this.#slotOuts.get(slot);
-    const clock = out && this.slotPort(slot) && this.#tone ? contextClock(this.#tone) : null;
-    if (clock) out!.panic(this.#tone!.immediate(), clock.toDeviceMs);
-    out?.forget();
-    const title = this.#piece?.title ?? '';
+  /** The live port an output (1 the first) sends to now, or null: none chosen, not plugged in, or no such output. */
+  portOf(port: number): MidiPort | null {
+    if (port === 1) return this.outPort;
+    const c = this.#outputs[port - 1];
+    return c && this.access ? outputNow(this.access, c) : null;
+  }
+
+  /** Send to a device by id (`'none'`: none) on the first output; what the old one may still hold is silenced first. */
+  chooseOutput(id: string): void {
+    this.chooseDevice(1, id);
+  }
+
+  /**
+   * Send an output (1 the first; on a piece's MIDI cards, its slot) to a device by id (`'none'`: none); what the old one
+   * may still hold is silenced first, and its clock stopped. An output past the last is added, with the ones before it.
+   */
+  chooseDevice(port: number, id: string): void {
+    const at = this.#outputs[port - 1];
+    if (at && id === at.id) return;
+    if (at) this.#silence(at.key);
     const name = id === 'none' ? '' : (this.ports.outputs.find((p) => p.id === id)?.name ?? '');
-    this.#slots = { ...this.#slots, [title]: { ...own(this.#slots, title), [slot]: { id, name } } };
+    const outputs = [...this.#outputs];
+    while (outputs.length < port) outputs.push({ key: this.#newKey(outputs), ...NONE });
+    outputs[port - 1] = { key: outputs[port - 1]!.key, id, name };
+    this.#outputs = outputs;
+    this.#save();
+    if (port === 1) this.outPort = id === 'none' ? null : (this.access?.outputPort(id) ?? null);
+  }
+
+  /** Add an output sending to a device by id; nothing is routed to it until chosen in the matrix. */
+  addOutput(id: string): void {
+    if (this.#outputs.length >= 16) return;
+    this.chooseDevice(this.#outputs.length + 1, id);
+  }
+
+  /** Remove an output (1 the first: the next becomes the first), silencing it; the routing kept for it goes too. Never the last. */
+  removeOutput(port: number): void {
+    const c = this.#outputs[port - 1];
+    if (!c || this.#outputs.length < 2) return;
+    this.#silence(c.key);
+    this.#lanes.delete(c.key);
+    this.#used.delete(c.key);
+    this.#outputs = this.#outputs.filter((o) => o !== c);
+    this.#routes = Object.fromEntries(Object.entries(this.#routes).map(([t, r]) => [t, Object.fromEntries(Object.entries(r).filter(([k]) => k !== c.key))]));
+    if (port === 1) this.outPort = this.access ? outputNow(this.access, this.#first) : null;
     this.#save();
   }
 
-  #slotOut(slot: number): MidiOut {
-    let out = this.#slotOuts.get(slot);
-    if (!out)
-      this.#slotOuts.set(
-        slot,
-        (out = new MidiOut({
-          send: (data, timestamp) => {
-            try {
-              this.slotPort(slot)?.send(data, timestamp);
-              this.#flash(data, timestamp);
-            } catch {
-              // (gone: its next statechange lets go of it)
-            }
-          },
-        })),
-      );
-    return out;
+  #newKey(outputs: readonly Column[]): string {
+    let n = outputs.length + 1;
+    while (outputs.some((c) => c.key === `o${n}`)) n++;
+    return `o${n}`;
   }
 
-  /** Send a General MIDI drum note as another, on this output. */
-  setDrumNote(gm: number, note: number): void {
-    if (Number.isFinite(note)) this.drums = { ...this.drums, [gm]: clamped(note, 0, 127, 0) };
+  // an output about to change or go: its clock stopped, All notes off on what it sent, and what it held forgotten
+  #silence(key: string): void {
+    this.#stopClock(key);
+    if (this.#used.get(key)?.size) this.#panicLane(key);
+    // (what the old one was left ahead is its own business)
+    this.#lanes.get(key)?.out.forget();
+    this.#used.delete(key);
   }
 
-  /** A window's notes and clock ticks from the player (NoteSink): sent to the output, timestamped for when they're heard. */
+  #lane(key: string): Lane {
+    let lane = this.#lanes.get(key);
+    if (!lane) {
+      const send = { send: (data: readonly number[], timestamp?: number) => this.#sendTo(key, data, timestamp) };
+      this.#lanes.set(key, (lane = { out: new MidiOut(send), ticks: new ClockOut(send) }));
+    }
+    return lane;
+  }
+
+  /** A window's notes and clock ticks from the player (NoteSink): sent to every output, timestamped for when they're heard. */
   play(T: ToneNS, events: readonly Played[], until: number, ticks: ClockTicks | null = null): void {
     this.#tone = T;
-    const slots = (this.table?.ports ?? []).filter((n) => n !== 1 && this.slotPort(n));
-    const clock = (this.outPort || slots.length) && this.#piece ? contextClock(T) : null;
+    const live = this.#outputs.flatMap((c, i) => (this.portOf(i + 1) ? [{ c, port: i + 1 }] : []));
+    const clock = live.length && this.#piece ? contextClock(T) : null;
     if (!clock) return;
     clock.update();
     const at = T.immediate();
     const table = this.table;
-    if (table && table !== this.#routed) {
+    const layout = this.#outputs.map((c) => c.key).join();
+    if (table && (table !== this.#routed || layout !== this.#routedFor)) {
       // a recompile (an edit, a mute, a held free() moved) routes the next notes anew and keeps what's held; a channel
       // table that says something else silences first
       const as = JSON.stringify(table);
       if (as !== this.#routedAs) {
-        if (this.#routedAs !== null) for (const out of [this.out, ...this.#slotOuts.values()]) out.panic(at, clock.toDeviceMs);
+        if (this.#routedAs !== null) for (const lane of this.#lanes.values()) lane.out.panic(at, clock.toDeviceMs);
         this.warning = null;
-        this.out.onClash = () =>
-          (this.warning = 'Notes with different bends overlap on one channel, so some sound out of tune. Rotate the notes over channels (for an MPE synth) to give each its own.');
       }
-      [this.#routed, this.#routedAs] = [table, as];
-      // (a piece's MIDI cards: each output slot sends the entries on it; slot 1, the default output, those that name none)
+      [this.#routed, this.#routedFor, this.#routedAs] = [table, layout, as];
+      // (each output sends the routes on it: on a piece's MIDI cards, those of its slot)
       const route = router(this.#piece!.program, table);
-      const onSlot = (n: number) => (e: Played) => routesOf(route(e)).filter((r) => (r.port ?? 1) === n);
-      this.out.setRoute(table.byPiece ? onSlot(1) : route);
-      for (const n of table.ports ?? []) if (n !== 1) this.#slotOut(n).setRoute(onSlot(n));
+      this.#outputs.forEach((c, i) => {
+        const out = this.#lane(c.key).out;
+        out.setRoute((e) => routesOf(route(e)).filter((r) => (r.port ?? 1) === i + 1));
+        out.onClash = () =>
+          (this.warning = `Notes with different bends overlap on one channel of output ${i + 1}${c.name ? ` (${c.name})` : ''}, so some sound out of tune. Rotate its notes over channels (for an MPE synth) to give each its own.`);
+      });
     }
-    // (rotation is for a default output's microtonal voices: a piece's MIDI cards say the channels themselves)
-    const rotate = !table?.byPiece && this.#rotate ? rotationChannels(this.#rotate.from, this.#rotate.to, !!table?.kit.length, table?.kitChannel) : null;
-    if (this.outPort) {
-      this.out.setOptions({ drums: this.drums, bendRange: this.#bendRange, rotate }, at, clock.toDeviceMs);
-      for (const e of events) this.out.play(e, clock.toDeviceMs);
-      this.out.advance(until, clock.toDeviceMs, at);
+    for (const { c, port } of live) {
+      const lane = this.#lane(c.key);
+      // (rotation is for voices routed here: a piece's MIDI cards say the channels themselves)
+      const kit = this.kitChannelsOf(port);
+      const range = this.rotateOf(port);
+      const rotate = !table?.byPiece && range ? rotationChannels(range.from, range.to, kit.length > 0, kit[0]) : null;
+      lane.out.setOptions({ drums: this.drumsOf(port), bendRange: this.bendOf(port), rotate }, at, clock.toDeviceMs);
+      for (const e of events) lane.out.play(e, clock.toDeviceMs);
+      lane.out.advance(until, clock.toDeviceMs, at);
+      if (this.clockOf(port)) lane.ticks.play(ticks, clock.toDeviceMs);
+      else lane.ticks.stop(at, clock.toDeviceMs);
     }
-    for (const n of slots) {
-      const out = this.#slotOut(n);
-      out.setOptions({ drums: this.#drums[this.#slotChoice(n).name] ?? DRUM_PRESETS.GM!, bendRange: this.#bendRange, rotate: null }, at, clock.toDeviceMs);
-      for (const e of events) out.play(e, clock.toDeviceMs);
-      out.advance(until, clock.toDeviceMs, at);
-    }
-    if (!this.outPort) return;
-    if (this.sendClock) this.ticks.play(ticks, clock.toDeviceMs);
-    else this.ticks.stop(at, clock.toDeviceMs);
   }
 
   /** The player stopped (NoteSink): All notes off now, and a note-off for each note still held; nothing later, so a resume or a seek isn't cut. */
   stop(T: ToneNS): void {
     this.#tone = T;
-    const slotClock = this.#slotOuts.size ? contextClock(T) : null;
-    for (const [n, out] of this.#slotOuts)
-      if (this.slotPort(n) && slotClock) out.panic(T.immediate(), slotClock.toDeviceMs);
-      else out.forget();
-    const clock = this.outPort ? contextClock(T) : null;
-    if (!clock) return this.out.forget();
-    this.out.panic(T.immediate(), clock.toDeviceMs);
-    this.ticks.stop(T.immediate(), clock.toDeviceMs);
-  }
-
-  /** Send to an output by id (`'none'`: none); what the old one may still hold is silenced first. */
-  chooseOutput(id: string): void {
-    if (id !== this.#out.id) this.#stopClock();
-    if (id !== this.#out.id && this.#used.size) this.panic();
-    // (what the old one was left ahead is its own business)
-    if (id !== this.#out.id) this.out.forget();
-    this.#out = { id, name: id === 'none' ? '' : (this.ports.outputs.find((p) => p.id === id)?.name ?? '') };
-    this.#save();
-    this.outPort = id === 'none' ? null : (this.access?.outputPort(id) ?? null);
+    const clock = this.canPanic ? contextClock(T) : null;
+    for (const [key, lane] of this.#lanes)
+      if (clock && this.portOf(this.#portNumber(key))) {
+        lane.out.panic(T.immediate(), clock.toDeviceMs);
+        lane.ticks.stop(T.immediate(), clock.toDeviceMs);
+      } else lane.out.forget();
   }
 
   /** Listen to an input by id, `'all'` or `'none'`. */
@@ -511,11 +749,14 @@ export class Midi implements ChosenPorts, NoteSink {
     if (data[0]! >= 0x80 && data[0]! < 0xf0) this.activity.hit('out', timestamp);
   }
 
-  /** Send a message to the output, noting its channel for All notes off. A port unplugged mid-send throws: nothing is sent. */
-  send(data: readonly number[], timestamp?: number): void {
-    const port = this.outPort;
+  // send to an output (by key), noting its channel for All notes off; a port unplugged mid-send throws: nothing is sent
+  #sendTo(key: string, data: readonly number[], timestamp?: number): void {
+    const port = this.portOf(this.#portNumber(key));
     if (!port) return;
-    if (data[0]! >= 0x80 && data[0]! < 0xf0) this.#used.add(data[0]! & 0x0f);
+    if (data[0]! >= 0x80 && data[0]! < 0xf0) {
+      const used = this.#used.get(key) ?? new Set<number>();
+      this.#used.set(key, used.add(data[0]! & 0x0f));
+    }
     try {
       port.send(data, timestamp);
       this.#flash(data, timestamp);
@@ -524,32 +765,30 @@ export class Midi implements ChosenPorts, NoteSink {
     }
   }
 
+  /** Send a message to the first output (thru, a learned knob's echo), noting its channel for All notes off. */
+  send(data: readonly number[], timestamp?: number): void {
+    this.#sendTo(this.#first.key, data, timestamp);
+  }
+
   /**
-   * All notes off (CC 123) on every channel sent on since the last time, or on all 16 if none was; then they are
-   * forgotten. While playing, a note-off goes too for each note sent ahead, at its start, which CC 123 now can't reach.
+   * All notes off (CC 123), on every output: on every channel sent on there since the last time, or on all 16 if none
+   * was; then they are forgotten. While playing, a note-off goes too for each note sent ahead, at its start, which CC
+   * 123 now can't reach.
    */
   panic(): void {
     this.#letGoAll();
-    // (the piece's other output slots: what was sent there, and All notes off on every channel)
-    for (const [n, out] of this.#slotOuts) {
-      const slot = this.slotPort(n);
-      const clock = slot && this.#tone ? contextClock(this.#tone) : null;
-      if (clock) out.panic(this.#tone!.immediate(), clock.toDeviceMs);
-      else out.forget();
-      if (slot)
-        for (const c of ALL_CHANNELS)
-          try {
-            slot.send([0xb0 | c, 123, 0]);
-          } catch {
-            continue; // (one channel's failed send doesn't leave the others sounding)
-          }
-    }
-    const port = this.outPort;
+    for (const c of this.#outputs) this.#panicLane(c.key);
+  }
+
+  #panicLane(key: string): void {
+    const port = this.portOf(this.#portNumber(key));
+    const lane = this.#lanes.get(key);
     const clock = port && this.#tone ? contextClock(this.#tone) : null;
-    if (clock) this.out.panic(this.#tone!.immediate(), clock.toDeviceMs);
-    else this.out.forget();
-    const channels = this.#used.size ? [...this.#used] : ALL_CHANNELS;
-    this.#used.clear();
+    if (clock) lane?.out.panic(this.#tone!.immediate(), clock.toDeviceMs);
+    else lane?.out.forget();
+    const used = this.#used.get(key);
+    const channels = used?.size ? [...used] : ALL_CHANNELS;
+    this.#used.delete(key);
     if (!port) return;
     for (const c of channels)
       try {
@@ -587,16 +826,16 @@ export class Midi implements ChosenPorts, NoteSink {
   #save(): void {
     try {
       const kept: Stored = {
-        out: this.#out,
+        outputs: this.#outputs,
         in: this.#in,
-        channels: this.#channels,
-        kits: this.#kits,
+        routes: this.#routes,
         drums: this.#drums,
         internal: this.#internal,
         bendRange: this.#bendRange,
         rotate: this.#rotate,
+        bends: this.#bends,
+        rotates: this.#rotates,
         clock: this.#clock,
-        slots: this.#slots,
       };
       localStorage.setItem(storageKey(KEY), JSON.stringify(kept));
     } catch {

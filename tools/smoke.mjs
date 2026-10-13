@@ -372,7 +372,7 @@ const CARD_ONLY = { voice: 'sub', channel: 2 };
 }
 // MIDI in (#207): a fake input, played with `window.midiIn(bytes)` on a stopped piece. A key sounds the armed voice (the
 // first cell that plays: sailor's &tune, on &fiddle) and takes the transport to paused; its note-off lets it go; thru
-// echoes both. Made-to-analysed time of a live note (the second: the first wakes the sound engine), and the output's
+// echoes both where the routing matrix sends &fiddle (put on channel 2 here). Made-to-analysed time of a live note (the second: the first wakes the sound engine), and the output's
 // own latency, reported.
 {
   problems = [];
@@ -387,8 +387,15 @@ const CARD_ONLY = { voice: 'sub', channel: 2 };
     window.midiIn = (bytes) => input.onmidimessage?.({ data: new Uint8Array(bytes), timeStamp: performance.now() });
     navigator.requestMIDIAccess = () => Promise.resolve({ inputs: new Map([['fake-in', input]]), outputs: new Map([['fake-out', out]]), onstatechange: null });
     Object.defineProperty(navigator, 'permissions', { value: { query: async () => ({ state: 'granted' }) }, configurable: true }); // (a page load reconnects only once MIDI is granted)
-    localStorage.setItem('cell-studio:midi', JSON.stringify({ out: { id: 'fake-out', name: 'Fake synth' }, in: { id: 'fake-in', name: 'Fake keys' } }));
-    localStorage.setItem('cell-studio:keys', JSON.stringify({ thru: true, thruChannel: 2 }));
+    localStorage.setItem(
+      'cell-studio:midi',
+      JSON.stringify({
+        outputs: [{ key: 'o1', id: 'fake-out', name: 'Fake synth' }],
+        in: { id: 'fake-in', name: 'Fake keys' },
+        routes: { 'Drunken Sailor: D Dorian, with a kit': { o1: { fiddle: 2 } } },
+      }),
+    );
+    localStorage.setItem('cell-studio:keys', JSON.stringify({ thru: true }));
     window.__ctx = [];
     const A = window.AudioContext;
     window.AudioContext = class extends A {

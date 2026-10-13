@@ -19,11 +19,11 @@
 
   const { piece, playback, view, recorder, midi } = getStudio();
   const midiName = $derived(
-    midi.access && (midi.inPortId !== 'none' || midi.outPortId !== 'none')
-      ? `MIDI: ${[midi.inPortId !== 'none' ? 'in' : '', midi.outPortId !== 'none' ? 'out' : ''].filter(Boolean).join(', ')}`
+    midi.access && (midi.inPortId !== 'none' || midi.sending)
+      ? `MIDI: ${[midi.inPortId !== 'none' ? 'in' : '', midi.sending ? 'out' : ''].filter(Boolean).join(', ')}`
       : 'MIDI: not connected',
   );
-  const midiLive = $derived(!!midi.access && (midi.outPortId !== 'none' || midi.inPortId !== 'none'));
+  const midiLive = $derived(!!midi.access && (midi.sending || midi.inPortId !== 'none'));
   const title = $derived(piece.title);
   const playing = $derived(playback.playing);
   const starting = $derived(playback.starting);

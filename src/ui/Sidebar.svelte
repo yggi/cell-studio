@@ -14,7 +14,7 @@
   import FilePanel from './FilePanel.svelte';
 
   const { view, library, dock, midi } = getStudio();
-  const live = $derived(!!midi.access && (midi.outPortId !== 'none' || midi.inPortId !== 'none'));
+  const live = $derived(!!midi.access && (midi.sending || midi.inPortId !== 'none'));
   const PAGES: readonly (readonly [Panel, string])[] = [
     ['controls', 'Controls'],
     ['midi', 'MIDI'],
