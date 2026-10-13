@@ -31,7 +31,7 @@ const onTheWay = (r: CompileResult) =>
  */
 const wired = (r: CompileResult, f: Flow) => {
   // (a MIDI card's entries carry notes, not sound: the MIDI sink reads them, sync wires nothing)
-  if (f.kind === 'channel' || f.kind === 'part' || f.kind === 'midi') return false;
+  if (f.kind === 'channel' || f.kind === 'midi') return false;
   if (f.kind !== 'mix') return true;
   if (isHead(r, f.from))
     return !!flows(r)

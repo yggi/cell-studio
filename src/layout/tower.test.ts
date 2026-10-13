@@ -9,13 +9,13 @@ const SONG = `
 &major scale(major)
 &lead s=saw loop=C4
 &bass s=saw loop=C2
-&tune over=&major step=&bar 0 2 4 5
-&roots step=&bar 0
+&parts step=&bar &tuneBar &bassBar
+&tune over=&major step=&tuneBar 0 2 4 5
+&roots step=&bassBar 0
 &tunePart [&tune * &lead * .3]
 &bassPart [&roots * &bass * .5]
-&parts &tunePart &bassPart
 &song over=&parts step=&bar/4 laps=1 [1] [0,1] [0,1]
-&out loop=SAMPLE_RATE map=sample &song
+&out loop=SAMPLE_RATE map=sample [&tunePart, &bassPart]
 `;
 
 const tower = (src: string, at?: Parameters<typeof towerOf>[2]) => {
@@ -45,9 +45,9 @@ describe('the frequency tower', () => {
     expect(10 ** at('tune')).toBeCloseTo(100 / 60 / 4, 3); // four steps
   });
 
-  it("emit: what carries sound sits by the sound it carries, not its clock (the selector, today's spelling)", () => {
-    expect(tower(SONG, 'step').at('song')).toBeLessThan(0);
-    expect(tower(SONG, 'emit').at('song')).toBeGreaterThan(tower(SONG, 'emit').at('bass'));
+  it('emit: what carries sound (a mix) sits by the sound it carries; a selector switches time, not sound, and stays low (decision 016)', () => {
+    expect(tower(SONG, 'emit').at('bassPart')).toBeGreaterThan(tower(SONG, 'emit').at('bass'));
+    expect(tower(SONG, 'emit').at('song')).toBeLessThan(0);
   });
 
   it('rows: higher on the tower, a higher row; zones first, then the signal path', () => {

@@ -5,9 +5,6 @@ import { refsOf } from '../readers';
 import type { CellDecl } from '../ast';
 import type { Cells, Ctx } from './context';
 
-/** How the old arrangement's error begins (Shorten's rewrite knows it: shorten/arrange.ts). */
-export const SELECTOR_OF_MIXES = "A selector switches taps of a meter's bus now (decision 016):";
-
 export function checkCells(ctx: Ctx, decls: ReadonlyMap<string, CellDecl>, cells: Cells, taps: ReadonlyMap<string, string> = new Map()): void {
   const { error, warn, unknownCell } = ctx;
   // resonators: body= one of the known bodies; couple= another resonator; excite= a mix
@@ -112,26 +109,16 @@ export function checkCells(ctx: Ctx, decls: ReadonlyMap<string, CellDecl>, cells
     if (d.map?.kind === 'edo' && (d.over !== null || d.braid.kind !== 'blank'))
       error(`A grid (map=edo, map=ed(r)) reads nothing and has no braid: &${d.name} cycle=19 map=edo`, d.map.span);
   // a table is its numbers: cells spliced into one are skipped when it is read (over=), unless it is a
-  // kit (a table of voices) or a selector's parts (a table of mixes)
+  // kit (a table of voices) or a table of taps (its entries are clocks, a selector switches them: decision 016)
   for (const d of decls.values()) {
     const t = d.over ? cells.get(d.over.name) : undefined;
     if (!t || t.kit) continue;
     const refs = refsOf(t);
-    if (!refs.length || refs.every((r) => cells.get(r)?.mix && !cells.get(r)?.sink)) continue;
-    // (a table of taps: its entries are clocks, a selector switches them: decision 016)
-    if (refs.every((r) => taps.get(r) === t.name)) continue;
+    // (a selector of mixes, the form before decision 016, has said so already: declare.ts)
+    if (!refs.length || refs.every((r) => taps.get(r) === t.name) || ctx.broken.has(d.name)) continue;
     const listed = [...new Set(refs)].map((r) => '&' + r).join(' ');
     warn(
       `&${t.name} is read as a table, but its cells (${listed}) aren't entries: a table is its numbers. To play cells one after another, splice them into a braid (&${d.name} ${listed}); choosing a melody per step isn't built yet (#29)`,
-      d.over!.span,
-    );
-  }
-  // the old arrangement (a selector reading a table of mixes, their sound through it): arranged at the input now
-  for (const d of decls.values()) {
-    const t = d.over ? cells.get(d.over.name) : undefined;
-    if (!t || !t.units.length || !t.units.every((u) => u.atom.kind === 'ref' && cells.get(u.atom.name)?.mix && !cells.get(u.atom.name)?.sink)) continue;
-    error(
-      `${SELECTOR_OF_MIXES} &${d.name} over=&${t.name} reads mixes; write &${t.name} step=&bar with a tap per part (&keysBar …), step each part's cells by its tap, and play the parts straight into the sound card (Shorten rewrites it)`,
       d.over!.span,
     );
   }
