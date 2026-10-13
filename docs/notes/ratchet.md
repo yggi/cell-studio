@@ -15,7 +15,8 @@ taken. With passages at another speed (#345): the examples 56,422 (56,513 after 
 taken. With sections by key taken for reading (#346, at 15 % longer at most): the MIDI library 184,880, the examples
 unchanged. With the disassembler's corpus (#367, [disassembler.md](disassembler.md)): repeats played (21 files rebuilt
 from their LilyPond sources) and the Musical Offering's two ricercars, 88 files, **every fold taken**, the score 204,121
-(Anna Magdalena 15,099 → 16,032 for nearly twice the notes).
+(Anna Magdalena 15,099 → 16,032 for nearly twice the notes). A line a voice where shorter (#366): the MIDI library
+198,957, the examples 56,286 (phrases back 65).
 
 `tools/probe/ratchet.test.ts` takes every example the way a MIDI file comes into the app (saved as MIDI and opened
 again: `pieceMidi` → `writeMidi` → `readMidi` → `cellsFromMidi`), folds it with today's Shorten (`shortenAll`), and scores

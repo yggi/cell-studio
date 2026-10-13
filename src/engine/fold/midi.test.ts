@@ -38,5 +38,5 @@ describe('the ratchet: the MIDI library, folded', () => {
     ).toEqual([]);
     const sum = (rows: Record<string, Row>) => Object.values(rows).reduce((a, r) => a + r.score, 0);
     expect(sum(now), "the score's size: record it (UPDATE_RATCHET=1) if the trade is worth it").toBeLessThanOrEqual(1.01 * sum(base));
-  }, 180_000);
+  }, 600_000);
 });

@@ -131,6 +131,10 @@ as MIDI** in the Files page.
     section's key (`&upB over=&key2`), the line splicing its parts in order (`&up step=&tempo &upA &upB@2 &upC`). It
     is taken where at most 15 % longer than the shortest fold without (it reads as the piece's form); the status line
     names the sections' keys.
+  - *In voices* (#366): where a track holds several voices (a fugue's hands), the notes are given to voices
+    (`fold/voices.ts`: as many as sound at once, each note to the free voice it moves least) and folded a line a voice
+    (`&soprano`, `&alto` …), taken where shorter than a line a track: a subject stays in one line, whichever hand
+    plays it.
   - *At another speed* (#345): a passage of 12 steps or more whose notes all share a length (eighths among sixteenths)
     is a cell at its own speed, spliced slower: `&m3^$-7@2`; the same passage at two speeds is one cell.
 

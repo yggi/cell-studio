@@ -44,3 +44,28 @@ export function sameKey(k: Key, tonality: string): boolean {
   const [a, b] = [parse(keyName(k)), parse(tonality)];
   return a.tonic === b.tonic && a.minor === b.minor;
 }
+
+/**
+ * How far voices found agree with the voices written (a file a track a voice each; notes matched by when, in quarter
+ * notes, and pitch): of the pairs of notes one after the other in a voice found, the share one after the other in a
+ * voice written too (precision), and the other way round (recall).
+ */
+export function voiceAgreement(found: Smf, written: Smf): { precision: number; recall: number } {
+  const id = (smf: Smf, tick: number, key: number) => `${Math.round((tick / smf.ppq) * 48)}:${key}`;
+  // (a note's voices: unisons in two voices are two notes at one place)
+  const voicesOf = (smf: Smf) => {
+    const at = new Map<string, number[]>();
+    smf.tracks.forEach((t, v) => t.notes.forEach((n) => at.set(id(smf, n.tick, n.key), [...(at.get(id(smf, n.tick, n.key)) ?? []), v])));
+    return at;
+  };
+  const pairs = (smf: Smf) =>
+    smf.tracks.flatMap((t) => {
+      const ns = [...t.notes].sort((a, b) => a.tick - b.tick || b.key - a.key);
+      return ns.slice(1).map((n, i) => [id(smf, ns[i]!.tick, ns[i]!.key), id(smf, n.tick, n.key)] as const);
+    });
+  const share = (ps: readonly (readonly [string, string])[], other: Map<string, number[]>) => {
+    const known = ps.filter(([a, b]) => other.has(a) && other.has(b));
+    return known.length ? known.filter(([a, b]) => other.get(a)!.some((v) => other.get(b)!.includes(v))).length / known.length : 0;
+  };
+  return { precision: share(pairs(found), voicesOf(written)), recall: share(pairs(written), voicesOf(found)) };
+}

@@ -229,7 +229,8 @@ the nearest free voice"), and what fails is the split, not the voices.
   - At each onset, the starting notes go to the free voices in order, each voice moving as little as it can.
   - Crossing a sounding voice costs extra.
   - A voice not heard yet starts from its register.
-- The importer folds a line a track and a line a voice (`split: 'auto'`) and takes the shorter.
+- The importer folds a line a track and a line a voice (`split: 'auto'`) and takes the shorter: the MIDI library
+  204,121 → 198,957 (−2.5 %), the examples unchanged in what they keep and bring back (fold.md, *Voices*).
 
 **Keys:** 65 of 69 files right (one key for the piece, `bestKey`); Inventions 2 and 9, Sinfonia 7 and the WTC I/12
 fugue are named otherwise.

@@ -18,6 +18,9 @@ function notesOf(source: string) {
     .map((e) => ({ key: e.freq > 0 ? noteOf(e.freq).note : -1, voice: e.voice, at: e.at, dur: e.dur }))
     .sort((a, b) => a.at - b.at || a.key - b.key);
 }
+/** What a piece plays, whatever voice plays it (a line a voice and a line a track play the same notes on voices named
+ * otherwise). */
+const played = (source: string) => notesOf(source).map(({ key, at, dur }) => ({ key, at, dur }));
 
 const file = (tracks: Smf['tracks'], tempos: Smf['tempos'] = [{ tick: 0, micros: 500_000 }]): Smf => ({ format: 1, ppq: 96, tracks, tempos, meters: [] });
 const notes = (channel: number, list: [number, number, number][]) => list.map(([key, tick, end]) => ({ channel, key, velocity: 100, tick, end }));
@@ -169,14 +172,35 @@ describe('the fold watched as it runs (Convert to cells, live)', () => {
     // (the first: every note written out, nothing folded yet; the last shorter)
     expect(steps[0].source).not.toMatch(/^&m\d/m);
     expect(steps.at(-1)!.source.length).toBeLessThan(steps[0].source.length);
-    // (three folds, in semitones, in degrees of its key and in sections by key, each to its end; then the one taken)
+    // (three folds, in semitones, in degrees of its key and in sections by key, each to its end, a line a hand and a
+    // line a voice; then the one taken)
     expect(new Set(steps.map((s) => s.tool.replace(/, in .*$/, '')))).toEqual(
       new Set(['start', 'clocks', 'passages at another speed', 'phrases and their variants', 'pairs', 'taking back what doesn’t pay', 'folded', 'done']),
     );
     expect(steps.some((s) => s.tool.endsWith('in degrees of C minor'))).toBe(true);
     expect(steps.some((s) => / sections by key$/.test(s.tool))).toBe(true);
+    // (and a line a voice: the fugue's three voices, not its two hands, #366)
+    expect(steps.some((s) => s.tool.endsWith(', in voices'))).toBe(true);
     // every step a piece that plays the same notes (a dozen of them, spread over the fold)
-    const flat = JSON.stringify(notesOf(steps[0].source));
-    for (let i = 0; i < steps.length; i += Math.ceil(steps.length / 12)) expect(JSON.stringify(notesOf(steps[i].source)), `${i}: ${steps[i].tool}`).toBe(flat);
+    const flat = JSON.stringify(played(steps[0].source));
+    for (let i = 0; i < steps.length; i += Math.ceil(steps.length / 12)) expect(JSON.stringify(played(steps[i].source)), `${i}: ${steps[i].tool}`).toBe(flat);
+  });
+});
+
+describe('a long rest (a voice that enters late in a long piece)', () => {
+  it('is written in holds the parser takes, and plays', () => {
+    const smf: Smf = {
+      format: 1,
+      ppq: 4,
+      tracks: [
+        { name: 'early', notes: [{ channel: 1, key: 60, velocity: 90, tick: 0, end: 4 }], bends: [], programs: [] },
+        { name: 'late', notes: [{ channel: 1, key: 67, velocity: 90, tick: 4999, end: 5000 }], bends: [], programs: [] },
+      ],
+      tempos: [],
+      meters: [],
+    };
+    const made = cellsFromMidi(smf, 'late');
+    expect(made.source).toMatch(/&late step=&tempo ~@4096 ~@903 7/);
+    expect(compileSource(made.source).ok).toBe(true);
   });
 });
