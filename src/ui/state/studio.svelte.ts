@@ -80,7 +80,12 @@ export class Studio {
 
   constructor() {
     // `window.cellStudio`, for measuring from outside (docs/testing.md): the open piece as written
-    installDebugHook(() => this.piece.result, this.playback.player, this.recorder);
+    installDebugHook(
+      () => this.piece.result,
+      this.playback.player,
+      this.recorder,
+      (source, name) => this.openSource(source, name),
+    );
     // MIDI out: the notes the player plays go to the output chosen too
     this.midi.attach(this.playback.player, this.piece);
   }
@@ -160,6 +165,16 @@ export class Studio {
     } catch {
       if (mine === this.#choice) this.view.message = `Couldn’t read ${file.name}.`;
     }
+  }
+
+  /**
+   * A piece's code from outside, as a string (`cellStudio.open`: a jam's client, #406), opened as a file of that
+   * `name` is: the piece open now, laid out afresh, stopped; what was open is replaced as a file replaces it, unasked
+   * and unsaved (a piece saved here stays saved). A card or a file still being read gives way to it.
+   */
+  openSource(source: string, name = fileName(source)): void {
+    ++this.#choice;
+    this.#opened({ kind: 'file', name }, source);
   }
 
   /** Save the code as a .cells file; a MIDI file's text as the MIDI file. */

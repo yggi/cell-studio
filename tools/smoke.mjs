@@ -11,6 +11,7 @@
 //   npm run smoke -- --list                   # which pieces play in full, and what each brings
 //   ENGINE=worker npm run smoke               # with the engine in a Web Worker (?engine=worker, #15)
 //
+// Then a piece from outside (#406): a string of code opened with `cellStudio.open` over a piece playing, as a file opens.
 // Then MIDI out (#205): one piece played into a fake Web MIDI port, its note-ons checked against the plan's notes
 // (tools/smoke-midi.ts) each within 2 ms of its neighbour (a slow drift followed, and one step of a clock jump up to 50 ms); then the
 // tempo (a held free()) moved and Pause and Play again within the look-ahead (twice, the second at once), with no All notes off from either
@@ -142,6 +143,52 @@ if (only.length === 0 && SWITCH.every((id) => pieces.some((p) => p.id === id))) 
   const ok = problems.length === 0;
   console.log(`${ok ? 'ok  ' : 'FAIL'} switch: ${SWITCH.join(' → ')}${ok ? '' : '\n       ' + [...new Set(problems)].slice(0, 3).join('\n       ')}`);
   if (!ok) failed.push('the piece switch');
+}
+// A piece from outside (#406): `cellStudio.open(source)` on a card that is playing opens a string of code as a file
+// opens: the transport stops, the editor shows the string, the graph draws its cells, and Play sounds them. A string
+// that doesn't compile opens too, as a file's would, and says so.
+const OUTSIDE = '&piece title="From outside"\n&tune step=3 0 4 7 12\n&lead s=sine loop=C5\n&out map=sample [&tune * &lead * .5]\n';
+{
+  problems = [];
+  const op = await browser.newPage({ viewport: { width: 1280, height: 800 } });
+  op.setDefaultTimeout(8000);
+  op.on('pageerror', (e) => problems.push(`page error: ${e.message}`));
+  op.on('console', (m) => m.type() === 'error' && problems.push(`console error: ${m.text()}`));
+  let note = '';
+  try {
+    await op.goto(url);
+    await op.getByRole('radio', { name: 'Cards' }).click();
+    await op.locator(`button.open[data-id="${pieces[0].id}"]`).dispatchEvent('click');
+    await op.waitForTimeout(300);
+    const transport = op.locator('.transport');
+    await transport.getByRole('button', { name: 'Play' }).first().click();
+    await op.waitForFunction(() => window.cellStudio.transport().state === 'playing');
+    const opened = await op.evaluate((src) => window.cellStudio.open(src), OUTSIDE);
+    if (!opened.ok) problems.push(`it did not compile: ${opened.errors.join('; ')}`);
+    await op.waitForTimeout(300);
+    const state = await op.evaluate(() => window.cellStudio.transport().state);
+    if (state === 'playing') problems.push('the transport still plays the piece before');
+    const code = await op.evaluate(() => document.querySelector('textarea')?.value ?? '');
+    if (code !== OUTSIDE) problems.push(`the editor shows ${JSON.stringify(code.slice(0, 60))}, not the string`);
+    const drawn = await op.$$eval('.svelte-flow__node', (ns) => ns.map((n) => n.dataset.id));
+    const cells = ['tune', 'lead', 'out'].filter((c) => !drawn.includes(`cell:${c}`));
+    if (cells.length) problems.push(`the graph has no node for ${cells.join(', ')} (it has ${drawn.join(', ')})`);
+    await transport.getByRole('button', { name: 'Play' }).first().click();
+    await op.waitForFunction(() => (window.cellStudio.level('lead') ?? 0) > 0.01).catch(() => problems.push('&lead does not sound on Play'));
+    const level = await op.evaluate(() => window.cellStudio.level('lead') ?? 0);
+    await transport.getByRole('button', { name: 'Pause' }).first().click();
+    const broken = await op.evaluate(() => window.cellStudio.open('&tune step=3 0 4 7\n&lead loop=&nowhere\n'));
+    if (broken.ok || broken.errors.length === 0) problems.push(`a string that doesn't compile opened as ${JSON.stringify(broken)}`);
+    const brokenCode = await op.evaluate(() => document.querySelector('textarea')?.value ?? '');
+    if (!brokenCode.includes('&nowhere')) problems.push('the editor does not show the string that does not compile');
+    note = `${pieces[0].title} playing, then a string opened: stopped, in the editor, ${drawn.length} nodes drawn, &lead at ${level.toFixed(2)} on Play; one that doesn't compile: "${broken.errors[0]}"`;
+  } catch (e) {
+    problems.push(String(e.message).split('\n')[0]);
+  }
+  await op.close();
+  const ok = problems.length === 0;
+  console.log(`${ok ? 'ok  ' : 'FAIL'} A piece from outside: cellStudio.open${ok ? `: ${note}` : '\n       ' + [...new Set(problems)].slice(0, 3).join('\n       ')}`);
+  if (!ok) failed.push('A piece from outside');
 }
 // MIDI out (#205): a fake port that records what is sent, chosen before the page loads (so it connects without a click)
 const MIDI_PIECE = 'sailor';
