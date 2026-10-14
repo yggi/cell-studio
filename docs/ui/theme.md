@@ -30,6 +30,8 @@ A colour says what something is or carries; where another value would mean nothi
 | sound (audio) | its fundamental's hue on its grid, as bright as it is loud | `SOUND`, `palette('audio')` |
 | pitch or sound on several grids | neutral | `palette` (no grid) |
 | a selector's part k of n (a tap's bulb, a barrel's ring) | `partColour(k, n)`, round the colour wheel; one part alone white | theme.ts |
+| a wheel in a section: its ticks, its hand, its name's border | its section's tint (`tapTint`), the border half-strength at rest | `nodeSections` (ui/sections.ts), `--section` (CellNode, CellGlyph) |
+| a selector's table of taps on the strip | each value its section's tint | `tapTintRgb`, TowerStrips |
 | a selector's strands, its selection's bus | the part's colour through the white clock, `tapTint` | theme.ts |
 | a tag's wash | the tint of the section whose tap steps its cells; else a hue of its own | `Graph.svelte` (`tagSections`, ui/sections.ts) |
 | an out (the tower layout): its socket's meter, its spire and light, its share of the strip's sum | its source's note now (its base stopped), by octave; drums and noise white | `noteOf`, `outRgb` (ui/heard.ts) |

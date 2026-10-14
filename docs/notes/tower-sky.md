@@ -134,6 +134,27 @@ The owner's next: the markers go on into the structure. Each wheel has a value n
 
 Seen: Pop's melodies on one row at 4 Hz (`&chords`, `&roots`, `&tune`, `&hats`), `&bar`, `&beat` and `&final` lower, `&parts` and `&major` at the bottom; Cellscape's parts spread down the pulse and the slow, its `&key` twelve keys; Hypercell's `&off` and `&lift` red (pitches). A table of taps (`&parts`) shows its values as plain references, grey: they could wear their sections' tints.
 
+## Sections' colours on the wheels and the selector's table; closing the zone (2026-10-14)
+
+The owner: a selector shows its sections' colours; a wheel's accents are tinted in its section's colour; the neutral zone should not be a gap in the strip.
+
+- **The selector's table on the strip**: a table of taps' values are its sections, each chip in its tap's tint (`valueSpectrum` keys a reference by its entry; `tapTintRgb`).
+- **A wheel's accents in its section's tint** (both layouts): a node's section is its tag's, or the nearest tap upstream of it (`nodeSections`, `ui/sections.ts`), and its tint (`tapTint`) is handed to its wheel as `--section` (`CellNode`). Its ticks, its hand (the cursor) and its name's border wear it: the border half-strength at rest, full while it sounds (in place of the gold). Looked at for the other candidates on the zoom sheet (`ZOOM=chords,tune,hats,roots node tools/gallery.mjs zoom 3 pop`): the steps keep their values' colours (the tint is the section's, not the value's); the hub's text stays ink, for legibility.
+
+![Pop's wheels before and after: hands, ticks and names in their sections' tints](tower-sky-accents.jpg)
+
+### The neutral zone on the strip: options
+
+The strip is locked to the graph's scale, so the zone is a band of its height on the strip too. Instead of leaving it blank, it can show what stands in it (`tools/mockups/tower-zone.py`, Hypercell's numbers: the zone 2.2 decades):
+
+![today's gap, A lanes, B bridges, C the audible in miniature](tower-sky-zone.jpg)
+
+- **A, lanes**: three lanes, the gates, the voices, the mixers, a marker each member, in its colour. Simple; says who is there, but not what connects to what.
+- **B, bridges**: each voice a line from its player's row (its rate, under the zone) up across the zone to its out's fundamental (over it); a dot where it crosses the voices' row, a square where a mixer joins its voices. The zone becomes what it is: where a rhythm at a rate turns into a tone at a pitch. It joins the structure's rows to the audible's spires, so the strip reads as one scale again.
+- **C, the audible in miniature**: each lane the whole of 20 Hz … 20 kHz squeezed into its height, a column a member: a voice's spectrum before it is mixed, a mixer's after. It shows timbre, but repeats the spires at an unreadable scale.
+
+Recommended: **B**, with the lanes' names of A on its rows. Seen: Hypercell's parts are nearly all on C, so most of its bridges are red. Their places (the order across, the joins) tell them apart, not their colours.
+
 ## 5. One tiered strip for the graph and the time view (proposed)
 
 Three things draw the tower's scale today, each its own way:
@@ -160,7 +181,8 @@ Then the strata line up across both views: the sky in the graph is the time view
 
 ## Next
 
-1. The socket's round meter and its spire now say the same thing: the socket could become the spire's big dot.
-2. The time view's voices are a hue each (golden angle), not their notes: align them with the graph's (the colour table, [ui/theme.md](../ui/theme.md#colour-rules)).
-3. Profile the sky while playing (the profile skill) before it goes on by default.
-4. The tiered strip (5), its own issue.
+1. The owner chooses how the strip closes the neutral zone (A, B, C).
+2. The socket's round meter and its spire now say the same thing: the socket could become the spire's big dot.
+3. The time view's voices are a hue each (golden angle), not their notes: align them with the graph's (the colour table, [ui/theme.md](../ui/theme.md#colour-rules)).
+4. Profile the sky while playing (the profile skill) before it goes on by default.
+5. The tiered strip (5), its own issue.

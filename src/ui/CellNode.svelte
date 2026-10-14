@@ -48,6 +48,8 @@
   const label = $derived(cell?.label ? formatLabel(ctx.program, data.name, cell.label, shown) : null);
   // the drums' kit the grooves read (unnamed, VOICE_KIT): named drums
   const drumsKit = $derived(data.name === VOICE_KIT);
+  // (its section's tint, a selector's part upstream of it: its ticks, its hand and its name's border wear it)
+  const section = $derived(ctx.sections?.get(id));
 </script>
 
 <div
@@ -56,6 +58,8 @@
   data-state={state}
   style="width: {data.size}px; height: {data.size}px"
   style:--meter={data.meterIndex !== undefined ? meterColour(data.meterIndex) : undefined}
+  style:--section={section}
+  class:sectioned={!!section}
   {@attach longpress((at) => ctx.toggle(bulbAt(at) ?? id))}
 >
   <Handle type="target" position={Position.Top} class="center-handle" isConnectable={false} />
@@ -152,6 +156,12 @@
   }
   [data-state='live'] .name {
     border-color: var(--accent);
+  }
+  .sectioned .name {
+    border-color: color-mix(in oklab, var(--section) 45%, transparent);
+  }
+  .sectioned[data-state='live'] .name {
+    border-color: var(--section);
   }
   [data-state='off'] .name {
     text-decoration: line-through;

@@ -22,7 +22,7 @@
   import { towerAt, towerNets, towerY, type TowerIn } from '../layout/towerlayout';
   import { TOWER_ZONES } from '../layout/tower';
   import { onFrames } from '../audio/ticker';
-  import { noteHsl } from './theme';
+  import { noteHsl, tapTintRgb } from './theme';
   import { heard, noteHz, noteOf, outRgb } from './heard';
   import { drawSpire, spireOf } from './spire';
   import { cellView, valueAt, valueSpectrum } from '../layout/cellview';
@@ -236,6 +236,8 @@
       const v = cellView(ctx.program, name, ctx.shifts, false);
       if (!v) return;
       const spread = valueSpectrum(v);
+      // (a selector's table of taps: each value a section, in its tint)
+      const taps = [...(ctx.program.taps?.values() ?? [])].includes(name) ? (ctx.program.cells.get(name)?.units.length ?? 0) : 0;
       if (!spread.length) return;
       const local = ctx.heads.cells.get(name)?.local ?? 0;
       const lap = lapOf(ctx.program, name);
@@ -246,7 +248,8 @@
       for (const e of spread) {
         const w = e.share * (x1 - x0);
         g.globalAlpha = ctx.state === 'stopped' || e.key === now ? 1 : 0.35;
-        g.fillStyle = paint(fillColour(e.fill));
+        const t = taps ? tapTintRgb(e.index, taps) : null;
+        g.fillStyle = t ? `rgb(${t[0]}, ${t[1]}, ${t[2]})` : paint(fillColour(e.fill));
         g.fillRect(x, y - 2.5, Math.max(1, w - 1), 5);
         x += w;
       }

@@ -646,8 +646,9 @@
     stroke-width: 3;
     stroke-linejoin: round;
   }
+  /* (a wheel in a section: its accents in its section's tint, CellNode's --section) */
   .tick {
-    stroke: var(--wheel-tick);
+    stroke: var(--section, var(--wheel-tick));
   }
   /* the rim says the space: time, a clock */
   .sieve {
@@ -766,7 +767,7 @@
     font-weight: 700;
   }
   .hand line {
-    stroke: var(--wheel-hand);
+    stroke: var(--section, var(--wheel-hand));
     stroke-linecap: round;
   }
   .hand line.edge {
@@ -775,7 +776,7 @@
   /* the hand bent into a bulb: one line, jointed */
   .hand.bent path {
     fill: none;
-    stroke: var(--wheel-hand);
+    stroke: var(--section, var(--wheel-hand));
     stroke-linecap: round;
     stroke-linejoin: round;
   }

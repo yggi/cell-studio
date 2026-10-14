@@ -479,6 +479,8 @@ export interface ValueShare {
   readonly key: string;
   readonly fill: Fill;
   readonly share: number;
+  /** A reference's entry (its unit): a table of taps' section. */
+  readonly index: number;
 }
 
 /** A fill's identity: two fills of one key are drawn alike. */
@@ -491,31 +493,34 @@ const fillKey = (f: Fill) =>
         ? `b${f.down}`
         : f.kind;
 
+/** A value's key in a spectrum: a fill's, a reference's by its entry (a table of taps: each its section). */
+const keyOf = (f: Fill, index: number) => (f.kind === 'ref' ? `r${index}` : fillKey(f));
+
 /**
  * A wheel's spectrum of values (the tower layout's strip, docs/notes/tower-sky.md): each value it takes and how much
  * of its lap it holds it, rests aside, in the order of the values (pitches low to high, levels, beats). Its chords'
  * notes each a value.
  */
 export function valueSpectrum(view: CellView): ValueShare[] {
-  const by = new Map<string, { fill: Fill; w: number }>();
+  const by = new Map<string, { fill: Fill; w: number; index: number }>();
   let all = 0;
   for (const s of view.segments)
     for (const f of s.bands) {
       if (f.kind === 'rest') continue;
-      const k = fillKey(f);
+      const k = keyOf(f, s.index);
       const w = (s.t1 - s.t0) / s.bands.length;
       all += w;
       const e = by.get(k);
       if (e) e.w += w;
-      else by.set(k, { fill: f, w });
+      else by.set(k, { fill: f, w, index: s.index });
     }
   const rank = (f: Fill) => (f.kind === 'pitch' ? (f.octave ?? 0) * 360 + f.hue : f.kind === 'level' ? 1e4 + f.v : 2e4);
-  return [...by].map(([key, { fill, w }]) => ({ key, fill, share: all > 0 ? w / all : 0 })).sort((a, b) => rank(a.fill) - rank(b.fill));
+  return [...by].map(([key, { fill, w, index }]) => ({ key, fill, index, share: all > 0 ? w / all : 0 })).sort((a, b) => rank(a.fill) - rank(b.fill) || a.index - b.index);
 }
 
 /** The key of the value a wheel holds at `t` (0 … 1 of its lap), to light it in its spectrum; null in a rest. */
 export function valueAt(view: CellView, t: number): string | null {
   const s = view.segments.find((x) => t >= x.t0 - 1e-9 && t < x.t1 - 1e-9);
   const f = s?.bands.find((b) => b.kind !== 'rest');
-  return f ? fillKey(f) : null;
+  return f && s ? keyOf(f, s.index) : null;
 }

@@ -62,6 +62,8 @@ export interface GraphContext {
   anchor?(node: string, other: string, from: { x: number; y: number }, meter?: boolean): { x: number; y: number } | undefined;
   /** (#137) Small wheels with something close under them: their name goes round the rim, under the wheel, not in a pill. */
   readonly rimNamed?: ReadonlySet<string>;
+  /** Each node's section's tint (ui/sections.ts, by id): its wheel's accents wear it. */
+  readonly sections?: ReadonlyMap<string, string>;
   /** The wheels as they stand now (centres and radii): what an edge's label keeps off (layout/wire.ts wireLabel). */
   readonly wheels?: readonly import('../layout/wire').Disc[];
   /** The tower layout is on: a plain edge runs as a sigmoid, from the lower end's top to the upper end's bottom. */

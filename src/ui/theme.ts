@@ -59,6 +59,17 @@ export function hslRgb(h: number, s: number, l: number): [number, number, number
   return [f(0), f(8), f(4)];
 }
 
+/** tapTint as rgb (oklab's mix approximated in rgb), for a canvas: a section's colour on the tower layout's strip. */
+export const tapTintRgb = (k: number, n: number): readonly [number, number, number] => {
+  if (n <= 1) return UNIT_RGB;
+  const [r, g, b] = hslRgb(...noteHsl((k / n) * 360));
+  const mix = (v: number, w: number) => Math.round(0.65 * v + 0.35 * w);
+  return [mix(r, CLOCK_RGB[0]), mix(g, CLOCK_RGB[1]), mix(b, CLOCK_RGB[2])];
+};
+
+/** The clock's white (app.css --clock) as rgb: change both together. */
+const CLOCK_RGB = [246, 247, 251] as const;
+
 /** A scope's channel k: the chromatic colour of its place in the scope's braid (ScopeView), worn by what it watches. */
 export const channelColour = (k: number) => noteColour((((k % 12) + 12) % 12) * 30);
 

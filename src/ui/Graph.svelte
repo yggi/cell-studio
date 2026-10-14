@@ -8,7 +8,7 @@
 <script lang="ts">
   import { Background, Controls, SvelteFlow, ViewportPortal, type NodeTypes } from '@xyflow/svelte';
   import { VOICE_KIT } from '../engine/compiler/declare';
-  import { noteColour, partColour } from './theme';
+  import { noteColour, partColour, tapTint } from './theme';
   import '@xyflow/svelte/dist/style.css';
   import { onDestroy, untrack } from 'svelte';
   import type { CompileResult, Shifts } from '../engine/program';
@@ -44,7 +44,7 @@
   import FlowViewport from './FlowViewport.svelte';
   import TowerStrips, { STRIP, STRIP_OPEN } from './TowerStrips.svelte';
   import TowerSky, { SKY_MODES, type SkyMode } from './TowerSky.svelte';
-  import { tagSections } from './sections';
+  import { nodeSections, tagSections } from './sections';
   import { towerOf } from '../layout/tower';
   import TapLooms from './TapLooms.svelte';
   import { towerIns } from '../layout/towerlayout';
@@ -223,6 +223,9 @@
     get rimNamed() {
       return rimNamed;
     },
+    get sections() {
+      return sectionTints;
+    },
     anchor: (node, other, from, meter) => {
       const l = pillsBy.get(node);
       return l && pillAnchor(l, other, from, meter);
@@ -338,6 +341,8 @@
   const spires = $derived(
     sky ? layout.nodes.flatMap((n) => (n.type === 'socket' ? [{ id: n.id, x: n.position.x, y: n.position.y, source: (n.data as { source: string }).source }] : [])) : [],
   );
+  // each node's section's tint (a selector's tap upstream of it, or its tag's): its wheel's accents wear it
+  const sectionTints = $derived(new Map([...nodeSections(shown.program, shown.model)].map(([id, s]) => [id, tapTint(s.k, s.n)] as const)));
   // the structure on the strip (TowerStrips.svelte): each stepped cell at its rate, the tables nothing steps at the
   // bottom (-Infinity), each showing its spectrum of values
   const structure = $derived.by(() => {
