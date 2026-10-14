@@ -397,7 +397,7 @@
   {#if h}
     <canvas bind:this={canvas} width={sw * dpr} height={h * dpr} style:width="{sw}px" style:height="{h}px"></canvas>
   {/if}
-  <button class="open" onclick={ontoggle} aria-pressed={open} title={open ? 'Fold the tower' : 'Open the tower: its scale and what comes in'}>{open ? '›' : '‹'}</button>
+  <button class="fold" onclick={ontoggle} aria-pressed={open} title={open ? 'Fold the tower' : 'Open the tower: its scale and what comes in'}>{open ? '›' : '‹'}</button>
 </div>
 
 <style>
@@ -414,7 +414,7 @@
   canvas {
     display: block;
   }
-  .open {
+  .fold {
     position: absolute;
     top: 28px;
     left: 50%;
@@ -429,7 +429,7 @@
     cursor: pointer;
     pointer-events: auto;
   }
-  .open[aria-pressed='true'] {
+  .fold[aria-pressed='true'] {
     border-color: var(--accent);
     color: var(--accent);
   }

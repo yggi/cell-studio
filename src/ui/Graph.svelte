@@ -55,8 +55,9 @@
   // (?tower: the tower open from the start, ?towerCell=tune its line, as if selected: the gallery's pictures)
   const QUERY = typeof location !== 'undefined' ? new URLSearchParams(location.search) : null;
   const towerCell = QUERY?.get('towerCell') ?? null;
-  // (?layout=tower: the tower layout from the start, docs/notes/tower-strip.md; ?strips: its strips opened)
-  const LAYOUT = QUERY?.get('layout') === 'tower' ? 'tower' : 'flow';
+  // (the tower layout by default, docs/notes/tower-sky.md; ?layout=flow: the signal path's from the start; ?strips: the
+  // strip opened)
+  const LAYOUT = QUERY?.get('layout') === 'flow' ? 'flow' : 'tower';
 
   // each example's rows' order, chosen when the app was built (tools/examples-index.ts), by its graph's shape
   const EXAMPLE_ROWS = new Map(EXAMPLES.map((e) => [e.rows.key, e.rows.order]));
