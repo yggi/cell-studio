@@ -171,7 +171,8 @@ const OUTSIDE = '&piece title="From outside"\n&tune step=3 0 4 7 12\n&lead s=sin
     const code = await op.evaluate(() => document.querySelector('textarea')?.value ?? '');
     if (code !== OUTSIDE) problems.push(`the editor shows ${JSON.stringify(code.slice(0, 60))}, not the string`);
     const drawn = await op.$$eval('.svelte-flow__node', (ns) => ns.map((n) => n.dataset.id));
-    const cells = ['tune', 'lead', 'out'].filter((c) => !drawn.includes(`cell:${c}`));
+    // (the sound card: its node in the signal path's layout, a socket each thing it hears in the tower layout's)
+    const cells = ['tune', 'lead', 'out'].filter((c) => !drawn.includes(`cell:${c}`) && !drawn.some((d) => d?.startsWith('socket:') && d.endsWith(`->cell:${c}`)));
     if (cells.length) problems.push(`the graph has no node for ${cells.join(', ')} (it has ${drawn.join(', ')})`);
     await transport.getByRole('button', { name: 'Play' }).first().click();
     await op.waitForFunction(() => (window.cellStudio.level('lead') ?? 0) > 0.01).catch(() => problems.push('&lead does not sound on Play'));

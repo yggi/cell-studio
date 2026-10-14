@@ -167,6 +167,23 @@ Chosen (the owner): **B with A's names**, the bridges straight: the outs in lane
 
 Seen: Pop's four lanes (bass, keys, lead, the drums' kit), the drums' gates on their row under the voices; Hypercell's mixers over its voices; the waltz's three outs, one bridge each from `&tune`, `&oom` and `&pah`. Names at one height in other lanes are stacked; where many cells share a rate (Hypercell's at 5.3 Hz) the names make a short list beside the column.
 
+## Ready, the default, and the time view (2026-10-14)
+
+The owner: the PR ready; the time view checked; the tower layout the graph's default.
+
+- **The default**: the graph opens in the tower layout (`?layout=flow` on the signal path's; the *tower layout* button switches). The smoke test's piece from outside looked for the card's node, which the tower layout draws as a socket each out: it takes either now.
+- **The load** (`tools/profile/measure.mjs`, the production build, 20 s playing, headless Chromium in a cloud container: no GPU, so its canvases are rasterised in software, which overstates them against a phone's). First measured, the tower layout was 77–85 % busy at ×1 against today's 24–36 %. Found and fixed: each out's analyser read three times a frame (its socket, its spire, the strip: `heard()` keeps a reading 30 ms); the strip's, the sky's and the sockets' effects drawing again on every change of what they read, the playheads among it, besides their frame loop (now untracked, and only while stopped); the sky's rainbow redrawn every frame (now a canvas of its own, drawn when the view moves), its light blurred by a filter (now drawn at an eighth of the screen's resolution and smoothed, at 12 fps); the strip's theme colours read from computed style in its loops, its wheels' spectra rebuilt each frame (now kept).
+
+| ×1, busy % (the longest task at ×4) | today's layout | tower | tower, `?sky=off` |
+|---|---|---|---|
+| Hypercell | 28 (136 ms) | 54 (273 ms) | 43 (172 ms) |
+| Cellscape | 27 (85 ms) | 53 (303 ms) | 41 (173 ms) |
+| Pop | 23 (82 ms) | 45 (270 ms) | 33 (149 ms) |
+| Baustelle II | 37 (82 ms) | 59 (149 ms) | 46 (165 ms) |
+
+At ×4 every layout is near 100 % busy (today's too). So the tower layout still costs about 1.6–2× today's at ×1: the sky about 11 points, the rest the sockets' meters, the strip and the layout itself. Not measured: a real phone (`?perf`, docs/ui/performance.md), audible glitches.
+- **The time view** works as before and shares nothing of this yet: its own frequency axis on its own frame (no neutral zone), its voices a hue each (golden angle), not their notes. `TowerStrips` could stand at its side with the time view's scale in place of the graph's viewport, the zone between its pulse and its audible holding the voices its legend lists now: the tiered strip (5), its own issue.
+
 ## 5. One tiered strip for the graph and the time view (proposed)
 
 Three things draw the tower's scale today, each its own way:
