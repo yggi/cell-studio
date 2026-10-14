@@ -37,7 +37,7 @@ Commands, the rules (which are enforced and which are judgment), the PR conventi
 
 ## The language
 
-The cells language is its own repository, [yggi/cells](https://github.com/yggi/cells), which this app depends on at a pinned commit (`@yggi/cells` in package.json; a tag once one exists). Its cheatsheet, its pages (`docs/language/`), its examples and its decisions about the language are there: start with [its MEMORY.md](https://github.com/yggi/cells/blob/main/docs/MEMORY.md). A change to what the language means is a pull request there; this app takes it by moving the pin.
+The cells language is its own repository, [yggi/cells](https://github.com/yggi/cells), which this app depends on at a pinned tag (`@yggi/cells` in package.json, `github:yggi/cells#v0.1.0`). Its cheatsheet, its pages (`docs/language/`), its examples and its decisions about the language are there: start with [its MEMORY.md](https://github.com/yggi/cells/blob/main/docs/MEMORY.md). A change to what the language means is a pull request there; this app takes it by moving the pin.
 
 ## Decisions
 
