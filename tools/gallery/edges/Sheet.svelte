@@ -7,7 +7,7 @@
   import EdgeCell, { type Column } from './EdgeCell.svelte';
   import PillCell, { type PillColumn } from './PillCell.svelte';
   import { edgeFixtures } from './fixtures';
-  import { edgeLabel } from '../../../src/engine/transform';
+  import { edgeLabel } from '@yggi/cells/engine/transform';
   import { pieces } from '../pieces';
   import '../../../src/ui/edges.css';
 

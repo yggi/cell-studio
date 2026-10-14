@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
-import { compileSource } from './engine/compile';
+import { compileSource } from '@yggi/cells/engine/compile';
 
-// docs/ promises (see docs/MEMORY.md): the language pages can't rot, INDEX.md lists every page,
+// docs/ promises (see docs/MEMORY.md): a ```cells block in a page can't rot (the language's own pages are yggi/cells'), INDEX.md lists every page,
 // and relative links resolve.
 
 const DOCS = resolve(__dirname, '../docs');
@@ -19,10 +19,11 @@ const read = (p: string) => readFileSync(p, 'utf8');
 /** The ```cells blocks of a page: each must compile standalone with no diagnostics. */
 const blocks = (text: string): string[] => [...text.matchAll(/^```cells\n([\s\S]*?)^```/gm)].map((m) => m[1]);
 
-describe('docs: language pages compile', () => {
-  const language = pages.filter((p) => rel(p).startsWith('language/'));
-  it('there are language pages', () => expect(language.length).toBeGreaterThan(0));
-  for (const page of language)
+describe('docs: cells blocks compile', () => {
+  const withBlocks = pages.filter((p) => blocks(read(p)).length > 0);
+  // (the language's pages, and their blocks, are yggi/cells'; a page here may still carry one)
+  if (withBlocks.length === 0) it('no page here carries a ```cells block', () => expect(withBlocks).toEqual([]));
+  for (const page of withBlocks)
     for (const [i, src] of blocks(read(page)).entries())
       it(`${rel(page)} block ${i + 1}`, () => {
         const r = compileSource(src);

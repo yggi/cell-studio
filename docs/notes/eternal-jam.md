@@ -2,6 +2,8 @@
 
 2026-10-14 · open · #406, the handshake (decisions on [yggi/jambot#309](https://github.com/yggi/jambot/issues/309))
 
+State: the language is [yggi/cells](https://github.com/yggi/cells) (its #2, with its history), and this app runs on it at a pinned commit (the pull request that moved it here); next, Jambot on the same pin.
+
 Cell studio started as a spike out of [Jambot](https://github.com/yggi/jambot), to research and define the language. The owner's call (14 Oct 2026): it is time to bring the two back together, towards infrastructure for *eternal jam sessions*. This note reads the owner's shape back, says where each side stands, lists where the two decided differently, and gives the plan the owner agreed to. Its twin in Jambot is `docs/briefs/eternal-jam.md` (with the owner's brief verbatim); who Jambot is, for an agent here, is in [MEMORY.md](../MEMORY.md#the-sibling-jambot).
 
 ## The shape
@@ -15,7 +17,7 @@ One loop, four roles, one language:
 
 The **repository** holds cell cultures: fragments seeded from corpora, deduplicated by hash, placed in the style space, graded, found by query ("the ten most acid-house 16-step basslines"). **Everything is relative**: a fragment has no tempo, no key and no declared type, and plugs into any other at any scale. **The regulator** is homeostasis between *bored* and *confused*: repeat until it stops confusing, change when it bores, with a tolerance the style sets (techno more patient than jazz). **Left alone**, it is a radio station: a slow random walk around the tip of the jam's style vector.
 
-Each side already holds half of it: Jambot the style space, the Muse, the fading memories and the measured bored-to-confusing edge (its #237, E22); Cell studio the language, a headless engine, MIDI → cells, and the radio and jukebox idea ([multiscale.md](multiscale.md#meta-machines-a-radio-a-jukebox), #234).
+Each side already holds half of it: Jambot the style space, the Muse, the fading memories and the measured bored-to-confusing edge (its #237, E22); Cell studio the language, a headless engine, MIDI → cells, and the radio and jukebox idea ([multiscale.md](https://github.com/yggi/cells/blob/main/docs/notes/multiscale.md#meta-machines-a-radio-a-jukebox), #234).
 
 ## Seven sharpenings (agreed)
 
@@ -25,7 +27,7 @@ Each side already holds half of it: Jambot the style space, the Muse, the fading
 4. **The score is a stream of pure texts.** The composer's state (machines, fading memories) stays in Jambot; what it writes is a pure cells text, a section at a time, and the single-source rule holds for each. A take goes to the memory and the repository, never back into the composer's text.
 5. **Generators: cells is the output first.** Our generators make braids and events, not cells or forms; Jambot's composer is the generator now. Generators written in cells (the song machine, #234 lead 12) come later and block nothing.
 6. **One clock, the host's.** The host states `&bar` (meter, tempo, swing) a section at a time; tempo-free fragments splice onto it, as `step=&bar*4` already does.
-7. **The superset is the mini-notation and the parameter names** ([027](../decisions/027-on-top-of-strudel.md)), not Strudel's pattern functions (no `.every`, `.jux`, `.off`, polymeter, samples), and there is no Strudel import or export. Strudel is AGPL: Jambot's build refuses copyleft, so a shared package can't wrap it.
+7. **The superset is the mini-notation and the parameter names** ([027](https://github.com/yggi/cells/blob/main/docs/decisions/027-on-top-of-strudel.md)), not Strudel's pattern functions (no `.every`, `.jux`, `.off`, polymeter, samples), and there is no Strudel import or export. Strudel is AGPL: Jambot's build refuses copyleft, so a shared package can't wrap it.
 
 ## Where each side stands
 
@@ -66,9 +68,9 @@ The owner's calls. The suggestion: our spelling where it agrees with Strudel, Ja
 Each phase leans on the one before, except radio mode, which can start now.
 
 0. **Agree** (the owner). Jambot's #287, #306, #275 and #265 stop growing a syntax of their own; their meaning is what cells has to say. Rule on the table above, and on who owns the lifted MIDI code (#203 left it "for later"). Where the code lives is ruled (D1, 2026-10-14): **[yggi/cells](https://github.com/yggi/cells)** is the shared core, the language and the repository of fragments; Cell studio is its workbench and Jambot its interactive, multi-user frontend, both consuming cells at a pinned tag.
-1. **A shared base.** `src/engine` and the theory it imports (`src/theory/modes.ts`, `tonal.ts`) move into yggi/cells with their history and are tagged; Cell studio and Jambot depend on the tag, and Cell studio deletes its copy ([yggi/cells#1](https://github.com/yggi/cells/issues/1)). A licence here (MIT, as cells). The MIDI layer gets one owner.
+1. **A shared base.** `src/engine` and the theory it imports (`theory/modes.ts` (in `@yggi/cells`), `tonal.ts`) move into yggi/cells with their history and are tagged; Cell studio and Jambot depend on the tag, and Cell studio deletes its copy ([yggi/cells#1](https://github.com/yggi/cells/issues/1)). A licence here (MIT, as cells). The MIDI layer gets one owner.
 2. **Radio mode, alongside** (Jambot): a slow mean-reverting walk of the style around a slower anchor, through its glides.
-3. **The seam.** Jambot's band writes cells a section at a time and plays it through the cells engine; its round trip moves onto cells. What porting the band will ask of the language, likely: a section's meter, harmony as numerals over a key, *open fragments* that leave `&key` and `&bar` to whoever splices them, and imports or a library by hash (we have no imports or namespaces). Here: a way to load a stream of code from outside, so Cell studio joins a jam as a client and a view (`window.cellStudio` can't load code today).
+3. **The seam.** Jambot's band writes cells a section at a time and plays it through the cells engine; its round trip moves onto cells. What porting the band will ask of the language, likely: a section's meter, harmony as numerals over a key, *open fragments* that leave `&key` and `&bar` to whoever splices them, and imports or a library by hash (we have no imports or namespaces). Here: a way to load a stream of code from outside, so Cell studio joins a jam as a client and a view (its first rung: `window.cellStudio.open(source)` opens a string of code as the open piece, as a file opens; [testing.md](../testing.md#promises)).
 4. **A first repository.** A fragment is cells text plus an index entry: its hashes, the operator back from the canonical form, the partial style reading, facets, origin, time, id. Seeds: our examples, the folded Bach, Jambot's own output; POP909 or Lakh once licences are checked. A query tool first.
 5. **The loop closed.** One transcriber: Jambot's reader hears, our capture law (`capture(play(b)) = b`) and the folder write. The Muse feeds the repository and the composer's fading workbench.
 6. **The homeostat**, with the radio as its loop with nobody playing.

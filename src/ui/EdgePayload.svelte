@@ -20,7 +20,7 @@
   import type { Fill } from '../layout/cellview';
   import type { Shape } from '../layout/wire';
   import { palette } from './palette';
-  import { DEFAULT_FREQ } from '../engine/program';
+  import { DEFAULT_FREQ } from '@yggi/cells/engine/program';
 
   let {
     path,

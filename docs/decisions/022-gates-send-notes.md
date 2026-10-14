@@ -1,6 +1,6 @@
 # 022 · A gate sends notes; the sound leaves from the voice
 
-**Date:** 2026-10-11 · **Status:** accepted (owner: the request on the *A gate* example, [the note](../notes/gate-example.md)) · Amends nets decision 2 ([nets.md](../notes/nets.md): "voices stop being hubs")
+**Date:** 2026-10-11 · **Status:** accepted (owner: the request on the *A gate* example, [the note](../notes/gate-example.md)) · Amends nets decision 2 ([nets.md](https://github.com/yggi/cells/blob/main/docs/notes/nets.md): "voices stop being hubs")
 
 ## Context
 

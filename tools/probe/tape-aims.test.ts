@@ -3,8 +3,8 @@
 // Run: PROBE=out.txt npx vitest run tools/probe/tape-aims.test.ts
 import { describe, it } from 'vitest';
 import { appendFileSync } from 'node:fs';
-import { PRESETS } from '../../src/engine/presets';
-import { compileSource } from '../../src/engine/compile';
+import { PRESETS } from '@yggi/cells/engine/presets';
+import { compileSource } from '@yggi/cells/engine/compile';
 import { buildGraph } from '../../src/layout/drawn';
 import { tapeFaces } from '../../src/layout/aims';
 import { ForceLayout } from '../../src/layout/physics';

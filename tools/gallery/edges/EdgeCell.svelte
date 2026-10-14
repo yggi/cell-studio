@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { liveAt } from '../../../src/engine/live';
+  import { liveAt } from '@yggi/cells/engine/live';
   /**
    * One edge in one state, on two bare nodes: the real edge component with the context the graph gives it
    * (what plays now, the note on the voice, where the layout bends it). `state`: as engine/routing.ts names them;

@@ -10,10 +10,10 @@
 import { describe, it } from 'vitest';
 import { appendFileSync, readFileSync, writeFileSync } from 'node:fs';
 import { ForceLayout } from '../../src/layout/physics';
-import { type GraphModel } from '../../src/engine/graph';
+import { type GraphModel } from '@yggi/cells/engine/graph';
 import { buildGraph } from '../../src/layout/drawn';
-import { compileSource } from '../../src/engine/compile';
-import { PRESETS } from '../../src/engine/presets';
+import { compileSource } from '@yggi/cells/engine/compile';
+import { PRESETS } from '@yggi/cells/engine/presets';
 import { TOWER_LAYOUT, type LayoutOptions } from '../../src/layout/options';
 import { towerLayers, withSockets } from '../../src/layout/towerlayout';
 

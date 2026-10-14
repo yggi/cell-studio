@@ -13,9 +13,9 @@
   import { ringSegment } from '../layout/geometry';
   import { wheelGeometry } from '../layout/wheel';
   import { curvePoints, envelopeCrossing, envelopeCurve, envelopeLabels, envelopeNotes, latestNoteAt } from '../layout/envelope';
-  import { lapOf, refsOf, stepsPerSecond } from '../engine/readers';
+  import { lapOf, refsOf, stepsPerSecond } from '@yggi/cells/engine/readers';
   import { angleOf, fitFont, hubMax, turnDelta } from '../layout/dial';
-  import { mod } from '../theory/modes';
+  import { mod } from '@yggi/cells/theory/modes';
   import { getGraphContext } from './context';
   import { meterNow } from '../layout/meters';
   import { cursorOf, fanOf, joins, layTrack } from '../layout/track';

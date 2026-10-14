@@ -5,7 +5,7 @@
    * checked as you type; Enter applies. Empty leaves the default grid.
    */
   import { lastWord, suggest } from './suggest';
-  import { parse } from '../engine/parser';
+  import { parse } from '@yggi/cells/engine/parser/index';
   import Dialog from './kit/Dialog.svelte';
 
   let { text: initial, names, onapply, onclose }: { text: string; names: readonly string[]; onapply: (text: string) => void; onclose: () => void } = $props();

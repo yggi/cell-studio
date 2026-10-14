@@ -4,7 +4,7 @@ import { Keys, type Hands } from './keys.svelte';
 import { Learn } from './learn.svelte';
 import { Piece } from './piece.svelte';
 import { DRUM_PRESETS, deviceNote, type DrumMap } from '../../midi/drum-presets';
-import { gmDrumNote, noteOf } from '../../engine/midi';
+import { gmDrumNote, noteOf } from '@yggi/cells/engine/midi';
 import type { MidiAccess } from '../../midi/access';
 
 const store = new Map<string, string>();

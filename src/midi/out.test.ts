@@ -1,11 +1,11 @@
 // The MidiOut cases lifted from yggi/jambot apps/web/src/audio/midi-out.test.ts @ 8cdb6b8, on Cell studio's played notes.
 import { describe, expect, it } from 'vitest';
 import { readFileSync, readdirSync } from 'node:fs';
-import { compileSource } from '../engine/compile';
-import { plan, type Played } from '../engine/realize';
-import { codeShifts } from '../engine/program';
-import { retime, windowAt } from '../engine/schedule';
-import { BEND_CENTRE, bendValue, channelTable, legatoNotes, midiNote, router, routesOf, type Route } from '../engine/midi';
+import { compileSource } from '@yggi/cells/engine/compile';
+import { plan, type Played } from '@yggi/cells/engine/realize';
+import { codeShifts } from '@yggi/cells/engine/program';
+import { retime, windowAt } from '@yggi/cells/engine/schedule';
+import { BEND_CENTRE, bendValue, channelTable, legatoNotes, midiNote, router, routesOf, type Route } from '@yggi/cells/engine/midi';
 import { MidiOut } from './out';
 import { fakePort } from './fixtures';
 import { DRUM_PRESETS } from './drum-presets';
@@ -288,7 +288,7 @@ describe('MidiOut: bends', () => {
 });
 
 describe('MidiOut over every example, window by window as the player plays them', () => {
-  const dir = new URL('../../examples/', import.meta.url);
+  const dir = new URL('../../node_modules/@yggi/cells/examples/', import.meta.url);
   const files = readdirSync(dir).filter((f) => f.endsWith('.cells'));
   const SECONDS = 8;
   const WINDOW = 0.25;
@@ -359,7 +359,7 @@ const inOrder = (sent: { data: number[]; timestamp?: number }[], t: number) =>
     .sort((a, b) => a.timestamp! - b.timestamp! || a.i - b.i);
 
 describe('MidiOut over every example, through a seek within the look-ahead', () => {
-  const dir = new URL('../../examples/', import.meta.url);
+  const dir = new URL('../../node_modules/@yggi/cells/examples/', import.meta.url);
   const files = readdirSync(dir).filter((f) => f.endsWith('.cells'));
   const WINDOW = 0.25;
 

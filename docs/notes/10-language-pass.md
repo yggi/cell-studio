@@ -16,15 +16,15 @@ These answer most of what is open, so they come first. Every row below says whic
 | | invariant | where it is decided |
 |---|---|---|
 | I1 | The text is the one source of truth; a graph edit rewrites a line. | [architecture.md](../architecture.md), AGENTS.md |
-| I2 | One meaning per spelling. Several spellings may mean the same thing, but one of them is canonical and the tools write it (Shorten while writing, Normalise over a corpus). | roadmap target 3, [decision 017](../decisions/017-shorten-and-normalise.md) |
+| I2 | One meaning per spelling. Several spellings may mean the same thing, but one of them is canonical and the tools write it (Shorten while writing, Normalise over a corpus). | roadmap target 3, [decision 017](https://github.com/yggi/cells/blob/main/docs/decisions/017-shorten-and-normalise.md) |
 | I3 | Nothing fails silently. | roadmap target 4 |
-| I4 | A cell's sort comes from its own line, never from where it is written; `+` and `*` commute. | [decision 006](../decisions/006-mix-algebra.md) |
-| I5 | `$` is the absolute frame; unmarked is relative. | decisions [012](../decisions/012-picks-are-taps.md), [015](../decisions/015-caret-is-degrees.md) |
+| I4 | A cell's sort comes from its own line, never from where it is written; `+` and `*` commute. | [decision 006](https://github.com/yggi/cells/blob/main/docs/decisions/006-mix-algebra.md) |
+| I5 | `$` is the absolute frame; unmarked is relative. | decisions [012](https://github.com/yggi/cells/blob/main/docs/decisions/012-picks-are-taps.md), [015](https://github.com/yggi/cells/blob/main/docs/decisions/015-caret-is-degrees.md) |
 | I6 | A named form defines the meaning; an operator is its shorthand. | [#179](https://github.com/yggi/cell-studio/issues/179) |
-| I7 | Every port has a band (sync, CV, audio); its units, and whether it can move, follow from the band. | [notes/nets.md](nets.md) (the model); [#150](https://github.com/yggi/cell-studio/issues/150) (building it) |
+| I7 | Every port has a band (sync, CV, audio); its units, and whether it can move, follow from the band. | [notes/nets.md](https://github.com/yggi/cells/blob/main/docs/notes/nets.md) (the model); [#150](https://github.com/yggi/cell-studio/issues/150) (building it) |
 | I8 | The examples sound the same; anything that could change a saved piece is the owner's call. | AGENTS.md, roadmap target 5 |
 
-**I9, accepted ([decision 027](../decisions/027-on-top-of-strudel.md)): cells is a superset of Strudel's mini-notation.** Where a step form is spelled as in Strudel, it means what it means in Strudel. Cells adds to that (cells, tables, the helix, sorts, nets): the "types" on top. It never gives a Strudel spelling another meaning. This is the TypeScript rule: valid JavaScript is valid TypeScript with the same meaning. I9 says nothing about Strudel's method chains or its global `cps`, which are another model, not a spelling. Sound parameter names extend I9 to dough and Strudel: a name they share with cells means the same, and their aliases may be read, with Normalise writing one spelling (I2).
+**I9, accepted ([decision 027](https://github.com/yggi/cells/blob/main/docs/decisions/027-on-top-of-strudel.md)): cells is a superset of Strudel's mini-notation.** Where a step form is spelled as in Strudel, it means what it means in Strudel. Cells adds to that (cells, tables, the helix, sorts, nets): the "types" on top. It never gives a Strudel spelling another meaning. This is the TypeScript rule: valid JavaScript is valid TypeScript with the same meaning. I9 says nothing about Strudel's method chains or its global `cps`, which are another model, not a spelling. Sound parameter names extend I9 to dough and Strudel: a name they share with cells means the same, and their aliases may be read, with Normalise writing one spelling (I2).
 
 ## 2. Where cells stands against Strudel and dough
 
@@ -68,11 +68,11 @@ The last row is also a conflict inside cells: on a step `x*n` is faster (a ratch
 - `lpq` in Strudel's units (Q), not dough's 0–1; `distort` on another scale than dough's
 - no samples
 
-These belong in a "for Strudel users" section of [overview.md](../language/overview.md).
+These belong in a "for Strudel users" section of [overview.md](https://github.com/yggi/cells/blob/main/docs/language/overview.md).
 
 ## 3. Less complexity: four primitives as the lens
 
-[multiscale.md](multiscale.md#disentanglers-towards-a-minimal-grammar-10-179) proposes four primitives that may generate the language: **look up**, **dilate**, **shift with carry**, **combine** (with soft time a possible fifth). Read the open questions that way, and most of them are one family each with too many spellings, or one missing entry in a grid:
+[multiscale.md](https://github.com/yggi/cells/blob/main/docs/notes/multiscale.md#disentanglers-towards-a-minimal-grammar-10-179) proposes four primitives that may generate the language: **look up**, **dilate**, **shift with carry**, **combine** (with soft time a possible fifth). Read the open questions that way, and most of them are one family each with too many spellings, or one missing entry in a grid:
 
 | primitive | cells today | redundancy or gap | follows from |
 |---|---|---|---|
@@ -82,13 +82,13 @@ These belong in a "for Strudel users" section of [overview.md](../language/overv
 | **combine** | chords, `+` `*` in a mix, splices, `base=` overlays, groove chords | `level=` has three meanings (dB on the card, linear on a gate and on a voice in #306); section mixes are gone but nothing stops them | I2, I7 → #150 |
 | *soft time* | `swing=`, `wow=`, `varispeed=`, a tape's `at=` | `swing=` does nothing on a `scan` (a warning now); the examples use a swing clock | I2 → #151 (F5) |
 
-**The test.** Express every row of [reference.md](../language/reference.md) in the four primitives, and list what doesn't fit. The rows that fit twice are #151's families. Their canonical forms are the list Normalise writes (#244, decision 017). That gives #151 a method in place of a list of opinions.
+**The test.** Express every row of [reference.md](https://github.com/yggi/cells/blob/main/docs/language/reference.md) in the four primitives, and list what doesn't fit. The rows that fit twice are #151's families. Their canonical forms are the list Normalise writes (#244, decision 017). That gives #151 a method in place of a list of opinions.
 
 **More power, from the same four:** subdivision `[a b]`, alternation `<a b>`, a slowed step `x/n` (dilate); the moving amount and `$` everywhere (shift with carry). Each is a gap in a grid the language already has, not a new idea.
 
 ## 4. What the scalogram says to the language
 
-From [scalogram.md](scalogram.md) and #286. The language changes nothing by it; these are evidence and suggestions for the tools.
+From [scalogram.md](https://github.com/yggi/cells/blob/main/docs/notes/scalogram.md) and #286. The language changes nothing by it; these are evidence and suggestions for the tools.
 
 - **The code's levels are heard.** 73 of 75 pieces have a ridge on a cell's step or turn, and 132 of 256 ridges match a cell. Most of the rest sit at a half or a third of one (harmonics).
 - **Boundaries are heard at splices.** Of the boundaries heard but not written as sections, 15 land on a braid splice, against 8.4 by chance. The splice tree is the piece's account of its phrases, so the folder (`engine/fold`) and Normalise should keep splices where they are heard.
@@ -96,7 +96,7 @@ From [scalogram.md](scalogram.md) and #286. The language changes nothing by it; 
 - **Folds the tools could suggest** (I2, for #244; not yet checked note for note):
   - a motif at two scales is one cell at two rates (Korobeiniki, BWV 847);
   - a necklace shared by rhythm and pitch is one table, read as a clock and as a scale (5 to 12).
-- **Already decided by it:** the form sends time up ([decision 016](../decisions/016-arranging-at-the-input.md)), and the gate's one `level=` ([decision 023](../decisions/023-gate-spelling.md)). The implicit `&out` was deferred by the owner ("`&out` stays").
+- **Already decided by it:** the form sends time up ([decision 016](https://github.com/yggi/cells/blob/main/docs/decisions/016-arranging-at-the-input.md)), and the gate's one `level=` ([decision 023](https://github.com/yggi/cells/blob/main/docs/decisions/023-gate-spelling.md)). The implicit `&out` was deferred by the owner ("`&out` stays").
 
 ## 5. The issues after this pass
 
@@ -115,7 +115,7 @@ From [scalogram.md](scalogram.md) and #286. The language changes nothing by it; 
 
 ## 6. The owner's answers (round 2)
 
-- **I9 accepted**, with a clean cut: saved pieces don't bind the language until the first release ([decision 027](../decisions/027-on-top-of-strudel.md)).
+- **I9 accepted**, with a clean cut: saved pieces don't bind the language until the first release ([decision 027](https://github.com/yggi/cells/blob/main/docs/decisions/027-on-top-of-strudel.md)).
 - **Aligned with Strudel:** `[a b]` (a subsequence; chords take commas), euclid's rotation, `?p` (drops), and `*`/`/` on a clock (faster/slower). Being built on this branch.
 - **#306 and `_`:** advice asked for (§7), then taken as written: `glide=`, `&bd:n:gain` and voice `gain=` for #306 (its author applies them there); `_` is Strudel's elongation and `base=` keeps a step with `=` (built on this branch).
 - **The multiscale approach is the frame for generalising**, and the cells, operations and wheels are mapped onto it (§8).
@@ -145,7 +145,7 @@ Checked against Strudel's `controls.mjs` (`@strudel/core` on unpkg) and dough's 
 
 ## 8. The language as a MERA: cells, operations and wheels
 
-[multiscale.md](multiscale.md) holds the theory and the side-by-side table; this section takes it one step further. It maps each form of the language onto a role: an **isometry** (coarse ↔ fine: one block of a level is several of the level below), a **disentangler** (an operation across the edge of a block, before coarse-graining), a **contraction** (a lookup or a junction), and **renormalization** (going inward, from the notes to the cells). Read generatively, from the bulk to the boundary: the cells are the bulk, the sound card the boundary.
+[multiscale.md](https://github.com/yggi/cells/blob/main/docs/notes/multiscale.md) holds the theory and the side-by-side table; this section takes it one step further. It maps each form of the language onto a role: an **isometry** (coarse ↔ fine: one block of a level is several of the level below), a **disentangler** (an operation across the edge of a block, before coarse-graining), a **contraction** (a lookup or a junction), and **renormalization** (going inward, from the notes to the cells). Read generatively, from the bulk to the boundary: the cells are the bulk, the sound card the boundary.
 
 ### Two towers, not one
 
@@ -160,7 +160,7 @@ Cells has two towers that meet at the junction.
 
 | role | time tower | pitch tower | elsewhere |
 |---|---|---|---|
-| **isometry** (one coarse block → k finer ones) | `step=&x*n` (decision 027: `*` refines); `[a b c]` (inline: one step → 3); `x*n` (a ratchet: k equal children); `x@n` (a child spanning n); a meter's levels (`meter("4/4", 2)`: a binary tree); a splice `&m` in a step; a tap of the bar (a section) | `over=&scale` (Z₇ embedded in Z₁₂, injective: w†w = 1 holds); a chord over a scale (Z₃ in Z₇); `map=edo` (the finest grid) | the junction `*`: a note → thousands of samples ([multiscale.md](multiscale.md#the-junction-projects)) |
+| **isometry** (one coarse block → k finer ones) | `step=&x*n` (decision 027: `*` refines); `[a b c]` (inline: one step → 3); `x*n` (a ratchet: k equal children); `x@n` (a child spanning n); a meter's levels (`meter("4/4", 2)`: a binary tree); a splice `&m` in a step; a tap of the bar (a section) | `over=&scale` (Z₇ embedded in Z₁₂, injective: w†w = 1 holds); a chord over a scale (Z₃ in Z₇); `map=edo` (the finest grid) | the junction `*`: a note → thousands of samples ([multiscale.md](https://github.com/yggi/cells/blob/main/docs/notes/multiscale.md#the-junction-projects)) |
 | **disentangler** (across a block's edge) | `[<<n]` (a delay carrying into the previous lap); `x@n` across a beat; an anacrusis; `_` (Strudel's, elongation across a step); `glide=` (a tie across steps); swing (soft) | `^n` (a degree carrying into the octave); an accidental (`6#`: a step of the level below); `shift=` and `stride=` (a table turned with carry) | `base=` (§7: a copy and its detail) |
 | **contraction** (a lookup, an index from below) | a selector reading `over=&parts` | `over=` read by a melody; a pick `&x[i]`; `map=&table` | a kit read by number; a gate's `play=` |
 | **weight sharing** | `x!n`, a cell played many times, `stride=` | a scale read by many cells | the graph is the network folded over time |
@@ -186,7 +186,7 @@ The only unaddressed layers are the ones between the top and the bottom. They ar
 
 ### Renormalization: the tools that go inward
 
-- **The folder and Shorten** coarse-grain a program: they find repeated blocks (weight sharing) and factor them into cells (β-expansion in [multiscale.md](multiscale.md)'s terms).
+- **The folder and Shorten** coarse-grain a program: they find repeated blocks (weight sharing) and factor them into cells (β-expansion in [multiscale.md](https://github.com/yggi/cells/blob/main/docs/notes/multiscale.md)'s terms).
 - **`base=` is lifting.** Lifting factors a wavelet transform into *predict* and *update*. The base is the prediction, the delta is the detail coefficients, and `=` is a zero coefficient. A fugue's bent entries are a subject plus small details, which is why the folder found `base=` useful.
 - **Normalise is the flow to a fixed point.** A canonical form is a program that coarse-graining no longer changes (Shorten's idempotence, #142).
 - **Relevant and irrelevant.** What survives coarse-graining is a piece's relevant structure: the key, the form, the tempo map, the bar. What vanishes is the ornament: ratchets, chance, an accidental. This is a measure the scalogram can give per piece (ridge strength by level), and a guide for the folder: keep a level as a named cell when it is relevant, inline it (`[a b]`, `x*n`) when it isn't.
@@ -199,4 +199,4 @@ These follow from the mapping and need no new primitive. The owner's approval is
 2. **One disentangler: a shift with carry on a layer.** Time and pitch alike, the layer the cell's own, or `$` the root. It fills #179's grid without new signs.
 3. **Lookups are contractions with an index from below.** `over=`, picks, kits, a gate's `play=`, a selector: one primitive (#151's *look up* row), so the gate's `play=` and `over=` are one form, two spellings.
 4. **The detail is first-class.** `base=` with `=` is the language's lifting step; the folder writes it, and the scalogram can say where a detail is heard.
-5. **A check across both sides:** per piece, the code's levels (`towerSpans`) against the heard ones (the scalogram's ridges and swells). This is the isometry condition as a report in the time view, not a warning. It is lead 3 of [multiscale.md](multiscale.md), now with both halves built.
+5. **A check across both sides:** per piece, the code's levels (`towerSpans`) against the heard ones (the scalogram's ridges and swells). This is the isometry condition as a report in the time view, not a warning. It is lead 3 of [multiscale.md](https://github.com/yggi/cells/blob/main/docs/notes/multiscale.md), now with both halves built.

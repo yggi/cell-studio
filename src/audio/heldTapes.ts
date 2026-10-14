@@ -7,8 +7,8 @@
  * has it, its heads playing what is under them on the way (a scrub). A hand on a tape moves it off the timeline by so
  * much, and it keeps that displacement as the timeline moves. Play lets them run on from where they stand.
  */
-import { clocking, tapeMotion } from '../engine/clocking';
-import type { Plan } from '../engine/realize';
+import { clocking, tapeMotion } from '@yggi/cells/engine/clocking';
+import type { Plan } from '@yggi/cells/engine/realize';
 import type { VoiceBank } from './voices';
 
 export class HeldTapes {

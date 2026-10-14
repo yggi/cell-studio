@@ -3,8 +3,8 @@
  * through the white clock (`tapTint`), on its pill's strands, on the tags it steps, on the accents of the wheels in its
  * section (their ticks, their hand, their name's border) and, on the tower layout's strip, on its table's values.
  */
-import type { CompileResult } from '../engine/program';
-import type { GraphModel } from '../engine/graph';
+import type { CompileResult } from '@yggi/cells/engine/program';
+import type { GraphModel } from '@yggi/cells/engine/graph';
 
 export interface Section {
   readonly k: number;

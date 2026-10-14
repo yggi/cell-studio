@@ -3,8 +3,8 @@
  * sustain, release), the curve as drawn and its values named on it, and where a note is on it now, for the lines that
  * cross on the curve while it plays.
  */
-import { adsrOf, type CompileResult, type Shifts } from '../engine/program';
-import { lastNoteAt } from '../engine/values';
+import { adsrOf, type CompileResult, type Shifts } from '@yggi/cells/engine/program';
+import { lastNoteAt } from '@yggi/cells/engine/values';
 import { envelopeNames } from './wheel';
 
 interface Adsr {

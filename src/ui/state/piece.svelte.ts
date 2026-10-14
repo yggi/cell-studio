@@ -1,17 +1,17 @@
-import { compileSource } from '../../engine/compile';
-import { codeShifts, type CompileResult } from '../../engine/program';
-import { addCell, setFree, setOff, setShift } from '../../engine/edit';
-import { freeIndex, freeList, withHeld } from '../../engine/held';
+import { compileSource } from '@yggi/cells/engine/compile';
+import { codeShifts, type CompileResult } from '@yggi/cells/engine/program';
+import { addCell, setFree, setOff, setShift } from '@yggi/cells/engine/edit';
+import { freeIndex, freeList, withHeld } from '@yggi/cells/engine/held';
 import { buildGraph } from '../../layout/drawn';
 import { showProblems } from '../../layout/show';
-import { routing } from '../../engine/routing';
-import { mainTempo, sections } from '../../engine/duration';
+import { routing } from '@yggi/cells/engine/routing';
+import { mainTempo, sections } from '@yggi/cells/engine/duration';
 import { titleOf } from '../../library';
 import type { PieceSource } from '../../audio/engine';
-import type { FreeSpec } from '../../engine/ast';
-import { isMidiText, parseMidiText } from '../../engine/miditext';
-import { cellsFromMidi } from '../../engine/midiimport';
-import { pieceStats } from '../../engine/stats';
+import type { FreeSpec } from '@yggi/cells/engine/ast';
+import { isMidiText, parseMidiText } from '@yggi/cells/engine/miditext';
+import { cellsFromMidi } from '@yggi/cells/engine/midiimport';
+import { pieceStats } from '@yggi/cells/engine/stats';
 
 /**
  * The open piece: its code — the single source of truth, and this the only place that writes it —

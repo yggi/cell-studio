@@ -1,6 +1,6 @@
 <script lang="ts">
   /** The picker's filters: one dropdown per kind of tag (genre, artist, topic), each its most used tags first. */
-  import { tagKind, tagName } from '../../engine/tags';
+  import { tagKind, tagName } from '@yggi/cells/engine/tags';
   import { FILTER_KINDS as KINDS, type Entry, type FilterKind } from '../entries';
 
   let {

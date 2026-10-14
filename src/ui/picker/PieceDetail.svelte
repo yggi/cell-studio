@@ -1,8 +1,8 @@
 <script lang="ts">
   /** A piece's card, opened from the library's graph: its wheel, its words, its length, its tags; open it from here. */
   import PieceNode from '../PieceNode.svelte';
-  import { durationText } from '../../engine/duration';
-  import { tagName } from '../../engine/tags';
+  import { durationText } from '@yggi/cells/engine/duration';
+  import { tagName } from '@yggi/cells/engine/tags';
   import Sheet from '../kit/Sheet.svelte';
   import type { Entry } from '../entries';
 

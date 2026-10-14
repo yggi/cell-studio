@@ -4,7 +4,7 @@
  * over the white keys), its name, and how hard a key struck at a height is played. Pure: the dock draws it
  * (`ui/PianoKeys.svelte`).
  */
-import { NOTE_NAMES } from '../theory/modes';
+import { NOTE_NAMES } from '@yggi/cells/theory/modes';
 
 export const isBlackKey = (note: number): boolean => [1, 3, 6, 8, 10].includes(((note % 12) + 12) % 12);
 

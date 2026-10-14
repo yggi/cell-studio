@@ -7,10 +7,10 @@
   import EditPop from './EditPop.svelte';
   import { PARAM_KEYS, suggestValue } from './suggest';
   import { SHOW_MEANING } from '../layout/show';
-  import { attrsOf, setAttr, setTiming } from '../engine/edit';
-  import { DOUGH_PARAMS, DOUGH_SOURCES } from '../engine/dough-params';
-  import { parse } from '../engine/parser';
-  import { canonicalParam } from '../engine/attributes';
+  import { attrsOf, setAttr, setTiming } from '@yggi/cells/engine/edit';
+  import { DOUGH_PARAMS, DOUGH_SOURCES } from '@yggi/cells/engine/dough-params';
+  import { parse } from '@yggi/cells/engine/parser/index';
+  import { canonicalParam } from '@yggi/cells/engine/attributes';
 
   let {
     name,

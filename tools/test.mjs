@@ -4,11 +4,12 @@
 // One vitest run: the slow files picked share the workers with the quick ones.
 //
 //   npm test                 # quick, and the slow tests the change reaches
-//   npm test -- --all        # every test (as `npm run test:all` and CI)
+//   npm test -- --all        # every test (as `npm run test:all`)
 //   npm test -- <file|name>  # what you name, in whichever project it is
 //
 // Fail-safes: on CI (CI set), with no origin/main to compare with, or when vitest can't list what changed, every slow
-// test runs; and it says which it runs and why. TEST_BASE=<ref> compares with another base (a stacked branch's parent). CI (`.github/workflows/ci.yml`) runs both projects whole: it is the gate.
+// test runs; and it says which it runs and why. TEST_BASE=<ref> compares with another base (a stacked branch's parent). CI (`.github/workflows/ci.yml`) calls vitest itself:
+// the quick project, and the slow one by hand.
 import { execFileSync, spawnSync } from 'node:child_process';
 
 const args = process.argv.slice(2);

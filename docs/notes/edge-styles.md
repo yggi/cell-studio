@@ -1,6 +1,6 @@
 # Edge styles: what an edge shows, and the bus's geometry
 
-**2026-10-10 · open: surveyed, planned and decided (owner, 2026-10-10: D1 C travelling, D2 C, D3 B, D4 C, D5 a constant, D6 still); steps 1–4 built · #137, #238, #183, #150; on top of [nets.md](nets.md)**
+**2026-10-10 · open: surveyed, planned and decided (owner, 2026-10-10: D1 C travelling, D2 C, D3 B, D4 C, D5 a constant, D6 still); steps 1–4 built · #137, #238, #183, #150; on top of [nets.md](https://github.com/yggi/cells/blob/main/docs/notes/nets.md)**
 
 The owner's ask: edges and net segments by colour and style, the bus's geometry, one mechanism and one place for the rules. Meter nets are good as they are. The colour bus needs a constant width through bends and a clean join between the loom and the bus. The other edges: what they show should follow what their source pushes, one style per band, and the payload should drive it while playing (a wave's height and length by the sound, pulse trains on clocks). Some edges are unstyled.
 

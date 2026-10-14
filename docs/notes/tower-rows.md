@@ -59,7 +59,7 @@ Today · tower by step · zones (`emit`) with the signal path within, each stopp
 
 ## After taps (2026-10-10)
 
-Re-measured on main after taps on their table ([decision 016](../decisions/016-arranging-at-the-input.md)) and the simpler forces (#263), 69 examples, three seeds. The probe now finds a selector written with taps (`over=` reading a table of taps), and `emit` places a pattern of voices (a kit's groove, `&groove &bd &sd`) with the sound it sends on.
+Re-measured on main after taps on their table ([decision 016](https://github.com/yggi/cells/blob/main/docs/decisions/016-arranging-at-the-input.md)) and the simpler forces (#263), 69 examples, three seeds. The probe now finds a selector written with taps (`over=` reading a table of taps), and `emit` places a pattern of voices (a kit's groove, `&groove &bd &sd`) with the sound it sends on.
 
 | rows | crossings | wires up / down | ρ settled | selectors' height |
 |---|---|---|---|---|

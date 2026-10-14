@@ -4,7 +4,7 @@
 
 ## Context
 
-A tape (`&tape step=&reel write=&tune length=6`) was drawn as a turntable with its heads marked on its rim, and each read head (`&near play=&tape at=.375`) as a wheel of its own elsewhere, wired back to its mark with a `play at=…` edge. The layout turned the tape so each mark faced its head's wheel, and pulled the head's wheel round towards it (`src/layout/tape.ts`, `aims.ts`). Every head in the library takes nothing but its tape: it is a place on the tape, as a splice is a stretch of its braid ([014](014-splices-are-bulbs.md)) and a tap is a slot of its table ([016](016-arranging-at-the-input.md)). A gate's only voice became a bulb on the gate the same way (#234). Four rules, written one at a time.
+A tape (`&tape step=&reel write=&tune length=6`) was drawn as a turntable with its heads marked on its rim, and each read head (`&near play=&tape at=.375`) as a wheel of its own elsewhere, wired back to its mark with a `play at=…` edge. The layout turned the tape so each mark faced its head's wheel, and pulled the head's wheel round towards it (`src/layout/tape.ts`, `aims.ts`). Every head in the library takes nothing but its tape: it is a place on the tape, as a splice is a stretch of its braid ([014](014-splices-are-bulbs.md)) and a tap is a slot of its table ([016](https://github.com/yggi/cells/blob/main/docs/decisions/016-arranging-at-the-input.md)). A gate's only voice became a bulb on the gate the same way (#234). Four rules, written one at a time.
 
 ## Decision
 

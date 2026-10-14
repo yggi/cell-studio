@@ -8,7 +8,7 @@
   import FreePills from './FreePills.svelte';
   import GateMeter from './GateMeter.svelte';
   import KitGlyph from './KitGlyph.svelte';
-  import { VOICE_KIT } from '../engine/compiler/declare';
+  import { VOICE_KIT } from '@yggi/cells/engine/compiler/declare';
   import { gateOf } from '../layout/gate';
   import { glyphOf, soundHeadOf } from '../layout/wheels';
   import SideMarks from './SideMarks.svelte';

@@ -3,7 +3,7 @@
  * lays out with (DEFAULT_LAYOUT, each measured over the library: docs/notes/nets.md) and the springs' strengths that
  * more than one phase reads. What a node and an edge weigh is weights.ts.
  */
-import type { GraphNode } from '../engine/graph';
+import type { GraphNode } from '@yggi/cells/engine/graph';
 
 /** A belt's spring: its length against an edge's, and its pull. */
 export const BELT_LENGTH = 0.8;

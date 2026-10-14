@@ -7,15 +7,15 @@
 
 <script lang="ts">
   import { Background, Controls, SvelteFlow, ViewportPortal, type NodeTypes } from '@xyflow/svelte';
-  import { VOICE_KIT } from '../engine/compiler/declare';
+  import { VOICE_KIT } from '@yggi/cells/engine/compiler/declare';
   import { noteColour, partColour, tapTint } from './theme';
   import '@xyflow/svelte/dist/style.css';
   import { onDestroy, untrack } from 'svelte';
-  import type { CompileResult, Shifts } from '../engine/program';
-  import { isCellNode, type GraphModel } from '../engine/graph';
-  import type { LiveState } from '../engine/live';
-  import { drawn, type Routing } from '../engine/routing';
-  import { refsOf } from '../engine/readers';
+  import type { CompileResult, Shifts } from '@yggi/cells/engine/program';
+  import { isCellNode, type GraphModel } from '@yggi/cells/engine/graph';
+  import type { LiveState } from '@yggi/cells/engine/live';
+  import { drawn, type Routing } from '@yggi/cells/engine/routing';
+  import { refsOf } from '@yggi/cells/engine/readers';
   import { bulbAt, setGraphContext, type RowKeys } from './context';
   import { snapshotOf } from './snapshot';
   import { GraphLayout } from './state/graphLayout.svelte';
@@ -124,7 +124,7 @@
      */
     locked?: () => void;
     /** A free(…) slider moved. */
-    onfree: (spec: import('../engine/ast').FreeSpec, value: number | string) => void;
+    onfree: (spec: import('@yggi/cells/engine/ast').FreeSpec, value: number | string) => void;
     nudge?: (seconds: number) => void;
     /** Where play starts (stopped). */
     cursor?: number;

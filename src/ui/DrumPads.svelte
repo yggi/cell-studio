@@ -6,7 +6,7 @@
    * MIDI in or the computer keys: `down`), and glows while the plan plays its member (`sounding`).
    */
   import { onDestroy } from 'svelte';
-  import type { Pad } from '../engine/keys';
+  import type { Pad } from '@yggi/cells/engine/keys';
   import { Fingers } from './fingers';
 
   let {

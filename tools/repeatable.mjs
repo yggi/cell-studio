@@ -30,7 +30,7 @@ const PEAK = Number(process.env.PEAK ?? -1);
 const RMS = Number(process.env.RMS ?? -18);
 const KNOWN = { 'forks.cells': '#65', 'kalimba.cells': '#65', 'sympathy.cells': '#65' };
 const words = args.filter((a) => !/^\d+(\.\d+)?$/.test(a)).map((w) => w.toLowerCase());
-const files = readdirSync('examples')
+const files = readdirSync('node_modules/@yggi/cells/examples')
   .filter((f) => f.endsWith('.cells'))
   .sort()
   .filter((f) => !words.length || words.some((w) => f.includes(w)));
@@ -86,7 +86,7 @@ let bad = 0;
 let loud = 0;
 const callers = new Map();
 for (const f of files) {
-  const source = readFileSync(`examples/${f}`, 'utf8');
+  const source = readFileSync(`node_modules/@yggi/cells/examples/${f}`, 'utf8');
   // (a first render warms Tone's cache of noise buffers, made once per page from the first draws: it is left out)
   const warm = await render(source);
   const a = await render(source);

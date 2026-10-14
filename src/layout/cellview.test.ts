@@ -1,10 +1,10 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { SAILOR_WITH_KIT } from '../engine/fixtures';
-import { compileSource } from '../engine/compile';
-import { codeShifts, type Shifts } from '../engine/program';
+import { SAILOR_WITH_KIT } from '@yggi/cells/engine/fixtures';
+import { compileSource } from '@yggi/cells/engine/compile';
+import { codeShifts, type Shifts } from '@yggi/cells/engine/program';
 import { blank, cellView, drawnOf, hubLabel, isGrid, valueAt, valueSpectrum, type CellView } from './cellview';
-import { PRESETS } from '../engine/presets';
+import { PRESETS } from '@yggi/cells/engine/presets';
 
 const r = compileSource(PRESETS.royal.source);
 const with_ =

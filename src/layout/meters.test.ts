@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { groundsOf, meterIndex, meterNow } from './meters';
-import { liveAt } from '../engine/live';
-import { codeShifts } from '../engine/program';
+import { liveAt } from '@yggi/cells/engine/live';
+import { codeShifts } from '@yggi/cells/engine/program';
 import { buildGraph } from './drawn';
-import { compileSource } from '../engine/compile';
-import { PRESETS } from '../engine/presets';
+import { compileSource } from '@yggi/cells/engine/compile';
+import { PRESETS } from '@yggi/cells/engine/presets';
 
 const graphOf = (src: string) => buildGraph(compileSource(src));
 const name = (id: string) => id.replace(/^cell:/, '');

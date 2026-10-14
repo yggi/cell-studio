@@ -3,8 +3,8 @@
  * a plugin's wheel, a gate's meter (a product's junction a small one), a signal's wave or spectrum, or a cell's glyph.
  * The flow's node types (ui/flownode.ts) and a cell node's glyph (ui/CellNode.svelte) both read it.
  */
-import { isTurntable, type GraphNode } from '../engine/graph';
-import type { CompileResult } from '../engine/program';
+import { isTurntable, type GraphNode } from '@yggi/cells/engine/graph';
+import type { CompileResult } from '@yggi/cells/engine/program';
 import { pluginOf } from './show';
 import { kitOf } from './kit';
 

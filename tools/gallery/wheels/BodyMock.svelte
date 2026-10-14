@@ -9,7 +9,7 @@
    * - `face`: `shape`, and the body itself drawn on the disc's face (what a single exciter, the usual case, shows)
    * - `material`: `face`, on a disc of the body's material (wood, steel, brass, organ metal)
    */
-  import { BODIES } from '../../../src/engine/program';
+  import { BODIES } from '@yggi/cells/engine/program';
   import { EXCITER_RING } from '../../../src/layout/exciters';
 
   let { body, shifts, option, ringing = 0 }: { body: string; shifts: number[]; option: 'now' | 'shape' | 'face' | 'material'; ringing?: number } = $props();

@@ -7,10 +7,10 @@
  * that at its exact offsets. Programs are swapped in whole (on edits and on
  * every shift) and take effect at the next window.
  */
-import { clocking, tapeMotion } from '../engine/clocking';
-import { eventsBetween, type Plan, type Played } from '../engine/realize';
-import { isPhysical, retime, type Window } from '../engine/schedule';
-import type { ClockTicks } from '../engine/midiclock';
+import { clocking, tapeMotion } from '@yggi/cells/engine/clocking';
+import { eventsBetween, type Plan, type Played } from '@yggi/cells/engine/realize';
+import { isPhysical, retime, type Window } from '@yggi/cells/engine/schedule';
+import type { ClockTicks } from '@yggi/cells/engine/midiclock';
 import { createVoices, type VoiceBank } from './voices';
 import { transportClock } from './clock.svelte';
 import { transition, type TransportEvent, type TransportState } from './transport';

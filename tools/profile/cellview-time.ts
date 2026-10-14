@@ -3,11 +3,11 @@
 // time is in the reactive flush and DOM, not in the layout code.
 // usage: npx vite-node tools/profile/cellview-time.ts [examples/bwv847.cells] [seconds=60]
 import { readFileSync } from 'node:fs';
-import { compileSource } from '../../src/engine/compile';
-import { codeShifts } from '../../src/engine/program';
+import { compileSource } from '@yggi/cells/engine/compile';
+import { codeShifts } from '@yggi/cells/engine/program';
 import { cellView } from '../../src/layout/cellview';
-import { shiftsAt, playedCells } from '../../src/engine/clocking';
-const file = process.argv[2] ?? 'examples/bwv847.cells';
+import { shiftsAt, playedCells } from '@yggi/cells/engine/clocking';
+const file = process.argv[2] ?? 'node_modules/@yggi/cells/examples/bwv847.cells';
 const horizon = Number(process.argv[3] ?? 60);
 const r = compileSource(readFileSync(file, 'utf8'));
 const statics = codeShifts(r);

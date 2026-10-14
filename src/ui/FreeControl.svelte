@@ -6,11 +6,11 @@
    * can learn a knob (LearnButton); a knob not yet at the value shows on the slider as the gap between them. A braid left
    * free (free(0 2 4 ~)) shows its steps, a take's while one is held, with Keep and Revert for it.
    */
-  import type { FreeSpec } from '../engine/ast';
+  import type { FreeSpec } from '@yggi/cells/engine/ast';
   import Keypad from './Keypad.svelte';
   import LearnButton from './LearnButton.svelte';
   import { getStudio } from './state/studio.svelte';
-  import { freeIndex } from '../engine/held';
+  import { freeIndex } from '@yggi/cells/engine/held';
   import { freeAmount, freeAt, freeKey, freeLabel, freePosition, freeSteps, freeValue } from './free';
 
   let {

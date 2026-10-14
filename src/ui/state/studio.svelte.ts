@@ -1,14 +1,14 @@
 import { createContext, tick } from 'svelte';
-import { codeShifts } from '../../engine/program';
-import { declLine } from '../../engine/edit';
+import { codeShifts } from '@yggi/cells/engine/program';
+import { declLine } from '@yggi/cells/engine/edit';
 import { FIRST_SOURCE, loadExample, type PresetKey } from '../../examples';
 import { download, fileName, readFile, saveFile, savePiece, titleOf } from '../../library';
-import { pieceMidi } from '../../engine/midiexport';
-import { isMidi, readMidi, writeMidi } from '../../engine/midifile';
-import { midiText } from '../../engine/miditext';
-import { cellsFromMidi, type Imported } from '../../engine/midiimport';
+import { pieceMidi } from '@yggi/cells/engine/midiexport';
+import { isMidi, readMidi, writeMidi } from '@yggi/cells/engine/midifile';
+import { midiText } from '@yggi/cells/engine/miditext';
+import { cellsFromMidi, type Imported } from '@yggi/cells/engine/midiimport';
 import { creditLines, loadMidiFile, MIDI_FILES } from '../../corpus';
-import type { Smf } from '../../engine/midifile';
+import type { Smf } from '@yggi/cells/engine/midifile';
 import type { FoldAnswer, FoldJob } from '../fold.worker';
 import { loudness, renderLength, renderPiece, wav } from '../../audio/render';
 import { transportClock } from '../../audio/clock.svelte';
@@ -80,7 +80,12 @@ export class Studio {
 
   constructor() {
     // `window.cellStudio`, for measuring from outside (docs/testing.md): the open piece as written
-    installDebugHook(() => this.piece.result, this.playback.player, this.recorder);
+    installDebugHook(
+      () => this.piece.result,
+      this.playback.player,
+      this.recorder,
+      (source, name) => this.openSource(source, name),
+    );
     // MIDI out: the notes the player plays go to the output chosen too
     this.midi.attach(this.playback.player, this.piece);
   }
@@ -160,6 +165,16 @@ export class Studio {
     } catch {
       if (mine === this.#choice) this.view.message = `Couldn’t read ${file.name}.`;
     }
+  }
+
+  /**
+   * A piece's code from outside, as a string (`cellStudio.open`: a jam's client, #406), opened as a file of that
+   * `name` is: the piece open now, laid out afresh, stopped; what was open is replaced as a file replaces it, unasked
+   * and unsaved (a piece saved here stays saved). A card or a file still being read gives way to it.
+   */
+  openSource(source: string, name = fileName(source)): void {
+    ++this.#choice;
+    this.#opened({ kind: 'file', name }, source);
   }
 
   /** Save the code as a .cells file; a MIDI file's text as the MIDI file. */

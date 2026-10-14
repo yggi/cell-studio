@@ -9,12 +9,12 @@
 import { describe, it } from 'vitest';
 import { appendFileSync } from 'node:fs';
 import { buildGraph } from '../../src/layout/drawn';
-import { compileSource } from '../../src/engine/compile';
-import { codeShifts, type CompileResult } from '../../src/engine/program';
-import { pieceTime } from '../../src/engine/duration';
-import { listening } from '../../src/engine/time/span';
-import { eventsBetween, plan, type Played } from '../../src/engine/realize';
-import { PRESETS } from '../../src/engine/presets';
+import { compileSource } from '@yggi/cells/engine/compile';
+import { codeShifts, type CompileResult } from '@yggi/cells/engine/program';
+import { pieceTime } from '@yggi/cells/engine/duration';
+import { listening } from '@yggi/cells/engine/time/span';
+import { eventsBetween, plan, type Played } from '@yggi/cells/engine/realize';
+import { PRESETS } from '@yggi/cells/engine/presets';
 import { towerOuts } from '../../src/layout/towerlayout';
 import { blank } from '../../src/layout/cellview';
 

@@ -3,7 +3,7 @@
  * edit elsewhere doesn't move), what a knob or a pad makes of it (through the control's own scale: `free.ts`), and soft
  * takeover. The state that uses it is `state/learn.svelte.ts`; the page is docs/ui/midi.md.
  */
-import type { FreeSpec } from '../engine/ast';
+import type { FreeSpec } from '@yggi/cells/engine/ast';
 import { freeAt, freePosition, freeSteps } from './free';
 
 /** A knob, fader or pad: a control change or a note, on a channel (0–15); and the controller it was learned from (its input's name), where known. */

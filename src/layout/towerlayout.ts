@@ -6,9 +6,9 @@
  * node: what goes into it goes into a socket of its own (`withSockets`), and shows on the tower's strip at the graph's
  * right, its left channel the strip's left half and its right channel the right half (`towerOuts`, `towerNets`).
  */
-import type { CompileResult } from '../engine/program';
-import type { GraphModel, GraphNode } from '../engine/graph';
-import { cellId } from '../engine/ids';
+import type { CompileResult } from '@yggi/cells/engine/program';
+import type { GraphModel, GraphNode } from '@yggi/cells/engine/graph';
+import { cellId } from '@yggi/cells/engine/ids';
 import { towerOf } from './tower';
 import { socketOf, VOICE_SIZE } from './voice';
 

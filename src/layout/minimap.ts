@@ -4,7 +4,7 @@
  * — a voice and the melody that plays it in its out's lane, a clock several outs share across theirs — so the way a
  * rhythm at its rate becomes a tone at its pitch is a straight line up its lane. Pure: the graph in, lanes and spans out.
  */
-import type { GraphModel } from '../engine/graph';
+import type { GraphModel } from '@yggi/cells/engine/graph';
 import { isSocket } from './towerlayout';
 
 /** An out: the edge into its socket (its id: what it carries), and the node whose sound it is. */

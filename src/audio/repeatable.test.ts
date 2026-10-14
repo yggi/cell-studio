@@ -17,8 +17,9 @@ const sources = (dir: string): string[] =>
 const CHANCE = [/\bMath\.random\b/, /\bcrypto\.getRandomValues\b/];
 
 describe('none of our code that sounds is random', () => {
-  for (const dir of ['src/engine', 'src/layout', 'src/audio']) {
-    it(`${dir} draws on no chance of its own (use the cell's seed: engine/realize.ts chanceOf, audio/voice/noise.ts)`, () => {
+  // (the language, yggi/cells, holds its own engine to the same line)
+  for (const dir of ['src/layout', 'src/audio']) {
+    it(`${dir} draws on no chance of its own (use the cell's seed: @yggi/cells' engine/realize.ts chanceOf, audio/voice/noise.ts)`, () => {
       const found: string[] = [];
       for (const file of sources(dir))
         readFileSync(file, 'utf8')

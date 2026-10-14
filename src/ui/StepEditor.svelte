@@ -3,7 +3,7 @@
   /** One step of a braid, in the shared pop-up: value bar, completion, step/octave spinners, Split, Delete. */
   import EditPop from './EditPop.svelte';
   import { nudge, numberToken, suggest } from './suggest';
-  import { parse } from '../engine/parser';
+  import { parse } from '@yggi/cells/engine/parser/index';
 
   let {
     token,

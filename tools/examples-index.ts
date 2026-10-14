@@ -2,16 +2,16 @@
 // time, so the app compiles nothing to show it and fetches a piece's source only when it opens.
 // Used by the vite plugin (vite.config.ts: `virtual:examples-index`) and by the tests.
 import { readFileSync } from 'node:fs';
-import { compileSource } from '../src/engine/compile';
-import { pieceTime, type PieceTime } from '../src/engine/duration';
+import { compileSource } from '@yggi/cells/engine/compile';
+import { pieceTime, type PieceTime } from '@yggi/cells/engine/duration';
 import { buildGraph } from '../src/layout/drawn';
-import { ORDER, type PresetKey } from '../src/engine/order';
-import { pieceMeta } from '../src/engine/parser';
+import { ORDER, type PresetKey } from '@yggi/cells/engine/order';
+import { pieceMeta } from '@yggi/cells/engine/parser/index';
 import { miniature, type Miniature } from '../src/layout/miniature';
 import { isSide } from '../src/layout/side';
 import { bestRowOrder } from '../src/layout/physics';
 import { rowsKey } from '../src/layout/start';
-import { canonicalTags } from '../src/engine/tags';
+import { canonicalTags } from '@yggi/cells/engine/tags';
 
 export interface ExampleInfo {
   readonly key: PresetKey;
@@ -36,7 +36,7 @@ export interface ExampleInfo {
 export type ExampleMeta = Omit<ExampleInfo, 'miniature' | 'rows'>;
 
 /** Each example's own entry, without laying it out (the examples' page reads only these): in the library's order. */
-export function buildExamplesMeta(dir = 'examples'): (ExampleMeta & { source: string; graph: ReturnType<typeof buildGraph> })[] {
+export function buildExamplesMeta(dir = 'node_modules/@yggi/cells/examples'): (ExampleMeta & { source: string; graph: ReturnType<typeof buildGraph> })[] {
   return ORDER.map((key) => {
     const source = readFileSync(`${dir}/${key}.cells`, 'utf8').replace(/\n$/, '');
     const r = compileSource(source);
@@ -57,8 +57,8 @@ export function buildExamplesMeta(dir = 'examples'): (ExampleMeta & { source: st
   });
 }
 
-/** Every example, in the library's order, from examples/<key>.cells (as the app reads them: no trailing newline). */
-export function buildExamplesIndex(dir = 'examples'): ExampleInfo[] {
+/** Every example, in the library's order, from the cells package's examples/<key>.cells (as the app reads them: no trailing newline). */
+export function buildExamplesIndex(dir = 'node_modules/@yggi/cells/examples'): ExampleInfo[] {
   return buildExamplesMeta(dir).map(({ source, graph, ...meta }) => {
     const order = bestRowOrder(graph);
     return { ...meta, miniature: miniature(source, order), rows: { key: rowsKey(graph), order } };

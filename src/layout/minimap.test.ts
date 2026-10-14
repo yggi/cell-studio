@@ -1,13 +1,13 @@
-import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { compileSource } from '../engine/compile';
+import { compileSource } from '@yggi/cells/engine/compile';
+import { PRESETS } from '@yggi/cells/engine/presets';
 import { buildGraph } from './drawn';
 import { minimap } from './minimap';
 import { withSockets } from './towerlayout';
 
 describe("the strip's minimap", () => {
   it('puts each out in a lane, in the order asked, and every node in the lanes of the outs it feeds', () => {
-    const program = compileSource(readFileSync('examples/waltz.cells', 'utf8'));
+    const program = compileSource(PRESETS.waltz.source);
     const drawn = withSockets(buildGraph(program));
     const order = ['cell:tuba', 'cell:flute', 'cell:strings'];
     const { lanes, span } = minimap(drawn, (s) => order.indexOf(s));

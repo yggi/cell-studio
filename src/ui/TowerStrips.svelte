@@ -26,7 +26,7 @@
   import { heard, noteHz, noteOf, outRgb } from './heard';
   import { drawSpire, spireOf } from './spire';
   import { cellView, valueAt, valueSpectrum } from '../layout/cellview';
-  import { lapOf } from '../engine/readers';
+  import { lapOf } from '@yggi/cells/engine/readers';
   import { fillColour } from './edgeStyle';
   import { C0 } from '../layout/spectrum';
 

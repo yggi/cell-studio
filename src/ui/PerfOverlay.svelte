@@ -6,7 +6,7 @@
    */
   import { onDestroy, onMount } from 'svelte';
   import { load } from '../audio/ticker';
-  import { clockText } from '../engine/duration';
+  import { clockText } from '@yggi/cells/engine/duration';
   import { buildReport, PerfCollector, type PerfSources } from './perf';
   import { combinedReport, estimateMinutes, parseRunOptions, planSteps, runScenario, type Progress, type RunController } from './perfrun';
 

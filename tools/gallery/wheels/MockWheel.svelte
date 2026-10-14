@@ -11,12 +11,12 @@
   import PluginNode from '../../../src/ui/PluginNode.svelte';
   import CellGlyph from '../../../src/ui/CellGlyph.svelte';
   import SpectrumWheel from '../../../src/ui/SpectrumWheel.svelte';
-  import { compileSource } from '../../../src/engine/compile';
-  import { codeShifts } from '../../../src/engine/program';
+  import { compileSource } from '@yggi/cells/engine/compile';
+  import { codeShifts } from '@yggi/cells/engine/program';
   import { buildGraph } from '../../../src/layout/drawn';
-  import { liveAt } from '../../../src/engine/live';
-  import { PRESETS, type PresetKey } from '../../../src/engine/presets';
-  import { routing } from '../../../src/engine/routing';
+  import { liveAt } from '@yggi/cells/engine/live';
+  import { PRESETS, type PresetKey } from '@yggi/cells/engine/presets';
+  import { routing } from '@yggi/cells/engine/routing';
   import { flowNodeOf } from '../../../src/ui/flownode';
   import type { FlowNode } from '../../../src/ui/types';
   import { madeUpSound } from '../sound';

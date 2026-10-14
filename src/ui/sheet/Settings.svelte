@@ -1,6 +1,6 @@
 <script lang="ts">
   /** A cell's settings (its attributes, each a row to change), and how it's shown: show= here, inherited from a cell above, or inferred. */
-  import type { declWords } from '../../engine/edit';
+  import type { declWords } from '@yggi/cells/engine/edit';
   import { FITS, SHOW_MEANING, effectiveShow, kindOf } from '../../layout/show';
   import { getGraphContext } from '../context';
   import CellLink from '../CellLink.svelte';

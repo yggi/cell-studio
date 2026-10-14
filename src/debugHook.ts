@@ -2,20 +2,27 @@
  * `window.cellStudio`, for measuring from outside (the browser console, `tools/golden.mjs`, the smoke
  * test); documented in docs/testing.md.
  */
-import { compileSource } from './engine/compile';
-import { codeShifts, type CompileResult } from './engine/program';
+import { compileSource } from '@yggi/cells/engine/compile';
+import { codeShifts, type CompileResult } from '@yggi/cells/engine/program';
 import { blockLevels, loudness, renderLength, renderPiece, sampleHash } from './audio/render';
 import type { Player } from './audio/player';
 import type { Recorder } from './ui/state/record.svelte';
 import { transportClock } from './audio/clock.svelte';
 
-export function installDebugHook(openPiece: () => CompileResult, player: Player, recorder: Recorder): void {
+export function installDebugHook(openPiece: () => CompileResult, player: Player, recorder: Recorder, openSource: (source: string, name?: string) => void): void {
   if (typeof window === 'undefined') return;
   (window as unknown as { cellStudio: unknown }).cellStudio = {
     // measure(seconds?) renders the open piece and returns {rms, peak, clipped} in dB below full scale
     measure: async (seconds?: number) => {
       const r = openPiece();
       return loudness(await renderPiece(r, codeShifts(r), seconds));
+    },
+    // open(source, name?) opens a string of code as the open piece, as opening a file does (`name` its file's name, by
+    // default from its title): the editor, the graph and Play follow it; returns whether it compiled, and its errors
+    open: (source: string, name?: string) => {
+      openSource(source, name);
+      const r = openPiece();
+      return { ok: r.ok, errors: r.diagnostics.filter((d) => d.severity === 'error').map((d) => d.message) };
     },
     // the default render length in seconds
     length: () => renderLength(openPiece()),
