@@ -518,6 +518,12 @@ Seen and left (open issues): strands crossing inside a pill where the taps' orde
 
 ![The golden graph in the tower layout: &key beside the pill](tower-strip-golden-pill.jpg)
 
+## Markers level with their sockets (2026-10-14)
+
+Seen (on a phone, Cellscape): the strip's marker for the outs sat far under them. It was drawn at each source's top (`towerIns`), but the sockets are held in the audible, a layer over the voices and the mixers. It is now drawn at its socket's centre, and sockets at one height share a marker (`towerlayout.test.ts`). The strip and the sockets read what a socket hears from one place (`ui/heard.ts`), so a drum kit's socket now shows in the strip's spectrum too.
+
+![Cellscape in the tower layout, before and after: the markers at the outs](tower-strip-markers.jpg)
+
 ## Next
 
 1. The tower layout still crosses about three times today's (91 against 33, the card left out of both), most in the pieces arranged with selectors, tapes and resonators (#234's language side: a selector that sends gates).

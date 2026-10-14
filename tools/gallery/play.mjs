@@ -4,8 +4,9 @@
 //
 //   node tools/gallery.mjs play 3 "Sound on Tape" Baustelle              # 3 s into each piece (builds first)
 //   OUT=shots/before DIST=/path/to/other/dist node tools/gallery.mjs play 3 Baustelle   # another build
+//   QUERY='layout=tower&strips' node tools/gallery.mjs play 20 Cellscape   # the app opened with a query (the tower layout)
 //
-// Writes <OUT>/<title>.png and <OUT>/<title>.json (name → state, edge id → class), OUT default shots/play. Viewport 1600×1000.
+// Writes <OUT>/<title>.png and <OUT>/<title>.json (name → state, edge id → class), OUT default shots/play. Viewport 1600×1000 (VIEW=WxH another).
 // Chromium as for the smoke test (tools/profile/playwright.mjs; in a cloud session CHROME_PATH=/opt/pw-browsers/chromium).
 import { preview } from 'vite';
 import { mkdirSync, writeFileSync } from 'node:fs';
@@ -18,10 +19,11 @@ const out = process.env.OUT ?? 'shots/play';
 mkdirSync(out, { recursive: true });
 if (!process.env.DIST) freshBuild();
 const server = await preview({ preview: { port: 0, host: '127.0.0.1' }, build: process.env.DIST ? { outDir: process.env.DIST } : {}, logLevel: 'error' });
-const url = server.resolvedUrls.local[0];
+const url = server.resolvedUrls.local[0] + (process.env.QUERY ? `?${process.env.QUERY}` : '');
+const [vw, vh] = (process.env.VIEW ?? '1600x1000').split('x').map(Number);
 const browser = await chromium.launch({ args: ['--autoplay-policy=no-user-gesture-required', '--no-sandbox'] });
 for (const title of titles) {
-  const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } });
+  const page = await browser.newPage({ viewport: { width: vw, height: vh } });
   await page.goto(url);
   await page.getByRole('radio', { name: 'Cards' }).click();
   await page.locator('input.search').fill(title);

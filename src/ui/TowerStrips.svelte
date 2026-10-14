@@ -18,11 +18,12 @@
   import type { Viewport } from '@xyflow/svelte';
   import { onDestroy, onMount } from 'svelte';
   import { getGraphContext, nodeState } from './context';
-  import { bandFreq, bandHue, bandsFromFFT, restingProfile } from '../layout/spectrum';
+  import { bandFreq, bandHue } from '../layout/spectrum';
   import { towerNets, towerY, type TowerIn } from '../layout/towerlayout';
   import { TOWER_ZONES } from '../layout/tower';
   import { onFrames } from '../audio/ticker';
-  import { noteColour, noteHsl } from './theme';
+  import { noteHsl } from './theme';
+  import { heard, noteOf } from './heard';
 
   let {
     ins,
@@ -47,12 +48,12 @@
   const yOf = (d: number) => towerY(d) * viewport.zoom + viewport.y;
   const css = (name: string) => (typeof getComputedStyle !== 'undefined' && canvas ? getComputedStyle(canvas).getPropertyValue(name).trim() : '') || '#888';
 
-  // what a source sounds on a side now: levels per band (0 … 1), live or at rest; nothing on a half it doesn't reach
+  // what a source sounds on a side now: levels per band (0 … 1), live or at rest (faint), a kit's drums together; nothing
+  // on a half it doesn't reach
   function levels(o: TowerIn, side: 'left' | 'right'): Float32Array {
     if (!o[side]) return new Float32Array(BANDS);
-    const live = ctx.state !== 'stopped' ? ctx.sound.spectrum(o.name) : null;
-    if (live) return bandsFromFFT(live[side], live.sampleRate, BANDS);
-    return restingProfile(ctx.program, o.name, ctx.shifts, BANDS)[side].map((v) => v * 0.7);
+    const h = heard(ctx, o.name, BANDS);
+    return h.rest ? h[side].map((v) => v * 0.7) : h[side];
   }
 
   // (a band's colour: its note's, the palette's, at an opacity)
@@ -62,10 +63,8 @@
   };
 
   function colourOf(name: string): string {
-    const f = ctx.state !== 'stopped' ? ctx.sound.note(name) : null;
-    const hz = f ?? ctx.program.cells.get(name)?.freq ?? 0;
-    if (!(hz > 0) || nodeState(ctx, `cell:${name}`) === 'off') return css('--edge');
-    return noteColour(((((Math.round(12 * Math.log2(hz / 440)) + 9) % 12) + 12) % 12) * 30);
+    if (nodeState(ctx, `cell:${name}`) === 'off') return css('--edge');
+    return noteOf(ctx, name) ?? css('--edge');
   }
 
   // (a decade's tick, as a period below 1 Hz and a frequency above)
