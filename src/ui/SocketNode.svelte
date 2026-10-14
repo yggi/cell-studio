@@ -46,8 +46,8 @@
     const h = S * 0.62;
     const w = S * 0.62;
     const row = h / ROWS;
-    // (drums: no note of their own, the level's neutral)
-    const colour = drums ? css('--text') : (noteOf(ctx, data.source) ?? css('--text-muted'));
+    // (drums, noise: no note of their own, white — decision 036)
+    const colour = drums ? css('--unit') : (noteOf(ctx, data.source) ?? css('--unit'));
     g.strokeStyle = css('--line');
     g.lineWidth = 1;
     g.beginPath();

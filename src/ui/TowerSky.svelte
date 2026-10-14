@@ -14,7 +14,7 @@
    * colour, as the strip at the right is. Each socket into the sound card stands in it as an antenna spire: a mast at its
    * x, its levels as bars out from the mast at their own heights (the left channel to the left, the right to the right),
    * from its lowest sounding band to its highest. What it sends lights the sky: each band a glow out from the spire, as
-   * far and as bright as it is loud, in its section's colour (`tints`). Stopped: its partials at rest, faint; playing,
+   * far and as bright as it is loud, in its source's note's colour, as its socket and its wire are (`outRgb`). Stopped: its partials at rest, faint; playing,
    * what it sounds now. Drawn in the screen's coordinates, under the graph.
    */
   import type { Viewport } from '@xyflow/svelte';
@@ -24,18 +24,15 @@
   import { towerY } from '../layout/towerlayout';
   import { onFrames } from '../audio/ticker';
   import { hslRgb, noteHsl } from './theme';
-  import { heard } from './heard';
+  import { heard, outRgb } from './heard';
 
   let {
     spires,
-    tints,
     viewport,
     mode = 'mix',
   }: {
     /** Each socket: where it stands (the graph's coordinates, its centre) and whose sound it is. */
     spires: readonly { id: string; x: number; y: number; source: string }[];
-    /** A source's section colour as rgb (0 … 255), by its name; none: its note's. */
-    tints: ReadonlyMap<string, readonly [number, number, number]>;
     viewport: Viewport;
     mode?: SkyMode;
   } = $props();
@@ -105,7 +102,7 @@
       if (x < -reach || x > w + reach) continue;
       const dim = nodeState(ctx, `cell:${s.source}`) === 'off';
       const { left, right, rest } = heard(ctx, s.source, BANDS);
-      const tint = tints.get(s.source);
+      const tint = outRgb(ctx, s.source);
       let lo = -1;
       let hi = -1;
       for (let b = 0; b < BANDS; b++) {
@@ -169,7 +166,7 @@
   }
 
   $effect(() => {
-    void [viewport.x, viewport.y, viewport.zoom, spires, tints, mode, w, h, ctx.program, ctx.shifts, ctx.state, ctx.muted, canvas];
+    void [viewport.x, viewport.y, viewport.zoom, spires, mode, w, h, ctx.program, ctx.shifts, ctx.state, ctx.muted, canvas];
     draw();
   });
   let stop = () => {};

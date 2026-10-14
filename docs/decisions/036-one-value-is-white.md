@@ -1,35 +1,36 @@
-# 036 · One value is white: colours appear where things have to be told apart
+# 036 · White where another value would mean nothing: a 0 that is only *now*
 
 **Date:** 2026-10-14 · **Status:** accepted (owner, on the tower's sky, #234) · Issue: #234
 
 ## Context
 
-Every pitch drew as its pitch class's colour, so a drum pattern written on the voice's own pitch (`&off ~ 0 ~ 0`,
-`&kick 0 ~ 0 ~`) was a red wheel (0 is C's colour) with red wires, as if C meant something there; a groove of one drum
-(`&hh &hh &hh`, Pop's hats) took that drum's colour; a selector of one part was red too. And in the tower layout's sky
-(docs/notes/tower-sky.md) each out needs a colour to tell it from the others in the strip's sum: a piece with one out
-has nothing to tell apart.
+Every pitch drew as its pitch class's colour, so 0 was always red (C), even where it means no pitch at all: a
+section's clock (`&bassBar 0`, a tap a selector steps on), a tape's reel (`&reel step=84bpm … 0`), a groove of one
+drum (Korobeiniki's `&hats`). The owner's rule: colours appear where things have to be told apart; any value but 0 is
+always a value, coloured, so the question is only red or white for 0 — white *if another value would not mean
+anything different for this wheel* (it is binary, a tick).
 
 ## Decision
 
-A colour says *this one, not that one*. Where there is only one, it is **white** (`--unit`, all colours; theme.ts
-`UNIT`):
+**A cell's 0 is white (`--unit`) when another value would change nothing** (`blank` in `layout/cellview.ts`): every
+step 0, rests aside; the cell has a clock of its own (it isn't spliced into a melody); everything that leaves it is
+a clock's tick (a section's clock, a reel's motor), a tap into its selector's table, or, for a groove over a kit of
+one drum, its own sound; and it reads no other table. Its wheel's steps and what it sends are white. Otherwise its
+0 is a pitch or a choice and red, as before: played on a voice (a kick on a sine, Hypercell's offbeat bass `&off`),
+spliced (the waltz's `&I`), read through a scale, picking from a kit of several drums.
 
-- **A cell that plays one value** (`layout/cellview.ts: unitary`): every step 0, the voice's own pitch, or one drum
-  (a groove over its kit, or hits of one voice), rests aside, and nothing moves it (no stride, no table read through
-  but a kit). Its wheel's steps and what it sends (its edges' colours, a gate's meter) are white. A cell of one other
-  degree (`&V -3 ~ ~`, `&alto 12`) keeps its colour: it is a pitch, a phrase among others.
-- **A part of one** (`partColour(k, 1)`, `tapTint(k, 1)`): a selector of one tap, a tag's wash from it.
-- **The sky's outs** (the tower layout): a tint each, spread round the colour wheel as a selector's taps are; their
-  section's where a selector makes sections; one out alone, white.
+Also white, by the same reasoning: a selector's part when it has only one (`partColour(k, 1)`), and what has no note
+to show (a drum kit's socket, noise).
+
+The rule was found by measuring, not guessing: `tools/probe/colours.test.ts` plays each of the library's 102 cells
+whose steps are all 0 with 7 in their place, over each piece's hearing (ten minutes at most), and compares every note.
+67 change nothing, 35 change notes; `blank` agrees on all 102.
 
 ## Consequences
 
-- Over the library 107 cells in 37 pieces turn white on their wheels and wires; most are drum patterns (Hypercell's
-  `&off`, Pop's `&hats`, the tape pieces' `&kick`), reels on 0, and the selectors' section clocks (`&bassBar`), whose
-  wheels draw beats, not pitches, so they look the same. The golden graph shows none: its unitary cells are drawn as
-  a turntable (`&hats`, belted) or as clocks.
-- The waltz's `&I 0 ~ ~` turns white beside `&V -3 ~ ~`, which stays coloured: the root is the voice's own pitch.
-- Several drums in one groove (`&bd &sd`) still share their drums' colour (all C): telling them apart is a rule for
-  the kit's pieces, not decided here.
+- What turns white on screen: one-drum grooves (Korobeiniki's `&hats`, Jazz's and Coltrane's `&ride`, the arrangement's
+  `&kick`) and reels; the 57 section clocks are white too, though their wheels draw beats, not pitches. Hypercell,
+  Pop and the golden graph show no change.
+- A drum pattern on a pitched voice stays red: its 0 is the drum's tuning, another value retunes it.
+- A rule a colour follows is in the colour table, [ui/theme.md](../ui/theme.md#colour-rules).
 - Drawing only: no piece sounds different.

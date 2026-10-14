@@ -10,7 +10,8 @@ import { NOTE_NAMES, mod, modeName } from '../theory/modes';
 import { playedCells } from '../engine/clocking';
 import { flatten, tapped } from '../engine/flatten';
 import { resolveIn } from '../engine/helix';
-import { isTurntable } from '../engine/graph';
+import { isTurntable, writtenGraph, type WrittenGraph } from '../engine/graph';
+import { cellId } from '../engine/ids';
 import { bulbHosts } from './drawn';
 import { gateOf } from './gate';
 import { bulbsOf, fanOf, type Bulb } from './track';
@@ -45,7 +46,7 @@ function plainTable(result: CompileResult, name: string): boolean {
 }
 
 export type Fill =
-  /** unit: the cell's only value (`unitary`), drawn white: nothing to tell apart. */
+  /** unit: a 0 that means nothing but now (`blank`), drawn white: nothing to tell apart. */
   | { kind: 'pitch'; hue: number; octave?: number; alter?: number; unit?: true }
   | { kind: 'rest' }
   | { kind: 'ref' }
@@ -136,34 +137,34 @@ export function drawnOf(result: CompileResult, name: string): string {
 }
 
 /**
- * Whether a cell plays one value only (decision 036: colours appear where things have to be told apart; one value is
- * white): every step it writes 0 (the voice's own pitch: a drum pattern, `~ 0 ~ 0`) or one plain hit of a voice (`&hh &hh &hh`), rests
- * aside, and nothing moves it — no stride, no table it reads its pitches through (a kit's aside).
+ * Whether a cell's 0 means nothing but "now" (decision 036: white, not red): every step 0, rests aside, and another
+ * value would mean nothing different, since nothing reads it as a pitch or a choice — the cell has a clock of its own
+ * (it isn't spliced into a melody), everything that leaves it is a clock's tick (a section's clock, a reel's motor,
+ * a tap into its table), and the only table it reads is a kit of one drum (a groove of one drum: its sound goes on). Any other value is a value: coloured. Checked over the
+ * library by playing each such cell with 7 for 0 (tools/probe/colours.test.ts).
  */
-export function unitary(result: CompileResult, name: string): boolean {
+export function blank(result: CompileResult, name: string): boolean {
   const c = result.cells.get(name);
-  // (a groove reads its drums through their kit, which only selects: decision 029)
-  if (!c || (c.over && !result.cells.get(c.over)?.kit) || c.stride !== 1 || c.voice || c.kit) return false;
-  // (over a kit a step is which drum, not a pitch: one drum, whichever)
-  const drums = !!c.over;
-  const keys = new Set<string>();
-  for (const u of c.units) {
-    const a = u.atom;
-    if (a.kind === 'rest') continue;
-    // (0: the voice's own pitch, no pitch of its own; another degree is a pitch, a phrase among others)
-    if (a.kind === 'note' && (drums || a.value + a.alter === 0)) keys.add(`${a.value + a.alter}`);
-    // (a hit of one voice; a splice of a melody has notes of its own)
-    else if (a.kind === 'ref' && result.cells.get(a.name)?.voice && !a.pick && !a.shift && !a.transpose && !a.values) keys.add(`r${a.name}`);
-    else return false;
-  }
-  return keys.size === 1;
+  if (!c?.clock || c.voice || c.kit || c.mix) return false;
+  if (c.over && (result.cells.get(c.over)?.kit ? result.cells.get(c.over)!.units.length > 1 : true)) return false;
+  const atoms = c.units.map((u) => u.atom).filter((a) => a.kind !== 'rest');
+  if (!atoms.length || !atoms.every((a) => a.kind === 'note' && a.value === 0 && a.alter === 0)) return false;
+  const id = cellId(name);
+  // (what it may go into besides a tick: the table of taps it is a section of, the one drum's kit it plays)
+  const ok = new Set([result.taps?.get(name), c.over].flatMap((t) => (t ? [cellId(t)] : [])));
+  // (a groove's own sound, into a mix, is not its value read)
+  return writtenOf(result).edges.every((e) => e.from !== id || e.to === id || e.band === 'sync' || ok.has(e.to) || (!!c.over && e.band === 'audio'));
 }
+
+// (the written graph of a program, once: what reads what)
+const written = new WeakMap<CompileResult, WrittenGraph>();
+const writtenOf = (result: CompileResult) => written.get(result) ?? written.set(result, writtenGraph(result)).get(result)!;
 
 /** What a cell's wheel draws; null for a name the program doesn't have (one piece's name asked of another's program). */
 export function cellView(result: CompileResult, name: string, shifts: Shifts, isMeter: boolean): CellView | null {
   const v = viewOf(result, name, shifts, isMeter);
-  if (!v || !unitary(result, name)) return v;
-  // (one value: its pitch white, on the wheel and on what it sends)
+  if (!v || !blank(result, name)) return v;
+  // (a 0 that means nothing but now: white, on the wheel and on what it sends)
   return { ...v, segments: v.segments.map((s) => ({ ...s, bands: s.bands.map((b) => (b.kind === 'pitch' ? { ...b, unit: true as const } : b)) })) };
 }
 

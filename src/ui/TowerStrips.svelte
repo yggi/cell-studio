@@ -30,15 +30,12 @@
     viewport,
     open,
     ontoggle,
-    tints = new Map(),
     sum = 'stack',
   }: {
     ins: readonly TowerIn[];
     viewport: Viewport;
     open: boolean;
     ontoggle: () => void;
-    /** A source's section colour as rgb, by its name (Graph.svelte): its share of the sum and its marker wear it. */
-    tints?: ReadonlyMap<string, readonly [number, number, number]>;
     /** The sum: `stack`, each band's bar split into its sources' shares, each in its colour; `max`, the loudest, in the band's. */
     sum?: 'stack' | 'max';
   } = $props();
@@ -69,11 +66,10 @@
     return `hsla(${hh}, ${ss}%, ${ll}%, ${a})`;
   };
 
-  // (a source's colour: its section's, else its note's; off or with neither, the edge's)
+  // (a source's colour: its note's, as its socket and its wire are; off or with none, the edge's)
   function colourOf(name: string): string {
-    const t = tints.get(name);
     if (nodeState(ctx, `cell:${name}`) === 'off') return css('--edge');
-    return t ? `rgb(${t[0]}, ${t[1]}, ${t[2]})` : (noteOf(ctx, name) ?? css('--edge'));
+    return noteOf(ctx, name) ?? css('--edge');
   }
 
   // (a decade's tick, as a period below 1 Hz and a frequency above)

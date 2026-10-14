@@ -45,7 +45,7 @@ export const partColour = (k: number, n: number) => (n <= 1 ? UNIT : noteColour(
  */
 export const UNIT = 'var(--unit)';
 /** UNIT as rgb, for a canvas (app.css --unit: change both together). */
-const UNIT_RGB = [212, 215, 224] as const;
+export const UNIT_RGB = [212, 215, 224] as const;
 
 /** A selector's clock tinted its part k of n (TapLooms' strands, the selection's bus): the white clock through a prism. */
 export const tapTint = (k: number, n: number) => (n <= 1 ? UNIT : `color-mix(in oklab, ${partColour(k, n)} 65%, var(--meter-0))`);
@@ -58,17 +58,6 @@ export function hslRgb(h: number, s: number, l: number): [number, number, number
   };
   return [f(0), f(8), f(4)];
 }
-
-/** The clock's white (app.css --clock) as rgb: change both together. */
-const CLOCK_RGB = [246, 247, 251] as const;
-
-/** tapTint as rgb (oklab's mix approximated in rgb): the sky's light in a section's colour (TowerSky). */
-export const tapTintRgb = (k: number, n: number): readonly [number, number, number] => {
-  if (n <= 1) return UNIT_RGB;
-  const [r, g, b] = hslRgb(...noteHsl((k / Math.max(1, n)) * 360));
-  const mix = (v: number, w: number) => Math.round(0.65 * v + 0.35 * w);
-  return [mix(r, CLOCK_RGB[0]), mix(g, CLOCK_RGB[1]), mix(b, CLOCK_RGB[2])];
-};
 
 /** A scope's channel k: the chromatic colour of its place in the scope's braid (ScopeView), worn by what it watches. */
 export const channelColour = (k: number) => noteColour((((k % 12) + 12) % 12) * 30);
