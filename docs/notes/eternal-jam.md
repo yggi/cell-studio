@@ -1,6 +1,6 @@
 # Eternal jam: Cell studio and Jambot back together
 
-2026-10-14 · open · the handshake issue (drafted; this note links it once filed)
+2026-10-14 · open · #406, the handshake (decisions on [yggi/jambot#309](https://github.com/yggi/jambot/issues/309))
 
 Cell studio started as a spike out of [Jambot](https://github.com/yggi/jambot), to research and define the language. The owner's call (14 Oct 2026): it is time to bring the two back together, towards infrastructure for *eternal jam sessions*. This note reads the owner's shape back, says where each side stands, lists where the two decided differently, and gives the plan the owner agreed to. Its twin in Jambot is `docs/briefs/eternal-jam.md` (with the owner's brief verbatim); who Jambot is, for an agent here, is in [MEMORY.md](../MEMORY.md#the-sibling-jambot).
 
