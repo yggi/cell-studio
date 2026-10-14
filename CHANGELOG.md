@@ -1,6 +1,6 @@
 # Changelog
 
-What changed in Cell studio, newest first. The app is deployed from `main` on every push, so
+What changed in Cell studio, newest first. The app is deployed from `main` by hand (`node tools/deploy.mjs`), so
 this lists user-visible changes; each release (a version bump in `package.json` and a `vX.Y.Z`
 tag) gathers the entries under *Unreleased* beneath its own heading. The version and commit of
 the running build are shown in the piece picker's **Files** menu.
@@ -11,6 +11,7 @@ that makes the change. Also note changes to the language that could affect saved
 ## Unreleased
 
 ### Added
+- **A licence: MIT** (`LICENSE`, yggi/jambot#309 D4), as the language it runs on (yggi/cells) and Jambot are.
 - **Labels sit on what they name** (#137, #274, decision 035): an edge's label is on its wire, along it and upright, the wire gapped under it, off every wheel; a net is named once on its trunk, each tap's change near a socket on its reader's rim; a name too long for its tap, splice or tape head goes round the bulb's rim instead of shrinking or clipping; a voice shows its name with what it is under it; a small crowded wheel names itself round its rim; a belt shows its label along its run. Edges are a step bolder. `tools/shots.mjs` is now `node tools/gallery.mjs play`. Drawing only.
 - **Convert to cells, watched** (#390): converting folds first, then replays how the piece comes about: from the notes written out, a cell at a time (motifs, then the phrases made of them), each step playing the same notes. A strip along the bottom of the graph shows the progress and what each step did, with a speed slider (¼× to 4×, kept in this browser), *Skip to end* and *Stop* (the piece as far as it got). Saved `.cells` pieces are unchanged.
 - **The MIDI machine** (#390, decision 034): a MIDI file opens on its graph, the cells it plays through, read only (a try at a change or at a cell's details says *Convert to cells first*), with **Convert to cells** as a large button over it.
