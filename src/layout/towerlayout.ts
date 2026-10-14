@@ -55,14 +55,17 @@ export interface TowerIn extends TowerOut {
 }
 
 /**
- * Where each wire into the strips leaves, from where its source is now (its centre) and how big it is: a voice's top
- * is its envelope's cap (its base frequency), anything else's the top of its box (`height`, px).
+ * Where each wire into the strips comes in, from where things are now (their centres): its socket's centre, the
+ * out-node it ends at (`socketId`: the strip marks it level with it); with no socket, its source's top — a voice's
+ * envelope's cap (its base frequency), anything else's the top of its box (`height`, px).
  */
 export function towerIns(outs: readonly TowerOut[], program: CompileResult, at: (id: string) => { x: number; y: number; height?: number } | undefined): TowerIn[] {
   return outs.flatMap((o) => {
     const p = at(o.from);
     if (!p) return [];
     const name = o.from.slice('cell:'.length);
+    const socket = at(socketId(o.id));
+    if (socket) return [{ ...o, name, x: socket.x, top: socket.y }];
     const c = program.cells.get(name);
     const top = c?.voice && !c.lambda ? p.y - socketOf(VOICE_SIZE * c.size) : p.y - (p.height ?? 60) / 2;
     return [{ ...o, name, x: p.x, top }];

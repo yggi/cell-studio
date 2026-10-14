@@ -24,6 +24,14 @@ describe('the tower layout', () => {
     expect(ins[0].top).toBeCloseTo(towerY(Math.log10(65.41)), 6);
   });
 
+  it("marks a wire on the strip level with its socket, the out-node, not its source's top", () => {
+    const { program, model } = waltz();
+    const outs = towerOuts(program, model);
+    const tuba = outs.find((o) => o.from === 'cell:tuba')!;
+    const ins = towerIns(outs, program, (id) => (id === 'cell:tuba' ? { x: 10, y: 0 } : id === socketId(tuba.id) ? { x: 12, y: -900 } : undefined));
+    expect(ins).toEqual([expect.objectContaining({ from: 'cell:tuba', x: 12, top: -900 })]);
+  });
+
   it('sends a two-channel card first left, second right', () => {
     const program = compileSource(`
 &lead s=saw loop=C4
@@ -79,10 +87,14 @@ describe('the tower layout', () => {
   it('gathers the wires into one net a base frequency, the others tapping into its trunk', () => {
     const { program, model } = waltz();
     const at: Record<string, number> = { 'cell:flute': 400, 'cell:strings': 100, 'cell:tuba': 250 };
-    const ins = towerIns(towerOuts(program, model), program, (id) => ({
-      x: at[id],
-      y: towerY(id === 'cell:tuba' ? Math.log10(65.41) : Math.log10(261.63)) + socketOf(VOICE_SIZE),
-    }));
+    const ins = towerIns(towerOuts(program, model), program, (id) =>
+      id.startsWith('socket:')
+        ? undefined
+        : {
+            x: at[id],
+            y: towerY(id === 'cell:tuba' ? Math.log10(65.41) : Math.log10(261.63)) + socketOf(VOICE_SIZE),
+          },
+    );
     const nets = towerNets(ins);
     expect(nets).toHaveLength(2);
     const c4 = nets.find((n) => n.taps.length === 2)!;
