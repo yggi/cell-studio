@@ -15,7 +15,7 @@
    * rates; the tables nothing steps at the bottom.
    */
   import type { Viewport } from '@xyflow/svelte';
-  import { onDestroy, onMount } from 'svelte';
+  import { onDestroy, onMount, untrack } from 'svelte';
   import { getGraphContext, nodeState } from './context';
   import { bandFreq, bandHue, bandOctave } from '../layout/spectrum';
   import { towerAt, towerY, type TowerIn, type TowerLayer } from '../layout/towerlayout';
@@ -65,7 +65,15 @@
 
   // (the screen's y for a height on the tower, decades: the graph's y, panned and zoomed)
   const yOf = (d: number) => towerY(d, zone) * viewport.zoom + viewport.y;
-  const css = (name: string) => (typeof getComputedStyle !== 'undefined' && canvas ? getComputedStyle(canvas).getPropertyValue(name).trim() : '') || '#888';
+  // (a theme colour, read once: getComputedStyle each time is slow, and the theme doesn't change)
+  const theme = new Map<string, string>();
+  const css = (name: string) => {
+    const had = theme.get(name);
+    if (had) return had;
+    const v = typeof getComputedStyle !== 'undefined' && canvas ? getComputedStyle(canvas).getPropertyValue(name).trim() : '';
+    if (v) theme.set(name, v);
+    return v || '#888';
+  };
 
   // what a source sounds on each side now: levels per band (0 … 1), live or at rest (faint); nothing on a half it
   // doesn't reach
@@ -95,6 +103,22 @@
     if (hz >= 1) return `${hz} Hz`;
     const s = 1 / hz;
     return s >= 86400 ? `${+(s / 86400).toPrecision(2)} d` : s >= 3600 ? `${+(s / 3600).toPrecision(2)} h` : s >= 60 ? `${+(s / 60).toPrecision(2)} min` : `${s} s`;
+  }
+
+  // (a cell's wheel and its spectrum of values, kept until the piece or a table's turn changes: not each frame)
+  let spectra = { program: null as unknown, shifts: null as unknown, got: new Map<string, ReturnType<typeof spectrumNow>>() };
+  function spectrumNow(name: string) {
+    const v = cellView(ctx.program, name, ctx.shifts, false);
+    if (!v) return null;
+    // (a selector's table of taps: each entry a section, in its tint)
+    const taps = [...(ctx.program.taps?.values() ?? [])].includes(name) ? (ctx.program.cells.get(name)?.units.length ?? 0) : 0;
+    const spread = valueSpectrum(v, taps > 0);
+    return spread.length ? { v, taps, spread } : null;
+  }
+  function spectrumOf(name: string) {
+    if (spectra.program !== ctx.program || spectra.shifts !== ctx.shifts) spectra = { program: ctx.program, shifts: ctx.shifts, got: new Map() };
+    if (!spectra.got.has(name)) spectra.got.set(name, spectrumNow(name));
+    return spectra.got.get(name)!;
   }
 
   function draw() {
@@ -195,12 +219,9 @@
     const used = new Map<string, number>();
     const named: number[] = [];
     const chips = (name: string, y: number, [xa, xb]: readonly [number, number]) => {
-      const v = cellView(ctx.program, name, ctx.shifts, false);
-      if (!v) return;
-      // (a selector's table of taps: each entry a section, in its tint)
-      const taps = [...(ctx.program.taps?.values() ?? [])].includes(name) ? (ctx.program.cells.get(name)?.units.length ?? 0) : 0;
-      const spread = valueSpectrum(v, taps > 0);
-      if (!spread.length) return;
+      const got = spectrumOf(name);
+      if (!got) return;
+      const { v, taps, spread } = got;
       const local = ctx.heads.cells.get(name)?.local ?? 0;
       const lap = lapOf(ctx.program, name);
       const now = lap > 0 ? valueAt(v, (((local / lap) % 1) + 1) % 1, taps > 0) : null;
@@ -380,7 +401,9 @@
   // stopped: drawn again when what it shows moves (the view, the piece, a source); playing: every frame (below)
   $effect(() => {
     void [viewport.x, viewport.y, viewport.zoom, ins, structure, map, layers, rows, sw, h, ctx.program, ctx.shifts, ctx.state, ctx.muted, canvas];
-    draw();
+    // (only what is listed: what draw reads, the playheads among it, would draw it again each frame; and only stopped —
+    // playing, the frame loop draws it, and the layout's ticks moving what is listed would draw it once more each)
+    if (untrack(() => ctx.state) === 'stopped') untrack(draw);
   });
   let stop = () => {};
   onMount(

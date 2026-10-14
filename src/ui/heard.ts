@@ -2,7 +2,7 @@
  * What a socket into the sound card hears (the tower layout, docs/notes/tower-sky.md), as levels per semitone band
  * (0 … 1, `bands` of them from C0): its source's sound, or a groove's or a kit's drums together, which sound for it.
  * Playing, what sounds now (nothing where it is silent); stopped, its own partials, faint (`rest`). The socket's meter,
- * its spire in the sky and its share of the strip's sum all read it.
+ * its spire in the sky and its share of the strip's sum all read it: once a frame (the analysers are the cost).
  */
 import type { GraphContext } from './context';
 import { bandsFromFFT, restingProfile } from '../layout/spectrum';
@@ -25,7 +25,25 @@ function voicesOf(ctx: GraphContext, source: string): { names: string[]; drums: 
   return { names: kit.units.flatMap((u) => (u.atom.kind === 'ref' ? [u.atom.name] : [])), drums: true };
 }
 
+// (what was heard this frame: the socket's meter, the spire and the strip all ask, once each a frame — read the
+// analyser once; for as long as the views take to draw again, 30 ms, then read again)
+const FRAME = 30;
+const memo = new WeakMap<GraphContext['sound'], { at: number; program: GraphContext['program']; got: Map<string, Heard> }>();
+const clock = () => (typeof performance !== 'undefined' ? performance.now() : Date.now());
+
 export function heard(ctx: GraphContext, source: string, bands: number): Heard {
+  const now = clock();
+  let m = memo.get(ctx.sound);
+  if (!m || now - m.at > FRAME || m.program !== ctx.program) memo.set(ctx.sound, (m = { at: now, program: ctx.program, got: new Map() }));
+  const key = `${ctx.state} ${bands} ${source}`;
+  const had = m.got.get(key);
+  if (had) return had;
+  const fresh = hear(ctx, source, bands);
+  m.got.set(key, fresh);
+  return fresh;
+}
+
+function hear(ctx: GraphContext, source: string, bands: number): Heard {
   const playing = ctx.state !== 'stopped';
   const { names, drums } = voicesOf(ctx, source);
   const left = new Float32Array(bands);

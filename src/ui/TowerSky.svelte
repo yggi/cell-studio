@@ -18,7 +18,7 @@
    * what it sounds now. Drawn in the screen's coordinates, under the graph.
    */
   import type { Viewport } from '@xyflow/svelte';
-  import { onDestroy, onMount } from 'svelte';
+  import { onDestroy, onMount, untrack } from 'svelte';
   import { getGraphContext, nodeState } from './context';
   import { bandFreq, bandHue, bandOctave, C0 } from '../layout/spectrum';
   import { towerAt, towerY } from '../layout/towerlayout';
@@ -45,9 +45,13 @@
   const BANDS = 120;
   // (drawn at half the screen's resolution: a glow, soft anyway)
   const RES = 0.5;
+  // (the light at an eighth of the screen's resolution, a quarter of the sky's: soft anyway)
+  const LIGHT = 0.125;
   let w = $state(0);
   let h = $state(0);
   let canvas = $state<HTMLCanvasElement>();
+  // (the rainbow under the light, a canvas of its own: drawn when the view moves, not every frame)
+  let ground = $state<HTMLCanvasElement>();
   // (the spires on a canvas of their own, at the screen's resolution: dots and hairlines, sharp)
   let crisp = $state<HTMLCanvasElement>();
   const dpr = typeof devicePixelRatio === 'number' ? devicePixelRatio : 1;
@@ -63,11 +67,12 @@
   const mixed = (a: readonly number[], b: readonly number[], t: number) => a.map((v, i) => Math.round(v * (1 - t) + b[i] * t));
   const css = (c: readonly number[], a: number) => `rgba(${c[0]}, ${c[1]}, ${c[2]}, ${a})`;
 
-  function draw() {
-    const g = canvas?.getContext('2d');
+  // the ground, drawn again only when the view moves (not every frame): the sky's rainbow, a band a semitone, on down
+  // through the rates behind the structure
+  function drawGround() {
+    const g = ground?.getContext('2d');
     if (!g || !w || !h) return;
     g.setTransform(RES, 0, 0, RES, 0, 0);
-    g.globalCompositeOperation = 'source-over';
     g.clearRect(0, 0, w, h);
     const half = Math.max(0.5, (towerY(band(1), zone) - towerY(band(0), zone)) * viewport.zoom * 0.5);
     const audible = (b: number) => {
@@ -100,16 +105,31 @@
     fade.addColorStop(1, css(hues[0], 0));
     g.fillStyle = fade;
     g.fillRect(0, floor, w, 40);
+  }
+
+  function draw() {
+    const g = canvas?.getContext('2d');
+    if (!g || !w || !h) return;
+    g.setTransform(RES, 0, 0, RES, 0, 0);
+    g.globalCompositeOperation = 'source-over';
+    g.clearRect(0, 0, w, h);
+    const half = Math.max(0.5, (towerY(band(1), zone) - towerY(band(0), zone)) * viewport.zoom * 0.5);
+    const audible = (b: number) => {
+      const f = bandFreq(b, BANDS);
+      return f >= 20 && f <= 20000;
+    };
     // the light each spire sends, added (the sky brightens where several reach), into a layer of its own, then softened
     // and laid over the sky
     const sky = g;
-    if (!light || light.width !== canvas!.width || light.height !== canvas!.height) {
+    const lw = Math.ceil(w * LIGHT);
+    const lh = Math.ceil(h * LIGHT);
+    if (!light || light.width !== lw || light.height !== lh) {
       light = document.createElement('canvas');
-      light.width = canvas!.width;
-      light.height = canvas!.height;
+      light.width = lw;
+      light.height = lh;
     }
     const lg = light.getContext('2d')!;
-    lg.setTransform(RES, 0, 0, RES, 0, 0);
+    lg.setTransform(LIGHT, 0, 0, LIGHT, 0, 0);
     lg.globalCompositeOperation = 'source-over';
     lg.clearRect(0, 0, w, h);
     lg.globalCompositeOperation = 'lighter';
@@ -148,11 +168,12 @@
     }
     sky.setTransform(1, 0, 0, 1, 0, 0);
     sky.globalCompositeOperation = 'lighter';
-    // (softened over a few semitones, up and down)
-    sky.filter = `blur(${Math.max(2, 3 * half * RES)}px)`;
-    sky.drawImage(light, 0, 0);
-    sky.drawImage(light, 0, 0);
-    sky.filter = 'none';
+    // (at a quarter of the sky's resolution, laid over it smoothed: the upscaling softens it; a blur filter cost more
+    // than the rest of the sky)
+    sky.imageSmoothingEnabled = true;
+    sky.imageSmoothingQuality = 'high';
+    sky.drawImage(light, 0, 0, canvas!.width, canvas!.height);
+    sky.drawImage(light, 0, 0, canvas!.width, canvas!.height);
     sky.setTransform(RES, 0, 0, RES, 0, 0);
     // the spires over the light: its fundamental a big dot, a hairline up its range, a dot a partial (spire.ts)
     const t = crisp?.getContext('2d');
@@ -170,15 +191,22 @@
   }
 
   $effect(() => {
+    void [viewport.x, viewport.y, viewport.zoom, zone, w, h, ground];
+    // (only what is listed: what draw reads, the playheads among it, would draw it again each frame)
+    untrack(drawGround);
+  });
+  $effect(() => {
     void [viewport.x, viewport.y, viewport.zoom, spires, mode, w, h, ctx.program, ctx.shifts, ctx.state, ctx.muted, canvas, crisp];
-    draw();
+    // (only what is listed: what draw reads, the playheads among it, would draw it again each frame; and only stopped —
+    // playing, the frame loop draws it, and the layout's ticks moving what is listed would draw it once more each)
+    if (untrack(() => ctx.state) === 'stopped') untrack(draw);
   });
   let stop = () => {};
   onMount(
     () =>
       (stop = onFrames(
         () => ctx.state !== 'stopped' && draw(),
-        () => 33,
+        () => 80,
       )),
   );
   onDestroy(() => stop());
@@ -186,7 +214,8 @@
 
 <div class="sky" bind:clientWidth={w} bind:clientHeight={h} data-sky={mode}>
   {#if w && h}
-    <canvas bind:this={canvas} width={Math.ceil(w * RES)} height={Math.ceil(h * RES)} style:width="{w}px" style:height="{h}px"></canvas>
+    <canvas class="layer" bind:this={ground} width={Math.ceil(w * RES)} height={Math.ceil(h * RES)} style:width="{w}px" style:height="{h}px"></canvas>
+    <canvas class="layer" bind:this={canvas} width={Math.ceil(w * RES)} height={Math.ceil(h * RES)} style:width="{w}px" style:height="{h}px"></canvas>
     <canvas class="crisp" bind:this={crisp} width={Math.ceil(w * dpr)} height={Math.ceil(h * dpr)} style:width="{w}px" style:height="{h}px"></canvas>
   {/if}
 </div>
@@ -200,7 +229,8 @@
   canvas {
     display: block;
   }
-  .crisp {
+  .crisp,
+  .layer {
     position: absolute;
     inset: 0;
   }

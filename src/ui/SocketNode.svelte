@@ -6,7 +6,7 @@
    * left, the right to the right (mono: alike). Stopped, its source's own partials, faint; playing, what it sounds now.
    */
   import { Handle, Position, type NodeProps } from '@xyflow/svelte';
-  import { onDestroy, onMount } from 'svelte';
+  import { onDestroy, onMount, untrack } from 'svelte';
   import { getGraphContext, nodeState } from './context';
   import { heard, noteOf } from './heard';
   import { onFrames } from '../audio/ticker';
@@ -72,7 +72,8 @@
 
   $effect(() => {
     void [ctx.program, ctx.shifts, ctx.state, canvas, data.source];
-    draw();
+    // (only what is listed: what draw reads, the playheads among it, would draw it again each frame)
+    untrack(draw);
   });
   let stop = () => {};
   onMount(
