@@ -4,7 +4,7 @@
    * the row that turns it, the numbers it leaves free, its settings, its connections, more about it, and what you can
    * do with it — each a section of `sheet/`. Every edit here is an edit of the code.
    */
-  import { declWords, spansLines } from '../engine/edit';
+  import { declWords, spansLines } from '@yggi/cells/engine/edit';
   import { sheetWheel } from '../layout/braidwheel';
   import { getGraphContext } from './context';
   import Sheet from './kit/Sheet.svelte';

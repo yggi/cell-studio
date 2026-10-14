@@ -5,8 +5,8 @@
 // (SEEDS=0,1,2, VARIANTS=name,name, TICKS=500, CUSTOM="half spread:spread=0.25;…")
 import { describe, it } from 'vitest';
 import { appendFileSync } from 'node:fs';
-import { PRESETS } from '../../src/engine/presets';
-import { compileSource } from '../../src/engine/compile';
+import { PRESETS } from '@yggi/cells/engine/presets';
+import { compileSource } from '@yggi/cells/engine/compile';
 import { buildGraph } from '../../src/layout/drawn';
 import { ForceLayout } from '../../src/layout/physics';
 import type { LayoutOptions } from '../../src/layout/options';

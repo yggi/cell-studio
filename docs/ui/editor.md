@@ -13,7 +13,7 @@ The graph as a visual editor over the code, and the code editor itself. Every ch
 - **Rename** by tapping the name: the declaration and every reference follow.
 - **Parameters** are rows (`over &mode`, `step &bar` …) — none on an empty cell. Sound parameters are offered only for a voice: a cell looping at audio rate (`loop=` of 20 Hz or more). Tap a row, or **+ add**, for the same pop-up as a step: the key, a smart line for the value (completing cells, scales, cycles, rates, notes, maps, sources by key, checked as you type), Delete.
 - **Delete** asks first, and says which cells use it.
-- `free()` numbers get sliders on their node; moving one rewrites the `free(…)` in the code ([../language/free.md](../language/free.md)).
+- `free()` numbers get sliders on their node; moving one rewrites the `free(…)` in the code ([../language/free.md](https://github.com/yggi/cells/blob/main/docs/language/free.md)).
 
 What the graph can't edit yet is in [../limits.md](../limits.md).
 

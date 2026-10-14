@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { compileSource } from '../engine/compile';
-import { feeds, type GraphEdge } from '../engine/graph';
+import { compileSource } from '@yggi/cells/engine/compile';
+import { feeds, type GraphEdge } from '@yggi/cells/engine/graph';
 import { buildGraph } from '../layout/drawn';
-import { codeShifts, type CompileResult } from '../engine/program';
-import { routing } from '../engine/routing';
-import { PRESETS } from '../engine/presets';
+import { codeShifts, type CompileResult } from '@yggi/cells/engine/program';
+import { routing } from '@yggi/cells/engine/routing';
+import { PRESETS } from '@yggi/cells/engine/presets';
 import { carried, flowEdgesOf } from './flowedges';
 import { snapshotOf } from './snapshot';
 

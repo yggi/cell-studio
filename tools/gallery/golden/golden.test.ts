@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { compileSource } from '../../../src/engine/compile';
+import { compileSource } from '@yggi/cells/engine/compile';
 import { buildGraph } from '../../../src/layout/drawn';
 import { ForceLayout } from '../../../src/layout/physics';
 import { coverage } from './coverage';

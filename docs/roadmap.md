@@ -4,7 +4,7 @@ The big jobs, at a high level. Detail lives in the issues — this page names th
 
 ## The target: one model, read by everything
 
-The text compiles to one model — cells joined by **wires** (a port, a band, a transform, a width) on **nets**, in three bands (sync, CV, audio; [notes/nets.md](notes/nets.md)) — and the sound's wiring, the graph's drawing, the layout, the live states and the editor all read it. Done when:
+The text compiles to one model — cells joined by **wires** (a port, a band, a transform, a width) on **nets**, in three bands (sync, CV, audio; [notes/nets.md](https://github.com/yggi/cells/blob/main/docs/notes/nets.md)) — and the sound's wiring, the graph's drawing, the layout, the live states and the editor all read it. Done when:
 
 1. **The graph is the code**: every `&name` token on a line is exactly one wire, and every wire one token; products are junctions.
 2. **One description of where sound goes**, read by the audio wiring and the graph alike.
@@ -27,6 +27,6 @@ The sequence of work towards it, phase by phase, is [#141](https://github.com/yg
 | Phone and speed | latency, the screen-off crackle and the densest graph's frame rate, answered in one phone session; the graph's own cost | #154 (#91, #56, #36), #153 |
 | Audio engine | parked: dropping Tone, worklets (FM feedback, coupled resonators), a shared WASM core; physical cells part 2 | #16, #17, #18, #28, #32 |
 | Library and editor | the picker and its graph; everything the language can say, editable in the graph | #12, #33 |
-| Multiscale | the piece as a tower of scales (MERA, wavelets, GTTM): rows by time constant, junctions that project, the form sending gates up, a minimal grammar, the implicit `&out` ([notes/multiscale.md](notes/multiscale.md)) | #234 (#235, #236) |
+| Multiscale | the piece as a tower of scales (MERA, wavelets, GTTM): rows by time constant, junctions that project, the form sending gates up, a minimal grammar, the implicit `&out` ([notes/multiscale.md](https://github.com/yggi/cells/blob/main/docs/notes/multiscale.md)) | #234 (#235, #236) |
 | Eternal jam | back together with Jambot: cells as its score language and its player, the language extracted into a core of its own (yggi/cells) with the repository of cell fragments; the handshake, then the extraction, the seam, the repository ([notes/eternal-jam.md](notes/eternal-jam.md)) | #406, yggi/cells#1, #234, #244, #203 |
 | Wish list | pieces and features, as one checklist | #35 |

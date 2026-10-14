@@ -1,14 +1,14 @@
 /**
  * The library's cards: every piece saved in this browser and every example, as the picker shows them.
  */
-import { compileSource } from '../engine/compile';
-import { pieceTime, type PieceTime } from '../engine/duration';
+import { compileSource } from '@yggi/cells/engine/compile';
+import { pieceTime, type PieceTime } from '@yggi/cells/engine/duration';
 import { buildGraph } from '../layout/drawn';
-import { pieceMeta } from '../engine/parser';
-import { canonicalTags, MIDI_FILE, tagName, type TagKind } from '../engine/tags';
+import { pieceMeta } from '@yggi/cells/engine/parser/index';
+import { canonicalTags, MIDI_FILE, tagName, type TagKind } from '@yggi/cells/engine/tags';
 import { EXAMPLES, loadExample, type PresetKey } from '../examples';
 import { creditOf, loadMidiFile, MIDI_FILES, MIDI_SETS, type Credit } from '../corpus';
-import { cellsFromMidi } from '../engine/midiimport';
+import { cellsFromMidi } from '@yggi/cells/engine/midiimport';
 import type { Miniature } from '../layout/miniature';
 import type { SavedPiece } from '../library';
 

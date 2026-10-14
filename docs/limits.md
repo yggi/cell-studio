@@ -5,12 +5,12 @@ What Cell studio doesn't do yet or does with a catch, documented rather than tra
 ## Language
 
 - Filters are one per voice (as on a monosynth): overlapping notes share the last envelope.
-- Selectors switch taps of a meter's bus only ([decision 016](decisions/016-arranging-at-the-input.md)); they don't read in a voice's position (orchestration) or a melody's (multiplexing). A part switched on always starts from its top (no resume yet), and label templates have no `{lap}`.
-- A voice can't be a pitch source in a product (`&op2 * &op1` is an error: "a voice, not a pitch"); FM is `fm=` ([language/physics.md](language/physics.md)), without feedback or loops.
+- Selectors switch taps of a meter's bus only ([decision 016](https://github.com/yggi/cells/blob/main/docs/decisions/016-arranging-at-the-input.md)); they don't read in a voice's position (orchestration) or a melody's (multiplexing). A part switched on always starts from its top (no resume yet), and label templates have no `{lap}`.
+- A voice can't be a pitch source in a product (`&op2 * &op1` is an error: "a voice, not a pitch"); FM is `fm=` ([language/physics.md](https://github.com/yggi/cells/blob/main/docs/language/physics.md)), without feedback or loops.
 - No inversion within a scale (`(7 - &theme) * &lead` mirrors in semitones; keeping the scale's steps would need something like `&theme[-]`).
 - A braid of note names turned with `shift=` climbs by its table's lap, not the root's: `&u C shift=2` is C6, where `&u 0 shift=2` is D.
 - Choices `[a|b]` take numbers only: not note names, nor Strudel's sequences (`[0 2|4]`, an error says so).
-- `scale(…)` knows the names in `SCALES` (`theory/modes.ts`): not yet `diminished` or `chromatic`.
+- `scale(…)` knows the names in `SCALES` (`theory/modes.ts` in `@yggi/cells`): not yet `diminished` or `chromatic`.
 
 ## Engine and audio
 
@@ -21,7 +21,7 @@ What Cell studio doesn't do yet or does with a catch, documented rather than tra
 - Scopes, spectrum wheels and tape levels read the signal as it is made, so they run ahead of the speaker by the output lag (about 55 ms with the default `balanced` hint; the position, notes, cells and edges are held back to match what is heard: [decision 005](decisions/005-balanced-latency-and-heard-pictures.md)).
 - Tape Machine peaks at −0.2 dB, a little over the −1 dB convention, and its average level doesn't follow its parts' gains as expected ([#95](https://github.com/yggi/cell-studio/issues/95)).
 - A key held live (MIDI in, the computer keys, the dock, the piano roll's keys) is cut when its voice is rebuilt: an edit to the voice's line, or a `free()` moved on its params, while the key is down.
-- A drone (a voice alone, held: [decision 028](decisions/028-the-smallest-piece.md)) is one note held ten minutes at a time (`HELD`, engine/realize.ts), then struck again, a fresh attack over the old one's release; what moves in it (its `pitch=`, levels, moving parameters) is worked out and scheduled a note at a time, so a fast vibrato costs one window about 20 ms when play starts. Playing from the middle starts it there; scrubbing by hand doesn't strike it. MIDI out sends it as one note, let go at Pause or Stop; its envelope's playhead isn't drawn.
+- A drone (a voice alone, held: [decision 028](https://github.com/yggi/cells/blob/main/docs/decisions/028-the-smallest-piece.md)) is one note held ten minutes at a time (`HELD`, engine/realize.ts), then struck again, a fresh attack over the old one's release; what moves in it (its `pitch=`, levels, moving parameters) is worked out and scheduled a note at a time, so a fast vibrato costs one window about 20 ms when play starts. Playing from the middle starts it there; scrubbing by hand doesn't strike it. MIDI out sends it as one note, let go at Pause or Stop; its envelope's playhead isn't drawn.
 - The live views, not the audio, are what loads the main thread; on a slow phone a large graph can still saturate it (measure with [testing.md](testing.md); the numbers are in the profile skill's README).
 
 ## Editor

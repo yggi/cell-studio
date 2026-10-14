@@ -12,16 +12,16 @@
   import { untrack } from 'svelte';
   import { getStudio } from './state/studio.svelte';
   import { TimeSettings, type TimeLayers, type TimeSignal } from './state/time.svelte';
-  import { eventsBetween, plan, type Played } from '../engine/realize';
-  import { codeShifts } from '../engine/program';
-  import { mainTempo, pieceTime } from '../engine/duration';
-  import { listening } from '../engine/time/span';
+  import { eventsBetween, plan, type Played } from '@yggi/cells/engine/realize';
+  import { codeShifts } from '@yggi/cells/engine/program';
+  import { mainTempo, pieceTime } from '@yggi/cells/engine/duration';
+  import { listening } from '@yggi/cells/engine/time/span';
   import { transportClock } from '../audio/clock.svelte';
-  import { SIGNALS } from '../engine/time/signals';
-  import { sectionsOver } from '../engine/time/boundaries';
-  import { peaks } from '../engine/time/spectrogram';
-  import { splices } from '../engine/time/splices';
-  import { structure } from '../engine/time/structure';
+  import { SIGNALS } from '@yggi/cells/engine/time/signals';
+  import { sectionsOver } from '@yggi/cells/engine/time/boundaries';
+  import { peaks } from '@yggi/cells/engine/time/spectrogram';
+  import { splices } from '@yggi/cells/engine/time/splices';
+  import { structure } from '@yggi/cells/engine/time/structure';
   import { follow, frameFor, pan, tOf, xOf, yOf, zoom, type Frame } from '../layout/timeview';
   import {
     cellSpans,

@@ -5,7 +5,7 @@
    */
   import PieceNode from '../PieceNode.svelte';
   import { byTier } from '../../layout/library';
-  import { TUTORIAL } from '../../engine/tags';
+  import { TUTORIAL } from '@yggi/cells/engine/tags';
   import type { Entry } from '../entries';
 
   let {

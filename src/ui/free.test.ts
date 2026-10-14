@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { FreeSpec } from '../engine/ast';
+import type { FreeSpec } from '@yggi/cells/engine/ast';
 import { freeAmount, freeAt, freeKey, freeLabel, freePosition, freeScale, freeStep, freeSteps, freeValue } from './free';
 
 const span = { line: 1, col: 1, len: 1 };

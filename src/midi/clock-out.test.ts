@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { compileSource } from '../engine/compile';
-import { codeShifts } from '../engine/program';
-import { plan, type Plan } from '../engine/realize';
-import { retime, windowAt } from '../engine/schedule';
-import { PPQN } from '../engine/midiclock';
+import { compileSource } from '@yggi/cells/engine/compile';
+import { codeShifts } from '@yggi/cells/engine/program';
+import { plan, type Plan } from '@yggi/cells/engine/realize';
+import { retime, windowAt } from '@yggi/cells/engine/schedule';
+import { PPQN } from '@yggi/cells/engine/midiclock';
 import { ClockOut } from './clock-out';
 import { fakePort } from './fixtures';
 

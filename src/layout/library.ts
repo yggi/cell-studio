@@ -12,7 +12,7 @@
  * one of its tags) is another, stacked to the wheel's left, its files in their order.
  */
 import { forceLink, forceSimulation, type SimulationNodeDatum } from 'd3-force';
-import { tagName, TUTORIAL } from '../engine/tags';
+import { tagName, TUTORIAL } from '@yggi/cells/engine/tags';
 
 export interface LibraryLayout {
   readonly at: ReadonlyMap<string, { x: number; y: number }>;

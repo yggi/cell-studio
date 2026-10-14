@@ -1,6 +1,6 @@
 <script lang="ts">
   import { tokenize } from './highlight';
-  import type { Diagnostic } from '../engine/ast';
+  import type { Diagnostic } from '@yggi/cells/engine/ast';
 
   let { value = $bindable(), diagnostics }: { value: string; diagnostics: readonly Diagnostic[] } = $props();
 

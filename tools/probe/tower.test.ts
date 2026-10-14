@@ -5,8 +5,8 @@
 import { describe, it } from 'vitest';
 import { appendFileSync } from 'node:fs';
 import { buildGraph } from '../../src/layout/drawn';
-import { compileSource } from '../../src/engine/compile';
-import { PRESETS } from '../../src/engine/presets';
+import { compileSource } from '@yggi/cells/engine/compile';
+import { PRESETS } from '@yggi/cells/engine/presets';
 
 const log = (t: string) => appendFileSync(process.env.PROBE!, t + '\n');
 const fmt = (hz: number) => (hz >= 1 ? `${hz.toPrecision(3)} Hz` : `1/${(1 / hz).toPrecision(3)} s`);

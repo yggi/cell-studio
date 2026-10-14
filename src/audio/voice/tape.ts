@@ -8,7 +8,7 @@
  * A head then reads that lap by how far round it is turned (`holdTape`): a tape scrubbed forward and back, or
  * round and round, plays the same content over and over, whatever time has passed.
  */
-import type { AudioTape } from '../../engine/program';
+import type { AudioTape } from '@yggi/cells/engine/program';
 import { disposer, type Disposable, type ToneNS } from './nodes';
 
 type Delay = import('tone').Delay;

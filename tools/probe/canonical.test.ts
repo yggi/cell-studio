@@ -5,12 +5,12 @@
 // Run: PROBE=out.txt npx vitest run tools/probe/canonical.test.ts
 import { describe, it } from 'vitest';
 import { appendFileSync } from 'node:fs';
-import { PRESETS } from '../../src/engine/presets';
-import { parse } from '../../src/engine/parser';
-import { stripComment } from '../../src/engine/parser/scanner';
-import { VOICE_PARAMS } from '../../src/engine/attributes';
-import { SCALES } from '../../src/theory/modes';
-import type { CellDecl, Expr, Token } from '../../src/engine/ast';
+import { PRESETS } from '@yggi/cells/engine/presets';
+import { parse } from '@yggi/cells/engine/parser/index';
+import { stripComment } from '@yggi/cells/engine/parser/scanner';
+import { VOICE_PARAMS } from '@yggi/cells/engine/attributes';
+import { SCALES } from '@yggi/cells/theory/modes';
+import type { CellDecl, Expr, Token } from '@yggi/cells/engine/ast';
 
 const log = (t: string) => appendFileSync(process.env.PROBE!, t + '\n');
 

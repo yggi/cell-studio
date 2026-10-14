@@ -6,8 +6,8 @@
  * ride the tape. So a junction costs the layout nothing, and each product still has its own place: its melody comes in
  * at its dot, and its sound leaves from there.
  */
-import { netsOf, type GraphEdge, type GraphModel } from '../engine/graph';
-import { edgeId } from '../engine/ids';
+import { netsOf, type GraphEdge, type GraphModel } from '@yggi/cells/engine/graph';
+import { edgeId } from '@yggi/cells/engine/ids';
 import { segmentsCross, splinePoint } from './geometry';
 import { hops } from './nets';
 import { stepBends } from './forces';

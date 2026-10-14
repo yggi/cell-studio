@@ -1,9 +1,9 @@
 import { createContext } from 'svelte';
-import type { CompileResult, Shifts } from '../engine/program';
-import type { LiveState } from '../engine/live';
-import { nodeStateOf, type Routing, type State } from '../engine/routing';
+import type { CompileResult, Shifts } from '@yggi/cells/engine/program';
+import type { LiveState } from '@yggi/cells/engine/live';
+import { nodeStateOf, type Routing, type State } from '@yggi/cells/engine/routing';
 import type { LiveSource } from '../audio/live';
-import { cellId } from '../engine/ids';
+import { cellId } from '@yggi/cells/engine/ids';
 import type { TransportState } from '../audio/transport';
 
 /**
@@ -46,7 +46,7 @@ export interface GraphContext {
   readonly shifts: Shifts;
   turn(name: string, shift: number): void;
   /** Move a free(…) value (a slider): rewrites it in the code. */
-  setFree(spec: import('../engine/ast').FreeSpec, value: number | string): void;
+  setFree(spec: import('@yggi/cells/engine/ast').FreeSpec, value: number | string): void;
   /** Open a cell's sheet (a link in another's: jump to it). */
   open(name: string): void;
   /** Where each edge's spline bends (by edge id), from the layout. */

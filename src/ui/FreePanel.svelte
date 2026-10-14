@@ -4,7 +4,7 @@
    * a slider, a keypad, a text field. What they change plays, until kept (Save) or let go (Revert).
    */
   import { getStudio } from './state/studio.svelte';
-  import type { FreeSpec } from '../engine/ast';
+  import type { FreeSpec } from '@yggi/cells/engine/ast';
   import FreeControl from './FreeControl.svelte';
 
   const { piece } = getStudio();

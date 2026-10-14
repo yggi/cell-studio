@@ -4,7 +4,7 @@
  * note is marked on the cells it explains by its number, a scope on the cells it watches by its channel's colour
  * (docs/ui/graph.md: the margin). The layout lays out the graph without them (`sideless`).
  */
-import type { GraphModel, GraphNode } from '../engine/graph';
+import type { GraphModel, GraphNode } from '@yggi/cells/engine/graph';
 
 /** A note or a scope: it goes in the margin. */
 export const isSide = (n: GraphNode): boolean => !!n.cell && (!!n.cell.note || typeof n.cell.params.scope === 'string');

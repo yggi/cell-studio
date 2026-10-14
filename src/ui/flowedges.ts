@@ -3,20 +3,20 @@
  * (`ui/state/graphLayout.svelte.ts`) and the gallery's edge sheet (`tools/gallery/edges/`) both make their edges here.
  */
 import type { Edge } from '@xyflow/svelte';
-import type { GraphEdge } from '../engine/graph';
-import { isJunction } from '../engine/ids';
-import { edgeLabel } from '../engine/transform';
-import { DEFAULT_FREQ, type CompileResult } from '../engine/program';
-import { drawn, edgeStateOf, type State } from '../engine/routing';
-import type { LiveState } from '../engine/live';
-import { physicsOf } from '../engine/clocking';
+import type { GraphEdge } from '@yggi/cells/engine/graph';
+import { isJunction } from '@yggi/cells/engine/ids';
+import { edgeLabel } from '@yggi/cells/engine/transform';
+import { DEFAULT_FREQ, type CompileResult } from '@yggi/cells/engine/program';
+import { drawn, edgeStateOf, type State } from '@yggi/cells/engine/routing';
+import type { LiveState } from '@yggi/cells/engine/live';
+import { physicsOf } from '@yggi/cells/engine/clocking';
 import { pulleys } from '../layout/belts';
 import { groundsOf, meterIndex } from '../layout/meters';
 import { loomBands } from '../layout/looms';
 import type { MeterTrace } from '../layout/state';
 import type { GraphSnapshot } from './snapshot';
 import { payloadOf } from './payload';
-import { VOICE_KIT } from '../engine/compiler/declare';
+import { VOICE_KIT } from '@yggi/cells/engine/compiler/declare';
 import { socketOf, VOICE_SIZE } from '../layout/voice';
 
 const nameOf = (id: string) => id.slice('cell:'.length);

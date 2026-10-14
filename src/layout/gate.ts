@@ -3,7 +3,7 @@
  * each note it plays now, as tall as its level. The voices it plays are wheels of their own, its notes wired to them.
  * Pure geometry.
  */
-import type { CompileResult } from '../engine/program';
+import type { CompileResult } from '@yggi/cells/engine/program';
 import { wheelGeometry } from './wheel';
 
 /** What a gate's meter draws: whose notes it plays, its level streams and its gain; null: not a gate. */

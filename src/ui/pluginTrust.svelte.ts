@@ -8,7 +8,7 @@
  * the next visit to the piece does not freeze (the choice is "pending" until then).
  */
 import { SvelteSet } from 'svelte/reactivity';
-import { pluginKey, type ShowPlugin } from '../engine/plugins';
+import { pluginKey, type ShowPlugin } from '@yggi/cells/engine/plugins';
 import { storageKey } from '../storageKey';
 
 const KEY = storageKey('cell-studio-plugins');

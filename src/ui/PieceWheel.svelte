@@ -11,7 +11,7 @@
    */
   import MiniGraph from './MiniGraph.svelte';
   import type { Miniature } from '../layout/miniature';
-  import { tagName } from '../engine/tags';
+  import { tagName } from '@yggi/cells/engine/tags';
   import { arcPath, ringSegment } from '../layout/geometry';
 
   let {

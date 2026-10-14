@@ -14,7 +14,7 @@ A braid that splices other cells (`&line &(…) &(…) &(…)`, `&tune &up &down
   ![the cursor before (top) and after (bottom): Golden's &tune, Korobeiniki, Sailor; the parts' wheel, Golden and Pop](014-cursor.png)
 - **A cell spliced into one braid only, and read nowhere else, is drawn there** and has no node of its own; its edges (its `over=`, what it reads) are drawn from the braid, as a petal's are. `&(…)` spliced into a braid is one.
 - **A cell read elsewhere too is a net-ref:** a bulb drawn with its own notes in their colours, outlined dotted; its edge comes in through the reader's loom to the outside of each bulb that shows it. A cell that is one splice and nothing else (`&mid &down`) is one bulb, showing what it splices.
-- Picks (`&x[i]`) are taps, not splices: they stay as they are ([decision 012](012-picks-are-taps.md)).
+- Picks (`&x[i]`) are taps, not splices: they stay as they are ([decision 012](https://github.com/yggi/cells/blob/main/docs/decisions/012-picks-are-taps.md)).
 
 ![before and after: Pachelbel, Twinkle, Sailor](014-splices-are-bulbs.png)
 
@@ -28,4 +28,4 @@ The owner's proposal: the code says which notes come from which motif, and the d
 
 - No sound changes: only the graph is drawn differently (`GraphModel.bulbs`, `layout/track.ts`).
 - The library's layout improves: 100 fewer nodes, crossings 34.8 → 25.2, overlap 12.7 → 0 (`src/layout/quality.baseline.json`).
-- ~~A cell drawn as a bulb can't be tapped open from the graph on its own.~~ Amended with [016](016-arranging-at-the-input.md) (the owner, on the taps' wheel): a bulb is the cell it splices: tapped, it opens that cell's sheet; held, it switches it off (dimmed); a tap of a meter's bus is a bulb on its table, its sub-net leaving from there (`GraphEdge.bulb`, `bulbAt`). It still can't be soloed or dragged on its own: it has no node. (A cell read elsewhere too is a net-ref, drawn hollow.)
+- ~~A cell drawn as a bulb can't be tapped open from the graph on its own.~~ Amended with [016](https://github.com/yggi/cells/blob/main/docs/decisions/016-arranging-at-the-input.md) (the owner, on the taps' wheel): a bulb is the cell it splices: tapped, it opens that cell's sheet; held, it switches it off (dimmed); a tap of a meter's bus is a bulb on its table, its sub-net leaving from there (`GraphEdge.bulb`, `bulbAt`). It still can't be soloed or dragged on its own: it has no node. (A cell read elsewhere too is a net-ref, drawn hollow.)

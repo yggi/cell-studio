@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { liveAt } from '../../../src/engine/live';
+  import { liveAt } from '@yggi/cells/engine/live';
   /**
    * The golden graph: the real Graph (src/ui/Graph.svelte) on the golden piece, laid out by the app as it lays out any piece,
    * once stopped and once at a moment of play (the live state at ?t=3, a made-up sound). One frame per state, fixed in size.

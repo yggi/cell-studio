@@ -10,7 +10,7 @@
   import { onDestroy } from 'svelte';
   import { getStudio } from './state/studio.svelte';
   import { FIXED_VELOCITY } from './state/dock.svelte';
-  import { cellId } from '../engine/ids';
+  import { cellId } from '@yggi/cells/engine/ids';
   import { keyName, keyRange, octavesFor } from '../layout/keyboard';
   import PianoKeys from './PianoKeys.svelte';
   import DrumPads from './DrumPads.svelte';

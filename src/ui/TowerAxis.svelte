@@ -15,13 +15,13 @@
    * here, the axis says it.
    */
   import type { Viewport } from '@xyflow/svelte';
-  import type { CompileResult } from '../engine/program';
-  import type { GraphModel } from '../engine/graph';
-  import { cellId } from '../engine/ids';
+  import type { CompileResult } from '@yggi/cells/engine/program';
+  import type { GraphModel } from '@yggi/cells/engine/graph';
+  import { cellId } from '@yggi/cells/engine/ids';
   import { TOWER_ZONES, towerSpans } from '../layout/tower';
   import { towerFit } from '../layout/towerfit';
   import { noteColour } from './theme';
-  import { midiOf, pitchHue } from '../theory/modes';
+  import { midiOf, pitchHue } from '@yggi/cells/theory/modes';
   import type { FlowNode } from './types';
 
   let {

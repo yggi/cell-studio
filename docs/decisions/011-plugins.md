@@ -4,7 +4,7 @@
 
 ## Decision
 
-The core stays lean; what is not the language's own is a **plugin**: a `show=name` wheel drawn by code. The app ships a **bundle of built-in plugins** (`src/engine/builtinPlugins.ts`; the sun is the first: it moved from `src/ui/SunNode.svelte`), and a piece can also carry one of its own as a block of its text. Further steps, in order: plugins in a file of their own that pieces use, bundles a user chooses, and a sandbox for code that isn't ours.
+The core stays lean; what is not the language's own is a **plugin**: a `show=name` wheel drawn by code. The app ships a **bundle of built-in plugins** (`engine/builtinPlugins.ts` (in `@yggi/cells`); the sun is the first: it moved from `src/ui/SunNode.svelte`), and a piece can also carry one of its own as a block of its text. Further steps, in order: plugins in a file of their own that pieces use, bundles a user chooses, and a sandbox for code that isn't ours.
 
 - **A plugin is a manifest and a drawing.** The manifest is plain data the layout reads (which kinds of cell it fits, its size, whether edges meet a rim on it, a dial, its colours); the drawing is code, run by the UI only. `engine/` and `layout/` never hold a drawing, so they stay pure TS and run in node, in the worker and at build time.
 - **In the text.** `=== plugin name ===` … `=== end ===`, a JSON manifest first, then JS defining `draw(view, h, g)` (and `describe(view)` for a dial). The built-in bundle is written in the same syntax, so a bundle in a file of its own will be the same text. The parser blanks a piece's block (line numbers don't move); `show=` reads any word, and compile says when it is none of the shows, the built-in plugins, or a plugin of the piece. A piece can't write a plugin with a built-in's name.

@@ -3,7 +3,7 @@
   import { fillColour, liveColour } from './edgeStyle';
   import { palette } from './palette';
   import { gridOf, heardPosition } from '../layout/show';
-  import { lapOf } from '../engine/readers';
+  import { lapOf } from '@yggi/cells/engine/readers';
   import { tickLevel } from '../layout/meters';
   /**
    * An edge drawn by what it carries (its band, docs/notes/nets.md), from what is read to the cell that reads it:
@@ -21,16 +21,16 @@
   import { bundleCubic, bundlePaths, loomParts, loomPaths, measured, rippled, wireLabel } from '../layout/wire';
   import { cellView, type Fill, type Segment } from '../layout/cellview';
   import { pluginOf } from '../layout/show';
-  import { isTurntable } from '../engine/graph';
+  import { isTurntable } from '@yggi/cells/engine/graph';
   import { getGraphContext } from './context';
   import { LOOM } from './flowedges';
   import { LOOM_EXIT, OUTPUTS_TOP } from './outputs';
-  import { pitchHue } from '../theory/modes';
-  import { pickIndices } from '../engine/program';
+  import { pitchHue } from '@yggi/cells/theory/modes';
+  import { pickIndices } from '@yggi/cells/engine/program';
   import { tapRadius } from '../layout/wheel';
   import { STRAND_GAP } from '../layout/looms';
   import { fanOf, layTrack, netEnds, ringOf } from '../layout/track';
-  import type { Pick } from '../engine/ast';
+  import type { Pick } from '@yggi/cells/engine/ast';
   import EdgePayload from './EdgePayload.svelte';
   import { carriesNotes, valuesOf, type Payload } from './payload';
   import { payloadShown, watchLoad } from './payloadGate.svelte';

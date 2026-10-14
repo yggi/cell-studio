@@ -7,12 +7,12 @@
  * Pure: `ui/PianoRoll.svelte` draws it and reports pointer and keys. Ideas from Jambot @ 8cdb6b8
  * (`apps/web/src/components/Lane.svelte`, `Contour.svelte`): a step grid in a viewBox, one row per degree.
  */
-import type { Braid, FreeSpec, Token } from '../engine/ast';
-import { splitWords } from '../engine/edit';
-import { parse } from '../engine/parser';
-import { entries, resolvePitch, semitones } from '../engine/helix';
-import type { CompileResult, ResolvedCell, Shifts, Unit } from '../engine/program';
-import { playedCells } from '../engine/clocking';
+import type { Braid, FreeSpec, Token } from '@yggi/cells/engine/ast';
+import { splitWords } from '@yggi/cells/engine/edit';
+import { parse } from '@yggi/cells/engine/parser/index';
+import { entries, resolvePitch, semitones } from '@yggi/cells/engine/helix';
+import type { CompileResult, ResolvedCell, Shifts, Unit } from '@yggi/cells/engine/program';
+import { playedCells } from '@yggi/cells/engine/clocking';
 import { kindOf, noteLabel, voiceBase } from './show';
 
 /** Notes that start together and last as long: one step of the braid (a note, or a chord). */

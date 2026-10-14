@@ -9,7 +9,7 @@
     "preview": "vite preview",
     "test": "node tools/test.mjs",
     "test:all": "vitest run",
-    "test:slow": "vitest run --project slow",
+    "test:slow": "vitest run --project slow --passWithNoTests",
     "test:watch": "vitest",
     "check": "node tools/check-stale.mjs && svelte-check --tsconfig ./tsconfig.json --tsgo && node tools/strict.mjs",
     "smoke": "node tools/smoke.mjs",
@@ -43,6 +43,7 @@
   },
   "dependencies": {
     "@xyflow/svelte": "^1.7.0",
+    "@yggi/cells": "github:yggi/cells#9347f78511ef8345bbb23adb460c4dfda7f21cce",
     "d3-force": "^3.0.0",
     "tone": "^15.1.22"
   }

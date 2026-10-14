@@ -401,7 +401,7 @@ const files = readdirSync(dir).filter((f) => f.endsWith('.json'));
 const suffix = norm === 'row' ? '-row' : '';
 if (mode === 'contact') {
   // (in the library's order: the keys as order.ts lists them)
-  const order = [...readFileSync(new URL('../../src/engine/order.ts', import.meta.url), 'utf8').matchAll(/^\s*'([\w-]+)',/gm)].map((m) => m[1]);
+  const order = [...readFileSync(new URL('../../node_modules/@yggi/cells/src/engine/order.ts', import.meta.url), 'utf8').matchAll(/^\s*'([\w-]+)',/gm)].map((m) => m[1]);
   const keys = files.map((f) => basename(f, '.json')).sort((a, b) => order.indexOf(a) - order.indexOf(b));
   // (only the signal drawn, and none of the notes: the whole library's JSON is too much to hand the page)
   const pieces = keys.map((k) => {
