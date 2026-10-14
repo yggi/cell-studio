@@ -45,6 +45,7 @@
   import TowerStrips, { STRIP, STRIP_OPEN } from './TowerStrips.svelte';
   import TowerSky, { SKY_MODES, type SkyMode } from './TowerSky.svelte';
   import { tagSections } from './sections';
+  import { towerOf } from '../layout/tower';
   import TapLooms from './TapLooms.svelte';
   import { towerIns } from '../layout/towerlayout';
   import { pillAnchor } from '../layout/taploom';
@@ -337,6 +338,18 @@
   const spires = $derived(
     sky ? layout.nodes.flatMap((n) => (n.type === 'socket' ? [{ id: n.id, x: n.position.x, y: n.position.y, source: (n.data as { source: string }).source }] : [])) : [],
   );
+  // the structure on the strip (TowerStrips.svelte): each stepped cell at its rate, the tables nothing steps at the
+  // bottom (-Infinity), each showing its spectrum of values
+  const structure = $derived.by(() => {
+    if (!towered) return [];
+    const at = towerOf(shown.program, shown.model, 'step');
+    return shown.model.nodes.flatMap((n) => {
+      const c = n.cell;
+      if (!c || n.petalOf || c.note || c.voice || c.kit || c.mix || c.sink) return [];
+      const d = at.get(n.id);
+      return d !== undefined && (d === -Infinity || (Number.isFinite(d) && d < Math.log10(20))) ? [{ name: c.name, at: d }] : [];
+    });
+  });
   // the frequency tower beside the graph (TowerAxis.svelte), in the signal path's layout
   let towerOpen = $state(QUERY?.has('tower') ?? false);
   // (the flow's pan and zoom, for the tower drawn beside it; framed again when the tower opens or closes)
@@ -490,7 +503,15 @@
     </SvelteFlow>
   </div>
   {#if towered}
-    <TowerStrips {ins} {viewport} zone={layout.zone} sum={QUERY?.get('sum') === 'max' ? 'max' : 'stack'} open={stripsOpen} ontoggle={() => (stripsOpen = !stripsOpen)} />
+    <TowerStrips
+      {ins}
+      {structure}
+      {viewport}
+      zone={layout.zone}
+      sum={QUERY?.get('sum') === 'max' ? 'max' : 'stack'}
+      open={stripsOpen}
+      ontoggle={() => (stripsOpen = !stripsOpen)}
+    />
   {/if}
   {#if towerShown}
     <TowerAxis model={shown.model} program={shown.program} nodes={layout.nodes} {viewport} focus={selectedName ?? towerCell} right={cardCover} />

@@ -19,15 +19,20 @@
   import { onDestroy, onMount } from 'svelte';
   import { getGraphContext, nodeState } from './context';
   import { bandFreq, bandHue, bandOctave } from '../layout/spectrum';
-  import { towerNets, towerY, type TowerIn } from '../layout/towerlayout';
+  import { towerAt, towerNets, towerY, type TowerIn } from '../layout/towerlayout';
   import { TOWER_ZONES } from '../layout/tower';
   import { onFrames } from '../audio/ticker';
   import { noteHsl } from './theme';
   import { heard, noteHz, noteOf, outRgb } from './heard';
   import { drawSpire, spireOf } from './spire';
+  import { cellView, valueAt, valueSpectrum } from '../layout/cellview';
+  import { lapOf } from '../engine/readers';
+  import { fillColour } from './edgeStyle';
+  import { C0 } from '../layout/spectrum';
 
   let {
     ins,
+    structure = [],
     viewport,
     zone = 0,
     open,
@@ -35,6 +40,8 @@
     sum = 'stack',
   }: {
     ins: readonly TowerIn[];
+    /** The structure: each stepped cell at its rate (decades), the tables nothing steps at -Infinity. */
+    structure?: readonly { name: string; at: number }[];
     viewport: Viewport;
     /** The neutral zone between the structure and the audible (decades: towerlayout.ts towerY). */
     zone?: number;
@@ -207,6 +214,61 @@
       });
     }
     g.font = '10px system-ui, sans-serif';
+    // the structure (docs/notes/tower-sky.md): under 20 Hz the rainbow goes on, a rate's octaves in a pitch's colours,
+    // muted; each stepped cell a row at its rate, the spectrum of its values (each value as wide as it is held, in its
+    // colour, the one it holds now lit); the tables nothing steps rows at the strip's bottom, their spectra static
+    const lowest = towerAt((h - viewport.y) / viewport.zoom);
+    for (let k = Math.floor(12 * Math.log2(10 ** lowest / C0)); ; k++) {
+      const d = Math.log10(C0 * 2 ** (k / 12));
+      if (d >= Math.log10(20)) break;
+      const y0 = yOf(d + Math.log10(2) / 24);
+      const y1 = yOf(d - Math.log10(2) / 24);
+      if (y1 < 0) continue;
+      g.fillStyle = hsla((((k % 12) + 12) % 12) * 30, 0.2, Math.floor(k / 12) - 4);
+      g.fillRect(0, y0, W, y1 - y0);
+    }
+    // (a row's height: cells at one rate stacked this far apart)
+    const ROW = 10;
+    const paint = (c: string) => (c.startsWith('var(') ? css(c.slice(4, -1)) : c);
+    const rows = new Map<number, number>();
+    const tables = structure.filter((x) => x.at === -Infinity);
+    const chips = (name: string, y: number) => {
+      const v = cellView(ctx.program, name, ctx.shifts, false);
+      if (!v) return;
+      const spread = valueSpectrum(v);
+      if (!spread.length) return;
+      const local = ctx.heads.cells.get(name)?.local ?? 0;
+      const lap = lapOf(ctx.program, name);
+      const now = lap > 0 ? valueAt(v, (((local / lap) % 1) + 1) % 1) : null;
+      const x0 = open ? 64 : 8;
+      const x1 = W - 14;
+      let x = x0;
+      for (const e of spread) {
+        const w = e.share * (x1 - x0);
+        g.globalAlpha = ctx.state === 'stopped' || e.key === now ? 1 : 0.35;
+        g.fillStyle = paint(fillColour(e.fill));
+        g.fillRect(x, y - 2.5, Math.max(1, w - 1), 5);
+        x += w;
+      }
+      g.globalAlpha = 1;
+      if (open) {
+        g.fillStyle = css('--text-muted');
+        g.font = '8px system-ui, sans-serif';
+        g.textAlign = 'left';
+        g.fillText(name, 4, y + 3, 58);
+      }
+    };
+    for (const c of structure) {
+      if (c.at === -Infinity) continue;
+      // (cells at one rate stacked, a row each)
+      const at = yOf(c.at);
+      const key = Math.round(at / ROW);
+      const n = rows.get(key) ?? 0;
+      rows.set(key, n + 1);
+      if (at < -10 || at > h + 10) continue;
+      chips(c.name, at + n * ROW);
+    }
+    tables.forEach((c, k) => chips(c.name, h - 12 - k * ROW));
     // the halves named, the zones named (opened)
     g.fillStyle = css('--text-muted');
     g.font = '700 10px system-ui, sans-serif';
@@ -230,7 +292,7 @@
 
   // stopped: drawn again when what it shows moves (the view, the piece, a source); playing: every frame (below)
   $effect(() => {
-    void [viewport.x, viewport.y, viewport.zoom, ins, sw, h, ctx.program, ctx.shifts, ctx.state, ctx.muted, canvas];
+    void [viewport.x, viewport.y, viewport.zoom, ins, structure, sw, h, ctx.program, ctx.shifts, ctx.state, ctx.muted, canvas];
     draw();
   });
   let stop = () => {};

@@ -473,3 +473,49 @@ export function lfoValues(result: CompileResult, name: string, shifts: Shifts): 
   const swing = Math.abs(lo + hi) < 1e-9 ? `±${fmt(hi)}` : `${fmt(lo)}–${fmt(hi)}`;
   return { wave: raw.map((x) => (x - lo) / span), rate, swing };
 }
+
+/** One value a wheel takes (`valueSpectrum`): how it is drawn, and its share of the wheel's lap (0 … 1). */
+export interface ValueShare {
+  readonly key: string;
+  readonly fill: Fill;
+  readonly share: number;
+}
+
+/** A fill's identity: two fills of one key are drawn alike. */
+const fillKey = (f: Fill) =>
+  f.kind === 'pitch'
+    ? `p${Math.round(f.hue)}/${f.octave ?? 0}/${f.alter ?? 0}${f.unit ? 'u' : ''}`
+    : f.kind === 'level'
+      ? `l${Math.round(f.v * 20)}`
+      : f.kind === 'beat'
+        ? `b${f.down}`
+        : f.kind;
+
+/**
+ * A wheel's spectrum of values (the tower layout's strip, docs/notes/tower-sky.md): each value it takes and how much
+ * of its lap it holds it, rests aside, in the order of the values (pitches low to high, levels, beats). Its chords'
+ * notes each a value.
+ */
+export function valueSpectrum(view: CellView): ValueShare[] {
+  const by = new Map<string, { fill: Fill; w: number }>();
+  let all = 0;
+  for (const s of view.segments)
+    for (const f of s.bands) {
+      if (f.kind === 'rest') continue;
+      const k = fillKey(f);
+      const w = (s.t1 - s.t0) / s.bands.length;
+      all += w;
+      const e = by.get(k);
+      if (e) e.w += w;
+      else by.set(k, { fill: f, w });
+    }
+  const rank = (f: Fill) => (f.kind === 'pitch' ? (f.octave ?? 0) * 360 + f.hue : f.kind === 'level' ? 1e4 + f.v : 2e4);
+  return [...by].map(([key, { fill, w }]) => ({ key, fill, share: all > 0 ? w / all : 0 })).sort((a, b) => rank(a.fill) - rank(b.fill));
+}
+
+/** The key of the value a wheel holds at `t` (0 … 1 of its lap), to light it in its spectrum; null in a rest. */
+export function valueAt(view: CellView, t: number): string | null {
+  const s = view.segments.find((x) => t >= x.t0 - 1e-9 && t < x.t1 - 1e-9);
+  const f = s?.bands.find((b) => b.kind !== 'rest');
+  return f ? fillKey(f) : null;
+}

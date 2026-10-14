@@ -20,8 +20,8 @@
   import type { Viewport } from '@xyflow/svelte';
   import { onDestroy, onMount } from 'svelte';
   import { getGraphContext, nodeState } from './context';
-  import { bandFreq, bandHue, bandOctave } from '../layout/spectrum';
-  import { towerY } from '../layout/towerlayout';
+  import { bandFreq, bandHue, bandOctave, C0 } from '../layout/spectrum';
+  import { towerAt, towerY } from '../layout/towerlayout';
   import { onFrames } from '../audio/ticker';
   import { hslRgb, noteHsl } from './theme';
   import { heard, noteHz, outRgb } from './heard';
@@ -81,6 +81,17 @@
       if (y < -half || y > h + half) continue;
       g.fillStyle = css(hues[b], 0.09);
       g.fillRect(0, y - half, w, 2 * half);
+    }
+    // under it, behind the structure, the rainbow goes on: a rate's octaves in a pitch's colours, fainter
+    const lowest = towerAt((h - viewport.y) / viewport.zoom);
+    for (let k = Math.floor(12 * Math.log2(10 ** lowest / C0)); ; k++) {
+      const d = Math.log10(C0 * 2 ** (k / 12));
+      if (d >= Math.log10(20)) break;
+      const y0 = yOf(d + Math.log10(2) / 24);
+      const y1 = yOf(d - Math.log10(2) / 24);
+      if (y1 < 0) continue;
+      g.fillStyle = css(hslRgb(...noteHsl((((k % 12) + 12) % 12) * 30, false, Math.floor(k / 12) - 4)), 0.08);
+      g.fillRect(0, y0, w, y1 - y0);
     }
     // its edge: where the audible begins
     const floor = yOf(Math.log10(20));

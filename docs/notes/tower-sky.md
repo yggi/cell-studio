@@ -122,6 +122,18 @@ The owner's correction to the layout's rule: between the structure (under 20 Hz)
 
 (`node tools/probe/parallel.mjs out.txt`, `VARIANTS=1,2`.) It crosses less (Korobeiniki 5.7 → 2.3, Resonanz 11 → 10, Baustelle 5.0 → 4.7; Hypercell 3.7 → 4.0), and the graph is taller by a quarter: the audible is on its real scale over the zone, and the structure no longer reaches up to the voices.
 
+## The structure on the strip (2026-10-14)
+
+The owner's next: the markers go on into the structure. Each wheel has a value now and a spectrum of the values it can take; each stepped cell is marked at its rate on the tower, on a sub-sonic rainbow; the tables nothing steps sit at the bottom, showing their static spectrum.
+
+- **A wheel's spectrum of values** (`valueSpectrum`, `valueAt` in `layout/cellview.ts`): each value it takes and the share of its lap it holds it, rests aside, low to high; and which it holds now.
+- **On the strip** (`TowerStrips.svelte`): under the neutral zone each stepped cell is a row at its step rate (`towerOf … 'step'`), the cells of one rate stacked: its spectrum as chips, each as wide as its value is held, in the value's colour (a pitch's, a level's, white for a 0 that means nothing), the one it holds now lit while playing. The tables nothing steps (`&major`, `&parts`, `&lydian`) are rows at the strip's bottom. Opened, each row is named.
+- **The sub-sonic rainbow**: under 20 Hz the semitone bands go on (a rate's octaves take a pitch's colours, by the notes' octave gradient, so darker), on the strip and, fainter, behind the structure in the graph.
+
+![the strips at 30 s: Pop, Cellscape, Hypercell, the waltz](tower-sky-structure.jpg)
+
+Seen: Pop's melodies on one row at 4 Hz (`&chords`, `&roots`, `&tune`, `&hats`), `&bar`, `&beat` and `&final` lower, `&parts` and `&major` at the bottom; Cellscape's parts spread down the pulse and the slow, its `&key` twelve keys; Hypercell's `&off` and `&lift` red (pitches). A table of taps (`&parts`) shows its values as plain references, grey: they could wear their sections' tints.
+
 ## 5. One tiered strip for the graph and the time view (proposed)
 
 Three things draw the tower's scale today, each its own way:
