@@ -91,7 +91,7 @@ export default defineConfig({
     ],
     // Two projects (docs/testing.md): `quick`, every test but the heavy sweeps, in every `npm test`; `slow` (`*.slow.test.ts`:
     // the folder over whole pieces and libraries, a minute or two), run by `npm test` only when the change reaches them
-    // (tools/test.mjs), and always by `npm run test:all` and CI.
+    // (tools/test.mjs), and always by `npm run test:all` (CI runs it by hand only).
     projects: [
       {
         extends: true,

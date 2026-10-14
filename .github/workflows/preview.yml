@@ -5,6 +5,7 @@ name: Preview
 # build, no comment: most PRs never need one. One comment on the PR says where. By hand: Actions -> Preview -> Run
 # workflow, with the PR's number (the PR's head, built as it is).
 # It builds on its own (no tests: `check` in ci.yml does those), so labelling doesn't re-run CI.
+# A run that fails in seconds with no step is Actions blocked (minutes used up): no preview, and no verdict on the PR.
 # Not a fork's PR, nor a Dependabot run: their token can't write.
 on:
   pull_request:
@@ -28,6 +29,7 @@ jobs:
        ((github.event.action == 'labeled' && github.event.label.name == 'preview') ||
         (github.event.action != 'labeled' && contains(github.event.pull_request.labels.*.name, 'preview'))))
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: write
       pull-requests: write

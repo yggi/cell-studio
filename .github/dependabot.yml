@@ -1,10 +1,11 @@
 version: 2
 updates:
-  # Vite, Svelte, TypeScript and vitest are all very new majors: one weekly PR per group, CI is the gate
+  # Vite, Svelte, TypeScript and vitest are all very new majors: one PR a month per group, each a CI run (the family's CI
+  # budget: no more often than monthly); whoever merges runs the checks on it first (AGENTS.md)
   - package-ecosystem: npm
     directory: /
     schedule:
-      interval: weekly
+      interval: monthly
     groups:
       npm:
         patterns: ['*']
@@ -18,4 +19,7 @@ updates:
   - package-ecosystem: github-actions
     directory: /
     schedule:
-      interval: weekly
+      interval: monthly
+    groups:
+      actions:
+        patterns: ['*']

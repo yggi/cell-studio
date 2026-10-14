@@ -4,23 +4,23 @@
 
 ## Context
 
-A solo project with many agent sessions. `main` is protected by a ruleset (below), deploys on every push, and nothing else gates a merge but CI. Agents work on branches the session assigns, so several PRs can be open at once and conflict (docs, the audio insertion order).
+A solo project with many agent sessions. `main` is protected by a ruleset (below) and deployed by hand (`node tools/deploy.mjs`); a merge is gated by the checks run before the push, which the PR names, with CI as their witness ([testing.md](../testing.md#run)). Agents work on branches the session assigns, so several PRs can be open at once and conflict (docs, the audio insertion order).
 
 ## Decision
 
 - An agent works on its branch and opens a PR. It does not merge, and it does not push to `main`.
 - Triage, review, conflict resolution between open PRs, issue updates and merging are one job: the `senior` skill (`.claude/skills/senior/SKILL.md`). It merges only with the owner's approval: given in the prompt ("merge if you find nothing"), or asked for after a summary.
-- Mechanical gates are CI (check, test, build on every PR; the smoke test on every non-draft PR); the ruleset requires the `check` job, so a PR whose `check` fails can't merge (the smoke test is not required: the merger waits for it); the skill adds judgment on top and doesn't repeat what CI did.
+- Mechanical gates are `npm run verify` before every push, named in the PR, and CI's one job on a ready PR as their witness (the smoke test and the slow tests by hand, when a change reaches them). No check is required to merge: a required check that Actions can't run (its minutes used up) would stop every merge. The skill adds judgment on top and doesn't repeat what was verified.
 
 ## Consequences
 
 - One reviewer voice and one place that knows merge order; agents don't block each other.
 - The owner stays in the loop at the only irreversible step.
-- Cost: nothing merges unattended. Auto-merge for green docs-only PRs can be added later (the CI check is now required on `main`).
+- Cost: nothing merges unattended. Auto-merge for docs-only PRs would need a required check, which a month without Actions minutes would block.
 
 ## The ruleset
 
-Repository ruleset `protect-main` (Settings → Rules), as exported from GitHub on 2026-10-06. This JSON is the ground truth: if the setting and this text differ, fix whichever is wrong and say so here. It forbids deleting `main` and force-pushing it, requires the `check` job of `ci.yml` (job name `check`; `integration_id` 15368 is GitHub Actions), and has no bypass actors, so the owner is bound too.
+Repository ruleset `protect-main` (Settings → Rules), as read from GitHub on 2026-10-14. This JSON is the ground truth: if the setting and this text differ, fix whichever is wrong and say so here. It forbids deleting `main` and force-pushing it, and has no bypass actors, so the owner is bound too. It requires no status check: the `check` of `ci.yml` was required until 2026-10-10, when Actions was blocked for the rest of the month (#300) and the requirement came off; it stays off, since the gate is the verify before the push.
 
 ```json
 {
@@ -44,19 +44,6 @@ Repository ruleset `protect-main` (Settings → Rules), as exported from GitHub 
     },
     {
       "type": "non_fast_forward"
-    },
-    {
-      "type": "required_status_checks",
-      "parameters": {
-        "strict_required_status_checks_policy": false,
-        "do_not_enforce_on_create": false,
-        "required_status_checks": [
-          {
-            "context": "check",
-            "integration_id": 15368
-          }
-        ]
-      }
     }
   ],
   "bypass_actors": []

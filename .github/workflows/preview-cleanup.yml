@@ -2,7 +2,7 @@ name: Preview cleanup
 
 # Removes a PR's preview (gh-pages/pr-<n>/, made by preview.yml on request) when the PR closes, merged or
 # not, or loses its `preview` label, and says so in the preview's comment. By hand, for a preview left behind: Actions -> Preview cleanup ->
-# Run workflow, with the PR's number.
+# Run workflow, with the PR's number. A run that fails in seconds with no step is Actions blocked: run it by hand later.
 on:
   pull_request:
     types: [closed, unlabeled]
@@ -26,6 +26,7 @@ jobs:
        ((github.event.action == 'unlabeled' && github.event.label.name == 'preview') ||
         (github.event.action == 'closed' && contains(github.event.pull_request.labels.*.name, 'preview'))))
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     permissions:
       contents: write
       pull-requests: write

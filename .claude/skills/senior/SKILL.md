@@ -5,23 +5,23 @@ description: Triage, review and merge pull requests for Cell studio, and keep is
 
 # Senior
 
-You are the one reviewer and merger of a solo project. Be a senior engineer, not a ceremony: read the change, judge it, fix what is trivial yourself, push back on what is serious, merge what is good. CI (check, test, build; the smoke test, which runs on every non-draft PR) has already done the mechanical work: read its result, don't redo it.
+You are the one reviewer and merger of a solo project. Be a senior engineer, not a ceremony: read the change, judge it, fix what is trivial yourself, push back on what is serious, merge what is good. The author ran the mechanical checks before pushing (`npm run verify`; the smoke test when the change reaches it) and the PR names the commit: read that and CI's witness run, and redo only what is missing or in doubt.
 
 Tools: the GitHub MCP tools (`list_pull_requests`, `pull_request_read`, `pull_request_review_write`, `update_pull_request_branch`, `merge_pull_request`, `issue_read`, `issue_write`, `add_issue_comment`); `gh` isn't available. Every comment you post ends with the attribution footer the session asks for. Repo rules and conventions: `AGENTS.md`.
 
 ## 1. Gather (every time)
 
-For each PR: description, linked issue (`Closes #n`) with its comments, changed files, CI status on the **current head**, open review threads, mergeability. List them all first when several are open: which touch the same files or the same behaviour?
+For each PR: description, linked issue (`Closes #n`) with its comments, changed files, the commit the PR says passed `npm run verify` (is it the **current head**?) and CI's run on it, open review threads, mergeability. List them all first when several are open: which touch the same files or the same behaviour?
 
 ## 2. Review: in this order, stopping early on a serious finding
 
 1. **Scope**: does it do what the issue says, and only that? Extra changes are a finding (an issue, not a wider PR).
-2. **Safety rules**: layering (CI checks it), saved `.cells` pieces still mean the same, an existing example doesn't change how it sounds unless that is the point (then its `level=`/loudness was checked), the code stays the source of truth.
+2. **Safety rules**: layering (`npm run check` and the tests hold it), saved `.cells` pieces still mean the same, an existing example doesn't change how it sounds unless that is the point (then its `level=`/loudness was checked), the code stays the source of truth.
 3. **Evidence**: tests for the behaviour (would the new test fail without the change?), and for anything audible, visual or about speed, a stated verification. No evidence for a claim: verify it yourself the cheap way (below) or call it unverified.
 4. **Docs and bookkeeping**: if behaviour changed, the page that states it (`docs/language/`, `docs/limits.md`, `docs/roadmap.md`) and a `CHANGELOG.md` line.
 5. **The diff itself**: read it for bugs and edge cases. Spend time in proportion to risk: engine semantics and audio scheduling deserve a probe (write a small test or compile a snippet), a docs fix doesn't. For a deeper pass use `/code-review`.
 
-**Verify only what CI doesn't.** CI covers types, tests and the build, and, via the smoke run, starting every piece and playing a set that covers every kind of sound. Add: a targeted probe for a semantic claim (`npx vitest run <file>`, or a throwaway test that compiles a snippet), `npm run smoke -- 2 "<piece>"` after `npm run build` for audio you doubt, the `profile` skill for a speed claim. Check out a PR with `git fetch origin <branch>`; never work on `main`.
+**Verify only what wasn't.** CI covers the static checks and the quick tests on a ready PR; the slow tests, the build and the smoke run (starting every piece, playing a set that covers every kind of sound) ran only if the PR says so. When the head isn't the verified commit, or CI is red or blocked, run `npm run verify` on it yourself. Add: a targeted probe for a semantic claim (`npx vitest run <file>`, or a throwaway test that compiles a snippet), `npm run smoke -- 2 "<piece>"` after `npm run build` for audio you doubt, the `profile` skill for a speed claim. Check out a PR with `git fetch origin <branch>`; never work on `main`.
 
 ## 3. Decide, per finding
 
@@ -33,14 +33,14 @@ Never rewrite history on someone else's branch (merge `main` in; no rebase, amen
 
 ## 4. Merge
 
-**The smoke test runs on every non-draft PR** (about two and a half minutes, again on each push): once the review is done and you mean to merge, wait for the `smoke` and `repeatable` runs on the current head. Merge only when all hold: CI green on the current head (`check`, `smoke` and `repeatable`), no conflicts, no open serious finding, **and the owner has approved**: either the prompt said to merge on a condition that is met ("merge if you find nothing"), or the owner said yes to your summary. Otherwise stop after the summary and ask. Squash-merge (the history reads `Title (#n)`), with the PR title as the message. Never bypass a red check.
+**The smoke test runs by hand** (about two and a half minutes): for a change that reaches audio, UI wiring, assets or the build, check that the PR ran it on its head, or run it (`npm run build && npm run smoke`, or Actions → Smoke → Run workflow). Merge only when all hold: the current head passed `npm run verify` (named in the PR, or run by you), CI's `check` on it is green or blocked (a run that failed in seconds with no step is Actions out of minutes, not a verdict: `AGENTS.md`), no conflicts, no open serious finding, **and the owner has approved**: either the prompt said to merge on a condition that is met ("merge if you find nothing"), or the owner said yes to your summary. Otherwise stop after the summary and ask. Squash-merge (the history reads `Title (#n)`), with the PR title as the message. Never merge over a red check that ran.
 
 After merging: the issue is closed by `Closes #n` (verify; if the PR was partial, comment on the issue what is done and what is left); file follow-ups; update `docs/roadmap.md` or `docs/limits.md` if the work changed an epic or lifted a limit (on the PR branch before merging, not on `main` after).
 
 ## 5. Several PRs at once
 
 1. Order them: independent and safest first, those others depend on before their dependents, docs-only anytime. Conflicts are resolved once, at the later PR.
-2. For each in turn: merge `main` into its branch (`update_pull_request_branch`; if it conflicts, do it locally: `node tools/sync-pr.mjs <pr>` does the mechanical conflicts, see below), resolve, run `npm run test:all && npm run check` (every test: `npm test` picks the slow ones by what changed; while CI is off, #300, this is the gate), push to the PR branch, wait for CI and its smoke run, merge, next.
+2. For each in turn: merge `main` into its branch (`update_pull_request_branch`; if it conflicts, do it locally: `node tools/sync-pr.mjs <pr>` does the mechanical conflicts, see below), resolve, run `npm run verify` (and `npm run test:all` when the merge reaches the slow tests: `npm test` picks them by what changed), push to the PR branch, say in the PR which commit you verified, merge, next.
 3. Resolving: read both PRs' intent first (descriptions, issues), then the code.
    - **Docs and `CHANGELOG.md`/`INDEX.md`**: keep both sides' facts, remove duplicates; the docs tests tell you if a block or link broke.
    - **Lockfile**: regenerate with `npm install`, never merge by hand.
