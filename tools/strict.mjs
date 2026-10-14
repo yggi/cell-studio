@@ -17,15 +17,10 @@ import { fileURLToPath } from 'node:url';
 const CLEAN = [
   /^src\/audio\//,
   /^src\/midi\//,
-  /^src\/theory\//,
   /^src\/ui\/[^/]+\.ts$/,
   /^src\/ui\/state\//,
   /^src\/ui\/kit\//,
-  // (the engine, a part at a time: new code goes on clean, #320)
-  /^src\/engine\/fold\//,
-  /^src\/engine\/midiimport\.ts$/,
-  /^src\/engine\/time\/structure\.ts$/,
-  /^src\/engine\/readers\.ts$/,
+  // (the language's folders, the engine and the theory, are held by yggi/cells' own copy of this ratchet)
   // (the layout, a part at a time)
   /^src\/layout\/envelope\.ts$/,
   /^src\/layout\/glyph\.ts$/,

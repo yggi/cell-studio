@@ -4,7 +4,7 @@
  * every call says so instead of failing, and files always work.
  */
 import { storageKey } from './storageKey';
-import { pieceMeta } from './engine/parser';
+import { pieceMeta } from '@yggi/cells/engine/parser/index';
 
 export interface SavedPiece {
   readonly id: string;

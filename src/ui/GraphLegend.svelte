@@ -4,9 +4,9 @@
    * under the card's show= (notes, do, degrees, midi), its solfège (movable do: do the tonic), its
    * frequency, and its agogic mark (a meter's levels: * the bar, + a beat, . a subdivision, , finer).
    */
-  import type { CompileResult, Shifts } from '../engine/program';
-  import { period, positionHue, positionOctave, resolvePitch, semitones } from '../engine/helix';
-  import { pieceMeta } from '../engine/parser';
+  import type { CompileResult, Shifts } from '@yggi/cells/engine/program';
+  import { period, positionHue, positionOctave, resolvePitch, semitones } from '@yggi/cells/engine/helix';
+  import { pieceMeta } from '@yggi/cells/engine/parser/index';
   import { noteFrame, noteLabel, type Show } from '../layout/show';
   import { noteColour } from './theme';
 

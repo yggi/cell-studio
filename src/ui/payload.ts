@@ -4,7 +4,7 @@
  */
 import type { Shape } from '../layout/wire';
 import type { CellView, Fill } from '../layout/cellview';
-import type { CompileResult } from '../engine/program';
+import type { CompileResult } from '@yggi/cells/engine/program';
 
 /** A voice's waveforms (dough's names) as they look on a wire. */
 const SHAPES: Record<string, Shape> = {

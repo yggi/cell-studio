@@ -4,8 +4,8 @@
  * notes when there are too many to draw one by one, and the waveform's columns. RGBA buffers, row by row from the
  * top, for the component to put in an ImageData; the colours come in (ui/theme.ts `TIME`). Pure: no DOM.
  */
-import type { Played } from '../engine/realize';
-import type { Signal } from '../engine/time/signals';
+import type { Played } from '@yggi/cells/engine/realize';
+import type { Signal } from '@yggi/cells/engine/time/signals';
 import { MIXED, type Listening } from './timelayers';
 import { tOf, xOf, yOf, type Frame } from './timeview';
 

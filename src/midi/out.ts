@@ -18,8 +18,8 @@
  * not taken back) that a note sent since sounds across is followed by that note struck again: retriggered, not cut. A
  * bend put back after one sent ahead is said again by a note sent since that sounds across it.
  */
-import { BEND_CENTRE, bendMessage, legatoNotes, midiNote, Rotation, routesOf, type Route, type Routes } from '../engine/midi';
-import type { Played } from '../engine/realize';
+import { BEND_CENTRE, bendMessage, legatoNotes, midiNote, Rotation, routesOf, type Route, type Routes } from '@yggi/cells/engine/midi';
+import type { Played } from '@yggi/cells/engine/realize';
 import type { MidiPort } from './access';
 import { deviceNote, type DrumMap } from './drum-presets';
 

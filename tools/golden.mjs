@@ -21,7 +21,7 @@ const args = process.argv.slice(2);
 const check = args.includes('--check') ? JSON.parse(readFileSync(args[args.indexOf('--check') + 1], 'utf8')) : null;
 const secs = Number(args.find((a) => /^\d+(\.\d+)?$/.test(a)) ?? 6);
 const TOL = Number(process.env.TOL ?? 1e-4);
-const files = readdirSync('examples')
+const files = readdirSync('node_modules/@yggi/cells/examples')
   .filter((f) => f.endsWith('.cells'))
   .sort();
 
@@ -51,7 +51,7 @@ const print = (r) => ({ hash: r.hash, rms: +r.rms.toFixed(3), peak: +r.peak.toFi
 // the largest difference between two renders' block levels (a different length counts as a difference of 1)
 const worst = (a, b) => (a.blocks.length !== b.blocks.length ? 1 : Math.max(0, ...a.blocks.map((x, i) => Math.abs(x - b.blocks[i]))));
 for (const f of files) {
-  const source = readFileSync(`examples/${f}`, 'utf8');
+  const source = readFileSync(`node_modules/@yggi/cells/examples/${f}`, 'utf8');
   out[f] = print(await render(source));
   if (!check) continue;
   const was = check[f];

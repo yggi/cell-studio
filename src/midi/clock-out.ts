@@ -18,7 +18,7 @@
  * out, so none is doubled; none is added. Timestamps are never in the past and never earlier than the clock message
  * before them (the offset can jump between windows), and every send is in a try.
  */
-import type { ClockTicks } from '../engine/midiclock';
+import type { ClockTicks } from '@yggi/cells/engine/midiclock';
 import type { MidiPort } from './access';
 
 /** Seconds on the audio clock to a `performance.now()` timestamp (`midi/clock.ts`). */

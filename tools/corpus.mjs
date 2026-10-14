@@ -38,7 +38,7 @@ try {
       notes: createHash('sha1').update(events.join('\n')).digest('hex').slice(0, 16),
     };
   };
-  const dir = new URL('../examples/', import.meta.url);
+  const dir = new URL('../node_modules/@yggi/cells/examples/', import.meta.url);
   const now = Object.fromEntries(
     readdirSync(dir)
       .filter((f) => f.endsWith('.cells'))

@@ -4,7 +4,7 @@
 
 ## Context
 
-A resonator (`body=fork|bell|bar|plate|box|tine|pipe|wire|spring`, [physics.md](../language/physics.md#resonators))
+A resonator (`body=fork|bell|bar|plate|box|tine|pipe|wire|spring`, [physics.md](https://github.com/yggi/cells/blob/main/docs/language/physics.md#resonators))
 was a brass disc with its mode rings, and brass pads round it only when it had more than one exciter. Most resonators
 in the library have one, so a fork, a plate, a girder, a spring and a pipe looked the same. #302 drew a kalimba's
 exciters as tines; the mock-ups (`node tools/gallery.mjs mockups`, question 2) tried the same for every body.

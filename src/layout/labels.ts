@@ -10,10 +10,10 @@
  *
  *   **bold**   *italic*   \n a new line
  */
-import { LABEL_FIELDS, type CompileResult, type Shifts } from '../engine/program';
-import { entries, resolveIn, resolvePitch, semitones } from '../engine/helix';
-import { flatten } from '../engine/flatten';
-import { modeName, mod } from '../theory/modes';
+import { LABEL_FIELDS, type CompileResult, type Shifts } from '@yggi/cells/engine/program';
+import { entries, resolveIn, resolvePitch, semitones } from '@yggi/cells/engine/helix';
+import { flatten } from '@yggi/cells/engine/flatten';
+import { modeName, mod } from '@yggi/cells/theory/modes';
 
 const NAMES = ['C', 'C♯', 'D', 'E♭', 'E', 'F', 'F♯', 'G', 'A♭', 'A', 'B♭', 'B'];
 

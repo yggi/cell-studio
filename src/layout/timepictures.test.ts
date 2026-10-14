@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { createHash } from 'node:crypto';
-import { compileSource } from '../engine/compile';
-import { PRESETS } from '../engine/presets';
-import { codeShifts } from '../engine/program';
-import { eventsBetween, plan } from '../engine/realize';
-import { scalograms, SIGNALS, type Signal } from '../engine/time/signals';
-import { grid } from '../engine/time/wavelet';
+import { compileSource } from '@yggi/cells/engine/compile';
+import { PRESETS } from '@yggi/cells/engine/presets';
+import { codeShifts } from '@yggi/cells/engine/program';
+import { eventsBetween, plan } from '@yggi/cells/engine/realize';
+import { scalograms, SIGNALS, type Signal } from '@yggi/cells/engine/time/signals';
+import { grid } from '@yggi/cells/engine/time/wavelet';
 import { notePixels, ramp, relative, scalogramPixels, waterfallPixels, waveColumns } from './timepictures';
 import { frameFor } from './timeview';
 

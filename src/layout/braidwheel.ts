@@ -3,15 +3,15 @@
  * tokens, a label for each, the hues a token sounds and how many entries one lap of its table has. Pure: the
  * program, the cell's name and the shifts to read it through (live, while playing) are all it takes.
  */
-import type { Atom, FreeSpec } from '../engine/ast';
-import { period, resolvePitch, semitones, shiftedUnits } from '../engine/helix';
-import { parse } from '../engine/parser';
-import type { CompileResult, ResolvedCell, Shifts } from '../engine/program';
-import { splitWords } from '../engine/edit';
+import type { Atom, FreeSpec } from '@yggi/cells/engine/ast';
+import { period, resolvePitch, semitones, shiftedUnits } from '@yggi/cells/engine/helix';
+import { parse } from '@yggi/cells/engine/parser/index';
+import type { CompileResult, ResolvedCell, Shifts } from '@yggi/cells/engine/program';
+import { splitWords } from '@yggi/cells/engine/edit';
 import { pitchFill } from './cellview';
 import { effectiveShow, names, noteFrame, noteLabel } from './show';
 import { stepText } from './wheel';
-import { leaves } from '../engine/subseq';
+import { leaves } from '@yggi/cells/engine/subseq';
 
 /**
  * What a cell's sheet draws as its picture, before its wheel: a note's text, a signal's spectrum (a mix, the sound

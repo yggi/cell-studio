@@ -1,14 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { compileSource } from '../engine/compile';
-import { mainTempo, pieceTime, sections } from '../engine/duration';
-import { PRESETS } from '../engine/presets';
-import { codeShifts } from '../engine/program';
-import { eventsBetween, plan } from '../engine/realize';
-import { sectionsOver } from '../engine/time/boundaries';
-import { scalograms, SIGNALS, type Signal } from '../engine/time/signals';
-import { listening } from '../engine/time/span';
-import { structure } from '../engine/time/structure';
-import { grid } from '../engine/time/wavelet';
+import { compileSource } from '@yggi/cells/engine/compile';
+import { mainTempo, pieceTime, sections } from '@yggi/cells/engine/duration';
+import { PRESETS } from '@yggi/cells/engine/presets';
+import { codeShifts } from '@yggi/cells/engine/program';
+import { eventsBetween, plan } from '@yggi/cells/engine/realize';
+import { sectionsOver } from '@yggi/cells/engine/time/boundaries';
+import { scalograms, SIGNALS, type Signal } from '@yggi/cells/engine/time/signals';
+import { listening } from '@yggi/cells/engine/time/span';
+import { structure } from '@yggi/cells/engine/time/structure';
+import { grid } from '@yggi/cells/engine/time/wavelet';
 import { buildGraph } from './drawn';
 import {
   cellSpans,

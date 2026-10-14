@@ -4,15 +4,15 @@
  * patterns, the meter, the levels and the boundaries heard. Where they are drawn is layout/timeview.ts; the pictures,
  * layout/timepictures.ts. Pure: no DOM, no colours (a hue at most).
  */
-import type { CompileResult } from '../engine/program';
-import type { GraphModel } from '../engine/graph';
-import type { Played } from '../engine/realize';
-import type { Signal } from '../engine/time/signals';
-import { fold, ridges, type Scalogram } from '../engine/time/wavelet';
-import { cones, swells, type Boundary } from '../engine/time/boundaries';
-import type { StructureNode } from '../engine/time/structure';
-import { motifs, multiscale } from '../engine/time/motifs';
-import { alike, foldings, levelsOf, pulseOf } from '../engine/time/necklace';
+import type { CompileResult } from '@yggi/cells/engine/program';
+import type { GraphModel } from '@yggi/cells/engine/graph';
+import type { Played } from '@yggi/cells/engine/realize';
+import type { Signal } from '@yggi/cells/engine/time/signals';
+import { fold, ridges, type Scalogram } from '@yggi/cells/engine/time/wavelet';
+import { cones, swells, type Boundary } from '@yggi/cells/engine/time/boundaries';
+import type { StructureNode } from '@yggi/cells/engine/time/structure';
+import { motifs, multiscale } from '@yggi/cells/engine/time/motifs';
+import { alike, foldings, levelsOf, pulseOf } from '@yggi/cells/engine/time/necklace';
 import { towerSpans } from './tower';
 
 /** A clocked cell's span on the tower, in seconds: from its step (how often it moves) to its turn. */

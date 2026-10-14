@@ -1,10 +1,10 @@
 /** The examples as the gallery's sheets use them: compiled, in the live state of a moment (`liveAt`). */
-import { compileSource } from '../../src/engine/compile';
-import { codeShifts, type CompileResult, type Shifts } from '../../src/engine/program';
-import { liveAt, type LiveState } from '../../src/engine/live';
-import { ORDER } from '../../src/engine/order';
-import { PRESETS } from '../../src/engine/presets';
-import { routing, type Routing } from '../../src/engine/routing';
+import { compileSource } from '@yggi/cells/engine/compile';
+import { codeShifts, type CompileResult, type Shifts } from '@yggi/cells/engine/program';
+import { liveAt, type LiveState } from '@yggi/cells/engine/live';
+import { ORDER } from '@yggi/cells/engine/order';
+import { PRESETS } from '@yggi/cells/engine/presets';
+import { routing, type Routing } from '@yggi/cells/engine/routing';
 
 export interface Piece {
   readonly key: string;

@@ -3,8 +3,8 @@ import { layered } from './layered';
 import { DEFAULT_LAYOUT } from './options';
 import { buildGraph } from './drawn';
 import { folded } from './junctions';
-import { compileSource } from '../engine/compile';
-import { PRESETS } from '../engine/presets';
+import { compileSource } from '@yggi/cells/engine/compile';
+import { PRESETS } from '@yggi/cells/engine/presets';
 
 describe('layered: tags as blocks', () => {
   for (const key of ['cellscape', 'baustelle', 'hypercell', 'brothers'] as const) {

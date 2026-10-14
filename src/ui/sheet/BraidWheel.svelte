@@ -4,7 +4,7 @@
    * wheel (tap one: StepEditor; the middle: HubEditor), a hint, and its piano roll. Otherwise (a selector, a meter,
    * an LFO, a mix written over several lines …) its picture as in the graph. What it lists is layout/braidwheel.ts.
    */
-  import { setBraid, splitToken, splitWords, type declWords } from '../../engine/edit';
+  import { setBraid, splitToken, splitWords, type declWords } from '@yggi/cells/engine/edit';
   import { freeBraidOf, lap, listed as listedOf, tokenHues, tokenLabels } from '../../layout/braidwheel';
   import { kindOf } from '../../layout/show';
   import { getGraphContext } from '../context';

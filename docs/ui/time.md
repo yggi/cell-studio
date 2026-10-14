@@ -11,7 +11,7 @@ wide screen the **time** button in the graph's toolbar shows it in the graph's p
   `engine/time/span.ts`) and they are folded into one (`fold` in `engine/time/wavelet.ts`: each moment the mean of the
   rounds), its notes drawn every round's on the one. The playhead is a line, round the cycle while playing (a click
   plays from that place in it); while playing, the view pages on with it.
-- **Up: frequency, on the tower's axis** ([multiscale](../notes/multiscale.md), `layout/tower.ts`): from the piece's
+- **Up: frequency, on the tower's axis** ([multiscale](https://github.com/yggi/cells/blob/main/docs/notes/multiscale.md), `layout/tower.ts`): from the piece's
   slowest level at the bottom through the slow (below 0.5 Hz) and the pulse to the audible (from 20 Hz) and the sound
   card's samples (from 20 kHz) at the top. The marks read as times below 20 Hz (1 min, 1 s, 0.1 s) and as frequencies
   above (100 Hz, 1 kHz). Every layer sits at its own height:
@@ -60,7 +60,7 @@ drag) plays from there (`playback.seek`); a double click, or **fit**, shows the 
 ## How it is worked out
 
 - The notes are the plan's (`eventsBetween`), over the view's length, worked out only while the view is shown.
-- The scalogram is `engine/time/` ([the note](../notes/scalogram.md)), run in a worker (`ui/time.worker.ts`): a day's
+- The scalogram is `engine/time/` ([the note](https://github.com/yggi/cells/blob/main/docs/notes/scalogram.md)), run in a worker (`ui/time.worker.ts`): a day's
   piece takes about a minute; *listening…* says it's at work. It starts once the code has been still for 0.4 s, and a
   newer piece ends the old job.
 - The sound is rendered offline (`audio/render.ts` `renderStretch`) five seconds at a time, one round of a loop, the

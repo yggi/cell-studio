@@ -1,9 +1,9 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { compileSource } from '../engine/compile';
-import { codeShifts, type CompileResult } from '../engine/program';
-import { PRESETS } from '../engine/presets';
-import { lapOf } from '../engine/readers';
+import { compileSource } from '@yggi/cells/engine/compile';
+import { codeShifts, type CompileResult } from '@yggi/cells/engine/program';
+import { PRESETS } from '@yggi/cells/engine/presets';
+import { lapOf } from '@yggi/cells/engine/readers';
 import { cellView, drawnOf, type CellView, type Segment } from './cellview';
 import { BORDER } from './coarse';
 import { noteFrame } from './show';

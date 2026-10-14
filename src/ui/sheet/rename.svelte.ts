@@ -1,4 +1,4 @@
-import { nameProblem, renameCell } from '../../engine/edit';
+import { nameProblem, renameCell } from '@yggi/cells/engine/edit';
 
 /**
  * A cell's name, edited where it's shown (SheetName.svelte): the draft follows the name until typed into, `commit`

@@ -3,18 +3,18 @@
  * a table placed on one lap of the grid below — scales, keys, meters) or a
  * *braid* (slots in time — melodies). Angles are in turns, 0 = 12 o'clock.
  */
-import { adsrOf, type CompileResult, type Shifts } from '../engine/program';
-import { entries, period, positionHue, positionOctave, resolvePitch, semitones, shiftedUnits } from '../engine/helix';
+import { adsrOf, type CompileResult, type Shifts } from '@yggi/cells/engine/program';
+import { entries, period, positionHue, positionOctave, resolvePitch, semitones, shiftedUnits } from '@yggi/cells/engine/helix';
 import { effectiveShow, type Named, type Show } from './show';
-import { NOTE_NAMES, mod, modeName } from '../theory/modes';
-import { playedCells } from '../engine/clocking';
-import { flatten, tapped } from '../engine/flatten';
-import { resolveIn } from '../engine/helix';
-import { isTurntable } from '../engine/graph';
+import { NOTE_NAMES, mod, modeName } from '@yggi/cells/theory/modes';
+import { playedCells } from '@yggi/cells/engine/clocking';
+import { flatten, tapped } from '@yggi/cells/engine/flatten';
+import { resolveIn } from '@yggi/cells/engine/helix';
+import { isTurntable } from '@yggi/cells/engine/graph';
 import { bulbHosts } from './drawn';
 import { gateOf } from './gate';
 import { bulbsOf, fanOf, type Bulb } from './track';
-import { footOf } from '../engine/subseq';
+import { footOf } from '@yggi/cells/engine/subseq';
 
 /**
  * Drawn as a grid (entries placed on the grid below) only when it's looked

@@ -1,10 +1,10 @@
 import { isSide } from '../../layout/side';
 import { afterEach, describe, expect, it } from 'vitest';
-import { compileSource } from '../../engine/compile';
+import { compileSource } from '@yggi/cells/engine/compile';
 import { buildGraph } from '../../layout/drawn';
-import { codeShifts } from '../../engine/program';
-import { routing } from '../../engine/routing';
-import { PRESETS } from '../../engine/presets';
+import { codeShifts } from '@yggi/cells/engine/program';
+import { routing } from '@yggi/cells/engine/routing';
+import { PRESETS } from '@yggi/cells/engine/presets';
 import { cellView } from '../../layout/cellview';
 import { snapshotOf, type GraphSnapshot } from '../snapshot';
 import { GraphLayout } from './graphLayout.svelte';

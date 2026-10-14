@@ -6,11 +6,11 @@
  * its README; midi/<set>/voices/ the same a track a voice, for the disassembler's bench, not the app). A file is fetched when it opens, as an example's source
  * is; it opens as a MIDI document (text, playing), for Convert to cells to fold.
  */
-import wtc from '../midi/wtc/index.json';
-import inventions from '../midi/inventions/index.json';
-import anna from '../midi/anna/index.json';
-import offering from '../midi/offering/index.json';
-import { readMidi, type Smf } from './engine/midifile';
+import wtc from '@yggi/cells/midi/wtc/index.json';
+import inventions from '@yggi/cells/midi/inventions/index.json';
+import anna from '@yggi/cells/midi/anna/index.json';
+import offering from '@yggi/cells/midi/offering/index.json';
+import { readMidi, type Smf } from '@yggi/cells/engine/midifile';
 
 /** A collection: its folder in midi/, and its name (the library's cell, and a tag its files carry). */
 export interface MidiSet {
@@ -90,7 +90,7 @@ export function creditLines(m: MidiInfo): string[] {
   ];
 }
 
-const urls = import.meta.glob('/midi/*/*.mid', { query: '?url', import: 'default' }) as Record<string, () => Promise<string>>;
+const urls = import.meta.glob('/node_modules/@yggi/cells/midi/*/*.mid', { query: '?url', import: 'default' }) as Record<string, () => Promise<string>>;
 const loaded = new Map<string, Promise<Smf>>();
 
 /** A file of the MIDI library, read (its name: the library's title; its copyright: its credit); fetched on first use. */
@@ -98,7 +98,7 @@ export function loadMidiFile(key: string): Promise<Smf> {
   let p = loaded.get(key);
   if (!p) {
     const info = MIDI_FILES.find((m) => m.key === key);
-    const url = info && urls[`/midi/${info.set}/${key}.mid`];
+    const url = info && urls[`/node_modules/@yggi/cells/midi/${info.set}/${key}.mid`];
     if (!info || !url) return Promise.reject(new Error(`the MIDI library has no ${key}.mid`));
     p = url()
       .then((u) => fetch(u))

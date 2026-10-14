@@ -7,9 +7,9 @@
 import { describe, it } from 'vitest';
 import { appendFileSync, readFileSync } from 'node:fs';
 import { MIDI_FILES } from '../../src/corpus';
-import { readMidi } from '../../src/engine/midifile';
-import { cellsFromMidi } from '../../src/engine/midiimport';
-import { bare } from '../../src/engine/fold/score';
+import { readMidi } from '@yggi/cells/engine/midifile';
+import { cellsFromMidi } from '@yggi/cells/engine/midiimport';
+import { bare } from '@yggi/cells/engine/fold/score';
 
 const log = (t: string) => appendFileSync(process.env.PROBE!, t + '\n');
 describe.runIf(process.env.PROBE)('the folder over the MIDI library', () => {
@@ -20,7 +20,7 @@ describe.runIf(process.env.PROBE)('the folder over the MIDI library', () => {
     const t = { notes: 0, taken: 0, flat: 0, fold: 0, cells: 0, copies: 0, seconds: 0, n: 0 };
     for (const m of MIDI_FILES) {
       if ((only && !only.includes(m.key)) || (process.env.SET && m.set !== process.env.SET)) continue;
-      const smf = readMidi(new Uint8Array(readFileSync(`midi/${m.set}/${m.key}.mid`)));
+      const smf = readMidi(new Uint8Array(readFileSync(`node_modules/@yggi/cells/midi/${m.set}/${m.key}.mid`)));
       const flat = cellsFromMidi(smf, m.title);
       const t0 = performance.now();
       const made = cellsFromMidi(smf, m.title, { shorten: true });

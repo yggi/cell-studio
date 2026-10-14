@@ -8,7 +8,7 @@
   import { Handle, Position, type NodeProps } from '@xyflow/svelte';
   import type { JunctionFlowNode } from './types';
   import { getGraphContext } from './context';
-  import { cellId, edgeId } from '../engine/ids';
+  import { cellId, edgeId } from '@yggi/cells/engine/ids';
   import GateMeter from './GateMeter.svelte';
 
   let { data }: NodeProps<JunctionFlowNode> = $props();

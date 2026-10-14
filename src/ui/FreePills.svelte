@@ -3,7 +3,7 @@
    * A cell's free() values, in the graph: a pill each — its name and its value now (bpm: 90). The
    * controls live in the sidebar and the cell's details; a pill opens the details.
    */
-  import type { FreeSpec } from '../engine/ast';
+  import type { FreeSpec } from '@yggi/cells/engine/ast';
   import { getGraphContext } from './context';
   import { freeKey, freeValue } from './free';
 

@@ -22,7 +22,7 @@ Live: <https://yggi.github.io/cell-studio/>
 
 Start with [docs/MEMORY.md](docs/MEMORY.md); [docs/INDEX.md](docs/INDEX.md) is the full list.
 
-- [The language](docs/language/overview.md) — cells, braids, time, tuning, mixes, sound
+- [The language](https://github.com/yggi/cells/blob/main/docs/language/overview.md) — cells, braids, time, tuning, mixes, sound
 - [Examples](docs/examples.md) — the pieces that ship with the app
 - [The interface](docs/ui/graph.md) — graph, editor, library
 - [Architecture](docs/architecture.md), [testing](docs/testing.md), [known limits](docs/limits.md), [roadmap](docs/roadmap.md)

@@ -1,6 +1,6 @@
 <script lang="ts">
   /** What you can do with a cell: switch it on and off, pin it, show it in the code, delete it (asked first). */
-  import { deleteCell, usersOf } from '../../engine/edit';
+  import { deleteCell, usersOf } from '@yggi/cells/engine/edit';
   import { getGraphContext } from '../context';
 
   let {

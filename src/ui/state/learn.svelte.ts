@@ -2,7 +2,7 @@ import { untrack } from 'svelte';
 import { freePosition } from '../free';
 import { freeAtPlace, freePlace, knobOf, LOOSE, padValue, readLearned, sameKnob, takeover, type Knob, type Learned, type Takeover } from '../learn';
 import { storageKey } from '../../storageKey';
-import type { FreeSpec } from '../../engine/ast';
+import type { FreeSpec } from '@yggi/cells/engine/ast';
 import type { Midi } from './midi.svelte';
 import type { Piece } from './piece.svelte';
 

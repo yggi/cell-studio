@@ -1,8 +1,8 @@
 import { untrack } from 'svelte';
-import { clocking } from '../../engine/clocking';
-import { recordTarget, Take, tableReader, type RecordTarget, type Written } from '../../engine/capture';
-import { freeIndex, freeList } from '../../engine/held';
-import { keyFrequency } from '../../engine/keys';
+import { clocking } from '@yggi/cells/engine/clocking';
+import { recordTarget, Take, tableReader, type RecordTarget, type Written } from '@yggi/cells/engine/capture';
+import { freeIndex, freeList } from '@yggi/cells/engine/held';
+import { keyFrequency } from '@yggi/cells/engine/keys';
 import { transportClock } from '../../audio/clock.svelte';
 import { recordTransition, type RecordEvent, type RecordState, type TransportState } from '../../audio/transport';
 import type { Piece } from './piece.svelte';

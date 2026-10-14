@@ -4,10 +4,10 @@
    * its timing, the tables it reads down to its grid, its range, what plays it
    * (or what it plays), and for a mix every term in it.
    */
-  import { codeShifts, type CompileResult } from '../engine/program';
-  import { resolvePitch, semitones, tableChain } from '../engine/helix';
-  import { flatten } from '../engine/flatten';
-  import { noteName } from '../theory/modes';
+  import { codeShifts, type CompileResult } from '@yggi/cells/engine/program';
+  import { resolvePitch, semitones, tableChain } from '@yggi/cells/engine/helix';
+  import { flatten } from '@yggi/cells/engine/flatten';
+  import { noteName } from '@yggi/cells/theory/modes';
   import { isSelector, voiceBase } from '../layout/show';
 
   let { result, name, compact = false }: { result: CompileResult; name: string; compact?: boolean } = $props();

@@ -1,6 +1,6 @@
 # Outputs at 12 o'clock (a feasibility probe)
 
-Date: 2026-10-09 · Status: open (probe; nothing changes unless switched on) · Issue: [#234](https://github.com/yggi/cell-studio/issues/234) (the multiscale epic; #27, [nets.md](nets.md))
+Date: 2026-10-09 · Status: open (probe; nothing changes unless switched on) · Issue: [#234](https://github.com/yggi/cell-studio/issues/234) (the multiscale epic; #27, [nets.md](https://github.com/yggi/cells/blob/main/docs/notes/nets.md))
 
 The owner's idea: **a node's output sits at its top, 12 o'clock**: a bus leaves its loom there (locked to the wheel's rotation, as the marker is), a single strand leaves the node's output socket there. The expectation: buses then feed in from the bottom and spread sideways. Two sidequests: wires between the same two nodes run side by side, not on top of each other (a bus of buses); a junction needs a body, so it has a proper output (a step towards a gate or play node that makes `*` explicit; not built here).
 

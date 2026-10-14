@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { compileSource } from '../engine/compile';
-import { PRESETS } from '../engine/presets';
-import { flows, type Flow } from '../engine/flows';
-import { cellId } from '../engine/ids';
-import type { CompileResult } from '../engine/program';
+import { compileSource } from '@yggi/cells/engine/compile';
+import { PRESETS } from '@yggi/cells/engine/presets';
+import { flows, type Flow } from '@yggi/cells/engine/flows';
+import { cellId } from '@yggi/cells/engine/ids';
+import type { CompileResult } from '@yggi/cells/engine/program';
 import { wiring } from './wiring';
-import { eventsBetween, outputSounds, plan as planOf, returnGains } from '../engine/realize';
-import { codeShifts } from '../engine/program';
+import { eventsBetween, outputSounds, plan as planOf, returnGains } from '@yggi/cells/engine/realize';
+import { codeShifts } from '@yggi/cells/engine/program';
 
 const OUT = '&out loop=SAMPLE_RATE map=sample';
 const src = (...lines: string[]) => compileSource(lines.join('\n'));

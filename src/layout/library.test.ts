@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { GENRES, PILL, byTier, sideOf, freezeLayout, layoutKey, libraryLayout, libraryLayoutAsync, shortTitle, stageOf, thawLayout } from './library';
-import { PRESETS } from '../engine/presets';
-import { pieceMeta } from '../engine/parser';
-import { canonicalTags, MIDI_FILE, TUTORIAL } from '../engine/tags';
+import { PRESETS } from '@yggi/cells/engine/presets';
+import { pieceMeta } from '@yggi/cells/engine/parser/index';
+import { canonicalTags, MIDI_FILE, TUTORIAL } from '@yggi/cells/engine/tags';
 import { readdirSync, readFileSync } from 'node:fs';
 
 // the library as the app lists it: every example with its card's title, tags and tier, and the MIDI library (as
@@ -12,8 +12,8 @@ const entries = [
     const m = pieceMeta(p.source);
     return { id: `example:${key}`, title: m?.title ?? key, tags: canonicalTags(m?.tags ?? []), tier: m?.tier ?? null };
   }),
-  ...readdirSync('midi').flatMap((set) =>
-    (JSON.parse(readFileSync(`midi/${set}/index.json`, 'utf8')) as { key: string; title: string }[]).map((m) => ({
+  ...readdirSync('node_modules/@yggi/cells/midi').flatMap((set) =>
+    (JSON.parse(readFileSync(`node_modules/@yggi/cells/midi/${set}/index.json`, 'utf8')) as { key: string; title: string }[]).map((m) => ({
       id: `midi:${m.key}`,
       title: m.title,
       tags: [set, MIDI_FILE, 'artist:Bach', 'genre:classical'],

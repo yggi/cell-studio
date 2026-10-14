@@ -3,7 +3,7 @@
  * written in place or named; none written: a square one, on at once and off at once), and its other modifiers written in
  * place (`pitch=&(…)`, `lpf=… * &(…)`) as chips fused on its lower rim. Its sound leaves from the top of the cap.
  */
-import type { CompileResult } from '../engine/program';
+import type { CompileResult } from '@yggi/cells/engine/program';
 
 /** A voice's disc, px across (size= scales it). */
 export const VOICE_SIZE = 160;

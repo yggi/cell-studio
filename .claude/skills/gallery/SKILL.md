@@ -43,7 +43,7 @@ done (`.busy` gone: a day's scalogram takes a minute, five minutes of sound long
 notes and waterfall in the audible, waveform in the card's octave at the top), the cones under the section lines,
 white marks on sections against orange ones off them, the veil at the window's edges, labels that collide (the
 sections' names, the zones'), and the phone's toolbar wrapping. The analysis behind it is `src/engine/time/` and its
-probe `tools/probe/scalogram.test.ts` ([scalogram.md](../../../docs/notes/scalogram.md)).
+probe `tools/probe/scalogram.test.ts` ([scalogram.md](https://github.com/yggi/cells/blob/main/docs/notes/scalogram.md)).
 
 ## Close-ups (`zoom`)
 `ZOOM=parts node tools/gallery.mjs zoom 3 pop korobeiniki` lays each piece out in the real Graph (as `golden 3 pop

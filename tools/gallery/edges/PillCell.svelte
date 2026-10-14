@@ -16,10 +16,10 @@
    */
   import { untrack } from 'svelte';
   import { setGraphContext } from '../../../src/ui/context';
-  import { compileSource } from '../../../src/engine/compile';
-  import { liveAt } from '../../../src/engine/live';
-  import { codeShifts } from '../../../src/engine/program';
-  import { routing } from '../../../src/engine/routing';
+  import { compileSource } from '@yggi/cells/engine/compile';
+  import { liveAt } from '@yggi/cells/engine/live';
+  import { codeShifts } from '@yggi/cells/engine/program';
+  import { routing } from '@yggi/cells/engine/routing';
   import TapLooms from '../../../src/ui/TapLooms.svelte';
   import { loomContact, loomPorts, pillOf, tapLoom } from '../../../src/layout/taploom';
   import { madeUpSound } from '../sound';

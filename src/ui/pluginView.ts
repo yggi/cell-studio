@@ -2,10 +2,10 @@
  * What a plugin's drawing is given: one plain value, a frozen copy: no handles on the program or the player. Everything
  * it may know about the cell, the piece's time and (for a day's law) the law, as data.
  */
-import { dayLaw } from '../engine/fiveto12';
-import type { CompileResult } from '../engine/program';
-import type { ShowPlugin } from '../engine/plugins';
-import { NOTE_NAMES } from '../theory/modes';
+import { dayLaw } from '@yggi/cells/engine/fiveto12';
+import type { CompileResult } from '@yggi/cells/engine/program';
+import type { ShowPlugin } from '@yggi/cells/engine/plugins';
+import { NOTE_NAMES } from '@yggi/cells/theory/modes';
 
 export interface PluginView {
   readonly name: string;

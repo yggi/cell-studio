@@ -1,5 +1,5 @@
 import { storageKey } from '../../storageKey';
-import type { StoryStep } from '../../engine/midiimport';
+import type { StoryStep } from '@yggi/cells/engine/midiimport';
 
 const KEY = 'conversion-speed';
 /** A frame's time at speed 1 (ms): a cell coming in, the graph settling round it. */

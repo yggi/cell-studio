@@ -3,12 +3,12 @@
  * spectrum tap), or a resonator's bodies in its place; and a note played on it — an oscillator (its braid as
  * the waveform, or a built-in one), or noise, each note its own source so it takes its own bends.
  */
-import type { CompileResult, Shifts } from '../../engine/program';
-import { BODIES } from '../../engine/program';
-import { DOUGH_SOURCES } from '../../engine/dough-params';
-import type { Played } from '../../engine/realize';
-import type { ParamTrack } from '../../engine/series';
-import { harmonics, waveform } from '../../engine/wave';
+import type { CompileResult, Shifts } from '@yggi/cells/engine/program';
+import { BODIES } from '@yggi/cells/engine/program';
+import { DOUGH_SOURCES } from '@yggi/cells/engine/dough-params';
+import type { Played } from '@yggi/cells/engine/realize';
+import type { ParamTrack } from '@yggi/cells/engine/series';
+import { harmonics, waveform } from '@yggi/cells/engine/wave';
 import { inputOf, movable, type Disposable, type Movable, type ToneNS } from './nodes';
 import { grainOffset, noiseBuffer } from './noise';
 import { envelope, num, schedule, schedulePitch, type Params } from './params';

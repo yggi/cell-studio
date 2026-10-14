@@ -4,13 +4,13 @@
  * the cell (its parts, &refs, and its tables, over=) — wherever it fits.
  * step= drivers aren't below in this sense: a melody's show never renames its meter.
  */
-import { codeShifts, DEFAULT_FREQ, ROOT, type CompileResult } from '../engine/program';
-import type { ShowPlugin } from '../engine/plugins';
-import type { Diagnostic } from '../engine/ast';
-import { entries, positionOf, resolveIn, resolvePitch, semitones } from '../engine/helix';
-import { midiOf, modeName, mod } from '../theory/modes';
-import { SHOWS } from '../engine/parser';
-import { selects } from '../engine/clocking';
+import { codeShifts, DEFAULT_FREQ, ROOT, type CompileResult } from '@yggi/cells/engine/program';
+import type { ShowPlugin } from '@yggi/cells/engine/plugins';
+import type { Diagnostic } from '@yggi/cells/engine/ast';
+import { entries, positionOf, resolveIn, resolvePitch, semitones } from '@yggi/cells/engine/helix';
+import { midiOf, modeName, mod } from '@yggi/cells/theory/modes';
+import { SHOWS } from '@yggi/cells/engine/parser/index';
+import { selects } from '@yggi/cells/engine/clocking';
 
 /** The shows the language has. A piece can carry more (plugins: engine/plugins.ts). */
 export type CoreShow = (typeof SHOWS)[number];

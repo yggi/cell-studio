@@ -9,8 +9,8 @@
  * it when it's drawn (MiniGraph.svelte). Sizes and the frame are derived here, per card or wheel.
  */
 import { isSide } from './side';
-import { compileSource } from '../engine/compile';
-import { codeShifts, type CompileResult } from '../engine/program';
+import { compileSource } from '@yggi/cells/engine/compile';
+import { codeShifts, type CompileResult } from '@yggi/cells/engine/program';
 import { buildGraph } from './drawn';
 import { cellView } from './cellview';
 import { ForceLayout } from './physics';

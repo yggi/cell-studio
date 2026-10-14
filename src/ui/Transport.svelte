@@ -7,7 +7,7 @@
    * free) takes a pass of the armed cell from the keys (state/record.svelte.ts).
    */
   import MidiLight from './MidiLight.svelte';
-  import { clockText } from '../engine/duration';
+  import { clockText } from '@yggi/cells/engine/duration';
   import { getStudio } from './state/studio.svelte';
 
   let {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { JUNCTION, METER, MIX, QUIET, VOICE, miniature, miniShape, type Miniature } from './miniature';
-import { PRESETS } from '../engine/presets';
+import { PRESETS } from '@yggi/cells/engine/presets';
 import built from 'virtual:examples-index';
 
 describe('miniature', () => {

@@ -6,9 +6,9 @@
 // Run: PROBE=out.txt npx vitest run tools/probe/tap-order.test.ts
 import { describe, it } from 'vitest';
 import { appendFileSync } from 'node:fs';
-import { PRESETS } from '../../src/engine/presets';
-import { compileSource } from '../../src/engine/compile';
-import { type GraphModel } from '../../src/engine/graph';
+import { PRESETS } from '@yggi/cells/engine/presets';
+import { compileSource } from '@yggi/cells/engine/compile';
+import { type GraphModel } from '@yggi/cells/engine/graph';
 import { buildGraph } from '../../src/layout/drawn';
 import { ForceLayout } from '../../src/layout/physics';
 

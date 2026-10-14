@@ -1,10 +1,10 @@
 # #10, an examples pass: drums on a kit, no extra mixers
 
-Date: 2026-10-12 · Status: open (section mixes folded in 9 pieces; drums moved onto a kit with a voice's `level=` in 5 pieces; the rest of the drums wait on the findings below) · Issue: [#10](https://github.com/yggi/cell-studio/issues/10) · Follows [10-corpus.md](10-corpus.md), [gate-example.md](gate-example.md)
+Date: 2026-10-12 · Status: open (section mixes folded in 9 pieces; drums moved onto a kit with a voice's `level=` in 5 pieces; the rest of the drums wait on the findings below) · Issue: [#10](https://github.com/yggi/cell-studio/issues/10) · Follows [10-corpus.md](https://github.com/yggi/cells/blob/main/docs/notes/10-corpus.md), [gate-example.md](gate-example.md)
 
 > **Respelled since** (decision 027, #306's notes): a voice's `level=` is `gain=`, `x%n` is Strudel's `&x:0:g`, `legato` is `glide=t`. The text below keeps the spellings of the time.
 
-The owner asked for a pass over the 75 examples with the current best practices (drums go on a kit, no extra mixers, the gate spelling of [decision 023](../decisions/023-gate-spelling.md), what Shorten still suggests), and for what it teaches #10: what is open, what reads badly, what is redundant, what the true shape is. The rule for the pass: no piece may sound different. Every rewrite was checked note for note before it was kept or dropped: `tools/corpus.mjs` (voice, onset, length, frequency, gains) and a stricter scratch compare of every field of every event over 0–120 s (levels, envelopes, bends, parameters too). Read from the working tree on 2026-10-12.
+The owner asked for a pass over the 75 examples with the current best practices (drums go on a kit, no extra mixers, the gate spelling of [decision 023](https://github.com/yggi/cells/blob/main/docs/decisions/023-gate-spelling.md), what Shorten still suggests), and for what it teaches #10: what is open, what reads badly, what is redundant, what the true shape is. The rule for the pass: no piece may sound different. Every rewrite was checked note for note before it was kept or dropped: `tools/corpus.mjs` (voice, onset, length, frequency, gains) and a stricter scratch compare of every field of every event over 0–120 s (levels, envelopes, bends, parameters too). Read from the working tree on 2026-10-12.
 
 ## 1. What was changed
 
@@ -23,7 +23,7 @@ The owner asked for a pass over the 75 examples with the current best practices 
 
 48 mixes removed, 6 kept. Each folded mix's products are written into the card in its place, one section a line (the comma continuation), so the card still reads section by section; `baustelle`'s card has two or three sections a line. Comments that described "the parts' sound" (`pop`, `zell`, `korobeiniki`) now describe the taps only. `hypercell` grows by its new comment.
 
-**Checked:** `node tools/corpus.mjs --check /tmp/corpus-base.json`: every piece `same notes`; `total: chars -525, lines -13, cells -48; 0 pieces changed sound unexpectedly`. The stricter compare of every field of every event: identical in all 10 pieces except the event's `instrument`, which named the outermost mix a note went through (`"instrument":"hatsPart"`) and is now absent; nothing in `audio/` plays from it. The snapshot was refreshed (`src/engine/snapshot.txt`, 9 lines): in each the `notes` column (and the count) is unchanged; `events` moved by the `instrument` field; `values` by the removed cells only (the kept cells' values at the four times are equal, checked cell by cell); `live` by the removed mixes' nodes and edges only (cells, voices, bars, beats, steps and phases equal with the removed names left out).
+**Checked:** `node tools/corpus.mjs --check /tmp/corpus-base.json`: every piece `same notes`; `total: chars -525, lines -13, cells -48; 0 pieces changed sound unexpectedly`. The stricter compare of every field of every event: identical in all 10 pieces except the event's `instrument`, which named the outermost mix a note went through (`"instrument":"hatsPart"`) and is now absent; nothing in `audio/` plays from it. The snapshot was refreshed (`engine/snapshot.txt` (in `@yggi/cells`), 9 lines): in each the `notes` column (and the count) is unchanged; `events` moved by the `instrument` field; `values` by the removed cells only (the kept cells' values at the four times are equal, checked cell by cell); `live` by the removed mixes' nodes and edges only (cells, voices, bars, beats, steps and phases equal with the removed names left out).
 
 **Kept, and why:**
 
@@ -32,7 +32,7 @@ The owner asked for a pass over the 75 examples with the current best practices 
 
 ### The kit pass: a drum's gain on its voice
 
-After 5db16a7 (*level= on a voice, its own gain*, [sound.md](../language/sound.md)), a drum's gain moves from its product onto the voice (`&bd level=.8`), and the drums that share a clock become one groove of voices. Base re-recorded on 6810161 (`/tmp/corpus-base2.json`).
+After 5db16a7 (*level= on a voice, its own gain*, [sound.md](https://github.com/yggi/cells/blob/main/docs/language/sound.md)), a drum's gain moves from its product onto the voice (`&bd level=.8`), and the drums that share a clock become one groove of voices. Base re-recorded on 6810161 (`/tmp/corpus-base2.json`).
 
 | piece | before | after |
 |---|---|---|
@@ -96,7 +96,7 @@ The library was already further along than the request assumed:
 
 ## oneshot, legato and `%`
 
-Three forms from the working tree (uncommitted when this was written; [sound.md](../language/sound.md), [cell.md](../language/cell.md)): `oneshot` on a voice (each note lasts its envelope's attack and decay, whatever its step), `x%n` (a step's own level), `legato` on a voice (a run of tied notes is one note, the pitch bending to each next one). Base recorded first: `node tools/corpus.mjs > /tmp/corpus-base4.json`.
+Three forms from the working tree (uncommitted when this was written; [sound.md](https://github.com/yggi/cells/blob/main/docs/language/sound.md), [cell.md](https://github.com/yggi/cells/blob/main/docs/language/cell.md)): `oneshot` on a voice (each note lasts its envelope's attack and decay, whatever its step), `x%n` (a step's own level), `legato` on a voice (a run of tied notes is one note, the pitch bending to each next one). Base recorded first: `node tools/corpus.mjs > /tmp/corpus-base4.json`.
 
 The pieces were compared with a strict compare: the same note means the same voice, onset and pitch, with every other field equal (gains, levels per hit, envelope, bends, params, `instrument`).
 
@@ -138,12 +138,12 @@ All are checked note for note. `corpus --check` shows `same notes` for `pop`, `k
 
 ### Tried and taken back
 
-- **`pertonos`, the reed `legato`.** Musically right (a blown line with rests, the King's theme), but `src/engine/realize.test.ts` (*canon per tonos: rises a whole tone every pass*) reads the reed's notes one by one. Legato turns the tied ones into bends, so the test sees *D D*. It is reverted. It needs the test to read pitches through bends.
+- **`pertonos`, the reed `legato`.** Musically right (a blown line with rests, the King's theme), but `engine/realize.test.ts` (in `@yggi/cells`) (*canon per tonos: rises a whole tone every pass*) reads the reed's notes one by one. Legato turns the tied ones into bends, so the test sees *D D*. It is reverted. It needs the test to read pitches through bends.
 - **`zell`, the ticks to `%`.** Note-identical, but the drawing of the new groove raised the library's drawn crossings from 46.3 to 46.7 (zell 1.3 → 3). It is reverted, to keep the layout baseline. With zell reverted the library passes.
 
 ### What still doesn't fit
 
-- **The live view doesn't know `oneshot`.** `src/engine/routing.test.ts` (*the drawn states agree with each other and with what plays*) fails for `acid`, `bell`, `brothers`, `hypercell`, `idm` and `onemore`, e.g. *&bd sounds at 0.71 s, not live*. A oneshot note sounds past its step, but `live.ts` (no mention of `oneshot`) marks the voice live only for the step. `musicbox`, `tines` and `five` pass, because the same voice is live from a neighbouring note or the oneshot is shorter than its step. This is an engine fix in `live.ts`, not in the examples. Until it lands those 6 tests fail.
+- **The live view doesn't know `oneshot`.** `engine/routing.test.ts` (in `@yggi/cells`) (*the drawn states agree with each other and with what plays*) fails for `acid`, `bell`, `brothers`, `hypercell`, `idm` and `onemore`, e.g. *&bd sounds at 0.71 s, not live*. A oneshot note sounds past its step, but `live.ts` (no mention of `oneshot`) marks the voice live only for the step. `musicbox`, `tines` and `five` pass, because the same voice is live from a neighbouring note or the oneshot is shorter than its step. This is an engine fix in `live.ts`, not in the examples. Until it lands those 6 tests fail.
 - **Stays a product:**
   - `rhythm` (tier 4 teaches the `map=amp` gate);
   - `chance` and `ghosts` (chance keyed on the voice), and `onemore`'s shaker for the same reason;
@@ -171,7 +171,7 @@ All are checked note for note. `corpus --check` shows `same notes` for `pop`, `k
 - **One drum hit, three spellings.** A drum line is written as volumes (`&kick map=amp step=&beatBar 1 ~ 1 ~`, 24 lines in 11 pieces, some with a level per hit), as pitches (`&kick step=&beatBar 0!4`, about 22 lines in 12 pieces) or as voices (`&groove … &bd ~ &hh`, 6 pieces). The first two then need `* &bd` in a product. A beginner meets two of them in one tier (tier 4: `drums` teaches the groove, `rhythm` the volume as a gate).
 - **`0` means "the drum" and `1` means "the drum".** A pitch pattern of zeros and a volume pattern of ones say the same thing; neither names the drum.
 - **The drum recipes are copied.** The kick (`s=sine loop=A1 pitch=0..24 * &(map=adsr 0 .05 0 0) env=&(map=adsr 0 .3 0 .05)`) and its kin (a sine with a pitch drop: toms, a dundun, a woodblock) are written 24 times in 19 pieces, with small differences; 81 envelopes are `&(map=adsr 0 d 0 r)` (a hit: no attack, no sustain); 51 voices are noise. There is no library of voices to read from. A beginner copies a line they can't read yet.
-- **Envelopes are never shared.** 239 envelopes are written in place, `env=&(map=adsr …)`; not one piece names one and shares it (`env=&pluck`), the form [sound.md](../language/sound.md) shows.
+- **Envelopes are never shared.** 239 envelopes are written in place, `env=&(map=adsr …)`; not one piece names one and shares it (`env=&pluck`), the form [sound.md](https://github.com/yggi/cells/blob/main/docs/language/sound.md) shows.
 - **Stereo by two chords repeats the shared part.** In 8 stereo pieces the two channels write 13 entries twice (`echotape`'s `&tune * &bell * .22` and `&far * &soft * .08` in both; `worn`'s and `soundtape`'s `&dry`). `pan=` (decision 007) places a voice; what differs per side here is a read head or a canon's entry, so both chords are written out, the common part twice.
 - **A long card.** With the section mixes folded, the arranged pieces' cards hold every product (`cellscape`'s 7 lines, `korobeiniki`'s 7); the comma continuation is the only way to break them, and a section's name now lives only in its tap.
 - **Boilerplate at the top.** 51 pieces start with `&bar scan(1 1 1 1)`; 14 write `label="{mode} on {tonic}"`; 20 write a mode as `scan(2 2 1 2 2 2 1)` where 20 others write `scale(major)`.

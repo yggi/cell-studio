@@ -5,7 +5,7 @@
    * step a dropdown. Choose a kind or a tag and the next step lists what's there; choose a piece and
    * it opens. Native selects: the phone's own picker.
    */
-  import { tagKind, tagName, TUTORIAL, type TagKind } from '../engine/tags';
+  import { tagKind, tagName, TUTORIAL, type TagKind } from '@yggi/cells/engine/tags';
   import { shortTitle } from '../layout/library';
 
   let {

@@ -3,10 +3,10 @@
  * it mentions as links; and its connections, grouped by how they relate.
  * For the detail view (the sheet): read at a glance, every cell one tap away.
  */
-import { adsrOf, codeShifts, type CompileResult } from '../engine/program';
-import { refsOf } from '../engine/readers';
-import { entries, resolvePitch, semitones } from '../engine/helix';
-import { modeName, mod, noteName } from '../theory/modes';
+import { adsrOf, codeShifts, type CompileResult } from '@yggi/cells/engine/program';
+import { refsOf } from '@yggi/cells/engine/readers';
+import { entries, resolvePitch, semitones } from '@yggi/cells/engine/helix';
+import { modeName, mod, noteName } from '@yggi/cells/theory/modes';
 import { isSelector, kindOf } from './show';
 import { lfoValues } from './cellview';
 
