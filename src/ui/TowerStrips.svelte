@@ -18,7 +18,7 @@
   import type { Viewport } from '@xyflow/svelte';
   import { onDestroy, onMount } from 'svelte';
   import { getGraphContext, nodeState } from './context';
-  import { bandFreq, bandHue } from '../layout/spectrum';
+  import { bandFreq, bandHue, bandOctave } from '../layout/spectrum';
   import { towerNets, towerY, type TowerIn } from '../layout/towerlayout';
   import { TOWER_ZONES } from '../layout/tower';
   import { onFrames } from '../audio/ticker';
@@ -30,11 +30,17 @@
     viewport,
     open,
     ontoggle,
+    tints = new Map(),
+    sum = 'stack',
   }: {
     ins: readonly TowerIn[];
     viewport: Viewport;
     open: boolean;
     ontoggle: () => void;
+    /** A source's section colour as rgb, by its name (Graph.svelte): its share of the sum and its marker wear it. */
+    tints?: ReadonlyMap<string, readonly [number, number, number]>;
+    /** The sum: `stack`, each band's bar split into its sources' shares, each in its colour; `max`, the loudest, in the band's. */
+    sum?: 'stack' | 'max';
   } = $props();
 
   const ctx = getGraphContext();
@@ -48,23 +54,26 @@
   const yOf = (d: number) => towerY(d) * viewport.zoom + viewport.y;
   const css = (name: string) => (typeof getComputedStyle !== 'undefined' && canvas ? getComputedStyle(canvas).getPropertyValue(name).trim() : '') || '#888';
 
-  // what a source sounds on a side now: levels per band (0 … 1), live or at rest (faint), a kit's drums together; nothing
-  // on a half it doesn't reach
-  function levels(o: TowerIn, side: 'left' | 'right'): Float32Array {
-    if (!o[side]) return new Float32Array(BANDS);
-    const h = heard(ctx, o.name, BANDS);
-    return h.rest ? h[side].map((v) => v * 0.7) : h[side];
+  // what a source sounds on each side now: levels per band (0 … 1), live or at rest (faint); nothing on a half it
+  // doesn't reach
+  function levels(o: TowerIn): { l: Float32Array; r: Float32Array } {
+    const { left, right, rest } = heard(ctx, o.name, BANDS);
+    const k = rest ? 0.7 : 1;
+    return { l: o.left ? left.map((v) => v * k) : new Float32Array(BANDS), r: o.right ? right.map((v) => v * k) : new Float32Array(BANDS) };
   }
 
   // (a band's colour: its note's, the palette's, at an opacity)
-  const hsla = (hue: number, a: number) => {
-    const [hh, ss, ll] = noteHsl(hue);
+  // (by its octave: full in the fourth, darker below, brighter above)
+  const hsla = (hue: number, a: number, octave = 0) => {
+    const [hh, ss, ll] = noteHsl(hue, false, octave);
     return `hsla(${hh}, ${ss}%, ${ll}%, ${a})`;
   };
 
+  // (a source's colour: its section's, else its note's; off or with neither, the edge's)
   function colourOf(name: string): string {
+    const t = tints.get(name);
     if (nodeState(ctx, `cell:${name}`) === 'off') return css('--edge');
-    return noteOf(ctx, name) ?? css('--edge');
+    return t ? `rgb(${t[0]}, ${t[1]}, ${t[2]})` : (noteOf(ctx, name) ?? css('--edge'));
   }
 
   // (a decade's tick, as a period below 1 Hz and a frequency above)
@@ -91,7 +100,7 @@
       if (f < 20 || f > 20000) continue;
       const y = yOf(band(b));
       if (y < -10 || y > h + 10) continue;
-      g.fillStyle = hsla(bandHue(b, BANDS), open ? 0.24 : 0.2);
+      g.fillStyle = hsla(bandHue(b, BANDS), open ? 0.24 : 0.2, bandOctave(b, BANDS));
       g.fillRect(0, y + half, W, -2 * half);
     }
     // the zones, a rail at the outer edge
@@ -129,17 +138,36 @@
     }
     // the spectrum: every source together, the left channel out to the left of the centre, the right to the right
     const room = cx - 8;
-    const each = ins.map((o) => ({ o, l: levels(o, 'left'), r: levels(o, 'right'), colour: colourOf(o.name) }));
+    // (in stack: each band's bar as long as its loudest source, split into the sources' shares, in their colours, the
+    // sources in the graph's order left to right from the centre out)
+    const each = [...ins].sort((a, b) => a.x - b.x).map((o) => ({ o, ...levels(o), colour: colourOf(o.name) }));
     for (const side of ['left', 'right'] as const) {
-      const total = new Float32Array(BANDS);
-      for (const e of each) for (let b = 0; b < BANDS; b++) total[b] = Math.max(total[b], (side === 'left' ? e.l : e.r)[b]);
+      const dir = side === 'left' ? -1 : 1;
       for (let b = 0; b < BANDS; b++) {
-        if (total[b] <= 0.02) continue;
+        const vs = each.map((e) => (side === 'left' ? e.l : e.r)[b]);
+        const top = Math.max(0, ...vs);
+        if (top <= 0.02) continue;
         const y = yOf(band(b));
         if (y < -10 || y > h + 10) continue;
-        g.fillStyle = hsla(bandHue(b, BANDS), 0.35 + 0.65 * total[b]);
-        const len = total[b] * room;
-        g.fillRect(side === 'left' ? cx - len : cx, y - Math.max(1, half * 0.7), len, Math.max(2, half * 1.4));
+        const len = top * room;
+        const y0 = y - Math.max(1, half * 0.7);
+        const bh = Math.max(2, half * 1.4);
+        if (sum === 'max') {
+          g.fillStyle = hsla(bandHue(b, BANDS), 0.35 + 0.65 * top, bandOctave(b, BANDS));
+          g.fillRect(side === 'left' ? cx - len : cx, y0, len, bh);
+          continue;
+        }
+        const all = vs.reduce((a, v) => a + (v > 0.02 ? v : 0), 0);
+        let at = 0;
+        g.globalAlpha = 0.45 + 0.55 * top;
+        each.forEach((e, k) => {
+          if (vs[k] <= 0.02) return;
+          const part = (vs[k] / all) * len;
+          g.fillStyle = e.colour;
+          g.fillRect(dir < 0 ? cx - at - part : cx + at, y0, part, bh);
+          at += part;
+        });
+        g.globalAlpha = 1;
       }
     }
     // each source's connector at the inner edge: a line over its range (the sources of one net side by side), a dot
@@ -149,7 +177,7 @@
       const y0 = net.top * viewport.zoom + viewport.y;
       net.taps.forEach((o, k) => {
         const e = each.find((x) => x.o.id === o.id)!;
-        const l = e.l.map((v, b) => Math.max(v, e.r[b]));
+        const l = e.l.map((v: number, b: number) => Math.max(v, e.r[b]));
         // (its range: the bands within about 30 dB of its loudest, not the FFT's floor)
         const peak = Math.max(...l);
         let lo = -1;
@@ -167,9 +195,13 @@
         g.lineTo(x, lo >= 0 ? Math.max(y0, yOf(band(lo))) : y0);
         g.stroke();
       });
+      // (the marker: a notch at the inner edge pointing in, level with the sockets, in the first one's colour)
       g.fillStyle = each.find((x) => x.o.id === net.taps[0].id)!.colour;
       g.beginPath();
-      g.arc(3, y0, 4.5, 0, 2 * Math.PI);
+      g.moveTo(0, y0 - 6);
+      g.lineTo(8, y0);
+      g.lineTo(0, y0 + 6);
+      g.closePath();
       g.fill();
       if (open) {
         g.fillStyle = css('--text');

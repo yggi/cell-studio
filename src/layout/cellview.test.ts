@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { SAILOR_WITH_KIT } from '../engine/fixtures';
 import { compileSource } from '../engine/compile';
 import { codeShifts, type Shifts } from '../engine/program';
-import { cellView, drawnOf, hubLabel, isGrid, type CellView } from './cellview';
+import { cellView, drawnOf, hubLabel, isGrid, unitary, type CellView } from './cellview';
 import { PRESETS } from '../engine/presets';
 
 const r = compileSource(PRESETS.royal.source);
@@ -223,5 +223,30 @@ describe('drawnOf', () => {
     expect(['near', 'mid', 'far'].map((n) => drawnOf(tape, n))).toEqual(['tune', 'tune', 'tune']);
     expect(drawnOf(r, 'theme')).toBe('theme');
     expect(drawnOf(r, 'noSuchCell')).toBe('noSuchCell');
+  });
+});
+
+describe('one value is white (decision 036)', () => {
+  const p = compileSource(`
+&bar step=2
+&off step=&bar ~ 0 ~ 0
+&hats step=&bar &hh &hh &hh
+&hh s=noise loop=C4
+&sn s=noise loop=C5
+&roll step=&bar &sn!8 &sn*2!4
+&both step=&bar &hh &sn
+&tune step=&bar 0 2 4
+&scale 0 2 4 5 7 9 11
+&deg step=&bar over=&scale 0 0 0
+&walk step=&bar stride=7 0
+&five step=&bar 7 ~ 7
+`);
+  it('marks a cell that writes one value only, rests aside', () => {
+    expect(['off', 'hats', 'roll'].filter((n) => unitary(p, n))).toEqual(['off', 'hats', 'roll']);
+    const bands = cellView(p, 'off', codeShifts(p), false)!.segments.flatMap((s) => s.bands);
+    expect(bands.filter((b) => b.kind === 'pitch').every((b) => b.kind === 'pitch' && b.unit)).toBe(true);
+  });
+  it('keeps the colours of what differs, moves or has a pitch: several values, a table read through, a stride, one degree not 0', () => {
+    expect(['tune', 'scale', 'deg', 'walk', 'hh', 'five', 'both'].filter((n) => unitary(p, n))).toEqual([]);
   });
 });

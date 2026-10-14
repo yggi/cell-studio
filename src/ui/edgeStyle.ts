@@ -11,13 +11,14 @@
  */
 import type { Fill } from '../layout/cellview';
 import { palette, type PaletteGrid } from './palette';
-import { EDGE, noteColour } from './theme';
+import { EDGE, noteColour, UNIT } from './theme';
 
 /** The CV ports that carry notes (a gate's trigger= is a melody, as a voice's is); any other CV is a level. */
 const PITCH_PORTS = new Set(['voice', 'trigger', 'midi', 'pitch', 'play', 'write', 'braid', 'over']);
 
 /** A wheel's fill, coloured as its wheel colours it: a note its pitch colour (its place on its grid found), a level the neutral hue. */
-export const fillColour = (f: Fill | undefined) => (f?.kind === 'pitch' ? noteColour(f.hue, false, f.octave ?? 0) : f?.kind === 'level' ? palette('level', f.v) : 'var(--edge)');
+export const fillColour = (f: Fill | undefined) =>
+  f?.kind === 'pitch' ? (f.unit ? UNIT : noteColour(f.hue, false, f.octave ?? 0)) : f?.kind === 'level' ? palette('level', f.v) : 'var(--edge)';
 
 /** A position on a grid: a note, or a sound's fundamental (null: none, or several). */
 interface Placed {

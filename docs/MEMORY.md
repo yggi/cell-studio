@@ -91,6 +91,7 @@ One line each; the record has the rationale. → [decisions/](decisions/README.m
 - 035 · Labels sit on what they name: an edge's on its wire (along it, upright, level where steep, off the wheels), a net's name once on its trunk and each tap's change at its socket on the reader's rim, a name too long for its bulb round its rim, a node's name a pill with what it is under it (round its rim when small and crowded), a belt's along its run · → decisions/035-labels.md
 - 034 · A MIDI file's graph is its machine (the cells it plays through), read only (*Convert to cells first*); Convert to cells folds first, then replays the fold's story, the code set a frame at a time, a cell coming in each (supersedes 025's waiting graph) · → decisions/034-midi-machine.md
 - 034 · A MIDI file's graph is its machine (the cells it plays through), read only (*Convert to cells first*), with Convert to cells over it; a MIDI file opens on it (supersedes 025's waiting graph) · → decisions/034-midi-machine.md
+- 036 · One value is white: colours appear where things have to be told apart; a cell that plays only 0 or one drum, a selector of one part, a piece's only out are white (`--unit`), not red · → decisions/036-one-value-is-white.md
 
 ## Where things are tracked
 

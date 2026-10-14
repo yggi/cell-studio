@@ -45,7 +45,8 @@ function plainTable(result: CompileResult, name: string): boolean {
 }
 
 export type Fill =
-  | { kind: 'pitch'; hue: number; octave?: number; alter?: number }
+  /** unit: the cell's only value (`unitary`), drawn white: nothing to tell apart. */
+  | { kind: 'pitch'; hue: number; octave?: number; alter?: number; unit?: true }
   | { kind: 'rest' }
   | { kind: 'ref' }
   | { kind: 'beat'; down: boolean }
@@ -134,8 +135,39 @@ export function drawnOf(result: CompileResult, name: string): string {
   return tape && typeof tape.params.write === 'string' && result.cells.has(tape.params.write) ? tape.params.write : name;
 }
 
+/**
+ * Whether a cell plays one value only (decision 036: colours appear where things have to be told apart; one value is
+ * white): every step it writes 0 (the voice's own pitch: a drum pattern, `~ 0 ~ 0`) or one plain hit of a voice (`&hh &hh &hh`), rests
+ * aside, and nothing moves it — no stride, no table it reads its pitches through (a kit's aside).
+ */
+export function unitary(result: CompileResult, name: string): boolean {
+  const c = result.cells.get(name);
+  // (a groove reads its drums through their kit, which only selects: decision 029)
+  if (!c || (c.over && !result.cells.get(c.over)?.kit) || c.stride !== 1 || c.voice || c.kit) return false;
+  // (over a kit a step is which drum, not a pitch: one drum, whichever)
+  const drums = !!c.over;
+  const keys = new Set<string>();
+  for (const u of c.units) {
+    const a = u.atom;
+    if (a.kind === 'rest') continue;
+    // (0: the voice's own pitch, no pitch of its own; another degree is a pitch, a phrase among others)
+    if (a.kind === 'note' && (drums || a.value + a.alter === 0)) keys.add(`${a.value + a.alter}`);
+    // (a hit of one voice; a splice of a melody has notes of its own)
+    else if (a.kind === 'ref' && result.cells.get(a.name)?.voice && !a.pick && !a.shift && !a.transpose && !a.values) keys.add(`r${a.name}`);
+    else return false;
+  }
+  return keys.size === 1;
+}
+
 /** What a cell's wheel draws; null for a name the program doesn't have (one piece's name asked of another's program). */
 export function cellView(result: CompileResult, name: string, shifts: Shifts, isMeter: boolean): CellView | null {
+  const v = viewOf(result, name, shifts, isMeter);
+  if (!v || !unitary(result, name)) return v;
+  // (one value: its pitch white, on the wheel and on what it sends)
+  return { ...v, segments: v.segments.map((s) => ({ ...s, bands: s.bands.map((b) => (b.kind === 'pitch' ? { ...b, unit: true as const } : b)) })) };
+}
+
+function viewOf(result: CompileResult, name: string, shifts: Shifts, isMeter: boolean): CellView | null {
   const c = result.cells.get(name);
   if (!c) return null;
   const shift = shifts(name);

@@ -108,6 +108,9 @@ export function restingSpectrum(result: CompileResult, voice: string, shifts: Sh
 
 /** Rainbow by frequency: red at 20 Hz (hue 0°) to deep violet at 20 kHz (hue 275°). */
 /** The hue of a band: its note's pitch class round a rainbow, one per octave (C red, D yellow, G light blue …). */
+/** A band's octave from the natural range (C4 … B4: 0), as the note colours mute by it (theme.ts noteHsl). */
+export const bandOctave = (band: number, bands: number) => Math.floor(Math.round(12 * Math.log2(bandFreq(band, bands) / C0)) / 12) - 4;
+
 export const bandHue = (band: number, bands: number) => {
   const semis = Math.round(12 * Math.log2(bandFreq(band, bands) / C0));
   return (((semis % 12) + 12) % 12) * 30;

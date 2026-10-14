@@ -8,7 +8,7 @@
 <script lang="ts">
   import { Background, Controls, SvelteFlow, ViewportPortal, type NodeTypes } from '@xyflow/svelte';
   import { VOICE_KIT } from '../engine/compiler/declare';
-  import { noteColour, partColour } from './theme';
+  import { noteColour, partColour, tapTintRgb } from './theme';
   import '@xyflow/svelte/dist/style.css';
   import { onDestroy, untrack } from 'svelte';
   import type { CompileResult, Shifts } from '../engine/program';
@@ -43,6 +43,8 @@
   import TowerAxis, { TOWER_WIDTH } from './TowerAxis.svelte';
   import FlowViewport from './FlowViewport.svelte';
   import TowerStrips, { STRIP, STRIP_OPEN } from './TowerStrips.svelte';
+  import TowerSky, { SKY_MODES, type SkyMode } from './TowerSky.svelte';
+  import { nodeSections, tagSections } from './sections';
   import TapLooms from './TapLooms.svelte';
   import { towerIns } from '../layout/towerlayout';
   import { pillAnchor } from '../layout/taploom';
@@ -327,6 +329,24 @@
         })
       : [],
   );
+  // the audible sky behind the graph (TowerSky.svelte): each socket a spire, lighting it in its section's colour
+  // (the strip's sum and markers wear the same, `tints`)
+  // (`?sky=tint|rainbow` the other options, `?sky=off` none: docs/notes/tower-sky.md)
+  const skyMode = QUERY?.get('sky') ?? 'mix';
+  const sky = $derived(towered && SKY_MODES.includes(skyMode as SkyMode));
+  const spires = $derived(
+    sky ? layout.nodes.flatMap((n) => (n.type === 'socket' ? [{ id: n.id, x: n.position.x, y: n.position.y, source: (n.data as { source: string }).source }] : [])) : [],
+  );
+  const nodeSection = $derived(towered ? nodeSections(shown.program, shown.model) : new Map<string, never>());
+  const tints = $derived(
+    new Map(
+      // (a piece without sections: a tint each out, spread round the circle as a selector's taps are; one alone, white)
+      layout.outs.map((o, i, all) => {
+        const k = nodeSection.get(o.from) ?? { k: i, n: all.length };
+        return [o.from.slice('cell:'.length), tapTintRgb(k.k, k.n)] as const;
+      }),
+    ),
+  );
   // the frequency tower beside the graph (TowerAxis.svelte), in the signal path's layout
   let towerOpen = $state(QUERY?.has('tower') ?? false);
   // (the flow's pan and zoom, for the tower drawn beside it; framed again when the tower opens or closes)
@@ -365,21 +385,7 @@
     const tags = [...byTag.keys()].sort();
     // (a tag the taps of a selector step: its section's tint, as its strands wear it — a pastel shade of the rainbow;
     // else a hue of its own)
-    const sections = new Map<string, { k: number; n: number }>();
-    for (const table of new Set(shown.program.taps?.values() ?? [])) {
-      const taps = [...(shown.program.taps ?? [])].flatMap(([tap, t]) => (t === table ? [tap] : []));
-      taps.forEach((tap, k) => sections.set(tap, { k, n: taps.length }));
-    }
-    const sectionOf = new Map<string, { k: number; n: number }>();
-    for (const tag of tags) {
-      const votes = new Map<string, number>();
-      for (const e of shown.model.edges) {
-        const s = e.bulb ? sections.get(e.bulb) : undefined;
-        if (s && shown.model.nodes.find((m) => m.id === e.to)?.cell?.tags.includes(tag)) votes.set(e.bulb!, (votes.get(e.bulb!) ?? 0) + 1);
-      }
-      const best = [...votes].sort((a, b) => b[1] - a[1])[0];
-      if (best) sectionOf.set(tag, sections.get(best[0])!);
-    }
+    const sectionOf = tagSections(shown.program, shown.model);
     const colourOf = (tag: string) => {
       const s = sectionOf.get(tag);
       return s ? `color-mix(in oklab, ${partColour(s.k, s.n)} 65%, var(--meter-0))` : noteColour(((tags.indexOf(tag) * 7) % 12) * 30);
@@ -436,6 +442,7 @@
   class:margined={hasMargin}
   class:towered={towerShown}
   class:stripped={towered}
+  class:sky
   style:--strip-width="{stripW}px"
   style:--margin-width="{MARGIN_WIDTH}px"
   style:--tower-width="{TOWER_WIDTH + cardCover}px"
@@ -444,6 +451,7 @@
 >
   {#if hasMargin}<Margin model={shown.model} heightOf={(id) => layout.position(id)?.y} settled={layout.fitToken} onlight={(id) => (sideLit = id)} />{/if}
   <div class="flow" bind:clientWidth={flowW}>
+    {#if sky}<TowerSky {spires} {tints} {viewport} mode={skyMode as SkyMode} />{/if}
     <SvelteFlow
       bind:nodes={layout.nodes}
       bind:edges={layout.edges}
@@ -492,7 +500,7 @@
     </SvelteFlow>
   </div>
   {#if towered}
-    <TowerStrips {ins} {viewport} open={stripsOpen} ontoggle={() => (stripsOpen = !stripsOpen)} />
+    <TowerStrips {ins} {viewport} {tints} sum={QUERY?.get('sum') === 'max' ? 'max' : 'stack'} open={stripsOpen} ontoggle={() => (stripsOpen = !stripsOpen)} />
   {/if}
   {#if towerShown}
     <TowerAxis model={shown.model} program={shown.program} nodes={layout.nodes} {viewport} focus={selectedName ?? towerCell} right={cardCover} />
@@ -582,6 +590,13 @@
   /* (the tower layout: its strip at the right, the graph beside it) */
   .graph.stripped .flow {
     right: var(--strip-width);
+  }
+  /* (the sky under the graph: the flow's own ground made clear over it) */
+  .graph.sky .flow {
+    background: var(--bg);
+  }
+  .graph.sky :global(.svelte-flow) {
+    --xy-background-color: transparent;
   }
   .graph.stripped .hint {
     right: calc(var(--strip-width) + 16px);

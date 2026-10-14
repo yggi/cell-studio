@@ -5,7 +5,7 @@
 
 <script lang="ts">
   import { onDestroy, untrack } from 'svelte';
-  import { blockColour, noteColour, partColour } from './theme';
+  import { blockColour, noteColour, partColour, UNIT } from './theme';
   import { cellView, drawnOf, hubLabel, type CellView, type Fill } from '../layout/cellview';
   import { gateOf } from '../layout/gate';
   import { coarsen } from '../layout/coarse';
@@ -239,9 +239,11 @@
   });
   const fillOf = (f: Fill) =>
     f.kind === 'pitch'
-      ? f.alter
-        ? `url(#${stripeKey(f)})`
-        : noteColour(f.hue, false, f.octave ?? 0)
+      ? f.unit
+        ? UNIT
+        : f.alter
+          ? `url(#${stripeKey(f)})`
+          : noteColour(f.hue, false, f.octave ?? 0)
       : f.kind === 'beat'
         ? f.down
           ? 'color-mix(in oklab, var(--accent) 34%, var(--wheel-ref))'

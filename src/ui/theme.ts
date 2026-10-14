@@ -37,10 +37,38 @@ export const noteHsl = (hue: number, dim = false, octave = 0): [number, number, 
  * A selector's part k of n, by its place round the colour wheel: its barrel's ring (show=matrix) and, on a table of
  * taps, the tap's bulb (decision 016), so a part is the same colour on both.
  */
-export const partColour = (k: number, n: number) => noteColour((k / Math.max(1, n)) * 360);
+export const partColour = (k: number, n: number) => (n <= 1 ? UNIT : noteColour((k / n) * 360));
+
+/**
+ * One value, nothing to tell apart (app.css --unit): white, all colours. Colours appear where things have to be told
+ * apart: a table whose every step is one value (a drum pattern on 0), a selector of one part, a piece's only voice.
+ */
+export const UNIT = 'var(--unit)';
+/** UNIT as rgb, for a canvas (app.css --unit: change both together). */
+const UNIT_RGB = [212, 215, 224] as const;
 
 /** A selector's clock tinted its part k of n (TapLooms' strands, the selection's bus): the white clock through a prism. */
-export const tapTint = (k: number, n: number) => `color-mix(in oklab, ${partColour(k, n)} 65%, var(--meter-0))`;
+export const tapTint = (k: number, n: number) => (n <= 1 ? UNIT : `color-mix(in oklab, ${partColour(k, n)} 65%, var(--meter-0))`);
+
+/** A colour's hue, saturation and lightness (s, l in %) as rgb, 0 … 255: for a canvas that mixes its own. */
+export function hslRgb(h: number, s: number, l: number): [number, number, number] {
+  const f = (n: number) => {
+    const k = (n + h / 30) % 12;
+    return Math.round(255 * (l / 100 - (s / 100) * Math.min(l / 100, 1 - l / 100) * Math.max(-1, Math.min(k - 3, 9 - k, 1))));
+  };
+  return [f(0), f(8), f(4)];
+}
+
+/** The clock's white (app.css --clock) as rgb: change both together. */
+const CLOCK_RGB = [246, 247, 251] as const;
+
+/** tapTint as rgb (oklab's mix approximated in rgb): the sky's light in a section's colour (TowerSky). */
+export const tapTintRgb = (k: number, n: number): readonly [number, number, number] => {
+  if (n <= 1) return UNIT_RGB;
+  const [r, g, b] = hslRgb(...noteHsl((k / Math.max(1, n)) * 360));
+  const mix = (v: number, w: number) => Math.round(0.65 * v + 0.35 * w);
+  return [mix(r, CLOCK_RGB[0]), mix(g, CLOCK_RGB[1]), mix(b, CLOCK_RGB[2])];
+};
 
 /** A scope's channel k: the chromatic colour of its place in the scope's braid (ScopeView), worn by what it watches. */
 export const channelColour = (k: number) => noteColour((((k % 12) + 12) % 12) * 30);
