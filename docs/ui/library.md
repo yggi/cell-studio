@@ -8,7 +8,7 @@ The header has a quicker way: the open piece's place in the library as a path, *
 
 ## A piece's card
 
-A piece's card is a note with a title: the first note with `title=` names the piece, its label describes it, `tags=` tags it (see [../language/display.md](../language/display.md)):
+A piece's card is a note with a title: the first note with `title=` names the piece, its label describes it, `tags=` tags it (see [../language/display.md](https://github.com/yggi/cells/blob/main/docs/language/display.md)):
 
 ```cells-fragment
 &piece title="Swing blues" tags="genre:jazz, genre:blues, caprice" label="A 12-bar blues in C, swung …"
@@ -23,7 +23,7 @@ Every piece is shown as one node — the same in the list, its details and the l
 The first view, **Select**, is the library (Select · Graph · Code are the tabs; on a wide screen, Select covers both panes): as a graph by default, or as cards.
 
 - The five main genres (`genre:`: classical, jazz, electronic, experimental, world) — are the rim of one large cell wheel, a braid of five named arcs at even angles (tap one to light its pieces). The pieces and the other tags sit on the disc within, the tags as quiet words.
-- The tutorial (the pieces tagged `tutorial`, [display.md](../language/display.md#the-tutorial-tier)) is a cell of its own beside the wheel: its rim is named TUTORIAL (tap it to light its pieces), its pieces sit in rows tier by tier (the library's order within a tier), numbered with their tier, a row left to right and the next back, with a faint thread through them. They grow with the wheel when it opens; they are washed by no tag (their tags still light them).
+- The tutorial (the pieces tagged `tutorial`, [display.md](https://github.com/yggi/cells/blob/main/docs/language/display.md#the-tutorial-tier)) is a cell of its own beside the wheel: its rim is named TUTORIAL (tap it to light its pieces), its pieces sit in rows tier by tier (the library's order within a tier), numbered with their tier, a row left to right and the next back, with a faint thread through them. They grow with the wheel when it opens; they are washed by no tag (their tags still light them).
 - The rim keeps every colour (a tag's angle) in place; a tag's saturation grows with its distance from the centre; tags one piece alone carries step back when zoomed out.
 - One level up, every piece is a wheel and every tag a node the size of how many carry it. The tags organise it, and it's grown, not placed: every node starts tiny in the middle and the tag edges pull each piece to its tags, so the groups gather while there's room to move (each piece leaning to its genres' side, so the knot is turned to the rim); then the nodes grow until the wheel is filled enough, each keeping only its neighbours off (an exclusion zone and a near field, no long-range push), so the groups keep together as they swell (`layout/library.ts`, d3-force as in a piece's graph, [graph.md](graph.md)).
 - At the full view a piece is its title, a pill: what matters there is reading what's where. Zoom in and its wheel grows behind its title (the title moves down the wheel, its cells and cycle in a row beneath it), with its miniature inside — fetched only then; hover or press-and-hold shows one piece's wheel at any zoom. A piece's room in the layout is its title pill's, with some air above and below; its wheel takes the room free around it (half the way to the next piece), so wheels never overlap; the tags' words lie over the wheels, the titles over everything.

@@ -1,6 +1,6 @@
-import { plan } from '../../engine/realize';
-import { liveAt } from '../../engine/live';
-import { anchoredAt, mainLength, pieceTime } from '../../engine/duration';
+import { plan } from '@yggi/cells/engine/realize';
+import { liveAt } from '@yggi/cells/engine/live';
+import { anchoredAt, mainLength, pieceTime } from '@yggi/cells/engine/duration';
 import { Player } from '../../audio/player';
 import { chooseEngine } from '../../audio/engine';
 import type { LiveSource } from '../../audio/live';

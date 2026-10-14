@@ -2,13 +2,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fakeAccess, fakeInput, fakePort, installMidi, uninstallMidi } from '../../midi/fixtures';
 import { Midi } from './midi.svelte';
-import { compileSource } from '../../engine/compile';
-import { PRESETS } from '../../engine/presets';
+import { compileSource } from '@yggi/cells/engine/compile';
+import { PRESETS } from '@yggi/cells/engine/presets';
 import { DRUM_PRESETS } from '../../midi/drum-presets';
 import type { NoteSink } from '../../audio/player';
-import { plan, type Played } from '../../engine/realize';
-import { codeShifts } from '../../engine/program';
-import { retime, windowAt } from '../../engine/schedule';
+import { plan, type Played } from '@yggi/cells/engine/realize';
+import { codeShifts } from '@yggi/cells/engine/program';
+import { retime, windowAt } from '@yggi/cells/engine/schedule';
 
 const store = new Map<string, string>();
 const page = Object.assign(new EventTarget(), { visibilityState: 'visible' });

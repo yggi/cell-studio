@@ -6,10 +6,10 @@
   import PieceNode from '../../../src/ui/PieceNode.svelte';
   import { tagColours } from '../../../src/ui/tags';
   import type { Entry } from '../../../src/ui/entries';
-  import { compileSource } from '../../../src/engine/compile';
+  import { compileSource } from '@yggi/cells/engine/compile';
   import { buildGraph } from '../../../src/layout/drawn';
-  import { pieceTime } from '../../../src/engine/duration';
-  import { PRESETS } from '../../../src/engine/presets';
+  import { pieceTime } from '@yggi/cells/engine/duration';
+  import { PRESETS } from '@yggi/cells/engine/presets';
 
   const q = new URLSearchParams(location.search);
   const seconds = Number(q.get('t') ?? 3);

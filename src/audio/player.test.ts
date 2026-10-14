@@ -2,9 +2,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Player } from './player';
 import { transportClock } from './clock.svelte';
 import type { TransportState } from './transport';
-import { compileSource } from '../engine/compile';
-import { codeShifts } from '../engine/program';
-import { plan } from '../engine/realize';
+import { compileSource } from '@yggi/cells/engine/compile';
+import { codeShifts } from '@yggi/cells/engine/program';
+import { plan } from '@yggi/cells/engine/realize';
 
 // (no Tone in node: the sound engine's waking is stubbed out; what is tested is the transport)
 const hands: [string, (p: Player) => void, (p: Player) => void][] = [

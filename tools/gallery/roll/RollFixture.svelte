@@ -1,7 +1,7 @@
 <script lang="ts">
   /** One piano roll (`src/ui/PianoRoll.svelte`) as a cell's sheet shows it: its piece's context at a moment, stopped or playing. */
   import { untrack } from 'svelte';
-  import { liveAt } from '../../../src/engine/live';
+  import { liveAt } from '@yggi/cells/engine/live';
   import { setGraphContext } from '../../../src/ui/context';
   import PianoRoll from '../../../src/ui/PianoRoll.svelte';
   import { madeUpSound } from '../sound';

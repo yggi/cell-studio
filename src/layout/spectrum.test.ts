@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { C0, F_HI, F_LO, bandHue, bandsFromFFT, freqTurn, hslToRgb, restingProfile, restingSpectrum, wheelLUT } from './spectrum';
-import { compileSource } from '../engine/compile';
-import { codeShifts } from '../engine/program';
+import { compileSource } from '@yggi/cells/engine/compile';
+import { codeShifts } from '@yggi/cells/engine/program';
 
 describe('voice wheels', () => {
   it('spans ten octaves from just below C0, log-scaled: each octave a tenth of the way', () => {

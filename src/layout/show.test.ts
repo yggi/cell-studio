@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { compileSource } from '../engine/compile';
-import { codeShifts } from '../engine/program';
-import { eventsBetween, plan } from '../engine/realize';
-import { liveAt } from '../engine/live';
-import { setAttr } from '../engine/edit';
-import { PRESETS } from '../engine/presets';
+import { compileSource } from '@yggi/cells/engine/compile';
+import { codeShifts } from '@yggi/cells/engine/program';
+import { eventsBetween, plan } from '@yggi/cells/engine/realize';
+import { liveAt } from '@yggi/cells/engine/live';
+import { setAttr } from '@yggi/cells/engine/edit';
+import { PRESETS } from '@yggi/cells/engine/presets';
 import { cellView, hubLabel } from './cellview';
 import { buildGraph } from './drawn';
 import { flowRanks } from './ranks';

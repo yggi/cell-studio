@@ -1,6 +1,6 @@
 <script lang="ts">
   /** More about a cell, folded until wanted: its facts (CellFacts.svelte) and the line it's written in. */
-  import { declLine } from '../../engine/edit';
+  import { declLine } from '@yggi/cells/engine/edit';
   import { getGraphContext } from '../context';
   import CellFacts from '../CellFacts.svelte';
   import Section from './Section.svelte';

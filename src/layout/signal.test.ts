@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { compileSource } from '../engine/compile';
-import { codeShifts } from '../engine/program';
+import { compileSource } from '@yggi/cells/engine/compile';
+import { codeShifts } from '@yggi/cells/engine/program';
 import { runsOn, sentSince, ticksOn } from './signal';
 
 // (a step a beat, at 120 bpm: every half second; a bar of four)

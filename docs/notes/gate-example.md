@@ -2,7 +2,7 @@
 
 Date: 2026-10-11 · Status: open (round 2 built: the wiring, junctions as gates, the spelling; the consolidation and the implicit `&out` open) · Issues: [#234](https://github.com/yggi/cell-studio/issues/234) (the minimal grammar, the implicit `&out`), [#10](https://github.com/yggi/cell-studio/issues/10) (the shakedown) · Follows [gate-node.md](gate-node.md)
 
-The owner went through `examples/gate.cells` and asked for four changes to how it is drawn and four questions to be thought through against #10 and #234's minimal grammar (four primitives: shift-with-carry, dilate, look up, combine: [multiscale.md](multiscale.md)).
+The owner went through `examples/gate.cells` and asked for four changes to how it is drawn and four questions to be thought through against #10 and #234's minimal grammar (four primitives: shift-with-carry, dilate, look up, combine: [multiscale.md](https://github.com/yggi/cells/blob/main/docs/notes/multiscale.md)).
 
 ## Done (drawing only; no saved piece changes)
 
@@ -16,9 +16,9 @@ The layout baseline was recorded with 1 and 4: crossings over the library 47.9 �
 
 ## Do `gate=` and `velocity=` do different things?
 
-**No.** The compiler reads `&leadOut trigger=&tune velocity=&accent gate=&duck gain=.4 &lead` as the product `[&tune * &accent * &duck * &lead * .4]` (`compiler/declare.ts: gates`). In the product, `&accent` and `&duck` are both volume streams, and `realize.ts` multiplies every volume stream together over the whole note: the order doesn't matter (`*` commutes, [decision 006](../decisions/006-mix-algebra.md)), and neither is sampled only at the onset. MIDI out sends that product at the onset as the velocity (`midi.ts: velocityOf`), so not even MIDI tells them apart. `gain=` is the same factor again, constant.
+**No.** The compiler reads `&leadOut trigger=&tune velocity=&accent gate=&duck gain=.4 &lead` as the product `[&tune * &accent * &duck * &lead * .4]` (`compiler/declare.ts: gates`). In the product, `&accent` and `&duck` are both volume streams, and `realize.ts` multiplies every volume stream together over the whole note: the order doesn't matter (`*` commutes, [decision 006](https://github.com/yggi/cells/blob/main/docs/decisions/006-mix-algebra.md)), and neither is sampled only at the onset. MIDI out sends that product at the onset as the velocity (`midi.ts: velocityOf`), so not even MIDI tells them apart. `gain=` is the same factor again, constant.
 
-What the names say (per note, over time, fixed) is **how fast the factor moves**, and that is already in the cell: `&accent step=&bar/2`, `&duck step=&bar*4`, `.4` never. The tower ([multiscale.md](multiscale.md)) draws exactly that difference. So three ports name one operation three times; by #10's rule (one canonical form per family) two of them go.
+What the names say (per note, over time, fixed) is **how fast the factor moves**, and that is already in the cell: `&accent step=&bar/2`, `&duck step=&bar*4`, `.4` never. The tower ([multiscale.md](https://github.com/yggi/cells/blob/main/docs/notes/multiscale.md)) draws exactly that difference. So three ports name one operation three times; by #10's rule (one canonical form per family) two of them go.
 
 **Recommendation:** one port for intensity, taking a product: `level=&accent*&duck*.4` (or the factors written in the braid, below). Keep the per-note meaning only where a receiver really has one: a MIDI receiver could send the factors that step with the trigger as note velocity and the slower ones as CC 7/11 (channel volume, expression). That is a rendering choice of the receiver, decided by rate, not a port.
 
@@ -61,7 +61,7 @@ Sketch of the example under these, not a proposal to apply yet (not compiled):
 
 - **Today a piece with no card is silent**: it compiles with no outputs and no error. Every example writes one. So "an implicit card **when none is written**" changes no saved piece that makes a sound, and fits decision 019's rule (a piece with a card sends only what its cards name; one without keeps the default). "Always, even beside a written card" would make a sound left unconnected in a piece with a card start sounding: that could change saved pieces (⚖ owner, as #234 says).
 - **What counts as open**: a gate or a named mix nothing reads (`&leadOut`, `&drumOut`); a voice played by a melody directly, nothing reading it. Not a voice only a gate or a kit plays (the gate reads it), not a mix only a tape records. #234's probe found 16 cells read by nothing in the library, none a voice or a mix.
-- **What needs a home**: the card's `level=` (every example carries one, from the loudness check: [display.md](../language/display.md)). Without a card it would go on the piece's card (`&piece … level=-6`), or the implicit card keeps 0 and the gates' `level=` carry it.
+- **What needs a home**: the card's `level=` (every example carries one, from the loudness check: [display.md](https://github.com/yggi/cells/blob/main/docs/language/display.md)). Without a card it would go on the piece's card (`&piece … level=-6`), or the implicit card keeps 0 and the gates' `level=` carry it.
 - **In this example**: `&out` and `about=&out` go, the bass product needs a name (`&bassOut`, above), and the graph has no `&out` wheel (the tower already draws the card at its top). The open outputs' wires would end at the graph's edge, or at the tower's card.
 
 The cheapest way to try it is in the compiler, before bindings: no `map=sample` cell → add one, hidden from the graph, whose entries are the open outputs. Routing, gains, MIDI and the views then work unchanged.
@@ -81,7 +81,7 @@ And: *our wires are wrong: audio comes out of the gate node and the voices have 
 
 - **The wiring** ([decision 022](../decisions/022-gates-send-notes.md)): `&leadOut` → `&lead`, `&bell` (a note net, a strand per note at once), `&lead`, `&bell` → `&out` (sound); no edge from the gate to `&out`. A product's junction the same (its notes to its voice, `is`; the voice's sound into the mix, one wire per mix). Drawing only.
 - **Junctions as small gate meters** (32 px, on the voice's rim). One meter component for both: bars as tall as the product of the level streams and the gain. Layout baseline 48 → 52.7 crossings (Cellscape, Zell better; Korobeiniki, Hypercell worse: a voice in several mixes fans out).
-- **The spelling** ([decision 023](../decisions/023-gate-spelling.md)): `&leadOut play=&tune level=&accent*&duck*.4 [&lead, &bell]`; the example is written so and plays the same notes (40 s compared). The old spelling still reads; Shorten rewrites it.
+- **The spelling** ([decision 023](https://github.com/yggi/cells/blob/main/docs/decisions/023-gate-spelling.md)): `&leadOut play=&tune level=&accent*&duck*.4 [&lead, &bell]`; the example is written so and plays the same notes (40 s compared). The old spelling still reads; Shorten rewrites it.
 
 - **The meter's bus snaps as `&key`'s does**: a meter's net is laid by the same tree as every net (`netTree`: each cell joined to the nearest one already joined, the meter or another of its cells) and laid again every tick, so a dragged cell's trace jumps to the nearer cell. It was a separate Kruskal tree, worked out only at rest. Library crossings 52.7 → 49.2.
 - **One place for sub-wheels**: `src/layout/subwheels.ts`, a table of rules (a tap on its table, a read head on its tape, a voice on its kit, a splice on its braid), each saying when a cell is inlined, the room round its host, where it sits and whether its edges leave from it. `graph.ts` asks it; no change in what is drawn.
@@ -94,5 +94,5 @@ The colour of an edge (`ui/edgeStyle.ts`), what travels along it (`ui/payload.ts
 ## Round 3
 
 - `&duck` out of the example; a voice's envelope on its top, then (round 3) a box as wide as the voice, filled to the level now, the voice's sound leaving from its top, the waveform in its note's colour, the voice 160 px (PR #295).
-- **`level=`, linear or dB**: the owner names it the prime case of the lin/log domain seam (#9, #234, #179), recorded in [decision 023](../decisions/023-gate-spelling.md). Not decided here.
+- **`level=`, linear or dB**: the owner names it the prime case of the lin/log domain seam (#9, #234, #179), recorded in [decision 023](https://github.com/yggi/cells/blob/main/docs/decisions/023-gate-spelling.md). Not decided here.
 - The work is a stack of PRs: #290 (drawing), #291 (decision 022), #292 (decision 023), #293 (nets and wheels in one place), #294 (the example, the envelope on top), #295 (the larger voice and its envelope box).

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { towerOf, towerRanks, towerSpans, zoneRanks } from './tower';
 import { flowRanks } from './ranks';
 import { buildGraph } from './drawn';
-import { compileSource } from '../engine/compile';
+import { compileSource } from '@yggi/cells/engine/compile';
 
 const SONG = `
 &bar scan(1 1 1 1) step=100bpm

@@ -6,9 +6,9 @@
  * top. Each member that only the kit plays is a bulb on it (decision 021), where its piece is. Pure geometry, shared by
  * the graph (where a bulb's edges leave) and the glyph (ui/KitGlyph.svelte).
  */
-import type { CompileResult } from '../engine/program';
-import { gmDrumNote } from '../engine/midi';
-import { refsOf } from '../engine/readers';
+import type { CompileResult } from '@yggi/cells/engine/program';
+import { gmDrumNote } from '@yggi/cells/engine/midi';
+import { refsOf } from '@yggi/cells/engine/readers';
 
 /** A kit's members (the voices in its braid, in order: 0 the first), or null: not a table of voices (a groove steps). */
 export function kitOf(result: CompileResult, name: string): readonly string[] | null {

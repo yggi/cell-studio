@@ -10,12 +10,12 @@ import { describe, it } from 'vitest';
 import { appendFileSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { ForceLayout } from '../../src/layout/physics';
 import { buildGraph } from '../../src/layout/drawn';
-import { compileSource } from '../../src/engine/compile';
-import { readMidi } from '../../src/engine/midifile';
-import { cellsFromMidi } from '../../src/engine/midiimport';
+import { compileSource } from '@yggi/cells/engine/compile';
+import { readMidi } from '@yggi/cells/engine/midifile';
+import { cellsFromMidi } from '@yggi/cells/engine/midiimport';
 import { TOWER_LAYOUT, type LayoutOptions } from '../../src/layout/options';
 import { towerLayers, withSockets } from '../../src/layout/towerlayout';
-import type { GraphModel } from '../../src/engine/graph';
+import type { GraphModel } from '@yggi/cells/engine/graph';
 
 const log = (t: string) => appendFileSync(process.env.PROBE!, t + '\n');
 const TICKS = Number(process.env.TICKS ?? 54);
@@ -93,13 +93,13 @@ function replay(story: readonly string[], v: Variant, seed: number): Row {
 describe.runIf(process.env.PROBE)('a conversion’s story through the layout', () => {
   it('replays each story, frame by frame', { timeout: 3_600_000 }, () => {
     writeFileSync(process.env.PROBE!, '');
-    const files = readdirSync('midi', { withFileTypes: true })
+    const files = readdirSync('node_modules/@yggi/cells/midi', { withFileTypes: true })
       .filter((d) => d.isDirectory() && d.name !== 'voices')
       .flatMap((d) =>
-        readdirSync(`midi/${d.name}`)
+        readdirSync(`node_modules/@yggi/cells/midi/${d.name}`)
           .filter((f) => f.endsWith('.mid'))
           .slice(0, FILES)
-          .map((f) => `midi/${d.name}/${f}`),
+          .map((f) => `node_modules/@yggi/cells/midi/${d.name}/${f}`),
       )
       .filter((f) => !process.env.ONLY || f.includes(process.env.ONLY));
     const stories = files.map((f) => {

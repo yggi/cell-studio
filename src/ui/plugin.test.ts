@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { compileSource } from '../engine/compile';
-import { setAttr } from '../engine/edit';
-import { PRESETS } from '../engine/presets';
+import { compileSource } from '@yggi/cells/engine/compile';
+import { setAttr } from '@yggi/cells/engine/edit';
+import { PRESETS } from '@yggi/cells/engine/presets';
 import { drawPlugin, loadPlugin } from './plugin';
-import { dayLaw } from '../engine/fiveto12';
-import { pluginKey } from '../engine/plugins';
+import { dayLaw } from '@yggi/cells/engine/fiveto12';
+import { pluginKey } from '@yggi/cells/engine/plugins';
 import { confirmed, isTrusted, revoke, trust } from './pluginTrust.svelte';
 import { attributesOf, boundedTree, h, plainAttribute, TAGS, type PNode } from './pluginTree';
 import { viewOf } from './pluginView';

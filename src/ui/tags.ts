@@ -3,7 +3,7 @@
  * the circle of fifths in alphabetical order (so neighbours differ); past twelve,
  * the half-steps between; the tutorial a neutral of its own. The same colours wherever tags appear.
  */
-import { tagName, TUTORIAL } from '../engine/tags';
+import { tagName, TUTORIAL } from '@yggi/cells/engine/tags';
 import { noteColour } from './theme';
 
 export function tagColours(tags: Iterable<string>): Map<string, string> {

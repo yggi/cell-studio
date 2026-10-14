@@ -3,7 +3,7 @@
  * p/N turns. The ring is rotated so the selected segment sits under the
  * pointer at 12 o'clock. Rotations are in degrees, angles in turns.
  */
-import { mod } from '../theory/modes';
+import { mod } from '@yggi/cells/theory/modes';
 
 /** Ring rotation (degrees) that puts segment p at the top. */
 export const rotationFor = (p: number, n: number) => (-p / n) * 360;

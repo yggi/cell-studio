@@ -10,12 +10,12 @@
   import { onDestroy, onMount } from 'svelte';
   import { getGraphContext, hearing } from './context';
   import { bandFreq, bandsFromFFT, hslToRgb, restingProfile, wheelLUT } from '../layout/spectrum';
-  import { gridName, positionOf } from '../engine/helix';
-  import { DEFAULT_FREQ } from '../engine/program';
+  import { gridName, positionOf } from '@yggi/cells/engine/helix';
+  import { DEFAULT_FREQ } from '@yggi/cells/engine/program';
   import { gridOf } from '../layout/show';
   import { paletteHsl } from './palette';
-  import { noteName } from '../theory/modes';
-  import { DOUGH_SOURCES } from '../engine/dough-params';
+  import { noteName } from '@yggi/cells/theory/modes';
+  import { DOUGH_SOURCES } from '@yggi/cells/engine/dough-params';
   import { onFrames } from '../audio/ticker';
   import { onScreen } from './kit/attach';
   import { timed } from '../audio/stats';

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { buildGraph } from './drawn';
-import { compileSource } from '../engine/compile';
-import { PRESETS } from '../engine/presets';
+import { compileSource } from '@yggi/cells/engine/compile';
+import { PRESETS } from '@yggi/cells/engine/presets';
 import { isSide, sideEntries, sideless } from './side';
 
 const SRC = `&intro label="A tune and its bass." about=&out

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { PRESETS } from '../engine/presets';
-import { createHost, planOf, type FromEngine, type ToEngine } from '../engine/host';
-import { windowAt } from '../engine/schedule';
+import { PRESETS } from '@yggi/cells/engine/presets';
+import { createHost, planOf, type FromEngine, type ToEngine } from '@yggi/cells/engine/host';
+import { windowAt } from '@yggi/cells/engine/schedule';
 import { LocalEngine, WorkerEngine, type Port } from './engine';
 
 /** A worker stand-in: the host behind a structured clone each way, answering after `delay` ms (null: never). */

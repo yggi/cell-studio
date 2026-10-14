@@ -12,15 +12,15 @@
 // Run: PROBE=out.txt [ONLY=bwv847,pop] [LONGEST=40000] npx vitest run tools/probe/ratchet.test.ts
 import { describe, it } from 'vitest';
 import { appendFileSync } from 'node:fs';
-import { compileSource } from '../../src/engine/compile';
-import { codeShifts } from '../../src/engine/program';
-import { plan } from '../../src/engine/realize';
-import { PRESETS } from '../../src/engine/presets';
-import { pieceMidi } from '../../src/engine/midiexport';
-import { readMidi, writeMidi } from '../../src/engine/midifile';
-import { cellsFromMidi } from '../../src/engine/midiimport';
-import { shortenAll } from '../../src/engine/shorten';
-import { bare, differ, heard, phrases, same } from '../../src/engine/fold/score';
+import { compileSource } from '@yggi/cells/engine/compile';
+import { codeShifts } from '@yggi/cells/engine/program';
+import { plan } from '@yggi/cells/engine/realize';
+import { PRESETS } from '@yggi/cells/engine/presets';
+import { pieceMidi } from '@yggi/cells/engine/midiexport';
+import { readMidi, writeMidi } from '@yggi/cells/engine/midifile';
+import { cellsFromMidi } from '@yggi/cells/engine/midiimport';
+import { shortenAll } from '@yggi/cells/engine/shorten/index';
+import { bare, differ, heard, phrases, same } from '@yggi/cells/engine/fold/score';
 
 const log = (t: string) => appendFileSync(process.env.PROBE!, t + '\n');
 /** A flat piece longer than this (characters) isn't folded: today's Shorten is quadratic in it. */

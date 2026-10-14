@@ -38,6 +38,6 @@ the app doesn't already have.
 
 - A MIDI file's Stats (#390) are its machine's.
 - The tower layout crosses a little less during a story but moves more and drifts out of view, so the flow layout
-  stays the conversion's default ([notes/conversion.md](../notes/conversion.md)).
+  stays the conversion's default ([notes/conversion.md](https://github.com/yggi/cells/blob/main/docs/notes/conversion.md)).
 - A cell spliced into one braid is a bulb (decision 014). When a later frame uses it in a second place it becomes a
   node of its own; the replay can't smooth that change of drawing.

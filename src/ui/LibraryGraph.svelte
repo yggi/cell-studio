@@ -6,7 +6,7 @@
    * same physics as the pieces' graphs, without its ranks: a cloud, not a flow.
    */
   import { GENRES, PILL, shortTitle, sideOf, sideTitle, tagFont, type LibraryLayout } from '../layout/library';
-  import { tagName } from '../engine/tags';
+  import { tagName } from '@yggi/cells/engine/tags';
   import { tick } from 'svelte';
   import PieceNode from './PieceNode.svelte';
   import { clusterDisc } from '../layout/clusters';

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
-import { compileSource } from '../engine/compile';
+import { compileSource } from '@yggi/cells/engine/compile';
 import { buildGraph } from './drawn';
 import { crossingCost, massOf, SAME_KIND, strengthOf } from './weights';
 

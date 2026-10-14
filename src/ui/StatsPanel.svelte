@@ -5,7 +5,7 @@
    * those of the cells it plays through.
    */
   import { getStudio } from './state/studio.svelte';
-  import { CELL_KINDS, type CellKind } from '../engine/stats';
+  import { CELL_KINDS, type CellKind } from '@yggi/cells/engine/stats';
 
   const { piece } = getStudio();
   const s = $derived(piece.stats);

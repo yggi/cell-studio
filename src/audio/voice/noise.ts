@@ -1,5 +1,5 @@
 // Noise for noise voices (s=white, s=pink, s=brown). Seeded, never Math.random: a piece sounds the same every time.
-import { chanceOf } from '../../engine/realize';
+import { chanceOf } from '@yggi/cells/engine/realize';
 
 /** A small seeded generator (mulberry32): numbers in [0, 1), the same sequence for the same seed. */
 export function seeded(seed: number): () => number {

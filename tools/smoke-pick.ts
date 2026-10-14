@@ -5,10 +5,10 @@
 //
 //   npx vite-node tools/smoke-pick.ts   (or: npm run smoke -- --list)
 import { readFileSync } from 'node:fs';
-import { compileSource } from '../src/engine/compile';
-import type { CompileResult } from '../src/engine/program';
-import { ORDER } from '../src/engine/order';
-import { pieceMeta } from '../src/engine/parser';
+import { compileSource } from '@yggi/cells/engine/compile';
+import type { CompileResult } from '@yggi/cells/engine/program';
+import { ORDER } from '@yggi/cells/engine/order';
+import { pieceMeta } from '@yggi/cells/engine/parser/index';
 
 /**
  * What a piece asks of the audio graph (src/audio: voices.ts, voice/*.ts): each voice's source (a braid,
@@ -58,7 +58,7 @@ export interface SmokePick {
 }
 
 /** A greedy cover: again and again, the piece that brings the most features not yet covered (the earlier in the library on a tie). */
-export function smokePicks(dir = 'examples'): SmokePick[] {
+export function smokePicks(dir = 'node_modules/@yggi/cells/examples'): SmokePick[] {
   const pieces = ORDER.map((key) => {
     const source = readFileSync(`${dir}/${key}.cells`, 'utf8').replace(/\n$/, '');
     return { key: key as string, title: pieceMeta(source)?.title ?? key, features: audioFeatures(compileSource(source)) };

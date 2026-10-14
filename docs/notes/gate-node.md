@@ -1,6 +1,6 @@
 # The gate node (a design note for #10)
 
-Date: 2026-10-10 · Status: partly built: the named junction ([mix.md](../language/mix.md): a gate; `trigger=`, `velocity=`, `gate=`, `gain=`, drawn as a wheel, #264), a kit among its receivers and a gate as one MIDI part (#270); still open below: restart or resume, `map=gate`, `value=` and which receiver against what pitch · Issue: [#234](https://github.com/yggi/cell-studio/issues/234) (#10, #29, #208) · Follows [selector-gates.md](selector-gates.md) and [decision 016](../decisions/016-arranging-at-the-input.md)
+Date: 2026-10-10 · Status: partly built: the named junction ([mix.md](https://github.com/yggi/cells/blob/main/docs/language/mix.md): a gate; `trigger=`, `velocity=`, `gate=`, `gain=`, drawn as a wheel, #264), a kit among its receivers and a gate as one MIDI part (#270); still open below: restart or resume, `map=gate`, `value=` and which receiver against what pitch · Issue: [#234](https://github.com/yggi/cell-studio/issues/234) (#10, #29, #208) · Follows [selector-gates.md](selector-gates.md) and [decision 016](https://github.com/yggi/cells/blob/main/docs/decisions/016-arranging-at-the-input.md)
 
 The owner's sketch of a junction written as a cell (`&leadOut trigger=&tune map=gate gain=.5 velocity=… &lead`) is reviewed in [selector-gates.md](selector-gates.md). The owner, on the review: *only gating notes seems over-specific; a gate can gate anything. Think one-shots like a cadenza, a solo. It might work well together with the selection switch, as an orthogonal force multiplier. How do `&kit` and MIDI out fit in? They will put shape pressure on the gate node.* This note works that through. The spellings are sketches, not decisions.
 
@@ -33,7 +33,7 @@ The switch says whether a part's *time* moves; the gate says whether its *output
 
 ## Kits
 
-Today a kit is three things: a table of voices (`&kit &bd &sd &hh`), a pattern read through it (`&drums over=&kit step=&bar/2 0 2 1 2`), and a product (`[&drums * .6]`); and a fourth spelling, the groove (`&groove step=&bar/4 &bd ~ &hh`, a braid of voices, stepped) ([../language/sound.md](../language/sound.md)).
+Today a kit is three things: a table of voices (`&kit &bd &sd &hh`), a pattern read through it (`&drums over=&kit step=&bar/2 0 2 1 2`), and a product (`[&drums * .6]`); and a fourth spelling, the groove (`&groove step=&bar/4 &bd ~ &hh`, a braid of voices, stepped) ([../language/sound.md](https://github.com/yggi/cells/blob/main/docs/language/sound.md)).
 
 As a gate node a kit is one node with several receivers: the braid is the kit, `trigger=` the pattern, `value=` picks the member:
 

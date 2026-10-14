@@ -2,7 +2,7 @@
 
 Date: 2026-10-11 · Status: done (the owner chose D: [decision 024](../decisions/024-resonator-bodies.md)) · Issues: [#234](https://github.com/yggi/cell-studio/issues/234) (the visual pass) · Follows #302 (a kalimba's exciters as tines)
 
-#302 drew `body=tine` as a kalimba: each exciter a tine where its pad was, reaching out to its strand. The owner asked for the same pass over the other bodies (`fork bell bar plate box pipe wire spring`, [physics.md](../language/physics.md#resonators)). Mock-ups: `node tools/gallery.mjs mockups` → `shots/wheel-mockups/2-resonator-bodies.png` (`tools/gallery/wheels/BodyMock.svelte`, SVG only: nothing in the app changes).
+#302 drew `body=tine` as a kalimba: each exciter a tine where its pad was, reaching out to its strand. The owner asked for the same pass over the other bodies (`fork bell bar plate box pipe wire spring`, [physics.md](https://github.com/yggi/cells/blob/main/docs/language/physics.md#resonators)). Mock-ups: `node tools/gallery.mjs mockups` → `shots/wheel-mockups/2-resonator-bodies.png` (`tools/gallery/wheels/BodyMock.svelte`, SVG only: nothing in the app changes).
 
 ## What the library writes
 

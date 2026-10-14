@@ -9,7 +9,7 @@
   import PieceDetail from './picker/PieceDetail.svelte';
   import TagFilters from './picker/TagFilters.svelte';
   import { tagColours } from './tags';
-  import { MIDI_FILE } from '../engine/tags';
+  import { MIDI_FILE } from '@yggi/cells/engine/tags';
   import { noteColour } from './theme';
   import type { LibraryLayout } from '../layout/library';
   import { FILTER_KINDS, matches, type Entry, type FilterKind } from './entries';

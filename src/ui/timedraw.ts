@@ -4,8 +4,8 @@
  * colours read from the theme's CSS by `css`. What each shows is worked out in layout/timelayers.ts, its pixels in
  * layout/timepictures.ts, where things sit in layout/timeview.ts.
  */
-import type { Boundary } from '../engine/time/boundaries';
-import { reach } from '../engine/time/wavelet';
+import type { Boundary } from '@yggi/cells/engine/time/boundaries';
+import { reach } from '@yggi/cells/engine/time/wavelet';
 import type { CellSpan, Laned, Named, Patterns } from '../layout/timelayers';
 import { familyHue, seconds } from '../layout/timelayers';
 import { waveColumns } from '../layout/timepictures';

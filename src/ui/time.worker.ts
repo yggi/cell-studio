@@ -4,9 +4,9 @@
  * told whose it is from the notes. One job at a time; the view ends a worker whose answer it no longer wants and
  * starts another.
  */
-import { grid } from '../engine/time/wavelet';
-import { scalograms, type Onset, type Signal } from '../engine/time/signals';
-import { owners, waterfall, type Sounding } from '../engine/time/spectrogram';
+import { grid } from '@yggi/cells/engine/time/wavelet';
+import { scalograms, type Onset, type Signal } from '@yggi/cells/engine/time/signals';
+import { owners, waterfall, type Sounding } from '@yggi/cells/engine/time/spectrogram';
 
 export type TimeJob =
   | { readonly kind: 'scalogram'; readonly window: number; readonly events: readonly Onset[]; readonly signals: readonly Signal[]; readonly periodic?: boolean }

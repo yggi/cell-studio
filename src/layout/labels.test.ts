@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { compileSource } from '../engine/compile';
-import { codeShifts } from '../engine/program';
-import { PRESETS } from '../engine/presets';
-import { setAttr } from '../engine/edit';
+import { compileSource } from '@yggi/cells/engine/compile';
+import { codeShifts } from '@yggi/cells/engine/program';
+import { PRESETS } from '@yggi/cells/engine/presets';
+import { setAttr } from '@yggi/cells/engine/edit';
 import { fieldsOf, formatLabel, labelText } from './labels';
 
 describe('label templates', () => {

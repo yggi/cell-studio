@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import type { FreeSpec } from '../engine/ast';
-import { compileSource } from '../engine/compile';
+import type { FreeSpec } from '@yggi/cells/engine/ast';
+import { compileSource } from '@yggi/cells/engine/compile';
 import { freeAtPlace, freePlace, knobName, knobOf, LOOSE, padValue, readLearned, takeover, type Takeover } from './learn';
 
 const span = { line: 1, col: 1, len: 1 };

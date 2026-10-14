@@ -1,5 +1,5 @@
-import type { FreeSpec } from '../engine/ast';
-import { ATTRIBUTES } from '../engine/attributes';
+import type { FreeSpec } from '@yggi/cells/engine/ast';
+import { ATTRIBUTES } from '@yggi/cells/engine/attributes';
 
 /**
  * A free(…) value in words, the same wherever it's shown (the pills on a node, the controls drawer,

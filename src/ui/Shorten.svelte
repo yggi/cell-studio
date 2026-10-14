@@ -4,7 +4,7 @@
    * becomes and what it saves, and Apply. Worked out when asked (a long piece
    * takes a moment), and again after each change.
    */
-  import { shorten, type Suggestion } from '../engine/shorten';
+  import { shorten, type Suggestion } from '@yggi/cells/engine/shorten/index';
 
   let { code, onapply }: { code: string; onapply: (next: string) => void } = $props();
 

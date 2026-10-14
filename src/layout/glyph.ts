@@ -5,8 +5,8 @@
  * (`cellView`), the wheel's geometry (`wheelGeometry`) and, while it plays, a primitive or two of the live state; the
  * colours (and anything else that reads the theme) are the component's. Angles are in turns, 0 = 12 o'clock.
  */
-import type { CompileResult, ResolvedCell } from '../engine/program';
-import { mod, modeBrightness } from '../theory/modes';
+import type { CompileResult, ResolvedCell } from '@yggi/cells/engine/program';
+import { mod, modeBrightness } from '@yggi/cells/theory/modes';
 import type { CellView, Fill, Segment } from './cellview';
 import { BORDER, border } from './coarse';
 import { fitFont } from './dial';

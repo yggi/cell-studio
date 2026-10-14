@@ -18,7 +18,7 @@
   import { getGraphContext } from './context';
   import RollKeys from './RollKeys.svelte';
   import { palette } from './palette';
-  import { declWords, setBraid, spansLines } from '../engine/edit';
+  import { declWords, setBraid, spansLines } from '@yggi/cells/engine/edit';
   import {
     columnAt,
     frameOf,

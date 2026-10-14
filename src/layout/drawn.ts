@@ -3,10 +3,10 @@
  * left out, unnamed cells and show=petal hung from the cell that uses them as petals, a cell spliced once a bulb on its
  * host (decision 014, every sub-wheel: decision 021), the room a host's bulbs take and where their edges leave from.
  */
-import { cellId, edgeId } from '../engine/ids';
-import { VOICE_KIT } from '../engine/compiler/declare';
-import type { CompileResult } from '../engine/program';
-import { feeds, netsOf, writtenGraph, type GraphEdge, type GraphModel, type GraphNode, type WrittenGraph } from '../engine/graph';
+import { cellId, edgeId } from '@yggi/cells/engine/ids';
+import { VOICE_KIT } from '@yggi/cells/engine/compiler/declare';
+import type { CompileResult } from '@yggi/cells/engine/program';
+import { feeds, netsOf, writtenGraph, type GraphEdge, type GraphModel, type GraphNode, type WrittenGraph } from '@yggi/cells/engine/graph';
 import { effectiveShow } from './show';
 import { bulbAt, leavesFromBulb, reachOf, subWheels } from './subwheels';
 

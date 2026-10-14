@@ -10,15 +10,15 @@
 import { describe, it } from 'vitest';
 import { appendFileSync } from 'node:fs';
 import { buildGraph } from '../../src/layout/drawn';
-import { compileSource } from '../../src/engine/compile';
-import { codeShifts } from '../../src/engine/program';
-import { pieceTime } from '../../src/engine/duration';
-import { listening } from '../../src/engine/time/span';
-import { eventsBetween, plan } from '../../src/engine/realize';
-import { PRESETS } from '../../src/engine/presets';
+import { compileSource } from '@yggi/cells/engine/compile';
+import { codeShifts } from '@yggi/cells/engine/program';
+import { pieceTime } from '@yggi/cells/engine/duration';
+import { listening } from '@yggi/cells/engine/time/span';
+import { eventsBetween, plan } from '@yggi/cells/engine/realize';
+import { PRESETS } from '@yggi/cells/engine/presets';
 import { towerSpans } from '../../src/layout/tower';
-import { alike, foldings, levelsOf, pulseOf } from '../../src/engine/time/necklace';
-import { motifs, multiscale } from '../../src/engine/time/motifs';
+import { alike, foldings, levelsOf, pulseOf } from '@yggi/cells/engine/time/necklace';
+import { motifs, multiscale } from '@yggi/cells/engine/time/motifs';
 
 const log = (t: string) => appendFileSync(process.env.PROBE!, t + '\n');
 /** The longest stretch looked at (s), and the most slots a level's cycle may have. */

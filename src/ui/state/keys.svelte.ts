@@ -2,11 +2,11 @@
 // apps/web/src/instruments.svelte.ts (the computer keys and MIDI into one route) @ 8cdb6b8.
 
 import { SvelteMap, SvelteSet } from 'svelte/reactivity';
-import { armable, keyboardOf, kitPads, rowNote, scaleKeys, type Armable, type Keyboard, type KeyMode, type Pad } from '../../engine/keys';
-import { cellId } from '../../engine/ids';
+import { armable, keyboardOf, kitPads, rowNote, scaleKeys, type Armable, type Keyboard, type KeyMode, type Pad } from '@yggi/cells/engine/keys';
+import { cellId } from '@yggi/cells/engine/ids';
 import { gmNotesFor, type DrumMap } from '../../midi/drum-presets';
 import { COMPUTER_KEY_MAP, DRUM_KEY_MAP, ignoreKeyEvent, parseMidiMessage, parseSustain } from '../../midi/surfaces';
-import type { CompileResult, Shifts } from '../../engine/program';
+import type { CompileResult, Shifts } from '@yggi/cells/engine/program';
 import { storageKey } from '../../storageKey';
 
 const KEY = 'cell-studio:keys';

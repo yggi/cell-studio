@@ -7,10 +7,10 @@
  * flows it carries, are on. What reaches a sound card does so at compile's levels (an output's gains, a read head's return, a
  * resonator alone in a mix), under the same rules the scheduler uses (`outputSounds`, `liveGains`).
  */
-import { BODIES, type CompileResult, type Output } from '../engine/program';
-import { flows, type Flow } from '../engine/flows';
-import { liveGains, outputSounds, returnGains } from '../engine/realize';
-import { cellId } from '../engine/ids';
+import { BODIES, type CompileResult, type Output } from '@yggi/cells/engine/program';
+import { flows, type Flow } from '@yggi/cells/engine/flows';
+import { liveGains, outputSounds, returnGains } from '@yggi/cells/engine/realize';
+import { cellId } from '@yggi/cells/engine/ids';
 
 /**
  * A connection, from what sounds into what hears it:
