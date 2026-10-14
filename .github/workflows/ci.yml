@@ -1,109 +1,55 @@
 name: CI
 
-# CI is off for now (broken): runs by hand only; checks are run locally (AGENTS.md). Restore: push on main + pull_request.
+# A witness, not the gate (docs/testing.md): the gate is the checks run before the push, and the PR names the commit that
+# passed them. A run that fails in seconds with no step is Actions blocked (minutes used up), not a verdict on the change.
+# One job on a PR that is ready (not a draft): jobs bill rounded up to a whole minute, so the steps share one. The slow
+# tests and the build by hand: Actions -> CI -> Run workflow, `all` ticked. It doesn't deploy: `node tools/deploy.mjs` does.
 on:
+  pull_request:
+    types: [opened, reopened, synchronize, ready_for_review]
   workflow_dispatch:
+    inputs:
+      all:
+        description: The slow tests and the build too
+        type: boolean
+        default: false
 
-# (each job asks for what it writes)
 permissions:
   contents: read
 
+# (a newer push to the PR replaces the run still going for the older one: the newer commit carries its changes)
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  # The static checks and the build (about a minute), beside the tests, which run in two projects: a PR waits for the
-  # slowest of them, not for the sum. `check` below is the one status the ruleset requires; it passes when all three do.
-  # (Each job has a concurrency group of its own: sharing one, they would cancel each other. A newer push to a PR, or to
-  # main, replaces the jobs still running for the older one: the newer commit carries its changes, so its run tests them
-  # too. Only these jobs: a deploy already writing is never cancelled.)
-  static:
-    runs-on: ubuntu-latest
-    concurrency:
-      group: ci-static-${{ github.event.pull_request.number || github.ref }}
-      cancel-in-progress: true
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 22
-          cache: npm
-      - run: npm ci
-      - run: npm run check
-      - run: npm run lint
-      - run: npm run format:check
-      - run: npm run knip
-      - run: npm run build
-      - uses: actions/upload-artifact@v7
-        with:
-          name: dist
-          path: dist
-          retention-days: 3
-
-  # The tests in their two projects (vite.config.ts), one runner each, about as long: `quick`, and `slow` (the folder over
-  # whole pieces and libraries). Both whole, on every run: the gate doesn't pick (`npm test` does, locally: tools/test.mjs).
-  test:
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        project: [quick, slow]
-    concurrency:
-      group: ci-test-${{ matrix.project }}-${{ github.event.pull_request.number || github.ref }}
-      cancel-in-progress: true
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 22
-          cache: npm
-      - run: npm ci
-      # (--bail: the first failing test ends this project's run, so a red run is red in seconds, not after the whole suite)
-      - run: npx vitest run --project ${{ matrix.project }} --bail 1
-
-  # The required status: the static checks, the build and both projects of the tests, passed on this commit.
   check:
-    needs: [static, test]
-    if: ${{ !cancelled() }}
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.draft == false
     runs-on: ubuntu-latest
-    concurrency:
-      group: ci-check-${{ github.event.pull_request.number || github.ref }}
-      cancel-in-progress: true
+    timeout-minutes: 20
     steps:
-      - run: |
-          echo "static: ${{ needs.static.result }}, test: ${{ needs.test.result }}"
-          [ "${{ needs.static.result }}" = success ] && [ "${{ needs.test.result }}" = success ]
-
-  # Publishes the build `static` made (the same commit, the same tests, which `check` has seen pass): no second test or build run.
-  # Every writer of gh-pages (this, `preview`, preview-cleanup.yml) goes through .github/scripts/pages.sh,
-  # which pushes with a lease and writes again if gh-pages moved: none overwrites another's folder.
-  deploy:
-    needs: check
-    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    # One deploy of main at a time, none cancelled while it runs. Runs reach this job in the order their `check`
-    # finishes, not in commit order, so an older commit could follow a newer one: the first step skips it instead.
-    concurrency:
-      group: pages-main
-      cancel-in-progress: false
-    steps:
-      - name: Is this still the newest commit on main?
-        id: newest
-        run: |
-          head=$(git ls-remote "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}" refs/heads/main | cut -f1)
-          if [ "$head" = "$GITHUB_SHA" ]; then echo "current=true" >> "$GITHUB_OUTPUT"; else echo "A newer commit ($head) is on main: its run deploys, not this one"; fi
-      - if: steps.newest.outputs.current == 'true'
-        uses: actions/checkout@v7
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
-          sparse-checkout: .github/scripts
-          persist-credentials: false
-      - if: steps.newest.outputs.current == 'true'
-        uses: actions/download-artifact@v8
-        with:
-          name: dist
-          path: dist
-      - name: Publish dist to gh-pages (keeping the PR previews)
-        if: steps.newest.outputs.current == 'true'
-        run: .github/scripts/pages.sh main dist
+          node-version: 22
+          cache: npm
+      - id: install
+        run: npm ci --no-audit --no-fund
         env:
-          PAGES_REMOTE: https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}
-          MESSAGE: Deploy ${{ github.sha }}
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: 1
+      # (each check runs even when one before it failed, so one run gives every verdict)
+      - if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: npm run check
+      - if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: npm run lint
+      - if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: npm run format:check
+      - if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: npm run knip
+      # The quick project (`npm test` on CI would run every slow test: tools/test.mjs's fail-safe).
+      - if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: npx vitest run --project quick
+      - if: ${{ !cancelled() && steps.install.outcome == 'success' && inputs.all }}
+        run: npx vitest run --project slow
+      - if: ${{ !cancelled() && steps.install.outcome == 'success' && inputs.all }}
+        run: npm run build

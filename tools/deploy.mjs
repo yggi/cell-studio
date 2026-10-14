@@ -1,4 +1,4 @@
-// Deploy `main` by hand, gated (#361): while CI is off (#300) nothing else stops a tree whose checks fail from going live.
+// Deploy `main` by hand, gated (#361): CI doesn't deploy (#300), and nothing else stops a tree whose checks fail from going live.
 // Refuses unless the working tree is clean and HEAD is origin/main's head; then runs every check CI runs (all the
 // tests, slow ones too: `test:all`), builds afresh, and only then publishes dist/ with .github/scripts/pages.sh.
 //
