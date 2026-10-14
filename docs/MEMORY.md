@@ -6,6 +6,15 @@ Entrypoint for humans and agents: slow-change, shared knowledge about Cell studi
 
 A minimal language for music where everything is a **cell**: a helix (pitch classes over octaves, beats over bars) with a **braid** sitting in its grid. A browser app (Svelte, TypeScript, Tone.js) with a code editor and a graph that are two views of the same text. Built as a PWA (manifest, service worker, relative `base`): installable on Android and desktop, offline after the first visit; Tone is a lazily loaded chunk.
 
+## The sibling: Jambot
+
+- **[Jambot](https://github.com/yggi/jambot)** is a cybernetic bandleader for live events: left alone it plays an endless jam; when people join, its **Muse** hears their motifs and the band takes them up. It writes a score and plays it out as MIDI or through a small synth. Cell studio started as a spike out of it, to research and define the language.
+- **The direction** (the owner, 14 Oct 2026): back together, towards *eternal jam sessions*. Cells becomes Jambot's score language and our engine its player; Jambot stays the composer, driven by a **style vector**; the Muse writes cell fragments to a shared repository. The shape, where each side stands and the plan: [notes/eternal-jam.md](notes/eternal-jam.md); the live thread is the handshake issue.
+- **What it has that we don't**: the style space (7 axes, genres as points, glides: `packages/engine/src/style.ts`), the composer (form, themes, key, parts), the Muse (a phrase reader with a confidence, a fading motif memory, recognition under operators: `muse.ts`, `packages/theory/src/motifs.ts`), host and client sessions over a lobby (`packages/session`), and a measured bored-to-confusing edge (its #237).
+- **What we took from it**: `src/midi/*`, the keys, pads and roll pointer, the MIDI clock, lifted at 8cdb6b8 (#203); each file's header names its source. Who owns them now is a handshake question.
+- **Same sigil, different words**: its `^` is an octave, `_` is "no onset", `shift` transposes, `cycle=` is a cell's period, Euclid rotates as its own `even(k,n,shift)`, accents are `* + - .`. Check a form against both before porting it either way.
+- **Reading it**: add the repository in a cloud session and clone it beside this one; its entry is `AGENTS.md`, then `docs/MEMORY.md`. A pnpm workspace; a pre-push hook runs `pnpm verify`; docs one sentence to a line; its language design is a catalogue of claims with tests (the ratchet), and its score language changes only through the owner.
+
 ## Working here
 
 Commands, the rules (which are enforced and which are judgment), the PR conventions and what an agent may decide alone are in [../AGENTS.md](../AGENTS.md); how the tests and CI fit together is in [testing.md](testing.md). A release: bump `version` in `package.json`, move the *Unreleased* entries of `CHANGELOG.md` under a new heading, tag `vX.Y.Z`.

@@ -28,4 +28,5 @@ The sequence of work towards it, phase by phase, is [#141](https://github.com/yg
 | Audio engine | parked: dropping Tone, worklets (FM feedback, coupled resonators), a shared WASM core; physical cells part 2 | #16, #17, #18, #28, #32 |
 | Library and editor | the picker and its graph; everything the language can say, editable in the graph | #12, #33 |
 | Multiscale | the piece as a tower of scales (MERA, wavelets, GTTM): rows by time constant, junctions that project, the form sending gates up, a minimal grammar, the implicit `&out` ([notes/multiscale.md](notes/multiscale.md)) | #234 (#235, #236) |
+| Eternal jam | back together with Jambot: cells as its score language, the engine as its player, a shared repository of cell fragments with style vectors; the handshake issue, then a shared base, the seam, the repository ([notes/eternal-jam.md](notes/eternal-jam.md)) | the handshake issue, #234, #244, #203 |
 | Wish list | pieces and features, as one checklist | #35 |
