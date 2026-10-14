@@ -1,4 +1,4 @@
-# 034 · Labels sit on what they name: an edge's on its wire, a net's once, a name too long for its bulb round its rim
+# 035 · Labels sit on what they name: an edge's on its wire, a net's once, a name too long for its bulb round its rim
 
 **Date:** 2026-10-13 · **Status:** accepted (owner, on #137: 1 as recommended, 2 C with tap sockets, 3 D, 4 B with a rim option, 5 C) · Issues: #137, #274
 
