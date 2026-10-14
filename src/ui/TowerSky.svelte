@@ -24,16 +24,20 @@
   import { towerY } from '../layout/towerlayout';
   import { onFrames } from '../audio/ticker';
   import { hslRgb, noteHsl } from './theme';
-  import { heard, outRgb } from './heard';
+  import { heard, noteHz, outRgb } from './heard';
+  import { drawSpire, spireOf } from './spire';
 
   let {
     spires,
     viewport,
+    zone = 0,
     mode = 'mix',
   }: {
     /** Each socket: where it stands (the graph's coordinates, its centre) and whose sound it is. */
     spires: readonly { id: string; x: number; y: number; source: string }[];
     viewport: Viewport;
+    /** The neutral zone between the structure and the audible (decades: towerlayout.ts towerY). */
+    zone?: number;
     mode?: SkyMode;
   } = $props();
 
@@ -44,11 +48,14 @@
   let w = $state(0);
   let h = $state(0);
   let canvas = $state<HTMLCanvasElement>();
+  // (the spires on a canvas of their own, at the screen's resolution: dots and hairlines, sharp)
+  let crisp = $state<HTMLCanvasElement>();
+  const dpr = typeof devicePixelRatio === 'number' ? devicePixelRatio : 1;
   // (the light, a layer of its own: softened before it is laid over the sky)
   let light: HTMLCanvasElement | undefined;
 
   const band = (b: number) => Math.log10(bandFreq(b, BANDS));
-  const yOf = (d: number) => towerY(d) * viewport.zoom + viewport.y;
+  const yOf = (d: number) => towerY(d, zone) * viewport.zoom + viewport.y;
   const sx = (x: number) => x * viewport.zoom + viewport.x;
 
   // (each band its note's colour by its octave: full in the fourth, darker below, brighter above)
@@ -62,7 +69,7 @@
     g.setTransform(RES, 0, 0, RES, 0, 0);
     g.globalCompositeOperation = 'source-over';
     g.clearRect(0, 0, w, h);
-    const half = Math.max(0.5, (towerY(band(1)) - towerY(band(0))) * viewport.zoom * 0.5);
+    const half = Math.max(0.5, (towerY(band(1), zone) - towerY(band(0), zone)) * viewport.zoom * 0.5);
     const audible = (b: number) => {
       const f = bandFreq(b, BANDS);
       return f >= 20 && f <= 20000;
@@ -96,7 +103,7 @@
     lg.clearRect(0, 0, w, h);
     lg.globalCompositeOperation = 'lighter';
     const reach = 1100 * viewport.zoom;
-    const masts: { x: number; lo: number; hi: number; tint: readonly number[]; l: Float32Array; r: Float32Array; rest: boolean; dim: boolean }[] = [];
+    const masts: { x: number; hz: number | null; tint: readonly number[]; l: Float32Array; r: Float32Array; rest: boolean; dim: boolean }[] = [];
     for (const s of spires) {
       const x = sx(s.x);
       if (x < -reach || x > w + reach) continue;
@@ -104,12 +111,10 @@
       const { left, right, rest } = heard(ctx, s.source, BANDS);
       const tint = outRgb(ctx, s.source);
       let lo = -1;
-      let hi = -1;
       for (let b = 0; b < BANDS; b++) {
         const v = Math.max(left[b], right[b]);
         if (!audible(b) || v <= 0.02) continue;
         if (lo < 0) lo = b;
-        hi = b;
         const y = yOf(band(b));
         if (y < -half || y > h + half) continue;
         const colour = !tint || mode === 'rainbow' ? hues[b] : mode === 'mix' ? mixed(tint, hues[b], 0.5) : tint;
@@ -128,7 +133,7 @@
           lg.fillRect(side < 0 ? x - len : x, y - half, len, 2 * half);
         }
       }
-      if (lo >= 0) masts.push({ x, lo, hi, tint: tint ?? hues[lo], l: left, r: right, rest, dim });
+      if (lo >= 0) masts.push({ x, hz: noteHz(ctx, s.source), tint, l: left, r: right, rest, dim });
     }
     sky.setTransform(1, 0, 0, 1, 0, 0);
     sky.globalCompositeOperation = 'lighter';
@@ -138,35 +143,23 @@
     sky.drawImage(light, 0, 0);
     sky.filter = 'none';
     sky.setTransform(RES, 0, 0, RES, 0, 0);
-    // the spires over the light: a mast from its lowest band to its highest, its levels as bars at their heights
-    g.globalCompositeOperation = 'source-over';
+    // the spires over the light: its fundamental a big dot, a hairline up its range, a dot a partial (spire.ts)
+    const t = crisp?.getContext('2d');
+    if (!t) return;
+    t.setTransform(dpr, 0, 0, dpr, 0, 0);
+    t.clearRect(0, 0, w, h);
     for (const m of masts) {
-      const top = yOf(band(m.hi)) - half;
-      const foot = yOf(band(m.lo)) + half;
-      g.strokeStyle = css(m.tint, m.dim ? 0.25 : 0.7);
-      g.lineWidth = 1.5;
-      g.beginPath();
-      g.moveTo(m.x, foot);
-      g.lineTo(m.x, top);
-      g.stroke();
-      const arm = 18 * Math.max(0.6, viewport.zoom);
-      for (let b = m.lo; b <= m.hi; b++) {
-        const y = yOf(band(b));
-        for (const [side, lv] of [
-          [-1, m.l[b]],
-          [1, m.r[b]],
-        ] as const) {
-          if (lv <= 0.04) continue;
-          g.fillStyle = css(m.tint, m.dim ? 0.2 : m.rest ? 0.5 : 0.55 + 0.45 * lv);
-          const len = lv * arm;
-          g.fillRect(side < 0 ? m.x - len : m.x, y - half * 0.7, len, Math.max(1, half * 1.4));
-        }
-      }
+      const s = spireOf(
+        m.l.map((v, b) => Math.max(v, m.r[b] ?? 0)),
+        m.hz,
+        BANDS,
+      );
+      if (s) drawSpire(t, m.x, (b) => yOf(band(b)), s, Math.max(4, 14 * viewport.zoom), m.tint, m.dim ? 0.3 : m.rest ? 0.7 : 1);
     }
   }
 
   $effect(() => {
-    void [viewport.x, viewport.y, viewport.zoom, spires, mode, w, h, ctx.program, ctx.shifts, ctx.state, ctx.muted, canvas];
+    void [viewport.x, viewport.y, viewport.zoom, spires, mode, w, h, ctx.program, ctx.shifts, ctx.state, ctx.muted, canvas, crisp];
     draw();
   });
   let stop = () => {};
@@ -183,6 +176,7 @@
 <div class="sky" bind:clientWidth={w} bind:clientHeight={h} data-sky={mode}>
   {#if w && h}
     <canvas bind:this={canvas} width={Math.ceil(w * RES)} height={Math.ceil(h * RES)} style:width="{w}px" style:height="{h}px"></canvas>
+    <canvas class="crisp" bind:this={crisp} width={Math.ceil(w * dpr)} height={Math.ceil(h * dpr)} style:width="{w}px" style:height="{h}px"></canvas>
   {/if}
 </div>
 
@@ -194,5 +188,9 @@
   }
   canvas {
     display: block;
+  }
+  .crisp {
+    position: absolute;
+    inset: 0;
   }
 </style>

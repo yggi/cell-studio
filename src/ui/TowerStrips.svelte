@@ -23,17 +23,21 @@
   import { TOWER_ZONES } from '../layout/tower';
   import { onFrames } from '../audio/ticker';
   import { noteHsl } from './theme';
-  import { heard, noteOf } from './heard';
+  import { heard, noteHz, noteOf, outRgb } from './heard';
+  import { drawSpire, spireOf } from './spire';
 
   let {
     ins,
     viewport,
+    zone = 0,
     open,
     ontoggle,
     sum = 'stack',
   }: {
     ins: readonly TowerIn[];
     viewport: Viewport;
+    /** The neutral zone between the structure and the audible (decades: towerlayout.ts towerY). */
+    zone?: number;
     open: boolean;
     ontoggle: () => void;
     /** The sum: `stack`, each band's bar split into its sources' shares, each in its colour; `max`, the loudest, in the band's. */
@@ -48,7 +52,7 @@
   const dpr = typeof devicePixelRatio === 'number' ? devicePixelRatio : 1;
 
   // (the screen's y for a height on the tower, decades: the graph's y, panned and zoomed)
-  const yOf = (d: number) => towerY(d) * viewport.zoom + viewport.y;
+  const yOf = (d: number) => towerY(d, zone) * viewport.zoom + viewport.y;
   const css = (name: string) => (typeof getComputedStyle !== 'undefined' && canvas ? getComputedStyle(canvas).getPropertyValue(name).trim() : '') || '#888';
 
   // what a source sounds on each side now: levels per band (0 … 1), live or at rest (faint); nothing on a half it
@@ -89,7 +93,7 @@
     g.setTransform(dpr, 0, 0, dpr, 0, 0);
     g.clearRect(0, 0, W, h);
     const band = (b: number) => Math.log10(bandFreq(b, BANDS));
-    const half = (towerY(band(1)) - towerY(band(0))) * viewport.zoom * 0.5;
+    const half = (towerY(band(1), zone) - towerY(band(0), zone)) * viewport.zoom * 0.5;
     // the audible: the rainbow, a band a semitone
     for (let b = 0; b < BANDS; b++) {
       const f = bandFreq(b, BANDS);
@@ -100,15 +104,28 @@
       g.fillRect(0, y + half, W, -2 * half);
     }
     // the zones, a rail at the outer edge
-    const zone = (name: string) => css(name === 'slow' ? '--meter-2' : name === 'pulse' ? '--meter-1' : '--accent');
+    const zoneColour = (name: string) => css(name === 'slow' ? '--meter-2' : name === 'pulse' ? '--meter-1' : '--accent');
     TOWER_ZONES.forEach((z, i) => {
       const lo = Math.max(-8, z.from);
-      const hi = TOWER_ZONES[i + 1]?.from ?? Math.log10(20000);
-      g.fillStyle = zone(z.name);
+      const hi = (TOWER_ZONES[i + 1]?.from ?? Math.log10(20000)) - 1e-9;
+      g.fillStyle = zoneColour(z.name);
       g.globalAlpha = 0.8;
       g.fillRect(W - 6, yOf(hi), 4, yOf(lo) - yOf(hi));
       g.globalAlpha = 1;
     });
+    // the neutral zone between the structure and the audible: off the scale, where the voices and mixers stand
+    if (zone > 0) {
+      const z0 = yOf(Math.log10(20));
+      const z1 = yOf(Math.log10(20) - 1e-9);
+      g.fillStyle = css('--bg');
+      g.fillRect(0, z0, W, z1 - z0);
+      if (open && z1 - z0 > 40) {
+        g.fillStyle = css('--text-muted');
+        g.font = '10px system-ui, sans-serif';
+        g.textAlign = 'center';
+        g.fillText('voices · mixers', cx, (z0 + z1) / 2);
+      }
+    }
     // the halves: the centre line through the audible
     g.strokeStyle = css('--line');
     g.lineWidth = 1;
@@ -142,7 +159,7 @@
       for (let b = 0; b < BANDS; b++) {
         const vs = each.map((e) => (side === 'left' ? e.l : e.r)[b]);
         const top = Math.max(0, ...vs);
-        if (top <= 0.02) continue;
+        if (top <= 0.02 || bandFreq(b, BANDS) < 20 || bandFreq(b, BANDS) > 20000) continue;
         const y = yOf(band(b));
         if (y < -10 || y > h + 10) continue;
         const len = top * room;
@@ -166,48 +183,30 @@
         g.globalAlpha = 1;
       }
     }
-    // each source's connector at the inner edge: a line over its range (the sources of one net side by side), a dot
-    // where its net comes in
+    // each out's marker at the inner edge: its spire (spire.ts: its fundamental a big dot, swelling with its level, a
+    // hairline up its range, a dot a partial), the outs of one row side by side; opened, their names stacked by it
     const nets = towerNets(ins);
     for (const net of nets) {
       const y0 = net.top * viewport.zoom + viewport.y;
       net.taps.forEach((o, k) => {
         const e = each.find((x) => x.o.id === o.id)!;
-        const l = e.l.map((v: number, b: number) => Math.max(v, e.r[b]));
-        // (its range: the bands within about 30 dB of its loudest, not the FFT's floor)
-        const peak = Math.max(...l);
-        let lo = -1;
-        let hi = -1;
-        for (let b = 0; b < BANDS; b++)
-          if (peak > 0.05 && l[b] > peak - 0.43) {
-            if (lo < 0) lo = b;
-            hi = b;
-          }
-        const x = 2.5 + k * 4;
-        g.strokeStyle = e.colour;
-        g.lineWidth = 3;
-        g.beginPath();
-        g.moveTo(x, lo >= 0 ? Math.min(y0, yOf(band(hi))) : y0);
-        g.lineTo(x, lo >= 0 ? Math.max(y0, yOf(band(lo))) : y0);
-        g.stroke();
+        const s = spireOf(
+          e.l.map((v: number, b: number) => Math.max(v, e.r[b] ?? 0)),
+          noteHz(ctx, o.name),
+          BANDS,
+        );
+        const x = 6 + k * 9;
+        const off = nodeState(ctx, `cell:${o.name}`) === 'off';
+        if (s) drawSpire(g, x, (b) => yOf(band(b)), s, 4, outRgb(ctx, o.name), off ? 0.3 : 1);
+        if (open) {
+          g.fillStyle = e.colour;
+          g.font = '700 10px system-ui, sans-serif';
+          g.textAlign = 'left';
+          g.fillText(o.name, 8 + net.taps.length * 9, y0 + 3 + (k - (net.taps.length - 1) / 2) * 11);
+        }
       });
-      // (the marker: a notch at the inner edge pointing in, level with the sockets, in the first one's colour)
-      g.fillStyle = each.find((x) => x.o.id === net.taps[0].id)!.colour;
-      g.beginPath();
-      g.moveTo(0, y0 - 6);
-      g.lineTo(8, y0);
-      g.lineTo(0, y0 + 6);
-      g.closePath();
-      g.fill();
-      if (open) {
-        g.fillStyle = css('--text');
-        g.font = '700 10px system-ui, sans-serif';
-        g.textAlign = 'left';
-        g.fillText(net.taps.map((t) => t.name).join(' · '), 12, y0 - 5);
-        g.font = '10px system-ui, sans-serif';
-        g.textAlign = 'right';
-      }
     }
+    g.font = '10px system-ui, sans-serif';
     // the halves named, the zones named (opened)
     g.fillStyle = css('--text-muted');
     g.font = '700 10px system-ui, sans-serif';
@@ -217,10 +216,10 @@
     if (open)
       TOWER_ZONES.forEach((z, i) => {
         const lo = Math.max(-6, z.from);
-        const hi = TOWER_ZONES[i + 1]?.from ?? Math.log10(20000);
+        const hi = (TOWER_ZONES[i + 1]?.from ?? Math.log10(20000)) - 1e-9;
         const y = (yOf(lo) + yOf(hi)) / 2;
         if (y < 0 || y > h) return;
-        g.fillStyle = zone(z.name);
+        g.fillStyle = zoneColour(z.name);
         g.font = '700 11px system-ui, sans-serif';
         g.setTransform(dpr, 0, 0, dpr, (W - 16) * dpr, y * dpr);
         g.rotate(-Math.PI / 2);

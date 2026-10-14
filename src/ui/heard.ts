@@ -49,15 +49,21 @@ export function heard(ctx: GraphContext, source: string, bands: number): Heard {
   return { left, right, rest, drums };
 }
 
+/** A source's note now (Hz), playing; its base frequency stopped; null for what has none (drums, noise). */
+export function noteHz(ctx: GraphContext, source: string): number | null {
+  const f = ctx.state !== 'stopped' ? ctx.sound.note(source) : null;
+  const hz = f ?? ctx.program.cells.get(source)?.freq ?? 0;
+  return hz > 0 ? hz : null;
+}
+
 /**
  * A source's note now (its base frequency stopped) as its colour's hue, saturation and lightness: its pitch class's
  * hue, by its octave (C4 … B4 full, darker below, brighter above: noteHsl); null for what has no note (drums, noise).
  * The one colour of an out: its socket's meter, its spire and its light, its share of the strip's sum.
  */
 function noteHslOf(ctx: GraphContext, source: string): [number, number, number] | null {
-  const f = ctx.state !== 'stopped' ? ctx.sound.note(source) : null;
-  const hz = f ?? ctx.program.cells.get(source)?.freq ?? 0;
-  if (!(hz > 0)) return null;
+  const hz = noteHz(ctx, source);
+  if (hz === null) return null;
   const midi = Math.round(69 + 12 * Math.log2(hz / 440));
   return noteHsl((((midi % 12) + 12) % 12) * 30, false, Math.floor(midi / 12) - 5);
 }

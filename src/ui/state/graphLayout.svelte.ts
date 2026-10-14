@@ -85,6 +85,8 @@ export class GraphLayout {
   mode = $state<LayoutMode>('flow');
   /** In the tower layout: what goes into the sound card (its node not drawn), as wires into the strips. */
   outs = $state.raw<readonly TowerOut[]>([]);
+  /** The tower layout's neutral zone (decades, towerLayers): where the voices and mixers stand, the scale lifted over it. */
+  zone = $state(0);
   /** (the tower layout) Each selector's loom over its table: its strands (taploom.ts), laid again as things move. */
   looms = $state.raw<readonly Loom[]>([]);
   /** Pinned by the user (or held where they were dropped, or a turntable: see `#placed`). */
@@ -139,6 +141,7 @@ export class GraphLayout {
     this.outs = tower ? towerOuts(given.program, given.model) : [];
     if (tower) {
       const layered = towerLayers(next.program, given.model, m);
+      this.zone = layered.zone;
       layout.setOptions({
         heights: layered.targets,
         held: layered.held,

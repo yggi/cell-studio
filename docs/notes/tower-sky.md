@@ -97,6 +97,31 @@ Now: a notch at the strip's inner edge, level with the sockets, pointing in, in 
 4. **The range lines** sit under the left half's bars and get lost there. Recommended: drop them; the spire shows the range in the graph, and the stacked sum shows it in the strip.
 5. **Live**: the notch could pulse with its source's level, the strip's markers acting as the outs' meters when the graph is scrolled away from them.
 
+### Chosen (the owner) and built
+
+1. **B**, a marker each.
+2. **A**, the kit's own name.
+3. **Every socket at its fundamental**, with a **neutral zone** (below).
+4. **One glyph for an out, the spire**: a big dot at its fundamental, a hairline up over its range, a dot on each partial as big as it is strong (`ui/spire.ts`: `spireOf` finds the partials, the peaks of what it hears; `drawSpire` draws them). The same glyph stands in the sky over the socket (at the graph's zoom) and marks it on the strip (small, side by side with the others of its row, the names stacked by them when the strip is opened). It replaces the bars, the range lines and the notch.
+5. **B**: live, the big dot swells and brightens with the out's level.
+
+Seen: where several outs share one row (Hypercell's stab, pad and riser on C4, a row of their own over the bass part's and the drums' at C2), the stacked names crowd each other in the opened strip.
+
+## The neutral zone: every socket at its fundamental
+
+The owner's correction to the layout's rule: between the structure (under 20 Hz) and the audible (from 20 Hz) a **neutral zone**, off the scale, where the voices and the mixers stand (the gates' row under them, then the voices', then the mixers'), so they don't push into the structure. The audible goes down to 20 Hz on its own scale over it, and **every socket sits at its sound's own frequency**: nothing is lifted to a floor.
+
+- `towerY(d, zone)` (`layout/towerlayout.ts`): under 20 Hz the scale as it was; from 20 Hz up, lifted by the zone. Each part of the scale stays even. `towerLayers` lays the zone's rows and returns its height (`zone`, decades), and the strip and the sky draw on the same scale (`GraphLayout.zone`). The strip leaves the zone blank (*voices · mixers*, opened).
+- The zone's rows: the gates' half a layer over 20 Hz, the voices half a layer or a layer over them (room for a player under its kit), the mixers a decade over the voices, the audible a layer over the mixers.
+- Before, a socket stood at its sound's frequency or at the audible's floor, a layer over the mixers, when that was higher: 39 of the library's 237 sockets were lifted, and the voices' row hung between the structure's top and the lowest socket.
+
+| tower layout (77 pieces × 3 seeds) | crossings | cost | area Mpx² | pieces with an overlap |
+|---|---|---|---|---|
+| sockets lifted to the floor (before) | 45.7 | 112.2 | 108.8 | 2.7 |
+| **the neutral zone, every socket at its fundamental** | **42.3** | **103.1** | 136.4 | 2.7 |
+
+(`node tools/probe/parallel.mjs out.txt`, `VARIANTS=1,2`.) It crosses less (Korobeiniki 5.7 → 2.3, Resonanz 11 → 10, Baustelle 5.0 → 4.7; Hypercell 3.7 → 4.0), and the graph is taller by a quarter: the audible is on its real scale over the zone, and the structure no longer reaches up to the voices.
+
 ## 5. One tiered strip for the graph and the time view (proposed)
 
 Three things draw the tower's scale today, each its own way:
@@ -123,7 +148,7 @@ Then the strata line up across both views: the sky in the graph is the time view
 
 ## Next
 
-1. The owner chooses: the socket as a foot or a meter; the markers' options (4).
+1. The socket's round meter and its spire now say the same thing: the socket could become the spire's big dot.
 2. The time view's voices are a hue each (golden angle), not their notes: align them with the graph's (the colour table, [ui/theme.md](../ui/theme.md#colour-rules)).
 3. Profile the sky while playing (the profile skill) before it goes on by default.
 4. The tiered strip (5), its own issue.

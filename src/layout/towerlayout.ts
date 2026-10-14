@@ -15,11 +15,21 @@ import { socketOf, VOICE_SIZE } from './voice';
 /** Pixels to a decade on the tower, the same in the graph and on its strips (even: the rainbow keeps its width). */
 const TOWER_PX = 360;
 
-/** The graph's y (down positive) for a height on the tower, in decades (log10 Hz). */
-export const towerY = (decades: number) => -decades * TOWER_PX;
+/** Where the audible begins (decades: 20 Hz). */
+const HEARING = Math.log10(20);
 
-/** The height on the tower (decades) for the graph's y: towerY's inverse. */
+/**
+ * The graph's y (down positive) for a height on the tower, in decades (log10 Hz). `zone`: the neutral zone's height
+ * (decades, `towerLayers`): between the structure under 20 Hz and the audible from it, where the voices and the
+ * mixers stand, off the scale; the audible is lifted by it. Each part of the scale stays even.
+ */
+export const towerY = (decades: number, zone = 0) => -(decades >= HEARING ? decades + zone : decades) * TOWER_PX;
+
+/** The height on the tower (decades) for the graph's y, with no neutral zone: towerY's inverse. */
 export const towerAt = (y: number) => -y / TOWER_PX;
+
+/** The graph's y for a row in the layers' own frame (decades with the neutral zone in them). */
+const rowY = (u: number) => -u * TOWER_PX;
 
 /** The sound card's nodes (a sink, a mix written as one): drawn as the strips, not as a node. */
 const cards = (model: GraphModel) => new Set(model.nodes.flatMap((n) => (n.cell?.sink ? [n.id] : [])));
@@ -191,6 +201,8 @@ export function towerLayers(
   // (mixers: false, a mix with the voices; lift: false, every table nothing steps at the bottom — the probe's comparisons)
   { mixers = true, lift = true }: { readonly mixers?: boolean; readonly lift?: boolean } = {},
 ): {
+  /** The neutral zone's height (decades): towerY's `zone`. */
+  zone: number;
   targets: Map<string, number>;
   layers: Map<string, TowerLayer>;
   held: Set<string>;
@@ -279,11 +291,8 @@ export function towerLayers(
   }
   const of = (layer: TowerLayer) => [...layers].flatMap(([id, l]) => (l === layer && decades.has(id) ? [decades.get(id)!] : []));
   const stepped = of('stepped');
-  const audible = of('audible');
   const top = stepped.length ? Math.max(...stepped) : 0;
   const bottom = stepped.length ? Math.min(...stepped) : 0;
-  // (the voices: a row between the structure's top and the lowest socket, a layer's gap over the structure at least)
-  const voice = Math.max(top + LAYER_GAP, audible.length ? (top + Math.min(...audible)) / 2 : top + LAYER_GAP);
   const voiceOf = new Map(drawn.nodes.flatMap((n) => (n.kind === 'junction' ? [[n.id, cellId(n.voice)] as const] : [])));
   // (a column: a voice or a kit and the one cell that plays it, alone in playing it — a melody through its product's
   // junction, a groove reading its kit — one x, so the wire between them runs straight up)
@@ -302,15 +311,22 @@ export function towerLayers(
     const j = via.get(lo);
     return his.size === 1 && players.get(hi)?.size === 1 ? [{ lo, hi, ...(j ? { via: j } : {}) }] : [];
   });
-  // (the players' row half a layer under the voices; a whole one when a player stands under its kit: room for the kit's
-  // wheel, its name and the player's wheel)
-  const gate = voice - (columns.some((c) => !c.via) ? LAYER_GAP : LAYER_GAP / 2);
+  // The neutral zone (the owner's): from 20 Hz, between the structure and the audible, off the scale — the gates' row,
+  // the voices', the mixers', from the bottom; the audible over it, every socket at its sound's own frequency. Its rows
+  // in the layers' own frame (decades, the zone in them: `rowY`): the structure under 20 Hz as it is, the audible
+  // lifted by the zone. (The players' row half a layer under the voices; a whole one when a player stands under its
+  // kit: room for the kit's wheel, its name and the player's wheel.)
+  const gates = [...layers.values()].includes('gate');
+  const gate = HEARING + LAYER_GAP / 2;
+  const voice = gates ? gate + (columns.some((c) => !c.via) ? LAYER_GAP : LAYER_GAP / 2) : HEARING + LAYER_GAP / 2;
   // (the mixers a layer's gap over the voices, when there are any)
   const mixer = voice + MIX_GAP;
   const mixes = [...layers.values()].includes('mixer');
-  // (every socket in the audible, a layer's gap over the mixers (or the voices) at least: at its sound's frequency, or
-  // the audible's floor when that is lower — a groove's lowest drum)
+  // (the audible a layer's gap over the mixers, or the voices)
   const floor = (mixes ? mixer : voice) + LAYER_GAP;
+  const zone = floor - HEARING;
+  // (a real height in the layers' frame: the audible lifted by the zone)
+  const lifted = (d: number) => (d >= HEARING ? d + zone : d);
   // (under the stepped structure, the selectors, their sources, then the constant)
   const selects = [...layers.values()].includes('selector');
   const fed = [...layers.values()].includes('source');
@@ -320,7 +336,7 @@ export function towerLayers(
   const row = (id: string, l: TowerLayer): number =>
     l === 'voice'
       ? decades.has(id)
-        ? decades.get(id)!
+        ? lifted(decades.get(id)!)
         : voice
       : l === 'mixer'
         ? mixer
@@ -333,14 +349,15 @@ export function towerLayers(
               : l === 'source'
                 ? source
                 : l === 'audible'
-                  ? Math.max(floor, decades.get(id)!)
+                  ? lifted(Math.max(HEARING, decades.get(id)!))
                   : (decades.get(id) ?? top);
   // (each stratum's band, in decades, its edges halfway between the rows)
   const edges = {
-    audible: floor - LAYER_GAP / 2,
+    audible: floor - LAYER_GAP / 4,
     mixer: voice + MIX_GAP / 2,
     voice: voice - LAYER_GAP / 4,
-    gate: (top + gate) / 2,
+    // (the zone's floor: nothing in it pushes into the structure, nothing of the structure rises into it)
+    gate: HEARING,
     stepped: bottom - LAYER_GAP / 2,
     selector: selector - LAYER_GAP / 2,
     source: source - LAYER_GAP / 2,
@@ -359,10 +376,10 @@ export function towerLayers(
   const targets = new Map<string, number>();
   const strata = new Map<string, readonly [number, number]>();
   for (const [id, l] of layers) {
-    targets.set(id, towerY(row(id, l)));
+    targets.set(id, rowY(row(id, l)));
     // (a wave in the voices: its own height is its band's top)
     const [hi, lo] = band[l];
-    strata.set(id, [towerY(Math.max(hi, l === 'voice' ? row(id, l) : hi)), towerY(lo)]);
+    strata.set(id, [rowY(Math.max(hi, l === 'voice' ? row(id, l) : hi)), rowY(lo)]);
   }
   // (held at their heights, not drawn there: all but the structure, drawn by the spring — the structure's wires (a
   // bar's steps, a selector's taps) pull it down; the voices held too, or the sockets above draw them into the mixers' air)
@@ -375,5 +392,5 @@ export function towerLayers(
     const from = owner.get(e.source) ?? e.source;
     if (from !== e.target) between.set(e.target, [...new Set([...(between.get(e.target) ?? []), from])]);
   }
-  return { targets, layers, held, strata, between, lineUp, aside, columns };
+  return { zone, targets, layers, held, strata, between, lineUp, aside, columns };
 }

@@ -441,7 +441,7 @@
 >
   {#if hasMargin}<Margin model={shown.model} heightOf={(id) => layout.position(id)?.y} settled={layout.fitToken} onlight={(id) => (sideLit = id)} />{/if}
   <div class="flow" bind:clientWidth={flowW}>
-    {#if sky}<TowerSky {spires} {viewport} mode={skyMode as SkyMode} />{/if}
+    {#if sky}<TowerSky {spires} {viewport} zone={layout.zone} mode={skyMode as SkyMode} />{/if}
     <SvelteFlow
       bind:nodes={layout.nodes}
       bind:edges={layout.edges}
@@ -490,7 +490,7 @@
     </SvelteFlow>
   </div>
   {#if towered}
-    <TowerStrips {ins} {viewport} sum={QUERY?.get('sum') === 'max' ? 'max' : 'stack'} open={stripsOpen} ontoggle={() => (stripsOpen = !stripsOpen)} />
+    <TowerStrips {ins} {viewport} zone={layout.zone} sum={QUERY?.get('sum') === 'max' ? 'max' : 'stack'} open={stripsOpen} ontoggle={() => (stripsOpen = !stripsOpen)} />
   {/if}
   {#if towerShown}
     <TowerAxis model={shown.model} program={shown.program} nodes={layout.nodes} {viewport} focus={selectedName ?? towerCell} right={cardCover} />
