@@ -10,7 +10,8 @@ import { NOTE_NAMES, mod, modeName } from '@yggi/cells/theory/modes';
 import { playedCells } from '@yggi/cells/engine/clocking';
 import { flatten, tapped } from '@yggi/cells/engine/flatten';
 import { resolveIn } from '@yggi/cells/engine/helix';
-import { isTurntable } from '@yggi/cells/engine/graph';
+import { isTurntable, writtenGraph, type WrittenGraph } from '@yggi/cells/engine/graph';
+import { cellId } from '@yggi/cells/engine/ids';
 import { bulbHosts } from './drawn';
 import { gateOf } from './gate';
 import { bulbsOf, fanOf, type Bulb } from './track';
@@ -45,7 +46,8 @@ function plainTable(result: CompileResult, name: string): boolean {
 }
 
 export type Fill =
-  | { kind: 'pitch'; hue: number; octave?: number; alter?: number }
+  /** unit: a 0 that means nothing but now (`blank`), drawn white: nothing to tell apart. */
+  | { kind: 'pitch'; hue: number; octave?: number; alter?: number; unit?: true }
   | { kind: 'rest' }
   | { kind: 'ref' }
   | { kind: 'beat'; down: boolean }
@@ -134,8 +136,39 @@ export function drawnOf(result: CompileResult, name: string): string {
   return tape && typeof tape.params.write === 'string' && result.cells.has(tape.params.write) ? tape.params.write : name;
 }
 
+/**
+ * Whether a cell's 0 means nothing but "now" (decision 036: white, not red): every step 0, rests aside, and another
+ * value would mean nothing different, since nothing reads it as a pitch or a choice — the cell has a clock of its own
+ * (it isn't spliced into a melody), everything that leaves it is a clock's tick (a section's clock, a reel's motor,
+ * a tap into its table), and the only table it reads is a kit of one drum (a groove of one drum: its sound goes on). Any other value is a value: coloured. Checked over the
+ * library by playing each such cell with 7 for 0 (tools/probe/colours.test.ts).
+ */
+export function blank(result: CompileResult, name: string): boolean {
+  const c = result.cells.get(name);
+  if (!c?.clock || c.voice || c.kit || c.mix) return false;
+  if (c.over && (result.cells.get(c.over)?.kit ? result.cells.get(c.over)!.units.length > 1 : true)) return false;
+  const atoms = c.units.map((u) => u.atom).filter((a) => a.kind !== 'rest');
+  if (!atoms.length || !atoms.every((a) => a.kind === 'note' && a.value === 0 && a.alter === 0)) return false;
+  const id = cellId(name);
+  // (what it may go into besides a tick: the table of taps it is a section of, the one drum's kit it plays)
+  const ok = new Set([result.taps?.get(name), c.over].flatMap((t) => (t ? [cellId(t)] : [])));
+  // (a groove's own sound, into a mix, is not its value read)
+  return writtenOf(result).edges.every((e) => e.from !== id || e.to === id || e.band === 'sync' || ok.has(e.to) || (!!c.over && e.band === 'audio'));
+}
+
+// (the written graph of a program, once: what reads what)
+const written = new WeakMap<CompileResult, WrittenGraph>();
+const writtenOf = (result: CompileResult) => written.get(result) ?? written.set(result, writtenGraph(result)).get(result)!;
+
 /** What a cell's wheel draws; null for a name the program doesn't have (one piece's name asked of another's program). */
 export function cellView(result: CompileResult, name: string, shifts: Shifts, isMeter: boolean): CellView | null {
+  const v = viewOf(result, name, shifts, isMeter);
+  if (!v || !blank(result, name)) return v;
+  // (a 0 that means nothing but now: white, on the wheel and on what it sends)
+  return { ...v, segments: v.segments.map((s) => ({ ...s, bands: s.bands.map((b) => (b.kind === 'pitch' ? { ...b, unit: true as const } : b)) })) };
+}
+
+function viewOf(result: CompileResult, name: string, shifts: Shifts, isMeter: boolean): CellView | null {
   const c = result.cells.get(name);
   if (!c) return null;
   const shift = shifts(name);
@@ -439,4 +472,55 @@ export function lfoValues(result: CompileResult, name: string, shifts: Shifts): 
   const rate = !clock || !perLap ? '' : c.clock === name || !clock.positional ? `${fmt(clock.perSecond / perLap)} Hz` : `${fmt(perLap)} beats`;
   const swing = Math.abs(lo + hi) < 1e-9 ? `±${fmt(hi)}` : `${fmt(lo)}–${fmt(hi)}`;
   return { wave: raw.map((x) => (x - lo) / span), rate, swing };
+}
+
+/** One value a wheel takes (`valueSpectrum`): how it is drawn, and its share of the wheel's lap (0 … 1). */
+export interface ValueShare {
+  readonly key: string;
+  readonly fill: Fill;
+  readonly share: number;
+  /** A reference's entry (its unit): a table of taps' section. */
+  readonly index: number;
+}
+
+/** A fill's identity: two fills of one key are drawn alike. */
+const fillKey = (f: Fill) =>
+  f.kind === 'pitch'
+    ? `p${Math.round(f.hue)}/${f.octave ?? 0}/${f.alter ?? 0}${f.unit ? 'u' : ''}`
+    : f.kind === 'level'
+      ? `l${Math.round(f.v * 20)}`
+      : f.kind === 'beat'
+        ? `b${f.down}`
+        : f.kind;
+
+/** A value's key in a spectrum: a fill's, a reference's by its entry (a table of taps: each its section). */
+const keyOf = (f: Fill, index: number, byEntry = false) => (byEntry || f.kind === 'ref' ? `r${index}` : fillKey(f));
+
+/**
+ * A wheel's spectrum of values (the tower layout's strip, docs/notes/tower-sky.md): each value it takes and how much
+ * of its lap it holds it, rests aside, in the order of the values (pitches low to high, levels, beats). Its chords'
+ * notes each a value. `byEntry`: each entry a value of its own, whatever it draws (a table of taps: each its section).
+ */
+export function valueSpectrum(view: CellView, byEntry = false): ValueShare[] {
+  const by = new Map<string, { fill: Fill; w: number; index: number }>();
+  let all = 0;
+  for (const s of view.segments)
+    for (const f of s.bands) {
+      if (f.kind === 'rest') continue;
+      const k = keyOf(f, s.index, byEntry);
+      const w = (s.t1 - s.t0) / s.bands.length;
+      all += w;
+      const e = by.get(k);
+      if (e) e.w += w;
+      else by.set(k, { fill: f, w, index: s.index });
+    }
+  const rank = (f: Fill) => (f.kind === 'pitch' ? (f.octave ?? 0) * 360 + f.hue : f.kind === 'level' ? 1e4 + f.v : 2e4);
+  return [...by].map(([key, { fill, w, index }]) => ({ key, fill, index, share: all > 0 ? w / all : 0 })).sort((a, b) => rank(a.fill) - rank(b.fill) || a.index - b.index);
+}
+
+/** The key of the value a wheel holds at `t` (0 … 1 of its lap), to light it in its spectrum; null in a rest. */
+export function valueAt(view: CellView, t: number, byEntry = false): string | null {
+  const s = view.segments.find((x) => t >= x.t0 - 1e-9 && t < x.t1 - 1e-9);
+  const f = s?.bands.find((b) => b.kind !== 'rest');
+  return f && s ? keyOf(f, s.index, byEntry) : null;
 }

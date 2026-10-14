@@ -32,7 +32,7 @@ for (const t of titles) {
   await cdp.send('Performance.enable');
   await cdp.send('Emulation.setCPUThrottlingRate', { rate: Number(throttle) });
   const m = async () => Object.fromEntries((await cdp.send('Performance.getMetrics')).metrics.map((x) => [x.name, x.value]));
-  await p.getByRole('button', { name: 'Play' }).click();
+  await p.getByRole('button', { name: 'Play', exact: true }).click();
   await p.waitForTimeout(4000); // warm-up (reverb impulse, first windows)
   await p.evaluate(() => (window.__long.length = 0));
   const m0 = await m();

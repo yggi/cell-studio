@@ -6,7 +6,7 @@
    * left, the right to the right (mono: alike). Stopped, its source's own partials, faint; playing, what it sounds now.
    */
   import { Handle, Position, type NodeProps } from '@xyflow/svelte';
-  import { onDestroy, onMount } from 'svelte';
+  import { onDestroy, onMount, untrack } from 'svelte';
   import { getGraphContext, nodeState } from './context';
   import { heard, noteOf } from './heard';
   import { onFrames } from '../audio/ticker';
@@ -46,8 +46,8 @@
     const h = S * 0.62;
     const w = S * 0.62;
     const row = h / ROWS;
-    // (drums: no note of their own, the level's neutral)
-    const colour = drums ? css('--text') : (noteOf(ctx, data.source) ?? css('--text-muted'));
+    // (drums, noise: no note of their own, white — decision 036)
+    const colour = drums ? css('--unit') : (noteOf(ctx, data.source) ?? css('--unit'));
     g.strokeStyle = css('--line');
     g.lineWidth = 1;
     g.beginPath();
@@ -72,7 +72,8 @@
 
   $effect(() => {
     void [ctx.program, ctx.shifts, ctx.state, canvas, data.source];
-    draw();
+    // (only what is listed: what draw reads, the playheads among it, would draw it again each frame)
+    untrack(draw);
   });
   let stop = () => {};
   onMount(

@@ -75,6 +75,8 @@ on), the note colour on a live edge against its label's border, the pulse dot, d
 bend. To change how an edge looks, change `edges.css` or the component and re-run: the sheet is the spec.
 
 ## The golden graph
+The graph opens in the tower layout (its default); `LAYOUT=flow` takes these pictures (golden, zoom) in the signal path's layout, `STRIPS=1` with the strip opened.
+
 `tools/gallery/golden/golden.cells` is a piece like any other — Cells code, nothing else — given to the real `Graph` and
 laid out by the app as it lays out any piece: `node tools/gallery.mjs golden` takes one picture stopped and one at 3 s
 (`?t=`), 5616 × 3038 px each. `node tools/gallery.mjs golden 3 canon pertonos` draws those examples instead, each in the real Graph (stopped and live): a before / after of a drawing change on the pieces it touches; `CELLS=piece.cells node tools/gallery.mjs golden` draws a source of your own. So it tests the graph's structure (what the engine makes of the code) and its layout (what
