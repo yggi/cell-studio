@@ -256,3 +256,12 @@ describe("a wheel's spectrum of values", () => {
     expect(valueAt(v, 0.5)).toBeNull();
   });
 });
+
+describe("a selector's table of taps, as values", () => {
+  it('is a value an entry, each its section, though its steps all draw alike (beats)', () => {
+    const pop = compileSource(PRESETS.pop.source);
+    const v = cellView(pop, 'parts', codeShifts(pop), false)!;
+    expect(valueSpectrum(v)).toHaveLength(1);
+    expect(valueSpectrum(v, true).map((e) => e.index)).toEqual([0, 1, 2, 3, 4, 5]);
+  });
+});

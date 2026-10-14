@@ -203,6 +203,8 @@ export function towerLayers(
 ): {
   /** The neutral zone's height (decades): towerY's `zone`. */
   zone: number;
+  /** The neutral zone's rows (the graph's y): the gates', the voices', the mixers'. */
+  rows: { readonly gate: number; readonly voice: number; readonly mixer: number };
   targets: Map<string, number>;
   layers: Map<string, TowerLayer>;
   held: Set<string>;
@@ -392,5 +394,5 @@ export function towerLayers(
     const from = owner.get(e.source) ?? e.source;
     if (from !== e.target) between.set(e.target, [...new Set([...(between.get(e.target) ?? []), from])]);
   }
-  return { zone, targets, layers, held, strata, between, lineUp, aside, columns };
+  return { zone, rows: { gate: rowY(gate), voice: rowY(voice), mixer: rowY(mixer) }, targets, layers, held, strata, between, lineUp, aside, columns };
 }

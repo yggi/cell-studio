@@ -494,20 +494,20 @@ const fillKey = (f: Fill) =>
         : f.kind;
 
 /** A value's key in a spectrum: a fill's, a reference's by its entry (a table of taps: each its section). */
-const keyOf = (f: Fill, index: number) => (f.kind === 'ref' ? `r${index}` : fillKey(f));
+const keyOf = (f: Fill, index: number, byEntry = false) => (byEntry || f.kind === 'ref' ? `r${index}` : fillKey(f));
 
 /**
  * A wheel's spectrum of values (the tower layout's strip, docs/notes/tower-sky.md): each value it takes and how much
  * of its lap it holds it, rests aside, in the order of the values (pitches low to high, levels, beats). Its chords'
- * notes each a value.
+ * notes each a value. `byEntry`: each entry a value of its own, whatever it draws (a table of taps: each its section).
  */
-export function valueSpectrum(view: CellView): ValueShare[] {
+export function valueSpectrum(view: CellView, byEntry = false): ValueShare[] {
   const by = new Map<string, { fill: Fill; w: number; index: number }>();
   let all = 0;
   for (const s of view.segments)
     for (const f of s.bands) {
       if (f.kind === 'rest') continue;
-      const k = keyOf(f, s.index);
+      const k = keyOf(f, s.index, byEntry);
       const w = (s.t1 - s.t0) / s.bands.length;
       all += w;
       const e = by.get(k);
@@ -519,8 +519,8 @@ export function valueSpectrum(view: CellView): ValueShare[] {
 }
 
 /** The key of the value a wheel holds at `t` (0 … 1 of its lap), to light it in its spectrum; null in a rest. */
-export function valueAt(view: CellView, t: number): string | null {
+export function valueAt(view: CellView, t: number, byEntry = false): string | null {
   const s = view.segments.find((x) => t >= x.t0 - 1e-9 && t < x.t1 - 1e-9);
   const f = s?.bands.find((b) => b.kind !== 'rest');
-  return f && s ? keyOf(f, s.index) : null;
+  return f && s ? keyOf(f, s.index, byEntry) : null;
 }

@@ -155,6 +155,18 @@ The strip is locked to the graph's scale, so the zone is a band of its height on
 
 Recommended: **B**, with the lanes' names of A on its rows. Seen: Hypercell's parts are nearly all on C, so most of its bridges are red. Their places (the order across, the joins) tell them apart, not their colours.
 
+## The strip a minimap (2026-10-14)
+
+Chosen (the owner): **B with A's names**, the bridges straight: the outs in lanes, so the strip becomes a miniature of the tower graph. And (a correction to a first try that drew a spectrum a lane): **the spectrum stays combined**; the lanes are narrow, in a central column; the spectrum out from its sides, the left channel left, the right right.
+
+- **Lanes** (`layout/minimap.ts`): a lane an out, in its sections' order (`nodeSections`), then the graph's left to right; every node in the lanes of the outs it feeds (everything upstream of its socket; a groove upstream of the kit it plays, though it reads it with `over=`). A cell several outs share (`&bar`) spans their lanes.
+- **The column** (`TowerStrips.svelte`), bottom to top in each lane: the structure's cells at their rates, each its values as chips across its lanes, the one it holds now lit (the tables nothing steps at the bottom; a selector's table its sections in their tints); the neutral zone's rows, named (*gates*, *voices*, *mixers*), a gate a white dot, a voice a dot in its note, a mixer a square across the voices it mixes; the out's spire at its fundamental. **A bridge** runs straight up each lane, from its player (the highest cell in that lane alone) to its pitch.
+- **The spectrum**, all the outs together, as before: each band's bar as long as its loudest out, split into the outs' shares in their colours, in the lanes' order from the column out. Opened, each out is named at its fundamental, left of the column.
+
+![the strips at 30 s, opened: Pop, Cellscape, Hypercell, the waltz](tower-sky-minimap.jpg)
+
+Seen: Pop's four lanes (bass, keys, lead, the drums' kit), the drums' gates on their row under the voices; Hypercell's mixers over its voices; the waltz's three outs, one bridge each from `&tune`, `&oom` and `&pah`. Names at one height in other lanes are stacked; where many cells share a rate (Hypercell's at 5.3 Hz) the names make a short list beside the column.
+
 ## 5. One tiered strip for the graph and the time view (proposed)
 
 Three things draw the tower's scale today, each its own way:
@@ -181,8 +193,7 @@ Then the strata line up across both views: the sky in the graph is the time view
 
 ## Next
 
-1. The owner chooses how the strip closes the neutral zone (A, B, C).
-2. The socket's round meter and its spire now say the same thing: the socket could become the spire's big dot.
-3. The time view's voices are a hue each (golden angle), not their notes: align them with the graph's (the colour table, [ui/theme.md](../ui/theme.md#colour-rules)).
-4. Profile the sky while playing (the profile skill) before it goes on by default.
-5. The tiered strip (5), its own issue.
+1. The socket's round meter and its spire now say the same thing: the socket could become the spire's big dot.
+2. The time view's voices are a hue each (golden angle), not their notes: align them with the graph's (the colour table, [ui/theme.md](../ui/theme.md#colour-rules)).
+3. Profile the sky while playing (the profile skill) before it goes on by default.
+4. The tiered strip (5), its own issue; the minimap is most of it, for the graph.

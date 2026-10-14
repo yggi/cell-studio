@@ -46,6 +46,7 @@
   import TowerSky, { SKY_MODES, type SkyMode } from './TowerSky.svelte';
   import { nodeSections, tagSections } from './sections';
   import { towerOf } from '../layout/tower';
+  import { minimap } from '../layout/minimap';
   import TapLooms from './TapLooms.svelte';
   import { towerIns } from '../layout/towerlayout';
   import { pillAnchor } from '../layout/taploom';
@@ -343,6 +344,13 @@
   );
   // each node's section's tint (a selector's tap upstream of it, or its tag's): its wheel's accents wear it
   const sectionTints = $derived(new Map([...nodeSections(shown.program, shown.model)].map(([id, s]) => [id, tapTint(s.k, s.n)] as const)));
+  // the strip as a minimap (layout/minimap.ts): a lane each out, in its sections' order, then the graph's
+  const strip = $derived.by(() => {
+    if (!towered || !layout.drawnModel) return null;
+    const sections = nodeSections(shown.program, shown.model);
+    const x = (id: string) => layout.position(id)?.x ?? 0;
+    return minimap(layout.drawnModel, (source) => (sections.get(source)?.k ?? 1e3) * 1e6 + x(source));
+  });
   // the structure on the strip (TowerStrips.svelte): each stepped cell at its rate, the tables nothing steps at the
   // bottom (-Infinity), each showing its spectrum of values
   const structure = $derived.by(() => {
@@ -511,9 +519,11 @@
     <TowerStrips
       {ins}
       {structure}
+      map={strip}
+      layers={layout.layers}
+      rows={layout.rows}
       {viewport}
       zone={layout.zone}
-      sum={QUERY?.get('sum') === 'max' ? 'max' : 'stack'}
       open={stripsOpen}
       ontoggle={() => (stripsOpen = !stripsOpen)}
     />
