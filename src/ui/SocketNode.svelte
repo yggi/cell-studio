@@ -6,11 +6,10 @@
    * left, the right to the right (mono: alike). Stopped, its source's own partials, faint; playing, what it sounds now.
    */
   import { Handle, Position, type NodeProps } from '@xyflow/svelte';
-  import { onDestroy, onMount } from 'svelte';
+  import { onDestroy, onMount, untrack } from 'svelte';
   import { getGraphContext, nodeState } from './context';
-  import { bandsFromFFT, restingProfile } from '../layout/spectrum';
+  import { heard, noteOf } from './heard';
   import { onFrames } from '../audio/ticker';
-  import { noteColour } from './theme';
   import type { FlowNode } from './types';
 
   let { data }: NodeProps<Extract<FlowNode, { type: 'socket' }>> = $props();
@@ -39,30 +38,7 @@
     const S = data.size;
     g.setTransform(dpr, 0, 0, dpr, 0, 0);
     g.clearRect(0, 0, S, S);
-    const playing = ctx.state !== 'stopped';
-    // (what it hears: its source, or a groove's drums, which sound for it)
-    // (the drums' kit, or a groove read through one: its drums)
-    const own = ctx.program.cells.get(data.source);
-    const kit = own?.kit ? own : ctx.program.cells.get(own?.over ?? '');
-    const sources = kit?.kit ? kit.units.flatMap((u) => (u.atom.kind === 'ref' ? [u.atom.name] : [])) : [data.source];
-    const l = new Float32Array(BANDS);
-    const r = new Float32Array(BANDS);
-    const add = (a: Float32Array, b: Float32Array) => {
-      for (let i = 0; i < BANDS; i++) a[i] = Math.max(a[i], b[i]);
-    };
-    let rest = true;
-    for (const name of sources) {
-      const spec = playing ? ctx.sound.spectrum(name) : null;
-      if (spec) {
-        rest = false;
-        add(l, bandsFromFFT(spec.left, spec.sampleRate, BANDS));
-        add(r, bandsFromFFT(spec.right, spec.sampleRate, BANDS));
-      } else if (!playing) {
-        const p = restingProfile(ctx.program, name, ctx.shifts, BANDS);
-        add(l, p.left);
-        add(r, p.right);
-      }
-    }
+    const { left: l, right: r, rest, drums } = heard(ctx, data.source, BANDS);
     const L = octaves(l);
     const R = octaves(r);
     // (inside the disc: a square of rows, the centre line down its middle)
@@ -70,10 +46,8 @@
     const h = S * 0.62;
     const w = S * 0.62;
     const row = h / ROWS;
-    const f = playing ? ctx.sound.note(data.source) : null;
-    const hz = f ?? ctx.program.cells.get(data.source)?.freq ?? 0;
-    // (drums: no note of their own, the level's neutral)
-    const colour = kit?.kit ? css('--text') : hz > 0 ? noteColour(((((Math.round(12 * Math.log2(hz / 440)) + 9) % 12) + 12) % 12) * 30) : css('--text-muted');
+    // (drums, noise: no note of their own, white — decision 036)
+    const colour = drums ? css('--unit') : (noteOf(ctx, data.source) ?? css('--unit'));
     g.strokeStyle = css('--line');
     g.lineWidth = 1;
     g.beginPath();
@@ -98,7 +72,8 @@
 
   $effect(() => {
     void [ctx.program, ctx.shifts, ctx.state, canvas, data.source];
-    draw();
+    // (only what is listed: what draw reads, the playheads among it, would draw it again each frame)
+    untrack(draw);
   });
   let stop = () => {};
   onMount(

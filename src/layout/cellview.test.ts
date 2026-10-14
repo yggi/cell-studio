@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { SAILOR_WITH_KIT } from '@yggi/cells/engine/fixtures';
 import { compileSource } from '@yggi/cells/engine/compile';
 import { codeShifts, type Shifts } from '@yggi/cells/engine/program';
-import { cellView, drawnOf, hubLabel, isGrid, type CellView } from './cellview';
+import { blank, cellView, drawnOf, hubLabel, isGrid, valueAt, valueSpectrum, type CellView } from './cellview';
 import { PRESETS } from '@yggi/cells/engine/presets';
 
 const r = compileSource(PRESETS.royal.source);
@@ -223,5 +223,45 @@ describe('drawnOf', () => {
     expect(['near', 'mid', 'far'].map((n) => drawnOf(tape, n))).toEqual(['tune', 'tune', 'tune']);
     expect(drawnOf(r, 'theme')).toBe('theme');
     expect(drawnOf(r, 'noSuchCell')).toBe('noSuchCell');
+  });
+});
+
+describe('a 0 that means nothing but now is white (decision 036)', () => {
+  const of = (key: keyof typeof PRESETS) => compileSource(PRESETS[key].source);
+  it("is white where another value would change nothing: a section's clock, a groove of one drum", () => {
+    const pop = of('pop');
+    expect(blank(pop, 'bassBar')).toBe(true);
+    expect(blank(of('korobeiniki'), 'hats')).toBe(true);
+    const bands = cellView(pop, 'bassBar', codeShifts(pop), false)!.segments.flatMap((s) => s.bands);
+    expect(bands.every((b) => b.kind !== 'pitch' || b.unit)).toBe(true);
+  });
+  it('stays red where the 0 is a pitch or a choice: played on a voice, spliced, another drum; any other value is a value', () => {
+    expect(blank(of('hypercell'), 'off')).toBe(false);
+    expect(blank(of('waltz'), 'I')).toBe(false);
+    expect(blank(of('bossa'), 'rim')).toBe(false);
+    expect(blank(of('pop'), 'hats')).toBe(false);
+  });
+});
+
+describe("a wheel's spectrum of values", () => {
+  it('weighs each value by how long it holds it, rests aside, low to high, and finds the one it holds now', () => {
+    const p = compileSource('&bar step=2\n&t step=&bar 0 4 ~ 0@2');
+    const v = cellView(p, 't', codeShifts(p), false)!;
+    const s = valueSpectrum(v);
+    expect(s).toHaveLength(2);
+    expect(s[0]!.share).toBeCloseTo(3 / 4, 6);
+    expect(s[1]!.share).toBeCloseTo(1 / 4, 6);
+    expect(valueAt(v, 0.1)).toBe(s[0]!.key);
+    expect(valueAt(v, 0.3)).toBe(s[1]!.key);
+    expect(valueAt(v, 0.5)).toBeNull();
+  });
+});
+
+describe("a selector's table of taps, as values", () => {
+  it('is a value an entry, each its section, though its steps all draw alike (beats)', () => {
+    const pop = compileSource(PRESETS.pop.source);
+    const v = cellView(pop, 'parts', codeShifts(pop), false)!;
+    expect(valueSpectrum(v)).toHaveLength(1);
+    expect(valueSpectrum(v, true).map((e) => e.index)).toEqual([0, 1, 2, 3, 4, 5]);
   });
 });

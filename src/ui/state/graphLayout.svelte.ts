@@ -1,12 +1,12 @@
 import { PROBE_LAYOUT } from '../outputs';
 import type { Edge } from '@xyflow/svelte';
 import { SvelteSet } from 'svelte/reactivity';
-import { structureKey, type GraphNode } from '@yggi/cells/engine/graph';
+import { structureKey, type GraphModel, type GraphNode } from '@yggi/cells/engine/graph';
 import type { LiveState } from '@yggi/cells/engine/live';
 import { ForceLayout } from '../../layout/physics';
 import { DEFAULT_LAYOUT, TOWER_LAYOUT, type LayoutOptions } from '../../layout/options';
 import type { Loom } from '../../layout/physics';
-import { isSocket, SOCKET_SIZE, towerLayers, towerOuts, withSockets, type TowerOut } from '../../layout/towerlayout';
+import { isSocket, SOCKET_SIZE, towerLayers, towerOuts, withSockets, type TowerLayer, type TowerOut } from '../../layout/towerlayout';
 import type { MeterTrace } from '../../layout/state';
 import { meterIndex } from '../../layout/meters';
 import { towerOf, towerRanks, zoneRanks } from '../../layout/tower';
@@ -85,6 +85,13 @@ export class GraphLayout {
   mode = $state<LayoutMode>('flow');
   /** In the tower layout: what goes into the sound card (its node not drawn), as wires into the strips. */
   outs = $state.raw<readonly TowerOut[]>([]);
+  /** The tower layout's neutral zone (decades, towerLayers): where the voices and mixers stand, the scale lifted over it. */
+  zone = $state(0);
+  /** The tower layout's strata (towerLayers): each node's, and the neutral zone's rows (the graph's y). */
+  layers = $state.raw<ReadonlyMap<string, TowerLayer>>(new Map());
+  rows = $state.raw<{ readonly gate: number; readonly voice: number; readonly mixer: number }>({ gate: 0, voice: 0, mixer: 0 });
+  /** The graph as the tower layout draws it: with a socket each out. */
+  drawnModel = $state.raw<GraphModel | null>(null);
   /** (the tower layout) Each selector's loom over its table: its strands (taploom.ts), laid again as things move. */
   looms = $state.raw<readonly Loom[]>([]);
   /** Pinned by the user (or held where they were dropped, or a turntable: see `#placed`). */
@@ -139,6 +146,10 @@ export class GraphLayout {
     this.outs = tower ? towerOuts(given.program, given.model) : [];
     if (tower) {
       const layered = towerLayers(next.program, given.model, m);
+      this.zone = layered.zone;
+      this.layers = layered.layers;
+      this.rows = layered.rows;
+      this.drawnModel = m;
       layout.setOptions({
         heights: layered.targets,
         held: layered.held,

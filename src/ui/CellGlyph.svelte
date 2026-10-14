@@ -5,7 +5,7 @@
 
 <script lang="ts">
   import { onDestroy, untrack } from 'svelte';
-  import { blockColour, noteColour, partColour } from './theme';
+  import { blockColour, noteColour, partColour, UNIT } from './theme';
   import { cellView, drawnOf, hubLabel, type CellView, type Fill } from '../layout/cellview';
   import { gateOf } from '../layout/gate';
   import { coarsen } from '../layout/coarse';
@@ -239,9 +239,11 @@
   });
   const fillOf = (f: Fill) =>
     f.kind === 'pitch'
-      ? f.alter
-        ? `url(#${stripeKey(f)})`
-        : noteColour(f.hue, false, f.octave ?? 0)
+      ? f.unit
+        ? UNIT
+        : f.alter
+          ? `url(#${stripeKey(f)})`
+          : noteColour(f.hue, false, f.octave ?? 0)
       : f.kind === 'beat'
         ? f.down
           ? 'color-mix(in oklab, var(--accent) 34%, var(--wheel-ref))'
@@ -644,8 +646,9 @@
     stroke-width: 3;
     stroke-linejoin: round;
   }
+  /* (a wheel in a section: its accents in its section's tint, CellNode's --section) */
   .tick {
-    stroke: var(--wheel-tick);
+    stroke: var(--section, var(--wheel-tick));
   }
   /* the rim says the space: time, a clock */
   .sieve {
@@ -764,7 +767,7 @@
     font-weight: 700;
   }
   .hand line {
-    stroke: var(--wheel-hand);
+    stroke: var(--section, var(--wheel-hand));
     stroke-linecap: round;
   }
   .hand line.edge {
@@ -773,7 +776,7 @@
   /* the hand bent into a bulb: one line, jointed */
   .hand.bent path {
     fill: none;
-    stroke: var(--wheel-hand);
+    stroke: var(--section, var(--wheel-hand));
     stroke-linecap: round;
     stroke-linejoin: round;
   }

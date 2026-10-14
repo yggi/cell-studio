@@ -24,6 +24,14 @@ describe('the tower layout', () => {
     expect(ins[0].top).toBeCloseTo(towerY(Math.log10(65.41)), 6);
   });
 
+  it("marks a wire on the strip level with its socket, the out-node, not its source's top", () => {
+    const { program, model } = waltz();
+    const outs = towerOuts(program, model);
+    const tuba = outs.find((o) => o.from === 'cell:tuba')!;
+    const ins = towerIns(outs, program, (id) => (id === 'cell:tuba' ? { x: 10, y: 0 } : id === socketId(tuba.id) ? { x: 12, y: -900 } : undefined));
+    expect(ins).toEqual([expect.objectContaining({ from: 'cell:tuba', x: 12, top: -900 })]);
+  });
+
   it('sends a two-channel card first left, second right', () => {
     const program = compileSource(`
 &lead s=saw loop=C4
@@ -79,10 +87,14 @@ describe('the tower layout', () => {
   it('gathers the wires into one net a base frequency, the others tapping into its trunk', () => {
     const { program, model } = waltz();
     const at: Record<string, number> = { 'cell:flute': 400, 'cell:strings': 100, 'cell:tuba': 250 };
-    const ins = towerIns(towerOuts(program, model), program, (id) => ({
-      x: at[id],
-      y: towerY(id === 'cell:tuba' ? Math.log10(65.41) : Math.log10(261.63)) + socketOf(VOICE_SIZE),
-    }));
+    const ins = towerIns(towerOuts(program, model), program, (id) =>
+      id.startsWith('socket:')
+        ? undefined
+        : {
+            x: at[id],
+            y: towerY(id === 'cell:tuba' ? Math.log10(65.41) : Math.log10(261.63)) + socketOf(VOICE_SIZE),
+          },
+    );
     const nets = towerNets(ins);
     expect(nets).toHaveLength(2);
     const c4 = nets.find((n) => n.taps.length === 2)!;
@@ -115,21 +127,22 @@ describe('the tower layout', () => {
     expect(10 ** towerAt(h)).toBeCloseTo(55, 1);
   });
 
-  it('lays the layers: tables at the bottom, the structure at its rates, the voices in one row over it, the sockets alone in the audible', () => {
+  it('lays the layers: the structure at its rates, the voices in one row in the neutral zone, every socket at its fundamental', () => {
     const { program, model } = waltz();
     const drawn = withSockets(model);
-    const { targets, layers } = towerLayers(program, model, drawn);
+    const { zone, targets, layers } = towerLayers(program, model, drawn);
     const at = (id: string) => towerAt(targets.get(id)!);
     expect(layers.get('cell:bar')).toBe('stepped');
-    expect(10 ** at('cell:bar')).toBeCloseTo(168 / 60, 3);
-    // (the voices in one row, over the structure, under the lowest socket)
+    expect(targets.get('cell:bar')).toBeCloseTo(towerY(Math.log10(168 / 60), zone), 6);
+    // (the voices in one row, in the zone: over 20 Hz's place for the structure, under 20 Hz's for the audible)
     for (const v of ['flute', 'strings', 'tuba']) expect(layers.get(`cell:${v}`)).toBe('voice');
     expect(at('cell:flute')).toBeCloseTo(at('cell:tuba'), 6);
-    expect(at('cell:tuba')).toBeGreaterThan(at('cell:bar'));
-    const sockets = [...layers].filter(([, l]) => l === 'audible').map(([id]) => at(id));
+    expect(at('cell:tuba')).toBeGreaterThan(Math.log10(20));
+    expect(at('cell:tuba')).toBeLessThan(Math.log10(20) + zone);
+    // (each socket exactly at its sound's frequency on the audible's scale: the tuba's at C2, nothing lifted)
+    const sockets = [...layers].filter(([, l]) => l === 'audible').map(([id]) => targets.get(id)!);
     expect(sockets).toHaveLength(3);
-    expect(Math.min(...sockets)).toBeCloseTo(Math.log10(65.41), 3);
-    expect(at('cell:tuba')).toBeLessThan(Math.min(...sockets));
+    expect(Math.max(...sockets)).toBeCloseTo(towerY(Math.log10(65.41), zone), 1);
   });
 
   it('draws the layers by a gentle spring: the sockets over the voices over the structure, in order on average', () => {
@@ -167,7 +180,7 @@ describe('the tower layout', () => {
     layout.destroy();
   });
 
-  it("puts every socket in the audible, over the voices: a groove's lowest drum lifted to its floor", () => {
+  it("puts every socket at its sound's frequency, over the neutral zone: a groove's at its lowest drum", () => {
     const program = compileSource(`&bar scan(1 1 1 1) step=120bpm
 &bd oneshot s=sine loop=A1 env=&(map=adsr 0 .3 0 .05)
 &hh s=white hpf=8000 env=&(map=adsr 0 .04 0 .02)
@@ -178,15 +191,15 @@ describe('the tower layout', () => {
     const model = buildGraph(program);
     const drawn = withSockets(model);
     const own = socketHeights(program, model, drawn);
-    const { targets, layers } = towerLayers(program, model, drawn);
-    const voice = Math.max(...[...layers].filter(([, l]) => l === 'voice').map(([id]) => towerAt(targets.get(id)!)));
+    const { zone, targets, layers } = towerLayers(program, model, drawn);
+    const voice = Math.max(...[...layers].filter(([, l]) => l === 'voice').map(([id]) => targets.get(id)!));
     const sockets = [...layers].filter(([, l]) => l === 'audible').map(([id]) => id);
     expect(sockets).toHaveLength(2);
-    for (const id of sockets) expect(towerAt(targets.get(id)!)).toBeGreaterThanOrEqual(voice + 0.6 - 1e-9);
-    // (the drums' socket, from the kit, at A1 by its lowest drum, lifted; the lead's, at C5, kept at its pitch)
-    const [groove, lead] = [sockets.find((id) => id.includes('kit:voices'))!, sockets.find((id) => id.includes('lead'))!];
-    expect(targets.get(groove)).toBeLessThan(own.get(groove)!);
-    expect(targets.get(lead)).toBeCloseTo(own.get(lead)!, 6);
+    // (over every voice, by the zone's top; the drums' at A1, its lowest drum, the lead's at C5: each at its own)
+    for (const id of sockets) {
+      expect(targets.get(id)!).toBeLessThan(voice);
+      expect(targets.get(id)!).toBeCloseTo(towerY(towerAt(own.get(id)!), zone), 6);
+    }
   });
 
   it('rests the voices on the structure below hearing: a braid at an audio rate keeps its own height', () => {

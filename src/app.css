@@ -70,6 +70,9 @@
   --danger: #ff7a7a;
   --warning: #f1c96d;
 
+  /* one value, nothing to tell apart (theme.ts UNIT): white, all colours — colours appear only where things differ */
+  --unit: #d4d7e0;
+
   /* the note rainbow: saturation and lightness of notes, and the gradient */
   --note-s: 70%;
   --note-l: 58%;
