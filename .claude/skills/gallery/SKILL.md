@@ -23,7 +23,7 @@ It fails on a page error.
 | `graphs` | every example's graph as the library's miniature draws it, with its numbers from the layout's baseline (`tools/graphs.mjs`; `OUT` default `shots/graphs/`) | fast |
 | `time` | the time view (`src/ui/TimeView.svelte`, #286) of each piece in the real app, in each state: `mix` (the default layers), `keys` (the scalogram on new pitch classes), `sound` (waterfall and waveform), `zoom` (8× in), `patterns` (motifs at two time scales boxed, foldings listed), `phone` (`tools/gallery/time.mjs`; `OUT` default `shots/time/`, `STATES=mix,keys`; default pieces Hypercell, Pop, Korobeiniki, 5 to 12, Pachelbel) | real app, ~1 min a piece |
 
-A piece in the built app, playing: `tools/shots.mjs` (not part of the gallery yet).
+A piece in the built app, playing: `node tools/gallery.mjs play 3 "Sound on Tape"` (builds first; `DIST=` another build) keeps a screenshot of the graph and each node's and edge's drawn state as JSON, in `OUT` (default `shots/play/`).
 
 ```
 CHROME_PATH=/opt/pw-browsers/chromium node tools/gallery.mjs edges            # shots/edges-fast/ (CHROME_PATH only in a cloud session)

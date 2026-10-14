@@ -370,3 +370,70 @@ export function waveAlong(m: Measured, amp: number, period: number, shape: Shape
 }
 
 const mod1 = (x: number) => x - Math.floor(x);
+
+/** A wheel a label keeps off: its centre and radius (px). */
+export interface Disc {
+  readonly x: number;
+  readonly y: number;
+  readonly r: number;
+}
+
+/**
+ * Where a label sits on its wire (#137, the owner's choice: on the wire, the wire gapped under it): at the middle, or
+ * the nearest place along it, out from the middle a step at a time, where it is clear of every wheel (`discs`, `room`
+ * px round each); turned along the wire there, upright, and level where the wire is steeper than STEEP — a vertical
+ * label is hard to read. `width`: the label's, px. Null when the wire is too short to hold it.
+ */
+export function wireLabel(
+  m: Measured,
+  width: number,
+  discs: readonly Disc[] = [],
+  room = 6,
+  // (`end`: near the wire's end instead, this far back from it — a net's tap, just before its socket)
+  end?: number,
+): { x: number; y: number; angle: number } | null {
+  if (m.length < width * 0.6) return null;
+  const place = (s: number) => {
+    const [a, b] = [m.at(s - 4), m.at(s + 4)];
+    return { ...m.at(s), angle: readingAngle(b.x - a.x, b.y - a.y) };
+  };
+  // (how far its ends and middle, as it would be drawn there, keep from the nearest wheel's rim: clear past `room`;
+  // where no place is, the roomiest)
+  let best: { p: { x: number; y: number; angle: number }; gap: number } | null = null;
+  const clear = (p: { x: number; y: number; angle: number }) => {
+    const [c, s] = [Math.cos((p.angle * Math.PI) / 180), Math.sin((p.angle * Math.PI) / 180)];
+    const gap = Math.min(Infinity, ...[-0.5, 0, 0.5].flatMap((k) => discs.map((d) => Math.hypot(p.x + k * width * c - d.x, p.y + k * width * s - d.y) - d.r)));
+    if (!best || gap > best.gap) best = { p, gap };
+    return gap > room;
+  };
+  const half = m.length / 2;
+  if (end !== undefined) {
+    // (from just before the end back towards the middle)
+    const s0 = Math.max(width / 2, m.length - end - width / 2);
+    for (let k = 0; k <= LABEL_TRIES; k++) {
+      const p = place(s0 - (k * Math.max(0, s0 - half)) / LABEL_TRIES);
+      if (clear(p)) return p;
+    }
+    return (best as { p: { x: number; y: number; angle: number } } | null)?.p ?? place(s0);
+  }
+  for (let k = 0; k <= LABEL_TRIES; k++)
+    for (const side of k ? [-1, 1] : [1]) {
+      const s = half + (side * k * (half - width / 2)) / LABEL_TRIES;
+      const p = place(s);
+      if (clear(p)) return p;
+    }
+  return (best as { p: { x: number; y: number; angle: number } } | null)?.p ?? place(half);
+}
+
+/** The angle a label along a line of this direction reads at (degrees): along it, upright, level where it is steep. */
+export function readingAngle(dx: number, dy: number): number {
+  let angle = (Math.atan2(dy, dx) * 180) / Math.PI;
+  if (angle > 90) angle -= 180;
+  if (angle < -90) angle += 180;
+  return Math.abs(angle) > STEEP ? 0 : angle;
+}
+
+/** Steeper than this (degrees from level), a label on a wire reads level. */
+const STEEP = 60;
+/** How many places either side of the middle a label tries, out to its wire's ends. */
+const LABEL_TRIES = 6;

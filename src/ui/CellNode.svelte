@@ -74,7 +74,16 @@
   {:else}
     <CellGlyph name={data.name} isMeter={data.isMeter} size={data.size} />
   {/if}
-  {#if !data.petal}<div
+  {#if !data.petal && ctx.rimNamed?.has(id)}
+    <!-- (a small wheel with another close under it: its name round its rim, under it, #137) -->
+    {@const R = data.size / 2 + 6}
+    <svg class="rim-name" style:left="-{R + 10 - data.size / 2}px" style:top="-{R + 10 - data.size / 2}px" width={2 * R + 20} height={2 * R + 20} aria-hidden="true">
+      <path id="rim-{id}" d="M {10} {R + 10} A {R} {R} 0 0 0 {2 * R + 10} {R + 10}" fill="none" />
+      {#each ['halo', 'ink'] as layer (layer)}
+        <text class={layer} dy="0.75em"><textPath href="#rim-{id}" startOffset="50%" text-anchor="middle">{drumsKit ? 'drums' : `&${data.name}`}</textPath></text>
+      {/each}
+    </svg>
+  {:else if !data.petal}<div
       class="name"
       style:--below="{data.below ?? 0}px"
       class:lambda={!!cell?.lambda}
@@ -119,6 +128,24 @@
     padding: 3px 8px;
     border-radius: 6px;
     border: 1px solid transparent;
+  }
+  .rim-name {
+    position: absolute;
+    pointer-events: none;
+    overflow: visible;
+  }
+  .rim-name text {
+    font: 600 12px var(--font-code);
+    fill: var(--text);
+  }
+  .meter .rim-name text {
+    fill: var(--meter, var(--accent));
+  }
+  .rim-name .halo {
+    fill: none;
+    stroke: var(--bg);
+    stroke-width: 4px;
+    stroke-linejoin: round;
   }
   .meter .name {
     color: var(--meter, var(--accent));

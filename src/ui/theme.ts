@@ -106,6 +106,11 @@ export const EDGE = {
   pulse: { sync: 4.5, value: 6 },
   ripple: { amp: 2.5, period: 11 },
   flash: { decay: 5, offBeat: 0.6, mix: 1.6 },
+  /** An edge's label on its wire: about how wide a letter is at --edge-tag-font (px), to fit and place it. */
+  tagChar: 7.6,
+  /** A net's tap: its socket on the reader's rim (radius, px), and the room between it and the tap's label (px). */
+  socket: 5,
+  tapGap: 10,
 } as const;
 
 /**

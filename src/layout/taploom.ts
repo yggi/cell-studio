@@ -39,7 +39,13 @@ export function loomPorts(table: At, meter?: At, select?: At): { meter: At; sele
     const x = from && from.y > y ? table.x + ((from.x - table.x) * (y - table.y)) / (from.y - table.y) : table.x + side * PORT;
     return { x: Math.max(table.x - 4 * PORT, Math.min(table.x + 4 * PORT, x)), y };
   };
-  return { meter: at(meter, -1), select: at(select, 1) };
+  const ports = { meter: at(meter, -1), select: at(select, 1) };
+  // (both wires from one place, the meter's net reaching the table through its chooser: side by side, the meter's left)
+  if (Math.abs(ports.meter.x - ports.select.x) < PORT) {
+    const mid = (ports.meter.x + ports.select.x) / 2;
+    return { meter: { x: mid - PORT / 2, y }, select: { x: mid + PORT / 2, y } };
+  }
+  return ports;
 }
 
 /** One tap of a table: its bulb's name, where its bulb is, and the cells it steps. */
@@ -144,7 +150,14 @@ export function pillOf(hub: At, contacts: readonly At[], ports: { meter: At; sel
   const inside = strands.filter((st) => !st.join);
   const xs = [...contacts.map((c) => c.x), ports.meter.x, ports.select.x, ...inside.flatMap((st) => st.pieces.map((p) => p[2]))];
   const top = Math.min(hub.y - pad, ...inside.map((st) => st.pieces[0][3]));
-  return { x0: Math.min(...xs) - pad, x1: Math.max(...xs) + pad, y0: top - pad, y1: ports.meter.y };
+  const [y0, y1] = [top - pad, ports.meter.y];
+  // (its outputs, where the strands rise out of its top: each on its outline — the round ends start beyond the outer
+  // ones, half its height out, so none floats over a curve)
+  const r = (y1 - y0) / 2;
+  const outs = inside.flatMap((st) => (st.pieces[2] && st.pieces[2][3] < st.pieces[2][1] ? [st.pieces[2][0]] : []));
+  const x0 = Math.min(Math.min(...xs) - pad, ...outs.map((x) => x - r));
+  const x1 = Math.max(Math.max(...xs) + pad, ...outs.map((x) => x + r));
+  return { x0, x1, y0, y1 };
 }
 
 /** What an edge needs of a selector drawn as a pill to meet it: the pill, its ports, and who comes in at them. */
@@ -155,12 +168,13 @@ export interface PillEnds {
 }
 
 /**
- * Where an edge from `other` (its node id, and where its end is) meets a selector drawn as a pill: its meter and its
- * chooser at their ports, anything else on the pill's outline, at the point nearest it — never at the table's centre,
+ * Where an edge from `other` (its node id, and where its end is) meets a selector drawn as a pill (`meter`: a meter's
+ * trace): its meter and its chooser at their ports, anything else on the pill's outline, at the point nearest it — never at the table's centre,
  * which nothing draws.
  */
-export function pillAnchor(l: PillEnds, other: string, from: At): At {
-  if (other === l.feeds.select) return l.ports.select;
+export function pillAnchor(l: PillEnds, other: string, from: At, meter = false): At {
+  // (a meter's trace at the meter port, the chooser's wire at the selection's — both may come from one cell)
+  if (meter ? other === l.feeds.meter : other === l.feeds.select) return meter ? l.ports.meter : l.ports.select;
   if (other === l.feeds.meter) return l.ports.meter;
   // (the outline: a stadium, its straight part from x0 + r to x1 - r, r half its height)
   const r = (l.pill.y1 - l.pill.y0) / 2;

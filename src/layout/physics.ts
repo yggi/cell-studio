@@ -44,6 +44,8 @@ export interface Loom {
 const CALM = 12;
 /** How much of a too short plain edge's missing rise is made up each tick. */
 const RISE = 0.2;
+/** Half a wide bus's width (a table's dozen strands): what a wire beside a pill keeps clear of it (px). */
+const BUS_HALF = 12;
 /** The room between a column's player and the kit over it, beyond their rooms: the kit's name, under its wheel (px). */
 const COLUMN_GAP = 30;
 /** How warm an edit leaves the layout when it is gentle (`setGraph`, a conversion growing the graph, #390). With
@@ -498,6 +500,27 @@ export class ForceLayout {
         if (n?.x === undefined || !l || n.fx != null) continue;
         n.x = Math.min(n.x, l.x0 - PILL_PAD - n.radius * 0.7 - LINE_GAP);
       }
+    // (clear) a cell under a selector's pill whose wire runs up past it, to a cell over it, stands beside the pill as drawn
+    // (its taps' readers and its bypass's riders with it) on its nearer side, so no wire crosses it — the frame's `aside`
+    // for any such wire (Cellscape's &key, the golden's)
+    if (this.s.opts.tapLoom && this.s.grounds.some((g) => g.bulb))
+      for (const { table, pill } of this.tapLooms()) {
+        for (const link of this.s.links) {
+          const [a, b] = [nodeAt(this.s, link.source), nodeAt(this.s, link.target)];
+          if (!a || !b || a.y === undefined || b.y === undefined || a.id === table || b.id === table) continue;
+          const [lo, hi] = a.y > b.y ? [a, b] : [b, a];
+          if (lo.fx != null || lo.x === undefined || lo.y! <= pill.y1 || hi.y! >= pill.y0) continue;
+          // (its wire, from it up to the cell over the pill, passes the pill's top and bottom left of x0 or right of x1:
+          // where it would cross, the cell goes out along the wire's line from the upper end, to the nearer side)
+          const [x0, x1] = [pill.x0 - PILL_PAD - BUS_HALF, pill.x1 + PILL_PAD + BUS_HALF];
+          const at = (x: number, y: number) => hi.x! + ((x - hi.x!) * (lo.y! - hi.y!)) / (y - hi.y!);
+          const left = Math.min(lo.x, ...[pill.y0, pill.y1].map((y) => at(x0, y)));
+          const right = Math.max(lo.x, ...[pill.y0, pill.y1].map((y) => at(x1, y)));
+          if (left === lo.x || right === lo.x) continue;
+          lo.x = lo.x - left < right - lo.x ? left : right;
+          lo.vx = 0;
+        }
+      }
     // (lineUp) a row in its order, left to right: neighbours out of it, or too close, set apart
     for (const row of this.s.opts.lineUp ?? [])
       for (let pass = 0; pass < 3; pass++)
@@ -647,13 +670,16 @@ export class ForceLayout {
         return c?.x !== undefined && c.y !== undefined ? { x: c.x, y: c.y } : undefined;
       };
       const meterId = this.s.grounds.find((g) => g.cell === table && !g.bulb)?.meter;
-      const meter = at(meterId);
+      // (the meter's trace into it comes from its net's neighbour, the meter itself or a cell on the way — the chooser,
+      // when the net reaches the table through it: the port faces that)
+      const into = this.s.net.find((t) => !t.bulb && t.meter === meterId && (t.a === table || t.b === table));
+      const meterFrom = into ? (into.a === table ? into.b : into.a) : meterId;
       const other = (l: { source: string; target: string }) => (l.source === table ? l.target : l.target === table ? l.source : undefined);
       const chooserId = this.s.links.map(other).find((id) => id !== undefined && id !== meterId && (nodeAt(this.s, id)?.y ?? -Infinity) > n.y!);
-      const ports = loomPorts(hub, meter, at(chooserId));
+      const ports = loomPorts(hub, at(meterFrom), at(chooserId));
       const strands = tapLoom({ x: n.x, y: n.y, r: n.radius * 0.7 }, loom, readers, ports.meter);
       const pill = pillOf(hub, contacts, ports, strands);
-      return [{ table, strands, pill, hub, contacts, ports, feeds: { meter: meterId, select: chooserId } }];
+      return [{ table, strands, pill, hub, contacts, ports, feeds: { meter: meterFrom, select: chooserId } }];
     });
   }
 

@@ -419,6 +419,12 @@
       {#if b.font && !units.length}
         <text class="bulb-name" x={b.L.C[0]} y={b.L.C[1]} dy={b.sub ? '-0.15em' : '0.35em'} style:font-size="{b.font}px">{b.text}</text>
         {#if b.sub}<text class="bulb-sub" x={b.L.C[0]} y={b.L.C[1]} dy="1.05em" style:font-size="{b.font * 0.8}px">{b.sub}</text>{/if}
+      {:else if b.rim && !units.length}
+        <!-- (a name too long for its bulb: round its outer rim, a halo under it over the host's ring) -->
+        <path id="{uid}-rim-{i}" d={b.rim.d} fill="none" />
+        {#each ['halo', 'ink'] as layer (layer)}
+          <text class="bulb-name rim {layer}" style:font-size="{b.rim.font}px"><textPath href="#{uid}-rim-{i}" startOffset="50%" text-anchor="middle">{b.text}</textPath></text>
+        {/each}
       {/if}
     {/each}
     <!-- in the graph, each bulb is the cell it splices: tapped, it opens; held, it switches off (Graph.svelte, CellNode.svelte);
@@ -810,6 +816,15 @@
   .bulb-sub {
     fill: var(--accent);
     font-weight: 600;
+  }
+  .bulb-name.rim {
+    text-anchor: middle;
+  }
+  .bulb-name.rim.halo {
+    fill: none;
+    stroke: var(--bg);
+    stroke-width: 3.5px;
+    stroke-linejoin: round;
   }
   /* a table's entry read now: a dot, like a read head */
   .read {

@@ -18,7 +18,7 @@
   import { BaseEdge, type EdgeProps } from '@xyflow/svelte';
   import { untrack } from 'svelte';
   import { polar, radialPath, splinePoint } from '../layout/geometry';
-  import { bundleCubic, bundlePaths, loomParts, loomPaths, rippled } from '../layout/wire';
+  import { bundleCubic, bundlePaths, loomParts, loomPaths, measured, rippled, wireLabel } from '../layout/wire';
   import { cellView, type Fill, type Segment } from '../layout/cellview';
   import { pluginOf } from '../layout/show';
   import { isTurntable } from '../engine/graph';
@@ -73,7 +73,7 @@
       ring?: number;
       /** A bus round a loom is drawn in two parts: its run, and its ring as an edge of its own above every run. */
       part?: 'run' | 'ring';
-      net?: { id: string };
+      net?: { id: string; name: string };
       /** A groove reading its kit (over=): its hits go up into the kit, read from the groove (`to`), as a melody into its voice. */
       groove?: boolean;
       off?: boolean;
@@ -218,7 +218,10 @@
   const tapOf = (v: NonNullable<typeof view>, sg: Segment) => v.taps?.[sg.index] ?? sg.at ?? (sg.t0 + sg.t1) / 2;
   // (each strand's place across a flat bus, its first on the left looking along it)
   const across = (n: number) => Array.from({ length: n }, (_, i) => (i - (n - 1) / 2) * GAP);
+  // (a bus round a loom: its middle strand's run, out of the loom — set with the strands, read after them)
+  let run: string | null = null;
   const strandPaths = $derived.by(() => {
+    run = null;
     // (the selection: a flat bus along its wire, its sections in the taps' order)
     if (selection)
       return sigmoid ? bundleCubic(sigmoid.a, sigmoid.c1, sigmoid.c2, sigmoid.b, across(count)) : bundlePaths(fromX, fromY, mid.x, mid.y, targetX, targetY, across(count));
@@ -231,7 +234,10 @@
     // a hop: the bus goes on out of the hub of the reader it came into, flat, in the table's order
     if (hop) return ringOnly ? [] : bundlePaths(fromX, fromY, mid.x, mid.y, targetX, targetY, across(turns.length), rims);
     // out of each entry's tap, round the source's loom, into a bundle towards the reader
-    return looming(loomParts(sourceX, sourceY, r, turns, mid.x, mid.y, targetX, targetY, GAP, d.ring ?? 0, LOOM_EXIT));
+    const parts = loomParts(sourceX, sourceY, r, turns, mid.x, mid.y, targetX, targetY, GAP, d.ring ?? 0, LOOM_EXIT);
+    // (its labels go on the run, off the loom round its source, which is drawn over every run)
+    run = parts[Math.floor(parts.length / 2)]?.run ?? null;
+    return looming(parts);
   });
   // A reference that picks (&key[0], &maj's &key[0] &key[4] &key[7]): a strand from each tap it reads, in the colour
   // the wheel pushes there — one straight out of its tap, several through the loom; as written ($): from the hub.
@@ -397,6 +403,37 @@
         ? `${style ?? ''}; stroke: ${restColour}${width}`
         : style,
   );
+  // its labels (#137): on the wire, along it, upright, off every wheel (wireLabel). In a net (a bus read by several):
+  // the net's name once, on its trunk; each tap's own change near its reader, just before its socket — the dot on the
+  // reader's rim where the net comes in (the net itself runs on under the reader to the next)
+  const reader = $derived((d.sizes?.to ?? 0) / 2);
+  // (the line its labels and socket sit on: a bus's middle strand, else the wire)
+  const spine = $derived(strandPaths.length ? (run ?? strandPaths[Math.floor(strandPaths.length / 2)]) : carrier);
+  const tags = $derived.by(() => {
+    if (ringOnly) return [];
+    const m = measured(spine);
+    const own = typeof label === 'string' && label ? label : null;
+    const width = (text: string) => text.length * EDGE.tagChar + 6;
+    const out: { x: number; y: number; angle: number; text: string; name?: boolean }[] = [];
+    if (d.net && hop === null) {
+      const at = wireLabel(m, width(d.net.name), ctx.wheels);
+      if (at) out.push({ ...at, text: d.net.name, name: true });
+    }
+    if (own) {
+      // (a tap's: back from its socket — the spine may stop short of the rim already, a bus cut inside it)
+      const end = m.at(m.length);
+      const room = Math.max(0, reader - Math.hypot(end.x - targetX, end.y - targetY)) + EDGE.tapGap;
+      const at = d.net ? wireLabel(m, width(own), ctx.wheels, 6, room) : wireLabel(m, width(own), ctx.wheels);
+      if (at) out.push({ ...at, text: own });
+    }
+    return out;
+  });
+  const socketAt = $derived.by(() => {
+    if (!d.net || ringOnly || !reader) return null;
+    // (on the reader's rim, where the wire to its centre crosses it)
+    const m = measured(carrier);
+    return m.length > reader ? m.at(m.length - reader) : null;
+  });
   // (what travels runs from its sender: a groove's hits up from the groove into its kit, against the edge's own way)
   const travel = $derived(
     !d.groove
@@ -435,17 +472,17 @@
   {#each lockedPaths.slice(1) as p, i (i)}
     <path class={`svelte-flow__edge-path edge-${state}`} d={waved(p)} style={edgeStyle} />
   {/each}
-  <BaseEdge
-    {id}
-    {path}
-    {markerEnd}
-    style={edgeStyle}
-    class={`edge-${state}${strands.length || tineStrands.length || (pickPaths.length && !picked?.hub) ? ' bus-core' : ''}`}
-    {label}
-    labelX={mid.x}
-    labelY={mid.y}
-    labelStyle={d.off ? 'opacity: 0.3' : colour ? `border-color: ${colour}` : undefined}
-  />
+  <BaseEdge {id} {path} {markerEnd} style={edgeStyle} class={`edge-${state}${strands.length || tineStrands.length || (pickPaths.length && !picked?.hub) ? ' bus-core' : ''}`} />
+  {#if socketAt}
+    <circle class="tap-socket" class:off={d.off} cx={socketAt.x} cy={socketAt.y} r={EDGE.socket} style:stroke={colour ?? restColour ?? undefined} />
+  {/if}
+  {#each tags as tag (tag.text)}
+    <!-- (a label on the wire, the wire gapped under it by a halo of the background: under the letters, its own layer) -->
+    <g class="edge-tag" class:off={d.off} class:name={tag.name} transform="translate({tag.x.toFixed(1)} {tag.y.toFixed(1)}) rotate({tag.angle.toFixed(1)})">
+      <text class="halo" text-anchor="middle" dy="0.35em">{tag.text}</text>
+      <text text-anchor="middle" dy="0.35em" style:fill={colour ?? restColour ?? undefined}>{tag.text}</text>
+    </g>
+  {/each}
   {#if payload}
     <EdgePayload path={travel} kind={payload} on={!!shows} from={sender} stepped={d.phaseCell} voice={d.voice} {values} colourOf={fillColour} {colour} />
   {/if}
@@ -455,6 +492,34 @@
 {/if}
 
 <style>
+  .edge-tag {
+    pointer-events: none;
+  }
+  .edge-tag text {
+    font: var(--edge-tag-font);
+    fill: var(--text);
+  }
+  .edge-tag .halo {
+    fill: none;
+    stroke: var(--bg);
+    stroke-width: var(--edge-tag-halo);
+    stroke-linejoin: round;
+  }
+  .edge-tag.off,
+  .tap-socket.off {
+    opacity: 0.3;
+  }
+  /* (a net's shared name: its owner's, in the names' font) */
+  .edge-tag.name text {
+    font: var(--edge-net-font);
+  }
+  /* (a ring where the net comes into its reader: a port) */
+  .tap-socket {
+    fill: var(--wheel-disc);
+    stroke: var(--text-muted);
+    stroke-width: 2;
+    pointer-events: none;
+  }
   .pulse {
     fill: var(--edge);
     pointer-events: none;

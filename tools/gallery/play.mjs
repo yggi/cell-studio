@@ -1,19 +1,20 @@
-// Screenshots of pieces while they play: the graph, and each node's and edge's drawn state (#11).
-// For checking what the graph shows (off, unrouted, on, idle, live), before and after a change.
+// The gallery's `play` subject (was tools/shots.mjs, #137): pieces in the built app while they play — the graph, and
+// each node's and edge's drawn state (#11). For checking what the graph shows (off, unrouted, on, idle, live), before
+// and after a change.
 //
-//   npm run build && node tools/shots.mjs 3 "Sound on Tape" Baustelle   # 3 s into each piece
-//   OUT=shots/before DIST=/path/to/other/dist node tools/shots.mjs 3 Baustelle  # another build
+//   node tools/gallery.mjs play 3 "Sound on Tape" Baustelle              # 3 s into each piece (builds first)
+//   OUT=shots/before DIST=/path/to/other/dist node tools/gallery.mjs play 3 Baustelle   # another build
 //
-// Writes <OUT>/<title>.png and <OUT>/<title>.json (name → state, edge id → class). Viewport 1600×1000.
+// Writes <OUT>/<title>.png and <OUT>/<title>.json (name → state, edge id → class), OUT default shots/play. Viewport 1600×1000.
 // Chromium as for the smoke test (tools/profile/playwright.mjs; in a cloud session CHROME_PATH=/opt/pw-browsers/chromium).
 import { preview } from 'vite';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { chromium } from './profile/playwright.mjs';
-import { freshBuild } from './fresh-build.mjs';
+import { chromium } from '../profile/playwright.mjs';
+import { freshBuild } from '../fresh-build.mjs';
 
 const [secs = '3', ...titles] = process.argv.slice(2);
-const out = process.env.OUT ?? 'shots';
+const out = process.env.OUT ?? 'shots/play';
 mkdirSync(out, { recursive: true });
 if (!process.env.DIST) freshBuild();
 const server = await preview({ preview: { port: 0, host: '127.0.0.1' }, build: process.env.DIST ? { outDir: process.env.DIST } : {}, logLevel: 'error' });

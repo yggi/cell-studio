@@ -1,3 +1,10 @@
+<script lang="ts" module>
+  /** A wheel this small (px across) or smaller names itself round its rim when another is close under it … */
+  const RIM_NAMED = 96;
+  /** … closer than this, rim to rim (px): its name's pill would land on it. */
+  const RIM_ROOM = 34;
+</script>
+
 <script lang="ts">
   import { Background, Controls, SvelteFlow, ViewportPortal, type NodeTypes } from '@xyflow/svelte';
   import { VOICE_KIT } from '../engine/compiler/declare';
@@ -207,9 +214,15 @@
     get towered() {
       return towered;
     },
-    anchor: (node, other, from) => {
+    get wheels() {
+      return wheels;
+    },
+    get rimNamed() {
+      return rimNamed;
+    },
+    anchor: (node, other, from, meter) => {
       const l = pillsBy.get(node);
-      return l && pillAnchor(l, other, from);
+      return l && pillAnchor(l, other, from, meter);
     },
     get lit() {
       return live;
@@ -281,6 +294,26 @@
   // the tower layout (towerlayout.ts): the graph by the tower, the sound card its strip at the right (TowerStrips.svelte)
   const towered = $derived(layout.mode === 'tower');
   const pills = $derived(towered ? new Set(layout.looms.map((l) => l.table)) : undefined);
+  // (where every wheel is now, and its name under it: an edge's label keeps off them — a name as a disc as wide as it)
+  const wheels = $derived(
+    layout.nodes.flatMap((n) => {
+      const data = n.data as { size?: number; name?: string };
+      const size = n.measured?.width ?? data.size;
+      if (!size) return [];
+      const name = data.name ? Math.max(24, (data.name.length + 1) * 4.4 + 8) : 0;
+      return [{ x: n.position.x, y: n.position.y, r: size / 2 }, ...(name ? [{ x: n.position.x, y: n.position.y + size / 2 + 16, r: name }] : [])];
+    }),
+  );
+  // (a small wheel with another close under it, where its name's pill would land: its name round its rim instead)
+  const rimNamed = $derived.by(() => {
+    const out = new Set<string>();
+    const at = layout.nodes.map((n) => ({ id: n.id, type: n.type, x: n.position.x, y: n.position.y, r: (n.measured?.width ?? (n.data as { size?: number }).size ?? 0) / 2 }));
+    for (const a of at) {
+      if (a.type !== 'cell' || !a.r || a.r * 2 > RIM_NAMED) continue;
+      if (at.some((b) => b !== a && b.r && Math.abs(b.x - a.x) < a.r + b.r && b.y > a.y && b.y - b.r - (a.y + a.r) < RIM_ROOM)) out.add(a.id);
+    }
+    return out;
+  });
   const pillsBy = $derived(new Map(towered ? layout.looms.map((l) => [l.table, l] as const) : []));
   let stripsOpen = $state(QUERY?.has('strips') ?? false);
   const stripW = $derived(stripsOpen ? STRIP_OPEN : STRIP);

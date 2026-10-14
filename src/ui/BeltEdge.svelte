@@ -7,17 +7,24 @@
    */
   import type { EdgeProps } from '@xyflow/svelte';
   import { openBelt, runPath } from '../layout/belts';
+  import { readingAngle } from '../layout/wire';
   import { palette } from './palette';
 
   const TICK = palette('sync', 0);
 
   let { sourceX, sourceY, targetX, targetY, data }: EdgeProps = $props();
-  const d = $derived(data as { rDriven: number; rDriver: number; stretch: number; slipping: boolean });
+  const d = $derived(data as { rDriven: number; rDriver: number; stretch: number; slipping: boolean; label?: string | null });
   // source: the belted (driven) cell; target: its driver
   const runs = $derived(openBelt({ x: targetX, y: targetY }, d.rDriver, { x: sourceX, y: sourceY }, d.rDriven));
   const tension = $derived(Math.min(1, Math.abs(d.stretch) * 8));
   const sag = $derived(Math.min(26, 3 + Math.abs(d.stretch) * 160));
   const pulling = $derived(d.stretch >= 0 ? 0 : 1);
+  // its label (#137: `÷2 · belt` was never shown): along the pulling run, at its middle, upright, the run gapped under it
+  const tag = $derived.by(() => {
+    if (!runs || !d.label) return null;
+    const [a, b] = runs[pulling];
+    return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2, angle: readingAngle(b.x - a.x, b.y - a.y), text: d.label };
+  });
 </script>
 
 {#if runs}
@@ -29,6 +36,12 @@
         <path class="belt slack" class:slip={d.slipping} d={runPath(a, b, sag, i === 0 ? -1 : 1)} stroke-width="4" />
       {/if}
     {/each}
+    {#if tag}
+      <g class="tag" transform="translate({tag.x.toFixed(1)} {tag.y.toFixed(1)}) rotate({tag.angle.toFixed(1)})">
+        <text class="halo" text-anchor="middle" dy="0.35em">{tag.text}</text>
+        <text text-anchor="middle" dy="0.35em">{tag.text}</text>
+      </g>
+    {/if}
   </g>
 {/if}
 
@@ -44,5 +57,16 @@
   }
   .belt.slip {
     stroke: var(--danger);
+  }
+  .tag text {
+    font: var(--edge-tag-font);
+    fill: var(--text);
+    pointer-events: none;
+  }
+  .tag .halo {
+    fill: none;
+    stroke: var(--bg);
+    stroke-width: var(--edge-tag-halo);
+    stroke-linejoin: round;
   }
 </style>
