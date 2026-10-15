@@ -25,7 +25,8 @@ jobs:
     # (on a push or reopening: only if the label is on; when labelled: only the `preview` label)
     if: >-
       github.event_name == 'workflow_dispatch' ||
-      (github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'dependabot[bot]' &&
+      ((!github.event.repository.private || vars.CI == 'on') && github.event.pull_request.head.repo.full_name == github.repository &&
+       github.actor != 'dependabot[bot]' &&
        ((github.event.action == 'labeled' && github.event.label.name == 'preview') ||
         (github.event.action != 'labeled' && contains(github.event.pull_request.labels.*.name, 'preview'))))
     runs-on: ubuntu-latest
