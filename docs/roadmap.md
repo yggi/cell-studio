@@ -13,20 +13,22 @@ The text compiles to one model — cells joined by **wires** (a port, a band, a 
 5. **Sameness is checked by machine**: event snapshots in `npm test`, renders within −100 dB on the smoke run.
 6. **The examples are written in the settled language**, sound the same, and a beginner's ladder teaches it.
 
+Points 3–6 are the language's, and their questions live in [yggi/cells](https://github.com/yggi/cells/issues) (L1, the language roadmap, of [yggi/music-commons#14](https://github.com/yggi/music-commons/issues/14)); points 1–2 are this app's.
+
 The sequence of work towards it, phase by phase, is [#141](https://github.com/yggi/cell-studio/issues/141); the epics below are its views from the code, the language and the layout, plus the tracks beside it.
 
 ## Epics
 
 | epic | what | issues |
 |---|---|---|
-| One model | the target above, in phases: ground truth, one snapshot and one flow, the model complete, the language settled, taught | #141 |
-| Language | the shakedown: inventory, orthogonality, errors, laws, time, naming, a beginner path; then pitch spaces, selectors, sends | #10 (#29, #31, #143, #149, #150, #151, #152) |
+| One model | the target above, in phases: ground truth, one snapshot and one flow, the model complete; the language settled and taught (points 3–6) is yggi/cells' | #141; points 3–6: [yggi/cells](https://github.com/yggi/cells/issues) (L1) |
+| Language | the shakedown (inventory, orthogonality, errors, laws, time, naming, a beginner path; then pitch spaces, selectors, sends) lives in yggi/cells, where the language is: the target issues L1–L17 of [music-commons#14](https://github.com/yggi/music-commons/issues/14) | [yggi/cells](https://github.com/yggi/cells/issues) (from #10, #29, #31, #143, #149, #150, #151, #152) |
 | Auto-layout | code becomes a grouped, compact, readable graph with as few hints as possible, for any cellular architecture | #27 (#145, #147, #148) |
 | Refactoring | the engine and audio are split; left: `Graph.svelte`, `physics.ts`, `CellSheet`, `Picker`, one description of where sound goes, stricter types | #9 (#132, #144, #145) |
 | Verification | events and renders checked by machine; previews to try a PR on a phone | #142, #92 (#65), #45 |
 | Phone and speed | latency, the screen-off crackle and the densest graph's frame rate, answered in one phone session; the graph's own cost | #154 (#91, #56, #36), #153 |
 | Audio engine | parked: dropping Tone, worklets (FM feedback, coupled resonators), a shared WASM core; physical cells part 2 | #16, #17, #18, #28, #32 |
 | Library and editor | the picker and its graph; everything the language can say, editable in the graph | #12, #33 |
-| Multiscale | the piece as a tower of scales (MERA, wavelets, GTTM): rows by time constant, junctions that project, the form sending gates up, a minimal grammar, the implicit `&out` ([notes/multiscale.md](https://github.com/yggi/cells/blob/main/docs/notes/multiscale.md)) | #234 (#235, #236) |
+| Multiscale | the piece as a tower of scales (MERA, wavelets, GTTM), drawn: rows by time constant, junctions that project; its language parts (the form sending gates up, a minimal grammar, the implicit `&out`) are yggi/cells' ([notes/multiscale.md](https://github.com/yggi/cells/blob/main/docs/notes/multiscale.md)) | #234 (#235, #236); the language: [yggi/cells](https://github.com/yggi/cells/issues) (L7) |
 | Eternal jam | back together with Jambot: cells as its score language and its player, the language extracted into a core of its own (yggi/cells) with the repository of cell fragments; the handshake, then the extraction, the seam, the repository ([notes/eternal-jam.md](notes/eternal-jam.md)) | #406, yggi/cells#1, #234, #244, #203 |
 | Wish list | pieces and features, as one checklist | #35 |
