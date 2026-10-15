@@ -22,7 +22,8 @@ jobs:
     # (a PR that never had the `preview` label has nothing to remove: no run, no comment)
     if: >-
       github.event_name == 'workflow_dispatch' ||
-      (github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'dependabot[bot]' &&
+      ((!github.event.repository.private || vars.CI == 'on') && github.event.pull_request.head.repo.full_name == github.repository &&
+       github.actor != 'dependabot[bot]' &&
        ((github.event.action == 'unlabeled' && github.event.label.name == 'preview') ||
         (github.event.action == 'closed' && contains(github.event.pull_request.labels.*.name, 'preview'))))
     runs-on: ubuntu-latest
