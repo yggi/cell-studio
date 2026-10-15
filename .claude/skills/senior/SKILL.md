@@ -7,7 +7,7 @@ description: Triage, review and merge pull requests for Cell studio, and keep is
 
 You are the one reviewer and merger of a solo project. Be a senior engineer, not a ceremony: read the change, judge it, fix what is trivial yourself, push back on what is serious, merge what is good. The author ran the mechanical checks before pushing (`npm run verify`; the smoke test when the change reaches it) and the PR names the commit: read that and CI's witness run, and redo only what is missing or in doubt.
 
-Tools: the GitHub MCP tools (`list_pull_requests`, `pull_request_read`, `pull_request_review_write`, `update_pull_request_branch`, `merge_pull_request`, `issue_read`, `issue_write`, `add_issue_comment`); `gh` isn't available. Every comment you post ends with the attribution footer the session asks for. Repo rules and conventions: `AGENTS.md`.
+Tools: the GitHub MCP tools (`list_pull_requests`, `pull_request_read`, `pull_request_review_write`, `update_pull_request_branch`, `merge_pull_request`, `issue_read`, `issue_write`, `add_issue_comment`); `gh` over REST only (`gh api repos/yggi/cell-studio/...`: a cloud session refuses GitHub's GraphQL, which `gh pr` uses). Every comment you post ends with the attribution footer the session asks for. Repo rules and conventions: `AGENTS.md`.
 
 ## 1. Gather (every time)
 
@@ -33,7 +33,7 @@ Never rewrite history on someone else's branch (merge `main` in; no rebase, amen
 
 ## 4. Merge
 
-**The smoke test runs by hand** (about two and a half minutes): for a change that reaches audio, UI wiring, assets or the build, check that the PR ran it on its head, or run it (`npm run build && npm run smoke`, or Actions → Smoke → Run workflow). Merge only when all hold: the current head passed `npm run verify` (named in the PR, or run by you), CI's `check` on it is green or blocked (a run that failed in seconds with no step is Actions out of minutes, not a verdict: `AGENTS.md`), no conflicts, no open serious finding, **and the owner has approved**: either the prompt said to merge on a condition that is met ("merge if you find nothing"), or the owner said yes to your summary. Otherwise stop after the summary and ask. Squash-merge (the history reads `Title (#n)`), with the PR title as the message. Never merge over a red check that ran.
+**The smoke test runs by hand** (about two and a half minutes): for a change that reaches audio, UI wiring, assets or the build, check that the PR ran it on its head, or run it (`npm run build && npm run smoke`, or Actions → Smoke → Run workflow). Merge only when all hold: the current head passed `npm run verify` (named in the PR, or run by you), CI's `check` on it is green or blocked (a run that failed in seconds with no step is Actions out of minutes, not a verdict: `AGENTS.md`), no conflicts, no open serious finding, **and the owner has approved**: either the prompt said to merge on a condition that is met ("merge if you find nothing"), or the owner said yes to your summary. Otherwise stop after the summary and ask. Never merge over a red check that ran. The merge itself, by squash, and then updating `main`, the deploy and the check of the live site are the **`land`** skill (`.claude/skills/land/SKILL.md`).
 
 After merging: the issue is closed by `Closes #n` (verify; if the PR was partial, comment on the issue what is done and what is left); file follow-ups; update `docs/roadmap.md` or `docs/limits.md` if the work changed an epic or lifted a limit (on the PR branch before merging, not on `main` after).
 
@@ -56,7 +56,7 @@ It decides nothing: a collision it can't see (two pieces on one tier, a rung num
 
 ### Stacked PRs and the merge strategy
 
-Merge by **squash** (the default, above): `main` reads `Title (#n)`, one commit a change. A squash is why a PR stacked on another one needs work after its parent merges (the parent's commits are not in `main`): so don't stack. Branch from `main`; when a PR needs another's code, wait for it, or retarget its base to `main` as soon as the parent is in (merge `main` in; the diff must show only its own files). A stack that has to stay one lineage (rare) is merged with a **merge commit**, for those PRs only. GitHub lets you choose per PR.
+Merge by **squash** (the default: the `land` skill): `main` reads `Title (#n)`, one commit a change. A squash is why a PR stacked on another one needs work after its parent merges (the parent's commits are not in `main`): so don't stack. Branch from `main`; when a PR needs another's code, wait for it, or retarget its base to `main` as soon as the parent is in (merge `main` in; the diff must show only its own files). A stack that has to stay one lineage (rare) is merged with a **merge commit**, for those PRs only. GitHub lets you choose per PR.
 
 `.gitattributes` marks `CHANGELOG.md`, `docs/MEMORY.md` and `snapshot.txt` as `merge=union`: a local `git merge` keeps both sides' added lines instead of conflicting. (GitHub's "Update branch" may not honour it; `tools/sync-pr.mjs` is the fallback.) Rung, tier and decision numbers are still taken by hand: take the next free number on `main` when you merge, and check `docs/decisions/` for a number used twice.
 
