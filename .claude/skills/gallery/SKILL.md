@@ -10,6 +10,8 @@ working tree, no build, ~15 s) and keeps one picture per **kind** (`<figure data
 whole page as `sheet.png`, `index.html` and `<subject>.json`, in `OUT` (default `shots/<subject>-fast/`, git-ignored).
 It fails on a page error.
 
+This skill pictures what the graph draws. Its siblings picture other things, so a decision can borrow the form that fits: Jambot's `screenshot` skill ([yggi/jambot](https://github.com/yggi/jambot)) shows measured options side by side, as pictures (piano rolls, a measure over bars) and as audio through its synth; yggi/cells' picture skill draws a text's events as a piano roll, before and after a change to the language.
+
 | subject | what | how |
 |---|---|---|
 | `wheels` | every kind of wheel, each at a ladder of sizes beside its sheet | fast, or real (below) |
