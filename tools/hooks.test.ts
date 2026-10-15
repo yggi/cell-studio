@@ -128,10 +128,36 @@ describe('pre-push', () => {
     expect(stderr).toContain('uncommitted');
   });
 
-  it('is not troubled by an untracked file, which the push does not send', () => {
+  it('refuses an untracked file git does not ignore, which verify would see and the commit lacks, and names it', () => {
     const dir = repoWith(['a.ts']);
+    writeFileSync(join(dir, 'helper.ts'), 'verify needs me\n');
+    const { status, stderr } = hook(dir);
+    expect(status).toBe(1);
+    expect(stderr).toContain('untracked files are in it but not in the commit');
+    expect(stderr).toContain('  helper.ts');
+  });
+
+  it('is not troubled by an ignored file', () => {
+    const dir = repoWith(['a.ts']);
+    writeFileSync(join(git(dir, 'rev-parse', '--absolute-git-dir'), 'info', 'exclude'), 'scratch.txt\n');
     writeFileSync(join(dir, 'scratch.txt'), 'x\n');
     expect(hook(dir).status).toBe(0);
+  });
+
+  it('is not troubled by an untracked file once the commit passed verify without it', () => {
+    const dir = repoWith(['a.ts']);
+    expect(hook(dir).status).toBe(0);
+    writeFileSync(join(dir, 'scratch.txt'), 'x\n');
+    expect(hook(dir, 'head', { verify: failing }).status).toBe(0);
+  });
+
+  it('stamps the tree its own run saw, and nothing when a file changed while the check ran', () => {
+    const dir = repoWith(['a.ts']);
+    const { status, stdout } = hook(dir, 'head', { verify: `echo edited > a.ts; ${passing}` });
+    expect(status).toBe(0);
+    expect(stdout).toContain('a file changed while it ran: let through, not stamped');
+    git(dir, 'checkout', '--', 'a.ts');
+    expect(hook(dir, 'head', { verify: failing }).status).toBe(1);
   });
 
   it('does not verify a tree twice, so a retried push is free, and still says how many tests passed', () => {
@@ -190,41 +216,85 @@ describe('pre-push', () => {
   it('is what a checkout runs: the install points core.hooksPath at it, and verify stamps what passed', () => {
     const scripts = JSON.parse(readFileSync(`${root}/package.json`, 'utf8')).scripts;
     expect(scripts.prepare).toContain('core.hooksPath .githooks');
-    expect(scripts.postverify).toBe('node tools/verified.mjs');
+    expect(scripts.preverify).toMatch(/&& node tools\/verified\.mjs begin$/);
+    expect(scripts.postverify).toBe('node tools/verified.mjs end');
   });
 });
 
-/** Runs `postverify` (tools/verified.mjs) in `dir`, as npm does after `npm run verify` passed. */
-function postverify(dir: string) {
-  return spawnSync('node', [`${root}/tools/verified.mjs`], { cwd: dir, env, encoding: 'utf8' });
+/** Runs tools/verified.mjs in `dir`: `begin` as npm's `preverify` does, `end` as its `postverify` does after a pass. */
+function verified(dir: string, ...args: string[]) {
+  return spawnSync('node', [`${root}/tools/verified.mjs`, ...args], { cwd: dir, env, encoding: 'utf8' });
 }
 
-describe('the stamp npm run verify leaves', () => {
-  it('lets the hook through on a tree verify passed, with the count npm test kept', () => {
+/** Keeps `n` as the count `npm test`'s reporter leaves in `dir`'s git directory. */
+function counted(dir: string, n: number) {
+  const file = join(git(dir, 'rev-parse', '--absolute-git-dir'), 'cell-studio-tests-passed');
+  writeFileSync(file, `${n}\n`);
+  return file;
+}
+
+describe('the stamp npm run verify leaves (tools/verified.mjs)', () => {
+  it('lets the push of the files verify saw through, untracked ones too, even when they were committed after', () => {
     const dir = repoWith(['a.ts']);
-    writeFileSync(join(git(dir, 'rev-parse', '--absolute-git-dir'), 'cell-studio-tests-passed'), '1234\n');
-    expect(postverify(dir).stdout).toContain('1234 tests passed');
+    writeFileSync(join(dir, 'a.ts'), 'edited\n');
+    writeFileSync(join(dir, 'new.ts'), 'new\n');
+    verified(dir, 'begin');
+    counted(dir, 1234);
+    expect(verified(dir, 'end').stdout).toContain('1234 tests passed');
+    git(dir, 'add', '.');
+    git(dir, 'commit', '-qm', 'what verify saw');
     const { status, stdout } = hook(dir, 'head', { verify: failing });
     expect(status).toBe(0);
     expect(stdout).toContain('already (1234 tests passed)');
   });
 
-  it('stamps nothing while a tracked file has uncommitted changes', () => {
+  it('stamps nothing for a commit that leaves out a file verify saw', () => {
     const dir = repoWith(['a.ts']);
-    writeFileSync(join(dir, 'a.ts'), 'edited\n');
-    expect(postverify(dir).stdout).toContain('not stamped');
-    git(dir, 'checkout', '--', 'a.ts');
+    writeFileSync(join(dir, 'helper.ts'), 'verify needed me\n');
+    verified(dir, 'begin');
+    expect(verified(dir, 'end').stdout).toContain('commit exactly these files');
+    rmSync(join(dir, 'helper.ts'));
     expect(hook(dir, 'head', { verify: failing }).status).toBe(1);
   });
 
-  it('uses a count once, and says it does not know one it was not given', () => {
+  it('stamps nothing when a file changed while verify ran, since verify may have read either version', () => {
     const dir = repoWith(['a.ts']);
-    const counted = join(git(dir, 'rev-parse', '--absolute-git-dir'), 'cell-studio-tests-passed');
-    writeFileSync(counted, '5\n');
-    postverify(dir);
-    expect(existsSync(counted)).toBe(false);
+    verified(dir, 'begin');
+    writeFileSync(join(dir, 'a.ts'), 'edited while verify ran\n');
+    expect(verified(dir, 'end').stdout).toContain('not stamped');
+    // Neither the tree it began on (the edit undone) nor the one it ended on (the edit committed) passed.
+    git(dir, 'checkout', '--', 'a.ts');
+    expect(hook(dir, 'head', { verify: failing }).status).toBe(1);
+    writeFileSync(join(dir, 'a.ts'), 'edited while verify ran\n');
+    git(dir, 'commit', '-qam', 'the edit');
+    expect(hook(dir, 'head', { verify: failing }).status).toBe(1);
+  });
+
+  it('does nothing at the end of a run that did not begin (a verify that failed leaves its begin behind, harmless)', () => {
+    const dir = repoWith(['a.ts']);
+    expect(verified(dir, 'end').stdout).toBe('');
+    expect(existsSync(join(git(dir, 'rev-parse', '--absolute-git-dir'), 'cell-studio-verified'))).toBe(false);
+  });
+
+  it('uses a count once, takes one it is given, and says it does not know one it was not given', () => {
+    const dir = repoWith(['a.ts']);
+    verified(dir, 'begin');
+    const file = counted(dir, 5);
+    verified(dir, 'end');
+    expect(existsSync(file)).toBe(false);
     commit(dir, 'b.ts');
-    expect(postverify(dir).stdout).toContain('? tests passed');
+    verified(dir, 'begin');
+    expect(verified(dir, 'end').stdout).toContain('? tests passed');
+    commit(dir, 'c.ts');
+    verified(dir, 'begin');
+    expect(verified(dir, 'end', '7').stdout).toContain('7 tests passed');
+  });
+
+  it('forgets a count an earlier npm test left when verify begins', () => {
+    const dir = repoWith(['a.ts']);
+    const file = counted(dir, 99);
+    verified(dir, 'begin');
+    expect(existsSync(file)).toBe(false);
   });
 
   it('keeps the number of tests a passing run passed, and none for a failing run', () => {
@@ -321,14 +391,16 @@ describe('session-start', () => {
     });
   }
 
-  it('says the session lacks yggi/cells, and how to attach it, when the install leaves it missing', () => {
+  it('says a missing yggi/cells is the network or the proxy, since the package is public, and to retry npm ci', () => {
     const dir = repoWith(['a.ts']);
-    const run = sessionStart(dir, 'echo "npm error git ls-remote ssh://git@github.com/yggi/cells.git"; exit 1');
+    const run = sessionStart(dir, 'echo "npm error network request to https://codeload.github.com/yggi/cells failed"; exit 1');
     expect(run.status).toBe(0);
     expect(run.stdout).toContain('node_modules/@yggi/cells is missing');
-    expect(run.stdout).toContain('no access to the private repository yggi/cells');
-    expect(run.stdout).toContain('attach yggi/cells (add_repo');
-    expect(run.stdout).toContain('npm ci');
+    expect(run.stdout).toContain('npm error network request');
+    expect(run.stdout).toContain('yggi/cells is public');
+    expect(run.stdout).toContain('the network or the proxy');
+    expect(run.stdout).toContain('run `npm ci` again');
+    expect(run.stdout).not.toMatch(/private|add_repo|attach/);
     expect(git(dir, 'config', 'core.hooksPath')).toBe('.githooks');
   });
 
