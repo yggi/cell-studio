@@ -59,6 +59,9 @@ export function hslRgb(h: number, s: number, l: number): [number, number, number
   return [f(0), f(8), f(4)];
 }
 
+/** A pitch class's colour lit up (the tower layout's sky, a band where a spire sounds): saturated and bright. */
+export const litRgb = (hue: number) => hslRgb(hue, 95, 62);
+
 /** tapTint as rgb (oklab's mix approximated in rgb), for a canvas: a section's colour on the tower layout's strip. */
 export const tapTintRgb = (k: number, n: number): readonly [number, number, number] => {
   if (n <= 1) return UNIT_RGB;

@@ -1,8 +1,9 @@
 /**
  * An out's spire (the tower layout, docs/notes/tower-sky.md): what it sounds as one glyph on the tower's scale — a big
- * dot at its fundamental, a hairline up over its range, and a dot on each of its partials, as big as it is strong. The
- * same glyph stands in the sky over its socket and marks it on the strip, at another size. Live, the dots are its
- * spectrum now and the big one swells with its level; stopped, its partials at rest.
+ * dot at its fundamental, a hairline up over its range (in its out's colour), and a dot on each of its partials, as
+ * big as it is strong (in its note's colour). The same glyph stands in the sky over its socket and marks it on the
+ * strip, at another size. Live, the dots are its spectrum now and the big one swells with its level; stopped, its
+ * partials at rest.
  */
 import { bandFreq, F_HI, F_LO } from '../layout/spectrum';
 
@@ -43,27 +44,37 @@ export function spireOf(levels: Float32Array, hz: number | null, bands: number):
 
 /**
  * The spire drawn on a canvas at x: `y(band)` its place on the scale, `size` the big dot's most radius (px), `colour`
- * rgb. `alpha` dims it all (an out switched off, or at rest).
+ * rgb, its hairline's (its out's own: its section's); `dot(band)` a partial's colour (its note's). `alpha` dims it all
+ * (an out switched off, or at rest).
  */
-export function drawSpire(g: CanvasRenderingContext2D, x: number, y: (band: number) => number, s: Spire, size: number, colour: readonly number[], alpha = 1): void {
-  const c = (a: number) => `rgba(${colour[0]}, ${colour[1]}, ${colour[2]}, ${a * alpha})`;
+export function drawSpire(
+  g: CanvasRenderingContext2D,
+  x: number,
+  y: (band: number) => number,
+  s: Spire,
+  size: number,
+  colour: readonly number[],
+  dot: (band: number) => readonly number[],
+  alpha = 1,
+): void {
+  const c = (rgb: readonly number[], a: number) => `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, ${a * alpha})`;
   const foot = y(s.root);
   // the hairline, over its range
-  g.strokeStyle = c(0.7);
+  g.strokeStyle = c(colour, 0.7);
   g.lineWidth = 1;
   g.beginPath();
   g.moveTo(x, foot);
   g.lineTo(x, y(s.top));
   g.stroke();
-  // a dot a partial, as big as it is strong
-  g.fillStyle = c(0.9);
+  // a dot a partial, as big as it is strong, in its note's colour
   for (const p of s.partials) {
+    g.fillStyle = c(dot(p.band), 0.9);
     g.beginPath();
     g.arc(x, y(p.band), Math.max(1, size * 0.45 * p.level), 0, 2 * Math.PI);
     g.fill();
   }
   // the fundamental: the big dot, swelling with its level
-  g.fillStyle = c(0.55 + 0.45 * s.level);
+  g.fillStyle = c(dot(s.root), 0.55 + 0.45 * s.level);
   g.beginPath();
   g.arc(x, foot, Math.max(2, size * (0.5 + 0.5 * s.level)), 0, 2 * Math.PI);
   g.fill();

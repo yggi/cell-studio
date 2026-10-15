@@ -50,6 +50,7 @@
   import TapLooms from './TapLooms.svelte';
   import { towerIns, towerY } from '../layout/towerlayout';
   import FlyTo from './FlyTo.svelte';
+  import { outTint } from './heard';
   import PanBounds from './PanBounds.svelte';
   import { pillAnchor } from '../layout/taploom';
   import type { Viewport } from '@xyflow/svelte';
@@ -346,6 +347,11 @@
   const skyMode = QUERY?.get('sky') ?? 'mix';
   // (each node's section: a selector's tap upstream of it, or its tag's)
   const sections = $derived(nodeSections(shown.program, shown.model));
+  // (an out's own colour, steady: its section's, else its base note's — its spire's mast, its share of the strip)
+  const tintOf = (source: string) => {
+    const s = sections.get(`cell:${source}`);
+    return outTint(shown.program, source, s && s.n > 1 ? tapTintRgb(s.k, s.n) : null);
+  };
   const sky = $derived(towered && SKY_MODES.includes(skyMode as SkyMode));
   const spires = $derived(
     sky
@@ -559,6 +565,7 @@
       {viewport}
       zone={layout.zone}
       open={stripsOpen}
+      {tintOf}
       ontoggle={() => (stripsOpen = !stripsOpen)}
       onfocus={(id) => {
         const p = layout.position(id);
