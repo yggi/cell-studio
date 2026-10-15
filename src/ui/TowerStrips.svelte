@@ -422,6 +422,11 @@
         g.fillText(label, 4, yy + 3, x0 - 6);
       }
       const at = new Map<number, number>();
+      // (a voice's name up its lane from above its dot; voices sharing a lane, or in lanes too close for two names side
+      // by side, one above the other: a staircase)
+      const above = new Map<number, number>();
+      let last: { lane: number; top: number } | null = null;
+      members.sort(([x], [y]) => map.span.get(x)![0] - map.span.get(y)![0]);
       for (const [id] of members) {
         const [a, b] = map.span.get(id)!;
         const [xa, xb] = across(id);
@@ -441,9 +446,29 @@
           }
           g.fillRect((xa + xb) / 2 - 3, yy - 3, 6, 6);
         } else {
+          const x = (xa + xb) / 2 + (n ? (n % 2 ? 1 : -1) * Math.ceil(n / 2) * 3 : 0);
           g.beginPath();
-          g.arc((xa + xb) / 2 + (n ? (n % 2 ? 1 : -1) * Math.ceil(n / 2) * 3 : 0), yy, 2.5, 0, 2 * Math.PI);
+          g.arc(x, yy, 2.5, 0, 2 * Math.PI);
           g.fill();
+          if (layer === 'voice') {
+            // its name, rotated, up its lane from above its dot, on a halo
+            const close = last !== null && (a - last.lane) * lw < (open ? 11 : 10);
+            const from = Math.min(above.get(a) ?? yy - 6, close && last ? last.top - 6 : Infinity);
+            g.font = `700 ${open ? 9 : 8}px system-ui, sans-serif`;
+            const len = g.measureText(name).width;
+            g.textAlign = 'left';
+            g.setTransform(dpr, 0, 0, dpr, ((xa + xb) / 2 + 3) * dpr, from * dpr);
+            g.rotate(-Math.PI / 2);
+            g.lineWidth = 3;
+            g.strokeStyle = css('--surface');
+            g.strokeText(name, 0, 0);
+            g.fillText(name, 0, 0);
+            g.setTransform(dpr, 0, 0, dpr, 0, 0);
+            g.lineWidth = 1;
+            hit(id, xa, from - len, xb, from);
+            above.set(a, from - len - 6);
+            last = { lane: a, top: from - len };
+          }
         }
       }
     }
