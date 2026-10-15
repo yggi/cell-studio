@@ -44,6 +44,16 @@ describe('voice wheels', () => {
     expect(lit(s.right)).toBe(1);
   });
 
+  it('a resting voice is split by its pan: the far side fades, the near one stays full', () => {
+    const r = compileSource('&m step=1\n&t step=&m 0\n&a s=sine loop=440 pan=.2\n&b s=sine loop=440\n&out_ loop=44k map=sample [&t * &a, &t * &b]');
+    const peak = (x: Float32Array) => Math.max(...x);
+    const a = restingSpectrum(r, 'a', codeShifts(r), 64);
+    expect(peak(a.left)).toBeCloseTo(1);
+    expect(peak(a.right)).toBeLessThan(peak(a.left)); // right at .4 of it: 8 dB down
+    const b = restingSpectrum(r, 'b', codeShifts(r), 64);
+    expect(peak(b.right)).toBeCloseTo(peak(b.left)); // no pan: the centre
+  });
+
   it('colours by note: one rainbow per octave', () => {
     // a rainbow per octave, by pitch class: band b of 120 is the note C0 + b semitones
     const hue = (note: number) => bandHue(note, 120);

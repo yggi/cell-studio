@@ -103,7 +103,10 @@ export function restingSpectrum(result: CompileResult, voice: string, shifts: Sh
     }
     mags.forEach((m, k) => put(f0 * (k + 1), m));
   }
-  return { left: level, right: new Float32Array(level) };
+  // split by its pan (0 left, .5 centre, 1 right): the far side fades, the near one stays full (the language's sound.md)
+  const pan = typeof c.params.pan === 'number' ? Math.max(0, Math.min(1, c.params.pan)) : 0.5;
+  const side = (g: number) => level.map((v) => (v > 0 && g > 0 ? Math.max(0, v + (20 * Math.log10(g)) / 60) : 0));
+  return { left: side(Math.min(1, 2 * (1 - pan))), right: side(Math.min(1, 2 * pan)) };
 }
 
 /** Rainbow by frequency: red at 20 Hz (hue 0°) to deep violet at 20 kHz (hue 275°). */

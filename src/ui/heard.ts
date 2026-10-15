@@ -81,9 +81,23 @@ export function noteHz(ctx: GraphContext, source: string): number | null {
  */
 function noteHslOf(ctx: GraphContext, source: string): [number, number, number] | null {
   const hz = noteHz(ctx, source);
-  if (hz === null) return null;
+  return hz === null ? null : hzHsl(hz);
+}
+
+/** A frequency's note colour: its pitch class's hue, by its octave. */
+function hzHsl(hz: number): [number, number, number] {
   const midi = Math.round(69 + 12 * Math.log2(hz / 440));
   return noteHsl((((midi % 12) + 12) % 12) * 30, false, Math.floor(midi / 12) - 5);
+}
+
+/**
+ * An out's own colour, the same playing or not (the strip's share and name, a spire's mast: they don't flicker with
+ * each note): its section's (`section`, where a selector makes sections), else its base note's, else white.
+ */
+export function outTint(program: GraphContext['program'], source: string, section: readonly number[] | null): readonly number[] {
+  if (section) return section;
+  const hz = program.cells.get(source)?.freq ?? 0;
+  return hz > 0 ? hslRgb(...hzHsl(hz)) : UNIT_RGB;
 }
 
 /** noteHslOf as a CSS colour. */

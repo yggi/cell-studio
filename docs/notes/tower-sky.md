@@ -203,6 +203,14 @@ The second round, on that:
 - **The lanes funnel.** The lanes were the spectrum's narrow column all the way down; under the audible, where the structure's values and the neutral zone's dots and names need the room, they are now wide (half the open strip, most of the folded one; 30 px a lane at most), narrowing into the column just under 20 Hz, eased (over 16 … 80 px, a third of the way down to the zone's top row). The bridges and the lanes' lines follow the funnel.
 - **The strip as a map you tap.** A tap on a cell's values, an out's spire or its share of the sum, or a gate, voice or mixer moves the view to that node, keeping its zoom, in 380 ms eased in and out (`FlyTo.svelte`). The strip keeps letting the graph under it pan and zoom: a tap is told from a drag on the window.
 
+The third round:
+
+- **The sky lights its bands.** Where a spire sounds, its bands brighten in the sky, saturated (`litRgb`: the pitch class's hue, bright), centred on the spire, reaching far across and as narrow as the band (the light's layer at an eighth of the screen's resolution across, the sky's down: it isn't smeared up and down).
+- **An out's own colour, steady.** The strip's share of the sum, its lane and its name, and a spire's mast and hairline wear the out's section colour (else its base note's, else white: `outTint`), not the note it plays now: they flickered with each note. Its name sits at its base fundamental, not at the note now. A partial's dot, in the sky and on the strip, wears its own note's colour.
+- **Stereo by pan.** A voice's resting spectrum is split by its `pan=` (the far side fades by up to half, the near one stays full: the language's law), so a panned voice's spire and its share of the strip lean to its side at rest as they do playing. Canon per tonos still makes its stereo with two mixes, one a channel: written with `pan=` instead (each voice in the card's one chord), each instrument would be its own out, its lane running up into the audible column, its spire leaning; that is a change to the example, in yggi/cells.
+- **Every cell's state.** A cell's value now is lit, taller and outlined, the outline flashing at each step it takes and fading through it: a cell of one value (a groove's hits, `&beat`) shows its steps so; in a rest nothing is lit.
+- **The constant.** The tables nothing steps have a stratum of their own at the strip's foot, its ground, its rail (`--text-muted`) and its name.
+
 ## 5. One tiered strip for the graph and the time view (proposed)
 
 Three things draw the tower's scale today, each its own way:

@@ -34,8 +34,10 @@ A colour says what something is or carries; where another value would mean nothi
 | a selector's table of taps on the strip | each value its section's tint | `tapTintRgb`, TowerStrips |
 | a selector's strands, its selection's bus | the part's colour through the white clock, `tapTint` | theme.ts |
 | a tag's wash | the tint of the section whose tap steps its cells; else a hue of its own | `Graph.svelte` (`tagSections`, ui/sections.ts) |
-| an out (the tower layout): its socket's meter, its spire and light, its share of the strip's sum | its source's note now (its base stopped), by octave; drums and noise white | `noteOf`, `outRgb` (ui/heard.ts) |
-| the strata's rails on the strip | the slow `--meter-2`, the pulse `--meter-1`, the neutral zone (the voices) `--meter-3`, the audible `--accent`, each named along it | `TowerStrips.svelte` |
+| an out (the tower layout): its socket's meter (its spire, light and share of the strip: the next rows) | its source's note now (its base stopped), by octave; drums and noise white | `noteOf`, `outRgb` (ui/heard.ts) |
+| the strata's rails on the strip | the slow `--meter-2`, the pulse `--meter-1`, the neutral zone (the voices) `--meter-3`, the audible `--accent`, the constant (the tables nothing steps) `--text-muted`, each named along it | `TowerStrips.svelte` |
+| an out's own colour (its spire's mast and hairline, its share of the strip, its name there) | its section's (`tapTintRgb`), else its base note's, else white: steady, not the note now | `heard.ts` `outTint` |
+| a band lit in the sky (where a spire sounds) | its pitch class's hue, saturated and bright | `theme.ts` `litRgb` |
 | the sky and the strip's rainbow | each semitone band its note's colour by octave, muted | `TowerSky.svelte`, `TowerStrips.svelte` |
 | the time view's notes and waterfall | **a hue a voice** (golden angle), not its note: not aligned with the graph yet (open, docs/notes/tower-sky.md) | `voiceHues` (layout/timelayers.ts) |
 | the time view's scalogram | three signals added: breaks red, entries green, density blue | `TIME` (theme.ts) |

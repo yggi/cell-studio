@@ -23,8 +23,8 @@
   import { bandFreq, bandHue, bandOctave, C0 } from '../layout/spectrum';
   import { towerAt, towerY } from '../layout/towerlayout';
   import { onFrames } from '../audio/ticker';
-  import { hslRgb, noteHsl } from './theme';
-  import { heard, noteHz, outRgb } from './heard';
+  import { hslRgb, litRgb, noteHsl } from './theme';
+  import { heard, noteHz, outTint } from './heard';
   import { drawSpire, spireOf } from './spire';
 
   let {
@@ -45,7 +45,8 @@
   const BANDS = 120;
   // (drawn at half the screen's resolution: a glow, soft anyway)
   const RES = 0.5;
-  // (the light at an eighth of the screen's resolution, a quarter of the sky's: soft anyway)
+  // (the light at an eighth of the screen's resolution across, soft anyway; down, at the sky's: a band of light as
+  // narrow as its band)
   const LIGHT = 0.125;
   let w = $state(0);
   let h = $state(0);
@@ -68,6 +69,8 @@
 
   // (each band its note's colour by its octave: full in the fourth, darker below, brighter above)
   const hues = Array.from({ length: BANDS }, (_, b) => hslRgb(...noteHsl(bandHue(b, BANDS), false, bandOctave(b, BANDS))));
+  // (and lit: saturated and bright, its active bands in the sky)
+  const vivid = Array.from({ length: BANDS }, (_, b) => litRgb(bandHue(b, BANDS)));
   const mixed = (a: readonly number[], b: readonly number[], t: number) => a.map((v, i) => Math.round(v * (1 - t) + b[i] * t));
   const css = (c: readonly number[], a: number) => `rgba(${c[0]}, ${c[1]}, ${c[2]}, ${a})`;
 
@@ -126,14 +129,14 @@
     // and laid over the sky
     const sky = g;
     const lw = Math.ceil(w * LIGHT);
-    const lh = Math.ceil(h * LIGHT);
+    const lh = Math.ceil(h * RES);
     if (!light || light.width !== lw || light.height !== lh) {
       light = document.createElement('canvas');
       light.width = lw;
       light.height = lh;
     }
     const lg = light.getContext('2d')!;
-    lg.setTransform(LIGHT, 0, 0, LIGHT, 0, 0);
+    lg.setTransform(LIGHT, 0, 0, RES, 0, 0);
     lg.globalCompositeOperation = 'source-over';
     lg.clearRect(0, 0, w, h);
     lg.globalCompositeOperation = 'lighter';
@@ -154,7 +157,8 @@
       if (x < -reach || x > w + reach) continue;
       const dim = nodeState(ctx, `cell:${s.source}`) === 'off';
       const { left, right, rest } = heard(ctx, s.source, BANDS);
-      const tint = outRgb(ctx, s.source);
+      // (its own colour, steady: its section's, else its base note's — its mast; the light, in `tint`, too)
+      const tint = outTint(ctx.program, s.source, s.section ?? null);
       // (the sky is lit by the spire's glow, not by each instant: what it sounds, fading away slowly, so it doesn't strobe)
       const was = glow.get(s.id);
       const lit = {
@@ -169,21 +173,22 @@
         if (!audible(b) || Math.max(lit.l[b], lit.r[b]) <= 0.02) continue;
         const y = yOf(band(b));
         if (y < -half || y > h + half) continue;
-        const colour = !tint || mode === 'rainbow' ? hues[b] : mode === 'mix' ? mixed(tint, hues[b], 0.5) : tint;
+        // (its band lit up: the band's own colour, saturated and bright; `tint` its out's colour instead)
+        const colour = mode === 'tint' && tint ? tint : mode === 'rainbow' ? hues[b] : vivid[b]!;
         for (const [side, lv] of [
           [-1, lit.l[b]],
           [1, lit.r[b]],
         ] as const) {
           if (lv <= 0.04 || dim) continue;
-          // (a soft light: the spires are what is seen, the sky only brightened round them)
-          const a = (rest ? 0.12 : 0.22) * lv * lv + (rest ? 0.03 : 0.06) * lv;
+          // (the band brightened round its spire, wide across and as narrow as the band: the spires are what is seen)
+          const a = (rest ? 0.16 : 0.3) * lv * lv + (rest ? 0.04 : 0.08) * lv;
           const len = (0.25 + 0.75 * lv) * reach;
           const grad = lg.createLinearGradient(x, 0, x + side * len, 0);
           grad.addColorStop(0, css(colour, a));
           grad.addColorStop(0.3, css(colour, a * 0.5));
           grad.addColorStop(1, css(colour, 0));
           lg.fillStyle = grad;
-          lg.fillRect(side < 0 ? x - len : x, y - half, len, 2 * half);
+          lg.fillRect(side < 0 ? x - len : x, y - half * 0.8, len, 1.6 * half);
         }
       }
       if (lo >= 0) masts.push({ x, foot: sy(s.y), hz: noteHz(ctx, s.source), tint, section: s.section ?? null, l: left, r: right, rest, dim });
@@ -241,7 +246,16 @@
           t.fillRect(side < 0 ? m.x - len : m.x, y - bh / 2, len, bh);
         }
       }
-      drawSpire(t, m.x, (b) => yOf(band(b)), s, Math.max(5, 18 * viewport.zoom), m.tint, alpha);
+      drawSpire(
+        t,
+        m.x,
+        (b) => yOf(band(b)),
+        s,
+        Math.max(5, 18 * viewport.zoom),
+        m.tint,
+        (b) => hues[b]!,
+        alpha,
+      );
     }
   }
 

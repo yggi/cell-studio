@@ -22,7 +22,7 @@
   import type { Minimap } from '../layout/minimap';
   import { TOWER_ZONES } from '../layout/tower';
   import { onFrames } from '../audio/ticker';
-  import { noteHsl, tapTintRgb } from './theme';
+  import { hslRgb, noteHsl, tapTintRgb } from './theme';
   import { heard, noteHz, noteOf, outRgb } from './heard';
   import { drawSpire, spireOf } from './spire';
   import { cellView, valueAt, valueSpectrum } from '../layout/cellview';
@@ -41,6 +41,7 @@
     open,
     ontoggle,
     onfocus,
+    tintOf = (source: string) => outRgb(ctx, source),
   }: {
     ins: readonly TowerIn[];
     /** The lanes, and the lanes each node feeds (layout/minimap.ts). */
@@ -55,6 +56,8 @@
     zone?: number;
     open: boolean;
     ontoggle: () => void;
+    /** An out's own colour (its source's name): its section's, steady — its share of the sum, its lane, its name. */
+    tintOf?: (source: string) => readonly number[];
     /** A tap on what the strip shows for a node (its id): the view moves to it. */
     onfocus?: (id: string) => void;
   } = $props();
@@ -93,11 +96,8 @@
     return `hsla(${hh}, ${ss}%, ${ll}%, ${a})`;
   };
 
-  // (a source's colour: its note's, as its socket and its wire are; off or with none, the edge's)
-  function colourOf(name: string): string {
-    if (nodeState(ctx, `cell:${name}`) === 'off') return css('--edge');
-    return noteOf(ctx, name) ?? css('--edge');
-  }
+  // (each band its note's colour by its octave, as rgb: a spire's dots)
+  const hues = Array.from({ length: BANDS }, (_, b) => hslRgb(...noteHsl(bandHue(b, BANDS), false, bandOctave(b, BANDS))));
 
   // (a decade's tick, as a period below 1 Hz and a frequency above)
   function decade(d: number): string {
@@ -255,6 +255,19 @@
       g.fillStyle = hsla((((k % 12) + 12) % 12) * 30, 0.2, Math.floor(k / 12) - 4);
       g.fillRect(0, y0, W, y1 - y0);
     }
+    // the constant: its own ground, under a line, over what the rates' rainbow would show there
+    const foot = constantTop();
+    if (foot < h) {
+      g.fillStyle = css('--surface');
+      g.globalAlpha = 0.85;
+      g.fillRect(0, foot, W - 7, h - foot);
+      g.globalAlpha = 1;
+      g.strokeStyle = css('--line');
+      g.beginPath();
+      g.moveTo(0, foot);
+      g.lineTo(W, foot);
+      g.stroke();
+    }
     if (!map || !map.lanes.length) return names(g, W);
     // the lanes: a narrow column in the strip's middle, a lane an out; the combined spectrum out from its sides, the left
     // channel left, the right right; the names on the left when opened (under 20 Hz the sides are free)
@@ -297,7 +310,6 @@
     const nameOf = (id: string) => id.slice('cell:'.length);
     // the structure: each stepped cell at its rate, across the lanes it feeds, the values it takes (each as wide as
     // it is held, in its colour, the one it holds now lit); cells sharing a place stacked
-    const ROW = 8;
     const paint = (c: string) => (c.startsWith('var(') ? css(c.slice(4, -1)) : c);
     const used = new Map<string, number>();
     const named: number[] = [];
@@ -307,16 +319,28 @@
       const { v, taps, spread } = got;
       const local = ctx.heads.cells.get(name)?.local ?? 0;
       const lap = lapOf(ctx.program, name);
-      const now = lap > 0 ? valueAt(v, (((local / lap) % 1) + 1) % 1, taps > 0) : null;
+      const playing = ctx.state !== 'stopped';
+      const now = playing && lap > 0 ? valueAt(v, (((local / lap) % 1) + 1) % 1, taps > 0) : null;
+      // (its state now, playing: the value it holds lit, taller and outlined, the outline flashing at each step it
+      // takes and fading through the step — a cell of one value (a groove's hits) shows its steps so; in a rest,
+      // nothing lit)
+      const flash = 1 - (((local % 1) + 1) % 1);
       hit(`cell:${name}`, xa, y - 4, xb, y + 4);
       let x = xa;
       for (const e of spread) {
-        const w = e.share * (xb - xa);
-        g.globalAlpha = ctx.state === 'stopped' || e.key === now ? 1 : 0.35;
+        const w = Math.max(1, e.share * (xb - xa) - 0.5);
+        const lit = e.key === now;
+        g.globalAlpha = !playing || lit ? 1 : 0.3;
         const t = taps ? tapTintRgb(e.index, taps) : null;
         g.fillStyle = t ? `rgb(${t[0]}, ${t[1]}, ${t[2]})` : paint(fillColour(e.fill));
-        g.fillRect(x, y - 2, Math.max(1, w - 0.5), 4);
-        x += w;
+        g.fillRect(x, y - (lit ? 3 : 2), w, lit ? 6 : 4);
+        if (lit) {
+          g.globalAlpha = 0.35 + 0.65 * flash;
+          g.strokeStyle = css('--text');
+          g.lineWidth = 1;
+          g.strokeRect(x - 0.5, y - 3.5, w + 1, 7);
+        }
+        x += e.share * (xb - xa);
       }
       g.globalAlpha = 1;
       if (open) {
@@ -359,7 +383,7 @@
     const outs = new Map(ins.map((o) => [o.id, o]));
     const each = map.lanes.flatMap((lane, k) => {
       const o = outs.get(lane.edge);
-      return o ? [{ k, lane, o, ...levels(o), c: outRgb(ctx, o.name), off: nodeState(ctx, lane.source) === 'off' }] : [];
+      return o ? [{ k, lane, o, ...levels(o), c: tintOf(o.name), off: nodeState(ctx, lane.source) === 'off' }] : [];
     });
     const hb = Math.max(1.5, half * 1.4);
     for (const side of ['left', 'right'] as const) {
@@ -401,16 +425,27 @@
       along((y) => mid(k, y), top, from);
       hit(e.lane.source, mid(k) - lw / 2, yB, mid(k) + lw / 2, s ? yOf(band(s.top)) - 4 : top - 4);
       hit(e.lane.source, mid(k, from) - lwAt(from) / 2, from, mid(k, from) + lwAt(from) / 2, yB);
-      if (s) drawSpire(g, mid(k), (b) => yOf(band(b)), s, Math.min(3.5, lw * 0.6), c, off ? 0.3 : 1);
+      if (s)
+        drawSpire(
+          g,
+          mid(k),
+          (b) => yOf(band(b)),
+          s,
+          Math.min(3.5, lw * 0.6),
+          c,
+          (b) => hues[b]!,
+          off ? 0.3 : 1,
+        );
       if (open) {
-        // (its name at its fundamental, left of the column, over the spectrum on a halo)
+        // (its name at its base fundamental, steady (the note now jumps), left of the column, over the spectrum on a halo)
+        const seat = sy(o.top);
         g.font = '700 9px system-ui, sans-serif';
         g.textAlign = 'right';
         g.lineWidth = 3;
         g.strokeStyle = css('--surface');
-        g.strokeText(o.name, x0 - 4, top + 3);
-        g.fillStyle = colourOf(o.name);
-        g.fillText(o.name, x0 - 4, top + 3);
+        g.strokeText(o.name, x0 - 4, seat + 3);
+        g.fillStyle = off ? css('--edge') : `rgb(${c[0]}, ${c[1]}, ${c[2]})`;
+        g.fillText(o.name, x0 - 4, seat + 3);
       }
     }
     // the neutral zone's rows, named (A), and on them what stands there, in its lanes: a gate a dot, a voice a dot in
@@ -502,7 +537,20 @@
       return { name: z.name, colour: zoneColour(z.name), y0: yOf(hi), y1: yOf(lo) };
     });
     if (zone > 0) out.push({ name: 'voices', colour: css('--meter-3'), y0: yOf(hearing), y1: yOf(hearing - 1e-9) });
+    // (and under them all, the tables nothing steps: the constant, a stratum of its own at the strip's foot)
+    const foot = constantTop();
+    if (foot < h) {
+      for (const r of out) r.y1 = Math.min(r.y1, foot);
+      out.push({ name: 'constant', colour: css('--text-muted'), y0: foot, y1: h });
+    }
     return out;
+  }
+
+  // (the constant's top: room for its tables, a row each, and its name; none, the strip's foot)
+  const ROW = 8;
+  function constantTop(): number {
+    const n = structure.filter((c) => c.at === -Infinity).length;
+    return n ? h - Math.max(48, 16 + n * ROW) : h;
   }
 
   // each rail named along it, where it shows (folded too, smaller), on a halo
