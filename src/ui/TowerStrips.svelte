@@ -180,10 +180,58 @@
       g.fillRect(W - 6, r.y0, 4, r.y1 - r.y0);
       g.globalAlpha = 1;
     }
-    // decades
+    // the audible's scale: the frequency at the right (1, 2, 5 a decade, in Hz, from 1000 in kHz; between them a tick a
+    // step, unnamed), the octaves at the left (each C, named Cn); a name only where it has room
+    const hearing = (hz: number) => hz >= 20 && hz <= 20000;
+    const room = (ys: number[], y: number) => ys.every((u) => Math.abs(u - y) >= 11);
+    // (a name over the spectrum, on a halo)
+    const halo = (text: string, x: number, y: number) => {
+      g.lineWidth = 3;
+      g.strokeStyle = css('--surface');
+      g.strokeText(text, x, y);
+      g.fillText(text, x, y);
+      g.lineWidth = 1;
+      g.strokeStyle = css('--line');
+    };
+    const said: number[] = [];
+    g.font = `${open ? 10 : 8}px system-ui, sans-serif`;
+    g.strokeStyle = css('--line');
+    for (let d = 1; d <= 4; d++)
+      for (let m = 1; m <= 9; m++) {
+        const hz = m * 10 ** d;
+        const y = yOf(Math.log10(hz));
+        if (!hearing(hz) || y < 0 || y > h) continue;
+        const named = m === 1 || m === 2 || m === 5;
+        g.beginPath();
+        g.moveTo(W - (named ? 18 : 11), y);
+        g.lineTo(W - 6, y);
+        g.stroke();
+        if (!named || !room(said, y)) continue;
+        said.push(y);
+        g.fillStyle = css('--text-muted');
+        g.textAlign = 'right';
+        // (clear of the rail's name, which stands along it at W - 10)
+        halo(hz >= 1000 ? `${hz / 1000} kHz` : `${hz} Hz`, W - 20, y + 3);
+      }
+    const octaves: number[] = [];
+    for (let n = 0; n <= 10; n++) {
+      const hz = C0 * 2 ** n;
+      const y = yOf(Math.log10(hz));
+      if (!hearing(hz) || y < 0 || y > h) continue;
+      g.beginPath();
+      g.moveTo(0, y);
+      g.lineTo(open ? 10 : 6, y);
+      g.stroke();
+      if (!room(octaves, y)) continue;
+      octaves.push(y);
+      g.fillStyle = css('--text-muted');
+      g.textAlign = 'left';
+      halo(`C${n}`, open ? 12 : 8, y + 3);
+    }
+    // decades, under the audible
     g.font = '10px system-ui, sans-serif';
     g.textAlign = 'right';
-    for (let d = -6; d <= 4; d++) {
+    for (let d = -6; d <= 1; d++) {
       const y = yOf(d);
       if (y < 0 || y > h) continue;
       g.strokeStyle = css('--line');
