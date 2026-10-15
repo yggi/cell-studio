@@ -20,6 +20,8 @@ A minimal language for music where everything is a **cell**: a helix (pitch clas
 
 Commands, the rules (which are enforced and which are judgment), the PR conventions and what an agent may decide alone are in [../AGENTS.md](../AGENTS.md); how the tests and CI fit together is in [testing.md](testing.md). A release: bump `version` in `package.json`, move the *Unreleased* entries of `CHANGELOG.md` under a new heading, tag `vX.Y.Z`.
 
+**Gates that show themselves only by failing:** the strictness ratchet (`tools/strict.mjs`, in `npm run check`: code in a folder on its clean list indexes safely under `noUncheckedIndexedAccess`; no fixer, and a folder made clean goes on the list); knip (`npm run knip`: an unused export, file or dependency; remove it, or say why in `knip.json`); the docs test (`src/docs.test.ts`: a page not in `INDEX.md`, a broken relative link, a ```` ```cells ```` block with diagnostics); the examples page (`src/examplesDoc.test.ts`; `npm run docs:examples` rewrites it); the layout baseline (slow, `src/layout/physics.library.test.ts`; `UPDATE_LAYOUT_BASELINE=1 npx vitest run src/layout/physics.library.test.ts` records a trade worth making); the layering (`src/architecture.test.ts`) and `Math.random` (`src/audio/repeatable.test.ts`) scans; the golden graph's coverage (`tools/gallery/golden/golden.test.ts`); the boot reading's 28 KB (`tools/reading-list.test.ts`; condense as a change of its own); and the pre-push hook, which blocks a push until `npm run verify` passes ([testing.md](testing.md)).
+
 ## Pull requests: draft until ready
 
 - **Complex work starts as a draft PR**, opened early, so others see what is being done and where it will touch their work.

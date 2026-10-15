@@ -1,0 +1,99 @@
+#!/bin/sh
+# Runs `npm run verify` before any `git push` of a branch, and blocks the push if it fails. CI is only a witness
+# (AGENTS.md#checks), so this is the check that counts. It is git's own pre-push hook, so it holds for a human, an agent
+# and a `sh -c` alike; `npm install` (the `prepare` script) and .claude/hooks/session-start.sh point `core.hooksPath`
+# here. Bypassing it with `--no-verify` is not for agents.
+#
+# - It verifies the working tree, and the push sends the commit, so a dirty tracked tree is refused: commit first, and
+#   push the branch checked out.
+# - A tree that passed is remembered by its hash, with the number of tests that passed, in the git directory
+#   (`cell-studio-verified`), so a push retried after a network failure does not run the tests again. `npm run verify`
+#   writes the same stamp when it passes (`postverify`: tools/verified.mjs), so a push right after it is free.
+# - A check that failed leaves its whole output in the git directory (`cell-studio-verify-failed.log`), named in the
+#   message: the last 40 lines shown may not reach the failure.
+# - A push let through says so in one line, with the number of tests that passed, for the PR's *Verified* section.
+# - A branch that differs from `origin/main` in `*.md` files alone runs AGENTS.md's docs-only check (the format check
+#   and the docs tests) instead of everything, and is not remembered.
+# - Deleting a ref, pushing a tag and the deploy's push to `gh-pages` (.github/scripts/pages.sh, after `test:all`) are
+#   not checked.
+# CELL_STUDIO_VERIFY and CELL_STUDIO_VERIFY_DOCS replace the two checks, for tools/hooks.test.ts.
+#
+# Lifted from yggi/jambot .githooks/pre-push @ 8871429ee9e489ad2af37270e7a4b0b090d91507 (adapted: npm, the stamp
+# shared with `npm run verify`, the count of tests).
+cd "$(git rev-parse --show-toplevel)" || exit 1
+
+# git hands the hook one line per ref: local ref, local sha, remote ref, remote sha.
+head=$(git rev-parse HEAD)
+checked=
+while read -r local_ref local_sha remote_ref _; do
+  case "$remote_ref" in
+    refs/heads/gh-pages) continue ;;
+    refs/heads/*) ;;
+    *) continue ;;
+  esac
+  case "$local_sha" in *[!0]*) ;; *) continue ;; esac
+  if [ "$local_sha" != "$head" ]; then
+    echo "pre-push: $local_ref is not the checked out commit, and verify checks the tree. Check it out, then push." >&2
+    exit 1
+  fi
+  checked=1
+done
+[ -n "$checked" ] || exit 0
+
+if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
+  echo 'pre-push: tracked files have uncommitted changes, and verify checks the tree, not the commit. Commit them, then push again.' >&2
+  exit 1
+fi
+
+gitdir=$(git rev-parse --absolute-git-dir)
+stamps="$gitdir/cell-studio-verified"
+tree=$(git rev-parse 'HEAD^{tree}')
+short=$(git rev-parse --short HEAD)
+# A stamp is a line `<tree> <tests passed>`.
+passed() { grep "^$tree " "$stamps" 2>/dev/null | tail -1 | cut -d' ' -f2; }
+count=$(passed)
+if [ -n "$count" ]; then
+  echo "pre-push: $short passed npm run verify already ($count tests passed); not run again"
+  exit 0
+fi
+
+changed=$(git diff --name-only origin/main...HEAD 2>/dev/null) || changed=
+if [ -n "$changed" ] && ! printf '%s\n' "$changed" | grep -qv '\.md$'; then
+  check="${CELL_STUDIO_VERIFY_DOCS:-npm run -s format:check && npx vitest run src/docs.test.ts tools/reading-list.test.ts}"
+  what='the docs check (the branch changes markdown alone)'
+  stamp=
+else
+  check="${CELL_STUDIO_VERIFY:-npm run verify}"
+  what='npm run verify'
+  stamp=1
+fi
+
+# In a linked worktree git hands the hook GIT_DIR and friends, and a check that makes a repository of its own (the
+# tests do) would talk to this one instead.
+unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX GIT_COMMON_DIR GIT_OBJECT_DIRECTORY
+log=$(mktemp)
+if ! sh -c "$check" >"$log" 2>&1; then
+  # The whole output is kept, since its last lines may miss the failure.
+  kept="$gitdir/cell-studio-verify-failed.log"
+  mv "$log" "$kept"
+  tail -40 "$kept" >&2
+  echo 'pre-push: the check failed, so the push was blocked. Fix it, commit, and push again.' >&2
+  echo "pre-push: full log: $kept" >&2
+  exit 1
+fi
+# vitest's summary line, `Tests  1234 passed (1234)`, its colours taken out.
+esc=$(printf '\033')
+found=$(sed "s/$esc\[[0-9;]*m//g" "$log" | sed -n 's/^ *Tests  *\([0-9][0-9]*\) passed.*/\1/p' | tail -1)
+rm -f "$log"
+if [ -n "$stamp" ]; then
+  # `postverify` has stamped the tree already when the check was `npm run verify`.
+  count=$(passed)
+  [ -n "$count" ] || {
+    count=${found:-?}
+    echo "$tree $count" >>"$stamps"
+  }
+else
+  count=${found:-?}
+fi
+echo "pre-push: $short passed $what: $count tests passed"
+exit 0

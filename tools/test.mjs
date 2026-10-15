@@ -14,7 +14,9 @@ import { execFileSync, spawnSync } from 'node:child_process';
 
 const args = process.argv.slice(2);
 const all = args.includes('--all') && args.splice(args.indexOf('--all'), 1);
-const vitest = (a, env = {}) => spawnSync('npx', ['vitest', ...a], { stdio: 'inherit', env: { ...process.env, ...env } }).status ?? 1;
+// (beside the default reporter, tools/test-count.mjs keeps the number of tests that passed, for `postverify`'s stamp)
+const REPORTERS = ['--reporter=default', '--reporter=./tools/test-count.mjs'];
+const vitest = ([cmd, ...a], env = {}) => spawnSync('npx', ['vitest', cmd, ...REPORTERS, ...a], { stdio: 'inherit', env: { ...process.env, ...env } }).status ?? 1;
 
 // a file named (a word that isn't an option's value): run it, slow or not
 const VALUED = new Set(['--bail', '--shard', '-t', '--testNamePattern', '--project', '--reporter', '--outputFile', '--maxWorkers', '--changed', '--retry']);
