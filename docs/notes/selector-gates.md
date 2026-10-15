@@ -2,7 +2,7 @@
 
 Date: 2026-10-09 · Status: closed (a probe; its code, `gates.ts`, `junctionBodies` and the `?gates=` / `?junctions=` switches, was never merged: [#240](https://github.com/yggi/cell-studio/pull/240), closed 2026-10-10) · Issue: [#234](https://github.com/yggi/cell-studio/issues/234) (the multiscale epic), #29 (selectors) · Builds on [tower-rows.md](tower-rows.md)
 
-**What came of it:** the arrangement went to the input instead ([decision 016](https://github.com/yggi/cells/blob/main/docs/decisions/016-arranging-at-the-input.md): a table of taps, the selector switching taps of a meter's bus, so a part's sound no longer passes through it and the selector sits at the bottom by itself, [tower-rows.md](tower-rows.md): after taps); and the junction got a body as the gate node ([gate-node.md](gate-node.md); #264, #270). The measurements and pictures below are kept as the record of the probe.
+**What came of it:** the arrangement went to the input instead ([decision 016](https://github.com/yggi/cells/blob/main/docs/decisions/016-arranging-at-the-input.md): a table of taps, the selector switching taps of a meter's bus, so a part's sound no longer passes through it and the selector sits at the bottom by itself, [tower-rows.md](tower-rows.md): after taps); and the junction got a body as the gate node ([cells: notes/gate-node.md](https://github.com/yggi/cells/blob/main/docs/notes/gate-node.md); #264, #270). The measurements and pictures below are kept as the record of the probe.
 
 ## The shape (the owner)
 
@@ -193,5 +193,5 @@ The lambda form, a pattern inline, then reads `trigger=&(step=&drumBar 0 ~ 0 ~)`
 
 1. **Sockets on their bulbs**: the rider at its bulb's own place (`track.ts: layTrack`, as `netEnds` finds a net-ref's), and the table's marker kept at 12 o'clock while its bulbs turn.
 2. **The switch drawn**: a sub-net lit while `&song` has its tap on, dark while off (the live state knows which parts a selector picks now).
-3. **The owner's answers** are [decision 016](https://github.com/yggi/cells/blob/main/docs/decisions/016-arranging-at-the-input.md); the gate node, under the pressure of kits, MIDI out and gating anything, is [gate-node.md](gate-node.md).
+3. **The owner's answers** are [decision 016](https://github.com/yggi/cells/blob/main/docs/decisions/016-arranging-at-the-input.md); the gate node, under the pressure of kits, MIDI out and gating anything, is [cells: notes/gate-node.md](https://github.com/yggi/cells/blob/main/docs/notes/gate-node.md).
 4. **A spelling** for the tap (a part as a switched tap of the meter bus), the trigger (restart) and the gate node (#29, #10, ⚖ owner); then the engine, and Pop and BWV 847 rewritten as the tests.
