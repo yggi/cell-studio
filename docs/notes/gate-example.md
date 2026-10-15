@@ -1,6 +1,6 @@
 # The *A gate* example, one change at a time
 
-Date: 2026-10-11 · Status: open (round 2 built: the wiring, junctions as gates, the spelling; the consolidation and the implicit `&out` open) · Issues: [#234](https://github.com/yggi/cell-studio/issues/234) (the minimal grammar, the implicit `&out`), [#10](https://github.com/yggi/cell-studio/issues/10) (the shakedown) · Follows [gate-node.md](gate-node.md)
+Date: 2026-10-11 · Status: open (round 2 built: the wiring, junctions as gates, the spelling; the consolidation and the implicit `&out` open) · Issues: [#234](https://github.com/yggi/cell-studio/issues/234) (the minimal grammar, the implicit `&out`), [#10](https://github.com/yggi/cell-studio/issues/10) (the shakedown) · Follows [cells: notes/gate-node.md](https://github.com/yggi/cells/blob/main/docs/notes/gate-node.md)
 
 The owner went through `examples/gate.cells` and asked for four changes to how it is drawn and four questions to be thought through against #10 and #234's minimal grammar (four primitives: shift-with-carry, dilate, look up, combine: [multiscale.md](https://github.com/yggi/cells/blob/main/docs/notes/multiscale.md)).
 

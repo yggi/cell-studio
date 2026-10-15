@@ -1,0 +1,7 @@
+# This tracker holds the workbench's questions (graph, layout, drawing, editor, UI, audio, phone, tooling); a question
+# about the language goes to yggi/cells (yggi/music-commons#14). Blank issues stay enabled.
+blank_issues_enabled: true
+contact_links:
+  - name: A language question → yggi/cells issues
+    url: https://github.com/yggi/cells/issues
+    about: What the language means or how it's spelled (a form, an attribute, an operator, an example's wish) is filed in yggi/cells, where the language lives.
