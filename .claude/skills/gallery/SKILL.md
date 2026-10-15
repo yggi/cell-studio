@@ -10,6 +10,8 @@ working tree, no build, ~15 s) and keeps one picture per **kind** (`<figure data
 whole page as `sheet.png`, `index.html` and `<subject>.json`, in `OUT` (default `shots/<subject>-fast/`, git-ignored).
 It fails on a page error.
 
+This skill pictures what the graph draws. Its siblings picture other things, so a decision can borrow the form that fits: Jambot's `screenshot` skill ([yggi/jambot](https://github.com/yggi/jambot)) shows measured options side by side, as pictures (piano rolls, a measure over bars) and as audio through its synth; yggi/cells' picture skill draws a text's events as a piano roll, before and after a change to the language.
+
 | subject | what | how |
 |---|---|---|
 | `wheels` | every kind of wheel, each at a ladder of sizes beside its sheet | fast, or real (below) |
@@ -42,7 +44,7 @@ done (`.busy` gone: a day's scalogram takes a minute, five minutes of sound long
 `tiles/<piece>-<state>.png`. Read it for: whether each layer sits at its height on the tower (scalogram below 20 Hz,
 notes and waterfall in the audible, waveform in the card's octave at the top), the cones under the section lines,
 white marks on sections against orange ones off them, the veil at the window's edges, labels that collide (the
-sections' names, the zones'), and the phone's toolbar wrapping. The analysis behind it is `src/engine/time/` and its
+sections' names, the zones'), and the phone's toolbar wrapping. The analysis behind it is `engine/time/` in `@yggi/cells` and its
 probe `tools/probe/scalogram.test.ts` ([scalogram.md](https://github.com/yggi/cells/blob/main/docs/notes/scalogram.md)).
 
 ## Close-ups (`zoom`)
@@ -61,7 +63,7 @@ by side (PIL, in a scratch script) reads faster than one at a time.
 an edge looks like: its port (`voice`, `fm`, `step` …), the shapes of the transforms written on it (`delay`, `up`,
 `div-belt`: what its steps do, not by how much), whether it counts (`×n` slots) — so a new way to write an edge turns up by itself; a kind
 no example uses is missing (add the example, or a fixture). Each kind is drawn by the **real edge components**
-(`PulseEdge`, `BeltEdge`, `MeterEdge`, made by `src/ui/flowedge.ts`, styled by `src/ui/edges.css`: exactly what
+(`PulseEdge`, `BeltEdge`, `MeterEdge`, made by `src/ui/flowedges.ts`, styled by `src/ui/edges.css`: exactly what
 `Graph.svelte` uses) on two bare nodes, with the graph's context (the piece at that moment, the note on the voice,
 the layout's bend), in seven columns: off, unrouted, on (stopped), idle, live on C4, live with the voice on C3 (the octave rule, where an edge's colour is a voice's sound; a melody's follows its source's wheel),
 live and bent, and the tower layout's (a sigmoid). A live tile marked *silent* is one whose source has no playhead at
