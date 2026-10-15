@@ -34,7 +34,7 @@
     mode = 'mix',
   }: {
     /** Each socket: where it stands (the graph's coordinates, its centre) and whose sound it is. */
-    spires: readonly { id: string; x: number; y: number; source: string }[];
+    spires: readonly { id: string; x: number; y: number; source: string; section?: readonly number[] | null }[];
     viewport: Viewport;
     /** The neutral zone between the structure and the audible (decades: towerlayout.ts towerY). */
     zone?: number;
@@ -78,7 +78,7 @@
     if (!g || !w || !h) return;
     g.setTransform(RES, 0, 0, RES, 0, 0);
     g.clearRect(0, 0, w, h);
-    const half = Math.max(0.5, (towerY(band(1), zone) - towerY(band(0), zone)) * viewport.zoom * 0.5);
+    const half = Math.max(0.5, Math.abs(towerY(band(1), zone) - towerY(band(0), zone)) * viewport.zoom * 0.5);
     const audible = (b: number) => {
       const f = bandFreq(b, BANDS);
       return f >= 20 && f <= 20000;
@@ -117,7 +117,7 @@
     g.setTransform(RES, 0, 0, RES, 0, 0);
     g.globalCompositeOperation = 'source-over';
     g.clearRect(0, 0, w, h);
-    const half = Math.max(0.5, (towerY(band(1), zone) - towerY(band(0), zone)) * viewport.zoom * 0.5);
+    const half = Math.max(0.5, Math.abs(towerY(band(1), zone) - towerY(band(0), zone)) * viewport.zoom * 0.5);
     const audible = (b: number) => {
       const f = bandFreq(b, BANDS);
       return f >= 20 && f <= 20000;
@@ -138,7 +138,17 @@
     lg.clearRect(0, 0, w, h);
     lg.globalCompositeOperation = 'lighter';
     const reach = 1100 * viewport.zoom;
-    const masts: { x: number; foot: number; hz: number | null; tint: readonly number[]; l: Float32Array; r: Float32Array; rest: boolean; dim: boolean }[] = [];
+    const masts: {
+      x: number;
+      foot: number;
+      hz: number | null;
+      tint: readonly number[];
+      section: readonly number[] | null;
+      l: Float32Array;
+      r: Float32Array;
+      rest: boolean;
+      dim: boolean;
+    }[] = [];
     for (const s of spires) {
       const x = sx(s.x);
       if (x < -reach || x > w + reach) continue;
@@ -176,7 +186,7 @@
           lg.fillRect(side < 0 ? x - len : x, y - half, len, 2 * half);
         }
       }
-      if (lo >= 0) masts.push({ x, foot: sy(s.y), hz: noteHz(ctx, s.source), tint, l: left, r: right, rest, dim });
+      if (lo >= 0) masts.push({ x, foot: sy(s.y), hz: noteHz(ctx, s.source), tint, section: s.section ?? null, l: left, r: right, rest, dim });
     }
     sky.setTransform(1, 0, 0, 1, 0, 0);
     sky.globalCompositeOperation = 'lighter';
@@ -209,19 +219,26 @@
       t.moveTo(m.x, m.foot);
       t.lineTo(m.x, root);
       t.stroke();
-      // its spectrum, mirrored about the mast: a bar a band at its height, the left channel left, the right right
-      const arm = Math.max(10, 26 * viewport.zoom);
-      const bh = Math.max(1, half * 1.4);
+      // its spectrum, mirrored about the mast: a bar a band at its height, the left channel left, the right right, each
+      // as tall as its band and in its band's colour (the rainbow by octave, dark low and bright high), tinted by the
+      // out's section, bright at the mast and fading out to its tip
+      const arm = Math.max(12, 34 * viewport.zoom);
+      const bh = Math.max(2, half * 1.6);
       for (let b = s.root; b <= s.top; b++) {
         const y = yOf(band(b));
         if (y < -half || y > h + half) continue;
+        const colour = m.section ? mixed(hues[b], m.section, 0.35) : hues[b];
         for (const [side, lv] of [
           [-1, m.l[b] ?? 0],
           [1, m.r[b] ?? 0],
         ] as const) {
           if (lv <= 0.04) continue;
-          t.fillStyle = c(0.35 + 0.55 * lv);
-          t.fillRect(side < 0 ? m.x - lv * arm : m.x, y - bh / 2, lv * arm, bh);
+          const len = lv * arm;
+          const grad = t.createLinearGradient(m.x, 0, m.x + side * len, 0);
+          grad.addColorStop(0, css(colour, (0.55 + 0.45 * lv) * alpha));
+          grad.addColorStop(1, css(colour, 0.25 * alpha));
+          t.fillStyle = grad;
+          t.fillRect(side < 0 ? m.x - len : m.x, y - bh / 2, len, bh);
         }
       }
       drawSpire(t, m.x, (b) => yOf(band(b)), s, Math.max(5, 18 * viewport.zoom), m.tint, alpha);

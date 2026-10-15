@@ -194,6 +194,13 @@ The owner, on the merged version (#409), with pictures of Acid:
 - **A wheel in its loom.** An edge ended at its node's handle as the flow measured it, and the flow measured some handles while the view zoomed (the fit animating): Acid's `&minor` sat about 25 px down and right of its loom. An edge on a centre handle (every node's but a tape's heads) now ends at its node's centre as the layout places it (`GraphContext.centre`).
 - **A wire meets its node.** The tower layout's sigmoid stopped at the target's rim, which for a matrix (`&beat`'s four bulbs) is a notch: the wire ended in the air. It now runs on from the rim straight in to each end's centre, the node drawn over it.
 
+The second round, on that:
+
+- **The strip mirrored.** Its left side drew the outs in the opposite order to its right (the first lane outermost on the left, innermost on the right), so neither its resting spectrum nor its live one was mirrored. Both sides now go in the lanes' order from the column out: the first lane (the bass, in Acid) innermost on both.
+- **A spire's spectrum, fancier.** Its bars were hairlines (the band's height came out negative, and clamped to its least): each is now as tall as its band, a little gap between, in its band's colour (the rainbow by octave: dark and saturated low, bright high), tinted by its out's section (a third of the section's colour, where a selector makes sections), bright at the mast and fading to its tip.
+- **Hard bounds.** The view can't be panned above 20 kHz, below the lowest node, or beyond the nodes left and right (a margin round them; more on the right, under the strip). Svelte Flow reads its `translateExtent` once, so the bounds go through its store (`PanBounds.svelte`), set again only when the nodes move more than a step (50 px).
+- **The strip as a map you tap.** A tap on a cell's values, an out's spire or its share of the sum, or a gate, voice or mixer moves the view to that node, keeping its zoom, in 380 ms eased in and out (`FlyTo.svelte`). The strip keeps letting the graph under it pan and zoom: a tap is told from a drag on the window.
+
 ## 5. One tiered strip for the graph and the time view (proposed)
 
 Three things draw the tower's scale today, each its own way:

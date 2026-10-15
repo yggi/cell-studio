@@ -40,6 +40,7 @@
     zone = 0,
     open,
     ontoggle,
+    onfocus,
   }: {
     ins: readonly TowerIn[];
     /** The lanes, and the lanes each node feeds (layout/minimap.ts). */
@@ -54,6 +55,8 @@
     zone?: number;
     open: boolean;
     ontoggle: () => void;
+    /** A tap on what the strip shows for a node (its id): the view moves to it. */
+    onfocus?: (id: string) => void;
   } = $props();
 
   const ctx = getGraphContext();
@@ -121,9 +124,40 @@
     return spectra.got.get(name)!;
   }
 
+  // what was drawn for which node, where (the strip's px), for a tap to find
+  let hits: { id: string; x0: number; y0: number; x1: number; y1: number }[] = [];
+  const hit = (id: string, x0: number, y0: number, x1: number, y1: number) =>
+    hits.push({ id, x0: Math.min(x0, x1), y0: Math.min(y0, y1), x1: Math.max(x0, x1), y1: Math.max(y0, y1) });
+  // (a tap: what it lands on, the smallest; else the nearest, a few px off)
+  function tapped(x: number, y: number): string | undefined {
+    const off = (r: (typeof hits)[number]) => Math.hypot(Math.max(r.x0 - x, 0, x - r.x1), Math.max(r.y0 - y, 0, y - r.y1));
+    const near = hits.filter((r) => off(r) <= 6);
+    near.sort((a, b) => off(a) - off(b) || (a.x1 - a.x0) * (a.y1 - a.y0) - (b.x1 - b.x0) * (b.y1 - b.y0));
+    return near[0]?.id;
+  }
+  // (the strip lets the graph under it have its pointer, to pan and zoom through it: a tap is told from a drag on the
+  // window — down and up within a few px, in the strip)
+  let down: { x: number; y: number } | null = null;
+  let stripEl = $state<HTMLDivElement>();
+  function onDown(e: PointerEvent) {
+    down = { x: e.clientX, y: e.clientY };
+  }
+  function onUp(e: PointerEvent) {
+    const was = down;
+    down = null;
+    if (!was || !stripEl || !onfocus || Math.hypot(e.clientX - was.x, e.clientY - was.y) > 6) return;
+    const r = stripEl.getBoundingClientRect();
+    const x = e.clientX - r.left;
+    const y = e.clientY - r.top;
+    if (x < 0 || y < 0 || x > r.width || y > r.height || (e.target as Element | null)?.closest?.('.fold')) return;
+    const id = tapped(x, y);
+    if (id) onfocus(id);
+  }
+
   function draw() {
     const g = canvas?.getContext('2d');
     if (!g || !h) return;
+    hits = [];
     const W = sw;
     g.setTransform(dpr, 0, 0, dpr, 0, 0);
     g.clearRect(0, 0, W, h);
@@ -209,6 +243,7 @@
       const local = ctx.heads.cells.get(name)?.local ?? 0;
       const lap = lapOf(ctx.program, name);
       const now = lap > 0 ? valueAt(v, (((local / lap) % 1) + 1) % 1, taps > 0) : null;
+      hit(`cell:${name}`, xa, y - 4, xb, y + 4);
       let x = xa;
       for (const e of spread) {
         const w = e.share * (xb - xa);
@@ -253,8 +288,8 @@
     }
     tables.forEach((name, k) => chips(name, h - 10 - k * ROW, across(`cell:${name}`)));
     // the spectrum, all the outs together: each band's bar as long as its loudest out, split into the outs' shares in
-    // their colours, in the lanes' order from the column out; the left channel out from the column's left side, the right
-    // from its right
+    // their colours, in the lanes' order from the column out on both sides (mirrored: the first lane's innermost); the left
+    // channel out from the column's left side, the right from its right
     const outs = new Map(ins.map((o) => [o.id, o]));
     const each = map.lanes.flatMap((lane, k) => {
       const o = outs.get(lane.edge);
@@ -263,24 +298,24 @@
     const hb = Math.max(1.5, half * 1.4);
     for (const side of ['left', 'right'] as const) {
       const room = side === 'left' ? x0 - 2 : A - x1 - 2;
-      const order = side === 'left' ? [...each].reverse() : each;
       for (let b = 0; b < BANDS; b++) {
         const f = bandFreq(b, BANDS);
         if (f < 20 || f > 20000) continue;
         const y = yOf(band(b));
         if (y < -10 || y > h + 10) continue;
-        const vs = order.map((e) => (side === 'left' ? e.l : e.r)[b] ?? 0);
+        const vs = each.map((e) => (side === 'left' ? e.l : e.r)[b] ?? 0);
         const top = Math.max(0, ...vs);
         if (top <= 0.02) continue;
         const all = vs.reduce((a, v) => a + (v > 0.02 ? v : 0), 0);
         const len = top * room;
         let at = 0;
-        order.forEach((e, n) => {
+        each.forEach((e, n) => {
           const v = vs[n]!;
           if (v <= 0.02) return;
           const part = (v / all) * len;
           g.fillStyle = `rgba(${e.c[0]}, ${e.c[1]}, ${e.c[2]}, ${(e.off ? 0.3 : 1) * (0.45 + 0.55 * top)})`;
           g.fillRect(side === 'left' ? x0 - 1 - at - part : x1 + 1 + at, y - hb / 2, part, hb);
+          hit(e.lane.source, side === 'left' ? x0 - 1 - at - part : x1 + 1 + at, y - hb / 2, side === 'left' ? x0 - 1 - at : x1 + 1 + at + part, y + hb / 2);
           at += part;
         });
       }
@@ -301,6 +336,7 @@
       g.moveTo(mid(k), from);
       g.lineTo(mid(k), top);
       g.stroke();
+      hit(e.lane.source, mid(k) - lw / 2, from, mid(k) + lw / 2, s ? yOf(band(s.top)) - 4 : top - 4);
       if (s) drawSpire(g, mid(k), (b) => yOf(band(b)), s, Math.min(3.5, lw * 0.6), c, off ? 0.3 : 1);
       if (open) {
         // (its name at its fundamental, left of the column, over the spectrum on a halo)
@@ -344,6 +380,7 @@
         const n = at.get(a) ?? 0;
         at.set(a, n + 1);
         const name = nameOf(id);
+        hit(id, xa, yy - 4, xb, yy + 4);
         const c = layer === 'gate' || ctx.program.cells.get(name)?.kit ? css('--unit') : (noteOf(ctx, name) ?? css('--unit'));
         g.fillStyle = c;
         g.strokeStyle = c;
@@ -416,7 +453,8 @@
   onDestroy(() => stop());
 </script>
 
-<div class="strip" style:width="{sw}px" bind:clientHeight={h}>
+<svelte:window onpointerdowncapture={onDown} onpointerupcapture={onUp} />
+<div class="strip" style:width="{sw}px" bind:clientHeight={h} bind:this={stripEl}>
   {#if h}
     <canvas bind:this={canvas} width={sw * dpr} height={h * dpr} style:width="{sw}px" style:height="{h}px"></canvas>
   {/if}

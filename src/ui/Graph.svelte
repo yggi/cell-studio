@@ -8,7 +8,7 @@
 <script lang="ts">
   import { Background, Controls, SvelteFlow, ViewportPortal, type NodeTypes } from '@xyflow/svelte';
   import { VOICE_KIT } from '@yggi/cells/engine/compiler/declare';
-  import { noteColour, partColour, tapTint } from './theme';
+  import { noteColour, partColour, tapTint, tapTintRgb } from './theme';
   import '@xyflow/svelte/dist/style.css';
   import { onDestroy, untrack } from 'svelte';
   import type { CompileResult, Shifts } from '@yggi/cells/engine/program';
@@ -48,7 +48,9 @@
   import { towerOf } from '../layout/tower';
   import { minimap } from '../layout/minimap';
   import TapLooms from './TapLooms.svelte';
-  import { towerIns } from '../layout/towerlayout';
+  import { towerIns, towerY } from '../layout/towerlayout';
+  import FlyTo from './FlyTo.svelte';
+  import PanBounds from './PanBounds.svelte';
   import { pillAnchor } from '../layout/taploom';
   import type { Viewport } from '@xyflow/svelte';
 
@@ -342,16 +344,24 @@
   // (each out in its source's note, as its socket and wire are: heard.ts outRgb; the strip's sum the same)
   // (`?sky=tint|rainbow` the other options, `?sky=off` none: docs/notes/tower-sky.md)
   const skyMode = QUERY?.get('sky') ?? 'mix';
+  // (each node's section: a selector's tap upstream of it, or its tag's)
+  const sections = $derived(nodeSections(shown.program, shown.model));
   const sky = $derived(towered && SKY_MODES.includes(skyMode as SkyMode));
   const spires = $derived(
-    sky ? layout.nodes.flatMap((n) => (n.type === 'socket' ? [{ id: n.id, x: n.position.x, y: n.position.y, source: (n.data as { source: string }).source }] : [])) : [],
+    sky
+      ? layout.nodes.flatMap((n) => {
+          if (n.type !== 'socket') return [];
+          const source = (n.data as { source: string }).source;
+          const s = sections.get(`cell:${source}`);
+          return [{ id: n.id, x: n.position.x, y: n.position.y, source, section: s && s.n > 1 ? tapTintRgb(s.k, s.n) : null }];
+        })
+      : [],
   );
   // each node's section's tint (a selector's tap upstream of it, or its tag's): its wheel's accents wear it
-  const sectionTints = $derived(new Map([...nodeSections(shown.program, shown.model)].map(([id, s]) => [id, tapTint(s.k, s.n)] as const)));
+  const sectionTints = $derived(new Map([...sections].map(([id, s]) => [id, tapTint(s.k, s.n)] as const)));
   // the strip as a minimap (layout/minimap.ts): a lane each out, in its sections' order, then the graph's
   const strip = $derived.by(() => {
     if (!towered || !layout.drawnModel) return null;
-    const sections = nodeSections(shown.program, shown.model);
     const x = (id: string) => layout.position(id)?.x ?? 0;
     return minimap(layout.drawnModel, (source) => (sections.get(source)?.k ?? 1e3) * 1e6 + x(source));
   });
@@ -371,6 +381,24 @@
   let towerOpen = $state(QUERY?.has('tower') ?? false);
   // (the flow's pan and zoom, for the tower drawn beside it; framed again when the tower opens or closes)
   let viewport = $state<Viewport>({ x: 0, y: 0, zoom: 1 });
+  // the tower's bounds, which the view can't be panned beyond: 20 kHz at the top, the lowest node at the bottom, the
+  // nodes left and right (a margin round them, more on the right, under the strip); kept while the nodes move less than
+  // a step (the bounds set again each tick would cost)
+  let extent: [[number, number], [number, number]] | undefined;
+  const translateExtent = $derived.by(() => {
+    if (!towered || !layout.nodes.length) return (extent = undefined);
+    const xs = layout.nodes.map((n) => n.position.x);
+    const ys = layout.nodes.map((n) => n.position.y);
+    const step = (v: number) => Math.round(v / 50) * 50;
+    const next: [[number, number], [number, number]] = [
+      [step(Math.min(...xs) - 300), step(Math.min(towerY(Math.log10(20000), layout.zone), Math.min(...ys) - 60))],
+      [step(Math.max(...xs) + 500), step(Math.max(...ys) + 200)],
+    ];
+    if (extent && extent.flat().every((v, i) => v === next.flat()[i])) return extent;
+    return (extent = next);
+  });
+  // (a tap on the strip: the view moves to that node)
+  let flyTo = $state<{ x: number; y: number } | null>(null);
   let towerFits = $state(0);
   // a cell's card on a wide screen (CellSheet.svelte: 380 px, 16 px from the window's right) covers the graph's right
   // edge: the tower stands left of it and the graph makes room there; with too little room left, it waits for the card
@@ -506,6 +534,8 @@
       <Background gap={28} size={1.5} />
       <Controls showLock={false} />
       <FitView token={layout.fitToken + sideFits + towerFits + refit} calm={growing} />
+      <FlyTo to={flyTo} />
+      <PanBounds extent={translateExtent} />
       {#if towerOpen || towered}<FlowViewport onchange={(v) => (viewport = v)} />{/if}
       {#if towered}
         {#if layout.looms.length}<ViewportPortal target="back"><TapLooms looms={layout.looms} /></ViewportPortal>{/if}
@@ -530,6 +560,10 @@
       zone={layout.zone}
       open={stripsOpen}
       ontoggle={() => (stripsOpen = !stripsOpen)}
+      onfocus={(id) => {
+        const p = layout.position(id);
+        if (p) flyTo = { x: p.x, y: p.y };
+      }}
     />
   {/if}
   {#if towerShown}
