@@ -40,8 +40,30 @@
   type Cubic = { a: Pt; c1: Pt; c2: Pt; b: Pt };
   const cubicPath = (c: Cubic) => `M ${c.a.x} ${c.a.y} C ${c.c1.x} ${c.c1.y} ${c.c2.x} ${c.c2.y} ${c.b.x} ${c.b.y}`;
 
-  let { id: edgeId, source: sourceId, target: targetId, sourceX: rimSX, sourceY: rimSY, targetX: rimTX, targetY: rimTY, data, label, markerEnd, style }: EdgeProps = $props();
+  let {
+    id: edgeId,
+    source: sourceId,
+    target: targetId,
+    sourceX: handleSX,
+    sourceY: handleSY,
+    targetX: handleTX,
+    targetY: handleTY,
+    sourceHandleId,
+    targetHandleId,
+    data,
+    label,
+    markerEnd,
+    style,
+  }: EdgeProps = $props();
   const ctx = getGraphContext();
+  // (an end on a node's centre handle (all but a tape's heads): the node's centre as the layout places it, not the
+  // flow's measure of the handle, which can be stale — measured while the view zoomed)
+  const centreS = $derived(sourceHandleId ? undefined : ctx.centre?.(sourceId));
+  const centreT = $derived(targetHandleId ? undefined : ctx.centre?.(targetId));
+  const rimSX = $derived(centreS ? centreS.x : handleSX);
+  const rimSY = $derived(centreS ? centreS.y : handleSY);
+  const rimTX = $derived(centreT ? centreT.x : handleTX);
+  const rimTY = $derived(centreT ? centreT.y : handleTY);
   // (an end on a node drawn otherwise than as a wheel round its centre, a selector's pill: where the layout says it
   // meets it — a port, or the outline nearest the other end; else its handle)
   const ends = $derived({
@@ -118,8 +140,10 @@
     const my = (ay + by) / 2;
     return { a: { x: fromX, y: ay }, c1: { x: fromX, y: my }, c2: { x: targetX, y: my }, b: { x: targetX, y: by } };
   });
+  // (a sigmoid between the rims, and straight on in to each end's centre: a wire meets its node, whatever its shape
+  // there — a matrix's notch, a kit's — the node drawn over it)
   const spline = $derived(
-    (sigmoid && cubicPath(sigmoid)) ??
+    (sigmoid && `M ${fromX} ${fromY} L${cubicPath(sigmoid).slice(1)} L ${targetX} ${targetY}`) ??
       (socket
         ? `M ${fromX} ${fromY} C ${fromX} ${fromY - lead} ${control.x} ${control.y} ${targetX} ${targetY}`
         : `M ${fromX} ${fromY} Q ${control.x} ${control.y} ${targetX} ${targetY}`),

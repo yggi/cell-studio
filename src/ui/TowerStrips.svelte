@@ -125,7 +125,6 @@
     const g = canvas?.getContext('2d');
     if (!g || !h) return;
     const W = sw;
-    const cx = W / 2;
     g.setTransform(dpr, 0, 0, dpr, 0, 0);
     g.clearRect(0, 0, W, h);
     const band = (b: number) => Math.log10(bandFreq(b, BANDS));
@@ -139,28 +138,13 @@
       g.fillStyle = hsla(bandHue(b, BANDS), open ? 0.24 : 0.2, bandOctave(b, BANDS));
       g.fillRect(0, y + half, W, -2 * half);
     }
-    // the zones, a rail at the outer edge
-    const zoneColour = (name: string) => css(name === 'slow' ? '--meter-2' : name === 'pulse' ? '--meter-1' : '--accent');
-    TOWER_ZONES.forEach((z, i) => {
-      const lo = Math.max(-8, z.from);
-      const hi = (TOWER_ZONES[i + 1]?.from ?? Math.log10(20000)) - 1e-9;
-      g.fillStyle = zoneColour(z.name);
+    // the strata, a rail each at the outer edge: the slow, the pulse, the neutral zone (the voices and mixers, off the
+    // scale), the audible
+    for (const r of rails()) {
+      g.fillStyle = r.colour;
       g.globalAlpha = 0.8;
-      g.fillRect(W - 6, yOf(hi), 4, yOf(lo) - yOf(hi));
+      g.fillRect(W - 6, r.y0, 4, r.y1 - r.y0);
       g.globalAlpha = 1;
-    });
-    // the neutral zone between the structure and the audible: off the scale, where the voices and mixers stand
-    if (zone > 0) {
-      const z0 = yOf(Math.log10(20));
-      const z1 = yOf(Math.log10(20) - 1e-9);
-      g.fillStyle = css('--bg');
-      g.fillRect(0, z0, W, z1 - z0);
-      if (open && !map && z1 - z0 > 40) {
-        g.fillStyle = css('--text-muted');
-        g.font = '10px system-ui, sans-serif';
-        g.textAlign = 'center';
-        g.fillText('voices · mixers', cx, (z0 + z1) / 2);
-      }
     }
     // decades
     g.font = '10px system-ui, sans-serif';
@@ -189,7 +173,7 @@
       g.fillStyle = hsla((((k % 12) + 12) % 12) * 30, 0.2, Math.floor(k / 12) - 4);
       g.fillRect(0, y0, W, y1 - y0);
     }
-    if (!map || !map.lanes.length) return names(g, W, zoneColour);
+    if (!map || !map.lanes.length) return names(g, W);
     // the lanes: a narrow column in the strip's middle, a lane an out; the combined spectrum out from its sides, the left
     // channel left, the right right; the names on the left when opened (under 20 Hz the sides are free)
     const A = W - 8;
@@ -378,24 +362,40 @@
         }
       }
     }
-    names(g, W, zoneColour);
+    names(g, W);
   }
 
-  // the zones named (opened)
-  function names(g: CanvasRenderingContext2D, W: number, zoneColour: (name: string) => string) {
-    if (open)
-      TOWER_ZONES.forEach((z, i) => {
-        const lo = Math.max(-6, z.from);
-        const hi = (TOWER_ZONES[i + 1]?.from ?? Math.log10(20000)) - 1e-9;
-        const y = (yOf(lo) + yOf(hi)) / 2;
-        if (y < 0 || y > h) return;
-        g.fillStyle = zoneColour(z.name);
-        g.font = '700 11px system-ui, sans-serif';
-        g.setTransform(dpr, 0, 0, dpr, (W - 16) * dpr, y * dpr);
-        g.rotate(-Math.PI / 2);
-        g.fillText(z.name, 0, 0);
-        g.setTransform(dpr, 0, 0, dpr, 0, 0);
-      });
+  // the strata's rails (the screen's y, top over bottom): the tower's zones, and the neutral zone between the pulse and
+  // the audible
+  function rails(): { name: string; colour: string; y0: number; y1: number }[] {
+    const hearing = Math.log10(20);
+    const zoneColour = (name: string) => css(name === 'slow' ? '--meter-2' : name === 'pulse' ? '--meter-1' : '--accent');
+    const out: { name: string; colour: string; y0: number; y1: number }[] = TOWER_ZONES.map((z, i) => {
+      const lo = Math.max(-8, z.from);
+      const hi = (TOWER_ZONES[i + 1]?.from ?? Math.log10(20000)) - 1e-9;
+      return { name: z.name, colour: zoneColour(z.name), y0: yOf(hi), y1: yOf(lo) };
+    });
+    if (zone > 0) out.push({ name: 'voices', colour: css('--meter-3'), y0: yOf(hearing), y1: yOf(hearing - 1e-9) });
+    return out;
+  }
+
+  // each rail named along it, where it shows (folded too, smaller), on a halo
+  function names(g: CanvasRenderingContext2D, W: number) {
+    for (const r of rails()) {
+      const a = Math.max(0, r.y0);
+      const b = Math.min(h, r.y1);
+      if (b - a < 40) continue;
+      g.font = `700 ${open ? 11 : 9}px system-ui, sans-serif`;
+      g.textAlign = 'center';
+      g.setTransform(dpr, 0, 0, dpr, (W - 10) * dpr, ((a + b) / 2) * dpr);
+      g.rotate(-Math.PI / 2);
+      g.lineWidth = 3;
+      g.strokeStyle = css('--surface');
+      g.strokeText(r.name, 0, 0);
+      g.fillStyle = r.colour;
+      g.fillText(r.name, 0, 0);
+      g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
   }
 
   // stopped: drawn again when what it shows moves (the view, the piece, a source); playing: every frame (below)

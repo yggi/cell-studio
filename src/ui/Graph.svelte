@@ -232,6 +232,7 @@
       const l = pillsBy.get(node);
       return l && pillAnchor(l, other, from, meter);
     },
+    centre: (node) => centres.get(node),
     get lit() {
       return live;
     },
@@ -322,6 +323,8 @@
     }
     return out;
   });
+  // (each node's centre, as the layout places it: where its edges end)
+  const centres = $derived(new Map(layout.nodes.map((n) => [n.id, n.position] as const)));
   const pillsBy = $derived(new Map(towered ? layout.looms.map((l) => [l.table, l] as const) : []));
   let stripsOpen = $state(QUERY?.has('strips') ?? false);
   const stripW = $derived(stripsOpen ? STRIP_OPEN : STRIP);

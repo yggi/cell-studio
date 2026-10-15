@@ -60,6 +60,11 @@ export interface GraphContext {
    * round its centre (the tower layout's selectors, drawn as pills: their ports, their outline); else undefined, the rim.
    */
   anchor?(node: string, other: string, from: { x: number; y: number }, meter?: boolean): { x: number; y: number } | undefined;
+  /**
+   * A node's centre as the layout places it (the flow's coordinates): where an edge on its centre handle ends. The
+   * flow's own measure of a handle can be stale (measured while the view zoomed: a wheel's loom off its centre).
+   */
+  centre?(node: string): { x: number; y: number } | undefined;
   /** (#137) Small wheels with something close under them: their name goes round the rim, under the wheel, not in a pill. */
   readonly rimNamed?: ReadonlySet<string>;
   /** Each node's section's tint (ui/sections.ts, by id): its wheel's accents wear it. */

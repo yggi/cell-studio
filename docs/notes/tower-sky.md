@@ -184,6 +184,16 @@ The owner: the PR ready; the time view checked; the tower layout the graph's def
 At ×4 every layout is near 100 % busy (today's too). So the tower layout still costs about 1.6–2× today's at ×1: the sky about 11 points, the rest the sockets' meters, the strip and the layout itself. Not measured: a real phone (`?perf`, docs/ui/performance.md), audible glitches.
 - **The time view** works as before and shares nothing of this yet: its own frequency axis on its own frame (no neutral zone), its voices a hue each (golden angle), not their notes. `TowerStrips` could stand at its side with the time view's scale in place of the graph's viewport, the zone between its pulse and its audible holding the voices its legend lists now: the tiered strip (5), its own issue.
 
+## Fixes and cleanup (2026-10-15)
+
+The owner, on the merged version (#409), with pictures of Acid:
+
+- **A spire joined to its socket.** A kit's socket stands at its lowest drum, its spectrum's lowest partial higher (the drums' spire floated over it); a melody's socket at its base, its note now elsewhere. The spire now runs from its socket to its fundamental.
+- **The sky's light softer, the spires more prominent.** The light is about a third of what it was, and lit by each spire's glow (what it sounds, fading by 0.8 a draw, to a third in about half a second), not by each instant, so it doesn't strobe. The spires have their spectrum back, a bar a band mirrored about the mast (the left channel left), over the dots.
+- **The strip's gap closed.** The neutral zone is no longer painted out: its rail, `--meter-3`, beside the others, and every rail named along it, folded too.
+- **A wheel in its loom.** An edge ended at its node's handle as the flow measured it, and the flow measured some handles while the view zoomed (the fit animating): Acid's `&minor` sat about 25 px down and right of its loom. An edge on a centre handle (every node's but a tape's heads) now ends at its node's centre as the layout places it (`GraphContext.centre`).
+- **A wire meets its node.** The tower layout's sigmoid stopped at the target's rim, which for a matrix (`&beat`'s four bulbs) is a notch: the wire ended in the air. It now runs on from the rim straight in to each end's centre, the node drawn over it.
+
 ## 5. One tiered strip for the graph and the time view (proposed)
 
 Three things draw the tower's scale today, each its own way:
