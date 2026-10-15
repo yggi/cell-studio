@@ -11,11 +11,13 @@ log=$(mktemp)
 installed=1
 npm install --no-audit --no-fund --loglevel=error >"$log" 2>&1 || installed=
 if [ ! -d node_modules/@yggi/cells ]; then
-  # The language is a dependency from a private repository (`github:yggi/cells#vX.Y.Z` in package.json), and a cloud
-  # session's git reaches only the repositories attached to it: without it nothing compiles, checks or tests.
+  # The language is a dependency from a public repository (`github:yggi/cells#vX.Y.Z` in package.json), which npm
+  # fetches as a tarball over HTTPS: no access is needed, so a failed fetch is the network or the session's proxy.
+  # Without it nothing compiles, checks or tests.
+  tail -5 "$log"
   echo 'session-start: node_modules/@yggi/cells is missing, so nothing here compiles, checks or tests.'
-  echo 'session-start: this session has no access to the private repository yggi/cells (a cloud session'"'"'s git access covers only the repositories attached to it).'
-  echo 'session-start: the fix: attach yggi/cells (add_repo, owner yggi, repo cells) or start the session with it selected, then run `npm ci`.'
+  echo 'session-start: yggi/cells is public, so a failed fetch of it means the network or the proxy, not access (the lines above are npm'"'"'s).'
+  echo 'session-start: the fix: run `npm ci` again; if it fails the same way, check the proxy ($HTTPS_PROXY) and that github.com and codeload.github.com are reachable.'
 elif [ -z "$installed" ]; then
   tail -20 "$log"
   echo 'session-start: npm install failed; run it by hand before npm run verify'

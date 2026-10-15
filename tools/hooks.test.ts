@@ -391,14 +391,16 @@ describe('session-start', () => {
     });
   }
 
-  it('says the session lacks yggi/cells, and how to attach it, when the install leaves it missing', () => {
+  it('says a missing yggi/cells is the network or the proxy, since the package is public, and to retry npm ci', () => {
     const dir = repoWith(['a.ts']);
-    const run = sessionStart(dir, 'echo "npm error git ls-remote ssh://git@github.com/yggi/cells.git"; exit 1');
+    const run = sessionStart(dir, 'echo "npm error network request to https://codeload.github.com/yggi/cells failed"; exit 1');
     expect(run.status).toBe(0);
     expect(run.stdout).toContain('node_modules/@yggi/cells is missing');
-    expect(run.stdout).toContain('no access to the private repository yggi/cells');
-    expect(run.stdout).toContain('attach yggi/cells (add_repo');
-    expect(run.stdout).toContain('npm ci');
+    expect(run.stdout).toContain('npm error network request');
+    expect(run.stdout).toContain('yggi/cells is public');
+    expect(run.stdout).toContain('the network or the proxy');
+    expect(run.stdout).toContain('run `npm ci` again');
+    expect(run.stdout).not.toMatch(/private|add_repo|attach/);
     expect(git(dir, 'config', 'core.hooksPath')).toBe('.githooks');
   });
 
