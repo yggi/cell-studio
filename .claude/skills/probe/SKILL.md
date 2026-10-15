@@ -24,7 +24,7 @@ compare variants on the same several seeds.
 - **Skeleton**: `describe.runIf(process.env.PROBE)(…)`, one `it` with a long timeout, and
   `const log = (t: string) => appendFileSync(process.env.PROBE!, t + '\n')`. Don't use `console.log`: vitest's output
   is easy to lose, and a file can be read back and quoted.
-- **The library**: `Object.entries(PRESETS)` (`src/engine/presets`), `compileSource(source)`, `buildGraph(program)`.
+- **The library**: `Object.entries(PRESETS)` (`@yggi/cells/engine/presets`), `compileSource(source)`, `buildGraph(program)`.
   An `ONLY=word` filter on the key keeps iterating fast.
 - **A layout**: as the gate does (`src/layout/physics.library.test.ts`): `new ForceLayout(undefined, { live: false, ...opts })`,
   `setGraph(model)`, `tick(500)`, `layNet()`, then `quality()`, `position(id)`, `bend(id)`, `taps()`, `meterNet()`;
