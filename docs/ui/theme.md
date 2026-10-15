@@ -35,6 +35,7 @@ A colour says what something is or carries; where another value would mean nothi
 | a selector's strands, its selection's bus | the part's colour through the white clock, `tapTint` | theme.ts |
 | a tag's wash | the tint of the section whose tap steps its cells; else a hue of its own | `Graph.svelte` (`tagSections`, ui/sections.ts) |
 | an out (the tower layout): its socket's meter, its spire and light, its share of the strip's sum | its source's note now (its base stopped), by octave; drums and noise white | `noteOf`, `outRgb` (ui/heard.ts) |
+| the strata's rails on the strip | the slow `--meter-2`, the pulse `--meter-1`, the neutral zone (the voices) `--meter-3`, the audible `--accent`, each named along it | `TowerStrips.svelte` |
 | the sky and the strip's rainbow | each semitone band its note's colour by octave, muted | `TowerSky.svelte`, `TowerStrips.svelte` |
 | the time view's notes and waterfall | **a hue a voice** (golden angle), not its note: not aligned with the graph yet (open, docs/notes/tower-sky.md) | `voiceHues` (layout/timelayers.ts) |
 | the time view's scalogram | three signals added: breaks red, entries green, density blue | `TIME` (theme.ts) |

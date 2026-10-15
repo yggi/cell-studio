@@ -184,6 +184,25 @@ The owner: the PR ready; the time view checked; the tower layout the graph's def
 At ×4 every layout is near 100 % busy (today's too). So the tower layout still costs about 1.6–2× today's at ×1: the sky about 11 points, the rest the sockets' meters, the strip and the layout itself. Not measured: a real phone (`?perf`, docs/ui/performance.md), audible glitches.
 - **The time view** works as before and shares nothing of this yet: its own frequency axis on its own frame (no neutral zone), its voices a hue each (golden angle), not their notes. `TowerStrips` could stand at its side with the time view's scale in place of the graph's viewport, the zone between its pulse and its audible holding the voices its legend lists now: the tiered strip (5), its own issue.
 
+## Fixes and cleanup (2026-10-15)
+
+The owner, on the merged version (#409), with pictures of Acid:
+
+- **A spire joined to its socket.** A kit's socket stands at its lowest drum, its spectrum's lowest partial higher (the drums' spire floated over it); a melody's socket at its base, its note now elsewhere. The spire now runs from its socket to its fundamental.
+- **The sky's light softer, the spires more prominent.** The light is about a third of what it was, and lit by each spire's glow (what it sounds, fading by 0.8 a draw, to a third in about half a second), not by each instant, so it doesn't strobe. The spires have their spectrum back, a bar a band mirrored about the mast (the left channel left), over the dots.
+- **The strip's gap closed.** The neutral zone is no longer painted out: its rail, `--meter-3`, beside the others, and every rail named along it, folded too.
+- **A wheel in its loom.** An edge ended at its node's handle as the flow measured it, and the flow measured some handles while the view zoomed (the fit animating): Acid's `&minor` sat about 25 px down and right of its loom. An edge on a centre handle (every node's but a tape's heads) now ends at its node's centre as the layout places it (`GraphContext.centre`).
+- **A wire meets its node.** The tower layout's sigmoid stopped at the target's rim, which for a matrix (`&beat`'s four bulbs) is a notch: the wire ended in the air. It now runs on from the rim straight in to each end's centre, the node drawn over it.
+
+The second round, on that:
+
+- **The strip mirrored.** Its left side drew the outs in the opposite order to its right (the first lane outermost on the left, innermost on the right), so neither its resting spectrum nor its live one was mirrored. Both sides now go in the lanes' order from the column out: the first lane (the bass, in Acid) innermost on both.
+- **A spire's spectrum, fancier.** Its bars were hairlines (the band's height came out negative, and clamped to its least): each is now as tall as its band, a little gap between, in its band's colour (the rainbow by octave: dark and saturated low, bright high), tinted by its out's section (a third of the section's colour, where a selector makes sections), bright at the mast and fading to its tip.
+- **Hard bounds.** The view can't be panned above 20 kHz, below the lowest node, or beyond the nodes left and right (a margin round them; more on the right, under the strip). Svelte Flow reads its `translateExtent` once, so the bounds go through its store (`PanBounds.svelte`), set again only when the nodes move more than a step (50 px).
+- **The voices named.** Each voice's name stands up its lane in the neutral zone, rotated, from just above its dot, in its colour on a halo; where lanes are too close for two names side by side (or two voices share a lane), each starts above the one before: a staircase.
+- **The lanes funnel.** The lanes were the spectrum's narrow column all the way down; under the audible, where the structure's values and the neutral zone's dots and names need the room, they are now wide (half the open strip, most of the folded one; 30 px a lane at most), narrowing into the column just under 20 Hz, eased (over 16 … 80 px, a third of the way down to the zone's top row). The bridges and the lanes' lines follow the funnel.
+- **The strip as a map you tap.** A tap on a cell's values, an out's spire or its share of the sum, or a gate, voice or mixer moves the view to that node, keeping its zoom, in 380 ms eased in and out (`FlyTo.svelte`). The strip keeps letting the graph under it pan and zoom: a tap is told from a drag on the window.
+
 ## 5. One tiered strip for the graph and the time view (proposed)
 
 Three things draw the tower's scale today, each its own way:
