@@ -216,7 +216,7 @@ describe('pre-push', () => {
   it('is what a checkout runs: the install points core.hooksPath at it, and verify stamps what passed', () => {
     const scripts = JSON.parse(readFileSync(`${root}/package.json`, 'utf8')).scripts;
     expect(scripts.prepare).toContain('core.hooksPath .githooks');
-    expect(scripts.preverify).toBe('node tools/verified.mjs begin');
+    expect(scripts.preverify).toMatch(/&& node tools\/verified\.mjs begin$/);
     expect(scripts.postverify).toBe('node tools/verified.mjs end');
   });
 });
