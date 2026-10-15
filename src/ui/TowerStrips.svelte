@@ -258,25 +258,42 @@
     if (!map || !map.lanes.length) return names(g, W);
     // the lanes: a narrow column in the strip's middle, a lane an out; the combined spectrum out from its sides, the left
     // channel left, the right right; the names on the left when opened (under 20 Hz the sides are free)
+    // (the lanes funnel: wide under the audible, where the structure and the neutral zone need the room, narrowing into
+    // the column just under 20 Hz, eased; `lwAt(y)` a lane's width at a height, `x0At(y)` the lanes' left edge)
+    const sy = (y: number) => y * viewport.zoom + viewport.y;
     const A = W - 8;
-    const lw = Math.min(open ? 8 : 5, (A * 0.6) / map.lanes.length);
-    const x0 = A / 2 - (lw * map.lanes.length) / 2;
-    const x1 = x0 + lw * map.lanes.length;
-    const mid = (k: number) => x0 + (k + 0.5) * lw;
-    const across = (id: string): readonly [number, number] => {
-      const [a, b] = map.span.get(id) ?? [0, map.lanes.length - 1];
-      return [x0 + a * lw + 1, x0 + (b + 1) * lw - 1];
+    const nl = map.lanes.length;
+    const lw = Math.min(open ? 8 : 5, (A * 0.6) / nl);
+    const wide = Math.max(lw, Math.min(open ? 30 : 12, (A * (open ? 0.5 : 0.8)) / nl));
+    const yA = yOf(Math.log10(20));
+    const rowTop = Math.min(sy(rows.gate), sy(rows.voice), sy(rows.mixer));
+    const yB = yA + Math.max(16, Math.min(80, 0.3 * (rowTop - yA)));
+    const lwAt = (y: number) => {
+      const t = Math.max(0, Math.min(1, (y - yA) / (yB - yA)));
+      return lw + (wide - lw) * t * t * (3 - 2 * t);
+    };
+    const x0At = (y: number) => A / 2 - (lwAt(y) * nl) / 2;
+    const x0 = x0At(yA);
+    const x1 = x0 + lw * nl;
+    const mid = (k: number, y = yA) => x0At(y) + (k + 0.5) * lwAt(y);
+    const across = (id: string, y: number): readonly [number, number] => {
+      const [a, b] = map.span.get(id) ?? [0, nl - 1];
+      return [x0At(y) + a * lwAt(y) + 1, x0At(y) + (b + 1) * lwAt(y) - 1];
+    };
+    // (a line down a lane, at x(y): straight where the lanes are, sampled through the funnel)
+    const along = (x: (y: number) => number, ya: number, yb: number) => {
+      const [lo, hi] = [Math.max(-10, Math.min(ya, yb)), Math.min(h + 10, Math.max(ya, yb))];
+      if (hi <= lo) return;
+      g.beginPath();
+      g.moveTo(x(lo), lo);
+      for (let y = Math.max(lo, yA); y < Math.min(hi, yB); y += 3) g.lineTo(x(y), y);
+      g.lineTo(x(hi), hi);
+      g.stroke();
     };
     g.strokeStyle = css('--line');
     g.globalAlpha = 0.5;
-    for (let k = 0; k <= map.lanes.length; k++) {
-      g.beginPath();
-      g.moveTo(x0 + k * lw, 0);
-      g.lineTo(x0 + k * lw, h);
-      g.stroke();
-    }
+    for (let k = 0; k <= nl; k++) along((y) => x0At(y) + k * lwAt(y), 0, h);
     g.globalAlpha = 1;
-    const sy = (y: number) => y * viewport.zoom + viewport.y;
     const nameOf = (id: string) => id.slice('cell:'.length);
     // the structure: each stepped cell at its rate, across the lanes it feeds, the values it takes (each as wide as
     // it is held, in its colour, the one it holds now lit); cells sharing a place stacked
@@ -310,7 +327,7 @@
         g.fillStyle = css('--text-muted');
         g.font = '8px system-ui, sans-serif';
         g.textAlign = 'left';
-        g.fillText(name, 4, ny + 3, x0 - 6);
+        g.fillText(name, 4, ny + 3, x0At(ny) - 6);
       }
     };
     // (a lane's player: the highest of the structure's cells in that lane alone, where its bridge starts)
@@ -332,9 +349,10 @@
       }
       const y = yOf(c.at);
       if (y < -10 || y > h + 10) continue;
-      chips(c.name, place(id, y), across(id));
+      const at = place(id, y);
+      chips(c.name, at, across(id, at));
     }
-    tables.forEach((name, k) => chips(name, h - 10 - k * ROW, across(`cell:${name}`)));
+    tables.forEach((name, k) => chips(name, h - 10 - k * ROW, across(`cell:${name}`, h - 10 - k * ROW)));
     // the spectrum, all the outs together: each band's bar as long as its loudest out, split into the outs' shares in
     // their colours, in the lanes' order from the column out on both sides (mirrored: the first lane's innermost); the left
     // channel out from the column's left side, the right from its right
@@ -380,11 +398,9 @@
       const from = player.get(k) ?? sy(rows.gate);
       g.strokeStyle = `rgba(${c[0]}, ${c[1]}, ${c[2]}, ${off ? 0.25 : 0.6})`;
       g.lineWidth = 1;
-      g.beginPath();
-      g.moveTo(mid(k), from);
-      g.lineTo(mid(k), top);
-      g.stroke();
-      hit(e.lane.source, mid(k) - lw / 2, from, mid(k) + lw / 2, s ? yOf(band(s.top)) - 4 : top - 4);
+      along((y) => mid(k, y), top, from);
+      hit(e.lane.source, mid(k) - lw / 2, yB, mid(k) + lw / 2, s ? yOf(band(s.top)) - 4 : top - 4);
+      hit(e.lane.source, mid(k, from) - lwAt(from) / 2, from, mid(k, from) + lwAt(from) / 2, yB);
       if (s) drawSpire(g, mid(k), (b) => yOf(band(b)), s, Math.min(3.5, lw * 0.6), c, off ? 0.3 : 1);
       if (open) {
         // (its name at its fundamental, left of the column, over the spectrum on a halo)
@@ -411,15 +427,15 @@
       g.strokeStyle = css('--line');
       g.setLineDash([2, 3]);
       g.beginPath();
-      g.moveTo(x0, yy);
-      g.lineTo(x1, yy);
+      g.moveTo(x0At(yy), yy);
+      g.lineTo(x0At(yy) + lwAt(yy) * nl, yy);
       g.stroke();
       g.setLineDash([]);
       if (open) {
         g.fillStyle = css('--text-muted');
         g.font = '9px system-ui, sans-serif';
         g.textAlign = 'left';
-        g.fillText(label, 4, yy + 3, x0 - 6);
+        g.fillText(label, 4, yy + 3, x0At(yy) - 6);
       }
       const at = new Map<number, number>();
       // (a voice's name up its lane from above its dot; voices sharing a lane, or in lanes too close for two names side
@@ -429,7 +445,7 @@
       members.sort(([x], [y]) => map.span.get(x)![0] - map.span.get(y)![0]);
       for (const [id] of members) {
         const [a, b] = map.span.get(id)!;
-        const [xa, xb] = across(id);
+        const [xa, xb] = across(id, yy);
         const n = at.get(a) ?? 0;
         at.set(a, n + 1);
         const name = nameOf(id);
@@ -440,8 +456,8 @@
         if (layer === 'mixer') {
           if (b > a) {
             g.beginPath();
-            g.moveTo(xa + lw / 2 - 1, yy);
-            g.lineTo(xb - lw / 2 + 1, yy);
+            g.moveTo(xa + lwAt(yy) / 2 - 1, yy);
+            g.lineTo(xb - lwAt(yy) / 2 + 1, yy);
             g.stroke();
           }
           g.fillRect((xa + xb) / 2 - 3, yy - 3, 6, 6);
@@ -452,7 +468,7 @@
           g.fill();
           if (layer === 'voice') {
             // its name, rotated, up its lane from above its dot, on a halo
-            const close = last !== null && (a - last.lane) * lw < (open ? 11 : 10);
+            const close = last !== null && (a - last.lane) * lwAt(yy) < (open ? 11 : 10);
             const from = Math.min(above.get(a) ?? yy - 6, close && last ? last.top - 6 : Infinity);
             g.font = `700 ${open ? 9 : 8}px system-ui, sans-serif`;
             const len = g.measureText(name).width;
