@@ -19,8 +19,9 @@
     "format:check": "prettier --check .",
     "lint": "eslint .",
     "knip": "knip",
+    "preverify": "node tools/verified.mjs begin",
     "verify": "npm run check && npm run lint && npm run format:check && npm run knip && npm test",
-    "postverify": "node tools/verified.mjs",
+    "postverify": "node tools/verified.mjs end",
     "prepare": "git config core.hooksPath .githooks || true"
   },
   "devDependencies": {
