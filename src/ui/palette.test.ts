@@ -126,7 +126,7 @@ describe("tickLevel: the level of a meter's tick", () => {
     // (the metronome's bar in eighths, * . + . + . + .: levels 0 3 1 3 …; a finer one, 4, is the finest token too)
     const r = compileSource(PRESETS.metronome.source.replace('free(0, 0..3, "1 2 3 4")', 'free(1, 0..3, "1 2 3 4")'));
     const bar = r.cells.get('bar')!;
-    expect(bar.leveled).toBe(true);
+    expect(bar.meter?.written).toBe('meter');
     expect([0, 1, 2, 3, 8].map((b) => tickLevel(bar, b + 0.3))).toEqual([0, 3, 1, 3, 0]);
     expect([0, 1.5, 2].map((b) => tickLevel(compileSource('&plain scan(1 1 1) step=1').cells.get('plain'), b))).toEqual([0, 1, 1]);
   });

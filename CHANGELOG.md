@@ -10,6 +10,9 @@ that makes the change. Also note changes to the language that could affect saved
 
 ## Unreleased
 
+### Changed
+- **The language is cells v0.2.0** ([its changelog](https://github.com/yggi/cells/blob/main/CHANGELOG.md)): *Canon per tonos* places its three voices with `pan=` in the sound card's one chord, where two mixes made the two channels: the same notes, each voice's level on each side a little moved (within 0.05 dB over 60 s), and the graph shows each instrument as its own out. `meter(…)` and `scan(…)` compile to one `Meter`; nothing else a saved piece plays changes.
+
 ### Added
 - **The tower layout's sky** (prototype, [tower-sky.md](docs/notes/tower-sky.md)): the audible stratum behind the graph is a muted rainbow on the strip's scale, darker in the low octaves and brighter in the high, as the notes are; each socket stands in it as a spire, its levels at their own heights, lighting the sky out from it, half in its source's note and half in the sky's colour there (`?sky=tint|rainbow|off` the others). An out wears its source's note everywhere: its socket, its spire, its share of the strip's sum, which is split into the outs' shares (`?sum=max`: as before). Drawing only.
 - **The tower layout's neutral zone**: the voices and the mixers stand in a zone of their own between the structure (under 20 Hz) and the audible (from 20 Hz), off the scale; every socket sits at its sound's own frequency, none lifted to a floor. Each out is a spire, on the strip and in the sky: a big dot at its fundamental, swelling with its level, a hairline up its range, a dot a partial as big as it is strong. Drawing and layout only.

@@ -118,7 +118,7 @@ export function kindOf(result: CompileResult, name: string): Kind {
   if (c.mix || c.sink || c.kit || c.map?.kind === 'midi') return 'mix';
   if (result.clocks.get(name)?.positional) return 'meter';
   // a bar written as levels (meter(…)): a meter, whatever it reads through
-  if (result.clocks.has(name) && c.leveled) return 'meter';
+  if (result.clocks.has(name) && c.meter?.written === 'meter') return 'meter';
   // it loops at a rate, and nothing plays it as a melody: it moves something (a vibrato, a sweep, a breath)
   if (c.loops && !result.outputs.some((o) => o.cell === name)) return 'lfo';
   if (c.map?.kind === 'amp' || c.map?.kind === 'lin' || c.map?.kind === 'db') return 'volume';
