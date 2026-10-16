@@ -391,7 +391,7 @@ export function hubLabel(result: CompileResult, name: string, shifts: Shifts, is
   }
   if (isMeter) {
     // (a meter of levels counts its beats — * and + — not its steps)
-    const beats = c.leveled ? c.units.filter((u) => u.atom.kind === 'note' && u.atom.value <= 1).length : (c.scan?.steps.length ?? c.units.length);
+    const beats = c.meter?.written === 'meter' ? c.units.filter((u) => u.atom.kind === 'note' && u.atom.value <= 1).length : (c.scan?.steps.length ?? c.units.length);
     const sig = `${beats}/bar`;
     // at rest: its tempo (beats a minute); playing: the bar it's in
     const bpm = Math.round(((result.clocks.get(name)?.perSecond ?? 0) * 60) / c.beat);

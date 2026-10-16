@@ -137,7 +137,7 @@ export function summary(result: CompileResult, name: string): Bit[] {
     }
     case 'meter': {
       // (written as levels, meter(…): its beats are its * and +, its steps finer)
-      const leveled = c.leveled;
+      const leveled = c.meter?.written === 'meter';
       const beats = leveled ? c.units.filter((u) => u.atom.kind === 'note' && u.atom.value <= 1).length : (c.scan?.steps.length ?? c.units.length);
       const even = !c.scan || new Set(c.scan.steps).size === 1;
       const finer = leveled && c.beat > 1 ? `, ${+c.beat.toFixed(2)} steps a beat` : '';
