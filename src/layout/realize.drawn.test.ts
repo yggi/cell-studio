@@ -93,12 +93,13 @@ describe('modulation: &mix_ [(&theme + &vibrato) * &voice]\n&out_ loop=44k map=s
 
 describe('stereo from two mixes', () => {
   it('draws voices into their mix (each product a junction), and the mix into the sound card', () => {
-    const g = buildGraph(compileSource(PRESETS.pertonos.source));
+    // (Canon: Frère Jacques: four voices in two mixes, one a channel; Canon per tonos places its voices with pan= since cells v0.2.0)
+    const g = buildGraph(compileSource(PRESETS.canon.source));
     const ids = g.edges.map((e) => e.id);
-    expect(ids).toContain('junction:left:0->cell:reed');
-    expect(ids).toContain('cell:reed->cell:left');
-    expect(ids).toContain('junction:right:2->cell:cello');
-    expect(ids).toContain('cell:cello->cell:right');
+    expect(ids).toContain('junction:left:0->cell:v1');
+    expect(ids).toContain('cell:v1->cell:left');
+    expect(ids).toContain('junction:right:3->cell:v4');
+    expect(ids).toContain('cell:v4->cell:right');
     expect(ids).toContain('cell:out->cell:left');
   });
 });
