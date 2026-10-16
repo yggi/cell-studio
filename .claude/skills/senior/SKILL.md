@@ -35,7 +35,7 @@ Never rewrite history on someone else's branch (merge `main` in; no rebase, amen
 
 **The smoke test runs by hand** (about two and a half minutes): for a change that reaches audio, UI wiring, assets or the build, check that the PR ran it on its head, or run it (`npm run build && npm run smoke`, or Actions → Smoke → Run workflow). Merge only when all hold: the current head passed `npm run verify` (named in the PR, or run by you), CI's `check` on it is green or blocked (a run that failed in seconds with no step is Actions out of minutes, not a verdict: `AGENTS.md`), no conflicts, no open serious finding, **and the owner has approved**: either the prompt said to merge on a condition that is met ("merge if you find nothing"), or the owner said yes to your summary. Otherwise stop after the summary and ask. Never merge over a red check that ran. The merge itself, by squash, and then updating `main`, the deploy and the check of the live site are the **`land`** skill (`.claude/skills/land/SKILL.md`).
 
-After merging: the issue is closed by `Closes #n` (verify; if the PR was partial, comment on the issue what is done and what is left); file follow-ups; update `docs/roadmap.md` or `docs/limits.md` if the work changed an epic or lifted a limit (on the PR branch before merging, not on `main` after).
+After merging: the `land` skill's step 4, the issues (each `Closes #n` closed, a `Part of #n` epic ticked, the follow-ups filed where they belong, other repositories' numbers written `yggi/<repo>#n`; if the PR was partial, comment on the issue what is done and what is left); update `docs/roadmap.md` or `docs/limits.md` if the work changed an epic or lifted a limit (on the PR branch before merging, not on `main` after).
 
 ## 5. Several PRs at once
 

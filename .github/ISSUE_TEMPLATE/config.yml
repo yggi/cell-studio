@@ -1,7 +1,11 @@
+# Lifted from yggi/cells .github/ISSUE_TEMPLATE/config.yml @ d73bdbc, consolidated 2026-10-16 (yggi/music-commons#4).
 # This tracker holds the workbench's questions (graph, layout, drawing, editor, UI, audio, phone, tooling); a question
 # about the language goes to yggi/cells (yggi/music-commons#14). Blank issues stay enabled.
 blank_issues_enabled: true
 contact_links:
-  - name: A language question → yggi/cells issues
+  - name: A question about the language (a meaning, a spelling)
     url: https://github.com/yggi/cells/issues
     about: What the language means or how it's spelled (a form, an attribute, an operator, an example's wish) is filed in yggi/cells, where the language lives.
+  - name: Something across the family
+    url: https://github.com/yggi/music-commons/issues
+    about: A contract, a word or a change that spans cells, Cell studio, Jambot and webmidi goes to the hub.
