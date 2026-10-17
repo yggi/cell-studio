@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CARD, follow, frameFor, freqTicks, hzOf, pan, tOf, timeTicks, xOf, yOf, zones, zoom } from './timeview';
+import { follow, frameFor, freqTicks, hzOf, resized, pan, tOf, timeTicks, xOf, yOf, zones, zoom } from './timeview';
 
 describe('the time view', () => {
   const f = frameFor(120, 1200, 600);
@@ -30,8 +30,21 @@ describe('the time view', () => {
   });
   it('ticks time and the tower, and names its zones', () => {
     expect(timeTicks(f).map((t) => t.at)).toEqual([0, 15, 30, 45, 60, 75, 90, 105, 120]);
-    expect(freqTicks(f).map((t) => t.label)).toEqual(['60 s', '10 s', '1 s', '0.1 s', '100 Hz', '1 kHz', '10 kHz']);
+    expect(freqTicks(f).map((t) => t.label)).toEqual(['1 min', '10 s', '1 s', '0.1 s', '100 Hz', '1 kHz', '10 kHz']);
     expect(zones(f).map((z) => z.name)).toEqual(['slow', 'pulse', 'audible', 'card']);
-    expect(zones(f).find((z) => z.name === 'card')!.lo).toBe(CARD);
+    expect(10 ** zones(f).find((z) => z.name === 'card')!.lo).toBeCloseTo(20000, 6);
+  });
+
+  it("the neutral zone: off the scale at 20 Hz, its px taken from the rest, each part even (the graph's tower)", () => {
+    const z = resized(f, 1200, 600, 60);
+    expect(z.scale.strata.map((s) => s.name)).toEqual(['slow', 'pulse', 'voices', 'audible', 'card']);
+    const voices = z.scale.strata.find((s) => s.name === 'voices')!;
+    expect(voices.bottom - voices.top).toBeCloseTo(60, 6);
+    expect(yOf(z, z.lo)).toBeCloseTo(600);
+    expect(yOf(z, z.hi)).toBeCloseTo(0);
+    expect(yOf(z, 20)).toBeCloseTo(voices.top, 6);
+    // (an octave is as tall above the zone as below it)
+    expect(yOf(z, 10) - yOf(z, 20)).toBeCloseTo(60 + yOf(z, 40) - yOf(z, 80), 6);
+    expect(hzOf(z, yOf(z, 440))).toBeCloseTo(440);
   });
 });

@@ -25,7 +25,7 @@ import {
   sectionGap,
   shownNotes,
   structureLanes,
-  voiceHues,
+  voiceRows,
   type CellSpan,
   type Named,
 } from './timelayers';
@@ -70,14 +70,10 @@ describe('the time view: the notes and the cells', () => {
     expect(p.notes.length).toBe(1502);
     expect(p.notes.every((e, i) => i === 0 || p.notes[i - 1]!.at <= e.at)).toBe(true);
     expect(longestOf(p.notes)).toBeCloseTo(2.4);
-    expect([...voiceHues(p.heardNotes)]).toEqual([
-      ['hh', 0],
-      ['keys', 137],
-      ['bd', 274],
-      ['bass', 51],
-      ['sd', 188],
-      ['lead', 325],
-    ]);
+    // (the neutral zone's rows: each voice as first heard, ranked first by `rank`; its notes merged into spans)
+    const rows = voiceRows(p.heardNotes, (v) => (v === 'lead' ? 0 : 1));
+    expect(rows.map((r) => r.voice)).toEqual(['lead', 'hh', 'keys', 'bd', 'bass', 'sd']);
+    expect(rows.every((r) => r.spans.every(([a, b], i) => b > a && (i === 0 || r.spans[i - 1]![1] < a)))).toBe(true);
     expect(p.spans.slice(0, 3).map((s) => [s.name, round(s.step), round(s.turn)])).toEqual([
       ['bar', 0.6, 2.4],
       ['chords', 0.3, 9.6],

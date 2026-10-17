@@ -22,7 +22,7 @@
   import { peaks } from '@yggi/cells/engine/time/spectrogram';
   import { splices } from '@yggi/cells/engine/time/splices';
   import { structure } from '@yggi/cells/engine/time/structure';
-  import { follow, frameFor, pan, tOf, xOf, yOf, zoom, type Frame } from '../layout/timeview';
+  import { follow, frameFor, pan, resized, tOf, xOf, yOf, zoom, type Frame } from '../layout/timeview';
   import {
     cellSpans,
     firstAt,
@@ -34,7 +34,7 @@
     patternsOf,
     shownNotes,
     structureLanes,
-    voiceHues,
+    voiceRows,
     type Scalograms,
   } from '../layout/timelayers';
   import { towerStructure } from '../layout/tower';
@@ -53,11 +53,16 @@
     drawSplices,
     drawStructure,
     drawWaterfall,
+    drawVoices,
     drawWaveform,
     drawZones,
+    VOICE_PAD,
+    VOICE_ROW,
   } from './timedraw';
-  import { noteColour, noteHsl, TIME } from './theme';
-  import { hslToRgb } from '../layout/spectrum';
+  import { TIME } from './theme';
+  import { nodeSections, sectionRgb } from './sections';
+  import { outTint } from './heard';
+  import { cellId } from '@yggi/cells/engine/ids';
   import type { TimeAnswer, TimeJob } from './time.worker';
 
   let { active, ongraph }: { active: boolean; ongraph?: () => void } = $props();
@@ -111,16 +116,23 @@
   /** The meter, as periods across the scalogram: the beat, the bar, the sections' usual length. */
   const meter = $derived(meterOf(spans, piece.program.ok ? mainTempo(piece.program)?.cell : undefined, written));
 
+  /** Each node's section (ui/sections.ts), the graph's: a voice's colour is its section's, as its out's is there. */
+  const sections = $derived(piece.program.ok ? nodeSections(piece.program, piece.graph) : new Map());
+  /** The neutral zone's rows (#440): each voice heard, in its sections' order, and where it sounds. */
+  const rows = $derived(voiceRows(notes, (v) => sections.get(cellId(v))?.k ?? 1e3));
+  /** The neutral zone's height (px): its rows and their room; none without voices. */
+  const zonePx = $derived(rows.length ? rows.length * VOICE_ROW + 2 * VOICE_PAD : 0);
+
   // (raw: replaced whole, never changed in place; a deep proxy made every read in the drawing loops a tracked one)
   let frame = $state.raw<Frame>(frameFor(30, 1, 1));
-  // a new piece or length: all of it in view; a new size: the same stretch, resized
+  // a new piece or length: all of it in view; a new size or neutral zone: the same stretch, resized
   $effect(() => {
     const w = length;
-    untrack(() => (frame = frameFor(w, frame.width, frame.height)));
+    untrack(() => (frame = frameFor(w, frame.width, frame.height, zonePx)));
   });
   $effect(() => {
-    const [w, h] = [width, height];
-    untrack(() => (frame = { ...frame, width: w, height: h }));
+    const [w, h, z] = [width, height, zonePx];
+    untrack(() => (frame = resized(frame, w, h, z)));
   });
   // playing: the view pages on with the playhead
   $effect(() => {
@@ -275,12 +287,16 @@
     if (v === undefined) style.set(name, (v = canvas ? getComputedStyle(canvas).getPropertyValue(name).trim() : ''));
     return v;
   };
-  /** A colour a voice (the piano roll's and the waterfall's alike): its hue, its CSS colour and its RGB. */
+  /**
+   * A colour a voice (the notes', the waterfall's and the neutral zone's rows alike): the graph's for its out — its
+   * section's, else its base note's, else white (ui/heard.ts outTint) — as CSS and as RGB.
+   */
   const voices = $derived(
     new Map(
-      [...voiceHues(heardNotes)].map(([n, hue]) => {
-        const [h, sat, l] = noteHsl(hue);
-        return [n, { hue, css: noteColour(hue), rgb: hslToRgb(h, sat / 100, l / 100) }] as const;
+      [...new Set(heardNotes.map((e) => e.voice))].map((n) => {
+        const [r, g, b] = outTint(piece.program, n, sectionRgb(piece.graph, sections, cellId(n)));
+        const rgb: [number, number, number] = [r ?? 0, g ?? 0, b ?? 0];
+        return [n, { css: `rgb(${rgb.join(' ')})`, rgb }] as const;
       }),
     ),
   );
@@ -290,7 +306,7 @@
   $effect(() => {
     const f = frame;
     const layers: TimeLayers = settings.layers;
-    const [sb, fb, w, n, ws, hd, sp, cs, pt, vs, back, mt, lv, st] = [
+    const [sb, fb, w, n, ws, hd, sp, cs, pt, vs, back, mt, lv, st, vr] = [
       scalBitmap,
       fallBitmap,
       wave,
@@ -305,6 +321,7 @@
       meter,
       levels,
       nodes,
+      rows,
     ];
     if (!canvas || f.width < 2 || f.height < 2) return;
     style = new Map();
@@ -340,6 +357,7 @@
       }
     }
     drawGrid(g, f, css);
+    drawVoices(g, f, css, vr, (v) => vs.get(v)?.css ?? '');
     if (layers.meter && layers.scalogram && scal) drawMeter(g, f, css, scal, mt);
     if (layers.sections) drawSections(g, f, css, ws);
     if (layers.heard) drawHeard(g, f, css, hd);
@@ -397,7 +415,11 @@
   const LAYERS: { key: keyof TimeLayers; label: string; title: string }[] = [
     { key: 'scalogram', label: 'scalogram', title: 'The notes’ wavelet transform: which time scales are loud, when' },
     { key: 'notes', label: 'notes', title: 'The notes, at their pitch' },
-    { key: 'waterfall', label: 'waterfall', title: 'The sound’s spectrum over time, each band in its voice’s colour (rendered: the first five minutes at most)' },
+    {
+      key: 'waterfall',
+      label: 'waterfall',
+      title: 'The sound’s spectrum over time, each band in its voice’s colour, grey where no note explains it (rendered: the first five minutes at most)',
+    },
     { key: 'waveform', label: 'waveform', title: 'The sound itself, at the top (rendered: the first five minutes at most)' },
     { key: 'sections', label: 'sections', title: 'The sections the code writes' },
     { key: 'heard', label: 'heard', title: 'Boundaries heard in the scalogram: white on a section, teal on a splice, orange on neither; a section not heard hollow' },
@@ -446,12 +468,6 @@
     {/if}
     {#if settings.layers.heard && heardMarks.length}
       <span class="folded" title="Moments: boundaries heard that a section or splice explains · sections written that are heard">{foldedText('moments', folded(moments))}</span>
-    {/if}
-    {#if settings.layers.waterfall && fall}
-      <p class="legend voices" title="The waterfall's colours: each band the voice whose note sounds there">
-        {#each fall.voices as v (v)}<span style:--c={voices.get(v)?.css}>{v}</span>{/each}
-        <span style:--c="rgb({TIME.unowned.join(' ')})">no note</span>
-      </p>
     {/if}
   </div>
   <div class="plot" bind:clientWidth={width} bind:clientHeight={height}>
@@ -563,11 +579,6 @@
     background: var(--c);
   }
   /* the waterfall's colours, a line of the toolbar */
-  .legend.voices {
-    position: static;
-    flex-basis: 100%;
-    flex-wrap: wrap;
-  }
   .legend .all::before {
     background: var(--time-ink);
   }

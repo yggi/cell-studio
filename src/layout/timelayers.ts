@@ -97,8 +97,21 @@ export function familyHue(name: string): number {
   return (h * 7) % 360;
 }
 
-/** Each voice's hue, in the order they are first heard: the piano roll's and the waterfall's alike. */
-export const voiceHues = (notes: readonly Played[]): Map<string, number> => new Map([...new Set(notes.map((e) => e.voice))].map((n, i) => [n, (i * 137) % 360]));
+/**
+ * The neutral zone's rows (#440, the graph's voices row in time): each voice heard, ordered by `rank` (then as first
+ * heard), and where it sounds — its notes' spans, those that touch or overlap merged. Notes sorted by start.
+ */
+export function voiceRows(notes: readonly Played[], rank: (voice: string) => number): { voice: string; spans: [number, number][] }[] {
+  const rows = new Map<string, [number, number][]>();
+  for (const e of notes) {
+    const spans = rows.get(e.voice) ?? rows.set(e.voice, []).get(e.voice)!;
+    const last = spans[spans.length - 1];
+    if (last && e.at <= last[1] + 1e-9) last[1] = Math.max(last[1], e.at + e.dur);
+    else spans.push([e.at, e.at + e.dur]);
+  }
+  const first = [...rows.keys()];
+  return first.sort((a, b) => rank(a) - rank(b) || first.indexOf(a) - first.indexOf(b)).map((voice) => ({ voice, spans: rows.get(voice)! }));
+}
 
 /** The patterns are looked for over the first ten minutes (of every round) at most. */
 const PATTERNS = 600;

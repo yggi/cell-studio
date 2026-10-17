@@ -29,7 +29,7 @@ export function drawZones(g: G, f: Frame, css: Css): void {
   zones(f).forEach((z, i) => {
     if (i % 2) return;
     g.fillStyle = css('--time-zone');
-    g.fillRect(0, yOf(f, z.hi), f.width, yOf(f, z.lo) - yOf(f, z.hi));
+    g.fillRect(0, z.top, f.width, z.bottom - z.top);
   });
 }
 
@@ -138,7 +138,7 @@ export function drawGrid(g: G, f: Frame, css: Css): void {
   for (const t of freqTicks(f)) g.fillText(t.label, 6, yOf(f, t.hz) - 3);
   for (const t of timeTicks(f)) g.fillText(t.label, xOf(f, t.at) + 3, f.height - 6);
   g.textAlign = 'right';
-  for (const z of zones(f)) if (yOf(f, z.lo) - yOf(f, z.hi) > 16) g.fillText(z.name, f.width - 8, yOf(f, z.hi) + 14);
+  for (const z of zones(f)) if (z.bottom - z.top > 16) g.fillText(z.name, f.width - 8, z.top + 14);
   g.textAlign = 'left';
 }
 
@@ -330,4 +330,35 @@ export function drawLevels(g: G, f: Frame, css: Css, scal: Rows, x: Explained<He
     name(seconds(h.period), y, css('--time-heard'));
   }
   g.textAlign = 'left';
+}
+
+/** A row of the neutral zone (px): a voice each. */
+export const VOICE_ROW = 14;
+/** The neutral zone's room above and below its rows (px). */
+export const VOICE_PAD = 6;
+
+/**
+ * The neutral zone's rows (layout/timelayers.ts voiceRows): each voice heard, its name at the left and a bar where it
+ * sounds, in its colour (its section's: the graph's) — the graph's row of voices, drawn across time.
+ */
+export function drawVoices(g: G, f: Frame, css: Css, rows: readonly { voice: string; spans: readonly (readonly [number, number])[] }[], colour: (voice: string) => string): void {
+  const zone = f.scale.strata.find((z) => z.name === 'voices');
+  if (!zone) return;
+  g.font = '10px system-ui, sans-serif';
+  rows.forEach((r, i) => {
+    const y = zone.top + VOICE_PAD + i * VOICE_ROW + VOICE_ROW / 2;
+    g.fillStyle = colour(r.voice);
+    g.globalAlpha = 0.75;
+    for (const [a, b] of r.spans) {
+      if (b < f.from || a > f.to) continue;
+      const x = xOf(f, a);
+      g.fillRect(x, y - 4, Math.max(1, xOf(f, b) - x), 8);
+    }
+    g.globalAlpha = 1;
+    g.lineWidth = 3;
+    g.strokeStyle = css('--time-face');
+    g.strokeText(r.voice, 6, y + 3);
+    g.fillText(r.voice, 6, y + 3);
+    g.lineWidth = 1;
+  });
 }

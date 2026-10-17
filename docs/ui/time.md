@@ -25,7 +25,11 @@ way. So far two axes: levels (time scales) and moments (boundaries).
     pitches, a voice coming in) green, *density* (each voice's notes) blue; where they agree their mixture, white where
     all three do. Or one alone on a ramp: every note, breaks, density, entries, or *keys* (a pitch class not heard for
     8 s: 5 to 12's ten-minute keys). A change of section is a cone pointing down at its moment.
-  - **notes**: at their pitch, a semitone high, a colour a voice.
+  - **notes**: at their pitch, a semitone high, in their voice's colour: the graph's for its out, its section's, else its
+    base note's, else white (`sectionRgb`, `outTint`).
+  - **voices**: the neutral zone, between the pulse and the audible, off the scale as in the graph's tower layout (#440):
+    a row a voice heard (14 px), in its sections' order, its name at the left and a bar where it sounds, in its colour.
+    A drum takes its kit's colour.
   - **waterfall**: the rendered sound's spectrum, in the audible (behind the notes), each band in the colour of the
     voice whose note sounds there (the notes' colours; `owners` in `engine/time/spectrogram.ts`: a note's harmonics,
     the first 32, each weighed level/k), as bright as it is loud; grey where no note explains it (a drum, noise, an
