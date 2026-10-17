@@ -95,6 +95,11 @@ export interface CellView {
   readonly conv?: string;
   readonly segments: readonly Segment[];
   /**
+   * A swung meter's own steps where each is played, in steps (cells v0.4.0's Clock.swung): its segments sit there, and its
+   * hand goes through them (`swungTurn`), so the wheel is the bar's time.
+   */
+  readonly swung?: readonly number[];
+  /**
    * A table's taps, entry 0 first (under the marker): where each entry leaves the wheel, in turns. Its own spacing
    * (show=pattern: each at its step of the grid; they turn with it) or even (show=equal: they stay put).
    */
@@ -333,8 +338,27 @@ function viewOf(result: CompileResult, name: string, shifts: Shifts, isMeter: bo
   const bulbs = levels || typeof c.params.scope === 'string' || isTurntable(c) ? [] : bulbsOf(result, name, shifts, bulbHosts(result));
   // (a table of taps fans its steps over its top, as its bulbs: track.ts)
   const fan = fanOf(result, name);
-  const laid = fan ? segments.map((s) => ({ ...s, t0: fan(s.t0), t1: fan(s.t1) })) : segments;
-  return { mode: 'braid', segments: laid, ticks: total, detents: Math.max(1, units.length), show, conv, ...(bulbs.length ? { bulbs } : {}) };
+  // (a swung meter's own steps where they play, cells v0.4.0's Clock.swung: its wheel is the bar's time, long and short;
+  // a meter(…) is drawn as its braid of levels, its clock its own)
+  const clockSwung = c.clock === name ? result.clocks.get(name)?.swung : undefined;
+  const swung = clockSwung?.length === total ? clockSwung : undefined;
+  const at = fan ?? (swung ? (t: number) => swungTurn(swung, t) : null);
+  const laid = at ? segments.map((s) => ({ ...s, t0: at(s.t0), t1: at(s.t1) })) : segments;
+  return { mode: 'braid', segments: laid, ticks: total, detents: Math.max(1, units.length), show, conv, ...(swung ? { swung } : {}), ...(bulbs.length ? { bulbs } : {}) };
+}
+
+/**
+ * Where a turn through a bar's steps is played under its swing, in turns: `swung` (Clock.swung) places each step, in
+ * steps; a turn between two steps falls between where they are played, and whole turns are kept (a hand's laps).
+ */
+export function swungTurn(swung: readonly number[], t: number): number {
+  const total = swung.length;
+  const laps = Math.floor(t + 1e-12);
+  const x = (t - laps) * total;
+  const i = Math.min(total - 1, Math.floor(x + 1e-9));
+  const from = swung[i] ?? i;
+  const to = swung[i + 1] ?? total;
+  return laps + (from + (x - i) * (to - from)) / total;
 }
 
 /**
@@ -437,7 +461,9 @@ export function hubLabel(result: CompileResult, name: string, shifts: Shifts, is
   }
   // a table of taps (decision 016): its taps are the paths the selector reading it switches between
   if (fanOf(result, name)) return { big: String(c.steps), small: c.steps === 1 ? 'path' : 'paths' };
-  return { big: String(c.steps), small: c.steps === 1 ? 'step' : 'steps' };
+  // (a meter(…) drawn as its braid of levels, swung: the levels its swing leans in place of "steps", cells v0.4.0)
+  const swung = c.meter?.swing?.length ? `swung ${c.meter.swing.map((l) => l.level).join(' ')}` : null;
+  return { big: String(c.steps), small: swung ?? (c.steps === 1 ? 'step' : 'steps') };
 }
 
 /**

@@ -5,6 +5,7 @@
  * keeps its belt: a body, drawn.
  */
 import type { CompileResult } from '@yggi/cells/engine/program';
+import { noteValue, tapShare, type Meter, type SwingLevel } from '@yggi/cells/engine/meter';
 
 type Node = { id: string; kind: string; isMeter?: boolean; petalOf?: string };
 
@@ -59,4 +60,57 @@ export function tickLevel(meter: Ticking | undefined, beatAt: number): number {
   const atom = n ? meter!.units[((step % n) + n) % n].atom : null;
   if (atom?.kind === 'note' && typeof atom.value === 'number') return Math.max(0, Math.min(3, Math.round(atom.value)));
   return step === 0 ? 0 : 1;
+}
+
+/** A share as the app writes one: two places, no leading zero (`.67`, `1.5`). */
+const shareText = (x: number) => String(+x.toFixed(2)).replace(/^0\./, '.');
+
+/** A meter's levels, short, as `swing=` and `legato=` write them by level: `8n .67`, `8n .6, 16n .55`; null with none. */
+export function levelsText(levels: readonly SwingLevel[] | undefined): string | null {
+  return levels?.length ? levels.map((l) => `${l.level} ${shareText(l.share)}`).join(', ') : null;
+}
+
+/** A tap's step in whole notes (`16n` 1/16, `pulse`, `beat` its longest, `1m` the bar), its chain dividing it, as `tapShare` reads it. */
+function tapWhole(m: Meter, tap: string, ratio: number): number | null {
+  const pulses = tap === 'pulse' ? 1 : tap === 'beat' ? Math.max(...m.beats) : tap === '1m' ? m.pulses : null;
+  const whole = pulses !== null ? pulses / m.unit : noteValue(tap);
+  return whole && ratio > 0 ? whole / ratio : null;
+}
+
+/** A stepped cell's tap of a meter: the meter, the tap as written, its chain as a ratio; null for any other step. */
+function tapOf(result: CompileResult, name: string): { meter: Meter; meterName: string; tap: string; ratio: number } | null {
+  const step = result.cells.get(name)?.step;
+  const meter = step?.tap ? result.cells.get(step.driver)?.meter : null;
+  if (!step?.tap || !meter) return null;
+  return { meter, meterName: step.driver, tap: step.tap, ratio: step.chain.reduce((r, x) => (x.op === '×' ? r * x.n : r / x.n), 1) };
+}
+
+/**
+ * The levels of its meter's swing that move a tap's steps (cells v0.4.0: `swing=8n:.67` on the meter): a level the tap's
+ * step divides into a whole number of times, so the second of each pair is one of its steps (`8n` and `16n` under
+ * swung eighths; not `4n`, nor `8t`, which stays even).
+ */
+export function tapSwing(result: CompileResult, name: string): SwingLevel[] {
+  const t = tapOf(result, name);
+  const whole = t ? tapWhole(t.meter, t.tap, t.ratio) : null;
+  if (!t || !whole) return [];
+  return (t.meter.swing ?? []).filter((l) => {
+    const k = l.whole / whole;
+    return k >= 1 - 1e-9 && Math.abs(k - Math.round(k)) < 1e-9;
+  });
+}
+
+/**
+ * The share of its held length each of a line's notes sounds (`legato=`, cells v0.4.0): its own (a number, or a free()'s
+ * held value), else its meter's for its tap's level (`legato=16n:.5` on the meter: `from` names the meter), else 1.
+ * Null when it changes from note to note (a cell of shares, read at each onset).
+ */
+export function lineShare(result: CompileResult, name: string): { share: number; from: string | null } | null {
+  const c = result.cells.get(name);
+  if (!c) return null;
+  if (c.paramCells.legato) return null;
+  if (typeof c.params.legato === 'number') return { share: c.params.legato, from: null };
+  const t = tapOf(result, name);
+  if (t?.meter.legato?.length) return { share: tapShare(t.meter, t.tap, t.ratio), from: t.meterName };
+  return { share: 1, from: null };
 }

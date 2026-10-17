@@ -3,7 +3,8 @@ import { describe, expect, it } from 'vitest';
 import { SAILOR_WITH_KIT } from '@yggi/cells/engine/fixtures';
 import { compileSource } from '@yggi/cells/engine/compile';
 import { codeShifts, type Shifts } from '@yggi/cells/engine/program';
-import { blank, cellView, drawnOf, hubLabel, isGrid, selectorOf, selectorRow, valueAt, valueSpectrum, type CellView } from './cellview';
+import { blank, cellView, drawnOf, hubLabel, isGrid, selectorOf, selectorRow, swungTurn, valueAt, valueSpectrum, type CellView } from './cellview';
+import { handOf } from './glyph';
 import { PRESETS } from '@yggi/cells/engine/presets';
 
 const r = compileSource(PRESETS.royal.source);
@@ -71,6 +72,24 @@ describe('cellView', () => {
     const v = cellView(r, 'bar', codeShifts(r), true)!;
     expect(v.segments.map((s) => +(s.t1 - s.t0).toFixed(2))).toEqual([0.27, 0.23, 0.26, 0.24]);
     expect(v.segments[0].bands[0]).toEqual({ kind: 'beat', down: true });
+  });
+
+  it('a swung meter’s own steps sit where they play (cells v0.4.0: Clock.swung); a meter whose steps it doesn’t move stays even', () => {
+    const sw = compileSource('&bar meter("4/4", 2) step=120bpm swing=8n:2/3\n&a step=8n 0 2\n&v s=sine\n&out map=sample [&a * &v]');
+    // (a meter(…) isn't a positional clock: the graph draws it as its braid of levels, not as a meter)
+    const v = cellView(sw, 'bar', codeShifts(sw), false)!;
+    expect(v.mode).toBe('braid');
+    expect(hubLabel(sw, 'bar', codeShifts(sw), false, null)).toEqual({ big: '8', small: 'swung 8n' });
+    expect(v.segments.map((s) => +(s.t1 - s.t0).toFixed(3))).toEqual([1, 0.5, 1, 0.5, 1, 0.5, 1, 0.5].map((x) => +(x / 6).toFixed(3)));
+    expect(v.segments.map((s) => s.index)).toEqual([0, 1, 2, 3, 4, 5, 6, 7]);
+    // (its hand goes through them as they sit: step 1 starts a third of a beat late, and a lap is kept)
+    expect(v.swung).toEqual(sw.clocks.get('bar')!.swung);
+    expect(swungTurn(v.swung!, 1 / 8)).toBeCloseTo(1 / 6, 9);
+    expect(swungTurn(v.swung!, 1.5 / 8)).toBeCloseTo(5 / 24, 9); // (halfway through its short step)
+    expect(swungTurn(v.swung!, 1 + 3 / 8)).toBeCloseTo(1 + 5 / 12, 9);
+    expect(handOf(v, () => 1, sw.cells.get('bar')!.steps)).toBeCloseTo(1 / 6, 9);
+    const quarters = compileSource('&bar meter("4/4") step=120bpm swing=8n:2/3\n&a step=8n 0 2\n&v s=sine\n&out map=sample [&a * &v]');
+    expect(cellView(quarters, 'bar', codeShifts(quarters), true)!.segments.map((s) => s.t1 - s.t0)).toEqual([0.25, 0.25, 0.25, 0.25]);
   });
 
   it('braids lay slots out by duration', () => {

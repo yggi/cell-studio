@@ -16,6 +16,9 @@ describe('a cell in words', () => {
     // (the metronome's bar plays its own levels, through a kit: nothing else steps by it)
     expect(text(summary(compileSource(PRESETS.metronome.source), 'bar'))).toMatch(/^A meter of 4 beats, 100 a minute\./);
     expect(text(summary(royal, 'lead'))).toMatch(/^A saw voice at C4, played by &theme/);
+    // (a meter's feel by level, cells v0.4.0)
+    const feel = compileSource('&bar meter("4/4") step=120bpm swing=8n:2/3 legato=16n:.5\n&a step=8n 0 2\n&v s=sine\n&out map=sample [&a * &v]');
+    expect(text(summary(feel, 'bar'))).toBe('A meter of 4 beats, 120 a minute, swinging 8n .67, its notes sounding 16n .5 of their length, stepping &a.');
   });
   it('a melody through the scale(name, tonic) shorthand says it as written', () => {
     expect(text(summary(compileSource(PRESETS.waltz.source), 'tune'))).toBe('Plays 24 steps through scale(major, G), stepped by &bar, on &flute.');
