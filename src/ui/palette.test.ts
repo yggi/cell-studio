@@ -82,9 +82,9 @@ describe('palette: one function from (band, value, grid) to colour', () => {
 describe("the owner's rule: colour follows the grid; a mix hearing several shows none, unless its own show= names one", () => {
   const r = compileSource(`&edo19 cycle=19 map=edo
 &bar scan(1 1 1 1) step=1
-&a step=&bar 0 2 4
-&b over=&edo19 step=&bar 0 3 6
-&c step=&bar 7 9
+&a step=4n 0 2 4
+&b over=&edo19 step=4n 0 3 6
+&c step=4n 7 9
 &v1 s=sine loop=C4
 &v2 s=saw loop=C4
 &v3 s=tri loop=C3
@@ -111,10 +111,10 @@ describe("the owner's rule: colour follows the grid; a mix hearing several shows
   it('a kit or a drum has no say: a mix of drums and 19-tone voices follows the 19', () => {
     const k = compileSource(`&edo19 cycle=19 map=edo
 &bar scan(1 1 1 1) step=1
-&b over=&edo19 step=&bar 0 3 6
+&b over=&edo19 step=4n 0 3 6
 &v2 s=saw loop=C4
 &noise s=white env=&(map=adsr .001 .05 0 .05)
-&hits map=amp step=&bar 1 0 1 0
+&hits map=amp step=4n 1 0 1 0
 &out map=sample [&b * &v2 * .3, &hits * &noise * .2]`);
     expect(k.diagnostics).toEqual([]);
     expect(heardGrid(k, 'out')).toBe('edo19');

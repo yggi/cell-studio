@@ -244,13 +244,13 @@ describe('Midi: All notes off', () => {
     installMidi(fakeAccess([], [fakePort('out-1', 'Circuit')]));
     const midi = await made();
     await midi.connect();
-    const source = `&piece title="Cards" tags="MIDI"\n&bar scan(1 1 1 1) step=2\n&bass step=&bar 0\n&sub loop=55\n&far map=midi(5) [&bass * &sub]`;
+    const source = `&piece title="Cards" tags="MIDI"\n&bar scan(1 1 1 1) step=2\n&bass step=4n 0\n&sub loop=55\n&far map=midi(5) [&bass * &sub]`;
     midi.attach({ sink: null, internal: true }, { program: compileSource(source), title: 'Cards' });
     midi.kitChannel = 3;
     expect(midi.padChannel).toBe(10);
     midi.attach(
       { sink: null, internal: true },
-      { program: compileSource('&piece title="Plain"\n&bar scan(1 1 1 1) step=2\n&a step=&bar 0\n&v loop=55\n&m [&a * &v]'), title: 'Plain' },
+      { program: compileSource('&piece title="Plain"\n&bar scan(1 1 1 1) step=2\n&a step=4n 0\n&v loop=55\n&m [&a * &v]'), title: 'Plain' },
     );
     midi.kitChannel = 3;
     expect(midi.padChannel).toBe(3);
@@ -262,7 +262,7 @@ describe('Midi: All notes off', () => {
     const midi = await made();
     await midi.connect();
     expect(midi.canPanic).toBe(false);
-    const program = compileSource(`&piece title="Slot" tags="MIDI"\n&bar scan(1 1 1 1) step=2\n&bass step=&bar 0\n&sub loop=55\n&far map=midi(3, 2) [&bass * &sub]`);
+    const program = compileSource(`&piece title="Slot" tags="MIDI"\n&bar scan(1 1 1 1) step=2\n&bass step=4n 0\n&sub loop=55\n&far map=midi(3, 2) [&bass * &sub]`);
     midi.attach({ sink: null, internal: true }, { program, title: 'Slot' });
     expect(midi.canPanic).toBe(false);
     expect(midi.columns.map((c) => [c.port, c.key])).toEqual([
@@ -335,7 +335,7 @@ describe('Midi: All notes off', () => {
     midi.chooseOutput('out-1');
     const source = `&piece title="constructor" tags="MIDI"
 &bar scan(1 1 1 1) step=2
-&bass step=&bar 0
+&bass step=4n 0
 &sub loop=55
 &far map=midi(3, 2) [&bass * &sub]`;
     const program = compileSource(source);
@@ -523,9 +523,9 @@ describe('Midi: MIDI out', () => {
   it('a piece with MIDI cards sends only what they name, on their channels and output slots (slot n the nth output)', async () => {
     const source = `&piece title="Cards" tags="MIDI"
 &bar scan(1 1 1 1) step=2
-&theme step=&bar 0 2
+&theme step=4n 0 2
 &reed s=square loop=220
-&bass step=&bar 0
+&bass step=4n 0
 &sub loop=55
 &lone s=sine loop=330
 &out map=sample [&theme * &reed, &bass * &lone]
