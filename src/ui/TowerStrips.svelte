@@ -1,7 +1,15 @@
 <script lang="ts" module>
-  /** The strip's width (px): folded, always there; opened, with the tower's scale named. */
+  /**
+   * The strip's width (px), dragged at its left edge: from collapsed (the scale, its strata's rails and their markers,
+   * no lanes) to wide; from `NAMED` on, the names. Unset, `STRIP`; opened by its button, the last open width or
+   * `STRIP_OPEN`.
+   */
   export const STRIP = 64;
   export const STRIP_OPEN = 180;
+  export const STRIP_MIN = 28;
+  export const STRIP_MAX = 360;
+  const NAMED = 120;
+  const BARE = 48;
 </script>
 
 <script lang="ts">
@@ -23,9 +31,9 @@
   import { TOWER_ZONES } from '../layout/tower';
   import { onFrames } from '../audio/ticker';
   import { hslRgb, noteHsl, tapTintRgb } from './theme';
-  import { heard, noteHz, noteOf, outRgb } from './heard';
+  import { heard, noteHz, outRgb } from './heard';
   import { drawSpire, spireOf } from './spire';
-  import { cellView, valueAt, valueSpectrum } from '../layout/cellview';
+  import { cellView, selectorOf, selectorRow, valueAt, valueSpectrum, type CellView, type ValueShare } from '../layout/cellview';
   import { lapOf } from '@yggi/cells/engine/readers';
   import { fillColour } from './edgeStyle';
   import { C0 } from '../layout/spectrum';
@@ -38,7 +46,8 @@
     rows = { gate: 0, voice: 0, mixer: 0 },
     viewport,
     zone = 0,
-    open,
+    width,
+    onresize,
     ontoggle,
     onfocus,
     tintOf = (source: string) => outRgb(ctx, source),
@@ -54,7 +63,10 @@
     viewport: Viewport;
     /** The neutral zone between the structure and the audible (decades: towerlayout.ts towerY). */
     zone?: number;
-    open: boolean;
+    /** Its width (px), STRIP_MIN … STRIP_MAX; dragged, `onresize` with the new one. */
+    width: number;
+    onresize: (width: number) => void;
+    /** Its button: collapsed, or open again. */
     ontoggle: () => void;
     /** An out's own colour (its source's name): its section's, steady — its share of the sum, its lane, its name. */
     tintOf?: (source: string) => readonly number[];
@@ -64,9 +76,23 @@
 
   const ctx = getGraphContext();
   const BANDS = 120;
+  // (how much of its band's note the spectrum's section colours take: a slight chromatic tint)
+  const TINT = 0.15;
   let h = $state(0);
   let canvas = $state<HTMLCanvasElement>();
-  const sw = $derived(open ? STRIP_OPEN : STRIP);
+  const sw = $derived(Math.round(Math.max(STRIP_MIN, Math.min(STRIP_MAX, width))));
+  // (wide enough for the names; so narrow only the scale shows)
+  const open = $derived(sw >= NAMED);
+  const bare = $derived(sw < BARE);
+  // (a drag on its left edge: its width follows the pointer)
+  let drag: { x: number; w: number } | null = null;
+  function grip(e: PointerEvent) {
+    drag = { x: e.clientX, w: sw };
+    (e.currentTarget as Element).setPointerCapture(e.pointerId);
+  }
+  function dragged(e: PointerEvent) {
+    if (drag) onresize(Math.max(STRIP_MIN, Math.min(STRIP_MAX, drag.w + drag.x - e.clientX)));
+  }
   const dpr = typeof devicePixelRatio === 'number' ? devicePixelRatio : 1;
 
   // (the screen's y for a height on the tower, decades: the graph's y, panned and zoomed)
@@ -108,15 +134,18 @@
     return s >= 86400 ? `${+(s / 86400).toPrecision(2)} d` : s >= 3600 ? `${+(s / 3600).toPrecision(2)} h` : s >= 60 ? `${+(s / 60).toPrecision(2)} min` : `${s} s`;
   }
 
-  // (a cell's wheel and its spectrum of values, kept until the piece or a table's turn changes: not each frame)
-  let spectra = { program: null as unknown, shifts: null as unknown, got: new Map<string, ReturnType<typeof spectrumNow>>() };
-  function spectrumNow(name: string) {
+  // (what a row shows, kept until the piece or a table's turn changes: not each frame — a selector's sections in
+  // order, each the taps it picks; else the cell's spectrum of values, a table of taps' each its section)
+  type Row = { sections: NonNullable<ReturnType<typeof selectorRow>>; n: number } | { v: CellView; taps: number; spread: ValueShare[]; selector?: string };
+  let spectra = { program: null as unknown, shifts: null as unknown, got: new Map<string, Row | null>() };
+  function spectrumNow(name: string): Row | null {
+    const sections = selectorRow(ctx.program, name, ctx.shifts);
+    if (sections) return sections.length ? { sections, n: ctx.program.cells.get(ctx.program.cells.get(name)?.over ?? '')?.units.length ?? 1 } : null;
     const v = cellView(ctx.program, name, ctx.shifts, false);
     if (!v) return null;
-    // (a selector's table of taps: each entry a section, in its tint)
     const taps = [...(ctx.program.taps?.values() ?? [])].includes(name) ? (ctx.program.cells.get(name)?.units.length ?? 0) : 0;
     const spread = valueSpectrum(v, taps > 0);
-    return spread.length ? { v, taps, spread } : null;
+    return spread.length ? { v, taps, spread, ...(taps ? { selector: selectorOf(ctx.program, name) } : {}) } : null;
   }
   function spectrumOf(name: string) {
     if (spectra.program !== ctx.program || spectra.shifts !== ctx.shifts) spectra = { program: ctx.program, shifts: ctx.shifts, got: new Map() };
@@ -149,7 +178,7 @@
     const r = stripEl.getBoundingClientRect();
     const x = e.clientX - r.left;
     const y = e.clientY - r.top;
-    if (x < 0 || y < 0 || x > r.width || y > r.height || (e.target as Element | null)?.closest?.('.fold')) return;
+    if (x < 0 || y < 0 || x > r.width || y > r.height || (e.target as Element | null)?.closest?.('.fold, .grip')) return;
     const id = tapped(x, y);
     if (id) onfocus(id);
   }
@@ -206,7 +235,7 @@
         g.moveTo(W - (named ? 18 : 11), y);
         g.lineTo(W - 6, y);
         g.stroke();
-        if (!named || !room(said, y)) continue;
+        if (!named || bare || !room(said, y)) continue;
         said.push(y);
         g.fillStyle = css('--text-muted');
         g.textAlign = 'right';
@@ -222,7 +251,7 @@
       g.moveTo(0, y);
       g.lineTo(open ? 10 : 6, y);
       g.stroke();
-      if (!room(octaves, y)) continue;
+      if (bare || !room(octaves, y)) continue;
       octaves.push(y);
       g.fillStyle = css('--text-muted');
       g.textAlign = 'left';
@@ -268,7 +297,8 @@
       g.lineTo(W, foot);
       g.stroke();
     }
-    if (!map || !map.lanes.length) return names(g, W);
+    // (collapsed: the scale and its strata only)
+    if (bare || !map || !map.lanes.length) return names(g, W);
     // the lanes: a narrow column in the strip's middle, a lane an out; the combined spectrum out from its sides, the left
     // channel left, the right right; the names on the left when opened (under 20 Hz the sides are free)
     // (the lanes funnel: wide under the audible, where the structure and the neutral zone need the room, narrowing into
@@ -313,28 +343,44 @@
     const paint = (c: string) => (c.startsWith('var(') ? css(c.slice(4, -1)) : c);
     const used = new Map<string, number>();
     const named: number[] = [];
-    const chips = (name: string, y: number, [xa, xb]: readonly [number, number]) => {
+    const chips = (name: string, y: number, [xa, xb]: readonly [number, number], inColumn = true) => {
       const got = spectrumOf(name);
       if (!got) return;
-      const { v, taps, spread } = got;
-      const local = ctx.heads.cells.get(name)?.local ?? 0;
-      const lap = lapOf(ctx.program, name);
       const playing = ctx.state !== 'stopped';
-      const now = playing && lap > 0 ? valueAt(v, (((local / lap) % 1) + 1) % 1, taps > 0) : null;
+      // (where it is in its lap: its playhead, a clock's its beat; none, nothing lit — a part not playing now)
+      const local = ctx.heads.cells.get(name)?.local ?? ctx.heads.beatAt.get(name);
+      const lap = lapOf(ctx.program, name);
+      const t = playing && local !== undefined && local !== null && lap > 0 ? (((local / lap) % 1) + 1) % 1 : null;
+      const rgb = (c: readonly number[]) => `rgb(${c[0]}, ${c[1]}, ${c[2]})`;
+      // its segments, left to right, each its share of the row in its colours (a selector's step: a stripe a tap it
+      // picks), the one it holds now lit; a table of taps lights the taps its selector picks now
+      const segments: { share: number; colours: string[]; lit: boolean }[] =
+        'sections' in got
+          ? got.sections.map((s) => ({ share: s.t1 - s.t0, colours: s.picks.map((k) => rgb(tapTintRgb(k, got.n))), lit: t !== null && t >= s.t0 && t < s.t1 }))
+          : got.spread.map((e) => {
+              const now = got.taps ? null : t !== null ? valueAt(got.v, t, false) : null;
+              const picked = got.selector && playing ? ctx.heads.cells.get(got.selector)?.entries.has(e.index) : false;
+              return {
+                share: e.share,
+                colours: [got.taps ? rgb(tapTintRgb(e.index, got.taps)) : paint(fillColour(e.fill))],
+                lit: got.taps ? !!picked : e.key === now,
+              };
+            });
       // (its state now, playing: the value it holds lit, taller and outlined, the outline flashing at each step it
       // takes and fading through the step — a cell of one value (a groove's hits) shows its steps so; in a rest,
       // nothing lit)
-      const flash = 1 - (((local % 1) + 1) % 1);
+      const flash = 1 - ((((local ?? 0) % 1) + 1) % 1);
       hit(`cell:${name}`, xa, y - 4, xb, y + 4);
       let x = xa;
-      for (const e of spread) {
+      for (const e of segments) {
         const w = Math.max(1, e.share * (xb - xa) - 0.5);
-        const lit = e.key === now;
-        g.globalAlpha = !playing || lit ? 1 : 0.3;
-        const t = taps ? tapTintRgb(e.index, taps) : null;
-        g.fillStyle = t ? `rgb(${t[0]}, ${t[1]}, ${t[2]})` : paint(fillColour(e.fill));
-        g.fillRect(x, y - (lit ? 3 : 2), w, lit ? 6 : 4);
-        if (lit) {
+        const hh = e.lit ? 6 : 4;
+        g.globalAlpha = !playing || e.lit ? 1 : 0.3;
+        e.colours.forEach((c, k) => {
+          g.fillStyle = c;
+          g.fillRect(x, y - hh / 2 + (k * hh) / e.colours.length, w, hh / e.colours.length);
+        });
+        if (e.lit) {
           g.globalAlpha = 0.35 + 0.65 * flash;
           g.strokeStyle = css('--text');
           g.lineWidth = 1;
@@ -343,7 +389,7 @@
         x += e.share * (xb - xa);
       }
       g.globalAlpha = 1;
-      if (open) {
+      if (open && inColumn) {
         // (names of one height in other lanes, one under the other)
         let ny = y;
         while (named.some((n) => Math.abs(n - ny) < 8)) ny += 8;
@@ -356,12 +402,14 @@
     };
     // (a lane's player: the highest of the structure's cells in that lane alone, where its bridge starts)
     const player = new Map<number, number>();
+    const players = new Map<number, { name: string; y: number }[]>();
     const place = (id: string, y: number) => {
-      const [a, b] = map.span.get(id) ?? [-1, -1];
+      // (a cell with no lanes of its own goes across them all, as it is drawn: `across`)
+      const [a, b] = map.span.get(id) ?? [0, nl - 1];
       let n = 0;
       while ([...Array(Math.max(0, b - a + 1)).keys()].some((k) => used.has(`${Math.round(y / ROW) + n}:${a + k}`))) n++;
       for (let k = a; k <= b; k++) used.set(`${Math.round(y / ROW) + n}:${k}`, 1);
-      if (a === b && a >= 0) player.set(a, Math.min(player.get(a) ?? Infinity, y + n * ROW));
+      if (a === b && map.span.has(id)) player.set(a, Math.min(player.get(a) ?? Infinity, y + n * ROW));
       return y + n * ROW;
     };
     const tables: string[] = [];
@@ -374,7 +422,10 @@
       const y = yOf(c.at);
       if (y < -10 || y > h + 10) continue;
       const at = place(id, y);
-      chips(c.name, at, across(id, at));
+      // (a lane's player — a cell in that lane alone — is drawn on its bridge and named up it, not in the left column)
+      const [a, b] = map.span.get(id) ?? [-1, -2];
+      if (a === b) (players.get(a) ?? players.set(a, []).get(a)!).push({ name: c.name, y: at });
+      chips(c.name, at, across(id, at), a !== b);
     }
     tables.forEach((name, k) => chips(name, h - 10 - k * ROW, across(`cell:${name}`, h - 10 - k * ROW)));
     // the spectrum, all the outs together: each band's bar as long as its loudest out, split into the outs' shares in
@@ -403,7 +454,10 @@
           const v = vs[n]!;
           if (v <= 0.02) return;
           const part = (v / all) * len;
-          g.fillStyle = `rgba(${e.c[0]}, ${e.c[1]}, ${e.c[2]}, ${(e.off ? 0.3 : 1) * (0.45 + 0.55 * top)})`;
+          // (its section's colour, a slight tint of the band's note in it: TINT)
+          const note = hues[b]!;
+          const c = [0, 1, 2].map((i) => Math.round(e.c[i]! * (1 - TINT) + note[i]! * TINT));
+          g.fillStyle = `rgba(${c[0]}, ${c[1]}, ${c[2]}, ${(e.off ? 0.3 : 1) * (0.45 + 0.55 * top)})`;
           g.fillRect(side === 'left' ? x0 - 1 - at - part : x1 + 1 + at, y - hb / 2, part, hb);
           hit(e.lane.source, side === 'left' ? x0 - 1 - at - part : x1 + 1 + at, y - hb / 2, side === 'left' ? x0 - 1 - at : x1 + 1 + at + part, y + hb / 2);
           at += part;
@@ -436,8 +490,9 @@
           (b) => hues[b]!,
           off ? 0.3 : 1,
         );
-      if (open) {
-        // (its name at its base fundamental, steady (the note now jumps), left of the column, over the spectrum on a halo)
+      // (its name at its base fundamental, steady (the note now jumps), left of the column, over the spectrum on a halo;
+      // playing, only while it sounds)
+      if (open && (ctx.state === 'stopped' || nodeState(ctx, e.lane.source) === 'live')) {
         const seat = sy(o.top);
         g.font = '700 9px system-ui, sans-serif';
         g.textAlign = 'right';
@@ -447,6 +502,29 @@
         g.fillStyle = off ? css('--edge') : `rgb(${c[0]}, ${c[1]}, ${c[2]})`;
         g.fillText(o.name, x0 - 4, seat + 3);
       }
+    }
+    // each lane's players named once, up its bridge from the highest one's chip, toward the gates' row (`off · prog`:
+    // several, from the top down), in the highest one's section colour, on a halo
+    for (const [k, ps] of players) {
+      ps.sort((p, q) => p.y - q.y);
+      const top = ps[0]!.y - 5;
+      const room = top - (sy(rows.gate) + 8);
+      if (room < 12 || top > h + 10) continue;
+      const text = ps.map((p) => p.name).join(' · ');
+      const t = tintOf(ps[0]!.name);
+      g.font = `700 ${open ? 9 : 8}px system-ui, sans-serif`;
+      const len = Math.min(room, g.measureText(text).width);
+      g.textAlign = 'left';
+      g.setTransform(dpr, 0, 0, dpr, (mid(k, top) + 3) * dpr, top * dpr);
+      g.rotate(-Math.PI / 2);
+      g.lineWidth = 3;
+      g.strokeStyle = css('--surface');
+      g.strokeText(text, 0, 0, room);
+      g.fillStyle = `rgb(${t[0]}, ${t[1]}, ${t[2]})`;
+      g.fillText(text, 0, 0, room);
+      g.setTransform(dpr, 0, 0, dpr, 0, 0);
+      g.lineWidth = 1;
+      hit(`cell:${ps[0]!.name}`, mid(k, top) - 6, top - len, mid(k, top) + 4, top);
     }
     // the neutral zone's rows, named (A), and on them what stands there, in its lanes: a gate a dot, a voice a dot in
     // its note's colour, a mixer a square across the voices it mixes
@@ -485,7 +563,9 @@
         at.set(a, n + 1);
         const name = nameOf(id);
         hit(id, xa, yy - 4, xb, yy + 4);
-        const c = layer === 'gate' || ctx.program.cells.get(name)?.kit ? css('--unit') : (noteOf(ctx, name) ?? css('--unit'));
+        // (its section's colour, steady: a mixer's the mean of what it mixes)
+        const t = tintOf(name);
+        const c = `rgb(${t[0]}, ${t[1]}, ${t[2]})`;
         g.fillStyle = c;
         g.strokeStyle = c;
         if (layer === 'mixer') {
@@ -559,7 +639,7 @@
       const a = Math.max(0, r.y0);
       const b = Math.min(h, r.y1);
       if (b - a < 40) continue;
-      g.font = `700 ${open ? 11 : 9}px system-ui, sans-serif`;
+      g.font = `700 ${open ? 11 : bare ? 8 : 9}px system-ui, sans-serif`;
       g.textAlign = 'center';
       g.setTransform(dpr, 0, 0, dpr, (W - 10) * dpr, ((a + b) / 2) * dpr);
       g.rotate(-Math.PI / 2);
@@ -595,7 +675,23 @@
   {#if h}
     <canvas bind:this={canvas} width={sw * dpr} height={h * dpr} style:width="{sw}px" style:height="{h}px"></canvas>
   {/if}
-  <button class="fold" onclick={ontoggle} aria-pressed={open} title={open ? 'Fold the tower' : 'Open the tower: its scale and what comes in'}>{open ? '›' : '‹'}</button>
+  <button class="fold" onclick={ontoggle} aria-pressed={!bare} title={bare ? 'Open the tower: its scale and what comes in' : 'Collapse the tower to its scale'}
+    >{bare ? '‹' : '›'}</button
+  >
+  <!-- its left edge: drag it wider or narrower -->
+  <div
+    class="grip"
+    role="separator"
+    aria-orientation="vertical"
+    aria-valuenow={sw}
+    aria-valuemin={STRIP_MIN}
+    aria-valuemax={STRIP_MAX}
+    title="Drag to resize the tower"
+    onpointerdown={grip}
+    onpointermove={dragged}
+    onpointerup={() => (drag = null)}
+    onpointercancel={() => (drag = null)}
+  ></div>
 </div>
 
 <style>
@@ -626,6 +722,19 @@
     font: 700 var(--text-sm) var(--font-ui);
     cursor: pointer;
     pointer-events: auto;
+  }
+  .grip {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: -4px;
+    width: 8px;
+    cursor: ew-resize;
+    pointer-events: auto;
+    touch-action: none;
+  }
+  .grip:hover {
+    background: color-mix(in oklab, var(--accent) 30%, transparent);
   }
   .fold[aria-pressed='true'] {
     border-color: var(--accent);

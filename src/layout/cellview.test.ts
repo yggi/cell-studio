@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { SAILOR_WITH_KIT } from '@yggi/cells/engine/fixtures';
 import { compileSource } from '@yggi/cells/engine/compile';
 import { codeShifts, type Shifts } from '@yggi/cells/engine/program';
-import { blank, cellView, drawnOf, hubLabel, isGrid, valueAt, valueSpectrum, type CellView } from './cellview';
+import { blank, cellView, drawnOf, hubLabel, isGrid, selectorOf, selectorRow, valueAt, valueSpectrum, type CellView } from './cellview';
 import { PRESETS } from '@yggi/cells/engine/presets';
 
 const r = compileSource(PRESETS.royal.source);
@@ -263,5 +263,28 @@ describe("a selector's table of taps, as values", () => {
     const v = cellView(pop, 'parts', codeShifts(pop), false)!;
     expect(valueSpectrum(v)).toHaveLength(1);
     expect(valueSpectrum(v, true).map((e) => e.index)).toEqual([0, 1, 2, 3, 4, 5]);
+  });
+});
+
+describe("a selector's sections (the tower strip's row)", () => {
+  const p = compileSource(`
+&bar scan(1 1 1 1) step=100bpm
+&a s=saw loop=C4
+&parts step=&bar &aBar &bBar &cBar
+&tune step=&aBar 0 2
+&song over=&parts step=&bar/4 laps=1 [1] [0,2] 1@2
+&out map=sample [&tune * &a]
+`);
+  it('each step its part of the lap and the taps it picks, in order', () => {
+    expect(selectorRow(p, 'song', codeShifts(p))).toEqual([
+      { t0: 0, t1: 0.25, picks: [1] },
+      { t0: 0.25, t1: 0.5, picks: [0, 2] },
+      { t0: 0.5, t1: 1, picks: [1] },
+    ]);
+    expect(selectorRow(p, 'tune', codeShifts(p))).toBeNull();
+  });
+  it('the table knows its selector', () => {
+    expect(selectorOf(p, 'parts')).toBe('song');
+    expect(selectorOf(p, 'tune')).toBeUndefined();
   });
 });

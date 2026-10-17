@@ -8,7 +8,7 @@
 <script lang="ts">
   import { Background, Controls, SvelteFlow, ViewportPortal, type NodeTypes } from '@xyflow/svelte';
   import { VOICE_KIT } from '@yggi/cells/engine/compiler/declare';
-  import { noteColour, partColour, tapTint, tapTintRgb } from './theme';
+  import { noteColour, partColour, tapTint } from './theme';
   import '@xyflow/svelte/dist/style.css';
   import { onDestroy, untrack } from 'svelte';
   import type { CompileResult, Shifts } from '@yggi/cells/engine/program';
@@ -42,10 +42,11 @@
   import type { SideMark } from './context';
   import TowerAxis, { TOWER_WIDTH } from './TowerAxis.svelte';
   import FlowViewport from './FlowViewport.svelte';
-  import TowerStrips, { STRIP, STRIP_OPEN } from './TowerStrips.svelte';
+  import { storageKey } from '../storageKey';
+  import TowerStrips, { STRIP, STRIP_MIN, STRIP_OPEN } from './TowerStrips.svelte';
   import TowerSky, { SKY_MODES, type SkyMode } from './TowerSky.svelte';
-  import { nodeSections, tagSections } from './sections';
-  import { towerOf } from '../layout/tower';
+  import { nodeSections, sectionRgb, tagSections } from './sections';
+  import { towerStructure } from '../layout/tower';
   import { minimap } from '../layout/minimap';
   import TapLooms from './TapLooms.svelte';
   import { towerIns, towerY } from '../layout/towerlayout';
@@ -329,8 +330,27 @@
   // (each node's centre, as the layout places it: where its edges end)
   const centres = $derived(new Map(layout.nodes.map((n) => [n.id, n.position] as const)));
   const pillsBy = $derived(new Map(towered ? layout.looms.map((l) => [l.table, l] as const) : []));
-  let stripsOpen = $state(QUERY?.has('strips') ?? false);
-  const stripW = $derived(stripsOpen ? STRIP_OPEN : STRIP);
+  // the strip's width (TowerStrips.svelte), dragged, kept in this browser; `?strips` opens it; its button collapses it
+  // to its scale and opens it again to the width it had
+  const STRIP_KEY = storageKey('cell-studio-strip-width');
+  const kept = (() => {
+    try {
+      return Number(localStorage.getItem(STRIP_KEY)) || 0;
+    } catch {
+      return 0;
+    }
+  })();
+  let stripW = $state(QUERY?.has('strips') ? STRIP_OPEN : kept || STRIP);
+  let stripOpenW = Math.max(kept, STRIP_OPEN);
+  function resizeStrip(w: number) {
+    stripW = w;
+    if (w > STRIP_MIN) stripOpenW = w;
+    try {
+      localStorage.setItem(STRIP_KEY, String(Math.round(w)));
+    } catch {
+      // (no storage: kept for this visit only)
+    }
+  }
   let flowW = $state(0);
   // what goes into the card, where its wire leaves now (its top)
   const ins = $derived(
@@ -349,8 +369,7 @@
   const sections = $derived(nodeSections(shown.program, shown.model));
   // (an out's own colour, steady: its section's, else its base note's — its spire's mast, its share of the strip)
   const tintOf = (source: string) => {
-    const s = sections.get(`cell:${source}`);
-    return outTint(shown.program, source, s && s.n > 1 ? tapTintRgb(s.k, s.n) : null);
+    return outTint(shown.program, source, sectionRgb(shown.model, sections, `cell:${source}`));
   };
   const sky = $derived(towered && SKY_MODES.includes(skyMode as SkyMode));
   const spires = $derived(
@@ -358,8 +377,7 @@
       ? layout.nodes.flatMap((n) => {
           if (n.type !== 'socket') return [];
           const source = (n.data as { source: string }).source;
-          const s = sections.get(`cell:${source}`);
-          return [{ id: n.id, x: n.position.x, y: n.position.y, source, section: s && s.n > 1 ? tapTintRgb(s.k, s.n) : null }];
+          return [{ id: n.id, x: n.position.x, y: n.position.y, source, section: sectionRgb(shown.model, sections, `cell:${source}`) }];
         })
       : [],
   );
@@ -373,16 +391,7 @@
   });
   // the structure on the strip (TowerStrips.svelte): each stepped cell at its rate, the tables nothing steps at the
   // bottom (-Infinity), each showing its spectrum of values
-  const structure = $derived.by(() => {
-    if (!towered) return [];
-    const at = towerOf(shown.program, shown.model, 'step');
-    return shown.model.nodes.flatMap((n) => {
-      const c = n.cell;
-      if (!c || n.petalOf || c.note || c.voice || c.kit || c.mix || c.sink) return [];
-      const d = at.get(n.id);
-      return d !== undefined && (d === -Infinity || (Number.isFinite(d) && d < Math.log10(20))) ? [{ name: c.name, at: d }] : [];
-    });
-  });
+  const structure = $derived(towered ? towerStructure(shown.program, shown.model) : []);
   // the frequency tower beside the graph (TowerAxis.svelte), in the signal path's layout
   let towerOpen = $state(QUERY?.has('tower') ?? false);
   // (the flow's pan and zoom, for the tower drawn beside it; framed again when the tower opens or closes)
@@ -564,9 +573,10 @@
       rows={layout.rows}
       {viewport}
       zone={layout.zone}
-      open={stripsOpen}
+      width={stripW}
+      onresize={resizeStrip}
       {tintOf}
-      ontoggle={() => (stripsOpen = !stripsOpen)}
+      ontoggle={() => resizeStrip(stripW > STRIP_MIN ? STRIP_MIN : stripOpenW)}
       onfocus={(id) => {
         const p = layout.position(id);
         if (p) flyTo = { x: p.x, y: p.y };

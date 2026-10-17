@@ -8,6 +8,7 @@ import { isMidiCard, type CompileResult } from '@yggi/cells/engine/program';
 import type { GraphModel } from '@yggi/cells/engine/graph';
 import { cellId } from '@yggi/cells/engine/ids';
 import { ownRate } from '@yggi/cells/engine/readers';
+import { isSide } from './side';
 
 /**
  * Where on the tower a clocked cell sits: its step (how often it moves), its turn (how often it comes round), or between;
@@ -58,6 +59,9 @@ export function towerOf(program: CompileResult, model: GraphModel, at: TowerAt =
       if (hz > 0) v.set(id, Math.log10(hz));
     }
   }
+  // a table of taps changes what is on each time its selector steps: at its selector's rate, not in the constant
+  const tables = new Set([...(program.taps?.values() ?? [])].map(cellId));
+  for (const e of model.edges) if (e.port === 'over' && tables.has(e.from) && !v.has(e.from) && v.has(e.to)) v.set(e.from, v.get(e.to)!);
   // a product's junction sounds at its voice's height
   for (const n of model.nodes) if (n.kind === 'junction' && v.has(cellId(n.voice))) v.set(n.id, v.get(cellId(n.voice))!);
   // what has no height of its own takes it from the flow: a part from the cell it is spliced into (it plays at that
@@ -77,6 +81,21 @@ export function towerOf(program: CompileResult, model: GraphModel, at: TowerAt =
   }
   for (const id of cellOf.keys()) if (!v.has(id)) v.set(id, -Infinity);
   return v;
+}
+
+/**
+ * The tower layout strip's structure (ui/TowerStrips.svelte): each cell that times something, at its height by its step
+ * (`towerOf`), under the audible; the tables nothing steps at −Infinity. Not what has a lane of its own there (a voice,
+ * a kit, a mix, the card), a part drawn on its host, nor what is read beside the music (a note, a scope: side.ts).
+ */
+export function towerStructure(program: CompileResult, model: GraphModel): { name: string; at: number }[] {
+  const at = towerOf(program, model, 'step');
+  return model.nodes.flatMap((n) => {
+    const c = n.cell;
+    if (!c || n.petalOf || isSide(n) || c.voice || c.kit || c.mix || c.sink) return [];
+    const d = at.get(n.id);
+    return d !== undefined && (d === -Infinity || (Number.isFinite(d) && d < Math.log10(20))) ? [{ name: c.name, at: d }] : [];
+  });
 }
 
 /**
