@@ -1,8 +1,8 @@
 /// <reference types="vite/client" />
 /// <reference types="vite-plugin-pwa/client" />
 
-/** The app's version and build, from package.json and git (see vite.config.ts). */
-declare const __APP_VERSION__: string;
+/** What this build is: commit, branch, date, dependencies (src/buildInfo.ts; vite.config.ts fills it). */
+declare const __BUILD__: import('./buildInfo').BuildInfo;
 
 /** Chromium's heap size, not in lib.dom (and not in every browser): the perf report's samples read it. */
 interface Performance {

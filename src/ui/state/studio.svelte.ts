@@ -1,4 +1,5 @@
 import { createContext, tick } from 'svelte';
+import { shortVersion } from '../../buildInfo';
 import { codeShifts } from '@yggi/cells/engine/program';
 import { declLine } from '@yggi/cells/engine/edit';
 import { FIRST_SOURCE, loadExample, type PresetKey } from '../../examples';
@@ -319,7 +320,7 @@ export class Studio {
     audio: () => this.playback.player.audioInfo(),
   };
   readonly perfMeta = () => ({
-    version: __APP_VERSION__,
+    version: `${__BUILD__.version} (${shortVersion(__BUILD__)})`,
     piece: { title: this.piece.title ?? null, graphNodes: this.piece.graph.nodes.length, cells: this.piece.program.cells.size },
   });
   // what the overlay's full test does to the page: open a piece, play it, tune the audio anew; and puts it all back

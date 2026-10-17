@@ -25,6 +25,7 @@ The language's pages live with it in [yggi/cells](https://github.com/yggi/cells)
 - [ui/midi.md](ui/midi.md) — MIDI ports, the settings kept, reconnects, All notes off
 - [ui/keys.md](ui/keys.md) — the on-screen keyboard and drum pads, the dock along the bottom
 - [ui/performance.md](ui/performance.md) — the `?perf` overlay and copyable performance report
+- [ui/version.md](ui/version.md) — the build under the title, its details sheet, and the update toast
 - [ui/theme.md](ui/theme.md) — colours, sizes, motion
 
 ## Directories
