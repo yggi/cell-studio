@@ -1,13 +1,13 @@
 <script lang="ts">
   /**
    * The on-screen piano keyboard (#255), adapted from yggi/jambot apps/web/src/components/Keyboard.svelte @ 8cdb6b8:
-   * keys `low` to `high` laid out by `layout/keyboard.ts`, each a button named by its note (C4). A finger holds a key
+   * keys `low` to `high` laid out by `keyboardLayout` (`@yggi/webmidi/core`), each a button named by its note (C4). A finger holds a key
    * until it lifts (`fingers.ts`: a finger each, so chords on a phone); velocity from where the key is struck (lower
    * is louder) or fixed. A key lights in its pitch's colour (the palette, #34) while held, from here or anywhere
    * (`held`: MIDI in, the computer keys); a dot marks a key the armed melody's scale can play.
    */
   import { onDestroy } from 'svelte';
-  import { keyboardLayout, keyName, velocityAt } from '../layout/keyboard';
+  import { keyboardLayout, keyName, velocityAt } from '@yggi/webmidi/core';
   import { Fingers } from './fingers';
   import { palette } from './palette';
 

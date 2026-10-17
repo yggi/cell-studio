@@ -11,7 +11,7 @@
   import { getStudio } from './state/studio.svelte';
   import { FIXED_VELOCITY } from './state/dock.svelte';
   import { cellId } from '@yggi/cells/engine/ids';
-  import { keyName, keyRange, octavesFor } from '../layout/keyboard';
+  import { keyName, keyRange, octavesFor } from '@yggi/webmidi/core';
   import PianoKeys from './PianoKeys.svelte';
   import DrumPads from './DrumPads.svelte';
 

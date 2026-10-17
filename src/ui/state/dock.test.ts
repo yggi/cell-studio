@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Dock } from './dock.svelte';
-import { OCTAVE_MAX, OCTAVE_MIN } from '../../layout/keyboard';
+import { OCTAVE_MAX, OCTAVE_MIN } from '@yggi/webmidi/core';
 
 const store = new Map<string, string>();
 beforeEach(() => {

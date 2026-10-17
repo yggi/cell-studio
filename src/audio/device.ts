@@ -6,7 +6,7 @@
 import { capacity, noteStats } from './stats';
 import { resolveTuning, type Tuning, DEFAULT_TUNING } from './tuning';
 import { storageKey } from '../storageKey';
-import { clockOffset, type ClockOffset, type OutputClock } from '../midi/clock';
+import { clockOffset, type ClockOffset, type OutputClock } from '@yggi/webmidi/core';
 
 type ToneNS = typeof import('tone');
 
@@ -54,7 +54,7 @@ function watchCapacity(T: ToneNS) {
 const clocks = new WeakMap<object, ClockOffset>();
 
 /**
- * The audio clock against the page's at the moment heard, for this context (`midi/clock.ts`): what MIDI timestamps are
+ * The audio clock against the page's at the moment heard, for this context (`clockOffset`, `@yggi/webmidi/core`): what MIDI timestamps are
  * read against, and what `heardLatency` reads, so the pictures and MIDI out follow one estimate.
  */
 export function contextClock(T: ToneNS): ClockOffset | null {
