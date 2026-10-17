@@ -1,17 +1,17 @@
 <script lang="ts">
-  // "A new version is ready": the service worker (vite-plugin-pwa, registerType 'prompt') waits until
-  // the user accepts, so a playing piece is never cut off by a reload. Not registered in dev.
-  import { registerSW } from 'virtual:pwa-register';
+  // "A new version is ready": shown while an update waits (state/update.svelte.ts), until Later. A playing piece is
+  // never cut off: nothing reloads until Reload is pressed.
+  import { onMount } from 'svelte';
+  import { update } from './state/update.svelte';
 
-  let ready = $state(false);
-  const update = registerSW({ onNeedRefresh: () => (ready = true) });
+  onMount(() => update.start());
 </script>
 
-{#if ready}
+{#if update.ready && !update.hushed}
   <div class="toast" role="status">
     <span>New version ready</span>
-    <button onclick={() => update(true)}>Reload</button>
-    <button class="quiet" onclick={() => (ready = false)} aria-label="Later">Later</button>
+    <button onclick={() => update.reload()}>Reload</button>
+    <button class="quiet" onclick={() => (update.hushed = true)} aria-label="Later">Later</button>
   </div>
 {/if}
 

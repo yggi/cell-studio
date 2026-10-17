@@ -10,7 +10,7 @@ export default ts.config(
   ...ts.configs.recommended,
   ...svelte.configs.recommended,
   {
-    languageOptions: { globals: { ...globals.browser, ...globals.node, __APP_VERSION__: 'readonly' } },
+    languageOptions: { globals: { ...globals.browser, ...globals.node, __BUILD__: 'readonly' } },
     rules: {
       // A leading underscore says "unused on purpose" (a positional argument, a name dropped from a destructuring).
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_', caughtErrorsIgnorePattern: '^_', ignoreRestSiblings: true }],

@@ -3,12 +3,15 @@
 What changed in Cell studio, newest first. The app is deployed from `main` by hand (`node tools/deploy.mjs`), so
 this lists user-visible changes; each release (a version bump in `package.json` and a `vX.Y.Z`
 tag) gathers the entries under *Unreleased* beneath its own heading. The version and commit of
-the running build are shown in the piece picker's **Files** menu.
+the running build are shown under the title; a tap opens the details.
 
 Format: [Keep a Changelog](https://keepachangelog.com/). Add a line to *Unreleased* in the PR
 that makes the change. Also note changes to the language that could affect saved `.cells` pieces.
 
 ## Unreleased
+
+### Added
+- **The build under the title**: the commit's first 7 characters (`dev` for a build that doesn't know it) in the header; a tap opens a sheet with the commit in full, branch (`pr-<n>` for a preview), build date, and the versions of what the app ships, and offers Reload when a new version waits (#433).
 
 ### Changed
 - **The tower strip's structure** (#436): a table of taps (Hypercell's `&parts`) stands at its selector's rate, in the slow, not in the constant; a scope (`scope=`, Hypercell's `&eq`) is not on the strip, as a note isn't. The graph's tower layout places the table by the same height. Saved pieces are unchanged.
