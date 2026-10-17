@@ -45,7 +45,7 @@ describe('a meter now, on its own wheel', () => {
   });
   it('is nothing for a beat the wheel doesn’t have', () => expect(meterNow(swung, 2)).toBeNull());
   it('the live state says where each clock is in its cycle, in beats', () => {
-    const r = compileSource('&bar scan(1 1 1 1) step=120bpm\n&a step=&bar 0 2\n&v s=sine loop=C4\n&out loop=SAMPLE_RATE map=sample [&a * &v]');
+    const r = compileSource('&bar scan(1 1 1 1) step=120bpm\n&a step=4n 0 2\n&v s=sine loop=C4\n&out loop=SAMPLE_RATE map=sample [&a * &v]');
     for (const s of [0, 0.25, 0.6, 1.9, 2.1]) {
       const at = liveAt(r, codeShifts(r), new Set(), s).beatAt.get('bar')!;
       expect(at).toBeGreaterThanOrEqual(0);

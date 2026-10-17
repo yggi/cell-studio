@@ -67,7 +67,7 @@ describe('voices.sync wires from the flows the graph draws (#132)', () => {
   it('a mix into a tape, the heads back to the sound card and into a resonator, coupled resonators', () => {
     const r = src(
       '&bar scan(1 1 1 1) step=60bpm',
-      '&n step=&bar 0 4',
+      '&n step=4n 0 4',
       '&v s=saw',
       '&send [&n * &v * .5]',
       '&tape write=&send length=4',

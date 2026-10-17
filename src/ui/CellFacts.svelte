@@ -35,9 +35,11 @@
       const perSecond = clock.perSecond * c.rate;
       const pass = c.steps / perSecond;
       out.push(['timing', `${c.steps} step${c.steps === 1 ? '' : 's'} · ${fmt(perSecond)} a second · a pass ${fmt(pass)} s`]);
-      // a step, in seconds — and against its driver's: ½ of &bar's, three of &bar's …
+      // a step, in seconds — and against its driver's: ½ of &bar's, three of &bar's … (a tap's driver is its meter, its
+      // clock the tap's, `bar:16n`, decision 040: so by their speeds, not their rates on one clock)
       const drv = c.step ? result.cells.get(c.step.driver) : undefined;
-      const rel = drv && drv.rate > 0 ? drv.rate / c.rate : null;
+      const drvPerSecond = drv?.clock ? (result.clocks.get(drv.clock)?.perSecond ?? 0) * drv.rate : 0;
+      const rel = drvPerSecond > 0 ? drvPerSecond / perSecond : null;
       const frac = (x: number) => {
         for (const d of [1, 2, 3, 4, 6, 8, 12, 16]) {
           const n = x * d;
@@ -46,7 +48,10 @@
         return fmt(x, 3);
       };
       out.push(['a step', `${fmt(1 / perSecond, 3)} s${rel !== null ? `, ${frac(rel)} of &${c.step!.driver}'s step` : ''}`]);
-      if (c.clock !== name) out.push(['clock', `&${c.clock}${c.step && c.step.driver !== c.clock ? ` (stepped by &${c.step.driver})` : ''}`]);
+      // (a tap: its meter, tapped as written; else the clock, and the cell that steps it when another)
+      const tap = c.step?.tap;
+      if (tap) out.push(['clock', `&${c.step!.driver}, tapped ${tap}`]);
+      else if (c.clock !== name) out.push(['clock', `&${c.clock}${c.step && c.step.driver !== c.clock ? ` (stepped by &${c.step.driver})` : ''}`]);
     }
     // an uneven meter: each beat against an even one
     if (c.scan && result.clocks.get(name)?.positional && new Set(c.scan.steps).size > 1) {

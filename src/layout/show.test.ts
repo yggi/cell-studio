@@ -5,7 +5,7 @@ import { eventsBetween, plan } from '@yggi/cells/engine/realize';
 import { liveAt } from '@yggi/cells/engine/live';
 import { setAttr } from '@yggi/cells/engine/edit';
 import { PRESETS } from '@yggi/cells/engine/presets';
-import { cellView, hubLabel } from './cellview';
+import { cellView, hubLabel, lfoValues } from './cellview';
 import { buildGraph } from './drawn';
 import { flowRanks } from './ranks';
 import { FITS, effectiveShow, gridOf, heardPosition, inferShow, kindOf, noteLabel, pluginOf, showProblems, tonicOf, voiceBase } from './show';
@@ -29,7 +29,7 @@ describe('show=', () => {
   it('a plugin of the piece is a show of its own, for the kinds it says; not passed down', () => {
     const src = [
       '&bar scan(1 1 1 1) step=60bpm show=ring',
-      '&tune step=&bar 0 2',
+      '&tune step=4n 0 2',
       '=== plugin ring ===',
       '{ "fits": ["meter"], "size": 150 }',
       'function draw() { return []; }',
@@ -51,7 +51,7 @@ describe('show=', () => {
       { severity: 'warning', message: 'show=sun draws a meter, and &mel is a braid: it is drawn as one, without the plugin', span: { line: 2, col: 25, len: 3 } },
     ]);
     // (on a cell it fits: quiet; and every example is)
-    expect(showProblems(compileSource('&bar scan(1 1 1 1) step=60bpm show=sun\n&mel step=&bar 0 2\n&v s=sine\n&out map=sample [&mel * &v]'))).toEqual([]);
+    expect(showProblems(compileSource('&bar scan(1 1 1 1) step=60bpm show=sun\n&mel step=4n 0 2\n&v s=sine\n&out map=sample [&mel * &v]'))).toEqual([]);
     for (const [key, p] of Object.entries(PRESETS)) expect(showProblems(compileSource(p.source)), key).toEqual([]);
   });
   it('the block is blanked in the cells’ text: the cells keep their line numbers', () => {
@@ -193,6 +193,10 @@ describe('show=lfo: what moves other cells', () => {
     const r = compileSource((PRESETS as Record<string, { source: string }>).cellscape.source);
     expect(hubLabel(r, 'breath', codeShifts(r), false, null)).toEqual({ big: '24 beats', small: '0.1–1' });
   });
+  it('a wave on a tap of the bar counts in the bar’s beats: eight eighths, 4 beats (decision 040)', () => {
+    const r = compileSource('&bar scan(1 1 1 1) step=90bpm\n&w map=lin step=8n 0 .5 1 .5 0 -.5 -1 -.5\n&v s=sine loop=C4 lpf=200..2000 * &w\n&out map=sample [&v]');
+    expect(lfoValues(r, 'w', codeShifts(r))?.rate).toBe('4 beats');
+  });
   it('playing, its phase runs', () => {
     const r = compileSource((PRESETS as Record<string, { source: string }>).cellscape.source);
     const at = (t: number) => liveAt(r, codeShifts(r), new Set(), t).cells.get('breath')!.local!;
@@ -205,8 +209,8 @@ describe('show=lfo: what moves other cells', () => {
 describe("a voice's grid, and where a note it sounds is on it", () => {
   const r = compileSource(`&edo19 cycle=19 map=edo
 &bar scan(1 1 1 1) step=1
-&a step=&bar 0 2 4
-&b over=&edo19 step=&bar 0 3 6
+&a step=4n 0 2 4
+&b over=&edo19 step=4n 0 3 6
 &v1 s=sine loop=C4
 &v2 s=saw loop=C4
 &both [&a * &v1, &b * &v2]

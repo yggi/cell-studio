@@ -7,7 +7,7 @@ import { isSide, sideEntries, sideless } from './side';
 const SRC = `&intro label="A tune and its bass." about=&out
 &tuneNote label="The tune climbs." about=&tune
 &bar scan(1 1 1 1) step=120bpm
-&tune step=&bar 0 2 4 7
+&tune step=4n 0 2 4 7
 &lead s=saw loop=C4
 &eq scope=xy &lead
 &out map=sample [&tune * &lead]
