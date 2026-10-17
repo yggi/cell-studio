@@ -270,9 +270,9 @@ describe("a selector's sections (the tower strip's row)", () => {
   const p = compileSource(`
 &bar scan(1 1 1 1) step=100bpm
 &a s=saw loop=C4
-&parts step=&bar &aBar &bBar &cBar
+&parts step=4n &aBar &bBar &cBar
 &tune step=&aBar 0 2
-&song over=&parts step=&bar/4 laps=1 [1] [0,2] 1@2
+&song over=&parts step=1m laps=1 [1] [0,2] 1@2
 &out map=sample [&tune * &a]
 `);
   it('each step its part of the lap and the taps it picks, in order', () => {

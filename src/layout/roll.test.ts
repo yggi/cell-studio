@@ -200,7 +200,7 @@ describe('how far the rows go', () => {
 
 describe('the frame', () => {
   it('bars and beats from its meter, in its own steps', () => {
-    const q = compileSource('&bar scan(4 4 4 4) step=84bpm\n&tune step=&bar 0 2 4\n&fast step=&bar*4 0 1\n&slow step=&bar/2 0');
+    const q = compileSource('&bar scan(4 4 4 4) step=84bpm\n&tune step=4n 0 2 4\n&fast step=16n 0 1\n&slow step=2n 0');
     expect(frameOf(q, 'tune', 3)).toEqual({ length: 3, steps: 4, bar: 4, beat: 1 });
     expect(frameOf(q, 'fast', 2)).toEqual({ length: 2, steps: 16, bar: 16, beat: 4 });
     // a beat of two bar-steps doesn't fall on its own steps
@@ -209,8 +209,8 @@ describe('the frame', () => {
     expect(frameOf(q, 'tune', 4).steps).toBe(8);
   });
 
-  it('a meter written as levels: its beat=', () => {
-    const q = compileSource('&bar meter("4/4", 2) step=100bpm\n&tune step=&bar 0 2 4 5');
+  it('a meter written as levels: its beats', () => {
+    const q = compileSource('&bar meter("4/4", 2) step=100bpm\n&tune step=8n 0 2 4 5');
     expect(frameOf(q, 'tune', 4)).toEqual({ length: 4, steps: 8, bar: 8, beat: 2 });
   });
 
@@ -277,15 +277,13 @@ describe('which cells roll, and their ghosts', () => {
   });
 
   it('a blank cell rolls only when something plays it as a melody', () => {
-    const src = (extra: string) => `&bar scan(1 1 1 1) step=100bpm\n&lead s=saw\n&up over=scale(major) step=&bar\n${extra}`;
+    const src = (extra: string) => `&bar scan(1 1 1 1) step=100bpm\n&lead s=saw\n&up over=scale(major) step=4n\n${extra}`;
     // played: it plays its table, and a note written here makes it a braid
     expect(rolls(compileSource(src('&out loop=SAMPLE_RATE map=sample [&up * &lead]')), 'up')).toBe(true);
     // nothing plays it, or something only reads it: not a melody
     expect(rolls(compileSource(src('&out loop=SAMPLE_RATE map=sample [&lead]')), 'up')).toBe(false);
     // a tap of the bar, a clock no one plays, a table map= reads, a waveform at audio rate
-    const q = compileSource(
-      '&bar scan(1 1 1 1) step=100bpm\n&tap step=&bar 1 0\n&t step=&tap 0 2\n&curve 0 1 .3 -1\n&shaped loop=262hz map=&curve 0 1 2 3\n&chip step=8k 1!2 -1!2',
-    );
+    const q = compileSource('&bar scan(1 1 1 1) step=100bpm\n&tap step=4n 1 0\n&t step=&tap 0 2\n&curve 0 1 .3 -1\n&shaped loop=262hz map=&curve 0 1 2 3\n&chip step=8k 1!2 -1!2');
     for (const n of ['tap', 'curve', 'chip']) expect(rolls(q, n), n).toBe(false);
     expect(rolls(q, 't')).toBe(true);
   });
@@ -317,7 +315,7 @@ describe('which cells roll, and their ghosts', () => {
 
   it('ghosts: what else plays the same table on the same clock, in this cell’s steps', () => {
     const q = compileSource(
-      '&bar scan(1 1 1 1) step=100bpm\n&lead s=saw\n&tune over=&s step=&bar 0 2\n&low over=&s step=&bar/2 4\n&s scale(major)\n&out loop=SAMPLE_RATE map=sample [&tune * &lead, &low * &lead]',
+      '&bar scan(1 1 1 1) step=100bpm\n&lead s=saw\n&tune over=&s step=4n 0 2\n&low over=&s step=2n 4\n&s scale(major)\n&out loop=SAMPLE_RATE map=sample [&tune * &lead, &low * &lead]',
     );
     const g = ghostsOf(q, 'tune', 4);
     expect(g.map((x) => [x.start, x.len, x.row, x.from])).toEqual([

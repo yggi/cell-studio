@@ -10,7 +10,7 @@ import { DEFAULT_FREQ, type CompileResult } from '@yggi/cells/engine/program';
 import { drawn, edgeStateOf, type State } from '@yggi/cells/engine/routing';
 import type { LiveState } from '@yggi/cells/engine/live';
 import { physicsOf } from '@yggi/cells/engine/clocking';
-import { pulleys } from '../layout/belts';
+import { beltLabel, beltRatio, pulleys } from '../layout/belts';
 import { groundsOf, meterIndex } from '../layout/meters';
 import { loomBands } from '../layout/looms';
 import type { MeterTrace } from '../layout/state';
@@ -29,6 +29,8 @@ export interface BeltDrawn {
   readonly rDriven: number;
   readonly stretch: number;
   readonly slipping: boolean;
+  /** The driven cell's steps per its driver's (`beltRatio`), named in the label. */
+  readonly ratio: number;
 }
 
 /** The sizes (px) of the wheels at an edge's ends, along the flow: where its ends lock to their segments. */
@@ -167,7 +169,7 @@ function pulseData(e: GraphEdge, program: CompileResult) {
  * (each edge reads that for itself).
  */
 export function flowEdgeOf(e: GraphEdge, state: State, program: CompileResult, belt?: BeltDrawn, sizes?: EndSizes, net?: NetPlace, ring?: number): Edge {
-  if (belt) return { id: e.id, source: e.source, target: e.target, type: 'belt', zIndex: 5, selectable: false, data: { ...belt, label: edgeLabel(e) ?? null } };
+  if (belt) return { id: e.id, source: e.source, target: e.target, type: 'belt', zIndex: 5, selectable: false, data: { ...belt, label: beltLabel(edgeLabel(e), belt.ratio) } };
   // a tape's edges meet it at its heads: the write head (what it records), each read head (what it plays)
   // (a read head drawn as a bulb on its tape, decision 021: what it plays into leaves from the bulb)
   const heads =
@@ -255,10 +257,10 @@ export function flowEdgesOf(s: GraphSnapshot, scene: EdgeScene): Edge[] {
     const driven = e.belt ? model.nodes.find((n) => n.id === e.source) : undefined;
     if (driven?.cell) {
       const radius = (id: string) => (scene.sizeOf(id) ?? 140) / 2;
-      const rate = program.clocks.get(driven.cell.name)?.belt?.rate ?? 1;
-      const [rDriver, rDriven] = pulleys(radius(e.target), radius(e.source), rate);
+      const ratio = beltRatio(program, driven.cell.name);
+      const [rDriver, rDriven] = pulleys(radius(e.target), radius(e.source), ratio);
       const st = scene.live ? physicsOf(program, s.shifts, driven.cell.name)?.state?.(scene.live.seconds) : undefined;
-      return flowEdgeOf(e, state, program, { rDriver, rDriven, stretch: st?.stretch ?? 0, slipping: st?.slipping ?? false });
+      return flowEdgeOf(e, state, program, { rDriver, rDriven, ratio, stretch: st?.stretch ?? 0, slipping: st?.slipping ?? false });
     }
     // (the wheels' sizes at its ends: a braid's edge meets its segment, a table's strands leave their entries)
     return flowEdgeOf(e, state, program, undefined, { from: scene.sizeOf(e.from) ?? 0, to: scene.sizeOf(e.to) ?? 0 }, netPlaces.get(e.id), rings.get(e.id));

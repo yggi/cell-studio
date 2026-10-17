@@ -4,6 +4,8 @@
  * graph draws a meter's net instead (GraphModel.nets, the step ones; laid by layout/nets.ts: meterNet). A belt
  * keeps its belt: a body, drawn.
  */
+import type { CompileResult } from '@yggi/cells/engine/program';
+
 type Node = { id: string; kind: string; isMeter?: boolean; petalOf?: string };
 
 /** The edges to a meter that aren't drawn (its net's taps), by id. */
@@ -27,6 +29,18 @@ export function meterNow(segments: readonly { index: number; t0: number; t1: num
   if (at < 0) return null;
   const s = segments[at];
   return { turn: s.t0 + (beatAt - beat) * (s.t1 - s.t0), at };
+}
+
+/**
+ * The cell a clock counts in, and how many of the clock's steps make one of that cell's: a clock's own cell, 1; a tap
+ * of a meter (`step=16n`, decision 040: the clock `bar:16n`), the meter, and the tap's steps a step of the meter (4 on
+ * a bar of four quarters, ¼ for `1m`). A view that measures a cell against its meter reads the meter through this,
+ * never `cells.get(c.clock)`.
+ */
+export function clockCell(result: CompileResult, clock: string): { cell: string; perStep: number } | null {
+  const k = result.clocks.get(clock);
+  if (!k) return null;
+  return { cell: k.cell, perStep: k.tap ? k.tap.positions.length / k.tap.lap : 1 };
 }
 
 /** What tickLevel reads of a meter (a ResolvedCell). */

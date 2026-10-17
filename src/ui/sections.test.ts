@@ -27,13 +27,13 @@ describe('sections (decision 016)', () => {
     expect(sectionRgb(model, sections, 'cell:bd')).toEqual(sectionRgb(model, sections, 'cell:kit:voices'));
     const two = compileSource(`
 &bar scan(1 1 1 1) step=100bpm
-&parts step=&bar &aBar &bBar
+&parts step=4n &aBar &bBar
 &a s=saw loop=C4
 &b s=sine loop=C5
 &ta step=&aBar 0
 &tb step=&bBar 0
 &both [&ta * &a, &tb * &b]
-&song over=&parts step=&bar [0,1]
+&song over=&parts step=4n [0,1]
 &out map=sample [&both]
 `);
     const m = buildGraph(two);
