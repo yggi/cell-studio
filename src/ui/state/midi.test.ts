@@ -1,6 +1,6 @@
 // The settings part lifted from yggi/jambot apps/web/src/midi/settings.test.ts @ 8cdb6b8.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { fakeAccess, fakeInput, fakePort, installMidi, uninstallMidi } from '../../midi/fixtures';
+import { fakeAccess, fakeInput, fakePort, installMidi, uninstallMidi } from '@yggi/webmidi/testing';
 import { Midi } from './midi.svelte';
 import { compileSource } from '@yggi/cells/engine/compile';
 import { PRESETS } from '@yggi/cells/engine/presets';

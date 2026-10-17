@@ -9,7 +9,7 @@ import { codeShifts } from '@yggi/cells/engine/program';
 import { retime, windowAt } from '@yggi/cells/engine/schedule';
 import { channelTable, legatoNotes, midiNote, router, routesOf, type Route, type Routes } from '@yggi/cells/engine/midi';
 import { MidiOut } from '@yggi/webmidi/core';
-import { fakePort } from './fixtures';
+import { fakePort } from '@yggi/webmidi/testing';
 import { outRuns } from './played';
 
 /** Seconds to milliseconds, one to one, so timestamps in tests read as seconds. */
