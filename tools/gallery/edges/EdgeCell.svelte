@@ -13,7 +13,7 @@
   import PulseEdge from '../../../src/ui/PulseEdge.svelte';
   import BeltEdge from '../../../src/ui/BeltEdge.svelte';
   import MeterEdge from '../../../src/ui/MeterEdge.svelte';
-  import { pulleys } from '../../../src/layout/belts';
+  import { beltRatio, pulleys } from '../../../src/layout/belts';
   import { madeUpSound } from '../sound';
   import DotNode from './DotNode.svelte';
   import type { EdgeFixture } from './fixtures';
@@ -61,12 +61,17 @@
     node(f.edge.target, bottom, [], f.edge.port === 'write' ? ['head-write'] : []),
   ];
   const meterTrace = f.meter && { id: e.id, a: f.edge.source, b: f.edge.target, meter: `cell:${f.meter.name}` };
-  const rate = f.piece.program.clocks.get(nameOf(f.edge.source))?.belt?.rate ?? 1;
-  const [rDriver, rDriven] = pulleys(w / 2, h / 2, rate);
+  const ratio = beltRatio(f.piece.program, nameOf(f.edge.source));
+  const [rDriver, rDriven] = pulleys(w / 2, h / 2, ratio);
   const edges = [
     meterTrace
       ? meterEdgeOf(meterTrace, f.meter!.index)
-      : flowEdgeOf(e, c.state === 'live' ? 'idle' : c.state, f.piece.program, belt ? { rDriver, rDriven, stretch: c.stretch ?? 0, slipping: c.slipping ?? false } : undefined),
+      : flowEdgeOf(
+          e,
+          c.state === 'live' ? 'idle' : c.state,
+          f.piece.program,
+          belt ? { rDriver, rDriven, ratio, stretch: c.stretch ?? 0, slipping: c.slipping ?? false } : undefined,
+        ),
   ];
   // (the layout hands each edge its bend; here a fixed one)
   const mid = { x: (top.x + bottom.x) / 2 + (c.bend ?? 0), y: (top.y + bottom.y) / 2 };

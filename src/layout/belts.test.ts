@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { compileSource } from '@yggi/cells/engine/compile';
-import { beltRatio, openBelt, pulleys } from './belts';
+import { beltLabel, beltRatio, openBelt, pulleys } from './belts';
 
 describe('belts: two runs, outer tangents; pulleys by the ratio', () => {
   it('equal pulleys: the runs are parallel, a diameter apart', () => {
@@ -35,5 +35,14 @@ describe('belts: two runs, outer tangents; pulleys by the ratio', () => {
     expect(beltRatio(r, 'c')).toBeCloseTo(2, 9);
     expect(beltRatio(r, 'd')).toBeCloseTo(0.25, 9);
     expect(beltRatio(r, 'bar')).toBe(1);
+  });
+  it('a belt on a tap names its ratio, as a rate did (`×2 · belt`); a label with one already, or a ratio of 1, stays', () => {
+    expect(beltLabel('· belt', 2)).toBe('×2 · belt');
+    expect(beltLabel('· belt', 0.25)).toBe('÷4 · belt');
+    expect(beltLabel('· belt', 4 / 3)).toBe('×1.33 · belt');
+    expect(beltLabel('×2 · belt', 2)).toBe('×2 · belt');
+    expect(beltLabel('· belt', 1)).toBe('· belt');
+    expect(beltLabel(undefined, 2)).toBe('×2');
+    expect(beltLabel(undefined, 1)).toBeNull();
   });
 });

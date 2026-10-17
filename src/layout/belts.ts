@@ -45,6 +45,19 @@ export function beltRatio(program: CompileResult, name: string): number {
   return belt.rate * (via && meter?.perSecond ? via.perSecond / meter.perSecond : 1);
 }
 
+/**
+ * A belt's label with its ratio: a tap (`step=8n`) carries no rate the edge's own label could name, so the ratio
+ * `beltRatio` gives goes before it, as a rate's would (`×2 · belt`, `÷4 · belt`); a label that names one already, or a
+ * ratio of 1, is left as it is.
+ */
+export function beltLabel(told: string | undefined, ratio: number): string | null {
+  const named = told !== undefined && /^[×÷]/.test(told);
+  if (named || Math.abs(ratio - 1) < 1e-9) return told ?? null;
+  const round = (x: number) => String(Math.round(x * 100) / 100);
+  const rate = ratio > 1 ? `×${round(ratio)}` : `÷${round(1 / ratio)}`;
+  return told ? `${rate} ${told}` : rate;
+}
+
 /** A run as a path, sagging by `sag` (px) at its middle, towards `side` (+1/−1 of its left normal). */
 export function runPath(a: P, b: P, sag: number, side: 1 | -1): string {
   const mx = (a.x + b.x) / 2;
