@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { towerOf, towerRanks, towerSpans, zoneRanks } from './tower';
+import { towerOf, towerRanks, towerSpans, towerStructure, zoneRanks } from './tower';
 import { flowRanks } from './ranks';
 import { buildGraph } from './drawn';
 import { compileSource } from '@yggi/cells/engine/compile';
@@ -38,6 +38,21 @@ describe('the frequency tower', () => {
     // a mix just above the sound it carries
     expect(at('tunePart')).toBeGreaterThan(at('lead'));
     expect(at('tunePart')).toBeLessThan(at('lead') + 0.1);
+  });
+
+  it("a table of taps at its selector's rate, which switches what is on in it; a scale it reads stays constant", () => {
+    const { at } = tower(SONG);
+    expect(at('parts')).toBeCloseTo(at('song'), 6);
+    expect(at('major')).toBe(-Infinity);
+  });
+
+  it("the strip's structure: what times something, not a lane's voice or mix, nor a note or a scope (side.ts)", () => {
+    const src = `${SONG}\n&eq scope=spectrum &tunePart &bassPart\n&songNote label="the form" about=&song\n`;
+    const program = compileSource(src);
+    const rows = new Map(towerStructure(program, buildGraph(program)).map((r) => [r.name, r.at]));
+    expect([...rows.keys()].sort()).toEqual(['bar', 'major', 'parts', 'roots', 'song', 'tune']);
+    expect(rows.get('parts')).toBeCloseTo(rows.get('song')!, 6);
+    expect(rows.get('major')).toBe(-Infinity);
   });
 
   it('by turn: a cell at how often it comes round', () => {

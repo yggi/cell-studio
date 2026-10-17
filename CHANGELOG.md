@@ -11,6 +11,7 @@ that makes the change. Also note changes to the language that could affect saved
 ## Unreleased
 
 ### Changed
+- **The tower strip's structure** (#436): a table of taps (Hypercell's `&parts`) stands at its selector's rate, in the slow, not in the constant; a scope (`scope=`, Hypercell's `&eq`) is not on the strip, as a note isn't. The graph's tower layout places the table by the same height. Saved pieces are unchanged.
 - **The language is cells v0.2.0** ([its changelog](https://github.com/yggi/cells/blob/main/CHANGELOG.md)): *Canon per tonos* places its three voices with `pan=` in the sound card's one chord, where two mixes made the two channels: the same notes, each voice's level on each side a little moved (within 0.05 dB over 60 s), and the graph shows each instrument as its own out. `meter(…)` and `scan(…)` compile to one `Meter`; nothing else a saved piece plays changes.
 - **MIDI is `@yggi/webmidi` v0.1.0** (yggi/webmidi#3, [its changelog](https://github.com/yggi/webmidi/blob/main/CHANGELOG.md)), the family's MIDI layer shared with Jambot: the connection, reading messages, the keyboard's layout, drum maps, the clock offset, note and clock out moved there from `src/midi/` and `src/layout/keyboard.ts`. Nothing changes on the wire: every byte and timestamp MIDI out sends is the same. MIDI in reads a note-off's release velocity (nothing here plays it) and reads a message cut short (half a note-on) as nothing, where it was a note-off. Saved `.cells` pieces are unchanged.
 
