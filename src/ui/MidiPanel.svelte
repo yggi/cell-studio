@@ -12,7 +12,7 @@
   import KeysSettings from './KeysSettings.svelte';
   import LearnSettings from './LearnSettings.svelte';
   import type { Midi } from './state/midi.svelte';
-  import { DRUM_PRESETS, deviceNote, presetNameOf } from '../midi/drum-presets';
+  import { DRUM_PRESETS, deviceNote, presetNameOf } from '@yggi/webmidi/core';
 
   let { midi }: { midi: Midi } = $props();
 

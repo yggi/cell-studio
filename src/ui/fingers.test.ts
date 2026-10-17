@@ -3,8 +3,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Fingers, type Touch } from './fingers';
 import { Keys, type Hands } from './state/keys.svelte';
 import { Piece } from './state/piece.svelte';
-import { DRUM_PRESETS } from '../midi/drum-presets';
-import type { MidiAccess } from '../midi/access';
+import { DRUM_PRESETS } from '@yggi/webmidi/core';
+import type { MidiAccess } from '@yggi/webmidi/web';
 
 const store = new Map<string, string>();
 const page = new EventTarget();

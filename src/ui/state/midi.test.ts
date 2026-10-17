@@ -4,7 +4,7 @@ import { fakeAccess, fakeInput, fakePort, installMidi, uninstallMidi } from '../
 import { Midi } from './midi.svelte';
 import { compileSource } from '@yggi/cells/engine/compile';
 import { PRESETS } from '@yggi/cells/engine/presets';
-import { DRUM_PRESETS } from '../../midi/drum-presets';
+import { DRUM_PRESETS } from '@yggi/webmidi/core';
 import type { NoteSink } from '../../audio/player';
 import { plan, type Played } from '@yggi/cells/engine/realize';
 import { codeShifts } from '@yggi/cells/engine/program';

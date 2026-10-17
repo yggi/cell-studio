@@ -3,7 +3,7 @@ import { transportClock } from '../../audio/clock.svelte';
 import { Keys, type Hands } from './keys.svelte';
 import { Piece } from './piece.svelte';
 import { Recorder } from './record.svelte';
-import { DRUM_PRESETS } from '../../midi/drum-presets';
+import { DRUM_PRESETS } from '@yggi/webmidi/core';
 
 // A take (#210): record arms it and starts play; the next whole pass of the armed cell's loop is taken from the keys
 // (their moments read through where the piece was heard then); at its end it is held; a new take replaces the last.

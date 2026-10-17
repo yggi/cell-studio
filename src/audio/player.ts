@@ -419,7 +419,7 @@ export class Player implements LiveSource {
 
   /**
    * Where the piece is (code seconds) heard at a moment on the page's clock (`performance.now()` ms, as a MIDI message's
-   * or a key event's `timeStamp`): the moment heard then, on the audio clock (`midi/clock.ts`, as MIDI out's timestamps),
+   * or a key event's `timeStamp`): the moment heard then, on the audio clock (webmidi's `clockOffset`, as MIDI out's timestamps),
    * through the transport. Null while not playing. A take reads its keys' times through this (#210).
    */
   heardAt(ms: number): number | null {

@@ -10,7 +10,7 @@
   import { compileSource } from '@yggi/cells/engine/compile';
   import { codeShifts } from '@yggi/cells/engine/program';
   import { kitPads, scaleKeys } from '@yggi/cells/engine/keys';
-  import { keyRange } from '../../../src/layout/keyboard';
+  import { keyRange } from '@yggi/webmidi/core';
 
   const scaleOf = (src: string) => {
     const r = compileSource(src, { SAMPLE_RATE: 48000, A4: 440 });

@@ -1,14 +1,37 @@
 // Adapted from yggi/jambot apps/web/src/midi/settings.svelte.ts and apps/web/src/device.svelte.ts @ 8cdb6b8.
 
-import { MidiAccess, type MidiPort, type PortOption } from '../../midi/access';
-import { adoptPorts, connectMidi, outputNow, portsMessage, type ChosenPorts } from '../../midi/routing';
-import { MidiOut } from '../../midi/out';
-import { ClockOut } from '../../midi/clock-out';
+import { MidiAccess } from '@yggi/webmidi/web';
+import {
+  adoptPorts,
+  ClockOut,
+  connectMidi,
+  DRUM_PRESETS,
+  deviceNote,
+  MidiOut,
+  outputNow,
+  portsMessage,
+  type ChosenPorts,
+  type DrumMap,
+  type MidiPort,
+  type PortOption,
+} from '@yggi/webmidi/core';
 import { mainMeter, type ClockTicks } from '@yggi/cells/engine/midiclock';
-import { DRUM_PRESETS, deviceNote, type DrumMap } from '../../midi/drum-presets';
-import { channelTable, DEFAULT_BEND_RANGE, noteOf, rotationChannels, routable, router, rowsOf, routesOf, type ChannelTable, type OutputChoice } from '@yggi/cells/engine/midi';
+import {
+  channelTable,
+  DEFAULT_BEND_RANGE,
+  noteOf,
+  rotationChannels,
+  routable,
+  router,
+  rowsOf,
+  routesOf,
+  type ChannelTable,
+  type OutputChoice,
+  type Routes,
+} from '@yggi/cells/engine/midi';
 import type { CompileResult } from '@yggi/cells/engine/program';
 import type { Played } from '@yggi/cells/engine/realize';
+import { outRuns } from '../../midi/played';
 import { contextClock } from '../../audio/device';
 import type { NoteSink } from '../../audio/player';
 import { storageKey } from '../../storageKey';
@@ -138,10 +161,12 @@ function load(): Stored {
   }
 }
 
-/** One output's senders: its notes (`midi/out.ts`) and its clock (`midi/clock-out.ts`). */
+/** One output's senders: its notes (webmidi's `MidiOut`, on the routes its notes take here) and its clock (`ClockOut`). */
 interface Lane {
   readonly out: MidiOut;
   readonly ticks: ClockOut;
+  /** Where its notes go (a piece's channel table, `engine/midi.ts` `router`: on a piece's MIDI cards, a note's entries for this output's slot), from the next note on. */
+  route: (e: Played) => Routes;
 }
 
 /** The player MIDI out taps (audio/player.ts): its sink, and whether its own sound is heard. */
@@ -677,7 +702,7 @@ export class Midi implements ChosenPorts, NoteSink {
     let lane = this.#lanes.get(key);
     if (!lane) {
       const send = { send: (data: readonly number[], timestamp?: number) => this.#sendTo(key, data, timestamp) };
-      this.#lanes.set(key, (lane = { out: new MidiOut(send), ticks: new ClockOut(send) }));
+      this.#lanes.set(key, (lane = { out: new MidiOut(send), ticks: new ClockOut(send), route: () => null }));
     }
     return lane;
   }
@@ -704,9 +729,9 @@ export class Midi implements ChosenPorts, NoteSink {
       // (each output sends the routes on it: on a piece's MIDI cards, those of its slot)
       const route = router(this.#piece!.program, table);
       this.#outputs.forEach((c, i) => {
-        const out = this.#lane(c.key).out;
-        out.setRoute((e) => routesOf(route(e)).filter((r) => (r.port ?? 1) === i + 1));
-        out.onClash = () =>
+        const lane = this.#lane(c.key);
+        lane.route = (e) => routesOf(route(e)).filter((r) => (r.port ?? 1) === i + 1);
+        lane.out.onClash = () =>
           (this.warning = `Notes with different bends overlap on one channel of output ${i + 1}${c.name ? ` (${c.name})` : ''}, so some sound out of tune. Rotate its notes over channels (for an MPE synth) to give each its own.`);
       });
     }
@@ -717,7 +742,7 @@ export class Midi implements ChosenPorts, NoteSink {
       const range = this.rotateOf(port);
       const rotate = !table?.byPiece && range ? rotationChannels(range.from, range.to, kit.length > 0, kit[0]) : null;
       lane.out.setOptions({ drums: this.drumsOf(port), bendRange: this.bendOf(port), rotate }, at, clock.toDeviceMs);
-      for (const e of events) lane.out.play(e, clock.toDeviceMs);
+      for (const e of events) for (const run of outRuns(e, lane.route)) lane.out.play(run, clock.toDeviceMs);
       lane.out.advance(until, clock.toDeviceMs, at);
       if (this.clockOf(port)) lane.ticks.play(ticks, clock.toDeviceMs);
       else lane.ticks.stop(at, clock.toDeviceMs);

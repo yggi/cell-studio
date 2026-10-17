@@ -1,5 +1,5 @@
 import { storageKey } from '../../storageKey';
-import { OCTAVE_MAX, OCTAVE_MIN } from '../../layout/keyboard';
+import { OCTAVE_MAX, OCTAVE_MIN } from '@yggi/webmidi/core';
 
 const KEY = 'cell-studio:dock';
 
