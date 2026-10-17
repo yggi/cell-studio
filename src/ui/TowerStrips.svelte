@@ -343,7 +343,7 @@
     const paint = (c: string) => (c.startsWith('var(') ? css(c.slice(4, -1)) : c);
     const used = new Map<string, number>();
     const named: number[] = [];
-    const chips = (name: string, y: number, [xa, xb]: readonly [number, number]) => {
+    const chips = (name: string, y: number, [xa, xb]: readonly [number, number], inColumn = true) => {
       const got = spectrumOf(name);
       if (!got) return;
       const playing = ctx.state !== 'stopped';
@@ -389,7 +389,7 @@
         x += e.share * (xb - xa);
       }
       g.globalAlpha = 1;
-      if (open) {
+      if (open && inColumn) {
         // (names of one height in other lanes, one under the other)
         let ny = y;
         while (named.some((n) => Math.abs(n - ny) < 8)) ny += 8;
@@ -402,6 +402,7 @@
     };
     // (a lane's player: the highest of the structure's cells in that lane alone, where its bridge starts)
     const player = new Map<number, number>();
+    const players = new Map<number, { name: string; y: number }[]>();
     const place = (id: string, y: number) => {
       // (a cell with no lanes of its own goes across them all, as it is drawn: `across`)
       const [a, b] = map.span.get(id) ?? [0, nl - 1];
@@ -421,7 +422,10 @@
       const y = yOf(c.at);
       if (y < -10 || y > h + 10) continue;
       const at = place(id, y);
-      chips(c.name, at, across(id, at));
+      // (a lane's player — a cell in that lane alone — is drawn on its bridge and named up it, not in the left column)
+      const [a, b] = map.span.get(id) ?? [-1, -2];
+      if (a === b) (players.get(a) ?? players.set(a, []).get(a)!).push({ name: c.name, y: at });
+      chips(c.name, at, across(id, at), a !== b);
     }
     tables.forEach((name, k) => chips(name, h - 10 - k * ROW, across(`cell:${name}`, h - 10 - k * ROW)));
     // the spectrum, all the outs together: each band's bar as long as its loudest out, split into the outs' shares in
@@ -498,6 +502,29 @@
         g.fillStyle = off ? css('--edge') : `rgb(${c[0]}, ${c[1]}, ${c[2]})`;
         g.fillText(o.name, x0 - 4, seat + 3);
       }
+    }
+    // each lane's players named once, up its bridge from the highest one's chip, toward the gates' row (`off · prog`:
+    // several, from the top down), in the highest one's section colour, on a halo
+    for (const [k, ps] of players) {
+      ps.sort((p, q) => p.y - q.y);
+      const top = ps[0]!.y - 5;
+      const room = top - (sy(rows.gate) + 8);
+      if (room < 12 || top > h + 10) continue;
+      const text = ps.map((p) => p.name).join(' · ');
+      const t = tintOf(ps[0]!.name);
+      g.font = `700 ${open ? 9 : 8}px system-ui, sans-serif`;
+      const len = Math.min(room, g.measureText(text).width);
+      g.textAlign = 'left';
+      g.setTransform(dpr, 0, 0, dpr, (mid(k, top) + 3) * dpr, top * dpr);
+      g.rotate(-Math.PI / 2);
+      g.lineWidth = 3;
+      g.strokeStyle = css('--surface');
+      g.strokeText(text, 0, 0, room);
+      g.fillStyle = `rgb(${t[0]}, ${t[1]}, ${t[2]})`;
+      g.fillText(text, 0, 0, room);
+      g.setTransform(dpr, 0, 0, dpr, 0, 0);
+      g.lineWidth = 1;
+      hit(`cell:${ps[0]!.name}`, mid(k, top) - 6, top - len, mid(k, top) + 4, top);
     }
     // the neutral zone's rows, named (A), and on them what stands there, in its lanes: a gate a dot, a voice a dot in
     // its note's colour, a mixer a square across the voices it mixes
