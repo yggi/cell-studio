@@ -5,6 +5,7 @@
  */
 import type { CompileResult } from '@yggi/cells/engine/program';
 import type { GraphModel } from '@yggi/cells/engine/graph';
+import { tapTintRgb } from './theme';
 
 export interface Section {
   readonly k: number;
@@ -36,22 +37,43 @@ export function tagSections(program: CompileResult, model: GraphModel): Map<stri
 }
 
 /**
- * Each node's section (by id): a tag's that it carries; else the nearest tap upstream of it, along what it is played,
- * stepped or fed by — a voice takes the section of the melody that plays it, a mix of what it mixes.
+ * Each node's section (by id): the nearest tap upstream of it, along what it is played, stepped or fed by — a voice
+ * takes the section of the melody that plays it, a mix of what it mixes; else, where no tap reaches, its tag's.
  */
 export function nodeSections(program: CompileResult, model: GraphModel): Map<string, Section> {
   const sections = tapSections(program);
   const tags = tagSections(program, model);
   const out = new Map<string, Section>();
-  for (const n of model.nodes) {
-    const t = n.cell?.tags.find((x) => tags.has(x));
-    if (t) out.set(n.id, tags.get(t)!);
-  }
   // (from the taps down the edges, a ring at a time: the nearest tap wins)
-  let ring = model.edges.flatMap((e) => (e.bulb && sections.has(e.bulb) && !out.has(e.to) ? [[e.to, sections.get(e.bulb)!] as const] : []));
+  let ring = model.edges.flatMap((e) => (e.bulb && sections.has(e.bulb) ? [[e.to, sections.get(e.bulb)!] as const] : []));
   while (ring.length) {
     for (const [id, s] of ring) if (!out.has(id)) out.set(id, s);
     ring = model.edges.flatMap((e) => (out.has(e.from) && !out.has(e.to) && e.port !== 'about' ? [[e.to, out.get(e.from)!] as const] : []));
   }
+  for (const n of model.nodes) {
+    const t = n.cell?.tags.find((x) => tags.has(x));
+    if (t && !out.has(n.id)) out.set(n.id, tags.get(t)!);
+  }
   return out;
+}
+
+/**
+ * A node's section colour (rgb), steady, its name's on the tower strip: its section's; a mix's, the mean of what it
+ * mixes (each input's own, so a mix of two sections is between them); a kit's, of what plays it. null: no section, or
+ * the piece has only one.
+ */
+export function sectionRgb(model: GraphModel, sections: ReadonlyMap<string, Section>, id: string, seen = new Set<string>()): readonly number[] | null {
+  if (seen.has(id)) return null;
+  seen.add(id);
+  const node = model.nodes.find((n) => n.id === id);
+  if (node?.cell?.mix || node?.cell?.kit) {
+    const kit = !node.cell.mix;
+    const ins = model.edges
+      .flatMap((e) => (kit ? (e.from === id && e.port === 'over' ? [e.to] : []) : e.to === id && e.port === 'mix' ? [e.from] : []))
+      .map((from) => sectionRgb(model, sections, from, seen))
+      .filter((c) => c !== null);
+    if (ins.length) return [0, 1, 2].map((i) => Math.round(ins.reduce((a, c) => a + c[i]!, 0) / ins.length));
+  }
+  const s = sections.get(id);
+  return s && s.n > 1 ? tapTintRgb(s.k, s.n) : null;
 }
