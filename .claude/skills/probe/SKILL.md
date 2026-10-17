@@ -16,7 +16,8 @@ Probes so far: `ratchet.test.ts` (the Shorten ratchet: every example through MID
 `docs/notes/multiscale.md`), `outputs-top.test.ts` (which way each wire leaves its source, `upPull` and `spread`
 variants; `docs/notes/outputs-top.md`, PR #236), `tap-order.test.ts` (whether the layout keeps a table's taps in their
 order, at the start and at rest), `forces.test.ts` (what each force does: the library with one switched off at a time,
-`CUSTOM=` for several; `docs/notes/forces.md`). The library's layout is chaotic: about ±8 crossings between seeds, so
+`CUSTOM=` for several; `docs/notes/forces.md`), `explained.test.ts` (#416: the motifs heard against the cells written,
+`LAPS=1` with each line's laps, and what a waterfall's unowned band would flag; `docs/notes/explained.md`). The library's layout is chaotic: about ±8 crossings between seeds, so
 compare variants on the same several seeds.
 
 ## Writing one
