@@ -7,7 +7,8 @@ import { adsrOf, type CompileResult, type Shifts } from '@yggi/cells/engine/prog
 import { entries, period, positionHue, positionOctave, resolvePitch, semitones, shiftedUnits } from '@yggi/cells/engine/helix';
 import { effectiveShow, type Named, type Show } from './show';
 import { NOTE_NAMES, mod, modeName } from '@yggi/cells/theory/modes';
-import { playedCells } from '@yggi/cells/engine/clocking';
+import { playedCells, selects } from '@yggi/cells/engine/clocking';
+import { lapOf } from '@yggi/cells/engine/readers';
 import { flatten, tapped } from '@yggi/cells/engine/flatten';
 import { resolveIn } from '@yggi/cells/engine/helix';
 import { isTurntable, writtenGraph, type WrittenGraph } from '@yggi/cells/engine/graph';
@@ -523,4 +524,26 @@ export function valueAt(view: CellView, t: number, byEntry = false): string | nu
   const s = view.segments.find((x) => t >= x.t0 - 1e-9 && t < x.t1 - 1e-9);
   const f = s?.bands.find((b) => b.kind !== 'rest');
   return f && s ? keyOf(f, s.index, byEntry) : null;
+}
+
+/** The selector that reads a table of taps (decision 016): it picks which of its entries are on. */
+export function selectorOf(result: CompileResult, table: string): string | undefined {
+  return [...result.cells.values()].find((c) => c.over === table && selects(result, c.name))?.name;
+}
+
+/**
+ * A selector's sections (decision 016), as the tower strip draws its row: each step's part of its lap (0 … 1) and the
+ * entries of its table it picks there, each a section, in order. null: not a selector.
+ */
+export function selectorRow(result: CompileResult, name: string, shifts: Shifts): { t0: number; t1: number; picks: number[] }[] | null {
+  const c = result.cells.get(name);
+  if (!c || !selects(result, name)) return null;
+  const entries = result.cells.get(c.over ?? '')?.units.length ?? 0;
+  const lap = Math.max(1, lapOf(result, name));
+  const steps = new Map<number, { t0: number; t1: number; picks: Set<number> }>();
+  for (const e of flatten(result, name, shifts, null)) {
+    const s = steps.get(e.step) ?? steps.set(e.step, { t0: e.step / lap, t1: (e.step + e.duration) / lap, picks: new Set() }).get(e.step)!;
+    s.picks.add(mod(Math.round(e.value + e.alter), entries));
+  }
+  return [...steps.values()].sort((a, b) => a.t0 - b.t0).map((s) => ({ ...s, picks: [...s.picks].sort((a, b) => a - b) }));
 }
