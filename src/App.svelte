@@ -10,6 +10,7 @@
   import Graph from './ui/Graph.svelte';
   import Editor from './ui/Editor.svelte';
   import UpdateToast from './ui/UpdateToast.svelte';
+  import Version from './ui/Version.svelte';
   import KeysDock from './ui/KeysDock.svelte';
   import TimeView from './ui/TimeView.svelte';
   import ConvertStrip from './ui/ConvertStrip.svelte';
@@ -39,9 +40,12 @@
 
 <div class="app" class:selecting={view.tab === 'select'} class:timing={view.tab === 'time'}>
   <header>
-    <h1 aria-label="Cell studio">
-      {#each [...'Cell studio'] as ch, i}<span style:color={ch === ' ' ? undefined : noteColour((i * 7 * 30) % 360)}>{ch}</span>{/each}
-    </h1>
+    <div class="name">
+      <h1 aria-label="Cell studio">
+        {#each [...'Cell studio'] as ch, i}<span style:color={ch === ' ' ? undefined : noteColour((i * 7 * 30) % 360)}>{ch}</span>{/each}
+      </h1>
+      <Version />
+    </div>
     {#if library.anyOpen}
       <div class="transport-in">
         <Transport path={quick} />
@@ -364,10 +368,12 @@
     background: var(--surface);
     border-bottom: 1px solid var(--line);
   }
-  h1 {
-    margin: 0;
+  .name {
     align-self: flex-start;
     padding-top: 13px;
+  }
+  h1 {
+    margin: 0;
     font: 800 17px/1 var(--font-ui);
     letter-spacing: -0.02em;
     white-space: nowrap;
@@ -426,7 +432,7 @@
       align-items: center;
       row-gap: 0;
     }
-    h1 {
+    .name {
       align-self: center;
       padding-top: 0;
     }

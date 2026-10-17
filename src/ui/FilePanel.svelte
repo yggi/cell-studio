@@ -5,6 +5,7 @@
    * the performance report, and which build this is. What those did (saved, rendering, rendered, couldn't read) is
    * said here, in a status line: the picker shows it too, but it is hidden while a piece is open.
    */
+  import { shortVersion } from '../buildInfo';
   import { getStudio } from './state/studio.svelte';
 
   const studio = getStudio();
@@ -44,7 +45,7 @@
     <h4 id="file-tools">Tools</h4>
     <button onclick={() => view.togglePerf()}>{view.perf ? 'Hide' : 'Show'} performance report</button>
   </section>
-  <p class="version">Cell studio {__APP_VERSION__}</p>
+  <p class="version">Cell studio {__BUILD__.version} ({shortVersion(__BUILD__)})</p>
 </div>
 
 <style>

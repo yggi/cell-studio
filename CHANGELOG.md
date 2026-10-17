@@ -3,12 +3,15 @@
 What changed in Cell studio, newest first. The app is deployed from `main` by hand (`node tools/deploy.mjs`), so
 this lists user-visible changes; each release (a version bump in `package.json` and a `vX.Y.Z`
 tag) gathers the entries under *Unreleased* beneath its own heading. The version and commit of
-the running build are shown in the piece picker's **Files** menu.
+the running build are shown under the title; a tap opens the details.
 
 Format: [Keep a Changelog](https://keepachangelog.com/). Add a line to *Unreleased* in the PR
 that makes the change. Also note changes to the language that could affect saved `.cells` pieces.
 
 ## Unreleased
+
+### Added
+- **The build under the title**: the commit's first 7 characters (`dev` for a build that doesn't know it) in the header; a tap opens a sheet with the commit in full, branch (`pr-<n>` for a preview), build date, and the versions of what the app ships, and offers Reload when a new version waits (#433).
 
 ### Changed
 - **The language is cells v0.2.0** ([its changelog](https://github.com/yggi/cells/blob/main/CHANGELOG.md)): *Canon per tonos* places its three voices with `pan=` in the sound card's one chord, where two mixes made the two channels: the same notes, each voice's level on each side a little moved (within 0.05 dB over 60 s), and the graph shows each instrument as its own out. `meter(…)` and `scan(…)` compile to one `Meter`; nothing else a saved piece plays changes.

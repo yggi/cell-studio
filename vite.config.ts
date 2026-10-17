@@ -3,20 +3,23 @@ import { runnerImport, type Plugin } from 'vite';
 import { svelte } from '@sveltejs/vite-plugin-svelte';
 import { VitePWA } from 'vite-plugin-pwa';
 import { execSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { buildInfo } from './tools/build-info';
 
-const { version } = JSON.parse(readFileSync('./package.json', 'utf8')) as { version: string };
-// the commit this build is from (CI sets GITHUB_SHA; locally ask git; '' if neither)
-const sha = (() => {
-  if (process.env.GITHUB_SHA) return process.env.GITHUB_SHA.slice(0, 7);
-  try {
-    return execSync('git rev-parse --short HEAD', { stdio: ['ignore', 'pipe', 'ignore'] })
-      .toString()
-      .trim();
-  } catch {
-    return '';
-  }
-})();
+// what this build is: its commit, branch and date, and the dependencies it ships (tools/build-info.ts; every one of them is listed)
+const build = buildInfo({
+  dir: process.cwd(),
+  env: process.env,
+  git: (args) => {
+    try {
+      return execSync(`git ${args.join(' ')}`, { stdio: ['ignore', 'pipe', 'ignore'] })
+        .toString()
+        .trim();
+    } catch {
+      return '';
+    }
+  },
+  now: new Date(),
+});
 
 /** `virtual:examples-index`: the library's listing of examples (tools/examples-index.ts), made when the build starts; rebuilt when a file in examples/ changes. */
 const examplesIndex = (): Plugin => {
@@ -42,7 +45,7 @@ const examplesIndex = (): Plugin => {
 };
 
 export default defineConfig({
-  define: { __APP_VERSION__: JSON.stringify(sha ? `${version} (${sha})` : version) },
+  define: { __BUILD__: JSON.stringify(build) },
   // relative base: the app works under any path (the Pages URL /cell-studio/, a preview subfolder, a local server)
   base: './',
   plugins: [
