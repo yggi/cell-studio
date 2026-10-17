@@ -180,6 +180,7 @@
     const g = canvas?.getContext('2d');
     if (!g || !h) return;
     hits = [];
+    labelled = [];
     const W = sw;
     g.setTransform(dpr, 0, 0, dpr, 0, 0);
     g.clearRect(0, 0, W, h);
@@ -232,6 +233,7 @@
       g.textAlign = 'right';
       // (clear of the rail's name, which stands along it at W - 10)
       halo(t.label, W - 20, t.y + 3);
+      labelled.push(t.y);
     }
     const octaves: number[] = [];
     for (const t of ticks.octaves) {
@@ -257,6 +259,7 @@
       if (open) {
         g.fillStyle = css('--text-muted');
         g.fillText(t.label, W - 10, t.y - 3);
+        labelled.push(t.y - 6);
       }
     }
     // under the zone, the rainbow on down through the rates: a rate's octaves in a pitch's colours, muted
@@ -605,7 +608,10 @@
         const len = Math.max(2, h0.strength * room);
         g.fillStyle = css(matched ? '--time-section' : '--time-heard');
         g.fillRect(W - 8 - len, y - 1.5, len, 3);
-        if (!matched && open) g.fillText(seconds(h0.period), W - 12 - len, y + 3);
+        if (!matched && open) {
+          g.fillText(seconds(h0.period), W - 12 - len, y + 3);
+          labelled.push(y);
+        }
       }
       g.strokeStyle = css('--time-section');
       for (const w0 of heardLevels.writtenOnly) {
@@ -634,6 +640,8 @@
   }
 
   // each rail named along it, where it shows (folded too, smaller), on a halo
+  // (where the labels at the strip's right edge stand, the y of each: a stratum's name keeps clear of them)
+  let labelled: number[] = [];
   function names(g: CanvasRenderingContext2D, W: number, t: TowerScale) {
     for (const r of rails(t)) {
       const a = Math.max(0, r.y0);
@@ -641,7 +649,13 @@
       if (b - a < 40) continue;
       g.font = `700 ${open ? 11 : bare ? 8 : 9}px system-ui, sans-serif`;
       g.textAlign = 'center';
-      g.setTransform(dpr, 0, 0, dpr, (W - 10) * dpr, ((a + b) / 2) * dpr);
+      // (its middle, clear of the labels by 4 px; else where along its band it stands furthest from them, a name's
+      // length clear of the band's ends)
+      const half = g.measureText(r.name).width / 2 + 2;
+      const clear = (c: number) => Math.min(Infinity, ...labelled.map((y) => Math.abs(y - c) - half));
+      let at = (a + b) / 2;
+      if (clear(at) < 4) for (let c = a + half; c <= b - half; c += 2) if (clear(c) > clear(at) + 1) at = c;
+      g.setTransform(dpr, 0, 0, dpr, (W - 10) * dpr, at * dpr);
       g.rotate(-Math.PI / 2);
       g.lineWidth = 3;
       g.strokeStyle = css('--surface');
