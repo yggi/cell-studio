@@ -119,7 +119,7 @@ describe('the tower layout', () => {
     const program = compileSource(`&bar scan(1 1 1 1) step=120bpm
 &bd s=sine loop=A1 env=&(map=adsr 0 .3 0 .05)
 &hh s=white hpf=8000 env=&(map=adsr 0 .04 0 .02)
-&beat step=&bar &bd &hh &bd &hh
+&beat step=4n &bd &hh &bd &hh
 &out map=sample [&beat]`);
     const model = buildGraph(program);
     const drawn = withSockets(model);
@@ -185,8 +185,8 @@ describe('the tower layout', () => {
 &bd oneshot s=sine loop=A1 env=&(map=adsr 0 .3 0 .05)
 &hh s=white hpf=8000 env=&(map=adsr 0 .04 0 .02)
 &lead s=saw loop=C5
-&tune step=&bar*2 0 2 4 7
-&beat step=&bar*2 &bd &hh &bd &hh
+&tune step=8n 0 2 4 7
+&beat step=8n &bd &hh &bd &hh
 &out map=sample [&beat, &tune * &lead]`);
     const model = buildGraph(program);
     const drawn = withSockets(model);
@@ -206,7 +206,7 @@ describe('the tower layout', () => {
     const program = compileSource(`&bar scan(1 1 1 1) step=120bpm
 &wave map=lin step=440 0 1 0 -1
 &lead s=saw loop=C4
-&tune step=&bar 0 2 4 7
+&tune step=4n 0 2 4 7
 &out map=sample [&tune * &lead * &wave]`);
     const model = buildGraph(program);
     const drawn = withSockets(model);

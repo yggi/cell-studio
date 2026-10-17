@@ -23,7 +23,7 @@ Introduces a voice and the sound card; steps: numbers, rests, holds, repeats, a 
 
 ### Tier 2 · Time and voice
 
-Introduces a clock: a bar, step=&bar, /2 and *2, a tempo marking; a voice: a source and an envelope; filters and effects, a vibrato.
+Introduces a clock: a bar, its taps (step=4n, step=pulse, step=1m), step=&x, /2 and *2, a tempo marking; a voice: a source and an envelope; filters and effects, a vibrato.
 
 | piece | file | about | postgain | length |
 |---|---|---|---|---|
@@ -43,7 +43,7 @@ Introduces tables: over=, scale(), shift=; show= and size=; motifs: splicing, re
 
 ### Tier 4 · Rhythm and feel
 
-Introduces meter and feel: a bent bar, gates; drums: a groove of voices, ratchets, a subsequence, euclid, a kit; swing: a swing clock, swing= and beat=.
+Introduces meter and feel: a bent bar, gates; drums: a groove of voices, ratchets, a subsequence, euclid, a kit; swing: a swing clock tapped by its pulse, swing= on a meter tapped by name.
 
 | piece | file | about | postgain | length |
 |---|---|---|---|---|

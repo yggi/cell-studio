@@ -14,7 +14,7 @@ describe('a piece’s numbers', () => {
     '&bar scan(1 1 1 1) step=90bpm',
     '&key scale(minor, C)',
     '&m 0 1 2',
-    '&tune over=&key step=&bar/4 &m &m^1 4 ~',
+    '&tune over=&key step=1m &m &m^1 4 ~',
     '',
     '&lead s=tri loop=C4 env=&(map=adsr .01 .2 .6 .1)',
     '&mix map=sample [&tune * &lead * .5]',

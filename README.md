@@ -6,7 +6,7 @@ Live: <https://yggi.github.io/cell-studio/>
 
 ```
 &bar scan(27 23 26 24) step=84bpm
-&theme over=scale(0, 2) step=&bar 0@2 2@2 4@2 5@2 ~ 7 5 4@2
+&theme over=scale(0, 2) step=4n 0@2 2@2 4@2 5@2 ~ 7 5 4@2
 &lead s=saw loop=C4 lpf=2200 decay=.3
 &out loop=SAMPLE_RATE map=sample [&theme * &lead] [&theme * &lead]
 ```

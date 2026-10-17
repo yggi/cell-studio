@@ -29,7 +29,7 @@ With an output chosen, every note the voices play goes out too, to each output a
 
 *Clock* under an output (off by default, kept per device by the port's name) sends it Timing Clock (0xF8) at 24 a beat, so a drum machine or a sequencer can follow the piece (#206).
 
-- **Which beat.** The piece's main meter: the clock of its first played cell, followed up its `step=` chain to the meter with a rate of its own (sailor's `&bar`). A beat is one of its steps, or as many as `beat=` or `meter("4/4", 2)` say: `scan(4 4 4 4)` is four beats a bar, 96 ticks. A piece whose first cell steps at a bare rate with nothing stepping with it (`&tune step=4 0 2 4`, the telephone, the 5 to 12) has no meter and sends no clock; the page says so.
+- **Which beat.** The piece's main meter: the meter its first played cell steps with or taps (`step=8n`), followed up its `step=` chain to the meter with a rate of its own (sailor's `&bar`). A beat is one of its steps, or as many as `meter("4/4", 2)` or a meter's `beat=` (its beats: alla breve, `meter("4/4") beat=2`) make one: `scan(4 4 4 4)` is four beats a bar, 96 ticks. A piece whose first cell steps at a bare rate with nothing stepping with it (`&tune step=4 0 2 4`, the telephone, the 5 to 12) has no meter and sends no clock; the page says so.
 - **Laid through the meter's time map.** Tick k falls at the meter's step k·beat/24 through its time map (`engine/clocking.ts`), worked out from its index, never by adding up intervals (`engine/midiclock.ts`). So the ticks swing with `swing=`, bend with a scan (`scan(27 23 26 24)`), and speed up and slow down with a motor: spinning up, wow, running down; none go after a clock has come to rest or a piece has ended (`laps=`). A belted cell is not the meter; the meter it follows is.
 - **When.** Each window's ticks go with its notes, in the same callback and through the same clock offset (webmidi's `clockOffset`), so they are timestamped for the heard moment as the notes are; never in the past, and never earlier than the clock message before them.
 - **Start, Continue, Stop.** Start (0xFA) goes 2 ms before the first tick when play begins at the piece's start (from Stop, or paused at 0). Anywhere else (Play after Pause, a seek, the clock switched on while playing) the run begins on the next 16th, and a Song Position Pointer (0xF2, in 16ths from the piece's start) then Continue (0xFB) go before its first tick, so a device following picks up where the piece is. Stop (0xFC) goes on Pause, Stop, a seek and at a piece's end, and when the clock is switched off or another device is chosen for the output. Ticks are sent ahead (the look-ahead plus a window) and can't be taken back, so Stop lands just after the last tick already sent, at most about half a second after now: no tick follows it. The next run waits until after that Stop, so Play again soon after Pause leaves the device stopped for that long while the piece plays on, then picks up in step.
@@ -85,7 +85,7 @@ as MIDI** in the Files page.
   members in order, each with its pitch where it has one of its own (`bd(A1) dundun(C2) shekere`; a key, or Hz between
   keys), so the file says which drum each note is and how it is tuned (#334). A note no MIDI
   key can carry is left out, and the status line says how many.
-- **Time** is the main meter's (`engine/midiclock.ts`): a quarter note a beat (`beat=` steps), each step a fixed number
+- **Time** is the main meter's (`engine/midiclock.ts`): a quarter note a beat (the meter's beat), each step a fixed number
   of ticks and the tempo its length, so a scan's or a motor's tempo map is the file's tempos and a note on a step is on
   the grid (BWV 847: 1,765 notes, every one on a sixteenth, at its time within 2 ms). A swing is tempos that alternate.
   With no main meter, 120 bpm. A piece that ends is written whole, a loop one cycle, an hour at most.
@@ -108,7 +108,7 @@ as MIDI** in the Files page.
   - *The grid*: the coarsest step every start falls on (a quarter note, an eighth, a triplet … a 64th; within a 96th
     of a quarter and an eighth of the step); a file played in, on none, is laid on sixteenths, and the status line says
     how many notes moved.
-  - *The time*: one meter, `&tempo scan(…) step=free(…bpm) beat=… laps=1`, a step a grid step, each as long as the
+  - *The time*: one meter, `&tempo scan(…) pulse=16n step=free(…bpm) laps=1` (`pulse=` the grid's note value, `8t` for triplets), a step a grid step, each line a tap of it (`step=pulse`), each as long as the
     file's tempo map makes it (a scan's steps are its weights against their mean; the commonest length weighs 1), so
     the piece ends where the file does and its tempo is a slider.
   - *The lines*: a line a track and channel, named after the track; notes that start and end together are a chord, one
@@ -141,7 +141,7 @@ as MIDI** in the Files page.
     of the scale higher as itself moved (`&m3^1`), as a sequence does. Figures over chord tables are looked for in
     semitones only. The status line says which: *folded … in degrees of C minor*.
   - *In sections* (#346): where the piece's key changes and stays, each line is cut, each part a cell read through its
-    section's key (`&upB over=&key2`), the line splicing its parts in order (`&up step=&tempo &upA &upB@2 &upC`). It
+    section's key (`&upB over=&key2`), the line splicing its parts in order (`&up step=pulse &upA &upB@2 &upC`). It
     is taken where at most 15 % longer than the shortest fold without (it reads as the piece's form); the status line
     names the sections' keys.
   - *In voices* (#366): where a track holds several voices (a fugue's hands), the notes are given to voices

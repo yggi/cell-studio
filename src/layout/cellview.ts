@@ -17,6 +17,7 @@ import { bulbHosts } from './drawn';
 import { gateOf } from './gate';
 import { bulbsOf, fanOf, type Bulb } from './track';
 import { footOf } from '@yggi/cells/engine/subseq';
+import { clockCell } from './meters';
 
 /**
  * Drawn as a grid (entries placed on the grid below) only when it's looked
@@ -470,7 +471,10 @@ export function lfoValues(result: CompileResult, name: string, shifts: Shifts): 
   // its rate: a cycle per second on a clock of its own; else in beats of the clock it follows
   const clock = c.clock ? result.clocks.get(c.clock) : null;
   const perLap = c.rate > 0 ? total / c.rate : 0; // clock steps a cycle
-  const rate = !clock || !perLap ? '' : c.clock === name || !clock.positional ? `${fmt(clock.perSecond / perLap)} Hz` : `${fmt(perLap)} beats`;
+  // (a tap of a meter, `step=4n`: its clock's steps counted as the meter's, decision 040)
+  const k = c.clock ? clockCell(result, c.clock) : null;
+  const beats = k && k.cell !== name && result.clocks.get(k.cell)?.positional ? perLap / k.perStep : null;
+  const rate = !clock || !perLap ? '' : beats === null ? `${fmt(clock.perSecond / perLap)} Hz` : `${fmt(beats)} beats`;
   const swing = Math.abs(lo + hi) < 1e-9 ? `±${fmt(hi)}` : `${fmt(lo)}–${fmt(hi)}`;
   return { wave: raw.map((x) => (x - lo) / span), rate, swing };
 }

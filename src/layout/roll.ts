@@ -14,6 +14,7 @@ import { entries, resolvePitch, semitones } from '@yggi/cells/engine/helix';
 import type { CompileResult, ResolvedCell, Shifts, Unit } from '@yggi/cells/engine/program';
 import { playedCells } from '@yggi/cells/engine/clocking';
 import { kindOf, noteLabel, voiceBase } from './show';
+import { clockCell } from './meters';
 
 /** Notes that start together and last as long: one step of the braid (a note, or a chord). */
 export interface Column {
@@ -191,17 +192,19 @@ const steady = (x: number) => (Number.isFinite(x) && x >= 1 && Math.abs(x - Math
 
 /**
  * A cell's frame: a step of its clock is `rate` of its steps, so a bar of its meter (the clock's steps, a meter's
- * entries) is that many times as many, and a beat the meter's `beat=` as many. A cell that is its own clock has
- * only beats (its `beat=`, when more than 1).
+ * entries, or a tap's of them) is that many times as many, and a beat the meter's steps a beat as many (its steps over its beats: `meter(…)`, or
+ * `beat=` on it). A cell that is its own clock has only beats (its steps a beat, when more than 1).
  */
 export function frameOf(result: CompileResult, name: string, length: number): Frame {
   const c = result.cells.get(name);
-  const clock = c?.clock ? result.cells.get(c.clock) : null;
+  // (a tap's clock, `bar:16n`, counts in its meter: the meter's steps, each `perStep` of the tap's)
+  const k = c?.clock ? clockCell(result, c.clock) : null;
+  const clock = k ? result.cells.get(k.cell) : null;
   let bar: number | null = null;
   let beat: number | null = null;
-  if (c && clock && clock.name !== name && clock.steps > 0) {
-    bar = steady(clock.steps * c.rate);
-    beat = steady(clock.beat * c.rate);
+  if (c && k && clock && clock.name !== name && clock.steps > 0) {
+    bar = steady(clock.steps * k.perStep * c.rate);
+    beat = steady(clock.beat * k.perStep * c.rate);
   } else if (c && c.beat > 1) beat = c.beat;
   if (bar !== null && beat !== null && bar % beat !== 0) beat = null;
   const unit = bar ?? (beat ?? 1) * 4;
@@ -355,16 +358,19 @@ export interface Ghost {
  */
 export function ghostsOf(result: CompileResult, name: string, steps: number): Ghost[] {
   const c = result.cells.get(name);
-  if (!c?.clock || !c.rate) return [];
+  // (the same clock: the same meter, whichever tap of it each steps by, decision 040; rates in the meter's steps)
+  const k = c?.clock ? clockCell(result, c.clock) : null;
+  if (!c || !k || !c.rate) return [];
   const table = c.over ?? c.context;
   const played = playedCells(result);
   const out: Ghost[] = [];
   for (const o of result.cells.values()) {
-    if (o.name === name || !played.has(o.name) || o.clock !== c.clock || !o.rate || (o.over ?? o.context) !== table) continue;
+    const ok = o.clock ? clockCell(result, o.clock) : null;
+    if (o.name === name || !played.has(o.name) || ok?.cell !== k.cell || !o.rate || (o.over ?? o.context) !== table) continue;
     if (o.voice || o.mix || o.sink || o.root || o.map || o.braid !== 'list') continue;
     const read = fromBraid(o.units);
     if (!read.ok || read.roll.length === 0) continue;
-    const f = c.rate / o.rate;
+    const f = (c.rate * k.perStep) / (o.rate * ok.perStep);
     const lap = read.roll.length * f;
     for (let at = 0; at < steps && out.length < 2000; at += lap)
       for (const col of read.roll.columns) {

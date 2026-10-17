@@ -3,6 +3,8 @@
  * of the two circles (an open belt). Pulleys sized by the step ratio: a cell stepped at half
  * its driver's rate (step=&bar/2) has a pulley twice the size.
  */
+import type { CompileResult } from '@yggi/cells/engine/program';
+
 export type P = { x: number; y: number };
 
 /** The two runs of an open belt round pulleys (c1, r1) and (c2, r2); null when one sits inside the other. */
@@ -28,6 +30,19 @@ export function pulleys(driverR: number, drivenR: number, rate: number): [number
   const a = driverR * 0.32;
   const clamp = (r: number, own: number) => Math.max(own * 0.16, Math.min(own * 0.46, r));
   return [clamp(a, driverR), clamp(a / Math.max(1e-3, rate), drivenR)];
+}
+
+/**
+ * A belted cell's steps per step of the cell drawn as its driver (the pulleys' ratio), 1 when it isn't belted. A belt on
+ * a tap of a meter (`step=8n belt=30`, decision 040) is driven by the tap's clock, drawn as the meter: its ratio is the
+ * tap's steps per the meter's (8n on a bar of four: 2).
+ */
+export function beltRatio(program: CompileResult, name: string): number {
+  const belt = program.clocks.get(name)?.belt;
+  if (!belt) return 1;
+  const via = program.clocks.get(belt.driver);
+  const meter = via?.tap ? program.clocks.get(via.cell) : undefined;
+  return belt.rate * (via && meter?.perSecond ? via.perSecond / meter.perSecond : 1);
 }
 
 /** A run as a path, sagging by `sag` (px) at its middle, towards `side` (+1/−1 of its left normal). */

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { openBelt, pulleys } from './belts';
+import { compileSource } from '@yggi/cells/engine/compile';
+import { beltRatio, openBelt, pulleys } from './belts';
 
 describe('belts: two runs, outer tangents; pulleys by the ratio', () => {
   it('equal pulleys: the runs are parallel, a diameter apart', () => {
@@ -27,5 +28,12 @@ describe('belts: two runs, outer tangents; pulleys by the ratio', () => {
     expect(b).toBeCloseTo(2 * a, 9);
     const [, big] = pulleys(60, 60, 0.05);
     expect(big).toBeLessThanOrEqual(60 * 0.46); // (clamped: still inside its wheel)
+  });
+  it('a belt on a tap of a meter: its ratio the tap’s steps per the meter’s, as a driven step’s (decision 040)', () => {
+    const r = compileSource('&bar scan(1 1 1 1) step=104bpm motor=4 mass=1\n&b step=8n belt=3000 0 1\n&c step=&bar*2 belt=30 0 1\n&d step=1m belt=30 0');
+    expect(beltRatio(r, 'b')).toBeCloseTo(2, 9);
+    expect(beltRatio(r, 'c')).toBeCloseTo(2, 9);
+    expect(beltRatio(r, 'd')).toBeCloseTo(0.25, 9);
+    expect(beltRatio(r, 'bar')).toBe(1);
   });
 });

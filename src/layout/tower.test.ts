@@ -9,12 +9,12 @@ const SONG = `
 &major scale(major)
 &lead s=saw loop=C4
 &bass s=saw loop=C2
-&parts step=&bar &tuneBar &bassBar
+&parts step=4n &tuneBar &bassBar
 &tune over=&major step=&tuneBar 0 2 4 5
 &roots step=&bassBar 0
 &tunePart [&tune * &lead * .3]
 &bassPart [&roots * &bass * .5]
-&song over=&parts step=&bar/4 laps=1 [1] [0,1] [0,1]
+&song over=&parts step=1m laps=1 [1] [0,1] [0,1]
 &out loop=SAMPLE_RATE map=sample [&tunePart, &bassPart]
 `;
 

@@ -26,7 +26,7 @@
 
   let props: { column: PillColumn } = $props();
   const c = untrack(() => props.column);
-  const program = compileSource('&bar scan(1 1 1 1) step=1\n&parts step=&bar &a &b &c\n&song over=&parts step=&bar/4 0 [0,1,2]');
+  const program = compileSource('&bar scan(1 1 1 1) step=1\n&parts step=4n &a &b &c\n&song over=&parts step=1m 0 [0,1,2]');
   const [W, H] = [300, 250];
   const hub = { x: 150, y: 170 };
   const cells = [

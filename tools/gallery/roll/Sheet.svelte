@@ -11,46 +11,46 @@
   const seconds = Number(q.get('t') ?? 3);
   const BAR = '&bar meter("4/4", 2) step=96bpm\n&lead s=tri loop=C4\n&bass s=sine loop=C3\n';
   const fixtures: { kind: string; caption: string; source: string; name: string; playing?: boolean; held?: number[] }[] = [
-    { kind: 'blank', caption: 'blank: a new cell, its table', source: `${BAR}&tune step=&bar\n&mix map=sample [&tune * &lead]`, name: 'tune' },
+    { kind: 'blank', caption: 'blank: a new cell, its table', source: `${BAR}&tune step=8n\n&mix map=sample [&tune * &lead]`, name: 'tune' },
     {
       kind: 'scale',
       caption: 'over a scale: D dorian, 7 rows a lap',
-      source: `${BAR}&tune over=scale(dorian, D) step=&bar 0 1 2 3 4 3 2 1 0@2 ~ 4 7@2 ~@2\n&mix map=sample [&tune * &lead]`,
+      source: `${BAR}&tune over=scale(dorian, D) step=8n 0 1 2 3 4 3 2 1 0@2 ~ 4 7@2 ~@2\n&mix map=sample [&tune * &lead]`,
       name: 'tune',
     },
     {
       kind: 'semitones',
       caption: 'without over=: semitones on the 12',
-      source: `${BAR}&tune step=&bar 0 3 5 6 7 ~ 10 12 ~ 10 7@2 5 3 0@2\n&mix map=sample [&tune * &lead]`,
+      source: `${BAR}&tune step=8n 0 3 5 6 7 ~ 10 12 ~ 10 7@2 5 3 0@2\n&mix map=sample [&tune * &lead]`,
       name: 'tune',
     },
     {
       kind: 'edo19',
       caption: 'over 19-EDO: 19 rows a lap',
-      source: `${BAR}&edo19 cycle=19 map=edo\n&tune over=&edo19 step=&bar 0 3 6 8 11 ~ 14 19@2 ~ 16 11 8@2 6 3\n&mix map=sample [&tune * &lead]`,
+      source: `${BAR}&edo19 cycle=19 map=edo\n&tune over=&edo19 step=8n 0 3 6 8 11 ~ 14 19@2 ~ 16 11 8@2 6 3\n&mix map=sample [&tune * &lead]`,
       name: 'tune',
     },
     {
       kind: 'chords',
       caption: 'chords and holds: [a,b]@n',
-      source: `${BAR}&s scale(major)\n&comp over=&s step=&bar [0,2,4]@4 [3,5,7]@4 [4,6,8]@2 [4,6,9]@2 [0,2,4]@3 ~\n&mix map=sample [&comp * &lead]`,
+      source: `${BAR}&s scale(major)\n&comp over=&s step=8n [0,2,4]@4 [3,5,7]@4 [4,6,8]@2 [4,6,9]@2 [0,2,4]@3 ~\n&mix map=sample [&comp * &lead]`,
       name: 'comp',
     },
     {
       kind: 'kit',
       caption: 'over a kit: a row per voice',
-      source: `${BAR}&lo s=sine loop=G2\n&mid s=sine loop=C3\n&hi s=white\n&kit &lo &mid &hi\n&beat over=&kit step=&bar 0 2 [1,2] 2 0 [0,2] [1,2] 2\n&mix map=sample [&beat * .4]`,
+      source: `${BAR}&lo s=sine loop=G2\n&mid s=sine loop=C3\n&hi s=white\n&kit &lo &mid &hi\n&beat over=&kit step=8n 0 2 [1,2] 2 0 [0,2] [1,2] 2\n&mix map=sample [&beat * .4]`,
       name: 'beat',
     },
     {
       kind: 'playing',
       caption: 'playing: the playhead on the heard step, a bass on the same table as ghosts, a key held',
-      source: `${BAR}&s scale(minor, A)\n&tune over=&s step=&bar 4 ~ 2 3 4@2 2 0 1 2@2 ~ 4 3@2 2\n&low over=&s step=&bar/2 0 0 -2 -3 -2 -2 0 ~\n&mix map=sample [&tune * &lead, &low * &bass]`,
+      source: `${BAR}&s scale(minor, A)\n&tune over=&s step=8n 4 ~ 2 3 4@2 2 0 1 2@2 ~ 4 3@2 2\n&low over=&s step=4n 0 0 -2 -3 -2 -2 0 ~\n&mix map=sample [&tune * &lead, &low * &bass]`,
       name: 'tune',
       playing: true,
       held: [4],
     },
-    { kind: 'refused', caption: 'not editable: a generator', source: `${BAR}&hits step=&bar euclid(3, 8)\n&mix map=sample [&hits * &lead]`, name: 'hits' },
+    { kind: 'refused', caption: 'not editable: a generator', source: `${BAR}&hits step=8n euclid(3, 8)\n&mix map=sample [&hits * &lead]`, name: 'hits' },
   ];
   const shown = fixtures.map((f) => ({ ...f, piece: pieceOf(f.kind, f.source, f.playing ? seconds : 0) }));
 </script>

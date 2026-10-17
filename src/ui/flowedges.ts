@@ -10,7 +10,7 @@ import { DEFAULT_FREQ, type CompileResult } from '@yggi/cells/engine/program';
 import { drawn, edgeStateOf, type State } from '@yggi/cells/engine/routing';
 import type { LiveState } from '@yggi/cells/engine/live';
 import { physicsOf } from '@yggi/cells/engine/clocking';
-import { pulleys } from '../layout/belts';
+import { beltRatio, pulleys } from '../layout/belts';
 import { groundsOf, meterIndex } from '../layout/meters';
 import { loomBands } from '../layout/looms';
 import type { MeterTrace } from '../layout/state';
@@ -255,8 +255,7 @@ export function flowEdgesOf(s: GraphSnapshot, scene: EdgeScene): Edge[] {
     const driven = e.belt ? model.nodes.find((n) => n.id === e.source) : undefined;
     if (driven?.cell) {
       const radius = (id: string) => (scene.sizeOf(id) ?? 140) / 2;
-      const rate = program.clocks.get(driven.cell.name)?.belt?.rate ?? 1;
-      const [rDriver, rDriven] = pulleys(radius(e.target), radius(e.source), rate);
+      const [rDriver, rDriven] = pulleys(radius(e.target), radius(e.source), beltRatio(program, driven.cell.name));
       const st = scene.live ? physicsOf(program, s.shifts, driven.cell.name)?.state?.(scene.live.seconds) : undefined;
       return flowEdgeOf(e, state, program, { rDriver, rDriven, stretch: st?.stretch ?? 0, slipping: st?.slipping ?? false });
     }

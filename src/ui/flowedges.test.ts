@@ -52,7 +52,7 @@ function byPort(e: GraphEdge, program: CompileResult) {
 
 const SRC = `&bar scan(1 1 1 1) step=120bpm
 &minor scan(2 1 2 2 1 2 2)
-&tune 0 2 4 over=&minor step=&bar*4
+&tune 0 2 4 over=&minor step=16n
 &lead s=sine
 &mix loop=SAMPLE_RATE map=sample [&tune * &lead]`;
 
@@ -96,10 +96,10 @@ describe('what an edge carries: one lookup by band and port', () => {
     const program = compileSource(`&bar scan(1 1 1 1) step=120bpm
 &bd s=sine loop=C2
 &sd s=white
-&groove step=&bar &bd ~ &sd ~
+&groove step=4n &bd ~ &sd ~
 &riff 0 2
-&tune step=&bar &riff 4
-&alt step=&bar &riff 7
+&tune step=4n &riff 4
+&alt step=4n &riff 7
 &lead s=tri
 &left [&groove * .5, &tune * &lead, &alt * &lead]
 &out map=sample &left &left`);
@@ -130,7 +130,7 @@ describe('sound up through patterns (#273): a pattern of voices spliced into ano
     expect(edge(PRESETS.brothers.source, 'break', 'tracker').e.band).toBe('audio');
   });
   it('Drums with a song of grooves: the groove into the song is sound', () => {
-    const { e } = edge(`${PRESETS.drums.source}\n&song step=&bar &groove &groove`, 'groove', 'song');
+    const { e } = edge(`${PRESETS.drums.source}\n&song step=4n &groove &groove`, 'groove', 'song');
     expect(e.band).toBe('audio');
   });
 });
