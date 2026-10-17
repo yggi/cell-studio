@@ -1,12 +1,13 @@
 /**
  * The time view's layers, drawn (ui/TimeView.svelte, in this order: zones, scalogram, waterfall, waveform, structure,
- * notes, grid, meter, sections, heard, splices, cells, patterns): each onto the canvas `g` over the frame `f`, its
+ * notes, grid, meter, sections, heard, splices, cells, patterns, levels): each onto the canvas `g` over the frame `f`, its
  * colours read from the theme's CSS by `css`. What each shows is worked out in layout/timelayers.ts, its pixels in
  * layout/timepictures.ts, where things sit in layout/timeview.ts.
  */
 import type { Boundary } from '@yggi/cells/engine/time/boundaries';
 import { reach } from '@yggi/cells/engine/time/wavelet';
 import type { CellSpan, Laned, Named, Patterns } from '../layout/timelayers';
+import type { Explained, HeardLevel, WrittenLevel, WrittenMoment } from '../layout/explained';
 import { familyHue, seconds } from '../layout/timelayers';
 import { waveColumns } from '../layout/timepictures';
 import { CARD, freqTicks, timeTicks, xOf, yOf, zones, type Frame } from '../layout/timeview';
@@ -143,7 +144,7 @@ export function drawGrid(g: G, f: Frame, css: Css): void {
 
 /** The meter across the scalogram: the beat, the bar and the sections' length dashed, labelled; the bars' lines where
  * they are far enough apart to see; and at the right, the levels it hears most, named. */
-export function drawMeter(g: G, f: Frame, css: Css, scal: Rows, mt: readonly Named[], rg: readonly { period: number; label: string | null }[]): void {
+export function drawMeter(g: G, f: Frame, css: Css, scal: Rows, mt: readonly Named[]): void {
   const p = scal.periods;
   const { top, bottom } = scalBand(f, p);
   const shown = (q: number) => q >= (p[0] ?? NaN) && q <= (p[p.length - 1] ?? NaN);
@@ -166,17 +167,6 @@ export function drawMeter(g: G, f: Frame, css: Css, scal: Rows, mt: readonly Nam
     for (let t = Math.ceil(f.from / bar.period) * bar.period; t <= f.to; t += bar.period) g.fillRect(Math.round(xOf(f, t)), top, 1, bottom - top);
     g.globalAlpha = 1;
   }
-  g.textAlign = 'right';
-  for (const r of rg) {
-    const y = yOf(f, 1 / r.period);
-    g.beginPath();
-    g.moveTo(f.width - 2, y - 5);
-    g.lineTo(f.width - 10, y);
-    g.lineTo(f.width - 2, y + 5);
-    g.fill();
-    g.fillText(r.label ? `${seconds(r.period)} · ${r.label}` : seconds(r.period), f.width - 14, y + 4);
-  }
-  g.textAlign = 'left';
 }
 
 /** The sections written: a line each, named under the card's octave. */
@@ -190,23 +180,32 @@ export function drawSections(g: G, f: Frame, css: Css, ws: readonly { at: number
   }
 }
 
-/** The boundaries heard, a mark each at 20 Hz: the section's colour on a section, the splice's on a splice, else
- * their own. */
-export function drawHeard(g: G, f: Frame, css: Css, hd: readonly Boundary[], ws: readonly { at: number }[], sp: readonly { at: number }[]): void {
+/** The boundaries heard, a mark each at 20 Hz, matched against the moments written (layout/explained.ts): the
+ * section's colour on a section, the splice's on a splice, its own where nothing written explains it; a section
+ * written where nothing is heard, a hollow mark (a gap). */
+export function drawHeard(g: G, f: Frame, css: Css, x: Explained<Boundary, WrittenMoment>): void {
   const y = yOf(f, 20);
-  for (const b of hd) {
-    if (b.at < f.from || b.at > f.to) continue;
-    const x = xOf(f, b.at);
-    const near = Math.max(1, (f.to - f.from) / 200);
-    const on = ws.some((s) => Math.abs(s.at - b.at) <= near);
-    const inBraid = !on && sp.some((s) => Math.abs(s.at - b.at) <= near);
-    g.fillStyle = on ? css('--time-section') : inBraid ? css('--time-splice') : css('--time-heard');
+  const mark = (at: number, colour: string, hollow = false) => {
+    if (at < f.from || at > f.to) return;
+    const cx = xOf(f, at);
     g.beginPath();
-    g.moveTo(x, y - 9);
-    g.lineTo(x - 5, y);
-    g.lineTo(x + 5, y);
-    g.fill();
-  }
+    g.moveTo(cx, y - 9);
+    g.lineTo(cx - 5, y);
+    g.lineTo(cx + 5, y);
+    g.closePath();
+    if (hollow) {
+      g.strokeStyle = colour;
+      g.lineWidth = 1.5;
+      g.stroke();
+      g.lineWidth = 1;
+    } else {
+      g.fillStyle = colour;
+      g.fill();
+    }
+  };
+  for (const b of x.both) mark(b.heard.at, css(b.written.kind === 'section' ? '--time-section' : '--time-splice'));
+  for (const h of x.heardOnly) mark(h.at, css('--time-heard'));
+  for (const w of x.writtenOnly) mark(w.at, css('--time-section'), true);
 }
 
 /** The splices: a tick where a braid turns to its next spliced cell, just above the heard marks. */
@@ -260,4 +259,75 @@ export function drawPatterns(g: G, f: Frame, css: Css, pt: Patterns): void {
     const where = fd.where.slice(0, 4).map((x) => `${x.voice} ${x.kind === 'pitch' ? 'pitch' : `rhythm round ${x.level}`}`);
     g.fillText(`folded alike · ${fd.name}${fd.even ? ' (maximally even)' : ''}: ${where.join(', ')}`, 70, f.height - 40 - 14 * k);
   });
+}
+
+/** The levels strip's width (px), at the plot's right edge, over the scalogram. */
+const LEVELS_W = 170;
+
+/**
+ * The levels, heard against written (layout/explained.ts), a strip at the right over the scalogram, on its scale: the
+ * written at the left (a tick and what writes it), the heard at the right (a bar as long as it is strong), a matched
+ * pair joined straight across; alone, a gap — a level heard that nothing writes in the heard colour with its period, a
+ * level written that is not heard hollow and muted.
+ */
+export function drawLevels(g: G, f: Frame, css: Css, scal: Rows, x: Explained<HeardLevel, WrittenLevel>): void {
+  const { top, bottom } = scalBand(f, scal.periods);
+  if (bottom - top < 40 || f.width < 3 * LEVELS_W) return;
+  const x0 = f.width - LEVELS_W;
+  const xw = x0 + 92;
+  const xh = xw + 14;
+  const long = f.width - 6 - xh;
+  g.fillStyle = css('--time-face');
+  g.globalAlpha = 0.8;
+  g.fillRect(x0, top, LEVELS_W, bottom - top);
+  g.globalAlpha = 1;
+  g.font = '10px system-ui, sans-serif';
+  g.fillStyle = css('--text-muted');
+  g.textAlign = 'right';
+  g.fillText('written', xw, top + 11);
+  g.textAlign = 'left';
+  g.fillText('heard', xh, top + 11);
+  const at = (period: number) => yOf(f, 1 / period);
+  const inBand = (y: number) => y > top + 16 && y < bottom - 2;
+  const said: number[] = [];
+  const name = (text: string, y: number, colour: string) => {
+    if (said.some((u) => Math.abs(u - y) < 10)) return;
+    said.push(y);
+    g.fillStyle = colour;
+    g.textAlign = 'right';
+    g.fillText(text, xw - 6, y + 3, xw - x0 - 10);
+  };
+  const written = [...x.both.map((b) => ({ w: b.written, heard: true })), ...x.writtenOnly.map((w) => ({ w, heard: false }))];
+  for (const { w, heard } of written.filter((e, i) => written.findIndex((o) => o.w === e.w) === i)) {
+    const y = at(w.period);
+    if (!inBand(y)) continue;
+    const colour = heard ? css('--time-meter') : css('--text-muted');
+    g.strokeStyle = colour;
+    g.beginPath();
+    if (heard) {
+      g.moveTo(xw - 4, y);
+      g.lineTo(xw, y);
+    } else g.arc(xw + 4, y, 2.5, 0, 2 * Math.PI);
+    g.stroke();
+    name(`${w.label}${w.by.length > 1 ? ` +${w.by.length - 1}` : ''}`, y, colour);
+  }
+  for (const b of x.both) {
+    const [yw, yh] = [at(b.written.period), at(b.heard.period)];
+    if (!inBand(yw) || !inBand(yh)) continue;
+    g.strokeStyle = css('--time-meter');
+    g.beginPath();
+    g.moveTo(xw, yw);
+    g.lineTo(xh, yh);
+    g.stroke();
+    g.fillStyle = css('--time-section');
+    g.fillRect(xh, yh - 1.5, Math.max(2, b.heard.strength * long), 3);
+  }
+  for (const h of x.heardOnly) {
+    const y = at(h.period);
+    if (!inBand(y)) continue;
+    g.fillStyle = css('--time-heard');
+    g.fillRect(xh, y - 1.5, Math.max(2, h.strength * long), 3);
+    name(seconds(h.period), y, css('--time-heard'));
+  }
+  g.textAlign = 'left';
 }
