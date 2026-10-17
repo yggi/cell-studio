@@ -42,9 +42,9 @@
   import type { SideMark } from './context';
   import TowerAxis, { TOWER_WIDTH } from './TowerAxis.svelte';
   import FlowViewport from './FlowViewport.svelte';
-  import { storageKey } from '../storageKey';
   import { TOWER_PX, towerScale } from '../layout/towerscale';
-  import TowerStrips, { STRIP, STRIP_MIN, STRIP_OPEN } from './TowerStrips.svelte';
+  import TowerStrips from './TowerStrips.svelte';
+  import { strip as stripWidth } from './state/strip.svelte';
   import TowerSky, { SKY_MODES, type SkyMode } from './TowerSky.svelte';
   import { nodeSections, sectionRgb, tagSections } from './sections';
   import { towerStructure } from '../layout/tower';
@@ -331,27 +331,8 @@
   // (each node's centre, as the layout places it: where its edges end)
   const centres = $derived(new Map(layout.nodes.map((n) => [n.id, n.position] as const)));
   const pillsBy = $derived(new Map(towered ? layout.looms.map((l) => [l.table, l] as const) : []));
-  // the strip's width (TowerStrips.svelte), dragged, kept in this browser; `?strips` opens it; its button collapses it
-  // to its scale and opens it again to the width it had
-  const STRIP_KEY = storageKey('cell-studio-strip-width');
-  const kept = (() => {
-    try {
-      return Number(localStorage.getItem(STRIP_KEY)) || 0;
-    } catch {
-      return 0;
-    }
-  })();
-  let stripW = $state(QUERY?.has('strips') ? STRIP_OPEN : kept || STRIP);
-  let stripOpenW = Math.max(kept, STRIP_OPEN);
-  function resizeStrip(w: number) {
-    stripW = w;
-    if (w > STRIP_MIN) stripOpenW = w;
-    try {
-      localStorage.setItem(STRIP_KEY, String(Math.round(w)));
-    } catch {
-      // (no storage: kept for this visit only)
-    }
-  }
+  // the strip's width (state/strip.svelte.ts): one for the graph and the time view
+  const stripW = $derived(stripWidth.width);
   let flowW = $state(0);
   // what goes into the card, where its wire leaves now (its top)
   const ins = $derived(
@@ -575,9 +556,9 @@
       {viewport}
       scale={towerScale({ perDecade: TOWER_PX * viewport.zoom, offset: viewport.y, zone: layout.zone })}
       width={stripW}
-      onresize={resizeStrip}
+      onresize={(w) => stripWidth.resize(w)}
       {tintOf}
-      ontoggle={() => resizeStrip(stripW > STRIP_MIN ? STRIP_MIN : stripOpenW)}
+      ontoggle={() => stripWidth.toggle()}
       onfocus={(id) => {
         const p = layout.position(id);
         if (p) flyTo = { x: p.x, y: p.y };

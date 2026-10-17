@@ -111,7 +111,13 @@ export interface RowKeys {
   held(cell: string): ReadonlySet<number>;
 }
 
-export const [getGraphContext, setGraphContext] = createContext<GraphContext>();
+export const [getGraphContext, setGraphContext, hasGraphContext] = createContext<GraphContext>();
+
+/**
+ * What the tower strip's rows read (ui/TowerStrips.svelte, #440): the piece, its tables' turns, where everything is now
+ * and the transport — the graph's context has them, and the time view gives its own (the moment at its cursor).
+ */
+export type TowerSource = Pick<GraphContext, 'program' | 'shifts' | 'heads' | 'state'>;
 
 /** The cell a pointer met on a wheel when it met a bulb there (CellGlyph's `data-bulb`): its node id; else null. */
 export function bulbAt(target: EventTarget | null): string | null {
