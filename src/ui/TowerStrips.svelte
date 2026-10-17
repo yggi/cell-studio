@@ -26,9 +26,9 @@
   import { onDestroy, onMount, untrack } from 'svelte';
   import { getGraphContext, nodeState } from './context';
   import { bandFreq, bandHue, bandOctave } from '../layout/spectrum';
-  import { towerAt, towerY, type TowerIn, type TowerLayer } from '../layout/towerlayout';
+  import type { TowerIn, TowerLayer } from '../layout/towerlayout';
+  import { towerTicks, withConstant, type StratumName, type TowerScale } from '../layout/towerscale';
   import type { Minimap } from '../layout/minimap';
-  import { TOWER_ZONES } from '../layout/tower';
   import { onFrames } from '../audio/ticker';
   import { hslRgb, noteHsl, tapTintRgb } from './theme';
   import { heard, noteHz, outRgb } from './heard';
@@ -45,7 +45,7 @@
     layers = new Map(),
     rows = { gate: 0, voice: 0, mixer: 0 },
     viewport,
-    zone = 0,
+    scale,
     width,
     onresize,
     ontoggle,
@@ -60,9 +60,10 @@
     rows?: { readonly gate: number; readonly voice: number; readonly mixer: number };
     /** The structure: each stepped cell at its rate (decades), the tables nothing steps at -Infinity. */
     structure?: readonly { name: string; at: number }[];
+    /** The graph's pan and zoom: where its own positions (the rows, the sockets) are on the screen. */
     viewport: Viewport;
-    /** The neutral zone between the structure and the audible (decades: towerlayout.ts towerY). */
-    zone?: number;
+    /** The tower's scale (towerscale.ts): the screen's y for a height on it, its strata. */
+    scale: TowerScale;
     /** Its width (px), STRIP_MIN … STRIP_MAX; dragged, `onresize` with the new one. */
     width: number;
     onresize: (width: number) => void;
@@ -95,8 +96,8 @@
   }
   const dpr = typeof devicePixelRatio === 'number' ? devicePixelRatio : 1;
 
-  // (the screen's y for a height on the tower, decades: the graph's y, panned and zoomed)
-  const yOf = (d: number) => towerY(d, zone) * viewport.zoom + viewport.y;
+  // (the screen's y for a height on the tower, decades: the view's scale)
+  const yOf = (d: number) => scale.y(d);
   // (a theme colour, read once: getComputedStyle each time is slow, and the theme doesn't change)
   const theme = new Map<string, string>();
   const css = (name: string) => {
@@ -124,15 +125,6 @@
 
   // (each band its note's colour by its octave, as rgb: a spire's dots)
   const hues = Array.from({ length: BANDS }, (_, b) => hslRgb(...noteHsl(bandHue(b, BANDS), false, bandOctave(b, BANDS))));
-
-  // (a decade's tick, as a period below 1 Hz and a frequency above)
-  function decade(d: number): string {
-    const hz = 10 ** d;
-    if (hz >= 1000) return `${hz / 1000} kHz`;
-    if (hz >= 1) return `${hz} Hz`;
-    const s = 1 / hz;
-    return s >= 86400 ? `${+(s / 86400).toPrecision(2)} d` : s >= 3600 ? `${+(s / 3600).toPrecision(2)} h` : s >= 60 ? `${+(s / 60).toPrecision(2)} min` : `${s} s`;
-  }
 
   // (what a row shows, kept until the piece or a table's turn changes: not each frame — a selector's sections in
   // order, each the taps it picks; else the cell's spectrum of values, a table of taps' each its section)
@@ -191,7 +183,10 @@
     g.setTransform(dpr, 0, 0, dpr, 0, 0);
     g.clearRect(0, 0, W, h);
     const band = (b: number) => Math.log10(bandFreq(b, BANDS));
-    const half = (towerY(band(1), zone) - towerY(band(0), zone)) * viewport.zoom * 0.5;
+    const half = (yOf(band(1)) - yOf(band(0))) * 0.5;
+    // (the scale with the constant's band at the strip's foot, when it has tables to show)
+    const foot = constantTop();
+    const tower = foot < h ? withConstant(scale, { top: foot, bottom: h }) : scale;
     // the audible: the rainbow, a band a semitone
     for (let b = 0; b < BANDS; b++) {
       const f = bandFreq(b, BANDS);
@@ -203,7 +198,7 @@
     }
     // the strata, a rail each at the outer edge: the slow, the pulse, the neutral zone (the voices and mixers, off the
     // scale), the audible
-    for (const r of rails()) {
+    for (const r of rails(tower)) {
       g.fillStyle = r.colour;
       g.globalAlpha = 0.8;
       g.fillRect(W - 6, r.y0, 4, r.y1 - r.y0);
@@ -211,7 +206,6 @@
     }
     // the audible's scale: the frequency at the right (1, 2, 5 a decade, in Hz, from 1000 in kHz; between them a tick a
     // step, unnamed), the octaves at the left (each C, named Cn); a name only where it has room
-    const hearing = (hz: number) => hz >= 20 && hz <= 20000;
     const room = (ys: number[], y: number) => ys.every((u) => Math.abs(u - y) >= 11);
     // (a name over the spectrum, on a halo)
     const halo = (text: string, x: number, y: number) => {
@@ -222,59 +216,50 @@
       g.lineWidth = 1;
       g.strokeStyle = css('--line');
     };
+    const ticks = towerTicks(scale, 0, h);
     const said: number[] = [];
     g.font = `${open ? 10 : 8}px system-ui, sans-serif`;
     g.strokeStyle = css('--line');
-    for (let d = 1; d <= 4; d++)
-      for (let m = 1; m <= 9; m++) {
-        const hz = m * 10 ** d;
-        const y = yOf(Math.log10(hz));
-        if (!hearing(hz) || y < 0 || y > h) continue;
-        const named = m === 1 || m === 2 || m === 5;
-        g.beginPath();
-        g.moveTo(W - (named ? 18 : 11), y);
-        g.lineTo(W - 6, y);
-        g.stroke();
-        if (!named || bare || !room(said, y)) continue;
-        said.push(y);
-        g.fillStyle = css('--text-muted');
-        g.textAlign = 'right';
-        // (clear of the rail's name, which stands along it at W - 10)
-        halo(hz >= 1000 ? `${hz / 1000} kHz` : `${hz} Hz`, W - 20, y + 3);
-      }
-    const octaves: number[] = [];
-    for (let n = 0; n <= 10; n++) {
-      const hz = C0 * 2 ** n;
-      const y = yOf(Math.log10(hz));
-      if (!hearing(hz) || y < 0 || y > h) continue;
+    for (const t of ticks.hz) {
       g.beginPath();
-      g.moveTo(0, y);
-      g.lineTo(open ? 10 : 6, y);
+      g.moveTo(W - (t.named ? 18 : 11), t.y);
+      g.lineTo(W - 6, t.y);
       g.stroke();
-      if (bare || !room(octaves, y)) continue;
-      octaves.push(y);
+      if (!t.named || bare || !room(said, t.y)) continue;
+      said.push(t.y);
+      g.fillStyle = css('--text-muted');
+      g.textAlign = 'right';
+      // (clear of the rail's name, which stands along it at W - 10)
+      halo(t.label, W - 20, t.y + 3);
+    }
+    const octaves: number[] = [];
+    for (const t of ticks.octaves) {
+      g.beginPath();
+      g.moveTo(0, t.y);
+      g.lineTo(open ? 10 : 6, t.y);
+      g.stroke();
+      if (bare || !room(octaves, t.y)) continue;
+      octaves.push(t.y);
       g.fillStyle = css('--text-muted');
       g.textAlign = 'left';
-      halo(`C${n}`, open ? 12 : 8, y + 3);
+      halo(t.label, open ? 12 : 8, t.y + 3);
     }
     // decades, under the audible
     g.font = '10px system-ui, sans-serif';
     g.textAlign = 'right';
-    for (let d = -6; d <= 1; d++) {
-      const y = yOf(d);
-      if (y < 0 || y > h) continue;
+    for (const t of ticks.decades) {
       g.strokeStyle = css('--line');
       g.beginPath();
-      g.moveTo(open ? 0 : W - 12, y);
-      g.lineTo(W, y);
+      g.moveTo(open ? 0 : W - 12, t.y);
+      g.lineTo(W, t.y);
       g.stroke();
       if (open) {
         g.fillStyle = css('--text-muted');
-        g.fillText(decade(d), W - 10, y - 3);
+        g.fillText(t.label, W - 10, t.y - 3);
       }
     }
     // under the zone, the rainbow on down through the rates: a rate's octaves in a pitch's colours, muted
-    const lowest = towerAt((h - viewport.y) / viewport.zoom);
+    const lowest = scale.at(h);
     for (let k = Math.floor(12 * Math.log2(10 ** lowest / C0)); ; k++) {
       const d = Math.log10(C0 * 2 ** (k / 12));
       if (d >= Math.log10(20)) break;
@@ -285,7 +270,6 @@
       g.fillRect(0, y0, W, y1 - y0);
     }
     // the constant: its own ground, under a line, over what the rates' rainbow would show there
-    const foot = constantTop();
     if (foot < h) {
       g.fillStyle = css('--surface');
       g.globalAlpha = 0.85;
@@ -298,7 +282,7 @@
       g.stroke();
     }
     // (collapsed: the scale and its strata only)
-    if (bare || !map || !map.lanes.length) return names(g, W);
+    if (bare || !map || !map.lanes.length) return names(g, W, tower);
     // the lanes: a narrow column in the strip's middle, a lane an out; the combined spectrum out from its sides, the left
     // channel left, the right right; the names on the left when opened (under 20 Hz the sides are free)
     // (the lanes funnel: wide under the audible, where the structure and the neutral zone need the room, narrowing into
@@ -603,27 +587,13 @@
         }
       }
     }
-    names(g, W);
+    names(g, W, tower);
   }
 
-  // the strata's rails (the screen's y, top over bottom): the tower's zones, and the neutral zone between the pulse and
-  // the audible
-  function rails(): { name: string; colour: string; y0: number; y1: number }[] {
-    const hearing = Math.log10(20);
-    const zoneColour = (name: string) => css(name === 'slow' ? '--meter-2' : name === 'pulse' ? '--meter-1' : '--accent');
-    const out: { name: string; colour: string; y0: number; y1: number }[] = TOWER_ZONES.map((z, i) => {
-      const lo = Math.max(-8, z.from);
-      const hi = (TOWER_ZONES[i + 1]?.from ?? Math.log10(20000)) - 1e-9;
-      return { name: z.name, colour: zoneColour(z.name), y0: yOf(hi), y1: yOf(lo) };
-    });
-    if (zone > 0) out.push({ name: 'voices', colour: css('--meter-3'), y0: yOf(hearing), y1: yOf(hearing - 1e-9) });
-    // (and under them all, the tables nothing steps: the constant, a stratum of its own at the strip's foot)
-    const foot = constantTop();
-    if (foot < h) {
-      for (const r of out) r.y1 = Math.min(r.y1, foot);
-      out.push({ name: 'constant', colour: css('--text-muted'), y0: foot, y1: h });
-    }
-    return out;
+  // the strata's rails (the screen's y, top over bottom): the scale's strata (towerscale.ts), each in its colour
+  function rails(t: TowerScale): { name: string; colour: string; y0: number; y1: number }[] {
+    const colour: Record<StratumName, string> = { constant: '--text-muted', slow: '--meter-2', pulse: '--meter-1', voices: '--meter-3', audible: '--accent', card: '--accent' };
+    return t.strata.map((x) => ({ name: x.name, colour: css(colour[x.name]), y0: x.top, y1: x.bottom }));
   }
 
   // (the constant's top: room for its tables, a row each, and its name; none, the strip's foot)
@@ -634,8 +604,8 @@
   }
 
   // each rail named along it, where it shows (folded too, smaller), on a halo
-  function names(g: CanvasRenderingContext2D, W: number) {
-    for (const r of rails()) {
+  function names(g: CanvasRenderingContext2D, W: number, t: TowerScale) {
+    for (const r of rails(t)) {
       const a = Math.max(0, r.y0);
       const b = Math.min(h, r.y1);
       if (b - a < 40) continue;
@@ -654,7 +624,7 @@
 
   // stopped: drawn again when what it shows moves (the view, the piece, a source); playing: every frame (below)
   $effect(() => {
-    void [viewport.x, viewport.y, viewport.zoom, ins, structure, map, layers, rows, sw, h, ctx.program, ctx.shifts, ctx.state, ctx.muted, canvas];
+    void [viewport.x, viewport.y, viewport.zoom, scale, ins, structure, map, layers, rows, sw, h, ctx.program, ctx.shifts, ctx.state, ctx.muted, canvas];
     // (only what is listed: what draw reads, the playheads among it, would draw it again each frame; and only stopped —
     // playing, the frame loop draws it, and the layout's ticks moving what is listed would draw it once more each)
     if (untrack(() => ctx.state) === 'stopped') untrack(draw);

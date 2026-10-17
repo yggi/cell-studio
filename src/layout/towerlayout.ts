@@ -11,12 +11,7 @@ import type { GraphModel, GraphNode } from '@yggi/cells/engine/graph';
 import { cellId } from '@yggi/cells/engine/ids';
 import { towerOf } from './tower';
 import { socketOf, VOICE_SIZE } from './voice';
-
-/** Pixels to a decade on the tower, the same in the graph and on its strips (even: the rainbow keeps its width). */
-const TOWER_PX = 360;
-
-/** Where the audible begins (decades: 20 Hz). */
-const HEARING = Math.log10(20);
+import { HEARING, TOWER_PX } from './towerscale';
 
 /**
  * The graph's y (down positive) for a height on the tower, in decades (log10 Hz). `zone`: the neutral zone's height

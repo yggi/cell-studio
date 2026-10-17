@@ -43,6 +43,7 @@
   import TowerAxis, { TOWER_WIDTH } from './TowerAxis.svelte';
   import FlowViewport from './FlowViewport.svelte';
   import { storageKey } from '../storageKey';
+  import { TOWER_PX, towerScale } from '../layout/towerscale';
   import TowerStrips, { STRIP, STRIP_MIN, STRIP_OPEN } from './TowerStrips.svelte';
   import TowerSky, { SKY_MODES, type SkyMode } from './TowerSky.svelte';
   import { nodeSections, sectionRgb, tagSections } from './sections';
@@ -572,7 +573,7 @@
       layers={layout.layers}
       rows={layout.rows}
       {viewport}
-      zone={layout.zone}
+      scale={towerScale({ perDecade: TOWER_PX * viewport.zoom, offset: viewport.y, zone: layout.zone })}
       width={stripW}
       onresize={resizeStrip}
       {tintOf}
