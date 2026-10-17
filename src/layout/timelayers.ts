@@ -14,6 +14,7 @@ import type { StructureNode } from '@yggi/cells/engine/time/structure';
 import { motifs, multiscale } from '@yggi/cells/engine/time/motifs';
 import { alike, foldings, levelsOf, pulseOf } from '@yggi/cells/engine/time/necklace';
 import { towerSpans } from './tower';
+import { sameLevel, type HeardLevel } from './explained';
 
 /** A clocked cell's span on the tower, in seconds: from its step (how often it moves) to its turn. */
 export interface CellSpan {
@@ -158,31 +159,23 @@ export function foldOnto(listened: Scalograms, length: number): { window: number
 }
 
 /**
- * The levels the scalogram hears most (`ridges`, of each signal shown, the stronger of two within a semitone's
- * ratio), five at most, each named after what makes it: the beat, the bar, the sections, or a cell whose step or turn
- * it is (null: none).
+ * The levels the scalogram hears (`ridges`, of each signal shown, the stronger of two within a semitone), strongest
+ * first, `most` at most: the heard side of the levels (layout/explained.ts names each after what writes it, if anything).
  */
 export function heardLevelsOf(
   scal: { readonly window: number; readonly periods: readonly number[]; readonly rows: Partial<Record<Signal, Float32Array[]>> },
   signal: Listening,
   periodic: boolean | undefined,
-  meter: readonly Named[],
-  spans: readonly CellSpan[],
-): { period: number; label: string | null }[] {
+  most = 12,
+): HeardLevel[] {
   const chosen: readonly Signal[] = signal === 'mix' ? MIXED : [signal];
   const found = chosen
     .flatMap((k) => {
       const rows = scal.rows[k];
-      return rows ? ridges({ window: scal.window, periods: scal.periods, rows, periodic }, 3) : [];
+      return rows ? ridges({ window: scal.window, periods: scal.periods, rows, periodic }, most) : [];
     })
     .sort((a, b) => b.strength - a.strength);
-  const near = (a: number, b: number) => Math.abs(Math.log2(a / b)) < 1 / 12;
-  const kept = found.filter((r, i) => !found.slice(0, i).some((q) => near(q.period, r.period)));
-  const names = [
-    ...meter,
-    ...spans.flatMap((c) => [{ period: c.step, label: `${c.name} step` }, ...(c.turn > c.step * 1.01 ? [{ period: c.turn, label: `${c.name} turn` }] : [])]),
-  ];
-  return kept.slice(0, 5).map((r) => ({ period: r.period, label: names.find((n) => near(n.period, r.period))?.label ?? null }));
+  return found.filter((r, i) => !found.slice(0, i).some((q) => sameLevel(q.period, r.period))).slice(0, most);
 }
 
 /** The boundaries heard: swells of the three signals at the sections' scale (with no sections, the cones of change),

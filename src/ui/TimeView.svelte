@@ -37,11 +37,14 @@
     voiceHues,
     type Scalograms,
   } from '../layout/timelayers';
+  import { towerStructure } from '../layout/tower';
+  import { explainLevels, explainMoments, folded, writtenLevels, type Folded } from '../layout/explained';
   import { notePixels, scalogramPixels, waterfallPixels, type Pixels } from '../layout/timepictures';
   import {
     drawCells,
     drawGrid,
     drawHeard,
+    drawLevels,
     drawMeter,
     drawNotes,
     drawPatterns,
@@ -101,7 +104,7 @@
   /** Each cell where it plays, nested (engine/time/structure.ts): one round, in lanes. */
   const nodes = $derived(planned && settings.layers.structure ? structureLanes(structure(planned, length)) : []);
   /** Where a braid turns to its next spliced cell, heard (engine/time/splices.ts). */
-  const spliced = $derived(planned && settings.layers.splices ? splices(planned, length) : []);
+  const spliced = $derived(planned && (settings.layers.splices || settings.layers.heard) ? splices(planned, length) : []);
   /** The patterns: motifs heard at two time scales, and foldings alike at two levels. */
   const patterns = $derived(settings.layers.patterns ? patternsOf(heardNotes, spans, listened, length) : null);
   const written = $derived(sectionsOver(piece.sections ?? [], length).filter((s) => s.at > 0 && s.at < length));
@@ -130,8 +133,20 @@
   /** The scalograms as listened to (every round), and folded onto the round shown. */
   let listenedScal = $state.raw<Scalograms | null>(null);
   const scal = $derived(listenedScal ? foldOnto(listenedScal, length) : null);
-  /** The levels the scalogram hears most, named after what makes them (layout/timelayers.ts). */
-  const heardLevels = $derived(scal ? heardLevelsOf(scal, settings.signal, listenedScal?.periodic, meter, spans) : []);
+  /**
+   * What is heard against what is written (layout/explained.ts, #416), both ways: the levels the scalogram hears
+   * against the cells' steps and turns and the meter, within the periods it can hear; the boundaries heard against the
+   * sections and splices written.
+   */
+  // (the written side: the cells the graph's strip has as rows, layout/tower.ts towerStructure — what times something)
+  const structured = $derived.by(() => {
+    if (!active || !piece.program.ok) return [];
+    const rows = new Set(towerStructure(piece.program, piece.graph).map((r) => r.name));
+    return spans.filter((c) => rows.has(c.name));
+  });
+  const levels = $derived(
+    scal ? explainLevels(heardLevelsOf(scal, settings.signal, listenedScal?.periodic), writtenLevels(meter, structured), [scal.periods[0] ?? 0, scal.window / 6]) : null,
+  );
   /** The waterfall, and whose each band of it is (`owner`: an index in `voices` + 1, 0 no note's). */
   let fall = $state.raw<{ freqs: readonly number[]; times: readonly number[]; rows: Float32Array[]; owner: Uint8Array; voices: readonly string[]; seconds: number } | null>(null);
   let wave = $state.raw<{ peaks: Float32Array; seconds: number; done: number } | null>(null);
@@ -242,6 +257,15 @@
 
   /** The boundaries heard (layout/timelayers.ts): over every round, folded onto the one shown. */
   const heardMarks = $derived(listenedScal ? heardMarksOf(listenedScal, written, rounds, length) : []);
+  const moments = $derived(
+    explainMoments(
+      heardMarks,
+      [...written.map((s) => ({ at: s.at, kind: 'section' as const, label: s.label })), ...spliced.map((s) => ({ at: s.at, kind: 'splice' as const }))],
+      Math.max(1, length / 200),
+    ),
+  );
+  /** How folded each axis is, for the toolbar: what is heard that the cells explain, what is written that is heard. */
+  const foldedText = (name: string, f: Folded) => `${name} ${f.explained}/${f.heard} explained · ${f.heardOf}/${f.written} heard`;
 
   // ── drawing ──────────────────────────────────────────────────────────────────────────────────────────────────
   /** The theme's colours, read once a draw (getComputedStyle each time is slow). */
@@ -266,20 +290,20 @@
   $effect(() => {
     const f = frame;
     const layers: TimeLayers = settings.layers;
-    const [sb, fb, w, n, ws, hd, sp, cs, pt, vs, back, mt, rg, st] = [
+    const [sb, fb, w, n, ws, hd, sp, cs, pt, vs, back, mt, lv, st] = [
       scalBitmap,
       fallBitmap,
       wave,
       notes,
       written,
-      heardMarks,
+      moments,
       spliced,
       spans,
       patterns,
       voices,
       longest,
       meter,
-      heardLevels,
+      levels,
       nodes,
     ];
     if (!canvas || f.width < 2 || f.height < 2) return;
@@ -316,12 +340,13 @@
       }
     }
     drawGrid(g, f, css);
-    if (layers.meter && layers.scalogram && scal) drawMeter(g, f, css, scal, mt, rg);
+    if (layers.meter && layers.scalogram && scal) drawMeter(g, f, css, scal, mt);
     if (layers.sections) drawSections(g, f, css, ws);
-    if (layers.heard) drawHeard(g, f, css, hd, ws, sp);
+    if (layers.heard) drawHeard(g, f, css, hd);
     if (layers.splices) drawSplices(g, f, css, sp);
     if (layers.cells) drawCells(g, f, css, cs);
     if (pt) drawPatterns(g, f, css, pt);
+    if (layers.meter && layers.scalogram && scal && lv) drawLevels(g, f, css, scal, lv);
   });
 
   // ── hands: drag to move, wheel or pinch to zoom, a click to play from there ──────────────────────────────────
@@ -375,7 +400,7 @@
     { key: 'waterfall', label: 'waterfall', title: 'The sound’s spectrum over time, each band in its voice’s colour (rendered: the first five minutes at most)' },
     { key: 'waveform', label: 'waveform', title: 'The sound itself, at the top (rendered: the first five minutes at most)' },
     { key: 'sections', label: 'sections', title: 'The sections the code writes' },
-    { key: 'heard', label: 'heard', title: 'Boundaries heard in the scalogram: white on a section, teal on a splice, orange on neither' },
+    { key: 'heard', label: 'heard', title: 'Boundaries heard in the scalogram: white on a section, teal on a splice, orange on neither; a section not heard hollow' },
     { key: 'splices', label: 'splices', title: 'Where a braid turns to its next spliced cell (&tune &a &b …)' },
     { key: 'cells', label: 'cells', title: 'Each cell’s span on the tower, from its step to its turn, at the left' },
     {
@@ -383,7 +408,12 @@
       label: 'structure',
       title: 'Each cell where it plays, at the height of its own length: the splice tree by scale, over the scalogram (a copy, base=, dashed in its base’s colour)',
     },
-    { key: 'meter', label: 'meter', title: 'The beat, the bar and the sections’ length across the scalogram; at the right, the levels it hears most, named after what makes them' },
+    {
+      key: 'meter',
+      label: 'meter',
+      title:
+        'The beat, the bar and the sections’ length across the scalogram; at the right, the levels written against those heard, joined where they meet, alone where they don’t',
+    },
     { key: 'patterns', label: 'patterns', title: 'Motifs heard at two time scales, boxed; foldings alike at two levels, listed' },
   ];
   const SIGNAL_LABEL: Record<TimeSignal, string> = {
@@ -409,6 +439,14 @@
     {/if}
     <button class="toggle" onclick={fit} title="The whole piece (or a double click)">fit</button>
     {#if busy}<span class="busy">{busy}…</span>{/if}
+    {#if levels && settings.layers.meter}
+      <span class="folded" title="Levels (time scales): those heard that the cells explain · those written that are heard. A folded piece: all of both"
+        >{foldedText('levels', folded(levels))}</span
+      >
+    {/if}
+    {#if settings.layers.heard && heardMarks.length}
+      <span class="folded" title="Moments: boundaries heard that a section or splice explains · sections written that are heard">{foldedText('moments', folded(moments))}</span>
+    {/if}
     {#if settings.layers.waterfall && fall}
       <p class="legend voices" title="The waterfall's colours: each band the voice whose note sounds there">
         {#each fall.voices as v (v)}<span style:--c={voices.get(v)?.css}>{v}</span>{/each}
@@ -499,7 +537,8 @@
     color: var(--text);
     border-color: var(--accent);
   }
-  .busy {
+  .busy,
+  .folded {
     color: var(--text-muted);
     font: 500 var(--text-sm) var(--font-ui);
   }

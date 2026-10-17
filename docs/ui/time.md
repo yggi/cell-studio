@@ -5,6 +5,11 @@ wide screen the **time** button in the graph's toolbar shows it in the graph's p
 
 ## What it shows
 
+The view keeps apart what it **hears** in the output and what the cells **write**, and matches them both ways
+(`layout/explained.ts`, [#416](https://github.com/yggi/cell-studio/issues/416)): what both have, what is heard that
+nothing writes (unexplained), what is written that leaves no trace (unheard). A fully folded piece has no gaps either
+way. So far two axes: levels (time scales) and moments (boundaries).
+
 - **Across: time**, from the piece's start to its end, or one round of a loop (the cycle the transport's slider has;
   5 to 12: a day). A loop goes round, so its scalogram is transformed circularly (no edges, nothing veiled: the end
   runs into the start); one with chance, whose rounds differ, is listened to for three rounds (`listening` in
@@ -29,7 +34,8 @@ wide screen the **time** button in the graph's toolbar shows it in the graph's p
   - **waveform**: the rendered sound, in the card's octave at the top.
   - **sections**: the sections the code writes (the selector's steps, `sections`), as lines with their names.
   - **heard**: boundaries heard in the scalogram (swells of the three signals at the sections' scale; with no sections,
-    cones of entries), marks under the notes: white on a section, teal on a splice, orange on neither.
+    cones of entries), marks under the notes: white on a section, teal on a splice, orange on neither (unexplained); a
+    section written where nothing is heard, a hollow mark (unheard). The share of each, in the toolbar (*moments*).
   - **splices**: a tick where a braid turns to its next spliced cell (`&tune &a &b &end …`; `engine/time/splices.ts`),
     where the output then plays: phrases written inside a braid rather than as a clock.
   - **cells**: each clocked cell's span on the tower (from its step down to its turn, `towerSpans`), a bar at the left:
@@ -43,9 +49,12 @@ wide screen the **time** button in the graph's toolbar shows it in the graph's p
     is; a MIDI file converted to cells shows the folder's phrases and their copies where they return.
   - **meter**: dashed lines across the scalogram at the beat and the bar of the meter that drives the piece (its tempo
     cell's step and turn, `mainTempo`) and the sections' usual length, labelled; the bars' lines where they are far
-    enough apart to see. At the right, the levels the scalogram hears most (`ridges`: the peaks of each row's mean
-    power), named after what makes them where one is within a semitone's ratio: the beat, the bar, the sections, or a
-    cell's step or turn (Korobeiniki's 0.21 s, `tune step`).
+    enough apart to see. At the right, a strip of the levels **written against those heard** (`layout/explained.ts`): the written at its
+    left (the beat, the bar, the sections, each cell's step and turn, one level within a semitone, `+n` for more cells
+    on it), the heard at its right (`ridges`: the peaks of each row's mean power, a bar as long as it is strong). A pair
+    within a semitone is joined straight across; alone, a gap: a level heard that nothing writes orange with its period,
+    a level written that is not heard muted and hollow. A written level the scalogram can't hold is left out. The share
+    of each, in the toolbar (*levels*).
   - **patterns** (off by default): the motifs heard at two time scales (`engine/time/motifs.ts`), boxed round their notes
     with their ratio, and the foldings alike at two levels or in rhythm and pitch (`engine/time/necklace.ts`), listed at
     the bottom; over the first ten minutes.

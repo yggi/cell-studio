@@ -8,6 +8,7 @@ import { sectionsOver } from '@yggi/cells/engine/time/boundaries';
 import { scalograms, SIGNALS, type Signal } from '@yggi/cells/engine/time/signals';
 import { listening } from '@yggi/cells/engine/time/span';
 import { structure } from '@yggi/cells/engine/time/structure';
+import { explainLevels, sameLevel, writtenLevels } from './explained';
 import { grid } from '@yggi/cells/engine/time/wavelet';
 import { buildGraph } from './drawn';
 import {
@@ -25,7 +26,15 @@ import {
   shownNotes,
   structureLanes,
   voiceHues,
+  type CellSpan,
+  type Named,
 } from './timelayers';
+
+/** The five levels heard most, each named after the level written within a semitone of it, if any (layout/explained.ts). */
+function named(scal: Parameters<typeof heardLevelsOf>[0], periodic: boolean | undefined, p: { meter: Named[]; spans: CellSpan[] }) {
+  const x = explainLevels(heardLevelsOf(scal, 'mix', periodic), writtenLevels(p.meter, p.spans), [0, Infinity]);
+  return heardLevelsOf(scal, 'mix', periodic, 5).map((h) => ({ period: h.period, label: x.both.find((b) => sameLevel(b.heard.period, h.period))?.written.label ?? null }));
+}
 
 /** A piece as the time view takes it in (ui/TimeView.svelte): its length shown, its rounds, the notes listened to. */
 function piece(key: keyof typeof PRESETS) {
@@ -158,12 +167,13 @@ describe('the time view: what the scalogram hears', () => {
     expect(scal.window).toBe(96);
     expect(scal.periods.length).toBe(108);
     expect(scal.rows.envelope?.[0]?.length).toBe(4096);
-    expect(heardLevelsOf(scal, 'mix', l.periodic, p.meter, p.spans).map((r) => [round(r.period, 3), r.label])).toEqual([
+    expect(named(scal, l.periodic, p).map((r) => [round(r.period, 3), r.label])).toEqual([
       [0.297, 'chords step'],
       [0.149, null],
       [0.595, 'beat'],
       [15.102, null],
-      [1.189, null],
+      // (every signal's ridges weighed, not its three strongest: a fourth of one outweighs 1.19 s)
+      [0.198, null],
     ]);
     expect(heardMarksOf(l, p.written, p.rounds, p.length).map((b) => round(b.at, 3))).toEqual([57.551, 9.574, 75.902, 47.121, 28.793, 86.543, 33.387]);
   });
@@ -172,7 +182,7 @@ describe('the time view: what the scalogram hears', () => {
     const p = piece('korobeiniki');
     const l = p.listenedScal();
     const scal = foldOnto(l, p.length);
-    expect(heardLevelsOf(scal, 'mix', l.periodic, p.meter, p.spans).map((r) => [round(r.period, 3), r.label])).toEqual([
+    expect(named(scal, l.periodic, p).map((r) => [round(r.period, 3), r.label])).toEqual([
       [32, null],
       [0.21, 'tune step'],
       [0.105, null],
