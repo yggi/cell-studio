@@ -20,6 +20,7 @@ Lifted from yggi/jambot .claude/skills/land/SKILL.md @ ef79048.
 3. **Merge it by squash**, the pull request's title as the message, so `main` reads `Title (#n)`: `merge_pull_request` with `merge_method: "squash"`.
    A merge commit only for a stack that has to stay one lineage, as the senior skill's "Stacked PRs and the merge strategy" allows.
 4. **The issues**, before the deploy (GitHub acts only on a `Closes #n` in this repository; the rest is by hand):
+   **A text the owner wrote is never edited**: the session appends its footer to every body or comment it writes, so an edit would sign the owner's words as Claude's. Where a step below would edit one (a tick in the owner's epic, a reference in the owner's issue), post a comment instead.
    1. **Closed as said:** every `Closes #n` in the merged pull request closed its issue (`issue_read`).
       One that didn't (an issue in another repository, a typo) is closed by hand, `state_reason: completed`, with a comment naming the pull request (`yggi/cell-studio#<pr>`).
    2. **Ticked:** a `Part of #n` epic's checklist line for this pull request is ticked (`- [x] … (#<pr>)`); an epic with no line for it gets one comment naming what landed.
