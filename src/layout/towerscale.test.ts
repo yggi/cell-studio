@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { decadeLabel, HEARING, TOWER_PX, towerScale, towerTicks, withConstant } from './towerscale';
+import { HEARING, TOWER_PX, towerScale, towerTicks, withConstant } from './towerscale';
 import { towerY } from './towerlayout';
 
 describe('the tower scale (#440)', () => {
@@ -31,12 +31,12 @@ describe('the tower scale (#440)', () => {
     expect(s.strata[1]!.bottom).toBe(500);
   });
 
-  it('its marks: Hz named at 1, 2, 5; each C; each decade as a period or a frequency', () => {
+  it('its marks: Hz named at 1, 2, 5; each C; round periods under the audible', () => {
     const s = towerScale({ perDecade: 100, offset: 0 });
     const t = towerTicks(s, -Infinity, Infinity);
     expect(t.hz.filter((x) => x.named).map((x) => x.label)).toEqual(['20 Hz', '50 Hz', '100 Hz', '200 Hz', '500 Hz', '1 kHz', '2 kHz', '5 kHz', '10 kHz', '20 kHz']);
     expect(t.octaves.map((x) => x.label)).toEqual(['C1', 'C2', 'C3', 'C4', 'C5', 'C6', 'C7', 'C8', 'C9', 'C10']);
-    expect(t.decades.map((x) => x.label)).toEqual(['12 d', '1.2 d', '2.8 h', '17 min', '1.7 min', '10 s', '1 Hz', '10 Hz']);
-    expect(decadeLabel(3)).toBe('1 kHz');
+    expect(t.hz.filter((x) => x.decade).map((x) => x.label)).toEqual(['100 Hz', '1 kHz', '10 kHz']);
+    expect(t.periods.map((x) => x.label)).toEqual(['1 d', '1 h', '10 min', '1 min', '10 s', '1 s', '0.1 s']);
   });
 });

@@ -39,7 +39,7 @@ A colour says what something is or carries; where another value would mean nothi
 | an out's own colour (its spire's mast and hairline, its share of the strip, its name there), and a voice's, a kit's and a mixer's name on the strip | its section's (`tapTintRgb`); a mix's the mean of what it mixes, a kit's of what plays it; else its base note's, else white: steady, not the note now. The strip's spectrum takes 15% of its band's note | `sectionRgb` (ui/sections.ts), `heard.ts` `outTint` |
 | a band lit in the sky (where a spire sounds) | its pitch class's hue, saturated and bright | `theme.ts` `litRgb` |
 | the sky and the strip's rainbow | each semitone band its note's colour by octave, muted | `TowerSky.svelte`, `TowerStrips.svelte` |
-| the time view's notes and waterfall | **a hue a voice** (golden angle), not its note: not aligned with the graph yet (open, docs/notes/tower-sky.md) | `voiceHues` (layout/timelayers.ts) |
+| the time view's notes, waterfall and voices' rows | the graph's colour for the voice's out: its section's (a drum its kit's), else its base note's, else white | `sectionRgb` (ui/sections.ts), `outTint` (ui/heard.ts) |
 | the time view's scalogram | three signals added: breaks red, entries green, density blue | `TIME` (theme.ts) |
 | what you act on | the accent, gold | `--accent` |
 | a state (off, unrouted, idle, live) | the same colour, dimmer or brighter, not another | `--edge-*` (app.css), edges.css |

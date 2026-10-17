@@ -3,11 +3,16 @@
  * end and zoomable; frequency up, on the tower's logarithmic axis (layout/tower.ts), from the piece's slowest level at
  * the bottom through the pulse and the audible to the sound card's samples at the top. Every layer sits at its own
  * height: the scalogram (periods as frequencies) in the slow and the pulse, the notes at their pitch and the waterfall
- * in the audible, the waveform above it, where the card is. Pure: numbers in, numbers out.
+ * in the audible, the waveform above it, where the card is; between the pulse and the audible the neutral zone, off
+ * the scale, its rows the voices (as the graph's). The vertical axis is the tower's scale (layout/towerscale.ts, #440),
+ * the graph's own, fitted to the view's height. Pure: numbers in, numbers out.
  */
-import { TOWER_ZONES } from './tower';
+import { towerScale, towerTicks, type TowerScale } from './towerscale';
 
-/** What the view shows: seconds `from` to `to` across `width` px, frequencies `lo` to `hi` (Hz) up `height` px. */
+/**
+ * What the view shows: seconds `from` to `to` across `width` px, frequencies `lo` to `hi` (Hz) up `height` px, the
+ * neutral zone `zone` px of it; `scale`, the tower's scale those make.
+ */
 export interface Frame {
   readonly from: number;
   readonly to: number;
@@ -15,6 +20,8 @@ export interface Frame {
   readonly hi: number;
   readonly width: number;
   readonly height: number;
+  readonly zone: number;
+  readonly scale: TowerScale;
 }
 
 /** Where the audible ends and the card's samples begin (Hz), and the top of the axis: an octave of room for the waveform. */
@@ -24,15 +31,27 @@ const TOP = 2 * CARD;
  * longest nodes: a section, the line). */
 const bottomOf = (window: number) => 1 / Math.max(window, 1);
 
-/** A frame for a window of `window` seconds, all of it in view. */
-export function frameFor(window: number, width: number, height: number): Frame {
-  return { from: 0, to: Math.max(window, 1e-3), lo: bottomOf(window), hi: TOP, width, height };
+/** The tower's scale for `lo` … `hi` (Hz) over `height` px, `zone` px of it the neutral zone at 20 Hz: even elsewhere. */
+function scaleOf(lo: number, hi: number, height: number, zone: number): TowerScale {
+  const [from, to] = [Math.log10(lo), Math.log10(hi)];
+  const perDecade = Math.max(1e-6, height - zone) / Math.max(1e-6, to - from);
+  const decades = zone / perDecade;
+  return towerScale({ perDecade, offset: (to + decades) * perDecade, zone: decades, from, to });
 }
+
+/** A frame for a window of `window` seconds, all of it in view, `zone` px of its height the neutral zone. */
+export function frameFor(window: number, width: number, height: number, zone = 0): Frame {
+  const lo = bottomOf(window);
+  return { from: 0, to: Math.max(window, 1e-3), lo, hi: TOP, width, height, zone, scale: scaleOf(lo, TOP, height, zone) };
+}
+
+/** The frame at another size or neutral zone, showing the same stretch of time. */
+export const resized = (f: Frame, width: number, height: number, zone = f.zone): Frame => ({ ...f, width, height, zone, scale: scaleOf(f.lo, f.hi, height, zone) });
 
 export const xOf = (f: Frame, t: number) => ((t - f.from) / (f.to - f.from)) * f.width;
 export const tOf = (f: Frame, x: number) => f.from + (x / f.width) * (f.to - f.from);
-export const yOf = (f: Frame, hz: number) => f.height * (1 - Math.log(hz / f.lo) / Math.log(f.hi / f.lo));
-export const hzOf = (f: Frame, y: number) => f.lo * Math.pow(f.hi / f.lo, 1 - y / f.height);
+export const yOf = (f: Frame, hz: number) => f.scale.y(Math.log10(hz));
+export const hzOf = (f: Frame, y: number) => Math.pow(10, f.scale.at(y));
 
 /** The shortest stretch the view zooms in to (s). */
 const NARROWEST = 0.05;
@@ -79,22 +98,11 @@ export function timeTicks(f: Frame, count = 8): { at: number; label: string }[] 
   return out;
 }
 
-/**
- * Marks up the tower: each decade, labelled as a time below 20 Hz (1 h, 1 min, 10 s, 1 s) and as a frequency above
- * (100 Hz, 1 kHz); a slow piece's day has its hours too.
- */
+/** Marks up the tower (towerscale.ts): round periods below 20 Hz (1 min, 10 s, 1 s, 0.1 s), each decade in Hz above. */
 export function freqTicks(f: Frame): { hz: number; label: string }[] {
-  const out: { hz: number; label: string }[] = [];
-  const marks = [1 / 86400, 1 / 3600, 1 / 600, 1 / 60, 1 / 10, 1, 10, 100, 1000, 10000];
-  for (const hz of marks) {
-    if (hz < f.lo || hz > f.hi) continue;
-    out.push({ hz, label: hz < 20 ? shortTime(1 / hz).replace('.0 ', ' ') : hz < 1000 ? `${hz} Hz` : `${hz / 1000} kHz` });
-  }
-  return out;
+  const t = towerTicks(f.scale, 0, f.height);
+  return [...t.periods, ...t.hz.filter((x) => x.decade)].map((x) => ({ hz: x.hz, label: x.label }));
 }
 
-/** The tower's zones in view, from the bottom: their names and their frequency bands (Hz). */
-export function zones(f: Frame): { name: string; lo: number; hi: number }[] {
-  const bounds = [...TOWER_ZONES.map((z) => ({ name: z.name, lo: z.from === -Infinity ? 0 : Math.pow(10, z.from) })), { name: 'card', lo: CARD }];
-  return bounds.map((z, i) => ({ name: z.name, lo: Math.max(z.lo, f.lo), hi: Math.min(bounds[i + 1]?.lo ?? Infinity, f.hi) })).filter((z) => z.hi > z.lo);
-}
+/** The tower's strata in view, from the bottom (towerscale.ts): their names and where they are drawn. */
+export const zones = (f: Frame) => f.scale.strata.filter((z) => z.bottom > 0 && z.top < f.height);

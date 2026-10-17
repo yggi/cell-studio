@@ -238,6 +238,6 @@ Then the strata line up across both views: the sky in the graph is the time view
 ## Next
 
 1. The socket's round meter and its spire now say the same thing: the socket could become the spire's big dot.
-2. The time view's voices are a hue each (golden angle), not their notes: align them with the graph's (the colour table, [ui/theme.md](../ui/theme.md#colour-rules)).
+2. ~~The time view's voices are a hue each (golden angle), not their notes~~: they take the graph's section colours, in a neutral zone of their own on the shared scale (#440).
 3. Profile the sky while playing (the profile skill) before it goes on by default.
 4. The tiered strip (5), its own issue: [#440](https://github.com/yggi/cell-studio/issues/440), one scale and strata for both views (`layout/towerscale.ts`) and one strip filled from each view's x; the minimap is most of it, for the graph.

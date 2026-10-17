@@ -59,14 +59,20 @@ export function nodeSections(program: CompileResult, model: GraphModel): Map<str
 
 /**
  * A node's section colour (rgb), steady, its name's on the tower strip: its section's; a mix's, the mean of what it
- * mixes (each input's own, so a mix of two sections is between them); a kit's, of what plays it. null: no section, or
- * the piece has only one.
+ * mixes (each input's own, so a mix of two sections is between them); a kit's, of what plays it, and a drum's on it
+ * its kit's. null: no section, or the piece has only one.
  */
 export function sectionRgb(model: GraphModel, sections: ReadonlyMap<string, Section>, id: string, seen = new Set<string>()): readonly number[] | null {
   if (seen.has(id)) return null;
   seen.add(id);
   const node = model.nodes.find((n) => n.id === id);
-  if (node?.cell?.mix || node?.cell?.kit) {
+  // (a drum drawn as a piece of its kit has no node: its kit's)
+  if (!node) {
+    const name = id.slice('cell:'.length);
+    const kit = model.nodes.find((n) => n.cell?.kit && n.cell.units.some((u) => u.atom.kind === 'ref' && u.atom.name === name));
+    return kit ? sectionRgb(model, sections, kit.id, seen) : null;
+  }
+  if (node.cell?.mix || node.cell?.kit) {
     const kit = !node.cell.mix;
     const ins = model.edges
       .flatMap((e) => (kit ? (e.from === id && e.port === 'over' ? [e.to] : []) : e.to === id && e.port === 'mix' ? [e.from] : []))

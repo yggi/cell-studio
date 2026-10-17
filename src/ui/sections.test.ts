@@ -23,6 +23,8 @@ describe('sections (decision 016)', () => {
     // (a kit: of what plays it — the beat and the roll)
     const [beat, roll] = [tapTintRgb(4, 7), tapTintRgb(5, 7)];
     expect(sectionRgb(model, sections, 'cell:kit:voices')).toEqual([0, 1, 2].map((i) => Math.round((beat[i]! + roll[i]!) / 2)));
+    // (a drum drawn on its kit, no node of its own: its kit's)
+    expect(sectionRgb(model, sections, 'cell:bd')).toEqual(sectionRgb(model, sections, 'cell:kit:voices'));
     const two = compileSource(`
 &bar scan(1 1 1 1) step=100bpm
 &parts step=4n &aBar &bBar

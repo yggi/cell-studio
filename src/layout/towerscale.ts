@@ -79,28 +79,30 @@ export function withConstant(s: TowerScale, band: { readonly top: number; readon
   return { ...s, strata: [{ name: 'constant', lo: -Infinity, hi: -Infinity, ...band }, ...over] };
 }
 
-/** A decade as the tower names it: a period below 1 Hz (10 s, 1.7 min, 2.8 h, 1.2 d), a frequency from it. */
-export function decadeLabel(d: number): string {
-  const hz = 10 ** d;
-  if (hz >= 1000) return `${hz / 1000} kHz`;
-  if (hz >= 1) return `${hz} Hz`;
-  const s = 1 / hz;
-  return s >= 86400 ? `${+(s / 86400).toPrecision(2)} d` : s >= 3600 ? `${+(s / 3600).toPrecision(2)} h` : s >= 60 ? `${+(s / 60).toPrecision(2)} min` : `${s} s`;
-}
+/** The periods marked under the audible (s), and their names: round times, as a clock reads them. */
+const PERIODS: readonly (readonly [number, string])[] = [
+  [86400, '1 d'],
+  [3600, '1 h'],
+  [600, '10 min'],
+  [60, '1 min'],
+  [10, '10 s'],
+  [1, '1 s'],
+  [0.1, '0.1 s'],
+];
 
 /**
  * The scale's marks between `y0` and `y1` (y): in the audible, a tick a step of each decade in Hz (named at 1, 2, 5:
- * 20 Hz, 50 Hz, 1 kHz) and each C (C1 … C10); under it, each decade (named as `decadeLabel` says).
+ * 20 Hz, 50 Hz, 1 kHz; `decade` at 1) and each C (C1 … C10); under it, round periods (1 min, 10 s, 1 s, 0.1 s).
  */
 export function towerTicks(s: TowerScale, y0: number, y1: number) {
   const inView = (y: number) => y >= y0 && y <= y1;
-  const hz: { y: number; hz: number; named: boolean; label: string }[] = [];
+  const hz: { y: number; hz: number; named: boolean; decade: boolean; label: string }[] = [];
   for (let d = 1; d <= 4; d++)
     for (let m = 1; m <= 9; m++) {
       const f = m * 10 ** d;
       const y = s.y(Math.log10(f));
       if (f < 20 || f > 20000 || !inView(y)) continue;
-      hz.push({ y, hz: f, named: m === 1 || m === 2 || m === 5, label: f >= 1000 ? `${f / 1000} kHz` : `${f} Hz` });
+      hz.push({ y, hz: f, named: m === 1 || m === 2 || m === 5, decade: m === 1, label: f >= 1000 ? `${f / 1000} kHz` : `${f} Hz` });
     }
   const octaves: { y: number; label: string }[] = [];
   for (let n = 0; n <= 10; n++) {
@@ -108,10 +110,9 @@ export function towerTicks(s: TowerScale, y0: number, y1: number) {
     const y = s.y(Math.log10(f));
     if (f >= 20 && f <= 20000 && inView(y)) octaves.push({ y, label: `C${n}` });
   }
-  const decades: { y: number; d: number; label: string }[] = [];
-  for (let d = -6; d <= 1; d++) {
-    const y = s.y(d);
-    if (inView(y)) decades.push({ y, d, label: decadeLabel(d) });
-  }
-  return { hz, octaves, decades };
+  const periods = PERIODS.flatMap(([sec, label]) => {
+    const y = s.y(-Math.log10(sec));
+    return inView(y) ? [{ y, hz: 1 / sec, label }] : [];
+  });
+  return { hz, octaves, periods };
 }

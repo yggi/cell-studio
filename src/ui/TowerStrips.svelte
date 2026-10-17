@@ -244,10 +244,10 @@
       g.textAlign = 'left';
       halo(t.label, open ? 12 : 8, t.y + 3);
     }
-    // decades, under the audible
+    // round periods, under the audible
     g.font = '10px system-ui, sans-serif';
     g.textAlign = 'right';
-    for (const t of ticks.decades) {
+    for (const t of ticks.periods) {
       g.strokeStyle = css('--line');
       g.beginPath();
       g.moveTo(open ? 0 : W - 12, t.y);
