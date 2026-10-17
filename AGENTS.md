@@ -22,7 +22,7 @@ Enforced (a failing test or CI says so): `AGENTS.md` and `docs/MEMORY.md` togeth
 
 Judgment (nothing checks these; you do):
 - The code (text) is the single source of truth; every graph edit rewrites a cell's line (`engine/edit.ts` in `@yggi/cells`).
-- **The language is [yggi/cells](https://github.com/yggi/cells)**, pinned in `package.json` at a tag (`#v0.3.0`): its parser, compiler, engine, examples and MIDI corpus, its docs and its decisions. A change to what the language means is a pull request there, and this app takes it by moving the pin; a change here never edits `node_modules/@yggi/cells`.
+- **The language is [yggi/cells](https://github.com/yggi/cells)**, pinned in `package.json` at a tag (`#v0.4.0`): its parser, compiler, engine, examples and MIDI corpus, its docs and its decisions. A change to what the language means is a pull request there, and this app takes it by moving the pin; a change here never edits `node_modules/@yggi/cells`.
 - Don't hand-format: Prettier owns whitespace and line breaks (`.prettierrc.json`). A commit that only reformats goes in `.git-blame-ignore-revs`. ESLint opt-outs say why, in `eslint.config.js` or on the line.
 - Theme values come from `src/app.css` and `src/ui/theme.ts` only (a plugin carries its own colours in its manifest: [decision 011](docs/decisions/011-plugins.md)).
 - A user-visible change adds a line under *Unreleased* in `CHANGELOG.md`; mention changes that could affect saved `.cells` pieces.

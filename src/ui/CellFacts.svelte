@@ -9,6 +9,7 @@
   import { flatten } from '@yggi/cells/engine/flatten';
   import { noteName } from '@yggi/cells/theory/modes';
   import { isSelector, voiceBase } from '../layout/show';
+  import { levelsText, lineShare, tapSwing } from '../layout/meters';
 
   let { result, name, compact = false }: { result: CompileResult; name: string; compact?: boolean } = $props();
   // (compact: inside the sheet's "More", under its Connections — no heading, no relations twice)
@@ -50,9 +51,23 @@
       out.push(['a step', `${fmt(1 / perSecond, 3)} s${rel !== null ? `, ${frac(rel)} of &${c.step!.driver}'s step` : ''}`]);
       // (a tap: its meter, tapped as written; else the clock, and the cell that steps it when another)
       const tap = c.step?.tap;
-      if (tap) out.push(['clock', `&${c.step!.driver}, tapped ${tap}`]);
+      // (and swung, where a level of its meter's swing moves its steps: cells v0.4.0)
+      const swing = levelsText(tapSwing(result, name));
+      if (tap) out.push(['clock', `&${c.step!.driver}, tapped ${tap}${swing ? `, swung ${swing}` : ''}`]);
       else if (c.clock !== name) out.push(['clock', `&${c.clock}${c.step && c.step.driver !== c.clock ? ` (stepped by &${c.step.driver})` : ''}`]);
     }
+    // its articulation (legato=, cells v0.4.0): its own, or its meter's for its tap's level; a cell of shares at each note
+    // (a line's: what starts notes, as the player reads it)
+    const lc = c.paramCells.legato;
+    const share = result.outputs.some((o) => o.cell === name) ? lineShare(result, name) : null;
+    if (lc) out.push(['legato', `${lc.factors.map((f) => `&${f}`).join(' × ')}, read at each note`]);
+    else if (share && (share.share !== 1 || c.params.legato !== undefined))
+      out.push(['legato', `${fmt(share.share)} of each note's length${share.from ? ` (&${share.from}'s, for ${c.step!.tap})` : ''}`]);
+    // a meter's feel by level (cells v0.4.0): swing=8n:.67, legato=16n:.5
+    const swing = levelsText(c.meter?.swing);
+    const legato = levelsText(c.meter?.legato);
+    if (swing) out.push(['swing', swing]);
+    if (legato) out.push(['legato', `${legato}, for a line tapping it`]);
     // an uneven meter: each beat against an even one
     if (c.scan && result.clocks.get(name)?.positional && new Set(c.scan.steps).size > 1) {
       const mean = c.scan.steps.reduce((a, b) => a + b, 0) / c.scan.steps.length;

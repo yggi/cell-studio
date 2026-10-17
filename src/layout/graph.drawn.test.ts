@@ -379,7 +379,8 @@ describe('a wire carries its transform', () => {
     expect(edge(PRESETS.echotape.source, 'bar', 'tune').transforms).toEqual([[]]);
     expect(edge('&bar scan(1 1 1 1) step=1\n&t step=1m/4 0', 'bar', 't').transforms).toEqual([[{ kind: 'rate', by: [{ op: '÷', n: 4 }], per: 'step', whole: false }]]);
     expect(edge(PRESETS.fifths.source, 'tune', 'key').transforms).toEqual([[{ kind: 'rate', by: [], per: 'cycle', whole: false }]]);
-    expect(edge(PRESETS.automaton.source, 'bar', 'bells').transforms).toEqual([[{ kind: 'rate', by: [], per: 'step', whole: false, belt: 3000 }]]);
+    // (a tap on a belt names itself on its wire, cells v0.4.0: `step=8n belt=3000` is `8n · belt`)
+    expect(edge(PRESETS.automaton.source, 'bar', 'bells').transforms).toEqual([[{ kind: 'rate', by: [], per: 'step', whole: false, belt: 3000, tap: '8n' }]]);
     expect(edge(PRESETS.waveforms.source, 'tune', 'pluck').transforms).toEqual([[{ kind: 'rate', by: [], per: 'step', whole: true }]]);
     expect(edge('&m step=1 0\n&t step=&m*3/2 0', 'm', 't').transforms).toEqual([
       [
@@ -486,6 +487,9 @@ function tokensOn(line: string): Token[] {
     }
     const inMix = (text.slice(0, m.index).match(/\[/g)?.length ?? 0) > (text.slice(0, m.index).match(/\]/g)?.length ?? 0);
     const shift = m[3] && /^\[(<<|>>)(\d*)\]$/.exec(m[3]);
+    // (a meter's tap, `&bar:8n`: written on its wire where a belt is, as `8n · belt`)
+    const tap = /^:([^\s*/]+)/.exec(rest)?.[1];
+    if (tap) rest = rest.slice(tap.length + 1);
     const chain = (/^([*/][\d.]+)+/.exec(rest.replace(/^\)/, ''))?.[0] ?? '').replace(/\*/g, '×').replace(/\//g, '÷');
     const cycle = /cycle\($/.test(text.slice(0, m.index));
     // (an argument of a generator, spell(…, &keys, …): the steps it makes are its, not written)
@@ -493,7 +497,7 @@ function tokensOn(line: string): Token[] {
     where = inMix ? 'mix' : (where ?? (call ? 'generated' : 'braid'));
     const written =
       where === 'step' || where === 'loop'
-        ? [where === 'loop' ? 'loop' : '', (cycle ? '⟳' : '') + chain, belt ? '· belt' : '']
+        ? [where === 'loop' ? 'loop' : '', belt ? (tap ?? '') : '', (cycle ? '⟳' : '') + chain, belt ? '· belt' : '']
         : TIME_PARAMS.has(where)
           ? [(cycle ? '⟳' : '') + chain]
           : [

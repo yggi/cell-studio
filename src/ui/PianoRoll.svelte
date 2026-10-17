@@ -12,12 +12,15 @@
    * braid left free (`free(0 2 4 ~)`, #210), is held in its place as a take is, until Keep (`ctx.setFree`); its Undo
    * (Ctrl/⌘+Z on the roll) writes back the braid an edit replaced. The model is `layout/roll.ts`; this draws it and reports pointer and keys. The drawing
    * follows Jambot's lane (`apps/web/src/components/Lane.svelte` @ 8cdb6b8): a viewBox of steps × rows, stretched
-   * (`preserveAspectRatio="none"`), lines that keep their width (`vector-effect`), a dim layer under the notes.
+   * (`preserveAspectRatio="none"`), lines that keep their width (`vector-effect`), a dim layer under the notes. Under
+   * `legato=` (cells v0.4.0: the line's own, or its meter's for its level) a note is drawn twice: its held length, faint,
+   * the bar you edit, and over it what sounds, that share of it (shorter, or on past it into the next).
    */
   import { SvelteSet } from 'svelte/reactivity';
   import { getGraphContext } from './context';
   import RollKeys from './RollKeys.svelte';
   import { palette } from './palette';
+  import { lineShare } from '../layout/meters';
   import { declWords, setBraid, spansLines } from '@yggi/cells/engine/edit';
   import {
     columnAt,
@@ -99,6 +102,8 @@
     const row = rows[y(value)];
     return row ? colourOf(row) : palette('level', 0.7);
   };
+  // (legato=: the share of its held length each note sounds; null when a cell of shares varies it from note to note)
+  const share = $derived(lineShare(ctx.program, name)?.share ?? 1);
   const ghosts = $derived(roll ? ghostsOf(ctx.program, name, frame.steps).filter((g) => g.row >= lo && g.row <= hi) : []);
 
   // x: the steps, at least MIN_COL px each (wider rolls scroll sideways)
@@ -321,6 +326,7 @@
                   <rect
                     class="note"
                     class:lit={heard !== null && heard >= c.start && heard < c.start + c.len}
+                    class:held={share !== 1}
                     x={c.start + 0.06}
                     y={y(r) + 0.08}
                     width={c.len - 0.12}
@@ -329,6 +335,18 @@
                     ry={3 / ROW}
                     fill={colourAt(r)}
                   />
+                  {#if share !== 1}
+                    <rect
+                      class="sounds"
+                      x={c.start + 0.06}
+                      y={y(r) + 0.26}
+                      width={Math.max(0.1, c.len * share - 0.12)}
+                      height="0.48"
+                      rx={2 / col}
+                      ry={2 / ROW}
+                      fill={colourAt(r)}
+                    />
+                  {/if}
                 {/if}
               {/each}
             {/each}
@@ -445,6 +463,15 @@
     opacity: 0.12;
   }
   .note {
+    stroke: var(--wheel-hand-edge);
+    stroke-width: 1;
+    vector-effect: non-scaling-stroke;
+  }
+  .note.held {
+    fill-opacity: 0.35;
+  }
+  .sounds {
+    pointer-events: none;
     stroke: var(--wheel-hand-edge);
     stroke-width: 1;
     vector-effect: non-scaling-stroke;

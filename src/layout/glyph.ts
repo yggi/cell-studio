@@ -7,7 +7,7 @@
  */
 import type { CompileResult, ResolvedCell } from '@yggi/cells/engine/program';
 import { mod, modeBrightness } from '@yggi/cells/theory/modes';
-import type { CellView, Fill, Segment } from './cellview';
+import { swungTurn, type CellView, type Fill, type Segment } from './cellview';
 import { BORDER, border } from './coarse';
 import { fitFont } from './dial';
 import { polar, ringSegment } from './geometry';
@@ -450,7 +450,9 @@ export function readAt(sg: Segment, g: WheelGeometry): XY {
 export function handOf(view: CellView, local: () => number | null, lap: number): number | null {
   if (view.mode !== 'braid' && view.mode !== 'matrix') return null;
   const at = local();
-  return at != null ? at / lap : null;
+  if (at == null) return null;
+  // (a swung meter's hand goes through its steps where they are played, as its segments sit)
+  return view.swung ? swungTurn(view.swung, at / lap) : at / lap;
 }
 
 /** show=lfo's radius for a value (0 … 1) between the ring's edges. */

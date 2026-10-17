@@ -9,6 +9,7 @@ import { entries, resolvePitch, semitones } from '@yggi/cells/engine/helix';
 import { modeName, mod, noteName } from '@yggi/cells/theory/modes';
 import { isSelector, kindOf } from './show';
 import { lfoValues } from './cellview';
+import { levelsText } from './meters';
 
 /** A piece of the summary: words, or a cell to link to. */
 export type Bit = string | { readonly ref: string };
@@ -141,7 +142,11 @@ export function summary(result: CompileResult, name: string): Bit[] {
       const beats = leveled ? c.units.filter((u) => u.atom.kind === 'note' && u.atom.value <= 1).length : (c.scan?.steps.length ?? c.units.length);
       const even = !c.scan || new Set(c.scan.steps).size === 1;
       const finer = leveled && c.beat > 1 ? `, ${+c.beat.toFixed(2)} steps a beat` : '';
-      return [`A meter of ${plural(beats, even ? 'beat' : 'uneven beat')}${perMinute ? `, ${perMinute} a minute` : ''}${finer}`, ...tail('steps', ', stepping '), '.'];
+      // (its feel by level, cells v0.4.0: swing= and legato= on the meter)
+      const swing = levelsText(c.meter?.swing);
+      const legato = levelsText(c.meter?.legato);
+      const feel = `${swing ? `, swinging ${swing}` : ''}${legato ? `, its notes sounding ${legato} of their length` : ''}`;
+      return [`A meter of ${plural(beats, even ? 'beat' : 'uneven beat')}${perMinute ? `, ${perMinute} a minute` : ''}${finer}${feel}`, ...tail('steps', ', stepping '), '.'];
     }
     case 'adsr': {
       const e = adsrOf(c);
