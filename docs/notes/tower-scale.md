@@ -21,7 +21,7 @@ The time view keeps apart what it **hears** in the output and what the cells **w
 ## Open
 
 - **#443 is stacked on #442**: once #442 is squashed in, merge `main` into #443 (`node tools/sync-pr.mjs 443`) before it is reviewed.
-- **Rung 4, `TowerAxis`**: the signal path's tower axis (`?layout=flow`, the *tower* button) has its own scale, balanced by `towerFit` (not affine, so not a `towerScale`). Recommended: retire it with a line in `limits.md`, since the tower layout is the default and its strip is the axis; or give `TowerScale` a fitted variant. The owner decides (#440).
+- ~~Rung 4, `TowerAxis`~~: retired in #443 (the owner's call); its focus (the cell selected outlined and named) moved to the strip.
 - **Heard levels in the graph's strip**: none yet; the time view's listening (its worker's answer) isn't kept where the graph can read it.
 - **#416's later rungs**: material (motifs heard against the cells that play them) and sound (the waterfall's bands no note owns).
 

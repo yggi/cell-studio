@@ -46,6 +46,8 @@
     tintOf = (name: string) => (graph ? outRgb(graph, name) : [255, 255, 255]),
     source,
     heardLevels = null,
+    focus = null,
+    right = 0,
   }: {
     ins: readonly TowerIn[];
     /** The lanes, and the lanes each node feeds (layout/minimap.ts). */
@@ -70,6 +72,10 @@
     source?: TowerSource;
     /** The levels heard against those written (layout/explained.ts): the heard drawn at their periods, gaps marked. */
     heardLevels?: Explained<HeardLevel, WrittenLevel> | null;
+    /** The cell selected (its name): its row outlined and named. */
+    focus?: string | null;
+    /** How far from its pane's right edge it stands (px): 0, or the width a cell's card covers. */
+    right?: number;
     /** A tap on what the strip shows for a node (its id): the view moves to it. */
     onfocus?: (id: string) => void;
   } = $props();
@@ -380,13 +386,20 @@
         x += e.share * (xb - xa);
       }
       g.globalAlpha = 1;
+      // (the cell selected: its row outlined, its name bold)
+      if (name === focus) {
+        g.strokeStyle = css('--text');
+        g.lineWidth = 1.5;
+        g.strokeRect(xa - 2.5, y - 5.5, xb - xa + 5, 11);
+        g.lineWidth = 1;
+      }
       if (open && inColumn) {
         // (names of one height in other lanes, one under the other)
         let ny = y;
         while (named.some((n) => Math.abs(n - ny) < 8)) ny += 8;
         named.push(ny);
-        g.fillStyle = css('--text-muted');
-        g.font = '8px system-ui, sans-serif';
+        g.fillStyle = css(name === focus ? '--text' : '--text-muted');
+        g.font = `${name === focus ? '700 ' : ''}8px system-ui, sans-serif`;
         g.textAlign = 'left';
         g.fillText(name, 4, ny + 3, x0At(ny) - 6);
       }
@@ -674,6 +687,7 @@
       viewport.zoom,
       scale,
       heardLevels,
+      focus,
       source && ctx.heads,
       ins,
       structure,
@@ -704,7 +718,7 @@
 </script>
 
 <svelte:window onpointerdowncapture={onDown} onpointerupcapture={onUp} />
-<div class="strip" style:width="{sw}px" bind:clientHeight={h} bind:this={stripEl}>
+<div class="strip" style:width="{sw}px" style:right="{right}px" bind:clientHeight={h} bind:this={stripEl}>
   {#if h}
     <canvas bind:this={canvas} width={sw * dpr} height={h * dpr} style:width="{sw}px" style:height="{h}px"></canvas>
   {/if}

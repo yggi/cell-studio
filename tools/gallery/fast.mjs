@@ -40,9 +40,6 @@ if (process.env.ROWS) q.set('rows', process.env.ROWS);
 if (process.env.OUTPUTS) q.set('outputs', process.env.OUTPUTS);
 // (MARGIN=1: the graph's margin open, its notes and scopes: src/ui/Margin.svelte)
 if (process.env.MARGIN) q.set('margin', process.env.MARGIN);
-// (TOWER=1: the frequency tower open beside the graph, src/ui/TowerAxis.svelte; TOWER_CELL=tune: its line, as if selected)
-if (process.env.TOWER) q.set('tower', process.env.TOWER);
-if (process.env.TOWER_CELL) q.set('towerCell', process.env.TOWER_CELL);
 // (the graph's own default, the tower layout: src/layout/towerlayout.ts; LAYOUT=flow: the signal path's; STRIPS=1: the strip opened)
 if (process.env.LAYOUT) q.set('layout', process.env.LAYOUT);
 if (process.env.STRIPS) q.set('strips', process.env.STRIPS);

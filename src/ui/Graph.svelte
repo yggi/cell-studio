@@ -40,7 +40,6 @@
   import { isSide, sideEntries } from '../layout/side';
   import { channelColour } from './theme';
   import type { SideMark } from './context';
-  import TowerAxis, { TOWER_WIDTH } from './TowerAxis.svelte';
   import FlowViewport from './FlowViewport.svelte';
   import { TOWER_PX, towerScale } from '../layout/towerscale';
   import TowerStrips from './TowerStrips.svelte';
@@ -57,9 +56,7 @@
   import { pillAnchor } from '../layout/taploom';
   import type { Viewport } from '@xyflow/svelte';
 
-  // (?tower: the tower open from the start, ?towerCell=tune its line, as if selected: the gallery's pictures)
   const QUERY = typeof location !== 'undefined' ? new URLSearchParams(location.search) : null;
-  const towerCell = QUERY?.get('towerCell') ?? null;
   // (the tower layout by default, docs/notes/tower-sky.md; ?layout=flow: the signal path's from the start; ?strips: the
   // strip opened)
   const LAYOUT = QUERY?.get('layout') === 'flow' ? 'flow' : 'tower';
@@ -374,9 +371,7 @@
   // the structure on the strip (TowerStrips.svelte): each stepped cell at its rate, the tables nothing steps at the
   // bottom (-Infinity), each showing its spectrum of values
   const structure = $derived(towered ? towerStructure(shown.program, shown.model) : []);
-  // the frequency tower beside the graph (TowerAxis.svelte), in the signal path's layout
-  let towerOpen = $state(QUERY?.has('tower') ?? false);
-  // (the flow's pan and zoom, for the tower drawn beside it; framed again when the tower opens or closes)
+  // (the flow's pan and zoom, for the strip and the sky drawn beside and behind it)
   let viewport = $state<Viewport>({ x: 0, y: 0, zoom: 1 });
   // the tower's bounds, which the view can't be panned beyond: 20 kHz at the top, the lowest node at the bottom, the
   // nodes left and right (a margin round them, more on the right, under the strip); kept while the nodes move less than
@@ -396,26 +391,30 @@
   });
   // (a tap on the strip: the view moves to that node)
   let flyTo = $state<{ x: number; y: number } | null>(null);
-  let towerFits = $state(0);
   // a cell's card on a wide screen (CellSheet.svelte: 380 px, 16 px from the window's right) covers the graph's right
-  // edge: the tower stands left of it and the graph makes room there; with too little room left, it waits for the card
+  // edge: the strip stands left of it, at the card's edge, and the graph gives up that room (as the retired tower
+  // axis did), so the row of the cell selected stays in sight
   let graphEl = $state<HTMLDivElement>();
   let graphW = $state(0);
   let cardCover = $state(0);
   $effect(() => {
     void graphW;
-    const carded = !!selectedName && !!graphEl && matchMedia('(min-width: 900px)').matches;
+    const carded = towered && !!selectedName && !!graphEl && matchMedia('(min-width: 900px)').matches;
     cardCover = carded ? Math.max(0, graphEl!.getBoundingClientRect().right - (innerWidth - 396) + 8) : 0;
   });
-  // (with a card beside it the tower waits unless 240 px of graph are left; with none it shows at any width, a phone's included)
-  const towerShown = $derived(!towered && towerOpen && (cardCover === 0 || graphW - (hasMargin ? MARGIN_WIDTH : 0) - cardCover - TOWER_WIDTH >= 240));
-  // (a card opened or closed beside the tower: the graph is framed again in the room left, so no cell is cut off)
-  let lastCover = 0;
+  // the graph and its strip side by side: when the split between them moves (a drag's end, a collapse, a card), the
+  // graph is framed again in the room it has, so both resize (after SPLIT_SETTLE ms still: not at every step of a drag)
+  const SPLIT_SETTLE = 150;
+  let splitFits = $state(0);
+  let lastSplit = untrack(() => stripW + cardCover);
   $effect(() => {
-    const cover = towerShown ? cardCover : 0;
-    if (cover === lastCover) return;
-    lastCover = cover;
-    untrack(() => towerFits++);
+    const w = stripW + cardCover;
+    if (w === lastSplit) return;
+    const t = setTimeout(() => {
+      lastSplit = w;
+      splitFits++;
+    }, SPLIT_SETTLE);
+    return () => clearTimeout(t);
   });
 
   // clusters: the tags cells carry inside the piece (not the card's) — where their members are, now
@@ -485,12 +484,10 @@
 <div
   class="graph"
   class:margined={hasMargin}
-  class:towered={towerShown}
   class:stripped={towered}
   class:sky
-  style:--strip-width="{stripW}px"
+  style:--strip-width="{stripW + cardCover}px"
   style:--margin-width="{MARGIN_WIDTH}px"
-  style:--tower-width="{TOWER_WIDTH + cardCover}px"
   bind:this={graphEl}
   bind:clientWidth={graphW}
 >
@@ -530,10 +527,10 @@
     >
       <Background gap={28} size={1.5} />
       <Controls showLock={false} />
-      <FitView token={layout.fitToken + sideFits + towerFits + refit} calm={growing} />
+      <FitView token={layout.fitToken + sideFits + splitFits + refit} calm={growing} />
       <FlyTo to={flyTo} />
       <PanBounds extent={translateExtent} />
-      {#if towerOpen || towered}<FlowViewport onchange={(v) => (viewport = v)} />{/if}
+      {#if towered}<FlowViewport onchange={(v) => (viewport = v)} />{/if}
       {#if towered}
         {#if layout.looms.length}<ViewportPortal target="back"><TapLooms looms={layout.looms} /></ViewportPortal>{/if}
       {/if}
@@ -558,15 +555,14 @@
       width={stripW}
       onresize={(w) => stripWidth.resize(w)}
       {tintOf}
+      focus={selectedName ?? null}
+      right={cardCover}
       ontoggle={() => stripWidth.toggle()}
       onfocus={(id) => {
         const p = layout.position(id);
         if (p) flyTo = { x: p.x, y: p.y };
       }}
     />
-  {/if}
-  {#if towerShown}
-    <TowerAxis model={shown.model} program={shown.program} nodes={layout.nodes} {viewport} focus={selectedName ?? towerCell} right={cardCover} />
   {/if}
   <div class="toolbar">
     {#if !locked}<button class="add-cell" onclick={onadd} title="Add a cell (blank: the chromatic default)">+ cell</button>{/if}
@@ -579,16 +575,6 @@
       aria-pressed={towered}
       title="Lay the graph out by the frequency tower: each cell at its time scale, the sound card a strip at the right">tower layout</button
     >
-    {#if !towered}<button
-        class="forces-toggle"
-        class:on={towerOpen}
-        onclick={() => {
-          towerOpen = !towerOpen;
-          towerFits++;
-        }}
-        aria-pressed={towerOpen}
-        title="Each cell's time scale, from the constant to the audible">tower</button
-      >{/if}
     {#if ontime}<button class="forces-toggle" onclick={ontime} title="The piece in time: a tracker of its notes, its scalogram and its sound">time</button>{/if}
     {#if hasSide}<button
         class="forces-toggle"
@@ -642,13 +628,6 @@
   }
   .graph.margined .hint {
     left: calc(var(--margin-width) + 56px);
-  }
-  /* (the tower takes its strip beside the graph: nothing is laid under it) */
-  .graph.towered .flow {
-    right: var(--tower-width);
-  }
-  .graph.towered .hint {
-    right: calc(var(--tower-width) + 16px);
   }
   /* (the tower layout: its strip at the right, the graph beside it) */
   .graph.stripped .flow {
