@@ -37,6 +37,7 @@
     voiceHues,
     type Scalograms,
   } from '../layout/timelayers';
+  import { towerStructure } from '../layout/tower';
   import { explainLevels, explainMoments, folded, writtenLevels, type Folded } from '../layout/explained';
   import { notePixels, scalogramPixels, waterfallPixels, type Pixels } from '../layout/timepictures';
   import {
@@ -137,8 +138,14 @@
    * against the cells' steps and turns and the meter, within the periods it can hear; the boundaries heard against the
    * sections and splices written.
    */
+  // (the written side: the cells the graph's strip has as rows, layout/tower.ts towerStructure — what times something)
+  const structured = $derived.by(() => {
+    if (!active || !piece.program.ok) return [];
+    const rows = new Set(towerStructure(piece.program, piece.graph).map((r) => r.name));
+    return spans.filter((c) => rows.has(c.name));
+  });
   const levels = $derived(
-    scal ? explainLevels(heardLevelsOf(scal, settings.signal, listenedScal?.periodic), writtenLevels(meter, spans), [scal.periods[0] ?? 0, scal.window / 6]) : null,
+    scal ? explainLevels(heardLevelsOf(scal, settings.signal, listenedScal?.periodic), writtenLevels(meter, structured), [scal.periods[0] ?? 0, scal.window / 6]) : null,
   );
   /** The waterfall, and whose each band of it is (`owner`: an index in `voices` + 1, 0 no note's). */
   let fall = $state.raw<{ freqs: readonly number[]; times: readonly number[]; rows: Float32Array[]; owner: Uint8Array; voices: readonly string[]; seconds: number } | null>(null);
