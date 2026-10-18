@@ -1,77 +1,181 @@
+<script lang="ts" module>
+  import { Score } from './loudness';
+  import type { GraphContext } from './context';
+
+  // (the score's shape over a lap, stopped: one a piece, shared by its sockets, sampled a few slots a frame)
+  let score: Score | null = null;
+  let sampledAt = -Infinity;
+  const scoreOf = (ctx: GraphContext): Score => {
+    if (!score || score.program !== ctx.program || score.shifts !== ctx.shifts || score.muted !== ctx.muted || score.from !== ctx.cursor)
+      score = new Score(ctx.program, ctx.shifts, ctx.muted, ctx.cursor);
+    return score;
+  };
+</script>
+
 <script lang="ts">
   /**
    * A socket into the sound card (the tower layout, docs/notes/tower-strip.md): the card is everywhere, and each thing
-   * it hears comes into a socket of its own, held at that thing's height on the tower. Its wheel is a multiband level
-   * meter: the octaves stacked up, the low at the bottom; each band a bar out from the centre, the left channel to the
-   * left, the right to the right (mono: alike). Stopped, its source's own partials, faint; playing, what it sounds now.
+   * it hears comes into a socket of its own, held at that thing's height on the tower. Its spire over it shows what it
+   * sounds by pitch (TowerSky.svelte); the socket shows it in time: a **loudness wheel** (docs/notes/tower-sky.md). Its
+   * rim is the out's level over a lap (a bar of the piece's main meter: loudness.ts `lapOf`), the loudest heard in each
+   * slot, traced round from the top with a hand where the lap is now, so the trace is the out's rhythm and dynamics, the
+   * same shape again each bar (the last lap's ahead of the hand, fainter). Its hub swells with its level now, leans to
+   * its side by its pan, and is ringed red when it reaches full scale. Stopped: the score's shape over the lap where play
+   * starts, faint (`Score`).
    */
   import { Handle, Position, type NodeProps } from '@xyflow/svelte';
   import { onDestroy, onMount, untrack } from 'svelte';
   import { getGraphContext, nodeState } from './context';
-  import { heard, noteOf } from './heard';
+  import { heard, loudness, noteOf, voiceIds } from './heard';
   import { onFrames } from '../audio/ticker';
+  import { lapOf, levelOf, LoudRing, SCORE_SLOTS } from './loudness';
   import type { FlowNode } from './types';
 
   let { data }: NodeProps<Extract<FlowNode, { type: 'socket' }>> = $props();
   const ctx = getGraphContext();
-  // (semitone bands from C0, ten octaves: grouped by octave, the lowest two left out, below hearing's floor)
   const BANDS = 120;
-  const OCTAVES = { from: 1, to: 10 };
-  const ROWS = OCTAVES.to - OCTAVES.from;
   let canvas = $state<HTMLCanvasElement>();
   const dpr = typeof devicePixelRatio === 'number' ? devicePixelRatio : 1;
   const drawnState = $derived(nodeState(ctx, `cell:${data.source}`));
   const live = $derived(!!ctx.liveEdges?.has(data.edge));
+  const ring = new LoudRing(64);
+  // (its level now, smoothed a little: the hub doesn't jitter; and when it last reached full scale)
+  let now = 0;
+  let clipped = -Infinity;
+  // (stopped: how far the score was sampled when last drawn)
+  let drawnScore = -1;
 
   const css = (name: string) => (canvas ? getComputedStyle(canvas).getPropertyValue(name).trim() : '') || '#888';
-  // (an octave's level: its loudest semitone)
-  const octaves = (levels: Float32Array) =>
-    Array.from({ length: ROWS }, (_, k) => {
-      let m = 0;
-      for (let b = (OCTAVES.from + k) * 12; b < (OCTAVES.from + k + 1) * 12; b++) m = Math.max(m, levels[b] ?? 0);
-      return m;
-    });
+  // (the theme's colours, read once a piece, not each frame: computed style is not free)
+  let themed: { unit: string; tick: string; muted: string; danger: string; disc: string } | null = null;
+  const themeOf = () => (themed ??= { unit: css('--unit'), tick: css('--wheel-tick'), muted: css('--text-muted'), danger: css('--danger'), disc: css('--wheel-disc') });
 
   function draw() {
     const g = canvas?.getContext('2d');
     if (!g) return;
     const S = data.size;
+    const theme = themeOf();
+    const c = S / 2;
+    const r0 = S * 0.15;
+    const r1 = S * 0.45;
     g.setTransform(dpr, 0, 0, dpr, 0, 0);
     g.clearRect(0, 0, S, S);
-    const { left: l, right: r, rest, drums } = heard(ctx, data.source, BANDS);
-    const L = octaves(l);
-    const R = octaves(r);
-    // (inside the disc: a square of rows, the centre line down its middle)
-    const c = S / 2;
-    const h = S * 0.62;
-    const w = S * 0.62;
-    const row = h / ROWS;
-    // (drums, noise: no note of their own, white — decision 036)
-    const colour = drums ? css('--unit') : (noteOf(ctx, data.source) ?? css('--unit'));
-    g.strokeStyle = css('--line');
-    g.lineWidth = 1;
-    g.beginPath();
-    g.moveTo(c, c - h / 2);
-    g.lineTo(c, c + h / 2);
-    g.stroke();
-    for (let k = 0; k < ROWS; k++) {
-      const y = c + h / 2 - (k + 1) * row;
-      for (const [side, v] of [
-        [-1, L[k]],
-        [1, R[k]],
-      ] as const) {
-        if (v <= 0.02) continue;
-        g.globalAlpha = rest ? 0.35 : 0.45 + 0.55 * v;
-        g.fillStyle = colour;
-        const len = v * (w / 2);
-        g.fillRect(side < 0 ? c - len : c, y + row * 0.15, len, row * 0.7);
-      }
+    const playing = ctx.state !== 'stopped';
+    const lap = lapOf(ctx.program, ctx.shifts);
+    const step = lap.stepAt(ctx.heads.seconds);
+    const turn = Number.isFinite(step) ? step / lap.steps : 0;
+    const lapNo = Math.floor(turn);
+    const phase = turn - lapNo;
+    const t = typeof performance !== 'undefined' ? performance.now() : 0;
+    const loud = playing ? loudness(ctx, data.source) : null;
+    const level = loud ? levelOf(loud.rms) : 0;
+    if (playing) {
+      ring.write(phase, lapNo, level);
+      now += (level - now) * (level > now ? 0.6 : 0.25);
+      if (loud && loud.peak >= 0.999) clipped = t;
+    } else {
+      const sc = scoreOf(ctx);
+      const shape = sc.shape(voiceIds(ctx, data.source));
+      ring.fill(
+        Array.from({ length: ring.slots }, (_, i) => shape[Math.floor((i * SCORE_SLOTS) / ring.slots)] ?? 0),
+        lapNo,
+      );
+      drawnScore = sc.filled;
+      now = 0;
     }
+    // (drums, noise: no note of their own, white — decision 036)
+    const { left, right, drums } = heard(ctx, data.source, BANDS);
+    const colour = drums ? theme.unit : (noteOf(ctx, data.source) ?? theme.unit);
+    const angle = (u: number) => -Math.PI / 2 + 2 * Math.PI * u;
+    // the lap's beats, faint ticks at the rim (a bar's beats, where there are few enough to count)
+    g.strokeStyle = theme.tick;
+    g.lineWidth = 1;
+    const ticks = lap.steps <= 16 && Number.isInteger(lap.steps) ? lap.steps : 4;
+    g.beginPath();
+    for (let k = 0; k < ticks; k++) {
+      const a = angle(k / ticks);
+      g.moveTo(c + Math.cos(a) * (r1 + 1), c + Math.sin(a) * (r1 + 1));
+      g.lineTo(c + Math.cos(a) * (r1 + (k === 0 ? 5 : 3)), c + Math.sin(a) * (r1 + (k === 0 ? 5 : 3)));
+    }
+    g.stroke();
+    // the trace: out from the hub as far as each slot was loud, one shape round the lap (the last lap's, ahead of the
+    // hand, faint; this lap's, from the top to the hand, fuller), and its outline, crisp
+    const n = ring.slots;
+    const at = Math.floor(phase * n);
+    const xs = new Float32Array(n);
+    const ys = new Float32Array(n);
+    for (let i = 0; i < n; i++) {
+      const r = r0 + (r1 - r0) * (ring.fresh(i, lapNo) > 0 ? (ring.level[i] ?? 0) : 0);
+      const a = angle((i + 0.5) / n);
+      xs[i] = c + Math.cos(a) * r;
+      ys[i] = c + Math.sin(a) * r;
+    }
+    const shape = () => {
+      g.beginPath();
+      g.moveTo(xs[0]!, ys[0]!);
+      for (let i = 1; i < n; i++) g.lineTo(xs[i]!, ys[i]!);
+      g.closePath();
+    };
+    g.fillStyle = colour;
+    shape();
+    g.globalAlpha = playing ? 0.22 : 0.16;
+    g.fill();
+    if (playing && at > 0) {
+      g.beginPath();
+      g.moveTo(c, c);
+      for (let i = 0; i <= at && i < n; i++) g.lineTo(xs[i]!, ys[i]!);
+      g.closePath();
+      g.globalAlpha = 0.3;
+      g.fill();
+    }
+    g.globalAlpha = playing ? 0.9 : 0.45;
+    g.strokeStyle = colour;
+    g.lineWidth = 1.2;
+    shape();
+    g.stroke();
     g.globalAlpha = 1;
+    // (the hub's hole, where nothing is traced)
+    g.fillStyle = theme.disc;
+    g.beginPath();
+    g.arc(c, c, r0, 0, 2 * Math.PI);
+    g.fill();
+    // the hand: where the lap is now
+    if (playing || phase > 0) {
+      const a = angle(phase);
+      g.strokeStyle = theme.muted;
+      g.lineWidth = 1.5;
+      g.beginPath();
+      g.moveTo(c + Math.cos(a) * r0, c + Math.sin(a) * r0);
+      g.lineTo(c + Math.cos(a) * (r1 + 2), c + Math.sin(a) * (r1 + 2));
+      g.stroke();
+    }
+    // the hub: its level now, leaning to its side by its balance (the two channels' levels), red-ringed at full scale
+    let l = 0;
+    let r = 0;
+    for (let b = 0; b < BANDS; b++) {
+      l += left[b] ?? 0;
+      r += right[b] ?? 0;
+    }
+    const lean = l + r > 0 ? (r - l) / (l + r) : 0;
+    const hx = c + lean * r0 * 0.6;
+    g.fillStyle = colour;
+    g.globalAlpha = playing ? 0.35 + 0.65 * now : 0.3;
+    g.beginPath();
+    g.arc(hx, c, Math.max(1.5, r0 * (0.3 + 0.6 * now)), 0, 2 * Math.PI);
+    g.fill();
+    g.globalAlpha = 1;
+    if (t - clipped < 1200) {
+      g.strokeStyle = theme.danger;
+      g.lineWidth = 2;
+      g.beginPath();
+      g.arc(c, c, r0, 0, 2 * Math.PI);
+      g.stroke();
+    }
   }
 
   $effect(() => {
-    void [ctx.program, ctx.shifts, ctx.state, canvas, data.source];
+    void [ctx.program, ctx.shifts, ctx.state, ctx.muted, ctx.cursor, canvas, data.source];
+    themed = null;
     // (only what is listed: what draw reads, the playheads among it, would draw it again each frame)
     untrack(draw);
   });
@@ -79,14 +183,23 @@
   onMount(
     () =>
       (stop = onFrames(
-        () => ctx.state !== 'stopped' && draw(),
-        () => 33,
+        (t) => {
+          if (ctx.state !== 'stopped') return draw();
+          // (stopped: the score sampled a slot a frame, shared by the sockets; each drawn again as it fills)
+          const sc = scoreOf(ctx);
+          if (sc.filled < SCORE_SLOTS && t - sampledAt > 12) {
+            sampledAt = t;
+            sc.advance(1);
+          }
+          if (drawnScore !== sc.filled) draw();
+        },
+        () => 50,
       )),
   );
   onDestroy(() => stop());
 </script>
 
-<div class="socket" class:live data-state={drawnState} style="width: {data.size}px; height: {data.size}px" title="&{data.source} into the sound card">
+<div class="socket" data-wheel="socket" class:live data-state={drawnState} style="width: {data.size}px; height: {data.size}px" title="&{data.source} into the sound card">
   <Handle type="target" position={Position.Top} class="center-handle" isConnectable={false} />
   <canvas bind:this={canvas} width={data.size * dpr} height={data.size * dpr} style="width: {data.size}px; height: {data.size}px"></canvas>
   <span class="name">out</span>

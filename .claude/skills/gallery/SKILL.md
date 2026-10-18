@@ -43,7 +43,7 @@ tiles pair up by name. Show both in the PR as the "how verified" of a visual cha
 close-up, `FRAMES=` the filmstrip's length) opens each piece in the tower layout, plays it `secs` and keeps
 `tiles/<piece>-still.png` (the whole app), `-close.png` (zoomed in over the audible's middle, from the sky's
 `data-audible`), `-film-<n>.png` (the close-up's upper half, 120 ms apart), `-sky.png` (the close-up with the graph
-hidden), and `sky.json`. Read it for: whether a tone's partials stand out as points of light at their heights and a
+hidden), `-rest-socket-<k>.png` and `-live-socket-<k>.png` (each out's socket close, its loudness wheel, stopped before play and playing in the close-up; `SOCKETS=` how many, `SCALE=2` sharper), and `sky.json`. Read it for: whether a tone's partials stand out as points of light at their heights and a
 drum's noise stays a haze, whether the light spreads across the sky (not heaped by the sockets), the spires' spikes
 against the light, and over the filmstrip whether it breathes or blinks. `lagPx` should be 0: the sky's layers follow
 the graph's transform between draws; it reads the sky's `data-view` (the view it shows) against the flow's own

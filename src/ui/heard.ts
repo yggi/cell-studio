@@ -111,3 +111,30 @@ export const outRgb = (ctx: GraphContext, source: string): readonly [number, num
   const c = noteHslOf(ctx, source);
   return c ? hslRgb(...c) : UNIT_RGB;
 };
+
+/** The graph ids of the voices that sound for `source` (its own, or a kit's drums): what the score says it plays. */
+export const voiceIds = (ctx: GraphContext, source: string): string[] => voicesOf(ctx, source).names.map((n) => `cell:${n}`);
+
+/**
+ * How loud a source is now, playing (null stopped, or when nothing of it sounds): its RMS and its peak over the
+ * analyser's window, amplitudes with 1 full scale, its voices together (powers added, the loudest peak).
+ */
+export function loudness(ctx: GraphContext, source: string): { rms: number; peak: number } | null {
+  if (ctx.state === 'stopped') return null;
+  let power = 0;
+  let peak = 0;
+  let any = false;
+  for (const name of voicesOf(ctx, source).names) {
+    const wave = ctx.sound.waveform(name);
+    if (!wave?.length) continue;
+    any = true;
+    let sum = 0;
+    for (let i = 0; i < wave.length; i++) {
+      const v = wave[i] ?? 0;
+      sum += v * v;
+      if (Math.abs(v) > peak) peak = Math.abs(v);
+    }
+    power += sum / wave.length;
+  }
+  return any ? { rms: Math.sqrt(power), peak } : null;
+}

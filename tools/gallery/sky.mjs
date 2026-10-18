@@ -5,6 +5,8 @@
 //   - a close-up, zoomed in ZOOMS wheel notches over the audible (`-close.png`), a filmstrip of its upper half, FRAMES
 //     frames 120 ms apart (`-film-<n>.png`: is it blinking or sparkling), and it again with the graph hidden
 //     (`-sky.png`): the sky alone;
+//   - each out's socket close, its loudness wheel (SOCKETS of them at most): stopped, before play (`-rest-socket-<k>.png`:
+//     the score's shape), and playing, in the close-up (`-live-socket-<k>.png`); SCALE=2 for sharper tiles;
 //   - the numbers (`sky.json`): `flicker`, how much the sky's pixels change from one 50 ms sample to the next against how
 //     bright it is (blinking is a high flicker; a sky that breathes is a low one), `bright` its mean brightness, and
 //     `lagPx`, `lagMax`, how far the sky's drawing is from where the graph is while the graph is panned and zoomed
@@ -29,6 +31,8 @@ const out = process.env.OUT ?? 'shots/sky';
 const FRAMES = Number(process.env.FRAMES ?? 6);
 // (wheel notches in, for the close-up)
 const ZOOMS = Number(process.env.ZOOMS ?? 5);
+// (sockets pictured close, at most)
+const SOCKETS = Number(process.env.SOCKETS ?? 6);
 mkdirSync(join(out, 'tiles'), { recursive: true });
 if (!process.env.DIST) freshBuild();
 const server = await preview({ preview: { port: 0, host: '127.0.0.1' }, build: process.env.DIST ? { outDir: process.env.DIST } : {}, logLevel: 'error' });
@@ -37,7 +41,7 @@ const [vw, vh] = (process.env.VIEW ?? '1600x1000').split('x').map(Number);
 const browser = await chromium.launch({ args: ['--autoplay-policy=no-user-gesture-required', '--no-sandbox'] });
 const results = [];
 for (const title of titles) {
-  const page = await browser.newPage({ viewport: { width: vw, height: vh } });
+  const page = await browser.newPage({ viewport: { width: vw, height: vh }, deviceScaleFactor: Number(process.env.SCALE ?? 1) });
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
   await page.goto(url);
@@ -47,12 +51,29 @@ for (const title of titles) {
   const exact = page.locator(`button.open[aria-label="Open ${title}"]`);
   await ((await exact.count()) ? exact : page.locator('button.open')).first().dispatchEvent('click');
   await page.waitForTimeout(2500); // (the layout settles)
-  await page.locator('.transport').getByRole('button', { name: 'Play' }).first().click();
-  await page.waitForTimeout(Number(secs) * 1000);
-  const file = title
+  const file0 = title
     .replace(/[^\w]+/g, '-')
     .toLowerCase()
     .replace(/-$/, '');
+  // each out's socket, its loudness wheel, close (SOCKETS at most): stopped (the score's shape), then playing
+  const sockets = async (tag) => {
+    const els = await page.locator('[data-wheel="socket"]').all();
+    let k = 0;
+    for (const el of els.slice(0, SOCKETS)) {
+      const b = await el.boundingBox();
+      if (!b || b.width < 4) continue;
+      const pad = b.width * 0.35;
+      await page.screenshot({
+        path: join(out, 'tiles', `${file0}-${tag}-socket-${k++}.png`),
+        clip: { x: b.x - pad, y: b.y - pad, width: b.width + 2 * pad, height: b.height + 2 * pad },
+      });
+    }
+    return k;
+  };
+  const rest = await sockets('rest');
+  await page.locator('.transport').getByRole('button', { name: 'Play' }).first().click();
+  await page.waitForTimeout(Number(secs) * 1000);
+  const file = file0;
   const sky = page.locator('[data-sky]').first();
   if (!(await sky.count())) {
     console.log(`${title}: no sky`);
@@ -81,6 +102,7 @@ for (const title of titles) {
     await page.screenshot({ path: join(out, 'tiles', `${file}-film-${k}.png`), clip: { ...box, height: box.height / 2 } });
     await page.waitForTimeout(120);
   }
+  const playing = await sockets('live');
   // the sky alone: the graph hidden over it
   const hide = await page.addStyleTag({ content: '.svelte-flow__viewport { opacity: 0 !important; }' });
   await page.screenshot({ path: join(out, 'tiles', `${file}-sky.png`), clip: box });
@@ -161,6 +183,7 @@ for (const title of titles) {
     title,
     file,
     sky: true,
+    sockets: [rest, playing],
     flicker: +flicker.toFixed(3),
     bright: +bright.toFixed(1),
     lagPx: lagPx === null ? null : +lagPx.toFixed(1),
@@ -176,12 +199,13 @@ writeFileSync(join(out, 'sky.json'), JSON.stringify(results, null, 1));
 const cell = (r) =>
   `<figure data-kind="${r.file}"><figcaption><b>${r.title}</b> · flicker ${r.flicker ?? '–'} · bright ${r.bright ?? '–'} · lag ${r.lagPx ?? 'n/a'} px (worst ${r.lagMax ?? 'n/a'})</figcaption>` +
   (r.sky
-    ? `<div class="row"><img src="tiles/${r.file}-still.png" class="still"><img src="tiles/${r.file}-close.png" class="still"><img src="tiles/${r.file}-sky.png" class="still"></div><div class="row">${Array.from({ length: FRAMES }, (_, k) => `<img src="tiles/${r.file}-film-${k}.png">`).join('')}</div>`
+    ? `<div class="row"><img src="tiles/${r.file}-still.png" class="still"><img src="tiles/${r.file}-close.png" class="still"><img src="tiles/${r.file}-sky.png" class="still"></div><div class="row">${Array.from({ length: FRAMES }, (_, k) => `<img src="tiles/${r.file}-film-${k}.png">`).join('')}</div>` +
+      `<div class="row sockets">${['rest', 'live'].flatMap((tag, j) => Array.from({ length: r.sockets?.[j] ?? 0 }, (_, k) => `<img src="tiles/${r.file}-${tag}-socket-${k}.png" title="${tag}">`)).join('')}</div>`
     : '<p>no sky</p>') +
   '</figure>';
 writeFileSync(
   join(out, 'index.html'),
-  `<!doctype html><meta charset="utf-8"><title>The audible sky</title><style>body{background:#111;color:#ddd;font:13px system-ui;margin:12px}figure{margin:0 0 18px}.row{display:flex;gap:4px;margin-top:4px}.row img{width:${(100 / FRAMES).toFixed(2)}%;min-width:0}.row img.still{width:33.3%}</style>${results.map(cell).join('')}`,
+  `<!doctype html><meta charset="utf-8"><title>The audible sky</title><style>body{background:#111;color:#ddd;font:13px system-ui;margin:12px}figure{margin:0 0 18px}.row{display:flex;gap:4px;margin-top:4px}.row img{width:${(100 / FRAMES).toFixed(2)}%;min-width:0}.row img.still{width:33.3%}.row.sockets img{width:110px;flex:none}</style>${results.map(cell).join('')}`,
 );
 const sheet = await browser.newPage({ viewport: { width: 2400, height: 1000 } });
 await sheet.goto('file://' + join(process.cwd(), out, 'index.html'));

@@ -45,7 +45,7 @@ The pieces as built (the mix, the octave gradient, each out in its note), real a
 Seen:
 
 - The sky reads as a spectrogram standing on the graph: each part's light at its own heights, Hypercell's bass part low and red, its hook's saws high. Where many spires stand close (Hypercell's six outs over 900 px) the light runs together into one band; reach could scale with the space between spires.
-- **The socket's meter and its spire say the same thing twice.** The spire is the scale-locked meter; the round meter could become just its foot (the wire's end and *out*), keeping its room in the layout. Not done: the owner's call.
+- **The socket's meter and its spire say the same thing twice.** The spire is the scale-locked meter; the round meter could become just its foot (the wire's end and *out*), keeping its room in the layout. (Done another way on 2026-10-18: the socket became a loudness wheel, below.)
 - The socket, its wire, its spire and its share of the strip now wear one colour, the source's note.
 - Cost: not profiled yet (the profile skill is next before building it out). One canvas at half resolution, about 60 bands × 2 sides × the spires a frame, and one blur.
 
@@ -227,6 +227,22 @@ Before and after, the close-ups at 15 s (`OUT=shots/sky-before DIST=<base build>
 ![the sky before and after: Hypercell, Pachelbel, the Prelude, IDM, A tone](tower-sky-round4.jpg)
 
 Seen: Hypercell at 15 s plays its bass and drums, so its sky is mostly a haze, a few glints on the bass's partials; Pachelbel's and the Prelude's tones are stars at their partials, their spires' spikes wide over them; IDM's drums a haze round their wide spike, its acid line's partials a few glints; *A tone*'s sine one bright band near its socket and a few glints on it.
+
+## The socket a loudness wheel (2026-10-18)
+
+The socket's round meter (ten octaves stacked, a bar each) said what its spire says, by pitch. The options (in time, not pitch): **a loudness wheel**, a stereo vectorscope, its share of the mix, its waveform, or a plain end; chosen (the owner): the loudness wheel. The tower is frequency, the wheel is time, as every other wheel in the graph turns.
+
+- **The rim** (`SocketNode.svelte`, `ui/loudness.ts`): the out's level over a **lap**, a bar of the piece's main meter (`mainMeter`, its steps a bar doubled until it lasts 1.5 s, halved while it lasts over 8 s: a fast meter's bar and a slow one's both read; 2 s without a meter; `lapOf`), in 64 slots traced round from the top, each the loudest heard while the lap was in it (`LoudRing`), out from the hub as far as it was loud (RMS on a dB scale, −60 … 0 dB: `levelOf`). A hand where the lap is now; this lap's trace from the top to the hand fuller, the last lap's ahead of it faint; a tick a beat at the rim (where a lap has 16 steps or fewer). So a kick is spikes on the beats, a bass its rhythm's bumps, a pad a ring, a riser a spiral outwards, and the same shape comes round again each bar: it changes once a bar, so it doesn't blink.
+- **The hub**: swells with its level now (smoothed), leans to its side by its balance (its two channels' levels), and is ringed red (`--danger`) for 1.2 s when it reaches full scale (a peak of 1 at the voice's or the mix's own output, before the card's gain).
+- **Stopped**: the score's shape over the lap where play starts (`Score`: the voices it plays, sampled at 32 moments by `liveAt`), faint: a slot where a voice starts to play reaches out (.85), one where it goes on is a lower ring (.45), and each fades after. One moment of a big piece is a few ms (Hypercell's 2.4 ms in node), so a piece's 32 are sampled one a frame, shared by its sockets.
+- **What it reads**: `loudness()` (`ui/heard.ts`), each of its voices' waveform (the analyser the voice's scope reads; a mix's on its input), powers added, the loudest peak.
+- **The load**: the theme's colours read once a piece (not computed style each frame), the trace two polygons, drawn 20 times a second. `node tools/profile/measure.mjs`, the production build, 20 s at ×1, busy %, the branch without the wheel → with it, two runs each: Hypercell 59.6 → 58.1, Pop 48.5 → 44.6, Cellscape 51.5 → 51.0, the Prelude 83.3 → 84.5: no change past the runs' spread. (A first version, reading computed style each frame and drawing 64 arcs 30 times a second, cost 3–6 points.)
+
+The sockets stopped and at 15 s, playing (`SCALE=2 node tools/gallery.mjs sky 15 …`, its `-rest-socket-` and `-live-socket-` tiles):
+
+![the loudness wheels, stopped and playing: Hypercell, Pachelbel, IDM, A tone, Pop, Cellscape](tower-sky-loudness.jpg)
+
+Seen: the drums' wheels a gear stopped (their onsets) and spikes playing (Hypercell's, IDM's, Pop's); Pachelbel's violins rings stopped (held lines), uneven rings playing; Pop's bass four bumps; *A tone* a ring with a notch a second; the outs silent at that moment (Hypercell's intro, Cellscape's later scenes) an empty disc with its hand turning.
 
 ## 5. One tiered strip for the graph and the time view (proposed)
 
