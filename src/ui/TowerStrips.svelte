@@ -95,14 +95,24 @@
   // (wide enough for the names; so narrow only the scale shows)
   const open = $derived(sw >= NAMED);
   const bare = $derived(sw < BARE);
-  // (a drag on its left edge: its width follows the pointer)
-  let drag: { x: number; w: number } | null = null;
+  // (its one handle, on its left edge: a tap collapses it or opens it again, a drag sets its width — it follows the
+  // pointer from the first few px, so a finger's slop is a tap)
+  const TAP = 6;
+  let drag: { x: number; w: number; moved: boolean } | null = null;
   function grip(e: PointerEvent) {
-    drag = { x: e.clientX, w: sw };
+    drag = { x: e.clientX, w: sw, moved: false };
     (e.currentTarget as Element).setPointerCapture(e.pointerId);
   }
   function dragged(e: PointerEvent) {
-    if (drag) onresize(Math.max(STRIP_MIN, Math.min(STRIP_MAX, drag.w + drag.x - e.clientX)));
+    if (!drag) return;
+    if (!drag.moved && Math.abs(e.clientX - drag.x) <= TAP) return;
+    drag.moved = true;
+    onresize(Math.max(STRIP_MIN, Math.min(STRIP_MAX, drag.w + drag.x - e.clientX)));
+  }
+  function released(e: PointerEvent) {
+    const was = drag;
+    drag = null;
+    if (was && !was.moved && e.type === 'pointerup') ontoggle();
   }
   const dpr = typeof devicePixelRatio === 'number' ? devicePixelRatio : 1;
 
@@ -180,7 +190,7 @@
     const r = stripEl.getBoundingClientRect();
     const x = e.clientX - r.left;
     const y = e.clientY - r.top;
-    if (x < 0 || y < 0 || x > r.width || y > r.height || (e.target as Element | null)?.closest?.('.fold, .grip')) return;
+    if (x < 0 || y < 0 || x > r.width || y > r.height || (e.target as Element | null)?.closest?.('.grip')) return;
     const id = tapped(x, y);
     if (id) onfocus(id);
   }
@@ -858,10 +868,7 @@
   {#if h}
     <canvas bind:this={canvas} width={sw * dpr} height={h * dpr} style:width="{sw}px" style:height="{h}px"></canvas>
   {/if}
-  <button class="fold" onclick={ontoggle} aria-pressed={!bare} title={bare ? 'Open the tower: its scale and what comes in' : 'Collapse the tower to its scale'}
-    >{bare ? '‹' : '›'}</button
-  >
-  <!-- its left edge: drag it wider or narrower -->
+  <!-- its handle, on its left edge: tap to collapse or open, drag to resize -->
   <div
     class="grip"
     role="separator"
@@ -869,11 +876,12 @@
     aria-valuenow={sw}
     aria-valuemin={STRIP_MIN}
     aria-valuemax={STRIP_MAX}
-    title="Drag to resize the tower"
+    aria-label="The tower's handle: tap to {bare ? 'open' : 'collapse'} it, drag to resize"
+    title={bare ? 'Tap to open the tower, drag to resize' : 'Tap to collapse the tower, drag to resize'}
     onpointerdown={grip}
     onpointermove={dragged}
-    onpointerup={() => (drag = null)}
-    onpointercancel={() => (drag = null)}
+    onpointerup={released}
+    onpointercancel={released}
   ></div>
 </div>
 
@@ -891,36 +899,26 @@
   canvas {
     display: block;
   }
-  .fold {
-    position: absolute;
-    top: 28px;
-    left: 50%;
-    transform: translateX(-50%);
-    min-width: 28px;
-    min-height: 24px;
-    border-radius: var(--radius-pill);
-    border: 1px solid var(--line);
-    background: var(--bg);
-    color: var(--text-muted);
-    font: 700 var(--text-sm) var(--font-ui);
-    cursor: pointer;
-    pointer-events: auto;
-  }
+  /* (a finger-sized pill astride its left edge, a grip's two lines on it) */
   .grip {
     position: absolute;
-    top: 0;
-    bottom: 0;
-    left: -4px;
-    width: 8px;
+    top: 50%;
+    left: -14px;
+    width: 28px;
+    height: 72px;
+    transform: translateY(-50%);
+    border-radius: var(--radius-pill);
+    border: 1px solid var(--line);
+    background:
+      linear-gradient(var(--text-muted), var(--text-muted)) 10px 50% / 2px 24px no-repeat,
+      linear-gradient(var(--text-muted), var(--text-muted)) 16px 50% / 2px 24px no-repeat,
+      var(--bg);
     cursor: ew-resize;
     pointer-events: auto;
     touch-action: none;
   }
-  .grip:hover {
-    background: color-mix(in oklab, var(--accent) 30%, transparent);
-  }
-  .fold[aria-pressed='true'] {
+  .grip:hover,
+  .grip:active {
     border-color: var(--accent);
-    color: var(--accent);
   }
 </style>
