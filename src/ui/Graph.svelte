@@ -555,6 +555,7 @@
       width={stripW}
       onresize={(w) => stripWidth.resize(w)}
       {tintOf}
+      sectionOf={(source) => sections.get(source)?.k}
       focus={selectedName ?? null}
       right={cardCover}
       ontoggle={() => stripWidth.toggle()}
