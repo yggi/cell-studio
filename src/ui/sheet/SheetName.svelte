@@ -1,6 +1,6 @@
 <script lang="ts">
   /** The sheet's heading: the cell's name, edited where it's shown (Enter renames, Escape puts it back); an unnamed cell, as written. */
-  import type { Rename } from './rename.svelte';
+  import { nameKeys, type Rename } from './rename.svelte';
 
   let { lambda, rename }: { lambda: string | null; rename: Rename } = $props();
   let input = $state<HTMLInputElement | null>(null);
@@ -18,10 +18,7 @@
       autocapitalize="off"
       autocomplete="off"
       style:width="{Math.max(3, rename.draft.length + 1)}ch"
-      onkeydown={(e) => {
-        if (e.key === 'Enter') (e.preventDefault(), rename.commit(), e.currentTarget.blur());
-        if (e.key === 'Escape') (e.stopPropagation(), rename.reset(), e.currentTarget.blur());
-      }}
+      {@attach nameKeys(rename)}
       onblur={() => rename.commit()}
       bind:this={input}
     />
