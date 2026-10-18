@@ -75,6 +75,8 @@ interface DrawnLink {
   kind?: string;
   /** A product's voice into its junction (`is`): drawn, but no wire to untangle (it is under the voice). */
   is?: boolean;
+  /** Where it leaves its source, when that is a bulb on it (a read head on its tape): from the source's centre, unturned. */
+  bulbAt?: { x: number; y: number };
 }
 
 export interface LayoutState {

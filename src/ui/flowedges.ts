@@ -124,6 +124,12 @@ function socketOfEdge(e: GraphEdge, program: CompileResult): { socket?: number }
   return voice?.voice && !voice.lambda ? { socket: socketOf(VOICE_SIZE * voice.size) } : {};
 }
 
+/** A mixer's sound into a tape's write head: it leaves the mixer at its top, its output, wherever the tape is. */
+const fromMixerTop = (e: GraphEdge, program: CompileResult) => {
+  const mix = program.cells.get(nameOf(e.from));
+  return e.port === 'write' && !!mix?.mix && !mix.sink;
+};
+
 /** A gate's play= (decision 023): its notes into the gate, not a tape under a read head. */
 const gatePlay = (e: GraphEdge, program: CompileResult) => e.port === 'play' && !!program.cells.get(nameOf(e.to))?.gate;
 
@@ -150,6 +156,7 @@ function pulseData(e: GraphEdge, program: CompileResult) {
     groove,
     band: e.band,
     port: e.port,
+    ...(fromMixerTop(e, program) ? { top: true } : {}),
     // (what travels along it while it plays, drawn by EdgePayload: a pointer carries nothing that travels, D6)
     payload: payloadOf(e.band, e.port, e.pointer, groove),
     width: e.width,

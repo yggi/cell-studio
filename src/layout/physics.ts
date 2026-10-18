@@ -23,6 +23,7 @@ import { folded, junctionNodes, placeJunctions, settleJunctions } from './juncti
 import { rowsKey, startNodes, startPlaces } from './start';
 import { forceUncross, stepBends, stepClusters, stepExclusion, stepKinds, stepSpread } from './forces';
 import { aims, fitTurns, stepAims } from './aims';
+import { UNTURNED } from './tape';
 import { hops, loomsOf, meterNet, netTree, readersOf, stepNets } from './nets';
 import { placeMeters } from './placement';
 import { loomContact, loomLane, loomPorts, PILL_PAD, pillOf, sectionLoom, type LoomStrand } from './sectionloom';
@@ -322,7 +323,16 @@ export class ForceLayout {
     const placedIds = (id: string) => next.has(id) || this.s.junctions.has(id);
     this.s.links = drawn.edges
       .filter((e) => !ground(e) && placedIds(e.source) && placedIds(e.target) && e.source !== e.target)
-      .map((e) => ({ id: e.id, source: e.source, target: e.target, belt: !!e.belt, strength: strengthOf(e), kind: e.band, is: e.port === 'is' }));
+      .map((e) => ({
+        id: e.id,
+        source: e.source,
+        target: e.target,
+        belt: !!e.belt,
+        strength: strengthOf(e),
+        kind: e.band,
+        is: e.port === 'is',
+        ...(e.bulb && e.bulbAt ? { bulbAt: { x: e.bulbAt.x, y: e.bulbAt.y } } : {}),
+      }));
     placeJunctions(this.s);
     // crossings untangled as drawn: a product's wires at its junction (a push on a junction moves its voice)
     (this.sim.force('uncross') as unknown as ReturnType<typeof forceUncross>).links(
@@ -410,15 +420,29 @@ export class ForceLayout {
       if (mb) ((b.x = x - off), (b.vx = v));
     }
     if (!this.s.opts.socketsAbove) return;
-    const by = new Map<string, PhysNode[]>();
+    const by = new Map<string, { n: PhysNode; bulb?: { x: number; y: number } }[]>();
     for (const l of this.s.links) {
       const [a, b] = [nodeAt(this.s, l.source), nodeAt(this.s, l.target)];
-      if (a && b?.id.startsWith('socket:')) by.set(a.id, [...(by.get(a.id) ?? []), b]);
+      if (a && b?.id.startsWith('socket:')) by.set(a.id, [...(by.get(a.id) ?? []), { n: b, ...(l.bulbAt ? { bulb: l.bulbAt } : {}) }]);
     }
     for (const [src, sockets] of by) {
       const a = this.s.byId.get(src);
       if (a?.x === undefined) continue;
-      sockets.forEach((n, k) => {
+      // (a tape's read heads: each socket over its own bulb, in the bulbs' order, so the wires run straight up and none
+      // crosses another; apart by the sockets' width where bulbs are close)
+      const turn = this.s.turns.get(src);
+      if (turn !== undefined && sockets.every((k) => k.bulb)) {
+        const rot = turn - (UNTURNED * Math.PI) / 180;
+        const [c, sn] = [Math.cos(rot), Math.sin(rot)];
+        const placed = sockets.map((k) => ({ n: k.n, x: a.x! + k.bulb!.x * c - k.bulb!.y * sn })).sort((p, q) => p.x - q.x);
+        for (let i = 1; i < placed.length; i++) placed[i]!.x = Math.max(placed[i]!.x, placed[i - 1]!.x + placed[i - 1]!.n.radius + placed[i]!.n.radius);
+        for (const p of placed) {
+          p.n.x = p.x;
+          p.n.vx = 0;
+        }
+        continue;
+      }
+      sockets.forEach(({ n }, k) => {
         n.x = a.x! + (k - (sockets.length - 1) / 2) * 2 * n.radius;
         n.vx = 0;
       });
