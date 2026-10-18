@@ -4,11 +4,11 @@
 // new kind of sound joins the list by itself.
 //
 //   npx vite-node tools/smoke-pick.ts   (or: npm run smoke -- --list)
-import { readFileSync } from 'node:fs';
 import { compileSource } from '@yggi/cells/engine/compile';
 import type { CompileResult } from '@yggi/cells/engine/program';
 import { ORDER } from '@yggi/cells/engine/order';
 import { pieceMeta } from '@yggi/cells/engine/parser/index';
+import { EXAMPLES_DIR, readExample } from './examples-index';
 
 /**
  * What a piece asks of the audio graph (src/audio: voices.ts, voice/*.ts): each voice's source (a braid,
@@ -58,10 +58,10 @@ export interface SmokePick {
 }
 
 /** A greedy cover: again and again, the piece that brings the most features not yet covered (the earlier in the library on a tie). */
-export function smokePicks(dir = 'node_modules/@yggi/cells/examples'): SmokePick[] {
+export function smokePicks(dir = EXAMPLES_DIR): SmokePick[] {
   const pieces = ORDER.map((key) => {
-    const source = readFileSync(`${dir}/${key}.cells`, 'utf8').replace(/\n$/, '');
-    return { key: key as string, title: pieceMeta(source)?.title ?? key, features: audioFeatures(compileSource(source)) };
+    const { file, text } = readExample(key, dir);
+    return { key: key as string, title: pieceMeta(file)?.title ?? key, features: audioFeatures(compileSource(text)) };
   });
   const covered = new Set<string>();
   const picks: SmokePick[] = [];

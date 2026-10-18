@@ -1,15 +1,18 @@
 // Engine cost per example, without a browser: compile, plan, and the events of the first 8 seconds.
 // usage: npx vite-node tools/profile/engine-time.ts
 import { readdirSync, readFileSync } from 'node:fs';
+import { readPiece } from '@yggi/cells/engine/piecefile';
 import { compileSource } from '@yggi/cells/engine/compile';
 import { codeShifts } from '@yggi/cells/engine/program';
 import { plan, eventsBetween } from '@yggi/cells/engine/realize';
 const dir = new URL('../../node_modules/@yggi/cells/examples/', import.meta.url);
 const rows: string[] = [];
 for (const f of readdirSync(dir)
-  .filter((x) => x.endsWith('.cells'))
+  .filter((x) => x.endsWith('.md'))
   .sort()) {
-  const src = readFileSync(new URL(f, dir), 'utf8');
+  const piece = readPiece(readFileSync(new URL(f, dir), 'utf8'));
+  if ('problems' in piece) continue;
+  const src = piece.text;
   const t0 = performance.now();
   const r = compileSource(src);
   const t1 = performance.now();

@@ -2,7 +2,10 @@
   /**
    * Shorten: what's written out longhand, offered shorter — each with what it
    * becomes and what it saves, and Apply. Worked out when asked (a long piece
-   * takes a moment), and again after each change.
+   * takes a moment), and again after each change. A card that says what the
+   * piece is (title= tags= tier=) is offered as a move into its file's
+   * frontmatter (decision 047): its rewrite is a file, which the piece takes
+   * (`onapply`: Piece.take), the frontmatter kept beside the code.
    */
   import { shorten, type Suggestion } from '@yggi/cells/engine/shorten/index';
 
@@ -26,7 +29,8 @@
       }
     }, 30);
   });
-  const total = $derived(list?.reduce((a, s) => a + s.saving, 0) ?? 0);
+  // (a card moved into the frontmatter saves none of the code's characters: the file grows by the frontmatter's lines)
+  const total = $derived(list?.reduce((a, s) => a + Math.max(0, s.saving), 0) ?? 0);
 </script>
 
 <div class="shorten">
@@ -50,7 +54,7 @@
               <code class="now">{s.after}</code>
             </div>
             <div class="row">
-              <span class="saves">−{s.saving} characters</span>
+              <span class="saves">{s.kind === 'card' ? 'into the file’s frontmatter' : `−${s.saving} characters`}</span>
               <button class="apply" onclick={() => onapply(s.apply(code))}>Apply</button>
             </div>
           </li>

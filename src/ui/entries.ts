@@ -10,7 +10,7 @@ import { EXAMPLES, loadExample, type PresetKey } from '../examples';
 import { creditOf, loadMidiFile, MIDI_FILES, MIDI_SETS, type Credit } from '../corpus';
 import { cellsFromMidi } from '@yggi/cells/engine/midiimport';
 import type { Miniature } from '../layout/miniature';
-import type { SavedPiece } from '../library';
+import { textOf, type SavedPiece } from '../library';
 
 export interface Entry {
   readonly id: string;
@@ -38,10 +38,10 @@ export interface Entry {
   readonly time?: PieceTime;
 }
 
-/** A saved piece's card: its size and length worked out from its text. */
+/** A saved piece's card: its size and length worked out from its text (a file's: its cells block). */
 export function savedEntry(p: SavedPiece): Entry {
   const m = pieceMeta(p.source);
-  const r = compileSource(p.source);
+  const r = compileSource(textOf(p.source));
   return {
     id: `saved:${p.id}`,
     kind: 'saved',

@@ -9,7 +9,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 // ui/entries.ts lists it)
 const entries = [
   ...Object.entries(PRESETS).map(([key, p]) => {
-    const m = pieceMeta(p.source);
+    const m = pieceMeta(p.file);
     return { id: `example:${key}`, title: m?.title ?? key, tags: canonicalTags(m?.tags ?? []), tier: m?.tier ?? null };
   }),
   ...readdirSync('node_modules/@yggi/cells/midi').flatMap((set) =>

@@ -36,7 +36,7 @@ const examplesIndex = (): Plugin => {
     configureServer(server) {
       server.watcher.add('examples');
       server.watcher.on('all', (_, file) => {
-        if (!file.endsWith('.cells')) return;
+        if (!file.endsWith('.md')) return;
         const mod = server.moduleGraph.getModuleById(`\0${id}`);
         if (mod) server.reloadModule(mod);
       });

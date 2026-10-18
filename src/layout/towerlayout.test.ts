@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { PRESETS, type PresetKey } from '@yggi/cells/engine/presets';
 import { describe, expect, it } from 'vitest';
 import { buildGraph } from './drawn';
 import { compileSource } from '@yggi/cells/engine/compile';
@@ -8,13 +8,13 @@ import { socketHeights, socketId, towerAt, towerLayers, towerNets, towerIns, tow
 import { socketOf, VOICE_SIZE } from './voice';
 
 const waltz = () => {
-  const program = compileSource(readFileSync('node_modules/@yggi/cells/examples/waltz.cells', 'utf8'));
+  const program = compileSource(PRESETS.waltz.source);
   return { program, model: buildGraph(program) };
 };
 
 describe('the tower layout', () => {
   it('names a read head drawn on its tape as the sound going into the card, not the tape', () => {
-    const program = compileSource(readFileSync('node_modules/@yggi/cells/examples/testtones.cells', 'utf8'));
+    const program = compileSource(PRESETS.testtones.source);
     const outs = towerOuts(program, buildGraph(program));
     const names = outs.map((o) => o.sound).sort();
     expect(names).toContain('cell:first');
@@ -157,7 +157,7 @@ describe('the tower layout', () => {
   });
 
   it('draws the layers by a gentle spring: the sockets over the voices over the structure, in order on average', () => {
-    const program = compileSource(readFileSync('node_modules/@yggi/cells/examples/pop.cells', 'utf8'));
+    const program = compileSource(PRESETS.pop.source);
     const model = buildGraph(program);
     const drawn = withSockets(model);
     const { targets, layers } = towerLayers(program, model, drawn);
@@ -227,7 +227,7 @@ describe('the tower layout', () => {
   });
 
   it('sits a kit with the voices, held there over the grooves that play it', () => {
-    const program = compileSource(readFileSync('node_modules/@yggi/cells/examples/pop.cells', 'utf8'));
+    const program = compileSource(PRESETS.pop.source);
     const model = buildGraph(program);
     const drawn = withSockets(model);
     const { targets, layers, held } = towerLayers(program, model, drawn);
@@ -244,7 +244,7 @@ describe('the tower layout', () => {
   });
 
   it('sits what plays a kit (a groove) with it: just under the voices, over the structure, held there', () => {
-    const program = compileSource(readFileSync('node_modules/@yggi/cells/examples/pop.cells', 'utf8'));
+    const program = compileSource(PRESETS.pop.source);
     const model = buildGraph(program);
     const drawn = withSockets(model);
     const { targets, layers, held } = towerLayers(program, model, drawn);
@@ -260,7 +260,7 @@ describe('the tower layout', () => {
 
   it('keeps every node in its stratum, and what a selector steps over its loom', () => {
     for (const piece of ['hypercell', 'baustelle', 'pop']) {
-      const program = compileSource(readFileSync(`node_modules/@yggi/cells/examples/${piece}.cells`, 'utf8'));
+      const program = compileSource(PRESETS[piece as PresetKey].source);
       const model = buildGraph(program);
       const drawn = withSockets(model);
       const { targets, held, strata } = towerLayers(program, model, drawn);
@@ -286,7 +286,7 @@ describe('the tower layout', () => {
   });
 
   it('orders the strata: audible over voice over gate over stepped over constant', () => {
-    const program = compileSource(readFileSync('node_modules/@yggi/cells/examples/hypercell.cells', 'utf8'));
+    const program = compileSource(PRESETS.hypercell.source);
     const model = buildGraph(program);
     const drawn = withSockets(model);
     const { layers, strata } = towerLayers(program, model, drawn);
@@ -296,7 +296,7 @@ describe('the tower layout', () => {
   });
 
   const laid = (piece: string) => {
-    const program = compileSource(readFileSync(`node_modules/@yggi/cells/examples/${piece}.cells`, 'utf8'));
+    const program = compileSource(PRESETS[piece as PresetKey].source);
     const model = buildGraph(program);
     const drawn = withSockets(model);
     const t = towerLayers(program, model, drawn);

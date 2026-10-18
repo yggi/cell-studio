@@ -146,8 +146,9 @@ if (only.length === 0 && SWITCH.every((id) => pieces.some((p) => p.id === id))) 
 }
 // A piece from outside (#406): `cellStudio.open(source)` on a card that is playing opens a string of code as a file
 // opens: the transport stops, the editor shows the string, the graph draws its cells, and Play sounds them. A string
-// that doesn't compile opens too, as a file's would, and says so.
-const OUTSIDE = '&piece title="From outside"\n&tune step=3 0 4 7 12\n&lead s=sine loop=C5\n&out map=sample [&tune * &lead * .5]\n';
+// that doesn't compile opens too, as a file's would, and says so; a piece file (decision 047) opens as its cells block.
+const OUTSIDE = '# From outside\n&tune step=3 0 4 7 12\n&lead s=sine loop=C5\n&out map=sample [&tune * &lead * .5]\n';
+const OUTSIDE_FILE = `---\ntitle: From outside, as a file\n---\n\n\`\`\`cells\n${OUTSIDE}\`\`\`\n`;
 {
   problems = [];
   const op = await browser.newPage({ viewport: { width: 1280, height: 800 } });
@@ -182,7 +183,11 @@ const OUTSIDE = '&piece title="From outside"\n&tune step=3 0 4 7 12\n&lead s=sin
     if (broken.ok || broken.errors.length === 0) problems.push(`a string that doesn't compile opened as ${JSON.stringify(broken)}`);
     const brokenCode = await op.evaluate(() => document.querySelector('textarea')?.value ?? '');
     if (!brokenCode.includes('&nowhere')) problems.push('the editor does not show the string that does not compile');
-    note = `${pieces[0].title} playing, then a string opened: stopped, in the editor, ${drawn.length} nodes drawn, &lead at ${level.toFixed(2)} on Play; one that doesn't compile: "${broken.errors[0]}"`;
+    const asFile = await op.evaluate((src) => window.cellStudio.open(src), OUTSIDE_FILE);
+    if (!asFile.ok) problems.push(`a piece file did not compile: ${asFile.errors.join('; ')}`);
+    const fileCode = await op.evaluate(() => document.querySelector('textarea')?.value ?? '');
+    if (fileCode.trim() !== OUTSIDE.trim()) problems.push(`a piece file shows ${JSON.stringify(fileCode.slice(0, 60))} in the editor, not its cells block`);
+    note = `${pieces[0].title} playing, then a string opened: stopped, in the editor, ${drawn.length} nodes drawn, &lead at ${level.toFixed(2)} on Play; one that doesn't compile: "${broken.errors[0]}"; a piece file: its cells block`;
   } catch (e) {
     problems.push(String(e.message).split('\n')[0]);
   }
