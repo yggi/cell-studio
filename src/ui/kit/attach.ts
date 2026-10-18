@@ -27,7 +27,7 @@ export function trap(options: TrapOptions | (() => void) = {}): Attachment<HTMLE
   return (node) => {
     const before = document.activeElement as HTMLElement | null;
     const key = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && onescape) {
+      if (e.key === 'Escape' && onescape && !e.defaultPrevented) {
         e.preventDefault();
         e.stopPropagation();
         onescape();
