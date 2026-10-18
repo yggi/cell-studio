@@ -7,7 +7,8 @@
 //   zoom    zoomed in eight times, a third of the way in
 //   patterns  the motifs heard at two time scales boxed, the foldings alike listed
 //   phone   at a phone's width, the Time tab
-// Writes <OUT>/tiles/<piece>-<state>.png and <OUT>/index.html; OUT defaults to shots/time. STATES=mix,keys picks states.
+// Writes <OUT>/tiles/<piece>-<state>.png and <OUT>/index.html; OUT defaults to shots/time. STATES=mix,keys picks states;
+// QUERY='strips' opens the app with a query (the tower strip opened).
 // Pieces by their example names (default: hypercell pop korobeiniki fiveto12 pachelbel). Fails on a page error.
 import { createServer } from 'vite';
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
@@ -23,7 +24,7 @@ mkdirSync(join(out, 'tiles'), { recursive: true });
 
 const server = await createServer({ server: { port: 0, host: '127.0.0.1' }, logLevel: 'error' });
 await server.listen();
-const url = server.resolvedUrls.local[0];
+const url = server.resolvedUrls.local[0] + (process.env.QUERY ? `?${process.env.QUERY}` : '');
 const browser = await chromium.launch({ args: ['--no-sandbox', '--autoplay-policy=no-user-gesture-required'] });
 const problems = [];
 const tiles = [];
