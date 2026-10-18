@@ -11,6 +11,7 @@ that makes the change. Also note changes to the language that could affect saved
 ## Unreleased
 
 ### Added
+- **Deploy by hand in Actions**: Actions → Deploy → Run workflow runs `node tools/deploy.mjs` on `main` (every check, all the tests, a fresh build, then gh-pages), the same gate as a deploy from a clone; nothing deploys on a push.
 - **The build under the title**: the commit's first 7 characters (`dev` for a build that doesn't know it) in the header; a tap opens a sheet with the commit in full, branch (`pr-<n>` for a preview), build date, and the versions of what the app ships, and offers Reload when a new version waits (#433).
 
 ### Changed
