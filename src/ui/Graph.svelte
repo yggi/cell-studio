@@ -53,6 +53,7 @@
   import SectionLooms from './SectionLooms.svelte';
   import { towerIns, towerY } from '../layout/towerlayout';
   import FlyTo from './FlyTo.svelte';
+  import PinchZoom from './PinchZoom.svelte';
   import { outTint } from './heard';
   import PanBounds from './PanBounds.svelte';
   import { pillAnchor } from '../layout/sectionloom';
@@ -353,6 +354,7 @@
   // the strip's width (state/strip.svelte.ts): one for the graph and the time view
   const stripW = $derived(stripWidth.width);
   let flowW = $state(0);
+  let flowEl = $state<HTMLDivElement>();
   // what goes into the card, where its wire leaves now (its top)
   const ins = $derived(
     towered
@@ -420,6 +422,9 @@
   });
   // (a tap on the strip: the view moves to that node)
   let flyTo = $state<{ x: number; y: number } | null>(null);
+  // (a pinch on the strip: the view zoomed about it, the strip taking the gesture itself)
+  let pinched = $state<{ factor: number; x: number; y: number; n: number } | null>(null);
+  let pinches = 0;
   // the graph and its strip side by side: when the split between them moves (a drag's end, a collapse) or the pane
   // does (the inspector opening beside it), the graph is framed again in the room it has (after SPLIT_SETTLE ms still:
   // not at every step of a drag)
@@ -503,7 +508,7 @@
 
 <div class="graph" class:margined={hasMargin} class:stripped={towered} class:sky style:--strip-width="{stripW}px" style:--margin-width="{MARGIN_WIDTH}px" bind:clientWidth={graphW}>
   {#if hasMargin}<Margin model={shown.model} heightOf={(id) => layout.position(id)?.y} settled={layout.fitToken} onlight={(id) => (sideLit = id)} />{/if}
-  <div class="flow" bind:clientWidth={flowW}>
+  <div class="flow" bind:clientWidth={flowW} bind:this={flowEl}>
     {#if sky}<TowerSky {spires} {viewport} zone={layout.zone} mode={skyMode as SkyMode} />{/if}
     <SvelteFlow
       bind:nodes={layout.nodes}
@@ -540,6 +545,7 @@
       <Controls showLock={false} />
       <FitView token={layout.fitToken + sideFits + splitFits + refit} calm={growing} />
       <FlyTo to={flyTo} />
+      <PinchZoom zoom={pinched} />
       <PanBounds extent={translateExtent} />
       {#if towered}<FlowViewport onchange={(v) => (viewport = v)} />{/if}
       {#if towered}
@@ -568,6 +574,10 @@
       {tintOf}
       sectionOf={(source) => sections.get(source)?.k}
       focus={selectedName ?? null}
+      onzoom={(z) => {
+        const r = flowEl?.getBoundingClientRect();
+        if (r) pinched = { factor: z.factor, x: z.x - r.left, y: z.y - r.top, n: ++pinches };
+      }}
       ontoggle={() => stripWidth.toggle()}
       onfocus={(id) => {
         const p = layout.position(id);
