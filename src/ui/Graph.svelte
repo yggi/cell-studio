@@ -547,6 +547,7 @@
       width={stripW}
       onresize={(w) => stripWidth.resize(w)}
       {tintOf}
+      sectionOf={(source) => sections.get(source)?.k}
       focus={selectedName ?? null}
       ontoggle={() => stripWidth.toggle()}
       onfocus={(id) => {
