@@ -43,6 +43,7 @@
     onresize,
     ontoggle,
     onfocus,
+    onzoom,
     sectionOf = () => undefined,
     tintOf = (name: string) => (graph ? outRgb(graph, name) : [255, 255, 255]),
     source,
@@ -76,6 +77,8 @@
     heardLevels?: Explained<HeardLevel, WrittenLevel> | null;
     /** The cell selected (its name): its row outlined and named. */
     focus?: string | null;
+    /** A pinch in the strip: the view zoomed by `factor` about (x, y), the screen's px. */
+    onzoom?: (z: { factor: number; x: number; y: number }) => void;
     /** A tap on what the strip shows for a node (its id): the view moves to it. */
     onfocus?: (id: string) => void;
   } = $props();
@@ -181,6 +184,45 @@
     const id = tapped(x, y);
     if (id) onfocus(id);
   }
+
+  // (two fingers down in the strip pinch the view: the strip takes the gesture itself, the graph under it not told; one
+  // finger still goes through, to pan)
+  $effect(() => {
+    if (!onzoom) return;
+    let span: number | null = null;
+    const inside = (t: Touch) => {
+      const r = stripEl?.getBoundingClientRect();
+      return !!r && t.clientX >= r.left && t.clientX <= r.right && t.clientY >= r.top && t.clientY <= r.bottom;
+    };
+    const apart = (ts: TouchList) => Math.hypot(ts[0]!.clientX - ts[1]!.clientX, ts[0]!.clientY - ts[1]!.clientY);
+    const start = (e: TouchEvent) => {
+      span = e.touches.length === 2 && inside(e.touches[0]!) && inside(e.touches[1]!) ? apart(e.touches) : null;
+      if (span !== null) (e.stopPropagation(), e.preventDefault());
+    };
+    const move = (e: TouchEvent) => {
+      if (span === null || e.touches.length !== 2) return;
+      e.stopPropagation();
+      e.preventDefault();
+      const d = apart(e.touches);
+      const [a, b] = [e.touches[0]!, e.touches[1]!];
+      if (span > 0) onzoom({ factor: d / span, x: (a.clientX + b.clientX) / 2, y: (a.clientY + b.clientY) / 2 });
+      span = d;
+    };
+    const end = (e: TouchEvent) => {
+      if (e.touches.length < 2) span = null;
+    };
+    const opts = { capture: true, passive: false } as const;
+    window.addEventListener('touchstart', start, opts);
+    window.addEventListener('touchmove', move, opts);
+    window.addEventListener('touchend', end, opts);
+    window.addEventListener('touchcancel', end, opts);
+    return () => {
+      window.removeEventListener('touchstart', start, opts);
+      window.removeEventListener('touchmove', move, opts);
+      window.removeEventListener('touchend', end, opts);
+      window.removeEventListener('touchcancel', end, opts);
+    };
+  });
 
   function draw() {
     const g = canvas?.getContext('2d');
