@@ -340,7 +340,7 @@ describe('the tower layout', () => {
   });
   it('makes a selector a stratum: what it feeds strictly over its pill, its clock and its chooser strictly under', () => {
     for (const [piece, table, under] of [
-      ['hypercell', 'cell:parts', ['cell:bar', 'cell:song']],
+      ['hypercell', 'cell:sections', ['cell:bar', 'cell:song']],
       ['baustelle', 'cell:teile', ['cell:bar', 'cell:tag']],
     ] as const) {
       const { layout, layers } = laid(piece);
@@ -404,7 +404,7 @@ describe('the tower layout', () => {
     // (a player clears its kit)
     const [kick, kit] = [layout.position('cell:kick')!, layout.position('cell:kit:voices')!];
     expect(kick.y - kit.y).toBeGreaterThan(130);
-    const loom = layout.tapLooms().find((l) => l.table === 'cell:parts')!;
+    const loom = layout.tapLooms().find((l) => l.table === 'cell:sections')!;
     expect(loom.feeds).toEqual({ meter: 'cell:bar', select: 'cell:song' });
     // (the drums' tap: one strand out of the pill, &click and &kick joined on one net)
     const drums = loom.strands.filter((st) => st.bulb === 'drumBar');

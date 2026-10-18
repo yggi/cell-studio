@@ -26,7 +26,7 @@
 
   let props: { column: PillColumn } = $props();
   const c = untrack(() => props.column);
-  const program = compileSource('&bar scan(1 1 1 1) step=1\n&parts step=4n &a &b &c\n&song over=&parts step=1m 0 [0,1,2]');
+  const program = compileSource('&bar scan(1 1 1 1) step=1\n&sections step=4n &a &b &c\n&song over=&sections step=1m 0 [0,1,2]');
   const [W, H] = [300, 250];
   const hub = { x: 150, y: 170 };
   const cells = [
@@ -45,7 +45,7 @@
     [],
     ports.meter,
   );
-  const loom = { table: 'cell:parts', strands, pill: pillOf(hub, contacts, ports, strands), hub, contacts, ports, feeds: { meter: 'cell:bar', select: 'cell:song' } };
+  const loom = { table: 'cell:sections', strands, pill: pillOf(hub, contacts, ports, strands), hub, contacts, ports, feeds: { meter: 'cell:bar', select: 'cell:song' } };
   const playing = c.beat !== undefined;
   const shifts = codeShifts(program);
   const base = liveAt(program, shifts, new Set(), 0);

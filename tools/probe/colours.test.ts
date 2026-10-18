@@ -69,7 +69,7 @@ describe.runIf(process.env.PROBE)('colours', () => {
         const other = played(respelled(program, name, 7), window);
         const same = other.length === base.length && other.every((x, i) => x === base[i]);
         const model0 = buildGraph(program);
-        const ports = [...new Set(model0.edges.flatMap((e) => (e.from === `cell:${name}` ? [`${e.port}${program.taps?.has(name) ? '·tap' : ''}`] : [])))].sort().join(',');
+        const ports = [...new Set(model0.edges.flatMap((e) => (e.from === `cell:${name}` ? [`${e.port}${program.sections?.has(name) ? '·tap' : ''}`] : [])))].sort().join(',');
         const kit = c.over ? program.cells.get(c.over) : undefined;
         const why = `${key} &${name}${c.over ? ` over=&${c.over}${kit?.kit ? `(${kit.units.length} drums)` : ''}` : ''}${c.clock ? '' : ' (no clock)'} → ${ports || 'nothing'}`;
         (same ? white : red).push(why);

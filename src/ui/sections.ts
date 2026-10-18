@@ -15,8 +15,8 @@ export interface Section {
 /** Each tap's section: its place among its table's taps. */
 function tapSections(program: CompileResult): Map<string, Section> {
   const out = new Map<string, Section>();
-  for (const table of new Set(program.taps?.values() ?? [])) {
-    const taps = [...(program.taps ?? [])].flatMap(([tap, t]) => (t === table ? [tap] : []));
+  for (const table of new Set(program.sections?.values() ?? [])) {
+    const taps = [...(program.sections ?? [])].flatMap(([tap, t]) => (t === table ? [tap] : []));
     taps.forEach((tap, k) => out.set(tap, { k, n: taps.length }));
   }
   return out;

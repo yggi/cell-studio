@@ -247,7 +247,7 @@ export function flowEdgesOf(s: GraphSnapshot, scene: EdgeScene): Edge[] {
   // each edge's place in a net (a table read by several: one trunk, a branch to each reader)
   // (named as its owner's node is: the grooves' unnamed kit, drums)
   const netName = (owner: string) => (nameOf(owner) === VOICE_KIT ? 'drums' : `&${nameOf(owner)}`);
-  const netPlaces = new Map(model.nets.flatMap((n) => n.taps.map((id) => [id, { id: n.id, name: netName(n.owner) }] as const)));
+  const netPlaces = new Map(model.nets.flatMap((n) => n.readers.map((id) => [id, { id: n.id, name: netName(n.owner) }] as const)));
   const rings = loomBands(model).inner;
   const grounds = groundsOf(model);
   const index = meterIndex(model);

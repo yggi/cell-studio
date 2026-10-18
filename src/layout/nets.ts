@@ -85,7 +85,7 @@ export function netTree(s: LayoutState, net: GraphModel['nets'][number], ends = 
   const at = bulbOf(s, net);
   const o = owner && at ? { ...owner, x: (owner.x ?? 0) + at.x, y: (owner.y ?? 0) + at.y, radius: at.r } : owner;
   // (a reader may be a product's junction: as drawn)
-  const readers = net.taps.flatMap((id) => {
+  const readers = net.readers.flatMap((id) => {
     const n = nodeAt(s, ends.get(id) ?? '');
     return n && n !== owner ? [{ id, n }] : [];
   });

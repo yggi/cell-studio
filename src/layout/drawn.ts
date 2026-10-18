@@ -97,7 +97,7 @@ function petals(result: CompileResult, written: WrittenGraph, withBulbs: boolean
     const tap = tapBulb(e.from);
     if (tap && source !== target) {
       // (a head's keeps its own id: what it is drawn as is the same edge, from its bulb)
-      const id = result.taps?.get(tap) !== undefined ? `${edgeId(cellId(tap), up(e.to))}~` : e.id;
+      const id = result.sections?.get(tap) !== undefined ? `${edgeId(cellId(tap), up(e.to))}~` : e.id;
       redrawn.push({ id: e.id, pair: id });
       out.push({ ...e, id, source, target, from: up(e.from), to: up(e.to), bulb: tap });
       continue;

@@ -135,7 +135,7 @@
     if (sections) return sections.length ? { sections, n: ctx.program.cells.get(ctx.program.cells.get(name)?.over ?? '')?.units.length ?? 1 } : null;
     const v = cellView(ctx.program, name, ctx.shifts, false);
     if (!v) return null;
-    const taps = [...(ctx.program.taps?.values() ?? [])].includes(name) ? (ctx.program.cells.get(name)?.units.length ?? 0) : 0;
+    const taps = [...(ctx.program.sections?.values() ?? [])].includes(name) ? (ctx.program.cells.get(name)?.units.length ?? 0) : 0;
     const spread = valueSpectrum(v, taps > 0);
     return spread.length ? { v, taps, spread, ...(taps ? { selector: selectorOf(ctx.program, name) } : {}) } : null;
   }

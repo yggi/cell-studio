@@ -17,8 +17,8 @@ export function sideless(model: GraphModel): GraphModel {
   const kept = new Set(edges.map((e) => e.id));
   const nets = model.nets.flatMap((n) => {
     if (side.has(n.owner)) return [];
-    const taps = n.taps.filter((t) => kept.has(t));
-    return taps.length ? [{ ...n, taps }] : [];
+    const readers = n.readers.filter((t) => kept.has(t));
+    return readers.length ? [{ ...n, readers }] : [];
   });
   return { ...model, nodes: model.nodes.filter((n) => !side.has(n.id)), edges, nets };
 }

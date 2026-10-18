@@ -51,10 +51,10 @@ const trackOf = (v: CellView) => (v.bulbs?.length ? layTrack(g.c, g.c, (g.rInner
 const pop = compileSource(PRESETS.pop.source);
 const transpose = compileSource(PRESETS.transpose.source);
 
-describe('a table of taps (Pop’s &parts: &bassBar &keysBar …)', () => {
-  const parts = view(pop, 'parts');
+describe('a table of taps (Pop’s &sections: &bassBar &keysBar …)', () => {
+  const parts = view(pop, 'sections');
   const track = trackOf(parts);
-  const cell = pop.cells.get('parts');
+  const cell = pop.cells.get('sections');
   it('its bulbs are named by their taps, less what all of them end in', () => {
     expect(tapSuffix(['hatsBar', 'beatBar', 'bassBar'])).toBe('Bar');
     // (each keeps two letters of its own; none in common, or none at all: nothing)

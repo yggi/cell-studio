@@ -267,7 +267,7 @@ export class ForceLayout {
 
     // (a net at delays is a star from its owner, which its edges' own springs already are: measured, as the net's
     // springs Frère Jacques crosses more, 1 → 1.7 — docs/notes/nets.md, step 6)
-    const busTaps = new Set(this.s.nets.flatMap((n) => (n.port === 'step' || n.delayed ? [] : n.taps)));
+    const busTaps = new Set(this.s.nets.flatMap((n) => (n.port === 'step' || n.delayed ? [] : n.readers)));
     const links: PhysLink[] = model.edges
       .filter((e) => !ground(e) && next.has(e.source) && next.has(e.target) && e.source !== e.target)
       .map((e) => ({
@@ -541,7 +541,7 @@ export class ForceLayout {
   private lean(alpha: number): void {
     const [k, under] = [this.s.opts.upright, this.s.opts.feedUnder];
     if (!k && !under) return;
-    const buses = new Set(this.s.nets.flatMap((n) => n.taps));
+    const buses = new Set(this.s.nets.flatMap((n) => n.readers));
     for (const l of this.s.links) {
       if (buses.has(l.id)) continue;
       const [a, b] = [nodeAt(this.s, l.source), nodeAt(this.s, l.target)];
@@ -563,7 +563,7 @@ export class ForceLayout {
     const min = this.s.opts.minRise;
     if (!min) return;
     // (a table's bus, read over=, lies flat along its row: not a plain wire; a value several read is)
-    const buses = new Set(this.s.nets.flatMap((n) => (n.port === 'over' ? n.taps : [])));
+    const buses = new Set(this.s.nets.flatMap((n) => (n.port === 'over' ? n.readers : [])));
     const held = this.s.opts.held;
     const bands = this.s.opts.strata;
     for (const l of this.s.links) {
@@ -589,7 +589,7 @@ export class ForceLayout {
       // (a bus: a table or a value read by several; not a meter's net, a tap's sub-net, sound or a canon's copies)
       if (net.port === 'step' || net.band === 'audio' || net.delayed || net.bulb) continue;
       const o = this.s.byId.get(net.owner);
-      const rs = net.taps.flatMap((id) => {
+      const rs = net.readers.flatMap((id) => {
         const n = nodeAt(this.s, this.s.edgeEnds.get(id) ?? '');
         return n && n !== o && n.x !== undefined && n.y !== undefined ? [n] : [];
       });

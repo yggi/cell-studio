@@ -50,7 +50,7 @@ const isTrack = (result: CompileResult, n: GraphNode | undefined): boolean =>
   !!n &&
   n.kind === 'cell' &&
   // (a table of taps: its taps are bulbs on it, decision 016)
-  ([...(result.taps?.values() ?? [])].includes(n.cell.name) ||
+  ([...(result.sections?.values() ?? [])].includes(n.cell.name) ||
     (!n.isMeter &&
       !n.cell.root &&
       !n.cell.scan &&
@@ -80,12 +80,12 @@ const RULES: readonly Rule[] = [
     // from it
     kind: 'a tap, on its table',
     host: (n, s) => {
-      const table = n.kind === 'cell' ? s.result.taps?.get(n.cell.name) : undefined;
+      const table = n.kind === 'cell' ? s.result.sections?.get(n.cell.name) : undefined;
       return table && s.byId.has(cellId(table)) ? cellId(table) : null;
     },
     // (the table is drawn as a track, its taps its bulbs: the track's room)
     reach: () => null,
-    mine: (result, host, bulb) => result.taps?.get(bulb) === host,
+    mine: (result, host, bulb) => result.sections?.get(bulb) === host,
     at: (result, host, bulb, hosts, size) => bulbHub(result, host, bulb, hosts, size),
     leaves: true,
   },

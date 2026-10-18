@@ -91,7 +91,7 @@
   {/if}
 </div>
 <!-- (a tap of a meter's bus has one step, nothing to turn: decision 016) -->
-{#if !ctx.program.taps?.has(name)}
+{#if !ctx.program.sections?.has(name)}
   <div class="turn" role="group" aria-label="Turn">
     <button onclick={() => ctx.turn(name, shift - 1)} aria-label="Shift down">−</button>
     <output aria-label="shift">{shift > 0 ? '+' : ''}{shift}</output>

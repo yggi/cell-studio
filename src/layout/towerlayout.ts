@@ -130,7 +130,7 @@ export function withSockets(model: GraphModel): GraphModel {
     return [{ ...e, to: id, ...(e.target === e.to ? { target: id } : { source: id }) }];
   });
   const kept = new Set(edges.map((e) => e.id));
-  const nets = model.nets.map((n) => ({ ...n, taps: n.taps.filter((t) => kept.has(t)) })).filter((n) => n.taps.length && !card.has(n.owner));
+  const nets = model.nets.map((n) => ({ ...n, readers: n.readers.filter((t) => kept.has(t)) })).filter((n) => n.readers.length && !card.has(n.owner));
   return { ...model, nodes: [...model.nodes.filter((n) => !card.has(n.id)), ...sockets], edges, nets };
 }
 
@@ -240,7 +240,7 @@ export function towerLayers(
   }
   // (a selector, a table of taps, a stratum of its own under what it feeds: what feeds it — the clock it steps on, a
   // chooser reading it with over= — under it, so nothing stands in its pill)
-  const tables = new Set([...(program.taps?.values() ?? [])].map(cellId));
+  const tables = new Set([...(program.sections?.values() ?? [])].map(cellId));
   // (a table is a list, constant, or stepped itself; a chooser's own clock feeds the selector through it, a source too)
   for (const id of tables) if (layers.get(id) === 'stepped' || layers.get(id) === 'constant') layers.set(id, 'selector');
   for (let more = true; more;) {

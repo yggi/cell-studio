@@ -158,7 +158,7 @@ export function blank(result: CompileResult, name: string): boolean {
   if (!atoms.length || !atoms.every((a) => a.kind === 'note' && a.value === 0 && a.alter === 0)) return false;
   const id = cellId(name);
   // (what it may go into besides a tick: the table of taps it is a section of, the one drum's kit it plays)
-  const ok = new Set([result.taps?.get(name), c.over].flatMap((t) => (t ? [cellId(t)] : [])));
+  const ok = new Set([result.sections?.get(name), c.over].flatMap((t) => (t ? [cellId(t)] : [])));
   // (a groove's own sound, into a mix, is not its value read)
   return writtenOf(result).edges.every((e) => e.from !== id || e.to === id || e.band === 'sync' || ok.has(e.to) || (!!c.over && e.band === 'audio'));
 }

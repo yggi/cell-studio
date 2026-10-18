@@ -12,7 +12,7 @@ describe('sections (decision 016)', () => {
   const k = (name: string) => sections.get(`cell:${name}`)?.k;
 
   it('a voice takes the section of the tap that plays it, not its tag: stab, hook and pad apart though all are synths', () => {
-    // (&parts: bassBar stabBar hookBar padBar beatBar rollBar riseBar)
+    // (&sections: bassBar stabBar hookBar padBar beatBar rollBar riseBar)
     expect([k('bass'), k('stab'), k('sawA'), k('sawB'), k('padv'), k('riser')]).toEqual([0, 1, 2, 2, 3, 6]);
     // (where no tap reaches, the tag's: the riser's sweep, tagged rise)
     expect(k('up')).toBe(6);
@@ -27,13 +27,13 @@ describe('sections (decision 016)', () => {
     expect(sectionRgb(model, sections, 'cell:bd')).toEqual(sectionRgb(model, sections, 'cell:kit:voices'));
     const two = compileSource(`
 &bar scan(1 1 1 1) step=100bpm
-&parts step=4n &aBar &bBar
+&sections step=4n &aBar &bBar
 &a s=saw loop=C4
 &b s=sine loop=C5
 &ta step=&aBar 0
 &tb step=&bBar 0
 &both [&ta * &a, &tb * &b]
-&song over=&parts step=4n [0,1]
+&song over=&sections step=4n [0,1]
 &out map=sample [&both]
 `);
     const m = buildGraph(two);

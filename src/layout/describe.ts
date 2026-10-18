@@ -106,7 +106,7 @@ export function summary(result: CompileResult, name: string): Bit[] {
     return sc ? [`${words}${sc}`] : [];
   };
   // a tap of a meter's bus (decision 016): not a phrase of one step, a switch for what it steps
-  const table = result.taps?.get(name);
+  const table = result.sections?.get(name);
   if (table) {
     const of: Bit[] = c.step?.driver ? ['A tap of ', { ref: c.step.driver }, ' on '] : ['A tap on '];
     const readers = [...result.cells.values()].filter((x) => x.over === table && x.clock).map((x) => x.name);

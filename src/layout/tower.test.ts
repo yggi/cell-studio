@@ -9,12 +9,12 @@ const SONG = `
 &major scale(major)
 &lead s=saw loop=C4
 &bass s=saw loop=C2
-&parts step=4n &tuneBar &bassBar
+&sections step=4n &tuneBar &bassBar
 &tune over=&major step=&tuneBar 0 2 4 5
 &roots step=&bassBar 0
 &tunePart [&tune * &lead * .3]
 &bassPart [&roots * &bass * .5]
-&song over=&parts step=1m laps=1 [1] [0,1] [0,1]
+&song over=&sections step=1m laps=1 [1] [0,1] [0,1]
 &out loop=SAMPLE_RATE map=sample [&tunePart, &bassPart]
 `;
 
@@ -42,7 +42,7 @@ describe('the frequency tower', () => {
 
   it("a table of taps at its selector's rate, which switches what is on in it; a scale it reads stays constant", () => {
     const { at } = tower(SONG);
-    expect(at('parts')).toBeCloseTo(at('song'), 6);
+    expect(at('sections')).toBeCloseTo(at('song'), 6);
     expect(at('major')).toBe(-Infinity);
   });
 
@@ -50,8 +50,8 @@ describe('the frequency tower', () => {
     const src = `${SONG}\n&eq scope=spectrum &tunePart &bassPart\n&songNote label="the form" about=&song\n`;
     const program = compileSource(src);
     const rows = new Map(towerStructure(program, buildGraph(program)).map((r) => [r.name, r.at]));
-    expect([...rows.keys()].sort()).toEqual(['bar', 'major', 'parts', 'roots', 'song', 'tune']);
-    expect(rows.get('parts')).toBeCloseTo(rows.get('song')!, 6);
+    expect([...rows.keys()].sort()).toEqual(['bar', 'major', 'roots', 'sections', 'song', 'tune']);
+    expect(rows.get('sections')).toBeCloseTo(rows.get('song')!, 6);
     expect(rows.get('major')).toBe(-Infinity);
   });
 

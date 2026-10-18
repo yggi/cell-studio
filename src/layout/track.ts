@@ -58,7 +58,7 @@ const TAP_FAN = 2 / 3;
  * in (the meter's bus, the selector), left free. Its loop's time (turns) to where it is drawn; null for any other cell.
  */
 export function fanOf(result: CompileResult, name: string): ((t: number) => number) | null {
-  if (![...(result.taps?.values() ?? [])].includes(name)) return null;
+  if (![...(result.sections?.values() ?? [])].includes(name)) return null;
   return (t) => (t - 0.5) * TAP_FAN;
 }
 

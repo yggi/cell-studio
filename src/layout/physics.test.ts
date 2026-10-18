@@ -613,9 +613,9 @@ describe('a net at delays (a canon, a tape): every tap leaves its owner, its del
       l.setGraph(g);
       l.tick(200);
       const net = g.nets.find((n) => n.owner === owner)!;
-      expect([...l.netTree(net).values()].map((j) => j.from)).toEqual(net.taps.map(() => owner));
+      expect([...l.netTree(net).values()].map((j) => j.from)).toEqual(net.readers.map(() => owner));
       // (drawn as the owner's own edges: no tap hops on from a reader)
-      for (const id of net.taps) expect(l.taps().get(id)).toBeNull();
+      for (const id of net.readers) expect(l.taps().get(id)).toBeNull();
     });
 });
 

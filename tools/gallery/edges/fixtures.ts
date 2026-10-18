@@ -52,7 +52,7 @@ const SOUND_PORTS = new Set(['mix', 'fm', 'excite', 'couple']);
 export function edgeKind(e: GraphEdge, program: CompileResult): string {
   const sound = e.band === 'audio' && !SOUND_PORTS.has(e.port) && 'sound';
   const table = e.port === 'over' ? e.from.slice('cell:'.length) : '';
-  const read = table && (program.cells.get(table)?.kit ? 'kit' : [...(program.taps?.values() ?? [])].includes(table) ? 'taps' : false);
+  const read = table && (program.cells.get(table)?.kit ? 'kit' : [...(program.sections?.values() ?? [])].includes(table) ? 'taps' : false);
   return ['edge', e.port, sound, read, ...new Set(e.transforms.map(shape).filter(Boolean)), e.count > 1 && 'count'].filter(Boolean).join(':');
 }
 
