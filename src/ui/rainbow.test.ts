@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { PRESETS } from '@yggi/cells/engine/presets';
 import { describe, expect, it } from 'vitest';
 import { compileSource } from '@yggi/cells/engine/compile';
 import { buildGraph } from '../layout/drawn';
@@ -9,7 +9,7 @@ import { nodeSections } from './sections';
 
 /** The 8-bit example (korobeiniki) in the tower layout, as the graph lays it out. */
 function laidOut() {
-  const program = compileSource(readFileSync('node_modules/@yggi/cells/examples/korobeiniki.cells', 'utf8'));
+  const program = compileSource(PRESETS.korobeiniki.source);
   const model = buildGraph(program);
   const drawn = withSockets(model);
   const sections = new Map([...nodeSections(program, drawn)].map(([id, s]) => [id, s.k]));

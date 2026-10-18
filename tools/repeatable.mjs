@@ -28,10 +28,10 @@ const secs = Number(args.find((a) => /^\d+(\.\d+)?$/.test(a)) ?? 6);
 const TOL = Number(process.env.TOL ?? 1e-5);
 const PEAK = Number(process.env.PEAK ?? -1);
 const RMS = Number(process.env.RMS ?? -18);
-const KNOWN = { 'forks.cells': '#65', 'kalimba.cells': '#65', 'sympathy.cells': '#65' };
+const KNOWN = { 'forks.md': '#65', 'kalimba.md': '#65', 'sympathy.md': '#65' };
 const words = args.filter((a) => !/^\d+(\.\d+)?$/.test(a)).map((w) => w.toLowerCase());
 const files = readdirSync('node_modules/@yggi/cells/examples')
-  .filter((f) => f.endsWith('.cells'))
+  .filter((f) => f.endsWith('.md'))
   .sort()
   .filter((f) => !words.length || words.some((w) => f.includes(w)));
 

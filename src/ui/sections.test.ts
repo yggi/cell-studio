@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { PRESETS } from '@yggi/cells/engine/presets';
 import { describe, expect, it } from 'vitest';
 import { compileSource } from '@yggi/cells/engine/compile';
 import { buildGraph } from '../layout/drawn';
@@ -6,7 +6,7 @@ import { nodeSections, sectionRgb } from './sections';
 import { sectionTintRgb } from './theme';
 
 describe('sections (decision 016)', () => {
-  const program = compileSource(readFileSync('node_modules/@yggi/cells/examples/hypercell.cells', 'utf8'));
+  const program = compileSource(PRESETS.hypercell.source);
   const model = buildGraph(program);
   const sections = nodeSections(program, model);
   const k = (name: string) => sections.get(`cell:${name}`)?.k;

@@ -4,6 +4,8 @@ import { codeShifts, type CompileResult, type Shifts } from '@yggi/cells/engine/
 import { liveAt, type LiveState } from '@yggi/cells/engine/live';
 import { ORDER } from '@yggi/cells/engine/order';
 import { PRESETS } from '@yggi/cells/engine/presets';
+import { pieceMeta } from '@yggi/cells/engine/parser/index';
+import { textOf } from '../../src/library';
 import { routing, type Routing } from '@yggi/cells/engine/routing';
 
 export interface Piece {
@@ -16,9 +18,9 @@ export interface Piece {
   readonly live: LiveState;
 }
 
-/** A source as a piece, in the live state of a moment; null when it doesn't compile. */
-export function pieceOf(key: string, source: string, seconds: number): Piece | null {
-  const title = /title="([^"]*)"/.exec(source)?.[1] ?? key;
+/** A source (a text, or a piece file: its cells block) as a piece, in the live state of a moment; null when it doesn't compile. */
+export function pieceOf(key: string, given: string, seconds: number, title = pieceMeta(given)?.title ?? key): Piece | null {
+  const source = textOf(given);
   const program = compileSource(source);
   if (!program.ok) return null;
   const shifts = codeShifts(program);
@@ -30,10 +32,11 @@ export function pieceOf(key: string, source: string, seconds: number): Piece | n
 export function pieces(seconds: number, only: readonly string[]): Piece[] {
   const out: Piece[] = [];
   for (const key of ORDER) {
-    const source = PRESETS[key].source;
-    const title = /title="([^"]*)"/.exec(source)?.[1] ?? key;
+    const { source, file } = PRESETS[key];
+    // (an example's title is its file's frontmatter's: decision 047)
+    const title = pieceMeta(file)?.title ?? key;
     if (only.length && !only.some((w) => `${key} ${title}`.toLowerCase().includes(w.toLowerCase()))) continue;
-    const piece = pieceOf(key, source, seconds);
+    const piece = pieceOf(key, source, seconds, title);
     if (piece) out.push(piece);
   }
   return out;

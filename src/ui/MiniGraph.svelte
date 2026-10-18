@@ -5,6 +5,7 @@
    * one at a time, so opening the picker never stalls on thirty layouts at once.
    */
   import { miniature, miniShape, type Miniature, type MiniShape } from '../layout/miniature';
+  import { textOf } from '../library';
   import { miniPaint as paint } from './theme';
 
   const cache = new Map<string, Miniature | null>();
@@ -64,7 +65,7 @@
       if (cancelled) return;
       let m: Miniature | null;
       try {
-        m = miniature(text);
+        m = miniature(textOf(text));
       } catch {
         m = null;
       }

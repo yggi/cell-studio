@@ -28,7 +28,7 @@ device, so this measures the page, not audible glitches; use a real phone for th
 
     # engine cost without a browser (compile / plan / events per example; what a table turn costs `cellView`):
     npx vite-node tools/profile/engine-time.ts
-    npx vite-node tools/profile/cellview-time.ts examples/bwv847.cells
+    npx vite-node tools/profile/cellview-time.ts node_modules/@yggi/cells/examples/bwv847.md
 
 `measure.mjs` prints one JSON line per piece (`taskPct` = main-thread busy %, `longtasks` > 50 ms).
 On a real device there is no cable needed: open the app with `?perf` and use the overlay's Record / Copy report

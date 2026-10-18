@@ -1,4 +1,4 @@
-&piece title="Pop song, arranged at the input (a probe)" tags="genre:electronic, diatonic, harmony, arrangement" label="Pop rewired at the input (decision 016): the song switches the sections the parts are stepped by; the parts' sound goes straight out." about=&out
+&piece label="Pop rewired at the input (decision 016): the song switches the sections the parts are stepped by; the parts' sound goes straight out." about=&out
 &bar scan(1 1 1 1) step=free(100bpm, 70..140)
 &major scan(2 2 1 2 2 2 1)
 

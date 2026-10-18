@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { PRESETS } from '@yggi/cells/engine/presets';
 import { describe, expect, it } from 'vitest';
 import { compileSource } from '@yggi/cells/engine/compile';
 import { codeShifts } from '@yggi/cells/engine/program';
@@ -108,7 +108,7 @@ describe('coarsen', () => {
 });
 
 describe('coarsen on the Prelude', () => {
-  const r = compileSource(readFileSync('node_modules/@yggi/cells/examples/bwv847.cells', 'utf8'));
+  const r = compileSource(PRESETS.bwv847.source);
   const sh = codeShifts(r);
 
   it('brings the long braids to about the cap, and leaves what is under it alone', () => {

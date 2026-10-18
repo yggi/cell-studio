@@ -22,7 +22,7 @@ const check = args.includes('--check') ? JSON.parse(readFileSync(args[args.index
 const secs = Number(args.find((a) => /^\d+(\.\d+)?$/.test(a)) ?? 6);
 const TOL = Number(process.env.TOL ?? 1e-4);
 const files = readdirSync('node_modules/@yggi/cells/examples')
-  .filter((f) => f.endsWith('.cells'))
+  .filter((f) => f.endsWith('.md'))
   .sort();
 
 freshBuild();
