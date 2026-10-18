@@ -9,10 +9,19 @@
   import { openBelt, runPath } from '../layout/belts';
   import { readingAngle } from '../layout/wire';
   import { palette } from './palette';
+  import { getGraphContext } from './context';
 
   const TICK = palette('sync', 0);
 
-  let { sourceX, sourceY, targetX, targetY, data }: EdgeProps = $props();
+  let { source, target, sourceX: handleSX, sourceY: handleSY, targetX: handleTX, targetY: handleTY, data }: EdgeProps = $props();
+  // (the wheels' centres as the layout places them, not the flow's measure of their handles, which can be stale: PulseEdge)
+  const ctx = getGraphContext();
+  const centreS = $derived(ctx.centre?.(source));
+  const centreT = $derived(ctx.centre?.(target));
+  const sourceX = $derived(centreS?.x ?? handleSX);
+  const sourceY = $derived(centreS?.y ?? handleSY);
+  const targetX = $derived(centreT?.x ?? handleTX);
+  const targetY = $derived(centreT?.y ?? handleTY);
   const d = $derived(data as { rDriven: number; rDriver: number; stretch: number; slipping: boolean; label?: string | null });
   // source: the belted (driven) cell; target: its driver
   const runs = $derived(openBelt({ x: targetX, y: targetY }, d.rDriver, { x: sourceX, y: sourceY }, d.rDriven));

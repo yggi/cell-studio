@@ -65,6 +65,8 @@ export interface GraphContext {
    * flow's own measure of a handle can be stale (measured while the view zoomed: a wheel's loom off its centre).
    */
   centre?(node: string): { x: number; y: number } | undefined;
+  /** Where an edge meets a tape's head (`head-write`, `head-<name>`: the handle's id), as the layout has turned it; the same reason as `centre`. */
+  head?(node: string, handle: string): { x: number; y: number } | undefined;
   /** (#137) Small wheels with something close under them: their name goes round the rim, under the wheel, not in a pill. */
   readonly rimNamed?: ReadonlySet<string>;
   /** Each node's section's tint (ui/sections.ts, by id): its wheel's accents wear it. */

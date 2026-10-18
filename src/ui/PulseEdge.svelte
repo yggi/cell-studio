@@ -56,10 +56,10 @@
     style,
   }: EdgeProps = $props();
   const ctx = getGraphContext();
-  // (an end on a node's centre handle (all but a tape's heads): the node's centre as the layout places it, not the
-  // flow's measure of the handle, which can be stale — measured while the view zoomed)
-  const centreS = $derived(sourceHandleId ? undefined : ctx.centre?.(sourceId));
-  const centreT = $derived(targetHandleId ? undefined : ctx.centre?.(targetId));
+  // (an end on a node's centre handle: the node's centre as the layout places it, not the flow's measure of the handle,
+  // which can be stale — measured while the view zoomed; a tape's head likewise, from the centre and the turn)
+  const centreS = $derived(sourceHandleId ? ctx.head?.(sourceId, sourceHandleId) : ctx.centre?.(sourceId));
+  const centreT = $derived(targetHandleId ? ctx.head?.(targetId, targetHandleId) : ctx.centre?.(targetId));
   const rimSX = $derived(centreS ? centreS.x : handleSX);
   const rimSY = $derived(centreS ? centreS.y : handleSY);
   const rimTX = $derived(centreT ? centreT.x : handleTX);

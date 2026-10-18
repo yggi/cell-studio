@@ -5,7 +5,7 @@
  * rhythm at its rate becomes a tone at its pitch is a straight line up its lane. Pure: the graph in, lanes and spans out.
  */
 import type { GraphModel } from '@yggi/cells/engine/graph';
-import { isSocket } from './towerlayout';
+import { isSocket, soundOf } from './towerlayout';
 
 /** An out: the edge into its socket (its id: what it carries), and the node whose sound it is. */
 interface Lane {
@@ -26,7 +26,7 @@ export interface Minimap {
  * (a groove upstream of the kit it plays).
  */
 export function minimap(drawn: GraphModel, rank: (source: string) => number): Minimap {
-  const lanes = drawn.edges.flatMap((e) => (isSocket(e.to) ? [{ edge: e.id, socket: e.to, source: e.from }] : [])).sort((a, b) => rank(a.source) - rank(b.source));
+  const lanes = drawn.edges.flatMap((e) => (isSocket(e.to) ? [{ edge: e.id, socket: e.to, source: soundOf(e) }] : [])).sort((a, b) => rank(a.source) - rank(b.source));
   const into = new Map<string, string[]>();
   // (a groove reads its kit, `over=`, but plays it: it feeds the kit's out)
   const kits = new Set(drawn.nodes.flatMap((n) => (n.cell?.kit ? [n.id] : [])));

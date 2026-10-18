@@ -6,7 +6,7 @@ import { DEFAULT_LAYOUT } from './options';
 import { columns, flowRanks } from './ranks';
 import { crossingPairs } from './forces';
 import { tapeFaces } from './aims';
-import { fitTurn, headAngle, headBulbs, tapeHeads } from './tape';
+import { fitTurn, headAngle, headBulbs, headPoint, tapeHeads } from './tape';
 import { groundsOf } from './meters';
 import { splinePoint } from './geometry';
 import { buildGraph } from './drawn';
@@ -660,4 +660,23 @@ describe('meters, joined to their cells by a net', () => {
       l.destroy();
     });
   }
+});
+
+describe('where an edge meets a tape', () => {
+  const tape = { name: 't', params: { write: 'a', length: 4 } };
+  const heads = [tape, { name: 'h', params: { play: 't', at: 1 } }];
+  it('is its write head, turned with the tape, from the tape centre', () => {
+    const p = headPoint(tape, heads, 140, 0, null);
+    expect(p.x).toBeCloseTo(70 * 1.02);
+    expect(p.y).toBeCloseTo(0);
+  });
+  it('is a read head round the wheel from the write head, at its bulb when drawn as one', () => {
+    const [bulb] = headBulbs(tape, heads, 140);
+    const p = headPoint(tape, heads, 140, -90, { name: 'h', bulb: true });
+    expect(Math.hypot(p.x, p.y)).toBeCloseTo(bulb!.dist);
+    // a quarter of the tape on: a quarter turn clockwise from the top is the right
+    expect(p.x).toBeCloseTo(bulb!.dist);
+    expect(p.y).toBeCloseTo(0);
+    expect(Math.hypot(...Object.values(headPoint(tape, heads, 140, -90, { name: 'h', bulb: false })))).toBeCloseTo(70 * 1.02);
+  });
 });

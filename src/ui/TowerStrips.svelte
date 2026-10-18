@@ -479,6 +479,7 @@
         });
       }
     }
+    const laneActive = new Map<number, boolean>();
     const namedLeft: number[] = [];
     const namedRight: number[] = [];
     // each out's spire in its lane, at its fundamental; its bridge straight down the lane, through its player, to the selector
@@ -496,6 +497,7 @@
       const section = sectionOf(e.lane.source);
       const playing = ctx.state !== 'stopped';
       const active = !e.off && (!playing || section === undefined || !sectionRow.at || sectionRow.at.picked.has(section));
+      laneActive.set(k, active);
       const signal = playing ? outRgb(graph!, o.name) : null;
       g.strokeStyle = signal ? `rgb(${signal[0]}, ${signal[1]}, ${signal[2]})` : css('--edge');
       g.globalAlpha = active ? (playing ? 0.9 : 0.7) : 0.25;
@@ -552,9 +554,12 @@
         g.lineWidth = 3;
         g.strokeStyle = css('--surface');
         const nx = leftSide ? x0 - 4 : x1 + 4;
+        // (dim where its lane is: a voice of a section not picked)
+        g.globalAlpha = active ? 1 : 0.35;
         g.strokeText(o.name, nx, ny);
         g.fillStyle = e.off ? css('--edge') : `rgb(${c[0]}, ${c[1]}, ${c[2]})`;
         g.fillText(o.name, nx, ny);
+        g.globalAlpha = 1;
       }
     }
     // each lane's players named once, up its bridge from the highest one's chip, toward the gates' row (`off · prog`:
@@ -573,9 +578,11 @@
       g.rotate(-Math.PI / 2);
       g.lineWidth = 3;
       g.strokeStyle = css('--surface');
+      g.globalAlpha = laneActive.get(k) === false ? 0.35 : 1;
       g.strokeText(text, 0, 0, room);
       g.fillStyle = `rgb(${t[0]}, ${t[1]}, ${t[2]})`;
       g.fillText(text, 0, 0, room);
+      g.globalAlpha = 1;
       g.setTransform(dpr, 0, 0, dpr, 0, 0);
       g.lineWidth = 1;
       hit(`cell:${ps[0]!.name}`, mid(k, top) - 6, top - len, mid(k, top) + 4, top);
