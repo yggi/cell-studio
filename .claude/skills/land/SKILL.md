@@ -6,7 +6,7 @@ description: Land a Cell studio pull request that the senior skill has reviewed 
 # Land a pull request
 
 Agents don't merge ([decision 004](../../../docs/decisions/004-agents-dont-merge.md)): this skill runs only on the owner's approval, after the `senior` skill's review found nothing serious.
-The deploy is by hand (CI doesn't deploy), so whoever merges deploys, and the site at <https://yggi.github.io/cell-studio/> plays what `main` holds.
+The deploy is by hand (nothing deploys on a push), so whoever merges deploys, from a clone or in Actions (Deploy → Run workflow), and the site at <https://yggi.github.io/cell-studio/> plays what `main` holds.
 Do the steps in order and stop at the first that fails.
 
 Lifted from yggi/jambot .claude/skills/land/SKILL.md @ ef79048.
@@ -28,7 +28,7 @@ Lifted from yggi/jambot .claude/skills/land/SKILL.md @ ef79048.
 5. **Update `main`.**
    `git fetch origin main && git checkout main && git merge --ff-only origin/main`, in a clone whose tree is clean (the deploy refuses one with changes).
 6. **Deploy.**
-   `node tools/deploy.mjs` from `main`, as a background task (it runs `test:all` and a fresh build: minutes).
+   `node tools/deploy.mjs` from `main`, as a background task (it runs `test:all` and a fresh build: minutes); or, with no clone at hand, Actions → Deploy → Run workflow (`deploy.yml`: the same script on `main`).
    It refuses a tree with changes or a HEAD that isn't `origin/main`, runs every check, builds `dist/` and publishes it to gh-pages ([testing.md](../../../docs/testing.md#run)).
 7. **Check the live site.**
    `CHROME_PATH=/opt/pw-browsers/chromium node tools/live.mjs` (`CHROME_PATH` only in a cloud session): it waits until <https://yggi.github.io/cell-studio/> loads the module script of the `dist/index.html` just deployed (every 10 s, up to 10 min), then opens the page in Chromium and fails on any console error or uncaught exception.
