@@ -5,7 +5,7 @@
    * that out: the structure's cells at their rates, each a row of the values it takes (the one it holds now lit), a cell
    * several outs share across their lanes; the neutral zone's gates, voices and mixers, at their rows; and the out's
    * spire at its fundamental, its spectrum mirrored about the lane's middle (left channel left). A bridge runs straight
-   * up each lane from its player to its pitch. Under it all the rainbow, a band a semitone (C red …), on down through the
+   * up each lane from the selector (through its player) to its pitch. Under it all the rainbow, a band a semitone (C red …), on down through the
    * rates; the tables nothing steps at the bottom.
    */
   import type { Viewport } from '@xyflow/svelte';
@@ -417,6 +417,8 @@
       return y + n * ROW;
     };
     const tables: string[] = [];
+    // (the selectors' row, the lowest of them: where every lane's bridge reaches down to)
+    let selectorY = -Infinity;
     for (const c of structure) {
       const id = `cell:${c.name}`;
       if (c.at === -Infinity) {
@@ -424,6 +426,7 @@
         continue;
       }
       const y = yOf(c.at);
+      if (layers.get(id) === 'selector') selectorY = Math.max(selectorY, y);
       if (y < -10 || y > h + 10) continue;
       const at = place(id, y);
       // (a lane's player — a cell in that lane alone — is drawn on its bridge and named up it, not in the left column)
@@ -468,7 +471,7 @@
         });
       }
     }
-    // each out's spire in its lane, at its fundamental; its bridge straight down the lane to its player
+    // each out's spire in its lane, at its fundamental; its bridge straight down the lane, through its player, to the selector
     for (const e of each) {
       const { k, o, l, r, c, off } = e;
       const s = spireOf(
@@ -480,7 +483,8 @@
       const from = player.get(k) ?? sy(rows.gate);
       g.strokeStyle = `rgba(${c[0]}, ${c[1]}, ${c[2]}, ${off ? 0.25 : 0.6})`;
       g.lineWidth = 1;
-      along((y) => mid(k, y), top, from);
+      // (down through the structure to the selector: each lane reaches the table that picks its section)
+      along((y) => mid(k, y), top, Math.max(from, selectorY));
       hit(e.lane.source, mid(k) - lw / 2, yB, mid(k) + lw / 2, s ? yOf(band(s.top)) - 4 : top - 4);
       hit(e.lane.source, mid(k, from) - lwAt(from) / 2, from, mid(k, from) + lwAt(from) / 2, yB);
       if (s)

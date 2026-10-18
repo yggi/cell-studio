@@ -66,6 +66,12 @@ export interface LayoutOptions {
   between?: ReadonlyMap<string, readonly string[]>;
   /** (the tower layout) Rows in order, left to right (`towerLayers`: the sources' row, the meter first). */
   lineUp?: readonly (readonly string[])[];
+  /**
+   * (the tower layout) Each node's section (its place among its selector's, `nodeSections`) of the stepped structure, the gates,
+   * the voices, the mixers and the sockets: the sections' lanes stand left to right in the sections' order, the colours of a
+   * rainbow, what is no section's (the raw clock, a table's source) free between them.
+   */
+  rainbow?: ReadonlyMap<string, number>;
   /** (the tower layout) Columns (`towerLayers`): a voice or a kit and the one cell that plays it, at one x. */
   columns?: readonly { readonly lo: string; readonly hi: string; readonly via?: string }[];
   /** (the tower layout) Cells kept left of a selector's pill (by the table's id): the frame, its bus up beside it. */

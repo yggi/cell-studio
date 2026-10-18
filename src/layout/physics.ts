@@ -534,6 +534,31 @@ export class ForceLayout {
           a.x -= (short * ma) / (ma + mb);
           b.x += (short * mb) / (ma + mb);
         }
+    // (rainbow) the sections' lanes in their order, left to right: a node stands left of every node of a later section (a
+    // little clear of it where they are near, its wheel's room), what is no section's passing between
+    const rainbow = this.s.opts.rainbow;
+    if (rainbow) {
+      const lanes = [...rainbow].flatMap(([id, k]) => {
+        const n = this.s.byId.get(id);
+        return n?.x === undefined || n.y === undefined ? [] : [{ n, k }];
+      });
+      for (let pass = 0; pass < 2; pass++)
+        for (const a of lanes)
+          for (const b of lanes) {
+            if (a.k >= b.k) continue;
+            const room = (a.n.radius + b.n.radius) * 0.7 + LINE_GAP;
+            const near = Math.abs(a.n.y! - b.n.y!) < room;
+            const short = a.n.x! + (near ? room : 0) - b.n.x!;
+            if (short <= 0) continue;
+            const [ma, mb] = [a.n.fx == null ? 1 : 0, b.n.fx == null ? 1 : 0];
+            if (!ma && !mb) continue;
+            a.n.x! -= (short * ma) / (ma + mb);
+            b.n.x! += (short * mb) / (ma + mb);
+            // (and no speed carries it back over the line)
+            if (ma) a.n.vx = Math.min(a.n.vx ?? 0, 0);
+            if (mb) b.n.vx = Math.max(b.n.vx ?? 0, 0);
+          }
+    }
     for (const n of this.s.byId.values()) clamp(n);
   }
 
