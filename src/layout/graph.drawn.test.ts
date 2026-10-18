@@ -30,9 +30,9 @@ describe('edges as wires', () => {
   it('flow from what is read to the cell that reads it, whichever way the edge points', () => {
     expect(wireOf(g, 'bar', 'theme')).toMatchObject({ port: 'step', band: 'sync' }); // step=&bar
     expect(wireOf(g, 'mode', 'theme')).toMatchObject({ port: 'over', band: 'cv', pointer: true }); // over=&mode
-    expect(g.bulbs.get('walkBar')).toBe('parts'); // &parts … &walkBar: a tap, a bulb on its table (decision 016)
-    expect(wireOf(g, 'bar', 'parts')).toMatchObject({ port: 'step', band: 'sync' }); // &parts step=&bar: the bus, once
-    expect(between(g, 'parts', 'walk')).toMatchObject({ port: 'step', band: 'sync', bulb: 'walkBar' }); // step=&walkBar: from its bulb
+    expect(g.bulbs.get('walkBar')).toBe('sections'); // &sections … &walkBar: a section, a bulb on its table (decision 016)
+    expect(wireOf(g, 'bar', 'sections')).toMatchObject({ port: 'step', band: 'sync' }); // &sections step=&bar: the bus, once
+    expect(between(g, 'sections', 'walk')).toMatchObject({ port: 'step', band: 'sync', bulb: 'walkBar' }); // step=&walkBar: from its bulb
     expect(g.bulbs.get('up')).toBe('tune'); // &tune … &up &up: read there only, a bulb on its track (#221)
     expect(wireOf(g, 'capstan', 'tape')).toMatchObject({ port: 'step', band: 'sync' });
   });
@@ -97,23 +97,23 @@ describe('edges as wires', () => {
     expect(between(m, 'bell', 'out')).toMatchObject({ port: 'mix', band: 'audio', sound: 'bell' });
     expect(between(m, 'kit', 'out')).toMatchObject({ port: 'mix', band: 'audio', sound: 'kit' });
     // (one net: the gate's notes to every voice it plays)
-    expect(m.nets.find((n) => n.id === 'net:cell:leadOut:voice')?.taps).toHaveLength(2);
+    expect(m.nets.find((n) => n.id === 'net:cell:leadOut:voice')?.readers).toHaveLength(2);
     // (a gate's voices keep their nodes; a kit's, played by it only, are bulbs on it)
     expect(['lead', 'bell'].map((v) => m.bulbs.get(v))).toEqual([undefined, undefined]);
     expect(['bd', 'sd', 'hh'].map((v) => m.bulbs.get(v))).toEqual(['kit', 'kit', 'kit']);
   });
-  it('a table read by several is a net: one trunk, a tap for each reader', () => {
+  it('a table read by several is a net: one trunk, an edge for each reader', () => {
     const net = g.nets.find((n) => n.owner === 'cell:mode');
     expect(net).toMatchObject({ port: 'over', band: 'cv' });
-    expect(net!.taps.map((id) => g.edges.find((e) => e.id === id)!.to).sort()).toEqual(['cell:comp', 'cell:motif', 'cell:theme']);
+    expect(net!.readers.map((id) => g.edges.find((e) => e.id === id)!.to).sort()).toEqual(['cell:comp', 'cell:motif', 'cell:theme']);
     // (a table read by one is an edge, not a net)
     expect(g.nets.some((n) => n.owner === 'cell:alpha')).toBe(false);
   });
 
-  // docs/decisions/010-canon-copies.md: a canon's copies and a tape's heads are one net with taps at a delay
+  // docs/decisions/010-canon-copies.md: a canon's copies and a tape's heads are one net with readers at a delay
   const delays = (model: ReturnType<typeof buildGraph>, owner: string) => {
     const net = model.nets.find((n) => n.owner === `cell:${owner}`)!;
-    return net.taps.map((id) => {
+    return net.readers.map((id) => {
       const e = model.edges.find((x) => x.id === id)!;
       // (into a product: the voice it is)
       const to = model.nodes.find((n) => n.id === e.to);
@@ -121,10 +121,10 @@ describe('edges as wires', () => {
     });
   };
 
-  it('a canon is one net from its leader, a tap at a delay for each copy (Frère Jacques)', () => {
+  it('a canon is one net from its leader, a reader at a delay for each copy (Frère Jacques)', () => {
     const canon = buildGraph(compileSource(PRESETS.canon.source));
     expect(canon.nets.find((n) => n.owner === 'cell:john')).toMatchObject({ port: 'voice', band: 'cv', delayed: true });
-    // (each product written is a tap: the four voices in the left channel's mix, then in the right's)
+    // (each product written is a reader: the four voices in the left channel's mix, then in the right's)
     const copies = [
       ['v1', ''],
       ['v2', '[<<]'],
@@ -145,7 +145,7 @@ describe('edges as wires', () => {
     expect(buildGraph(compileSource(src('&m'))).nets.some((n) => n.owner === 'cell:m')).toBe(false);
   });
 
-  it('a tape’s heads are its net’s taps, each at its delay in seconds', () => {
+  it('a tape’s heads are its net’s readers, each at its delay in seconds', () => {
     // (every cell its own node: drawn, the heads are bulbs on the tape — decision 021)
     const tape = buildGraph(compileSource(PRESETS.echotape.source), { bulbs: false });
     expect(tape.nets.find((n) => n.owner === 'cell:tape')).toMatchObject({ port: 'play', delayed: true });
@@ -315,11 +315,11 @@ describe('a parameter that takes a clock is a tap of it (delaytime=&bar*4/3, len
     expect(transformLabel(e.transforms[0])).toBe('×4÷3');
   });
 
-  it('into a meter: a tap of its net (ground), as a step is, so it blinks with it and isn’t drawn as an edge of its own', () => {
+  it('into a meter: a reader of its net (ground), as a step is, so it blinks with it and isn’t drawn as an edge of its own', () => {
     const acid = buildGraph(compileSource(PRESETS.acid.source));
     const net = acid.nets.find((n) => n.owner === 'cell:bar');
     expect(net).toMatchObject({ id: 'net:cell:bar:step', port: 'step', band: 'sync' });
-    expect(net!.taps).toContain(tapOf(acid, 'bar', 'tb303', 'delaytime')!.id);
+    expect(net!.readers).toContain(tapOf(acid, 'bar', 'tb303', 'delaytime')!.id);
     // (only the clock tap: the voice isn't stepped)
     expect(acid.nets.filter((n) => n.port === 'delaytime')).toEqual([]);
   });
@@ -334,7 +334,7 @@ describe('a parameter that takes a clock is a tap of it (delaytime=&bar*4/3, len
     expect(tapOf(m, 'bar', 'w', 'step')).toBeDefined();
     expect(tapOf(m, 'bar', 'w', 'length')?.transforms.map(transformLabel)).toEqual(['÷4']);
     expect(tapOf(m, 'bar', 'h', 'at')?.transforms.map(transformLabel)).toEqual(['']);
-    expect(m.nets.find((n) => n.owner === 'cell:bar')!.taps).toHaveLength(5);
+    expect(m.nets.find((n) => n.owner === 'cell:bar')!.readers).toHaveLength(5);
   });
 
   it('from a clock that is not a meter: an edge drawn, not a net', () => {
@@ -539,8 +539,8 @@ describe('every name written is one wire carrying the transform it writes, and e
     let wires = 0;
     for (const c of program.cells.values()) {
       if (c.lambda || c.implicit) continue;
-      // (a tap its table declares has no line of its own: its name is written on the table's, decision 016)
-      const table = program.taps?.get(c.name);
+      // (a section its table declares has no line of its own: its name is written on the table's, decision 016)
+      const table = program.sections?.get(c.name);
       if (table && program.cells.get(table)?.span.line === c.span.line) continue;
       // (in a groove or a drum motif, read through the voices' kit, a chord of voices [&bd, &hh] is steps of its braid, not a mix)
       const groove = c.over === 'kit:voices';
@@ -639,9 +639,9 @@ describe('every name written is one wire carrying the transform it writes, and e
       if (e.port === 'voice' && gateOf(nameOf(e.from))) return [];
       const into = program.cells.get(nameOf(e.to));
       // (a tap of a meter, `step=16n`, names no cell: its wire comes from the meter it taps, decision 040; into a
-      // table whose taps are bulbs, decision 016, the bulbs' tap)
+      // table whose sections are bulbs, decision 016, the bulbs' tap)
       const tapping = (x: (typeof into & object) | undefined) => !!x?.step?.tap && x.step.driver === nameOf(e.from);
-      if (e.port === 'step' && (tapping(into) || [...(program.taps ?? [])].some(([b, t]) => t === nameOf(e.to) && tapping(program.cells.get(b))))) return [];
+      if (e.port === 'step' && (tapping(into) || [...(program.sections ?? [])].some(([b, t]) => t === nameOf(e.to) && tapping(program.cells.get(b))))) return [];
       if (e.port === 'mix' && into?.mix?.some((b) => gateOf(b.voice.name) && program.cells.get(b.voice.name)!.gate!.receivers.includes(nameOf(e.from)))) return [];
       // (the drums' kit: a groove's one wire into it, the names it writes; and its one wire into a mix a groove is in)
       const groove = (n: string) => program.cells.get(n)?.over === 'kit:voices';

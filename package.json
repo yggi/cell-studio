@@ -47,7 +47,7 @@
   },
   "dependencies": {
     "@xyflow/svelte": "^1.7.0",
-    "@yggi/cells": "github:yggi/cells#v0.4.0",
+    "@yggi/cells": "github:yggi/cells#v0.5.0",
     "@yggi/webmidi": "github:yggi/webmidi#v0.1.1",
     "d3-force": "^3.0.0",
     "tone": "^15.1.22"

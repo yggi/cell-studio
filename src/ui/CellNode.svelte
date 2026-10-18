@@ -64,7 +64,7 @@
 >
   <Handle type="target" position={Position.Top} class="center-handle" isConnectable={false} />
   <!-- (a gate is a mix as read, but draws a level meter: its notes as bars, #234) -->
-  <!-- (the tower layout: a selector is drawn by its pill, TapLooms.svelte — its node keeps its name) -->
+  <!-- (the tower layout: a selector is drawn by its pill, SectionLooms.svelte — its node keeps its name) -->
   {#if ctx.pills?.has(id)}
     <!-- (no wheel) -->
   {:else if glyph === 'gate' && gate}

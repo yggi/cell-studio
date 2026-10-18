@@ -116,9 +116,9 @@ function measure(source: string, at: TowerAt | null, perDecade: number, seed: nu
     return p && !n.petalOf ? [{ id: n.id, y: p.y }] : [];
   });
   const rho = rhoOf(model, l, tower);
-  // (a selector: over= reads a table of taps (decision 016), or, written the old way, a table whose entries are all mixes)
+  // (a selector: over= reads a table of sections (decision 016), or, written the old way, a table whose entries are all mixes)
   const mixes = new Set(model.edges.filter((e) => e.port === 'mix').map((e) => e.to));
-  const tables = new Set(program.taps?.values() ?? []);
+  const tables = new Set(program.sections?.values() ?? []);
   const parts = new Set(
     model.nodes
       .filter((n) => n.cell && (tables.has(n.cell.name) || (n.cell.units.length && n.cell.units.every((u) => u.atom.kind === 'ref' && mixes.has(`cell:${u.atom.name}`)))))

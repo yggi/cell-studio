@@ -51,15 +51,15 @@ export interface LayoutOptions {
   heights?: ReadonlyMap<string, number>;
   /** With `heights`: 0, each held there (a rail); more, each drawn towards it by a spring this strong (a target). */
   heightPull: number;
-  /** A selector's taps as a loom over its table (taploom.ts), counted so, its strands' crossings with each other not. */
-  tapLoom: boolean;
+  /** A selector's sections as a loom over its table (sectionloom.ts), counted so, its strands' crossings with each other not. */
+  sectionLoom: boolean;
   /** (the tower layout) Each socket into the card straight above its source: its x its source's, only its height free. */
   socketsAbove: boolean;
   /** (the tower layout) With `heightPull`: these held at their heights, not drawn there (`towerLayers`: the sockets, the kits). */
   held?: ReadonlySet<string>;
   /**
    * (the tower layout) Each node's stratum, the graph's y from its top to its bottom (`towerLayers`): no force takes
-   * it out. With `tapLoom`, a selector's loom is a level too: what its taps step sits over its lanes.
+   * it out. With `sectionLoom`, a selector's loom is a level too: what its sections step sits over its lanes.
    */
   strata?: ReadonlyMap<string, readonly [number, number]>;
   /** (the tower layout) A mixer's sources (`towerLayers`): its x held between theirs. */
@@ -72,9 +72,9 @@ export interface LayoutOptions {
   aside?: ReadonlyMap<string, string>;
   /** (the tower layout) A plain edge's wheels at least this far apart upwards (px, rim to rim), what feeds below what it feeds: pushed so (0: none). */
   minRise: number;
-  /** (tapLoom) A ride on a loom carrying the bus costs this times its length (1: as a straight join). */
+  /** (sectionLoom) A ride on a loom carrying the bus costs this times its length (1: as a straight join). */
   loomRide: number;
-  /** (tapLoom) A loom is kept clear: no other node stands in its band. */
+  /** (sectionLoom) A loom is kept clear: no other node stands in its band. */
   loomClear: boolean;
   /** A net's join between two of its readers (a bus's, a meter's) is drawn flat, by a spring this strong (0: none). */
   flatNets: number;
@@ -168,7 +168,7 @@ export const DEFAULT_LAYOUT: LayoutOptions = {
   rankPull: 0.05,
   upPull: 0,
   heightPull: 0,
-  tapLoom: false,
+  sectionLoom: false,
   loomRide: 1,
   loomClear: false,
   flatNets: 0,
@@ -204,7 +204,7 @@ export const DEFAULT_LAYOUT: LayoutOptions = {
 export const TOWER_LAYOUT: Partial<LayoutOptions> = {
   placeLast: 0,
   heightPull: 0.05,
-  tapLoom: true,
+  sectionLoom: true,
   socketsAbove: true,
   loomRide: 0,
   loomClear: true,

@@ -30,7 +30,7 @@
   import { towerTicks, withConstant, type StratumName, type TowerScale } from '../layout/towerscale';
   import type { Minimap } from '../layout/minimap';
   import { onFrames } from '../audio/ticker';
-  import { hslRgb, noteHsl, tapTintRgb } from './theme';
+  import { hslRgb, noteHsl, sectionTintRgb } from './theme';
   import { heard, noteHz, outRgb } from './heard';
   import { drawSpire, spireOf } from './spire';
   import { cellView, selectorOf, selectorRow, valueAt, valueSpectrum, type CellView, type ValueShare } from '../layout/cellview';
@@ -126,18 +126,18 @@
   // (each band its note's colour by its octave, as rgb: a spire's dots)
   const hues = Array.from({ length: BANDS }, (_, b) => hslRgb(...noteHsl(bandHue(b, BANDS), false, bandOctave(b, BANDS))));
 
-  // (what a row shows, kept until the piece or a table's turn changes: not each frame — a selector's sections in
-  // order, each the taps it picks; else the cell's spectrum of values, a table of taps' each its section)
-  type Row = { sections: NonNullable<ReturnType<typeof selectorRow>>; n: number } | { v: CellView; taps: number; spread: ValueShare[]; selector?: string };
+  // (what a row shows, kept until the piece or a table's turn changes: not each frame — a selector's steps in
+  // order, each the sections it picks; else the cell's spectrum of values, a table of sections' each its section)
+  type Row = { steps: NonNullable<ReturnType<typeof selectorRow>>; n: number } | { v: CellView; sections: number; spread: ValueShare[]; selector?: string };
   let spectra = { program: null as unknown, shifts: null as unknown, got: new Map<string, Row | null>() };
   function spectrumNow(name: string): Row | null {
-    const sections = selectorRow(ctx.program, name, ctx.shifts);
-    if (sections) return sections.length ? { sections, n: ctx.program.cells.get(ctx.program.cells.get(name)?.over ?? '')?.units.length ?? 1 } : null;
+    const steps = selectorRow(ctx.program, name, ctx.shifts);
+    if (steps) return steps.length ? { steps, n: ctx.program.cells.get(ctx.program.cells.get(name)?.over ?? '')?.units.length ?? 1 } : null;
     const v = cellView(ctx.program, name, ctx.shifts, false);
     if (!v) return null;
-    const taps = [...(ctx.program.taps?.values() ?? [])].includes(name) ? (ctx.program.cells.get(name)?.units.length ?? 0) : 0;
-    const spread = valueSpectrum(v, taps > 0);
-    return spread.length ? { v, taps, spread, ...(taps ? { selector: selectorOf(ctx.program, name) } : {}) } : null;
+    const sections = [...(ctx.program.sections?.values() ?? [])].includes(name) ? (ctx.program.cells.get(name)?.units.length ?? 0) : 0;
+    const spread = valueSpectrum(v, sections > 0);
+    return spread.length ? { v, sections, spread, ...(sections ? { selector: selectorOf(ctx.program, name) } : {}) } : null;
   }
   function spectrumOf(name: string) {
     if (spectra.program !== ctx.program || spectra.shifts !== ctx.shifts) spectra = { program: ctx.program, shifts: ctx.shifts, got: new Map() };
@@ -336,18 +336,18 @@
       const lap = lapOf(ctx.program, name);
       const t = playing && local !== undefined && local !== null && lap > 0 ? (((local / lap) % 1) + 1) % 1 : null;
       const rgb = (c: readonly number[]) => `rgb(${c[0]}, ${c[1]}, ${c[2]})`;
-      // its segments, left to right, each its share of the row in its colours (a selector's step: a stripe a tap it
-      // picks), the one it holds now lit; a table of taps lights the taps its selector picks now
+      // its segments, left to right, each its share of the row in its colours (a selector's step: a stripe a section it
+      // picks), the one it holds now lit; a table of sections lights the sections its selector picks now
       const segments: { share: number; colours: string[]; lit: boolean }[] =
-        'sections' in got
-          ? got.sections.map((s) => ({ share: s.t1 - s.t0, colours: s.picks.map((k) => rgb(tapTintRgb(k, got.n))), lit: t !== null && t >= s.t0 && t < s.t1 }))
+        'steps' in got
+          ? got.steps.map((s) => ({ share: s.t1 - s.t0, colours: s.picks.map((k) => rgb(sectionTintRgb(k, got.n))), lit: t !== null && t >= s.t0 && t < s.t1 }))
           : got.spread.map((e) => {
-              const now = got.taps ? null : t !== null ? valueAt(got.v, t, false) : null;
+              const now = got.sections ? null : t !== null ? valueAt(got.v, t, false) : null;
               const picked = got.selector && playing ? ctx.heads.cells.get(got.selector)?.entries.has(e.index) : false;
               return {
                 share: e.share,
-                colours: [got.taps ? rgb(tapTintRgb(e.index, got.taps)) : paint(fillColour(e.fill))],
-                lit: got.taps ? !!picked : e.key === now,
+                colours: [got.sections ? rgb(sectionTintRgb(e.index, got.sections)) : paint(fillColour(e.fill))],
+                lit: got.sections ? !!picked : e.key === now,
               };
             });
       // (its state now, playing: the value it holds lit, taller and outlined, the outline flashing at each step it

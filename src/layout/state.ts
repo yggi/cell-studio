@@ -17,7 +17,7 @@ export interface MeterTrace {
   readonly a: string;
   readonly b: string;
   /**
-   * A tap's sub-net (decision 016): the bulb on the meter's wheel (its table's) it leaves from, `a` its end there, and
+   * A section's sub-net (decision 016): the bulb on the meter's wheel (its table's) it leaves from, `a` its end there, and
    * where that bulb's hub is from the wheel's centre (GraphEdge.bulbAt).
    */
   readonly bulb?: string;
@@ -54,7 +54,7 @@ export interface PhysLink extends SimulationLinkDatum<PhysNode> {
   ground?: boolean;
   /** Its strength (weights.ts): how hard it pulls, and what crossing it costs. */
   strength?: number;
-  /** A tap of a net (a table read by several): with `netPull`, its pull goes to the net's tree instead. */
+  /** A reader of a net (a table read by several): with `netPull`, its pull goes to the net's tree instead. */
   net?: boolean;
   /** A tag's spring to one of its cells (not drawn: no crossings, no bends, no spread). */
   tag?: boolean;

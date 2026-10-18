@@ -14,7 +14,7 @@ const SRC = `&intro label="A tune and its bass." about=&out
 `;
 
 describe('the margin: notes and scopes beside the graph', () => {
-  it('takes notes and scopes out of the graph, with their edges and taps', () => {
+  it('takes notes and scopes out of the graph, with their edges and readers', () => {
     const model = buildGraph(compileSource(SRC));
     const g = sideless(model);
     const names = g.nodes.map((n) => n.cell?.name);
@@ -25,7 +25,7 @@ describe('the margin: notes and scopes beside the graph', () => {
     const ids = new Set(g.nodes.map((n) => n.id));
     for (const e of g.edges) expect(ids.has(e.source) && ids.has(e.target), e.id).toBe(true);
     const edgeIds = new Set(g.edges.map((e) => e.id));
-    for (const n of g.nets) for (const t of n.taps) expect(edgeIds.has(t)).toBe(true);
+    for (const n of g.nets) for (const t of n.readers) expect(edgeIds.has(t)).toBe(true);
   });
 
   it('numbers the notes in the order the piece writes them, each with what it is about; a scope with what it watches', () => {

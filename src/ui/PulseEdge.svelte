@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { EDGE, PAYLOAD, noteColour, tapTint } from './theme';
+  import { EDGE, PAYLOAD, noteColour, sectionTint } from './theme';
   import { fillColour, liveColour } from './edgeStyle';
   import { palette } from './palette';
   import { gridOf, heardPosition } from '../layout/show';
@@ -74,7 +74,7 @@
   const sourceY = $derived(ends.source?.y ?? rimSY);
   const targetX = $derived(ends.target?.x ?? rimTX);
   const targetY = $derived(ends.target?.y ?? rimTY);
-  // (a loom's ring is drawn as an edge of its own: it reads the bus's bends, taps and liveness)
+  // (a loom's ring is drawn as an edge of its own: it reads the bus's bends, readers and liveness)
   const id = $derived(edgeId.endsWith(LOOM) ? edgeId.slice(0, -LOOM.length) : edgeId);
   const d = $derived(
     data as {
@@ -106,15 +106,15 @@
   // when the live set says so — each edge reads that for itself, so the list isn't remade at every step (#13).
   const state = $derived(d.state === 'idle' && ctx.liveEdges?.has(id) ? 'live' : (d.state ?? 'on'));
   const isLive = $derived(state === 'live');
-  // (a table of taps read by its chooser, decision 016: the selection, a strand a section — its tap's tint, lit while chosen)
+  // (a table of sections read by its chooser, decision 016: the selection, a strand a section — its tint, lit while chosen)
   const selection = $derived(d.port === 'over' && d.table && fanOf(ctx.program, d.table) ? (ctx.program.cells.get(d.table)?.units.length ?? 0) : 0);
   // (whose values travel on it: the groove's, up into its kit; else its source's)
   const sender = $derived(d.groove ? d.to : d.from);
 
   // A bus read by several (a net) is laid as a ratsnest whose junctions are its readers (ForceLayout.netTree): its trunk
-  // leaves the owner's wheel once, to the reader nearest; every other tap comes on from a reader, out of its wheel —
+  // leaves the owner's wheel once, to the reader nearest; every other reader comes on from a reader, out of its wheel —
   // a hop, drawn from there (straight: the tree keeps its joins off the wheels)
-  const hop = $derived(d.net ? ctx.taps?.get(id) : undefined);
+  const hop = $derived(d.net ? ctx.readers?.get(id) : undefined);
   // (the outputs-top probe: a wire leaves its source at 12 o'clock, out of its rim — a tape's read head is its own socket)
   // (a voice with its own envelope on its top: its sound leaves from the envelope's top, layout/voice.ts)
   const socket = $derived(d.socket ?? (OUTPUTS_TOP && d.port !== 'play' ? (hop ? hop.r : (d.sizes?.from ?? 0) / 2) : 0));
@@ -230,7 +230,7 @@
   const view = $derived.by(() => {
     // (a groove's wire carries its hits, one line, not its kit's members as a bus)
     if (d.width < 2 || d.tines || d.groove || (!d.table && d.band !== 'cv')) return null;
-    // (a table of taps is read by its selector through one plain wire, from below: no bus, no loom — decision 016)
+    // (a table of sections is read by its selector through one plain wire, from below: no bus, no loom — decision 016)
     if (d.table && fanOf(ctx.program, d.table)) return null;
     void ctx.turned;
     return cellView(ctx.program, d.table ?? d.from, shown, false);
@@ -246,7 +246,7 @@
   let run: string | null = null;
   const strandPaths = $derived.by(() => {
     run = null;
-    // (the selection: a flat bus along its wire, its sections in the taps' order)
+    // (the selection: a flat bus along its wire, its sections in the sections' order)
     if (selection)
       return sigmoid ? bundleCubic(sigmoid.a, sigmoid.c1, sigmoid.c2, sigmoid.b, across(count)) : bundlePaths(fromX, fromY, mid.x, mid.y, targetX, targetY, across(count));
     const r = d.sizes?.from ? tapRadius(d.sizes.from) : 0;
@@ -314,10 +314,10 @@
     }));
   });
   const strands = $derived.by((): { colour: string; dim: boolean }[] => {
-    // the selection: a section a strand, in its tap's tint; while playing, the ones not chosen now dim
+    // the selection: a section a strand, in its tint; while playing, the ones not chosen now dim
     if (selection) {
       const chosen = ctx.heads.cells.get(d.to)?.entries;
-      return Array.from({ length: count }, (_, k) => ({ colour: tapTint(k, count), dim: ctx.playing && !chosen?.has(k) }));
+      return Array.from({ length: count }, (_, k) => ({ colour: sectionTint(k, count), dim: ctx.playing && !chosen?.has(k) }));
     }
     if (!view) return [];
     // the table's entries, as its wheel colours them: what it pushes, whoever reads which
@@ -428,7 +428,7 @@
         : style,
   );
   // its labels (#137): on the wire, along it, upright, off every wheel (wireLabel). In a net (a bus read by several):
-  // the net's name once, on its trunk; each tap's own change near its reader, just before its socket — the dot on the
+  // the net's name once, on its trunk; each reader's own change near it, just before its socket — the dot on the
   // reader's rim where the net comes in (the net itself runs on under the reader to the next)
   const reader = $derived((d.sizes?.to ?? 0) / 2);
   // (the line its labels and socket sit on: a bus's middle strand, else the wire)
@@ -444,9 +444,9 @@
       if (at) out.push({ ...at, text: d.net.name, name: true });
     }
     if (own) {
-      // (a tap's: back from its socket — the spine may stop short of the rim already, a bus cut inside it)
+      // (a reader's: back from its socket — the spine may stop short of the rim already, a bus cut inside it)
       const end = m.at(m.length);
-      const room = Math.max(0, reader - Math.hypot(end.x - targetX, end.y - targetY)) + EDGE.tapGap;
+      const room = Math.max(0, reader - Math.hypot(end.x - targetX, end.y - targetY)) + EDGE.readerGap;
       const at = d.net ? wireLabel(m, width(own), ctx.wheels, 6, room) : wireLabel(m, width(own), ctx.wheels);
       if (at) out.push({ ...at, text: own });
     }
@@ -498,7 +498,7 @@
   {/each}
   <BaseEdge {id} {path} {markerEnd} style={edgeStyle} class={`edge-${state}${strands.length || tineStrands.length || (pickPaths.length && !picked?.hub) ? ' bus-core' : ''}`} />
   {#if socketAt}
-    <circle class="tap-socket" class:off={d.off} cx={socketAt.x} cy={socketAt.y} r={EDGE.socket} style:stroke={colour ?? restColour ?? undefined} />
+    <circle class="reader-socket" class:off={d.off} cx={socketAt.x} cy={socketAt.y} r={EDGE.socket} style:stroke={colour ?? restColour ?? undefined} />
   {/if}
   {#each tags as tag (tag.text)}
     <!-- (a label on the wire, the wire gapped under it by a halo of the background: under the letters, its own layer) -->
@@ -530,7 +530,7 @@
     stroke-linejoin: round;
   }
   .edge-tag.off,
-  .tap-socket.off {
+  .reader-socket.off {
     opacity: 0.3;
   }
   /* (a net's shared name: its owner's, in the names' font) */
@@ -538,7 +538,7 @@
     font: var(--edge-net-font);
   }
   /* (a ring where the net comes into its reader: a port) */
-  .tap-socket {
+  .reader-socket {
     fill: var(--wheel-disc);
     stroke: var(--text-muted);
     stroke-width: 2;

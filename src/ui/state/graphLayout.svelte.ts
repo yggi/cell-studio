@@ -55,14 +55,14 @@ export interface EdgeStyle {
   readonly moment: string | null;
 }
 
-type Tap = { from: string; x: number; y: number; r: number } | null;
+type ReaderFrom = { from: string; x: number; y: number; r: number } | null;
 
 /** The graph's layouts: the signal path's (`flow`), or the frequency tower's (`tower`: towerlayout.ts). */
 export type LayoutMode = 'flow' | 'tower';
 
 /**
  * The graph as laid out: the snapshot drawn (one piece's program and graph, `shown`), the flow's nodes and edges made
- * from it, and where they are (a `ForceLayout`, pins, petals' slots, the splines' bends, the nets' taps, the meters'
+ * from it, and where they are (a `ForceLayout`, pins, petals' slots, the splines' bends, the nets' readers, the meters'
  * nets). `sync` takes the next snapshot and swaps all of it in one go, so a component never sees one piece's edges
  * with another's program.
  */
@@ -73,8 +73,8 @@ export class GraphLayout {
   edges = $state.raw<Edge[]>([]);
   /** Where each edge's spline bends (it slips off nodes it would rest on). */
   bends = $state.raw(new Map<string, { x: number; y: number }>());
-  /** Where each bus's taps come from (a ratsnest, the readers its junctions: laid again as cells move). */
-  taps = $state.raw(new Map<string, Tap>());
+  /** Where each bus's readers come on from (a ratsnest, the readers its junctions: laid again as cells move). */
+  readers = $state.raw(new Map<string, ReaderFrom>());
   /** Each meter's net (its traces to the cells it steps, through each other), as laid once the layout comes to rest. */
   net = $state.raw<readonly MeterTrace[]>([]);
   /** Counts the times the view is to be framed again (a piece opened, come to rest). */
@@ -92,7 +92,7 @@ export class GraphLayout {
   rows = $state.raw<{ readonly gate: number; readonly voice: number; readonly mixer: number }>({ gate: 0, voice: 0, mixer: 0 });
   /** The graph as the tower layout draws it: with a socket each out. */
   drawnModel = $state.raw<GraphModel | null>(null);
-  /** (the tower layout) Each selector's loom over its table: its strands (taploom.ts), laid again as things move. */
+  /** (the tower layout) Each selector's loom over its table: its strands (sectionloom.ts), laid again as things move. */
   looms = $state.raw<readonly Loom[]>([]);
   /** Pinned by the user (or held where they were dropped, or a turntable: see `#placed`). */
   readonly pinned = new SvelteSet<string>();
@@ -250,9 +250,9 @@ export class GraphLayout {
   #makeEdges(): void {
     const s = this.#style();
     this.#madeFrom = [this.shown, this.net, s.lit, s.moment];
-    // (a selector's taps drawn as its loom, tapLoom: their traces aren't drawn)
+    // (a selector's sections drawn as its loom, sectionLoom: their traces aren't drawn)
     const looms = this.#force.loomTables();
-    const net = this.#force.options.tapLoom ? this.net.filter((t) => !t.bulb && !looms.has(t.a)) : this.net;
+    const net = this.#force.options.sectionLoom ? this.net.filter((t) => !t.bulb && !looms.has(t.a)) : this.net;
     this.edges = flowEdgesOf({ ...this.shown, model: sideless(this.shown.model) }, { sizeOf: (id) => this.#sizeOf(id), net, lit: s.lit, live: s.live });
   }
 
@@ -350,11 +350,11 @@ export class GraphLayout {
       return p ? { ...turned, position: p } : turned;
     });
     this.bends = this.#force.bends();
-    this.taps = new Map([...this.#force.taps()].map(([id, t]) => [id, t && { ...t, r: t.loom ? 0 : (this.#sizeOf(t.from) ?? 0) / 2 }]));
+    this.readers = new Map([...this.#force.readers()].map(([id, t]) => [id, t && { ...t, r: t.loom ? 0 : (this.#sizeOf(t.from) ?? 0) / 2 }]));
     // (a meter's net is laid as a bus's is, again as things move: each cell joined to the nearest already joined)
     const laid = this.#force.meterNet();
     if (!sameNet(laid, this.net)) this.net = laid;
-    this.looms = this.#force.options.tapLoom ? this.#force.tapLooms() : [];
+    this.looms = this.#force.options.sectionLoom ? this.#force.sectionLooms() : [];
     // (an example opens with its rows in the order chosen when the app was built: no trials)
   }
 }

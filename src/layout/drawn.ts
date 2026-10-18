@@ -57,8 +57,8 @@ function petals(result: CompileResult, written: WrittenGraph, withBulbs: boolean
     for (let guard = 0; parentOf.has(id) && guard < 64; guard++) id = parentOf.get(id)!;
     return id;
   };
-  // (a bulb its edges out leave from, by its node id: its name — a tap on its table, a read head on its tape)
-  const tapBulb = (id: string) => {
+  // (a bulb its edges out leave from, by its node id: its name — a section on its table, a read head on its tape)
+  const sectionBulb = (id: string) => {
     const name = id.slice('cell:'.length);
     const host = bulbs.get(id)?.slice('cell:'.length);
     return host && leavesFromBulb(result, host, name) ? name : undefined;
@@ -92,14 +92,14 @@ function petals(result: CompileResult, written: WrittenGraph, withBulbs: boolean
       out.push(e);
       continue;
     }
-    // (a tap's steps leave from its bulb on its table: each its own wire, the tap's sub-net — decision 016; a read
+    // (a section's steps leave from its bulb on its table: each its own wire, the section's sub-net — decision 016; a read
     // head's edges from its bulb on its tape — decision 021)
-    const tap = tapBulb(e.from);
-    if (tap && source !== target) {
+    const section = sectionBulb(e.from);
+    if (section && source !== target) {
       // (a head's keeps its own id: what it is drawn as is the same edge, from its bulb)
-      const id = result.taps?.get(tap) !== undefined ? `${edgeId(cellId(tap), up(e.to))}~` : e.id;
+      const id = result.sections?.get(section) !== undefined ? `${edgeId(cellId(section), up(e.to))}~` : e.id;
       redrawn.push({ id: e.id, pair: id });
-      out.push({ ...e, id, source, target, from: up(e.from), to: up(e.to), bulb: tap });
+      out.push({ ...e, id, source, target, from: up(e.from), to: up(e.to), bulb: section });
       continue;
     }
     redrawn.push({ id: e.id, pair: source === target ? null : key(source, target) });

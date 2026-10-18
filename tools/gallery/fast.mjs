@@ -8,7 +8,7 @@
 //   node tools/gallery.mjs edges                              # every kind of edge, in every state
 //   node tools/gallery.mjs mockups                            # the design questions of #107 (Mockups.svelte)
 //   CELLS=piece.cells node tools/gallery.mjs golden           # any source in the real Graph, stopped and live
-//   ZOOM=parts node tools/gallery.mjs zoom 3 pop korobeiniki  # close-ups of &parts in each, stopped and live (default:
+//   ZOOM=sections node tools/gallery.mjs zoom 3 pop korobeiniki  # close-ups of &sections in each, stopped and live (default:
 //                                                              # every wheel with bulbs), tiles/<piece>-<state>-<cell>.png
 //
 // Writes <OUT>/sheet.png (the whole page), <OUT>/tiles/<kind>.png (one per kind: a <figure data-kind>), <OUT>/index.html

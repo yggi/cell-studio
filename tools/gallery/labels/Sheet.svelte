@@ -51,7 +51,7 @@
     { x: 165, y: 45, t: '×2' },
     { x: 210, y: 70, t: '/4' },
   ];
-  const NET_OPTIONS = ['A · none (today)', 'B · the net named once, on its trunk', 'C · B + each tap’s own change at its reader', 'D · the name at every reader’s end'];
+  const NET_OPTIONS = ['A · none (today)', 'B · the net named once, on its trunk', 'C · B + each reader’s own change at its end', 'D · the name at every reader’s end'];
 
   // ---- bulbs ---------------------------------------------------------------------------------------------------------
   const HOST = { x: 120, y: 132, r: 52 };
@@ -153,7 +153,7 @@
   </figure>
 
   <figure data-kind="2-nets">
-    <figcaption><b>2 · a net's label</b> — a bus read by three (&amp;major, two of its taps changed), as its tree draws it</figcaption>
+    <figcaption><b>2 · a net's label</b> — a bus read by three (&amp;major, two of its readers changed), as its tree draws it</figcaption>
     <div class="grid" style:--cols={NET_OPTIONS.length}>
       {#each NET_OPTIONS as o (o)}<div class="head">{o}</div>{/each}
       {#each NET_OPTIONS as _o, k (k)}
@@ -184,7 +184,7 @@
   </figure>
 
   <figure data-kind="3-bulbs">
-    <figcaption><b>3 · a name on a sub-wheel</b> (a tap, a splice, a head) that doesn't fit: short and long names on one host</figcaption>
+    <figcaption><b>3 · a name on a sub-wheel</b> (a section, a splice, a head) that doesn't fit: short and long names on one host</figcaption>
     <div class="grid" style:--cols={BULB_OPTIONS.length}>
       {#each BULB_OPTIONS as o (o)}<div class="head">{o}</div>{/each}
       {#each BULB_OPTIONS as _o, k (k)}

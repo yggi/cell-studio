@@ -51,9 +51,9 @@ export interface GraphContext {
   open(name: string): void;
   /** Where each edge's spline bends (by edge id), from the layout. */
   readonly bends: ReadonlyMap<string, { x: number; y: number }>;
-  /** Where each bus's tap comes from (by edge id): null, the trunk, out of the owner; else the reader it comes on from (its centre and its wheel's radius). */
-  readonly taps?: ReadonlyMap<string, { from: string; x: number; y: number; r: number } | null>;
-  /** (the tower layout) The selectors drawn as pills (TapLooms.svelte): their own wheel left out, the pill draws them. */
+  /** Where each bus's reader comes on from (by edge id): null, the trunk, out of the owner; else the reader it comes on from (its centre and its wheel's radius). */
+  readonly readers?: ReadonlyMap<string, { from: string; x: number; y: number; r: number } | null>;
+  /** (the tower layout) The selectors drawn as pills (SectionLooms.svelte): their own wheel left out, the pill draws them. */
   readonly pills?: ReadonlySet<string>;
   /**
    * Where an edge from `other` (its node id, and where that end is) meets `node`, when `node` isn't drawn as a wheel

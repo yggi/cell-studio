@@ -221,7 +221,7 @@ describe('a label on a wire (#137)', () => {
     const p = wireLabel(m, 40, [{ x: 150, y: 0, r: 30 }])!;
     expect(Math.abs(p.x - 150)).toBeGreaterThan(30 + 20);
     expect(p.y).toBe(0);
-    // (near the end: a tap's, back from its socket)
+    // (near the end: a reader's, back from its socket)
     expect(wireLabel(m, 40, [], 6, 20)!.x).toBeCloseTo(260, 0);
   });
 });

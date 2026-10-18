@@ -51,7 +51,7 @@ probe `tools/probe/scalogram.test.ts` ([scalogram.md](https://github.com/yggi/ce
 `ZOOM=parts node tools/gallery.mjs zoom 3 pop korobeiniki` lays each piece out in the real Graph (as `golden 3 pop
 korobeiniki` does), then zooms each frame's flow in on each named cell with the mouse wheel, as a hand would, and keeps
 `tiles/<piece>-<stopped|live>-<cell>.png`: the wheel at about 4× with its edges' ends round it. Without `ZOOM`, every
-wheel that has bulbs (`[data-bulb]`: a braid's splices, a table of taps) is taken. `SCALE=3` for sharper tiles.
+wheel that has bulbs (`[data-bulb]`: a braid's splices, a table of sections) is taken. `SCALE=3` for sharper tiles.
 
 Read it for what a contact sheet of the whole graph is too small to show: where an edge meets a wheel (a net from a
 bulb, a selector's wire from below), a bulb's ends and joins, names that don't fit, a cursor's colour and where it
