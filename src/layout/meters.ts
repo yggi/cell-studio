@@ -9,7 +9,7 @@ import { noteValue, tapShare, type Meter, type SwingLevel } from '@yggi/cells/en
 
 type Node = { id: string; kind: string; isMeter?: boolean; petalOf?: string };
 
-/** The edges to a meter that aren't drawn (its net's taps), by id. */
+/** The edges to a meter that aren't drawn (its net's readers), by id. */
 export function groundsOf(model: { nets?: readonly { port: string; readers: readonly string[] }[] }): Set<string> {
   return new Set((model.nets ?? []).flatMap((n) => (n.port === 'step' ? n.readers : [])));
 }

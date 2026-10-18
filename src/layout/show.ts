@@ -127,7 +127,7 @@ export function kindOf(result: CompileResult, name: string): Kind {
   return readAsTable && !played ? 'table' : 'braid';
 }
 
-/** A selector: a cell reading a table of taps (decision 016) — its numbers pick which play. */
+/** A selector: a cell reading a table of sections (decision 016) — its numbers pick which play. */
 export function isSelector(result: CompileResult, name: string): boolean {
   return selects(result, name);
 }

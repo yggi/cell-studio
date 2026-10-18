@@ -31,8 +31,8 @@ interface Line {
 
 const ringMid = (g: WheelGeometry) => (g.rInner + g.rOuter) / 2;
 
-/** What every name in a table of taps ends in (`&hatsBar`, `&kickBar` …: `Bar`), leaving each at least two letters of its own. */
-export function tapSuffix(refs: readonly string[]): string {
+/** What every name in a table of sections ends in (`&hatsBar`, `&kickBar` …: `Bar`), leaving each at least two letters of its own. */
+export function sectionSuffix(refs: readonly string[]): string {
   const first = refs[0];
   if (first === undefined) return '';
   let k = 0;
@@ -40,8 +40,8 @@ export function tapSuffix(refs: readonly string[]): string {
   return k ? first.slice(-k) : '';
 }
 
-/** A tap's name on its bulb: less the suffix all of them share. */
-const tapName = (n: string, suffix: string) => (suffix ? n.slice(0, -suffix.length) : n);
+/** A section's name on its bulb: less the suffix all of them share. */
+const sectionName = (n: string, suffix: string) => (suffix ? n.slice(0, -suffix.length) : n);
 
 interface BulbLabel {
   readonly L: Laid;
@@ -69,16 +69,16 @@ export function rimArc(c: readonly [number, number], r: number): string {
 }
 
 /**
- * Each bulb on a braid's track, depth first: its outline when it is a net-ref, its name at its hub (a tap's less the
- * suffix all share, `tapsTable`; an unnamed cell's none), its label and laps under it.
+ * Each bulb on a braid's track, depth first: its outline when it is a net-ref, its name at its hub (a section's less the
+ * suffix all share, `sectionsTable`; an unnamed cell's none), its label and laps under it.
  */
-export function bulbLabels(result: CompileResult, track: Track | null, tapsTable: boolean, suffix: string): BulbLabel[] {
+export function bulbLabels(result: CompileResult, track: Track | null, sectionsTable: boolean, suffix: string): BulbLabel[] {
   const out: BulbLabel[] = [];
   const walk = (list: readonly Laid[]) => {
     for (const L of list) {
       const b = L.bulb;
       const lambda = !!result.cells.get(b.name)?.lambda;
-      const text = lambda ? '' : tapsTable ? tapName(b.name, suffix) : `&${b.name}`;
+      const text = lambda ? '' : sectionsTable ? sectionName(b.name, suffix) : `&${b.name}`;
       const sub = [b.label, b.laps > 1 ? `×${b.laps}` : ''].filter(Boolean).join(' ');
       const room = 2 * Math.max(4, L.rho - L.w / 2) * 0.9;
       const font = fitFont(room, Math.max(2, text.length, sub.length), 13, BULB_MIN);
@@ -283,18 +283,18 @@ export function brightnessOf(view: CellView): number[] | null {
 }
 
 /**
- * A table of taps (decision 016): each tap a ring round its bulb, in its part's colour on the selector's barrel (`part`
+ * A table of sections (decision 016): each section a ring round its bulb, in its part's colour on the selector's barrel (`part`
  * of `parts`), `on` while the selector has it on (`lit`, by segment).
  */
-export function tapRings(bulbs: readonly BulbLabel[], view: CellView, parts: number, lit: ReadonlySet<number>): { L: Laid; part: number; parts: number; on: boolean }[] {
+export function sectionRings(bulbs: readonly BulbLabel[], view: CellView, parts: number, lit: ReadonlySet<number>): { L: Laid; part: number; parts: number; on: boolean }[] {
   return bulbs.map((b, i) => ({ L: b.L, part: view.segments[i]?.index ?? i, parts, on: lit.has(i) }));
 }
 
 /**
- * While it plays, a hand from the hub's edge across each tap that is on, over the hub where it overlaps it; it stops
+ * While it plays, a hand from the hub's edge across each section that is on, over the hub where it overlaps it; it stops
  * at the ring's inside, so that its name stays clear.
  */
-export function tapCursors(rings: readonly { readonly L: Laid; readonly on: boolean }[], g: WheelGeometry): string[] {
+export function sectionCursors(rings: readonly { readonly L: Laid; readonly on: boolean }[], g: WheelGeometry): string[] {
   const c = g.c;
   return rings.flatMap((t) => {
     if (!t.on) return [];
@@ -384,9 +384,9 @@ export function clockTicks(view: CellView, space: 'pitch' | 'time' | null, track
   });
 }
 
-/** The plain ticks of a wheel drawn in a space of its own (up to 48; a table of taps none). */
-export function plainTicks(view: CellView, space: 'pitch' | 'time' | null, tapsTable: boolean, g: WheelGeometry): Line[] {
-  if (space !== null || view.ticks > 48 || tapsTable) return [];
+/** The plain ticks of a wheel drawn in a space of its own (up to 48; a table of sections none). */
+export function plainTicks(view: CellView, space: 'pitch' | 'time' | null, sectionsTable: boolean, g: WheelGeometry): Line[] {
+  if (space !== null || view.ticks > 48 || sectionsTable) return [];
   return Array.from({ length: view.ticks }, (_, i) => {
     const [x1, y1] = polar(g.c, g.c, g.tick.r0, i / view.ticks);
     const [x2, y2] = polar(g.c, g.c, g.tick.r1, i / view.ticks);
@@ -395,10 +395,10 @@ export function plainTicks(view: CellView, space: 'pitch' | 'time' | null, tapsT
 }
 
 /**
- * Which segments of a table of taps are lit: the taps its selector has on now (`nodes`: the lit nodes' ids). As a key
+ * Which segments of a table of sections are lit: the sections its selector has on now (`nodes`: the lit nodes' ids). As a key
  * (`1,3`), so that the set is made again only when it changes, not every tick.
  */
-export function litTaps(view: CellView, cell: ResolvedCell | undefined, nodes: ReadonlySet<string> | undefined): string {
+export function litSections(view: CellView, cell: ResolvedCell | undefined, nodes: ReadonlySet<string> | undefined): string {
   const on: number[] = [];
   view.segments.forEach((s, i) => {
     const u = cell?.units[s.index];
@@ -409,7 +409,7 @@ export function litTaps(view: CellView, cell: ResolvedCell | undefined, nodes: R
 
 /**
  * Which segments of a braid are lit: the ones under its playhead (`at()`, turns; null: not playing). A key, as
- * `litTaps`. (`at` is read only of a braid: a wheel that has no playhead does not depend on it.)
+ * `litSections`. (`at` is read only of a braid: a wheel that has no playhead does not depend on it.)
  */
 export function litSteps(view: CellView, at: () => number | null): string {
   if (view.mode !== 'braid') return '';
@@ -422,7 +422,7 @@ export function litSteps(view: CellView, at: () => number | null): string {
   return on.join(',');
 }
 
-/** A key of `litTaps` or `litSteps` as a set of segments. */
+/** A key of `litSections` or `litSteps` as a set of segments. */
 export const litSet = (key: string): Set<number> => new Set(key ? key.split(',').map(Number) : []);
 
 /** A table's entries being read now (`entries`, a key: `0,4`), as the segments they are (not a braid's: none). */

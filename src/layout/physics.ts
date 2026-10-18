@@ -23,16 +23,16 @@ import { folded, junctionNodes, placeJunctions, settleJunctions } from './juncti
 import { rowsKey, startNodes, startPlaces } from './start';
 import { forceUncross, stepBends, stepClusters, stepExclusion, stepKinds, stepSpread } from './forces';
 import { aims, fitTurns, stepAims } from './aims';
-import { hops, loomsOf, meterNet, netTree, stepNets, taps } from './nets';
+import { hops, loomsOf, meterNet, netTree, readersOf, stepNets } from './nets';
 import { placeMeters } from './placement';
-import { loomContact, loomLane, loomPorts, PILL_PAD, pillOf, tapLoom, type LoomStrand } from './taploom';
+import { loomContact, loomLane, loomPorts, PILL_PAD, pillOf, sectionLoom, type LoomStrand } from './sectionloom';
 
 /** A selector's loom as drawn: its strands, and the pill round it (the graph's coordinates). */
 export interface Loom {
   readonly table: string;
   readonly strands: LoomStrand[];
   readonly pill: { readonly x0: number; readonly x1: number; readonly y0: number; readonly y1: number };
-  /** The selector at the pill's bottom: its hub, a contact a tap (in the strands' tap order), and its two ports. */
+  /** The selector at the pill's bottom: its hub, a contact a section (in the strands' section order), and its two ports. */
   readonly hub: { readonly x: number; readonly y: number };
   readonly contacts: readonly { readonly x: number; readonly y: number }[];
   readonly ports: { readonly meter: { readonly x: number; readonly y: number }; readonly select: { readonly x: number; readonly y: number } };
@@ -267,7 +267,7 @@ export class ForceLayout {
 
     // (a net at delays is a star from its owner, which its edges' own springs already are: measured, as the net's
     // springs Frère Jacques crosses more, 1 → 1.7 — docs/notes/nets.md, step 6)
-    const busTaps = new Set(this.s.nets.flatMap((n) => (n.port === 'step' || n.delayed ? [] : n.readers)));
+    const busReaders = new Set(this.s.nets.flatMap((n) => (n.port === 'step' || n.delayed ? [] : n.readers)));
     const links: PhysLink[] = model.edges
       .filter((e) => !ground(e) && next.has(e.source) && next.has(e.target) && e.source !== e.target)
       .map((e) => ({
@@ -278,13 +278,13 @@ export class ForceLayout {
         part: e.port === 'braid' || e.port === 'over',
         belt: !!e.belt,
         strength: strengthOf(e),
-        net: busTaps.has(e.id),
+        net: busReaders.has(e.id),
       }));
 
     this.sim.nodes([...next.values()]);
     this.s.faces = this.s.faces.filter((f) => next.has(f.tape) && next.has(f.to));
     // a meter's edges (ground): kept aside, to be drawn where they cross nothing once the meter is placed
-    // (a tap's steps: a net of their own, from the tap's bulb on its table — decision 016)
+    // (a section's steps: a net of their own, from the section's bulb on its table — decision 016)
     this.s.grounds = model.edges
       .filter((e) => ground(e) && next.has(e.source) && next.has(e.target))
       .map((e) => ({ id: e.id, meter: e.target, cell: e.source, ...(e.bulb && e.bulbAt ? { bulb: e.bulb, at: { ...e.bulbAt } } : {}) }));
@@ -427,7 +427,7 @@ export class ForceLayout {
 
   /**
    * (strata) Each node kept in its stratum: where the tick would carry it past an edge, its velocity stops it there.
-   * (tapLoom) A selector's loom a level: what its taps step sits over its top lane (its radius clear); one held, or at
+   * (sectionLoom) A selector's loom a level: what its sections step sits over its top lane (its radius clear); one held, or at
    * its stratum's top, takes the table down instead.
    */
   private strata(): void {
@@ -441,7 +441,7 @@ export class ForceLayout {
       const y = Math.min(b[1], Math.max(b[0], next));
       if (y !== next) n.vy = (y - n.y) / keep;
     };
-    if (this.s.opts.tapLoom) {
+    if (this.s.opts.sectionLoom) {
       const looms = new Map<string, { bulbs: Set<string>; cells: Set<string> }>();
       for (const g of this.s.grounds) {
         if (!g.bulb) continue;
@@ -452,7 +452,7 @@ export class ForceLayout {
       for (const [table, l] of looms) {
         const t = this.s.byId.get(table);
         if (t?.y === undefined) continue;
-        // (its top lane: a lane a tap over the table, the source's under it)
+        // (its top lane: a lane a section over the table, the source's under it)
         const lane = loomLane({ x: t.x ?? 0, y: t.y }, l.bulbs.size);
         for (const id of l.cells) {
           const c = this.s.byId.get(id);
@@ -469,7 +469,7 @@ export class ForceLayout {
     }
     // (loomClear) a loom's band, from its top lane to its table's top over its span, kept clear: a node standing in it
     // goes out by the nearer way its stratum allows (up over the lanes, down under the table's top, or aside)
-    if (this.s.opts.tapLoom && this.s.opts.loomClear)
+    if (this.s.opts.sectionLoom && this.s.opts.loomClear)
       for (const [table, l] of loomsOf(this.s)) {
         const steps = new Set(this.s.grounds.flatMap((g) => (g.meter === table && g.bulb ? [g.cell] : [])));
         for (const n of this.s.byId.values()) {
@@ -494,17 +494,17 @@ export class ForceLayout {
         }
       }
     // (aside) a cell left of a selector's pill, its bus going up beside it, not through it
-    if (this.s.opts.tapLoom)
+    if (this.s.opts.sectionLoom)
       for (const [id, table] of this.s.opts.aside ?? []) {
         const [n, l] = [this.s.byId.get(id), loomsOf(this.s).get(table)];
         if (n?.x === undefined || !l || n.fx != null) continue;
         n.x = Math.min(n.x, l.x0 - PILL_PAD - n.radius * 0.7 - LINE_GAP);
       }
     // (clear) a cell under a selector's pill whose wire runs up past it, to a cell over it, stands beside the pill as drawn
-    // (its taps' readers and its bypass's riders with it) on its nearer side, so no wire crosses it — the frame's `aside`
+    // (its sections' readers and its bypass's riders with it) on its nearer side, so no wire crosses it — the frame's `aside`
     // for any such wire (Cellscape's &key, the golden's)
-    if (this.s.opts.tapLoom && this.s.grounds.some((g) => g.bulb))
-      for (const { table, pill } of this.tapLooms()) {
+    if (this.s.opts.sectionLoom && this.s.grounds.some((g) => g.bulb))
+      for (const { table, pill } of this.sectionLooms()) {
         for (const link of this.s.links) {
           const [a, b] = [nodeAt(this.s, link.source), nodeAt(this.s, link.target)];
           if (!a || !b || a.y === undefined || b.y === undefined || a.id === table || b.id === table) continue;
@@ -586,7 +586,7 @@ export class ForceLayout {
     const k = this.s.opts.netLead;
     if (!k) return;
     for (const net of this.s.nets) {
-      // (a bus: a table or a value read by several; not a meter's net, a tap's sub-net, sound or a canon's copies)
+      // (a bus: a table or a value read by several; not a meter's net, a section's sub-net, sound or a canon's copies)
       if (net.port === 'step' || net.band === 'audio' || net.delayed || net.bulb) continue;
       const o = this.s.byId.get(net.owner);
       const rs = net.readers.flatMap((id) => {
@@ -628,10 +628,10 @@ export class ForceLayout {
   }
 
   /**
-   * (tapLoom) Each table of taps' loom (taploom.ts): its taps, left to right as its bulbs are, each a lane, a strand to
+   * (sectionLoom) Each table of sections' loom (sectionloom.ts): its sections, left to right as its bulbs are, each a lane, a strand to
    * each cell it steps, from where everything is now.
    */
-  tapLooms(): Loom[] {
+  sectionLooms(): Loom[] {
     const by = new Map<string, Map<string, { at: { x: number; y: number }; to: string[] }>>();
     // (what the bus a table is stepped by goes on to out of its loom: netTree)
     const from = new Map<string, string[]>();
@@ -642,14 +642,14 @@ export class ForceLayout {
     for (const t of this.s.net) if (!t.bulb && tables.has(t.a)) (from.set(t.a, [...(from.get(t.a) ?? []), t.b]), rising.add(`${t.a}~${t.b}`));
     for (const g of this.s.grounds) {
       if (!g.bulb || !g.at) continue;
-      const taps = by.get(g.meter) ?? by.set(g.meter, new Map()).get(g.meter)!;
-      const t = taps.get(g.bulb) ?? taps.set(g.bulb, { at: g.at, to: [] }).get(g.bulb)!;
+      const sections = by.get(g.meter) ?? by.set(g.meter, new Map()).get(g.meter)!;
+      const t = sections.get(g.bulb) ?? sections.set(g.bulb, { at: g.at, to: [] }).get(g.bulb)!;
       if (!t.to.includes(g.cell)) t.to.push(g.cell);
     }
-    return [...by].flatMap(([table, taps]) => {
+    return [...by].flatMap(([table, sections]) => {
       const n = this.s.byId.get(table);
       if (!n || n.x === undefined || n.y === undefined) return [];
-      const ordered = [...taps].sort((a, b) => a[1].at.x - b[1].at.x);
+      const ordered = [...sections].sort((a, b) => a[1].at.x - b[1].at.x);
       const hub = { x: n.x, y: n.y };
       const contacts = ordered.map((_, k) => loomContact(hub, k, ordered.length));
       const loom = ordered.map(([bulb, t], k) => ({
@@ -677,13 +677,13 @@ export class ForceLayout {
       const other = (l: { source: string; target: string }) => (l.source === table ? l.target : l.target === table ? l.source : undefined);
       const chooserId = this.s.links.map(other).find((id) => id !== undefined && id !== meterId && (nodeAt(this.s, id)?.y ?? -Infinity) > n.y!);
       const ports = loomPorts(hub, at(meterFrom), at(chooserId));
-      const strands = tapLoom({ x: n.x, y: n.y, r: n.radius * 0.7 }, loom, readers, ports.meter);
+      const strands = sectionLoom({ x: n.x, y: n.y, r: n.radius * 0.7 }, loom, readers, ports.meter);
       const pill = pillOf(hub, contacts, ports, strands);
       return [{ table, strands, pill, hub, contacts, ports, feeds: { meter: meterFrom, select: chooserId } }];
     });
   }
 
-  /** (tapLoom) The selectors drawn as looms, by their table's id: a meter's trace out of one is its strand. */
+  /** (sectionLoom) The selectors drawn as looms, by their table's id: a meter's trace out of one is its strand. */
   loomTables(): Set<string> {
     return new Set(loomsOf(this.s).keys());
   }
@@ -695,7 +695,7 @@ export class ForceLayout {
       // (a product's junction hides the edges under its dot, but it is part of its voice, not a cell)
       ...[...this.s.junctions.values()].flatMap((n) => (n.x === undefined ? [] : [{ id: n.id, x: n.x, y: n.y ?? 0, r: n.radius, label: true, of: n.rides }])),
     ];
-    // (a bus's tap that comes on from another reader: drawn from there, straight)
+    // (a bus's reader that comes on from another reader: drawn from there, straight)
     const joins = hops(this.s);
     const looms = loomsOf(this.s);
     const edges = [
@@ -709,9 +709,9 @@ export class ForceLayout {
             : { a: l.source, b: l.target, mid: this.s.bendAt.get(l.id) as { x: number; y: number } | undefined, runs: this.beltRuns(l), weight: l.strength, kind: l.kind },
         ];
       }),
-      // (a selector's taps as a loom over its table, tapLoom: its strands, which don't cross each other)
-      ...(this.s.opts.tapLoom
-        ? this.tapLooms().flatMap((l) =>
+      // (a selector's sections as a loom over its table, sectionLoom: its strands, which don't cross each other)
+      ...(this.s.opts.sectionLoom
+        ? this.sectionLooms().flatMap((l) =>
             l.strands.map((st) =>
               st.join
                 ? { a: st.join, b: st.to, path: st.pieces, weight: 2, kind: 'sync' }
@@ -720,9 +720,9 @@ export class ForceLayout {
           )
         : []),
       // (a meter's net: straight traces)
-      // (a tap's, from its bulb: crossing another tap's counts, though both leave the same wheel)
+      // (a section's, from its bulb: crossing another section's counts, though both leave the same wheel)
       ...this.s.net
-        .filter((t) => !(this.s.opts.tapLoom && (t.bulb || looms.has(t.a))))
+        .filter((t) => !(this.s.opts.sectionLoom && (t.bulb || looms.has(t.a))))
         .map((t) => {
           const o = t.at && this.s.byId.get(t.a);
           return o
@@ -790,14 +790,14 @@ export class ForceLayout {
     return out;
   }
 
-  /** A net's tree as things stand now (nets.ts: netTree). By tap (edge id): the node it comes from, and its reader. */
+  /** A net's tree as things stand now (nets.ts: netTree). By reader (edge id): the node it comes from, and its reader. */
   netTree(net: GraphModel['nets'][number]): Map<string, { from: string; to: string }> {
     return netTree(this.s, net, this.s.drawnEnds);
   }
 
-  /** Where each tap of a bus comes from, for drawing (nets.ts: taps). */
-  taps(): Map<string, { from: string; x: number; y: number; loom?: true } | null> {
-    return taps(this.s);
+  /** Where each reader of a bus comes on from, for drawing (nets.ts: readersOf). */
+  readers(): Map<string, { from: string; x: number; y: number; loom?: true } | null> {
+    return readersOf(this.s);
   }
 
   reheat(alpha = 0.5): void {

@@ -24,14 +24,14 @@ describe('the golden graph', () => {
     layout.setGraph(model);
     layout.tick(500);
     layout.layNet();
-    // each bus a ratsnest, its readers the junctions: one tap takes the trunk from the owner, the others come on from a
+    // each bus a ratsnest, its readers the junctions: one reader takes the trunk from the owner, the others come on from a
     // reader (sound branches from its owner to each: a star)
-    const taps = layout.taps();
+    const readers = layout.readers();
     for (const net of model.nets.filter((n) => n.port !== 'step' && n.band !== 'audio'))
-      expect(net.readers.map((id) => taps.get(id) === null).filter(Boolean), net.id).toHaveLength(1);
+      expect(net.readers.map((id) => readers.get(id) === null).filter(Boolean), net.id).toHaveLength(1);
     for (const net of model.nets.filter((n) => n.band === 'audio'))
       expect(
-        net.readers.every((id) => taps.get(id) === null),
+        net.readers.every((id) => readers.get(id) === null),
         net.id,
       ).toBe(true);
     const { crossings, overlap } = layout.quality();

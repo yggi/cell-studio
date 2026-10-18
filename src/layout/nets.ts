@@ -1,6 +1,6 @@
 /**
  * The nets (docs/notes/nets.md): a net's tree as things stand now (netTree), its joins as springs and wheels kept off
- * them (stepNets), where each tap of a bus comes from (taps, hops), and each meter's net of traces (meterNet), costed
+ * them (stepNets), where each reader of a bus comes on from (readersOf, hops), and each meter's net of traces (meterNet), costed
  * by what a straight edge runs into (hits, drawnPieces).
  */
 import type { GraphModel } from '@yggi/cells/engine/graph';
@@ -8,15 +8,15 @@ import { segmentsCross, splinePoint } from './geometry';
 import { GROUND_PULL, linkPull } from './options';
 import { nodeAt, type LayoutState, type MeterTrace, type PhysNode } from './state';
 import { UNTURNED } from './tape';
-import { loomLane } from './taploom';
+import { loomLane } from './sectionloom';
 
 /**
- * (the tower layout, tapLoom) Each selector drawn as a loom (taploom.ts), by its table's id: its wheel as the loom
- * reads it, its source's lane and the loom's span (its bulbs and the cells its taps step).
+ * (the tower layout, sectionLoom) Each selector drawn as a loom (sectionloom.ts), by its table's id: its wheel as the loom
+ * reads it, its source's lane and the loom's span (its bulbs and the cells its sections step).
  */
 export function loomsOf(s: LayoutState): Map<string, Loom> {
   const out = new Map<string, Loom>();
-  if (!s.opts.tapLoom) return out;
+  if (!s.opts.sectionLoom) return out;
   const bulbs = new Map<string, Set<string>>();
   for (const g of s.grounds) {
     if (!g.bulb || !g.at) continue;
@@ -58,7 +58,7 @@ export type Piece = { a: string; b: string; seg: [number, number, number, number
 
 /**
  * Where a net's bulb is from its owner's centre, as the layout has turned the owner: a read head's turns with its
- * tape (decision 021; GraphEdge.bulbAt is it unturned), a tap's stays on its table.
+ * tape (decision 021; GraphEdge.bulbAt is it unturned), a section's stays on its table.
  */
 function bulbOf(s: LayoutState, net: GraphModel['nets'][number]): { x: number; y: number; r: number } | undefined {
   const at = net.bulbAt;
@@ -74,14 +74,14 @@ function bulbOf(s: LayoutState, net: GraphModel['nets'][number]): { x: number; y
  * are its junctions — it comes into a cell and flares out of it to the next — each joined to the one nearest it
  * already joined, a join through a wheel costing as much again for each wheel. A bus (a table's, a melody's) leaves
  * its owner once, to the reader nearest it; a meter's ground joins it wherever it is nearest. Sound branches from its
- * owner to each reader (a star): a voice into two mixes doesn't pass through the one to the other; so do taps at a
- * delay (a canon's copies, a tape's heads), each delay counted from the owner. By tap (edge id): the node it comes
- * from, and its reader. `ends`: each tap's reader (the forces' nets by default; the drawn ones' for drawing).
+ * owner to each reader (a star): a voice into two mixes doesn't pass through the one to the other; so do readers at a
+ * delay (a canon's copies, a tape's heads), each delay counted from the owner. By reader (edge id): the node it comes
+ * from, and its reader. `ends`: each edge's reader (the forces' nets by default; the drawn ones' for drawing).
  */
 export function netTree(s: LayoutState, net: GraphModel['nets'][number], ends = s.edgeEnds): Map<string, { from: string; to: string }> {
   const out = new Map<string, { from: string; to: string }>();
   const owner = s.byId.get(net.owner);
-  // (a tap's sub-net leaves from its bulb on its table: decision 016; a read head's, from its bulb on its tape)
+  // (a section's sub-net leaves from its bulb on its table: decision 016; a read head's, from its bulb on its tape)
   const at = bulbOf(s, net);
   const o = owner && at ? { ...owner, x: (owner.x ?? 0) + at.x, y: (owner.y ?? 0) + at.y, radius: at.r } : owner;
   // (a reader may be a product's junction: as drawn)
@@ -116,7 +116,7 @@ export function netTree(s: LayoutState, net: GraphModel['nets'][number], ends = 
     return out;
   }
   const left = [...readers];
-  // (the tower layout, tapLoom: a selector's table passes its bus on only out of its loom's source lane, anywhere
+  // (the tower layout, sectionLoom: a selector's table passes its bus on only out of its loom's source lane, anywhere
   // along it, straight up to a reader over it)
   const looms = loomsOf(s);
   // (loomRide: a ride on a loom that carries the bus is that much cheaper; a join through one costs ten times over)
@@ -159,7 +159,7 @@ export function stepNets(s: LayoutState, alpha: number): void {
     for (const { from, to } of tree.values()) {
       const [a, b] = [s.byId.get(from), s.byId.get(to)];
       if (!a || !b) continue;
-      // (from a tap's bulb, not its table's centre: decision 016)
+      // (from a section's bulb, not its table's centre: decision 016)
       const off = (from === net.owner && bulbOf(s, net)) || { x: 0, y: 0 };
       const [dx, dy] = [(b.x ?? 0) - (a.x ?? 0) - off.x, (b.y ?? 0) - (a.y ?? 0) - off.y];
       const l = Math.hypot(dx, dy) || 1;
@@ -182,11 +182,11 @@ export function stepNets(s: LayoutState, alpha: number): void {
 }
 
 /**
- * Where each tap of a bus (a table read by several) comes from, for drawing: null, the trunk, out of the owner's
+ * Where each reader of a bus (a table read by several) comes on from, for drawing: null, the trunk, out of the owner's
  * wheel; else the reader it comes on from (its node, where it is now). Laid again whenever it's asked for, so it
  * follows a moved cell.
  */
-export function taps(s: LayoutState): Map<string, { from: string; x: number; y: number; loom?: true } | null> {
+export function readersOf(s: LayoutState): Map<string, { from: string; x: number; y: number; loom?: true } | null> {
   const out = new Map<string, { from: string; x: number; y: number; loom?: true } | null>();
   const looms = loomsOf(s);
   for (const net of s.drawnNets) {
@@ -203,7 +203,7 @@ export function taps(s: LayoutState): Map<string, { from: string; x: number; y: 
         out.set(id, { from, x: r.x, y: l.lane, loom: true });
         continue;
       }
-      // (a tap whose node has gone: not drawn)
+      // (a reader whose node has gone: not drawn)
       const f = nodeAt(s, from);
       if (f?.x !== undefined) out.set(id, { from, x: f.x, y: f.y ?? 0 });
     }
@@ -211,7 +211,7 @@ export function taps(s: LayoutState): Map<string, { from: string; x: number; y: 
   return out;
 }
 
-/** Each bus's joins that aren't its owner's own edge (a tap coming on from another reader), by tap: what's drawn. */
+/** Each bus's joins that aren't its owner's own edge (a reader coming on from another reader), by reader: what's drawn. */
 export function hops(s: LayoutState): Map<string, { from: string; to: string }> {
   const out = new Map<string, { from: string; to: string }>();
   for (const net of s.drawnNets) if (net.port !== 'step') for (const [id, j] of netTree(s, net, s.drawnEnds)) if (j.from !== net.owner) out.set(id, j);
@@ -273,7 +273,7 @@ export function hits(s: LayoutState, x: number, y: number, r: number, from: stri
  * others, like ground on a circuit board. Laid as every net is (netTree, the owner's appearance aside): a ratsnest,
  * each cell joined to the nearest one already joined, wherever that is (ground: the meter or another of its cells), a
  * join through a wheel costing as much again for each wheel; laid again whenever it is asked for, so it follows a
- * moved cell as a bus does. A tap's sub-net leaves from its bulb on its table (decision 016).
+ * moved cell as a bus does. A section's sub-net leaves from its bulb on its table (decision 016).
  */
 export function meterNet(s: LayoutState): readonly MeterTrace[] {
   const net: MeterTrace[] = [];

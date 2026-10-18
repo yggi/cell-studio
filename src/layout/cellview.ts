@@ -147,7 +147,7 @@ export function drawnOf(result: CompileResult, name: string): string {
  * Whether a cell's 0 means nothing but "now" (decision 036: white, not red): every step 0, rests aside, and another
  * value would mean nothing different, since nothing reads it as a pitch or a choice — the cell has a clock of its own
  * (it isn't spliced into a melody), everything that leaves it is a clock's tick (a section's clock, a reel's motor,
- * a tap into its table), and the only table it reads is a kit of one drum (a groove of one drum: its sound goes on). Any other value is a value: coloured. Checked over the
+ * a section into its table), and the only table it reads is a kit of one drum (a groove of one drum: its sound goes on). Any other value is a value: coloured. Checked over the
  * library by playing each such cell with 7 for 0 (tools/probe/colours.test.ts).
  */
 export function blank(result: CompileResult, name: string): boolean {
@@ -157,7 +157,7 @@ export function blank(result: CompileResult, name: string): boolean {
   const atoms = c.units.map((u) => u.atom).filter((a) => a.kind !== 'rest');
   if (!atoms.length || !atoms.every((a) => a.kind === 'note' && a.value === 0 && a.alter === 0)) return false;
   const id = cellId(name);
-  // (what it may go into besides a tick: the table of taps it is a section of, the one drum's kit it plays)
+  // (what it may go into besides a tick: the table of sections it is a section of, the one drum's kit it plays)
   const ok = new Set([result.sections?.get(name), c.over].flatMap((t) => (t ? [cellId(t)] : [])));
   // (a groove's own sound, into a mix, is not its value read)
   return writtenOf(result).edges.every((e) => e.from !== id || e.to === id || e.band === 'sync' || ok.has(e.to) || (!!c.over && e.band === 'audio'));
@@ -207,7 +207,7 @@ function viewOf(result: CompileResult, name: string, shifts: Shifts, isMeter: bo
     const steps = [...byStep.values()].sort((a, b) => a.t0 - b.t0).map((g, index) => ({ ...g, index }));
     return { mode: 'matrix', segments: [], ticks: Math.round(total), detents: Math.max(1, c.units.length), show, conv, matrix: { rows, steps } };
   }
-  // (a table of taps' steps are clocks, not pitches: drawn as a pattern's beats — decision 016)
+  // (a table of sections' steps are clocks, not pitches: drawn as a pattern's beats — decision 016)
   const pattern = show === 'pattern' || !!fanOf(result, name);
   // show=levels: each step a bar, its height the level (decibels converted)
   const levels = show === 'levels';
@@ -336,7 +336,7 @@ function viewOf(result: CompileResult, name: string, shifts: Shifts, isMeter: bo
   rest(cursor, total);
   // (bars of levels stay on the ring; a scope or a turntable draws no track)
   const bulbs = levels || typeof c.params.scope === 'string' || isTurntable(c) ? [] : bulbsOf(result, name, shifts, bulbHosts(result));
-  // (a table of taps fans its steps over its top, as its bulbs: track.ts)
+  // (a table of sections fans its steps over its top, as its bulbs: track.ts)
   const fan = fanOf(result, name);
   // (a swung meter's own steps where they play, cells v0.4.0's Clock.swung: its wheel is the bar's time, long and short;
   // a meter(…) is drawn as its braid of levels, its clock its own)
@@ -459,7 +459,7 @@ export function hubLabel(result: CompileResult, name: string, shifts: Shifts, is
     if (mode) return { big: mode, small: `on ${tonic}` };
     return { big: String(es.length), small: `of ${period(result, name)}` };
   }
-  // a table of taps (decision 016): its taps are the paths the selector reading it switches between
+  // a table of sections (decision 016): its sections are the paths the selector reading it switches between
   if (fanOf(result, name)) return { big: String(c.steps), small: c.steps === 1 ? 'path' : 'paths' };
   // (a meter(…) drawn as its braid of levels, swung: the levels its swing leans in place of "steps", cells v0.4.0)
   const swung = c.meter?.swing?.length ? `swung ${c.meter.swing.map((l) => l.level).join(' ')}` : null;
@@ -510,7 +510,7 @@ export interface ValueShare {
   readonly key: string;
   readonly fill: Fill;
   readonly share: number;
-  /** A reference's entry (its unit): a table of taps' section. */
+  /** A reference's entry (its unit): a table of sections' section. */
   readonly index: number;
 }
 
@@ -524,13 +524,13 @@ const fillKey = (f: Fill) =>
         ? `b${f.down}`
         : f.kind;
 
-/** A value's key in a spectrum: a fill's, a reference's by its entry (a table of taps: each its section). */
+/** A value's key in a spectrum: a fill's, a reference's by its entry (a table of sections: each its section). */
 const keyOf = (f: Fill, index: number, byEntry = false) => (byEntry || f.kind === 'ref' ? `r${index}` : fillKey(f));
 
 /**
  * A wheel's spectrum of values (the tower layout's strip, docs/notes/tower-sky.md): each value it takes and how much
  * of its lap it holds it, rests aside, in the order of the values (pitches low to high, levels, beats). Its chords'
- * notes each a value. `byEntry`: each entry a value of its own, whatever it draws (a table of taps: each its section).
+ * notes each a value. `byEntry`: each entry a value of its own, whatever it draws (a table of sections: each its section).
  */
 export function valueSpectrum(view: CellView, byEntry = false): ValueShare[] {
   const by = new Map<string, { fill: Fill; w: number; index: number }>();
@@ -556,13 +556,13 @@ export function valueAt(view: CellView, t: number, byEntry = false): string | nu
   return f && s ? keyOf(f, s.index, byEntry) : null;
 }
 
-/** The selector that reads a table of taps (decision 016): it picks which of its entries are on. */
+/** The selector that reads a table of sections (decision 016): it picks which of its entries are on. */
 export function selectorOf(result: CompileResult, table: string): string | undefined {
   return [...result.cells.values()].find((c) => c.over === table && selects(result, c.name))?.name;
 }
 
 /**
- * A selector's sections (decision 016), as the tower strip draws its row: each step's part of its lap (0 … 1) and the
+ * A selector's steps (decisions 016, 044), as the tower strip draws its row: each step's part of its lap (0 … 1) and the
  * entries of its table it picks there, each a section, in order. null: not a selector.
  */
 export function selectorRow(result: CompileResult, name: string, shifts: Shifts): { t0: number; t1: number; picks: number[] }[] | null {

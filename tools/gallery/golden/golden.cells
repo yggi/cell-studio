@@ -30,7 +30,7 @@
 &pluck map=adsr .005 .3 0 .2
 &pad s=saw loop=C4 lpf=1800 env=&pluck
 &compOut play=&comp level=&accent*.3 [&bell, &pad]
-# two instruments, and the taps of the bar that switch them
+# two instruments, and the sections that switch them
 &leadA [&walk * &lead * .3]
 &leadB [&drone * &lead * .3]
 &sections step=4n &walkBar &droneBar

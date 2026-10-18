@@ -72,7 +72,7 @@ describe('routing: one model for what the graph draws as part of the sound (#11)
     const s = states(r, 0.1);
     expect([s.get('mel~>half'), s.get('half~>bar')]).toEqual(['live', 'live']);
   });
-  it('a selector: the tap it has on lights what it steps, the others wait (a voice in two parts too: decision 016)', () => {
+  it('a selector: the section it has on lights what it steps, the others wait (a voice in two parts too: decision 016)', () => {
     const r = src(
       '&bar step=1',
       '&sections step=&bar &aBar &bBar',

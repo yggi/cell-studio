@@ -40,7 +40,7 @@ describe('the frequency tower', () => {
     expect(at('tunePart')).toBeLessThan(at('lead') + 0.1);
   });
 
-  it("a table of taps at its selector's rate, which switches what is on in it; a scale it reads stays constant", () => {
+  it("a table of sections at its selector's rate, which switches what is on in it; a scale it reads stays constant", () => {
     const { at } = tower(SONG);
     expect(at('sections')).toBeCloseTo(at('song'), 6);
     expect(at('major')).toBe(-Infinity);

@@ -61,7 +61,7 @@ export function liveColour(now: EdgeNow): string | null {
 
 /**
  * How bright a meter's trace is at a place in its cycle (`at`, in beats; undefined: not playing): a flash at each of its
- * steps, fading through it, the bar's first full (MeterEdge, a selector's lanes in TapLooms).
+ * steps, fading through it, the bar's first full (MeterEdge, a selector's lanes in SectionLooms).
  */
 export function beatFlash(at: number | undefined): number {
   if (at === undefined) return 0;

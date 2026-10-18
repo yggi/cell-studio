@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { loomContact, loomLane, loomPorts, pillAnchor, pillOf, tapLoom } from './taploom';
+import { loomContact, loomLane, loomPorts, pillAnchor, pillOf, sectionLoom } from './sectionloom';
 import { drawnCrossings } from './quality';
 
 describe("a selector's loom", () => {
   const table = { x: 0, y: 0, r: 50 };
-  const taps = [
+  const sections = [
     { bulb: 'a', from: { x: -20, y: -30 }, to: [{ id: 'c1', x: 200, y: -300, r: 40 }] },
     {
       bulb: 'b',
@@ -16,17 +16,17 @@ describe("a selector's loom", () => {
     },
   ];
 
-  it('runs each tap up to a lane of its own over the table, along it, and straight to each cell it steps', () => {
-    const strands = tapLoom(table, taps);
-    // (a tap stepping two: one strand, to the lower; the other joins on from it, one net between them)
-    expect(strands.map((s) => [s.bulb, s.tap, s.to, s.join])).toEqual([
+  it('runs each section up to a lane of its own over the table, along it, and straight to each cell it steps', () => {
+    const strands = sectionLoom(table, sections);
+    // (a section stepping two: one strand, to the lower; the other joins on from it, one net between them)
+    expect(strands.map((s) => [s.bulb, s.section, s.to, s.join])).toEqual([
       ['a', 0, 'c1', undefined],
       ['b', 1, 'c3', undefined],
       ['b', 1, 'c2', 'c3'],
     ]);
     expect(strands[2].pieces).toEqual([[100, 200, -200, -300]]);
     const lane = (s: (typeof strands)[number]) => s.pieces[1][1];
-    // (the first tap's lane lowest, each next over it, all over the table's top)
+    // (the first section's lane lowest, each next over it, all over the table's top)
     expect(lane(strands[0])).toBeLessThan(-50);
     expect(lane(strands[1])).toBeLessThan(lane(strands[0]));
     // (straight up to a cell over it, to its bottom; down to one under it, to its top)
@@ -35,7 +35,7 @@ describe("a selector's loom", () => {
   });
 
   it("doesn't count its strands crossing each other, but does count them crossing another edge", () => {
-    const strands = tapLoom(table, taps);
+    const strands = sectionLoom(table, sections);
     const nodes = [
       { id: 't', x: 0, y: 0, r: 10 },
       { id: 'c1', x: 200, y: -300, r: 10 },
@@ -53,10 +53,10 @@ describe("a selector's loom", () => {
   });
 
   it("runs its source's lane lowest, out to each reader over it, the reader's riser left to the bus's own edge", () => {
-    const strands = tapLoom(table, taps, [{ id: 'r', x: 300, y: -400, r: 40 }]);
+    const strands = sectionLoom(table, sections, [{ id: 'r', x: 300, y: -400, r: 40 }]);
     const [src] = strands;
-    expect(src).toMatchObject({ bulb: '', tap: -1, to: 'r' });
-    // (the source's lane under the taps')
+    expect(src).toMatchObject({ bulb: '', section: -1, to: 'r' });
+    // (the source's lane under the sections')
     expect(src.pieces[1][1]).toBeGreaterThan(strands[1].pieces[1][1]);
     // (drawn to the lane; counted on up to the reader)
     expect(src.d.endsWith(`L300.0,${src.pieces[1][1].toFixed(1)}`)).toBe(true);
@@ -70,7 +70,7 @@ describe("a selector's loom", () => {
     for (let k = 1; k < 5; k++) expect(fan[k].x).toBeGreaterThan(fan[k - 1].x);
     for (const c of fan) expect(c.y).toBeLessThan(0);
     expect(Math.max(...fan.map((c) => c.y)) - Math.min(...fan.map((c) => c.y))).toBeLessThan(10);
-    // (the taps' lanes over the fan, the bypass under the hub, the ports under that)
+    // (the sections' lanes over the fan, the bypass under the hub, the ports under that)
     expect(loomLane(hub, 1)).toBeLessThan(Math.min(...fan.map((c) => c.y)));
     expect(loomLane(hub, 0)).toBeGreaterThan(0);
     const beside = loomPorts(hub);
@@ -99,7 +99,7 @@ describe("a selector's loom", () => {
     const contacts = [0, 1, 2].map((k) => loomContact(hub, k, 3));
     const ports = loomPorts(hub);
     const cells = [[{ id: 'l', x: -200, y: -300, r: 20 }], [{ id: 'm', x: 0, y: -300, r: 20 }], [{ id: 'r', x: 260, y: -300, r: 20 }]];
-    const strands = tapLoom(
+    const strands = sectionLoom(
       { ...hub, r: 20 },
       cells.map((to, k) => ({ bulb: `t${k}`, from: contacts[k], to })),
       [],

@@ -602,7 +602,7 @@ describe('tapes: the heads keep their spacing, the wheel turns to face them at w
   });
 });
 
-describe('a net at delays (a canon, a tape): every tap leaves its owner, its delay counted from there', () => {
+describe('a net at delays (a canon, a tape): every reader leaves its owner, its delay counted from there', () => {
   for (const [key, owner] of [
     ['canon', 'cell:john'],
     ['echotape', 'cell:tape'],
@@ -614,8 +614,8 @@ describe('a net at delays (a canon, a tape): every tap leaves its owner, its del
       l.tick(200);
       const net = g.nets.find((n) => n.owner === owner)!;
       expect([...l.netTree(net).values()].map((j) => j.from)).toEqual(net.readers.map(() => owner));
-      // (drawn as the owner's own edges: no tap hops on from a reader)
-      for (const id of net.readers) expect(l.taps().get(id)).toBeNull();
+      // (drawn as the owner's own edges: no reader hops on from a reader)
+      for (const id of net.readers) expect(l.readers().get(id)).toBeNull();
     });
 });
 

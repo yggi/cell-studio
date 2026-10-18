@@ -121,8 +121,8 @@ describe('kits and voices', () => {
   });
 });
 
-describe('a table of taps', () => {
-  it('counts its taps as paths at its hub, not steps', () => {
+describe('a table of sections', () => {
+  it('counts its sections as paths at its hub, not steps', () => {
     const src = readFileSync('tools/gallery/golden/golden.cells', 'utf8');
     const r = compileSource(src);
     expect(hubLabel(r, 'sections', codeShifts(r), false, null)).toEqual({ big: '2', small: 'paths' });
@@ -276,7 +276,7 @@ describe("a wheel's spectrum of values", () => {
   });
 });
 
-describe("a selector's table of taps, as values", () => {
+describe("a selector's table of sections, as values", () => {
   it('is a value an entry, each its section, though its steps all draw alike (beats)', () => {
     const pop = compileSource(PRESETS.pop.source);
     const v = cellView(pop, 'sections', codeShifts(pop), false)!;
@@ -294,7 +294,7 @@ describe("a selector's sections (the tower strip's row)", () => {
 &song over=&sections step=1m laps=1 [1] [0,2] 1@2
 &out map=sample [&tune * &a]
 `);
-  it('each step its part of the lap and the taps it picks, in order', () => {
+  it('each step its part of the lap and the sections it picks, in order', () => {
     expect(selectorRow(p, 'song', codeShifts(p))).toEqual([
       { t0: 0, t1: 0.25, picks: [1] },
       { t0: 0.25, t1: 0.5, picks: [0, 2] },

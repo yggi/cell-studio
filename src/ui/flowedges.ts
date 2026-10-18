@@ -39,7 +39,7 @@ export interface EndSizes {
   readonly to: number;
 }
 
-/** An edge's place in a net (GraphModel.nets): which (the layout says where it attaches: ForceLayout.taps). */
+/** An edge's place in a net (GraphModel.nets): which (the layout says where it attaches: ForceLayout.readers). */
 export interface NetPlace {
   readonly id: string;
   /** Its shared name (#137): its owner's, drawn once on its trunk. */
@@ -208,7 +208,7 @@ export function flowEdgeOf(e: GraphEdge, state: State, program: CompileResult, b
 
 /**
  * A trace of a meter's net (meters are ground: their edges aren't drawn, this is). `index`: the meter's place among the
- * meters. A tap's sub-net (decision 016) leaves from its bulb on its table, and flashes on the tap's ticks.
+ * meters. A section's sub-net (decision 016) leaves from its bulb on its table, and flashes on the section's ticks.
  */
 export function meterEdgeOf(t: MeterTrace, index: number): Edge {
   return {

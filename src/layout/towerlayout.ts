@@ -85,7 +85,7 @@ export interface TowerNet {
   readonly id: string;
   readonly top: number;
   /** Its sources, the one furthest from the strip first. */
-  readonly taps: readonly TowerIn[];
+  readonly readers: readonly TowerIn[];
   /** The halves of the strip it reaches: the union of its sources'. */
   readonly left: boolean;
   readonly right: boolean;
@@ -98,9 +98,9 @@ export function towerNets(ins: readonly TowerIn[]): TowerNet[] {
     const k = Math.round(w.top * 2) / 2;
     (by.get(k) ?? by.set(k, []).get(k)!).push(w);
   }
-  return [...by].map(([top, taps]) => {
-    const sorted = [...taps].sort((a, b) => a.x - b.x);
-    return { id: sorted.map((t) => t.id).join('+'), top, taps: sorted, left: sorted.some((t) => t.left), right: sorted.some((t) => t.right) };
+  return [...by].map(([top, readers]) => {
+    const sorted = [...readers].sort((a, b) => a.x - b.x);
+    return { id: sorted.map((t) => t.id).join('+'), top, readers: sorted, left: sorted.some((t) => t.left), right: sorted.some((t) => t.right) };
   });
 }
 
@@ -238,7 +238,7 @@ export function towerLayers(
       else if (d === -Infinity) layers.set(n.id, 'constant');
     }
   }
-  // (a selector, a table of taps, a stratum of its own under what it feeds: what feeds it — the clock it steps on, a
+  // (a selector, a table of sections, a stratum of its own under what it feeds: what feeds it — the clock it steps on, a
   // chooser reading it with over= — under it, so nothing stands in its pill)
   const tables = new Set([...(program.sections?.values() ?? [])].map(cellId));
   // (a table is a list, constant, or stepped itself; a chooser's own clock feeds the selector through it, a source too)
@@ -379,7 +379,7 @@ export function towerLayers(
     strata.set(id, [rowY(Math.max(hi, l === 'voice' ? row(id, l) : hi)), rowY(lo)]);
   }
   // (held at their heights, not drawn there: all but the structure, drawn by the spring — the structure's wires (a
-  // bar's steps, a selector's taps) pull it down; the voices held too, or the sockets above draw them into the mixers' air)
+  // bar's steps, a selector's sections) pull it down; the voices held too, or the sockets above draw them into the mixers' air)
   const held = new Set([...layers].flatMap(([id, l]) => (l === 'audible' || l === 'gate' || l === 'mixer' || l === 'selector' || l === 'source' || l === 'voice' ? [id] : [])));
   // (a mixer between what it mixes: its sources, a product's by its voice)
   const owner = new Map(drawn.nodes.flatMap((n) => (n.kind === 'junction' ? [[n.id, cellId(n.voice)] as const] : [])));

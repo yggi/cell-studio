@@ -38,7 +38,7 @@ function refLabel(a: { readonly transpose?: number; readonly values?: { readonly
 }
 
 /**
- * The bulbs on a braid's track: each ref without a pick (a pick is a tap, its notes stay on the ring), placed by its
+ * The bulbs on a braid's track: each ref without a pick (a pick is a fixed reader, its notes stay on the ring), placed by its
  * steps as `flatten` places them. `hosts`: the cells drawn as bulbs, each to the cell that splices it.
  */
 export function bulbsOf(result: CompileResult, name: string, shifts: Shifts, hosts: ReadonlyMap<string, string>): Bulb[] {
@@ -49,11 +49,11 @@ export function bulbsOf(result: CompileResult, name: string, shifts: Shifts, hos
   return fan ? bulbs.map((b) => ({ ...b, t0: fan(b.t0), t1: fan(b.t1) })) : bulbs;
 }
 
-/** How much of its wheel a table of taps fans its taps over, at the top (turns). */
+/** How much of its wheel a table of sections fans its sections over, at the top (turns). */
 const TAP_FAN = 2 / 3;
 
 /**
- * A table of taps (decision 016) is shaped as a bulb itself: its taps fanned over the top two thirds of its wheel in
+ * A table of sections (decision 016) is shaped as a bulb itself: its sections fanned over the top two thirds of its wheel in
  * braid order, left to right (8 o'clock round to 4), facing what they step; the bottom third, where its inputs come
  * in (the meter's bus, the selector), left free. Its loop's time (turns) to where it is drawn; null for any other cell.
  */
@@ -222,7 +222,7 @@ export function layTrack(cx: number, cy: number, r: number, w: number, bulbs: re
     if (!closed) knots.push({ p: onCircle(c, R, a1), tau: T1, w: width });
     return laid;
   };
-  // (from 12 o'clock; a table of taps' fan, which is about 12 o'clock (fanOf), from 6, its ribbon narrower: its taps,
+  // (from 12 o'clock; a table of sections' fan, which is about 12 o'clock (fanOf), from 6, its ribbon narrower: its sections,
   // many and short, bend out where a ring's width wouldn't let them)
   const fanned = bulbs.some((b) => b.t0 < 0);
   const start = fanned ? -0.5 : 0;
@@ -466,7 +466,7 @@ export function netEnds(track: Track, size: number, net: string): { turn: number
 
 /**
  * Where the bulb splicing `bulb` sits on `host`'s wheel, `size` px across: its hub from the wheel's centre (px) and its
- * disc's radius, as CellGlyph draws it; null where it isn't laid (too short a splice to bend out). A tap's sub-net
+ * disc's radius, as CellGlyph draws it; null where it isn't laid (too short a splice to bend out). A section's sub-net
  * leaves from there (decision 016).
  */
 export function bulbHub(result: CompileResult, host: string, bulb: string, hosts: ReadonlyMap<string, string>, size: number): { x: number; y: number; r: number } | null {

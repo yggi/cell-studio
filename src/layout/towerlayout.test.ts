@@ -97,9 +97,9 @@ describe('the tower layout', () => {
     );
     const nets = towerNets(ins);
     expect(nets).toHaveLength(2);
-    const c4 = nets.find((n) => n.taps.length === 2)!;
+    const c4 = nets.find((n) => n.readers.length === 2)!;
     // (the trunk from the source furthest from the strip: the strings, the flute tapping in)
-    expect(c4.taps.map((t) => t.from)).toEqual(['cell:strings', 'cell:flute']);
+    expect(c4.readers.map((t) => t.from)).toEqual(['cell:strings', 'cell:flute']);
   });
 
   it("puts the card everywhere: a socket each thing it hears, at that thing's sound on the tower", () => {
@@ -263,9 +263,9 @@ describe('the tower layout', () => {
         expect(y, `${piece}: ${id}`).toBeGreaterThanOrEqual(top - 1e-6);
         expect(y, `${piece}: ${id}`).toBeLessThanOrEqual(bottom + 1e-6);
       }
-      for (const { strands } of layout.tapLooms()) {
+      for (const { strands } of layout.sectionLooms()) {
         const lane = Math.min(...strands.filter((st) => !st.join).map((st) => st.pieces[1][1]));
-        for (const st of strands.filter((x) => x.tap >= 0)) {
+        for (const st of strands.filter((x) => x.section >= 0)) {
           const y = layout.position(st.to)?.y;
           if (y !== undefined) expect(y, `${piece}: ${st.to}`).toBeLessThan(lane);
         }
@@ -322,7 +322,7 @@ describe('the tower layout', () => {
     const { layout } = laid('baustelle');
     const placed = (layout as unknown as { placed(): { nodes: { id: string; x: number; y: number; r: number }[]; edges: { a: string; b: string; path?: unknown }[] } }).placed();
     const at = new Map(placed.nodes.map((n) => [n.id, n]));
-    const loom = layout.tapLooms().find((l) => l.table === 'cell:teile')!;
+    const loom = layout.sectionLooms().find((l) => l.table === 'cell:teile')!;
     const table = at.get('cell:teile')!;
     const inside = loom.strands.filter((st) => !st.join);
     const xs = inside.flatMap((st) => st.pieces.flatMap((p) => [p[0], p[2]]));
@@ -334,7 +334,7 @@ describe('the tower layout', () => {
       expect(inside, n.id).toBe(false);
     }
     // (&accent takes &bar off the loom: a strand, its riser too; no trace from the table)
-    expect(loom.strands.some((st) => st.tap < 0 && st.to === 'cell:accent')).toBe(true);
+    expect(loom.strands.some((st) => st.section < 0 && st.to === 'cell:accent')).toBe(true);
     expect(placed.edges.some((e) => e.a === 'cell:teile' && e.b === 'cell:accent' && !e.path)).toBe(false);
     layout.destroy();
   });
@@ -346,7 +346,7 @@ describe('the tower layout', () => {
       const { layout, layers } = laid(piece);
       expect(layers.get(table), piece).toBe('selector');
       for (const id of under) expect(layers.get(id), `${piece}: ${id}`).toBe('source');
-      const { pill, strands } = layout.tapLooms().find((l) => l.table === table)!;
+      const { pill, strands } = layout.sectionLooms().find((l) => l.table === table)!;
       for (const id of under) expect(layout.position(id)!.y, `${piece}: ${id}`).toBeGreaterThan(pill.y1);
       // (what reads it, its name too, over the pill's top)
       for (const id of new Set(strands.map((st) => st.to))) {
@@ -367,7 +367,7 @@ describe('the tower layout', () => {
     const { layout, layers } = laid('cellscape');
     expect(layers.get('cell:lydian')).toBe('stepped');
     expect(layers.get('cell:layers')).toBe('selector');
-    const { pill } = layout.tapLooms().find((l) => l.table === 'cell:layers')!;
+    const { pill } = layout.sectionLooms().find((l) => l.table === 'cell:layers')!;
     expect(layout.position('cell:lydian')!.y).toBeLessThan(pill.y0);
     // (at the left end of the harmony net: left of every cell reading it over=)
     const readers = ['pad', 'arp', 'melody', 'canon', 'bells', 'pulse', 'shimmer'].map((c) => layout.position(`cell:${c}`)!.x);
@@ -383,7 +383,7 @@ describe('the tower layout', () => {
     const x = (id: string) => layout.position(id)!.x;
     expect(x('cell:key')).toBeLessThan(x('cell:bar'));
     expect(x('cell:bar')).toBeLessThan(x('cell:scenes'));
-    const { pill } = layout.tapLooms().find((l) => l.table === 'cell:layers')!;
+    const { pill } = layout.sectionLooms().find((l) => l.table === 'cell:layers')!;
     expect(x('cell:key')).toBeLessThan(pill.x0);
     layout.destroy();
   });
@@ -404,9 +404,9 @@ describe('the tower layout', () => {
     // (a player clears its kit)
     const [kick, kit] = [layout.position('cell:kick')!, layout.position('cell:kit:voices')!];
     expect(kick.y - kit.y).toBeGreaterThan(130);
-    const loom = layout.tapLooms().find((l) => l.table === 'cell:sections')!;
+    const loom = layout.sectionLooms().find((l) => l.table === 'cell:sections')!;
     expect(loom.feeds).toEqual({ meter: 'cell:bar', select: 'cell:song' });
-    // (the drums' tap: one strand out of the pill, &click and &kick joined on one net)
+    // (the drums' section: one strand out of the pill, &click and &kick joined on one net)
     const drums = loom.strands.filter((st) => st.bulb === 'drumBar');
     expect(drums.filter((st) => !st.join)).toHaveLength(1);
     expect(drums.filter((st) => st.join)).toHaveLength(1);

@@ -14,7 +14,7 @@ const SRC = `&intro label="A tune and its bass." about=&out
 `;
 
 describe('the margin: notes and scopes beside the graph', () => {
-  it('takes notes and scopes out of the graph, with their edges and taps', () => {
+  it('takes notes and scopes out of the graph, with their edges and readers', () => {
     const model = buildGraph(compileSource(SRC));
     const g = sideless(model);
     const names = g.nodes.map((n) => n.cell?.name);

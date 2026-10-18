@@ -5,7 +5,7 @@ What Cell studio doesn't do yet or does with a catch, documented rather than tra
 ## Language
 
 - Filters are one per voice (as on a monosynth): overlapping notes share the last envelope.
-- Selectors switch taps of a meter's bus only ([decision 016](https://github.com/yggi/cells/blob/main/docs/decisions/016-arranging-at-the-input.md)); they don't read in a voice's position (orchestration) or a melody's (multiplexing). A part switched on always starts from its top (no resume yet), and label templates have no `{lap}` ([#29](https://github.com/yggi/cell-studio/issues/29)).
+- Selectors switch sections only ([decision 016](https://github.com/yggi/cells/blob/main/docs/decisions/016-arranging-at-the-input.md)); they don't read in a voice's position (orchestration) or a melody's (multiplexing). A section switched on starts from its top, or with `restart=resume` where it was switched off, or with `restart=free` where it would have been (cells v0.5.0), and label templates have no `{lap}` ([#29](https://github.com/yggi/cell-studio/issues/29)).
 - A voice can't be a pitch source in a product (`&op2 * &op1` is an error: "a voice, not a pitch"); FM is `fm=` ([language/physics.md](https://github.com/yggi/cells/blob/main/docs/language/physics.md)), without feedback or loops ([#28](https://github.com/yggi/cell-studio/issues/28), [yggi/cells#52](https://github.com/yggi/cells/issues/52); loops: [#17](https://github.com/yggi/cell-studio/issues/17)).
 - No inversion within a scale (`(7 - &theme) * &lead` mirrors in semitones; keeping the scale's steps would need something like `&theme[-]`).
 - A braid of note names turned with `shift=` climbs by its table's lap, not the root's: `&u C shift=2` is C6, where `&u 0 shift=2` is D.
@@ -35,7 +35,7 @@ What Cell studio doesn't do yet or does with a catch, documented rather than tra
 
 - Tags start as blocks and hubs pull a cluster as one, but clusters still touch in the largest pieces (30 overlapping pairs over the library; [notes/27-layout.md](notes/27-layout.md)); BWV 847 is wide. A meter's net crosses some edges in the densest pieces (about 12 crossings over the library; [#27](https://github.com/yggi/cell-studio/issues/27)).
 - A voice with more than about ten products in one mix has its junction dots stacked on its rim: they overlap rather than spread (measured in [#194](https://github.com/yggi/cell-studio/issues/194); no example comes close).
-- A restarted part's playhead shows the global clock, not its own restarted time ([#29](https://github.com/yggi/cell-studio/issues/29)).
+- A restarted or resumed section's playhead shows the global clock, not its own time ([#29](https://github.com/yggi/cell-studio/issues/29)).
 - A piece with an `anchor=` clock shows its heads at 0 while stopped; they jump to the anchored time of day at Play.
 - Splices nest seven deep in a braid's track (`MAX_DEPTH` is 6 and the top level counts as 0, `layout/track.ts`); deeper ones are not drawn as bulbs.
 - A note about a cell drawn as a bulb (not a node) has no rim to wear its number; a cell watched by several scopes wears one dot per scope, which tells them apart only while a scope is pointed at in the margin.

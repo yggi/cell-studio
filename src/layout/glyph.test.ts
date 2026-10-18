@@ -27,7 +27,7 @@ import {
   lfoPathOf,
   litSet,
   litSteps,
-  litTaps,
+  litSections,
   markerOf,
   plainTicks,
   readAt,
@@ -36,10 +36,10 @@ import {
   spaceOf,
   stepLabels,
   stepUnits,
-  tapCursors,
+  sectionCursors,
   tapDots,
-  tapRings,
-  tapSuffix,
+  sectionRings,
+  sectionSuffix,
 } from './glyph';
 
 // Each cell as CellGlyph draws it in the graph, on a 128 px wheel: its view (what it draws: a gate's trigger's, a read
@@ -51,16 +51,16 @@ const trackOf = (v: CellView) => (v.bulbs?.length ? layTrack(g.c, g.c, (g.rInner
 const pop = compileSource(PRESETS.pop.source);
 const transpose = compileSource(PRESETS.transpose.source);
 
-describe('a table of taps (Pop’s &sections: &bassBar &keysBar …)', () => {
+describe('a table of sections (Pop’s &sections: &bassBar &keysBar …)', () => {
   const parts = view(pop, 'sections');
   const track = trackOf(parts);
   const cell = pop.cells.get('sections');
-  it('its bulbs are named by their taps, less what all of them end in', () => {
-    expect(tapSuffix(['hatsBar', 'beatBar', 'bassBar'])).toBe('Bar');
+  it('its bulbs are named by their sections, less what all of them end in', () => {
+    expect(sectionSuffix(['hatsBar', 'beatBar', 'bassBar'])).toBe('Bar');
     // (each keeps two letters of its own; none in common, or none at all: nothing)
-    expect(tapSuffix(['aBar', 'bBar'])).toBe('ar');
-    expect(tapSuffix(['x', 'y'])).toBe('');
-    expect(tapSuffix([])).toBe('');
+    expect(sectionSuffix(['aBar', 'bBar'])).toBe('ar');
+    expect(sectionSuffix(['x', 'y'])).toBe('');
+    expect(sectionSuffix([])).toBe('');
     const bulbs = bulbLabels(pop, track, true, 'Bar');
     expect(bulbs.map((b) => b.text)).toEqual(['bass', 'keys', 'hook', 'hats', 'beat', 'end']);
     expect(bulbs.map((b) => b.font)).toEqual([7.9, 7.9, 7.9, 7.9, 7.9, 10.5]);
@@ -72,11 +72,11 @@ describe('a table of taps (Pop’s &sections: &bassBar &keysBar …)', () => {
     expect(long.length).toBeGreaterThan(0);
     for (const b of long) expect([b.font, b.rim!.font >= 7, b.rim!.d.startsWith('M ')]).toEqual([null, true, true]);
   });
-  it('lit where its selector has a tap on; each ring its part’s, a hand across those on', () => {
-    const key = litTaps(parts, cell, new Set(['cell:beatBar', 'cell:keysBar']));
+  it('lit where its selector has a section on; each ring its part’s, a hand across those on', () => {
+    const key = litSections(parts, cell, new Set(['cell:beatBar', 'cell:keysBar']));
     expect(key).toBe('1,4');
-    expect(litTaps(parts, cell, undefined)).toBe('');
-    const rings = tapRings(bulbLabels(pop, track, true, 'Bar'), parts, 6, litSet(key));
+    expect(litSections(parts, cell, undefined)).toBe('');
+    const rings = sectionRings(bulbLabels(pop, track, true, 'Bar'), parts, 6, litSet(key));
     expect(rings.map((t) => [t.part, t.parts, t.on])).toEqual([
       [0, 6, false],
       [1, 6, true],
@@ -85,7 +85,7 @@ describe('a table of taps (Pop’s &sections: &bassBar &keysBar …)', () => {
       [4, 6, true],
       [5, 6, false],
     ]);
-    const hands = tapCursors(rings, g);
+    const hands = sectionCursors(rings, g);
     expect(hands).toHaveLength(2);
     // (from the hub's edge)
     const [x, y] = hands[0]!.split(' ').slice(1, 3).map(Number);

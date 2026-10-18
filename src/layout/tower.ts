@@ -59,7 +59,7 @@ export function towerOf(program: CompileResult, model: GraphModel, at: TowerAt =
       if (hz > 0) v.set(id, Math.log10(hz));
     }
   }
-  // a table of taps changes what is on each time its selector steps: at its selector's rate, not in the constant
+  // a table of sections changes what is on each time its selector steps: at its selector's rate, not in the constant
   const tables = new Set([...(program.sections?.values() ?? [])].map(cellId));
   for (const e of model.edges) if (e.port === 'over' && tables.has(e.from) && !v.has(e.from) && v.has(e.to)) v.set(e.from, v.get(e.to)!);
   // a product's junction sounds at its voice's height

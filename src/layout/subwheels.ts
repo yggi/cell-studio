@@ -49,7 +49,7 @@ const TRACKS: ReadonlySet<string> = new Set(['braid', 'pattern', 'notes', 'midi'
 const isTrack = (result: CompileResult, n: GraphNode | undefined): boolean =>
   !!n &&
   n.kind === 'cell' &&
-  // (a table of taps: its taps are bulbs on it, decision 016)
+  // (a table of sections: its sections are bulbs on it, decision 016)
   ([...(result.sections?.values() ?? [])].includes(n.cell.name) ||
     (!n.isMeter &&
       !n.cell.root &&
@@ -76,14 +76,14 @@ const isHost = (host: GraphNode, hosts: ReadonlyMap<string, string>) => host.kin
 
 const RULES: readonly Rule[] = [
   {
-    // a tap of a meter's bus, on its table (decision 016): fanned over the top in braid order; what it steps leaves
+    // a section, on its table (decisions 016, 044): fanned over the top in braid order; what it steps leaves
     // from it
-    kind: 'a tap, on its table',
+    kind: 'a section, on its table',
     host: (n, s) => {
       const table = n.kind === 'cell' ? s.result.sections?.get(n.cell.name) : undefined;
       return table && s.byId.has(cellId(table)) ? cellId(table) : null;
     },
-    // (the table is drawn as a track, its taps its bulbs: the track's room)
+    // (the table is drawn as a track, its sections its bulbs: the track's room)
     reach: () => null,
     mine: (result, host, bulb) => result.sections?.get(bulb) === host,
     at: (result, host, bulb, hosts, size) => bulbHub(result, host, bulb, hosts, size),
@@ -190,7 +190,7 @@ export function reachOf(result: CompileResult, host: GraphNode, hosts: ReadonlyM
 /** The rule a bulb (by name) on its host (by name) is drawn by: the first that owns it. */
 const ruleOf = (result: CompileResult, host: string, bulb: string) => RULES.find((rule) => rule.mine(result, host, bulb));
 
-/** Whether a bulb's own edges leave from it (a tap, a read head), not from its host: host and bulb by name. */
+/** Whether a bulb's own edges leave from it (a section, a read head), not from its host: host and bulb by name. */
 export function leavesFromBulb(result: CompileResult, host: string, bulb: string): boolean {
   return !!ruleOf(result, host, bulb)?.leaves;
 }

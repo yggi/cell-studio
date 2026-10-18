@@ -3,15 +3,15 @@
     label: string;
     /** The clock's place in its cycle, in beats (none: stopped). */
     beat?: number;
-    /** The sections the chooser picks now (by tap). */
+    /** The sections the chooser picks now (by their place). */
     chosen?: number[];
   };
 </script>
 
 <script lang="ts">
   /**
-   * The tower layout's selector as TapLooms draws it (docs/notes/tower-strip.md): a pill round its loom, laid by the
-   * layout's own functions (taploom.ts) for a table of three taps, the last stepping two cells — one strand out of the
+   * The tower layout's selector as SectionLooms draws it (docs/notes/tower-strip.md): a pill round its loom, laid by the
+   * layout's own functions (sectionloom.ts) for a table of three sections, the last stepping two cells — one strand out of the
    * pill and a join between them — with the graph's context at a beat: what lights, what is chosen.
    */
   import { untrack } from 'svelte';
@@ -20,8 +20,8 @@
   import { liveAt } from '@yggi/cells/engine/live';
   import { codeShifts } from '@yggi/cells/engine/program';
   import { routing } from '@yggi/cells/engine/routing';
-  import TapLooms from '../../../src/ui/TapLooms.svelte';
-  import { loomContact, loomPorts, pillOf, tapLoom } from '../../../src/layout/taploom';
+  import SectionLooms from '../../../src/ui/SectionLooms.svelte';
+  import { loomContact, loomPorts, pillOf, sectionLoom } from '../../../src/layout/sectionloom';
   import { madeUpSound } from '../sound';
 
   let props: { column: PillColumn } = $props();
@@ -39,7 +39,7 @@
   ];
   const contacts = cells.map((_, k) => loomContact(hub, k, cells.length));
   const ports = loomPorts(hub, { x: 110, y: 260 }, { x: 190, y: 260 });
-  const strands = tapLoom(
+  const strands = sectionLoom(
     { ...hub, r: 20 },
     cells.map((to, k) => ({ bulb: `t${k}`, from: contacts[k], to })),
     [],
@@ -76,7 +76,7 @@
 
 <div class="cell">
   <div class="frame" style:width="{W}px" style:height="{H}px">
-    <TapLooms looms={[loom]} />
+    <SectionLooms looms={[loom]} />
     {#each cells.flat() as n (n.id)}
       <div class="dot" style:left="{n.x - n.r}px" style:top="{n.y - n.r}px" style:width="{2 * n.r}px" style:height="{2 * n.r}px"></div>
     {/each}
