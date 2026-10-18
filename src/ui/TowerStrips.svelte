@@ -541,10 +541,14 @@
       // half to its left, the others to its right — over the spectrum on a halo; a name whose neighbour on that side is
       // too close goes under it; playing, only while it sounds)
       if (open && (ctx.state === 'stopped' || nodeState(graph!, e.lane.source) === 'live')) {
-        const leftSide = k < nl / 2;
+        // (its own side first; where a name stands there already, the other side if it is free at that height, else under it)
+        const seat = sy(o.top) + 3;
+        const free = (side: number[], y: number) => side.every((n) => Math.abs(n - y) >= 10);
+        let leftSide = k < nl / 2;
+        let ny = seat;
+        if (!free(leftSide ? namedLeft : namedRight, seat) && free(leftSide ? namedRight : namedLeft, seat)) leftSide = !leftSide;
         const side = leftSide ? namedLeft : namedRight;
-        let ny = sy(o.top) + 3;
-        while (side.some((n) => Math.abs(n - ny) < 10)) ny += 10;
+        while (!free(side, ny)) ny += 10;
         side.push(ny);
         g.font = '700 9px system-ui, sans-serif';
         g.textAlign = leftSide ? 'right' : 'left';
