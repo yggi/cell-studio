@@ -23,6 +23,7 @@ This skill pictures what the graph draws. Its siblings picture other things, so 
 | `roll` | a cell's piano roll (`src/ui/PianoRoll.svelte`) at a phone's width: blank, a scale, semitones, 19-EDO, chords and holds, a kit, playing (playhead, ghosts, a key held), not editable | fast |
 | `keys` | the dock's on-screen keyboard and drum pads (#255) in each state: at rest, scale dots, keys held, pads held and glowing, a phone's width (`tools/gallery/keys/Sheet.svelte`) | fast |
 | `graphs` | every example's graph as the library's miniature draws it, with its numbers from the layout's baseline (`tools/graphs.mjs`; `OUT` default `shots/graphs/`) | fast |
+| `sky` | the tower layout's audible sky (`src/ui/TowerSky.svelte`) in the built app, playing, over pieces of every kind (an arrangement, dance, ambient, a fugue, a canon, a fast break, acid, jazz, a loop, one tone): the graph, a close-up over the audible, a filmstrip of it, the sky alone; and numbers, `flicker` (how much it changes from one 50 ms sample to the next, for its brightness), `lagPx` (how far the sky is drawn from where the graph is while panned and zoomed) (`tools/gallery/sky.mjs`; `OUT` default `shots/sky/`) | built app, ~30 s a piece |
 | `time` | the time view (`src/ui/TimeView.svelte`, #286) of each piece in the real app, in each state: `mix` (the default layers), `keys` (the scalogram on new pitch classes), `sound` (waterfall and waveform), `zoom` (8× in), `patterns` (motifs at two time scales boxed, foldings listed), `phone` (`tools/gallery/time.mjs`; `OUT` default `shots/time/`, `STATES=mix,keys`; default pieces Hypercell, Pop, Korobeiniki, 5 to 12, Pachelbel) | real app, ~1 min a piece |
 
 A piece in the built app, playing: `node tools/gallery.mjs play 3 "Sound on Tape"` (builds first; `DIST=` another build) keeps a screenshot of the graph and each node's and edge's drawn state as JSON, in `OUT` (default `shots/play/`).
@@ -36,6 +37,19 @@ SIZES=32,44,64 STOPPED=1 OUT=shots/fast-before node tools/gallery.mjs wheels --f
 Before / after: run it on the base commit (`git stash`) with `OUT=shots/<subject>-before`, then on the change; the
 tiles pair up by name. Show both in the PR as the "how verified" of a visual change. Open the harness yourself with
 `npx vite` and `/tools/gallery/harness.html?subject=edges&t=3&only=hypercell`.
+
+## The sky (`sky`)
+`node tools/gallery.mjs sky 15 Hypercell Pachelbel "A tone"` (builds first; `DIST=` another build, `ZOOMS=` wheel notches for the
+close-up, `FRAMES=` the filmstrip's length) opens each piece in the tower layout, plays it `secs` and keeps
+`tiles/<piece>-still.png` (the whole app), `-close.png` (zoomed in over the audible's middle, from the sky's
+`data-audible`), `-film-<n>.png` (the close-up's upper half, 120 ms apart), `-sky.png` (the close-up with the graph
+hidden), and `sky.json`. Read it for: whether a tone's partials stand out as points of light at their heights and a
+drum's noise stays a haze, whether the light spreads across the sky (not heaped by the sockets), the spires' spikes
+against the light, and over the filmstrip whether it breathes or blinks. `lagPx` should be 0: the sky's layers follow
+the graph's transform between draws; it reads the sky's `data-view` (the view it shows) against the flow's own
+transform each frame of a drag and a few wheel notches, so it says nothing on a build that doesn't set it. `flicker`
+counts the glints' twinkle too: compare it between builds on the same pieces, not against a number. Before / after:
+`OUT=shots/sky-before DIST=<old build>` (`npx vite build --outDir <dir>` on the base commit).
 
 ## The time view (`time`)
 `node tools/gallery.mjs time pop fiveto12` opens each piece in the real app (the dev server, the working tree), shows
