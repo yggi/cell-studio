@@ -86,3 +86,29 @@ export function headBulbs(tape: { name: string; params: Params }, cells: Iterabl
   const r = Math.max(least, Math.min(most, ((R + 2) * s - 3) / Math.max(0.2, 1 - s)));
   return kept.map((h) => ({ ...h, dist: R + r + 2, r }));
 }
+
+/**
+ * Where an edge meets a tape, from the tape's centre (px): its write head (`head` null), or a read head's hub (its
+ * bulb's, when drawn as one: `bulb`; else the mark on the rim), the tape `size` px across and turned by `turn` degrees.
+ */
+export function headPoint(
+  tape: { name: string; params: Params },
+  cells: Iterable<{ name: string; params: Params }>,
+  size: number,
+  turn: number,
+  head: { name: string; bulb: boolean } | null,
+): { x: number; y: number } {
+  const all = [...cells];
+  const R = size / 2;
+  let deg = turn;
+  let r = R * 1.02;
+  if (head) {
+    const { heads, length } = tapeHeads(tape, all);
+    const h = heads.find((x) => x.name === head.name);
+    if (h) deg = headAngle(h.at, length, turn);
+    const bulb = head.bulb ? headBulbs(tape, all, size).find((b) => b.name === head.name) : undefined;
+    if (bulb) r = bulb.dist;
+  }
+  const a = (deg * Math.PI) / 180;
+  return { x: Math.cos(a) * r, y: Math.sin(a) * r };
+}

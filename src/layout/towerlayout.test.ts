@@ -13,6 +13,17 @@ const waltz = () => {
 };
 
 describe('the tower layout', () => {
+  it('names a read head drawn on its tape as the sound going into the card, not the tape', () => {
+    const program = compileSource(readFileSync('node_modules/@yggi/cells/examples/testtones.cells', 'utf8'));
+    const outs = towerOuts(program, buildGraph(program));
+    const names = outs.map((o) => o.sound).sort();
+    expect(names).toContain('cell:first');
+    expect(names).toContain('cell:third');
+    expect(names).not.toContain('cell:loop');
+    // (the wire still leaves the tape's node)
+    expect(outs.find((o) => o.sound === 'cell:first')?.from).toBe('cell:loop');
+  });
+
   it('shows what goes into the sound card on both strips', () => {
     const { program, model } = waltz();
     const outs = towerOuts(program, model);

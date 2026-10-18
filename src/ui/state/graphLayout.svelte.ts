@@ -6,7 +6,7 @@ import type { LiveState } from '@yggi/cells/engine/live';
 import { ForceLayout } from '../../layout/physics';
 import { DEFAULT_LAYOUT, TOWER_LAYOUT, type LayoutOptions } from '../../layout/options';
 import type { Loom } from '../../layout/physics';
-import { isSocket, SOCKET_SIZE, towerLayers, towerOuts, withSockets, type TowerLayer, type TowerOut } from '../../layout/towerlayout';
+import { isSocket, SOCKET_SIZE, soundOf, towerLayers, towerOuts, withSockets, type TowerLayer, type TowerOut } from '../../layout/towerlayout';
 import type { MeterTrace } from '../../layout/state';
 import { meterIndex } from '../../layout/meters';
 import { towerOf, towerRanks, zoneRanks } from '../../layout/tower';
@@ -34,7 +34,7 @@ const towerOptions = (): Partial<LayoutOptions> => ({
 });
 
 /** A socket's flow node (the tower layout): the edge into the card it ends, and whose sound that is. */
-function socketNode(id: string, m: { edges: readonly { id: string; to: string; from: string }[] }, position: { x: number; y: number }): FlowNode {
+function socketNode(id: string, m: { edges: readonly { id: string; to: string; from: string; bulb?: string }[] }, position: { x: number; y: number }): FlowNode {
   const e = m.edges.find((x) => x.to === id);
   return {
     id,
@@ -44,7 +44,7 @@ function socketNode(id: string, m: { edges: readonly { id: string; to: string; f
     selectable: false,
     deletable: false,
     connectable: false,
-    data: { name: id, edge: e?.id ?? '', source: e?.from.slice('cell:'.length) ?? '', size: SOCKET_SIZE },
+    data: { name: id, edge: e?.id ?? '', source: e ? soundOf(e).slice('cell:'.length) : '', size: SOCKET_SIZE },
   };
 }
 /** What the edges are drawn with besides the snapshot (read when they are made, not tracked). */

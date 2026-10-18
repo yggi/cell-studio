@@ -29,12 +29,17 @@ const rowY = (u: number) => -u * TOWER_PX;
 /** The sound card's nodes (a sink, a mix written as one): drawn as the strips, not as a node. */
 const cards = (model: GraphModel) => new Set(model.nodes.flatMap((n) => (n.cell?.sink ? [n.id] : [])));
 
+/** The node whose sound an edge into the card carries: a read head drawn as a bulb on its tape is the sound, the tape only holds it. */
+export const soundOf = (e: { from: string; bulb?: string }) => (e.bulb ? cellId(e.bulb) : e.from);
+
 /** What goes into the sound card: each edge's source, and the channels it reaches (a two-channel card: one each). */
 export interface TowerOut {
   /** The edge into the card (its id: live with it). */
   readonly id: string;
   /** The node whose sound it is: its wire leaves its top. */
   readonly from: string;
+  /** What sounds in it (`soundOf`): `from`, or the read head drawn on it. */
+  readonly sound: string;
   readonly left: boolean;
   readonly right: boolean;
 }
@@ -48,7 +53,7 @@ export function towerOuts(program: CompileResult, model: GraphModel): TowerOut[]
     const c = program.cells.get(e.to.slice('cell:'.length));
     const units = c?.units ?? [];
     const k = units.length === 2 ? units.findIndex((u) => u.atom.kind === 'ref' && `cell:${u.atom.name}` === e.from) : -1;
-    return [{ id: e.id, from: e.from, left: k !== 1, right: k !== 0 }];
+    return [{ id: e.id, from: e.from, sound: soundOf(e), left: k !== 1, right: k !== 0 }];
   });
 }
 
@@ -68,7 +73,7 @@ export function towerIns(outs: readonly TowerOut[], program: CompileResult, at: 
   return outs.flatMap((o) => {
     const p = at(o.from);
     if (!p) return [];
-    const name = o.from.slice('cell:'.length);
+    const name = o.sound.slice('cell:'.length);
     const socket = at(socketId(o.id));
     if (socket) return [{ ...o, name, x: socket.x, top: socket.y }];
     const c = program.cells.get(name);
@@ -157,7 +162,7 @@ export function socketHeights(program: CompileResult, model: GraphModel, drawn: 
   };
   for (const e of drawn.edges) {
     if (!isSocket(e.to)) continue;
-    const d = base(e.from);
+    const d = base(soundOf(e)) ?? base(e.from);
     if (d !== undefined) out.set(e.to, towerY(d));
   }
   return out;

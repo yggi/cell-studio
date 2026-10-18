@@ -56,10 +56,10 @@
     style,
   }: EdgeProps = $props();
   const ctx = getGraphContext();
-  // (an end on a node's centre handle (all but a tape's heads): the node's centre as the layout places it, not the
-  // flow's measure of the handle, which can be stale — measured while the view zoomed)
-  const centreS = $derived(sourceHandleId ? undefined : ctx.centre?.(sourceId));
-  const centreT = $derived(targetHandleId ? undefined : ctx.centre?.(targetId));
+  // (an end on a node's centre handle: the node's centre as the layout places it, not the flow's measure of the handle,
+  // which can be stale — measured while the view zoomed; a tape's head likewise, from the centre and the turn)
+  const centreS = $derived(sourceHandleId ? ctx.head?.(sourceId, sourceHandleId) : ctx.centre?.(sourceId));
+  const centreT = $derived(targetHandleId ? ctx.head?.(targetId, targetHandleId) : ctx.centre?.(targetId));
   const rimSX = $derived(centreS ? centreS.x : handleSX);
   const rimSY = $derived(centreS ? centreS.y : handleSY);
   const rimTX = $derived(centreT ? centreT.x : handleTX);
@@ -91,6 +91,8 @@
       sizes?: { from: number; to: number };
       /** How far above its source's centre it leaves, straight up (a voice's envelope's top). */
       socket?: number;
+      /** A mixer's sound out to a tape's write head: leaves at the mixer's top (its output), whatever lies between. */
+      top?: boolean;
       picks?: Pick[];
       ring?: number;
       /** A bus round a loom is drawn in two parts: its run, and its ring as an edge of its own above every run. */
@@ -117,7 +119,7 @@
   const hop = $derived(d.net ? ctx.readers?.get(id) : undefined);
   // (the outputs-top probe: a wire leaves its source at 12 o'clock, out of its rim — a tape's read head is its own socket)
   // (a voice with its own envelope on its top: its sound leaves from the envelope's top, layout/voice.ts)
-  const socket = $derived(d.socket ?? (OUTPUTS_TOP && d.port !== 'play' ? (hop ? hop.r : (d.sizes?.from ?? 0) / 2) : 0));
+  const socket = $derived(d.socket ?? (d.top && ctx.towered ? (d.sizes?.from ?? 0) / 2 : OUTPUTS_TOP && d.port !== 'play' ? (hop ? hop.r : (d.sizes?.from ?? 0) / 2) : 0));
   const fromX = $derived(hop ? hop.x : sourceX);
   const fromY = $derived((hop ? hop.y : sourceY) - socket);
   // (what the locked paths start from: as before unless the probe's socket is on — a hop's wire started at the source)

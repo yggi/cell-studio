@@ -8,7 +8,7 @@
 <script lang="ts">
   import { Background, Controls, SvelteFlow, ViewportPortal, type NodeTypes } from '@xyflow/svelte';
   import { VOICE_KIT } from '@yggi/cells/engine/compiler/declare';
-  import { noteColour, partColour, sectionTint } from './theme';
+  import { noteColour, partColour, sectionTint, sectionTintRgb } from './theme';
   import '@xyflow/svelte/dist/style.css';
   import { onDestroy, untrack } from 'svelte';
   import type { CompileResult, Shifts } from '@yggi/cells/engine/program';
@@ -48,6 +48,8 @@
   import { nodeSections, sectionRgb, tagSections } from './sections';
   import { towerStructure } from '../layout/tower';
   import { minimap } from '../layout/minimap';
+  import { bulbHosts } from '../layout/drawn';
+  import { headPoint, UNTURNED } from '../layout/tape';
   import SectionLooms from './SectionLooms.svelte';
   import { towerIns, towerY } from '../layout/towerlayout';
   import FlyTo from './FlyTo.svelte';
@@ -245,6 +247,16 @@
       return l && pillAnchor(l, other, from, meter);
     },
     centre: (node) => centres.get(node),
+    head: (node, handle) => {
+      const n = layout.nodes.find((m) => m.id === node);
+      const cell = n && shown.program.cells.get((n.data as { name: string }).name);
+      if (!n || !cell) return undefined;
+      const { size, turn } = n.data as { size: number; turn?: number };
+      const name = handle.slice('head-'.length);
+      const hosted = bulbHosts(shown.program).get(name) === cell.name;
+      const at = headPoint(cell, shown.program.cells.values(), size, turn ?? UNTURNED, handle === 'head-write' ? null : { name, bulb: hosted });
+      return { x: n.position.x + at.x, y: n.position.y + at.y };
+    },
     get lit() {
       return live;
     },
@@ -358,15 +370,21 @@
   const sections = $derived(nodeSections(shown.program, shown.model));
   // (an out's own colour, steady: its section's, else its base note's — its spire's mast, its share of the strip)
   const tintOf = (source: string) => {
-    return outTint(shown.program, source, sectionRgb(shown.model, sections, `cell:${source}`));
+    return outTint(shown.program, source, sectionOrRainbow(source));
   };
+  // (an out in no section takes a place in the rainbow of its own, by its lane's order, as if it were one)
+  const sectionOrRainbow = (source: string) => sectionRgb(shown.model, sections, `cell:${source}`) ?? laneRainbow.get(source) ?? null;
+  const laneRainbow = $derived.by(() => {
+    const sources = [...new Set(strip?.lanes.map((l) => l.source.slice('cell:'.length)) ?? [])];
+    return new Map(sources.flatMap((s, k) => (sources.length > 1 ? [[s, sectionTintRgb(k, sources.length)] as const] : [])));
+  });
   const sky = $derived(towered && SKY_MODES.includes(skyMode as SkyMode));
   const spires = $derived(
     sky
       ? layout.nodes.flatMap((n) => {
           if (n.type !== 'socket') return [];
           const source = (n.data as { source: string }).source;
-          return [{ id: n.id, x: n.position.x, y: n.position.y, source, section: sectionRgb(shown.model, sections, `cell:${source}`) }];
+          return [{ id: n.id, x: n.position.x, y: n.position.y, source, section: sectionOrRainbow(source) }];
         })
       : [],
   );
@@ -375,7 +393,8 @@
   // the strip as a minimap (layout/minimap.ts): a lane each out, in its sections' order, then the graph's
   const strip = $derived.by(() => {
     if (!towered || !layout.drawnModel) return null;
-    const x = (id: string) => layout.position(id)?.x ?? 0;
+    // (a read head drawn on its tape: where its tape is)
+    const x = (id: string) => layout.position(id)?.x ?? layout.position(`cell:${bulbHosts(shown.program).get(id.slice('cell:'.length)) ?? ''}`)?.x ?? 0;
     return minimap(layout.drawnModel, (source) => (sections.get(source)?.k ?? 1e3) * 1e6 + x(source));
   });
   // the structure on the strip (TowerStrips.svelte): each stepped cell at its rate, the tables nothing steps at the
