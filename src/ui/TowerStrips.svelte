@@ -624,6 +624,9 @@
         at.set(a, n + 1);
         const name = nameOf(id);
         hit(id, xa, yy - 4, xb, yy + 4);
+        // (dim where its lanes are all not picked)
+        const lanes = Array.from({ length: b - a + 1 }, (_, i) => laneActive.get(a + i));
+        g.globalAlpha = lanes.length && lanes.every((v) => v === false) ? 0.35 : 1;
         // (its section's colour, steady: a mixer's the mean of what it mixes)
         const t = tintOf(name);
         const c = `rgb(${t[0]}, ${t[1]}, ${t[2]})`;
@@ -663,6 +666,7 @@
           }
         }
       }
+      g.globalAlpha = 1;
     }
     // the levels heard (layout/explained.ts), at their periods at the right, left of the rails: a bar as long as it is
     // strong, white where a level written meets it (its row names it), orange alone (unexplained) with its period; a
