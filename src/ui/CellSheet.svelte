@@ -30,6 +30,7 @@
     onclose,
     onedit,
     onrename,
+    hidden = false,
   }: {
     name: string;
     isMeter: boolean;
@@ -44,6 +45,8 @@
     onedit: (source: string) => void;
     /** Rename (the sheet follows the cell to its new name). */
     onrename: (source: string, to: string) => void;
+    /** Kept, not shown (a wide screen's inspector on another page). */
+    hidden?: boolean;
   } = $props();
 
   const ctx = getGraphContext();
@@ -61,7 +64,7 @@
 
 {#snippet heading()}<SheetName lambda={cell?.lambda ?? null} {rename} />{/snippet}
 
-<Sheet label="&{name}" {onclose} side class="cell-sheet" header={cell ? heading : undefined}>
+<Sheet label="&{name}" {onclose} side {hidden} class="cell-sheet" header={cell ? heading : undefined}>
   {#if cell}
     {#if typeof cell.params.scope === 'string'}
       <!-- the scope, unconstrained: as wide as the sheet -->

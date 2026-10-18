@@ -1,7 +1,7 @@
 # The time view
 
-The piece as a tracker (#286): a fourth view beside select, graph and code. On a phone it is the **Time** tab; on a
-wide screen the **time** button in the graph's toolbar shows it in the graph's pane, and its **graph** button goes back.
+The piece as a tracker (#286): a view beside the library, the graph and the code: **Time** in the header's switch
+(on a wide screen it takes the stage, the graph's pane: [decision 037](../decisions/037-one-frame.md)).
 
 ## What it shows
 

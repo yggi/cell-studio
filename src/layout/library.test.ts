@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { GENRES, PILL, byTier, sideOf, freezeLayout, layoutKey, libraryLayout, libraryLayoutAsync, shortTitle, stageOf, thawLayout } from './library';
+import { GENRES, PILL, byTier, foldSides, sideOf, freezeLayout, layoutKey, libraryLayout, libraryLayoutAsync, shortTitle, stageOf, thawLayout } from './library';
 import { PRESETS } from '@yggi/cells/engine/presets';
 import { pieceMeta } from '@yggi/cells/engine/parser/index';
 import { canonicalTags, MIDI_FILE, TUTORIAL } from '@yggi/cells/engine/tags';
@@ -202,5 +202,41 @@ describe('a layout kept between visits', () => {
   it('is keyed by the pieces, their titles, tags and tiers', () => {
     expect(layoutKey(entries)).toBe(layoutKey(entries.map((e) => ({ ...e }))));
     expect(layoutKey(entries)).not.toBe(layoutKey([{ ...entries[0], tags: [] }, ...entries.slice(1)]));
+  });
+});
+
+describe('the cells beside the wheel, folded', () => {
+  const R = lib.ring!.r;
+  const discs = (l: typeof lib) => [{ x: 0, y: 0, r: R + 32 }, ...l.sides];
+  const apart = (l: typeof lib) => discs(l).every((a, i) => discs(l).every((b, j) => i >= j || Math.hypot(a.x - b.x, a.y - b.y) >= a.r + b.r - 1e-6));
+  const folded = foldSides(lib, null);
+  it('are small discs just outside the rim, none overlapping the wheel or another', () => {
+    expect(folded.sides.every((s) => s.folded && s.r <= 0.3 * R)).toBe(true);
+    expect(folded.sides.every((s) => Math.hypot(s.x, s.y) - s.r <= R + 61)).toBe(true);
+    expect(apart(folded)).toBe(true);
+  });
+  it('give the wheel the frame: a smaller one than laid out', () => {
+    expect(folded.w * folded.h).toBeLessThan(0.6 * lib.w * lib.h);
+    for (const s of folded.sides) {
+      expect(s.x - s.r).toBeGreaterThanOrEqual(folded.x0);
+      expect(s.x + s.r).toBeLessThanOrEqual(folded.x0 + folded.w);
+    }
+  });
+  it('open one whole, its pieces in their places in it, overlapping nothing', () => {
+    for (const s of lib.sides) {
+      const l = foldSides(lib, s.tag);
+      const o = l.sides.find((c) => c.tag === s.tag)!;
+      expect(o.folded).toBe(false);
+      expect(o.r).toBe(s.r);
+      expect(apart(l)).toBe(true);
+      for (const id of s.order) {
+        const [p, q] = [lib.at.get(id)!, l.at.get(id)!];
+        expect(q.x - o.x).toBeCloseTo(p.x - s.x);
+        expect(q.y - o.y).toBeCloseTo(p.y - s.y);
+      }
+    }
+  });
+  it('keep the order of the sides as laid out', () => {
+    expect(folded.sides.map((s) => s.tag)).toEqual(lib.sides.map((s) => s.tag));
   });
 });

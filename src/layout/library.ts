@@ -51,6 +51,8 @@ interface SideCell {
   readonly y: number;
   readonly r: number;
   readonly order: readonly string[];
+  /** Folded (`foldSides`): a small disc at the wheel's rim, its pieces not drawn. */
+  readonly folded?: boolean;
 }
 
 /** The cell beside the wheel a piece is in (its tag: the tutorial's, or its collection's), or null: on the wheel. */
@@ -475,6 +477,56 @@ function sideCell(pieces: readonly LibraryEntry[], full: number) {
   // (the disc holds each piece's wheel too, zoomed in: at most 2.2 of its rooms' half-heights, 1.1 rows)
   const radius = Math.max(...[...at.values()].map((p) => Math.hypot(p.x, p.y) + 1.1 * pitch)) + 8;
   return { r: radius, at };
+}
+
+/**
+ * The cells beside the wheel folded: each a small disc just outside the rim (its area by how many pieces it holds,
+ * where the layout put it round the wheel, spread till none overlap), so the wheel has the frame; the one `open`
+ * whole, out beyond the folded ones the same way round, where it overlaps nothing. Its pieces and its tag move with
+ * it; the frame is the wheel and what is beside it now. Without a rim (no genres), the layout as it is.
+ */
+export function foldSides(l: LibraryLayout, open: string | null): LibraryLayout {
+  if (!l.ring || !l.sides.length) return l;
+  const R = l.ring.r;
+  const most = Math.max(...l.sides.map((s) => s.order.length));
+  const small = (n: number) => R * Math.max(0.1, Math.min(0.3, 0.3 * Math.sqrt(n / most)));
+  // (round the wheel as the layout has them, then spread: neighbours as far apart as their discs need)
+  const GAP = R * 0.06;
+  const cells = l.sides.map((s) => ({ s, rs: small(s.order.length), a: Math.atan2(s.y, s.x) })).sort((p, q) => p.a - q.a);
+  const d = (c: (typeof cells)[number]) => R + 60 + c.rs;
+  for (let k = 0; k < 60 && cells.length > 1; k++)
+    cells.forEach((c, i) => {
+      const n = cells[(i + 1) % cells.length]!;
+      const need = 2 * Math.asin(Math.min(1, (c.rs + n.rs + GAP) / (d(c) + d(n))));
+      const gap = (((n.a - c.a) % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
+      if (gap >= need) return;
+      c.a -= (need - gap) / 2;
+      n.a += (need - gap) / 2;
+    });
+  const reach = R + 60 + 2 * Math.max(...cells.map((c) => c.rs)) + GAP;
+  const at = new Map(l.at);
+  const sides = cells.map(({ s, rs, a }) => {
+    const whole = s.tag === open;
+    const r = whole ? s.r : rs;
+    const dist = whole ? reach + s.r : R + 60 + rs;
+    const x = dist * Math.cos(a);
+    const y = dist * Math.sin(a);
+    for (const id of s.order) {
+      const p = l.at.get(id);
+      if (p) at.set(id, whole ? { x: x + p.x - s.x, y: y + p.y - s.y } : { x, y });
+    }
+    at.set(`t:${s.tag}`, { x, y: y - r });
+    return { ...s, x, y, r, folded: !whole };
+  });
+  // (the frame: the wheel, the genres' names included, and the cells as they are now)
+  const m = R + 140;
+  const x0 = Math.min(-m, ...sides.map((c) => c.x - c.r - 80));
+  const x1 = Math.max(m, ...sides.map((c) => c.x + c.r + 80));
+  const y0 = Math.min(-m, ...sides.map((c) => c.y - c.r - 80));
+  const y1 = Math.max(m, ...sides.map((c) => c.y + c.r + 80));
+  // (in the layout's order, as the sides were given)
+  const order = new Map(l.sides.map((s, i) => [s.tag, i]));
+  return { ...l, at, x0, y0, w: x1 - x0, h: y1 - y0, sides: sides.sort((p, q) => order.get(p.tag)! - order.get(q.tag)!) };
 }
 
 /** A layout as plain data (its maps as entry lists), to keep in the browser between visits: `thawLayout` reads it back. */

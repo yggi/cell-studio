@@ -12,14 +12,11 @@
     entries,
     current,
     onpick,
-    onlibrary,
   }: {
     entries: readonly { readonly id: string; readonly title: string; readonly tags: readonly string[]; readonly tier?: number | null }[];
     /** The piece open now, if any. */
     current: string | null;
     onpick: (id: string) => void;
-    /** The path's root, the library itself (a wide screen has no tabs: this is the way back to it). */
-    onlibrary?: () => void;
   } = $props();
 
   const KINDS: readonly TagKind[] = ['tutorial', 'genre', 'artist', 'topic'];
@@ -51,10 +48,6 @@
 </script>
 
 <span class="quick" role="group" aria-label="Choose a piece by its tags">
-  {#if onlibrary}
-    <button class="unstyled step root" onclick={onlibrary} title="Choose another piece">Library</button>
-    <span class="sep root" aria-hidden="true">›</span>
-  {/if}
   <span class="step kind">
     <span class="text">{kind}</span>
     <select aria-label="Kind of tag" value={kind} onchange={(e) => (chosen = { for: current, kind: e.currentTarget.value as TagKind, tag: null })}>
@@ -133,28 +126,9 @@
     cursor: pointer;
     font: inherit;
   }
-  .step.root {
-    flex: none;
-    min-width: 0;
-    cursor: pointer;
-  }
-  .step.root:hover {
-    color: var(--accent);
-  }
-  .step.root:focus-visible {
-    outline: 2px solid var(--accent);
-    outline-offset: 1px;
-    border-radius: 4px;
-  }
   .sep {
     flex: none;
     color: var(--text-faint);
-  }
-  /* (narrow: the tabs are the way back) */
-  @media (max-width: 899px) {
-    .root {
-      display: none;
-    }
   }
   /* a phone: tag › piece (the tag's list holds every kind) */
   @media (max-width: 599px) {

@@ -3,18 +3,20 @@
    * A modal sheet rising from the bottom edge (`.bottom-sheet`, app.css): a scrim behind it (a tap on it closes),
    * the focus held inside while it's open (kit/attach.ts `trap`), Escape closes, wherever the focus is. Its header
    * (the `header` snippet, then a Close button) stays put as it scrolls; without one there is no header at all.
-   * `side`: on a wide screen (≥ 900 px) a panel at the window's right instead, 380 px wide from 76 px down, over a
-   * clear scrim, so what's beside it stays in view (Graph.svelte makes room for it by that geometry). Its own look
+   * `side`: on a wide screen (≥ 900 px) the inspector's page instead (Sidebar.svelte: the pane at the right, which says
+   * where its page is in `--inspect-*`), not modal: no scrim, the focus free, what's beside it in reach. Its own look
    * beyond that (padding, a wide screen's place) comes from the parent's `class`, styled with `:global`.
    * `kit/Dialog` is the centred pop-up.
    */
   import type { Snippet } from 'svelte';
+  import { MediaQuery } from 'svelte/reactivity';
   import { trap } from './attach';
 
   let {
     label,
     onclose,
     side = false,
+    hidden = false,
     layer = 40,
     focus = 'self',
     class: className = '',
@@ -24,6 +26,8 @@
     label: string;
     onclose: () => void;
     side?: boolean;
+    /** Kept, not shown (`side` on a wide screen: the inspector on another page). */
+    hidden?: boolean;
     /** The scrim's z-index; the sheet sits one above it (40: under the centred pop-ups, kit/Dialog's 60). */
     layer?: number;
     /** Where the focus goes when it opens, unless a control is marked autofocus (attach.ts `trap`). */
@@ -34,22 +38,26 @@
     children?: Snippet;
   } = $props();
 
+  const wide = new MediaQuery('min-width: 900px');
+  // (a side sheet on a wide screen is a pane: the rest stays live beside it)
+  const pane = $derived(side && wide.current);
   function onkeydown(e: KeyboardEvent) {
-    if (e.key === 'Escape') onclose();
+    if (e.key === 'Escape' && !hidden && !e.defaultPrevented) onclose();
   }
 </script>
 
 <svelte:window {onkeydown} />
 
-<div class="backdrop" class:side style:z-index={layer} onclick={onclose} role="presentation"></div>
+{#if !pane}<div class="backdrop" style:z-index={layer} onclick={onclose} role="presentation"></div>{/if}
 <div
-  class={['bottom-sheet', 'sheet', side && 'side', className]}
+  class={['bottom-sheet', 'sheet', pane && 'pane', className]}
+  hidden={pane && hidden}
   style:z-index={layer + 1}
-  role="dialog"
+  role={pane ? 'region' : 'dialog'}
   aria-label={label}
-  aria-modal="true"
+  aria-modal={pane ? undefined : 'true'}
   tabindex="-1"
-  {@attach trap({ onescape: () => onclose(), focus })}
+  {@attach pane ? undefined : trap({ onescape: () => onclose(), focus })}
 >
   {#if header}
     <header>
@@ -81,20 +89,25 @@
       opacity: 0;
     }
   }
-  @media (min-width: 900px) {
-    .backdrop.side {
-      background: transparent;
-    }
-    .sheet.side {
-      left: auto;
-      right: 16px;
-      top: 76px;
-      bottom: 16px;
-      width: 380px;
-      max-height: none;
-      border-radius: 14px;
-      border: 1px solid var(--line);
-    }
+  /* the inspector's page: where the pane says it is, flush, no shadow of its own */
+  .sheet.pane {
+    left: var(--inspect-left);
+    right: auto;
+    top: var(--inspect-top);
+    width: var(--inspect-width);
+    height: var(--inspect-height);
+    bottom: auto;
+    max-height: none;
+    border-radius: 0;
+    box-shadow: none;
+    animation: none;
+  }
+  /* (the inspector's own Close is the one) */
+  .sheet.pane .close {
+    display: none;
+  }
+  .sheet[hidden] {
+    display: none;
   }
 
   /* the header stays put as the sheet scrolls: the Close button is always in reach */

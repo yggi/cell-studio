@@ -47,7 +47,6 @@
     source,
     heardLevels = null,
     focus = null,
-    right = 0,
   }: {
     ins: readonly TowerIn[];
     /** The lanes, and the lanes each node feeds (layout/minimap.ts). */
@@ -74,8 +73,6 @@
     heardLevels?: Explained<HeardLevel, WrittenLevel> | null;
     /** The cell selected (its name): its row outlined and named. */
     focus?: string | null;
-    /** How far from its pane's right edge it stands (px): 0, or the width a cell's card covers. */
-    right?: number;
     /** A tap on what the strip shows for a node (its id): the view moves to it. */
     onfocus?: (id: string) => void;
   } = $props();
@@ -722,7 +719,7 @@
 </script>
 
 <svelte:window onpointerdowncapture={onDown} onpointerupcapture={onUp} />
-<div class="strip" style:width="{sw}px" style:right="{right}px" bind:clientHeight={h} bind:this={stripEl}>
+<div class="strip" style:width="{sw}px" bind:clientHeight={h} bind:this={stripEl}>
   {#if h}
     <canvas bind:this={canvas} width={sw * dpr} height={h * dpr} style:width="{sw}px" style:height="{h}px"></canvas>
   {/if}

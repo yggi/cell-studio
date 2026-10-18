@@ -5,7 +5,7 @@
    * size of how many pieces carry it. Pieces sharing tags gather. Laid out by the
    * same physics as the pieces' graphs, without its ranks: a cloud, not a flow.
    */
-  import { GENRES, PILL, shortTitle, sideOf, sideTitle, tagFont, type LibraryLayout } from '../layout/library';
+  import { foldSides, GENRES, PILL, shortTitle, sideOf, sideTitle, tagFont, type LibraryLayout } from '../layout/library';
   import { tagName } from '@yggi/cells/engine/tags';
   import { tick } from 'svelte';
   import PieceNode from './PieceNode.svelte';
@@ -42,7 +42,9 @@
     onopen: (e: Entry) => void;
   } = $props();
 
-  const layout = $derived(lib);
+  // the cells beside the wheel folded at its rim, but the one opened (a tap on it): the wheel has the frame
+  let openSide = $state<string | null>(null);
+  const layout = $derived(foldSides(lib, openSide));
   // a piece's size, and the tags': as large as the layout has grown them (to fill the wheel)
   const PR = $derived(lib.piece);
   const tags = $derived(lib.count);
@@ -53,6 +55,7 @@
   let scroller = $state<HTMLDivElement | null>(null);
   // fit: all of it in the frame, both ways — and where it opens
   const fit = () => {
+    openSide = null;
     zoom = Math.max(0.15, Math.min(1.6, (width - 8) / layout.w, (height - top - 8) / layout.h));
     requestAnimationFrame(() => scroller?.scrollTo(0, 0));
   };
@@ -159,6 +162,9 @@
   const isGenre = (t: string) => (GENRES as readonly string[]).includes(t);
   const onRim = (t: string) => (!!layout.ring && isGenre(t)) || layout.sides.some((s) => s.tag === t);
   const inSide = (e: Entry) => layout.sides.some((s) => s.tag === sideOf(e));
+  // (a folded cell's pieces are not drawn: it says how many it holds)
+  const folded = (e: Entry) => layout.sides.some((s) => s.folded && s.tag === sideOf(e));
+  const foldedId = (id: string) => layout.sides.some((s) => s.folded && s.order.includes(id));
   // searching: what doesn't match is gone (as in the cards), not dimmed — and a tag left with no
   // piece showing goes with it
   const searching = $derived(shown.size < entries.length);
@@ -171,23 +177,36 @@
     if (key === lastShown) return;
     lastShown = key;
     if (!searching) return void fit();
-    const ps = entries
-      .filter((e) => shown.has(e.id))
-      .map((e) => layout.at.get(`p:${e.id}`))
-      .filter((p): p is { x: number; y: number } => !!p);
-    if (!ps.length || !scroller) return;
-    const pad = PR * 2.5;
-    const x0 = Math.min(...ps.map((p) => p.x)) - pad;
-    const x1 = Math.max(...ps.map((p) => p.x)) + pad;
-    const y0 = Math.min(...ps.map((p) => p.y)) - pad;
-    const y1 = Math.max(...ps.map((p) => p.y)) + pad;
-    zoom = Math.max(0.15, Math.min(1.6, width / (x1 - x0), (height - top) / (y1 - y0)));
+    const found = entries.filter((e) => shown.has(e.id));
+    // (everything found in one cell beside the wheel: it opens)
+    const homes = new Set(found.map(sideOf));
+    openSide = homes.size === 1 ? ([...homes][0] ?? null) : null;
+    // (each piece found with room round it; one in a folded cell, that cell whole)
+    const boxes = found.flatMap((e) => {
+      const c = layout.sides.find((s) => s.folded && s.tag === sideOf(e));
+      const p = layout.at.get(`p:${e.id}`);
+      return c ? [{ x: c.x, y: c.y, r: c.r + 20 }] : p ? [{ ...p, r: PR * 2.5 }] : [];
+    });
+    if (!boxes.length) return;
+    frame(Math.min(...boxes.map((b) => b.x - b.r)), Math.max(...boxes.map((b) => b.x + b.r)), Math.min(...boxes.map((b) => b.y - b.r)), Math.max(...boxes.map((b) => b.y + b.r)));
+  });
+  // the view on a box (layout units): as large as the frame holds it, in the middle
+  // (`least`: at least this zoom, the box's middle in the middle)
+  function frame(x0: number, x1: number, y0: number, y1: number, least = 0) {
+    if (!scroller) return;
+    zoom = Math.max(0.15, least, Math.min(1.6, width / (x1 - x0), (height - top) / (y1 - y0)));
     void tick().then(() => {
       if (!scroller) return;
       scroller.scrollLeft = ((x0 + x1) / 2 - layout.x0) * zoom - width / 2;
       scroller.scrollTop = ((y0 + y1) / 2 - layout.y0) * zoom - (height - top) / 2;
     });
-  });
+  }
+  // a folded cell opened: the view flies to it, whole, or (a small screen) close enough that its titles read
+  function unfold(t: string) {
+    openSide = t;
+    const c = layout.sides.find((s) => s.tag === t);
+    if (c) frame(c.x - c.r - 40, c.x + c.r + 40, c.y - c.r - 40, c.y + c.r + 40, 8.5 / (PILL * lib.tagScale));
+  }
   // a tag's cluster: the pieces showing that carry it (two or more; the rim's genres have their arc)
   const clusters = $derived.by(() =>
     [...tags]
@@ -265,7 +284,42 @@
         {/each}
       {/if}
       <!-- the tutorial and the MIDI library: cells of their own beside the wheel, their pieces in order along a thread -->
-      {#each layout.sides as t, i (t.tag)}
+      {#each layout.sides.filter((t) => t.folded) as t (t.tag)}
+        {@const R = px(t.r)}
+        {@const n = searching ? entries.filter((e) => sideOf(e) === t.tag && shown.has(e.id)).length : t.order.length}
+        <!-- (folded: a small disc at the wheel's rim, its name and how many pieces it holds; a tap opens it) -->
+        <button
+          class="unstyled satellite"
+          class:dim={(tag !== null && tag !== t.tag) || (searching && !n)}
+          style:left="{px(t.x - layout.x0)}px"
+          style:top="{px(t.y - layout.y0)}px"
+          style:width="{2 * R}px"
+          style:height="{2 * R}px"
+          style:--hue={colours.get(t.tag)}
+          style:border-width="{Math.max(3, px(14))}px"
+          onclick={() => unfold(t.tag)}
+          aria-label="{tagName(t.tag)}: {n} pieces, open it"
+        >
+          <span
+            class="name"
+            style:font-size="{Math.max(
+              6,
+              Math.min(
+                px(24),
+                (1.5 * R) /
+                  (0.7 *
+                    Math.max(
+                      ...tagName(t.tag)
+                        .split(' ')
+                        .map((w) => w.length),
+                    )),
+              ),
+            )}px">{tagName(t.tag)}</span
+          >
+          <span class="count" style:font-size="{Math.max(11, Math.min(px(40), R * 0.42))}px">{n}</span>
+        </button>
+      {/each}
+      {#each layout.sides.filter((t) => !t.folded) as t, i (t.tag)}
         {@const c = { x: px(t.x - layout.x0), y: px(t.y - layout.y0) }}
         {@const R = px(t.r)}
         {@const band = px(40)}
@@ -300,9 +354,8 @@
           style:top="{c.y - R}px"
           style:width="{px(300)}px"
           style:height="{px(70)}px"
-          onclick={() => (tag = tag === t.tag ? null : t.tag)}
-          aria-pressed={tag === t.tag}
-          aria-label="{tagName(t.tag)}: light its pieces"
+          onclick={() => (openSide = null)}
+          aria-label="{tagName(t.tag)}: fold it"
         ></button>
       {/each}
       <!-- clusters: the pieces a tag gathers, washed in its colour (as cells tagged alike in a piece's graph) -->
@@ -320,7 +373,7 @@
       <!-- a lit tag's pieces: tied to it -->
       {#if tag}
         <svg width={px(layout.w)} height={px(layout.h)} aria-hidden="true">
-          {#each layout.edges.filter((e) => e.target === `t:${tag}` && visible(e.source.slice(2))) as e (e.id)}
+          {#each layout.edges.filter((e) => e.target === `t:${tag}` && visible(e.source.slice(2)) && !foldedId(e.source)) as e (e.id)}
             {@const a = pos(e.source)}
             {@const b = pos(e.target)}
             {#if a && b}<line x1={a.x} y1={a.y} x2={b.x} y2={b.y} />{/if}
@@ -344,7 +397,7 @@
           >
         {/if}
       {/each}
-      {#each entries.filter((e) => visible(e.id)) as e (e.id)}
+      {#each entries.filter((e) => visible(e.id) && !folded(e)) as e (e.id)}
         {@const p = pos(`p:${e.id}`)}
         {#if p}
           {@const d = px(2 * (lib.wheel.get(`p:${e.id}`) ?? PR))}
@@ -508,6 +561,41 @@
     font-weight: 700;
     line-height: 1.3;
     white-space: nowrap;
+  }
+  /* a folded cell beside the wheel: its rim in its colour, its name and its count */
+  .satellite {
+    position: absolute;
+    z-index: 2;
+    transform: translate(-50%, -50%);
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.1em;
+    border-radius: 50%;
+    border-style: solid;
+    border-color: var(--hue);
+    background: var(--wheel-disc);
+    color: var(--text);
+    font-family: var(--font-ui);
+    font-weight: 800;
+    text-align: center;
+    line-height: 1.1;
+    cursor: pointer;
+  }
+  .satellite .name {
+    max-width: 82%;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .satellite .count {
+    color: var(--accent);
+  }
+  .satellite:hover,
+  .satellite:focus-visible {
+    border-color: var(--accent);
+    outline: none;
   }
   .piece .dot {
     position: absolute;

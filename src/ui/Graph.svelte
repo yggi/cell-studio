@@ -93,7 +93,8 @@
     played,
     rows,
     onlayout,
-    ontime,
+    unsheet = 0,
+    sheetHidden = false,
   }: {
     model: GraphModel;
     program: CompileResult;
@@ -143,8 +144,10 @@
     rows?: RowKeys;
     /** Told the layout on mounting (the sidebar's forces), null when it goes. */
     onlayout?: (layout: GraphLayout | null) => void;
-    /** On a wide screen: show the time view in the graph's pane (a button in the toolbar). */
-    ontime?: () => void;
+    /** Counts asks to close the sheet open (the inspector closed round it). */
+    unsheet?: number;
+    /** The sheet kept, not shown (a wide screen's inspector on another page). */
+    sheetHidden?: boolean;
   } = $props();
 
   // The piece as drawn: one snapshot (program, graph, shifts, routing), swapped whole with the nodes and edges made
@@ -175,7 +178,14 @@
   // Tapping a node opens its detail sheet; the code is what it edits.
   let selected = $state<string | null>(null);
   /** Open a cell's sheet (read only: says to convert first). */
-  const select = (id: string) => (locked ? locked() : void (selected = id));
+  // (asked again for the cell already open, say so again: the inspector shows its page)
+  const select = (id: string) => (locked ? locked() : id === selected ? onsheet?.(selectedName ?? null) : void (selected = id));
+  let unsheeted = untrack(() => unsheet);
+  $effect(() => {
+    if (unsheet === unsheeted) return;
+    unsheeted = unsheet;
+    selected = null;
+  });
   // (a product's junction is not a cell: never selected)
   const selectedNode = $derived(selected ? shown.model.nodes.filter(isCellNode).find((n) => n.id === selected) : undefined);
   // (or a bulb on a wheel: the cell it splices, which has no node of its own — decision 014, 016)
@@ -391,24 +401,15 @@
   });
   // (a tap on the strip: the view moves to that node)
   let flyTo = $state<{ x: number; y: number } | null>(null);
-  // a cell's card on a wide screen (CellSheet.svelte: 380 px, 16 px from the window's right) covers the graph's right
-  // edge: the strip stands left of it, at the card's edge, and the graph gives up that room (as the retired tower
-  // axis did), so the row of the cell selected stays in sight
-  let graphEl = $state<HTMLDivElement>();
+  // the graph and its strip side by side: when the split between them moves (a drag's end, a collapse) or the pane
+  // does (the inspector opening beside it), the graph is framed again in the room it has (after SPLIT_SETTLE ms still:
+  // not at every step of a drag)
   let graphW = $state(0);
-  let cardCover = $state(0);
-  $effect(() => {
-    void graphW;
-    const carded = towered && !!selectedName && !!graphEl && matchMedia('(min-width: 900px)').matches;
-    cardCover = carded ? Math.max(0, graphEl!.getBoundingClientRect().right - (innerWidth - 396) + 8) : 0;
-  });
-  // the graph and its strip side by side: when the split between them moves (a drag's end, a collapse, a card), the
-  // graph is framed again in the room it has, so both resize (after SPLIT_SETTLE ms still: not at every step of a drag)
   const SPLIT_SETTLE = 150;
   let splitFits = $state(0);
-  let lastSplit = untrack(() => stripW + cardCover);
+  let lastSplit = untrack(() => `${stripW} ${graphW}`);
   $effect(() => {
-    const w = stripW + cardCover;
+    const w = `${stripW} ${graphW}`;
     if (w === lastSplit) return;
     const t = setTimeout(() => {
       lastSplit = w;
@@ -481,16 +482,7 @@
   });
 </script>
 
-<div
-  class="graph"
-  class:margined={hasMargin}
-  class:stripped={towered}
-  class:sky
-  style:--strip-width="{stripW + cardCover}px"
-  style:--margin-width="{MARGIN_WIDTH}px"
-  bind:this={graphEl}
-  bind:clientWidth={graphW}
->
+<div class="graph" class:margined={hasMargin} class:stripped={towered} class:sky style:--strip-width="{stripW}px" style:--margin-width="{MARGIN_WIDTH}px" bind:clientWidth={graphW}>
   {#if hasMargin}<Margin model={shown.model} heightOf={(id) => layout.position(id)?.y} settled={layout.fitToken} onlight={(id) => (sideLit = id)} />{/if}
   <div class="flow" bind:clientWidth={flowW}>
     {#if sky}<TowerSky {spires} {viewport} zone={layout.zone} mode={skyMode as SkyMode} />{/if}
@@ -556,7 +548,6 @@
       onresize={(w) => stripWidth.resize(w)}
       {tintOf}
       focus={selectedName ?? null}
-      right={cardCover}
       ontoggle={() => stripWidth.toggle()}
       onfocus={(id) => {
         const p = layout.position(id);
@@ -575,7 +566,6 @@
       aria-pressed={towered}
       title="Lay the graph out by the frequency tower: each cell at its time scale, the sound card a strip at the right">tower layout</button
     >
-    {#if ontime}<button class="forces-toggle" onclick={ontime} title="The piece in time: a tracker of its notes, its scalogram and its sound">time</button>{/if}
     {#if hasSide}<button
         class="forces-toggle"
         class:on={marginOpen}
@@ -606,6 +596,7 @@
         onshowcode(n);
       }}
       onclose={() => (selected = null)}
+      hidden={sheetHidden}
       {onedit}
       {onrename}
     />
