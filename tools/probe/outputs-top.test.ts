@@ -41,7 +41,7 @@ function measure(key: string, source: string, opts: Partial<LayoutOptions>): { r
   l.tick(500);
   l.layNet();
   const s = (l as unknown as { s: { byId: Map<string, { radius: number }>; junctions: Map<string, { radius: number; rides?: string }> } }).s;
-  const hop = l.taps();
+  const hop = l.readers();
   const radius = (id: string) => s.byId.get(id)?.radius ?? s.junctions.get(id)?.radius ?? 0;
   const owner = (id: string) => s.junctions.get(id)?.rides ?? id;
   const byPort = new Map<string, number[]>();

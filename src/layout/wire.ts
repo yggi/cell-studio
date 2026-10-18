@@ -389,7 +389,7 @@ export function wireLabel(
   width: number,
   discs: readonly Disc[] = [],
   room = 6,
-  // (`end`: near the wire's end instead, this far back from it — a net's tap, just before its socket)
+  // (`end`: near the wire's end instead, this far back from it — a net's reader, just before its socket)
   end?: number,
 ): { x: number; y: number; angle: number } | null {
   if (m.length < width * 0.6) return null;

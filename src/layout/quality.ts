@@ -35,11 +35,11 @@ export interface DrawnEdge {
   readonly weight?: number;
   /** Its kind (its band: values, sound, time): two of one kind crossing cost more (weights.ts: crossingCost). */
   readonly kind?: string;
-  /** Where it leaves from, when not `a`'s centre: a bulb on a wheel (a tap's sub-net, decision 016); `a` then names the bulb. */
+  /** Where it leaves from, when not `a`'s centre: a bulb on a wheel (a section's sub-net, decision 016); `a` then names the bulb. */
   readonly from?: { readonly x: number; readonly y: number };
-  /** Drawn as these straight pieces (a loom's strand, taploom.ts), not a spline from `a` to `b`. */
+  /** Drawn as these straight pieces (a loom's strand, sectionloom.ts), not a spline from `a` to `b`. */
   readonly path?: readonly (readonly [number, number, number, number])[];
-  /** Its loom (a selector's, taploom.ts): two strands of one loom are laid side by side there, so never cross. */
+  /** Its loom (a selector's, sectionloom.ts): two strands of one loom are laid side by side there, so never cross. */
   readonly loom?: string;
 }
 

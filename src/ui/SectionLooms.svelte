@@ -1,40 +1,40 @@
 <script lang="ts">
   /**
-   * The selectors as the tower layout draws them (taploom.ts, docs/notes/tower-strip.md): each a pill, its loom inside.
-   * At its bottom the selector: a hub, its arms out to a contact a tap in a flat fan, and two ports on the pill's edge
+   * The selectors as the tower layout draws them (sectionloom.ts, docs/notes/tower-strip.md): each a pill, its loom inside.
+   * At its bottom the selector: a hub, its arms out to a contact a section in a flat fan, and two ports on the pill's edge
    * where the wires come in, the meter it steps on (white) and its selection. The clock comes in white and passes through along the bypass at
-   * the bottom, a meter's trace as any; each tap a lane of its own over the fan, the clock tinted its section's colour
+   * the bottom, a meter's trace as any; each section a lane of its own over the fan, the clock tinted its section's colour
    * (partColour) — a prism, one white in, its spectrum out. The outputs are bulbs along the pill's top, each wire
    * leaving straight up. Behind the cells, in the graph's coordinates.
    */
   import type { Loom } from '../layout/physics';
-  import { tapTint } from './theme';
+  import { sectionTint } from './theme';
   import { getGraphContext } from './context';
   import { beatFlash } from './edgeStyle';
 
   let { looms }: { looms: readonly Loom[] } = $props();
   const ctx = getGraphContext();
-  // (while playing, a lane lights on its clock's beat as a meter's net does: the bypass always, a tap's while its
+  // (while playing, a lane lights on its clock's beat as a meter's net does: the bypass always, a section's while its
   // section is chosen — what goes on through the selector now)
   const lit = (l: Loom) => {
     const name = (id?: string) => id?.slice('cell:'.length);
     const meter = name(l.feeds.meter);
     const flash = beatFlash(ctx.playing && meter ? ctx.heads.beatAt.get(meter) : undefined);
     const chosen = ctx.heads.cells.get(name(l.feeds.select) ?? '')?.entries;
-    return (tap: number) => (tap < 0 || chosen?.has(tap) ? flash : 0);
+    return (section: number) => (section < 0 || chosen?.has(section) ? flash : 0);
   };
-  // (the raw clock: white; a tap's: the clock tinted its section's colour)
-  const tint = (tap: number, n: number) => (tap < 0 ? 'var(--meter-0)' : tapTint(tap, n));
+  // (the raw clock: white; a section's: the clock tinted its section's colour)
+  const tint = (section: number, n: number) => (section < 0 ? 'var(--meter-0)' : sectionTint(section, n));
   const drawn = $derived(
     looms.map((l) => {
       const n = Math.max(1, l.contacts.length);
-      const strands = l.strands.map((s) => ({ id: `${l.table}:${s.bulb}:${s.to}`, tap: s.tap, d: s.d, colour: tint(s.tap, n) }));
+      const strands = l.strands.map((s) => ({ id: `${l.table}:${s.bulb}:${s.to}`, section: s.section, d: s.d, colour: tint(s.section, n) }));
       // (an output a riser: where it leaves the pill's top, one bulb each — not a join, nor a strand down to a cell under it)
       const outs = new Map<string, { x: number; colour: string }>();
       for (const s of l.strands) {
         if (s.join || s.pieces[2][3] >= s.pieces[2][1]) continue;
         const x = s.pieces[2][0];
-        outs.set(`${s.tap}:${Math.round(x)}`, { x, colour: tint(s.tap, n) });
+        outs.set(`${s.section}:${Math.round(x)}`, { x, colour: tint(s.section, n) });
       }
       const contacts = l.contacts.map((c, k) => ({ ...c, colour: tint(k, n) }));
       return { loom: l, id: l.table, pill: l.pill, hub: l.hub, ports: l.ports, contacts, strands, outs: [...outs].map(([k, o]) => ({ k, ...o })) };
@@ -54,7 +54,7 @@
       <path class="arm" d="M{l.hub.x},{l.hub.y} L{c.x},{c.y}" style:--trace={c.colour} />
     {/each}
     {#each l.strands as s (s.id)}
-      <path class="strand" d={s.d} style:--trace={s.colour} style:--flash={flash(s.tap)} />
+      <path class="strand" d={s.d} style:--trace={s.colour} style:--flash={flash(s.section)} />
     {/each}
     <circle class="hub" cx={l.hub.x} cy={l.hub.y} r="13" />
     {#each l.contacts as c, k (k)}

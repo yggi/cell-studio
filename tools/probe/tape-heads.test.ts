@@ -1,5 +1,5 @@
 // Probe (not part of the gate): a tape's read heads as bulbs on its wheel, as a braid's splices (decision 014) and a
-// table's taps (decision 016) are. For every tape in the library: each head, what it takes besides the tape (its
+// table's sections (decision 016) are. For every tape in the library: each head, what it takes besides the tape (its
 // edges in), what reads it (its edges out, by port), how many readers, its drawn show, and whether it would pass a
 // rule "a cell whose only input is its host, read by edges that can leave from its bulb", and whether the graph
 // draws it as one. Then, per piece, every cell its own node (`bulbs: false`: the heads as they were drawn) against

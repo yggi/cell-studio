@@ -35,7 +35,7 @@ export const noteHsl = (hue: number, dim = false, octave = 0): [number, number, 
  */
 /**
  * A selector's part k of n, by its place round the colour wheel: its barrel's ring (show=matrix) and, on a table of
- * taps, the tap's bulb (decision 016), so a part is the same colour on both.
+ * sections, the section's bulb (decisions 016, 044), so a part is the same colour on both.
  */
 export const partColour = (k: number, n: number) => (n <= 1 ? UNIT : noteColour((k / n) * 360));
 
@@ -47,8 +47,8 @@ export const UNIT = 'var(--unit)';
 /** UNIT as rgb, for a canvas (app.css --unit: change both together). */
 export const UNIT_RGB = [212, 215, 224] as const;
 
-/** A selector's clock tinted its part k of n (TapLooms' strands, the selection's bus): the white clock through a prism. */
-export const tapTint = (k: number, n: number) => (n <= 1 ? UNIT : `color-mix(in oklab, ${partColour(k, n)} 65%, var(--meter-0))`);
+/** A selector's clock tinted its part k of n (SectionLooms' strands, the selection's bus): the white clock through a prism. */
+export const sectionTint = (k: number, n: number) => (n <= 1 ? UNIT : `color-mix(in oklab, ${partColour(k, n)} 65%, var(--meter-0))`);
 
 /** A colour's hue, saturation and lightness (s, l in %) as rgb, 0 … 255: for a canvas that mixes its own. */
 export function hslRgb(h: number, s: number, l: number): [number, number, number] {
@@ -62,8 +62,8 @@ export function hslRgb(h: number, s: number, l: number): [number, number, number
 /** A pitch class's colour lit up (the tower layout's sky, a band where a spire sounds): saturated and bright. */
 export const litRgb = (hue: number) => hslRgb(hue, 95, 62);
 
-/** tapTint as rgb (oklab's mix approximated in rgb), for a canvas: a section's colour on the tower layout's strip. */
-export const tapTintRgb = (k: number, n: number): readonly [number, number, number] => {
+/** sectionTint as rgb (oklab's mix approximated in rgb), for a canvas: a section's colour on the tower layout's strip. */
+export const sectionTintRgb = (k: number, n: number): readonly [number, number, number] => {
   if (n <= 1) return UNIT_RGB;
   const [r, g, b] = hslRgb(...noteHsl((k / n) * 360));
   const mix = (v: number, w: number) => Math.round(0.65 * v + 0.35 * w);
@@ -139,9 +139,9 @@ export const EDGE = {
   flash: { decay: 5, offBeat: 0.6, mix: 1.6 },
   /** An edge's label on its wire: about how wide a letter is at --edge-tag-font (px), to fit and place it. */
   tagChar: 7.6,
-  /** A net's tap: its socket on the reader's rim (radius, px), and the room between it and the tap's label (px). */
+  /** A net's reader: its socket on the reader's rim (radius, px), and the room between it and the reader's label (px). */
   socket: 5,
-  tapGap: 10,
+  readerGap: 10,
 } as const;
 
 /**

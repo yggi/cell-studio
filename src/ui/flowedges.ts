@@ -39,7 +39,7 @@ export interface EndSizes {
   readonly to: number;
 }
 
-/** An edge's place in a net (GraphModel.nets): which (the layout says where it attaches: ForceLayout.taps). */
+/** An edge's place in a net (GraphModel.nets): which (the layout says where it attaches: ForceLayout.readers). */
 export interface NetPlace {
   readonly id: string;
   /** Its shared name (#137): its owner's, drawn once on its trunk. */
@@ -208,7 +208,7 @@ export function flowEdgeOf(e: GraphEdge, state: State, program: CompileResult, b
 
 /**
  * A trace of a meter's net (meters are ground: their edges aren't drawn, this is). `index`: the meter's place among the
- * meters. A tap's sub-net (decision 016) leaves from its bulb on its table, and flashes on the tap's ticks.
+ * meters. A section's sub-net (decision 016) leaves from its bulb on its table, and flashes on the section's ticks.
  */
 export function meterEdgeOf(t: MeterTrace, index: number): Edge {
   return {
@@ -247,7 +247,7 @@ export function flowEdgesOf(s: GraphSnapshot, scene: EdgeScene): Edge[] {
   // each edge's place in a net (a table read by several: one trunk, a branch to each reader)
   // (named as its owner's node is: the grooves' unnamed kit, drums)
   const netName = (owner: string) => (nameOf(owner) === VOICE_KIT ? 'drums' : `&${nameOf(owner)}`);
-  const netPlaces = new Map(model.nets.flatMap((n) => n.taps.map((id) => [id, { id: n.id, name: netName(n.owner) }] as const)));
+  const netPlaces = new Map(model.nets.flatMap((n) => n.readers.map((id) => [id, { id: n.id, name: netName(n.owner) }] as const)));
   const rings = loomBands(model).inner;
   const grounds = groundsOf(model);
   const index = meterIndex(model);

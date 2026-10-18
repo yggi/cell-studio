@@ -16,6 +16,9 @@ describe('a cell in words', () => {
     // (the metronome's bar plays its own levels, through a kit: nothing else steps by it)
     expect(text(summary(compileSource(PRESETS.metronome.source), 'bar'))).toMatch(/^A meter of 4 beats, 100 a minute\./);
     expect(text(summary(royal, 'lead'))).toMatch(/^A saw voice at C4, played by &theme/);
+    // (a meter's feel by level, cells v0.4.0)
+    const feel = compileSource('&bar meter("4/4") step=120bpm swing=8n:2/3 legato=16n:.5\n&a step=8n 0 2\n&v s=sine\n&out map=sample [&a * &v]');
+    expect(text(summary(feel, 'bar'))).toBe('A meter of 4 beats, 120 a minute, swinging 8n .67, its notes sounding 16n .5 of their length, stepping &a.');
   });
   it('a melody through the scale(name, tonic) shorthand says it as written', () => {
     expect(text(summary(compileSource(PRESETS.waltz.source), 'tune'))).toBe('Plays 24 steps through scale(major, G), stepped by &bar, on &flute.');
@@ -28,11 +31,11 @@ describe('a cell in words', () => {
   });
   it('a selector and a mix', () => {
     const pop = compileSource(PRESETS.pop.source);
-    expect(text(summary(pop, 'song'))).toBe('Arranges 6 parts over 10 sections, once.');
-    // a tap: what it is, not a phrase of one step (decision 016)
-    expect(text(summary(pop, 'hookBar'))).toBe('A tap of &bar on &parts: what it steps plays while &song has it on.');
-    const off = compileSource(PRESETS.pop.source.replace(/^&parts .*$/m, '$&\n&hookBar off'));
-    expect(text(summary(off, 'hookBar'))).toBe('A tap of &bar on &parts: switched off, what it steps stands still.');
+    expect(text(summary(pop, 'song'))).toBe('Arranges 6 sections over 10 steps, once.');
+    // a section: what it is, not a phrase of one step (decisions 016, 044)
+    expect(text(summary(pop, 'hookBar'))).toBe('A section of &sections, on &bar: what it steps plays while &song has it on.');
+    const off = compileSource(PRESETS.pop.source.replace(/^&sections .*$/m, '$&\n&hookBar off'));
+    expect(text(summary(off, 'hookBar'))).toBe('A section of &sections, on &bar: switched off, what it steps stands still.');
     const mix = compileSource('&lead s=saw loop=C4\n&tune 0 2 4 step=2\n&hookPart [&tune * &lead * .35]\n&out map=sample [&hookPart]');
     expect(text(summary(mix, 'hookPart'))).toBe('Mixes 1 sound.');
   });

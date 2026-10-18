@@ -31,6 +31,6 @@ export function snapshotOf(program: CompileResult, model: GraphModel, shifts: Sh
   const edges = model.edges.filter((e) => has(e.from) && has(e.to) && has(e.source) && has(e.target));
   if (nodes.length === model.nodes.length && edges.length === model.edges.length) return { program, model, shifts, muted, routed };
   const kept = new Set(edges.map((e) => e.id));
-  const nets = model.nets.map((n) => ({ ...n, taps: n.taps.filter((id) => kept.has(id)) })).filter((n) => n.taps.length);
+  const nets = model.nets.map((n) => ({ ...n, readers: n.readers.filter((id) => kept.has(id)) })).filter((n) => n.readers.length);
   return { program, model: { ...model, nodes, edges, nets }, shifts, muted, routed };
 }

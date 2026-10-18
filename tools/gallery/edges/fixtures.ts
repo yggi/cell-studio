@@ -46,13 +46,13 @@ const SOUND_PORTS = new Set(['mix', 'fm', 'excite', 'couple']);
 
 /**
  * What kind of edge: the port it is read through, whether it carries sound where the port may carry values too (a ref,
- * a tape's write= or play=), what an over= reads where it is drawn otherwise (a kit, a groove's hits; a table of taps, a
+ * a tape's write= or play=), what an over= reads where it is drawn otherwise (a kit, a groove's hits; a table of sections, a
  * selection), the shapes of the transforms written on it, whether it counts (`×n` slots).
  */
 export function edgeKind(e: GraphEdge, program: CompileResult): string {
   const sound = e.band === 'audio' && !SOUND_PORTS.has(e.port) && 'sound';
   const table = e.port === 'over' ? e.from.slice('cell:'.length) : '';
-  const read = table && (program.cells.get(table)?.kit ? 'kit' : [...(program.taps?.values() ?? [])].includes(table) ? 'taps' : false);
+  const read = table && (program.cells.get(table)?.kit ? 'kit' : [...(program.sections?.values() ?? [])].includes(table) ? 'sections' : false);
   return ['edge', e.port, sound, read, ...new Set(e.transforms.map(shape).filter(Boolean)), e.count > 1 && 'count'].filter(Boolean).join(':');
 }
 

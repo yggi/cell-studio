@@ -9,6 +9,7 @@ import { entries, resolvePitch, semitones } from '@yggi/cells/engine/helix';
 import { modeName, mod, noteName } from '@yggi/cells/theory/modes';
 import { isSelector, kindOf } from './show';
 import { lfoValues } from './cellview';
+import { levelsText } from './meters';
 
 /** A piece of the summary: words, or a cell to link to. */
 export type Bit = string | { readonly ref: string };
@@ -104,17 +105,17 @@ export function summary(result: CompileResult, name: string): Bit[] {
     const sc = c.over?.startsWith('scale:') ? result.cells.get(c.over)?.lambda : undefined;
     return sc ? [`${words}${sc}`] : [];
   };
-  // a tap of a meter's bus (decision 016): not a phrase of one step, a switch for what it steps
-  const table = result.taps?.get(name);
+  // a section (decisions 016, 044): not a phrase of one step, a switch for what it steps
+  const table = result.sections?.get(name);
   if (table) {
-    const of: Bit[] = c.step?.driver ? ['A tap of ', { ref: c.step.driver }, ' on '] : ['A tap on '];
+    const on: Bit[] = c.step?.driver ? [', on ', { ref: c.step.driver }] : [];
     const readers = [...result.cells.values()].filter((x) => x.over === table && x.clock).map((x) => x.name);
     const when: Bit[] = c.off
       ? [': switched off, what it steps stands still']
       : readers.length
         ? [': what it steps plays while ', ...list(readers), ` ${readers.length === 1 ? 'has' : 'have'} it on`]
         : [': what it steps plays, and no selector switches it'];
-    return [...of, { ref: table }, ...when, '.'];
+    return ['A section of ', { ref: table }, ...on, ...when, '.'];
   }
   switch (kind) {
     case 'voice': {
@@ -141,7 +142,11 @@ export function summary(result: CompileResult, name: string): Bit[] {
       const beats = leveled ? c.units.filter((u) => u.atom.kind === 'note' && u.atom.value <= 1).length : (c.scan?.steps.length ?? c.units.length);
       const even = !c.scan || new Set(c.scan.steps).size === 1;
       const finer = leveled && c.beat > 1 ? `, ${+c.beat.toFixed(2)} steps a beat` : '';
-      return [`A meter of ${plural(beats, even ? 'beat' : 'uneven beat')}${perMinute ? `, ${perMinute} a minute` : ''}${finer}`, ...tail('steps', ', stepping '), '.'];
+      // (its feel by level, cells v0.4.0: swing= and legato= on the meter)
+      const swing = levelsText(c.meter?.swing);
+      const legato = levelsText(c.meter?.legato);
+      const feel = `${swing ? `, swinging ${swing}` : ''}${legato ? `, its notes sounding ${legato} of their length` : ''}`;
+      return [`A meter of ${plural(beats, even ? 'beat' : 'uneven beat')}${perMinute ? `, ${perMinute} a minute` : ''}${finer}${feel}`, ...tail('steps', ', stepping '), '.'];
     }
     case 'adsr': {
       const e = adsrOf(c);
@@ -153,7 +158,7 @@ export function summary(result: CompileResult, name: string): Bit[] {
       return [`Oscillates ${every}, ${v?.swing.startsWith('±') ? `swinging ${v.swing}` : `between ${v?.swing.replace('–', ' and ')}`}`, ...tail('moves', ', moving '), '.'];
     }
     case 'selector':
-      return [`Arranges ${plural(conn['picks']?.length ?? 0, 'part')} over ${plural(c.steps, 'section')}${c.laps ? `, ${c.laps === 1 ? 'once' : `${c.laps} times`}` : ''}`, '.'];
+      return [`Arranges ${plural(conn['picks']?.length ?? 0, 'section')} over ${plural(c.steps, 'step')}${c.laps ? `, ${c.laps === 1 ? 'once' : `${c.laps} times`}` : ''}`, '.'];
     case 'table': {
       let what = `A table of ${plural(c.units.length, 'entry', 'entries')}`;
       try {

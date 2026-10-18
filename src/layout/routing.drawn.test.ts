@@ -72,25 +72,25 @@ describe('routing: one model for what the graph draws as part of the sound (#11)
     const s = states(r, 0.1);
     expect([s.get('mel~>half'), s.get('half~>bar')]).toEqual(['live', 'live']);
   });
-  it('a selector: the tap it has on lights what it steps, the others wait (a voice in two parts too: decision 016)', () => {
+  it('a selector: the section it has on lights what it steps, the others wait (a voice in two parts too: decision 016)', () => {
     const r = src(
       '&bar step=1',
-      '&parts step=&bar &aBar &bBar',
+      '&sections step=&bar &aBar &bBar',
       '&a step=&aBar 0',
       '&b step=&bBar 7',
       '&v s=tri loop=C4',
       '&w s=sine loop=C4',
-      '&song over=&parts step=&bar/4 0 1',
+      '&song over=&sections step=&bar/4 0 1',
       `${OUT} [&a * &v, &b * &w, &b * &v]`,
     );
     expect(r.diagnostics).toEqual([]);
-    const keys = ['song', 'song->parts', 'parts', 'aBar', 'aBar->a~', 'a', 'a->*out:0', 'v', 'v->out', 'bBar', 'bBar->b~', 'b', 'b->*out:1', 'w', 'w->out'];
+    const keys = ['song', 'song->sections', 'sections', 'aBar', 'aBar->a~', 'a', 'a->*out:0', 'v', 'v->out', 'bBar', 'bBar->b~', 'b', 'b->*out:1', 'w', 'w->out'];
     const at = (t: number) => Object.fromEntries(keys.map((k) => [k, states(r, t).get(k)]));
     const [a, b] = [
       ['aBar', 'aBar->a~', 'a', 'a->*out:0'],
       ['bBar', 'bBar->b~', 'b', 'b->*out:1', 'w', 'w->out'],
     ];
-    const both = { song: 'live', 'song->parts': 'live', parts: 'live', v: 'live', 'v->out': 'live' };
+    const both = { song: 'live', 'song->sections': 'live', sections: 'live', v: 'live', 'v->out': 'live' };
     expect(at(0.5)).toEqual({ ...both, ...Object.fromEntries(a.map((k) => [k, 'live'])), ...Object.fromEntries(b.map((k) => [k, 'idle'])) });
     expect(at(4.5)).toEqual({ ...both, ...Object.fromEntries(a.map((k) => [k, 'idle'])), ...Object.fromEntries(b.map((k) => [k, 'live'])) });
   });

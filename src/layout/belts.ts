@@ -46,12 +46,12 @@ export function beltRatio(program: CompileResult, name: string): number {
 }
 
 /**
- * A belt's label with its ratio: a tap (`step=8n`) carries no rate the edge's own label could name, so the ratio
- * `beltRatio` gives goes before it, as a rate's would (`×2 · belt`, `÷4 · belt`); a label that names one already, or a
- * ratio of 1, is left as it is.
+ * A belt's label with its ratio: a label that names no rate (`· belt`, the meter's own steps belted) gets the ratio
+ * `beltRatio` gives before it, as a rate's would (`×2 · belt`, `÷4 · belt`); a label that names one already (`×2 · belt`)
+ * or a tap (`8n · belt`: cells names a belted tap on its wire), or a ratio of 1, is left as it is.
  */
 export function beltLabel(told: string | undefined, ratio: number): string | null {
-  const named = told !== undefined && /^[×÷]/.test(told);
+  const named = told !== undefined && !/^(?:loop )?(?:⟳ )?· belt$/.test(told);
   if (named || Math.abs(ratio - 1) < 1e-9) return told ?? null;
   const round = (x: number) => String(Math.round(x * 100) / 100);
   const rate = ratio > 1 ? `×${round(ratio)}` : `÷${round(1 / ratio)}`;

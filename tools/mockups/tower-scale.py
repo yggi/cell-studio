@@ -17,7 +17,7 @@ def hsl(h, s, l):
     return '#%02x%02x%02x' % tuple(round((v + m) * 255) for v in (r, g, b))
 
 
-def tint(k, n):  # tapTint: a section's colour through the white clock
+def tint(k, n):  # sectionTint: a section's colour through the white clock
     c = hsl(k / n * 360, 70, 58)
     rgb = [int(c[i:i + 2], 16) for i in (1, 3, 5)]
     return '#%02x%02x%02x' % tuple(round(.65 * v + .35 * w) for v, w in zip(rgb, (246, 247, 251)))

@@ -62,7 +62,7 @@
   <figure data-kind="edge:tower:pill">
     <figcaption>
       <b>tower · pill</b>
-      <span>a table of three taps, the last stepping two cells (one net): its lanes, the bypass, the ports; joins outside it</span>
+      <span>a table of three sections, the last stepping two cells (one net): its lanes, the bypass, the ports; joins outside it</span>
     </figcaption>
     <div class="row">
       {#each PILL as c (c.label)}<PillCell column={c} />{/each}

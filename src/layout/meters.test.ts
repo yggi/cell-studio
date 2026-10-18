@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { groundsOf, meterIndex, meterNow } from './meters';
+import { groundsOf, levelsText, lineShare, meterIndex, meterNow, tapSwing } from './meters';
 import { liveAt } from '@yggi/cells/engine/live';
 import { codeShifts } from '@yggi/cells/engine/program';
 import { buildGraph } from './drawn';
@@ -52,5 +52,35 @@ describe('a meter now, on its own wheel', () => {
       expect(at).toBeLessThan(4);
       expect(at).toBeCloseTo((s * 2) % 4, 6); // (120 bpm: two beats a second)
     }
+  });
+});
+
+describe('a meter’s feel (cells v0.4.0): its swing and its articulation by level', () => {
+  const FEEL = '&bar meter("4/4", 2) step=120bpm swing=8n:2/3 legato=16n:.5,4n:.8\n';
+  const r = compileSource(
+    FEEL +
+      '&a step=8n 0 2\n&b step=16n 0 2\n&c step=4n 0 2\n&d step=8t 0 2\n&e step=8n legato=1.5 0 2\n&f step=8n legato=free(.3, .1..1) 0\n&g step=8n legato=&l 0\n&l step=4n .5 1\n&v s=sine\n&out map=sample [&a * &v, &b * &v, &c * &v, &d * &v, &e * &v, &f * &v, &g * &v]',
+  );
+  it('has no diagnostics, so the rest reads a piece as written', () => expect(r.diagnostics).toEqual([]));
+  it('writes its levels short, as swing= and legato= write them', () => {
+    expect(levelsText(r.cells.get('bar')!.meter!.swing)).toBe('8n .67');
+    expect(levelsText(r.cells.get('bar')!.meter!.legato)).toBe('16n .5, 4n .8');
+    expect(levelsText(undefined)).toBeNull();
+    expect(levelsText(compileSource('&bar meter("4/4") step=90bpm\n').cells.get('bar')!.meter!.swing)).toBeNull();
+  });
+  it('a tap is swung by a level its step divides into: eighths and sixteenths, not quarters, nor triplets', () => {
+    expect(tapSwing(r, 'a').map((l) => l.level)).toEqual(['8n']);
+    expect(tapSwing(r, 'b').map((l) => l.level)).toEqual(['8n']);
+    expect(tapSwing(r, 'c')).toEqual([]);
+    expect(tapSwing(r, 'd')).toEqual([]);
+    expect(tapSwing(r, 'bar')).toEqual([]);
+  });
+  it('a line sounds its own legato=, a free()’s value, else its meter’s for its level; a cell of shares varies', () => {
+    expect(lineShare(r, 'b')).toEqual({ share: 0.5, from: 'bar' });
+    expect(lineShare(r, 'a')).toEqual({ share: 0.8, from: 'bar' }); // (8n: the finest level at or above it, 4n)
+    expect(lineShare(r, 'e')).toEqual({ share: 1.5, from: null });
+    expect(lineShare(r, 'f')).toEqual({ share: 0.3, from: null });
+    expect(lineShare(r, 'g')).toBeNull();
+    expect(lineShare(compileSource('&t step=4 0 2'), 't')).toEqual({ share: 1, from: null });
   });
 });

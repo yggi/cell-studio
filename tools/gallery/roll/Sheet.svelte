@@ -2,7 +2,7 @@
   /**
    * The piano roll's sheet (#211): the roll as a cell's sheet shows it, at a phone's width — blank, over a scale, in
    * semitones, over 19-EDO, chords and holds, a kit, playing (a playhead and the ghosts of a bass on the same table, a
-   * key held), and a braid it can't show. Small pieces of its own, so each state is there whatever the examples hold.
+   * key held), under legato= (the meter's by level, a line's own), and a braid it can't show. Small pieces of its own, so each state is there whatever the examples hold.
    */
   import RollFixture from './RollFixture.svelte';
   import { pieceOf } from '../pieces';
@@ -49,6 +49,19 @@
       name: 'tune',
       playing: true,
       held: [4],
+    },
+    {
+      kind: 'staccato',
+      caption: "legato= on the meter, by level: each note sounds half its held length (the bar's 8n:.5)",
+      source:
+        '&bar meter("4/4", 2) step=96bpm legato=8n:.5\n&lead s=tri loop=C4\n&s scale(major)\n&tune over=&s step=8n 0 2 4@2 5 4 2@3 ~ 0 1@2 2\n&mix map=sample [&tune * &lead]',
+      name: 'tune',
+    },
+    {
+      kind: 'legato',
+      caption: "a line's own legato=1.5: each note sounds on into the next",
+      source: `${BAR}&s scale(major)\n&tune over=&s step=8n legato=1.5 0 2 4@2 5 4 2@3 ~ 0 1@2 2\n&mix map=sample [&tune * &lead]`,
+      name: 'tune',
     },
     { kind: 'refused', caption: 'not editable: a generator', source: `${BAR}&hits step=8n euclid(3, 8)\n&mix map=sample [&hits * &lead]`, name: 'hits' },
   ];

@@ -18,7 +18,7 @@
   const [sourceX, sourceY] = $derived([ends.source?.x ?? rimSX, ends.source?.y ?? rimSY]);
   const [targetX, targetY] = $derived([ends.target?.x ?? rimTX, ends.target?.y ?? rimTY]);
   const d = $derived(data as { meter: number; name: string; at?: { x: number; y: number; r: number } });
-  // (a tap's sub-net: from the outside of its bulb on its table, towards the cell — decision 016)
+  // (a section's sub-net: from the outside of its bulb on its table, towards the cell — decision 016)
   const path = $derived.by(() => {
     if (!d.at) return `M ${sourceX} ${sourceY} L ${targetX} ${targetY}`;
     const [x, y] = [rimSX + d.at.x, rimSY + d.at.y];

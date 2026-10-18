@@ -9,7 +9,7 @@ import type { GraphModel, GraphNode } from '@yggi/cells/engine/graph';
 /** A note or a scope: it goes in the margin. */
 export const isSide = (n: GraphNode): boolean => !!n.cell && (!!n.cell.note || typeof n.cell.params.scope === 'string');
 
-/** The graph without its margin: no note or scope, and no edge or net tap to one. */
+/** The graph without its margin: no note or scope, and no edge or net reader to one. */
 export function sideless(model: GraphModel): GraphModel {
   const side = new Set(model.nodes.filter(isSide).map((n) => n.id));
   if (!side.size) return model;
@@ -17,8 +17,8 @@ export function sideless(model: GraphModel): GraphModel {
   const kept = new Set(edges.map((e) => e.id));
   const nets = model.nets.flatMap((n) => {
     if (side.has(n.owner)) return [];
-    const taps = n.taps.filter((t) => kept.has(t));
-    return taps.length ? [{ ...n, taps }] : [];
+    const readers = n.readers.filter((t) => kept.has(t));
+    return readers.length ? [{ ...n, readers }] : [];
   });
   return { ...model, nodes: model.nodes.filter((n) => !side.has(n.id)), edges, nets };
 }

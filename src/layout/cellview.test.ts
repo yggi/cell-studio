@@ -3,7 +3,8 @@ import { describe, expect, it } from 'vitest';
 import { SAILOR_WITH_KIT } from '@yggi/cells/engine/fixtures';
 import { compileSource } from '@yggi/cells/engine/compile';
 import { codeShifts, type Shifts } from '@yggi/cells/engine/program';
-import { blank, cellView, drawnOf, hubLabel, isGrid, selectorOf, selectorRow, valueAt, valueSpectrum, type CellView } from './cellview';
+import { blank, cellView, drawnOf, hubLabel, isGrid, selectorOf, selectorRow, swungTurn, valueAt, valueSpectrum, type CellView } from './cellview';
+import { handOf } from './glyph';
 import { PRESETS } from '@yggi/cells/engine/presets';
 
 const r = compileSource(PRESETS.royal.source);
@@ -73,6 +74,24 @@ describe('cellView', () => {
     expect(v.segments[0].bands[0]).toEqual({ kind: 'beat', down: true });
   });
 
+  it('a swung meter’s own steps sit where they play (cells v0.4.0: Clock.swung); a meter whose steps it doesn’t move stays even', () => {
+    const sw = compileSource('&bar meter("4/4", 2) step=120bpm swing=8n:2/3\n&a step=8n 0 2\n&v s=sine\n&out map=sample [&a * &v]');
+    // (a meter(…) isn't a positional clock: the graph draws it as its braid of levels, not as a meter)
+    const v = cellView(sw, 'bar', codeShifts(sw), false)!;
+    expect(v.mode).toBe('braid');
+    expect(hubLabel(sw, 'bar', codeShifts(sw), false, null)).toEqual({ big: '8', small: 'swung 8n' });
+    expect(v.segments.map((s) => +(s.t1 - s.t0).toFixed(3))).toEqual([1, 0.5, 1, 0.5, 1, 0.5, 1, 0.5].map((x) => +(x / 6).toFixed(3)));
+    expect(v.segments.map((s) => s.index)).toEqual([0, 1, 2, 3, 4, 5, 6, 7]);
+    // (its hand goes through them as they sit: step 1 starts a third of a beat late, and a lap is kept)
+    expect(v.swung).toEqual(sw.clocks.get('bar')!.swung);
+    expect(swungTurn(v.swung!, 1 / 8)).toBeCloseTo(1 / 6, 9);
+    expect(swungTurn(v.swung!, 1.5 / 8)).toBeCloseTo(5 / 24, 9); // (halfway through its short step)
+    expect(swungTurn(v.swung!, 1 + 3 / 8)).toBeCloseTo(1 + 5 / 12, 9);
+    expect(handOf(v, () => 1, sw.cells.get('bar')!.steps)).toBeCloseTo(1 / 6, 9);
+    const quarters = compileSource('&bar meter("4/4") step=120bpm swing=8n:2/3\n&a step=8n 0 2\n&v s=sine\n&out map=sample [&a * &v]');
+    expect(cellView(quarters, 'bar', codeShifts(quarters), true)!.segments.map((s) => s.t1 - s.t0)).toEqual([0.25, 0.25, 0.25, 0.25]);
+  });
+
   it('braids lay slots out by duration', () => {
     const v = cellView(r, 'theme', codeShifts(r), false)!;
     expect(v.mode).toBe('braid');
@@ -102,11 +121,11 @@ describe('kits and voices', () => {
   });
 });
 
-describe('a table of taps', () => {
-  it('counts its taps as paths at its hub, not steps', () => {
+describe('a table of sections', () => {
+  it('counts its sections as paths at its hub, not steps', () => {
     const src = readFileSync('tools/gallery/golden/golden.cells', 'utf8');
     const r = compileSource(src);
-    expect(hubLabel(r, 'parts', codeShifts(r), false, null)).toEqual({ big: '2', small: 'paths' });
+    expect(hubLabel(r, 'sections', codeShifts(r), false, null)).toEqual({ big: '2', small: 'paths' });
   });
 });
 
@@ -257,10 +276,10 @@ describe("a wheel's spectrum of values", () => {
   });
 });
 
-describe("a selector's table of taps, as values", () => {
+describe("a selector's table of sections, as values", () => {
   it('is a value an entry, each its section, though its steps all draw alike (beats)', () => {
     const pop = compileSource(PRESETS.pop.source);
-    const v = cellView(pop, 'parts', codeShifts(pop), false)!;
+    const v = cellView(pop, 'sections', codeShifts(pop), false)!;
     expect(valueSpectrum(v)).toHaveLength(1);
     expect(valueSpectrum(v, true).map((e) => e.index)).toEqual([0, 1, 2, 3, 4, 5]);
   });
@@ -270,12 +289,12 @@ describe("a selector's sections (the tower strip's row)", () => {
   const p = compileSource(`
 &bar scan(1 1 1 1) step=100bpm
 &a s=saw loop=C4
-&parts step=4n &aBar &bBar &cBar
+&sections step=4n &aBar &bBar &cBar
 &tune step=&aBar 0 2
-&song over=&parts step=1m laps=1 [1] [0,2] 1@2
+&song over=&sections step=1m laps=1 [1] [0,2] 1@2
 &out map=sample [&tune * &a]
 `);
-  it('each step its part of the lap and the taps it picks, in order', () => {
+  it('each step its part of the lap and the sections it picks, in order', () => {
     expect(selectorRow(p, 'song', codeShifts(p))).toEqual([
       { t0: 0, t1: 0.25, picks: [1] },
       { t0: 0.25, t1: 0.5, picks: [0, 2] },
@@ -284,7 +303,7 @@ describe("a selector's sections (the tower strip's row)", () => {
     expect(selectorRow(p, 'tune', codeShifts(p))).toBeNull();
   });
   it('the table knows its selector', () => {
-    expect(selectorOf(p, 'parts')).toBe('song');
+    expect(selectorOf(p, 'sections')).toBe('song');
     expect(selectorOf(p, 'tune')).toBeUndefined();
   });
 });

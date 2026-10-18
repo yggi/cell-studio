@@ -39,7 +39,7 @@ const VARIANTS: Variant[] = [
   { name: 'today, no card node', tower: false, card: false, opts: {} },
   { name: 'tower (TOWER_LAYOUT)', tower: true, card: false, opts: TOWER_LAYOUT },
   // one part off at a time
-  { name: 'taps as traces, no loom', tower: true, card: false, opts: { ...TOWER_LAYOUT, tapLoom: false } },
+  { name: 'sections as traces, no loom', tower: true, card: false, opts: { ...TOWER_LAYOUT, sectionLoom: false } },
   { name: 'the loom not kept clear', tower: true, card: false, opts: { ...TOWER_LAYOUT, loomClear: false } },
   { name: 'no mixer stratum', tower: true, card: false, opts: TOWER_LAYOUT, mixers: false },
   { name: 'strata not strict', tower: true, card: false, opts: TOWER_LAYOUT, strata: false },
@@ -140,9 +140,9 @@ function measure(source: string, v: Variant, seed: number): Row {
     }
     // (a loom's top lane: its strands' highest; what it steps, its wheel's lower edge over it)
     const radius = new Map((l as unknown as { placed(): Placed }).placed().nodes.map((n) => [n.id, n.r]));
-    for (const { strands } of l.tapLooms()) {
+    for (const { strands } of l.sectionLooms()) {
       const lane = Math.min(...strands.filter((st) => !st.join).map((st) => st.pieces[1][1]));
-      for (const id of new Set(strands.filter((st) => st.tap >= 0).map((st) => st.to))) {
+      for (const id of new Set(strands.filter((st) => st.section >= 0).map((st) => st.to))) {
         const p = l.position(id);
         if (p && p.y + (radius.get(id) ?? 0) * 0.7 > lane + 1) row.underLoom++;
       }

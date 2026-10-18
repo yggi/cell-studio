@@ -68,7 +68,7 @@ describe('GraphLayout: one snapshot per piece', () => {
     for (const n of mixed.model.nodes) for (const name of n.kind === 'junction' ? [n.voice, n.mix] : [n.cell.name]) expect(b.program.cells.has(name)).toBe(true);
     const junctions = new Set(mixed.model.nodes.flatMap((n) => (n.kind === 'junction' ? [n.id] : [])));
     for (const e of mixed.model.edges) for (const id of [e.from, e.to, e.source, e.target]) expect(junctions.has(id) || b.program.cells.has(id.slice(5))).toBe(true);
-    for (const net of mixed.model.nets) expect(net.taps.every((id) => mixed.model.edges.some((e) => e.id === id))).toBe(true);
+    for (const net of mixed.model.nets) expect(net.readers.every((id) => mixed.model.edges.some((e) => e.id === id))).toBe(true);
     // and a name of the other piece is null, not a throw
     const gone = [...a.program.cells.keys()].find((n) => !b.program.cells.has(n))!;
     expect(cellView(b.program, gone, b.shifts, false)).toBeNull();

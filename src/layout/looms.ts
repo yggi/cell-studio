@@ -24,7 +24,7 @@ function busStrands(e: GraphEdge): number {
  * from a reader), so its edges share a band. And each wheel's tracks in all.
  */
 export function loomBands(model: GraphModel): { inner: Map<string, number>; tracks: Map<string, number> } {
-  const netOf = new Map((model.nets ?? []).flatMap((n) => n.taps.map((id) => [id, n.id] as const)));
+  const netOf = new Map((model.nets ?? []).flatMap((n) => n.readers.map((id) => [id, n.id] as const)));
   const groups = new Map<string, Map<string, { n: number; ids: string[] }>>();
   for (const e of model.edges) {
     const n = busStrands(e);

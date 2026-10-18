@@ -29,14 +29,14 @@ A colour says what something is or carries; where another value would mean nothi
 | a clock's tick (sync) | the meter's levels: `--meter-0` (`--clock`, white) the bar's first … `--meter-3` the finest | `palette('sync')`, app.css |
 | sound (audio) | its fundamental's hue on its grid, as bright as it is loud | `SOUND`, `palette('audio')` |
 | pitch or sound on several grids | neutral | `palette` (no grid) |
-| a selector's part k of n (a tap's bulb, a barrel's ring) | `partColour(k, n)`, round the colour wheel; one part alone white | theme.ts |
-| a wheel in a section: its ticks, its hand, its name's border | its section's tint (`tapTint`), the border half-strength at rest; its section the nearest tap upstream (the melody playing a voice), else its tag's | `nodeSections` (ui/sections.ts), `--section` (CellNode, CellGlyph) |
-| a selector's table of taps and its sections on the strip | each value its section's tint; a section's step a stripe a tap it picks | `tapTintRgb`, TowerStrips |
-| a selector's strands, its selection's bus | the part's colour through the white clock, `tapTint` | theme.ts |
-| a tag's wash | the tint of the section whose tap steps its cells; else a hue of its own | `Graph.svelte` (`tagSections`, ui/sections.ts) |
+| a selector's part k of n (a section's bulb, a barrel's ring) | `partColour(k, n)`, round the colour wheel; one part alone white | theme.ts |
+| a wheel in a section: its ticks, its hand, its name's border | its section's tint (`sectionTint`), the border half-strength at rest; its section the nearest section upstream (the melody playing a voice), else its tag's | `nodeSections` (ui/sections.ts), `--section` (CellNode, CellGlyph) |
+| a selector's table of sections and its steps on the strip | each value its section's tint; a selector's step a stripe a section it picks | `sectionTintRgb`, TowerStrips |
+| a selector's strands, its selection's bus | the part's colour through the white clock, `sectionTint` | theme.ts |
+| a tag's wash | the tint of the section that steps its cells; else a hue of its own | `Graph.svelte` (`tagSections`, ui/sections.ts) |
 | an out (the tower layout): its socket's meter (its spire, light and share of the strip: the next rows) | its source's note now (its base stopped), by octave; drums and noise white | `noteOf`, `outRgb` (ui/heard.ts) |
 | the strata's rails on the strip | the slow `--meter-2`, the pulse `--meter-1`, the neutral zone (the voices) `--meter-3`, the audible `--accent`, the constant (the tables nothing steps) `--text-muted`, each named along it | `TowerStrips.svelte` |
-| an out's own colour (its spire's mast and hairline, its share of the strip, its name there), and a voice's, a kit's and a mixer's name on the strip | its section's (`tapTintRgb`); a mix's the mean of what it mixes, a kit's of what plays it; else its base note's, else white: steady, not the note now. The strip's spectrum takes 15% of its band's note | `sectionRgb` (ui/sections.ts), `heard.ts` `outTint` |
+| an out's own colour (its spire's mast and hairline, its share of the strip, its name there), and a voice's, a kit's and a mixer's name on the strip | its section's (`sectionTintRgb`); a mix's the mean of what it mixes, a kit's of what plays it; else its base note's, else white: steady, not the note now. The strip's spectrum takes 15% of its band's note | `sectionRgb` (ui/sections.ts), `heard.ts` `outTint` |
 | a band lit in the sky (where a spire sounds) | its pitch class's hue, saturated and bright | `theme.ts` `litRgb` |
 | the sky and the strip's rainbow | each semitone band its note's colour by octave, muted | `TowerSky.svelte`, `TowerStrips.svelte` |
 | the time view's notes, waterfall and voices' rows | the graph's colour for the voice's out: its section's (a drum its kit's), else its base note's, else white | `sectionRgb` (ui/sections.ts), `outTint` (ui/heard.ts) |

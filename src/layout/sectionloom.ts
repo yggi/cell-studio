@@ -1,6 +1,6 @@
 /**
- * A selector's loom (the tower layout, docs/notes/tower-strip.md): what a table of taps steps (decision 016) leaves its
- * taps not as a tree of traces but as one horizontal loom over the table: each tap a lane of its own, its strand up from
+ * A selector's loom (the tower layout, docs/notes/tower-strip.md): what a table of sections steps (decisions 016, 044) leaves its
+ * sections not as a tree of traces but as one horizontal loom over the table: each section a lane of its own, its strand up from
  * its bulb to its lane, along it to each cell it steps, and straight up (or down) to it. Its strands cross each other
  * only inside the loom, where it is laid cleanly: those crossings don't count (quality.ts: `loom`).
  */
@@ -19,11 +19,11 @@ export type LoomReader = Wheel & { readonly id: string; readonly rise?: boolean 
 
 /**
  * The height of a loom's lane k, from its selector's hub (the table's centre, at the pill's bottom): 0 the source's,
- * the raw clock's bypass along the pill's bottom, under the hub; the taps' from 1, over the contacts, upwards.
+ * the raw clock's bypass along the pill's bottom, under the hub; the sections' from 1, over the contacts, upwards.
  */
 export const loomLane = (table: At, k: number) => (k === 0 ? table.y + BYPASS : table.y - CLEAR - (k - 1) * LANE);
 
-/** Where tap k of n touches its selector: a flat fan of contacts over the hub, in the taps' order, left to right. */
+/** Where section k of n touches its selector: a flat fan of contacts over the hub, in the sections' order, left to right. */
 export function loomContact(table: At, k: number, n: number): At {
   const u = n > 1 ? (2 * k) / (n - 1) - 1 : 0;
   return { x: table.x + (k - (n - 1) / 2) * CONTACT, y: table.y - FAN + FAN_DROP * u * u };
@@ -48,22 +48,22 @@ export function loomPorts(table: At, meter?: At, select?: At): { meter: At; sele
   return ports;
 }
 
-/** One tap of a table: its bulb's name, where its bulb is, and the cells it steps. */
-export interface LoomTap {
+/** One section of a table: its bulb's name, where its bulb is, and the cells it steps. */
+export interface LoomSection {
   readonly bulb: string;
   readonly from: At;
   readonly to: readonly (Wheel & { readonly id: string })[];
 }
 
-/** A strand of a loom: from a tap's bulb to one cell it steps, as straight pieces and as a path. */
+/** A strand of a loom: from a section's bulb to one cell it steps, as straight pieces and as a path. */
 export interface LoomStrand {
   readonly bulb: string;
-  /** Its tap's place among the table's (0 the first): its section's colour; -1, the source's lane. */
-  readonly tap: number;
+  /** Its section's place among the table's (0 the first): its section's colour; -1, the source's lane. */
+  readonly section: number;
   readonly to: string;
   readonly pieces: readonly (readonly [number, number, number, number])[];
   readonly d: string;
-  /** A join of the tap's net between two cells it steps (`from` the one it comes on from), not a strand out of the pill. */
+  /** A join of the section's net between two cells it steps (`from` the one it comes on from), not a strand out of the pill. */
   readonly join?: string;
 }
 
@@ -82,24 +82,24 @@ const PORT = 16;
 const ROUND = 8;
 
 /**
- * The loom of a table (its wheel) and its taps, in their order: a strand for each tap and cell it steps. Its lowest
+ * The loom of a table (its wheel) and its sections, in their order: a strand for each section and cell it steps. Its lowest
  * lane is its source's, under the table: a strand out of the table's bottom along it to each reader the bus goes on to (`readers`),
  * its riser drawn as the bus's own edge (`d` stops at the lane; `pieces` go on up, to be counted).
  */
-export function tapLoom(table: Wheel, taps: readonly LoomTap[], readers: readonly LoomReader[] = [], meter: At = loomPorts(table).meter): LoomStrand[] {
-  const strand = (bulb: string, tap: number, from: At, lane: number, c: Wheel & { id: string }, riser: boolean) => {
+export function sectionLoom(table: Wheel, sections: readonly LoomSection[], readers: readonly LoomReader[] = [], meter: At = loomPorts(table).meter): LoomStrand[] {
+  const strand = (bulb: string, section: number, from: At, lane: number, c: Wheel & { id: string }, riser: boolean) => {
     // (to its cell's bottom when it sits over the lane, else its top)
     const end = c.y < lane ? c.y + c.r : c.y - c.r;
     const pts: At[] = [from, { x: from.x, y: lane }, { x: c.x, y: lane }, { x: c.x, y: end }];
     const pieces = pts.slice(1).map((q, i) => [pts[i].x, pts[i].y, q.x, q.y] as const);
-    return { bulb, tap, to: c.id, pieces, d: rounded(riser ? pts : pts.slice(0, 3)) };
+    return { bulb, section, to: c.id, pieces, d: rounded(riser ? pts : pts.slice(0, 3)) };
   };
   return [
     // (the source's: in at the meter's port, up to the bypass, along it and straight up to its reader)
     ...readers.map((c) => strand('', -1, meter, loomLane(table, 0), c, !!c.rise)),
-    ...taps.flatMap((t, k) => {
+    ...sections.flatMap((t, k) => {
       if (!t.to.length) return [];
-      // (a tap's net: one strand out of the pill, to its lowest cell; the others join on from the nearest already
+      // (a section's net: one strand out of the pill, to its lowest cell; the others join on from the nearest already
       // reached, straight, as a meter's net is laid — one net between its cells, not a riser each)
       const lane = loomLane(table, k + 1);
       const entry = t.to.reduce((p, c) => (c.y > p.y + 1e-6 || (Math.abs(c.y - p.y) <= 1e-6 && Math.abs(c.x - t.from.x) < Math.abs(p.x - t.from.x)) ? c : p));
@@ -111,7 +111,7 @@ export function tapLoom(table: Wheel, taps: readonly LoomTap[], readers: readonl
         left.forEach((c, i) => reached.forEach((r) => Math.hypot(c.x - r.x, c.y - r.y) < best.d && (best = { i, from: r, d: Math.hypot(c.x - r.x, c.y - r.y) })));
         const [c] = left.splice(best.i, 1);
         const a = best.from;
-        out.push({ bulb: t.bulb, tap: k, to: c.id, join: a.id, pieces: [[a.x, a.y, c.x, c.y]], d: rounded([a, c]) });
+        out.push({ bulb: t.bulb, section: k, to: c.id, join: a.id, pieces: [[a.x, a.y, c.x, c.y]], d: rounded([a, c]) });
         reached.push(c);
       }
       return out;
@@ -143,7 +143,7 @@ export const PILL_PAD = 16;
 
 /**
  * The pill a selector is drawn as, round its loom (PILL_PAD round it): its lanes inside, its outputs along its top, the
- * selector at its bottom — its contacts, its hub, its ports on the pill's edge. A tap's joins between the cells it steps
+ * selector at its bottom — its contacts, its hub, its ports on the pill's edge. A section's joins between the cells it steps
  * lie outside it.
  */
 export function pillOf(hub: At, contacts: readonly At[], ports: { meter: At; select: At }, strands: readonly LoomStrand[], pad = PILL_PAD) {

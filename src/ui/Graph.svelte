@@ -8,7 +8,7 @@
 <script lang="ts">
   import { Background, Controls, SvelteFlow, ViewportPortal, type NodeTypes } from '@xyflow/svelte';
   import { VOICE_KIT } from '@yggi/cells/engine/compiler/declare';
-  import { noteColour, partColour, tapTint } from './theme';
+  import { noteColour, partColour, sectionTint } from './theme';
   import '@xyflow/svelte/dist/style.css';
   import { onDestroy, untrack } from 'svelte';
   import type { CompileResult, Shifts } from '@yggi/cells/engine/program';
@@ -48,12 +48,12 @@
   import { nodeSections, sectionRgb, tagSections } from './sections';
   import { towerStructure } from '../layout/tower';
   import { minimap } from '../layout/minimap';
-  import TapLooms from './TapLooms.svelte';
+  import SectionLooms from './SectionLooms.svelte';
   import { towerIns, towerY } from '../layout/towerlayout';
   import FlyTo from './FlyTo.svelte';
   import { outTint } from './heard';
   import PanBounds from './PanBounds.svelte';
-  import { pillAnchor } from '../layout/taploom';
+  import { pillAnchor } from '../layout/sectionloom';
   import type { Viewport } from '@xyflow/svelte';
 
   const QUERY = typeof location !== 'undefined' ? new URLSearchParams(location.search) : null;
@@ -203,8 +203,8 @@
     get bends() {
       return layout.bends;
     },
-    get taps() {
-      return layout.taps;
+    get readers() {
+      return layout.readers;
     },
     get state() {
       return transport;
@@ -344,7 +344,7 @@
   // (each out in its source's note, as its socket and wire are: heard.ts outRgb; the strip's sum the same)
   // (`?sky=tint|rainbow` the other options, `?sky=off` none: docs/notes/tower-sky.md)
   const skyMode = QUERY?.get('sky') ?? 'mix';
-  // (each node's section: a selector's tap upstream of it, or its tag's)
+  // (each node's section: a selector's section upstream of it, or its tag's)
   const sections = $derived(nodeSections(shown.program, shown.model));
   // (an out's own colour, steady: its section's, else its base note's — its spire's mast, its share of the strip)
   const tintOf = (source: string) => {
@@ -360,8 +360,8 @@
         })
       : [],
   );
-  // each node's section's tint (a selector's tap upstream of it, or its tag's): its wheel's accents wear it
-  const sectionTints = $derived(new Map([...sections].map(([id, s]) => [id, tapTint(s.k, s.n)] as const)));
+  // each node's section's tint (a selector's section upstream of it, or its tag's): its wheel's accents wear it
+  const sectionTints = $derived(new Map([...sections].map(([id, s]) => [id, sectionTint(s.k, s.n)] as const)));
   // the strip as a minimap (layout/minimap.ts): a lane each out, in its sections' order, then the graph's
   const strip = $derived.by(() => {
     if (!towered || !layout.drawnModel) return null;
@@ -427,7 +427,7 @@
       for (const t of g.cell.tags) (byTag.get(t) ?? byTag.set(t, []).get(t)!).push({ x: n.position.x, y: n.position.y, size });
     }
     const tags = [...byTag.keys()].sort();
-    // (a tag the taps of a selector step: its section's tint, as its strands wear it — a pastel shade of the rainbow;
+    // (a tag the sections of a selector step: its section's tint, as its strands wear it — a pastel shade of the rainbow;
     // else a hue of its own)
     const sectionOf = tagSections(shown.program, shown.model);
     const colourOf = (tag: string) => {
@@ -532,7 +532,7 @@
       <PanBounds extent={translateExtent} />
       {#if towered}<FlowViewport onchange={(v) => (viewport = v)} />{/if}
       {#if towered}
-        {#if layout.looms.length}<ViewportPortal target="back"><TapLooms looms={layout.looms} /></ViewportPortal>{/if}
+        {#if layout.looms.length}<ViewportPortal target="back"><SectionLooms looms={layout.looms} /></ViewportPortal>{/if}
       {/if}
       <!-- clusters: cells tagged alike inside the piece (tags=), washed and named behind their members -->
       <ViewportPortal target="back">

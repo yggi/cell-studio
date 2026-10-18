@@ -63,8 +63,8 @@ export function miniature(source: string, rowOrder?: number): Miniature | null {
   l.tick(TICKS);
   l.layNet(); // (the meters' nets, as the graph lays them)
   const net = l.meterNet();
-  // (a net's tap that comes on from another reader is drawn from there, as the graph draws it)
-  const hops = l.taps();
+  // (a net's reader that comes on from another reader is drawn from there, as the graph draws it)
+  const hops = l.readers();
   const shifts = codeShifts(result);
   const index = new Map<string, number>();
   const out: [number, number, number][] = [];

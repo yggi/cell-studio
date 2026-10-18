@@ -14,9 +14,10 @@ PROBE=/path/out.txt npx vitest run tools/probe/<topic>.test.ts && cat /path/out.
 
 Probes so far: `ratchet.test.ts` (the Shorten ratchet: every example through MIDI and folded again, scored on notes, size and phrases; `docs/notes/ratchet.md`), `scalogram.test.ts` (the rhythm scalogram: every piece's notes as a wavelet transform beside the cells' spans, pictures by `scalogram-sheets.mjs`; `docs/notes/scalogram.md`), `tower.test.ts` (every cell's time constants: the frequency tower, selectors, what nothing reads;
 `docs/notes/multiscale.md`), `outputs-top.test.ts` (which way each wire leaves its source, `upPull` and `spread`
-variants; `docs/notes/outputs-top.md`, PR #236), `tap-order.test.ts` (whether the layout keeps a table's taps in their
+variants; `docs/notes/outputs-top.md`, PR #236), `section-order.test.ts` (whether the layout keeps a table's sections in their
 order, at the start and at rest), `forces.test.ts` (what each force does: the library with one switched off at a time,
-`CUSTOM=` for several; `docs/notes/forces.md`). The library's layout is chaotic: about ±8 crossings between seeds, so
+`CUSTOM=` for several; `docs/notes/forces.md`), `explained.test.ts` (#416: the motifs heard against the cells written,
+`LAPS=1` with each line's laps, and what a waterfall's unowned band would flag; `docs/notes/explained.md`). The library's layout is chaotic: about ±8 crossings between seeds, so
 compare variants on the same several seeds.
 
 ## Writing one
@@ -27,7 +28,7 @@ compare variants on the same several seeds.
 - **The library**: `Object.entries(PRESETS)` (`@yggi/cells/engine/presets`), `compileSource(source)`, `buildGraph(program)`.
   An `ONLY=word` filter on the key keeps iterating fast.
 - **A layout**: as the gate does (`src/layout/physics.library.test.ts`): `new ForceLayout(undefined, { live: false, ...opts })`,
-  `setGraph(model)`, `tick(500)`, `layNet()`, then `quality()`, `position(id)`, `bend(id)`, `taps()`, `meterNet()`;
+  `setGraph(model)`, `tick(500)`, `layNet()`, then `quality()`, `position(id)`, `bend(id)`, `readers()`, `meterNet()`;
   `destroy()` after. Private state (`(l as unknown as { s: … }).s`) is fine in a probe, not in the app.
 - **Seeds**: one start is noise. Use the gate's three (`seed` 0, 1, 2) and report means; name a piece only when it is
   steady across seeds.

@@ -36,8 +36,11 @@ describe('belts: two runs, outer tangents; pulleys by the ratio', () => {
     expect(beltRatio(r, 'd')).toBeCloseTo(0.25, 9);
     expect(beltRatio(r, 'bar')).toBe(1);
   });
-  it('a belt on a tap names its ratio, as a rate did (`×2 · belt`); a label with one already, or a ratio of 1, stays', () => {
+  it('a belt that names no rate gets its ratio (`×2 · belt`); a label with one already, a tap (`8n · belt`), or a ratio of 1, stays', () => {
     expect(beltLabel('· belt', 2)).toBe('×2 · belt');
+    expect(beltLabel('loop · belt', 2)).toBe('×2 loop · belt');
+    expect(beltLabel('8n · belt', 2)).toBe('8n · belt');
+    expect(beltLabel('beat · belt', 0.5)).toBe('beat · belt');
     expect(beltLabel('· belt', 0.25)).toBe('÷4 · belt');
     expect(beltLabel('· belt', 4 / 3)).toBe('×1.33 · belt');
     expect(beltLabel('×2 · belt', 2)).toBe('×2 · belt');

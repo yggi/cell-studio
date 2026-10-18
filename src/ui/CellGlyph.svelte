@@ -38,7 +38,7 @@
     lfoPathOf,
     litSet,
     litSteps,
-    litTaps,
+    litSections,
     markerOf,
     plainTicks,
     readAt,
@@ -47,10 +47,10 @@
     spaceOf,
     stepLabels,
     stepUnits,
-    tapCursors as tapCursorsOf,
+    sectionCursors as sectionCursorsOf,
     tapDots,
-    tapRings as tapRingsOf,
-    tapSuffix as tapSuffixOf,
+    sectionRings as sectionRingsOf,
+    sectionSuffix as sectionSuffixOf,
   } from '../layout/glyph';
   /**
    * `interactive`: the rim turns the cell (detail sheet). In the graph the whole node just drags.
@@ -122,9 +122,9 @@
     if (e.key === 'Enter' && e.shiftKey) ctx.toggle(`cell:${bulb}`);
     else ctx.open(bulb);
   };
-  // a table of taps (decision 016): its bulbs named by their taps, less what all of them end in (`&hatsBar` … : hats)
-  const tapsTable = $derived(!!fanOf(ctx.program, name));
-  const tapSuffix = $derived(tapsTable && cell ? tapSuffixOf(refsOf(cell)) : '');
+  // a table of sections (decision 016): its bulbs named by their sections, less what all of them end in (`&hatsBar` … : hats)
+  const sectionsTable = $derived(!!fanOf(ctx.program, name));
+  const sectionSuffix = $derived(sectionsTable && cell ? sectionSuffixOf(refsOf(cell)) : '');
   // a braid's track (#221): its splices bend out of the ring into bulbs, their steps along them
   const ringMid = $derived((rInner + rOuter) / 2);
   const ringW = $derived(rOuter - rInner);
@@ -133,7 +133,7 @@
   // where it takes no time (back to the ring between two bulbs): a thread
   const threads = $derived(track ? joins(track, Math.max(2, ringW * 0.14)) : []);
   // each bulb: a disc behind it (its own small wheel), a dotted outline when it is a net-ref, its name at its hub
-  const bulbs = $derived(bulbLabels(ctx.program, track, tapsTable, tapSuffix));
+  const bulbs = $derived(bulbLabels(ctx.program, track, sectionsTable, sectionSuffix));
   // (their names, for a screen reader: the wheel's label says what is spliced in)
   const spliced = $derived(
     bulbs
@@ -264,10 +264,12 @@
   // darkest), in the sun's gold
   const brightness = $derived(brightnessOf(view));
   const fills = $derived(view.segments.map((s, i) => (brightness ? s.bands.map(() => blockColour(brightness[i])) : s.bands.map(fillOf))));
-  // a table of taps wears the colours of the selector reading it (decision 016): each tap its part's colour on the
+  // a table of sections wears the colours of the selector reading it (decision 016): each section its part's colour on the
   // selector's barrel; while playing, the ones the selector has off dimmed, and a hand from the hub across each it has on
-  const tapRings = $derived.by(() => (tapsTable && track ? tapRingsOf(bulbs, view, cell?.units.length ?? 1, lit).map((t) => ({ ...t, colour: partColour(t.part, t.parts) })) : []));
-  const tapCursors = $derived(ctx.lit ? tapCursorsOf(tapRings, geo) : []);
+  const sectionRings = $derived.by(() =>
+    sectionsTable && track ? sectionRingsOf(bulbs, view, cell?.units.length ?? 1, lit).map((t) => ({ ...t, colour: partColour(t.part, t.parts) })) : [],
+  );
+  const sectionCursors = $derived(ctx.lit ? sectionCursorsOf(sectionRings, geo) : []);
 
   // What space the wheel is drawn in: by pitch (a table: the slots it takes from the table below come in at its hub),
   // by time (a braid: its rim a clock), or its own (layout/glyph.ts, spaceOf). The hub of a table that selects: its
@@ -284,12 +286,14 @@
   // the sieve: the steps of the grid a table's entry leaves out, to its next entry, dark
   const sieve = $derived(sieveOf(view, space, geo));
   const clockTicks = $derived(clockTicksOf(view, space, track, geo));
-  const ticks = $derived(plainTicks(view, space, tapsTable, geo));
+  const ticks = $derived(plainTicks(view, space, sectionsTable, geo));
 
-  // which segments are live: braids by time, grids by the entries being looked up; a table of taps by the taps its
+  // which segments are live: braids by time, grids by the entries being looked up; a table of sections by the sections its
   // selector has on now (decision 016)
   // (as a key first: the set is made again only when the lit segments change, not every tick)
-  const litKey = $derived(tapsTable ? litTaps(view, cell, ctx.lit?.nodes) : litSteps(view, () => (hasLive && liveLocal !== null ? liveLocal / lapOf(ctx.program, played) : null)));
+  const litKey = $derived(
+    sectionsTable ? litSections(view, cell, ctx.lit?.nodes) : litSteps(view, () => (hasLive && liveLocal !== null ? liveLocal / lapOf(ctx.program, played) : null)),
+  );
   const lit = $derived(litSet(litKey));
   // a table: the entries being read now (accessed) — a dot in each, like a read head …
   const accessed = $derived(hasLive && view.mode !== 'braid' ? accessedOf(view, entriesKey) : new Set<number>());
@@ -405,9 +409,17 @@
   {/snippet}
   {#snippet slots()}
     {#each bulbs as b, i (i)}<circle class="bulb-disc" cx={b.L.C[0]} cy={b.L.C[1]} r={b.L.rho + b.L.w / 2 + 2} />{/each}
-    {#if tapRings.length}
-      <!-- a table of taps: each tap a closed ring, no track between them (its taps take no time on it) -->
-      {#each tapRings as t, i (i)}<circle class="tap-ring" class:dim={!!ctx.lit && !t.on} cx={t.L.C[0]} cy={t.L.C[1]} r={t.L.rho} stroke={t.colour} stroke-width={t.L.w} />{/each}
+    {#if sectionRings.length}
+      <!-- a table of sections: each section a closed ring, no track between them (its sections take no time on it) -->
+      {#each sectionRings as t, i (i)}<circle
+          class="section-ring"
+          class:dim={!!ctx.lit && !t.on}
+          cx={t.L.C[0]}
+          cy={t.L.C[1]}
+          r={t.L.rho}
+          stroke={t.colour}
+          stroke-width={t.L.w}
+        />{/each}
     {:else}
       {#each threads as d, i (i)}<path class="bulb-thread" {d} />{/each}
       {#each geometry as slot, i}
@@ -540,10 +552,10 @@
     />
     {#if size >= 160}<text class="pen" x={c} y={c + geo.rHub * 0.62}>✎</text>{/if}
   {/if}
-  {#if tapCursors.length}
+  {#if sectionCursors.length}
     <!-- (over the hub, which overlaps the taps; turned with the rim) -->
     <g style={interactive ? undefined : `transform: rotate(${spin}deg); transform-origin: ${c}px ${c}px`}>
-      {#each tapCursors as d, i (i)}<g class="hand bent">
+      {#each sectionCursors as d, i (i)}<g class="hand bent">
           <path class="edge" {d} style:stroke-width="{geo.hand.width + 2}px" />
           <path {d} style:stroke-width="{geo.hand.width}px" />
         </g>{/each}
@@ -699,11 +711,11 @@
     stroke-linejoin: round;
   }
   /* the step playing now: brighter, no halo */
-  /* a table of taps (decision 016): each tap a ring in its selector's colour; off while playing, dimmed */
-  .tap-ring {
+  /* a table of sections (decision 016): each section a ring in its selector's colour; off while playing, dimmed */
+  .section-ring {
     fill: none;
   }
-  .tap-ring.dim {
+  .section-ring.dim {
     opacity: 0.3;
   }
   .slot.lit path {
