@@ -43,6 +43,7 @@
     onresize,
     ontoggle,
     onfocus,
+    onzoom,
     sectionOf = () => undefined,
     tintOf = (name: string) => (graph ? outRgb(graph, name) : [255, 255, 255]),
     source,
@@ -76,6 +77,8 @@
     heardLevels?: Explained<HeardLevel, WrittenLevel> | null;
     /** The cell selected (its name): its row outlined and named. */
     focus?: string | null;
+    /** A pinch in the strip: the view zoomed by `factor` about (x, y), the screen's px. */
+    onzoom?: (z: { factor: number; x: number; y: number }) => void;
     /** A tap on what the strip shows for a node (its id): the view moves to it. */
     onfocus?: (id: string) => void;
   } = $props();
@@ -92,14 +95,24 @@
   // (wide enough for the names; so narrow only the scale shows)
   const open = $derived(sw >= NAMED);
   const bare = $derived(sw < BARE);
-  // (a drag on its left edge: its width follows the pointer)
-  let drag: { x: number; w: number } | null = null;
+  // (its one handle, on its left edge: a tap collapses it or opens it again, a drag sets its width — it follows the
+  // pointer from the first few px, so a finger's slop is a tap)
+  const TAP = 6;
+  let drag: { x: number; w: number; moved: boolean } | null = null;
   function grip(e: PointerEvent) {
-    drag = { x: e.clientX, w: sw };
+    drag = { x: e.clientX, w: sw, moved: false };
     (e.currentTarget as Element).setPointerCapture(e.pointerId);
   }
   function dragged(e: PointerEvent) {
-    if (drag) onresize(Math.max(STRIP_MIN, Math.min(STRIP_MAX, drag.w + drag.x - e.clientX)));
+    if (!drag) return;
+    if (!drag.moved && Math.abs(e.clientX - drag.x) <= TAP) return;
+    drag.moved = true;
+    onresize(Math.max(STRIP_MIN, Math.min(STRIP_MAX, drag.w + drag.x - e.clientX)));
+  }
+  function released(e: PointerEvent) {
+    const was = drag;
+    drag = null;
+    if (was && !was.moved && e.type === 'pointerup') ontoggle();
   }
   const dpr = typeof devicePixelRatio === 'number' ? devicePixelRatio : 1;
 
@@ -177,10 +190,49 @@
     const r = stripEl.getBoundingClientRect();
     const x = e.clientX - r.left;
     const y = e.clientY - r.top;
-    if (x < 0 || y < 0 || x > r.width || y > r.height || (e.target as Element | null)?.closest?.('.fold, .grip')) return;
+    if (x < 0 || y < 0 || x > r.width || y > r.height || (e.target as Element | null)?.closest?.('.grip')) return;
     const id = tapped(x, y);
     if (id) onfocus(id);
   }
+
+  // (two fingers down in the strip pinch the view: the strip takes the gesture itself, the graph under it not told; one
+  // finger still goes through, to pan)
+  $effect(() => {
+    if (!onzoom) return;
+    let span: number | null = null;
+    const inside = (t: Touch) => {
+      const r = stripEl?.getBoundingClientRect();
+      return !!r && t.clientX >= r.left && t.clientX <= r.right && t.clientY >= r.top && t.clientY <= r.bottom;
+    };
+    const apart = (ts: TouchList) => Math.hypot(ts[0]!.clientX - ts[1]!.clientX, ts[0]!.clientY - ts[1]!.clientY);
+    const start = (e: TouchEvent) => {
+      span = e.touches.length === 2 && inside(e.touches[0]!) && inside(e.touches[1]!) ? apart(e.touches) : null;
+      if (span !== null) (e.stopPropagation(), e.preventDefault());
+    };
+    const move = (e: TouchEvent) => {
+      if (span === null || e.touches.length !== 2) return;
+      e.stopPropagation();
+      e.preventDefault();
+      const d = apart(e.touches);
+      const [a, b] = [e.touches[0]!, e.touches[1]!];
+      if (span > 0) onzoom({ factor: d / span, x: (a.clientX + b.clientX) / 2, y: (a.clientY + b.clientY) / 2 });
+      span = d;
+    };
+    const end = (e: TouchEvent) => {
+      if (e.touches.length < 2) span = null;
+    };
+    const opts = { capture: true, passive: false } as const;
+    window.addEventListener('touchstart', start, opts);
+    window.addEventListener('touchmove', move, opts);
+    window.addEventListener('touchend', end, opts);
+    window.addEventListener('touchcancel', end, opts);
+    return () => {
+      window.removeEventListener('touchstart', start, opts);
+      window.removeEventListener('touchmove', move, opts);
+      window.removeEventListener('touchend', end, opts);
+      window.removeEventListener('touchcancel', end, opts);
+    };
+  });
 
   function draw() {
     const g = canvas?.getContext('2d');
@@ -342,7 +394,9 @@
     const named: number[] = [];
     // (the table of sections' row: where each section's chip is, and which the selector picks now: each lane exits from its)
     const sectionRow: { at: { y: number; centre: Map<number, number>; picked: Set<number> } | null } = { at: null };
-    const chips = (name: string, y: number, [xa, xb]: readonly [number, number], inColumn = true) => {
+    const chips = (name: string, y: number, [xa, xb]: readonly [number, number], inColumn = true, bands = 1) => {
+      // (a chorded cell, a step that picks several: a band each, the row grown up from its place)
+      const grown = (bands - 1) * BAND;
       const got = spectrumOf(name);
       if (!got) return;
       const playing = ctx.state !== 'stopped';
@@ -370,7 +424,7 @@
       // takes and fading through the step — a cell of one value (a groove's hits) shows its steps so; in a rest,
       // nothing lit)
       const flash = 1 - ((((local ?? 0) % 1) + 1) % 1);
-      hit(`cell:${name}`, xa, y - 4, xb, y + 4);
+      hit(`cell:${name}`, xa, y - 4 - grown / 2, xb, y + 4 + grown / 2);
       let x = xa;
       if (segments.some((e) => e.section !== undefined)) sectionRow.at = { y, centre: new Map(), picked: new Set() };
       for (const e of segments) {
@@ -379,7 +433,7 @@
           sectionRow.at.centre.set(e.section, x + (e.share * (xb - xa)) / 2);
           if (e.lit) sectionRow.at.picked.add(e.section);
         }
-        const hh = e.lit ? 6 : 4;
+        const hh = (e.lit ? 6 : 4) + grown;
         g.globalAlpha = !playing || e.lit ? 1 : 0.3;
         e.colours.forEach((c, k) => {
           g.fillStyle = c;
@@ -389,7 +443,7 @@
           g.globalAlpha = 0.35 + 0.65 * flash;
           g.strokeStyle = css('--text');
           g.lineWidth = 1;
-          g.strokeRect(x - 0.5, y - 3.5, w + 1, 7);
+          g.strokeRect(x - 0.5, y - 3.5 - grown / 2, w + 1, 7 + grown);
         }
         x += e.share * (xb - xa);
       }
@@ -398,7 +452,7 @@
       if (name === focus) {
         g.strokeStyle = css('--text');
         g.lineWidth = 1.5;
-        g.strokeRect(xa - 2.5, y - 5.5, xb - xa + 5, 11);
+        g.strokeRect(xa - 2.5, y - 5.5 - grown / 2, xb - xa + 5, 11 + grown);
         g.lineWidth = 1;
       }
       if (open && inColumn) {
@@ -415,16 +469,24 @@
     // (a lane's player: the highest of the structure's cells in that lane alone, where its bridge starts)
     const player = new Map<number, number>();
     const players = new Map<number, { name: string; y: number }[]>();
-    const place = (id: string, y: number) => {
+    const place = (id: string, y: number, grown = 0) => {
       // (a cell with no lanes of its own goes across them all, as it is drawn: `across`)
       const [a, b] = m.span.get(id) ?? [0, nl - 1];
+      // (a chorded cell takes the rows its bands grow into, above its place)
+      const up = Math.ceil(grown / ROW);
+      const rows = (n: number) => Array.from({ length: up + 1 }, (_, j) => Math.round(y / ROW) + n - j);
       let n = 0;
-      while ([...Array(Math.max(0, b - a + 1)).keys()].some((k) => used.has(`${Math.round(y / ROW) + n}:${a + k}`))) n++;
-      for (let k = a; k <= b; k++) used.set(`${Math.round(y / ROW) + n}:${k}`, 1);
-      if (a === b && m.span.has(id)) player.set(a, Math.min(player.get(a) ?? Infinity, y + n * ROW));
-      return y + n * ROW;
+      while ([...Array(Math.max(0, b - a + 1)).keys()].some((k) => rows(n).some((r) => used.has(`${r}:${a + k}`)))) n++;
+      for (let k = a; k <= b; k++) for (const r of rows(n)) used.set(`${r}:${a + k}`, 1);
+      if (a === b && m.span.has(id)) player.set(a, Math.min(player.get(a) ?? Infinity, y + n * ROW - grown / 2));
+      return y + n * ROW - grown / 2;
     };
     const tables: string[] = [];
+    // (how many sections a selector's step picks, at most: its bands)
+    const bandsOf = (name: string) => {
+      const got = spectrumOf(name);
+      return got && 'steps' in got ? Math.max(1, ...got.steps.map((st) => st.picks.length)) : 1;
+    };
     // (the selectors' row, the lowest of them: where every lane's bridge reaches down to)
     let selectorY = -Infinity;
     for (const c of structure) {
@@ -436,11 +498,12 @@
       const y = yOf(c.at);
       if (layers.get(id) === 'selector') selectorY = Math.max(selectorY, y);
       if (y < -10 || y > h + 10) continue;
-      const at = place(id, y);
+      const bands = bandsOf(c.name);
+      const at = place(id, y, (bands - 1) * BAND);
       // (a lane's player — a cell in that lane alone — is drawn on its bridge and named up it, not in the left column)
       const [a, b] = m.span.get(id) ?? [-1, -2];
       if (a === b) (players.get(a) ?? players.set(a, []).get(a)!).push({ name: c.name, y: at });
-      chips(c.name, at, across(id, at), a !== b);
+      chips(c.name, at, across(id, at), a !== b, bands);
     }
     tables.forEach((name, k) => chips(name, h - 10 - k * ROW, across(`cell:${name}`, h - 10 - k * ROW)));
     // the spectrum, all the outs together: each band's bar as long as its loudest out, split into the outs' shares in
@@ -614,7 +677,10 @@
       const at = new Map<number, number>();
       // (a voice's name up its lane from above its dot; voices sharing a lane, or in lanes too close for two names side
       // by side, one above the other: a staircase)
-      const above = new Map<number, number>();
+      const above = new Map<number, number[]>();
+      // (the room over the voices: names stay under the mixers' row, else they run on through its mark, and go side by
+      // side in a column of their own, as many as it takes)
+      const ceiling = layer === 'voice' && layers.size && [...layers.values()].includes('mixer') ? sy(rows.mixer) + 10 : -Infinity;
       let last: { lane: number; top: number } | null = null;
       members.sort(([x], [y]) => m.span.get(x)![0] - m.span.get(y)![0]);
       for (const [id] of members) {
@@ -643,25 +709,42 @@
         } else {
           const x = (xa + xb) / 2 + (n ? (n % 2 ? 1 : -1) * Math.ceil(n / 2) * 3 : 0);
           g.beginPath();
+          // (a voice that reaches several lanes: a bar across them to its dot, as a mixer's, so each lane runs into it)
+          if (layer === 'voice' && b > a) {
+            g.beginPath();
+            g.moveTo(xa + lwAt(yy) / 2 - 1, yy);
+            g.lineTo(xb - lwAt(yy) / 2 + 1, yy);
+            g.stroke();
+          }
+          g.beginPath();
           g.arc(x, yy, 2.5, 0, 2 * Math.PI);
           g.fill();
           if (layer === 'voice') {
             // its name, rotated, up its lane from above its dot, on a halo
-            const close = last !== null && (a - last.lane) * lwAt(yy) < (open ? 11 : 10);
-            const from = Math.min(above.get(a) ?? yy - 6, close && last ? last.top - 6 : Infinity);
+            const close: boolean = last !== null && (a - last.lane) * lwAt(yy) < (open ? 11 : 10);
             g.font = `700 ${open ? 9 : 8}px system-ui, sans-serif`;
             const len = g.measureText(name).width;
+            const tops = above.get(a) ?? [];
+            // (the first column that has room for it: under the previous name, and the next lane's, clear of the ceiling)
+            let col = 0;
+            const topOf = (k: number): number => Math.min(tops[k] ?? yy - 6, k === 0 && close && last ? last.top - 6 : Infinity);
+            while (topOf(col) - len < ceiling && col < 6) col++;
+            const from: number = topOf(col);
+            const pitch = open ? 11 : 10;
             g.textAlign = 'left';
-            g.setTransform(dpr, 0, 0, dpr, ((xa + xb) / 2 + 3) * dpr, from * dpr);
+            g.setTransform(dpr, 0, 0, dpr, ((xa + xb) / 2 + 3 + col * pitch) * dpr, from * dpr);
             g.rotate(-Math.PI / 2);
             g.lineWidth = 3;
             g.strokeStyle = css('--surface');
             g.strokeText(name, 0, 0);
+            // (a low note's colour is dark: its name a third lighter, to read on the strip)
+            g.fillStyle = `rgb(${t.map((v) => Math.round(v + (255 - v) * 0.35)).join(', ')})`;
             g.fillText(name, 0, 0);
             g.setTransform(dpr, 0, 0, dpr, 0, 0);
             g.lineWidth = 1;
             hit(id, xa, from - len, xb, from);
-            above.set(a, from - len - 6);
+            tops[col] = from - len - 6;
+            above.set(a, tops);
             last = { lane: a, top: from - len };
           }
         }
@@ -708,6 +791,8 @@
 
   // (the constant's top: room for its tables, a row each, and its name; none, the strip's foot)
   const ROW = 8;
+  // (a band of a chorded cell's row, px)
+  const BAND = 4;
   function constantTop(): number {
     const n = structure.filter((c) => c.at === -Infinity).length;
     return n ? h - Math.max(48, 16 + n * ROW) : h;
@@ -783,10 +868,7 @@
   {#if h}
     <canvas bind:this={canvas} width={sw * dpr} height={h * dpr} style:width="{sw}px" style:height="{h}px"></canvas>
   {/if}
-  <button class="fold" onclick={ontoggle} aria-pressed={!bare} title={bare ? 'Open the tower: its scale and what comes in' : 'Collapse the tower to its scale'}
-    >{bare ? '‹' : '›'}</button
-  >
-  <!-- its left edge: drag it wider or narrower -->
+  <!-- its handle, on its left edge: tap to collapse or open, drag to resize -->
   <div
     class="grip"
     role="separator"
@@ -794,11 +876,12 @@
     aria-valuenow={sw}
     aria-valuemin={STRIP_MIN}
     aria-valuemax={STRIP_MAX}
-    title="Drag to resize the tower"
+    aria-label="The tower's handle: tap to {bare ? 'open' : 'collapse'} it, drag to resize"
+    title={bare ? 'Tap to open the tower, drag to resize' : 'Tap to collapse the tower, drag to resize'}
     onpointerdown={grip}
     onpointermove={dragged}
-    onpointerup={() => (drag = null)}
-    onpointercancel={() => (drag = null)}
+    onpointerup={released}
+    onpointercancel={released}
   ></div>
 </div>
 
@@ -816,36 +899,26 @@
   canvas {
     display: block;
   }
-  .fold {
-    position: absolute;
-    top: 28px;
-    left: 50%;
-    transform: translateX(-50%);
-    min-width: 28px;
-    min-height: 24px;
-    border-radius: var(--radius-pill);
-    border: 1px solid var(--line);
-    background: var(--bg);
-    color: var(--text-muted);
-    font: 700 var(--text-sm) var(--font-ui);
-    cursor: pointer;
-    pointer-events: auto;
-  }
+  /* (a finger-sized pill astride its left edge, a grip's two lines on it) */
   .grip {
     position: absolute;
-    top: 0;
-    bottom: 0;
-    left: -4px;
-    width: 8px;
+    top: 50%;
+    left: -14px;
+    width: 28px;
+    height: 72px;
+    transform: translateY(-50%);
+    border-radius: var(--radius-pill);
+    border: 1px solid var(--line);
+    background:
+      linear-gradient(var(--text-muted), var(--text-muted)) 10px 50% / 2px 24px no-repeat,
+      linear-gradient(var(--text-muted), var(--text-muted)) 16px 50% / 2px 24px no-repeat,
+      var(--bg);
     cursor: ew-resize;
     pointer-events: auto;
     touch-action: none;
   }
-  .grip:hover {
-    background: color-mix(in oklab, var(--accent) 30%, transparent);
-  }
-  .fold[aria-pressed='true'] {
+  .grip:hover,
+  .grip:active {
     border-color: var(--accent);
-    color: var(--accent);
   }
 </style>

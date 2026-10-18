@@ -8,6 +8,7 @@ import { blockLevels, loudness, renderLength, renderPiece, sampleHash } from './
 import type { Player } from './audio/player';
 import type { Recorder } from './ui/state/record.svelte';
 import { transportClock } from './audio/clock.svelte';
+import { textOf } from './library';
 
 export function installDebugHook(openPiece: () => CompileResult, player: Player, recorder: Recorder, openSource: (source: string, name?: string) => void): void {
   if (typeof window === 'undefined') return;
@@ -28,10 +29,10 @@ export function installDebugHook(openPiece: () => CompileResult, player: Player,
     length: () => renderLength(openPiece()),
     // how the engine's windows went: where they were worked out, how long they took (#15)
     engine: () => player.engineStats(),
-    // render(source, seconds) renders any source (not just the open piece), with a hash of the samples and
+    // render(source, seconds) renders any source, a text or a piece file (not just the open piece), with a hash of the samples and
     // the level of every block of them: for checking a refactor leaves every piece sounding the same (`tools/golden.mjs`)
     render: async (source: string, seconds?: number) => {
-      const r = compileSource(source, { SAMPLE_RATE: 44100, A4: 440 });
+      const r = compileSource(textOf(source), { SAMPLE_RATE: 44100, A4: 440 });
       const buf = await renderPiece(r, codeShifts(r), seconds);
       return { ...loudness(buf), hash: sampleHash(buf), blocks: blockLevels(buf) };
     },

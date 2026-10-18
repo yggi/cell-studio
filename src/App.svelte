@@ -149,7 +149,7 @@
         <button onclick={() => studio.convert()}>Convert to cells</button>
       </div>
     {:else}
-      <Shorten code={piece.code} onapply={(next) => (piece.code = next)} />
+      <Shorten code={piece.code} onapply={(next) => piece.take(next)} />
     {/if}
   </section>
   <section class="select" class:away={view.tab !== 'select'} class:front={view.tab === 'select'} inert={view.tab !== 'select'} aria-label="Choose a piece">

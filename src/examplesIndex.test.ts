@@ -9,13 +9,13 @@ import { miniature } from './layout/miniature';
 import { rowsKey } from './layout/start';
 import { buildGraph } from './layout/drawn';
 
-describe('examples/*.cells', () => {
+describe('examples/*.md', () => {
   test('the build-time index lists every example in order, as compiling each file says', () => {
     const fresh = buildExamplesIndex();
     expect(built.map((e) => (e as { key: string }).key)).toEqual([...ORDER]);
     expect(built).toEqual(fresh);
     for (const e of fresh) {
-      const m = pieceMeta(PRESETS[e.key].source);
+      const m = pieceMeta(PRESETS[e.key].file);
       expect([e.title, e.description, e.tags, e.tier]).toEqual([m?.title, m?.description, m?.tags, m?.tier]); // (the tags are written canonical: checked above)
       expect(e.size, `${e.key}: size`).toBeGreaterThan(0);
       // its miniature: what the browser would work out from its text, one node per cell drawn and a dot per product

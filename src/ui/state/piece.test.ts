@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { Piece } from './piece.svelte';
+import { PRESETS } from '@yggi/cells/engine/presets';
+import { pieceMeta } from '@yggi/cells/engine/parser/index';
+import { shorten } from '@yggi/cells/engine/shorten/index';
+import { fileName, pieceFile, textOf } from '../../library';
 
 const SRC = `&bar step=free(120bpm, 60..180)
 &tune step=&bar 0 2 4 shift=free(0, 0..7) over=&bar
@@ -132,5 +136,63 @@ track "lead"
     expect(p.result.diagnostics.map((d) => d.span.line)).toEqual([6]);
     expect(p.stale).toBe(true);
     expect(p.program).toBe(before);
+  });
+});
+
+describe('Piece: a piece file (decision 047)', () => {
+  const OLD = `&piece title="Old way" tags="tutorial, diatonic" tier=2 label="A piece saved before files." about=&out
+&bar scan(1 1 1 1) step=120bpm
+&tune step=4n 0 2 4 7
+&lead s=sine loop=C4
+&out map=sample [&tune * &lead]`;
+
+  it('opens an example’s file: the code is its cells block, the title its frontmatter’s, the file the same bytes', () => {
+    const p = new Piece(PRESETS.royal.file);
+    expect(p.code).toBe(PRESETS.royal.source);
+    expect(p.title).toBe(pieceMeta(PRESETS.royal.file)?.title);
+    expect(p.file).toBe(PRESETS.royal.file);
+    expect(p.result.diagnostics).toEqual([]);
+    // (an edit is the code's: the frontmatter stays)
+    p.code = `${p.code}\n&extra 1 2 3`;
+    expect(p.title).toBe(pieceMeta(PRESETS.royal.file)?.title);
+    expect(pieceFile(p.file)?.text).toBe(p.code);
+    // (a bare text opened after it has no frontmatter)
+    p.open(SRC);
+    expect(p.frontmatter).toBeNull();
+    expect(p.file).toBe(SRC);
+  });
+
+  it('a text whose card says what the piece is: one warning, on the card; Shorten’s suggestion moves it to the frontmatter', () => {
+    const p = new Piece(OLD);
+    const warnings = p.result.diagnostics.filter((d) => d.severity === 'warning');
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0]!.span.line).toBe(1);
+    expect(warnings[0]!.message).toMatch(/frontmatter/);
+    expect(p.title).toBe('Old way');
+    const card = shorten(p.code).filter((s) => s.kind === 'card');
+    expect(card).toHaveLength(1);
+    const before = p.program;
+    p.take(card[0]!.apply(p.code));
+    expect(p.result.diagnostics.filter((d) => d.severity === 'warning')).toEqual([]);
+    expect(p.frontmatter).toEqual({ title: 'Old way', tags: ['tutorial', 'diatonic'], tier: 2 });
+    expect(p.title).toBe('Old way');
+    expect(p.code).not.toMatch(/title=|tier=|tags=/);
+    expect(p.code.split('\n')[0]).toBe('&piece label="A piece saved before files." about=&out');
+    expect(pieceMeta(p.file)).toMatchObject({ title: 'Old way', tags: ['tutorial', 'diatonic'], tier: 2, cell: 'piece' });
+    expect(p.program.cells.size).toBe(before.cells.size);
+    // (a rewrite that is a text is the code)
+    p.take(`${p.code}\n&more 1`);
+    expect(p.program.cells.has('more')).toBe(true);
+    expect(p.frontmatter).toMatchObject({ title: 'Old way' });
+  });
+});
+
+describe('a piece’s file name and what compiles', () => {
+  it('names a piece file .md and a bare text .cells, from its title', () => {
+    expect(fileName(PRESETS.royal.file)).toBe(`${fileName(PRESETS.royal.file, '')}.md`);
+    expect(fileName(PRESETS.royal.file, '.mid')).toMatch(/^royal-theme.*\.mid$/);
+    expect(fileName('# A sketch\n&a loop=A4')).toBe('a-sketch.cells');
+    expect(textOf(PRESETS.royal.file)).toBe(PRESETS.royal.source);
+    expect(textOf(SRC)).toBe(SRC);
   });
 });

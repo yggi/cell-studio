@@ -1,7 +1,7 @@
 /**
- * The tower strip's width (ui/TowerStrips.svelte, #440): one for the graph and the time view, dragged at the strip's
+ * The tower strip's width (ui/TowerStrips.svelte, #440): one for the graph and the time view, dragged by its handle at the strip's
  * left edge, kept in this browser. From collapsed (`STRIP_MIN`: the scale, its strata's rails and their markers) to
- * `STRIP_MAX`; unset, `STRIP`; `?strips` opens it at `STRIP_OPEN`. Its button collapses it and opens it again to the
+ * `STRIP_MAX`; unset, `STRIP`; `?strips` opens it at `STRIP_OPEN`. A tap on its handle collapses it and opens it again to the
  * width it had.
  */
 import { storageKey } from '../../storageKey';

@@ -2,7 +2,7 @@
 // src/midi/out.test.ts @ 04e24d2, where they ran on its own MidiOut); the rest of those cases are webmidi's, on its note
 // (`src/core/out.test.ts` there).
 import { describe, expect, it } from 'vitest';
-import { readFileSync, readdirSync } from 'node:fs';
+import { PRESETS } from '@yggi/cells/engine/presets';
 import { compileSource } from '@yggi/cells/engine/compile';
 import { plan, type Played } from '@yggi/cells/engine/realize';
 import { codeShifts } from '@yggi/cells/engine/program';
@@ -68,14 +68,12 @@ describe('MidiOut on played notes', () => {
 });
 
 describe('MidiOut over every example, window by window as the player plays them', () => {
-  const dir = new URL('../../node_modules/@yggi/cells/examples/', import.meta.url);
-  const files = readdirSync(dir).filter((f) => f.endsWith('.cells'));
   const SECONDS = 8;
   const WINDOW = 0.25;
 
-  for (const f of files)
+  for (const [f, { source }] of Object.entries(PRESETS))
     it(`${f}: a note-on for every note in range, and every note-on has its note-off`, () => {
-      const r = compileSource(readFileSync(new URL(f, dir), 'utf8'));
+      const r = compileSource(source);
       const p = plan(r, codeShifts(r), r.off);
       const port = fakePort('out', 'Synth');
       const midi = new MidiOut(port);
@@ -131,13 +129,11 @@ const inOrder = (sent: { data: number[]; timestamp?: number }[], t: number) =>
     .sort((a, b) => a.timestamp! - b.timestamp! || a.i - b.i);
 
 describe('MidiOut over every example, through a seek within the look-ahead', () => {
-  const dir = new URL('../../node_modules/@yggi/cells/examples/', import.meta.url);
-  const files = readdirSync(dir).filter((f) => f.endsWith('.cells'));
   const WINDOW = 0.25;
 
-  for (const f of files)
+  for (const [f, { source }] of Object.entries(PRESETS))
     it(`${f}: no note sent after the seek is cut, and nothing is left sounding`, () => {
-      const r = compileSource(readFileSync(new URL(f, dir), 'utf8'));
+      const r = compileSource(source);
       const p = plan(r, codeShifts(r), r.off);
       const port = fakePort('out', 'Synth');
       const midi = new MidiOut(port);

@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest';
-import { readFileSync } from 'node:fs';
 import { compileSource } from '@yggi/cells/engine/compile';
 import { codeShifts } from '@yggi/cells/engine/program';
 import { entries, lookup } from '@yggi/cells/engine/helix';
@@ -65,7 +64,7 @@ describe('effectiveShow cache', () => {
 
 describe('cellView on caches', () => {
   it('draws a cell the same warm (caches filled, other shifts asked in between) as on a fresh compile', () => {
-    const src = readFileSync('node_modules/@yggi/cells/examples/bwv847.cells', 'utf8');
+    const src = PRESETS.bwv847.source;
     const r = compileSource(src);
     const base = codeShifts(r);
     const at = (k: number) => (n: string) => base(n) + (n.length % 2 ? k : 0);

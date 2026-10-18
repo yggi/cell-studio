@@ -1,15 +1,19 @@
 // What a table turn costs in the engine alone: `cellView` for every cell at a few moments of a piece
 // (what each glyph recomputes when its tables turn), without Svelte or the DOM. If this is small, a burst's
 // time is in the reactive flush and DOM, not in the layout code.
-// usage: npx vite-node tools/profile/cellview-time.ts [examples/bwv847.cells] [seconds=60]
+// usage: npx vite-node tools/profile/cellview-time.ts [examples/bwv847.md, or a .cells text] [seconds=60]
 import { readFileSync } from 'node:fs';
+import { isPieceFile, readPiece } from '@yggi/cells/engine/piecefile';
 import { compileSource } from '@yggi/cells/engine/compile';
 import { codeShifts } from '@yggi/cells/engine/program';
 import { cellView } from '../../src/layout/cellview';
 import { shiftsAt, playedCells } from '@yggi/cells/engine/clocking';
-const file = process.argv[2] ?? 'node_modules/@yggi/cells/examples/bwv847.cells';
+const file = process.argv[2] ?? 'node_modules/@yggi/cells/examples/bwv847.md';
 const horizon = Number(process.argv[3] ?? 60);
-const r = compileSource(readFileSync(file, 'utf8'));
+const source = readFileSync(file, 'utf8');
+const piece = isPieceFile(source) ? readPiece(source) : null;
+if (piece && 'problems' in piece) throw new Error(`${file}: not a piece file`);
+const r = compileSource(piece?.text ?? source);
 const statics = codeShifts(r);
 const played = playedCells(r);
 const names = [...r.cells.values()].filter((c) => !c.note && !c.voice).map((c) => c.name);

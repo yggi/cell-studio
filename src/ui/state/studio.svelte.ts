@@ -2,12 +2,13 @@ import { createContext, tick } from 'svelte';
 import { shortVersion } from '../../buildInfo';
 import { codeShifts } from '@yggi/cells/engine/program';
 import { declLine } from '@yggi/cells/engine/edit';
-import { FIRST_SOURCE, loadExample, type PresetKey } from '../../examples';
-import { download, fileName, readFile, saveFile, savePiece, titleOf } from '../../library';
+import { FIRST_FILE, loadExample, type PresetKey } from '../../examples';
+import { download, fileName, readFile, saveFile, savePiece } from '../../library';
 import { pieceMidi } from '@yggi/cells/engine/midiexport';
 import { isMidi, readMidi, writeMidi } from '@yggi/cells/engine/midifile';
 import { midiText } from '@yggi/cells/engine/miditext';
 import { cellsFromMidi, type Imported } from '@yggi/cells/engine/midiimport';
+import { movedCard } from '@yggi/cells/engine/shorten/card';
 import { creditLines, loadMidiFile, MIDI_FILES } from '../../corpus';
 import type { Smf } from '@yggi/cells/engine/midifile';
 import type { FoldAnswer, FoldJob } from '../fold.worker';
@@ -38,7 +39,7 @@ function convertedText({ notes, lines, perQuarter, moved, dropped, folded, inKey
  * rendering. App.svelte makes one and shares it (`setStudio`); components read it (`getStudio`).
  */
 export class Studio {
-  readonly piece = new Piece(FIRST_SOURCE);
+  readonly piece = new Piece(FIRST_FILE);
   readonly playback = new Playback(this.piece);
   readonly library = new Library();
   readonly view = new View();
@@ -95,7 +96,7 @@ export class Studio {
   #opened(open: Open, source: string): void {
     this.stopFolding(false);
     this.library.open = open;
-    this.piece.code = source;
+    this.piece.open(source);
     this.view.tab = 'graph';
     this.view.message = null;
     this.library.opened++;
@@ -178,13 +179,12 @@ export class Studio {
     this.#opened({ kind: 'file', name }, source);
   }
 
-  /** Save the code as a .cells file; a MIDI file's text as the MIDI file. */
+  /** Save the piece as a file (a piece file, .md, when it came from one; else its code, .cells); a MIDI file's text as the MIDI file. */
   saveFile(): void {
     const midi = this.piece.midi;
-    if (!midi) return saveFile(this.piece.code);
+    if (!midi) return saveFile(this.piece.file);
     const open = this.library.open;
-    const name =
-      open.kind === 'file' && /\.(midi?|smf)$/i.test(open.name) ? open.name : open.kind === 'midi' ? `${open.key}.mid` : fileName(this.piece.code).replace(/\.cells$/, '.mid');
+    const name = open.kind === 'file' && /\.(midi?|smf)$/i.test(open.name) ? open.name : open.kind === 'midi' ? `${open.key}.mid` : fileName(this.piece.file, '.mid');
     download(new Blob([writeMidi(midi.smf).buffer as ArrayBuffer], { type: 'audio/midi' }), name);
   }
 
@@ -203,10 +203,15 @@ export class Studio {
     this.view.tab = 'graph';
     this.view.message = null;
     const play = (made: Imported) => {
-      // (the file now a piece: its name .cells, from the first frame on)
-      if (open.kind === 'file' || open.kind === 'midi') this.library.open = { kind: 'file', name: `${name}.cells` };
+      // (the file now a piece: its name .md, from the first frame on)
+      if (open.kind === 'file' || open.kind === 'midi') this.library.open = { kind: 'file', name: `${name}.md` };
       this.#converted = made;
-      this.conversion.play(made.story ?? [{ source: made.source, says: '' }]);
+      // (the folder writes the card the old way, title= and tags= on &piece: they go in the file's frontmatter, decision
+      // 047, from the first frame on, so no frame warns of them)
+      const card = movedCard(made.source);
+      this.piece.frontmatter = card?.frontmatter ?? null;
+      const story = made.story ?? [{ source: made.source, says: '' }];
+      this.conversion.play(card ? story.map((s) => ({ ...s, source: movedCard(s.source)?.text ?? s.source })) : story);
     };
     let worker: Worker;
     try {
@@ -249,16 +254,16 @@ export class Studio {
   saveMidi(): void {
     const result = this.piece.result;
     if (!result.ok) return;
-    const { smf, dropped } = pieceMidi(result, codeShifts(result), result.off, titleOf(this.piece.code));
+    const { smf, dropped } = pieceMidi(result, codeShifts(result), result.off, this.piece.title);
     const bytes = writeMidi(smf);
-    download(new Blob([bytes.buffer as ArrayBuffer], { type: 'audio/midi' }), fileName(this.piece.code).replace(/\.cells$/, '.mid'));
+    download(new Blob([bytes.buffer as ArrayBuffer], { type: 'audio/midi' }), fileName(this.piece.file, '.mid'));
     const notes = smf.tracks.reduce((n, t) => n + t.notes.length, 0);
     this.view.message = `Saved as MIDI: ${notes} notes on ${smf.tracks.length} channel${smf.tracks.length === 1 ? '' : 's'}${dropped ? `; ${dropped} out of MIDI’s range left out` : ''}.`;
   }
 
-  /** Save the code in this browser; it's then the piece open. */
+  /** Save the piece in this browser (as a file when it came from one); it's then the piece open. */
   saveHere(): void {
-    const r = savePiece(this.piece.code);
+    const r = savePiece(this.piece.file);
     if ('error' in r) this.view.message = r.error;
     else {
       this.library.refresh();
@@ -278,7 +283,7 @@ export class Studio {
       const url = URL.createObjectURL(wav(buf));
       const a = document.createElement('a');
       a.href = url;
-      a.download = fileName(this.piece.code).replace(/\.cells$/, '.wav');
+      a.download = fileName(this.piece.file, '.wav');
       document.body.append(a);
       a.click();
       a.remove();
@@ -325,11 +330,11 @@ export class Studio {
     piece: { title: this.piece.title ?? null, graphNodes: this.piece.graph.nodes.length, cells: this.piece.program.cells.size },
   });
   // what the overlay's full test does to the page: open a piece, play it, tune the audio anew; and puts it all back
-  #beforeTest: { open: Open; code: string; tab: Tab } | null = null;
+  #beforeTest: { open: Open; file: string; tab: Tab } | null = null;
   #retuned = false;
   readonly perfTest: RunController = {
     open: async (key) => {
-      this.#beforeTest ??= { open: this.library.open, code: this.piece.code, tab: this.view.tab };
+      this.#beforeTest ??= { open: this.library.open, file: this.piece.file, tab: this.view.tab };
       await this.pick(`example:${key}`);
       const open = this.library.open;
       return open.kind === 'example' && open.key === key;
@@ -348,7 +353,7 @@ export class Studio {
       const before = this.#beforeTest;
       if (before) {
         this.library.open = before.open;
-        this.piece.code = before.code;
+        this.piece.open(before.file);
         this.view.tab = before.tab;
         this.library.opened++;
         this.playback.stop();

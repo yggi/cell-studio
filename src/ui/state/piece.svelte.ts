@@ -6,7 +6,8 @@ import { buildGraph } from '../../layout/drawn';
 import { showProblems } from '../../layout/show';
 import { routing } from '@yggi/cells/engine/routing';
 import { mainTempo, sections } from '@yggi/cells/engine/duration';
-import { titleOf } from '../../library';
+import { pieceFile, titleOf } from '../../library';
+import { isPieceFile, readPiece, writePiece, type PieceFrontmatter } from '@yggi/cells/engine/piecefile';
 import type { PieceSource } from '../../audio/engine';
 import type { FreeSpec } from '@yggi/cells/engine/ast';
 import { isMidiText, parseMidiText } from '@yggi/cells/engine/miditext';
@@ -21,9 +22,17 @@ import { pieceStats } from '@yggi/cells/engine/stats';
  * The code can be a MIDI file's text (engine/miditext.ts, decision 025): then it plays as it is, its notes written out
  * as cells behind the scenes (`cells`, engine/midiimport.ts) and compiled; what the graph would edit isn't written
  * (there are no cells in the text to rewrite) until it is converted (`studio.convert`).
+ *
+ * A piece opened from a piece file (an example, a piece saved as one: decision 047) keeps the file's frontmatter (its
+ * title, tags and tier, any other key) and its prose beside the code: the code is the file's cells block, and `file`
+ * the file again with the code as it stands.
  */
 export class Piece {
   #code = $state('');
+  /** Its file's frontmatter, or null for a bare text (a piece saved the old way, a MIDI file's text). */
+  frontmatter = $state.raw<PieceFrontmatter | null>(null);
+  /** Its file's prose, after the cells block. */
+  #prose = '';
   /** The device's sample rate, once audio runs: a value the environment provides to the code. */
   sampleRate = $state(48000);
   readonly env = $derived({ SAMPLE_RATE: this.sampleRate, A4: 440 });
@@ -40,8 +49,10 @@ export class Piece {
     const errors = this.midi.diagnostics.some((d) => d.severity === 'error');
     return { ...r, ok: r.ok && !errors, diagnostics: this.midi.diagnostics };
   });
-  /** Its title, from its card as it stands (it follows edits). */
-  readonly title = $derived(titleOf(this.#code));
+  /** The piece as a file (its frontmatter, the code in its cells block, its prose), or the bare code. */
+  readonly file = $derived(this.frontmatter ? writePiece({ frontmatter: this.frontmatter, text: this.#code, prose: this.#prose }) : this.#code);
+  /** Its title, from its file's frontmatter, or from its card as it stands (it follows edits). */
+  readonly title = $derived(titleOf(this.file));
   readonly errors = $derived(this.result.diagnostics.filter((d) => d.severity === 'error').length);
   /** The code has errors: what's shown and played is the last version that compiled. */
   readonly stale = $derived(!this.result.ok);
@@ -78,7 +89,11 @@ export class Piece {
   // no longer fitting
   #frees: number;
 
-  constructor(code: string) {
+  constructor(source: string) {
+    const file = pieceFile(source);
+    this.frontmatter = file?.frontmatter ?? null;
+    this.#prose = file?.prose ?? '';
+    const code = file?.text ?? source;
     this.#code = code;
     const cells = isMidiText(code) ? cellsFromMidi(parseMidiText(code).smf, 'MIDI file', { free: false }).source : code;
     const first = compileSource(cells);
@@ -89,7 +104,23 @@ export class Piece {
   get code(): string {
     return this.#code;
   }
-  /** Write the code (the editor, Shorten, an opened piece). */
+  /** Open a piece: a piece file (its frontmatter and prose kept, its text the code) or a bare text. */
+  open(source: string): void {
+    const file = pieceFile(source);
+    this.frontmatter = file?.frontmatter ?? null;
+    this.#prose = file?.prose ?? '';
+    this.code = file?.text ?? source;
+  }
+  /** Take a rewrite (Shorten's): a text, or a file (its card's migration, decision 047: what the card said of the
+   * piece, its title, tags and tier, now the frontmatter's, over what the frontmatter held). */
+  take(rewrite: string): void {
+    if (!isPieceFile(rewrite)) return void (this.code = rewrite);
+    const file = readPiece(rewrite);
+    if ('problems' in file) return;
+    this.frontmatter = { ...this.frontmatter, ...file.frontmatter };
+    this.code = file.text;
+  }
+  /** Write the code (the editor, the graph's edits, a conversion's frames). */
   set code(source: string) {
     this.#code = source;
     const r = this.result;
