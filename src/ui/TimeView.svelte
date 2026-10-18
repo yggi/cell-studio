@@ -38,13 +38,16 @@
     type Scalograms,
   } from '../layout/timelayers';
   import { towerStructure } from '../layout/tower';
+  import TowerStrips from './TowerStrips.svelte';
+  import { strip as stripWidth } from './state/strip.svelte';
+  import type { TowerSource } from './context';
+  import { liveAt, type LiveState } from '@yggi/cells/engine/live';
   import { explainLevels, explainMoments, folded, writtenLevels, type Folded } from '../layout/explained';
   import { notePixels, scalogramPixels, waterfallPixels, type Pixels } from '../layout/timepictures';
   import {
     drawCells,
     drawGrid,
     drawHeard,
-    drawLevels,
     drawMeter,
     drawNotes,
     drawPatterns,
@@ -75,7 +78,9 @@
   const STRETCH = 5;
   const PEAKS_PER_SECOND = 200;
 
-  let width = $state(0);
+  // (the plot's width, and the canvas's: the plot less the tower strip at its right, one width with the graph's)
+  let plotW = $state(0);
+  const width = $derived(Math.max(0, plotW - stripWidth.width));
   let height = $state(0);
   let canvas = $state<HTMLCanvasElement>();
 
@@ -151,11 +156,32 @@
    * sections and splices written.
    */
   // (the written side: the cells the graph's strip has as rows, layout/tower.ts towerStructure — what times something)
+  const towerRows = $derived(active && piece.program.ok ? towerStructure(piece.program, piece.graph) : []);
   const structured = $derived.by(() => {
-    if (!active || !piece.program.ok) return [];
-    const rows = new Set(towerStructure(piece.program, piece.graph).map((r) => r.name));
+    const rows = new Set(towerRows.map((r) => r.name));
     return spans.filter((c) => rows.has(c.name));
   });
+  /**
+   * What the tower strip's rows read (#440): the moment at the cursor — the live state the graph reads at the
+   * transport's time, here at the time view's (kept while the moment and the piece stay).
+   */
+  let headsAt: { t: number; program: unknown; heads: LiveState } | null = null;
+  const towerSource: TowerSource = {
+    get program() {
+      return piece.program;
+    },
+    get shifts() {
+      return piece.shifts;
+    },
+    get state() {
+      return playback.playing ? 'playing' : 'stopped';
+    },
+    get heads() {
+      const t = now;
+      if (!headsAt || headsAt.t !== t || headsAt.program !== piece.program) headsAt = { t, program: piece.program, heads: liveAt(piece.program, piece.shifts, piece.muted, t) };
+      return headsAt.heads;
+    },
+  };
   const levels = $derived(
     scal ? explainLevels(heardLevelsOf(scal, settings.signal, listenedScal?.periodic), writtenLevels(meter, structured), [scal.periods[0] ?? 0, scal.window / 6]) : null,
   );
@@ -306,7 +332,7 @@
   $effect(() => {
     const f = frame;
     const layers: TimeLayers = settings.layers;
-    const [sb, fb, w, n, ws, hd, sp, cs, pt, vs, back, mt, lv, st, vr] = [
+    const [sb, fb, w, n, ws, hd, sp, cs, pt, vs, back, mt, st, vr] = [
       scalBitmap,
       fallBitmap,
       wave,
@@ -319,7 +345,6 @@
       voices,
       longest,
       meter,
-      levels,
       nodes,
       rows,
     ];
@@ -364,7 +389,6 @@
     if (layers.splices) drawSplices(g, f, css, sp);
     if (layers.cells) drawCells(g, f, css, cs);
     if (pt) drawPatterns(g, f, css, pt);
-    if (layers.levels && layers.scalogram && scal && lv) drawLevels(g, f, css, scal, lv);
   });
 
   // ── hands: drag to move, wheel or pinch to zoom, a click to play from there ──────────────────────────────────
@@ -430,11 +454,11 @@
       label: 'structure',
       title: 'Each cell where it plays, at the height of its own length: the splice tree by scale, over the scalogram (a copy, base=, dashed in its base’s colour)',
     },
-    { key: 'meter', label: 'meter', title: 'The beat, the bar and the sections’ length across the scalogram' },
     {
-      key: 'levels',
-      label: 'levels',
-      title: 'At the right, the time scales written (the meter, each cell’s step and turn) against those heard, joined where they meet, alone where they don’t',
+      key: 'meter',
+      label: 'meter',
+      title:
+        'The beat, the bar and the sections’ length across the scalogram; at the right, the levels written against those heard, joined where they meet, alone where they don’t',
     },
     { key: 'patterns', label: 'patterns', title: 'Motifs heard at two time scales, boxed; foldings alike at two levels, listed' },
   ];
@@ -461,7 +485,7 @@
     {/if}
     <button class="toggle" onclick={fit} title="The whole piece (or a double click)">fit</button>
     {#if busy}<span class="busy">{busy}…</span>{/if}
-    {#if levels && settings.layers.levels}
+    {#if levels && settings.layers.meter}
       <span class="folded" title="Levels (time scales): those heard that the cells explain · those written that are heard. A folded piece: all of both"
         >{foldedText('levels', folded(levels))}</span
       >
@@ -470,7 +494,7 @@
       <span class="folded" title="Moments: boundaries heard that a section or splice explains · sections written that are heard">{foldedText('moments', folded(moments))}</span>
     {/if}
   </div>
-  <div class="plot" bind:clientWidth={width} bind:clientHeight={height}>
+  <div class="plot" bind:clientWidth={plotW} bind:clientHeight={height}>
     <canvas
       bind:this={canvas}
       style:width="{width}px"
@@ -484,6 +508,18 @@
       aria-label="The piece in time: frequency up, time across"
     ></canvas>
     <div class="cursor" style:transform="translateX({cursorX}px)" class:out={cursorX < 0 || cursorX > width}></div>
+    {#if active && height}
+      <TowerStrips
+        ins={[]}
+        structure={towerRows}
+        scale={frame.scale}
+        width={stripWidth.width}
+        onresize={(w) => stripWidth.resize(w)}
+        ontoggle={() => stripWidth.toggle()}
+        source={towerSource}
+        heardLevels={settings.layers.meter && settings.layers.scalogram ? levels : null}
+      />
+    {/if}
     {#if settings.layers.scalogram && settings.signal === 'mix'}
       <p class="legend">
         <span style:--c="rgb({TIME.mix.envelope.join(' ')})">breaks</span>

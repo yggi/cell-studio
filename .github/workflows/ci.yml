@@ -3,7 +3,7 @@ name: CI
 # A witness, not the gate (docs/testing.md): the gate is the checks run before the push, and the PR names the commit that
 # passed them. A run that fails in seconds with no step is Actions blocked (minutes used up), not a verdict on the change.
 # One job on a PR that is ready (not a draft): jobs bill rounded up to a whole minute, so the steps share one. The slow
-# tests and the build by hand: Actions -> CI -> Run workflow, `all` ticked. It doesn't deploy: `node tools/deploy.mjs` does.
+# tests and the build by hand: Actions -> CI -> Run workflow, `all` ticked. It doesn't deploy: `node tools/deploy.mjs` does, from a clone or in deploy.yml (by hand).
 on:
   pull_request:
     types: [opened, reopened, synchronize, ready_for_review]

@@ -10,6 +10,10 @@ The view keeps apart what it **hears** in the output and what the cells **write*
 nothing writes (unexplained), what is written that leaves no trace (unheard). A fully folded piece has no gaps either
 way. So far two axes: levels (time scales) and moments (boundaries).
 
+- **The tower strip** at the right (`TowerStrips.svelte`, #440): the graph's strip, on the time view's scale, one
+  width with the graph's (dragged, collapsed, kept: `state/strip.svelte.ts`). The graph's x collapsed is its lanes;
+  the time view's is the moment at the cursor: the structure's rows (`towerStructure`) in one wide column, each
+  lighting the value it holds at the cursor, and the levels heard against them.
 - **Across: time**, from the piece's start to its end, or one round of a loop (the cycle the transport's slider has;
   5 to 12: a day). A loop goes round, so its scalogram is transformed circularly (no edges, nothing veiled: the end
   runs into the start); one with chance, whose rounds differ, is listened to for three rounds (`listening` in
@@ -53,13 +57,10 @@ way. So far two axes: levels (time scales) and moments (boundaries).
     is; a MIDI file converted to cells shows the folder's phrases and their copies where they return.
   - **meter**: dashed lines across the scalogram at the beat and the bar of the meter that drives the piece (its tempo
     cell's step and turn, `mainTempo`) and the sections' usual length, labelled; the bars' lines where they are far
-    enough apart to see.
-  - **levels**: at the right, a strip of the levels **written against those heard** (`layout/explained.ts`): the written at its
-    left (the beat, the bar, the sections, each cell's step and turn, one level within a semitone, `+n` for more cells
-    on it), the heard at its right (`ridges`: the peaks of each row's mean power, a bar as long as it is strong). A pair
-    within a semitone is joined straight across; alone, a gap: a level heard that nothing writes orange with its period,
-    a level written that is not heard muted and hollow. A written level the scalogram can't hold is left out. The share
-    of each, in the toolbar (*levels*).
+    enough apart to see. The levels **heard against those written** (`layout/explained.ts`) are a layer of the tower strip at the
+    right (below): each heard level at its period, a bar as long as it is strong, white where a level written meets it
+    (its row names it), orange alone with its period (unexplained); a level written that is not heard, a hollow ring. A
+    written level the scalogram can't hold is left out. The share of each, in the toolbar (*levels*).
   - **patterns** (off by default): the motifs heard at two time scales (`engine/time/motifs.ts`), boxed round their notes
     with their ratio, and the foldings alike at two levels or in rhythm and pitch (`engine/time/necklace.ts`), listed at
     the bottom; over the first ten minutes.

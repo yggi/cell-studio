@@ -17,7 +17,6 @@ export interface TimeLayers {
   readonly splices: boolean;
   readonly patterns: boolean;
   readonly meter: boolean;
-  readonly levels: boolean;
   readonly structure: boolean;
 }
 type Stored = TimeLayers & { readonly signal: TimeSignal };
@@ -32,8 +31,6 @@ const DEFAULTS: Stored = {
   splices: true,
   patterns: false,
   meter: true,
-  // (the strip of levels written against heard: on a phone it covers half the view, so it starts closed there)
-  levels: typeof innerWidth !== 'number' || innerWidth >= 600,
   structure: true,
   signal: 'mix',
 };
@@ -54,7 +51,6 @@ function load(): Stored {
       splices: on('splices'),
       patterns: on('patterns'),
       meter: on('meter'),
-      levels: on('levels'),
       structure: on('structure'),
       signal: kept.signal === 'mix' || SIGNALS.includes(kept.signal as Signal) ? (kept.signal as TimeSignal) : 'mix',
     };

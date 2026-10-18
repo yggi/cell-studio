@@ -1,0 +1,40 @@
+name: Deploy
+
+# The deploy, run by hand: Actions -> Deploy -> Run workflow. It runs `node tools/deploy.mjs` on `main` as it is now, the
+# same gate as a deploy from a clone (docs/testing.md): every check CI runs, all the tests (`test:all`), a fresh build,
+# and only then dist/ published to gh-pages's root (the PRs' previews in pr-<n>/ stay). Never on a push: whoever merges
+# deploys, here or from a clone, then checks the live site (`node tools/live.mjs`, the land skill).
+# A run that fails in seconds with no step is Actions blocked (minutes used up): deploy from a clone instead.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# (one deploy at a time; a preview written meanwhile is safe: pages.sh pushes with a lease and writes again if it lost)
+concurrency:
+  group: pages-main
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+        env:
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: 1
+      - name: Check, build and publish main
+        run: node tools/deploy.mjs
+        env:
+          PAGES_REMOTE: https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}

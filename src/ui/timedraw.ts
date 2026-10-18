@@ -1,13 +1,13 @@
 /**
  * The time view's layers, drawn (ui/TimeView.svelte, in this order: zones, scalogram, waterfall, waveform, structure,
- * notes, grid, meter, sections, heard, splices, cells, patterns, levels): each onto the canvas `g` over the frame `f`, its
+ * notes, grid, meter, sections, heard, splices, cells, patterns): each onto the canvas `g` over the frame `f`, its
  * colours read from the theme's CSS by `css`. What each shows is worked out in layout/timelayers.ts, its pixels in
  * layout/timepictures.ts, where things sit in layout/timeview.ts.
  */
 import type { Boundary } from '@yggi/cells/engine/time/boundaries';
 import { reach } from '@yggi/cells/engine/time/wavelet';
 import type { CellSpan, Laned, Named, Patterns } from '../layout/timelayers';
-import type { Explained, HeardLevel, WrittenLevel, WrittenMoment } from '../layout/explained';
+import type { Explained, WrittenMoment } from '../layout/explained';
 import { familyHue, seconds } from '../layout/timelayers';
 import { waveColumns } from '../layout/timepictures';
 import { CARD, freqTicks, timeTicks, xOf, yOf, zones, type Frame } from '../layout/timeview';
@@ -259,79 +259,6 @@ export function drawPatterns(g: G, f: Frame, css: Css, pt: Patterns): void {
     const where = fd.where.slice(0, 4).map((x) => `${x.voice} ${x.kind === 'pitch' ? 'pitch' : `rhythm round ${x.level}`}`);
     g.fillText(`folded alike · ${fd.name}${fd.even ? ' (maximally even)' : ''}: ${where.join(', ')}`, 70, f.height - 40 - 14 * k);
   });
-}
-
-/** The levels strip's width (px), at the plot's right edge, over the scalogram. */
-const LEVELS_W = 170;
-
-/**
- * The levels, heard against written (layout/explained.ts), a strip at the right over the scalogram, on its scale: the
- * written at the left (a tick and what writes it), the heard at the right (a bar as long as it is strong), a matched
- * pair joined straight across; alone, a gap — a level heard that nothing writes in the heard colour with its period, a
- * level written that is not heard hollow and muted.
- */
-export function drawLevels(g: G, f: Frame, css: Css, scal: Rows, x: Explained<HeardLevel, WrittenLevel>): void {
-  const { top, bottom } = scalBand(f, scal.periods);
-  // (the strip's width: its own, or half a narrow view's — a phone's: names and bars in what room it has)
-  const width = Math.min(LEVELS_W, Math.round(f.width / 2));
-  if (bottom - top < 40 || width < 120) return;
-  const x0 = f.width - width;
-  const xw = x0 + Math.round(width * 0.54);
-  const xh = xw + 14;
-  const long = f.width - 6 - xh;
-  g.fillStyle = css('--time-face');
-  g.globalAlpha = 0.8;
-  g.fillRect(x0, top, width, bottom - top);
-  g.globalAlpha = 1;
-  g.font = '10px system-ui, sans-serif';
-  g.fillStyle = css('--text-muted');
-  g.textAlign = 'right';
-  g.fillText('written', xw, top + 11);
-  g.textAlign = 'left';
-  g.fillText('heard', xh, top + 11);
-  const at = (period: number) => yOf(f, 1 / period);
-  const inBand = (y: number) => y > top + 16 && y < bottom - 2;
-  const said: number[] = [];
-  const name = (text: string, y: number, colour: string) => {
-    if (said.some((u) => Math.abs(u - y) < 10)) return;
-    said.push(y);
-    g.fillStyle = colour;
-    g.textAlign = 'right';
-    g.fillText(text, xw - 6, y + 3, xw - x0 - 10);
-  };
-  const written = [...x.both.map((b) => ({ w: b.written, heard: true })), ...x.writtenOnly.map((w) => ({ w, heard: false }))];
-  for (const { w, heard } of written.filter((e, i) => written.findIndex((o) => o.w === e.w) === i)) {
-    const y = at(w.period);
-    if (!inBand(y)) continue;
-    const colour = heard ? css('--time-meter') : css('--text-muted');
-    g.strokeStyle = colour;
-    g.beginPath();
-    if (heard) {
-      g.moveTo(xw - 4, y);
-      g.lineTo(xw, y);
-    } else g.arc(xw + 4, y, 2.5, 0, 2 * Math.PI);
-    g.stroke();
-    name(`${w.label}${w.by.length > 1 ? ` +${w.by.length - 1}` : ''}`, y, colour);
-  }
-  for (const b of x.both) {
-    const [yw, yh] = [at(b.written.period), at(b.heard.period)];
-    if (!inBand(yw) || !inBand(yh)) continue;
-    g.strokeStyle = css('--time-meter');
-    g.beginPath();
-    g.moveTo(xw, yw);
-    g.lineTo(xh, yh);
-    g.stroke();
-    g.fillStyle = css('--time-section');
-    g.fillRect(xh, yh - 1.5, Math.max(2, b.heard.strength * long), 3);
-  }
-  for (const h of x.heardOnly) {
-    const y = at(h.period);
-    if (!inBand(y)) continue;
-    g.fillStyle = css('--time-heard');
-    g.fillRect(xh, y - 1.5, Math.max(2, h.strength * long), 3);
-    name(seconds(h.period), y, css('--time-heard'));
-  }
-  g.textAlign = 'left';
 }
 
 /** A row of the neutral zone (px): a voice each. */

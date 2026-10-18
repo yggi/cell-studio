@@ -1,17 +1,3 @@
-<script lang="ts" module>
-  /**
-   * The strip's width (px), dragged at its left edge: from collapsed (the scale, its strata's rails and their markers,
-   * no lanes) to wide; from `NAMED` on, the names. Unset, `STRIP`; opened by its button, the last open width or
-   * `STRIP_OPEN`.
-   */
-  export const STRIP = 64;
-  export const STRIP_OPEN = 180;
-  export const STRIP_MIN = 28;
-  export const STRIP_MAX = 360;
-  const NAMED = 120;
-  const BARE = 48;
-</script>
-
 <script lang="ts">
   /**
    * The tower layout's strip (docs/notes/tower-sky.md): a minimap of the tower graph, on the graph's own scale (panned
@@ -24,11 +10,13 @@
    */
   import type { Viewport } from '@xyflow/svelte';
   import { onDestroy, onMount, untrack } from 'svelte';
-  import { getGraphContext, nodeState } from './context';
+  import { getGraphContext, hasGraphContext, nodeState, type TowerSource } from './context';
   import { bandFreq, bandHue, bandOctave } from '../layout/spectrum';
   import type { TowerIn, TowerLayer } from '../layout/towerlayout';
   import { towerTicks, withConstant, type StratumName, type TowerScale } from '../layout/towerscale';
   import type { Minimap } from '../layout/minimap';
+  import type { Explained, HeardLevel, WrittenLevel } from '../layout/explained';
+  import { seconds } from '../layout/timelayers';
   import { onFrames } from '../audio/ticker';
   import { hslRgb, noteHsl, sectionTintRgb } from './theme';
   import { heard, noteHz, outRgb } from './heard';
@@ -37,6 +25,11 @@
   import { lapOf } from '@yggi/cells/engine/readers';
   import { fillColour } from './edgeStyle';
   import { C0 } from '../layout/spectrum';
+  import { STRIP_MAX, STRIP_MIN } from './state/strip.svelte';
+
+  /** Widths (px): from `NAMED` on, the names are written; under `BARE`, only the scale and its strata. */
+  const NAMED = 120;
+  const BARE = 48;
 
   let {
     ins,
@@ -44,13 +37,17 @@
     map = null,
     layers = new Map(),
     rows = { gate: 0, voice: 0, mixer: 0 },
-    viewport,
+    viewport = { x: 0, y: 0, zoom: 1 },
     scale,
     width,
     onresize,
     ontoggle,
     onfocus,
-    tintOf = (source: string) => outRgb(ctx, source),
+    tintOf = (name: string) => (graph ? outRgb(graph, name) : [255, 255, 255]),
+    source,
+    heardLevels = null,
+    focus = null,
+    right = 0,
   }: {
     ins: readonly TowerIn[];
     /** The lanes, and the lanes each node feeds (layout/minimap.ts). */
@@ -61,7 +58,7 @@
     /** The structure: each stepped cell at its rate (decades), the tables nothing steps at -Infinity. */
     structure?: readonly { name: string; at: number }[];
     /** The graph's pan and zoom: where its own positions (the rows, the sockets) are on the screen. */
-    viewport: Viewport;
+    viewport?: Viewport;
     /** The tower's scale (towerscale.ts): the screen's y for a height on it, its strata. */
     scale: TowerScale;
     /** Its width (px), STRIP_MIN … STRIP_MAX; dragged, `onresize` with the new one. */
@@ -71,11 +68,21 @@
     ontoggle: () => void;
     /** An out's own colour (its source's name): its section's, steady — its share of the sum, its lane, its name. */
     tintOf?: (source: string) => readonly number[];
+    /** What the rows read, outside the graph (the time view's moment); inside it, the graph's context. */
+    source?: TowerSource;
+    /** The levels heard against those written (layout/explained.ts): the heard drawn at their periods, gaps marked. */
+    heardLevels?: Explained<HeardLevel, WrittenLevel> | null;
+    /** The cell selected (its name): its row outlined and named. */
+    focus?: string | null;
+    /** How far from its pane's right edge it stands (px): 0, or the width a cell's card covers. */
+    right?: number;
     /** A tap on what the strip shows for a node (its id): the view moves to it. */
     onfocus?: (id: string) => void;
   } = $props();
 
-  const ctx = getGraphContext();
+  // (the graph's context, inside the graph: its lanes, its sound; the rows read `source`, else the graph's)
+  const graph = hasGraphContext() ? getGraphContext() : null;
+  const ctx = $derived<TowerSource>(source ?? graph!);
   const BANDS = 120;
   // (how much of its band's note the spectrum's section colours take: a slight chromatic tint)
   const TINT = 0.15;
@@ -111,7 +118,7 @@
   // what a source sounds on each side now: levels per band (0 … 1), live or at rest (faint); nothing on a half it
   // doesn't reach
   function levels(o: TowerIn): { l: Float32Array; r: Float32Array } {
-    const { left, right, rest } = heard(ctx, o.name, BANDS);
+    const { left, right, rest } = heard(graph!, o.name, BANDS);
     const k = rest ? 0.7 : 1;
     return { l: o.left ? left.map((v) => v * k) : new Float32Array(BANDS), r: o.right ? right.map((v) => v * k) : new Float32Array(BANDS) };
   }
@@ -179,6 +186,7 @@
     const g = canvas?.getContext('2d');
     if (!g || !h) return;
     hits = [];
+    labelled = [];
     const W = sw;
     g.setTransform(dpr, 0, 0, dpr, 0, 0);
     g.clearRect(0, 0, W, h);
@@ -231,6 +239,7 @@
       g.textAlign = 'right';
       // (clear of the rail's name, which stands along it at W - 10)
       halo(t.label, W - 20, t.y + 3);
+      labelled.push(t.y);
     }
     const octaves: number[] = [];
     for (const t of ticks.octaves) {
@@ -256,6 +265,7 @@
       if (open) {
         g.fillStyle = css('--text-muted');
         g.fillText(t.label, W - 10, t.y - 3);
+        labelled.push(t.y - 6);
       }
     }
     // under the zone, the rainbow on down through the rates: a rate's octaves in a pitch's colours, muted
@@ -282,16 +292,19 @@
       g.stroke();
     }
     // (collapsed: the scale and its strata only)
-    if (bare || !map || !map.lanes.length) return names(g, W, tower);
+    if (bare) return names(g, W, tower);
+    // (no lanes — outside the graph, or nothing goes out: the rows in one wide column, solo)
+    const solo = !map || !map.lanes.length;
+    const m: Minimap = solo ? { lanes: [], span: new Map() } : map;
     // the lanes: a narrow column in the strip's middle, a lane an out; the combined spectrum out from its sides, the left
     // channel left, the right right; the names on the left when opened (under 20 Hz the sides are free)
     // (the lanes funnel: wide under the audible, where the structure and the neutral zone need the room, narrowing into
     // the column just under 20 Hz, eased; `lwAt(y)` a lane's width at a height, `x0At(y)` the lanes' left edge)
     const sy = (y: number) => y * viewport.zoom + viewport.y;
     const A = W - 8;
-    const nl = map.lanes.length;
-    const lw = Math.min(open ? 8 : 5, (A * 0.6) / nl);
-    const wide = Math.max(lw, Math.min(open ? 30 : 12, (A * (open ? 0.5 : 0.8)) / nl));
+    const nl = Math.max(1, m.lanes.length);
+    const lw = solo ? A * (open ? 0.5 : 0.8) : Math.min(open ? 8 : 5, (A * 0.6) / nl);
+    const wide = solo ? lw : Math.max(lw, Math.min(open ? 30 : 12, (A * (open ? 0.5 : 0.8)) / nl));
     const yA = yOf(Math.log10(20));
     const rowTop = Math.min(sy(rows.gate), sy(rows.voice), sy(rows.mixer));
     const yB = yA + Math.max(16, Math.min(80, 0.3 * (rowTop - yA)));
@@ -304,7 +317,7 @@
     const x1 = x0 + lw * nl;
     const mid = (k: number, y = yA) => x0At(y) + (k + 0.5) * lwAt(y);
     const across = (id: string, y: number): readonly [number, number] => {
-      const [a, b] = map.span.get(id) ?? [0, nl - 1];
+      const [a, b] = m.span.get(id) ?? [0, nl - 1];
       return [x0At(y) + a * lwAt(y) + 1, x0At(y) + (b + 1) * lwAt(y) - 1];
     };
     // (a line down a lane, at x(y): straight where the lanes are, sampled through the funnel)
@@ -319,7 +332,7 @@
     };
     g.strokeStyle = css('--line');
     g.globalAlpha = 0.5;
-    for (let k = 0; k <= nl; k++) along((y) => x0At(y) + k * lwAt(y), 0, h);
+    if (!solo) for (let k = 0; k <= nl; k++) along((y) => x0At(y) + k * lwAt(y), 0, h);
     g.globalAlpha = 1;
     const nameOf = (id: string) => id.slice('cell:'.length);
     // the structure: each stepped cell at its rate, across the lanes it feeds, the values it takes (each as wide as
@@ -373,13 +386,20 @@
         x += e.share * (xb - xa);
       }
       g.globalAlpha = 1;
+      // (the cell selected: its row outlined, its name bold)
+      if (name === focus) {
+        g.strokeStyle = css('--text');
+        g.lineWidth = 1.5;
+        g.strokeRect(xa - 2.5, y - 5.5, xb - xa + 5, 11);
+        g.lineWidth = 1;
+      }
       if (open && inColumn) {
         // (names of one height in other lanes, one under the other)
         let ny = y;
         while (named.some((n) => Math.abs(n - ny) < 8)) ny += 8;
         named.push(ny);
-        g.fillStyle = css('--text-muted');
-        g.font = '8px system-ui, sans-serif';
+        g.fillStyle = css(name === focus ? '--text' : '--text-muted');
+        g.font = `${name === focus ? '700 ' : ''}8px system-ui, sans-serif`;
         g.textAlign = 'left';
         g.fillText(name, 4, ny + 3, x0At(ny) - 6);
       }
@@ -389,11 +409,11 @@
     const players = new Map<number, { name: string; y: number }[]>();
     const place = (id: string, y: number) => {
       // (a cell with no lanes of its own goes across them all, as it is drawn: `across`)
-      const [a, b] = map.span.get(id) ?? [0, nl - 1];
+      const [a, b] = m.span.get(id) ?? [0, nl - 1];
       let n = 0;
       while ([...Array(Math.max(0, b - a + 1)).keys()].some((k) => used.has(`${Math.round(y / ROW) + n}:${a + k}`))) n++;
       for (let k = a; k <= b; k++) used.set(`${Math.round(y / ROW) + n}:${k}`, 1);
-      if (a === b && map.span.has(id)) player.set(a, Math.min(player.get(a) ?? Infinity, y + n * ROW));
+      if (a === b && m.span.has(id)) player.set(a, Math.min(player.get(a) ?? Infinity, y + n * ROW));
       return y + n * ROW;
     };
     const tables: string[] = [];
@@ -410,7 +430,7 @@
       if (y < -10 || y > h + 10) continue;
       const at = place(id, y);
       // (a lane's player — a cell in that lane alone — is drawn on its bridge and named up it, not in the left column)
-      const [a, b] = map.span.get(id) ?? [-1, -2];
+      const [a, b] = m.span.get(id) ?? [-1, -2];
       if (a === b) (players.get(a) ?? players.set(a, []).get(a)!).push({ name: c.name, y: at });
       chips(c.name, at, across(id, at), a !== b);
     }
@@ -419,9 +439,9 @@
     // their colours, in the lanes' order from the column out on both sides (mirrored: the first lane's innermost); the left
     // channel out from the column's left side, the right from its right
     const outs = new Map(ins.map((o) => [o.id, o]));
-    const each = map.lanes.flatMap((lane, k) => {
+    const each = m.lanes.flatMap((lane, k) => {
       const o = outs.get(lane.edge);
-      return o ? [{ k, lane, o, ...levels(o), c: tintOf(o.name), off: nodeState(ctx, lane.source) === 'off' }] : [];
+      return o ? [{ k, lane, o, ...levels(o), c: tintOf(o.name), off: nodeState(graph!, lane.source) === 'off' }] : [];
     });
     const hb = Math.max(1.5, half * 1.4);
     for (const side of ['left', 'right'] as const) {
@@ -456,7 +476,7 @@
       const { k, o, l, r, c, off } = e;
       const s = spireOf(
         l.map((v, b) => Math.max(v, r[b] ?? 0)),
-        noteHz(ctx, o.name),
+        noteHz(graph!, o.name),
         BANDS,
       );
       const top = s ? yOf(band(s.root)) : sy(o.top);
@@ -480,7 +500,7 @@
         );
       // (its name at its base fundamental, steady (the note now jumps), left of the column, over the spectrum on a halo;
       // playing, only while it sounds)
-      if (open && (ctx.state === 'stopped' || nodeState(ctx, e.lane.source) === 'live')) {
+      if (open && (ctx.state === 'stopped' || nodeState(graph!, e.lane.source) === 'live')) {
         const seat = sy(o.top);
         g.font = '700 9px system-ui, sans-serif';
         g.textAlign = 'right';
@@ -522,7 +542,7 @@
       ['mixers', rows.mixer, 'mixer'],
     ] as const;
     for (const [label, y, layer] of zoneRows) {
-      const members = [...layers].filter(([id, l]) => l === layer && map.span.has(id));
+      const members = [...layers].filter(([id, l]) => l === layer && m.span.has(id));
       if (!members.length) continue;
       const yy = sy(y);
       g.strokeStyle = css('--line');
@@ -543,9 +563,9 @@
       // by side, one above the other: a staircase)
       const above = new Map<number, number>();
       let last: { lane: number; top: number } | null = null;
-      members.sort(([x], [y]) => map.span.get(x)![0] - map.span.get(y)![0]);
+      members.sort(([x], [y]) => m.span.get(x)![0] - m.span.get(y)![0]);
       for (const [id] of members) {
-        const [a, b] = map.span.get(id)!;
+        const [a, b] = m.span.get(id)!;
         const [xa, xb] = across(id, yy);
         const n = at.get(a) ?? 0;
         at.set(a, n + 1);
@@ -591,6 +611,35 @@
         }
       }
     }
+    // the levels heard (layout/explained.ts), at their periods at the right, left of the rails: a bar as long as it is
+    // strong, white where a level written meets it (its row names it), orange alone (unexplained) with its period; a
+    // level written that is not heard, a hollow ring
+    if (heardLevels) {
+      const room = Math.min(40, W * 0.25);
+      const at = (period: number) => yOf(-Math.log10(period));
+      g.font = '9px system-ui, sans-serif';
+      g.textAlign = 'right';
+      for (const [h0, matched] of [...heardLevels.both.map((b) => [b.heard, true] as const), ...heardLevels.heardOnly.map((x) => [x, false] as const)]) {
+        const y = at(h0.period);
+        if (y < 0 || y > h) continue;
+        const len = Math.max(2, h0.strength * room);
+        g.fillStyle = css(matched ? '--time-section' : '--time-heard');
+        g.fillRect(W - 8 - len, y - 1.5, len, 3);
+        if (!matched && open) {
+          g.fillText(seconds(h0.period), W - 12 - len, y + 3);
+          labelled.push(y);
+        }
+      }
+      g.strokeStyle = css('--time-section');
+      for (const w0 of heardLevels.writtenOnly) {
+        const y = at(w0.period);
+        if (y < 0 || y > h) continue;
+        g.beginPath();
+        g.arc(W - 12, y, 2.5, 0, 2 * Math.PI);
+        g.stroke();
+      }
+      g.textAlign = 'left';
+    }
     names(g, W, tower);
   }
 
@@ -608,6 +657,8 @@
   }
 
   // each rail named along it, where it shows (folded too, smaller), on a halo
+  // (where the labels at the strip's right edge stand, the y of each: a stratum's name keeps clear of them)
+  let labelled: number[] = [];
   function names(g: CanvasRenderingContext2D, W: number, t: TowerScale) {
     for (const r of rails(t)) {
       const a = Math.max(0, r.y0);
@@ -615,7 +666,13 @@
       if (b - a < 40) continue;
       g.font = `700 ${open ? 11 : bare ? 8 : 9}px system-ui, sans-serif`;
       g.textAlign = 'center';
-      g.setTransform(dpr, 0, 0, dpr, (W - 10) * dpr, ((a + b) / 2) * dpr);
+      // (its middle, clear of the labels by 4 px; else where along its band it stands furthest from them, a name's
+      // length clear of the band's ends)
+      const half = g.measureText(r.name).width / 2 + 2;
+      const clear = (c: number) => Math.min(Infinity, ...labelled.map((y) => Math.abs(y - c) - half));
+      let at = (a + b) / 2;
+      if (clear(at) < 4) for (let c = a + half; c <= b - half; c += 2) if (clear(c) > clear(at) + 1) at = c;
+      g.setTransform(dpr, 0, 0, dpr, (W - 10) * dpr, at * dpr);
       g.rotate(-Math.PI / 2);
       g.lineWidth = 3;
       g.strokeStyle = css('--surface');
@@ -628,7 +685,27 @@
 
   // stopped: drawn again when what it shows moves (the view, the piece, a source); playing: every frame (below)
   $effect(() => {
-    void [viewport.x, viewport.y, viewport.zoom, scale, ins, structure, map, layers, rows, sw, h, ctx.program, ctx.shifts, ctx.state, ctx.muted, canvas];
+    void [
+      viewport.x,
+      viewport.y,
+      viewport.zoom,
+      scale,
+      heardLevels,
+      focus,
+      source && ctx.heads,
+      ins,
+      structure,
+      map,
+      layers,
+      rows,
+      sw,
+      h,
+      ctx.program,
+      ctx.shifts,
+      ctx.state,
+      graph?.muted,
+      canvas,
+    ];
     // (only what is listed: what draw reads, the playheads among it, would draw it again each frame; and only stopped —
     // playing, the frame loop draws it, and the layout's ticks moving what is listed would draw it once more each)
     if (untrack(() => ctx.state) === 'stopped') untrack(draw);
@@ -645,7 +722,7 @@
 </script>
 
 <svelte:window onpointerdowncapture={onDown} onpointerupcapture={onUp} />
-<div class="strip" style:width="{sw}px" bind:clientHeight={h} bind:this={stripEl}>
+<div class="strip" style:width="{sw}px" style:right="{right}px" bind:clientHeight={h} bind:this={stripEl}>
   {#if h}
     <canvas bind:this={canvas} width={sw * dpr} height={h * dpr} style:width="{sw}px" style:height="{h}px"></canvas>
   {/if}
