@@ -142,7 +142,7 @@ export class GraphLayout {
     // (the tower layout: no card's node, the card everywhere: a socket each thing it hears, at that thing's height, the
     // strip at the right showing what goes in; the layers, tables, structure, voices and the audible)
     const tower = this.mode === 'tower';
-    const next = tower ? { ...given, model: withSockets(given.model) } : given;
+    const next = tower ? { ...given, model: withSockets(given.program, given.model) } : given;
     const m = next.model;
     this.outs = tower ? towerOuts(given.program, given.model) : [];
     if (tower) {

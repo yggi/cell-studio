@@ -12,6 +12,7 @@ import { cellId } from '@yggi/cells/engine/ids';
 import { towerOf } from './tower';
 import { socketOf, VOICE_SIZE } from './voice';
 import { HEARING, TOWER_PX } from './towerscale';
+import { soundRole, withCard } from './sound';
 
 /**
  * The graph's y (down positive) for a height on the tower, in decades (log10 Hz). `zone`: the neutral zone's height
@@ -44,8 +45,12 @@ export interface TowerOut {
   readonly right: boolean;
 }
 
-/** The edges into the sound card, as wires into the strip: a card of two channels sends its first left, its second right. */
-export function towerOuts(program: CompileResult, model: GraphModel): TowerOut[] {
+/**
+ * The edges into the sound card (written, or the built-in card's: sound.ts `withCard`), as wires into the strip: a card
+ * of two channels sends its first left, its second right.
+ */
+export function towerOuts(program: CompileResult, given: GraphModel): TowerOut[] {
+  const model = withCard(program, given);
   const card = cards(model);
   return model.edges.flatMap((e) => {
     // (an `about=` link into it is no sound)
@@ -117,11 +122,13 @@ export const socketId = (edge: string) => `socket:${edge}`;
 export const isSocket = (id: string) => id.startsWith('socket:');
 
 /**
- * The sound card everywhere (docs/notes/tower-strip.md): no card's node; each edge into it ends at a socket of its own,
+ * The sound card everywhere (docs/notes/tower-strip.md): no card's node; each edge into it (written, or the built-in
+ * card's: sound.ts `withCard`) ends at a socket of its own,
  * a small wheel beside its source (its id `socketId(edge)`, the card's cell its cell), the edge keeping its id. Edges at
  * the card that bring no sound (an `about=`) go.
  */
-export function withSockets(model: GraphModel): GraphModel {
+export function withSockets(program: CompileResult, given: GraphModel): GraphModel {
+  const model = withCard(program, given);
   const card = cards(model);
   if (!card.size) return model;
   const sockets: GraphNode[] = [];
@@ -221,10 +228,6 @@ export function towerLayers(
   const sockets = socketHeights(program, model, drawn);
   const layers = new Map<string, TowerLayer>();
   const decades = new Map<string, number>();
-  const hearing = Math.log10(20);
-  // (what sounds: a voice, a mix, a kit, a tape, a resonator)
-  const sounds = (c: NonNullable<GraphNode['cell']>) =>
-    c.voice || (!!c.mix && !c.sink) || c.kit || typeof c.params.write === 'string' || typeof c.params.body === 'string' || typeof c.params.play === 'string';
   for (const n of drawn.nodes) {
     if (n.kind === 'junction' || n.petalOf) continue;
     if (isSocket(n.id)) {
@@ -234,17 +237,18 @@ export function towerLayers(
     }
     const c = n.cell;
     if (c.note) continue;
-    // (a gate, and what plays a kit, a groove: a row just under the voices, not down among the structure)
-    if (c.gate || (c.step && c.over && program.cells.get(c.over)?.kit)) layers.set(n.id, 'gate');
-    // (a mix: over the voices it mixes, between them)
-    else if (mixers && c.mix && !c.sink && !c.kit && !c.step && n.kind !== 'voice') layers.set(n.id, 'mixer');
-    else if (n.kind === 'voice' || (sounds(c) && !c.step)) layers.set(n.id, 'voice');
-    else {
-      const d = step.get(n.id);
-      // (a braid stepped at an audio rate, a wave: sound, with the voices)
-      if (d !== undefined && Number.isFinite(d)) (layers.set(n.id, d < hearing ? 'stepped' : 'voice'), decades.set(n.id, d));
-      else if (d === -Infinity) layers.set(n.id, 'constant');
-    }
+    // (what makes, gates or mixes sound, in the voices' strata (sound.ts): a gate a row under the makers, not down among
+    // the structure; a mixer over the makers it mixes, between them; the rest of the structure at its step)
+    const d = step.get(n.id);
+    const role = soundRole(program, n, d, { mixers });
+    if (role === 'gate') layers.set(n.id, 'gate');
+    else if (role === 'mixer') layers.set(n.id, 'mixer');
+    else if (role === 'maker') {
+      layers.set(n.id, 'voice');
+      // (a braid stepped at an audio rate, a wave: with the voices, its step kept)
+      if (c.step && n.kind !== 'voice' && d !== undefined && Number.isFinite(d)) decades.set(n.id, d);
+    } else if (d !== undefined && Number.isFinite(d)) (layers.set(n.id, 'stepped'), decades.set(n.id, d));
+    else if (d === -Infinity) layers.set(n.id, 'constant');
   }
   // (a selector, a table of sections, a stratum of its own under what it feeds: what feeds it — the clock it steps on, a
   // chooser reading it with over= — under it, so nothing stands in its pill)

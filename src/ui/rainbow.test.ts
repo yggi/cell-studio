@@ -11,7 +11,7 @@ import { nodeSections } from './sections';
 function laidOut() {
   const program = compileSource(PRESETS.korobeiniki.source);
   const model = buildGraph(program);
-  const drawn = withSockets(model);
+  const drawn = withSockets(program, model);
   const sections = new Map([...nodeSections(program, drawn)].map(([id, s]) => [id, s.k]));
   const layered = towerLayers(program, model, drawn, { sections });
   const layout = new ForceLayout(() => {}, {

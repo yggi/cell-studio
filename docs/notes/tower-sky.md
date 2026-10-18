@@ -244,6 +244,16 @@ The sockets stopped and at 15 s, playing (`SCALE=2 node tools/gallery.mjs sky 15
 
 Seen: the drums' wheels a gear stopped (their onsets) and spikes playing (Hypercell's, IDM's, Pop's); Pachelbel's violins rings stopped (held lines), uneven rings playing; Pop's bass four bumps; *A tone* a ring with a notch a second; the outs silent at that moment (Hypercell's intro, Cellscape's later scenes) an empty disc with its hand turning.
 
+## One rule for sound (2026-10-18)
+
+The owner: *An oscillator* (`&a loop=A4`) is a voice and gets the tower's whole treatment (a socket, a spire, its marker on the strip, its lane, its share of the spectrum), by a rule, not a special case: `&out` is the explicit form; implicitly, everything with an uncapped audio output goes into the sound card; everything that makes, gates or mixes audio stands in the voices' strata.
+
+- **Why it had none.** The language already has the implicit rule: with no card written, the built-in card hears every sound nothing else reads (decision 028, `compiler/builtin.ts` in @yggi/cells: a voice, a mix, a gate, a pattern through a kit, a tape's head, a braid at an audio rate). But it is an implicit cell, and the written graph never draws implicit cells, so the tower, which found the card as a node in the graph, saw no edge into it. Of the library, only *An oscillator* writes no card.
+- **The rule** (`layout/sound.ts`): `withCard` puts the sound card in the model whether written or not: a written card as written; the built-in card's node, and an edge from each sound it hears, with the ids the engine's live state gives them (`cell:a->cell:card:builtin`), so the edge is live as a written one is. `withSockets` and `towerOuts` both go through it, so the socket, its spire and light, the strip's marker, lane, bridge and column, the loudness wheel all follow from the one edge. A sound drawn as no node of its own (a petal) is left out.
+- **The strata** (`soundRole`, the same module): what makes sound (a voice, a kit, a tape, a resonator, a braid at an audio rate), what gates it (a gate, a groove read through a kit), what mixes it; `towerLayers` takes the voices', the gates' and the mixers' rows from it, where it had its own tests inline (the same answers: the tower tests and the layout baseline hold).
+
+![An oscillator in the tower layout, playing: its socket at A4, its spire, its light, its marker and lane on the strip](tower-sky-oscillator.jpg)
+
 ## 5. One tiered strip for the graph and the time view (proposed)
 
 Three things draw the tower's scale today, each its own way:

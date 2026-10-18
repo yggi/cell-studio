@@ -92,7 +92,7 @@ function measure(source: string, v: Variant, seed: number): Row {
   }
   const { program, whole } = compiled.get(source)!;
   t0 = lap('compile', t0);
-  const model: GraphModel = v.card ? whole : withSockets(whole);
+  const model: GraphModel = v.card ? whole : withSockets(program, whole);
   const layered = v.tower ? towerLayers(program, whole, model, { mixers: v.mixers !== false, lift: v.lift !== false }) : null;
   const held = layered && v.hold !== 'none' ? layered.held : undefined;
   const heights = layered?.targets;
