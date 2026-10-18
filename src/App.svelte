@@ -54,7 +54,12 @@
       <p class="tagline">Music, cell by cell<span>&nbsp;— choose a piece to begin</span></p>
       <div class="quick-idle">{@render quick()}</div>
     {/if}
-    {#snippet quick()}<QuickPick entries={library.entries} current={library.currentId} onpick={(id) => studio.pick(id)} />{/snippet}
+    {#snippet quick()}<QuickPick
+        entries={library.entries}
+        current={library.currentId}
+        onpick={(id) => studio.pick(id)}
+        onlibrary={library.anyOpen ? () => (view.tab = 'select') : undefined}
+      />{/snippet}
   </header>
   <div class="tabs" role="tablist" aria-label="View">
     <button role="tab" aria-selected={view.tab === 'select'} class:on={view.tab === 'select'} onclick={() => (view.tab = 'select')}>Select</button>

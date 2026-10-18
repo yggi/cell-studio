@@ -142,6 +142,8 @@
   // a piece at the full view is its title, a pill: as the layout sized it, but no larger than 18 px …
   const title = $derived(px(PILL * lib.tagScale));
   const pillFont = $derived(Math.max(8, Math.min(18, title)));
+  // (with less room than that, a title would lie over its neighbours': a piece is a dot until zoomed in, or under the pointer)
+  const legible = (id: string) => title >= 8 || peek === id;
   // … and zoomed in, its wheel grows behind it: from nothing where its title would be 12 px to whole at 20
   // (and whole for the piece under the pointer, or held)
   const grown = (id: string) => (peek === id ? 1 : Math.max(0, Math.min(1, (title - 12) / 8)));
@@ -379,7 +381,11 @@
                 ><PieceNode entry={e} {colours} size={d} petals={d * g >= 96} podsAt={d / 2 + (foot - d / 2) / g} current={e.id === current} miniature={lib.done} /></span
               >
             {/if}
-            <span class="title" style:top="{50 + 24 * g}%" style:font-size="{pillFont}px">{inSide(e) ? sideTitle(e) : shortTitle(e.title)}</span>
+            {#if legible(e.id)}
+              <span class="title" style:top="{50 + 24 * g}%" style:font-size="{pillFont}px">{inSide(e) ? sideTitle(e) : shortTitle(e.title)}</span>
+            {:else}
+              <span class="dot" style:width="{Math.max(4, Math.min(10, px(PILL * lib.tagScale) * 0.8))}px"></span>
+            {/if}
           </button>
         {/if}
       {/each}
@@ -502,6 +508,18 @@
     font-weight: 700;
     line-height: 1.3;
     white-space: nowrap;
+  }
+  .piece .dot {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    aspect-ratio: 1;
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+    background: var(--text-muted);
+  }
+  .piece.current .dot {
+    background: var(--accent);
   }
   .piece.current .title {
     border-color: var(--accent);
