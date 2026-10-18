@@ -47,7 +47,7 @@ function replay(story: readonly string[], v: Variant, seed: number): Row {
   const set = (source: string) => {
     const program = compileSource(source);
     const whole = buildGraph(program);
-    const model: GraphModel = v.tower ? withSockets(whole) : whole;
+    const model: GraphModel = v.tower ? withSockets(program, whole) : whole;
     if (v.tower) {
       const t = towerLayers(program, whole, model);
       l.setOptions({ heights: t.targets, held: v.hold === 'none' ? undefined : t.held, strata: t.strata, between: t.between, lineUp: t.lineUp, aside: t.aside });

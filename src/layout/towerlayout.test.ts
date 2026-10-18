@@ -60,7 +60,7 @@ describe('the tower layout', () => {
 
   const towered = () => {
     const { program, model } = waltz();
-    const drawn = withSockets(model);
+    const drawn = withSockets(program, model);
     const { targets, held } = towerLayers(program, model, drawn);
     const heights = new Map([...targets].filter(([id]) => held.has(id)));
     const layout = new ForceLayout(() => {}, { ...TOWER_LAYOUT, heights, held, live: false });
@@ -115,7 +115,7 @@ describe('the tower layout', () => {
 
   it("puts the card everywhere: a socket each thing it hears, at that thing's sound on the tower", () => {
     const { program, model } = waltz();
-    const drawn = withSockets(model);
+    const drawn = withSockets(program, model);
     expect(drawn.nodes.some((n) => n.id === 'cell:mix')).toBe(false);
     const into = model.edges.filter((e) => e.to === 'cell:mix' && e.port !== 'about');
     // (each edge into the card keeps its id, ending at a socket of its own)
@@ -133,14 +133,14 @@ describe('the tower layout', () => {
 &beat step=4n &bd &hh &bd &hh
 &out map=sample [&beat]`);
     const model = buildGraph(program);
-    const drawn = withSockets(model);
+    const drawn = withSockets(program, model);
     const [h] = socketHeights(program, model, drawn).values();
     expect(10 ** towerAt(h)).toBeCloseTo(55, 1);
   });
 
   it('lays the layers: the structure at its rates, the voices in one row in the neutral zone, every socket at its fundamental', () => {
     const { program, model } = waltz();
-    const drawn = withSockets(model);
+    const drawn = withSockets(program, model);
     const { zone, targets, layers } = towerLayers(program, model, drawn);
     const at = (id: string) => towerAt(targets.get(id)!);
     expect(layers.get('cell:bar')).toBe('stepped');
@@ -159,7 +159,7 @@ describe('the tower layout', () => {
   it('draws the layers by a gentle spring: the sockets over the voices over the structure, in order on average', () => {
     const program = compileSource(PRESETS.pop.source);
     const model = buildGraph(program);
-    const drawn = withSockets(model);
+    const drawn = withSockets(program, model);
     const { targets, layers } = towerLayers(program, model, drawn);
     const layout = new ForceLayout(() => {}, { ...TOWER_LAYOUT, heights: targets, live: false });
     layout.setGraph({ ...drawn, nodes: drawn.nodes.filter((n) => !n.petalOf) });
@@ -177,7 +177,7 @@ describe('the tower layout', () => {
 
   it('sets each socket straight above its source (socketsAbove)', () => {
     const { program, model } = waltz();
-    const drawn = withSockets(model);
+    const drawn = withSockets(program, model);
     const layout = new ForceLayout(() => {}, { ...TOWER_LAYOUT, heights: towerLayers(program, model, drawn).targets, live: false });
     layout.setGraph({ ...drawn, nodes: drawn.nodes.filter((n) => !n.petalOf) });
     layout.tick(300);
@@ -200,7 +200,7 @@ describe('the tower layout', () => {
 &beat step=8n &bd &hh &bd &hh
 &out map=sample [&beat, &tune * &lead]`);
     const model = buildGraph(program);
-    const drawn = withSockets(model);
+    const drawn = withSockets(program, model);
     const own = socketHeights(program, model, drawn);
     const { zone, targets, layers } = towerLayers(program, model, drawn);
     const voice = Math.max(...[...layers].filter(([, l]) => l === 'voice').map(([id]) => targets.get(id)!));
@@ -220,7 +220,7 @@ describe('the tower layout', () => {
 &tune step=4n 0 2 4 7
 &out map=sample [&tune * &lead * &wave]`);
     const model = buildGraph(program);
-    const drawn = withSockets(model);
+    const drawn = withSockets(program, model);
     const { targets } = towerLayers(program, model, drawn);
     // (the voice row between the bar and the lead's socket, not over the wave's 440 Hz)
     expect(towerAt(targets.get('cell:lead')!)).toBeLessThan(Math.log10(261.63));
@@ -229,7 +229,7 @@ describe('the tower layout', () => {
   it('sits a kit with the voices, held there over the grooves that play it', () => {
     const program = compileSource(PRESETS.pop.source);
     const model = buildGraph(program);
-    const drawn = withSockets(model);
+    const drawn = withSockets(program, model);
     const { targets, layers, held } = towerLayers(program, model, drawn);
     const kit = drawn.nodes.find((n) => n.cell?.kit && n.cell.implicit)!.id;
     expect(layers.get(kit)).toBe('voice');
@@ -246,7 +246,7 @@ describe('the tower layout', () => {
   it('sits what plays a kit (a groove) with it: just under the voices, over the structure, held there', () => {
     const program = compileSource(PRESETS.pop.source);
     const model = buildGraph(program);
-    const drawn = withSockets(model);
+    const drawn = withSockets(program, model);
     const { targets, layers, held } = towerLayers(program, model, drawn);
     const kit = drawn.nodes.find((n) => n.cell?.kit && n.cell.implicit)!.id;
     for (const g of ['cell:beat', 'cell:hats']) {
@@ -262,7 +262,7 @@ describe('the tower layout', () => {
     for (const piece of ['hypercell', 'baustelle', 'pop']) {
       const program = compileSource(PRESETS[piece as PresetKey].source);
       const model = buildGraph(program);
-      const drawn = withSockets(model);
+      const drawn = withSockets(program, model);
       const { targets, held, strata } = towerLayers(program, model, drawn);
       // (the strata in order, top to bottom, none overlapping)
       const layout = new ForceLayout(() => {}, { ...TOWER_LAYOUT, heights: targets, held, strata, live: false });
@@ -288,7 +288,7 @@ describe('the tower layout', () => {
   it('orders the strata: audible over voice over gate over stepped over constant', () => {
     const program = compileSource(PRESETS.hypercell.source);
     const model = buildGraph(program);
-    const drawn = withSockets(model);
+    const drawn = withSockets(program, model);
     const { layers, strata } = towerLayers(program, model, drawn);
     const band = (l: string) => strata.get([...layers].find(([, x]) => x === l)![0])!;
     const order = ['audible', 'voice', 'gate', 'stepped'];
@@ -298,7 +298,7 @@ describe('the tower layout', () => {
   const laid = (piece: string) => {
     const program = compileSource(PRESETS[piece as PresetKey].source);
     const model = buildGraph(program);
-    const drawn = withSockets(model);
+    const drawn = withSockets(program, model);
     const t = towerLayers(program, model, drawn);
     const layout = new ForceLayout(() => {}, {
       ...TOWER_LAYOUT,

@@ -8,7 +8,7 @@ import { withSockets } from './towerlayout';
 describe("the strip's minimap", () => {
   it('puts each out in a lane, in the order asked, and every node in the lanes of the outs it feeds', () => {
     const program = compileSource(PRESETS.waltz.source);
-    const drawn = withSockets(buildGraph(program));
+    const drawn = withSockets(program, buildGraph(program));
     const order = ['cell:tuba', 'cell:flute', 'cell:strings'];
     const { lanes, span } = minimap(drawn, (s) => order.indexOf(s));
     expect(lanes.map((l) => l.source)).toEqual(order);
@@ -26,7 +26,7 @@ describe("the strip's minimap", () => {
 &lead s=saw loop=C5
 &tune step=&bar 0 2 4
 &out map=sample [&beat, &tune * &lead]`);
-    const drawn = withSockets(buildGraph(program));
+    const drawn = withSockets(program, buildGraph(program));
     const { lanes, span } = minimap(drawn, () => 0);
     const kit = lanes.findIndex((l) => l.source.includes('kit'));
     expect(kit).toBeGreaterThanOrEqual(0);
