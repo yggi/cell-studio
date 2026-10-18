@@ -307,6 +307,7 @@ export class Studio {
   /** Show a cell's line in the code. */
   async showInCode(name: string): Promise<void> {
     this.view.tab = 'code';
+    this.view.code = true;
     await tick(); // the code view has to be visible before it can take focus
     // an unnamed cell lives inside the line it's written on: λ<line>_<column>
     const lambda = /^λ(\d+)_/.exec(name);

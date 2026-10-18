@@ -68,7 +68,7 @@
   import { cellId } from '@yggi/cells/engine/ids';
   import type { TimeAnswer, TimeJob } from './time.worker';
 
-  let { active, ongraph }: { active: boolean; ongraph?: () => void } = $props();
+  let { active }: { active: boolean } = $props();
 
   const { piece, playback } = getStudio();
   const settings = new TimeSettings();
@@ -474,7 +474,6 @@
 
 <div class="time">
   <div class="toolbar">
-    {#if ongraph}<button class="toggle" onclick={ongraph} title="Back to the graph">graph</button>{/if}
     {#each LAYERS as l (l.key)}
       <button class="toggle" class:on={settings.layers[l.key]} aria-pressed={settings.layers[l.key]} title={l.title} onclick={() => settings.toggle(l.key)}>{l.label}</button>
     {/each}

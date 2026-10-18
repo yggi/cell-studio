@@ -20,6 +20,8 @@
   setStudio(studio);
   onDestroy(() => studio.dispose());
   const { piece, playback, library, view, dock } = studio;
+  // what the stage shows (on a wide screen the code is beside it: its tab is the graph's)
+  const stage = $derived(view.tab === 'code' && !view.narrow ? 'graph' : view.tab);
   // (a MIDI file's machine is read only: a try at a change, or at a cell's details, says to convert first, a moment)
   let tried = $state(0);
   let trying = $state(false);
@@ -38,7 +40,7 @@
   {/await}
 {/if}
 
-<div class="app" class:selecting={view.tab === 'select'} class:timing={view.tab === 'time'}>
+<div class="app" class:selecting={view.tab === 'select'} class:timing={view.tab === 'time'} class:nocode={!view.code}>
   <header>
     <div class="name">
       <h1 aria-label="Cell studio">
@@ -55,15 +57,23 @@
       <div class="quick-idle">{@render quick()}</div>
     {/if}
     {#snippet quick()}<QuickPick entries={library.entries} current={library.currentId} onpick={(id) => studio.pick(id)} />{/snippet}
+    <!-- the views: one switch at every size (on a wide screen the code is a pane beside the stage, shown or hidden) -->
+    <div class="tabs" role="tablist" aria-label="View">
+      <button role="tab" aria-selected={view.tab === 'select'} class:on={view.tab === 'select'} onclick={() => (view.tab = 'select')}>Library</button>
+      <button role="tab" aria-selected={stage === 'graph'} class:on={stage === 'graph'} disabled={!library.anyOpen} onclick={() => (view.tab = 'graph')}>Graph</button>
+      {#if view.narrow}
+        <button role="tab" aria-selected={view.tab === 'code'} class:on={view.tab === 'code'} disabled={!library.anyOpen} onclick={() => (view.tab = 'code')}>
+          Code{#if piece.errors}<span class="badge" aria-label="{piece.errors} errors">{piece.errors}</span>{/if}
+        </button>
+      {/if}
+      <button role="tab" aria-selected={view.tab === 'time'} class:on={view.tab === 'time'} disabled={!library.anyOpen} onclick={() => (view.tab = 'time')}>Time</button>
+    </div>
+    {#if !view.narrow}
+      <button class="codepane" aria-pressed={view.code} disabled={!library.anyOpen} onclick={() => (view.code = !view.code)} title="The code beside the graph"
+        >Code{#if piece.errors}<span class="badge" aria-label="{piece.errors} errors">{piece.errors}</span>{/if}</button
+      >
+    {/if}
   </header>
-  <div class="tabs" role="tablist" aria-label="View">
-    <button role="tab" aria-selected={view.tab === 'select'} class:on={view.tab === 'select'} onclick={() => (view.tab = 'select')}>Select</button>
-    <button role="tab" aria-selected={view.tab === 'graph'} class:on={view.tab === 'graph'} disabled={!library.anyOpen} onclick={() => (view.tab = 'graph')}>Graph</button>
-    <button role="tab" aria-selected={view.tab === 'code'} class:on={view.tab === 'code'} disabled={!library.anyOpen} onclick={() => (view.tab = 'code')}>
-      Code{#if piece.errors}<span class="badge" aria-label="{piece.errors} errors">{piece.errors}</span>{/if}
-    </button>
-    <button role="tab" aria-selected={view.tab === 'time'} class:on={view.tab === 'time'} disabled={!library.anyOpen} onclick={() => (view.tab = 'time')}>Time</button>
-  </div>
 
   <section class="canvas" class:away={view.tab !== 'graph'} inert={view.narrow && view.tab !== 'graph'} aria-label="Cell graph">
     <Graph
@@ -90,11 +100,15 @@
       refit={studio.foldFrames}
       growing={studio.conversion.phase === 'playing'}
       focus={view.focus}
-      onsheet={(name) => (studio.keys.sheet = name)}
+      onsheet={(name) => {
+        studio.keys.sheet = name;
+        view.sheet(name);
+      }}
+      unsheet={view.unsheet}
+      sheetHidden={!view.narrow && !(view.panelOpen && view.panel === 'cell')}
       played={studio.keys.lit}
       rows={studio.rows}
       onlayout={(l) => (view.layout = l)}
-      ontime={view.narrow ? undefined : () => (view.tab = 'time')}
       locked={piece.midi ? () => tried++ : undefined}
     />
     {#if piece.midi && !studio.conversion.phase}
@@ -117,14 +131,15 @@
     <ConvertStrip />
   </section>
 
-  {#if view.panelOpen && (library.anyOpen || view.panel === 'midi' || view.panel === 'file')}
+  <!-- (a cell's page only beside its graph: the sheet is the graph's) -->
+  {#if view.panelOpen && (library.anyOpen || view.panel === 'midi' || view.panel === 'file') && !(view.panel === 'cell' && stage !== 'graph')}
     <Sidebar />
   {/if}
   {#if dock.open && library.anyOpen && view.tab !== 'select'}
     <div class="dock-slot"><KeysDock /></div>
   {/if}
   <section class="time" class:away={view.tab !== 'time'} inert={view.tab !== 'time'} aria-label="The piece in time">
-    <TimeView active={view.tab === 'time' && library.anyOpen} ongraph={view.narrow ? undefined : () => (view.tab = 'graph')} />
+    <TimeView active={view.tab === 'time' && library.anyOpen} />
   </section>
   <section class="side" class:away={view.tab !== 'code'} inert={view.narrow && view.tab !== 'code'} aria-label="Program">
     <Editor bind:this={studio.editor} bind:value={piece.code} diagnostics={piece.result.diagnostics} />
@@ -233,8 +248,8 @@
     height: 100%;
     display: grid;
     grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: auto auto minmax(0, 1fr) auto;
-    grid-template-areas: 'head' 'tabs' 'view' 'dock';
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    grid-template-areas: 'head' 'view' 'dock';
   }
   /* the keys and pads: under the view, so they never cover the graph; a third of the height on a phone */
   .dock-slot {
@@ -274,11 +289,12 @@
        to feed the sound; its layout stays, so switching back is instant) */
     visibility: hidden;
   }
+  /* the views: on a phone a row of tabs the whole width, under the header's controls */
   .tabs {
-    grid-area: tabs;
+    grid-column: 1 / -1;
     display: flex;
-    background: var(--surface);
-    border-bottom: 1px solid var(--line);
+    margin: var(--space-2) calc(-1 * var(--space-3)) calc(-1 * var(--space-2));
+    border-top: 1px solid var(--line);
   }
   .tabs button {
     position: relative;
@@ -316,16 +332,65 @@
   }
   @media (min-width: 900px) {
     /* Desktop: two panes side by side, no tabs */
+    /* Desktop: four slots: the code at the left (a pane shown or hidden), the stage (the library, the graph or the
+       piece in time), the inspector at the right (Sidebar.svelte: a cell, the controls, MIDI …), the keys below */
     .app {
-      grid-template-columns: minmax(360px, 34%) minmax(0, 1fr);
+      grid-template-columns: minmax(360px, 34%) minmax(0, 1fr) auto;
       grid-template-rows: auto minmax(0, 1fr) auto;
-      grid-template-areas: 'head head' 'side canvas' 'dock dock';
+      grid-template-areas: 'head head head' 'side canvas inspect' 'dock dock dock';
+    }
+    .app.nocode {
+      grid-template-columns: 0 minmax(0, 1fr) auto;
+    }
+    .nocode .side {
+      visibility: hidden;
+      overflow: hidden;
     }
     .dock-slot {
       height: clamp(170px, 26vh, 250px);
     }
+    /* the views: a switch at the header's end */
     .tabs {
-      display: none;
+      flex: none;
+      margin: 0;
+      border: 1px solid var(--line);
+      border-top-color: var(--line);
+      border-radius: var(--radius-pill);
+      overflow: hidden;
+    }
+    .tabs button {
+      flex: none;
+      min-height: 34px;
+      padding: 0 14px;
+      font-size: var(--text-sm);
+      font-weight: 700;
+    }
+    .tabs button.on {
+      background: var(--line);
+    }
+    .tabs button.on::after {
+      left: 14px;
+      right: 14px;
+    }
+    .codepane {
+      flex: none;
+      min-height: 36px;
+      padding: 0 14px;
+      border-radius: var(--radius-pill);
+      border: 1px solid var(--line);
+      background: none;
+      color: var(--text-muted);
+      font: 700 var(--text-sm) var(--font-code);
+      cursor: pointer;
+    }
+    .codepane[aria-pressed='true'] {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+    .codepane:disabled {
+      border-color: var(--line);
+      color: var(--text-faint);
+      cursor: default;
     }
     .canvas {
       grid-area: canvas;
@@ -346,10 +411,10 @@
       z-index: 1;
       visibility: visible; /* (side by side: both shown) */
     }
-    /* choosing: the whole width, over both panes (and they rest underneath, truly hidden) */
+    /* choosing: over the code and the graph (they rest underneath, truly hidden), the inspector beside it */
     .select {
       grid-row: 2;
-      grid-column: 1 / -1;
+      grid-column: 1 / 3;
     }
     .select.away,
     .selecting .canvas,

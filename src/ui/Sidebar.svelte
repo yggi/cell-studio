@@ -1,6 +1,8 @@
 <script lang="ts">
   /**
-   * The sidebar, a drawer on the right: five pages, the piece's controls (every free() in it, and the keys and pads),
+   * The sidebar, on a wide screen the inspector (a pane at the right of the graph), on a phone a drawer over the view.
+   * Its first page on a wide screen is the cell whose sheet is open (CellSheet.svelte: drawn by the graph, where this
+   * page is, `--inspect-*`); then five pages, the piece's controls (every free() in it, and the keys and pads),
    * MIDI (the ports, how the piece goes out, the keys, learned knobs), the graph's layout forces, files, and the piece's
    * numbers (Stats). The tab
    * strip says which (arrow keys, Home and End move along it); a dot on MIDI says whether anything is connected. Focus moves into the drawer when it opens and
@@ -15,15 +17,16 @@
   import FilePanel from './FilePanel.svelte';
   import StatsPanel from './StatsPanel.svelte';
 
-  const { view, library, dock, midi } = getStudio();
+  const { view, library, dock, midi, keys } = getStudio();
   const live = $derived(!!midi.access && (midi.sending || midi.inPortId !== 'none'));
-  const PAGES: readonly (readonly [Panel, string])[] = [
+  const PAGES = $derived<readonly (readonly [Panel, string])[]>([
+    ...(keys.sheet && !view.narrow ? ([['cell', `&${keys.sheet}`]] as const) : []),
     ['controls', 'Controls'],
     ['midi', 'MIDI'],
     ['forces', 'Forces'],
     ['file', 'Files'],
     ['stats', 'Stats'],
-  ];
+  ]);
   const enabled = (page: Panel) => library.anyOpen || (page !== 'controls' && page !== 'forces' && page !== 'stats');
 
   let drawer: HTMLElement;
@@ -47,11 +50,32 @@
     drawer.querySelector<HTMLElement>(`#sidebar-tab-${next}`)?.focus();
   };
   const onkeydown = (e: KeyboardEvent) => {
-    if (e.key === 'Escape' && !e.defaultPrevented) view.panelOpen = false;
+    if (e.key === 'Escape' && !e.defaultPrevented) view.closePanel();
   };
+  // the cell's page: where its sheet is drawn (fixed, so in the window's coordinates), kept as it moves or resizes
+  let page = $state<HTMLElement>();
+  $effect(() => {
+    if (view.panel !== 'cell' || !page) return;
+    const el = page;
+    const root = document.documentElement.style;
+    const place = () => {
+      const a = drawer.getBoundingClientRect();
+      const p = el.getBoundingClientRect();
+      root.setProperty('--inspect-left', `${a.left}px`);
+      root.setProperty('--inspect-width', `${a.width}px`);
+      root.setProperty('--inspect-top', `${p.top}px`);
+      root.setProperty('--inspect-height', `${a.bottom - p.top}px`);
+    };
+    place();
+    const seen = new ResizeObserver(place);
+    seen.observe(drawer);
+    seen.observe(el);
+    return () => seen.disconnect();
+  });
   onMount(() => {
     const opener = document.activeElement;
-    drawer.querySelector<HTMLElement>('[role=tab][aria-selected=true]')?.focus();
+    // (opened round a cell, the focus stays where it was: in the graph)
+    if (view.panel !== 'cell') drawer.querySelector<HTMLElement>('[role=tab][aria-selected=true]')?.focus();
     return () => {
       if (opener instanceof HTMLElement && opener.isConnected) opener.focus();
     };
@@ -78,10 +102,12 @@
         >
       {/each}
     </div>
-    <button class="x unstyled" onclick={() => (view.panelOpen = false)} aria-label="Close">×</button>
+    <button class="x unstyled" onclick={() => view.closePanel()} aria-label="Close">×</button>
   </header>
   <div id="sidebar-page" role="tabpanel" aria-labelledby="sidebar-tab-{view.panel}">
-    {#if view.panel === 'midi'}
+    {#if view.panel === 'cell'}
+      <div class="cellpage" bind:this={page}></div>
+    {:else if view.panel === 'midi'}
       <MidiPanel {midi} />
     {:else if view.panel === 'forces'}
       {#if view.layout}
@@ -99,7 +125,7 @@
         aria-pressed={dock.open}
         onclick={() => {
           dock.toggle();
-          if (dock.open) view.panelOpen = false;
+          if (dock.open && view.narrow) view.panelOpen = false;
         }}>{dock.open ? 'Hide' : 'Show'} the keys and pads</button
       >
       <FreePanel />
@@ -121,6 +147,26 @@
     border-left: 1px solid var(--line);
     box-shadow: -12px 0 30px rgba(0, 0, 0, 0.45);
   }
+  /* a wide screen: the inspector, a pane in the app's grid beside the graph (under it in the stacking: a cell's sheet,
+     drawn by the graph, lies over its page) */
+  @media (min-width: 900px) {
+    .drawer {
+      position: relative;
+      grid-area: inspect;
+      z-index: auto;
+      top: auto;
+      right: auto;
+      bottom: auto;
+      width: 380px;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      box-shadow: none;
+    }
+    .cellpage {
+      flex: 1;
+    }
+  }
   header {
     position: sticky;
     top: 0;
@@ -136,14 +182,29 @@
   .tabs {
     display: flex;
     gap: 0;
+    min-width: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
   }
   .tabs button {
     position: relative;
     min-height: 44px;
-    padding: 0 9px;
+    flex: none;
+    padding: 0 6px;
     color: var(--text-muted);
-    font: 700 var(--text-sm, 13px) var(--font-ui);
+    font: 700 12px var(--font-ui);
+    white-space: nowrap;
     cursor: pointer;
+  }
+  /* (the cell's page: its name, in the code's face, the accent's colour) */
+  #sidebar-tab-cell {
+    flex: 0 1 auto;
+    min-width: 4em;
+    max-width: 7em;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-family: var(--font-code);
+    color: var(--accent);
   }
   .tabs button.on {
     color: var(--text);
