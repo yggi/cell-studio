@@ -1,3 +1,4 @@
+import type { Attachment } from 'svelte/attachments';
 import { nameProblem, renameCell } from '@yggi/cells/engine/edit';
 
 /**
@@ -24,6 +25,16 @@ export class Rename {
     });
   }
 
+  /** The cell's current name. */
+  get name(): string {
+    return this.#name();
+  }
+
+  /** Whether the draft differs from the cell's current name. */
+  get edited(): boolean {
+    return this.draft !== this.#name();
+  }
+
   commit() {
     const name = this.#name();
     const to = this.draft.trim();
@@ -37,4 +48,29 @@ export class Rename {
   reset() {
     this.draft = this.#name();
   }
+}
+
+/**
+ * Key handling on the name input (SheetName.svelte): Enter commits; Escape with an edited draft cancels the rename
+ * and leaves the sheet open; with nothing typed (draft unedited), Escape bubbles to the sheet's trap to close at once.
+ */
+export function nameKeys(rename: Rename): Attachment<HTMLInputElement> {
+  return (node) => {
+    const key = (e: KeyboardEvent) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        rename.commit();
+        node.blur();
+      } else if (e.key === 'Escape') {
+        if (rename.edited) {
+          e.preventDefault();
+          e.stopPropagation();
+          rename.reset();
+          node.blur();
+        }
+      }
+    };
+    node.addEventListener('keydown', key);
+    return () => node.removeEventListener('keydown', key);
+  };
 }
