@@ -194,7 +194,8 @@ export function towerLayers(
   model: GraphModel,
   drawn: GraphModel,
   // (mixers: false, a mix with the voices; lift: false, every table nothing steps at the bottom — the probe's comparisons)
-  { mixers = true, lift = true }: { readonly mixers?: boolean; readonly lift?: boolean } = {},
+  // (sections: each node's place among its selector's, `nodeSections`'s k: the lanes' order, `rainbow`)
+  { mixers = true, lift = true, sections }: { readonly mixers?: boolean; readonly lift?: boolean; readonly sections?: ReadonlyMap<string, number> } = {},
 ): {
   /** The neutral zone's height (decades): towerY's `zone`. */
   zone: number;
@@ -208,6 +209,8 @@ export function towerLayers(
   lineUp: string[][];
   aside: Map<string, string>;
   columns: Column[];
+  /** The sections' lanes (physics `rainbow`): each node standing over the structure's clocks that has a section, by its place. */
+  rainbow: Map<string, number>;
 } {
   const step = towerOf(program, model, 'step');
   const sockets = socketHeights(program, model, drawn);
@@ -389,5 +392,8 @@ export function towerLayers(
     const from = owner.get(e.source) ?? e.source;
     if (from !== e.target) between.set(e.target, [...new Set([...(between.get(e.target) ?? []), from])]);
   }
-  return { zone, rows: { gate: rowY(gate), voice: rowY(voice), mixer: rowY(mixer) }, targets, layers, held, strata, between, lineUp, aside, columns };
+  // (the lanes: what stands over the clocks — the stepped, gates, voices, mixers, sockets — in its section's place)
+  const lane = new Set<TowerLayer>(['stepped', 'gate', 'voice', 'mixer', 'audible']);
+  const rainbow = new Map([...(sections ?? [])].filter(([id]) => lane.has(layers.get(id)!)));
+  return { zone, rows: { gate: rowY(gate), voice: rowY(voice), mixer: rowY(mixer) }, targets, layers, held, strata, between, lineUp, aside, columns, rainbow };
 }

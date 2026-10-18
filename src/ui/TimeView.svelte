@@ -364,7 +364,7 @@
     if (layers.splices) drawSplices(g, f, css, sp);
     if (layers.cells) drawCells(g, f, css, cs);
     if (pt) drawPatterns(g, f, css, pt);
-    if (layers.meter && layers.scalogram && scal && lv) drawLevels(g, f, css, scal, lv);
+    if (layers.levels && layers.scalogram && scal && lv) drawLevels(g, f, css, scal, lv);
   });
 
   // ── hands: drag to move, wheel or pinch to zoom, a click to play from there ──────────────────────────────────
@@ -430,11 +430,11 @@
       label: 'structure',
       title: 'Each cell where it plays, at the height of its own length: the splice tree by scale, over the scalogram (a copy, base=, dashed in its base’s colour)',
     },
+    { key: 'meter', label: 'meter', title: 'The beat, the bar and the sections’ length across the scalogram' },
     {
-      key: 'meter',
-      label: 'meter',
-      title:
-        'The beat, the bar and the sections’ length across the scalogram; at the right, the levels written against those heard, joined where they meet, alone where they don’t',
+      key: 'levels',
+      label: 'levels',
+      title: 'At the right, the time scales written (the meter, each cell’s step and turn) against those heard, joined where they meet, alone where they don’t',
     },
     { key: 'patterns', label: 'patterns', title: 'Motifs heard at two time scales, boxed; foldings alike at two levels, listed' },
   ];
@@ -461,7 +461,7 @@
     {/if}
     <button class="toggle" onclick={fit} title="The whole piece (or a double click)">fit</button>
     {#if busy}<span class="busy">{busy}…</span>{/if}
-    {#if levels && settings.layers.meter}
+    {#if levels && settings.layers.levels}
       <span class="folded" title="Levels (time scales): those heard that the cells explain · those written that are heard. A folded piece: all of both"
         >{foldedText('levels', folded(levels))}</span
       >

@@ -14,6 +14,7 @@ import { flowRanks } from '../../layout/ranks';
 import { isSide, sideless } from '../../layout/side';
 import { flowNodeOf, PETAL, physical } from '../flownode';
 import { flowEdgesOf } from '../flowedges';
+import { nodeSections } from '../sections';
 import type { GraphSnapshot } from '../snapshot';
 import type { FlowNode } from '../types';
 
@@ -145,7 +146,7 @@ export class GraphLayout {
     const m = next.model;
     this.outs = tower ? towerOuts(given.program, given.model) : [];
     if (tower) {
-      const layered = towerLayers(next.program, given.model, m);
+      const layered = towerLayers(next.program, given.model, m, { sections: new Map([...nodeSections(next.program, m)].map(([id, s]) => [id, s.k])) });
       this.zone = layered.zone;
       this.layers = layered.layers;
       this.rows = layered.rows;
@@ -156,6 +157,7 @@ export class GraphLayout {
         strata: layered.strata,
         between: layered.between,
         lineUp: layered.lineUp,
+        rainbow: layered.rainbow,
         aside: layered.aside,
         columns: layered.columns,
       });
@@ -232,6 +234,7 @@ export class GraphLayout {
       strata: undefined,
       between: undefined,
       lineUp: undefined,
+      rainbow: undefined,
       aside: undefined,
       columns: undefined,
       ...(mode === 'tower' ? towerOptions() : {}),

@@ -53,7 +53,8 @@ way. So far two axes: levels (time scales) and moments (boundaries).
     is; a MIDI file converted to cells shows the folder's phrases and their copies where they return.
   - **meter**: dashed lines across the scalogram at the beat and the bar of the meter that drives the piece (its tempo
     cell's step and turn, `mainTempo`) and the sections' usual length, labelled; the bars' lines where they are far
-    enough apart to see. At the right, a strip of the levels **written against those heard** (`layout/explained.ts`): the written at its
+    enough apart to see.
+  - **levels**: at the right, a strip of the levels **written against those heard** (`layout/explained.ts`): the written at its
     left (the beat, the bar, the sections, each cell's step and turn, one level within a semitone, `+n` for more cells
     on it), the heard at its right (`ridges`: the peaks of each row's mean power, a bar as long as it is strong). A pair
     within a semitone is joined straight across; alone, a gap: a level heard that nothing writes orange with its period,

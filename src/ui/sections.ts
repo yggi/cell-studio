@@ -38,7 +38,7 @@ export function tagSections(program: CompileResult, model: GraphModel): Map<stri
 
 /**
  * Each node's section (by id): the nearest section upstream of it, along what it is played, stepped or fed by — a voice
- * takes the section of the melody that plays it, a mix of what it mixes; else, where no section reaches, its tag's.
+ * takes the section of the melody that plays it, a kit of the groove, a mix of what it mixes; else, where no section reaches, its tag's.
  */
 export function nodeSections(program: CompileResult, model: GraphModel): Map<string, Section> {
   const sections = sectionPlaces(program);
@@ -48,7 +48,14 @@ export function nodeSections(program: CompileResult, model: GraphModel): Map<str
   let ring = model.edges.flatMap((e) => (e.bulb && sections.has(e.bulb) ? [[e.to, sections.get(e.bulb)!] as const] : []));
   while (ring.length) {
     for (const [id, s] of ring) if (!out.has(id)) out.set(id, s);
-    ring = model.edges.flatMap((e) => (out.has(e.from) && !out.has(e.to) && e.port !== 'about' ? [[e.to, out.get(e.from)!] as const] : []));
+    ring = model.edges.flatMap((e) =>
+      out.has(e.from) && !out.has(e.to) && e.port !== 'about'
+        ? [[e.to, out.get(e.from)!] as const]
+        : // (a kit takes the section of the groove that plays it: it reads the kit with `over=`, but is played by it)
+          e.port === 'over' && out.has(e.to) && !out.has(e.from) && model.nodes.find((n) => n.id === e.from)?.cell?.kit
+          ? [[e.from, out.get(e.to)!] as const]
+          : [],
+    );
   }
   for (const n of model.nodes) {
     const t = n.cell?.tags.find((x) => tags.has(x));

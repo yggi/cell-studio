@@ -272,14 +272,16 @@ const LEVELS_W = 170;
  */
 export function drawLevels(g: G, f: Frame, css: Css, scal: Rows, x: Explained<HeardLevel, WrittenLevel>): void {
   const { top, bottom } = scalBand(f, scal.periods);
-  if (bottom - top < 40 || f.width < 3 * LEVELS_W) return;
-  const x0 = f.width - LEVELS_W;
-  const xw = x0 + 92;
+  // (the strip's width: its own, or half a narrow view's — a phone's: names and bars in what room it has)
+  const width = Math.min(LEVELS_W, Math.round(f.width / 2));
+  if (bottom - top < 40 || width < 120) return;
+  const x0 = f.width - width;
+  const xw = x0 + Math.round(width * 0.54);
   const xh = xw + 14;
   const long = f.width - 6 - xh;
   g.fillStyle = css('--time-face');
   g.globalAlpha = 0.8;
-  g.fillRect(x0, top, LEVELS_W, bottom - top);
+  g.fillRect(x0, top, width, bottom - top);
   g.globalAlpha = 1;
   g.font = '10px system-ui, sans-serif';
   g.fillStyle = css('--text-muted');
