@@ -43,6 +43,7 @@
     onresize,
     ontoggle,
     onfocus,
+    sectionOf = () => undefined,
     tintOf = (name: string) => (graph ? outRgb(graph, name) : [255, 255, 255]),
     source,
     heardLevels = null,
@@ -68,6 +69,8 @@
     ontoggle: () => void;
     /** An out's own colour (its source's name): its section's, steady — its share of the sum, its lane, its name. */
     tintOf?: (source: string) => readonly number[];
+    /** An out's section: its place among its selector's (its source's id), where one drives it. */
+    sectionOf?: (source: string) => number | undefined;
     /** What the rows read, outside the graph (the time view's moment); inside it, the graph's context. */
     source?: TowerSource;
     /** The levels heard against those written (layout/explained.ts): the heard drawn at their periods, gaps marked. */
@@ -340,6 +343,8 @@
     const paint = (c: string) => (c.startsWith('var(') ? css(c.slice(4, -1)) : c);
     const used = new Map<string, number>();
     const named: number[] = [];
+    // (the table of sections' row: where each section's chip is, and which the selector picks now: each lane exits from its)
+    const sectionRow: { at: { y: number; centre: Map<number, number>; picked: Set<number> } | null } = { at: null };
     const chips = (name: string, y: number, [xa, xb]: readonly [number, number], inColumn = true) => {
       const got = spectrumOf(name);
       if (!got) return;
@@ -351,7 +356,7 @@
       const rgb = (c: readonly number[]) => `rgb(${c[0]}, ${c[1]}, ${c[2]})`;
       // its segments, left to right, each its share of the row in its colours (a selector's step: a stripe a section it
       // picks), the one it holds now lit; a table of sections lights the sections its selector picks now
-      const segments: { share: number; colours: string[]; lit: boolean }[] =
+      const segments: { share: number; colours: string[]; lit: boolean; section?: number }[] =
         'steps' in got
           ? got.steps.map((s) => ({ share: s.t1 - s.t0, colours: s.picks.map((k) => rgb(sectionTintRgb(k, got.n))), lit: t !== null && t >= s.t0 && t < s.t1 }))
           : got.spread.map((e) => {
@@ -361,6 +366,7 @@
                 share: e.share,
                 colours: [got.sections ? rgb(sectionTintRgb(e.index, got.sections)) : paint(fillColour(e.fill))],
                 lit: got.sections ? !!picked : e.key === now,
+                ...(got.sections ? { section: e.index } : {}),
               };
             });
       // (its state now, playing: the value it holds lit, taller and outlined, the outline flashing at each step it
@@ -369,8 +375,13 @@
       const flash = 1 - ((((local ?? 0) % 1) + 1) % 1);
       hit(`cell:${name}`, xa, y - 4, xb, y + 4);
       let x = xa;
+      if (segments.some((e) => e.section !== undefined)) sectionRow.at = { y, centre: new Map(), picked: new Set() };
       for (const e of segments) {
         const w = Math.max(1, e.share * (xb - xa) - 0.5);
+        if (sectionRow.at && e.section !== undefined) {
+          sectionRow.at.centre.set(e.section, x + (e.share * (xb - xa)) / 2);
+          if (e.lit) sectionRow.at.picked.add(e.section);
+        }
         const hh = e.lit ? 6 : 4;
         g.globalAlpha = !playing || e.lit ? 1 : 0.3;
         e.colours.forEach((c, k) => {
@@ -471,9 +482,11 @@
         });
       }
     }
+    const namedLeft: number[] = [];
+    const namedRight: number[] = [];
     // each out's spire in its lane, at its fundamental; its bridge straight down the lane, through its player, to the selector
     for (const e of each) {
-      const { k, o, l, r, c, off } = e;
+      const { k, o, l, r, c } = e;
       const s = spireOf(
         l.map((v, b) => Math.max(v, r[b] ?? 0)),
         noteHz(graph!, o.name),
@@ -481,10 +494,36 @@
       );
       const top = s ? yOf(band(s.root)) : sy(o.top);
       const from = player.get(k) ?? sy(rows.gate);
-      g.strokeStyle = `rgba(${c[0]}, ${c[1]}, ${c[2]}, ${off ? 0.25 : 0.6})`;
+      // (the lane is its signal's, as the graph's edge is: neutral at rest, the note's colour while it sounds; it is
+      // active when the section that drives it is picked — a lane of a section not picked is dim)
+      const section = sectionOf(e.lane.source);
+      const playing = ctx.state !== 'stopped';
+      const active = !e.off && (!playing || section === undefined || !sectionRow.at || sectionRow.at.picked.has(section));
+      const signal = playing ? outRgb(graph!, o.name) : null;
+      g.strokeStyle = signal ? `rgb(${signal[0]}, ${signal[1]}, ${signal[2]})` : css('--edge');
+      g.globalAlpha = active ? (playing ? 0.9 : 0.7) : 0.25;
       g.lineWidth = 1;
-      // (down through the structure to the selector: each lane reaches the table that picks its section)
-      along((y) => mid(k, y), top, Math.max(from, selectorY));
+      // (down through the structure to the selector, out of the chip of its section: each lane exits from the section that
+      // drives it — two outs of one section (a build's snare and riser) split from its one chip)
+      const exit = section !== undefined ? sectionRow.at?.centre.get(section) : undefined;
+      const foot = sectionRow.at && exit !== undefined ? sectionRow.at.y : Math.max(from, selectorY);
+      const fan = exit !== undefined ? Math.max(0, Math.min(44, foot - from - 8)) : 0;
+      const laneX = (y: number) => {
+        if (exit === undefined || y <= foot - fan) return mid(k, y);
+        const t = Math.min(1, (y - (foot - fan)) / fan);
+        return mid(k, y) + (exit - mid(k, y)) * t * t * (3 - 2 * t);
+      };
+      {
+        const [lo, hi] = [Math.max(-10, Math.min(top, foot)), Math.min(h + 10, Math.max(top, foot))];
+        if (hi > lo) {
+          g.beginPath();
+          g.moveTo(laneX(lo), lo);
+          for (let y = lo + 3; y < hi; y += 3) g.lineTo(laneX(y), y);
+          g.lineTo(laneX(hi), hi);
+          g.stroke();
+        }
+      }
+      g.globalAlpha = 1;
       hit(e.lane.source, mid(k) - lw / 2, yB, mid(k) + lw / 2, s ? yOf(band(s.top)) - 4 : top - 4);
       hit(e.lane.source, mid(k, from) - lwAt(from) / 2, from, mid(k, from) + lwAt(from) / 2, yB);
       if (s)
@@ -496,19 +535,25 @@
           Math.min(3.5, lw * 0.6),
           c,
           (b) => hues[b]!,
-          off ? 0.3 : 1,
+          e.off ? 0.3 : 1,
         );
-      // (its name at its base fundamental, steady (the note now jumps), left of the column, over the spectrum on a halo;
-      // playing, only while it sounds)
+      // (its name at its base fundamental, steady (the note now jumps), on its side of the column — the lanes in the left
+      // half to its left, the others to its right — over the spectrum on a halo; a name whose neighbour on that side is
+      // too close goes under it; playing, only while it sounds)
       if (open && (ctx.state === 'stopped' || nodeState(graph!, e.lane.source) === 'live')) {
-        const seat = sy(o.top);
+        const leftSide = k < nl / 2;
+        const side = leftSide ? namedLeft : namedRight;
+        let ny = sy(o.top) + 3;
+        while (side.some((n) => Math.abs(n - ny) < 10)) ny += 10;
+        side.push(ny);
         g.font = '700 9px system-ui, sans-serif';
-        g.textAlign = 'right';
+        g.textAlign = leftSide ? 'right' : 'left';
         g.lineWidth = 3;
         g.strokeStyle = css('--surface');
-        g.strokeText(o.name, x0 - 4, seat + 3);
-        g.fillStyle = off ? css('--edge') : `rgb(${c[0]}, ${c[1]}, ${c[2]})`;
-        g.fillText(o.name, x0 - 4, seat + 3);
+        const nx = leftSide ? x0 - 4 : x1 + 4;
+        g.strokeText(o.name, nx, ny);
+        g.fillStyle = e.off ? css('--edge') : `rgb(${c[0]}, ${c[1]}, ${c[2]})`;
+        g.fillText(o.name, nx, ny);
       }
     }
     // each lane's players named once, up its bridge from the highest one's chip, toward the gates' row (`off · prog`:
