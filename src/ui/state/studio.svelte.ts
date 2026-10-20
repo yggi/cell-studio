@@ -8,7 +8,6 @@ import { pieceMidi } from '@yggi/cells/engine/midiexport';
 import { isMidi, readMidi, writeMidi } from '@yggi/cells/engine/midifile';
 import { midiText } from '@yggi/cells/engine/miditext';
 import { cellsFromMidi, type Imported } from '@yggi/cells/engine/midiimport';
-import { movedCard } from '@yggi/cells/engine/shorten/card';
 import { creditLines, loadMidiFile, MIDI_FILES } from '../../corpus';
 import type { Smf } from '@yggi/cells/engine/midifile';
 import type { FoldAnswer, FoldJob } from '../fold.worker';
@@ -206,12 +205,10 @@ export class Studio {
       // (the file now a piece: its name .md, from the first frame on)
       if (open.kind === 'file' || open.kind === 'midi') this.library.open = { kind: 'file', name: `${name}.md` };
       this.#converted = made;
-      // (the folder writes the card the old way, title= and tags= on &piece: they go in the file's frontmatter, decision
-      // 047, from the first frame on, so no frame warns of them)
-      const card = movedCard(made.source);
-      this.piece.frontmatter = card?.frontmatter ?? null;
-      const story = made.story ?? [{ source: made.source, says: '' }];
-      this.conversion.play(card ? story.map((s) => ({ ...s, source: movedCard(s.source)?.text ?? s.source })) : story);
+      // (what the piece is, its title, tags and description, is the file's frontmatter from the first frame on: the
+      // folder writes no card, cells #191)
+      this.piece.frontmatter = made.frontmatter;
+      this.conversion.play(made.story ?? [{ source: made.source, says: '' }]);
     };
     let worker: Worker;
     try {

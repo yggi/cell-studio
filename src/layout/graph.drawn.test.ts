@@ -626,7 +626,8 @@ describe('every name written is one wire carrying the transform it writes, and e
       }
     }
     expect(missing).toEqual([]);
-    expect(wires).toBeGreaterThan(0);
+    // (a piece of one cell names nothing: An oscillator, `&a loop=A4`, since its card went, cells #199)
+    if ([...program.cells.values()].filter((c) => !c.lambda && !c.implicit).length > 1) expect(wires).toBeGreaterThan(0);
     // the other way: every wire is a name written, on the line of the cell that reads it (a note's link: the note's;
     // into a product: its mix's). Not a name: a product's own sound into its mix (the product is the entry), and a wire
     // drawn for a petal (its names are inside the &( … )).

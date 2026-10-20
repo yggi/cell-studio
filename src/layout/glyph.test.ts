@@ -264,10 +264,12 @@ describe('the rest of what a wheel can be', () => {
   });
   it('show=lfo (Royal’s): a cycle round the ring, a dot at its phase while it plays', () => {
     const royal = compileSource(PRESETS.royal.source);
-    const lfo = view(royal, 'λ12_79');
+    // (unnamed, &(…): found by what it is, not by its line)
+    const name = [...royal.cells.keys()].find((n) => view(royal, n).mode === 'lfo')!;
+    const lfo = view(royal, name);
     expect(lfoPathOf(lfo, g)!.startsWith('M64.0,20.1 L66.9,19.7 L69.9,19.5 ')).toBe(true);
     expect(lfoPathOf(lfo, g)!.endsWith('Z')).toBe(true);
-    expect(lfoDotOf(lfo, () => 0, royal.cells.get('λ12_79')!.steps, g)).toEqual({ x: 64, y: 20.14 });
+    expect(lfoDotOf(lfo, () => 0, royal.cells.get(name)!.steps, g)).toEqual({ x: 64, y: 20.14 });
     expect(lfoDotOf(lfo, () => null, 1, g)).toBeNull();
     expect(lfoPathOf(view(pop, 'major'), g)).toBeNull();
   });

@@ -8,6 +8,7 @@ import { routing } from '@yggi/cells/engine/routing';
 import { mainTempo, sections } from '@yggi/cells/engine/duration';
 import { pieceFile, titleOf } from '../../library';
 import { isPieceFile, readPiece, writePiece, type PieceFrontmatter } from '@yggi/cells/engine/piecefile';
+import type { Layout } from '@yggi/cells/engine/literate';
 import type { PieceSource } from '../../audio/engine';
 import type { FreeSpec } from '@yggi/cells/engine/ast';
 import { isMidiText, parseMidiText } from '@yggi/cells/engine/miditext';
@@ -24,15 +25,18 @@ import { pieceStats } from '@yggi/cells/engine/stats';
  * (there are no cells in the text to rewrite) until it is converted (`studio.convert`).
  *
  * A piece opened from a piece file (an example, a piece saved as one: decision 047) keeps the file's frontmatter (its
- * title, tags and tier, any other key) and its prose beside the code: the code is the file's cells block, and `file`
- * the file again with the code as it stands.
+ * title, tags and tier, any other key) and its prose beside the code: the code is the join of the file's cells blocks
+ * (literate cells, cells decision 051), and `file` the file again with the code as it stands, each line back in the
+ * block it came from and the prose between them as it was. The editor shows the code, the join, not the file.
  */
 export class Piece {
   #code = $state('');
   /** Its file's frontmatter, or null for a bare text (a piece saved the old way, a MIDI file's text). */
   frontmatter = $state.raw<PieceFrontmatter | null>(null);
-  /** Its file's prose, after the cells block. */
+  /** Its file's prose, after the last cells block. */
   #prose = '';
+  /** Its file's blocks and the prose between them, as read (a file that was read; none for a bare text or a file made new). */
+  #layout: Layout | undefined = undefined;
   /** The device's sample rate, once audio runs: a value the environment provides to the code. */
   sampleRate = $state(48000);
   readonly env = $derived({ SAMPLE_RATE: this.sampleRate, A4: 440 });
@@ -49,8 +53,8 @@ export class Piece {
     const errors = this.midi.diagnostics.some((d) => d.severity === 'error');
     return { ...r, ok: r.ok && !errors, diagnostics: this.midi.diagnostics };
   });
-  /** The piece as a file (its frontmatter, the code in its cells block, its prose), or the bare code. */
-  readonly file = $derived(this.frontmatter ? writePiece({ frontmatter: this.frontmatter, text: this.#code, prose: this.#prose }) : this.#code);
+  /** The piece as a file (its frontmatter, the code in its cells blocks, its prose), or the bare code. */
+  readonly file = $derived(this.frontmatter ? writePiece({ frontmatter: this.frontmatter, text: this.#code, prose: this.#prose, layout: this.#layout }) : this.#code);
   /** Its title, from its file's frontmatter, or from its card as it stands (it follows edits). */
   readonly title = $derived(titleOf(this.file));
   readonly errors = $derived(this.result.diagnostics.filter((d) => d.severity === 'error').length);
@@ -93,6 +97,7 @@ export class Piece {
     const file = pieceFile(source);
     this.frontmatter = file?.frontmatter ?? null;
     this.#prose = file?.prose ?? '';
+    this.#layout = file?.layout;
     const code = file?.text ?? source;
     this.#code = code;
     const cells = isMidiText(code) ? cellsFromMidi(parseMidiText(code).smf, 'MIDI file', { free: false }).source : code;
@@ -109,6 +114,7 @@ export class Piece {
     const file = pieceFile(source);
     this.frontmatter = file?.frontmatter ?? null;
     this.#prose = file?.prose ?? '';
+    this.#layout = file?.layout;
     this.code = file?.text ?? source;
   }
   /** Take a rewrite (Shorten's): a text, or a file (its card's migration, decision 047: what the card said of the

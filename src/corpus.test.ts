@@ -55,7 +55,8 @@ describe('the MIDI library (midi/<set>)', () => {
     expect(parsed.diagnostics).toEqual([]);
     expect(readMidi(writeMidi(parsed.smf)).copyright).toBe(lines.join(' '));
     const made = cellsFromMidi(smf, m.title, { shorten: true, credit: lines });
-    expect(made.source.split('\n').slice(1, 6)).toEqual(['', ...lines.map((l) => `# ${l}`), '']);
+    // (no card above them since cells #191: what it said is the file's frontmatter)
+    expect(made.source.split('\n').slice(0, lines.length + 1)).toEqual([...lines.map((l) => `# ${l}`), '']);
     expect(made.folded).toBe(true);
     expect(compileSource(made.source).ok).toBe(true);
   });
