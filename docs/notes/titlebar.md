@@ -39,7 +39,7 @@ A 56 px bar in three grid zones (`auto · 1fr · auto`), one job each:
 - **Top, what:** the glyph, the piece (name in full, path above it), MIDI, and ⋯ for the inspector's pages (Controls, Forces, Files, Stats, Version).
 - **Bottom, under the thumb, play and where:** a 62 px mini player above the tab bar: play, the current section and the clock, the tempo, stop. The sections run along its top edge as a 5 px strip. Tap it or swipe up for **the full deck** as a sheet: 40 px segments with names, record · play · stop (68 px play), a full-width tempo slider, and Revert · Save.
 - **The tabs move to the bottom**, with icons. When the keys dock is open, it sits between the stage and the mini player.
-- The chrome totals 52 + 62 + 58 px, about the same as today's 150 px, but the controls you use while playing are within reach and the track can show names.
+- The chrome totals 52 + 62 + 58 = 172 px, 22 px more than today's 150 px, but the controls you use while playing are within reach and the track can show names.
 
 ## Open
 
