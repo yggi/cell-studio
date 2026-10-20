@@ -33,7 +33,7 @@ Hanging a product's meter under its voice (in place of turning it round the rim)
 - **A start chosen** (`bestRowOrder`): the layout is chaotic, the best of six seeds about half the mean (`main`: flow 45 → 23, tower 83 → 53). A fresh graph is laid out from each rows' order × three jitters (`starts`) for 250 ticks (`trial`; 120 predicted the final layout too poorly: 3 starts of 120 gave 52), and the one with the fewest crossings, an edge under counting half (`underWeight`), kept. The examples' are chosen at build time, for both layouts (the tower's were never precomputed: its graph has sockets, another key, so every example ran its trials there).
 - **Room under a voice** at the layered start (`hangRoom`, `layered.ts` `below`): the row under a voice starts below its meters. 83 → 68 alone.
 - **The meters in a row in the order their wires come from**, every tick (the order had been frozen at the first).
-- **What feeds a meter stays under it** (`meterRise` 40, the tower layout only): a wire into a meter from its side crosses the stubs of the meters beside it (the canon's `&john` into eight). In the signal path's layout it cost crossings (67 → 76): it fights the rows.
+- **What feeds a meter stays under it** (`meterRise` 40, the tower layout only): a wire into a meter from its side crosses the stubs of the meters beside it (the canon's `&john` into eight). In the signal path's layout it cost crossings before the start was chosen (67 → 76: it fights the rows); with the start chosen it is a tie there (33.0 against 34.7), so it stays the tower's alone.
 
 ## What didn't
 
