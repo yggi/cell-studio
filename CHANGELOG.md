@@ -16,7 +16,7 @@ that makes the change. Also note changes to the language that could affect saved
 - **The build under the title**: the commit's first 7 characters (`dev` for a build that doesn't know it) in the header; a tap opens a sheet with the commit in full, branch (`pr-<n>` for a preview), build date, and the versions of what the app ships, and offers Reload when a new version waits (#433).
 
 ### Changed
-- **Cells moved past v0.6.0** (to its commit `93b1e05`, until its next tag), and with it:
+- **Cells v0.7.0** (the pin moved from v0.6.0), and with it:
   - **The examples have no card** (#468, cells #199): what a piece is, its title, tags, tier and description, is its file's frontmatter; the examples' `&piece` note and its wire are gone. A saved piece with a `&piece` card still opens and plays; Shorten offers to move the card, its label too (as the description), into the frontmatter. Converting a MIDI file writes the frontmatter directly (cells #191). The legend reads `show=` only from a `&piece` card.
   - **A negative gain is phase inversion** (#469, cells #193): `gain=-1`, `* -1` and `postgain=-1` play at full level upside down, where `postgain` below 0 was silenced; a voice mixed with its inversion cancels. A saved piece with a negative gain now sounds (inverted) where it played silent or at full level.
   - The examples' tags are in their kinds' order, with new topics (`stereo`, `physics`, `tape`, `FM`) on the library's chips; three examples' drums are renamed (`&hh`, `&cym`); BWV 847 is written by hand as its structure (cells #177).
