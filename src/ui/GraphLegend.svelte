@@ -14,9 +14,9 @@
 
   // the piece's main grid: what its first melody plays through
   const main = $derived(program.outputs.find((o) => !o.kit && !o.tape && !o.drone)?.cell ?? null);
-  // the card: the first cell with a title= (a text written the old way), else the first note (decision 047: a file's
-  // frontmatter says what the piece is, its card stays the text's first note)
-  const card = $derived(pieceMeta(source)?.cell ?? [...program.cells.values()].find((c) => c.note)?.name ?? null);
+  // the card: the note `&piece` a text still has (written before the frontmatter said what the piece is), else none
+  // (cells #199: the examples have no card, and another note's show= says nothing of the piece)
+  const card = $derived(pieceMeta(source)?.cell ?? null);
   const shown = $derived.by(() => {
     const s = (card && program.cells.get(card)?.show) || 'notes';
     const [show, conv = ''] = s.split(':');

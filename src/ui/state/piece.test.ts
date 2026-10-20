@@ -174,16 +174,65 @@ describe('Piece: a piece file (decision 047)', () => {
     const before = p.program;
     p.take(card[0]!.apply(p.code));
     expect(p.result.diagnostics.filter((d) => d.severity === 'warning')).toEqual([]);
-    expect(p.frontmatter).toEqual({ title: 'Old way', tags: ['tutorial', 'diatonic'], tier: 2 });
+    // (the card's label is the frontmatter's description, and the card's line goes: cells #199)
+    expect(p.frontmatter).toEqual({ title: 'Old way', tags: ['tutorial', 'diatonic'], tier: 2, description: 'A piece saved before files.' });
     expect(p.title).toBe('Old way');
-    expect(p.code).not.toMatch(/title=|tier=|tags=/);
-    expect(p.code.split('\n')[0]).toBe('&piece label="A piece saved before files." about=&out');
-    expect(pieceMeta(p.file)).toMatchObject({ title: 'Old way', tags: ['tutorial', 'diatonic'], tier: 2, cell: 'piece' });
-    expect(p.program.cells.size).toBe(before.cells.size);
+    expect(p.code).not.toMatch(/title=|tier=|tags=|&piece/);
+    expect(pieceMeta(p.file)).toMatchObject({ title: 'Old way', tags: ['tutorial', 'diatonic'], tier: 2, description: 'A piece saved before files.', cell: null });
+    expect(p.program.cells.size).toBe(before.cells.size - 1);
     // (a rewrite that is a text is the code)
     p.take(`${p.code}\n&more 1`);
     expect(p.program.cells.has('more')).toBe(true);
     expect(p.frontmatter).toMatchObject({ title: 'Old way' });
+  });
+});
+
+describe('Piece: a literate piece file (cells decision 051)', () => {
+  // three cells blocks with prose before, between and after them: the code is their join
+  const LITERATE = `---
+title: Three blocks
+tags: [tutorial]
+---
+
+# A piece in three blocks
+
+The clock first.
+
+\`\`\`cells
+&bar meter("4/4") step=120bpm
+\`\`\`
+
+Then the line and its voice.
+
+\`\`\`cells
+&t step=4n 0 2 4 7
+&lead s=sine loop=A4
+\`\`\`
+
+And what hears them.
+
+\`\`\`cells
+&out map=sample [&t * &lead]
+\`\`\`
+
+That is all.
+`;
+
+  it('opens with its prose kept; an edit in the graph rewrites one line of the second block, and the file differs only there', () => {
+    const p = new Piece(LITERATE);
+    expect(p.result.diagnostics).toEqual([]);
+    // (the editor shows the code: the blocks joined)
+    expect(p.code).toBe('&bar meter("4/4") step=120bpm\n&t step=4n 0 2 4 7\n&lead s=sine loop=A4\n&out map=sample [&t * &lead]');
+    expect(p.file).toBe(LITERATE);
+    p.turn('t', 2);
+    const before = LITERATE.split('\n');
+    const after = p.file.split('\n');
+    expect(after).toHaveLength(before.length);
+    const changed = after.flatMap((l, i) => (l === before[i] ? [] : [i]));
+    expect(changed).toEqual([before.indexOf('&t step=4n 0 2 4 7')]);
+    expect(after[changed[0]!]).toMatch(/^&t .*shift=2/);
+    // (opened again, it reads as it was written)
+    expect(new Piece(p.file).code).toBe(p.code);
   });
 });
 

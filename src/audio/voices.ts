@@ -150,9 +150,10 @@ export function createVoices(Tone: ToneNS): VoiceBank {
     sync(result, shifts, muted = new Set<string>()) {
       // what to connect: worked out from where sound goes (./wiring.ts, engine/flows.ts), off applied there once
       const plan = wiring(result, muted);
-      // the sound card's master: postgain= on the (first) sound card, linear (the built-in card's is Strudel's .8)
+      // the sound card's master: postgain= on the (first) sound card, linear (the built-in card's is Strudel's .8); below
+      // 0 it inverts everything the card plays (cells #193), so its sign is kept
       const card = [...result.cells.values()].find((c) => c.sink);
-      master.gain.value = typeof card?.params.postgain === 'number' ? Math.max(0, card.params.postgain) : 1;
+      master.gain.value = typeof card?.params.postgain === 'number' ? card.params.postgain : 1;
       for (const [name, b] of built) {
         const c = result.cells.get(name);
         if (!c?.voice || soundKey(result, name, shifts) !== b.key) {

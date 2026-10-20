@@ -314,10 +314,12 @@ export function playNote(
   }
 
   const amp = ctx.createGain();
-  // the mix: level from the louder side, placement from the balance of the two
-  const level = Math.max(gains[0], gains[1]);
+  // the mix: level from the louder side, placement from the balance of the two; a negative gain is the same level
+  // upside down (cells #193: phase inversion), so the level carries its sign and the balance reads the sizes
+  const size = Math.max(Math.abs(gains[0]), Math.abs(gains[1]));
+  const level = gains[0] + gains[1] < 0 ? -size : size;
   const pan = ctx.createStereoPanner();
-  pan.pan.value = level > 0 ? (4 / Math.PI) * Math.atan2(gains[1], gains[0]) - 1 : 0;
+  pan.pan.value = size > 0 ? (4 / Math.PI) * Math.atan2(Math.abs(gains[1]), Math.abs(gains[0])) - 1 : 0;
   // (noise used to play at full level through its own synth: it keeps that loudness on this path)
   const peak = 0.35 * level * (b.noise ? 2.8 : 1);
   amp.gain.setValueAtTime(0, time);

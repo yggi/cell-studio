@@ -126,9 +126,9 @@ describe('the time view: the notes and the cells', () => {
     ]);
     const lanes = structureLanes(structure(p.planned, p.length));
     expect(lanes.length).toBe(176);
-    expect(lanes.slice(0, 2).map((n) => [n.cell, round(n.at, 3), round(n.to, 3), n.lane])).toEqual([
+    expect(lanes.slice(0, 2).map((n) => [n.cell.replace(/^λ\d+_\d+$/, 'λ'), round(n.at, 3), round(n.to, 3), n.lane])).toEqual([
       ['line', 0, 21.818, 0],
-      ['λ8_103', 0, 7.273, 0], // (named by its line and column)
+      ['λ', 0, 7.273, 0], // (an unnamed cell: named by its line and column, which an edit above it moves)
     ]);
   });
 
