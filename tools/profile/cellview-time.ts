@@ -7,7 +7,8 @@ import { isPieceFile, readPiece } from '@yggi/cells/engine/piecefile';
 import { compileSource } from '@yggi/cells/engine/compile';
 import { codeShifts } from '@yggi/cells/engine/program';
 import { cellView } from '../../src/layout/cellview';
-import { shiftsAt, playedCells } from '@yggi/cells/engine/clocking';
+import { shiftsAt } from '@yggi/cells/engine/clocking';
+import { drawnShifts, turningCells } from '../../src/layout/turning';
 const file = process.argv[2] ?? 'node_modules/@yggi/cells/examples/bwv847.md';
 const horizon = Number(process.argv[3] ?? 60);
 const source = readFileSync(file, 'utf8');
@@ -15,21 +16,21 @@ const piece = isPieceFile(source) ? readPiece(source) : null;
 if (piece && 'problems' in piece) throw new Error(`${file}: not a piece file`);
 const r = compileSource(piece?.text ?? source);
 const statics = codeShifts(r);
-const played = playedCells(r);
+const turning = turningCells(r);
 const names = [...r.cells.values()].filter((c) => !c.note && !c.voice).map((c) => c.name);
 console.log(`${file}: ${names.length} drawn cells`);
 let prev = '';
 let turns = 0;
 const times: number[] = [];
 for (let t = 0; t <= horizon; t += 0.25) {
-  const sh = shiftsAt(r, statics, t, played);
-  // a "turn": some stepped table's shift changed since the last quarter second
-  const key = names.map((n) => sh(n)).join('|');
+  const sh = shiftsAt(r, statics, t);
+  // a "turn": some turning table's shift changed since the last quarter second (the graph's key: layout/turning.ts)
+  const key = turning.map((n) => sh(n)).join('|');
   if (key === prev) continue;
   prev = key;
   turns++;
   const t0 = performance.now();
-  for (const n of names) cellView(r, n, sh, false);
+  for (const n of names) cellView(r, n, drawnShifts(r, statics, sh, n), false);
   times.push(performance.now() - t0);
 }
 times.sort((a, b) => a - b);
@@ -40,13 +41,13 @@ console.log(
 const per = new Map<string, number>();
 prev = '';
 for (let t = 0; t <= horizon; t += 0.25) {
-  const sh = shiftsAt(r, statics, t, played);
-  const key = names.map((n) => sh(n)).join('|');
+  const sh = shiftsAt(r, statics, t);
+  const key = turning.map((n) => sh(n)).join('|');
   if (key === prev) continue;
   prev = key;
   for (const n of names) {
     const a = performance.now();
-    cellView(r, n, sh, false);
+    cellView(r, n, drawnShifts(r, statics, sh, n), false);
     per.set(n, (per.get(n) ?? 0) + performance.now() - a);
   }
 }

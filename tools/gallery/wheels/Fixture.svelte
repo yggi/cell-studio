@@ -35,7 +35,8 @@
     lit: live,
     liveEdges: live ? live.edges : null,
     turned: live ? 'live' : '',
-    shifts: live ? live.shifts : p.shifts,
+    // (as written, as the app gives it: the wheels take the live shifts from heads)
+    shifts: p.shifts,
     turn() {},
     setFree() {},
     open() {},

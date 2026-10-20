@@ -13,14 +13,15 @@
   import EnvelopeCurve from './EnvelopeCurve.svelte';
   import { chipPlaces, envelopeBox, modifiersOf } from '../layout/voice';
   import { formatLabel } from '../layout/labels';
+  import { drawnShifts } from '../layout/turning';
 
   let { id, data }: NodeProps<VoiceFlowNode> = $props();
   const ctx = getGraphContext();
-  // (label templates: refilled when a table turns, not every frame)
+  // (label templates: refilled when a table turns, not every frame; a played cell's own shift as written)
   const stillShifts = $derived.by(() => {
     void ctx.turned;
     const still = ctx.shifts;
-    return untrack(() => ctx.heads.shifts) ?? still;
+    return drawnShifts(ctx.program, still, untrack(() => ctx.heads.shifts) ?? still, data.name);
   });
   const state = $derived(nodeState(ctx, id));
   const freeCell = $derived(ctx.program.cells.get(data.name));

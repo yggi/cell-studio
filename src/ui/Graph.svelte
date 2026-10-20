@@ -57,6 +57,7 @@
   import { outTint } from './heard';
   import PanBounds from './PanBounds.svelte';
   import { pillAnchor } from '../layout/sectionloom';
+  import { turningCells } from '../layout/turning';
   import type { Viewport } from '@xyflow/svelte';
 
   const QUERY = typeof location !== 'undefined' ? new URLSearchParams(location.search) : null;
@@ -467,10 +468,12 @@
     });
   });
 
-  // the shifts of the tables that turn, as now: a key that changes only when one does
+  // the shifts of the tables that turn, as now: a key that changes only when one does (not a played cell's: its hand
+  // moves, its ring doesn't: layout/turning.ts)
+  const turning = $derived(turningCells(shown.program));
   const turned = $derived.by(() => {
     let key = 'turned';
-    for (const c of shown.program.cells.values()) if (c.step && !c.voice) key += `|${heads.shifts(c.name)}`;
+    for (const name of turning) key += `|${heads.shifts(name)}`;
     return key;
   });
   // (what is lit: the routing at the transport's time; stopped, nothing is)

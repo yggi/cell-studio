@@ -15,6 +15,7 @@
   import { refsOf } from '@yggi/cells/engine/readers';
   import { sideEntries } from '../layout/side';
   import { formatLabel } from '../layout/labels';
+  import { drawnShifts } from '../layout/turning';
   import { getGraphContext } from './context';
   import ScopeView from './ScopeView.svelte';
   import { channelColour } from './theme';
@@ -50,7 +51,7 @@
   const labelOf = (name: string) => {
     void ctx.turned;
     const c = ctx.program.cells.get(name);
-    return c?.label ? formatLabel(ctx.program, name, c.label, untrack(() => ctx.heads.shifts) ?? ctx.shifts) : '';
+    return c?.label ? formatLabel(ctx.program, name, c.label, drawnShifts(ctx.program, ctx.shifts, untrack(() => ctx.heads.shifts) ?? ctx.shifts, name)) : '';
   };
   const channels = (name: string) => refsOf(ctx.program.cells.get(name));
 </script>

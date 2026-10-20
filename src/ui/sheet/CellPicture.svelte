@@ -9,6 +9,7 @@
   import { summary } from '../../layout/describe';
   import { formatLabel } from '../../layout/labels';
   import { sheetPicture } from '../../layout/braidwheel';
+  import { drawnShifts } from '../../layout/turning';
   import CellGlyph from '../CellGlyph.svelte';
   import CellLink from '../CellLink.svelte';
   import SpectrumWheel from '../SpectrumWheel.svelte';
@@ -21,7 +22,7 @@
   const bits = $derived(cell ? summary(ctx.program, name) : []);
   const picture = $derived(cell ? sheetPicture(cell) : null);
   // (labels read the live shifts, as the graph does: they change as tables turn)
-  const live = $derived(ctx.heads.shifts);
+  const live = $derived(drawnShifts(ctx.program, ctx.shifts, ctx.heads.shifts, name));
 </script>
 
 {#if cell}

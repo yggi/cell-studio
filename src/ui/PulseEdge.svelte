@@ -5,6 +5,7 @@
   import { gridOf, heardPosition } from '../layout/show';
   import { lapOf } from '@yggi/cells/engine/readers';
   import { tickLevel } from '../layout/meters';
+  import { drawnShifts } from '../layout/turning';
   /**
    * An edge drawn by what it carries (its band, docs/notes/nets.md), from what is read to the cell that reads it:
    *  - sync (a clock's ticks): dotted, a pulse per step of the cell it drives
@@ -152,12 +153,13 @@
   );
 
   // the shifts its wheels are drawn with (CellGlyph's rule): as they stand now, redrawn when a table turns, not every
-  // frame — so a locked end and a lit strand mean the segment the wheel shows there
-  const shown = $derived.by(() => {
+  // frame — so a locked end and a lit strand mean the segment the wheel shows there; a played cell's as written
+  const now = $derived.by(() => {
     void ctx.turned;
     const still = ctx.shifts;
     return untrack(() => ctx.heads.shifts) ?? still;
   });
+  const shownOf = (wheel: string) => drawnShifts(ctx.program, ctx.shifts, now, wheel);
 
   // (between a bus's strands)
   const GAP = STRAND_GAP;
@@ -177,7 +179,7 @@
     const parent = ctx.program.cells.get(d.to);
     const units = new Set(parent?.units.flatMap((u, i) => (u.atom.kind === 'ref' && u.atom.name === d.from ? [i] : [])) ?? []);
     const spans = new Map<number, [number, number]>();
-    for (const sg of units.size ? (cellView(ctx.program, d.to, shown, false)?.segments ?? []) : [])
+    for (const sg of units.size ? (cellView(ctx.program, d.to, shownOf(d.to), false)?.segments ?? []) : [])
       if (units.has(sg.index)) {
         const sp = spans.get(sg.index);
         spans.set(sg.index, sp ? [Math.min(sp[0], sg.t0), Math.max(sp[1], sg.t1)] : [sg.t0, sg.t1]);
@@ -190,7 +192,7 @@
     const reader = ctx.program.cells.get(d.to);
     if (d.port !== 'braid' || d.picks?.length || !d.sizes?.to || !reader || isTurntable(reader) || reader.params.scope || pluginOf(ctx.program, d.to)) return [];
     void ctx.turned;
-    const v = cellView(ctx.program, d.to, shown, false);
+    const v = cellView(ctx.program, d.to, shownOf(d.to), false);
     if (!v?.bulbs?.length) return [];
     const { r, w } = ringOf(d.sizes.to);
     return netEnds(layTrack(d.sizes.to / 2, d.sizes.to / 2, r, w, v.bulbs), d.sizes.to, d.from);
@@ -235,7 +237,7 @@
     // (a table of sections is read by its selector through one plain wire, from below: no bus, no loom — decision 016)
     if (d.table && fanOf(ctx.program, d.table)) return null;
     void ctx.turned;
-    return cellView(ctx.program, d.table ?? d.from, shown, false);
+    return cellView(ctx.program, d.table ?? d.from, shownOf(d.table ?? d.from), false);
   });
   const count = $derived(selection || (view ? Math.min(EDGE.strands, d.width) : 0));
   // (a strand's place in the table: the entry it carries; a chord's strands run side by side)
@@ -270,7 +272,7 @@
   const picked = $derived.by(() => {
     if (!d.picks?.length || !d.sizes?.from) return null;
     void ctx.turned;
-    const v = cellView(ctx.program, d.from, shown, false);
+    const v = cellView(ctx.program, d.from, shownOf(d.from), false);
     if (!v || !v.segments.length) return null;
     const taps: { t: number; fill: Fill | undefined }[] = [];
     let hub = false;
@@ -357,7 +359,7 @@
   const source = $derived.by(() => {
     if (d.band !== 'cv' || count || d.tines || (d.state !== 'idle' && d.state !== 'on')) return null;
     void ctx.turned;
-    return cellView(ctx.program, sender, shown, false);
+    return cellView(ctx.program, sender, shownOf(sender), false);
   });
   // (`rest`: stopped, where its wheel is at the cursor — its first step when it isn't playing there)
   const fillAt = (rest: boolean): Fill | undefined => {
