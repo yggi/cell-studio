@@ -102,8 +102,11 @@ if (subject === 'zoom') {
       if (!(await node.count())) continue;
       await node.scrollIntoViewIfNeeded();
       // (zoomed by the wheel, as a hand would, centred on the cell)
-      for (let k = 0; k < 7; k++) {
+      // (until it is about 4× or a third of the page across: a big wheel, a voice, stays on the page)
+      let notches = 0;
+      for (; notches < 7; notches++) {
         const b = await node.boundingBox();
+        if (b.width > 500) break;
         await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2);
         await page.mouse.wheel(0, -300);
         await page.waitForTimeout(200);
@@ -111,12 +114,13 @@ if (subject === 'zoom') {
       await page.waitForTimeout(500);
       const b = await node.boundingBox();
       const pad = b.width * 0.45;
-      await page.screenshot({
-        path: join(out, 'tiles', `${slug(key)}-${slug(cell)}.png`),
-        clip: { x: b.x - pad, y: b.y - pad, width: b.width + 2 * pad, height: b.height + 2 * pad },
-      });
+      // (what of it is on the page)
+      const view = page.viewportSize();
+      const [x0, y0] = [Math.max(0, b.x - pad), Math.max(0, b.y - pad)];
+      const [x1, y1] = [Math.min(view.width, b.x + b.width + pad), Math.min(view.height, b.y + b.height + pad)];
+      if (x1 > x0 && y1 > y0) await page.screenshot({ path: join(out, 'tiles', `${slug(key)}-${slug(cell)}.png`), clip: { x: x0, y: y0, width: x1 - x0, height: y1 - y0 } });
       // (back out, for the next cell)
-      for (let k = 0; k < 7; k++) await page.mouse.wheel(0, 300);
+      for (let k = 0; k < notches; k++) await page.mouse.wheel(0, 300);
       await page.waitForTimeout(300);
       n++;
     }

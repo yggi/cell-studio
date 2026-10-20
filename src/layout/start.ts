@@ -9,6 +9,7 @@ import { layered } from './layered';
 import { massOf } from './weights';
 import type { LayoutState, PhysLink, PhysNode } from './state';
 import { loomReach } from './looms';
+import { bodyOf, VOICE_SIZE } from './voice';
 
 /** Small deterministic hash so new nodes always spawn in the same place. */
 function jitter(id: string, salt: number): number {
@@ -17,22 +18,38 @@ function jitter(id: string, salt: number): number {
   return ((h >>> 0) / 0xffffffff - 0.5) * 40;
 }
 
+/** The jitter's salt: the layout's seed and its start (a seed's starts never meet another seed's). */
+const shake = (s: LayoutState) => s.opts.seed + 101 * s.start;
+
 /**
  * Where a graph's nodes want to be and where a fresh graph starts: laid out in layers (`home`, layered.ts), each node's
  * place there kept as the pulls back to it (`s.rankY` and `s.colX`). `rowOrder`: the rows' order for the layered start.
  */
+/** A start in one number (LayoutOptions.rowOrders): its rows' order (0 … 2) and which start, its jitter. */
+export const startCode = (rowOrder: number, start: number) => rowOrder + 4 * start;
+/** A start's number, read back. */
+export const startOf = (code: number) => ({ rowOrder: code % 4, start: Math.floor(code / 4) });
+
 export function startPlaces(s: LayoutState, model: GraphModel, fresh: boolean, rowOrder: () => number): { home: Map<string, { x: number; y: number }> } {
   // layers by rank in the signal path, from the meter (bottom) up to the sound card (top); a fresh graph starts there,
   // an edit keeps what's on screen (rows given: the frequency tower's, a probe; what it doesn't name keeps its rank in
   // the flow). Each node's place is its home: where a fresh graph starts, and what it springs to
   s.faces = tapeFaces(model);
   const byId = new Map(model.nodes.map((n) => [n.id, n]));
+  const hung = new Map<string, number>();
+  for (const j of s.opts.hangRoom ? s.junctions.values() : [])
+    if (j.rides && byId.has(j.rides)) hung.set(j.rides, Math.max(hung.get(j.rides) ?? 0, (j.below ?? 0) + j.radius - s.opts.radius(byId.get(j.rides)!)));
+  // (the start's jitter, for the nodes placed from here: startNodes)
+  const chosen = startOf(rowOrder());
+  s.start = chosen.start;
   const lay = layered(model, {
     gapX: s.opts.collidePad * 1.6,
     gapY: s.opts.layerGap,
     radius: (id) => s.opts.radius(byId.get(id)!),
+    // (a voice reaches down to the bottom of the products' meters hung under it, junctions.ts)
+    below: (id) => hung.get(id) ?? 0,
     flat: !s.opts.clusters,
-    rowOrder: rowOrder(),
+    rowOrder: chosen.rowOrder,
     // (rows given: what they don't name keeps its rank in the flow)
     ...(s.opts.ranks ? { ranks: new Map([...flowRanks(model)].map(([id, r]) => [id, s.opts.ranks!.get(id) ?? r])) } : {}),
   });
@@ -93,13 +110,15 @@ export function startNodes(
         y = 0;
       }
       // (a little jitter, even from a home in the layers: exactly in line, an edge would run straight through a node)
-      p = { id: n.id, depth: n.depth, radius: roomOf(n), x: x + jitter(n.id, 1 + 2 * s.opts.seed), y: y + jitter(n.id, 2 + 2 * s.opts.seed) };
+      p = { id: n.id, depth: n.depth, radius: roomOf(n), x: x + jitter(n.id, 1 + 2 * shake(s)), y: y + jitter(n.id, 2 + 2 * shake(s)) };
     }
     p.depth = n.depth;
     p.radius = roomOf(n);
     p.loom = looms.get(n.id) ?? 0;
     const cell = (n as { cell?: { mix?: unknown; sink?: boolean; note?: boolean; tags?: readonly string[] } }).cell;
     p.role = (n as { isMeter?: boolean }).isMeter ? 'clock' : n.kind === 'voice' || cell?.mix || cell?.sink ? 'audio' : 'cell';
+    p.body = n.kind === 'voice' && !n.petalOf ? bodyOf(VOICE_SIZE * (n.cell.size ?? 1)) : undefined;
+    p.wheel = n.kind === 'voice' && !n.petalOf ? VOICE_SIZE * (n.cell.size ?? 1) : undefined;
     p.group = cell?.note ? undefined : cell?.tags?.[0];
     p.tags = cell?.note ? undefined : cell?.tags;
     const prm = (cell as { params?: Record<string, unknown> } | undefined)?.params;
@@ -123,8 +142,8 @@ export function startNodes(
         id,
         depth: 0,
         radius: 40 + 13 * t.length,
-        x: xs.reduce((a, v) => a + v, 0) / ids.length + jitter(id, 1 + 2 * s.opts.seed),
-        y: ys.reduce((a, v) => a + v, 0) / ids.length + jitter(id, 2 + 2 * s.opts.seed),
+        x: xs.reduce((a, v) => a + v, 0) / ids.length + jitter(id, 1 + 2 * shake(s)),
+        y: ys.reduce((a, v) => a + v, 0) / ids.length + jitter(id, 2 + 2 * shake(s)),
       };
     }
     p.role = 'tag';

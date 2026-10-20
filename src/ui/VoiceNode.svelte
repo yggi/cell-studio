@@ -11,7 +11,7 @@
   import { effectiveShow } from '../layout/show';
   import CellGlyph from './CellGlyph.svelte';
   import EnvelopeCurve from './EnvelopeCurve.svelte';
-  import { chipPlaces, envelopeBox, modifiersOf } from '../layout/voice';
+  import { bottomOf, chipPlaces, envelopeBox, modifiersOf, voiceOutline } from '../layout/voice';
   import { formatLabel } from '../layout/labels';
   import { drawnShifts } from '../layout/turning';
 
@@ -30,34 +30,40 @@
   const label = $derived(rawLabel ? formatLabel(ctx.program, data.name, rawLabel, stillShifts) : null);
   // an instrument shows its waveform (show=spectrum: its spectrum)
   const wave = $derived(effectiveShow(ctx.program, data.name).show !== 'spectrum');
-  // one wheel (layout/voice.ts): its envelope a cap on its top, its other modifiers chips on its lower rim — one outline
+  // one wheel (layout/voice.ts): its waveform's disc on top, its envelope in a band under it, its other modifiers chips on
+  // its upper shoulders — one outline
   const whole = $derived(!data.petal);
   const c = $derived(data.size / 2);
-  const cap = $derived(envelopeBox(data.size));
+  const band = $derived(envelopeBox(data.size));
+  const outline = $derived(voiceOutline(data.size));
   const chips = $derived.by(() => {
     if (!whole) return [];
     const names = modifiersOf(ctx.program, data.name);
     return chipPlaces(data.size, names.length).map((p, i) => ({ ...p, name: names[i] }));
   });
-  const capRect = $derived({ x: c - cap.width / 2, y: c - cap.top, w: cap.width, h: cap.height, r: Math.min(14, cap.height / 3) });
+  const bandRect = $derived({ x: c - band.width / 2, y: c + band.top, w: band.width, h: band.height });
+  // (its section's tint, the selector's lane it is in: its outline, its envelope and its name's border wear it)
+  const section = $derived(ctx.sections?.get(id));
 </script>
 
 <div
   class="node voice"
+  class:sectioned={!!section}
   data-state={state}
   style="width: {data.size}px; height: {data.size}px"
+  style:--section={section}
   {@attach longpress(() => ctx.toggle(id))}
-  title={wave ? `&${data.name}: its waveform` : `&${data.name}: spectrum — left / right channel; low at the top, high at the bottom`}
+  title={wave
+    ? `&${data.name} (${data.summary}): its waveform, its envelope under it`
+    : `&${data.name} (${data.summary}): spectrum — left / right channel; low at the top, high at the bottom`}
 >
   <Handle type="target" position={Position.Top} class="center-handle" isConnectable={false} />
   {#if whole}
-    <!-- (the outline of the whole: the cap, the disc and the chips stroked, then filled over, so one line goes round all) -->
+    <!-- (the outline of the whole: the hull and the chips stroked, then filled over, so one line goes round all) -->
     <svg class="frame" width={data.size} height={data.size} aria-hidden="true">
-      <rect class="outline" x={capRect.x} y={capRect.y} width={capRect.w} height={capRect.h} rx={capRect.r} />
-      <circle class="outline" cx={c} cy={c} r={c - 1} />
+      <path class="outline" d={outline} />
       {#each chips as ch (ch.name)}<circle class="outline" cx={c + ch.x} cy={c + ch.y} r={ch.r} />{/each}
-      <rect class="body" x={capRect.x} y={capRect.y} width={capRect.w} height={capRect.h} rx={capRect.r} />
-      <circle class="body" cx={c} cy={c} r={c - 1} />
+      <path class="body" d={outline} />
       {#each chips as ch (ch.name)}<circle class="body" cx={c + ch.x} cy={c + ch.y} r={ch.r} />{/each}
     </svg>
     {#each chips as ch (ch.name)}
@@ -68,17 +74,15 @@
   {/if}
   {#if wave}<WaveGlyph name={data.name} size={data.size} />{:else}<SpectrumWheel name={data.name} size={data.size} />{/if}
   {#if whole}
-    <!-- (the envelope over the disc's top edge, which the cap reaches into) -->
+    <!-- (the envelope in the band under the disc) -->
     <svg class="frame" width={data.size} height={data.size} aria-hidden="true">
-      <EnvelopeCurve voice={data.name} x={capRect.x} y={capRect.y} width={capRect.w} height={capRect.h} />
+      <EnvelopeCurve voice={data.name} live={state === 'live'} x={bandRect.x} y={bandRect.y} width={bandRect.w} height={bandRect.h} />
     </svg>
   {/if}
-  <!-- its name in a pill, what it is under it, small (#137: as every node's) -->
-  {#if !data.petal}<div class="name" title={lambda ? `&(${lambda})` : undefined}>
-      <span class="pill"
-        >{#if label}<span class="label">{@html label}</span>{:else}{lambda ? `&(${lambda.length > 14 ? lambda.slice(0, 13) + '…' : lambda})` : '&' + data.name}{/if}</span
-      >
-      <span class="summary">{label ? `&${data.name}` : data.summary}</span>
+  <!-- its name, one plate as every node's: its label over its name, or its name -->
+  {#if !data.petal}<div class="name" style:top="{c + bottomOf(data.size)}px" class:lambda={!!lambda} title={lambda ? `&(${lambda})` : label ? `&${data.name}` : undefined}>
+      {#if label}<span class="label">{@html label}</span><small>&amp;{data.name}</small>
+      {:else}{lambda ? `&(${lambda.length > 14 ? lambda.slice(0, 13) + '…' : lambda})` : '&' + data.name}{/if}
     </div>{/if}
   {#if !data.petal}<SideMarks name={data.name} />{/if}
   {#if data.pinned}<span class="pin" title="Pinned"></span>{/if}
@@ -89,6 +93,8 @@
 <style>
   .voice {
     border-radius: 50%;
+    /* (its lane's colour: its section's tint, else the accent) */
+    --lane: var(--section, var(--accent));
   }
   .frame {
     position: absolute;
@@ -98,8 +104,15 @@
   }
   .outline {
     fill: none;
-    stroke: var(--wheel-ref);
+    stroke: color-mix(in oklab, var(--lane) 55%, var(--wheel-ref));
     stroke-width: 3;
+  }
+  [data-state='live'] .outline {
+    stroke: var(--lane);
+  }
+  [data-state='off'] .outline,
+  [data-state='unrouted'] .outline {
+    stroke: var(--wheel-ref);
   }
   .body {
     fill: var(--wheel-disc);
@@ -112,42 +125,46 @@
   .voice :global([data-wheel='spectrum']) {
     position: relative;
   }
+  /* (the name: as a cell's, CellNode.svelte) */
   .label {
+    display: block;
     font: 700 13px var(--font-ui);
     color: var(--text);
   }
-  .name {
-    position: absolute;
-    top: 100%;
-    left: 50%;
-    transform: translate(-50%, 6px);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 1px;
-    white-space: nowrap;
-    font: 600 13px/1.2 var(--font-code);
+  .label :global(b) {
     color: var(--accent);
   }
-  .pill {
+  .name small {
+    display: block;
+    font-size: 0.75em;
+    opacity: 0.7;
+  }
+  .name {
+    position: absolute;
+    left: 50%;
+    transform: translate(-50%, 6px);
+    white-space: nowrap;
+    font: 600 13px/1.2 var(--font-code);
+    color: var(--text);
     background: var(--surface);
     padding: 3px 8px;
     border-radius: 6px;
     border: 1px solid transparent;
   }
-  .summary {
-    color: var(--text-muted);
-    font-weight: 500;
-    font-size: 11px;
-    /* (a faint plate: the wires under it don't run through its letters) */
-    background: color-mix(in oklab, var(--surface) 80%, transparent);
-    padding: 0 5px;
-    border-radius: 4px;
-  }
-  [data-state='live'] .pill {
+  [data-state='live'] .name {
     border-color: var(--accent);
   }
-  [data-state='off'] .pill {
+  .sectioned .name {
+    border-color: color-mix(in oklab, var(--section) 45%, transparent);
+  }
+  .sectioned[data-state='live'] .name {
+    border-color: var(--section);
+  }
+  [data-state='off'] .name {
     text-decoration: line-through;
+  }
+  .name.lambda {
+    font-style: italic;
+    opacity: 0.85;
   }
 </style>

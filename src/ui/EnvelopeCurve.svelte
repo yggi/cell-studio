@@ -1,14 +1,15 @@
 <script lang="ts">
   /**
-   * A voice's envelope, drawn in the cap on its wheel's top (VoiceNode, layout/voice.ts): its curve across the cap, or,
-   * when the voice has none written, a square one (on at once, held, off at once), fainter. While the piece plays, two
-   * lines cross on the curve where the latest note is (its time and its level now), and the curve is filled from below
-   * up to that level (layout/envelope.ts). `x`, `y`: where the cap is in the wheel's drawing.
+   * A voice's envelope, drawn in the band under its wheel's disc (VoiceNode, layout/voice.ts), in its lane's colour: its
+   * curve across the band, or, when the voice has none written, a square one (on at once, held, off at once), fainter.
+   * While the voice sounds (`live`: not while it is off, or its section isn't picked), two lines cross on the curve where
+   * the latest note is (its time and its level now), and the curve is filled from below up to that level
+   * (layout/envelope.ts). `x`, `y`: where the band is in the wheel's drawing.
    */
   import { envelopeAt, envelopeAxis, envelopeOf, latestNoteAt, voiceNotes } from '../layout/envelope';
   import { getGraphContext } from './context';
 
-  let { voice, x, y, width, height }: { voice: string; x: number; y: number; width: number; height: number } = $props();
+  let { voice, live = true, x, y, width, height }: { voice: string; live?: boolean; x: number; y: number; width: number; height: number } = $props();
   const ctx = getGraphContext();
   const written = $derived(envelopeOf(ctx.program, voice));
   // (none written: a square envelope, the voice's own default)
@@ -31,7 +32,7 @@
   // the notes that play it: whatever plays the voice
   const notes = $derived(voiceNotes(ctx.program, voice));
   const now = $derived.by(() => {
-    if (!ctx.lit || !notes.length) return null;
+    if (!ctx.lit || !live || !notes.length) return null;
     const t = ctx.heads.seconds;
     const last = latestNoteAt(ctx.program, ctx.shifts, notes, t);
     if (!last) return null;
@@ -56,12 +57,12 @@
 <style>
   .curve {
     fill: none;
-    stroke: var(--accent);
+    stroke: var(--lane, var(--accent));
     stroke-width: 2.5;
     stroke-linejoin: round;
   }
   .fill {
-    fill: var(--accent);
+    fill: var(--lane, var(--accent));
     opacity: 0.35;
   }
   .now {

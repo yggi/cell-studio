@@ -6,7 +6,7 @@ import type { LiveState } from '@yggi/cells/engine/live';
 import { ForceLayout } from '../../layout/physics';
 import { DEFAULT_LAYOUT, TOWER_LAYOUT, type LayoutOptions } from '../../layout/options';
 import type { Loom } from '../../layout/physics';
-import { isSocket, SOCKET_SIZE, soundOf, towerLayers, towerOuts, withSockets, type TowerLayer, type TowerOut } from '../../layout/towerlayout';
+import { isSocket, SOCKET_SIZE, soundOf, towerOuts, type TowerLayer, type TowerOut } from '../../layout/towerlayout';
 import type { MeterTrace } from '../../layout/state';
 import { meterIndex } from '../../layout/meters';
 import { towerOf, towerRanks, zoneRanks } from '../../layout/tower';
@@ -14,7 +14,7 @@ import { flowRanks } from '../../layout/ranks';
 import { isSide, sideless } from '../../layout/side';
 import { flowNodeOf, PETAL, physical } from '../flownode';
 import { flowEdgesOf } from '../flowedges';
-import { nodeSections } from '../sections';
+import { towerSetup } from '../towerSetup';
 import type { GraphSnapshot } from '../snapshot';
 import type { FlowNode } from '../types';
 
@@ -142,25 +142,16 @@ export class GraphLayout {
     // (the tower layout: no card's node, the card everywhere: a socket each thing it hears, at that thing's height, the
     // strip at the right showing what goes in; the layers, tables, structure, voices and the audible)
     const tower = this.mode === 'tower';
-    const next = tower ? { ...given, model: withSockets(given.program, given.model) } : given;
+    const setup = tower ? towerSetup(given.program, given.model) : null;
+    const next = setup ? { ...given, model: setup.model } : given;
     const m = next.model;
     this.outs = tower ? towerOuts(given.program, given.model) : [];
-    if (tower) {
-      const layered = towerLayers(next.program, given.model, m, { sections: new Map([...nodeSections(next.program, m)].map(([id, s]) => [id, s.k])) });
-      this.zone = layered.zone;
-      this.layers = layered.layers;
-      this.rows = layered.rows;
+    if (setup) {
+      this.zone = setup.layered.zone;
+      this.layers = setup.layered.layers;
+      this.rows = setup.layered.rows;
       this.drawnModel = m;
-      layout.setOptions({
-        heights: layered.targets,
-        held: layered.held,
-        strata: layered.strata,
-        between: layered.between,
-        lineUp: layered.lineUp,
-        rainbow: layered.rainbow,
-        aside: layered.aside,
-        columns: layered.columns,
-      });
+      layout.setOptions(setup.options);
     }
     // (a probe: the rows by the frequency tower instead of the signal path, docs/notes/multiscale.md)
     if (ROWS === 'tower') layout.setOptions({ ranks: towerRanks(towerOf(next.program, m)) });

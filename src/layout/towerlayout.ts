@@ -72,7 +72,7 @@ export interface TowerIn extends TowerOut {
 /**
  * Where each wire into the strips comes in, from where things are now (their centres): its socket's centre, the
  * out-node it ends at (`socketId`: the strip marks it level with it); with no socket, its source's top — a voice's
- * envelope's cap (its base frequency), anything else's the top of its box (`height`, px).
+ * disc (its base frequency), anything else's the top of its box (`height`, px).
  */
 export function towerIns(outs: readonly TowerOut[], program: CompileResult, at: (id: string) => { x: number; y: number; height?: number } | undefined): TowerIn[] {
   return outs.flatMap((o) => {
@@ -180,7 +180,7 @@ export type TowerLayer = 'constant' | 'source' | 'selector' | 'stepped' | 'gate'
 
 /**
  * A column (`towerLayers`): a voice or a kit (`hi`) and the one cell that plays it (`lo`), alone in playing it, at one x;
- * through a product's junction (`via`), the player under the junction, which sits on the voice's rim.
+ * through a product's junction (`via`), the player under the junction, which hangs under the voice.
  */
 export interface Column {
   readonly lo: string;
@@ -190,7 +190,7 @@ export interface Column {
 
 /** Decades between layers: the voice layer's room above the structure, the tables' below it. */
 const LAYER_GAP = 0.6;
-/** Decades between the voices and the mixers over them: room for a voice's cap, a gain and a mixer's name. */
+/** Decades between the voices and the mixers over them: room for a gain and a mixer's name. */
 const MIX_GAP = 1;
 
 /**

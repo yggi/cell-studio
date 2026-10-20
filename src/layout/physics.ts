@@ -11,7 +11,7 @@
  */
 import { forceX, forceY, forceCollide, forceLink, forceManyBody, forceSimulation, type Simulation } from 'd3-force';
 import type { GraphModel } from '@yggi/cells/engine/graph';
-import { drawnCrossings, layoutQuality, type LayoutQuality } from './quality';
+import { drawnCrossings, layoutQuality, type DrawnEdge, type LayoutQuality } from './quality';
 import { groundsOf } from './meters';
 import { openBelt, pulleys } from './belts';
 import { strengthOf } from './weights';
@@ -19,8 +19,10 @@ import { sideless } from './side';
 import { BELT_LENGTH, BELT_PULL, DEFAULT_LAYOUT, GROUND_PULL, linkPull, type LayoutOptions } from './options';
 import type { LayoutState, MeterTrace, PhysLink, PhysNode } from './state';
 import { nodeAt, positionOf } from './state';
-import { folded, junctionNodes, placeJunctions, settleJunctions } from './junctions';
-import { rowsKey, startNodes, startPlaces } from './start';
+import { splinePoint } from './geometry';
+import { entersFromSide, sideTurn } from './voice';
+import { folded, junctionNodes, placeJunctions, settleJunctions, stepClearJunctions } from './junctions';
+import { rowsKey, startCode, startNodes, startPlaces } from './start';
 import { forceUncross, stepBends, stepClusters, stepExclusion, stepKinds, stepSpread } from './forces';
 import { aims, fitTurns, stepAims } from './aims';
 import { UNTURNED } from './tape';
@@ -87,6 +89,7 @@ export class ForceLayout {
       colX: new Map(),
       bendAt: new Map(),
       size: 1,
+      start: 0,
       faces: [],
       turns: new Map(),
       nets: [],
@@ -139,8 +142,12 @@ export class ForceLayout {
       .force('clusters', (alpha: number) => stepClusters(this.s, alpha))
       // a tape turns so its heads face what they connect to, and those turn round it towards their heads
       .force('aims', (alpha: number) => stepAims(this.s, alpha))
+      // wheels kept off the edges they don't meet
+      .force('edgeClear', (alpha: number) => this.clearEdges(alpha))
       // turntables: nothing overlaps them — a node that would is set at their edge
       .force('exclusion', () => stepExclusion(this.s))
+      // a product's meter hangs under its voice: nothing settles on it
+      .force('underVoice', () => stepClearJunctions(this.s))
       // (the tower layout) heights held: whatever moved a node, it ends the tick at its height
       .force('heights', (alpha: number) => this.hold(alpha))
       // (the tower layout, socketsAbove) a socket rides above its source
@@ -228,7 +235,7 @@ export class ForceLayout {
    * lays it out with fewer crossings — tried, each in a layout of its own, for `trial` ticks.
    */
   private rowOrderFor(model: GraphModel): number {
-    if (this.s.opts.rowOrder !== 3) return this.s.opts.rowOrder;
+    if (this.s.opts.rowOrder !== 3) return startCode(this.s.opts.rowOrder, this.s.opts.start);
     return this.s.opts.rowOrders.get(rowsKey(model)) ?? bestRowOrder(model, this.s.opts);
   }
 
@@ -237,7 +244,7 @@ export class ForceLayout {
     // (notes and scopes are read in the margin, not laid among the music: side.ts)
     const drawn = sideless(whole);
     // (as drawn: a product's wires at its junction; the forces lay the graph with each junction folded into its voice,
-    // and the junctions are set on their voices' rims after each tick: junctions.ts)
+    // and the junctions are hung under their voices after each tick: junctions.ts)
     this.s.drawnNets = drawn.nets ?? [];
     this.s.drawnEnds = new Map(drawn.edges.map((e) => [e.id, e.to]));
     let model = folded(drawn);
@@ -258,6 +265,8 @@ export class ForceLayout {
     if (fresh) this.s.bendAt.clear(); // a fresh graph: no bends left over from the last one
     this.calmed = !fresh;
     this.cap = gentle ? GENTLE_CALM : CALM;
+    // (as drawn: a product's wires at its junction, its `is` too; where they hang, the layers make room under their voices)
+    this.s.junctions = junctionNodes(this.s, drawn);
     const start = startPlaces(this.s, model, fresh, () => (fresh ? (this.rowChoice = this.rowOrderFor(drawn)) : this.rowChoice));
     const { next, added, tagLinks } = startNodes(this.s, model, fresh, parentOf, start);
 
@@ -317,8 +326,6 @@ export class ForceLayout {
       belt: l.belt,
       strength: l.strength,
     }));
-    // (as drawn: a product's wires at its junction, its `is` too)
-    this.s.junctions = junctionNodes(this.s, drawn);
     for (const id of [...this.s.rims.keys()]) if (!this.s.junctions.has(id)) this.s.rims.delete(id);
     const placedIds = (id: string) => next.has(id) || this.s.junctions.has(id);
     this.s.links = drawn.edges
@@ -331,6 +338,7 @@ export class ForceLayout {
         strength: strengthOf(e),
         kind: e.band,
         is: e.port === 'is',
+        ...(this.s.byId.get(e.to)?.wheel && !this.s.junctions.has(e.to) && entersFromSide(e) ? { side: e.to } : {}),
         ...(e.bulb && e.bulbAt ? { bulbAt: { x: e.bulbAt.x, y: e.bulbAt.y } } : {}),
       }));
     placeJunctions(this.s);
@@ -610,13 +618,26 @@ export class ForceLayout {
    */
   private rise(): void {
     const min = this.s.opts.minRise;
+    const held = this.s.opts.held;
+    const bands = this.s.opts.strata;
+    // (what feeds a product's junction comes up into it from under it, in either layout: a wire that came in from its
+    // side would cross the stubs of the junctions beside it; the junction can't move, so its voice does)
+    for (const l of this.s.opts.meterRise ? this.s.links : []) {
+      if (l.is) continue;
+      const [a, b] = [nodeAt(this.s, l.source), nodeAt(this.s, l.target)];
+      const [j, o] = a?.rides ? [a, b] : b?.rides ? [b, a] : [undefined, undefined];
+      const v = j && this.s.byId.get(j.rides!);
+      if (!j || !o || !v || o.rides || o === v || j.y === undefined || o.y === undefined) continue;
+      const short = (this.s.opts.meterRise + (j.radius + o.radius) * 0.7 - (o.y - j.y)) * RISE;
+      if (short <= 0) continue;
+      if (!held?.has(o.id) && o.fy == null) o.y = Math.min(bands?.get(o.id)?.[1] ?? Infinity, o.y + short);
+      else if (!held?.has(v.id) && v.fy == null) v.y = Math.max(bands?.get(v.id)?.[0] ?? -Infinity, (v.y ?? 0) - short);
+    }
     if (!min) return;
     // (a table's bus, read over=, lies flat along its row: not a plain wire; a value several read is)
     const buses = new Set(this.s.nets.flatMap((n) => (n.port === 'over' ? n.readers : [])));
-    const held = this.s.opts.held;
-    const bands = this.s.opts.strata;
     for (const l of this.s.links) {
-      if (buses.has(l.id)) continue;
+      if (buses.has(l.id) || l.is) continue;
       // (a product's junction stands for its voice: its wire rises to the voice's row)
       const [a, b] = [nodeAt(this.s, l.source), nodeAt(this.s, l.target)];
       if (a?.y === undefined || b?.y === undefined || a.y < b.y) continue;
@@ -741,21 +762,33 @@ export class ForceLayout {
   private placed() {
     const nodes = [
       ...[...this.s.byId.values()].map((n) => ({ id: n.id, x: n.x ?? 0, y: n.y ?? 0, r: n.radius, tags: n.tags, label: n.role === 'tag' })),
+      // (a voice's lower body, its envelope band and its name, hides the edges under it too: part of it, not a cell)
+      ...[...this.s.byId.values()].flatMap((n) =>
+        n.body && n.x !== undefined ? [{ id: `${n.id}#body`, x: n.x, y: (n.y ?? 0) + n.body * 0.55, r: n.body * 0.45, label: true, of: n.id }] : [],
+      ),
       // (a product's junction hides the edges under its dot, but it is part of its voice, not a cell)
       ...[...this.s.junctions.values()].flatMap((n) => (n.x === undefined ? [] : [{ id: n.id, x: n.x, y: n.y ?? 0, r: n.radius, label: true, of: n.rides }])),
     ];
     // (a bus's reader that comes on from another reader: drawn from there, straight)
     const joins = hops(this.s);
     const looms = loomsOf(this.s);
+    // (the tower layout: a plain wire, one reader's, not a net's, is drawn as a sigmoid, upright at both ends — PulseEdge)
+    const nets = new Set(this.s.drawnNets.flatMap((n) => n.readers));
+    const inNet = this.s.opts.strata ? nets : null;
+    const sigmoid = (a: string, b: string) => this.sigmoid(a, b);
     const edges = [
-      ...this.s.links.flatMap((l) => {
+      ...this.s.links.flatMap((l): DrawnEdge[] => {
         const h = joins.get(l.id);
         // (out of a loom's source lane: its strand, below)
         if (h && looms.has(h.from)) return [];
+        if (h) return [{ a: h.from, b: h.to, mid: undefined, weight: l.strength, kind: l.kind }];
+        const runs = this.beltRuns(l);
+        // (into a voice's side, either layout: as PulseEdge draws it)
+        const path =
+          (!runs && l.side && !nets.has(l.id) ? this.sideLine(l.side === l.source ? l.target : l.source, l.side, this.s.bendAt.get(l.id)) : undefined) ??
+          (inNet && !runs && !inNet.has(l.id) ? sigmoid(l.source, l.target) : undefined);
         return [
-          h
-            ? { a: h.from, b: h.to, mid: undefined, weight: l.strength, kind: l.kind }
-            : { a: l.source, b: l.target, mid: this.s.bendAt.get(l.id) as { x: number; y: number } | undefined, runs: this.beltRuns(l), weight: l.strength, kind: l.kind },
+          { a: l.source, b: l.target, mid: this.s.bendAt.get(l.id) as { x: number; y: number } | undefined, runs, ...(path ? { path } : {}), weight: l.strength, kind: l.kind },
         ];
       }),
       // (a selector's sections as a loom over its table, sectionLoom: its strands, which don't cross each other)
@@ -780,6 +813,116 @@ export class ForceLayout {
         }),
     ];
     return { nodes, edges };
+  }
+
+  /**
+   * The tower layout's plain wire between two nodes as PulseEdge draws it, in short pieces: a sigmoid out of one
+   * centre upright into the other's, through (ax, my) and (bx, my); none when the two are about level.
+   */
+  private sigmoid(a: string, b: string): [number, number, number, number][] | undefined {
+    const [p, q] = [nodeAt(this.s, a), nodeAt(this.s, b)];
+    if (!p || !q || p.x === undefined || q.x === undefined || Math.abs((p.y ?? 0) - (q.y ?? 0)) < 20) return undefined;
+    const [ax, ay, bx, by] = [p.x, p.y ?? 0, q.x, q.y ?? 0];
+    const my = (ay + by) / 2;
+    const pts = Array.from({ length: 17 }, (_, k) => {
+      const t = k / 16;
+      const [w0, w1, w2, w3] = [(1 - t) ** 3, 3 * (1 - t) ** 2 * t, 3 * (1 - t) * t ** 2, t ** 3];
+      return { x: (w0 + w1) * ax + (w2 + w3) * bx, y: w0 * ay + (w1 + w2) * my + w3 * by };
+    });
+    return pts.slice(1).map((r, k) => [pts[k].x, pts[k].y, r.x, r.y]);
+  }
+
+  /**
+   * A wire into a voice's side as PulseEdge draws it, in short pieces: out of its other end (upright in the tower
+   * layout, else towards its bend), level into the voice's flank on the side it comes from.
+   */
+  private sideLine(other: string, voice: string, bend?: { x: number; y: number }): [number, number, number, number][] | undefined {
+    const [p, v] = [nodeAt(this.s, other), this.s.byId.get(voice)];
+    if (!p || !v || p.x === undefined || v.x === undefined || !v.wheel) return undefined;
+    const [ax, ay, tx, ty] = [p.x, p.y ?? 0, v.x, v.y ?? 0];
+    const dir = ax <= tx ? -1 : 1;
+    const [bx, by] = [tx + (dir * v.wheel) / 2, ty];
+    const m = bend ?? { x: (ax + tx) / 2, y: (ay + ty) / 2 };
+    const c1 = this.s.opts.strata ? { x: ax, y: (ay + by) / 2 } : { x: 2 * m.x - (ax + tx) / 2, y: 2 * m.y - (ay + ty) / 2 };
+    const c2 = { x: bx + dir * sideTurn(bx - ax), y: by };
+    const pts = Array.from({ length: 17 }, (_, k) => {
+      const t = k / 16;
+      const [w0, w1, w2, w3] = [(1 - t) ** 3, 3 * (1 - t) ** 2 * t, 3 * (1 - t) * t ** 2, t ** 3];
+      return { x: w0 * ax + w1 * c1.x + w2 * c2.x + w3 * bx, y: w0 * ay + w1 * c1.y + w2 * c2.y + w3 * by };
+    });
+    return [...pts.slice(1).map((r, k): [number, number, number, number] => [pts[k].x, pts[k].y, r.x, r.y]), [bx, by, tx, ty]];
+  }
+
+  /** Each drawn edge's line as drawn now, in short pieces (a tower layout's sigmoid, a hop straight, else its spline through its bend), with its two ends. */
+  private drawnLines(): { a: string; b: string; pieces: [number, number, number, number][] }[] {
+    const joins = hops(this.s);
+    const nets = new Set(this.s.drawnNets.flatMap((n) => n.readers));
+    const inNet = this.s.opts.strata ? nets : null;
+    return this.s.links.flatMap((l) => {
+      if (l.is || l.belt) return [];
+      const h = joins.get(l.id);
+      const [a, b] = h ? [h.from, h.to] : [l.source, l.target];
+      const side = !h && l.side && !nets.has(l.id) ? this.sideLine(l.side === l.source ? l.target : l.source, l.side, this.s.bendAt.get(l.id)) : undefined;
+      if (side) return [{ a, b, pieces: side }];
+      const path = !h && inNet && !inNet.has(l.id) ? this.sigmoid(a, b) : undefined;
+      if (path) return [{ a, b, pieces: path }];
+      const [p, q] = [nodeAt(this.s, a), nodeAt(this.s, b)];
+      if (!p || !q || p.x === undefined || q.x === undefined) return [];
+      const [ax, ay, bx, by] = [p.x, p.y ?? 0, q.x, q.y ?? 0];
+      const m = (h ? undefined : this.s.bendAt.get(l.id)) ?? { x: (ax + bx) / 2, y: (ay + by) / 2 };
+      const pts = Array.from({ length: 9 }, (_, k) => splinePoint(ax, ay, m.x, m.y, bx, by, k / 8));
+      return [{ a, b, pieces: pts.slice(1).map((r, k) => [pts[k].x, pts[k].y, r.x, r.y] as [number, number, number, number]) }];
+    });
+  }
+
+  /**
+   * Wheels kept off the edges they don't meet (near field): a wheel, a voice's lower body or a junction under it, that
+   * a foreign edge runs through as drawn is pushed off it, and the edge's ends a little the other way (`edgeClear`).
+   */
+  private clearEdges(alpha: number): void {
+    const k = this.s.opts.edgeClear * alpha;
+    if (k <= 0) return;
+    // (what an edge may not run under: each wheel's disc, a voice's band and name, a junction hung under its voice — each moving its owner)
+    const obstacles = [...this.s.byId.values()].flatMap((n) =>
+      n.role === 'tag' || n.x === undefined || n.y === undefined
+        ? []
+        : [{ n, x: n.x, y: n.y, r: n.radius * 0.8 }, ...(n.body ? [{ n, x: n.x, y: n.y + n.body * 0.55, r: n.body * 0.45 }] : [])],
+    );
+    for (const j of this.s.junctions.values()) {
+      const v = this.s.byId.get(j.rides ?? '');
+      if (v && j.x !== undefined && j.y !== undefined) obstacles.push({ n: v, x: j.x, y: j.y, r: j.radius });
+    }
+    const owner = (id: string) => {
+      const n = nodeAt(this.s, id);
+      return n?.rides ? this.s.byId.get(n.rides) : n;
+    };
+    for (const line of this.drawnLines()) {
+      const [ea, eb] = [owner(line.a), owner(line.b)];
+      let [x0, y0, x1, y1] = [Infinity, Infinity, -Infinity, -Infinity];
+      for (const [ax, ay, bx, by] of line.pieces) [x0, y0, x1, y1] = [Math.min(x0, ax, bx), Math.min(y0, ay, by), Math.max(x1, ax, bx), Math.max(y1, ay, by)];
+      for (const o of obstacles) {
+        if (o.n === ea || o.n === eb || o.x < x0 - o.r || o.x > x1 + o.r || o.y < y0 - o.r || o.y > y1 + o.r) continue;
+        let best = { d: Infinity, x: 0, y: 0 };
+        for (const [ax, ay, bx, by] of line.pieces) {
+          const [dx, dy] = [bx - ax, by - ay];
+          const t = Math.max(0, Math.min(1, ((o.x - ax) * dx + (o.y - ay) * dy) / (dx * dx + dy * dy || 1)));
+          const [px, py] = [ax + t * dx, ay + t * dy];
+          const d = Math.hypot(o.x - px, o.y - py);
+          if (d < best.d) best = { d, x: px, y: py };
+        }
+        if (best.d >= o.r) continue;
+        // (off the line, the way it lies of it; dead on it, sideways)
+        const [ux, uy] = best.d > 1e-3 ? [(o.x - best.x) / best.d, (o.y - best.y) / best.d] : [1, 0];
+        const push = (o.r - best.d) * k;
+        o.n.vx = (o.n.vx ?? 0) + ux * push;
+        o.n.vy = (o.n.vy ?? 0) + uy * push;
+        for (const e of [ea, eb])
+          if (e) {
+            e.vx = (e.vx ?? 0) - ux * push * 0.25;
+            e.vy = (e.vy ?? 0) - uy * push * 0.25;
+          }
+      }
+    }
   }
 
   /** A belt's two runs as BeltEdge draws them (the outer tangents of its pulleys; their ratio taken as 1). */
@@ -921,20 +1064,23 @@ export class ForceLayout {
 }
 
 /**
- * The rows' order (layered.ts: 0 the sweeps, 1 insertion then the sweeps) that lays a fresh graph out with fewer
- * crossings: each tried, in a layout of its own, for `trial` ticks.
+ * The start (layered.ts' rows' order: 0 the sweeps, 1 insertion then the sweeps; and which of `starts` jitters) that
+ * lays a fresh graph out with fewer crossings: each tried, in a layout of its own, for `trial` ticks. As a start's
+ * number (start.ts startCode).
  */
-export function bestRowOrder(model: GraphModel, opts: Partial<LayoutOptions> = {}): 0 | 1 {
+export function bestRowOrder(model: GraphModel, opts: Partial<LayoutOptions> = {}): number {
   const o = { ...DEFAULT_LAYOUT, ...opts };
-  let best: { order: 0 | 1; crossings: number; cost: number } = { order: 0, crossings: Infinity, cost: Infinity };
-  for (const order of [0, 1] as const) {
-    const t = new ForceLayout(undefined, { ...o, live: false, rowOrder: order });
-    t.setGraph(model);
-    t.tick(o.trial);
-    t.layNet();
-    const q = t.quality();
-    t.destroy();
-    if (q.crossings < best.crossings || (q.crossings === best.crossings && q.cost < best.cost)) best = { order, crossings: q.crossings, cost: q.cost };
-  }
-  return best.order;
+  let best = { code: 0, crossings: Infinity, cost: Infinity };
+  for (let start = 0; start < Math.max(1, o.starts); start++)
+    for (const order of [0, 1] as const) {
+      const t = new ForceLayout(undefined, { ...o, live: false, rowOrder: order, start });
+      t.setGraph(model);
+      t.tick(o.trial);
+      t.layNet();
+      const q = t.quality();
+      t.destroy();
+      const score = q.crossings + o.underWeight * q.under;
+      if (score < best.crossings || (score === best.crossings && q.cost < best.cost)) best = { code: startCode(order, start), crossings: score, cost: q.cost };
+    }
+  return best.code;
 }

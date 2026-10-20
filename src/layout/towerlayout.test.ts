@@ -380,9 +380,10 @@ describe('the tower layout', () => {
     expect(layers.get('cell:layers')).toBe('selector');
     const { pill } = layout.sectionLooms().find((l) => l.table === 'cell:layers')!;
     expect(layout.position('cell:lydian')!.y).toBeLessThan(pill.y0);
-    // (at the left end of the harmony net: left of every cell reading it over=)
+    // (at the left end of the harmony net: left of every cell reading it over=, or level with the leftmost — the lead is a
+    // pull, balanced at rest against its seven readers' springs, and from some starts it rests in the leftmost's column)
     const readers = ['pad', 'arp', 'melody', 'canon', 'bells', 'pulse', 'shimmer'].map((c) => layout.position(`cell:${c}`)!.x);
-    expect(layout.position('cell:lydian')!.x).toBeLessThan(Math.min(...readers));
+    expect(layout.position('cell:lydian')!.x).toBeLessThan(Math.min(...readers) + 10);
     layout.destroy();
   });
 

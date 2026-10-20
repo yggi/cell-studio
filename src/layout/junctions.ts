@@ -2,9 +2,10 @@
  * Products' junctions in the layout (engine/graph.ts, docs/notes/nets.md decision 2). A junction weighs nothing: it
  * takes no part in the forces. The layout is worked out on the graph with each junction folded into its voice (what
  * goes into a product goes into the voice, what comes out of it out of the voice: the signal path as it was before
- * junctions), and each junction is then set on its voice's rim, facing the wires that come into it, as a tape's heads
- * ride the tape. So a junction costs the layout nothing, and each product still has its own place: its melody comes in
- * at its dot, and its sound leaves from there.
+ * junctions), and each junction is then set by its voice: under a voice's wheel, just below its envelope (its notes
+ * go up into it, its main input; several side by side), and on the rim of anything else (a kit, a tape), facing the
+ * wires that come into it, as a tape's heads ride the tape. So a junction costs the layout nothing, and each product
+ * still has its own place: its melody comes in at its meter, and its notes go on into the voice from there.
  */
 import { netsOf, type GraphEdge, type GraphModel } from '@yggi/cells/engine/graph';
 import { edgeId } from '@yggi/cells/engine/ids';
@@ -12,6 +13,7 @@ import { segmentsCross, splinePoint } from './geometry';
 import { hops } from './nets';
 import { stepBends } from './forces';
 import { nodeAt, type LayoutState, type PhysNode } from './state';
+import { bodyOf, VOICE_SIZE } from './voice';
 
 /**
  * The graph with each product's junction folded into its voice: its `is` wire gone, its other wires to and from the
@@ -44,28 +46,18 @@ export function folded(model: GraphModel): GraphModel {
   return { ...model, nodes, edges, nets: netsOf(nodes, edges) };
 }
 
-/** How far out of its voice's room a junction sits, × its own room: a short stub of its `is` wire shows. */
-const OUT = 1.2;
-/** How much a junction's sound out (to its mix) turns it, beside its terms in (1 each). */
+/** How much a junction's sound out (to its mix) pulls it, beside its terms in (1 each). */
 const MIX_PULL = 0.35;
+/** The edge from a junction up to its voice, as much of it as shows (px). */
+const STUB = 10;
+/** Between junctions side by side under one voice (px). */
+const SIDE_GAP = 8;
+/** Room kept round a junction beyond the rooms of both (px): nothing settles on it. */
+const CLEAR = 6;
+/** How much of what a node is inside that room it is pushed out each tick (as d3's collide pushes). */
+const CLEAR_PUSH = 0.5;
 
-const wrap = (a: number) => Math.atan2(Math.sin(a), Math.cos(a));
-
-/** Off a wheel's name: the arc under it (radians either side of straight down) where its label is drawn. */
-const LABEL = 0.8;
-const DOWN = Math.PI / 2;
-/** Off a voice's envelope: the arc over it (radians either side of straight up) where its cap sits (layout/voice.ts). */
-const CAP = 1.0;
-const UP = -Math.PI / 2;
-/** An angle on the rim, moved out of the label's arc and the envelope's cap to the nearer side of each. */
-const offLabel = (a: number) => {
-  const d = wrap(a - DOWN);
-  const below = Math.abs(d) >= LABEL ? a : DOWN + (d < 0 ? -LABEL : LABEL);
-  const u = wrap(below - UP);
-  return Math.abs(u) >= CAP ? below : UP + (u < 0 ? -CAP : CAP);
-};
-
-/** A junction for each product, as the layout keeps it: its voice, and its dot's room. */
+/** A junction for each product, as the layout keeps it: its voice, its dot's room, and how far under its voice it hangs. */
 export function junctionNodes(s: LayoutState, model: GraphModel): Map<string, PhysNode> {
   const out = new Map<string, PhysNode>();
   for (const n of model.nodes) {
@@ -73,16 +65,27 @@ export function junctionNodes(s: LayoutState, model: GraphModel): Map<string, Ph
     const p = s.junctions.get(n.id) ?? { id: n.id, depth: n.depth, radius: 0 };
     p.radius = s.opts.radius(n);
     p.rides = `cell:${n.voice}`;
+    // (under its voice's drawing and its name, on a short edge: a voice's wheel reaches down to its envelope's
+    // bottom, layout/voice.ts; anything else's room has its name in it)
+    const v = model.nodes.find((m) => m.id === p.rides);
+    const reach = v?.kind === 'voice' && !v.petalOf ? bodyOf(VOICE_SIZE * (v.cell.size ?? 1)) : v ? s.opts.radius(v) : 0;
+    p.below = reach + STUB + p.radius;
     out.set(n.id, p);
   }
   return out;
 }
 
+/** A voice's junctions under it, in a row in their order (their place in it, `rims`: 0 the middle). */
+function hang(s: LayoutState, v: PhysNode, js: readonly PhysNode[]): void {
+  for (const j of js) {
+    j.x = (v.x ?? 0) + (s.rims.get(j.id) ?? 0) * (2 * j.radius + SIDE_GAP) * s.size;
+    j.y = (v.y ?? 0) + (j.below ?? 0) * s.size;
+  }
+}
+
 /**
- * Sets each junction on its voice's rim, at the angle its wires pull it to: towards its terms, and a little towards
- * its mix (turning a little at a time, from where it was), a voice's junctions kept apart round the rim, and off the
- * voice's name (under it). Run after
- * every tick; a junction whose voice isn't laid out yet has no place.
+ * Sets each junction under its voice, in a row ordered by where their wires pull them, left to right (the order kept
+ * from tick to tick once set). Run after every tick; a junction whose voice isn't laid out yet has no place.
  */
 export function placeJunctions(s: LayoutState): void {
   if (!s.junctions.size) return;
@@ -95,58 +98,55 @@ export function placeJunctions(s: LayoutState): void {
     }
     riders.set(v, [...(riders.get(v) ?? []), j]);
   }
-  // the way each junction's wires pull it round the rim (but its voice's own)
-  const pull = new Map<string, { x: number; y: number }>();
+  // (where, left to right, each junction's wires come from: the mean x of its terms in, a little its mix)
+  const pull = new Map<string, { x: number; w: number }>();
   for (const l of s.links)
     for (const [a, b, w] of [
       [l.target, l.source, 1],
       [l.source, l.target, MIX_PULL],
     ] as const) {
       const j = s.junctions.get(a);
-      const o = s.byId.get(b);
-      const v = s.byId.get(j?.rides ?? '');
-      if (!j || !v || !o || o === v) continue;
-      const d = Math.hypot((o.x ?? 0) - (v.x ?? 0), (o.y ?? 0) - (v.y ?? 0)) || 1;
-      const p = pull.get(j.id) ?? { x: 0, y: 0 };
-      p.x += (w * ((o.x ?? 0) - (v.x ?? 0))) / d;
-      p.y += (w * ((o.y ?? 0) - (v.y ?? 0))) / d;
+      const o = nodeAt(s, b);
+      if (!j || !o || o.id === j.rides || o.x === undefined) continue;
+      const p = pull.get(j.id) ?? { x: 0, w: 0 };
+      p.x += w * o.x;
+      p.w += w;
       pull.set(j.id, p);
     }
   for (const [v, js] of riders) {
-    for (const j of js) {
+    // (in the order their wires come from, so they don't cross under it; as they were where that says nothing)
+    const side = (j: PhysNode) => {
       const p = pull.get(j.id);
-      const was = s.rims.get(j.id);
-      const want = p && Math.hypot(p.x, p.y) > 1e-3 ? Math.atan2(p.y, p.x) : (was ?? -Math.PI / 2);
-      s.rims.set(j.id, was === undefined ? want : was + wrap(want - was) * 0.3);
-    }
-    // kept apart round the rim: each pair at least the angle their dots take
-    const ring = v.radius + js[0].radius * OUT;
-    if (js.length > 1) {
-      const gap = 2 * Math.asin(Math.min(1, (js[0].radius * 1.4) / ring));
-      for (let pass = 0; pass < 6; pass++)
-        for (let i = 0; i < js.length; i++)
-          for (let k = i + 1; k < js.length; k++) {
-            const [a, b] = [s.rims.get(js[i].id)!, s.rims.get(js[k].id)!];
-            const d = wrap(b - a);
-            if (Math.abs(d) >= gap) continue;
-            // (dead level: the later one goes clockwise)
-            const sign = d > 0 || (d === 0 && i < k) ? 1 : -1;
-            const push = (gap - Math.abs(d)) / 2;
-            s.rims.set(js[i].id, a - sign * push);
-            s.rims.set(js[k].id, b + sign * push);
-          }
-    }
-    for (const j of js) {
-      const a = offLabel(s.rims.get(j.id)!);
-      s.rims.set(j.id, a);
-      j.x = (v.x ?? 0) + Math.cos(a) * ring * s.size;
-      j.y = (v.y ?? 0) + Math.sin(a) * ring * s.size;
-    }
+      return p?.w ? p.x / p.w : (v.x ?? 0) + (s.rims.get(j.id) ?? 0);
+    };
+    const was = (j: PhysNode) => s.rims.get(j.id) ?? 0;
+    [...js].sort((a, b) => side(a) - side(b) || was(a) - was(b)).forEach((j, i) => s.rims.set(j.id, i - (js.length - 1) / 2));
+    hang(s, v, js);
   }
 }
 
-/** The angles a junction is tried at, round its voice's rim, when the layout is at rest. */
-const TRIES = 32;
+/**
+ * Nothing settles on a junction (it weighs nothing, so the forces don't see it): the junctions set where their voices
+ * are now, any other node inside one's room is pushed out of it, as two wheels push each other apart.
+ */
+export function stepClearJunctions(s: LayoutState): void {
+  if (!s.junctions.size) return;
+  placeJunctions(s);
+  for (const j of s.junctions.values()) {
+    if (j.x === undefined || j.y === undefined) continue;
+    for (const n of s.byId.values()) {
+      if (n.id === j.rides || n.role === 'tag' || n.x === undefined || n.y === undefined) continue;
+      const min = (j.radius + n.radius + CLEAR) * s.size;
+      const [dx, dy] = [n.x - j.x, n.y - j.y];
+      const d = Math.hypot(dx, dy);
+      if (d >= min) continue;
+      // (dead on it: aside, the way it lies of the voice; pushed, not set there, so it moves as calmly as anything does)
+      const [ux, uy] = d > 1e-6 ? [dx / d, dy / d] : [n.x >= (s.byId.get(j.rides ?? '')?.x ?? 0) ? 1 : -1, 0];
+      n.vx = (n.vx ?? 0) + ux * (min - d) * CLEAR_PUSH;
+      n.vy = (n.vy ?? 0) + uy * (min - d) * CLEAR_PUSH;
+    }
+  }
+}
 
 type Segs = [number, number, number, number][];
 /** A line as drawn: its ends, its pieces that show, and their box (min x, min y, max x, max y). */
@@ -167,10 +167,8 @@ const boxOf = (segs: Segs): Drawn['box'] => {
 const apart = (u: Drawn, v: Drawn) => u.box[2] < v.box[0] || v.box[2] < u.box[0] || u.box[3] < v.box[1] || v.box[3] < u.box[1];
 
 /**
- * At rest: each junction moved round its voice's rim to where its wires cross least (each edge, belt or meter's trace
- * they cross counts once; under a wheel, nothing shows), of the places off its voice's name and not taken by its voice's other junctions; on a
- * tie, the nearest to where its wires pull it. Two passes, a junction at a time, then a voice's junctions swapped
- * where that crosses less. A drag starts them turning back to their pulls. `runs`: a belt's runs as drawn.
+ * At rest: a voice's junctions, in their row under it, swapped pair by pair where their wires cross less (each edge,
+ * belt or meter's trace they cross counts once; under a wheel, nothing shows). `runs`: a belt's runs as drawn.
  */
 export function settleJunctions(s: LayoutState, runs: (l: { source: string; target: string; belt?: boolean }) => Segs | undefined = () => undefined): void {
   if (!s.junctions.size) return;
@@ -235,8 +233,8 @@ export function settleJunctions(s: LayoutState, runs: (l: { source: string; targ
   const meet = (u: Drawn, v: Drawn) => u.a === v.a || u.a === v.b || u.b === v.a || u.b === v.b;
   const crosses = (u: Drawn, v: Drawn) => !meet(u, v) && !apart(u, v) && u.segs.some((p) => v.segs.some((q) => segmentsCross(p[0], p[1], p[2], p[3], q[0], q[1], q[2], q[3])));
   /**
-   * What everything but these junctions' wires is drawn as, near enough to cross them: wherever round their voices'
-   * rims they are tried, their wires (straight) stay in the box round those rims and their wires' other ends.
+   * What everything but these junctions' wires is drawn as, near enough to cross them: wherever in their rows they are
+   * tried, their wires (straight) stay in the box round their voices (`ring` out) and their wires' other ends.
    */
   const restOf = (set: readonly PhysNode[], ring: number) => {
     let [x0, y0, x1, y1] = [Infinity, Infinity, -Infinity, -Infinity];
@@ -266,45 +264,33 @@ export function settleJunctions(s: LayoutState, runs: (l: { source: string; targ
   };
   const byVoice = new Map<string, PhysNode[]>();
   for (const j of placed) byVoice.set(j.rides!, [...(byVoice.get(j.rides!) ?? []), j]);
-  const put = (j: PhysNode, v: PhysNode, ring: number, angle: number) => {
-    s.rims.set(j.id, angle);
-    j.x = (v.x ?? 0) + Math.cos(angle) * ring;
-    j.y = (v.y ?? 0) + Math.sin(angle) * ring;
-  };
-  for (let pass = 0; pass < 3; pass++)
-    for (const [voice, js] of byVoice) {
-      const v = s.byId.get(voice)!;
-      const ring = (v.radius + js[0].radius * OUT) * s.size;
-      const gap = 2 * Math.asin(Math.min(1, (js[0].radius * 1.4 * s.size) / ring));
-      if (pass < 2)
-        for (const j of js) {
-          const pulled = s.rims.get(j.id) ?? 0;
-          const rest = restOf([j], ring);
-          let best = { cost: Infinity, angle: pulled };
-          for (let k = 0; k < TRIES; k++) {
-            // (tried nearest first: on a tie, the nearest to its pull wins)
-            const angle = pulled + (Math.PI * 2 * Math.ceil(k / 2) * (k % 2 ? 1 : -1)) / TRIES;
-            if (offLabel(angle) !== angle || js.some((o) => o !== j && Math.abs(wrap((s.rims.get(o.id) ?? 0) - angle)) < gap)) continue;
-            put(j, v, ring, angle);
-            const n = cost([j], rest);
-            if (n < best.cost) best = { cost: n, angle };
+  for (const [voice, js] of byVoice) {
+    const v = s.byId.get(voice)!;
+    // (where their wires can reach, wherever in the row they are)
+    const reach = (v.radius + (js[0].below ?? 0) + js.length * (2 * js[0].radius + SIDE_GAP)) * s.size;
+    // (a pass swaps each pair once; again while a pass found a better order)
+    let better = true;
+    for (let pass = 0; better && pass < 4; pass++) {
+      better = false;
+      for (let i = 0; i < js.length; i++)
+        for (let k = i + 1; k < js.length; k++) {
+          const pair = [js[i], js[k]];
+          const rest = restOf(pair, reach);
+          const [a, b] = [s.rims.get(js[i].id)!, s.rims.get(js[k].id)!];
+          const now = cost(pair, rest);
+          s.rims.set(js[i].id, b);
+          s.rims.set(js[k].id, a);
+          hang(s, v, pair);
+          if (cost(pair, rest) < now) {
+            better = true;
+            continue;
           }
-          put(j, v, ring, best.angle);
+          s.rims.set(js[i].id, a);
+          s.rims.set(js[k].id, b);
+          hang(s, v, pair);
         }
-      else
-        for (let i = 0; i < js.length; i++)
-          for (let k = i + 1; k < js.length; k++) {
-            const pair = [js[i], js[k]];
-            const rest = restOf(pair, ring);
-            const [a, b] = [s.rims.get(js[i].id)!, s.rims.get(js[k].id)!];
-            const now = cost(pair, rest);
-            put(js[i], v, ring, b);
-            put(js[k], v, ring, a);
-            if (cost(pair, rest) < now) continue;
-            put(js[i], v, ring, a);
-            put(js[k], v, ring, b);
-          }
     }
+  }
   // (their wires' bends laid again from where they are now: straight, then off the wheels as the forces would)
   for (const l of s.links) if (s.junctions.has(l.source) || s.junctions.has(l.target)) s.bendAt.delete(l.id);
   for (let k = 0; k < 12; k++) stepBends(s);

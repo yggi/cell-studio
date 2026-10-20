@@ -40,8 +40,14 @@ export interface PhysNode extends SimulationNodeDatum {
   mass?: number;
   /** How far its loom reaches round it (looms.ts), px: part of its room, and of each of its springs' length. */
   loom?: number;
-  /** A product's junction (junctions.ts): the voice whose rim it is set on. */
+  /** A voice's wheel (layout/voice.ts): how far below its centre its drawing reaches, beyond its round top (px): its envelope band and name. */
+  body?: number;
+  /** A voice's wheel: how wide it is drawn (px), where a wire into its side meets it. */
+  wheel?: number;
+  /** A product's junction (junctions.ts): the voice it hangs under. */
   rides?: string;
+  /** A product's junction (junctions.ts): how far under its voice's centre its own hangs, px (the layout grown). */
+  below?: number;
 }
 export interface PhysLink extends SimulationLinkDatum<PhysNode> {
   id: string;
@@ -75,6 +81,8 @@ interface DrawnLink {
   kind?: string;
   /** A product's voice into its junction (`is`): drawn, but no wire to untangle (it is under the voice). */
   is?: boolean;
+  /** Into the side of this voice (layout/voice.ts entersFromSide): drawn level into its flank, not up into it. */
+  side?: string;
   /** Where it leaves its source, when that is a bulb on it (a read head on its tape): from the source's centre, unturned. */
   bulbAt?: { x: number; y: number };
 }
@@ -87,9 +95,9 @@ export interface LayoutState {
   links: DrawnLink[];
   /** The edges as the forces see them: each product's junction folded into its voice (junctions.ts); else `links`. */
   springs: DrawnLink[];
-  /** Each product's junction (junctions.ts): not in the forces, set on its voice's rim after each tick. */
+  /** Each product's junction (junctions.ts): not in the forces, hung under its voice after each tick. */
   junctions: Map<string, PhysNode>;
-  /** Each junction's angle on its voice's rim, radians. */
+  /** Each junction's place in the row under its voice (0 the middle, 1 a junction's width to the right). */
   rims: Map<string, number>;
   /** The height of each node's rank in the signal path. */
   rankY: Map<string, number>;
@@ -99,6 +107,8 @@ export interface LayoutState {
   colX: Map<string, number>;
   /** Each edge's midpoint (the spline passes through it). */
   bendAt: Map<string, { x: number; y: number }>;
+  /** The start the last fresh graph began from (its jitter, start.ts startOf): an edit keeps it. */
+  start: number;
   /** The layout's scale now (1 grown; less while a fresh graph gathers and grows). */
   size: number;
   /** What each tape's heads connect to: its write source and its read heads' cells, each with its head's offset. */

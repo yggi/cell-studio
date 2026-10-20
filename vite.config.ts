@@ -31,7 +31,8 @@ const examplesIndex = (): Plugin => {
       if (loaded !== `\0${id}`) return undefined;
       // (the generator is TypeScript over src/engine: loaded through vite, not as part of this config)
       const { module } = await runnerImport<typeof import('./tools/examples-index')>('./tools/examples-index.ts', { configFile: false });
-      return module.examplesIndexModule(module.buildExamplesIndex());
+      // (kept by what it is made from: tools/examples-index.ts, cachedExamplesIndexModule)
+      return module.cachedExamplesIndexModule();
     },
     configureServer(server) {
       server.watcher.add('examples');
