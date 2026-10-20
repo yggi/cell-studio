@@ -90,8 +90,10 @@
       phaseCell: string | null;
       voice: string | null;
       sizes?: { from: number; to: number };
-      /** How far above its source's centre it leaves, straight up (a voice's envelope's top). */
+      /** How far above its source's centre it leaves, straight up (a voice's disc's top). */
       socket?: number;
+      /** Into a voice's side, level with its centre: what feeds it but doesn't play it (layout/voice.ts). */
+      side?: boolean;
       /** A mixer's sound out to a tape's write head: leaves at the mixer's top (its output), whatever lies between. */
       top?: boolean;
       picks?: Pick[];
@@ -133,8 +135,18 @@
   const lead = $derived(Math.min(120, 0.5 * Math.hypot(targetX - fromX, targetY - fromY)));
   // (the tower layout: a plain edge, one reader's, not a bus's, runs as a sigmoid between the strata — out of the lower
   // end's top, into the upper end's bottom, upright at both)
+  // (into a voice's side, whichever layout: upright out of its source as above, level into the voice's side nearer it)
   const sigmoid = $derived.by((): Cubic | null => {
-    if (!ctx.towered || hop || d.net || socket) return null;
+    if (hop || d.net) return null;
+    if (d.side && d.sizes?.to) {
+      const dir = fromX <= targetX ? -1 : 1;
+      const b = { x: targetX + (dir * d.sizes.to) / 2, y: targetY };
+      const ra = ends.source ? 0 : (d.sizes.from ?? 0) / 2;
+      const a = socket || !ctx.towered ? { x: fromX, y: fromY } : { x: fromX, y: fromY > targetY ? fromY - ra : fromY + ra };
+      const c1 = socket ? { x: a.x, y: a.y - lead } : ctx.towered ? { x: a.x, y: (a.y + b.y) / 2 } : control;
+      return { a, c1, c2: { x: b.x + dir * Math.max(30, 0.6 * Math.abs(b.x - a.x)), y: b.y }, b };
+    }
+    if (!ctx.towered || socket) return null;
     const up = fromY > targetY;
     // (an anchored end is met exactly: no rim round it)
     const [ra, rb] = [ends.source ? 0 : (d.sizes?.from ?? 0) / 2, ends.target ? 0 : (d.sizes?.to ?? 0) / 2];

@@ -60,7 +60,10 @@
     const r1 = S * 0.45;
     g.setTransform(dpr, 0, 0, dpr, 0, 0);
     g.clearRect(0, 0, S, S);
-    const playing = ctx.state !== 'stopped';
+    // (playing, and its sound on the route of what plays now: not while its source is off or its section isn't picked —
+    // then it stands still, empty, with no hand going round)
+    const going = ctx.state !== 'stopped';
+    const playing = going && !!ctx.liveEdges?.has(data.edge);
     const lap = lapOf(ctx.program, ctx.shifts);
     const step = lap.stepAt(ctx.heads.seconds);
     const turn = Number.isFinite(step) ? step / lap.steps : 0;
@@ -73,6 +76,9 @@
       ring.write(phase, lapNo, level);
       now += (level - now) * (level > now ? 0.6 : 0.25);
       if (loud && loud.peak >= 0.999) clipped = t;
+    } else if (going) {
+      ring.fill([], lapNo);
+      now = 0;
     } else {
       const sc = scoreOf(ctx);
       const shape = sc.shape(voiceIds(ctx, data.source));
@@ -140,7 +146,7 @@
     g.arc(c, c, r0, 0, 2 * Math.PI);
     g.fill();
     // the hand: where the lap is now
-    if (playing || phase > 0) {
+    if (playing) {
       const a = angle(phase);
       g.strokeStyle = theme.muted;
       g.lineWidth = 1.5;

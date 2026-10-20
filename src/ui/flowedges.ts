@@ -17,7 +17,7 @@ import type { MeterTrace } from '../layout/state';
 import type { GraphSnapshot } from './snapshot';
 import { payloadOf } from './payload';
 import { VOICE_KIT } from '@yggi/cells/engine/compiler/declare';
-import { socketOf, VOICE_SIZE } from '../layout/voice';
+import { entersFromSide, socketOf, VOICE_SIZE } from '../layout/voice';
 
 const nameOf = (id: string) => id.slice('cell:'.length);
 /** An edge's end as a cell's name: a product's junction reads as the voice it is (its sound). */
@@ -117,11 +117,18 @@ const INTO_VOICE: Carrier = (e, p) => {
 /** An edge from a read head drawn as a bulb on its tape (decision 021): leaving the tape, it is the head's. */
 const headBulb = (e: GraphEdge, program: CompileResult) => !!e.bulb && program.cells.get(e.bulb)?.params.play === nameOf(e.from);
 
-/** Where a voice's sound leaves it: from the top of its envelope's cap (layout/voice.ts), straight up from there. */
+/** Where a voice's sound leaves it: from the top of its disc (layout/voice.ts), straight up from there. */
 function socketOfEdge(e: GraphEdge, program: CompileResult): { socket?: number } {
   if (e.band !== 'audio' || isJunction(e.from)) return {};
   const voice = program.cells.get(nameOf(e.from));
   return voice?.voice && !voice.lambda ? { socket: socketOf(VOICE_SIZE * voice.size) } : {};
+}
+
+/** What feeds a voice but doesn't play it (a filter's cell, a pitch, FM …) comes in from its side, its envelope under it (layout/voice.ts). */
+function sideOfEdge(e: GraphEdge, program: CompileResult): { side?: true } {
+  if (isJunction(e.to) || !entersFromSide(e)) return {};
+  const voice = program.cells.get(nameOf(e.to));
+  return voice?.voice && !voice.lambda ? { side: true } : {};
 }
 
 /** A mixer's sound into a tape's write head: it leaves the mixer at its top, its output, wherever the tape is. */
@@ -206,6 +213,7 @@ export function flowEdgeOf(e: GraphEdge, state: State, program: CompileResult, b
       ring,
       ...(ring === undefined ? {} : { part: 'run' }),
       ...socketOfEdge(e, program),
+      ...sideOfEdge(e, program),
     },
     label: edgeLabel(e),
     class: `edge-${e.port} band-${e.band}${e.pointer ? ' pointer' : ''}`,

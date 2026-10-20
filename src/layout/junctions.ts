@@ -51,13 +51,13 @@ const MIX_PULL = 0.35;
 
 const wrap = (a: number) => Math.atan2(Math.sin(a), Math.cos(a));
 
-/** Off a wheel's name: the arc under it (radians either side of straight down) where its label is drawn. */
-const LABEL = 0.8;
+/** Off a voice's envelope and its name: the arc under it (radians either side of straight down) where its band sits (layout/voice.ts). */
+const LABEL = 1.25;
 const DOWN = Math.PI / 2;
-/** Off a voice's envelope: the arc over it (radians either side of straight up) where its cap sits (layout/voice.ts). */
-const CAP = 1.0;
+/** Off a voice's socket: the arc over it (radians either side of straight up) where its sound leaves. */
+const CAP = 0.45;
 const UP = -Math.PI / 2;
-/** An angle on the rim, moved out of the label's arc and the envelope's cap to the nearer side of each. */
+/** An angle on the rim, moved out of the band's arc and the socket's to the nearer side of each. */
 const offLabel = (a: number) => {
   const d = wrap(a - DOWN);
   const below = Math.abs(d) >= LABEL ? a : DOWN + (d < 0 ? -LABEL : LABEL);
