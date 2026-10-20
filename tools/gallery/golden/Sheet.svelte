@@ -40,7 +40,7 @@
           routed={s.p.routed}
           heads={s.live ?? liveAt(s.p.program, s.p.shifts, new Set(), 0)}
           transport={s.live ? 'playing' : 'stopped'}
-          shifts={s.live ? s.live.shifts : s.p.shifts}
+          shifts={s.p.shifts}
           ontoggle={nothing}
           onturn={nothing}
           onshowcode={nothing}

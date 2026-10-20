@@ -19,6 +19,7 @@
   import { getGraphContext } from './context';
   import { meterNow } from '../layout/meters';
   import { cursorOf, fanOf, joins, layTrack } from '../layout/track';
+  import { drawnShifts } from '../layout/turning';
   import {
     SlotCache,
     accessedOf,
@@ -93,16 +94,17 @@
   const cell = $derived(ctx.program.cells.get(name));
   // the rim edits the static shift; the drawing shows the shift as it stands now (stepped tables turn)
   const shift = $derived(ctx.shifts(name));
-  // the shifts to draw with: as they stand now — redrawn when a table turns, not every frame
-  const shown = $derived.by(() => {
-    void ctx.turned;
-    const still = ctx.shifts;
-    return untrack(() => ctx.heads.shifts) ?? still;
-  });
-  const shownShift = $derived(shown(name));
   // a gate (#234) shows its trigger's notes round its ring, its hand where the trigger plays; a read head its tape's
   const gate = $derived(gateOf(ctx.program, name));
   const drawn = $derived(drawnOf(ctx.program, name));
+  // the shifts to draw with: as they stand now — redrawn when a table turns, not every frame; a played cell (and its
+  // bulbs) as written, its hand says where it is (layout/turning.ts)
+  const shown = $derived.by(() => {
+    void ctx.turned;
+    const still = ctx.shifts;
+    return drawnShifts(ctx.program, still, untrack(() => ctx.heads.shifts) ?? still, drawn);
+  });
+  const shownShift = $derived(shown(name));
   // (whose playhead the hand follows: its own, or a gate's trigger's)
   const played = $derived(gate ? drawn : name);
   // every step, as the cell is written (the rim's turning works on these) …

@@ -7,6 +7,7 @@
   import { setBraid, splitToken, splitWords, type declWords } from '@yggi/cells/engine/edit';
   import { freeBraidOf, lap, listed as listedOf, tokenHues, tokenLabels } from '../../layout/braidwheel';
   import { kindOf } from '../../layout/show';
+  import { drawnShifts } from '../../layout/turning';
   import { getGraphContext } from '../context';
   import CellGlyph from '../CellGlyph.svelte';
   import HubEditor from '../HubEditor.svelte';
@@ -39,8 +40,8 @@
 
   const ctx = getGraphContext();
   const shift = $derived(ctx.shifts(name));
-  // live while playing, as the graph is: shifts as tables turn, and the playhead
-  const live = $derived(ctx.heads.shifts);
+  // live while playing, as the graph is: shifts as tables turn (its own as written: its hand moves), and the playhead
+  const live = $derived(drawnShifts(ctx.program, ctx.shifts, ctx.heads.shifts, name));
   // a selector or a meter: its picture as in the graph (a barrel, a meter), not its steps written out
   const overview = $derived(['selector', 'meter', 'lfo'].includes(kindOf(ctx.program, name)));
   // a braid on one line, step by step
