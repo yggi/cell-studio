@@ -4,10 +4,14 @@
    * its commit). A tap opens a sheet (kit/Sheet.svelte) with the rest: the commit in full, the branch, the build
    * date, the dependencies it ships, and whether a new version waits. Releases aren't meaningful yet, so the hash
    * is what stands for a build. yggi/jambot has the same component (apps/web/src/components/Version.svelte), lifted.
+   * Given children, they are what's tapped (the header's wordmark), the hash in its title.
    */
+  import type { Snippet } from 'svelte';
   import { builtOn, shortVersion } from '../buildInfo';
   import Sheet from './kit/Sheet.svelte';
   import { update } from './state/update.svelte';
+
+  let { children }: { children?: Snippet } = $props();
 
   const build = __BUILD__;
   let open = $state(false);
@@ -23,8 +27,14 @@
   }
 </script>
 
-<button class="unstyled version" onclick={() => (open = true)} aria-label="Version {shortVersion(build)}, details">
-  {shortVersion(build)}{#if update.ready}<span class="dot" aria-hidden="true"></span>{/if}
+<button
+  class="unstyled version"
+  class:wrapped={children}
+  onclick={() => (open = true)}
+  aria-label="Cell studio, version {shortVersion(build)}, details"
+  title="Version {shortVersion(build)}"
+>
+  {#if children}{@render children()}{:else}{shortVersion(build)}{/if}{#if update.ready}<span class="dot" aria-hidden="true"></span>{/if}
 </button>
 
 {#if open}
@@ -65,6 +75,16 @@
     letter-spacing: 0.02em;
     color: var(--text-muted);
     font-variant-numeric: tabular-nums;
+  }
+  .version.wrapped {
+    display: flex;
+    align-items: center;
+    padding: 0;
+  }
+  .version:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+    border-radius: var(--radius-sm);
   }
   .dot {
     display: inline-block;

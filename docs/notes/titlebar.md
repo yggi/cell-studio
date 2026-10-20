@@ -1,8 +1,8 @@
 # The titlebar and transport: a redesign (mock-up)
 
-2026-10-20 · open (mock-up, awaiting the owner's choice) · no issue yet
+2026-10-20 · built (the owner chose below) · no issue yet
 
-The header (`src/App.svelte`) and the transport (`src/ui/Transport.svelte`) as they are, pictured with the gallery's `play` subject (Pop, 6 s in, at 1440, 1000 and 390 px wide), and a proposal for desktop and phone. The mock-up is static HTML over those screenshots, in the app's theme tokens (`src/app.css`); nothing in `src/` has changed yet.
+The header (`src/App.svelte`) and the transport (`src/ui/Transport.svelte`) as they are, pictured with the gallery's `play` subject (Pop, 6 s in, at 1440, 1000 and 390 px wide), and a proposal for desktop and phone. The mock-up was static HTML over those screenshots, in the app's theme tokens (`src/app.css`); [what was built](#built) follows it, with the owner's three choices.
 
 ## Today
 
@@ -41,8 +41,20 @@ A 56 px bar in three grid zones (`auto · 1fr · auto`), one job each:
 - **The tabs move to the bottom**, with icons. When the keys dock is open, it sits between the stage and the mini player.
 - The chrome totals 52 + 62 + 58 = 172 px, 22 px more than today's 150 px, but the controls you use while playing are within reach and the track can show names.
 
+## Built
+
+The owner chose: **the library is the piece's name** (no Library tab), **a plain bar at the foot on a phone** (no mini player and sheet), and **the graph's toolbars stay out** of this round. Pictured in the built app, Pop, playing, then with the tempo held and its slider open (1440 and 1000 px), and on a phone playing, held, and with the library open:
+
+![desktop, built](titlebar-after-desktop.jpg)
+
+![phone, built](titlebar-after-phone.jpg)
+
+- `Transport.svelte` is the deck: a capsule in the header, or with `bar` the phone's foot (the timeline over the buttons, Revert · Save in it). Its parts are `Timeline.svelte` (a run of sections with one name is one segment, notched where each repeat begins; names where they fit, else in the title), `Tempo.svelte` (the slider is always in the accessibility tree, out of sight until pressed or focused, so a screen reader and the smoke test reach it) and `Held.svelte`.
+- `QuickPick.svelte` is gone: the tag path is a caption now, and the library's filters choose by tag.
+- `Version.svelte` takes children: the wordmark (the glyph below 1200 px) is what's tapped.
+- On a phone the chrome is 52 + 93 + 53 = 198 px (measured at 390 × 844). That's 48 px more than before (150 px), but play and the timeline are under the thumb.
+
 ## Open
 
-- Whether Library stays a tab, or becomes the piece block's job (it is "open another piece").
-- The graph's own toolbar (+ cell, legend, tower layout, notes) is out of scope here. It is the next band of chrome on a phone.
-- Building it touches `App.svelte` (the header grid, bottom tabs on a phone), `Transport.svelte` (the deck, the segments, the tempo popover, the mini player and sheet), `QuickPick.svelte` (a popover) and `Version.svelte` (moving it). It is a user-visible change, so it needs a CHANGELOG line, and the smoke test covers the transport.
+- The graph's own toolbar (+ cell, legend, tower layout, notes) is the next band of chrome on a phone.
+- Between 900 and 1200 px with a value held, the timeline is about 170 px wide: names show only in the title.
