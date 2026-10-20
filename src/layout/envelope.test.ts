@@ -58,7 +58,9 @@ describe("a voice's envelope and the notes through it", () => {
 describe('an envelope as its wheel draws it (CellGlyph, show=adsr)', () => {
   // (Transpose's voice's envelope: attack 20 ms, decay 300 ms, sustain 50 %, release 300 ms, on a 128 px wheel)
   const t = compileSource(PRESETS.transpose.source);
-  const e = cellView(t, 'λ12_34', codeShifts(t), false)!.curve!;
+  // (its envelope is unnamed, &(map=adsr …): found by what it is, not by its line)
+  const adsr = [...t.cells.keys()].find((n) => cellView(t, n, codeShifts(t), false)?.mode === 'curve')!;
+  const e = cellView(t, adsr, codeShifts(t), false)!.curve!;
   const g = wheelGeometry(128);
   const curve = envelopeCurve(e, g.c, g.rOuter);
   it('a curve across the ring: up to its peak, down to the sustain, held, released', () => {

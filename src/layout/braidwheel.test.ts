@@ -88,7 +88,9 @@ describe('braidwheel: what the sheet shows of a braid', () => {
     expect(of('scale')).toEqual([null, false, true]);
     expect(of('mix')).toEqual(['signal', false, false]);
     expect(of('lead')).toEqual(['voice', false, false]);
-    expect(of('piece')).toEqual(['note', false, false]);
+    // (a note: the examples have none since cells #199, a piece of its own has one)
+    const note = compileSource('&about label="what it is" about=&a\n&a loop=A4').cells.get('about')!;
+    expect([sheetPicture(note), braidVoice(note), sheetWheel(note)]).toEqual(['note', false, false]);
   });
 
   it('a name the program does not have: nothing to name or colour, the chromatic lap, the default frame', () => {

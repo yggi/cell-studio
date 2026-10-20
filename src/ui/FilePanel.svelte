@@ -32,7 +32,7 @@
     <input
       bind:this={fileInput}
       type="file"
-      accept=".cells,.txt,text/plain,.mid,.midi,audio/midi"
+      accept=".cells,.md,.txt,text/plain,text/markdown,.mid,.midi,audio/midi"
       hidden
       onchange={(e) => {
         const f = e.currentTarget.files?.[0];

@@ -110,7 +110,7 @@ export function wiring(result: CompileResult, muted: ReadonlySet<string> = new S
     const path = pathOf(result, fl, o, [o.voice, o.cell]);
     for (const v of members) tap(v, path, o.id);
   }
-  for (const x of result.resonances) if (!off(x.cell) && returnGains(x, muted).some((g) => g > 0)) tap(x.cell, pathOf(result, fl, x, [x.cell]));
+  for (const x of result.resonances) if (!off(x.cell) && returnGains(x, muted).some((g) => g !== 0)) tap(x.cell, pathOf(result, fl, x, [x.cell]));
   for (const t of tapped.values()) add({ kind: 'tap', from: t.voice, to: t.mix, gain: 1, ...(t.gate ? { gate: true } : {}), flows: [...t.flows] });
   for (const c of result.cells.values()) {
     if (!body(c.name)) continue;
@@ -136,7 +136,7 @@ export function wiring(result: CompileResult, muted: ReadonlySet<string> = new S
   for (const r of result.returns) {
     const p = headOf(r.head);
     const gains = returnGains(r, muted);
-    if (p && p.from === r.tape && (gains[0] > 0 || gains[1] > 0)) add({ kind: 'return', from: r.head, to: r.tape, gain: 1, gains, flows: [p] });
+    if (p && p.from === r.tape && (gains[0] !== 0 || gains[1] !== 0)) add({ kind: 'return', from: r.head, to: r.tape, gain: 1, gains, flows: [p] });
   }
   // resonators excited by a mix with tape heads in it: the heads drive them too
   for (const c of result.cells.values()) {

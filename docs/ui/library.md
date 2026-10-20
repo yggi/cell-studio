@@ -6,23 +6,25 @@ The **Select** tab chooses a piece: every example and every piece you've saved, 
 
 The header has a quicker way: the open piece's place in the library as a path, *kind › tag › piece* (`artist › Neubauten › Baustelle II`), each step a dropdown (the phone's own picker). Choose another kind or tag and the last step lists the pieces there; choose one and it opens. A piece of the tutorial shows *tutorial › tutorial › 2 · A voice…*, its pieces listed tier by tier: the next one is the next piece. On a phone the path is *tag › piece*, and the tag's list holds every kind. There you can open a file, save to a file (a piece file, `.md`, for a piece opened from one, as every example is; else `.cells`, plain text), or save in this browser (where the browser allows it). The examples are listed in [../examples.md](../examples.md).
 
-## A piece's card
+## A piece's file
 
-A piece is a file (cells' decision 047): its title, tags and tier in the frontmatter, the piece in a cells block, and its card the text's first note, whose label describes it (see [../language/display.md](https://github.com/yggi/cells/blob/main/docs/language/display.md)):
+A piece is a file (cells' decision 047): its title, tags, tier and description in the frontmatter, the piece in its cells blocks, prose around them (cells' decision 051, literate cells: the code is the blocks joined, in order). The examples have no card (cells #199): what the piece is, is its frontmatter.
 
 ````markdown
 ---
 title: Swing blues
 tags: [genre:jazz, genre:blues, caprice]
+description: A 12-bar blues in C, swung.
 ---
 
+The voice first.
+
 ```cells
-&piece label="A 12-bar blues in C, swung …" about=&a
 &a loop=A4
 ```
 ````
 
-The card is an ordinary note in the graph; the picker reads the frontmatter, the editor shows the cells block, and the open piece keeps the frontmatter beside it, so a piece is saved under its title. A text written the old way, `title=`, `tags=` and `tier=` on its card, still opens and plays, with one warning on the card; Shorten offers to move them into the frontmatter, and the piece is then a file.
+The picker reads the frontmatter; **the editor shows the code, the blocks joined, not the file**: diagnostics, the graph's edits and *Show in code* all speak in the code's lines. The open piece keeps the frontmatter, the prose and where each block was beside it, and saving writes each line back into the block it came from, the prose byte for byte (`writePiece` with the file's layout), so a piece is saved under its title and with its prose. A text written the old way (`title=`, `tags=`, `tier=` or `label=` on a `&piece` card) still opens and plays, with one warning on the card; Shorten offers to move it into the frontmatter, its label as the description, and the card's line goes.
 
 Every piece is shown as one node — the same in the list, its details and the library's graph: a wheel with its own graph in miniature inside, its tags round the rim (named along their arcs where there's room), its facts as petals (how many cells; how long, or how often round), its title (on a card beneath; in the library's graph, see below). The wheel is a picture: a tap anywhere on it is the piece's (a card opens it, the graph shows its details); tags are chosen from the dropdowns, or as chips in a piece's details. The graph opens fitted (on a phone, on the middle, zoomed in to where the titles read at 11 px); pinch (or ctrl + wheel) to zoom. Each wheel says how long the piece is: when it ends, or its cycle (every layer — melodies, meters, what oscillates, selects or turns — back together: the least common multiple of their periods), and whether chance makes every time round different.
 
