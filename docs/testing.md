@@ -37,7 +37,7 @@ Tests are `*.test.ts` beside their source, in node (no isolation between files, 
 
 ## Groups
 
-The language's own tests (the theory, the parser and its reference, what realizes and what routes, the examples, the snapshot, the equivalences, the fuzz, Shorten's promise, BWV 847, counterpoint, the engine host, the folder's ratchet) live in [yggi/cells](https://github.com/yggi/cells) with the code: [its testing page](https://github.com/yggi/cells/blob/main/docs/testing.md). Here are the cases of them that read the drawing (`src/layout/*.drawn.test.ts`) and the library's index (`src/examplesIndex.test.ts`).
+The language's own tests (the theory, the parser and its reference, what realizes and what routes, the examples, the snapshot, the equivalences, the fuzz, Shorten's promise, BWV 847, counterpoint, the engine host, the folder's ratchet) live in [yggi/cells](https://github.com/yggi/cells) with the code: [its testing page](https://github.com/yggi/cells/blob/main/docs/testing.md). Here are the cases of them that read the drawing (`src/layout/*.drawn.test.ts`) and the library's index (`src/examplesIndex.slow.test.ts`: slow, each example's starts chosen afresh in both layouts).
 
 - Audio: `src/audio/engine.test.ts` (local and worker engines; no Web Audio needed).
 - Layout: `src/layout/*.test.ts` (belts, cellview, describe, dial, geometry, labels, physics, quality, show, spectrum); `physics.library.test.ts` lays out every example (three times, for the quality gate).

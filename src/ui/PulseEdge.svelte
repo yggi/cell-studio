@@ -36,6 +36,7 @@
   import { carriesNotes, valuesOf, type Payload } from './payload';
   import { payloadShown, watchLoad } from './payloadGate.svelte';
   import { EXCITER_RING } from '../layout/exciters';
+  import { sideTurn } from '../layout/voice';
 
   type Pt = { x: number; y: number };
   type Cubic = { a: Pt; c1: Pt; c2: Pt; b: Pt };
@@ -144,7 +145,7 @@
       const ra = ends.source ? 0 : (d.sizes.from ?? 0) / 2;
       const a = socket || !ctx.towered ? { x: fromX, y: fromY } : { x: fromX, y: fromY > targetY ? fromY - ra : fromY + ra };
       const c1 = socket ? { x: a.x, y: a.y - lead } : ctx.towered ? { x: a.x, y: (a.y + b.y) / 2 } : control;
-      return { a, c1, c2: { x: b.x + dir * Math.max(30, 0.6 * Math.abs(b.x - a.x)), y: b.y }, b };
+      return { a, c1, c2: { x: b.x + dir * sideTurn(b.x - a.x), y: b.y }, b };
     }
     if (!ctx.towered || socket) return null;
     const up = fromY > targetY;

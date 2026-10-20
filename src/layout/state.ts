@@ -40,6 +40,10 @@ export interface PhysNode extends SimulationNodeDatum {
   mass?: number;
   /** How far its loom reaches round it (looms.ts), px: part of its room, and of each of its springs' length. */
   loom?: number;
+  /** A voice's wheel (layout/voice.ts): how far below its centre its drawing reaches, beyond its round top (px): its envelope band and name. */
+  body?: number;
+  /** A voice's wheel: how wide it is drawn (px), where a wire into its side meets it. */
+  wheel?: number;
   /** A product's junction (junctions.ts): the voice it hangs under. */
   rides?: string;
   /** A product's junction (junctions.ts): how far under its voice's centre its own hangs, px (the layout grown). */
@@ -77,6 +81,8 @@ interface DrawnLink {
   kind?: string;
   /** A product's voice into its junction (`is`): drawn, but no wire to untangle (it is under the voice). */
   is?: boolean;
+  /** Into the side of this voice (layout/voice.ts entersFromSide): drawn level into its flank, not up into it. */
+  side?: string;
   /** Where it leaves its source, when that is a bulb on it (a read head on its tape): from the source's centre, unturned. */
   bulbAt?: { x: number; y: number };
 }
@@ -101,6 +107,8 @@ export interface LayoutState {
   colX: Map<string, number>;
   /** Each edge's midpoint (the spline passes through it). */
   bendAt: Map<string, { x: number; y: number }>;
+  /** The start the last fresh graph began from (its jitter, start.ts startOf): an edit keeps it. */
+  start: number;
   /** The layout's scale now (1 grown; less while a fresh graph gathers and grows). */
   size: number;
   /** What each tape's heads connect to: its write source and its read heads' cells, each with its head's offset. */

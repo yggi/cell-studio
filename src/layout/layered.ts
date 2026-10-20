@@ -26,6 +26,8 @@ export interface LayeredOptions {
   readonly ranks?: ReadonlyMap<string, number>;
   /** How tall a node is beyond a row (a cluster's block: from its top cells to its bottom ones); 0 if not given. */
   readonly span?: (id: string) => number;
+  /** How far a node reaches under its row beyond its radius (a voice's products' meters, hung under it); 0 if not given. */
+  readonly below?: (id: string) => number;
   /** One level only: no clusters laid out as blocks (inside a block, or to compare). */
   readonly flat?: boolean;
   /**
@@ -324,9 +326,9 @@ export function layered(model: GraphModel, o: LayeredOptions): Map<string, { x: 
   let yAt = 0;
   // (and two rows at least as far apart as their largest wheels reach: a large voice doesn't sit on the row above)
   const isNode = new Set(nodes.map((n) => n.id));
-  const reachOf = (l: number) => Math.max(0, ...layers[l].map((id) => (isNode.has(id) ? o.radius(id) : 0)));
+  const reachOf = (l: number, under = 0) => Math.max(0, ...layers[l].map((id) => (isNode.has(id) ? o.radius(id) + under * (o.below?.(id) ?? 0) : 0)));
   for (let l = 0; l < layers.length; l++) {
-    if (l) yAt = Math.max(yAt + (spanOf(l - 1) + spanOf(l)) / 2, rowY[l - 1] + reachOf(l - 1) + reachOf(l));
+    if (l) yAt = Math.max(yAt + (spanOf(l - 1) + spanOf(l)) / 2, rowY[l - 1] + reachOf(l - 1, 1) + reachOf(l));
     rowY[l] = yAt;
     yAt += o.gapY * (1 + (subRows[l] - 1) * (tracks.has(l) ? 0.8 : 0.55));
   }

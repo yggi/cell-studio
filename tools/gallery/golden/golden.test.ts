@@ -44,9 +44,9 @@ describe('the golden graph', () => {
     // 13 → 16 when the graph gained a drum kit played by a gate and a gate of two voices; 16 → 10 when that gate played
     // chords and a kalimba took the fork's place; 10 → 17 when its table of sections was renamed &parts → &sections
     // (cells v0.5.0, decision 044): the same graph, laid from one start, which a name alone moves (&zparts 8, &parts
-    // 10, &sects 14, &aparts 16, &sections 17); 17 → 34 when a product's meter hung under its voice, on a short edge,
-    // instead of turning round its rim to face its wires (a voice in several products has a row of them there)
-    expect(crossings).toBeLessThanOrEqual(34);
+    // 10, &sects 14, &aparts 16, &sections 17); 17 → 16 when a product's meter hung under its voice (34 alone), a voice's
+    // band and name hid what they cover, and a fresh graph's start was chosen of three, each tried for 250 ticks
+    expect(crossings).toBeLessThanOrEqual(16);
     layout.destroy();
   });
 });

@@ -35,8 +35,18 @@ export interface LayoutOptions {
    */
   trial: number;
   /**
-   * The rows' order already chosen for a graph (rowOrder 3), by its shape (rowsKey): the examples', worked out when
-   * the app is built (tools/examples-index.ts), so one opens without the trials.
+   * With `rowOrder` 3, how many starts are tried for each rows' order: the layered start shaken by its own jitter
+   * (`start`), a layout being chaotic, so what one start tangles another may not; the trial that crosses least is kept.
+   */
+  starts: number;
+  /** In choosing a start, what an edge under a wheel it doesn't meet costs, beside a crossing (1): quality.ts `under`. */
+  underWeight: number;
+  /** Which start a layout begins from (its jitter): 0 the first; with `rowOrder` 3 chosen with the rows' order. */
+  start: number;
+  /**
+   * The start already chosen for a graph (rowOrder 3), by its shape (rowsKey): the examples', worked out when the app
+   * is built (tools/examples-index.ts), so one opens without the trials. Its rows' order and its start in one number
+   * (`startCode`).
    */
   rowOrders: ReadonlyMap<string, number>;
   /**
@@ -93,6 +103,12 @@ export interface LayoutOptions {
   layerGap: number;
   /** Edge length at rest (px). */
   linkDistance: number;
+  /** How far under a product's junction what feeds it stays, beyond the two wheels (px): it comes up into it (0: no such rule). */
+  meterRise: number;
+  /** How hard a wheel is pushed off an edge it doesn't meet, as drawn, and the edge's ends the other way (0: not at all). */
+  edgeClear: number;
+  /** The layered start makes room under a voice for the junctions hung under it (1), or not (0). */
+  hangRoom: number;
   /** How much edges contract towards that length (0 none … 1 full). */
   contract: number;
   /** Edge length from a part or table to its user, as a fraction of the length (they stay close). */
@@ -158,7 +174,10 @@ export const DEFAULT_LAYOUT: LayoutOptions = {
   // (each row's order: both the sweeps and insertion then the sweeps tried, the one that crosses less kept; over six
   // seeds 63 → 47 crossings, cost 90 → 65, for 2–3 times the layout's time when a piece opens: docs/notes/nets.md)
   rowOrder: 3,
-  trial: 120,
+  trial: 250,
+  starts: 3,
+  underWeight: 0.5,
+  start: 0,
   rowOrders: new Map(),
   // (uncross and contract: measured over the examples, docs/notes/27-layout.md — stronger untangling and softer
   // springs cross a quarter less than 0.3 / 0.9, for about 6 % more room; uncross 1 with each pair pushed by its cost,
@@ -187,6 +206,9 @@ export const DEFAULT_LAYOUT: LayoutOptions = {
   columnPull: 0.035,
   layerGap: 130,
   linkDistance: 120,
+  meterRise: 0,
+  edgeClear: 0,
+  hangRoom: 1,
   charge: -320,
   live: true,
   spread: 0.5,
@@ -219,6 +241,7 @@ export const TOWER_LAYOUT: Partial<LayoutOptions> = {
   feedUnder: 0.05,
   netLead: 0.3,
   minRise: 90,
+  meterRise: 40,
   contract: 0.4,
 };
 

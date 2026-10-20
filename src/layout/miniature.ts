@@ -14,6 +14,7 @@ import { codeShifts, type CompileResult } from '@yggi/cells/engine/program';
 import { buildGraph } from './drawn';
 import { cellView } from './cellview';
 import { ForceLayout } from './physics';
+import { startOf } from './start';
 import { kindOf } from './show';
 import { groundsOf } from './meters';
 
@@ -58,7 +59,7 @@ export function miniature(source: string, rowOrder?: number): Miniature | null {
   const nodes = model.nodes.filter((n) => !n.petalOf && !isSide(n));
   if (nodes.length === 0) return null;
   // (the rows' order, when it is known: chosen already, it needn't be tried again)
-  const l = new ForceLayout(undefined, rowOrder === undefined ? { live: false } : { live: false, rowOrder });
+  const l = new ForceLayout(undefined, rowOrder === undefined ? { live: false } : { live: false, ...startOf(rowOrder) });
   l.setGraph(model);
   l.tick(TICKS);
   l.layNet(); // (the meters' nets, as the graph lays them)

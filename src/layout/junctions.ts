@@ -13,7 +13,7 @@ import { segmentsCross, splinePoint } from './geometry';
 import { hops } from './nets';
 import { stepBends } from './forces';
 import { nodeAt, type LayoutState, type PhysNode } from './state';
-import { bottomOf, VOICE_SIZE } from './voice';
+import { bodyOf, VOICE_SIZE } from './voice';
 
 /**
  * The graph with each product's junction folded into its voice: its `is` wire gone, its other wires to and from the
@@ -48,14 +48,14 @@ export function folded(model: GraphModel): GraphModel {
 
 /** How much a junction's sound out (to its mix) pulls it, beside its terms in (1 each). */
 const MIX_PULL = 0.35;
-/** A wheel's name under it, as every node's (px): a junction hangs under the name. */
-const NAME = 30;
 /** The edge from a junction up to its voice, as much of it as shows (px). */
 const STUB = 10;
 /** Between junctions side by side under one voice (px). */
 const SIDE_GAP = 8;
 /** Room kept round a junction beyond the rooms of both (px): nothing settles on it. */
 const CLEAR = 6;
+/** How much of what a node is inside that room it is pushed out each tick (as d3's collide pushes). */
+const CLEAR_PUSH = 0.5;
 
 /** A junction for each product, as the layout keeps it: its voice, its dot's room, and how far under its voice it hangs. */
 export function junctionNodes(s: LayoutState, model: GraphModel): Map<string, PhysNode> {
@@ -68,7 +68,7 @@ export function junctionNodes(s: LayoutState, model: GraphModel): Map<string, Ph
     // (under its voice's drawing and its name, on a short edge: a voice's wheel reaches down to its envelope's
     // bottom, layout/voice.ts; anything else's room has its name in it)
     const v = model.nodes.find((m) => m.id === p.rides);
-    const reach = v?.kind === 'voice' ? bottomOf(VOICE_SIZE * (v.cell.size ?? 1)) + NAME : v ? s.opts.radius(v) : 0;
+    const reach = v?.kind === 'voice' && !v.petalOf ? bodyOf(VOICE_SIZE * (v.cell.size ?? 1)) : v ? s.opts.radius(v) : 0;
     p.below = reach + STUB + p.radius;
     out.set(n.id, p);
   }
@@ -98,30 +98,36 @@ export function placeJunctions(s: LayoutState): void {
     }
     riders.set(v, [...(riders.get(v) ?? []), j]);
   }
-  // (which way, left or right, each junction's wires pull it: its terms in, a little its mix)
-  const pull = new Map<string, number>();
+  // (where, left to right, each junction's wires come from: the mean x of its terms in, a little its mix)
+  const pull = new Map<string, { x: number; w: number }>();
   for (const l of s.links)
     for (const [a, b, w] of [
       [l.target, l.source, 1],
       [l.source, l.target, MIX_PULL],
     ] as const) {
       const j = s.junctions.get(a);
-      const o = s.byId.get(b);
-      const v = s.byId.get(j?.rides ?? '');
-      if (!j || !v || !o || o === v) continue;
-      const d = Math.hypot((o.x ?? 0) - (v.x ?? 0), (o.y ?? 0) - (v.y ?? 0)) || 1;
-      pull.set(j.id, (pull.get(j.id) ?? 0) + (w * ((o.x ?? 0) - (v.x ?? 0))) / d);
+      const o = nodeAt(s, b);
+      if (!j || !o || o.id === j.rides || o.x === undefined) continue;
+      const p = pull.get(j.id) ?? { x: 0, w: 0 };
+      p.x += w * o.x;
+      p.w += w;
+      pull.set(j.id, p);
     }
   for (const [v, js] of riders) {
-    const side = (j: PhysNode) => s.rims.get(j.id) ?? pull.get(j.id) ?? 0;
-    [...js].sort((a, b) => side(a) - side(b)).forEach((j, i) => s.rims.set(j.id, i - (js.length - 1) / 2));
+    // (in the order their wires come from, so they don't cross under it; as they were where that says nothing)
+    const side = (j: PhysNode) => {
+      const p = pull.get(j.id);
+      return p?.w ? p.x / p.w : (v.x ?? 0) + (s.rims.get(j.id) ?? 0);
+    };
+    const was = (j: PhysNode) => s.rims.get(j.id) ?? 0;
+    [...js].sort((a, b) => side(a) - side(b) || was(a) - was(b)).forEach((j, i) => s.rims.set(j.id, i - (js.length - 1) / 2));
     hang(s, v, js);
   }
 }
 
 /**
  * Nothing settles on a junction (it weighs nothing, so the forces don't see it): the junctions set where their voices
- * are now, any other node inside one's room is put back at its edge, as a turntable's reach does.
+ * are now, any other node inside one's room is pushed out of it, as two wheels push each other apart.
  */
 export function stepClearJunctions(s: LayoutState): void {
   if (!s.junctions.size) return;
@@ -134,12 +140,10 @@ export function stepClearJunctions(s: LayoutState): void {
       const [dx, dy] = [n.x - j.x, n.y - j.y];
       const d = Math.hypot(dx, dy);
       if (d >= min) continue;
-      // (dead on it: aside, the way it lies of the voice)
+      // (dead on it: aside, the way it lies of the voice; pushed, not set there, so it moves as calmly as anything does)
       const [ux, uy] = d > 1e-6 ? [dx / d, dy / d] : [n.x >= (s.byId.get(j.rides ?? '')?.x ?? 0) ? 1 : -1, 0];
-      n.x = j.x + ux * min;
-      n.y = j.y + uy * min;
-      n.vx = 0;
-      n.vy = 0;
+      n.vx = (n.vx ?? 0) + ux * (min - d) * CLEAR_PUSH;
+      n.vy = (n.vy ?? 0) + uy * (min - d) * CLEAR_PUSH;
     }
   }
 }

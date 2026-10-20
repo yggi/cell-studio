@@ -28,6 +28,12 @@ export const socketOf = (size: number) => size / 2;
 /** How far below a voice's centre its outline reaches: the envelope band's flat bottom (px). */
 export const bottomOf = (size: number) => size * BAND_BOTTOM;
 
+/** A wheel's name under it, as every node's: how far it reaches below what it names (px). */
+const NAME_PLATE = 30;
+
+/** How far below a voice's centre its drawing reaches: its envelope band, then its name (px). */
+export const bodyOf = (size: number) => bottomOf(size) + NAME_PLATE;
+
 /**
  * A voice's outline as an SVG path, in its node's box (`size` px square, its centre the disc's): the disc's arc over the
  * top, straight down each side to the band's rounded corners, flat along the bottom — the hull of the disc and the band.
@@ -73,6 +79,12 @@ export function modifiersOf(program: CompileResult, voice: string): string[] {
   if (!v) return [];
   return [...program.cells.values()].filter((c) => c.lambda && c.name !== v.env && new RegExp(`^λ${v.span.line}_`).test(c.name)).map((c) => c.name);
 }
+
+/**
+ * A wire into a voice's side (PulseEdge draws it, the layout counts it): its last control point's distance out from
+ * where it meets the flank (px), `across` the distance it comes across.
+ */
+export const sideTurn = (across: number) => Math.max(30, 0.6 * Math.abs(across));
 
 /** The ports that play a voice or shape its notes, which come in from below, into its envelope; any other feeds it from the side. */
 const FROM_BELOW = new Set(['voice', 'is', 'env', 'midi', 'mix', 'braid', 'step', 'about', 'base']);

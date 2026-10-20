@@ -63,6 +63,8 @@ export interface LayoutQuality {
   readonly intruders: number;
   /** How far, on average, a node is turned away from where it should sit (a tape's read head's cell from its head), degrees; 0 when none. */
   readonly aim: number;
+  /** Edges that run under a wheel they don't meet, once for each such wheel (see edgesUnder). */
+  readonly under: number;
 }
 
 /** A node that should sit in a direction from another (a tape's read head's cell, from the tape), radians. */
@@ -152,6 +154,44 @@ function crossingsOf(nodes: readonly PlacedNode[], edges: readonly DrawnEdge[]):
   return { count: n, cost: Math.round(cost * 10) / 10 };
 }
 
+/** How much of a wheel's room an edge may pass through before it runs under the wheel: its disc, not its name. */
+const UNDER = 0.7;
+
+/**
+ * Edges that run under a wheel they don't meet (drawn beneath it, they seem to go into it): each pair of an edge and a
+ * wheel its line passes within the wheel's disc of, the wheel neither of its ends nor part of one (a junction and its
+ * voice). A belt's runs over wheels are counted with the crossings; a tag's name isn't a wheel.
+ */
+function edgesUnder(nodes: readonly PlacedNode[], edges: readonly DrawnEdge[]): number {
+  const at = new Map(nodes.map((n) => [n.id, n]));
+  const wheels = nodes.filter((n) => !n.label || n.of);
+  let n = 0;
+  for (const e of edges) {
+    if (e.runs) continue;
+    const pieces = piecesOf(e, at);
+    if (!pieces.length) continue;
+    // (a strand that leaves a bulb on a wheel, `table@bulb`, leaves that wheel)
+    const [a, b] = [e.a.split('@')[0], e.b.split('@')[0]];
+    const ends = new Set([a, b, at.get(a)?.of, at.get(b)?.of].filter(Boolean));
+    for (const w of wheels) {
+      if (ends.has(w.id) || (w.of && ends.has(w.of))) continue;
+      if (pieces.some((u) => distanceToSegment(w.x, w.y, u[0], u[1], u[2], u[3]) < w.r * UNDER)) n++;
+    }
+  }
+  return n;
+}
+
+/** An edge's line in short straight pieces, as drawn (its path, else its spline through its bend), none hidden. */
+function piecesOf(e: DrawnEdge, at: ReadonlyMap<string, PlacedNode>): [number, number, number, number][] {
+  if (e.path) return e.path as [number, number, number, number][];
+  const a = e.from ?? at.get(e.a);
+  const b = at.get(e.b);
+  if (!a || !b) return [];
+  const m = e.mid ?? { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+  const pts = Array.from({ length: 17 }, (_, k) => splinePoint(a.x, a.y, m.x, m.y, b.x, b.y, k / 16));
+  return pts.slice(1).map((q, k) => [pts[k].x, pts[k].y, q.x, q.y]);
+}
+
 /** Every number of LayoutQuality for one layout. Cluster discs are the graph's own (clusterDisc, pad 90, at least 120). */
 export function layoutQuality(nodes: readonly PlacedNode[], edges: readonly DrawnEdge[], aims: readonly Aim[] = []): LayoutQuality {
   const cells = nodes.filter((n) => !n.label);
@@ -201,5 +241,6 @@ export function layoutQuality(nodes: readonly PlacedNode[], edges: readonly Draw
     clusters,
     intruders,
     aim: Math.round(off.length ? off.reduce((s, v) => s + v, 0) / off.length : 0),
+    under: edgesUnder(nodes, edges),
   };
 }

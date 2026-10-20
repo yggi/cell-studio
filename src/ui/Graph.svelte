@@ -66,7 +66,8 @@
   const LAYOUT = QUERY?.get('layout') === 'flow' ? 'flow' : 'tower';
 
   // each example's rows' order, chosen when the app was built (tools/examples-index.ts), by its graph's shape
-  const EXAMPLE_ROWS = new Map(EXAMPLES.map((e) => [e.rows.key, e.rows.order]));
+  // (each example's start, chosen when the app was built, in either layout: keyed by its graph's shape there)
+  const EXAMPLE_ROWS = new Map(EXAMPLES.flatMap((e) => [[e.rows.key, e.rows.order] as const, [e.towerRows.key, e.towerRows.order] as const]));
 
   let {
     model,
