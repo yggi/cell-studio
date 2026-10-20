@@ -234,6 +234,17 @@ That is all.
     // (opened again, it reads as it was written)
     expect(new Piece(p.file).code).toBe(p.code);
   });
+
+  it('opens a Markdown file of cells blocks with no frontmatter as a piece, and saves it without one (cells #212)', () => {
+    const BARE = LITERATE.slice(LITERATE.indexOf('# A piece'));
+    const p = new Piece(BARE);
+    expect(p.result.diagnostics).toEqual([]);
+    expect(p.code).toBe('&bar meter("4/4") step=120bpm\n&t step=4n 0 2 4 7\n&lead s=sine loop=A4\n&out map=sample [&t * &lead]');
+    expect(p.file).toBe(BARE);
+    p.turn('t', 2);
+    expect(p.file.startsWith('# A piece in three blocks\n')).toBe(true);
+    expect(p.file.split('\n').filter((l, i) => l !== BARE.split('\n')[i])).toEqual([expect.stringMatching(/^&t .*shift=2/)]);
+  });
 });
 
 describe('a piece’s file name and what compiles', () => {
