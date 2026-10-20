@@ -5,6 +5,7 @@
 import { distanceToSegment } from './quality';
 import { drawnPieces, hits, meterNet } from './nets';
 import type { LayoutState, PhysNode } from './state';
+import { placeJunctions } from './junctions';
 
 /**
  * Meters last (#27): each meter that steps cells is put where its net (meterNet) costs least — short traces that
@@ -20,7 +21,10 @@ export function placeMeters(s: LayoutState): void {
     // (one the user moved stays where they put it)
     if (!node || (node.fx != null && !s.placedMeters.has(m))) continue;
     const cells = [...new Set(s.grounds.filter((g) => g.meter === m).map((g) => g.cell))].filter((id) => s.byId.has(id)).map((id) => s.byId.get(id)!);
-    const others = [...s.byId.values()].filter((n) => n.id !== m && n.role !== 'tag');
+    // (a product's junction under its voice too, where it hangs now: junctions.ts)
+    placeJunctions(s);
+    const hung = [...s.junctions.values()].filter((j) => j.x !== undefined);
+    const others = [...s.byId.values(), ...hung].filter((n) => n.id !== m && n.role !== 'tag');
     if (!others.length || !cells.length) continue;
     const pieces = drawnPieces(s, (a, b) => a === m || b === m);
     // what the net would cost between its cells (as meterNet costs it), wherever the meter is
@@ -60,8 +64,8 @@ export function placeMeters(s: LayoutState): void {
         let on = false;
         for (const o of others) {
           const d = Math.hypot((o.x ?? 0) - x, (o.y ?? 0) - y);
-          // (a meter placed already is held: nothing would push the two apart, so it is kept clear of whole)
-          if (d < (node.radius + o.radius) * (s.placedMeters.has(o.id) ? 1 : 0.6)) on = true;
+          // (a meter placed already, or a junction, is held: nothing would push the two apart, so it is kept clear of whole)
+          if (d < (node.radius + o.radius) * (s.placedMeters.has(o.id) || s.junctions.has(o.id) ? 1 : 0.6)) on = true;
           crowd += Math.max(0, node.radius + o.radius + s.opts.collidePad - d);
         }
         if (on) continue;
@@ -94,14 +98,24 @@ export function placeMeters(s: LayoutState): void {
  * time, so each moves out of the way along where it was (the drawing keeps its faces).
  */
 function makeRoom(s: LayoutState, meter: string): void {
-  const nodes = [...s.byId.values()].filter((n) => n.role !== 'tag');
+  // (a product's junction hangs under its voice: pushed, its voice moves, and it with it)
+  const hung = [...s.junctions.values()].filter((j) => j.x !== undefined);
+  const nodes = [...s.byId.values(), ...hung].filter((n) => n.role !== 'tag');
+  const body = (n: PhysNode) => (n.rides ? (s.byId.get(n.rides) ?? n) : n);
   const pinned = (n: PhysNode) => n.id === meter || s.placedMeters.has(n.id) || n.fx != null;
+  const move = (n: PhysNode, dx: number, dy: number) => {
+    for (const m of new Set([n, body(n)])) {
+      m.x = (m.x ?? 0) + dx;
+      m.y = (m.y ?? 0) + dy;
+    }
+  };
   for (let round = 0; round < 60; round++) {
     let moved = false;
     for (let i = 0; i < nodes.length; i++)
       for (let j = i + 1; j < nodes.length; j++) {
         const [a, b] = [nodes[i], nodes[j]];
-        const [pa, pb] = [pinned(a), pinned(b)];
+        if (body(a) === body(b)) continue;
+        const [pa, pb] = [pinned(body(a)), pinned(body(b))];
         if (pa && pb) continue;
         const dx = (b.x ?? 0) - (a.x ?? 0);
         const dy = (b.y ?? 0) - (a.y ?? 0);
@@ -111,11 +125,10 @@ function makeRoom(s: LayoutState, meter: string): void {
         moved = true;
         const [ux, uy] = [dx / d, dy / d];
         const [sa, sb] = pa ? [0, 1] : pb ? [1, 0] : [0.5, 0.5];
-        a.x = (a.x ?? 0) - ux * short * sa * 0.5;
-        a.y = (a.y ?? 0) - uy * short * sa * 0.5;
-        b.x = (b.x ?? 0) + ux * short * sb * 0.5;
-        b.y = (b.y ?? 0) + uy * short * sb * 0.5;
+        move(a, -ux * short * sa * 0.5, -uy * short * sa * 0.5);
+        move(b, ux * short * sb * 0.5, uy * short * sb * 0.5);
       }
     if (!moved) break;
+    placeJunctions(s);
   }
 }

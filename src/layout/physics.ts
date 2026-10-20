@@ -19,7 +19,7 @@ import { sideless } from './side';
 import { BELT_LENGTH, BELT_PULL, DEFAULT_LAYOUT, GROUND_PULL, linkPull, type LayoutOptions } from './options';
 import type { LayoutState, MeterTrace, PhysLink, PhysNode } from './state';
 import { nodeAt, positionOf } from './state';
-import { folded, junctionNodes, placeJunctions, settleJunctions } from './junctions';
+import { folded, junctionNodes, placeJunctions, settleJunctions, stepClearJunctions } from './junctions';
 import { rowsKey, startNodes, startPlaces } from './start';
 import { forceUncross, stepBends, stepClusters, stepExclusion, stepKinds, stepSpread } from './forces';
 import { aims, fitTurns, stepAims } from './aims';
@@ -141,6 +141,8 @@ export class ForceLayout {
       .force('aims', (alpha: number) => stepAims(this.s, alpha))
       // turntables: nothing overlaps them — a node that would is set at their edge
       .force('exclusion', () => stepExclusion(this.s))
+      // a product's meter hangs under its voice: nothing settles on it
+      .force('underVoice', () => stepClearJunctions(this.s))
       // (the tower layout) heights held: whatever moved a node, it ends the tick at its height
       .force('heights', (alpha: number) => this.hold(alpha))
       // (the tower layout, socketsAbove) a socket rides above its source
@@ -237,7 +239,7 @@ export class ForceLayout {
     // (notes and scopes are read in the margin, not laid among the music: side.ts)
     const drawn = sideless(whole);
     // (as drawn: a product's wires at its junction; the forces lay the graph with each junction folded into its voice,
-    // and the junctions are set on their voices' rims after each tick: junctions.ts)
+    // and the junctions are hung under their voices after each tick: junctions.ts)
     this.s.drawnNets = drawn.nets ?? [];
     this.s.drawnEnds = new Map(drawn.edges.map((e) => [e.id, e.to]));
     let model = folded(drawn);

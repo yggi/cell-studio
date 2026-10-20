@@ -40,8 +40,10 @@ export interface PhysNode extends SimulationNodeDatum {
   mass?: number;
   /** How far its loom reaches round it (looms.ts), px: part of its room, and of each of its springs' length. */
   loom?: number;
-  /** A product's junction (junctions.ts): the voice whose rim it is set on. */
+  /** A product's junction (junctions.ts): the voice it hangs under. */
   rides?: string;
+  /** A product's junction (junctions.ts): how far under its voice's centre its own hangs, px (the layout grown). */
+  below?: number;
 }
 export interface PhysLink extends SimulationLinkDatum<PhysNode> {
   id: string;
@@ -87,9 +89,9 @@ export interface LayoutState {
   links: DrawnLink[];
   /** The edges as the forces see them: each product's junction folded into its voice (junctions.ts); else `links`. */
   springs: DrawnLink[];
-  /** Each product's junction (junctions.ts): not in the forces, set on its voice's rim after each tick. */
+  /** Each product's junction (junctions.ts): not in the forces, hung under its voice after each tick. */
   junctions: Map<string, PhysNode>;
-  /** Each junction's angle on its voice's rim, radians. */
+  /** Each junction's place in the row under its voice (0 the middle, 1 a junction's width to the right). */
   rims: Map<string, number>;
   /** The height of each node's rank in the signal path. */
   rankY: Map<string, number>;

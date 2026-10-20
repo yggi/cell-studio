@@ -30,7 +30,7 @@ export function flowNodeOf(
   meters?: { index: ReadonlyMap<string, number> },
   program?: CompileResult,
 ): FlowNode {
-  // a product's junction (graph.ts): an unnamed gate, a small meter set on its voice's rim (layout/junctions.ts); not a
+  // a product's junction (graph.ts): an unnamed gate, a small meter set under its voice (layout/junctions.ts); not a
   // cell, so nothing to open, drag, select or delete
   if (g.kind === 'junction')
     return {

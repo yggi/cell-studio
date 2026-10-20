@@ -243,8 +243,8 @@ function roomFor(n: GraphNode): number {
   return Math.max(base, label) + (controls ? 10 + controls * 0.55 : 0);
 }
 
-/** A product's junction's room, a radius (engine/graph.ts, junctions.ts): a small gate meter on its voice's rim, twice this across (#234). */
-export const JUNCTION_ROOM = 16;
+/** A product's junction's room, a radius (engine/graph.ts, junctions.ts): a small gate meter under its voice, twice this across (#234). */
+export const JUNCTION_ROOM = 22;
 
 /** An edge's spring, as strong as it is (a net's tree takes the same, netTree). */
 export function linkPull(l: { count: number; keep?: number; muxed?: boolean; strength?: number }, o: LayoutOptions): number {

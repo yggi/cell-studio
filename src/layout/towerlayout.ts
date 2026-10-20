@@ -180,7 +180,7 @@ export type TowerLayer = 'constant' | 'source' | 'selector' | 'stepped' | 'gate'
 
 /**
  * A column (`towerLayers`): a voice or a kit (`hi`) and the one cell that plays it (`lo`), alone in playing it, at one x;
- * through a product's junction (`via`), the player under the junction, which sits on the voice's rim.
+ * through a product's junction (`via`), the player under the junction, which hangs under the voice.
  */
 export interface Column {
   readonly lo: string;
