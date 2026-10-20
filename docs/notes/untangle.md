@@ -15,11 +15,20 @@ Hanging a product's meter under its voice (in place of turning it round the rim)
 | | flow crossings | flow under | tower crossings | tower under |
 |---|---|---|---|---|
 | `main` (6 seeds) | 45.0 | 148.5 | 82.8 | 108.3 |
-| meters hung, the start as before (3 seeds) | 56.7 | 143.7 | 73.7 | 117.7 |
 | **chosen** (6 seeds) | **34.7** | **119.8** | **67.7** | **91.0** |
-| 5 starts (3 seeds) | 30.3 | 110.3 | | |
-| trials of 500 ticks (3 seeds) | 34.3 | 114.3 | | |
-| an edge under weighs .25 (3 seeds) | 31.3 | 128.3 | | |
+| one change from the chosen (3 seeds each): | | | | |
+| one start, trials of 120 ticks, crossings alone (as before) | 56.7 | 143.7 | 73.7 | 117.7 |
+| 5 starts | 30.3 | 110.3 | 65.0 | 88.7 |
+| trials of 500 ticks | 34.3 | 114.3 | 64.3 | 94.0 |
+| an edge under weighs .25 | 31.3 | 128.3 | 68.3 | 97.3 |
+| crossings alone | 31.0 | 153.7 | 69.0 | 112.3 |
+| no room under voices at the start | 37.7 | 130.7 | 66.7 | 95.0 |
+| meter rise 40 in both layouts | 33.0 | 116.0 | 67.7 | 93.0 |
+| no meter rise | 36.0 | 113.7 | 68.0 | 98.7 |
+| wheels pushed off foreign edges, 1 | 40.0 | 100.7 | 64.0 | 110.7 |
+| … 3 | 50.3 | 91.0 | 68.0 | 82.0 |
+
+(About ±8 crossings between seeds over the library: rows within a few of each other are a tie. 5 starts and trials of 500 ticks are a little better again, at twice and four times the trials' cost.)
 
 - **A start chosen** (`bestRowOrder`): the layout is chaotic, the best of six seeds about half the mean (`main`: flow 45 → 23, tower 83 → 53). A fresh graph is laid out from each rows' order × three jitters (`starts`) for 250 ticks (`trial`; 120 predicted the final layout too poorly: 3 starts of 120 gave 52), and the one with the fewest crossings, an edge under counting half (`underWeight`), kept. The examples' are chosen at build time, for both layouts (the tower's were never precomputed: its graph has sockets, another key, so every example ran its trials there).
 - **Room under a voice** at the layered start (`hangRoom`, `layered.ts` `below`): the row under a voice starts below its meters. 83 → 68 alone.
