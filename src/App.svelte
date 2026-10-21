@@ -5,7 +5,10 @@
   import Picker from './ui/Picker.svelte';
   import Shorten from './ui/Shorten.svelte';
   import Transport from './ui/Transport.svelte';
-  import QuickPick from './ui/QuickPick.svelte';
+  import Held from './ui/Held.svelte';
+  import MidiLight from './ui/MidiLight.svelte';
+  import { tagKind, tagName } from '@yggi/cells/engine/tags';
+  import { shortTitle } from './layout/library';
   import Sidebar from './ui/Sidebar.svelte';
   import Graph from './ui/Graph.svelte';
   import Editor from './ui/Editor.svelte';
@@ -19,7 +22,21 @@
   const studio = new Studio();
   setStudio(studio);
   onDestroy(() => studio.dispose());
-  const { piece, playback, library, view, dock } = studio;
+  const { piece, playback, library, view, dock, midi } = studio;
+  const choosing = $derived(view.tab === 'select');
+  // the piece's place in the library, over its name: its tutorial step, or its most particular tag (artist, genre, topic)
+  const where = $derived.by(() => {
+    const entry = library.entries.find((e) => e.id === library.currentId);
+    for (const kind of ['tutorial', 'artist', 'genre', 'topic'] as const) {
+      const tag = entry?.tags.find((t) => tagKind(t) === kind);
+      if (tag) return kind === 'tutorial' ? `tutorial${entry!.tier ? ` · ${entry!.tier}` : ''}` : `${kind} › ${tagName(tag)}`;
+    }
+    return null;
+  });
+  // the sidebar's page showing, if it's open
+  const panel = $derived(view.panelOpen ? view.panel : null);
+  const midiLive = $derived(!!midi.access && (midi.sending || midi.inPortId !== 'none'));
+  const midiName = $derived(midiLive ? `MIDI: ${[midi.inPortId !== 'none' ? 'in' : '', midi.sending ? 'out' : ''].filter(Boolean).join(', ')}` : 'MIDI: not connected');
   // what the stage shows (on a wide screen the code is beside it: its tab is the graph's)
   const stage = $derived(view.tab === 'code' && !view.narrow ? 'graph' : view.tab);
   // (a MIDI file's machine is read only: a try at a change, or at a cell's details, says to convert first, a moment)
@@ -42,37 +59,89 @@
 
 <div class="app" class:selecting={view.tab === 'select'} class:timing={view.tab === 'time'} class:nocode={!view.code}>
   <header>
-    <div class="name">
-      <h1 aria-label="Cell studio">
-        {#each [...'Cell studio'] as ch, i}<span style:color={ch === ' ' ? undefined : noteColour((i * 7 * 30) % 360)}>{ch}</span>{/each}
+    <div class="what">
+      <h1>
+        <Version>
+          <span class="glyph" aria-hidden="true"></span>
+          <span class="wordmark" aria-hidden="true"
+            >{#each [...'Cell studio'] as ch, i}<span style:color={ch === ' ' ? undefined : noteColour((i * 7 * 30) % 360)}>{ch}</span>{/each}</span
+          >
+        </Version>
       </h1>
-      <Version />
-    </div>
-    {#if library.anyOpen}
-      <div class="transport-in">
-        <Transport path={quick} />
-      </div>
-    {:else}
-      <p class="tagline">Music, cell by cell<span>&nbsp;— choose a piece to begin</span></p>
-      <div class="quick-idle">{@render quick()}</div>
-    {/if}
-    {#snippet quick()}<QuickPick entries={library.entries} current={library.currentId} onpick={(id) => studio.pick(id)} />{/snippet}
-    <!-- the views: one switch at every size (on a wide screen the code is a pane beside the stage, shown or hidden) -->
-    <div class="tabs" role="tablist" aria-label="View">
-      <button role="tab" aria-selected={view.tab === 'select'} class:on={view.tab === 'select'} onclick={() => (view.tab = 'select')}>Library</button>
-      <button role="tab" aria-selected={stage === 'graph'} class:on={stage === 'graph'} disabled={!library.anyOpen} onclick={() => (view.tab = 'graph')}>Graph</button>
-      {#if view.narrow}
-        <button role="tab" aria-selected={view.tab === 'code'} class:on={view.tab === 'code'} disabled={!library.anyOpen} onclick={() => (view.tab = 'code')}>
-          Code{#if piece.errors}<span class="badge" aria-label="{piece.errors} errors">{piece.errors}</span>{/if}
-        </button>
-      {/if}
-      <button role="tab" aria-selected={view.tab === 'time'} class:on={view.tab === 'time'} disabled={!library.anyOpen} onclick={() => (view.tab = 'time')}>Time</button>
+      <span class="rule" aria-hidden="true"></span>
+      <!-- the piece: the library is behind its name (open: back to the graph) -->
+      <button
+        class="unstyled title"
+        aria-expanded={choosing}
+        onclick={() => (view.tab = choosing && library.anyOpen ? 'graph' : 'select')}
+        title={choosing ? 'Back to the piece' : `${piece.title}: choose another piece`}
+      >
+        <span class="path">{library.anyOpen ? (where ?? 'piece') : 'library'}</span>
+        <span class="name">
+          <span>{library.anyOpen ? shortTitle(piece.title) || 'Untitled' : 'Choose a piece'}</span>
+          <svg viewBox="0 0 24 24" aria-hidden="true" class:up={choosing}><path d="M6 9l6 6 6-6" /></svg>
+        </span>
+      </button>
     </div>
     {#if !view.narrow}
-      <button class="codepane" aria-pressed={view.code} disabled={!library.anyOpen} onclick={() => (view.code = !view.code)} title="The code beside the graph"
-        >Code{#if piece.errors}<span class="badge" aria-label="{piece.errors} errors">{piece.errors}</span>{/if}</button
-      >
+      {#if library.anyOpen}
+        <Transport />
+      {:else}
+        <p class="tagline">Music, cell by cell<span>&nbsp;— choose a piece to begin</span></p>
+      {/if}
     {/if}
+    <div class="where">
+      {#if !view.narrow}
+        <Held />
+        <!-- the stage: the graph or the piece in time (the library is the piece's name) -->
+        <div class="switch" role="tablist" aria-label="View">
+          <button role="tab" aria-selected={stage === 'graph'} class:on={stage === 'graph'} disabled={!library.anyOpen} onclick={() => (view.tab = 'graph')}>
+            <svg viewBox="0 0 24 24" aria-hidden="true"
+              ><circle cx="6" cy="6" r="2.5" /><circle cx="18" cy="8" r="2.5" /><circle cx="11" cy="18" r="2.5" /><path d="M8 7l7.6.8M7.2 8.2l2.7 7.6M16.6 10l-4.2 6" /></svg
+            >
+            <span class="label">Graph</span>
+          </button>
+          <button role="tab" aria-selected={stage === 'time'} class:on={stage === 'time'} disabled={!library.anyOpen} onclick={() => (view.tab = 'time')}>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 18h18M5 18v-7M9 18V6M13 18V9M17 18v-5M21 18V9" /></svg>
+            <span class="label">Time</span>
+          </button>
+        </div>
+        <span class="rule" aria-hidden="true"></span>
+        <!-- the panes, placed as they open: the code at the left -->
+        <button
+          class="unstyled pane"
+          aria-pressed={view.code}
+          disabled={!library.anyOpen}
+          onclick={() => (view.code = !view.code)}
+          aria-label="Code"
+          title="The code beside the graph"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4.5" width="18" height="15" rx="2.5" /><path d="M9.5 4.5v15M5.5 8.5h1.8M5.5 11h1.8M5.5 13.5h1.8" /></svg>
+          {#if piece.errors}<span class="badge" aria-label="{piece.errors} errors">{piece.errors}</span>{/if}
+        </button>
+      {/if}
+      <button class="unstyled pane" class:live={midiLive} aria-pressed={panel === 'midi'} onclick={() => view.togglePanel('midi')} aria-label={midiName} title={midiName}>
+        <svg viewBox="0 0 24 24" aria-hidden="true"
+          ><circle cx="12" cy="12" r="8.5" /><path d="M10.5 18h3" /><g class="pins"
+            ><circle cx="8" cy="12" r="1" /><circle cx="16" cy="12" r="1" /><circle cx="9.3" cy="8.6" r="1" /><circle cx="14.7" cy="8.6" r="1" /><circle
+              cx="12"
+              cy="7.5"
+              r="1"
+            /></g
+          ></svg
+        ><MidiLight />
+      </button>
+      <!-- … and the inspector at the right: the piece's controls, forces, files, stats (a drawer on a phone) -->
+      <button
+        class="unstyled pane"
+        aria-pressed={panel !== null && panel !== 'midi'}
+        onclick={() => view.togglePanel('controls')}
+        aria-label="Controls"
+        title="The piece's controls"
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4.5" width="18" height="15" rx="2.5" /><path d="M14.5 4.5v15M16.7 8.5h1.8M16.7 11h1.8M16.7 13.5h1.8" /></svg>
+      </button>
+    </div>
   </header>
 
   <section class="canvas" class:away={view.tab !== 'graph'} inert={view.narrow && view.tab !== 'graph'} aria-label="Cell graph">
@@ -137,6 +206,25 @@
   {/if}
   {#if dock.open && library.anyOpen && view.tab !== 'select'}
     <div class="dock-slot"><KeysDock /></div>
+  {/if}
+  {#if view.narrow}
+    {#if library.anyOpen}<div class="bar-slot"><Transport bar /></div>{/if}
+    <div class="tabs" role="tablist" aria-label="View">
+      <button role="tab" aria-selected={view.tab === 'graph'} class:on={view.tab === 'graph'} disabled={!library.anyOpen} onclick={() => (view.tab = 'graph')}>
+        <svg viewBox="0 0 24 24" aria-hidden="true"
+          ><circle cx="6" cy="6" r="2.5" /><circle cx="18" cy="8" r="2.5" /><circle cx="11" cy="18" r="2.5" /><path d="M8 7l7.6.8M7.2 8.2l2.7 7.6M16.6 10l-4.2 6" /></svg
+        >
+        Graph
+      </button>
+      <button role="tab" aria-selected={view.tab === 'code'} class:on={view.tab === 'code'} disabled={!library.anyOpen} onclick={() => (view.tab = 'code')}>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8.5 7l-5 5 5 5M15.5 7l5 5-5 5" /></svg>
+        Code{#if piece.errors}<span class="badge" aria-label="{piece.errors} errors">{piece.errors}</span>{/if}
+      </button>
+      <button role="tab" aria-selected={view.tab === 'time'} class:on={view.tab === 'time'} disabled={!library.anyOpen} onclick={() => (view.tab = 'time')}>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 18h18M5 18v-7M9 18V6M13 18V9M17 18v-5M21 18V9" /></svg>
+        Time
+      </button>
+    </div>
   {/if}
   <section class="time" class:away={view.tab !== 'time'} inert={view.tab !== 'time'} aria-label="The piece in time">
     <TimeView active={view.tab === 'time' && library.anyOpen} />
@@ -248,8 +336,8 @@
     height: 100%;
     display: grid;
     grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: auto minmax(0, 1fr) auto;
-    grid-template-areas: 'head' 'view' 'dock';
+    grid-template-rows: auto minmax(0, 1fr) auto auto auto;
+    grid-template-areas: 'head' 'view' 'dock' 'deck' 'tabs';
   }
   /* the keys and pads: under the view, so they never cover the graph; a third of the height on a phone */
   .dock-slot {
@@ -270,11 +358,6 @@
     background: var(--code-bg);
   }
   /* the other view stays mounted underneath (and inert): the graph keeps its size */
-  /* the transport, in the header: beside the name (and below it on a phone, the sections' track) */
-  .transport-in {
-    flex: 1;
-    min-width: 0;
-  }
   .select {
     grid-area: view;
     position: relative;
@@ -288,37 +371,6 @@
     /* (truly not shown: under the other tab it still drew and analysed — and kept the page too busy
        to feed the sound; its layout stays, so switching back is instant) */
     visibility: hidden;
-  }
-  /* the views: on a phone a row of tabs the whole width, under the header's controls */
-  .tabs {
-    grid-column: 1 / -1;
-    display: flex;
-    margin: var(--space-2) calc(-1 * var(--space-3)) calc(-1 * var(--space-2));
-    border-top: 1px solid var(--line);
-  }
-  .tabs button {
-    position: relative;
-    flex: 1;
-    min-height: 38px;
-    border: none;
-    background: none;
-    color: var(--text-muted);
-    font: 600 var(--text-md) var(--font-ui);
-    cursor: pointer;
-  }
-  .tabs button.on {
-    color: var(--text);
-  }
-  /* the active tab: underlined with the note rainbow */
-  .tabs button.on::after {
-    content: '';
-    position: absolute;
-    left: 18%;
-    right: 18%;
-    bottom: 0;
-    height: 3px;
-    border-radius: 3px 3px 0 0;
-    background: var(--rainbow);
   }
   .badge {
     display: inline-block;
@@ -348,49 +400,6 @@
     }
     .dock-slot {
       height: clamp(170px, 26vh, 250px);
-    }
-    /* the views: a switch at the header's end */
-    .tabs {
-      flex: none;
-      margin: 0;
-      border: 1px solid var(--line);
-      border-top-color: var(--line);
-      border-radius: var(--radius-pill);
-      overflow: hidden;
-    }
-    .tabs button {
-      flex: none;
-      min-height: 34px;
-      padding: 0 14px;
-      font-size: var(--text-sm);
-      font-weight: 700;
-    }
-    .tabs button.on {
-      background: var(--line);
-    }
-    .tabs button.on::after {
-      left: 14px;
-      right: 14px;
-    }
-    .codepane {
-      flex: none;
-      min-height: 36px;
-      padding: 0 14px;
-      border-radius: var(--radius-pill);
-      border: 1px solid var(--line);
-      background: none;
-      color: var(--text-muted);
-      font: 700 var(--text-sm) var(--font-code);
-      cursor: pointer;
-    }
-    .codepane[aria-pressed='true'] {
-      border-color: var(--accent);
-      color: var(--accent);
-    }
-    .codepane:disabled {
-      border-color: var(--line);
-      color: var(--text-faint);
-      cursor: default;
     }
     .canvas {
       grid-area: canvas;
@@ -423,30 +432,291 @@
     }
   }
 
+  /* the header: what's open (the piece, its library behind its name) · the transport · where you look (the stage, the panes);
+     on a phone what's open and the panes, the transport and the views at the foot */
   header {
     grid-area: head;
     z-index: 30;
-    display: flex;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
     align-items: center;
-    gap: var(--space-2);
-    padding: var(--space-2) var(--space-3);
+    gap: var(--space-3);
+    height: 52px;
+    padding: 0 var(--space-2) 0 var(--space-3);
     background: var(--surface);
     border-bottom: 1px solid var(--line);
   }
-  .name {
-    align-self: flex-start;
-    padding-top: 13px;
+  .what,
+  .where {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    min-width: 0;
+  }
+  .what {
+    gap: var(--space-3);
   }
   h1 {
     margin: 0;
-    font: 800 17px/1 var(--font-ui);
+    font: 800 19px/1 var(--font-ui);
     letter-spacing: -0.02em;
     white-space: nowrap;
   }
+  .wordmark {
+    display: none;
+    font: 800 19px/1 var(--font-ui);
+    letter-spacing: -0.02em;
+  }
+  /* the note rainbow as a ring: the app's mark where its name has no room */
+  .glyph {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: conic-gradient(hsl(0 80% 62%), hsl(60 80% 55%), hsl(120 60% 50%), hsl(180 65% 50%), hsl(240 70% 66%), hsl(300 70% 62%), hsl(0 80% 62%));
+    -webkit-mask: radial-gradient(circle, transparent 6px, #000 6.5px);
+    mask: radial-gradient(circle, transparent 6px, #000 6.5px);
+  }
+  .rule {
+    flex: none;
+    width: 1px;
+    height: 26px;
+    background: var(--line);
+  }
+  .what .rule {
+    display: none;
+  }
+  .title {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    padding: 3px 8px;
+    margin: 0 -8px;
+    border-radius: var(--radius-sm);
+    text-align: left;
+  }
+  .title:hover,
+  .title[aria-expanded='true'] {
+    background: var(--surface-2);
+  }
+  .title:focus-visible {
+    outline: 2px solid var(--accent);
+  }
+  .path {
+    font: 600 var(--text-xs) / 1.3 var(--font-ui);
+    color: var(--text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .name {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    font: 700 var(--text-md) / 1.25 var(--font-ui);
+    color: var(--text);
+  }
+  .name span {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .name svg {
+    flex: none;
+    width: 12px;
+    height: 12px;
+    fill: none;
+    stroke: var(--text-muted);
+    stroke-width: 2.2;
+    transition: transform 0.15s;
+  }
+  .name svg.up {
+    transform: rotate(180deg);
+  }
+  /* the panes' switches (and MIDI's): an icon each, gold while open */
+  .pane {
+    position: relative;
+    flex: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 36px;
+    height: 36px;
+    padding: 0 6px;
+    border-radius: var(--radius-sm);
+    color: var(--text-muted);
+  }
+  .pane svg,
+  .switch svg,
+  .tabs svg {
+    width: 20px;
+    height: 20px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.7;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  .pane .pins {
+    fill: currentColor;
+    stroke: none;
+  }
+  .pane:hover:not(:disabled) {
+    background: var(--surface-2);
+    color: var(--text);
+  }
+  .pane.live {
+    color: var(--text);
+  }
+  .pane[aria-pressed='true'] {
+    color: var(--accent);
+    background: color-mix(in oklab, var(--accent) 12%, transparent);
+  }
+  .pane:disabled {
+    color: var(--text-faint);
+    cursor: default;
+  }
+  .pane:focus-visible,
+  .switch button:focus-visible,
+  .tabs button:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+  }
+  .pane .badge {
+    position: absolute;
+    top: 0;
+    right: -4px;
+    margin: 0;
+  }
   @media (min-width: 900px) {
-    h1 {
-      font-size: 21px;
+    header {
+      grid-template-columns: minmax(0, auto) minmax(0, 1fr) auto;
+      gap: var(--space-4);
+      height: 56px;
+      padding: 0 var(--space-3) 0 var(--space-4);
     }
+    .title {
+      max-width: 260px;
+    }
+    /* the stage: a segmented switch */
+    .switch {
+      display: flex;
+      gap: 2px;
+      padding: 3px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--code-bg);
+    }
+    .switch button {
+      position: relative;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      height: 30px;
+      padding: 0 12px;
+      border: 0;
+      border-radius: 7px;
+      background: none;
+      color: var(--text-muted);
+      font: 700 var(--text-sm) var(--font-ui);
+      cursor: pointer;
+    }
+    .switch svg {
+      width: 16px;
+      height: 16px;
+    }
+    .switch button.on {
+      background: var(--surface-2);
+      color: var(--text);
+    }
+    /* the active view: underlined with the note rainbow */
+    .switch button.on::after {
+      content: '';
+      position: absolute;
+      left: 10px;
+      right: 10px;
+      bottom: 2px;
+      height: 2px;
+      border-radius: 2px;
+      background: var(--rainbow);
+    }
+    .switch button:disabled {
+      color: var(--text-faint);
+      cursor: default;
+    }
+  }
+  /* a wide window: the name in full, the piece's place over its name */
+  @media (min-width: 1200px) {
+    .glyph {
+      display: none;
+    }
+    .wordmark {
+      display: inline;
+    }
+    .what .rule {
+      display: block;
+    }
+  }
+  @media (min-width: 900px) and (max-width: 1199px) {
+    .path,
+    .switch .label {
+      display: none;
+    }
+    .switch button {
+      padding: 0 9px;
+    }
+  }
+  /* a phone: the transport and the views at the foot, under the thumb */
+  .bar-slot {
+    grid-area: deck;
+    z-index: 3;
+  }
+  .tabs {
+    grid-area: tabs;
+    z-index: 3;
+    display: flex;
+    background: var(--surface);
+    border-top: 1px solid var(--line);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .tabs button {
+    position: relative;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    min-height: 52px;
+    border: none;
+    background: none;
+    color: var(--text-faint);
+    font: 700 var(--text-xs) var(--font-ui);
+    cursor: pointer;
+  }
+  .tabs button.on {
+    color: var(--text);
+  }
+  /* the active tab: the note rainbow over it */
+  .tabs button.on::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 30%;
+    right: 30%;
+    height: 3px;
+    border-radius: 0 0 3px 3px;
+    background: var(--rainbow);
+  }
+  .tabs button:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+  .tabs .badge {
+    position: absolute;
+    top: 4px;
+    left: 56%;
+    margin: 0;
   }
   /* playing: the rim runs round the note rainbow */
   @keyframes rim {
@@ -489,26 +759,6 @@
     }
   }
 
-  /* a phone: the name and the controls on one line, the track and the tempo the whole width below */
-  @media (max-width: 899px) {
-    header {
-      display: grid;
-      grid-template-columns: auto minmax(0, 1fr);
-      align-items: center;
-      row-gap: 0;
-    }
-    .name {
-      align-self: center;
-      padding-top: 0;
-    }
-    .transport-in,
-    .transport-in :global(.transport) {
-      display: contents;
-    }
-    .transport-in :global(.lower) {
-      grid-column: 1 / -1;
-    }
-  }
   .tagline {
     margin: 0;
     flex: 1;
@@ -527,20 +777,5 @@
     .tagline span {
       display: none;
     }
-  }
-  /* nothing open yet: the quick path beside the tagline (on a phone, in its place) */
-  .quick-idle {
-    flex: 0 1 auto;
-    min-width: 0;
-    display: flex;
-  }
-  @media (max-width: 599px) {
-    .tagline {
-      display: none;
-    }
-  }
-  .tabs button:disabled {
-    color: var(--text-faint);
-    cursor: default;
   }
 </style>
