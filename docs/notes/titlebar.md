@@ -49,7 +49,7 @@ The owner chose: **the library is the piece's name** (no Library tab), **a plain
 
 ![phone, built](titlebar-after-phone.jpg)
 
-- `Transport.svelte` is the deck: a capsule in the header, or with `bar` the phone's foot (the timeline over the buttons, Revert · Save in it). Its parts are `Timeline.svelte` (a run of sections with one name is one segment, notched where each repeat begins; names where they fit, else in the title), `Tempo.svelte` (the slider is always in the accessibility tree, out of sight until pressed or focused, so a screen reader and the smoke test reach it) and `Held.svelte`.
+- `Transport.svelte` is the deck: a capsule in the header, or with `bar` the phone's foot (the timeline over the buttons, Revert · Save in it). Its parts are `Timeline.svelte` (a run of sections with one name is one segment, notched where each repeat begins; names where they fit, else in the title), `Tempo.svelte` (the slider is always in the accessibility tree, out of sight until pressed or focused, so a screen reader and the smoke test reach it) and `Held.svelte`. Their arithmetic is pure, in `timeline.ts` and `tempo.ts`, with tests (each shown to fail with its logic broken on purpose); Page Down in the last segment goes to the end, as End.
 - `QuickPick.svelte` is gone: the tag path is a caption now, and the library's filters choose by tag.
 - `Version.svelte` takes children: the wordmark (the glyph below 1200 px) is what's tapped.
 - On a phone the chrome is 52 + 93 + 53 = 198 px (measured at 390 × 844). That's 48 px more than before (150 px), but play and the timeline are under the thumb.

@@ -3,8 +3,10 @@
    * Where the piece is, in the transport: its sections as segments, each named where its name fits (a run of sections
    * with one name — drop · drop — shares that name), the part played filled, the section it's in underlined. A press on a
    * name jumps to that section; anywhere else, or a drag, seeks there (on release). The keys: ← → five seconds, Page Up /
-   * Down a section, Home / End.
+   * Down a section, Home / End. The arithmetic is timeline.ts.
    */
+  import { keyTarget, segmentAt, segmentsOf, stillJump, timeAt, type Section } from './timeline';
+
   let {
     now,
     span,
@@ -16,7 +18,7 @@
     now: number;
     /** How far it reaches (null: nothing to move in). */
     span: number | null;
-    sections: readonly { readonly at: number; readonly label: string }[] | null;
+    sections: readonly Section[] | null;
     onseek: (t: number) => void;
     clock: (sec: number) => string;
   } = $props();
@@ -27,31 +29,9 @@
   let drag = $state<number | null>(null);
   const shown = $derived(drag ?? now);
 
-  // a run of sections with one name (drop · drop) is one segment, its other starts ticks inside it
-  type Segment = { from: number; to: number; label: string; named: boolean; ticks: number[] };
-  const segments = $derived.by((): Segment[] => {
-    if (!span) return [];
-    const list: Segment[] = [];
-    // (before the first section: a segment without a name)
-    const first = sections?.[0]?.at ?? span;
-    if (first > 0) list.push({ from: 0, to: first, label: '', named: false, ticks: [] });
-    for (const [i, s] of (sections ?? []).entries()) {
-      const to = sections![i + 1]?.at ?? span;
-      const last = list.at(-1);
-      if (i > 0 && last?.label === s.label) {
-        last.ticks.push(s.at);
-        last.to = to;
-      } else list.push({ from: s.at, to, label: s.label, named: false, ticks: [] });
-    }
-    for (const g of list) g.named = !!g.label && ((g.to - g.from) / span) * width > g.label.length * 6.8 + 16;
-    return list;
-  });
-  const current = $derived(segments.find((s) => s.from <= shown + 1e-6 && shown < s.to) ?? segments.at(-1) ?? null);
-
-  const timeAt = (x: number) => {
-    const r = track!.getBoundingClientRect();
-    return Math.max(0, Math.min(1, (x - r.left) / r.width)) * span!;
-  };
+  const segments = $derived(segmentsOf(sections, span, width));
+  const current = $derived(segmentAt(segments, shown));
+  const at = (x: number) => timeAt(x, track!.getBoundingClientRect(), span!);
   // a press on a name jumps to its section, unless it turns into a drag
   let start: { x: number; jump: number | null } | null = null;
   const ondown = (e: PointerEvent) => {
@@ -59,13 +39,12 @@
     track!.setPointerCapture(e.pointerId);
     const name = (e.target as HTMLElement).closest<HTMLElement>('[data-at]');
     start = { x: e.clientX, jump: name ? Number(name.dataset.at) : null };
-    drag = start.jump ?? timeAt(e.clientX);
+    drag = start.jump ?? at(e.clientX);
   };
   const onmove = (e: PointerEvent) => {
     if (!start) return;
-    if (start.jump !== null && Math.abs(e.clientX - start.x) < 4) return;
-    start.jump = null;
-    drag = timeAt(e.clientX);
+    start.jump = stillJump(start.jump, start.x, e.clientX);
+    if (start.jump === null) drag = at(e.clientX);
   };
   const onup = () => {
     if (!start) return;
@@ -74,27 +53,10 @@
     drag = null;
   };
   const onkey = (e: KeyboardEvent) => {
-    if (!span) return;
-    const starts = segments.map((s) => s.from);
-    const prev = [...starts].reverse().find((t) => t < now - 1) ?? 0;
-    const next = starts.find((t) => t > now + 1e-6);
-    const to =
-      e.key === 'ArrowLeft' || e.key === 'ArrowDown'
-        ? now - 5
-        : e.key === 'ArrowRight' || e.key === 'ArrowUp'
-          ? now + 5
-          : e.key === 'PageUp'
-            ? prev
-            : e.key === 'PageDown'
-              ? next
-              : e.key === 'Home'
-                ? 0
-                : e.key === 'End'
-                  ? span
-                  : undefined;
-    if (to === undefined) return;
+    const to = span ? keyTarget(e.key, now, span, segments) : null;
+    if (to === null) return;
     e.preventDefault();
-    onseek(Math.max(0, Math.min(span, to)));
+    onseek(to);
   };
 </script>
 

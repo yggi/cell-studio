@@ -1,8 +1,11 @@
 <script lang="ts">
   /**
    * The tempo of the meter that drives the piece (its free() value, as in the graph), in the transport: a number. Drag it
-   * (right or up: faster), press it for a slider, or ↑ ↓ on it. Gold while held by hand (Revert · Save beside).
+   * (right or up: faster), press it for a slider, or ↑ ↓ on it. Gold while held by hand (Revert · Save beside). The
+   * arithmetic is tempo.ts.
    */
+  import { dragged as draggedTo, keyed, stepOf } from './tempo';
+
   let {
     tempo,
     held,
@@ -19,8 +22,7 @@
 
   let open = $state(false);
   let wrap: HTMLElement | undefined = $state();
-  const clamp = (v: number) => Math.max(tempo.lo, Math.min(tempo.hi, v));
-  const step = $derived((tempo.hi - tempo.lo) / 100);
+  const step = $derived(stepOf(tempo));
 
   // a drag changes it; a press without one opens the slider
   let start: { x: number; y: number; v: number } | null = null;
@@ -33,10 +35,10 @@
   };
   const onmove = (e: PointerEvent) => {
     if (!start) return;
-    const d = e.clientX - start.x - (e.clientY - start.y);
-    if (!dragged && Math.abs(d) < 4) return;
+    const v = draggedTo(tempo, start.v, e.clientX - start.x, e.clientY - start.y, dragged);
+    if (v === null) return;
     dragged = true;
-    onchange(clamp(start.v + (d * (tempo.hi - tempo.lo)) / 240));
+    onchange(v);
   };
   const onup = () => (start = null);
   const onclick = () => {
@@ -44,11 +46,11 @@
     dragged = false;
   };
   const onkey = (e: KeyboardEvent) => {
-    const d = e.key === 'ArrowUp' || e.key === 'ArrowRight' ? 1 : e.key === 'ArrowDown' || e.key === 'ArrowLeft' ? -1 : e.key === 'Escape' && open ? 0 : null;
-    if (d === null) return;
+    const to = keyed(tempo, e.key, open);
+    if (to === null) return;
     e.preventDefault();
-    if (d) onchange(clamp(tempo.value + d * step));
-    else open = false;
+    if (to === 'close') open = false;
+    else onchange(to);
   };
   // (open: a press elsewhere closes it)
   $effect(() => {
