@@ -4,8 +4,9 @@
  * written `shift=`; a stepped table shows where it is by turning its ring. A table that is also played (cells #167) is
  * drawn as played, its hand on the entry sounding, while what reads through it sees it turned, as the sound does.
  *
- * cells' `shiftsAt` (the live state's `shifts`) turns every stepped cell, played or not (cells v0.6.0, #171); its notes
- * read a played cell's own shift as written (`playing`). This is the same split for the drawing.
+ * cells' `shiftsAt` (the live state's `shifts`) turns a stepped table, and a played cell only when a line reads through it
+ * (`readThrough`, cells v0.8.0, #203); its notes read a played cell's own shift as written (`playing`). This is the same
+ * split for the drawing, which only a played cell that is also read through still needs.
  */
 import type { CompileResult, Shifts } from '@yggi/cells/engine/program';
 import { playedCells } from '@yggi/cells/engine/clocking';
@@ -46,7 +47,7 @@ function stillOf(program: CompileResult, name: string): ReadonlySet<string> {
 }
 
 /**
- * The shifts the wheel of `name` is drawn with, from `now` (the live state's, every stepped cell turned) and `statics`
+ * The shifts the wheel of `name` is drawn with, from `now` (the live state's: its tables and what is read through turned) and `statics`
  * (as written): a played cell and what it splices as written, every table it reads through as it stands now.
  */
 export function drawnShifts(program: CompileResult, statics: Shifts, now: Shifts, name: string): Shifts {
