@@ -1,12 +1,23 @@
 <script lang="ts" module>
-  import { Score } from './loudness';
+  import { Score, lapOf } from './loudness';
   import type { GraphContext } from './context';
 
-  // (the score's shape over a lap, stopped: one a piece, shared by its sockets, sampled a few slots a frame)
+  // (the score's shape over a lap, stopped: one a piece, shared by its sockets, sampled a few slots a frame; a cursor
+  // moved within its lap, as a followed session's moves every frame, #478, keeps it)
   let score: Score | null = null;
   let sampledAt = -Infinity;
+  const lapIndex = (ctx: GraphContext, at: number) => {
+    const lap = lapOf(ctx.program, ctx.shifts);
+    return Math.floor(lap.stepAt(at) / lap.steps);
+  };
   const scoreOf = (ctx: GraphContext): Score => {
-    if (!score || score.program !== ctx.program || score.shifts !== ctx.shifts || score.muted !== ctx.muted || score.from !== ctx.cursor)
+    if (
+      !score ||
+      score.program !== ctx.program ||
+      score.shifts !== ctx.shifts ||
+      score.muted !== ctx.muted ||
+      (score.from !== ctx.cursor && lapIndex(ctx, score.from) !== lapIndex(ctx, ctx.cursor))
+    )
       score = new Score(ctx.program, ctx.shifts, ctx.muted, ctx.cursor);
     return score;
   };
