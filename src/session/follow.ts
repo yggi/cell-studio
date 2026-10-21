@@ -83,6 +83,19 @@ export function heardAt(f: Followed, at: number): { text: SectionText; bars: num
   return { text, bars: Math.max(0, bars), place };
 }
 
+/**
+ * When, on the host's clock, the text heard next gives way to another: the start of the first bar after the one heard
+ * at `at` that another text states; null where none is known yet.
+ */
+export function nextTextAt(f: Followed, at: number): number | null {
+  const place = placeAt(f.starts, at);
+  if (!place) return null;
+  const now = textOf(f.texts, place.bar);
+  const after = [...f.starts.keys()].filter((b) => b > place.bar).sort((a, b) => a - b);
+  for (const b of after) if (textOf(f.texts, b) !== now) return f.starts.get(b)!;
+  return null;
+}
+
 /** What is kept of a song once a bar is heard: the starts and the texts of the last `KEPT_BEHIND` bars and on. */
 export function pruned(f: Followed, heard: number): Followed {
   const from = heard - KEPT_BEHIND;

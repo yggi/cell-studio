@@ -91,6 +91,8 @@ export class Studio {
   following = $state(false);
   // (a bar of the followed text's own time, by the program it was worked out for)
   #bar: { program: CompileResult; seconds: number | null } | null = null;
+  // (the timer that turns the text at its bar, when that falls between two frames)
+  #turning: ReturnType<typeof setTimeout> | null = null;
 
   // the piece last asked for (a card or a file): one still being fetched or read gives way to a later choice
   #choice = 0;
@@ -139,10 +141,18 @@ export class Studio {
     });
   }
 
-  /** One frame of a session followed: the host's text the piece (opened as a file is, the first time), and the cursor where the host's song is heard in it. */
+  /**
+   * One frame of a session followed: the host's text the piece (opened as a file is, the first time), and the cursor
+   * where the host's song is heard in it. A text that gives way to another before the next frame does so on time: a
+   * timer at the bar where it turns, so the text shown is the host's from that bar's first moment, not a frame late.
+   */
   #follow(): void {
-    const h = this.session.heading();
+    const now = performance.now() / 1000;
+    const h = this.session.heading(now);
     if (!h) return;
+    const turn = this.session.nextTurn(now);
+    if (this.#turning) clearTimeout(this.#turning);
+    this.#turning = turn !== null && turn - now < (2 * FOLLOW_EVERY) / 1000 ? setTimeout(() => this.#follow(), Math.max(0, (turn - now) * 1000) + 1) : null;
     if (!this.following) {
       this.#opened({ kind: 'file', name: `${this.session.session ?? 'session'}.cells` }, '', true);
       this.following = true;
@@ -158,6 +168,8 @@ export class Studio {
 
   /** The session left or ended: the piece followed stays open, the user's to change. */
   #unfollow(): void {
+    if (this.#turning) clearTimeout(this.#turning);
+    this.#turning = null;
     this.piece.readOnly = false;
     this.following = false;
     this.heard = null;

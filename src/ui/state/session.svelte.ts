@@ -1,6 +1,6 @@
 import { LIMITS, PROTOCOL, leaveOver, readHost, sessionNameProblem, type ClientMessage, type HostMessage, type SectionText } from '../../session/protocol';
 import { NO_CLOCK, hostHeardAt, reading, withPing, type HostClock } from '../../session/clock';
-import { NOTHING_FOLLOWED, heardAt, pruned, withBar, withText, type Followed } from '../../session/follow';
+import { NOTHING_FOLLOWED, heardAt, nextTextAt, pruned, withBar, withText, type Followed } from '../../session/follow';
 import { joinLobby, type ClientLink, type Heard, type Socket } from '../../session/lobby';
 
 export type SessionStatus = 'idle' | 'joining' | 'joined';
@@ -79,6 +79,14 @@ export class SessionClient {
     if (!heard) return null;
     this.#followed = pruned(this.#followed, heard.place.bar);
     return { text: heard.text, bars: heard.bars, bar: heard.place.bar, before: heard.place.before };
+  }
+
+  /** When, on this page's clock (seconds), the text heard next gives way to another, as known at `now`; null where none is known yet. */
+  nextTurn(now = this.#now()): number | null {
+    if (this.status !== 'joined' || !this.hostPlaying) return null;
+    const at = hostHeardAt(this.#clock, now);
+    const next = at === null ? null : nextTextAt(this.#followed, at);
+    return next === null || at === null ? null : now + (next - at);
   }
 
   /** Why a join with these can't be asked for, or null. */

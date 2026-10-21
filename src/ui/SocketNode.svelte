@@ -39,7 +39,7 @@
   import { getGraphContext, nodeState } from './context';
   import { heard, loudness, noteOf, voiceIds } from './heard';
   import { onFrames } from '../audio/ticker';
-  import { lapOf, levelOf, LoudRing, SCORE_SLOTS } from './loudness';
+  import { levelOf, LoudRing, SCORE_SLOTS } from './loudness';
   import type { FlowNode } from './types';
 
   let { data }: NodeProps<Extract<FlowNode, { type: 'socket' }>> = $props();

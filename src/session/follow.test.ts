@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { compileSource } from '@yggi/cells/engine/compile';
-import { NOTHING_FOLLOWED, barSeconds, heardAt, placeAt, pruned, textOf, withBar, withText, type Followed } from './follow';
+import { NOTHING_FOLLOWED, barSeconds, heardAt, nextTextAt, placeAt, pruned, textOf, withBar, withText, type Followed } from './follow';
 import type { SectionText } from './protocol';
 
 const frame = { meter: { cycle: 8, heights: [0, 2, 4, 6] }, swing: { level: '16n', share: 0.5 }, bpm: 120, key: { tonic: 9, mode: 'aeolian' } };
@@ -81,5 +81,16 @@ describe('a bar of a text’s own time', () => {
   it('is none for a text with no meter, or one that doesn’t compile', () => {
     expect(bar('&a loop=A4')).toBeNull();
     expect(bar('')).toBeNull();
+  });
+});
+
+describe('when the text turns', () => {
+  it('is the start of the first bar after the one heard that another text states', () => {
+    const f = song();
+    expect(nextTextAt(f, 15)).toBe(26);
+    expect(nextTextAt(f, 27)).toBeNull();
+    // (a text told again from bar 11: it turns there)
+    expect(nextTextAt(withText(f, section(11, 5, 'B again')), 27)).toBe(32);
+    expect(nextTextAt(NOTHING_FOLLOWED, 3)).toBeNull();
   });
 });
