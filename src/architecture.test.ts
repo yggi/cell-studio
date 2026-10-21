@@ -3,8 +3,9 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 
 // The layering AGENTS.md promises: layout/ is pure TS (it runs in node tests and, later, in a worker), and doesn't
-// reach up into audio/ or ui/. The language itself is yggi/cells (@yggi/cells), pure by its own gate: what is written is
-// the language's, how it is drawn layout's (layout/drawn.ts). And no module imports itself round a cycle.
+// reach up into audio/ or ui/; nor does session/, a Jambot session's client side (#478). The language itself is
+// yggi/cells (@yggi/cells), pure by its own gate: what is written is the language's, how it is drawn layout's
+// (layout/drawn.ts). And no module imports itself round a cycle.
 
 const SRC = resolve(__dirname);
 const files = (dir: string): string[] =>
@@ -15,8 +16,8 @@ const files = (dir: string): string[] =>
 const FORBIDDEN = [/^svelte(\/|$)/, /^tone(\/|$)/, /^@xyflow\//, /\/(audio|ui)\//, /^\.\.\/(audio|ui)$/];
 const importsOf = (src: string): string[] => [...src.matchAll(/(?:^|\n)\s*(?:import|export)\s[^'";]*?from\s+['"]([^'"]+)['"]/g)].map((m) => m[1]);
 
-describe('layering: layout/ is pure', () => {
-  for (const file of files('layout'))
+describe('layering: layout/ and session/ are pure', () => {
+  for (const file of [...files('layout'), ...files('session')])
     it(`${file} imports nothing from svelte, tone, audio/ or ui/`, () => {
       const bad = importsOf(readFileSync(join(SRC, file), 'utf8')).filter((s) => FORBIDDEN.some((re) => re.test(s)));
       expect(bad).toEqual([]);
@@ -42,7 +43,7 @@ const valueImports = (file: string): string[] => {
     .filter((f): f is string => f !== undefined);
 };
 const FILES = new Set(
-  ['layout', 'audio', 'midi', 'ui'].flatMap(files).concat(readdirSync(SRC).filter((f) => /^[^.]+\.ts$/.test(f) && !/\.test\.ts$/.test(f) && f !== 'vite-env.d.ts')),
+  ['layout', 'session', 'audio', 'midi', 'ui'].flatMap(files).concat(readdirSync(SRC).filter((f) => /^[^.]+\.ts$/.test(f) && !/\.test\.ts$/.test(f) && f !== 'vite-env.d.ts')),
 );
 
 describe('no import cycles', () => {

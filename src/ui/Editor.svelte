@@ -2,7 +2,16 @@
   import { tokenize } from './highlight';
   import type { Diagnostic } from '@yggi/cells/engine/ast';
 
-  let { value = $bindable(), diagnostics }: { value: string; diagnostics: readonly Diagnostic[] } = $props();
+  let {
+    value = $bindable(),
+    diagnostics,
+    readonly = false,
+  }: {
+    value: string;
+    diagnostics: readonly Diagnostic[];
+    /** Shown, not written: a session host's text (#478). */
+    readonly?: boolean;
+  } = $props();
 
   let textarea: HTMLTextAreaElement;
   let gutter: HTMLDivElement;
@@ -103,7 +112,7 @@
   }
 
   function onkeydown(e: KeyboardEvent) {
-    if (e.key !== 'Tab' || e.shiftKey) return;
+    if (e.key !== 'Tab' || e.shiftKey || readonly) return;
     e.preventDefault();
     const { selectionStart: s, selectionEnd: t } = textarea;
     value = value.slice(0, s) + '  ' + value.slice(t);
@@ -124,6 +133,7 @@
     <textarea
       bind:this={textarea}
       bind:value
+      {readonly}
       {onkeydown}
       {onfocus}
       onscroll={() => {

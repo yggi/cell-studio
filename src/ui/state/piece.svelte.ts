@@ -39,6 +39,11 @@ export class Piece {
   #layout: Layout | undefined = undefined;
   /** Its file had no frontmatter, only cells blocks among prose (cells #212): written back without one while it has none. */
   #bare: true | undefined = undefined;
+  /**
+   * Read only: the code is a Jambot session host's section, shown as the host sent it (#478, `follow`): every edit is
+   * refused (the editor, the graph, held values, Shorten) until the piece is let go (`open`, or the session ends).
+   */
+  readOnly = $state(false);
   /** The device's sample rate, once audio runs: a value the environment provides to the code. */
   sampleRate = $state(48000);
   readonly env = $derived({ SAMPLE_RATE: this.sampleRate, A4: 440 });
@@ -116,6 +121,7 @@ export class Piece {
   }
   /** Open a piece: a piece file (its frontmatter and prose kept, its text the code) or a bare text. */
   open(source: string): void {
+    this.readOnly = false;
     const file = pieceFile(source);
     this.frontmatter = file?.frontmatter ?? null;
     this.#prose = file?.prose ?? '';
@@ -126,14 +132,27 @@ export class Piece {
   /** Take a rewrite (Shorten's): a text, or a file (its card's migration, decision 047: what the card said of the
    * piece, its title, tags and tier, now the frontmatter's, over what the frontmatter held). */
   take(rewrite: string): void {
+    if (this.readOnly) return;
     if (!isPieceFile(rewrite)) return void (this.code = rewrite);
     const file = readPiece(rewrite);
     if ('problems' in file) return;
     this.frontmatter = { ...this.frontmatter, ...file.frontmatter };
     this.code = file.text;
   }
-  /** Write the code (the editor, the graph's edits, a conversion's frames). */
+  /** Write the code (the editor, the graph's edits, a conversion's frames); while read only, nothing is written. */
   set code(source: string) {
+    if (!this.readOnly) this.#write(source);
+  }
+  /** Show a session host's text as it is, read only from now on (#478): a bare text, the one write while read only. */
+  follow(text: string): void {
+    this.readOnly = true;
+    this.frontmatter = null;
+    this.#prose = '';
+    this.#layout = undefined;
+    this.#bare = undefined;
+    if (text !== this.#code) this.#write(text);
+  }
+  #write(source: string): void {
     this.#code = source;
     const r = this.result;
     const n = freeList(r).length;
@@ -157,7 +176,7 @@ export class Piece {
   }
   /** Add a new cell; its name. */
   add(): string {
-    if (this.midi) return '';
+    if (this.midi || this.readOnly) return '';
     const r = addCell(this.code);
     this.code = r.source;
     return r.name;
@@ -165,7 +184,7 @@ export class Piece {
   /** Move a free(…) value by hand: it plays, and the code keeps what's written until `keep`. */
   hold(spec: Pick<FreeSpec, 'span'>, v: number | string): void {
     const i = freeIndex(this.program, spec);
-    if (i < 0 || this.midi) return;
+    if (i < 0 || this.midi || this.readOnly) return;
     this.held = new Map(this.held).set(i, v);
   }
   /** Write what's held into the code: everything, or one free(…) (a braid's take, from its sheet). */

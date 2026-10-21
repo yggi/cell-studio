@@ -10,7 +10,20 @@ import type { Recorder } from './ui/state/record.svelte';
 import { transportClock } from './audio/clock.svelte';
 import { textOf } from './library';
 
-export function installDebugHook(openPiece: () => CompileResult, player: Player, recorder: Recorder, openSource: (source: string, name?: string) => void): void {
+/** A Jambot session, from outside (`cellStudio.session`): join, leave, and where it stands (#478). */
+export interface SessionHook {
+  join(lobby: string, session: string, name: string): Promise<void>;
+  leave(): void;
+  state(): unknown;
+}
+
+export function installDebugHook(
+  openPiece: () => CompileResult,
+  player: Player,
+  recorder: Recorder,
+  openSource: (source: string, name?: string) => void,
+  session?: SessionHook,
+): void {
   if (typeof window === 'undefined') return;
   (window as unknown as { cellStudio: unknown }).cellStudio = {
     // measure(seconds?) renders the open piece and returns {rms, peak, clipped} in dB below full scale
@@ -43,6 +56,9 @@ export function installDebugHook(openPiece: () => CompileResult, player: Player,
     heardAt: (ms: number) => player.heardAt(ms),
     // a take: the recorder's state and the step its pass starts on (null until placed)
     take: () => ({ state: recorder.state, start: recorder.start }),
+    // a Jambot session (#478): join(lobby, session, name), leave(), and state(): its status, the bar heard, the text
+    // shown, the cursor in it, the host's clock as read, on the page's clock (performance.now(), ms)
+    session,
     // a voice's current peak level
     level: (n: string) => {
       const w = player.waveform(n);
