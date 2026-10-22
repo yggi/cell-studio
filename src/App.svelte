@@ -196,13 +196,17 @@
     {/if}
     {#if studio.following}
       <!-- a Jambot session followed (#478): its host's section, read only, turning with the host's transport -->
-      <p class="following" role="status">
-        {#if studio.heard?.before}Following “{studio.session.session}”: the host counts in{:else}Following “{studio.session.session}” · bar {(studio.heard?.bar ?? 0) +
-            1}{/if}{#if studio.heard?.unstated}
-          · no text states this section: {studio.heard.unstated}{/if}
-      </p>
+      <div class="following">
+        <span role="status"
+          >{#if studio.heard?.before}Following “{studio.session.session}”: the host counts in{:else}Following “{studio.session.session}” · bar {(studio.heard?.bar ?? 0) +
+              1}{/if}{#if studio.heard?.unstated}
+            · no text states this section: {studio.heard.unstated}{/if}</span
+        >
+        <!-- (leaving returns to the piece you had) -->
+        <button class="unstyled" onclick={() => studio.session.leave()}>Leave</button>
+      </div>
       {#if trying}
-        <p class="first" role="status">The host’s section is read only while you follow the session: leave it (Jam) to change it.</p>
+        <p class="first" role="status">The host’s section is read only while you follow the session: leaving it returns to your piece.</p>
       {/if}
     {/if}
     {#if piece.stale}
@@ -752,15 +756,32 @@
     transform: translateX(-50%);
     z-index: 5;
     max-width: calc(100% - 32px);
+    display: flex;
+    align-items: center;
+    gap: 10px;
     margin: 0;
-    padding: 6px 12px;
+    padding: 2px 4px 2px 12px;
     border-radius: var(--radius-pill);
     background: var(--surface);
     border: 1px solid var(--accent);
     font: 600 var(--text-sm) var(--font-ui);
     white-space: nowrap;
+  }
+  .following > span {
     overflow: hidden;
     text-overflow: ellipsis;
+  }
+  .following button {
+    flex: none;
+    padding: 4px 10px;
+    border-radius: var(--radius-pill);
+    color: var(--accent);
+    font: inherit;
+  }
+  .following button:hover,
+  .following button:focus-visible {
+    background: var(--bg);
+    outline: none;
   }
   .following ~ .stale {
     top: 48px;

@@ -3,9 +3,10 @@
  * version 1 (yggi/music-commons `contracts/session`, minor 1: protocol 14), implemented here from the contract, not
  * from Jambot's code (#478). The contract's vectors run against these readers (`protocol.test.ts`).
  *
- * Cell studio is a client that listens (rung 1 of #478): it sends a `join`, `ping`s and a `leave`, and reads every
- * host message, each kind's fields checked (a message of a kind it knows without them is refused, one of a kind it
- * doesn't know is ignored: both are dropped, and the link kept). It keeps what it needs of each (the bars' starts,
+ * Cell studio is a client that listens (rung 1 of #478): it asks a lobby which sessions are open (`list`, rung 2),
+ * sends a host a `join`, `ping`s and a `leave`, and reads every host message, each kind's fields checked (a message of
+ * a kind it knows without them is refused, one of a kind it doesn't know is ignored: both are dropped, and the link
+ * kept). It keeps what it needs of each (the bars' starts,
  * the section texts, the pongs) and checks the rest only for its shape.
  */
 
@@ -163,10 +164,10 @@ export function readHost(data: unknown): Reading {
   return FITS[data.kind as HostMessage['kind']](data) ? { message: data as unknown as HostMessage } : { dropped: 'refused' };
 }
 
-/** What a page sends a lobby: a client's own two requests. */
-export type ToLobby = { readonly op: 'join'; readonly session: string } | { readonly op: 'tell'; readonly message: ClientMessage };
+/** What a page sends a lobby: the sessions open (the library's lobby cell, #478 rung 2), and a client's own two requests. */
+export type ToLobby = { readonly op: 'list' } | { readonly op: 'join'; readonly session: string } | { readonly op: 'tell'; readonly message: ClientMessage };
 
-/** What a lobby says to a page (`readFromLobby`): the ops a client hears, and those it never asks for (a host's, a list's), read and left. */
+/** What a lobby says to a page (`readFromLobby`): the ops a client hears, the sessions it lists, and those a client never asks for (a host's), read and left. */
 export type FromLobby =
   | { readonly op: 'sessions'; readonly sessions: readonly { readonly name: string; readonly players: number }[] }
   | { readonly op: 'hosting'; readonly session: string; readonly reclaim: string }

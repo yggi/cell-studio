@@ -57,7 +57,8 @@ export function installDebugHook(
     // a take: the recorder's state and the step its pass starts on (null until placed)
     take: () => ({ state: recorder.state, start: recorder.start }),
     // a Jambot session (#478): join(lobby, session, name), leave(), and state(): its status, the bar heard, the text
-    // shown, the cursor in it, the host's clock as read, on the page's clock (performance.now(), ms)
+    // shown, the cursor in it, the host's clock as read, on the page's clock (performance.now(), ms), and what the
+    // library's lobby cell lists
     session,
     // a voice's current peak level
     level: (n: string) => {

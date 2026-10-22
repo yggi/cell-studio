@@ -96,11 +96,8 @@ describe('the session contract (music-commons contracts/session, version 1, mino
     expect(read.some((v) => v.admits && (v.message as { protocol?: number }).protocol === PROTOCOL)).toBe(true);
   });
 
-  it("asks a lobby only what a lobby's reader reads: to join a session, and to tell its host", () => {
-    const asked: ToLobby[] = [
-      { op: 'join', session: 'jam' },
-      { op: 'tell', message: { kind: 'leave' } },
-    ];
+  it("asks a lobby only what a lobby's reader reads: the sessions open, to join one, and to tell its host", () => {
+    const asked: ToLobby[] = [{ op: 'list' }, { op: 'join', session: 'jam' }, { op: 'tell', message: { kind: 'leave' } }];
     const read = of('lobby').filter((v) => v.reads);
     for (const r of asked) expect(read.map((v) => shape(v.message))).toContain(shape(r));
   });

@@ -479,15 +479,44 @@ function sideCell(pieces: readonly LibraryEntry[], full: number) {
   return { r: radius, at };
 }
 
+/** A disc: its centre and radius (layout units). */
+interface Disc {
+  readonly x: number;
+  readonly y: number;
+  readonly r: number;
+}
+
+/** The library folded (`foldSides`), and where the lobby's cell is (#478, rung 2): the sessions open, live. */
+export type FoldedLayout = LibraryLayout & { readonly lobby: Disc };
+
+/** The frame grown to hold a disc, and 80 round it. */
+const framing = (l: LibraryLayout, d: Disc) => {
+  const x0 = Math.min(l.x0, d.x - d.r - 80);
+  const y0 = Math.min(l.y0, d.y - d.r - 80);
+  return { x0, y0, w: Math.max(l.x0 + l.w, d.x + d.r + 80) - x0, h: Math.max(l.y0 + l.h, d.y + d.r + 80) - y0 };
+};
+
 /**
  * The cells beside the wheel folded: each a small disc just outside the rim (its area by how many pieces it holds,
  * where the layout put it round the wheel, spread till none overlap), so the wheel has the frame; the one `open`
  * whole, out beyond the folded ones the same way round, where it overlaps nothing. Its pieces and its tag move with
  * it; the frame is the wheel and what is beside it now. Without a rim (no genres), the layout as it is.
+ *
+ * And the lobby's cell, a live one (the sessions a lobby lists, not pieces): a disc as large as the largest folded
+ * cell, just outside the rim, in the middle of the widest gap the folded cells leave (the same whichever is open);
+ * without a rim, beside the frame's top right.
  */
-export function foldSides(l: LibraryLayout, open: string | null): LibraryLayout {
-  if (!l.ring || !l.sides.length) return l;
+export function foldSides(l: LibraryLayout, open: string | null): FoldedLayout {
+  if (!l.ring) {
+    const r = Math.max(60, 0.15 * Math.min(l.w, l.h));
+    const lobby = { x: l.x0 + l.w + r, y: l.y0 + r + 80, r };
+    return { ...l, ...framing(l, lobby), lobby };
+  }
   const R = l.ring.r;
+  if (!l.sides.length) {
+    const lobby = { x: (R + 60 + 0.3 * R) * Math.SQRT1_2, y: -(R + 60 + 0.3 * R) * Math.SQRT1_2, r: 0.3 * R };
+    return { ...l, ...framing(l, lobby), lobby };
+  }
   const most = Math.max(...l.sides.map((s) => s.order.length));
   const small = (n: number) => R * Math.max(0.1, Math.min(0.3, 0.3 * Math.sqrt(n / most)));
   // (round the wheel as the layout has them, then spread: neighbours as far apart as their discs need)
@@ -504,6 +533,7 @@ export function foldSides(l: LibraryLayout, open: string | null): LibraryLayout 
       n.a += (need - gap) / 2;
     });
   const reach = R + 60 + 2 * Math.max(...cells.map((c) => c.rs)) + GAP;
+  const lobby = lobbyDisc(cells, R, GAP, reach);
   const at = new Map(l.at);
   const sides = cells.map(({ s, rs, a }) => {
     const whole = s.tag === open;
@@ -520,13 +550,36 @@ export function foldSides(l: LibraryLayout, open: string | null): LibraryLayout 
   });
   // (the frame: the wheel, the genres' names included, and the cells as they are now)
   const m = R + 140;
-  const x0 = Math.min(-m, ...sides.map((c) => c.x - c.r - 80));
-  const x1 = Math.max(m, ...sides.map((c) => c.x + c.r + 80));
-  const y0 = Math.min(-m, ...sides.map((c) => c.y - c.r - 80));
-  const y1 = Math.max(m, ...sides.map((c) => c.y + c.r + 80));
+  const x0 = Math.min(-m, ...[...sides, lobby].map((c) => c.x - c.r - 80));
+  const x1 = Math.max(m, ...[...sides, lobby].map((c) => c.x + c.r + 80));
+  const y0 = Math.min(-m, ...[...sides, lobby].map((c) => c.y - c.r - 80));
+  const y1 = Math.max(m, ...[...sides, lobby].map((c) => c.y + c.r + 80));
   // (in the layout's order, as the sides were given)
   const order = new Map(l.sides.map((s, i) => [s.tag, i]));
-  return { ...l, at, x0, y0, w: x1 - x0, h: y1 - y0, sides: sides.sort((p, q) => order.get(p.tag)! - order.get(q.tag)!) };
+  return { ...l, at, x0, y0, w: x1 - x0, h: y1 - y0, sides: sides.sort((p, q) => order.get(p.tag)! - order.get(q.tag)!), lobby };
+}
+
+/**
+ * Where the lobby's cell goes among the folded cells (`cells`, by angle, each its radius `rs` at `R + 60 + rs` from the
+ * centre): as large as the largest of them, as far out, in the middle of the widest gap between two neighbours that
+ * holds it with `gap` to spare each side; where none holds it, out beyond them (`reach`), in the widest.
+ */
+function lobbyDisc(cells: readonly { readonly rs: number; readonly a: number }[], R: number, gap: number, reach: number): Disc {
+  const r = 0.3 * R;
+  const d = R + 60 + r;
+  const turn = (a: number) => ((a % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
+  // (the angle it needs from a neighbour's centre: their discs `gap` apart, as the folded cells are spread)
+  const need = (c: { rs: number }) => 2 * Math.asin(Math.min(1, (r + c.rs + gap) / (d + R + 60 + c.rs)));
+  let best = { free: -Infinity, a: -Math.PI / 4 };
+  cells.forEach((c, i) => {
+    const n = cells[(i + 1) % cells.length]!;
+    // (one cell alone: the whole way round from it back to itself)
+    const between = cells.length === 1 ? 2 * Math.PI : turn(n.a - c.a);
+    const free = between - need(c) - need(n);
+    if (free > best.free) best = { free, a: c.a + need(c) + free / 2 };
+  });
+  const dist = best.free >= 0 ? d : reach + r;
+  return { x: dist * Math.cos(best.a), y: dist * Math.sin(best.a), r };
 }
 
 /** A layout as plain data (its maps as entry lists), to keep in the browser between visits: `thawLayout` reads it back. */

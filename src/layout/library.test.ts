@@ -242,3 +242,32 @@ describe('the cells beside the wheel, folded', () => {
     expect(folded.sides.map((s) => s.tag)).toEqual(lib.sides.map((s) => s.tag));
   });
 });
+
+describe('the lobby’s cell (#478, rung 2)', () => {
+  const R = lib.ring!.r;
+  const others = (l: ReturnType<typeof foldSides>) => [{ x: 0, y: 0, r: R + 32 }, ...l.sides];
+  const clear = (l: ReturnType<typeof foldSides>) => others(l).every((o) => Math.hypot(o.x - l.lobby.x, o.y - l.lobby.y) >= o.r + l.lobby.r - 1e-6);
+  const inFrame = (l: ReturnType<typeof foldSides>) =>
+    l.lobby.x - l.lobby.r >= l.x0 && l.lobby.x + l.lobby.r <= l.x0 + l.w && l.lobby.y - l.lobby.r >= l.y0 && l.lobby.y + l.lobby.r <= l.y0 + l.h;
+  const folded = foldSides(lib, null);
+  it('is a disc as large as the largest folded cell, just outside the rim, overlapping neither the wheel nor a cell beside it', () => {
+    expect(folded.lobby.r).toBeCloseTo(0.3 * R);
+    expect(Math.hypot(folded.lobby.x, folded.lobby.y) - folded.lobby.r).toBeCloseTo(R + 60);
+    expect(clear(folded)).toBe(true);
+    expect(inFrame(folded)).toBe(true);
+  });
+  it('stays where it is, clear of everything, whichever cell beside the wheel is open', () => {
+    for (const s of lib.sides) {
+      const l = foldSides(lib, s.tag);
+      expect(l.lobby).toEqual(folded.lobby);
+      expect(clear(l)).toBe(true);
+      expect(inFrame(l)).toBe(true);
+    }
+  });
+  it('has a place without cells beside the wheel, and without a rim', () => {
+    const bare = foldSides({ ...lib, sides: [] }, null);
+    expect(clear(bare) && inFrame(bare)).toBe(true);
+    const noRim = foldSides({ ...lib, ring: null }, null);
+    expect(inFrame(noRim)).toBe(true);
+  });
+});

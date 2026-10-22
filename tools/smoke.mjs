@@ -44,7 +44,18 @@ const server = await preview({ preview: { port: 0, host: '127.0.0.1' }, logLevel
 const engine = process.env.ENGINE;
 const url = server.resolvedUrls.local[0] + (engine ? `?engine=${engine}` : '');
 const browser = await chromium.launch({ args: ['--autoplay-policy=no-user-gesture-required', '--no-sandbox'] });
-const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
+// (the library's lobby cell, #478, asks a Jambot lobby which sessions are open while the library shows: here every
+// socket is a fake lobby that lists none, so the smoke test reaches no server and depends on none)
+const newPage = async (options) => {
+  const p = await browser.newPage(options);
+  await p.routeWebSocket(/^wss?:\/\//, (ws) =>
+    ws.onMessage((m) => {
+      if (/"op":"list"/.test(String(m))) ws.send(JSON.stringify({ op: 'sessions', sessions: [] }));
+    }),
+  );
+  return p;
+};
+const page = await newPage({ viewport: { width: 1280, height: 800 } });
 
 page.setDefaultTimeout(8000);
 let problems = [];
@@ -152,7 +163,7 @@ const OUTSIDE = '# From outside\n&tune step=3 0 4 7 12\n&lead s=sine loop=C5\n&o
 const OUTSIDE_FILE = `---\ntitle: From outside, as a file\n---\n\n\`\`\`cells\n${OUTSIDE}\`\`\`\n`;
 {
   problems = [];
-  const op = await browser.newPage({ viewport: { width: 1280, height: 800 } });
+  const op = await newPage({ viewport: { width: 1280, height: 800 } });
   op.setDefaultTimeout(8000);
   op.on('pageerror', (e) => problems.push(`page error: ${e.message}`));
   op.on('console', (m) => m.type() === 'error' && problems.push(`console error: ${m.text()}`));
@@ -202,7 +213,7 @@ const OUTSIDE_FILE = `---\ntitle: From outside, as a file\n---\n\n\`\`\`cells\n$
 const USES = 'use "core kit"\n&bar meter("4/4") step=100bpm\n&beat step=8n &bd ~ &hh ~ &sd ~ &hh [&bd,&hh]\n';
 if (only.length === 0) {
   problems = [];
-  const op = await browser.newPage({ viewport: { width: 1280, height: 800 } });
+  const op = await newPage({ viewport: { width: 1280, height: 800 } });
   op.setDefaultTimeout(8000);
   op.on('pageerror', (e) => problems.push(`page error: ${e.message}`));
   op.on('console', (m) => m.type() === 'error' && problems.push(`console error: ${m.text()}`));
@@ -242,7 +253,7 @@ const MIDI_PIECE = 'sailor';
 {
   problems = [];
   const { module: midiPlan } = await runnerImport('./tools/smoke-midi.ts', { configFile: false });
-  const mp = await browser.newPage({ viewport: { width: 1280, height: 800 } });
+  const mp = await newPage({ viewport: { width: 1280, height: 800 } });
   mp.setDefaultTimeout(8000);
   mp.on('pageerror', (e) => problems.push(`page error: ${e.message}`));
   mp.on('console', (m) => m.type() === 'error' && problems.push(`console error: ${m.text()}`));
@@ -413,7 +424,7 @@ const CARD_ONLY = { voice: 'sub', channel: 2 };
 {
   problems = [];
   const { module: midiPlan } = await runnerImport('./tools/smoke-midi.ts', { configFile: false });
-  const mp = await browser.newPage({ viewport: { width: 1280, height: 800 } });
+  const mp = await newPage({ viewport: { width: 1280, height: 800 } });
   mp.setDefaultTimeout(8000);
   mp.on('pageerror', (e) => problems.push(`page error: ${e.message}`));
   mp.on('console', (m) => m.type() === 'error' && problems.push(`console error: ${m.text()}`));
@@ -472,7 +483,7 @@ const CARD_ONLY = { voice: 'sub', channel: 2 };
 // own latency, reported.
 {
   problems = [];
-  const mp = await browser.newPage({ viewport: { width: 1280, height: 800 } });
+  const mp = await newPage({ viewport: { width: 1280, height: 800 } });
   mp.setDefaultTimeout(8000);
   mp.on('pageerror', (e) => problems.push(`page error: ${e.message}`));
   mp.on('console', (m) => m.type() === 'error' && problems.push(`console error: ${m.text()}`));
@@ -622,7 +633,7 @@ const CARD_ONLY = { voice: 'sub', channel: 2 };
 // held (the riff's pill shows it, the code doesn't), then Save writes it: the code line shows free(…) with the take.
 {
   problems = [];
-  const mp = await browser.newPage({ viewport: { width: 1280, height: 800 } });
+  const mp = await newPage({ viewport: { width: 1280, height: 800 } });
   mp.setDefaultTimeout(8000);
   mp.on('pageerror', (e) => problems.push(`page error: ${e.message}`));
   mp.on('console', (m) => m.type() === 'error' && problems.push(`console error: ${m.text()}`));

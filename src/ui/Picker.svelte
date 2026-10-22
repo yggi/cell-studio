@@ -5,6 +5,7 @@
    * graph, a piece's card opened from it (PieceDetail). Opening and saving files, and saving here, live at the top.
    */
   import LibraryGraph from './LibraryGraph.svelte';
+  import LobbyCell from './LobbyCell.svelte';
   import CardGrid from './picker/CardGrid.svelte';
   import PieceDetail from './picker/PieceDetail.svelte';
   import TagFilters from './picker/TagFilters.svelte';
@@ -13,7 +14,7 @@
   import { noteColour } from './theme';
   import type { LibraryLayout } from '../layout/library';
   import { FILTER_KINDS, matches, type Entry, type FilterKind } from './entries';
-  import { untrack } from 'svelte';
+  import { onDestroy, untrack } from 'svelte';
   import { prefersReducedMotion } from 'svelte/motion';
 
   import { getStudio } from './state/studio.svelte';
@@ -33,6 +34,16 @@
   const onpick = (id: string) => studio.pick(id);
   const onclose = () => (studio.view.tab = 'graph');
   const onremove = (id: string) => library.remove(id);
+
+  // the lobby's cell watched while the library shows it, and only then: not behind another tab, nor a hidden page
+  let pageShown = $state(typeof document === 'undefined' || document.visibilityState !== 'hidden');
+  $effect(() => {
+    const seen = () => (pageShown = document.visibilityState !== 'hidden');
+    document.addEventListener('visibilitychange', seen);
+    return () => document.removeEventListener('visibilitychange', seen);
+  });
+  $effect(() => studio.listed.show(studio.view.tab === 'select' && pageShown, studio.session.lobby));
+  onDestroy(() => studio.listed.show(false, ''));
 
   let query = $state('');
   // the tag lit in the graph
@@ -154,6 +165,7 @@
       </div>
     {/if}
   {:else}
+    <LobbyCell />
     <CardGrid {shown} {current} {colours} {onpick} {onremove} onreset={() => ((query = ''), (filter = { genre: null, artist: null, topic: null }))} />
   {/if}
 
