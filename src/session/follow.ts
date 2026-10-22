@@ -24,7 +24,7 @@ export interface Followed {
 export const NOTHING_FOLLOWED: Followed = { starts: new Map(), texts: [], finale: null };
 
 /** The number of a bar the host sent, as it wrote it (`bar.bar`); null where it has none. */
-export const barNumber = (sent: SentBar): number | null => (Number.isInteger(sent.bar.bar) ? (sent.bar.bar as number) : null);
+const barNumber = (sent: SentBar): number | null => (Number.isInteger(sent.bar.bar) ? (sent.bar.bar as number) : null);
 
 /** How many bars behind the one heard are kept: a text or a start older than that is dropped (a 10-minute session would otherwise keep every one). */
 const KEPT_BEHIND = 16;

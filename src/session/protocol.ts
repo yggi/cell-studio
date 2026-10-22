@@ -15,7 +15,7 @@ export const PROTOCOL = 14;
 export const FIRST_PROTOCOL = 13;
 
 /** Whether a protocol is a minor of version 1: an integer from `FIRST_PROTOCOL` on. */
-export const sameMajor = (protocol: unknown): boolean => Number.isInteger(protocol) && (protocol as number) >= FIRST_PROTOCOL;
+const sameMajor = (protocol: unknown): boolean => Number.isInteger(protocol) && (protocol as number) >= FIRST_PROTOCOL;
 
 /** The contract's times a client keeps (`limits` in its vectors). */
 export const LIMITS = {
@@ -58,7 +58,7 @@ export interface SentBar {
 }
 
 /** A song a host plays: `start` is where step 0 falls on the host's clock, in seconds. */
-export interface Song {
+interface Song {
   readonly seed: number;
   readonly start: number;
   readonly track: Obj;
@@ -162,12 +162,6 @@ export function readHost(data: unknown): Reading {
   if (!HOST_KINDS.has(data.kind)) return { dropped: 'ignored' };
   return FITS[data.kind as HostMessage['kind']](data) ? { message: data as unknown as HostMessage } : { dropped: 'refused' };
 }
-
-/** A host message, or null for anything dropped. */
-export const readHostMessage = (data: unknown): HostMessage | null => {
-  const r = readHost(data);
-  return 'message' in r ? r.message : null;
-};
 
 /** What a page sends a lobby: a client's own two requests. */
 export type ToLobby = { readonly op: 'join'; readonly session: string } | { readonly op: 'tell'; readonly message: ClientMessage };

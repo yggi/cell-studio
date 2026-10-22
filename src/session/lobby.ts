@@ -10,7 +10,7 @@
 import { readFromLobby, type ClientMessage, type FromLobby, type ToLobby } from './protocol';
 
 /** How long, in milliseconds, reaching the lobby and its first answer may take. */
-export const LOBBY_WAIT = 4000;
+const LOBBY_WAIT = 4000;
 
 /** What a link hears: what the host said (unread: the session's reader reads it), and the lobby's own words. */
 export type Heard = { readonly said: unknown } | { readonly lobby: 'away' | 'back' | 'gone' };
