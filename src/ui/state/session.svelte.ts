@@ -2,6 +2,7 @@ import { LIMITS, PROTOCOL, leaveOver, readHost, sessionNameProblem, type ClientM
 import { NO_CLOCK, hostHeardAt, reading, withPing, type HostClock } from '../../session/clock';
 import { NOTHING_FOLLOWED, heardAt, nextTextAt, pruned, withBar, withText, type Followed } from '../../session/follow';
 import { joinLobby, type ClientLink, type Heard, type Socket } from '../../session/lobby';
+import { refusesName } from '../../session/name';
 
 export type SessionStatus = 'idle' | 'joining' | 'joined';
 
@@ -44,6 +45,8 @@ export class SessionClient {
   hostAway = $state(false);
   /** The best round trip to the host lately, in milliseconds, and the clock's bound (half of it), once measured. */
   trip = $state<number | null>(null);
+  /** The name a host refused as taken, when the last join ended so (the panel offers another); else null. */
+  taken = $state<string | null>(null);
   /** How many host messages were dropped: refused (malformed) and ignored (a kind this client doesn't know). */
   dropped = $state({ refused: 0, ignored: 0 });
 
@@ -100,6 +103,7 @@ export class SessionClient {
     const attempt = ++this.#joins;
     const problem = SessionClient.problem(session, name);
     this.ended = null;
+    this.taken = null;
     if (problem) return void (this.ended = problem);
     this.status = 'joining';
     this.session = session.trim();
@@ -199,8 +203,12 @@ export class SessionClient {
         if (this.#pinging) clearTimeout(this.#pinging);
         return this.#ping();
       }
-      case 'refused':
-        return this.#end(message.reason);
+      case 'refused': {
+        const name = this.name;
+        this.#end(message.reason);
+        if (refusesName(message.reason, name)) this.taken = name;
+        return;
+      }
       case 'closed':
         return this.#end('The host closed the session.');
       case 'pong': {

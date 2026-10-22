@@ -3,9 +3,12 @@
    * Jam, a page of the sidebar: follow a Jambot session (#478, rung 1). Its lobby (the hosted one by default), the
    * session's name and yours; joined, the host's section is the piece, read only, its graph turning with the host's
    * transport, and nothing is played or sent but the join, the pings and the leave (state/session.svelte.ts). Leaving
-   * keeps the last section open, yours to change.
+   * keeps the last section open, yours to change. The name to go by is one of this browser's own ("Cell studio k7m",
+   * session/name.ts), so two Cell studios can join one session; refused all the same, another is offered.
    */
   import { HOSTED_LOBBY } from '../session/protocol';
+  import { anotherName, browserStore, defaultPlayerName, keepPlayerName } from '../session/name';
+  import { storageKey } from '../storageKey';
   import { SessionClient } from './state/session.svelte';
   import { getStudio } from './state/studio.svelte';
 
@@ -13,8 +16,17 @@
   const { session } = studio;
   let lobby = $state(HOSTED_LOBBY);
   let name = $state(session.session ?? '');
-  let player = $state(session.name ?? 'Cell studio');
+  const store = browserStore();
+  const NAME_KEY = storageKey('cell-studio:jam-name');
+  let player = $state(session.name ?? defaultPlayerName(store, NAME_KEY));
   const problem = $derived(SessionClient.problem(name, player));
+  // (a name the host refused as taken: another, offered once)
+  const offered = $derived(session.taken ? anotherName(session.taken) : null);
+  const join = (as: string) => {
+    player = as;
+    keepPlayerName(store, NAME_KEY, as);
+    void session.join(lobby, name, as);
+  };
 </script>
 
 <div class="jam">
@@ -27,8 +39,9 @@
       <label>Session <input bind:value={name} placeholder="its name" autocomplete="off" spellcheck="false" maxlength="40" /></label>
       <label>Your name <input bind:value={player} autocomplete="off" spellcheck="false" /></label>
       <label>Lobby <input bind:value={lobby} autocomplete="off" spellcheck="false" /></label>
-      <button class="primary" disabled={!!problem} title={problem ?? undefined} onclick={() => session.join(lobby, name, player)}>Join</button>
+      <button class="primary" disabled={!!problem} title={problem ?? undefined} onclick={() => join(player)}>Join</button>
       {#if session.ended}<p class="message" role="status">{session.ended}</p>{/if}
+      {#if offered}<button class="primary" onclick={() => join(offered)}>Join as {offered}</button>{/if}
     {:else}
       <p class="message" role="status">
         {#if session.status === 'joining'}

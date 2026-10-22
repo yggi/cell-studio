@@ -113,6 +113,12 @@ describe('SessionClient: Cell studio following a Jambot session', () => {
     expect(client.status).toBe('joined');
   });
 
+  it('takes no refusal but one that names its name for a taken name', async () => {
+    await joined();
+    socket.say({ op: 'said', message: { kind: 'refused', reason: 'This host speaks version 15 of the session protocol, which takes 15 on, and this app 14: reload it.' } });
+    expect([client.status, client.taken]).toEqual(['idle', null]);
+  });
+
   it('leaves a host of another version, saying leave as it goes', async () => {
     const joining = client.join('wss://lobby.test', 'jam', 'Cell studio');
     socket.open();
@@ -143,6 +149,8 @@ describe('SessionClient: Cell studio following a Jambot session', () => {
     await joined();
     socket.say({ op: 'said', message: { kind: 'refused', reason: 'A player named Cell studio is already in this session. Pick another name.' } });
     expect(client.ended).toMatch(/already in this session/);
+    // (a refusal of the name: the panel offers another)
+    expect(client.taken).toBe('Cell studio');
 
     socket = new FakeSocket();
     await joined();
