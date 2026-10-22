@@ -1,0 +1,161 @@
+/**
+ * The performers' feel (yggi/music-commons `contracts/feel`, version 1; #484, part of #478 rung 3): how a Jambot host's
+ * performers play the events cells plays for a bar, so a client sounds a session as its host does. The text says what is
+ * composed, and the playing is the player's (cells decision 037); the hub's README is the rule, written here from it with
+ * no import from Jambot, and `feel.test.ts` meets its vectors.
+ *
+ * The feel moves an event's velocity and length, never its onset. Every number is a double and every operation is in the
+ * contract's order, so the same bits come out as the host's.
+ */
+import type { SentBar } from './protocol';
+
+/** A section's type, as a host's plan names it. */
+type SectionType = 'intro' | 'groove' | 'bridge' | 'build' | 'drop' | 'breakdown';
+
+/** What the performer reads of a bar: the fields of a host's `bar` message the feel needs. */
+export interface FeelFrame {
+  readonly seed: number;
+  readonly bar: number;
+  /** The bar's meter in eighths, each group a pulse. */
+  readonly groups: readonly number[];
+  readonly section: SectionType;
+  readonly style: { readonly entropy: number; readonly artic: number; readonly sync: number };
+  readonly swing: { readonly level: '8n' | '16n'; readonly share: number };
+  readonly energy: number;
+}
+
+/** A part as the feel keys it, in the order its draws number them. */
+type FeelPart = 'drums' | 'bass' | 'pad' | 'stab' | 'lead';
+const PARTS: readonly FeelPart[] = ['drums', 'bass', 'pad', 'stab', 'lead'];
+
+/** A drum hit's role in the groove. */
+type DrumRole = 'kick' | 'backbeat' | 'ghost' | 'hat' | 'pedal' | 'euclid' | 'clave' | 'fill';
+
+/** One of cells' events in a bar: its line, a drum's role, the step it is written on (whole), its note, velocity and sounding length in steps. */
+export interface FeelEvent {
+  readonly part: FeelPart;
+  readonly role?: DrumRole;
+  readonly step: number;
+  readonly note: number;
+  readonly velocity: number;
+  readonly length: number;
+}
+
+/** The streams the feel draws from (the contract's numbers). */
+const VELOCITY: Record<FeelPart, number> = { drums: 4, bass: 17, pad: 18, stab: 19, lead: 20 };
+const LENGTH: Record<FeelPart, number> = { drums: 21, bass: 22, pad: 23, stab: 24, lead: 25 };
+const OWN_ACCENT = 27;
+
+const clamp01 = (x: number) => Math.max(0, Math.min(1, x));
+const sum = (xs: readonly number[]) => xs.reduce((a, b) => a + b, 0);
+
+/** A draw in [0, 1): the seed, then 0, the stream and the keys, each mixed in, then mulberry32's first number. */
+function draw(seed: number, stream: number, ...keys: readonly number[]): number {
+  let h = seed >>> 0;
+  for (const k of [0, stream, ...keys]) h = Math.imul(h ^ (k | 0), 2654435761) >>> 0;
+  const a = (h + 0x6d2b79f5) | 0;
+  let t = Math.imul(a ^ (a >>> 15), 1 | a);
+  t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+  return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+}
+
+/** How far the feel loosens a bar, 0 to 1: half its swing's weight, three tenths its entropy, a fifth its legato. */
+export function feelOf({ style, swing }: FeelFrame): number {
+  const weight = clamp01((swing.share - 0.5) * 6 * (swing.level === '8n' ? 1 : 0.5));
+  return 0.5 * weight + 0.3 * style.entropy + 0.2 * (1 - style.artic);
+}
+
+/** The base an event's bar gives it, unrounded: only its fraction is read, the part MIDI's rounding took from the level cells states. */
+function baseOf({ groups, section, style, energy }: FeelFrame, { part, role, step }: FeelEvent): number {
+  const steps = 2 * sum(groups);
+  const starts = groups.map((_, g) => 2 * sum(groups.slice(0, g)));
+  const onBeat = starts.includes(step);
+  const half = 2 * Math.floor(steps / 4);
+  const backbeat = starts.filter((_, p) => (starts.length <= 3 ? p > 0 : p % 2 === 1)).at(-1);
+  const accent = (): number => {
+    if (section === 'breakdown') return role === 'fill' ? 45 + (step - half) * 9 : 55;
+    switch (role) {
+      case 'kick':
+        return step === 0 || step === half ? 112 : 92;
+      case 'backbeat':
+        return step === backbeat ? 106 : 100;
+      case 'ghost':
+        return 32 + 14 * style.sync;
+      case 'hat':
+        return onBeat ? 78 : step % 2 === 0 ? 66 : 50;
+      case 'pedal':
+        return 58;
+      case 'euclid':
+      case 'clave':
+        return 72;
+      case 'fill': {
+        const from = section === 'build' ? half : 2 * Math.floor((steps * 3) / 8);
+        return 50 + (step - from) * (60 / (steps - from));
+      }
+      default:
+        return NaN;
+    }
+  };
+  switch (part) {
+    case 'drums':
+      return accent() * (0.65 + 0.35 * energy);
+    case 'bass':
+      return section === 'breakdown' ? 70 : (onBeat ? 100 : 84) * (0.75 + 0.25 * energy);
+    case 'stab':
+      return 70 + 20 * energy;
+    case 'pad': {
+      const quiet = section === 'breakdown' || energy < 0.3;
+      const w = quiet ? Math.max(0.85, 1 - style.artic) : 1 - style.artic;
+      return 48 + 30 * energy * (0.5 + w / 2);
+    }
+    case 'lead':
+      return onBeat ? 100 : 82;
+  }
+}
+
+/** An event as the performers play it: its velocity loosened and accented, its length gated, by draws keyed by the bar and step (a drum's by its note too). */
+export function played(frame: FeelFrame, event: FeelEvent, feel = feelOf(frame)): { velocity: number; length: number } {
+  const { seed, bar } = frame;
+  const { part, step, note } = event;
+  const base = baseOf(frame, event);
+  const level = event.velocity + (base - Math.round(base));
+  const keys = part === 'drums' ? [bar, step, note] : [bar, step];
+  const loose = (draw(seed, VELOCITY[part], ...keys) - 0.5) * feel * 24;
+  const d = draw(seed, OWN_ACCENT, PARTS.indexOf(part), ...keys);
+  const own = step % 2 === 1 ? -d * 14 * feel : step % 4 === 2 ? d * 10 * feel : (d - 0.5) * 2 * 4 * feel;
+  const total = part === 'drums' ? level + loose + own : level + (loose + own);
+  return { velocity: Math.max(1, Math.min(127, Math.round(total))), length: event.length * (1 - draw(seed, LENGTH[part], ...keys) * feel * 0.15) };
+}
+
+const SECTIONS: ReadonlySet<string> = new Set(['intro', 'groove', 'bridge', 'build', 'drop', 'breakdown']);
+const isObject = (v: unknown): v is Readonly<Record<string, unknown>> => typeof v === 'object' && v !== null && !Array.isArray(v);
+const isNumber = (v: unknown): v is number => Number.isFinite(v);
+
+/** The frame of a bar a host sent: its seed and number, its plan's meter (eighths, each pulse's start a height) and section, its style, swing and energy; null where a field the feel reads is missing. */
+export function frameOf({ bar: b }: SentBar): FeelFrame | null {
+  const plan = b.plan;
+  const style = b.style;
+  const swing = b.swing;
+  if (!isObject(plan) || !isObject(plan.meter) || !isObject(plan.section) || !isObject(style) || !isObject(swing)) return null;
+  const { cycle, heights } = plan.meter;
+  const type = plan.section.type;
+  if (
+    !Number.isInteger(cycle) ||
+    !Array.isArray(heights) ||
+    !heights.length ||
+    !heights.every((h, i) => Number.isInteger(h) && h < (cycle as number) && (i === 0 ? h === 0 : h > heights[i - 1]))
+  )
+    return null;
+  if (typeof type !== 'string' || !SECTIONS.has(type) || (swing.level !== '8n' && swing.level !== '16n')) return null;
+  const numbers = [b.seed, b.bar, b.barEnergy, style.entropy, style.artic, style.sync, swing.share];
+  if (!numbers.every(isNumber) || !Number.isInteger(b.seed) || !Number.isInteger(b.bar)) return null;
+  return {
+    seed: b.seed as number,
+    bar: b.bar as number,
+    groups: (heights as number[]).map((h, i) => ((heights[i + 1] as number | undefined) ?? (cycle as number)) - h),
+    section: type as SectionType,
+    style: { entropy: style.entropy as number, artic: style.artic as number, sync: style.sync as number },
+    swing: { level: swing.level, share: swing.share as number },
+    energy: b.barEnergy as number,
+  };
+}
