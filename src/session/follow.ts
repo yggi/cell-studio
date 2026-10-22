@@ -36,6 +36,15 @@ export function withBar(f: Followed, sent: SentBar): Followed {
   return { ...f, starts: new Map(f.starts).set(bar, sent.start) };
 }
 
+/**
+ * Whether what was followed of a song reaches a welcome's bars (a rejoin's, #482): it knows the start of the bar before
+ * their first, the one playing as the welcome was sent, which the welcome no longer sends, so it carries on beneath them.
+ */
+export function reaches(f: Followed, bars: readonly SentBar[]): boolean {
+  const numbers = bars.map(barNumber).filter((b) => b !== null);
+  return numbers.length > 0 && f.starts.has(Math.min(...numbers) - 1);
+}
+
 /** A song followed further: a text told. */
 export const withText = (f: Followed, text: SectionText): Followed => ({ ...f, texts: [...f.texts, text] });
 

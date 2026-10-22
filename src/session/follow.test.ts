@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { compileSource } from '@yggi/cells/engine/compile';
-import { NOTHING_FOLLOWED, barSeconds, heardAt, nextTextAt, placeAt, pruned, textOf, withBar, withText, type Followed } from './follow';
+import { NOTHING_FOLLOWED, barSeconds, heardAt, nextTextAt, placeAt, pruned, reaches, textOf, withBar, withText, type Followed } from './follow';
 import type { SectionText } from './protocol';
 
 const frame = { meter: { cycle: 8, heights: [0, 2, 4, 6] }, swing: { level: '16n', share: 0.5 }, bpm: 120, key: { tonic: 9, mode: 'aeolian' } };
@@ -92,5 +92,15 @@ describe('when the text turns', () => {
     // (a text told again from bar 11: it turns there)
     expect(nextTextAt(withText(f, section(11, 5, 'B again')), 27)).toBe(32);
     expect(nextTextAt(NOTHING_FOLLOWED, 3)).toBeNull();
+  });
+});
+
+describe('a rejoin’s welcome (#482)', () => {
+  it('is reached where the start of the bar before its first is known, and not across a gap', () => {
+    const f = song();
+    expect(reaches(f, [sent(16, 42), sent(17, 44)])).toBe(true);
+    expect(reaches(f, [sent(17, 44), sent(18, 46)])).toBe(false);
+    expect(reaches(NOTHING_FOLLOWED, [sent(1, 12)])).toBe(false);
+    expect(reaches(f, [])).toBe(false);
   });
 });

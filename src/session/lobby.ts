@@ -45,9 +45,12 @@ const noLobby = (url: string): string | null => (/^wss?:\/\/./.test(url) ? null 
 /** Why a socket to `url` couldn't be opened (the browser refused the address). */
 const unreachable = (url: string) => `“${url}” is no lobby address${url.startsWith('ws://') ? ' this page can reach: an https page reaches wss:// only, or localhost' : ''}.`;
 
+/** A join the lobby answered and refused (no such session, its host away, full), where another failed to reach it. */
+export class LobbyRefused extends Error {}
+
 /**
  * Join the session named `session` at the lobby at `url`: the link, once the lobby says `joined`; refused (thrown, its
- * reason) when the lobby knows no such session, or can't be reached. `hear` hears everything after; `lost` that the
+ * reason: a `LobbyRefused` when the lobby answered so) when the lobby knows no such session, or can't be reached. `hear` hears everything after; `lost` that the
  * lobby went away under the link (not when the link is closed here).
  */
 export function joinLobby(url: string, session: string, hear: (heard: Heard) => void, lost: (why: string) => void, open: (url: string) => Socket = webSocket): Promise<ClientLink> {
@@ -65,13 +68,13 @@ export function joinLobby(url: string, session: string, hear: (heard: Heard) => 
   return new Promise((resolve, reject) => {
     let answered = false;
     let closing = false;
-    const fail = (why: string) => {
+    const fail = (why: string, refused = false) => {
       if (answered) return;
       answered = true;
       clearTimeout(timer);
       socket.onclose = null;
       socket.close();
-      reject(new Error(why));
+      reject(refused ? new LobbyRefused(why) : new Error(why));
     };
     const timer = setTimeout(() => fail(`The lobby at ${url} did not answer.`), LOBBY_WAIT);
     socket.onopen = () => send({ op: 'join', session });
@@ -89,7 +92,7 @@ export function joinLobby(url: string, session: string, hear: (heard: Heard) => 
       }
       if (!said) return;
       if (!answered) {
-        if (said.op === 'refused') return fail(said.reason);
+        if (said.op === 'refused') return fail(said.reason, true);
         if (said.op !== 'joined') return fail(`The lobby answered ${said.op}.`);
         answered = true;
         clearTimeout(timer);

@@ -123,6 +123,9 @@ export class Studio {
             clock: this.session.clock,
             trip: this.session.trip,
             dropped: this.session.dropped,
+            notice: this.session.notice,
+            rejoins: this.session.rejoins,
+            name: this.session.name,
             now,
             heading: h && { bar: h.bar, bars: h.bars, before: h.before, textBar: h.text.bar, text: h.text.text },
             shown: { code: this.piece.code, readOnly: this.piece.readOnly, cursor: this.playback.cursor, tab: this.view.tab },
@@ -133,9 +136,10 @@ export class Studio {
     );
     // MIDI out: the notes the player plays go to the output chosen too
     this.midi.attach(this.playback.player, this.piece);
-    // a session joined: its song followed on the frame loop, as the transport's clock is; left, the piece is the user's
+    // a session joined: its song followed on the frame loop, as the transport's clock is, through a dropped link and
+    // its rejoin too (#482); left, the piece is the user's
     $effect(() => {
-      if (this.session.status !== 'joined') return;
+      if (!this.session.live) return;
       const stop = onFrames(
         () => this.#follow(),
         () => FOLLOW_EVERY,
