@@ -256,3 +256,24 @@ describe('a piece’s file name and what compiles', () => {
     expect(textOf(SRC)).toBe(SRC);
   });
 });
+
+describe('Piece: a session host’s text, followed (#478)', () => {
+  it('shows the text as it is, and refuses every edit until it is let go', () => {
+    const p = new Piece(SRC);
+    p.follow('&bar meter("4/4") step=120bpm\n&a step=16n 0 2 4\n&lead s=sine\n&out [&a * &lead]');
+    expect([p.readOnly, p.program.cells.has('a')]).toEqual([true, true]);
+    const shown = p.code;
+    p.code = `${shown}\n&extra 1 2 3`;
+    p.turn('a', 2);
+    p.toggle('cell:a');
+    p.take('&b 1');
+    expect(p.add()).toBe('');
+    expect(p.code).toBe(shown);
+    p.follow('&a loop=A4');
+    expect(p.code).toBe('&a loop=A4');
+    p.open(SRC);
+    expect(p.readOnly).toBe(false);
+    p.code = `${SRC}\n&extra 1 2 3`;
+    expect(p.program.cells.has('extra')).toBe(true);
+  });
+});

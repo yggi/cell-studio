@@ -163,7 +163,7 @@
       onrename={(s, to) => studio.rename(s, to)}
       onfree={(spec, v) => piece.hold(spec, v)}
       epoch={playback.epoch}
-      nudge={(sec) => playback.nudge(sec)}
+      nudge={(sec) => !studio.following && playback.nudge(sec)}
       cursor={playback.cursor}
       opened={library.opened}
       refit={studio.foldFrames}
@@ -178,7 +178,8 @@
       played={studio.keys.lit}
       rows={studio.rows}
       onlayout={(l) => (view.layout = l)}
-      locked={piece.midi ? () => tried++ : undefined}
+      locked={piece.midi || piece.readOnly ? () => tried++ : undefined}
+      lockedHint={piece.readOnly ? 'The host’s section, as it plays: read only while you follow the session.' : undefined}
     />
     {#if piece.midi && !studio.conversion.phase}
       <!-- a MIDI file's machine (#390, decision 034): the cells it plays through, read only; converting it is the action -->
@@ -193,6 +194,17 @@
         <p class="first" role="status">Convert to cells first: a MIDI file's machine is read only.</p>
       {/if}
     {/if}
+    {#if studio.following}
+      <!-- a Jambot session followed (#478): its host's section, read only, turning with the host's transport -->
+      <p class="following" role="status">
+        {#if studio.heard?.before}Following “{studio.session.session}”: the host counts in{:else}Following “{studio.session.session}” · bar {(studio.heard?.bar ?? 0) +
+            1}{/if}{#if studio.heard?.unstated}
+          · no text states this section: {studio.heard.unstated}{/if}
+      </p>
+      {#if trying}
+        <p class="first" role="status">The host’s section is read only while you follow the session: leave it (Jam) to change it.</p>
+      {/if}
+    {/if}
     {#if piece.stale}
       <p class="stale">Showing the last version that compiled</p>
     {/if}
@@ -201,7 +213,7 @@
   </section>
 
   <!-- (a cell's page only beside its graph: the sheet is the graph's) -->
-  {#if view.panelOpen && (library.anyOpen || view.panel === 'midi' || view.panel === 'file') && !(view.panel === 'cell' && stage !== 'graph')}
+  {#if view.panelOpen && (library.anyOpen || view.panel === 'midi' || view.panel === 'file' || view.panel === 'session') && !(view.panel === 'cell' && stage !== 'graph')}
     <Sidebar />
   {/if}
   {#if dock.open && library.anyOpen && view.tab !== 'select'}
@@ -230,13 +242,13 @@
     <TimeView active={view.tab === 'time' && library.anyOpen} />
   </section>
   <section class="side" class:away={view.tab !== 'code'} inert={view.narrow && view.tab !== 'code'} aria-label="Program">
-    <Editor bind:this={studio.editor} bind:value={piece.code} diagnostics={piece.result.diagnostics} />
+    <Editor bind:this={studio.editor} bind:value={piece.code} diagnostics={piece.result.diagnostics} readonly={piece.readOnly} />
     {#if piece.midi}
       <div class="convert">
         <span>A MIDI file, as text: {piece.midi.smf.tracks.reduce((n, t) => n + t.notes.length, 0)} notes in {piece.midi.smf.tracks.length} tracks</span>
         <button onclick={() => studio.convert()}>Convert to cells</button>
       </div>
-    {:else}
+    {:else if !piece.readOnly}
       <Shorten code={piece.code} onapply={(next) => piece.take(next)} />
     {/if}
   </section>
@@ -731,6 +743,27 @@
 
   .canvas {
     position: relative;
+  }
+  /* a session followed (#478): what it follows, over the graph */
+  .following {
+    position: absolute;
+    top: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 5;
+    max-width: calc(100% - 32px);
+    margin: 0;
+    padding: 6px 12px;
+    border-radius: var(--radius-pill);
+    background: var(--surface);
+    border: 1px solid var(--accent);
+    font: 600 var(--text-sm) var(--font-ui);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .following ~ .stale {
+    top: 48px;
   }
   .stale {
     position: absolute;

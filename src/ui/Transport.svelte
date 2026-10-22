@@ -19,7 +19,8 @@
     bar?: boolean;
   } = $props();
 
-  const { piece, playback, recorder } = getStudio();
+  const studio = getStudio();
+  const { piece, playback, recorder } = studio;
   const playing = $derived(playback.playing);
   /** How far it reaches (null: nothing to move in). */
   const span = $derived(playback.span);
@@ -44,10 +45,17 @@
     <Timeline now={playback.now} {span} sections={piece.sections} onseek={(t) => playback.seek(t)} {clock} />
   {/if}
   <div class="row">
-    <button class="unstyled stop" onclick={() => playback.stop()} disabled={!playback.resettable} aria-label="Stop" title="Stop: back to the initial state">
+    <button class="unstyled stop" onclick={() => playback.stop()} disabled={!playback.resettable || studio.following} aria-label="Stop" title="Stop: back to the initial state">
       <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="2" /></svg>
     </button>
-    <button class="unstyled play" class:on={playing} onclick={() => playback.toggle()} disabled={playback.starting} aria-label={playing ? 'Pause' : 'Play'}>
+    <button
+      class="unstyled play"
+      class:on={playing}
+      onclick={() => playback.toggle()}
+      disabled={playback.starting || studio.following}
+      title={studio.following ? 'Following the session’s host: its transport turns this one' : undefined}
+      aria-label={playing ? 'Pause' : 'Play'}
+    >
       {#if playing}
         <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="5" width="4" height="14" rx="1" /><rect x="14" y="5" width="4" height="14" rx="1" /></svg>
       {:else}

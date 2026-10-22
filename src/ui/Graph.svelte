@@ -93,6 +93,7 @@
     refit = 0,
     growing = false,
     locked,
+    lockedHint,
     focus,
     onsheet,
     played,
@@ -128,10 +129,12 @@
     /** A conversion playing (#390): each version laid out gently from the last, the view framed only when it must. */
     growing?: boolean;
     /**
-     * Read only (a MIDI file's machine, #390): opening a cell, switching, turning, a free value or adding a cell does
-     * nothing but this (it says to convert first). Moving a cell still moves it.
+     * Read only (a MIDI file's machine, #390; a session host's section, #478): opening a cell, switching, turning, a
+     * free value or adding a cell does nothing but this (it says why). Moving a cell still moves it.
      */
     locked?: () => void;
+    /** What the hint says while read only (a MIDI file's, by default). */
+    lockedHint?: string;
     /** A free(…) slider moved. */
     onfree: (spec: import('@yggi/cells/engine/ast').FreeSpec, value: number | string) => void;
     nudge?: (seconds: number) => void;
@@ -614,7 +617,9 @@
   {#if legendOpen}
     <div class="legend-wrap"><GraphLegend program={shown.program} shifts={shown.shifts} {source} /></div>
   {/if}
-  <p class="hint">{locked ? 'A MIDI file’s machine, as it plays: convert it to cells to open or change a cell.' : 'Tap a cell to open it. Drag to move. Hold to switch off.'}</p>
+  <p class="hint">
+    {locked ? (lockedHint ?? 'A MIDI file’s machine, as it plays: convert it to cells to open or change a cell.') : 'Tap a cell to open it. Drag to move. Hold to switch off.'}
+  </p>
   {#if selectedName}
     <!-- (read defensively: renaming moves the selection, and for a moment there's none) -->
     <CellSheet

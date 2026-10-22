@@ -3,8 +3,8 @@
    * The sidebar, on a wide screen the inspector (a pane at the right of the graph), on a phone a drawer over the view.
    * Its first page on a wide screen is the cell whose sheet is open (CellSheet.svelte: drawn by the graph, where this
    * page is, `--inspect-*`); then five pages, the piece's controls (every free() in it, and the keys and pads),
-   * MIDI (the ports, how the piece goes out, the keys, learned knobs), the graph's layout forces, files, and the piece's
-   * numbers (Stats). The tab
+   * MIDI (the ports, how the piece goes out, the keys, learned knobs), the graph's layout forces, files, a Jambot session
+   * to follow (Jam, SessionPanel.svelte), and the piece's numbers (Stats). The tab
    * strip says which (arrow keys, Home and End move along it); a dot on MIDI says whether anything is connected. Focus moves into the drawer when it opens and
    * back to where it was when it closes; Escape closes it.
    */
@@ -16,6 +16,7 @@
   import ForcesPanel from './ForcesPanel.svelte';
   import FilePanel from './FilePanel.svelte';
   import StatsPanel from './StatsPanel.svelte';
+  import SessionPanel from './SessionPanel.svelte';
 
   const { view, library, dock, midi, keys } = getStudio();
   const live = $derived(!!midi.access && (midi.sending || midi.inPortId !== 'none'));
@@ -25,6 +26,7 @@
     ['midi', 'MIDI'],
     ['forces', 'Forces'],
     ['file', 'Files'],
+    ['session', 'Jam'],
     ['stats', 'Stats'],
   ]);
   const enabled = (page: Panel) => library.anyOpen || (page !== 'controls' && page !== 'forces' && page !== 'stats');
@@ -117,6 +119,8 @@
       {/if}
     {:else if view.panel === 'file'}
       <FilePanel />
+    {:else if view.panel === 'session'}
+      <SessionPanel />
     {:else if view.panel === 'stats'}
       <StatsPanel />
     {:else}

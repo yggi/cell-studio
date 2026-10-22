@@ -26,11 +26,18 @@ import { Recorder } from './record.svelte';
 import type { RowKeys } from '../context';
 import { Dock } from './dock.svelte';
 import { Conversion } from './convert.svelte';
+import { SessionClient } from './session.svelte';
+import { barSeconds } from '../../session/follow';
+import { onFrames } from '../../audio/ticker';
+import type { CompileResult } from '@yggi/cells/engine/program';
 
 /** What Convert to cells says it made. */
 function convertedText({ notes, lines, perQuarter, moved, dropped, folded, inKey }: Imported): string {
   return `Converted to cells: ${notes} notes in ${lines} line${lines === 1 ? '' : 's'}, ${perQuarter} step${perQuarter === 1 ? '' : 's'} a quarter note${moved ? `, ${moved} moved onto that grid` : ''}${dropped ? `, ${dropped} drum notes with no drum voice left out` : ''}, ${folded ? `folded: what comes back written as cells of its own${inKey ? `, in degrees of ${inKey}` : ''}` : 'written out in full'}.`;
 }
+
+/** How often a session followed is read, in milliseconds: as often as the live views refresh. */
+const FOLLOW_EVERY = 40;
 
 /**
  * The app's state, in four parts — the piece (its code and what it compiles to), playing it, the
@@ -76,6 +83,17 @@ export class Studio {
   #folder: Worker | null = null;
   #converted: Imported | null = null;
 
+  /** A Jambot session followed (#478): its host's section, the piece (read only), turning with the host's transport. */
+  readonly session = new SessionClient();
+  /** Where the session's song is heard, as the views show it: the bar, and why no text states it (or null); null while not following. */
+  heard = $state.raw<{ bar: number; before: boolean; unstated: string | null } | null>(null);
+  /** Whether the piece open is the session's: its host's text, followed. */
+  following = $state(false);
+  // (a bar of the followed text's own time, by the program it was worked out for)
+  #bar: { program: CompileResult; seconds: number | null } | null = null;
+  // (the timer that turns the text at its bar, when that falls between two frames)
+  #turning: ReturnType<typeof setTimeout> | null = null;
+
   // the piece last asked for (a card or a file): one still being fetched or read gives way to a later choice
   #choice = 0;
 
@@ -86,13 +104,82 @@ export class Studio {
       this.playback.player,
       this.recorder,
       (source, name) => this.openSource(source, name),
+      {
+        join: (lobby, session, name) => this.session.join(lobby, session, name),
+        leave: () => this.session.leave(),
+        state: () => {
+          const now = performance.now();
+          const h = this.session.heading(now / 1000);
+          return {
+            status: this.session.status,
+            ended: this.session.ended,
+            hostPlaying: this.session.hostPlaying,
+            clock: this.session.clock,
+            trip: this.session.trip,
+            dropped: this.session.dropped,
+            now,
+            heading: h && { bar: h.bar, bars: h.bars, before: h.before, textBar: h.text.bar, text: h.text.text },
+            shown: { code: this.piece.code, readOnly: this.piece.readOnly, cursor: this.playback.cursor },
+          };
+        },
+      },
     );
     // MIDI out: the notes the player plays go to the output chosen too
     this.midi.attach(this.playback.player, this.piece);
+    // a session joined: its song followed on the frame loop, as the transport's clock is; left, the piece is the user's
+    $effect(() => {
+      if (this.session.status !== 'joined') return;
+      const stop = onFrames(
+        () => this.#follow(),
+        () => FOLLOW_EVERY,
+        'clock',
+      );
+      return () => {
+        stop();
+        this.#unfollow();
+      };
+    });
+  }
+
+  /**
+   * One frame of a session followed: the host's text the piece (opened as a file is, the first time), and the cursor
+   * where the host's song is heard in it. A text that gives way to another before the next frame does so on time: a
+   * timer at the bar where it turns, so the text shown is the host's from that bar's first moment, not a frame late.
+   */
+  #follow(): void {
+    const now = performance.now() / 1000;
+    const h = this.session.heading(now);
+    if (!h) return;
+    const turn = this.session.nextTurn(now);
+    if (this.#turning) clearTimeout(this.#turning);
+    this.#turning = turn !== null && turn - now < (2 * FOLLOW_EVERY) / 1000 ? setTimeout(() => this.#follow(), Math.max(0, (turn - now) * 1000) + 1) : null;
+    if (!this.following) {
+      this.#opened({ kind: 'file', name: `${this.session.session ?? 'session'}.cells` }, '', true);
+      this.following = true;
+    }
+    this.piece.follow(h.text.text);
+    if (this.heard?.bar !== h.bar || this.heard.before !== h.before || this.heard.unstated !== h.text.unstated)
+      this.heard = { bar: h.bar, before: h.before, unstated: h.text.unstated };
+    const program = this.piece.program;
+    if (this.#bar?.program !== program) this.#bar = { program, seconds: barSeconds(program) };
+    const cursor = (this.#bar.seconds ?? 0) * h.bars;
+    if (cursor !== this.playback.cursor) this.playback.cursor = cursor;
+  }
+
+  /** The session left or ended: the piece followed stays open, the user's to change. */
+  #unfollow(): void {
+    if (this.#turning) clearTimeout(this.#turning);
+    this.#turning = null;
+    this.piece.readOnly = false;
+    this.following = false;
+    this.heard = null;
+    this.#bar = null;
   }
 
   /** A piece's source, now open: laid out afresh, from rest, its graph shown. */
-  #opened(open: Open, source: string): void {
+  #opened(open: Open, source: string, followed = false): void {
+    // (another piece opened leaves the session joined)
+    if (!followed) this.session.leave();
     this.stopFolding(false);
     this.library.open = open;
     this.piece.open(source);
