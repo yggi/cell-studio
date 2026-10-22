@@ -11,7 +11,8 @@
 //   npm run smoke -- --list                   # which pieces play in full, and what each brings
 //   ENGINE=worker npm run smoke               # with the engine in a Web Worker (?engine=worker, #15)
 //
-// Then a piece from outside (#406): a string of code opened with `cellStudio.open` over a piece playing, as a file opens.
+// Then a piece from outside (#406): a string of code opened with `cellStudio.open` over a piece playing, as a file opens;
+// and one that uses the core kit (cells decision 054), which sounds on Play.
 // Then MIDI out (#205): one piece played into a fake Web MIDI port, its note-ons checked against the plan's notes
 // (tools/smoke-midi.ts) each within 2 ms of its neighbour (a slow drift followed, and one step of a clock jump up to 50 ms); then the
 // tempo (a held free()) moved and Pause and Play again within the look-ahead (twice, the second at once), with no All notes off from either
@@ -195,6 +196,46 @@ const OUTSIDE_FILE = `---\ntitle: From outside, as a file\n---\n\n\`\`\`cells\n$
   const ok = problems.length === 0;
   console.log(`${ok ? 'ok  ' : 'FAIL'} A piece from outside: cellStudio.open${ok ? `: ${note}` : '\n       ' + [...new Set(problems)].slice(0, 3).join('\n       ')}`);
   if (!ok) failed.push('A piece from outside');
+}
+// A piece that uses a fragment (cells decision 054): `use "core kit"` read from the seed library, the code kept as
+// written, the kit's voices drawn, and Play sounding the beat on them.
+const USES = 'use "core kit"\n&bar meter("4/4") step=100bpm\n&beat step=8n &bd ~ &hh ~ &sd ~ &hh [&bd,&hh]\n';
+if (only.length === 0) {
+  problems = [];
+  const op = await browser.newPage({ viewport: { width: 1280, height: 800 } });
+  op.setDefaultTimeout(8000);
+  op.on('pageerror', (e) => problems.push(`page error: ${e.message}`));
+  op.on('console', (m) => m.type() === 'error' && problems.push(`console error: ${m.text()}`));
+  let note = '';
+  try {
+    await op.goto(url);
+    const opened = await op.evaluate((src) => window.cellStudio.open(src), USES);
+    if (!opened.ok) problems.push(`it did not compile: ${opened.errors.join('; ')}`);
+    await op.waitForTimeout(300);
+    const code = await op.evaluate(() => document.querySelector('textarea')?.value ?? '');
+    if (code !== USES) problems.push(`the editor shows ${JSON.stringify(code.slice(0, 60))}, not the piece as written`);
+    const drawn = await op.$$eval('.svelte-flow__node', (ns) => ns.map((n) => n.dataset.id));
+    if (!drawn.includes('cell:beat') || !drawn.includes('cell:rim')) problems.push(`the graph has no beat or no kit voice (it has ${drawn.join(', ')})`);
+    const transport = op.locator('.transport');
+    await transport.getByRole('button', { name: 'Play' }).first().click();
+    // (the loudest of the beat's three voices, once one is over 0.01: a hit, caught between the rests)
+    const heard = await op
+      .waitForFunction(() => {
+        const l = Math.max(...['bd', 'hh', 'sd'].map((v) => window.cellStudio.level(v) ?? 0));
+        return l > 0.01 && l;
+      })
+      .then((h) => h.jsonValue())
+      .catch(() => problems.push('the kit does not sound on Play'));
+    const level = typeof heard === 'number' ? heard : 0;
+    await transport.getByRole('button', { name: 'Pause' }).first().click();
+    note = `in the editor as written, ${drawn.length} nodes drawn, the kit at ${level.toFixed(2)} on Play`;
+  } catch (e) {
+    problems.push(String(e.message).split('\n')[0]);
+  }
+  await op.close();
+  const ok = problems.length === 0;
+  console.log(`${ok ? 'ok  ' : 'FAIL'} A piece that uses the core kit${ok ? `: ${note}` : '\n       ' + [...new Set(problems)].slice(0, 3).join('\n       ')}`);
+  if (!ok) failed.push('A piece that uses the core kit');
 }
 // MIDI out (#205): a fake port that records what is sent, chosen before the page loads (so it connects without a click)
 const MIDI_PIECE = 'sailor';
