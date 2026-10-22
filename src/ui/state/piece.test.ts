@@ -4,6 +4,12 @@ import { PRESETS } from '@yggi/cells/engine/presets';
 import { pieceMeta } from '@yggi/cells/engine/parser/index';
 import { shorten } from '@yggi/cells/engine/shorten/index';
 import { fileName, pieceFile, textOf } from '../../library';
+import { codeShifts } from '@yggi/cells/engine/program';
+import { plan } from '@yggi/cells/engine/realize';
+import { windowAt } from '@yggi/cells/engine/schedule';
+import { readPiece } from '@yggi/cells/engine/piecefile';
+import { savedEntry } from '../entries';
+import { miniature } from '../../layout/miniature';
 
 const SRC = `&bar step=free(120bpm, 60..180)
 &tune step=&bar 0 2 4 shift=free(0, 0..7) over=&bar
@@ -136,6 +142,15 @@ track "lead"
     expect(p.result.diagnostics.map((d) => d.span.line)).toEqual([6]);
     expect(p.stale).toBe(true);
     expect(p.program).toBe(before);
+  });
+
+  it('plays a drum track as the General MIDI kit, a voice for each note under its kit name (cells v0.9.0)', () => {
+    // (41 45 48 49 51: the toms and the cymbals, written &lo &mid &hi &crash &ride before; 56 and 54, not written)
+    const drums = [41, 45, 48, 49, 51, 56, 54].map((n, i) => `1:${(i % 4) + 1}:0 ch10 ${n} 24 v100`).join('\n');
+    const p = new Piece(`midi format=1 ppq=96 name="Kit"\ntempo 1:1:0 120\ntrack "drums"\n${drums}`);
+    expect(p.result.diagnostics).toEqual([]);
+    expect(['lt', 'mt', 'ht', 'cr', 'rd', 'cb', 'tb'].filter((n) => !p.program.cells.has(n))).toEqual([]);
+    expect(['lo', 'mid', 'hi', 'crash', 'ride'].filter((n) => p.program.cells.has(n))).toEqual([]);
   });
 });
 
@@ -275,5 +290,51 @@ describe('Piece: a session host’s text, followed (#478)', () => {
     expect(p.readOnly).toBe(false);
     p.code = `${SRC}\n&extra 1 2 3`;
     expect(p.program.cells.has('extra')).toBe(true);
+  });
+});
+
+describe('Piece: a piece that uses a fragment (cells decision 054)', () => {
+  const USES = `use "core kit"
+&bar meter("4/4") step=100bpm
+&beat step=8n &bd ~ &hh ~ &sd ~ &hh [&bd,&hh]`;
+  const FILE = `---\ntitle: Kit groove\n---\n\n\`\`\`cells\n${USES}\n\`\`\`\n`;
+
+  it('compiles its use through the seed library: the kit’s voices are there, and it plays', () => {
+    const p = new Piece(USES);
+    expect(p.result.diagnostics).toEqual([]);
+    expect(p.result.uses?.map((u) => [u.id, u.hash?.startsWith('e1:')])).toEqual([['core kit', true]]);
+    expect(['bd', 'hh', 'sd'].every((n) => p.program.cells.has(n))).toBe(true);
+    const events = windowAt(plan(p.program, codeShifts(p.program), p.muted), 0, 2.4).events;
+    expect(events.length).toBeGreaterThan(0);
+    // (the code is the piece's own: the kit's lines are not written into it)
+    expect(p.code).toBe(USES);
+    // (an id the library doesn't hold is an error, on its use line)
+    p.code = USES.replace('core kit', 'no such kit');
+    expect(p.result.diagnostics.find((d) => d.span.line === 1)?.message).toBe('No fragment "no such kit" to use');
+  });
+
+  it('records what a use resolved to in its file’s lockfile, and keeps an entry already recorded', () => {
+    const p = new Piece(FILE);
+    const hash = p.result.uses![0]!.hash!;
+    const saved = readPiece(p.file);
+    if ('problems' in saved) throw new Error('unread');
+    expect(saved.frontmatter.uses).toEqual([{ id: 'core kit', hash }]);
+    expect(saved.text).toBe(USES);
+    // (saved with an older version: it plays the current one, says so, and the file keeps what it was saved with)
+    const older = p.file.replace(hash, 'e1:0000000000000000');
+    p.open(older);
+    expect(p.result.diagnostics.map((d) => [d.severity, d.span.line])).toEqual([['warning', 1]]);
+    expect(p.file).toBe(older);
+    // (the use gone, its entry goes)
+    p.code = USES.split('\n').slice(1).join('\n') + '\n&bd s=sine loop=A1\n&hh s=white\n&sd s=white';
+    expect(p.file).not.toContain('uses:');
+  });
+
+  it('draws its card and its miniature in the library', () => {
+    const entry = savedEntry({ id: 'k', title: 'Kit groove', source: FILE, saved: '2026-10-22T00:00:00Z' });
+    // (its bar, its beat, the kit its beat plays, and the core kit's ten voices it doesn't read, each a cell of its own
+    // until the graph groups what a use gives: cells decision 054's rung 5)
+    expect([entry.time !== undefined, entry.size]).toEqual([true, 13]);
+    expect(miniature(USES)?.nodes.length).toBeGreaterThanOrEqual(entry.size!);
   });
 });

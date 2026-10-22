@@ -1,7 +1,7 @@
 /**
  * The library's cards: every piece saved in this browser and every example, as the picker shows them.
  */
-import { compileSource } from '@yggi/cells/engine/compile';
+import { compilePiece } from '../compile';
 import { pieceTime, type PieceTime } from '@yggi/cells/engine/duration';
 import { buildGraph } from '../layout/drawn';
 import { pieceMeta } from '@yggi/cells/engine/parser/index';
@@ -41,7 +41,7 @@ export interface Entry {
 /** A saved piece's card: its size and length worked out from its text (a file's: its cells block). */
 export function savedEntry(p: SavedPiece): Entry {
   const m = pieceMeta(p.source);
-  const r = compileSource(textOf(p.source));
+  const r = compilePiece(textOf(p.source));
   return {
     id: `saved:${p.id}`,
     kind: 'saved',
