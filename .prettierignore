@@ -9,6 +9,7 @@ src/engine/fold/ratchet.baseline.json
 tools/bwv847.reference.json
 # A contract's vectors, as the hub writes them (one vector to a line)
 src/session/vectors.json
+src/session/feel.vectors.json
 package-lock.json
 # Hand-laid markup
 index.html
