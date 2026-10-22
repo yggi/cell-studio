@@ -27,6 +27,10 @@ export const LIMITS = {
   pingEveryMs: 250,
   /** How long a client waits for a welcome, in milliseconds. */
   welcomeWaitMs: 2000,
+  /** How long, in seconds, a host keeps the seat of a client whose link dropped, for it to join again by its token. */
+  resumeSeconds: 300,
+  /** How long, in seconds, a lobby holds a session whose host's link dropped. */
+  lobbyGraceSeconds: 30,
   /** The longest session name a lobby takes. */
   sessionNameMost: 40,
 } as const;

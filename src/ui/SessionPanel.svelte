@@ -44,6 +44,8 @@
       <p class="message" role="status">
         {#if session.status === 'joining'}
           Joining “{session.session}”…
+        {:else if session.status === 'rejoining'}
+          The link to “{session.session}” dropped: joining again as {session.name}…
         {:else if !session.hostPlaying}
           In “{session.session}” as {session.name}: the host isn’t playing.
         {:else if !studio.following}
@@ -53,6 +55,7 @@
         {/if}
         {#if session.hostAway}The host’s link dropped: the lobby holds the session for it.{/if}
       </p>
+      {#if session.notice}<p class="message" role="status">{session.notice}</p>{/if}
       {#if session.trip !== null}<p class="hint">The host is {session.trip} ms away and back: the graph is good to {Math.ceil(session.trip / 2)} ms of it.</p>{/if}
       <button onclick={() => session.leave()}>Leave</button>
     {/if}

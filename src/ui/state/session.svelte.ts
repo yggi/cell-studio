@@ -1,14 +1,16 @@
 import { HOSTED_LOBBY, LIMITS, PROTOCOL, leaveOver, readHost, sessionNameProblem, type ClientMessage, type HostMessage, type SectionText } from '../../session/protocol';
 import { NO_CLOCK, hostHeardAt, reading, withPing, type HostClock } from '../../session/clock';
-import { NOTHING_FOLLOWED, heardAt, nextTextAt, pruned, withBar, withText, type Followed } from '../../session/follow';
-import { joinLobby, type ClientLink, type Heard, type Socket } from '../../session/lobby';
+import { NOTHING_FOLLOWED, heardAt, nextTextAt, pruned, reaches, withBar, withText, type Followed } from '../../session/follow';
+import { LobbyRefused, joinLobby, type ClientLink, type Heard, type Socket } from '../../session/lobby';
 import { refusesName } from '../../session/name';
+import { failed, outage, retry, type Outage } from '../../session/rejoin';
 import { storageKey } from '../../storageKey';
 
 /** Where this browser keeps the name it joins a session by (`session/name.ts`). */
 export const NAME_KEY = storageKey('cell-studio:jam-name');
 
-export type SessionStatus = 'idle' | 'joining' | 'joined';
+/** Idle; joining; joined (welcomed); or rejoining: seated, its link dropped, trying to come back (#482). */
+export type SessionStatus = 'idle' | 'joining' | 'joined' | 'rejoining';
 
 /** Where the host's song is heard now: the text that states the bar, how far into the text (in its bars), the bar. */
 export interface Heading {
@@ -33,14 +35,27 @@ export interface SessionOptions {
  * and, as it goes, a leave; nothing else (it plays nothing: the text is shown, not sounded).
  *
  * What it follows is read where it is heard (`heading`, by the page's frame loop): the text of the bar the host's
- * output sounds now, and where in it. It ends when asked, when the host closes or refuses it, when the lobby goes,
- * when no welcome comes within the contract's wait, when the host goes quiet for `silentSeconds`, and on a welcome of
- * another version of the protocol (saying `leave`). A link that drops isn't joined again (a later rung).
+ * output sounds now, and where in it. It ends when asked, when the host closes or refuses it, when the lobby says the
+ * session is gone, when no welcome comes within the contract's wait, and on a welcome of another version of the
+ * protocol (saying `leave`).
+ *
+ * A link that drops once seated is no leaving (#482): the socket closing, or the host quiet for `silentSeconds` (a
+ * socket dead without closing). It is `rejoining`: still following what it has (the bars and texts already sent, on
+ * the clock it had), it joins again with the welcome's `resume` token, trying as `session/rejoin.ts` says, under its
+ * name. Seated again, it follows the host from the welcome, the same song's bars and texts kept beneath the welcome's.
+ * A welcome with another token is a host that no longer kept the seat (past `resumeSeconds`): joined as a new player,
+ * and it says so (`notice`).
  */
 export class SessionClient {
   /** The lobby joined through, and the one the library's lobby cell lists (the Jam page sets it). */
   lobby = $state(HOSTED_LOBBY);
   status = $state<SessionStatus>('idle');
+  /** Whether a session is followed: joined, or rejoining after its link dropped. */
+  readonly live = $derived(this.status === 'joined' || this.status === 'rejoining');
+  /** What to say while in the session, beside its status: a rejoin as a new player. */
+  notice = $state<string | null>(null);
+  /** How many times the link came back since the join: seated as the same player, and as a new one. */
+  rejoins = $state({ same: 0, new: 0 });
   /** The session joined (as asked), and this player's name in it. */
   session = $state<string | null>(null);
   name = $state<string | null>(null);
@@ -57,6 +72,15 @@ export class SessionClient {
   dropped = $state({ refused: 0, ignored: 0 });
 
   #link: ClientLink | null = null;
+  /** The lobby joined through, while in a session. */
+  #lobby: string | null = null;
+  /** Counts the links made and dropped: what a link no longer the latest hears or loses is not this client's. */
+  #generation = 0;
+  /** The outage, while rejoining, and the timer of its next try. */
+  #outage: Outage | null = null;
+  #retrying: ReturnType<typeof setTimeout> | null = null;
+  /** The song followed, by its seed and start: a rejoin's welcome of the same song keeps what was followed of it. */
+  #song: { seed: number; start: number } | null = null;
   #clock: HostClock = NO_CLOCK;
   #followed: Followed = NOTHING_FOLLOWED;
   #token: string | null = null;
@@ -65,8 +89,6 @@ export class SessionClient {
   #lastHeard: number | null = null;
   /** The join's second try, for a name refused as taken: through which lobby, and by which name. */
   #again: { lobby: string; another: (taken: string) => string } | null = null;
-  /** Counts the joins begun, so one left meanwhile doesn't go on. */
-  #joins = 0;
   readonly #now: () => number;
   readonly #socket: ((url: string) => Socket) | undefined;
 
@@ -83,7 +105,7 @@ export class SessionClient {
 
   /** Where the host's song is heard at `now` on this page's clock (seconds): null while not joined, stopped, or before its clock and first text. */
   heading(now = this.#now()): Heading | null {
-    if (this.status !== 'joined' || !this.hostPlaying) return null;
+    if (!this.live || !this.hostPlaying) return null;
     const at = hostHeardAt(this.#clock, now);
     if (at === null) return null;
     const heard = heardAt(this.#followed, at);
@@ -94,7 +116,7 @@ export class SessionClient {
 
   /** When, on this page's clock (seconds), the text heard next gives way to another, as known at `now`; null where none is known yet. */
   nextTurn(now = this.#now()): number | null {
-    if (this.status !== 'joined' || !this.hostPlaying) return null;
+    if (!this.live || !this.hostPlaying) return null;
     const at = hostHeardAt(this.#clock, now);
     const next = at === null ? null : nextTextAt(this.#followed, at);
     return next === null || at === null ? null : now + (next - at);
@@ -112,31 +134,100 @@ export class SessionClient {
   async join(lobby: string, session: string, name: string, another?: (taken: string) => string): Promise<void> {
     this.leave();
     this.#again = another ? { lobby, another } : null;
-    const attempt = ++this.#joins;
     const problem = SessionClient.problem(session, name);
     this.ended = null;
     this.taken = null;
+    this.notice = null;
+    this.rejoins = { same: 0, new: 0 };
     if (problem) return void (this.ended = problem);
     this.status = 'joining';
     this.session = session.trim();
     this.name = name.trim();
-    let link: ClientLink;
+    this.#lobby = lobby.trim();
+    // (the generation the link takes: one left or joined again meanwhile is another)
+    const generation = this.#generation + 1;
     try {
-      link = await joinLobby(
-        lobby.trim(),
-        this.session,
-        (heard) => attempt === this.#joins && this.#heard(heard),
-        (why) => attempt === this.#joins && this.#end(why),
-        this.#socket,
-      );
+      if (!(await this.#open())) return;
     } catch (e) {
-      if (attempt === this.#joins) this.#end(e instanceof Error ? e.message : String(e));
+      if (generation === this.#generation) this.#end(e instanceof Error ? e.message : String(e));
       return;
     }
-    if (attempt !== this.#joins || this.status !== 'joining') return void link.close();
-    this.#link = link;
     this.#welcomeWait = setTimeout(() => this.#end(`No session named “${this.session}” answered.`), LIMITS.welcomeWaitMs);
     this.#sendJoin();
+  }
+
+  /** A link to the session through its lobby, made the latest (null where another was made or the session left meanwhile); thrown where the lobby refused or couldn't be reached. */
+  async #open(): Promise<ClientLink | null> {
+    const generation = ++this.#generation;
+    const link = await joinLobby(
+      this.#lobby ?? '',
+      this.session ?? '',
+      (heard) => generation === this.#generation && this.#heard(heard),
+      (why) => generation === this.#generation && this.#dropped(why),
+      this.#socket,
+    );
+    if (generation !== this.#generation) {
+      link.close();
+      return null;
+    }
+    this.#link = link;
+    return link;
+  }
+
+  /**
+   * The link is gone without the host saying so: the lobby's socket closed, or the host went quiet. A client that was
+   * seated keeps following what it has and tries to come back; one never seated ends; a try that loses its link fails.
+   */
+  #dropped(why: string): void {
+    if (this.status === 'rejoining') return this.#failed(false);
+    if (this.status !== 'joined' || this.#token === null || this.#lobby === null) return this.#end(why);
+    this.#generation++;
+    this.#link?.close();
+    this.#link = null;
+    if (this.#pinging) clearTimeout(this.#pinging);
+    this.#pinging = null;
+    this.status = 'rejoining';
+    this.hostAway = false;
+    this.#outage = outage(this.#now());
+    this.#schedule();
+  }
+
+  /** The next try, when `session/rejoin.ts` says; or the end, when it says to stop. */
+  #schedule(): void {
+    if (this.#retrying) clearTimeout(this.#retrying);
+    this.#retrying = null;
+    if (!this.#outage) return;
+    const next = retry(this.#outage, this.#now());
+    if ('giveUp' in next) return this.#end(next.giveUp);
+    this.#retrying = setTimeout(() => void this.#attempt(), next.wait * 1000);
+  }
+
+  /** One try to come back: a link through the lobby, and the join with the token, its welcome waited for. */
+  async #attempt(): Promise<void> {
+    this.#retrying = null;
+    if (this.status !== 'rejoining') return;
+    const generation = this.#generation + 1;
+    try {
+      if (!(await this.#open())) return;
+    } catch (e) {
+      if (generation === this.#generation) this.#failed(e instanceof LobbyRefused);
+      return;
+    }
+    if (this.status !== 'rejoining') return;
+    this.#welcomeWait = setTimeout(() => this.#failed(false), LIMITS.welcomeWaitMs);
+    this.#sendJoin();
+  }
+
+  /** A try that ended without a welcome (refused by the lobby, or not): its link dropped, and the next one waited for. */
+  #failed(refused: boolean): void {
+    if (this.status !== 'rejoining' || !this.#outage) return;
+    this.#generation++;
+    this.#link?.close();
+    this.#link = null;
+    if (this.#welcomeWait) clearTimeout(this.#welcomeWait);
+    this.#welcomeWait = null;
+    this.#outage = failed(this.#outage, this.#now(), refused);
+    this.#schedule();
   }
 
   /** Leave the session (saying so to the host): back to idle. */
@@ -155,15 +246,20 @@ export class SessionClient {
   }
 
   #end(why: string | null): void {
-    this.#joins++;
+    this.#generation++;
     this.#link?.close();
     this.#link = null;
     if (this.#pinging) clearTimeout(this.#pinging);
     if (this.#welcomeWait) clearTimeout(this.#welcomeWait);
-    this.#pinging = this.#welcomeWait = null;
+    if (this.#retrying) clearTimeout(this.#retrying);
+    this.#pinging = this.#welcomeWait = this.#retrying = null;
+    this.#outage = null;
+    this.#lobby = null;
+    this.#song = null;
     this.#clock = NO_CLOCK;
     this.#followed = NOTHING_FOLLOWED;
     this.#token = null;
+    this.notice = null;
     this.#lastHeard = null;
     this.status = 'idle';
     this.hostPlaying = false;
@@ -198,25 +294,44 @@ export class SessionClient {
           this.#send({ kind: 'leave' });
           return this.#end(over);
         }
+        const { song } = message;
+        // (back after a drop: seated as the same player where the host kept its seat, which its token says)
+        const back = this.status === 'rejoining';
+        if (back) {
+          if (this.#retrying) clearTimeout(this.#retrying);
+          this.#retrying = null;
+          this.#outage = null;
+          const same = message.resume === this.#token;
+          this.rejoins = same ? { ...this.rejoins, same: this.rejoins.same + 1 } : { ...this.rejoins, new: this.rejoins.new + 1 };
+          this.notice = same ? null : `The link was down longer than the host keeps a seat (${LIMITS.resumeSeconds / 60} minutes): joined again as a new player.`;
+        }
         this.status = 'joined';
         this.hostAway = false;
         this.#token = message.resume;
         // (the host's page clock may be another: it reloaded)
         this.#clock = NO_CLOCK;
         this.#lastHeard = this.#now();
-        this.#followed = NOTHING_FOLLOWED;
-        this.hostPlaying = message.song !== null;
-        if (message.song) {
-          let f = NOTHING_FOLLOWED;
-          for (const sent of message.song.bars) f = withBar(f, sent);
-          for (const text of message.song.texts ?? []) f = withText(f, text);
-          this.#followed = f;
-        }
+        this.hostPlaying = song !== null;
+        // (the song: the welcome's bars and texts; on a rejoin to the same song, over what was followed of it where
+        // that reaches the bar playing now, the one before the welcome's first, so that bar keeps its text and start,
+        // which the welcome sends no more; a longer drop starts afresh from the welcome's)
+        const kept = back && song && this.#song?.seed === song.seed && this.#song.start === song.start && reaches(this.#followed, song.bars);
+        let f = kept ? this.#followed : NOTHING_FOLLOWED;
+        for (const sent of song?.bars ?? []) f = withBar(f, sent);
+        for (const text of song?.texts ?? []) f = withText(f, text);
+        this.#followed = f;
+        this.#song = song && { seed: song.seed, start: song.start };
         if (this.#pinging) clearTimeout(this.#pinging);
         return this.#ping();
       }
       case 'refused': {
         const [name, session, again] = [this.name, this.session, this.#again];
+        // (coming back, its name taken meanwhile by another: once more by another name, where asked to)
+        if (this.status === 'rejoining' && again && name && refusesName(message.reason, name)) {
+          this.#again = null;
+          this.name = again.another(name);
+          return this.#failed(false);
+        }
         this.#end(message.reason);
         if (!refusesName(message.reason, name)) return;
         if (again && name && session) return void this.join(again.lobby, session, again.another(name));
@@ -235,6 +350,7 @@ export class SessionClient {
       }
       case 'start':
         this.#followed = NOTHING_FOLLOWED;
+        this.#song = { seed: message.song.seed, start: message.song.start };
         this.hostPlaying = true;
         return;
       case 'bar':
@@ -252,6 +368,7 @@ export class SessionClient {
       case 'stop':
         this.hostPlaying = false;
         this.#followed = NOTHING_FOLLOWED;
+        this.#song = null;
         return;
       // (the style, the bars ahead and the Muse: read, and not shown yet)
       case 'track':
@@ -264,7 +381,7 @@ export class SessionClient {
   #ping(): void {
     if (this.status !== 'joined') return;
     const now = this.#now();
-    if (!this.hostAway && this.#lastHeard !== null && now - this.#lastHeard > LIMITS.silentSeconds) return this.#end('The host went quiet.');
+    if (!this.hostAway && this.#lastHeard !== null && now - this.#lastHeard > LIMITS.silentSeconds) return this.#dropped('The host went quiet.');
     this.#send({ kind: 'ping', sent: now });
     const every = this.clock ? LIMITS.pingEveryMs : LIMITS.pingSettlingMs;
     this.#pinging = setTimeout(() => this.#ping(), every);

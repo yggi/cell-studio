@@ -195,11 +195,14 @@
       {/if}
     {/if}
     {#if studio.following}
-      <!-- a Jambot session followed (#478): its host's section, read only, turning with the host's transport -->
+      <!-- a Jambot session followed (#478): its host's section, read only, turning with the host's transport; its link
+           dropped, it says so while it joins again (#482) -->
       <div class="following">
         <span role="status"
-          >{#if studio.heard?.before}Following “{studio.session.session}”: the host counts in{:else}Following “{studio.session.session}” · bar {(studio.heard?.bar ?? 0) +
-              1}{/if}{#if studio.heard?.unstated}
+          >{#if studio.session.status === 'rejoining'}The link to “{studio.session.session}” dropped: joining again…{:else if studio.heard?.before}Following “{studio.session
+              .session}”: the host counts in{:else}Following “{studio.session.session}” · bar {(studio.heard?.bar ?? 0) +
+              1}{/if}{#if studio.session.status === 'joined' && studio.session.rejoins.new}
+            · joined again as a new player{/if}{#if studio.heard?.unstated}
             · no text states this section: {studio.heard.unstated}{/if}</span
         >
         <!-- (leaving returns to the piece you had) -->

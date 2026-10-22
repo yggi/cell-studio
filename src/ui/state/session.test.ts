@@ -147,7 +147,7 @@ describe('SessionClient: Cell studio following a Jambot session', () => {
     expect(client.ended).toMatch(/version 12/);
   });
 
-  it('ends when the lobby knows no such session, when no welcome comes, when the host refuses, closes, or goes quiet', async () => {
+  it('ends when the lobby knows no such session, when no welcome comes, when the host refuses or closes; and rejoins when it goes quiet', async () => {
     let joining = client.join('wss://lobby.test', 'jam', 'Cell studio');
     socket.open();
     socket.say({ op: 'refused', reason: 'No session named “jam” is open.' });
@@ -176,9 +176,11 @@ describe('SessionClient: Cell studio following a Jambot session', () => {
 
     socket = new FakeSocket();
     await joined();
+    const quiet = socket;
     now += 3.1;
     vi.advanceTimersByTime(250);
-    expect(client.ended).toBe('The host went quiet.');
+    // (a link quiet that long is taken for dropped: closed, and joined again, rejoin.test.ts)
+    expect([client.status, client.ended, quiet.closed]).toEqual(['rejoining', null, true]);
   });
 
   it('asks for nothing without a session’s name and a player’s', async () => {
