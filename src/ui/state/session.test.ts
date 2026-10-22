@@ -119,6 +119,23 @@ describe('SessionClient: Cell studio following a Jambot session', () => {
     expect([client.status, client.taken]).toEqual(['idle', null]);
   });
 
+  it('joins once more by another name, where asked to, when the host refuses its name as taken; and only once', async () => {
+    const sockets: FakeSocket[] = [];
+    const c = new SessionClient({ now: () => now, socket: () => (sockets.push(new FakeSocket()), sockets.at(-1)!) });
+    const refuse = async (as: string) => {
+      const s = sockets.at(-1)!;
+      s.open();
+      s.say({ op: 'joined', session: 'jam' });
+      await vi.waitFor(() => expect(s.told).toEqual([{ kind: 'join', protocol: PROTOCOL, name: as }]));
+      s.say({ op: 'said', message: { kind: 'refused', reason: `A player named ${as} is already in this session. Pick another name.` } });
+    };
+    void c.join('wss://lobby.test', 'jam', 'Cell studio abc', (taken) => `${taken} 2`);
+    await refuse('Cell studio abc');
+    expect([c.status, c.name, sockets.length]).toEqual(['joining', 'Cell studio abc 2', 2]);
+    await refuse('Cell studio abc 2');
+    expect([c.status, c.taken, sockets.length]).toEqual(['idle', 'Cell studio abc 2', 2]);
+  });
+
   it('leaves a host of another version, saying leave as it goes', async () => {
     const joining = client.join('wss://lobby.test', 'jam', 'Cell studio');
     socket.open();

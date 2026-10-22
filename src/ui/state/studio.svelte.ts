@@ -26,8 +26,10 @@ import { Recorder } from './record.svelte';
 import type { RowKeys } from '../context';
 import { Dock } from './dock.svelte';
 import { Conversion } from './convert.svelte';
-import { SessionClient } from './session.svelte';
+import { NAME_KEY, SessionClient } from './session.svelte';
+import { LobbyWatch } from './lobbyWatch.svelte';
 import { barSeconds } from '../../session/follow';
+import { anotherName, browserStore, defaultPlayerName, keepPlayerName } from '../../session/name';
 import { onFrames } from '../../audio/ticker';
 import type { CompileResult } from '@yggi/cells/engine/program';
 
@@ -85,6 +87,10 @@ export class Studio {
 
   /** A Jambot session followed (#478): its host's section, the piece (read only), turning with the host's transport. */
   readonly session = new SessionClient();
+  /** The sessions the lobby lists as open, while the library shows its lobby cell (#478, rung 2). */
+  readonly listed = new LobbyWatch();
+  /** The piece open when the session's text replaced it: back when the session is left or ends (null: none to go back to). */
+  #had: { open: Open; file: string; any: boolean } | null = null;
   /** Where the session's song is heard, as the views show it: the bar, and why no text states it (or null); null while not following. */
   heard = $state.raw<{ bar: number; before: boolean; unstated: string | null } | null>(null);
   /** Whether the piece open is the session's: its host's text, followed. */
@@ -119,7 +125,8 @@ export class Studio {
             dropped: this.session.dropped,
             now,
             heading: h && { bar: h.bar, bars: h.bars, before: h.before, textBar: h.text.bar, text: h.text.text },
-            shown: { code: this.piece.code, readOnly: this.piece.readOnly, cursor: this.playback.cursor },
+            shown: { code: this.piece.code, readOnly: this.piece.readOnly, cursor: this.playback.cursor, tab: this.view.tab },
+            listed: { sessions: this.listed.sessions, problem: this.listed.problem, answered: this.listed.answered },
           };
         },
       },
@@ -154,6 +161,7 @@ export class Studio {
     if (this.#turning) clearTimeout(this.#turning);
     this.#turning = turn !== null && turn - now < (2 * FOLLOW_EVERY) / 1000 ? setTimeout(() => this.#follow(), Math.max(0, (turn - now) * 1000) + 1) : null;
     if (!this.following) {
+      this.#had = { open: this.library.open, file: this.piece.file, any: this.library.anyOpen };
       this.#opened({ kind: 'file', name: `${this.session.session ?? 'session'}.cells` }, '', true);
       this.following = true;
     }
@@ -166,7 +174,10 @@ export class Studio {
     if (cursor !== this.playback.cursor) this.playback.cursor = cursor;
   }
 
-  /** The session left or ended: the piece followed stays open, the user's to change. */
+  /**
+   * The session left or ended: the piece you had is open again, as it was (its file, edits not saved included), where
+   * you were (the library, if it is open; else the graph, or the library when no piece was open before).
+   */
   #unfollow(): void {
     if (this.#turning) clearTimeout(this.#turning);
     this.#turning = null;
@@ -174,12 +185,34 @@ export class Studio {
     this.following = false;
     this.heard = null;
     this.#bar = null;
+    const had = this.#had;
+    this.#had = null;
+    if (!had) return;
+    const tab = this.view.tab;
+    this.#opened(had.open, had.file, true);
+    if (tab === 'select' || !had.any) this.view.tab = 'select';
+  }
+
+  /**
+   * Join a session the library's lobby cell lists, through the lobby it lists (`session.lobby`), by this browser's
+   * name; a name the host refuses as taken, once more by another (the Jam page offers it; here it is taken).
+   */
+  joinListed(session: string): Promise<void> {
+    const store = browserStore();
+    return this.session.join(this.session.lobby, session, defaultPlayerName(store, NAME_KEY), (taken) => {
+      const other = anotherName(taken);
+      keepPlayerName(store, NAME_KEY, other);
+      return other;
+    });
   }
 
   /** A piece's source, now open: laid out afresh, from rest, its graph shown. */
   #opened(open: Open, source: string, followed = false): void {
-    // (another piece opened leaves the session joined)
-    if (!followed) this.session.leave();
+    // (another piece opened leaves the session joined, and is the piece from then on)
+    if (!followed) {
+      this.#had = null;
+      this.session.leave();
+    }
     this.stopFolding(false);
     this.library.open = open;
     this.piece.open(source);

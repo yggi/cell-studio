@@ -9,6 +9,7 @@
   import { tagName } from '@yggi/cells/engine/tags';
   import { tick } from 'svelte';
   import PieceNode from './PieceNode.svelte';
+  import LobbyCell from './LobbyCell.svelte';
   import { clusterDisc } from '../layout/clusters';
   import type { Entry } from './entries';
 
@@ -283,6 +284,8 @@
           ></button>
         {/each}
       {/if}
+      <!-- the lobby's cell (#478): the Jambot sessions open, live, beside the wheel -->
+      <LobbyCell disc={{ x: px(layout.lobby.x - layout.x0), y: px(layout.lobby.y - layout.y0), r: px(layout.lobby.r) }} />
       <!-- the tutorial and the MIDI library: cells of their own beside the wheel, their pieces in order along a thread -->
       {#each layout.sides.filter((t) => t.folded) as t (t.tag)}
         {@const R = px(t.r)}

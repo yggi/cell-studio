@@ -1,8 +1,12 @@
-import { LIMITS, PROTOCOL, leaveOver, readHost, sessionNameProblem, type ClientMessage, type HostMessage, type SectionText } from '../../session/protocol';
+import { HOSTED_LOBBY, LIMITS, PROTOCOL, leaveOver, readHost, sessionNameProblem, type ClientMessage, type HostMessage, type SectionText } from '../../session/protocol';
 import { NO_CLOCK, hostHeardAt, reading, withPing, type HostClock } from '../../session/clock';
 import { NOTHING_FOLLOWED, heardAt, nextTextAt, pruned, withBar, withText, type Followed } from '../../session/follow';
 import { joinLobby, type ClientLink, type Heard, type Socket } from '../../session/lobby';
 import { refusesName } from '../../session/name';
+import { storageKey } from '../../storageKey';
+
+/** Where this browser keeps the name it joins a session by (`session/name.ts`). */
+export const NAME_KEY = storageKey('cell-studio:jam-name');
 
 export type SessionStatus = 'idle' | 'joining' | 'joined';
 
@@ -34,6 +38,8 @@ export interface SessionOptions {
  * another version of the protocol (saying `leave`). A link that drops isn't joined again (a later rung).
  */
 export class SessionClient {
+  /** The lobby joined through, and the one the library's lobby cell lists (the Jam page sets it). */
+  lobby = $state(HOSTED_LOBBY);
   status = $state<SessionStatus>('idle');
   /** The session joined (as asked), and this player's name in it. */
   session = $state<string | null>(null);
@@ -57,6 +63,8 @@ export class SessionClient {
   #pinging: ReturnType<typeof setTimeout> | null = null;
   #welcomeWait: ReturnType<typeof setTimeout> | null = null;
   #lastHeard: number | null = null;
+  /** The join's second try, for a name refused as taken: through which lobby, and by which name. */
+  #again: { lobby: string; another: (taken: string) => string } | null = null;
   /** Counts the joins begun, so one left meanwhile doesn't go on. */
   #joins = 0;
   readonly #now: () => number;
@@ -97,9 +105,13 @@ export class SessionClient {
     return sessionNameProblem(session) ?? (name.trim() === '' ? 'A player needs a name to join.' : null);
   }
 
-  /** Join the session named `session` at the lobby at `lobby`, as `name`. */
-  async join(lobby: string, session: string, name: string): Promise<void> {
+  /**
+   * Join the session named `session` at the lobby at `lobby`, as `name`. With `another`, a host's refusal of the name
+   * as taken joins once more, by the name `another` gives (the library's lobby cell: nobody there to ask).
+   */
+  async join(lobby: string, session: string, name: string, another?: (taken: string) => string): Promise<void> {
     this.leave();
+    this.#again = another ? { lobby, another } : null;
     const attempt = ++this.#joins;
     const problem = SessionClient.problem(session, name);
     this.ended = null;
@@ -204,9 +216,11 @@ export class SessionClient {
         return this.#ping();
       }
       case 'refused': {
-        const name = this.name;
+        const [name, session, again] = [this.name, this.session, this.#again];
         this.#end(message.reason);
-        if (refusesName(message.reason, name)) this.taken = name;
+        if (!refusesName(message.reason, name)) return;
+        if (again && name && session) return void this.join(again.lobby, session, again.another(name));
+        this.taken = name;
         return;
       }
       case 'closed':
