@@ -1,5 +1,5 @@
-import { compileSource } from '@yggi/cells/engine/compile';
-import { codeShifts, type CompileResult } from '@yggi/cells/engine/program';
+import { codeShifts, type CompileResult, type Used } from '@yggi/cells/engine/program';
+import { compilePiece } from '../../compile';
 import { addCell, setFree, setOff, setShift } from '@yggi/cells/engine/edit';
 import { freeIndex, freeList, withHeld } from '@yggi/cells/engine/held';
 import { buildGraph } from '../../layout/drawn';
@@ -7,7 +7,7 @@ import { showProblems } from '../../layout/show';
 import { routing } from '@yggi/cells/engine/routing';
 import { mainTempo, sections } from '@yggi/cells/engine/duration';
 import { pieceFile, titleOf } from '../../library';
-import { isPieceFile, readPiece, writePiece, type PieceFrontmatter } from '@yggi/cells/engine/piecefile';
+import { isPieceFile, lockfileOf, readPiece, withLockfile, writePiece, type PieceFile, type PieceFrontmatter } from '@yggi/cells/engine/piecefile';
 import type { Layout } from '@yggi/cells/engine/literate';
 import type { PieceSource } from '../../audio/engine';
 import type { FreeSpec } from '@yggi/cells/engine/ast';
@@ -28,6 +28,9 @@ import { pieceStats } from '@yggi/cells/engine/stats';
  * title, tags and tier, any other key) and its prose beside the code: the code is the join of the file's cells blocks
  * (literate cells, cells decision 051), and `file` the file again with the code as it stands, each line back in the
  * block it came from and the prose between them as it was. The editor shows the code, the join, not the file.
+ *
+ * Its `use "id"` lines (cells decision 054) compile through the app's library (`compilePiece`), with the hashes its
+ * file's lockfile recorded; the file records what a `use` with no entry yet resolved to (`recorded`).
  */
 export class Piece {
   #code = $state('');
@@ -51,9 +54,11 @@ export class Piece {
   readonly midi = $derived(isMidiText(this.#code) ? parseMidiText(this.#code) : null);
   /** The cells that play: the code, or a MIDI file's notes written out (a fixed tempo: nothing is kept in its text). */
   readonly cells = $derived(this.midi ? cellsFromMidi(this.midi.smf, this.midi.smf.name ?? 'MIDI file', { free: false }).source : this.#code);
+  /** What its file's lockfile recorded each `use` resolved to (none for a bare text). */
+  readonly locked = $derived(this.frontmatter ? lockfileOf({ frontmatter: this.frontmatter }) : []);
   /** The code as written, compiled (its diagnostics are the editor's: a MIDI file's are its text's). */
   readonly result = $derived.by(() => {
-    const r = compileSource(this.cells, this.env);
+    const r = compilePiece(this.cells, this.env, this.locked);
     // (and what only the layout can tell: a plugin on a cell it doesn't fit)
     const shows = r.ok ? showProblems(r) : [];
     if (!this.midi) return shows.length ? { ...r, diagnostics: [...r.diagnostics, ...shows] } : r;
@@ -62,7 +67,9 @@ export class Piece {
   });
   /** The piece as a file (its frontmatter, the code in its cells blocks, its prose), or the bare code. */
   readonly file = $derived(
-    this.frontmatter ? writePiece({ frontmatter: this.frontmatter, text: this.#code, prose: this.#prose, layout: this.#layout, bare: this.#bare }) : this.#code,
+    this.frontmatter
+      ? writePiece(recorded({ frontmatter: this.frontmatter, text: this.#code, prose: this.#prose, layout: this.#layout, bare: this.#bare }, this.result.uses))
+      : this.#code,
   );
   /** Its title, from its file's frontmatter, or from its card as it stands (it follows edits). */
   readonly title = $derived(titleOf(this.file));
@@ -76,7 +83,7 @@ export class Piece {
    */
   held = $state.raw<Map<number, number | string>>(new Map());
   readonly playedCode = $derived(this.held.size && this.result.ok && !this.midi ? withHeld(this.#code, this.result, this.held) : this.cells);
-  readonly playedResult = $derived(this.playedCode === this.cells ? this.result : compileSource(this.playedCode, this.env));
+  readonly playedResult = $derived(this.playedCode === this.cells ? this.result : compilePiece(this.playedCode, this.env, this.locked));
 
   // (the last version that compiled, and the text it was compiled from: an engine in a worker compiles
   // the same piece from it. A remembered value, not state: it only changes as `good` is read.)
@@ -111,7 +118,7 @@ export class Piece {
     const code = file?.text ?? source;
     this.#code = code;
     const cells = isMidiText(code) ? cellsFromMidi(parseMidiText(code).smf, 'MIDI file', { free: false }).source : code;
-    const first = compileSource(cells);
+    const first = compilePiece(cells, undefined, file ? lockfileOf(file) : []);
     this.#lastGood = { result: first, source: { code: cells } };
     this.#frees = first.ok ? freeList(first).length : 0;
   }
@@ -213,4 +220,18 @@ export class Piece {
     rest.delete(i);
     this.held = rest;
   }
+}
+
+/**
+ * A piece's file with its lockfile (cells decision 054): a `use` with no entry yet records the hash it resolved to; one
+ * with an entry keeps it, so a fragment the library has changed since plays its current version with the compile's
+ * warning, and the file still says which version it was saved with (keeping the new one is the person's act).
+ */
+function recorded(file: PieceFile, uses: readonly Used[] | undefined): PieceFile {
+  if (!uses?.length) return file;
+  const had = new Set(lockfileOf(file).map((k) => k.id));
+  return withLockfile(
+    file,
+    uses.map((u) => (had.has(u.id) ? { ...u, hash: null } : u)),
+  );
 }

@@ -1,10 +1,11 @@
 /**
  * A kit's wheel (a table of voices, `&kit &kd &sd &hh`: docs/language/sound.md), drawn as a drum kit seen from the
  * front: each member a piece of the kit by its name (the General MIDI drum names: `bd`/`kd`/`kick` the kick, `sd` the
- * snare, `hh` `oh` the hi-hat, `lt` `mt` `ht` toms, `crash`, `ride`; any other name a hand percussion), the kick in
- * the middle, the snare and the hi-hat on the left, the toms over the kick, the floor tom on the right, the cymbals on
- * top. Each member that only the kit plays is a bulb on it (decision 021), where its piece is. Pure geometry, shared by
- * the graph (where a bulb's edges leave) and the glyph (ui/KitGlyph.svelte).
+ * snare, `hh` `oh` the hi-hat, `mt` `ht` toms, `lt` the floor tom, `cr` `rd` the cymbals: cells' `GM_KIT`, General
+ * MIDI's names as one word its aliases; any other name a hand percussion), the kick in the middle, the snare and the
+ * hi-hat on the left, the toms over the kick, the floor tom on the right, the cymbals on top. Each member that only the
+ * kit plays is a bulb on it (decision 021), where its piece is. Pure geometry, shared by the graph (where a bulb's edges
+ * leave) and the glyph (ui/KitGlyph.svelte).
  */
 import type { CompileResult } from '@yggi/cells/engine/program';
 import { gmDrumNote } from '@yggi/cells/engine/midi';

@@ -9,7 +9,7 @@
  * it when it's drawn (MiniGraph.svelte). Sizes and the frame are derived here, per card or wheel.
  */
 import { isSide } from './side';
-import { compileSource } from '@yggi/cells/engine/compile';
+import { compilePiece } from '../compile';
 import { codeShifts, type CompileResult } from '@yggi/cells/engine/program';
 import { buildGraph } from './drawn';
 import { cellView } from './cellview';
@@ -54,7 +54,7 @@ function colourOf(result: CompileResult, shifts: ReturnType<typeof codeShifts>, 
 
 /** A piece's miniature from its text (null: no cells to draw). */
 export function miniature(source: string, rowOrder?: number): Miniature | null {
-  const result = compileSource(source);
+  const result = compilePiece(source);
   const model = buildGraph(result);
   const nodes = model.nodes.filter((n) => !n.petalOf && !isSide(n));
   if (nodes.length === 0) return null;

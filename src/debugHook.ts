@@ -2,7 +2,7 @@
  * `window.cellStudio`, for measuring from outside (the browser console, `tools/golden.mjs`, the smoke
  * test); documented in docs/testing.md.
  */
-import { compileSource } from '@yggi/cells/engine/compile';
+import { compilePiece } from './compile';
 import { codeShifts, type CompileResult } from '@yggi/cells/engine/program';
 import { blockLevels, loudness, renderLength, renderPiece, sampleHash } from './audio/render';
 import type { Player } from './audio/player';
@@ -45,7 +45,7 @@ export function installDebugHook(
     // render(source, seconds) renders any source, a text or a piece file (not just the open piece), with a hash of the samples and
     // the level of every block of them: for checking a refactor leaves every piece sounding the same (`tools/golden.mjs`)
     render: async (source: string, seconds?: number) => {
-      const r = compileSource(textOf(source), { SAMPLE_RATE: 44100, A4: 440 });
+      const r = compilePiece(textOf(source), { SAMPLE_RATE: 44100, A4: 440 });
       const buf = await renderPiece(r, codeShifts(r), seconds);
       return { ...loudness(buf), hash: sampleHash(buf), blocks: blockLevels(buf) };
     },
