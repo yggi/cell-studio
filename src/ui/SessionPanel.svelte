@@ -56,7 +56,9 @@
         {#if session.hostAway}The host’s link dropped: the lobby holds the session for it.{/if}
       </p>
       {#if session.notice}<p class="message" role="status">{session.notice}</p>{/if}
-      {#if session.trip !== null}<p class="hint">The host is {session.trip} ms away and back: the graph is good to {Math.ceil(session.trip / 2)} ms of it.</p>{/if}
+      {#if session.trip !== null && session.status === 'joined'}<p class="hint">
+          The host is {session.trip} ms away and back: the graph is good to {Math.ceil(session.trip / 2)} ms of it.
+        </p>{/if}
       <button onclick={() => session.leave()}>Leave</button>
     {/if}
   </section>
