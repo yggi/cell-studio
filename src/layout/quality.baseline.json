@@ -14,6 +14,7 @@
   "rhythm": {"cells":11,"crossings":0,"cost":0,"width":847.3,"height":726,"edge":234,"overlap":0,"clusters":0,"intruders":0,"aim":0,"under":0,"start":0},
   "drums": {"cells":8,"crossings":0,"cost":0,"width":721.3,"height":802,"edge":296,"overlap":0,"clusters":0,"intruders":0,"aim":0,"under":0,"start":0},
   "swing": {"cells":10,"crossings":0,"cost":0,"width":904,"height":796.3,"edge":242.3,"overlap":0,"clusters":0,"intruders":0,"aim":0,"under":0,"start":0},
+  "breve": {"cells":6,"crossings":0,"cost":0,"width":601,"height":686,"edge":190,"overlap":0,"clusters":0,"intruders":0,"aim":0,"under":0,"start":0},
   "canon": {"cells":9,"crossings":0.3,"cost":0.7,"width":878.3,"height":1086,"edge":349,"overlap":0,"clusters":0,"intruders":0,"aim":0,"under":5.3,"start":3.7},
   "mirrors": {"cells":8,"crossings":0,"cost":0,"width":742.7,"height":1012.3,"edge":303,"overlap":0,"clusters":0,"intruders":0,"aim":0,"under":0,"start":0},
   "variations": {"cells":9,"crossings":0,"cost":0,"width":776,"height":877,"edge":286.7,"overlap":0,"clusters":0,"intruders":0,"aim":0,"under":0,"start":0},
