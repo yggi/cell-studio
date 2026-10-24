@@ -1,0 +1,1 @@
+var e=new URL(`anh127-march-JH4VZ6G9.mid`,import.meta.url).href;export{e as default};

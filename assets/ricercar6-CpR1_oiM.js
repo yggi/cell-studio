@@ -1,0 +1,1 @@
+var e=new URL(`ricercar6-DfrW16fe.mid`,import.meta.url).href;export{e as default};
