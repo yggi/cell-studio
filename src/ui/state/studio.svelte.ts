@@ -29,6 +29,7 @@ import { Conversion } from './convert.svelte';
 import { NAME_KEY, SessionClient } from './session.svelte';
 import { LobbyWatch } from './lobbyWatch.svelte';
 import { barSeconds } from '../../session/follow';
+import { SessionFeed } from './sessionFeed';
 import { anotherName, browserStore, defaultPlayerName, keepPlayerName } from '../../session/name';
 import { onFrames } from '../../audio/ticker';
 import type { CompileResult } from '@yggi/cells/engine/program';
@@ -99,6 +100,8 @@ export class Studio {
   #bar: { program: CompileResult; seconds: number | null } | null = null;
   // (the timer that turns the text at its bar, when that falls between two frames)
   #turning: ReturnType<typeof setTimeout> | null = null;
+  // (the session's song as the player's feed, while following: what Play sounds)
+  #feed: SessionFeed | null = null;
 
   // the piece last asked for (a card or a file): one still being fetched or read gives way to a later choice
   #choice = 0;
@@ -130,6 +133,7 @@ export class Studio {
             heading: h && { bar: h.bar, bars: h.bars, before: h.before, textBar: h.text.bar, text: h.text.text },
             shown: { code: this.piece.code, readOnly: this.piece.readOnly, cursor: this.playback.cursor, tab: this.view.tab },
             listed: { sessions: this.listed.sessions, problem: this.listed.problem, answered: this.listed.answered },
+            sound: this.#feed && { playing: this.playback.playing, played: this.#feed.played, lacked: this.#feed.lacked },
           };
         },
       },
@@ -168,6 +172,10 @@ export class Studio {
       this.#had = { open: this.library.open, file: this.piece.file, any: this.library.anyOpen };
       this.#opened({ kind: 'file', name: `${this.session.session ?? 'session'}.cells` }, '', true);
       this.following = true;
+      // (and sounded, from the start: Play pauses it and plays it again)
+      this.#feed = new SessionFeed(this.session);
+      this.playback.feed = this.#feed;
+      void this.playback.toggle();
     }
     this.piece.follow(h.text.text);
     if (this.heard?.bar !== h.bar || this.heard.before !== h.before || this.heard.unstated !== h.text.unstated)
@@ -175,7 +183,9 @@ export class Studio {
     const program = this.piece.program;
     if (this.#bar?.program !== program) this.#bar = { program, seconds: barSeconds(program) };
     const cursor = (this.#bar.seconds ?? 0) * h.bars;
-    if (cursor !== this.playback.cursor) this.playback.cursor = cursor;
+    // (sounding, the transport's clock is where the song is heard; else the cursor)
+    if (this.playback.playing) transportClock.seconds = cursor;
+    else if (cursor !== this.playback.cursor) this.playback.cursor = cursor;
   }
 
   /**
@@ -189,9 +199,11 @@ export class Studio {
     this.following = false;
     this.heard = null;
     this.#bar = null;
+    this.#feed = null;
+    this.playback.feed = null;
     const had = this.#had;
     this.#had = null;
-    if (!had) return;
+    if (!had) return this.playback.stop();
     const tab = this.view.tab;
     this.#opened(had.open, had.file, true);
     if (tab === 'select' || !had.any) this.view.tab = 'select';

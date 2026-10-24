@@ -28,6 +28,27 @@ const WINDOW = 0.25; // transport quarters = code seconds
 /** After a piece's end, how long its last notes (releases, reverb, echoes) ring before the transport stops. */
 const TAIL = 2.5;
 
+/** How often a feed is asked what to play next (transport quarters: seconds at 60 bpm), and how far ahead of now it is asked to. */
+const FEED_EVERY = 0.125;
+// (a host tells a bar's start a beat before it, 0.33 s at 180 bpm: a note laid within that has its bar's end)
+const FEED_LEAD = 0.35;
+
+/**
+ * A song another clock lays (a Jambot session's, #478 rung 3), played in place of the transport's run: asked, every
+ * FEED_EVERY on the audio clock, what to play from where it left off to `horizon`, both on the page's clock.
+ */
+export interface Feed {
+  next(now: number, horizon: number): readonly Fed[];
+}
+
+/** A window of a plan, and where its start is heard on the page's clock (`performance.now()`, in seconds), stretched by `scale`. */
+export interface Fed {
+  readonly plan: Plan;
+  readonly window: Window;
+  readonly time: number;
+  readonly scale: number;
+}
+
 /** Where the notes played also go (MIDI out, #205): each window's notes and MIDI clock ticks (#206), retimed onto the audio clock, and the stops. */
 export interface NoteSink {
   /** A window's notes and clock ticks (AudioContext seconds) and where that window ends: nothing later starts before it. */
@@ -109,7 +130,8 @@ export class Player implements LiveSource {
   load(plan: Plan, source: PieceSource | null = null): void {
     this.plan = plan;
     this.engine.load(plan, source);
-    this.voices?.sync(plan.result, plan.statics, plan.muted);
+    // (a feed's voices are its windows' plans')
+    if (!this.feeding) this.voices?.sync(plan.result, plan.statics, plan.muted);
     this.settle();
   }
 
@@ -414,6 +436,62 @@ export class Player implements LiveSource {
     this.stopFrames = onFrames(frame, () => 40, 'clock');
   }
 
+  /** Whether a feed is playing (`feed`), in place of the transport's run. */
+  private feeding = false;
+
+  /**
+   * Play what a feed lays (a session's song, #478 rung 3) in place of the piece from the cursor: each window it gives,
+   * its plan's voices sounding it, on the audio clock where its time on the page's clock is heard; MIDI out sends it
+   * too. Pause or Stop ends it, as a run of the transport.
+   */
+  async feed(feed: Feed): Promise<void> {
+    if (this.playing) return;
+    const Tone = await this.wake();
+    (Tone.getContext() as unknown as { lookAhead: number }).lookAhead = this.tuning.lookAhead ?? 0.3;
+    this.held.release();
+    this.voices!.open();
+    const tr = Tone.getTransport();
+    tr.stop();
+    tr.cancel(0);
+    tr.position = 0;
+    tr.bpm.value = 60;
+    const run = ++this.run;
+    let synced: Plan | null = null;
+    let lagAt = -Infinity;
+    this.feeding = true;
+    this.repeatId = tr.scheduleRepeat(
+      () => {
+        if (run !== this.run || !this.voices) return;
+        const now = performance.now() / 1000;
+        if (now - lagAt > 0.5) {
+          lagAt = now;
+          this.refreshLag();
+        }
+        for (const f of feed.next(now, now + FEED_LEAD)) {
+          if (f.plan !== synced) {
+            synced = f.plan;
+            this.voices.sync(f.plan.result, f.plan.statics, f.plan.muted);
+          }
+          const time = this.audioAt(Tone, f.time);
+          const { events, tapes, clock } = retime(f.window, time, f.scale);
+          for (const t of tapes) this.voices.tapeSpeed(t.tape, t.points);
+          for (const e of events) this.voices.play(e);
+          this.sink?.play(Tone, events, time + (f.window.to - f.window.from) * f.scale, clock);
+        }
+      },
+      FEED_EVERY,
+      0,
+    );
+    tr.start(Tone.now() + 0.05);
+    this.move('play');
+  }
+
+  /** Where a moment on the page's clock (seconds) is heard, on the audio clock. */
+  private audioAt(T: ToneNS, page: number): number {
+    const clock = contextClock(T);
+    return clock ? clock.fromDeviceMs(page * 1000) : T.immediate() - (this.lag ?? 0) + (page - performance.now() / 1000);
+  }
+
   // the run playing: when its transport started (audio clock) and where in the piece (code seconds)
   private running: { startsAt: number; offset: number } | null = null;
 
@@ -436,6 +514,9 @@ export class Player implements LiveSource {
   pause(): void {
     if (!this.playing) return;
     this.running = null;
+    // (a feed's voices were its plans': the piece's again)
+    if (this.feeding && this.plan) this.voices?.sync(this.plan.result, this.plan.statics, this.plan.muted);
+    this.feeding = false;
     this.stopFrames();
     const at = transportClock.seconds;
     transportClock.seconds = 0;

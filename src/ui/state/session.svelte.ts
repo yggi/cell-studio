@@ -3,6 +3,7 @@ import { NO_CLOCK, hostHeardAt, reading, withPing, type HostClock } from '../../
 import { NOTHING_FOLLOWED, heardAt, nextTextAt, pruned, reaches, withBar, withText, type Followed } from '../../session/follow';
 import { LobbyRefused, joinLobby, type ClientLink, type Heard, type Socket } from '../../session/lobby';
 import { refusesName } from '../../session/name';
+import { sounding, type Place, type Sounding } from '../../session/sound';
 import { failed, outage, retry, type Outage } from '../../session/rejoin';
 import { storageKey } from '../../storageKey';
 
@@ -32,7 +33,7 @@ export interface SessionOptions {
  * Cell studio as a Jambot session's client that listens (#478, rung 1): it joins a session by its name through a
  * lobby, sets its clock by the host's with pings, and follows the host's song: the bars' starts and the section texts
  * the host's band plays through cells (the session contract, `session/protocol.ts`). It sends the join, the pings
- * and, as it goes, a leave; nothing else (it plays nothing: the text is shown, not sounded).
+ * and, as it goes, a leave; nothing else. What it follows is sounded by the player through `sounding` (rung 3).
  *
  * What it follows is read where it is heard (`heading`, by the page's frame loop): the text of the bar the host's
  * output sounds now, and where in it. It ends when asked, when the host closes or refuses it, when the lobby says the
@@ -112,6 +113,18 @@ export class SessionClient {
     if (!heard) return null;
     this.#followed = pruned(this.#followed, heard.place.bar);
     return { text: heard.text, bars: heard.bars, bar: heard.place.bar, before: heard.place.before };
+  }
+
+  /**
+   * What to play of the host's song (`session/sound.ts`) from where the last ask got to (`done`; null: where it is heard
+   * now) to `lead` seconds past `now` on this page's clock; `shift` is the host's clock less this page's, to place it
+   * here. Null while not following a song, or before the clock is trusted.
+   */
+  sounding(done: Place | null, lead: number, now: number, length: (text: SectionText) => number | null): (Sounding & { shift: number }) | null {
+    if (!this.live || !this.hostPlaying) return null;
+    const at = hostHeardAt(this.#clock, now);
+    if (at === null) return null;
+    return { ...sounding(this.#followed, done, at + lead, at, length), shift: at - now };
   }
 
   /** When, on this page's clock (seconds), the text heard next gives way to another, as known at `now`; null where none is known yet. */

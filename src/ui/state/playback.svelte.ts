@@ -1,7 +1,7 @@
 import { plan } from '@yggi/cells/engine/realize';
 import { liveAt } from '@yggi/cells/engine/live';
 import { anchoredAt, mainLength, pieceTime } from '@yggi/cells/engine/duration';
-import { Player } from '../../audio/player';
+import { Player, type Feed } from '../../audio/player';
 import { chooseEngine } from '../../audio/engine';
 import type { LiveSource } from '../../audio/live';
 import { transportClock } from '../../audio/clock.svelte';
@@ -21,6 +21,8 @@ export class Playback {
   starting = $state(false);
   /** Counts stops: hands' traces — tapes' recordings, reels' turns — are gone. */
   epoch = $state(0);
+  /** A song another clock lays (a followed session's, #478 rung 3): while set, Play sounds it, not the piece from the cursor, and the place in time isn't the person's to move. */
+  feed = $state.raw<Feed | null>(null);
   /** Where a piece that ends (`laps=`) ended, while it is paused there; Play then goes on from the start. */
   #endedAt: number | null = null;
   /** How far the slider reaches: the piece, its cycle, or its longest layer (a few seconds at least: DTMF's whole cycle is a tone and a pause, nothing to move in). */
@@ -83,6 +85,7 @@ export class Playback {
     if (this.playing) return this.pause();
     this.starting = true;
     try {
+      if (this.feed) return await this.player.feed(this.feed);
       // a piece that ended plays again from the start, with what hands did kept
       if (this.#endedAt !== null) this.cursor = 0;
       this.#endedAt = null;
@@ -106,6 +109,7 @@ export class Playback {
 
   /** To another place in time: playing, on from there; else paused there. */
   async seek(to: number): Promise<void> {
+    if (this.feed) return;
     const from = this.cursor;
     this.cursor = to;
     this.#endedAt = null;
@@ -116,7 +120,7 @@ export class Playback {
 
   /** Not playing: a turntable turned by hand moves where play starts (a stopped transport is paused from then on). */
   nudge(seconds: number): void {
-    if (this.playing) return;
+    if (this.playing || this.feed) return;
     const from = this.cursor;
     this.cursor = Math.max(0, Math.min(this.span ?? Infinity, this.cursor + seconds));
     this.#endedAt = null;

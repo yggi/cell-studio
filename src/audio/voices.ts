@@ -24,7 +24,7 @@ import { buildTapeNet, fadeOut, freezeTape, holdTape, scrubTape, tapeKey, tapeLe
 export interface VoiceBank {
   /** Play a note (its times on the audio clock: see engine/schedule.ts `retime`). */
   play(note: Played): void;
-  /** Rebuild voices whose sound changed; drop ones that are gone. `muted`: graph ids switched off — what they would feed or ring stays unwired. */
+  /** Rebuild voices whose sound changed; drop ones that are gone (either rings on until its notes have ended). `muted`: graph ids switched off — what they would feed or ring stays unwired. */
   sync(result: CompileResult, shifts: Shifts, muted?: ReadonlySet<string>): void;
   /** A sound tape's speed over time (audio seconds): its delays follow — the heads' distances ÷ speed. */
   tapeSpeed(tape: string, points: readonly { at: number; speed: number }[]): void;
@@ -75,6 +75,9 @@ export interface VoiceBank {
   ready(): Promise<void>;
 }
 
+/** How often a retired voice is looked at, in milliseconds, to be freed once its last note has ended. */
+const RETIRED_CHECK_MS = 500;
+
 export function createVoices(Tone: ToneNS): VoiceBank {
   const ctx = audioContext(Tone);
   // the sound card's master (postgain=, linear) and then a limiter: nothing past full scale
@@ -86,6 +89,20 @@ export function createVoices(Tone: ToneNS): VoiceBank {
   const echo = new Tone.FeedbackDelay({ delayTime: 0.375, feedback: 0.35, wet: 1 }).connect(master);
   const bus: Bus = { master, reverb, echo };
   const built = new Map<string, Built>();
+  // voices a sync rebuilt or dropped while their notes rang: heard on until the last has ended, then freed (a section's
+  // text giving way to the next, #478, or an edit while playing, cuts no note short)
+  const retired = new Set<Built>();
+  const retire = (b: Built) => {
+    if (!b.live.size) return freeVoice(b);
+    retired.add(b);
+    const free = () => {
+      if (!retired.has(b)) return;
+      if (b.live.size) return void setTimeout(free, RETIRED_CHECK_MS);
+      retired.delete(b);
+      freeVoice(b);
+    };
+    setTimeout(free, RETIRED_CHECK_MS);
+  };
   // (whether a voice is heard from itself — connected to the master — or only through sends)
   const heard = new WeakMap<Built, boolean>();
   let resLinks: AudioNode[] = [];
@@ -157,7 +174,7 @@ export function createVoices(Tone: ToneNS): VoiceBank {
       for (const [name, b] of built) {
         const c = result.cells.get(name);
         if (!c?.voice || soundKey(result, name, shifts) !== b.key) {
-          freeVoice(b);
+          retire(b);
           built.delete(name);
         }
       }
@@ -404,12 +421,12 @@ export function createVoices(Tone: ToneNS): VoiceBank {
 
     dropGates() {
       const now = ctx.currentTime;
-      for (const b of built.values()) dropGates(b, now);
+      for (const b of [...built.values(), ...retired]) dropGates(b, now);
     },
 
     releaseAll() {
       const now = ctx.currentTime;
-      for (const b of built.values()) {
+      for (const b of [...built.values(), ...retired]) {
         // (the master gain falls with a 10 ms time constant: 6 of them, so the notes stop at under 0.3 % level, not a click)
         for (const o of b.live.keys()) o.stop(now + 0.06);
         if (b.res) hush(now, b.res);
@@ -428,8 +445,9 @@ export function createVoices(Tone: ToneNS): VoiceBank {
     },
 
     dispose() {
-      for (const b of built.values()) freeVoice(b);
+      for (const b of [...built.values(), ...retired]) freeVoice(b);
       built.clear();
+      retired.clear();
       for (const m of mixes.values()) for (const n of m.nodes) n.dispose();
       for (const n of master_.nodes) n.dispose();
       reverb.dispose();

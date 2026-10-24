@@ -6,7 +6,8 @@
  *
  * A host's times (a song's start, where a bar starts) are on its output's clock, the moment heard; each pong says that
  * clock less the host's page clock (`heard`). So the host's heard moment, on this page's clock `now`, is
- * `now + offset + heard`: what a client that listens follows (it plays nothing, so its own output doesn't enter).
+ * `now + offset + heard`: what a client follows. Its own output's delay is the audio clock's to place (`Player.feed`
+ * schedules each note where this page's clock hears it), so it doesn't enter here.
  * Delay that is always longer one way than the other can't be seen from either end: the offset is then off by half the
  * difference, within the bound.
  */

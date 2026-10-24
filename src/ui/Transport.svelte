@@ -52,8 +52,8 @@
       class="unstyled play"
       class:on={playing}
       onclick={() => playback.toggle()}
-      disabled={playback.starting || studio.following}
-      title={studio.following ? 'Following the session’s host: its transport turns this one' : undefined}
+      disabled={playback.starting}
+      title={studio.following ? (playing ? 'Silence the session (it is still followed)' : 'Hear the session: its host’s transport turns this one') : undefined}
       aria-label={playing ? 'Pause' : 'Play'}
     >
       {#if playing}
