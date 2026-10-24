@@ -1,12 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { PRESETS } from '@yggi/cells/engine/presets';
-import { createHost, planOf, type FromEngine, type ToEngine } from '@yggi/cells/engine/host';
+import { planOf, type FromEngine, type ToEngine } from '@yggi/cells/engine/host';
+import { resolveSeed } from '@yggi/cells/repository/library';
 import { windowAt } from '@yggi/cells/engine/schedule';
-import { LocalEngine, WorkerEngine, type Port } from './engine';
+import { LocalEngine, WorkerEngine, workerHost, type Port } from './engine';
 
 /** A worker stand-in: the host behind a structured clone each way, answering after `delay` ms (null: never). */
 function fakeWorker(delay: number | null = 0): Port & { sent: ToEngine[] } {
-  const host = createHost();
+  const host = workerHost();
   const port: Port & { sent: ToEngine[] } = {
     sent: [],
     onmessage: null,
@@ -37,6 +38,17 @@ describe('engines: local and worker give the same windows', () => {
     e.load(p, { code: src });
     expect(port.sent[0]).toMatchObject({ type: 'load', code: src });
     for (const from of [0, 0.25, 3.5]) expect(await e.window(from, 0.25)).toEqual(windowAt(p, from, 0.25));
+    expect(e.stats()).toMatchObject({ kind: 'worker', windows: 3, late: 0 });
+  });
+
+  it('worker: a piece that uses a fragment is compiled there through the seed library, and the same windows come back (yggi/cells#241)', async () => {
+    const used = 'use "core kit"\n&bar meter("4/4") step=100bpm\n&beat step=8n &bd ~ &hh ~ &sd ~ &hh &hh\n&out map=sample [&beat]\n';
+    const port = fakeWorker();
+    const e = new WorkerEngine(port);
+    const p = planOf(used, undefined, { resolve: resolveSeed });
+    expect(p.result.ok).toBe(true);
+    e.load(p, { code: used });
+    for (const from of [0, 0.5, 1.5]) expect(await e.window(from, 0.25)).toEqual(windowAt(p, from, 0.25));
     expect(e.stats()).toMatchObject({ kind: 'worker', windows: 3, late: 0 });
   });
 

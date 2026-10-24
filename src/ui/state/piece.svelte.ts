@@ -89,7 +89,7 @@ export class Piece {
   // the same piece from it. A remembered value, not state: it only changes as `good` is read.)
   #lastGood: { result: CompileResult; source: PieceSource };
   readonly good = $derived.by(() => {
-    if (this.playedResult.ok) this.#lastGood = { result: this.playedResult, source: { code: this.playedCode, env: this.env } };
+    if (this.playedResult.ok) this.#lastGood = { result: this.playedResult, source: { code: this.playedCode, env: this.env, locked: this.locked } };
     return this.#lastGood;
   });
   /** What's shown and played: the last version that compiled. */

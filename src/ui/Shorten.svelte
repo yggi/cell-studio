@@ -7,9 +7,11 @@
    * frontmatter (decision 047): its rewrite is a file, which the piece takes
    * (`onapply`: Piece.take), the frontmatter kept beside the code.
    */
+  import type { Locked } from '@yggi/cells/engine/program';
   import { shorten, type Suggestion } from '@yggi/cells/engine/shorten/index';
+  import { resolveSeed } from '@yggi/cells/repository/library';
 
-  let { code, onapply }: { code: string; onapply: (next: string) => void } = $props();
+  let { code, locked = [], onapply }: { code: string; locked?: readonly Locked[]; onapply: (next: string) => void } = $props();
 
   let open = $state(false);
   let list = $state<Suggestion[] | null>(null);
@@ -23,7 +25,8 @@
     setTimeout(() => {
       if (at !== code) return;
       try {
-        list = shorten(at);
+        // (a piece's `use` lines read through the seed library, as its compile does: compile.ts)
+        list = shorten(at, { resolve: resolveSeed, ...(locked.length ? { locked } : {}) });
       } catch {
         list = [];
       }

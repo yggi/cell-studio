@@ -65,9 +65,7 @@ export class Playback {
       this.#endedAt = end;
       this.cursor = Math.min(end, this.span ?? end);
     };
-    // (a piece that uses fragments goes to no engine elsewhere: cells' engine host compiles with no library, so a worker
-    // would play its `use` lines as errors, yggi/cells#241; the local engine plays it, from the plan here)
-    $effect(() => p.load(plan(piece.program, piece.shifts, piece.muted), piece.program.uses?.length ? null : piece.good.source));
+    $effect(() => p.load(plan(piece.program, piece.shifts, piece.muted), piece.good.source));
     // keep the screen awake while playing (where the browser allows it: Android Chrome does)
     $effect(() => this.#awake.set(transportClock.state === 'playing'));
   }

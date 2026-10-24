@@ -7,17 +7,22 @@
  *    instead, so a busy or broken worker costs nothing worse than the local engine.
  * Either way the main thread keeps its own plan: the views read it (live state, tapes' positions).
  */
-import type { Env } from '@yggi/cells/engine/program';
-import { emptyWindow, grabIn, type FromEngine, type ToEngine } from '@yggi/cells/engine/host';
+import type { Env, Locked } from '@yggi/cells/engine/program';
+import { createHost, emptyWindow, grabIn, type FromEngine, type ToEngine } from '@yggi/cells/engine/host';
 import { resetPhysics } from '@yggi/cells/engine/physics';
 import type { Plan } from '@yggi/cells/engine/realize';
 import { windowAt, type Window } from '@yggi/cells/engine/schedule';
+import { resolveSeed } from '@yggi/cells/repository/library';
 import { storageKey } from '../storageKey';
 
-/** The text a plan was compiled from, and its environment: what an engine elsewhere needs to make the same plan. */
+/** The engine host a worker runs: a piece's `use` lines read through the seed library, as every compile here does (compile.ts, yggi/cells#241). */
+export const workerHost = () => createHost(undefined, { resolve: resolveSeed });
+
+/** The text a plan was compiled from, its environment and its lockfile's hashes: what an engine elsewhere needs to make the same plan. */
 export interface PieceSource {
   readonly code: string;
   readonly env?: Env;
+  readonly locked?: readonly Locked[];
 }
 
 /** How the windows went: for measuring (`cellStudio.engine()`), not for playing. */
@@ -138,7 +143,7 @@ export class WorkerEngine implements Engine {
   load(plan: Plan, source: PieceSource | null): void {
     this.local.load(plan);
     if (!source) return this.fail();
-    this.port?.postMessage({ type: 'load', code: source.code, env: source.env });
+    this.port?.postMessage({ type: 'load', code: source.code, env: source.env, ...(source.locked?.length ? { locked: source.locked } : {}) });
   }
 
   window(from: number, length: number, begins = 0): Window | Promise<Window> {
