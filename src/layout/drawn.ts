@@ -1,7 +1,8 @@
 /**
  * The graph as drawn, made from the graph of what is written (engine/graph.ts `writtenGraph`): a cell with show=off
  * left out, unnamed cells and show=petal hung from the cell that uses them as petals, a cell spliced once a bulb on its
- * host (decision 014, every sub-wheel: decision 021), the room a host's bulbs take and where their edges leave from.
+ * host (decision 014, every sub-wheel: decision 021), the room a host's bulbs take and where their edges leave from;
+ * what each `use` line gives, a cluster named by its line, what nothing reads of it folded into that name (uses.ts).
  */
 import { cellId, edgeId } from '@yggi/cells/engine/ids';
 import { VOICE_KIT } from '@yggi/cells/engine/compiler/declare';
@@ -9,13 +10,26 @@ import type { CompileResult } from '@yggi/cells/engine/program';
 import { feeds, netsOf, writtenGraph, type GraphEdge, type GraphModel, type GraphNode, type WrittenGraph } from '@yggi/cells/engine/graph';
 import { effectiveShow } from './show';
 import { bulbAt, leavesFromBulb, reachOf, subWheels } from './subwheels';
+import { withUses, type UseGroup } from './uses';
 
 /**
  * A program's graph as drawn. `bulbs: false`: every cell its own node, splices used once too (the layout's tests of
- * parts beside their players).
+ * parts beside their players). `uses: false`: what a `use` line gives drawn as the piece's own (the gallery's options).
  */
-export function buildGraph(result: CompileResult, opts: { readonly bulbs?: boolean } = {}): GraphModel {
-  return petals(result, writtenGraph(result), opts.bulbs ?? true);
+export function buildGraph(result: CompileResult, opts: { readonly bulbs?: boolean; readonly uses?: boolean } = {}): GraphModel {
+  const drawn = petals(result, writtenGraph(result), opts.bulbs ?? true);
+  if (!result.uses?.length || opts.uses === false) return drawn;
+  const { model, groups } = withUses(result, drawn);
+  if (opts.bulbs ?? true) usesMemo.set(result, groups);
+  return model;
+}
+
+const usesMemo = new WeakMap<CompileResult, readonly UseGroup[]>();
+/** What each `use` line gives the graph as drawn: its group (its nodes, and the cells folded into its name). */
+export function usesOf(result: CompileResult): readonly UseGroup[] {
+  if (!result.uses?.length) return [];
+  if (!usesMemo.has(result)) buildGraph(result);
+  return usesMemo.get(result) ?? [];
 }
 
 /**

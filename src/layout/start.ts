@@ -141,18 +141,21 @@ export function startNodes(
       p = {
         id,
         depth: 0,
-        radius: 40 + 13 * t.length,
+        radius: tagRoom(t),
         x: xs.reduce((a, v) => a + v, 0) / ids.length + jitter(id, 1 + 2 * shake(s)),
         y: ys.reduce((a, v) => a + v, 0) / ids.length + jitter(id, 2 + 2 * shake(s)),
       };
     }
     p.role = 'tag';
-    p.radius = 40 + 13 * t.length;
+    p.radius = tagRoom(t);
     next.set(id, p);
     for (const m of ids) tagLinks.push({ id: `${id}~${m}`, source: m, target: id, count: 1, part: false, tag: true });
   }
   return { next, added, tagLinks };
 }
+
+/** The room a cluster's name takes in the layout (px, a radius): its tag node's, by its length. */
+export const tagRoom = (tag: string): number => 40 + 13 * tag.length;
 
 /** A graph's shape, for the rows' order chosen for it (LayoutOptions.rowOrders): its named cells and its edges, hashed. */
 export function rowsKey(model: GraphModel): string {

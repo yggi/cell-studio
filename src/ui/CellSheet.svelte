@@ -30,6 +30,7 @@
     onclose,
     onedit,
     onrename,
+    given,
     hidden = false,
   }: {
     name: string;
@@ -45,6 +46,11 @@
     onedit: (source: string) => void;
     /** Rename (the sheet follows the cell to its new name). */
     onrename: (source: string, to: string) => void;
+    /**
+     * The `use` line's id that gave it (cells decision 054, #480): read only, `source` the piece's text with its used line
+     * written in, so an edit here writes that line into the piece, overriding the used one; not renamed or deleted.
+     */
+    given?: string;
     /** Kept, not shown (a wide screen's inspector on another page). */
     hidden?: boolean;
   } = $props();
@@ -62,7 +68,7 @@
   );
 </script>
 
-{#snippet heading()}<SheetName lambda={cell?.lambda ?? null} {rename} />{/snippet}
+{#snippet heading()}<SheetName lambda={cell?.lambda ?? null} {rename} readonly={given !== undefined} />{/snippet}
 
 <Sheet label="&{name}" {onclose} side {hidden} class="cell-sheet" header={cell ? heading : undefined}>
   {#if cell}
@@ -71,19 +77,29 @@
       <div class="bigscope"><ScopeView {name} w={Math.min(560, (typeof window !== 'undefined' ? window.innerWidth : 400) - 48)} h={220} /></div>
     {/if}
     {#if rename.problem}<p class="problem" role="status">{rename.problem}</p>{/if}
+    {#if given !== undefined}<p class="given">From <code>use "{given}"</code>: an edit writes its line into the piece, in its place.</p>{/if}
     <CellPicture {name} />
     {#if sheetWheel(cell)}<BraidWheel {name} {isMeter} {source} {opened} {words} {multiline} {names} {onedit} />{/if}
     <FreeValues {name} />
     {#if words}<Settings {name} {source} {words} {multiline} {names} {onedit} />{/if}
     <Connections {name} />
     <More {name} {source} />
-    <Actions {name} {source} deletable={!!words} {pinned} {onpin} {onshowcode} {onclose} {onedit} />
+    <Actions {name} {source} deletable={!!words && given === undefined} {pinned} {onpin} {onshowcode} {onclose} {onedit} />
   {/if}
 </Sheet>
 
 <style>
   .bigscope {
     margin: 4px 0 12px;
+  }
+  .given {
+    margin: -6px 0 0;
+    color: var(--text-muted);
+    font-size: 13px;
+  }
+  .given code {
+    font-family: var(--font-code);
+    color: var(--text);
   }
   .problem {
     margin: -6px 0 0;

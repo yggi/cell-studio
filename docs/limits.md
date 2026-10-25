@@ -31,6 +31,11 @@ What Cell studio doesn't do yet or does with a catch, documented rather than tra
 - Mixes have no visual editor for their expressions (pitch terms, gains; [#33](https://github.com/yggi/cell-studio/issues/33)).
 - Pinning is layout, not music, so it isn't saved in the code.
 
+## A piece's uses
+
+- A `free()` in a used fragment (cells decision 054) isn't held by hand: Keep would write into a line the code doesn't have, so the graph's slider for it doesn't move (none of the seed library's fragments has one). Writing the cell's line into the piece (any edit of it) makes it the piece's own, and then it is held ([decision 038](decisions/038-use-groups.md)).
+- A used cell's sheet edits its line written into the piece: the edit adds that line; an edit that changes nothing back (switched off, then on) leaves the line, word for word the used one, until it is deleted.
+
 ## Layout
 
 - The signal path's layout (`?layout=flow`) has no tower axis since #440: each cell's time scale shows in the tower layout and its strip, and in the time view.

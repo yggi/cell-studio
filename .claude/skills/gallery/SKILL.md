@@ -19,6 +19,7 @@ This skill pictures what the graph draws. Its siblings picture other things, so 
 | `golden` | one graph with a value of every kind of wheel and edge, in the real Graph, stopped and live | fast |
 | `zoom` | close-ups of cells in the real Graph, stopped and live: a wheel's details as drawn among its edges | fast |
 | `mockups` | design questions, options side by side (`tools/gallery/wheels/Mockups.svelte`) | fast |
+| `uses` | how a `use` line's group is drawn: the options (a wash, a frame, a tag, a shelf) over the real Graph, and the app's own (`app`), on three pieces: one use, an override, seven uses ([decision 038](../../../docs/decisions/038-use-groups.md); `tools/gallery/uses/Sheet.svelte`; `node tools/gallery.mjs uses 3 app` one column) | fast |
 | `edge-mockups` | how an edge could be drawn, options side by side: the bus's geometry, sound, clocks, a melody, levels (`tools/gallery/edgemocks/`, [edge-styles.md](../../../docs/notes/edge-styles.md); `OUT` default `shots/edge-mockups-fast/`) | fast |
 | `roll` | a cell's piano roll (`src/ui/PianoRoll.svelte`) at a phone's width: blank, a scale, semitones, 19-EDO, chords and holds, a kit, playing (playhead, ghosts, a key held), not editable | fast |
 | `keys` | the dock's on-screen keyboard and drum pads (#255) in each state: at rest, scale dots, keys held, pads held and glowing, a phone's width (`tools/gallery/keys/Sheet.svelte`) | fast |

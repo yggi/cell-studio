@@ -1,10 +1,10 @@
 /** The examples as the gallery's sheets use them: compiled, in the live state of a moment (`liveAt`). */
-import { compileSource } from '@yggi/cells/engine/compile';
 import { codeShifts, type CompileResult, type Shifts } from '@yggi/cells/engine/program';
 import { liveAt, type LiveState } from '@yggi/cells/engine/live';
 import { ORDER } from '@yggi/cells/engine/order';
 import { PRESETS } from '@yggi/cells/engine/presets';
 import { pieceMeta } from '@yggi/cells/engine/parser/index';
+import { compilePiece } from '../../src/compile';
 import { textOf } from '../../src/library';
 import { routing, type Routing } from '@yggi/cells/engine/routing';
 
@@ -21,7 +21,8 @@ export interface Piece {
 /** A source (a text, or a piece file: its cells block) as a piece, in the live state of a moment; null when it doesn't compile. */
 export function pieceOf(key: string, given: string, seconds: number, title = pieceMeta(given)?.title ?? key): Piece | null {
   const source = textOf(given);
-  const program = compileSource(source);
+  // (its `use` lines read from the app's library, as the app compiles a piece)
+  const program = compilePiece(source);
   if (!program.ok) return null;
   const shifts = codeShifts(program);
   const muted = new Set<string>();
