@@ -4,7 +4,7 @@ import { transportClock } from './clock.svelte';
 import type { TransportState } from './transport';
 import { compileSource } from '@yggi/cells/engine/compile';
 import { codeShifts } from '@yggi/cells/engine/program';
-import { plan } from '@yggi/cells/engine/realize';
+import { eventsBetween, plan } from '@yggi/cells/engine/realize';
 
 // (no Tone in node: the sound engine's waking is stubbed out; what is tested is the transport)
 const hands: [string, (p: Player) => void, (p: Player) => void][] = [
@@ -218,5 +218,58 @@ describe('keys: press and release, a hand on a voice (#207)', () => {
     transportClock.state = 'playing';
     p.press('lead', 440, 90);
     expect(state()).toBe('playing');
+  });
+});
+
+describe('a feed: a song another clock lays (#478, rung 3)', () => {
+  // (two texts, a note a second: a section's and the next one's)
+  const a = compileSource('&bar step=1\n&t step=&bar 0 2\n&v s=sine loop=C4\n&out [&t * &v]');
+  const b = compileSource('&bar step=1\n&t step=&bar 4 5\n&w s=square loop=C4\n&out [&t * &w]');
+  const pa = plan(a, codeShifts(a));
+  const pb = plan(b, codeShifts(b));
+  const win = (p: typeof pa, from: number, to: number) => ({ from, to, events: eventsBetween(p, from, to, true), tapes: [] });
+  function fed() {
+    const p = make();
+    let tick = () => {};
+    const synced: unknown[] = [];
+    const played: { at: number; voice: string; dur: number }[] = [];
+    const tr = { stop: () => {}, cancel: () => {}, clear: () => {}, start: () => {}, position: 0, bpm: { value: 0 }, scheduleRepeat: (cb: () => void) => ((tick = cb), 7) };
+    const Tone = { getTransport: () => tr, getContext: () => ({ currentTime: 0, lookAhead: 0 }), now: () => 0, immediate: () => 100 };
+    const voices = {
+      open: () => {},
+      sync: (r: unknown) => synced.push(r),
+      play: (e: { at: number; voice: string; dur: number }) => played.push(e),
+      dropGates: () => {},
+      tapeSpeed: () => {},
+    };
+    vi.spyOn(p as unknown as { wake: () => Promise<unknown> }, 'wake').mockResolvedValue(Tone);
+    Object.assign(p as unknown as Record<string, unknown>, { Tone, voices });
+    return { p, tick: () => tick(), synced, played };
+  }
+  afterEach(() => (transportClock.state = 'stopped'));
+
+  it('plays each window on its own plan’s voices, where its page time is heard, stretched; pause ends it, the piece’s voices back', async () => {
+    const { p, tick, synced, played } = fed();
+    p.load(pa);
+    synced.length = 0;
+    const page = performance.now() / 1000;
+    let asks = 0;
+    // (the first ask: A's second bar, heard 1 s from now, its second stretched to 1.5; the next: B's first)
+    await p.feed({ next: () => (asks++ ? [{ plan: pb, window: win(pb, 0, 1), time: page + 2.5, scale: 1 }] : [{ plan: pa, window: win(pa, 1, 2), time: page + 1, scale: 1.5 }]) });
+    expect(state()).toBe('playing');
+    tick();
+    tick();
+    expect(synced).toEqual([a, b]);
+    expect(played.map((e) => e.voice)).toEqual(['v', 'w']);
+    // (on the audio clock: now's 100, the page's time ahead of now added; a second of A heard as 1.5)
+    expect(played[0]!.at).toBeCloseTo(101, 2);
+    expect(played[0]!.dur).toBeCloseTo(1.5 * eventsBetween(pa, 1, 2)[0]!.dur, 9);
+    expect(played[1]!.at).toBeCloseTo(102.5, 2);
+    // (loading the piece while fed leaves the feed's voices be)
+    p.load(pa);
+    expect(synced).toEqual([a, b]);
+    p.pause();
+    expect(state()).toBe('paused');
+    expect(synced).toEqual([a, b, a]);
   });
 });

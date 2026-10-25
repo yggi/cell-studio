@@ -3,7 +3,8 @@
    * Jam, a page of the sidebar: follow a Jambot session (#478, rung 1) by its name, a private one too (the open ones
    * are listed in the library's lobby cell, rung 2). Its lobby (the hosted one by default; the lobby cell lists this
    * one), the session's name and yours; joined, the host's section is the piece, read only, its graph turning with the
-   * host's transport, and nothing is played or sent but the join, the pings and the leave (state/session.svelte.ts).
+   * host's transport, and sounded as written (rung 3; Play silences it); nothing is sent but the join, the pings and
+   * the leave (state/session.svelte.ts).
    * Leaving returns to the piece you had. The name to go by is one of this browser's own ("Cell studio k7m",
    * session/name.ts), so two Cell studios can join one session; refused all the same, another is offered.
    */
@@ -31,8 +32,8 @@
     <h4 id="jam-follow">Follow a Jambot session</h4>
     {#if session.status === 'idle'}
       <p class="hint">
-        Its host’s section shows here as cells, read only, turning with the host’s transport. Cell studio listens: it plays nothing and sends nothing but its name. The sessions
-        open are in the library’s lobby cell; a private one is joined here, by its name.
+        Its host’s section shows here as cells, read only, turning with the host’s transport. Cell studio plays it as written, without the host’s performers’ feel yet, and sends
+        nothing but its name. The sessions open are in the library’s lobby cell; a private one is joined here, by its name.
       </p>
       <label>Session <input bind:value={name} placeholder="its name" autocomplete="off" spellcheck="false" maxlength="40" /></label>
       <label>Your name <input bind:value={player} autocomplete="off" spellcheck="false" /></label>
