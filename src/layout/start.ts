@@ -128,11 +128,18 @@ export function startNodes(
   });
 
   // tags inside the piece: a node each (its name), among its cells — it pushes cells and edges away,
-  // and its springs hold its cells round it
+  // and its springs hold its cells round it. A tag of one cell has no node: its name is a plate under the cell's own
+  // (ui/Graph.svelte), and the cell's room grows by it (a use's plate, with the cells folded into it: its height, uses.ts).
+  const plateOf = (n: GraphModel['nodes'][number]) => (n as { plate?: number }).plate;
+  const plates = new Map(model.nodes.flatMap((n) => [[n.id, plateOf(n) ?? 0] as const]));
   const members = new Map<string, string[]>();
   for (const p of next.values()) if (p.group) (members.get(p.group) ?? members.set(p.group, []).get(p.group)!).push(p.id);
   const tagLinks: PhysLink[] = [];
   for (const [t, ids] of members) {
+    if (ids.length === 1) {
+      next.get(ids[0]!)!.radius += Math.max(PLATE_ROOM, plates.get(ids[0]!) ?? 0) + PLATE_CLEAR;
+      continue;
+    }
     const id = `tag:${t}`;
     let p = s.byId.get(id);
     if (!p || fresh) {
@@ -153,6 +160,10 @@ export function startNodes(
   }
   return { next, added, tagLinks };
 }
+
+/** What a cluster of one cell adds to its room (px): its name's plate, under the cell's own name, and room under that. */
+const PLATE_ROOM = 36;
+const PLATE_CLEAR = 16;
 
 /** The room a cluster's name takes in the layout (px, a radius): its tag node's, by its length. */
 export const tagRoom = (tag: string): number => 40 + 13 * tag.length;

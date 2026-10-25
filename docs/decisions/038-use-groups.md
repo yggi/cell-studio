@@ -27,3 +27,4 @@ The options were mocked up on the real Graph (`node tools/gallery.mjs uses`: thr
 - A piece with uses draws fewer cells: the kit groove 3, not 13 (its card's size too).
 - A `free()` in a used fragment isn't held (Keep would write into a line the code doesn't have); none of the seed library's has one ([limits.md](../limits.md)).
 - A cluster's name is laid out by its length (`tagRoom`); a use's name with its chips wraps inside that room.
+- A cluster of one node is named by a plate under it, not a name node of its own (whose spring and push left the name far from its one cell: `use "aeolian"`, `use "tonic vamp"`); the node's room grows by the plate's height. A `tags=` tag on one cell is drawn so too.

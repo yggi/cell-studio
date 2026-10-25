@@ -31,6 +31,25 @@ export interface UseGroup {
   readonly folded: readonly string[];
 }
 
+/** How wide a cluster's plate (its name under its one cell) runs before it wraps (px). */
+export const PLATE_WIDTH = 420;
+
+/**
+ * How tall a cluster's plate is (px): its name, then the cells folded into it, filling rows of `PLATE_WIDTH` (ui/Graph.svelte
+ * draws the name at 26 px of the code's type and each folded cell a chip at 20 px: about .6 em a letter).
+ */
+export function plateHeight(name: string, folded: readonly string[] = []): number {
+  const [ROW, NAME, CHIP, GAP] = [40, 15.6, 12, 8];
+  let rows = 1;
+  let x = NAME * name.length + 28;
+  for (const f of folded) {
+    const w = CHIP * (f.length + 1) + 24;
+    if (x + GAP + w > PLATE_WIDTH) ((rows += 1), (x = w));
+    else x += GAP + w;
+  }
+  return rows * ROW;
+}
+
 /** A group's tag on its cells: its line, as written. */
 export const useTag = (id: string): string => `use "${id}"`;
 /** The use a tag names, or null: a `tags=` tag (a tag can't hold a double quote). */
@@ -75,12 +94,15 @@ export function useGroups(result: CompileResult, model: GraphModel): UseGroup[] 
 export function withUses(result: CompileResult, model: GraphModel): { model: GraphModel; groups: UseGroup[] } {
   const groups = useGroups(result, model);
   if (!groups.length) return { model, groups };
-  const tagOf = new Map(groups.flatMap((g) => g.nodes.map((id) => [id, useTag(g.id)] as const)));
+  const groupOf = new Map(groups.flatMap((g) => g.nodes.map((id) => [id, g] as const)));
   const folded = new Set(groups.flatMap((g) => g.folded.map(cellId)));
   const nodes = model.nodes.flatMap((n) => {
     if (folded.has(n.id)) return [];
-    const tag = tagOf.get(n.id);
-    return tag && isCellNode(n) ? [{ ...n, cell: { ...n.cell, tags: [tag, ...n.cell.tags] } }] : [n];
+    const g = groupOf.get(n.id);
+    if (!g || !isCellNode(n)) return [n];
+    // (a group of one node: its plate's height, the room the layout grows that node by — layout/start.ts)
+    const plate = g.nodes.length === 1 ? { plate: plateHeight(useTag(g.id), g.folded) } : {};
+    return [{ ...n, ...plate, cell: { ...n.cell, tags: [useTag(g.id), ...n.cell.tags] } }];
   });
   return { model: { ...model, nodes }, groups };
 }

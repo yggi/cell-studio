@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { compilePiece } from '../compile';
 import { buildGraph, usesOf } from './drawn';
-import { tagUse, useGroups, useTag } from './uses';
+import { plateHeight, tagUse, useGroups, useTag } from './uses';
 
 const KIT = 'use "core kit"\n&bar meter("4/4") step=100bpm\n&beat step=8n &bd ~ &hh ~ &sd ~ &hh [&bd,&hh]';
 const IDLE = ['rim', 'cp', 'lt', 'ph', 'mt', 'oh', 'ht', 'cr', 'rd', 'claves'];
@@ -43,5 +43,14 @@ describe('a use line’s group (#480)', () => {
     expect(tagUse(useTag('Synth-pop drums'))).toBe('Synth-pop drums');
     expect(tagUse('drums')).toBeNull();
     expect(useGroups(compilePiece('&a 1 2'), buildGraph(compilePiece('&a 1 2')))).toEqual([]);
+  });
+});
+
+describe('a cluster of one node’s plate (#480)', () => {
+  it('is as tall as its name and the cells folded into it, in rows', () => {
+    expect(plateHeight(useTag('aeolian'))).toBe(40);
+    expect(plateHeight(useTag('core kit'), IDLE)).toBe(120);
+    const r = compilePiece(KIT);
+    expect((buildGraph(r).nodes.find((n) => n.id === 'cell:kit:voices') as { plate?: number }).plate).toBe(120);
   });
 });
