@@ -1,6 +1,6 @@
 # 038 · A `use` line's cells: a cluster named by its line, what nothing reads folded into the name
 
-**Date:** 2026-10-25 · **Status:** proposed (#480) · Cells: [decision 054](https://github.com/yggi/cells/blob/main/docs/decisions/054-instruments-and-use.md)'s rung 5
+**Date:** 2026-10-25 · **Status:** accepted (owner, on #480's mock-ups) · Cells: [decision 054](https://github.com/yggi/cells/blob/main/docs/decisions/054-instruments-and-use.md)'s rung 5
 
 ## Context
 
