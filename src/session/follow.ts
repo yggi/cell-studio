@@ -11,17 +11,20 @@
 import { clocking, EPS } from '@yggi/cells/engine/clocking';
 import { mainMeter } from '@yggi/cells/engine/midiclock';
 import { codeShifts, type CompileResult } from '@yggi/cells/engine/program';
+import { frameOf, type FeelFrame } from './feel';
 import type { SectionText, SentBar } from './protocol';
 
-/** What a client keeps of a song: where each bar laid starts on the host's clock, and the texts told, in the order told. */
+/** What a client keeps of a song: where each bar laid starts on the host's clock, what the feel reads of it, and the texts told, in the order told. */
 export interface Followed {
   readonly starts: ReadonlyMap<number, number>;
+  /** Each bar's frame, as the performers read it (`feel.ts`): none for a bar whose message lacks what the feel reads. */
+  readonly frames: ReadonlyMap<number, FeelFrame>;
   readonly texts: readonly SectionText[];
   /** The song's last bar, once the host composed its finale. */
   readonly finale: number | null;
 }
 
-export const NOTHING_FOLLOWED: Followed = { starts: new Map(), texts: [], finale: null };
+export const NOTHING_FOLLOWED: Followed = { starts: new Map(), frames: new Map(), texts: [], finale: null };
 
 /** The number of a bar the host sent, as it wrote it (`bar.bar`); null where it has none. */
 const barNumber = (sent: SentBar): number | null => (Number.isInteger(sent.bar.bar) ? (sent.bar.bar as number) : null);
@@ -33,7 +36,8 @@ const KEPT_BEHIND = 16;
 export function withBar(f: Followed, sent: SentBar): Followed {
   const bar = barNumber(sent);
   if (bar === null || sent.start === null) return f;
-  return { ...f, starts: new Map(f.starts).set(bar, sent.start) };
+  const frame = frameOf(sent);
+  return { ...f, starts: new Map(f.starts).set(bar, sent.start), frames: frame ? new Map(f.frames).set(bar, frame) : f.frames };
 }
 
 /**
@@ -105,13 +109,14 @@ export function nextTextAt(f: Followed, at: number): number | null {
   return null;
 }
 
-/** What is kept of a song once a bar is heard: the starts and the texts of the last `KEPT_BEHIND` bars and on. */
+/** What is kept of a song once a bar is heard: the starts, frames and texts of the last `KEPT_BEHIND` bars and on. */
 export function pruned(f: Followed, heard: number): Followed {
   const from = heard - KEPT_BEHIND;
   if (![...f.starts.keys()].some((b) => b < from) && !f.texts.some((t) => t.bar + t.foreseen.length <= from)) return f;
   return {
     ...f,
     starts: new Map([...f.starts].filter(([b]) => b >= from)),
+    frames: new Map([...f.frames].filter(([b]) => b >= from)),
     texts: f.texts.filter((t) => t.bar + t.foreseen.length > from),
   };
 }

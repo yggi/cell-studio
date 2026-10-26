@@ -9,12 +9,14 @@ import type { Player } from './audio/player';
 import type { Recorder } from './ui/state/record.svelte';
 import { transportClock } from './audio/clock.svelte';
 import { textOf } from './library';
+import type { PlayedEvent } from './session/played';
 
-/** A Jambot session, from outside (`cellStudio.session`): join, leave, and where it stands (#478). */
+/** A Jambot session, from outside (`cellStudio.session`): join, leave, where it stands (#478), and what it played (#492). */
 export interface SessionHook {
   join(lobby: string, session: string, name: string): Promise<void>;
   leave(): void;
   state(): unknown;
+  played(from?: number): { readonly events: readonly PlayedEvent[]; readonly next: number };
 }
 
 export function installDebugHook(
@@ -58,7 +60,9 @@ export function installDebugHook(
     take: () => ({ state: recorder.state, start: recorder.start }),
     // a Jambot session (#478): join(lobby, session, name), leave(), and state(): its status, the bar heard, the text
     // shown, the cursor in it, the host's clock as read, on the page's clock (performance.now(), ms), and what the
-    // library's lobby cell lists
+    // library's lobby cell lists; and played(from?), each event the session's feed played since the `from`th, as Jambot's
+    // `played()` gives a page's (its bar, part, drum role, step, note, velocity and length in steps as the performers play
+    // it, and its onset and duration on the host's clock, seconds), the latest 20,000 kept, and the number of the next
     session,
     // a voice's current peak level
     level: (n: string) => {

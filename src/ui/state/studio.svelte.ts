@@ -133,9 +133,10 @@ export class Studio {
             heading: h && { bar: h.bar, bars: h.bars, before: h.before, textBar: h.text.bar, text: h.text.text },
             shown: { code: this.piece.code, readOnly: this.piece.readOnly, cursor: this.playback.cursor, tab: this.view.tab },
             listed: { sessions: this.listed.sessions, problem: this.listed.problem, answered: this.listed.answered },
-            sound: this.#feed && { playing: this.playback.playing, played: this.#feed.played, lacked: this.#feed.lacked },
+            sound: this.#feed && { playing: this.playback.playing, played: this.#feed.played, unread: this.#feed.unread, lacked: this.#feed.lacked },
           };
         },
+        played: (from) => this.#feed?.log.since(from) ?? { events: [], next: 0 },
       },
     );
     // MIDI out: the notes the player plays go to the output chosen too

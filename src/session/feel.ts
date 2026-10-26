@@ -1,6 +1,7 @@
 /**
- * The performers' feel (yggi/music-commons `contracts/feel`, version 1; #484, part of #478 rung 3): how a Jambot host's
- * performers play the events cells plays for a bar, so a client sounds a session as its host does. The text says what is
+ * The performers' feel (yggi/music-commons `contracts/feel`, version 1, minor 1; #484, #492, part of #478 rung 3): how a
+ * Jambot host's performers play the events cells plays for a bar, so a client sounds a session as its host does, and
+ * which part and drum role each event of a host's section text is (`readingOf`, minor 1). The text says what is
  * composed, and the playing is the player's (cells decision 037); the hub's README is the rule, written here from it with
  * no import from Jambot, and `feel.test.ts` meets its vectors.
  *
@@ -30,6 +31,19 @@ const PARTS: readonly FeelPart[] = ['drums', 'bass', 'pad', 'stab', 'lead'];
 
 /** A drum hit's role in the groove. */
 type DrumRole = 'kick' | 'backbeat' | 'ghost' | 'hat' | 'pedal' | 'euclid' | 'clave' | 'fill';
+const ROLES: ReadonlySet<string> = new Set<DrumRole>(['kick', 'backbeat', 'ghost', 'hat', 'pedal', 'euclid', 'clave', 'fill']);
+
+/**
+ * The part and drum role an event of a host's section text is, read off the output cells names it by
+ * (`voice:cell:line:col`, split on `:`): a groove's member of the kit cells makes, `kit:voices:<role>:…`, is the drums,
+ * its role the third field; any other output's part is its second field, the line its voice plays. Null for one that
+ * names none of the feel's parts or roles: it plays as cells gives it.
+ */
+export function readingOf(output: string | undefined): { readonly part: FeelPart; readonly role?: DrumRole } | null {
+  const [first, second, third] = (output ?? '').split(':');
+  if (first === 'kit' && second === 'voices') return third !== undefined && ROLES.has(third) ? { part: 'drums', role: third as DrumRole } : null;
+  return second !== undefined && second !== 'drums' && (PARTS as readonly string[]).includes(second) ? { part: second as FeelPart } : null;
+}
 
 /** One of cells' events in a bar: its line, a drum's role, the step it is written on (whole), its note, velocity and sounding length in steps. */
 export interface FeelEvent {
