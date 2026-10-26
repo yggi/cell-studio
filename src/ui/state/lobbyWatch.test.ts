@@ -43,7 +43,7 @@ describe('the library’s lobby cell, watched (#478, rung 2)', () => {
     watch.show(true, 'wss://lobby.test');
     sockets[0]!.open();
     sockets[0]!.say({ op: 'sessions', sessions: [{ name: 'jam', players: 2 }] });
-    expect([watch.answered, watch.sessions]).toEqual([true, [{ name: 'jam', players: 2 }]]);
+    expect([watch.answered, watch.sessions]).toEqual([true, [{ name: 'jam', players: 2, away: false }]]);
     watch.show(false, 'wss://lobby.test');
     // (closed: no socket open, nothing listed, and nothing sent however long it stays closed)
     expect(sockets.every((s) => s.closed)).toBe(true);
@@ -55,6 +55,28 @@ describe('the library’s lobby cell, watched (#478, rung 2)', () => {
     watch.show(true, 'wss://lobby.test');
     sockets[1]!.open();
     expect(sockets[1]!.sent).toBe(1);
+  });
+
+  it('marks a session whose host is away within LIST_EVERY, offers no join to it while the lobby says so, and offers it again once back (session minor 3)', () => {
+    expect(LIST_EVERY).toBeLessThanOrEqual(2000);
+    watch.show(true, 'wss://lobby.test');
+    const lobby = sockets[0]!;
+    // (the lobby answers each ask with the sessions as they are at that moment)
+    const now = { away: false };
+    lobby.send = () => {
+      lobby.sent++;
+      lobby.say({ op: 'sessions', sessions: [{ name: 'Jam', players: 2, away: now.away }] });
+    };
+    lobby.open();
+    expect([watch.sessions[0]?.away, watch.joinable('Jam')]).toEqual([false, true]);
+    now.away = true;
+    vi.advanceTimersByTime(LIST_EVERY);
+    expect([watch.sessions[0]?.away, watch.joinable('Jam'), watch.joinable(' jam '), watch.joinable('reel')]).toEqual([true, false, false, true]);
+    vi.advanceTimersByTime(5 * LIST_EVERY);
+    expect(watch.joinable('Jam')).toBe(false);
+    now.away = false;
+    vi.advanceTimersByTime(LIST_EVERY);
+    expect([watch.sessions[0]?.away, watch.joinable('Jam')]).toEqual([false, true]);
   });
 
   it('watches another lobby once its address has stood a moment, not one socket a keystroke', () => {

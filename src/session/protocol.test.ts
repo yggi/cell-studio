@@ -1,5 +1,5 @@
 /**
- * The session contract (yggi/music-commons `contracts/session`, version 1, minor 1) run against Cell studio's client
+ * The session contract (yggi/music-commons `contracts/session`, version 1, minor 3) run against Cell studio's client
  * side, in the form cells and webmidi run theirs (yggi/webmidi src/contracts.test.ts @ 41ef16b): the hub's vectors are
  * copied beside this file (`vectors.json`, its `lifted` line naming the hub and the commit), and the hub's README for
  * the contract is the rule. A client reads two of the contract's four readers: a host's messages (`client`) and what a
@@ -46,10 +46,10 @@ function messageOf(v: Vector): unknown {
 
 const of = (reader: Vector['reader']) => contract.vectors.filter((v) => v.reader === reader);
 
-describe('the session contract (music-commons contracts/session, version 1, minor 1)', () => {
+describe('the session contract (music-commons contracts/session, version 1, minor 3)', () => {
   it('is the version this client speaks, lifted with its source named', () => {
     expect(contract.lifted).toMatch(/^Lifted from yggi\/music-commons contracts\/session\/vectors\.json @ [0-9a-f]{7}/);
-    expect([contract.contract, contract.version, contract.minor]).toEqual(['session', 1, 1]);
+    expect([contract.contract, contract.version, contract.minor]).toEqual(['session', 1, 3]);
     expect(contract.protocol).toBe(PROTOCOL);
     expect(contract.firstProtocol).toBe(FIRST_PROTOCOL);
     for (const [k, v] of Object.entries(LIMITS)) expect([k, contract.limits[k]]).toEqual([k, v]);

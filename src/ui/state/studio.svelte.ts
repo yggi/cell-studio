@@ -212,9 +212,11 @@ export class Studio {
 
   /**
    * Join a session the library's lobby cell lists, through the lobby it lists (`session.lobby`), by this browser's
-   * name; a name the host refuses as taken, once more by another (the Jam page offers it; here it is taken).
+   * name; a name the host refuses as taken, once more by another (the Jam page offers it; here it is taken). Nothing,
+   * while the lobby lists its host away (`LobbyWatch.joinable`).
    */
   joinListed(session: string): Promise<void> {
+    if (!this.listed.joinable(session)) return Promise.resolve();
     const store = browserStore();
     return this.session.join(this.session.lobby, session, defaultPlayerName(store, NAME_KEY), (taken) => {
       const other = anotherName(taken);
