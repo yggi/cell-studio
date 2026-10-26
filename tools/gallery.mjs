@@ -8,6 +8,7 @@
 //   node tools/gallery.mjs edge-mockups                      the edge styles' options on the real Graph (docs/notes/edge-styles.md)
 //   node tools/gallery.mjs labels                            how edges, nets, sub-wheels, nodes and belts could be labelled (#137, #274)
 //   node tools/gallery.mjs mockups                            the wheel design questions (#107)
+//   node tools/gallery.mjs uses                               how a `use` line's group is drawn: options side by side (#480)
 //   node tools/gallery.mjs roll [secs]                        a cell's piano roll in each state (#211)
 //   node tools/gallery.mjs keys                               the dock's on-screen keys and drum pads in each state (#255)
 //   node tools/gallery.mjs graphs                             every example's graph as the library's miniature (tools/graphs.mjs)
@@ -19,7 +20,7 @@
 // directly (tools/gallery/fast.mjs, from the working tree). A new subject: a folder in tools/gallery/ with a Sheet
 // component, and a line in tools/gallery/harness.ts.
 const [subject, ...args] = process.argv.slice(2);
-const SUBJECTS = ['wheels', 'edges', 'edge-mockups', 'golden', 'zoom', 'mockups', 'roll', 'keys', 'labels', 'graphs', 'time', 'play', 'sky'];
+const SUBJECTS = ['wheels', 'edges', 'edge-mockups', 'golden', 'zoom', 'mockups', 'uses', 'roll', 'keys', 'labels', 'graphs', 'time', 'play', 'sky'];
 if (!SUBJECTS.includes(subject)) {
   console.error(`usage: node tools/gallery.mjs <${SUBJECTS.join('|')}> [--fast] [secs] [pieces…]`);
   process.exit(2);

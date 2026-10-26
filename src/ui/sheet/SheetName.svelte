@@ -2,12 +2,15 @@
   /** The sheet's heading: the cell's name, edited where it's shown (Enter renames, Escape puts it back); an unnamed cell, as written. */
   import { nameKeys, type Rename } from './rename.svelte';
 
-  let { lambda, rename }: { lambda: string | null; rename: Rename } = $props();
+  /** `readonly`: a cell a `use` line gives, named by its fragment (#480). */
+  let { lambda, rename, readonly = false }: { lambda: string | null; rename: Rename; readonly?: boolean } = $props();
   let input = $state<HTMLInputElement | null>(null);
 </script>
 
 {#if lambda}
   <h2 class="lambda">&amp;({lambda})</h2>
+{:else if readonly}
+  <h2 class="name"><span aria-hidden="true">&amp;</span>{rename.draft}</h2>
 {:else}
   <label class="name" class:bad={!!rename.problem}>
     <span aria-hidden="true">&amp;</span>
