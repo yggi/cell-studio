@@ -53,7 +53,7 @@ if (process.env.ABOVE) q.set('above', process.env.ABOVE);
 if (process.env.CELLS) q.set('src', readFileSync(process.env.CELLS, 'utf8'));
 const url = `${server.resolvedUrls.local[0]}tools/gallery/harness.html?${q}`;
 const browser = await chromium.launch({ args: ['--no-sandbox'] });
-const page = await browser.newPage({ viewport: { width: { edges: 2560, golden: 2840, zoom: 1600 }[subject] ?? 1500, height: 1000 }, deviceScaleFactor: scale });
+const page = await browser.newPage({ viewport: { width: { edges: 2560, golden: 2840, zoom: 1600, uses: 2700 }[subject] ?? 1500, height: 1000 }, deviceScaleFactor: scale });
 const problems = [];
 page.on('pageerror', (e) => problems.push(e.message));
 page.on('console', (m) => m.type() === 'error' && !/Failed to load resource/.test(m.text()) && problems.push(m.text()));
@@ -86,7 +86,7 @@ await page.waitForSelector('figure[data-kind]', { timeout: 60000 }).catch(async 
   await server.close();
   process.exit(1);
 });
-await page.waitForTimeout(subject === 'golden' || subject === 'zoom' ? 6000 : 1500); // (the spectra fill in from the made-up sound; a graph lays itself out and frames itself)
+await page.waitForTimeout(subject === 'golden' || subject === 'zoom' || subject === 'uses' ? 6000 : 1500); // (the spectra fill in from the made-up sound; a graph lays itself out and frames itself)
 if (subject === 'zoom') {
   // each frame zoomed in on its cells (ZOOM=a,b, or every wheel with bulbs), a close-up of each with room round it
   const want = process.env.ZOOM?.split(',').filter(Boolean);

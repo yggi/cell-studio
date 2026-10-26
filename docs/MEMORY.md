@@ -83,6 +83,7 @@ One line each; the record has the rationale. → [decisions/](decisions/README.m
 - 034 · A MIDI file's graph is its machine (the cells it plays through), read only (*Convert to cells first*); Convert to cells folds first, then replays the fold's story, the code set a frame at a time, a cell coming in each (supersedes 025's waiting graph) · → decisions/034-midi-machine.md
 - 037 · One frame of four slots that make room, never cover: the header (the transport, the views' switch *Library · Graph · Time*), the code at the left (a pane on a wide screen), the stage, the inspector at the right (a cell's sheet and the sidebar's pages, one pane), the keys below; a phone keeps its sheets · → decisions/037-one-frame.md
 - 036 · White where another value would mean nothing: a cell's 0 that is only *now* (a section's clock, a reel, a groove of one drum) is white (`--unit`), a 0 that is a pitch red, any other value coloured; measured by playing 7 for 0 · → decisions/036-one-value-is-white.md
+- 038 · A `use` line's cells are a cluster named by its line, what nothing reads folded into the name; an edit writes its line into the piece · → decisions/038-use-groups.md
 
 ## Where things are tracked
 

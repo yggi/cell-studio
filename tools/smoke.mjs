@@ -226,7 +226,9 @@ if (only.length === 0) {
     const code = await op.evaluate(() => document.querySelector('textarea')?.value ?? '');
     if (code !== USES) problems.push(`the editor shows ${JSON.stringify(code.slice(0, 60))}, not the piece as written`);
     const drawn = await op.$$eval('.svelte-flow__node', (ns) => ns.map((n) => n.dataset.id));
-    if (!drawn.includes('cell:beat') || !drawn.includes('cell:rim')) problems.push(`the graph has no beat or no kit voice (it has ${drawn.join(', ')})`);
+    // (the beat and the kit's wheel it plays through; a voice of the kit nothing reads, &rim, is folded into the use's name: #480)
+    if (!drawn.includes('cell:beat') || !drawn.includes('cell:kit:voices')) problems.push(`the graph has no beat or no kit (it has ${drawn.join(', ')})`);
+    if (drawn.includes('cell:rim')) problems.push(`the kit's &rim, which nothing reads, is drawn, not folded into the use's name (it has ${drawn.join(', ')})`);
     const transport = op.locator('.transport');
     await transport.getByRole('button', { name: 'Play' }).first().click();
     // (the loudest of the beat's three voices, once one is over 0.01: a hit, caught between the rests)
