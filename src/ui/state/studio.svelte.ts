@@ -451,7 +451,9 @@ export class Studio {
     // an unnamed cell lives inside the line it's written on: λ<line>_<column>
     const lambda = /^λ(\d+)_/.exec(name);
     const i = lambda ? +lambda[1]! - 1 : declLine(this.piece.code, name);
-    if (i >= 0) this.editor?.showLine(i + 1);
+    // (a cell a `use` line gave: that line, #480)
+    const use = i < 0 ? this.piece.result.uses?.find((u) => u.gave.includes(`&${name}`)) : undefined;
+    if (i >= 0 || use) this.editor?.showLine(use ? use.span.line : i + 1);
   }
 
   // ---- the performance overlay (ui/PerfOverlay.svelte)

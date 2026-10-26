@@ -48,7 +48,11 @@
   import { nodeSections, sectionRgb, tagSections } from './sections';
   import { towerStructure } from '../layout/tower';
   import { minimap } from '../layout/minimap';
-  import { bulbHosts } from '../layout/drawn';
+  import { bulbHosts, usesOf } from '../layout/drawn';
+  import { givenBy, PLATE_WIDTH, tagUse } from '../layout/uses';
+  import { tagRoom } from '../layout/start';
+  import { bodyOf, NAME_PLATE } from '../layout/voice';
+  import { withUsedLine } from '../compile';
   import { headPoint, UNTURNED } from '../layout/tape';
   import SectionLooms from './SectionLooms.svelte';
   import { towerIns, towerY } from '../layout/towerlayout';
@@ -174,10 +178,14 @@
   });
   const shown = $derived(layout.shown);
 
+  // what each `use` line gives (layout/uses.ts): its cluster's cells, and those folded into its name
+  const uses = $derived(usesOf(shown.program));
+  const folded = $derived(new Set(uses.flatMap((g) => g.folded)));
+
   // open a newly added cell as soon as it appears in the graph
   let focused = 0;
   $effect(() => {
-    if (focus && focus.token !== focused && shown.model.nodes.some((n) => n.id === `cell:${focus.name}`)) {
+    if (focus && focus.token !== focused && (shown.model.nodes.some((n) => n.id === `cell:${focus.name}`) || folded.has(focus.name))) {
       focused = focus.token;
       selected = `cell:${focus.name}`;
     }
@@ -196,8 +204,20 @@
   });
   // (a product's junction is not a cell: never selected)
   const selectedNode = $derived(selected ? shown.model.nodes.filter(isCellNode).find((n) => n.id === selected) : undefined);
-  // (or a bulb on a wheel: the cell it splices, which has no node of its own — decision 014, 016)
-  const selectedName = $derived(selectedNode?.cell.name ?? (selected && shown.model.bulbs.has(selected.slice('cell:'.length)) ? selected.slice('cell:'.length) : undefined));
+  // (or a bulb on a wheel: the cell it splices, which has no node of its own — decision 014, 016; or a cell a use gave
+  // that nothing reads, folded into its use's name)
+  const selectedName = $derived.by(() => {
+    if (selectedNode) return selectedNode.cell.name;
+    const name = selected?.slice('cell:'.length);
+    return name !== undefined && (shown.model.bulbs.has(name) || folded.has(name)) ? name : undefined;
+  });
+  // (a used cell's sheet edits the piece's text with its used line written in: an edit is a line of the piece's own)
+  const given = $derived(selectedName === undefined ? undefined : givenBy(uses, selectedName));
+  const sheetSource = $derived.by(() => {
+    if (!given || selectedName === undefined) return source;
+    const locked = (shown.program.uses ?? []).flatMap((u) => (u.hash ? [{ id: u.id, hash: u.hash }] : []));
+    return withUsedLine(source, selectedName, locked);
+  });
   $effect(() => {
     const name = selectedName ?? null;
     untrack(() => onsheet?.(name));
@@ -447,14 +467,18 @@
     return () => clearTimeout(t);
   });
 
+  // (a plate's gap under the cell's own name)
+  const PLATE_GAP = 6;
   // clusters: the tags cells carry inside the piece (not the card's) — where their members are, now
   const clusters = $derived.by(() => {
-    const byTag = new Map<string, { x: number; y: number; size: number }[]>();
+    const byTag = new Map<string, { x: number; y: number; size: number; below: number }[]>();
     for (const n of layout.nodes) {
       const g = shown.model.nodes.find((m) => m.id === n.id);
       if (!g?.cell || g.petalOf || g.cell.note || !g.cell.tags.length) continue;
       const size = (n.data as { size?: number }).size ?? 128;
-      for (const t of g.cell.tags) (byTag.get(t) ?? byTag.set(t, []).get(t)!).push({ x: n.position.x, y: n.position.y, size });
+      // (where its drawing ends below its centre, its name included: a voice's body, a wheel's bulbs)
+      const below = g.kind === 'voice' ? bodyOf(size) : size / 2 + (g.reach?.below ?? 0) + NAME_PLATE;
+      for (const t of g.cell.tags) (byTag.get(t) ?? byTag.set(t, []).get(t)!).push({ x: n.position.x, y: n.position.y, size, below });
     }
     const tags = [...byTag.keys()].sort();
     // (a tag the sections of a selector step: its section's tint, as its strands wear it — a pastel shade of the rainbow;
@@ -466,11 +490,17 @@
     };
     return [...byTag].map(([tag, ms]) => {
       const { x, y, r } = clusterDisc(ms, 90, 120);
-      // its name: where its tag node is (a node of the layout, keeping cells and edges off it)
-      const at = layout.position(`tag:${tag}`) ?? { x, y: y - r };
-      return { tag, x, y, r, nx: at.x, ny: at.y, colour: colourOf(tag) };
+      // its name: where its tag node is (a node of the layout, keeping cells and edges off it); a cluster of one cell has
+      // none: its name is a plate under the cell's own, in the room the layout grew it by (layout/start.ts)
+      const one = ms.length === 1 ? ms[0]! : undefined;
+      const at = one ? { x: one.x, y: one.y + one.below + PLATE_GAP } : (layout.position(`tag:${tag}`) ?? { x, y: y - r });
+      const use = tagUse(tag);
+      return { tag, x, y, r, nx: at.x, ny: at.y, plate: !!one, colour: colourOf(tag), use, folded: uses.find((g) => g.id === use)?.folded ?? [] };
     });
   });
+
+  // (each cluster's name, framed with the nodes: the room the layout keeps for it, round where it is)
+  const clusterNames = () => clusters.map((c) => ({ x: c.nx - tagRoom(c.tag), y: c.ny - tagRoom(c.tag) / 2, width: 2 * tagRoom(c.tag), height: tagRoom(c.tag) }));
 
   // the shifts of the tables that turn, as now: a key that changes only when one does (not a played cell's: its hand
   // moves, its ring doesn't: layout/turning.ts)
@@ -513,6 +543,27 @@
   });
 </script>
 
+{#snippet clusterName(c: (typeof clusters)[number])}
+  {#if c.use === null}
+    <div class="cluster-name" class:plate={c.plate} style:left="{c.nx}px" style:top="{c.ny}px" style:--hue={c.colour}>{c.tag}</div>
+  {:else}
+    <!-- a use's cluster: named by its line; the cells it gave that nothing reads, folded in, each opens its sheet -->
+    <div
+      class="cluster-name use"
+      class:plate={c.plate}
+      style:left="{c.nx}px"
+      style:top="{c.ny}px"
+      style:max-width="{c.plate ? PLATE_WIDTH : 2 * tagRoom(c.tag)}px"
+      style:--hue={c.colour}
+    >
+      <span class="line">use "{c.use}"</span>
+      {#each c.folded as name (name)}
+        <button class="folded nopan" type="button" onclick={() => select(`cell:${name}`)}>&amp;{name}</button>
+      {/each}
+    </div>
+  {/if}
+{/snippet}
+
 <div class="graph" class:margined={hasMargin} class:stripped={towered} class:sky style:--strip-width="{stripW}px" style:--margin-width="{MARGIN_WIDTH}px" bind:clientWidth={graphW}>
   {#if hasMargin}<Margin model={shown.model} heightOf={(id) => layout.position(id)?.y} settled={layout.fitToken} onlight={(id) => (sideLit = id)} />{/if}
   <div class="flow" bind:clientWidth={flowW} bind:this={flowEl}>
@@ -550,7 +601,7 @@
     >
       <Background gap={28} size={1.5} />
       <Controls showLock={false} />
-      <FitView token={layout.fitToken + sideFits + splitFits + refit} calm={growing} />
+      <FitView token={layout.fitToken + sideFits + splitFits + refit} calm={growing} extra={clusterNames} />
       <FlyTo to={flyTo} />
       <PinchZoom zoom={pinched} />
       <PanBounds extent={translateExtent} />
@@ -558,12 +609,16 @@
       {#if towered}
         {#if layout.looms.length}<ViewportPortal target="back"><SectionLooms looms={layout.looms} /></ViewportPortal>{/if}
       {/if}
-      <!-- clusters: cells tagged alike inside the piece (tags=), washed and named behind their members -->
+      <!-- clusters: cells tagged alike inside the piece (tags=), washed and named behind their members; a cluster of one
+           cell named by a plate under it, over the wires (an opaque name plate, as a node's) -->
       <ViewportPortal target="back">
         {#each clusters as c (c.tag)}
           <div class="cluster" style:left="{c.x}px" style:top="{c.y}px" style:width="{c.r * 2}px" style:height="{c.r * 2}px" style:--hue={c.colour}></div>
-          <div class="cluster-name" style:left="{c.nx}px" style:top="{c.ny}px" style:--hue={c.colour}>{c.tag}</div>
+          {#if !c.plate}{@render clusterName(c)}{/if}
         {/each}
+      </ViewportPortal>
+      <ViewportPortal target="front">
+        {#each clusters.filter((c) => c.plate) as c (c.tag)}{@render clusterName(c)}{/each}
       </ViewportPortal>
     </SvelteFlow>
   </div>
@@ -625,7 +680,8 @@
     <CellSheet
       name={selectedName ?? ''}
       isMeter={selectedNode?.kind === 'cell' && selectedNode.isMeter}
-      {source}
+      source={sheetSource}
+      given={given?.id}
       {opened}
       pinned={!!selectedNode && layout.pinned.has(selectedNode.id)}
       onpin={() => selectedNode && layout.togglePin(selectedNode.id)}
@@ -748,6 +804,48 @@
     font: 800 44px var(--font-ui); /* (read at the zoom a whole piece fits in) */
     white-space: nowrap;
     pointer-events: none;
+  }
+  /* a use's: its line in the code's type, read only (a dashed rim), the cells it folds as chips beside it */
+  /* a cluster of one cell: its name a plate hung under the cell's own (its top there), in the cluster's type, smaller */
+  :global(.cluster-name.plate) {
+    transform: translate(-50%, 0);
+    font-size: 30px;
+    background: color-mix(in oklab, var(--hue) 22%, var(--bg));
+  }
+  :global(.cluster-name.use.plate) {
+    font-size: 26px;
+    background: color-mix(in oklab, var(--hue) 14%, var(--bg));
+  }
+  :global(.cluster-name.use.plate .folded) {
+    font-size: 20px;
+  }
+  :global(.cluster-name.use) {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 8px 10px;
+    white-space: normal;
+    border-style: dashed;
+    background: color-mix(in oklab, var(--hue) 12%, var(--surface));
+    font: 700 34px var(--font-code);
+  }
+  :global(.cluster-name.use .line) {
+    white-space: nowrap;
+  }
+  :global(.cluster-name.use .folded) {
+    padding: 2px 12px;
+    border-radius: 999px;
+    border: 1.5px dashed color-mix(in oklab, var(--hue) 70%, transparent);
+    background: var(--surface);
+    color: var(--text-muted);
+    font: 600 24px var(--font-code);
+    cursor: pointer;
+    pointer-events: auto;
+  }
+  :global(.cluster-name.use .folded:hover) {
+    color: var(--text);
+    border-style: solid;
   }
   .legend-wrap {
     position: absolute;

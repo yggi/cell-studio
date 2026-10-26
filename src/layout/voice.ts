@@ -29,7 +29,7 @@ export const socketOf = (size: number) => size / 2;
 export const bottomOf = (size: number) => size * BAND_BOTTOM;
 
 /** A wheel's name under it, as every node's: how far it reaches below what it names (px). */
-const NAME_PLATE = 30;
+export const NAME_PLATE = 30;
 
 /** How far below a voice's centre its drawing reaches: its envelope band, then its name (px). */
 export const bodyOf = (size: number) => bottomOf(size) + NAME_PLATE;

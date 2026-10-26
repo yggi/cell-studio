@@ -332,9 +332,27 @@ describe('Piece: a piece that uses a fragment (cells decision 054)', () => {
 
   it('draws its card and its miniature in the library', () => {
     const entry = savedEntry({ id: 'k', title: 'Kit groove', source: FILE, saved: '2026-10-22T00:00:00Z' });
-    // (its bar, its beat, the kit its beat plays, and the core kit's ten voices it doesn't read, each a cell of its own
-    // until the graph groups what a use gives: cells decision 054's rung 5)
-    expect([entry.time !== undefined, entry.size]).toEqual([true, 13]);
+    // (its bar, its beat and the kit its beat plays: the core kit's ten voices it doesn't read are folded into its use's
+    // name, #480)
+    expect([entry.time !== undefined, entry.size]).toEqual([true, 3]);
     expect(miniature(USES)?.nodes.length).toBeGreaterThanOrEqual(entry.size!);
+  });
+
+  it('edits a used cell by writing its line into the code, one line, under its use; deleting it brings the kit’s back (#480)', () => {
+    const p = new Piece(USES);
+    const events = () => windowAt(plan(p.program, codeShifts(p.program), p.muted), 0, 2.4).events.length;
+    const before = events();
+    p.toggle('cell:hh');
+    expect(p.code.split('\n')).toEqual([USES.split('\n')[0], '&hh off s=white hpf=8000 env=&(map=adsr 0 .04 0 .02)', ...USES.split('\n').slice(1)]);
+    expect(p.program.cells.get('hh')?.off).toBe(true);
+    expect(events()).toBeLessThan(before);
+    // (now the piece's own: its next edit is of that line, no other is added)
+    p.toggle('cell:hh');
+    p.turn('rim', 3);
+    expect(p.code.split('\n')).toHaveLength(USES.split('\n').length + 2);
+    expect(p.code.split('\n')[1]).toMatch(/^&hh s=white/);
+    expect(p.code.split('\n')[2]).toMatch(/^&rim .*shift=3/);
+    p.code = USES;
+    expect(events()).toBe(before);
   });
 });

@@ -1,5 +1,5 @@
 import { codeShifts, type CompileResult, type Used } from '@yggi/cells/engine/program';
-import { compilePiece } from '../../compile';
+import { compilePiece, withUsedLine } from '../../compile';
 import { addCell, setFree, setOff, setShift } from '@yggi/cells/engine/edit';
 import { freeIndex, freeList, withHeld } from '@yggi/cells/engine/held';
 import { buildGraph } from '../../layout/drawn';
@@ -30,7 +30,9 @@ import { pieceStats } from '@yggi/cells/engine/stats';
  * block it came from and the prose between them as it was. The editor shows the code, the join, not the file.
  *
  * Its `use "id"` lines (cells decision 054) compile through the app's library (`compilePiece`), with the hashes its
- * file's lockfile recorded; the file records what a `use` with no entry yet resolved to (`recorded`).
+ * file's lockfile recorded; the file records what a `use` with no entry yet resolved to (`recorded`). A cell a `use`
+ * gave is read only: an edit of it (turned, switched off) writes its used line into the code with the edit, under its
+ * `use` (`withUsedLine`), a line of the piece's own that overrides the used one; deleting that line brings it back (#480).
  */
 export class Piece {
   #code = $state('');
@@ -169,17 +171,22 @@ export class Piece {
     }
   }
 
+  /** The code with a used cell's line written in (#480): what an edit of the cell rewrites. */
+  #own(name: string): string {
+    return withUsedLine(this.#code, name, this.locked);
+  }
   /** Turn a cell; one whose shift is free(…) moves its free value (the wheel and its slider are one control). */
   turn(name: string, shift: number): void {
     if (this.midi) return;
     const free = this.program.cells.get(name)?.frees.find((f) => f.key === 'shift');
-    this.code = free ? setFree(this.code, free, shift) : setShift(this.code, name, shift);
+    if (free && !this.#used(free.span.line)) this.code = setFree(this.code, free, shift);
+    else this.code = setShift(this.#own(name), name, shift);
   }
   /** Switch a cell (a graph id, `cell:<name>`) on or off; any other node (a product's junction) is not a cell: nothing. */
   toggle(id: string): void {
     if (!id.startsWith('cell:') || this.midi) return;
     const name = id.slice('cell:'.length);
-    this.code = setOff(this.code, name, !this.program.cells.get(name)?.off);
+    this.code = setOff(this.#own(name), name, !this.program.cells.get(name)?.off);
   }
   /** Add a new cell; its name. */
   add(): string {
@@ -188,10 +195,17 @@ export class Piece {
     this.code = r.source;
     return r.name;
   }
-  /** Move a free(…) value by hand: it plays, and the code keeps what's written until `keep`. */
+  /** A line of the expansion past the code's own: a used fragment's (cells decision 054). */
+  #used(line: number): boolean {
+    return line > this.#code.split('\n').length;
+  }
+  /**
+   * Move a free(…) value by hand: it plays, and the code keeps what's written until `keep`. Not a used fragment's: Keep
+   * would write into a line the code doesn't have (none of the seed library's has one: docs/limits.md).
+   */
   hold(spec: Pick<FreeSpec, 'span'>, v: number | string): void {
     const i = freeIndex(this.program, spec);
-    if (i < 0 || this.midi || this.readOnly) return;
+    if (i < 0 || this.midi || this.readOnly || this.#used(spec.span.line)) return;
     this.held = new Map(this.held).set(i, v);
   }
   /** Write what's held into the code: everything, or one free(…) (a braid's take, from its sheet). */
