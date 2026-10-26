@@ -14,7 +14,9 @@ const voice = vi.hoisted(() => ({
   freed: [] as string[],
 }));
 
-vi.mock('./voice/voice', async (original) => ({
+// (the tests share their modules, `isolate: false`: the voice module is mocked afresh, and the bank imported after it)
+vi.resetModules();
+vi.doMock('./voice/voice', async (original) => ({
   ...(await original<typeof import('./voice/voice')>()),
   buildVoice: (_T: unknown, _c: unknown, _b: unknown, _r: unknown, name: string, _s: unknown, key: string) => {
     const b = { name, key, live: new Map(), nodes: [], notes: [], out: anything() };
