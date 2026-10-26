@@ -58,7 +58,7 @@ if ((await shut.count()) > 0) await shut.click();
 await host.getByRole('textbox', { name: 'Session name' }).fill(SESSION);
 await host.getByRole('radio', { name: /Global/ }).click();
 await host.getByRole('button', { name: 'Host', exact: true }).click();
-await host.locator('details[aria-label="Session"] summary .sub').filter({ hasText: 'Hosting' }).waitFor({ timeout: 15000 });
+await host.locator('details[aria-label="Session"] summary .sub').filter({ hasText: 'Hosting' }).waitFor({ state: 'attached', timeout: 15000 });
 
 // Cell studio: joined through the lobby, then the band started
 const studio = await page('Cell studio', server.resolvedUrls.local[0]);
