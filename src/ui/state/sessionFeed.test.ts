@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { NOTHING_FOLLOWED, withBar, withText, type Followed } from '../../session/follow';
 import type { SectionText } from '../../session/protocol';
 import { sounding, type Place } from '../../session/sound';
-import { SessionFeed } from './sessionFeed';
+import { SessionFeed, heardAsSent } from './sessionFeed';
 
 const frame = { meter: { cycle: 8, heights: [0, 2, 4, 6] }, swing: { level: '16n', share: 0.5 }, bpm: 120, key: { tonic: 9, mode: 'aeolian' } };
 const section = (bar: number, text: string, unstated: string | null = null): SectionText => ({
@@ -38,11 +38,33 @@ describe('a followed session as the player’s feed', () => {
         for (const e of f.window.events) notes.push(f.time + (e.at - f.window.from) * f.scale);
         expect(f.window.to).toBeGreaterThan(f.window.from);
       }
+    // (bars 0 and 1 begun on the page's clock, A both, and bar 2, unstated, not)
+    expect(feed.bars).toEqual([
+      { bar: 0, at: 5, switched: false },
+      { bar: 1, at: 7, switched: false },
+    ]);
     // (A's quarters, 4 a bar, over its two bars, from the page's 5 s: the host's 10 s)
     expect(notes.map((t) => Math.round(t * 1000) / 1000)).toEqual([5, 5.5, 6, 6.5, 7, 7.5, 8, 8.5]);
     expect(feed.played).toBe(8);
     // (bar 2, which the asks reached, is said; bar 3 starts after the last)
     expect(feed.lacked).toEqual([{ bar: 2, why: 'the section’s key moves between its bars' }]);
+  });
+
+  it('says which bar begins another text than the bar before: a switch', () => {
+    const B = A.replace('0 2 4 7', '7 4 2 0');
+    let f: Followed = NOTHING_FOLLOWED;
+    for (let b = 0; b < 4; b++) f = withBar(f, { bar: { bar: b }, start: 10 + 2 * b });
+    f = withText(withText(f, { ...section(0, A), foreseen: ['a', 'b'] }), { ...section(2, B), foreseen: ['c', 'd'] });
+    const feed = new SessionFeed({
+      sounding: (done: Place | null, lead: number, now: number, length: (t: SectionText) => number | null) => ({ ...sounding(f, done, now + 5 + lead, now + 5, length), shift: 5 }),
+    });
+    for (let now = 4; now < 13; now += 0.125) feed.next(now, now + 0.6);
+    expect(feed.bars.map((b) => [b.bar, b.at, b.switched])).toEqual([
+      [0, 5, false],
+      [1, 7, false],
+      [2, 9, true],
+      [3, 11, false],
+    ]);
   });
 
   it('starts from now again once the session has nothing to sound', () => {
@@ -86,6 +108,22 @@ use "core kit"
       sounding: (done: Place | null, lead: number, now: number, length: (t: SectionText) => number | null) => ({ ...sounding(f, done, now + 5 + lead, now + 5, length), shift: 5 }),
     };
   };
+
+  it('hears what the host’s text only sends on its MIDI card, on its own voices at the card’s gain', () => {
+    const feed = new SessionFeed(host());
+    const events = [];
+    for (let now = 4; now < 11; now += 0.125) for (const f of feed.next(now, now + 0.6)) events.push(...f.window.events);
+    expect(events).toHaveLength(24);
+    expect(events.filter((e) => e.unheard)).toEqual([]);
+    expect(new Set(events.map((e) => `${e.voice} ${e.gains.join(' ')}`))).toEqual(new Set(['bassV 0.7 0.7', 'bd 1 1']));
+  });
+
+  it('leaves an event a sound card hears as it is', () => {
+    const e = { at: 0, dur: 1, voice: 'v', freq: 220, bends: [], gains: [0.3, 0.5] as const, levels: [] };
+    expect(heardAsSent(e)).toBe(e);
+    const midi = [{ card: 'out', mix: 'v', channel: 1, port: 1 }];
+    expect(heardAsSent({ ...e, midi, gains: [0, 0], unheard: true })).toEqual({ ...e, midi, gains: [1, 1] });
+  });
 
   it('logs each event as played, on the host’s clock, and leaves a bar with no frame as cells gives it', () => {
     const feed = new SessionFeed(host());

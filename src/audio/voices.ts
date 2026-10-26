@@ -24,8 +24,12 @@ import { buildTapeNet, fadeOut, freezeTape, holdTape, scrubTape, tapeKey, tapeLe
 export interface VoiceBank {
   /** Play a note (its times on the audio clock: see engine/schedule.ts `retime`). */
   play(note: Played): void;
-  /** Rebuild voices whose sound changed; drop ones that are gone (either rings on until its notes have ended). `muted`: graph ids switched off — what they would feed or ring stays unwired. */
-  sync(result: CompileResult, shifts: Shifts, muted?: ReadonlySet<string>): void;
+  /**
+   * Rebuild voices whose sound changed; drop ones that are gone (either rings on until its notes have ended). `muted`:
+   * graph ids switched off — what they would feed or ring stays unwired. `hearAll`: every voice heard from itself, one
+   * only on a MIDI card too (a followed session's text, whose card is all it writes: its notes heard on its own voices).
+   */
+  sync(result: CompileResult, shifts: Shifts, muted?: ReadonlySet<string>, hearAll?: boolean): void;
   /** A sound tape's speed over time (audio seconds): its delays follow — the heads' distances ÷ speed. */
   tapeSpeed(tape: string, points: readonly { at: number; speed: number }[]): void;
   /** A tape held (the transport not playing): frozen, its write gate closed, its lap kept as it is — or running again. Only a tape with a loop. */
@@ -164,7 +168,7 @@ export function createVoices(Tone: ToneNS): VoiceBank {
     async ready() {
       await reverb.ready;
     },
-    sync(result, shifts, muted = new Set<string>()) {
+    sync(result, shifts, muted = new Set<string>(), hearAll = false) {
       // what to connect: worked out from where sound goes (./wiring.ts, engine/flows.ts), off applied there once
       const plan = wiring(result, muted);
       // the sound card's master: postgain= on the (first) sound card, linear (the built-in card's is Strudel's .8); below
@@ -195,7 +199,7 @@ export function createVoices(Tone: ToneNS): VoiceBank {
       sinks = new Set([...result.cells.values()].filter((c) => c.sink).map((c) => c.name));
       // a voice played only into sends (a resonator's excitation, a tape) isn't heard from itself
       for (const [name, b] of built) {
-        const want = plan.heard.has(name);
+        const want = hearAll || plan.heard.has(name);
         if (want !== heard.get(b)) {
           if (want) b.out.connect(master);
           else b.out.disconnect(master);

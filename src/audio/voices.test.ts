@@ -11,6 +11,8 @@ import type { ToneNS } from './voice/nodes';
 
 const voice = vi.hoisted(() => ({
   built: [] as { name: string; live: Map<object, unknown> }[],
+  /** What each voice's output is connected to: the master, when heard from itself. */
+  heard: new Map<string, Set<unknown>>(),
   freed: [] as string[],
 }));
 
@@ -19,7 +21,11 @@ vi.resetModules();
 vi.doMock('./voice/voice', async (original) => ({
   ...(await original<typeof import('./voice/voice')>()),
   buildVoice: (_T: unknown, _c: unknown, _b: unknown, _r: unknown, name: string, _s: unknown, key: string) => {
-    const b = { name, key, live: new Map(), nodes: [], notes: [], out: anything() };
+    // (its output keeps what it is connected to: the master, when heard from itself)
+    const to = new Set<unknown>();
+    voice.heard.set(name, to);
+    const out = { connect: (n: unknown) => to.add(n), disconnect: (n: unknown) => to.delete(n) };
+    const b = { name, key, live: new Map(), nodes: [], notes: [], out };
     voice.built.push(b);
     return b;
   },
@@ -39,7 +45,7 @@ function anything(): never {
     get: (_, k) => (k === 'then' ? undefined : k === Symbol.toPrimitive ? () => 0 : k === 'currentTime' || k === 'sampleRate' ? 0 : p),
     set: () => true,
     apply: () => p,
-    construct: () => p,
+    construct: () => anything(),
   });
   return p as never;
 }
@@ -58,6 +64,7 @@ describe('a voice a sync drops', () => {
     vi.useFakeTimers();
     voice.built.length = 0;
     voice.freed.length = 0;
+    voice.heard.clear();
   });
   afterEach(() => vi.useRealTimers());
 
@@ -111,5 +118,31 @@ describe('a voice a sync drops', () => {
     live('a').clear();
     vi.advanceTimersByTime(1000);
     expect(voice.freed.sort()).toEqual(['a', 'b']);
+  });
+});
+
+describe('a voice only on a MIDI card', () => {
+  /** A voice heard on a sound card, and one a gate plays only onto a MIDI card, as a host's text writes its parts. */
+  const SENT = `&bar meter("4/4") step=120bpm
+&a loop=A3
+&b loop=E4
+&m step=4n 0 2
+&g play=&m level=.5 &b
+&mix map=sample [&a * .5]
+&out map=midi &g`;
+
+  it('is sent, not heard; heard too when the bank is asked to hear every voice (a followed session), and not again after', () => {
+    voice.built.length = 0;
+    voice.heard.clear();
+    const v = createVoices(anything() as ToneNS);
+    const r = compileSource(SENT);
+    expect(r.diagnostics).toEqual([]);
+    v.sync(r, codeShifts(r));
+    const heard = () => [...voice.heard].filter(([, to]) => to.size > 0).map(([n]) => n);
+    expect(heard()).toEqual(['a']);
+    v.sync(r, codeShifts(r), undefined, true);
+    expect(heard()).toEqual(['a', 'b']);
+    v.sync(r, codeShifts(r));
+    expect(heard()).toEqual(['a']);
   });
 });

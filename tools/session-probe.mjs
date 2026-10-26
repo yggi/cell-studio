@@ -10,7 +10,12 @@
 //
 // The host is driven by the names Jambot's e2e drives it by (`e2e/audio.ts`: `useLobby`, `host`, "Start the band"), and
 // Cell studio joins through `cellStudio.session.join`. Every 2 s both logs are read (`window.jambot.played(from)`,
-// `cellStudio.session.played(from)`), so neither's 20,000 kept are outrun. Exits 1 where the bound isn't met.
+// `cellStudio.session.played(from)`), so neither's 20,000 kept are outrun.
+//
+// A click at a switch is checked by level (`tools/session-clicks.ts`): what Cell studio's page puts out is tapped where
+// it reaches the speakers (an AudioWorklet on every node connected to the destination: each block's largest sample and
+// level, on the audio clock), and each switch the feed says it began (`state().sound.bars`) is
+// set against the bars around it. Exits 1 where either bound isn't met.
 //
 // Chromium: Playwright's, or CHROME_PATH=/path/to/chrome (tools/profile/playwright.mjs).
 import { preview, runnerImport } from 'vite';
@@ -31,17 +36,63 @@ const READ_EVERY = 2000;
 const WITHIN = 0.001;
 
 const { module: compare } = await runnerImport('./tools/session-compare.ts', { configFile: false });
+const { module: clicks } = await runnerImport('./tools/session-clicks.ts', { configFile: false });
 freshBuild();
 const server = await preview({ preview: { port: 0, host: '127.0.0.1' }, logLevel: 'error' });
 const browser = await chromium.launch({ args: ['--autoplay-policy=no-user-gesture-required', '--no-sandbox'] });
 const errors = [];
-const page = async (name, url) => {
+const page = async (name, url, init) => {
   const p = await (await browser.newContext()).newPage();
   p.on('pageerror', (e) => errors.push(`${name}: ${e.message}`));
   p.on('console', (m) => m.type() === 'error' && errors.push(`${name}: ${m.text()}`));
+  if (init) await p.addInitScript(init);
   await p.goto(url);
   return p;
 };
+
+/** What a page puts out, tapped where it reaches the speakers: `window.__tap`, each block's start (audio clock), largest sample and level (RMS), and the audio clock against the page's. */
+function tapOutput() {
+  const code = `class Tap extends AudioWorkletProcessor {
+    constructor() { super(); this.buf = []; }
+    process(inputs) {
+      let peak = 0, sum = 0, n = 0;
+      for (const x of inputs[0] || []) for (const v of x) { peak = Math.max(peak, Math.abs(v)); sum += v * v; n++; }
+      this.buf.push(currentTime, peak, n ? Math.sqrt(sum / n) : 0);
+      if (this.buf.length >= 384) { this.port.postMessage(this.buf); this.buf = []; }
+      return true;
+    }
+  }
+  registerProcessor('probe-tap', Tap);`;
+  const url = URL.createObjectURL(new Blob([code], { type: 'application/javascript' }));
+  const tap = (window.__tap = { t: [], peak: [], rms: [], clock: [] });
+  const connect = AudioNode.prototype.connect;
+  const taps = new WeakMap();
+  const tapOf = (ctx) => {
+    if (!taps.has(ctx))
+      taps.set(
+        ctx,
+        ctx.audioWorklet.addModule(url).then(() => {
+          const n = new AudioWorkletNode(ctx, 'probe-tap');
+          const mute = ctx.createGain();
+          mute.gain.value = 0;
+          connect.call(n, mute);
+          connect.call(mute, ctx.destination);
+          n.port.onmessage = ({ data }) => {
+            for (let i = 0; i < data.length; i += 3) (tap.t.push(data[i]), tap.peak.push(data[i + 1]), tap.rms.push(data[i + 2]));
+            const ts = ctx.getOutputTimestamp();
+            tap.clock.push([ts.contextTime, ts.performanceTime]);
+          };
+          return n;
+        }),
+      );
+    return taps.get(ctx);
+  };
+  AudioNode.prototype.connect = function (dest, ...rest) {
+    // (the live context's output only: an offline render's has no speakers)
+    if (dest instanceof AudioDestinationNode && this.context instanceof AudioContext) tapOf(this.context).then((n) => connect.call(this, n));
+    return connect.call(this, dest, ...rest);
+  };
+}
 
 // the host: the lobby given on Settings (the drawer's rider), the session named and hosted globally
 const host = await page('host', JAMBOT);
@@ -61,14 +112,14 @@ await host.getByRole('button', { name: 'Host', exact: true }).click();
 await host.locator('details[aria-label="Session"] summary .sub').filter({ hasText: 'Hosting' }).waitFor({ state: 'attached', timeout: 15000 });
 
 // Cell studio: joined through the lobby, then the band started
-const studio = await page('Cell studio', server.resolvedUrls.local[0]);
+const studio = await page('Cell studio', server.resolvedUrls.local[0], tapOutput);
 await studio.waitForFunction(() => window.cellStudio?.session);
 await studio.evaluate(([lobby, session]) => window.cellStudio.session.join(lobby, session, 'Probe'), [LOBBY, SESSION]);
 await studio.waitForFunction(() => window.cellStudio.session.state().status === 'joined', null, { timeout: 15000 });
 await host.getByRole('button', { name: 'Start the band' }).click();
 console.log(`hosting “${SESSION}” at ${JAMBOT} through ${LOBBY}; Cell studio joined; ${MINUTES} minutes`);
 
-const logs = { host: [], studio: [], late: [], lackedBars: new Set(), lacks: [] };
+const logs = { host: [], studio: [], late: [], lackedBars: new Set(), lacks: [], bars: new Map() };
 const next = { host: 0, studio: 0 };
 let bound = 0;
 const read = async () => {
@@ -83,6 +134,7 @@ const read = async () => {
     if (!logs.lacks.includes(said)) logs.lacks.push(said);
     if (l.bar !== null) logs.lackedBars.add(l.bar);
   }
+  for (const b of s.state.sound?.bars ?? []) logs.bars.set(b.bar, b);
   bound = Math.max(bound, s.state.clock?.bound ?? 0);
   return s.state;
 };
@@ -92,6 +144,8 @@ while (Date.now() < end) {
   await new Promise((r) => setTimeout(r, READ_EVERY));
 }
 const last = await read();
+const tapped = await studio.evaluate(() => window.__tap);
+if (!tapped.clock.length) errors.push('Cell studio: no audio clock read against the page’s: the switches can’t be placed');
 await browser.close();
 await server.close();
 
@@ -108,4 +162,27 @@ console.log(
     ...c.differing.map((d) => `  ${d}`),
   ].join('\n'),
 );
-process.exit(compare.agrees(c) && !errors.length ? 0 : 1);
+
+// the bars begun, from the page's clock onto the audio clock by the pairing read nearest each
+const audioAt = (page) => {
+  const ms = page * 1000;
+  const [ctx, perf] = tapped.clock.reduce((a, b) => (Math.abs(b[1] - ms) < Math.abs(a[1] - ms) ? b : a), tapped.clock[0] ?? [0, 0]);
+  return ctx + (ms - perf) / 1000;
+};
+// (`--dump <file>`: the tap and the bars, for a look at what was put out)
+if (option('dump')) (await import('node:fs')).writeFileSync(option('dump'), JSON.stringify({ tapped, bars: [...logs.bars.values()].map((b) => ({ ...b, audio: audioAt(b.at) })) }));
+const levels = clicks.clicksAt(
+  tapped,
+  [...logs.bars.values()].map((b) => ({ ...b, at: audioAt(b.at) })),
+);
+const worst = levels.switches.reduce((a, b) => (b.db > a.db ? b : a), { bar: null, db: -Infinity });
+console.log(
+  [
+    `clicks: the page put out ${tapped.t.length} blocks, its loudest ${levels.loudest.toFixed(1)} dBFS; ${levels.switches.length} switches checked (${levels.unchecked.length} not: ${levels.unchecked.join(' ') || 'none'})`,
+    `  the largest drop in level in a block at a switch, past the bars' around it: ${worst.bar === null ? 'none' : `${worst.db.toFixed(1)} dB at bar ${worst.bar}`} (the bound: ${clicks.MARGIN} dB)`,
+    ...levels.switches
+      .filter((x) => x.db > clicks.MARGIN)
+      .map((x) => `  bar ${x.bar}: ${x.db.toFixed(1)} dB (a drop of ${x.drop.toFixed(1)} dB, the bars' around it ${x.reference.toFixed(1)})`),
+  ].join('\n'),
+);
+process.exit(compare.agrees(c) && clicks.clean(levels) && !errors.length ? 0 : 1);

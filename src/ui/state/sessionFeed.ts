@@ -16,6 +16,26 @@ import type { SessionClient } from './session.svelte';
 const KEPT = 8;
 /** How many of the latest lacks are kept, for measuring. */
 const LACKS_KEPT = 32;
+/** How many of the latest bars begun are kept, for measuring: some 15 minutes' at 120 bpm. */
+const BARS_KEPT = 512;
+
+/** A bar the feed began: where it is heard on the page's clock (seconds), and whether its text is another than the bar's before (a switch). */
+export interface BarBegun {
+  readonly bar: number;
+  readonly at: number;
+  readonly switched: boolean;
+}
+
+/**
+ * An event as a follower hears it: one its text only sends on a MIDI card (cells decision 019: sent, not heard) is heard
+ * on its own voice at the card's gain, as loud as the velocity MIDI sends it at; any other as it is.
+ */
+export function heardAsSent(e: Played): Played {
+  if (!e.unheard) return e;
+  const g = Math.max(0, ...(e.midi ?? []).map((m) => Math.abs(m.gain ?? 1)));
+  const { unheard: _, ...heard } = e;
+  return { ...heard, gains: [g, g] };
+}
 
 /** A text compiled: its plan, a bar of its own time (seconds), and where MIDI out sends each of its events. */
 interface Compiled {
@@ -28,7 +48,8 @@ interface Compiled {
  * A followed session's song as the player's feed (#478, rung 3): each stretch the session says to play
  * (`SessionClient.sounding`), from its text's plan, placed on the page's clock. Each text is compiled once, as the app
  * compiles a piece (`compilePiece`), its own voices sounding it, each event as the host's performers play it
- * (`session/perform.ts`, #492): its velocity and length with the feel of its bar. It counts what it played, logs each
+ * (`session/perform.ts`, #492): its velocity and length with the feel of its bar, and heard where its text only sends
+ * it on a MIDI card (`heardAsSent`), as a host's text does all it plays. It counts what it played, logs each
  * event as played (`log`, as Jambot's `played()` does), and keeps what it couldn't (`lacked`), for measuring.
  */
 export class SessionFeed implements Feed {
@@ -38,6 +59,9 @@ export class SessionFeed implements Feed {
   lacked: Lack[] = [];
   /** Each event played, as the performers play it, on the host's clock. */
   readonly log = new PlayedLog();
+  /** The latest bars begun, and the text of the last. */
+  bars: BarBegun[] = [];
+  #lastText: string | null = null;
   /** Where the last ask got to (null: start where the song is heard). */
   #done: Place | null = null;
   #texts = new Map<string, Compiled>();
@@ -58,12 +82,17 @@ export class SessionFeed implements Feed {
       const p = c.plan!;
       const seconds = c.bar!;
       const at = x.frame && { bar: x.bar, frame: x.frame, start: (x.bar - x.text.bar) * seconds, seconds };
+      // (a slice from its bar's start begins it)
+      if (x.from === (x.bar - x.text.bar) * seconds) {
+        this.bars = [...this.bars, { bar: x.bar, at: x.at - s.shift, switched: this.#lastText !== null && this.#lastText !== x.text.text }].slice(-BARS_KEPT);
+        this.#lastText = x.text.text;
+      }
       const log: PlayedEvent[] = [];
       const events = eventsBetween(p, x.from, x.to, true).map((e) => {
         const { event, performance } = at ? perform(e, c.route!, at) : { event: e, performance: null };
         if (performance) log.push({ ...performance, seconds: x.at + (e.at - x.from) * x.scale, duration: event.dur * x.scale });
         else this.unread++;
-        return event;
+        return heardAsSent(event);
       });
       // (the window's own ends, as asked: one stretch's end is the next one's start, bit for bit)
       const window = { from: x.from, to: x.to, events, tapes: tapeSpeeds(p, x.from, x.to + 1e-9), clock: ticksBetween(p, x.from, x.to) };

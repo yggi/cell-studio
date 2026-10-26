@@ -470,7 +470,8 @@ export class Player implements LiveSource {
         for (const f of feed.next(now, now + FEED_LEAD)) {
           if (f.plan !== synced) {
             synced = f.plan;
-            this.voices.sync(f.plan.result, f.plan.statics, f.plan.muted);
+            // (every voice heard: a session's text sends on a MIDI card, and the feed hears what it sends)
+            this.voices.sync(f.plan.result, f.plan.statics, f.plan.muted, true);
           }
           const time = this.audioAt(Tone, f.time);
           const { events, tapes, clock } = retime(f.window, time, f.scale);
