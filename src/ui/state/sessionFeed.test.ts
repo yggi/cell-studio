@@ -121,8 +121,8 @@ use "core kit"
   it('leaves an event a sound card hears as it is', () => {
     const e = { at: 0, dur: 1, voice: 'v', freq: 220, bends: [], gains: [0.3, 0.5] as const, levels: [] };
     expect(heardAsSent(e)).toBe(e);
-    const midi = [{ card: 'out', mix: 'v', channel: 1, port: 1 }];
-    expect(heardAsSent({ ...e, midi, gains: [0, 0], unheard: true })).toEqual({ ...e, midi, gains: [1, 1] });
+    const midi = [{ card: 'out', mix: 'v', channel: 1, port: 1, gain: 0.6 }];
+    expect(heardAsSent({ ...e, midi, gains: [0, 0], unheard: true })).toEqual({ ...e, midi, gains: [0.6, 0.6] });
   });
 
   it('logs each event as played, on the host’s clock, and leaves a bar with no frame as cells gives it', () => {

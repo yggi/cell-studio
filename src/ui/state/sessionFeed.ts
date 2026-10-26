@@ -32,7 +32,7 @@ export interface BarBegun {
  */
 export function heardAsSent(e: Played): Played {
   if (!e.unheard) return e;
-  const g = Math.max(0, ...(e.midi ?? []).map((m) => Math.abs(m.gain ?? 1)));
+  const g = Math.max(0, ...(e.midi ?? []).map((m) => Math.abs(m.gain)));
   const { unheard: _, ...heard } = e;
   return { ...heard, gains: [g, g] };
 }
