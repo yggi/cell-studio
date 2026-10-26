@@ -1,12 +1,12 @@
 /**
- * The feel contract (yggi/music-commons `contracts/feel`, version 1) run against Cell studio's feel (#484): the hub's
+ * The feel contract (yggi/music-commons `contracts/feel`, version 1, minor 1) run against Cell studio's feel (#484): the hub's
  * vectors are copied beside this file (`feel.vectors.json`, its `lifted` line naming the hub and the commit; the hub's own,
  * what it lifted from Jambot, kept as `liftedByTheHub`), and the hub's README for the contract is the rule. Every vector
  * runs, and none is recorded: the summit needs 0 (#478 rung 3).
  */
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { feelOf, frameOf, played, type FeelEvent, type FeelFrame } from './feel';
+import { feelOf, frameOf, played, readingOf, type FeelEvent, type FeelFrame } from './feel';
 import type { SentBar } from './protocol';
 
 interface Vector {
@@ -22,15 +22,17 @@ interface Contract {
   readonly liftedByTheHub: string;
   readonly contract: string;
   readonly version: number;
+  readonly minor: number;
+  readonly reading: readonly { readonly output: string; readonly reads: { readonly part: string; readonly role?: string } | null }[];
   readonly vectors: readonly Vector[];
 }
 const read = (name: string) => JSON.parse(readFileSync(new URL(name, import.meta.url), 'utf8'));
 const contract: Contract = read('./feel.vectors.json');
 const name = (v: Vector) => `${v.preset} ${v.meter} seed ${v.frame.seed} bar ${v.frame.bar}`;
 
-describe('the feel contract (music-commons contracts/feel, version 1)', () => {
+describe('the feel contract (music-commons contracts/feel, version 1, minor 1)', () => {
   it('is the version Cell studio meets, lifted with its source named, 256 bars from Jambot', () => {
-    expect([contract.contract, contract.version]).toEqual(['feel', 1]);
+    expect([contract.contract, contract.version, contract.minor]).toEqual(['feel', 1, 1]);
     expect(contract.lifted).toMatch(/^Lifted from yggi\/music-commons contracts\/feel\/vectors\.json @ [0-9a-f]{7}/);
     expect(contract.liftedByTheHub).toMatch(/^Lifted from yggi\/jambot @ [0-9a-f]{7}/);
     expect(contract.vectors).toHaveLength(256);
@@ -50,6 +52,12 @@ describe('the feel contract (music-commons contracts/feel, version 1)', () => {
       events += v.events.length;
     }
     expect(events).toBe(7140);
+  });
+
+  it('reads each output a host’s text names an event by as the vector’s part and role, or as none of the feel’s: 17 of 17', () => {
+    expect(contract.reading).toHaveLength(17);
+    for (const r of contract.reading) expect(readingOf(r.output), r.output).toEqual(r.reads);
+    expect(readingOf(undefined)).toBeNull();
   });
 });
 

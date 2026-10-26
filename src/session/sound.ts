@@ -13,6 +13,7 @@
  * What can't be played is said (`Lack`): a bar its text leaves unstated, a text that doesn't compile, a bar no text
  * stated, a bar the host passed without laying, and a stretch the asker came to too late (a page that slept).
  */
+import type { FeelFrame } from './feel';
 import type { Followed } from './follow';
 import { textOf } from './follow';
 import type { SectionText } from './protocol';
@@ -26,8 +27,9 @@ export interface Place {
 /** A stretch of a text's own time to play (seconds, half open), and where it falls on the host's clock. */
 export interface Slice {
   readonly text: SectionText;
-  /** The song's bar it is part of. */
+  /** The song's bar it is part of, and that bar's frame as the performers read it (null where its message gave none). */
   readonly bar: number;
+  readonly frame: FeelFrame | null;
   /** The text's own time, from `from` to just before `to`, in seconds. */
   readonly from: number;
   readonly to: number;
@@ -141,7 +143,7 @@ export function sounding(f: Followed, done: Place | null, horizon: number, now: 
     }
     const into = Math.min(1, (horizon - s) / l);
     const k = (bar - text.bar) * seconds;
-    slices.push({ text, bar, from: k + place.into * seconds, to: k + into * seconds, at, scale: l / seconds });
+    slices.push({ text, bar, frame: f.frames.get(bar) ?? null, from: k + place.into * seconds, to: k + into * seconds, at, scale: l / seconds });
     place = into < 1 ? { bar, into } : { bar: bar + 1, into: 0 };
   }
   return { slices, done: place, lacked };
