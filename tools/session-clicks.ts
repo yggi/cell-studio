@@ -13,10 +13,11 @@
  *   lays the new text, up to its lead, 0.35 s, ahead of the bar) to `AFTER` past it (the new text's first notes).
  * - **Against what:** the same window at the bars one and two either side that aren't switches, so the end of a bar
  *   and a downbeat are set against ends of bars and downbeats.
- * - **The bound:** no switch's largest drop more than `MARGIN` (6 dB) past the largest of its references'. Over a
- *   minute of Jambot's band, a bar that isn't a switch stood at most 3 dB past its neighbours; with the notes sounding
- *   cut dead at each switch (a fault put in to try it), one switch stood 54 dB past, one 6, and one where nothing
- *   sounded −3.
+ * - **The bound:** no switch's largest drop more than `MARGIN` (9 dB) past the largest of its references'. Over 10
+ *   minutes of Jambot's band (Jambot 24a528b), each of the 236 bars that aren't switches, set against its neighbours as
+ *   a switch is, stood at most 6.4 dB past them (2 past 6 dB, so a bound of 6 would fail a run in four by chance); the
+ *   33 switches stood at most 1.9 dB past. With the notes sounding cut dead at each switch (a fault put in to try it),
+ *   one switch stood 54 dB past: a cut of what sounds is caught, and one of next to nothing isn't.
  */
 
 /** Each block the page put out: its start on the audio clock (seconds), its largest sample and its level (RMS), by index. */
@@ -35,8 +36,8 @@ export interface Bar {
 
 export const BEFORE = 0.5;
 export const AFTER = 0.05;
-/** How far a switch's largest drop may stand past its references', in dB. */
-export const MARGIN = 6;
+/** How far a switch's largest drop may stand past its references', in dB: past the 6.4 the bars that aren't switches reached. */
+export const MARGIN = 9;
 /** The level a drop is counted from: −40 dBFS. Below it, a drop is a quiet note's end, not a cut heard. */
 export const FLOOR = 0.01;
 /** The level a drop is counted to, at most: −100 dBFS, so silence is a finite drop. */
