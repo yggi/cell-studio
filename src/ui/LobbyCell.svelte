@@ -4,7 +4,8 @@
    * default), live while the library shows it (`state/lobbyWatch.svelte.ts`). A session chosen is joined and followed
    * as the Jam page follows one (read only, nothing sent but the join, pings and the leave), and leaving returns to the
    * piece you had. In the library's graph it is a disc beside the wheel (`disc`, its centre and radius in pixels:
-   * `layout/library.ts` places it), showing the first `MOST`; among the cards, a section of them all.
+   * `layout/library.ts` places it), showing the first `MOST`; among the cards, a section of them all. A session whose
+   * host is away (the lobby holds it, and refuses a join) is dimmed, says so, and offers no join until the host is back.
    */
   import { getStudio } from './state/studio.svelte';
 
@@ -49,15 +50,20 @@
 {#snippet list()}
   {#each shown as s (s.name)}
     {@const st = state(s.name)}
+    {@const away = st === null && s.away}
     <button
       class="unstyled session"
       class:in={st !== null}
+      class:away
+      disabled={away}
       onclick={() => choose(s.name)}
-      aria-label="{st ? `${s.name}: ${st}` : `Join ${s.name}`}, {s.players} {s.players === 1 ? 'player' : 'players'}"
-      title="{s.players} {s.players === 1 ? 'player' : 'players'}, the host counted"
+      aria-label="{st ? `${s.name}: ${st}` : away ? `${s.name}: its host is away` : `Join ${s.name}`}, {s.players} {s.players === 1 ? 'player' : 'players'}"
+      title={away
+        ? 'Its host is away: the lobby holds the session, and it can be joined once the host is back'
+        : `${s.players} ${s.players === 1 ? 'player' : 'players'}, the host counted`}
     >
       <span class="name">{s.name}</span>
-      <span class="players">{st ?? s.players}</span>
+      <span class="players">{st ?? (away ? 'away' : s.players)}</span>
     </button>
   {/each}
   {#if said}<span class="said" role="status">{said}</span>{/if}
@@ -157,7 +163,16 @@
   .session.in {
     border-color: var(--accent);
   }
-  .session:hover,
+  .session.away {
+    border-style: dashed;
+    color: var(--text-faint);
+    cursor: default;
+  }
+  .session.away .players {
+    color: var(--text-faint);
+    font-weight: 600;
+  }
+  .session:not(.away):hover,
   .session:focus-visible {
     border-color: var(--accent);
     outline: none;

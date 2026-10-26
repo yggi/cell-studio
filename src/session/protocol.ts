@@ -1,6 +1,6 @@
 /**
  * What a Jambot host and its clients say to each other through a lobby, as a client reads it: the session contract,
- * version 1 (yggi/music-commons `contracts/session`, minor 1: protocol 14), implemented here from the contract, not
+ * version 1 (yggi/music-commons `contracts/session`, minor 3: protocol 16), implemented here from the contract, not
  * from Jambot's code (#478). The contract's vectors run against these readers (`protocol.test.ts`).
  *
  * Cell studio is a client that listens (rung 1 of #478): it asks a lobby which sessions are open (`list`, rung 2),
@@ -10,8 +10,8 @@
  * the section texts, the pongs) and checks the rest only for its shape.
  */
 
-/** The protocol a join of this client carries: the contract's minor 1. */
-export const PROTOCOL = 14;
+/** The protocol a join of this client carries: the contract's minor 3. A join carries no code: a client that listens needs none (minor 2). */
+export const PROTOCOL = 16;
 /** The first protocol of the contract's version 1: a host of it or later is one of this version (any minor joins). */
 export const FIRST_PROTOCOL = 13;
 
@@ -77,6 +77,8 @@ export type HostMessage =
       readonly protocol: number;
       readonly session: string;
       readonly resume: string;
+      /** Seated without a code, to listen (from a host of 15 on): `true` or absent. */
+      readonly listening?: true;
       /** The song playing, with the bars composed and not played and (from a host of 14 on) the texts stating them; null while stopped. */
       readonly song: (Song & { readonly bars: readonly SentBar[]; readonly texts?: readonly SectionText[] }) | null;
       readonly forecast: Obj;
@@ -142,6 +144,7 @@ const FITS: Record<HostMessage['kind'], (m: Obj) => boolean> = {
     isInt(m.protocol) &&
     isString(m.session) &&
     isString(m.resume) &&
+    (m.listening === undefined || m.listening === true) &&
     (m.song === null || (isSong(m.song) && arrayOf((m.song as Obj).bars, isSentBar) && ((m.song as Obj).texts === undefined || arrayOf((m.song as Obj).texts, isSectionText)))) &&
     isForecast(m.forecast) &&
     isMuse(m.muse),
@@ -173,7 +176,8 @@ export type ToLobby = { readonly op: 'list' } | { readonly op: 'join'; readonly 
 
 /** What a lobby says to a page (`readFromLobby`): the ops a client hears, the sessions it lists, and those a client never asks for (a host's), read and left. */
 export type FromLobby =
-  | { readonly op: 'sessions'; readonly sessions: readonly { readonly name: string; readonly players: number }[] }
+  /** The sessions open; `away` is `true` while a session's host is away and a join to it is refused (minor 3), else false or absent. */
+  | { readonly op: 'sessions'; readonly sessions: readonly { readonly name: string; readonly players: number; readonly away?: boolean }[] }
   | { readonly op: 'hosting'; readonly session: string; readonly reclaim: string }
   | { readonly op: 'joined'; readonly session: string }
   | { readonly op: 'refused'; readonly reason: string }
@@ -185,7 +189,7 @@ export type FromLobby =
   | { readonly op: 'back' };
 
 const FROM_LOBBY: Record<FromLobby['op'], (d: Obj) => boolean> = {
-  sessions: (d) => arrayOf(d.sessions, (s) => isObject(s) && isString(s.name) && isFinite(s.players)),
+  sessions: (d) => arrayOf(d.sessions, (s) => isObject(s) && isString(s.name) && isFinite(s.players) && (s.away === undefined || typeof s.away === 'boolean')),
   hosting: (d) => isString(d.session) && isString(d.reclaim),
   joined: (d) => isString(d.session),
   refused: (d) => isString(d.reason),

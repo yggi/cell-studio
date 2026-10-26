@@ -73,14 +73,33 @@ describe('a lobby watched: the sessions open, for the library’s lobby cell (#4
     });
     expect(last()).toEqual({
       listed: [
-        { name: 'Ada’s jam', players: 3 },
-        { name: 'zebra', players: 1 },
+        { name: 'Ada’s jam', players: 3, away: false },
+        { name: 'zebra', players: 1, away: false },
       ],
       why: null,
     });
     socket().say({ op: 'joined', session: 'jam' });
     socket().say({ op: 'sessions', sessions: 'none' });
     expect(heard).toHaveLength(1);
+  });
+
+  it('hears a session’s host away and back, and lists nothing for a list whose away isn’t a boolean (session minor 3)', () => {
+    socket().open();
+    socket().say({
+      op: 'sessions',
+      sessions: [
+        { name: 'jam', players: 2, away: true },
+        { name: 'reel', players: 1, away: false },
+      ],
+    });
+    expect(last()?.listed).toEqual([
+      { name: 'jam', players: 2, away: true },
+      { name: 'reel', players: 1, away: false },
+    ]);
+    socket().say({ op: 'sessions', sessions: [{ name: 'jam', players: 2 }] });
+    expect(last()?.listed).toEqual([{ name: 'jam', players: 2, away: false }]);
+    for (const away of ['yes', 1, null]) socket().say({ op: 'sessions', sessions: [{ name: 'jam', players: 2, away }] });
+    expect(heard).toHaveLength(2);
   });
 
   it('shows a session opened or closed within LIST_EVERY of the lobby listing it so: under the 5 s bound', () => {

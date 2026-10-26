@@ -8,6 +8,7 @@ const SETTLES = 800;
  * it (`show`): asked every `LIST_EVERY` on a socket of its own that sends nothing but `list` (`session/lobby.ts`), the
  * socket closed when the library closes or the page is hidden, so there is no lobby traffic then. Nothing is listed
  * while it isn't watched, nor when the lobby can't be reached or stops answering: a session that ended never stays.
+ * A session whose host is away is listed, marked, and not joined (`joinable`).
  */
 export class LobbyWatch {
   /** The sessions open, sorted by name; empty while not watched or out of reach. */
@@ -24,6 +25,15 @@ export class LobbyWatch {
 
   constructor(socket?: (url: string) => Socket) {
     this.#socket = socket;
+  }
+
+  /**
+   * Whether the session named `session` may be joined from the list: not while the lobby lists its host away (a join
+   * then is refused: session minor 3). It is offered again with the first list that says its host is back.
+   */
+  joinable(session: string): boolean {
+    const key = session.trim().toLowerCase();
+    return !this.sessions.some((s) => s.away && s.name.trim().toLowerCase() === key);
   }
 
   /**

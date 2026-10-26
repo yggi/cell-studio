@@ -114,10 +114,11 @@ export function joinLobby(url: string, session: string, hear: (heard: Heard) => 
   });
 }
 
-/** A session a lobby lists: its name, and how many players are in it, its host counted. */
+/** A session a lobby lists: its name, how many players are in it, its host counted, and whether its host is away (a join to it refused till the host is back). */
 export interface Listed {
   readonly name: string;
   readonly players: number;
+  readonly away: boolean;
 }
 
 /**
@@ -196,7 +197,7 @@ export function watchLobby(url: string, heard: (listed: readonly Listed[] | null
       if (said?.op !== 'sessions') return;
       answerWithin();
       heard(
-        [...said.sessions].map(({ name, players }) => ({ name, players })).sort((a, b) => a.name.localeCompare(b.name)),
+        [...said.sessions].map(({ name, players, away }) => ({ name, players, away: away === true })).sort((a, b) => a.name.localeCompare(b.name)),
         null,
       );
     };
