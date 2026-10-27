@@ -6,7 +6,7 @@ description: Land a Cell studio pull request that the senior skill has reviewed 
 # Land a pull request
 
 Agents don't merge ([decision 004](../../../docs/decisions/004-agents-dont-merge.md)): this skill runs only on the owner's approval, after the `senior` skill's review found nothing serious.
-The deploy is by hand (nothing deploys on a push), so whoever merges deploys, from a clone or in Actions (Deploy → Run workflow), and the site at <https://yggi.github.io/cell-studio/> plays what `main` holds.
+A merge deploys: the push to `main` runs *Deploy* (`deploy.yml`: `node tools/deploy.mjs`, then `node tools/live.mjs`), so the site at <https://yggi.github.io/cell-studio/> plays what `main` holds, and whoever merges sees that run through.
 Do the steps in order and stop at the first that fails.
 
 Lifted from yggi/jambot .claude/skills/land/SKILL.md @ ef79048.
@@ -27,12 +27,13 @@ Lifted from yggi/jambot .claude/skills/land/SKILL.md @ ef79048.
    4. **References right:** an issue or pull request the merged pull request names in another repository by a bare number is written `yggi/<repo>#n`, in its description and in the comments this step writes (a bare `#n` is always this repository's).
 5. **Update `main`.**
    `git fetch origin main && git checkout main && git merge --ff-only origin/main`, in a clone whose tree is clean (the deploy refuses one with changes).
-6. **Deploy.**
-   `node tools/deploy.mjs` from `main`, as a background task (it runs `test:all` and a fresh build: minutes); or, with no clone at hand, Actions → Deploy → Run workflow (`deploy.yml`: the same script on `main`).
-   It refuses a tree with changes or a HEAD that isn't `origin/main`, runs every check, builds `dist/` and publishes it to gh-pages ([testing.md](../../../docs/testing.md#run)).
-7. **Check the live site.**
-   `node tools/live.mjs` (in a cloud session whose preinstalled browsers are another Playwright's, it falls back to `/opt/pw-browsers/chromium` and says so: `tools/profile/playwright.mjs`): it waits until <https://yggi.github.io/cell-studio/> loads the module script of the `dist/index.html` just deployed (every 10 s, up to 10 min), then opens the page in Chromium and fails on any console error or uncaught exception.
-8. **Say so** in a comment on the pull request: the commit deployed and the last lines `node tools/deploy.mjs` and `node tools/live.mjs` printed.
+6. **The deploy.**
+   The merge's push started *Deploy* on Actions: wait for its run on the merge commit to end, green.
+   It runs `node tools/deploy.mjs` (it refuses a tree with changes or a HEAD that isn't `origin/main`, runs every check, builds `dist/` and publishes it to gh-pages: [testing.md](../../../docs/testing.md#run)), then `node tools/live.mjs`.
+   Only when Actions is blocked (a run that fails in seconds with no step), run `node tools/deploy.mjs` from `main` in a clone, as a background task (minutes), and step 7 by hand.
+7. **The live site.**
+   *Deploy*'s last step, or by hand: `node tools/live.mjs` (in a cloud session whose preinstalled browsers are another Playwright's, it falls back to `/opt/pw-browsers/chromium` and says so: `tools/profile/playwright.mjs`): it waits until <https://yggi.github.io/cell-studio/> loads the module script of the `dist/index.html` just deployed (every 10 s, up to 10 min), then opens the page in Chromium and fails on any console error or uncaught exception.
+8. **Say so** in a comment on the pull request: the commit deployed, the *Deploy* run, and the last lines `node tools/deploy.mjs` and `node tools/live.mjs` printed.
    The issues were step 4.
 
 If the deploy or the live check fails, the merge stands: fix forward on a new branch, and say on the pull request that `main` and the site differ.
