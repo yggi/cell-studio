@@ -6,6 +6,7 @@ import { ForceLayout } from './physics';
 import { TOWER_LAYOUT } from './options';
 import { socketHeights, socketId, towerAt, towerLayers, towerNets, towerIns, towerOuts, towerY, withSockets } from './towerlayout';
 import { socketOf, VOICE_SIZE } from './voice';
+import { compilePiece } from '../compile';
 
 const waltz = () => {
   const program = compileSource(PRESETS.waltz.source);
@@ -423,5 +424,36 @@ describe('the tower layout', () => {
     expect(drums.filter((st) => !st.join)).toHaveLength(1);
     expect(drums.filter((st) => st.join)).toHaveLength(1);
     layout.destroy();
+  });
+});
+
+describe('a steady neutral zone (a followed session’s sections, #493)', () => {
+  // (two sections as a Jambot host states them: the drums a fill alone, a player under its kit; then with a kick too)
+  const section = (drums: string) => `&bar meter("4/4") step=108bpm
+&key scale(aeolian, C)
+&harm over=key step=1m [3,5,7] [0,2,4,6]
+${drums}
+use "core kit"
+&bass over=&harm step=16n 3@16 4@16
+&bassOut play=&bass level=.3 &bassV
+&bassV loop=C1
+&pad over=&harm step=16n [1,2,3]@16 [2,3,4,5]@16
+&padOut play=&pad level=.16 &compV
+&compV loop=C3
+&out map=midi ~ &bassOut &padOut ~!6 &drums`;
+  const rows = (text: string, steady: boolean) => {
+    // (as the app compiles a piece: its use resolved)
+    const p = compilePiece(text);
+    const g = buildGraph(p);
+    return towerLayers(p, g, withSockets(p, g), { steady }).rows;
+  };
+  const sparse = section('&fill step=16n ~ ~ &sd:0:.5 ~\n&drums [&fill]');
+  const full = section('&kick step=16n &bd ~ ~ ~\n&fill step=16n ~ ~ &sd ~\n&drums [&kick, &fill]');
+
+  it('lays the rows alike whether or not a player stands under its kit', () => {
+    expect(rows(sparse, false)).not.toEqual(rows(full, false));
+    expect(rows(sparse, true)).toEqual(rows(full, true));
+    // (with the room a kit over its player takes, as a section that has one lays it)
+    expect(rows(full, true)).toEqual(rows(sparse, false));
   });
 });
