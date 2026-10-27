@@ -436,8 +436,17 @@ export class Player implements LiveSource {
     this.stopFrames = onFrames(frame, () => 40, 'clock');
   }
 
-  /** Whether a feed is playing (`feed`), in place of the transport's run. */
+  /** Whether a feed is playing (`feed`), in place of the transport's run, and how to ask it now (`layAhead`). */
   private feeding = false;
+  private layFeed: (() => void) | null = null;
+
+  /**
+   * Lay what the feed playing has to play up to FEED_LEAD from now, at once rather than at its next turn: before work
+   * that holds the page (a followed session's section switch, #496), so the whole lead covers it.
+   */
+  layAhead(): void {
+    if (this.feeding) this.layFeed?.();
+  }
 
   /**
    * Play what a feed lays (a session's song, #478 rung 3) in place of the piece from the cursor: each window it gives,
@@ -459,29 +468,27 @@ export class Player implements LiveSource {
     let synced: Plan | null = null;
     let lagAt = -Infinity;
     this.feeding = true;
-    this.repeatId = tr.scheduleRepeat(
-      () => {
-        if (run !== this.run || !this.voices) return;
-        const now = performance.now() / 1000;
-        if (now - lagAt > 0.5) {
-          lagAt = now;
-          this.refreshLag();
+    const lay = () => {
+      if (run !== this.run || !this.voices) return;
+      const now = performance.now() / 1000;
+      if (now - lagAt > 0.5) {
+        lagAt = now;
+        this.refreshLag();
+      }
+      for (const f of feed.next(now, now + FEED_LEAD)) {
+        if (f.plan !== synced) {
+          synced = f.plan;
+          this.voices.sync(f.plan.result, f.plan.statics, f.plan.muted);
         }
-        for (const f of feed.next(now, now + FEED_LEAD)) {
-          if (f.plan !== synced) {
-            synced = f.plan;
-            this.voices.sync(f.plan.result, f.plan.statics, f.plan.muted);
-          }
-          const time = this.audioAt(Tone, f.time);
-          const { events, tapes, clock } = retime(f.window, time, f.scale);
-          for (const t of tapes) this.voices.tapeSpeed(t.tape, t.points);
-          for (const e of events) this.voices.play(e);
-          this.sink?.play(Tone, events, time + (f.window.to - f.window.from) * f.scale, clock);
-        }
-      },
-      FEED_EVERY,
-      0,
-    );
+        const time = this.audioAt(Tone, f.time);
+        const { events, tapes, clock } = retime(f.window, time, f.scale);
+        for (const t of tapes) this.voices.tapeSpeed(t.tape, t.points);
+        for (const e of events) this.voices.play(e);
+        this.sink?.play(Tone, events, time + (f.window.to - f.window.from) * f.scale, clock);
+      }
+    };
+    this.layFeed = lay;
+    this.repeatId = tr.scheduleRepeat(lay, FEED_EVERY, 0);
     tr.start(Tone.now() + 0.05);
     this.move('play');
   }
@@ -517,6 +524,7 @@ export class Player implements LiveSource {
     // (a feed's voices were its plans': the piece's again)
     if (this.feeding && this.plan) this.voices?.sync(this.plan.result, this.plan.statics, this.plan.muted);
     this.feeding = false;
+    this.layFeed = null;
     this.stopFrames();
     const at = transportClock.seconds;
     transportClock.seconds = 0;

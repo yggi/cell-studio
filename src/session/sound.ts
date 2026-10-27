@@ -38,9 +38,9 @@ export interface Slice {
   readonly scale: number;
 }
 
-/** Something not played: a bar (null for a stretch passed late) and why. */
+/** Something not played: a bar, and why (a stretch passed late is said of each bar it touches). */
 export interface Lack {
-  readonly bar: number | null;
+  readonly bar: number;
   readonly why: string;
 }
 
@@ -112,8 +112,10 @@ export function sounding(f: Followed, done: Place | null, horizon: number, now: 
     const l = s === null ? null : lengthOf(place.bar, s);
     const at = s === null || l === null ? null : s + place.into * l;
     if (at !== null && at < now - LATE) {
-      lacked.push({ bar: null, why: `late by ${Math.round((now - at) * 1000)} ms` });
-      place = placeAt(now);
+      const why = `late by ${Math.round((now - at) * 1000)} ms`;
+      const to = placeAt(now);
+      for (let bar = place.bar; bar <= (to?.bar ?? place.bar); bar++) lacked.push({ bar, why });
+      place = to;
     }
   }
   while (place) {

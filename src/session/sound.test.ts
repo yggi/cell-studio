@@ -154,9 +154,12 @@ describe('sounding a followed song, bar by bar from the texts that state them', 
     expect(s.done).toEqual({ bar: 5, into: 0 });
     // (begun with none: said, and passed)
     expect(sounding(f, s.done, 20.5, 20, length)).toMatchObject({ lacked: [{ bar: 5, why: 'no text stated it' }], slices: [] });
-    // (an ask that comes late says so, and plays on from now)
+    // (an ask that comes late says so, of each bar it passed, and plays on from now)
     const late = sounding(song([2, 2, 2]), { bar: 0, into: 0.5 }, 13, 12.3, length);
-    expect(late.lacked).toEqual([{ bar: null, why: 'late by 1300 ms' }]);
+    expect(late.lacked).toEqual([
+      { bar: 0, why: 'late by 1300 ms' },
+      { bar: 1, why: 'late by 1300 ms' },
+    ]);
     expect(late.slices[0]).toMatchObject({ bar: 1, at: 12.3 });
   });
 

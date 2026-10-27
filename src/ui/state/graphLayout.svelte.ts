@@ -135,7 +135,7 @@ export class GraphLayout {
    * Take the next snapshot: lay it out (a piece just opened, `opened` changed: afresh, and framed once it has come to
    * rest; an edit: from where things are) and make its nodes and edges, all at once.
    */
-  sync(given: GraphSnapshot, opened: number, gentle = false): void {
+  sync(given: GraphSnapshot, opened: number, gentle = false, held = false): void {
     this.#given = given;
     this.#opened = opened;
     const layout = this.#force;
@@ -177,14 +177,19 @@ export class GraphLayout {
     for (const n of m.nodes) if (n.petalOf) kids.set(n.petalOf, [...(kids.get(n.petalOf) ?? []), n.id]);
     this.#petalSlot = new Map([...kids].flatMap(([parent, ids]) => ids.map((id, i) => [id, { parent, i, n: ids.length }] as const)));
     // (gently: a conversion's story, #390, the graph grown a cell at a time from where it is, nothing settled at once)
-    const diff = layout.setGraph({ ...m, nodes: m.nodes.filter((n) => !n.petalOf) }, structural, { gentle: gentle && !justOpened });
+    // (held: a followed session's next section, its cells that stay where they were, its new ones placed at once, #496)
+    const diff = layout.setGraph({ ...m, nodes: m.nodes.filter((n) => !n.petalOf) }, structural, { gentle: gentle && !justOpened, held: held && !justOpened });
     // Mostly new graph (first load, preset switch): settle before first paint, then frame it.
-    const fresh = justOpened || (!gentle && diff.added > diff.total / 2);
+    const fresh = justOpened || (!gentle && !held && diff.added > diff.total / 2);
     if (fresh) {
       layout.tick(220);
       // meters last: where most of their edges cross nothing; those are drawn (layout/meters.ts)
       layout.layNet();
       this.net = layout.meterNet();
+    } else if (held && structural) {
+      // (left at rest, it doesn't settle again: its meters' net laid here)
+      const laid = layout.meterNet();
+      if (!sameNet(laid, this.net)) this.net = laid;
     }
     // turntables stay where they were first laid out (pinned): the rest flows round them
     if (justOpened)

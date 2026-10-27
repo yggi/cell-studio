@@ -57,6 +57,12 @@ const COLUMN_GAP = 30;
 const GENTLE_HEAT = 0.25;
 /** The most a node moves in a tick after a gentle edit (px): the graph reflows slowly enough to follow. */
 const GENTLE_CALM = 3;
+/**
+ * How many ticks a held edit settles its new cells in, synchronously, the rest fixed where they are (`setGraph`'s
+ * `held`: a followed session's section switch, #496 #493). Each is a fraction of a millisecond over a section's ~40
+ * cells, so the switch stays one short task, where a reheat ran the layout live for seconds, every tick a render.
+ */
+const HELD_TICKS = 60;
 /** The room between neighbours in a row lined up (px). */
 const LINE_GAP = 40;
 /** The room over a pill a cell reading it keeps: the pill's pad, and the cell's name under it (px). */
@@ -240,7 +246,7 @@ export class ForceLayout {
   }
 
   /** Merge a new graph in. Existing nodes keep position and velocity. */
-  setGraph(whole: GraphModel, structural = true, { gentle = false }: { readonly gentle?: boolean } = {}): GraphDiff {
+  setGraph(whole: GraphModel, structural = true, { gentle = false, held = false }: { readonly gentle?: boolean; readonly held?: boolean } = {}): GraphDiff {
     // (notes and scopes are read in the margin, not laid among the music: side.ts)
     const drawn = sideless(whole);
     // (as drawn: a product's wires at its junction; the forces lay the graph with each junction folded into its voice,
@@ -261,7 +267,9 @@ export class ForceLayout {
     for (const e of model.edges) if (e.source !== e.target && !ground(e)) for (const id of [e.source, e.target]) this.s.degree.set(id, (this.s.degree.get(id) ?? 0) + 1);
     // mostly new (a different example that happens to share &bar, &mix, &out): lay it all out afresh
     // (gently, as a conversion's story grows the graph a cell at a time, #390: never afresh, everything where it is)
-    const fresh = !gentle && model.nodes.filter((n) => !this.s.byId.has(n.id)).length > model.nodes.length / 2;
+    // (held: what stays never moves, however much is new)
+    const fresh = !gentle && !held && model.nodes.filter((n) => !this.s.byId.has(n.id)).length > model.nodes.length / 2;
+    const stayed = held ? new Set(this.s.byId.keys()) : null;
     if (fresh) this.s.bendAt.clear(); // a fresh graph: no bends left over from the last one
     this.calmed = !fresh;
     this.cap = gentle ? GENTLE_CALM : CALM;
@@ -348,7 +356,7 @@ export class ForceLayout {
     );
     for (const id of [...this.s.bendAt.keys()]) if (!this.s.links.some((l) => l.id === id)) this.s.bendAt.delete(id);
     // a fresh graph settles from scratch, like a new layout; gently, only enough for what came to find its place
-    if (structural) this.reheat(fresh ? 1 : gentle ? GENTLE_HEAT : added > 0 || removed > 0 ? 0.7 : 0.3);
+    if (structural && !stayed) this.reheat(fresh ? 1 : gentle ? GENTLE_HEAT : added > 0 || removed > 0 ? 0.7 : 0.3);
     // forceX/Y cache their targets: refresh them for the new places
     this.sim.force(
       'columnX',
@@ -359,7 +367,34 @@ export class ForceLayout {
       'rankY',
       (this.sim.force('rankY') as ReturnType<typeof forceY<PhysNode>>).y((d) => this.s.rankY.get(d.id) ?? 0),
     );
+    if (stayed) this.settleHeld(stayed, added);
     return { added, removed, total: next.size, structural };
+  }
+
+  /**
+   * A held edit: the cells that stayed fixed where they are, the new ones settled among them (`HELD_TICKS`, at once),
+   * and the layout left at rest, so nothing that stayed moves, now or after.
+   */
+  private settleHeld(stayed: ReadonlySet<string>, added: number): void {
+    const fixed: { n: PhysNode; fx: number | null | undefined; fy: number | null | undefined }[] = [];
+    for (const n of this.s.byId.values()) {
+      if (!stayed.has(n.id) || n.x === undefined || n.y === undefined) continue;
+      fixed.push({ n, fx: n.fx, fy: n.fy });
+      n.fx = n.x;
+      n.fy = n.y;
+    }
+    if (added > 0) {
+      this.sim.alpha(0.7);
+      this.tick(HELD_TICKS);
+    }
+    for (const { n, fx, fy } of fixed) {
+      n.fx = fx;
+      n.fy = fy;
+      n.vx = n.vy = 0;
+    }
+    this.sim.alpha(0);
+    this.sim.stop();
+    placeJunctions(this.s);
   }
 
   /** (probe) What each reader reads, along the flow: [from, to]. */

@@ -178,6 +178,8 @@ export class Studio {
       this.playback.feed = this.#feed;
       void this.playback.toggle();
     }
+    // (a section's switch holds the page a while: what is to play is laid first, the feed's whole lead ahead, #496)
+    if (h.text.text !== this.piece.code && this.playback.playing) this.playback.player.layAhead();
     this.piece.follow(h.text.text);
     if (this.heard?.bar !== h.bar || this.heard.before !== h.before || this.heard.unstated !== h.text.unstated)
       this.heard = { bar: h.bar, before: h.before, unstated: h.text.unstated };

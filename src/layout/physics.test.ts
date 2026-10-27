@@ -59,6 +59,24 @@ describe('ForceLayout', () => {
     expect(l.position('cell:B')).toBeUndefined();
   });
 
+  it('holds what stays where it is after a held edit (a followed section switch, #496): the new ones placed at once, the layout left at rest', () => {
+    const l = new ForceLayout(undefined, { live: false });
+    const src = '&m step=1\n&A step=&m &B\n&B 0\n&v s=saw\n&mix_ [&A * &v]\n&out_ loop=44k map=sample &mix_';
+    l.setGraph(graphOf(src));
+    l.tick(300);
+    const stays = ['cell:m', 'cell:A', 'cell:B', 'cell:v'];
+    const before = new Map(stays.map((id) => [id, { ...l.position(id)! }]));
+    // (more than half of it new: held all the same, never laid out afresh)
+    const d = l.setGraph(graphOf(src.replace('&A step=&m &B', '&A step=&m &B &C &D &E &F &G') + '\n&C 1\n&D 2\n&E 3\n&F 4\n&G 5'), true, { held: true });
+    expect(d).toMatchObject({ added: 5 });
+    for (const [id, p] of before) expect(l.position(id), id).toEqual(p);
+    expect(l.alpha).toBe(0);
+    // (the newcomers settled apart, round their parent)
+    const news = ['cell:C', 'cell:D', 'cell:E', 'cell:F', 'cell:G'].map((id) => l.position(id)!);
+    for (const p of news) expect(dist(p, before.get('cell:A')!)).toBeLessThan(400);
+    for (let i = 0; i < news.length; i++) for (let j = i + 1; j < news.length; j++) expect(dist(news[i]!, news[j]!)).toBeGreaterThan(20);
+  });
+
   it('moves gently after an edit: a cell dropped onto the others pushes them aside slowly, nothing flies', () => {
     const l = new ForceLayout(undefined, { live: false });
     const src = '&m step=1\n&A step=&m &B\n&B 0\n&v s=saw\n&mix_ [&A * &v]\n&out_ loop=44k map=sample &mix_';
