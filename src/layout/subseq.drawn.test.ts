@@ -15,17 +15,7 @@ const clean = (src: string): R => {
 };
 
 describe('cells inside a subsequence', () => {
-  it('a splice inside is a splice: checked, drawn and lit', () => {
-    expect(
-      compileSource('&t [&nope 0]')
-        .diagnostics.map((d) => d.message)
-        .join(),
-    ).toMatch(/nope/);
-    expect(
-      compileSource('&a [&t 0]\n&t [0 &a]')
-        .diagnostics.map((d) => d.message)
-        .join(),
-    ).toMatch(/Circular reference/);
+  it('a splice inside is a splice: drawn and lit (checked by cells: its compiler/compile.test.ts, #500)', () => {
     const r = clean('&a 0 2\n&t step=1 [&a^1 7] 9\n&v s=sine loop=C4\n&out map=sample [&t * &v]');
     expect(r.cells.get('t')!.children.get('a')).toBe(1);
     const g = buildGraph(r, { bulbs: false });
