@@ -4,7 +4,7 @@
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { compileSource } from '@yggi/cells/engine/compile';
+import { compilePiece } from '../src/compile';
 import { pieceTime, type PieceTime } from '@yggi/cells/engine/duration';
 import { buildGraph } from '../src/layout/drawn';
 import { ORDER, type PresetKey } from '@yggi/cells/engine/order';
@@ -57,7 +57,7 @@ export function readExample(key: string, dir = EXAMPLES_DIR): { file: string; te
 export function buildExamplesMeta(dir = EXAMPLES_DIR): (ExampleMeta & { source: string; graph: ReturnType<typeof buildGraph> })[] {
   return ORDER.map((key) => {
     const { file, text: source } = readExample(key, dir);
-    const r = compileSource(source);
+    const r = compilePiece(source);
     const m = pieceMeta(file);
     const graph = buildGraph(r);
     return {
@@ -80,7 +80,7 @@ export function buildExamplesIndex(dir = EXAMPLES_DIR): ExampleInfo[] {
   return buildExamplesMeta(dir).map(({ source, graph, ...meta }) => {
     const order = bestRowOrder(graph);
     // (the tower layout's, as the app lays it: its graph with its sockets, its options; physics.ts rowOrderFor keys it so)
-    const tower = towerSetup(compileSource(source), graph);
+    const tower = towerSetup(compilePiece(source), graph);
     const drawn = sideless({ ...tower.model, nodes: tower.model.nodes.filter((n) => !n.petalOf) });
     const towerRows = { key: rowsKey(drawn), order: bestRowOrder(drawn, { ...TOWER_LAYOUT, ...tower.options }) };
     return { ...meta, miniature: miniature(source, order), rows: { key: rowsKey(graph), order }, towerRows };
