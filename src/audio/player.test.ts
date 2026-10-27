@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest';
 import { Player } from './player';
 import { transportClock } from './clock.svelte';
 import type { TransportState } from './transport';
@@ -252,6 +252,10 @@ describe('a feed: a song another clock lays (#478, rung 3)', () => {
     const { p, tick, synced, played } = fed();
     p.load(pa);
     synced.length = 0;
+    // (the page's clock held still: the player reads it again after the awaits, and the milliseconds a loaded machine
+    // spends between the two readings would move where the window is heard, #481)
+    const clock = vi.spyOn(performance, 'now').mockReturnValue(5_000);
+    onTestFinished(() => clock.mockRestore());
     const page = performance.now() / 1000;
     let asks = 0;
     // (the first ask: A's second bar, heard 1 s from now, its second stretched to 1.5; the next: B's first)
