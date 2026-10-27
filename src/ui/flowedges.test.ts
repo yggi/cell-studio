@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { compileSource } from '@yggi/cells/engine/compile';
+import { compilePiece } from '../compile';
 import { feeds, type GraphEdge } from '@yggi/cells/engine/graph';
 import { buildGraph } from '../layout/drawn';
 import { codeShifts, type CompileResult } from '@yggi/cells/engine/program';
@@ -60,7 +61,8 @@ describe('what an edge carries: one lookup by band and port', () => {
   it('is what the special cases said, on every edge of every example', () => {
     let n = 0;
     for (const [key, { source }] of Object.entries(PRESETS)) {
-      const program = compileSource(source);
+      // (as the app compiles it: with the seed library, for a piece that uses it)
+      const program = compilePiece(source);
       // (every cell its own node: the edges as the code writes them)
       for (const e of buildGraph(program, { bulbs: false }).edges) {
         expect(carried(e, program), `${key}: ${e.id} (${e.port} ${e.band})`).toEqual(byPort(e, program));

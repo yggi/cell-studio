@@ -291,7 +291,7 @@ describe('Piece: a session host’s text, followed (#478)', () => {
 });
 
 describe('Piece: a piece that uses a fragment (cells decision 054)', () => {
-  const USES = `use "core kit"
+  const USES = `use * from "core kit"
 &bar meter("4/4") step=100bpm
 &beat step=8n &bd ~ &hh ~ &sd ~ &hh [&bd,&hh]`;
   const FILE = `---\ntitle: Kit groove\n---\n\n\`\`\`cells\n${USES}\n\`\`\`\n`;

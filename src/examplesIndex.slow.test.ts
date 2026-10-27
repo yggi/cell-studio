@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import { PRESETS } from '@yggi/cells/engine/presets';
-import { compileSource } from '@yggi/cells/engine/compile';
+import { compilePiece } from './compile';
 import { pieceMeta } from '@yggi/cells/engine/parser/index';
 import built from 'virtual:examples-index';
 import { buildExamplesIndex } from '../tools/examples-index';
@@ -24,12 +24,12 @@ describe('examples/*.md', () => {
       expect(e.size, `${e.key}: size`).toBeGreaterThan(0);
       // its miniature: what the browser would work out from its text, one node per cell drawn and a dot per product
       expect(e.miniature, `${e.key}: miniature`).toEqual(miniature(PRESETS[e.key].source));
-      const products = buildGraph(compileSource(PRESETS[e.key].source)).nodes.filter((n) => n.kind === 'junction').length;
+      const products = buildGraph(compilePiece(PRESETS[e.key].source)).nodes.filter((n) => n.kind === 'junction').length;
       expect(e.miniature?.nodes, `${e.key}: miniature`).toHaveLength(e.size + products);
       // (laid out with the rows' order the index keeps, as the browser lays it out choosing afresh: the same order)
-      expect(e.rows.key, `${e.key}: its graph's shape`).toBe(rowsKey(buildGraph(compileSource(PRESETS[e.key].source))));
+      expect(e.rows.key, `${e.key}: its graph's shape`).toBe(rowsKey(buildGraph(compilePiece(PRESETS[e.key].source))));
       // (and in the tower layout, as graphLayout.svelte.ts hands it to the layout: its sockets, no petals, no notes)
-      const program = compileSource(PRESETS[e.key].source);
+      const program = compilePiece(PRESETS[e.key].source);
       const tower = towerSetup(program, buildGraph(program)).model;
       expect(e.towerRows.key, `${e.key}: its tower graph's shape`).toBe(rowsKey(sideless({ ...tower, nodes: tower.nodes.filter((n) => !n.petalOf) })));
     }

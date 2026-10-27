@@ -15,11 +15,11 @@
   import { pieceOf } from '../pieces';
   import { madeUpSound } from '../sound';
 
-  const KIT = 'use "core kit"\n&bar meter("4/4") step=100bpm\n&beat step=8n &bd ~ &hh ~ &sd ~ &hh [&bd,&hh]';
+  const KIT = 'use * from "core kit"\n&bar meter("4/4") step=100bpm\n&beat step=8n &bd ~ &hh ~ &sd ~ &hh [&bd,&hh]';
   const SOURCES = {
     kit: KIT,
     override: `${KIT}\n&sd s=white hpf=900 distort=.6 env=&(map=adsr 0 .12 0 .05)`,
-    band: '&bar meter("4/4") step=110bpm\nuse "aeolian"\nuse "tonic vamp"\nuse "bass"\nuse "root bass"\nuse "core kit"\nuse "Synth-pop drums"',
+    band: '&bar meter("4/4") step=110bpm\nuse * from "aeolian"\nuse * from "tonic vamp"\nuse * from "bass"\nuse * from "root bass"\nuse * from "core kit"\nuse * from "Synth-pop drums"',
   };
   const OPTIONS = ['wash', 'frame', 'tag', 'shelf', 'app'] as const;
   type Option = (typeof OPTIONS)[number];
@@ -104,7 +104,7 @@
   {#each frames as f (f.key)}
     <figure data-kind={f.key}>
       <figcaption>
-        <b>{f.option}</b> · {f.key.split('-')[0]} <span>{f.groups.map((g) => `use "${g.id}": ${g.nodes.length} drawn, ${g.folded.length} idle`).join(' · ')}</span>
+        <b>{f.option}</b> · {f.key.split('-')[0]} <span>{f.groups.map((g) => `use * from "${g.id}": ${g.nodes.length} drawn, ${g.folded.length} idle`).join(' · ')}</span>
       </figcaption>
       <div class="frame opt-{f.option}" bind:this={figures[f.key]}>
         <Graph
@@ -131,7 +131,7 @@
           {#each drawn[f.key] ?? [] as d (d.g.id)}
             {#if f.option === 'wash'}
               <polygon points={d.hull} fill={d.hue} fill-opacity="0.09" stroke="none" />
-              <text x={d.label.x} y={d.label.y} fill={d.hue} class="name">use "{d.g.id}"</text>
+              <text x={d.label.x} y={d.label.y} fill={d.hue} class="name">use * from "{d.g.id}"</text>
             {:else if f.option === 'frame'}
               <polygon points={d.hull} fill="none" stroke={d.hue} stroke-opacity="0.7" stroke-width="1.5" stroke-dasharray="6 5" />
               <g transform="translate({d.label.x - 8},{d.label.y - 15})">
