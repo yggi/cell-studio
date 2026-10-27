@@ -16,7 +16,7 @@
 // `tools/session-clicks.ts`, #492) and its page's long tasks. Exits 1 where a bound isn't met.
 //
 // Chromium: Playwright's, or CHROME_PATH=/path/to/chrome (tools/profile/playwright.mjs).
-import { writeFileSync } from 'node:fs';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { preview, runnerImport } from 'vite';
 import { chromium } from './profile/playwright.mjs';
 import { freshBuild } from './fresh-build.mjs';
@@ -31,6 +31,9 @@ const MINUTES = Number(option('minutes', '10'));
 const SESSION = option('session', `probe ${Date.now() % 100000}`);
 /** CDP's CPU slowdown on Cell studio's page (1: this machine's speed; 4 stands in for a mid-range phone, as the profile skill's). */
 const THROTTLE = Number(option('throttle', '1'));
+/** CLIPS=dir: the switches heard loudest over the bars either side, as WAV files to listen to, `CLIPS_KEPT` of them. */
+const CLIPS = process.env.CLIPS;
+const CLIPS_KEPT = 4;
 /** How often both logs are read (ms). */
 const READ_EVERY = 2000;
 /** Jambot's own bound between two pages (1 ms, `apps/web/src/played.ts`), past the clock's. */
@@ -72,17 +75,38 @@ const studio = await (await browser.newContext()).newPage();
 studio.on('pageerror', (e) => errors.push(`Cell studio: ${e.message}`));
 studio.on('console', (m) => m.type() === 'error' && errors.push(`Cell studio: ${m.text()}`));
 // (the page's long tasks, each on its clock and how long: what holds the scheduler, #496)
-await studio.addInitScript(() => {
+await studio.addInitScript((clips) => {
   // (what the page sounds, by level, #492: tools/session-clicks.ts. Each render quantum's peak at the context's time,
   // from a worklet beside the destination, wherever something is connected to it)
   window.__levels = [];
+  // (CLIPS=dir: it also keeps the last 3 s of what it hears, stereo, and gives a stretch of it when asked, `ask`)
   const tap = `registerProcessor('level-tap', class extends AudioWorkletProcessor {
-    constructor() { super(); this.kept = []; }
+    constructor() {
+      super();
+      this.kept = [];
+      this.ring = [new Float32Array(3 * sampleRate), new Float32Array(3 * sampleRate)];
+      this.asks = [];
+      this.port.onmessage = (e) => this.asks.push(e.data);
+    }
     process(inputs) {
+      const [l, r] = [inputs[0]?.[0], inputs[0]?.[1] ?? inputs[0]?.[0]];
       let peak = 0;
       for (const channel of inputs[0] ?? []) for (let i = 0; i < channel.length; i++) peak = Math.max(peak, Math.abs(channel[i]));
       this.kept.push(currentTime, peak);
       if (this.kept.length >= 256) { this.port.postMessage(this.kept); this.kept = []; }
+      // (the ring always, so an ask finds the second before it)
+      const n = this.ring[0].length;
+      for (let i = 0; i < 128; i++) { this.ring[0][(currentFrame + i) % n] = l?.[i] ?? 0; this.ring[1][(currentFrame + i) % n] = r?.[i] ?? 0; }
+      if (this.asks.length) {
+        const end = currentFrame + 128;
+        this.asks = this.asks.filter((a) => {
+          const [f0, f1] = [Math.round(a.from * sampleRate), Math.round(a.to * sampleRate)];
+          if (f1 > end) return true;
+          const clip = f0 >= end - n ? [0, 1].map((c) => Float32Array.from({ length: f1 - f0 }, (_, i) => this.ring[c][(f0 + i) % n])) : null;
+          this.port.postMessage({ clip: a.id, rate: sampleRate, from: a.from, samples: clip });
+          return false;
+        });
+      }
       return true;
     }
   });`;
@@ -102,7 +126,8 @@ await studio.addInitScript(() => {
             // others that close in seconds; the one that runs on is the one that plays)
             const mine = (window.__tapped = (window.__tapped ?? 0) + 1);
             window.__quantum = 128 / context.sampleRate;
-            node.port.onmessage = (e) => window.__levels.push([mine, e.data]);
+            node.port.onmessage = (e) => (e.data.clip !== undefined ? window.__clips.set(e.data.clip, e.data) : window.__levels.push([mine, e.data]));
+            window.__tapNodes.push([context, node]);
             return node;
           }),
         );
@@ -110,9 +135,24 @@ await studio.addInitScript(() => {
     }
     return made;
   };
+  // (each switch heard, from 1 s before it to 1 s after, asked of the context that plays as its bar is laid)
+  window.__clips = new Map();
+  window.__tapNodes = [];
+  if (clips) {
+    const asked = new Set();
+    setInterval(() => {
+      const bars = window.cellStudio?.session?.state().sound?.bars ?? [];
+      const playing = window.__tapNodes.filter(([c]) => c.state === 'running').sort(([a], [b]) => b.currentTime - a.currentTime)[0];
+      for (const b of bars)
+        if (b.switched && !asked.has(b.bar) && playing) {
+          asked.add(b.bar);
+          playing[1].port.postMessage({ id: b.bar, from: b.at - 1, to: b.at + 1 });
+        }
+    }, 250);
+  }
   window.__longTasks = [];
   new PerformanceObserver((l) => window.__longTasks.push(...l.getEntries().map((e) => [e.startTime, e.duration]))).observe({ type: 'longtask', buffered: true });
-});
+}, !!CLIPS);
 await studio.goto(server.resolvedUrls.local[0]);
 await studio.waitForFunction(() => window.cellStudio?.session);
 const cdp = await studio.context().newCDPSession(studio);
@@ -169,9 +209,26 @@ while (Date.now() < end) {
 const last = await read();
 const long = await studio.evaluate(() => window.__longTasks.map(([, d]) => d));
 if (process.env.PROFILE) writeFileSync(process.env.PROFILE, JSON.stringify((await cdp.send('Profiler.stop')).profile));
-await browser.close();
-await server.close();
-
+/** The switches heard loudest over their neighbours, each a WAV of 1 s either side of it, written to CLIPS. */
+async function keepClips(levels) {
+  mkdirSync(CLIPS, { recursive: true });
+  const worst = [...levels]
+    .filter(clicks.heard)
+    .sort((a, b) => b.over - a.over)
+    .slice(0, CLIPS_KEPT);
+  const kept = [];
+  for (const l of worst) {
+    const c = await studio.evaluate((bar) => {
+      const x = window.__clips.get(bar);
+      return x?.samples ? { rate: x.rate, samples: x.samples.map((s) => Array.from(s)) } : null;
+    }, l.bar);
+    if (!c) continue;
+    const file = `${CLIPS}/bar-${l.bar}-${l.over >= 0 ? '+' : ''}${l.over.toFixed(1)}dB.wav`;
+    writeFileSync(file, clicks.wav(c.samples, c.rate));
+    kept.push(file);
+  }
+  return kept;
+}
 const within = bound + WITHIN;
 // (the context that played: the one whose levels run longest)
 logs.levels = [...logs.levelsBy.values()].reduce((a, b) => (b.length > a.length ? b : a), []);
@@ -182,6 +239,10 @@ const levels = clicks.switchLevels(
 );
 const sounded = levels.filter(clicks.heard);
 const clicked = sounded.filter((l) => !clicks.clean(l));
+const clipped = CLIPS ? await keepClips(levels) : [];
+await browser.close();
+await server.close();
+
 const dB = (x) => (Number.isFinite(x) ? x.toFixed(1) : '-∞');
 const c = compare.compareSession(logs.host, logs.studio, within, { late: logs.late, lackedBars: [...logs.lackedBars] });
 console.log(
@@ -196,6 +257,7 @@ console.log(
       levels.length > sounded.length ? `; ${levels.length - sounded.length} silent here (nothing sounded round them)` : ''
     }${logs.levels.length ? `, over ${Math.round(logs.levels.length * logs.quantum)} s of levels` : ' (no level was taken: no audio ran)'}`,
     ...clicked.map((l) => `  bar ${l.bar}: ${dB(l.peak)} dBFS, the bars either side ${dB(l.before)} and ${dB(l.after)}`),
+    ...(CLIPS ? [`clips of the switches heard loudest (1 s either side, the switch at 1 s): ${clipped.length ? clipped.join(', ') : 'none kept'}`] : []),
     `Cell studio's long tasks: ${long.filter((d) => d > 100).length} over 100 ms, ${long.filter((d) => d > 300).length} over 300 ms, the longest ${Math.round(Math.max(0, ...long))} ms`,
     `errors: ${errors.length ? errors.join('; ') : 'none'}`,
     ...c.differing.map((d) => `  ${d}`),

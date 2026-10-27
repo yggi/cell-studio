@@ -24,10 +24,11 @@ export interface BarLaid {
  */
 export const WINDOW = { before: 0.005, after: 0.01 } as const;
 /**
- * How far over the louder of the bars either side a switch's peak may be, in dB: 3, a doubling of power, which a
- * cut voice's step or a note doubled reaches and the music's own bar to bar change seldom does (chosen; named here).
+ * How far over the louder of the bars either side a switch's peak may be, in dB: 6, a doubling of the amplitude, which
+ * a cut voice's step or a note doubled reaches. The owner loosened it from 3 (a doubling of power) on #503: the music's
+ * own bar to bar change reached 2.9 dB over 33 switches, too near 3 to tell from a click (chosen; named here).
  */
-export const CLICK_DB = 3;
+export const CLICK_DB = 6;
 
 export interface SwitchLevel {
   readonly bar: number;
@@ -71,3 +72,27 @@ export const heard = (s: SwitchLevel): boolean => Number.isFinite(Math.max(s.pea
 
 /** Whether a switch is under the bound: no click by level. */
 export const clean = (s: SwitchLevel): boolean => !(s.over > CLICK_DB);
+
+/** Stereo samples (-1 to 1, a channel each) as a 16-bit PCM WAV file, to listen to a switch (the probe's `CLIPS`). */
+export function wav(channels: readonly (readonly number[])[], rate: number): Uint8Array {
+  const frames = channels[0]?.length ?? 0;
+  const n = channels.length;
+  const bytes = new Uint8Array(44 + frames * n * 2);
+  const v = new DataView(bytes.buffer);
+  const text = (at: number, s: string) => [...s].forEach((c, i) => v.setUint8(at + i, c.charCodeAt(0)));
+  text(0, 'RIFF');
+  v.setUint32(4, 36 + frames * n * 2, true);
+  text(8, 'WAVE');
+  text(12, 'fmt ');
+  v.setUint32(16, 16, true);
+  v.setUint16(20, 1, true);
+  v.setUint16(22, n, true);
+  v.setUint32(24, rate, true);
+  v.setUint32(28, rate * n * 2, true);
+  v.setUint16(32, n * 2, true);
+  v.setUint16(34, 16, true);
+  text(36, 'data');
+  v.setUint32(40, frames * n * 2, true);
+  for (let f = 0; f < frames; f++) for (let c = 0; c < n; c++) v.setInt16(44 + (f * n + c) * 2, Math.round(Math.max(-1, Math.min(1, channels[c]![f]!)) * 32767), true);
+  return bytes;
+}
