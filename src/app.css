@@ -40,6 +40,7 @@
   --edge-net-font: 600 13px/1 var(--font-code); /* a net's shared name, on its trunk */
   --edge-tag-halo: 7px; /* … and the gap it makes in the wire under it */
   --cell-in: 450ms; /* a cell or a wire coming into the graph */
+  --cell-out: 300ms; /* a cell leaving it (a followed session's next section: ui/state/graphLayout.svelte.ts LEAVING_MS) */
   --edge-trace-w: 9px; /* a meter's net at rest … */
   --edge-trace-flash-w: 3px; /* … and how much wider on a tick */
   --edge-trace-rest: 0.42;
@@ -424,6 +425,16 @@ select {
 .canvas .svelte-flow__edge {
   animation: wire-in var(--cell-in) ease-out both;
 }
+.canvas .svelte-flow__node.leaving {
+  animation: cell-out var(--cell-out) ease-in both;
+  pointer-events: none;
+}
+@keyframes cell-out {
+  to {
+    opacity: 0;
+    scale: 0.6;
+  }
+}
 @keyframes cell-in {
   from {
     opacity: 0;
@@ -437,6 +448,7 @@ select {
 }
 @media (prefers-reduced-motion: reduce) {
   .canvas .svelte-flow__node,
+  .canvas .svelte-flow__node.leaving,
   .canvas .svelte-flow__edge {
     animation: none;
   }
