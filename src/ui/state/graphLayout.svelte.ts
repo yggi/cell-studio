@@ -33,6 +33,9 @@ const towerOptions = (): Partial<LayoutOptions> => ({
   ...(ABOVE === '0' ? { socketsAbove: false } : {}),
 });
 
+/** How long a cell a held sync drops stays, fading out, before it goes (ms): `--cell-out` in app.css, and a frame. */
+const LEAVING_MS = 320;
+
 /** A socket's flow node (the tower layout): the edge into the card it ends, and whose sound that is. */
 function socketNode(id: string, m: { edges: readonly { id: string; to: string; from: string; bulb?: string }[] }, position: { x: number; y: number }): FlowNode {
   const e = m.edges.find((x) => x.to === id);
@@ -107,6 +110,8 @@ export class GraphLayout {
   #dragging: string | null = null;
   #lastKey = '';
   #lastOpened = -1;
+  // the cells a held sync dropped, still drawn while they fade out (`LEAVING_MS`)
+  #leaving: ReturnType<typeof setTimeout> | null = null;
   // what the edges were last made from (`restyle` makes them again only when one of these changes)
   #madeFrom: readonly unknown[] = [];
 
@@ -142,7 +147,7 @@ export class GraphLayout {
     // (the tower layout: no card's node, the card everywhere: a socket each thing it hears, at that thing's height, the
     // strip at the right showing what goes in; the layers, tables, structure, voices and the audible)
     const tower = this.mode === 'tower';
-    const setup = tower ? towerSetup(given.program, given.model) : null;
+    const setup = tower ? towerSetup(given.program, given.model, held) : null;
     const next = setup ? { ...given, model: setup.model } : given;
     const m = next.model;
     this.outs = tower ? towerOuts(given.program, given.model) : [];
@@ -203,6 +208,10 @@ export class GraphLayout {
     // (the nodes and edges of the new snapshot, and the snapshot itself: one swap)
     this.shown = next;
     const meters = { index: meterIndex(m) };
+    const before = this.nodes;
+    // (each node its size as measured, as the one it replaces had it: the flow places a node by its centre, and one with
+    // no size yet by its corner until it is measured again, a jump of half its size for a frame or more, #493)
+    const measured = new Map(before.flatMap((n) => (n.measured ? [[n.id, n.measured] as const] : [])));
     // (an example's own place isn't marked pinned: only what the user pinned)
     // (notes and scopes are in the margin: layout/side.ts)
     this.nodes = m.nodes
@@ -211,9 +220,21 @@ export class GraphLayout {
         isSocket(g.id)
           ? socketNode(g.id, m, this.#posOf(g.id) ?? { x: 0, y: 0 })
           : flowNodeOf(g, this.#posOf(g.id) ?? { x: 0, y: 0 }, this.pinned.has(g.id) && !this.#placed.has(g.id), this.#turnOf(g.id), meters, next.program),
-      );
+      )
+      .map((n): FlowNode => (measured.has(n.id) ? { ...n, measured: measured.get(n.id)! } : n));
     this.#makeEdges();
     if (fresh) this.fitToken++;
+    if (this.#leaving) clearTimeout(this.#leaving);
+    this.#leaving = null;
+    // (held, a cell dropped fades out where it stood, as a new one fades in: nothing it had can be done with it meanwhile)
+    const kept = new Set(this.nodes.map((n) => n.id));
+    const gone = held && !justOpened ? before.filter((n) => !kept.has(n.id) && n.class !== 'leaving') : [];
+    if (!gone.length) return;
+    this.nodes = [...this.nodes, ...gone.map((n): FlowNode => ({ ...n, class: 'leaving', draggable: false, selectable: false, focusable: false }))];
+    this.#leaving = setTimeout(() => {
+      this.#leaving = null;
+      this.nodes = this.nodes.filter((n) => n.class !== 'leaving');
+    }, LEAVING_MS);
   }
 
   /** Switch layouts: the forces' preset and the heights change, and the piece is laid out afresh and framed. */
@@ -308,6 +329,7 @@ export class GraphLayout {
   }
 
   destroy(): void {
+    if (this.#leaving) clearTimeout(this.#leaving);
     this.#force.destroy();
   }
 

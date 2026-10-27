@@ -37,7 +37,18 @@
     // the coloured copy: exactly the textarea's text area (a scrollbar narrows it)
     if (paint) paint.style.width = `${textarea.clientWidth}px`;
     heights = Array.from(mirror.children, (el) => (el as HTMLElement).getBoundingClientRect().height);
+    // (the text replaced, the code where it was: the textarea's scroll kept, as far as the new text reaches, and the
+    // gutter and the coloured copy with it, which follow it only as it scrolls: a session's next section, #493)
+    if (kept !== null) textarea.scrollTop = kept;
+    kept = null;
+    gutter.scrollTop = paint.scrollTop = textarea.scrollTop;
   }
+  // (where the code was scrolled to as its text changed: kept across the change)
+  let kept: number | null = null;
+  $effect.pre(() => {
+    void value;
+    if (textarea && kept === null) kept = textarea.scrollTop;
+  });
   $effect(() => {
     void lines;
     void size;
