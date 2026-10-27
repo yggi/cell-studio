@@ -21,6 +21,9 @@ concurrency:
 
 jobs:
   deploy:
+    # The switch (yggi/music-commons CI-BUDGET.md): a merge deploys only where Actions is free (public) or on (variable
+    # CI = on); by hand, always.
+    if: github.event_name == 'workflow_dispatch' || !github.event.repository.private || vars.CI == 'on'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
