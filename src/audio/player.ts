@@ -47,7 +47,19 @@ export interface Fed {
   readonly window: Window;
   readonly time: number;
   readonly scale: number;
+  /** The bar it starts, if it starts one, and whether that bar's text is another than the bar's before (a switch). */
+  readonly starts?: { readonly bar: number; readonly switched: boolean };
 }
+
+/** A bar a feed laid: where it starts on the audio clock (AudioContext seconds), and whether its text switched there. */
+export interface BarLaid {
+  readonly bar: number;
+  readonly at: number;
+  readonly switched: boolean;
+}
+
+/** How many of the latest bars laid are kept (`Player.barsLaid`): minutes of them, for measuring from outside. */
+const BARS_KEPT = 256;
 
 /** Where the notes played also go (MIDI out, #205): each window's notes and MIDI clock ticks (#206), retimed onto the audio clock, and the stops. */
 export interface NoteSink {
@@ -439,6 +451,8 @@ export class Player implements LiveSource {
   /** Whether a feed is playing (`feed`), in place of the transport's run, and how to ask it now (`layAhead`). */
   private feeding = false;
   private layFeed: (() => void) | null = null;
+  /** The bars a feed laid lately, each where it starts on the audio clock (#492: a switch's click measured by level). */
+  barsLaid: readonly BarLaid[] = [];
 
   /**
    * Lay what the feed playing has to play up to FEED_LEAD from now, at once rather than at its next turn: before work
@@ -481,6 +495,7 @@ export class Player implements LiveSource {
           this.voices.sync(f.plan.result, f.plan.statics, f.plan.muted);
         }
         const time = this.audioAt(Tone, f.time);
+        if (f.starts) this.barsLaid = [...this.barsLaid, { ...f.starts, at: time }].slice(-BARS_KEPT);
         const { events, tapes, clock } = retime(f.window, time, f.scale);
         for (const t of tapes) this.voices.tapeSpeed(t.tape, t.points);
         for (const e of events) this.voices.play(e);

@@ -12,7 +12,8 @@
 // The host is driven by the names Jambot's e2e drives it by (`e2e/audio.ts`: `useLobby`, `host`, "Start the band"), and
 // Cell studio joins through `cellStudio.session.join`. Every 2 s both logs are read (`window.jambot.played(from)`,
 // `cellStudio.session.played(from)`), so neither's 20,000 kept are outrun. It says how many bars Cell studio came to
-// late (`sound.lacked`, "late by …", #496: 0 is the bound) and its page's long tasks. Exits 1 where a bound isn't met.
+// late (`sound.lacked`, "late by …", #496: 0 is the bound), a click at each section switch by level (its output tapped,
+// `tools/session-clicks.ts`, #492) and its page's long tasks. Exits 1 where a bound isn't met.
 //
 // Chromium: Playwright's, or CHROME_PATH=/path/to/chrome (tools/profile/playwright.mjs).
 import { writeFileSync } from 'node:fs';
@@ -36,6 +37,7 @@ const READ_EVERY = 2000;
 const WITHIN = 0.001;
 
 const { module: compare } = await runnerImport('./tools/session-compare.ts', { configFile: false });
+const { module: clicks } = await runnerImport('./tools/session-clicks.ts', { configFile: false });
 freshBuild();
 const server = await preview({ preview: { port: 0, host: '127.0.0.1' }, logLevel: 'error' });
 const browser = await chromium.launch({ args: ['--autoplay-policy=no-user-gesture-required', '--no-sandbox'] });
@@ -71,6 +73,43 @@ studio.on('pageerror', (e) => errors.push(`Cell studio: ${e.message}`));
 studio.on('console', (m) => m.type() === 'error' && errors.push(`Cell studio: ${m.text()}`));
 // (the page's long tasks, each on its clock and how long: what holds the scheduler, #496)
 await studio.addInitScript(() => {
+  // (what the page sounds, by level, #492: tools/session-clicks.ts. Each render quantum's peak at the context's time,
+  // from a worklet beside the destination, wherever something is connected to it)
+  window.__levels = [];
+  const tap = `registerProcessor('level-tap', class extends AudioWorkletProcessor {
+    constructor() { super(); this.kept = []; }
+    process(inputs) {
+      let peak = 0;
+      for (const channel of inputs[0] ?? []) for (let i = 0; i < channel.length; i++) peak = Math.max(peak, Math.abs(channel[i]));
+      this.kept.push(currentTime, peak);
+      if (this.kept.length >= 256) { this.port.postMessage(this.kept); this.kept = []; }
+      return true;
+    }
+  });`;
+  const url = URL.createObjectURL(new Blob([tap], { type: 'text/javascript' }));
+  const connect = AudioNode.prototype.connect;
+  const taps = new WeakMap();
+  AudioNode.prototype.connect = function (to, ...rest) {
+    const made = connect.call(this, to, ...rest);
+    if (to instanceof AudioDestinationNode) {
+      const context = to.context;
+      if (!taps.has(context))
+        taps.set(
+          context,
+          context.audioWorklet.addModule(url).then(() => {
+            const node = new AudioWorkletNode(context, 'level-tap', { numberOfInputs: 1, numberOfOutputs: 0 });
+            // (each context's levels apart, on its own clock: the app replaces Tone's first, audio/device.ts, and makes
+            // others that close in seconds; the one that runs on is the one that plays)
+            const mine = (window.__tapped = (window.__tapped ?? 0) + 1);
+            window.__quantum = 128 / context.sampleRate;
+            node.port.onmessage = (e) => window.__levels.push([mine, e.data]);
+            return node;
+          }),
+        );
+      taps.get(context).then((node) => connect.call(this, node));
+    }
+    return made;
+  };
   window.__longTasks = [];
   new PerformanceObserver((l) => window.__longTasks.push(...l.getEntries().map((e) => [e.startTime, e.duration]))).observe({ type: 'longtask', buffered: true });
 });
@@ -89,12 +128,26 @@ await studio.waitForFunction(() => window.cellStudio.session.state().status === 
 await host.getByRole('button', { name: 'Start the band' }).click();
 console.log(`hosting “${SESSION}” at ${JAMBOT} through ${LOBBY}; Cell studio joined; ${MINUTES} minutes${THROTTLE !== 1 ? `, its CPU slowed ×${THROTTLE}` : ''}`);
 
-const logs = { host: [], studio: [], late: [], lackedBars: new Set(), lacks: [], lateBars: new Set() };
+const logs = { host: [], studio: [], late: [], lackedBars: new Set(), lacks: [], lateBars: new Set(), bars: new Map(), levelsBy: new Map(), quantum: 0 };
 const next = { host: 0, studio: 0 };
 let bound = 0;
 const read = async () => {
   const h = await host.evaluate((from) => window.jambot.played(from), next.host);
-  const s = await studio.evaluate((from) => ({ ...window.cellStudio.session.played(from), state: window.cellStudio.session.state() }), next.studio);
+  const s = await studio.evaluate(
+    (from) => ({
+      ...window.cellStudio.session.played(from),
+      state: window.cellStudio.session.state(),
+      levels: window.__levels.splice(0),
+      quantum: window.__quantum ?? 0,
+    }),
+    next.studio,
+  );
+  for (const [context, batch] of s.levels) {
+    const kept = logs.levelsBy.get(context) ?? logs.levelsBy.set(context, []).get(context);
+    for (let i = 0; i + 1 < batch.length; i += 2) kept.push([batch[i], batch[i + 1]]);
+  }
+  logs.quantum = s.quantum;
+  for (const b of s.state.sound?.bars ?? []) logs.bars.set(b.bar, b);
   logs.host.push(...h.events);
   logs.late = h.late;
   logs.studio.push(...s.events);
@@ -120,6 +173,16 @@ await browser.close();
 await server.close();
 
 const within = bound + WITHIN;
+// (the context that played: the one whose levels run longest)
+logs.levels = [...logs.levelsBy.values()].reduce((a, b) => (b.length > a.length ? b : a), []);
+const levels = clicks.switchLevels(
+  [...logs.bars.values()].sort((a, b) => a.bar - b.bar),
+  logs.levels,
+  logs.quantum,
+);
+const sounded = levels.filter(clicks.heard);
+const clicked = sounded.filter((l) => !clicks.clean(l));
+const dB = (x) => (Number.isFinite(x) ? x.toFixed(1) : '-∞');
 const c = compare.compareSession(logs.host, logs.studio, within, { late: logs.late, lackedBars: [...logs.lackedBars] });
 console.log(
   [
@@ -129,9 +192,15 @@ console.log(
     `lacked: Cell studio ${c.lacked.studio.events} (${c.lacked.studio.unexplained} unexplained), the host ${c.lacked.host.events} (${c.lacked.host.unexplained} unexplained)`,
     `Cell studio said it lacked: ${logs.lacks.length ? logs.lacks.join('; ') : 'nothing'}; at the end ${last.status}, playing ${last.sound?.playing}, ${last.sound?.unread ?? 0} events the feel didn't read`,
     `Cell studio came late (#496: 0 is the bound) to ${logs.lateBars.size} bars${logs.lateBars.size ? `: ${[...logs.lateBars].join(', ')}` : ''}`,
+    `clicks at a switch, by level (#492: the peak in the 10 ms round a switch's start no more than ${clicks.CLICK_DB} dB over the bars' either side): ${sounded.length} switches heard, ${clicked.length} over; the most over ${dB(Math.max(-Infinity, ...sounded.map((l) => l.over)))} dB${
+      levels.length > sounded.length
+        ? `; ${levels.length - sounded.length} silent here (nothing sounded round them: a text whose notes go to a MIDI card alone is sent, not heard)`
+        : ''
+    }${logs.levels.length ? `, over ${Math.round(logs.levels.length * logs.quantum)} s of levels` : ' (no level was taken: no audio ran)'}`,
+    ...clicked.map((l) => `  bar ${l.bar}: ${dB(l.peak)} dBFS, the bars either side ${dB(l.before)} and ${dB(l.after)}`),
     `Cell studio's long tasks: ${long.filter((d) => d > 100).length} over 100 ms, ${long.filter((d) => d > 300).length} over 300 ms, the longest ${Math.round(Math.max(0, ...long))} ms`,
     `errors: ${errors.length ? errors.join('; ') : 'none'}`,
     ...c.differing.map((d) => `  ${d}`),
   ].join('\n'),
 );
-process.exit(compare.agrees(c) && !errors.length && !logs.lateBars.size ? 0 : 1);
+process.exit(compare.agrees(c) && !errors.length && !logs.lateBars.size && !clicked.length ? 0 : 1);

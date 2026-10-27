@@ -8,6 +8,7 @@ import { compilePiece } from '../../compile';
 import { barSeconds } from '../../session/follow';
 import { perform } from '../../session/perform';
 import { PlayedLog, type PlayedEvent } from '../../session/played';
+import type { SectionText } from '../../session/protocol';
 import type { Lack, Place } from '../../session/sound';
 import type { Fed, Feed } from '../../audio/player';
 import type { SessionClient } from './session.svelte';
@@ -41,6 +42,8 @@ export class SessionFeed implements Feed {
   /** Where the last ask got to (null: start where the song is heard). */
   #done: Place | null = null;
   #texts = new Map<string, Compiled>();
+  /** The text of the last bar started: a bar whose text is another starts a switch. */
+  #lastText: SectionText | null = null;
 
   constructor(readonly session: Pick<SessionClient, 'sounding'>) {}
 
@@ -69,7 +72,11 @@ export class SessionFeed implements Feed {
       const window = { from: x.from, to: x.to, events, tapes: tapeSpeeds(p, x.from, x.to + 1e-9), clock: ticksBetween(p, x.from, x.to) };
       this.played += events.length;
       this.log.push(log);
-      return { plan: p, window, time: x.at - s.shift, scale: x.scale };
+      // (a window from its bar's first moment starts it)
+      const begins = Math.abs(x.from - (x.bar - x.text.bar) * seconds) < 1e-9;
+      const switched = begins && this.#lastText !== null && x.text !== this.#lastText;
+      if (begins) this.#lastText = x.text;
+      return { plan: p, window, time: x.at - s.shift, scale: x.scale, ...(begins ? { starts: { bar: x.bar, switched } } : {}) };
     });
   }
 

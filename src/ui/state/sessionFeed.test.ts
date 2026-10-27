@@ -45,6 +45,23 @@ describe('a followed session as the player’s feed', () => {
     expect(feed.lacked).toEqual([{ bar: 2, why: 'the section’s key moves between its bars' }]);
   });
 
+  it('says where each bar starts, and whether its text switched there (#492)', () => {
+    let f: Followed = NOTHING_FOLLOWED;
+    for (let b = 0; b < 5; b++) f = withBar(f, { bar: { bar: b }, start: 10 + 2 * b });
+    f = withText(withText(f, section(0, A)), section(2, A.replace('0 2 4 7', '7 4 2 0')));
+    const feed = new SessionFeed({
+      sounding: (done, lead, now, length) => ({ ...sounding(f, done, now + 5 + lead, now + 5, length), shift: 5 }),
+    });
+    const starts: unknown[] = [];
+    for (let now = 4.9; now < 13; now += 0.125) for (const x of feed.next(now, now + 0.6)) if (x.starts) starts.push({ ...x.starts, time: x.time });
+    expect(starts).toEqual([
+      { bar: 0, switched: false, time: 5 },
+      { bar: 1, switched: false, time: 7 },
+      { bar: 2, switched: true, time: 9 },
+      { bar: 3, switched: false, time: 11 },
+    ]);
+  });
+
   it('starts from now again once the session has nothing to sound', () => {
     let on = true;
     const s = session();
