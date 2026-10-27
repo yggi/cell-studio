@@ -96,6 +96,7 @@
     opened = 0,
     refit = 0,
     growing = false,
+    held = false,
     locked,
     lockedHint,
     focus,
@@ -132,6 +133,11 @@
     refit?: number;
     /** A conversion playing (#390): each version laid out gently from the last, the view framed only when it must. */
     growing?: boolean;
+    /**
+     * A followed session (#478): each section's text laid out from the last, what stays held where it is, in a task of
+     * its own after the switch's, `held()` first (the sound laid ahead: #496); else false.
+     */
+    held?: (() => void) | false;
     /**
      * Read only (a MIDI file's machine, #390; a session host's section, #478): opening a cell, switching, turning, a
      * free value or adding a cell does nothing but this (it says why). Moving a cell still moves it.
@@ -528,9 +534,17 @@
   $effect(() => {
     const next = snapshotOf(program, model, shifts, muted, routed);
     const o = opened;
-    untrack(() => {
-      layout.sync(next, o, growing);
-      if (selected && !next.model.nodes.some((n) => n.id === selected)) selected = null;
+    return untrack(() => {
+      const sync = () => {
+        layout.sync(next, o, growing, !!held);
+        if (selected && !next.model.nodes.some((n) => n.id === selected)) selected = null;
+      };
+      if (!held) return sync();
+      const later = setTimeout(() => {
+        held();
+        sync();
+      });
+      return () => clearTimeout(later);
     });
   });
   // the edges again when what they're drawn with changes: lit or not, a meter's net laid again, a belt's stretch

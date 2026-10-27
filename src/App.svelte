@@ -168,6 +168,7 @@
       opened={library.opened}
       refit={studio.foldFrames}
       growing={studio.conversion.phase === 'playing'}
+      held={studio.following && (() => playback.playing && playback.player.layAhead())}
       focus={view.focus}
       onsheet={(name) => {
         studio.keys.sheet = name;

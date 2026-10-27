@@ -7,12 +7,15 @@
 //   (in jambot)      pnpm lobby --port 4319                                  # its lobby
 //   (here)           npm run build && node tools/session-probe.mjs           # 10 minutes
 //   node tools/session-probe.mjs --minutes 2 --jambot http://localhost:4317/ --lobby ws://localhost:4319
+//   node tools/session-probe.mjs --throttle 4                               # Cell studio's CPU slowed, as a phone's
 //
 // The host is driven by the names Jambot's e2e drives it by (`e2e/audio.ts`: `useLobby`, `host`, "Start the band"), and
 // Cell studio joins through `cellStudio.session.join`. Every 2 s both logs are read (`window.jambot.played(from)`,
-// `cellStudio.session.played(from)`), so neither's 20,000 kept are outrun. Exits 1 where the bound isn't met.
+// `cellStudio.session.played(from)`), so neither's 20,000 kept are outrun. It says how many bars Cell studio came to
+// late (`sound.lacked`, "late by …", #496: 0 is the bound) and its page's long tasks. Exits 1 where a bound isn't met.
 //
 // Chromium: Playwright's, or CHROME_PATH=/path/to/chrome (tools/profile/playwright.mjs).
+import { writeFileSync } from 'node:fs';
 import { preview, runnerImport } from 'vite';
 import { chromium } from './profile/playwright.mjs';
 import { freshBuild } from './fresh-build.mjs';
@@ -25,6 +28,8 @@ const JAMBOT = option('jambot', 'http://localhost:4317/');
 const LOBBY = option('lobby', 'ws://localhost:4319');
 const MINUTES = Number(option('minutes', '10'));
 const SESSION = option('session', `probe ${Date.now() % 100000}`);
+/** CDP's CPU slowdown on Cell studio's page (1: this machine's speed; 4 stands in for a mid-range phone, as the profile skill's). */
+const THROTTLE = Number(option('throttle', '1'));
 /** How often both logs are read (ms). */
 const READ_EVERY = 2000;
 /** Jambot's own bound between two pages (1 ms, `apps/web/src/played.ts`), past the clock's. */
@@ -61,14 +66,30 @@ await host.getByRole('button', { name: 'Host', exact: true }).click();
 await host.locator('details[aria-label="Session"] summary .sub').filter({ hasText: 'Hosting' }).waitFor({ state: 'attached', timeout: 15000 });
 
 // Cell studio: joined through the lobby, then the band started
-const studio = await page('Cell studio', server.resolvedUrls.local[0]);
+const studio = await (await browser.newContext()).newPage();
+studio.on('pageerror', (e) => errors.push(`Cell studio: ${e.message}`));
+studio.on('console', (m) => m.type() === 'error' && errors.push(`Cell studio: ${m.text()}`));
+// (the page's long tasks, each on its clock and how long: what holds the scheduler, #496)
+await studio.addInitScript(() => {
+  window.__longTasks = [];
+  new PerformanceObserver((l) => window.__longTasks.push(...l.getEntries().map((e) => [e.startTime, e.duration]))).observe({ type: 'longtask', buffered: true });
+});
+await studio.goto(server.resolvedUrls.local[0]);
 await studio.waitForFunction(() => window.cellStudio?.session);
+const cdp = await studio.context().newCDPSession(studio);
+if (THROTTLE !== 1) await cdp.send('Emulation.setCPUThrottlingRate', { rate: THROTTLE });
+// (PROFILE=file.json: a CPU profile of Cell studio's page over the run, for the profile skill's tools/profile/agg.mjs)
+if (process.env.PROFILE) {
+  await cdp.send('Profiler.enable');
+  await cdp.send('Profiler.setSamplingInterval', { interval: 1000 });
+  await cdp.send('Profiler.start');
+}
 await studio.evaluate(([lobby, session]) => window.cellStudio.session.join(lobby, session, 'Probe'), [LOBBY, SESSION]);
 await studio.waitForFunction(() => window.cellStudio.session.state().status === 'joined', null, { timeout: 15000 });
 await host.getByRole('button', { name: 'Start the band' }).click();
-console.log(`hosting “${SESSION}” at ${JAMBOT} through ${LOBBY}; Cell studio joined; ${MINUTES} minutes`);
+console.log(`hosting “${SESSION}” at ${JAMBOT} through ${LOBBY}; Cell studio joined; ${MINUTES} minutes${THROTTLE !== 1 ? `, its CPU slowed ×${THROTTLE}` : ''}`);
 
-const logs = { host: [], studio: [], late: [], lackedBars: new Set(), lacks: [] };
+const logs = { host: [], studio: [], late: [], lackedBars: new Set(), lacks: [], lateBars: new Set() };
 const next = { host: 0, studio: 0 };
 let bound = 0;
 const read = async () => {
@@ -81,7 +102,8 @@ const read = async () => {
   for (const l of s.state.sound?.lacked ?? []) {
     const said = `${l.bar} ${l.why}`;
     if (!logs.lacks.includes(said)) logs.lacks.push(said);
-    if (l.bar !== null) logs.lackedBars.add(l.bar);
+    logs.lackedBars.add(l.bar);
+    if (l.why.startsWith('late by')) logs.lateBars.add(l.bar);
   }
   bound = Math.max(bound, s.state.clock?.bound ?? 0);
   return s.state;
@@ -92,6 +114,8 @@ while (Date.now() < end) {
   await new Promise((r) => setTimeout(r, READ_EVERY));
 }
 const last = await read();
+const long = await studio.evaluate(() => window.__longTasks.map(([, d]) => d));
+if (process.env.PROFILE) writeFileSync(process.env.PROFILE, JSON.stringify((await cdp.send('Profiler.stop')).profile));
 await browser.close();
 await server.close();
 
@@ -104,8 +128,10 @@ console.log(
     `onsets: Cell studio's less the host's ${(c.onset.median * 1000).toFixed(3)} ms in the middle, ${(c.onset.largest * 1000).toFixed(3)} ms at most; durations ${(c.duration.largest * 1000).toFixed(3)} ms at most`,
     `lacked: Cell studio ${c.lacked.studio.events} (${c.lacked.studio.unexplained} unexplained), the host ${c.lacked.host.events} (${c.lacked.host.unexplained} unexplained)`,
     `Cell studio said it lacked: ${logs.lacks.length ? logs.lacks.join('; ') : 'nothing'}; at the end ${last.status}, playing ${last.sound?.playing}, ${last.sound?.unread ?? 0} events the feel didn't read`,
+    `Cell studio came late (#496: 0 is the bound) to ${logs.lateBars.size} bars${logs.lateBars.size ? `: ${[...logs.lateBars].join(', ')}` : ''}`,
+    `Cell studio's long tasks: ${long.filter((d) => d > 100).length} over 100 ms, ${long.filter((d) => d > 300).length} over 300 ms, the longest ${Math.round(Math.max(0, ...long))} ms`,
     `errors: ${errors.length ? errors.join('; ') : 'none'}`,
     ...c.differing.map((d) => `  ${d}`),
   ].join('\n'),
 );
-process.exit(compare.agrees(c) && !errors.length ? 0 : 1);
+process.exit(compare.agrees(c) && !errors.length && !logs.lateBars.size ? 0 : 1);
