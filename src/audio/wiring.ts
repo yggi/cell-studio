@@ -9,7 +9,7 @@
  */
 import { BODIES, type CompileResult, type Output } from '@yggi/cells/engine/program';
 import { flows, type Flow } from '@yggi/cells/engine/flows';
-import { liveGains, outputSounds, returnGains } from '@yggi/cells/engine/realize';
+import { liveGains, outputPlays, outputSounds, returnGains } from '@yggi/cells/engine/realize';
 import { cellId } from '@yggi/cells/engine/ids';
 
 /**
@@ -148,11 +148,12 @@ export function wiring(result: CompileResult, muted: ReadonlySet<string> = new S
       }
   }
 
-  // a voice played only into sends (a resonator's excitation, a tape) isn't heard from itself
+  // a voice played only into sends (a resonator's excitation, a tape) isn't heard from itself; one sent on a MIDI card
+  // that is on is, as one on a sound card (decision 039)
   // (a kit's output names the kit: its members are what sound, those that are on: an off member plays no notes — #166)
   const heard = new Set([
     ...result.outputs
-      .filter((o) => !o.silent && outputSounds(result, o, muted))
+      .filter((o) => !o.silent && outputPlays(result, o, muted))
       .flatMap((o) => (o.kit ? [o.voice, ...[...(result.cells.get(o.voice)?.children.keys() ?? [])].filter((m) => !off(m))] : [o.voice])),
     ...result.resonances.filter((x) => !off(x.cell) && returnGains(x, muted).some((g) => g > 0)).map((x) => x.cell),
   ]);

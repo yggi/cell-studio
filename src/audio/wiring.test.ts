@@ -184,3 +184,11 @@ describe('voices.sync wires from the flows the graph draws (#132)', () => {
     expect(level(muted('out'))).toEqual([0, 0]);
   });
 });
+
+describe('a voice on a MIDI card alone (decision 039)', () => {
+  it('is heard from itself, as one on a sound card; its card switched off, it is not', () => {
+    const r = compileSource('&bar meter("4/4") step=120bpm\n&line step=4n 0 2 4 7\n&sub s=sine loop=A1\n&synth map=midi [&line * &sub]');
+    expect(wiring(r).heard.has('sub')).toBe(true);
+    expect(wiring(r, new Set([cellId('synth')])).heard.has('sub')).toBe(false);
+  });
+});
