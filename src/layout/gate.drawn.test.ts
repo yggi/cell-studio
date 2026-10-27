@@ -32,6 +32,7 @@ describe('a gate (play=, level=): decision 023', () => {
     expect(r.diagnostics.filter((d) => d.severity === 'error').map((d) => d.message)).toEqual([]);
     expect(r.cells.get('leadOut')!.gate).toEqual({
       notes: 'tune',
+      plays: 'tune',
       port: 'play',
       levels: [
         { name: 'accent', port: 'level' },
