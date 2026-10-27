@@ -17,7 +17,7 @@ For each PR: description, linked issue (`Closes #n`) with its comments, changed 
 
 1. **Scope**: does it do what the issue says, and only that? Extra changes are a finding (an issue, not a wider PR).
 2. **Safety rules**: layering (`npm run check` and the tests hold it), saved `.cells` pieces still mean the same, an existing example doesn't change how it sounds unless that is the point (then its `level=`/loudness was checked), the code stays the source of truth.
-3. **Evidence**: tests for the behaviour (would the new test fail without the change?), and for anything audible, visual or about speed, a stated verification. No evidence for a claim: verify it yourself the cheap way (below) or call it unverified.
+3. **Evidence**: tests for the behaviour (would the new test fail without the change?), and for anything audible, visual or about speed, a measured bound (a test, `cellStudio.measure`, the profile skill, a screenshot) or the word unverified. No evidence for a claim: verify it yourself the cheap way (below) or call it unverified. Break it: for each thing the change claims to catch or keep, the smallest edit that should trip it, the test run, the edit restored; the summary carries them as a table (break-it, the edit, what failed, restored), and a break-it that fails nothing is a finding.
 4. **Docs and bookkeeping**: if behaviour changed, the page that states it (`docs/limits.md`, `docs/roadmap.md`; the language's pages are yggi/cells') and a `CHANGELOG.md` line.
 5. **The diff itself**: read it for bugs and edge cases. Spend time in proportion to risk: engine semantics and audio scheduling deserve a probe (write a small test or compile a snippet), a docs fix doesn't. For a deeper pass use `/code-review`.
 
