@@ -8,7 +8,7 @@
 //   node tools/live.mjs <url>           # another URL (a PR preview: .../cell-studio/pr-<n>/)
 //   node tools/live.mjs --no-browser    # the script asset only
 //
-// In a cloud session CHROME_PATH=/opt/pw-browsers/chromium (tools/profile/playwright.mjs). LIVE_DIST= another build folder;
+// Chromium as tools/profile/playwright.mjs finds it (the cloud container's when Playwright's own is missing). LIVE_DIST= another build folder;
 // LIVE_WAIT= the wait in seconds (0: ask once). Exit 0 when both hold, 1 when either doesn't, saying which.
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';

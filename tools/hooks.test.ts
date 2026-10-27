@@ -160,6 +160,17 @@ describe('pre-push', () => {
     expect(hook(dir, 'head', { verify: failing }).status).toBe(1);
   });
 
+  it('does not verify a tree again that another worktree of the clone passed', () => {
+    const dir = repoWith(['a.ts']);
+    const other = join(dir, '.other');
+    git(dir, 'worktree', 'add', '-q', '--detach', other, 'HEAD');
+    writeFileSync(join(dir, '.git', 'info', 'exclude'), '.other\n');
+    expect(hook(other).status).toBe(0);
+    const again = hook(dir, 'head', { verify: failing });
+    expect(again.status).toBe(0);
+    expect(again.stdout).toContain('already (12 tests passed)');
+  });
+
   it('does not verify a tree twice, so a retried push is free, and still says how many tests passed', () => {
     const dir = repoWith(['a.ts']);
     expect(hook(dir).status).toBe(0);

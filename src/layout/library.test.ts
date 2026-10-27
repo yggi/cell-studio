@@ -1,30 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { GENRES, PILL, byTier, foldSides, sideOf, freezeLayout, layoutKey, libraryLayout, libraryLayoutAsync, shortTitle, stageOf, thawLayout } from './library';
-import { PRESETS } from '@yggi/cells/engine/presets';
-import { pieceMeta } from '@yggi/cells/engine/parser/index';
-import { canonicalTags, MIDI_FILE, TUTORIAL } from '@yggi/cells/engine/tags';
-import { readdirSync, readFileSync } from 'node:fs';
+import { entries } from './library.fixture';
+import { MIDI_FILE, TUTORIAL } from '@yggi/cells/engine/tags';
 
-// the library as the app lists it: every example with its card's title, tags and tier, and the MIDI library (as
-// ui/entries.ts lists it)
-const entries = [
-  ...Object.entries(PRESETS).map(([key, p]) => {
-    const m = pieceMeta(p.file);
-    return { id: `example:${key}`, title: m?.title ?? key, tags: canonicalTags(m?.tags ?? []), tier: m?.tier ?? null };
-  }),
-  ...readdirSync('node_modules/@yggi/cells/midi').flatMap((set) =>
-    (JSON.parse(readFileSync(`node_modules/@yggi/cells/midi/${set}/index.json`, 'utf8')) as { key: string; title: string }[]).map((m) => ({
-      id: `midi:${m.key}`,
-      title: m.title,
-      tags: [set, MIDI_FILE, 'artist:Bach', 'genre:classical'],
-      tier: null,
-      collection: set,
-    })),
-  ),
-];
-const t0 = performance.now();
+// (how long it takes is timing.slow.test.ts's: the quick tests count no milliseconds)
 const lib = libraryLayout(entries);
-const ms = performance.now() - t0;
 const everyPiece = entries.map((e) => ({ ...e, p: lib.at.get(`p:${e.id}`)! }));
 // the wheel's pieces (the tutorial's and the MIDI library's are cells of their own)
 const pieces = everyPiece.filter((e) => !sideOf(e));
@@ -33,9 +13,8 @@ const side = (tag: string) => lib.sides.find((s) => s.tag === tag)!;
 const ladder = everyPiece.filter((e) => e.tags.includes(TUTORIAL)).sort((a, b) => a.tier! - b.tier!);
 
 describe('the library laid out', () => {
-  it('is grown and at rest, quickly', () => {
+  it('is grown and at rest', () => {
     expect(lib.done).toBe(true);
-    expect(ms).toBeLessThan(1500);
   });
   it('is the same every time (same input, same layout)', () => {
     const again = libraryLayout(entries);

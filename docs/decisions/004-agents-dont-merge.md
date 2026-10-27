@@ -4,7 +4,7 @@
 
 ## Context
 
-A solo project with many agent sessions. `main` is protected by a ruleset (below) and deployed by hand (`node tools/deploy.mjs`); a merge is gated by the checks run before the push, which the PR names, with CI as their witness ([testing.md](../testing.md#run)). Agents work on branches the session assigns, so several PRs can be open at once and conflict (docs, the audio insertion order).
+A solo project with many agent sessions. `main` is protected by a ruleset (below) and deployed by each merge (`deploy.yml` runs `node tools/deploy.mjs`, #481); a merge is gated by the checks run before the push, which the PR names, with CI as their witness ([testing.md](../testing.md#run)). Agents work on branches the session assigns, so several PRs can be open at once and conflict (docs, the audio insertion order).
 
 ## Decision
 

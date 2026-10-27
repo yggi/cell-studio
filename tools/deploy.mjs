@@ -1,4 +1,5 @@
-// Deploy `main` by hand, gated (#361): CI doesn't deploy (#300), and nothing else stops a tree whose checks fail from going live.
+// Deploy `main`, gated (#361): nothing else stops a tree whose checks fail from going live. deploy.yml runs it on each merge
+// into main (#481); from a clone it is the fallback when Actions is blocked.
 // Refuses unless the working tree is clean and HEAD is origin/main's head; then runs every check CI runs (all the
 // tests, slow ones too: `test:all`), builds afresh, and only then publishes dist/ with .github/scripts/pages.sh.
 //

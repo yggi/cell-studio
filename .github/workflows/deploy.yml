@@ -1,17 +1,20 @@
 name: Deploy
 
-# The deploy, run by hand: Actions -> Deploy -> Run workflow. It runs `node tools/deploy.mjs` on `main` as it is now, the
-# same gate as a deploy from a clone (docs/testing.md): every check CI runs, all the tests (`test:all`), a fresh build,
-# and only then dist/ published to gh-pages's root (the PRs' previews in pr-<n>/ stay). Never on a push: whoever merges
-# deploys, here or from a clone, then checks the live site (`node tools/live.mjs`, the land skill).
-# A run that fails in seconds with no step is Actions blocked (minutes used up): deploy from a clone instead.
+# The deploy, on every merge into main (the owner, 2026-10-27, #481), and by hand (Actions -> Deploy -> Run workflow, to
+# deploy main again). It runs `node tools/deploy.mjs` on `main` as it is now, the same gate as a deploy from a clone
+# (docs/testing.md): every check CI runs, all the tests (`test:all`), a fresh build, and only then dist/ published to
+# gh-pages's root (the PRs' previews in pr-<n>/ stay); then `node tools/live.mjs` checks the live site serves that build.
+# A run that fails in seconds with no step is Actions blocked: deploy from a clone instead (the land skill).
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
   contents: read
 
-# (one deploy at a time; a preview written meanwhile is safe: pages.sh pushes with a lease and writes again if it lost)
+# (one deploy at a time, never cut off halfway, the newest merge waiting wins; a preview written meanwhile is safe:
+# pages.sh pushes with a lease and writes again if it lost)
 concurrency:
   group: pages-main
   cancel-in-progress: false
@@ -38,3 +41,8 @@ jobs:
         run: node tools/deploy.mjs
         env:
           PAGES_REMOTE: https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}
+      # (the runner's Chrome, as the smoke test's: Playwright's own isn't downloaded)
+      - name: Check the live site serves it
+        run: node tools/live.mjs
+        env:
+          CHROME_PATH: /usr/bin/google-chrome

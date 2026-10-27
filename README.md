@@ -1,5 +1,9 @@
 # Cell studio
 
+[![CI, nightly on main](https://github.com/yggi/cell-studio/actions/workflows/ci.yml/badge.svg?branch=main&event=schedule)](https://github.com/yggi/cell-studio/actions/workflows/ci.yml?query=branch%3Amain+event%3Aschedule)
+[![Smoke, nightly on main](https://github.com/yggi/cell-studio/actions/workflows/smoke.yml/badge.svg?branch=main&event=schedule)](https://github.com/yggi/cell-studio/actions/workflows/smoke.yml?query=branch%3Amain+event%3Aschedule)
+[![Deploy](https://github.com/yggi/cell-studio/actions/workflows/deploy.yml/badge.svg?branch=main)](https://github.com/yggi/cell-studio/actions/workflows/deploy.yml)
+
 A minimal language for music where everything is a **cell**: a helix (pitch classes over octaves, beats over bars) with a **braid** sitting in its grid. Write it as text or edit it as a graph: both are the same code.
 
 Live: <https://yggi.github.io/cell-studio/>

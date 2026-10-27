@@ -167,19 +167,14 @@ describe('editing in the roll', () => {
 });
 
 describe('how far the rows go', () => {
+  const FAR = ['0 5000', '0 100000', '0 1000000000', '1000000000', '-5000 2', '-1000000000'];
   const tooFar = (text: string) => {
-    const t0 = performance.now();
     const r = readBraid(text.split(' '));
-    const problem = r.ok ? tooWide(r.roll, 12) : r.problem;
-    return { problem, ms: performance.now() - t0 };
+    return { problem: r.ok ? tooWide(r.roll, 12) : r.problem };
   };
 
-  it('a note far outside the table is refused, at once (not drawn as thousands of rows)', () => {
-    for (const t of ['0 5000', '0 100000', '0 1000000000', '1000000000', '-5000 2', '-1000000000']) {
-      const { problem, ms } = tooFar(t);
-      expect(problem, t).toBe('a note far outside its table');
-      expect(ms, t).toBeLessThan(50);
-    }
+  it('a note far outside the table is refused (not drawn as thousands of rows; how fast: timing.slow.test.ts)', () => {
+    for (const t of FAR) expect(tooFar(t).problem, t).toBe('a note far outside its table');
     expect(tooFar('0 2 4 24 -12').problem).toBeNull();
     expect(tooFar(`0 ${MAX_ROWS - 1}`).problem).toBeNull();
     expect(tooFar(`0 ${MAX_ROWS}`).problem).not.toBeNull();
