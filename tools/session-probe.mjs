@@ -192,10 +192,8 @@ console.log(
     `lacked: Cell studio ${c.lacked.studio.events} (${c.lacked.studio.unexplained} unexplained), the host ${c.lacked.host.events} (${c.lacked.host.unexplained} unexplained)`,
     `Cell studio said it lacked: ${logs.lacks.length ? logs.lacks.join('; ') : 'nothing'}; at the end ${last.status}, playing ${last.sound?.playing}, ${last.sound?.unread ?? 0} events the feel didn't read`,
     `Cell studio came late (#496: 0 is the bound) to ${logs.lateBars.size} bars${logs.lateBars.size ? `: ${[...logs.lateBars].join(', ')}` : ''}`,
-    `clicks at a switch, by level (#492: the peak in the 10 ms round a switch's start no more than ${clicks.CLICK_DB} dB over the bars' either side): ${sounded.length} switches heard, ${clicked.length} over; the most over ${dB(Math.max(-Infinity, ...sounded.map((l) => l.over)))} dB${
-      levels.length > sounded.length
-        ? `; ${levels.length - sounded.length} silent here (nothing sounded round them: a text whose notes go to a MIDI card alone is sent, not heard)`
-        : ''
+    `clicks at a switch, by level (#492: the peak from 5 ms before a switch's start to 10 ms after no more than ${clicks.CLICK_DB} dB over the bars' either side): ${sounded.length} switches heard, ${clicked.length} over; the most over ${dB(Math.max(-Infinity, ...sounded.map((l) => l.over)))} dB${
+      levels.length > sounded.length ? `; ${levels.length - sounded.length} silent here (nothing sounded round them)` : ''
     }${logs.levels.length ? `, over ${Math.round(logs.levels.length * logs.quantum)} s of levels` : ' (no level was taken: no audio ran)'}`,
     ...clicked.map((l) => `  bar ${l.bar}: ${dB(l.peak)} dBFS, the bars either side ${dB(l.before)} and ${dB(l.after)}`),
     `Cell studio's long tasks: ${long.filter((d) => d > 100).length} over 100 ms, ${long.filter((d) => d > 300).length} over 300 ms, the longest ${Math.round(Math.max(0, ...long))} ms`,

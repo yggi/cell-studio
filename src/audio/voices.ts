@@ -362,11 +362,13 @@ export function createVoices(Tone: ToneNS): VoiceBank {
     },
 
     play(note: Played) {
-      // (sent on a MIDI card and on no sound card: MIDI out has it, nothing here sounds it)
-      if (note.unheard) return;
+      // (on a MIDI card and on no sound card: sent, and heard here too, at its card's gain, decision 039; one whose
+      // sound card is switched off stays silent)
+      const heard = heardHere(note);
+      if (!heard) return;
       const b = built.get(note.voice);
       if (!b) return;
-      const sounds = playNote(Tone, ctx, b, note, (name) => built.get(name));
+      const sounds = playNote(Tone, ctx, b, heard, (name) => built.get(name));
       // its taps: the wheels of the mixes it goes through hear it while it sounds
       if (sounds && note.output) for (const m of taps.get(note.output) ?? []) gates.get(gateKey(note.voice, m))?.open(sounds.at, sounds.end, ctx.currentTime);
     },
@@ -456,4 +458,16 @@ export function createVoices(Tone: ToneNS): VoiceBank {
       stopped.dispose();
     },
   };
+}
+
+/**
+ * A note as Cell studio sounds it (decision 039): as cells gives it; one cells sends on a MIDI card alone (`unheard`, its
+ * gains 0), at its entry's gain on the card (the numbers its velocity reads), in the middle; one silenced otherwise (its
+ * sound card switched off), none.
+ */
+export function heardHere(note: Played): Played | null {
+  if (!note.unheard) return note;
+  if (!note.midi?.length) return null;
+  const gain = note.midi.reduce((g, d) => (Math.abs(d.gain) > Math.abs(g) ? d.gain : g), 0);
+  return gain ? { ...note, gains: [gain, gain] } : null;
 }

@@ -27,7 +27,7 @@ describe('a click at a switch, by level', () => {
     const [s] = switchLevels(bars, levels([[4.002, 4.003, 0.5]]), QUANTUM);
     expect(s!.over).toBeCloseTo(6.02, 1);
     expect(clean(s!)).toBe(false);
-    // (20 ms after it: outside the 10 ms)
+    // (20 ms after it: outside the window, 5 ms before to 10 ms after)
     expect(clean(switchLevels(bars, levels([[4.02, 4.021, 0.5]]), QUANTUM)[0]!)).toBe(true);
     // (as loud at the bar before: the music's own)
     expect(

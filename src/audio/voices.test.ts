@@ -44,7 +44,7 @@ function anything(): never {
   return p as never;
 }
 
-const { createVoices } = await import('./voices');
+const { createVoices, heardHere } = await import('./voices');
 
 const A = `&a loop=A3
 &b loop=E4
@@ -111,5 +111,22 @@ describe('a voice a sync drops', () => {
     live('a').clear();
     vi.advanceTimersByTime(1000);
     expect(voice.freed.sort()).toEqual(['a', 'b']);
+  });
+});
+
+describe('a note on a MIDI card alone (decision 039)', () => {
+  const note = { at: 0, dur: 1, voice: 'sub', freq: 55, bends: [], gains: [0, 0] as [number, number], levels: [] };
+  const on = (gain: number) => ({ card: 'out', mix: null, channel: 2, port: 1, gain });
+
+  it('is heard here too, at its card entry’s gain, in the middle; the loudest of several', () => {
+    expect(heardHere({ ...note, unheard: true, midi: [on(0.3)] })?.gains).toEqual([0.3, 0.3]);
+    expect(heardHere({ ...note, unheard: true, midi: [on(0.2), on(-0.5)] })?.gains).toEqual([-0.5, -0.5]);
+  });
+
+  it('stays silent where nothing sends it (its sound card switched off), and a heard note is as cells gives it', () => {
+    expect(heardHere({ ...note, unheard: true })).toBeNull();
+    expect(heardHere({ ...note, unheard: true, midi: [on(0)] })).toBeNull();
+    const heard = { ...note, gains: [0.4, 0.2] as [number, number] };
+    expect(heardHere(heard)).toBe(heard);
   });
 });

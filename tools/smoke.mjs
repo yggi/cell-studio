@@ -420,7 +420,7 @@ const MIDI_PIECE = 'sailor';
 }
 // MIDI out from a piece's MIDI cards (#208): a piece that names its channels (map=midi) into the same fake port. Its
 // note-ons are the channels and keys its cards name (tools/smoke-midi.ts, slot 1), none other (the default output's
-// table doesn't send the rest); its MIDI-only voice is sent on its channel and never sounds on the built-in voices.
+// table doesn't send the rest); its MIDI-only voice is sent on its channel and sounds on the built-in voices too (decision 039).
 const CARD_PIECE = 'midi-out';
 const CARD_ONLY = { voice: 'sub', channel: 2 };
 {
@@ -446,13 +446,13 @@ const CARD_ONLY = { voice: 'sub', channel: 2 };
     await mp.waitForTimeout(300);
     const transport = mp.locator('.transport');
     await transport.getByRole('button', { name: 'Play' }).first().click();
-    // while it plays: the MIDI-only voice never sounds on the built-in voices, the heard one does
-    let quiet = 0;
+    // while it plays: the MIDI-only voice sounds on the built-in voices too (decision 039), and so does the one on both cards
+    let alone = 0;
     let heard = 0;
     for (let t = 0; t < secs * 10; t++) {
       await mp.waitForTimeout(100);
       const [a, b] = await mp.evaluate((v) => [window.cellStudio.level(v) ?? 0, window.cellStudio.level('reed') ?? 0], CARD_ONLY.voice);
-      quiet = Math.max(quiet, a);
+      alone = Math.max(alone, a);
       heard = Math.max(heard, b);
     }
     await transport.getByRole('button', { name: 'Pause' }).first().click();
@@ -468,9 +468,9 @@ const CARD_ONLY = { voice: 'sub', channel: 2 };
     if (stray.length) problems.push(`${stray.length} note-ons no card names, first ${stray[0].channel}:${stray[0].note}`);
     const sentOnly = ons.filter((o) => o.channel === CARD_ONLY.channel).length;
     if (!sentOnly) problems.push(`&${CARD_ONLY.voice}, on a MIDI card only, was not sent on channel ${CARD_ONLY.channel}`);
-    if (quiet > 1e-4) problems.push(`&${CARD_ONLY.voice}, on a MIDI card only, sounded (peak ${quiet.toFixed(4)})`);
+    if (!(alone > 1e-3)) problems.push(`&${CARD_ONLY.voice}, on a MIDI card only, did not sound`);
     if (!(heard > 1e-3)) problems.push('&reed, on both cards, did not sound');
-    note = `${ons.length} note-ons on channels ${channels(ons)}, as the cards name them; &${CARD_ONLY.voice} sent ${sentOnly} times on ${CARD_ONLY.channel} and silent on the built-in voices (peak ${quiet.toFixed(4)}), &reed heard (peak ${heard.toFixed(3)})`;
+    note = `${ons.length} note-ons on channels ${channels(ons)}, as the cards name them; &${CARD_ONLY.voice} sent ${sentOnly} times on ${CARD_ONLY.channel} and heard on the built-in voices (peak ${alone.toFixed(3)}), &reed heard (peak ${heard.toFixed(3)})`;
   } catch (e) {
     problems.push(String(e.message).split('\n')[0]);
   }

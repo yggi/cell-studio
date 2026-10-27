@@ -1,7 +1,7 @@
 /**
  * A click at a followed session's section switch, by level (#492, #478 rung 3's bound), for `tools/session-probe.mjs`:
- * the peak of what Cell studio's page sounds in the 10 ms round the start of each bar whose text switched, set against
- * the same 10 ms round the start of the bars either side. A voice cut at the switch, or two texts' notes doubled there,
+ * the peak of what Cell studio's page sounds round the start of each bar whose text switched (`WINDOW`), set against the
+ * same round the start of the bars either side. A voice cut at the switch, or two texts' notes doubled there,
  * would lift the switch's peak above theirs; a bar's start where nothing changes is the measure of what the music does
  * there anyway.
  *
@@ -17,8 +17,12 @@ export interface BarLaid {
   readonly switched: boolean;
 }
 
-/** Half the window round a bar's start the peak is taken in (seconds): 10 ms in all. */
-export const HALF = 0.005;
+/**
+ * The window round a bar's start the peak is taken in (seconds): from 5 ms before it, where a voice cut at the switch
+ * would click, to 10 ms after, so that it holds the bar's own attack, which a render quantum or so after the start
+ * lands (measured: 3 to 5 ms); centred on the start, a window of 10 ms held it or not by a fraction of a millisecond.
+ */
+export const WINDOW = { before: 0.005, after: 0.01 } as const;
 /**
  * How far over the louder of the bars either side a switch's peak may be, in dB: 3, a doubling of power, which a
  * cut voice's step or a note doubled reaches and the music's own bar to bar change seldom does (chosen; named here).
@@ -45,9 +49,10 @@ export function switchLevels(bars: readonly BarLaid[], levels: readonly (readonl
   const byBar = new Map(bars.map((b) => [b.bar, b]));
   const [first, last] = [levels[0]?.[0] ?? Infinity, (levels.at(-1)?.[0] ?? -Infinity) + quantum];
   const peakAt = (t: number): number | null => {
-    if (t - HALF < first || t + HALF > last) return null;
+    const [from, to] = [t - WINDOW.before, t + WINDOW.after];
+    if (from < first || to > last) return null;
     let p = 0;
-    for (const [at, peak] of levels) if (at + quantum > t - HALF && at < t + HALF) p = Math.max(p, peak);
+    for (const [at, peak] of levels) if (at + quantum > from && at < to) p = Math.max(p, peak);
     return db(p);
   };
   return bars.flatMap((b) => {
@@ -61,7 +66,7 @@ export function switchLevels(bars: readonly BarLaid[], levels: readonly (readonl
   });
 }
 
-/** Whether anything sounded round a switch or the bars either side (a text on a MIDI card alone sounds nothing here). */
+/** Whether anything sounded round a switch or the bars either side. */
 export const heard = (s: SwitchLevel): boolean => Number.isFinite(Math.max(s.peak, s.before, s.after));
 
 /** Whether a switch is under the bound: no click by level. */
