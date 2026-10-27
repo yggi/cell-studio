@@ -4,8 +4,8 @@ name: CI
 # passed them. The repository is public, so Actions costs nothing here (#481): on a PR that is ready (not a draft), on
 # every push, `check` (the four checks of verify and the quick tests) and `slow` (the slow tests and the build) side by
 # side; the same nightly on main and by hand on any branch (Actions -> CI -> Run workflow, or `actions_run_trigger` on
-# `ci.yml`). The smoke test is smoke.yml's. It doesn't deploy: `node tools/deploy.mjs` does, from a clone or in deploy.yml
-# (by hand). A run that fails in seconds with no step is Actions blocked, not a verdict on the change.
+# `ci.yml`). The smoke test is smoke.yml's. It doesn't deploy: deploy.yml does, on every merge into main (`node tools/deploy.mjs`,
+# also from a clone). A run that fails in seconds with no step is Actions blocked, not a verdict on the change.
 on:
   pull_request:
     types: [opened, reopened, synchronize, ready_for_review]
