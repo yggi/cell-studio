@@ -9,9 +9,14 @@ import type { LayoutOptions } from '../layout/options';
 import { towerLayers, withSockets } from '../layout/towerlayout';
 import { nodeSections } from './sections';
 
-export function towerSetup(program: CompileResult, model: GraphModel): { model: GraphModel; layered: ReturnType<typeof towerLayers>; options: Partial<LayoutOptions> } {
+/** `steady`: the neutral zone's rows laid alike whatever the text (towerLayers'), for a followed session's sections. */
+export function towerSetup(
+  program: CompileResult,
+  model: GraphModel,
+  steady = false,
+): { model: GraphModel; layered: ReturnType<typeof towerLayers>; options: Partial<LayoutOptions> } {
   const m = withSockets(program, model);
-  const layered = towerLayers(program, model, m, { sections: new Map([...nodeSections(program, m)].map(([id, s]) => [id, s.k])) });
+  const layered = towerLayers(program, model, m, { sections: new Map([...nodeSections(program, m)].map(([id, s]) => [id, s.k])), steady });
   return {
     model: m,
     layered,

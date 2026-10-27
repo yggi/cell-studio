@@ -1,5 +1,5 @@
 import { isSide } from '../../layout/side';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { compileSource } from '@yggi/cells/engine/compile';
 import { buildGraph } from '../../layout/drawn';
 import { codeShifts } from '@yggi/cells/engine/program';
@@ -77,5 +77,39 @@ describe('GraphLayout: one snapshot per piece', () => {
   it('keeps a snapshot built from one program whole', () => {
     const s = snapshot('resonanz');
     expect(snapshotOf(s.program, s.model, s.shifts, s.muted, s.routed).model).toBe(s.model);
+  });
+});
+
+describe('a followed session’s next section, laid out held (#493)', () => {
+  const of = (source: string): GraphSnapshot => {
+    const program = compileSource(source);
+    return snapshotOf(program, buildGraph(program), codeShifts(program), program.off, routing(program, program.off));
+  };
+  const head = '&m step=1\n&A step=&m &B\n&B 0\n&v s=saw\n';
+  const before = of(head + '&C 1\n&mix_ [&A * &v]\n&out_ loop=44k map=sample &mix_');
+  const after = of(head + '&mix_ [&A * &v]\n&out_ loop=44k map=sample &mix_');
+
+  it('keeps each node’s measured size, and fades a cell dropped out before it goes', () => {
+    vi.useFakeTimers();
+    try {
+      const layout = new GraphLayout(before, () => ({ lit: false, live: null, moment: null }));
+      layout.sync(before, 1, false, true);
+      // (as the flow measures them)
+      layout.nodes = layout.nodes.map((n) => ({ ...n, measured: { width: 128, height: 140 } }));
+      const places = new Map(layout.nodes.map((n) => [n.id, n.position]));
+      layout.sync(after, 1, false, true);
+      const stays = layout.nodes.filter((n) => n.id !== 'cell:C');
+      expect(stays.length).toBeGreaterThan(3);
+      for (const n of stays) {
+        expect(n.measured, n.id).toEqual({ width: 128, height: 140 });
+        expect(n.position, n.id).toEqual(places.get(n.id));
+      }
+      expect(layout.nodes.find((n) => n.id === 'cell:C')).toMatchObject({ class: 'leaving', draggable: false, selectable: false });
+      vi.advanceTimersByTime(400);
+      expect(layout.nodes.some((n) => n.id === 'cell:C')).toBe(false);
+      layout.destroy();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

@@ -15,7 +15,7 @@
 // late (`sound.lacked`, "late by …", #496: 0 is the bound) and its page's long tasks. Exits 1 where a bound isn't met.
 //
 // Chromium: Playwright's, or CHROME_PATH=/path/to/chrome (tools/profile/playwright.mjs).
-import { writeFileSync } from 'node:fs';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { preview, runnerImport } from 'vite';
 import { chromium } from './profile/playwright.mjs';
 import { freshBuild } from './fresh-build.mjs';
@@ -36,6 +36,7 @@ const READ_EVERY = 2000;
 const WITHIN = 0.001;
 
 const { module: compare } = await runnerImport('./tools/session-compare.ts', { configFile: false });
+const { module: switches } = await runnerImport('./tools/session-switches.ts', { configFile: false });
 freshBuild();
 const server = await preview({ preview: { port: 0, host: '127.0.0.1' }, logLevel: 'error' });
 const browser = await chromium.launch({ args: ['--autoplay-policy=no-user-gesture-required', '--no-sandbox'] });
@@ -73,6 +74,63 @@ studio.on('console', (m) => m.type() === 'error' && errors.push(`Cell studio: ${
 await studio.addInitScript(() => {
   window.__longTasks = [];
   new PerformanceObserver((l) => window.__longTasks.push(...l.getEntries().map((e) => [e.startTime, e.duration]))).observe({ type: 'longtask', buffered: true });
+  // (each section switch as drawn, #493: tools/session-switches.ts. Each frame's time; at each change of the editor's
+  // text, where the graph's cells stood just before and 1.5 s after, and the editor's scrolls; the code scrolled to its
+  // middle once it can be, so that keeping the scroll means something)
+  window.__frames = [];
+  window.__switches = [];
+  const cells = () =>
+    Object.fromEntries(
+      [...document.querySelectorAll('.svelte-flow__node:not(.leaving)')].map((n) => {
+        // (its centre: the flow places a node by it, nodeOrigin [0.5, 0.5], its corner moving as its size does)
+        const m = /translate\(\s*(-?[\d.e+-]+)px,\s*(-?[\d.e+-]+)px/.exec(n.style.transform);
+        return [n.dataset.id, m ? `translate(${Number(m[1]) + n.offsetWidth / 2}px, ${Number(m[2]) + n.offsetHeight / 2}px)` : ''];
+      }),
+    );
+  let text = null;
+  let following = false;
+  let scroll = 0;
+  let snapshot = {};
+  let snapped = -Infinity;
+  let scrolled = false;
+  const frame = (t) => {
+    window.__frames.push(t);
+    if (window.__frames.length > 200000) window.__frames.splice(0, 100000);
+    const code = document.querySelector('textarea[aria-label="Cell program"]');
+    const editor = code?.closest('.editor');
+    // (a switch: the text changed while it was already the session's, read only; the first is the session opened)
+    if (code && following && code.value !== text) {
+      // (the cells whose line the new text rewrites: what moves in the tower layout, where a cell's height is its line's)
+      const lineOf = (x) => new Map(x.split('\n').flatMap((l) => (/^&[\w:]+/.test(l) ? [[`cell:${/^&([\w:]+)/.exec(l)[1]}`, l]] : [])));
+      const [was, is] = [lineOf(text), lineOf(code.value)];
+      const rewritten = [...is.keys()].filter((id) => was.has(id) && was.get(id) !== is.get(id));
+      const record = { at: t, before: snapshot, after: null, rewritten, scroll: { before: scroll, after: null, gutter: null, paint: null } };
+      window.__switches.push(record);
+      setTimeout(() => {
+        record.after = cells();
+        record.scroll = {
+          ...record.scroll,
+          after: code.scrollTop,
+          max: code.scrollHeight - code.clientHeight,
+          gutter: editor?.querySelector('.gutter')?.scrollTop ?? null,
+          paint: editor?.querySelector('.paint')?.scrollTop ?? null,
+        };
+      }, 1500);
+    } else if (t - snapped > 250) {
+      snapshot = cells();
+      snapped = t;
+    }
+    if (code && !scrolled && code.value && code.scrollHeight > code.clientHeight) {
+      code.scrollTop = (code.scrollHeight - code.clientHeight) / 2;
+      code.dispatchEvent(new Event('scroll'));
+      scrolled = true;
+    }
+    text = code?.value ?? null;
+    following = !!code?.readOnly;
+    scroll = code?.scrollTop ?? 0;
+    requestAnimationFrame(frame);
+  };
+  requestAnimationFrame(frame);
 });
 await studio.goto(server.resolvedUrls.local[0]);
 await studio.waitForFunction(() => window.cellStudio?.session);
@@ -92,6 +150,24 @@ console.log(`hosting “${SESSION}” at ${JAMBOT} through ${LOBBY}; Cell studio
 const logs = { host: [], studio: [], late: [], lackedBars: new Set(), lacks: [], lateBars: new Set() };
 const next = { host: 0, studio: 0 };
 let bound = 0;
+// (SHOTS=dir: the page at each read, and, of the 2nd to 4th section switches, the one before and the one after it, #493)
+const SHOTS = process.env.SHOTS;
+const shots = { last: null, switches: 0, after: null };
+const shoot = async () => {
+  const png = await studio.screenshot();
+  const seen = await studio.evaluate(() => window.__switches.length);
+  if (shots.after) {
+    writeFileSync(`${SHOTS}/switch-${shots.after}-after.png`, png);
+    shots.after = null;
+  }
+  if (seen > shots.switches && seen >= 2 && seen <= 4 && shots.last) {
+    writeFileSync(`${SHOTS}/switch-${seen}-before.png`, shots.last);
+    shots.after = seen;
+  }
+  shots.switches = seen;
+  shots.last = png;
+};
+if (SHOTS) mkdirSync(SHOTS, { recursive: true });
 const read = async () => {
   const h = await host.evaluate((from) => window.jambot.played(from), next.host);
   const s = await studio.evaluate((from) => ({ ...window.cellStudio.session.played(from), state: window.cellStudio.session.state() }), next.studio);
@@ -106,6 +182,7 @@ const read = async () => {
     if (l.why.startsWith('late by')) logs.lateBars.add(l.bar);
   }
   bound = Math.max(bound, s.state.clock?.bound ?? 0);
+  if (SHOTS) await shoot();
   return s.state;
 };
 const end = Date.now() + MINUTES * 60_000;
@@ -115,6 +192,9 @@ while (Date.now() < end) {
 }
 const last = await read();
 const long = await studio.evaluate(() => window.__longTasks.map(([, d]) => d));
+const shown = switches.switchesOf(...(await studio.evaluate(() => [window.__switches, window.__frames, window.__longTasks])));
+const unkept = shown.filter((d) => !switches.within(d));
+const most = (f) => Math.max(0, ...shown.map(f));
 if (process.env.PROFILE) writeFileSync(process.env.PROFILE, JSON.stringify((await cdp.send('Profiler.stop')).profile));
 await browser.close();
 await server.close();
@@ -129,9 +209,14 @@ console.log(
     `lacked: Cell studio ${c.lacked.studio.events} (${c.lacked.studio.unexplained} unexplained), the host ${c.lacked.host.events} (${c.lacked.host.unexplained} unexplained)`,
     `Cell studio said it lacked: ${logs.lacks.length ? logs.lacks.join('; ') : 'nothing'}; at the end ${last.status}, playing ${last.sound?.playing}, ${last.sound?.unread ?? 0} events the feel didn't read`,
     `Cell studio came late (#496: 0 is the bound) to ${logs.lateBars.size} bars${logs.lateBars.size ? `: ${[...logs.lateBars].join(', ')}` : ''}`,
+    `section switches drawn: ${shown.length} (#493: main-thread work under ${switches.BOUNDS.work} ms, frames under ${switches.BOUNDS.frame} ms at the 95th percentile, the cells that stay moved ${switches.BOUNDS.moved} px, the code's scroll kept), ${unkept.length} not: work ${Math.round(most((d) => d.work))} ms at most (the longest task ${Math.round(most((d) => d.longest))} ms), frames ${most((d) => d.frame).toFixed(1)} ms at most, moved ${most((d) => d.moved).toFixed(1)} px at most, the scroll kept ${shown.filter((d) => d.scrollKept).length} times; cells ${shown.reduce((a, d) => a + d.stayed, 0)} stayed (their lines the same; ${shown.reduce((a, d) => a + d.rewritten, 0)} more rewritten, moved ${most((d) => d.rewrittenMoved).toFixed(1)} px at most), ${shown.reduce((a, d) => a + d.came, 0)} came, ${shown.reduce((a, d) => a + d.went, 0)} went`,
+    ...unkept.map(
+      (d) =>
+        `  switch at ${(d.at / 1000).toFixed(1)} s: work ${Math.round(d.work)} ms (longest ${Math.round(d.longest)}), frames ${d.frame.toFixed(1)} ms, moved ${d.moved.toFixed(1)} px${d.movers.length ? ` (${d.movers.join(' ')})` : ''}, scroll ${d.scrollKept ? 'kept' : `not kept (${JSON.stringify(d.scroll)})`}`,
+    ),
     `Cell studio's long tasks: ${long.filter((d) => d > 100).length} over 100 ms, ${long.filter((d) => d > 300).length} over 300 ms, the longest ${Math.round(Math.max(0, ...long))} ms`,
     `errors: ${errors.length ? errors.join('; ') : 'none'}`,
     ...c.differing.map((d) => `  ${d}`),
   ].join('\n'),
 );
-process.exit(compare.agrees(c) && !errors.length && !logs.lateBars.size ? 0 : 1);
+process.exit(compare.agrees(c) && !errors.length && !logs.lateBars.size && !unkept.length ? 0 : 1);

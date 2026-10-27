@@ -207,7 +207,14 @@ export function towerLayers(
   drawn: GraphModel,
   // (mixers: false, a mix with the voices; lift: false, every table nothing steps at the bottom — the probe's comparisons)
   // (sections: each node's place among its selector's, `nodeSections`'s k: the lanes' order, `rainbow`)
-  { mixers = true, lift = true, sections }: { readonly mixers?: boolean; readonly lift?: boolean; readonly sections?: ReadonlyMap<string, number> } = {},
+  // (steady: the players' row a whole layer under the voices whether or not a player stands under its kit, so that texts
+  // that differ only there lay the neutral zone's rows alike: a followed session's sections, #493)
+  {
+    mixers = true,
+    lift = true,
+    sections,
+    steady = false,
+  }: { readonly mixers?: boolean; readonly lift?: boolean; readonly sections?: ReadonlyMap<string, number>; readonly steady?: boolean } = {},
 ): {
   /** The neutral zone's height (decades): towerY's `zone`. */
   zone: number;
@@ -327,7 +334,7 @@ export function towerLayers(
   // kit: room for the kit's wheel, its name and the player's wheel.)
   const gates = [...layers.values()].includes('gate');
   const gate = HEARING + LAYER_GAP / 2;
-  const voice = gates ? gate + (columns.some((c) => !c.via) ? LAYER_GAP : LAYER_GAP / 2) : HEARING + LAYER_GAP / 2;
+  const voice = gates ? gate + (steady || columns.some((c) => !c.via) ? LAYER_GAP : LAYER_GAP / 2) : HEARING + LAYER_GAP / 2;
   // (the mixers a layer's gap over the voices, when there are any)
   const mixer = voice + MIX_GAP;
   const mixes = [...layers.values()].includes('mixer');
