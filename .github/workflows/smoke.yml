@@ -1,24 +1,53 @@
 name: Smoke
 
-# By hand only: Actions -> Smoke -> Run workflow, for a change that reaches audio, UI wiring, assets or the build. The same
-# runs locally for nothing (docs/testing.md). A run that fails in seconds with no step is Actions blocked, not a verdict.
-# Opens and starts every piece in the runner's Chrome, and plays for 2 s the fewest pieces that use every kind
-# of audio node between them (tools/smoke.mjs, tools/smoke-pick.ts): the audio graph of every voice kind,
-# which the unit tests can't build. Then every example is rendered twice (tools/repeatable.mjs), on the same build.
-# Not a required check.
+# Opens and starts every piece in the runner's Chrome, and plays for 2 s the fewest pieces that use every kind of audio
+# node between them (tools/smoke.mjs, tools/smoke-pick.ts): the audio graph of every voice kind, which the unit tests
+# can't build. Then every example is rendered twice (tools/repeatable.mjs), on the same build. Not a required check.
+# When (#481): on a ready PR (not a draft) whose change reaches what it covers, the paths below: the audio, the UI wiring,
+# the app's entry and its window.cellStudio hook, the session client, MIDI, assets, the build's config, the lockfile (the
+# cells pin: what every piece plays) and the smoke tools themselves; not layout/ (pure, and its tests are quick ones),
+# tests or docs. Nightly on main, whatever changed, and by hand (Actions -> Smoke -> Run workflow, or
+# `actions_run_trigger` on `smoke.yml`) on any branch. The same runs locally for nothing (docs/testing.md).
+# A run that fails in seconds with no step is Actions blocked, not a verdict.
 on:
+  pull_request:
+    types: [opened, reopened, synchronize, ready_for_review]
+    paths:
+      - 'src/audio/**'
+      - 'src/ui/**'
+      - 'src/midi/**'
+      - 'src/session/**'
+      - 'src/*.svelte'
+      - 'src/*.ts'
+      - 'src/app.css'
+      - 'public/**'
+      - 'index.html'
+      - 'vite.config.ts'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'tools/smoke*'
+      - 'tools/repeatable.mjs'
+      - 'tools/fresh-build.mjs'
+      - 'tools/profile/playwright.mjs'
+      - '.github/workflows/smoke.yml'
+      - '!**/*.test.ts'
+  schedule:
+    - cron: '47 3 * * *'
   workflow_dispatch:
 
 permissions:
   contents: read
 
+# (a newer push to the PR replaces the run still going; a nightly or a run by hand is never cancelled)
 concurrency:
-  group: smoke-${{ github.ref }}
+  group: smoke-${{ github.event.pull_request.number || github.run_id }}
   cancel-in-progress: true
 
 jobs:
   # One job: the smoke test and the renders share one install and one build.
   smoke:
+    # The switch (yggi/music-commons CI-BUDGET.md), as ci.yml's: a draft runs nothing.
+    if: github.event_name != 'pull_request' || (github.event.pull_request.draft == false && (!github.event.repository.private || vars.CI == 'on'))
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:

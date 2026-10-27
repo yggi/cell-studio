@@ -34,5 +34,5 @@ device, so this measures the page, not audible glitches; use a real phone for th
 On a real device there is no cable needed: open the app with `?perf` and use the overlay's Record / Copy report
 (`docs/ui/performance.md`); paste the report into the issue.
 
-Playwright is found by `playwright.mjs` (set `PLAYWRIGHT=` or `CHROME_PATH=` if needed).
+Playwright is found by `playwright.mjs` (set `PLAYWRIGHT=` or `CHROME_PATH=` if needed; without `CHROME_PATH`, a missing Playwright Chromium falls back to the cloud container's `/opt/pw-browsers/chromium`).
 Commit result tables to the issue, not here; `profile-*.json` is ignored.

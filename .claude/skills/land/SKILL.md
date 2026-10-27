@@ -31,7 +31,7 @@ Lifted from yggi/jambot .claude/skills/land/SKILL.md @ ef79048.
    `node tools/deploy.mjs` from `main`, as a background task (it runs `test:all` and a fresh build: minutes); or, with no clone at hand, Actions → Deploy → Run workflow (`deploy.yml`: the same script on `main`).
    It refuses a tree with changes or a HEAD that isn't `origin/main`, runs every check, builds `dist/` and publishes it to gh-pages ([testing.md](../../../docs/testing.md#run)).
 7. **Check the live site.**
-   `CHROME_PATH=/opt/pw-browsers/chromium node tools/live.mjs` (`CHROME_PATH` only in a cloud session): it waits until <https://yggi.github.io/cell-studio/> loads the module script of the `dist/index.html` just deployed (every 10 s, up to 10 min), then opens the page in Chromium and fails on any console error or uncaught exception.
+   `node tools/live.mjs` (in a cloud session whose preinstalled browsers are another Playwright's, it falls back to `/opt/pw-browsers/chromium` and says so: `tools/profile/playwright.mjs`): it waits until <https://yggi.github.io/cell-studio/> loads the module script of the `dist/index.html` just deployed (every 10 s, up to 10 min), then opens the page in Chromium and fails on any console error or uncaught exception.
 8. **Say so** in a comment on the pull request: the commit deployed and the last lines `node tools/deploy.mjs` and `node tools/live.mjs` printed.
    The issues were step 4.
 

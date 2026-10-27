@@ -1,4 +1,4 @@
-// The stamp of a tree that passed `npm run verify`, in the git directory (`cell-studio-verified`, a line
+// The stamp of a tree that passed `npm run verify`, in the common git directory, which a clone's worktrees share (`cell-studio-verified`, a line
 // `<tree> <tests passed>`), read by the pre-push hook (.githooks/pre-push): a push of a stamped tree is let through
 // without running verify again, and says how many tests passed.
 //
@@ -38,15 +38,17 @@ function workingTree() {
   }
 }
 
-let gitdir;
+let gitdir, common;
 try {
   process.chdir(git(['rev-parse', '--show-toplevel']));
   gitdir = git(['rev-parse', '--absolute-git-dir']);
+  common = git(['rev-parse', '--path-format=absolute', '--git-common-dir']);
 } catch {
   process.exit(0);
 }
+// (what a run began is this worktree's; what passed is the clone's, shared by its worktrees)
 const pending = join(gitdir, 'cell-studio-verifying');
-const stamps = join(gitdir, 'cell-studio-verified');
+const stamps = join(common, 'cell-studio-verified');
 const [what, given] = process.argv.slice(2);
 
 if (what === 'tree') {

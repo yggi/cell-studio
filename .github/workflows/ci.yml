@@ -1,31 +1,31 @@
 name: CI
 
 # A witness, not the gate (docs/testing.md): the gate is the checks run before the push, and the PR names the commit that
-# passed them. A run that fails in seconds with no step is Actions blocked (minutes used up), not a verdict on the change.
-# One job on a PR that is ready (not a draft): jobs bill rounded up to a whole minute, so the steps share one. The slow
-# tests and the build by hand: Actions -> CI -> Run workflow, `all` ticked. It doesn't deploy: `node tools/deploy.mjs` does, from a clone or in deploy.yml (by hand).
+# passed them. The repository is public, so Actions costs nothing here (#481): on a PR that is ready (not a draft), on
+# every push, `check` (the four checks of verify and the quick tests) and `slow` (the slow tests and the build) side by
+# side; the same nightly on main and by hand on any branch (Actions -> CI -> Run workflow, or `actions_run_trigger` on
+# `ci.yml`). The smoke test is smoke.yml's. It doesn't deploy: `node tools/deploy.mjs` does, from a clone or in deploy.yml
+# (by hand). A run that fails in seconds with no step is Actions blocked, not a verdict on the change.
 on:
   pull_request:
     types: [opened, reopened, synchronize, ready_for_review]
+  schedule:
+    - cron: '29 3 * * *'
   workflow_dispatch:
-    inputs:
-      all:
-        description: The slow tests and the build too
-        type: boolean
-        default: false
 
 permissions:
   contents: read
 
-# (a newer push to the PR replaces the run still going for the older one: the newer commit carries its changes)
+# (a newer push to the PR replaces the run still going for the older one: the newer commit carries its changes; a nightly
+# or a run by hand is never cancelled)
 concurrency:
-  group: ci-${{ github.event.pull_request.number || github.ref }}
+  group: ci-${{ github.event.pull_request.number || github.run_id }}
   cancel-in-progress: true
 
 jobs:
   check:
-    # The switch (yggi/music-commons CI-BUDGET.md): runs only where Actions is free (public) or on (variable CI = on).
-    if: github.event_name == 'workflow_dispatch' || (github.event.pull_request.draft == false && (!github.event.repository.private || vars.CI == 'on'))
+    # The switch (yggi/music-commons CI-BUDGET.md): a PR runs only where Actions is free (public) or on (variable CI = on).
+    if: github.event_name != 'pull_request' || (github.event.pull_request.draft == false && (!github.event.repository.private || vars.CI == 'on'))
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -47,10 +47,25 @@ jobs:
         run: npm run format:check
       - if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: npm run knip
-      # The quick project (`npm test` on CI would run every slow test: tools/test.mjs's fail-safe).
+      # The quick project (`npm test` on CI would run every slow test: tools/test.mjs's fail-safe; `slow` runs those).
       - if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: npx vitest run --project quick
-      - if: ${{ !cancelled() && steps.install.outcome == 'success' && inputs.all }}
+
+  slow:
+    if: github.event_name != 'pull_request' || (github.event.pull_request.draft == false && (!github.event.repository.private || vars.CI == 'on'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - id: install
+        run: npm ci --no-audit --no-fund
+        env:
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: 1
+      - if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: npx vitest run --project slow
-      - if: ${{ !cancelled() && steps.install.outcome == 'success' && inputs.all }}
+      - if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: npm run build

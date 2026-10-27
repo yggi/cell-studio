@@ -7,8 +7,8 @@
 # - It verifies the working tree, and the push sends the commit, so a dirty tracked tree is refused: commit first, and
 #   push the branch checked out. So is an untracked file git doesn't ignore, unless the commit's tree passed verify
 #   already: verify would see it, and the commit lacks it (a new module left out of `git add` passes, then breaks main).
-# - A tree that passed is remembered by its hash, with the number of tests that passed, in the git directory
-#   (`cell-studio-verified`), so a push retried after a network failure does not run the tests again. The stamp is the
+# - A tree that passed is remembered by its hash, with the number of tests that passed, in the common git directory
+#   (`cell-studio-verified`, shared by every linked worktree of the clone: a tree is the same files whichever verified it), so a push retried after a network failure does not run the tests again. The stamp is the
 #   tree verify saw, untracked files too (tools/verified.mjs, `begin` before the check and `end` after a pass), and
 #   `npm run verify` writes it when it passes (`preverify` and `postverify`), so a push of exactly what it saw is free.
 # - A check that failed leaves its whole output in the git directory (`cell-studio-verify-failed.log`), named in the
@@ -49,7 +49,7 @@ if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
 fi
 
 gitdir=$(git rev-parse --absolute-git-dir)
-stamps="$gitdir/cell-studio-verified"
+stamps="$(git rev-parse --path-format=absolute --git-common-dir)/cell-studio-verified"
 tree=$(git rev-parse 'HEAD^{tree}')
 short=$(git rev-parse --short HEAD)
 # A stamp is a line `<tree> <tests passed>`.
