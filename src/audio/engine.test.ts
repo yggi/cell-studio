@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, onTestFinished, vi } from 'vitest';
 import { PRESETS } from '@yggi/cells/engine/presets';
 import { planOf, type FromEngine, type ToEngine } from '@yggi/cells/engine/host';
 import { resolveSeed } from '@yggi/cells/repository/library';
@@ -42,7 +42,7 @@ describe('engines: local and worker give the same windows', () => {
   });
 
   it('worker: a piece that uses a fragment is compiled there through the seed library, and the same windows come back (yggi/cells#241)', async () => {
-    const used = 'use "core kit"\n&bar meter("4/4") step=100bpm\n&beat step=8n &bd ~ &hh ~ &sd ~ &hh &hh\n&out map=sample [&beat]\n';
+    const used = 'use * from "core kit"\n&bar meter("4/4") step=100bpm\n&beat step=8n &bd ~ &hh ~ &sd ~ &hh &hh\n&out map=sample [&beat]\n';
     const port = fakeWorker();
     const e = new WorkerEngine(port);
     const p = planOf(used, undefined, { resolve: resolveSeed });
@@ -53,12 +53,19 @@ describe('engines: local and worker give the same windows', () => {
   });
 
   it('a worker too slow to answer: the window is worked out here, and its late answer is ignored', async () => {
+    // (on the timers' clock, not the machine's: the 10 ms deadline passes before the 80 ms answer however loaded it is, #500)
+    vi.useFakeTimers();
+    onTestFinished(() => {
+      vi.useRealTimers();
+    });
     const e = new WorkerEngine(fakeWorker(80), 10);
     const p = planOf(src);
     e.load(p, { code: src });
-    expect(await e.window(2, 0.25)).toEqual(windowAt(p, 2, 0.25));
+    const w = e.window(2, 0.25);
+    await vi.advanceTimersByTimeAsync(10);
+    expect(await w).toEqual(windowAt(p, 2, 0.25));
     expect(e.stats().late).toBe(1);
-    await new Promise((r) => setTimeout(r, 100));
+    await vi.advanceTimersByTimeAsync(100);
     expect(e.stats().roundTripMax).toBe(0);
   });
 

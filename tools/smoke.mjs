@@ -208,9 +208,9 @@ const OUTSIDE_FILE = `---\ntitle: From outside, as a file\n---\n\n\`\`\`cells\n$
   console.log(`${ok ? 'ok  ' : 'FAIL'} A piece from outside: cellStudio.open${ok ? `: ${note}` : '\n       ' + [...new Set(problems)].slice(0, 3).join('\n       ')}`);
   if (!ok) failed.push('A piece from outside');
 }
-// A piece that uses a fragment (cells decision 054): `use "core kit"` read from the seed library, the code kept as
+// A piece that uses a fragment (cells decision 054): `use * from "core kit"` read from the seed library, the code kept as
 // written, the kit's voices drawn, and Play sounding the beat on them.
-const USES = 'use "core kit"\n&bar meter("4/4") step=100bpm\n&beat step=8n &bd ~ &hh ~ &sd ~ &hh [&bd,&hh]\n';
+const USES = 'use * from "core kit"\n&bar meter("4/4") step=100bpm\n&beat step=8n &bd ~ &hh ~ &sd ~ &hh [&bd,&hh]\n';
 if (only.length === 0) {
   problems = [];
   const op = await newPage({ viewport: { width: 1280, height: 800 } });

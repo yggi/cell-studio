@@ -81,7 +81,7 @@ describe('a followed session played as its performers play it', () => {
   const HOST = `&bar meter("4/4") step=120bpm
 &kick step=4n &bd &bd &bd &bd
 &drums [&kick]
-use "core kit"
+use * from "core kit"
 &bass step=8n 0 ~ 0 ~ 7 ~ 5 ~
 &bassOut play=&bass level=.7 &bassV
 &bassV loop=C2

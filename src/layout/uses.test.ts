@@ -3,7 +3,7 @@ import { compilePiece } from '../compile';
 import { buildGraph, usesOf } from './drawn';
 import { plateHeight, tagUse, useGroups, useTag } from './uses';
 
-const KIT = 'use "core kit"\n&bar meter("4/4") step=100bpm\n&beat step=8n &bd ~ &hh ~ &sd ~ &hh [&bd,&hh]';
+const KIT = 'use * from "core kit"\n&bar meter("4/4") step=100bpm\n&beat step=8n &bd ~ &hh ~ &sd ~ &hh [&bd,&hh]';
 const IDLE = ['rim', 'cp', 'lt', 'ph', 'mt', 'oh', 'ht', 'cr', 'rd', 'claves'];
 
 describe('a use line’s group (#480)', () => {
@@ -32,7 +32,7 @@ describe('a use line’s group (#480)', () => {
   });
 
   it('draws a use nothing reads whole, and one group per use line', () => {
-    const r = compilePiece('use "core kit"\nuse "aeolian"\n&bar meter("4/4") step=100bpm\n&tune over=&key step=&bar 0 2 4');
+    const r = compilePiece('use * from "core kit"\nuse * from "aeolian"\n&bar meter("4/4") step=100bpm\n&tune over=&key step=&bar 0 2 4');
     const [kit, mode] = usesOf(r);
     expect(kit!.folded).toEqual([]);
     expect(kit!.nodes).toHaveLength(13);

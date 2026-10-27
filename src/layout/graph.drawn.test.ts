@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { compileSource } from '@yggi/cells/engine/compile';
+import { compilePiece } from '../compile';
 import { type GraphModel } from '@yggi/cells/engine/graph';
 import { buildGraph } from './drawn';
 import { cellId, edgeId, stepEdgeId } from '@yggi/cells/engine/ids';
@@ -529,13 +530,16 @@ describe('every name written is one wire carrying the transform it writes, and e
   const all = { ...Object.fromEntries(Object.entries(PRESETS).map(([k, p]) => [k, p.source])), golden: readFileSync('tools/gallery/golden/golden.cells', 'utf8') };
 
   it.each(Object.entries(all))('%s', (_, source) => {
-    const program = compileSource(source);
+    // (as the app compiles it: a piece that uses the seed library resolves its uses, electroswing's among them)
+    const program = compilePiece(source);
     const model = buildGraph(program);
     const lines = linesOf(source);
     const missing: string[] = [];
     // (a wire, by the line it is written on, the name written and the port: what the tokens matched)
     const matched = new Set<string>();
     const junctions = new Map(model.nodes.flatMap((n) => (n.kind === 'junction' ? [[n.id, n] as const] : [])));
+    // (the stacks the gates play: a chord of lines, each line times its levels, cells #302)
+    const stacked = new Set([...program.cells.values()].flatMap((g) => (g.gate?.lines?.length ? [g.gate.notes] : [])));
     let wires = 0;
     for (const c of program.cells.values()) {
       if (c.lambda || c.implicit) continue;
@@ -572,8 +576,14 @@ describe('every name written is one wire carrying the transform it writes, and e
           // (a gate in a mix goes in as the voices it plays, each from its own wheel: #234)
           const gate = program.cells.get(name);
           const voices = gate?.gate?.receivers ?? [];
+          // (a stack a gate plays, cells #302: each member's line into it on play, its levels on level, cells #329)
+          if (stacked.has(c.name)) {
+            const e = model.edges.find((x) => x.from === cellId(name) && x.to === cellId(c.name) && (x.port === 'play' || x.port === 'level'));
+            if (e) matched.add(`${c.name}|${name}|${e.port}`);
+            else if (model.nodes.some((n) => n.id === cellId(name))) missing.push(`&${c.name}: &${name} (in the stack)`);
+          }
           // (a groove in a mix goes in as the drums' kit it plays: one wire from the kit, however many grooves)
-          if (gate?.over === 'kit:voices') {
+          else if (gate?.over === 'kit:voices') {
             expect(
               model.edges.some((x) => x.from === cellId('kit:voices') && x.to === cellId(c.name)),
               `&${c.name}: &${name} from the drums' kit`,
@@ -633,8 +643,12 @@ describe('every name written is one wire carrying the transform it writes, and e
     // drawn for a petal (its names are inside the &( … )).
     const forPetals = new Set([...model.alias.values()].filter(Boolean));
     const nameOf = (id: string) => id.slice('cell:'.length);
+    // (a cell a `use` gave is written in its fragment, not here: a wire to or from one is the fragment's, or a name this
+    // text writes, checked above)
+    const given = new Set((program.uses ?? []).flatMap((u) => u.gave.map((n) => n.slice(1))));
     const unwritten = model.edges.flatMap((e) => {
       if (junctions.has(e.from) || forPetals.has(e.id)) return [];
+      if (given.has(nameOf(e.from)) || given.has(nameOf(e.to))) return [];
       // (a gate's note bus is its braid as written, and a gate in a mix goes in as its voices: #234)
       const gateOf = (n: string) => !!program.cells.get(n)?.gate;
       if (e.port === 'voice' && gateOf(nameOf(e.from))) return [];

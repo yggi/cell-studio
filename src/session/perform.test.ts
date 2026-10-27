@@ -12,7 +12,7 @@ const TEXT = `&bar meter("4/4") step=120bpm swing=16n:.6
 &kick step=16n &bd ~ ~ ~ &bd ~ ~ ~ &bd ~ ~ ~ &bd ~ ~ ~
 &hat step=16n &hh &hh &hh &hh &hh &hh &hh &hh &hh &hh &hh &hh &hh &hh &hh &hh
 &drums [&kick, &hat]
-use "core kit"
+use * from "core kit"
 &bass step=16n legato=.5 0 ~ ~ ~ 0 ~ 7 ~ 0 ~ ~ ~ 5 ~ 7 ~
 &bassOut play=&bass level=.7 &bassV
 &bassV loop=C2

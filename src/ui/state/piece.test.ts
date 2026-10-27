@@ -144,13 +144,12 @@ track "lead"
     expect(p.program).toBe(before);
   });
 
-  it('plays a drum track as the General MIDI kit, a voice for each note under its kit name (cells v0.9.0)', () => {
-    // (41 45 48 49 51: the toms and the cymbals, written &lo &mid &hi &crash &ride before; 56 and 54, not written)
+  it('opens a drum track and plays it (the voices cells names each note by: its midiimport.test.ts, #500)', () => {
     const drums = [41, 45, 48, 49, 51, 56, 54].map((n, i) => `1:${(i % 4) + 1}:0 ch10 ${n} 24 v100`).join('\n');
     const p = new Piece(`midi format=1 ppq=96 name="Kit"\ntempo 1:1:0 120\ntrack "drums"\n${drums}`);
     expect(p.result.diagnostics).toEqual([]);
-    expect(['lt', 'mt', 'ht', 'cr', 'rd', 'cb', 'tb'].filter((n) => !p.program.cells.has(n))).toEqual([]);
-    expect(['lo', 'mid', 'hi', 'crash', 'ride'].filter((n) => p.program.cells.has(n))).toEqual([]);
+    expect(p.stale).toBe(false);
+    expect(p.program.cells.size).toBeGreaterThan(0);
   });
 });
 
@@ -178,11 +177,9 @@ describe('Piece: a piece file (decision 047)', () => {
   });
 
   it('a text whose card says what the piece is: one warning, on the card; Shorten’s suggestion moves it to the frontmatter', () => {
+    // (the warning's line and words, and the suggestion, are cells': its shorten/card.test.ts, #500)
     const p = new Piece(OLD);
-    const warnings = p.result.diagnostics.filter((d) => d.severity === 'warning');
-    expect(warnings).toHaveLength(1);
-    expect(warnings[0]!.span.line).toBe(1);
-    expect(warnings[0]!.message).toMatch(/frontmatter/);
+    expect(p.result.diagnostics.filter((d) => d.severity === 'warning')).toHaveLength(1);
     expect(p.title).toBe('Old way');
     const card = shorten(p.code).filter((s) => s.kind === 'card');
     expect(card).toHaveLength(1);
@@ -294,7 +291,7 @@ describe('Piece: a session host’s text, followed (#478)', () => {
 });
 
 describe('Piece: a piece that uses a fragment (cells decision 054)', () => {
-  const USES = `use "core kit"
+  const USES = `use * from "core kit"
 &bar meter("4/4") step=100bpm
 &beat step=8n &bd ~ &hh ~ &sd ~ &hh [&bd,&hh]`;
   const FILE = `---\ntitle: Kit groove\n---\n\n\`\`\`cells\n${USES}\n\`\`\`\n`;
