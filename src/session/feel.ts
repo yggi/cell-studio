@@ -1,9 +1,9 @@
 /**
  * The performers' feel (yggi/music-commons `contracts/feel`, version 1, minor 1; #484, #492, part of #478 rung 3): how a
  * Jambot host's performers play the events cells plays for a bar, so a client sounds a session as its host does, and
- * which part and drum role each event of a host's section text is (`readingOf`, minor 1). The text says what is
- * composed, and the playing is the player's (cells decision 037); the hub's README is the rule, written here from it with
- * no import from Jambot, and `feel.test.ts` meets its vectors.
+ * which part and drum role each event of a host's section text is (`readerOf`, minor 2, #511: its performer's role, or its
+ * output's id, minor 1's `readingOf`). The text says what is composed, and the playing is the player's (cells decision
+ * 037); the hub's README is the rule, written here from it with no import from Jambot, and `feel.test.ts` meets its vectors.
  *
  * The feel moves an event's velocity and length, never its onset. Every number is a double and every operation is in the
  * contract's order, so the same bits come out as the host's.
@@ -37,12 +37,35 @@ const ROLES: ReadonlySet<string> = new Set<DrumRole>(['kick', 'backbeat', 'ghost
  * The part and drum role an event of a host's section text is, read off the output cells names it by
  * (`voice:cell:line:col`, split on `:`): a groove's member of the kit cells makes, `kit:voices:<role>:…`, is the drums,
  * its role the third field; any other output's part is its second field, the line its voice plays. Null for one that
- * names none of the feel's parts or roles: it plays as cells gives it.
+ * names none of the feel's parts or roles: it plays as cells gives it. The fallback of a text's own reading (`readerOf`).
  */
-export function readingOf(output: string | undefined): { readonly part: FeelPart; readonly role?: DrumRole } | null {
+export function readingOf(output: string | undefined): Reading | null {
   const [first, second, third] = (output ?? '').split(':');
   if (first === 'kit' && second === 'voices') return third !== undefined && ROLES.has(third) ? { part: 'drums', role: third as DrumRole } : null;
-  return second !== undefined && second !== 'drums' && (PARTS as readonly string[]).includes(second) ? { part: second as FeelPart } : null;
+  return isPitched(second) ? { part: second } : null;
+}
+
+/** An event's part and drum role, as the feel reads them. */
+type Reading = { readonly part: FeelPart; readonly role?: DrumRole };
+const isPitched = (name: string | undefined): name is Exclude<FeelPart, 'drums'> => name !== 'drums' && (PARTS as readonly string[]).includes(name!);
+
+/**
+ * How a compiled text's events read (feel v1.2, yggi/music-commons#35; #511): a pitched event's part is the role of the
+ * performer whose gate plays it (cells' `performers`: the gate its output goes through, alone, `via`, or in a stack,
+ * `through`), as Jambot's `lineOf` reads it, so `&bassOut play=&bassline^$-12 &bassV`, role `bass`, plays the bass.
+ * A drum hit keeps its line's role, and an output no performer's role names reads by its id (`readingOf`).
+ */
+export function readerOf(result: {
+  readonly outputs: readonly { readonly id: string; readonly via: readonly string[]; readonly through: readonly string[] }[];
+  readonly performers: readonly { readonly name: string; readonly role?: string }[];
+}): (output: string | undefined) => Reading | null {
+  const roles = new Map(result.performers.flatMap((p) => (isPitched(p.role) ? [[p.name, p.role] as const] : [])));
+  const parts = new Map<string, Reading>();
+  for (const o of result.outputs) {
+    const gate = [...o.via, ...o.through].find((name) => roles.has(name));
+    if (gate !== undefined && readingOf(o.id)?.part !== 'drums') parts.set(o.id, { part: roles.get(gate)! });
+  }
+  return (output) => (output !== undefined && parts.get(output)) || readingOf(output);
 }
 
 /** One of cells' events in a bar: its line, a drum's role, the step it is written on (whole), its note, velocity and sounding length in steps. */

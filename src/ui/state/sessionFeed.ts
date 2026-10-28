@@ -6,6 +6,7 @@ import { channelTable, router, type Routes } from '@yggi/cells/engine/midi';
 import type { Played } from '@yggi/cells/engine/realize';
 import { compilePiece } from '../../compile';
 import { barSeconds } from '../../session/follow';
+import { readerOf } from '../../session/feel';
 import { perform } from '../../session/perform';
 import { PlayedLog, type PlayedEvent } from '../../session/played';
 import type { SectionText } from '../../session/protocol';
@@ -18,11 +19,12 @@ const KEPT = 8;
 /** How many of the latest lacks are kept, for measuring. */
 const LACKS_KEPT = 32;
 
-/** A text compiled: its plan, a bar of its own time (seconds), and where MIDI out sends each of its events. */
+/** A text compiled: its plan, a bar of its own time (seconds), where MIDI out sends each of its events, and which part each is (its performer's role, #511). */
 interface Compiled {
   readonly plan: Plan | null;
   readonly bar: number | null;
   readonly route: ((e: Played) => Routes) | null;
+  readonly read: ReturnType<typeof readerOf> | null;
 }
 
 /**
@@ -63,7 +65,7 @@ export class SessionFeed implements Feed {
       const at = x.frame && { bar: x.bar, frame: x.frame, start: (x.bar - x.text.bar) * seconds, seconds };
       const log: PlayedEvent[] = [];
       const events = eventsBetween(p, x.from, x.to, true).map((e) => {
-        const { event, performance } = at ? perform(e, c.route!, at) : { event: e, performance: null };
+        const { event, performance } = at ? perform(e, c.route!, at, c.read!) : { event: e, performance: null };
         if (performance) log.push({ ...performance, seconds: x.at + (e.at - x.from) * x.scale, duration: event.dur * x.scale });
         else this.unread++;
         return event;
@@ -85,8 +87,8 @@ export class SessionFeed implements Feed {
     if (c) return c;
     const result = compilePiece(text);
     c = result.ok
-      ? { plan: plan(result, codeShifts(result), result.off), bar: barSeconds(result), route: router(result, channelTable(result)) }
-      : { plan: null, bar: null, route: null };
+      ? { plan: plan(result, codeShifts(result), result.off), bar: barSeconds(result), route: router(result, channelTable(result)), read: readerOf(result) }
+      : { plan: null, bar: null, route: null, read: null };
     this.#texts.set(text, c);
     if (this.#texts.size > KEPT) this.#texts.delete(this.#texts.keys().next().value!);
     return c;
