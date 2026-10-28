@@ -25,7 +25,10 @@ const session = () => {
   for (let b = 0; b < 5; b++) f = withBar(f, { bar: { bar: b }, start: 10 + 2 * b });
   f = withText(withText(f, section(0, A)), section(2, '', 'the section’s key moves between its bars'));
   return {
-    sounding: (done: Place | null, lead: number, now: number, length: (t: SectionText) => number | null) => ({ ...sounding(f, done, now + 5 + lead, now + 5, length), shift: 5 }),
+    sounding: (done: Place | null, lead: number, now: number, length: (t: SectionText) => number | null, reach = lead) => ({
+      ...sounding(f, done, now + 5 + lead, now + 5, length, now + 5 + reach),
+      shift: 5,
+    }),
   };
 };
 
@@ -100,7 +103,10 @@ use * from "core kit"
     for (let b = 0; b < 3; b++) f = withBar(f, { bar: b === 1 ? { bar: b } : bar(b), start: 10 + 2 * b });
     f = withText(f, { ...section(0, HOST), foreseen: ['a', 'b', 'c'] });
     return {
-      sounding: (done: Place | null, lead: number, now: number, length: (t: SectionText) => number | null) => ({ ...sounding(f, done, now + 5 + lead, now + 5, length), shift: 5 }),
+      sounding: (done: Place | null, lead: number, now: number, length: (t: SectionText) => number | null, reach = lead) => ({
+        ...sounding(f, done, now + 5 + lead, now + 5, length, now + 5 + reach),
+        shift: 5,
+      }),
     };
   };
 

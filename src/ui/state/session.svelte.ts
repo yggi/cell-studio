@@ -117,14 +117,15 @@ export class SessionClient {
 
   /**
    * What to play of the host's song (`session/sound.ts`) from where the last ask got to (`done`; null: where it is heard
-   * now) to `lead` seconds past `now` on this page's clock; `shift` is the host's clock less this page's, to place it
-   * here. Null while not following a song, or before the clock is trusted.
+   * now) to `lead` seconds past `now` on this page's clock, and on to `reach` through the bars the host has told (#513);
+   * `shift` is the host's clock less this page's, to place it here. Null while not following a song, or before the clock
+   * is trusted.
    */
-  sounding(done: Place | null, lead: number, now: number, length: (text: SectionText) => number | null): (Sounding & { shift: number }) | null {
+  sounding(done: Place | null, lead: number, now: number, length: (text: SectionText) => number | null, reach = lead): (Sounding & { shift: number }) | null {
     if (!this.live || !this.hostPlaying) return null;
     const at = hostHeardAt(this.#clock, now);
     if (at === null) return null;
-    return { ...sounding(this.#followed, done, at + lead, at, length), shift: at - now };
+    return { ...sounding(this.#followed, done, at + lead, at, length, at + reach), shift: at - now };
   }
 
   /** When, on this page's clock (seconds), the text heard next gives way to another, as known at `now`; null where none is known yet. */

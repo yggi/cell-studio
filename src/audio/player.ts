@@ -32,13 +32,19 @@ const TAIL = 2.5;
 const FEED_EVERY = 0.125;
 // (a host tells a bar's start a beat before it, 0.33 s at 180 bpm: a note laid within that has its bar's end)
 const FEED_LEAD = 0.35;
+/**
+ * How far ahead a section's switch is laid, through the bars the host has told (#513): past the work that holds the page
+ * at a switch (its longest task 1.5 s with Jambot's performer-spelled texts), and at most the bar the switch starts.
+ */
+const SWITCH_LEAD = 2;
 
 /**
  * A song another clock lays (a Jambot session's, #478 rung 3), played in place of the transport's run: asked, every
- * FEED_EVERY on the audio clock, what to play from where it left off to `horizon`, both on the page's clock.
+ * FEED_EVERY on the audio clock, what to play from where it left off to `horizon`, both on the page's clock; and, before
+ * a switch, on to `beyond` where what it plays is already known (`layAhead`).
  */
 export interface Feed {
-  next(now: number, horizon: number): readonly Fed[];
+  next(now: number, horizon: number, beyond?: number): readonly Fed[];
 }
 
 /** A window of a plan, and where its start is heard on the page's clock (`performance.now()`, in seconds), stretched by `scale`. */
@@ -450,16 +456,17 @@ export class Player implements LiveSource {
 
   /** Whether a feed is playing (`feed`), in place of the transport's run, and how to ask it now (`layAhead`). */
   private feeding = false;
-  private layFeed: (() => void) | null = null;
+  private layFeed: ((lead?: number) => void) | null = null;
   /** The bars a feed laid lately, each where it starts on the audio clock (#492: a switch's click measured by level). */
   barsLaid: readonly BarLaid[] = [];
 
   /**
-   * Lay what the feed playing has to play up to FEED_LEAD from now, at once rather than at its next turn: before work
-   * that holds the page (a followed session's section switch, #496), so the whole lead covers it.
+   * Lay what the feed playing has to play, at once rather than at its next turn, up to SWITCH_LEAD from now where it is
+   * known (FEED_LEAD where it isn't): before work that holds the page (a followed session's section switch, #496, #513),
+   * so the lead covers it.
    */
   layAhead(): void {
-    if (this.feeding) this.layFeed?.();
+    if (this.feeding) this.layFeed?.(SWITCH_LEAD);
   }
 
   /**
@@ -482,14 +489,14 @@ export class Player implements LiveSource {
     let synced: Plan | null = null;
     let lagAt = -Infinity;
     this.feeding = true;
-    const lay = () => {
+    const lay = (lead = FEED_LEAD) => {
       if (run !== this.run || !this.voices) return;
       const now = performance.now() / 1000;
       if (now - lagAt > 0.5) {
         lagAt = now;
         this.refreshLag();
       }
-      for (const f of feed.next(now, now + FEED_LEAD)) {
+      for (const f of feed.next(now, now + FEED_LEAD, now + lead)) {
         if (f.plan !== synced) {
           synced = f.plan;
           this.voices.sync(f.plan.result, f.plan.statics, f.plan.muted);
@@ -503,7 +510,7 @@ export class Player implements LiveSource {
       }
     };
     this.layFeed = lay;
-    this.repeatId = tr.scheduleRepeat(lay, FEED_EVERY, 0);
+    this.repeatId = tr.scheduleRepeat(() => lay(), FEED_EVERY, 0);
     tr.start(Tone.now() + 0.05);
     this.move('play');
   }

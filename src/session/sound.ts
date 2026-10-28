@@ -56,9 +56,11 @@ const LATE = 0.005;
 
 /**
  * What to play from `done` (null: from `now`) to `horizon` on the host's clock, at `now` on it: `length` gives a bar of
- * a text's own time in seconds (null for a text with none: not compiled, or no meter).
+ * a text's own time in seconds (null for a text with none: not compiled, or no meter). On to `beyond`, past `horizon`,
+ * through the bars the host has told (their starts and frames sent), and no further: a section's switch laid ahead of
+ * the work that holds the page (#513).
  */
-export function sounding(f: Followed, done: Place | null, horizon: number, now: number, length: (text: SectionText) => number | null): Sounding {
+export function sounding(f: Followed, done: Place | null, horizon: number, now: number, length: (text: SectionText) => number | null, beyond = horizon): Sounding {
   const slices: Slice[] = [];
   const lacked: Lack[] = [];
   const known = [...f.starts.keys()].sort((a, b) => a - b);
@@ -130,7 +132,8 @@ export function sounding(f: Followed, done: Place | null, horizon: number, now: 
     const l = s === null ? null : lengthOf(bar, s);
     if (s === null || l === null || !(l > 0)) break;
     const at = s + place.into * l;
-    if (at >= horizon) break;
+    const until = f.starts.has(bar) ? Math.max(horizon, beyond) : horizon;
+    if (at >= until) break;
     const text = textOf(f.texts, bar);
     const seconds = text && text.unstated === null && text.text ? length(text) : null;
     if (!text || seconds === null || !(seconds > 0)) {
@@ -143,7 +146,7 @@ export function sounding(f: Followed, done: Place | null, horizon: number, now: 
       place = { bar: bar + 1, into: 0 };
       continue;
     }
-    const into = Math.min(1, (horizon - s) / l);
+    const into = Math.min(1, (until - s) / l);
     const k = (bar - text.bar) * seconds;
     slices.push({ text, bar, frame: f.frames.get(bar) ?? null, from: k + place.into * seconds, to: k + into * seconds, at, scale: l / seconds });
     place = into < 1 ? { bar, into } : { bar: bar + 1, into: 0 };

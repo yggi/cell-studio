@@ -137,6 +137,44 @@ describe('sounding a followed song, bar by bar from the texts that state them', 
     expect(off(2, 16)).toBeLessThan(bend);
   });
 
+  it('lays a switch on through the bars the host has told, and no further: every note once, each where the bars before it say (#513)', () => {
+    // (as above, each start told a beat ahead; at each section's switch the page is held, and the switch is laid 2 s ahead)
+    const lengths = Array.from({ length: 16 }, (_, n) => 2 - 0.4 * Math.sin((Math.PI * n) / 15));
+    const starts = startsOf(lengths);
+    const texts = [0, 4, 8, 12].map((b) => section(b, 4, (b / 4) % 2 ? B : A));
+    const told = (now: number) => {
+      let f: Followed = { ...NOTHING_FOLLOWED, finale: 15 };
+      starts.forEach((s, n) => {
+        if (s - (n ? lengths[n - 1]! / 4 : 3) <= now) f = withBar(f, sent(n, s));
+      });
+      for (const t of texts) f = withText(f, t);
+      return f;
+    };
+    // (at bar 4's first moment: all of bar 4, which is told, and nothing of bar 5, which isn't yet)
+    const at = starts[4]!;
+    const switched = sounding(told(at), { bar: 4, into: 0 }, at + 0.35, at, length, at + 2);
+    expect(switched.slices.map((s) => s.bar)).toEqual([4]);
+    expect(switched.done).toEqual({ bar: 5, into: 0 });
+    expect(switched.slices[0]).toMatchObject({ from: 0, to: 2 });
+    // (without it, as before: the lead alone, into bar 4)
+    expect(sounding(told(at), { bar: 4, into: 0 }, at + 0.35, at, length).done).toMatchObject({ bar: 4 });
+    const whole = truth(lengths);
+    const slices: Slice[] = [];
+    let done: Place | null = null;
+    for (let now = 9; now < 44; now += 0.125) {
+      const switching = [4, 8, 12].some((b) => now <= starts[b]! && starts[b]! < now + 0.125);
+      const s = sounding(told(now), done, now + 0.35, now, length, switching ? now + 2 : now + 0.35);
+      slices.push(...s.slices);
+      done = s.done;
+      expect(s.lacked).toEqual([]);
+    }
+    const got = onsets(slices);
+    expect(got.length).toBe(whole.length);
+    got.forEach((e, i) => expect(e.freq).toBe(whole[i]!.freq));
+    const bend = Math.max(...lengths.slice(2).map((l, n) => Math.abs(l - 2 * lengths[n + 1]! + lengths[n]!)));
+    got.forEach((e, i) => e.bar >= 2 && expect(Math.abs(e.at - whole[i]!.at)).toBeLessThan(bend));
+  });
+
   it('says what it can’t play: an unstated section, a text that doesn’t compile, a bar passed, a bar no text states, a stretch come to late', () => {
     let f = NOTHING_FOLLOWED;
     for (const b of [0, 1, 2, 4, 5]) f = withBar(f, sent(b, 10 + 2 * b));
