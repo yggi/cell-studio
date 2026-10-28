@@ -3,7 +3,7 @@ import { channelTable, midiNote, routesOf, router } from '@yggi/cells/engine/mid
 import { codeShifts } from '@yggi/cells/engine/program';
 import { eventsBetween, plan, type Played } from '@yggi/cells/engine/realize';
 import { compilePiece } from '../compile';
-import { played, type FeelFrame } from './feel';
+import { played, readerOf, readingOf, type FeelFrame } from './feel';
 import { barSeconds } from './follow';
 import { perform } from './perform';
 
@@ -31,6 +31,7 @@ const frame: FeelFrame = {
 };
 const r = compilePiece(TEXT);
 const p = plan(r, codeShifts(r), r.off);
+const [r0, p0] = [r, p];
 const route = router(r, channelTable(r));
 const seconds = barSeconds(r)!;
 /** The text's second bar, as the song's bar 12. */
@@ -100,5 +101,71 @@ describe('a host’s text played as its performers play it', () => {
     const shaker = events.filter((e) => e.output!.startsWith('shakerV'));
     expect(shaker).toHaveLength(4);
     for (const e of shaker) expect(perform(e, route, at)).toEqual({ event: e, performance: null });
+  });
+});
+
+/**
+ * A host's text whose pitched parts play through cells' seed performers (yggi/jambot#514): each gate's output id is its
+ * part's (`bassV:bassline^$-12:…`), and its part is the role of the performer playing it (feel v1.2, #511). A stack of
+ * gates on the card (`[&padOut, &stabOut]`) is read the same; a drum hit keeps its line's role.
+ */
+const PERFORMED = `&bar meter("4/4") step=120bpm swing=16n:.6
+use * from "drums performer"
+use * from "bass performer"
+use * from "pad performer"
+use * from "stab performer"
+use * from "lead performer"
+&kick step=16n &bd ~ ~ ~ &bd ~ ~ ~ &bd ~ ~ ~ &bd ~ ~ ~
+&hat step=16n &hh!16
+&drumlines [&kick, &hat]
+&bassline step=16n legato=.5 0 ~ ~ ~ 0 ~ 7 ~ 0 ~ ~ ~ 5 ~ 7 ~
+&bassLevel map=amp .7
+&padline step=2n 0 2
+&padLevel map=amp .5
+&stabline step=4n ~ 4 ~ 4
+&stabLevel map=amp .5
+&leadline step=8n 0 1 2 3 4 3 2 1
+&leadLevel map=amp .5
+&shaker step=4n 0 0 0 0
+&shakerV loop=C5
+&out map=midi &leadOut &bassOut [&padOut, &stabOut] [&shaker * &shakerV] ~!5 &drumsOut`;
+
+describe('a host’s text whose parts play through performers (feel v1.2)', () => {
+  const r = compilePiece(PERFORMED);
+  const p = plan(r, codeShifts(r), r.off);
+  const route = router(r, channelTable(r));
+  const read = readerOf(r);
+  const events = eventsBetween(p, seconds, 2 * seconds, true);
+  const parts = (read: (o: string | undefined) => ReturnType<typeof readingOf>) =>
+    events.map((e) => perform(e, route, at, read).performance).map((x) => x && (x.role ? `${x.part}:${x.role}` : x.part));
+
+  it('compiles, its outputs named by their parts, which the id alone reads as none of the feel’s', () => {
+    expect(r.diagnostics.filter((d) => d.severity === 'error')).toEqual([]);
+    expect(barSeconds(r)).toBe(seconds);
+    const ids = new Set(events.map((e) => e.output!.split(':').slice(0, 2).join(':')));
+    expect(ids).toEqual(new Set(['bassV:bassline^$-12', 'padV:padline', 'keysV:stabline', 'leadV:leadline', 'shakerV:shaker', 'kit:voices']));
+    expect(new Set(parts(readingOf))).toEqual(new Set([null, 'drums:kick', 'drums:hat']));
+  });
+
+  it('reads each pitched event as its performer’s role, each drum hit as its line, and the rest as none', () => {
+    const count = (xs: readonly (string | null)[]) => Object.fromEntries([...new Set(xs)].map((x) => [String(x), xs.filter((y) => y === x).length]));
+    expect(count(parts(read))).toEqual({ bass: 6, pad: 2, stab: 2, lead: 8, null: 4, 'drums:kick': 4, 'drums:hat': 16 });
+  });
+
+  it('plays each as the old spelling plays the same part: the bass as `bassV:bass`', () => {
+    const bass = events.filter((e) => read(e.output)?.part === 'bass');
+    for (const e of bass) {
+      const { performance } = perform(e, route, at, read);
+      expect(performance).toEqual(perform({ ...e, output: 'bassV:bass:6:15' }, route, at).performance);
+    }
+  });
+
+  it('keeps the output’s id as the reading where no performer’s role names it', () => {
+    expect(read('bassV:bass:6:15')).toEqual({ part: 'bass' });
+    expect(read('kit:voices:kick:8:13')).toEqual({ part: 'drums', role: 'kick' });
+    expect(read(undefined)).toBeNull();
+    // (Jambot main's spelling, no performers: every output read by its id)
+    const old = readerOf(r0);
+    for (const e of eventsBetween(p0, seconds, 2 * seconds, true)) expect(old(e.output), e.output).toEqual(readingOf(e.output));
   });
 });

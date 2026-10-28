@@ -2,7 +2,8 @@
  * A host's text played as its performers play it (#492, part of #478 rung 3): each of cells' events in a bar read as
  * Jambot's host reads it (`playSection`, `section-play.ts`), given the feel (`feel.ts`), and said as played.
  *
- * - **Its part and role** are read off the output cells names it by (`readingOf`, the feel contract's minor 1).
+ * - **Its part and role** are its performer's role, or read off the output cells names it by (`readerOf`, the feel
+ *   contract's minor 2; #511).
  * - **Its note and velocity** are what cells' MIDI out sends of it, on the host's channels (1 the lead, 2 the bass, 3
  *   the pad and the stab, 10 the drums): the velocity MIDI rounds from its level, the note a drum's or its key.
  * - **Its step and length** are its onset and end in the bar's steps through the swing undone (`writtenAt`): the step
@@ -42,8 +43,13 @@ export interface Performance {
  * One of cells' events in a bar as the performers play it, and what it is as played; the event as it is, and no
  * performance, where it is none of the feel's (no part or role it reads, a drone, sent on none of the host's channels).
  */
-export function perform(e: Played, route: (e: Played) => Routes, at: TextBar): { event: Played; performance: Performance | null } {
-  const reading = readingOf(e.output);
+export function perform(
+  e: Played,
+  route: (e: Played) => Routes,
+  at: TextBar,
+  read: (output: string | undefined) => ReturnType<typeof readingOf> = readingOf,
+): { event: Played; performance: Performance | null } {
+  const reading = read(e.output);
   const r = routesOf(route(e)).find((x) => CHANNELS.has(x.channel));
   const sent = r && midiNote(e, r);
   if (!reading || e.held || !sent) return { event: e, performance: null };
