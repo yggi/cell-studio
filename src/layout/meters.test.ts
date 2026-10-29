@@ -3,16 +3,16 @@ import { groundsOf, levelsText, lineShare, meterIndex, meterNow, tapSwing } from
 import { liveAt } from '@yggi/cells/engine/live';
 import { codeShifts } from '@yggi/cells/engine/program';
 import { buildGraph } from './drawn';
-import { compileSource } from '@yggi/cells/engine/compile';
+import { compilePiece } from '../compile';
 import { PRESETS } from '@yggi/cells/engine/presets';
 
-const graphOf = (src: string) => buildGraph(compileSource(src));
+const graphOf = (src: string) => buildGraph(compilePiece(src));
 const name = (id: string) => id.replace(/^cell:/, '');
 
 describe('meters as ground', () => {
   it('a step into a meter is ground (not drawn); a step into anything else, or through a belt, is drawn', () => {
     for (const key of ['fifths', 'automaton', 'soundtape'] as const) {
-      const m = buildGraph(compileSource(PRESETS[key].source));
+      const m = buildGraph(compilePiece(PRESETS[key].source));
       const byId = new Map(m.nodes.map((n) => [n.id, n]));
       const grounds = groundsOf(m);
       for (const e of m.edges.filter((e) => e.port === 'step')) {
@@ -45,7 +45,7 @@ describe('a meter now, on its own wheel', () => {
   });
   it('is nothing for a beat the wheel doesn’t have', () => expect(meterNow(swung, 2)).toBeNull());
   it('the live state says where each clock is in its cycle, in beats', () => {
-    const r = compileSource('&bar scan(1 1 1 1) step=120bpm\n&a step=4n 0 2\n&v s=sine loop=C4\n&out loop=SAMPLE_RATE map=sample [&a * &v]');
+    const r = compilePiece('&bar scan(1 1 1 1) step=120bpm\n&a step=4n 0 2\n&v s=sine loop=C4\n&out loop=SAMPLE_RATE map=sample [&a * &v]');
     for (const s of [0, 0.25, 0.6, 1.9, 2.1]) {
       const at = liveAt(r, codeShifts(r), new Set(), s).beatAt.get('bar')!;
       expect(at).toBeGreaterThanOrEqual(0);
@@ -57,7 +57,7 @@ describe('a meter now, on its own wheel', () => {
 
 describe('a meter’s feel (cells v0.4.0): its swing and its articulation by level', () => {
   const FEEL = '&bar meter("4/4", 2) step=120bpm swing=8n:2/3 legato=16n:.5,4n:.8\n';
-  const r = compileSource(
+  const r = compilePiece(
     FEEL +
       '&a step=8n 0 2\n&b step=16n 0 2\n&c step=4n 0 2\n&d step=8t 0 2\n&e step=8n legato=1.5 0 2\n&f step=8n legato=free(.3, .1..1) 0\n&g step=8n legato=&l 0\n&l step=4n .5 1\n&v s=sine\n&out map=sample [&a * &v, &b * &v, &c * &v, &d * &v, &e * &v, &f * &v, &g * &v]',
   );
@@ -66,10 +66,10 @@ describe('a meter’s feel (cells v0.4.0): its swing and its articulation by lev
     expect(levelsText(r.cells.get('bar')!.meter!.swing)).toBe('8n .67');
     expect(levelsText(r.cells.get('bar')!.meter!.legato)).toBe('16n .5, 4n .8');
     expect(levelsText(undefined)).toBeNull();
-    expect(levelsText(compileSource('&bar meter("4/4") step=90bpm\n').cells.get('bar')!.meter!.swing)).toBeNull();
+    expect(levelsText(compilePiece('&bar meter("4/4") step=90bpm\n').cells.get('bar')!.meter!.swing)).toBeNull();
   });
   it('says a level that leans its pairs alone (swing=8n:r:pairs, cells v0.8.0)', () => {
-    const odd = compileSource('&bar meter("7/8") step=120bpm swing=8n:2/3:pairs,16n:.55\n');
+    const odd = compilePiece('&bar meter("7/8") step=120bpm swing=8n:2/3:pairs,16n:.55\n');
     expect(odd.diagnostics.filter((d) => d.severity === 'error' || /pairs/.test(d.message))).toEqual([]);
     expect(levelsText(odd.cells.get('bar')!.meter!.swing)).toBe('8n .67 pairs, 16n .55');
   });
@@ -86,6 +86,6 @@ describe('a meter’s feel (cells v0.4.0): its swing and its articulation by lev
     expect(lineShare(r, 'e')).toEqual({ share: 1.5, from: null });
     expect(lineShare(r, 'f')).toEqual({ share: 0.3, from: null });
     expect(lineShare(r, 'g')).toBeNull();
-    expect(lineShare(compileSource('&t step=4 0 2'), 't')).toEqual({ share: 1, from: null });
+    expect(lineShare(compilePiece('&t step=4 0 2'), 't')).toEqual({ share: 1, from: null });
   });
 });

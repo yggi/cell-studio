@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { towerOf, towerRanks, towerSpans, towerStructure, zoneRanks } from './tower';
 import { flowRanks } from './ranks';
 import { buildGraph } from './drawn';
-import { compileSource } from '@yggi/cells/engine/compile';
+import { compilePiece } from '../compile';
 
 const SONG = `
 &bar scan(1 1 1 1) step=100bpm
@@ -19,7 +19,7 @@ const SONG = `
 `;
 
 const tower = (src: string, at?: Parameters<typeof towerOf>[2]) => {
-  const program = compileSource(src);
+  const program = compilePiece(src);
   const model = buildGraph(program);
   return { model, v: towerOf(program, model, at), at: (name: string) => towerOf(program, model, at).get(`cell:${name}`)! };
 };
@@ -48,7 +48,7 @@ describe('the frequency tower', () => {
 
   it("the strip's structure: what times something, not a lane's voice or mix, nor a note or a scope (side.ts)", () => {
     const src = `${SONG}\n&eq scope=spectrum &tunePart &bassPart\n&songNote label="the form" about=&song\n`;
-    const program = compileSource(src);
+    const program = compilePiece(src);
     const rows = new Map(towerStructure(program, buildGraph(program)).map((r) => [r.name, r.at]));
     expect([...rows.keys()].sort()).toEqual(['bar', 'major', 'roots', 'sections', 'song', 'tune']);
     expect(rows.get('sections')).toBeCloseTo(rows.get('song')!, 6);
@@ -84,7 +84,7 @@ describe('the frequency tower', () => {
   });
 
   it('draws a clocked cell as a span from its turn up to its step; a voice and a mix as a point', () => {
-    const program = compileSource(SONG);
+    const program = compilePiece(SONG);
     const model = buildGraph(program);
     const spans = towerSpans(program, model);
     const span = (name: string) => spans.get(`cell:${name}`)!;

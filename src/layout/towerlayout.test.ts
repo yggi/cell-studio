@@ -1,7 +1,6 @@
 import { PRESETS, type PresetKey } from '@yggi/cells/engine/presets';
 import { describe, expect, it } from 'vitest';
 import { buildGraph } from './drawn';
-import { compileSource } from '@yggi/cells/engine/compile';
 import { ForceLayout } from './physics';
 import { TOWER_LAYOUT } from './options';
 import { socketHeights, socketId, towerAt, towerLayers, towerNets, towerIns, towerOuts, towerY, withSockets } from './towerlayout';
@@ -9,13 +8,13 @@ import { socketOf, VOICE_SIZE } from './voice';
 import { compilePiece } from '../compile';
 
 const waltz = () => {
-  const program = compileSource(PRESETS.waltz.source);
+  const program = compilePiece(PRESETS.waltz.source);
   return { program, model: buildGraph(program) };
 };
 
 describe('the tower layout', () => {
   it('names a read head drawn on its tape as the sound going into the card, not the tape', () => {
-    const program = compileSource(PRESETS.testtones.source);
+    const program = compilePiece(PRESETS.testtones.source);
     const outs = towerOuts(program, buildGraph(program));
     const names = outs.map((o) => o.sound).sort();
     expect(names).toContain('cell:first');
@@ -45,7 +44,7 @@ describe('the tower layout', () => {
   });
 
   it('sends a two-channel card first left, second right', () => {
-    const program = compileSource(`
+    const program = compilePiece(`
 &lead s=saw loop=C4
 &bass s=sine loop=C2
 &tune 0 2 4 step=2
@@ -128,7 +127,7 @@ describe('the tower layout', () => {
   });
 
   it("holds a groove's socket at its lowest drum", () => {
-    const program = compileSource(`&bar scan(1 1 1 1) step=120bpm
+    const program = compilePiece(`&bar scan(1 1 1 1) step=120bpm
 &bd s=sine loop=A1 env=&(map=adsr 0 .3 0 .05)
 &hh s=white hpf=8000 env=&(map=adsr 0 .04 0 .02)
 &beat step=4n &bd &hh &bd &hh
@@ -158,7 +157,7 @@ describe('the tower layout', () => {
   });
 
   it('draws the layers by a gentle spring: the sockets over the voices over the structure, in order on average', () => {
-    const program = compileSource(PRESETS.pop.source);
+    const program = compilePiece(PRESETS.pop.source);
     const model = buildGraph(program);
     const drawn = withSockets(program, model);
     const { targets, layers } = towerLayers(program, model, drawn);
@@ -193,7 +192,7 @@ describe('the tower layout', () => {
   });
 
   it("puts every socket at its sound's frequency, over the neutral zone: a groove's at its lowest drum", () => {
-    const program = compileSource(`&bar scan(1 1 1 1) step=120bpm
+    const program = compilePiece(`&bar scan(1 1 1 1) step=120bpm
 &bd oneshot s=sine loop=A1 env=&(map=adsr 0 .3 0 .05)
 &hh s=white hpf=8000 env=&(map=adsr 0 .04 0 .02)
 &lead s=saw loop=C5
@@ -215,7 +214,7 @@ describe('the tower layout', () => {
   });
 
   it('rests the voices on the structure below hearing: a braid at an audio rate keeps its own height', () => {
-    const program = compileSource(`&bar scan(1 1 1 1) step=120bpm
+    const program = compilePiece(`&bar scan(1 1 1 1) step=120bpm
 &wave map=lin step=440 0 1 0 -1
 &lead s=saw loop=C4
 &tune step=4n 0 2 4 7
@@ -228,7 +227,7 @@ describe('the tower layout', () => {
   });
 
   it('sits a kit with the voices, held there over the grooves that play it', () => {
-    const program = compileSource(PRESETS.pop.source);
+    const program = compilePiece(PRESETS.pop.source);
     const model = buildGraph(program);
     const drawn = withSockets(program, model);
     const { targets, layers, held } = towerLayers(program, model, drawn);
@@ -245,7 +244,7 @@ describe('the tower layout', () => {
   });
 
   it('sits what plays a kit (a groove) with it: just under the voices, over the structure, held there', () => {
-    const program = compileSource(PRESETS.pop.source);
+    const program = compilePiece(PRESETS.pop.source);
     const model = buildGraph(program);
     const drawn = withSockets(program, model);
     const { targets, layers, held } = towerLayers(program, model, drawn);
@@ -261,7 +260,7 @@ describe('the tower layout', () => {
 
   it('keeps every node in its stratum, and what a selector steps over its loom', () => {
     for (const piece of ['hypercell', 'baustelle', 'pop']) {
-      const program = compileSource(PRESETS[piece as PresetKey].source);
+      const program = compilePiece(PRESETS[piece as PresetKey].source);
       const model = buildGraph(program);
       const drawn = withSockets(program, model);
       const { targets, held, strata } = towerLayers(program, model, drawn);
@@ -287,7 +286,7 @@ describe('the tower layout', () => {
   });
 
   it('orders the strata: audible over voice over gate over stepped over constant', () => {
-    const program = compileSource(PRESETS.hypercell.source);
+    const program = compilePiece(PRESETS.hypercell.source);
     const model = buildGraph(program);
     const drawn = withSockets(program, model);
     const { layers, strata } = towerLayers(program, model, drawn);
@@ -297,7 +296,7 @@ describe('the tower layout', () => {
   });
 
   const laid = (piece: string) => {
-    const program = compileSource(PRESETS[piece as PresetKey].source);
+    const program = compilePiece(PRESETS[piece as PresetKey].source);
     const model = buildGraph(program);
     const drawn = withSockets(program, model);
     const t = towerLayers(program, model, drawn);
@@ -392,7 +391,8 @@ describe('the tower layout', () => {
     const { layout, layers, lineUp } = laid('cellscape');
     // (&key: stepped by &bar at the sections' rate, read only by the scale)
     expect(layers.get('cell:key')).toBe('source');
-    expect(lineUp).toEqual([['cell:key', 'cell:bar', 'cell:scenes']]);
+    // (&tempo, the bar's rate as a cell since cells v0.12, beside the bar it steps)
+    expect(lineUp).toEqual([['cell:key', 'cell:bar', 'cell:tempo', 'cell:scenes']]);
     const x = (id: string) => layout.position(id)!.x;
     expect(x('cell:key')).toBeLessThan(x('cell:bar'));
     expect(x('cell:bar')).toBeLessThan(x('cell:scenes'));

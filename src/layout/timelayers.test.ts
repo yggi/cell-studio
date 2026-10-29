@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { compileSource } from '@yggi/cells/engine/compile';
-import { mainTempo, pieceTime, sections } from '@yggi/cells/engine/duration';
+import { compilePiece } from '../compile';
+import { pieceTime, sections } from '@yggi/cells/engine/duration';
 import { PRESETS } from '@yggi/cells/engine/presets';
 import { codeShifts } from '@yggi/cells/engine/program';
 import { eventsBetween, plan } from '@yggi/cells/engine/realize';
@@ -19,6 +19,7 @@ import {
   heardLevelsOf,
   heardMarksOf,
   longestOf,
+  meterCellOf,
   meterOf,
   patternsOf,
   seconds,
@@ -38,7 +39,7 @@ function named(scal: Parameters<typeof heardLevelsOf>[0], periodic: boolean | un
 
 /** A piece as the time view takes it in (ui/TimeView.svelte): its length shown, its rounds, the notes listened to. */
 function piece(key: keyof typeof PRESETS) {
-  const program = compileSource(PRESETS[key].source);
+  const program = compilePiece(PRESETS[key].source);
   if (!program.ok) throw new Error(`${key} does not compile`);
   const time = pieceTime(program);
   const heard = listening(time);
@@ -51,7 +52,7 @@ function piece(key: keyof typeof PRESETS) {
   const notes = shownNotes(heardNotes, length, !!time?.chance && rounds > 1);
   const spans = cellSpans(program, buildGraph(program));
   const written = sectionsOver(sections(program) ?? [], length).filter((s) => s.at > 0 && s.at < length);
-  const meter = meterOf(spans, mainTempo(program)?.cell, written);
+  const meter = meterOf(spans, meterCellOf(program), written);
   /** The scalograms as the worker makes them (ui/time.worker.ts). */
   const listenedScal = () => {
     const g = grid(listened, undefined, loop);
@@ -76,8 +77,8 @@ describe('the time view: the notes and the cells', () => {
     expect(rows.every((r) => r.spans.every(([a, b], i) => b > a && (i === 0 || r.spans[i - 1]![1] < a)))).toBe(true);
     expect(p.spans.slice(0, 3).map((s) => [s.name, round(s.step), round(s.turn)])).toEqual([
       ['bar', 0.6, 2.4],
+      ['tempo', 0.6, 7.2],
       ['chords', 0.3, 9.6],
-      ['roots', 0.3, 9.6],
     ]);
     expect(p.spans.find((s) => s.name === 'song')).toMatchObject({ step: expect.closeTo(9.6), turn: expect.closeTo(96) });
     expect(p.written.length).toBe(10);

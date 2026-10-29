@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { compileSource } from '@yggi/cells/engine/compile';
+import { compilePiece } from '../compile';
 import { buildGraph } from './drawn';
 import { pieceStats } from '@yggi/cells/engine/stats';
 
 const statsOf = (text: string) => {
-  const r = compileSource(text);
+  const r = compilePiece(text);
   return pieceStats(r, buildGraph(r), text);
 };
 

@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
-import { compileSource } from '@yggi/cells/engine/compile';
 import { compilePiece } from '../compile';
 import { type GraphModel } from '@yggi/cells/engine/graph';
 import { buildGraph } from './drawn';
@@ -26,7 +25,7 @@ const wireOf = (model: GraphModel, from: string, to: string) => {
 };
 
 describe('edges as wires', () => {
-  const g = buildGraph(compileSource(readFileSync('tools/gallery/golden/golden.cells', 'utf8')));
+  const g = buildGraph(compilePiece(readFileSync('tools/gallery/golden/golden.cells', 'utf8')));
 
   it('flow from what is read to the cell that reads it, whichever way the edge points', () => {
     expect(wireOf(g, 'bar', 'theme')).toMatchObject({ port: 'step', band: 'sync' }); // step=&bar
@@ -39,7 +38,7 @@ describe('edges as wires', () => {
   });
 
   it('a table a cell reads twice (map= and pitch=) is two wires, each with its own id (#182)', () => {
-    const r = compileSource(['&t 0 1 .3 -1', '&bar step=1', '&mel step=&bar 0 2', '&v loop=C4 map=&t pitch=&t 0 1 2 3', '&out loop=SAMPLE_RATE map=sample [&mel * &v]'].join('\n'));
+    const r = compilePiece(['&t 0 1 .3 -1', '&bar step=1', '&mel step=&bar 0 2', '&v loop=C4 map=&t pitch=&t 0 1 2 3', '&out loop=SAMPLE_RATE map=sample [&mel * &v]'].join('\n'));
     const from = buildGraph(r).edges.filter((x) => x.from === 'cell:t' && x.to === 'cell:v');
     expect(from.map((x) => x.port).sort()).toEqual(['map', 'pitch']);
     expect(new Set(from.map((x) => x.id)).size).toBe(2);
@@ -48,7 +47,7 @@ describe('edges as wires', () => {
   it('take their band from the port: values, ticks or sound', () => {
     expect(wireOf(g, 'motif', 'tape')).toMatchObject({ port: 'write', band: 'cv' }); // a tape of notes
     // (a read head is a bulb on its tape, decision 021: every cell its own node, the wire)
-    expect(wireOf(buildGraph(compileSource(readFileSync('tools/gallery/golden/golden.cells', 'utf8')), { bulbs: false }), 'tape', 'near')).toMatchObject({
+    expect(wireOf(buildGraph(compilePiece(readFileSync('tools/gallery/golden/golden.cells', 'utf8')), { bulbs: false }), 'tape', 'near')).toMatchObject({
       port: 'play',
       band: 'cv',
     });
@@ -64,32 +63,32 @@ describe('edges as wires', () => {
   it('are as wide as the values they carry at once: a table its entries, a chord its notes', () => {
     expect(wireOf(g, 'mode', 'theme')?.width).toBe(7);
     expect(wireOf(g, 'blues', 'walk')?.width).toBe(6);
-    const chords = buildGraph(compileSource('&c step=1 [0,4,7] 2\n&v s=sine loop=C4\n&out loop=SAMPLE_RATE map=sample [&c * &v]'));
+    const chords = buildGraph(compilePiece('&c step=1 [0,4,7] 2\n&v s=sine loop=C4\n&out loop=SAMPLE_RATE map=sample [&c * &v]'));
     expect(wireOf(chords, 'c', 'v')).toMatchObject({ port: 'voice', width: 3 });
   });
 
   it('into a resonator with tines: as wide as its tines (a note picks one)', () => {
     const tines =
       '&bar scan(1 1 1 1) step=92bpm\n&notes 0 2 4 7 9 12 14 16\n&tune over=&notes step=8n 0 2 4\n&k body=tine loop=C4 0 2 4 7 9 12 14 16\n&out loop=SAMPLE_RATE map=sample [&tune * &k * .5]';
-    expect(wireOf(buildGraph(compileSource(tines)), 'tune', 'k')).toMatchObject({ port: 'voice', width: 8 });
+    expect(wireOf(buildGraph(compilePiece(tines)), 'tune', 'k')).toMatchObject({ port: 'voice', width: 8 });
     // the Kalimba reads through its tines and plays them: one wire between them (the same id), its tines wide
-    expect(wireOf(buildGraph(compileSource(PRESETS.kalimba.source)), 'kalimba', 'tune')).toMatchObject({ port: 'over', width: 8 });
+    expect(wireOf(buildGraph(compilePiece(PRESETS.kalimba.source)), 'kalimba', 'tune')).toMatchObject({ port: 'over', width: 8 });
   });
 
   it('carry sound where the source is a sound: a mix written to tape, a modulator, a wave in a pitch sum (FM)', () => {
-    const sound = buildGraph(compileSource(PRESETS.soundtape.source), { bulbs: false }).edges;
-    expect(wireOf(buildGraph(compileSource(PRESETS.soundtape.source)), 'dry', 'tape')).toMatchObject({ port: 'write', band: 'audio' });
+    const sound = buildGraph(compilePiece(PRESETS.soundtape.source), { bulbs: false }).edges;
+    expect(wireOf(buildGraph(compilePiece(PRESETS.soundtape.source)), 'dry', 'tape')).toMatchObject({ port: 'write', band: 'audio' });
     expect(sound.filter((e) => e.port === 'play').map((e) => e.band)).toEqual(expect.arrayContaining(['audio']));
     expect(sound.filter((e) => e.port === 'play' && e.band !== 'audio')).toEqual([]);
-    const notes = buildGraph(compileSource(PRESETS.echotape.source)).edges;
+    const notes = buildGraph(compilePiece(PRESETS.echotape.source)).edges;
     expect(notes.filter((e) => e.port === 'write' || e.port === 'play').map((e) => e.band)).toEqual(expect.arrayContaining(['cv']));
     expect(notes.filter((e) => (e.port === 'write' || e.port === 'play') && e.band !== 'cv')).toEqual([]);
-    const fm = buildGraph(compileSource('&t step=1 0 2\n&op loop=40 0 1 0 -1\n&v s=sine loop=C4\n&out loop=SAMPLE_RATE map=sample [(&t + &op) * &v]'));
+    const fm = buildGraph(compilePiece('&t step=1 0 2\n&op loop=40 0 1 0 -1\n&v s=sine loop=C4\n&out loop=SAMPLE_RATE map=sample [(&t + &op) * &v]'));
     expect(wireOf(fm, 'op', 'v')).toMatchObject({ port: 'pitch', band: 'audio' });
   });
 
   it('a gate: a note bus out to its voices, their sound out of their own wheels into the mix (#234)', () => {
-    const r = compileSource(PRESETS.gate.source);
+    const r = compilePiece(PRESETS.gate.source);
     const m = buildGraph(r);
     expect(wireOf(m, 'leadOut', 'lead')).toMatchObject({ port: 'voice', band: 'cv' });
     expect(wireOf(m, 'leadOut', 'bell')).toMatchObject({ port: 'voice', band: 'cv' });
@@ -123,7 +122,7 @@ describe('edges as wires', () => {
   };
 
   it('a canon is one net from its leader, a reader at a delay for each copy (Frère Jacques)', () => {
-    const canon = buildGraph(compileSource(PRESETS.canon.source));
+    const canon = buildGraph(compilePiece(PRESETS.canon.source));
     expect(canon.nets.find((n) => n.owner === 'cell:john')).toMatchObject({ port: 'voice', band: 'cv', delayed: true });
     // (each product written is a reader: the four voices in the left channel's mix, then in the right's)
     const copies = [
@@ -137,18 +136,18 @@ describe('edges as wires', () => {
 
   it('copies spliced into several cells are a net too; plain refs stay edges of their own', () => {
     const src = (b: string) => `&m step=1 0 2 4\n&p &m\n&q ${b}\n&v s=sine loop=C4\n&w s=tri loop=C4\n&out loop=SAMPLE_RATE map=sample [&p * &v, &q * &w]`;
-    const copies = buildGraph(compileSource(src('&m[<<1]')));
+    const copies = buildGraph(compilePiece(src('&m[<<1]')));
     expect(copies.nets.find((n) => n.owner === 'cell:m')).toMatchObject({ port: 'braid', delayed: true });
     expect(delays(copies, 'm')).toEqual([
       ['p', ''],
       ['q', '[<<]'],
     ]);
-    expect(buildGraph(compileSource(src('&m'))).nets.some((n) => n.owner === 'cell:m')).toBe(false);
+    expect(buildGraph(compilePiece(src('&m'))).nets.some((n) => n.owner === 'cell:m')).toBe(false);
   });
 
   it('a tape’s heads are its net’s readers, each at its delay in seconds', () => {
     // (every cell its own node: drawn, the heads are bulbs on the tape — decision 021)
-    const tape = buildGraph(compileSource(PRESETS.echotape.source), { bulbs: false });
+    const tape = buildGraph(compilePiece(PRESETS.echotape.source), { bulbs: false });
     expect(tape.nets.find((n) => n.owner === 'cell:tape')).toMatchObject({ port: 'play', delayed: true });
     expect(delays(tape, 'tape')).toEqual([
       ['near', 'at=0.375'],
@@ -160,15 +159,15 @@ describe('edges as wires', () => {
   });
 
   it('into a sound card of two channels: a sound in both, a pair (L R); a product into one, one wire; into a mono one, one wire', () => {
-    expect(wireOf(buildGraph(compileSource(PRESETS.soundtape.source)), 'dry', 'out')).toMatchObject({ port: 'mix', width: 2 }); // [&dry …] [&dry …]
+    expect(wireOf(buildGraph(compilePiece(PRESETS.soundtape.source)), 'dry', 'out')).toMatchObject({ port: 'mix', width: 2 }); // [&dry …] [&dry …]
     expect(wireOf(g, 'hh', 'out')).toMatchObject({ port: 'mix', width: 1 }); // [ … ] [ … &hats * &hh * .1]
-    const mono = buildGraph(compileSource('&t step=1 0 2\n&v s=sine loop=C4\n&out loop=SAMPLE_RATE map=sample [&t * &v]'));
+    const mono = buildGraph(compilePiece('&t step=1 0 2\n&v s=sine loop=C4\n&out loop=SAMPLE_RATE map=sample [&t * &v]'));
     expect(wireOf(mono, 'v', 'out')).toMatchObject({ port: 'mix', width: 1 });
   });
 
   it('every edge of every example has a port and a band, and its ends are the edge’s', () => {
     for (const [key, p] of Object.entries(PRESETS)) {
-      for (const e of buildGraph(compileSource(p.source)).edges) {
+      for (const e of buildGraph(compilePiece(p.source)).edges) {
         expect(e.port, `${key}: ${e.id}`).not.toBe('');
         expect(['sync', 'cv', 'audio', 'none']).toContain(e.band);
         expect(e.width, `${key}: ${e.id}`).toBeGreaterThanOrEqual(1);
@@ -180,7 +179,7 @@ describe('edges as wires', () => {
 
 describe('a tape’s read heads are bulbs on it (decision 021)', () => {
   it('a head that takes nothing but its tape: no node, its edges out leaving from its bulb, the tape turned with it', () => {
-    const g = buildGraph(compileSource(PRESETS.echotape.source));
+    const g = buildGraph(compilePiece(PRESETS.echotape.source));
     expect(['near', 'mid', 'far'].map((h) => g.bulbs.get(h))).toEqual(['tape', 'tape', 'tape']);
     expect(g.nodes.some((n) => n.id === 'cell:near')).toBe(false);
     expect(g.edges.some((e) => e.port === 'play')).toBe(false); // (the tape into its head: inside the wheel)
@@ -198,9 +197,9 @@ describe('a tape’s read heads are bulbs on it (decision 021)', () => {
   it('a head that takes more than its tape, or reads at a clock, stays a node of its own', () => {
     const src = (head: string) =>
       ['&reel motor=1', '&mel step=1 0 2', '&v loop=C4', '&lfo loop=1 0 1', '&tape step=&reel write=&mel length=4', head, '&out loop=44k map=sample [&h * &v]'].join('\n');
-    expect(buildGraph(compileSource(src('&h play=&tape at=1'))).bulbs.get('h')).toBe('tape');
-    expect(buildGraph(compileSource(src('&h play=&tape at=1 level=&lfo'))).bulbs.has('h')).toBe(false);
-    expect(buildGraph(compileSource(src('&h play=&tape at=&reel'))).bulbs.has('h')).toBe(false);
+    expect(buildGraph(compilePiece(src('&h play=&tape at=1'))).bulbs.get('h')).toBe('tape');
+    expect(buildGraph(compilePiece(src('&h play=&tape at=1 level=&lfo'))).bulbs.has('h')).toBe(false);
+    expect(buildGraph(compilePiece(src('&h play=&tape at=&reel'))).bulbs.has('h')).toBe(false);
   });
 
   it('heads with no room for their bulbs stay nodes: two at one place, one on the write head, one the tape records', () => {
@@ -214,14 +213,14 @@ describe('a tape’s read heads are bulbs on it (decision 021)', () => {
         `&out loop=44k map=sample [${heads.map((h) => `${h.split(' ')[0]} * &v`).join(', ')}]`,
       ].join('\n');
     // (a stereo pair at one place: the first a bulb, the second a node of its own, so each can be tapped)
-    const pair = buildGraph(compileSource(src('&l play=&tape at=2', '&r play=&tape at=2')));
+    const pair = buildGraph(compilePiece(src('&l play=&tape at=2', '&r play=&tape at=2')));
     expect([pair.bulbs.get('l'), pair.bulbs.has('r')]).toEqual(['tape', false]);
     expect(pair.edges.some((e) => e.port === 'play' && e.to === 'cell:r')).toBe(true);
     // (on the write head: at=0, or a whole length round)
-    for (const at of ['0', '6']) expect(buildGraph(compileSource(src(`&h play=&tape at=${at}`))).bulbs.has('h')).toBe(false);
+    for (const at of ['0', '6']) expect(buildGraph(compilePiece(src(`&h play=&tape at=${at}`))).bulbs.has('h')).toBe(false);
     // (a head the tape records, a loop: its write edge and its play edge are both drawn)
     const loop = buildGraph(
-      compileSource(['&reel motor=1', '&v loop=C4', '&a play=&tape at=1', '&tape step=&reel write=&a length=4', '&out loop=44k map=sample [&a * &v]'].join('\n')),
+      compilePiece(['&reel motor=1', '&v loop=C4', '&a play=&tape at=1', '&tape step=&reel write=&a length=4', '&out loop=44k map=sample [&a * &v]'].join('\n')),
     );
     expect(loop.bulbs.has('a')).toBe(false);
     expect(loop.edges.filter((e) => e.port === 'write' || e.port === 'play').map((e) => `${e.from}->${e.to}:${e.port}`)).toEqual(
@@ -231,11 +230,11 @@ describe('a tape’s read heads are bulbs on it (decision 021)', () => {
 });
 
 describe('a product is a junction (docs/notes/nets.md, decision 2)', () => {
-  const g = buildGraph(compileSource(readFileSync('tools/gallery/golden/golden.cells', 'utf8')));
+  const g = buildGraph(compilePiece(readFileSync('tools/gallery/golden/golden.cells', 'utf8')));
   const junctionsOf = (model: GraphModel, voice: string) => model.nodes.filter((n) => n.kind === 'junction' && n.voice === voice);
 
   it('its terms go in, its notes go out to its voice (`is`), and the voice’s sound into the mix (#234: an unnamed gate)', () => {
-    const m = buildGraph(compileSource('&t step=1 0 2\n&acc map=amp step=1 1 .5\n&v s=sine loop=C4\n&out loop=SAMPLE_RATE map=sample [&t * &acc * &v * .4]'));
+    const m = buildGraph(compilePiece('&t step=1 0 2\n&acc map=amp step=1 1 .5\n&v s=sine loop=C4\n&out loop=SAMPLE_RATE map=sample [&t * &acc * &v * .4]'));
     expect(m.nodes.filter((n) => n.kind === 'junction')).toEqual([
       expect.objectContaining({ id: 'junction:out:0', mix: 'out', entry: 0, voice: 'v', notes: 't', levels: ['acc'], gain: 0.4 }),
     ]);
@@ -280,7 +279,7 @@ describe('a product is a junction (docs/notes/nets.md, decision 2)', () => {
   });
 
   it('an instrument in a product is its voice; a kit’s pattern is its sound', () => {
-    const w = buildGraph(compileSource(PRESETS.waveforms.source));
+    const w = buildGraph(compilePiece(PRESETS.waveforms.source));
     expect(junctionsOf(w, 'bass')).toHaveLength(1);
     expect(wireOf(w, 'roots', 'bass')).toMatchObject({ port: 'voice' });
   });
@@ -297,7 +296,7 @@ describe('a parameter that takes a clock is a tap of it (delaytime=&bar*4/3, len
   const tapOf = (model: GraphModel, from: string, to: string, port: string) => model.edges.find((e) => e.from === `cell:${from}` && e.to === `cell:${to}` && e.port === port);
 
   it('a sync wire from the clock to the cell, carrying its rate as written', () => {
-    const acid = buildGraph(compileSource(PRESETS.acid.source));
+    const acid = buildGraph(compilePiece(PRESETS.acid.source));
     const e = tapOf(acid, 'bar', 'tb303', 'delaytime')!;
     expect(e).toMatchObject({ band: 'sync', width: 1, pointer: false });
     expect(e.transforms).toEqual([
@@ -317,7 +316,7 @@ describe('a parameter that takes a clock is a tap of it (delaytime=&bar*4/3, len
   });
 
   it('into a meter: a reader of its net (ground), as a step is, so it blinks with it and isn’t drawn as an edge of its own', () => {
-    const acid = buildGraph(compileSource(PRESETS.acid.source));
+    const acid = buildGraph(compilePiece(PRESETS.acid.source));
     const net = acid.nets.find((n) => n.owner === 'cell:bar');
     expect(net).toMatchObject({ id: 'net:cell:bar:step', port: 'step', band: 'sync' });
     expect(net!.readers).toContain(tapOf(acid, 'bar', 'tb303', 'delaytime')!.id);
@@ -327,7 +326,7 @@ describe('a parameter that takes a clock is a tap of it (delaytime=&bar*4/3, len
 
   it('beside a step from the same clock: a wire each', () => {
     const m = buildGraph(
-      compileSource(
+      compilePiece(
         '&bar scan(1 1 1 1) step=120bpm\n&t step=4n 0 2\n&v s=sine loop=C4 delaytime=&bar*2 delay=.3\n&w step=4n length=&bar/4 write=&t\n&h play=&w at=&bar\n&out loop=SAMPLE_RATE map=sample [&h * &v]',
       ),
     );
@@ -339,14 +338,14 @@ describe('a parameter that takes a clock is a tap of it (delaytime=&bar*4/3, len
   });
 
   it('from a clock that is not a meter: an edge drawn, not a net', () => {
-    const m = buildGraph(compileSource('&lfo map=lin loop=2 0 1\n&t step=1 0 2\n&v s=sine loop=C4 delaytime=&lfo/2 delay=.3\n&out loop=SAMPLE_RATE map=sample [&t * &v]'));
+    const m = buildGraph(compilePiece('&lfo map=lin loop=2 0 1\n&t step=1 0 2\n&v s=sine loop=C4 delaytime=&lfo/2 delay=.3\n&out loop=SAMPLE_RATE map=sample [&t * &v]'));
     expect(tapOf(m, 'lfo', 'v', 'delaytime')).toMatchObject({ band: 'sync', transforms: [[{ kind: 'rate', by: [{ op: '÷', n: 2 }] }]] });
     expect(m.nets.some((n) => n.owner === 'cell:lfo')).toBe(false);
   });
 });
 
 describe('a wire carries its transform', () => {
-  const edge = (src: string, from: string, to: string) => between(buildGraph(compileSource(src), { bulbs: false }), from, to)!;
+  const edge = (src: string, from: string, to: string) => between(buildGraph(compilePiece(src), { bulbs: false }), from, to)!;
 
   it('a canon: each voice its melody delayed, in steps, and its gain into the mix', () => {
     const src = PRESETS.canon.source;

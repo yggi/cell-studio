@@ -2,7 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fakeAccess, fakeInput, fakePort, installMidi, uninstallMidi } from '@yggi/webmidi/testing';
 import { Midi } from './midi.svelte';
-import { compileSource } from '@yggi/cells/engine/compile';
+import { compilePiece } from '../../compile';
 import { PRESETS } from '@yggi/cells/engine/presets';
 import { DRUM_PRESETS } from '@yggi/webmidi/core';
 import type { NoteSink } from '../../audio/player';
@@ -173,7 +173,7 @@ describe('Midi: reconnecting on load', () => {
       [1, 'out-1', 'Circuit'],
       [2, 'out-2', 'Juno'],
     ]);
-    midi.attach({ sink: null, internal: true }, { program: compileSource(PRESETS.sailor.source), title: 'Sailor' });
+    midi.attach({ sink: null, internal: true }, { program: compilePiece(PRESETS.sailor.source), title: 'Sailor' });
     expect(midi.channelsOf('bass', 1)).toEqual([7]);
     expect(midi.channelsOf('bass', 2)).toEqual([]);
     expect(midi.kitChannel).toBe(3);
@@ -245,10 +245,10 @@ describe('Midi: All notes off', () => {
     const midi = await made();
     await midi.connect();
     const source = `&bar scan(1 1 1 1) step=2\n&bass step=4n 0\n&sub loop=55\n&far map=midi(5) [&bass * &sub]`;
-    midi.attach({ sink: null, internal: true }, { program: compileSource(source), title: 'Cards' });
+    midi.attach({ sink: null, internal: true }, { program: compilePiece(source), title: 'Cards' });
     midi.kitChannel = 3;
     expect(midi.padChannel).toBe(10);
-    midi.attach({ sink: null, internal: true }, { program: compileSource('&bar scan(1 1 1 1) step=2\n&a step=4n 0\n&v loop=55\n&m [&a * &v]'), title: 'Plain' });
+    midi.attach({ sink: null, internal: true }, { program: compilePiece('&bar scan(1 1 1 1) step=2\n&a step=4n 0\n&v loop=55\n&m [&a * &v]'), title: 'Plain' });
     midi.kitChannel = 3;
     expect(midi.padChannel).toBe(3);
   });
@@ -259,7 +259,7 @@ describe('Midi: All notes off', () => {
     const midi = await made();
     await midi.connect();
     expect(midi.canPanic).toBe(false);
-    const program = compileSource(`&bar scan(1 1 1 1) step=2\n&bass step=4n 0\n&sub loop=55\n&far map=midi(3, 2) [&bass * &sub]`);
+    const program = compilePiece(`&bar scan(1 1 1 1) step=2\n&bass step=4n 0\n&sub loop=55\n&far map=midi(3, 2) [&bass * &sub]`);
     midi.attach({ sink: null, internal: true }, { program, title: 'Slot' });
     expect(midi.canPanic).toBe(false);
     expect(midi.columns.map((c) => [c.port, c.key])).toEqual([
@@ -334,7 +334,7 @@ describe('Midi: All notes off', () => {
 &bass step=4n 0
 &sub loop=55
 &far map=midi(3, 2) [&bass * &sub]`;
-    const program = compileSource(source);
+    const program = compilePiece(source);
     midi.attach({ sink: null, internal: true }, { program, title: 'constructor' });
     // (nothing kept under that title: not Object.prototype.constructor)
     expect(midi.kitChannel).toBe(10);
@@ -387,7 +387,7 @@ describe('Midi: MIDI out', () => {
     midi.chooseOutput('out-1');
     out.sent = [];
     const player = { sink: null as NoteSink | null, internal: true };
-    midi.attach(player, { program: compileSource(source), title });
+    midi.attach(player, { program: compilePiece(source), title });
     return { midi, out, player };
   }
   const note = (voice: string, at: number, output?: string): Played => ({ at, dur: 0.2, voice, freq: 220, bends: [], gains: [1, 1], levels: [], output });
@@ -433,7 +433,7 @@ describe('Midi: MIDI out', () => {
       { voice: 'fiddle', channel: 1, port: 1 },
       { voice: 'bass', channel: 2, port: 1 },
     ]);
-    const kit = compileSource(PRESETS.sailor.source).outputs.find((o) => o.kit)!.id;
+    const kit = compilePiece(PRESETS.sailor.source).outputs.find((o) => o.kit)!.id;
     midi.play(fakeTone(10), [note('bass', 10.3), note('sd', 10.3, kit)], 10.5);
     expect(out.sent).toEqual([
       { data: [0x91, 57, 127], timestamp: 10.3 * 1000 + 5000 },
@@ -455,10 +455,10 @@ describe('Midi: MIDI out', () => {
     expect(kept.drums.Circuit[38]).toBe(63);
     const again = await made();
     expect([again.drums[36], again.drums[38], again.bendRange, again.rotate]).toEqual([60, 63, 48, { from: 2, to: 9 }]);
-    again.attach({ sink: null, internal: true }, { program: compileSource(PRESETS.sailor.source), title: 'Sailor' });
+    again.attach({ sink: null, internal: true }, { program: compilePiece(PRESETS.sailor.source), title: 'Sailor' });
     expect(again.table!.voices.find((v) => v.voice === 'bass')!.channel).toBe(7);
     // (another piece: its own table)
-    again.attach({ sink: null, internal: true }, { program: compileSource(PRESETS.sailor.source), title: 'Other' });
+    again.attach({ sink: null, internal: true }, { program: compilePiece(PRESETS.sailor.source), title: 'Other' });
     expect(again.table!.voices.find((v) => v.voice === 'bass')!.channel).toBe(2);
   });
 
@@ -487,7 +487,7 @@ describe('Midi: MIDI out', () => {
   it('keeps a note held through a recompile while playing (a held free() moved), and sends its note-off', async () => {
     const { midi, out, player } = await tapped();
     midi.play(fakeTone(10), [{ ...note('bass', 10.3), dur: 2 }], 10.5);
-    midi.attach(player, { program: compileSource(PRESETS.sailor.source), title: 'Sailor' });
+    midi.attach(player, { program: compilePiece(PRESETS.sailor.source), title: 'Sailor' });
     midi.play(fakeTone(10.25), [], 10.75);
     midi.play(fakeTone(12.2), [], 12.5);
     expect(out.sent.map((m) => [...m.data, Math.round(m.timestamp!)])).toEqual([
@@ -533,7 +533,7 @@ describe('Midi: MIDI out', () => {
     await midi.connect();
     midi.chooseOutput('out-1');
     out.sent = [];
-    const program = compileSource(source);
+    const program = compilePiece(source);
     midi.attach({ sink: null, internal: true }, { program, title: 'Cards' });
     expect(midi.table!.byPiece).toBe(true);
     expect(midi.columns.map((c) => [c.port, c.id, c.name])).toEqual([
@@ -567,7 +567,7 @@ describe('Midi: MIDI out', () => {
     const midi = await made();
     await midi.connect();
     midi.chooseOutput('out-1');
-    midi.attach({ sink: null, internal: true }, { program: compileSource(PRESETS.sailor.source), title: 'Sailor' });
+    midi.attach({ sink: null, internal: true }, { program: compilePiece(PRESETS.sailor.source), title: 'Sailor' });
     // (everything on the first; the add button offers the other two)
     expect(midi.spare.map((p) => p.name)).toEqual(['Juno', 'Pads']);
     midi.addOutput('out-2');
@@ -578,7 +578,7 @@ describe('Midi: MIDI out', () => {
     midi.setKitChannel(10, 2);
     midi.setDrums(2, DRUM_PRESETS['Novation Circuit']);
     expect([midi.channelsOf('bass', 1), midi.channelsOf('bass', 2), midi.kitChannelsOf(2)]).toEqual([[], [5], [10]]);
-    const kit = compileSource(PRESETS.sailor.source).outputs.find((o) => o.kit)!.id;
+    const kit = compilePiece(PRESETS.sailor.source).outputs.find((o) => o.kit)!.id;
     out.sent = [];
     midi.play(fakeTone(10), [note('bass', 10.3), note('fiddle', 10.3), note('bd', 10.3, kit)], 10.5);
     const ons = (port: ReturnType<typeof fakePort>) => port.sent.filter((m) => (m.data[0] & 0xf0) === 0x90).map((m) => [(m.data[0] & 0x0f) + 1, m.data[1]]);
@@ -594,7 +594,7 @@ describe('Midi: MIDI out', () => {
     const kept = JSON.parse(store.get('cell-studio:midi')!);
     expect(kept.routes).toEqual({ Sailor: { o1: { bass: 0 }, o2: { bass: 5, '*': 10 } } });
     // (another piece: the outputs are there, its routing the default: all on the first)
-    midi.attach({ sink: null, internal: true }, { program: compileSource(PRESETS.sailor.source), title: 'Other' });
+    midi.attach({ sink: null, internal: true }, { program: compilePiece(PRESETS.sailor.source), title: 'Other' });
     expect(midi.columns.map((c) => c.name)).toEqual(['Circuit', 'Juno']);
     expect([midi.channelsOf('bass', 1), midi.channelsOf('bass', 2), midi.kitChannelsOf(2)]).toEqual([[2], [], []]);
   });
@@ -607,7 +607,7 @@ describe('Midi: MIDI out', () => {
     await midi.connect();
     midi.chooseOutput('out-1');
     midi.addOutput('out-2');
-    midi.attach({ sink: null, internal: true }, { program: compileSource(PRESETS.sailor.source), title: 'Sailor' });
+    midi.attach({ sink: null, internal: true }, { program: compilePiece(PRESETS.sailor.source), title: 'Sailor' });
     midi.setChannel('bass', 4, 2);
     midi.play(fakeTone(10), [{ ...note('bass', 10.3), dur: 2 }], 10.5);
     other.sent = [];
@@ -635,7 +635,7 @@ describe('Midi: MIDI out', () => {
     await midi.connect();
     midi.chooseOutput('out-1');
     midi.addOutput('out-2');
-    const program = compileSource(PRESETS.sailor.source);
+    const program = compilePiece(PRESETS.sailor.source);
     midi.attach({ sink: null, internal: true }, { program, title: 'Sailor' });
     midi.setClock(2, true);
     expect([midi.sendClock, midi.clockOf(2), midi.clocking]).toEqual([false, true, true]);
@@ -655,7 +655,7 @@ describe('Midi: MIDI out', () => {
     await midi.connect();
     midi.chooseOutput('out-1');
     midi.addOutput('out-2');
-    midi.attach({ sink: null, internal: true }, { program: compileSource(PRESETS.sailor.source), title: 'Sailor' });
+    midi.attach({ sink: null, internal: true }, { program: compilePiece(PRESETS.sailor.source), title: 'Sailor' });
     midi.setChannel('bass', 6, 2);
     midi.setKitChannel(3, 2);
     midi.setDrums(2, DRUM_PRESETS['Novation Circuit']);
@@ -683,7 +683,7 @@ describe('Midi: MIDI out', () => {
     await midi.connect();
     midi.chooseOutput('out-1');
     midi.addOutput('out-2');
-    midi.attach({ sink: null, internal: true }, { program: compileSource(PRESETS.sailor.source), title: 'Sailor' });
+    midi.attach({ sink: null, internal: true }, { program: compilePiece(PRESETS.sailor.source), title: 'Sailor' });
     midi.setBend(2, 48);
     midi.setRotate(2, { from: 2, to: 4 });
     expect([midi.bendOf(1), midi.bendOf(2), midi.rotateOf(1), midi.rotateOf(2)]).toEqual([2, 48, null, { from: 2, to: 4 }]);
@@ -718,7 +718,7 @@ describe('Midi: MIDI out', () => {
   it('sends nothing without an output, and the player plays on', async () => {
     const midi = await made();
     const player = { sink: null as NoteSink | null, internal: true };
-    midi.attach(player, { program: compileSource(PRESETS.sailor.source), title: 'Sailor' });
+    midi.attach(player, { program: compilePiece(PRESETS.sailor.source), title: 'Sailor' });
     expect(() => midi.play(fakeTone(1), [note('bass', 1.1)], 1.25)).not.toThrow();
     expect(() => midi.stop(fakeTone(1))).not.toThrow();
   });
@@ -732,7 +732,7 @@ describe('Midi: MIDI clock', () => {
     await midi.connect();
     midi.chooseOutput('out-1');
     out.sent = [];
-    const program = compileSource(source);
+    const program = compilePiece(source);
     midi.attach({ sink: null, internal: true }, { program, title: 'A piece' });
     const p = plan(program, codeShifts(program));
     // (the player: windows of 0.25 code seconds from 0, the first heard at audio second 10)

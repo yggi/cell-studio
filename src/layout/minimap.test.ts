@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { compileSource } from '@yggi/cells/engine/compile';
+import { compilePiece } from '../compile';
 import { PRESETS } from '@yggi/cells/engine/presets';
 import { buildGraph } from './drawn';
 import { minimap } from './minimap';
@@ -7,7 +7,7 @@ import { withSockets } from './towerlayout';
 
 describe("the strip's minimap", () => {
   it('puts each out in a lane, in the order asked, and every node in the lanes of the outs it feeds', () => {
-    const program = compileSource(PRESETS.waltz.source);
+    const program = compilePiece(PRESETS.waltz.source);
     const drawn = withSockets(program, buildGraph(program));
     const order = ['cell:tuba', 'cell:flute', 'cell:strings'];
     const { lanes, span } = minimap(drawn, (s) => order.indexOf(s));
@@ -19,7 +19,7 @@ describe("the strip's minimap", () => {
   });
 
   it("puts a groove in its kit's lane: it reads the kit, but plays it", () => {
-    const program = compileSource(`&bar step=120bpm 1 1 1 1
+    const program = compilePiece(`&bar step=120bpm 1 1 1 1
 &bd s=sine loop=A1
 &hh s=white hpf=8000
 &beat step=&bar*2 &bd &hh &bd &hh

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
-import { compileSource } from '@yggi/cells/engine/compile';
+import { compilePiece } from './compile';
 
 // docs/ promises (see docs/MEMORY.md): a ```cells block in a page can't rot (the language's own pages are yggi/cells'), INDEX.md lists every page,
 // and relative links resolve.
@@ -26,7 +26,7 @@ describe('docs: cells blocks compile', () => {
   for (const page of withBlocks)
     for (const [i, src] of blocks(read(page)).entries())
       it(`${rel(page)} block ${i + 1}`, () => {
-        const r = compileSource(src);
+        const r = compilePiece(src);
         // a small example may leave out the sound card; anything else is a diagnostic to fix
         const problems = r.diagnostics.filter((d) => !d.message.startsWith('Nothing plays yet'));
         expect(problems.map((d) => d.message)).toEqual([]);

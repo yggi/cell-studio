@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { compileSource } from '@yggi/cells/engine/compile';
+import { compilePiece } from '../compile';
 import { codeShifts } from '@yggi/cells/engine/program';
 import { flatten } from '@yggi/cells/engine/flatten';
 import { cellView } from './cellview';
@@ -8,9 +8,9 @@ import { cellView } from './cellview';
 // <a b c> one per lap, x/n slowed, x(k,n,r) a euclid on a step, [a b|c] a choice of sequences. A lap of the cell is
 // Strudel's cycle.
 
-type R = ReturnType<typeof compileSource>;
+type R = ReturnType<typeof compilePiece>;
 const clean = (src: string): R => {
-  const r = compileSource(src);
+  const r = compilePiece(src);
   expect(r.diagnostics.filter((d) => d.severity === 'error')).toEqual([]);
   return r;
 };

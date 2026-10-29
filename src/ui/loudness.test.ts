@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { compileSource } from '@yggi/cells/engine/compile';
+import { compilePiece } from '../compile';
 import { codeShifts } from '@yggi/cells/engine/program';
 import { PRESETS } from '@yggi/cells/engine/presets';
 import { FLOOR_DB, lapOf, levelOf, LoudRing, Score, SCORE_SLOTS } from './loudness';
@@ -49,13 +49,13 @@ describe('LoudRing', () => {
 });
 
 describe('lapOf and Score', () => {
-  const pop = compileSource(PRESETS.pop.source);
+  const pop = compilePiece(PRESETS.pop.source);
   it('a lap is a bar of the main meter, between 1.5 and 8 s; 2 s without a meter', () => {
     const lap = lapOf(pop, codeShifts(pop));
     const long = lap.q(lap.steps) - lap.q(0);
     expect(long).toBeGreaterThanOrEqual(1.5);
     expect(long).toBeLessThanOrEqual(8);
-    const tone = compileSource('&a loop=A4');
+    const tone = compilePiece('&a loop=A4');
     expect(lapOf(tone, codeShifts(tone)).steps).toBe(2);
   });
   it("the score's shape: where a voice plays over the lap, sampled a slot at a time", () => {

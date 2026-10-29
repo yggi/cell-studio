@@ -4,7 +4,7 @@ import { creditLines, creditOf, MIDI_FILES, MIDI_SETS } from './corpus';
 import { readMidi, writeMidi } from '@yggi/cells/engine/midifile';
 import { cellsFromMidi } from '@yggi/cells/engine/midiimport';
 import { midiText, parseMidiText } from '@yggi/cells/engine/miditext';
-import { compileSource } from '@yggi/cells/engine/compile';
+import { compilePiece } from './compile';
 
 describe('the MIDI library (midi/<set>)', () => {
   it('lists every file each collection has, and has every file it lists, each with where it came from and its licence', () => {
@@ -58,6 +58,6 @@ describe('the MIDI library (midi/<set>)', () => {
     // (no card above them since cells #191: what it said is the file's frontmatter)
     expect(made.source.split('\n').slice(0, lines.length + 1)).toEqual([...lines.map((l) => `# ${l}`), '']);
     expect(made.folded).toBe(true);
-    expect(compileSource(made.source).ok).toBe(true);
+    expect(compilePiece(made.source).ok).toBe(true);
   });
 });

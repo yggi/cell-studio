@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { setAttr, declLine, declWords, deleteCell, renameCell, setBraid, setOff, setShift, setTiming, usersOf } from '@yggi/cells/engine/edit';
-import { compileSource } from '@yggi/cells/engine/compile';
+import { compilePiece } from '../compile';
 import { buildGraph } from './drawn';
 import { readFileSync } from 'node:fs';
 
 describe('a product’s junction is not a cell (graph.ts)', () => {
   it('no edit by its id, or by what a cell id would make of it, changes the code', () => {
     const src = readFileSync('tools/gallery/golden/golden.cells', 'utf8');
-    const junctions = buildGraph(compileSource(src)).nodes.filter((n) => n.kind === 'junction');
+    const junctions = buildGraph(compilePiece(src)).nodes.filter((n) => n.kind === 'junction');
     expect(junctions.length).toBeGreaterThan(0);
     for (const { id } of junctions)
       for (const name of [id, id.slice('cell:'.length), id.slice('junction:'.length)]) {

@@ -4,7 +4,7 @@
  * and a voice is a stand-in whose notes the test ends; what is tested is when the bank frees it.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { compileSource } from '@yggi/cells/engine/compile';
+import { compilePiece } from '../compile';
 import { codeShifts } from '@yggi/cells/engine/program';
 import type { Built } from './voice/voice';
 import type { ToneNS } from './voice/nodes';
@@ -63,12 +63,12 @@ describe('a voice a sync drops', () => {
 
   const bank = () => {
     const v = createVoices(anything() as ToneNS);
-    const a = compileSource(A);
+    const a = compilePiece(A);
     v.sync(a, codeShifts(a));
     return v;
   };
   const drop = (v: ReturnType<typeof createVoices>) => {
-    const b = compileSource(B);
+    const b = compilePiece(B);
     v.sync(b, codeShifts(b));
   };
   const live = (name: string) => voice.built.find((b) => b.name === name)!.live;

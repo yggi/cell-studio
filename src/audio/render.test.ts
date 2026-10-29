@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { compileSource } from '@yggi/cells/engine/compile';
+import { compilePiece } from '../compile';
 import { createHost, planOf } from '@yggi/cells/engine/host';
 import { windowAt } from '@yggi/cells/engine/schedule';
 import { renderLength } from './render';
@@ -7,9 +7,9 @@ import { LocalEngine } from './engine';
 
 describe('a drone (decision 028) offline and in the engines', () => {
   it('a piece that is only a drone renders a minute, as any piece that never comes round', () => {
-    expect(renderLength(compileSource('&a loop=A4'))).toBe(60);
+    expect(renderLength(compilePiece('&a loop=A4'))).toBe(60);
     // (beside a melody, the melody's cycle)
-    expect(renderLength(compileSource('&a loop=A4\n&t step=2 0 4 7\n&v s=tri loop=C4\n&m [&t * &v]'))).toBe(1.5);
+    expect(renderLength(compilePiece('&a loop=A4\n&t step=2 0 4 7\n&v s=tri loop=C4\n&m [&t * &v]'))).toBe(1.5);
   });
   it('both engines start it where the run began', () => {
     const src = '&a loop=A4';

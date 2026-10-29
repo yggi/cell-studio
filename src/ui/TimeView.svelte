@@ -14,7 +14,7 @@
   import { TimeSettings, type TimeLayers, type TimeSignal } from './state/time.svelte';
   import { eventsBetween, plan, type Played } from '@yggi/cells/engine/realize';
   import { codeShifts } from '@yggi/cells/engine/program';
-  import { mainTempo, pieceTime } from '@yggi/cells/engine/duration';
+  import { pieceTime } from '@yggi/cells/engine/duration';
   import { listening } from '@yggi/cells/engine/time/span';
   import { transportClock } from '../audio/clock.svelte';
   import { SIGNALS } from '@yggi/cells/engine/time/signals';
@@ -30,6 +30,7 @@
     heardLevelsOf,
     heardMarksOf,
     longestOf,
+    meterCellOf,
     meterOf,
     patternsOf,
     shownNotes,
@@ -119,7 +120,7 @@
   const patterns = $derived(settings.layers.patterns ? patternsOf(heardNotes, spans, listened, length) : null);
   const written = $derived(sectionsOver(piece.sections ?? [], length).filter((s) => s.at > 0 && s.at < length));
   /** The meter, as periods across the scalogram: the beat, the bar, the sections' usual length. */
-  const meter = $derived(meterOf(spans, piece.program.ok ? mainTempo(piece.program)?.cell : undefined, written));
+  const meter = $derived(meterOf(spans, meterCellOf(piece.program), written));
 
   /** Each node's section (ui/sections.ts), the graph's: a voice's colour is its section's, as its out's is there. */
   const sections = $derived(piece.program.ok ? nodeSections(piece.program, piece.graph) : new Map());

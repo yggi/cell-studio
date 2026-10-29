@@ -5,7 +5,7 @@ import { ForceLayout } from './physics';
 import { DEFAULT_LAYOUT } from './options';
 import type { LayoutQuality } from './quality';
 import { buildGraph } from './drawn';
-import { compileSource } from '@yggi/cells/engine/compile';
+import { compilePiece } from '../compile';
 import { PRESETS } from '@yggi/cells/engine/presets';
 
 // Every example laid out with the defaults and settled: the slow part of the layout tests. Each example is
@@ -13,7 +13,7 @@ import { PRESETS } from '@yggi/cells/engine/presets';
 // own); a file of its own, so it runs beside the rest of physics.test.ts.
 const made: ForceLayout[] = [];
 const settle = (source: string, opts: Partial<typeof DEFAULT_LAYOUT> = {}) => {
-  const model = buildGraph(compileSource(source));
+  const model = buildGraph(compilePiece(source));
   const layout = new ForceLayout(undefined, { live: false, ...opts });
   layout.setGraph(model); // (petals hang from their parent: the physics only sees named cells)
   const start = layout.quality(); // (the layered drawing, before the physics relaxes it)

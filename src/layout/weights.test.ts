@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
-import { compileSource } from '@yggi/cells/engine/compile';
+import { compilePiece } from '../compile';
 import { buildGraph } from './drawn';
 import { crossingCost, massOf, SAME_KIND, strengthOf } from './weights';
 
 // The layout's weights (docs/notes/nets.md): a node's mass by what it is, an edge's strength by what it carries.
 describe('weights', () => {
-  const g = buildGraph(compileSource(readFileSync('tools/gallery/golden/golden.cells', 'utf8')));
+  const g = buildGraph(compilePiece(readFileSync('tools/gallery/golden/golden.cells', 'utf8')));
   const owners = new Set(g.nets.map((n) => n.owner));
   const mass = (name: string) =>
     massOf(

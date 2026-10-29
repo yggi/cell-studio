@@ -13,6 +13,8 @@ import { cones, swells, type Boundary } from '@yggi/cells/engine/time/boundaries
 import type { StructureNode } from '@yggi/cells/engine/time/structure';
 import { motifs, multiscale } from '@yggi/cells/engine/time/motifs';
 import { alike, foldings, levelsOf, pulseOf } from '@yggi/cells/engine/time/necklace';
+import { mainTempo } from '@yggi/cells/engine/duration';
+import { mainMeter } from '@yggi/cells/engine/midiclock';
 import { towerSpans } from './tower';
 import { sameLevel, type HeardLevel } from './explained';
 
@@ -147,6 +149,12 @@ export function sectionGap(written: readonly { readonly at: number }[]): number 
 
 /** A period, short: 0.42 s, 13 s, 4 min. */
 export const seconds = (p: number) => (p < 10 ? `${p.toFixed(2)} s` : p < 120 ? `${Math.round(p)} s` : `${Math.round(p / 60)} min`);
+
+/**
+ * The cell the piece's meter keeps time in: its main meter (`mainMeter`), even when a tempo cell steps it
+ * (`&bar meter("4/4") step=&tempo`, where the tempo's slider is on `&tempo`), else the cell its tempo is on.
+ */
+export const meterCellOf = (program: CompileResult): string | undefined => (program.ok ? (mainMeter(program)?.cell ?? mainTempo(program)?.cell) : undefined);
 
 /** The meter, as periods across the scalogram: the beat and the bar of the meter that drives the piece (its tempo
  * cell `main`'s step and turn), and the sections' usual length. */

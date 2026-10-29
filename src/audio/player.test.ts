@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 
 import { Player } from './player';
 import { transportClock } from './clock.svelte';
 import type { TransportState } from './transport';
-import { compileSource } from '@yggi/cells/engine/compile';
+import { compilePiece } from '../compile';
 import { codeShifts } from '@yggi/cells/engine/program';
 import { eventsBetween, plan } from '@yggi/cells/engine/realize';
 
@@ -98,7 +98,7 @@ describe('pause lets go, stop silences', () => {
 
 describe('a hand on the timeline plays the notes it passes', () => {
   // &t plays at 0, 1, 2, 3 s (one step a second)
-  const piece = compileSource('&bar step=1\n&t step=&bar 0 2 4 5\n&v s=sine loop=C4\n&out loop=SAMPLE_RATE map=sample [&t * &v]');
+  const piece = compilePiece('&bar step=1\n&t step=&bar 0 2 4 5\n&v s=sine loop=C4\n&out loop=SAMPLE_RATE map=sample [&t * &v]');
   function listening() {
     const p = make();
     const played: { at: number; code: number }[] = [];
@@ -223,8 +223,8 @@ describe('keys: press and release, a hand on a voice (#207)', () => {
 
 describe('a feed: a song another clock lays (#478, rung 3)', () => {
   // (two texts, a note a second: a section's and the next one's)
-  const a = compileSource('&bar step=1\n&t step=&bar 0 2\n&v s=sine loop=C4\n&out [&t * &v]');
-  const b = compileSource('&bar step=1\n&t step=&bar 4 5\n&w s=square loop=C4\n&out [&t * &w]');
+  const a = compilePiece('&bar step=1\n&t step=&bar 0 2\n&v s=sine loop=C4\n&out [&t * &v]');
+  const b = compilePiece('&bar step=1\n&t step=&bar 4 5\n&w s=square loop=C4\n&out [&t * &w]');
   const pa = plan(a, codeShifts(a));
   const pb = plan(b, codeShifts(b));
   const win = (p: typeof pa, from: number, to: number) => ({ from, to, events: eventsBetween(p, from, to, true), tapes: [] });

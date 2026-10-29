@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { compileSource } from '@yggi/cells/engine/compile';
+import { compilePiece } from '../compile';
 import { codeShifts } from '@yggi/cells/engine/program';
 import { runsOn, sentSince, ticksOn } from './signal';
 
@@ -7,7 +7,7 @@ import { runsOn, sentSince, ticksOn } from './signal';
 const SRC = `&bar scan(1 1 1 1) step=120bpm
 &tune step=4n 0 2 4 5
 &slow step=2n 0 7`;
-const program = compileSource(SRC);
+const program = compilePiece(SRC);
 const shifts = codeShifts(program);
 
 describe('what a cell sent, read from its clock (signal.ts)', () => {
@@ -25,7 +25,7 @@ describe('what a cell sent, read from its clock (signal.ts)', () => {
 
   it('sends nothing before the start, and nothing for a cell no clock steps', () => {
     expect(sentSince(program, shifts, 'tune', -1, 1)).toEqual([]);
-    expect(sentSince(compileSource('&x 0 2 4'), shifts, 'x', 1, 1)).toEqual([]);
+    expect(sentSince(compilePiece('&x 0 2 4'), shifts, 'x', 1, 1)).toEqual([]);
   });
 });
 

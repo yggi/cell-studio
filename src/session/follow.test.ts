@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { compileSource } from '@yggi/cells/engine/compile';
+import { compilePiece } from '../compile';
 import { NOTHING_FOLLOWED, barSeconds, heardAt, nextTextAt, placeAt, pruned, reaches, textOf, withBar, withText, type Followed } from './follow';
 import type { SectionText } from './protocol';
 
@@ -70,7 +70,7 @@ describe('following a host’s song', () => {
 });
 
 describe('a bar of a text’s own time', () => {
-  const bar = (text: string) => barSeconds(compileSource(text));
+  const bar = (text: string) => barSeconds(compilePiece(text));
   it('is its main meter’s bar at its tempo', () => {
     expect(bar('&bar meter("4/4") step=120bpm\n&kick step=16n &bd ~ ~ ~\n&bd s=white')).toBeCloseTo(2, 9);
     expect(bar('&bar meter("4/4") step=108bpm swing=16n:.6\n&kick step=16n &bd ~ ~ ~\n&bd s=white')).toBeCloseTo(240 / 108, 9);

@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { compileSource } from '@yggi/cells/engine/compile';
+import { compilePiece } from '../compile';
 import { codeShifts } from '@yggi/cells/engine/program';
 import { bulbHosts } from './drawn';
 import { bulbsOf, cursorOf, layTrack, netEnds, stepOn, tauOf, trackAt, trackReach } from './track';
 
 // Twinkle's shape (#221): &up here only, &down read elsewhere too, &mid (here only) holding a &down, twice round.
 const SRC = ['&up 0 0 4 4 5 5 4@2', '&down 3 3 2 2 1 1 0@2', '&mid &down', '&tune step=1 0 &up &down &mid!2 &up &down', '&other step=1 &down'].join('\n');
-const r = compileSource(SRC);
+const r = compilePiece(SRC);
 const shifts = codeShifts(r);
 const bulbs = bulbsOf(r, 'tune', shifts, bulbHosts(r));
 
@@ -26,7 +26,7 @@ describe('the track: a bulb for each splice', () => {
   });
 
   it('a splice in a splice is a bulb on its bulb', () => {
-    const r2 = compileSource(['&m1 0 1', '&m2 2 3', '&A &m1 4 &m2', '&tune step=1 &A 0'].join('\n'));
+    const r2 = compilePiece(['&m1 0 1', '&m2 2 3', '&A &m1 4 &m2', '&tune step=1 &A 0'].join('\n'));
     const [A] = bulbsOf(r2, 'tune', codeShifts(r2), bulbHosts(r2));
     expect(A.bulbs.map((b) => [b.name, b.net])).toEqual([
       ['m1', null],

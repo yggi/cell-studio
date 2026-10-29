@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { compileSource } from '@yggi/cells/engine/compile';
+import { compilePiece } from '../compile';
 import { declWords, setBraid } from '@yggi/cells/engine/edit';
 import { parse } from '@yggi/cells/engine/parser/index';
 import { PRESETS } from '@yggi/cells/engine/presets';
@@ -113,7 +113,7 @@ describe('braid ↔ roll', () => {
   it('every example cell that rolls compiles the same after a round trip (its events unchanged)', () => {
     for (const key of ['twinkle', 'korobeiniki', 'chords', 'canon', 'lullaby']) {
       const source = PRESETS[key as keyof typeof PRESETS].source;
-      const before = compileSource(source);
+      const before = compilePiece(source);
       let after = source;
       for (const name of before.cells.keys()) {
         if (!rolls(before, name)) continue;
@@ -121,7 +121,7 @@ describe('braid ↔ roll', () => {
         const r = w && readBraid(w);
         if (r && r.ok && r.roll.length) after = setBraid(after, name, toBraid(r.roll));
       }
-      const a = compileSource(after);
+      const a = compilePiece(after);
       expect(a.ok, key).toBe(true);
       for (const [name, c] of before.cells) expect(a.cells.get(name)?.steps, `${key}: &${name}`).toBe(c.steps);
     }
@@ -195,7 +195,7 @@ describe('how far the rows go', () => {
 
 describe('the frame', () => {
   it('bars and beats from its meter, in its own steps', () => {
-    const q = compileSource('&bar scan(4 4 4 4) step=84bpm\n&tune step=4n 0 2 4\n&fast step=16n 0 1\n&slow step=2n 0');
+    const q = compilePiece('&bar scan(4 4 4 4) step=84bpm\n&tune step=4n 0 2 4\n&fast step=16n 0 1\n&slow step=2n 0');
     expect(frameOf(q, 'tune', 3)).toEqual({ length: 3, steps: 4, bar: 4, beat: 1 });
     expect(frameOf(q, 'fast', 2)).toEqual({ length: 2, steps: 16, bar: 16, beat: 4 });
     // a beat of two bar-steps doesn't fall on its own steps
@@ -205,26 +205,26 @@ describe('the frame', () => {
   });
 
   it('a meter written as levels: its beats', () => {
-    const q = compileSource('&bar meter("4/4", 2) step=100bpm\n&tune step=8n 0 2 4 5');
+    const q = compilePiece('&bar meter("4/4", 2) step=100bpm\n&tune step=8n 0 2 4 5');
     expect(frameOf(q, 'tune', 4)).toEqual({ length: 4, steps: 8, bar: 8, beat: 2 });
   });
 
   it('a cell that is its own clock has no bars', () => {
-    const q = compileSource('&tune step=2 0 2 4');
+    const q = compilePiece('&tune step=2 0 2 4');
     expect(frameOf(q, 'tune', 3)).toEqual({ length: 3, steps: 4, bar: null, beat: null });
   });
 });
 
 describe('the rows', () => {
   it('without over=, semitones on the 12: C4 … C5, the black keys marked', () => {
-    const q = compileSource('&tune step=2 0 4 7');
+    const q = compilePiece('&tune step=2 0 4 7');
     const rows = rowsFor(q, 'tune', codeShifts(q), ...rowRange(roll('0 4 7'), tableOf(q, 'tune').perLap, false));
     expect(rows.map((r) => r.label)).toEqual(['C4', 'C♯4', 'D4', 'E♭4', 'E4', 'F4', 'F♯4', 'G4', 'A♭4', 'A4', 'B♭4', 'B4', 'C5']);
     expect(rows.filter((r) => r.black).map((r) => r.value)).toEqual([1, 3, 6, 8, 10]);
   });
 
   it('over 19-EDO: its 19 steps to the octave', () => {
-    const q = compileSource('&edo19 cycle=19 map=edo\n&tune over=&edo19 step=2 0 5 11');
+    const q = compilePiece('&edo19 cycle=19 map=edo\n&tune over=&edo19 step=2 0 5 11');
     const { perLap } = tableOf(q, 'tune');
     expect(perLap).toBe(19);
     const rows = rowsFor(q, 'tune', codeShifts(q), ...rowRange(roll('0 5 11'), perLap, false));
@@ -234,7 +234,7 @@ describe('the rows', () => {
   });
 
   it('over a scale: its entries over the laps, never a wrong note', () => {
-    const q = compileSource('&tune over=scale(major, D) step=2 0 2 4 9');
+    const q = compilePiece('&tune over=scale(major, D) step=2 0 2 4 9');
     const { perLap } = tableOf(q, 'tune');
     expect(perLap).toBe(7);
     const rows = rowsFor(q, 'tune', codeShifts(q), ...rowRange(roll('0 2 4 9'), perLap, false));
@@ -244,7 +244,7 @@ describe('the rows', () => {
   });
 
   it('over a kit: one row per voice, by name', () => {
-    const q = compileSource('&bd s=sine loop=C2\n&sd s=white\n&kit &bd &sd\n&beat over=&kit step=4 0 1 0 1\n&out loop=SAMPLE_RATE map=sample [&beat * .5]');
+    const q = compilePiece('&bd s=sine loop=C2\n&sd s=white\n&kit &bd &sd\n&beat over=&kit step=4 0 1 0 1\n&out loop=SAMPLE_RATE map=sample [&beat * .5]');
     expect(q.ok).toBe(true);
     const { table, perLap } = tableOf(q, 'beat');
     expect(table?.kit).toBe(true);
@@ -254,7 +254,7 @@ describe('the rows', () => {
 
 describe('which cells roll, and their ghosts', () => {
   it('melodies and chords roll; voices, mixes, meters, tables and curves do not', () => {
-    const q = compileSource(PRESETS.royal.source);
+    const q = compilePiece(PRESETS.royal.source);
     expect(rolls(q, 'theme') && rolls(q, 'pedal')).toBe(true);
     // (the theme rolls, but writes accidentals: the sheet says the roll can't show it)
     expect(readBraid(declWords(PRESETS.royal.source, 'theme')!.braid)).toMatchObject({ ok: false, problem: /accidental/ });
@@ -263,22 +263,22 @@ describe('which cells roll, and their ghosts', () => {
   });
 
   it('a tape, its read heads and a law are not melodies: no roll (echotape, fiveto12)', () => {
-    const echo = compileSource(PRESETS.echotape.source);
+    const echo = compilePiece(PRESETS.echotape.source);
     for (const n of ['tape', 'near', 'mid', 'far', 'reel']) expect(rolls(echo, n), `echotape: &${n}`).toBe(false);
     // (what the tape records is a melody, and plays: it rolls)
     expect(rolls(echo, 'tune')).toBe(true);
-    const day = compileSource(PRESETS.fiveto12.source);
+    const day = compilePiece(PRESETS.fiveto12.source);
     for (const n of ['cycle', 'memory', 'recall', 'message']) expect(rolls(day, n), `fiveto12: &${n}`).toBe(false);
   });
 
   it('a blank cell rolls only when something plays it as a melody', () => {
     const src = (extra: string) => `&bar scan(1 1 1 1) step=100bpm\n&lead s=saw\n&up over=scale(major) step=4n\n${extra}`;
     // played: it plays its table, and a note written here makes it a braid
-    expect(rolls(compileSource(src('&out loop=SAMPLE_RATE map=sample [&up * &lead]')), 'up')).toBe(true);
+    expect(rolls(compilePiece(src('&out loop=SAMPLE_RATE map=sample [&up * &lead]')), 'up')).toBe(true);
     // nothing plays it, or something only reads it: not a melody
-    expect(rolls(compileSource(src('&out loop=SAMPLE_RATE map=sample [&lead]')), 'up')).toBe(false);
+    expect(rolls(compilePiece(src('&out loop=SAMPLE_RATE map=sample [&lead]')), 'up')).toBe(false);
     // a tap of the bar, a clock no one plays, a table map= reads, a waveform at audio rate
-    const q = compileSource('&bar scan(1 1 1 1) step=100bpm\n&tap step=4n 1 0\n&t step=&tap 0 2\n&curve 0 1 .3 -1\n&shaped loop=262hz map=&curve 0 1 2 3\n&chip step=8k 1!2 -1!2');
+    const q = compilePiece('&bar scan(1 1 1 1) step=100bpm\n&tap step=4n 1 0\n&t step=&tap 0 2\n&curve 0 1 .3 -1\n&shaped loop=262hz map=&curve 0 1 2 3\n&chip step=8k 1!2 -1!2');
     for (const n of ['tap', 'curve', 'chip']) expect(rolls(q, n), n).toBe(false);
     expect(rolls(q, 't')).toBe(true);
   });
@@ -287,7 +287,7 @@ describe('which cells roll, and their ghosts', () => {
   it('over every example, the cells that roll are melodic braids, or blanks played as melodies', () => {
     let count = 0;
     for (const [key, { source }] of Object.entries(PRESETS)) {
-      const q = compileSource(source);
+      const q = compilePiece(source);
       const played = playedCells(q);
       const tapeCells = new Set(q.tapes.flatMap((t) => [t.name, ...t.heads.map((h) => h.head)]));
       const driving = new Set([...q.cells.values()].flatMap((x) => (x.step ? [x.step.driver] : [])));
@@ -309,7 +309,7 @@ describe('which cells roll, and their ghosts', () => {
   });
 
   it('ghosts: what else plays the same table on the same clock, in this cell’s steps', () => {
-    const q = compileSource(
+    const q = compilePiece(
       '&bar scan(1 1 1 1) step=100bpm\n&lead s=saw\n&tune over=&s step=4n 0 2\n&low over=&s step=2n 4\n&s scale(major)\n&out loop=SAMPLE_RATE map=sample [&tune * &lead, &low * &lead]',
     );
     const g = ghostsOf(q, 'tune', 4);
@@ -329,13 +329,13 @@ describe('which cells roll, and their ghosts', () => {
 describe('a braid left free in the roll (#210)', () => {
   const RIFF = '&key scan(2 2 1 2 2 2 1)\n&riff over=&key step=4 free(0 2 4 ~ [0,4]@2 ~ ~)\n&v s=sine\n&out map=sample [&riff * &v]';
   it('reads its steps as they play (a take held, else as written); an edit is the text a take would hold', () => {
-    const r = compileSource(RIFF);
+    const r = compilePiece(RIFF);
     expect(rolls(r, 'riff')).toBe(true);
     const free = freeBraidOf(r, 'riff')!;
     expect(free.spec.key).toBe('braid');
     const read = readBraid(free.words);
     expect(read.ok && toBraid(read.roll)).toEqual(['0', '2', '4', '~', '[0,4]@2', '~@2']);
-    const held = compileSource(RIFF.replace('free(0 2 4 ~ [0,4]@2 ~ ~)', 'free(7 ~ 0@2 ~ ~ ~ ~)'));
+    const held = compilePiece(RIFF.replace('free(0 2 4 ~ [0,4]@2 ~ ~)', 'free(7 ~ 0@2 ~ ~ ~ ~)'));
     const again = readBraid(freeBraidOf(held, 'riff')!.words);
     expect(again.ok && toBraid(toggle(again.roll, 1, 2))).toEqual(['7', '2', '0@2', '~@4']);
     expect(freeBraidOf(r, 'key')).toBeNull();

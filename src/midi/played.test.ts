@@ -3,7 +3,7 @@
 // (`src/core/out.test.ts` there).
 import { describe, expect, it } from 'vitest';
 import { PRESETS } from '@yggi/cells/engine/presets';
-import { compileSource } from '@yggi/cells/engine/compile';
+import { compilePiece } from '../compile';
 import { plan, type Played } from '@yggi/cells/engine/realize';
 import { codeShifts } from '@yggi/cells/engine/program';
 import { retime, windowAt } from '@yggi/cells/engine/schedule';
@@ -73,7 +73,7 @@ describe('MidiOut over every example, window by window as the player plays them'
 
   for (const [f, { source }] of Object.entries(PRESETS))
     it(`${f}: a note-on for every note in range, and every note-on has its note-off`, () => {
-      const r = compileSource(source);
+      const r = compilePiece(source);
       const p = plan(r, codeShifts(r), r.off);
       const port = fakePort('out', 'Synth');
       const midi = new MidiOut(port);
@@ -133,7 +133,7 @@ describe('MidiOut over every example, through a seek within the look-ahead', () 
 
   for (const [f, { source }] of Object.entries(PRESETS))
     it(`${f}: no note sent after the seek is cut, and nothing is left sounding`, () => {
-      const r = compileSource(source);
+      const r = compilePiece(source);
       const p = plan(r, codeShifts(r), r.off);
       const port = fakePort('out', 'Synth');
       const midi = new MidiOut(port);

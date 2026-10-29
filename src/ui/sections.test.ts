@@ -1,12 +1,12 @@
 import { PRESETS } from '@yggi/cells/engine/presets';
 import { describe, expect, it } from 'vitest';
-import { compileSource } from '@yggi/cells/engine/compile';
+import { compilePiece } from '../compile';
 import { buildGraph } from '../layout/drawn';
 import { nodeSections, sectionRgb } from './sections';
 import { sectionTintRgb } from './theme';
 
 describe('sections (decision 016)', () => {
-  const program = compileSource(PRESETS.hypercell.source);
+  const program = compilePiece(PRESETS.hypercell.source);
   const model = buildGraph(program);
   const sections = nodeSections(program, model);
   const k = (name: string) => sections.get(`cell:${name}`)?.k;
@@ -25,7 +25,7 @@ describe('sections (decision 016)', () => {
     expect(sectionRgb(model, sections, 'cell:kit:voices')).toEqual([0, 1, 2].map((i) => Math.round((beat[i]! + roll[i]!) / 2)));
     // (a drum drawn on its kit, no node of its own: its kit's)
     expect(sectionRgb(model, sections, 'cell:bd')).toEqual(sectionRgb(model, sections, 'cell:kit:voices'));
-    const two = compileSource(`
+    const two = compilePiece(`
 &bar scan(1 1 1 1) step=100bpm
 &sections step=4n &aBar &bBar
 &a s=saw loop=C4

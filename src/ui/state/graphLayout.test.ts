@@ -1,6 +1,6 @@
 import { isSide } from '../../layout/side';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { compileSource } from '@yggi/cells/engine/compile';
+import { compilePiece } from '../../compile';
 import { buildGraph } from '../../layout/drawn';
 import { codeShifts } from '@yggi/cells/engine/program';
 import { routing } from '@yggi/cells/engine/routing';
@@ -10,7 +10,7 @@ import { snapshotOf, type GraphSnapshot } from '../snapshot';
 import { GraphLayout } from './graphLayout.svelte';
 
 const snapshot = (key: keyof typeof PRESETS): GraphSnapshot => {
-  const program = compileSource(PRESETS[key].source);
+  const program = compilePiece(PRESETS[key].source);
   return snapshotOf(program, buildGraph(program), codeShifts(program), program.off, routing(program, program.off));
 };
 
@@ -82,7 +82,7 @@ describe('GraphLayout: one snapshot per piece', () => {
 
 describe('a followed session’s next section, laid out held (#493)', () => {
   const of = (source: string): GraphSnapshot => {
-    const program = compileSource(source);
+    const program = compilePiece(source);
     return snapshotOf(program, buildGraph(program), codeShifts(program), program.off, routing(program, program.off));
   };
   const head = '&m step=1\n&A step=&m &B\n&B 0\n&v s=saw\n';

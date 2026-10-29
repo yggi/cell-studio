@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { SAILOR_WITH_KIT } from '@yggi/cells/engine/fixtures';
-import { compileSource } from '@yggi/cells/engine/compile';
+import { compilePiece } from '../compile';
 import { codeShifts, type CompileResult } from '@yggi/cells/engine/program';
 import { buildGraph } from './drawn';
 import { eventsBetween, plan } from '@yggi/cells/engine/realize';
@@ -10,7 +10,7 @@ import { PRESETS } from '@yggi/cells/engine/presets';
 import { mainLength, pieceTime } from '@yggi/cells/engine/duration';
 
 const OUT = '&out loop=SAMPLE_RATE map=sample';
-const src = (...lines: string[]) => compileSource(lines.join('\n'));
+const src = (...lines: string[]) => compilePiece(lines.join('\n'));
 const on = (r: CompileResult, muted: ReadonlySet<string> = r.off) => routing(r, muted);
 /** States as drawn, by short name: nodes `name`, edges `a->b` (step edges `a~>b`); a product's junction `*mix:entry`. */
 function states(r: CompileResult, t: number | null, muted: ReadonlySet<string> = r.off) {
@@ -28,7 +28,7 @@ function states(r: CompileResult, t: number | null, muted: ReadonlySet<string> =
 
 describe('routing: the clocks a parameter reads are wires too (#188, #193)', () => {
   // Baustelle II with a tape and a head that read the bar: `length=&bar/4`, `at=&bar*2/3`
-  const resonanz = () => compileSource(PRESETS.resonanz.source.replace('length=5', 'length=&bar/4').replace('at=1.15', 'at=&bar*2/3'));
+  const resonanz = () => compilePiece(PRESETS.resonanz.source.replace('length=5', 'length=&bar/4').replace('at=1.15', 'at=&bar*2/3'));
   it("a read head's at= clock is lit with the head, as the tape's length= is", () => {
     const r = resonanz();
     expect(r.diagnostics.filter((d) => d.severity === 'error')).toEqual([]);
@@ -95,19 +95,19 @@ describe('routing: one model for what the graph draws as part of the sound (#11)
     expect(at(4.5)).toEqual({ ...both, ...Object.fromEntries(a.map((k) => [k, 'idle'])), ...Object.fromEntries(b.map((k) => [k, 'live'])) });
   });
   it('a kit: its members are part of the sound, and the one struck now is live', () => {
-    const r = compileSource(SAILOR_WITH_KIT);
+    const r = compilePiece(SAILOR_WITH_KIT);
     expect(['bd', 'sd', 'hh', 'kit', 'drums'].every((n) => on(r).nodes.has(`cell:${n}`))).toBe(true);
     const s = states(r, 0.05); // the kick (each member a bulb on the kit: no edge of its own)
     expect([s.get('kit->bd'), s.get('bd'), s.get('kit->hh'), s.get('hh')]).toEqual([undefined, 'live', undefined, 'idle']);
   });
   it('an instrument (a mix used like a voice) and a sound tape it records: all on the way while it plays', () => {
-    const r = compileSource(PRESETS.soundtape.source);
+    const r = compilePiece(PRESETS.soundtape.source);
     const s = states(r, 3);
     for (const k of ['dry', 'tape', 'left', 'right', 'far', 'reel', 'tune->*dry:0', '*dry:0->pluck', 'pluck->dry', 'dry->out', 'dry->tape', 'left->out', 'tape~>reel'])
       expect(s.get(k), k).toBe('live');
   });
   it('a resonator excited by tape heads, and the heads into the sound card', () => {
-    const r = compileSource(PRESETS.resonanz.source);
+    const r = compilePiece(PRESETS.resonanz.source);
     const s = states(r, 2);
     for (const k of ['site->tape', 'h1', 'h1->echo', 'echo->pipeA', 'pipeA->out', 'hammer->*site:0', '*site:0->plate', 'plate->site']) expect(s.get(k), k).toBe('live');
   });
@@ -117,7 +117,7 @@ describe('routing: one model for what the graph draws as part of the sound (#11)
     expect([s.get('m'), s.get('v'), s.get('mel'), s.get('mel->*m:0'), s.get('*m:0->v'), s.get('v->m')]).toEqual(['off', 'unrouted', 'unrouted', 'unrouted', 'unrouted', 'off']);
   });
   it('a table read only through a turning table: what turns it is on the way', () => {
-    const r = compileSource(PRESETS.royal.source);
+    const r = compilePiece(PRESETS.royal.source);
     const s = states(r, 1);
     expect([s.get('key~>theme'), s.get('scale->key')]).toEqual(['live', 'live']);
   });
@@ -126,7 +126,7 @@ describe('routing: one model for what the graph draws as part of the sound (#11)
 describe('routing, every example', () => {
   for (const [key, p] of Object.entries(PRESETS)) {
     it(`${key}: the drawn states agree with each other and with what plays`, () => {
-      const r = compileSource(p.source);
+      const r = compilePiece(p.source);
       const g = buildGraph(r);
       const shifts = codeShifts(r);
       const all = routing(r, r.off);
@@ -180,7 +180,7 @@ describe('at rest, nothing is dimmed (#201)', () => {
   it('every example, stopped: every node and edge is on or off, never unrouted, idle or live', () => {
     const bad: string[] = [];
     for (const [key, p] of Object.entries(PRESETS)) {
-      const s = states(compileSource(p.source), null);
+      const s = states(compilePiece(p.source), null);
       for (const [k, v] of s) if (v !== 'on' && v !== 'off') bad.push(`${key}: ${k} ${v}`);
     }
     expect(bad).toEqual([]);

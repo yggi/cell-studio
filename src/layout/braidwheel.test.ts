@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { compileSource } from '@yggi/cells/engine/compile';
+import { compilePiece, withUsedLine } from '../compile';
 import { codeShifts, DEFAULT_FREQ } from '@yggi/cells/engine/program';
 import { declWords } from '@yggi/cells/engine/edit';
 import { PRESETS } from '@yggi/cells/engine/presets';
@@ -8,9 +8,10 @@ import { noteFrame, tonicOf, voiceBase } from './show';
 
 const piece = (key: keyof typeof PRESETS) => {
   const source = PRESETS[key].source;
-  const result = compileSource(source);
+  const result = compilePiece(source);
   const shifts = codeShifts(result);
-  const at = (name: string) => listed(result, name, shifts, declWords(source, name)?.braid ?? []);
+  // (a used cell's braid as the cell sheet reads it: the piece's text with its used line written in, #480)
+  const at = (name: string) => listed(result, name, shifts, declWords(withUsedLine(source, name), name)?.braid ?? []);
   return { result, shifts, at };
 };
 
@@ -56,8 +57,9 @@ describe('braidwheel: what the sheet shows of a braid', () => {
   it('Acid: a braid made by a function lists the entries it stands for', () => {
     const { result, shifts, at } = piece('acid');
     expect(at('minor')).toEqual({ tokens: ['0', '2', '3', '5', '7', '8', '10'], kind: 'function' });
-    expect(at('bar')).toEqual({ tokens: ['0', '1', '2', '3'], kind: 'function' });
-    expect(lap(result, 'bar')).toBe(4);
+    // (its bar is `meter("4/4")`, used from the library since cells v0.12: the entries it stands for are its levels, the bar's first and three beats)
+    expect(at('bar')).toEqual({ tokens: ['0', '1', '1', '1'], kind: 'function' });
+    expect(lap(result, 'minor')).toBe(12); // a scan's lap: its intervals' sum
     // turned: read from the shifted entry on
     const turned = listed(result, 'minor', (n) => (n === 'minor' ? 2 : shifts(n)), ['scan(2 1 2 2 1 2 2)']);
     expect(turned.tokens).toEqual(['3', '5', '7', '8', '10', '12', '14']);
@@ -74,8 +76,8 @@ describe('braidwheel: what the sheet shows of a braid', () => {
 
   it('an empty braid: the default grid, a step per entry', () => {
     const { result, shifts } = piece('twinkle');
-    const cycle = result.cells.get('scale')!.cycle;
-    expect(listed(result, 'scale', shifts, [])).toEqual({ tokens: Array.from({ length: cycle }, (_, i) => String(i)), kind: 'empty' });
+    const cycle = result.cells.get('key')!.cycle;
+    expect(listed(result, 'key', shifts, [])).toEqual({ tokens: Array.from({ length: cycle }, (_, i) => String(i)), kind: 'empty' });
   });
 
   it("what a cell's sheet pictures, and whether it draws the wheel too", () => {
@@ -85,11 +87,11 @@ describe('braidwheel: what the sheet shows of a braid', () => {
       return [sheetPicture(c), braidVoice(c), sheetWheel(c)];
     };
     expect(of('up')).toEqual([null, false, true]);
-    expect(of('scale')).toEqual([null, false, true]);
+    expect(of('key')).toEqual([null, false, true]);
     expect(of('mix')).toEqual(['signal', false, false]);
     expect(of('lead')).toEqual(['voice', false, false]);
     // (a note: the examples have none since cells #199, a piece of its own has one)
-    const note = compileSource('&about label="what it is" about=&a\n&a loop=A4').cells.get('about')!;
+    const note = compilePiece('&about label="what it is" about=&a\n&a loop=A4').cells.get('about')!;
     expect([sheetPicture(note), braidVoice(note), sheetWheel(note)]).toEqual(['note', false, false]);
   });
 
