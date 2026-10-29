@@ -1,5 +1,5 @@
 import { PRESETS } from '@yggi/cells/engine/presets';
-import { compileSource } from '@yggi/cells/engine/compile';
+import { compilePiece } from '../compile';
 import { describe, expect, it } from 'vitest';
 import { buildGraph } from './drawn';
 import { soundRole, withCard } from './sound';
@@ -7,7 +7,7 @@ import { minimap } from './minimap';
 import { socketHeights, socketId, towerLayers, towerOuts, withSockets } from './towerlayout';
 
 const of = (source: string) => {
-  const program = compileSource(source);
+  const program = compilePiece(source);
   return { program, model: buildGraph(program) };
 };
 

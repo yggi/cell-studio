@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { compileSource } from '@yggi/cells/engine/compile';
+import { compilePiece } from '../compile';
 import { PRESETS } from '@yggi/cells/engine/presets';
 import { heardGrid } from '../layout/show';
 import { tickLevel } from '../layout/meters';
@@ -80,7 +80,7 @@ describe('palette: one function from (band, value, grid) to colour', () => {
 });
 
 describe("the owner's rule: colour follows the grid; a mix hearing several shows none, unless its own show= names one", () => {
-  const r = compileSource(`&edo19 cycle=19 map=edo
+  const r = compilePiece(`&edo19 cycle=19 map=edo
 &bar scan(1 1 1 1) step=1
 &a step=4n 0 2 4
 &b over=&edo19 step=4n 0 3 6
@@ -104,12 +104,12 @@ describe("the owner's rule: colour follows the grid; a mix hearing several shows
   });
   it('a mix that says show=mix:&edo19 follows that grid, whatever its voices', () => expect(heardGrid(r, 'tuned')).toBe('edo19'));
   it('show=mix: names a grid: anything else is a warning, and ignored', () => {
-    const bad = compileSource('&t step=1 0 2\n&v s=sine\n&m show=mix:&t map=sample [&t * &v]');
+    const bad = compilePiece('&t step=1 0 2\n&v s=sine\n&m show=mix:&t map=sample [&t * &v]');
     expect(bad.diagnostics.map((d) => d.message)).toEqual([expect.stringContaining("show=mix:&t: a mix's colours follow a grid")]);
     expect(heardGrid(bad, 'm')).toBe('fifths12TET');
   });
   it('a kit or a drum has no say: a mix of drums and 19-tone voices follows the 19', () => {
-    const k = compileSource(`&edo19 cycle=19 map=edo
+    const k = compilePiece(`&edo19 cycle=19 map=edo
 &bar scan(1 1 1 1) step=1
 &b over=&edo19 step=4n 0 3 6
 &v2 s=saw loop=C4
@@ -124,11 +124,11 @@ describe("the owner's rule: colour follows the grid; a mix hearing several shows
 describe("tickLevel: the level of a meter's tick", () => {
   it("a meter written as levels says each step's; any other clock: its first 0, the rest 1", () => {
     // (the metronome's bar in eighths, * . + . + . + .: levels 0 3 1 3 …; a finer one, 4, is the finest token too)
-    const r = compileSource(PRESETS.metronome.source.replace('free(0, 0..3, "1 2 3 4")', 'free(1, 0..3, "1 2 3 4")'));
+    const r = compilePiece(PRESETS.metronome.source.replace('free(0, 0..3, "1 2 3 4")', 'free(1, 0..3, "1 2 3 4")'));
     const bar = r.cells.get('bar')!;
     expect(bar.meter?.written).toBe('meter');
     expect([0, 1, 2, 3, 8].map((b) => tickLevel(bar, b + 0.3))).toEqual([0, 3, 1, 3, 0]);
-    expect([0, 1.5, 2].map((b) => tickLevel(compileSource('&plain scan(1 1 1) step=1').cells.get('plain'), b))).toEqual([0, 1, 1]);
+    expect([0, 1.5, 2].map((b) => tickLevel(compilePiece('&plain scan(1 1 1) step=1').cells.get('plain'), b))).toEqual([0, 1, 1]);
   });
 });
 

@@ -4,7 +4,7 @@
    * its timing, the tables it reads down to its grid, its range, what plays it
    * (or what it plays), and for a mix every term in it.
    */
-  import { codeShifts, type CompileResult } from '@yggi/cells/engine/program';
+  import { codeShifts, keepsTime, type CompileResult } from '@yggi/cells/engine/program';
   import { resolvePitch, semitones, tableChain } from '@yggi/cells/engine/helix';
   import { flatten } from '@yggi/cells/engine/flatten';
   import { noteName } from '@yggi/cells/theory/modes';
@@ -85,7 +85,7 @@
       out.push(['reads', shown.join(' → ')]);
     }
     // range of what it plays, as notes on its voice (melodies only: a meter's beats or a selector's picks aren't pitches)
-    if (!c.voice && !c.root && !c.mix && !c.sink && !c.note && !result.clocks.get(name)?.positional && !isSelector(result, name)) {
+    if (!c.voice && !c.root && !c.mix && !c.sink && !c.note && !result.clocks.get(name)?.positional && !keepsTime(result, name) && !isSelector(result, name)) {
       try {
         const shifts = codeShifts(result);
         const base = voiceBase(result, name);

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { FreeSpec } from '@yggi/cells/engine/ast';
-import { compileSource } from '@yggi/cells/engine/compile';
+import { compilePiece } from '../compile';
 import { freeAtPlace, freePlace, knobName, knobOf, LOOSE, padValue, readLearned, takeover, type Takeover } from './learn';
 
 const span = { line: 1, col: 1, len: 1 };
@@ -26,13 +26,13 @@ describe("a free()'s place: its cell and what it sets", () => {
     `${above}&bar scan(4 4 4 4) step=free(90bpm, 60..240)\n&fx lpf=free(1200, 200..5000) swing=free(.2, 0..1)\n&mix map=sample [&bar * free(.4, 0..1), &fx * free(.8, 0..1)]\n`;
 
   it('names each free() by cell and key, a second of a kind by its count', () => {
-    const r = compileSource(code(''));
+    const r = compilePiece(code(''));
     const places = [...r.cells.values()].flatMap((c) => c.frees.map((f) => freePlace(r.cells, f))).sort();
     expect(places).toEqual(['bar/step', 'fx/param:lpf', 'fx/param:swing', 'mix/gain', 'mix/gain#1']);
   });
   it('finds the same free() after an edit that moves its place in reading order', () => {
-    const before = compileSource(code(''));
-    const after = compileSource(code('&first scan(4) step=free(2hz, 1..4)\n'));
+    const before = compilePiece(code(''));
+    const after = compilePiece(code('&first scan(4) step=free(2hz, 1..4)\n'));
     expect(freeAtPlace(before.cells, 'fx/param:lpf')?.span.line).toBe(2);
     const moved = freeAtPlace(after.cells, 'fx/param:lpf');
     expect(moved?.span.line).toBe(3);

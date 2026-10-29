@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { C0, F_HI, F_LO, bandHue, bandsFromFFT, freqTurn, hslToRgb, restingProfile, restingSpectrum, wheelLUT } from './spectrum';
-import { compileSource } from '@yggi/cells/engine/compile';
+import { compilePiece } from '../compile';
 import { codeShifts } from '@yggi/cells/engine/program';
 
 describe('voice wheels', () => {
@@ -35,7 +35,7 @@ describe('voice wheels', () => {
   });
 
   it('a resting voice shows its harmonics', () => {
-    const r = compileSource('&m step=1\n&t step=&m 0\n&sq loop=110 0 1\n&sine s=sine loop=440\n&mix_ [&t * &sq, &t * &sine]\n&out_ loop=44k map=sample &mix_');
+    const r = compilePiece('&m step=1\n&t step=&m 0\n&sq loop=110 0 1\n&sine s=sine loop=440\n&mix_ [&t * &sq, &t * &sine]\n&out_ loop=44k map=sample &mix_');
     const sq = restingSpectrum(r, 'sq', codeShifts(r), 64);
     const lit = (x: Float32Array) => [...x].filter((v) => v > 0).length;
     expect(lit(sq.left)).toBeGreaterThan(5); // a square has many partials
@@ -45,7 +45,7 @@ describe('voice wheels', () => {
   });
 
   it('a resting voice is split by its pan: the far side fades, the near one stays full', () => {
-    const r = compileSource('&m step=1\n&t step=&m 0\n&a s=sine loop=440 pan=.2\n&b s=sine loop=440\n&out_ loop=44k map=sample [&t * &a, &t * &b]');
+    const r = compilePiece('&m step=1\n&t step=&m 0\n&a s=sine loop=440 pan=.2\n&b s=sine loop=440\n&out_ loop=44k map=sample [&t * &a, &t * &b]');
     const peak = (x: Float32Array) => Math.max(...x);
     const a = restingSpectrum(r, 'a', codeShifts(r), 64);
     expect(peak(a.left)).toBeCloseTo(1);
@@ -68,7 +68,7 @@ describe('voice wheels', () => {
   });
 
   it('mixes and the sound card have a resting profile too', () => {
-    const r = compileSource(
+    const r = compilePiece(
       '&m step=1\n&t step=&m 0\n&lo s=sine loop=110\n&hi s=sine loop=1760\n&l [&t * &lo]\n&r [&t * &hi * 0.5]\n&both [&t * &lo, &t * &hi]\n&out loop=SAMPLE_RATE map=sample &l &r',
     );
     const lit = (x: Float32Array) => [...x].map((v, i) => (v > 0 ? i : -1)).filter((i) => i >= 0);

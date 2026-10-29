@@ -82,7 +82,7 @@ export function tokenName(result: CompileResult, name: string, shifts: Shifts, t
 /** The braid as a list of tokens, and what kind of braid it is. */
 export interface Listed {
   readonly tokens: readonly string[];
-  /** Written as a list; empty (the default grid); or made by a function (scan(…), sin(…)). */
+  /** Written as a list; empty (the default grid); or made by a function (scan(…), sin(…), meter(…)). */
   readonly kind: 'list' | 'empty' | 'function';
   /** A braid left free whose steps as they play aren't the ones written: a take, held. */
   readonly held?: boolean;
@@ -103,7 +103,7 @@ export function listed(result: CompileResult, name: string, shifts: Shifts, brai
     return { tokens: splitWords(free.braid), kind: 'list', held: free.braid !== written };
   }
   if (braid.length === 0) return { tokens: Array.from({ length: cell?.cycle ?? 12 }, (_, i) => String(i)), kind: 'empty' };
-  if (braid.length === 1 && /^(scan|sin)\(/.test(braid[0]) && cell) {
+  if (braid.length === 1 && /^(scan|sin|meter)\(/.test(braid[0]) && cell) {
     const vals = shiftedUnits(result, name, shifts(name)).map((u) => (u.atom.kind === 'note' ? String(u.atom.value) : '~'));
     return { tokens: vals, kind: 'function' };
   }

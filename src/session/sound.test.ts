@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { compileSource } from '@yggi/cells/engine/compile';
+import { compilePiece } from '../compile';
 import { codeShifts } from '@yggi/cells/engine/program';
 import { eventsBetween, plan } from '@yggi/cells/engine/realize';
 import { NOTHING_FOLLOWED, barSeconds, withBar, withText, type Followed } from './follow';
@@ -27,8 +27,8 @@ const B = `&bar meter("4/4") step=120bpm
 &line step=&bar:16n 0 3 5 7 12 7 5 3
 &v s=sine loop=A4
 &out [&line * &v * .5]`;
-const compiled = new Map([A, B].map((t) => [t, compileSource(t)] as const));
-const length = (t: SectionText) => (t.text ? barSeconds(compiled.get(t.text) ?? compileSource(t.text)) : null);
+const compiled = new Map([A, B].map((t) => [t, compilePiece(t)] as const));
+const length = (t: SectionText) => (t.text ? barSeconds(compiled.get(t.text) ?? compilePiece(t.text)) : null);
 
 /** The bars' starts from 10 s on the host's clock, each bar as long as `lengths` says (a glide). */
 const startsOf = (lengths: readonly number[]) => lengths.reduce<number[]>((s, l, i) => [...s, i ? s[i - 1]! + lengths[i - 1]! : 10], []);

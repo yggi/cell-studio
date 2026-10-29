@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { compileSource } from '@yggi/cells/engine/compile';
+import { compilePiece } from '../compile';
 import { PRESETS } from '@yggi/cells/engine/presets';
 import { flows, type Flow } from '@yggi/cells/engine/flows';
 import { cellId } from '@yggi/cells/engine/ids';
@@ -9,7 +9,7 @@ import { eventsBetween, outputSounds, plan as planOf, returnGains } from '@yggi/
 import { codeShifts } from '@yggi/cells/engine/program';
 
 const OUT = '&out loop=SAMPLE_RATE map=sample';
-const src = (...lines: string[]) => compileSource(lines.join('\n'));
+const src = (...lines: string[]) => compilePiece(lines.join('\n'));
 const show = (fs: Iterable<Flow>) => [...new Set([...fs].map((f) => `${f.kind} ${f.id}`))].sort();
 const isHead = (r: CompileResult, name: string) => typeof r.cells.get(name)?.params.play === 'string';
 /**
@@ -43,7 +43,7 @@ const wired = (r: CompileResult, f: Flow) => {
 describe('voices.sync wires from the flows the graph draws (#132)', () => {
   for (const [key, p] of Object.entries(PRESETS))
     it(`${key}: the connections carry exactly the flows listed`, () => {
-      const r = compileSource(p.source);
+      const r = compilePiece(p.source);
       const listed = flows(r).all;
       const carried = wiring(r, r.off).connections.flatMap((c) => c.flows);
       // (nothing is wired that the graph doesn't draw: the very flows, not copies)
@@ -55,7 +55,7 @@ describe('voices.sync wires from the flows the graph draws (#132)', () => {
 
   it('off, once: no connection touches a cell that is off (every example, every cell)', () => {
     for (const p of Object.values(PRESETS)) {
-      const r = compileSource(p.source);
+      const r = compilePiece(p.source);
       for (const name of r.cells.keys()) {
         const w = wiring(r, new Set([cellId(name)]));
         for (const c of w.connections) expect([c.from, c.to, ...c.flows.flatMap((f) => [f.from, f.to])]).not.toContain(name);
@@ -88,7 +88,7 @@ describe('voices.sync wires from the flows the graph draws (#132)', () => {
 
   it('with nothing off, returns and lone resonators reach the sound card at the levels compile gives them (#165)', () => {
     for (const { source } of Object.values(PRESETS)) {
-      const r = compileSource(source);
+      const r = compilePiece(source);
       for (const x of [...r.returns, ...r.resonances]) expect(returnGains(x, new Set())).toEqual([x.gains[0], x.gains[1]]);
     }
   });
@@ -122,7 +122,7 @@ describe('voices.sync wires from the flows the graph draws (#132)', () => {
   });
 
   it("a mix's wheel hears only the notes that go through it: Baustelle's &einsturz only while it is picked (#77)", () => {
-    const r = compileSource(PRESETS.baustelle.source);
+    const r = compilePiece(PRESETS.baustelle.source);
     const w = wiring(r, r.off);
     const notes = eventsBetween(planOf(r, codeShifts(r), r.off), 0, 600, true);
     const out = new Map(r.outputs.map((o) => [o.id, o]));
@@ -187,7 +187,7 @@ describe('voices.sync wires from the flows the graph draws (#132)', () => {
 
 describe('a voice on a MIDI card alone (decision 039)', () => {
   it('is heard from itself, as one on a sound card; its card switched off, it is not', () => {
-    const r = compileSource('&bar meter("4/4") step=120bpm\n&line step=4n 0 2 4 7\n&sub s=sine loop=A1\n&synth map=midi [&line * &sub]');
+    const r = compilePiece('&bar meter("4/4") step=120bpm\n&line step=4n 0 2 4 7\n&sub s=sine loop=A1\n&synth map=midi [&line * &sub]');
     expect(wiring(r).heard.has('sub')).toBe(true);
     expect(wiring(r, new Set([cellId('synth')])).heard.has('sub')).toBe(false);
   });

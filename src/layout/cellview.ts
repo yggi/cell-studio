@@ -3,7 +3,7 @@
  * a table placed on one lap of the grid below — scales, keys, meters) or a
  * *braid* (slots in time — melodies). Angles are in turns, 0 = 12 o'clock.
  */
-import { adsrOf, type CompileResult, type Shifts } from '@yggi/cells/engine/program';
+import { adsrOf, keepsTime, type CompileResult, type Shifts } from '@yggi/cells/engine/program';
 import { entries, period, positionHue, positionOctave, resolvePitch, semitones, shiftedUnits } from '@yggi/cells/engine/helix';
 import { effectiveShow, type Named, type Show } from './show';
 import { NOTE_NAMES, mod, modeName } from '@yggi/cells/theory/modes';
@@ -499,7 +499,8 @@ export function lfoValues(result: CompileResult, name: string, shifts: Shifts): 
   const perLap = c.rate > 0 ? total / c.rate : 0; // clock steps a cycle
   // (a tap of a meter, `step=4n`: its clock's steps counted as the meter's, decision 040)
   const k = c.clock ? clockCell(result, c.clock) : null;
-  const beats = k && k.cell !== name && result.clocks.get(k.cell)?.positional ? perLap / k.perStep : null;
+  // (a meter's beats: a positional one, or a meter keeping time through a tempo cell, `&bar meter("4/4") step=&tempo`)
+  const beats = k && k.cell !== name && (result.clocks.get(k.cell)?.positional || keepsTime(result, k.cell)) ? perLap / k.perStep : null;
   const rate = !clock || !perLap ? '' : beats === null ? `${fmt(clock.perSecond / perLap)} Hz` : `${fmt(beats)} beats`;
   const swing = Math.abs(lo + hi) < 1e-9 ? `±${fmt(hi)}` : `${fmt(lo)}–${fmt(hi)}`;
   return { wave: raw.map((x) => (x - lo) / span), rate, swing };

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { PRESETS } from '@yggi/cells/engine/presets';
-import { compileSource } from '@yggi/cells/engine/compile';
+import { compilePiece } from '../compile';
 import { codeShifts } from '@yggi/cells/engine/program';
 import { cellView } from '../layout/cellview';
 import { carriesNotes, payloadOf, shapeOf, valuesOf } from './payload';
@@ -27,7 +27,7 @@ describe('which payload an edge carries while it plays (docs/notes/edge-styles.m
 
 describe('what a source sends at each step', () => {
   const at = (src: string, cell: string) => {
-    const p = compileSource(src);
+    const p = compilePiece(src);
     return valuesOf(p, cellView(p, cell, codeShifts(p), false), cell);
   };
   it('a melody: its notes, as its wheel colours them', () => {
@@ -49,7 +49,7 @@ describe('what a source sends at each step', () => {
 
 describe('a voice’s own shape on its wire', () => {
   it('reads its waveform, and a mix or a sample as a sine', () => {
-    const p = compileSource('&a s=saw\n&b s=triangle\n&c s=white\n&d s=sine\n&m map=sample [&a, &b]');
+    const p = compilePiece('&a s=saw\n&b s=triangle\n&c s=white\n&d s=sine\n&m map=sample [&a, &b]');
     expect(['a', 'b', 'c', 'd', 'm'].map((v) => shapeOf(p, v))).toEqual(['saw', 'tri', 'noise', 'sine', 'sine']);
     expect(shapeOf(p, null)).toBe('sine');
   });

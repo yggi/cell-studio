@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { compileSource } from '@yggi/cells/engine/compile';
+import { compilePiece } from '../compile';
 import { codeShifts } from '@yggi/cells/engine/program';
 import { PRESETS } from '@yggi/cells/engine/presets';
 import { setAttr } from '@yggi/cells/engine/edit';
 import { fieldsOf, formatLabel, labelText } from './labels';
 
 describe('label templates', () => {
-  const royal = compileSource(PRESETS.royal.source);
+  const royal = compilePiece(PRESETS.royal.source);
   it('fields of a cell: its notes, tonic, mode; steps, tempo, shift', () => {
     const f = fieldsOf(royal, 'scale', codeShifts(royal));
     expect(f).toMatchObject({ notes: 'C D E♭ F G A♭ B♭', tonic: 'C', mode: '**Minor** (*Aeolian*)', steps: '7' });
@@ -29,7 +29,7 @@ describe('label templates', () => {
     expect(formatLabel(royal, 'scale', '**{mode}** on {tonic}', codeShifts(royal))).toBe('<b>Minor</b> (<i>Aeolian</i>) on C');
   });
   it('a label= written with fields, in an example', () => {
-    const r = compileSource(setAttr(PRESETS.royal.source, 'scale', 'label', '"{mode}: {notes}"'));
+    const r = compilePiece(setAttr(PRESETS.royal.source, 'scale', 'label', '"{mode}: {notes}"'));
     expect(labelText(r, 'scale', r.cells.get('scale')!.label!, codeShifts(r))).toBe('Minor (Aeolian): C D E♭ F G A♭ B♭');
   });
 });

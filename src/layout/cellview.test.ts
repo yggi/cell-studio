@@ -1,13 +1,13 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { SAILOR_WITH_KIT } from '@yggi/cells/engine/fixtures';
-import { compileSource } from '@yggi/cells/engine/compile';
+import { compilePiece } from '../compile';
 import { codeShifts, type Shifts } from '@yggi/cells/engine/program';
 import { blank, cellView, drawnOf, hubLabel, isGrid, selectorOf, selectorRow, swungTurn, valueAt, valueSpectrum, type CellView } from './cellview';
 import { handOf } from './glyph';
 import { PRESETS } from '@yggi/cells/engine/presets';
 
-const r = compileSource(PRESETS.royal.source);
+const r = compilePiece(PRESETS.royal.source);
 const with_ =
   (o: Record<string, number>): Shifts =>
   (n) =>
@@ -15,7 +15,7 @@ const with_ =
 
 describe('cellView', () => {
   it('an unplayed set of entries in its own order is a table, drawn evenly (the circle of fifths); a curve or a motif with a repeat stays a braid', () => {
-    const q = compileSource('&circle fifths()\n&curve 0 1 .3 -1\n&tune 0 2 4 2\n&wide 0 7 14');
+    const q = compilePiece('&circle fifths()\n&curve 0 1 .3 -1\n&tune 0 2 4 2\n&wide 0 7 14');
     const mode = (n: string) => cellView(q, n, codeShifts(q), false)?.mode;
     expect(['circle', 'curve', 'tune', 'wide'].map(mode)).toEqual(['grid', 'braid', 'braid', 'braid']);
     // (evenly round, in its own order)
@@ -48,12 +48,12 @@ describe('cellView', () => {
     const key = cellView(r, 'key', with_({ key: 3 }), false)!;
     expect(key.segments[0]).toMatchObject({ index: 0 });
     expect(key.taps!.map((t) => Math.round(t * 12))).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]);
-    const equal = compileSource('&key shift=2\n&mode over=&key scan(2 2 1 2 2 2 1) shift=1 show=equal\n&lead over=&mode 0 2 4');
+    const equal = compilePiece('&key shift=2\n&mode over=&key scan(2 2 1 2 2 2 1) shift=1 show=equal\n&lead over=&mode 0 2 4');
     expect(cellView(equal, 'mode', codeShifts(equal), false)!.taps).toEqual([0, 1, 2, 3, 4, 5, 6].map((j) => j / 7));
   });
 
   it('a mode’s hub: the key’s 12 coming in as the key pushes them, the 7 it takes lit, each wired to its entry', () => {
-    const b = compileSource('&key shift=2\n&mode over=&key scan(2 2 1 2 2 2 1) shift=1');
+    const b = compilePiece('&key shift=2\n&mode over=&key scan(2 2 1 2 2 2 1) shift=1');
     const v = cellView(b, 'mode', codeShifts(b), false)!;
     const hub = v.hub!;
     expect(hub.slots).toHaveLength(12);
@@ -75,7 +75,7 @@ describe('cellView', () => {
   });
 
   it('a swung meter’s own steps sit where they play (cells v0.4.0: Clock.swung); a meter whose steps it doesn’t move stays even', () => {
-    const sw = compileSource('&bar meter("4/4", 2) step=120bpm swing=8n:2/3\n&a step=8n 0 2\n&v s=sine\n&out map=sample [&a * &v]');
+    const sw = compilePiece('&bar meter("4/4", 2) step=120bpm swing=8n:2/3\n&a step=8n 0 2\n&v s=sine\n&out map=sample [&a * &v]');
     // (a meter(…) isn't a positional clock: the graph draws it as its braid of levels, not as a meter)
     const v = cellView(sw, 'bar', codeShifts(sw), false)!;
     expect(v.mode).toBe('braid');
@@ -88,7 +88,7 @@ describe('cellView', () => {
     expect(swungTurn(v.swung!, 1.5 / 8)).toBeCloseTo(5 / 24, 9); // (halfway through its short step)
     expect(swungTurn(v.swung!, 1 + 3 / 8)).toBeCloseTo(1 + 5 / 12, 9);
     expect(handOf(v, () => 1, sw.cells.get('bar')!.steps)).toBeCloseTo(1 / 6, 9);
-    const quarters = compileSource('&bar meter("4/4") step=120bpm swing=8n:2/3\n&a step=8n 0 2\n&v s=sine\n&out map=sample [&a * &v]');
+    const quarters = compilePiece('&bar meter("4/4") step=120bpm swing=8n:2/3\n&a step=8n 0 2\n&v s=sine\n&out map=sample [&a * &v]');
     expect(cellView(quarters, 'bar', codeShifts(quarters), true)!.segments.map((s) => s.t1 - s.t0)).toEqual([0.25, 0.25, 0.25, 0.25]);
   });
 
@@ -115,7 +115,7 @@ describe('hubLabel', () => {
 
 describe('kits and voices', () => {
   it('draws a kit as its voices', () => {
-    const r2 = compileSource('&bd s=sine step=55\n&sd s=white\n&kit &bd &sd');
+    const r2 = compilePiece('&bd s=sine step=55\n&sd s=white\n&kit &bd &sd');
     expect(cellView(r2, 'kit', codeShifts(r2), false)!.segments).toHaveLength(2);
     expect(hubLabel(r2, 'kit', codeShifts(r2), false, null)).toEqual({ big: '2', small: 'voices' });
   });
@@ -124,14 +124,14 @@ describe('kits and voices', () => {
 describe('a table of sections', () => {
   it('counts its sections as paths at its hub, not steps', () => {
     const src = readFileSync('tools/gallery/golden/golden.cells', 'utf8');
-    const r = compileSource(src);
+    const r = compilePiece(src);
     expect(hubLabel(r, 'sections', codeShifts(r), false, null)).toEqual({ big: '2', small: 'paths' });
   });
 });
 
 describe('voices', () => {
   it('draws a voice’s braid as its steps (a waveform), not as a set on the grid', () => {
-    const r2 = compileSource('&v loop=440 0 1\n&m step=1\n&t step=&m 0\n&mix_ [&t * &v]\n&out_ loop=44k map=sample &mix_');
+    const r2 = compilePiece('&v loop=440 0 1\n&m step=1\n&t step=&m 0\n&mix_ [&t * &v]\n&out_ loop=44k map=sample &mix_');
     expect(cellView(r2, 'v', codeShifts(r2), false)!.mode).toBe('braid');
     expect(hubLabel(r2, 'v', codeShifts(r2), false, null)).toEqual({ big: '2', small: 'steps' });
   });
@@ -139,18 +139,18 @@ describe('voices', () => {
 
 describe('played cells', () => {
   it('a one-step braid that is played is drawn as a braid (with a hand), not as a set', () => {
-    const r2 = compileSource('&m step=1\n&s scan(2 1 2 2 1 2 2)\n&pedal over=&s step=&m*2 0\n&v loop=65\n&mix_ [&pedal * &v]\n&out_ loop=44k map=sample &mix_');
+    const r2 = compilePiece('&m step=1\n&s scan(2 1 2 2 1 2 2)\n&pedal over=&s step=&m*2 0\n&v loop=65\n&mix_ [&pedal * &v]\n&out_ loop=44k map=sample &mix_');
     expect(cellView(r2, 'pedal', codeShifts(r2), false)!).toMatchObject({ mode: 'braid', segments: [{ t0: 0, t1: 1 }] });
     expect(hubLabel(r2, 'pedal', codeShifts(r2), false, null)).toEqual({ big: '1', small: 'step' });
     // the same braid used as a table stays a grid
-    const r3 = compileSource('&t 0\n&x over=&t 0 1');
+    const r3 = compilePiece('&t 0\n&x over=&t 0 1');
     expect(cellView(r3, 't', codeShifts(r3), false)!.mode).toBe('grid');
   });
 });
 
 describe('braids made of references', () => {
   it('carry the colours of what they reference, transitively, through their own table', () => {
-    const r2 = compileSource(SAILOR_WITH_KIT);
+    const r2 = compilePiece(SAILOR_WITH_KIT);
     const hues = (n: string) => cellView(r2, n, codeShifts(r2), false)!.segments.map((s) => s.bands.map((b) => (b.kind === 'pitch' ? b.hue : b.kind)));
     // &A = &m1 &m2: eight coloured notes, no grey reference slots
     expect(hues('A')).toHaveLength(8);
@@ -174,7 +174,7 @@ describe('braids made of references', () => {
   });
 
   it('keeps rests as rests and chords as bands', () => {
-    const r2 = compileSource('&c [0,4,7]\n&x 0 ~ &c');
+    const r2 = compilePiece('&c [0,4,7]\n&x 0 ~ &c');
     const v = cellView(r2, 'x', codeShifts(r2), false)!;
     expect(v.segments.map((s) => s.bands.length)).toEqual([1, 1, 3]);
     expect(v.segments[1].bands[0]).toEqual({ kind: 'rest' });
@@ -204,7 +204,7 @@ describe('a turn eases from where the wheel was', () => {
     ['twinkle', 'down', 2],
   ] as const) {
     it(`${example} &${cell} turned ${delta > 0 ? '+' : ''}${delta}: the new drawing, turned back by the start angle, is the old one`, () => {
-      const r = compileSource(PRESETS[example].source);
+      const r = compilePiece(PRESETS[example].source);
       const at = (n: number) => cellView(r, cell, (x) => (x === cell ? n : codeShifts(r)(x)), false)!;
       const old = at(0);
       const now = at(delta);
@@ -221,7 +221,7 @@ describe('a turn eases from where the wheel was', () => {
     ['scale', 1],
   ] as const)
     it(`a table turns as a braid does: royal &${cell} turned ${delta}, turned back by the start angle, is the old one`, () => {
-      const r = compileSource(PRESETS.royal.source);
+      const r = compilePiece(PRESETS.royal.source);
       const at = (n: number) => cellView(r, cell, (x) => (x === cell ? n : codeShifts(r)(x)), false)!;
       const old = at(0);
       const k = ((delta % old.detents) + old.detents) % old.detents;
@@ -236,9 +236,9 @@ describe('a turn eases from where the wheel was', () => {
 
 describe('drawnOf', () => {
   it('a gate draws its trigger’s braid, a read head its tape’s source, any other cell its own', () => {
-    const gate = compileSource(PRESETS.gate.source);
+    const gate = compilePiece(PRESETS.gate.source);
     expect([drawnOf(gate, 'leadOut'), drawnOf(gate, 'drumOut')]).toEqual(['tune', 'beat']);
-    const tape = compileSource(PRESETS.echotape.source);
+    const tape = compilePiece(PRESETS.echotape.source);
     expect(['near', 'mid', 'far'].map((n) => drawnOf(tape, n))).toEqual(['tune', 'tune', 'tune']);
     expect(drawnOf(r, 'theme')).toBe('theme');
     expect(drawnOf(r, 'noSuchCell')).toBe('noSuchCell');
@@ -246,7 +246,7 @@ describe('drawnOf', () => {
 });
 
 describe('a 0 that means nothing but now is white (decision 036)', () => {
-  const of = (key: keyof typeof PRESETS) => compileSource(PRESETS[key].source);
+  const of = (key: keyof typeof PRESETS) => compilePiece(PRESETS[key].source);
   it("is white where another value would change nothing: a section's clock, a groove of one drum", () => {
     const pop = of('pop');
     expect(blank(pop, 'bassBar')).toBe(true);
@@ -264,7 +264,7 @@ describe('a 0 that means nothing but now is white (decision 036)', () => {
 
 describe("a wheel's spectrum of values", () => {
   it('weighs each value by how long it holds it, rests aside, low to high, and finds the one it holds now', () => {
-    const p = compileSource('&bar step=2\n&t step=&bar 0 4 ~ 0@2');
+    const p = compilePiece('&bar step=2\n&t step=&bar 0 4 ~ 0@2');
     const v = cellView(p, 't', codeShifts(p), false)!;
     const s = valueSpectrum(v);
     expect(s).toHaveLength(2);
@@ -278,7 +278,7 @@ describe("a wheel's spectrum of values", () => {
 
 describe("a selector's table of sections, as values", () => {
   it('is a value an entry, each its section, though its steps all draw alike (beats)', () => {
-    const pop = compileSource(PRESETS.pop.source);
+    const pop = compilePiece(PRESETS.pop.source);
     const v = cellView(pop, 'sections', codeShifts(pop), false)!;
     expect(valueSpectrum(v)).toHaveLength(1);
     expect(valueSpectrum(v, true).map((e) => e.index)).toEqual([0, 1, 2, 3, 4, 5]);
@@ -286,7 +286,7 @@ describe("a selector's table of sections, as values", () => {
 });
 
 describe("a selector's sections (the tower strip's row)", () => {
-  const p = compileSource(`
+  const p = compilePiece(`
 &bar scan(1 1 1 1) step=100bpm
 &a s=saw loop=C4
 &sections step=4n &aBar &bBar &cBar

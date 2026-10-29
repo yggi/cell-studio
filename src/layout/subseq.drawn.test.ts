@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { compileSource } from '@yggi/cells/engine/compile';
+import { compilePiece } from '../compile';
 import { codeShifts } from '@yggi/cells/engine/program';
 import { liveAt } from '@yggi/cells/engine/live';
 import { buildGraph } from './drawn';
@@ -7,9 +7,9 @@ import { cellView } from './cellview';
 
 // Brackets read as Strudel's mini-notation does (decision 027): `[a b]` a subsequence, `[a, b]` a chord, `[a b, c]` a stack.
 
-type R = ReturnType<typeof compileSource>;
+type R = ReturnType<typeof compilePiece>;
 const clean = (src: string): R => {
-  const r = compileSource(src);
+  const r = compilePiece(src);
   expect(r.diagnostics.filter((d) => d.severity === 'error')).toEqual([]);
   return r;
 };

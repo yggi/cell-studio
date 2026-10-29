@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { compileSource } from '@yggi/cells/engine/compile';
+import { compilePiece } from '../compile';
 import { codeShifts } from '@yggi/cells/engine/program';
 import { PRESETS } from '@yggi/cells/engine/presets';
 import { playedCells, shiftsAt } from '@yggi/cells/engine/clocking';
@@ -15,7 +15,7 @@ describe('one motion per wheel: a played cell its hand, a table nothing plays it
     const turned: string[] = [];
     const still: string[] = [];
     for (const [key, p] of Object.entries(PRESETS)) {
-      const r = compileSource(p.source);
+      const r = compilePiece(p.source);
       const statics = codeShifts(r);
       const played = playedCells(r);
       const moved = new Set<string>();
@@ -32,7 +32,7 @@ describe('one motion per wheel: a played cell its hand, a table nothing plays it
   });
 
   it("a braid's bulbs stay where they are on its track while it plays: its splices as written too", () => {
-    const r = compileSource(PRESETS.drums.source);
+    const r = compilePiece(PRESETS.drums.source);
     const statics = codeShifts(r);
     const atRest = cellView(r, 'groove', statics, false)!;
     expect(atRest.bulbs?.length).toBeGreaterThan(0);
@@ -44,9 +44,9 @@ describe('one motion per wheel: a played cell its hand, a table nothing plays it
   });
 
   it("the graph's redraw key counts the tables that turn, not the cells that are only played", () => {
-    const r = compileSource(PRESETS.drums.source);
+    const r = compilePiece(PRESETS.drums.source);
     expect(turningCells(r)).not.toContain('groove');
-    expect(turningCells(compileSource(PRESETS.royal.source))).toContain('key');
+    expect(turningCells(compilePiece(PRESETS.royal.source))).toContain('key');
   });
 
   // cells #167: a table both played and read through. Drawn as played (its hand on the chord sounding); its reader
@@ -63,7 +63,7 @@ describe('one motion per wheel: a played cell its hand, a table nothing plays it
   ].join('\n');
 
   it('a table that also plays (cells #167): its own ring still, its hand going round; its readers see it turn', () => {
-    const r = compileSource(both);
+    const r = compilePiece(both);
     expect(r.diagnostics).toEqual([]);
     const statics = codeShifts(r);
     expect(playedCells(r).has('harm')).toBe(true);

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { compileSource } from '@yggi/cells/engine/compile';
+import { compilePiece } from '../compile';
 import { buildGraph } from './drawn';
 
 const voices =
@@ -7,7 +7,7 @@ const voices =
 
 describe('a stepped braid of voices plays them (#10 F4)', () => {
   it("draws the drums as one kit: each groove's one wire into it, its one wire out to the mix", () => {
-    const r = compileSource(voices + '&groove step=8n &bd &hh &bd &sd\n&beat step=4n &bd ~ &sd ~\n&out map=sample [&groove, &beat]');
+    const r = compilePiece(voices + '&groove step=8n &bd &hh &bd &sd\n&beat step=4n &bd ~ &sd ~\n&out map=sample [&groove, &beat]');
     const g = buildGraph(r);
     // (the kit the grooves read is drawn, the voices only they play its pieces: no node of their own)
     expect(g.nodes.some((n) => n.id === 'cell:kit:voices')).toBe(true);

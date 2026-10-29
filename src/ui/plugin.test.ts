@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { compileSource } from '@yggi/cells/engine/compile';
+import { compilePiece } from '../compile';
 import { setAttr } from '@yggi/cells/engine/edit';
 import { PRESETS } from '@yggi/cells/engine/presets';
 import { drawPlugin, loadPlugin } from './plugin';
@@ -10,11 +10,11 @@ import { attributesOf, boundedTree, h, plainAttribute, TAGS, type PNode } from '
 import { viewOf } from './pluginView';
 
 const errors = (src: string) =>
-  compileSource(src)
+  compilePiece(src)
     .diagnostics.filter((d) => d.severity === 'error')
     .map((d) => d.message);
 
-const day = compileSource(PRESETS.fiveto12.source);
+const day = compilePiece(PRESETS.fiveto12.source);
 const sun = day.plugins.get('sun')!;
 
 /** Every element of a drawing. */
@@ -23,7 +23,7 @@ const elements = (n: readonly PNode[]): { t: string; a: Record<string, string | 
 describe('the sun, a built-in plugin', () => {
   it('is the app’s own: 5 to 12 and Clock time name it and carry no code', () => {
     for (const key of ['fiveto12', 'daytime'] as const) {
-      const r = compileSource(PRESETS[key].source);
+      const r = compilePiece(PRESETS[key].source);
       expect(r.diagnostics.filter((d) => d.severity === 'error')).toEqual([]);
       expect(PRESETS[key].source).not.toContain('=== plugin');
       expect(r.plugins.get('sun')).toBe(sun);
@@ -34,7 +34,7 @@ describe('the sun, a built-in plugin', () => {
 
   it('is there for any piece, and a piece cannot write another of its name', () => {
     const own = (name: string) => `&bar scan(1 1) step=60bpm show=${name}\n=== plugin ${name} ===\n{ "fits": ["meter"] }\nfunction draw() { return []; }\n=== end ===`;
-    expect(compileSource('&day scan(1!24) loop=1d show=sun').plugins.get('sun')?.builtin).toBe(true);
+    expect(compilePiece('&day scan(1!24) loop=1d show=sun').plugins.get('sun')?.builtin).toBe(true);
     expect(errors(own('sun'))[0]).toMatch(/sun is a show of its own/);
     expect(errors('&day scan(1!24) loop=1d show=moon')[0]).toMatch(/not one of the built-in plugins \(sun\)/);
   });
@@ -195,21 +195,21 @@ describe('a manifest', () => {
     expect(errors(block('{ "__proto__": "red" }')).join()).toMatch(/__proto__/);
   });
   it('is part of what is trusted: the key changes with the manifest as with the code', () => {
-    const at = (tokens: string) => pluginKey(compileSource(block(tokens)).plugins.get('ring')!);
+    const at = (tokens: string) => pluginKey(compilePiece(block(tokens)).plugins.get('ring')!);
     expect(at('{ "a": "red" }')).not.toBe(at('{ "a": "blue" }'));
     expect(at('{ "a": "red" }')).toBe(at('{ "a": "red" }'));
     expect(pluginKey(sun)).toContain('function draw(');
   });
   it('is the same with the line endings of another system', () => {
-    const lf = compileSource(block('{ "a": "red" }').replace('function draw() { return []; }', 'function draw() {\n  return [];\n}')).plugins.get('ring')!;
-    const crlf = compileSource(block('{ "a": "red" }').replace('function draw() { return []; }', 'function draw() {\r\n  return [];\r\n}')).plugins.get('ring')!;
+    const lf = compilePiece(block('{ "a": "red" }').replace('function draw() { return []; }', 'function draw() {\n  return [];\n}')).plugins.get('ring')!;
+    const crlf = compilePiece(block('{ "a": "red" }').replace('function draw() { return []; }', 'function draw() {\r\n  return [];\r\n}')).plugins.get('ring')!;
     expect(pluginKey(crlf)).toBe(pluginKey(lf));
   });
 });
 
 describe('what runs', () => {
   const ring = () =>
-    compileSource(`&bar scan(1 1) step=60bpm show=ring\n=== plugin ring ===\n{ "fits": ["meter"] }\nfunction draw() { return []; }\n=== end ===`).plugins.get('ring')!;
+    compilePiece(`&bar scan(1 1) step=60bpm show=ring\n=== plugin ring ===\n{ "fits": ["meter"] }\nfunction draw() { return []; }\n=== end ===`).plugins.get('ring')!;
   it('is the app’s own plugins, and the piece’s own only once the user has chosen it', () => {
     expect(isTrusted(sun)).toBe(true);
     expect(isTrusted(ring())).toBe(false);
@@ -224,7 +224,7 @@ describe('what runs', () => {
     const copy = `&bar scan(1 1) step=60bpm show=sun\n=== plugin sun ===\n{ "fits": ["meter"] }\n${sun.code}\n=== end ===`;
     expect(errors(copy).join()).toMatch(/sun is a show of its own/);
     // (and the plugin it names is still the app's)
-    expect(compileSource(copy).plugins.get('sun')).toBe(sun);
+    expect(compilePiece(copy).plugins.get('sun')).toBe(sun);
   });
 });
 
@@ -233,6 +233,6 @@ describe('a plugin in the text', () => {
     const src = `&bar scan(1 1) step=60bpm show=ring\n&v s=sine loop=C4 lpf=1000\n=== plugin ring ===\n{ "fits": ["meter"] }\nfunction draw() { return []; }\n=== end ===`;
     const edited = setAttr(src, 'v', 'lpf', '2400');
     expect(edited).toContain('function draw() { return []; }');
-    expect(compileSource(edited).plugins.get('ring')?.code).toBe('function draw() { return []; }');
+    expect(compilePiece(edited).plugins.get('ring')?.code).toBe('function draw() { return []; }');
   });
 });

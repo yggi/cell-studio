@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { compileSource } from '@yggi/cells/engine/compile';
+import { compilePiece } from '../compile';
 import { codeShifts, type CompileResult } from '@yggi/cells/engine/program';
 import { PRESETS } from '@yggi/cells/engine/presets';
 import { lapOf } from '@yggi/cells/engine/readers';
@@ -48,8 +48,8 @@ const g = wheelGeometry(128);
 const view = (r: CompileResult, name: string, isMeter = false): CellView => cellView(r, drawnOf(r, name), codeShifts(r), isMeter)!;
 const trackOf = (v: CellView) => (v.bulbs?.length ? layTrack(g.c, g.c, (g.rInner + g.rOuter) / 2, g.rOuter - g.rInner, v.bulbs) : null);
 
-const pop = compileSource(PRESETS.pop.source);
-const transpose = compileSource(PRESETS.transpose.source);
+const pop = compilePiece(PRESETS.pop.source);
+const transpose = compilePiece(PRESETS.transpose.source);
 
 describe('a table of sections (Pop’s &sections: &bassBar &keysBar …)', () => {
   const parts = view(pop, 'sections');
@@ -185,7 +185,7 @@ describe('a braid (Transpose’s &theme, show=notes)', () => {
 
 describe('a braid with splices (#221)', () => {
   it('Pachelbel’s &line: its steps named along its track, its unnamed bulbs without a name', () => {
-    const p = compileSource(PRESETS.pachelbel.source);
+    const p = compilePiece(PRESETS.pachelbel.source);
     const line = view(p, 'line');
     const track = trackOf(line);
     expect(track).not.toBeNull();
@@ -210,7 +210,7 @@ describe('a braid with splices (#221)', () => {
     expect(bulbLabels(p, track, false, '').map((b) => b.text)).toEqual(['', '', '']);
   });
   it('Twinkle’s &tune in its sheet: a token on each written step, none while the text is a step ahead', () => {
-    const t = compileSource(PRESETS.twinkle.source);
+    const t = compilePiece(PRESETS.twinkle.source);
     const tune = view(t, 'tune');
     const tokens = t.cells.get('tune')!.units.map((_, i) => `t${i}`);
     const units = stepUnits(tune, tokens, tokens.length, 0, trackOf(tune), g);
@@ -258,12 +258,12 @@ describe('the segments’ paths (#41)', () => {
 
 describe('the rest of what a wheel can be', () => {
   it('show=brightness (the golden graph’s &blues): each degree by the brightness of the mode on it', () => {
-    const golden = compileSource(readFileSync('tools/gallery/golden/golden.cells', 'utf8'));
+    const golden = compilePiece(readFileSync('tools/gallery/golden/golden.cells', 'utf8'));
     expect(brightnessOf(view(golden, 'blues'))).toEqual([0.5, 0, 0, 0.5, 1, 0.5]);
     expect(brightnessOf(view(pop, 'major'))).toBeNull();
   });
   it('show=lfo (Royal’s): a cycle round the ring, a dot at its phase while it plays', () => {
-    const royal = compileSource(PRESETS.royal.source);
+    const royal = compilePiece(PRESETS.royal.source);
     // (unnamed, &(…): found by what it is, not by its line)
     const name = [...royal.cells.keys()].find((n) => view(royal, n).mode === 'lfo')!;
     const lfo = view(royal, name);

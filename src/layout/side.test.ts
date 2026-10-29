@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { buildGraph } from './drawn';
-import { compileSource } from '@yggi/cells/engine/compile';
+import { compilePiece } from '../compile';
 import { PRESETS } from '@yggi/cells/engine/presets';
 import { isSide, sideEntries, sideless } from './side';
 
@@ -15,7 +15,7 @@ const SRC = `&intro label="A tune and its bass." about=&out
 
 describe('the margin: notes and scopes beside the graph', () => {
   it('takes notes and scopes out of the graph, with their edges and readers', () => {
-    const model = buildGraph(compileSource(SRC));
+    const model = buildGraph(compilePiece(SRC));
     const g = sideless(model);
     const names = g.nodes.map((n) => n.cell?.name);
     expect(names).not.toContain('intro');
@@ -29,7 +29,7 @@ describe('the margin: notes and scopes beside the graph', () => {
   });
 
   it('numbers the notes in the order the piece writes them, each with what it is about; a scope with what it watches', () => {
-    const entries = sideEntries(buildGraph(compileSource(SRC)));
+    const entries = sideEntries(buildGraph(compilePiece(SRC)));
     expect(entries.map((e) => [e.name, e.kind, e.mark, e.about])).toEqual([
       ['intro', 'note', 1, ['cell:out']],
       ['tuneNote', 'note', 2, ['cell:tune']],
@@ -39,7 +39,7 @@ describe('the margin: notes and scopes beside the graph', () => {
 
   it('every example: what the margin holds is all its notes and scopes, and the graph keeps the rest', () => {
     for (const [key, p] of Object.entries(PRESETS)) {
-      const model = buildGraph(compileSource(p.source));
+      const model = buildGraph(compilePiece(p.source));
       const side = model.nodes.filter(isSide).length;
       expect(sideEntries(model).length, key).toBe(side);
       expect(sideless(model).nodes.length, key).toBe(model.nodes.length - side);

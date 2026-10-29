@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest';
-import { compileSource } from '@yggi/cells/engine/compile';
 import { compilePiece } from '../compile';
 import { feeds, type GraphEdge } from '@yggi/cells/engine/graph';
 import { buildGraph } from '../layout/drawn';
@@ -75,7 +74,7 @@ describe('what an edge carries: one lookup by band and port', () => {
   it('from a read head drawn as a bulb on its tape: what the head’s own edge carries (decision 021)', () => {
     let n = 0;
     for (const key of ['echotape', 'soundtape', 'worn', 'resonanz'] as const) {
-      const program = compileSource(PRESETS[key].source);
+      const program = compilePiece(PRESETS[key].source);
       const own = new Map(buildGraph(program, { bulbs: false }).edges.map((e) => [e.id, e]));
       for (const e of buildGraph(program).edges.filter((x) => x.bulb && own.has(x.id))) {
         expect(carried(e, program), `${key}: ${e.id}`).toEqual(carried(own.get(e.id)!, program));
@@ -86,7 +85,7 @@ describe('what an edge carries: one lookup by band and port', () => {
   });
 
   it('pulses a clock’s ticks with the cell they drive, and a melody into its voice with its steps', () => {
-    const program = compileSource(SRC);
+    const program = compilePiece(SRC);
     const model = buildGraph(program);
     const edge = (port: string) => model.edges.find((e) => e.port === port)!;
     expect(carried(edge('step'), program)).toEqual({ phaseCell: 'tune', voice: null });
@@ -95,7 +94,7 @@ describe('what an edge carries: one lookup by band and port', () => {
   });
 
   it('carries a sound spliced into its reader as sound (#238); a melody spliced in stays a value', () => {
-    const program = compileSource(`&bar scan(1 1 1 1) step=120bpm
+    const program = compilePiece(`&bar scan(1 1 1 1) step=120bpm
 &bd s=sine loop=C2
 &sd s=white
 &groove step=4n &bd ~ &sd ~
@@ -118,7 +117,7 @@ describe('what an edge carries: one lookup by band and port', () => {
 
 describe('sound up through patterns (#273): a pattern of voices spliced into another carries sound', () => {
   const edge = (source: string, from: string, to: string) => {
-    const program = compileSource(source);
+    const program = compilePiece(source);
     const e = buildGraph(program).edges.find((x) => x.from === `cell:${from}` && x.to === `cell:${to}`);
     return { e: e!, program };
   };
@@ -140,7 +139,7 @@ describe('sound up through patterns (#273): a pattern of voices spliced into ano
 describe('the flow’s edges of a snapshot', () => {
   it('carry no pointer, and read only cells of their own program', () => {
     for (const key of ['baustelle', 'resonanz', 'twinkle'] as const) {
-      const program = compileSource(PRESETS[key].source);
+      const program = compilePiece(PRESETS[key].source);
       const model = buildGraph(program);
       const s = snapshotOf(program, model, codeShifts(program), program.off, routing(program, program.off));
       const edges = flowEdgesOf(s, { sizeOf: () => 128, net: [], lit: false, live: null });

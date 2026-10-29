@@ -1,6 +1,6 @@
 import { PRESETS } from '@yggi/cells/engine/presets';
 import { describe, expect, it } from 'vitest';
-import { compileSource } from '@yggi/cells/engine/compile';
+import { compilePiece } from '../compile';
 import { codeShifts } from '@yggi/cells/engine/program';
 import { cellView, type Fill, type Segment } from './cellview';
 import { BORDER, MAX_SEGMENTS, border, coarsen } from './coarse';
@@ -108,7 +108,7 @@ describe('coarsen', () => {
 });
 
 describe('coarsen on the Prelude', () => {
-  const r = compileSource(PRESETS.bwv847.source);
+  const r = compilePiece(PRESETS.bwv847.source);
   const sh = codeShifts(r);
 
   it('brings the long braids to about the cap, and leaves what is under it alone', () => {

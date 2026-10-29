@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { compileSource } from '@yggi/cells/engine/compile';
+import { compilePiece } from '../compile';
 import { codeShifts } from '@yggi/cells/engine/program';
 import { lastNoteAt } from '@yggi/cells/engine/values';
 import { PRESETS } from '@yggi/cells/engine/presets';
@@ -27,7 +27,7 @@ describe('an envelope now', () => {
 });
 
 describe("a voice's envelope and the notes through it", () => {
-  const r = compileSource(`&bar scan(4) step=120bpm
+  const r = compilePiece(`&bar scan(4) step=120bpm
 &env map=adsr .01 .2 .5 .3
 &tune step=1m 0 2 4 5
 &bass step=1m/2 0 3
@@ -57,7 +57,7 @@ describe("a voice's envelope and the notes through it", () => {
 
 describe('an envelope as its wheel draws it (CellGlyph, show=adsr)', () => {
   // (Transpose's voice's envelope: attack 20 ms, decay 300 ms, sustain 50 %, release 300 ms, on a 128 px wheel)
-  const t = compileSource(PRESETS.transpose.source);
+  const t = compilePiece(PRESETS.transpose.source);
   // (its envelope is unnamed, &(map=adsr …): found by what it is, not by its line)
   const adsr = [...t.cells.keys()].find((n) => cellView(t, n, codeShifts(t), false)?.mode === 'curve')!;
   const e = cellView(t, adsr, codeShifts(t), false)!.curve!;
