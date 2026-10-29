@@ -69,22 +69,26 @@ export function buildVoice(Tone: ToneNS, ctx: AudioContext, bus: Bus, result: Co
   const c = result.cells.get(name)!;
   const params = c.params;
   const nodes: Disposable[] = [];
-  // chain: notes → [lpf] → [hpf] → pan → gain → master (+ room / delay sends)
+  // chain: notes → [lpf] → [hpf] → gain → master (+ room / delay sends); a resonator's bodies → pan → gain
   const out = new Tone.Gain(0.4).connect(bus.master);
-  const pan = new Tone.Panner(0).connect(out);
+  // (a note comes panned already, in stereo; Tone's panner is mono, explicitly, so a voice's notes through it were
+  // downmixed and set in the middle, #516: only a resonator, whose bodies sound in mono, goes through one)
+  const resonates = typeof params.body === 'string' && !!BODIES[params.body];
+  const pan = resonates ? new Tone.Panner(0).connect(out) : null;
   // the wheel's spectrogram: tap the voice after pan, one analyser per channel
   const split = new Tone.Split(2);
   const scope = { left: new Tone.Analyser({ type: 'fft', size: 1024, smoothing: 0.5 }), right: new Tone.Analyser({ type: 'fft', size: 1024, smoothing: 0.5 }) };
   out.connect(split);
   split.connect(scope.left, 0, 0);
   split.connect(scope.right, 1, 0);
-  nodes.push(out, pan, split, scope.left, scope.right);
-  let head: import('tone').ToneAudioNode = pan;
+  nodes.push(out, split, scope.left, scope.right);
+  if (pan) nodes.push(pan);
+  let head: import('tone').ToneAudioNode = pan ?? out;
   const moving: Record<string, Movable> = {};
   // a resonator: its exciters (one body each, tuned by its braid), all coupled to a board they share
   let res: Resonator | undefined;
-  if (typeof params.body === 'string' && BODIES[params.body]) {
-    const r = buildResonator(ctx, c, params.body, inputOf(head));
+  if (resonates) {
+    const r = buildResonator(ctx, c, params.body as string, inputOf(head));
     nodes.push(r.node);
     res = r.res;
   }
@@ -319,12 +323,24 @@ export function playNote(
   const size = Math.max(Math.abs(gains[0]), Math.abs(gains[1]));
   const level = gains[0] + gains[1] < 0 ? -size : size;
   const pan = ctx.createStereoPanner();
+  // (a note is mono: taken as one channel, it is panned by the equal-power law; left to its default, Tone's context's panner
+  // reads it as two, so a note in the middle sounded at full on each side, and one hard left at twice that: #516)
+  pan.channelCount = 1;
+  pan.channelCountMode = 'explicit';
   pan.pan.value = size > 0 ? (4 / Math.PI) * Math.atan2(Math.abs(gains[1]), Math.abs(gains[0])) - 1 : 0;
   // (noise used to play at full level through its own synth: it keeps that loudness on this path)
   const peak = 0.35 * level * (b.noise ? 2.8 : 1);
   amp.gain.setValueAtTime(0, time);
-  amp.gain.linearRampToValueAtTime(peak, time + env.attack);
-  amp.gain.setTargetAtTime(peak * env.sustain, time + env.attack, Math.max(env.decay, 0.001) / 3);
+  // (no attack: the peak at once; a ramp of no length then a target, at a time between two samples, overshoots in
+  // Chromium, to 2.7 times the peak: #516)
+  if (env.attack <= 0) amp.gain.setValueAtTime(peak, time);
+  // (a gate that shuts before the attack ends: up to where the attack has reached, then the release; scheduled as written,
+  // the release came before the attack's ramp, which Web Audio then ran after the gate, the note silent through it: #516)
+  if (env.attack > 0 && dur < env.attack) amp.gain.linearRampToValueAtTime((peak * dur) / env.attack, time + dur);
+  else {
+    if (env.attack > 0) amp.gain.linearRampToValueAtTime(peak, time + env.attack);
+    amp.gain.setTargetAtTime(peak * env.sustain, time + env.attack, Math.max(env.decay, 0.001) / 3);
+  }
   amp.gain.setTargetAtTime(0, time + dur, Math.max(env.release, 0.005) / 3);
   // the volume streams: a level that moves while the note sounds (smoothed, no clicks)
   const lvl = ctx.createGain();
