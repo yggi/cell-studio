@@ -14,7 +14,7 @@ function param() {
     calls,
     cancelScheduledValues: () => {},
     setValueAtTime: (v: number, t: number) => calls.push(`set ${r(v)}@${r(t)}`),
-    setTargetAtTime: (v: number, t: number, k: number) => calls.push(`target ${r(v)}@${r(t)}`),
+    setTargetAtTime: (v: number, t: number) => calls.push(`target ${r(v)}@${r(t)}`),
     linearRampToValueAtTime: (v: number, t: number) => calls.push(`ramp ${r(v)}@${r(t)}`),
     exponentialRampToValueAtTime: (v: number, t: number) => calls.push(`exp ${r(v)}@${r(t)}`),
   };
