@@ -49,8 +49,8 @@ export class SessionFeed implements Feed {
 
   constructor(readonly session: Pick<SessionClient, 'sounding'>) {}
 
-  next(now: number, horizon: number): Fed[] {
-    const s = this.session.sounding(this.#done, horizon - now, now, (t) => this.#compiled(t.text).bar);
+  next(now: number, horizon: number, beyond = horizon): Fed[] {
+    const s = this.session.sounding(this.#done, horizon - now, now, (t) => this.#compiled(t.text).bar, beyond - now);
     if (!s) {
       this.#done = null;
       return [];
