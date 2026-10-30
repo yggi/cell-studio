@@ -26,8 +26,8 @@ describe('a cell in words', () => {
   it('an oscillation: how often, how far, what it moves', () => {
     const r = compilePiece((PRESETS as Record<string, { source: string }>).cellscape.source);
     expect(text(summary(r, 'breath'))).toBe('Oscillates every 24 beats, between 0.1 and 1, moving &padv and &bass.');
-    const vib = [...royal.cells.values()].find((c) => c.lambda?.startsWith('map=lin loop=5'))!.name;
-    expect(text(summary(royal, vib))).toBe('Oscillates 5 times a second, swinging ±0.15, moving &lead.');
+    // (the library's vibrato, which the Royal theme takes by `use`: yggi/cells#364)
+    expect(text(summary(royal, 'vibrato'))).toBe('Oscillates 5 times a second, swinging ±0.1, moving &lead.');
   });
   it('a selector and a mix', () => {
     const pop = compilePiece(PRESETS.pop.source);

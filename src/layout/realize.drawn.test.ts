@@ -20,7 +20,8 @@ const intoProduct = (g: GraphModel, from: string, voice: string) =>
 describe('graph', () => {
   it('shows exactly the code: no implicit grid, voices as voices, written links only', () => {
     const g = buildGraph(compilePiece(PRESETS.royal.source));
-    // the vibrato and the envelopes are unnamed cells written on the voices' lines: part of their wheels, no nodes
+    // the envelopes are unnamed cells written on the voices' lines: part of their wheels, no nodes (the vibrato is the
+    // library's, taken by `use`, yggi/cells#364: a named cell)
     expect(g.nodes.some((n) => n.cell?.lambda)).toBe(false);
     // named cells
     expect(
@@ -37,6 +38,7 @@ describe('graph', () => {
         'cell:cell:scale',
         'cell:cell:tempo',
         'cell:cell:theme',
+        'cell:cell:vibrato',
         'voice:cell:bass',
         'voice:cell:lead',
         // (each product in the mix: a junction)

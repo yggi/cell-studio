@@ -175,15 +175,16 @@ describe('label=, and the rest of show=', () => {
 });
 
 describe('show=lfo: what moves other cells', () => {
-  it('a vibrato: 5 Hz, ±0.15 — a smooth swing round the ring', () => {
+  it('a vibrato: 5 Hz, ±0.1 — a smooth swing round the ring', () => {
     const r = compilePiece(PRESETS.royal.source);
-    const vib = [...r.cells.values()].find((c) => c.lambda?.startsWith('map=lin loop=5'))!.name;
+    // (the library's vibrato, which the Royal theme takes by `use`: yggi/cells#364)
+    const vib = 'vibrato';
     expect(kindOf(r, vib)).toBe('lfo');
     expect(effectiveShow(r, vib).show).toBe('lfo');
-    expect(hubLabel(r, vib, codeShifts(r), false, null)).toEqual({ big: '5 Hz', small: '±0.15' });
+    expect(hubLabel(r, vib, codeShifts(r), false, null)).toEqual({ big: '5 Hz', small: '±0.1' });
     const w = cellView(r, vib, codeShifts(r), false)!.wave!;
     expect(w).toHaveLength(96);
-    // 0 .15 0 -.15 0, gliding: it starts in the middle, peaks a fifth of the way round, and is lowest at three fifths
+    // 0 .1 0 -.1 0, gliding: it starts in the middle, peaks a fifth of the way round, and is lowest at three fifths
     expect(w[0]).toBeCloseTo(0.5, 6);
     expect(w.indexOf(Math.max(...w))).toBe(19);
     expect(w.indexOf(Math.min(...w))).toBe(58);

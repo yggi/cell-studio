@@ -161,14 +161,15 @@ describe('Piece: a piece file (decision 047)', () => {
 &out map=sample [&tune * &lead]`;
 
   it('opens an example’s file: the code is its cells block, the title its frontmatter’s, the file the same bytes', () => {
-    const p = new Piece(PRESETS.royal.file);
-    expect(p.code).toBe(PRESETS.royal.source);
-    expect(p.title).toBe(pieceMeta(PRESETS.royal.file)?.title);
-    expect(p.file).toBe(PRESETS.royal.file);
+    // (an example that takes nothing by `use`: one that does gains its lockfile's `uses:` as it opens)
+    const p = new Piece(PRESETS.lullaby.file);
+    expect(p.code).toBe(PRESETS.lullaby.source);
+    expect(p.title).toBe(pieceMeta(PRESETS.lullaby.file)?.title);
+    expect(p.file).toBe(PRESETS.lullaby.file);
     expect(p.result.diagnostics).toEqual([]);
     // (an edit is the code's: the frontmatter stays)
     p.code = `${p.code}\n&extra 1 2 3`;
-    expect(p.title).toBe(pieceMeta(PRESETS.royal.file)?.title);
+    expect(p.title).toBe(pieceMeta(PRESETS.lullaby.file)?.title);
     expect(pieceFile(p.file)?.text).toBe(p.code);
     // (a bare text opened after it has no frontmatter)
     p.open(SRC);

@@ -169,8 +169,9 @@ describe('the time view: what the scalogram hears', () => {
       [0.149, null],
       [0.595, 'beat'],
       [15.102, null],
-      // (every signal's ridges weighed, not its three strongest: a fourth of one outweighs 1.19 s)
-      [0.198, null],
+      // (every signal's ridges weighed, not its three strongest: a fourth of one outweighs 1.19 s; the vibrato a cell
+      // by name since Pop takes the library's, yggi/cells#364, so its turn is named)
+      [0.198, 'vibrato turn'],
     ]);
     expect(heardMarksOf(l, p.written, p.rounds, p.length).map((b) => round(b.at, 3))).toEqual([57.551, 9.574, 75.902, 47.121, 28.793, 86.543, 33.387]);
   });
