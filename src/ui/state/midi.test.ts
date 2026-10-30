@@ -549,11 +549,11 @@ describe('Midi: MIDI out', () => {
     const w = retime(windowAt(p, 0, 1), 10, 1);
     midi.play(fakeTone(10), w.events, 11);
     const ons = (port: ReturnType<typeof fakePort>) => port.sent.filter((m) => (m.data[0] & 0xf0) === 0x90).map((m) => [m.data[0] & 0x0f, m.data[1]]);
-    // the reed on channel 2 of slot 1 (~ skipped 1), the sub, sent and not heard, on channel 3 of slot 2; &lone on no card: not sent
+    // the reed on channel 2 of slot 1 (~ skipped 1), the sub, sent (and heard: cells decision 064), on channel 3 of slot 2; &lone on no card: not sent
     expect(new Set(ons(out).map(([c]) => c))).toEqual(new Set([1]));
     expect(ons(out).length).toBe(w.events.filter((e) => e.voice === 'reed').length);
     expect(ons(other)).toEqual(w.events.filter((e) => e.voice === 'sub').map((e) => [2, Math.round(69 + 12 * Math.log2(e.freq / 440))]));
-    expect(w.events.filter((e) => e.voice === 'sub').every((e) => e.unheard)).toBe(true);
+    expect(w.events.filter((e) => e.voice === 'sub').every((e) => !e.unheard && e.gains[0] === 1)).toBe(true);
     // stopped: the second slot is silenced too
     midi.stop(fakeTone(11));
     expect(other.sent.some((m) => m.data[0] === 0xb2 && m.data[1] === 123)).toBe(true);

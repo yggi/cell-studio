@@ -1,6 +1,6 @@
 # 039 · Cell studio sounds what a MIDI card sends: "sent, not heard" dropped
 
-**Date:** 2026-10-27 · **Status:** accepted (owner, on #503: "019 is a mistake. cell-studio should play") · Cells: [decision 019](https://github.com/yggi/cells/blob/main/docs/decisions/019-midi-card.md), which this app no longer follows on that point; the language's side is [yggi/cells#333](https://github.com/yggi/cells/issues/333), beside its renderer, [yggi/cells#315](https://github.com/yggi/cells/issues/315)
+**Date:** 2026-10-27 · **Status:** superseded by [cells decision 064](https://github.com/yggi/cells/blob/main/docs/decisions/064-what-sounds.md), which makes it the language's (`heardHere` removed, #523); accepted before that (owner, on #503: "019 is a mistake. cell-studio should play") · Cells: [decision 019](https://github.com/yggi/cells/blob/main/docs/decisions/019-midi-card.md), which this app no longer follows on that point; the language's side is [yggi/cells#333](https://github.com/yggi/cells/issues/333), beside its renderer, [yggi/cells#315](https://github.com/yggi/cells/issues/315)
 
 ## Context
 

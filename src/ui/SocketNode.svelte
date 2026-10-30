@@ -216,10 +216,17 @@
   onDestroy(() => stop());
 </script>
 
-<div class="socket" data-wheel="socket" class:live data-state={drawnState} style="width: {data.size}px; height: {data.size}px" title="&{data.source} into the sound card">
+<div
+  class="socket"
+  data-wheel="socket"
+  class:live
+  data-state={drawnState}
+  style="width: {data.size}px; height: {data.size}px"
+  title={data.channel ? `&${data.source} on MIDI channel ${data.channel}, heard here` : `&${data.source} into the sound card`}
+>
   <Handle type="target" position={Position.Top} class="center-handle" isConnectable={false} />
   <canvas bind:this={canvas} width={data.size * dpr} height={data.size * dpr} style="width: {data.size}px; height: {data.size}px"></canvas>
-  <span class="name">out</span>
+  <span class="name">{data.channel ? `ch ${data.channel}` : 'out'}</span>
 </div>
 
 <style>

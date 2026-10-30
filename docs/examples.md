@@ -109,7 +109,7 @@ Introduces a gate: a product with a name, and a role, the gates that play it; a 
 |---|---|---|---|---|
 | A gate: a product with a name | [`gate`](https://github.com/yggi/cells/blob/main/examples/gate.md) | Where notes become sound, named: a gate plays its voices with each note of what it plays. | 2.54 | 0:05 loop |
 | Play in: a braid left to the performer | [`play-in`](https://github.com/yggi/cells/blob/main/examples/play-in.md) | A riff left to the performer: free(…) around a braid. It plays as written until you play in. | 2.51 | 0:03 loop |
-| MIDI out: a band on a synth | [`midi-out`](https://github.com/yggi/cells/blob/main/examples/midi-out.md) | The piece names where its notes go: a melody and a bass on a synth's channels 1 and 2, the drums on 10. The bass is sent, not heard. | .891 | 0:05 loop |
+| MIDI out: a band on a synth | [`midi-out`](https://github.com/yggi/cells/blob/main/examples/midi-out.md) | The piece names where its notes go: a melody and a bass on a synth's channels 1 and 2, the drums on 10. The bass is on the synth alone: sent, and heard at its entry's gain. | 1.375 | 0:05 loop |
 
 ## Classical
 

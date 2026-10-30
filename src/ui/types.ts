@@ -32,5 +32,5 @@ type PluginFlowNode = Node<{ name: string; size: number; plugin: string }, 'plug
 type JunctionNodeData = { name: string; voice: string; mix: string; size: number; notes: string | null; levels: readonly string[]; gain: number };
 export type JunctionFlowNode = Node<JunctionNodeData, 'junction'>;
 /** A socket into the sound card (the tower layout): the edge it ends, whose sound that is. */
-type SocketFlowNode = Node<{ name: string; edge: string; source: string; size: number }, 'socket'>;
+type SocketFlowNode = Node<{ name: string; edge: string; source: string; size: number; /** On a MIDI card: its channel. */ channel: number | null }, 'socket'>;
 export type FlowNode = CellFlowNode | VoiceFlowNode | MaterialFlowNode | PluginFlowNode | JunctionFlowNode | SocketFlowNode;
