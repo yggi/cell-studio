@@ -73,7 +73,7 @@ Introduces stereo: pan=; waveforms from braids: audio rates, sin(), ramps, table
 |---|---|---|---|---|
 | Stereo: Mary Had a Little Lamb | [`stereo`](https://github.com/yggi/cells/blob/main/examples/stereo.md) | Mary Had a Little Lamb across two channels: the bell on the left, the cello on the right. | 1.57 | 0:05 loop |
 | Sound: voices, waveforms, envelopes | [`waveforms`](https://github.com/yggi/cells/blob/main/examples/waveforms.md) | Voices made of braids: square, triangle, saw and sine, with envelopes and a vibrato. | 1.06 | 0:10 loop |
-| Moving parameters: a filter that opens | [`moving`](https://github.com/yggi/cells/blob/main/examples/moving.md) | A bass line whose filter opens on every note and swells over four bars, with accents and a fade. | 9.11 | 0:08 loop |
+| Moving parameters: a filter that opens | [`moving`](https://github.com/yggi/cells/blob/main/examples/moving.md) | A bass line whose filter opens on every note and swells over four bars, with accents and a fade. | 5.55 | 0:08 loop |
 | Tuning: three grids | [`grids`](https://github.com/yggi/cells/blob/main/examples/grids.md) | One tune on three grids in turn: nineteen equal steps to the octave, a pure fifth cut in seven, and pure ratios. | 6.31 | 0:16 loop |
 | Metronome: any meter | [`metronome`](https://github.com/yggi/cells/blob/main/examples/metronome.md) | A bar and the clicks it plays, in a meter you choose. | 11.3 | 0:02 loop |
 
