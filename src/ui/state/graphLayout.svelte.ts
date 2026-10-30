@@ -37,8 +37,15 @@ const towerOptions = (): Partial<LayoutOptions> => ({
 const LEAVING_MS = 320;
 
 /** A socket's flow node (the tower layout): the edge into the card it ends, and whose sound that is. */
-function socketNode(id: string, m: { edges: readonly { id: string; to: string; from: string; bulb?: string }[] }, position: { x: number; y: number }): FlowNode {
+function socketNode(
+  id: string,
+  m: { edges: readonly { id: string; to: string; from: string; bulb?: string }[] },
+  position: { x: number; y: number },
+  outs: readonly TowerOut[],
+): FlowNode {
   const e = m.edges.find((x) => x.to === id);
+  // (on a MIDI card: its channel, which it wears for its name)
+  const channel = (e && outs.find((o) => o.id === e.id)?.channel) ?? null;
   return {
     id,
     type: 'socket',
@@ -47,7 +54,7 @@ function socketNode(id: string, m: { edges: readonly { id: string; to: string; f
     selectable: false,
     deletable: false,
     connectable: false,
-    data: { name: id, edge: e?.id ?? '', source: e ? soundOf(e).slice('cell:'.length) : '', size: SOCKET_SIZE },
+    data: { name: id, edge: e?.id ?? '', source: e ? soundOf(e).slice('cell:'.length) : '', size: SOCKET_SIZE, channel },
   };
 }
 /** What the edges are drawn with besides the snapshot (read when they are made, not tracked). */
@@ -218,7 +225,7 @@ export class GraphLayout {
       .filter((g) => !isSide(g))
       .map((g: GraphNode): FlowNode =>
         isSocket(g.id)
-          ? socketNode(g.id, m, this.#posOf(g.id) ?? { x: 0, y: 0 })
+          ? socketNode(g.id, m, this.#posOf(g.id) ?? { x: 0, y: 0 }, this.outs)
           : flowNodeOf(g, this.#posOf(g.id) ?? { x: 0, y: 0 }, this.pinned.has(g.id) && !this.#placed.has(g.id), this.#turnOf(g.id), meters, next.program),
       )
       .map((n): FlowNode => (measured.has(n.id) ? { ...n, measured: measured.get(n.id)! } : n));

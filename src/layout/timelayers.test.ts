@@ -93,13 +93,14 @@ describe('the time view: the notes and the cells', () => {
 
   it('Korobeiniki: a loop of one round, its motifs at two scales folded onto it', () => {
     const p = piece('korobeiniki');
-    expect([p.length, p.loop, p.rounds, p.listened]).toEqual([200, true, 1, 200]);
-    expect(p.notes.length).toBe(2055);
+    // (its round, 66.67 s: the 20 Hz arpeggio no longer counts toward the cycle, yggi/cells#381, where it made it 200)
+    expect([p.length, p.loop, p.rounds, p.listened]).toEqual([200 / 3, true, 1, 200 / 3]);
+    expect(p.notes.length).toBe(685);
     expect(longestOf(p.notes)).toBeCloseTo(5 / 3);
     const pt = patternsOf(p.heardNotes, p.spans, p.listened, p.length)!;
     expect(pt.motifs.map((m) => [m.shape, m.heard.length])).toEqual([
-      ['-2 -2 -1 -2 | 1 1 1 1', 8],
-      ['-1 -2 3 4 | 1 1 1 1', 8],
+      ['-1 -2 3 4 | 1 1 1 1', 3],
+      ['-2 -2 -1 -2 | 1 1 1 1', 4],
     ]);
     expect(pt.motifs.every((m) => m.heard.every((o) => o.at >= 0 && o.at < p.length))).toBe(true);
     expect(p.meter.map((m) => [m.label, round(m.period)])).toEqual([
@@ -126,7 +127,8 @@ describe('the time view: the notes and the cells', () => {
       ['bar', 3.6364],
     ]);
     const lanes = structureLanes(structure(p.planned, p.length));
-    expect(lanes.length).toBe(176);
+    // (one round of 87.27 s, where a vibrato's cycle made it 960 s: yggi/cells#381)
+    expect(lanes.length).toBe(16);
     expect(lanes.slice(0, 2).map((n) => [n.cell.replace(/^λ\d+_\d+$/, 'λ'), round(n.at, 3), round(n.to, 3), n.lane])).toEqual([
       ['line', 0, 21.818, 0],
       ['λ', 0, 7.273, 0], // (an unnamed cell: named by its line and column, which an edit above it moves)
@@ -181,14 +183,14 @@ describe('the time view: what the scalogram hears', () => {
     const l = p.listenedScal();
     const scal = foldOnto(l, p.length);
     expect(named(scal, l.periodic, p).map((r) => [round(r.period, 3), r.label])).toEqual([
-      [32, null],
       [0.21, 'tune step'],
       [0.105, null],
-      [22.627, null],
-      [0.07, null],
+      [8.98, null],
+      [3.364, null],
+      [2.245, null],
     ]);
     const marks = heardMarksOf(l, p.written, p.rounds, p.length);
-    expect(marks.length).toBe(16);
+    expect(marks.length).toBe(4);
     expect(marks.every((b, i) => marks.every((c, j) => i === j || Math.abs(b.at - c.at) > 1))).toBe(true);
   });
 });

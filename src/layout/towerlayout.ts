@@ -9,6 +9,8 @@
 import type { CompileResult } from '@yggi/cells/engine/program';
 import type { GraphModel, GraphNode } from '@yggi/cells/engine/graph';
 import { cellId } from '@yggi/cells/engine/ids';
+import { isMidiCard } from '@yggi/cells/engine/program';
+import { outs } from '@yggi/cells/engine/outs';
 import { towerOf } from './tower';
 import { socketOf, VOICE_SIZE } from './voice';
 import { HEARING, TOWER_PX } from './towerscale';
@@ -27,13 +29,13 @@ export const towerAt = (y: number) => -y / TOWER_PX;
 /** The graph's y for a row in the layers' own frame (decades with the neutral zone in them). */
 const rowY = (u: number) => -u * TOWER_PX;
 
-/** The sound card's nodes (a sink, a mix written as one): drawn as the strips, not as a node. */
-const cards = (model: GraphModel) => new Set(model.nodes.flatMap((n) => (n.cell?.sink ? [n.id] : [])));
+/** The cards' nodes, a sound card's and a MIDI card's (cells decision 064): drawn as sockets and the strips, not as a node. */
+const cards = (model: GraphModel) => new Set(model.nodes.flatMap((n) => (n.cell && (n.cell.sink || isMidiCard(n.cell)) ? [n.id] : [])));
 
 /** The node whose sound an edge into the card carries: a read head drawn as a bulb on its tape is the sound, the tape only holds it. */
 export const soundOf = (e: { from: string; bulb?: string }) => (e.bulb ? cellId(e.bulb) : e.from);
 
-/** What goes into the sound card: each edge's source, and the channels it reaches (a two-channel card: one each). */
+/** What goes into a card: each edge's source, and the channels it reaches (a two-channel card: one each). */
 export interface TowerOut {
   /** The edge into the card (its id: live with it). */
   readonly id: string;
@@ -43,23 +45,16 @@ export interface TowerOut {
   readonly sound: string;
   readonly left: boolean;
   readonly right: boolean;
+  /** On a MIDI card, the channel it goes out on; null on a sound card. */
+  readonly channel: number | null;
 }
 
 /**
- * The edges into the sound card (written, or the built-in card's: sound.ts `withCard`), as wires into the strip: a card
- * of two channels sends its first left, its second right.
+ * The edges into the cards (written, or the built-in card's: sound.ts `withCard`), as wires into the strip: cells'
+ * outs (decision 064), a sound card's and a MIDI card's; a card of two channels sends its first left, its second right.
  */
 export function towerOuts(program: CompileResult, given: GraphModel): TowerOut[] {
-  const model = withCard(program, given);
-  const card = cards(model);
-  return model.edges.flatMap((e) => {
-    // (an `about=` link into it is no sound)
-    if (!card.has(e.to) || card.has(e.from) || e.port === 'about') return [];
-    const c = program.cells.get(e.to.slice('cell:'.length));
-    const units = c?.units ?? [];
-    const k = units.length === 2 ? units.findIndex((u) => u.atom.kind === 'ref' && `cell:${u.atom.name}` === e.from) : -1;
-    return [{ id: e.id, from: e.from, sound: soundOf(e), left: k !== 1, right: k !== 0 }];
-  });
+  return outs(program, withCard(program, given)).map((o) => ({ id: o.id, from: o.from, sound: cellId(o.sound), left: o.left, right: o.right, channel: o.channel }));
 }
 
 /** A wire into the strips, placed: its source's name, and where it leaves (its top, the graph's coordinates). */
@@ -247,7 +242,7 @@ export function towerLayers(
     // (what makes, gates or mixes sound, in the voices' strata (sound.ts): a gate a row under the makers, not down among
     // the structure; a mixer over the makers it mixes, between them; the rest of the structure at its step)
     const d = step.get(n.id);
-    const role = soundRole(program, n, d, { mixers });
+    const role = soundRole(program, n, { mixers });
     if (role === 'gate') layers.set(n.id, 'gate');
     else if (role === 'mixer') layers.set(n.id, 'mixer');
     else if (role === 'maker') {

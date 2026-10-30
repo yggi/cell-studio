@@ -254,6 +254,14 @@ The owner: *An oscillator* (`&a loop=A4`) is a voice and gets the tower's whole 
 
 ![An oscillator in the tower layout, playing: its socket at A4, its spire, its light, its marker and lane on the strip](tower-sky-oscillator.jpg)
 
+### From the language (2026-10-30, #523)
+
+The rule is the language's now ([cells decision 064](https://github.com/yggi/cells/blob/main/docs/decisions/064-what-sounds.md)): an out is a sound wired into a card, **a sound card's or a MIDI card's**, a voice each (a gate's voices one each: the owner, "the gate is the performer, the voice is what actually sounds"). `towerOuts` reads cells' `outs()`, `withCard` takes the built-in card's node and edges from cells' `writtenGraph(…, { card: true })`, and `soundRole` is cells' (from the mix algebra's sorts), so the app derives none of it. A MIDI card's outs get sockets named by their channel (`ch 2`), and the MIDI card's node at the foot of the structure goes, as the sound card's did.
+
+Before and after, playing (the gallery's `zoom 8 electroswing` with `ZOOM=kit`, and `play 6 "MIDI out"`):
+
+![Electro swing's kit, dimmed while it plays and then lit; MIDI out with no out for &sub and its MIDI cards at the foot, then a socket each on ch 1, 2 and 10](tower-sky-outs.jpg)
+
 ## 5. One tiered strip for the graph and the time view (proposed)
 
 Three things draw the tower's scale today, each its own way:
