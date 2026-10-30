@@ -20,12 +20,13 @@ function fakeWorker(delay: number | null = 0): Port & { sent: ToEngine[] } {
   return port;
 }
 
+// (BWV 847 takes the library's vibrato by `use`, yggi/cells#364: it compiles through the seed library)
 const src = PRESETS.bwv847.source;
 
 describe('engines: local and worker give the same windows', () => {
   it('local: the plan here', () => {
     const e = new LocalEngine();
-    const p = planOf(src);
+    const p = planOf(src, undefined, { resolve: resolveSeed });
     e.load(p);
     expect(e.window(1, 0.25)).toEqual(windowAt(p, 1, 0.25));
     expect(e.stats()).toMatchObject({ kind: 'local', windows: 1 });
@@ -34,7 +35,7 @@ describe('engines: local and worker give the same windows', () => {
   it('worker: the piece compiled there from its source, the same windows come back', async () => {
     const port = fakeWorker();
     const e = new WorkerEngine(port);
-    const p = planOf(src);
+    const p = planOf(src, undefined, { resolve: resolveSeed });
     e.load(p, { code: src });
     expect(port.sent[0]).toMatchObject({ type: 'load', code: src });
     for (const from of [0, 0.25, 3.5]) expect(await e.window(from, 0.25)).toEqual(windowAt(p, from, 0.25));
@@ -59,7 +60,7 @@ describe('engines: local and worker give the same windows', () => {
       vi.useRealTimers();
     });
     const e = new WorkerEngine(fakeWorker(80), 10);
-    const p = planOf(src);
+    const p = planOf(src, undefined, { resolve: resolveSeed });
     e.load(p, { code: src });
     const w = e.window(2, 0.25);
     await vi.advanceTimersByTimeAsync(10);
@@ -72,7 +73,7 @@ describe('engines: local and worker give the same windows', () => {
   it('a worker that fails: everything after is worked out here (pending windows included)', async () => {
     const port = fakeWorker(null);
     const e = new WorkerEngine(port, 1000);
-    const p = planOf(src);
+    const p = planOf(src, undefined, { resolve: resolveSeed });
     e.load(p, { code: src });
     const w = e.window(2, 0.25);
     port.onerror?.(new Error('gone'));
@@ -82,7 +83,7 @@ describe('engines: local and worker give the same windows', () => {
 
   it('a piece with no source to send: worked out here', () => {
     const e = new WorkerEngine(fakeWorker());
-    const p = planOf(src);
+    const p = planOf(src, undefined, { resolve: resolveSeed });
     e.load(p, null);
     expect(e.window(1, 0.25)).toEqual(windowAt(p, 1, 0.25));
   });
