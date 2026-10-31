@@ -1,0 +1,30 @@
+var e=`---
+title: "Pachelbel, Canon in D: a ground and three violins"
+tags: [genre:classical, artist:Pachelbel, tonal, diatonic, canon, stereo]
+description: Eight bass notes, over and over; three violins play one line, each entering a ground later.
+---
+
+\`\`\`cells
+# Johann Pachelbel, Canon in D. Eight bass notes, over and over (the ground);
+# three violins play one line, each entering two bars after the last.
+&bar from "4/4" &tempo
+&vibrato from vibrato
+&tempo step=free(66bpm, 40..100)
+&ground step=4n 0 -5 -3 -8 -7 -12 -7 -5                   # D A B F# G D G A — two bars, forever
+
+# the line: three variations of two bars each (D = 0)
+&line step=8n show=notes &(16@2 14@2 12@2 11@2 9@2 7@2 9@2 11@2) &(12@2 11@2 9@2 7@2 5@2 4@2 5@2 2@2) &(0 4 7 5 4 0 4 2 0 -3 0 7 5 9 7 5)
+
+&cello s=saw loop=D3 lpf=900 env=&(map=adsr .03 .3 .7 .3)
+&violin s=saw loop=D4 lpf=2600 env=&(map=adsr .08 .2 .8 .4) pitch=&vibrato
+
+# the canon: each violin is the line a variation later ([<<]); each enters a ground later
+&out postgain=2.12 map=sample [&ground * &cello * .6,
+                                  &line[<<] * &(map=amp step=cycle(&ground) 0 1!11) * &violin * .35,
+                                  &line[<<2] * &(map=amp step=cycle(&ground) 0 0 1!10) * &violin * .25] [
+                                  &ground * &cello * .6,
+                                  &line[<<2] * &(map=amp step=cycle(&ground) 0 0 1!10) * &violin * .25,
+                                  &line * &(map=amp step=cycle(&ground) 0 0 0 1!9) * &violin * .35]
+&parts scope=spectrum channels=split label="the ground and the canon, each its own" &ground &line
+\`\`\`
+`;export{e as default};

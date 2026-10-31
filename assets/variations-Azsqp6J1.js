@@ -1,0 +1,27 @@
+var e=`---
+title: "Variations: a subject and its copies"
+tags: [tutorial, motifs, counterpoint]
+tier: 5
+description: "One subject entered three times, as a fugue begins: as it is, a fifth up with its leap bent (a tonal answer), and an octave down with its last note held. Each entry after the first is a copy of the subject, written as what changes."
+---
+
+\`\`\`cells
+&copyNote label="base=&subject makes a cell a copy of &subject. = keeps a step as it is there, a value changes it, =!n keeps n of them and =@n keeps one held n; base=&subject^$7 is the copy a fifth up." about=(&answer &low)
+&bar from "4/4" &tempo
+&swell from envelopes
+&tempo step=free(andante)
+
+&subject 0 -1 0@2 -5@2 -4@2 0 -1 0 2 -5@4
+&answer base=&subject^$7 =!3 0@2
+&low base=&subject^$-12 =!9 =@8
+
+&alto step=16n &subject ~@36
+&soprano step=16n ~@16 &answer ~@20
+&bass step=16n ~@32 &low
+
+&flute s=tri loop=C5 env=&swell
+&reed s=tri loop=C4 env=&swell
+&cello s=saw loop=C3 lpf=1200 env=&swell
+&out map=sample postgain=6.49 [&soprano * &flute * .3, &alto * &reed * .3, &bass * &cello * .25]
+\`\`\`
+`;export{e as default};

@@ -1,0 +1,1 @@
+var e=new URL(`invention-05-BlBSWS5j.mid`,import.meta.url).href;export{e as default};

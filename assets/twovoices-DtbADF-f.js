@@ -1,0 +1,16 @@
+var e=`---
+title: "Two voices: a mix"
+tags: [tutorial, sound]
+tier: 1
+description: "One tune, played by two voices at once: a sine on top and a saw three octaves below it, quieter."
+---
+
+\`\`\`cells
+&twovoicesNote label="A chord in the brackets is a mix: the sound card plays what is in it at once. * .5 and * .25 are gains: how loud each voice is in the mix." about=&out
+
+&tune step=3 0 4 7 4 0 4 7@2 5 9 12 9 5 9 12@2   # a tune
+&lead s=sine loop=C5
+&bass s=saw loop=C2
+&out map=sample postgain=2 [&tune * &lead * .5, &tune * &bass * .25]
+\`\`\`
+`;export{e as default};

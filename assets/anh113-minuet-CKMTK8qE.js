@@ -1,0 +1,1 @@
+var e=new URL(`anh113-minuet-CMxzWL3K.mid`,import.meta.url).href;export{e as default};

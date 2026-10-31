@@ -1,0 +1,1 @@
+var e=new URL(`anh117b-polonaise-CHWQiZx2.mid`,import.meta.url).href;export{e as default};

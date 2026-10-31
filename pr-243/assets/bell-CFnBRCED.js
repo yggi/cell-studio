@@ -1,0 +1,21 @@
+var e=`# The West African standard bell pattern — seven strokes over twelve pulses,
+# x.x.xx.x.x.x — has the same intervals as the major scale: 2 2 1 2 2 2 1.
+# So one cell is both: the melody steps with the bell, and reads it as its scale.
+&piece title="Bell and scale: 12/8, one scan for both" tags="genre:world, diatonic, rhythm" label="The bell, x.x.xx.x.x.x, has the major scale's intervals: 2 2 1 2 2 2 1." about=&mix
+&oneScanNote label="One scan is both — the melody steps with it, and reads it as its scale." about=(&bell &song)
+&beat scan(1 1 1 1) step=free(100bpm, 70..140)       # four dotted-quarter beats: 12/8
+&bell label="{mode} · x.x.xx.x.x.x" scan(2 2 1 2 2 2 1) step=&beat*4/7             # seven strokes a bar, over the twelve pulses
+
+&strokes map=amp step=&bell 1 .5 .7 .5 .6 .5 .7      # the bell, as a rhythm
+&song over=&bell step=&bell 4 4 5 4 2 1 0 2 2 1 2 0 ~ ~    # … and as a scale: C major
+&drum map=amp step=&beat 1 .5 .8 .5                  # the low drum on the beats
+&pulse map=amp step=&beat/3 .5 .2 .3                 # the twelve pulses
+
+&gankogui s=square loop=C6 lpf=4000 env=&(map=adsr 0 .08 0 .05)
+&voice s=tri loop=C4 env=&(map=adsr .02 .2 .6 .2)
+&dundun s=sine loop=C2 pitch=0..12 * &(map=adsr 0 .04 0 0) env=&(map=adsr 0 .25 0 .1)
+&shekere s=white hpf=6000 env=&(map=adsr 0 .03 0 .02)
+
+&mix level=2 map=sample [&strokes * &gankogui * .25, &song * &voice * .45,
+                                  &drum * &dundun * .7, &pulse * &shekere * .15]
+`;export{e as default};

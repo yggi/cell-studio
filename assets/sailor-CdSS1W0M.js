@@ -1,0 +1,32 @@
+var e=`---
+title: "Drunken Sailor: D Dorian, with a kit"
+tags: [genre:world, genre:folk, modal, rhythm]
+description: Drunken Sailor in D Dorian, with a fiddle, a bass and a drum kit.
+---
+
+\`\`\`cells
+# D Dorian. The second line is the first, a step lower: &A^-1.
+&bar from "4/4" &tempo
+&tempo step=free(112bpm, 90..140)
+&key from dorian D
+
+&m1 4!4
+&m2 4 4 0 2
+&m3 3 2 0 0
+&m4 0@2!2
+&A &m1 &m2
+&C &m3 &m4
+&tune over=&key step=8n &A &A^-1 &A &C
+
+&bassline over=&key step=4n 4!4 3!4
+&drums step=8n &bd &hh &sd &hh!4           # kick, hat, snare, hat
+
+&fiddle s=saw loop=C5 lpf=3000 env=&(map=adsr .01 .15 .5 .1)
+&bass s=square loop=C2 lpf=600 env=&thump
+&bd s=sine loop=A1 pitch=0..24 * &(map=adsr 0 .05 0 0) env=&thump
+&sd from gm_kit
+&thump, &click from envelopes
+&hh s=white hpf=7000 env=&click
+&mix postgain=2.03 map=sample [&tune * &fiddle * 0.6, &bassline * &bass * 0.8, &drums * 0.6]
+\`\`\`
+`;export{e as default};
