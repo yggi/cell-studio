@@ -12,7 +12,7 @@
 //   ENGINE=worker npm run smoke               # with the engine in a Web Worker (?engine=worker, #15)
 //
 // Then a piece from outside (#406): a string of code opened with `cellStudio.open` over a piece playing, as a file opens;
-// and one that uses the core kit (cells decision 054), which sounds on Play.
+// and one that uses the General MIDI kit (cells decision 054), which sounds on Play.
 // Then MIDI out (#205): one piece played into a fake Web MIDI port, its note-ons checked against the plan's notes
 // (tools/smoke-midi.ts) each within 2 ms of its neighbour (a slow drift followed, and one step of a clock jump up to 50 ms); then the
 // tempo (a held free()) moved and Pause and Play again within the look-ahead (twice, the second at once), with no All notes off from either
@@ -208,9 +208,9 @@ const OUTSIDE_FILE = `---\ntitle: From outside, as a file\n---\n\n\`\`\`cells\n$
   console.log(`${ok ? 'ok  ' : 'FAIL'} A piece from outside: cellStudio.open${ok ? `: ${note}` : '\n       ' + [...new Set(problems)].slice(0, 3).join('\n       ')}`);
   if (!ok) failed.push('A piece from outside');
 }
-// A piece that uses a fragment (cells decision 054): `use * from "core kit"` read from the seed library, the code kept as
+// A piece that uses a fragment (cells decision 054): `&bd, &rim, &sd, &cp, &lt, &hh, &ph, &mt, &oh, &ht, &cr, &rd, &claves from gm_kit` read from the seed library, the code kept as
 // written, the kit's voices drawn, and Play sounding the beat on them.
-const USES = 'use * from "core kit"\n&bar meter("4/4") step=100bpm\n&beat step=8n &bd ~ &hh ~ &sd ~ &hh [&bd,&hh]\n';
+const USES = '&bd, &rim, &sd, &cp, &lt, &hh, &ph, &mt, &oh, &ht, &cr, &rd, &claves from gm_kit\n&bar meter("4/4") step=100bpm\n&beat step=8n &bd ~ &hh ~ &sd ~ &hh [&bd,&hh]\n';
 if (only.length === 0) {
   problems = [];
   const op = await newPage({ viewport: { width: 1280, height: 800 } });
@@ -247,8 +247,8 @@ if (only.length === 0) {
   }
   await op.close();
   const ok = problems.length === 0;
-  console.log(`${ok ? 'ok  ' : 'FAIL'} A piece that uses the core kit${ok ? `: ${note}` : '\n       ' + [...new Set(problems)].slice(0, 3).join('\n       ')}`);
-  if (!ok) failed.push('A piece that uses the core kit');
+  console.log(`${ok ? 'ok  ' : 'FAIL'} A piece that uses gm_kit${ok ? `: ${note}` : '\n       ' + [...new Set(problems)].slice(0, 3).join('\n       ')}`);
+  if (!ok) failed.push('A piece that uses gm_kit');
 }
 // MIDI out (#205): a fake port that records what is sent, chosen before the page loads (so it connects without a click)
 const MIDI_PIECE = 'sailor';

@@ -5,7 +5,7 @@ import { plan } from '@yggi/cells/engine/realize';
 import { windowAt } from '@yggi/cells/engine/schedule';
 import { compilePiece, withUsedLine } from './compile';
 
-const KIT = 'use * from "core kit"\n&bar meter("4/4") step=100bpm\n&beat step=8n &bd ~ &hh ~ &sd ~ &hh [&bd,&hh]';
+const KIT = '&bd, &rim, &sd, &cp, &lt, &hh, &ph, &mt, &oh, &ht, &cr, &rd, &claves from gm_kit\n&bar meter("4/4") step=100bpm\n&beat step=8n &bd ~ &hh ~ &sd ~ &hh [&bd,&hh]';
 const events = (r: CompileResult) => windowAt(plan(r, codeShifts(r), r.off), 0, 4.8).events;
 // (an event's output is named by the line of the cell that plays it, which a line written above it moves)
 const heard = (r: CompileResult) => events(r).map(({ output, ...e }) => ({ ...e, output: output?.replace(/:\d+:/, ':') }));
@@ -41,7 +41,7 @@ describe('an edit of a used cell: a line of the piece’s own (#480)', () => {
         .split('\n')
         .slice(0, 3)
         .map((l) => l.split(' ')[0]),
-    ).toEqual(['use', '&sd', '&rim']);
+    ).toEqual(['&bd,', '&sd', '&rim']);
     expect(setShift(two, 'rim', 2).split('\n')).toHaveLength(5);
     expect(withUsedLine(KIT, 'beat')).toBe(KIT);
     expect(withUsedLine(KIT, 'nothing')).toBe(KIT);

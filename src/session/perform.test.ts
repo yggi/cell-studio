@@ -7,12 +7,12 @@ import { played, readerOf, readingOf, type FeelFrame } from './feel';
 import { barSeconds } from './follow';
 import { perform } from './perform';
 
-/** A host's text in its own forms (Jambot's `sectionAsCells`): a swung bar, the core kit's grooves mixed by `&drums`, the bass on its voice, the MIDI card. */
+/** A host's text in its own forms (Jambot's `sectionAsCells`): a swung bar, the General MIDI kit's grooves mixed by `&drums`, the bass on its voice, the MIDI card. */
 const TEXT = `&bar meter("4/4") step=120bpm swing=16n:.6
 &kick step=16n &bd ~ ~ ~ &bd ~ ~ ~ &bd ~ ~ ~ &bd ~ ~ ~
 &hat step=16n &hh &hh &hh &hh &hh &hh &hh &hh &hh &hh &hh &hh &hh &hh &hh &hh
 &drums [&kick, &hat]
-use * from "core kit"
+&bd, &rim, &sd, &cp, &lt, &hh, &ph, &mt, &oh, &ht, &cr, &rd, &claves from gm_kit
 &bass step=16n legato=.5 0 ~ ~ ~ 0 ~ 7 ~ 0 ~ ~ ~ 5 ~ 7 ~
 &bassOut play=&bass level=.7 &bassV
 &bassV loop=C2
@@ -110,11 +110,11 @@ describe('a host’s text played as its performers play it', () => {
  * gates on the card (`[&padOut, &stabOut]`) is read the same; a drum hit keeps its line's role.
  */
 const PERFORMED = `&bar meter("4/4") step=120bpm swing=16n:.6
-use * from "drums performer"
-use * from "bass performer"
-use * from "pad performer"
-use * from "stab performer"
-use * from "lead performer"
+&drums, &drumsOut from "drums performer" &drumlines
+&bass, &bassOut from "bass performer"(bassLevel=&bassLevel) &bassline
+&pad, &padOut from "pad performer"(padLevel=&padLevel) &padline
+&stab, &stabOut from "stab performer"(stabLevel=&stabLevel) &stabline
+&lead, &leadOut from "lead performer"(leadLevel=&leadLevel) &leadline
 &kick step=16n &bd ~ ~ ~ &bd ~ ~ ~ &bd ~ ~ ~ &bd ~ ~ ~
 &hat step=16n &hh!16
 &drumlines [&kick, &hat]

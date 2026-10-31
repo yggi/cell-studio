@@ -23,7 +23,7 @@ Introduces a voice and the sound card; steps: numbers, rests, holds, repeats, a 
 
 ### Tier 2 · Time and voice
 
-Introduces a clock: a bar (use &bar from "4/4", the library's, or a scan of beats), its taps (step=4n, step=pulse, step=1m), step=&x, /2 and *2, a tempo marking; a voice: a source and an envelope; filters and effects, a vibrato.
+Introduces a clock: a bar (&bar from "4/4" 120bpm, the library's, or a scan of beats), its taps (step=4n, step=pulse, step=1m), step=&x, /2 and *2, a tempo marking; a voice: a source and an envelope; filters and effects, a vibrato.
 
 | piece | file | about | postgain | length |
 |---|---|---|---|---|

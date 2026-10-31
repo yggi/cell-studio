@@ -80,11 +80,11 @@ describe('a followed session as the player’s feed', () => {
 });
 
 describe('a followed session played as its performers play it', () => {
-  /** A host's text in its own forms: the bass on its voice and the core kit's kick, on the MIDI card (`session/perform.test.ts`). */
+  /** A host's text in its own forms: the bass on its voice and the General MIDI kit's kick, on the MIDI card (`session/perform.test.ts`). */
   const HOST = `&bar meter("4/4") step=120bpm
 &kick step=4n &bd &bd &bd &bd
 &drums [&kick]
-use * from "core kit"
+&bd, &rim, &sd, &cp, &lt, &hh, &ph, &mt, &oh, &ht, &cr, &rd, &claves from gm_kit
 &bass step=8n 0 ~ 0 ~ 7 ~ 5 ~
 &bassOut play=&bass level=.7 &bassV
 &bassV loop=C2

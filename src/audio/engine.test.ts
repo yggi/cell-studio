@@ -43,7 +43,8 @@ describe('engines: local and worker give the same windows', () => {
   });
 
   it('worker: a piece that uses a fragment is compiled there through the seed library, and the same windows come back (yggi/cells#241)', async () => {
-    const used = 'use * from "core kit"\n&bar meter("4/4") step=100bpm\n&beat step=8n &bd ~ &hh ~ &sd ~ &hh &hh\n&out map=sample [&beat]\n';
+    const used =
+      '&bd, &rim, &sd, &cp, &lt, &hh, &ph, &mt, &oh, &ht, &cr, &rd, &claves from gm_kit\n&bar meter("4/4") step=100bpm\n&beat step=8n &bd ~ &hh ~ &sd ~ &hh &hh\n&out map=sample [&beat]\n';
     const port = fakeWorker();
     const e = new WorkerEngine(port);
     const p = planOf(used, undefined, { resolve: resolveSeed });
