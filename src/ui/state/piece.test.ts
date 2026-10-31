@@ -292,7 +292,7 @@ describe('Piece: a session host’s text, followed (#478)', () => {
 });
 
 describe('Piece: a piece that uses a fragment (cells decision 054)', () => {
-  const USES = `use * from "core kit"
+  const USES = `&bd, &rim, &sd, &cp, &lt, &hh, &ph, &mt, &oh, &ht, &cr, &rd, &claves from gm_kit
 &bar meter("4/4") step=100bpm
 &beat step=8n &bd ~ &hh ~ &sd ~ &hh [&bd,&hh]`;
   const FILE = `---\ntitle: Kit groove\n---\n\n\`\`\`cells\n${USES}\n\`\`\`\n`;
@@ -300,15 +300,15 @@ describe('Piece: a piece that uses a fragment (cells decision 054)', () => {
   it('compiles its use through the seed library: the kit’s voices are there, and it plays', () => {
     const p = new Piece(USES);
     expect(p.result.diagnostics).toEqual([]);
-    expect(p.result.uses?.map((u) => [u.id, u.hash?.startsWith('e1:')])).toEqual([['core kit', true]]);
+    expect(p.result.uses?.map((u) => [u.id, u.hash?.startsWith('e1:')])).toEqual([['gm_kit', true]]);
     expect(['bd', 'hh', 'sd'].every((n) => p.program.cells.has(n))).toBe(true);
     const events = windowAt(plan(p.program, codeShifts(p.program), p.muted), 0, 2.4).events;
     expect(events.length).toBeGreaterThan(0);
     // (the code is the piece's own: the kit's lines are not written into it)
     expect(p.code).toBe(USES);
     // (an id the library doesn't hold is an error, on its use line)
-    p.code = USES.replace('core kit', 'no such kit');
-    expect(p.result.diagnostics.find((d) => d.span.line === 1)?.message).toBe('No fragment "no such kit" to use');
+    p.code = USES.replace('gm_kit', 'no_such_kit');
+    expect(p.result.diagnostics.find((d) => d.span.line === 1)?.message).toBe('No fragment "no_such_kit" to use');
   });
 
   it('records what a use resolved to in its file’s lockfile, and keeps an entry already recorded', () => {
@@ -316,7 +316,7 @@ describe('Piece: a piece that uses a fragment (cells decision 054)', () => {
     const hash = p.result.uses![0]!.hash!;
     const saved = readPiece(p.file);
     if ('problems' in saved) throw new Error('unread');
-    expect(saved.frontmatter.uses).toEqual([{ id: 'core kit', hash }]);
+    expect(saved.frontmatter.uses).toEqual([{ id: 'gm_kit', hash }]);
     expect(saved.text).toBe(USES);
     // (saved with an older version: it plays the current one, says so, and the file keeps what it was saved with)
     const older = p.file.replace(hash, 'e1:0000000000000000');
@@ -330,7 +330,7 @@ describe('Piece: a piece that uses a fragment (cells decision 054)', () => {
 
   it('draws its card and its miniature in the library', () => {
     const entry = savedEntry({ id: 'k', title: 'Kit groove', source: FILE, saved: '2026-10-22T00:00:00Z' });
-    // (its bar, its beat and the kit its beat plays: the core kit's ten voices it doesn't read are folded into its use's
+    // (its bar, its beat and the kit its beat plays: the General MIDI kit's voices it doesn't read are folded into its use's
     // name, #480)
     expect([entry.time !== undefined, entry.size]).toEqual([true, 3]);
     expect(miniature(USES)?.nodes.length).toBeGreaterThanOrEqual(entry.size!);

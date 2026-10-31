@@ -90,8 +90,13 @@
     };
   });
   const marks = $derived.by(() => {
+    // (a line's mark is its gravest: an error over a warning, a warning over an info, cells' silence said, decision 063)
+    const rank = { error: 2, warning: 1, info: 0 } as const;
     const m = new Map<number, Diagnostic['severity']>();
-    for (const d of diagnostics) if (m.get(d.span.line) !== 'error') m.set(d.span.line, d.severity);
+    for (const d of diagnostics) {
+      const was = m.get(d.span.line);
+      if (was === undefined || rank[d.severity] > rank[was]) m.set(d.span.line, d.severity);
+    }
     return m;
   });
 
@@ -216,6 +221,10 @@
   .gutter .warning {
     color: var(--warning);
     border-right-color: var(--warning);
+  }
+  .gutter .info {
+    color: var(--text-muted);
+    border-right-color: var(--text-muted);
   }
   textarea,
   .paint,
@@ -361,5 +370,8 @@
   }
   .warning .where {
     color: var(--warning);
+  }
+  .info .where {
+    color: var(--text-muted);
   }
 </style>

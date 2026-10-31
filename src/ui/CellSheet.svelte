@@ -18,6 +18,7 @@
   import { Rename } from './sheet/rename.svelte';
   import Settings from './sheet/Settings.svelte';
   import SheetName from './sheet/SheetName.svelte';
+  import { fromLabel } from '../layout/uses';
 
   let {
     name,
@@ -77,7 +78,7 @@
       <div class="bigscope"><ScopeView {name} w={Math.min(560, (typeof window !== 'undefined' ? window.innerWidth : 400) - 48)} h={220} /></div>
     {/if}
     {#if rename.problem}<p class="problem" role="status">{rename.problem}</p>{/if}
-    {#if given !== undefined}<p class="given">From <code>use "{given}"</code>: an edit writes its line into the piece, in its place.</p>{/if}
+    {#if given !== undefined}<p class="given">From <code>{fromLabel(given)}</code>: an edit writes its line into the piece, in its place.</p>{/if}
     <CellPicture {name} />
     {#if sheetWheel(cell)}<BraidWheel {name} {isMeter} {source} {opened} {words} {multiline} {names} {onedit} />{/if}
     <FreeValues {name} />

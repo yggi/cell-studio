@@ -49,7 +49,7 @@
   import { towerStructure } from '../layout/tower';
   import { minimap } from '../layout/minimap';
   import { bulbHosts, usesOf } from '../layout/drawn';
-  import { givenBy, PLATE_WIDTH, tagUse } from '../layout/uses';
+  import { fromLabel, givenBy, PLATE_WIDTH, tagUse } from '../layout/uses';
   import { tagRoom } from '../layout/start';
   import { bodyOf, NAME_PLATE } from '../layout/voice';
   import { withUsedLine } from '../compile';
@@ -570,7 +570,7 @@
       style:max-width="{c.plate ? PLATE_WIDTH : 2 * tagRoom(c.tag)}px"
       style:--hue={c.colour}
     >
-      <span class="line">use "{c.use}"</span>
+      <span class="line">{fromLabel(c.use)}</span>
       {#each c.folded as name (name)}
         <button class="folded nopan" type="button" onclick={() => select(`cell:${name}`)}>&amp;{name}</button>
       {/each}

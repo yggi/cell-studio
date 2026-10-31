@@ -433,7 +433,7 @@ describe('a steady neutral zone (a followed session’s sections, #493)', () => 
 &key scale(aeolian, C)
 &harm over=key step=1m [3,5,7] [0,2,4,6]
 ${drums}
-use "core kit"
+&bd, &rim, &sd, &cp, &lt, &hh, &ph, &mt, &oh, &ht, &cr, &rd, &claves from gm_kit
 &bass over=&harm step=16n 3@16 4@16
 &bassOut play=&bass level=.3 &bassV
 &bassV loop=C1

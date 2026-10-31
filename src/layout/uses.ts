@@ -52,6 +52,11 @@ export function plateHeight(name: string, folded: readonly string[] = []): numbe
 
 /** A group's tag on its cells: its line, as written. */
 export const useTag = (id: string): string => `use "${id}"`;
+/**
+ * How a group's plate names its line (#505): as cells writes it since decision 065, `from` and the fragment's id,
+ * bare where it is a word (`from gm_kit`), quoted where it is not (`from "4/4 swung on 8n"`).
+ */
+export const fromLabel = (id: string): string => (/^[A-Za-z_][\w]*$/.test(id) ? `from ${id}` : `from "${id}"`);
 /** The use a tag names, or null: a `tags=` tag (a tag can't hold a double quote). */
 export const tagUse = (tag: string): string | null => /^use "(.*)"$/.exec(tag)?.[1] ?? null;
 
