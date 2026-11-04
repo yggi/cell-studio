@@ -31,7 +31,7 @@ Commands, the rules (which are enforced and which are judgment), the PR conventi
 ## Map of src/
 
 - `@yggi/cells` (the package, not a folder here): the language, parse, compile, realize (plan → events), edit, Shorten, physics, FM, the examples and the MIDI corpus; the app gets an index of the examples at build time and loads sources on demand → [architecture.md](architecture.md)
-- `@yggi/webmidi` (the package, `github:yggi/webmidi#v0.1.4`): MIDI's wire, the family's MIDI layer: `core` (reading messages, the computer's keys and the keyboard's layout, drum maps, the clock offset, note and clock out, the setups), `web` (the Web MIDI connection, the book kept), `ui` (the MIDI page's Svelte components), and `testing` (the fake Web MIDI, for tests only); its changelog says what moving the pin changes → [architecture.md](architecture.md)
+- `@yggi/webmidi` (the package, `github:yggi/webmidi#v0.2.0`): MIDI's wire, the family's MIDI layer: `core` (reading messages, the computer's keys and the keyboard's layout, drum maps, the clock offset, note and clock out, the setups), `web` (the Web MIDI connection, the book kept), `ui` (the MIDI page's Svelte components), and `testing` (the fake Web MIDI, for tests only); its changelog says what moving the pin changes → [architecture.md](architecture.md)
 - `layout/` pure layout of the graph, the library, wheels, labels
 - `audio/` player, engine (local or Web Worker), voices (parts in `audio/voice/`), clock, offline render
 - `midi/` a played note as webmidi's `OutNote` (`played.ts`), and the tests' fake Web MIDI → [ui/midi.md](ui/midi.md)

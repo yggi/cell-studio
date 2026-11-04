@@ -3,14 +3,14 @@
    * MIDI, a page of the sidebar, on webmidi's shared components (`@yggi/webmidi/ui`, decision 040), laid out as webmidi's
    * patchbay mockup shows them in Cell studio: the connection (`MidiStatus`); the setups (`SetupPicker`: a change to a
    * named setup is kept as its custom variant until saved); the patch (`PatchMatrix`): the clock, the piece's gates and
-   * voices, its kit and the kit's members, then the inputs (each with its Heard switch: what the keys and MIDI learn
-   * listen to), down; the setup's outputs across; the piece's rows read only for a piece routed by its MIDI cards (the inputs, the clock and
+   * voices, its kit and the kit's members, then the inputs (each with its Plays choice: whether the keys and MIDI
+   * learn hear it, and the voice it plays; a preset's button fills in the rest), down; the setup's outputs across; the piece's rows read only for a piece routed by its MIDI cards (the inputs, the clock and
    * the kit's notes stay editable); under it the output selected (`DeviceInspector`: its port and its device's profile,
    * kept in every setup). A kit member's note per output is edited in the matrix.
    * Then the built-in sound, the keys (#207) and the knobs learned, which stay Cell studio's. The drawer is narrow: the
    * matrix scrolls sideways under its sticky row names. Colours: `--wm-*`, mapped to the theme in `app.css`.
    */
-  import { activeSetup, type PortOption } from '@yggi/webmidi/core';
+  import { activeSetup, DEFAULT_PRESET, type PortOption } from '@yggi/webmidi/core';
   import { DeviceInspector, MidiStatus, PatchMatrix, SetupPicker } from '@yggi/webmidi/ui';
   import KeysSettings from './KeysSettings.svelte';
   import LearnSettings from './LearnSettings.svelte';
@@ -66,6 +66,7 @@
         inputs={midi.ports.inputs}
         outputs={midi.ports.outputs}
         heardBy="the keys and MIDI learn"
+        preset={DEFAULT_PRESET}
         {selected}
         locked={midi.locked}
         onchange={(b) => midi.changeMatrix(b)}
