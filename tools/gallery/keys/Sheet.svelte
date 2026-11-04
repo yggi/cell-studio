@@ -19,7 +19,7 @@
   const melody = (table: string) => `&v s=sine loop=C4\n${table}\n&tune over=&s step=2 0 1 2\n&mix map=sample [&tune * &v]`;
   const PENTA = scaleOf(melody('&s 0 2 4 7 9'));
   const DORIAN = scaleOf(melody('&s scale(dorian, D)'));
-  const EDO19 = scaleOf(`&edo19 cycle=19 map=edo\n${melody('&s over=&edo19 0 3 6 8 11 14 17')}`);
+  const EDO19 = scaleOf(`&edo19 map=edo(19)\n${melody('&s over=&edo19 0 3 6 8 11 14 17')}`);
   const kit = compileSource(
     `&bar step=4\n&drums step=&bar &kick &hat &snare &hat &clap &rim &tom &ride\n&kick s=sine loop=A1\n&snare s=white\n&hat s=white hpf=7000\n&clap s=white\n&rim s=white\n&tom s=sine loop=A2\n&ride s=white hpf=5000\n&mix map=sample [&drums]`,
     { SAMPLE_RATE: 48000, A4: 440 },

@@ -80,7 +80,7 @@ describe('palette: one function from (band, value, grid) to colour', () => {
 });
 
 describe("the owner's rule: colour follows the grid; a mix hearing several shows none, unless its own show= names one", () => {
-  const r = compilePiece(`&edo19 cycle=19 map=edo
+  const r = compilePiece(`&edo19 map=edo(19)
 &bar scan(1 1 1 1) step=1
 &a step=4n 0 2 4
 &b over=&edo19 step=4n 0 3 6
@@ -109,7 +109,7 @@ describe("the owner's rule: colour follows the grid; a mix hearing several shows
     expect(heardGrid(bad, 'm')).toBe('fifths12TET');
   });
   it('a kit or a drum has no say: a mix of drums and 19-tone voices follows the 19', () => {
-    const k = compilePiece(`&edo19 cycle=19 map=edo
+    const k = compilePiece(`&edo19 map=edo(19)
 &bar scan(1 1 1 1) step=1
 &b over=&edo19 step=4n 0 3 6
 &v2 s=saw loop=C4

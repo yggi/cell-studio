@@ -27,8 +27,8 @@ describe('one motion per wheel: a played cell its hand, a table nothing plays it
     }
     // (cells v0.6.0 turns every stepped cell in the live state; drawn, a played one stays at its written shift)
     expect(still).toEqual([]);
-    // the keys, scales, chords and tapes that turn with nothing playing them (14 when this was written)
-    expect(turned).toEqual(expect.arrayContaining(['royal.key', 'coltrane.key', 'prelude.chords', 'idm.lydian', 'bwv847.rhShapes']));
+    // the keys, scales, chords and tapes that turn with nothing playing them (17 at cells v0.16.0, where IDM's &lydian stopped turning: yggi/cells#429)
+    expect(turned).toEqual(expect.arrayContaining(['royal.key', 'coltrane.key', 'prelude.chords', 'bwv847.rhShapes']));
   });
 
   it("a braid's bulbs stay where they are on its track while it plays: its splices as written too", () => {

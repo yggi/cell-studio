@@ -10,6 +10,7 @@
   import type { Locked } from '@yggi/cells/engine/program';
   import { shorten, type Suggestion } from '@yggi/cells/engine/shorten/index';
   import { resolveSeed } from '@yggi/cells/repository/library';
+  import { savedText } from './shortenText';
 
   let { code, locked = [], onapply }: { code: string; locked?: readonly Locked[]; onapply: (next: string) => void } = $props();
 
@@ -32,14 +33,14 @@
       }
     }, 30);
   });
-  // (a card moved into the frontmatter saves none of the code's characters: the file grows by the frontmatter's lines)
+  // (a card moved into the frontmatter saves none of the code's structure: the file grows by the frontmatter's lines)
   const total = $derived(list?.reduce((a, s) => a + Math.max(0, s.saving), 0) ?? 0);
 </script>
 
 <div class="shorten">
   <button class="unstyled toggle" aria-expanded={open} onclick={() => (open = !open)}>
     <span class="caret" aria-hidden="true">{open ? '▾' : '▸'}</span> Shorten
-    {#if open && list}<span class="sum">{list.length ? `${list.length} · up to ${total} characters` : 'nothing to shorten'}</span>{/if}
+    {#if open && list}<span class="sum">{list.length ? `${list.length} · up to ${savedText(total)}` : 'nothing to shorten'}</span>{/if}
   </button>
   {#if open}
     {#if !list}
@@ -57,7 +58,7 @@
               <code class="now">{s.after}</code>
             </div>
             <div class="row">
-              <span class="saves">{s.kind === 'card' ? 'into the file’s frontmatter' : `−${s.saving} characters`}</span>
+              <span class="saves">{s.kind === 'card' ? 'into the file’s frontmatter' : `−${savedText(s.saving)}`}</span>
               <button class="apply" onclick={() => onapply(s.apply(code))}>Apply</button>
             </div>
           </li>

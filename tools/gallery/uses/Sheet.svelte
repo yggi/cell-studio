@@ -19,7 +19,7 @@
   const SOURCES = {
     kit: KIT,
     override: `${KIT}\n&sd s=white hpf=900 distort=.6 env=&(map=adsr 0 .12 0 .05)`,
-    band: '&bar meter("4/4") step=110bpm\nuse * from "aeolian"\nuse * from "tonic vamp"\nuse * from "bass"\nuse * from "root bass"\n&bd, &rim, &sd, &cp, &lt, &hh, &ph, &mt, &oh, &ht, &cr, &rd, &claves from gm_kit\nuse * from "Synth-pop drums"',
+    band: '&bar meter("4/4") step=110bpm\nuse * from aeolian\nuse * from tonic_vamp\nuse * from bass\nuse * from root_bass\n&bd, &rim, &sd, &cp, &lt, &hh, &ph, &mt, &oh, &ht, &cr, &rd, &claves from gm_kit\nuse * from synth_pop_drums',
   };
   const OPTIONS = ['wash', 'frame', 'tag', 'shelf', 'app'] as const;
   type Option = (typeof OPTIONS)[number];
