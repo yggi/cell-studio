@@ -4,7 +4,7 @@ import { fakeAccess, fakeInput, fakePort, installMidi, uninstallMidi } from '@yg
 import { Midi } from './midi.svelte';
 import { compilePiece } from '../../compile';
 import { PRESETS } from '@yggi/cells/engine/presets';
-import { activeSetup, AS_PLAYED, DRUM_PRESETS, saveAs, useSetup, withClock, withCrossing, withHeard, type SetupBook } from '@yggi/webmidi/core';
+import { activeSetup, AS_PLAYED, DRUM_PRESETS, inputRow, saveAs, useSetup, withClock, withCrossing, withHeard, withProfile, type SetupBook } from '@yggi/webmidi/core';
 import type { NoteSink } from '../../audio/player';
 import { plan, type Played } from '@yggi/cells/engine/realize';
 import { codeShifts } from '@yggi/cells/engine/program';
@@ -1093,7 +1093,7 @@ describe('Midi: the patch matrix', () => {
     expect(kept().devices.Juno!.latency).toBe(12);
   });
 
-  it('a piece routed by its MIDI cards shows their channels on every slot, read only, and keeps only a Heard switch', async () => {
+  it('a piece routed by its MIDI cards shows their channels on every slot, read only, and keeps nothing of its own rows', async () => {
     const { midi } = await two();
     const source = `&bar scan(1 1 1 1) step=2\n&bass step=4n 0\n&sub loop=55\n&far map=midi(3, 3) [&bass * &sub]`;
     midi.attach({ sink: null, internal: true }, { program: compilePiece(source), title: 'Cards' });
@@ -1105,6 +1105,25 @@ describe('Midi: the patch matrix', () => {
     expect(keptSetup().heard).toEqual([{ id: 'in-1', name: 'Keys' }]);
     expect(keptSetup().routes).toEqual({});
     expect(keptSetup().outputs).toHaveLength(2);
+  });
+
+  it("a piece routed by its MIDI cards keeps what its matrix still edits: an input's crossing, the clock, a drum note (webmidi v0.1.4)", async () => {
+    const { midi } = await two();
+    const source = `&bar scan(1 1 1 1) step=2\n&bass step=4n 0\n&sub loop=55\n&far map=midi(3, 3) [&bass * &sub]`;
+    midi.attach({ sink: null, internal: true }, { program: compilePiece(source), title: 'Cards' });
+    expect(midi.locked).toBe(true);
+    let shown = midi.matrixBook;
+    shown = withCrossing(shown, 'piece:Cards', inputRow({ id: 'in-1', name: 'Keys' }), 'o2', AS_PLAYED);
+    // the clock to a real output, and to the slot only the cards name (o3), which the setup lacks
+    shown = withClock(withClock(shown, 'o2', true), 'o3', true);
+    shown = withProfile(shown, 'Juno', { drums: { 38: 62 } });
+    midi.changeMatrix(shown);
+    expect(keptSetup().routes['piece:Cards']).toEqual({ 'in:Keys': { o2: AS_PLAYED } });
+    expect(keptSetup().clock).toEqual(['o2']);
+    expect(kept().devices.Juno!.drums).toEqual({ 38: 62 });
+    expect(keptSetup().outputs).toHaveLength(2);
+    // and what the matrix shows of it, after
+    expect(activeSetup(midi.matrixBook).routes['piece:Cards']).toEqual({ sub: { o3: 3 }, 'in:Keys': { o2: AS_PLAYED } });
   });
 
   it('switching setups silences the outputs that change, and plays the other setup', async () => {

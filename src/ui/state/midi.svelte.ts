@@ -47,6 +47,7 @@ import {
   forwardsAny,
   isAmong,
   keptChange,
+  lockedChange,
   KIT,
   oldChoicesOf,
   own,
@@ -498,13 +499,13 @@ export class Midi implements NoteSink {
     this.#heardFrom = this.#inputThere();
   }
 
-  /** A change made in the patch matrix (on `matrixBook`), kept: a piece routed by its cards keeps only the inputs heard. */
+  /**
+   * A change made in the patch matrix (on `matrixBook`), kept. A piece routed by its cards keeps what its locked matrix
+   * still edits (webmidi v0.1.4): the inputs heard, the input rows' crossings in its context, the clock, and the devices'
+   * profiles (a member's drum note); each to the setup's own outputs, not the slots only its cards name.
+   */
   changeMatrix(next: SetupBook): void {
-    if (this.locked) {
-      const heard = activeSetup(next).heard;
-      if (JSON.stringify(heard) !== JSON.stringify(this.#setup.heard)) this.setBook(withHeard(this.book, heard));
-      return;
-    }
+    if (this.locked) return this.setBook(lockedChange(this.book, this.matrixBook, next, this.context));
     this.setBook(keptChange(this.book, this.matrixBook, next));
   }
 
