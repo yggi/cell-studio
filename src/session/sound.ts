@@ -13,7 +13,7 @@
  * What can't be played is said (`Lack`): a bar its text leaves unstated, a text that doesn't compile, a bar no text
  * stated, a bar the host passed without laying, and a stretch the asker came to too late (a page that slept).
  */
-import type { FeelFrame } from './feel';
+import type { FeelFrame } from '@yggi/cells/engine/perform/feel';
 import type { Followed } from './follow';
 import { textOf } from './follow';
 import type { SectionText } from './protocol';

@@ -80,7 +80,7 @@ describe('a followed session as the player’s feed', () => {
 });
 
 describe('a followed session played as its performers play it', () => {
-  /** A host's text in its own forms: the bass on its voice and the General MIDI kit's kick, on the MIDI card (`session/perform.test.ts`). */
+  /** A host's text in its own forms: the bass on its voice and the General MIDI kit's kick, on the MIDI card (`session/hostText.test.ts`). */
   const HOST = `&bar meter("4/4") step=120bpm
 &kick step=4n &bd &bd &bd &bd
 &drums [&kick]

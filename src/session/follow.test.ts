@@ -1,7 +1,8 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { compilePiece } from '../compile';
-import { NOTHING_FOLLOWED, barSeconds, heardAt, nextTextAt, placeAt, pruned, reaches, textOf, withBar, withText, type Followed } from './follow';
-import type { SectionText } from './protocol';
+import { NOTHING_FOLLOWED, barSeconds, frameOf, heardAt, nextTextAt, placeAt, pruned, reaches, textOf, withBar, withText, type Followed } from './follow';
+import type { SectionText, SentBar } from './protocol';
 
 const frame = { meter: { cycle: 8, heights: [0, 2, 4, 6] }, swing: { level: '16n', share: 0.5 }, bpm: 120, key: { tonic: 9, mode: 'aeolian' } };
 const section = (bar: number, bars: number, text: string): SectionText => ({
@@ -102,5 +103,50 @@ describe('a rejoin’s welcome (#482)', () => {
     expect(reaches(f, [sent(17, 44), sent(18, 46)])).toBe(false);
     expect(reaches(NOTHING_FOLLOWED, [sent(1, 12)])).toBe(false);
     expect(reaches(f, [])).toBe(false);
+  });
+});
+
+describe('the frame of a bar a host sent', () => {
+  // (the session contract's bar, as a host sends it: the hub's vectors beside this file)
+  const session = JSON.parse(readFileSync(new URL('./vectors.json', import.meta.url), 'utf8')) as {
+    vectors: readonly { reader: string; reads: boolean; message: { kind: string; sent?: SentBar } }[];
+  };
+  const sent = session.vectors.find((v) => v.reader === 'client' && v.reads && v.message.kind === 'bar')!.message.sent!;
+
+  it('is read off its plan, style, swing and energy: the meter’s eighths, each pulse a group', () => {
+    expect(frameOf(sent)).toEqual({
+      seed: 42,
+      bar: 0,
+      groups: [2, 2, 2, 2],
+      section: 'intro',
+      style: { entropy: 0.3, artic: 0.55, sync: 0.3 },
+      swing: { level: '16n', share: 0.5 },
+      energy: 0.25000000000000006,
+    });
+  });
+
+  it('…and is null where a field the feel reads is missing or not what it reads', () => {
+    const without = (path: string[], value?: unknown): SentBar => {
+      const copy = structuredClone(sent) as unknown as Record<string, unknown>;
+      const at = path.slice(0, -1).reduce((o, k) => o[k] as Record<string, unknown>, copy.bar as Record<string, unknown>);
+      if (value === undefined) delete at[path.at(-1)!];
+      else at[path.at(-1)!] = value;
+      return copy as unknown as SentBar;
+    };
+    for (const path of [
+      ['seed'],
+      ['bar'],
+      ['barEnergy'],
+      ['plan', 'meter'],
+      ['plan', 'section', 'type'],
+      ['style', 'entropy'],
+      ['style', 'artic'],
+      ['style', 'sync'],
+      ['swing', 'share'],
+    ])
+      expect(frameOf(without(path)), path.join('.')).toBeNull();
+    expect(frameOf(without(['swing', 'level'], '4n'))).toBeNull();
+    expect(frameOf(without(['plan', 'section', 'type'], 'chorus'))).toBeNull();
+    expect(frameOf(without(['plan', 'meter', 'heights'], [2, 0]))).toBeNull();
   });
 });
