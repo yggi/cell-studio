@@ -7,6 +7,7 @@ import { cellId } from '@yggi/cells/engine/ids';
 import { COMPUTER_KEY_MAP, DRUM_KEY_MAP, gmNotesFor, ignoreKeyEvent, parseMidiMessage, parseSustain, type DrumMap } from '@yggi/webmidi/core';
 import type { CompileResult, Shifts } from '@yggi/cells/engine/program';
 import { storageKey } from '../../storageKey';
+import { KIT } from './patch';
 
 const KEY = 'cell-studio:keys';
 
@@ -82,6 +83,11 @@ type MidiIo = {
   readonly drumChannels?: readonly number[];
   /** Told when every key held from the input should let go (All notes off, the input changed or gone). */
   letGo?(listener: (alive?: ReadonlySet<string>) => void): () => void;
+  /**
+   * What an input (by its name) plays, as the MIDI page's Plays choice says (webmidi decision 003): a voice's row, the
+   * kit's (`*`) or a member's (`*name`); null: the default, the cell armed.
+   */
+  playsFrom?(source: string): string | null;
 };
 
 /** The piece the keys play (the Piece state): what it compiles to, its tables' shifts, its A4. */
@@ -321,12 +327,12 @@ export class Keys {
       }
   }
 
-  #press(note: number, velocity: number, channel: number, drum: boolean, gm: readonly number[], ms: number, source = ''): void {
+  #press(note: number, velocity: number, channel: number, drum: boolean, gm: readonly number[], ms: number, source = '', played = this.#keyboard): void {
     if (!drum) this.held.add(note);
     const at = keyAt(channel, note, source);
-    if (!drum && this.#keyboard?.kind === 'voice') this.listener?.down(at, { note }, ms);
+    if (!drum && played?.kind === 'voice') this.listener?.down(at, { note }, ms);
     this.#strike(at);
-    const k = drum ? this.#kit : this.#keyboard;
+    const k = drum ? this.#kit : played;
     let voice: string | null = null;
     let freq: number | null = null;
     if (k?.kind === 'kit') {
@@ -361,9 +367,32 @@ export class Keys {
     if (!n) return;
     // (a pad on a channel the kit goes out on, or 10, or any key with a kit armed, is the device's note: back through
     // its drum map to General MIDI)
-    const drum = (this.#midi.drumChannels ?? [this.drumChannel + 1]).includes(n.channel + 1) || this.#keyboard?.kind === 'kit';
+    const played = this.#keyboardFor(source);
+    const drum = (this.#midi.drumChannels ?? [this.drumChannel + 1]).includes(n.channel + 1) || played?.kind === 'kit';
     if (!n.on) return this.release(n.note, n.channel, ms, source);
-    this.#press(n.note, n.velocity, n.channel, drum, drum ? gmNotesFor(this.#midi.drumsFrom(source), n.note) : [n.note], ms, source);
+    this.#press(n.note, n.velocity, n.channel, drum, drum ? gmNotesFor(this.#midi.drumsFrom(source), n.note) : [n.note], ms, source, played);
+  }
+
+  // what an input plays (the MIDI page's Plays choice): the kit for the kit's row or a member's, a voice's own keyboard,
+  // else the cell armed (the default, or a row the piece can't play from a key)
+  #keyboardFor(source: string): Keyboard | null {
+    const row = source ? (this.#midi.playsFrom?.(source) ?? null) : null;
+    if (row === null) return this.#keyboard;
+    if (row.startsWith(KIT)) return this.#kit ?? this.#keyboard;
+    return this.#keyboardOf(row) ?? this.#keyboard;
+  }
+
+  // a cell's keyboard, kept while the piece, its shifts, its A4 and the key mode are as they were (a key a note-on)
+  #played = new Map<string, Keyboard | null>();
+  #playedFor: readonly unknown[] = [];
+  #keyboardOf(cell: string): Keyboard | null {
+    const now = [this.piece.program, this.piece.shifts, this.piece.env.A4, this.#kept.mode];
+    if (now.some((v, i) => v !== this.#playedFor[i])) {
+      this.#played.clear();
+      this.#playedFor = now;
+    }
+    if (!this.#played.has(cell)) this.#played.set(cell, keyboardOf(this.piece.program, cell, this.piece.shifts, { a4: this.piece.env.A4, mode: this.#kept.mode }));
+    return this.#played.get(cell)!;
   }
 
   // thru: a key's note-on where the voice it plays goes out; where it went, for its note-off

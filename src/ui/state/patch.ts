@@ -9,10 +9,9 @@ import {
   inputRow,
   withClock,
   withCrossing,
-  withHeard,
+  withPlays,
   withProfile,
   type Crossing,
-  type PortOption,
   type Routes,
   type Setup,
   type SetupBook,
@@ -181,7 +180,7 @@ export function keptChange(book: SetupBook, shown: SetupBook, changed: SetupBook
 
 /**
  * A change made on a locked matrix's book (`shown`: a piece routed by its MIDI cards, their channels written in on every
- * slot they name), kept on the book itself as the locked matrix edits it (webmidi v0.1.4): the inputs heard, the input
+ * slot they name), kept on the book itself as the locked matrix edits it (webmidi v0.1.4): what each input plays (v0.2.0), the input
  * rows' crossings in `context`, the clock, and the devices' profiles. The cards' own rows are theirs, not the setup's,
  * and a crossing or the clock to a slot only the cards name (the setup lacks its output) isn't kept. Each through
  * webmidi's changes, so a change to a named setup is its custom variant; the book as it is when nothing kept changed.
@@ -191,7 +190,8 @@ export function lockedChange(book: SetupBook, shown: SetupBook, changed: SetupBo
   const [was, now] = [activeSetup(shown), activeSetup(changed)];
   const keys = activeSetup(book).outputs.map((o) => o.key);
   let kept = book;
-  if (JSON.stringify(now.heard) !== JSON.stringify(was.heard)) kept = withHeard(kept, now.heard);
+  for (const row of new Set([...Object.keys(was.plays), ...Object.keys(now.plays)]))
+    if (JSON.stringify(own(now.plays, row)) !== JSON.stringify(own(was.plays, row))) kept = withPlays(kept, row, own(now.plays, row));
   for (const key of keys) if (now.clock.includes(key) !== was.clock.includes(key)) kept = withClock(kept, key, now.clock.includes(key));
   const inputs = (s: Setup) => (own(s.routes, context) ?? {}) as Routes;
   const [before, after] = [inputs(was), inputs(now)];
@@ -219,20 +219,21 @@ export function slotsOf(outputs: readonly SetupOutput[], slots: number): SetupOu
 
 // ---- the rows ----
 
-/** The matrix's rows for a piece: its gates and voices in order, then its kit and the kit's members (by General MIDI note). */
+/**
+ * The matrix's rows for a piece: its gates and voices in order, then its kit and the kit's members (by General MIDI
+ * note). Their roles, which an input's Plays choice is kept by (webmidi decision 003), so it carries to another piece
+ * and to Jambot: a voice is `lead` (the first in reading order is a preset's keyboard's), the kit `drums`.
+ */
 export function rowsOfPiece(voices: readonly string[], kit: readonly { readonly member: string; readonly note: number }[]): MatrixRow[] {
-  const rows: MatrixRow[] = voices.map((v) => ({ id: v, label: `&${v}`, kind: 'voice' }));
+  const rows: MatrixRow[] = voices.map((v) => ({ id: v, label: `&${v}`, kind: 'voice', role: 'lead' }));
   if (kit.length) {
-    rows.push({ id: KIT, label: 'Kit', kind: 'kit', group: true });
+    rows.push({ id: KIT, label: 'Kit', kind: 'kit', group: true, role: 'drums' });
     for (const k of kit) rows.push({ id: `${KIT}${k.member}`, label: `&${k.member}`, kind: 'member', note: k.note });
   }
   return rows;
 }
 
 // ---- the inputs ----
-
-/** Whether a message came from an input among `ports` (by its name, as a message says where it came from; or `'all'`). */
-export const isAmong = (ports: readonly PortOption[] | 'all', source: string): boolean => ports === 'all' || ports.some((p) => (p.name || p.id) === source);
 
 /**
  * Where a message from an input goes (its row `in:<name>`, and every input's, `ANY_INPUT`, when the frontend hears it):
@@ -256,6 +257,3 @@ export function forwards(data: ArrayLike<number>, source: string, heard: boolean
   }
   return out;
 }
-
-/** Whether any input row is routed in a context (every input's, `ANY_INPUT`, included). */
-export const forwardsAny = (routes: Routes): boolean => Object.entries(routes).some(([row, c]) => row.startsWith('in:') && Object.keys(c).length > 0);

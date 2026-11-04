@@ -52,7 +52,15 @@ function made(
     claimed,
     padChannel,
     routes = ROUTES,
-  }: { drums?: DrumMap; claimed?: (d: Uint8Array) => boolean; padChannel?: number; routes?: Readonly<Record<string, readonly { port: number; channel: number }[]>> } = {},
+    plays = {},
+  }: {
+    drums?: DrumMap;
+    claimed?: (d: Uint8Array) => boolean;
+    padChannel?: number;
+    routes?: Readonly<Record<string, readonly { port: number; channel: number }[]>>;
+    /** What each input (by name) plays, as the MIDI page's Plays choice: a row's id; one not named plays the default. */
+    plays?: Readonly<Record<string, string>>;
+  } = {},
 ) {
   const piece = new Piece(code);
   const asked: string[] = [];
@@ -89,6 +97,7 @@ function made(
       letGoers.add(l);
       return () => void letGoers.delete(l);
     },
+    playsFrom: (source: string) => (Object.hasOwn(plays, source) ? plays[source]! : null),
   };
   const keys = new Keys(piece, hands, midi, { claimed });
   cleanups.push(() => keys.dispose());
@@ -99,6 +108,25 @@ function made(
 }
 
 describe('two inputs, and a kit put on another channel', () => {
+  it('each input plays what its Plays choice says: the kit, a voice, or the default, the cell armed (webmidi decision 003)', () => {
+    const { playFrom, asked, keys } = made(SONG, { plays: { Pads: '*', Low: 'bass' } });
+    playFrom('Keys', 0x90, 60, 100); // the default: the melody armed
+    playFrom('Pads', 0x90, 36, 100); // the kit, though on channel 1: the kick
+    playFrom('Low', 0x90, 36, 100); // the bass, by its own keys
+    expect(asked[0]).toMatch(/^press 1 lead /);
+    expect(asked[1]).toMatch(/^press 2 bd /);
+    expect(asked[2]).toMatch(/^press 3 bass /);
+    // (the on-screen keys play the cell armed, whatever the inputs play)
+    keys.press(62);
+    expect(asked[3]).toMatch(/^press 4 lead /);
+  });
+
+  it("an input playing a row the piece can't play from a key plays the cell armed", () => {
+    const { playFrom, asked } = made(SONG, { plays: { Keys: 'nowhere' } });
+    playFrom('Keys', 0x90, 60, 100);
+    expect(asked[0]).toMatch(/^press 1 lead /);
+  });
+
   it('two inputs playing the same key are two keys: one let go leaves the other sounding', () => {
     const { playFrom, asked } = made();
     playFrom('Keys', 0x90, 60, 100);

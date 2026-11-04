@@ -4,7 +4,7 @@ import { fakeAccess, fakeInput, fakePort, installMidi, uninstallMidi } from '@yg
 import { Midi } from './midi.svelte';
 import { compilePiece } from '../../compile';
 import { PRESETS } from '@yggi/cells/engine/presets';
-import { activeSetup, AS_PLAYED, DRUM_PRESETS, inputRow, saveAs, useSetup, withClock, withCrossing, withHeard, withProfile, type SetupBook } from '@yggi/webmidi/core';
+import { activeSetup, ANY_INPUT, AS_PLAYED, DRUM_PRESETS, inputRow, saveAs, useSetup, withClock, withCrossing, withPlays, withProfile, type SetupBook } from '@yggi/webmidi/core';
 import type { NoteSink } from '../../audio/player';
 import { plan, type Played } from '@yggi/cells/engine/realize';
 import { codeShifts } from '@yggi/cells/engine/program';
@@ -53,6 +53,18 @@ describe('Midi: the settings', () => {
     const midi = await made();
     expect([midi.outPortId, midi.inPortId, midi.outPort, midi.access]).toEqual(['none', 'none', null, null]);
     expect(ask).not.toHaveBeenCalled();
+  });
+
+  it('reads a book kept before what an input plays (webmidi 0.1) by what it heard, each input heard playing the default', async () => {
+    installMidi(fakeAccess([fakeInput('in-1', 'Keys'), fakeInput('in-2', 'Pads')], []));
+    const kept0 = (heard: unknown) => ({ version: 1, setups: [{ id: 's1', name: 'Setup 1', outputs: [{ key: 'o1', id: 'none', name: '' }], heard }], active: 's1' });
+    store.set('cell-studio:midi-setups', JSON.stringify(kept0([{ id: 'in-1', name: 'Keys' }])));
+    const one = await made();
+    await one.connect();
+    expect([activeSetup(one.book).plays, one.inPortId]).toEqual([{ 'in:Keys': 'default' }, 'in-1']);
+    store.set('cell-studio:midi-setups', JSON.stringify(kept0('all')));
+    const all = await made();
+    expect([activeSetup(all.book).plays, all.inPortId]).toEqual([{ 'in:*': 'default' }, 'all']);
   });
 
   it('keeps the ports chosen, by id and name, and connects to them again on load without a click', async () => {
@@ -1044,23 +1056,45 @@ describe('Midi: the patch matrix', () => {
     expect(other.sent).toEqual([]);
   });
 
-  it('hears several inputs, each a Heard switch, and lets the keys of one unplugged go', async () => {
+  it('hears several inputs, each playing (its Plays choice), and lets the keys of one unplugged go', async () => {
     const { midi, keys, pads } = await two();
     const heard: string[] = [];
     midi.hear((_, source) => void heard.push(source));
     const told = vi.fn();
     midi.letGo(told);
-    midi.changeMatrix(
-      withHeard(midi.matrixBook, [
-        { id: 'in-1', name: 'Keys' },
-        { id: 'in-2', name: 'Pads' },
-      ]),
-    );
+    midi.changeMatrix(withPlays(withPlays(midi.matrixBook, 'in:Keys', 'default'), 'in:Pads', 'default'));
     expect(told).toHaveBeenCalledTimes(1);
     keys.play([0x90, 60, 100]);
     pads.play([0x90, 36, 100]);
     expect(heard).toEqual(['Keys', 'Pads']);
     expect(midi.inPortId).toBe('in-1,in-2');
+  });
+
+  it("an input not heard under every input's choice reaches neither the keys nor MIDI learn, though its port is listened to (webmidi decision 003)", async () => {
+    const { midi, keys, pads } = await two();
+    const heard: string[] = [];
+    midi.hear((_, source) => void heard.push(source));
+    midi.changeMatrix(withPlays(withPlays(midi.matrixBook, ANY_INPUT, 'default'), 'in:Pads', 'none'));
+    expect(midi.inPortId).toBe('all');
+    keys.play([0x90, 60, 100]);
+    pads.play([0x90, 36, 100]);
+    expect(heard).toEqual(['Keys']);
+  });
+
+  it("says what an input plays among the piece's rows: its own row, else the first of its role, else the default", async () => {
+    const { midi } = await two();
+    expect(midi.matrixRows.filter((r) => r.role).map((r) => [r.id, r.role])).toEqual([
+      ['fiddle', 'lead'],
+      ['bass', 'lead'],
+      ['*', 'drums'],
+    ]);
+    midi.changeMatrix(withPlays(withPlays(midi.matrixBook, 'in:Keys', { row: 'bass', role: 'lead' }), 'in:Pads', { row: 'kit', role: 'drums' }));
+    expect([midi.playsFrom('Keys'), midi.playsFrom('Pads')]).toEqual(['bass', '*']);
+    // (on a piece without a bass: the first voice, the role's; an input playing the default: null, the keys' armed cell)
+    midi.attach({ sink: null, internal: true }, { program: compilePiece('&lead s=sine loop=C4'), title: 'Solo' });
+    expect(midi.playsFrom('Keys')).toBe('lead');
+    midi.changeMatrix(withPlays(midi.matrixBook, 'in:Keys', 'default'));
+    expect(midi.playsFrom('Keys')).toBeNull();
   });
 
   it('sends clock to the outputs of its row, the same for every piece; switched off while playing, Stop', async () => {
@@ -1101,8 +1135,8 @@ describe('Midi: the patch matrix', () => {
     const shown = activeSetup(midi.matrixBook);
     expect(shown.outputs.map((o) => o.key)).toEqual(['o1', 'o2', 'o3']);
     expect(shown.routes['piece:Cards']).toEqual({ sub: { o3: 3 } });
-    midi.changeMatrix(withCrossing(withHeard(midi.matrixBook, [{ id: 'in-1', name: 'Keys' }]), 'piece:Cards', 'sub', 'o1', 9));
-    expect(keptSetup().heard).toEqual([{ id: 'in-1', name: 'Keys' }]);
+    midi.changeMatrix(withCrossing(withPlays(midi.matrixBook, 'in:Keys', 'default'), 'piece:Cards', 'sub', 'o1', 9));
+    expect(keptSetup().plays).toEqual({ 'in:Keys': 'default' });
     expect(keptSetup().routes).toEqual({});
     expect(keptSetup().outputs).toHaveLength(2);
   });

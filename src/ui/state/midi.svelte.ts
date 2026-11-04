@@ -20,7 +20,13 @@ import {
   removeOutput,
   withClock,
   withCrossing,
-  withHeard,
+  withPlays,
+  heardOf,
+  isHeard,
+  listenOf,
+  playsOf,
+  inputRow,
+  ANY_INPUT,
   withProfile,
   type BookStore,
   type DeviceProfile,
@@ -44,8 +50,6 @@ import {
   choicesOf,
   contextOf,
   forwards,
-  forwardsAny,
-  isAmong,
   keptChange,
   lockedChange,
   KIT,
@@ -188,8 +192,8 @@ export class Midi implements NoteSink {
   #used = new Map<string, Set<number>>();
   // who hears every message from the inputs heard (MIDI learn: state/learn.svelte.ts; the keys)
   #hearers = new Set<(data: Uint8Array, source: string, timeStamp: number) => void>();
-  // what the connection listens to: an input's id, 'all' or 'none' (under 'all', each message is sorted by its input)
-  #listening = 'none';
+  // what the connection listens to (webmidi's `listenOf`: the inputs heard and those routed), as JSON, to listen anew only on a change
+  #listening = '';
 
   /** The setup in use. */
   get #setup() {
@@ -334,20 +338,22 @@ export class Midi implements NoteSink {
 
   /** The inputs heard, as one word: `'none'`, `'all'`, or their ids (one input's id). */
   get inPortId(): string {
-    const heard = this.#setup.heard;
-    return heard === 'all' ? 'all' : heard.length ? heard.map((p) => p.id).join(',') : 'none';
+    const heard = heardOf(this.#setup);
+    // (an input is kept by its name, in what it plays: its id is the port's plugged in by that name, else the name)
+    const idOf = (p: PortOption) => this.ports.inputs.find((q) => q.id === p.id || (!!p.name && q.name === p.name))?.id ?? p.id;
+    return heard === 'all' ? 'all' : heard.length ? heard.map(idOf).join(',') : 'none';
   }
   set inPortId(id: string) {
     this.chooseInput(id);
   }
   get inPortName(): string {
-    const heard = this.#setup.heard;
+    const heard = heardOf(this.#setup);
     return heard === 'all' ? '' : (heard[0]?.name ?? '');
   }
 
   /** Whether every input heard is absent (unplugged): nothing can be heard. */
   get hearingNowhere(): boolean {
-    const heard = this.#setup.heard;
+    const heard = heardOf(this.#setup);
     return heard !== 'all' && heard.length > 0 && !heard.some((h) => this.ports.inputs.some((p) => p.id === h.id || (!!h.name && p.name === h.name)));
   }
 
@@ -409,32 +415,33 @@ export class Midi implements NoteSink {
       p.id === 'none' || ports.some((q) => q.id === p.id) ? p.id : (ports.find((q) => !!p.name && q.name === p.name)?.id ?? p.id);
     const setup = this.#setup;
     const outputs = setup.outputs.map((o) => ({ ...o, id: idNow(access.outputs, o) }));
-    const was = setup.heard;
-    const heard = was === 'all' ? 'all' : was.map((p) => ({ ...p, id: idNow(access.inputs, p) }));
-    if (outputs.some((o, i) => o.id !== setup.outputs[i]!.id) || (heard !== 'all' && was !== 'all' && heard.some((p, i) => p.id !== was[i]!.id))) {
-      this.book = withSetup(this.book, { ...setup, outputs, heard });
+    // (an input is kept by its name, in what it plays: nothing of it to refresh)
+    if (outputs.some((o, i) => o.id !== setup.outputs[i]!.id)) {
+      this.book = withSetup(this.book, { ...setup, outputs });
       this.#saveBook();
     }
     this.outPort = outputNow(access, this.#first);
     this.#relisten();
   }
 
-  /** Listen to what is heard and what is forwarded: one input by its id, as before, or every input, each message sorted by its name. */
+  /**
+   * Listen to what is heard and what is forwarded (webmidi's `listenOf`): the inputs heard and those routed in any context,
+   * each by its name, or every input. Listened to is not heard: each message asks `isHeard` (`#onMessage`).
+   */
   #relisten(): void {
     const access = this.access;
     if (!access) return;
-    const heard = this.#setup.heard;
-    const routes = this.#routes;
-    const id = heard === 'all' || heard.length > 1 || (routes && forwardsAny(routes)) ? 'all' : heard.length ? heard[0]!.id : 'none';
-    if (id === this.#listening) return;
-    this.#listening = id;
-    access.listen(id);
+    const listen = listenOf(this.#setup);
+    const key = JSON.stringify(listen);
+    if (key === this.#listening) return;
+    this.#listening = key;
+    access.listen(listen);
   }
 
   // a message from an input: heard (the keys, MIDI learn) when it comes from an input heard, and forwarded where its row
   // is routed; the light flashes (not for system messages: a device's active sensing)
   #onMessage(data: Uint8Array, source: string, timeStamp: number): void {
-    const heard = this.#listening !== 'all' || isAmong(this.#setup.heard, source);
+    const heard = isHeard(this.#setup, { id: source, name: source });
     const routes = this.#routes;
     const sent = routes ? forwards(data, source, heard, routes) : [];
     if ((heard || sent.length) && data[0]! < 0xf0) this.activity.hit('in');
@@ -490,7 +497,8 @@ export class Midi implements NoteSink {
         this.#used.delete(o.key);
       }
     }
-    if (JSON.stringify(before.heard) !== JSON.stringify(after.heard)) this.#letGoAll();
+    // (what an input plays changed: the keys held from it let go, as they were struck on what it played)
+    if (JSON.stringify(before.plays) !== JSON.stringify(after.plays)) this.#letGoAll();
     if (next.devices !== this.book.devices) this.warning = null;
     this.book = next;
     this.#saveBook();
@@ -861,11 +869,25 @@ export class Midi implements NoteSink {
       } else lane.out.forget();
   }
 
-  /** Hear one input by id, `'all'` or `'none'` (the setup's inputs heard: each input row's Heard switch in the matrix). */
+  /**
+   * Hear one input by id, `'all'` or `'none'`, each playing the default (the cell the keys have armed), in place of what
+   * every input played: the setup's `plays` (webmidi decision 003), which the matrix's Plays choices change one by one.
+   */
   chooseInput(id: string): void {
-    if (id === this.inPortId) return;
-    const heard: readonly PortOption[] | 'all' = id === 'none' ? [] : id === 'all' ? 'all' : [{ id, name: this.ports.inputs.find((p) => p.id === id)?.name ?? '' }];
-    this.setBook(withHeard(this.book, heard));
+    let book = this.book;
+    for (const row of Object.keys(this.#setup.plays)) book = withPlays(book, row, undefined);
+    if (id === 'all') book = withPlays(book, ANY_INPUT, 'default');
+    else if (id !== 'none') book = withPlays(book, inputRow({ id, name: this.ports.inputs.find((p) => p.id === id)?.name ?? '' }), 'default');
+    this.setBook(book);
+  }
+
+  /**
+   * What an input (by its name, as a message says where it came from) plays among the open piece's rows (webmidi's
+   * `playsOf`): a voice's row, the kit's (`*`) or a member's (`*name`); null for the default, the cell the keys have armed.
+   */
+  playsFrom(source: string): string | null {
+    const played = playsOf(this.book, { id: source, name: source }, this.matrixRows);
+    return played === null || played === 'default' ? null : played;
   }
 
   // a note or a control sent (not the clock's ticks) flashes the light, at the moment it is heard
@@ -932,7 +954,7 @@ export class Midi implements NoteSink {
   #changed(): void {
     this.#adopt();
     this.#list();
-    const heard = this.#setup.heard;
+    const heard = heardOf(this.#setup);
     // (an input heard gone: its keys' note-offs will never come; an unrelated device coming or going is not that)
     const there = this.#inputThere();
     if (this.#heardFrom && !there && heard !== 'all' && heard.length < 2) this.#letGoAll();
@@ -944,9 +966,9 @@ export class Midi implements NoteSink {
   // whether the inputs heard are there to listen to (none, and all, always are)
   #heardFrom = false;
   #inputThere(): boolean {
-    const heard = this.#setup.heard;
+    const heard = heardOf(this.#setup);
     const access = this.access;
-    return !!access && (heard === 'all' || heard.every((h) => access.inputs.some((p) => p.id === h.id)));
+    return !!access && (heard === 'all' || heard.every((h) => access.inputs.some((p) => p.id === h.id || (!!h.name && p.name === h.name))));
   }
 
   #list(): void {
