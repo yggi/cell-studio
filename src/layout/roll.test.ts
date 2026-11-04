@@ -224,7 +224,7 @@ describe('the rows', () => {
   });
 
   it('over 19-EDO: its 19 steps to the octave', () => {
-    const q = compilePiece('&edo19 cycle=19 map=edo\n&tune over=&edo19 step=2 0 5 11');
+    const q = compilePiece('&edo19 map=edo(19)\n&tune over=&edo19 step=2 0 5 11');
     const { perLap } = tableOf(q, 'tune');
     expect(perLap).toBe(19);
     const rows = rowsFor(q, 'tune', codeShifts(q), ...rowRange(roll('0 5 11'), perLap, false));
