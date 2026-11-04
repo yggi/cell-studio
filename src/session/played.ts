@@ -3,7 +3,7 @@
  * `apps/web/src/played.ts`, given by `window.jambot.played()`): so a probe sets a client's events against its host's.
  * Kept here the latest `PLAYED_KEPT`, each numbered from the first, so a reader that comes back takes only the new.
  */
-import type { Performance } from './perform';
+import type { Performance } from '@yggi/cells/engine/perform/perform';
 
 /** An event as the feed played it: as the performers play it, and its onset and sounding length on the host's clock (seconds). */
 export interface PlayedEvent extends Performance {

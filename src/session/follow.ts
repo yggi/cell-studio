@@ -11,13 +11,13 @@
 import { clocking, EPS } from '@yggi/cells/engine/clocking';
 import { mainMeter } from '@yggi/cells/engine/midiclock';
 import { codeShifts, type CompileResult } from '@yggi/cells/engine/program';
-import { frameOf, type FeelFrame } from './feel';
+import type { FeelFrame, SectionType } from '@yggi/cells/engine/perform/feel';
 import type { SectionText, SentBar } from './protocol';
 
 /** What a client keeps of a song: where each bar laid starts on the host's clock, what the feel reads of it, and the texts told, in the order told. */
 export interface Followed {
   readonly starts: ReadonlyMap<number, number>;
-  /** Each bar's frame, as the performers read it (`feel.ts`): none for a bar whose message lacks what the feel reads. */
+  /** Each bar's frame, as the performers read it (cells' `FeelFrame`): none for a bar whose message lacks what the feel reads. */
   readonly frames: ReadonlyMap<number, FeelFrame>;
   readonly texts: readonly SectionText[];
   /** The song's last bar, once the host composed its finale. */
@@ -25,6 +25,39 @@ export interface Followed {
 }
 
 export const NOTHING_FOLLOWED: Followed = { starts: new Map(), frames: new Map(), texts: [], finale: null };
+
+const SECTIONS: ReadonlySet<string> = new Set(['intro', 'groove', 'bridge', 'build', 'drop', 'breakdown']);
+const isObject = (v: unknown): v is Readonly<Record<string, unknown>> => typeof v === 'object' && v !== null && !Array.isArray(v);
+const isNumber = (v: unknown): v is number => Number.isFinite(v);
+
+/** The frame of a bar a host sent: its seed and number, its plan's meter (eighths, each pulse's start a height) and section, its style, swing and energy; null where a field the feel reads is missing. */
+export function frameOf({ bar: b }: SentBar): FeelFrame | null {
+  const plan = b.plan;
+  const style = b.style;
+  const swing = b.swing;
+  if (!isObject(plan) || !isObject(plan.meter) || !isObject(plan.section) || !isObject(style) || !isObject(swing)) return null;
+  const { cycle, heights } = plan.meter;
+  const type = plan.section.type;
+  if (
+    !Number.isInteger(cycle) ||
+    !Array.isArray(heights) ||
+    !heights.length ||
+    !heights.every((h, i) => Number.isInteger(h) && h < (cycle as number) && (i === 0 ? h === 0 : h > heights[i - 1]))
+  )
+    return null;
+  if (typeof type !== 'string' || !SECTIONS.has(type) || (swing.level !== '8n' && swing.level !== '16n')) return null;
+  const numbers = [b.seed, b.bar, b.barEnergy, style.entropy, style.artic, style.sync, swing.share];
+  if (!numbers.every(isNumber) || !Number.isInteger(b.seed) || !Number.isInteger(b.bar)) return null;
+  return {
+    seed: b.seed as number,
+    bar: b.bar as number,
+    groups: (heights as number[]).map((h, i) => ((heights[i + 1] as number | undefined) ?? (cycle as number)) - h),
+    section: type as SectionType,
+    style: { entropy: style.entropy as number, artic: style.artic as number, sync: style.sync as number },
+    swing: { level: swing.level, share: swing.share as number },
+    energy: b.barEnergy as number,
+  };
+}
 
 /** The number of a bar the host sent, as it wrote it (`bar.bar`); null where it has none. */
 const barNumber = (sent: SentBar): number | null => (Number.isInteger(sent.bar.bar) ? (sent.bar.bar as number) : null);

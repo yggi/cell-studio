@@ -4,10 +4,10 @@ import { tapeSpeeds } from '@yggi/cells/engine/schedule';
 import { ticksBetween } from '@yggi/cells/engine/midiclock';
 import { channelTable, router, type Routes } from '@yggi/cells/engine/midi';
 import type { Played } from '@yggi/cells/engine/realize';
+import { readerOf } from '@yggi/cells/engine/perform/feel';
+import { perform } from '@yggi/cells/engine/perform/perform';
 import { compilePiece } from '../../compile';
 import { barSeconds } from '../../session/follow';
-import { readerOf } from '../../session/feel';
-import { perform } from '../../session/perform';
 import { PlayedLog, type PlayedEvent } from '../../session/played';
 import type { SectionText } from '../../session/protocol';
 import type { Lack, Place } from '../../session/sound';
@@ -30,9 +30,9 @@ interface Compiled {
 /**
  * A followed session's song as the player's feed (#478, rung 3): each stretch the session says to play
  * (`SessionClient.sounding`), from its text's plan, placed on the page's clock. Each text is compiled once, as the app
- * compiles a piece (`compilePiece`), its own voices sounding it, each event as the host's performers play it
- * (`session/perform.ts`, #492): its velocity and length with the feel of its bar. It counts what it played, logs each
- * event as played (`log`, as Jambot's `played()` does), and keeps what it couldn't (`lacked`), for measuring.
+ * compiles a piece (`compilePiece`), its own voices sounding it, each event as the host's performers play it (cells'
+ * default performer, `perform`, #492, #536): its velocity and length with the feel of its bar. It counts what it played,
+ * logs each event as played (`log`, as Jambot's `played()` does), and keeps what it couldn't (`lacked`), for measuring.
  */
 export class SessionFeed implements Feed {
   /** The notes laid so far, those of them the feel didn't read (none of its parts, or a bar with no frame), and the latest of what couldn't be played. */
