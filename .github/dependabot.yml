@@ -16,6 +16,10 @@ updates:
       # CI runs Node 22: the types follow it
       - dependency-name: '@types/node'
         update-types: ['version-update:semver-major']
+      # the family's packages are pinned at a tag and moved by hand at each release, with the migration their changelog
+      # names (AGENTS.md); Dependabot ranks their git tags wrongly (#529 offered @yggi/cells v0.14.1 → v0.12.0)
+      - dependency-name: '@yggi/cells'
+      - dependency-name: '@yggi/webmidi'
   - package-ecosystem: github-actions
     directory: /
     schedule:
