@@ -31,7 +31,7 @@ Commands, the rules (which are enforced and which are judgment), the PR conventi
 ## Map of src/
 
 - `@yggi/cells` (the package, not a folder here): the language, parse, compile, realize (plan → events), edit, Shorten, physics, FM, the examples and the MIDI corpus; the app gets an index of the examples at build time and loads sources on demand → [architecture.md](architecture.md)
-- `@yggi/webmidi` (the package, `github:yggi/webmidi#v0.1.2`): MIDI's wire, the family's MIDI layer: `core` (reading messages, the computer's keys and the keyboard's layout, drum maps, the clock offset, note and clock out, the setups), `web` (the Web MIDI connection, the book kept), `ui` (the MIDI page's Svelte components), and `testing` (the fake Web MIDI, for tests only); its changelog says what moving the pin changes → [architecture.md](architecture.md)
+- `@yggi/webmidi` (the package, `github:yggi/webmidi#v0.1.3`): MIDI's wire, the family's MIDI layer: `core` (reading messages, the computer's keys and the keyboard's layout, drum maps, the clock offset, note and clock out, the setups), `web` (the Web MIDI connection, the book kept), `ui` (the MIDI page's Svelte components), and `testing` (the fake Web MIDI, for tests only); its changelog says what moving the pin changes → [architecture.md](architecture.md)
 - `layout/` pure layout of the graph, the library, wheels, labels
 - `audio/` player, engine (local or Web Worker), voices (parts in `audio/voice/`), clock, offline render
 - `midi/` a played note as webmidi's `OutNote` (`played.ts`), and the tests' fake Web MIDI → [ui/midi.md](ui/midi.md)
@@ -89,5 +89,5 @@ One line each; the record has the rationale. → [decisions/](decisions/README.m
 
 ## Where things are tracked
 
-- Open work: the GitHub issues; the target and the epics in [roadmap.md](roadmap.md), the path from here in yggi/cells' central roadmap, [yggi/cells#81](https://github.com/yggi/cells/issues/81); rough edges in [limits.md](limits.md).
+- Open work: the GitHub issues; the target and the epics in [roadmap.md](roadmap.md), the path from here in yggi/cells' central roadmap, [yggi/cells#437](https://github.com/yggi/cells/issues/437); rough edges in [limits.md](limits.md).
 - Gotcha: never `pkill -f "<pattern>"` from the agent shell when the pattern also appears in the command line itself; it kills the shell. Use the PID or a port check.
