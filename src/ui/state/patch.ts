@@ -2,7 +2,22 @@
 // its kit and the kit's members) as webmidi's matrix rows, the routes a setup keeps for a piece as cells' channel table,
 // the store from before the book read as it was, and an input's message forwarded where its row is routed. Pure.
 
-import { ANY_INPUT, AS_PLAYED, activeSetup, inputRow, type Crossing, type PortOption, type Routes, type Setup, type SetupBook, type SetupOutput } from '@yggi/webmidi/core';
+import {
+  ANY_INPUT,
+  AS_PLAYED,
+  activeSetup,
+  inputRow,
+  withClock,
+  withCrossing,
+  withHeard,
+  withProfile,
+  type Crossing,
+  type PortOption,
+  type Routes,
+  type Setup,
+  type SetupBook,
+  type SetupOutput,
+} from '@yggi/webmidi/core';
 import type { MatrixRow } from '@yggi/webmidi/ui';
 import { DEFAULT_BEND_RANGE, type ChannelTable, type OutputChoice } from '@yggi/cells/engine/midi';
 
@@ -162,6 +177,33 @@ export const withSetup = (book: SetupBook, setup: Setup): SetupBook => ({ ...boo
 export function keptChange(book: SetupBook, shown: SetupBook, changed: SetupBook): SetupBook {
   if (changed === shown) return book;
   return { ...changed, setups: changed.setups.map((s) => (s.id === changed.active ? s : (book.setups.find((b) => b.id === s.id) ?? s))) };
+}
+
+/**
+ * A change made on a locked matrix's book (`shown`: a piece routed by its MIDI cards, their channels written in on every
+ * slot they name), kept on the book itself as the locked matrix edits it (webmidi v0.1.4): the inputs heard, the input
+ * rows' crossings in `context`, the clock, and the devices' profiles. The cards' own rows are theirs, not the setup's,
+ * and a crossing or the clock to a slot only the cards name (the setup lacks its output) isn't kept. Each through
+ * webmidi's changes, so a change to a named setup is its custom variant; the book as it is when nothing kept changed.
+ */
+export function lockedChange(book: SetupBook, shown: SetupBook, changed: SetupBook, context: string): SetupBook {
+  if (changed === shown) return book;
+  const [was, now] = [activeSetup(shown), activeSetup(changed)];
+  const keys = activeSetup(book).outputs.map((o) => o.key);
+  let kept = book;
+  if (JSON.stringify(now.heard) !== JSON.stringify(was.heard)) kept = withHeard(kept, now.heard);
+  for (const key of keys) if (now.clock.includes(key) !== was.clock.includes(key)) kept = withClock(kept, key, now.clock.includes(key));
+  const inputs = (s: Setup) => (own(s.routes, context) ?? {}) as Routes;
+  const [before, after] = [inputs(was), inputs(now)];
+  const rows = new Set([...Object.keys(before), ...Object.keys(after)].filter((row) => row.startsWith('in:')));
+  for (const row of rows)
+    for (const key of keys) {
+      const value = own(own(after, row) ?? {}, key);
+      if (value !== own(own(before, row) ?? {}, key)) kept = withCrossing(kept, context, row, key, value);
+    }
+  if (changed.devices !== shown.devices)
+    for (const [name, profile] of Object.entries(changed.devices)) if (name && profile !== own(shown.devices, name)) kept = withProfile(kept, name, profile);
+  return kept;
 }
 
 /** The outputs a book shows for a piece whose MIDI cards name slots past the setup's: one more with no device for each, keyed as `addOutput` would key it. */
