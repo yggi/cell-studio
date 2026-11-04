@@ -235,6 +235,23 @@
   --text-sm: 13px;
   --text-md: 15px;
 
+  /* webmidi's patchbay components (`@yggi/webmidi/ui`, the MIDI page: MidiPanel.svelte) take their colours and fonts
+     from `--wm-*`: this theme's, so they don't fall back to their own palette (light, under a light system theme) */
+  --wm-text: var(--text);
+  --wm-muted: var(--text-muted);
+  --wm-faint: var(--text-faint);
+  --wm-off: var(--text-faint); /* a light that is off */
+  --wm-line: var(--line);
+  --wm-panel: var(--code-bg); /* the card the components sit on … */
+  --wm-panel-2: var(--surface-2); /* … and what is raised on it: an output's head, a chip */
+  --wm-surface: var(--code-bg); /* the matrix's sticky row names, over the card */
+  --wm-accent: var(--accent);
+  --wm-live: var(--meter-1);
+  --wm-warn: var(--warning);
+  --wm-chip-ink: var(--ink-on-note);
+  --wm-font: var(--font-ui);
+  --wm-font-num: var(--font-code);
+
   color-scheme: dark;
 }
 

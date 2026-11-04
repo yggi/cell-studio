@@ -31,7 +31,7 @@ Commands, the rules (which are enforced and which are judgment), the PR conventi
 ## Map of src/
 
 - `@yggi/cells` (the package, not a folder here): the language, parse, compile, realize (plan → events), edit, Shorten, physics, FM, the examples and the MIDI corpus; the app gets an index of the examples at build time and loads sources on demand → [architecture.md](architecture.md)
-- `@yggi/webmidi` (the package, `github:yggi/webmidi#v0.1.1`): MIDI's wire, the family's MIDI layer: `core` (reading messages, the computer's keys and the keyboard's layout, drum maps, adopting ports, the clock offset, note and clock out) and `web` (the Web MIDI connection), and `testing` (the fake Web MIDI, for tests only); its changelog says what moving the pin changes → [architecture.md](architecture.md)
+- `@yggi/webmidi` (the package, `github:yggi/webmidi#v0.1.2`): MIDI's wire, the family's MIDI layer: `core` (reading messages, the computer's keys and the keyboard's layout, drum maps, the clock offset, note and clock out, the setups), `web` (the Web MIDI connection, the book kept), `ui` (the MIDI page's Svelte components), and `testing` (the fake Web MIDI, for tests only); its changelog says what moving the pin changes → [architecture.md](architecture.md)
 - `layout/` pure layout of the graph, the library, wheels, labels
 - `audio/` player, engine (local or Web Worker), voices (parts in `audio/voice/`), clock, offline render
 - `midi/` a played note as webmidi's `OutNote` (`played.ts`), and the tests' fake Web MIDI → [ui/midi.md](ui/midi.md)
@@ -85,6 +85,7 @@ One line each; the record has the rationale. → [decisions/](decisions/README.m
 - 036 · White where another value would mean nothing: a cell's 0 that is only *now* (a section's clock, a reel, a groove of one drum) is white (`--unit`), a 0 that is a pitch red, any other value coloured; measured by playing 7 for 0 · → decisions/036-one-value-is-white.md
 - 038 · A `use` line's cells are a cluster named by its line, what nothing reads folded into the name; an edit writes its line into the piece · → decisions/038-use-groups.md
 - 039 · Cell studio sounds what a MIDI card sends (a voice on a card alone, at its entry's gain): superseded by cells decision 064, which says it in the language · → decisions/039-midi-cards-heard.md
+- 040 · The MIDI page is webmidi's patchbay (its setups, its components): a piece the setup has no routes for plays cells' defaults (or the old store's choices) until its first change writes them in; then its routes are exact; inputs are rows forwarded as they come; the keys' thru stays Cell studio's · → decisions/040-patchbay.md
 
 ## Where things are tracked
 
