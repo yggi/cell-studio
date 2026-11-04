@@ -88,5 +88,5 @@ One line each; the record has the rationale. → [decisions/](decisions/README.m
 
 ## Where things are tracked
 
-- Open work: the GitHub issues; the target and the epics in [roadmap.md](roadmap.md), the path from here in yggi/cells' central roadmap, [yggi/cells#81](https://github.com/yggi/cells/issues/81); rough edges in [limits.md](limits.md).
+- Open work: the GitHub issues; the target and the epics in [roadmap.md](roadmap.md), the path from here in yggi/cells' central roadmap, [yggi/cells#437](https://github.com/yggi/cells/issues/437); rough edges in [limits.md](limits.md).
 - Gotcha: never `pkill -f "<pattern>"` from the agent shell when the pattern also appears in the command line itself; it kills the shell. Use the PID or a port check.
