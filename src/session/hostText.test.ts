@@ -1,11 +1,17 @@
+/**
+ * A host's text, in Jambot's own forms, compiled as Cell studio compiles a piece (`compilePiece`) and played through
+ * cells' default performer (`perform`, `readerOf`, cells v0.15.0, #536), as the session feed plays it: each event read as
+ * Jambot's host reads it and played with the feel of its bar. The feel's and the swing's vectors run in cells
+ * (`src/engine/perform/feel.test.ts`, over `fixtures/contracts/feel.json` and `swing.json`).
+ */
 import { describe, expect, it } from 'vitest';
 import { channelTable, midiNote, routesOf, router } from '@yggi/cells/engine/midi';
 import { codeShifts } from '@yggi/cells/engine/program';
 import { eventsBetween, plan, type Played } from '@yggi/cells/engine/realize';
 import { compilePiece } from '../compile';
-import { played, readerOf, readingOf, type FeelFrame } from './feel';
+import { played, readerOf, readingOf, type FeelFrame } from '@yggi/cells/engine/perform/feel';
+import { perform } from '@yggi/cells/engine/perform/perform';
 import { barSeconds } from './follow';
-import { perform } from './perform';
 
 /** A host's text in its own forms (Jambot's `sectionAsCells`): a swung bar, the General MIDI kit's grooves mixed by `&drums`, the bass on its voice, the MIDI card. */
 const TEXT = `&bar meter("4/4") step=120bpm swing=16n:.6
