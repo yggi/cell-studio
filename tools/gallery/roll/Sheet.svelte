@@ -27,7 +27,7 @@
     {
       kind: 'edo19',
       caption: 'over 19-EDO: 19 rows a lap',
-      source: `${BAR}&edo19 cycle=19 map=edo\n&tune over=&edo19 step=8n 0 3 6 8 11 ~ 14 19@2 ~ 16 11 8@2 6 3\n&mix map=sample [&tune * &lead]`,
+      source: `${BAR}&edo19 map=edo(19)\n&tune over=&edo19 step=8n 0 3 6 8 11 ~ 14 19@2 ~ 16 11 8@2 6 3\n&mix map=sample [&tune * &lead]`,
       name: 'tune',
     },
     {

@@ -208,7 +208,7 @@ describe('show=lfo: what moves other cells', () => {
 });
 
 describe("a voice's grid, and where a note it sounds is on it", () => {
-  const r = compilePiece(`&edo19 cycle=19 map=edo
+  const r = compilePiece(`&edo19 map=edo(19)
 &bar scan(1 1 1 1) step=1
 &a step=4n 0 2 4
 &b over=&edo19 step=4n 0 3 6
