@@ -1,6 +1,6 @@
 # 040 · The MIDI page is webmidi's patchbay
 
-**Date:** 2026-11-04 · **Status:** accepted (the owner's rulings on webmidi's patchbay proposal, yggi/webmidi#12; this app's move is its rung 4) · Part of [yggi/webmidi#3](https://github.com/yggi/webmidi/issues/3) · webmidi: [decision 002](https://github.com/yggi/webmidi/blob/main/docs/decisions/002-setups-device-profiles-and-inputs-as-rows.md), [proposals/patchbay.md](https://github.com/yggi/webmidi/blob/main/docs/proposals/patchbay.md)
+**Date:** 2026-11-04 · **Status:** proposed with its pull request (the rulings it builds on are the owner's, on webmidi's patchbay proposal, yggi/webmidi#12; the defaults rule below is this move's own, for the owner to accept; this app's move is the proposal's rung 4) · Part of [yggi/webmidi#3](https://github.com/yggi/webmidi/issues/3) · webmidi: [decision 002](https://github.com/yggi/webmidi/blob/main/docs/decisions/002-setups-device-profiles-and-inputs-as-rows.md), [proposals/patchbay.md](https://github.com/yggi/webmidi/blob/main/docs/proposals/patchbay.md)
 
 ## Context
 
