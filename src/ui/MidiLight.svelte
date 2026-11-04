@@ -9,10 +9,9 @@
   import { getStudio } from './state/studio.svelte';
 
   const { midi } = getStudio();
-  const absent = (ports: readonly { id: string }[], id: string) => id !== 'all' && !ports.some((p) => p.id === id);
   const inOn = $derived(midi.inPortId !== 'none');
   const outOn = $derived(midi.sending);
-  const inGone = $derived(inOn && absent(midi.ports.inputs, midi.inPortId));
+  const inGone = $derived(inOn && midi.hearingNowhere);
   const outGone = $derived(outOn && midi.sendingNowhere);
   let inDot: HTMLElement | undefined = $state();
   let outDot: HTMLElement | undefined = $state();
