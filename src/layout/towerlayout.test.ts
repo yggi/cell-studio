@@ -193,7 +193,7 @@ describe('the tower layout', () => {
 
   it("puts every socket at its sound's frequency, over the neutral zone: a groove's at its lowest drum", () => {
     const program = compilePiece(`&bar scan(1 1 1 1) step=120bpm
-&bd oneshot s=sine loop=A1 env=&(map=adsr 0 .3 0 .05)
+&bd oneshot=1 s=sine loop=A1 env=&(map=adsr 0 .3 0 .05)
 &hh s=white hpf=8000 env=&(map=adsr 0 .04 0 .02)
 &lead s=saw loop=C5
 &tune step=8n 0 2 4 7

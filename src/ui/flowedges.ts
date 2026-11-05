@@ -77,6 +77,9 @@ const BY_BAND: Readonly<Partial<Record<GraphEdge['band'], Carrier>>> = {
 };
 /** By port, for the other bands. */
 const BY_PORT: Readonly<Record<string, Carrier>> = {
+  // a product's junction with no notes of its own (a module's input, `&vca from amp(…) &vcf`, cells v0.17.0): the
+  // product is what it reads, and carries nothing until its notes do (`carried` takes one with notes first, #234)
+  is: NOTHING,
   // a table read through, a cell spliced in: the reader's own wheel shows it — unless what is spliced in sounds (a mix
   // into the sound card or a scope, a voice into a pattern of voices): then its sound, as a mix's entry carries it
   over: NOTHING,

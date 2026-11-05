@@ -10,7 +10,7 @@
   import { liveAt } from '@yggi/cells/engine/live';
   import Graph from '../../../src/ui/Graph.svelte';
   import { buildGraph } from '../../../src/layout/drawn';
-  import { useGroups, type UseGroup } from '../../../src/layout/uses';
+  import { fromLabel, useGroups, type UseGroup } from '../../../src/layout/uses';
   import { noteColour } from '../../../src/ui/theme';
   import { pieceOf } from '../pieces';
   import { madeUpSound } from '../sound';
@@ -19,7 +19,7 @@
   const SOURCES = {
     kit: KIT,
     override: `${KIT}\n&sd s=white hpf=900 distort=.6 env=&(map=adsr 0 .12 0 .05)`,
-    band: '&bar meter("4/4") step=110bpm\nuse * from aeolian\nuse * from tonic_vamp\nuse * from bass\nuse * from root_bass\n&bd, &rim, &sd, &cp, &lt, &hh, &ph, &mt, &oh, &ht, &cr, &rd, &claves from gm_kit\nuse * from synth_pop_drums',
+    band: '&bar meter("4/4") step=110bpm\n&key from diatonic(mode=aeolian) C\n&harm from tonic_vamp &key\n&bassV from bass\n&bassline from root_bass &harm\n&bd, &rim, &sd, &cp, &lt, &hh, &ph, &mt, &oh, &ht, &cr, &rd, &claves from gm_kit\n* from synth_pop_drums',
   };
   const OPTIONS = ['wash', 'frame', 'tag', 'shelf', 'app'] as const;
   type Option = (typeof OPTIONS)[number];
@@ -104,7 +104,7 @@
   {#each frames as f (f.key)}
     <figure data-kind={f.key}>
       <figcaption>
-        <b>{f.option}</b> · {f.key.split('-')[0]} <span>{f.groups.map((g) => `use * from "${g.id}": ${g.nodes.length} drawn, ${g.folded.length} idle`).join(' · ')}</span>
+        <b>{f.option}</b> · {f.key.split('-')[0]} <span>{f.groups.map((g) => `${fromLabel(g.id)}: ${g.nodes.length} drawn, ${g.folded.length} idle`).join(' · ')}</span>
       </figcaption>
       <div class="frame opt-{f.option}" bind:this={figures[f.key]}>
         <Graph
@@ -131,7 +131,7 @@
           {#each drawn[f.key] ?? [] as d (d.g.id)}
             {#if f.option === 'wash'}
               <polygon points={d.hull} fill={d.hue} fill-opacity="0.09" stroke="none" />
-              <text x={d.label.x} y={d.label.y} fill={d.hue} class="name">use * from "{d.g.id}"</text>
+              <text x={d.label.x} y={d.label.y} fill={d.hue} class="name">{fromLabel(d.g.id)}</text>
             {:else if f.option === 'frame'}
               <polygon points={d.hull} fill="none" stroke={d.hue} stroke-opacity="0.7" stroke-width="1.5" stroke-dasharray="6 5" />
               <g transform="translate({d.label.x - 8},{d.label.y - 15})">
