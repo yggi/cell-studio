@@ -34,6 +34,7 @@ describe('sync-pr: the mechanical resolutions', () => {
     expect(Object.keys(RESOLVERS).sort()).toEqual([
       'CHANGELOG.md',
       'docs/MEMORY.md',
+      'docs/decisions/README.md',
       'docs/examples.md',
       'docs/language/reference.md',
       'src/engine/ladder.ts',
