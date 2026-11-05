@@ -2,6 +2,7 @@
  * What the flow draws for an edge of the graph: which component, what it carries, how it is labelled. Pure: the graph
  * (`ui/state/graphLayout.svelte.ts`) and the gallery's edge sheet (`tools/gallery/edges/`) both make their edges here.
  */
+import { jackHandle, jackOfEdge } from '../layout/modules';
 import type { Edge } from '@xyflow/svelte';
 import type { GraphEdge } from '@yggi/cells/engine/graph';
 import { isJunction } from '@yggi/cells/engine/ids';
@@ -196,7 +197,10 @@ export function flowEdgeOf(e: GraphEdge, state: State, program: CompileResult, b
         ? { sourceHandle: `head-${nameOf(e.target)}` }
         : headBulb(e, program)
           ? { sourceHandle: `head-${e.bulb}` }
-          : {};
+          : // (a wire into a module ends at the jack it fills: decision 069, layout/modules.ts)
+            jackOfEdge(e)
+            ? { targetHandle: jackHandle(jackOfEdge(e)!) }
+            : {};
   // drawn along the flow (docs/notes/nets.md): from what is read to the cell that reads it
   return {
     id: e.id,

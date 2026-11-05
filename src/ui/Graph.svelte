@@ -21,6 +21,8 @@
   import { GraphLayout } from './state/graphLayout.svelte';
   import CellNode from './CellNode.svelte';
   import VoiceNode from './VoiceNode.svelte';
+  import ModuleNode from './ModuleNode.svelte';
+  import { jackAt, jacksShown, portOfHandle, type Module } from '../layout/modules';
   import JunctionNode from './JunctionNode.svelte';
   import SocketNode from './SocketNode.svelte';
   import FitView from './FitView.svelte';
@@ -281,6 +283,16 @@
     centre: (node) => centres.get(node),
     head: (node, handle) => {
       const n = layout.nodes.find((m) => m.id === node);
+      // (a module's jack, decision 069: on its rim, as JackRim draws it)
+      const port = portOfHandle(handle);
+      if (n && port !== null) {
+        const { size, module } = n.data as { size: number; module?: Module };
+        const shown = module ? jacksShown(module.jacks) : [];
+        const i = shown.findIndex((j) => j.port === port);
+        if (i < 0) return undefined;
+        const at = jackAt(i, shown.length, size);
+        return { x: n.position.x + at.x, y: n.position.y + at.y };
+      }
       const cell = n && shown.program.cells.get((n.data as { name: string }).name);
       if (!n || !cell) return undefined;
       const { size, turn } = n.data as { size: number; turn?: number };
@@ -352,7 +364,7 @@
   let sideFits = $state(0);
   let sideLit = $state<string | null>(null);
 
-  const nodeTypes = { cell: CellNode, voice: VoiceNode, material: MaterialNode, plugin: PluginNode, junction: JunctionNode, socket: SocketNode } as NodeTypes;
+  const nodeTypes = { cell: CellNode, voice: VoiceNode, material: MaterialNode, plugin: PluginNode, junction: JunctionNode, socket: SocketNode, module: ModuleNode } as NodeTypes;
   const edgeTypes = { pulse: PulseEdge, belt: BeltEdge, meter: MeterEdge };
 
   let legendOpen = $state(false);

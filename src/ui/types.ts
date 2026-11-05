@@ -1,4 +1,5 @@
 import type { Node } from '@xyflow/svelte';
+import type { Module } from '../layout/modules';
 
 /** petal: an unnamed cell, drawn small hanging from its parent (no label, no edges). */
 type CellNodeData = {
@@ -11,8 +12,20 @@ type CellNodeData = {
   meterIndex?: number;
   /** How far its bulbs reach below its wheel (px): its name goes under them (#221). */
   below?: number;
+  /** A module's head (decision 069): its jacks on its rim. */
+  module?: Module;
 };
-type VoiceNodeData = { name: string; summary: string; size: number; pinned: boolean; petal?: boolean };
+type VoiceNodeData = {
+  name: string;
+  summary: string;
+  size: number;
+  pinned: boolean;
+  petal?: boolean;
+  /** A module's head (decision 069): its jacks on its rim. */ module?: Module;
+};
+/** An instrument module (decision 069: `lowpass`, `highpass`, `amp`), one wheel, its face and its jacks. */
+type ModuleNodeData = { name: string; size: number; pinned: boolean; module: Module };
+export type ModuleFlowNode = Node<ModuleNodeData, 'module'>;
 export type CellFlowNode = Node<CellNodeData, 'cell'>;
 export type VoiceFlowNode = Node<VoiceNodeData, 'voice'>;
 /** A physical cell (a motor's meter, a belted cell): a turntable. */
@@ -33,4 +46,4 @@ type JunctionNodeData = { name: string; voice: string; mix: string; size: number
 export type JunctionFlowNode = Node<JunctionNodeData, 'junction'>;
 /** A socket into the sound card (the tower layout): the edge it ends, whose sound that is. */
 type SocketFlowNode = Node<{ name: string; edge: string; source: string; size: number; /** On a MIDI card: its channel. */ channel: number | null }, 'socket'>;
-export type FlowNode = CellFlowNode | VoiceFlowNode | MaterialFlowNode | PluginFlowNode | JunctionFlowNode | SocketFlowNode;
+export type FlowNode = CellFlowNode | VoiceFlowNode | MaterialFlowNode | PluginFlowNode | JunctionFlowNode | SocketFlowNode | ModuleFlowNode;

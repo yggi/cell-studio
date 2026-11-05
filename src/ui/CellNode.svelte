@@ -12,6 +12,7 @@
   import { gateOf } from '../layout/gate';
   import { glyphOf, soundHeadOf } from '../layout/wheels';
   import SideMarks from './SideMarks.svelte';
+  import JackRim from './JackRim.svelte';
   import SpectrumWheel from './SpectrumWheel.svelte';
   import WaveGlyph from './WaveGlyph.svelte';
   import { hubLabel } from '../layout/cellview';
@@ -101,6 +102,7 @@
   {#if !data.petal}<SideMarks name={data.name} />{/if}
   {#if data.pinned}<span class="pin" title="Pinned"></span>{/if}
   {#if freeCell?.frees.length && !data.petal}<FreePills frees={freeCell.frees} name={data.name} />{/if}
+  {#if data.module}<JackRim size={data.size} jacks={data.module.jacks} module={data.module.id} />{/if}
   <Handle type="source" position={Position.Bottom} class="center-handle" isConnectable={false} />
 </div>
 

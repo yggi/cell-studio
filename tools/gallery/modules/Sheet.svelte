@@ -147,8 +147,8 @@
   /** The jacks a cell shows in an option, and where on its rim: inputs over the lower half, left to right; the output on top. */
   /** A jack in use: holding a cable, or a value (a knob's default, a value set on the line); the rest are hidden at rest in `chosen`. */
   const inUse = (j: Jack) => !!j.from || !!j.set || j.knob != null;
-  /** The radius a wheel grows to in `chosen`: its jacks a finger (44 px) apart over its lower half (0.9 π), never smaller than it was. */
-  const grown = (c: Cell, n: number) => Math.max(c.r, n > 1 ? (44 * (n - 1)) / (0.9 * Math.PI) : c.r);
+  /** The radius a wheel grows to in `chosen`: its jacks a finger (44 px) apart in a straight line over its lower half (0.9 π), never smaller than it was (decision 069 §6). */
+  const grown = (c: Cell, n: number) => (n > 1 ? Math.max(c.r, 22 / Math.sin((0.45 * Math.PI) / (n - 1))) : c.r);
   /** A cell's jacks shown in an option. */
   const shown = (c: Cell, option: Option): readonly Jack[] => {
     const all = (option === 'all' || option === 'chosen') && c.voice ? c.voice : c.module ? (c.jacks ?? []) : [];

@@ -15,6 +15,7 @@ import { cellId } from '@yggi/cells/engine/ids';
 import { isCellNode, type GraphModel } from '@yggi/cells/engine/graph';
 import type { CompileResult } from '@yggi/cells/engine/program';
 import { kitOf } from './kit';
+import { isModuleUse } from './modules';
 
 export interface UseGroup {
   /** The fragment's id, as its line writes it. */
@@ -73,6 +74,8 @@ function drawsOf(result: CompileResult, node: GraphModel['nodes'][number]): read
 export function useGroups(result: CompileResult, model: GraphModel): UseGroup[] {
   const touched = new Set(model.edges.flatMap((e) => [e.source, e.target]));
   return (result.uses ?? []).flatMap((u) => {
+    // (a module is a wheel of its own, not a cluster: modules.ts, decision 069)
+    if (isModuleUse(u)) return [];
     const names = u.gave.map(bare);
     if (!names.length) return [];
     const gave = new Set(names);

@@ -10,6 +10,7 @@ import { VOICE_SIZE } from '../layout/voice';
 import { JUNCTION_ROOM } from '../layout/options';
 import { TAPE_SIZE } from '../layout/tape';
 import type { FlowNode } from './types';
+import { grownSize, jacksShown, moduleOf, INSTRUMENT_MODULES } from '../layout/modules';
 
 /** An unnamed cell, hung small on its parent. */
 export const PETAL = 44;
@@ -67,11 +68,17 @@ export function flowNodeOf(
         ...(wheel === 'tape' && turn !== undefined ? { turn } : {}),
       },
     };
+  // a module (decision 069): one wheel, its jacks on its rim, grown to keep them a finger apart; an instrument module its
+  // own face, an oscillator, an LFO or a sample and hold its own wheel with the rim over it
+  const module = moduleOf(g);
+  const grown = (size: number) => (module ? grownSize(size, jacksShown(module.jacks).length) : size);
+  if (module && INSTRUMENT_MODULES.has(module.id))
+    return { id: g.id, type: 'module', position, data: { name: g.cell.name, size: grown(128 * g.cell.size), pinned: isPinned, module } };
   if (g.kind === 'voice') {
     const p = g.cell.params;
     const src = p.s === undefined ? `braid${g.cell.map ? ' ' + (g.cell.map.kind === 'table' ? '&' + g.cell.map.table : g.cell.map.kind) : ''}` : String(p.s);
     const summary = ['white', 'pink', 'brown'].includes(src) ? src : `${src} · ${+g.cell.freq.toFixed(2)} Hz`;
-    return { id: g.id, type: 'voice', position, data: { name: g.cell.name, summary, size: VOICE_SIZE * g.cell.size, pinned: isPinned } };
+    return { id: g.id, type: 'voice', position, data: { name: g.cell.name, summary, size: grown(VOICE_SIZE * g.cell.size), pinned: isPinned, ...(module ? { module } : {}) } };
   }
   // a cell a plugin of the piece draws (show=name): its wheel, as large as the plugin says
   const plugin = wheel === 'plugin' && program ? pluginOf(program, g.cell.name) : null;
@@ -86,8 +93,9 @@ export function flowNodeOf(
     data: {
       name: g.cell.name,
       isMeter: g.isMeter,
-      size,
+      size: grown(size),
       pinned: isPinned,
+      ...(module ? { module } : {}),
       ...(meterIndex !== undefined ? { meterIndex } : {}),
       ...(g.reach?.below ? { below: g.reach.below } : {}),
     },
