@@ -155,4 +155,19 @@ describe("an instrument's filters, a stage after its voices' own (#542)", () => 
     const { voices } = setUp('&saw s=saw loop=C2\n&vcf lpf=800 [&saw]\n&out map=sample [&tune * &vcf * .4]');
     expect(voices.get('saw')!.keyWay).toEqual([{ instrument: 'vcf' }]);
   });
+
+  it("an instrument's room=: its send after its filters, not the voice's; a voice's own room= its own send beside it (#566)", () => {
+    const { voices, notes, play, rack } = setUp(
+      '&saw s=saw loop=C2 room=.2\n&sub s=square loop=C1\n&rev lpf=900 room=0..0.6 * &tune [&saw, &sub]\n&out map=sample [&tune * &rev * .4]',
+    );
+    // (&sub inherits the moving room= and sends nothing of its own; &saw writes its own)
+    expect(voices.get('sub')!.moving.room).toBeUndefined();
+    expect(voices.get('saw')!.moving.room).toBeDefined();
+    expect(play(notes.find((n) => n.voice === 'saw')!)).toEqual(['lowpass 900']);
+    play(notes.find((n) => n.voice === 'sub')!);
+    // (one send for each voice's way through &rev, both moved by every note through it)
+    const sends = [...(rack.get('rev')?.get('room') ?? [])] as unknown as ReturnType<typeof param>[];
+    expect(sends).toHaveLength(2);
+    expect(sends.map((g) => g.calls.length > 0)).toEqual([true, true]);
+  });
 });

@@ -24,6 +24,7 @@
 // Then an instrument's filters as a stage after its voices' (#542, cells decision 067): texts from cells'
 // instruments.test.ts rendered, each as its written-out twin and within 3 dB a block of cells' own render.
 // Then a blend of two waves (#533, cells decision 066): at share 0 and 1, the plain first and second wave.
+// Then an instrument's sends (#566): its room= after its filters, each case as its written-out twin.
 //
 // Chromium: Playwright's, or CHROME_PATH=/path/to/chrome (CI uses the runner's Chrome). See tools/profile/playwright.mjs.
 import { preview, runnerImport } from 'vite';
@@ -794,6 +795,75 @@ if (only.length === 0) {
   const ok = problems.length === 0;
   console.log(`${ok ? 'ok  ' : 'FAIL'} An instrument's filters, a stage after its voices'${ok ? `: ${note}` : '\n       ' + [...new Set(problems)].slice(0, 3).join('\n       ')}`);
   if (!ok) failed.push("An instrument's filters");
+}
+// An instrument's sends (#566, cells decision 067): room= and delay= on an instrument, after its filters, from each voice's way
+// through it. Each case rendered offline for 2 s, Math.random seeded before each render (the reverb's impulse draws on it,
+// as tools/golden.mjs seeds it), as its written-out twin within golden.mjs's 1e-4 a block: a voice's own room= and its
+// instrument's are two sends, as one of their sum; a voice played through the instrument and without it is sent only
+// through it, as two voices; an instrument's moving room= is moved by every note through it, as each voice's own.
+// (The echo of an instrument's own, delaytime=, is the instrument section's patch above.) cells renders sends from stage R2.
+const SENDS = (() => {
+  const lines = (...xs) => xs.join('\n');
+  const base = lines('&bar meter("4/4") step=120bpm', '&tune step=8n 0 3 7 10 12 10 7 3', '&eg map=adsr .002 .2 .1 .1');
+  return [
+    [
+      'a room= on voice and instrument',
+      lines(base, '&saw s=saw loop=C2 room=.2', '&rev room=.3 [&saw]', '&out map=sample [&tune * &rev * .4]'),
+      lines(base, '&saw s=saw loop=C2 room=.5', '&out map=sample [&tune * &saw * .4]'),
+    ],
+    [
+      'a voice through the instrument and without it',
+      lines(base, '&saw s=saw loop=C2', '&rev lpf=900 room=.3 [&saw]', '&out map=sample [&tune * &rev * .4, &tune * &saw * .1]'),
+      lines(base, '&saw s=saw loop=C2', '&wet s=saw loop=C2 lpf=900 room=.3', '&out map=sample [&tune * &wet * .4, &tune * &saw * .1]'),
+    ],
+    [
+      "an instrument's moving room=",
+      lines(base, '&saw s=saw loop=C2', '&sub s=square loop=C1', '&rev room=0..0.6 * &eg [&saw, &sub * .5]', '&out map=sample [&tune * &rev * .4]'),
+      lines(base, '&saw s=saw loop=C2 room=0..0.6 * &eg', '&sub s=square loop=C1 room=0..0.6 * &eg', '&out map=sample [&tune * &saw * .4, &tune * &sub * .2]'),
+    ],
+  ];
+})();
+if (only.length === 0) {
+  problems = [];
+  const rp = await newPage({ viewport: { width: 1280, height: 800 } });
+  rp.setDefaultTimeout(20000);
+  rp.on('pageerror', (e) => problems.push(`page error: ${e.message}`));
+  await rp.addInitScript(() => {
+    let s = 1;
+    window.__seed = (n) => (s = n >>> 0 || 1);
+    // mulberry32, as tools/golden.mjs
+    Math.random = () => {
+      s = (s + 0x6d2b79f5) >>> 0;
+      let t = s;
+      t = Math.imul(t ^ (t >>> 15), t | 1);
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  });
+  let note = '';
+  try {
+    await rp.goto(url);
+    await rp.waitForFunction(() => window.cellStudio?.render);
+    const TOL = 1e-4;
+    const render = async (src) => (await rp.evaluate(async ([s]) => (window.__seed(1), await window.cellStudio.render(s, 2)), [src])).blocks;
+    const apart = (a, b) => (a.length !== b.length ? 1 : Math.max(0, ...a.map((x, i) => Math.abs(x - b[i]))));
+    // (the first render on a fresh page differs from every later one, the same text −53 dB apart, seeded or not: a render
+    // to warm up, left out)
+    await render(SENDS[0][1]);
+    let worst = 0;
+    for (const [what, text, twin] of SENDS) {
+      const d = apart(await render(text), await render(twin));
+      worst = Math.max(worst, d);
+      if (d > TOL) problems.push(`${what} is not its written-out twin: ${(20 * Math.log10(d)).toFixed(1)} dB apart`);
+    }
+    note = `${SENDS.length} cases, each as its written-out twin (largest block difference ${worst > 0 ? `${(20 * Math.log10(worst)).toFixed(0)} dB` : '0'}, within ${TOL})`;
+  } catch (e) {
+    problems.push(String(e.message).split('\n')[0]);
+  }
+  await rp.close();
+  const ok = problems.length === 0;
+  console.log(`${ok ? 'ok  ' : 'FAIL'} An instrument's sends, after its filters${ok ? `: ${note}` : '\n       ' + [...new Set(problems)].slice(0, 3).join('\n       ')}`);
+  if (!ok) failed.push("An instrument's sends");
 }
 // A blend of two waves (#533, cells decision 066): the wave a note starts on at share 0 is the plain first wave, at 1
 // the plain second, within 0.5 dB on each of harmonics 1 to 16 (those within 60 dB of the fundamental), each rendered
