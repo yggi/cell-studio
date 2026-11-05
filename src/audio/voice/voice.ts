@@ -202,8 +202,6 @@ export function buildVoice(Tone: ToneNS, ctx: AudioContext, bus: Bus, result: Co
     res = r.res;
   }
   const moves = c.paramCells ?? {};
-  // a parameter's starting value: its number, or the bottom of its range
-  const start = (k: string, d: number) => (typeof params[k] === 'number' ? (params[k] as number) : (moves[k]?.range?.[0] ?? d));
   // its own filters and grit, into where its way goes on (`end`): one copy for each way its notes take through
   // instruments (the first, on no instrument), their moving parameters each one of `moving`'s, moved together
   const own: Record<string, Movable[]> = {};
