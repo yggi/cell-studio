@@ -77,6 +77,8 @@ Each phase leans on the one before, except radio mode, which can start now.
 
 ## Gotchas across the two
 
-- Same sigil, different words: `^`, `_`, `shift`, `cycle=` and Euclid's rotation mean different things over there (the table). Check a form against both before porting it either way.
+- Where Jambot keeps what Cell studio lacks: the style space (7 axes, genres as points, glides: `packages/engine/src/style.ts`), the composer (form, themes, key, parts), the Muse (a phrase reader with a confidence, a fading motif memory, recognition under operators: `muse.ts`, `packages/theory/src/motifs.ts`), host and client sessions over a lobby (`packages/session`), and a measured bored-to-confusing edge (its #237).
+- Reading it: add the repository in a cloud session and clone it beside this one; its entry is `AGENTS.md`, then `docs/MEMORY.md`.
+- Same sigil, different words: `^`, `_`, `shift`, `cycle=` and Euclid's rotation mean different things over there (the table; the hub's [GLOSSARY.md](https://github.com/yggi/music-commons/blob/main/GLOSSARY.md)): its `^` is an octave, `_` is "no onset", `shift` transposes, `cycle=` counts a table's laps (a grid's size is its map's, `map=edo(19)`), Euclid rotates as its own `even(k,n,shift)`, accents are `* + - .`. Check a form against both before porting it either way.
 - Jambot is a pnpm workspace; a pre-push hook runs `pnpm verify` and blocks a failing push. Its docs are one sentence to a line, and its language design is a catalogue of claims, each with a test ([the ratchet](https://github.com/yggi/jambot/blob/main/docs/ratchet.md)): a change to its score language goes through the owner.
 - Lifted files carry a header naming their source at Jambot 8cdb6b8; keep it when you change them, so the two can be merged back.

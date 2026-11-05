@@ -18,6 +18,7 @@ export const RESOLVERS = {
   // both sides added lines: keep both, main's first (a decision, a changelog line, a piece in the order, a form in a tier)
   'CHANGELOG.md': 'union',
   'docs/MEMORY.md': 'union',
+  'docs/decisions/README.md': 'union',
   'src/engine/snapshot.txt': 'union',
   'src/engine/order.ts': 'union',
   'src/engine/ladder.ts': 'union',

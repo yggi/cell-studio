@@ -2,7 +2,7 @@
 
 The full hierarchy of `docs/`. Start with [MEMORY.md](MEMORY.md).
 
-- [MEMORY.md](MEMORY.md) — entrypoint: project, commands, rules, cheatsheet, decisions
+- [MEMORY.md](MEMORY.md) — entrypoint: the project, the family, the gates, the map, decisions
 - [architecture.md](architecture.md) — what lives where, and the data flow compile → plan → events → voices
 - [testing.md](testing.md) — what the tests promise, measuring, profiling
 - [examples.md](examples.md) — the catalogue of shipped pieces
@@ -30,5 +30,5 @@ The language's pages live with it in [yggi/cells](https://github.com/yggi/cells)
 
 ## Directories
 
-- [decisions/](decisions/) — one record per decision; the one-line list is in MEMORY.md
+- [decisions/](decisions/) — one record per decision; the list with each one's substance is its README, the heads are in MEMORY.md
 - [notes/](notes/) — one file per thread and handovers; issues come first
