@@ -70,7 +70,7 @@ fi
 
 changed=$(git diff --name-only origin/main...HEAD 2>/dev/null) || changed=
 if [ -n "$changed" ] && ! printf '%s\n' "$changed" | grep -qv '\.md$'; then
-  check="${CELL_STUDIO_VERIFY_DOCS:-npm run -s format:check && npx vitest run src/docs.test.ts tools/reading-list.test.ts tools/changelog.test.ts}"
+  check="${CELL_STUDIO_VERIFY_DOCS:-npm run -s format:check && npx vitest run src/docs.test.ts tools/reading-list.test.ts tools/changelog.test.ts tools/conflict-markers.test.ts}"
   what='the docs check (the branch changes markdown alone)'
   stamp=
 else
