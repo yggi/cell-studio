@@ -11,6 +11,7 @@ import type { GraphModel, GraphNode } from '@yggi/cells/engine/graph';
 import { cellId } from '@yggi/cells/engine/ids';
 import { isMidiCard } from '@yggi/cells/engine/program';
 import { outs } from '@yggi/cells/engine/outs';
+import { kitOf } from '@yggi/cells/engine/plays';
 import { towerOf } from './tower';
 import { socketOf, VOICE_SIZE } from './voice';
 import { HEARING, TOWER_PX } from './towerscale';
@@ -151,15 +152,14 @@ export function socketHeights(program: CompileResult, model: GraphModel, drawn: 
     const d = at.get(id);
     if (d !== undefined && Number.isFinite(d)) return d;
     // (a kit itself, the drums' one wire into the card; or a pattern read through one)
-    const own = program.cells.get(id.slice('cell:'.length));
-    const kit = own?.kit ? own : program.cells.get(own?.over ?? '');
-    if (!kit?.kit) return undefined;
+    const kit = kitOf(program, id.slice('cell:'.length));
+    if (!kit) return undefined;
     // (a drum drawn as a piece of its kit has no node: its own pitch, else its filter, else 1 kHz, as towerOf reads a voice)
     const pitch = (name: string) => {
       const c = program.cells.get(name);
       return c?.voice ? Math.log10(c.freq > 0 ? c.freq : Number(c.params.hpf ?? c.params.lpf) || 1000) : undefined;
     };
-    const members = kit.units.flatMap((u) => (u.atom.kind === 'ref' ? [pitch(u.atom.name)] : [])).filter((x): x is number => x !== undefined && Number.isFinite(x));
+    const members = kit.drums.map(pitch).filter((x): x is number => x !== undefined && Number.isFinite(x));
     return members.length ? Math.min(...members) : undefined;
   };
   for (const e of drawn.edges) {

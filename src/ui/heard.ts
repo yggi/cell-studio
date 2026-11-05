@@ -7,6 +7,7 @@
 import type { GraphContext } from './context';
 import { bandsFromFFT, restingProfile } from '../layout/spectrum';
 import { hslRgb, noteHsl, UNIT_RGB } from './theme';
+import { kitOf } from '@yggi/cells/engine/plays';
 
 export interface Heard {
   readonly left: Float32Array;
@@ -18,11 +19,9 @@ export interface Heard {
 }
 
 /** The voices that sound for `source`: a kit's drums (the kit, or a pattern read through one), else itself. */
-function voicesOf(ctx: GraphContext, source: string): { names: string[]; drums: boolean } {
-  const own = ctx.program.cells.get(source);
-  const kit = own?.kit ? own : ctx.program.cells.get(own?.over ?? '');
-  if (!kit?.kit) return { names: [source], drums: false };
-  return { names: kit.units.flatMap((u) => (u.atom.kind === 'ref' ? [u.atom.name] : [])), drums: true };
+function voicesOf(ctx: GraphContext, source: string): { names: readonly string[]; drums: boolean } {
+  const kit = kitOf(ctx.program, source);
+  return { names: kit?.drums ?? [source], drums: !!kit };
 }
 
 // (what was heard this frame: the socket's meter, the spire and the strip all ask, once each a frame — read the
