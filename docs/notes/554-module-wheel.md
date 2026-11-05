@@ -62,3 +62,8 @@ In Patchbay no wheel needs to grow (the filter's four jacks need 48 px, and it i
 - The finger rule (point 4) as the wheel's size, or a ring outside the rim.
 
 Nothing is built beyond the mock-up's sheet (`tools/gallery/modules/`). The answer becomes a decision here, and #555 builds on it.
+
+## Built
+
+Rung A of #560: Patchbay through the real Graph, its modules one wheel each (`lowpass` and `amp` their own face, `osc`, `lfo` and `sh` their wheels with the rim), 23 nodes where today's drew 28 (`node tools/gallery.mjs golden 3 patchbay`).
+![built](560-module-wheel-built.jpg)
