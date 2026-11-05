@@ -54,7 +54,7 @@ if (process.env.CELLS) q.set('src', readFileSync(process.env.CELLS, 'utf8'));
 const url = `${server.resolvedUrls.local[0]}tools/gallery/harness.html?${q}`;
 const browser = await chromium.launch({ args: ['--no-sandbox'] });
 const page = await browser.newPage({
-  viewport: { width: { edges: 2560, golden: 2840, zoom: 1600, uses: 2700, modules: 4450 }[subject] ?? 1500, height: 1000 },
+  viewport: { width: { edges: 2560, golden: 2840, zoom: 1600, uses: 2700, modules: 5950 }[subject] ?? 1500, height: 1000 },
   deviceScaleFactor: scale,
 });
 const problems = [];

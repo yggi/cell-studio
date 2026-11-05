@@ -123,12 +123,13 @@
     sub: [{ name: 'sub_pitch', dx: 90, dy: 40, face: 'line' }],
   };
 
-  const OPTIONS = ['cluster', 'module', 'all'] as const;
+  const OPTIONS = ['cluster', 'module', 'all', 'chosen'] as const;
   type Option = (typeof OPTIONS)[number];
   const TITLE: Record<Option, string> = {
     cluster: 'cluster — today’s use group, its jacks hung on the head',
     module: 'module — one wheel, its face, its jacks on the rim',
     all: 'all — modules, and a voice’s jacks on its own wheel',
+    chosen: 'chosen (decision 069) — all, the unused jacks hidden, the wheels grown a finger per jack',
   };
   const VIEWS = [
     { key: 'desktop', width: 1440, box: [0, 0, 1440, 900] },
@@ -137,7 +138,6 @@
     { key: 'phone-close', width: 390, box: [445, 300, 390, 420] },
   ] as const;
 
-  const byName = new Map(CELLS.map((c) => [c.name, c]));
   const AUDIO = noteColour(30);
   const CV = 'var(--text-muted)';
   const NOTES = noteColour(210);
@@ -145,13 +145,23 @@
   const TARGET = 22;
 
   /** The jacks a cell shows in an option, and where on its rim: inputs over the lower half, left to right; the output on top. */
+  /** A jack in use: holding a cable, or a value (a knob's default, a value set on the line); the rest are hidden at rest in `chosen`. */
+  const inUse = (j: Jack) => !!j.from || !!j.set || j.knob != null;
+  /** The radius a wheel grows to in `chosen`: its jacks a finger (44 px) apart over its lower half (0.9 π), never smaller than it was. */
+  const grown = (c: Cell, n: number) => Math.max(c.r, n > 1 ? (44 * (n - 1)) / (0.9 * Math.PI) : c.r);
+  /** A cell's jacks shown in an option. */
+  const shown = (c: Cell, option: Option): readonly Jack[] => {
+    const all = (option === 'all' || option === 'chosen') && c.voice ? c.voice : c.module ? (c.jacks ?? []) : [];
+    return option === 'chosen' ? all.filter(inUse) : all;
+  };
+
   function placed(c: Cell, option: Option): { jack: Jack; x: number; y: number; ux: number; uy: number }[] {
-    const jacks = option === 'all' && c.voice ? c.voice : c.module ? (c.jacks ?? []) : [];
+    const jacks = shown(c, option);
     if (option === 'cluster')
       // (hung under the head, a row of tabs)
       return jacks.map((jack, i) => ({ jack, x: c.x + (i - (jacks.length - 1) / 2) * 44, y: c.y + c.r + 16, ux: 0, uy: 1 }));
     // (over the lower half, a little past it on each side for six)
-    const spread = jacks.length > 4 ? 0.05 : 0.15;
+    const spread = option === 'chosen' || jacks.length > 4 ? 0.05 : 0.15;
     const from = Math.PI * spread;
     const to = Math.PI * (1 - spread);
     return jacks.map((jack, i) => {
@@ -219,7 +229,9 @@
 
   /** What an option draws: the cells (less a module's private ones, or with them), their jacks, and the cables. */
   function drawing(option: Option) {
-    const cells = CELLS;
+    // (in `chosen`, each wheel grown to its jacks)
+    const cells = option === 'chosen' ? CELLS.map((c) => ({ ...c, r: grown(c, shown(c, option).length) })) : CELLS;
+    const byName = new Map(cells.map((c) => [c.name, c]));
     const jacks = new Map(cells.map((c) => [c.name, placed(c, option)]));
     const cables: { d: string; band: Band; note?: boolean }[] = [];
     const extra: { name: string; x: number; y: number; face: Face }[] = [];
