@@ -2,13 +2,15 @@
 
 What changed in Cell studio, newest first. The app is deployed from `main` by hand (`node tools/deploy.mjs`), so
 this lists user-visible changes; each release (a version bump in `package.json` and a `vX.Y.Z`
-tag) gathers the entries under *Unreleased* beneath its own heading. The version and commit of
+tag) gathers the entries under *Unreleased* and those in [`changes/`](changes/) beneath its own heading. The version and commit of
 the running build are the app name's tooltip; a tap on the name opens the details.
 
-Format: [Keep a Changelog](https://keepachangelog.com/). Add a line to *Unreleased* in the PR
-that makes the change. Also note changes to the language that could affect saved `.cells` pieces.
+Format: [Keep a Changelog](https://keepachangelog.com/). Add a file to [`changes/`](changes/) in the PR
+that makes the change ([`changes/README.md`](changes/README.md)). Also note changes to the language that could affect saved `.cells` pieces.
 
 ## Unreleased
+
+Entries not yet released are in [`changes/`](changes/), one file each; a release gathers them here (`npm run changelog -- gather`).
 
 ### Added
 - **Each MIDI input plays its own voice** (#549, webmidi v0.2.0 and v0.2.1, its decision 003): an input's row in the patch has a **Plays** choice in place of its Heard switch, its closed label short (*Default*, *Not heard*, a voice's name) so it shows whole in the drawer: not heard, the default (the cell armed, as before), or a voice or the kit, kept in the setup with its role so it carries to other pieces. **Assign inputs** fills in a keyboard as the lead and pads as the drums, by the port's name. What was heard before plays the default, so nothing changes until a choice is made. Thru still sends a key as the voice it plays sounds it. Saved `.cells` pieces are unchanged.

@@ -64,7 +64,7 @@ jobs:
       - if: ${{ !cancelled() && steps.install.outcome == 'success' && steps.scope.outputs.scope != 'docs' }}
         run: npx vitest run --project quick
       - if: ${{ !cancelled() && steps.install.outcome == 'success' && steps.scope.outputs.scope == 'docs' }}
-        run: npx vitest run src/docs.test.ts tools/reading-list.test.ts
+        run: npx vitest run src/docs.test.ts tools/reading-list.test.ts tools/changelog.test.ts
 
   slow:
     if: github.event_name != 'pull_request' || (github.event.pull_request.draft == false && (!github.event.repository.private || vars.CI == 'on'))

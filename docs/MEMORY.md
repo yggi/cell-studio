@@ -15,7 +15,7 @@ A minimal language for music where everything is a **cell**: a helix (pitch clas
 
 ## Working here
 
-Commands, the rules, the PR conventions and what an agent may decide alone are in [../AGENTS.md](../AGENTS.md); how the tests and CI fit together, and a PR's draft until it is ready, in [testing.md](testing.md). A release: bump `version` in `package.json`, move the *Unreleased* entries of `CHANGELOG.md` under a new heading, tag `vX.Y.Z`.
+Commands, the rules, the PR conventions and what an agent may decide alone are in [../AGENTS.md](../AGENTS.md); how the tests and CI fit together, and a PR's draft until it is ready, in [testing.md](testing.md). A release: bump `version` in `package.json`, gather *Unreleased* and `changes/` under a new heading (`npm run changelog -- gather X.Y.Z`), tag `vX.Y.Z`.
 
 ## Gates
 
