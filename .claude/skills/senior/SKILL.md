@@ -18,14 +18,14 @@ For each PR: description, linked issue (`Closes #n`) with its comments, changed 
 1. **Scope**: does it do what the issue says, and only that? Extra changes are a finding (an issue, not a wider PR).
 2. **Safety rules**: layering (`npm run check` and the tests hold it), saved `.cells` pieces still mean the same, an existing example doesn't change how it sounds unless that is the point (then its `level=`/loudness was checked), the code stays the source of truth.
 3. **Evidence**: tests for the behaviour (would the new test fail without the change?), and for anything audible, visual or about speed, a measured bound (a test, `cellStudio.measure`, the profile skill, a screenshot) or the word unverified. No evidence for a claim: verify it yourself the cheap way (below) or call it unverified. Break it: for each thing the change claims to catch or keep, the smallest edit that should trip it, the test run, the edit restored; the summary carries them as a table (break-it, the edit, what failed, restored), and a break-it that fails nothing is a finding.
-4. **Docs and bookkeeping**: if behaviour changed, the page that states it (`docs/limits.md`, `docs/roadmap.md`; the language's pages are yggi/cells') and a `CHANGELOG.md` line.
+4. **Docs and bookkeeping**: if behaviour changed, the page that states it (`docs/limits.md`, `docs/roadmap.md`; the language's pages are yggi/cells') and an entry in `changes/` (`changes/README.md`).
 5. **The diff itself**: read it for bugs and edge cases. Spend time in proportion to risk: engine semantics and audio scheduling deserve a probe (write a small test or compile a snippet), a docs fix doesn't. For a deeper pass use `/code-review`.
 
 **Verify only what wasn't.** Each check runs once per commit: the author's hook is the gate, CI the witness. On a ready PR CI runs the static checks and the quick tests (`check`), the slow tests and the build (`slow`), and the smoke run and renders (*Smoke*) when the change reaches audio or UI wiring; a green run on the head is the evidence, not to be run again here. When the head isn't the verified commit, or CI is red or blocked, run `npm run verify` on it yourself. Add: a targeted probe for a semantic claim (`npx vitest run <file>`, or a throwaway test that compiles a snippet), `npm run smoke -- 2 "<piece>"` after `npm run build` for audio you doubt, the `profile` skill for a speed claim. Check out a PR with `git fetch origin <branch>`; never work on `main`.
 
 ## 3. Decide, per finding
 
-- **Trivial** (typo, nit, missing CHANGELOG line, a stale doc sentence, an obvious one-line bug, a missing test you can write): fix it on the PR branch with a normal commit and say so in one line. Don't ask first.
+- **Trivial** (typo, nit, missing entry in `changes/`, a stale doc sentence, an obvious one-line bug, a missing test you can write): fix it on the PR branch with a normal commit and say so in one line. Don't ask first.
 - **Serious** (wrong behaviour, rule broken, risk to saved pieces or sound, scope creep, a design you disagree with): don't fix it quietly. Comment on the PR (one review, inline only where it points at code) with what is wrong, why it matters, and what you'd do; tell the owner. Don't merge.
 - **Out of scope but real**: file an issue and link it from the PR.
 

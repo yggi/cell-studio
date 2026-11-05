@@ -14,8 +14,8 @@
 # - A check that failed leaves its whole output in the git directory (`cell-studio-verify-failed.log`), named in the
 #   message: the last 40 lines shown may not reach the failure.
 # - A push let through says so in one line, with the number of tests that passed, for the PR's *Verified* section.
-# - A branch that differs from `origin/main` in `*.md` files alone runs AGENTS.md's docs-only check (the format check
-#   and the docs tests) instead of everything, and is not remembered.
+# - A branch that differs from `origin/main` in `*.md` files alone runs AGENTS.md's docs-only check (the format check,
+#   the docs tests and the entries in `changes/`) instead of everything, and is not remembered.
 # - Deleting a ref, pushing a tag and the deploy's push to `gh-pages` (.github/scripts/pages.sh, after `test:all`) are
 #   not checked.
 # CELL_STUDIO_VERIFY and CELL_STUDIO_VERIFY_DOCS replace the two checks, for tools/hooks.test.ts.
@@ -70,7 +70,7 @@ fi
 
 changed=$(git diff --name-only origin/main...HEAD 2>/dev/null) || changed=
 if [ -n "$changed" ] && ! printf '%s\n' "$changed" | grep -qv '\.md$'; then
-  check="${CELL_STUDIO_VERIFY_DOCS:-npm run -s format:check && npx vitest run src/docs.test.ts tools/reading-list.test.ts}"
+  check="${CELL_STUDIO_VERIFY_DOCS:-npm run -s format:check && npx vitest run src/docs.test.ts tools/reading-list.test.ts tools/changelog.test.ts}"
   what='the docs check (the branch changes markdown alone)'
   stamp=
 else
@@ -97,6 +97,8 @@ fi
 esc=$(printf '\033')
 found=$(sed "s/$esc\[[0-9;]*m//g" "$log" | sed -n 's/^ *Tests  *\([0-9][0-9]*\) passed.*/\1/p' | tail -1)
 rm -f "$log"
+# The boot set near its ceiling, which a passing check's hidden output would keep from the pusher (tools/reading-list.ts).
+node --experimental-strip-types --no-warnings tools/reading-list.ts 2>/dev/null | sed 's/^/pre-push: /' >&2
 if [ -n "$stamp" ]; then
   # `postverify` has stamped the tree already when the check was `npm run verify`, and this `end` then finds nothing
   # begun. Neither stamps a tree a file changed in while the check ran.
