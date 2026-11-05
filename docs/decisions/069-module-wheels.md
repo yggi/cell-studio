@@ -30,7 +30,7 @@ It found that six jacks crowd a voice's wheel (about 24 px apart on a phone, fou
    - a knob: its default, its pointer where the value sits.
 
    A cable is drawn in its band's stroke, from the source's output to the jack: sound a wave, CV solid (the graph's palette).
-6. **A wheel grows to keep its jacks a finger apart on a phone.** Its n jacks shown over its lower half (0.9 π of it) are 44 px apart in a straight line at 1:1, the chord a fingertip measures: a radius of at least 22 / sin(0.45 π / (n − 1)) px, 22 px for two jacks, 48 px for four, 79 px for six. (Corrected while building it, #560: the record first gave 44 (n − 1) / (0.9 π), which keeps the jacks 44 px apart along the arc, and two of them only 28 px apart in a straight line.) It never shrinks below the size it has today. The jacks don't go on a ring outside the rim.
+6. **A wheel grows to keep its jacks a finger apart on a phone.** Its n jacks shown over its lower half (0.9 π of it) are 44 px apart in a straight line at 1:1, the chord a fingertip measures: a radius of at least 22 / sin(0.45 π / (n − 1)) px, 22 px for two jacks, 48 px for four, 79 px for six. (Corrected while building it, #560: the record first gave 44 (n − 1) / (0.9 π), which keeps the jacks 44 px apart along the arc, and two of them only 28 px apart in a straight line.) It never shrinks below the size it has today. The jacks don't go on a ring outside the rim. **On a voice** (a disc with its envelope's band under it) its outline is the rim, and its jacks go round the band's three straight sides, down its left, along its bottom and up its right, evenly: about 1.72 times its size, so six a finger apart on a 160 px voice, and no voice in the library grows (#560's rung B).
 
 ## Why not
 

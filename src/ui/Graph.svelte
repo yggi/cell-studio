@@ -23,6 +23,7 @@
   import VoiceNode from './VoiceNode.svelte';
   import ModuleNode from './ModuleNode.svelte';
   import { jackAt, jacksShown, portOfHandle, type Module } from '../layout/modules';
+  import type { Jack } from '@yggi/cells/engine/patch';
   import JunctionNode from './JunctionNode.svelte';
   import SocketNode from './SocketNode.svelte';
   import FitView from './FitView.svelte';
@@ -286,11 +287,11 @@
       // (a module's jack, decision 069: on its rim, as JackRim draws it)
       const port = portOfHandle(handle);
       if (n && port !== null) {
-        const { size, module } = n.data as { size: number; module?: Module };
-        const shown = module ? jacksShown(module.jacks) : [];
+        const { size, module, jacks } = n.data as { size: number; module?: Module; jacks?: readonly Jack[] };
+        const shown = jacksShown(module?.jacks ?? jacks ?? []);
         const i = shown.findIndex((j) => j.port === port);
         if (i < 0) return undefined;
-        const at = jackAt(i, shown.length, size);
+        const at = jackAt(i, shown.length, size, n.type === 'voice' ? 'band' : 'ring');
         return { x: n.position.x + at.x, y: n.position.y + at.y };
       }
       const cell = n && shown.program.cells.get((n.data as { name: string }).name);

@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { PRESETS } from '@yggi/cells/engine/presets';
 import { compilePiece } from '../compile';
 import { buildGraph, usesOf } from './drawn';
-import { FINGER, grownSize, jackAt, jackOfEdge, jacksShown, moduleOf } from './modules';
+import { FINGER, grownSize, jackAt, jackOfEdge, jacksOfNode, jacksShown, moduleOf } from './modules';
 import { flowNodeOf } from '../ui/flownode';
 import { flowEdgeOf } from '../ui/flowedges';
 
@@ -101,5 +101,50 @@ describe('the jacks on the rim (decision 069 §3, §6)', () => {
     }
     // (one alone at the bottom)
     expect(jackAt(0, 1, 100)).toEqual({ x: expect.closeTo(0, 9), y: 50 });
+  });
+});
+
+describe('a voice’s and an instrument’s own jacks (decision 069 §2, rung B)', () => {
+  const acid = compilePiece(PRESETS.acid.source);
+  const g = buildGraph(acid);
+  const tb303 = g.nodes.find((n) => n.id === 'cell:tb303')!;
+
+  it('a voice’s moving sound parameters, pitch=, env= and fm=, each with its cables or its value', () => {
+    const jacks = jacksOfNode(tb303)!;
+    const at = (port: string) => jacks.find((j) => j.port === port)!;
+    expect([at('lpf').patched, at('lpf').knob]).toEqual([['fenv', 'accent', 'knob'], '110..3800']);
+    expect([at('lpq').patched, at('lpq').knob]).toEqual([['res'], null]);
+    expect(at('env').patched).toEqual(['strike']);
+    expect([at('delay').patched, at('delay').knob]).toEqual([[], '0.22']);
+    // (at rest only those in use: lpf, lpq, delay, env)
+    expect(jacksShown(jacks).map((j) => j.port)).toEqual(['lpf', 'lpq', 'delay', 'env']);
+    // (every wire into one ends at its jack)
+    const into = g.edges.filter((e) => e.to === 'cell:tb303' && ['lpf', 'lpq', 'env'].includes(e.port));
+    expect(into.length).toBe(5);
+    for (const e of into) expect(jackOfEdge(e), e.id).toBe(e.port);
+  });
+
+  it('what a voice takes from an instrument is the instrument’s; an unnamed cell is a value set on the line', () => {
+    // (Patchbay's saw is a module: its module's jacks; a voice playing through an instrument with lpf: not its own)
+    const text = '&bar meter("4/4") step=120bpm\n&tune step=8n 0 3\n&saw s=saw loop=C2 env=&(map=adsr .01 .2 .5 .1)\n&vcf lpf=800 [&saw]\n&out map=sample [&tune * &vcf]';
+    const r = compilePiece(text);
+    const gg = buildGraph(r);
+    const saw = jacksOfNode(gg.nodes.find((n) => n.id === 'cell:saw')!)!;
+    expect(saw.find((j) => j.port === 'lpf')).toMatchObject({ patched: [], knob: null });
+    expect(saw.find((j) => j.port === 'env')).toMatchObject({ patched: [], knob: '&(…)' });
+    // (the instrument's own: its linear parameters)
+    expect(jacksShown(jacksOfNode(gg.nodes.find((n) => n.id === 'cell:vcf')!)!).map((j) => [j.port, j.knob])).toEqual([['lpf', '800']]);
+  });
+
+  it('on a voice its jacks go round its band, six a finger apart on 160 px, so no voice in the library grows', () => {
+    for (const n of [2, 4, 6]) {
+      expect(grownSize(160, n, 'band')).toBe(160);
+      for (let i = 1; i < n; i++) {
+        const a = jackAt(i - 1, n, 160, 'band');
+        const b = jackAt(i, n, 160, 'band');
+        expect(Math.hypot(a.x - b.x, a.y - b.y), `${n} jacks, ${i}`).toBeGreaterThanOrEqual(FINGER * 0.99);
+      }
+    }
+    expect(grownSize(160, 8, 'band')).toBeGreaterThan(160);
   });
 });

@@ -3,6 +3,8 @@
  * lays out with (DEFAULT_LAYOUT, each measured over the library: docs/notes/nets.md) and the springs' strengths that
  * more than one phase reads. What a node and an edge weigh is weights.ts.
  */
+import { drawnSize, jacksOfNode } from './modules';
+import { VOICE_SIZE } from './voice';
 import type { GraphNode } from '@yggi/cells/engine/graph';
 
 /** A belt's spring: its length against an edge's, and its pull. */
@@ -263,7 +265,11 @@ function roomFor(n: GraphNode): number {
   // (its free() values: pills under it, a row or two)
   const pills = cell?.frees?.length ?? 0;
   const controls = pills ? 24 * Math.ceil(pills / 3) : 0;
-  return Math.max(base, label) + (controls ? 10 + controls * 0.55 : 0);
+  // (a wheel grown to its jacks: its room grown with it, decision 069 §6, layout/modules.ts; one its jacks fit keeps its room)
+  const base0 = (n.kind === 'voice' ? VOICE_SIZE : 128) * (cell?.size ?? 1);
+  const grown = jacksOfNode(n) ? drawnSize(n, base0) : base0;
+  const jacked = grown > base0 ? base + (grown - base0) / 2 : 0;
+  return Math.max(base, label, jacked) + (controls ? 10 + controls * 0.55 : 0);
 }
 
 /** A product's junction's room, a radius (engine/graph.ts, junctions.ts): a small gate meter under its voice, twice this across (#234). */

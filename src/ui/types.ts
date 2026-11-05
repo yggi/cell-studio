@@ -1,5 +1,6 @@
 import type { Node } from '@xyflow/svelte';
 import type { Module } from '../layout/modules';
+import type { Jack } from '@yggi/cells/engine/patch';
 
 /** petal: an unnamed cell, drawn small hanging from its parent (no label, no edges). */
 type CellNodeData = {
@@ -14,6 +15,8 @@ type CellNodeData = {
   below?: number;
   /** A module's head (decision 069): its jacks on its rim. */
   module?: Module;
+  /** An instrument's own jacks (decision 069 §2). */
+  jacks?: readonly Jack[];
 };
 type VoiceNodeData = {
   name: string;
@@ -22,6 +25,7 @@ type VoiceNodeData = {
   pinned: boolean;
   petal?: boolean;
   /** A module's head (decision 069): its jacks on its rim. */ module?: Module;
+  /** Its own jacks (decision 069 §2): along its band. */ jacks?: readonly Jack[];
 };
 /** An instrument module (decision 069: `lowpass`, `highpass`, `amp`), one wheel, its face and its jacks. */
 type ModuleNodeData = { name: string; size: number; pinned: boolean; module: Module };

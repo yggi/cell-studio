@@ -88,7 +88,12 @@
   {#if !data.petal}<SideMarks name={data.name} />{/if}
   {#if data.pinned}<span class="pin" title="Pinned"></span>{/if}
   {#if freeCell?.frees.length && !data.petal}<FreePills frees={freeCell.frees} name={data.name} />{/if}
-  {#if data.module}<JackRim size={data.size} jacks={data.module.jacks} module={data.module.id} />{/if}
+  {#if data.module ?? data.jacks}<JackRim
+      size={data.size}
+      jacks={data.module?.jacks ?? data.jacks ?? []}
+      label={data.module ? `&${data.name} · ${data.module.id}` : `&${data.name}`}
+      shape="band"
+    />{/if}
   <Handle type="source" position={Position.Bottom} class="center-handle" isConnectable={false} />
 </div>
 

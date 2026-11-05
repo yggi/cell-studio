@@ -7,13 +7,15 @@
  * wires that come into it, as a tape's heads ride the tape. So a junction costs the layout nothing, and each product
  * still has its own place: its melody comes in at its meter, and its notes go on into the voice from there.
  */
+import { isCellNode } from '@yggi/cells/engine/graph';
+import { drawnSize, INSTRUMENT_MODULES, MODULE_NAME, moduleOf, voiceSize } from './modules';
 import { netsOf, type GraphEdge, type GraphModel } from '@yggi/cells/engine/graph';
 import { edgeId } from '@yggi/cells/engine/ids';
 import { segmentsCross, splinePoint } from './geometry';
 import { hops } from './nets';
 import { stepBends } from './forces';
 import { nodeAt, type LayoutState, type PhysNode } from './state';
-import { bodyOf, VOICE_SIZE } from './voice';
+import { bodyOf } from './voice';
 
 /**
  * The graph with each product's junction folded into its voice: its `is` wire gone, its other wires to and from the
@@ -68,7 +70,16 @@ export function junctionNodes(s: LayoutState, model: GraphModel): Map<string, Ph
     // (under its voice's drawing and its name, on a short edge: a voice's wheel reaches down to its envelope's
     // bottom, layout/voice.ts; anything else's room has its name in it)
     const v = model.nodes.find((m) => m.id === p.rides);
-    const reach = v?.kind === 'voice' && !v.petalOf ? bodyOf(VOICE_SIZE * (v.cell.size ?? 1)) : v ? s.opts.radius(v) : 0;
+    // (and under a module's wheel, its jacks on its rim and its name under them: decision 069, ui/ModuleNode.svelte)
+    const module = v ? moduleOf(v) : undefined;
+    const reach =
+      v?.kind === 'voice' && !v.petalOf
+        ? bodyOf(voiceSize(v))
+        : v && module && INSTRUMENT_MODULES.has(module.id)
+          ? drawnSize(v, 128 * (isCellNode(v) ? v.cell.size : 1)) / 2 + MODULE_NAME
+          : v
+            ? s.opts.radius(v)
+            : 0;
     p.below = reach + STUB + p.radius;
     out.set(n.id, p);
   }

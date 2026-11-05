@@ -42,7 +42,7 @@
       <path class="face" d={face(data.module.id, R)} />
     </g>
   </svg>
-  <JackRim size={data.size} jacks={data.module.jacks} module={data.module.id} />
+  <JackRim size={data.size} jacks={data.module.jacks} label="&{data.name} · {data.module.id}" shape="ring" />
   <span class="name">&{data.name} · {data.module.id}</span>
   <SideMarks name={data.name} />
   <Handle type="source" position={Position.Bottom} class="center-handle" isConnectable={false} />
@@ -76,7 +76,7 @@
     position: absolute;
     top: 100%;
     left: 50%;
-    transform: translate(-50%, 18px);
+    transform: translate(-50%, 14px);
     white-space: nowrap;
     font: 600 13px/1.2 var(--font-code);
     color: var(--text);
