@@ -63,6 +63,48 @@ export interface Built {
  */
 export type Rack = Map<string, Map<string, Set<Movable>>>;
 
+/** Has it a send of its own: room= or delay= (or an echo of its own, delaytime=), fixed or moving. */
+const hasSend = (c: ResolvedCell) =>
+  typeof c.params.room === 'number' || !!c.paramCells?.room || typeof c.params.delay === 'number' || !!c.paramCells?.delay || typeof c.params.delaytime === 'number';
+
+/**
+ * A cell's sends (those `keep` keeps) from `from`: room= into the shared reverb, delay= into an echo of its own at its
+ * delaytime= (and delayfeedback=), else the shared echo; each at its number or the bottom of its range, its level added
+ * to `moving`'s lists.
+ */
+function sends(
+  Tone: ToneNS,
+  bus: Bus,
+  c: { readonly params: Params; readonly paramCells?: Readonly<Record<string, { readonly range: readonly [number, number] | null }>> },
+  keep: (k: string) => boolean,
+  from: import('tone').ToneAudioNode,
+  nodes: Disposable[],
+  moving: Record<string, Movable[]>,
+): void {
+  const moves = c.paramCells ?? {};
+  const own = (k: string) => keep(k) && typeof c.params[k] === 'number';
+  const start = (k: string, d: number) => (own(k) ? (c.params[k] as number) : keep(k) ? (moves[k]?.range?.[0] ?? d) : d);
+  // an echo of its own, at its time (delaytime=, in seconds or as a clock), else the shared one
+  let echo: typeof bus.echo = bus.echo;
+  if (own('delaytime')) {
+    // (a delay line as long as its echo: a dotted half at a slow tempo runs past Tone's default second)
+    const time = c.params.delaytime as number;
+    const feedback = own('delayfeedback') ? (c.params.delayfeedback as number) : 0.35;
+    echo = new Tone.FeedbackDelay({ delayTime: time, maxDelay: Math.max(1, time + 0.25), feedback, wet: 1 }).connect(bus.master);
+    nodes.push(echo);
+  }
+  for (const [k, target] of [
+    ['room', bus.reverb],
+    ['delay', echo],
+  ] as const)
+    if (own(k) || (keep(k) && moves[k]) || (k === 'delay' && echo !== bus.echo)) {
+      const g = new Tone.Gain(start(k, k === 'delay' ? 0.3 : 0)).connect(target);
+      from.connect(g);
+      nodes.push(g);
+      (moving[k] ??= []).push(movable(g.gain));
+    }
+}
+
 /** Has it a filter of its own: a low- or high-pass, fixed or moving. */
 const hasFilter = (c: ResolvedCell) => typeof c.params.lpf === 'number' || !!c.paramCells?.lpf || typeof c.params.hpf === 'number' || !!c.paramCells?.hpf;
 
@@ -160,8 +202,6 @@ export function buildVoice(Tone: ToneNS, ctx: AudioContext, bus: Bus, result: Co
     res = r.res;
   }
   const moves = c.paramCells ?? {};
-  // a parameter's starting value: its number, or the bottom of its range
-  const start = (k: string, d: number) => (typeof params[k] === 'number' ? (params[k] as number) : (moves[k]?.range?.[0] ?? d));
   // its own filters and grit, into where its way goes on (`end`): one copy for each way its notes take through
   // instruments (the first, on no instrument), their moving parameters each one of `moving`'s, moved together
   const own: Record<string, Movable[]> = {};
@@ -187,14 +227,15 @@ export function buildVoice(Tone: ToneNS, ctx: AudioContext, bus: Bus, result: Co
   };
   if (!resonates) head = chain(end);
   for (const k of Object.keys(own)) moving[k] = fan(own[k]!);
-  // its ways through instruments with filters of their own (decision 067), made when a note first takes one: its own
-  // chain, then each instrument's filters, the innermost first; each instrument's parameters in `rack`, for every voice
+  // its ways through instruments with filters or sends of their own (decision 067), made when a note first takes one: its
+  // own chain, then each instrument's filters and sends, the innermost first; each instrument's parameters in `rack`, for
+  // every voice
   const ways = new Map<string, import('tone').ToneAudioNode>();
   const staged: Built['staged'] = [];
   const way = (through: Played['through']): import('tone').ToneAudioNode => {
     const stages = (through ?? []).filter((x) => {
       const i = result.cells.get(x.instrument);
-      return !!i && hasFilter(i);
+      return !!i && (hasFilter(i) || hasSend(i));
     });
     if (!stages.length) return head;
     const key = stages.map((x) => x.instrument).join('\u0000');
@@ -203,7 +244,17 @@ export function buildVoice(Tone: ToneNS, ctx: AudioContext, bus: Bus, result: Co
     let at = end;
     for (const x of [...stages].reverse()) {
       const mine: Record<string, Movable[]> = {};
-      at = filters(Tone, result.cells.get(x.instrument)!, () => true, at, nodes, mine);
+      const i = result.cells.get(x.instrument)!;
+      // its sends, after its filters: from where its filters come out, at the level a voice's output has (its gain)
+      if (hasSend(i)) {
+        const after = new Tone.Gain(1).connect(at);
+        const level = new Tone.Gain(out.gain.value);
+        after.connect(level);
+        nodes.push(after, level);
+        sends(Tone, bus, i, () => true, level, nodes, mine);
+        at = after;
+      }
+      at = filters(Tone, i, () => true, at, nodes, mine);
       for (const [k, ps] of Object.entries(mine))
         for (const p of ps) {
           const into = rack.get(x.instrument) ?? new Map<string, Set<Movable>>();
@@ -218,24 +269,10 @@ export function buildVoice(Tone: ToneNS, ctx: AudioContext, bus: Bus, result: Co
     ways.set(key, into);
     return into;
   };
-  // an echo of its own, at its time (delaytime=, in seconds or as a clock), else the shared one
-  let send: typeof bus.echo = bus.echo;
-  if (typeof params.delaytime === 'number') {
-    // (a delay line as long as its echo: a dotted half at a slow tempo runs past Tone's default second)
-    const time = params.delaytime as number;
-    send = new Tone.FeedbackDelay({ delayTime: time, maxDelay: Math.max(1, time + 0.25), feedback: num(params, 'delayfeedback', 0.35), wet: 1 }).connect(bus.master);
-    nodes.push(send);
-  }
-  for (const [k, target] of [
-    ['room', bus.reverb],
-    ['delay', send],
-  ] as const)
-    if (typeof params[k] === 'number' || moves[k] || (k === 'delay' && send !== bus.echo)) {
-      const g = new Tone.Gain(start(k, k === 'delay' ? 0.3 : 0)).connect(target);
-      out.connect(g);
-      nodes.push(g);
-      moving[k] = movable(g.gain);
-    }
+  // its sends, from its output (not what it takes from an instrument: that instrument's stage sends it, after the voice's own)
+  const mySends: Record<string, Movable[]> = {};
+  sends(Tone, bus, c, (k) => !c.inherited?.[k], out, nodes, mySends);
+  for (const [k, ps] of Object.entries(mySends)) moving[k] = ps[0]!;
 
   const src = params.s !== undefined ? DOUGH_SOURCES[String(params.s)] : null;
   let wave: Built['wave'] = null;
