@@ -11,6 +11,7 @@ import type { ParamTrack } from '@yggi/cells/engine/series';
 import { harmonics, waveform } from '@yggi/cells/engine/wave';
 import { inputOf, movable, type Disposable, type Movable, type ToneNS } from './nodes';
 import { grainOffset, noiseBuffer } from './noise';
+import { blendWave, type Builtin } from './blend';
 import { envelope, num, schedule, schedulePitch, type Params } from './params';
 import { noteStats } from '../stats';
 import { buildResonator, nearest, strikeAt, type Resonator } from './resonator';
@@ -52,6 +53,8 @@ export interface Built {
   /** The instruments' filter parameters, every voice's copies (shared by the bank), and this voice's own in it. */
   rack?: Rack;
   staged?: [instrument: string, key: string, param: Movable][];
+  /** A blend of two built-in waves (`s=tri..square * &x`, cells decision 066): each note plays the share it starts on. */
+  blend?: { readonly from: Builtin; readonly to: Builtin; readonly waves: Map<number, PeriodicWave> };
 }
 
 /**
@@ -248,7 +251,10 @@ export function buildVoice(Tone: ToneNS, ctx: AudioContext, bus: Bus, result: Co
   }
   // (a key played on it takes the way its first output's notes do)
   const keyWay = result.outputs.find((o) => o.voice === name)?.through.map((instrument) => ({ instrument }));
-  return { res, key, seed: c.seed, params, head, nodes, wave, noise, scope, out, notes: [], live: new Map(), moving, way, keyWay, rack, staged };
+  // a blend: its second wave, where a note's share of it is read (its first is `wave`, at share 0)
+  const to = moves.s?.to !== undefined ? DOUGH_SOURCES[moves.s.to] : undefined;
+  const blend = src && wave && to && to !== 'white' && to !== 'pink' && to !== 'brown' ? { from: src as Builtin, to, waves: new Map<number, PeriodicWave>() } : undefined;
+  return { res, key, seed: c.seed, params, head, nodes, wave, noise, scope, out, notes: [], live: new Map(), moving, way, keyWay, rack, staged, ...(blend ? { blend } : {}) };
 }
 
 /** Let a voice go: its sounding notes stopped, its nodes disposed, its copies of instruments' filters out of the rack. */
@@ -366,7 +372,10 @@ export function playNote(
   // then the same path as a tone — envelope, volume streams, placement
   // a tone: its waveform, its pitch (a shape, if pitch=lo..hi * &shape), its bends
   const tone = (o: OscillatorNode) => {
-    if (typeof b.wave === 'string') o.type = b.wave as OscillatorType;
+    // (a blend: the wave of the share it starts on, as cells' renderer plays it)
+    const share = b.blend && params?.s?.kind === 'points' ? params.s.points[0]?.value : undefined;
+    if (b.blend && share !== undefined) o.setPeriodicWave(blendWave(ctx, b.blend.waves, b.blend.from, b.blend.to, share));
+    else if (typeof b.wave === 'string') o.type = b.wave as OscillatorType;
     else if (b.wave) o.setPeriodicWave(b.wave);
     if (params?.pitch) schedulePitch(o.frequency, freq, params.pitch, time, dur);
     else o.frequency.setValueAtTime(freq, time);

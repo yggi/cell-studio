@@ -23,6 +23,7 @@
 // Then a take (#210): Play in's braid left free, recorded from the fake input (● on the transport), held, then saved.
 // Then an instrument's filters as a stage after its voices' (#542, cells decision 067): texts from cells'
 // instruments.test.ts rendered, each as its written-out twin and within 3 dB a block of cells' own render.
+// Then a blend of two waves (#533, cells decision 066): at share 0 and 1, the plain first and second wave.
 //
 // Chromium: Playwright's, or CHROME_PATH=/path/to/chrome (CI uses the runner's Chrome). See tools/profile/playwright.mjs.
 import { preview, runnerImport } from 'vite';
@@ -38,6 +39,7 @@ const [all, list] = [flag('--all'), flag('--list')];
 const [secs = '2', ...only] = args;
 // (the picker is TypeScript over src/engine: loaded through vite, as vite.config.ts loads the examples' index)
 const { module: pick } = await runnerImport('./tools/smoke-pick.ts', { configFile: false });
+const { module: blend } = await runnerImport('./src/audio/voice/blend.ts', { configFile: false });
 const picks = pick.smokePicks();
 if (list) {
   for (const p of picks) console.log(`${p.title}\n    ${p.brings.join(', ')}`);
@@ -792,6 +794,64 @@ if (only.length === 0) {
   const ok = problems.length === 0;
   console.log(`${ok ? 'ok  ' : 'FAIL'} An instrument's filters, a stage after its voices'${ok ? `: ${note}` : '\n       ' + [...new Set(problems)].slice(0, 3).join('\n       ')}`);
   if (!ok) failed.push("An instrument's filters");
+}
+// A blend of two waves (#533, cells decision 066): the wave a note starts on at share 0 is the plain first wave, at 1
+// the plain second, within 0.5 dB on each of harmonics 1 to 16 (those within 60 dB of the fundamental), each rendered
+// for 1 s at 220 Hz in an offline context, its harmonics read off a DFT (1 Hz a bin), against Web Audio's own oscillator.
+if (only.length === 0) {
+  problems = [];
+  const bp = await newPage({ viewport: { width: 1280, height: 800 } });
+  bp.on('pageerror', (e) => problems.push(`page error: ${e.message}`));
+  let note = '';
+  try {
+    await bp.goto(url);
+    const cases = [
+      ['triangle', 'square', 0, 'triangle'],
+      ['triangle', 'square', 1, 'square'],
+      ['sine', 'sawtooth', 1, 'sawtooth'],
+    ];
+    let worst = 0;
+    for (const [a, b, w, plain] of cases) {
+      const imag = Array.from(blend.blendTerms(a, b, w));
+      const apart = await bp.evaluate(
+        async ([imag, plain]) => {
+          const harmonics = async (set) => {
+            const ctx = new OfflineAudioContext(1, 44100, 44100);
+            const o = ctx.createOscillator();
+            o.frequency.value = 220;
+            set(ctx, o);
+            o.connect(ctx.destination);
+            o.start();
+            const d = (await ctx.startRendering()).getChannelData(0);
+            return Array.from({ length: 16 }, (_, i) => {
+              const f = 220 * (i + 1);
+              let re = 0;
+              let im = 0;
+              for (let n = 0; n < d.length; n++) {
+                re += d[n] * Math.cos((2 * Math.PI * f * n) / 44100);
+                im -= d[n] * Math.sin((2 * Math.PI * f * n) / 44100);
+              }
+              return Math.hypot(re, im);
+            });
+          };
+          const wave = await harmonics((ctx, o) => o.setPeriodicWave(ctx.createPeriodicWave(new Float32Array(imag.length), Float32Array.from(imag))));
+          const own = await harmonics((_, o) => (o.type = plain));
+          const floor = own[0] * 1e-3;
+          return Math.max(0, ...own.map((x, i) => (x > floor && wave[i] > 0 ? Math.abs(20 * Math.log10(wave[i] / x)) : x > floor ? Infinity : 0)));
+        },
+        [imag, plain],
+      );
+      if (!(apart <= 0.5)) problems.push(`${a}..${b} at ${w} is ${apart.toFixed(2)} dB from a plain ${plain} on harmonics 1–16`);
+      worst = Math.max(worst, apart);
+    }
+    note = `tri..square at 0 and 1, sine..saw at 1: within ${worst.toFixed(3)} dB of the plain wave on harmonics 1–16`;
+  } catch (e) {
+    problems.push(String(e.message).split('\n')[0]);
+  }
+  await bp.close();
+  const ok = problems.length === 0;
+  console.log(`${ok ? 'ok  ' : 'FAIL'} A blend of two waves${ok ? `: ${note}` : '\n       ' + [...new Set(problems)].slice(0, 3).join('\n       ')}`);
+  if (!ok) failed.push('A blend of two waves');
 }
 await browser.close();
 await server.close();

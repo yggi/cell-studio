@@ -29,7 +29,20 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
+      # (the whole history, for the merge base the scope reads)
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - id: scope
+        # (`docs` when the PR differs from its base in `*.md` files alone, as .githooks/pre-push reads it)
+        run: |
+          scope=code
+          if [ '${{ github.event_name }}' = pull_request ]; then
+            changed=$(git diff --name-only 'origin/${{ github.base_ref }}...HEAD') || changed=
+            [ -n "$changed" ] && ! printf '%s\n' "$changed" | grep -qv '\.md$' && scope=docs
+          fi
+          echo "scope=$scope" >>"$GITHUB_OUTPUT"
+          echo "scope: $scope" >>"$GITHUB_STEP_SUMMARY"
       - uses: actions/setup-node@v7
         with:
           node-version: 22
@@ -39,33 +52,49 @@ jobs:
         env:
           PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: 1
       # (each check runs even when one before it failed, so one run gives every verdict)
-      - if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+      - if: ${{ !cancelled() && steps.install.outcome == 'success' && steps.scope.outputs.scope != 'docs' }}
         run: npm run check
-      - if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+      - if: ${{ !cancelled() && steps.install.outcome == 'success' && steps.scope.outputs.scope != 'docs' }}
         run: npm run lint
       - if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: npm run format:check
-      - if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+      - if: ${{ !cancelled() && steps.install.outcome == 'success' && steps.scope.outputs.scope != 'docs' }}
         run: npm run knip
       # The quick project (`npm test` on CI would run every slow test: tools/test.mjs's fail-safe; `slow` runs those).
-      - if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+      - if: ${{ !cancelled() && steps.install.outcome == 'success' && steps.scope.outputs.scope != 'docs' }}
         run: npx vitest run --project quick
+      - if: ${{ !cancelled() && steps.install.outcome == 'success' && steps.scope.outputs.scope == 'docs' }}
+        run: npx vitest run src/docs.test.ts tools/reading-list.test.ts tools/changelog.test.ts
 
   slow:
     if: github.event_name != 'pull_request' || (github.event.pull_request.draft == false && (!github.event.repository.private || vars.CI == 'on'))
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
+      # (the whole history, for the merge base the scope reads)
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - id: scope
+        # (`docs` when the PR differs from its base in `*.md` files alone, as .githooks/pre-push reads it)
+        run: |
+          scope=code
+          if [ '${{ github.event_name }}' = pull_request ]; then
+            changed=$(git diff --name-only 'origin/${{ github.base_ref }}...HEAD') || changed=
+            [ -n "$changed" ] && ! printf '%s\n' "$changed" | grep -qv '\.md$' && scope=docs
+          fi
+          echo "scope=$scope" >>"$GITHUB_OUTPUT"
+          echo "scope: $scope" >>"$GITHUB_STEP_SUMMARY"
       - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
       - id: install
+        if: steps.scope.outputs.scope != 'docs'
         run: npm ci --no-audit --no-fund
         env:
           PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: 1
-      - if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+      - if: ${{ !cancelled() && steps.install.outcome == 'success' && steps.scope.outputs.scope != 'docs' }}
         run: npx vitest run --project slow
-      - if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+      - if: ${{ !cancelled() && steps.install.outcome == 'success' && steps.scope.outputs.scope != 'docs' }}
         run: npm run build

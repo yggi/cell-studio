@@ -35,4 +35,4 @@ Open work is tracked in the [issues](https://github.com/yggi/cell-studio/issues)
 
 ## Changes
 
-Changes are listed in [CHANGELOG.md](CHANGELOG.md): add a line under *Unreleased* in the PR that makes them. To release, bump `version` in `package.json`, move the entries under a new heading, and tag `vX.Y.Z`.
+Changes are listed in [CHANGELOG.md](CHANGELOG.md): add a file to [`changes/`](changes/) in the PR that makes them ([`changes/README.md`](changes/README.md)). To release, bump `version` in `package.json`, gather the entries under a new heading (`npm run changelog -- gather X.Y.Z`), and tag `vX.Y.Z`.

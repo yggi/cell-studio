@@ -2,13 +2,15 @@
 
 What changed in Cell studio, newest first. The app is deployed from `main` by hand (`node tools/deploy.mjs`), so
 this lists user-visible changes; each release (a version bump in `package.json` and a `vX.Y.Z`
-tag) gathers the entries under *Unreleased* beneath its own heading. The version and commit of
+tag) gathers the entries under *Unreleased* and those in [`changes/`](changes/) beneath its own heading. The version and commit of
 the running build are the app name's tooltip; a tap on the name opens the details.
 
-Format: [Keep a Changelog](https://keepachangelog.com/). Add a line to *Unreleased* in the PR
-that makes the change. Also note changes to the language that could affect saved `.cells` pieces.
+Format: [Keep a Changelog](https://keepachangelog.com/). Add a file to [`changes/`](changes/) in the PR
+that makes the change ([`changes/README.md`](changes/README.md)). Also note changes to the language that could affect saved `.cells` pieces.
 
 ## Unreleased
+
+Entries not yet released are in [`changes/`](changes/), one file each; a release gathers them here (`npm run changelog -- gather`).
 
 ### Added
 - **Each MIDI input plays its own voice** (#549, webmidi v0.2.0 and v0.2.1, its decision 003): an input's row in the patch has a **Plays** choice in place of its Heard switch, its closed label short (*Default*, *Not heard*, a voice's name) so it shows whole in the drawer: not heard, the default (the cell armed, as before), or a voice or the kit, kept in the setup with its role so it carries to other pieces. **Assign inputs** fills in a keyboard as the lead and pads as the drums, by the port's name. What was heard before plays the default, so nothing changes until a choice is made. Thru still sends a key as the voice it plays sounds it. Saved `.cells` pieces are unchanged.
@@ -28,7 +30,7 @@ that makes the change. Also note changes to the language that could affect saved
 - **The build under the title**: the commit's first 7 characters (`dev` for a build that doesn't know it) in the header; a tap opens a sheet with the commit in full, branch (`pr-<n>` for a preview), build date, and the versions of what the app ships, and offers Reload when a new version waits (#433).
 
 ### Changed
-- **An instrument's filter is a stage after its voices** (#542, cells decision 067 at v0.16.0): `&vcf lpf=800 [&saw, &sub]` plays its filter after each voice's own chain, its moving parameters moved by every note through it, so a filter written on both the voice and the instrument is two filters in series (`&saw lpf=3000` in `&vcf lpf=800 [&saw]` sounds as `&bright lpf=3000` inside `&vcf`), where the voice's own filter alone was heard; a voice played both through the instrument and without it is filtered only through it, where it was heard unfiltered both ways; nested instruments go innermost first; a key played on the voice goes through its instrument. A voice through an instrument that it doesn't override sounds as before. Only filters (`lpf=` `lpq=` `hpf=` `hpq=`): an instrument's `pan=` was already heard (in the notes' balance), and its `room=` and `delay=` are still each voice's send. Saved pieces may sound different where a voice and its instrument both set a filter, or a voice is heard both through its instrument and without it.
+- **A blend of two waves sounds as a blend** (#533, cells decision 066): a voice written `s=tri..square * &x` plays each note on the mix of the two waves at the share it starts on (read in hundredths, each wave at the peak it has alone, as cells' renderer plays it), where it played the first wave alone: the default lead (`from lead`) brightens from a triangle at legato to a square at staccato. A voice with one wave sounds as before. Saved pieces may sound different where a voice blends two waves.
 - **The MIDI page on webmidi v0.1.4** (#545): the clock is the patch's first row; a kit member's note on each output is typed in the matrix itself (the separate *The kit's notes here* list is gone); a piece routed by its MIDI cards keeps its own rows read only but lets the inputs, the clock and the kit's notes be routed and edited, and keeps them in the setup (they were dropped before). Nothing on the wire changes for what was already routed. Saved `.cells` pieces are unchanged.
 - **A followed session is played through cells' default performer** (#536): its feel and swing are cells' `perform`, `readerOf`, `swungAt` and `writtenAt` (cells v0.15.0), lifted from Cell studio's own copy, which goes; every event plays as before, the same velocity, length and end. Saved pieces are unchanged.
 - **A followed session's switch is laid a bar ahead** (#513): at a section's switch, what is to play is laid up to 2 s ahead before the page does the switch's work, through the bars the host has already told (their starts and feel), where it was laid 0.35 s ahead. A host whose section text plays its parts through performers (yggi/jambot#514, #515), heavier to compile and lay out, no longer makes Cell studio come late to a bar's start. Saved pieces are unchanged.
