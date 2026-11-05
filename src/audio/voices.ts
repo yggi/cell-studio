@@ -15,7 +15,7 @@ import type { Played } from '@yggi/cells/engine/realize';
 import type { CompileResult, Shifts } from '@yggi/cells/engine/program';
 import { audioContext, disposer, inputOf, type Disposable, type ToneNS } from './voice/nodes';
 import { Gate } from './gate';
-import { buildVoice, dropGates, freeVoice, letGo, playNote, releaseEnd, type Built, type Bus, type Scope } from './voice/voice';
+import { buildVoice, dropGates, freeVoice, letGo, playNote, releaseEnd, type Built, type Bus, type Rack, type Scope } from './voice/voice';
 import { keyLevel } from '@yggi/cells/engine/keys';
 import { bow, couple, damp, driveScale, hush, resonanceOf, strikeAt } from './voice/resonator';
 import { wiring } from './wiring';
@@ -89,6 +89,8 @@ export function createVoices(Tone: ToneNS): VoiceBank {
   const echo = new Tone.FeedbackDelay({ delayTime: 0.375, feedback: 0.35, wet: 1 }).connect(master);
   const bus: Bus = { master, reverb, echo };
   const built = new Map<string, Built>();
+  // the instruments' filters on every voice's ways through them (decision 067)
+  const rack: Rack = new Map();
   // voices a sync rebuilt or dropped while their notes rang: heard on until the last has ended, then freed (a section's
   // text giving way to the next, #478, or an edit while playing, cuts no note short)
   const retired = new Set<Built>();
@@ -136,9 +138,14 @@ export function createVoices(Tone: ToneNS): VoiceBank {
   const keys = new Map<number, { b: Built; osc: AudioScheduledSourceNode; voice: string }>();
   let lastKey = 0;
 
+  // (the instruments it plays through too: their filters are on its ways through them, decision 067)
   const soundKey = (result: CompileResult, name: string, shifts: Shifts) => {
     const c = result.cells.get(name)!;
-    return JSON.stringify([c.params, c.paramCells, c.params.s ? null : [c.units, c.map, shifts(name), c.map?.kind === 'table' ? shifts(c.map.table) : 0]]);
+    const through = [...new Set(result.outputs.filter((o) => o.voice === name).flatMap((o) => o.through))].map((i) => {
+      const x = result.cells.get(i);
+      return [i, x?.params, x?.paramCells];
+    });
+    return JSON.stringify([c.params, c.paramCells, c.params.s ? null : [c.units, c.map, shifts(name), c.map?.kind === 'table' ? shifts(c.map.table) : 0], through]);
   };
 
   // an analyser on what something sounds like: a voice (a resonator's bodies), a mix, a tape head — made once, when first asked
@@ -179,7 +186,7 @@ export function createVoices(Tone: ToneNS): VoiceBank {
         }
       }
       for (const c of result.cells.values())
-        if (c.voice && !built.has(c.name)) built.set(c.name, buildVoice(Tone, ctx, bus, result, c.name, shifts, soundKey(result, c.name, shifts)));
+        if (c.voice && !built.has(c.name)) built.set(c.name, buildVoice(Tone, ctx, bus, result, c.name, shifts, soundKey(result, c.name, shifts), rack));
       for (const a of probes.values()) a.disconnect();
       probes = new Map();
       for (const a of fprobes.values()) a.disconnect();
@@ -379,7 +386,14 @@ export function createVoices(Tone: ToneNS): VoiceBank {
       // (now, at Tone.immediate(), not through the look-ahead: playNote starts it a few milliseconds on, from silence; it
       // lasts until released, or an hour)
       const at = ctx.currentTime;
-      const played = playNote(Tone, ctx, b, { at, dur: 3600, voice, freq, bends: [], gains: [level, level], levels: [{ at, level: 1 }] }, (name) => built.get(name), true);
+      const played = playNote(
+        Tone,
+        ctx,
+        b,
+        { at, dur: 3600, voice, freq, bends: [], gains: [level, level], levels: [{ at, level: 1 }], ...(b.keyWay ? { through: b.keyWay } : {}) },
+        (name) => built.get(name),
+        true,
+      );
       const n = played && b.live.get(played.osc);
       if (played && n) {
         b.live.set(played.osc, { ...n, held: true });

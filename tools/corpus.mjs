@@ -4,29 +4,34 @@
 //   node tools/corpus.mjs > /tmp/corpus.json            record (a table on stderr)
 //   node tools/corpus.mjs --check /tmp/corpus.json      compare: exits 1 if a piece's notes changed
 //   node tools/corpus.mjs --check /tmp/corpus.json --expect "acid,pop"   … except these (meant to change)
+//   node tools/corpus.mjs --only "acid,pop"            … only these pieces (by file name)
+// The examples are cells' piece files (`node_modules/@yggi/cells/examples/*.md`), each measured by its cells text; the
+// engine is cells' (`@yggi/cells`, its built `dist/`), so a pin move is measured by recording before it and checking after.
 import { readFileSync, readdirSync } from 'node:fs';
 import { createHash } from 'node:crypto';
-import { createServer } from 'vite';
+import { compileSource } from '@yggi/cells/engine/compile';
+import { eventsBetween, plan } from '@yggi/cells/engine/realize';
+import { codeShifts } from '@yggi/cells/engine/program';
+import { shorten } from '@yggi/cells/engine/shorten/index';
+import { readPiece } from '@yggi/cells/engine/piecefile';
+import { resolveSeed } from '@yggi/cells/repository/library';
 
 const arg = (k) => {
   const i = process.argv.indexOf(k);
   return i > 0 ? process.argv[i + 1] : null;
 };
 const UNTIL = 120;
-const server = await createServer({ configFile: false, appType: 'custom', logLevel: 'silent', server: { middlewareMode: true } });
-try {
-  const { compileSource } = await server.ssrLoadModule('/src/engine/compile.ts');
-  const { plan, eventsBetween } = await server.ssrLoadModule('/src/engine/realize.ts');
-  const { codeShifts } = await server.ssrLoadModule('/src/engine/program.ts');
-  const { shorten } = await server.ssrLoadModule('/src/engine/shorten/index.ts');
+const only = arg('--only') ? new Set(arg('--only').split(',')) : null;
+{
   const measure = (src) => {
-    const r = compileSource(src);
+    // (as the app compiles a piece, src/compile.ts: its `from` lines read from the seed library of the cells pin)
+    const r = compileSource(src, undefined, { resolve: resolveSeed });
     const events = r.ok
       ? eventsBetween(plan(r, codeShifts(r)), 0, UNTIL)
           .map((e) => `${e.voice} ${e.at.toFixed(5)} ${e.dur.toFixed(5)} ${e.freq.toFixed(3)} ${e.gains.map((g) => g.toFixed(4)).join(',')}`)
           .sort()
       : [];
-    const s = r.ok ? shorten(src) : [];
+    const s = r.ok ? shorten(src, { resolve: resolveSeed }) : [];
     return {
       chars: src.length,
       lines: src.split('\n').filter((l) => l.trim() && !l.trim().startsWith('#')).length,
@@ -39,11 +44,16 @@ try {
     };
   };
   const dir = new URL('../node_modules/@yggi/cells/examples/', import.meta.url);
+  // (a piece file's cells text, as the library opens it: one that doesn't read is measured as written)
+  const textOf = (md) => {
+    const file = readPiece(md);
+    return 'text' in file ? file.text : md;
+  };
   const now = Object.fromEntries(
     readdirSync(dir)
-      .filter((f) => f.endsWith('.cells'))
+      .filter((f) => f.endsWith('.md') && (!only || only.has(f.replace(/\.md$/, ''))))
       .sort()
-      .map((f) => [f.replace(/\.cells$/, ''), measure(readFileSync(new URL(f, dir), 'utf8'))]),
+      .map((f) => [f.replace(/\.md$/, ''), measure(textOf(readFileSync(new URL(f, dir), 'utf8')))]),
   );
   const base = arg('--check') ? JSON.parse(readFileSync(arg('--check'), 'utf8')) : null;
   if (!base) {
@@ -78,6 +88,4 @@ try {
     );
     process.exitCode = unexpected ? 1 : 0;
   }
-} finally {
-  await server.close();
 }
