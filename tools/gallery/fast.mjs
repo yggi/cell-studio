@@ -53,7 +53,10 @@ if (process.env.ABOVE) q.set('above', process.env.ABOVE);
 if (process.env.CELLS) q.set('src', readFileSync(process.env.CELLS, 'utf8'));
 const url = `${server.resolvedUrls.local[0]}tools/gallery/harness.html?${q}`;
 const browser = await chromium.launch({ args: ['--no-sandbox'] });
-const page = await browser.newPage({ viewport: { width: { edges: 2560, golden: 2840, zoom: 1600, uses: 2700 }[subject] ?? 1500, height: 1000 }, deviceScaleFactor: scale });
+const page = await browser.newPage({
+  viewport: { width: { edges: 2560, golden: 2840, zoom: 1600, uses: 2700, modules: 5950 }[subject] ?? 1500, height: 1000 },
+  deviceScaleFactor: scale,
+});
 const problems = [];
 page.on('pageerror', (e) => problems.push(e.message));
 page.on('console', (m) => m.type() === 'error' && !/Failed to load resource/.test(m.text()) && problems.push(m.text()));
