@@ -17,7 +17,8 @@ const passing = 'echo "      Tests  12 passed (12)"';
 
 // A hook run from a linked worktree hands its children GIT_DIR and friends, which beat `git -C <dir>`: a test that
 // makes a throwaway repository would write to the real one instead. No spawn here inherits them.
-const env: NodeJS.ProcessEnv = { ...process.env };
+// Nor the user's global config: a session signs every commit through it, slow under the tests' load (yggi/cells#275).
+const env: NodeJS.ProcessEnv = { ...process.env, GIT_CONFIG_GLOBAL: '/dev/null' };
 for (const name of ['GIT_DIR', 'GIT_WORK_TREE', 'GIT_INDEX_FILE', 'GIT_PREFIX', 'GIT_COMMON_DIR', 'GIT_OBJECT_DIRECTORY', 'GIT_ALTERNATE_OBJECT_DIRECTORIES', 'GIT_NAMESPACE'])
   delete env[name];
 

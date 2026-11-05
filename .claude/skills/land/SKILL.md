@@ -29,6 +29,7 @@ Lifted from yggi/jambot .claude/skills/land/SKILL.md @ ef79048.
    `git fetch origin main && git checkout main && git merge --ff-only origin/main`, in a clone whose tree is clean (the deploy refuses one with changes).
 6. **The deploy.**
    The merge's push started *Deploy* on Actions: wait for its run on the merge commit to end, green.
+   A merge of `*.md` files alone starts none (`deploy.yml`'s `paths-ignore`: it changes nothing the site serves): skip to step 8 and say so.
    It runs `node tools/deploy.mjs` (it refuses a tree with changes or a HEAD that isn't `origin/main`, runs every check, builds `dist/` and publishes it to gh-pages: [testing.md](../../../docs/testing.md#run)), then `node tools/live.mjs`.
    Only when Actions is blocked (a run that fails in seconds with no step), run `node tools/deploy.mjs` from `main` in a clone, as a background task (minutes), and step 7 by hand.
 7. **The live site.**

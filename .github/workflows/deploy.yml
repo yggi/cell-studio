@@ -8,6 +8,9 @@ name: Deploy
 on:
   push:
     branches: [main]
+    # (a merge of markdown alone changes nothing the site serves, so it starts no deploy; the next merge of code deploys
+    # it with the rest, and a deploy by hand deploys `main` as it is)
+    paths-ignore: ['**.md']
   workflow_dispatch:
 
 permissions:
