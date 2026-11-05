@@ -21,11 +21,16 @@
 // Then MIDI out from a piece's MIDI cards (#208): the channels its cards name, a MIDI-only voice sent and not sounded.
 // Then MIDI in (#207): keys from a fake input (`window.midiIn(bytes)`) sound the armed voice and let it go, thru echoes them.
 // Then a take (#210): Play in's braid left free, recorded from the fake input (● on the transport), held, then saved.
+// Then an instrument's filters as a stage after its voices' (#542, cells decision 067): texts from cells'
+// instruments.test.ts rendered, each as its written-out twin and within 3 dB a block of cells' own render.
 //
 // Chromium: Playwright's, or CHROME_PATH=/path/to/chrome (CI uses the runner's Chrome). See tools/profile/playwright.mjs.
 import { preview, runnerImport } from 'vite';
 import { chromium } from './profile/playwright.mjs';
 import { freshBuild } from './fresh-build.mjs';
+import { compileSource } from '@yggi/cells/engine/compile';
+import { codeShifts } from '@yggi/cells/engine/program';
+import { pieceAudio } from '@yggi/cells/engine/audioexport';
 
 const args = process.argv.slice(2);
 const flag = (f) => args.includes(f) && args.splice(args.indexOf(f), 1);
@@ -714,6 +719,79 @@ const CARD_ONLY = { voice: 'sub', channel: 2 };
   const ok = problems.length === 0;
   console.log(`${ok ? 'ok  ' : 'FAIL'} A take: Play in${ok ? `: ${note}` : '\n       ' + [...new Set(problems)].slice(0, 3).join('\n       ')}`);
   if (!ok) failed.push('A take');
+}
+// An instrument's filters (#542, cells decision 067): a stage after its voices' own chains. The texts are cells'
+// (src/engine/compiler/instruments.test.ts at v0.16.0), rendered here offline for 2 s: each instrument text as its
+// written-out twin (no block differs by more than golden.mjs's 1e-4, −80 dB), a filter on both voice and instrument
+// unlike either alone (by more than that), and each within 3 dB, block by block (2048 samples, those above −60 dB), of
+// cells' render of it (measured: 2.1 dB at most; Tone's filters are two biquads, cells' one, and the master's limiter).
+// The patch with a moving, resonant filter and an echo is checked against its twin only: cells renders the echo dry
+// (stage R2), and the voice's filter alone already differs from cells' by up to 15 dB (Tone's −24 dB slope).
+const STAGE = (() => {
+  const lines = (...xs) => xs.join('\n');
+  const base = lines('&bar meter("4/4") step=120bpm', '&tune step=8n 0 3 7 10 12 10 7 3', '&eg map=adsr .002 .2 .1 .1', '&lfo loop=&bar/2 sin(12)');
+  const filter = 'lpf=70..4800 * &eg * &lfo lpq=8 delay=.3 delaytime=&bar*3/16';
+  return {
+    flat: lines(base, `&saw s=saw loop=C2 ${filter}`, `&sub s=square loop=C1 ${filter}`, '&out map=sample [&tune * &saw * .4, &tune * &sub * .2]'),
+    patch: lines(base, '&saw s=saw loop=C2', '&sub s=square loop=C1', `&vcf ${filter} [&saw, &sub * .5]`, '&out map=sample [&tune * &vcf * .4]'),
+    both: lines(base, '&saw s=saw loop=C2 lpf=3000', '&vcf lpf=800 [&saw]', '&out map=sample [&tune * &vcf * .4]'),
+    chain: lines(base, '&saw s=saw loop=C2', '&bright lpf=3000 [&saw]', '&vcf lpf=800 [&bright]', '&out map=sample [&tune * &vcf * .4]'),
+    inner: lines(base, '&saw s=saw loop=C2 lpf=800', '&out map=sample [&tune * &saw * .4]'),
+    outer: lines(base, '&saw s=saw loop=C2 lpf=3000', '&out map=sample [&tune * &saw * .4]'),
+    split: lines(base, '&saw s=saw loop=C2', '&vcf lpf=900 [&saw]', '&out map=sample [&tune * &vcf * .4, &tune * &saw * .1]'),
+    two: lines(base, '&saw s=saw loop=C2', '&dark s=saw loop=C2 lpf=900', '&out map=sample [&tune * &dark * .4, &tune * &saw * .1]'),
+  };
+})();
+if (only.length === 0) {
+  problems = [];
+  const sp = await newPage({ viewport: { width: 1280, height: 800 } });
+  sp.setDefaultTimeout(20000);
+  sp.on('pageerror', (e) => problems.push(`page error: ${e.message}`));
+  let note = '';
+  try {
+    await sp.goto(url);
+    await sp.waitForFunction(() => window.cellStudio?.render);
+    const SECS = 2;
+    const TOL = 1e-4;
+    const db = (x) => (x > 0 ? `${(20 * Math.log10(x)).toFixed(1)} dB` : '−∞');
+    // (cells' render, at the page's rate and length: the 2 s and a 2 s tail)
+    const blocks = (mix, size = 2048) => {
+      const out = [];
+      for (let at = 0; at < mix[0].length; at += size) {
+        const end = Math.min(mix[0].length, at + size);
+        let sum = 0;
+        for (const d of mix) for (let i = at; i < end; i++) sum += d[i] * d[i];
+        out.push(Math.sqrt(sum / ((end - at) * mix.length)));
+      }
+      return out;
+    };
+    const studio = {};
+    const cells = {};
+    for (const [k, src] of Object.entries(STAGE)) {
+      studio[k] = (await sp.evaluate(([s, n]) => window.cellStudio.render(s, n), [src, SECS])).blocks;
+      const r = compileSource(src, { SAMPLE_RATE: 44100, A4: 440 });
+      cells[k] = blocks(pieceAudio(r, codeShifts(r), { seconds: SECS, sampleRate: 44100 }).mix);
+    }
+    const apart = (a, b) => (a.length !== b.length ? 1 : Math.max(0, ...a.map((x, i) => Math.abs(x - b[i]))));
+    for (const [a, b] of [
+      ['patch', 'flat'],
+      ['both', 'chain'],
+      ['split', 'two'],
+    ])
+      if (apart(studio[a], studio[b]) > TOL) problems.push(`&${a} is not its written-out twin &${b}: ${db(apart(studio[a], studio[b]))} apart`);
+    for (const alone of ['inner', 'outer']) if (apart(studio.both, studio[alone]) <= TOL) problems.push(`a filter on both voice and instrument sounds as the ${alone} one alone`);
+    const off = (k) => Math.max(0, ...studio[k].map((x, i) => (cells[k][i] > 1e-3 && x > 0 ? Math.abs(20 * Math.log10(x / cells[k][i])) : 0)));
+    const worst = Math.max(...['both', 'chain', 'split', 'two'].map(off));
+    for (const k of ['both', 'chain', 'split', 'two'])
+      if (!(off(k) <= 3) || studio[k].length !== cells[k].length) problems.push(`&${k} is ${off(k).toFixed(1)} dB from cells' render`);
+    note = `patch = flat, both = chain, split = two (within ${TOL}); both unlike either filter alone (${db(Math.min(apart(studio.both, studio.inner), apart(studio.both, studio.outer)))}); within ${worst.toFixed(1)} dB a block of cells' render`;
+  } catch (e) {
+    problems.push(String(e.message).split('\n')[0]);
+  }
+  await sp.close();
+  const ok = problems.length === 0;
+  console.log(`${ok ? 'ok  ' : 'FAIL'} An instrument's filters, a stage after its voices'${ok ? `: ${note}` : '\n       ' + [...new Set(problems)].slice(0, 3).join('\n       ')}`);
+  if (!ok) failed.push("An instrument's filters");
 }
 await browser.close();
 await server.close();
