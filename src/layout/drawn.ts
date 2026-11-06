@@ -11,13 +11,16 @@ import { feeds, netsOf, writtenGraph, type GraphEdge, type GraphModel, type Grap
 import { effectiveShow } from './show';
 import { bulbAt, leavesFromBulb, reachOf, subWheels } from './subwheels';
 import { withUses, type UseGroup } from './uses';
+import { withJacks } from './modules';
 
 /**
  * A program's graph as drawn. `bulbs: false`: every cell its own node, splices used once too (the layout's tests of
  * parts beside their players). `uses: false`: what a `use` line gives drawn as the piece's own (the gallery's options).
  */
 export function buildGraph(result: CompileResult, opts: { readonly bulbs?: boolean; readonly uses?: boolean } = {}): GraphModel {
-  const drawn = petals(result, writtenGraph(result), opts.bulbs ?? true);
+  // (a module is one wheel, its private cells folded in, and a voice's and an instrument's jacks on their own: decision
+  // 069; a use of any other fragment, a cluster)
+  const drawn = withJacks(result, petals(result, writtenGraph(result), opts.bulbs ?? true));
   if (!result.uses?.length || opts.uses === false) return drawn;
   const { model, groups } = withUses(result, drawn);
   if (opts.bulbs ?? true) usesMemo.set(result, groups);
