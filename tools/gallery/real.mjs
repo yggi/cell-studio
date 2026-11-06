@@ -12,7 +12,8 @@
 //   JOBS=2 SCALE=1 node tools/gallery.mjs wheels                   # fewer pages at once, 1× pixels
 //
 // Writes <OUT>/tiles/*.png, <OUT>/index.html (the sheet, grouped), <OUT>/sheet.png (it, rendered) and
-// <OUT>/wheels.json (every kind: where it was found, in which state, and which pieces have it).
+// <OUT>/wheels.json (every kind: where it was found, in which state, and which pieces have it). Pieces open with the
+// margin (`?margin`), so its scopes are kinds of their own (`margin:scope`).
 // OUT defaults to shots/wheels. Viewport VIEW (default 3000x1900) at SCALE (default 2). Chromium as for the smoke test
 // (tools/profile/playwright.mjs; in a cloud session CHROME_PATH=/opt/pw-browsers/chromium).
 import { preview } from 'vite';
@@ -50,7 +51,7 @@ const slug = (s) =>
     .replace(/^-|-$/g, '')
     .toLowerCase();
 const keyOf = (w) => [w.where, w.wheel, w.mode, w.show].filter(Boolean).join(':');
-const FAMILY = { graph: 'Graph', petal: 'Graph — petals', sheet: "A cell's sheet", library: 'Library' };
+const FAMILY = { graph: 'Graph', petal: 'Graph — petals', margin: 'The margin', sheet: "A cell's sheet", library: 'Library' };
 
 /** Every wheel on the page under `scope`, with what it is and where its node is. */
 async function wheelsIn(page, scope) {
@@ -141,7 +142,8 @@ async function library(page) {
 }
 
 async function piece(page, p) {
-  await page.goto(url);
+  // (with the margin open: a piece's scopes and notes are read there, beside the graph, and are wheels too)
+  await page.goto(`${url}?margin`);
   await page.getByRole('radio', { name: 'Cards' }).click();
   await page.locator(`button.open[data-id="${p.id}"]`).dispatchEvent('click');
   await page.waitForTimeout(2500); // (the layout settles)
@@ -150,6 +152,7 @@ async function piece(page, p) {
   let added = 0;
   const graph = await wheelsIn(page, '.svelte-flow');
   for (const w of graph) if (await offer(page, { ...w, where: w.petal ? 'petal' : 'graph' }, p.title)) added++;
+  for (const w of await wheelsIn(page, 'aside.margin')) if (await offer(page, { ...w, where: 'margin' }, p.title)) added++;
   // the sheet of one cell of each graph kind (turntables, scopes and the sun open no sheet on a tap)
   for (const w of graph) {
     // (by node type too: a voice's and a mix's wheels are both spectra, and their sheets differ)

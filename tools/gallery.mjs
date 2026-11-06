@@ -16,12 +16,14 @@
 //   node tools/gallery.mjs time [pieces…]                     the time view of each piece in the real app, in each state (#286)
 //   node tools/gallery.mjs sky [secs] [pieces…]              the tower layout's audible sky, playing: stills, filmstrips, flicker and lag
 //   node tools/gallery.mjs play [secs] titles…                pieces in the built app, playing: the graph and every node's and edge's state (#11)
+//   node tools/gallery.mjs shot <selector> [secs] pieces…     any element of the built app in the states asked for, with its computed styles
+//   node tools/gallery.mjs pair <before> <after>               two runs of a subject, before and after, as one sheet
 //
 // `wheels` plays every piece in the built app (npm run build first) unless --fast; the others are always set up
 // directly (tools/gallery/fast.mjs, from the working tree). A new subject: a folder in tools/gallery/ with a Sheet
 // component, and a line in tools/gallery/harness.ts.
 const [subject, ...args] = process.argv.slice(2);
-const SUBJECTS = ['wheels', 'edges', 'edge-mockups', 'golden', 'zoom', 'mockups', 'uses', 'modules', 'roll', 'keys', 'labels', 'graphs', 'time', 'play', 'sky'];
+const SUBJECTS = ['wheels', 'edges', 'edge-mockups', 'golden', 'zoom', 'mockups', 'uses', 'modules', 'roll', 'keys', 'labels', 'graphs', 'time', 'play', 'sky', 'shot', 'pair'];
 if (!SUBJECTS.includes(subject)) {
   console.error(`usage: node tools/gallery.mjs <${SUBJECTS.join('|')}> [--fast] [secs] [pieces…]`);
   process.exit(2);
@@ -39,6 +41,16 @@ if (subject === 'sky') {
   process.argv = [process.argv[0], process.argv[1], ...args];
   await import('./gallery/sky.mjs');
   process.exit(0);
+}
+// (the subjects that run on their own: the built app, or two runs' folders)
+for (const [name, script] of [
+  ['shot', './gallery/shot.mjs'],
+  ['pair', './gallery/pair.mjs'],
+]) {
+  if (subject !== name) continue;
+  process.argv = [process.argv[0], process.argv[1], ...args];
+  await import(script);
+  process.exit(process.exitCode ?? 0);
 }
 if (subject === 'time') {
   process.argv = [process.argv[0], process.argv[1], ...args];

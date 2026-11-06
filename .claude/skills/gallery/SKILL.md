@@ -1,6 +1,6 @@
 ---
 name: gallery
-description: Mock up what Cell studio's graph draws and take pictures of it, as contact sheets - every kind of wheel (cell glyphs, spectrum, wave, scope, sun, turntables, petals, sheets, library) and every kind of edge (by port: braid, over, step, mix, voice, attributes, about; belts, a meter's net) in each state, the golden reference graph (one real graph with all of them), plus design mock-ups. Use when asked for a contact sheet, a visual pass, a screenshot of how something is drawn, a before/after of a drawing change, or to try a design option side by side.
+description: Mock up what Cell studio's graph draws and take pictures of it, as contact sheets - every kind of wheel (cell glyphs, spectrum, wave, scope, sun, turntables, petals, sheets, library) and every kind of edge (by port: braid, over, step, mix, voice, attributes, about; belts, a meter's net) in each state, the golden reference graph (one real graph with all of them), plus design mock-ups; any element of the built app in the states asked for (hover, focus, a value typed) with its computed styles; and two runs paired as one before/after sheet. Use when asked for a contact sheet, a visual pass, a screenshot of how something is drawn, a before/after of a drawing or style change, a check of what the browser computes for a component, or to try a design option side by side.
 ---
 
 # Gallery
@@ -29,6 +29,39 @@ This skill pictures what the graph draws. Its siblings picture other things, so 
 | `time` | the time view (`src/ui/TimeView.svelte`, #286) of each piece in the real app, in each state: `mix` (the default layers), `keys` (the scalogram on new pitch classes), `sound` (waterfall and waveform), `zoom` (8× in), `patterns` (motifs at two time scales boxed, foldings listed), `phone` (`tools/gallery/time.mjs`; `OUT` default `shots/time/`, `STATES=mix,keys`; default pieces Hypercell, Pop, Korobeiniki, 5 to 12, Pachelbel) | real app, ~1 min a piece |
 
 A piece in the built app, playing: `node tools/gallery.mjs play 3 "Sound on Tape"` (builds first; `DIST=` another build) keeps a screenshot of the graph and each node's and edge's drawn state as JSON, in `OUT` (default `shots/play/`).
+
+## One element of the real app (`shot`), and before / after (`pair`)
+For a change to one component that the sheets above don't reach (a sheet's field, the keys dock, a margin scope),
+and for the "how verified" of a style fix: what the browser computes, not what the CSS says. Write no Playwright of
+your own for these: `shot` opens a piece in the built app (with the margin open), plays it `secs` (or not,
+`STOPPED=1`), and pictures every match of a CSS selector in each state asked for, recording the computed styles:
+```
+node tools/gallery.mjs shot 'aside.margin .scope' 3 Lullaby Hypercell            # the margin's scopes, playing
+STATES=rest,hover,focus,type=out PROPS=border-bottom-color TARGET=input OPEN=lead STOPPED=1 \
+  node tools/gallery.mjs shot '.cell-sheet .name' 0 'Two voices'                # a sheet's name field, four states
+DOCK=keys PROPS=tab-index STOPPED=1 node tools/gallery.mjs shot '.keyboard button' 0 Sailor   # the keys dock open
+```
+- `STATES`: `rest` (pointer away, nothing focused), `hover`, `focus`, `click`, `type=<text>` (the value replaced, then
+  left: a field's problem state); each from rest. `PROPS`: computed styles to record (`tab-index` reads `tabIndex`).
+  `TARGET`: what the states act on and the props are read from, inside the element pictured (a field in its label).
+- `OPEN=<cell>` opens that cell's sheet first (a wrong name lists the cells drawn). `DOCK=keys|pads` opens the dock (as
+  the browser keeps it). `QUERY` the app's query (default `margin`: the margin's notes and scopes only show with it).
+  `MAX` matches a piece (8), `PAD` px round each tile (8), `VIEW`, `SCALE`, `DIST`.
+- A piece is a title's words or an id (`example:lullaby`). Out: `<OUT>/tiles/<piece>-<n>-<state>.png` and
+  `shot.json` (default `shots/shot`). It fails on a page error or a selector that matches nothing.
+
+`pair` sets two runs side by side, a row each tile name, before on the left, with a `shot` run's styles under each
+tile, and lists the tiles in one run only (a kind that appeared or went): `node tools/gallery.mjs pair
+shots/x-before shots/x-after` writes `pairs.html` and `pairs.png` into the after folder. It reads any subject's
+`tiles/` (or `play`'s folder). Before / after without stashing your change: build the base into its own folder and
+point `DIST` at it, then run the same command twice:
+```
+git worktree add /tmp/base origin/main && ln -s "$PWD/node_modules" /tmp/base/node_modules
+(cd /tmp/base && npx vite build --outDir /tmp/dist-base) && git worktree remove --force /tmp/base
+DIST=/tmp/dist-base OUT=shots/x-before node tools/gallery.mjs shot …   # the base
+npm run build && OUT=shots/x-after node tools/gallery.mjs shot …       # the change
+node tools/gallery.mjs pair shots/x-before shots/x-after
+```
 
 ```
 CHROME_PATH=/opt/pw-browsers/chromium node tools/gallery.mjs edges            # shots/edges-fast/ (CHROME_PATH only in a cloud session)
@@ -131,10 +164,12 @@ npm run build
 CHROME_PATH=/opt/pw-browsers/chromium node tools/gallery.mjs wheels                   # all pieces, 3 s in
 CHROME_PATH=/opt/pw-browsers/chromium node tools/gallery.mjs wheels 4 Hypercell "Music Box"
 ```
+Pieces open with the margin (`?margin`), so a scope is a kind of its own (`margin:scope`): the graph is a margin's
+width narrower for a piece that has one, so its wheels' zoom differs a little from a run before the margin was opened.
 Output in `OUT` (default `shots/wheels/`): `sheet.png`, `index.html` (grouped, captions with the piece, `&name`,
 state, graph zoom and how many pieces have the kind), `tiles/<kind>.png`, `wheels.json`. Env: `JOBS` (pages at once,
 default 4), `SCALE` (device pixels, default 2), `VIEW` (viewport, default `3000x1900`), `DIST` (another build).
-Real before / after: `git stash && npm run build && OUT=shots/wheels-before node tools/gallery.mjs wheels && git stash pop`, then again for the change.
+Real before / after: `git stash && npm run build && OUT=shots/wheels-before node tools/gallery.mjs wheels && git stash pop`, then again for the change (or a base build with `DIST`, above), then `node tools/gallery.mjs pair shots/wheels-before shots/wheels`.
 
 A new wheel: give its root element `data-wheel="<component>"` and, if it has variants, `data-mode` / `data-show`;
 nothing else is needed. A kind that's missing either lacks that attribute or no example uses it.
