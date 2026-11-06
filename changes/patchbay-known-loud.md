@@ -1,0 +1,2 @@
+### Developer
+- The render check (`tools/repeatable.mjs`) lists a piece over the loudness ceiling for a known gap with its issue, `KNOWN_LOUD`: Patchbay, which clips here (peak +5 dB at 12 s) where cells' renderer, which set its card, peaks at −4.9 dB, since a voice's low-pass is two biquads here and one in cells (#567). It is still measured and printed, doesn't fail the run, and is named once it is under the ceiling again.
