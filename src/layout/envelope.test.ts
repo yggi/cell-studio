@@ -5,7 +5,7 @@ import { lastNoteAt } from '@yggi/cells/engine/values';
 import { PRESETS } from '@yggi/cells/engine/presets';
 import { cellView } from './cellview';
 import { wheelGeometry } from './wheel';
-import { curvePoints, envelopeAt, envelopeAxis, envelopeCrossing, envelopeCurve, envelopeLabels, envelopeNotes, envelopeOf, latestNoteAt, voiceNotes } from './envelope';
+import { curvePoints, envelopeAt, envelopeAxis, envelopeCrossing, envelopeCurve, envelopeLabels, envelopeNotes, envelopeOf, heldLevel, latestNoteAt, voiceNotes } from './envelope';
 
 const E = { attack: 0.1, decay: 0.2, sustain: 0.5, release: 0.4 };
 
@@ -81,5 +81,15 @@ describe('an envelope as its wheel draws it (CellGlyph, show=adsr)', () => {
     expect(at.x).toBeCloseTo(31.1, 1);
     expect(at.y).toBeCloseTo(45.19, 2);
     expect(envelopeCrossing(curve, e, { since: 5, length: 0.5 })).toBeNull();
+  });
+});
+
+describe("a scope's level for a note through a voice (#340)", () => {
+  it("follows the voice's env=: rising over the attack, falling to the sustain; a voice with none is a gate", () => {
+    const r = compilePiece('&t step=4 0 4 7\n&v s=saw loop=C4 env=&(map=adsr .1 .2 .5 .4)\n&g s=saw loop=C4\n&out [&t * &v, &t * &g]');
+    const at = (voice: string | undefined, t: number) => +heldLevel(r, voice, t).toFixed(3);
+    expect([0, 0.05, 0.1, 0.2, 0.3, 1].map((t) => at('v', t))).toEqual([0, 0.5, 1, 0.75, 0.5, 0.5]);
+    expect([0, 0.05, 1].map((t) => at('g', t))).toEqual([1, 1, 1]);
+    expect(at(undefined, 0.05)).toBe(1);
   });
 });
