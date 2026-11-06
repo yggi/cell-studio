@@ -727,9 +727,10 @@ const CARD_ONLY = { voice: 'sub', channel: 2 };
 // (src/engine/compiler/instruments.test.ts at v0.16.0), rendered here offline for 2 s: each instrument text as its
 // written-out twin (no block differs by more than golden.mjs's 1e-4, −80 dB), a filter on both voice and instrument
 // unlike either alone (by more than that), and each within 3 dB, block by block (2048 samples, those above −60 dB), of
-// cells' render of it (measured: 2.1 dB at most; Tone's filters are two biquads, cells' one, and the master's limiter).
-// The patch with a moving, resonant filter and an echo is checked against its twin only: cells renders the echo dry
-// (stage R2), and the voice's filter alone already differs from cells' by up to 15 dB (Tone's −24 dB slope).
+// cells' render of it: a filter is one biquad in both, two under ftype=24db (cells decision 074, #567; before it Tone's
+// −24 dB low-pass put the resonant patch up to 15 dB from cells'). The patch with a moving, resonant filter and an echo
+// within 4.5 dB (measured 4.2: its quiet blocks, where an LFO moves the filter as the notes stop and the echo's tail
+// ends, #590; its loudest within 0.2 dB).
 const STAGE = (() => {
   const lines = (...xs) => xs.join('\n');
   const base = lines('&bar meter("4/4") step=120bpm', '&tune step=8n 0 3 7 10 12 10 7 3', '&eg map=adsr .002 .2 .1 .1', '&lfo loop=&bar/2 sin(12)');
@@ -784,9 +785,10 @@ if (only.length === 0) {
       if (apart(studio[a], studio[b]) > TOL) problems.push(`&${a} is not its written-out twin &${b}: ${db(apart(studio[a], studio[b]))} apart`);
     for (const alone of ['inner', 'outer']) if (apart(studio.both, studio[alone]) <= TOL) problems.push(`a filter on both voice and instrument sounds as the ${alone} one alone`);
     const off = (k) => Math.max(0, ...studio[k].map((x, i) => (cells[k][i] > 1e-3 && x > 0 ? Math.abs(20 * Math.log10(x / cells[k][i])) : 0)));
-    const worst = Math.max(...['both', 'chain', 'split', 'two'].map(off));
-    for (const k of ['both', 'chain', 'split', 'two'])
-      if (!(off(k) <= 3) || studio[k].length !== cells[k].length) problems.push(`&${k} is ${off(k).toFixed(1)} dB from cells' render`);
+    const near = ['flat', 'patch', 'both', 'chain', 'split', 'two'];
+    const worst = Math.max(...near.map(off));
+    const bound = (k) => (k === 'flat' || k === 'patch' ? 4.5 : 3);
+    for (const k of near) if (!(off(k) <= bound(k)) || studio[k].length !== cells[k].length) problems.push(`&${k} is ${off(k).toFixed(1)} dB from cells' render`);
     note = `patch = flat, both = chain, split = two (within ${TOL}); both unlike either filter alone (${db(Math.min(apart(studio.both, studio.inner), apart(studio.both, studio.outer)))}); within ${worst.toFixed(1)} dB a block of cells' render`;
   } catch (e) {
     problems.push(String(e.message).split('\n')[0]);

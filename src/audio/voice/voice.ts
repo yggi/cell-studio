@@ -6,6 +6,7 @@
 import type { CompileResult, ResolvedCell, Shifts } from '@yggi/cells/engine/program';
 import { BODIES } from '@yggi/cells/engine/program';
 import { DOUGH_SOURCES } from '@yggi/cells/engine/dough-params';
+import { filterModel } from '@yggi/cells/engine/attributes';
 import type { Played } from '@yggi/cells/engine/realize';
 import type { ParamTrack } from '@yggi/cells/engine/series';
 import { harmonics, waveform } from '@yggi/cells/engine/wave';
@@ -105,12 +106,24 @@ function sends(
     }
 }
 
-/** Has it a filter of its own: a low- or high-pass, fixed or moving. */
-const hasFilter = (c: ResolvedCell) => typeof c.params.lpf === 'number' || !!c.paramCells?.lpf || typeof c.params.hpf === 'number' || !!c.paramCells?.hpf;
+/**
+ * A cell's filters, in the order its sound goes through them (cells' decision 074, superdough's): a low-pass, a high-pass,
+ * a band-pass, each its cutoff's key, its Q's, its type, and where it sits when it has no cutoff written but moves.
+ */
+const FILTERS = [
+  { key: 'lpf', q: 'lpq', type: 'lowpass', from: 2000 },
+  { key: 'hpf', q: 'hpq', type: 'highpass', from: 200 },
+  { key: 'bpf', q: 'bpq', type: 'bandpass', from: 1000 },
+] as const;
+
+/** Has it a filter of its own: a low-, high- or band-pass, fixed or moving. */
+const hasFilter = (c: ResolvedCell) => FILTERS.some(({ key }) => typeof c.params[key] === 'number' || !!c.paramCells?.[key]);
 
 /**
- * A cell's filters (those `keep` keeps) into `into`: a high-pass, before it a low-pass (24 dB a octave), each at its
- * number or the bottom of its range; returns where they start, their parameters added to `into`'s lists in `moving`.
+ * A cell's filters (those `keep` keeps) into `into`, each at its number or the bottom of its range; returns where they
+ * start, their parameters added to `into`'s lists in `moving`. Each is one biquad (12 dB an octave), or two at the same Q
+ * under `ftype=24db`, as cells' renderer plays them (decision 074, #567). `ftype=ladder` plays its low-pass as two
+ * biquads, the ladder's slope, not its sound: a ladder needs an AudioWorklet (#589).
  */
 function filters(
   Tone: ToneNS,
@@ -122,22 +135,18 @@ function filters(
 ): import('tone').ToneAudioNode {
   const moves = c.paramCells ?? {};
   const start = (k: string, d: number) => (!keep(k) ? d : typeof c.params[k] === 'number' ? (c.params[k] as number) : (moves[k]?.range?.[0] ?? d));
-  const has = (k: 'lpf' | 'hpf') => keep(k) && (typeof c.params[k] === 'number' || !!moves[k]);
   const add = (k: string, p: object) => (moving[k] ??= []).push(movable(p));
+  const model = keep('ftype') ? filterModel(c.params.ftype) : '12db';
   let at = into;
-  if (has('hpf')) {
-    const f = new Tone.Filter({ type: 'highpass', frequency: start('hpf', 200), Q: start('hpq', 1) }).connect(at);
+  // (built from the last to the first, each connected to the one after it)
+  for (const { key, q, type, from } of [...FILTERS].reverse()) {
+    if (!keep(key) || (typeof c.params[key] !== 'number' && !moves[key])) continue;
+    const two = model === '24db' || (model === 'ladder' && key === 'lpf');
+    const f = new Tone.Filter({ type, frequency: start(key, from), Q: start(q, 1), rolloff: two ? -24 : -12 }).connect(at);
     at = f;
     nodes.push(f);
-    add('hpf', f.frequency);
-    add('hpq', f.Q);
-  }
-  if (has('lpf')) {
-    const f = new Tone.Filter({ type: 'lowpass', frequency: start('lpf', 2000), Q: start('lpq', 1), rolloff: -24 }).connect(at);
-    at = f;
-    nodes.push(f);
-    add('lpf', f.frequency);
-    add('lpq', f.Q);
+    add(key, f.frequency);
+    add(q, f.Q);
   }
   return at;
 }
@@ -177,7 +186,7 @@ export function buildVoice(Tone: ToneNS, ctx: AudioContext, bus: Bus, result: Co
   const c = result.cells.get(name)!;
   const params = c.params;
   const nodes: Disposable[] = [];
-  // chain: notes → [grit] → [lpf] → [hpf] → [each instrument's lpf → hpf] → gain → master (+ room / delay sends); a
+  // chain: notes → [grit] → [lpf] → [hpf] → [bpf] → [each instrument's lpf → hpf → bpf] → gain → master (+ room / delay sends); a
   // resonator's bodies → pan → gain
   const out = new Tone.Gain(0.4).connect(bus.master);
   // (a note comes panned already, in stereo; Tone's panner is mono, explicitly, so a voice's notes through it were
