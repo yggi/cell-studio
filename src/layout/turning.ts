@@ -5,35 +5,42 @@
  * drawn as played, its hand on the entry sounding, while what reads through it sees it turned, as the sound does.
  *
  * cells' `shiftsAt` (the live state's `shifts`) turns a stepped table, and a played cell only when a line reads through it
- * (`readThrough`, cells v0.8.0, #203); its notes read a played cell's own shift as written (`playing`). This is the same
- * split for the drawing, which only a played cell that is also read through still needs.
+ * (`readThrough`, cells v0.8.0, #203); its notes read a played cell's own shift as written (`playing`). So the drawing
+ * holds back only what `shiftsAt` turns and the wheel shows by its hand: a played cell that is also read through (#475).
  */
 import type { CompileResult, Shifts } from '@yggi/cells/engine/program';
-import { playedCells } from '@yggi/cells/engine/clocking';
+import { playedCells, readThrough } from '@yggi/cells/engine/clocking';
 import { isPicked } from '@yggi/cells/engine/helix';
 
 interface Turning {
   readonly played: ReadonlySet<string>;
-  /** By wheel: the played cells its own drawing reads as written (itself and what it splices). */
+  /** What a line reads through (cells' `readThrough`): the cells `shiftsAt` turns, played or not. */
+  readonly read: ReadonlySet<string>;
+  /** By wheel: the played cells its own drawing reads as written (itself and what it splices) that `shiftsAt` turns. */
   readonly still: Map<string, ReadonlySet<string>>;
 }
 
 const cache = new WeakMap<CompileResult, Turning>();
 const turningOf = (program: CompileResult): Turning => {
   let t = cache.get(program);
-  if (!t) cache.set(program, (t = { played: playedCells(program), still: new Map() }));
+  if (!t) cache.set(program, (t = { played: playedCells(program), read: readThrough(program), still: new Map() }));
   return t;
 };
 
-/** The played cells a wheel's own drawing holds at their written shift: none for a cell nothing plays; else it and what it splices. */
+/**
+ * The played cells a wheel's own drawing holds at their written shift: none for a cell nothing plays; else it and what it
+ * splices, those a line reads through (the rest `shiftsAt` holds there already).
+ */
 function stillOf(program: CompileResult, name: string): ReadonlySet<string> {
   const t = turningOf(program);
   let s = t.still.get(name);
   if (s) return s;
+  const seen = new Set<string>();
   const out = new Set<string>();
   const walk = (n: string) => {
-    if (out.has(n) || !t.played.has(n)) return;
-    out.add(n);
+    if (seen.has(n) || !t.played.has(n)) return;
+    seen.add(n);
+    if (t.read.has(n)) out.add(n);
     const c = program.cells.get(n);
     for (const k of c?.children.keys() ?? []) {
       // (a cell only picked from is a table read, turning under its picks: as playedCells has it)
@@ -59,11 +66,10 @@ export function drawnShifts(program: CompileResult, statics: Shifts, now: Shifts
 /**
  * The cells whose turning changes what the graph draws (a key over their shifts redraws it): the stepped tables, less
  * the cells that are only played (their moving shift is a playhead, drawn by the hand); a played table that a line
- * reads through (`over=`) stays, its readers see it turn.
+ * reads through (cells' `readThrough`: an `over=`, the table a cell is shown through, a relative pick `&k[0]`) stays,
+ * its readers see it turn.
  */
 export function turningCells(program: CompileResult): string[] {
-  const { played } = turningOf(program);
-  const read = new Set<string>();
-  for (const c of program.cells.values()) if (c.over) read.add(c.over);
+  const { played, read } = turningOf(program);
   return [...program.cells.values()].filter((c) => c.step && !c.voice && (!played.has(c.name) || read.has(c.name))).map((c) => c.name);
 }
