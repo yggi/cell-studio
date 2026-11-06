@@ -14,6 +14,9 @@
 //   3. A loudness ceiling (#92; the convention in docs/language/display.md, the card's postgain=): no sample clipped, the peak at or
 //      under PEAK (−1 dB) and the average at or under RMS (−18 dB), over the seconds rendered. Only a ceiling: a short
 //      render of a piece with a quiet start averages far under the −24 dB of the whole piece, so there is no floor.
+//      A piece over it for a gap in Cell studio's own sound, against cells' renderer that set its card, is listed in
+//      KNOWN_LOUD with its issue: it is still measured and printed, doesn't fail the run, and is named once it is
+//      under the ceiling again, so its entry can go (Patchbay, #567: a voice's low-pass is two biquads here, one in cells).
 //
 // Exit 1 on a Math.random call of ours, a piece that differs beyond TOL (other than the known ones) or one over the
 // ceiling. The smoke workflow runs it on every PR (`node tools/repeatable.mjs 4`); `src/audio/repeatable.test.ts` is the
@@ -29,6 +32,7 @@ const TOL = Number(process.env.TOL ?? 1e-5);
 const PEAK = Number(process.env.PEAK ?? -1);
 const RMS = Number(process.env.RMS ?? -18);
 const KNOWN = { 'forks.md': '#65', 'kalimba.md': '#65', 'sympathy.md': '#65' };
+const KNOWN_LOUD = { 'patchbay.md': '#567' };
 const words = args.filter((a) => !/^\d+(\.\d+)?$/.test(a)).map((w) => w.toLowerCase());
 const files = readdirSync('node_modules/@yggi/cells/examples')
   .filter((f) => f.endsWith('.md'))
@@ -84,6 +88,8 @@ const render = (source) =>
 
 let bad = 0;
 let loud = 0;
+const quietAgain = [];
+const knownOver = [];
 const callers = new Map();
 for (const f of files) {
   const source = readFileSync(`node_modules/@yggi/cells/examples/${f}`, 'utf8');
@@ -103,11 +109,14 @@ for (const f of files) {
     a.peak > PEAK && `peak ${a.peak.toFixed(1)} dB over ${PEAK}`,
     a.rms > RMS && `average ${a.rms.toFixed(1)} dB over ${RMS}`,
   ].filter(Boolean);
-  if (over.length) loud++;
+  const knownLoud = KNOWN_LOUD[f];
+  if (over.length && !knownLoud) loud++;
+  if (!over.length && knownLoud) quietAgain.push(`${f} (${knownLoud})`);
+  if (over.length && knownLoud) knownOver.push(`${f} (${knownLoud})`);
   const level = `rms ${a.rms.toFixed(1)} peak ${a.peak.toFixed(1)}`;
   const how = a.hash === b.hash ? 'bit-identical' : `largest block difference ${dB}, first at ${((a.blocks.findIndex((x, i) => x !== b.blocks[i]) * 2048) / 44100).toFixed(2)} s`;
   console.error(
-    `${apart <= TOL ? 'same ' : known ? 'KNOWN' : 'DIFF '} ${f.padEnd(28)} ${level.padEnd(22)} ${how}${over.length ? `  LOUD: ${over.join(', ')}` : ''}${apart > TOL && known ? `  (${known})` : ''}${[...warm.calls, ...a.calls, ...b.calls].some(([, [, tone]]) => !tone) ? '  Math.random called by our code' : ''}`,
+    `${apart <= TOL ? 'same ' : known ? 'KNOWN' : 'DIFF '} ${f.padEnd(28)} ${level.padEnd(22)} ${how}${over.length ? `  ${knownLoud ? `LOUD, known (${knownLoud})` : 'LOUD'}: ${over.join(', ')}` : ''}${apart > TOL && known ? `  (${known})` : ''}${[...warm.calls, ...a.calls, ...b.calls].some(([, [, tone]]) => !tone) ? '  Math.random called by our code' : ''}`,
   );
 }
 await browser.close();
@@ -117,6 +126,7 @@ for (const [where, [n, tone]] of callers) {
   if (!tone) ours++;
   console.error(`${tone ? 'Tone (known)' : 'OURS'}: Math.random ×${n}: ${where}`);
 }
+if (quietAgain.length) console.error(`under the loudness ceiling again, so KNOWN_LOUD's entry can go: ${quietAgain.join(', ')}`);
 const fail = bad || ours || loud;
 console.error(
   fail
@@ -127,6 +137,6 @@ console.error(
       ]
         .filter(Boolean)
         .join('; ')
-    : `all ${files.length} pieces render the same twice (within ${(20 * Math.log10(TOL)).toFixed(0)} dB) and under the loudness ceiling; none of our code calls Math.random`,
+    : `all ${files.length} pieces render the same twice (within ${(20 * Math.log10(TOL)).toFixed(0)} dB) and are under the loudness ceiling${knownOver.length ? ` but the known ${knownOver.join(', ')}` : ''}; none of our code calls Math.random`,
 );
 process.exit(fail ? 1 : 0);

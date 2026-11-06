@@ -4,4 +4,5 @@
 # (quality.baseline.json), and the tests still say if both sides' lines together are wrong (a number used twice).
 CHANGELOG.md merge=union
 docs/MEMORY.md merge=union
+docs/decisions/README.md merge=union
 src/engine/snapshot.txt merge=union

@@ -4,10 +4,16 @@ name: Deploy
 # deploy main again). It runs `node tools/deploy.mjs` on `main` as it is now, the same gate as a deploy from a clone
 # (docs/testing.md): every check CI runs, all the tests (`test:all`), a fresh build, and only then dist/ published to
 # gh-pages's root (the PRs' previews in pr-<n>/ stay); then `node tools/live.mjs` checks the live site serves that build.
+# On a merge, the checks and tests are skipped when CI's witness stands for them (tools/witness.mjs): the merged PR's head
+# has the tree deployed, and CI's `check` and `slow` passed on it on code, not markdown alone. Otherwise, and always by
+# hand, they run. The build, the publish and the check of the live site run either way.
 # A run that fails in seconds with no step is Actions blocked: deploy from a clone instead (the land skill).
 on:
   push:
     branches: [main]
+    # (a merge of markdown alone changes nothing the site serves, so it starts no deploy; the next merge of code deploys
+    # it with the rest, and a deploy by hand deploys `main` as it is)
+    paths-ignore: ['**.md']
   workflow_dispatch:
 
 permissions:
@@ -28,6 +34,9 @@ jobs:
     timeout-minutes: 30
     permissions:
       contents: write
+      # (the witness: the merged PR, its files, and CI's check runs on its head)
+      pull-requests: read
+      checks: read
     steps:
       - uses: actions/checkout@v7
         with:
@@ -40,9 +49,17 @@ jobs:
       - run: npm ci --no-audit --no-fund
         env:
           PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: 1
-      - name: Check, build and publish main
-        run: node tools/deploy.mjs
+      # (never fails the run: anything it can't read means the checks run)
+      - id: witness
+        if: github.event_name == 'push'
+        continue-on-error: true
+        run: node tools/witness.mjs
         env:
+          GH_TOKEN: ${{ github.token }}
+      - name: Check, build and publish main
+        run: node tools/deploy.mjs ${{ steps.witness.outputs.head && format('--tests-passed-on {0}', steps.witness.outputs.head) || '' }}
+        env:
+          TESTS_PASSED_RUN: ${{ steps.witness.outputs.run }}
           PAGES_REMOTE: https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}
       # (the runner's Chrome, as the smoke test's: Playwright's own isn't downloaded)
       - name: Check the live site serves it

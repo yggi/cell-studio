@@ -29,7 +29,9 @@ Lifted from yggi/jambot .claude/skills/land/SKILL.md @ ef79048.
    `git fetch origin main && git checkout main && git merge --ff-only origin/main`, in a clone whose tree is clean (the deploy refuses one with changes).
 6. **The deploy.**
    The merge's push started *Deploy* on Actions: wait for its run on the merge commit to end, green.
+   A merge of `*.md` files alone starts none (`deploy.yml`'s `paths-ignore`: it changes nothing the site serves): skip to step 8 and say so.
    It runs `node tools/deploy.mjs` (it refuses a tree with changes or a HEAD that isn't `origin/main`, runs every check, builds `dist/` and publishes it to gh-pages: [testing.md](../../../docs/testing.md#run)), then `node tools/live.mjs`.
+   It skips the checks and tests when CI's `check` and `slow` passed on the pull request's head and the head has the merge's tree (`tools/witness.mjs`; its log's `deploy: tests:` line says which), so a head brought up to date with `main` and green in CI before the merge deploys in minutes less.
    Only when Actions is blocked (a run that fails in seconds with no step), run `node tools/deploy.mjs` from `main` in a clone, as a background task (minutes), and step 7 by hand.
 7. **The live site.**
    *Deploy*'s last step, or by hand: `node tools/live.mjs` (in a cloud session whose preinstalled browsers are another Playwright's, it falls back to `/opt/pw-browsers/chromium` and says so: `tools/profile/playwright.mjs`): it waits until <https://yggi.github.io/cell-studio/> loads the module script of the `dist/index.html` just deployed (every 10 s, up to 10 min), then opens the page in Chromium and fails on any console error or uncaught exception.

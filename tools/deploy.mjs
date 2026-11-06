@@ -5,11 +5,18 @@
 //
 //   node tools/deploy.mjs             # check, build, publish
 //   node tools/deploy.mjs --dry-run   # check and build only
+//   node tools/deploy.mjs --tests-passed-on <sha>
+//                                     # the same without the checks, on Actions only: deploy.yml passes the pull
+//                                     # request's head whose checks CI passed (tools/witness.mjs), and they are
+//                                     # skipped when that head has HEAD's tree (TESTS_PASSED_RUN names CI's run)
 //
 // PAGES_REMOTE: where to push (default: origin's URL), as pages.sh takes it.
 import { execFileSync, spawnSync } from 'node:child_process';
+import { testsPlan } from './witness.mjs';
 
 const dry = process.argv.includes('--dry-run');
+const at = process.argv.indexOf('--tests-passed-on');
+const passedOn = at === -1 ? undefined : process.argv[at + 1];
 // (joined: knip would read the path written whole as an import)
 const PAGES = ['.github', 'scripts', 'pages.sh'].join('/');
 const git = (...a) => execFileSync('git', a, { encoding: 'utf8' }).trim();
@@ -23,12 +30,28 @@ git('fetch', '-q', 'origin', 'main');
 const [head, main] = [git('rev-parse', 'HEAD'), git('rev-parse', 'origin/main')];
 if (head !== main) stop(`HEAD (${head.slice(0, 7)}) is not origin/main (${main.slice(0, 7)})`);
 
-for (const script of ['check', 'lint', 'format:check', 'knip', 'test:all', 'build']) {
+let plan;
+try {
+  plan = testsPlan(passedOn, {
+    actions: process.env.GITHUB_ACTIONS === 'true',
+    tree: git('rev-parse', 'HEAD^{tree}'),
+    treeOf: (sha) => {
+      const result = spawnSync('git', ['rev-parse', '--verify', '--quiet', `${sha}^{tree}`], { encoding: 'utf8' });
+      return result.status === 0 ? result.stdout.trim() : undefined;
+    },
+    run: process.env.TESTS_PASSED_RUN,
+  });
+} catch (error) {
+  stop(error.message);
+}
+console.log(`deploy: ${plan.message}`);
+const checks = ['check', 'lint', 'format:check', 'knip', 'test:all'];
+for (const script of [...(plan.skip ? [] : checks), 'build']) {
   console.log(`\ndeploy: npm run ${script}`);
   if (spawnSync('npm', ['run', script], { stdio: 'inherit' }).status !== 0) stop(`npm run ${script} failed`);
 }
 if (dry) {
-  console.log(`\ndeploy: ${head.slice(0, 7)} passed every check and built (--dry-run: not published)`);
+  console.log(`\ndeploy: ${head.slice(0, 7)} ${plan.skip ? 'built, its checks passed on CI' : 'passed every check and built'} (--dry-run: not published)`);
   process.exit(0);
 }
 const env = { ...process.env, PAGES_REMOTE: process.env.PAGES_REMOTE ?? git('remote', 'get-url', 'origin'), MESSAGE: `Deploy ${head}` };

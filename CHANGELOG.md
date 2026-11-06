@@ -2,13 +2,15 @@
 
 What changed in Cell studio, newest first. The app is deployed from `main` by hand (`node tools/deploy.mjs`), so
 this lists user-visible changes; each release (a version bump in `package.json` and a `vX.Y.Z`
-tag) gathers the entries under *Unreleased* beneath its own heading. The version and commit of
+tag) gathers the entries under *Unreleased* and those in [`changes/`](changes/) beneath its own heading. The version and commit of
 the running build are the app name's tooltip; a tap on the name opens the details.
 
-Format: [Keep a Changelog](https://keepachangelog.com/). Add a line to *Unreleased* in the PR
-that makes the change. Also note changes to the language that could affect saved `.cells` pieces.
+Format: [Keep a Changelog](https://keepachangelog.com/). Add a file to [`changes/`](changes/) in the PR
+that makes the change ([`changes/README.md`](changes/README.md)). Also note changes to the language that could affect saved `.cells` pieces.
 
 ## Unreleased
+
+Entries not yet released are in [`changes/`](changes/), one file each; a release gathers them here (`npm run changelog -- gather`).
 
 ### Added
 - **A module is one wheel, its jacks on its rim** (#560, decision 069): a cell a `from` line takes from a module (yggi/cells' `osc`, `lowpass`, `highpass`, `amp`, `lfo`, `sh`) is one wheel ringed in the accent, its jacks on its rim (filled: a cable; a ring with a dot: a value set on the line; a knob at its default), and every wire into it ends at the jack it fills. `lowpass`, `highpass` and `amp` draw their own face (a filter's response, an amp's level); `osc`, `lfo` and `sh` keep their wheels. A module's private cells (the defaults and inputs its use gave: Patchbay's `&vcf_in`, `&vca_eg`, `&vca_level`, `&saw_pitch`, and `amp`'s inner product) have no node, and a module is no longer a use's cluster: Patchbay draws 23 nodes where it drew 28. A wheel grows to keep its jacks a finger apart. **A voice and an instrument show their own jacks too**: a voice's outline is drawn in the accent, the jacks it uses round its envelope band (down its left, along its bottom, up its right: Acid-Cell's `&tb303` shows `lpf`, `lpq`, `delay` and `env`), an instrument's on its rim; a jack with no value written is hidden. Saved pieces are unchanged, and nothing sounds different.
@@ -30,6 +32,7 @@ that makes the change. Also note changes to the language that could affect saved
 
 ### Changed
 - **The language is cells v0.17.1** (yggi/cells#472, yggi/cells#476, [its changelog](https://github.com/yggi/cells/blob/main/CHANGELOG.md)). **A saved piece that writes `use` no longer plays:** `use` is an error, and a piece says where its cells come from in `from` lines (`&key from diatonic(mode=aeolian) C`; cells' Migrate writes them). The modes are one fragment, so a mode's id is `diatonic(mode=dorian)` (the old ids read, warning, for this minor version), and a bare `oneshot` is `oneshot=1` (it warns). **A saved piece may sound different** where it reads 4/4's levels: a bar of four groups is halved, so the third beat is the half's and the second and fourth a level below it, as the metronome's ticks on them now are; a bipolar wave read as a share is (1 + x)/2, and a tapped line with `cycle=` comes round. New: the reference piece *Patchbay*, the modules as fragments, and patching as an edit; a parameter a voice takes from its instrument is drawn into the instrument.
+- **A blend of two waves sounds as a blend** (#533, cells decision 066): a voice written `s=tri..square * &x` plays each note on the mix of the two waves at the share it starts on (read in hundredths, each wave at the peak it has alone, as cells' renderer plays it), where it played the first wave alone: the default lead (`from lead`) brightens from a triangle at legato to a square at staccato. A voice with one wave sounds as before. Saved pieces may sound different where a voice blends two waves.
 - **The MIDI page on webmidi v0.1.4** (#545): the clock is the patch's first row; a kit member's note on each output is typed in the matrix itself (the separate *The kit's notes here* list is gone); a piece routed by its MIDI cards keeps its own rows read only but lets the inputs, the clock and the kit's notes be routed and edited, and keeps them in the setup (they were dropped before). Nothing on the wire changes for what was already routed. Saved `.cells` pieces are unchanged.
 - **A followed session is played through cells' default performer** (#536): its feel and swing are cells' `perform`, `readerOf`, `swungAt` and `writtenAt` (cells v0.15.0), lifted from Cell studio's own copy, which goes; every event plays as before, the same velocity, length and end. Saved pieces are unchanged.
 - **A followed session's switch is laid a bar ahead** (#513): at a section's switch, what is to play is laid up to 2 s ahead before the page does the switch's work, through the bars the host has already told (their starts and feel), where it was laid 0.35 s ahead. A host whose section text plays its parts through performers (yggi/jambot#514, #515), heavier to compile and lay out, no longer makes Cell studio come late to a bar's start. Saved pieces are unchanged.
