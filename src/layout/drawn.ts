@@ -4,7 +4,7 @@
  * host (decision 014, every sub-wheel: decision 021), the room a host's bulbs take and where their edges leave from;
  * what each `use` line gives, a cluster named by its line, what nothing reads of it folded into that name (uses.ts).
  */
-import { cellId, edgeId } from '@yggi/cells/engine/ids';
+import { cellId, clockTapId, edgeId, stepEdgeId } from '@yggi/cells/engine/ids';
 import { VOICE_KIT } from '@yggi/cells/engine/compiler/declare';
 import type { CompileResult } from '@yggi/cells/engine/program';
 import { feeds, netsOf, writtenGraph, type GraphEdge, type GraphModel, type GraphNode, type WrittenGraph } from '@yggi/cells/engine/graph';
@@ -34,6 +34,18 @@ export function usesOf(result: CompileResult): readonly UseGroup[] {
   if (!usesMemo.has(result)) buildGraph(result);
   return usesMemo.get(result) ?? [];
 }
+
+/**
+ * The id of an edge drawn between the cells it is folded up into (a petal's, a bulb's): the engine's kind of id between
+ * them, `~` and its port where the engine's has them (a step= wire `a~>b`, a parameter's own `a~delaytime>b`, #193).
+ */
+const foldedId = (e: GraphEdge, source: string, target: string) => {
+  const prefix = `${e.source}~`;
+  const suffix = `>${e.target}`;
+  if (!e.id.startsWith(prefix) || !e.id.endsWith(suffix)) return edgeId(source, target);
+  const key = e.id.slice(prefix.length, e.id.length - suffix.length);
+  return key ? clockTapId(source, target, key) : stepEdgeId(source, target);
+};
 
 /**
  * Unnamed cells (&( … )) are drawn as petals of the named cell on their line:
@@ -124,7 +136,7 @@ function petals(result: CompileResult, written: WrittenGraph, withBulbs: boolean
     pairs.add(key(source, target));
     // (a groove's sound drawn from the kit: its end there too)
     const end = (x: string) => (source === drums && x === e.source ? drums : up(x));
-    out.push({ ...e, id: edgeId(source, target) + (e.port === 'step' ? '~' : ''), source, target, from: end(e.from), to: end(e.to) });
+    out.push({ ...e, id: foldedId(e, source, target), source, target, from: end(e.from), to: end(e.to) });
   }
   // (every groove reads the kit by one wire, whether or not a drum it names is a piece of it: one with a node of its
   // own keeps its wire too)
