@@ -127,8 +127,12 @@ export class Recorder {
     if (this.state === 'taking' && step >= t.take.end!) {
       const steps = t.take.write();
       this.#move('done', state);
-      const spec = freeList(this.piece.program)[t.index];
-      if (!steps || spec?.key !== 'braid') return;
+      const program = this.piece.program;
+      const spec = freeList(program)[t.index];
+      // (still the armed cell's braid: an edit during the take that wrote a free() above it moved the one at its index to
+      // another cell, and the take would land there; then it is dropped, #338)
+      const mine = program.cells.get(t.target.cell)?.frees.some((f) => f.span.line === spec?.span.line && f.span.col === spec?.span.col);
+      if (!steps || spec?.key !== 'braid' || !mine) return;
       this.last = steps.join(' ');
       this.piece.hold(spec, this.last);
     }

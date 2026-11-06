@@ -44,9 +44,11 @@
         {#each keys.armable as a (a.cell)}<option value={a.cell}>&{a.cell}{a.cell === a.voice ? '' : ` on &${a.voice}`}{a.kit ? ' (kit)' : ''}</option>{/each}
       </select>
     </label>
-    <div class="tabs" role="tablist" aria-label="Keys or pads">
-      <button role="tab" aria-selected={dock.tab === 'keys'} class:on={dock.tab === 'keys'} onclick={() => (dock.tab = 'keys')}>Keys</button>
-      <button role="tab" aria-selected={dock.tab === 'pads'} class:on={dock.tab === 'pads'} onclick={() => (dock.tab = 'pads')}>Pads</button>
+    <!-- (two toggles, one pressed: a tablist would want arrow keys and a panel each, which a dock that swaps its keys doesn't
+         have; #338) -->
+    <div class="tabs" role="group" aria-label="Keys or pads">
+      <button aria-pressed={dock.tab === 'keys'} class:on={dock.tab === 'keys'} onclick={() => (dock.tab = 'keys')}>Keys</button>
+      <button aria-pressed={dock.tab === 'pads'} class:on={dock.tab === 'pads'} onclick={() => (dock.tab = 'pads')}>Pads</button>
     </div>
     {#if dock.tab === 'keys'}
       <div class="octave" role="group" aria-label="Octave">

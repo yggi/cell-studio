@@ -3,15 +3,22 @@
    * What a cell wears for the margin (Margin.svelte, layout/side.ts): the number of each note about it, the colour of
    * each scope channel watching it. Lit while its margin entry is pointed at.
    */
+  import { useStore } from '@xyflow/svelte';
   import { getGraphContext } from './context';
 
   let { name }: { name: string } = $props();
   const ctx = getGraphContext();
   const marks = $derived(ctx.marksOf?.(name) ?? []);
+  // (drawn in the graph's units, a mark shrinks with the zoom: 18 px is 4 px on Hypercell fitted to a 1280 px screen. It is
+  // kept at least MIN_PX on screen, scaled up only where the zoom would draw it smaller, #338)
+  const MIN_PX = 9;
+  const BADGE = 18;
+  const store = useStore();
+  const keep = $derived(Math.max(1, MIN_PX / (BADGE * (store.viewport.zoom || 1))));
 </script>
 
 {#if marks.length}
-  <span class="marks" aria-hidden="true">
+  <span class="marks" aria-hidden="true" style:--keep={keep}>
     {#each marks as m (m.entry)}
       {#if m.colour}<span class="dot" class:lit={ctx.sideLit === m.entry} style:background={m.colour}></span>
       {:else}<span class="num" class:lit={ctx.sideLit === m.entry}>{m.mark}</span>{/if}
@@ -25,7 +32,8 @@
     position: absolute;
     right: 14.6%;
     top: 14.6%;
-    transform: translate(50%, -50%);
+    transform: translate(50%, -50%) scale(var(--keep, 1));
+    transform-origin: center;
     display: flex;
     gap: 3px;
     pointer-events: none;
