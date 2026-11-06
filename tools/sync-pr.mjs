@@ -5,8 +5,9 @@
 //
 //   node tools/sync-pr.mjs <pr number> [--push] [--no-gate] [--keep]
 //
-// Exit: 0 done (or already up to date), 2 a conflict that is not mechanical, 3 the gate failed (the worktree stays),
-// 4 the author pushed meanwhile (nothing pushed).
+// Exit: 0 done (or already up to date), 2 a conflict that is not mechanical, 3 the gate failed, 4 the author pushed
+// meanwhile (nothing pushed). A run that stops (2, 3, 4) removes its worktree and its `sync/<pr>` branch unless --keep;
+// a run first removes a stale one a run before it left (#426).
 import { execFileSync, spawnSync } from 'node:child_process';
 import { existsSync, mkdtempSync, readFileSync, readdirSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -19,30 +20,37 @@ export const RESOLVERS = {
   'CHANGELOG.md': 'union',
   'docs/MEMORY.md': 'union',
   'docs/decisions/README.md': 'union',
-  'src/engine/snapshot.txt': 'union',
-  'src/engine/order.ts': 'union',
-  'src/engine/ladder.ts': 'union',
   // a JSON object, one entry a line: keep both, then the commas
   'src/layout/quality.baseline.json': 'entries',
-  // generated from the examples and the parser's tables: take main's, then regenerate
+  // generated from the examples: take main's, then regenerate
   'docs/examples.md': 'generated',
-  'docs/language/reference.md': 'generated',
 };
 
 /** The commands that regenerate the generated files. */
-export const REGENERATE = [
-  ['npm', 'run', 'docs:examples'],
-  ['npx', 'vitest', 'run', 'src/engine/parser/reference.test.ts'],
-];
+export const REGENERATE = [['npm', 'run', 'docs:examples']];
 
-/** The gate: what a contributor runs before pushing. */
-export const GATE = [
-  ['npm', 'run', 'check'],
-  ['npx', 'eslint', 'src', 'tools'],
-  ['npm', 'run', 'knip'],
-  ['npx', 'prettier', '--check', '.'],
-  ['npx', 'vitest', 'run', 'src', 'tools'],
-];
+/** The gate: what the pre-push hook runs, `npm run verify`. */
+export const GATE = [['npm', 'run', 'verify']];
+
+/**
+ * Remove what a run for this PR left in `root`'s repository: the worktree on its `sync/<pr>` branch (wherever it is), and
+ * the branch. Returns the worktrees removed.
+ */
+export function removeSync(root, pr) {
+  const branch = `refs/heads/sync/${pr}`;
+  const removed = [];
+  // (`git worktree list --porcelain`: a block a worktree, its `worktree <path>` and `branch <ref>` lines)
+  for (const block of run(root, 'git', ['worktree', 'list', '--porcelain']).split('\n\n')) {
+    const path = /^worktree (.+)$/m.exec(block)?.[1];
+    if (path && block.split('\n').includes(`branch ${branch}`)) {
+      spawnSync('git', ['worktree', 'remove', '--force', path], { cwd: root, stdio: 'ignore' });
+      removed.push(path);
+    }
+  }
+  spawnSync('git', ['worktree', 'prune'], { cwd: root, stdio: 'ignore' });
+  spawnSync('git', ['branch', '-D', `sync/${pr}`], { cwd: root, stdio: 'ignore' });
+  return removed;
+}
 
 /** A file with conflict markers as segments: plain text, or a conflict (`ours`: the branch, `theirs`: main). */
 export function parseConflicts(text) {
@@ -119,7 +127,15 @@ function main(argv) {
     console.log(`#${pr} already has main merged in.`);
     return 0;
   }
+  // (a worktree and branch a run before this one left, stopped with --keep or killed)
+  for (const stale of removeSync(root, pr)) console.log(`removed a stale worktree: ${stale}`);
   const wt = join(mkdtempSync(join(tmpdir(), 'sync-pr-')), `pr${pr}`);
+  // (a run that stops leaves nothing behind, unless --keep: then the next run removes it)
+  const stop = (code) => {
+    if (flag('--keep')) console.error(`(kept: the worktree ${wt}, the branch sync/${pr})`);
+    else removeSync(root, pr);
+    return code;
+  };
   run(root, 'git', ['worktree', 'add', '-q', '-B', `sync/${pr}`, wt, `origin/${info.ref}`]);
   symlinkSync(join(root, 'node_modules'), join(wt, 'node_modules'));
   const merged = spawnSync('git', ['merge', '--no-edit', '-m', `Merge main into ${info.ref}`, 'origin/main'], { cwd: wt, stdio: 'ignore' }).status === 0;
@@ -129,8 +145,8 @@ function main(argv) {
     if (rest.length) {
       run(wt, 'git', ['merge', '--abort']);
       console.error(`#${pr} conflicts in files that are not mechanical, for a person:\n  ${rest.join('\n  ')}`);
-      console.error(`(the worktree is ${wt}; the mechanical ones would have been: ${conflicted.filter((f) => f in RESOLVERS).join(', ') || 'none'})`);
-      return 2;
+      console.error(`(the mechanical ones would have been: ${conflicted.filter((f) => f in RESOLVERS).join(', ') || 'none'}; --keep keeps the worktree)`);
+      return stop(2);
     }
     for (const f of conflicted) {
       const kind = RESOLVERS[f];
@@ -142,13 +158,13 @@ function main(argv) {
     run(wt, 'git', ['commit', '-q', '--no-edit']);
   }
   // (generated files can be stale even when the merge was clean: both sides added a piece)
-  for (const cmd of REGENERATE) step(wt, cmd, cmd[1] === 'vitest' ? { UPDATE_REFERENCE: '1' } : {});
+  for (const cmd of REGENERATE) step(wt, cmd);
   step(wt, ['npx', 'prettier', '--write', '--log-level', 'warn', 'CHANGELOG.md', 'docs']);
   if (run(wt, 'git', ['status', '--porcelain', '--untracked-files=no'])) run(wt, 'git', ['commit', '-q', '-a', '-m', 'Regenerate the generated docs after merging main']);
   const markers = spawnSync('git', ['grep', '-nE', '^(<<<<<<<|>>>>>>>) ', '--', ':!docs/notes'], { cwd: wt, encoding: 'utf8' }).stdout.trim();
   if (markers) {
     console.error(`conflict markers left:\n${markers}`);
-    return 3;
+    return stop(3);
   }
   const clash = duplicateDecisions(readdirSync(join(wt, 'docs/decisions')));
   if (clash.length) console.warn(`WARNING decisions share a number (renumber one, and its MEMORY line and links):\n  ${clash.join('\n  ')}`);
@@ -156,8 +172,8 @@ function main(argv) {
     run(wt, 'rm', ['-rf', '.svelte-check']);
     for (const cmd of GATE)
       if (!step(wt, cmd)) {
-        console.error(`gate failed at: ${cmd.join(' ')}\n(the worktree is ${wt})`);
-        return 3;
+        console.error(`gate failed at: ${cmd.join(' ')}`);
+        return stop(3);
       }
   }
   const sha = run(wt, 'git', ['rev-parse', 'HEAD']);
@@ -169,12 +185,12 @@ function main(argv) {
   const now = run(root, 'git', ['ls-remote', 'origin', `refs/heads/${info.ref}`]).split('\t')[0];
   if (now !== info.sha) {
     console.error(`the author pushed meanwhile (${info.sha.slice(0, 7)} -> ${now.slice(0, 7)}): nothing pushed, run it again`);
-    return 4;
+    return stop(4);
   }
   run(wt, 'git', ['push', 'origin', `HEAD:${info.ref}`]);
   console.log(`#${pr}: pushed ${sha.slice(0, 7)} to ${info.ref}`);
   if (!flag('--keep')) {
-    run(root, 'git', ['worktree', 'remove', '--force', wt]);
+    removeSync(root, pr);
     if (existsSync(wt)) console.warn(`could not remove ${wt}`);
   }
   return 0;
