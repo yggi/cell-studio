@@ -3,6 +3,7 @@
  * a table placed on one lap of the grid below — scales, keys, meters) or a
  * *braid* (slots in time — melodies). Angles are in turns, 0 = 12 o'clock.
  */
+import type { Meter } from '@yggi/cells/engine/meter';
 import { adsrOf, keepsTime, type CompileResult, type Shifts } from '@yggi/cells/engine/program';
 import { entries, period, positionHue, positionOctave, resolvePitch, semitones, shiftedUnits } from '@yggi/cells/engine/helix';
 import { effectiveShow, type Named, type Show } from './show';
@@ -29,6 +30,8 @@ function drawnAsGrid(result: CompileResult, name: string): boolean {
   const c = result.cells.get(name)!;
   if (c.voice) return false;
   if (c.root || c.scan) return true;
+  // (a meter(…) is its braid of levels, whatever its levels: `meter("2/4")`'s `0 1` too, not a table of two)
+  if (c.meter?.written === 'meter') return false;
   // (a table of plain numbers in any order: in pitch order it is spaced by pitch, else evenly in its own — the circle of fifths)
   return plainTable(result, name) && !playedCells(result).has(name);
 }
@@ -99,6 +102,11 @@ export interface CellView {
    * hand goes through them (`swungTurn`), so the wheel is the bar's time.
    */
   readonly swung?: readonly number[];
+  /**
+   * A meter's beats (a `meter(…)` drawn as its braid of levels, #583): each beat's span on the ring, in turns, from the
+   * compiled meter's beats (6/8: two, 7/8: three), placed as its steps are (under its swing).
+   */
+  readonly beats?: readonly { readonly t0: number; readonly t1: number }[];
   /**
    * A table's taps, entry 0 first (under the marker): where each entry leaves the wheel, in turns. Its own spacing
    * (show=pattern: each at its step of the grid; they turn with it) or even (show=equal: they stay put).
@@ -344,7 +352,31 @@ function viewOf(result: CompileResult, name: string, shifts: Shifts, isMeter: bo
   const swung = clockSwung?.length === total ? clockSwung : undefined;
   const at = fan ?? (swung ? (t: number) => swungTurn(swung, t) : null);
   const laid = at ? segments.map((s) => ({ ...s, t0: at(s.t0), t1: at(s.t1) })) : segments;
-  return { mode: 'braid', segments: laid, ticks: total, detents: Math.max(1, units.length), show, conv, ...(swung ? { swung } : {}), ...(bulbs.length ? { bulbs } : {}) };
+  const beats = isMeter ? meterBeats(c.meter, total) : undefined;
+  const placed = beats && at ? beats.map((b) => ({ t0: at(b.t0), t1: at(b.t1) })) : beats;
+  return {
+    mode: 'braid',
+    segments: laid,
+    ticks: total,
+    detents: Math.max(1, units.length),
+    show,
+    conv,
+    ...(swung ? { swung } : {}),
+    ...(bulbs.length ? { bulbs } : {}),
+    ...(placed?.length ? { beats: placed } : {}),
+  };
+}
+
+/** A `meter(…)`'s beats, each its span in turns of a braid of `total` steps (one a pulse): undefined for a scan or no meter. */
+function meterBeats(meter: Meter | null | undefined, total: number): { t0: number; t1: number }[] | undefined {
+  if (!meter || meter.written !== 'meter' || meter.positions.length !== total) return undefined;
+  const out: { t0: number; t1: number }[] = [];
+  let step = 0;
+  for (const b of meter.beats) {
+    out.push({ t0: meter.positions[step]! / meter.lap, t1: (step + b < total ? meter.positions[step + b]! : meter.lap) / meter.lap });
+    step += b;
+  }
+  return step === total ? out : undefined;
 }
 
 /**
@@ -416,8 +448,8 @@ export function hubLabel(result: CompileResult, name: string, shifts: Shifts, is
     return { big: c.units.length === 2 ? 'L R' : 'mono', small: rate ? `${+(rate / 1000).toFixed(1)}k` : 'out' };
   }
   if (isMeter) {
-    // (a meter of levels counts its beats — * and + — not its steps)
-    const beats = c.meter?.written === 'meter' ? c.units.filter((u) => u.atom.kind === 'note' && u.atom.value <= 1).length : (c.scan?.steps.length ?? c.units.length);
+    // (a meter of levels counts its beats, as compiled — 6/8 two, 7/8 three — not its steps nor its levels, #583)
+    const beats = c.meter?.written === 'meter' ? c.meter.beats.length : (c.scan?.steps.length ?? c.units.length);
     const sig = `${beats}/bar`;
     // at rest: its tempo (beats a minute); playing: the bar it's in
     const bpm = Math.round(((result.clocks.get(name)?.perSecond ?? 0) * 60) / c.beat);
