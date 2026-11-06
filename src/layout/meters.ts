@@ -66,11 +66,11 @@ export function tickLevel(meter: Ticking | undefined, beatAt: number): number {
 const shareText = (x: number) => String(+x.toFixed(2)).replace(/^0\./, '.');
 
 /**
- * A meter's levels, short, as `swing=` and `legato=` write them by level: `8n .67`, `8n .6, 16n .55`, and `8n .67 pairs`
- * for a level that leans its pairs alone (`swing=8n:.67:pairs`, cells v0.8.0, decision 053); null with none.
+ * A meter's levels, short, as `swing=` and `legato=` write them by level: `8n .67`, `8n .6, 16n .55`; null with none.
+ * (A swing leans pairs only since cells v0.18.0, decision 071, so `:pairs` says nothing more and isn't shown.)
  */
 export function levelsText(levels: readonly SwingLevel[] | undefined): string | null {
-  return levels?.length ? levels.map((l) => `${l.level} ${shareText(l.share)}${l.pairs ? ' pairs' : ''}`).join(', ') : null;
+  return levels?.length ? levels.map((l) => `${l.level} ${shareText(l.share)}`).join(', ') : null;
 }
 
 /** A tap's step in whole notes (`16n` 1/16, `pulse`, `beat` its longest, `1m` the bar), its chain dividing it, as `tapShare` reads it. */
