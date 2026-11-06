@@ -184,8 +184,10 @@ export interface ReportData {
     clockRatio: number | null;
     /** The audio context's tuning (latency hint, look-ahead): what the figures above are for. */
     tuning: string | null;
-    /** Mean seconds between a sample being made and being heard, from the output timestamp, in ms (null: no timestamp). */
+    /** Mean seconds between a sample being made and being heard, from the output timestamp, in ms (null: no timestamp, or none plausible). */
     heardLatencyMs: number | null;
+    /** The largest made-to-heard reading over IMPLAUSIBLE_MS, left out of the mean (null: none). */
+    heardImplausibleMs: number | null;
     /** How far the pictures are held back from the audio clock to match what is heard, in ms (null: not playing yet). */
     pictureLagMs: number | null;
     /** The render thread's own report (AudioContext.renderCapacity), over the window: null where the browser has none. */
@@ -200,6 +202,10 @@ export interface ReportData {
 
 const n1 = (x: number) => x.toFixed(1);
 const n0 = (x: number) => x.toFixed(0);
+/** A latency past this is a glitch, not a device (#185: 66 016 ms on a phone of 50 ms; the largest buffer reads about 280). */
+const IMPLAUSIBLE_MS = 2000;
+/** A latency, said as measured, or said to be implausible and ignored. */
+const latency = (ms: number) => (ms > IMPLAUSIBLE_MS ? `${n0(ms)} ms, implausible: ignored` : `${n1(ms)} ms`);
 
 /** A verdict in words, from the same numbers (the thresholds `tools/profile` and issue #13 use). */
 export function verdict(r: ReportData): string[] {
@@ -260,11 +266,16 @@ export function buildReport(r: ReportData): string {
     lines.push(`| Notes | ${r.notes.played} scheduled · ${r.notes.late} started late · ${r.notes.dropped} left out (> 50 ms late) · worst ${n0(r.notes.worstLateMs)} ms late |`);
   lines.push(`| Live views' refresh stretch | mean ${r.loadScale.mean.toFixed(2)}×, max ${r.loadScale.max.toFixed(2)}× (1× = full rate) |`);
   lines.push(
-    `| Audio | ${r.audio.state ?? 'not started'}${r.audio.sampleRate ? ` · ${r.audio.sampleRate} Hz` : ''}${r.audio.baseLatencyMs !== null ? ` · base latency ${n1(r.audio.baseLatencyMs)} ms` : ''}${r.audio.outputLatencyMs !== null ? ` · output latency ${n1(r.audio.outputLatencyMs)} ms` : ''}${r.audio.clockRatio !== null ? ` · clock ${r.audio.clockRatio.toFixed(3)}× real time` : ''} |`,
+    `| Audio | ${r.audio.state ?? 'not started'}${r.audio.sampleRate ? ` · ${r.audio.sampleRate} Hz` : ''}${r.audio.baseLatencyMs !== null ? ` · base latency ${n1(r.audio.baseLatencyMs)} ms` : ''}${r.audio.outputLatencyMs !== null ? ` · output latency ${latency(r.audio.outputLatencyMs)}` : ''}${r.audio.clockRatio !== null ? ` · clock ${r.audio.clockRatio.toFixed(3)}× real time` : ''} |`,
   );
-  if (r.audio.tuning || r.audio.heardLatencyMs !== null)
+  // (made-to-heard: the mean of the plausible readings, and the largest left out of it, if any)
+  const heardBits = [
+    ...(r.audio.heardLatencyMs !== null ? [`${n1(r.audio.heardLatencyMs)} ms`] : []),
+    ...(r.audio.heardImplausibleMs !== null ? [`a reading of ${latency(r.audio.heardImplausibleMs)}`] : []),
+  ];
+  if (r.audio.tuning || heardBits.length)
     lines.push(
-      `| Latency tuning | ${r.audio.tuning ?? '?'}${r.audio.heardLatencyMs !== null ? ` · made-to-heard (output timestamp) ${n1(r.audio.heardLatencyMs)} ms` : ''}${r.audio.pictureLagMs !== null ? ` · pictures held back ${n0(r.audio.pictureLagMs)} ms` : ''} |`,
+      `| Latency tuning | ${r.audio.tuning ?? '?'}${heardBits.length ? ` · made-to-heard (output timestamp) ${heardBits.join(', ')}` : ''}${r.audio.pictureLagMs !== null ? ` · pictures held back ${n0(r.audio.pictureLagMs)} ms` : ''} |`,
     );
   if (r.audio.capacity)
     lines.push(
@@ -558,6 +569,9 @@ export class PerfCollector {
           })()
         : null;
     const heard = samples.map((s) => s.heardLatency).filter((h): h is number => h !== null);
+    // (in ms; a reading past IMPLAUSIBLE_MS is a glitch, kept out of the mean and said apart)
+    const heardOk = heard.map((h) => h * 1000).filter((ms) => ms <= IMPLAUSIBLE_MS);
+    const heardOff = heard.map((h) => h * 1000).filter((ms) => ms > IMPLAUSIBLE_MS);
     const caps = capacity.events.filter((e) => win(e.t));
     const cap: ReportData['audio']['capacity'] = caps.length
       ? {
@@ -601,7 +615,8 @@ export class PerfCollector {
         clockRatio,
         tuning: audio.tuning ?? null,
         pictureLagMs: audio.pictureLag == null ? null : audio.pictureLag * 1000,
-        heardLatencyMs: heard.length ? (heard.reduce((a, b) => a + b, 0) / heard.length) * 1000 : null,
+        heardLatencyMs: heardOk.length ? heardOk.reduce((a, b) => a + b, 0) / heardOk.length : null,
+        heardImplausibleMs: heardOff.length ? Math.max(...heardOff) : null,
         capacity: cap,
         capacityProbe: { ...capacity.probe },
         playout,
