@@ -273,8 +273,8 @@ describe('the rest of what a wheel can be', () => {
     expect(lfoDotOf(lfo, () => null, 1, g)).toBeNull();
     expect(lfoPathOf(view(pop, 'major'), g)).toBeNull();
   });
-  it('a meter (Pop’s &bar): its beats numbered, from 64 px; drawn in a space of its own', () => {
-    const bar = view(pop, 'bar', true);
+  it('a meter written as a scan (Pop’s &bar until cells v0.18.0, now a meter from a fragment): its beats numbered, from 64 px; drawn in a space of its own', () => {
+    const bar = view(compilePiece('&bar scan(1 1 1 1) step=&tempo\n&tempo step=100bpm\n&a step=&bar 0 2\n'), 'bar', true);
     expect(beatLabels(bar, true, 128, g).map((l) => l.text)).toEqual(['1', '2', '3', '4']);
     expect(beatLabels(bar, true, 44, g)).toEqual([]);
     expect(beatLabels(bar, false, 128, g)).toEqual([]);
