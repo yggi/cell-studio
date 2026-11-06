@@ -155,8 +155,25 @@ describe('petals', () => {
     // (the product's notes go to the voice, whose sound goes into the mix: #234)
     const inPlace = buildGraph(compilePiece('&m step=1\n&v s=sine loop=C4\n&out loop=SAMPLE_RATE map=sample [&(step=&m 0 2) * &v]'));
     expect(inPlace.nodes.find((n) => n.petalOf)?.petalOf).toBe('cell:out');
-    expect(inPlace.edges.map((e) => e.id).sort()).toEqual(['cell:out->junction:out:0', 'junction:out:0->cell:v', 'cell:v->cell:out', 'cell:out->cell:m~'].sort());
+    expect(inPlace.edges.map((e) => e.id).sort()).toEqual(['cell:out->junction:out:0', 'junction:out:0->cell:v', 'cell:v->cell:out', 'cell:out~>cell:m'].sort());
     expect(g.edges.some((e) => e.source === e.target)).toBe(false);
+  });
+
+  it("a petal's sync wire, folded up into its parent, keeps the engine's kind of id: its port, the ~ where the engine has it (#193)", () => {
+    const meter = '&m meter("4/4") step=60bpm\n&t step=&m:beat 0 7\n';
+    const sync = (text: string) => buildGraph(compilePiece(meter + text)).edges.filter((e) => e.band === 'sync' && e.source === 'cell:out');
+    // a petal voice's delaytime=&m/2: a parameter's own wire, as `cell:v~delaytime>cell:m` from a named voice
+    expect(sync('&out loop=SAMPLE_RATE map=sample [&t * &(s=sine loop=C4 delaytime=&m/2)]').map((e) => e.id)).toEqual(['cell:out~delaytime>cell:m']);
+    // a petal melody's step=&m:8n: a step= wire, as `cell:a~>cell:m` from a named one
+    expect(sync('&v s=sine loop=C4\n&out loop=SAMPLE_RATE map=sample [&(step=&m:8n 0 2) * &v]').map((e) => e.id)).toEqual(['cell:out~>cell:m']);
+    // both from one parent to one meter: drawn as one wire, which each folds into (its alias), not two under one id
+    const both = buildGraph(compilePiece(meter + '&out loop=SAMPLE_RATE map=sample [&(step=&m:8n 0 2) * &(s=sine loop=C4 delaytime=&m/2)]'));
+    const wires = both.edges.filter((e) => e.band === 'sync' && e.source === 'cell:out');
+    expect(wires.map((e) => e.id)).toEqual(['cell:out~>cell:m']);
+    expect(new Set(both.edges.map((e) => e.id)).size).toBe(both.edges.length);
+    const folded = [...both.alias].filter(([id]) => /^cell:λ\d+_\d+~[a-z]*>cell:m$/.test(id));
+    expect(folded.length).toBe(2);
+    for (const [, to] of folded) expect(to).toBe('cell:out~>cell:m');
   });
 });
 
