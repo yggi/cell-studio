@@ -49,13 +49,6 @@
     border-bottom: 1px dashed transparent;
     cursor: text;
   }
-  .name input:hover,
-  .name input:focus {
-    border-bottom-color: var(--text-faint);
-  }
-  .name input:focus {
-    border-bottom-color: var(--accent);
-  }
   .pencil {
     margin-left: 6px;
     font: 400 15px var(--font-ui);
@@ -64,11 +57,8 @@
   .pencil:hover {
     color: var(--accent);
   }
-  .name.bad input {
-    border-bottom-color: var(--danger);
-  }
-  /* (not the sheet's form widgets, CellSheet.svelte, on this one; as before the split, this also wins over the
-     hover, focus and problem underlines above, so none of them shows) */
+  /* (not the sheet's form widgets, CellSheet.svelte, on this one: its own borders unset, only the dashed underline
+     kept; the hover, focus and problem underlines below are as specific, and after it, so they show: #327) */
   :global(.sheet.cell-sheet) .name input {
     min-height: 0;
     padding: 0;
@@ -77,6 +67,16 @@
     border-radius: 0;
     background: none;
     font: inherit;
+  }
+  :global(.sheet.cell-sheet) .name input:hover,
+  :global(.sheet.cell-sheet) .name input:focus {
+    border-bottom-color: var(--text-faint);
+  }
+  :global(.sheet.cell-sheet) .name input:focus {
+    border-bottom-color: var(--accent);
+  }
+  :global(.sheet.cell-sheet) .name.bad input {
+    border-bottom-color: var(--danger);
   }
   .lambda {
     margin: 0;
