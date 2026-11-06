@@ -24,6 +24,7 @@ const base = (over: Partial<ReportData> = {}): ReportData => ({
     clockRatio: 1,
     tuning: null,
     heardLatencyMs: null,
+    heardImplausibleMs: null,
     pictureLagMs: null,
     capacity: null,
     capacityProbe: { inPrototype: false, onContext: false, started: false, updates: 0, error: null },
@@ -93,6 +94,7 @@ describe('latency and the audio thread', () => {
     clockRatio: 1,
     tuning: 'playback, look-ahead default',
     heardLatencyMs: 262.5,
+    heardImplausibleMs: null,
     pictureLagMs: 262.5,
     capacity: null,
     capacityProbe: { inPrototype: false, onContext: false, started: false, updates: 0, error: null },
@@ -103,6 +105,13 @@ describe('latency and the audio thread', () => {
     const md = buildReport(base({ audio: audio({ capacity: { updates: 40, meanLoad: 0.31, peakLoad: 0.55, underrunRatioMean: 0, underrunRatioMax: 0 } }) }));
     expect(md).toMatch(/Latency tuning \| playback, look-ahead default · made-to-heard \(output timestamp\) 262\.5 ms · pictures held back 263 ms/);
     expect(md).toMatch(/Audio thread \(renderCapacity\) \| load mean 31 %, peak 55 % · missed deadlines: mean 0\.0 %, worst second 0\.0 % \(40 s\)/);
+  });
+  it('says an implausible latency as such, and leaves it out of the mean (#185: 66 016 ms on a phone of 50 ms)', () => {
+    const md = buildReport(base({ audio: audio({ outputLatencyMs: 66016, heardLatencyMs: 51.3, heardImplausibleMs: 58266, pictureLagMs: 56 }) }));
+    expect(md).toMatch(/output latency 66016 ms, implausible: ignored/);
+    expect(md).toMatch(/made-to-heard \(output timestamp\) 51\.3 ms, a reading of 58266 ms, implausible: ignored · pictures held back 56 ms/);
+    const none = buildReport(base({ audio: audio({ heardLatencyMs: null, heardImplausibleMs: 58266 }) }));
+    expect(none).toMatch(/made-to-heard \(output timestamp\) a reading of 58266 ms, implausible: ignored/);
   });
   it('says the probe has not run before any audio context exists', () => {
     const md = buildReport(base({ audio: audio({ capacityProbe: { inPrototype: null, onContext: null, started: false, updates: 0, error: null } }) }));
@@ -157,6 +166,7 @@ describe('verdict', () => {
           clockRatio: 0.9,
           tuning: null,
           heardLatencyMs: null,
+          heardImplausibleMs: null,
           pictureLagMs: null,
           capacity: null,
           capacityProbe: { inPrototype: false, onContext: false, started: false, updates: 0, error: null },
@@ -219,6 +229,7 @@ describe('buildReport', () => {
           clockRatio: null,
           tuning: null,
           heardLatencyMs: null,
+          heardImplausibleMs: null,
           pictureLagMs: null,
           capacity: null,
           capacityProbe: { inPrototype: false, onContext: false, started: false, updates: 0, error: null },

@@ -23,6 +23,17 @@ describe('heardLag', () => {
   });
   it('is never negative or absurd', () => {
     expect(heardLag(null, -1, null)).toBe(0);
-    expect(heardLag(null, 5, null)).toBe(MAX_LAG);
+    expect(heardLag(null, MAX_LAG, null)).toBe(MAX_LAG);
+    // (a reading past MAX_LAG is a glitch: dropped, never taken as the lag, nor a browser output latency past it)
+    expect(heardLag(null, 5, null)).toBe(0);
+    expect(heardLag(null, 66, 0.3)).toBe(0.3);
+    expect(heardLag(null, null, 66)).toBe(0);
+  });
+  it('drops a glitch: 0.05, 66, 0.05 s keeps the lag within 10 ms of 0.05 s throughout (#185)', () => {
+    let lag: number | null = null;
+    for (const reading of [0.05, 66, 0.05, 66, 66, 0.05]) {
+      lag = heardLag(lag, reading, 0.048);
+      expect(Math.abs(lag - 0.05)).toBeLessThan(0.01);
+    }
   });
 });
