@@ -49,6 +49,23 @@ describe('one motion per wheel: a played cell its hand, a table nothing plays it
     expect(turningCells(compilePiece(PRESETS.royal.source))).toContain('key');
   });
 
+  it('the redraw key holds what cells reads through, not over= alone: a played motif its relative picks read (#475)', () => {
+    // electroswing's &gypsy is played (&call) and read by &chop's picks (&gypsy[0:3]): shiftsAt turns it, its readers'
+    // labels follow it
+    const r = compilePiece(PRESETS.electroswing.source);
+    const statics = codeShifts(r);
+    expect(MOMENTS.some((t) => shiftsAt(r, statics, t)('gypsy') !== statics('gypsy'))).toBe(true);
+    expect(turningCells(r)).toContain('gypsy');
+  });
+
+  it('a played wheel nothing reads through is drawn with the live shifts as they are: shiftsAt holds it already (#475)', () => {
+    const r = compilePiece(PRESETS.drums.source);
+    const statics = codeShifts(r);
+    const now = shiftsAt(r, statics, 2.25);
+    expect(playedCells(r).has('groove')).toBe(true);
+    expect(drawnShifts(r, statics, now, 'groove')).toBe(now);
+  });
+
   // cells #167: a table both played and read through. Drawn as played (its hand on the chord sounding); its reader
   // sees it turn, as the sound does: &pad lights C D E F, one a beat
   const both = [
