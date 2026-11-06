@@ -33,6 +33,7 @@ Gates that show themselves only by failing, each with its fix in [testing.md](te
 
 ## The language
 
+The cells language is its own repository, [yggi/cells](https://github.com/yggi/cells), which this app depends on at a pinned tag (`@yggi/cells` in package.json, `github:yggi/cells#v0.17.1`). Its cheatsheet, its pages (`docs/language/`), its examples and its decisions about the language are there: start with [its MEMORY.md](https://github.com/yggi/cells/blob/main/docs/MEMORY.md). A change to what the language means is a pull request there; this app takes it by moving the pin.
 The cells language is its own repository, [yggi/cells](https://github.com/yggi/cells), which this app depends on at a pinned tag (`@yggi/cells` in package.json, `github:yggi/cells#v0.16.0`). Its cheatsheet, its pages (`docs/language/`), its examples and its decisions about the language are there: start with [its MEMORY.md](https://github.com/yggi/cells/blob/main/docs/MEMORY.md). A change to what the language means is a pull request there; this app takes it by moving the pin, with `npm install @yggi/cells@github:yggi/cells#vX.Y.Z` (an edit of package.json can leave the lockfile installing the old tag: `tools/pins.test.ts`, #546).
 
 ## Decisions

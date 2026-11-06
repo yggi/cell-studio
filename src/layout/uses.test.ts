@@ -31,14 +31,14 @@ describe('a use line’s group (#480)', () => {
     expect(kit!.folded).toEqual(IDLE);
   });
 
-  it('draws a use nothing reads whole, and one group per use line', () => {
+  it('draws a use nothing reads whole, and one group per from line', () => {
     const r = compilePiece(
-      '&bd, &rim, &sd, &cp, &lt, &hh, &ph, &mt, &oh, &ht, &cr, &rd, &claves from gm_kit\nuse * from "aeolian"\n&bar meter("4/4") step=100bpm\n&tune over=&key step=&bar 0 2 4',
+      '&bd, &rim, &sd, &cp, &lt, &hh, &ph, &mt, &oh, &ht, &cr, &rd, &claves from gm_kit\n&key from diatonic(mode=aeolian) C\n&bar meter("4/4") step=100bpm\n&tune over=&key step=&bar 0 2 4',
     );
     const [kit, mode] = usesOf(r);
     expect(kit!.folded).toEqual([]);
     expect(kit!.nodes).toHaveLength(13);
-    expect(mode).toMatchObject({ id: 'aeolian', line: 2, nodes: ['cell:key'], folded: [] });
+    expect(mode).toMatchObject({ id: 'diatonic', line: 2, nodes: ['cell:key', 'cell:key_tonic'], folded: ['key_mode'] });
   });
 
   it('names a group by its line, which no tags= tag can be', () => {

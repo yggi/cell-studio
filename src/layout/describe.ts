@@ -10,6 +10,7 @@ import { modeName, mod, noteName } from '@yggi/cells/theory/modes';
 import { isSelector, kindOf } from './show';
 import { lfoValues } from './cellview';
 import { levelsText } from './meters';
+import { beatCount } from '@yggi/cells/engine/meter';
 
 /** A piece of the summary: words, or a cell to link to. */
 export type Bit = string | { readonly ref: string };
@@ -137,9 +138,9 @@ export function summary(result: CompileResult, name: string): Bit[] {
       return [`A grid of ${c.cycle} equal steps to ${period === 2 ? 'the octave' : `the ratio ${+period.toFixed(3)}`}`, ...tail('used by', ', read by '), '.'];
     }
     case 'meter': {
-      // (written as levels, meter(…): its beats are its * and +, its steps finer)
+      // (written as levels, meter(…): its beats are cells' (`beatCount`: its groups, 4/4 four though cells v0.17.0 halves its bar), its steps finer)
       const leveled = c.meter?.written === 'meter';
-      const beats = leveled ? c.units.filter((u) => u.atom.kind === 'note' && u.atom.value <= 1).length : (c.scan?.steps.length ?? c.units.length);
+      const beats = leveled && c.meter ? beatCount(c.meter) : (c.scan?.steps.length ?? c.units.length);
       const even = !c.scan || new Set(c.scan.steps).size === 1;
       const finer = leveled && c.beat > 1 ? `, ${+c.beat.toFixed(2)} steps a beat` : '';
       // (its feel by level, cells v0.4.0: swing= and legato= on the meter)

@@ -57,8 +57,8 @@ describe('braidwheel: what the sheet shows of a braid', () => {
   it('Acid: a braid made by a function lists the entries it stands for', () => {
     const { result, shifts, at } = piece('acid');
     expect(at('minor')).toEqual({ tokens: ['0', '2', '3', '5', '7', '8', '10'], kind: 'function' });
-    // (its bar is `meter("4/4")`, used from the library since cells v0.12: the entries it stands for are its levels, the bar's first and three beats)
-    expect(at('bar')).toEqual({ tokens: ['0', '1', '1', '1'], kind: 'function' });
+    // (its bar is `meter("4/4")`, used from the library since cells v0.12: the entries it stands for are its levels, the bar's first, its half (since cells v0.17.0, a bar of four groups is halved) and the two beats between)
+    expect(at('bar')).toEqual({ tokens: ['0', '2', '1', '2'], kind: 'function' });
     expect(lap(result, 'minor')).toBe(12); // a scan's lap: its intervals' sum
     // turned: read from the shifted entry on
     const turned = listed(result, 'minor', (n) => (n === 'minor' ? 2 : shifts(n)), ['scan(2 1 2 2 1 2 2)']);
