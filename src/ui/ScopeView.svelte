@@ -11,7 +11,8 @@
   import { clocking } from '@yggi/cells/engine/clocking';
   import { refsOf } from '@yggi/cells/engine/readers';
   import { notesAt, valueAt, valuesAt } from '@yggi/cells/engine/values';
-  import { adsrOf, DEFAULT_FREQ } from '@yggi/cells/engine/program';
+  import { DEFAULT_FREQ } from '@yggi/cells/engine/program';
+  import { heldLevel } from '../layout/envelope';
   import { resolvePitch, semitones } from '@yggi/cells/engine/helix';
   import { voiceBase } from '../layout/show';
   import { noteColour, channelColour, scopeBand } from './theme';
@@ -123,21 +124,12 @@
     // envelope's level (attack, decay to sustain)
     const base = voiceBase(ctx.program, ch);
     const voice = ctx.program.outputs.find((o) => o.cell === ch && !o.kit)?.voice;
-    const envName = voice ? ctx.program.cells.get(voice)?.params.env : undefined;
-    const envCell = typeof envName === 'string' ? ctx.program.cells.get(envName) : undefined;
-    const env = envCell ? adsrOf(envCell) : null;
-    const shape = (t: number) => {
-      if (!env) return 1;
-      if (t < env.attack) return env.attack > 0 ? t / env.attack : 1;
-      if (t < env.attack + env.decay) return 1 - (1 - env.sustain) * ((t - env.attack) / Math.max(1e-6, env.decay));
-      return env.sustain;
-    };
     for (const n of notesAt(ctx.program, ctx.shifts, ch, now)) {
       const v = n.value;
       const r = resolvePitch(ctx.program, ch, Math.floor(v), 0, ctx.shifts);
       const semis = semitones(ctx.program, r.root, r.position) + (v - Math.floor(v));
       const k = bandOfFreq(L, base * Math.pow(2, semis / 12));
-      lv[k] = Math.max(lv[k], shape(n.since));
+      lv[k] = Math.max(lv[k], heldLevel(ctx.program, voice, n.since));
     }
     return { levels: lv, labels, hues };
   }

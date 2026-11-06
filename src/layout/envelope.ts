@@ -20,7 +20,7 @@ export function envelopeAxis(e: Adsr): { attack: number; decay: number; hold: nu
   return { attack: e.attack, decay: e.decay, hold, release: e.release, total: e.attack + e.decay + hold + e.release || 1 };
 }
 
-/** The level of a held note `t` seconds after its onset (0 … 1). */
+/** The level of a held note `t` seconds after its onset (0 … 1): its attack, then its decay to the sustain. */
 const held = (e: Adsr, t: number) =>
   t < e.attack ? t / Math.max(1e-9, e.attack) : t < e.attack + e.decay ? 1 - ((1 - e.sustain) * (t - e.attack)) / Math.max(1e-9, e.decay) : e.sustain;
 
@@ -40,6 +40,12 @@ export function envelopeAt(e: Adsr, since: number, length: number): { t: number;
   if (r >= e.release) return null;
   const from = held(e, length);
   return { t: e.attack + e.decay + a.hold + r, level: from * (1 - r / Math.max(1e-9, e.release)) };
+}
+
+/** The level a note of this voice holds `since` seconds after its onset (0 … 1): its envelope's, else a gate's (1). */
+export function heldLevel(result: CompileResult, voice: string | undefined, since: number): number {
+  const e = voice ? envelopeOf(result, voice) : null;
+  return e ? held(e, since) : 1;
 }
 
 /** A voice's envelope as written (env=&…, a map=adsr cell); null: none, or not an ADSR. */
