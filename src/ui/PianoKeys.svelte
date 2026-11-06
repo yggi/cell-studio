@@ -10,6 +10,7 @@
   import { keyboardLayout, keyName, velocityAt } from '@yggi/webmidi/core';
   import { Fingers } from './fingers';
   import { palette } from './palette';
+  import { roveTo } from './roving';
 
   let {
     low,
@@ -40,6 +41,20 @@
   const fingers = new Fingers({ press: (n, v) => onpress(n, v), release: (n) => onrelease(n) });
   onDestroy(() => fingers.releaseAll());
 
+  // (the keyboard is one tab stop, the arrows move along it, #338: the key last focused, else middle C or the nearest)
+  let stop = $state<number | null>(null);
+  const notes = $derived(layout.map((k) => k.note));
+  const tabStop = $derived(stop !== null && notes.includes(stop) ? stop : notes.reduce((a, n) => (Math.abs(n - 60) < Math.abs(a - 60) ? n : a), notes[0] ?? 60));
+  let board: HTMLDivElement | undefined = $state();
+  function rove(e: KeyboardEvent, note: number) {
+    const to = roveTo(notes, note, e.key);
+    if (to === null) return false;
+    e.preventDefault();
+    stop = to;
+    board?.querySelector<HTMLElement>(`[data-note="${to}"]`)?.focus();
+    return true;
+  }
+
   function down(e: PointerEvent, note: number) {
     const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
     fingers.down(e, note, velocity === 'fixed' ? fixed : velocityAt(e.clientY - r.top, r.height));
@@ -49,7 +64,7 @@
 <!-- (a pointer whose key went from under it, an octave shifted or the tab changed, lifts where the window hears it) -->
 <svelte:window onblur={() => fingers.releaseAll()} onpointerup={(e) => fingers.up(e)} onpointercancel={(e) => fingers.up(e)} />
 
-<div class="keyboard" role="group" aria-label="Keyboard, {keyName(low)} to {keyName(high)}">
+<div class="keyboard" role="group" aria-label="Keyboard, {keyName(low)} to {keyName(high)}" bind:this={board}>
   {#each layout as key (key.note)}
     <button
       type="button"
@@ -59,13 +74,16 @@
       style:left="{key.left}%"
       style:width="{key.width}%"
       style:--swatch={swatch(key.note)}
+      data-note={key.note}
+      tabindex={key.note === tabStop ? 0 : -1}
       aria-label={keyName(key.note)}
       aria-pressed={held.has(key.note)}
       onpointerdown={(e) => down(e, key.note)}
       onpointerup={(e) => fingers.up(e)}
       onpointercancel={(e) => fingers.up(e)}
       onlostpointercapture={(e) => fingers.up(e)}
-      onkeydown={(e) => fingers.keyDown(e, key.note, fixed)}
+      onkeydown={(e) => rove(e, key.note) || fingers.keyDown(e, key.note, fixed)}
+      onfocus={() => (stop = key.note)}
       onkeyup={(e) => (e.key === 'Enter' || e.key === ' ') && fingers.keyUp(key.note)}
       onblur={() => fingers.keyUp(key.note)}
       oncontextmenu={(e) => e.preventDefault()}

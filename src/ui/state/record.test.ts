@@ -115,6 +115,22 @@ describe('the recorder', () => {
     stop();
   });
 
+  it("drops a take whose braid an edit moved to another cell: it never lands in another cell's braid (#338)", () => {
+    const { piece, keys, recorder, at, stop } = made();
+    recorder.record();
+    at(0);
+    keys.press(60, 100, 0, 100);
+    keys.release(60, 0, 300);
+    // (mid-take, a free() written above &riff: the first free() is now &pre's)
+    piece.code = piece.code.replace('&riff', '&pre over=&key step=4 free(1 1 1 1)\n&riff');
+    at(0.9);
+    expect(recorder.state).toBe('off');
+    expect(piece.held.size).toBe(0);
+    expect(piece.playedCode).toContain('&pre over=&key step=4 free(1 1 1 1)');
+    expect(piece.playedCode).toContain('&riff over=&key step=4 free(0 2 4 ~)');
+    stop();
+  });
+
   it('a key off the table, recorded as it plays: allow an accidental, snap the nearest entry, ignore nothing', () => {
     for (const [mode, want] of [
       ['allow', '0# ~ ~ ~'],
