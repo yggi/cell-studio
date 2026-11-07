@@ -75,7 +75,7 @@ describe('the time view: the notes and the cells', () => {
     const rows = voiceRows(p.heardNotes, (v) => (v === 'lead' ? 0 : 1));
     expect(rows.map((r) => r.voice)).toEqual(['lead', 'hh', 'keys', 'bd', 'bass', 'sd']);
     expect(rows.every((r) => r.spans.every(([a, b], i) => b > a && (i === 0 || r.spans[i - 1]![1] < a)))).toBe(true);
-    // (Pop's &bar is a meter from a fragment since cells v0.18.0, `&bar from meter_4_4 &tempo`: its node comes later in
+    // (Pop's &bar is a meter from a fragment since cells v0.18.0, `&bar from meter &tempo`: its node comes later in
     // the graph, so its span does too — a beat to a bar, as when it was written, #583)
     expect(p.spans.slice(0, 3).map((s) => [s.name, round(s.step), round(s.turn)])).toEqual([
       ['tempo', 0.6, 7.2],

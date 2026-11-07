@@ -17,7 +17,8 @@ describe('a module is one wheel (decision 069)', () => {
     expect(graph.nodes.some((n) => n.id === 'junction:vca:0')).toBe(false);
     // (the piece's own cells, and every module's head, are drawn)
     for (const n of ['vcf', 'vca', 'saw', 'sub', 'sweep', 'jitter', 'contour', 'drift']) expect(node(n), n).toBeDefined();
-    expect(graph.nodes).toHaveLength(23);
+    // (and the meter template's grouping, `bar_grouping`, since cells v0.19.0's one `meter` fragment)
+    expect(graph.nodes).toHaveLength(24);
   });
 
   it('its head carries its module and its jacks, cells’ jacksOf', () => {
@@ -63,7 +64,7 @@ describe('a module is one wheel (decision 069)', () => {
     expect(ids).not.toContain('lowpass');
     expect(ids).not.toContain('amp');
     expect(ids).toContain('envelopes');
-    expect(ids).toContain('meter_4_4');
+    expect(ids).toContain('meter');
   });
 
   it('is drawn as a module wheel (an instrument) or its own wheel with the rim, its wires at their jack handles', () => {

@@ -102,8 +102,10 @@ export function listed(result: CompileResult, name: string, shifts: Shifts, brai
     const written = braid[0].slice('free('.length, -1).trim().replace(/\s+/g, ' ');
     return { tokens: splitWords(free.braid), kind: 'list', held: free.braid !== written };
   }
-  if (braid.length === 0) return { tokens: Array.from({ length: cell?.cycle ?? 12 }, (_, i) => String(i)), kind: 'empty' };
-  if (braid.length === 1 && /^(scan|sin|meter)\(/.test(braid[0]) && cell) {
+  // (a copy of a meter is a meter, cells v0.19.0's `&bar base=&grouping`: it stands for the meter's levels, as `meter(…)` does)
+  const ofMeter = braid.length === 0 && cell?.base !== undefined && cell.meter?.written === 'meter';
+  if (braid.length === 0 && !ofMeter) return { tokens: Array.from({ length: cell?.cycle ?? 12 }, (_, i) => String(i)), kind: 'empty' };
+  if ((ofMeter || (braid.length === 1 && /^(scan|sin|meter)\(/.test(braid[0]))) && cell) {
     const vals = shiftedUnits(result, name, shifts(name)).map((u) => (u.atom.kind === 'note' ? String(u.atom.value) : '~'));
     return { tokens: vals, kind: 'function' };
   }

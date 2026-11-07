@@ -23,7 +23,7 @@ Introduces a voice and the sound card; steps: numbers, rests, holds, repeats, a 
 
 ### Tier 2 · Time and voice
 
-Introduces a clock: a bar (&bar from meter_4_4 120bpm, the library's, or a scan of beats), its taps (step=4n, step=pulse, step=1m), step=&x, /2 and *2, a tempo marking; a voice: a source and an envelope; filters and effects, a vibrato.
+Introduces a clock: a bar (&bar from meter 120bpm, the library's), its taps (step=4n, step=pulse, step=1m), step=&x, /2 and *2, a tempo marking; a voice: a source and an envelope; filters and effects, a vibrato.
 
 | piece | file | about | postgain | length |
 |---|---|---|---|---|
@@ -33,7 +33,7 @@ Introduces a clock: a bar (&bar from meter_4_4 120bpm, the library's, or a scan 
 
 ### Tier 3 · Melody and harmony
 
-Introduces tables: over=, scale(), shift=; show= and size=; motifs: splicing, reuse, degrees (^n); chords and a progression: accidentals, a sum of pitches.
+Introduces tables: over=, scale() and a scan of steps, shift=; show= and size=; motifs: splicing, reuse, degrees (^n); chords and a progression: accidentals, a sum of pitches.
 
 | piece | file | about | postgain | length |
 |---|---|---|---|---|
@@ -50,7 +50,7 @@ Introduces meter and feel: a bent bar, gates; drums: a groove of voices, ratchet
 | Meter and rhythm: the tresillo | [`rhythm`](https://github.com/yggi/cells/blob/main/examples/rhythm.md) | The tresillo over a meter of its own, with hats, triplets and chords on the beat. | 2.86 | 0:07 loop |
 | Drums: a groove of voices | [`drums`](https://github.com/yggi/cells/blob/main/examples/drums.md) | A drum part written with the drums' names: a beat, a fill with ratchets and a subsequence, a Euclidean rhythm and a kit. | 3.12 | 0:08 loop |
 | Swing: the long and the short | [`swing`](https://github.com/yggi/cells/blob/main/examples/swing.md) | Eighths played long and short: a swing clock, and the same feel from swing= on the bar. | 3.38 | 0:04 loop |
-| Alla breve and sixteenths | [`breve`](https://github.com/yggi/cells/blob/main/examples/breve.md) | beat=2 counts a 4/4 bar in halves, and pulse=16n gives a scan's entries a sixteenth each. | 6.02 | 0:02 loop |
+| Alla breve and sixteenths | [`breve`](https://github.com/yggi/cells/blob/main/examples/breve.md) | Alla breve, 2/2 a step a quarter, counts a bar in halves, and pulse=16n gives a scan's entries a sixteenth each. | 6.02 | 0:02 loop |
 
 ### Tier 5 · Development
 
@@ -73,7 +73,7 @@ Introduces stereo: pan=; waveforms from braids: audio rates, sin(), ramps, table
 |---|---|---|---|---|
 | Stereo: Mary Had a Little Lamb | [`stereo`](https://github.com/yggi/cells/blob/main/examples/stereo.md) | Mary Had a Little Lamb across two channels: the bell on the left, the cello on the right. | 1.57 | 0:05 loop |
 | Sound: voices, waveforms, envelopes | [`waveforms`](https://github.com/yggi/cells/blob/main/examples/waveforms.md) | Voices made of braids: square, triangle, saw and sine, with envelopes and a vibrato. | 1.06 | 0:10 loop |
-| Moving parameters: a filter that opens | [`moving`](https://github.com/yggi/cells/blob/main/examples/moving.md) | A bass line whose filter opens on every note and swells over four bars, with accents and a fade. | 5.55 | 0:08 loop |
+| Moving parameters: a filter that opens | [`moving`](https://github.com/yggi/cells/blob/main/examples/moving.md) | A bass line whose filter opens on every note and swells over four bars, with accents and a fade. | 9.12 | 0:08 loop |
 | Tuning: three grids | [`grids`](https://github.com/yggi/cells/blob/main/examples/grids.md) | One tune on three grids in turn: nineteen equal steps to the octave, a pure fifth cut in seven, and pure ratios. | 6.31 | 0:16 loop |
 | Metronome: any meter | [`metronome`](https://github.com/yggi/cells/blob/main/examples/metronome.md) | A bar and the clicks it plays, in a meter you choose. | 11.3 | 0:02 loop |
 
@@ -147,8 +147,8 @@ Introduces a gate: a product with a name, and a role, the gates that play it; a 
 |---|---|---|---|---|---|
 | Pop song: four chords, arranged | [`pop`](https://github.com/yggi/cells/blob/main/examples/pop.md) | electronic, diatonic, harmony, arrangement | I – V – vi – IV, arranged by a selector: intro, verses, choruses, a break, an outro, an end. | 2.31 | 1:36 |
 | IDM: drill, after Aphex Twin | [`idm`](https://github.com/yggi/cells/blob/main/examples/idm.md) | electronic, Aphex Twin, chromatic, rhythm | A breakbeat backwards every other bar, with ratchets and hats. | 1.66 | 0:06 loop |
-| Acid-Cell: everybody needs a 303 | [`acid`](https://github.com/yggi/cells/blob/main/examples/acid.md) | electronic, chromatic, sound | Acid-Cell — everybody needs a 303: a saw through a resonant filter that opens on every note. | 1.76 | 0:15 loop |
-| Patchbay: a modular patch | [`patchbay`](https://github.com/yggi/cells/blob/main/examples/patchbay.md) | electronic, sound | A Berlin-school patch on the modules: two oscillators into one resonant low-pass, its cutoff patched from a contour and a slow LFO, its resonance from a sample and hold, then an amp and an echo. | 2.36 | 0:17 loop |
+| Acid-Cell: everybody needs a 303 | [`acid`](https://github.com/yggi/cells/blob/main/examples/acid.md) | electronic, chromatic, sound | Acid-Cell — everybody needs a 303: a saw through a resonant filter that opens on every note. | 2.83 | 0:15 loop |
+| Patchbay: a modular patch | [`patchbay`](https://github.com/yggi/cells/blob/main/examples/patchbay.md) | electronic, sound | A Berlin-school patch on the modules: two oscillators into one resonant low-pass, its cutoff patched from a contour and a slow LFO, its resonance from a sample and hold, then an amp and an echo. | 2.85 | 0:17 loop |
 | Zelluläre Aktivität | [`zell`](https://github.com/yggi/cells/blob/main/examples/zell.md) | electronic, Kraftwerk, diatonic, arrangement | it builds, layer by layer, and ends. | 2.41 | 2:17 |
 | Cellscape | [`cellscape`](https://github.com/yggi/cells/blob/main/examples/cellscape.md) | electronic, ambient, modal, canon, arrangement, stereo | A cycle of twelve scenes, each a fifth from the last, and home. | 4.57 | 5:20 loop |
 | Cell in Focus | [`focus`](https://github.com/yggi/cells/blob/main/examples/focus.md) | electronic, ambient, Aphex Twin, diatonic, stereo | Slow, serene and looping: four soft chords with bells drifting above; nothing hurries. | 3.35 | 3:06 loop |
@@ -168,7 +168,7 @@ Introduces a gate: a product with a name, and a role, the gates that play it; a 
 | Study after Studie II: 25 steps to 5:1 | [`studie`](https://github.com/yggi/cells/blob/main/examples/studie.md) | experimental, electronic, Stockhausen, microtonal, tuning, stereo | Sine mixtures on Stockhausen's scale of 25 equal steps to 5:1, with durations from the same series. | 11.3 | 0:13 loop |
 | Just intonation: pure and tempered | [`just`](https://github.com/yggi/cells/blob/main/examples/just.md) | experimental, microtonal, tuning, harmony, stereo | Just intonation: the same four chords twice, pure on the left and tempered on the right. | 2 | 0:20 loop |
 | Cellscape II feat. Stockhausen | [`cellscape2`](https://github.com/yggi/cells/blob/main/examples/cellscape2.md) | experimental, electronic, ambient, Stockhausen, microtonal, stereo | No octaves, no beat, no instruments: sines and noise on Stockhausen's 25 steps to 5:1. | 5.62 | 1:40 loop |
-| Baustelle | [`baustelle`](https://github.com/yggi/cells/blob/main/examples/baustelle.md) | experimental, electronic, industrial, Neubauten, microtonal, arrangement | An original in the manner of Einstürzende Neubauten: struck metal and a scream; it builds, breaks, comes back harder, and collapses. | .785 | 1:46 |
+| Baustelle | [`baustelle`](https://github.com/yggi/cells/blob/main/examples/baustelle.md) | experimental, electronic, industrial, Neubauten, microtonal, arrangement | An original in the manner of Einstürzende Neubauten: struck metal and a scream; it builds, breaks, comes back harder, and collapses. | .975 | 1:46 |
 | Ghost-Cells | [`ghosts`](https://github.com/yggi/cells/blob/main/examples/ghosts.md) | experimental, electronic, ambient, industrial, Nine Inch Nails, modal, stereo | Dark and looping, in the manner of an instrumental Nine Inch Nails record. | .891 | 5:54 loop |
 | Cell Phase | [`phase`](https://github.com/yggi/cells/blob/main/examples/phase.md) | experimental, minimal, Steve Reich, modal, rhythm, stereo | After Steve Reich's Piano Phase, an original: two pianos, one pattern of twelve, slowly slipping apart. | 3.58 | 1:40 loop |
 | Sound on Tape | [`soundtape`](https://github.com/yggi/cells/blob/main/examples/soundtape.md) | experimental, electronic, ambient, sound, tape | Sound, on a tape loop: a plucked tune and a soft pad go to the speakers and onto a wowing reel of tape. | 12.6 | 0:13 loop |

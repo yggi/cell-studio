@@ -367,13 +367,16 @@ function viewOf(result: CompileResult, name: string, shifts: Shifts, isMeter: bo
   };
 }
 
-/** A `meter(…)`'s beats, each its span in turns of a braid of `total` steps (one a pulse): undefined for a scan or no meter. */
+/**
+ * A `meter(…)`'s beats, each its span in turns of a braid of `total` steps (one a pulse): undefined for a scan or no meter.
+ * A meter's steps are even (cells v0.19.0, #546: no `positions`), so a beat's span is its steps over the bar's.
+ */
 function meterBeats(meter: Meter | null | undefined, total: number): { t0: number; t1: number }[] | undefined {
-  if (!meter || meter.written !== 'meter' || meter.positions.length !== total) return undefined;
+  if (!meter || meter.written !== 'meter' || meter.levels.length !== total) return undefined;
   const out: { t0: number; t1: number }[] = [];
   let step = 0;
   for (const b of meter.beats) {
-    out.push({ t0: meter.positions[step]! / meter.lap, t1: (step + b < total ? meter.positions[step + b]! : meter.lap) / meter.lap });
+    out.push({ t0: step / total, t1: Math.min(step + b, total) / total });
     step += b;
   }
   return step === total ? out : undefined;
