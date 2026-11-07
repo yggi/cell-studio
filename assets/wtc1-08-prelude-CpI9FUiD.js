@@ -1,0 +1,1 @@
+var e=new URL(`wtc1-08-prelude-CK0UKE2Z.mid`,import.meta.url).href;export{e as default};

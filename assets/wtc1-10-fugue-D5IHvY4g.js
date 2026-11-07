@@ -1,0 +1,1 @@
+var e=new URL(`wtc1-10-fugue-C4y-LuAF.mid`,import.meta.url).href;export{e as default};

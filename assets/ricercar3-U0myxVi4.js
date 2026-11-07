@@ -1,0 +1,1 @@
+var e=new URL(`ricercar3-DK-I5_sJ.mid`,import.meta.url).href;export{e as default};
