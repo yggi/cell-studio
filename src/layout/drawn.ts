@@ -16,23 +16,38 @@ import { withJacks } from './modules';
 /**
  * A program's graph as drawn. `bulbs: false`: every cell its own node, splices used once too (the layout's tests of
  * parts beside their players). `uses: false`: what a `use` line gives drawn as the piece's own (the gallery's options).
+ * The graph as the app draws it (no options) is built once per compile: the piece, its wheels' bulbs (`bulbHosts`) and
+ * its uses (`usesOf`) read the same one (#229).
  */
 export function buildGraph(result: CompileResult, opts: { readonly bulbs?: boolean; readonly uses?: boolean } = {}): GraphModel {
+  const asApp = (opts.bulbs ?? true) && opts.uses !== false;
+  const hit = asApp ? graphMemo.get(result) : undefined;
+  if (hit) return hit.model;
   // (a module is one wheel, its private cells folded in, and a voice's and an instrument's jacks on their own: decision
   // 069; a use of any other fragment, a cluster)
-  const drawn = withJacks(result, petals(result, writtenGraph(result), opts.bulbs ?? true));
-  if (!result.uses?.length || opts.uses === false) return drawn;
-  const { model, groups } = withUses(result, drawn);
-  if (opts.bulbs ?? true) usesMemo.set(result, groups);
+  const drawn = withJacks(result, petals(result, writtenOf(result), opts.bulbs ?? true));
+  const { model, groups } = !result.uses?.length || opts.uses === false ? { model: drawn, groups: [] } : withUses(result, drawn);
+  if (asApp) graphMemo.set(result, { model, groups });
   return model;
 }
 
-const usesMemo = new WeakMap<CompileResult, readonly UseGroup[]>();
+const writtenMemo = new WeakMap<CompileResult, WrittenGraph>();
+/** cells' written graph of a program (what reads what), once per compile: every build of the drawing starts from it. */
+export function writtenOf(result: CompileResult): WrittenGraph {
+  let hit = writtenMemo.get(result);
+  if (!hit) writtenMemo.set(result, (hit = writtenGraph(result)));
+  return hit;
+}
+
+const graphMemo = new WeakMap<CompileResult, { readonly model: GraphModel; readonly groups: readonly UseGroup[] }>();
+/** The graph as the app draws it, with what each `use` line gives it: built once per compile. */
+const drawnAsApp = (result: CompileResult) => {
+  buildGraph(result);
+  return graphMemo.get(result)!;
+};
 /** What each `use` line gives the graph as drawn: its group (its nodes, and the cells folded into its name). */
 export function usesOf(result: CompileResult): readonly UseGroup[] {
-  if (!result.uses?.length) return [];
-  if (!usesMemo.has(result)) buildGraph(result);
-  return usesMemo.get(result) ?? [];
+  return result.uses?.length ? drawnAsApp(result).groups : [];
 }
 
 /**
@@ -176,10 +191,7 @@ function petals(result: CompileResult, written: WrittenGraph, withBulbs: boolean
   return { nodes: reached, edges: anchored, nets: netsOf(reached, anchored), alias, bulbs: byName };
 }
 
-const bulbMemo = new WeakMap<CompileResult, ReadonlyMap<string, string>>();
-/** The cells drawn as bulbs, by name, each to the cell that splices it (GraphModel.bulbs), for drawing a wheel. */
+/** The cells drawn as bulbs, by name, each to the cell that splices it (GraphModel.bulbs), for drawing a wheel: the piece's graph's. */
 export function bulbHosts(result: CompileResult): ReadonlyMap<string, string> {
-  let hit = bulbMemo.get(result);
-  if (!hit) bulbMemo.set(result, (hit = buildGraph(result).bulbs));
-  return hit;
+  return drawnAsApp(result).model.bulbs;
 }
