@@ -20,10 +20,51 @@ interface Rendered {
   readonly clipped: number;
 }
 
-/** `from`: begin there rather than at the start (the notes from then on, moved to the buffer's start: what rang into it is left out). */
+const RATE = 44100;
+
+/**
+ * How many samples late the master's limiter makes everything (`voices.ts`: a DynamicsCompressor, whose look-ahead
+ * delays what goes through it, 396 samples at 44.1 kHz in Chromium, other browsers their own): an impulse through one
+ * set as the limiter is, where it comes out loudest. Measured once a rate.
+ */
+const lags = new Map<number, Promise<number>>();
+export function limiterLag(rate: number): Promise<number> {
+  let lag = lags.get(rate);
+  if (!lag) {
+    lag = (async () => {
+      const ctx = new OfflineAudioContext(1, 4096, rate);
+      const impulse = ctx.createBuffer(1, 4096, rate);
+      impulse.getChannelData(0)[0] = 0.01;
+      const src = ctx.createBufferSource();
+      src.buffer = impulse;
+      // (Tone.Limiter(-1)'s settings: a compressor at −1 dB, ratio 20, attack 3 ms, release 10 ms, no knee)
+      const limiter = new DynamicsCompressorNode(ctx, { threshold: -1, ratio: 20, attack: 0.003, release: 0.01, knee: 0 });
+      src.connect(limiter).connect(ctx.destination);
+      src.start(0);
+      return loudestAt((await ctx.startRendering()).getChannelData(0));
+    })();
+    lags.set(rate, lag);
+  }
+  return lag;
+}
+
+/** Where a signal is loudest: its first sample of the largest magnitude. */
+export function loudestAt(xs: ArrayLike<number>): number {
+  let at = 0;
+  for (let i = 1; i < xs.length; i++) if (Math.abs(xs[i]!) > Math.abs(xs[at]!)) at = i;
+  return at;
+}
+
+/**
+ * `from`: begin there rather than at the start (the notes from then on, moved to the buffer's start: what rang into it is
+ * left out). The limiter's lag rendered on and then cut from the start, so the buffer starts at the piece's time 0, as
+ * cells' renderer's does (#590: 9 ms late, the start of a render was up to 2 dB quieter than cells' and a last release
+ * up to 4 dB louder); played live, the lag stays (9 ms, under what is heard).
+ */
 async function renderOffline(plan: Plan, seconds: number, tail = 2, from = 0): Promise<Rendered> {
   (globalThis as { TONE_SILENCE_LOGGING?: boolean }).TONE_SILENCE_LOGGING = true;
   const Tone = await import('tone');
+  const lag = await limiterLag(RATE);
   const out = await Tone.Offline(
     async () => {
       const voices = createVoices(Tone);
@@ -43,11 +84,11 @@ async function renderOffline(plan: Plan, seconds: number, tail = 2, from = 0): P
         for (const t of tapeSpeeds(plan, 0, seconds)) voices.tapeSpeed(t.tape, t.points);
       }
     },
-    seconds + tail,
+    seconds + tail + lag / RATE,
     2,
-    44100,
+    RATE,
   );
-  const buffer = out.get() as AudioBuffer;
+  const buffer = dropStart(out.get() as AudioBuffer, lag, Math.round((seconds + tail) * RATE));
   return { buffer, ...loudness(buffer) };
 }
 
@@ -87,6 +128,13 @@ export function wav(buffer: AudioBuffer): Blob {
       at += 2;
     }
   return new Blob([data.buffer], { type: 'audio/wav' });
+}
+
+/** A buffer from `lag` samples on, `length` long (what lies past its end silence). */
+function dropStart(buffer: AudioBuffer, lag: number, length: number): AudioBuffer {
+  const out = new AudioBuffer({ length, numberOfChannels: buffer.numberOfChannels, sampleRate: buffer.sampleRate });
+  for (let c = 0; c < buffer.numberOfChannels; c++) out.copyToChannel(buffer.getChannelData(c).subarray(lag, lag + length), c);
+  return out;
 }
 
 /** How much of a piece to render: all of it if it ends (10 minutes at most), else one cycle (a minute at most). */
