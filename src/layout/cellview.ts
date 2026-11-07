@@ -12,9 +12,9 @@ import { playedCells, selects } from '@yggi/cells/engine/clocking';
 import { lapOf } from '@yggi/cells/engine/readers';
 import { flatten, tapped } from '@yggi/cells/engine/flatten';
 import { resolveIn } from '@yggi/cells/engine/helix';
-import { isTurntable, writtenGraph, type WrittenGraph } from '@yggi/cells/engine/graph';
+import { isTurntable } from '@yggi/cells/engine/graph';
 import { cellId } from '@yggi/cells/engine/ids';
-import { bulbHosts } from './drawn';
+import { bulbHosts, writtenOf } from './drawn';
 import { gateOf } from './gate';
 import { bulbsOf, fanOf, type Bulb } from './track';
 import { footOf } from '@yggi/cells/engine/subseq';
@@ -170,10 +170,6 @@ export function blank(result: CompileResult, name: string): boolean {
   // (a groove's own sound, into a mix, is not its value read)
   return writtenOf(result).edges.every((e) => e.from !== id || e.to === id || e.band === 'sync' || ok.has(e.to) || (!!c.over && e.band === 'audio'));
 }
-
-// (the written graph of a program, once: what reads what)
-const written = new WeakMap<CompileResult, WrittenGraph>();
-const writtenOf = (result: CompileResult) => written.get(result) ?? written.set(result, writtenGraph(result)).get(result)!;
 
 /** What a cell's wheel draws; null for a name the program doesn't have (one piece's name asked of another's program). */
 export function cellView(result: CompileResult, name: string, shifts: Shifts, isMeter: boolean): CellView | null {
