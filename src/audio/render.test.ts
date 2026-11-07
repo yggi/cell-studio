@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { compilePiece } from '../compile';
 import { createHost, planOf } from '@yggi/cells/engine/host';
 import { windowAt } from '@yggi/cells/engine/schedule';
-import { renderLength } from './render';
+import { loudestAt, renderLength } from './render';
 import { LocalEngine } from './engine';
 
 describe('a drone (decision 028) offline and in the engines', () => {
@@ -21,5 +21,12 @@ describe('a drone (decision 028) offline and in the engines', () => {
     const host = createHost();
     host({ type: 'load', code: src });
     expect(host({ type: 'window', id: 1, from: 3, length: 0.25, begins: 3 })).toMatchObject({ window: windowAt(p, 3, 0.25, { begins: 3 }) });
+  });
+});
+
+describe('a render starts at the piece’s time 0 (#590)', () => {
+  it('the limiter’s lag is where an impulse through it comes out loudest: its first sample of the largest magnitude', () => {
+    expect(loudestAt([0, 0.001, -0.004, 0.003, 0.004])).toBe(2);
+    expect(loudestAt([0.5])).toBe(0);
   });
 });
