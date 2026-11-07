@@ -7,7 +7,7 @@ export type Params = Readonly<Record<string, number | string>>;
 /** Schedule a parameter's track for one note: points held or gliding, or an envelope released after the note. */
 export function schedule(param: Movable, key: string, track: ParamTrack, time: number, dur: number) {
   // filter frequencies glide as the ear hears them (exponentially); levels and resonance in a line
-  const exp = key === 'lpf' || key === 'hpf';
+  const exp = key === 'lpf' || key === 'hpf' || key === 'bpf';
   const ramp = (v: number, t: number) => (exp && v > 0 ? param.exponentialRampToValueAtTime(Math.max(1, v), t) : param.linearRampToValueAtTime(v, t));
   param.cancelScheduledValues(time);
   if (track.kind === 'points') {

@@ -16,7 +16,7 @@
 //      render of a piece with a quiet start averages far under the −24 dB of the whole piece, so there is no floor.
 //      A piece over it for a gap in Cell studio's own sound, against cells' renderer that set its card, is listed in
 //      KNOWN_LOUD with its issue: it is still measured and printed, doesn't fail the run, and is named once it is
-//      under the ceiling again, so its entry can go (Patchbay, #567: a voice's low-pass is two biquads here, one in cells).
+//      under the ceiling again, so its entry can go (none now: Patchbay was, until #567 made a low-pass one biquad here).
 //
 // Exit 1 on a Math.random call of ours, a piece that differs beyond TOL (other than the known ones) or one over the
 // ceiling. The smoke workflow runs it on every PR (`node tools/repeatable.mjs 4`); `src/audio/repeatable.test.ts` is the
@@ -32,7 +32,8 @@ const TOL = Number(process.env.TOL ?? 1e-5);
 const PEAK = Number(process.env.PEAK ?? -1);
 const RMS = Number(process.env.RMS ?? -18);
 const KNOWN = { 'forks.md': '#65', 'kalimba.md': '#65', 'sympathy.md': '#65' };
-const KNOWN_LOUD = { 'patchbay.md': '#567' };
+/** @type {Record<string, string>} */
+const KNOWN_LOUD = {};
 const words = args.filter((a) => !/^\d+(\.\d+)?$/.test(a)).map((w) => w.toLowerCase());
 const files = readdirSync('node_modules/@yggi/cells/examples')
   .filter((f) => f.endsWith('.md'))
