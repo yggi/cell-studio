@@ -22,7 +22,8 @@
   import CellNode from './CellNode.svelte';
   import VoiceNode from './VoiceNode.svelte';
   import ModuleNode from './ModuleNode.svelte';
-  import { jackAt, jacksShown, portOfHandle, type Module } from '../layout/modules';
+  import { jackAt, jacksDrawn, portOfHandle, type Module } from '../layout/modules';
+  import { bandOf, move as moveCable, plug, pull, type Band, type Drop } from '../layout/cables';
   import type { Jack } from '@yggi/cells/engine/patch';
   import JunctionNode from './JunctionNode.svelte';
   import SocketNode from './SocketNode.svelte';
@@ -212,6 +213,33 @@
     selected = null;
   });
   // (a product's junction is not a cell: never selected)
+  // a patch cable dragged (#555): from a tapped wheel's output onto a jack (cells' patch), or off its jack (unpatch);
+  // each a line of the text rewritten, a refusal shown where it was dropped
+  let cable = $state<{ from: string; band: Band } | null>(null);
+  let refusal = $state<{ x: number; y: number; message: string } | null>(null);
+  let refusalTimer: ReturnType<typeof setTimeout> | undefined;
+  const nameOf = (id: string | null | undefined) => (id ? ((layout.nodes.find((n) => n.id === id)?.data as { name?: string } | undefined)?.name ?? null) : null);
+  const pointOf = (event: MouseEvent | TouchEvent): { x: number; y: number } => {
+    const box = flowEl?.getBoundingClientRect();
+    const p = 'changedTouches' in event ? event.changedTouches[0]! : event;
+    return { x: p.clientX - (box?.left ?? 0), y: p.clientY - (box?.top ?? 0) };
+  };
+  const refuse = (message: string, event: MouseEvent | TouchEvent) => {
+    clearTimeout(refusalTimer);
+    refusal = { ...pointOf(event), message };
+    refusalTimer = setTimeout(() => (refusal = null), 4000);
+  };
+  let dropped: { drop: Drop } | null = null;
+  let pulling = false;
+  const land = (d: Drop) => {
+    dropped = { drop: d };
+    if (d.ok && d.text !== source) onedit(d.text);
+  };
+  const jackOf = (target: string | null | undefined, handle: string | null | undefined) => {
+    const cell = nameOf(target);
+    const port = handle ? portOfHandle(handle) : null;
+    return cell && port ? { cell, port } : null;
+  };
   const selectedNode = $derived(selected ? shown.model.nodes.filter(isCellNode).find((n) => n.id === selected) : undefined);
   // (or a bulb on a wheel: the cell it splices, which has no node of its own — decision 014, 016; or a cell a use gave
   // that nothing reads, folded into its use's name)
@@ -288,7 +316,7 @@
       const port = portOfHandle(handle);
       if (n && port !== null) {
         const { size, module, jacks } = n.data as { size: number; module?: Module; jacks?: readonly Jack[] };
-        const shown = jacksShown(module?.jacks ?? jacks ?? []);
+        const shown = jacksDrawn(module?.jacks ?? jacks ?? [], cable?.band ?? null);
         const i = shown.findIndex((j) => j.port === port);
         if (i < 0) return undefined;
         const at = jackAt(i, shown.length, size, n.type === 'voice' ? 'band' : 'ring');
@@ -314,6 +342,15 @@
     open(name: string) {
       const id = `cell:${name}`;
       if (layout.shown.model.nodes.some((n) => n.id === id) || layout.shown.model.bulbs.has(name)) select(id);
+    },
+    get selected() {
+      return selected;
+    },
+    get cable() {
+      return cable;
+    },
+    get locked() {
+      return !!locked;
     },
     toggle: (id) => (locked ? locked() : ontoggle(id)),
     nudge: (sec) => nudge?.(sec),
@@ -601,7 +638,56 @@
       {nodeTypes}
       {edgeTypes}
       nodeOrigin={[0.5, 0.5]}
-      nodesConnectable={false}
+      nodesConnectable={!locked}
+      connectionRadius={22}
+      isValidConnection={(c) => !!cable && portOfHandle(c.targetHandle ?? '') !== null}
+      onconnectstart={(_, { nodeId }) => {
+        const from = nameOf(nodeId);
+        const band = from ? bandOf(program, from) : null;
+        cable = from && band ? { from, band } : null;
+        dropped = null;
+      }}
+      onbeforeconnect={(c) => {
+        // (the text is written, and the cable drawn from it: no edge of the flow's own; returning none, it adds none)
+        const from = nameOf(c.source);
+        const on = jackOf(c.target, c.targetHandle);
+        if (from && on) land(plug(source, on.cell, on.port, from));
+        return null;
+      }}
+      onconnectend={(event) => {
+        // (a cable's end dragged off its jack ends in onreconnectend, which the flow calls after this)
+        if (pulling) return;
+        if (dropped && !dropped.drop.ok) refuse(dropped.drop.message, event);
+        cable = null;
+        dropped = null;
+      }}
+      onreconnectstart={(_, edge) => {
+        pulling = true;
+        const from = nameOf(edge.source);
+        const band = from ? bandOf(program, from) : null;
+        cable = from && band ? { from, band } : null;
+        dropped = null;
+      }}
+      onbeforereconnect={(c, old) => {
+        // (onto another jack, the cable moved; back onto its own, nothing; the flow's edges left as they are: returning none)
+        const from = nameOf(old.source);
+        const off = jackOf(old.target, old.targetHandle);
+        const on = jackOf(c.target, c.targetHandle);
+        if (from && off && on) land(on.cell === off.cell && on.port === off.port ? { ok: true, text: source } : moveCable(source, from, off, on));
+        return null;
+      }}
+      onreconnectend={(event, edge) => {
+        // (dropped on no jack: the cable pulled out, the jack back at its knob)
+        if (!dropped) {
+          const from = nameOf(edge.source);
+          const off = jackOf(edge.target, edge.targetHandle);
+          if (from && off) land(pull(source, off.cell, off.port, from));
+        }
+        if (dropped && !dropped.drop.ok) refuse(dropped.drop.message, event);
+        cable = null;
+        dropped = null;
+        pulling = false;
+      }}
       elementsSelectable={false}
       onbeforedelete={async () => false}
       colorMode="dark"
@@ -648,6 +734,7 @@
         {#each clusters.filter((c) => c.plate) as c (c.tag)}{@render clusterName(c)}{/each}
       </ViewportPortal>
     </SvelteFlow>
+    {#if refusal}<p class="refusal" role="status" style:left="{refusal.x}px" style:top="{refusal.y}px">{refusal.message}</p>{/if}
   </div>
   {#if towered}
     <TowerStrips
@@ -755,6 +842,21 @@
   }
   .graph.stripped .hint {
     right: calc(var(--strip-width) + 16px);
+  }
+  .refusal {
+    position: absolute;
+    z-index: 20;
+    max-width: 260px;
+    margin: 0;
+    padding: 6px 10px;
+    transform: translate(-50%, calc(-100% - 16px));
+    border-radius: 8px;
+    background: var(--surface-2);
+    border: 1px solid var(--text-muted);
+    color: var(--text);
+    font-size: 13px;
+    line-height: 1.3;
+    pointer-events: none;
   }
   .hint {
     position: absolute;

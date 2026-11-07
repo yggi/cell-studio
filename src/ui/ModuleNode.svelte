@@ -4,6 +4,7 @@
    * drawn as its face (a filter's response, an amp's level), its jacks on its rim (JackRim), its private cells folded in
    * (layout/modules.ts). An oscillator, an LFO and a sample and hold keep their own wheels, with the rim over them.
    */
+  import CableOut from './CableOut.svelte';
   import { Handle, Position, type NodeProps } from '@xyflow/svelte';
   import type { ModuleFlowNode } from './types';
   import { getGraphContext, nodeState } from './context';
@@ -42,10 +43,11 @@
       <path class="face" d={face(data.module.id, R)} />
     </g>
   </svg>
-  <JackRim size={data.size} jacks={data.module.jacks} label="&{data.name} · {data.module.id}" shape="ring" />
+  <JackRim node={id} size={data.size} jacks={data.module.jacks} label="&{data.name} · {data.module.id}" shape="ring" />
   <span class="name">&{data.name} · {data.module.id}</span>
   <SideMarks name={data.name} />
   <Handle type="source" position={Position.Bottom} class="center-handle" isConnectable={false} />
+  <CableOut node={id} name={data.name} size={data.size} />
 </div>
 
 <style>
