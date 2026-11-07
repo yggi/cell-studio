@@ -484,11 +484,12 @@ export function lfoDotOf(view: CellView, local: () => number | null, steps: numb
   return { x, y };
 }
 
-/** A meter's beats, numbered (up to 16, from 64 px). */
+/** A meter's beats, numbered (up to 16, from 64 px): a scan's slots, or a `meter(…)`'s beats over its braid of levels (#583). */
 export function beatLabels(view: CellView, isMeter: boolean, size: number, g: WheelGeometry): (XY & { text: string })[] {
-  if (!isMeter || view.mode !== 'grid' || view.segments.length > 16 || size < 64) return [];
+  const beats = view.mode === 'grid' ? view.segments : view.mode === 'braid' ? view.beats : undefined;
+  if (!isMeter || !beats || beats.length > 16 || size < 64) return [];
   const r = ringMid(g);
-  return view.segments.map((sg, i) => {
+  return beats.map((sg, i) => {
     const [x, y] = polar(g.c, g.c, r, (sg.t0 + sg.t1) / 2);
     return { x, y, text: String(i + 1) };
   });

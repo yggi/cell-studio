@@ -4,7 +4,7 @@ import { compilePiece } from '../compile';
 import { codeShifts, type CompileResult } from '@yggi/cells/engine/program';
 import { PRESETS } from '@yggi/cells/engine/presets';
 import { lapOf } from '@yggi/cells/engine/readers';
-import { cellView, drawnOf, type CellView, type Segment } from './cellview';
+import { cellView, drawnOf, hubLabel, type CellView, type Segment } from './cellview';
 import { BORDER } from './coarse';
 import { noteFrame } from './show';
 import { layTrack } from './track';
@@ -279,5 +279,60 @@ describe('the rest of what a wheel can be', () => {
     expect(beatLabels(bar, true, 44, g)).toEqual([]);
     expect(beatLabels(bar, false, 128, g)).toEqual([]);
     expect(spaceOf(bar, true)).toBeNull();
+  });
+
+  // #583: a meter(…) (every meter fragment's) is drawn as its braid of levels; its beats are the compiled meter's
+  const labels = (r: CompileResult, size = 128) => beatLabels(view(r, 'bar', true), true, size, g);
+  const near = (a: { x: number; y: number }[], b: { x: number; y: number }[]) => a.length === b.length && a.every((p, i) => Math.hypot(p.x - b[i]!.x, p.y - b[i]!.y) < 0.01);
+  it("Pop's bar, a meter from a fragment (`&bar from meter_4_4 &tempo`): its 4 beats numbered, from 64 px (#583)", () => {
+    expect(view(pop, 'bar', true).mode).toBe('braid');
+    expect(labels(pop).map((l) => l.text)).toEqual(['1', '2', '3', '4']);
+    expect(labels(pop, 44)).toEqual([]);
+    expect(beatLabels(view(pop, 'bar', true), false, 128, g)).toEqual([]);
+  });
+
+  it('every meter(…) numbers the beats a scan of its beats would, where that scan numbers them (#583)', () => {
+    for (const sig of ['2/4', '3/4', '4/4', '5/4', '6/8', '7/8', '10/8', '12/8']) {
+      const m = compilePiece(`&tempo step=100bpm\n&bar meter("${sig}") step=&tempo\n&a step=&bar:beat 0 2\n`);
+      const beats = m.cells.get('bar')!.meter!.beats;
+      const s = compilePiece(`&tempo step=100bpm\n&bar scan(${beats.join(' ')}) step=&tempo\n&a step=&bar 0 2\n`);
+      expect(view(m, 'bar', true).mode, sig).toBe('braid');
+      expect(
+        labels(m).map((l) => l.text),
+        sig,
+      ).toEqual(beats.map((_, i) => String(i + 1)));
+      expect(near(labels(m), labels(s)), sig).toBe(true);
+    }
+  });
+
+  it("a meter(…)'s hub counts its beats as compiled, not its levels (4/4 at cells v0.18.0 is `0 2 1 2`, #583)", () => {
+    const hub = (line: string) => {
+      const r = compilePiece(`&tempo step=100bpm\n&bar ${line} step=&tempo\n&a step=&bar:beat 0 2\n`);
+      return hubLabel(r, 'bar', codeShifts(r), true, null).small;
+    };
+    expect(['meter("4/4")', 'meter("4/4") beat=2', 'meter("3/4")', 'meter("5/4")', 'meter("6/8")', 'meter("7/8")', 'meter("12/8")'].map(hub)).toEqual([
+      'bpm, 4/bar',
+      'bpm, 2/bar',
+      'bpm, 3/bar',
+      'bpm, 5/bar',
+      'bpm, 2/bar',
+      'bpm, 3/bar',
+      'bpm, 4/bar',
+    ]);
+    expect(hubLabel(pop, 'bar', codeShifts(pop), true, null).small).toBe('bpm, 4/bar');
+  });
+
+  it('every example whose bar is a meter from a fragment numbers its beats (#583)', () => {
+    let from = 0;
+    for (const [key, p] of Object.entries(PRESETS)) {
+      if (!/^&bar from meter_/m.test(p.source)) continue;
+      from++;
+      const r = compilePiece(p.source);
+      expect(
+        labels(r).map((l) => l.text),
+        key,
+      ).toEqual(r.cells.get('bar')!.meter!.beats.map((_, i) => String(i + 1)));
+    }
+    expect(from).toBeGreaterThanOrEqual(49);
   });
 });
