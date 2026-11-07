@@ -80,9 +80,11 @@ function withModules(result: CompileResult, model: GraphModel): GraphModel {
   const nameOf = (id: string) => id.slice('cell:'.length);
   // which jack a wire into a head fills: the one whose cable is the wire's source; a wire from a private cell, the jack
   // that private cell is (the input's mix, `&vcf_in`: the input)
+  // (a wire into the module's inner product, its junction, is the cable it carries: found by its source, as one into
+  // the head is; #555 met it, `amp(level=&sweep)`)
   const jackOf = (head: string, from: string, via: string | null): string | undefined => {
     const m = modules.get(head)!;
-    if (via) {
+    if (via?.startsWith('cell:')) {
       const param = nameOf(via).slice(head.length + 1);
       return m.jacks.find((j) => j.port === param)?.port;
     }
@@ -199,6 +201,12 @@ export const jackOfEdge = (e: GraphEdge): string | undefined => (e as { jack?: s
  * A jack with no value written is hidden (#555 shows it while a cable is dragged).
  */
 export const jacksShown = (jacks: readonly Jack[]): Jack[] => jacks.filter((j) => j.patched.length > 0 || j.knob !== null);
+
+/**
+ * The jacks a wheel draws: at rest those in use (`jacksShown`); while a cable of a band is dragged (#555, decision 069 §4),
+ * every jack of that band, used or not, so a hidden one can be aimed at (a drop it can't take says why).
+ */
+export const jacksDrawn = (jacks: readonly Jack[], band: Jack['band'] | null): Jack[] => (band ? jacks.filter((j) => j.band === band) : jacksShown(jacks));
 
 /** How far apart a jack's targets are kept on a phone, at 1:1 (px): a finger (decision 069 §6). */
 export const FINGER = 44;

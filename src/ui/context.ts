@@ -75,6 +75,12 @@ export interface GraphContext {
   readonly wheels?: readonly import('../layout/wire').Disc[];
   /** The tower layout is on: a plain edge runs as a sigmoid, from the lower end's top to the upper end's bottom. */
   readonly towered?: boolean;
+  /** The cell tapped (its node id), whose sheet is open: its wheel offers its output, where a cable is dragged from (#555). */
+  readonly selected?: string | null;
+  /** A cable being dragged (#555): the cell it comes from and what it carries; null when none. */
+  readonly cable?: { readonly from: string; readonly band: import('@yggi/cells/engine/patch').Jack['band'] } | null;
+  /** The graph is read only (a MIDI file's machine, a followed session): no cable is dragged. */
+  readonly locked?: boolean;
   toggle(id: string): void;
   /** Not playing: move where play starts by so many seconds (a turntable turned by hand). */
   nudge(seconds: number): void;

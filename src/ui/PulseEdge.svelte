@@ -16,7 +16,7 @@
    * While playing, a live edge takes the colour of what it carries now, one palette for all (ui/palette.ts): a note its
    * pitch colour on its grid, a level the neutral hue, a tick the meter's level, sound its fundamental; with a pulse per step.
    */
-  import { BaseEdge, type EdgeProps } from '@xyflow/svelte';
+  import { BaseEdge, EdgeReconnectAnchor, type EdgeProps } from '@xyflow/svelte';
   import { untrack } from 'svelte';
   import { polar, radialPath, splinePoint } from '../layout/geometry';
   import { bundleCubic, bundlePaths, loomParts, loomPaths, measured, rippled, wireLabel } from '../layout/wire';
@@ -58,6 +58,8 @@
     style,
   }: EdgeProps = $props();
   const ctx = getGraphContext();
+  // (a patch cable, its end at a jack, into or out of the tapped wheel, in a graph that can be edited: its end can be dragged)
+  const pullable = $derived(!!targetHandleId?.startsWith('jack-') && !ctx.locked && (ctx.selected === targetId || ctx.selected === sourceId));
   // (an end on a node's centre handle: the node's centre as the layout places it, not the flow's measure of the handle,
   // which can be stale — measured while the view zoomed; a tape's head likewise, from the centre and the turn)
   const centreS = $derived(sourceHandleId ? ctx.head?.(sourceId, sourceHandleId) : ctx.centre?.(sourceId));
@@ -514,6 +516,10 @@
     <path class={`svelte-flow__edge-path edge-${state}`} d={waved(p)} style={edgeStyle} />
   {/each}
   <BaseEdge {id} {path} {markerEnd} style={edgeStyle} class={`edge-${state}${strands.length || tineStrands.length || (pickPaths.length && !picked?.hub) ? ' bus-core' : ''}`} />
+  {#if pullable}
+    <!-- (a cable's end at its jack, on the tapped wheel's cables: dragged off it, unpatched; onto another jack, moved: #555) -->
+    <EdgeReconnectAnchor type="target" position={{ x: targetX, y: targetY }} size={44} class="cable-end"><span class="grip"></span></EdgeReconnectAnchor>
+  {/if}
   {#if socketAt}
     <circle class="reader-socket" class:off={d.off} cx={socketAt.x} cy={socketAt.y} r={EDGE.socket} style:stroke={colour ?? restColour ?? undefined} />
   {/if}
@@ -579,5 +585,19 @@
   .bus .bus-sheath {
     stroke: var(--bg);
     stroke-opacity: var(--edge-sheath);
+  }
+  :global(.svelte-flow__edgeupdater.cable-end) {
+    /* (over the wheel its jack is on: an edge's label is drawn under the nodes unless lifted) */
+    z-index: 3000 !important;
+    display: grid;
+    place-items: center;
+    cursor: grab;
+    pointer-events: all;
+  }
+  .grip {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    border: 2px dashed var(--accent);
   }
 </style>

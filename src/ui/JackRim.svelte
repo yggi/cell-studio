@@ -3,17 +3,28 @@
    * A wheel's jacks (decision 069, #560), over the wheel that draws it: a module's, a voice's or an instrument's. Its rim
    * in the accent: a circle (`ring`: a module, an instrument, a cell), or a voice's own outline (`band`: its disc and its
    * envelope's band, layout/voice.ts). Each jack in use is a dot, over the lower half of a ring in its signature's order,
-   * or in a row along a voice's band, drawn by what it holds (filled: a cable; a ring with a dot: a value set on the line;
+   * or round a voice's band, drawn by what it holds (filled: a cable; a ring with a dot: a value set on the line;
    * a knob, its pointer at its default), and a handle (`jack-<port>`) where a wire into it ends (layout/modules.ts: which
    * jack a wire fills; ui/Graph.svelte's `head`: where).
    */
-  import { Handle, Position } from '@xyflow/svelte';
+  import { Handle, Position, useUpdateNodeInternals } from '@xyflow/svelte';
+  import { tick } from 'svelte';
   import type { Jack } from '@yggi/cells/engine/patch';
-  import { jackAt, jackHandle, jacksShown, type JackShape } from '../layout/modules';
+  import { jackAt, jackHandle, jacksDrawn, type JackShape } from '../layout/modules';
+  import { getGraphContext } from './context';
   import { voiceOutline } from '../layout/voice';
 
-  let { size, jacks, label, shape }: { size: number; jacks: readonly Jack[]; label: string; shape: JackShape } = $props();
-  const shown = $derived(jacksShown(jacks));
+  let { node, size, jacks, label, shape }: { node: string; size: number; jacks: readonly Jack[]; label: string; shape: JackShape } = $props();
+  const ctx = getGraphContext();
+  // (while a cable is dragged, every jack of its band, lit, used or not: decision 069 §4, #555)
+  const cable = $derived(ctx.cable ?? null);
+  const shown = $derived(jacksDrawn(jacks, cable?.band ?? null));
+  // (the flow finds a drop's jack by the handles it measured: jacks shown or hidden as a cable comes and goes, measured again)
+  const update = useUpdateNodeInternals();
+  $effect(() => {
+    void shown.map((j) => j.port).join();
+    void tick().then(() => update(node));
+  });
   const R = $derived(size / 2);
   const DOT = 7;
   // (the voice's outline reaches to its band's bottom: the svg as tall as that, and its dots under it)
@@ -38,7 +49,7 @@
     {/if}
     {#each shown as j, i (j.port)}
       {@const p = jackAt(i, shown.length, size, shape)}
-      <g transform="translate({R + p.x},{R + p.y})" class="jack {j.band}" data-port={j.port}>
+      <g transform="translate({R + p.x},{R + p.y})" class="jack {j.band}" class:lit={!!cable} data-port={j.port}>
         {#if j.patched.length}
           <circle r={DOT} class="cable" />
         {:else if isSet(j.knob)}
@@ -55,7 +66,15 @@
 </svg>
 {#each shown as j, i (j.port)}
   {@const p = jackAt(i, shown.length, size, shape)}
-  <Handle type="target" id={jackHandle(j.port)} position={Position.Bottom} class="jack-handle" style="left: {R + p.x}px; top: {R + p.y}px" isConnectable={false} />
+  <Handle
+    type="target"
+    id={jackHandle(j.port)}
+    position={Position.Bottom}
+    class="jack-handle"
+    style="left: {R + p.x}px; top: {R + p.y}px"
+    isConnectable={!!cable}
+    isConnectableStart={false}
+  />
 {/each}
 
 <style>
@@ -93,5 +112,9 @@
   }
   :global(.jack-handle) {
     opacity: 0;
+  }
+  .jack.lit circle:first-child {
+    stroke: var(--accent);
+    stroke-width: 3;
   }
 </style>

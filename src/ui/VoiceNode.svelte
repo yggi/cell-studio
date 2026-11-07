@@ -1,4 +1,5 @@
 <script lang="ts">
+  import CableOut from './CableOut.svelte';
   import { untrack } from 'svelte';
   import { Handle, Position, type NodeProps } from '@xyflow/svelte';
   import type { VoiceFlowNode } from './types';
@@ -89,12 +90,14 @@
   {#if data.pinned}<span class="pin" title="Pinned"></span>{/if}
   {#if freeCell?.frees.length && !data.petal}<FreePills frees={freeCell.frees} name={data.name} />{/if}
   {#if data.module ?? data.jacks}<JackRim
+      node={id}
       size={data.size}
       jacks={data.module?.jacks ?? data.jacks ?? []}
       label={data.module ? `&${data.name} · ${data.module.id}` : `&${data.name}`}
       shape="band"
     />{/if}
   <Handle type="source" position={Position.Bottom} class="center-handle" isConnectable={false} />
+  <CableOut node={id} name={data.name} size={data.size} />
 </div>
 
 <style>
