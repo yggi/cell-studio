@@ -5,7 +5,10 @@
 import {
   ANY_INPUT,
   AS_PLAYED,
+  BUILT_IN,
+  HEARD,
   activeSetup,
+  hasBuiltIn,
   inputRow,
   withClock,
   withCrossing,
@@ -168,6 +171,43 @@ export function withContext(book: SetupBook, context: string, routes: Routes): S
 
 /** The book with one of its setups replaced in place (by id): no custom variant. */
 export const withSetup = (book: SetupBook, setup: Setup): SetupBook => ({ ...book, setups: book.setups.map((s) => (s.id === setup.id ? setup : s)) });
+
+/**
+ * The book with the built-in's column (webmidi's `BUILT_IN`) showing the rows `heard` in `context` and no other, as the
+ * setup in use has it: only shown, in place (no custom variant), and the book as it is without the built-in. Cell
+ * studio's own sound is heard whole for now, so its crossings are what the piece plays there, not a person's choice.
+ */
+/** The book with no crossing of the built-in in the setup in use, in any context: what was only shown (`withBuiltInShown`) not kept. */
+export function withoutBuiltInCrossings(book: SetupBook): SetupBook {
+  const setup = activeSetup(book);
+  const routes = Object.fromEntries(
+    Object.entries(setup.routes).map(([context, rows]) => [
+      context,
+      Object.fromEntries(
+        Object.entries(rows).flatMap(([row, crossings]) => {
+          const kept = Object.fromEntries(Object.entries(crossings).filter(([key]) => key !== BUILT_IN.key));
+          return Object.keys(kept).length ? [[row, kept] as const] : [];
+        }),
+      ),
+    ]),
+  );
+  return JSON.stringify(routes) === JSON.stringify(setup.routes) ? book : withSetup(book, { ...setup, routes });
+}
+
+export function withBuiltInShown(book: SetupBook, context: string, heard: readonly string[]): SetupBook {
+  const setup = activeSetup(book);
+  if (!hasBuiltIn(setup)) return book;
+  const rows = new Set(heard);
+  const was = own(setup.routes, context) ?? {};
+  const routes: Routes = Object.fromEntries(
+    [...new Set([...Object.keys(was), ...heard])].flatMap((row) => {
+      const crossings = Object.fromEntries(Object.entries(own(was, row) ?? {}).filter(([key]) => key !== BUILT_IN.key));
+      const shown = rows.has(row) ? { ...crossings, [BUILT_IN.key]: HEARD } : crossings;
+      return Object.keys(shown).length ? [[row, shown] as const] : [];
+    }),
+  );
+  return withSetup(book, { ...setup, routes: { ...setup.routes, [context]: routes } });
+}
 
 /**
  * A change made on a book shown (`shown`, the book with what a piece plays written in), kept on the book itself: the

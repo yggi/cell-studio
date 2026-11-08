@@ -246,6 +246,7 @@
   --wm-panel-2: var(--surface-2); /* … and what is raised on it: an output's head, a chip */
   --wm-surface: var(--code-bg); /* the matrix's sticky row names, over the card */
   --wm-accent: var(--accent);
+  --wm-chip-on-ink: var(--accent-ink); /* the built-in's ON chips: ink on the accent (webmidi v0.4.0) */
   --wm-live: var(--meter-1);
   --wm-warn: var(--warning);
   --wm-chip-ink: var(--ink-on-note);
