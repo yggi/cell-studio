@@ -4,7 +4,23 @@ import { fakeAccess, fakeInput, fakePort, installMidi, uninstallMidi } from '@yg
 import { CONNECT_WAIT, Midi } from './midi.svelte';
 import { compilePiece } from '../../compile';
 import { PRESETS } from '@yggi/cells/engine/presets';
-import { activeSetup, ANY_INPUT, AS_PLAYED, DRUM_PRESETS, inputRow, saveAs, useSetup, withClock, withCrossing, withPlays, withProfile, type SetupBook } from '@yggi/webmidi/core';
+import {
+  activeSetup,
+  ANY_INPUT,
+  BUILT_IN,
+  hardwareOutputs,
+  hasBuiltIn,
+  AS_PLAYED,
+  DRUM_PRESETS,
+  inputRow,
+  saveAs,
+  useSetup,
+  withClock,
+  withCrossing,
+  withPlays,
+  withProfile,
+  type SetupBook,
+} from '@yggi/webmidi/core';
 import type { NoteSink } from '../../audio/player';
 import { plan, type Played } from '@yggi/cells/engine/realize';
 import { codeShifts } from '@yggi/cells/engine/program';
@@ -37,7 +53,7 @@ async function made(): Promise<Midi> {
 /** What is kept: webmidi's book, its setup in use, and what Cell studio keeps beside it. */
 const kept = () => JSON.parse(store.get('cell-studio:midi-setups')!) as SetupBook;
 const keptSetup = () => activeSetup(kept());
-const keptOwn = () => JSON.parse(store.get('cell-studio:midi-own')!) as { internal: boolean };
+const keptOwn = () => JSON.parse(store.get('cell-studio:midi-own')!) as { internal: boolean; moved?: true };
 
 const comeBack = () => {
   page.visibilityState = 'hidden';
@@ -214,7 +230,7 @@ describe('Midi: the ports coming and going', () => {
     access.change();
     expect(midi.outPort).toBe(back);
     expect(midi.outPortId).toBe('out-2');
-    expect(keptSetup().outputs).toEqual([{ key: 'o1', id: 'out-2', name: 'Synth' }]);
+    expect(hardwareOutputs(keptSetup())).toEqual([{ key: 'o1', id: 'out-2', name: 'Synth' }]);
   });
 });
 
@@ -437,12 +453,39 @@ describe('Midi: MIDI out', () => {
     expect(midi.kitChannel).toBe(16);
   });
 
-  it('taps the player: its sink, and its sound follows the internal-sound switch, kept', async () => {
+  it('taps the player: its sink, and its sound follows the setup’s built-in column, kept in the setup', async () => {
     const { midi, player } = await tapped();
     expect(player.sink).toBe(midi);
-    midi.internal = false;
-    expect(player.internal).toBe(false);
-    expect(keptOwn().internal).toBe(false);
+    expect([midi.internal, player.internal]).toEqual([true, true]);
+    midi.setBuiltIn(false);
+    expect([midi.internal, player.internal, hasBuiltIn(keptSetup())]).toEqual([false, false, false]);
+    midi.setBuiltIn(true);
+    expect([player.internal, keptSetup().outputs[0]]).toEqual([true, BUILT_IN]);
+  });
+
+  it('moves the switch kept before into every setup of the book once: on, the built-in first in each; off, none', async () => {
+    for (const [internal, has] of [
+      [true, true],
+      [false, false],
+    ] as const) {
+      store.clear();
+      store.set('cell-studio:midi-own', JSON.stringify({ internal, legacy: {} }));
+      const midi = await made();
+      expect([midi.internal, hasBuiltIn(keptSetup()), keptOwn().moved]).toEqual([has, has, true]);
+      // once: taken out afterwards, it stays out
+      midi.setBuiltIn(false);
+      midi.dispose();
+      expect((await made()).internal).toBe(false);
+    }
+  });
+
+  it('shows on the built-in’s column the rows the piece’s own sound plays, and keeps none of it: the piece says', async () => {
+    const { midi } = await tapped();
+    const shown = activeSetup(midi.matrixBook);
+    expect(shown.outputs[0]).toEqual(BUILT_IN);
+    expect(Object.entries(shown.routes['piece:Sailor']!).filter(([, c]) => Object.hasOwn(c, 'builtin')).length).toBeGreaterThan(0);
+    midi.changeMatrix(withCrossing(midi.matrixBook, 'piece:Sailor', 'bass', 'o1', 5));
+    expect(JSON.stringify(keptSetup().routes)).not.toContain('builtin');
   });
 
   it('sends what the player plays, timestamped for when it is heard, on the channel table; each kit member on 10', async () => {
@@ -558,7 +601,7 @@ describe('Midi: MIDI out', () => {
       [2, 'none', ''],
     ]);
     midi.chooseDevice(2, 'out-2');
-    expect(keptSetup().outputs).toEqual([
+    expect(hardwareOutputs(keptSetup())).toEqual([
       { key: 'o1', id: 'out-1', name: 'Circuit' },
       { key: 'o2', id: 'out-2', name: 'Juno' },
     ]);
@@ -630,7 +673,7 @@ describe('Midi: MIDI out', () => {
     midi.sendTo(1, [0x92, 60, 100]);
     out.sent = [];
     midi.reset();
-    expect([kept().devices, keptSetup().outputs, midi.outPortId]).toEqual([{}, [{ key: 'o1', id: 'none', name: '' }], 'none']);
+    expect([kept().devices, hardwareOutputs(keptSetup()), midi.outPortId]).toEqual([{}, [{ key: 'o1', id: 'none', name: '' }], 'none']);
     expect(out.sent.some((m) => m.data[0] === 0xb2 && m.data[1] === 123)).toBe(true);
   });
 
@@ -639,6 +682,8 @@ describe('Midi: MIDI out', () => {
     const other = fakePort('out-2', 'Juno');
     installMidi(fakeAccess([], [out, other]));
     const midi = await made();
+    // (a setup of MIDI alone: with the built-in beside it, the last output removed leaves the built-in alone, below)
+    midi.setBuiltIn(false);
     await midi.connect();
     midi.chooseOutput('out-1');
     midi.addOutput('out-2');
@@ -665,6 +710,10 @@ describe('Midi: MIDI out', () => {
     expect(other.sent.some((m) => m.data[0] === 0xb3 && m.data[1] === 123)).toBe(true);
     expect(midi.columns.map((c) => c.name)).toEqual(['Circuit']);
     expect(keptSetup().routes).toEqual({ 'piece:Sailor': {} });
+    // with the built-in beside it, the last output removed goes, and the built-in plays on alone, sending nowhere
+    midi.setBuiltIn(true);
+    midi.removeOutput(1);
+    expect([midi.columns, keptSetup().outputs, midi.outPort, midi.internal]).toEqual([[], [BUILT_IN], null, true]);
   });
 
   it('sends MIDI clock to each output switched on, kept per device', async () => {
@@ -992,7 +1041,7 @@ describe('Midi: the store from before the book, migrated', () => {
     expect(ons(other)).toEqual([[6, 57]]);
     // (the book holds it as one named setup; nothing is changed by reading it)
     expect(kept().setups.map((s) => s.name)).toEqual(['Cell studio']);
-    expect(keptOwn()).toEqual({ internal: false, legacy: OLD.routes });
+    expect(keptOwn()).toEqual({ internal: false, legacy: OLD.routes, moved: true });
   });
 
   it('a piece the old store left to the defaults plays them; another piece, its own', async () => {
@@ -1046,7 +1095,8 @@ describe('Midi: the patch matrix', () => {
   it("shows a piece with no routes as it plays (cells' defaults), its rows the voices, the kit and its members", async () => {
     const { midi } = await two();
     expect(midi.matrixRows.map((r) => [r.id, r.kind])).toEqual([['fiddle', 'voice'], ['bass', 'voice'], ['*', 'kit'], ...midi.table!.kit.map((k) => [`*${k.member}`, 'member'])]);
-    expect(activeSetup(midi.matrixBook).routes['piece:Sailor']).toEqual({ fiddle: { o1: 1 }, bass: { o1: 2 }, '*': { o1: 10 } });
+    // (the built-in's column shows what the piece's own sound plays: here, all of it)
+    expect(activeSetup(midi.matrixBook).routes['piece:Sailor']).toEqual({ fiddle: { o1: 1, builtin: 1 }, bass: { o1: 2, builtin: 1 }, '*': { o1: 10, builtin: 1 } });
     // (only shown: nothing is kept until it is changed)
     expect(keptSetup().routes).toEqual({});
   });
@@ -1157,12 +1207,12 @@ describe('Midi: the patch matrix', () => {
     midi.attach({ sink: null, internal: true }, { program: compilePiece(source), title: 'Cards' });
     expect(midi.locked).toBe(true);
     const shown = activeSetup(midi.matrixBook);
-    expect(shown.outputs.map((o) => o.key)).toEqual(['o1', 'o2', 'o3']);
-    expect(shown.routes['piece:Cards']).toEqual({ sub: { o3: 3 } });
+    expect(shown.outputs.map((o) => o.key)).toEqual(['builtin', 'o1', 'o2', 'o3']);
+    expect(shown.routes['piece:Cards']).toEqual({ sub: { o3: 3, builtin: 1 } });
     midi.changeMatrix(withCrossing(withPlays(midi.matrixBook, 'in:Keys', 'default'), 'piece:Cards', 'sub', 'o1', 9));
     expect(keptSetup().plays).toEqual({ 'in:Keys': 'default' });
     expect(keptSetup().routes).toEqual({});
-    expect(keptSetup().outputs).toHaveLength(2);
+    expect(hardwareOutputs(keptSetup())).toHaveLength(2);
   });
 
   it("a piece routed by its MIDI cards keeps what its matrix still edits: an input's crossing, the clock, a drum note (webmidi v0.1.4)", async () => {
@@ -1179,9 +1229,9 @@ describe('Midi: the patch matrix', () => {
     expect(keptSetup().routes['piece:Cards']).toEqual({ 'in:Keys': { o2: AS_PLAYED } });
     expect(keptSetup().clock).toEqual(['o2']);
     expect(kept().devices.Juno!.drums).toEqual({ 38: 62 });
-    expect(keptSetup().outputs).toHaveLength(2);
+    expect(hardwareOutputs(keptSetup())).toHaveLength(2);
     // and what the matrix shows of it, after
-    expect(activeSetup(midi.matrixBook).routes['piece:Cards']).toEqual({ sub: { o3: 3 }, 'in:Keys': { o2: AS_PLAYED } });
+    expect(activeSetup(midi.matrixBook).routes['piece:Cards']).toEqual({ sub: { o3: 3, builtin: 1 }, 'in:Keys': { o2: AS_PLAYED } });
   });
 
   it('switching setups silences the outputs that change, and plays the other setup', async () => {

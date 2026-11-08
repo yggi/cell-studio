@@ -10,8 +10,12 @@ import {
   ClockOut,
   DRUM_PRESETS,
   deviceNote,
+  BUILT_IN,
   fit,
   forgetDevice,
+  hardwareOutputs,
+  hasBuiltIn,
+  withBuiltIn,
   newBook,
   fromCellStudio,
   loadBook,
@@ -61,6 +65,8 @@ import {
   routesOfTable,
   rowsOfPiece,
   slotsOf,
+  withBuiltInShown,
+  withoutBuiltInCrossings,
   withContext,
   withSetup,
   type OldRoutes,
@@ -81,6 +87,9 @@ const ALL_CHANNELS = Array.from({ length: 16 }, (_, i) => i);
 /** A test note's length, in ms. */
 const TEST_MS = 300;
 
+/** No output: what the first is in a setup of the built-in alone (no key, no device). */
+const NO_OUTPUT: SetupOutput = { key: '', id: 'none', name: '' };
+
 /** How long, in ms, the browser may take to answer a request for MIDI before the page says it is still waiting. */
 export const CONNECT_WAIT = 8000;
 /** How many problems the MIDI page keeps: the latest, each once. */
@@ -91,8 +100,13 @@ const described = (error: unknown): string => (error instanceof Error ? `${error
 
 /** What Cell studio keeps beside the book. */
 interface Own {
-  /** Whether the built-in sound is heard beside MIDI out. */
+  /**
+   * Whether the built-in sound was heard beside MIDI out: the switch before it was a column of the matrix (webmidi's
+   * `BUILT_IN`, decision 004), moved into every setup of the book once (`moved`), then no longer read.
+   */
   readonly internal: boolean;
+  /** Whether `internal` has been moved into the book. */
+  readonly moved?: true;
   /**
    * The routes the store before the book chose, per piece title, by output key: a piece the setup in use has no routes
    * for plays them (cells' defaults where they chose nothing), as it did, until its matrix is changed (decision 040).
@@ -135,8 +149,12 @@ function readOwn(old: OldStore | null): Own {
   }
   if (!isRecord(kept)) return fallback;
   const legacy = readOldStore(JSON.stringify({ outputs: [], routes: kept.legacy }))?.routes ?? {};
-  return { internal: typeof kept.internal === 'boolean' ? kept.internal : true, legacy };
+  return { internal: typeof kept.internal === 'boolean' ? kept.internal : true, legacy, ...(kept.moved === true ? { moved: true as const } : {}) };
 }
+
+/** Every setup of a book with the built-in sound as its first output, or as it is (the switch was off): the switch moved in. */
+const builtInEverywhere = (book: SetupBook, on: boolean): SetupBook =>
+  on ? { ...book, setups: book.setups.map((s) => (hasBuiltIn(s) ? s : { ...s, outputs: [BUILT_IN, ...s.outputs] })) } : book;
 
 /** One output's senders: its notes (webmidi's `MidiOut`, on the routes its notes take here) and its clock (`ClockOut`). */
 interface Lane {
@@ -185,7 +203,6 @@ export class Midi implements NoteSink {
   book = $state.raw<SetupBook>(null as unknown as SetupBook);
 
   #store: BookStore;
-  #internal = $state(true);
   #legacy = $state.raw<Own['legacy']>({});
   #piece = $state.raw<OpenPiece | null>(null);
   #player: Tapped | null = null;
@@ -215,9 +232,9 @@ export class Midi implements NoteSink {
   get #setup() {
     return activeSetup(this.book);
   }
-  /** The outputs of the setup in use, in order (at least one). */
+  /** The outputs of the setup in use that send MIDI, in order: the built-in is none of them, and no MIDI card's slot. */
   get #outputs(): readonly SetupOutput[] {
-    return this.#setup.outputs;
+    return hardwareOutputs(this.#setup);
   }
   /** The open piece's context in the setups: `piece:<title>`. */
   get context(): string {
@@ -276,12 +293,18 @@ export class Midi implements NoteSink {
    */
   readonly matrixBook = $derived.by((): SetupBook => {
     const table = this.table;
-    if (!table) return this.book;
-    if (!table.byPiece) return this.#routes ? this.book : withContext(this.book, this.context, routesOfTable(table, this.#outputs));
-    const outputs = slotsOf(this.#outputs, Math.max(0, ...(table.ports ?? [])));
-    const inputs = Object.fromEntries(Object.entries(this.#routes ?? {}).filter(([row]) => row.startsWith('in:')));
+    const p = this.#piece;
+    if (!table || !p) return this.book;
+    // (the built-in's column: the rows the piece's own sound plays, which a MIDI card's voice marked silent isn't)
+    const heard = routable(p.program);
+    const shown = (book: SetupBook) => withBuiltInShown(book, this.context, [...heard.voices, ...(heard.members.length ? [KIT] : [])]);
+    if (!table.byPiece) return shown(this.#routes ? this.book : withContext(this.book, this.context, routesOfTable(table, this.#outputs)));
     const setup = this.#setup;
-    return withSetup(this.book, { ...setup, outputs, routes: { ...setup.routes, [this.context]: { ...routesOfTable(table, outputs), ...inputs } } });
+    const outputs = [...(hasBuiltIn(setup) ? [BUILT_IN] : []), ...slotsOf(this.#outputs, Math.max(0, ...(table.ports ?? [])))];
+    const inputs = Object.fromEntries(Object.entries(this.#routes ?? {}).filter(([row]) => row.startsWith('in:')));
+    return shown(
+      withSetup(this.book, { ...setup, outputs, routes: { ...setup.routes, [this.context]: { ...routesOfTable(table, hardwareOutputs({ ...setup, outputs })), ...inputs } } }),
+    );
   });
 
   /** The ports plugged in that no output sends to yet: the outputs the page offers to add. */
@@ -295,9 +318,12 @@ export class Midi implements NoteSink {
     this.#store = localBookStore(storageKey(BOOK_KEY));
     this.book = loadBook(this.#store, () => (old ? migrated(old) : null));
     const kept = readOwn(old);
-    this.#internal = kept.internal;
     this.#legacy = kept.legacy;
-    if (readKey(OWN_KEY) === null) this.#saveOwn();
+    if (!kept.moved) {
+      this.book = builtInEverywhere(this.book, kept.internal);
+      this.#saveBook();
+      this.#saveOwn();
+    }
     // a tab frozen while hidden can leave a release unscheduled and hardware sounding: silence it on coming back
     if (typeof document !== 'undefined') document.addEventListener('visibilitychange', this.#onVisible);
     if (this.remembersPorts) void this.#reconnect();
@@ -341,8 +367,9 @@ export class Midi implements NoteSink {
     for (const l of this.#letGoers) l(alive);
   }
 
+  // the first output that sends MIDI; a setup of the built-in alone has none, and sends nowhere
   get #first(): SetupOutput {
-    return this.#outputs[0]!; // (there is always one)
+    return this.#outputs[0] ?? NO_OUTPUT;
   }
 
   get outPortId(): string {
@@ -517,23 +544,21 @@ export class Midi implements NoteSink {
     this.access?.refresh();
   }
 
-  /** Tap a player: the notes it plays go to the outputs too, and its own sound follows the internal-sound switch. */
+  /** Tap a player: the notes it plays go to the outputs too, and its own sound is heard where the setup in use has the built-in. */
   attach(player: Tapped, piece: OpenPiece): void {
     this.#player = player;
     this.#piece = piece;
     player.sink = this;
-    player.internal = this.#internal;
+    player.internal = this.internal;
     this.#relisten();
   }
 
-  /** Whether the built-in sound is heard beside MIDI out (off: MIDI alone, on the same clock). */
+  /**
+   * Whether the built-in sound is heard beside MIDI out (off: MIDI alone, on the same clock): the setup in use has it, a
+   * column of the matrix. For now the whole sound, not voice by voice (the column's crossings show what plays).
+   */
   get internal(): boolean {
-    return this.#internal;
-  }
-  set internal(on: boolean) {
-    this.#internal = on;
-    if (this.#player) this.#player.internal = on;
-    this.#saveOwn();
+    return hasBuiltIn(this.#setup);
   }
 
   /**
@@ -541,7 +566,9 @@ export class Midi implements NoteSink {
    * output given another device, or gone, is silenced (its clock stopped, All notes off on what it sent); an output no
    * longer sent clock is sent Stop; the keys held from the inputs let go when the inputs heard change. Then it is kept.
    */
-  setBook(next: SetupBook): void {
+  setBook(changed: SetupBook): void {
+    // (the built-in's crossings are only shown, on `matrixBook`: the piece says what its own sound plays, so none is kept)
+    const next = withoutBuiltInCrossings(changed);
     if (next === this.book) return;
     const before = this.#setup;
     const after = activeSetup(next);
@@ -559,6 +586,8 @@ export class Midi implements NoteSink {
     if (next.devices !== this.book.devices) this.warning = null;
     this.book = next;
     this.#saveBook();
+    // (the built-in sound follows the setup in use: its column there, or none)
+    if (this.#player) this.#player.internal = hasBuiltIn(after);
     this.outPort = this.access ? outputNow(this.access, this.#first) : null;
     this.#relisten();
     this.#heardFrom = this.#inputThere();
@@ -843,8 +872,8 @@ export class Midi implements NoteSink {
     if (at && id === at.id) return;
     const name = id === 'none' ? '' : (this.ports.outputs.find((p) => p.id === id)?.name ?? '');
     let book = this.book;
-    while (activeSetup(book).outputs.length < port) book = addOutput(book).book;
-    this.setBook(chooseDevice(book, activeSetup(book).outputs[port - 1]!.key, { id, name }));
+    while (hardwareOutputs(activeSetup(book)).length < port) book = addOutput(book).book;
+    this.setBook(chooseDevice(book, hardwareOutputs(activeSetup(book))[port - 1]!.key, { id, name }));
   }
 
   /** Add an output sending to a device by id; nothing is routed to it until chosen in the matrix. */
@@ -862,6 +891,11 @@ export class Midi implements NoteSink {
     if (!c) return;
     if (this.#outputs.length > 1) this.#dropLegacy(c.key);
     this.setBook(removeOutput(this.book, c.key));
+  }
+
+  /** The built-in sound put in the setup in use, or taken out (a change to a named setup, as any: its custom variant). */
+  setBuiltIn(on: boolean): void {
+    this.setBook(withBuiltIn(this.book, on));
   }
 
   /** Whether an output's device (1 the first) has a profile of its own, which `forgetDevice` would drop. */
@@ -1078,6 +1112,6 @@ export class Midi implements NoteSink {
   }
 
   #saveOwn(): void {
-    writeKey(OWN_KEY, { internal: this.#internal, legacy: this.#legacy } satisfies Own);
+    writeKey(OWN_KEY, { internal: this.internal, legacy: this.#legacy, moved: true } satisfies Own);
   }
 }

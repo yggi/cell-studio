@@ -16,7 +16,7 @@
    * patch sit in a boundary: whatever throws there is shown with its error and a way back (try again, or reset the MIDI
    * settings), and the rest of the page goes on, where an error in a keyed list would have stopped it redrawing.
    */
-  import { activeSetup, DEFAULT_PRESET, type PortOption } from '@yggi/webmidi/core';
+  import { activeSetup, DEFAULT_PRESET, hardwareOutputs, isBuiltIn, type PortOption } from '@yggi/webmidi/core';
   import { DeviceInspector, MidiStatus, PatchMatrix, SetupPicker } from '@yggi/webmidi/ui';
   import KeysSettings from './KeysSettings.svelte';
   import LearnSettings from './LearnSettings.svelte';
@@ -28,13 +28,16 @@
   const shown = $derived(activeSetup(midi.matrixBook));
   // the output whose device settings are open (by key), while the setup has it; else none
   let inspecting = $state<string | null>(null);
-  const slot = $derived(shown.outputs.findIndex((o) => o.key === inspecting) + 1);
-  const output = $derived(slot ? shown.outputs[slot - 1]! : null);
+  const output = $derived(shown.outputs.find((o) => o.key === inspecting) ?? null);
+  // an output's number, counting those that send MIDI (a piece's MIDI cards name them so); the built-in has none
+  const slotOf = (key: string) => hardwareOutputs(shown).findIndex((o) => o.key === key) + 1;
+  const slot = $derived(output ? slotOf(output.key) : 0);
   const real = $derived(midi.columns.filter((c) => c.key).length);
   const title = $derived(midi.context.slice('piece:'.length));
   // (a device chosen for a slot a piece's cards name past the setup's outputs adds the outputs up to it)
   const choose = (p: PortOption) => midi.chooseDevice(slot, p.id);
-  const outLabel = (o: { id: string; name: string }) => (o.id === 'none' ? 'No device' : o.name || o.id);
+  const SOUND = 'Sound';
+  const outLabel = (o: { id: string; name: string }) => (isBuiltIn(o) ? SOUND : o.id === 'none' ? 'No device' : o.name || o.id);
 
   let dialog = $state<HTMLDialogElement>();
   // the dialog follows what is inspected: shown modal (over everything; Escape closes it), or closed
@@ -74,6 +77,12 @@
       {/if}
     </section>
 
+    {#if !midi.access && !midi.internal}
+      <p class="strip warning" role="status">
+        This setup plays MIDI only, and MIDI isn't connected: nothing is heard.
+        <button type="button" onclick={() => midi.setBuiltIn(true)}>Hear the built-in sound</button>
+      </p>
+    {/if}
     {#if midi.access}
       <section class="strip" aria-label="Setups">
         <SetupPicker book={midi.book} plugged={midi.ports.outputs} onchange={(b) => midi.setBook(b)} />
@@ -96,6 +105,7 @@
           outputs={midi.ports.outputs}
           heardBy="the keys and MIDI learn"
           preset={DEFAULT_PRESET}
+          builtIn={{ label: SOUND, rows: false }}
           {...inspecting ? { selected: inspecting } : {}}
           locked={midi.locked}
           onchange={(b) => midi.changeMatrix(b)}
@@ -103,13 +113,12 @@
         />
         <div class="devices" role="group" aria-label="Device settings">
           <span>Device settings</span>
-          {#each shown.outputs as o, i (o.key)}
-            <button type="button" onclick={() => (inspecting = o.key)}><b>OUT {i + 1}</b> {outLabel(o)}</button>
+          {#each shown.outputs as o (o.key)}
+            <button type="button" onclick={() => (inspecting = o.key)}><b>{isBuiltIn(o) ? 'BUILT-IN' : `OUT ${slotOf(o.key)}`}</b> {outLabel(o)}</button>
           {/each}
         </div>
         {#if midi.clocking && !midi.meter}<p class="hint" role="status">This piece has no meter, so no clock is sent.</p>{/if}
         {#if midi.warning}<p class="hint warning" role="status">{midi.warning}</p>{/if}
-        <label class="check"><input type="checkbox" checked={midi.internal} onchange={(e) => (midi.internal = e.currentTarget.checked)} /> Built-in sound too</label>
       </section>
 
       <section class="strip reset" aria-label="Reset">
@@ -124,12 +133,33 @@
 
       <dialog
         class="inspect"
-        aria-label={output ? `OUT ${slot}: ${outLabel(output)}` : 'Device settings'}
+        aria-label={output ? `${isBuiltIn(output) ? 'BUILT-IN' : `OUT ${slot}`}: ${outLabel(output)}` : 'Device settings'}
         bind:this={dialog}
         onclose={close}
         onclick={(e) => e.target === dialog && close()}
       >
-        {#if output}
+        {#if output && isBuiltIn(output)}
+          <div class="frame">
+            <button type="button" class="close" aria-label="Close" onclick={close}>×</button>
+            <section class="builtin" aria-labelledby="builtin-title">
+              <p class="eyebrow">Built-in · this device</p>
+              <h3 id="builtin-title">{SOUND}</h3>
+              <p class="hint">
+                The piece's own sound, heard here, as the piece says: a voice only on a MIDI card the piece leaves silent isn't. Voice by voice from here comes later; for now this
+                setup hears it whole, or not at all.
+              </p>
+              <button
+                type="button"
+                class="danger"
+                onclick={() => {
+                  midi.setBuiltIn(false);
+                  close();
+                }}>Remove from this setup</button
+              >
+              <p class="hint">Removed, this setup plays MIDI only. + {SOUND} beside the patch's outputs brings it back.</p>
+            </section>
+          </div>
+        {:else if output}
           <div class="frame">
             <button type="button" class="close" aria-label="Close" onclick={close}>×</button>
             <DeviceInspector
@@ -203,6 +233,54 @@
   }
   .strip {
     padding: 10px 12px;
+  }
+  p.strip {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin: 0;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: var(--code-bg);
+  }
+  p.strip button {
+    min-height: 34px;
+    padding: 0 12px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: var(--surface);
+    color: var(--text);
+    font: inherit;
+    cursor: pointer;
+  }
+  /* the built-in's settings, in the dialog */
+  .builtin {
+    border: 0;
+    padding: 16px 18px 18px;
+    background: none;
+  }
+  .builtin h3 {
+    margin: 0;
+    font: 700 20px var(--font-ui);
+    color: var(--text);
+  }
+  .eyebrow {
+    margin: 0;
+    font: 700 12px var(--font-ui);
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+  .builtin button {
+    justify-self: start;
+    min-height: 40px;
+    padding: 0 14px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: none;
+    font: inherit;
+    cursor: pointer;
   }
   .problems {
     display: grid;
@@ -323,10 +401,5 @@
   }
   .warning {
     color: var(--danger);
-  }
-  .check {
-    display: flex;
-    align-items: center;
-    gap: 8px;
   }
 </style>
