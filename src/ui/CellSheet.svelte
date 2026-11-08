@@ -13,6 +13,7 @@
   import BraidWheel from './sheet/BraidWheel.svelte';
   import CellPicture from './sheet/CellPicture.svelte';
   import Connections from './sheet/Connections.svelte';
+  import Depths from './sheet/Depths.svelte';
   import FreeValues from './sheet/FreeValues.svelte';
   import More from './sheet/More.svelte';
   import { Rename } from './sheet/rename.svelte';
@@ -82,6 +83,7 @@
     <CellPicture {name} />
     {#if sheetWheel(cell)}<BraidWheel {name} {isMeter} {source} {opened} {words} {multiline} {names} {onedit} />{/if}
     <FreeValues {name} />
+    {#if given === undefined}<Depths {name} {source} {onedit} />{/if}
     {#if words}<Settings {name} {source} {words} {multiline} {names} {onedit} />{/if}
     <Connections {name} />
     <More {name} {source} />
