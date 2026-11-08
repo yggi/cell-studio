@@ -1,7 +1,7 @@
 // The settings part lifted from yggi/jambot apps/web/src/midi/settings.test.ts @ 8cdb6b8.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fakeAccess, fakeInput, fakePort, installMidi, uninstallMidi } from '@yggi/webmidi/testing';
-import { Midi } from './midi.svelte';
+import { CONNECT_WAIT, Midi } from './midi.svelte';
 import { compilePiece } from '../../compile';
 import { PRESETS } from '@yggi/cells/engine/presets';
 import { activeSetup, ANY_INPUT, AS_PLAYED, DRUM_PRESETS, inputRow, saveAs, useSetup, withClock, withCrossing, withPlays, withProfile, type SetupBook } from '@yggi/webmidi/core';
@@ -615,6 +615,25 @@ describe('Midi: MIDI out', () => {
     expect([midi.channelsOf('bass', 1), midi.channelsOf('bass', 2), midi.kitChannelsOf(2)]).toEqual([[2], [], []]);
   });
 
+  it('forgets a device’s profile, and resets every setup and profile to a first visit’s, silencing what went out', async () => {
+    const out = fakePort('out-1', 'Circuit');
+    installMidi(fakeAccess([], [out]));
+    const midi = await made();
+    await midi.connect();
+    midi.chooseOutput('out-1');
+    expect(midi.hasProfile(1)).toBe(false);
+    midi.setProfile(1, { latency: 20 });
+    expect([midi.hasProfile(1), midi.profileOf(1).latency]).toEqual([true, 20]);
+    midi.forgetDevice(1);
+    expect([midi.hasProfile(1), midi.profileOf(1).latency]).toEqual([false, 0]);
+    midi.setProfile(1, { latency: 20 });
+    midi.sendTo(1, [0x92, 60, 100]);
+    out.sent = [];
+    midi.reset();
+    expect([kept().devices, keptSetup().outputs, midi.outPortId]).toEqual([{}, [{ key: 'o1', id: 'none', name: '' }], 'none']);
+    expect(out.sent.some((m) => m.data[0] === 0xb2 && m.data[1] === 123)).toBe(true);
+  });
+
   it('removes an output: silenced, its routing gone, the next taking its place; the first removed, the second is first', async () => {
     const out = fakePort('out-1', 'Circuit');
     const other = fakePort('out-2', 'Juno');
@@ -632,9 +651,14 @@ describe('Midi: MIDI out', () => {
     expect(midi.outPort).toBe(other);
     // (the bass was on 4 of what is now the first: still there)
     expect(midi.channelsOf('bass', 1)).toEqual([4]);
-    // the last is never removed
+    // the last is left with no device, its routing kept for the next device chosen
+    other.sent = [];
     midi.removeOutput(1);
-    expect(midi.columns).toHaveLength(1);
+    expect(midi.columns.map((c) => [c.port, c.name])).toEqual([[1, '']]);
+    expect([midi.outPortId, midi.outPort]).toEqual(['none', null]);
+    expect(midi.channelsOf('bass', 1)).toEqual([4]);
+    expect(other.sent.some((m) => m.data[0] === 0xb3 && m.data[1] === 123)).toBe(true);
+    midi.chooseOutput('out-2');
     midi.addOutput('out-1');
     out.sent = [];
     midi.removeOutput(1);
@@ -1175,5 +1199,61 @@ describe('Midi: the patch matrix', () => {
     expect(midi.outPort).toBe(out);
     // (the second output's device is the same in both: not silenced)
     expect(other.sent.some((m) => m.data[1] === 123)).toBe(false);
+  });
+});
+
+describe('Midi: what went wrong, said', () => {
+  it('says the browser is still asking when it hasn’t answered, and lets Connect be pressed again', async () => {
+    vi.useFakeTimers();
+    try {
+      navigator.requestMIDIAccess = () => new Promise(() => {});
+      const midi = await made();
+      void midi.connect();
+      expect(midi.connecting).toBe(true);
+      await vi.advanceTimersByTimeAsync(CONNECT_WAIT);
+      expect(midi.connecting).toBe(false);
+      expect(midi.message).toMatch(/^Still waiting for the browser to allow MIDI/);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('says a test note with no port, and a port that throws, once however often it throws; dismissed, they go', async () => {
+    const out = fakePort('out-1', 'Circuit');
+    installMidi(fakeAccess([], [out]));
+    const midi = await made();
+    midi.testNote(1);
+    expect(midi.problems).toEqual(['The test note has no port to go to: choose a device that is plugged in']);
+    await midi.connect();
+    midi.chooseOutput('out-1');
+    out.send = () => {
+      throw new DOMException('port gone', 'InvalidStateError');
+    };
+    midi.testNote(1);
+    midi.testNote(1);
+    expect(midi.problems).toEqual([
+      'The test note has no port to go to: choose a device that is plugged in',
+      'A message couldn’t be sent to Circuit (InvalidStateError: port gone)',
+    ]);
+    midi.dismissProblems();
+    expect(midi.problems).toEqual([]);
+  });
+
+  it('says a message a hearer couldn’t play, and the other hearers still hear it', async () => {
+    const keys = fakeInput('in-1', 'Keys');
+    installMidi(fakeAccess([keys], []));
+    const midi = await made();
+    await midi.connect();
+    midi.chooseInput('in-1');
+    const heard: number[] = [];
+    cleanups.push(
+      midi.hear(() => {
+        throw new Error('no voice');
+      }),
+      midi.hear((data) => void heard.push(data[1]!)),
+    );
+    keys.play([0x90, 60, 100]);
+    expect(heard).toEqual([60]);
+    expect(midi.problems).toEqual(['A message from Keys couldn’t be played (Error: no voice)']);
   });
 });

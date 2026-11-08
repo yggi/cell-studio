@@ -222,7 +222,16 @@
 
   <!-- (a cell's page only beside its graph: the sheet is the graph's) -->
   {#if view.panelOpen && (library.anyOpen || view.panel === 'midi' || view.panel === 'file' || view.panel === 'session') && !(view.panel === 'cell' && stage !== 'graph')}
-    <Sidebar />
+    <!-- (whatever throws in a page of the sidebar is said there, and the graph and the editor go on) -->
+    <svelte:boundary onerror={(error) => console.error('The sidebar stopped:', error)}>
+      <Sidebar />
+      {#snippet failed(error, retry)}
+        <aside class="stopped" role="alert" aria-label="Sidebar">
+          <p>This page stopped working: <code>{error instanceof Error ? `${error.name}: ${error.message}` : String(error)}</code></p>
+          <p><button onclick={retry}>Try again</button> <button onclick={() => view.closePanel()}>Close</button></p>
+        </aside>
+      {/snippet}
+    </svelte:boundary>
   {/if}
   {#if dock.open && library.anyOpen && view.tab !== 'select'}
     <div class="dock-slot"><KeysDock /></div>
@@ -835,5 +844,16 @@
     .tagline span {
       display: none;
     }
+  }
+  .stopped {
+    grid-area: inspect;
+    width: min(380px, 92vw);
+    padding: 12px 16px;
+    background: var(--surface);
+    border-left: 1px solid var(--line);
+    color: var(--text);
+  }
+  .stopped code {
+    overflow-wrap: anywhere;
   }
 </style>
