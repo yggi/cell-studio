@@ -6,7 +6,8 @@
    * MIDI (the ports, how the piece goes out, the keys, learned knobs), the graph's layout forces, files, a Jambot session
    * to follow (Jam, SessionPanel.svelte), and the piece's numbers (Stats). The tab
    * strip says which (arrow keys, Home and End move along it); a dot on MIDI says whether anything is connected. Focus moves into the drawer when it opens and
-   * back to where it was when it closes; Escape closes it.
+   * back to where it was when it closes; Escape closes it. On the MIDI page it takes the window's whole width, over the
+   * app, at any size: the patch matrix is a wide table, which scrolled sideways in a 380 px pane.
    */
   import { onMount } from 'svelte';
   import { getStudio } from './state/studio.svelte';
@@ -86,7 +87,7 @@
 
 <!-- (keys bubble up from whatever in the drawer has focus; the drawer itself isn't a control) -->
 <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-<aside class="drawer" aria-label="Sidebar" bind:this={drawer} {onkeydown}>
+<aside class="drawer" class:wide={view.panel === 'midi'} aria-label="Sidebar" bind:this={drawer} {onkeydown}>
   <header>
     <div class="tabs" role="tablist" aria-label="Sidebar page" tabindex="-1" onkeydown={onTabKey}>
       {#each PAGES as [page, label] (page)}
@@ -170,6 +171,20 @@
     .cellpage {
       flex: 1;
     }
+  }
+  /* the MIDI page: the window's whole width, over the app (on a wide screen too, out of the grid), the page centred
+     within 1200 px */
+  .drawer.wide {
+    position: fixed;
+    z-index: 50;
+    inset: 0;
+    width: auto;
+    display: block;
+    box-shadow: none;
+  }
+  .drawer.wide > * {
+    max-width: 1200px;
+    margin-inline: auto;
   }
   header {
     position: sticky;

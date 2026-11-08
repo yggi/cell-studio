@@ -11,6 +11,8 @@ import {
   DRUM_PRESETS,
   deviceNote,
   fit,
+  forgetDevice,
+  newBook,
   fromCellStudio,
   loadBook,
   MidiOut,
@@ -78,6 +80,14 @@ const OWN_KEY = 'cell-studio:midi-own';
 const ALL_CHANNELS = Array.from({ length: 16 }, (_, i) => i);
 /** A test note's length, in ms. */
 const TEST_MS = 300;
+
+/** How long, in ms, the browser may take to answer a request for MIDI before the page says it is still waiting. */
+export const CONNECT_WAIT = 8000;
+/** How many problems the MIDI page keeps: the latest, each once. */
+const PROBLEMS = 4;
+
+/** An error, in words a person can pass on: its name and message. */
+const described = (error: unknown): string => (error instanceof Error ? `${error.name}: ${error.message}` : typeof error === 'string' ? error : 'unknown error');
 
 /** What Cell studio keeps beside the book. */
 interface Own {
@@ -154,6 +164,10 @@ interface OpenPiece {
  * inputs heard, the outputs sent clock and each piece's routes (`piece:<title>`), which the patch matrix shows and
  * changes. A port chosen before is connected again on load without a click (a permission already granted needs no
  * gesture); a first visit asks for nothing until Connect. `dispose` when it goes.
+ *
+ * Nothing MIDI does may stop the page: a port that throws, a permission the browser never answers, a hearer that fails.
+ * Each is caught where it happens and said in `problems`, which the MIDI page shows until dismissed, so a setup that
+ * doesn't work says why instead of failing silently.
  */
 export class Midi implements NoteSink {
   /** The connection, once made. */
@@ -163,6 +177,8 @@ export class Midi implements NoteSink {
   /** What happened, in words: the ports found, or why there is no connection. */
   message = $state('Not connected. Without MIDI, everything plays on the built-in sound.');
   connecting = $state(false);
+  /** What went wrong with MIDI lately, in words, the latest last: shown until dismissed. */
+  problems = $state.raw<readonly string[]>([]);
   /** The live port the first output resolves to, once connected. */
   outPort = $state.raw<MidiPort | null>(null);
   /** The device profiles and the setups (webmidi's `SetupBook`): change it with `setBook`. */
@@ -373,6 +389,18 @@ export class Midi implements NoteSink {
     return this.access ? f.of - f.plugged : 0;
   }
 
+  /** Say a problem: kept once, the latest few (one said again and again, as a port failing on every note, changes nothing). */
+  report(what: string, error?: unknown): void {
+    const line = error === undefined ? what : `${what} (${described(error)})`;
+    if (this.problems.at(-1) === line) return;
+    this.problems = [...this.problems.filter((p) => p !== line), line].slice(-PROBLEMS);
+  }
+
+  /** Clear the problems said, once read. */
+  dismissProblems(): void {
+    this.problems = [];
+  }
+
   /** Whether a port was chosen before. */
   get remembersPorts(): boolean {
     return this.sending || this.inPortId !== 'none';
@@ -383,24 +411,38 @@ export class Midi implements NoteSink {
     return this.#outputs.some((_, i) => this.portOf(i + 1));
   }
 
-  /** Connect to Web MIDI and adopt the ports chosen before. */
+  /**
+   * Connect to Web MIDI and adopt the ports chosen before. A browser that hasn't answered after `CONNECT_WAIT` is said
+   * to be waiting (a permission prompt hidden, or one a tablet never shows), and Connect can be pressed again.
+   */
   async connect(): Promise<void> {
-    if (this.connecting) return;
+    if (this.connecting || this.access) return;
     this.connecting = true;
-    const result = await MidiAccess.connect({ onChange: () => this.#changed(), onMessage: (...m) => this.#onMessage(...m) });
-    if (typeof result === 'string') {
-      if (!this.#disposed) this.message = result;
-    } else if (this.#disposed) {
-      // (disposed while asking: the connection comes too late for anyone, so it is let go, not kept listening)
-      result.close();
-    } else {
-      this.access = result;
-      this.#adopt();
-      this.#list();
-      // (the inputs heard are there or not from now on: one being unplugged later is a change)
-      this.#heardFrom = this.#inputThere();
+    const waiting = setTimeout(() => {
+      if (this.access || this.#disposed) return;
+      this.connecting = false;
+      this.message = 'Still waiting for the browser to allow MIDI. Look for its permission prompt, or allow MIDI in the site’s settings and press Connect again.';
+    }, CONNECT_WAIT);
+    try {
+      const result = await MidiAccess.connect({ onChange: () => this.#changed(), onMessage: (...m) => this.#onMessage(...m) });
+      if (typeof result === 'string') {
+        if (!this.#disposed) this.message = result;
+      } else if (this.#disposed || this.access) {
+        // (disposed while asking, or a second request answered first: the connection is let go, not kept listening)
+        result.close();
+      } else {
+        this.access = result;
+        this.#adopt();
+        this.#list();
+        // (the inputs heard are there or not from now on: one being unplugged later is a change)
+        this.#heardFrom = this.#inputThere();
+      }
+    } catch (error) {
+      if (!this.#disposed) this.message = `MIDI couldn’t connect (${described(error)}).`;
+    } finally {
+      clearTimeout(waiting);
+      this.connecting = false;
     }
-    this.connecting = false;
   }
 
   /**
@@ -435,18 +477,33 @@ export class Midi implements NoteSink {
     const key = JSON.stringify(listen);
     if (key === this.#listening) return;
     this.#listening = key;
-    access.listen(listen);
+    try {
+      access.listen(listen);
+    } catch (error) {
+      this.report('The inputs couldn’t be listened to', error);
+    }
   }
 
   // a message from an input: heard (the keys, MIDI learn) when it comes from an input heard, and forwarded where its row
   // is routed; the light flashes (not for system messages: a device's active sensing)
   #onMessage(data: Uint8Array, source: string, timeStamp: number): void {
-    const heard = isHeard(this.#setup, { id: source, name: source });
-    const routes = this.#routes;
-    const sent = routes ? forwards(data, source, heard, routes) : [];
-    if ((heard || sent.length) && data[0]! < 0xf0) this.activity.hit('in');
-    for (const s of sent) this.#sendTo(s.key, s.data);
-    if (heard) for (const h of this.#hearers) h(data, source, timeStamp);
+    try {
+      const heard = isHeard(this.#setup, { id: source, name: source });
+      const routes = this.#routes;
+      const sent = routes ? forwards(data, source, heard, routes) : [];
+      if ((heard || sent.length) && data[0]! < 0xf0) this.activity.hit('in');
+      for (const s of sent) this.#sendTo(s.key, s.data);
+      if (!heard) return;
+      // (one hearer failing leaves the others hearing)
+      for (const h of this.#hearers)
+        try {
+          h(data, source, timeStamp);
+        } catch (error) {
+          this.report(`A message from ${source} couldn’t be played`, error);
+        }
+    } catch (error) {
+      this.report(`A message from ${source} couldn’t be passed on`, error);
+    }
   }
 
   /** Hear every message from the inputs heard, raw; the function returned stops it. */
@@ -514,7 +571,16 @@ export class Midi implements NoteSink {
    */
   changeMatrix(next: SetupBook): void {
     if (this.locked) return this.setBook(lockedChange(this.book, this.matrixBook, next, this.context));
+    // (an output removed from its head in the matrix: what the store before the book chose for it goes, as `removeOutput`)
+    const after = activeSetup(next);
+    if (after.id === this.#setup.id) for (const o of this.#setup.outputs) if (!after.outputs.some((a) => a.key === o.key)) this.#dropLegacy(o.key);
     this.setBook(keptChange(this.book, this.matrixBook, next));
+  }
+
+  // what the store before the book chose for an output, dropped: a later output under its key starts with nothing
+  #dropLegacy(key: string): void {
+    this.#legacy = Object.fromEntries(Object.entries(this.#legacy).map(([t, r]) => [t, Object.fromEntries(Object.entries(r).filter(([k]) => k !== key))]));
+    this.#saveOwn();
   }
 
   // a change to the open piece's routes, made on what the matrix shows: a piece with none yet gets what it played, then the change
@@ -652,6 +718,7 @@ export class Midi implements NoteSink {
   testNote(port: number): void {
     const c = this.#outputs[port - 1];
     if (!c) return;
+    if (!this.portOf(port)) return this.report('The test note has no port to go to: choose a device that is plugged in');
     const ch = (this.usedOn(port)[0] ?? 1) - 1;
     this.#sendTo(c.key, [0x90 | ch, 60, 100]);
     this.#sendTo(c.key, [0x80 | ch, 60, 0], performance.now() + TEST_MS);
@@ -786,14 +853,37 @@ export class Midi implements NoteSink {
     this.chooseDevice(this.#outputs.length + 1, id);
   }
 
-  /** Remove an output (1 the first: the next becomes the first), silencing it; the routing kept for it goes too. Never the last. */
+  /**
+   * Remove an output (1 the first: the next becomes the first), silencing it; the routing kept for it goes too. The last
+   * is left with no device instead, its routing kept for the next device chosen (webmidi's `removeOutput`).
+   */
   removeOutput(port: number): void {
     const c = this.#outputs[port - 1];
-    if (!c || this.#outputs.length < 2) return;
-    // (what the store before the book chose for it goes too: a later output under its key starts with nothing)
-    this.#legacy = Object.fromEntries(Object.entries(this.#legacy).map(([t, r]) => [t, Object.fromEntries(Object.entries(r).filter(([k]) => k !== c.key))]));
-    this.#saveOwn();
+    if (!c) return;
+    if (this.#outputs.length > 1) this.#dropLegacy(c.key);
     this.setBook(removeOutput(this.book, c.key));
+  }
+
+  /** Whether an output's device (1 the first) has a profile of its own, which `forgetDevice` would drop. */
+  hasProfile(port: number): boolean {
+    const name = this.#nameOf(port);
+    return !!name && Object.hasOwn(this.book.devices, name);
+  }
+
+  /** Forget an output's device's profile (1 the first): it follows the defaults again, in every setup. */
+  forgetDevice(port: number): void {
+    const name = this.#nameOf(port);
+    if (name) this.setBook(forgetDevice(this.book, name));
+  }
+
+  /**
+   * Forget every setup and device profile: the book a first visit gets, saved at once, what every output held
+   * silenced first. A way back from a setup that doesn't work; the built-in sound's switch stays as it is.
+   */
+  reset(): void {
+    this.#legacy = {};
+    this.#saveOwn();
+    this.setBook(newBook());
   }
 
   // an output about to change or go: its clock stopped, All notes off on what it sent, and what it held forgotten
@@ -906,8 +996,9 @@ export class Midi implements NoteSink {
     try {
       port.send(data, timestamp);
       this.#flash(data, timestamp);
-    } catch {
-      // (gone: its next statechange lets go of it)
+    } catch (error) {
+      // (gone: its next statechange lets go of it; said, once)
+      this.report(`A message couldn’t be sent to ${this.#outputs.find((o) => o.key === key)?.name || 'an output'}`, error);
     }
   }
 
@@ -952,8 +1043,13 @@ export class Midi implements NoteSink {
 
   // the ports may have changed: adopt the ones chosen again, and list them
   #changed(): void {
-    this.#adopt();
-    this.#list();
+    try {
+      this.#adopt();
+      this.#list();
+    } catch (error) {
+      this.report('The ports couldn’t be read', error);
+      return;
+    }
     const heard = heardOf(this.#setup);
     // (an input heard gone: its keys' note-offs will never come; an unrelated device coming or going is not that)
     const there = this.#inputThere();
