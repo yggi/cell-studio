@@ -6,7 +6,7 @@ import { buildGraph } from './drawn';
 import { eventsBetween, plan } from '@yggi/cells/engine/realize';
 import { liveAt } from '@yggi/cells/engine/live';
 import { drawn, edgeStateOf, nodeStateOf, routing } from '@yggi/cells/engine/routing';
-import { PRESETS } from '@yggi/cells/engine/presets';
+import { EXAMPLES } from '@yggi/cells/engine/examples';
 import { mainLength, pieceTime } from '@yggi/cells/engine/duration';
 
 const OUT = '&out loop=SAMPLE_RATE map=sample';
@@ -28,7 +28,7 @@ function states(r: CompileResult, t: number | null, muted: ReadonlySet<string> =
 
 describe('routing: the clocks a parameter reads are wires too (#188, #193)', () => {
   // Baustelle II with a tape and a head that read the bar: `length=&bar/4`, `at=&bar*2/3`
-  const resonanz = () => compilePiece(PRESETS.resonanz.source.replace('length=5', 'length=&bar/4').replace('at=1.15', 'at=&bar*2/3'));
+  const resonanz = () => compilePiece(EXAMPLES.resonanz.source.replace('length=5', 'length=&bar/4').replace('at=1.15', 'at=&bar*2/3'));
   it("a read head's at= clock is lit with the head, as the tape's length= is", () => {
     const r = resonanz();
     expect(r.diagnostics.filter((d) => d.severity === 'error')).toEqual([]);
@@ -101,13 +101,13 @@ describe('routing: one model for what the graph draws as part of the sound (#11)
     expect([s.get('kit->bd'), s.get('bd'), s.get('kit->hh'), s.get('hh')]).toEqual([undefined, 'live', undefined, 'idle']);
   });
   it('an instrument (a mix used like a voice) and a sound tape it records: all on the way while it plays', () => {
-    const r = compilePiece(PRESETS.soundtape.source);
+    const r = compilePiece(EXAMPLES.soundtape.source);
     const s = states(r, 3);
     for (const k of ['dry', 'tape', 'left', 'right', 'far', 'reel', 'tune->*dry:0', '*dry:0->pluck', 'pluck->dry', 'dry->out', 'dry->tape', 'left->out', 'tape~>reel'])
       expect(s.get(k), k).toBe('live');
   });
   it('a resonator excited by tape heads, and the heads into the sound card', () => {
-    const r = compilePiece(PRESETS.resonanz.source);
+    const r = compilePiece(EXAMPLES.resonanz.source);
     const s = states(r, 2);
     for (const k of ['site->tape', 'h1', 'h1->echo', 'echo->pipeA', 'pipeA->out', 'hammer->*site:0', '*site:0->plate', 'plate->site']) expect(s.get(k), k).toBe('live');
   });
@@ -117,7 +117,7 @@ describe('routing: one model for what the graph draws as part of the sound (#11)
     expect([s.get('m'), s.get('v'), s.get('mel'), s.get('mel->*m:0'), s.get('*m:0->v'), s.get('v->m')]).toEqual(['off', 'unrouted', 'unrouted', 'unrouted', 'unrouted', 'off']);
   });
   it('a table read only through a turning table: what turns it is on the way', () => {
-    const r = compilePiece(PRESETS.royal.source);
+    const r = compilePiece(EXAMPLES.royal.source);
     const s = states(r, 1);
     expect([s.get('key~>theme'), s.get('scale->key')]).toEqual(['live', 'live']);
   });
@@ -127,7 +127,7 @@ describe('routing, every example', () => {
   // (a gap known in cells, expected to fail until the pin that carries its fix: it.fails turns red when it passes, so
   // the exception comes out then. radio: `* from band`'s ends aren't routed, yggi/cells#618)
   const gaps: Record<string, string> = { radio: 'yggi/cells#618' };
-  for (const [key, p] of Object.entries(PRESETS)) {
+  for (const [key, p] of Object.entries(EXAMPLES)) {
     (gaps[key] ? it.fails : it)(`${key}: the drawn states agree with each other and with what plays${gaps[key] ? ` (a gap: ${gaps[key]})` : ''}`, () => {
       const r = compilePiece(p.source);
       const g = buildGraph(r);
@@ -182,7 +182,7 @@ describe('at rest, nothing is dimmed (#201)', () => {
   });
   it('every example, stopped: every node and edge is on or off, never unrouted, idle or live', () => {
     const bad: string[] = [];
-    for (const [key, p] of Object.entries(PRESETS)) {
+    for (const [key, p] of Object.entries(EXAMPLES)) {
       const s = states(compilePiece(p.source), null);
       for (const [k, v] of s) if (v !== 'on' && v !== 'off') bad.push(`${key}: ${k} ${v}`);
     }

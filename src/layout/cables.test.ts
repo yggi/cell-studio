@@ -1,13 +1,13 @@
 // Patch cables dragged in the graph (#555): each drop writes what cells' patch/unpatch write (their texts reused from
 // yggi/cells src/engine/patch.test.ts), and a refused one writes nothing and says why.
 import { describe, expect, it } from 'vitest';
-import { PRESETS } from '@yggi/cells/engine/presets';
+import { EXAMPLES } from '@yggi/cells/engine/examples';
 import { compilePiece } from '../compile';
 import { buildGraph } from './drawn';
 import { jackOfEdge, jacksOfNode } from './modules';
 import { bandOf, move, plug, pull, takes } from './cables';
 
-const PATCHBAY = PRESETS.patchbay.source;
+const PATCHBAY = EXAMPLES.patchbay.source;
 const patchbay = compilePiece(PATCHBAY);
 const lineOf = (text: string, cell: string) => text.split('\n').find((l) => l.startsWith(`&${cell} `));
 const written = (d: ReturnType<typeof plug>) => (d.ok ? d.text : `refused: ${d.message}`);

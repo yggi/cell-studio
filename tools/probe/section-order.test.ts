@@ -6,7 +6,7 @@
 // Run: PROBE=out.txt npx vitest run tools/probe/section-order.test.ts
 import { describe, it } from 'vitest';
 import { appendFileSync } from 'node:fs';
-import { PRESETS } from '@yggi/cells/engine/presets';
+import { EXAMPLES } from '@yggi/cells/engine/examples';
 import { compileSource } from '@yggi/cells/engine/compile';
 import { type GraphModel } from '@yggi/cells/engine/graph';
 import { buildGraph } from '../../src/layout/drawn';
@@ -40,7 +40,7 @@ describe.runIf(process.env.PROBE)('the sections’ order, at the start and at re
     const log = (t: string) => appendFileSync(process.env.PROBE!, t + '\n');
     log('piece          sections  inversions start → rest   crossings start → rest');
     const sum = { inv0: 0, inv1: 0, c0: 0, c1: 0 };
-    for (const [key, p] of Object.entries(PRESETS)) {
+    for (const [key, p] of Object.entries(EXAMPLES)) {
       const model = buildGraph(compileSource(p.source));
       const tables = sectionsOf(model);
       if (!tables.size) continue;

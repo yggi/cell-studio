@@ -4,7 +4,7 @@ import { codeShifts } from '@yggi/cells/engine/program';
 import { entries, lookup } from '@yggi/cells/engine/helix';
 import { cellView } from './cellview';
 import { setAttr } from '@yggi/cells/engine/edit';
-import { PRESETS } from '@yggi/cells/engine/presets';
+import { EXAMPLES } from '@yggi/cells/engine/examples';
 import { effectiveShow } from './show';
 
 // entries() is memoised per compiled program (issue #41): the answers must always be the ones a fresh
@@ -54,8 +54,8 @@ describe('entries cache', () => {
 
 describe('effectiveShow cache', () => {
   it('follows the program: the same cell name with another show= answers differently', () => {
-    const a = compilePiece(setAttr(PRESETS.twinkle.source, 'tune', 'show', 'do'));
-    const b = compilePiece(setAttr(PRESETS.twinkle.source, 'tune', 'show', 'notes'));
+    const a = compilePiece(setAttr(EXAMPLES.twinkle.source, 'tune', 'show', 'do'));
+    const b = compilePiece(setAttr(EXAMPLES.twinkle.source, 'tune', 'show', 'notes'));
     expect(effectiveShow(a, 'up').show).toBe('do');
     expect(effectiveShow(b, 'up').show).toBe('notes');
     expect(effectiveShow(a, 'up').show).toBe('do');
@@ -64,7 +64,7 @@ describe('effectiveShow cache', () => {
 
 describe('cellView on caches', () => {
   it('draws a cell the same warm (caches filled, other shifts asked in between) as on a fresh compile', () => {
-    const src = PRESETS.bwv847.source;
+    const src = EXAMPLES.bwv847.source;
     const r = compilePiece(src);
     const base = codeShifts(r);
     const at = (k: number) => (n: string) => base(n) + (n.length % 2 ? k : 0);

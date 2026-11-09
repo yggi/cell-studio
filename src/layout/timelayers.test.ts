@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { compilePiece } from '../compile';
 import { pieceTime, sections } from '@yggi/cells/engine/duration';
-import { PRESETS } from '@yggi/cells/engine/presets';
+import { EXAMPLES } from '@yggi/cells/engine/examples';
 import { codeShifts } from '@yggi/cells/engine/program';
 import { eventsBetween, plan } from '@yggi/cells/engine/realize';
 import { sectionsOver } from '@yggi/cells/engine/time/boundaries';
@@ -38,8 +38,8 @@ function named(scal: Parameters<typeof heardLevelsOf>[0], periodic: boolean | un
 }
 
 /** A piece as the time view takes it in (ui/TimeView.svelte): its length shown, its rounds, the notes listened to. */
-function piece(key: keyof typeof PRESETS) {
-  const program = compilePiece(PRESETS[key].source);
+function piece(key: keyof typeof EXAMPLES) {
+  const program = compilePiece(EXAMPLES[key].source);
   if (!program.ok) throw new Error(`${key} does not compile`);
   const time = pieceTime(program);
   const heard = listening(time);

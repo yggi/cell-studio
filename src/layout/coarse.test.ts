@@ -1,4 +1,4 @@
-import { PRESETS } from '@yggi/cells/engine/presets';
+import { EXAMPLES } from '@yggi/cells/engine/examples';
 import { describe, expect, it } from 'vitest';
 import { compilePiece } from '../compile';
 import { codeShifts } from '@yggi/cells/engine/program';
@@ -108,7 +108,7 @@ describe('coarsen', () => {
 });
 
 describe('coarsen on the Prelude', () => {
-  const r = compilePiece(PRESETS.bwv847.source);
+  const r = compilePiece(EXAMPLES.bwv847.source);
   const sh = codeShifts(r);
 
   it('brings the long braids to about the cap, and leaves what is under it alone', () => {

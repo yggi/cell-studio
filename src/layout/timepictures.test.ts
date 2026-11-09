@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createHash } from 'node:crypto';
 import { compilePiece } from '../compile';
-import { PRESETS } from '@yggi/cells/engine/presets';
+import { EXAMPLES } from '@yggi/cells/engine/examples';
 import { codeShifts } from '@yggi/cells/engine/program';
 import { eventsBetween, plan } from '@yggi/cells/engine/realize';
 import { scalograms, SIGNALS, type Signal } from '@yggi/cells/engine/time/signals';
@@ -55,7 +55,7 @@ describe('the time view: its pictures as pixels', () => {
   });
 
   it('Pop: the scalogram as today, in every signal', { timeout: 60000 }, () => {
-    const program = compilePiece(PRESETS.pop.source);
+    const program = compilePiece(EXAMPLES.pop.source);
     if (!program.ok) throw new Error('pop');
     const notes = eventsBetween(plan(program, codeShifts(program)), 0, 96);
     const g = grid(96, undefined, false);

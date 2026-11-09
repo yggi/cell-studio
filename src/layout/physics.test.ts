@@ -12,7 +12,7 @@ import { splinePoint } from './geometry';
 import { buildGraph } from './drawn';
 import { folded } from './junctions';
 import { compilePiece } from '../compile';
-import { PRESETS } from '@yggi/cells/engine/presets';
+import { EXAMPLES } from '@yggi/cells/engine/examples';
 
 // (every cell a node, splices used once too: these are about how parts sit beside their players, #221)
 const graphOf = (src: string) => buildGraph(compilePiece(src), { bulbs: false });
@@ -20,7 +20,7 @@ const dist = (a: { x: number; y: number }, b: { x: number; y: number }) => Math.
 
 describe('ForceLayout', () => {
   it('settles a preset with finite positions, flowing from the meter up to the sound card', () => {
-    const g = graphOf(PRESETS.royal.source);
+    const g = graphOf(EXAMPLES.royal.source);
     const l = new ForceLayout(undefined, { live: false });
     l.setGraph(g);
     l.tick(400);
@@ -35,7 +35,7 @@ describe('ForceLayout', () => {
   });
 
   it('keeps nodes from overlapping', () => {
-    const g = graphOf(PRESETS.sailor.source);
+    const g = graphOf(EXAMPLES.sailor.source);
     const l = new ForceLayout(undefined, { live: false });
     l.setGraph(g);
     l.tick(400);
@@ -177,7 +177,7 @@ describe('spline edges', () => {
 
 describe('dragging', () => {
   it('a released node is free (it relaxes back towards its ring); a pinned one stays where it was put', () => {
-    const model = buildGraph(compilePiece(PRESETS.transpose.source));
+    const model = buildGraph(compilePiece(EXAMPLES.transpose.source));
     const l = new ForceLayout(undefined, { live: false });
     l.setGraph(model);
     l.tick(300);
@@ -204,7 +204,7 @@ describe('dragging', () => {
 
 describe('initial layout', () => {
   it('draws the sound card up-centre — a slight pull, not a pin', () => {
-    const model = buildGraph(compilePiece(PRESETS.royal.source));
+    const model = buildGraph(compilePiece(EXAMPLES.royal.source));
     const l = new ForceLayout(undefined, { live: false });
     l.setGraph(model);
     l.tick(400);
@@ -222,10 +222,10 @@ describe('initial layout', () => {
   });
 
   it('meters that only keep time start side by side at the bottom (one that is also played sits with its players)', () => {
-    const model = buildGraph(compilePiece(PRESETS.rhythm.source));
+    const model = buildGraph(compilePiece(EXAMPLES.rhythm.source));
     const l = new ForceLayout(undefined, { live: false });
     l.setGraph(model);
-    const r = compilePiece(PRESETS.rhythm.source);
+    const r = compilePiece(EXAMPLES.rhythm.source);
     const meters = model.nodes.filter((n) => n.kind === 'cell' && n.isMeter && !r.outputs.some((o) => o.cell === n.cell.name)).map((n) => n.id);
     expect(meters.length).toBeGreaterThan(0);
     const lowest = Math.max(...model.nodes.filter((n) => !n.petalOf && !isSide(n)).map((n) => l.position(n.id)!.y));
@@ -261,7 +261,7 @@ describe('initial layout', () => {
 
 // (the start is worked out on the graph with each product's junction folded into its voice: junctions.ts)
 describe('the natural order (waltz)', () => {
-  const model = folded(buildGraph(compilePiece(PRESETS.waltz.source), { bulbs: false }));
+  const model = folded(buildGraph(compilePiece(EXAMPLES.waltz.source), { bulbs: false }));
   const id = (n: string) => `cell:${n}`;
 
   it('ranks the signal path from time up to sound; parts beside what uses them', () => {
@@ -304,9 +304,9 @@ describe('the natural order (waltz)', () => {
 describe('switching examples', () => {
   it('a mostly new graph is laid out afresh, even when it shares names (&bar, &mix, &out)', () => {
     const l = new ForceLayout(undefined, { live: false });
-    l.setGraph(buildGraph(compilePiece(PRESETS.transpose.source)));
+    l.setGraph(buildGraph(compilePiece(EXAMPLES.transpose.source)));
     l.tick(300);
-    const waltz = buildGraph(compilePiece(PRESETS.waltz.source), { bulbs: false });
+    const waltz = buildGraph(compilePiece(EXAMPLES.waltz.source), { bulbs: false });
     l.setGraph(waltz);
     l.tick(500);
     expect(l.drawnCrossings()).toBe(0);
@@ -316,7 +316,7 @@ describe('switching examples', () => {
 });
 
 describe('the natural order (royal)', () => {
-  const model = folded(buildGraph(compilePiece(PRESETS.royal.source)));
+  const model = folded(buildGraph(compilePiece(EXAMPLES.royal.source)));
   const id = (n: string) => `cell:${n}`;
   it('stepped tables hang just under their readers; the vibrato beside the melody', () => {
     const r = flowRanks(model);
@@ -376,7 +376,7 @@ describe('drawn crossings', () => {
 
 describe('options', () => {
   it('apply live: more repulsion range spreads the graph', () => {
-    const model = buildGraph(compilePiece(PRESETS.rhythm.source));
+    const model = buildGraph(compilePiece(EXAMPLES.rhythm.source));
     const spread = (o: Partial<typeof DEFAULT_LAYOUT>) => {
       const l = new ForceLayout(undefined, { live: false });
       l.setGraph(model);
@@ -394,7 +394,7 @@ describe('options', () => {
 
 describe('balance (per tonos)', () => {
   it('parts cluster under their users: no ten-wide row, about as wide as tall, centred', () => {
-    const full = folded(buildGraph(compilePiece(PRESETS.pertonos.source)));
+    const full = folded(buildGraph(compilePiece(EXAMPLES.pertonos.source)));
     const model = { ...full, nodes: full.nodes.filter((n) => !n.petalOf && !isSide(n)) }; // the motifs are petals of &alto now
     const r = flowRanks(model);
     const rows = new Map<number, number>();
@@ -440,7 +440,7 @@ describe('busy nodes push harder', () => {
 
 describe('symmetric columns', () => {
   it('the waltz: the first voice in the middle, the others either side — each motif over its player', () => {
-    const c = columns(folded(buildGraph(compilePiece(PRESETS.waltz.source), { bulbs: false })));
+    const c = columns(folded(buildGraph(compilePiece(EXAMPLES.waltz.source), { bulbs: false })));
     const at = (n: string) => c.get(`cell:${n}`)!;
     expect([at('tuba'), at('flute'), at('strings')]).toEqual([-1, 0, 1]);
     expect([at('oom'), at('I'), at('V')]).toEqual([-1, -1, -1]);
@@ -448,7 +448,7 @@ describe('symmetric columns', () => {
     expect([at('tune'), at('bar'), at('mix')]).toEqual([0, 0, 0]);
   });
   it('stereo: what leans left sits left', () => {
-    const c = columns(folded(buildGraph(compilePiece(PRESETS.stereo.source))));
+    const c = columns(folded(buildGraph(compilePiece(EXAMPLES.stereo.source))));
     expect(c.get('cell:bell')!).toBeLessThan(0);
     expect(c.get('cell:cello')!).toBeGreaterThan(0);
     expect(c.get('cell:high')!).toBeLessThan(0);
@@ -457,7 +457,7 @@ describe('symmetric columns', () => {
   it('a fresh layout starts symmetric: the waltz’s left and right mirror each other', () => {
     const l = new ForceLayout(undefined, { live: false });
     // (its rate written on the bar, as before cells v0.12: a tempo cell beside the meter isn't placed symmetrically yet, #515)
-    const waltz = PRESETS.waltz.source.replace('&bar scan(28 37 35) step=&tempo', '&bar scan(28 37 35) step=free(168bpm, 140..200)').replace(/^&tempo .*$/m, '');
+    const waltz = EXAMPLES.waltz.source.replace('&bar scan(28 37 35) step=&tempo', '&bar scan(28 37 35) step=free(168bpm, 140..200)').replace(/^&tempo .*$/m, '');
     l.setGraph(buildGraph(compilePiece(waltz), { bulbs: false }));
     const x = (n: string) => l.position(`cell:${n}`)!.x;
     // mirror images, to within the few pixels of jitter that keep nodes from starting exactly on top of each other
@@ -492,7 +492,7 @@ describe('size=: how large a cell is drawn, against the others', () => {
 describe('tags inside a piece: a node each, pushing cells and edges off its name', () => {
   for (const key of ['baustelle', 'hypercell']) {
     it(key, () => {
-      const model = buildGraph(compilePiece((PRESETS as Record<string, { source: string }>)[key].source));
+      const model = buildGraph(compilePiece((EXAMPLES as Record<string, { source: string }>)[key].source));
       const l = new ForceLayout(undefined, { live: false });
       l.setGraph(model);
       l.tick(500);
@@ -532,7 +532,7 @@ describe('tags inside a piece: a node each, pushing cells and edges off its name
 describe('tapes: the heads keep their spacing, the wheel turns to face them at what they connect to', () => {
   for (const key of ['echotape', 'soundtape', 'testtones', 'resonanz', 'fiveto12'] as const) {
     it(key, () => {
-      const model = buildGraph(compilePiece(PRESETS[key].source));
+      const model = buildGraph(compilePiece(EXAMPLES[key].source));
       const faces = tapeFaces(model);
       expect(faces.some((f) => f.write)).toBe(true);
       expect(faces.filter((f) => !f.write).length).toBeGreaterThan(1);
@@ -569,7 +569,7 @@ describe('tapes: the heads keep their spacing, the wheel turns to face them at w
     });
   }
   it('an update that moves nothing (pressing Play) leaves the tapes turned as they were', () => {
-    const model = buildGraph(compilePiece(PRESETS.soundtape.source));
+    const model = buildGraph(compilePiece(EXAMPLES.soundtape.source));
     const l = new ForceLayout(undefined, { live: false });
     l.setGraph(model);
     l.tick(220);
@@ -630,7 +630,7 @@ describe('a net at delays (a canon, a tape): every reader leaves its owner, its 
     ['echotape', 'cell:tape'],
   ] as const)
     it(key, () => {
-      const g = graphOf(PRESETS[key].source);
+      const g = graphOf(EXAMPLES[key].source);
       const l = new ForceLayout(undefined, { live: false });
       l.setGraph(g);
       l.tick(200);
@@ -644,7 +644,7 @@ describe('a net at delays (a canon, a tape): every reader leaves its owner, its 
 describe('meters, joined to their cells by a net', () => {
   for (const key of ['royal', 'bossa', 'cellscape', 'baustelle'] as const) {
     it(key, () => {
-      const model = buildGraph(compilePiece(PRESETS[key].source));
+      const model = buildGraph(compilePiece(EXAMPLES[key].source));
       const l = new ForceLayout(undefined, { live: false });
       l.setGraph(model);
       l.tick(220);

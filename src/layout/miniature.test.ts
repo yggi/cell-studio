@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { JUNCTION, METER, MIX, QUIET, VOICE, miniature, miniShape, type Miniature } from './miniature';
-import { PRESETS } from '@yggi/cells/engine/presets';
+import { EXAMPLES } from '@yggi/cells/engine/examples';
 import built from 'virtual:examples-index';
 
 describe('miniature', () => {
-  const m = miniature(PRESETS.royal.source)!;
+  const m = miniature(EXAMPLES.royal.source)!;
 
   it('is raw and compact: whole px, a kind or a hue (to a tenth) per node, edges between nodes', () => {
     expect(m.nodes.length).toBeGreaterThan(3);
@@ -17,7 +17,7 @@ describe('miniature', () => {
     expect(JSON.stringify(m)).not.toMatch(/var\(|hsl|#/);
   });
 
-  it('is the same every time', () => expect(miniature(PRESETS.royal.source)).toEqual(m));
+  it('is the same every time', () => expect(miniature(EXAMPLES.royal.source)).toEqual(m));
 
   it('is nothing for a piece with no cells to draw', () => expect(miniature('')).toBeNull());
 

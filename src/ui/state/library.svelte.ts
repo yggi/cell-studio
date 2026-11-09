@@ -1,4 +1,4 @@
-import { FIRST, type PresetKey } from '../../examples';
+import { FIRST, type ExampleKey } from '../../examples';
 import { listSaved, removeSaved, storageAvailable, type SavedPiece } from '../../library';
 import { freezeLayout, layoutKey, libraryLayoutAsync, stageOf, thawLayout, type FrozenLayout, type LibraryLayout } from '../../layout/library';
 import { storageKey } from '../../storageKey';
@@ -29,7 +29,7 @@ function storeLayout(key: string, layout: LibraryLayout): void {
 }
 
 /** What's open: an example, a piece saved here, a file of the MIDI library, a file. */
-export type Open = { kind: 'example'; key: PresetKey } | { kind: 'saved'; id: string } | { kind: 'midi'; key: string } | { kind: 'file'; name: string };
+export type Open = { kind: 'example'; key: ExampleKey } | { kind: 'saved'; id: string } | { kind: 'midi'; key: string } | { kind: 'file'; name: string };
 
 /** The pieces to choose from (the examples, the MIDI library and those saved in this browser), and which is open. */
 export class Library {

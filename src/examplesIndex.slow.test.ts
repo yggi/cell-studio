@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { PRESETS } from '@yggi/cells/engine/presets';
+import { EXAMPLES } from '@yggi/cells/engine/examples';
 import { compilePiece } from './compile';
 import { pieceMeta } from '@yggi/cells/engine/parser/index';
 import built from 'virtual:examples-index';
@@ -19,17 +19,17 @@ describe('examples/*.md', () => {
     expect(built.map((e) => (e as { key: string }).key)).toEqual([...ORDER]);
     expect(built).toEqual(fresh);
     for (const e of fresh) {
-      const m = pieceMeta(PRESETS[e.key].file);
+      const m = pieceMeta(EXAMPLES[e.key].file);
       expect([e.title, e.description, e.tags, e.tier]).toEqual([m?.title, m?.description, m?.tags, m?.tier]); // (the tags are written canonical: checked above)
       expect(e.size, `${e.key}: size`).toBeGreaterThan(0);
       // its miniature: what the browser would work out from its text, one node per cell drawn and a dot per product
-      expect(e.miniature, `${e.key}: miniature`).toEqual(miniature(PRESETS[e.key].source));
-      const products = buildGraph(compilePiece(PRESETS[e.key].source)).nodes.filter((n) => n.kind === 'junction').length;
+      expect(e.miniature, `${e.key}: miniature`).toEqual(miniature(EXAMPLES[e.key].source));
+      const products = buildGraph(compilePiece(EXAMPLES[e.key].source)).nodes.filter((n) => n.kind === 'junction').length;
       expect(e.miniature?.nodes, `${e.key}: miniature`).toHaveLength(e.size + products);
       // (laid out with the rows' order the index keeps, as the browser lays it out choosing afresh: the same order)
-      expect(e.rows.key, `${e.key}: its graph's shape`).toBe(rowsKey(buildGraph(compilePiece(PRESETS[e.key].source))));
+      expect(e.rows.key, `${e.key}: its graph's shape`).toBe(rowsKey(buildGraph(compilePiece(EXAMPLES[e.key].source))));
       // (and in the tower layout, as graphLayout.svelte.ts hands it to the layout: its sockets, no petals, no notes)
-      const program = compilePiece(PRESETS[e.key].source);
+      const program = compilePiece(EXAMPLES[e.key].source);
       const tower = towerSetup(program, buildGraph(program)).model;
       expect(e.towerRows.key, `${e.key}: its tower graph's shape`).toBe(rowsKey(sideless({ ...tower, nodes: tower.nodes.filter((n) => !n.petalOf) })));
     }

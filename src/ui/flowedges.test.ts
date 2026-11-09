@@ -4,7 +4,7 @@ import { feeds, type GraphEdge } from '@yggi/cells/engine/graph';
 import { buildGraph } from '../layout/drawn';
 import { codeShifts, type CompileResult } from '@yggi/cells/engine/program';
 import { routing } from '@yggi/cells/engine/routing';
-import { PRESETS } from '@yggi/cells/engine/presets';
+import { EXAMPLES } from '@yggi/cells/engine/examples';
 import { carried, flowEdgesOf } from './flowedges';
 import { snapshotOf } from './snapshot';
 
@@ -59,7 +59,7 @@ const SRC = `&bar scan(1 1 1 1) step=120bpm
 describe('what an edge carries: one lookup by band and port', () => {
   it('is what the special cases said, on every edge of every example', () => {
     let n = 0;
-    for (const [key, { source }] of Object.entries(PRESETS)) {
+    for (const [key, { source }] of Object.entries(EXAMPLES)) {
       // (as the app compiles it: with the seed library, for a piece that uses it)
       const program = compilePiece(source);
       // (every cell its own node: the edges as the code writes them)
@@ -74,7 +74,7 @@ describe('what an edge carries: one lookup by band and port', () => {
   it('from a read head drawn as a bulb on its tape: what the head’s own edge carries (decision 021)', () => {
     let n = 0;
     for (const key of ['echotape', 'soundtape', 'worn', 'resonanz'] as const) {
-      const program = compilePiece(PRESETS[key].source);
+      const program = compilePiece(EXAMPLES[key].source);
       const own = new Map(buildGraph(program, { bulbs: false }).edges.map((e) => [e.id, e]));
       for (const e of buildGraph(program).edges.filter((x) => x.bulb && own.has(x.id))) {
         expect(carried(e, program), `${key}: ${e.id}`).toEqual(carried(own.get(e.id)!, program));
@@ -122,16 +122,16 @@ describe('sound up through patterns (#273): a pattern of voices spliced into ano
     return { e: e!, program };
   };
   it('IDM: the pattern reads the drums by one wire; spliced into the break it is sound, coloured by its first voice', () => {
-    expect(edge(PRESETS.idm.source, 'kit:voices', 'pat').e.port).toBe('over');
-    const { e, program } = edge(PRESETS.idm.source, 'pat', 'break');
+    expect(edge(EXAMPLES.idm.source, 'kit:voices', 'pat').e.port).toBe('over');
+    const { e, program } = edge(EXAMPLES.idm.source, 'pat', 'break');
     expect(e.band).toBe('audio');
     expect(carried(e, program).voice).toBe('bd');
   });
   it('Brothers: the break into its tracker is sound', () => {
-    expect(edge(PRESETS.brothers.source, 'break', 'tracker').e.band).toBe('audio');
+    expect(edge(EXAMPLES.brothers.source, 'break', 'tracker').e.band).toBe('audio');
   });
   it('Drums with a song of grooves: the groove into the song is sound', () => {
-    const { e } = edge(`${PRESETS.drums.source}\n&song step=4n &groove &groove`, 'groove', 'song');
+    const { e } = edge(`${EXAMPLES.drums.source}\n&song step=4n &groove &groove`, 'groove', 'song');
     expect(e.band).toBe('audio');
   });
 });
@@ -139,7 +139,7 @@ describe('sound up through patterns (#273): a pattern of voices spliced into ano
 describe('the flow’s edges of a snapshot', () => {
   it('carry no pointer, and read only cells of their own program', () => {
     for (const key of ['baustelle', 'resonanz', 'twinkle'] as const) {
-      const program = compilePiece(PRESETS[key].source);
+      const program = compilePiece(EXAMPLES[key].source);
       const model = buildGraph(program);
       const s = snapshotOf(program, model, codeShifts(program), program.off, routing(program, program.off));
       const edges = flowEdgesOf(s, { sizeOf: () => 128, net: [], lit: false, live: null });

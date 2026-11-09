@@ -16,7 +16,7 @@ import { pieceTime, sections } from '@yggi/cells/engine/duration';
 import { listening } from '@yggi/cells/engine/time/span';
 import { KEY, SECONDS_PER_STEP } from '@yggi/cells/engine/fiveto12';
 import { eventsBetween, plan } from '@yggi/cells/engine/realize';
-import { PRESETS } from '@yggi/cells/engine/presets';
+import { EXAMPLES } from '@yggi/cells/engine/examples';
 import { towerSpans } from '../../src/layout/tower';
 import { MOST_RATE, PER_OCTAVE, grid, reach, type Scalogram } from '@yggi/cells/engine/time/wavelet';
 import { SIGNALS, scalograms } from '@yggi/cells/engine/time/signals';
@@ -73,7 +73,7 @@ describe.runIf(process.env.PROBE)('the rhythm scalogram', () => {
     // cell's turn explains them, a phrase inside a section)
     const unwritten: string[] = [];
     const tallyUnwritten = { strong: 0, off: 0, turn: 0, chance: 0, splice: 0, spliceChance: 0, pieces: 0 };
-    for (const [key, p] of Object.entries(PRESETS)) {
+    for (const [key, p] of Object.entries(EXAMPLES)) {
       if (only && !only.includes(key)) continue;
       if (tag && !new RegExp(`tags="[^"]*\\b${tag}\\b`).test(p.source)) continue;
       const program = compileSource(p.source);

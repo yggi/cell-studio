@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { compilePiece } from '../compile';
-import { PRESETS } from '@yggi/cells/engine/presets';
+import { EXAMPLES } from '@yggi/cells/engine/examples';
 import { buildGraph } from './drawn';
 import { minimap } from './minimap';
 import { withSockets } from './towerlayout';
 
 describe("the strip's minimap", () => {
   it('puts each out in a lane, in the order asked, and every node in the lanes of the outs it feeds', () => {
-    const program = compilePiece(PRESETS.waltz.source);
+    const program = compilePiece(EXAMPLES.waltz.source);
     const drawn = withSockets(program, buildGraph(program));
     const order = ['cell:tuba', 'cell:flute', 'cell:strings'];
     const { lanes, span } = minimap(drawn, (s) => order.indexOf(s));

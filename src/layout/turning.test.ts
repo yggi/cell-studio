@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { compilePiece } from '../compile';
 import { codeShifts } from '@yggi/cells/engine/program';
-import { PRESETS } from '@yggi/cells/engine/presets';
+import { EXAMPLES } from '@yggi/cells/engine/examples';
 import { playedCells, shiftsAt } from '@yggi/cells/engine/clocking';
 import { liveAt } from '@yggi/cells/engine/live';
 import { cellView } from './cellview';
@@ -14,7 +14,7 @@ describe('one motion per wheel: a played cell its hand, a table nothing plays it
   it('over the library, no played wheel turns while it plays, and the tables nothing plays still do', () => {
     const turned: string[] = [];
     const still: string[] = [];
-    for (const [key, p] of Object.entries(PRESETS)) {
+    for (const [key, p] of Object.entries(EXAMPLES)) {
       const r = compilePiece(p.source);
       const statics = codeShifts(r);
       const played = playedCells(r);
@@ -32,7 +32,7 @@ describe('one motion per wheel: a played cell its hand, a table nothing plays it
   });
 
   it("a braid's bulbs stay where they are on its track while it plays: its splices as written too", () => {
-    const r = compilePiece(PRESETS.drums.source);
+    const r = compilePiece(EXAMPLES.drums.source);
     const statics = codeShifts(r);
     const atRest = cellView(r, 'groove', statics, false)!;
     expect(atRest.bulbs?.length).toBeGreaterThan(0);
@@ -44,22 +44,22 @@ describe('one motion per wheel: a played cell its hand, a table nothing plays it
   });
 
   it("the graph's redraw key counts the tables that turn, not the cells that are only played", () => {
-    const r = compilePiece(PRESETS.drums.source);
+    const r = compilePiece(EXAMPLES.drums.source);
     expect(turningCells(r)).not.toContain('groove');
-    expect(turningCells(compilePiece(PRESETS.royal.source))).toContain('key');
+    expect(turningCells(compilePiece(EXAMPLES.royal.source))).toContain('key');
   });
 
   it('the redraw key holds what cells reads through, not over= alone: a played motif its relative picks read (#475)', () => {
     // electroswing's &gypsy is played (&call) and read by &chop's picks (&gypsy[0:3]): shiftsAt turns it, its readers'
     // labels follow it
-    const r = compilePiece(PRESETS.electroswing.source);
+    const r = compilePiece(EXAMPLES.electroswing.source);
     const statics = codeShifts(r);
     expect(MOMENTS.some((t) => shiftsAt(r, statics, t)('gypsy') !== statics('gypsy'))).toBe(true);
     expect(turningCells(r)).toContain('gypsy');
   });
 
   it('a played wheel nothing reads through is drawn with the live shifts as they are: shiftsAt holds it already (#475)', () => {
-    const r = compilePiece(PRESETS.drums.source);
+    const r = compilePiece(EXAMPLES.drums.source);
     const statics = codeShifts(r);
     const now = shiftsAt(r, statics, 2.25);
     expect(playedCells(r).has('groove')).toBe(true);

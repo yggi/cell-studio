@@ -12,7 +12,7 @@ import { codeShifts } from '@yggi/cells/engine/program';
 import { pieceTime } from '@yggi/cells/engine/duration';
 import { listening } from '@yggi/cells/engine/time/span';
 import { eventsBetween, plan } from '@yggi/cells/engine/realize';
-import { PRESETS } from '@yggi/cells/engine/presets';
+import { EXAMPLES } from '@yggi/cells/engine/examples';
 import { motifs } from '@yggi/cells/engine/time/motifs';
 import { structure } from '@yggi/cells/engine/time/structure';
 import { clocking } from '@yggi/cells/engine/clocking';
@@ -33,7 +33,7 @@ describe.runIf(process.env.PROBE)('#416: material and sound, heard against writt
     let [allMotifs, allFolded, allPartial, piecesWith, piecesFolded] = [0, 0, 0, 0, 0];
     let [pieces, unpitched, tails] = [0, 0, 0];
     const partialShares: number[] = [];
-    for (const [key, preset] of Object.entries(PRESETS)) {
+    for (const [key, preset] of Object.entries(EXAMPLES)) {
       if (only && !only.some((o) => key.includes(o))) continue;
       const program = compileSource(preset.source);
       if (!program.ok) continue;

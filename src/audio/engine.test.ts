@@ -1,5 +1,5 @@
 import { describe, expect, it, onTestFinished, vi } from 'vitest';
-import { PRESETS } from '@yggi/cells/engine/presets';
+import { EXAMPLES } from '@yggi/cells/engine/examples';
 import { planOf, type FromEngine, type ToEngine } from '@yggi/cells/engine/host';
 import { resolveSeed } from '@yggi/cells/repository/library';
 import { windowAt } from '@yggi/cells/engine/schedule';
@@ -21,7 +21,7 @@ function fakeWorker(delay: number | null = 0): Port & { sent: ToEngine[] } {
 }
 
 // (BWV 847 takes the library's vibrato by `use`, yggi/cells#364: it compiles through the seed library)
-const src = PRESETS.bwv847.source;
+const src = EXAMPLES.bwv847.source;
 
 describe('engines: local and worker give the same windows', () => {
   it('local: the plan here', () => {
@@ -90,7 +90,7 @@ describe('engines: local and worker give the same windows', () => {
   });
 
   it('hands reach both: the plan here (the views, late windows) and the worker', async () => {
-    const box = PRESETS.musicbox.source;
+    const box = EXAMPLES.musicbox.source;
     const port = fakeWorker();
     const e = new WorkerEngine(port);
     const p = planOf(box);

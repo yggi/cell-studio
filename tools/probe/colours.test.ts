@@ -14,7 +14,7 @@ import { codeShifts, type CompileResult } from '@yggi/cells/engine/program';
 import { pieceTime } from '@yggi/cells/engine/duration';
 import { listening } from '@yggi/cells/engine/time/span';
 import { eventsBetween, plan, type Played } from '@yggi/cells/engine/realize';
-import { PRESETS } from '@yggi/cells/engine/presets';
+import { EXAMPLES } from '@yggi/cells/engine/examples';
 import { towerOuts } from '../../src/layout/towerlayout';
 import { blank } from '../../src/layout/cellview';
 
@@ -55,7 +55,7 @@ describe.runIf(process.env.PROBE)('colours', () => {
     const disagree: string[] = [];
     let pieces = 0;
     const B = { pieces: 0, outs: 0, basePc: 0, basePcOct: 0, live: 0, low: 0, lowOct: 0, sounding: 0, worst: [] as string[] };
-    for (const [key, p] of Object.entries(PRESETS)) {
+    for (const [key, p] of Object.entries(EXAMPLES)) {
       if (only && !only.includes(key)) continue;
       const program = compileSource(p.source);
       if (!program.ok) continue;

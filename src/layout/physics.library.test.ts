@@ -6,7 +6,7 @@ import { DEFAULT_LAYOUT } from './options';
 import type { LayoutQuality } from './quality';
 import { buildGraph } from './drawn';
 import { compilePiece } from '../compile';
-import { PRESETS } from '@yggi/cells/engine/presets';
+import { EXAMPLES } from '@yggi/cells/engine/examples';
 
 // Every example laid out with the defaults and settled: the slow part of the layout tests. Each example is
 // laid out once and every check below reads that one layout (it is the same layout each would make on its
@@ -22,7 +22,7 @@ const settle = (source: string, opts: Partial<typeof DEFAULT_LAYOUT> = {}) => {
   made.push(layout);
   return { model, layout, start };
 };
-const library = Object.entries(PRESETS).map(([key, p]) => ({ key, source: p.source, ...settle(p.source) }));
+const library = Object.entries(EXAMPLES).map(([key, p]) => ({ key, source: p.source, ...settle(p.source) }));
 afterAll(() => made.forEach((l) => l.destroy()));
 
 describe('no overlaps', () => {

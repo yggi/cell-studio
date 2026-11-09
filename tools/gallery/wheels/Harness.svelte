@@ -9,7 +9,7 @@
   import { compileSource } from '@yggi/cells/engine/compile';
   import { buildGraph } from '../../../src/layout/drawn';
   import { pieceTime } from '@yggi/cells/engine/duration';
-  import { PRESETS } from '@yggi/cells/engine/presets';
+  import { EXAMPLES } from '@yggi/cells/engine/examples';
 
   const q = new URLSearchParams(location.search);
   const seconds = Number(q.get('t') ?? 3);
@@ -24,7 +24,7 @@
   ].map((g) => ({ ...g, items: list.filter((f) => f.key.startsWith(g.where + ':')) }));
 
   // the library: a piece's wheel with many tags, with one, with none; at a card's size, the details' and small
-  const source = PRESETS.hypercell.source;
+  const source = EXAMPLES.hypercell.source;
   const r = compileSource(source);
   const base: Entry = {
     id: 'harness:piece',

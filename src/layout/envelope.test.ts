@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { compilePiece } from '../compile';
 import { codeShifts } from '@yggi/cells/engine/program';
 import { lastNoteAt } from '@yggi/cells/engine/values';
-import { PRESETS } from '@yggi/cells/engine/presets';
+import { EXAMPLES } from '@yggi/cells/engine/examples';
 import { cellView } from './cellview';
 import { wheelGeometry } from './wheel';
 import { curvePoints, envelopeAt, envelopeAxis, envelopeCrossing, envelopeCurve, envelopeLabels, envelopeNotes, envelopeOf, heldLevel, latestNoteAt, voiceNotes } from './envelope';
@@ -57,7 +57,7 @@ describe("a voice's envelope and the notes through it", () => {
 
 describe('an envelope as its wheel draws it (CellGlyph, show=adsr)', () => {
   // (Transpose's voice's envelope: attack 20 ms, decay 300 ms, sustain 50 %, release 300 ms, on a 128 px wheel)
-  const t = compilePiece(PRESETS.transpose.source);
+  const t = compilePiece(EXAMPLES.transpose.source);
   // (its envelope is unnamed, &(map=adsr …): found by what it is, not by its line)
   const adsr = [...t.cells.keys()].find((n) => cellView(t, n, codeShifts(t), false)?.mode === 'curve')!;
   const e = cellView(t, adsr, codeShifts(t), false)!.curve!;

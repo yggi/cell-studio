@@ -4,7 +4,7 @@ import { liveAt } from '@yggi/cells/engine/live';
 import { codeShifts } from '@yggi/cells/engine/program';
 import { buildGraph } from './drawn';
 import { compilePiece } from '../compile';
-import { PRESETS } from '@yggi/cells/engine/presets';
+import { EXAMPLES } from '@yggi/cells/engine/examples';
 
 const graphOf = (src: string) => buildGraph(compilePiece(src));
 const name = (id: string) => id.replace(/^cell:/, '');
@@ -12,7 +12,7 @@ const name = (id: string) => id.replace(/^cell:/, '');
 describe('meters as ground', () => {
   it('a step into a meter is ground (not drawn); a step into anything else, or through a belt, is drawn', () => {
     for (const key of ['fifths', 'automaton', 'soundtape'] as const) {
-      const m = buildGraph(compilePiece(PRESETS[key].source));
+      const m = buildGraph(compilePiece(EXAMPLES[key].source));
       const byId = new Map(m.nodes.map((n) => [n.id, n]));
       const grounds = groundsOf(m);
       for (const e of m.edges.filter((e) => e.port === 'step')) {
@@ -25,7 +25,7 @@ describe('meters as ground', () => {
   });
 
   it('two meters: each has its colour, in the order written', () => {
-    const m = graphOf(PRESETS.bossa.source);
+    const m = graphOf(EXAMPLES.bossa.source);
     const index = new Map([...meterIndex(m)].map(([id, i]) => [name(id), i]));
     expect([...index.keys()]).toEqual(['bar', 'clave']);
   });

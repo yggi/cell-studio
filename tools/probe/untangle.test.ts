@@ -9,7 +9,7 @@ import { ForceLayout } from '../../src/layout/physics';
 import { type GraphModel } from '@yggi/cells/engine/graph';
 import { buildGraph } from '../../src/layout/drawn';
 import { compileSource } from '@yggi/cells/engine/compile';
-import { PRESETS } from '@yggi/cells/engine/presets';
+import { EXAMPLES } from '@yggi/cells/engine/examples';
 import { TOWER_LAYOUT, type LayoutOptions } from '../../src/layout/options';
 import { towerSetup } from '../../src/ui/towerSetup';
 
@@ -54,7 +54,7 @@ function measure(source: string, tower: boolean, opts: Partial<LayoutOptions>, s
 describe.runIf(process.env.PROBE)('untangling', () => {
   it('measures the library', () => {
     const only = process.env.ONLY;
-    const pieces = Object.entries(PRESETS).filter(([k]) => !only || k.toLowerCase().includes(only.toLowerCase()));
+    const pieces = Object.entries(EXAMPLES).filter(([k]) => !only || k.toLowerCase().includes(only.toLowerCase()));
     const pick = process.env.VARIANTS?.split(',').map(Number);
     const variants = pick ? VARIANTS.filter((_, i) => pick.includes(i)) : VARIANTS;
     const seeds = (process.env.SEEDS ?? '0,1,2').split(',').map(Number);

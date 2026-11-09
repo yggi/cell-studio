@@ -3,7 +3,7 @@
 import { describe, expect, it } from 'vitest';
 import { attrsOf } from '@yggi/cells/engine/edit';
 import { patch } from '@yggi/cells/engine/patch';
-import { PRESETS } from '@yggi/cells/engine/presets';
+import { EXAMPLES } from '@yggi/cells/engine/examples';
 import { depthsOf, formatEnd, positionOf, setDepth, spanOf, valueAt } from './depth';
 
 const text = '&eg map=adsr .01 .2 .3 .1\n&lfo loop=2 sin(12)\n&wob loop=4 sin(12)\n&v s=saw loop=C2 lpf=70..4800 * &eg lpq=8 # a voice';
@@ -20,9 +20,9 @@ describe('a moving parameter’s range, read with its cells', () => {
   });
 
   it('on Patchbay, the hat’s filter once a cable is patched into it; the module’s arguments are no range', () => {
-    const hat = patch(PRESETS.patchbay.source, 'hat', 'hpf', 'sweep');
+    const hat = patch(EXAMPLES.patchbay.source, 'hat', 'hpf', 'sweep');
     expect(depthsOf(hat, 'hat').map((d) => [d.key, d.lo, d.hi])).toEqual([['hpf', 7500, 7500]]);
-    expect(depthsOf(PRESETS.patchbay.source, 'vcf')).toEqual([]);
+    expect(depthsOf(EXAMPLES.patchbay.source, 'vcf')).toEqual([]);
   });
 });
 

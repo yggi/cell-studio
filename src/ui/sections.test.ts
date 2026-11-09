@@ -1,4 +1,4 @@
-import { PRESETS } from '@yggi/cells/engine/presets';
+import { EXAMPLES } from '@yggi/cells/engine/examples';
 import { describe, expect, it } from 'vitest';
 import { compilePiece } from '../compile';
 import { buildGraph } from '../layout/drawn';
@@ -6,7 +6,7 @@ import { nodeSections, sectionRgb } from './sections';
 import { sectionTintRgb } from './theme';
 
 describe('sections (decision 016)', () => {
-  const program = compilePiece(PRESETS.hypercell.source);
+  const program = compilePiece(EXAMPLES.hypercell.source);
   const model = buildGraph(program);
   const sections = nodeSections(program, model);
   const k = (name: string) => sections.get(`cell:${name}`)?.k;

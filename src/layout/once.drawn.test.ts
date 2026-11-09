@@ -1,7 +1,7 @@
 import { afterAll, describe, expect, it, vi } from 'vitest';
 import { compilePiece } from '../compile';
 import { codeShifts } from '@yggi/cells/engine/program';
-import { PRESETS } from '@yggi/cells/engine/presets';
+import { EXAMPLES } from '@yggi/cells/engine/examples';
 
 // (every build of the graph starts from cells' writtenGraph: counted. The test files share their modules, `isolate: false`
 // in vite.config.ts, so drawn.ts and cellview.ts are loaded afresh here, over the counting graph, and let go after)
@@ -27,7 +27,7 @@ afterAll(() => {
 describe('the graph as drawn is built once per compile (#229)', () => {
   it('the piece, its wheels’ bulbs and its uses read one build', () => {
     // (Pop: bulbs on its braids, cells from fragments)
-    const r = compilePiece(PRESETS.pop.source);
+    const r = compilePiece(EXAMPLES.pop.source);
     built.n = 0;
     const model = buildGraph(r);
     expect(model.bulbs.size).toBeGreaterThan(0);
@@ -39,7 +39,7 @@ describe('the graph as drawn is built once per compile (#229)', () => {
   });
 
   it('a graph with options is its own drawing, from the same written graph, and leaves the drawn one as it is', () => {
-    const r = compilePiece(PRESETS.pop.source);
+    const r = compilePiece(EXAMPLES.pop.source);
     const model = buildGraph(r);
     built.n = 0;
     const parts = buildGraph(r, { bulbs: false });
@@ -52,8 +52,8 @@ describe('the graph as drawn is built once per compile (#229)', () => {
   });
 
   it('a new compile is a new build', () => {
-    const a = compilePiece(PRESETS.pop.source);
-    const b = compilePiece(PRESETS.pop.source);
+    const a = compilePiece(EXAMPLES.pop.source);
+    const b = compilePiece(EXAMPLES.pop.source);
     built.n = 0;
     expect(buildGraph(a)).not.toBe(buildGraph(b));
     expect(built.n).toBe(2);

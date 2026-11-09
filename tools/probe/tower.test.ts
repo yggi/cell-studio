@@ -6,7 +6,7 @@ import { describe, it } from 'vitest';
 import { appendFileSync } from 'node:fs';
 import { buildGraph } from '../../src/layout/drawn';
 import { compileSource } from '@yggi/cells/engine/compile';
-import { PRESETS } from '@yggi/cells/engine/presets';
+import { EXAMPLES } from '@yggi/cells/engine/examples';
 
 const log = (t: string) => appendFileSync(process.env.PROBE!, t + '\n');
 const fmt = (hz: number) => (hz >= 1 ? `${hz.toPrecision(3)} Hz` : `1/${(1 / hz).toPrecision(3)} s`);
@@ -29,7 +29,7 @@ describe.runIf(process.env.PROBE)('the frequency tower', () => {
     let inverted = 0;
     let selectors = 0;
     const lines: string[] = [];
-    for (const [key, p] of Object.entries(PRESETS)) {
+    for (const [key, p] of Object.entries(EXAMPLES)) {
       const program = compileSource(p.source);
       const model = buildGraph(program);
       const sinks = new Set(program.outputs?.flatMap((o) => o.parts.map((x) => x.sink)) ?? []);
@@ -68,7 +68,7 @@ describe.runIf(process.env.PROBE)('the frequency tower', () => {
     }
     // (the implicit-&out idea: what reads nothing on — a sink of the flow — besides the sound card and notes)
     const loose = new Map<string, string[]>();
-    for (const [key, p] of Object.entries(PRESETS)) {
+    for (const [key, p] of Object.entries(EXAMPLES)) {
       const program = compileSource(p.source);
       const model = buildGraph(program);
       const read = new Set(model.edges.filter((e) => e.port !== 'about').map((e) => e.from));
@@ -83,7 +83,7 @@ describe.runIf(process.env.PROBE)('the frequency tower', () => {
     }
     log('read by nothing (would turn hot under an implicit &out):');
     for (const [k, v] of loose) log(`  ${k.padEnd(8)} ${String(v.length).padStart(4)}  e.g. ${v.slice(0, 6).join(' ')}`);
-    log(`# The tower (${Object.keys(PRESETS).length} examples)\n`);
+    log(`# The tower (${Object.keys(EXAMPLES).length} examples)\n`);
     log('role               cells   median turn    median step');
     for (const [role, r] of [...byRole].sort((a, b) => median(a[1].depth) - median(b[1].depth)))
       log(

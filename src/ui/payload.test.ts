@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { PRESETS } from '@yggi/cells/engine/presets';
+import { EXAMPLES } from '@yggi/cells/engine/examples';
 import { compilePiece } from '../compile';
 import { codeShifts } from '@yggi/cells/engine/program';
 import { cellView } from '../layout/cellview';
@@ -42,7 +42,7 @@ describe('what a source sends at each step', () => {
     expect((db(1) as { v: number }).v).toBeCloseTo(0.501, 3);
   });
   it('a moving piece’s swell, as the edge sheet shows it', () => {
-    const v = at(PRESETS.moving.source, 'swell');
+    const v = at(EXAMPLES.moving.source, 'swell');
     expect(v).not.toBeNull();
   });
 });

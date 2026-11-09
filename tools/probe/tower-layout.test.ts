@@ -13,7 +13,7 @@ import { ForceLayout } from '../../src/layout/physics';
 import { type GraphModel } from '@yggi/cells/engine/graph';
 import { buildGraph } from '../../src/layout/drawn';
 import { compileSource } from '@yggi/cells/engine/compile';
-import { PRESETS } from '@yggi/cells/engine/presets';
+import { EXAMPLES } from '@yggi/cells/engine/examples';
 import { TOWER_LAYOUT, type LayoutOptions } from '../../src/layout/options';
 import { towerLayers, withSockets } from '../../src/layout/towerlayout';
 
@@ -213,7 +213,7 @@ function report(all: readonly Measured[], variants: readonly Variant[], pieces: 
 describe.runIf(process.env.PROBE)('the tower layout', () => {
   it('measures the library', () => {
     const only = process.env.ONLY;
-    const all = Object.entries(PRESETS).filter(([k]) => !only || k.toLowerCase().includes(only.toLowerCase()));
+    const all = Object.entries(EXAMPLES).filter(([k]) => !only || k.toLowerCase().includes(only.toLowerCase()));
     const pick = process.env.VARIANTS?.split(',').map(Number);
     const variants = pick ? VARIANTS.filter((_, i) => pick.includes(i)) : VARIANTS;
     const seeds = (process.env.SEEDS ?? '0,1,2').split(',').map(Number);

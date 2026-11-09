@@ -2,7 +2,7 @@
 // src/midi/out.test.ts @ 04e24d2, where they ran on its own MidiOut); the rest of those cases are webmidi's, on its note
 // (`src/core/out.test.ts` there).
 import { describe, expect, it } from 'vitest';
-import { PRESETS } from '@yggi/cells/engine/presets';
+import { EXAMPLES } from '@yggi/cells/engine/examples';
 import { compilePiece } from '../compile';
 import { plan, type Played } from '@yggi/cells/engine/realize';
 import { codeShifts } from '@yggi/cells/engine/program';
@@ -71,7 +71,7 @@ describe('MidiOut over every example, window by window as the player plays them'
   const SECONDS = 8;
   const WINDOW = 0.25;
 
-  for (const [f, { source }] of Object.entries(PRESETS))
+  for (const [f, { source }] of Object.entries(EXAMPLES))
     it(`${f}: a note-on for every note in range, and every note-on has its note-off`, () => {
       const r = compilePiece(source);
       const p = plan(r, codeShifts(r), r.off);
@@ -131,7 +131,7 @@ const inOrder = (sent: { data: number[]; timestamp?: number }[], t: number) =>
 describe('MidiOut over every example, through a seek within the look-ahead', () => {
   const WINDOW = 0.25;
 
-  for (const [f, { source }] of Object.entries(PRESETS))
+  for (const [f, { source }] of Object.entries(EXAMPLES))
     it(`${f}: no note sent after the seek is cut, and nothing is left sounding`, () => {
       const r = compilePiece(source);
       const p = plan(r, codeShifts(r), r.off);

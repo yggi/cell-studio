@@ -1,4 +1,4 @@
-import { PRESETS, type PresetKey } from '@yggi/cells/engine/presets';
+import { EXAMPLES, type ExampleKey } from '@yggi/cells/engine/examples';
 import { describe, expect, it } from 'vitest';
 import { buildGraph } from './drawn';
 import { ForceLayout } from './physics';
@@ -8,13 +8,13 @@ import { socketOf, VOICE_SIZE } from './voice';
 import { compilePiece } from '../compile';
 
 const waltz = () => {
-  const program = compilePiece(PRESETS.waltz.source);
+  const program = compilePiece(EXAMPLES.waltz.source);
   return { program, model: buildGraph(program) };
 };
 
 describe('the tower layout', () => {
   it('names a read head drawn on its tape as the sound going into the card, not the tape', () => {
-    const program = compilePiece(PRESETS.testtones.source);
+    const program = compilePiece(EXAMPLES.testtones.source);
     const outs = towerOuts(program, buildGraph(program));
     const names = outs.map((o) => o.sound).sort();
     expect(names).toContain('cell:first');
@@ -157,7 +157,7 @@ describe('the tower layout', () => {
   });
 
   it('draws the layers by a gentle spring: the sockets over the voices over the structure, in order on average', () => {
-    const program = compilePiece(PRESETS.pop.source);
+    const program = compilePiece(EXAMPLES.pop.source);
     const model = buildGraph(program);
     const drawn = withSockets(program, model);
     const { targets, layers } = towerLayers(program, model, drawn);
@@ -227,7 +227,7 @@ describe('the tower layout', () => {
   });
 
   it('sits a kit with the voices, held there over the grooves that play it', () => {
-    const program = compilePiece(PRESETS.pop.source);
+    const program = compilePiece(EXAMPLES.pop.source);
     const model = buildGraph(program);
     const drawn = withSockets(program, model);
     const { targets, layers, held } = towerLayers(program, model, drawn);
@@ -244,7 +244,7 @@ describe('the tower layout', () => {
   });
 
   it('sits what plays a kit (a groove) with it: just under the voices, over the structure, held there', () => {
-    const program = compilePiece(PRESETS.pop.source);
+    const program = compilePiece(EXAMPLES.pop.source);
     const model = buildGraph(program);
     const drawn = withSockets(program, model);
     const { targets, layers, held } = towerLayers(program, model, drawn);
@@ -260,7 +260,7 @@ describe('the tower layout', () => {
 
   it('keeps every node in its stratum, and what a selector steps over its loom', () => {
     for (const piece of ['hypercell', 'baustelle', 'pop']) {
-      const program = compilePiece(PRESETS[piece as PresetKey].source);
+      const program = compilePiece(EXAMPLES[piece as ExampleKey].source);
       const model = buildGraph(program);
       const drawn = withSockets(program, model);
       const { targets, held, strata } = towerLayers(program, model, drawn);
@@ -286,7 +286,7 @@ describe('the tower layout', () => {
   });
 
   it('orders the strata: audible over voice over gate over stepped over constant', () => {
-    const program = compilePiece(PRESETS.hypercell.source);
+    const program = compilePiece(EXAMPLES.hypercell.source);
     const model = buildGraph(program);
     const drawn = withSockets(program, model);
     const { layers, strata } = towerLayers(program, model, drawn);
@@ -296,7 +296,7 @@ describe('the tower layout', () => {
   });
 
   const laid = (piece: string) => {
-    const program = compilePiece(PRESETS[piece as PresetKey].source);
+    const program = compilePiece(EXAMPLES[piece as ExampleKey].source);
     const model = buildGraph(program);
     const drawn = withSockets(program, model);
     const t = towerLayers(program, model, drawn);
