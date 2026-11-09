@@ -1,0 +1,8 @@
+### Changed
+
+- **The language is cells v0.23.0** ([its changelog](https://github.com/yggi/cells/blob/main/CHANGELOG.md#v0230--2026-11-09)):
+  - **The style's axes are `sync harm bite mood`** (cells decision 076): bite is how notes start and end, from paddy to stabby, and mood is what the mode says, from darker to brighter. The band's lead now reads bite where it read energy, so *Radio* plays its notes with a different bite. **This can affect saved `.cells` pieces:** a style written in order, `map=style .3 .45 .55 .55`, still plays, but its fourth number, which was energy, is now read as mood; `artic=` and `energy=` are errors. Migrate rewrites both, by name on the new axes.
+  - **The band, the instruments and the performers read only what they declare**, so a score passes the band its parts and its style: `* from band(drumlines=&drumlines, …, style=&style)`. **This can affect saved `.cells` pieces:** a score ending in a bare `* from band` plays its band with every part resting until Migrate writes that line. A performer given no voice plays its own copy's (`&bass_bassV`), which is what MIDI out and the graph name it by.
+  - **A new example:** *Style* (a point the voices read), in the tutorial.
+  - **Editing a cell of *Radio*'s band** (its `&bd`, say) writes that cell's line into the piece again, and the piece plays as before. Without this fix, the band's new arguments would have made such an edit write an empty `&bd` line that silenced the kick.
+  - *Radio*'s band now draws as sounding beside its wires (yggi/cells#618, its first half). The wires that `style=&x` and the other forms new in cells v0.21.0 write aren't drawn yet, in *Radio* and in *Style* (its second half).
