@@ -14,7 +14,7 @@ await p.waitForTimeout(300);
 await p.locator('button.open').first().dispatchEvent('click');
 await p.waitForTimeout(2000);
 await p.getByRole('button', { name: 'Play' }).click();
-await p.waitForTimeout(4000);
+await p.waitForTimeout(Number(process.env.WARM || 4000));
 if (process.env.CSS) await p.addStyleTag({ content: process.env.CSS }); // (ablation: switch a kind of drawing off, see what the main thread gets back)
 const cdp = await c.newCDPSession(p);
 await cdp.send('Emulation.setCPUThrottlingRate', { rate: Number(process.env.THROTTLE ?? 1) });
