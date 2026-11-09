@@ -117,7 +117,8 @@ destination, so it works headless.
   reheated it for 8–12 s; `setOptions` now ignores options equal by value. `WARM=<ms>` on `measure.mjs`, `cpu.mjs`
   and `trace.mjs` measures past such a settling (`WARM=16000`); the default 4 s includes it.
 - Beware ablations by class: the graph's own container has `class:sky`, so `.sky{display:none}` hides the whole graph.
-  `?sky=off` switches the sky off; Bach 847's sky costs ~6 points of busy at ×1.
+  `?sky=off` switches the sky off. After #628 Bach 847's sky is ~2 % of busy in its own JS; the rest of its cost is the
+  browser painting and compositing a full-screen canvas at each draw, so how often it draws (`EVERY`) is the lever.
 - Per-frame views run from the one frame loop, `onFrames` in `src/audio/ticker.ts` (no `requestAnimationFrame` of
   their own); it stretches their interval by `load.scale` when frames come late. Skip work when not visible.
 

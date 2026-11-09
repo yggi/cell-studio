@@ -146,6 +146,21 @@
   // (each band its note's colour by its octave, as rgb: a spire's dots)
   const hues = Array.from({ length: BANDS }, (_, b) => hslRgb(...noteHsl(bandHue(b, BANDS), false, bandOctave(b, BANDS))));
 
+  // (a spectrum bar's colour: its out's, a slight tint of its band's note in it (TINT), as a css colour made once for
+  // each colour and band: a few a frame instead of one string a bar)
+  const tints = new Map<number, string>();
+  function tinted(c: readonly number[], b: number): string {
+    const key = ((Math.round(c[0]!) * 256 + Math.round(c[1]!)) * 256 + Math.round(c[2]!)) * BANDS + b;
+    let s = tints.get(key);
+    if (s) return s;
+    if (tints.size > 4096) tints.clear();
+    const note = hues[b]!;
+    const m = [0, 1, 2].map((i) => Math.round(c[i]! * (1 - TINT) + note[i]! * TINT));
+    s = `rgb(${m[0]}, ${m[1]}, ${m[2]})`;
+    tints.set(key, s);
+    return s;
+  }
+
   // (what a row shows, kept until the piece or a table's turn changes: not each frame — a selector's steps in
   // order, each the sections it picks; else the cell's spectrum of values, a table of sections' each its section)
   type Row = { steps: NonNullable<ReturnType<typeof selectorRow>>; n: number } | { v: CellView; sections: number; spread: ValueShare[]; selector?: string };
@@ -607,15 +622,15 @@
           if (v <= 0.02) return;
           const part = (v / all) * len;
           // (its section's colour, a slight tint of the band's note in it: TINT)
-          const note = hues[b]!;
-          const c = [0, 1, 2].map((i) => Math.round(e.c[i]! * (1 - TINT) + note[i]! * TINT));
-          g.fillStyle = `rgba(${c[0]}, ${c[1]}, ${c[2]}, ${(e.off ? 0.3 : 1) * (0.45 + 0.55 * top)})`;
+          g.fillStyle = tinted(e.c, b);
+          g.globalAlpha = (e.off ? 0.3 : 1) * (0.45 + 0.55 * top);
           g.fillRect(side === 'left' ? x0 - 1 - at - part : x1 + 1 + at, y - hb / 2, part, hb);
           hit(e.lane.source, side === 'left' ? x0 - 1 - at - part : x1 + 1 + at, y - hb / 2, side === 'left' ? x0 - 1 - at : x1 + 1 + at + part, y + hb / 2);
           at += part;
         });
       }
     }
+    g.globalAlpha = 1;
     const laneActive = new Map<number, boolean>();
     const namedLeft: number[] = [];
     const namedRight: number[] = [];

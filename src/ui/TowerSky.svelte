@@ -59,11 +59,15 @@
   const RES = 0.5;
   // (a band's glints, most: as many show as the band is loud; fewer when the page is struggling)
   const GLINTS = 24;
+  // (and a frame's, most, all bands together, the bands that stand out most first: Bach 847's synthesizers light ~290
+  // a frame; a piece louder across more bands is held to this many)
+  const GLINTS_FRAME = 320;
   // (how fast the light follows the sound, s: rising, falling)
   const RISE = 0.06;
   const FALL = 0.7;
-  // (how often the sky is drawn playing, ms: the glints twinkle smoothly at this; stretched when the page struggles)
-  const EVERY = 40;
+  // (how often the sky is drawn playing, ms: ~17 a second, as often as its slow drift and twinkle need — each draw is
+  // the whole sky painted and composited again, most of its cost; stretched when the page struggles)
+  const EVERY = 60;
   // (the spires, the meters, half as often: 12 a second, as they were)
   const SPIRES = 80;
   let w = $state(0);
@@ -104,25 +108,74 @@
   const css = (c: readonly number[], a: number) => `rgba(${c[0]}, ${c[1]}, ${c[2]}, ${a})`;
 
   // a glint: a soft dot, white at its heart, its colour round it — one small canvas a colour, drawn with drawImage
-  // (an arc and a gradient each would cost far more); the colours quantised, so there are a few dozen at most
+  // (an arc and a gradient each would cost far more); the colours quantised, so there are a few dozen at most. A near
+  // glint, bright, is a star (`flare`): the same dot in the middle of a canvas twice as wide, four thin rays out from it.
   const sprites = new Map<number, HTMLCanvasElement>();
-  function sprite(c: readonly number[]): HTMLCanvasElement {
-    const q = c.map((v) => Math.min(15, Math.round(v / 17)));
-    const key = (q[0] << 8) | (q[1] << 4) | q[2];
+  function sprite(c: readonly number[], flare = false): HTMLCanvasElement {
+    const q = c.map((v) => Math.min(15, Math.max(0, Math.round(v / 17))));
+    const key = (((q[0] << 8) | (q[1] << 4) | q[2]) << 1) | (flare ? 1 : 0);
     let s = sprites.get(key);
     if (s) return s;
     s = document.createElement('canvas');
-    s.width = s.height = 16;
+    const n = flare ? 32 : 16;
+    s.width = s.height = n;
     const g = s.getContext('2d')!;
     const rgb = q.map((v) => v * 17);
-    const grad = g.createRadialGradient(8, 8, 0, 8, 8, 8);
+    const m = n / 2;
+    const grad = g.createRadialGradient(m, m, 0, m, m, 8);
     grad.addColorStop(0, 'rgba(255, 255, 255, 1)');
     grad.addColorStop(0.18, css(mixed(rgb, [255, 255, 255], 0.5), 0.9));
     grad.addColorStop(0.45, css(rgb, 0.35));
     grad.addColorStop(1, css(rgb, 0));
     g.fillStyle = grad;
-    g.fillRect(0, 0, 16, 16);
+    g.fillRect(m - 8, m - 8, 16, 16);
+    if (flare) {
+      // (the rays: thin, white at the heart, its colour out to their ends, fading)
+      g.globalCompositeOperation = 'lighter';
+      for (const [dx, dy] of [
+        [1, 0],
+        [0, 1],
+      ] as const) {
+        const ray = g.createLinearGradient(m - dx * m, m - dy * m, m + dx * m, m + dy * m);
+        ray.addColorStop(0, css(rgb, 0));
+        ray.addColorStop(0.5, css(mixed(rgb, [255, 255, 255], 0.6), 0.7));
+        ray.addColorStop(1, css(rgb, 0));
+        g.fillStyle = ray;
+        if (dx) g.fillRect(0, m - 0.6, n, 1.2);
+        else g.fillRect(m - 0.6, 0, 1.2, n);
+      }
+    }
     sprites.set(key, s);
+    return s;
+  }
+
+  // a spire's spike: full height at the mast, narrowing to its tip, bright at the mast and fading out — one small canvas
+  // a colour and side, drawn stretched to its length and height (a gradient and a path each, a dozen times a second
+  // for every band of every spire, were most of the spires' cost)
+  const spikes = new Map<number, HTMLCanvasElement>();
+  const SPIKE = { w: 64, h: 12 };
+  function spike(c: readonly number[], side: -1 | 1): HTMLCanvasElement {
+    const q = c.map((v) => Math.min(31, Math.max(0, Math.round(v / 8.25))));
+    const key = (((q[0] << 10) | (q[1] << 5) | q[2]) << 1) | (side > 0 ? 1 : 0);
+    let s = spikes.get(key);
+    if (s) return s;
+    s = document.createElement('canvas');
+    s.width = SPIKE.w;
+    s.height = SPIKE.h;
+    const g = s.getContext('2d')!;
+    const rgb = q.map((v) => Math.round(v * 8.25));
+    const [x0, x1] = side > 0 ? [0, SPIKE.w] : [SPIKE.w, 0];
+    const grad = g.createLinearGradient(x0, 0, x1, 0);
+    grad.addColorStop(0, css(rgb, 1));
+    grad.addColorStop(1, css(rgb, 0.2));
+    g.fillStyle = grad;
+    g.beginPath();
+    g.moveTo(x0, 0);
+    g.lineTo(x1, SPIKE.h / 3);
+    g.lineTo(x1, (2 * SPIKE.h) / 3);
+    g.lineTo(x0, SPIKE.h);
+    g.fill();
+    spikes.set(key, s);
     return s;
   }
 
@@ -164,14 +217,16 @@
 
   // what every spire sounds, into the sky's bands, smoothed (a quick rise, a slow fall: it pulses, it doesn't blink),
   // and each spire's levels now, for its mast
+  const level = new Float32Array(BANDS);
+  const tint = new Float32Array(BANDS * 3);
   function listen(now: number, playing: boolean) {
     const dt = last ? Math.min(0.5, (now - last) / 1000) : 1;
     last = playing ? now : 0;
     // (stopped, the light is what rests, at once; playing, it follows)
     const up = playing ? 1 - Math.exp(-dt / RISE) : 1;
     const down = playing ? 1 - Math.exp(-dt / FALL) : 1;
-    const level = new Float32Array(BANDS);
-    const tint = Array.from({ length: BANDS }, () => [0, 0, 0]);
+    level.fill(0);
+    tint.fill(0);
     const masts = [];
     for (const s of spires) {
       const dim = nodeState(ctx, `cell:${s.source}`) === 'off';
@@ -185,7 +240,7 @@
           // (several outs on one band light it more, never past full)
           level[b] = 1 - (1 - level[b]) * (1 - v);
           const c = own ?? vivid[b];
-          for (let i = 0; i < 3; i++) tint[b][i] += c[i] * v;
+          for (let i = 0; i < 3; i++) tint[b * 3 + i] += c[i] * v;
         }
       masts.push({ s, dim, rest, tint: own, l: left, r: right });
     }
@@ -199,14 +254,85 @@
       for (let k = 2; k <= 5; k++) round += at(b - k) + at(b + k);
       const p = v * Math.min(1, Math.max(0, 0.2 + 3 * (v - round / 8)));
       spark[b] += (p - spark[b]) * (p > spark[b] ? up : down);
-      const sum = tint[b][0] + tint[b][1] + tint[b][2];
-      if (sum > 0) {
-        const k = 255 / Math.max(tint[b][0], tint[b][1], tint[b][2]);
-        skyTint[b] = tint[b].map((c) => c * k);
-      }
+      const top = Math.max(tint[b * 3], tint[b * 3 + 1], tint[b * 3 + 2]);
+      if (top > 0) for (let i = 0; i < 3; i++) skyTint[b][i] = (tint[b * 3 + i] * 255) / top;
     }
     return masts;
   }
+
+  // The light: each band a line across the whole sky, a narrow core in a wider glow, drifting brighter and dimmer along
+  // it. Drawn as numbers into a picture `COLS` wide and as tall as the sky (a column a stretch of the sky's width), then
+  // stretched over the sky in one draw, smoothly: one draw a frame for all of them, not a gradient and a fill a band.
+  const COLS = 8;
+  let lightCols: HTMLCanvasElement | null = null;
+  let lightPixels: ImageData | null = null;
+  let lightSum = new Float32Array(0);
+  const colourOf = Array.from({ length: BANDS }, () => [255, 255, 255]);
+  const drift = new Float32Array(COLS);
+  function drawLight(g: CanvasRenderingContext2D, t: number, half: number) {
+    const H = Math.max(1, Math.ceil(h * RES));
+    if (!lightCols || !lightPixels || lightCols.height !== H) {
+      lightCols = document.createElement('canvas');
+      lightCols.width = COLS;
+      lightCols.height = H;
+      lightPixels = new ImageData(COLS, H);
+      lightSum = new Float32Array(COLS * H * 3);
+    } else lightSum.fill(0);
+    // (the line as drawn before, `line` px of light across: its core a gaussian of about half that, at least a pixel of
+    // the picture, its glow three times as wide and a quarter as bright, the two together as much light as the line)
+    const line = Math.max(0.6, half * 0.4) * RES;
+    const core = Math.max(0.6, line * 0.5);
+    const glow = core * 3;
+    const scale = line / (Math.sqrt(2 * Math.PI) * (core + 0.25 * glow));
+    // (the rows that have light: only they are drawn over the sky)
+    let lo = H;
+    let hi = -1;
+    for (let b = 0; b < BANDS; b++) {
+      const v = sky[b];
+      if (v <= 0.015 || !audible(b)) continue;
+      const y = yOf(band(b)) * RES;
+      if (y < -3 * glow || y > H + 3 * glow) continue;
+      const c = colourOf[b];
+      const a = (0.03 + 0.32 * v) * v * v * scale;
+      for (let k = 0; k < COLS; k++) drift[k] = a * (0.55 + 0.45 * Math.sin(t * (0.21 + 0.13 * hash(b, k, 1)) + 6.3 * hash(b, k, 2)));
+      const r0 = Math.max(0, Math.floor(y - 3 * glow));
+      const r1 = Math.min(H - 1, Math.ceil(y + 3 * glow));
+      lo = Math.min(lo, r0);
+      hi = Math.max(hi, r1);
+      for (let r = r0; r <= r1; r++) {
+        const d = r + 0.5 - y;
+        const w = Math.exp((-d * d) / (2 * core * core)) + 0.25 * Math.exp((-d * d) / (2 * glow * glow));
+        const at = r * COLS * 3;
+        for (let k = 0; k < COLS; k++) {
+          const s = drift[k] * w;
+          lightSum[at + k * 3] += c[0] * s;
+          lightSum[at + k * 3 + 1] += c[1] * s;
+          lightSum[at + k * 3 + 2] += c[2] * s;
+        }
+      }
+    }
+    if (hi < lo) return;
+    // (light added up, as a picture drawn with `lighter`: its colour at full, and how much of it, its alpha)
+    const px = lightPixels.data;
+    for (let i = 0, j = 0; i < lightSum.length; i += 3, j += 4) {
+      const top = Math.max(lightSum[i], lightSum[i + 1], lightSum[i + 2]);
+      if (top <= 0.5) {
+        px[j + 3] = 0;
+        continue;
+      }
+      const k = 255 / top;
+      px[j] = lightSum[i] * k;
+      px[j + 1] = lightSum[i + 1] * k;
+      px[j + 2] = lightSum[i + 2] * k;
+      px[j + 3] = Math.min(255, top);
+    }
+    lightCols.getContext('2d')!.putImageData(lightPixels, 0, 0);
+    g.imageSmoothingEnabled = true;
+    g.drawImage(lightCols, 0, lo, COLS, hi + 1 - lo, 0, lo / RES, w, (hi + 1 - lo) / RES);
+  }
+
+  // (the bands that stand out most first: where a frame's glints go when they are rationed)
+  const byStanding = Array.from({ length: BANDS }, (_, b) => b);
 
   function draw() {
     const g = canvas?.getContext('2d');
@@ -220,30 +346,28 @@
     g.clearRect(0, 0, w, h);
     g.globalCompositeOperation = 'lighter';
     const half = Math.max(0.5, Math.abs(towerY(band(1), zone) - towerY(band(0), zone)) * viewport.zoom * 0.5);
-    // (the glints a band, fewer when the page is struggling, so the sky is never what makes the sound starve)
-    const glints = Math.max(6, Math.round(GLINTS / load.scale));
-    // (the field the glints wrap round: the sky's width and a margin, so one doesn't pop in at an edge)
-    const span = w + 40;
+    // (each band's colour now: its outs' tint, the rainbow's, or half each)
     for (let b = 0; b < BANDS; b++) {
-      const v = sky[b];
-      if (v <= 0.015 || !audible(b)) continue;
+      const k = mode === 'tint' ? 1 : mode === 'rainbow' ? 0 : 0.5;
+      for (let i = 0; i < 3; i++) colourOf[b][i] = vivid[b][i] * (1 - k) + skyTint[b][i] * k;
+    }
+    drawLight(g, t, half);
+    // its glints: as many as it stands out, loud (a tone's partials: stars where it sounds), and a band only faintly
+    // heard, or noise (a drum's, an analyser's floor), next to none: a haze of lines (each its own threshold, so they come
+    // and go one by one, smoothly), each at a depth: the near ones bigger and brighter and drifting faster than the far
+    // ones, the nearest and brightest a star; they pan with the graph. At most GLINTS_FRAME a frame, the bands that
+    // stand out most first, fewer when the page is struggling, so the sky is never what makes the sound starve.
+    let budget = Math.round(GLINTS_FRAME / load.scale);
+    const span = w + 40;
+    byStanding.sort((a, b) => spark[b] - spark[a]);
+    for (const b of byStanding) {
+      if (budget <= 0 || spark[b] <= 0.01) break;
+      if (sky[b] <= 0.015 || !audible(b)) continue;
       const y = yOf(band(b));
       if (y < -half || y > h + half) continue;
-      const colour = mode === 'tint' ? skyTint[b] : mode === 'rainbow' ? vivid[b] : mixed(vivid[b], skyTint[b], 0.5);
-      // the band's line of light, across the whole sky and thinner than its band, brighter where it drifts
-      const line = Math.max(0.6, half * 0.4);
-      const grad = g.createLinearGradient(0, 0, w, 0);
-      for (let k = 0; k <= 4; k++) {
-        const n = 0.55 + 0.45 * Math.sin(t * (0.21 + 0.13 * hash(b, k, 1)) + 6.3 * hash(b, k, 2));
-        grad.addColorStop(k / 4, css(colour, (0.03 + 0.32 * v) * v * v * n));
-      }
-      g.fillStyle = grad;
-      g.fillRect(0, y - line / 2, w, line);
-      // its glints: as many as it stands out, loud (a tone's partials: stars where it sounds), and a band only faintly
-      // heard, or noise (a drum's, an analyser's floor), next to none: a haze of lines (each its own threshold, so they
-      // come and go one by one, smoothly), each at a
-      // depth: the near ones bigger and brighter and drifting faster than the far ones; they pan with the graph
-      for (let i = 0; i < glints; i++) {
+      const v = sky[b];
+      const colour = colourOf[b];
+      for (let i = 0; i < GLINTS && budget > 0; i++) {
         const need = hash(b, i, 3);
         const on = Math.min(1, (spark[b] * spark[b] - need * 0.6) / 0.1);
         if (on <= 0) continue;
@@ -252,12 +376,16 @@
         const twinkle = 0.5 + 0.5 * Math.sin(t * (0.7 + 1.6 * hash(b, i, 6)) + 6.3 * hash(b, i, 7));
         const a = on * (0.25 + 0.75 * twinkle * twinkle) * (0.35 + 0.65 * depth);
         if (a < 0.03) continue;
+        budget--;
         const r = Math.min(7, Math.max(1.2, half * 0.9)) * (0.6 + 0.9 * depth) * (0.8 + 0.4 * v);
+        const yy = y + half * 0.5 * (hash(b, i, 8) - 0.5);
         g.globalAlpha = Math.min(1, a);
-        g.drawImage(sprite(colour), x - r, y + half * 0.5 * (hash(b, i, 8) - 0.5) - r, 2 * r, 2 * r);
+        // (a near one, bright now: a star, its rays twice its glow's reach)
+        if (depth > 0.8 && a > 0.6) g.drawImage(sprite(colour, true), x - 2 * r, yy - 2 * r, 4 * r, 4 * r);
+        else g.drawImage(sprite(colour), x - r, yy - r, 2 * r, 2 * r);
       }
-      g.globalAlpha = 1;
     }
+    g.globalAlpha = 1;
     g.globalCompositeOperation = 'source-over';
     drawn = { x: viewport.x, y: viewport.y, zoom: viewport.zoom };
     follow();
@@ -299,25 +427,18 @@
         const y = yOf(band(b));
         if (y < -half || y > h + half) continue;
         const colour = section ? mixed(hues[b], section, 0.35) : hues[b];
-        for (const [side, lv] of [
-          [-1, m.l[b] ?? 0],
-          [1, m.r[b] ?? 0],
-        ] as const) {
-          if (lv <= 0.04) continue;
-          const len = lv * arm;
-          const grad = c.createLinearGradient(x, 0, x + side * len, 0);
-          grad.addColorStop(0, css(colour, (0.55 + 0.45 * lv) * alpha));
-          grad.addColorStop(1, css(colour, 0.15 * alpha));
-          c.fillStyle = grad;
-          // (a spike: full height at the mast, narrowing to its tip)
-          c.beginPath();
-          c.moveTo(x, y - bh / 2);
-          c.lineTo(x + side * len, y - bh / 6);
-          c.lineTo(x + side * len, y + bh / 6);
-          c.lineTo(x, y + bh / 2);
-          c.fill();
+        const lv = m.l[b] ?? 0;
+        const rv = m.r[b] ?? 0;
+        if (lv > 0.04) {
+          c.globalAlpha = (0.55 + 0.45 * lv) * alpha;
+          c.drawImage(spike(colour, -1), x - lv * arm, y - bh / 2, lv * arm, bh);
+        }
+        if (rv > 0.04) {
+          c.globalAlpha = (0.55 + 0.45 * rv) * alpha;
+          c.drawImage(spike(colour, 1), x, y - bh / 2, rv * arm, bh);
         }
       }
+      c.globalAlpha = 1;
       drawSpire(
         c,
         x,
