@@ -1,6 +1,6 @@
 # Fragments in Cell studio: the plan and its mock-ups
 
-Date: 2026-11-09 · Status: open, a proposal: the plan the owner asked for, revised after the first round of answers; the epic and its rungs are filed once the open questions below are ruled · Issues: it subsumes [#449](https://github.com/yggi/cell-studio/issues/449), [#586](https://github.com/yggi/cell-studio/issues/586), [#587](https://github.com/yggi/cell-studio/issues/587), [#610](https://github.com/yggi/cell-studio/issues/610), and the library half of [#585](https://github.com/yggi/cell-studio/issues/585); it needs [yggi/cells#543](https://github.com/yggi/cells/issues/543) and meets [yggi/cells#436](https://github.com/yggi/cells/issues/436), [#541](https://github.com/yggi/cells/issues/541) and [#540](https://github.com/yggi/cells/issues/540) · Pictures: `node tools/gallery.mjs fragments` (`tools/gallery/fragments/`), taken with yggi/cells at [PR 624](https://github.com/yggi/cells/pull/624)'s head (f3617df) installed unsaved, for its axes; the sheet reads whatever `AXES` the installed cells has
+Date: 2026-11-09 · Status: open: the plan the owner asked for, every question ruled (2026-11-09); next, the epic and its rungs filed in both trackers · Issues: it subsumes [#449](https://github.com/yggi/cell-studio/issues/449), [#586](https://github.com/yggi/cell-studio/issues/586), [#587](https://github.com/yggi/cell-studio/issues/587), [#610](https://github.com/yggi/cell-studio/issues/610), and the library half of [#585](https://github.com/yggi/cell-studio/issues/585); it needs [yggi/cells#543](https://github.com/yggi/cells/issues/543) and meets [yggi/cells#436](https://github.com/yggi/cells/issues/436), [#541](https://github.com/yggi/cells/issues/541) and [#540](https://github.com/yggi/cells/issues/540) · Pictures: `node tools/gallery.mjs fragments` (`tools/gallery/fragments/`), taken with yggi/cells at [PR 624](https://github.com/yggi/cells/pull/624)'s head (f3617df) installed unsaved, for its axes; the sheet reads whatever `AXES` the installed cells has
 
 The owner's ask: Cell studio shows and handles fragments, the seed library first: a library cell for them, an explorable map (fragments as nodes, pieces as leaves, placed by style), `from` references followed in the code view, a selection turned into a fragment, and a fragment opened and heard reasonably by itself. An epic across both repositories, with a clean seam: no old shims kept.
 
@@ -40,6 +40,15 @@ Wrinkles at the seam, each removed by a rung below:
 4. **Extraction's signature** as recommended; the alternatives are kept for a need (below).
 5. **The axes stay abstract**: the machinery is generic over `AXES`.
 6. **Hubs are not set apart by a threshold.** No "taken by 10 %" and no list of defaults: what the map does with `meter` must follow from one rule applied to every node, so no case like `vibrato` (9 pieces of 85, just over a tenth) flips at a boundary.
+7. **A document's parts (C5)**, each point as proposed:
+   - **Which lines a part is:** its signature's heads and every line they read (a collection's closure), wherever they sit; lines no part reaches are the piece's own, played when the file opens and never given; two signatures naming one head are an error.
+   - **Its main parameter** may have a line in a document, the line the file plays with as a piece; taken, the parameter stays required (`&twinkle from kinderlied &key`), so a part never keeps the document's key unasked. Decision 065 amended for documents only.
+   - **Addressed** by its head in a text, `kinderlied › twinkle` in the catalogue; **a hash per part**, so a lockfile records each head and the piece's own lines move none.
+   - **Its association** keyed by its head in the frontmatter (`parts: { twinkle: { association: […] } }`) now, and in its text once #436 is ruled; #436 is pushed.
+   - **Kinderlieder moves in, breaking:** the six motif files become its parts, their ids respelled in one change (Migrate rewrites `&twinkle from twinkle &key` as `&twinkle from kinderlied &key`), with no forwarding release.
+8. **Certainty per axis** comes with #436: an association written in the text, a point's axis with decision 079's reach (`bite=.55 ± .1`); one spelling, the language's. Until then the map measures it: the points' spread, and an axis a point doesn't name. A reach's meaning: the effective reach is √(spread² + reach²), the certainty 1 less it over the axis's half range, a missing axis a reach of the whole axis (certainty 0); no constant but the axis's range. Queries don't read it in this epic (a reach as a window in a query's distance is a question of its own, filed beside #436).
+9. **The map's balance is a control:** one slider, style ↔ structure (the anchors' strength against the springs', their ratio the only real choice: scaling both changes only how fast it settles), its default the knee a probe over the library finds (how far fragments sit from their style, weighted by certainty, against how long the edges are). Changing it or an axis re-runs the layout from where the nodes are, so they glide (the library grows its layout so already).
+10. **Normalise's and Migrate's cruft** for retired forms goes, as a cells issue of its own.
 
 ## The map: two forces and a collision
 
@@ -60,7 +69,7 @@ Wrinkles at the seam, each removed by a rung below:
 
 ### Certainty in the syntax
 
-There is no certainty per axis today. What there is: a weight per point (`association[].weight`, decision 041), a point that leaves an axis out (PR 624), a query's `axisWeights`, a style cell's reach per axis (`bite=.55 ± .25`, decision 079), and #541's `confidence` per axis for a reading. **Proposal (a cells decision, beside #436):** an association point's value may carry a reach, in 079's spelling, `bite: .55 ± .1`, the certainty its inverse, and a missing axis the reach of the whole axis. The map's anchor then reads the reach in place of the spread it computes now; a query's distance could read it too (out of this epic).
+There is no certainty per axis today. What there is: a weight per point (`association[].weight`, decision 041), a point that leaves an axis out (PR 624), a query's `axisWeights`, a style cell's reach per axis (`bite=.55 ± .25`, decision 079), and #541's `confidence` per axis for a reading. Ruled (8): it comes with #436, in 079's spelling.
 
 ## The other mock-ups
 
@@ -80,8 +89,9 @@ Each a pull request with its bounds; cells' first, released together as one mino
 - **C2 · Provenance and taking a cell into the piece.** The rename around `from`; each given name's origin as a chain of `{ id, line }`, outermost first; an edit that writes a given cell's line into the piece, right for a head a `from` line names and for a collection's cell. Bound: #610's two cases (clock's `&bar`, electroswing's `&drumsOut`) play the same events after the edit, over 3 s.
 - **C3 · Audition.** `audition(idOrText, { resolve, host? })`: a playable text, which lines are the host's, and why where it can't play; lifted out of `coreFragment`, which then uses it; `heard.ts` retires; a style the fragment reads is a host parameter. Bound: every seed file auditions with 0 errors and at least 1 event in 4 bars, the exceptions named in its test.
 - **C4 · Extraction.** `extract(text, lines, { id, resolve })`: the fragment file and the piece with its `from` line, the piece S1-equal before and after, and `sameText` against the library. Bound: over every example, each run of consecutive `from`-free lines that defines a cell another line reads extracts and plays the same (choose the run's length and name it).
-- **C5 · Documents of fragments** (a decision, 082, the next number in either list). A file may hold several signatures, each giving the heads it names; a `from` line's head picks which; a parameter's line in the file is used when the file plays as a piece, and the argument replaces it when another piece takes the part (amending 065, where a main parameter has no line). A piece and a fragment become one kind of file, read by one reader. Kinderlieder is the first: its six motifs move into it, their ids respelled by Migrate (`&twinkle from twinkle &key` → `&twinkle from kinderlied &key`), and Jambot's pin move names it.
-- **C6 · Certainty per axis** (a decision, beside #436): the reach on an association point, as above.
+- **C5 · Documents of fragments** (decision 082, the next number in either list; ruled, 7). A file may hold several signatures; a part is a signature's heads and their closure; a document's main parameter may have its line, the piece's; a part is addressed by its head and hashed alone; its association keyed by its head. A piece and a fragment become one kind of file, read by one reader. Kinderlieder first, its six motifs moved in and respelled, breaking. Bounds: Kinderlieder and Twinkle play the same events before and after; decomposition and recognition find the six parts through the catalogue (their tests unchanged but for the ids).
+- **C6 · Associations in the text, with a reach per axis:** #436, pushed (ruled, 8); a document's parts move their association into their text with it. Bound: #436's own (every query in the tests returns what it did, 0 event snapshots moved).
+- **C7 · Normalise and Migrate without the retired forms' cruft:** an issue of its own (ruled, 10).
 - **Needed, filed already:** #543 (every example names its style: frontmatter, its option (a)), and #541 (a style reader, which gives a fragment a point read from its notes).
 
 **Cell studio**
@@ -89,11 +99,11 @@ Each a pull request with its bounds; cells' first, released together as one mino
 - **S1 · The pin and the seam.** Move to the release; `withUsedLine`, `#used`, `useTag` and `INSTRUMENT_MODULES` replaced by cells' C1/C2; "use" gone from the docs. Closes #610; #597 and #521 re-measured.
 - **S2 · A fragment is a document.** `Open` gains `fragment` (seed: read-only, "save a copy as mine"; mine: editable) and a back stack; a document of fragments has a parts tab; Play plays the audition, its view by facet. Bound: every seed fragment opens and plays (the smoke test's set, choose it and name it).
 - **S3 · The code view.** `from` ids as links, hovering an id or a given name, the facet's dot; completion after `from` (#587) from C1's catalogue. Bound: typing latency not up (the `profile` skill, before and after).
-- **S4 · The fragments cell and the map.** The map's layout as one pure module in `layout/` (springs that share a node's pull, anchors by certainty, a collision; any two of `AXES`), which the library's wheel uses too when pieces name their style (#585's second rung; the `GENRES` rim retires). Bounds: a `probe` over the library before it is built (the two strengths, crossings, the hubs' places); deterministic (a fixed start, no `Math.random`); 0 axis names written in Cell studio (a test); the contact sheet before and after.
+- **S4 · The fragments cell and the map.** The map's layout as one pure module in `layout/` (springs that share a node's pull, anchors by certainty, a collision; any two of `AXES`; the style ↔ structure slider, a re-run from where the nodes are on any change: ruled, 9), which the library's wheel uses too when pieces name their style (#585's second rung; the `GENRES` rim retires). Bounds: a `probe` over the library before it is built (the slider's default at the knee, named; crossings; the hubs' places); deterministic (a fixed start, no `Math.random`); 0 axis names written in Cell studio (a test); the contact sheet before and after.
 - **S5 · A selection turned into a fragment.** The editor's selection read back; C4's dialog; filed into the person's layer (IndexedDB), compiled through `resolverOf(layer)`. Bound: a fragment filed, the page reloaded, the piece plays the same.
 - **Later:** #455 (a fragment's frontmatter and association edited; a store beyond the browser).
 
-Order: C1 → C2 → (C3, C4, C5, C6) → the release → S1 → (S2, S3) → S4 → S5. #543 before S4's library half.
+Order: C1 → C2 → (C3, C4, C5, C6) → the release (C7 any time) → S1 → (S2, S3) → S4 → S5. #543 before S4's library half.
 
 ## Kept in mind (the alternatives to extraction's signature, if a need comes)
 
@@ -103,8 +113,6 @@ Order: C1 → C2 → (C3, C4, C5, C6) → the release → S1 → (S2, S3) → S4
 - No private names: every name the selection defines a head; simpler, but a second copy collides.
 - The facet prefilled by recognition, the style point by the open piece's (decision 048's filing), once #543 is in.
 
-## Open, for the owner
+## Open
 
-- **C5's spelling and its Kinderlieder move:** the six motif ids respelled, and what Jambot asks for by id.
-- **C6:** the reach on an association point, or another spelling of a certainty per axis.
-- **The map's two strengths:** fixed by the probe in S4, or a control in the view.
+Nothing for the owner; each rung's own choices are named in its PR (the probe's knee, the smoke set, C4's run length).
