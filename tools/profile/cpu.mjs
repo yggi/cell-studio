@@ -16,7 +16,7 @@ await cdp.send('Emulation.setCPUThrottlingRate', { rate: Number(process.env.THRO
 await cdp.send('Profiler.enable');
 await cdp.send('Profiler.setSamplingInterval', { interval: 500 });
 await p.getByRole('button', { name: 'Play' }).click();
-await p.waitForTimeout(4000);
+await p.waitForTimeout(Number(process.env.WARM || 4000));
 await cdp.send('Profiler.start');
 await p.waitForTimeout(Number(secs) * 1000);
 const { profile } = await cdp.send('Profiler.stop');

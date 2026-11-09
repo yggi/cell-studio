@@ -194,8 +194,13 @@ export class ForceLayout {
     return this.s.opts;
   }
 
-  /** Change forces live (the options view): they apply at once and the layout re-settles. */
+  /**
+   * Change forces live (the options view): they apply at once and the layout re-settles. Options the same as those in
+   * force (by value: a snapshot's tower options made again from an unchanged graph) change nothing and wake nothing:
+   * a new program that lays out as before (the sample rate set as playback starts) doesn't set the graph moving.
+   */
   setOptions(next: Partial<LayoutOptions>): void {
+    if ((Object.keys(next) as (keyof LayoutOptions)[]).every((k) => sameValue(this.s.opts[k], next[k]))) return;
     this.s.opts = { ...this.s.opts, ...next };
     this.applyOptions();
     this.reheat(0.4);
@@ -1118,4 +1123,25 @@ export function bestRowOrder(model: GraphModel, opts: Partial<LayoutOptions> = {
       if (score < best.crossings || (score === best.crossings && q.cost < best.cost)) best = { code: startCode(order, start), crossings: score, cost: q.cost };
     }
   return best.code;
+}
+
+/** The same value, by content: numbers, strings, arrays, plain objects, maps and sets (an option's shapes). */
+function sameValue(a: unknown, b: unknown): boolean {
+  if (Object.is(a, b)) return true;
+  if (typeof a !== 'object' || typeof b !== 'object' || a === null || b === null) return false;
+  if (a instanceof Map) {
+    if (!(b instanceof Map) || a.size !== b.size) return false;
+    for (const [k, v] of a) if (!b.has(k) || !sameValue(v, b.get(k))) return false;
+    return true;
+  }
+  if (a instanceof Set) {
+    if (!(b instanceof Set) || a.size !== b.size) return false;
+    for (const v of a) if (!b.has(v)) return false;
+    return true;
+  }
+  if (Array.isArray(a)) return Array.isArray(b) && a.length === b.length && a.every((v, i) => sameValue(v, b[i]));
+  if (b instanceof Map || b instanceof Set || Array.isArray(b) || Object.getPrototypeOf(a) !== Object.prototype || Object.getPrototypeOf(b) !== Object.prototype) return false;
+  const ka = Object.keys(a);
+  const rb = b as Record<string, unknown>;
+  return ka.length === Object.keys(b).length && ka.every((k) => k in rb && sameValue((a as Record<string, unknown>)[k], rb[k]));
 }

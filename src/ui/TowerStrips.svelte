@@ -159,6 +159,62 @@
     const spread = valueSpectrum(v, sections > 0);
     return spread.length ? { v, sections, spread, ...(sections ? { selector: selectorOf(ctx.program, name) } : {}) } : null;
   }
+  // (a row's segments as drawn, kept with its row: a share of the row and its colours each, and what lights it — a
+  // selector's step its span of the lap, a table of sections' entry its section, else a value's key)
+  type Segment = { share: number; colours: string[]; t0?: number; t1?: number; section?: number; key?: unknown };
+  const segmentsKept = new WeakMap<Row, Segment[]>();
+  function segmentsOf(got: Row): Segment[] {
+    const had = segmentsKept.get(got);
+    if (had) return had;
+    const rgb = (c: readonly number[]) => `rgb(${c[0]}, ${c[1]}, ${c[2]})`;
+    const paint = (c: string) => (c.startsWith('var(') ? css(c.slice(4, -1)) : c);
+    const made: Segment[] =
+      'steps' in got
+        ? got.steps.map((s) => ({ share: s.t1 - s.t0, colours: s.picks.map((k) => rgb(sectionTintRgb(k, got.n))), t0: s.t0, t1: s.t1 }))
+        : got.spread.map((e) =>
+            got.sections
+              ? { share: e.share, colours: [rgb(sectionTintRgb(e.index, got.sections))], section: e.index }
+              : { share: e.share, colours: [paint(fillColour(e.fill))], key: e.key },
+          );
+    segmentsKept.set(got, made);
+    return made;
+  }
+  // (from how many segments a row's unlit ones are drawn as one picture, playing)
+  const ROW_IMAGE = 24;
+  // a row's unlit segments drawn once into a picture of their own, at the screen's resolution and at the same fraction
+  // of a pixel as on the strip, so it lands on the same pixels: drawn again when the row's width, its height or that
+  // fraction changes (a pan, a zoom), not each frame. Where on the strip it goes, in device pixels.
+  const rowImages = new WeakMap<Row, Map<string, HTMLCanvasElement>>();
+  function rowImage(
+    got: Row,
+    segments: readonly Segment[],
+    span: number,
+    grown: number,
+    xa: number,
+    y: number,
+    paintRow: (c: CanvasRenderingContext2D, x: number, y: number) => void,
+  ): { canvas: HTMLCanvasElement; x: number; y: number } | null {
+    if (typeof document === 'undefined') return null;
+    const top = y - (4 + grown) / 2;
+    const x0 = Math.floor(xa * dpr) - 2;
+    const y0 = Math.floor(top * dpr) - 2;
+    const frac = (v: number) => Math.round((v - Math.floor(v)) * 8);
+    const key = `${span}|${grown}|${frac(xa * dpr)}|${frac(top * dpr)}|${segments.length}`;
+    let kept = rowImages.get(got);
+    if (!kept || kept.size > 8) rowImages.set(got, (kept = new Map()));
+    let canvas = kept.get(key);
+    if (!canvas) {
+      canvas = document.createElement('canvas');
+      canvas.width = Math.ceil((span + 4) * dpr) + 4;
+      canvas.height = Math.ceil((4 + grown + 4) * dpr) + 4;
+      const c = canvas.getContext('2d');
+      if (!c) return null;
+      c.setTransform(dpr, 0, 0, dpr, -x0, -y0);
+      paintRow(c, xa, y);
+      kept.set(key, canvas);
+    }
+    return { canvas, x: x0, y: y0 };
+  }
   function spectrumOf(name: string) {
     if (spectra.program !== ctx.program || spectra.shifts !== ctx.shifts) spectra = { program: ctx.program, shifts: ctx.shifts, got: new Map() };
     if (!spectra.got.has(name)) spectra.got.set(name, spectrumNow(name));
@@ -389,7 +445,6 @@
     const nameOf = (id: string) => id.slice('cell:'.length);
     // the structure: each stepped cell at its rate, across the lanes it feeds, the values it takes (each as wide as
     // it is held, in its colour, the one it holds now lit); cells sharing a place stacked
-    const paint = (c: string) => (c.startsWith('var(') ? css(c.slice(4, -1)) : c);
     const used = new Map<string, number>();
     const named: number[] = [];
     // (the table of sections' row: where each section's chip is, and which the selector picks now: each lane exits from its)
@@ -404,48 +459,67 @@
       const local = ctx.heads.cells.get(name)?.local ?? ctx.heads.beatAt.get(name);
       const lap = lapOf(ctx.program, name);
       const t = playing && local !== undefined && local !== null && lap > 0 ? (((local / lap) % 1) + 1) % 1 : null;
-      const rgb = (c: readonly number[]) => `rgb(${c[0]}, ${c[1]}, ${c[2]})`;
       // its segments, left to right, each its share of the row in its colours (a selector's step: a stripe a section it
       // picks), the one it holds now lit; a table of sections lights the sections its selector picks now
-      const segments: { share: number; colours: string[]; lit: boolean; section?: number }[] =
-        'steps' in got
-          ? got.steps.map((s) => ({ share: s.t1 - s.t0, colours: s.picks.map((k) => rgb(sectionTintRgb(k, got.n))), lit: t !== null && t >= s.t0 && t < s.t1 }))
-          : got.spread.map((e) => {
-              const now = got.sections ? null : t !== null ? valueAt(got.v, t, false) : null;
-              const picked = got.selector && playing ? ctx.heads.cells.get(got.selector)?.entries.has(e.index) : false;
-              return {
-                share: e.share,
-                colours: [got.sections ? rgb(sectionTintRgb(e.index, got.sections)) : paint(fillColour(e.fill))],
-                lit: got.sections ? !!picked : e.key === now,
-                ...(got.sections ? { section: e.index } : {}),
-              };
-            });
+      const segments = segmentsOf(got);
+      // (what is lit now: a step at the playhead; the value held now; the sections the selector picks now)
+      const now = !('steps' in got) && !got.sections && t !== null ? valueAt(got.v, t, false) : null;
+      const picks = !('steps' in got) && got.selector && playing ? ctx.heads.cells.get(got.selector)?.entries : undefined;
+      const litOf = (e: Segment) => (e.t0 !== undefined ? t !== null && t >= e.t0 && t < e.t1! : e.section !== undefined ? !!picks?.has(e.section) : e.key === now);
       // (its state now, playing: the value it holds lit, taller and outlined, the outline flashing at each step it
       // takes and fading through the step — a cell of one value (a groove's hits) shows its steps so; in a rest,
       // nothing lit)
       const flash = 1 - ((((local ?? 0) % 1) + 1) % 1);
       hit(`cell:${name}`, xa, y - 4 - grown / 2, xb, y + 4 + grown / 2);
-      let x = xa;
-      if (segments.some((e) => e.section !== undefined)) sectionRow.at = { y, centre: new Map(), picked: new Set() };
-      for (const e of segments) {
-        const w = Math.max(1, e.share * (xb - xa) - 0.5);
-        if (sectionRow.at && e.section !== undefined) {
-          sectionRow.at.centre.set(e.section, x + (e.share * (xb - xa)) / 2);
-          if (e.lit) sectionRow.at.picked.add(e.section);
-        }
-        const hh = (e.lit ? 6 : 4) + grown;
-        g.globalAlpha = !playing || e.lit ? 1 : 0.3;
-        e.colours.forEach((c, k) => {
-          g.fillStyle = c;
-          g.fillRect(x, y - hh / 2 + (k * hh) / e.colours.length, w, hh / e.colours.length);
+      const span = xb - xa;
+      const tables = segments.some((e) => e.section !== undefined);
+      if (tables) sectionRow.at = { y, centre: new Map(), picked: new Set() };
+      // a segment as drawn: its colours, stacked, lit or not (taller, full, outlined)
+      const paintSegment = (c: CanvasRenderingContext2D, e: Segment, x: number, y: number, lit: boolean) => {
+        const w = Math.max(1, e.share * span - 0.5);
+        const hh = (lit ? 6 : 4) + grown;
+        e.colours.forEach((colour, k) => {
+          c.fillStyle = colour;
+          c.fillRect(x, y - hh / 2 + (k * hh) / e.colours.length, w, hh / e.colours.length);
         });
-        if (e.lit) {
-          g.globalAlpha = 0.35 + 0.65 * flash;
-          g.strokeStyle = css('--text');
-          g.lineWidth = 1;
-          g.strokeRect(x - 0.5, y - 3.5 - grown / 2, w + 1, 7 + grown);
+        if (lit) {
+          c.globalAlpha = 0.35 + 0.65 * flash;
+          c.strokeStyle = css('--text');
+          c.lineWidth = 1;
+          c.strokeRect(x - 0.5, y - 3.5 - grown / 2, w + 1, 7 + grown);
         }
-        x += e.share * (xb - xa);
+      };
+      // playing, a long row's unlit segments are one picture, made once (rowImage) and drawn each frame with the lit
+      // ones over it: a fugue's line is hundreds of segments a frame otherwise, all but one the same as the last frame's
+      const image =
+        playing && segments.length > ROW_IMAGE
+          ? rowImage(got, segments, span, grown, xa, y, (c, x, y) => {
+              c.globalAlpha = 0.3;
+              let at = x;
+              for (const e of segments) {
+                paintSegment(c, e, at, y, false);
+                at += e.share * span;
+              }
+            })
+          : null;
+      if (image) {
+        g.save();
+        g.setTransform(1, 0, 0, 1, 0, 0);
+        g.drawImage(image.canvas, image.x, image.y);
+        g.restore();
+      }
+      let x = xa;
+      for (const e of segments) {
+        const lit = litOf(e);
+        if (tables && e.section !== undefined) {
+          sectionRow.at!.centre.set(e.section, x + (e.share * span) / 2);
+          if (lit) sectionRow.at!.picked.add(e.section);
+        }
+        if (lit || !image) {
+          g.globalAlpha = !playing || lit ? 1 : 0.3;
+          paintSegment(g, e, x, y, lit);
+        }
+        x += e.share * span;
       }
       g.globalAlpha = 1;
       // (the cell selected: its row outlined, its name bold)

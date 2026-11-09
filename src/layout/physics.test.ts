@@ -34,6 +34,20 @@ describe('ForceLayout', () => {
     expect(y('cell:lead')).toBeLessThan(y('cell:bar'));
   });
 
+  it('options the same as those in force, by value, leave the layout at rest; a changed one wakes it', () => {
+    const l = new ForceLayout(undefined, { live: false });
+    l.setGraph(graphOf(EXAMPLES.royal.source));
+    l.tick(400);
+    const heights = () => new Map([['cell:lead', 10]]);
+    l.setOptions({ heights: heights(), held: new Set(['cell:lead']), lineUp: [['a', 'b']] });
+    l.tick(400);
+    const rest = l.alpha;
+    l.setOptions({ heights: heights(), held: new Set(['cell:lead']), lineUp: [['a', 'b']] });
+    expect(l.alpha).toBe(rest);
+    l.setOptions({ heights: new Map([['cell:lead', 11]]) });
+    expect(l.alpha).toBeGreaterThan(rest);
+  });
+
   it('keeps nodes from overlapping', () => {
     const g = graphOf(EXAMPLES.sailor.source);
     const l = new ForceLayout(undefined, { live: false });

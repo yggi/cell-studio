@@ -111,6 +111,13 @@ destination, so it works headless.
 - Opening (#198): the layout's crossing tests at rest (`settleJunctions`, `placeMeters`' `hits`) were most of it. A box
   test before `segmentsCross` and passing a piece's four numbers by index, not spread (`segmentsCross(...p, ...q)`)
   or destructured in the inner loop, made them 5–15× faster with the same results.
+- A layout that keeps moving while a piece plays is the costliest thing there is: every node and edge redrawn each tick
+  (a `MutationObserver` shows `style` on `.svelte-flow__node` and `d` on edge paths by the thousand). Pressing Play used
+  to recompile where the sample rate isn't 48 kHz (headless is 44.1 kHz) and the tower options, made again the same,
+  reheated it for 8–12 s; `setOptions` now ignores options equal by value. `WARM=<ms>` on `measure.mjs`, `cpu.mjs`
+  and `trace.mjs` measures past such a settling (`WARM=16000`); the default 4 s includes it.
+- Beware ablations by class: the graph's own container has `class:sky`, so `.sky{display:none}` hides the whole graph.
+  `?sky=off` switches the sky off; Bach 847's sky costs ~6 points of busy at ×1.
 - Per-frame views run from the one frame loop, `onFrames` in `src/audio/ticker.ts` (no `requestAnimationFrame` of
   their own); it stretches their interval by `load.scale` when frames come late. Skip work when not visible.
 
