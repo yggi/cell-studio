@@ -244,7 +244,7 @@ describe('the rows', () => {
   });
 
   it('over a kit: one row per voice, by name', () => {
-    const q = compilePiece('&bd s=sine loop=C2\n&sd s=white\n&kit &bd &sd\n&beat over=&kit step=4 0 1 0 1\n&out loop=SAMPLE_RATE map=sample [&beat * .5]');
+    const q = compilePiece('&bd note=36 s=sine loop=C2\n&sd note=38 s=white\n&kit &bd &sd\n&beat over=&kit step=4 0 1 0 1\n&out loop=SAMPLE_RATE map=sample [&beat * .5]');
     expect(q.ok).toBe(true);
     const { table, perLap } = tableOf(q, 'beat');
     expect(table?.kit).toBe(true);

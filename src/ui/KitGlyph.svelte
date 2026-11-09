@@ -1,12 +1,12 @@
 <script lang="ts">
   /**
    * A kit (a table of voices, `&kit &kd &sd &hh`) drawn as a drum kit seen from the front (layout/kit.ts): each member a
-   * piece of it by its name — a drum a shell and its head, a cymbal a brass plate seen edge-on — the kick in the middle,
+   * piece of it by the note it plays — a drum a shell and its head, a cymbal a brass plate seen edge-on — the kick in the middle,
    * snare and hi-hat left, toms over the kick, the floor tom right, cymbals on top. A member only the kit plays is a
    * bulb (tap to open, hold to switch off); one played elsewhere too is drawn hollow (it has a node of its own). A piece
    * glows while its voice sounds.
    */
-  import { drumPlaces, kitOf } from '../layout/kit';
+  import { drumNoteIn, drumPlaces, kitOf } from '../layout/kit';
   import { bulbHosts } from '../layout/drawn';
   import { fitFont } from '../layout/dial';
   import { wheelGeometry } from '../layout/wheel';
@@ -21,7 +21,7 @@
     const hosts = bulbHosts(ctx.program);
     // (drawn back to front: cymbals behind, the kick in front of the toms, the rest over it)
     const order = { crash: 0, ride: 0, hihat: 1, tom: 2, kick: 3, floor: 4, snare: 4, perc: 5 } as const;
-    return drumPlaces(size * 1.02, members)
+    return drumPlaces(size * 1.02, members, drumNoteIn(ctx.program))
       .map((p, i) => {
         const m = members[i];
         const text = `&${m}`;

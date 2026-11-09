@@ -3,7 +3,7 @@ import { compilePiece } from '../compile';
 import { buildGraph } from './drawn';
 
 const voices =
-  '&bar scan(1 1 1 1) step=120bpm\n&bd s=sine loop=A1 env=&(map=adsr 0 .3 0 .05)\n&hh s=white hpf=8000 env=&(map=adsr 0 .04 0 .02)\n&sd s=white hpf=1500 env=&(map=adsr 0 .1 0 .04)\n';
+  '&bar scan(1 1 1 1) step=120bpm\n&bd note=36 s=sine loop=A1 env=&(map=adsr 0 .3 0 .05)\n&hh note=42 s=white hpf=8000 env=&(map=adsr 0 .04 0 .02)\n&sd note=38 s=white hpf=1500 env=&(map=adsr 0 .1 0 .04)\n';
 
 describe('a stepped braid of voices plays them (#10 F4)', () => {
   it("draws the drums as one kit: each groove's one wire into it, its one wire out to the mix", () => {

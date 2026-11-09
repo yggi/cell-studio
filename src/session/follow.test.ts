@@ -73,11 +73,11 @@ describe('following a host’s song', () => {
 describe('a bar of a text’s own time', () => {
   const bar = (text: string) => barSeconds(compilePiece(text));
   it('is its main meter’s bar at its tempo', () => {
-    expect(bar('&bar meter("4/4") step=120bpm\n&kick step=16n &bd ~ ~ ~\n&bd s=white')).toBeCloseTo(2, 9);
-    expect(bar('&bar meter("4/4") step=108bpm swing=16n:.6\n&kick step=16n &bd ~ ~ ~\n&bd s=white')).toBeCloseTo(240 / 108, 9);
+    expect(bar('&bar meter("4/4") step=120bpm\n&kick step=16n &bd ~ ~ ~\n&bd note=36 s=white')).toBeCloseTo(2, 9);
+    expect(bar('&bar meter("4/4") step=108bpm swing=16n:.6\n&kick step=16n &bd ~ ~ ~\n&bd note=36 s=white')).toBeCloseTo(240 / 108, 9);
     // (a 6/8 bar is two beats; 7/8 three, 3+2+2)
-    expect(bar('&bar meter("6/8") step=90bpm\n&kick step=16n &bd ~ ~ ~\n&bd s=white')).toBeCloseTo(4 / 3, 9);
-    expect(bar('&bar meter("7/8") step=120bpm\n&kick step=8n &bd ~ ~\n&bd s=white')).toBeCloseTo(1.5, 9);
+    expect(bar('&bar meter("6/8") step=90bpm\n&kick step=16n &bd ~ ~ ~\n&bd note=36 s=white')).toBeCloseTo(4 / 3, 9);
+    expect(bar('&bar meter("7/8") step=120bpm\n&kick step=8n &bd ~ ~\n&bd note=36 s=white')).toBeCloseTo(1.5, 9);
   });
   it('is none for a text with no meter, or one that doesn’t compile', () => {
     expect(bar('&a loop=A4')).toBeNull();

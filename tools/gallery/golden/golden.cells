@@ -20,9 +20,9 @@
 &lead s=tri loop=C5 env=&(map=adsr .01 .3 .4 .3)
 &hh s=white hpf=7000 env=&(map=adsr 0 .04 0 .02) lpf=3000..9000 * &(map=adsr 0 .03 0 .02)
 # a drum kit (its pieces by name) and a gate that plays it; a gate that plays chords on a chord of voices, one with no envelope
-&kd s=sine loop=A1 env=&(map=adsr 0 .3 0 .1)
-&sd s=white env=&(map=adsr 0 .15 0 .05)
-&oh s=white hpf=6000 env=&(map=adsr 0 .3 0 .1)
+&kd note=36 s=sine loop=A1 env=&(map=adsr 0 .3 0 .1)
+&sd note=38 s=white env=&(map=adsr 0 .15 0 .05)
+&oh note=46 s=white hpf=6000 env=&(map=adsr 0 .3 0 .1)
 &kit &kd &sd &oh
 &beat step=8n 0 1 0 2
 &drums play=&beat level=.5 &kit

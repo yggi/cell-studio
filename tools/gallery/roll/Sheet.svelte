@@ -39,7 +39,7 @@
     {
       kind: 'kit',
       caption: 'over a kit: a row per voice',
-      source: `${BAR}&lo s=sine loop=G2\n&mid s=sine loop=C3\n&hi s=white\n&kit &lo &mid &hi\n&beat over=&kit step=8n 0 2 [1,2] 2 0 [0,2] [1,2] 2\n&mix map=sample [&beat * .4]`,
+      source: `${BAR}&lo note=41 s=sine loop=G2\n&mid note=45 s=sine loop=C3\n&hi note=48 s=white\n&kit &lo &mid &hi\n&beat over=&kit step=8n 0 2 [1,2] 2 0 [0,2] [1,2] 2\n&mix map=sample [&beat * .4]`,
       name: 'beat',
     },
     {

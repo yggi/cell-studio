@@ -28,9 +28,9 @@ const SONG = `# Song
 &tune over=&penta step=&bar 0 1 2
 &lead s=sine loop=C4
 &drums step=&bar &bd &hh &sd &hh
-&bd s=sine loop=A1
-&sd s=white
-&hh s=white hpf=7000
+&bd note=36 s=sine loop=A1
+&sd note=38 s=white
+&hh note=42 s=white hpf=7000
 &mix map=sample [&tune * &lead, &drums]
 `;
 

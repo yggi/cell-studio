@@ -4,9 +4,9 @@ import { buildGraph } from './drawn';
 
 const BASE = `&bar scan(1 1 1 1) step=120bpm
 &major scale(major)
-&bd s=sine loop=C2
-&sd s=white
-&hh s=white hpf=6000
+&bd note=36 s=sine loop=C2
+&sd note=38 s=white
+&hh note=42 s=white hpf=6000
 &kit &bd &sd &hh
 &lead s=tri loop=C5
 &bell s=sine loop=C6

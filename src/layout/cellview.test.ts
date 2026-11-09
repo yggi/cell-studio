@@ -115,7 +115,7 @@ describe('hubLabel', () => {
 
 describe('kits and voices', () => {
   it('draws a kit as its voices', () => {
-    const r2 = compilePiece('&bd s=sine step=55\n&sd s=white\n&kit &bd &sd');
+    const r2 = compilePiece('&bd note=36 s=sine step=55\n&sd note=38 s=white\n&kit &bd &sd');
     expect(cellView(r2, 'kit', codeShifts(r2), false)!.segments).toHaveLength(2);
     expect(hubLabel(r2, 'kit', codeShifts(r2), false, null)).toEqual({ big: '2', small: 'voices' });
   });
