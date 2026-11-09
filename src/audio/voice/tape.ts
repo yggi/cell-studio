@@ -1,6 +1,6 @@
 /**
  * Sound tapes: a delay network each — the source mix in; a loop of its length back into it (through its loss,
- * its saturation, and what erasing leaves); each read head a tap. Their speed (a moving clock) and a hand
+ * its saturation, and what erasing leaves); each read head a delay line, its read. Their speed (a moving clock) and a hand
  * scrubbing them move the delays.
  *
  * Held (the transport not playing), a tape with a loop is frozen: nothing is written to it (the write gate and the
@@ -21,7 +21,7 @@ export interface TapeNet {
   wanders: { node: Delay; at: number; wander: number; hz: number }[];
   dropout: number;
   name: string;
-  taps: { node: Delay; at: number }[];
+  reads: { node: Delay; at: number }[];
   scrubbing: boolean;
   meter: AnalyserNode;
   /** What is written to it: the sources come in here (a gate: closed while the tape is held, so nothing is recorded). */
@@ -93,19 +93,19 @@ export function buildTapeNet(Tone: ToneNS, raw: AudioContext, tp: AudioTape): Ta
     delays.push({ node: loop, base: tp.length });
     loopNodes = { delay: loop, loss };
   }
-  // each head: its tap (and its print-through, a faint tap before it) into its own output,
+  // each head: its read (and its print-through, a faint read before it) into its own output,
   // which dropouts dip
   const heads = new Map<string, import('tone').Gain>();
   const wanders: { node: Delay; at: number; wander: number; hz: number }[] = [];
-  // (every tap and where it reads: for a hand scrubbing the tape)
-  const taps: { node: Delay; at: number }[] = [];
+  // (every read and where it is: for a hand scrubbing the tape)
+  const reads: { node: Delay; at: number }[] = [];
   for (const h of tp.heads) {
     const out = new Tone.Gain(1);
     const d = new Tone.Delay({ delayTime: Math.max(0.001, h.at), maxDelay });
     bus.connect(d);
     d.connect(out);
     nodes.push(out, d);
-    taps.push({ node: d, at: Math.max(0.001, h.at) });
+    reads.push({ node: d, at: Math.max(0.001, h.at) });
     if (h.wander > 0) wanders.push({ node: d, at: Math.max(0.001, h.at), wander: h.wander, hz: h.wanderhz });
     else delays.push({ node: d, base: Math.max(0.001, h.at) });
     if (tp.print > 0 && h.at > tp.printgap) {
@@ -115,7 +115,7 @@ export function buildTapeNet(Tone: ToneNS, raw: AudioContext, tp: AudioTape): Ta
       pd.chain(pg, out);
       nodes.push(pd, pg);
       delays.push({ node: pd, base: h.at - tp.printgap });
-      taps.push({ node: pd, at: h.at - tp.printgap });
+      reads.push({ node: pd, at: h.at - tp.printgap });
     }
     heads.set(h.head, out);
   }
@@ -127,7 +127,7 @@ export function buildTapeNet(Tone: ToneNS, raw: AudioContext, tp: AudioTape): Ta
     wanders,
     dropout: tp.dropout,
     name: tp.name,
-    taps,
+    reads,
     scrubbing: false,
     meter,
     input,
@@ -167,7 +167,7 @@ export function scrubTape(now: number, net: TapeNet, delayFor: ((at: number) => 
   if (delayFor) {
     net.scrubbing = true;
     // (the heads follow the hand closely: back faster than time runs, and they read backwards)
-    for (const t of net.taps) {
+    for (const t of net.reads) {
       const d0 = clamp(delayFor(t.at));
       // to where the hand holds it, quickly — then, held still, the delay grows as time passes
       // (the head keeps reading the same moment: a held tape is silent)
@@ -181,7 +181,7 @@ export function scrubTape(now: number, net: TapeNet, delayFor: ((at: number) => 
     // under it — until fresh material reaches it (its distance after the write head); there the
     // new recording takes over: a splice
     let last = now;
-    for (const t of net.taps) {
+    for (const t of net.reads) {
       const d = clamp(Number(t.node.delayTime.value));
       const join = now + (d > t.at ? t.at : 0);
       t.node.delayTime.cancelScheduledValues(now);
@@ -240,7 +240,7 @@ export function holdTape(now: number, net: TapeNet, behindFor: (head: number) =>
   const L = net.length;
   const since = now - f.at;
   const max = net.maxDelay - 0.01;
-  for (const t of net.taps) {
+  for (const t of net.reads) {
     // how far round the lap, in the loop's own seconds, and since then the loop has turned `since`
     const x = (((behindFor(t.at) % L) + L) % L) * (f.period / L);
     const want = (since + x) % f.period;

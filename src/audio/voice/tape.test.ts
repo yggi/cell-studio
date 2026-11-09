@@ -22,7 +22,7 @@ const ramps = (p: ReturnType<typeof param>) => p.calls.filter((c) => c.what === 
 function frozen(period = 4, at = 0.75) {
   const head = { node: { delayTime: param(at) }, at };
   const out = { gain: param(1) };
-  const net = { taps: [head], length: 4, maxDelay: 20, frozen: { at: 0, period }, heads: new Map([['h', out]]), scrubbing: false } as unknown as TapeNet;
+  const net = { reads: [head], length: 4, maxDelay: 20, frozen: { at: 0, period }, heads: new Map([['h', out]]), scrubbing: false } as unknown as TapeNet;
   return { net, head, out };
 }
 /** Where a head is sent to for content `behind` tape-seconds behind where the tape was held, at audio time `now`. */
