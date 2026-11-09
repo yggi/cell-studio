@@ -2,7 +2,7 @@
 import { codeShifts, type CompileResult, type Shifts } from '@yggi/cells/engine/program';
 import { liveAt, type LiveState } from '@yggi/cells/engine/live';
 import { ORDER } from '@yggi/cells/engine/order';
-import { PRESETS } from '@yggi/cells/engine/presets';
+import { EXAMPLES } from '@yggi/cells/engine/examples';
 import { pieceMeta } from '@yggi/cells/engine/parser/index';
 import { compilePiece } from '../../src/compile';
 import { textOf } from '../../src/library';
@@ -33,7 +33,7 @@ export function pieceOf(key: string, given: string, seconds: number, title = pie
 export function pieces(seconds: number, only: readonly string[]): Piece[] {
   const out: Piece[] = [];
   for (const key of ORDER) {
-    const { source, file } = PRESETS[key];
+    const { source, file } = EXAMPLES[key];
     // (an example's title is its file's frontmatter's: decision 047)
     const title = pieceMeta(file)?.title ?? key;
     if (only.length && !only.some((w) => `${key} ${title}`.toLowerCase().includes(w.toLowerCase()))) continue;

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { compilePiece } from '../compile';
-import { PRESETS } from '@yggi/cells/engine/presets';
+import { EXAMPLES } from '@yggi/cells/engine/examples';
 import { flows, type Flow } from '@yggi/cells/engine/flows';
 import { cellId } from '@yggi/cells/engine/ids';
 import type { CompileResult } from '@yggi/cells/engine/program';
@@ -41,7 +41,7 @@ const wired = (r: CompileResult, f: Flow) => {
 };
 
 describe('voices.sync wires from the flows the graph draws (#132)', () => {
-  for (const [key, p] of Object.entries(PRESETS))
+  for (const [key, p] of Object.entries(EXAMPLES))
     it(`${key}: the connections carry exactly the flows listed`, () => {
       const r = compilePiece(p.source);
       const listed = flows(r).all;
@@ -54,7 +54,7 @@ describe('voices.sync wires from the flows the graph draws (#132)', () => {
     });
 
   it('off, once: no connection touches a cell that is off (every example, every cell)', () => {
-    for (const p of Object.values(PRESETS)) {
+    for (const p of Object.values(EXAMPLES)) {
       const r = compilePiece(p.source);
       for (const name of r.cells.keys()) {
         const w = wiring(r, new Set([cellId(name)]));
@@ -87,7 +87,7 @@ describe('voices.sync wires from the flows the graph draws (#132)', () => {
   });
 
   it('with nothing off, returns and lone resonators reach the sound card at the levels compile gives them (#165)', () => {
-    for (const { source } of Object.values(PRESETS)) {
+    for (const { source } of Object.values(EXAMPLES)) {
       const r = compilePiece(source);
       for (const x of [...r.returns, ...r.resonances]) expect(returnGains(x, new Set())).toEqual([x.gains[0], x.gains[1]]);
     }
@@ -122,7 +122,7 @@ describe('voices.sync wires from the flows the graph draws (#132)', () => {
   });
 
   it("a mix's wheel hears only the notes that go through it: Baustelle's &einsturz only while it is picked (#77)", () => {
-    const r = compilePiece(PRESETS.baustelle.source);
+    const r = compilePiece(EXAMPLES.baustelle.source);
     const w = wiring(r, r.off);
     const notes = eventsBetween(planOf(r, codeShifts(r), r.off), 0, 600, true);
     const out = new Map(r.outputs.map((o) => [o.id, o]));

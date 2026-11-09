@@ -1,12 +1,12 @@
 // The library as the app lists it, for the tests: every example with its card's title, tags and tier, and the MIDI
 // library (as ui/entries.ts lists it).
-import { PRESETS } from '@yggi/cells/engine/presets';
+import { EXAMPLES } from '@yggi/cells/engine/examples';
 import { pieceMeta } from '@yggi/cells/engine/parser/index';
 import { canonicalTags, MIDI_FILE } from '@yggi/cells/engine/tags';
 import { readdirSync, readFileSync } from 'node:fs';
 
 export const entries = [
-  ...Object.entries(PRESETS).map(([key, p]) => {
+  ...Object.entries(EXAMPLES).map(([key, p]) => {
     const m = pieceMeta(p.file);
     return { id: `example:${key}`, title: m?.title ?? key, tags: canonicalTags(m?.tags ?? []), tier: m?.tier ?? null };
   }),

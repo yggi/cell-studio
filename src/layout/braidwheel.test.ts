@@ -2,12 +2,12 @@ import { describe, expect, it } from 'vitest';
 import { compilePiece, withUsedLine } from '../compile';
 import { codeShifts, DEFAULT_FREQ } from '@yggi/cells/engine/program';
 import { declWords } from '@yggi/cells/engine/edit';
-import { PRESETS } from '@yggi/cells/engine/presets';
+import { EXAMPLES } from '@yggi/cells/engine/examples';
 import { atomOf, braidVoice, freeBraidOf, lap, listed, sheetPicture, sheetWheel, tokenHues, tokenLabels, tokenName } from './braidwheel';
 import { noteFrame, tonicOf, voiceBase } from './show';
 
-const piece = (key: keyof typeof PRESETS) => {
-  const source = PRESETS[key].source;
+const piece = (key: keyof typeof EXAMPLES) => {
+  const source = EXAMPLES[key].source;
   const result = compilePiece(source);
   const shifts = codeShifts(result);
   // (a used cell's braid as the cell sheet reads it: the piece's text with its used line written in, #480)

@@ -6,7 +6,7 @@ import { pieceTime, type PieceTime } from '@yggi/cells/engine/duration';
 import { buildGraph } from '../layout/drawn';
 import { pieceMeta } from '@yggi/cells/engine/parser/index';
 import { canonicalTags, MIDI_FILE, tagName, type TagKind } from '@yggi/cells/engine/tags';
-import { EXAMPLES, loadExample, type PresetKey } from '../examples';
+import { EXAMPLE_INDEX, loadExample, type ExampleKey } from '../examples';
 import { creditOf, loadMidiFile, MIDI_FILES, MIDI_SETS, type Credit } from '../corpus';
 import { cellsFromMidi } from '@yggi/cells/engine/midiimport';
 import type { Miniature } from '../layout/miniature';
@@ -57,10 +57,10 @@ export function savedEntry(p: SavedPiece): Entry {
 }
 
 // (one loader each, the same every time: a piece is fetched once)
-const loaders = Object.fromEntries(EXAMPLES.map((e) => [e.key, () => loadExample(e.key)])) as Record<PresetKey, () => Promise<string>>;
+const loaders = Object.fromEntries(EXAMPLE_INDEX.map((e) => [e.key, () => loadExample(e.key)])) as Record<ExampleKey, () => Promise<string>>;
 
 /** The examples' cards, from the index made at build time (a piece's text is fetched when it's needed). */
-export const exampleEntries: readonly Entry[] = EXAMPLES.map((e) => ({
+export const exampleEntries: readonly Entry[] = EXAMPLE_INDEX.map((e) => ({
   id: `example:${e.key}`,
   kind: 'example',
   title: e.title,

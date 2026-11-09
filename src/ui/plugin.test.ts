@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { compilePiece } from '../compile';
 import { setAttr } from '@yggi/cells/engine/edit';
-import { PRESETS } from '@yggi/cells/engine/presets';
+import { EXAMPLES } from '@yggi/cells/engine/examples';
 import { drawPlugin, loadPlugin } from './plugin';
 import { dayLaw } from '@yggi/cells/engine/fiveto12';
 import { pluginKey } from '@yggi/cells/engine/plugins';
@@ -14,7 +14,7 @@ const errors = (src: string) =>
     .diagnostics.filter((d) => d.severity === 'error')
     .map((d) => d.message);
 
-const day = compilePiece(PRESETS.fiveto12.source);
+const day = compilePiece(EXAMPLES.fiveto12.source);
 const sun = day.plugins.get('sun')!;
 
 /** Every element of a drawing. */
@@ -23,9 +23,9 @@ const elements = (n: readonly PNode[]): { t: string; a: Record<string, string | 
 describe('the sun, a built-in plugin', () => {
   it('is the app’s own: 5 to 12 and Clock time name it and carry no code', () => {
     for (const key of ['fiveto12', 'daytime'] as const) {
-      const r = compilePiece(PRESETS[key].source);
+      const r = compilePiece(EXAMPLES[key].source);
       expect(r.diagnostics.filter((d) => d.severity === 'error')).toEqual([]);
-      expect(PRESETS[key].source).not.toContain('=== plugin');
+      expect(EXAMPLES[key].source).not.toContain('=== plugin');
       expect(r.plugins.get('sun')).toBe(sun);
     }
     expect(sun).toMatchObject({ fits: ['meter'], size: 220, rim: false, builtin: true, dial: { turn: 86400, key: 3600 } });

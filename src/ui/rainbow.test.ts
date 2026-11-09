@@ -1,4 +1,4 @@
-import { PRESETS } from '@yggi/cells/engine/presets';
+import { EXAMPLES } from '@yggi/cells/engine/examples';
 import { describe, expect, it } from 'vitest';
 import { compilePiece } from '../compile';
 import { buildGraph } from '../layout/drawn';
@@ -9,7 +9,7 @@ import { nodeSections } from './sections';
 
 /** The 8-bit example (korobeiniki) in the tower layout, as the graph lays it out. */
 function laidOut() {
-  const program = compilePiece(PRESETS.korobeiniki.source);
+  const program = compilePiece(EXAMPLES.korobeiniki.source);
   const model = buildGraph(program);
   const drawn = withSockets(program, model);
   const sections = new Map([...nodeSections(program, drawn)].map(([id, s]) => [id, s.k]));

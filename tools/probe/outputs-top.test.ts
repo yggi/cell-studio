@@ -9,7 +9,7 @@ import { ForceLayout } from '../../src/layout/physics';
 import { type GraphModel } from '@yggi/cells/engine/graph';
 import { buildGraph } from '../../src/layout/drawn';
 import { compileSource } from '@yggi/cells/engine/compile';
-import { PRESETS } from '@yggi/cells/engine/presets';
+import { EXAMPLES } from '@yggi/cells/engine/examples';
 import { DEFAULT_LAYOUT, type LayoutOptions } from '../../src/layout/options';
 
 const deg = (r: number) => (r * 180) / Math.PI;
@@ -99,7 +99,7 @@ describe.runIf(process.env.PROBE)('outputs at 12 o’clock', () => {
       ['upPull 0.2, spread 0', { upPull: 0.2, spread: 0 }],
     ];
     const only = process.env.ONLY;
-    const pieces = Object.entries(PRESETS).filter(([k]) => !only || k.toLowerCase().includes(only.toLowerCase()));
+    const pieces = Object.entries(EXAMPLES).filter(([k]) => !only || k.toLowerCase().includes(only.toLowerCase()));
     for (const [name, opts] of variants) {
       const rows: Row[] = [];
       const ports = new Map<string, number[]>();

@@ -39,7 +39,7 @@
   import type { LiveSource } from '../audio/live';
   import type { TransportState } from '../audio/transport';
   import { clusterDisc } from '../layout/clusters';
-  import { EXAMPLES } from '../examples';
+  import { EXAMPLE_INDEX } from '../examples';
   import Margin, { MARGIN_WIDTH } from './Margin.svelte';
   import { isSide, sideEntries } from '../layout/side';
   import { channelColour } from './theme';
@@ -75,7 +75,7 @@
 
   // each example's rows' order, chosen when the app was built (tools/examples-index.ts), by its graph's shape
   // (each example's start, chosen when the app was built, in either layout: keyed by its graph's shape there)
-  const EXAMPLE_ROWS = new Map(EXAMPLES.flatMap((e) => [[e.rows.key, e.rows.order] as const, [e.towerRows.key, e.towerRows.order] as const]));
+  const EXAMPLE_ROWS = new Map(EXAMPLE_INDEX.flatMap((e) => [[e.rows.key, e.rows.order] as const, [e.towerRows.key, e.towerRows.order] as const]));
 
   let {
     model,

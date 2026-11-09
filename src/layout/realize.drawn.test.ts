@@ -8,7 +8,7 @@ import { routing } from '@yggi/cells/engine/routing';
 import { structureKey, type GraphModel } from '@yggi/cells/engine/graph';
 import { buildGraph } from './drawn';
 import { edgeLabel } from '@yggi/cells/engine/transform';
-import { PRESETS } from '@yggi/cells/engine/presets';
+import { EXAMPLES } from '@yggi/cells/engine/examples';
 
 type R = ReturnType<typeof compilePiece>;
 const events = (r: R, from: number, to: number, muted: string[] = []) => eventsBetween(plan(r, codeShifts(r), new Set(muted)), from, to);
@@ -19,7 +19,7 @@ const intoProduct = (g: GraphModel, from: string, voice: string) =>
 
 describe('graph', () => {
   it('shows exactly the code: no implicit grid, voices as voices, written links only', () => {
-    const g = buildGraph(compilePiece(PRESETS.royal.source));
+    const g = buildGraph(compilePiece(EXAMPLES.royal.source));
     // the envelopes are unnamed cells written on the voices' lines: part of their wheels, no nodes (the vibrato is the
     // library's, taken by `use`, yggi/cells#364: a named cell)
     expect(g.nodes.some((n) => n.cell?.lambda)).toBe(false);
@@ -97,7 +97,7 @@ describe('modulation: &mix_ [(&theme + &vibrato) * &voice]\n&out_ loop=44k map=s
 describe('stereo from two mixes', () => {
   it('draws voices into their mix (each product a junction), and the mix into the sound card', () => {
     // (Canon: Frère Jacques: four voices in two mixes, one a channel; Canon per tonos places its voices with pan= since cells v0.2.0)
-    const g = buildGraph(compilePiece(PRESETS.canon.source));
+    const g = buildGraph(compilePiece(EXAMPLES.canon.source));
     const ids = g.edges.map((e) => e.id);
     expect(ids).toContain('junction:left:0->cell:v1');
     expect(ids).toContain('cell:v1->cell:left');
@@ -119,7 +119,7 @@ describe('volume streams (map=amp)', () => {
 
 describe('switching off', () => {
   it('anything switched off cuts its edges: nothing below it stays lit through it (every example, every cell)', () => {
-    for (const [key, p] of Object.entries(PRESETS)) {
+    for (const [key, p] of Object.entries(EXAMPLES)) {
       const r = compilePiece(p.source);
       const g = buildGraph(r);
       for (const n of g.nodes) {
@@ -148,7 +148,7 @@ describe('map=adsr: an envelope per note', () => {
 describe('petals', () => {
   it('an edge through a petal is drawn to its parent — unless it loops back or repeats', () => {
     // &organ holds an unnamed envelope (env=&( … )): part of the organ's wheel, no node and no edge of its own
-    const g = buildGraph(compilePiece(PRESETS.ricercar.source));
+    const g = buildGraph(compilePiece(EXAMPLES.ricercar.source));
     expect(g.nodes.some((n) => n.cell?.lambda && n.cell.map?.kind === 'adsr')).toBe(false);
     expect(intoProduct(g, 'theme', 'organ')).toBeDefined();
     // an unnamed melody in a product (&( … ) * &v): drawn as its mix's petal, its wire into the product from the mix
@@ -191,7 +191,7 @@ describe('a voice’s own env= and pitch=', () => {
 
 describe('switched off, live', () => {
   it('while playing, no live edge touches a switched-off cell (every example, every cell)', () => {
-    for (const [key, p] of Object.entries(PRESETS)) {
+    for (const [key, p] of Object.entries(EXAMPLES)) {
       const r = compilePiece(p.source);
       const g = buildGraph(r);
       for (const n of g.nodes) {

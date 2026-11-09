@@ -2,7 +2,7 @@ import { createContext, tick } from 'svelte';
 import { shortVersion } from '../../buildInfo';
 import { codeShifts } from '@yggi/cells/engine/program';
 import { declLine } from '@yggi/cells/engine/edit';
-import { FIRST_FILE, loadExample, type PresetKey } from '../../examples';
+import { FIRST_FILE, loadExample, type ExampleKey } from '../../examples';
 import { download, fileName, readFile, saveFile, savePiece } from '../../library';
 import { pieceMidi } from '@yggi/cells/engine/midiexport';
 import { isMidi, readMidi, writeMidi } from '@yggi/cells/engine/midifile';
@@ -273,13 +273,13 @@ export class Studio {
     if (kind === 'example') {
       let source: string;
       try {
-        source = await loadExample(key as PresetKey);
+        source = await loadExample(key as ExampleKey);
       } catch {
         if (mine === this.#choice) this.view.message = 'This piece could not be loaded (offline?).';
         return;
       }
       if (mine !== this.#choice) return;
-      this.#opened({ kind: 'example', key: key as PresetKey }, source);
+      this.#opened({ kind: 'example', key: key as ExampleKey }, source);
     } else if (kind === 'midi') {
       let smf: Smf;
       try {

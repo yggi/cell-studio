@@ -3,7 +3,7 @@
 // Run: PROBE=out.txt npx vitest run tools/probe/tape-aims.test.ts
 import { describe, it } from 'vitest';
 import { appendFileSync } from 'node:fs';
-import { PRESETS } from '@yggi/cells/engine/presets';
+import { EXAMPLES } from '@yggi/cells/engine/examples';
 import { compileSource } from '@yggi/cells/engine/compile';
 import { buildGraph } from '../../src/layout/drawn';
 import { tapeFaces } from '../../src/layout/aims';
@@ -15,7 +15,7 @@ describe.runIf(process.env.PROBE)('tape aims', () => {
     log('piece        heads as   faces  err mean  err max  crossings  over its tape  (degrees; mean of seeds 0 1 2; edges from a head over its own tape, of all)');
     for (const key of ['echotape', 'soundtape', 'worn', 'testtones', 'resonanz', 'fiveto12'] as const) {
       for (const bulbs of [false, true]) {
-        const model = buildGraph(compileSource(PRESETS[key].source), bulbs ? {} : { bulbs: false });
+        const model = buildGraph(compileSource(EXAMPLES[key].source), bulbs ? {} : { bulbs: false });
         const faces = tapeFaces(model);
         let sum = 0,
           max = 0,

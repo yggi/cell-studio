@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { compilePiece } from '../compile';
 import { declWords, setBraid } from '@yggi/cells/engine/edit';
 import { parse } from '@yggi/cells/engine/parser/index';
-import { PRESETS } from '@yggi/cells/engine/presets';
+import { EXAMPLES } from '@yggi/cells/engine/examples';
 import { codeShifts } from '@yggi/cells/engine/program';
 import { playedCells } from '@yggi/cells/engine/clocking';
 import { frameOf, freeBraidOf, fromBraid, ghostsOf, MAX_ROWS, readBraid, remove, resize, rolls, rowRange, rowsFor, tableOf, tooWide, toBraid, toggle, type Roll } from './roll';
@@ -81,7 +81,7 @@ describe('braid ↔ roll', () => {
   // the law: toBraid(fromBraid(b)) is b, or its canonical equal — over every braid of every example the roll can show
   const cases: { piece: string; cell: string; words: string[] }[] = [];
   const refused: string[] = [];
-  for (const [key, { source }] of Object.entries(PRESETS))
+  for (const [key, { source }] of Object.entries(EXAMPLES))
     for (const d of parse(source).cells) {
       if (d.lambda || (d.braid.kind !== 'list' && d.braid.kind !== 'blank')) continue;
       const words = declWords(source, d.name)?.braid;
@@ -112,7 +112,7 @@ describe('braid ↔ roll', () => {
 
   it('every example cell that rolls compiles the same after a round trip (its events unchanged)', () => {
     for (const key of ['twinkle', 'korobeiniki', 'chords', 'canon', 'lullaby']) {
-      const source = PRESETS[key as keyof typeof PRESETS].source;
+      const source = EXAMPLES[key as keyof typeof EXAMPLES].source;
       const before = compilePiece(source);
       let after = source;
       for (const name of before.cells.keys()) {
@@ -254,20 +254,20 @@ describe('the rows', () => {
 
 describe('which cells roll, and their ghosts', () => {
   it('melodies and chords roll; voices, mixes, meters, tables and curves do not', () => {
-    const q = compilePiece(PRESETS.royal.source);
+    const q = compilePiece(EXAMPLES.royal.source);
     expect(rolls(q, 'theme') && rolls(q, 'pedal')).toBe(true);
     // (the theme rolls, but writes accidentals: the sheet says the roll can't show it)
-    expect(readBraid(declWords(PRESETS.royal.source, 'theme')!.braid)).toMatchObject({ ok: false, problem: /accidental/ });
+    expect(readBraid(declWords(EXAMPLES.royal.source, 'theme')!.braid)).toMatchObject({ ok: false, problem: /accidental/ });
     expect(['bar', 'key', 'scale', 'fifths12TET'].some((n) => rolls(q, n))).toBe(false);
     for (const [name, c] of q.cells) if (c.voice || c.mix || c.sink) expect(rolls(q, name), name).toBe(false);
   });
 
   it('a tape, its read heads and a law are not melodies: no roll (echotape, fiveto12)', () => {
-    const echo = compilePiece(PRESETS.echotape.source);
+    const echo = compilePiece(EXAMPLES.echotape.source);
     for (const n of ['tape', 'near', 'mid', 'far', 'reel']) expect(rolls(echo, n), `echotape: &${n}`).toBe(false);
     // (what the tape records is a melody, and plays: it rolls)
     expect(rolls(echo, 'tune')).toBe(true);
-    const day = compilePiece(PRESETS.fiveto12.source);
+    const day = compilePiece(EXAMPLES.fiveto12.source);
     for (const n of ['cycle', 'memory', 'recall', 'message']) expect(rolls(day, n), `fiveto12: &${n}`).toBe(false);
   });
 
@@ -286,7 +286,7 @@ describe('which cells roll, and their ghosts', () => {
   // the sweep: in every example, what the roll accepts is a melody — a braid of notes, or a blank something plays
   it('over every example, the cells that roll are melodic braids, or blanks played as melodies', () => {
     let count = 0;
-    for (const [key, { source }] of Object.entries(PRESETS)) {
+    for (const [key, { source }] of Object.entries(EXAMPLES)) {
       const q = compilePiece(source);
       const played = playedCells(q);
       const tapeCells = new Set(q.tapes.flatMap((t) => [t.name, ...t.heads.map((h) => h.head)]));

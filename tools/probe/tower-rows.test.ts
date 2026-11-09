@@ -9,7 +9,7 @@ import { appendFileSync } from 'node:fs';
 import { ForceLayout } from '../../src/layout/physics';
 import { buildGraph } from '../../src/layout/drawn';
 import { compileSource } from '@yggi/cells/engine/compile';
-import { PRESETS } from '@yggi/cells/engine/presets';
+import { EXAMPLES } from '@yggi/cells/engine/examples';
 import { towerOf, towerRanks, zoneRanks, type TowerAt } from '../../src/layout/tower';
 import { flowRanks } from '../../src/layout/ranks';
 import type { LayoutOptions } from '../../src/layout/options';
@@ -140,7 +140,7 @@ describe.runIf(process.env.PROBE)('rows by the frequency tower', () => {
     const only = process.env.ONLY;
     // (PIECES=a,b: exactly those examples, by key)
     const named = process.env.PIECES?.split(',');
-    const pieces = Object.entries(PRESETS).filter(([k]) => (!only || k.toLowerCase().includes(only.toLowerCase())) && (!named || named.includes(k)));
+    const pieces = Object.entries(EXAMPLES).filter(([k]) => (!only || k.toLowerCase().includes(only.toLowerCase())) && (!named || named.includes(k)));
     const held = { rankPull: 0.3 };
     const variants: [string, TowerAt | null, number, Partial<LayoutOptions>][] = [
       ['today (rows by the signal path)', null, 1, {}],

@@ -4,13 +4,13 @@ import { compilePiece } from '../../compile';
 import { buildGraph } from '../../layout/drawn';
 import { codeShifts } from '@yggi/cells/engine/program';
 import { routing } from '@yggi/cells/engine/routing';
-import { PRESETS } from '@yggi/cells/engine/presets';
+import { EXAMPLES } from '@yggi/cells/engine/examples';
 import { cellView } from '../../layout/cellview';
 import { snapshotOf, type GraphSnapshot } from '../snapshot';
 import { GraphLayout } from './graphLayout.svelte';
 
-const snapshot = (key: keyof typeof PRESETS): GraphSnapshot => {
-  const program = compilePiece(PRESETS[key].source);
+const snapshot = (key: keyof typeof EXAMPLES): GraphSnapshot => {
+  const program = compilePiece(EXAMPLES[key].source);
   return snapshotOf(program, buildGraph(program), codeShifts(program), program.off, routing(program, program.off));
 };
 

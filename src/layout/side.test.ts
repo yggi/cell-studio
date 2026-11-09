@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { buildGraph } from './drawn';
 import { compilePiece } from '../compile';
-import { PRESETS } from '@yggi/cells/engine/presets';
+import { EXAMPLES } from '@yggi/cells/engine/examples';
 import { isSide, sideEntries, sideless } from './side';
 
 const SRC = `&intro label="A tune and its bass." about=&out
@@ -38,7 +38,7 @@ describe('the margin: notes and scopes beside the graph', () => {
   });
 
   it('every example: what the margin holds is all its notes and scopes, and the graph keeps the rest', () => {
-    for (const [key, p] of Object.entries(PRESETS)) {
+    for (const [key, p] of Object.entries(EXAMPLES)) {
       const model = buildGraph(compilePiece(p.source));
       const side = model.nodes.filter(isSide).length;
       expect(sideEntries(model).length, key).toBe(side);

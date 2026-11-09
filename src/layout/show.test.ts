@@ -4,13 +4,13 @@ import { codeShifts } from '@yggi/cells/engine/program';
 import { eventsBetween, plan } from '@yggi/cells/engine/realize';
 import { liveAt } from '@yggi/cells/engine/live';
 import { setAttr } from '@yggi/cells/engine/edit';
-import { PRESETS } from '@yggi/cells/engine/presets';
+import { EXAMPLES } from '@yggi/cells/engine/examples';
 import { cellView, hubLabel, lfoValues } from './cellview';
 import { buildGraph } from './drawn';
 import { flowRanks } from './ranks';
 import { FITS, effectiveShow, gridOf, heardPosition, inferShow, kindOf, noteLabel, pluginOf, showProblems, tonicOf, voiceBase } from './show';
 
-const twinkle = (show: string) => setAttr(PRESETS.twinkle.source, 'tune', 'show', show);
+const twinkle = (show: string) => setAttr(EXAMPLES.twinkle.source, 'tune', 'show', show);
 const labels = (src: string, cell: string) => {
   const r = compilePiece(src);
   const v = cellView(r, cell, codeShifts(r), false)!;
@@ -52,7 +52,7 @@ describe('show=', () => {
     ]);
     // (on a cell it fits: quiet; and every example is)
     expect(showProblems(compilePiece('&bar scan(1 1 1 1) step=60bpm show=sun\n&mel step=4n 0 2\n&v s=sine\n&out map=sample [&mel * &v]'))).toEqual([]);
-    for (const [key, p] of Object.entries(PRESETS)) expect(showProblems(compilePiece(p.source)), key).toEqual([]);
+    for (const [key, p] of Object.entries(EXAMPLES)) expect(showProblems(compilePiece(p.source)), key).toEqual([]);
   });
   it('the block is blanked in the cells’ text: the cells keep their line numbers', () => {
     const r = compilePiece(['=== plugin ring ===', '{ "fits": ["meter"] }', 'function draw() { return []; }', '=== end ===', '&bar scan(1 1) step=60bpm show=nope'].join('\n'));
@@ -74,12 +74,12 @@ describe('show=', () => {
     expect(effectiveShow(r, 'bar').from).toBe('inferred'); // its meter: not below it
   });
   it('a show that doesn’t fit isn’t inherited: the cell keeps its own', () => {
-    const r = compilePiece(setAttr(PRESETS.twinkle.source, 'tune', 'show', 'pattern'));
+    const r = compilePiece(setAttr(EXAMPLES.twinkle.source, 'tune', 'show', 'pattern'));
     expect(FITS[kindOf(r, 'key')]).not.toContain('pattern');
     expect(effectiveShow(r, 'key').from).toBe('inferred');
   });
   it('infers what cells have always looked like', () => {
-    const r = compilePiece(PRESETS.royal.source);
+    const r = compilePiece(EXAMPLES.royal.source);
     expect([inferShow(r, 'bar'), inferShow(r, 'key'), inferShow(r, 'scale'), inferShow(r, 'theme'), inferShow(r, 'lead')]).toEqual(['meter', 'key', 'scale', 'braid', 'wave']);
   });
   it('names the steps: notes, midi, movable do, degrees — twinkle’s first line', () => {
@@ -95,7 +95,7 @@ describe('show=', () => {
     expect(cellView(r, 'tune', codeShifts(r), false)!.segments.every((s) => s.bands.every((b) => b.kind !== 'pitch'))).toBe(true);
     const e = compilePiece('&e map=adsr .01 .3 .5 .4');
     expect(cellView(e, 'e', codeShifts(e), false)!).toMatchObject({ mode: 'curve', curve: { attack: 0.01, decay: 0.3, sustain: 0.5, release: 0.4 } });
-    const royal = compilePiece(setAttr(PRESETS.royal.source, 'scale', 'show', 'mode'));
+    const royal = compilePiece(setAttr(EXAMPLES.royal.source, 'scale', 'show', 'mode'));
     expect(hubLabel(royal, 'scale', codeShifts(royal), false, null)).toEqual({ big: 'minor', small: 'on C' });
   });
   it('never changes the sound: every fitting show on every cell of every example', () => {
@@ -107,7 +107,7 @@ describe('show=', () => {
     // Every (cell, show) pair is rewritten into the source, but a whole slot at once: pass k sets every cell to
     // its k-th fitting show, so a piece compiles once per slot, not once per pair. Only a pass that sounds
     // different is taken apart, one cell at a time, to name the cell.
-    for (const [key, p] of Object.entries(PRESETS)) {
+    for (const [key, p] of Object.entries(EXAMPLES)) {
       const r = compilePiece(p.source);
       const before = sound(p.source);
       // (not a cell a used fragment gives, that no line here heads: radio's &bd, `* from band`'s. A show= written for it
@@ -179,7 +179,7 @@ describe('label=, and the rest of show=', () => {
 
 describe('show=lfo: what moves other cells', () => {
   it('a vibrato: 5 Hz, ±0.1 — a smooth swing round the ring', () => {
-    const r = compilePiece(PRESETS.royal.source);
+    const r = compilePiece(EXAMPLES.royal.source);
     // (the library's vibrato, which the Royal theme takes by `use`: yggi/cells#364)
     const vib = 'vibrato';
     expect(kindOf(r, vib)).toBe('lfo');
@@ -194,7 +194,7 @@ describe('show=lfo: what moves other cells', () => {
     expect(Math.max(...w)).toBeCloseTo(1, 1);
   });
   it('a breath on the bar: 24 beats a cycle, 0.1 to 1', () => {
-    const r = compilePiece((PRESETS as Record<string, { source: string }>).cellscape.source);
+    const r = compilePiece((EXAMPLES as Record<string, { source: string }>).cellscape.source);
     expect(hubLabel(r, 'breath', codeShifts(r), false, null)).toEqual({ big: '24 beats', small: '0.1–1' });
   });
   it('a wave on a tap of the bar counts in the bar’s beats: eight eighths, 4 beats (decision 040)', () => {
@@ -202,7 +202,7 @@ describe('show=lfo: what moves other cells', () => {
     expect(lfoValues(r, 'w', codeShifts(r))?.rate).toBe('4 beats');
   });
   it('playing, its phase runs', () => {
-    const r = compilePiece((PRESETS as Record<string, { source: string }>).cellscape.source);
+    const r = compilePiece((EXAMPLES as Record<string, { source: string }>).cellscape.source);
     const at = (t: number) => liveAt(r, codeShifts(r), new Set(), t).cells.get('breath')!.local!;
     expect(at(10)).toBeGreaterThan(at(5));
     // it oscillates; it doesn't turn like a table (its range stays its own)

@@ -1,13 +1,13 @@
 // A module drawn as one wheel (decision 069, #560): its private cells folded in, every wire into it at the jack it fills.
 import { describe, expect, it } from 'vitest';
-import { PRESETS } from '@yggi/cells/engine/presets';
+import { EXAMPLES } from '@yggi/cells/engine/examples';
 import { compilePiece } from '../compile';
 import { buildGraph, usesOf } from './drawn';
 import { FINGER, grownSize, jackAt, jackOfEdge, jacksOfNode, jacksShown, moduleOf } from './modules';
 import { flowNodeOf } from '../ui/flownode';
 import { flowEdgeOf } from '../ui/flowedges';
 
-const patchbay = compilePiece(PRESETS.patchbay.source);
+const patchbay = compilePiece(EXAMPLES.patchbay.source);
 const graph = buildGraph(patchbay);
 const node = (name: string) => graph.nodes.find((n) => n.id === `cell:${name}`);
 
@@ -106,7 +106,7 @@ describe('the jacks on the rim (decision 069 §3, §6)', () => {
 });
 
 describe('a voice’s and an instrument’s own jacks (decision 069 §2, rung B)', () => {
-  const acid = compilePiece(PRESETS.acid.source);
+  const acid = compilePiece(EXAMPLES.acid.source);
   const g = buildGraph(acid);
   const tb303 = g.nodes.find((n) => n.id === 'cell:tb303')!;
 

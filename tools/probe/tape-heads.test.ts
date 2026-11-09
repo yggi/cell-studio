@@ -7,7 +7,7 @@
 // Run: PROBE=out.txt npx vitest run tools/probe/tape-heads.test.ts
 import { describe, it } from 'vitest';
 import { appendFileSync } from 'node:fs';
-import { PRESETS } from '@yggi/cells/engine/presets';
+import { EXAMPLES } from '@yggi/cells/engine/examples';
 import { compileSource } from '@yggi/cells/engine/compile';
 import { type GraphModel } from '@yggi/cells/engine/graph';
 import { buildGraph } from '../../src/layout/drawn';
@@ -30,7 +30,7 @@ describe.runIf(process.env.PROBE)('tape heads as bulbs', () => {
     const only = process.env.ONLY;
     log('piece          tape     head      in (besides play)   out (port×n)              show     passes, drawn');
     const summary: string[] = [];
-    for (const [key, { source }] of Object.entries(PRESETS)) {
+    for (const [key, { source }] of Object.entries(EXAMPLES)) {
       if (only && !key.includes(only)) continue;
       const r = compileSource(source);
       const tapes = [...r.cells.values()].filter((c) => typeof c.params.write === 'string' || [...r.cells.values()].some((h) => h.params.play === c.name));

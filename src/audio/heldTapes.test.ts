@@ -3,11 +3,11 @@ import { compilePiece } from '../compile';
 import { codeShifts } from '@yggi/cells/engine/program';
 import { plan } from '@yggi/cells/engine/realize';
 import { clocking, tapeMotion } from '@yggi/cells/engine/clocking';
-import { PRESETS } from '@yggi/cells/engine/presets';
+import { EXAMPLES } from '@yggi/cells/engine/examples';
 import { HeldTapes } from './heldTapes';
 import type { VoiceBank } from './voices';
 
-const result = compilePiece(PRESETS.soundtape.source);
+const result = compilePiece(EXAMPLES.soundtape.source);
 const p = plan(result, codeShifts(result));
 const motion = tapeMotion(result, clocking(result, p.statics), 'tape');
 

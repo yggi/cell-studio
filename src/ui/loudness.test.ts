@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { compilePiece } from '../compile';
 import { codeShifts } from '@yggi/cells/engine/program';
-import { PRESETS } from '@yggi/cells/engine/presets';
+import { EXAMPLES } from '@yggi/cells/engine/examples';
 import { FLOOR_DB, lapOf, levelOf, LoudRing, Score, SCORE_SLOTS } from './loudness';
 
 describe('levelOf', () => {
@@ -49,7 +49,7 @@ describe('LoudRing', () => {
 });
 
 describe('lapOf and Score', () => {
-  const pop = compilePiece(PRESETS.pop.source);
+  const pop = compilePiece(EXAMPLES.pop.source);
   it('a lap is a bar of the main meter, between 1.5 and 8 s; 2 s without a meter', () => {
     const lap = lapOf(pop, codeShifts(pop));
     const long = lap.q(lap.steps) - lap.q(0);

@@ -15,15 +15,15 @@
   import { codeShifts } from '@yggi/cells/engine/program';
   import { buildGraph } from '../../../src/layout/drawn';
   import { liveAt } from '@yggi/cells/engine/live';
-  import { PRESETS, type PresetKey } from '@yggi/cells/engine/presets';
+  import { EXAMPLES, type ExampleKey } from '@yggi/cells/engine/examples';
   import { routing } from '@yggi/cells/engine/routing';
   import { flowNodeOf } from '../../../src/ui/flownode';
   import type { FlowNode } from '../../../src/ui/types';
   import { madeUpSound } from '../sound';
 
-  let props: { piece: PresetKey; name: string; size?: number; playing?: boolean; t?: number } = $props();
+  let props: { piece: ExampleKey; name: string; size?: number; playing?: boolean; t?: number } = $props();
   const { piece, name, size = 128, playing = false, t = 3 } = untrack(() => props);
-  const program = compileSource(PRESETS[piece].source);
+  const program = compileSource(EXAMPLES[piece].source);
   const shifts = codeShifts(program);
   const muted = new Set<string>();
   const live = playing ? liveAt(program, shifts, muted, t) : null;

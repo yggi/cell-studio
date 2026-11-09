@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { Piece } from './piece.svelte';
-import { PRESETS } from '@yggi/cells/engine/presets';
+import { EXAMPLES } from '@yggi/cells/engine/examples';
 import { pieceMeta } from '@yggi/cells/engine/parser/index';
 import { shorten } from '@yggi/cells/engine/shorten/index';
 import { fileName, pieceFile, textOf } from '../../library';
@@ -162,14 +162,14 @@ describe('Piece: a piece file (decision 047)', () => {
 
   it('opens an example’s file: the code is its cells block, the title its frontmatter’s, the file the same bytes', () => {
     // (an example that takes nothing by `use`: one that does gains its lockfile's `uses:` as it opens)
-    const p = new Piece(PRESETS.lullaby.file);
-    expect(p.code).toBe(PRESETS.lullaby.source);
-    expect(p.title).toBe(pieceMeta(PRESETS.lullaby.file)?.title);
-    expect(p.file).toBe(PRESETS.lullaby.file);
+    const p = new Piece(EXAMPLES.lullaby.file);
+    expect(p.code).toBe(EXAMPLES.lullaby.source);
+    expect(p.title).toBe(pieceMeta(EXAMPLES.lullaby.file)?.title);
+    expect(p.file).toBe(EXAMPLES.lullaby.file);
     expect(p.result.diagnostics).toEqual([]);
     // (an edit is the code's: the frontmatter stays)
     p.code = `${p.code}\n&extra 1 2 3`;
-    expect(p.title).toBe(pieceMeta(PRESETS.lullaby.file)?.title);
+    expect(p.title).toBe(pieceMeta(EXAMPLES.lullaby.file)?.title);
     expect(pieceFile(p.file)?.text).toBe(p.code);
     // (a bare text opened after it has no frontmatter)
     p.open(SRC);
@@ -262,10 +262,10 @@ That is all.
 
 describe('a piece’s file name and what compiles', () => {
   it('names a piece file .md and a bare text .cells, from its title', () => {
-    expect(fileName(PRESETS.royal.file)).toBe(`${fileName(PRESETS.royal.file, '')}.md`);
-    expect(fileName(PRESETS.royal.file, '.mid')).toMatch(/^royal-theme.*\.mid$/);
+    expect(fileName(EXAMPLES.royal.file)).toBe(`${fileName(EXAMPLES.royal.file, '')}.md`);
+    expect(fileName(EXAMPLES.royal.file, '.mid')).toMatch(/^royal-theme.*\.mid$/);
     expect(fileName('# A sketch\n&a loop=A4')).toBe('a-sketch.cells');
-    expect(textOf(PRESETS.royal.file)).toBe(PRESETS.royal.source);
+    expect(textOf(EXAMPLES.royal.file)).toBe(EXAMPLES.royal.source);
     expect(textOf(SRC)).toBe(SRC);
   });
 });

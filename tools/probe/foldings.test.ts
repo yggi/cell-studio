@@ -15,7 +15,7 @@ import { codeShifts } from '@yggi/cells/engine/program';
 import { pieceTime } from '@yggi/cells/engine/duration';
 import { listening } from '@yggi/cells/engine/time/span';
 import { eventsBetween, plan } from '@yggi/cells/engine/realize';
-import { PRESETS } from '@yggi/cells/engine/presets';
+import { EXAMPLES } from '@yggi/cells/engine/examples';
 import { towerSpans } from '../../src/layout/tower';
 import { alike, foldings, levelsOf, pulseOf } from '@yggi/cells/engine/time/necklace';
 import { motifs, multiscale } from '@yggi/cells/engine/time/motifs';
@@ -33,7 +33,7 @@ describe.runIf(process.env.PROBE)('foldings and motifs', () => {
     let folded = 0;
     let crossKind = 0;
     let multi = 0;
-    for (const [key, p] of Object.entries(PRESETS)) {
+    for (const [key, p] of Object.entries(EXAMPLES)) {
       if (only && !only.includes(key)) continue;
       const program = compileSource(p.source);
       if (!program.ok) continue;

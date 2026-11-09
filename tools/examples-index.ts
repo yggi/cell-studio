@@ -7,7 +7,7 @@ import { join } from 'node:path';
 import { compilePiece } from '../src/compile';
 import { pieceTime, type PieceTime } from '@yggi/cells/engine/duration';
 import { buildGraph } from '../src/layout/drawn';
-import { ORDER, type PresetKey } from '@yggi/cells/engine/order';
+import { ORDER, type ExampleKey } from '@yggi/cells/engine/order';
 import { pieceMeta } from '@yggi/cells/engine/parser/index';
 import { readPiece } from '@yggi/cells/engine/piecefile';
 import { miniature, type Miniature } from '../src/layout/miniature';
@@ -19,7 +19,7 @@ import { towerSetup } from '../src/ui/towerSetup';
 import { canonicalTags } from '@yggi/cells/engine/tags';
 
 export interface ExampleInfo {
-  readonly key: PresetKey;
+  readonly key: ExampleKey;
   readonly title: string;
   readonly description: string;
   readonly tags: readonly string[];

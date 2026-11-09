@@ -15,7 +15,7 @@ import { appendFileSync } from 'node:fs';
 import { compileSource } from '@yggi/cells/engine/compile';
 import { codeShifts } from '@yggi/cells/engine/program';
 import { plan } from '@yggi/cells/engine/realize';
-import { PRESETS } from '@yggi/cells/engine/presets';
+import { EXAMPLES } from '@yggi/cells/engine/examples';
 import { pieceMidi } from '@yggi/cells/engine/midiexport';
 import { readMidi, writeMidi } from '@yggi/cells/engine/midifile';
 import { cellsFromMidi } from '@yggi/cells/engine/midiimport';
@@ -31,7 +31,7 @@ describe.runIf(process.env.PROBE)('the Shorten ratchet: every example through MI
     log(`# the ratchet's baseline (${new Date().toISOString().slice(0, 10)}): through MIDI, folded by shortenAll`);
     log('piece                     notes: flat/shortenAll/fold   score: written   flat shortenAll  fold   phrases back: shortenAll fold /of   seconds: shortenAll fold');
     const totals = { pieces: 0, flatSame: 0, foldSame: 0, toolSame: 0, written: 0, flat: 0, folded: 0, tooled: 0, back: 0, toolBack: 0, of: 0, seconds: 0, toolSeconds: 0 };
-    for (const [key, p] of Object.entries(PRESETS)) {
+    for (const [key, p] of Object.entries(EXAMPLES)) {
       if (only && !only.includes(key)) continue;
       const r = compileSource(p.source);
       if (!r.ok) continue;

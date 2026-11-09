@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { compilePiece } from '../compile';
 import { codeShifts, type CompileResult } from '@yggi/cells/engine/program';
-import { PRESETS } from '@yggi/cells/engine/presets';
+import { EXAMPLES } from '@yggi/cells/engine/examples';
 import { lapOf } from '@yggi/cells/engine/readers';
 import { cellView, drawnOf, hubLabel, type CellView, type Segment } from './cellview';
 import { BORDER } from './coarse';
@@ -48,8 +48,8 @@ const g = wheelGeometry(128);
 const view = (r: CompileResult, name: string, isMeter = false): CellView => cellView(r, drawnOf(r, name), codeShifts(r), isMeter)!;
 const trackOf = (v: CellView) => (v.bulbs?.length ? layTrack(g.c, g.c, (g.rInner + g.rOuter) / 2, g.rOuter - g.rInner, v.bulbs) : null);
 
-const pop = compilePiece(PRESETS.pop.source);
-const transpose = compilePiece(PRESETS.transpose.source);
+const pop = compilePiece(EXAMPLES.pop.source);
+const transpose = compilePiece(EXAMPLES.transpose.source);
 
 describe('a table of sections (Pop’s &sections: &bassBar &keysBar …)', () => {
   const parts = view(pop, 'sections');
@@ -185,7 +185,7 @@ describe('a braid (Transpose’s &theme, show=notes)', () => {
 
 describe('a braid with splices (#221)', () => {
   it('Pachelbel’s &line: its steps named along its track, its unnamed bulbs without a name', () => {
-    const p = compilePiece(PRESETS.pachelbel.source);
+    const p = compilePiece(EXAMPLES.pachelbel.source);
     const line = view(p, 'line');
     const track = trackOf(line);
     expect(track).not.toBeNull();
@@ -210,7 +210,7 @@ describe('a braid with splices (#221)', () => {
     expect(bulbLabels(p, track, false, '').map((b) => b.text)).toEqual(['', '', '']);
   });
   it('Twinkle’s &tune in its sheet: a token on each written step, none while the text is a step ahead', () => {
-    const t = compilePiece(PRESETS.twinkle.source);
+    const t = compilePiece(EXAMPLES.twinkle.source);
     const tune = view(t, 'tune');
     const tokens = t.cells.get('tune')!.units.map((_, i) => `t${i}`);
     const units = stepUnits(tune, tokens, tokens.length, 0, trackOf(tune), g);
@@ -263,7 +263,7 @@ describe('the rest of what a wheel can be', () => {
     expect(brightnessOf(view(pop, 'major'))).toBeNull();
   });
   it('show=lfo (Royal’s): a cycle round the ring, a dot at its phase while it plays', () => {
-    const royal = compilePiece(PRESETS.royal.source);
+    const royal = compilePiece(EXAMPLES.royal.source);
     // (unnamed, &(…): found by what it is, not by its line)
     const name = [...royal.cells.keys()].find((n) => view(royal, n).mode === 'lfo')!;
     const lfo = view(royal, name);
@@ -324,7 +324,7 @@ describe('the rest of what a wheel can be', () => {
 
   it('every example whose bar is a meter from a fragment numbers its beats (#583)', () => {
     let from = 0;
-    for (const [key, p] of Object.entries(PRESETS)) {
+    for (const [key, p] of Object.entries(EXAMPLES)) {
       if (!/^&bar from meter\b/m.test(p.source)) continue;
       from++;
       const r = compilePiece(p.source);

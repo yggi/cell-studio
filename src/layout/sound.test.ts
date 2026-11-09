@@ -1,4 +1,4 @@
-import { PRESETS } from '@yggi/cells/engine/presets';
+import { EXAMPLES } from '@yggi/cells/engine/examples';
 import { compilePiece } from '../compile';
 import { describe, expect, it } from 'vitest';
 import { buildGraph } from './drawn';
@@ -13,7 +13,7 @@ const of = (source: string) => {
 
 describe('one rule for the sound card: written or built-in', () => {
   it('a voice alone (An oscillator) goes into the built-in card: a socket, an out, in the audible at its pitch, a lane', () => {
-    const { program, model } = of(PRESETS.oscillator.source);
+    const { program, model } = of(EXAMPLES.oscillator.source);
     const outs = towerOuts(program, model);
     expect(outs.map((o) => o.from)).toEqual(['cell:a']);
     // (the edge's id is the one the engine's live state gives it, so it is live as a written one is)
@@ -37,7 +37,7 @@ describe('one rule for the sound card: written or built-in', () => {
         .map((o) => o.from)
         .sort(),
     ).toEqual(['cell:a', 'cell:m']);
-    const written = of(PRESETS.waltz.source);
+    const written = of(EXAMPLES.waltz.source);
     expect(withCard(written.program, written.model)).toBe(written.model);
     // (and adding the card twice adds nothing)
     const once = withCard(program, model);
@@ -54,7 +54,7 @@ describe('one rule for the sound card: written or built-in', () => {
     expect(role('cell:a')).toBe('maker');
     expect(role('cell:m')).toBe('mixer');
     expect(role('cell:lfo')).toBeNull();
-    const hyper = of(PRESETS.hypercell.source);
+    const hyper = of(EXAMPLES.hypercell.source);
     const roles = new Set(hyper.model.nodes.map((n) => soundRole(hyper.program, n)));
     expect(roles).toEqual(new Set(['maker', 'gate', 'mixer', null]));
   });
