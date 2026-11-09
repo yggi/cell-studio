@@ -59,4 +59,21 @@ describe('an edit of a used cell: a line of the piece’s own (#480)', () => {
       expect(compilePiece(withUsedLine(text, name)).diagnostics.filter((d) => d.severity === 'error')).toEqual([]);
     }
   });
+
+  it('writes the line of a cell a `*` copy with arguments gives: radio’s band’s, which it then overrides (cells v0.23.0)', () => {
+    const text = EXAMPLES.radio.source;
+    const before = heard(compilePiece(text));
+    for (const name of ['bd', 'drumsOut', 'bassV']) {
+      const written = withUsedLine(text, name);
+      expect(written.split('\n'), `&${name}`).toHaveLength(text.split('\n').length + 1);
+      const r = compilePiece(written);
+      expect(
+        r.diagnostics.filter((d) => d.severity === 'error'),
+        `&${name}`,
+      ).toEqual([]);
+      expect(heard(r), `&${name}`).toEqual(before);
+      // (and it is the piece's line that plays: turned off, its notes go)
+      expect(heard(compilePiece(setOff(written, name, true))).length, `&${name} off`).toBeLessThan(before.length);
+    }
+  });
 });
