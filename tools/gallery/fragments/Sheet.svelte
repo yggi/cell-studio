@@ -6,22 +6,45 @@
    * drawing: every name, text, point and reference is read from `@yggi/cells` at the pin (`data.ts`), the layout is
    * d3-force as the library's, the rest drawn by hand in the app's theme.
    */
-  import { AXIS_LIST, BY_ID, DEFAULTS, FACETS, FRAGS, PIECES, TAKEN, facetColour, mapLayout, stepsOf, type MapLayout } from './data';
+  import { AXIS_LIST, BY_ID, DEGREE, FACETS, FRAGS, GRAPH, PIECES, PULL, TAKEN, facetColour, mapLayout, stepsOf, type MapLayout, type Placed } from './data';
   import { EXAMPLES } from '@yggi/cells/engine/examples';
   import { readFrom } from '@yggi/cells/engine/parser/use';
   import { splitComment } from '@yggi/cells/engine/edit';
 
   const W = 860;
-  const H = 640;
+  const H = 600;
   const AX = AXIS_LIST.map((a) => a.name);
+  // (any two axes: the first two, the last two, and one of each, so a change of axes in cells changes only the pictures)
   const PAIRS: readonly [string, string][] = [
     [AX[0]!, AX[1]!],
-    [AX[2]!, AX[3]!],
+    [AX[AX.length - 2]!, AX[AX.length - 1]!],
+    [AX[1]!, AX[AX.length - 1]!],
   ];
   const maps: [string, string, MapLayout][] = PAIRS.map(([x, y]) => [x, y, mapLayout(x, y, W, H)]);
   const axis = (n: string) => AXIS_LIST.find((a) => a.name === n)!;
-  const title = (key: string) => PIECES.find((p) => p.key === key)?.title.split(':')[0] ?? key;
   const LABELLED = new Set(['kinderlied', 'electroswing', 'spooky', 'patchbay', 'arrangement', 'radio', 'acid', 'sailor']);
+  const colour = (n: Placed) => (n.node.facet ? facetColour(n.node.facet) : 'var(--text)');
+  const showLabel = (n: Placed, close: boolean) =>
+    close || (n.node.kind === 'frag' ? DEGREE.get(n.node.key)! >= 3 : n.node.kind === 'piece' ? LABELLED.has(n.node.key.slice(2)) : false);
+  /** The close-up: Kinderlieder and every node it reaches in three steps (not through a piece), on the second pair of axes. */
+  const CLOSE = (() => {
+    const [xa, ya, m] = maps[1]!;
+    const near = new Set(['p:kinderlied']);
+    for (let k = 0; k < 3; k++)
+      for (const [a, b] of GRAPH.edges) {
+        if (near.has(a) && !b.startsWith('p:')) near.add(b);
+        if (near.has(b) && !a.startsWith('p:')) near.add(a);
+      }
+    const ps = [...near].map((k) => m.at.get(k)!);
+    const x0 = Math.min(...ps.map((p) => p.x)) - 40;
+    const y0 = Math.min(...ps.map((p) => p.y)) - 30;
+    const x1 = Math.max(...ps.map((p) => p.x)) + 120;
+    const y1 = Math.max(...ps.map((p) => p.y)) + 30;
+    // (the frame keeps the map's aspect, so the close-up isn't stretched)
+    const w = Math.max(x1 - x0, ((y1 - y0) * W) / H);
+    const h = (w * H) / W;
+    return { xa, ya, m, near, box: [x0, y0 - (h - (y1 - y0)) / 2, w, h] as const };
+  })();
 
   // ── the document: Kinderlieder written as a document of fragments (the owner's idea, point 3) ──
   const MOTIFS = ['twinkle', 'wonder', 'haenschen', 'hinein', 'heim', 'weinet'];
@@ -68,6 +91,8 @@
     [4, 6, 8],
   ];
 
+  const LEAD_STYLE = [...new Set([...BY_ID.get('lead')!.text.matchAll(/&style\[(\w+)\]/g)].map((m) => m[1]!))];
+
   // ── the code view: Electroswing's text with its references ──
   const ES = EXAMPLES.electroswing.source
     .split('\n')
@@ -93,6 +118,45 @@
   const AFTER = ['&key from diatonic(mode=ionian) C', '&bassline from my_vamp_bass &key', '&bass, &bassOut from bass_performer &bassline'];
 </script>
 
+{#snippet map(xa: string, ya: string, m: MapLayout, box: readonly [number, number, number, number], close: boolean)}
+  <div class="mapbox">
+    <div class="pickers">
+      <span class="pick">x <b>{axis(xa).label}</b> ▾</span>
+      <span class="pick">y <b>{axis(ya).label}</b> ▾</span>
+      {#if close}<span class="faint">close-up: Kinderlieder and what it reaches in three steps</span>{/if}
+    </div>
+    <svg width={W} height={H} viewBox={box.join(' ')} class="map">
+      {#if !close}
+        <text x="40" y={H - 10} class="lab faint">{axis(xa).ends[0]}</text>
+        <text x={W - 40} y={H - 10} class="lab faint end">{axis(xa).ends[1]} →</text>
+        <text x="12" y={H - 40} class="lab faint" transform={`rotate(-90 12 ${H - 40})`}>{axis(ya).ends[0]}</text>
+        <text x="12" y="40" class="lab faint end" transform="rotate(-90 12 40)">{axis(ya).ends[1]} →</text>
+      {/if}
+      {#each GRAPH.edges as [a, b], i (i)}
+        {#if !close || (CLOSE.near.has(a) && CLOSE.near.has(b))}
+          {@const p = m.at.get(a)!}
+          {@const q = m.at.get(b)!}
+          <line x1={p.x} y1={p.y} x2={q.x} y2={q.y} class="link" class:strong={close} />
+        {/if}
+      {/each}
+      {#each m.placed as n (n.node.key)}
+        {#if !close || CLOSE.near.has(n.node.key)}
+          {#if n.node.kind === 'frag'}
+            <circle cx={n.x} cy={n.y} r={n.r} fill={n.held[0] && n.held[1] ? colour(n) : 'none'} stroke={colour(n)} stroke-width="2" class:unused={!DEGREE.get(n.node.key)} />
+          {:else if n.node.kind === 'piece'}
+            <rect x={n.x - 4} y={n.y - 4} width="8" height="8" rx="2" class="leaf" />
+          {:else}
+            <circle cx={n.x} cy={n.y} r={n.r} class="cellnode" />
+          {/if}
+          {#if showLabel(n, close)}
+            <text x={n.x + n.r + 3} y={n.y + 4} class="lab small" class:piece={n.node.kind !== 'frag'} class:cellLab={n.node.kind === 'cell'}>{n.node.label}</text>
+          {/if}
+        {/if}
+      {/each}
+    </svg>
+  </div>
+{/snippet}
+
 <main>
   <h1>Fragments in Cell studio — mock-ups</h1>
   <p class="legend">
@@ -103,8 +167,8 @@
   <!-- 1 · the library: one more cell beside the wheel -->
   <figure data-kind="library">
     <figcaption>
-      <b>1 · The library</b> — the fragments as one more cell beside the wheel, as the tutorial and the MIDI collections are. Its discs are the facets; a person's own fragments are its
-      inner ring. A tap opens the map (2).
+      <b>1 · The library</b> — the fragments as one more cell beside the wheel, as the tutorial and the MIDI collections are. Its discs are the facets of the seed library, cells' own,
+      read-only and versioned with its releases; a person's own fragments are its inner ring, editable, kept by the app. A tap opens the map (2).
     </figcaption>
     <svg width="1760" height="600" viewBox="0 0 1760 600">
       <!-- MIDI collections, stacked left -->
@@ -151,61 +215,24 @@
   <!-- 2 · the map -->
   <figure data-kind="map">
     <figcaption>
-      <b>2 · The fragment map</b> — fragments are nodes (their facet's colour, larger the more pieces take them), pieces are leaves (white, a line to each fragment they take).
-      Placed on <i>any two style axes</i>, chosen above each map; the same forces as the library's wheel. A fragment found at several style points shows them as dots, and its reach
-      as a dashed ring around their mean. The <b>defaults</b> (taken by ≥ 10 % of pieces) aren't nodes: they would pull every piece to one place, so they sit in the band above as badges.
+      <b>2 · The fragment map</b> — fragments are nodes (their facet's colour, larger the more edges they have), pieces are white squares, and a piece's cell that brings two or
+      more of what it took (<code>&amp;haenschenSong from rounded_binary(…) &amp;haenschen</code>) together is a small white dot between them. On <i>any two style axes</i>, chosen
+      above each map. Two forces and a collision, nothing set apart by hand: <b>each node has the same pull ({PULL}), shared among its edges</b>, so a hub pulls each neighbour a
+      little and is pulled to the middle of what takes it, a star; and <b>each fragment is held at its points on each axis as surely as they agree</b> (their weights, and how little
+      they spread). A fragment whose points name no value on an axis isn't held there (a hollow ring): only its edges place it. Pieces name no style yet (yggi/cells#543), so only what
+      they take places them.
     </figcaption>
     <div class="facets">
       {#each FACETS as facet (facet)}
         <span class="chip" style:--c={facetColour(facet)}>{facet} {FRAGS.filter((f) => f.facet === facet).length}</span>
       {/each}
+      <span class="faint">· {GRAPH.nodes.length} nodes, {GRAPH.edges.length} edges</span>
     </div>
-    <div class="row">
+    <div class="grid">
       {#each maps as [xa, ya, m] (xa + ya)}
-        <div class="mapbox">
-          <div class="pickers">
-            <span class="pick">x <b>{axis(xa).label}</b> ▾</span>
-            <span class="pick">y <b>{axis(ya).label}</b> ▾</span>
-            <span class="defaults">
-              defaults:
-              {#each DEFAULTS as d (d)}<span class="badge" style:--c={facetColour(BY_ID.get(d)!.facet)}>{d} · {TAKEN.get(d)}</span>{/each}
-              <span class="badge client">band · each client's own</span>
-            </span>
-          </div>
-          <svg width={W} height={H} class="map">
-            <text x="40" y={H - 10} class="lab faint">{axis(xa).ends[0]}</text>
-            <text x={W - 40} y={H - 10} class="lab faint end">{axis(xa).ends[1]} →</text>
-            <text x="12" y={H - 40} class="lab faint" transform={`rotate(-90 12 ${H - 40})`}>{axis(ya).ends[0]}</text>
-            <text x="12" y="40" class="lab faint end" transform="rotate(-90 12 40)">{axis(ya).ends[1]} →</text>
-            {#each m.nodes.filter((k) => k.kind === 'frag' && BY_ID.get(k.id)!.points.length > 1) as n (n.id)}
-              {@const ss = m.satellites.filter((s) => s.id === n.id)}
-              {@const reach = Math.sqrt(ss.reduce((a, s) => a + (s.x - n.x) ** 2 + (s.y - n.y) ** 2, 0) / ss.length)}
-              <circle cx={n.x} cy={n.y} r={reach} class="reach" stroke={facetColour(BY_ID.get(n.id)!.facet)} />
-            {/each}
-            {#each m.satellites as s, i (i)}
-              <circle cx={s.x} cy={s.y} r="2" fill={facetColour(BY_ID.get(s.id)!.facet)} opacity="0.5" />
-            {/each}
-            {#each m.links as l, i (i)}
-              {@const p = m.nodes.find((k) => k.id === l.piece)!}
-              {@const f = m.nodes.find((k) => k.id === l.frag)!}
-              <line x1={p.x} y1={p.y} x2={f.x} y2={f.y} class="link" />
-            {/each}
-            {#each m.nodes as n (n.kind + n.id)}
-              {#if n.kind === 'frag'}
-                <circle cx={n.x} cy={n.y} r={n.r} fill={facetColour(BY_ID.get(n.id)!.facet)} class:unused={!TAKEN.get(n.id)} />
-                {#if TAKEN.get(n.id) || n.r > 6}<text x={n.x + n.r + 3} y={n.y + 4} class="lab small">{n.id}</text>{/if}
-              {:else}
-                <rect x={n.x - 4} y={n.y - 4} width="8" height="8" rx="2" class="leaf" />
-                {#if LABELLED.has(n.id)}<text x={n.x + 7} y={n.y - 6} class="lab small piece">{title(n.id)}</text>{/if}
-              {/if}
-            {/each}
-          </svg>
-          <div class="shelf">
-            <b>{m.shelf.length} pieces take only defaults</b> — no style to place them by until each example names one (yggi/cells#543):
-            {m.shelf.slice(0, 14).map(title).join(' · ')} …
-          </div>
-        </div>
+        {@render map(xa, ya, m, [0, 0, W, H], false)}
       {/each}
+      {@render map(CLOSE.xa, CLOSE.ya, CLOSE.m, CLOSE.box, true)}
     </div>
   </figure>
 
@@ -294,7 +321,7 @@
         <svg width="320" height="96">
           {#each Array.from({ length: 14 }, (_, i) => i) as k (k)}<rect x={4 + k * 22} y="4" width="20" height="54" rx="2" class="key" />{/each}
           {#each [1, 2, 4, 5, 6, 8, 9, 11, 12] as k (k)}<rect x={18 + (k - 1) * 22} y="4" width="12" height="32" rx="2" class="bkey" />{/each}
-          {#each ['artic', 'energy'] as a, i (a)}
+          {#each LEAD_STYLE as a, i (a)}
             <text x="4" y={76 + i * 16} class="lab small">&amp;style[{a}]</text>
             <line x1="100" x2="300" y1={72 + i * 16} y2={72 + i * 16} class="slider" />
             <circle cx={150 + i * 70} cy={72 + i * 16} r="5" fill={facetColour('instrument')} />
@@ -326,7 +353,7 @@
           {#each Array.from({ length: 16 }, (_, i) => i) as i (i)}
             <line x1={10 + i * 19} x2={10 + i * 19} y1={i % 4 ? 70 : i % 8 ? 50 : 30} y2="80" stroke="var(--meter-1)" stroke-width={i % 4 ? 1.5 : 3} />
           {/each}
-          <text x="10" y="18" class="lab small">13 groupings · satellites on the map</text>
+          <text x="10" y="18" class="lab small">{BY_ID.get('meter')!.points.length} points: a star on the map</text>
         </svg>
         <div class="host"><span class="stand">&amp;tempo: 120 bpm</span><span class="stand">&amp;swing: straight ▾</span><span class="play">▶ click</span></div>
       </div>
@@ -539,10 +566,25 @@
     stroke-dasharray: 2 4;
     opacity: 0.35;
   }
-  .link {
+  line.link {
     stroke: var(--text-faint);
     stroke-width: 1;
-    opacity: 0.55;
+    opacity: 0.4;
+  }
+  line.link.strong {
+    opacity: 0.8;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(2, 876px);
+    gap: 12px;
+  }
+  .cellnode {
+    fill: var(--text);
+    opacity: 0.8;
+  }
+  .lab.cellLab {
+    font-style: italic;
   }
   circle.unused {
     opacity: 0.45;
