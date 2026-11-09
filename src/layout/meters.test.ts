@@ -68,9 +68,9 @@ describe('a meter’s feel (cells v0.4.0): its swing and its articulation by lev
     expect(levelsText(undefined)).toBeNull();
     expect(levelsText(compilePiece('&bar meter("4/4") step=90bpm\n').cells.get('bar')!.meter!.swing)).toBeNull();
   });
-  it('reads swing=8n:r:pairs as the level alone: a swing leans pairs only (cells v0.18.0, decision 071)', () => {
-    const odd = compilePiece('&bar meter("7/8") step=120bpm swing=8n:2/3:pairs,16n:.55\n');
-    expect(odd.diagnostics.filter((d) => d.severity === 'error' || /pairs/.test(d.message))).toEqual([]);
+  it('reads a swing by its levels alone: a swing leans pairs only (cells v0.18.0, decision 071; `:pairs` is cells’ to warn of)', () => {
+    const odd = compilePiece('&bar meter("7/8") step=120bpm swing=8n:2/3,16n:.55\n');
+    expect(odd.diagnostics.filter((d) => d.severity === 'error' || /swing/.test(d.message))).toEqual([]);
     expect(levelsText(odd.cells.get('bar')!.meter!.swing)).toBe('8n .67, 16n .55');
   });
   it('a tap is swung by a level its step divides into: eighths and sixteenths, not quarters, nor triplets', () => {

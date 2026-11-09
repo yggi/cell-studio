@@ -110,7 +110,10 @@ describe('show=', () => {
     for (const [key, p] of Object.entries(PRESETS)) {
       const r = compilePiece(p.source);
       const before = sound(p.source);
-      const cells = [...r.cells.values()].filter((c) => !c.implicit && !c.lambda).map((c) => ({ name: c.name, fits: FITS[kindOf(r, c.name)] }));
+      // (not a cell a used fragment gives, that no line here heads: radio's &bd, `* from band`'s. A show= written for it
+      // alone would be a line defining it anew; the app writes its line in first, withUsedLine, which this doesn't model)
+      const heads = (name: string) => new RegExp(`^&${name}\\b`, 'm').test(p.source);
+      const cells = [...r.cells.values()].filter((c) => !c.implicit && !c.lambda && heads(c.name)).map((c) => ({ name: c.name, fits: FITS[kindOf(r, c.name)] }));
       const passes = Math.max(0, ...cells.map((c) => c.fits.length));
       for (let k = 0; k < passes; k++) {
         const set = cells.filter((c) => k < c.fits.length).map((c) => ({ name: c.name, show: c.fits[k] }));

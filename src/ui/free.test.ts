@@ -26,6 +26,9 @@ describe('a free() value in words', () => {
     expect(freeStep(free({ key: 'shift', lo: 0, hi: 1 }))).toBe(1);
     expect(freeStep(free({ key: 'step', lo: 40, hi: 200 }))).toBe(1);
     expect(freeStep(free({ lo: 0, hi: 2 }))).toBe(0.02);
+    // (a whole place, decision 078: cycle=free(1, 0..4) moves by ones, never to 1.04)
+    expect(freeStep(free({ key: 'param', param: 'cycle', whole: true, lo: 0, hi: 4 }))).toBe(1);
+    expect(freeSteps(free({ key: 'param', param: 'cycle', whole: true, lo: 0, hi: 4 }))).toBe(4);
   });
   it('writes the number with its unit, short beside a key that says bpm', () => {
     const tempo = free({ key: 'step', unit: 'bpm', value: 90.4, lo: 40, hi: 200 });

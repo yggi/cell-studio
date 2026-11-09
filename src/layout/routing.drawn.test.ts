@@ -124,8 +124,11 @@ describe('routing: one model for what the graph draws as part of the sound (#11)
 });
 
 describe('routing, every example', () => {
+  // (a gap known in cells, expected to fail until the pin that carries its fix: it.fails turns red when it passes, so
+  // the exception comes out then. radio: `* from band`'s ends aren't routed, yggi/cells#618)
+  const gaps: Record<string, string> = { radio: 'yggi/cells#618' };
   for (const [key, p] of Object.entries(PRESETS)) {
-    it(`${key}: the drawn states agree with each other and with what plays`, () => {
+    (gaps[key] ? it.fails : it)(`${key}: the drawn states agree with each other and with what plays${gaps[key] ? ` (a gap: ${gaps[key]})` : ''}`, () => {
       const r = compilePiece(p.source);
       const g = buildGraph(r);
       const shifts = codeShifts(r);
