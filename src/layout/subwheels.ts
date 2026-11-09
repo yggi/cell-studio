@@ -9,7 +9,7 @@
 import type { GraphEdge, GraphNode } from '@yggi/cells/engine/graph';
 import { cellId } from '@yggi/cells/engine/ids';
 import type { CompileResult, ResolvedCell } from '@yggi/cells/engine/program';
-import { drumPlaces, kitOf } from './kit';
+import { drumNoteIn, drumPlaces, kitOf } from './kit';
 import { VOICE_KIT } from '@yggi/cells/engine/compiler/declare';
 import { effectiveShow, pluginOf } from './show';
 import { drawnAsTape, headBulbs, TAPE_SIZE, UNTURNED } from './tape';
@@ -126,7 +126,7 @@ const RULES: readonly Rule[] = [
     leaves: true,
   },
   {
-    // a voice only a kit plays, on the kit: its piece of the drum kit, by its name (layout/kit.ts; a gate's voices are not
+    // a voice only a kit plays, on the kit: its piece of the drum kit, by its note (layout/kit.ts; a gate's voices are not
     // part of it: they keep their nodes, decision 022)
     kind: 'a voice, on its kit',
     // (a groove names its drums, read through the drums' kit, VOICE_KIT: its wires come into the kit, not against it)
@@ -141,7 +141,7 @@ const RULES: readonly Rule[] = [
     at: (result, host, bulb, _hosts, size) => {
       const kit = kitOf(result, host);
       const i = kit?.indexOf(bulb) ?? -1;
-      return kit && i >= 0 ? drumPlaces(size, kit)[i] : null;
+      return kit && i >= 0 ? drumPlaces(size, kit, drumNoteIn(result))[i] : null;
     },
     // (a groove's wire comes into the kit, one a groove, whatever drums it names: its pieces send none of their own)
     leaves: false,

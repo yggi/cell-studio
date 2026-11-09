@@ -95,8 +95,8 @@ describe('what an edge carries: one lookup by band and port', () => {
 
   it('carries a sound spliced into its reader as sound (#238); a melody spliced in stays a value', () => {
     const program = compilePiece(`&bar scan(1 1 1 1) step=120bpm
-&bd s=sine loop=C2
-&sd s=white
+&bd note=36 s=sine loop=C2
+&sd note=38 s=white
 &groove step=4n &bd ~ &sd ~
 &riff 0 2
 &tune step=4n &riff 4

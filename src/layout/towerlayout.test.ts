@@ -128,8 +128,8 @@ describe('the tower layout', () => {
 
   it("holds a groove's socket at its lowest drum", () => {
     const program = compilePiece(`&bar scan(1 1 1 1) step=120bpm
-&bd s=sine loop=A1 env=&(map=adsr 0 .3 0 .05)
-&hh s=white hpf=8000 env=&(map=adsr 0 .04 0 .02)
+&bd note=36 s=sine loop=A1 env=&(map=adsr 0 .3 0 .05)
+&hh note=42 s=white hpf=8000 env=&(map=adsr 0 .04 0 .02)
 &beat step=4n &bd &hh &bd &hh
 &out map=sample [&beat]`);
     const model = buildGraph(program);
@@ -193,8 +193,8 @@ describe('the tower layout', () => {
 
   it("puts every socket at its sound's frequency, over the neutral zone: a groove's at its lowest drum", () => {
     const program = compilePiece(`&bar scan(1 1 1 1) step=120bpm
-&bd oneshot=1 s=sine loop=A1 env=&(map=adsr 0 .3 0 .05)
-&hh s=white hpf=8000 env=&(map=adsr 0 .04 0 .02)
+&bd note=36 oneshot=1 s=sine loop=A1 env=&(map=adsr 0 .3 0 .05)
+&hh note=42 s=white hpf=8000 env=&(map=adsr 0 .04 0 .02)
 &lead s=saw loop=C5
 &tune step=8n 0 2 4 7
 &beat step=8n &bd &hh &bd &hh

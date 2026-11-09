@@ -23,7 +23,7 @@ describe('a use line’s group (#480)', () => {
   });
 
   it('leaves out what the piece writes itself; a kit with a piece of its own stays in the group', () => {
-    const r = compilePiece(`${KIT}\n&sd s=white hpf=900`);
+    const r = compilePiece(`${KIT}\n&sd note=38 s=white hpf=900`);
     const [kit] = usesOf(r);
     expect(kit!.overrode).toEqual(['sd']);
     expect(kit!.names).not.toContain('sd');

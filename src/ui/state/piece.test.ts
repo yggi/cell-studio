@@ -324,7 +324,7 @@ describe('Piece: a piece that uses a fragment (cells decision 054)', () => {
     expect(p.result.diagnostics.map((d) => [d.severity, d.span.line])).toEqual([['warning', 1]]);
     expect(p.file).toBe(older);
     // (the use gone, its entry goes)
-    p.code = USES.split('\n').slice(1).join('\n') + '\n&bd s=sine loop=A1\n&hh s=white\n&sd s=white';
+    p.code = USES.split('\n').slice(1).join('\n') + '\n&bd note=36 s=sine loop=A1\n&hh note=42 s=white\n&sd note=38 s=white';
     expect(p.file).not.toContain('uses:');
   });
 
@@ -341,14 +341,14 @@ describe('Piece: a piece that uses a fragment (cells decision 054)', () => {
     const events = () => windowAt(plan(p.program, codeShifts(p.program), p.muted), 0, 2.4).events.length;
     const before = events();
     p.toggle('cell:hh');
-    expect(p.code.split('\n')).toEqual([USES.split('\n')[0], '&hh off s=white hpf=8000 env=&(map=adsr 0 .04 0 .02)', ...USES.split('\n').slice(1)]);
+    expect(p.code.split('\n')).toEqual([USES.split('\n')[0], '&hh off note=42 s=white hpf=8000 env=&(map=adsr 0 .04 0 .02)', ...USES.split('\n').slice(1)]);
     expect(p.program.cells.get('hh')?.off).toBe(true);
     expect(events()).toBeLessThan(before);
     // (now the piece's own: its next edit is of that line, no other is added)
     p.toggle('cell:hh');
     p.turn('rim', 3);
     expect(p.code.split('\n')).toHaveLength(USES.split('\n').length + 2);
-    expect(p.code.split('\n')[1]).toMatch(/^&hh s=white/);
+    expect(p.code.split('\n')[1]).toMatch(/^&hh note=42 s=white/);
     expect(p.code.split('\n')[2]).toMatch(/^&rim .*shift=3/);
     p.code = USES;
     expect(events()).toBe(before);

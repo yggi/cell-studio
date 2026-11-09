@@ -31,9 +31,9 @@ const SONG = `# Song
 &lead s=sine loop=C4
 &bass s=square loop=C2
 &drums step=&bar &bd &hh &sd &hh
-&bd s=sine loop=A1
-&sd s=white
-&hh s=white hpf=7000
+&bd note=36 s=sine loop=A1
+&sd note=38 s=white
+&hh note=42 s=white hpf=7000
 &mix map=sample [&tune * &lead, &bass * 0, &drums]
 `;
 const C4 = 440 * Math.pow(2, -9 / 12);

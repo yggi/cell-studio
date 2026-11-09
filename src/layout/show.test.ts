@@ -10,13 +10,6 @@ import { buildGraph } from './drawn';
 import { flowRanks } from './ranks';
 import { FITS, effectiveShow, gridOf, heardPosition, inferShow, kindOf, noteLabel, pluginOf, showProblems, tonicOf, voiceBase } from './show';
 
-/**
- * Pieces whose given cells, their lines written in by withUsedLine, play nothing at this cells pin: radio's `* from band`,
- * whose performers read their copies' own helpers, which the expansion drops once the piece overrides the line that read
- * them (yggi/cells#628 fixes it, every cell of every piece then passing). Their cells are those a line heads, as before
- * #610; the set goes at the pin that carries #628.
- */
-const WAITING = new Set<string>(['radio']);
 const twinkle = (show: string) => setAttr(EXAMPLES.twinkle.source, 'tune', 'show', show);
 const labels = (src: string, cell: string) => {
   const r = compilePiece(src);
@@ -118,9 +111,7 @@ describe('show=', () => {
       const r = compilePiece(p.source);
       const before = sound(p.source);
       // (every cell, a used fragment's too: radio's &bd, `* from band`'s; as the app does, its line written in first, #610)
-      // (but where a pin waits: radio's cells as before, those a line heads)
-      const heads = (name: string) => !WAITING.has(key) || new RegExp(`^&${name}\\b`, 'm').test(p.source);
-      const cells = [...r.cells.values()].filter((c) => !c.implicit && !c.lambda && heads(c.name)).map((c) => ({ name: c.name, fits: FITS[kindOf(r, c.name)] }));
+      const cells = [...r.cells.values()].filter((c) => !c.implicit && !c.lambda).map((c) => ({ name: c.name, fits: FITS[kindOf(r, c.name)] }));
       const shown = (s: string, name: string, show: string) => setAttr(withUsedLine(s, name), name, 'show', show);
       const passes = Math.max(0, ...cells.map((c) => c.fits.length));
       for (let k = 0; k < passes; k++) {

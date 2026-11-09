@@ -14,7 +14,7 @@ const heard = (r: CompileResult) => events(r).map(({ output, ...e }) => ({ ...e,
 describe('an edit of a used cell: a line of the piece’s own (#480)', () => {
   it('writes the used line, word for word, under its use, and changes no other line', () => {
     const text = withUsedLine(KIT, 'sd');
-    expect(text.split('\n')).toEqual([KIT.split('\n')[0], '&sd s=white hpf=1500 env=&(map=adsr 0 .12 0 .05)', ...KIT.split('\n').slice(1)]);
+    expect(text.split('\n')).toEqual([KIT.split('\n')[0], '&sd note=38 s=white hpf=1500 env=&(map=adsr 0 .12 0 .05)', ...KIT.split('\n').slice(1)]);
     // (now the piece's: it overrides the kit's, and compiles to the same)
     const r = compilePiece(text);
     expect(r.uses?.[0]?.overrode).toEqual(['&sd']);
@@ -25,7 +25,7 @@ describe('an edit of a used cell: a line of the piece’s own (#480)', () => {
     const before = events(compilePiece(KIT));
     const off = setOff(withUsedLine(KIT, 'hh'), 'hh', true);
     expect(off.split('\n')).toHaveLength(KIT.split('\n').length + 1);
-    expect(off.split('\n').filter((l) => !KIT.split('\n').includes(l))).toEqual(['&hh off s=white hpf=8000 env=&(map=adsr 0 .04 0 .02)']);
+    expect(off.split('\n').filter((l) => !KIT.split('\n').includes(l))).toEqual(['&hh off note=42 s=white hpf=8000 env=&(map=adsr 0 .04 0 .02)']);
     expect(events(compilePiece(off)).length).toBeLessThan(before.length);
     const deleted = off
       .split('\n')

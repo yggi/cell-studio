@@ -18,7 +18,7 @@
   const KIT = '&bd, &rim, &sd, &cp, &lt, &hh, &ph, &mt, &oh, &ht, &cr, &rd, &claves from gm_kit\n&bar meter("4/4") step=100bpm\n&beat step=8n &bd ~ &hh ~ &sd ~ &hh [&bd,&hh]';
   const SOURCES = {
     kit: KIT,
-    override: `${KIT}\n&sd s=white hpf=900 distort=.6 env=&(map=adsr 0 .12 0 .05)`,
+    override: `${KIT}\n&sd note=38 s=white hpf=900 distort=.6 env=&(map=adsr 0 .12 0 .05)`,
     band: '&bar meter("4/4") step=110bpm\n&key from diatonic(mode=aeolian) C\n&harm from tonic_vamp &key\n&bassV from bass\n&bassline from root_bass &harm\n&bd, &rim, &sd, &cp, &lt, &hh, &ph, &mt, &oh, &ht, &cr, &rd, &claves from gm_kit\n* from synth_pop_drums',
   };
   const OPTIONS = ['wash', 'frame', 'tag', 'shelf', 'app'] as const;

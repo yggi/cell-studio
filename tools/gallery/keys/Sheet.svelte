@@ -21,7 +21,7 @@
   const DORIAN = scaleOf(melody('&s scale(dorian, D)'));
   const EDO19 = scaleOf(`&edo19 map=edo(19)\n${melody('&s over=&edo19 0 3 6 8 11 14 17')}`);
   const kit = compileSource(
-    `&bar step=4\n&drums step=&bar &kick &hat &snare &hat &clap &rim &tom &ride\n&kick s=sine loop=A1\n&snare s=white\n&hat s=white hpf=7000\n&clap s=white\n&rim s=white\n&tom s=sine loop=A2\n&ride s=white hpf=5000\n&mix map=sample [&drums]`,
+    `&bar step=4\n&drums step=&bar &kick &hat &snare &hat &clap &rim &tom &ride\n&kick note=36 s=sine loop=A1\n&snare note=38 s=white\n&hat s=white hpf=7000\n&clap note=39 s=white\n&rim note=37 s=white\n&tom note=45 s=sine loop=A2\n&ride note=51 s=white hpf=5000\n&mix map=sample [&drums]`,
     { SAMPLE_RATE: 48000, A4: 440 },
   );
   const PADS = kitPads(kit, 'drums');

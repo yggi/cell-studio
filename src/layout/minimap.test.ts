@@ -20,8 +20,8 @@ describe("the strip's minimap", () => {
 
   it("puts a groove in its kit's lane: it reads the kit, but plays it", () => {
     const program = compilePiece(`&bar step=120bpm 1 1 1 1
-&bd s=sine loop=A1
-&hh s=white hpf=8000
+&bd note=36 s=sine loop=A1
+&hh note=42 s=white hpf=8000
 &beat step=&bar*2 &bd &hh &bd &hh
 &lead s=saw loop=C5
 &tune step=&bar 0 2 4
