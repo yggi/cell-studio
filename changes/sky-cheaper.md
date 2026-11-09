@@ -1,0 +1,2 @@
+### Changed
+- **The tower's sky is drawn more cheaply, and has stars.** Its lines of light are one picture stretched over the sky (a soft core in a wider glow, still drifting brighter and dimmer along them), its spires' spikes small pictures drawn stretched, and it is drawn about 17 times a second instead of 25. A frame's glints are at most 320, the bands that stand out most first; a near glint, bright, is a small four-rayed star. The tower strip colours its spectrum bars from colours made once. Nothing played changes; saved `.cells` pieces are unchanged.
