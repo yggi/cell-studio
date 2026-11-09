@@ -3,6 +3,7 @@ import { setOff, setShift } from '@yggi/cells/engine/edit';
 import { codeShifts, type CompileResult } from '@yggi/cells/engine/program';
 import { plan } from '@yggi/cells/engine/realize';
 import { windowAt } from '@yggi/cells/engine/schedule';
+import { EXAMPLES } from '@yggi/cells/engine/examples';
 import { compilePiece, withUsedLine } from './compile';
 
 const KIT = '&bd, &rim, &sd, &cp, &lt, &hh, &ph, &mt, &oh, &ht, &cr, &rd, &claves from gm_kit\n&bar meter("4/4") step=100bpm\n&beat step=8n &bd ~ &hh ~ &sd ~ &hh [&bd,&hh]';
@@ -46,5 +47,16 @@ describe('an edit of a used cell: a line of the piece’s own (#480)', () => {
     expect(withUsedLine(KIT, 'beat')).toBe(KIT);
     expect(withUsedLine(KIT, 'nothing')).toBe(KIT);
     expect(withUsedLine('&a 1 2', 'a')).toBe('&a 1 2');
+  });
+
+  it('leaves the head of a template’s copy as written: its `from` line defines it (#610)', () => {
+    for (const [key, name] of [
+      ['clock', 'bar'],
+      ['electroswing', 'drumsOut'],
+    ] as const) {
+      const text = EXAMPLES[key].source;
+      expect(withUsedLine(text, name), `${key}: &${name}`).toBe(text);
+      expect(compilePiece(withUsedLine(text, name)).diagnostics.filter((d) => d.severity === 'error')).toEqual([]);
+    }
   });
 });

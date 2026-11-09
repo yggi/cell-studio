@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { compilePiece } from '../compile';
+import { compilePiece, withUsedLine } from '../compile';
 import { codeShifts } from '@yggi/cells/engine/program';
 import { eventsBetween, plan } from '@yggi/cells/engine/realize';
 import { liveAt } from '@yggi/cells/engine/live';
@@ -10,6 +10,13 @@ import { buildGraph } from './drawn';
 import { flowRanks } from './ranks';
 import { FITS, effectiveShow, gridOf, heardPosition, inferShow, kindOf, noteLabel, pluginOf, showProblems, tonicOf, voiceBase } from './show';
 
+/**
+ * Pieces whose given cells, their lines written in by withUsedLine, play nothing at this cells pin: radio's `* from band`,
+ * whose performers read their copies' own helpers, which the expansion drops once the piece overrides the line that read
+ * them (yggi/cells#628 fixes it, every cell of every piece then passing). Their cells are those a line heads, as before
+ * #610; the set goes at the pin that carries #628.
+ */
+const WAITING = new Set<string>(['radio']);
 const twinkle = (show: string) => setAttr(EXAMPLES.twinkle.source, 'tune', 'show', show);
 const labels = (src: string, cell: string) => {
   const r = compilePiece(src);
@@ -110,17 +117,18 @@ describe('show=', () => {
     for (const [key, p] of Object.entries(EXAMPLES)) {
       const r = compilePiece(p.source);
       const before = sound(p.source);
-      // (not a cell a used fragment gives, that no line here heads: radio's &bd, `* from band`'s. A show= written for it
-      // alone would be a line defining it anew; the app writes its line in first, withUsedLine, which this doesn't model)
-      const heads = (name: string) => new RegExp(`^&${name}\\b`, 'm').test(p.source);
+      // (every cell, a used fragment's too: radio's &bd, `* from band`'s; as the app does, its line written in first, #610)
+      // (but where a pin waits: radio's cells as before, those a line heads)
+      const heads = (name: string) => !WAITING.has(key) || new RegExp(`^&${name}\\b`, 'm').test(p.source);
       const cells = [...r.cells.values()].filter((c) => !c.implicit && !c.lambda && heads(c.name)).map((c) => ({ name: c.name, fits: FITS[kindOf(r, c.name)] }));
+      const shown = (s: string, name: string, show: string) => setAttr(withUsedLine(s, name), name, 'show', show);
       const passes = Math.max(0, ...cells.map((c) => c.fits.length));
       for (let k = 0; k < passes; k++) {
         const set = cells.filter((c) => k < c.fits.length).map((c) => ({ name: c.name, show: c.fits[k] }));
-        const src = set.reduce((s, c) => setAttr(s, c.name, 'show', c.show), p.source);
+        const src = set.reduce((s, c) => shown(s, c.name, c.show), p.source);
         if (src === p.source || sound(src) === before) continue;
         for (const { name, show } of set) {
-          const one = setAttr(p.source, name, 'show', show);
+          const one = shown(p.source, name, show);
           if (one !== p.source) expect(sound(one), `${key}: &${name} show=${show}`).toBe(before);
         }
         expect(sound(src), `${key}: show slot ${k} on every cell`).toBe(before); // (no one cell alone: together)

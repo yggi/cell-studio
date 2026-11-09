@@ -17,7 +17,8 @@ export const compilePiece = (text: string, env?: Env, locked?: readonly Locked[]
  * The text with a used cell's line written in it (cells decision 054, #480): the line its fragment gives `&name`,
  * word for word, under the `use` line that gave it (and under the lines the piece already writes in that use's place),
  * so an edit of a used cell rewrites a line of the piece's own, which then overrides the fragment's; deleting it brings
- * the used one back. The text as it is for a cell the piece writes itself, or one no `use` gave.
+ * the used one back. The text as it is for a cell the piece writes itself, one no `use` gave, or the head of a template's
+ * copy (`&bar from meter &tempo`), which its `from` line defines.
  */
 export function withUsedLine(text: string, name: string, locked?: readonly Locked[]): string {
   if (!hasUse(text) || declLine(text, name) >= 0) return text;
@@ -26,7 +27,9 @@ export function withUsedLine(text: string, name: string, locked?: readonly Locke
   const all = x.text.split('\n');
   const head = text.split('\n').length;
   const at = declLine(x.text, name);
-  if (!by || at < head) return text;
+  // (a head a template's copy gives, `&bar from meter &tempo`: the copy is that line's, and a line written for it would
+  // define it twice; an edit goes to the `from` line itself, #610)
+  if (!by || at < head || by.args) return text;
   // (its physical lines: a mix written over several continues while a line ends in + * , or [)
   let end = at;
   while (end + 1 < all.length && /[+*,[]\s*$/.test(splitComment(all[end]!)[0])) end++;
