@@ -5,7 +5,7 @@
   import { gridOf, heardPosition } from '../layout/show';
   import { lapOf } from '@yggi/cells/engine/readers';
   import { tickLevel } from '../layout/meters';
-  import { drawnShifts } from '../layout/turning';
+  import { drawnShifts, turnKey } from '../layout/turning';
   /**
    * An edge drawn by what it carries (its band, docs/notes/nets.md), from what is read to the cell that reads it:
    *  - sync (a clock's ticks): dotted, a pulse per step of the cell it drives
@@ -169,8 +169,15 @@
 
   // the shifts its wheels are drawn with (CellGlyph's rule): as they stand now, redrawn when a table turns, not every
   // frame — so a locked end and a lit strand mean the segment the wheel shows there; a played cell's as written
-  const now = $derived.by(() => {
+  // (a key over the tables it sees turn, layout/turning.ts turnsSeen: made again when any table in the piece turns — the
+  // one key the graph keeps, ctx.turned — and what is drawn with it redrawn only when one it sees turned: every edge's
+  // and wheel's views at once was a long task each time a selector stepped)
+  const turn = $derived.by(() => {
     void ctx.turned;
+    return turnKey(ctx.program, untrack(() => ctx.heads.shifts) ?? ctx.shifts, [d.to, d.from, d.table, sender]);
+  });
+  const now = $derived.by(() => {
+    void turn;
     const still = ctx.shifts;
     return untrack(() => ctx.heads.shifts) ?? still;
   });
@@ -190,7 +197,7 @@
     const reader = ctx.program.cells.get(d.to);
     if (d.port !== 'braid' || d.picks?.length || !rimOf(d.sizes?.to) || !reader || isTurntable(reader) || reader.params.scope || pluginOf(ctx.program, d.to)?.rim === false)
       return [];
-    void ctx.turned;
+    void turn;
     const parent = ctx.program.cells.get(d.to);
     const units = new Set(parent?.units.flatMap((u, i) => (u.atom.kind === 'ref' && u.atom.name === d.from ? [i] : [])) ?? []);
     const spans = new Map<number, [number, number]>();
@@ -206,7 +213,7 @@
   const bulbEnds = $derived.by(() => {
     const reader = ctx.program.cells.get(d.to);
     if (d.port !== 'braid' || d.picks?.length || !d.sizes?.to || !reader || isTurntable(reader) || reader.params.scope || pluginOf(ctx.program, d.to)) return [];
-    void ctx.turned;
+    void turn;
     const v = cellView(ctx.program, d.to, shownOf(d.to), false);
     if (!v?.bulbs?.length) return [];
     const { r, w } = ringOf(d.sizes.to);
@@ -251,7 +258,7 @@
     if (d.width < 2 || d.tines || d.groove || (!d.table && d.band !== 'cv')) return null;
     // (a table of sections is read by its selector through one plain wire, from below: no bus, no loom — decision 016)
     if (d.table && fanOf(ctx.program, d.table)) return null;
-    void ctx.turned;
+    void turn;
     return cellView(ctx.program, d.table ?? d.from, shownOf(d.table ?? d.from), false);
   });
   const count = $derived(selection || (view ? Math.min(EDGE.strands, d.width) : 0));
@@ -286,7 +293,7 @@
   // the wheel pushes there — one straight out of its tap, several through the loom; as written ($): from the hub.
   const picked = $derived.by(() => {
     if (!d.picks?.length || !d.sizes?.from) return null;
-    void ctx.turned;
+    void turn;
     const v = cellView(ctx.program, d.from, shownOf(d.from), false);
     if (!v || !v.segments.length) return null;
     const taps: { t: number; fill: Fill | undefined }[] = [];
@@ -373,7 +380,7 @@
   // (and stopped: what it shows at rest)
   const source = $derived.by(() => {
     if (d.band !== 'cv' || count || d.tines || (d.state !== 'idle' && d.state !== 'on')) return null;
-    void ctx.turned;
+    void turn;
     return cellView(ctx.program, sender, shownOf(sender), false);
   });
   // (`rest`: stopped, where its wheel is at the cursor — its first step when it isn't playing there)

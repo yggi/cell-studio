@@ -18,14 +18,20 @@
   import WaveGlyph from './WaveGlyph.svelte';
   import { hubLabel } from '../layout/cellview';
   import { formatLabel } from '../layout/labels';
-  import { drawnShifts } from '../layout/turning';
+  import { drawnShifts, turnKey } from '../layout/turning';
   import { meterColour } from './theme';
 
   let { id, data }: NodeProps<CellFlowNode> = $props();
   const ctx = getGraphContext();
   // (label templates: refilled when a table turns, not every frame; a played cell's own shift as written)
-  const stillShifts = $derived.by(() => {
+  // (made again only when a table in the piece turns — one key the graph keeps, ctx.turned — and the edge, the wheel
+  // or the label redrawn only when one it sees turned: not every frame, and not every table)
+  const turn = $derived.by(() => {
     void ctx.turned;
+    return turnKey(ctx.program, untrack(() => ctx.heads.shifts) ?? ctx.shifts, [data.name]);
+  });
+  const stillShifts = $derived.by(() => {
+    void turn;
     const still = ctx.shifts;
     return drawnShifts(ctx.program, still, untrack(() => ctx.heads.shifts) ?? still, data.name);
   });

@@ -31,6 +31,27 @@
 
   const segments = $derived(segmentsOf(sections, span, width));
   const current = $derived(segmentAt(segments, shown));
+  // The fills and the segment it's in, drawn here, not by the template: the segments before the one it's in full, those
+  // after empty, its own filled to the playhead. A piece with a tempo map is a thousand segments, its playhead in a new
+  // one several times a second: a template that reads where it is restyles every one of them each time. This touches
+  // the segments between the one it was in and the one it's in, and that one's fill each frame.
+  const fills: HTMLElement[] = [];
+  const segs: HTMLElement[] = [];
+  let drawnFor: { list: readonly unknown[]; at: number } | null = null;
+  $effect(() => {
+    const list = segments;
+    const at = current ? list.indexOf(current) : -1;
+    const was = drawnFor?.list === list ? drawnFor.at : null;
+    // (a new list, or the first draw: every segment; else those it passed over, either way)
+    const [lo, hi] = was === null ? [0, list.length - 1] : [Math.min(was, at), Math.max(was, at)];
+    for (let i = Math.max(0, lo); i <= hi && i < list.length; i++) {
+      if (fills[i] && i !== at) fills[i].style.width = i < at ? '100%' : '0%';
+      segs[i]?.classList.toggle('here', i === at);
+    }
+    drawnFor = { list, at };
+    const s = list[at];
+    if (s && fills[at]) fills[at].style.width = `${Math.max(0, Math.min(1, (shown - s.from) / (s.to - s.from))) * 100}%`;
+  });
   const at = (x: number) => timeAt(x, track!.getBoundingClientRect(), span!);
   // a press on a name jumps to its section, unless it turns into a drag
   let start: { x: number; jump: number | null } | null = null;
@@ -79,8 +100,8 @@
     onkeydown={onkey}
   >
     {#each segments as s, i (i)}
-      <div class="seg" class:here={s === current} style:flex-grow={s.to - s.from} title={s.named || !s.label ? undefined : `${s.label} · ${clock(s.from)}`}>
-        <div class="fill" style:width="{Math.max(0, Math.min(1, (shown - s.from) / (s.to - s.from))) * 100}%"></div>
+      <div class="seg" bind:this={segs[i]} style:flex-grow={s.to - s.from} title={s.named || !s.label ? undefined : `${s.label} · ${clock(s.from)}`}>
+        <div class="fill" bind:this={fills[i]}></div>
         {#each s.ticks as t (t)}<span class="tick" style:left="{((t - s.from) / (s.to - s.from)) * 100}%"></span>{/each}
         {#if s.named}<span class="name" data-at={s.from} title="{s.label} · {clock(s.from)}">{s.label}</span>{/if}
       </div>
@@ -129,12 +150,12 @@
     background: color-mix(in oklab, var(--accent) 24%, var(--surface-2));
     pointer-events: none;
   }
-  /* the section it's in: its name gold, underlined, the playhead the fill's edge */
-  .here {
+  /* the section it's in: its name gold, underlined, the playhead the fill's edge (`here` set by the script) */
+  .seg:global(.here) {
     color: var(--accent);
     box-shadow: inset 0 -2px 0 var(--accent);
   }
-  .here .fill {
+  .seg:global(.here) .fill {
     border-right: 2px solid var(--text);
   }
   /* (a section that repeats the one before: a notch at the foot, not a new segment) */

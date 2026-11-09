@@ -435,13 +435,15 @@ select {
 }
 
 /* ---- a cell or a wire coming into the piece's graph (an edit, a conversion's story, #390): it fades and grows in, so
-   nothing appears at once. `scale` (not `transform`, which the flow places nodes with) ---- */
+   nothing appears at once. `scale` (not `transform`, which the flow places nodes with). `backwards`, not `both`: they
+   end where the element stands, and an animation that held its end kept every node and wire a composited layer of
+   its own for as long as the piece was open (97 layers in BWV 847, the compositor's work every frame) ---- */
 .canvas .svelte-flow__node {
-  animation: cell-in var(--cell-in) ease-out both;
+  animation: cell-in var(--cell-in) ease-out backwards;
   transform-origin: center;
 }
 .canvas .svelte-flow__edge {
-  animation: wire-in var(--cell-in) ease-out both;
+  animation: wire-in var(--cell-in) ease-out backwards;
 }
 .canvas .svelte-flow__node.leaving {
   animation: cell-out var(--cell-out) ease-in both;
