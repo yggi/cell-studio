@@ -49,6 +49,10 @@ export default defineConfig({
   define: { __BUILD__: JSON.stringify(build) },
   // relative base: the app works under any path (the Pages URL /cell-studio/, a preview subfolder, a local server)
   base: './',
+  // the language ships TypeScript (its `module` condition) and has no dependencies of its own: the dev server serves it as
+  // it serves src/, not pre-bundled, since the optimizer reads each entry's exports with a JavaScript lexer that a
+  // TypeScript `x! / y` throws off, and then falls back to a JSX parse that fails on `import type` (#627; tools/devserver.test.ts)
+  optimizeDeps: { exclude: ['@yggi/cells'] },
   plugins: [
     examplesIndex(),
     svelte(),
