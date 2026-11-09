@@ -1,6 +1,6 @@
 # Changelog
 
-What changed in Cell studio, newest first. The app is deployed from `main` by hand (`node tools/deploy.mjs`), so
+What changed in Cell studio, newest first. A merge into `main` deploys the app (`deploy.yml` runs `node tools/deploy.mjs`), so
 this lists user-visible changes; each release (a version bump in `package.json` and a `vX.Y.Z`
 tag) gathers the entries under *Unreleased* and those in [`changes/`](changes/) beneath its own heading. The version and commit of
 the running build are the app name's tooltip; a tap on the name opens the details.
