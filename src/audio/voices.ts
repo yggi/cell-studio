@@ -126,10 +126,10 @@ export function createVoices(Tone: ToneNS): VoiceBank {
   const master_ = makeScope();
   master.connect(master_.input);
   // a mix's wheel listens to what goes through it (analysis only: the sound goes out through the master): each
-  // voice's tap opened by the notes it plays through the mix (wiring.ts `taps`, ./gate.ts)
+  // voice's monitor opened by the notes it plays through the mix (wiring.ts `monitors`, ./gate.ts)
   let mixes = new Map<string, { scope: Scope; nodes: Disposable[]; input?: import('tone').Gain }>();
   let gates = new Map<string, Gate>();
-  let taps: ReadonlyMap<string, readonly string[]> = new Map();
+  let monitors: ReadonlyMap<string, readonly string[]> = new Map();
   const gateKey = (voice: string, mix: string) => `${voice}\u0000${mix}`;
   // the gates of the mixes a voice goes through: a key held on it opens them all (it names no output, as a plan's note does)
   const gatesOf = (voice: string): Gate[] => [...gates].filter(([k]) => k.startsWith(`${voice}\u0000`)).map(([, g]) => g);
@@ -191,14 +191,14 @@ export function createVoices(Tone: ToneNS): VoiceBank {
       probes = new Map();
       for (const a of fprobes.values()) a.disconnect();
       fprobes = new Map();
-      // rewire the mix taps from scratch: cheap, and always matches the code
+      // rewire the mix monitors from scratch: cheap, and always matches the code
       for (const m of mixes.values()) for (const n of m.nodes) n.dispose();
       mixes = new Map();
       for (const c of result.cells.values()) if (c.mix) mixes.set(c.name, makeScope());
-      // (notes already scheduled keep their taps open on the new ones)
+      // (notes already scheduled keep their monitors open on the new ones)
       const oldGates = gates;
       gates = new Map();
-      taps = plan.taps;
+      monitors = plan.monitors;
       sinks = new Set([...result.cells.values()].filter((c) => c.sink).map((c) => c.name));
       // a voice played only into sends (a resonator's excitation, a tape) isn't heard from itself
       for (const [name, b] of built) {
@@ -221,7 +221,7 @@ export function createVoices(Tone: ToneNS): VoiceBank {
         if (pan && l + r > 0) pan.value = (r - l) / (l + r);
       }
       // sound tapes: a delay network each — the source mix in; a loop of its length back into it
-      // (through its loss, its saturation, and what erasing leaves); each read head a tap
+      // (through its loss, its saturation, and what erasing leaves); each read head a monitor
       // (a tape whose settings haven't changed is kept — what's on it stays, through pause and play; only
       // its wires, what feeds it and where its heads go, are made again)
       const oldNets = tapeNets;
@@ -233,14 +233,14 @@ export function createVoices(Tone: ToneNS): VoiceBank {
       };
       for (const w of plan.connections) {
         const v = built.get(w.from);
-        if (w.kind === 'tap') {
-          const tap = mixes.get(w.to);
-          if (!v || !tap) continue;
+        if (w.kind === 'monitor') {
+          const into = mixes.get(w.to);
+          if (!v || !into) continue;
           const g = ctx.createGain();
           g.gain.value = w.gate ? 0 : w.gain;
           Tone.connect(v.out, g);
-          g.connect(inputOf(tap.input!));
-          tap.nodes.push(
+          g.connect(inputOf(into.input!));
+          into.nodes.push(
             disposer(() => {
               g.disconnect();
               // (a voice rebuilt is disconnected already)
@@ -374,8 +374,8 @@ export function createVoices(Tone: ToneNS): VoiceBank {
       const b = built.get(note.voice);
       if (!b) return;
       const sounds = playNote(Tone, ctx, b, note, (name) => built.get(name));
-      // its taps: the wheels of the mixes it goes through hear it while it sounds
-      if (sounds && note.output) for (const m of taps.get(note.output) ?? []) gates.get(gateKey(note.voice, m))?.open(sounds.at, sounds.end, ctx.currentTime);
+      // its monitors: the wheels of the mixes it goes through hear it while it sounds
+      if (sounds && note.output) for (const m of monitors.get(note.output) ?? []) gates.get(gateKey(note.voice, m))?.open(sounds.at, sounds.end, ctx.currentTime);
     },
 
     press(voice, freq, velocity) {
@@ -408,7 +408,7 @@ export function createVoices(Tone: ToneNS): VoiceBank {
       const k = keys.get(id);
       keys.delete(id);
       const n = k?.b.live.get(k.osc);
-      // (a key let go before its note has started lets it start, then go: a quick tap is heard, not lost)
+      // (a key let go before its note has started lets it start, then go: a quick monitor is heard, not lost)
       const now = Math.max(ctx.currentTime, n?.at ?? 0);
       if (k && n) letGo(k.osc, n, now);
       // (a voice rebuilt under the key cut it already: its wheels' gates close now, not at the hour)

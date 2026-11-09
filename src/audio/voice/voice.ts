@@ -1,6 +1,6 @@
 /**
  * One voice: its chain (notes → [grit] → [filters] → pan → gain → the master, with room and echo sends, and a
- * spectrum tap), or a resonator's bodies in its place; and a note played on it — an oscillator (its braid as
+ * spectrum monitor), or a resonator's bodies in its place; and a note played on it — an oscillator (its braid as
  * the waveform, or a built-in one), or noise, each note its own source so it takes its own bends.
  */
 import type { CompileResult, ResolvedCell, Shifts } from '@yggi/cells/engine/program';
@@ -193,7 +193,7 @@ export function buildVoice(Tone: ToneNS, ctx: AudioContext, bus: Bus, result: Co
   // downmixed and set in the middle, #516: only a resonator, whose bodies sound in mono, goes through one)
   const resonates = typeof params.body === 'string' && !!BODIES[params.body];
   const pan = resonates ? new Tone.Panner(0).connect(out) : null;
-  // the wheel's spectrogram: tap the voice after pan, one analyser per channel
+  // the wheel's spectrogram: monitor the voice after pan, one analyser per channel
   const split = new Tone.Split(2);
   const scope = { left: new Tone.Analyser({ type: 'fft', size: 1024, smoothing: 0.5 }), right: new Tone.Analyser({ type: 'fft', size: 1024, smoothing: 0.5 }) };
   out.connect(split);

@@ -20,7 +20,7 @@ function param() {
   };
 }
 
-describe('a mix tap opens while notes go through it (#77)', () => {
+describe('a mix monitor opens while notes go through it (#77)', () => {
   it('open from a note to its end, shut between', () => {
     const p = param();
     const g = new Gate(p);
@@ -58,7 +58,7 @@ describe('a mix tap opens while notes go through it (#77)', () => {
   });
 });
 
-describe('a key held keeps the tap open (#252)', () => {
+describe('a key held keeps the monitor open (#252)', () => {
   it('open from the press until the key has rung out, shut after', () => {
     const p = param();
     const g = new Gate(p);
@@ -111,7 +111,7 @@ describe('a key held keeps the tap open (#252)', () => {
     expect(next.held()).toEqual([{ id: 2, a: 6 }]);
   });
 
-  it('a key let go at once (its voice rebuilt under it) still closes the tap', () => {
+  it('a key let go at once (its voice rebuilt under it) still closes the monitor', () => {
     const p = param();
     const g = new Gate(p);
     g.hold(1, 2, 2);

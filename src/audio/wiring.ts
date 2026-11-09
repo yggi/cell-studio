@@ -14,23 +14,23 @@ import { cellId } from '@yggi/cells/engine/ids';
 
 /**
  * A connection, from what sounds into what hears it:
- *  - `tap`: a voice into the wheel of a mix its notes go through (to watch: the sound goes out through the sound
- *    card), at 1 (its notes already carry their gains); `gate`: open only while such notes sound (`taps`);
+ *  - `monitor`: a voice into the wheel of a mix its notes go through (to watch: the sound goes out through the sound
+ *    card), at 1 (its notes already carry their gains); `gate`: open only while such notes sound (`monitors`);
  *  - `couple`: two resonators into each other, at `gain` (coupling=), both ways;
  *  - `excite`: a voice, or a sound tape's read head, into a resonator, at its gain in the mix that drives it;
- *  - `thread`: a sound tape threaded, its heads its taps (from: the tape, to: itself);
+ *  - `thread`: a sound tape threaded, its heads its monitors (from: the tape, to: itself);
  *  - `record`: a voice onto a sound tape, at its gain in the mix the tape records;
  *  - `return`: a read head back to the sound card, left and right at `gains`.
  */
 interface Connection {
-  readonly kind: 'tap' | 'couple' | 'excite' | 'thread' | 'record' | 'return';
+  readonly kind: 'monitor' | 'couple' | 'excite' | 'thread' | 'record' | 'return';
   readonly from: string;
   readonly to: string;
   readonly gain: number;
   readonly gains?: readonly [number, number];
   /** An excite's source is a read head (its tape's net), not a voice. */
   readonly head?: boolean;
-  /** A tap opened by its voice's notes (`Wiring.taps`); without it (a resonator ringing) it is always open. */
+  /** A monitor opened by its voice's notes (`Wiring.monitors`); without it (a resonator ringing) it is always open. */
   readonly gate?: boolean;
   /** The flows it carries (engine/flows.ts): its cells, and its ends, must all be on. */
   readonly flows: readonly Flow[];
@@ -43,8 +43,8 @@ export interface Wiring {
   readonly heard: ReadonlySet<string>;
   /** Each resonator's level per channel: of every mix it's in (struck there, or ringing alone). */
   readonly levels: ReadonlyMap<string, readonly [number, number]>;
-  /** Per output (`Output.id`, what a note names: `Played.output`): the mixes whose wheels its notes open, each through its voice's `tap`. */
-  readonly taps: ReadonlyMap<string, readonly string[]>;
+  /** Per output (`Output.id`, what a note names: `Played.output`): the mixes whose wheels its notes open, each through its voice's `monitor`. */
+  readonly monitors: ReadonlyMap<string, readonly string[]>;
 }
 
 /**
@@ -90,17 +90,17 @@ export function wiring(result: CompileResult, muted: ReadonlySet<string> = new S
     // (the one rule: its ends, and every cell on its flows, are on)
     if (!off(c.from) && !off(c.to) && !c.flows.some((f) => off(f.from) || off(f.to))) all.push(c);
   };
-  // a mix's wheel hears what goes through it: a tap per voice and mix, opened by the notes of the outputs on
+  // a mix's wheel hears what goes through it: a monitor per voice and mix, opened by the notes of the outputs on
   // that path (a resonator's always open: it rings from more than its notes) (#77)
-  const tapped = new Map<string, { voice: string; mix: string; flows: Set<Flow>; gate: boolean }>();
-  const taps = new Map<string, string[]>();
-  const tap = (v: string, path: Map<string, Flow[]>, output?: string) => {
+  const monitored = new Map<string, { voice: string; mix: string; flows: Set<Flow>; gate: boolean }>();
+  const monitors = new Map<string, string[]>();
+  const monitor = (v: string, path: Map<string, Flow[]>, output?: string) => {
     if (!voice(v)) return;
     for (const [m, fs] of path) {
       const key = `${v}\u0000${m}`;
-      const t = tapped.get(key) ?? tapped.set(key, { voice: v, mix: m, flows: new Set(), gate: !body(v) }).get(key)!;
+      const t = monitored.get(key) ?? monitored.set(key, { voice: v, mix: m, flows: new Set(), gate: !body(v) }).get(key)!;
       for (const f of fs) t.flows.add(f);
-      if (output && !(taps.get(output) ?? taps.set(output, []).get(output)!).includes(m)) taps.get(output)!.push(m);
+      if (output && !(monitors.get(output) ?? monitors.set(output, []).get(output)!).includes(m)) monitors.get(output)!.push(m);
     }
   };
   for (const o of result.outputs) {
@@ -108,10 +108,10 @@ export function wiring(result: CompileResult, muted: ReadonlySet<string> = new S
     // (a kit's notes are its members': each hears the kit's stream in the mix — #166)
     const members = o.kit ? [...(result.cells.get(o.voice)?.children.keys() ?? [])] : [o.voice];
     const path = pathOf(result, fl, o, [o.voice, o.cell]);
-    for (const v of members) tap(v, path, o.id);
+    for (const v of members) monitor(v, path, o.id);
   }
-  for (const x of result.resonances) if (!off(x.cell) && returnGains(x, muted).some((g) => g !== 0)) tap(x.cell, pathOf(result, fl, x, [x.cell]));
-  for (const t of tapped.values()) add({ kind: 'tap', from: t.voice, to: t.mix, gain: 1, ...(t.gate ? { gate: true } : {}), flows: [...t.flows] });
+  for (const x of result.resonances) if (!off(x.cell) && returnGains(x, muted).some((g) => g !== 0)) monitor(x.cell, pathOf(result, fl, x, [x.cell]));
+  for (const t of monitored.values()) add({ kind: 'monitor', from: t.voice, to: t.mix, gain: 1, ...(t.gate ? { gate: true } : {}), flows: [...t.flows] });
   for (const c of result.cells.values()) {
     if (!body(c.name)) continue;
     // coupled: through the table, both ways, a little of each into the other (once, from the line that says so)
@@ -180,5 +180,5 @@ export function wiring(result: CompileResult, muted: ReadonlySet<string> = new S
       }
     levels.set(name, [l, r]);
   }
-  return { connections: all, heard, levels, taps };
+  return { connections: all, heard, levels, monitors };
 }

@@ -78,11 +78,20 @@ describe('voices.sync wires from the flows the graph draws (#132)', () => {
       `${OUT} [&h * .2, &a * .5, &b * .5]`,
     );
     const plan = (muted: string[] = []) => wiring(r, new Set(muted.map(cellId))).connections.map((c) => `${c.kind} ${c.from} ${c.to} ${c.gain}`);
-    expect(plan()).toEqual(['tap v send 1', 'tap a out 1', 'tap b out 1', 'couple a b 0.05', 'thread tape tape 1', 'record v tape 0.5', 'return h tape 1', 'excite h a 0.3']);
+    expect(plan()).toEqual([
+      'monitor v send 1',
+      'monitor a out 1',
+      'monitor b out 1',
+      'couple a b 0.05',
+      'thread tape tape 1',
+      'record v tape 0.5',
+      'return h tape 1',
+      'excite h a 0.3',
+    ]);
     // a mix off: what only goes through it is unwired; the tape keeps what's on it
-    expect(plan(['send'])).toEqual(['tap a out 1', 'tap b out 1', 'couple a b 0.05', 'thread tape tape 1', 'return h tape 1', 'excite h a 0.3']);
-    expect(plan(['tape'])).toEqual(['tap v send 1', 'tap a out 1', 'tap b out 1', 'couple a b 0.05']);
-    expect(plan(['b'])).toEqual(['tap v send 1', 'tap a out 1', 'thread tape tape 1', 'record v tape 0.5', 'return h tape 1', 'excite h a 0.3']);
+    expect(plan(['send'])).toEqual(['monitor a out 1', 'monitor b out 1', 'couple a b 0.05', 'thread tape tape 1', 'return h tape 1', 'excite h a 0.3']);
+    expect(plan(['tape'])).toEqual(['monitor v send 1', 'monitor a out 1', 'monitor b out 1', 'couple a b 0.05']);
+    expect(plan(['b'])).toEqual(['monitor v send 1', 'monitor a out 1', 'thread tape tape 1', 'record v tape 0.5', 'return h tape 1', 'excite h a 0.3']);
     expect(wiring(r).heard).toEqual(new Set(['a', 'b']));
   });
 
@@ -126,30 +135,30 @@ describe('voices.sync wires from the flows the graph draws (#132)', () => {
     const w = wiring(r, r.off);
     const notes = eventsBetween(planOf(r, codeShifts(r), r.off), 0, 600, true);
     const out = new Map(r.outputs.map((o) => [o.id, o]));
-    const hears = (m: string) => notes.filter((n) => w.taps.get(n.output!)?.includes(m));
-    // every note names its output, and each mix it opens has a tap from its voice
-    const tapped = new Set(w.connections.filter((c) => c.kind === 'tap').map((c) => `${c.from} ${c.to}`));
-    for (const n of notes) for (const m of w.taps.get(n.output!) ?? []) expect(tapped).toContain(`${n.voice} ${m}`);
+    const hears = (m: string) => notes.filter((n) => w.monitors.get(n.output!)?.includes(m));
+    // every note names its output, and each mix it opens has a monitor from its voice
+    const monitored = new Set(w.connections.filter((c) => c.kind === 'monitor').map((c) => `${c.from} ${c.to}`));
+    for (const n of notes) for (const m of w.monitors.get(n.output!) ?? []) expect(monitored).toContain(`${n.voice} ${m}`);
     // &einsturz hears only the notes &tag plays it for, at the end; before, its voices play in their own parts
     const crash = hears('einsturz');
     expect(crash.length).toBeGreaterThan(0);
-    for (const n of crash) expect(out.get(n.output!)!.select.map((x) => x.part)).toEqual(['einsturzBar']); // (the tap it is stepped through, decision 016)
+    for (const n of crash) expect(out.get(n.output!)!.select.map((x) => x.part)).toEqual(['einsturzBar']); // (the monitor it is stepped through, decision 016)
     const from = Math.min(...crash.map((n) => n.at));
     const before = notes.filter((n) => n.at < from && ['beamv', 'platev', 'sub'].includes(n.voice));
     expect(new Set(before.map((n) => n.voice))).toEqual(new Set(['beamv', 'platev', 'sub']));
-    for (const n of before) expect(w.taps.get(n.output!)).not.toContain('einsturz');
+    for (const n of before) expect(w.monitors.get(n.output!)).not.toContain('einsturz');
     expect(from).toBeGreaterThan(0.9 * Math.max(...notes.map((n) => n.at)));
     // (and the voices' own parts hear them: &beams' notes in &metalPart, and &out, a chord of the parts)
-    expect(new Set(before.filter((n) => n.voice === 'beamv').flatMap((n) => w.taps.get(n.output!)!))).toEqual(new Set(['metalPart', 'out']));
+    expect(new Set(before.filter((n) => n.voice === 'beamv').flatMap((n) => w.monitors.get(n.output!)!))).toEqual(new Set(['metalPart', 'out']));
   });
 
   it("a kit's stream in a mix is heard by that mix's wheel: each member, opened by its notes (#166)", () => {
     const r = src('&kick s=sine loop=50', '&hat s=white', '&kit &kick &hat', '&drums over=&kit step=1 0 1', '&beat [&drums * .5]', `${OUT} &beat`);
     const w = wiring(r);
-    expect(w.connections.filter((c) => c.kind === 'tap').map((c) => `${c.from} ${c.to} ${c.gate}`)).toEqual(['kick beat true', 'hat beat true']);
-    expect([...w.taps.values()]).toEqual([['beat']]);
-    // off: no tap
-    expect(wiring(r, new Set([cellId('beat')])).connections.filter((c) => c.kind === 'tap')).toEqual([]);
+    expect(w.connections.filter((c) => c.kind === 'monitor').map((c) => `${c.from} ${c.to} ${c.gate}`)).toEqual(['kick beat true', 'hat beat true']);
+    expect([...w.monitors.values()]).toEqual([['beat']]);
+    // off: no monitor
+    expect(wiring(r, new Set([cellId('beat')])).connections.filter((c) => c.kind === 'monitor')).toEqual([]);
   });
 
   it('a kit member that is off is not heard from itself, the others are (#166)', () => {
@@ -170,7 +179,7 @@ describe('voices.sync wires from the flows the graph draws (#132)', () => {
       `${OUT} &both`,
     );
     const w = wiring(r);
-    const by = (cell: string) => r.outputs.filter((o) => o.cell === cell).map((o) => [...w.taps.get(o.id)!].sort());
+    const by = (cell: string) => r.outputs.filter((o) => o.cell === cell).map((o) => [...w.monitors.get(o.id)!].sort());
     expect(by('a')).toEqual([['both', 'one']]);
     expect(by('b')).toEqual([['both', 'inst', 'two']]);
   });

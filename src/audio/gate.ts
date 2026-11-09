@@ -1,8 +1,8 @@
 /**
- * A mix's wheel hears only what goes through it (#77): each voice's tap into a mix's wheel is a gain that opens
+ * A mix's wheel hears only what goes through it (#77): each voice's monitor into a mix's wheel is a gain that opens
  * while that voice plays notes going through the mix, and closes when they have rung out. Notes come a window
  * ahead and not always in order, and overlap: the gate keeps the times it is open as merged spans and schedules
- * them again from where a new note changes them. The tap is watched, never heard, so it switches without ramps.
+ * them again from where a new note changes them. The monitor is watched, never heard, so it switches without ramps.
  *
  * A key held (`hold`, #252) keeps it open from its start until `letGo` says when it has rung out; it is a span of its
  * own, apart from the plan's, so a note the plan plays meanwhile can't close the gate under a key.
@@ -11,7 +11,7 @@
 /** How long a key is taken to be held at most (as the voices hold one): an hour. */
 const HOLD = 3600;
 
-/** What a gate schedules: an AudioParam (the tap's gain) or a stand-in in a test. */
+/** What a gate schedules: an AudioParam (the monitor's gain) or a stand-in in a test. */
 interface Param {
   setValueAtTime(v: number, t: number): unknown;
   cancelScheduledValues(t: number): unknown;
@@ -44,7 +44,7 @@ export class Gate {
     this.schedule(h.a, now);
   }
 
-  /** The keys still held, to carry onto a new gate when the taps are made again. */
+  /** The keys still held, to carry onto a new gate when the monitors are made again. */
   held(): readonly { id: number; a: number }[] {
     return [...this.holds].filter(([, h]) => h.down).map(([id, h]) => ({ id, a: h.a }));
   }
@@ -96,7 +96,7 @@ export class Gate {
     }
   }
 
-  /** The spans still to come or sounding (to carry onto a new gate when the taps are made again). */
+  /** The spans still to come or sounding (to carry onto a new gate when the monitors are made again). */
   pending(now: number): readonly { a: number; b: number }[] {
     return this.spans.filter((s) => s.b > now);
   }
