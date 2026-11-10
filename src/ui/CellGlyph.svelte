@@ -303,7 +303,16 @@
   const litKey = $derived(
     sectionsTable ? litSections(view, cell, ctx.lit?.nodes) : litSteps(view, () => (hasLive && liveLocal !== null ? liveLocal / lapOf(ctx.program, played) : null)),
   );
-  const lit = $derived(litSet(litKey));
+  // (state set when the key changes, not a derived of it: the key is made again every frame, and a derived of it re-checks —
+  // its every slot's `lit.has(i)` re-run each frame, Svelte comparing versions, not values: Graph.svelte `turned`, #631)
+  let lit = $state.raw<ReadonlySet<number>>(new Set());
+  let litFor: string | null = null;
+  $effect.pre(() => {
+    const key = litKey;
+    if (key === litFor) return;
+    litFor = key;
+    lit = litSet(key);
+  });
   // a table: the entries being read now (accessed) — a dot in each, like a read head …
   const accessed = $derived(hasLive && view.mode !== 'braid' ? accessedOf(view, entriesKey) : new Set<number>());
 
