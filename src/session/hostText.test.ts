@@ -112,7 +112,8 @@ describe('a host’s text played as its performers play it', () => {
 
 /**
  * A host's text whose pitched parts play through cells' seed performers (yggi/jambot#514): each gate's output id is its
- * part's (`bassV:bassline^$-12:…`), and its part is the role of the performer playing it (feel v1.2, #511). A stack of
+ * part's, on the voice of the performer's copy where the text passes it none (`bass_bassV:bassline^$-12:…`, cells
+ * v0.23.0), and its part is the role of the performer playing it (feel v1.2, #511). A stack of
  * gates on the card (`[&padOut, &stabOut]`) is read the same; a drum hit keeps its line's role.
  */
 const PERFORMED = `&bar meter("4/4") step=120bpm swing=16n:.6
@@ -149,7 +150,7 @@ describe('a host’s text whose parts play through performers (feel v1.2)', () =
     expect(r.diagnostics.filter((d) => d.severity === 'error')).toEqual([]);
     expect(barSeconds(r)).toBe(seconds);
     const ids = new Set(events.map((e) => e.output!.split(':').slice(0, 2).join(':')));
-    expect(ids).toEqual(new Set(['bassV:bassline^$-12', 'padV:padline', 'keysV:stabline', 'leadV:leadline', 'shakerV:shaker', 'kit:voices']));
+    expect(ids).toEqual(new Set(['bass_bassV:bassline^$-12', 'pad_padV:padline', 'stab_keysV:stabline', 'lead_leadV:leadline', 'shakerV:shaker', 'kit:voices']));
     expect(new Set(parts(readingOf))).toEqual(new Set([null, 'drums:kick', 'drums:hat']));
   });
 

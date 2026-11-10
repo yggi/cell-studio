@@ -529,8 +529,9 @@ describe('every name written is one wire carrying the transform it writes, and e
   const all = { ...Object.fromEntries(Object.entries(EXAMPLES).map(([k, p]) => [k, p.source])), golden: readFileSync('tools/gallery/golden/golden.cells', 'utf8') };
 
   // (a gap known in cells, expected to fail until the pin that carries its fix: it.fails turns red when it passes, so
-  // the exception comes out then. radio: the forms new in cells v0.21.0 aren't wires yet, yggi/cells#618)
-  const gaps: Record<string, string> = { radio: 'yggi/cells#618' };
+  // the exception comes out then. radio and style: the forms new in cells v0.21.0, `style=&x` among them, aren't wires
+  // yet, yggi/cells#618)
+  const gaps: Record<string, string> = { radio: 'yggi/cells#618', style: 'yggi/cells#618' };
   for (const [key, source] of Object.entries(all))
     (gaps[key] ? it.fails : it)(gaps[key] ? `${key} (a gap: ${gaps[key]})` : key, () => {
       // (as the app compiles it: a piece that uses the seed library resolves its uses, electroswing's among them)
