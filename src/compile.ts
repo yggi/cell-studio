@@ -6,7 +6,7 @@
  */
 import { compileSource } from '@yggi/cells/engine/compile';
 import { declLine, splitComment } from '@yggi/cells/engine/edit';
-import { expansion, hasUse } from '@yggi/cells/engine/use';
+import { expansion, hasFrom } from '@yggi/cells/engine/use';
 import type { CompileResult, Env, Locked } from '@yggi/cells/engine/program';
 import { resolveSeed } from '@yggi/cells/repository/library';
 
@@ -21,9 +21,9 @@ export const compilePiece = (text: string, env?: Env, locked?: readonly Locked[]
  * template copy (`&bar from meter &tempo`), which its `from` line defines.
  */
 export function withUsedLine(text: string, name: string, locked?: readonly Locked[]): string {
-  if (!hasUse(text) || declLine(text, name) >= 0) return text;
+  if (!hasFrom(text) || declLine(text, name) >= 0) return text;
   const x = expansion(text, { resolve: resolveSeed, ...(locked?.length ? { locked } : {}) });
-  const by = x.uses.find((u) => u.gave.includes(`&${name}`));
+  const by = x.takes.find((u) => u.gave.includes(`&${name}`));
   const all = x.text.split('\n');
   const head = text.split('\n').length;
   const at = declLine(x.text, name);
