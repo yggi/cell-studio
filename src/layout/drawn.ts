@@ -26,7 +26,7 @@ export function buildGraph(result: CompileResult, opts: { readonly bulbs?: boole
   // (a module is one wheel, its private cells folded in, and a voice's and an instrument's jacks on their own: decision
   // 069; a use of any other fragment, a cluster)
   const drawn = withJacks(result, petals(result, writtenOf(result), opts.bulbs ?? true));
-  const { model, groups } = !result.uses?.length || opts.uses === false ? { model: drawn, groups: [] } : withUses(result, drawn);
+  const { model, groups } = !result.takes?.length || opts.uses === false ? { model: drawn, groups: [] } : withUses(result, drawn);
   if (asApp) graphMemo.set(result, { model, groups });
   return model;
 }
@@ -47,7 +47,7 @@ const drawnAsApp = (result: CompileResult) => {
 };
 /** What each `use` line gives the graph as drawn: its group (its nodes, and the cells folded into its name). */
 export function usesOf(result: CompileResult): readonly UseGroup[] {
-  return result.uses?.length ? drawnAsApp(result).groups : [];
+  return result.takes?.length ? drawnAsApp(result).groups : [];
 }
 
 /**

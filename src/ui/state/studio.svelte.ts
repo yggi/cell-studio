@@ -462,7 +462,7 @@ export class Studio {
     const lambda = /^λ(\d+)_/.exec(name);
     const i = lambda ? +lambda[1]! - 1 : declLine(this.piece.code, name);
     // (a cell a `use` line gave: that line, #480)
-    const use = i < 0 ? this.piece.result.uses?.find((u) => u.gave.includes(`&${name}`)) : undefined;
+    const use = i < 0 ? this.piece.result.takes?.find((u) => u.gave.includes(`&${name}`)) : undefined;
     if (i >= 0 || use) this.editor?.showLine(use ? use.span.line : i + 1);
   }
 

@@ -8,11 +8,11 @@
  * the module holds) has no wire: the jack draws its knob.
  *
  * The jacks are cells' own (`jacksOf`, `@yggi/cells/engine/patch`), read off the module's `from` line as its use
- * records it (`Used.args`). Pure: no DOM.
+ * records it (`Take.args`). Pure: no DOM.
  */
 import { cellId, edgeId } from '@yggi/cells/engine/ids';
 import { isCellNode, netsOf, type GraphEdge, type GraphModel, type GraphNode } from '@yggi/cells/engine/graph';
-import type { CompileResult, Used } from '@yggi/cells/engine/program';
+import type { CompileResult, Take } from '@yggi/cells/engine/program';
 import { jacksOf, MOVING, type Jack } from '@yggi/cells/engine/patch';
 import { envelopeBox, VOICE_SIZE } from './voice';
 import { LIBRARY, resolveSeed } from '@yggi/cells/repository/library';
@@ -33,7 +33,7 @@ const MODULES = new Set(LIBRARY.filter((f) => f.association.some((wp) => wp.face
 const bare = (n: string) => n.replace(/^&/, '');
 
 /** A module's `from` line, written again from its use (decision 065: the head, the id, its named arguments, its main one). */
-function lineOf(u: Used, head: string, main: string | null): string {
+function lineOf(u: Take, head: string, main: string | null): string {
   const named = Object.entries(u.args ?? {}).filter(([k]) => k !== main);
   const list = named.length ? `(${named.map(([k, v]) => `${k}=${v}`).join(', ')})` : '';
   const given = main ? u.args?.[main] : undefined;
@@ -44,12 +44,12 @@ function lineOf(u: Used, head: string, main: string | null): string {
 export const INSTRUMENT_MODULES: ReadonlySet<string> = new Set(['lowpass', 'highpass', 'amp']);
 
 /** A use of a module, as one head: what decision 069 draws as one wheel (a meter's or a mode's template stays a cell). */
-export const isModuleUse = (u: Used): boolean => MODULES.has(u.id) && u.names?.length === 1;
+export const isModuleUse = (u: Take): boolean => MODULES.has(u.id) && u.names?.length === 1;
 
 /** The modules a program takes, by head (bare name). */
 function modulesOf(result: CompileResult): ReadonlyMap<string, Module> {
   const out = new Map<string, Module>();
-  for (const u of result.uses ?? []) {
+  for (const u of result.takes ?? []) {
     if (!isModuleUse(u)) continue;
     const head = bare(u.names![0]!);
     const text = resolveSeed(u.id);

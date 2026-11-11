@@ -252,7 +252,7 @@
   const given = $derived(selectedName === undefined ? undefined : givenBy(uses, selectedName));
   const sheetSource = $derived.by(() => {
     if (!given || selectedName === undefined) return source;
-    const locked = (shown.program.uses ?? []).flatMap((u) => (u.hash ? [{ id: u.id, hash: u.hash }] : []));
+    const locked = (shown.program.takes ?? []).flatMap((u) => (u.hash ? [{ id: u.id, hash: u.hash }] : []));
     return withUsedLine(source, selectedName, locked);
   });
   $effect(() => {
