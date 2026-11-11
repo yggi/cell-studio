@@ -5,7 +5,8 @@ import { EXAMPLES } from '@yggi/cells/engine/examples';
 import { playedCells, shiftsAt } from '@yggi/cells/engine/clocking';
 import { liveAt } from '@yggi/cells/engine/live';
 import { cellView } from './cellview';
-import { drawnShifts, turningCells } from './turning';
+import { drawnShifts, turnKey, turnsSeen, turningCells } from './turning';
+import { formatLabel } from './labels';
 
 // the moments looked at: 40 s in eighths of a second and a bit (so no step boundary is met twice the same way)
 const MOMENTS = Array.from({ length: 300 }, (_, i) => i * 0.13);
@@ -102,5 +103,43 @@ describe('one motion per wheel: a played cell its hand, a table nothing plays it
       [2, 4, 6],
       [3, 5, 7],
     ]);
+  });
+});
+
+describe('what a cell sees turn (turnsSeen): a view keyed by it is never stale', () => {
+  it('over the library, a table a cell does not see, turned a step, changes neither its wheel nor its label', () => {
+    const stale: string[] = [];
+    let checked = 0;
+    for (const [key, p] of Object.entries(EXAMPLES)) {
+      const r = compilePiece(p.source);
+      const statics = codeShifts(r);
+      const turning = turningCells(r);
+      const drawn = (name: string, now: typeof statics) => {
+        const shifts = drawnShifts(r, statics, now, name);
+        const label = r.cells.get(name)?.label;
+        return JSON.stringify([cellView(r, name, shifts, false), label ? formatLabel(r, name, label, shifts) : null]);
+      };
+      for (const name of r.cells.keys()) {
+        const seen = new Set(turnsSeen(r, name));
+        const before = drawn(name, statics);
+        for (const t of turning) {
+          if (seen.has(t)) continue;
+          checked++;
+          if (drawn(name, (n) => (n === t ? statics(n) + 1 : statics(n))) !== before) stale.push(`${key}.${name} (${t})`);
+        }
+      }
+    }
+    expect(checked).toBeGreaterThan(100);
+    expect(stale).toEqual([]);
+  });
+
+  it("BWV 847: a fugue voice's wheel doesn't wait on the prelude's chord shapes, and the shapes' reader does", () => {
+    const r = compilePiece(EXAMPLES.bwv847.source);
+    expect(turnsSeen(r, 'rhFigure')).toContain('rhShapes');
+    expect(turnsSeen(r, 'subject')).not.toContain('rhShapes');
+    const statics = codeShifts(r);
+    const turned = (n: string) => (n === 'rhShapes' ? statics(n) + 1 : statics(n));
+    expect(turnKey(r, turned, ['subject'])).toBe(turnKey(r, statics, ['subject']));
+    expect(turnKey(r, turned, ['rhFigure'])).not.toBe(turnKey(r, statics, ['rhFigure']));
   });
 });

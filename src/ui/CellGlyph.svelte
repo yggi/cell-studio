@@ -19,7 +19,7 @@
   import { getGraphContext } from './context';
   import { meterNow } from '../layout/meters';
   import { cursorOf, fanOf, joins, layTrack } from '../layout/track';
-  import { drawnShifts } from '../layout/turning';
+  import { drawnShifts, turnKey } from '../layout/turning';
   import {
     SlotCache,
     accessedOf,
@@ -99,8 +99,15 @@
   const drawn = $derived(drawnOf(ctx.program, name));
   // the shifts to draw with: as they stand now — redrawn when a table turns, not every frame; a played cell (and its
   // bulbs) as written, its hand says where it is (layout/turning.ts)
-  const shown = $derived.by(() => {
+  // (a key over the tables it sees turn, layout/turning.ts turnsSeen: made again when any table in the piece turns — the
+  // one key the graph keeps, ctx.turned — and what is drawn with it redrawn only when one it sees turned: every edge's
+  // and wheel's views at once was a long task each time a selector stepped)
+  const turn = $derived.by(() => {
     void ctx.turned;
+    return turnKey(ctx.program, untrack(() => ctx.heads.shifts) ?? ctx.shifts, [name, drawn]);
+  });
+  const shown = $derived.by(() => {
+    void turn;
     const still = ctx.shifts;
     return drawnShifts(ctx.program, still, untrack(() => ctx.heads.shifts) ?? still, drawn);
   });
@@ -296,7 +303,16 @@
   const litKey = $derived(
     sectionsTable ? litSections(view, cell, ctx.lit?.nodes) : litSteps(view, () => (hasLive && liveLocal !== null ? liveLocal / lapOf(ctx.program, played) : null)),
   );
-  const lit = $derived(litSet(litKey));
+  // (state set when the key changes, not a derived of it: the key is made again every frame, and a derived of it re-checks —
+  // its every slot's `lit.has(i)` re-run each frame, Svelte comparing versions, not values: Graph.svelte `turned`, #631)
+  let lit = $state.raw<ReadonlySet<number>>(new Set());
+  let litFor: string | null = null;
+  $effect.pre(() => {
+    const key = litKey;
+    if (key === litFor) return;
+    litFor = key;
+    lit = litSet(key);
+  });
   // a table: the entries being read now (accessed) — a dot in each, like a read head …
   const accessed = $derived(hasLive && view.mode !== 'braid' ? accessedOf(view, entriesKey) : new Set<number>());
 

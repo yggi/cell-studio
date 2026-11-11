@@ -73,3 +73,67 @@ export function turningCells(program: CompileResult): string[] {
   const { played, read } = turningOf(program);
   return [...program.cells.values()].filter((c) => c.step && !c.voice && (!played.has(c.name) || read.has(c.name))).map((c) => c.name);
 }
+
+/**
+ * The turning cells (turningCells) whose turn can change what is drawn for `name`: its wheel, its edges, its label.
+ * Reached through every cell its compiled cell names (its splices, `over=`, its parameters' cells, a label's `&x`, any
+ * field that names one), and theirs, itself among them — generous, so that a view keyed by their shifts alone
+ * (`turnKey`) is never stale; a cell nothing turning reaches has none, and is drawn once. Kept with the program.
+ */
+export function turnsSeen(program: CompileResult, name: string): readonly string[] {
+  let by = seenCache.get(program);
+  if (!by) seenCache.set(program, (by = { turning: new Set(turningCells(program)), named: new Map(), seen: new Map() }));
+  const had = by.seen.get(name);
+  if (had) return had;
+  const out: string[] = [];
+  const visited = new Set<string>();
+  const stack = [name];
+  while (stack.length) {
+    const n = stack.pop()!;
+    if (visited.has(n)) continue;
+    visited.add(n);
+    if (by.turning.has(n)) out.push(n);
+    for (const m of namedBy(program, by.named, n)) if (!visited.has(m)) stack.push(m);
+  }
+  out.sort();
+  by.seen.set(name, out);
+  return out;
+}
+
+/** A key over the shifts now of what `names` see turn (turnsSeen): it changes only when something they show turns. */
+export function turnKey(program: CompileResult, now: Shifts, names: readonly (string | null | undefined)[]): string {
+  let key = '';
+  for (const name of names) if (name) for (const n of turnsSeen(program, name)) key += `${n}:${now(n)} `;
+  return key;
+}
+
+const seenCache = new WeakMap<CompileResult, { turning: ReadonlySet<string>; named: Map<string, readonly string[]>; seen: Map<string, readonly string[]> }>();
+
+/** The cells a cell's compiled form names anywhere (strings that are cells' names, or `&name` in a text), not itself. */
+function namedBy(program: CompileResult, named: Map<string, readonly string[]>, name: string): readonly string[] {
+  const had = named.get(name);
+  if (had) return had;
+  const found = new Set<string>();
+  const seen = new Set<unknown>();
+  const visit = (v: unknown, depth: number) => {
+    if (typeof v === 'string') {
+      if (program.cells.has(v)) found.add(v);
+      else if (v.includes('&')) for (const m of v.matchAll(/&([A-Za-z_][\w]*)/g)) if (program.cells.has(m[1]!)) found.add(m[1]!);
+      return;
+    }
+    if (!v || typeof v !== 'object' || depth > 6 || seen.has(v)) return;
+    seen.add(v);
+    if (v instanceof Map) {
+      for (const [k, x] of v) {
+        visit(k, depth + 1);
+        visit(x, depth + 1);
+      }
+    } else if (v instanceof Set || Array.isArray(v)) for (const x of v) visit(x, depth + 1);
+    else for (const x of Object.values(v)) visit(x, depth + 1);
+  };
+  visit(program.cells.get(name), 0);
+  found.delete(name);
+  const out = [...found];
+  named.set(name, out);
+  return out;
+}

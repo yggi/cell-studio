@@ -119,6 +119,21 @@ destination, so it works headless.
 - Beware ablations by class: the graph's own container has `class:sky`, so `.sky{display:none}` hides the whole graph.
   `?sky=off` switches the sky off. After #628 Bach 847's sky is ~2 % of busy in its own JS; the rest of its cost is the
   browser painting and compositing a full-screen canvas at each draw, so how often it draws (`EVERY`) is the lever.
+- Count what re-runs, not only where time goes: wrapping Svelte's `update_reaction` in a non-minified build (time and
+  count per `reaction.fn`, grouped by its source text) lists every derived and effect by runs a second and instances
+  (#631). It found the timeline's ~1,100 segment fills on BWV 847 (now drawn by one effect, `Timeline.svelte`) and every
+  edge's and wheel's views redrawn when any table turned (now keyed by what each sees turn: `turnsSeen`, `turnKey` in
+  `layout/turning.ts`).
+- Svelte 5 compares versions, not values: a derived's version moves only when its value changes, and a reaction re-runs
+  when a dependency's version is newer than its own. So a derived that recomputes to what it was after its input
+  changed stays "older" than that input, and is re-run at every later check; and every derived of a per-frame value is
+  checked every frame. A key made from per-frame state (`turned`, a wheel's `litKey`, the live edges) feeding many
+  views is a `$state` written by an `$effect.pre` only when the key changes, not a `$derived` of it (#631: BWV 847's
+  reactions 25,700 → 11,400 a second). To find which dependency trips a re-run, log `dependency.fn` in `is_dirty`
+  where `dependency.wv > reaction.wv`, for the reaction whose source text you name.
+- `document.getAnimations()` and CDP `LayerTree.compositingReasons` show what is composited and why: entrance animations
+  held with `fill-mode: both` kept 97 layers alive on BWV 847 (`backwards` now). `PaintArtifactCompositor::Update`
+  (~20 % of busy) still follows the graph's DOM, not its layers.
 - Per-frame views run from the one frame loop, `onFrames` in `src/audio/ticker.ts` (no `requestAnimationFrame` of
   their own); it stretches their interval by `load.scale` when frames come late. Skip work when not visible.
 

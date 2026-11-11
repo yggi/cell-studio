@@ -305,19 +305,29 @@
     };
   });
 
-  function draw() {
-    const g = canvas?.getContext('2d');
-    if (!g || !h) return;
-    hits = [];
+  // (the ground as last drawn, and what it was drawn for)
+  let groundKept: {
+    canvas: HTMLCanvasElement;
+    labelled: number[];
+    for: readonly unknown[];
+  } | null = null;
+  function groundOf(W: number, half: number, foot: number, tower: TowerScale): { canvas: HTMLCanvasElement; labelled: number[] } | null {
+    if (typeof document === 'undefined') return null;
+    const key = [W, h, dpr, open, bare, scale, foot, half];
+    if (groundKept && groundKept.for.length === key.length && groundKept.for.every((v, i) => v === key[i])) return groundKept;
+    const c = groundKept?.canvas ?? document.createElement('canvas');
+    c.width = Math.ceil(W * dpr);
+    c.height = Math.ceil(h * dpr);
+    const gg = c.getContext('2d');
+    if (!gg) return null;
+    gg.setTransform(dpr, 0, 0, dpr, 0, 0);
     labelled = [];
-    const W = sw;
-    g.setTransform(dpr, 0, 0, dpr, 0, 0);
-    g.clearRect(0, 0, W, h);
+    paintGround(gg, W, half, foot, tower);
+    groundKept = { canvas: c, labelled: [...labelled], for: key };
+    return groundKept;
+  }
+  function paintGround(g: CanvasRenderingContext2D, W: number, half: number, foot: number, tower: TowerScale) {
     const band = (b: number) => Math.log10(bandFreq(b, BANDS));
-    const half = (yOf(band(1)) - yOf(band(0))) * 0.5;
-    // (the scale with the constant's band at the strip's foot, when it has tables to show)
-    const foot = constantTop();
-    const tower = foot < h ? withConstant(scale, { top: foot, bottom: h }) : scale;
     // the audible: the rainbow, a band a semitone
     for (let b = 0; b < BANDS; b++) {
       const f = bandFreq(b, BANDS);
@@ -414,6 +424,32 @@
       g.lineTo(W, foot);
       g.stroke();
     }
+  }
+
+  function draw() {
+    const g = canvas?.getContext('2d');
+    if (!g || !h) return;
+    hits = [];
+    labelled = [];
+    const W = sw;
+    g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    g.clearRect(0, 0, W, h);
+    const band = (b: number) => Math.log10(bandFreq(b, BANDS));
+    const half = (yOf(band(1)) - yOf(band(0))) * 0.5;
+    // (the scale with the constant's band at the strip's foot, when it has tables to show)
+    const foot = constantTop();
+    const tower = foot < h ? withConstant(scale, { top: foot, bottom: h }) : scale;
+    // the ground: the rainbow, the strata's rails, the scale and its names, the rates' rainbow, the constant's ground —
+    // the same from frame to frame while the view, the strip and the scale stay: drawn once into a picture of its own
+    // (groundOf) and laid down each frame, not the hundreds of bands and the names on their halos again (#631)
+    const ground = groundOf(W, half, foot, tower);
+    if (ground) {
+      g.save();
+      g.setTransform(1, 0, 0, 1, 0, 0);
+      g.drawImage(ground.canvas, 0, 0);
+      g.restore();
+      labelled = [...ground.labelled];
+    } else paintGround(g, W, half, foot, tower);
     // (collapsed: the scale and its strata only)
     if (bare) return names(g, W, tower);
     // (no lanes — outside the graph, or nothing goes out: the rows in one wide column, solo)

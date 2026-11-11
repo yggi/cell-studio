@@ -561,10 +561,14 @@
   // the shifts of the tables that turn, as now: a key that changes only when one does (not a played cell's: its hand
   // moves, its ring doesn't: layout/turning.ts)
   const turning = $derived(turningCells(shown.program));
-  const turned = $derived.by(() => {
+  // (state written when the key changes, not a derived: a derived of the heads is marked again each frame, and with it
+  // every view keyed by it, each re-checked — and a derived that recomputes to what it was is re-run at every check
+  // after, Svelte comparing versions, not values: the wheels' views and their slots, every frame, #631)
+  let turned = $state('turned');
+  $effect.pre(() => {
     let key = 'turned';
     for (const name of turning) key += `|${heads.shifts(name)}`;
-    return key;
+    if (key !== untrack(() => turned)) turned = key;
   });
   // (what is lit: the routing at the transport's time; stopped, nothing is)
   const live = $derived(transport === 'stopped' ? null : heads);
@@ -575,7 +579,16 @@
   const liveEdges = $derived(liveDrawn ? [...liveDrawn.edges].sort().join('|') : null);
   // The live edges as a set, which each edge reads for itself (PulseEdge): a step that changes them does not make the
   // whole edge list again for the flow to reconcile (#13). null: nothing plays.
-  const liveEdgeSet = $derived<ReadonlySet<string> | null>(liveEdges === null ? null : new Set(liveEdges ? liveEdges.split('|') : []));
+  // (state set when the key changes, as `turned`: each edge's state reads it, and a derived of the key would re-run
+  // every edge's every frame)
+  let liveEdgeSet = $state.raw<ReadonlySet<string> | null>(null);
+  let liveEdgesFor: string | null | undefined;
+  $effect.pre(() => {
+    const key = liveEdges;
+    if (key === liveEdgesFor) return;
+    liveEdgesFor = key;
+    liveEdgeSet = key === null ? null : new Set(key ? key.split('|') : []);
+  });
   const lit = $derived(liveEdges !== null);
   // (only a belt's stretch is drawn from the moment, and that is read when the list is made)
   const hasBelts = $derived([...shown.program.cells.values()].some((c) => typeof c.params.belt === 'number'));
