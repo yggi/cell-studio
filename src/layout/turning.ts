@@ -82,7 +82,7 @@ export function turningCells(program: CompileResult): string[] {
  */
 export function turnsSeen(program: CompileResult, name: string): readonly string[] {
   let by = seenCache.get(program);
-  if (!by) seenCache.set(program, (by = { turning: new Set(turningCells(program)), named: new Map(), seen: new Map() }));
+  if (!by) seenCache.set(program, (by = { turning: new Set(turningCells(program)), named: new Map(), seen: new Map(), reach: new Map() }));
   const had = by.seen.get(name);
   if (had) return had;
   const out: string[] = [];
@@ -97,7 +97,19 @@ export function turnsSeen(program: CompileResult, name: string): readonly string
   }
   out.sort();
   by.seen.set(name, out);
+  by.reach.set(name, [...visited].sort());
   return out;
+}
+
+/**
+ * A key over the shifts of everything `name` reaches (as turnsSeen walks it, itself included): what its view can depend
+ * on, beside the program. Two shifts that agree on these draw it the same (cellView's memo).
+ */
+export function shiftsKey(program: CompileResult, name: string, shifts: Shifts): string {
+  turnsSeen(program, name);
+  let key = '';
+  for (const n of seenCache.get(program)!.reach.get(name)!) key += `${shifts(n)},`;
+  return key;
 }
 
 /** A key over the shifts now of what `names` see turn (turnsSeen): it changes only when something they show turns. */
@@ -107,7 +119,10 @@ export function turnKey(program: CompileResult, now: Shifts, names: readonly (st
   return key;
 }
 
-const seenCache = new WeakMap<CompileResult, { turning: ReadonlySet<string>; named: Map<string, readonly string[]>; seen: Map<string, readonly string[]> }>();
+const seenCache = new WeakMap<
+  CompileResult,
+  { turning: ReadonlySet<string>; named: Map<string, readonly string[]>; seen: Map<string, readonly string[]>; reach: Map<string, readonly string[]> }
+>();
 
 /** The cells a cell's compiled form names anywhere (strings that are cells' names, or `&name` in a text), not itself. */
 function namedBy(program: CompileResult, named: Map<string, readonly string[]>, name: string): readonly string[] {

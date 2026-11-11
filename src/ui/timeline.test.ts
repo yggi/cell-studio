@@ -41,6 +41,31 @@ describe('segmentsOf', () => {
     expect(segmentsOf([], 90, WIDE)).toHaveLength(1);
     expect(segmentsOf(POP, null, WIDE)).toEqual([]);
   });
+
+  it('merges runs of sections too narrow to see into segments of 6 px at least, the span covered, wide ones kept (#631)', () => {
+    // (a selector stepping every pulse, as BWV 847's form: a section a step, numbered)
+    const steps = Array.from({ length: 1120 }, (_, i) => ({ at: i * 0.139, label: String(i + 1) }));
+    const segs = segmentsOf(steps, 1120 * 0.139, 500);
+    expect(segs.length).toBeLessThan(100);
+    expect(segs.length).toBeGreaterThan(40);
+    for (const s of segs.slice(0, -1)) expect(((s.to - s.from) / (1120 * 0.139)) * 500).toBeGreaterThanOrEqual(6);
+    for (let i = 1; i < segs.length; i++) expect(segs[i]!.from).toBe(segs[i - 1]!.to);
+    expect(segs[0]!.from).toBe(0);
+    expect(segs.at(-1)!.to).toBe(1120 * 0.139);
+    expect(segs.every((s) => !s.label && !s.ticks.length)).toBe(true);
+    // a wide section among narrow ones keeps its name
+    const mixed = segmentsOf(
+      [
+        { at: 0, label: 'a' },
+        { at: 0.1, label: 'b' },
+        { at: 0.2, label: 'theme' },
+        { at: 50, label: 'c' },
+      ],
+      60,
+      500,
+    );
+    expect(mixed.map((s) => s.label)).toEqual(['', 'theme', 'c']);
+  });
 });
 
 describe('segmentAt', () => {

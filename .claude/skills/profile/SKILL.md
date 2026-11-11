@@ -131,6 +131,10 @@ destination, so it works headless.
   views is a `$state` written by an `$effect.pre` only when the key changes, not a `$derived` of it (#631: BWV 847's
   reactions 25,700 → 11,400 a second). To find which dependency trips a re-run, log `dependency.fn` in `is_dirty`
   where `dependency.wv > reaction.wv`, for the reaction whose source text you name.
+- Ablate the chrome too, not only the graph: on BWV 847 the transport's timeline (1,120 sub-pixel sections, one per
+  step of its form) was a third of the page's busy time, all paint and compositing (`.timeline{display:none}`: 74 → 51 %);
+  segments under 6 px are now merged (`timeline.ts`). Long frames' contents: samples grouped into contiguous busy runs
+  that contain the ticker's `frame`, aggregated over the runs past 45 ms.
 - `document.getAnimations()` and CDP `LayerTree.compositingReasons` show what is composited and why: entrance animations
   held with `fill-mode: both` kept 97 layers alive on BWV 847 (`backwards` now). `PaintArtifactCompositor::Update`
   (~20 % of busy) still follows the graph's DOM, not its layers.

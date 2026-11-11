@@ -19,6 +19,7 @@ import { gateOf } from './gate';
 import { bulbsOf, fanOf, type Bulb } from './track';
 import { footOf } from '@yggi/cells/engine/subseq';
 import { clockCell } from './meters';
+import { shiftsKey } from './turning';
 
 /**
  * Drawn as a grid (entries placed on the grid below) only when it's looked
@@ -171,8 +172,25 @@ export function blank(result: CompileResult, name: string): boolean {
   return writtenOf(result).edges.every((e) => e.from !== id || e.to === id || e.band === 'sync' || ok.has(e.to) || (!!c.over && e.band === 'audio'));
 }
 
-/** What a cell's wheel draws; null for a name the program doesn't have (one piece's name asked of another's program). */
+/**
+ * What a cell's wheel draws; null for a name the program doesn't have (one piece's name asked of another's program).
+ * Kept with the program, by the shifts of what the cell reaches (turning.ts shiftsKey): the wheel, its edges and its
+ * readers ask for the same view when a table turns, and get it made once (#631). Not to be changed by its callers.
+ */
 export function cellView(result: CompileResult, name: string, shifts: Shifts, isMeter: boolean): CellView | null {
+  let kept = views.get(result);
+  if (!kept || kept.size > VIEWS_KEPT) views.set(result, (kept = new Map()));
+  const key = `${isMeter ? 'm' : ''}${name}|${shiftsKey(result, name, shifts)}`;
+  if (kept.has(key)) return kept.get(key)!;
+  const v = madeView(result, name, shifts, isMeter);
+  kept.set(key, v);
+  return v;
+}
+// (how many views a program keeps, at most: a long piece's tables turn through many places; past it they are made again)
+const VIEWS_KEPT = 4000;
+const views = new WeakMap<CompileResult, Map<string, CellView | null>>();
+
+function madeView(result: CompileResult, name: string, shifts: Shifts, isMeter: boolean): CellView | null {
   const v = viewOf(result, name, shifts, isMeter);
   if (!v || !blank(result, name)) return v;
   // (a 0 that means nothing but now: white, on the wheel and on what it sends)

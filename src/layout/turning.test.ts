@@ -5,7 +5,7 @@ import { EXAMPLES } from '@yggi/cells/engine/examples';
 import { playedCells, shiftsAt } from '@yggi/cells/engine/clocking';
 import { liveAt } from '@yggi/cells/engine/live';
 import { cellView } from './cellview';
-import { drawnShifts, turnKey, turnsSeen, turningCells } from './turning';
+import { drawnShifts, shiftsKey, turnKey, turnsSeen, turningCells } from './turning';
 import { formatLabel } from './labels';
 
 // the moments looked at: 40 s in eighths of a second and a bit (so no step boundary is met twice the same way)
@@ -141,5 +141,28 @@ describe('what a cell sees turn (turnsSeen): a view keyed by it is never stale',
     const turned = (n: string) => (n === 'rhShapes' ? statics(n) + 1 : statics(n));
     expect(turnKey(r, turned, ['subject'])).toBe(turnKey(r, statics, ['subject']));
     expect(turnKey(r, turned, ['rhFigure'])).not.toBe(turnKey(r, statics, ['rhFigure']));
+  });
+});
+
+describe('cellView kept by shiftsKey: what a cell reaches, nothing else, changes its view', () => {
+  it('over the library, a shift changed outside what a cell reaches draws it as the shifts as written', () => {
+    const differ: string[] = [];
+    let checked = 0;
+    for (const [key, p] of Object.entries(EXAMPLES)) {
+      const r = compilePiece(p.source);
+      // (a second compile: its views made afresh, none kept from the first's)
+      const fresh = compilePiece(p.source);
+      const statics = codeShifts(r);
+      const names = [...r.cells.keys()];
+      for (const name of names) {
+        const other = names.find((n) => shiftsKey(r, name, (m) => (m === n ? statics(m) + 1 : statics(m))) === shiftsKey(r, name, statics) && n !== name);
+        if (!other) continue;
+        checked++;
+        const moved = (m: string) => (m === other ? statics(m) + 1 : statics(m));
+        if (JSON.stringify(cellView(fresh, name, moved, false)) !== JSON.stringify(cellView(r, name, statics, false))) differ.push(`${key}.${name} (${other})`);
+      }
+    }
+    expect(checked).toBeGreaterThan(200);
+    expect(differ).toEqual([]);
   });
 });

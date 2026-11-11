@@ -11,6 +11,12 @@ export type Segment = { readonly from: number; readonly to: number; readonly lab
 const CHAR_PX = 6.8;
 /** … and its padding. */
 const NAME_PAD = 16;
+/**
+ * Under this many px a segment is merged with its neighbours as narrow: a bar of 2 px and its gap, about what can be
+ * seen and pressed. A selector that steps every pulse makes a section of each step (BWV 847: 1,120), each under a pixel:
+ * they overflowed the track, and drawing them was most of the page's work while it played (#631).
+ */
+const MIN_PX = 6;
 /** How far a press on a name moves (px) before it's a drag. */
 export const DRAG_PX = 4;
 /** ← → move this many seconds. */
@@ -33,7 +39,18 @@ export function segmentsOf(sections: readonly Section[] | null, span: number | n
       last.to = to;
     } else list.push({ from: s.at, to, label: s.label, ticks: [] });
   }
-  return list.map((g) => ({ ...g, named: !!g.label && ((g.to - g.from) / span) * width > g.label.length * CHAR_PX + NAME_PAD }));
+  // (runs of segments each too narrow to see: one segment, its name theirs if they share one, no ticks)
+  const px = (g: { from: number; to: number }) => ((g.to - g.from) / span) * width;
+  const merged: typeof list = [];
+  for (const g of list) {
+    const last = merged.at(-1);
+    if (last && px(g) < MIN_PX && px(last) < MIN_PX) {
+      if (last.label !== g.label) last.label = '';
+      last.ticks = [];
+      last.to = g.to;
+    } else merged.push({ ...g, ticks: [...g.ticks] });
+  }
+  return merged.map((g) => ({ ...g, named: !!g.label && px(g) > g.label.length * CHAR_PX + NAME_PAD }));
 }
 
 /** The segment `t` is in (at a boundary: the one it starts; at the end or past it: the last). */

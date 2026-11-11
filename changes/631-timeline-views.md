@@ -1,0 +1,2 @@
+### Changed
+- **The transport's timeline merges sections too narrow to see**, into segments of 6 px at least: a selector stepping every pulse (BWV 847's form makes a section of each of its 1,120 steps) no longer overflows the bar, which now shows the whole piece, and drawing it is no longer most of the page's work while it plays. A wheel's view is made once for every wire and wheel that shows it, when a table turns. Nothing played changes; saved `.cells` pieces are unchanged.
