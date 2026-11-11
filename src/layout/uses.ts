@@ -73,7 +73,7 @@ function drawsOf(result: CompileResult, node: GraphModel['nodes'][number]): read
 /** Each `use` line's group in a graph, in the order written; none for a piece without one (or a use that gave nothing). */
 export function useGroups(result: CompileResult, model: GraphModel): UseGroup[] {
   const touched = new Set(model.edges.flatMap((e) => [e.source, e.target]));
-  return (result.uses ?? []).flatMap((u) => {
+  return (result.takes ?? []).flatMap((u) => {
     // (a module is a wheel of its own, not a cluster: modules.ts, decision 069)
     if (isModuleUse(u)) return [];
     const names = u.gave.map(bare);

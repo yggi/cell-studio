@@ -25,9 +25,10 @@ describe('meters as ground', () => {
   });
 
   it('two meters: each has its colour, in the order written', () => {
-    const m = graphOf(EXAMPLES.bossa.source);
-    const index = new Map([...meterIndex(m)].map(([id, i]) => [name(id), i]));
-    expect([...index.keys()]).toEqual(['bar', 'clave']);
+    const order = (src: string) => [...meterIndex(graphOf(src)).keys()].map(name);
+    expect(order(EXAMPLES.rhythm.source)).toEqual(['bar', 'tresillo']);
+    // (a meter a `from` line gives comes after the piece's own: bossa's `&bar from meter …`, cells v0.24.0; #636)
+    expect(order(EXAMPLES.bossa.source)).toEqual(['clave', 'bar']);
   });
 });
 

@@ -1,7 +1,8 @@
 /**
  * A host's text, in Jambot's own forms, compiled as Cell studio compiles a piece (`compilePiece`) and played through
  * cells' default performer (`perform`, `readerOf`, cells v0.15.0, #536), as the session feed plays it: each event read as
- * Jambot's host reads it and played with the feel of its bar. The feel's and the swing's vectors run in cells
+ * Jambot's host reads it, by the `part=` and `role=` its text declares (feel version 3, cells v0.24.0), and played with
+ * the feel of its bar. The feel's and the swing's vectors run in cells
  * (`src/engine/perform/feel.test.ts`, over `fixtures/contracts/feel.json` and `swing.json`).
  */
 import { describe, expect, it } from 'vitest';
@@ -9,17 +10,17 @@ import { channelTable, midiNote, routesOf, router } from '@yggi/cells/engine/mid
 import { codeShifts } from '@yggi/cells/engine/program';
 import { eventsBetween, plan, type Played } from '@yggi/cells/engine/realize';
 import { compilePiece } from '../compile';
-import { played, readerOf, readingOf, type FeelFrame } from '@yggi/cells/engine/perform/feel';
+import { played, readerByName, readerOf, readingOf, type FeelFrame } from '@yggi/cells/engine/perform/feel';
 import { perform } from '@yggi/cells/engine/perform/perform';
 import { barSeconds } from './follow';
 
-/** A host's text in its own forms (Jambot's `sectionAsCells`): a swung bar, the General MIDI kit's grooves mixed by `&drums`, the bass on its voice, the MIDI card. */
+/** A host's text in its own forms (Jambot's `sectionAsCells`): a swung bar, the General MIDI kit's grooves mixed by `&drums`, each its drum role, the bass on its voice, its part, the MIDI card. */
 const TEXT = `&bar meter("4/4") step=120bpm swing=16n:.6
-&kick step=16n &bd ~ ~ ~ &bd ~ ~ ~ &bd ~ ~ ~ &bd ~ ~ ~
-&hat step=16n &hh &hh &hh &hh &hh &hh &hh &hh &hh &hh &hh &hh &hh &hh &hh &hh
+&kick role=kick step=16n &bd ~ ~ ~ &bd ~ ~ ~ &bd ~ ~ ~ &bd ~ ~ ~
+&hat role=hat step=16n &hh &hh &hh &hh &hh &hh &hh &hh &hh &hh &hh &hh &hh &hh &hh &hh
 &drums [&kick, &hat]
 &bd, &rim, &sd, &cp, &lt, &hh, &ph, &mt, &oh, &ht, &cr, &rd, &claves from gm_kit
-&bass step=16n legato=.5 0 ~ ~ ~ 0 ~ 7 ~ 0 ~ ~ ~ 5 ~ 7 ~
+&bass part=bass step=16n legato=.5 0 ~ ~ ~ 0 ~ 7 ~ 0 ~ ~ ~ 5 ~ 7 ~
 &bassOut play=&bass level=.7 &bassV
 &bassV loop=C2
 &shaker step=4n 0 0 0 0
@@ -39,6 +40,7 @@ const r = compilePiece(TEXT);
 const p = plan(r, codeShifts(r), r.off);
 const [r0, p0] = [r, p];
 const route = router(r, channelTable(r));
+const read0 = readerOf(r);
 const seconds = barSeconds(r)!;
 /** The text's second bar, as the song's bar 12. */
 const at = { bar: 12, frame, start: seconds, seconds };
@@ -57,14 +59,14 @@ describe('a host’s text played as its performers play it', () => {
   });
 
   it('reads each event as Jambot’s host does: its part and role, its step through the swing undone, its note and velocity as MIDI sends them', () => {
-    const done = events.map((e) => perform(e, route, at).performance).filter((x) => x !== null);
+    const done = events.map((e) => perform(e, route, at, read0).performance).filter((x) => x !== null);
     expect(done.filter((x) => x.part === 'drums' && x.role === 'hat').map((x) => x.step)).toEqual([...Array(16).keys()]);
     expect(done.filter((x) => x.role === 'kick').map((x) => x.step)).toEqual([0, 4, 8, 12]);
     expect(done.filter((x) => x.part === 'bass').map((x) => x.step)).toEqual([0, 4, 6, 8, 12, 14]);
     expect(done.every((x) => x.bar === 12)).toBe(true);
     // (a hat rings its whole 16th, swung long or short: one step written, the feel's velocity and length of that)
     for (const e of events.filter((e) => e.output!.startsWith('kit:voices:hat'))) {
-      const { performance } = perform(e, route, at);
+      const { performance } = perform(e, route, at, read0);
       const hit = { part: 'drums', role: 'hat', step: performance!.step, note: sent(e).note, velocity: sent(e).velocity, length: 1 } as const;
       expect(performance!.length).toBeCloseTo(played(frame, hit).length, 12);
       expect(performance!.velocity).toBe(played(frame, hit).velocity);
@@ -72,7 +74,7 @@ describe('a host’s text played as its performers play it', () => {
     // (a bass note held half its 16th: half a step written, wherever the swing lays it)
     const bass = events.filter((e) => e.output!.startsWith('bassV'));
     for (const e of bass) {
-      const { performance } = perform(e, route, at);
+      const { performance } = perform(e, route, at, read0);
       const step = performance!.step;
       expect(performance).toEqual({
         bar: 12,
@@ -88,7 +90,7 @@ describe('a host’s text played as its performers play it', () => {
   it('plays it with the feel: MIDI sends the feel’s velocity, the note ends at its step and the feel’s length through the swing, its onset never moved', () => {
     let moved = 0;
     for (const e of events) {
-      const { event, performance } = perform(e, route, at);
+      const { event, performance } = perform(e, route, at, read0);
       if (!performance) continue;
       expect(event.at).toBe(e.at);
       expect(sent(event).velocity).toBe(performance.velocity);
@@ -106,15 +108,15 @@ describe('a host’s text played as its performers play it', () => {
   it('plays an event the feel doesn’t read as cells gives it, and one in a bar with no frame is the caller’s to leave', () => {
     const shaker = events.filter((e) => e.output!.startsWith('shakerV'));
     expect(shaker).toHaveLength(4);
-    for (const e of shaker) expect(perform(e, route, at)).toEqual({ event: e, performance: null });
+    for (const e of shaker) expect(perform(e, route, at, read0)).toEqual({ event: e, performance: null });
   });
 });
 
 /**
  * A host's text whose pitched parts play through cells' seed performers (yggi/jambot#514): each gate's output id is its
  * part's, on the voice of the performer's copy where the text passes it none (`bass_bassV:bassline^$-12:…`, cells
- * v0.23.0), and its part is the role of the performer playing it (feel v1.2, #511). A stack of
- * gates on the card (`[&padOut, &stabOut]`) is read the same; a drum hit keeps its line's role.
+ * v0.23.0), and its part is the `part=` on the role cell of the performer playing it (feel version 3; v1.2 read the role's name, #511). A stack of
+ * gates on the card (`[&padOut, &stabOut]`) is read the same; a drum hit's role is its line's `role=`.
  */
 const PERFORMED = `&bar meter("4/4") step=120bpm swing=16n:.6
 &drums, &drumsOut from "drums performer" &drumlines
@@ -122,8 +124,8 @@ const PERFORMED = `&bar meter("4/4") step=120bpm swing=16n:.6
 &pad, &padOut from "pad performer"(padLevel=&padLevel) &padline
 &stab, &stabOut from "stab performer"(stabLevel=&stabLevel) &stabline
 &lead, &leadOut from "lead performer"(leadLevel=&leadLevel) &leadline
-&kick step=16n &bd ~ ~ ~ &bd ~ ~ ~ &bd ~ ~ ~ &bd ~ ~ ~
-&hat step=16n &hh!16
+&kick role=kick step=16n &bd ~ ~ ~ &bd ~ ~ ~ &bd ~ ~ ~ &bd ~ ~ ~
+&hat role=hat step=16n &hh!16
 &drumlines [&kick, &hat]
 &bassline step=16n legato=.5 0 ~ ~ ~ 0 ~ 7 ~ 0 ~ ~ ~ 5 ~ 7 ~
 &bassLevel map=amp .7
@@ -161,17 +163,19 @@ describe('a host’s text whose parts play through performers (feel v1.2)', () =
 
   it('plays each as the old spelling plays the same part: the bass as `bassV:bass`', () => {
     const bass = events.filter((e) => read(e.output)?.part === 'bass');
+    const plain = r0.outputs.find((o) => o.id.startsWith('bassV:bass:'))!.id;
     for (const e of bass) {
       const { performance } = perform(e, route, at, read);
-      expect(performance).toEqual(perform({ ...e, output: 'bassV:bass:6:15' }, route, at).performance);
+      expect(performance).toEqual(perform({ ...e, output: plain }, route, at, readerOf(r0)).performance);
     }
   });
 
-  it('keeps the output’s id as the reading where no performer’s role names it', () => {
-    expect(read('bassV:bass:6:15')).toEqual({ part: 'bass' });
-    expect(read('kit:voices:kick:8:13')).toEqual({ part: 'drums', role: 'kick' });
+  it('reads nothing off an id, and each output as version 2 read it by names', () => {
+    expect(read('bassV:bass:6:15')).toBeNull();
+    expect(read('kit:voices:kick:8:13')).toBeNull();
     expect(read(undefined)).toBeNull();
-    // (Jambot main's spelling, no performers: every output read by its id)
+    for (const e of events) expect(read(e.output), e.output).toEqual(readerByName(r)(e.output));
+    // (Jambot main's spelling, no performers: every output read as its id was)
     const old = readerOf(r0);
     for (const e of eventsBetween(p0, seconds, 2 * seconds, true)) expect(old(e.output), e.output).toEqual(readingOf(e.output));
   });

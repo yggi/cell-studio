@@ -1,4 +1,4 @@
-import { codeShifts, type CompileResult, type Used } from '@yggi/cells/engine/program';
+import { codeShifts, type CompileResult, type Take } from '@yggi/cells/engine/program';
 import { compilePiece, withUsedLine } from '../../compile';
 import { addCell, setFree, setOff, setShift } from '@yggi/cells/engine/edit';
 import { freeIndex, freeList, withHeld } from '@yggi/cells/engine/held';
@@ -70,7 +70,7 @@ export class Piece {
   /** The piece as a file (its frontmatter, the code in its cells blocks, its prose), or the bare code. */
   readonly file = $derived(
     this.frontmatter
-      ? writePiece(recorded({ frontmatter: this.frontmatter, text: this.#code, prose: this.#prose, layout: this.#layout, bare: this.#bare }, this.result.uses))
+      ? writePiece(recorded({ frontmatter: this.frontmatter, text: this.#code, prose: this.#prose, layout: this.#layout, bare: this.#bare }, this.result.takes))
       : this.#code,
   );
   /** Its title, from its file's frontmatter, or from its card as it stands (it follows edits). */
@@ -241,7 +241,7 @@ export class Piece {
  * with an entry keeps it, so a fragment the library has changed since plays its current version with the compile's
  * warning, and the file still says which version it was saved with (keeping the new one is the person's act).
  */
-function recorded(file: PieceFile, uses: readonly Used[] | undefined): PieceFile {
+function recorded(file: PieceFile, uses: readonly Take[] | undefined): PieceFile {
   if (!uses?.length) return file;
   const had = new Set(lockfileOf(file).map((k) => k.id));
   return withLockfile(

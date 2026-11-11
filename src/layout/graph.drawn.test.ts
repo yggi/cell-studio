@@ -649,7 +649,7 @@ describe('every name written is one wire carrying the transform it writes, and e
       const nameOf = (id: string) => id.slice('cell:'.length);
       // (a cell a `use` gave is written in its fragment, not here: a wire to or from one is the fragment's, or a name this
       // text writes, checked above)
-      const given = new Set((program.uses ?? []).flatMap((u) => u.gave.map((n) => n.slice(1))));
+      const given = new Set((program.takes ?? []).flatMap((u) => u.gave.map((n) => n.slice(1))));
       const unwritten = model.edges.flatMap((e) => {
         if (junctions.has(e.from) || forPetals.has(e.id)) return [];
         if (given.has(nameOf(e.from)) || given.has(nameOf(e.to))) return [];
