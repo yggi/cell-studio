@@ -2,7 +2,8 @@
  * What a plugin's drawing is given: one plain value, a frozen copy: no handles on the program or the player. Everything
  * it may know about the cell, the piece's time and (for a day's law) the law, as data.
  */
-import { dayLaw } from '@yggi/cells/engine/fiveto12';
+import { dayLaw, FIVETO12 } from '@yggi/cells/engine/fiveto12';
+import { lawOf } from '@yggi/cells/engine/holes';
 import type { CompileResult } from '@yggi/cells/engine/program';
 import type { ShowPlugin } from '@yggi/cells/engine/plugins';
 import { NOTE_NAMES } from '@yggi/cells/theory/modes';
@@ -32,7 +33,8 @@ function deepFreeze<T>(v: T): T {
 
 export function viewOf(program: CompileResult, plugin: ShowPlugin, name: string, uid: string, seconds: number, playing: boolean): PluginView {
   const cell = program.cells.get(name);
-  const reads = [...program.cells.values()].some((c) => c.params.law === 'fiveto12' && c.over === name);
+  // (the law a cell's `law=` names, read by the language, yggi/cells#711: the day's, whose data this view carries)
+  const reads = [...program.cells.values()].some((c) => lawOf(c.params) === FIVETO12 && c.over === name);
   // (a copy, frozen: a drawing reads the piece, it does not hold it)
   return Object.freeze({
     name,

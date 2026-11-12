@@ -82,7 +82,7 @@ export const AXIS_LIST = AXES;
  * - a meeting point (`c:key:i`): a piece's `from` line whose arguments bring two or more cells the piece took together
  *   (`&haenschenSong from rounded_binary(answer=&hinein, …) &haenschen`), so what it combines meets there and not only
  *   in the piece.
- * Edges: a line to what each of its arguments came through (`&hinein from hinein &key`: hinein to diatonic), from its
+ * Edges: a line to what each of its arguments came through (`&hinein from kinderlied &key`: kinderlied to diatonic), from its
  * fragment or its meeting point; a meeting point to its fragment; a piece to what none of its lines passes on; a
  * fragment to those it takes. No edge is weighted by hand, and no node is set apart as a default.
  */

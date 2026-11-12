@@ -5,6 +5,7 @@ import type { TransportState } from './transport';
 import { compilePiece } from '../compile';
 import { codeShifts } from '@yggi/cells/engine/program';
 import { eventsBetween, plan } from '@yggi/cells/engine/realize';
+import { EXAMPLES } from '@yggi/cells/engine/examples';
 
 // (no Tone in node: the sound engine's waking is stubbed out; what is tested is the transport)
 const hands: [string, (p: Player) => void, (p: Player) => void][] = [
@@ -275,5 +276,68 @@ describe('a feed: a song another clock lays (#478, rung 3)', () => {
     p.pause();
     expect(state()).toBe('paused');
     expect(synced).toEqual([a, b, a]);
+  });
+});
+
+describe('a tempo moved while playing keeps the beat (yggi/cells#56, #638)', () => {
+  // (Drunken Sailor at its 112 bpm, and its slider moved to 90: the text a held free() plays)
+  const sailor = EXAMPLES.sailor.source;
+  const slow = sailor.replace('free(112bpm, 90..140)', 'free(90bpm, 90..140)');
+  const planOf = (text: string) => {
+    const r = compilePiece(text);
+    return plan(r, codeShifts(r));
+  };
+  const before = planOf(sailor);
+  const after = planOf(slow);
+  // (the transport at 60 bpm, rate 1: its seconds are the audio clock's, from 0)
+  function playing() {
+    const p = make();
+    let tick: (time: number) => void = () => {};
+    const played: { at: number }[] = [];
+    const tr = {
+      stop: () => {},
+      cancel: () => {},
+      clear: () => {},
+      start: () => {},
+      position: 0,
+      PPQ: 192,
+      bpm: { value: 60, getValueAtTime: () => 60 },
+      getTicksAtTime: (t: number) => t * 192,
+      scheduleRepeat: (cb: (time: number) => void) => ((tick = cb), 7),
+    };
+    const Tone = { getTransport: () => tr, getContext: () => ({ currentTime: 0, lookAhead: 0 }), now: () => -0.05, immediate: () => 0 };
+    const voices = { open: () => {}, sync: () => {}, play: (e: { at: number }) => played.push(e), dropGates: () => {}, tapeSpeed: () => {} };
+    vi.spyOn(p as unknown as { wake: () => Promise<unknown> }, 'wake').mockResolvedValue(Tone);
+    Object.assign(p as unknown as Record<string, unknown>, { Tone, voices });
+    return { p, tick: (time: number) => tick(time), played };
+  }
+  afterEach(() => (transportClock.state = 'stopped'));
+
+  // (the windows asked to 3 s at the old tempo, then the slider's move; the first note of the new plan heard after)
+  async function moved(load: (p: Player) => void) {
+    const run = playing();
+    run.p.load(before);
+    await run.p.start(0);
+    for (let t = 0; t < 3; t += 0.25) run.tick(t);
+    const anchor = 3;
+    run.played.length = 0;
+    load(run.p);
+    for (let t = 3; t < 4; t += 0.25) run.tick(t);
+    return { anchor, next: Math.min(...run.played.map((e) => e.at)) };
+  }
+
+  it('the next onset lands within 1 ms of t + (the old plan’s next onset − t) × old bpm / new bpm, t where the old plan’s windows end', async () => {
+    const { anchor, next } = await moved((p) => p.load(after));
+    const old = Math.min(...eventsBetween(before, anchor, anchor + 2).map((e) => e.at));
+    const expected = anchor + ((old - anchor) * 112) / 90;
+    expect(Math.abs(next - expected)).toBeLessThan(0.001);
+    // (the swap as it was, the new plan from the same second, misses it: the jump #232 measured)
+    const unkept = Math.min(...eventsBetween(after, anchor, anchor + 2).map((e) => e.at));
+    expect(Math.abs(unkept - expected)).toBeGreaterThan(0.01);
+  });
+
+  it('a swap that leaves the beat clock as it was goes on from the same second', async () => {
+    const { anchor, next } = await moved((p) => p.load(planOf(sailor)));
+    expect(next).toBeCloseTo(Math.min(...eventsBetween(before, anchor, anchor + 2).map((e) => e.at)), 9);
   });
 });

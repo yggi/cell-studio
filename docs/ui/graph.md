@@ -35,7 +35,7 @@ The code is the single source of truth. The graph draws exactly the cells and li
 
 Every node and edge is drawn in one of five states, decided for both by one model (`engine/routing.ts` (in `@yggi/cells`), so a node and its edges can't disagree):
 
-- **off**: switched off (`off` in the code; hold to toggle). Faded, grey, a dashed ring; its edges faded.
+- **off**: switched off (`off` in the code; hold to toggle; a template's head takes it before its `from`, `&bar off from meter &tempo`). Faded, grey, a dashed ring; its edges faded. A cell no line of the piece's can carry `off` for (a template's own cell, a head among several that one `from` line takes) isn't switched, and the graph says why for a moment, in cells' words (`offProblem`).
 - **unrouted**: on, but not part of anything that sounds. Faded, once the transport is not stopped.
 - **on** (stopped: nothing is dimmed, routed or not), **idle** (paused or playing, not sounding at that moment: quieter, less colour) and **live** (sounding at that moment: full colour; a live edge glows, pulses and takes its note's colour).
 

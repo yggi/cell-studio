@@ -1,6 +1,6 @@
 import { codeShifts, type CompileResult, type Take } from '@yggi/cells/engine/program';
 import { compilePiece, withUsedLine } from '../../compile';
-import { addCell, setFree, setOff, setShift } from '@yggi/cells/engine/edit';
+import { addCell, offProblem, setFree, setOff, setShift } from '@yggi/cells/engine/edit';
 import { freeIndex, freeList, withHeld } from '@yggi/cells/engine/held';
 import { buildGraph } from '../../layout/drawn';
 import { showProblems } from '../../layout/show';
@@ -182,11 +182,19 @@ export class Piece {
     if (free && !this.#used(free.span.line)) this.code = setFree(this.code, free, shift);
     else this.code = setShift(this.#own(name), name, shift);
   }
-  /** Switch a cell (a graph id, `cell:<name>`) on or off; any other node (a product's junction) is not a cell: nothing. */
-  toggle(id: string): void {
-    if (!id.startsWith('cell:') || this.midi) return;
+  /**
+   * Switch a cell (a graph id, `cell:<name>`) on or off; any other node (a product's junction) is not a cell: nothing.
+   * A cell no line of the piece can carry `off` for (a template's own, a head among several of a `from` line's) isn't
+   * switched: why, in cells' words (`offProblem`, yggi/cells#686), where the toggle did nothing and said nothing.
+   */
+  toggle(id: string): string | null {
+    if (!id.startsWith('cell:') || this.midi) return null;
     const name = id.slice('cell:'.length);
-    this.code = setOff(this.#own(name), name, !this.program.cells.get(name)?.off);
+    const own = this.#own(name);
+    const problem = offProblem(own, name);
+    if (problem) return problem;
+    this.code = setOff(own, name, !this.program.cells.get(name)?.off);
+    return null;
   }
   /** Add a new cell; its name. */
   add(): string {
