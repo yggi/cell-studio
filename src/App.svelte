@@ -48,6 +48,14 @@
     const t = setTimeout(() => (trying = false), 2600);
     return () => clearTimeout(t);
   });
+  // (a cell its toggle can't switch says why, a moment: cells' offProblem, yggi/cells#686; a new one each time, so the
+  // same reason said again shows again)
+  let offSaid = $state<{ text: string } | null>(null);
+  $effect(() => {
+    if (!offSaid) return;
+    const t = setTimeout(() => (offSaid = null), 2600);
+    return () => clearTimeout(t);
+  });
 </script>
 
 <UpdateToast />
@@ -153,7 +161,10 @@
       heads={playback.heads}
       transport={playback.state}
       shifts={piece.shifts}
-      ontoggle={(id) => piece.toggle(id)}
+      ontoggle={(id) => {
+        const why = piece.toggle(id);
+        if (why) offSaid = { text: why };
+      }}
       onturn={(name, shift) => piece.turn(name, shift)}
       onshowcode={(name) => studio.showInCode(name)}
       source={piece.code}
@@ -212,6 +223,9 @@
       {#if trying}
         <p class="first" role="status">The host’s section is read only while you follow the session: leaving it returns to your piece.</p>
       {/if}
+    {/if}
+    {#if offSaid}
+      <p class="first" role="status">{offSaid.text}</p>
     {/if}
     {#if piece.stale}
       <p class="stale">Showing the last version that compiled</p>

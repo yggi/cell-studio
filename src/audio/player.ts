@@ -5,9 +5,11 @@
  * it asks its engine what to play in the next window (engine/schedule.ts:
  * plain data, worked out here or in a worker, audio/engine.ts) and schedules
  * that at its exact offsets. Programs are swapped in whole (on edits and on
- * every shift) and take effect at the next window.
+ * every shift) and take effect at the next window, where the old one's beat is
+ * (a tempo slider's move keeps the beat: `load`).
  */
 import { clocking, tapeMotion } from '@yggi/cells/engine/clocking';
+import { keepBeat } from '@yggi/cells/engine/keepbeat';
 import { eventsBetween, type Plan, type Played } from '@yggi/cells/engine/realize';
 import { isPhysical, retime, type Window } from '@yggi/cells/engine/schedule';
 import type { ClockTicks } from '@yggi/cells/engine/midiclock';
@@ -66,6 +68,16 @@ export interface BarLaid {
 
 /** How many of the latest bars laid are kept (`Player.barsLaid`): minutes of them, for measuring from outside. */
 const BARS_KEPT = 256;
+
+/**
+ * The run playing: when its transport started (audio clock), where in the piece it started (code seconds, the plan's
+ * now: moved on by a load that keeps the beat), and where the windows asked so far end (null: none yet).
+ */
+interface Running {
+  startsAt: number;
+  offset: number;
+  asked: number | null;
+}
 
 /** Where the notes played also go (MIDI out, #205): each window's notes and MIDI clock ticks (#206), retimed onto the audio clock, and the stops. */
 export interface NoteSink {
@@ -144,8 +156,21 @@ export class Player implements LiveSource {
     this.move('touch');
   }
 
-  /** The piece to play: its plan, and the source it was compiled from (for an engine in a worker). */
+  /**
+   * The piece to play: its plan, and the source it was compiled from (for an engine in a worker). Playing, the new plan
+   * goes on where the old one's beat is (yggi/cells#56): from the end of what was already asked of the old one, at the
+   * second of the new one whose beat clock has taken as many steps (`keepBeat`), so a tempo slider's move keeps the beat
+   * in progress and only what follows runs at the new rate. A swap that leaves the beat clock as it was goes on from
+   * the same second. The run's seconds are the new plan's from there (the views, a hand, a worker's windows: one shift).
+   */
   load(plan: Plan, source: PieceSource | null = null): void {
+    const before = this.plan;
+    const run = this.running;
+    if (run && before && run.asked !== null && !this.feeding) {
+      const at = keepBeat(before, plan, run.asked);
+      run.offset += at - run.asked;
+      run.asked = at;
+    }
     this.plan = plan;
     this.engine.load(plan, source);
     // (a feed's voices are its windows' plans')
@@ -399,6 +424,8 @@ export class Player implements LiveSource {
     const ppq = tr.PPQ;
 
     const run = ++this.run;
+    // (where in the piece this run is: moved on when a load keeps the beat)
+    const here: Running = { startsAt: 0, offset, asked: null };
     // a window onto the audio clock, from `time` (its start) at `secPerQuarter`
     const play = (w: Window, time: number, secPerQuarter: number) => {
       if (run !== this.run || !this.voices) return;
@@ -410,11 +437,12 @@ export class Player implements LiveSource {
     };
     this.repeatId = tr.scheduleRepeat(
       (time) => {
-        const from = Math.round((tr.getTicksAtTime(time) / ppq) * 4) / 4 + offset;
+        const from = Math.round((tr.getTicksAtTime(time) / ppq) * 4) / 4 + here.offset;
         const secPerQuarter = 60 / tr.bpm.getValueAtTime(time);
         if (!this.plan) return;
+        here.asked = from + WINDOW;
         // (a drone starts where this run began: decision 028)
-        const w = this.engine.window(from, WINDOW, offset);
+        const w = this.engine.window(from, WINDOW, here.offset);
         if (w instanceof Promise) void w.then((x) => play(x, time, secPerQuarter));
         else play(w, time, secPerQuarter);
       },
@@ -424,7 +452,8 @@ export class Player implements LiveSource {
 
     const startsAt = Tone.now() + 0.05;
     tr.start(startsAt);
-    this.running = { startsAt, offset };
+    here.startsAt = startsAt;
+    this.running = here;
     this.move('play');
     this.stopFrames();
     let lagAt = 0;
@@ -438,7 +467,7 @@ export class Player implements LiveSource {
         this.refreshLag();
       }
       const heard = Tone.immediate() - (this.lag ?? 0);
-      transportClock.seconds = offset + (heard < startsAt ? 0 : Math.max(0, tr.getTicksAtTime(heard) / ppq));
+      transportClock.seconds = here.offset + (heard < startsAt ? 0 : Math.max(0, tr.getTicksAtTime(heard) / ppq));
       // (what this write sets going — the reactive flush of every live view — runs as a microtask queued
       // before this one: when this one runs, the flush is done)
       if (t0) queueMicrotask(() => markDuration('transport + flush', performance.now() - t0));
@@ -521,8 +550,7 @@ export class Player implements LiveSource {
     return clock ? clock.fromDeviceMs(page * 1000) : T.immediate() - (this.lag ?? 0) + (page - performance.now() / 1000);
   }
 
-  // the run playing: when its transport started (audio clock) and where in the piece (code seconds)
-  private running: { startsAt: number; offset: number } | null = null;
+  private running: Running | null = null;
 
   /**
    * Where the piece is (code seconds) heard at a moment on the page's clock (`performance.now()` ms, as a MIDI message's
