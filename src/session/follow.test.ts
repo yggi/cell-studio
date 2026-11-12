@@ -149,4 +149,12 @@ describe('the frame of a bar a host sent', () => {
     expect(frameOf(without(['plan', 'section', 'type'], 'chorus'))).toBeNull();
     expect(frameOf(without(['plan', 'meter', 'heights'], [2, 0]))).toBeNull();
   });
+
+  it('…and is the same with its style’s mood (session minor 9) or without it: cells’ feel reads no mood, so it is kept and not heard', () => {
+    const moody = session.vectors.find((v) => v.reader === 'client' && v.reads && v.message.kind === 'bar' && 'mood' in (v.message.sent!.bar.style as object))!.message.sent!;
+    const plain = structuredClone(moody) as unknown as { bar: { style: Record<string, unknown> } };
+    delete plain.bar.style.mood;
+    expect(frameOf(moody)).not.toBeNull();
+    expect(frameOf(moody)).toEqual(frameOf(plain as unknown as SentBar));
+  });
 });

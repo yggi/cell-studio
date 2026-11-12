@@ -57,6 +57,11 @@
         {#if session.hostAway}The host’s link dropped: the lobby holds the session for it.{/if}
       </p>
       {#if session.notice}<p class="message" role="status">{session.notice}</p>{/if}
+      {#if session.role && session.status === 'joined'}<p class="hint">
+          {session.role === 'listener'
+            ? 'Listening: the host seats you as a listener.'
+            : 'Playing: the host seats you as a player, though Cell studio sends it nothing to play yet.'}
+        </p>{/if}
       {#if session.trip !== null && session.status === 'joined'}<p class="hint">
           The host is {session.trip} ms away and back: the graph is good to {Math.ceil(session.trip / 2)} ms of it.
         </p>{/if}

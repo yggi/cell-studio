@@ -1,17 +1,21 @@
 /**
  * What a Jambot host and its clients say to each other through a lobby, as a client reads it: the session contract,
- * version 1 (yggi/music-commons `contracts/session`, minor 3: protocol 16), implemented here from the contract, not
+ * version 1 (yggi/music-commons `contracts/session-v1`, minor 9: protocol 22), implemented here from the contract, not
  * from Jambot's code (#478). The contract's vectors run against these readers (`protocol.test.ts`).
  *
  * Cell studio is a client that listens (rung 1 of #478): it asks a lobby which sessions are open (`list`, rung 2),
  * sends a host a `join`, `ping`s and a `leave`, and reads every host message, each kind's fields checked (a message of
  * a kind it knows without them is refused, one of a kind it doesn't know is ignored: both are dropped, and the link
- * kept). It keeps what it needs of each (the bars' starts,
- * the section texts, the pongs) and checks the rest only for its shape.
+ * kept). It keeps what it needs of each (the bars' starts, the section texts, the pongs, the role it is seated as) and
+ * checks the rest only for its shape (the style, the forecast, the Muse, the session's log). A field a later minor adds
+ * inside what it reads is kept beside it, unread: a motif's `origin` (minor 8), the style's `mood` (minor 9).
  */
 
-/** The protocol a join of this client carries: the contract's minor 3. A join carries no code: a client that listens needs none (minor 2). */
-export const PROTOCOL = 16;
+/**
+ * The protocol a join of this client carries: the contract's minor 9. A join carries no code: a client that listens
+ * needs none (minor 2); and it sends no `nudge` (minors 5 and 6), which is a player's.
+ */
+export const PROTOCOL = 22;
 /** The first protocol of the contract's version 1: a host of it or later is one of this version (any minor joins). */
 export const FIRST_PROTOCOL = 13;
 
@@ -62,6 +66,17 @@ export interface SentBar {
   readonly start: number | null;
 }
 
+/** The role a host seats a client as: a player's `played`, `judged` and `forget` reach its Muse, a listener's are dropped. */
+export type Role = 'player' | 'listener';
+
+/** A line of the session's log: the bar it is about (null while stopped), who said it (a player's id, or the band's `conductor`, `composer` or `muse`), the kind of line, and the line for people. */
+interface LogLine {
+  readonly bar: number | null;
+  readonly who: string;
+  readonly what: string;
+  readonly text: string;
+}
+
 /** A song a host plays: `start` is where step 0 falls on the host's clock, in seconds. */
 interface Song {
   readonly seed: number;
@@ -83,6 +98,8 @@ export type HostMessage =
       readonly song: (Song & { readonly bars: readonly SentBar[]; readonly texts?: readonly SectionText[] }) | null;
       readonly forecast: Obj;
       readonly muse: Obj;
+      /** The session log's tail (from a host of 20 on). */
+      readonly events?: readonly LogLine[];
     }
   | { readonly kind: 'refused'; readonly reason: string }
   | { readonly kind: 'start'; readonly song: Song }
@@ -94,6 +111,10 @@ export type HostMessage =
   | { readonly kind: 'finale'; readonly bar: number }
   /** A ping answered: its `sent`, the host's page clock as it answered, its output's offset from that (null until paired). */
   | { readonly kind: 'pong'; readonly sent: number; readonly host: number; readonly heard: number | null }
+  /** The role the host now seats this client as (minor 4): sent only for a change, never with a welcome, whose `listening` says the first. */
+  | { readonly kind: 'role'; readonly role: Role }
+  /** A line of the session's log (minor 7). */
+  | ({ readonly kind: 'event' } & LogLine)
   | { readonly kind: 'stop' }
   | { readonly kind: 'closed' };
 
@@ -103,7 +124,22 @@ export type ClientMessage =
   | { readonly kind: 'ping'; readonly sent: number }
   | { readonly kind: 'leave' };
 
-const HOST_KINDS: ReadonlySet<string> = new Set(['welcome', 'refused', 'start', 'track', 'bar', 'forecast', 'muse', 'section', 'finale', 'pong', 'stop', 'closed']);
+const HOST_KINDS: ReadonlySet<string> = new Set([
+  'welcome',
+  'refused',
+  'start',
+  'track',
+  'bar',
+  'forecast',
+  'muse',
+  'section',
+  'finale',
+  'pong',
+  'role',
+  'event',
+  'stop',
+  'closed',
+]);
 /** A lobby's words, never a peer's: refused on the wire. */
 const LOBBY_WORDS: ReadonlySet<string> = new Set(['lost', 'away', 'back']);
 
@@ -127,6 +163,7 @@ const isMuse = (m: unknown): boolean =>
   intOrNull(m.lastPlayed) &&
   isObject(m.players) &&
   Object.values(m.players).every(isString);
+const isLogLine = (l: unknown): boolean => isObject(l) && intOrNull(l.bar) && isString(l.who) && isString(l.what) && isString(l.text);
 const isFrame = (f: unknown): boolean => isObject(f) && isObject(f.meter) && isObject(f.swing) && isObject(f.key) && isFinite(f.bpm);
 const isSectionText = (t: unknown): boolean =>
   isObject(t) &&
@@ -147,7 +184,8 @@ const FITS: Record<HostMessage['kind'], (m: Obj) => boolean> = {
     (m.listening === undefined || m.listening === true) &&
     (m.song === null || (isSong(m.song) && arrayOf((m.song as Obj).bars, isSentBar) && ((m.song as Obj).texts === undefined || arrayOf((m.song as Obj).texts, isSectionText)))) &&
     isForecast(m.forecast) &&
-    isMuse(m.muse),
+    isMuse(m.muse) &&
+    (m.events === undefined || arrayOf(m.events, isLogLine)),
   refused: (m) => isString(m.reason),
   start: (m) => isSong(m.song),
   track: (m) => isObject(m.track) && isObject(m.swing) && isObject(m.tempoMeter),
@@ -157,6 +195,8 @@ const FITS: Record<HostMessage['kind'], (m: Obj) => boolean> = {
   section: isSectionText,
   finale: (m) => isInt(m.bar),
   pong: (m) => isFinite(m.sent) && isFinite(m.host) && (m.heard === null || isFinite(m.heard)),
+  role: (m) => m.role === 'player' || m.role === 'listener',
+  event: isLogLine,
   stop: () => true,
   closed: () => true,
 };
