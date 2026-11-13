@@ -1,4 +1,4 @@
-import { HOSTED_LOBBY, LIMITS, PROTOCOL, leaveOver, readHost, sessionNameProblem, type ClientMessage, type HostMessage, type SectionText } from '../../session/protocol';
+import { HOSTED_LOBBY, LIMITS, PROTOCOL, leaveOver, readHost, sessionNameProblem, type ClientMessage, type HostMessage, type Role, type SectionText } from '../../session/protocol';
 import { NO_CLOCK, hostHeardAt, reading, withPing, type HostClock } from '../../session/clock';
 import { NOTHING_FOLLOWED, heardAt, nextTextAt, pruned, reaches, withBar, withText, type Followed } from '../../session/follow';
 import { LobbyRefused, joinLobby, type ClientLink, type Heard, type Socket } from '../../session/lobby';
@@ -40,6 +40,10 @@ export interface SessionOptions {
  * session is gone, when no welcome comes within the contract's wait, and on a welcome of another version of the
  * protocol (saying `leave`).
  *
+ * It keeps the role the host seats it as (`role`): its welcome's `listening` says the first, and a `role` message a
+ * change (session minor 4). Either way it sends the same: Cell studio plays nothing to a host yet, so a player's seat
+ * changes only what the Jam page says. The session's log (`event`, minor 7) is read and not kept yet.
+ *
  * A link that drops once seated is no leaving (#482): the socket closing, or the host quiet for `silentSeconds` (a
  * socket dead without closing). It is `rejoining`: still following what it has (the bars and texts already sent, on
  * the clock it had), it joins again with the welcome's `resume` token, trying as `session/rejoin.ts` says, under its
@@ -57,6 +61,8 @@ export class SessionClient {
   notice = $state<string | null>(null);
   /** How many times the link came back since the join: seated as the same player, and as a new one. */
   rejoins = $state({ same: 0, new: 0 });
+  /** The role the host seats this client as, while seated: a player, or a listener (seated without the host's code). */
+  role = $state<Role | null>(null);
   /** The session joined (as asked), and this player's name in it. */
   session = $state<string | null>(null);
   name = $state<string | null>(null);
@@ -279,6 +285,7 @@ export class SessionClient {
     this.hostPlaying = false;
     this.hostAway = false;
     this.trip = null;
+    this.role = null;
     this.ended = why;
   }
 
@@ -321,6 +328,7 @@ export class SessionClient {
         }
         this.status = 'joined';
         this.hostAway = false;
+        this.role = message.listening ? 'listener' : 'player';
         this.#token = message.resume;
         // (the host's page clock may be another: it reloaded)
         this.#clock = NO_CLOCK;
@@ -384,10 +392,14 @@ export class SessionClient {
         this.#followed = NOTHING_FOLLOWED;
         this.#song = null;
         return;
-      // (the style, the bars ahead and the Muse: read, and not shown yet)
+      case 'role':
+        this.role = message.role;
+        return;
+      // (the style, the bars ahead, the Muse and the session's log: read, and not shown yet)
       case 'track':
       case 'forecast':
       case 'muse':
+      case 'event':
         return;
     }
   }

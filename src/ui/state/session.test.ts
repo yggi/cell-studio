@@ -113,6 +113,35 @@ describe('SessionClient: Cell studio following a Jambot session', () => {
     expect(client.status).toBe('joined');
   });
 
+  it('keeps the role the host seats it as: the welcome’s, then each `role` (session minor 4), and none once it left', async () => {
+    await joined();
+    expect(client.role).toBe('player');
+    socket.say({ op: 'said', message: { kind: 'role', role: 'listener' } });
+    expect(client.role).toBe('listener');
+    socket.say({ op: 'said', message: { kind: 'role', role: 'host' } });
+    expect([client.role, client.dropped.refused]).toEqual(['listener', 1]);
+    socket.say({ op: 'said', message: { kind: 'role', role: 'player' } });
+    expect(client.role).toBe('player');
+    client.leave();
+    expect(client.role).toBeNull();
+    // (seated without the host's code: its welcome says it listens)
+    const joining = client.join('wss://lobby.test', 'jam', 'Cell studio');
+    socket.open();
+    socket.say({ op: 'joined', session: 'jam' });
+    await joining;
+    socket.say({ op: 'said', message: { ...welcome(PROTOCOL), listening: true } });
+    expect(client.role).toBe('listener');
+  });
+
+  it('reads the session’s log and a nudge’s kind without a change to what it sends or follows (session minors 5 to 7)', async () => {
+    await joined();
+    socket.say({ op: 'said', message: { kind: 'event', bar: null, who: 'conductor', what: 'moved', text: 'The tempo leans.' } });
+    socket.say({ op: 'said', message: { kind: 'nudge', target: 'key', by: 1 } });
+    expect(client.dropped).toEqual({ refused: 0, ignored: 1 });
+    expect(client.status).toBe('joined');
+    expect(new Set(socket.told.map((m) => (m as { kind: string }).kind))).toEqual(new Set(['join', 'ping']));
+  });
+
   it('takes no refusal but one that names its name for a taken name', async () => {
     await joined();
     socket.say({ op: 'said', message: { kind: 'refused', reason: 'This host speaks version 15 of the session protocol, which takes 15 on, and this app 14: reload it.' } });
