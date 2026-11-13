@@ -8,6 +8,8 @@ __pycache__/
 *.swp
 coverage/
 .vite/
+# ESLint's and Prettier's caches, by content (package.json's lint and format:check)
+.cache/
 *.log
 
 # profiling output
