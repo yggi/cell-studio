@@ -378,7 +378,7 @@ describe('a wire carries its transform', () => {
     // (a tap of the meter, decision 040: its chain is its rate; a tap with none, the meter's own wire)
     expect(edge(EXAMPLES.echotape.source, 'bar', 'tune').transforms).toEqual([[]]);
     expect(edge('&bar scan(1 1 1 1) step=1\n&t step=1m/4 0', 'bar', 't').transforms).toEqual([[{ kind: 'rate', by: [{ op: '÷', n: 4 }], per: 'step', whole: false }]]);
-    expect(edge(EXAMPLES.fifths.source, 'tune', 'key').transforms).toEqual([[{ kind: 'rate', by: [], per: 'cycle', whole: false }]]);
+    expect(edge(EXAMPLES.fifths.source, 'tune', 'twelve').transforms).toEqual([[{ kind: 'rate', by: [], per: 'cycle', whole: false }]]);
     // (a tap on a belt names itself on its wire, cells v0.4.0: `step=8n belt=3000` is `8n · belt`)
     expect(edge(EXAMPLES.automaton.source, 'bar', 'bells').transforms).toEqual([[{ kind: 'rate', by: [], per: 'step', whole: false, belt: 3000, tap: '8n' }]]);
     expect(edge(EXAMPLES.waveforms.source, 'tune', 'pluck').transforms).toEqual([[{ kind: 'rate', by: [], per: 'step', whole: true }]]);
