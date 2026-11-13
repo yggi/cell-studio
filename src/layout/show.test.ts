@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { compilePiece, withUsedLine } from '../compile';
+import { compilePiece, ownLine } from '../compile';
 import { codeShifts } from '@yggi/cells/engine/program';
 import { eventsBetween, plan } from '@yggi/cells/engine/realize';
 import { liveAt } from '@yggi/cells/engine/live';
@@ -112,7 +112,7 @@ describe('show=', () => {
       const before = sound(p.source);
       // (every cell, a used fragment's too: radio's &bd, `* from band`'s; as the app does, its line written in first, #610)
       const cells = [...r.cells.values()].filter((c) => !c.implicit && !c.lambda).map((c) => ({ name: c.name, fits: FITS[kindOf(r, c.name)] }));
-      const shown = (s: string, name: string, show: string) => setAttr(withUsedLine(s, name), name, 'show', show);
+      const shown = (s: string, name: string, show: string) => setAttr(ownLine(s, name), name, 'show', show);
       const passes = Math.max(0, ...cells.map((c) => c.fits.length));
       for (let k = 0; k < passes; k++) {
         const set = cells.filter((c) => k < c.fits.length).map((c) => ({ name: c.name, show: c.fits[k] }));

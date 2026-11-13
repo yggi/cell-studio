@@ -40,7 +40,10 @@ function lineOf(u: Take, head: string, main: string | null): string {
   return `&${head} from ${u.id}${list}${given ? ` ${given}` : ''}`;
 }
 
-/** The modules that are instruments (a mix with its parameters): drawn as a wheel of their own, their face the module's (ui/ModuleNode.svelte). */
+/**
+ * The instrument modules this app draws a face for (a mix with its parameters, its face hand-drawn in ui/ModuleNode.svelte):
+ * a list by id because the faces are; another module with a signal in (`bandpass`, `lowpass24`) is drawn as cells until it has one.
+ */
 export const INSTRUMENT_MODULES: ReadonlySet<string> = new Set(['lowpass', 'highpass', 'amp']);
 
 /** A use of a module, as one head: what decision 069 draws as one wheel (a meter's or a mode's template stays a cell). */

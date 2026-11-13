@@ -5,7 +5,7 @@
  * writes itself is a piece of its own on the kit, which stays in the group). What the piece overrides is its own, and in
  * no group.
  *
- * The graph draws a group as a cluster (`withUses`): its cells carry the tag `use "id"`, so the layout holds them
+ * The graph draws a group as a cluster (`withUses`): its cells carry its key (`groupKey`), so the layout holds them
  * together and the graph washes them and names them by their line, as it does a `tags=` cluster. A given cell nothing
  * reads (a kit's voice the beat doesn't play: silent, the built-in card doesn't hear a used fragment) is folded into the
  * group's name, not drawn, while the group has a cell that is read; a group of nothing but such cells is drawn whole.
@@ -51,15 +51,20 @@ export function plateHeight(name: string, folded: readonly string[] = []): numbe
   return rows * ROW;
 }
 
-/** A group's tag on its cells: its line, as written. */
-export const useTag = (id: string): string => `use "${id}"`;
 /**
  * How a group's plate names its line (#505): as cells writes it since decision 065, `from` and the fragment's id,
  * bare where it is a word (`from gm_kit`), quoted where it is not (a host's own id with a space: every seed id is a word since cells v0.16.0).
  */
 export const fromLabel = (id: string): string => (/^[A-Za-z_][\w]*$/.test(id) ? `from ${id}` : `from "${id}"`);
-/** The use a tag names, or null: a `tags=` tag (a tag can't hold a double quote). */
-export const tagUse = (tag: string): string | null => /^use "(.*)"$/.exec(tag)?.[1] ?? null;
+/**
+ * A group's key on its cells, first among their tags: the cluster the layout lays them out in. Internal, never drawn (the
+ * plate reads `fromLabel`), and never parsed: the graph finds the group by it (`groupOfTag`). Its text seeds the layout
+ * (the cluster's jitter and room, layout/start.ts): respelled `from gm_kit`, the library's drawn crossings rose from 104.6
+ * to 108.2 by chance alone (#622), so it keeps the spelling the baseline was recorded with.
+ */
+export const groupKey = (id: string): string => `use "${id}"`;
+/** The group a cluster's tag is the key of, or undefined: a `tags=` tag (no `tags=` tag holds a double quote). */
+export const groupOfTag = (groups: readonly UseGroup[], tag: string): UseGroup | undefined => groups.find((g) => groupKey(g.id) === tag);
 
 const bare = (name: string) => name.replace(/^&/, '');
 
@@ -96,7 +101,7 @@ export function useGroups(result: CompileResult, model: GraphModel): UseGroup[] 
 }
 
 /**
- * A graph with its uses drawn: each group's cells tagged with its line (first, before their own `tags=`: the cluster they
+ * A graph with its uses drawn: each group's cells tagged with its key (first, before their own `tags=`: the cluster they
  * are laid out in), what it folds left out; and the groups.
  */
 export function withUses(result: CompileResult, model: GraphModel): { model: GraphModel; groups: UseGroup[] } {
@@ -109,8 +114,8 @@ export function withUses(result: CompileResult, model: GraphModel): { model: Gra
     const g = groupOf.get(n.id);
     if (!g || !isCellNode(n)) return [n];
     // (a group of one node: its plate's height, the room the layout grows that node by — layout/start.ts)
-    const plate = g.nodes.length === 1 ? { plate: plateHeight(useTag(g.id), g.folded) } : {};
-    return [{ ...n, ...plate, cell: { ...n.cell, tags: [useTag(g.id), ...n.cell.tags] } }];
+    const plate = g.nodes.length === 1 ? { plate: plateHeight(groupKey(g.id), g.folded) } : {};
+    return [{ ...n, ...plate, cell: { ...n.cell, tags: [groupKey(g.id), ...n.cell.tags] } }];
   });
   return { model: { ...model, nodes }, groups };
 }

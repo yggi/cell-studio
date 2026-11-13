@@ -2,6 +2,8 @@
 
 **Date:** 2026-10-25 · **Status:** accepted (owner, on #480's mock-ups) · Cells: [decision 054](https://github.com/yggi/cells/blob/main/docs/decisions/054-instruments-and-use.md)'s rung 5
 
+**Amended (#622, 2026-11-13):** `use "id"` is `from` now (cells decision 065). The plate reads `from gm_kit`; the group's cells carry an internal key (`groupKey`, the old spelling, kept because its text seeds the layout: respelled, the library's drawn crossings rose 3 % by chance), and the graph finds the group by it (`groupOfTag`) rather than parsing a tag. An edit of a given cell writes its line under the `from` line, which stops asking for it (cells' `takeIn`): the line is the piece's own from then on, and deleting it drops the cell rather than bringing the fragment's back.
+
 ## Context
 
 A piece takes a fragment by its id, `use "core kit"` (cells' [use.md](https://github.com/yggi/cells/blob/main/docs/language/use.md)): the compiler reads the fragment's lines after the piece's own. Cells decision 054 asks Cell studio to show what a `use` gives as a group, read only, one group per `use`; an edit of a used cell writes a line of the piece's own (the text stays the single source of truth).

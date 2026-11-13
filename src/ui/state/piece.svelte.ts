@@ -1,5 +1,5 @@
 import { codeShifts, type CompileResult, type Take } from '@yggi/cells/engine/program';
-import { compilePiece, withUsedLine } from '../../compile';
+import { compilePiece, ownLine } from '../../compile';
 import { addCell, offProblem, setFree, setOff, setShift } from '@yggi/cells/engine/edit';
 import { freeIndex, freeList, withHeld } from '@yggi/cells/engine/held';
 import { buildGraph } from '../../layout/drawn';
@@ -29,10 +29,10 @@ import { pieceStats } from '@yggi/cells/engine/stats';
  * (literate cells, cells decision 051), and `file` the file again with the code as it stands, each line back in the
  * block it came from and the prose between them as it was. The editor shows the code, the join, not the file.
  *
- * Its `use "id"` lines (cells decision 054) compile through the app's library (`compilePiece`), with the hashes its
+ * Its `from` lines (cells decision 065) compile through the app's library (`compilePiece`), with the hashes its
  * file's lockfile recorded; the file records what a `use` with no entry yet resolved to (`recorded`). A cell a `use`
- * gave is read only: an edit of it (turned, switched off) writes its used line into the code with the edit, under its
- * `use` (`withUsedLine`), a line of the piece's own that overrides the used one; deleting that line brings it back (#480).
+ * gave is read only: an edit of it (turned, switched off) first writes its line into the code, under the `from` line,
+ * which stops asking for it (`ownLine`, cells' `takeIn`): the line is the piece's own from then on (#480, #610).
  */
 export class Piece {
   #code = $state('');
@@ -173,13 +173,13 @@ export class Piece {
 
   /** The code with a used cell's line written in (#480): what an edit of the cell rewrites. */
   #own(name: string): string {
-    return withUsedLine(this.#code, name, this.locked);
+    return ownLine(this.#code, name, this.locked);
   }
   /** Turn a cell; one whose shift is free(…) moves its free value (the wheel and its slider are one control). */
   turn(name: string, shift: number): void {
     if (this.midi) return;
     const free = this.program.cells.get(name)?.frees.find((f) => f.key === 'shift');
-    if (free && !this.#used(free.span.line)) this.code = setFree(this.code, free, shift);
+    if (free && !this.#given(free.span)) this.code = setFree(this.code, free, shift);
     else this.code = setShift(this.#own(name), name, shift);
   }
   /**
@@ -203,9 +203,14 @@ export class Piece {
     this.code = r.source;
     return r.name;
   }
-  /** A line of the expansion past the code's own: a used fragment's (cells decision 054). */
-  #used(line: number): boolean {
-    return line > this.#code.split('\n').length;
+  /**
+   * A free(…) a fragment wrote, not the piece: its cell came through a `from` line (the compile's `origins`), and it
+   * isn't written on that line (an attribute before `from`, decision 065 §4, is the piece's own).
+   */
+  #given(span: FreeSpec['span']): boolean {
+    const cell = [...this.program.cells.values()].find((c) => c.frees.some((f) => f.span.line === span.line && f.span.col === span.col));
+    const origin = cell && this.program.origins?.get(cell.name);
+    return !!origin?.length && origin[0]!.line !== span.line;
   }
   /**
    * Move a free(…) value by hand: it plays, and the code keeps what's written until `keep`. Not a used fragment's: Keep
@@ -213,7 +218,7 @@ export class Piece {
    */
   hold(spec: Pick<FreeSpec, 'span'>, v: number | string): void {
     const i = freeIndex(this.program, spec);
-    if (i < 0 || this.midi || this.readOnly || this.#used(spec.span.line)) return;
+    if (i < 0 || this.midi || this.readOnly || this.#given(spec.span)) return;
     this.held = new Map(this.held).set(i, v);
   }
   /** Write what's held into the code: everything, or one free(…) (a braid's take, from its sheet). */

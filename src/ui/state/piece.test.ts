@@ -350,20 +350,21 @@ describe('Piece: a piece that uses a fragment (cells decision 054)', () => {
     expect(miniature(USES)?.nodes.length).toBeGreaterThanOrEqual(entry.size!);
   });
 
-  it('edits a used cell by writing its line into the code, one line, under its use; deleting it brings the kit’s back (#480)', () => {
+  it('edits a given cell by writing its line into the code, under its from line, which stops asking for it (#480, #610)', () => {
     const p = new Piece(USES);
     const events = () => windowAt(plan(p.program, codeShifts(p.program), p.muted), 0, 2.4).events.length;
     const before = events();
     p.toggle('cell:hh');
-    expect(p.code.split('\n')).toEqual([USES.split('\n')[0], '&hh off note=42 s=white hpf=8000 env=&(map=adsr 0 .04 0 .02)', ...USES.split('\n').slice(1)]);
+    expect(p.code.split('\n')).toEqual([USES.split('\n')[0]!.replace('&hh, ', ''), '&hh off note=42 s=white hpf=8000 env=&(map=adsr 0 .04 0 .02)', ...USES.split('\n').slice(1)]);
     expect(p.program.cells.get('hh')?.off).toBe(true);
     expect(events()).toBeLessThan(before);
     // (now the piece's own: its next edit is of that line, no other is added)
     p.toggle('cell:hh');
     p.turn('rim', 3);
     expect(p.code.split('\n')).toHaveLength(USES.split('\n').length + 2);
-    expect(p.code.split('\n')[1]).toMatch(/^&hh note=42 s=white/);
-    expect(p.code.split('\n')[2]).toMatch(/^&rim .*shift=3/);
+    expect(p.code.split('\n')[0]).not.toMatch(/&rim|&hh/);
+    expect(p.code.split('\n')[1]).toMatch(/^&rim .*shift=3/);
+    expect(p.code.split('\n')[2]).toMatch(/^&hh note=42 s=white/);
     p.code = USES;
     expect(events()).toBe(before);
   });

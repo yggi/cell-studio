@@ -53,10 +53,10 @@
   import { towerStructure } from '../layout/tower';
   import { minimap } from '../layout/minimap';
   import { bulbHosts, usesOf } from '../layout/drawn';
-  import { fromLabel, givenBy, PLATE_WIDTH, tagUse } from '../layout/uses';
+  import { fromLabel, givenBy, groupOfTag, PLATE_WIDTH } from '../layout/uses';
   import { tagRoom } from '../layout/start';
   import { bodyOf, NAME_PLATE } from '../layout/voice';
-  import { withUsedLine } from '../compile';
+  import { ownLine } from '../compile';
   import { headPoint, UNTURNED } from '../layout/tape';
   import SectionLooms from './SectionLooms.svelte';
   import { towerIns, towerY } from '../layout/towerlayout';
@@ -253,7 +253,7 @@
   const sheetSource = $derived.by(() => {
     if (!given || selectedName === undefined) return source;
     const locked = (shown.program.takes ?? []).flatMap((u) => (u.hash ? [{ id: u.id, hash: u.hash }] : []));
-    return withUsedLine(source, selectedName, locked);
+    return ownLine(source, selectedName, locked);
   });
   $effect(() => {
     const name = selectedName ?? null;
@@ -550,8 +550,8 @@
       // none: its name is a plate under the cell's own, in the room the layout grew it by (layout/start.ts)
       const one = ms.length === 1 ? ms[0]! : undefined;
       const at = one ? { x: one.x, y: one.y + one.below + PLATE_GAP } : (layout.position(`tag:${tag}`) ?? { x, y: y - r });
-      const use = tagUse(tag);
-      return { tag, x, y, r, nx: at.x, ny: at.y, plate: !!one, colour: colourOf(tag), use, folded: uses.find((g) => g.id === use)?.folded ?? [] };
+      const group = groupOfTag(uses, tag);
+      return { tag, x, y, r, nx: at.x, ny: at.y, plate: !!one, colour: colourOf(tag), use: group?.id ?? null, folded: group?.folded ?? [] };
     });
   });
 

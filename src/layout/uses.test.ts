@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { compilePiece } from '../compile';
 import { buildGraph, usesOf } from './drawn';
-import { fromLabel, plateHeight, tagUse, useGroups, useTag } from './uses';
+import { fromLabel, groupKey, groupOfTag, plateHeight, useGroups } from './uses';
 
 const KIT = '&bd, &rim, &sd, &cp, &lt, &hh, &ph, &mt, &oh, &ht, &cr, &rd, &claves from gm_kit\n&bar meter("4/4") step=100bpm\n&beat step=8n &bd ~ &hh ~ &sd ~ &hh [&bd,&hh]';
 const IDLE = ['rim', 'cp', 'lt', 'ph', 'mt', 'oh', 'ht', 'cr', 'rd', 'claves'];
@@ -16,7 +16,7 @@ describe('a use line’s group (#480)', () => {
     expect(kit!.names).toHaveLength(13);
     // (drawn: the bar, the beat and the kit, its cluster named by its line; the folded have no node)
     expect(g.nodes.map((n) => n.id).sort()).toEqual(['cell:bar', 'cell:beat', 'cell:kit:voices']);
-    expect(g.nodes.find((n) => n.id === 'cell:kit:voices')?.cell?.tags).toEqual([useTag('gm_kit')]);
+    expect(g.nodes.find((n) => n.id === 'cell:kit:voices')?.cell?.tags).toEqual([groupKey('gm_kit')]);
     expect(g.nodes.find((n) => n.id === 'cell:beat')?.cell?.tags).toEqual([]);
     // (without: every given cell its own, as before)
     expect(buildGraph(r, { uses: false }).nodes).toHaveLength(13);
@@ -41,17 +41,19 @@ describe('a use line’s group (#480)', () => {
     expect(mode).toMatchObject({ id: 'diatonic', line: 2, nodes: ['cell:key', 'cell:key_tonic'], folded: ['key_mode'] });
   });
 
-  it('names a group by its line, which no tags= tag can be', () => {
-    expect(tagUse(useTag('Synth-pop drums'))).toBe('Synth-pop drums');
-    expect(tagUse('drums')).toBeNull();
+  it('keys a group apart from any tags= tag, and finds it by its key', () => {
+    const r = compilePiece('&bd, &sd from gm_kit\n&beat &bd &sd');
+    const groups = useGroups(r, buildGraph(r));
+    expect(groupOfTag(groups, groupKey('gm_kit'))?.id).toBe('gm_kit');
+    expect(groupOfTag(groups, 'drums')).toBeUndefined();
     expect(useGroups(compilePiece('&a 1 2'), buildGraph(compilePiece('&a 1 2')))).toEqual([]);
   });
 });
 
 describe('a cluster of one node’s plate (#480)', () => {
   it('is as tall as its name and the cells folded into it, in rows', () => {
-    expect(plateHeight(useTag('aeolian'))).toBe(40);
-    expect(plateHeight(useTag('gm_kit'), IDLE)).toBe(120);
+    expect(plateHeight(groupKey('aeolian'))).toBe(40);
+    expect(plateHeight(groupKey('gm_kit'), IDLE)).toBe(120);
     const r = compilePiece(KIT);
     expect((buildGraph(r).nodes.find((n) => n.id === 'cell:kit:voices') as { plate?: number }).plate).toBe(120);
   });
