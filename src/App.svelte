@@ -17,6 +17,7 @@
   import KeysDock from './ui/KeysDock.svelte';
   import TimeView from './ui/TimeView.svelte';
   import ConvertStrip from './ui/ConvertStrip.svelte';
+  import FragmentPreview from './ui/FragmentPreview.svelte';
 
   // the app's state (ui/state/): the piece, playing it, the library, what's on screen
   const studio = new Studio();
@@ -251,6 +252,8 @@
       {#if trying}
         <p class="first" role="status">A fragment of the seed library is read only: Edit a copy to change it.</p>
       {/if}
+      <!-- (and pictured by its facet, what it reads as its controls) -->
+      <FragmentPreview />
     {/if}
     {#if offSaid}
       <p class="first" role="status">{offSaid.text}</p>
