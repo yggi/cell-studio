@@ -98,34 +98,40 @@ describe('show=', () => {
     const royal = compilePiece(setAttr(EXAMPLES.royal.source, 'scale', 'show', 'mode'));
     expect(hubLabel(royal, 'scale', codeShifts(royal), false, null)).toEqual({ big: 'minor', small: 'on C' });
   });
-  it('never changes the sound: every fitting show on every cell of every example', () => {
-    const sound = (src: string) => {
-      const r = compilePiece(src);
-      // (an unnamed cell's internal name has its column in it: compare what sounds, not that)
-      return JSON.stringify(eventsBetween(plan(r, codeShifts(r)), 0, 3).map((x) => [x.at.toFixed(6), x.voice.replace(/^λ.*/, 'λ'), x.freq.toFixed(4)]));
-    };
-    // Every (cell, show) pair is rewritten into the source, but a whole slot at once: pass k sets every cell to
-    // its k-th fitting show, so a piece compiles once per slot, not once per pair. Only a pass that sounds
-    // different is taken apart, one cell at a time, to name the cell.
-    for (const [key, p] of Object.entries(EXAMPLES)) {
-      const r = compilePiece(p.source);
-      const before = sound(p.source);
-      // (every cell, a used fragment's too: radio's &bd, `* from band`'s; as the app does, its line written in first, #610)
-      const cells = [...r.cells.values()].filter((c) => !c.implicit && !c.lambda).map((c) => ({ name: c.name, fits: FITS[kindOf(r, c.name)] }));
-      const shown = (s: string, name: string, show: string) => setAttr(ownLine(s, name), name, 'show', show);
-      const passes = Math.max(0, ...cells.map((c) => c.fits.length));
-      for (let k = 0; k < passes; k++) {
-        const set = cells.filter((c) => k < c.fits.length).map((c) => ({ name: c.name, show: c.fits[k] }));
-        const src = set.reduce((s, c) => shown(s, c.name, c.show), p.source);
-        if (src === p.source || sound(src) === before) continue;
-        for (const { name, show } of set) {
-          const one = shown(p.source, name, show);
-          if (one !== p.source) expect(sound(one), `${key}: &${name} show=${show}`).toBe(before);
+  // (one test per example: all of them in one test came past its 30 s on the deploy's runner, 2026-11-14)
+  it.each(Object.keys(EXAMPLES))(
+    'never changes the sound: every fitting show on every cell of %s',
+    (key) => {
+      const p = EXAMPLES[key as keyof typeof EXAMPLES];
+      const sound = (src: string) => {
+        const r = compilePiece(src);
+        // (an unnamed cell's internal name has its column in it: compare what sounds, not that)
+        return JSON.stringify(eventsBetween(plan(r, codeShifts(r)), 0, 3).map((x) => [x.at.toFixed(6), x.voice.replace(/^λ.*/, 'λ'), x.freq.toFixed(4)]));
+      };
+      // Every (cell, show) pair is rewritten into the source, but a whole slot at once: pass k sets every cell to
+      // its k-th fitting show, so a piece compiles once per slot, not once per pair. Only a pass that sounds
+      // different is taken apart, one cell at a time, to name the cell.
+      {
+        const r = compilePiece(p.source);
+        const before = sound(p.source);
+        // (every cell, a used fragment's too: radio's &bd, `* from band`'s; as the app does, its line written in first, #610)
+        const cells = [...r.cells.values()].filter((c) => !c.implicit && !c.lambda).map((c) => ({ name: c.name, fits: FITS[kindOf(r, c.name)] }));
+        const shown = (s: string, name: string, show: string) => setAttr(ownLine(s, name), name, 'show', show);
+        const passes = Math.max(0, ...cells.map((c) => c.fits.length));
+        for (let k = 0; k < passes; k++) {
+          const set = cells.filter((c) => k < c.fits.length).map((c) => ({ name: c.name, show: c.fits[k] }));
+          const src = set.reduce((s, c) => shown(s, c.name, c.show), p.source);
+          if (src === p.source || sound(src) === before) continue;
+          for (const { name, show } of set) {
+            const one = shown(p.source, name, show);
+            if (one !== p.source) expect(sound(one), `${key}: &${name} show=${show}`).toBe(before);
+          }
+          expect(sound(src), `${key}: show slot ${k} on every cell`).toBe(before); // (no one cell alone: together)
         }
-        expect(sound(src), `${key}: show slot ${k} on every cell`).toBe(before); // (no one cell alone: together)
       }
-    }
-  }, 30_000); // (every show on every cell of every example)
+    },
+    30_000,
+  ); // (every show on every cell of the example)
 });
 
 describe('label=, and the rest of show=', () => {
