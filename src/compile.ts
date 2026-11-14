@@ -12,6 +12,10 @@ import { splitComment } from '@yggi/cells/engine/edit';
 import { readFrom } from '@yggi/cells/engine/parser/use';
 import { planOf } from '@yggi/cells/engine/host';
 import { windowAt } from '@yggi/cells/engine/schedule';
+import { plan } from '@yggi/cells/engine/realize';
+import { codeShifts } from '@yggi/cells/engine/program';
+import { barSeconds } from './session/follow';
+import type { HeardNote } from './layout/preview';
 import type { CompileResult, Env, Locked } from '@yggi/cells/engine/program';
 import { resolveSeed } from '@yggi/cells/repository/library';
 
@@ -82,4 +86,14 @@ export function documentParts(text: string): DocumentPart[] {
 export function notesOf(text: string, seconds = 8): { readonly at: number; readonly dur: number; readonly freq: number }[] {
   const plan = planOf(auditionOf(text).text, undefined, { resolve: resolveSeed });
   return windowAt(plan, 0, seconds).events.flatMap((e) => (e.unheard || !(e.freq > 0) ? [] : [{ at: e.at, dur: e.dur, freq: e.freq }]));
+}
+
+/** What a compiled text plays over its first four bars (8 s at most), as a picture reads it, and its bar's length (2 s where it has no meter). */
+export function heardOf(result: CompileResult): { readonly notes: HeardNote[]; readonly bar: number } {
+  const bar = barSeconds(result) ?? 2;
+  const events = windowAt(plan(result, codeShifts(result), result.off), 0, Math.min(8, 4 * bar)).events;
+  const notes = events.flatMap((e) =>
+    e.unheard || !(e.freq > 0) ? [] : [{ at: e.at, dur: e.dur, freq: e.freq, voice: e.voice, level: Math.max(...e.gains) * (e.levels[0]?.level ?? 1) }],
+  );
+  return { notes, bar };
 }

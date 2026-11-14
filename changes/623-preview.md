@@ -1,0 +1,2 @@
+### Added
+- **A fragment heard alone is pictured by its facet** (#623). A card under its strip draws what its host plays: a rhythm as a drum grid over its first bar, a line or a harmony as a roll, a form as its sections lettered (A B C C A B), an instrument as the keys it plays, a meter as its ticks, a performer or a band as its roles. It also shows what the fragment reads at its defaults: a knob for a value from 0 to 1 (a filter's cutoff), sliders for a style it picks from, the text as written otherwise. Saved pieces are unchanged.

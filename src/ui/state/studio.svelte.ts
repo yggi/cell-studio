@@ -286,7 +286,10 @@ export class Studio {
   #titleOfOpen(): string {
     const open = this.library.open;
     if (open.kind === 'fragment') return open.id;
-    return shortTitle(this.piece.title) || (open.kind === 'file' ? open.name.replace(/\.[^.]*$/, '') : '') || 'Untitled';
+    // (a file with no title of its own, `titleOf`'s Untitled: its file's name)
+    const title = shortTitle(this.piece.title);
+    if (open.kind === 'file' && (!title || title === 'Untitled')) return open.name.replace(/\.[^.]*$/, '') || 'Untitled';
+    return title || 'Untitled';
   }
 
   /** A piece's source, now open: laid out afresh, from rest, its graph shown. */
