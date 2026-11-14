@@ -2,7 +2,7 @@
   /**
    * The sidebar, on a wide screen the inspector (a pane at the right of the graph), on a phone a drawer over the view.
    * Its first page on a wide screen is the cell whose sheet is open (CellSheet.svelte: drawn by the graph, where this
-   * page is, `--inspect-*`); then five pages, the piece's controls (every free() in it, and the keys and pads),
+   * page is, `--inspect-*`); then the piece's controls (every free() in it, and the keys and pads), a document's parts (PartsPanel.svelte, #623),
    * MIDI (the ports, how the piece goes out, the keys, learned knobs), the graph's layout forces, files, a Jambot session
    * to follow (Jam, SessionPanel.svelte), and the piece's numbers (Stats). The tab
    * strip says which (arrow keys, Home and End move along it); a dot on MIDI says whether anything is connected. Focus moves into the drawer when it opens and
@@ -18,12 +18,17 @@
   import FilePanel from './FilePanel.svelte';
   import StatsPanel from './StatsPanel.svelte';
   import SessionPanel from './SessionPanel.svelte';
+  import PartsPanel from './PartsPanel.svelte';
 
-  const { view, library, dock, midi, keys } = getStudio();
+  const studio = getStudio();
+  const { view, library, dock, midi, keys, piece } = studio;
+  const trail = $derived(studio.trail);
   const live = $derived(!!midi.access && (midi.sending || midi.inPortId !== 'none'));
   const PAGES = $derived<readonly (readonly [Panel, string])[]>([
     ...(keys.sheet && !view.narrow ? ([['cell', `&${keys.sheet}`]] as const) : []),
     ['controls', 'Controls'],
+    // (a document of fragments: the parts it gives, cells decision 082)
+    ...(piece.parts.length ? ([['parts', `Parts ${piece.parts.length}`]] as const) : []),
     ['midi', 'MIDI'],
     ['forces', 'Forces'],
     ['file', 'Files'],
@@ -124,6 +129,14 @@
       <SessionPanel />
     {:else if view.panel === 'stats'}
       <StatsPanel />
+    {:else if view.panel === 'parts'}
+      {#if piece.parts.length}
+        <PartsPanel />
+      {:else if piece.fragment && trail.length}
+        <p class="none">A part heard alone: ◂ {trail.at(-1)?.title} goes back to the document and its parts.</p>
+      {:else}
+        <p class="none">This piece gives no parts: a document of fragments does (Kinderlieder), each its own signature.</p>
+      {/if}
     {:else}
       <button
         class="dock-toggle"

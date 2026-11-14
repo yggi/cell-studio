@@ -7,7 +7,11 @@
 import { compileSource } from '@yggi/cells/engine/compile';
 import { takeIn } from '@yggi/cells/engine/takein';
 import { audition, type Audition } from '@yggi/cells/repository/audition';
-import { hasFrom } from '@yggi/cells/engine/use';
+import { hasFrom, partOf, partsOf } from '@yggi/cells/engine/use';
+import { splitComment } from '@yggi/cells/engine/edit';
+import { readFrom } from '@yggi/cells/engine/parser/use';
+import { planOf } from '@yggi/cells/engine/host';
+import { windowAt } from '@yggi/cells/engine/schedule';
 import type { CompileResult, Env, Locked } from '@yggi/cells/engine/program';
 import { resolveSeed } from '@yggi/cells/repository/library';
 
@@ -31,3 +35,51 @@ export function ownLine(text: string, name: string, locked?: readonly Locked[]):
  * (a key, a voice, a meter, a card), each listed with the hole it fills; `why` where it plays nothing alone.
  */
 export const auditionOf = (text: string): Audition => audition(text, { resolve: resolveSeed });
+
+/** A part a document gives (cells decision 082): its heads, its signature line, and its text as heard in the document. */
+export interface DocumentPart {
+  /** Its heads, bare (`twinkle`): the first is what a line takes it by. */
+  readonly heads: readonly string[];
+  /** Its signature line, as written (`&twinkle from &key`). */
+  readonly signature: string;
+  /** Its main parameter (`&key`), or null. */
+  readonly main: string | null;
+  /** The part (its signature and what its heads read), then the document's own line for its main parameter, where it
+   * has one: what plays when it is heard in the document, over the document's key rather than a host's stand-in. */
+  readonly heard: string;
+}
+
+const fromOf = (raw: string) => readFrom(splitComment(raw)[0].trim());
+
+/** The parts a document gives, in the order written; none for a text of one signature (a template) or none (#623). */
+export function documentParts(text: string): DocumentPart[] {
+  const heads = partsOf(text);
+  if (heads.length < 2) return [];
+  const lines = text.split('\n');
+  return heads.flatMap((names) => {
+    const part = partOf(text, names[0]!);
+    const signature = lines.find((l) => {
+      const f = fromOf(l);
+      return f?.kind === 'signature' && f.names[0] === `&${names[0]}`;
+    });
+    if (part === null || signature === undefined) return [];
+    const f = fromOf(signature);
+    const main = f?.kind === 'signature' ? f.main : null;
+    // (the document's line for it: a cell of that name, or a from line that takes it; never another signature)
+    const own = main
+      ? lines.find((l) => {
+          const g = fromOf(l);
+          if (g?.kind === 'signature') return false;
+          if (g?.kind === 'use') return g.names?.includes(main) ?? false;
+          return new RegExp(`^\\s*${main}(?![A-Za-z0-9_])`).test(l);
+        })
+      : undefined;
+    return [{ heads: names, signature: signature.trim(), main, heard: own ? `${part}\n${own.trim()}` : part }];
+  });
+}
+
+/** What a text plays heard alone over its first `seconds`, as notes (start and length in seconds, frequency), for a picture. */
+export function notesOf(text: string, seconds = 8): { readonly at: number; readonly dur: number; readonly freq: number }[] {
+  const plan = planOf(auditionOf(text).text, undefined, { resolve: resolveSeed });
+  return windowAt(plan, 0, seconds).events.flatMap((e) => (e.unheard || !(e.freq > 0) ? [] : [{ at: e.at, dur: e.dur, freq: e.freq }]));
+}
