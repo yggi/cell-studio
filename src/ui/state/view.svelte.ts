@@ -4,8 +4,9 @@ import type { GraphLayout } from './graphLayout.svelte';
 
 export type Tab = 'select' | 'graph' | 'code' | 'time';
 /** What the sidebar shows: the cell whose sheet is open (a wide screen's inspector), the piece's controls, MIDI (ports,
- * channels, keys, learned knobs), the graph's layout forces, files, a Jambot session (Jam), or the piece's numbers. */
-export type Panel = 'cell' | 'controls' | 'midi' | 'forces' | 'file' | 'session' | 'stats';
+ * channels, keys, learned knobs), the graph's layout forces, files, a Jambot session (Jam), the piece's numbers, or the
+ * parts a document of fragments gives (#623). */
+export type Panel = 'cell' | 'controls' | 'midi' | 'forces' | 'file' | 'session' | 'stats' | 'parts';
 
 /** What's on screen: the view (a tab on a phone), the controls drawer, the performance overlay, a line of news. */
 export class View {

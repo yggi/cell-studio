@@ -248,16 +248,30 @@ export class Studio {
 
   /**
    * Open a fragment of the seed library by its id (a part's too, `kinderlied/twinkle`), from the piece open now: read only,
-   * heard through its host, and ◂ back to the piece. False for an id the library doesn't hold.
+   * heard through its host, and ◂ back to the piece. `text`, where given, is what opens in place of the library's (a part
+   * heard in its document: `openPart`). False for an id the library doesn't hold and no text.
    */
-  openFragment(id: string): boolean {
+  openFragment(id: string, text?: string): boolean {
     const entry = catalogue().find((e) => e.id === id);
-    if (!entry) return false;
+    const source = text ?? entry?.text;
+    if (source === undefined) return false;
     ++this.#choice;
     const trail = this.library.anyOpen ? [...this.trail, { open: this.library.open, file: this.piece.file, title: this.#titleOfOpen() }] : this.trail;
-    this.#opened({ kind: 'fragment', id }, entry.text);
+    this.#opened({ kind: 'fragment', id }, source);
     this.trail = trail;
     return true;
+  }
+  /**
+   * Hear a part of the document open now (its parts page's ▶, #623): opened as a fragment, its document's own line for its
+   * main parameter with it (the document's key, not a host's), and played; ◂ back to the document.
+   */
+  openPart(head: string): void {
+    const part = this.piece.parts.find((p) => p.heads[0] === head);
+    if (!part) return;
+    const open = this.library.open;
+    const doc = open.kind === 'example' || open.kind === 'midi' ? open.key : open.kind === 'saved' || open.kind === 'fragment' ? open.id : open.name.replace(/\.[^.]*$/, '');
+    if (!this.openFragment(`${doc}/${head}`, part.heard)) return;
+    void this.playback.toggle();
   }
   /** Back to the piece a fragment was opened from (◂), as it was. */
   back(): void {

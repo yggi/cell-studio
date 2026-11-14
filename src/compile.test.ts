@@ -4,7 +4,7 @@ import { codeShifts, type CompileResult } from '@yggi/cells/engine/program';
 import { plan } from '@yggi/cells/engine/realize';
 import { windowAt } from '@yggi/cells/engine/schedule';
 import { EXAMPLES } from '@yggi/cells/engine/examples';
-import { compilePiece, ownLine } from './compile';
+import { auditionOf, compilePiece, documentParts, notesOf, ownLine } from './compile';
 
 const KIT = '&bd, &rim, &sd, &cp, &lt, &hh, &ph, &mt, &oh, &ht, &cr, &rd, &claves from gm_kit\n&bar meter("4/4") step=100bpm\n&beat step=8n &bd ~ &hh ~ &sd ~ &hh [&bd,&hh]';
 const events = (r: CompileResult) => windowAt(plan(r, codeShifts(r), r.off), 0, 4.8).events;
@@ -72,5 +72,31 @@ describe('an edit of a used cell: a line of the piece’s own (#480)', () => {
       // (and it is the piece's line that plays: turned off, its notes go)
       expect(heard(compilePiece(setOff(written, name, true))).length, `&${name} off`).toBeLessThan(before.length);
     }
+  });
+});
+
+describe('a document’s parts (cells decision 082, #623)', () => {
+  it('lists Kinderlieder’s six, each heard over the document’s own key, and none for a piece or a template', () => {
+    const parts = documentParts(EXAMPLES.kinderlied.source);
+    expect(parts.map((p) => p.heads[0])).toEqual(['twinkle', 'wonder', 'haenschen', 'hinein', 'heim', 'weinet']);
+    const twinkle = parts[0]!;
+    expect([twinkle.signature, twinkle.main]).toEqual(['&twinkle from &key', '&key']);
+    expect(twinkle.heard.split('\n')).toEqual(['&twinkle from &key', '&twinkle over=&key step=8n 0 0 4 4 5 5 4@2', '&key from diatonic(mode=ionian) C']);
+    for (const p of parts) {
+      expect(
+        compilePiece(auditionOf(p.heard).text).diagnostics.filter((d) => d.severity === 'error'),
+        p.heads[0],
+      ).toEqual([]);
+      expect(notesOf(p.heard).length, p.heads[0]).toBeGreaterThan(0);
+    }
+    expect(documentParts(KIT)).toEqual([]);
+    expect(documentParts('&a from &key\n&a over=&key 0 2')).toEqual([]);
+  });
+
+  it('plays a part in the document’s key: its own line, not a host’s major stand-in', () => {
+    const doc = '&a from &key\n&a over=&key step=4n 0 2\n&b from &key\n&b over=&key step=4n 4 2\n&key scale(minor, A)\n&v s=sine loop=C4\n&out map=sample [&a * &v]';
+    const a = documentParts(doc)[0]!;
+    expect(a.heard.split('\n').at(-1)).toBe('&key scale(minor, A)');
+    expect(auditionOf(a.heard).host.some((h) => h.fills === '&key')).toBe(false);
   });
 });

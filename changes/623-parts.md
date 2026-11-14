@@ -1,0 +1,2 @@
+### Added
+- **A document's parts, listed and heard** (#623): a piece that is a document of fragments (Kinderlieder) has a Parts page in the sidebar. It lists each part it gives with its signature, a small roll of what it plays, and the line another piece takes it with (`&twinkle from kinderlied &key`). ▶ hear it opens the part alone and plays it over the document's own key, rather than a host's stand-in; ◂ goes back to the document. Saved pieces are unchanged.
