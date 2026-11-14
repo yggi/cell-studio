@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { compilePiece, withUsedLine } from '../compile';
+import { compilePiece, ownLine } from '../compile';
 import { codeShifts, DEFAULT_FREQ } from '@yggi/cells/engine/program';
 import { declWords } from '@yggi/cells/engine/edit';
 import { EXAMPLES } from '@yggi/cells/engine/examples';
@@ -11,7 +11,7 @@ const piece = (key: keyof typeof EXAMPLES) => {
   const result = compilePiece(source);
   const shifts = codeShifts(result);
   // (a used cell's braid as the cell sheet reads it: the piece's text with its used line written in, #480)
-  const at = (name: string) => listed(result, name, shifts, declWords(withUsedLine(source, name), name)?.braid ?? []);
+  const at = (name: string) => listed(result, name, shifts, declWords(ownLine(source, name), name)?.braid ?? []);
   return { result, shifts, at };
 };
 

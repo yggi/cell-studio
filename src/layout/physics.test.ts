@@ -511,7 +511,7 @@ describe('tags inside a piece: a node each, pushing cells and edges off its name
       l.setGraph(model);
       l.tick(500);
       const firsts = model.nodes.flatMap((n) => (!n.cell || n.cell.note || n.petalOf ? [] : n.cell.tags.slice(0, 1)));
-      // (a tag of one cell has no node, its name a plate under the cell: a use of the bar alone, `use "4/4"`, start.ts)
+      // (a tag of one cell has no node, its name a plate under the cell: a take of the bar alone, `from meter`, start.ts)
       const tags = [...new Set(firsts)].filter((t) => firsts.filter((x) => x === t).length > 1);
       expect(tags.length).toBeGreaterThan(2);
       const tagAt = tags.map((t) => ({ t, p: l.position(`tag:${t}`)!, r: 40 + 13 * t.length }));

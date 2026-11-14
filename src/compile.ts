@@ -5,8 +5,8 @@
  * person opened, saved or wrote goes through here, so a piece with `* from gm_kit` opens, draws and plays.
  */
 import { compileSource } from '@yggi/cells/engine/compile';
-import { declLine, splitComment } from '@yggi/cells/engine/edit';
-import { expansion, hasFrom } from '@yggi/cells/engine/use';
+import { takeIn } from '@yggi/cells/engine/takein';
+import { hasFrom } from '@yggi/cells/engine/use';
 import type { CompileResult, Env, Locked } from '@yggi/cells/engine/program';
 import { resolveSeed } from '@yggi/cells/repository/library';
 
@@ -14,31 +14,13 @@ export const compilePiece = (text: string, env?: Env, locked?: readonly Locked[]
   compileSource(text, env, { resolve: resolveSeed, ...(locked?.length ? { locked } : {}) });
 
 /**
- * The text with a used cell's line written in it (cells decision 054, #480): the line its fragment gives `&name`,
- * word for word, under the `use` line that gave it (and under the lines the piece already writes in that use's place),
- * so an edit of a used cell rewrites a line of the piece's own, which then overrides the fragment's; deleting it brings
- * the used one back. The text as it is for a cell the piece writes itself, one no `use` gave, or the head of a named
- * template copy (`&bar from meter &tempo`), which its `from` line defines.
+ * The text with a given cell's line written in, the piece's own (cells' `takeIn`, #480, #610): before an edit of a
+ * cell a `from` line gave, its line becomes the piece's, and the `from` line stops asking for it. The text as it is
+ * where an edit reaches the cell already (the piece's own cell, the head of a `from` line that takes one head) or
+ * where no line of the piece's can stand for it (a template's copy's own cell, one head among several).
  */
-export function withUsedLine(text: string, name: string, locked?: readonly Locked[]): string {
-  if (!hasFrom(text) || declLine(text, name) >= 0) return text;
-  const x = expansion(text, { resolve: resolveSeed, ...(locked?.length ? { locked } : {}) });
-  const by = x.takes.find((u) => u.gave.includes(`&${name}`));
-  const all = x.text.split('\n');
-  const head = text.split('\n').length;
-  const at = declLine(x.text, name);
-  // (a head a template's copy gives, `&bar from meter &tempo`: the copy is that line's, and a line written for it would
-  // define it twice; an edit goes to the `from` line itself, #610. A `*` copy's isn't: `* from band(…)` takes only the
-  // heads the piece doesn't write, so a line written for one overrides it, as under a collection's `*`, cells v0.23.0)
-  if (!by || at < head || (by.args && by.names)) return text;
-  // (its physical lines: a mix written over several continues while a line ends in + * , or [)
-  let end = at;
-  while (end + 1 < all.length && /[+*,[]\s*$/.test(splitComment(all[end]!)[0])) end++;
-  const lines = text.split('\n');
-  // (under its use, and the lines already written in its place there)
-  let under = by.span.line;
-  const mine = new Set(by.overrode.map((n) => n.slice(1)));
-  while (under < lines.length && [...mine].some((n) => declLine(lines[under]!, n) === 0)) under++;
-  lines.splice(under, 0, ...all.slice(at, end + 1));
-  return lines.join('\n');
+export function ownLine(text: string, name: string, locked?: readonly Locked[]): string {
+  if (!hasFrom(text)) return text;
+  const r = takeIn(text, name, { resolve: resolveSeed, ...(locked?.length ? { locked } : {}) });
+  return 'text' in r ? r.text : text;
 }
