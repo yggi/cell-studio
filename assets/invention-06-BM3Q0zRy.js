@@ -1,0 +1,1 @@
+var e=new URL(`invention-06-CSSXi-GX.mid`,import.meta.url).href;export{e as default};
