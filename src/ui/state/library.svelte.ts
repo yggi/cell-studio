@@ -28,8 +28,9 @@ function storeLayout(key: string, layout: LibraryLayout): void {
   }
 }
 
-/** What's open: an example, a piece saved here, a file of the MIDI library, a file. */
-export type Open = { kind: 'example'; key: ExampleKey } | { kind: 'saved'; id: string } | { kind: 'midi'; key: string } | { kind: 'file'; name: string };
+/** What's open: an example, a piece saved here, a file of the MIDI library, a file, a fragment of the seed library (#623). */
+export type Open =
+  { kind: 'example'; key: ExampleKey } | { kind: 'saved'; id: string } | { kind: 'midi'; key: string } | { kind: 'file'; name: string } | { kind: 'fragment'; id: string };
 
 /** The pieces to choose from (the examples, the MIDI library and those saved in this browser), and which is open. */
 export class Library {
@@ -41,7 +42,9 @@ export class Library {
   readonly anyOpen = $derived(this.opened > 0);
   readonly entries = $derived<Entry[]>([...this.saved.map(savedEntry), ...exampleEntries, ...midiEntries]);
   /** The card of the piece open now (none for a file, or before anything is chosen). */
-  readonly currentId = $derived(!this.anyOpen || this.open.kind === 'file' ? null : `${this.open.kind}:${this.open.kind === 'saved' ? this.open.id : this.open.key}`);
+  readonly currentId = $derived(
+    !this.anyOpen || this.open.kind === 'file' ? null : `${this.open.kind}:${this.open.kind === 'saved' || this.open.kind === 'fragment' ? this.open.id : this.open.key}`,
+  );
 
   /** The library as a graph, kept between openings while the same pieces carry the same tags (`layoutKey`). */
   #kept: { key: string; layout: LibraryLayout } | null = null;

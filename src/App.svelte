@@ -26,6 +26,8 @@
   const choosing = $derived(view.tab === 'select');
   // the piece's place in the library, over its name: its tutorial step, or its most particular tag (artist, genre, topic)
   const where = $derived.by(() => {
+    // (a fragment: its facets, as the library files it)
+    if (piece.fragment) return `fragment${piece.fragment.facets.length ? ` › ${piece.fragment.facets.join(' · ')}` : ''}`;
     const entry = library.entries.find((e) => e.id === library.currentId);
     for (const kind of ['tutorial', 'artist', 'genre', 'topic'] as const) {
       const tag = entry?.tags.find((t) => tagKind(t) === kind);
@@ -86,7 +88,7 @@
       >
         <span class="path">{library.anyOpen ? (where ?? 'piece') : 'library'}</span>
         <span class="name">
-          <span>{library.anyOpen ? shortTitle(piece.title) || 'Untitled' : 'Choose a piece'}</span>
+          <span>{library.anyOpen ? (piece.fragment?.id ?? (shortTitle(piece.title) || 'Untitled')) : 'Choose a piece'}</span>
           <svg viewBox="0 0 24 24" aria-hidden="true" class:up={choosing}><path d="M6 9l6 6 6-6" /></svg>
         </span>
       </button>
@@ -167,6 +169,7 @@
       }}
       onturn={(name, shift) => piece.turn(name, shift)}
       onshowcode={(name) => studio.showInCode(name)}
+      onfragment={studio.following ? undefined : (id) => studio.openFragment(id)}
       source={piece.code}
       sound={playback.sound}
       onedit={(s) => (piece.code = s)}
@@ -191,7 +194,11 @@
       rows={studio.rows}
       onlayout={(l) => (view.layout = l)}
       locked={piece.midi || piece.readOnly ? () => tried++ : undefined}
-      lockedHint={piece.readOnly ? 'The host’s section, as it plays: read only while you follow the session.' : undefined}
+      lockedHint={piece.fragment
+        ? 'A fragment of the seed library, heard alone: read only. Edit a copy to change it.'
+        : piece.readOnly
+          ? 'The host’s section, as it plays: read only while you follow the session.'
+          : undefined}
     />
     {#if piece.midi && !studio.conversion.phase}
       <!-- a MIDI file's machine (#390, decision 034): the cells it plays through, read only; converting it is the action -->
@@ -222,6 +229,27 @@
       </div>
       {#if trying}
         <p class="first" role="status">The host’s section is read only while you follow the session: leaving it returns to your piece.</p>
+      {/if}
+    {/if}
+    {#if piece.fragment && piece.audition}
+      <!-- a fragment heard alone (#623): where it was opened from (◂ back), what the host stood in for, a copy to edit -->
+      {@const last = studio.trail.at(-1)}
+      <div class="following fragment" role="group" aria-label="A fragment, heard alone">
+        {#if last}<button class="unstyled back" onclick={() => studio.back()} title="Back to {last.title}">◂ {last.title}</button>{/if}
+        <span role="status" title={piece.audition.why}
+          >{#if piece.audition.why}{piece.fragment.id} is silent alone: {piece.audition.why}{:else}{piece.fragment.id}, heard alone{/if}</span
+        >
+        {#each piece.audition.host.filter((h) => h.fills !== null) as h (h.line)}
+          <code class="stand" title="The host stands in for {h.fills}: {h.line}">{h.fills}</code>
+        {/each}
+        <button
+          class="unstyled"
+          onclick={() => studio.openSource(piece.cells, `${piece.fragment!.id.replace('/', '-')}.cells`)}
+          title="Open its text with its host's lines as a piece of your own">Edit a copy</button
+        >
+      </div>
+      {#if trying}
+        <p class="first" role="status">A fragment of the seed library is read only: Edit a copy to change it.</p>
       {/if}
     {/if}
     {#if offSaid}
@@ -792,6 +820,23 @@
     background: var(--surface);
     border: 1px solid var(--accent);
     font: 600 var(--text-sm) var(--font-ui);
+    white-space: nowrap;
+  }
+  .fragment .back {
+    color: var(--text-muted);
+    white-space: nowrap;
+  }
+  .fragment .back:hover,
+  .fragment .back:focus-visible {
+    color: var(--text);
+  }
+  .fragment .stand {
+    padding: 0 6px;
+    border: 1px dashed var(--text-muted);
+    font-weight: 400;
+    border-radius: var(--radius-pill);
+    font-family: var(--font-code);
+    font-size: 12px;
     white-space: nowrap;
   }
   .following > span {

@@ -6,6 +6,7 @@
  */
 import { compileSource } from '@yggi/cells/engine/compile';
 import { takeIn } from '@yggi/cells/engine/takein';
+import { audition, type Audition } from '@yggi/cells/repository/audition';
 import { hasFrom } from '@yggi/cells/engine/use';
 import type { CompileResult, Env, Locked } from '@yggi/cells/engine/program';
 import { resolveSeed } from '@yggi/cells/repository/library';
@@ -24,3 +25,9 @@ export function ownLine(text: string, name: string, locked?: readonly Locked[]):
   const r = takeIn(text, name, { resolve: resolveSeed, ...(locked?.length ? { locked } : {}) });
   return 'text' in r ? r.text : text;
 }
+
+/**
+ * A fragment heard alone (cells' audition, #623): its text, then the lines of a host that stands in for what it lacks
+ * (a key, a voice, a meter, a card), each listed with the hole it fills; `why` where it plays nothing alone.
+ */
+export const auditionOf = (text: string): Audition => audition(text, { resolve: resolveSeed });

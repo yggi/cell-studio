@@ -1,5 +1,5 @@
 // Time to open and lay out a piece, and the main-thread load while the layout settles (no playing).
-// node open.mjs <url> <throttle> <example search text | file:/path.cells> [runs]
+// node open.mjs <url> <throttle> <example search text | file:/path.cells | fragment:<id>> [runs]
 // env PROFILE=out.json: also record a CPU profile from the click to rest.
 import { chromium } from './playwright.mjs';
 import fs from 'fs';
@@ -40,8 +40,10 @@ for (let r = 0; r < Number(runs); r++) {
   await p.goto(url);
   await p.waitForTimeout(1000);
   const file = what.startsWith('file:') ? what.slice(5) : null;
+  // (a fragment of the seed library, heard alone: opened by its id, as a link opens it, #623)
+  const fragment = what.startsWith('fragment:') ? what.slice(9) : null;
   let card;
-  if (!file) {
+  if (!file && !fragment) {
     await p.getByRole('radio', { name: 'Cards' }).click();
     await p.locator('input.search').fill(what);
     await p.waitForTimeout(300);
@@ -63,7 +65,8 @@ for (let r = 0; r < Number(runs); r++) {
     // (the file input is on the sidebar's Files page)
     await p.getByRole('button', { name: /^Files/ }).click();
     await p.locator('input[type=file]').setInputFiles(file);
-  } else await card.dispatchEvent('click');
+  } else if (fragment) await p.evaluate((id) => window.cellStudio.fragment(id), fragment);
+  else await card.dispatchEvent('click');
   // wait for rest: nodes appeared, then no node moved for QUIET ms
   const w0 = Date.now();
   let st;

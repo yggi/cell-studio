@@ -48,6 +48,7 @@ How long a piece takes to open and lay out, until no node moves (no playing): on
 ```
 node tools/profile/open.mjs <url> <throttle> "<piece title>" [runs]          # by its card in the library
 node tools/profile/open.mjs <url> <throttle> file:/abs/path/piece.cells [runs]  # as a .cells file, unsaved
+node tools/profile/open.mjs <url> <throttle> fragment:<id> [runs]            # a fragment by its id, heard alone (#623)
 PROFILE=open.json node tools/profile/open.mjs ...                            # also a CPU profile per run (open-<run>.json)
 ```
 Read `busyMs` (main-thread busy from the click to rest), `longMax` (the longest task: the page frozen that long),

@@ -13,6 +13,7 @@
 //
 // Then a piece from outside (#406): a string of code opened with `cellStudio.open` over a piece playing, as a file opens;
 // and one that uses the General MIDI kit (cells decision 054), which sounds on Play.
+// Then fragments heard alone (#623): one opened from a piece and ◂ back to it, then one of each facet, heard offline.
 // Then MIDI out (#205): one piece played into a fake Web MIDI port, its note-ons checked against the plan's notes
 // (tools/smoke-midi.ts) each within 2 ms of its neighbour (a slow drift followed, and one step of a clock jump up to 50 ms); then the
 // tempo (a held free()) moved and Pause and Play again within the look-ahead (twice, the second at once), with no All notes off from either
@@ -257,6 +258,63 @@ if (only.length === 0) {
   const ok = problems.length === 0;
   console.log(`${ok ? 'ok  ' : 'FAIL'} A piece that uses gm_kit${ok ? `: ${note}` : '\n       ' + [...new Set(problems)].slice(0, 3).join('\n       ')}`);
   if (!ok) failed.push('A piece that uses gm_kit');
+}
+// A fragment heard alone (#623): opened from a piece, read only, through cells' audition host; ◂ goes back to the piece as it
+// was. Then one fragment of each facet the seed library names, each heard offline (`cellStudio.measure`), above silence,
+// and the two that are silent alone saying why (cells' audition.test.ts names them).
+const HEARD_ALONE = [
+  'root_bass',
+  'vibrato',
+  'ternary',
+  'tonic_vamp',
+  'lead',
+  'meter',
+  'diatonic',
+  'techno_drums',
+  'lowpass',
+  'kinderlied/twinkle',
+  'drums_performer',
+  'charleston_stabs',
+];
+const SILENT_ALONE = ['band', 'styles'];
+if (only.length === 0) {
+  problems = [];
+  const op = await newPage({ viewport: { width: 1280, height: 800 } });
+  op.setDefaultTimeout(8000);
+  op.on('pageerror', (e) => problems.push(`page error: ${e.message}`));
+  op.on('console', (m) => m.type() === 'error' && problems.push(`console error: ${m.text()}`));
+  let note = '';
+  try {
+    await op.goto(url);
+    await op.evaluate((src) => window.cellStudio.open(src, 'kit.cells'), USES);
+    const first = await op.evaluate(() => window.cellStudio.fragment('techno_drums'));
+    if (!first.opened || !first.ok) problems.push(`techno_drums did not open: ${first.errors.join('; ')}`);
+    await op.waitForTimeout(300);
+    const back = op.getByRole('group', { name: 'A fragment, heard alone' }).getByRole('button', { name: /^◂/ });
+    await back.click();
+    await op.waitForTimeout(300);
+    const code = await op.evaluate(() => document.querySelector('textarea')?.value ?? '');
+    if (code !== USES) problems.push(`◂ did not go back to the piece: the editor shows ${JSON.stringify(code.slice(0, 60))}`);
+    const quiet = [];
+    for (const id of HEARD_ALONE) {
+      const f = await op.evaluate((i) => window.cellStudio.fragment(i), id);
+      if (!f.opened || !f.ok || f.why) problems.push(`${id}: ${f.opened ? (f.why ?? f.errors.join('; ')) : 'not in the library'}`);
+      const { rms } = await op.evaluate(() => window.cellStudio.measure(4));
+      if (!(rms > -60)) quiet.push(`${id} ${rms.toFixed(0)} dB`);
+    }
+    if (quiet.length) problems.push(`silent alone: ${quiet.join(', ')}`);
+    for (const id of SILENT_ALONE) {
+      const f = await op.evaluate((i) => window.cellStudio.fragment(i), id);
+      if (!f.opened || !f.why) problems.push(`${id} does not say why it is silent alone`);
+    }
+    note = `◂ back to the piece; ${HEARD_ALONE.length} facets heard, ${SILENT_ALONE.length} silent alone saying why`;
+  } catch (e) {
+    problems.push(String(e.message).split('\n')[0]);
+  }
+  await op.close();
+  const ok = problems.length === 0;
+  console.log(`${ok ? 'ok  ' : 'FAIL'} Fragments heard alone${ok ? `: ${note}` : '\n       ' + [...new Set(problems)].slice(0, 3).join('\n       ')}`);
+  if (!ok) failed.push('Fragments heard alone');
 }
 // MIDI out (#205): a fake port that records what is sent, chosen before the page loads (so it connects without a click)
 const MIDI_PIECE = 'sailor';

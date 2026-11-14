@@ -4,6 +4,8 @@ import { codeShifts } from '@yggi/cells/engine/program';
 import { declLine } from '@yggi/cells/engine/edit';
 import { FIRST_FILE, loadExample, type ExampleKey } from '../../examples';
 import { download, fileName, readFile, saveFile, savePiece } from '../../library';
+import { catalogue } from '@yggi/cells/repository/catalogue';
+import { shortTitle } from '../../layout/library';
 import { pieceMidi } from '@yggi/cells/engine/midiexport';
 import { isMidi, readMidi, writeMidi } from '@yggi/cells/engine/midifile';
 import { midiText } from '@yggi/cells/engine/miditext';
@@ -144,6 +146,11 @@ export class Studio {
         },
         played: (from) => this.#feed?.log.since(from) ?? { events: [], next: 0 },
       },
+      (id) => {
+        const opened = this.openFragment(id);
+        const why = opened ? this.piece.audition?.why : undefined;
+        return why ? { opened, why } : { opened };
+      },
     );
     // MIDI out: the notes the player plays go to the output chosen too
     this.midi.attach(this.playback.player, this.piece);
@@ -233,6 +240,41 @@ export class Studio {
     });
   }
 
+  /**
+   * What a fragment was opened from, nearest last (#623): each piece as it was (its file, edits not saved included), with
+   * its name for the breadcrumb. ◂ (`back`) opens the last again; opening anything else empties it.
+   */
+  trail = $state.raw<readonly { readonly open: Open; readonly file: string; readonly title: string }[]>([]);
+
+  /**
+   * Open a fragment of the seed library by its id (a part's too, `kinderlied/twinkle`), from the piece open now: read only,
+   * heard through its host, and ◂ back to the piece. False for an id the library doesn't hold.
+   */
+  openFragment(id: string): boolean {
+    const entry = catalogue().find((e) => e.id === id);
+    if (!entry) return false;
+    ++this.#choice;
+    const trail = this.library.anyOpen ? [...this.trail, { open: this.library.open, file: this.piece.file, title: this.#titleOfOpen() }] : this.trail;
+    this.#opened({ kind: 'fragment', id }, entry.text);
+    this.trail = trail;
+    return true;
+  }
+  /** Back to the piece a fragment was opened from (◂), as it was. */
+  back(): void {
+    const last = this.trail.at(-1);
+    if (!last) return;
+    ++this.#choice;
+    const rest = this.trail.slice(0, -1);
+    this.#opened(last.open, last.file);
+    this.trail = rest;
+  }
+  /** The open piece's name, as the breadcrumb shows it: a fragment's id, else its title. */
+  #titleOfOpen(): string {
+    const open = this.library.open;
+    if (open.kind === 'fragment') return open.id;
+    return shortTitle(this.piece.title) || (open.kind === 'file' ? open.name.replace(/\.[^.]*$/, '') : '') || 'Untitled';
+  }
+
   /** A piece's source, now open: laid out afresh, from rest, its graph shown. */
   #opened(open: Open, source: string, followed = false): void {
     // (another piece opened leaves the session joined, and is the piece from then on)
@@ -242,7 +284,9 @@ export class Studio {
     }
     this.stopFolding(false);
     this.library.open = open;
-    this.piece.open(source);
+    this.trail = [];
+    if (open.kind === 'fragment') this.piece.openFragment(open.id, catalogue().find((e) => e.id === open.id)?.facets ?? [], source);
+    else this.piece.open(source);
     this.view.tab = 'graph';
     this.view.message = null;
     this.library.opened++;
@@ -280,6 +324,9 @@ export class Studio {
       }
       if (mine !== this.#choice) return;
       this.#opened({ kind: 'example', key: key as ExampleKey }, source);
+    } else if (kind === 'fragment') {
+      // (from the library: a fragment of its own, nothing to go back to)
+      if (this.openFragment(key)) this.trail = [];
     } else if (kind === 'midi') {
       let smf: Smf;
       try {

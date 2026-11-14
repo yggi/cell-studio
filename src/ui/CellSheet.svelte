@@ -33,6 +33,7 @@
     onedit,
     onrename,
     given,
+    onfragment,
     hidden = false,
   }: {
     name: string;
@@ -53,6 +54,8 @@
      * written in, so an edit here writes that line into the piece, overriding the used one; not renamed or deleted.
      */
     given?: string;
+    /** Open the fragment that gave it (#623): its `from` line's id is a link. */
+    onfragment?: (id: string) => void;
     /** Kept, not shown (a wide screen's inspector on another page). */
     hidden?: boolean;
   } = $props();
@@ -79,7 +82,13 @@
       <div class="bigscope"><ScopeView {name} w={Math.min(560, (typeof window !== 'undefined' ? window.innerWidth : 400) - 48)} h={220} /></div>
     {/if}
     {#if rename.problem}<p class="problem" role="status">{rename.problem}</p>{/if}
-    {#if given !== undefined}<p class="given">From <code>{fromLabel(given)}</code>: an edit writes its line into the piece, in its place.</p>{/if}
+    {#if given !== undefined}
+      <p class="given">
+        From {#if onfragment}<button class="unstyled link" onclick={() => onfragment(given)} title="Open {given}, heard alone"><code>{fromLabel(given)}</code></button>{:else}<code
+            >{fromLabel(given)}</code
+          >{/if}: an edit writes its line into the piece, in its place.
+      </p>
+    {/if}
     <CellPicture {name} />
     {#if sheetWheel(cell)}<BraidWheel {name} {isMeter} {source} {opened} {words} {multiline} {names} {onedit} />{/if}
     <FreeValues {name} />
@@ -103,6 +112,14 @@
   .given code {
     font-family: var(--font-code);
     color: var(--text);
+  }
+  .given .link code {
+    text-decoration: underline dotted;
+    text-underline-offset: 3px;
+  }
+  .given .link:hover code,
+  .given .link:focus-visible code {
+    color: var(--accent);
   }
   .problem {
     margin: -6px 0 0;

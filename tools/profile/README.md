@@ -8,9 +8,11 @@ device, so this measures the page, not audible glitches; use a real phone for th
     node tools/profile/measure.mjs http://localhost:4173/ 4 20 "Metronome" "Hypercell" "Test Tones on Tape"
     #                                                    ^throttle ^seconds ^piece titles (library search text)
 
-    # opening a piece until it is laid out (no playing), by its card or as an unsaved .cells file, 4 runs:
+    # opening a piece until it is laid out (no playing), by its card, as an unsaved .cells file, or a fragment by its id
+    # (heard alone through its host, #623), 4 runs:
     node tools/profile/open.mjs http://localhost:4173/ 4 "Hypercell" 4
     node tools/profile/open.mjs http://localhost:4173/ 4 file:/abs/path/piece.cells 4
+    node tools/profile/open.mjs http://localhost:4173/ 4 fragment:techno_drums 4
 
     # where the time goes: build unminified, sample with the CDP profiler, aggregate
     npx vite build --minify false --outDir /tmp/dist-nomin && npx vite preview --outDir /tmp/dist-nomin --port 4174 &
