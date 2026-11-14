@@ -33,7 +33,7 @@ Introduces a clock: a bar (&bar from meter 120bpm, the library's), its taps (ste
 
 ### Tier 3 · Melody and harmony
 
-Introduces tables: over=, scale() and a scan of steps, shift=; show= and size=; motifs: splicing, reuse, degrees (^n); chords and a progression: accidentals, a sum of pitches.
+Introduces tables: over=, scale() and a scan of steps, shift=; a key on its tonic, the library key (&key from diatonic(mode=minor) &tonic, #699); show= and size=; motifs: splicing, reuse, degrees (^n); chords and a progression: accidentals, a sum of pitches.
 
 | piece | file | about | postgain | length |
 |---|---|---|---|---|

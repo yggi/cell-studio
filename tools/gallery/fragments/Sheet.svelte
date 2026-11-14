@@ -10,6 +10,7 @@
   import { EXAMPLES } from '@yggi/cells/engine/examples';
   import { readFrom } from '@yggi/cells/engine/parser/use';
   import { splitComment } from '@yggi/cells/engine/edit';
+  import { PARTS } from '@yggi/cells/repository/library';
 
   const W = 860;
   const H = 600;
@@ -48,7 +49,8 @@
 
   // ── the document: Kinderlieder written as a document of fragments (the owner's idea, point 3) ──
   const MOTIFS = ['twinkle', 'wonder', 'haenschen', 'hinein', 'heim', 'weinet'];
-  const motifText = (id: string) => BY_ID.get(id)!.text.trim();
+  // (the six tunes are Kinderlieder's parts since cells v0.25.0, decision 082: `kinderlied/twinkle`, not seed files)
+  const motifText = (id: string) => PARTS.find((p) => p.id === `kinderlied/${id}`)!.text.trim();
   const DOC = [
     '# Kinderlieder: the tunes, each a fragment this file gives',
     ...MOTIFS.flatMap((m) => [...motifText(m).split('\n'), '']),
