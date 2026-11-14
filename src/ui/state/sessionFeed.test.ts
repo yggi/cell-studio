@@ -1,6 +1,11 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { NOTHING_FOLLOWED, withBar, withText, type Followed } from '../../session/follow';
-import type { SectionText } from '../../session/protocol';
+import { channelTable, midiNote, routesOf, router } from '@yggi/cells/engine/midi';
+import { readerOf } from '@yggi/cells/engine/perform/feel';
+import { eventsBetween } from '@yggi/cells/engine/realize';
+import { compilePiece } from '../../compile';
+import { NOTHING_FOLLOWED, frameOf, withBar, withText, type Followed } from '../../session/follow';
+import { readHost, type SectionText, type SentBar } from '../../session/protocol';
 import { sounding, type Place } from '../../session/sound';
 import { SessionFeed } from './sessionFeed';
 
@@ -133,5 +138,73 @@ describe('a followed session played as its performers play it', () => {
       expect(e.length).toBeLessThanOrEqual(2);
       expect(e.length).toBeGreaterThan(2 * 0.85);
     }
+  });
+
+  /**
+   * A drum line of the role `ostinato` (session minor 10, feel v3.1, yggi/music-commons#66), followed at a cells pin
+   * before yggi/cells#717: cells' `played` gives a velocity of NaN for a drum role it doesn't know (yggi/jambot#668), so
+   * the follower's reader, cells' `readerOf`, must read the line as none of the feel's, and its hits play as cells
+   * gives them. The bar is the hub's vector of a drum hit an ostinato, sent in each section type in turn; the text is
+   * Salsa's tumbao on the General MIDI kit's toms, as the feel contract's reading case has it, beside a kick and a bass
+   * the feel reads.
+   */
+  it('plays an ostinato line as cells gives it, never through the feel, and no velocity or length is NaN (#643)', () => {
+    const SALSA = `&bar meter("4/4") step=108bpm
+&kick role=kick step=16n &bd ~ ~ ~ &bd ~ ~ ~ &bd ~ ~ ~ &bd ~ ~ ~
+&o role=ostinato step=8n &mt &ht &mt &mt &ht &mt &ht &mt
+&drums [&kick, &o]
+&bd, &mt, &ht from gm_kit
+&bass part=bass step=16n legato=.5 0 ~ ~ 0 ~ ~ 7 ~ ~ 0 ~ ~ 5 ~ 7 ~
+&bassOut play=&bass level=.7 &bassV
+&bassV loop=C2
+&out map=midi ~ &bassOut ~!7 &drums`;
+    const r = compilePiece(SALSA);
+    expect(r.diagnostics.filter((d) => d.severity === 'error')).toEqual([]);
+    const read = readerOf(r);
+    const route = router(r, channelTable(r));
+    // (the hub's vector, as the follower reads it: a drum hit `role: "ostinato"` in what the host wrote)
+    const contract = JSON.parse(readFileSync(new URL('../../session/vectors.json', import.meta.url), 'utf8')) as { vectors: { name: string; message: unknown }[] };
+    const got = readHost(contract.vectors.find((v) => v.name === 'bar, a drum hit an ostinato')!.message);
+    if (!('message' in got) || got.message.kind !== 'bar') throw new Error('the hub’s ostinato bar is read');
+    const sent: SentBar = got.message.sent;
+    const sections = ['intro', 'groove', 'build', 'drop', 'breakdown', 'bridge'];
+    const seconds = 240 / 108;
+    let f: Followed = NOTHING_FOLLOWED;
+    for (const [b, type] of sections.entries()) {
+      const bar = { ...sent.bar, bar: b, barInSection: 0, plan: { ...(sent.bar.plan as object), section: { type, index: b } } };
+      expect(frameOf({ bar, start: 0 })).not.toBeNull();
+      f = withBar(f, { bar, start: 10 + b * seconds });
+    }
+    f = withText(f, { ...section(0, SALSA), foreseen: sections.map(() => 'a') });
+    const feed = new SessionFeed({ sounding: (done, lead, now, length) => ({ ...sounding(f, done, now + 5 + lead, now + 5, length), shift: 5 }) });
+    const lines = new Map<string, number>();
+    for (let now = 4.9; now < 5 + sections.length * seconds; now += 0.125)
+      for (const x of feed.next(now, now + 0.6)) {
+        const given = eventsBetween(x.plan, x.window.from, x.window.to, true);
+        x.window.events.forEach((e, i) => {
+          const line = e.output!.startsWith('kit:voices:') ? e.output!.split(':')[2]! : e.output!.split(':')[1]!;
+          lines.set(line, (lines.get(line) ?? 0) + 1);
+          // (every level the voices hear, and every velocity MIDI sends, is a number; every length is positive)
+          for (const l of e.levels) expect(Number.isFinite(l.level), e.output).toBe(true);
+          expect(e.dur, e.output).toBeGreaterThan(0);
+          const velocity = midiNote(
+            e,
+            routesOf(route(e)).find((x) => x.channel !== 16)!,
+          )!.velocity;
+          expect([e.output, velocity >= 1 && velocity <= 127]).toEqual([e.output, true]);
+          // (an ostinato hit is none of the feel's: it plays as cells gives it)
+          if (line === 'o') {
+            expect(read(e.output)).toBeNull();
+            expect(e).toEqual(given[i]);
+          }
+        });
+      }
+    // (six bars: a kick on each beat, the tumbao's 8 eighths, the bass's 6 notes)
+    expect(Object.fromEntries(lines)).toEqual({ kick: 24, o: 48, bass: 36 });
+    expect(feed.unread).toBe(48);
+    const log = feed.log.since().events;
+    expect(log).toHaveLength(60);
+    expect(log.filter((x) => x.role === 'ostinato')).toEqual([]);
+    expect(log.filter((x) => !Number.isFinite(x.velocity) || !(x.length > 0) || !(x.duration > 0))).toEqual([]);
   });
 });

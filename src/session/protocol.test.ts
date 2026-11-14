@@ -1,5 +1,5 @@
 /**
- * The session contract (yggi/music-commons `contracts/session-v1`, version 1, minor 9) run against Cell studio's client
+ * The session contract (yggi/music-commons `contracts/session-v1`, version 1, minor 10) run against Cell studio's client
  * side, in the form cells and webmidi run theirs (yggi/webmidi src/contracts.test.ts @ 41ef16b): the hub's vectors are
  * copied beside this file (`vectors.json`, its `lifted` line naming the hub and the commit), and the hub's README for
  * the contract is the rule. A client reads two of the contract's four readers: a host's messages (`client`) and what a
@@ -49,14 +49,14 @@ const of = (reader: Vector['reader']) => contract.vectors.filter((v) => v.reader
 /**
  * The vectors of a client's two readers that this client doesn't meet, by name, each with its reason: the contract lets
  * an implementer record one rather than tighten or loosen its reader (its README's "Host → client"). A recorded vector
- * still runs, and fails once the reader meets it, so the record can't go stale. None, at minor 9.
+ * still runs, and fails once the reader meets it, so the record can't go stale. None, at minor 10.
  */
 const RECORDED: ReadonlyMap<string, string> = new Map();
 
-describe('the session contract (music-commons contracts/session-v1, version 1, minor 9)', () => {
+describe('the session contract (music-commons contracts/session-v1, version 1, minor 10)', () => {
   it('is the version this client speaks, lifted with its source named', () => {
     expect(contract.lifted).toMatch(/^Lifted from yggi\/music-commons contracts\/session-v1\/vectors\.json @ [0-9a-f]{7}/);
-    expect([contract.contract, contract.version, contract.minor]).toEqual(['session', 1, 9]);
+    expect([contract.contract, contract.version, contract.minor]).toEqual(['session', 1, 10]);
     expect(contract.protocol).toBe(PROTOCOL);
     expect(contract.firstProtocol).toBe(FIRST_PROTOCOL);
     for (const [k, v] of Object.entries(LIMITS)) expect([k, contract.limits[k]]).toEqual([k, v]);

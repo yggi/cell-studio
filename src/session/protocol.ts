@@ -1,6 +1,6 @@
 /**
  * What a Jambot host and its clients say to each other through a lobby, as a client reads it: the session contract,
- * version 1 (yggi/music-commons `contracts/session-v1`, minor 9: protocol 22), implemented here from the contract, not
+ * version 1 (yggi/music-commons `contracts/session-v1`, minor 10: protocol 23), implemented here from the contract, not
  * from Jambot's code (#478). The contract's vectors run against these readers (`protocol.test.ts`).
  *
  * Cell studio is a client that listens (rung 1 of #478): it asks a lobby which sessions are open (`list`, rung 2),
@@ -8,14 +8,15 @@
  * a kind it knows without them is refused, one of a kind it doesn't know is ignored: both are dropped, and the link
  * kept). It keeps what it needs of each (the bars' starts, the section texts, the pongs, the role it is seated as) and
  * checks the rest only for its shape (the style, the forecast, the Muse, the session's log). A field a later minor adds
- * inside what it reads is kept beside it, unread: a motif's `origin` (minor 8), the style's `mood` (minor 9).
+ * inside what it reads is kept beside it, unread: a motif's `origin` (minor 8), the style's `mood` (minor 9), a written
+ * drum hit's `role: "ostinato"` (minor 10).
  */
 
 /**
- * The protocol a join of this client carries: the contract's minor 9. A join carries no code: a client that listens
+ * The protocol a join of this client carries: the contract's minor 10. A join carries no code: a client that listens
  * needs none (minor 2); and it sends no `nudge` (minors 5 and 6), which is a player's.
  */
-export const PROTOCOL = 22;
+export const PROTOCOL = 23;
 /** The first protocol of the contract's version 1: a host of it or later is one of this version (any minor joins). */
 export const FIRST_PROTOCOL = 13;
 
