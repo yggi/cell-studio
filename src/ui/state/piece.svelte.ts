@@ -1,5 +1,5 @@
 import { codeShifts, type CompileResult, type Take } from '@yggi/cells/engine/program';
-import { auditionOf, compilePiece, ownLine } from '../../compile';
+import { auditionOf, compilePiece, documentParts, ownLine } from '../../compile';
 import { addCell, offProblem, setFree, setOff, setShift } from '@yggi/cells/engine/edit';
 import { freeIndex, freeList, withHeld } from '@yggi/cells/engine/held';
 import { buildGraph } from '../../layout/drawn';
@@ -60,6 +60,8 @@ export class Piece {
    * cells' audition: its text, then the host's lines (`audition`).
    */
   fragment = $state.raw<{ readonly id: string; readonly facets: readonly string[] } | null>(null);
+  /** The parts it gives, where it is a document of fragments (cells decision 082: Kinderlieder); none for any other. */
+  readonly parts = $derived(this.fragment || this.midi ? [] : documentParts(this.#code));
   /** A fragment's host: what it plays, each stand-in with the hole it fills, why it is silent alone; null for a piece. */
   readonly audition = $derived(this.fragment ? auditionOf(this.#code) : null);
   /**
