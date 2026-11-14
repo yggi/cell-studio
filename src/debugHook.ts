@@ -25,6 +25,7 @@ export function installDebugHook(
   recorder: Recorder,
   openSource: (source: string, name?: string) => void,
   session?: SessionHook,
+  openFragment?: (id: string) => { readonly opened: boolean; readonly why?: string },
 ): void {
   if (typeof window === 'undefined') return;
   (window as unknown as { cellStudio: unknown }).cellStudio = {
@@ -39,6 +40,14 @@ export function installDebugHook(
       openSource(source, name);
       const r = openPiece();
       return { ok: r.ok, errors: r.diagnostics.filter((d) => d.severity === 'error').map((d) => d.message) };
+    },
+    // fragment(id) opens a fragment of the seed library by its id (a part's too, `kinderlied/twinkle`), heard alone through
+    // its host, from the piece open now (◂ back to it, #623): whether the library holds it, whether its host compiled
+    // and its errors, and why it is silent alone where it is
+    fragment: (id: string) => {
+      const f = openFragment?.(id) ?? { opened: false };
+      const r = openPiece();
+      return { ...f, ok: f.opened && r.ok, errors: r.diagnostics.filter((d) => d.severity === 'error').map((d) => d.message) };
     },
     // the default render length in seconds
     length: () => renderLength(openPiece()),

@@ -88,6 +88,7 @@
     ontoggle,
     onturn,
     onshowcode,
+    onfragment,
     source,
     sound,
     onedit,
@@ -122,6 +123,8 @@
     ontoggle: (id: string) => void;
     onturn: (name: string, shift: number) => void;
     onshowcode: (name: string) => void;
+    /** Open the fragment a `from` line takes, by its id (#623); absent where there is nowhere to open it. */
+    onfragment?: (id: string) => void;
     source: string;
     /** The sound while it plays, and hands on it (the Player). */
     sound: LiveSource;
@@ -818,6 +821,11 @@
         onshowcode(n);
       }}
       onclose={() => (selected = null)}
+      onfragment={onfragment &&
+        ((id: string) => {
+          selected = null;
+          onfragment(id);
+        })}
       hidden={sheetHidden}
       {onedit}
       {onrename}

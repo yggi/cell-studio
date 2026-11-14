@@ -10,6 +10,7 @@ import { windowAt } from '@yggi/cells/engine/schedule';
 import { readPiece } from '@yggi/cells/engine/piecefile';
 import { savedEntry } from '../entries';
 import { miniature } from '../../layout/miniature';
+import { catalogue } from '@yggi/cells/repository/catalogue';
 
 const SRC = `&bar step=free(120bpm, 60..180)
 &tune step=&bar 0 2 4 shift=free(0, 0..7) over=&bar
@@ -367,5 +368,37 @@ describe('Piece: a piece that uses a fragment (cells decision 054)', () => {
     expect(p.code.split('\n')[2]).toMatch(/^&hh note=42 s=white/);
     p.code = USES;
     expect(events()).toBe(before);
+  });
+});
+
+describe('Piece: a fragment opened (#623)', () => {
+  // (cells' audition.test.ts names the two that are silent alone: the band plays a score's parts, a style only through what reads it)
+  const SILENT_ALONE = ['band', 'styles'];
+
+  it('opens every fragment of the seed library, a document’s parts too, read only and heard through its host: 0 errors', () => {
+    const p = new Piece('');
+    const failed: string[] = [];
+    for (const e of catalogue()) {
+      p.openFragment(e.id, e.facets, e.text);
+      const errors = p.result.diagnostics.filter((d) => d.severity === 'error');
+      if (SILENT_ALONE.includes(e.id) ? !p.audition?.why : errors.length || p.audition?.why) failed.push(`${e.id}: ${p.audition?.why ?? errors[0]?.message}`);
+    }
+    expect(failed).toEqual([]);
+    expect(catalogue().length).toBeGreaterThan(150);
+  });
+
+  it('shows its own text, plays it with the host’s lines after it, and refuses an edit', () => {
+    const p = new Piece('');
+    const twinkle = catalogue().find((e) => e.id === 'kinderlied/twinkle')!;
+    p.openFragment(twinkle.id, twinkle.facets, twinkle.text);
+    expect(p.code).toBe(twinkle.text);
+    expect(p.cells.startsWith(`${twinkle.text}\n`)).toBe(true);
+    expect(p.audition?.host.find((h) => h.fills === '&key')?.line).toMatch(/^&key /);
+    expect(p.readOnly).toBe(true);
+    p.code = '&x 1';
+    expect(p.code).toBe(twinkle.text);
+    // (a piece opened after it is a piece again: written, its own text played)
+    p.open('&a step=4n 0 2');
+    expect([p.fragment, p.audition, p.readOnly, p.cells]).toEqual([null, null, false, '&a step=4n 0 2']);
   });
 });

@@ -1,5 +1,5 @@
 import { codeShifts, type CompileResult, type Take } from '@yggi/cells/engine/program';
-import { compilePiece, ownLine } from '../../compile';
+import { auditionOf, compilePiece, ownLine } from '../../compile';
 import { addCell, offProblem, setFree, setOff, setShift } from '@yggi/cells/engine/edit';
 import { freeIndex, freeList, withHeld } from '@yggi/cells/engine/held';
 import { buildGraph } from '../../layout/drawn';
@@ -45,8 +45,9 @@ export class Piece {
   /** Its file had no frontmatter, only cells blocks among prose (cells #212): written back without one while it has none. */
   #bare: true | undefined = undefined;
   /**
-   * Read only: the code is a Jambot session host's section, shown as the host sent it (#478, `follow`): every edit is
-   * refused (the editor, the graph, held values, Shorten) until the piece is let go (`open`, or the session ends).
+   * Read only: the code is a Jambot session host's section, shown as the host sent it (#478, `follow`), or a seed
+   * fragment opened (`openFragment`, #623): every edit is refused (the editor, the graph, held values, Shorten) until
+   * the piece is let go (`open`, or the session ends).
    */
   readOnly = $state(false);
   /** The device's sample rate, once audio runs: a value the environment provides to the code. */
@@ -54,8 +55,18 @@ export class Piece {
   readonly env = $derived({ SAMPLE_RATE: this.sampleRate, A4: 440 });
   /** A MIDI file's text, read (its lines that say nothing are its diagnostics); null for a piece's code. */
   readonly midi = $derived(isMidiText(this.#code) ? parseMidiText(this.#code) : null);
-  /** The cells that play: the code, or a MIDI file's notes written out (a fixed tempo: nothing is kept in its text). */
-  readonly cells = $derived(this.midi ? cellsFromMidi(this.midi.smf, this.midi.smf.name ?? 'MIDI file', { free: false }).source : this.#code);
+  /**
+   * A fragment opened (#623): its id and the facets its points name; null for a piece. Read only, and heard through
+   * cells' audition: its text, then the host's lines (`audition`).
+   */
+  fragment = $state.raw<{ readonly id: string; readonly facets: readonly string[] } | null>(null);
+  /** A fragment's host: what it plays, each stand-in with the hole it fills, why it is silent alone; null for a piece. */
+  readonly audition = $derived(this.fragment ? auditionOf(this.#code) : null);
+  /**
+   * The cells that play: the code, a fragment's code with its host's lines after it, or a MIDI file's notes written out
+   * (a fixed tempo: nothing is kept in its text).
+   */
+  readonly cells = $derived(this.midi ? cellsFromMidi(this.midi.smf, this.midi.smf.name ?? 'MIDI file', { free: false }).source : this.audition ? this.audition.text : this.#code);
   /** What its file's lockfile recorded each `use` resolved to (none for a bare text). */
   readonly locked = $derived(this.frontmatter ? lockfileOf({ frontmatter: this.frontmatter }) : []);
   /** The code as written, compiled (its diagnostics are the editor's: a MIDI file's are its text's). */
@@ -131,6 +142,7 @@ export class Piece {
   /** Open a piece: a piece file (its frontmatter and prose kept, its text the code) or a bare text. */
   open(source: string): void {
     this.readOnly = false;
+    this.fragment = null;
     const file = pieceFile(source);
     this.frontmatter = file?.frontmatter ?? null;
     this.#prose = file?.prose ?? '';
@@ -152,9 +164,16 @@ export class Piece {
   set code(source: string) {
     if (!this.readOnly) this.#write(source);
   }
+  /** Open a fragment by its text (#623): read only, heard through its host (`audition`). */
+  openFragment(id: string, facets: readonly string[], text: string): void {
+    this.open(text);
+    this.fragment = { id, facets };
+    this.readOnly = true;
+  }
   /** Show a session host's text as it is, read only from now on (#478): a bare text, the one write while read only. */
   follow(text: string): void {
     this.readOnly = true;
+    this.fragment = null;
     this.frontmatter = null;
     this.#prose = '';
     this.#layout = undefined;
