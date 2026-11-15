@@ -13,10 +13,12 @@
   import { BALANCE, mapGraph, mapLayout, type Placed } from '../layout/fragmentmap';
   import { FACETS } from '../references';
   import { facetColour } from './theme';
+  import { mine } from '../mine.svelte';
 
   let { onfragment, onpiece, onclose }: { onfragment: (id: string) => void; onpiece: (key: string) => void; onclose: () => void } = $props();
 
-  const graph = mapGraph();
+  // (the library as the app lists it: the seed's and the person's own, #626)
+  const graph = mapGraph(mine.entries);
   let x = $state(AXES[0]!.name);
   let y = $state(AXES[1]!.name);
   let balance = $state(BALANCE);
@@ -29,7 +31,7 @@
   /** Lay out from where the nodes are, and glide there (400 ms; at once with reduced motion). */
   function relayout() {
     const from = drawn.length ? new Map(drawn.map((p) => [p.node.key, { x: p.x, y: p.y }])) : undefined;
-    const next = mapLayout(graph, x, y, { balance, ...(from ? { from } : {}) });
+    const next = mapLayout(graph, x, y, { balance, ...(from ? { from } : {}) }, mine.entries);
     cancelAnimationFrame(frame);
     const start = drawn;
     const still = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -45,7 +47,7 @@
   }
   // (opened, it shows at once where it starts, each fragment at its anchors, and lays out in the next task, gliding there)
   onMount(() => {
-    drawn = mapLayout(graph, x, y, { balance, ticks: 0 });
+    drawn = mapLayout(graph, x, y, { balance, ticks: 0 }, mine.entries);
     const t = setTimeout(relayout, 0);
     return () => (clearTimeout(t), cancelAnimationFrame(frame));
   });
@@ -113,10 +115,11 @@
         class={p.node.kind}
         class:dim={!lit(p)}
         class:loose={p.node.kind === 'fragment' && !held}
+        class:own={p.node.own === true}
         style:--c={p.node.facet ? facetColour(p.node.facet, facets) : undefined}
         role="button"
         tabindex="0"
-        aria-label="{p.node.kind === 'piece' ? 'Piece' : p.node.kind === 'meeting' ? 'Meeting of' : 'Fragment'} {p.node.label}"
+        aria-label="{p.node.kind === 'piece' ? 'Piece' : p.node.kind === 'meeting' ? 'Meeting of' : p.node.own ? 'Your fragment' : 'Fragment'} {p.node.label}"
         onpointerenter={() => (hovered = p.node.key)}
         onpointerleave={() => (hovered = null)}
         onfocus={() => (hovered = p.node.key)}
@@ -221,6 +224,11 @@
   circle.meeting {
     fill: none;
     stroke: var(--text);
+  }
+  /* (a fragment the person filed: ringed in the accent) */
+  circle.own {
+    stroke: var(--accent);
+    stroke-width: 3;
   }
   circle.dim {
     opacity: 0.15;

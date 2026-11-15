@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { catalogue } from '@yggi/cells/repository/catalogue';
 import { FUNK } from '@yggi/cells/repository/styles';
 import { fromContext, suggestFragments } from './complete';
+import { EMPTY_LAYER } from '@yggi/cells/repository/fragments';
 
 describe('completion after from', () => {
   it('reads a line that asks for an id, and none that doesn’t', () => {
@@ -42,5 +43,19 @@ describe('completion after from', () => {
     expect(rhythms.slice(0, 3).map((x) => x.text)).toEqual(['funk_drums', 'rumba_clave_3_2', 'son_clave_2_3']);
     for (const r of rhythms.slice(0, 3)) expect(r.distance, r.text).toBeLessThanOrEqual(0.3);
     expect(rhythms.map((r) => r.distance)).toEqual([...rhythms.map((r) => r.distance)].sort((a, b) => a - b));
+  });
+});
+
+describe('completion after from offers a person’s own fragments (#626)', () => {
+  it('lists one filed, by its id, with the seed’s', () => {
+    const fragment = {
+      id: 'my_groove',
+      text: '&groove from\n&groove step=8n &bd ~ &sd ~\n&bd, &sd from gm_kit',
+      association: [{ point: { sync: 0.5 }, weight: 0.1, facet: 'rhythm' }],
+    };
+    const entries = catalogue({ ...EMPTY_LAYER, filed: [{ fragment, meta: { source: 'me', created: '2026-11-15T00:00:00Z' }, prose: '' }] });
+    const s = suggestFragments(fromContext('&beat from my_g')!, null, 12, entries);
+    expect(s.map((x) => x.text)).toContain('my_groove');
+    expect(s.find((x) => x.text === 'my_groove')?.facet).toBe('rhythm');
   });
 });

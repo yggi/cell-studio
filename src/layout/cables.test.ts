@@ -6,6 +6,7 @@ import { compilePiece } from '../compile';
 import { buildGraph } from './drawn';
 import { jackOfEdge, jacksOfNode } from './modules';
 import { bandOf, move, plug, pull, takes } from './cables';
+import { resolveSeed } from '@yggi/cells/repository/library';
 
 const PATCHBAY = EXAMPLES.patchbay.source;
 const patchbay = compilePiece(PATCHBAY);
@@ -73,5 +74,17 @@ describe('a refused drop writes nothing and says why (cells’ PatchError)', () 
   it('a move whose new jack refuses the cable writes nothing, not the cable pulled', () => {
     const on = written(plug(PATCHBAY, 'vca', 'level', 'sweep'));
     expect(move(on, 'sweep', { cell: 'vca', port: 'level' }, { cell: 'vcf', port: 'res' }).ok).toBe(false);
+  });
+});
+
+describe('a drop on a piece that takes a person’s own fragment (#626)', () => {
+  it('patches through the resolver it is handed: refused by the seed’s alone, written through the app’s', () => {
+    // (Patchbay's amp taken as a fragment the person filed, by another id)
+    const mine = PATCHBAY.replace('from amp(', 'from my_amp(');
+    const own = (id: string, hash?: string) => (id === 'my_amp' ? resolveSeed('amp') : resolveSeed(id, hash));
+    const d = plug(mine, 'vca', 'level', 'sweep', own);
+    expect(d.ok && lineOf(d.text, 'vca')).toBe('&vca from my_amp(eg=&(map=adsr .002 .3 .5 .06), level=&sweep) &vcf');
+    expect(written(pull(written(d), 'vca', 'level', 'sweep', own))).toBe(mine);
+    expect(plug(mine, 'vca', 'level', 'sweep').ok).toBe(false);
   });
 });

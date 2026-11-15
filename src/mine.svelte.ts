@@ -10,6 +10,7 @@ import { LIBRARY, resolverOf } from '@yggi/cells/repository/library';
 import { createRepository } from '@yggi/cells/repository/fragments';
 import { storageKey } from './storageKey';
 import { setResolver } from './compile';
+import { catalogue } from '@yggi/cells/repository/catalogue';
 
 const DB = storageKey('cell-studio-mine');
 const STORE = 'layer';
@@ -63,6 +64,8 @@ class Mine {
     setResolver(resolverOf(layer));
   }
   /** The ids of the fragments filed here. */
+  /** The library as the app lists it: the seed's fragments, a document's parts, then the ones filed here (cells' `catalogue`). */
+  readonly entries = $derived(catalogue(this.#layer));
   readonly ids = $derived(new Set(this.#layer.filed.map((f) => f.fragment.id)));
   #db: Promise<IDBDatabase | null> | null = null;
 

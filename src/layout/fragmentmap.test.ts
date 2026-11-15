@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { AXES } from '@yggi/cells/engine/style';
 import { catalogue } from '@yggi/cells/repository/catalogue';
 import { anchorOf, mapGraph, mapLayout } from './fragmentmap';
+import { EMPTY_LAYER } from '@yggi/cells/repository/fragments';
 
 const graph = mapGraph();
 const [X, Y] = [AXES[0]!.name, AXES[1]!.name];
@@ -16,6 +17,18 @@ describe('the fragment map', () => {
     expect(graph.edges.every(([a, b]) => keys.has(a) && keys.has(b) && a !== b)).toBe(true);
     // (Kinderlieder's songs meet their tunes: a line whose arguments bring two or more taken cells together)
     expect(graph.nodes.some((n) => n.kind === 'meeting' && n.key.startsWith('c:kinderlied:'))).toBe(true);
+  });
+
+  it('marks a fragment the person filed as their own, and only that one (#626)', () => {
+    const fragment = {
+      id: 'my_groove',
+      text: '&groove from\n&groove step=8n &bd ~ &sd ~\n&bd, &sd from gm_kit',
+      association: [{ point: { [X]: 0.5 }, weight: 0.1, facet: 'rhythm' }],
+    };
+    const g = mapGraph(catalogue({ ...EMPTY_LAYER, filed: [{ fragment, meta: { source: 'me', created: '2026-11-15T00:00:00Z' }, prose: '' }] }));
+    expect(g.nodes.filter((n) => n.own).map((n) => n.label)).toEqual(['my_groove']);
+    // (it takes gm_kit: an edge to it)
+    expect(g.edges).toContainEqual(['f:my_groove', 'f:gm_kit']);
   });
 
   it('holds a fragment where its points agree, as surely as they agree; an axis no point names, not at all', () => {

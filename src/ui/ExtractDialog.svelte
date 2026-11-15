@@ -10,7 +10,6 @@
    *   `from` line.
    */
   import { untrack } from 'svelte';
-  import { catalogue } from '@yggi/cells/repository/catalogue';
   import { extract } from '@yggi/cells/repository/extract';
   import { getStudio } from './state/studio.svelte';
   import { mine } from '../mine.svelte';
@@ -24,12 +23,12 @@
   const studio = getStudio();
   const { piece } = studio;
   const code = piece.code;
-  const taken = new Set([...catalogue().map((e) => e.id), ...mine.ids]);
+  const taken = new Set(mine.entries.map((e) => e.id));
   // (offered once: the first proposal's heads give the id)
   const first = untrack(() => extract(code, lines, { id: 'my_fragment', resolve: mine.resolve }));
   let id = $state('heads' in first ? idFor(first.heads, taken) : 'my_fragment');
   const proposal = $derived(extract(code, lines, { id: id.trim() || 'my_fragment', resolve: mine.resolve }));
-  let facet = $state<string>('heads' in first ? (facetFor(first.fragment, catalogue()) ?? '') : '');
+  let facet = $state<string>('heads' in first ? (facetFor(first.fragment, mine.entries) ?? '') : '');
   const clash = $derived(taken.has(id.trim()));
   let filing = $state(false);
   let problem = $state<string | null>(null);
