@@ -126,9 +126,12 @@ export interface Placed {
  * library, three seeds (`tools/probe/fragmentmap.test.ts`, docs/notes/fragment-map.md). The knee against edge length
  * (#625's wording) is 0.25–0.50, median 0.40.
  */
-const BALANCE = 0.3;
-/** Ticks a layout runs: 150 reach the style error 300 do, in 70 ms (the probe, this machine). */
-const TICKS = 150;
+export const BALANCE = 0.3;
+/**
+ * Ticks a layout runs: 100 reach the style error 300 do (.019), with 1.5 % more crossings, in 44 ms (the probe, this
+ * machine); 150 take 70 ms for the same error. The map opens at its start and glides here.
+ */
+const TICKS = 100;
 
 export interface MapOptions {
   /** The style ↔ structure slider: the anchors' share of the two forces' strength, 0…1 (`BALANCE` by default). */

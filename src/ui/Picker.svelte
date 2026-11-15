@@ -6,6 +6,7 @@
    */
   import LibraryGraph from './LibraryGraph.svelte';
   import LobbyCell from './LobbyCell.svelte';
+  import FragmentMap from './FragmentMap.svelte';
   import CardGrid from './picker/CardGrid.svelte';
   import PieceDetail from './picker/PieceDetail.svelte';
   import TagFilters from './picker/TagFilters.svelte';
@@ -32,6 +33,8 @@
   const current = $derived(library.currentId);
   const message = $derived(studio.view.message);
   const onpick = (id: string) => studio.pick(id);
+  // (the fragment map open over the library's graph, #625)
+  let mapOpen = $state(false);
   const onclose = () => (studio.view.tab = 'graph');
   const onremove = (id: string) => library.remove(id);
 
@@ -141,7 +144,27 @@
 
   {#if view === 'graph'}
     {#if lib}
-      <LibraryGraph {entries} {lib} {colours} shown={matching} {current} bind:tag bare={embedded} top={embedded ? topHeight : 0} {refit} onopen={(e) => (detail = e)} />
+      <LibraryGraph
+        {entries}
+        {lib}
+        {colours}
+        shown={matching}
+        {current}
+        bind:tag
+        bare={embedded}
+        top={embedded ? topHeight : 0}
+        {refit}
+        onopen={(e) => (detail = e)}
+        onfragments={() => (mapOpen = true)}
+      />
+      {#if mapOpen}
+        <!-- the fragment map (#625), over the wheel: ◂ back to it -->
+        <FragmentMap
+          onfragment={(id) => ((mapOpen = false), onpick(`fragment:${id}`))}
+          onpiece={(key) => ((mapOpen = false), onpick(`example:${key}`))}
+          onclose={() => (mapOpen = false)}
+        />
+      {/if}
     {:else}
       <!-- while the library is laid out: its wheel, turning (a transform: it keeps turning while the page works) -->
       <div class="arranging" role="status">

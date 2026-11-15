@@ -486,8 +486,11 @@ interface Disc {
   readonly r: number;
 }
 
-/** The library folded (`foldSides`), and where the lobby's cell is (#478, rung 2): the sessions open, live. */
-export type FoldedLayout = LibraryLayout & { readonly lobby: Disc };
+/**
+ * The library folded (`foldSides`), where the lobby's cell is (#478, rung 2: the sessions open, live), and where the
+ * fragments' cell is (#625: the seed library's facets, a tap opening the map).
+ */
+export type FoldedLayout = LibraryLayout & { readonly lobby: Disc; readonly fragments: Disc };
 
 /** The frame grown to hold a disc, and 80 round it. */
 const framing = (l: LibraryLayout, d: Disc) => {
@@ -504,18 +507,23 @@ const framing = (l: LibraryLayout, d: Disc) => {
  *
  * And the lobby's cell, a live one (the sessions a lobby lists, not pieces): a disc as large as the largest folded
  * cell, just outside the rim, in the middle of the widest gap the folded cells leave (the same whichever is open);
- * without a rim, beside the frame's top right.
+ * without a rim, beside the frame's top right. The fragments' cell (#625) by the same rule, in the widest gap the folded
+ * cells and the lobby's leave; without a rim, under the lobby's.
  */
 export function foldSides(l: LibraryLayout, open: string | null): FoldedLayout {
   if (!l.ring) {
     const r = Math.max(60, 0.15 * Math.min(l.w, l.h));
     const lobby = { x: l.x0 + l.w + r, y: l.y0 + r + 80, r };
-    return { ...l, ...framing(l, lobby), lobby };
+    // (the fragments' cell under the lobby's)
+    const fragments = { ...lobby, y: lobby.y + 2 * r + 80 };
+    return { ...l, ...framing({ ...l, ...framing(l, lobby) }, fragments), lobby, fragments };
   }
   const R = l.ring.r;
   if (!l.sides.length) {
     const lobby = { x: (R + 60 + 0.3 * R) * Math.SQRT1_2, y: -(R + 60 + 0.3 * R) * Math.SQRT1_2, r: 0.3 * R };
-    return { ...l, ...framing(l, lobby), lobby };
+    // (the fragments' cell mirrored across the wheel's upright)
+    const fragments = { ...lobby, x: -lobby.x };
+    return { ...l, ...framing({ ...l, ...framing(l, lobby) }, fragments), lobby, fragments };
   }
   const most = Math.max(...l.sides.map((s) => s.order.length));
   const small = (n: number) => R * Math.max(0.1, Math.min(0.3, 0.3 * Math.sqrt(n / most)));
@@ -534,6 +542,9 @@ export function foldSides(l: LibraryLayout, open: string | null): FoldedLayout {
     });
   const reach = R + 60 + 2 * Math.max(...cells.map((c) => c.rs)) + GAP;
   const lobby = lobbyDisc(cells, R, GAP, reach);
+  // (the fragments' cell by the same rule, in the widest gap the folded cells and the lobby's leave)
+  const withLobby = [...cells, { rs: lobby.r, a: Math.atan2(lobby.y, lobby.x) }].sort((p, q) => p.a - q.a);
+  const fragments = lobbyDisc(withLobby, R, GAP, reach);
   const at = new Map(l.at);
   const sides = cells.map(({ s, rs, a }) => {
     const whole = s.tag === open;
@@ -550,13 +561,14 @@ export function foldSides(l: LibraryLayout, open: string | null): FoldedLayout {
   });
   // (the frame: the wheel, the genres' names included, and the cells as they are now)
   const m = R + 140;
-  const x0 = Math.min(-m, ...[...sides, lobby].map((c) => c.x - c.r - 80));
-  const x1 = Math.max(m, ...[...sides, lobby].map((c) => c.x + c.r + 80));
-  const y0 = Math.min(-m, ...[...sides, lobby].map((c) => c.y - c.r - 80));
-  const y1 = Math.max(m, ...[...sides, lobby].map((c) => c.y + c.r + 80));
+  const live = [...sides, lobby, fragments];
+  const x0 = Math.min(-m, ...live.map((c) => c.x - c.r - 80));
+  const x1 = Math.max(m, ...live.map((c) => c.x + c.r + 80));
+  const y0 = Math.min(-m, ...live.map((c) => c.y - c.r - 80));
+  const y1 = Math.max(m, ...live.map((c) => c.y + c.r + 80));
   // (in the layout's order, as the sides were given)
   const order = new Map(l.sides.map((s, i) => [s.tag, i]));
-  return { ...l, at, x0, y0, w: x1 - x0, h: y1 - y0, sides: sides.sort((p, q) => order.get(p.tag)! - order.get(q.tag)!), lobby };
+  return { ...l, at, x0, y0, w: x1 - x0, h: y1 - y0, sides: sides.sort((p, q) => order.get(p.tag)! - order.get(q.tag)!), lobby, fragments };
 }
 
 /**

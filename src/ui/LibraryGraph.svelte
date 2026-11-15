@@ -10,6 +10,7 @@
   import { tick } from 'svelte';
   import PieceNode from './PieceNode.svelte';
   import LobbyCell from './LobbyCell.svelte';
+  import FragmentsCell from './FragmentsCell.svelte';
   import { clusterDisc } from '../layout/clusters';
   import type { Entry } from './entries';
 
@@ -24,6 +25,7 @@
     lib,
     colours,
     onopen,
+    onfragments,
   }: {
     /** The library laid out (worked out once, by the picker). */
     lib: LibraryLayout;
@@ -41,6 +43,8 @@
     current: string | null;
     tag: string | null;
     onopen: (e: Entry) => void;
+    /** Open the fragment map (#625): the fragments' cell tapped. */
+    onfragments?: () => void;
   } = $props();
 
   // the cells beside the wheel folded at its rim, but the one opened (a tap on it): the wheel has the frame
@@ -286,6 +290,10 @@
       {/if}
       <!-- the lobby's cell (#478): the Jambot sessions open, live, beside the wheel -->
       <LobbyCell disc={{ x: px(layout.lobby.x - layout.x0), y: px(layout.lobby.y - layout.y0), r: px(layout.lobby.r) }} />
+      <!-- the fragments' cell (#625): the seed library's facets; a tap opens the map -->
+      {#if onfragments}
+        <FragmentsCell disc={{ x: px(layout.fragments.x - layout.x0), y: px(layout.fragments.y - layout.y0), r: px(layout.fragments.r) }} onopen={onfragments} />
+      {/if}
       <!-- the tutorial and the MIDI library: cells of their own beside the wheel, their pieces in order along a thread -->
       {#each layout.sides.filter((t) => t.folded) as t (t.tag)}
         {@const R = px(t.r)}
