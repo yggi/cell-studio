@@ -250,3 +250,30 @@ describe('the lobby’s cell (#478, rung 2)', () => {
     expect(inFrame(noRim)).toBe(true);
   });
 });
+
+describe('the fragments’ cell (#625)', () => {
+  const R = lib.ring!.r;
+  // (clear of the wheel, the cells beside it and the lobby's; inside the frame; the same whichever cell is open)
+  const fine = (l: ReturnType<typeof foldSides>) => {
+    const f = l.fragments;
+    const clear = [{ x: 0, y: 0, r: R + 32 }, ...l.sides, l.lobby].every((o) => Math.hypot(o.x - f.x, o.y - f.y) >= o.r + f.r - 1e-6);
+    return clear && f.x - f.r >= l.x0 && f.x + f.r <= l.x0 + l.w && f.y - f.r >= l.y0 && f.y + f.r <= l.y0 + l.h;
+  };
+  const folded = foldSides(lib, null);
+  it('is a disc as large as the lobby’s, beside the wheel, overlapping nothing', () => {
+    expect(folded.fragments.r).toBeCloseTo(folded.lobby.r);
+    expect(fine(folded)).toBe(true);
+  });
+  it('stays where it is whichever cell is open, and has a place without cells beside the wheel or a rim', () => {
+    for (const s of lib.sides) {
+      const l = foldSides(lib, s.tag);
+      expect(l.fragments).toEqual(folded.fragments);
+      expect(fine(l)).toBe(true);
+    }
+    expect(fine(foldSides({ ...lib, sides: [] }, null))).toBe(true);
+    const noRim = foldSides({ ...lib, ring: null }, null);
+    const f = noRim.fragments;
+    expect(f.x - f.r >= noRim.x0 && f.x + f.r <= noRim.x0 + noRim.w && f.y + f.r <= noRim.y0 + noRim.h).toBe(true);
+    expect(Math.hypot(f.x - noRim.lobby.x, f.y - noRim.lobby.y)).toBeGreaterThanOrEqual(f.r + noRim.lobby.r);
+  });
+});

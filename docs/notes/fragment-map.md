@@ -31,7 +31,7 @@ Both ends are degenerate:
 - **The default, 0.30:** the knee of the style error against the balance, where raising it stops buying style. It is the same within .05 on every pair. The knee #625 names, the style error against how long the edges are, lands between 0.25 and 0.50: the edges lengthen slowly and evenly (0.10 to 0.18 over the range), so their knee moves with small differences. 0.30 is where both agree on half the pairs. The owner rules (#625).
 - **Crossings:** about 1,900 at the default, fewest near 0.20 and rising past 0.65 to about 2,700 at 0.95. Most of them are a hub's star: `meter` alone has 62 edges.
 - **The hubs are stars at the centre** on every pair, as the model meant, with no threshold and no list of defaults. At the default, each sits within 0.045 of the middle of what takes it: `meter` (62 edges), `gm_kit` (37), `envelopes` (36), `band` (10), `diatonic` (9), `vibrato` (9).
-- **Time:** 150 ticks reach the style error that 300 do, in 70 ms a layout on this machine (100 ticks: 44 ms, .019). `TICKS` is 150.
+- **Time:** 150 ticks reach the style error that 300 do, in 70 ms a layout on this machine; 100 ticks, 44 ms, the same error (.019) with 1.5 % more crossings. `TICKS` is 100: the map opens at its start (each fragment at its anchors) and glides to its layout (#625's second PR, where the open is measured).
 
 Kinderlieder's songs meet their tunes again: `&twinkleSong` reads `twinkle` and `wonder` as parts of its own document (decision 082), a meeting point of the map.
 
