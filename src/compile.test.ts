@@ -4,7 +4,7 @@ import { codeShifts, type CompileResult } from '@yggi/cells/engine/program';
 import { plan } from '@yggi/cells/engine/realize';
 import { windowAt } from '@yggi/cells/engine/schedule';
 import { EXAMPLES } from '@yggi/cells/engine/examples';
-import { auditionOf, compilePiece, documentParts, notesOf, ownLine } from './compile';
+import { auditionOf, compilePiece, documentParts, notesOf, ownLine, styleOfPiece } from './compile';
 
 const KIT = '&bd, &rim, &sd, &cp, &lt, &hh, &ph, &mt, &oh, &ht, &cr, &rd, &claves from gm_kit\n&bar meter("4/4") step=100bpm\n&beat step=8n &bd ~ &hh ~ &sd ~ &hh [&bd,&hh]';
 const events = (r: CompileResult) => windowAt(plan(r, codeShifts(r), r.off), 0, 4.8).events;
@@ -98,5 +98,13 @@ describe('a document’s parts (cells decision 082, #623)', () => {
     const a = documentParts(doc)[0]!;
     expect(a.heard.split('\n').at(-1)).toBe('&key scale(minor, A)');
     expect(auditionOf(a.heard).host.some((h) => h.fills === '&key')).toBe(false);
+  });
+});
+
+describe('the style a piece names, for completion’s ranking (#624)', () => {
+  it('reads Radio’s own, and the centre for a piece that writes none (Electroswing: the band’s default)', () => {
+    expect(styleOfPiece(EXAMPLES.radio.source)).not.toEqual([0.5, 0.5, 0.5, 0.5]);
+    expect(styleOfPiece(EXAMPLES.radio.source)?.length).toBe(4);
+    expect(styleOfPiece(EXAMPLES.electroswing.source)).toEqual([0.5, 0.5, 0.5, 0.5]);
   });
 });

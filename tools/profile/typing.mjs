@@ -39,7 +39,8 @@ for (let r = 0; r < Number(runs); r++) {
   await area.press('Control+End');
   // (a comment line, so what is typed doesn't change what plays or how the graph is laid out)
   await area.press('Enter');
-  await area.type('# ', { delay: 50 });
+  // (env PREFIX: what the line starts with; `&beat from ` types after a from line, where completion offers ids)
+  await area.type(process.env.PREFIX ?? '# ', { delay: 50 });
   const cdp = await ctx.newCDPSession(p);
   await cdp.send('Emulation.setCPUThrottlingRate', { rate: Number(throttle) });
   await p.evaluate(() => (window.__on = true));

@@ -9,7 +9,9 @@ export interface Suggestion {
   readonly text: string;
   /** What the list shows. */
   readonly label: string;
-  readonly kind: 'ref' | 'bracket' | 'rest' | 'function' | 'value';
+  readonly kind: 'ref' | 'bracket' | 'rest' | 'function' | 'value' | 'fragment';
+  /** What the list shows after it, faint: a fragment's facet and distance (#624). */
+  readonly detail?: string;
 }
 
 const BRACKETS: readonly [string, string][] = [

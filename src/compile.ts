@@ -7,6 +7,7 @@
 import { compileSource } from '@yggi/cells/engine/compile';
 import { takeIn } from '@yggi/cells/engine/takein';
 import { audition, type Audition } from '@yggi/cells/repository/audition';
+import { styleAt } from '@yggi/cells/engine/styleat';
 import { hasFrom, partOf, partsOf } from '@yggi/cells/engine/use';
 import { splitComment } from '@yggi/cells/engine/edit';
 import { readFrom } from '@yggi/cells/engine/parser/use';
@@ -96,4 +97,11 @@ export function heardOf(result: CompileResult): { readonly notes: HeardNote[]; r
     e.unheard || !(e.freq > 0) ? [] : [{ at: e.at, dur: e.dur, freq: e.freq, voice: e.voice, level: Math.max(...e.gains) * (e.levels[0]?.level ?? 1) }],
   );
   return { notes, bar };
+}
+
+let styled: { text: string; values: readonly number[] | null } | null = null;
+/** The style a piece names (its `&style`, where it starts: cells' `styleAt`), or null where it names none; the last text's kept. */
+export function styleOfPiece(text: string): readonly number[] | null {
+  if (styled?.text !== text) styled = { text, values: styleAt(text, 0, { resolve: resolveSeed }) };
+  return styled.values;
 }

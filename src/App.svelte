@@ -19,6 +19,8 @@
   import ConvertStrip from './ui/ConvertStrip.svelte';
   import FragmentPreview from './ui/FragmentPreview.svelte';
   import { chainOf } from './references';
+  import { fromContext, pointOf, suggestFragments } from './ui/complete';
+  import { styleOfPiece } from './compile';
 
   // the app's state (ui/state/): the piece, playing it, the library, what's on screen
   const studio = new Studio();
@@ -313,6 +315,13 @@
       links={piece.links}
       chain={(name) => chainOf(piece.result, name)}
       onfollow={(id, play) => studio.follow(id, play)}
+      complete={(before, others) => {
+        // (after `from`: the library's fragments, ranked by the piece's style, read without the line being typed, #624)
+        const ctx = fromContext(before);
+        if (!ctx) return null;
+        const style = styleOfPiece(others);
+        return { start: ctx.start, suggestions: suggestFragments(ctx, style && pointOf(style)) };
+      }}
     />
     {#if piece.midi}
       <div class="convert">
