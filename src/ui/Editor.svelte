@@ -1,16 +1,28 @@
 <script lang="ts">
-  import { tokenize } from './highlight';
+  import { tokenize, withLinks } from './highlight';
   import type { Diagnostic } from '@yggi/cells/engine/ast';
+  import { facetColour } from './theme';
+  import { FACETS, fragmentCard, type ChainStep, type Link } from '../references';
+  import RefCard from './RefCard.svelte';
 
   let {
     value = $bindable(),
     diagnostics,
     readonly = false,
+    links = [],
+    chain,
+    onfollow,
   }: {
     value: string;
     diagnostics: readonly Diagnostic[];
     /** Shown, not written: a session host's text (#478). */
     readonly?: boolean;
+    /** Its `from` ids, painted as links, each line's facet a dot in the gutter (#624). */
+    links?: readonly Link[];
+    /** A given name's chain (`&hh`: the fragment that defines it, each line that took it on), or null for the piece's own. */
+    chain?: (name: string) => readonly ChainStep[] | null;
+    /** Follow a link: open its fragment (⌘/Ctrl-click, or the card's), and play it. */
+    onfollow?: (id: string, play: boolean) => void;
   } = $props();
 
   let textarea: HTMLTextAreaElement;
@@ -21,7 +33,54 @@
   const lines = $derived(value.split('\n'));
   const lineCount = $derived(lines.length);
   // the code, coloured: a copy under the textarea (whose text is transparent), wrapped the same way
-  const painted = $derived(lines.map(tokenize));
+  const painted = $derived.by(() => {
+    const byLine = new Map<number, Link[]>();
+    for (const l of links) (byLine.get(l.line) ?? byLine.set(l.line, []).get(l.line)!).push(l);
+    return lines.map((line, i) => withLinks(tokenize(line), byLine.get(i + 1) ?? []));
+  });
+  // (a `from` line's facet: its dot in the gutter)
+  const dots = $derived(new Map(links.flatMap((l) => (l.facet ? [[l.line, facetColour(l.facet, FACETS)] as const] : []))));
+
+  // what the pointer is over, in the coloured copy (which takes no pointer: the textarea over it does), once a frame at most
+  let hovered = $state<{ kind: 'link'; id: string; x: number; y: number } | { kind: 'name'; name: string; steps: readonly ChainStep[]; x: number; y: number } | null>(null);
+  function under(x: number, y: number): HTMLElement | null {
+    paint.style.pointerEvents = 'auto';
+    textarea.style.pointerEvents = 'none';
+    const el = document.elementFromPoint(x, y);
+    paint.style.pointerEvents = textarea.style.pointerEvents = '';
+    return el instanceof HTMLElement && paint.contains(el) ? el : null;
+  }
+  let frame = 0;
+  let leave: ReturnType<typeof setTimeout> | undefined;
+  function onpointermove(e: PointerEvent) {
+    if (e.pointerType !== 'mouse' || frame) return;
+    const [x, y] = [e.clientX, e.clientY];
+    frame = requestAnimationFrame(() => {
+      frame = 0;
+      const el = under(x, y);
+      const box = editor.getBoundingClientRect();
+      const r = el?.getBoundingClientRect();
+      const at = r ? { x: r.left - box.left, y: r.bottom - box.top + 4 } : null;
+      const id = el?.dataset.link;
+      const name = el?.dataset.name;
+      const steps = name && chain ? chain(name) : null;
+      clearTimeout(leave);
+      if (at && id) hovered = hovered?.kind === 'link' && hovered.id === id ? hovered : { kind: 'link', id, ...at };
+      else if (at && name && steps) hovered = hovered?.kind === 'name' && hovered.name === name ? hovered : { kind: 'name', name, steps, ...at };
+      // (a moment to reach the card before it goes)
+      else if (hovered) leave = setTimeout(() => (hovered = null), 250);
+      textarea.style.cursor = id && (e.metaKey || e.ctrlKey) ? 'pointer' : '';
+    });
+  }
+  // ⌘/Ctrl-click a link: its fragment, opened
+  function onmousedown(e: MouseEvent) {
+    if (!onfollow || !(e.metaKey || e.ctrlKey)) return;
+    const id = under(e.clientX, e.clientY)?.dataset.link;
+    if (!id) return;
+    e.preventDefault();
+    hovered = null;
+    onfollow(id, false);
+  }
 
   // zoom: smaller on a phone, A− / A+ or two fingers to change it
   const coarse = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches;
@@ -139,19 +198,24 @@
 <div class="editor" role="group" aria-label="Code" style="--size: {size}px" bind:this={editor}>
   <div class="gutter" bind:this={gutter} aria-hidden="true">
     {#each { length: lineCount } as _, i}
-      <div class={marks.get(i + 1)} style:height={heights[i] ? `${heights[i]}px` : undefined}>{i + 1}</div>
+      <div class={marks.get(i + 1)} style:height={heights[i] ? `${heights[i]}px` : undefined}>
+        {#if dots.has(i + 1)}<span class="dot" style:background={dots.get(i + 1)}></span>{/if}{i + 1}
+      </div>
     {/each}
   </div>
   <div class="code">
-    <pre class="paint" bind:this={paint} aria-hidden="true">{#each painted as line, i}{#each line as t}<span class="t-{t.kind}">{t.text}</span>{/each}{i < painted.length - 1
-          ? '\n'
-          : '\n '}{/each}</pre>
+    <pre class="paint" bind:this={paint} aria-hidden="true">{#each painted as line, i}{#each line as t}{#if t.link}<span class="t-{t.kind} link" data-link={t.link}>{t.text}</span
+            >{:else if t.kind === 'ref' && /^&\w+$/.test(t.text)}<span class="t-ref" data-name={t.text.slice(1)}>{t.text}</span>{:else}<span class="t-{t.kind}">{t.text}</span
+            >{/if}{/each}{i < painted.length - 1 ? '\n' : '\n '}{/each}</pre>
     <textarea
       bind:this={textarea}
       bind:value
       {readonly}
       {onkeydown}
       {onfocus}
+      {onpointermove}
+      {onmousedown}
+      onpointerleave={() => (leave = setTimeout(() => (hovered = null), 250))}
       onscroll={() => {
         gutter.scrollTop = textarea.scrollTop;
         paint.scrollTop = textarea.scrollTop;
@@ -166,6 +230,16 @@
   <div class="mirror" bind:this={mirror} aria-hidden="true">
     {#each lines as l}<div>{l || '\u200b'}</div>{/each}
   </div>
+  {#if hovered}
+    <!-- (the card stays while the pointer is on it: its ▶ is a button) -->
+    <div class="hover" style:left="{hovered.x}px" style:top="{hovered.y}px" role="tooltip" onpointerenter={() => clearTimeout(leave)} onpointerleave={() => (hovered = null)}>
+      {#if hovered.kind === 'link'}
+        <RefCard card={fragmentCard(hovered.id)} id={hovered.id} onplay={onfollow && ((id) => ((hovered = null), onfollow(id, true)))} />
+      {:else}
+        <RefCard name={hovered.name} steps={hovered.steps} />
+      {/if}
+    </div>
+  {/if}
   <div class="zoom" role="group" aria-label="Text size">
     <button type="button" class="unstyled" onclick={() => zoom(-1)} aria-label="Smaller text">A−</button>
     <button type="button" class="unstyled" onclick={() => zoom(1)} aria-label="Larger text">A+</button>
@@ -213,6 +287,23 @@
     box-sizing: border-box;
     padding-right: 6px;
     border-right: 3px solid transparent;
+  }
+  .gutter .dot {
+    display: inline-block;
+    width: 0.5em;
+    height: 0.5em;
+    margin-right: 0.35em;
+    border-radius: 50%;
+    vertical-align: 0.1em;
+  }
+  .link {
+    text-decoration: underline dotted;
+    text-underline-offset: 3px;
+  }
+  .hover {
+    position: absolute;
+    z-index: 5;
+    max-width: min(340px, calc(100% - 16px));
   }
   .gutter .error {
     color: var(--danger);

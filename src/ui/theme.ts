@@ -76,6 +76,9 @@ const CLOCK_RGB = [246, 247, 251] as const;
 /** A scope's channel k: the chromatic colour of its place in the scope's braid (ScopeView), worn by what it watches. */
 export const channelColour = (k: number) => noteColour((((k % 12) + 12) % 12) * 30);
 
+/** A fragment's facet (#624): a note's hue, the facets spread evenly round the circle in the order `facets` lists them. */
+export const facetColour = (facet: string, facets: readonly string[]) => noteColour((Math.max(0, facets.indexOf(facet)) / Math.max(1, facets.length)) * 360);
+
 export const noteColour = (hue: number, dim = false, octave = 0) => {
   const [h, s, l] = noteHsl(hue, dim, octave);
   return `hsl(${h} ${s}% ${l}%)`;

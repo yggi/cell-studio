@@ -273,6 +273,11 @@ export class Studio {
     if (!this.openFragment(`${doc}/${head}`, part.heard)) return;
     void this.playback.toggle();
   }
+  /** Follow a link in the code (#624): its fragment, opened from the piece (◂ back), and played where asked. */
+  follow(id: string, play: boolean): void {
+    if (this.following || !this.openFragment(id)) return;
+    if (play) void this.playback.toggle();
+  }
   /** Back to the piece a fragment was opened from (◂), as it was. */
   back(): void {
     const last = this.trail.at(-1);

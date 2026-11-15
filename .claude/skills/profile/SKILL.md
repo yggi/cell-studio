@@ -43,6 +43,14 @@ Prints one JSON line per piece. Read `taskPct` (main-thread busy %), `scriptPct`
 - Run measurements one at a time and don't run tests/builds alongside (they distort the numbers). Compare
   runs from the same session; absolute numbers move between machines.
 
+## Typing in the code view
+```
+node tools/profile/typing.mjs <url> <throttle> "<piece title>" [runs] [keys=60] [gap=80]
+```
+Each key's latency from its keydown to the frame after its input, typed into a comment line at the code's end (so the
+graph doesn't change), and the long tasks meanwhile: `medianMs`, `p95Ms`, `maxMs`, `longtasks`, `longMax`. Compare a
+base build and the change, alternated run by run, at ×1 and ×4 (#624 measured Electro swing and Hypercell).
+
 ## Opening a piece
 How long a piece takes to open and lay out, until no node moves (no playing): one JSON line per run.
 ```

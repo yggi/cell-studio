@@ -65,3 +65,29 @@ export function tokenize(line: string): Token[] {
   }
   return out;
 }
+
+/** A painted piece of a line: a token, or the part of one a link covers (`link` its fragment's id, #624). */
+export interface Painted extends Token {
+  readonly link?: string;
+}
+
+/** A line's tokens cut where links begin and end (`from`/`to` 0-based within the line), each piece inside one marked. */
+export function withLinks(tokens: readonly Token[], links: readonly { readonly from: number; readonly to: number; readonly id: string }[]): Painted[] {
+  if (!links.length) return [...tokens];
+  const out: Painted[] = [];
+  let at = 0;
+  for (const t of tokens) {
+    const end = at + t.text.length;
+    let i = at;
+    // (each boundary inside the token cuts it)
+    const cuts = [...new Set(links.flatMap((l) => [l.from, l.to]).filter((c) => c > at && c < end))].sort((a, b) => a - b);
+    for (const c of [...cuts, end]) {
+      const piece = t.text.slice(i - at, c - at);
+      const link = links.find((l) => i >= l.from && c <= l.to);
+      if (piece) out.push(link ? { ...t, text: piece, link: link.id } : { ...t, text: piece });
+      i = c;
+    }
+    at = end;
+  }
+  return out;
+}
