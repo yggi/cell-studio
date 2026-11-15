@@ -1,4 +1,7 @@
-import { HOSTED_LOBBY, LIMITS, PROTOCOL, leaveOver, readHost, sessionNameProblem, type ClientMessage, type HostMessage, type Role, type SectionText } from '../../session/protocol';
+import { HOSTED_LOBBY, LIMITS, sessionNameProblem, type ClientMessage, type HostMessage, type KeptMessage, type Role, type SectionText } from '../../session/protocol';
+import type { HostMessage as HostMessage2 } from '../../session/protocol-v2';
+import { JOIN_PROTOCOL, leaveOver, readHostAs, versionOf, type Version } from '../../session/readers';
+import { NOTHING_SCORED, welcomed, withConduct, withScore, type Scored } from '../../session/scored';
 import { NO_CLOCK, hostHeardAt, reading, withPing, type HostClock } from '../../session/clock';
 import { NOTHING_FOLLOWED, heardAt, nextTextAt, pruned, reaches, withBar, withText, type Followed } from '../../session/follow';
 import { LobbyRefused, joinLobby, type ClientLink, type Heard, type Socket } from '../../session/lobby';
@@ -34,6 +37,11 @@ export interface SessionOptions {
  * lobby, sets its clock by the host's with pings, and follows the host's song: the bars' starts and the section texts
  * the host's band plays through cells (the session contract, `session/protocol.ts`). It sends the join, the pings
  * and, as it goes, a leave; nothing else. What it follows is sounded by the player through `sounding` (rung 3).
+ *
+ * It reads both versions of the contract (#525): the join carries version 2's protocol, and the welcome's protocol
+ * picks the reader (`session/readers.ts`). A host of version 1 is followed as above. A host of version 2 is followed
+ * as far as keeping its conducts and scores (`scored`, `session/scored.ts`); playing from them is #525's rung 2, so
+ * until then nothing is heard or sounded of it, and the Jam page says so.
  *
  * What it follows is read where it is heard (`heading`, by the page's frame loop): the text of the bar the host's
  * output sounds now, and where in it. It ends when asked, when the host closes or refuses it, when the lobby says the
@@ -77,6 +85,10 @@ export class SessionClient {
   taken = $state<string | null>(null);
   /** How many host messages were dropped: refused (malformed) and ignored (a kind this client doesn't know). */
   dropped = $state({ refused: 0, ignored: 0 });
+  /** The version of the session contract the host speaks, by its welcome's protocol, while seated; null before. */
+  version = $state<Version | null>(null);
+  /** What is kept of a version 2 host's song: its conducts, scores, fragments and band; null for a host of version 1. */
+  scored = $state.raw<Scored | null>(null);
 
   #link: ClientLink | null = null;
   /** The lobby joined through, while in a session. */
@@ -94,6 +106,8 @@ export class SessionClient {
   #pinging: ReturnType<typeof setTimeout> | null = null;
   #welcomeWait: ReturnType<typeof setTimeout> | null = null;
   #lastHeard: number | null = null;
+  /** The reader of what the host says, between welcomes: the last welcome's version, or before one the join's. */
+  #reader: Version = versionOf(JOIN_PROTOCOL);
   /** The join's second try, for a name refused as taken: through which lobby, and by which name. */
   #again: { lobby: string; another: (taken: string) => string } | null = null;
   readonly #now: () => number;
@@ -112,7 +126,7 @@ export class SessionClient {
 
   /** Where the host's song is heard at `now` on this page's clock (seconds): null while not joined, stopped, or before its clock and first text. */
   heading(now = this.#now()): Heading | null {
-    if (!this.live || !this.hostPlaying) return null;
+    if (!this.live || !this.hostPlaying || this.version === 2) return null;
     const at = hostHeardAt(this.#clock, now);
     if (at === null) return null;
     const heard = heardAt(this.#followed, at);
@@ -128,7 +142,7 @@ export class SessionClient {
    * is trusted.
    */
   sounding(done: Place | null, lead: number, now: number, length: (text: SectionText) => number | null, reach = lead): (Sounding & { shift: number }) | null {
-    if (!this.live || !this.hostPlaying) return null;
+    if (!this.live || !this.hostPlaying || this.version === 2) return null;
     const at = hostHeardAt(this.#clock, now);
     if (at === null) return null;
     return { ...sounding(this.#followed, done, at + lead, at, length, at + reach), shift: at - now };
@@ -136,7 +150,7 @@ export class SessionClient {
 
   /** When, on this page's clock (seconds), the text heard next gives way to another, as known at `now`; null where none is known yet. */
   nextTurn(now = this.#now()): number | null {
-    if (!this.live || !this.hostPlaying) return null;
+    if (!this.live || !this.hostPlaying || this.version === 2) return null;
     const at = hostHeardAt(this.#clock, now);
     const next = at === null ? null : nextTextAt(this.#followed, at);
     return next === null || at === null ? null : now + (next - at);
@@ -258,7 +272,7 @@ export class SessionClient {
   }
 
   #sendJoin(): void {
-    this.#send({ kind: 'join', protocol: PROTOCOL, name: this.name ?? '', ...(this.#token === null ? {} : { resume: this.#token }) });
+    this.#send({ kind: 'join', protocol: JOIN_PROTOCOL, name: this.name ?? '', ...(this.#token === null ? {} : { resume: this.#token }) });
   }
 
   #send(message: ClientMessage): void {
@@ -286,6 +300,9 @@ export class SessionClient {
     this.hostAway = false;
     this.trip = null;
     this.role = null;
+    this.version = null;
+    this.scored = null;
+    this.#reader = versionOf(JOIN_PROTOCOL);
     this.ended = why;
   }
 
@@ -297,42 +314,97 @@ export class SessionClient {
       if (heard.lobby === 'back' && this.status === 'joined') this.#sendJoin();
       return;
     }
-    const read = readHost(heard.said);
-    if ('dropped' in read) {
-      this.dropped = { ...this.dropped, [read.dropped]: this.dropped[read.dropped] + 1 };
+    const read = readHostAs(heard.said, this.#reader);
+    if ('dropped' in read.reading) {
+      const { dropped } = read.reading;
+      this.dropped = { ...this.dropped, [dropped]: this.dropped[dropped] + 1 };
       return;
     }
-    this.#hear(read.message);
+    if (read.version === 1) this.#hear(read.reading.message);
+    else this.#hear2(read.reading.message);
+  }
+
+  /** A welcome, either version's: true where it seats this client (else it left), its version chosen for what follows. */
+  #welcomed(version: Version, message: { protocol: number; resume: string; listening?: true }): boolean {
+    if (this.#welcomeWait) clearTimeout(this.#welcomeWait);
+    this.#welcomeWait = null;
+    const over = leaveOver(version, message.protocol);
+    if (over) {
+      this.#send({ kind: 'leave' });
+      this.#end(over);
+      return false;
+    }
+    // (back after a drop: seated as the same player where the host kept its seat, which its token says)
+    if (this.status === 'rejoining') {
+      if (this.#retrying) clearTimeout(this.#retrying);
+      this.#retrying = null;
+      this.#outage = null;
+      const same = message.resume === this.#token;
+      this.rejoins = same ? { ...this.rejoins, same: this.rejoins.same + 1 } : { ...this.rejoins, new: this.rejoins.new + 1 };
+      this.notice = same ? null : `The link was down longer than the host keeps a seat (${LIMITS.resumeSeconds / 60} minutes): joined again as a new player.`;
+    }
+    this.#reader = version;
+    this.version = version;
+    this.status = 'joined';
+    this.hostAway = false;
+    this.role = message.listening ? 'listener' : 'player';
+    this.#token = message.resume;
+    // (the host's page clock may be another: it reloaded)
+    this.#clock = NO_CLOCK;
+    this.#lastHeard = this.#now();
+    return true;
+  }
+
+  /**
+   * What a host of version 2 said: its welcome, conducts, scores, and the moves of its song kept (`scored`); the kinds
+   * it keeps from version 1 as version 1's are heard. Rung 1 of #525: a rejoin's welcome starts what is kept afresh.
+   */
+  #hear2(message: HostMessage2): void {
+    switch (message.kind) {
+      case 'welcome': {
+        if (!this.#welcomed(2, message)) return;
+        const { song } = message;
+        this.hostPlaying = song !== null;
+        this.#followed = NOTHING_FOLLOWED;
+        this.scored = welcomed(song, message.fragments, message.band);
+        this.#song = song && { seed: song.seed, start: song.start };
+        if (this.#pinging) clearTimeout(this.#pinging);
+        return this.#ping();
+      }
+      case 'conduct': {
+        const { kind, ...conduct } = message;
+        void kind;
+        this.scored = withConduct(this.scored ?? NOTHING_SCORED, conduct);
+        return;
+      }
+      case 'score': {
+        const { kind, ...score } = message;
+        void kind;
+        this.scored = withScore(this.scored ?? NOTHING_SCORED, score);
+        return;
+      }
+      case 'start':
+      case 'stop': {
+        const { band, fragments } = this.scored ?? NOTHING_SCORED;
+        this.scored = { ...NOTHING_SCORED, band, fragments };
+        return this.#hear(message);
+      }
+      case 'finale':
+        this.scored = { ...(this.scored ?? NOTHING_SCORED), finale: message.bar };
+        return;
+      default:
+        return this.#hear(message satisfies KeptMessage);
+    }
   }
 
   #hear(message: HostMessage): void {
     switch (message.kind) {
       case 'welcome': {
-        if (this.#welcomeWait) clearTimeout(this.#welcomeWait);
-        this.#welcomeWait = null;
-        const over = leaveOver(message.protocol);
-        if (over) {
-          this.#send({ kind: 'leave' });
-          return this.#end(over);
-        }
-        const { song } = message;
-        // (back after a drop: seated as the same player where the host kept its seat, which its token says)
+        // (back after a drop: what was followed of the song may carry on beneath the welcome's, below)
         const back = this.status === 'rejoining';
-        if (back) {
-          if (this.#retrying) clearTimeout(this.#retrying);
-          this.#retrying = null;
-          this.#outage = null;
-          const same = message.resume === this.#token;
-          this.rejoins = same ? { ...this.rejoins, same: this.rejoins.same + 1 } : { ...this.rejoins, new: this.rejoins.new + 1 };
-          this.notice = same ? null : `The link was down longer than the host keeps a seat (${LIMITS.resumeSeconds / 60} minutes): joined again as a new player.`;
-        }
-        this.status = 'joined';
-        this.hostAway = false;
-        this.role = message.listening ? 'listener' : 'player';
-        this.#token = message.resume;
-        // (the host's page clock may be another: it reloaded)
-        this.#clock = NO_CLOCK;
-        this.#lastHeard = this.#now();
+        if (!this.#welcomed(1, message)) return;
+        const { song } = message;
+        this.scored = null;
         this.hostPlaying = song !== null;
         // (the song: the welcome's bars and texts; on a rejoin to the same song, over what was followed of it where
         // that reaches the bar playing now, the one before the welcome's first, so that bar keeps its text and start,

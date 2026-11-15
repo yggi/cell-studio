@@ -10,17 +10,23 @@
  * checks the rest only for its shape (the style, the forecast, the Muse, the session's log). A field a later minor adds
  * inside what it reads is kept beside it, unread: a motif's `origin` (minor 8), the style's `mood` (minor 9), a written
  * drum hit's `role: "ostinato"` (minor 10).
+ *
+ * This is version 1's reader, of a host whose welcome says 13 to 29; version 2's (`protocol-v2.ts`) reads a host from
+ * 30, and `readers.ts` picks between them (#525). What a page says to a lobby and a client's own messages are the same
+ * in both versions, and are here.
  */
 
 /**
- * The protocol a join of this client carries: the contract's minor 10. A join carries no code: a client that listens
- * needs none (minor 2); and it sends no `nudge` (minors 5 and 6), which is a player's.
+ * The protocol this reader reads: version 1's minor 10. It is no longer the protocol a join carries, which is version
+ * 2's (`JOIN_PROTOCOL` in `readers.ts`, #525): a host of version 1 admits a join of any protocol from `FIRST_PROTOCOL`
+ * on and welcomes with its own, which then picks this reader. A join carries no code: a client that listens needs
+ * none (minor 2); and it sends no `nudge` (minors 5 and 6), which is a player's.
  */
 export const PROTOCOL = 23;
 /** The first protocol of the contract's version 1: a host of it or later is one of this version (any minor joins). */
 export const FIRST_PROTOCOL = 13;
 
-/** Whether a protocol is a minor of version 1: an integer from `FIRST_PROTOCOL` on. */
+/** Whether a protocol is one this reader stays with: an integer from `FIRST_PROTOCOL` on (version 2's, from 30, `readers.ts` gives its own reader before this one is asked). */
 const sameMajor = (protocol: unknown): boolean => Number.isInteger(protocol) && (protocol as number) >= FIRST_PROTOCOL;
 
 /** The contract's times a client keeps (`limits` in its vectors). */
@@ -43,7 +49,7 @@ export const LIMITS = {
 /** The hosted lobby (Jambot's `apps/lobby` on Fly.io), which takes pages from https://yggi.github.io and localhost. */
 export const HOSTED_LOBBY = 'wss://jambot-lobby.fly.dev';
 
-type Obj = Readonly<Record<string, unknown>>;
+export type Obj = Readonly<Record<string, unknown>>;
 
 /** A section's cells text, as the host's band through cells states it (`section`, and a welcome's `song.texts`). */
 export interface SectionText {
@@ -71,7 +77,7 @@ export interface SentBar {
 export type Role = 'player' | 'listener';
 
 /** A line of the session's log: the bar it is about (null while stopped), who said it (a player's id, or the band's `conductor`, `composer` or `muse`), the kind of line, and the line for people. */
-interface LogLine {
+export interface LogLine {
   readonly bar: number | null;
   readonly who: string;
   readonly what: string;
@@ -79,7 +85,7 @@ interface LogLine {
 }
 
 /** A song a host plays: `start` is where step 0 falls on the host's clock, in seconds. */
-interface Song {
+export interface Song {
   readonly seed: number;
   readonly start: number;
   readonly track: Obj;
@@ -87,7 +93,25 @@ interface Song {
   readonly tempoMeter: Obj;
 }
 
+/** The kinds version 2 keeps from version 1 as they are (`protocol-v2.ts` reads them by the same checks). */
+export type KeptMessage =
+  | { readonly kind: 'refused'; readonly reason: string }
+  | { readonly kind: 'start'; readonly song: Song }
+  | { readonly kind: 'track'; readonly track: Obj; readonly swing: Obj; readonly tempoMeter: Obj }
+  | { readonly kind: 'forecast'; readonly forecast: Obj }
+  | { readonly kind: 'muse'; readonly muse: Obj }
+  | { readonly kind: 'finale'; readonly bar: number }
+  /** A ping answered: its `sent`, the host's page clock as it answered, its output's offset from that (null until paired). */
+  | { readonly kind: 'pong'; readonly sent: number; readonly host: number; readonly heard: number | null }
+  /** The role the host now seats this client as (minor 4): sent only for a change, never with a welcome, whose `listening` says the first. */
+  | { readonly kind: 'role'; readonly role: Role }
+  /** A line of the session's log (minor 7). */
+  | ({ readonly kind: 'event' } & LogLine)
+  | { readonly kind: 'stop' }
+  | { readonly kind: 'closed' };
+
 export type HostMessage =
+  | KeptMessage
   | {
       readonly kind: 'welcome';
       readonly protocol: number;
@@ -102,22 +126,8 @@ export type HostMessage =
       /** The session log's tail (from a host of 20 on). */
       readonly events?: readonly LogLine[];
     }
-  | { readonly kind: 'refused'; readonly reason: string }
-  | { readonly kind: 'start'; readonly song: Song }
-  | { readonly kind: 'track'; readonly track: Obj; readonly swing: Obj; readonly tempoMeter: Obj }
   | { readonly kind: 'bar'; readonly sent: SentBar }
-  | { readonly kind: 'forecast'; readonly forecast: Obj }
-  | { readonly kind: 'muse'; readonly muse: Obj }
-  | ({ readonly kind: 'section' } & SectionText)
-  | { readonly kind: 'finale'; readonly bar: number }
-  /** A ping answered: its `sent`, the host's page clock as it answered, its output's offset from that (null until paired). */
-  | { readonly kind: 'pong'; readonly sent: number; readonly host: number; readonly heard: number | null }
-  /** The role the host now seats this client as (minor 4): sent only for a change, never with a welcome, whose `listening` says the first. */
-  | { readonly kind: 'role'; readonly role: Role }
-  /** A line of the session's log (minor 7). */
-  | ({ readonly kind: 'event' } & LogLine)
-  | { readonly kind: 'stop' }
-  | { readonly kind: 'closed' };
+  | ({ readonly kind: 'section' } & SectionText);
 
 /** What this client sends: a join, pings, and a leave (a client that listens sends nothing else). */
 export type ClientMessage =
@@ -125,36 +135,20 @@ export type ClientMessage =
   | { readonly kind: 'ping'; readonly sent: number }
   | { readonly kind: 'leave' };
 
-const HOST_KINDS: ReadonlySet<string> = new Set([
-  'welcome',
-  'refused',
-  'start',
-  'track',
-  'bar',
-  'forecast',
-  'muse',
-  'section',
-  'finale',
-  'pong',
-  'role',
-  'event',
-  'stop',
-  'closed',
-]);
 /** A lobby's words, never a peer's: refused on the wire. */
-const LOBBY_WORDS: ReadonlySet<string> = new Set(['lost', 'away', 'back']);
+export const LOBBY_WORDS: ReadonlySet<string> = new Set(['lost', 'away', 'back']);
 
-const isObject = (v: unknown): v is Obj => typeof v === 'object' && v !== null && !Array.isArray(v);
-const isInt = (v: unknown): v is number => Number.isInteger(v);
-const isFinite = (v: unknown): v is number => Number.isFinite(v);
-const isString = (v: unknown): v is string => typeof v === 'string';
-const arrayOf = (v: unknown, each: (x: unknown) => boolean): boolean => Array.isArray(v) && v.every(each);
+export const isObject = (v: unknown): v is Obj => typeof v === 'object' && v !== null && !Array.isArray(v);
+export const isInt = (v: unknown): v is number => Number.isInteger(v);
+export const isFinite = (v: unknown): v is number => Number.isFinite(v);
+export const isString = (v: unknown): v is string => typeof v === 'string';
+export const arrayOf = (v: unknown, each: (x: unknown) => boolean): boolean => Array.isArray(v) && v.every(each);
 const intOrNull = (v: unknown) => v === null || isInt(v);
 
-const isSong = (s: unknown): boolean => isObject(s) && isInt(s.seed) && isFinite(s.start) && isObject(s.track) && isObject(s.swing) && isObject(s.tempoMeter);
+export const isSong = (s: unknown): boolean => isObject(s) && isInt(s.seed) && isFinite(s.start) && isObject(s.track) && isObject(s.swing) && isObject(s.tempoMeter);
 const isSentBar = (b: unknown): boolean => isObject(b) && isObject(b.bar) && (b.start === null || isFinite(b.start));
-const isForecast = (f: unknown): boolean => isObject(f) && isInt(f.from) && isInt(f.count) && arrayOf(f.changed, (c) => isObject(c) && isInt(c.bar));
-const isMuse = (m: unknown): boolean =>
+export const isForecast = (f: unknown): boolean => isObject(f) && isInt(f.from) && isInt(f.count) && arrayOf(f.changed, (c) => isObject(c) && isInt(c.bar));
+export const isMuse = (m: unknown): boolean =>
   isObject(m) &&
   (m.offer === null || isObject(m.offer)) &&
   Array.isArray(m.memory) &&
@@ -164,7 +158,7 @@ const isMuse = (m: unknown): boolean =>
   intOrNull(m.lastPlayed) &&
   isObject(m.players) &&
   Object.values(m.players).every(isString);
-const isLogLine = (l: unknown): boolean => isObject(l) && intOrNull(l.bar) && isString(l.who) && isString(l.what) && isString(l.text);
+export const isLogLine = (l: unknown): boolean => isObject(l) && intOrNull(l.bar) && isString(l.who) && isString(l.what) && isString(l.text);
 const isFrame = (f: unknown): boolean => isObject(f) && isObject(f.meter) && isObject(f.swing) && isObject(f.key) && isFinite(f.bpm);
 const isSectionText = (t: unknown): boolean =>
   isObject(t) &&
@@ -176,8 +170,24 @@ const isSectionText = (t: unknown): boolean =>
   arrayOf(t.foreseen, isString) &&
   arrayOf(t.cut, isInt);
 
+/** Whether each kept kind's fields are there, of their types: the same in version 1's table of host messages and in version 2's. */
+export const KEPT_FITS: Record<KeptMessage['kind'], (m: Obj) => boolean> = {
+  refused: (m) => isString(m.reason),
+  start: (m) => isSong(m.song),
+  track: (m) => isObject(m.track) && isObject(m.swing) && isObject(m.tempoMeter),
+  forecast: (m) => isForecast(m.forecast),
+  muse: (m) => isMuse(m.muse),
+  finale: (m) => isInt(m.bar),
+  pong: (m) => isFinite(m.sent) && isFinite(m.host) && (m.heard === null || isFinite(m.heard)),
+  role: (m) => m.role === 'player' || m.role === 'listener',
+  event: isLogLine,
+  stop: () => true,
+  closed: () => true,
+};
+
 /** Whether each kind's fields are there, of their types (the contract's table of host messages). */
 const FITS: Record<HostMessage['kind'], (m: Obj) => boolean> = {
+  ...KEPT_FITS,
   welcome: (m) =>
     isInt(m.protocol) &&
     isString(m.session) &&
@@ -187,19 +197,8 @@ const FITS: Record<HostMessage['kind'], (m: Obj) => boolean> = {
     isForecast(m.forecast) &&
     isMuse(m.muse) &&
     (m.events === undefined || arrayOf(m.events, isLogLine)),
-  refused: (m) => isString(m.reason),
-  start: (m) => isSong(m.song),
-  track: (m) => isObject(m.track) && isObject(m.swing) && isObject(m.tempoMeter),
   bar: (m) => isSentBar(m.sent),
-  forecast: (m) => isForecast(m.forecast),
-  muse: (m) => isMuse(m.muse),
   section: isSectionText,
-  finale: (m) => isInt(m.bar),
-  pong: (m) => isFinite(m.sent) && isFinite(m.host) && (m.heard === null || isFinite(m.heard)),
-  role: (m) => m.role === 'player' || m.role === 'listener',
-  event: isLogLine,
-  stop: () => true,
-  closed: () => true,
 };
 
 /** What a client's reader makes of what came: a host message it reads, or one it drops, ignored (a kind it doesn't know) or refused (not a message, a lobby's word, or a kind it knows, malformed). */
@@ -208,7 +207,7 @@ export type Reading = { readonly message: HostMessage } | { readonly dropped: 'i
 /** Read what a host said: its kind, and the fields that kind carries, of their types. */
 export function readHost(data: unknown): Reading {
   if (!isObject(data) || !isString(data.kind) || LOBBY_WORDS.has(data.kind)) return { dropped: 'refused' };
-  if (!HOST_KINDS.has(data.kind)) return { dropped: 'ignored' };
+  if (!Object.hasOwn(FITS, data.kind)) return { dropped: 'ignored' };
   return FITS[data.kind as HostMessage['kind']](data) ? { message: data as unknown as HostMessage } : { dropped: 'refused' };
 }
 

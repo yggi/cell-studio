@@ -10,6 +10,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { FIRST_PROTOCOL, LIMITS, PROTOCOL, leaveOver, readFromLobby, readHost, sessionNameProblem, type ClientMessage, type ToLobby } from './protocol';
+import { JOIN_PROTOCOL } from './readers';
 
 interface Vector {
   readonly name: string;
@@ -54,9 +55,11 @@ const of = (reader: Vector['reader']) => contract.vectors.filter((v) => v.reader
 const RECORDED: ReadonlyMap<string, string> = new Map();
 
 describe('the session contract (music-commons contracts/session-v1, version 1, minor 10)', () => {
-  it('is the version this client speaks, lifted with its source named', () => {
+  it('is the version this reader reads, lifted with its source named', () => {
     expect(contract.lifted).toMatch(/^Lifted from yggi\/music-commons contracts\/session-v1\/vectors\.json @ [0-9a-f]{7}/);
     expect([contract.contract, contract.version, contract.minor]).toEqual(['session', 1, 10]);
+    // (`PROTOCOL` is the protocol version 1's reader reads, this minor's; the join carries version 2's, `JOIN_PROTOCOL`,
+    // which a host of version 1 admits as a minor after its own: the test of what this client sends, below)
     expect(contract.protocol).toBe(PROTOCOL);
     expect(contract.firstProtocol).toBe(FIRST_PROTOCOL);
     for (const [k, v] of Object.entries(LIMITS)) expect([k, contract.limits[k]]).toEqual([k, v]);
@@ -101,12 +104,18 @@ describe('the session contract (music-commons contracts/session-v1, version 1, m
         .sort(),
     );
 
-  it("sends a host only what a host's reader reads: a join of this protocol, pings and a leave, each in a vector's shape", () => {
-    const sent: ClientMessage[] = [{ kind: 'join', protocol: PROTOCOL, name: 'Cell studio' }, { kind: 'ping', sent: 12.5 }, { kind: 'leave' }];
+  it("sends a host only what a host's reader reads: a join of the join's protocol, pings and a leave, each in a vector's shape", () => {
+    const sent: ClientMessage[] = [{ kind: 'join', protocol: JOIN_PROTOCOL, name: 'Cell studio' }, { kind: 'ping', sent: 12.5 }, { kind: 'leave' }];
     const read = of('host').filter((v) => v.reads);
     for (const m of sent) expect(read.map((v) => shape(v.message))).toContain(shape(m));
-    // (a join of this protocol is admitted by a host of the version: the handshake's vector at this minor)
-    expect(read.some((v) => v.admits && (v.message as { protocol?: number }).protocol === PROTOCOL)).toBe(true);
+    // (the join carries version 2's protocol, above this version's own: a host of version 1 admits a join of any
+    // protocol from its first on (its README's "A peer admits the other of its version, at any minor"), which the
+    // handshake's vectors show at its first, at its own and at a minor after, and refuses one under its first)
+    const admitted = (protocol: number) =>
+      read.find((v) => v.admits !== undefined && (v.message as { protocol?: number }).protocol === protocol && /a join at protocol/.test(v.name))?.admits;
+    expect([admitted(contract.firstProtocol), admitted(contract.protocol), admitted(contract.protocol + 1)]).toEqual([true, true, true]);
+    expect(of('host').find((v) => v.name === `handshake: a join at protocol ${contract.firstProtocol - 1}, a version before`)?.admits).toBe(false);
+    expect(JOIN_PROTOCOL).toBeGreaterThan(contract.protocol);
   });
 
   it("asks a lobby only what a lobby's reader reads: the sessions open, to join one, and to tell its host", () => {

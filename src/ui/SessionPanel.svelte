@@ -47,6 +47,8 @@
           Joining “{session.session}”…
         {:else if session.status === 'rejoining'}
           The link to “{session.session}” dropped: joining again as {session.name}…
+        {:else if session.version === 2}
+          In “{session.session}” as {session.name}: the host plays from scores (version 2 of the session protocol), which Cell studio reads and doesn’t play yet.
         {:else if !session.hostPlaying}
           In “{session.session}” as {session.name}: the host isn’t playing.
         {:else if !studio.following}
