@@ -36,7 +36,7 @@ export const PROTOCOL = 31;
 export const FIRST_PROTOCOL = 30;
 
 /** A section's type, as a score names it. */
-export type SectionType = 'intro' | 'groove' | 'bridge' | 'build' | 'drop' | 'breakdown';
+type SectionType = 'intro' | 'groove' | 'bridge' | 'build' | 'drop' | 'breakdown';
 const SECTIONS: ReadonlySet<string> = new Set<SectionType>(['intro', 'groove', 'bridge', 'build', 'drop', 'breakdown']);
 
 /** A fragment named by its id and hash: a score's lock's entry, and a welcome's `band`. */
