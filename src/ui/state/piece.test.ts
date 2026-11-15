@@ -11,6 +11,11 @@ import { readPiece } from '@yggi/cells/engine/piecefile';
 import { savedEntry } from '../entries';
 import { miniature } from '../../layout/miniature';
 import { catalogue } from '@yggi/cells/repository/catalogue';
+import { extract } from '@yggi/cells/repository/extract';
+import { compileSource } from '@yggi/cells/engine/compile';
+import { resolveSeed } from '@yggi/cells/repository/library';
+import { mine } from '../../mine.svelte';
+import { pointOf } from '../complete';
 
 const SRC = `&bar step=free(120bpm, 60..180)
 &tune step=&bar 0 2 4 shift=free(0, 0..7) over=&bar
@@ -400,5 +405,31 @@ describe('Piece: a fragment opened (#623)', () => {
     // (a piece opened after it is a piece again: written, its own text played)
     p.open('&a step=4n 0 2');
     expect([p.fragment, p.audition, p.readOnly, p.cells]).toEqual([null, null, false, '&a step=4n 0 2']);
+  });
+});
+
+describe('Piece: a piece taking a person’s own fragment (#626)', () => {
+  const PIECE = [
+    '&bar from meter &tempo',
+    '&tempo step=100bpm',
+    '&key from diatonic(mode=ionian) C',
+    '&harm over=&key step=1m cycle=8 [0,2,4]!4 [4,6,8]!4',
+    '&bassline over=&harm step=2n 0 0',
+    '&v s=sine loop=C3',
+    '&out map=sample [&bassline * &v]',
+  ].join('\n');
+
+  it('compiles through it once filed, and exports as the lines it was, playing with the seed library alone', async () => {
+    const r = extract(PIECE, [4, 5], { id: 'my_bassline_test', resolve: mine.resolve });
+    if ('why' in r) throw new Error(r.why);
+    const p = new Piece(PIECE);
+    p.code = r.piece;
+    expect(p.result.ok).toBe(false);
+    // (at the centre, as the dialog files a piece that names no style)
+    await mine.file({ text: r.fragment, point: pointOf([]), source: 'me', created: '2026-11-15T00:00:00Z', id: 'my_bassline_test' });
+    // (the layer read: the piece compiles again, through it)
+    expect(p.result.diagnostics.filter((d) => d.severity === 'error')).toEqual([]);
+    expect(p.exportFile()).toBe(PIECE);
+    expect(compileSource(p.exportFile(), undefined, { resolve: resolveSeed }).ok).toBe(true);
   });
 });

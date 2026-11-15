@@ -15,14 +15,32 @@ import { windowAt, type Window } from '@yggi/cells/engine/schedule';
 import { resolveSeed } from '@yggi/cells/repository/library';
 import { storageKey } from '../storageKey';
 
-/** The engine host a worker runs: a piece's `use` lines read through the seed library, as every compile here does (compile.ts, yggi/cells#241). */
-export const workerHost = () => createHost(undefined, { resolve: resolveSeed });
+/**
+ * The engine host a worker runs: a piece's `from` lines read through the seed library and the person's own fragments, as
+ * every compile here does (compile.ts, #626). A resolver can't cross `postMessage`, so the worker keeps the fragments
+ * the main thread sends (`{ type: 'mine' }`, before each load) and resolves through them.
+ */
+export function workerHost(): (m: ToEngine | MineMessage) => FromEngine | null {
+  let mine = new Map<string, string>();
+  const host = createHost(undefined, { resolve: (id, hash) => resolveSeed(id, hash) ?? mine.get(id) ?? null });
+  return (m) => {
+    if (m.type === 'mine') return (void (mine = new Map(m.filed)), null);
+    return host(m) ?? null;
+  };
+}
+/** The person's filed fragments, by id and text, sent to a worker before a load. */
+export interface MineMessage {
+  readonly type: 'mine';
+  readonly filed: readonly (readonly [string, string])[];
+}
 
 /** The text a plan was compiled from, its environment and its lockfile's hashes: what an engine elsewhere needs to make the same plan. */
 export interface PieceSource {
   readonly code: string;
   readonly env?: Env;
   readonly locked?: readonly Locked[];
+  /** The person's own fragments it may take (#626), by id and text: an engine elsewhere resolves through them. */
+  readonly mine?: readonly (readonly [string, string])[];
 }
 
 /** How the windows went: for measuring (`cellStudio.engine()`), not for playing. */
@@ -89,7 +107,7 @@ export class LocalEngine implements Engine {
 
 /** What the worker side needs to be: a Worker, or anything that talks like one (a test's port). */
 export interface Port {
-  postMessage(m: ToEngine): void;
+  postMessage(m: ToEngine | MineMessage): void;
   onmessage: ((e: MessageEvent<FromEngine>) => void) | null;
   onerror?: ((e: unknown) => void) | null;
   terminate?(): void;
@@ -143,6 +161,7 @@ export class WorkerEngine implements Engine {
   load(plan: Plan, source: PieceSource | null): void {
     this.local.load(plan);
     if (!source) return this.fail();
+    if (source.mine?.length) this.port?.postMessage({ type: 'mine', filed: source.mine } satisfies MineMessage);
     this.port?.postMessage({ type: 'load', code: source.code, env: source.env, ...(source.locked?.length ? { locked: source.locked } : {}) });
   }
 

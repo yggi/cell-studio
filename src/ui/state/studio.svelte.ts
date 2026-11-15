@@ -5,6 +5,7 @@ import { declLine } from '@yggi/cells/engine/edit';
 import { FIRST_FILE, loadExample, type ExampleKey } from '../../examples';
 import { download, fileName, readFile, saveFile, savePiece } from '../../library';
 import { catalogue } from '@yggi/cells/repository/catalogue';
+import { mine } from '../../mine.svelte';
 import { shortTitle } from '../../layout/library';
 import { pieceMidi } from '@yggi/cells/engine/midiexport';
 import { isMidi, readMidi, writeMidi } from '@yggi/cells/engine/midifile';
@@ -70,7 +71,7 @@ export class Studio {
   /** The dock of on-screen keys and drum pads along the bottom (#255): open or not, its tab; it plays through `keys`. */
   readonly dock = new Dock();
   /** The code editor (App binds it): showing a cell's line in it. */
-  editor = $state<{ showLine(line: number): void } | undefined>();
+  editor = $state<{ showLine(line: number): void; selectedLines(): number[] } | undefined>();
   rendering = $state(false);
   /** Convert to cells, watched (#390): folding, then its story replayed a frame at a time (state/convert.svelte.ts). */
   readonly conversion = new Conversion(
@@ -109,6 +110,8 @@ export class Studio {
   #choice = 0;
 
   constructor() {
+    // (the person's own fragments kept in this browser: every compile reads through them once they are read, #626)
+    void mine.load();
     // `window.cellStudio`, for measuring from outside (docs/testing.md): the open piece as written
     installDebugHook(
       () => this.piece.result,
@@ -397,7 +400,8 @@ export class Studio {
   /** Save the piece as a file (a piece file, .md, when it came from one; else its code, .cells); a MIDI file's text as the MIDI file. */
   saveFile(): void {
     const midi = this.piece.midi;
-    if (!midi) return saveFile(this.piece.file);
+    // (the person's own fragments written out, so the file plays anywhere: #626)
+    if (!midi) return saveFile(this.piece.exportFile());
     const open = this.library.open;
     const name = open.kind === 'file' && /\.(midi?|smf)$/i.test(open.name) ? open.name : open.kind === 'midi' ? `${open.key}.mid` : fileName(this.piece.file, '.mid');
     download(new Blob([writeMidi(midi.smf).buffer as ArrayBuffer], { type: 'audio/midi' }), name);

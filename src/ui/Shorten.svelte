@@ -9,7 +9,7 @@
    */
   import type { Locked } from '@yggi/cells/engine/program';
   import { shorten, type Suggestion } from '@yggi/cells/engine/shorten/index';
-  import { resolveSeed } from '@yggi/cells/repository/library';
+  import { mine } from '../mine.svelte';
   import { savedText } from './shortenText';
 
   let { code, locked = [], onapply }: { code: string; locked?: readonly Locked[]; onapply: (next: string) => void } = $props();
@@ -27,7 +27,7 @@
       if (at !== code) return;
       try {
         // (a piece's `use` lines read through the seed library, as its compile does: compile.ts)
-        list = shorten(at, { resolve: resolveSeed, ...(locked.length ? { locked } : {}) });
+        list = shorten(at, { resolve: mine.resolve, ...(locked.length ? { locked } : {}) });
       } catch {
         list = [];
       }

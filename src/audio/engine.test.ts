@@ -3,12 +3,12 @@ import { EXAMPLES } from '@yggi/cells/engine/examples';
 import { planOf, type FromEngine, type ToEngine } from '@yggi/cells/engine/host';
 import { resolveSeed } from '@yggi/cells/repository/library';
 import { windowAt } from '@yggi/cells/engine/schedule';
-import { LocalEngine, WorkerEngine, workerHost, type Port } from './engine';
+import { LocalEngine, WorkerEngine, workerHost, type MineMessage, type Port } from './engine';
 
 /** A worker stand-in: the host behind a structured clone each way, answering after `delay` ms (null: never). */
-function fakeWorker(delay: number | null = 0): Port & { sent: ToEngine[] } {
+function fakeWorker(delay: number | null = 0): Port & { sent: (ToEngine | MineMessage)[] } {
   const host = workerHost();
-  const port: Port & { sent: ToEngine[] } = {
+  const port: Port & { sent: (ToEngine | MineMessage)[] } = {
     sent: [],
     onmessage: null,
     postMessage(m) {
@@ -50,6 +50,19 @@ describe('engines: local and worker give the same windows', () => {
     const p = planOf(used, undefined, { resolve: resolveSeed });
     expect(p.result.ok).toBe(true);
     e.load(p, { code: used });
+    for (const from of [0, 0.5, 1.5]) expect(await e.window(from, 0.25)).toEqual(windowAt(p, from, 0.25));
+    expect(e.stats()).toMatchObject({ kind: 'worker', windows: 3, late: 0 });
+  });
+
+  it('worker: a piece that takes a person’s own fragment is compiled there through it, sent before the load (#626)', async () => {
+    const mine = '&beat from\n&beat step=8n &bd ~ &hh ~ &sd ~ &hh &hh\n&bd, &sd, &hh from gm_kit';
+    const piece = '&bar meter("4/4") step=100bpm\n&beat from my_beat\n&out map=sample [&beat]\n';
+    const port = fakeWorker();
+    const e = new WorkerEngine(port);
+    const p = planOf(piece, undefined, { resolve: (id, hash) => (id === 'my_beat' ? mine : resolveSeed(id, hash)) });
+    expect(p.result.ok).toBe(true);
+    e.load(p, { code: piece, mine: [['my_beat', mine]] });
+    expect(port.sent.map((m) => m.type)).toEqual(['mine', 'load']);
     for (const from of [0, 0.5, 1.5]) expect(await e.window(from, 0.25)).toEqual(windowAt(p, from, 0.25));
     expect(e.stats()).toMatchObject({ kind: 'worker', windows: 3, late: 0 });
   });
