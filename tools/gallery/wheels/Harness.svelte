@@ -6,7 +6,7 @@
   import PieceNode from '../../../src/ui/PieceNode.svelte';
   import { tagColours } from '../../../src/ui/tags';
   import type { Entry } from '../../../src/ui/entries';
-  import { compileSource } from '@yggi/cells/engine/compile';
+  import { compilePiece } from '../../../src/compile';
   import { buildGraph } from '../../../src/layout/drawn';
   import { pieceTime } from '@yggi/cells/engine/duration';
   import { EXAMPLES } from '@yggi/cells/engine/examples';
@@ -25,7 +25,7 @@
 
   // the library: a piece's wheel with many tags, with one, with none; at a card's size, the details' and small
   const source = EXAMPLES.hypercell.source;
-  const r = compileSource(source);
+  const r = compilePiece(source);
   const base: Entry = {
     id: 'harness:piece',
     kind: 'example',
