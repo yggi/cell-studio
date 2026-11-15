@@ -6,7 +6,6 @@
    */
   import LibraryGraph from './LibraryGraph.svelte';
   import LobbyCell from './LobbyCell.svelte';
-  import FragmentMap from './FragmentMap.svelte';
   import CardGrid from './picker/CardGrid.svelte';
   import PieceDetail from './picker/PieceDetail.svelte';
   import TagFilters from './picker/TagFilters.svelte';
@@ -158,12 +157,12 @@
         onfragments={() => (mapOpen = true)}
       />
       {#if mapOpen}
-        <!-- the fragment map (#625), over the wheel: ◂ back to it -->
-        <FragmentMap
-          onfragment={(id) => ((mapOpen = false), onpick(`fragment:${id}`))}
-          onpiece={(key) => ((mapOpen = false), onpick(`example:${key}`))}
-          onclose={() => (mapOpen = false)}
-        />
+        <!-- the fragment map (#625), over the wheel: ◂ back to it; its own chunk, fetched on first open -->
+        {#await import('./FragmentMap.svelte') then m}<m.default
+            onfragment={(id) => ((mapOpen = false), onpick(`fragment:${id}`))}
+            onpiece={(key) => ((mapOpen = false), onpick(`example:${key}`))}
+            onclose={() => (mapOpen = false)}
+          />{/await}
       {/if}
     {:else}
       <!-- while the library is laid out: its wheel, turning (a transform: it keeps turning while the page works) -->

@@ -1,6 +1,6 @@
 /**
- * A piece's text compiled as Cell studio compiles it: its `use` lines (cells decision 054) read from the library
- * this app holds, the seed library of its cells pin (`resolveSeed`: each fragment's current version), and its
+ * A piece's text compiled as Cell studio compiles it: its `from` lines read from the library this app holds, the seed
+ * library of its cells pin and the person's own fragments (`setResolver`, which `mine` calls: #626), and its
  * lockfile's hashes where its file has one (`locked`). Cells resolves nothing itself; every compile of a piece the
  * person opened, saved or wrote goes through here, so a piece with `* from gm_kit` opens, draws and plays.
  */
@@ -19,9 +19,18 @@ import { barSeconds } from './session/follow';
 import type { HeardNote } from './layout/preview';
 import type { CompileResult, Env, Locked } from '@yggi/cells/engine/program';
 import { resolveSeed } from '@yggi/cells/repository/library';
+import type { Resolve } from '@yggi/cells/engine/program';
+
+/**
+ * How every compile here reads a `from` line: the seed library, until the person's own fragments are read (`mine`, which
+ * sets it on each change of its layer: #626). Plain state, not Svelte's: the build's tools compile pieces through here too.
+ */
+let resolver: Resolve = resolveSeed;
+/** Read `from` lines through `resolve` from now on (`mine.svelte.ts`). */
+export const setResolver = (resolve: Resolve): void => void (resolver = resolve);
 
 export const compilePiece = (text: string, env?: Env, locked?: readonly Locked[]): CompileResult =>
-  compileSource(text, env, { resolve: resolveSeed, ...(locked?.length ? { locked } : {}) });
+  compileSource(text, env, { resolve: resolver, ...(locked?.length ? { locked } : {}) });
 
 /**
  * The text with a given cell's line written in, the piece's own (cells' `takeIn`, #480, #610): before an edit of a
@@ -31,7 +40,7 @@ export const compilePiece = (text: string, env?: Env, locked?: readonly Locked[]
  */
 export function ownLine(text: string, name: string, locked?: readonly Locked[]): string {
   if (!hasFrom(text)) return text;
-  const r = takeIn(text, name, { resolve: resolveSeed, ...(locked?.length ? { locked } : {}) });
+  const r = takeIn(text, name, { resolve: resolver, ...(locked?.length ? { locked } : {}) });
   return 'text' in r ? r.text : text;
 }
 
@@ -39,7 +48,7 @@ export function ownLine(text: string, name: string, locked?: readonly Locked[]):
  * A fragment heard alone (cells' audition, #623): its text, then the lines of a host that stands in for what it lacks
  * (a key, a voice, a meter, a card), each listed with the hole it fills; `why` where it plays nothing alone.
  */
-export const auditionOf = (text: string): Audition => audition(text, { resolve: resolveSeed });
+export const auditionOf = (text: string): Audition => audition(text, { resolve: resolver });
 
 /** A part a document gives (cells decision 082): its heads, its signature line, and its text as heard in the document. */
 export interface DocumentPart {
@@ -85,7 +94,7 @@ export function documentParts(text: string): DocumentPart[] {
 
 /** What a text plays heard alone over its first `seconds`, as notes (start and length in seconds, frequency), for a picture. */
 export function notesOf(text: string, seconds = 8): { readonly at: number; readonly dur: number; readonly freq: number }[] {
-  const plan = planOf(auditionOf(text).text, undefined, { resolve: resolveSeed });
+  const plan = planOf(auditionOf(text).text, undefined, { resolve: resolver });
   return windowAt(plan, 0, seconds).events.flatMap((e) => (e.unheard || !(e.freq > 0) ? [] : [{ at: e.at, dur: e.dur, freq: e.freq }]));
 }
 
@@ -99,9 +108,10 @@ export function heardOf(result: CompileResult): { readonly notes: HeardNote[]; r
   return { notes, bar };
 }
 
-let styled: { text: string; values: readonly number[] | null } | null = null;
-/** The style a piece names (its `&style`, where it starts: cells' `styleAt`), or null where it names none; the last text's kept. */
+let styled: { text: string; resolve: unknown; values: readonly number[] | null } | null = null;
+/** The style a piece names (its `&style`, where it starts: cells' `styleAt`), or null where it names none; the last text's kept, as its library reads. */
 export function styleOfPiece(text: string): readonly number[] | null {
-  if (styled?.text !== text) styled = { text, values: styleAt(text, 0, { resolve: resolveSeed }) };
+  const resolve = resolver;
+  if (styled?.text !== text || styled.resolve !== resolve) styled = { text, resolve, values: styleAt(text, 0, { resolve }) };
   return styled.values;
 }

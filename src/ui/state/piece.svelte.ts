@@ -1,6 +1,8 @@
 import { codeShifts, type CompileResult, type Take } from '@yggi/cells/engine/program';
 import { auditionOf, compilePiece, documentParts, ownLine } from '../../compile';
 import { linksOf } from '../../references';
+import { mine } from '../../mine.svelte';
+import { exportable } from '../../extraction';
 import { addCell, offProblem, setFree, setOff, setShift } from '@yggi/cells/engine/edit';
 import { freeIndex, freeList, withHeld } from '@yggi/cells/engine/held';
 import { buildGraph } from '../../layout/drawn';
@@ -76,6 +78,8 @@ export class Piece {
   readonly locked = $derived(this.frontmatter ? lockfileOf({ frontmatter: this.frontmatter }) : []);
   /** The code as written, compiled (its diagnostics are the editor's: a MIDI file's are its text's). */
   readonly result = $derived.by(() => {
+    // (the person's own fragments, read: a new layer compiles the piece again, #626)
+    void mine.layer;
     const r = compilePiece(this.cells, this.env, this.locked);
     // (and what only the layout can tell: a plugin on a cell it doesn't fit)
     const shows = r.ok ? showProblems(r) : [];
@@ -89,6 +93,18 @@ export class Piece {
       ? writePiece(recorded({ frontmatter: this.frontmatter, text: this.#code, prose: this.#prose, layout: this.#layout, bare: this.#bare }, this.result.takes))
       : this.#code,
   );
+  /**
+   * The piece as a file to share (#626): its takes of the person's own fragments written out in their place
+   * (`exportable`), so it compiles with the seed library alone, and its lockfile what that text takes. The file as it is
+   * where it takes none.
+   */
+  exportFile(): string {
+    const own = new Map(mine.layer.filed.map((f) => [f.fragment.id, f.fragment.text] as const));
+    const code = exportable(this.#code, own, mine.resolve);
+    if (code === this.#code) return this.file;
+    // (its lines moved: one cells block, not the blocks it was read from)
+    return this.frontmatter ? writePiece(recorded({ frontmatter: this.frontmatter, text: code, prose: this.#prose, bare: this.#bare }, compilePiece(code).takes)) : code;
+  }
   /** Its title, from its file's frontmatter, or from its card as it stands (it follows edits). */
   readonly title = $derived(titleOf(this.file));
   readonly errors = $derived(this.result.diagnostics.filter((d) => d.severity === 'error').length);
@@ -107,7 +123,17 @@ export class Piece {
   // the same piece from it. A remembered value, not state: it only changes as `good` is read.)
   #lastGood: { result: CompileResult; source: PieceSource };
   readonly good = $derived.by(() => {
-    if (this.playedResult.ok) this.#lastGood = { result: this.playedResult, source: { code: this.playedCode, env: this.env, locked: this.locked } };
+    if (this.playedResult.ok)
+      this.#lastGood = {
+        result: this.playedResult,
+        // (the person's own fragments with it: an engine in a worker resolves through them, #626)
+        source: {
+          code: this.playedCode,
+          env: this.env,
+          locked: this.locked,
+          ...(mine.layer.filed.length ? { mine: mine.layer.filed.map((f) => [f.fragment.id, f.fragment.text] as const) } : {}),
+        },
+      };
     return this.#lastGood;
   });
   /** What's shown and played: the last version that compiled. */

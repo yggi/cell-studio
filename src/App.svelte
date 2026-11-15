@@ -54,6 +54,8 @@
     const t = setTimeout(() => (trying = false), 2600);
     return () => clearTimeout(t);
   });
+  // (the lines being turned into a fragment, their dialog open: #626)
+  let extracting = $state<readonly number[] | null>(null);
   // (a cell its toggle can't switch says why, a moment: cells' offProblem, yggi/cells#686; a new one each time, so the
   // same reason said again shows again)
   let offSaid = $state<{ text: string } | null>(null);
@@ -330,6 +332,19 @@
       </div>
     {:else if !piece.readOnly}
       <Shorten code={piece.code} locked={piece.locked} onapply={(next) => piece.take(next)} />
+      <!-- lines of the piece as a fragment of the person's own (#626): the selection's, checked in a dialog before filing -->
+      <button
+        class="unstyled extract-open"
+        onclick={() => {
+          const lines = studio.editor?.selectedLines() ?? [];
+          if (lines.length) extracting = lines;
+          else offSaid = { text: 'Select the lines to turn into a fragment first.' };
+        }}>Turn into a fragment</button
+      >
+    {/if}
+    {#if extracting}
+      <!-- (its own chunk, fetched on first use: extraction and recognition are cells' heaviest, and the page's script stays under the offline cache's 2 MiB) -->
+      {#await import('./ui/ExtractDialog.svelte') then m}<m.default lines={extracting} onclose={() => (extracting = null)} />{/await}
     {/if}
   </section>
   <section class="select" class:away={view.tab !== 'select'} class:front={view.tab === 'select'} inert={view.tab !== 'select'} aria-label="Choose a piece">
@@ -411,6 +426,18 @@
     color: var(--text);
     font: 600 var(--text-sm) var(--font-ui);
     white-space: nowrap;
+  }
+  /* (under Shorten, as its row is: a line of the code's tools) */
+  .extract-open {
+    padding: 6px var(--space-3);
+    border-top: 1px solid var(--line);
+    font: 700 14px var(--font-ui);
+    color: var(--text);
+    text-align: left;
+  }
+  .extract-open:hover,
+  .extract-open:focus-visible {
+    color: var(--accent);
   }
   .convert {
     display: flex;

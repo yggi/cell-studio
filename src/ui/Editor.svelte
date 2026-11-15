@@ -212,6 +212,15 @@
     select(d.span.line, d.span.col, d.span.len);
   }
 
+  /** The lines a selection spans (1-based, in order), or none for a caret alone: what "Turn into a fragment" takes (#626). */
+  export function selectedLines(): number[] {
+    const { selectionStart: a, selectionEnd: b } = textarea;
+    if (a === b) return [];
+    const line = (at: number) => textarea.value.slice(0, at).split('\n').length;
+    // (a selection ending at a line's start doesn't take that line)
+    const last = line(b) - (textarea.value[b - 1] === '\n' ? 1 : 0);
+    return Array.from({ length: Math.max(0, last - line(a) + 1) }, (_, i) => line(a) + i);
+  }
   /** Select a whole line (1-based) — the graph's "show in code". */
   export function showLine(line: number) {
     const text = value.split('\n')[line - 1] ?? '';
