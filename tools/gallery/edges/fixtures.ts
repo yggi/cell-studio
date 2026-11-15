@@ -66,7 +66,7 @@ export function edgeFixtures(list: readonly Piece[]): EdgeFixture[] {
     for (const e of model.edges) {
       // (a meter's own step edges aren't drawn: its net is)
       if (grounds.has(e.id)) {
-        const index = meterIndex(model).get(e.target);
+        const index = meterIndex(model, piece.program).get(e.target);
         const had = meter;
         if (!had && index !== undefined)
           meter = { key: 'edge:meter:net', piece, edge: e, live: false, pieces: new Set([piece.key]), meter: { name: e.target.slice('cell:'.length), index } };

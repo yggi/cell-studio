@@ -272,7 +272,7 @@ export function flowEdgesOf(s: GraphSnapshot, scene: EdgeScene): Edge[] {
   const netPlaces = new Map(model.nets.flatMap((n) => n.readers.map((id) => [id, { id: n.id, name: netName(n.owner) }] as const)));
   const rings = loomBands(model).inner;
   const grounds = groundsOf(model);
-  const index = meterIndex(model);
+  const index = meterIndex(model, s.program);
   const toFlowEdge = (e: GraphEdge): Edge => {
     const state = edgeStateOf(e, s.muted, routed, live);
     // a belted cell's step: a belt, its pulleys by the ratio, its stretch as it is now

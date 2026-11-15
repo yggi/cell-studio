@@ -41,7 +41,7 @@ function kindOf(p: CompileResult, n: FlowNode, shifts: Shifts): string {
 /** Every wheel of a piece, with its kind (not the notes: they are cards). */
 export function wheelsOf(piece: Piece): { name: string; key: string; node: FlowNode; live: boolean }[] {
   const model = buildGraph(piece.program);
-  const meters = { index: meterIndex(model) };
+  const meters = { index: meterIndex(model, piece.program) };
   return (
     model.nodes
       .filter(isCellNode)

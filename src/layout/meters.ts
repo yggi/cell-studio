@@ -14,9 +14,20 @@ export function groundsOf(model: { nets?: readonly { port: string; readers: read
   return new Set((model.nets ?? []).flatMap((n) => (n.port === 'step' ? n.readers : [])));
 }
 
-/** Each meter's place among the piece's meters, in the order they're written. */
-export function meterIndex(model: { nodes: readonly Node[] }): Map<string, number> {
-  return new Map(model.nodes.filter((n) => n.isMeter && !n.petalOf).map((n, i) => [n.id, i]));
+/**
+ * Each meter's place among the piece's meters, in the order they're written. A meter a `from` line gives (`&bar from
+ * meter …`) is placed where its line is, not after the piece's own cells (#636: the graph's nodes put it last).
+ */
+export function meterIndex(model: { nodes: readonly Node[] }, result: CompileResult): Map<string, number> {
+  const given = new Map((result.takes ?? []).flatMap((t) => t.gave.map((n) => [n.replace(/^&/, ''), t.span.line] as const)));
+  const lineOf = (id: string) => {
+    const name = id.replace(/^cell:/, '');
+    return given.get(name) ?? result.cells.get(name)?.span.line ?? Infinity;
+  };
+  const meters = model.nodes.filter((n) => n.isMeter && !n.petalOf);
+  // (a stable sort: meters on one line, or with none to place, keep the graph's order)
+  const placed = meters.map((n, i) => ({ id: n.id, i, line: lineOf(n.id) })).sort((a, b) => a.line - b.line || a.i - b.i);
+  return new Map(placed.map((m, i) => [m.id, i]));
 }
 
 /**
