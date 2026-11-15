@@ -6,6 +6,7 @@
    * The line is checked as you type; Enter or a suggestion applies.
    */
   import type { Suggestion } from './suggest';
+  import SuggestList from './SuggestList.svelte';
   import Dialog from './kit/Dialog.svelte';
 
   export interface BarItem {
@@ -107,11 +108,7 @@
   {/if}
 
   {#if suggestions.length}
-    <ul class="list" role="listbox" aria-label="suggestions">
-      {#each suggestions as s}
-        <li><button class="unstyled {s.kind}" onclick={() => apply(s.text)}>{s.label}</button></li>
-      {/each}
-    </ul>
+    <SuggestList {suggestions} onpick={(s) => apply(s.text)} />
   {/if}
 
   {#if spinners.length || actions.length}
@@ -182,33 +179,6 @@
   }
   .val.on {
     border-color: var(--text);
-  }
-  .list {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-    max-height: 220px;
-    overflow: auto;
-    border-radius: 8px;
-    border: 1px solid var(--line);
-  }
-  .list button {
-    display: block;
-    width: 100%;
-    box-sizing: border-box;
-    padding: 9px 12px;
-    font: 500 14px var(--font-code);
-    color: var(--accent);
-  }
-  .list li + li {
-    border-top: 1px solid var(--line);
-  }
-  .list .function,
-  .list .value {
-    color: var(--text);
-  }
-  .list .rest {
-    color: var(--text-muted);
   }
   .row {
     display: flex;

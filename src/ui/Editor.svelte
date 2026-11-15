@@ -4,6 +4,8 @@
   import { facetColour } from './theme';
   import { FACETS, fragmentCard, type ChainStep, type Link } from '../references';
   import RefCard from './RefCard.svelte';
+  import SuggestList from './SuggestList.svelte';
+  import type { Suggestion } from './suggest';
 
   let {
     value = $bindable(),
@@ -12,6 +14,7 @@
     links = [],
     chain,
     onfollow,
+    complete,
   }: {
     value: string;
     diagnostics: readonly Diagnostic[];
@@ -23,6 +26,11 @@
     chain?: (name: string) => readonly ChainStep[] | null;
     /** Follow a link: open its fragment (⌘/Ctrl-click, or the card's), and play it. */
     onfollow?: (id: string, play: boolean) => void;
+    /**
+     * What the word at the caret could become, from its line up to the caret (`from ` and an id: #624), and where it
+     * starts; null for nothing. `others`: the text without the caret's line (what the line is in, as it compiles).
+     */
+    complete?: (before: string, others: string) => { readonly start: number; readonly suggestions: readonly Suggestion[] } | null;
   } = $props();
 
   let textarea: HTMLTextAreaElement;
@@ -89,6 +97,35 @@
 
   // lines wrap: each gutter number is as tall as its line, wrapped (measured on a hidden mirror)
   let heights = $state<number[]>([]);
+
+  // completion at the caret: the list, the one Enter takes, and where the word starts in the text
+  let offered = $state<{ suggestions: readonly Suggestion[]; from: number; line: number; active: number; scroll: number } | null>(null);
+  function offer() {
+    if (!complete || readonly || textarea.selectionStart !== textarea.selectionEnd) return void (offered = null);
+    // (the textarea's own text: `value` follows it through the binding, which may not have run yet)
+    const text = textarea.value;
+    const at = textarea.selectionStart;
+    const lineStart = text.lastIndexOf('\n', at - 1) + 1;
+    const lineEnd = text.indexOf('\n', at);
+    const c = complete(text.slice(lineStart, at), text.slice(0, lineStart) + (lineEnd < 0 ? '' : text.slice(lineEnd + 1)));
+    offered =
+      c && c.suggestions.length
+        ? { suggestions: c.suggestions, from: lineStart + c.start, line: text.slice(0, lineStart).split('\n').length, active: 0, scroll: textarea.scrollTop }
+        : null;
+  }
+  function take(s: Suggestion) {
+    if (!offered) return;
+    const at = textarea.selectionStart;
+    const from = offered.from;
+    value = textarea.value.slice(0, from) + s.text + textarea.value.slice(at);
+    offered = null;
+    queueMicrotask(() => {
+      textarea.focus();
+      textarea.setSelectionRange(from + s.text.length, from + s.text.length);
+    });
+  }
+  // (under the caret's line: its top, the lines above it as wrapped, less the scroll)
+  const offeredTop = $derived(offered ? heights.slice(0, offered.line).reduce((a, h) => a + h, 0) + 8 - offered.scroll : 0);
   function measure() {
     if (!mirror || !textarea) return;
     const cs = getComputedStyle(textarea);
@@ -187,6 +224,24 @@
   }
 
   function onkeydown(e: KeyboardEvent) {
+    if (offered) {
+      const n = offered.suggestions.length;
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        offered.active = (offered.active + (e.key === 'ArrowDown' ? 1 : n - 1)) % n;
+        return;
+      }
+      if (e.key === 'Enter' || e.key === 'Tab') {
+        e.preventDefault();
+        take(offered.suggestions[offered.active]!);
+        return;
+      }
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        offered = null;
+        return;
+      }
+    }
     if (e.key !== 'Tab' || e.shiftKey || readonly) return;
     e.preventDefault();
     const { selectionStart: s, selectionEnd: t } = textarea;
@@ -215,6 +270,9 @@
       {onfocus}
       {onpointermove}
       {onmousedown}
+      oninput={offer}
+      onblur={() => (offered = null)}
+      onclick={() => (offered = null)}
       onpointerleave={() => (leave = setTimeout(() => (hovered = null), 250))}
       onscroll={() => {
         gutter.scrollTop = textarea.scrollTop;
@@ -230,6 +288,12 @@
   <div class="mirror" bind:this={mirror} aria-hidden="true">
     {#each lines as l}<div>{l || '\u200b'}</div>{/each}
   </div>
+  {#if offered}
+    <!-- completion at the caret (#624): ↑ ↓ to choose, Enter or Tab to take, Esc to close -->
+    <div class="offered" style:top="{offeredTop}px">
+      <SuggestList suggestions={offered.suggestions} active={offered.active} onpick={take} label="Fragments" />
+    </div>
+  {/if}
   {#if hovered}
     <!-- (the card stays while the pointer is on it: its ▶ is a button) -->
     <div class="hover" style:left="{hovered.x}px" style:top="{hovered.y}px" role="tooltip" onpointerenter={() => clearTimeout(leave)} onpointerleave={() => (hovered = null)}>
@@ -299,6 +363,15 @@
   .link {
     text-decoration: underline dotted;
     text-underline-offset: 3px;
+  }
+  .offered {
+    position: absolute;
+    left: 3em;
+    z-index: 6;
+    width: min(360px, calc(100% - 4em));
+    background: var(--surface);
+    border-radius: 8px;
+    box-shadow: 0 6px 20px rgb(0 0 0 / 0.35);
   }
   .hover {
     position: absolute;
