@@ -143,12 +143,12 @@ describe('a followed session played as its performers play it', () => {
   /**
    * A drum line of the role `ostinato` (session minor 10, feel v3.1, yggi/music-commons#66), followed at a cells pin
    * before yggi/cells#717: cells' `played` gives a velocity of NaN for a drum role it doesn't know (yggi/jambot#668), so
-   * the follower's reader, cells' `readerOf`, must read the line as none of the feel's, and its hits play as cells
-   * gives them. The bar is the hub's vector of a drum hit an ostinato, sent in each section type in turn; the text is
+   * the follower's reader, cells' `readerOf`, had to read the line as none of the feel's. From v0.26.0 cells knows the
+   * role: the reader reads it as a drum role and the feel plays it. The bar is the hub's vector of a drum hit an ostinato, sent in each section type in turn; the text is
    * Salsa's tumbao on the General MIDI kit's toms, as the feel contract's reading case has it, beside a kick and a bass
    * the feel reads.
    */
-  it('plays an ostinato line as cells gives it, never through the feel, and no velocity or length is NaN (#643)', () => {
+  it('plays an ostinato line through the feel, a role cells reads, and no velocity or length is NaN (#643)', () => {
     const SALSA = `&bar meter("4/4") step=108bpm
 &kick role=kick step=16n &bd ~ ~ ~ &bd ~ ~ ~ &bd ~ ~ ~ &bd ~ ~ ~
 &o role=ostinato step=8n &mt &ht &mt &mt &ht &mt &ht &mt
@@ -192,19 +192,20 @@ describe('a followed session played as its performers play it', () => {
             routesOf(route(e)).find((x) => x.channel !== 16)!,
           )!.velocity;
           expect([e.output, velocity >= 1 && velocity <= 127]).toEqual([e.output, true]);
-          // (an ostinato hit is none of the feel's: it plays as cells gives it)
+          // (cells' reader knows the role since v0.26.0, #717: an ostinato hit is read as a drum role, so the feel shapes it, and the line is still its own output)
           if (line === 'o') {
-            expect(read(e.output)).toBeNull();
-            expect(e).toEqual(given[i]);
+            expect(read(e.output)).toEqual({ part: 'drums', role: 'ostinato' });
+            expect(e.output).toBe(given[i]!.output);
           }
         });
       }
     // (six bars: a kick on each beat, the tumbao's 8 eighths, the bass's 6 notes)
     expect(Object.fromEntries(lines)).toEqual({ kick: 24, o: 48, bass: 36 });
-    expect(feed.unread).toBe(48);
+    // (since cells v0.26.0 the tumbao is the feel's, a drum role it reads: none of it plays unread, and each hit is logged)
+    expect(feed.unread).toBe(0);
     const log = feed.log.since().events;
-    expect(log).toHaveLength(60);
-    expect(log.filter((x) => x.role === 'ostinato')).toEqual([]);
+    expect(log).toHaveLength(108);
+    expect(log.filter((x) => x.role === 'ostinato')).toHaveLength(48);
     expect(log.filter((x) => !Number.isFinite(x.velocity) || !(x.length > 0) || !(x.duration > 0))).toEqual([]);
   });
 });

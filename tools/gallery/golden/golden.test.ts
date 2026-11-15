@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { compileSource } from '@yggi/cells/engine/compile';
+import { compilePiece } from '../../../src/compile';
 import { buildGraph } from '../../../src/layout/drawn';
 import { ForceLayout } from '../../../src/layout/physics';
 import { coverage } from './coverage';
@@ -7,7 +7,7 @@ import { golden } from './golden';
 
 // The golden graph: one piece with a value of every dimension the examples draw, given to the app as any piece is.
 describe('the golden graph', () => {
-  const program = compileSource(golden.source);
+  const program = compilePiece(golden.source);
   const model = buildGraph(program);
 
   it('compiles, without a warning', () => {

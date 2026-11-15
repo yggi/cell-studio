@@ -50,7 +50,7 @@ describe('references in the code view', () => {
   it('reads Electroswing’s &hh from gm_kit, through drums_performer, to the piece’s line 1', () => {
     const r = compilePiece(EXAMPLES.electroswing.source);
     expect(chainOf(r, 'hh')).toEqual([
-      { id: 'gm_kit', line: 8 },
+      { id: 'gm_kit', line: 9 },
       { id: 'drums_performer', line: 2 },
       { id: null, line: 1 },
     ]);
@@ -58,7 +58,8 @@ describe('references in the code view', () => {
 
   it('cards a fragment by its facet, signature, prose and who takes it; none for an id the library lacks', () => {
     const c = fragmentCard('drums_performer')!;
-    expect([c.facets, c.signature, c.takes]).toEqual([['performer'], '&drums, &drumsOut from (&kit) &drumlines', ['gm_kit']]);
+    // (its signature carries the style of each of its eight modules, as cells v0.26.0 writes it: the head is what is held)
+    expect([c.facets, c.signature?.split(' style=')[0], c.takes]).toEqual([['performer'], '&drums, &drumsOut from (&kit) &drumlines', ['gm_kit']]);
     expect(c.prose).toMatch(/^The drummer/);
     expect(c.takenBy).toBeGreaterThan(0);
     expect(fragmentCard('no_such_fragment')).toBeNull();
