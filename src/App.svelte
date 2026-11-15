@@ -18,6 +18,7 @@
   import TimeView from './ui/TimeView.svelte';
   import ConvertStrip from './ui/ConvertStrip.svelte';
   import FragmentPreview from './ui/FragmentPreview.svelte';
+  import { chainOf } from './references';
 
   // the app's state (ui/state/): the piece, playing it, the library, what's on screen
   const studio = new Studio();
@@ -304,7 +305,15 @@
     <TimeView active={view.tab === 'time' && library.anyOpen} />
   </section>
   <section class="side" class:away={view.tab !== 'code'} inert={view.narrow && view.tab !== 'code'} aria-label="Program">
-    <Editor bind:this={studio.editor} bind:value={piece.code} diagnostics={piece.result.diagnostics} readonly={piece.readOnly} />
+    <Editor
+      bind:this={studio.editor}
+      bind:value={piece.code}
+      diagnostics={piece.result.diagnostics}
+      readonly={piece.readOnly}
+      links={piece.links}
+      chain={(name) => chainOf(piece.result, name)}
+      onfollow={(id, play) => studio.follow(id, play)}
+    />
     {#if piece.midi}
       <div class="convert">
         <span>A MIDI file, as text: {piece.midi.smf.tracks.reduce((n, t) => n + t.notes.length, 0)} notes in {piece.midi.smf.tracks.length} tracks</span>

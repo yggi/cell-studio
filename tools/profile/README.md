@@ -14,6 +14,9 @@ device, so this measures the page, not audible glitches; use a real phone for th
     node tools/profile/open.mjs http://localhost:4173/ 4 file:/abs/path/piece.cells 4
     node tools/profile/open.mjs http://localhost:4173/ 4 fragment:techno_drums 4
 
+    # typing latency in the code view: each key from keydown to the frame that shows it, 60 keys 80 ms apart, 3 runs
+    node tools/profile/typing.mjs http://localhost:4173/ 4 "Electro swing" 3
+
     # where the time goes: build unminified, sample with the CDP profiler, aggregate
     npx vite build --minify false --outDir /tmp/dist-nomin && npx vite preview --outDir /tmp/dist-nomin --port 4174 &
     THROTTLE=4 node tools/profile/cpu.mjs http://localhost:4174/ "Hypercell" 15    # writes profile-Hypercell.json
