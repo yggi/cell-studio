@@ -4,7 +4,6 @@ import { codeShifts } from '@yggi/cells/engine/program';
 import { declLine } from '@yggi/cells/engine/edit';
 import { FIRST_FILE, loadExample, type ExampleKey } from '../../examples';
 import { download, fileName, readFile, saveFile, savePiece } from '../../library';
-import { catalogue } from '@yggi/cells/repository/catalogue';
 import { mine } from '../../mine.svelte';
 import { shortTitle } from '../../layout/library';
 import { pieceMidi } from '@yggi/cells/engine/midiexport';
@@ -255,7 +254,8 @@ export class Studio {
    * heard in its document: `openPart`). False for an id the library doesn't hold and no text.
    */
   openFragment(id: string, text?: string): boolean {
-    const entry = catalogue().find((e) => e.id === id);
+    // (the seed's, or one the person filed: #626)
+    const entry = mine.entries.find((e) => e.id === id);
     const source = text ?? entry?.text;
     if (source === undefined) return false;
     ++this.#choice;
@@ -310,7 +310,7 @@ export class Studio {
     this.stopFolding(false);
     this.library.open = open;
     this.trail = [];
-    if (open.kind === 'fragment') this.piece.openFragment(open.id, catalogue().find((e) => e.id === open.id)?.facets ?? [], source);
+    if (open.kind === 'fragment') this.piece.openFragment(open.id, mine.entries.find((e) => e.id === open.id)?.facets ?? [], source);
     else this.piece.open(source);
     this.view.tab = 'graph';
     this.view.message = null;

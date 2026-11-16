@@ -21,6 +21,7 @@
   import { chainOf } from './references';
   import { fromContext, pointOf, suggestFragments } from './ui/complete';
   import { styleOfPiece } from './compile';
+  import { mine } from './mine.svelte';
 
   // the app's state (ui/state/): the piece, playing it, the library, what's on screen
   const studio = new Studio();
@@ -322,7 +323,7 @@
         const ctx = fromContext(before);
         if (!ctx) return null;
         const style = styleOfPiece(others);
-        return { start: ctx.start, suggestions: suggestFragments(ctx, style && pointOf(style)) };
+        return { start: ctx.start, suggestions: suggestFragments(ctx, style && pointOf(style), 12, mine.entries) };
       }}
     />
     {#if piece.midi}

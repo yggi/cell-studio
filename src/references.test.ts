@@ -5,6 +5,8 @@ import { EXAMPLES } from '@yggi/cells/engine/examples';
 import { references } from '@yggi/cells/engine/references';
 import { compilePiece } from './compile';
 import { chainOf, fragmentCard, linksOf } from './references';
+import { catalogue } from '@yggi/cells/repository/catalogue';
+import { EMPTY_LAYER } from '@yggi/cells/repository/fragments';
 import { tokenize, withLinks } from './ui/highlight';
 
 describe('references in the code view', () => {
@@ -63,5 +65,19 @@ describe('references in the code view', () => {
     expect(c.prose).toMatch(/^The drummer/);
     expect(c.takenBy).toBeGreaterThan(0);
     expect(fragmentCard('no_such_fragment')).toBeNull();
+  });
+});
+
+describe('a person’s own fragment in the code view (#626)', () => {
+  it('is a link with its facet, and has a card', () => {
+    const fragment = {
+      id: 'my_groove',
+      text: '&groove from\n&groove step=8n &bd ~ &sd ~\n&bd, &sd from gm_kit',
+      association: [{ point: { sync: 0.5 }, weight: 0.1, facet: 'rhythm' }],
+    };
+    const entries = catalogue({ ...EMPTY_LAYER, filed: [{ fragment, meta: { source: 'me', created: '2026-11-15T00:00:00Z' }, prose: '' }] });
+    expect(linksOf('&beat from my_groove', entries)[0]).toMatchObject({ id: 'my_groove', facet: 'rhythm' });
+    expect(linksOf('&beat from my_groove')[0]?.facet).toBeNull();
+    expect(fragmentCard('my_groove', entries)).toMatchObject({ facets: ['rhythm'], signature: '&groove from', takes: ['gm_kit'] });
   });
 });

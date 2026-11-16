@@ -8,6 +8,7 @@ import { patch, unpatch, PatchError, type Jack } from '@yggi/cells/engine/patch'
 import { soundRole } from '@yggi/cells/engine/outs';
 import type { CompileResult } from '@yggi/cells/engine/program';
 import { resolveSeed } from '@yggi/cells/repository/library';
+import type { Resolve } from '@yggi/cells/engine/program';
 
 /** What a cable carries: sound, or a level or a share (`jacksOf`'s bands). */
 export type Band = Jack['band'];
@@ -40,14 +41,20 @@ const attempt = (rewrite: () => string): Drop => {
   }
 };
 
-/** A cable from &from dropped on &cell's `port`. */
-export const plug = (text: string, cell: string, port: string, from: string): Drop => attempt(() => patch(text, cell, port, from, resolveSeed));
+/** A cable from &from dropped on &cell's `port`; `resolve` reads the piece's `from` lines (the seed's, or the app's with a person's own fragments: #626). */
+export const plug = (text: string, cell: string, port: string, from: string, resolve: Resolve = resolveSeed): Drop => attempt(() => patch(text, cell, port, from, resolve));
 
 /** The cable from &from pulled off &cell's `port`: the jack back at its knob. */
-export const pull = (text: string, cell: string, port: string, from: string): Drop => attempt(() => unpatch(text, cell, port, from, resolveSeed));
+export const pull = (text: string, cell: string, port: string, from: string, resolve: Resolve = resolveSeed): Drop => attempt(() => unpatch(text, cell, port, from, resolve));
 
 /** A cable moved from one jack to another: pulled, then plugged; if the new jack refuses it, nothing is written. */
-export function move(text: string, from: string, off: { readonly cell: string; readonly port: string }, on: { readonly cell: string; readonly port: string }): Drop {
-  const pulled = pull(text, off.cell, off.port, from);
-  return pulled.ok ? plug(pulled.text, on.cell, on.port, from) : pulled;
+export function move(
+  text: string,
+  from: string,
+  off: { readonly cell: string; readonly port: string },
+  on: { readonly cell: string; readonly port: string },
+  resolve: Resolve = resolveSeed,
+): Drop {
+  const pulled = pull(text, off.cell, off.port, from, resolve);
+  return pulled.ok ? plug(pulled.text, on.cell, on.port, from, resolve) : pulled;
 }

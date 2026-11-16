@@ -28,6 +28,8 @@ import type { Resolve } from '@yggi/cells/engine/program';
 let resolver: Resolve = resolveSeed;
 /** Read `from` lines through `resolve` from now on (`mine.svelte.ts`). */
 export const setResolver = (resolve: Resolve): void => void (resolver = resolve);
+/** How a `from` line is read now: what a caller outside this module hands cells (a cable's patch, #626). */
+export const resolveNow: Resolve = (id, hash) => resolver(id, hash);
 
 export const compilePiece = (text: string, env?: Env, locked?: readonly Locked[]): CompileResult =>
   compileSource(text, env, { resolve: resolver, ...(locked?.length ? { locked } : {}) });

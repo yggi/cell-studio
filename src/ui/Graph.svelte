@@ -56,7 +56,7 @@
   import { fromLabel, givenBy, groupOfTag, PLATE_WIDTH } from '../layout/uses';
   import { tagRoom } from '../layout/start';
   import { bodyOf, NAME_PLATE } from '../layout/voice';
-  import { ownLine } from '../compile';
+  import { ownLine, resolveNow } from '../compile';
   import { headPoint, UNTURNED } from '../layout/tape';
   import SectionLooms from './SectionLooms.svelte';
   import { towerIns, towerY } from '../layout/towerlayout';
@@ -667,7 +667,7 @@
         // (the text is written, and the cable drawn from it: no edge of the flow's own; returning none, it adds none)
         const from = nameOf(c.source);
         const on = jackOf(c.target, c.targetHandle);
-        if (from && on) land(plug(source, on.cell, on.port, from));
+        if (from && on) land(plug(source, on.cell, on.port, from, resolveNow));
         return null;
       }}
       onconnectend={(event) => {
@@ -689,7 +689,7 @@
         const from = nameOf(old.source);
         const off = jackOf(old.target, old.targetHandle);
         const on = jackOf(c.target, c.targetHandle);
-        if (from && off && on) land(on.cell === off.cell && on.port === off.port ? { ok: true, text: source } : moveCable(source, from, off, on));
+        if (from && off && on) land(on.cell === off.cell && on.port === off.port ? { ok: true, text: source } : moveCable(source, from, off, on, resolveNow));
         return null;
       }}
       onreconnectend={(event, edge) => {
@@ -697,7 +697,7 @@
         if (!dropped) {
           const from = nameOf(edge.source);
           const off = jackOf(edge.target, edge.targetHandle);
-          if (from && off) land(pull(source, off.cell, off.port, from));
+          if (from && off) land(pull(source, off.cell, off.port, from, resolveNow));
         }
         if (dropped && !dropped.drop.ok) refuse(dropped.drop.message, event);
         cable = null;

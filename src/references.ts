@@ -39,10 +39,9 @@ export interface FragmentCard {
   readonly takenBy: number;
 }
 
-const entry = (id: string): CatalogueEntry | undefined => catalogue().find((e) => e.id === id);
-
-export function fragmentCard(id: string): FragmentCard | null {
-  const e = entry(id);
+/** A fragment's card, read from `entries` (the app's: the seed's and the person's own, #626). */
+export function fragmentCard(id: string, entries: readonly CatalogueEntry[] = catalogue()): FragmentCard | null {
+  const e = entries.find((x) => x.id === id);
   if (!e) return null;
   const signature = e.text.split('\n').find((l) => readFrom(splitComment(l)[0].trim())?.kind === 'signature') ?? null;
   const prose =
@@ -65,13 +64,14 @@ export interface Link {
 }
 
 /** Every reference of a text, as a link to paint (#624). */
-export function linksOf(text: string): Link[] {
+export function linksOf(text: string, entries: readonly CatalogueEntry[] = catalogue()): Link[] {
+  const byId = new Map(entries.map((e) => [e.id, e]));
   return references(text).map((ref) => ({
     line: ref.span.line,
     from: ref.span.col - 1,
     to: ref.span.col - 1 + ref.span.len,
     id: ref.id,
-    facet: entry(ref.id)?.facets[0] ?? null,
+    facet: byId.get(ref.id)?.facets[0] ?? null,
     ref,
   }));
 }

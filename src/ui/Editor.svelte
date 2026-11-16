@@ -4,6 +4,7 @@
   import { facetColour } from './theme';
   import { FACETS, fragmentCard, type ChainStep, type Link } from '../references';
   import RefCard from './RefCard.svelte';
+  import { mine } from '../mine.svelte';
   import SuggestList from './SuggestList.svelte';
   import type { Suggestion } from './suggest';
 
@@ -307,7 +308,7 @@
     <!-- (the card stays while the pointer is on it: its ▶ is a button) -->
     <div class="hover" style:left="{hovered.x}px" style:top="{hovered.y}px" role="tooltip" onpointerenter={() => clearTimeout(leave)} onpointerleave={() => (hovered = null)}>
       {#if hovered.kind === 'link'}
-        <RefCard card={fragmentCard(hovered.id)} id={hovered.id} onplay={onfollow && ((id) => ((hovered = null), onfollow(id, true)))} />
+        <RefCard card={fragmentCard(hovered.id, mine.entries)} id={hovered.id} onplay={onfollow && ((id) => ((hovered = null), onfollow(id, true)))} />
       {:else}
         <RefCard name={hovered.name} steps={hovered.steps} />
       {/if}

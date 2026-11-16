@@ -29,6 +29,8 @@ interface MapNode {
   readonly label: string;
   /** A fragment's first facet. */
   readonly facet?: string;
+  /** A fragment the person filed (a learned layer's, no file of the seed's: #626). */
+  readonly own?: true;
 }
 export interface MapGraph {
   readonly nodes: readonly MapNode[];
@@ -79,7 +81,13 @@ function pieceGraph(key: string, source: string, known: ReadonlySet<string>, par
 /** The map's graph over a catalogue and the examples. */
 export function mapGraph(entries: readonly CatalogueEntry[] = catalogue(), pieces: Readonly<Record<string, { readonly source: string }>> = EXAMPLES): MapGraph {
   const known = new Set(entries.map((e) => e.id));
-  const nodes: MapNode[] = entries.map((e) => ({ key: `f:${e.id}`, kind: 'fragment', label: e.id, ...(e.facets[0] ? { facet: e.facets[0] } : {}) }));
+  const nodes: MapNode[] = entries.map((e) => ({
+    key: `f:${e.id}`,
+    kind: 'fragment',
+    label: e.id,
+    ...(e.facets[0] ? { facet: e.facets[0] } : {}),
+    ...(e.path === null ? { own: true as const } : {}),
+  }));
   const edges: [string, string][] = entries.flatMap((e) => e.takes.filter((t) => known.has(t)).map((t): [string, string] => [`f:${e.id}`, `f:${t}`]));
   for (const [key, p] of Object.entries(pieces)) {
     nodes.push({ key: `p:${key}`, kind: 'piece', label: key });

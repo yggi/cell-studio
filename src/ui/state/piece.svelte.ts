@@ -64,7 +64,7 @@ export class Piece {
    */
   fragment = $state.raw<{ readonly id: string; readonly facets: readonly string[] } | null>(null);
   /** Its `from` ids, as the code view paints them: links, each with its fragment's facet (#624). */
-  readonly links = $derived(this.midi ? [] : linksOf(this.#code));
+  readonly links = $derived(this.midi ? [] : linksOf(this.#code, mine.entries));
   /** The parts it gives, where it is a document of fragments (cells decision 082: Kinderlieder); none for any other. */
   readonly parts = $derived(this.fragment || this.midi ? [] : documentParts(this.#code));
   /** A fragment's host: what it plays, each stand-in with the hole it fills, why it is silent alone; null for a piece. */
