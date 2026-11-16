@@ -8,6 +8,8 @@
    * the kit's notes stay editable), an output's × removing it after asking; an output's device settings (its port, its device's profile kept in every setup,
    * each drum's note) in the matrix's own dialog, opened from the output's head, with its test note and notes off. The built-in's
    * head opens Cell studio's own dialog (its settings are the frontend's, decision 004 in webmidi).
+   * Then the control panels (webmidi's decisions 005 and 007): the library's, those the setup has active as rows and columns of the patch and as
+   * tabs to play, edit, make, open and save as files. A panel's row sends where it is crossed; Cell studio's own sound doesn't play its notes (not yet).
    * Then the built-in sound, the keys (#207) and the knobs learned, which stay Cell studio's. The sidebar is the whole
    * width of the window on this page (Sidebar.svelte), so the matrix has room. Colours: `--wm-*`, mapped to the theme in
    * `app.css`.
@@ -16,8 +18,10 @@
    * patch sit in a boundary: whatever throws there is shown with its error and a way back (try again, or reset the MIDI
    * settings), and the rest of the page goes on, where an error in a keyed list would have stopped it redrawing.
    */
-  import { activeSetup, DEFAULT_PRESET, hardwareOutputs, isBuiltIn } from '@yggi/webmidi/core';
+  import { activeSetup, DEFAULT_PRESET, hardwareOutputs, isBuiltIn, panelsOf } from '@yggi/webmidi/core';
+  import { panelOf } from '@yggi/webmidi/panels';
   import { MidiStatus, PatchMatrix, SetupPicker } from '@yggi/webmidi/ui';
+  import { PanelEditor, PanelView } from '@yggi/webmidi/ui/panels';
   import KeysSettings from './KeysSettings.svelte';
   import LearnSettings from './LearnSettings.svelte';
   import type { Midi } from './state/midi.svelte';
@@ -31,6 +35,28 @@
   const hasBuiltIn = $derived(shown.outputs.some(isBuiltIn));
   // an output's number, counting those that send MIDI (a piece's MIDI cards name them so); the built-in has none
   const slotOf = (key: string) => hardwareOutputs(shown).findIndex((o) => o.key === key) + 1;
+  // the panels: the library's, those the setup in use has active as tabs, the one shown played or edited
+  const active = $derived(panelsOf(shown).flatMap((id) => panelOf(midi.library, id) ?? []));
+  const runtime = $derived(midi.runtimeOf(midi.shownPanel));
+  const shownPanel = $derived(midi.shownPanel === null ? undefined : panelOf(midi.library, midi.shownPanel));
+  let editing = $state(false);
+  let problem = $state<string | null>(null);
+  let file = $state<HTMLInputElement>();
+  async function chosen() {
+    const picked = file?.files?.[0];
+    if (!picked) return;
+    problem = midi.importPanel(await picked.text());
+    if (file) file.value = '';
+  }
+  function save() {
+    const out = midi.shownPanel === null ? null : midi.exportPanel(midi.shownPanel);
+    if (!out) return;
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([out.text], { type: 'application/json' }));
+    a.download = out.filename;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
   const title = $derived(midi.context.slice('piece:'.length));
   const SOUND = 'Sound';
 
@@ -101,6 +127,8 @@
           heardBy="the keys and MIDI learn"
           preset={DEFAULT_PRESET}
           builtIn={{ label: SOUND, rows: false }}
+          panels={midi.library.panels}
+          onpanel={(id) => ((midi.shownPanel = id), (editing = false))}
           locked={midi.locked}
           onchange={(b) => midi.changeMatrix(b)}
           ontest={(key) => midi.testNote(slotOf(key))}
@@ -110,6 +138,39 @@
         {#if midi.clocking && !midi.meter}<p class="hint" role="status">This piece has no meter, so no clock is sent.</p>{/if}
         {#if midi.warning}<p class="hint warning" role="status">{midi.warning}</p>{/if}
         {#if midi.locked}<p class="hint">A channel per note (MPE) is off for a piece with MIDI cards: they say the channels.</p>{/if}
+      </section>
+
+      <section class="card" aria-labelledby="midi-panels">
+        <div class="bar">
+          <h4 id="midi-panels">Panels</h4>
+          <div class="tabs" role="tablist" aria-label="The panels in this setup">
+            {#each active as p (p.id)}
+              <button type="button" role="tab" aria-selected={midi.shownPanel === p.id} onclick={() => ((midi.shownPanel = p.id), (editing = false))}>{p.name}</button>
+            {/each}
+          </div>
+          <span class="grow"></span>
+          <button type="button" aria-pressed={editing} onclick={() => (editing = !editing)} disabled={!shownPanel}>{editing ? 'Done editing' : 'Edit'}</button>
+          <button type="button" onclick={() => (midi.newPanel(), (editing = true))}>New panel</button>
+          <button type="button" onclick={() => file?.click()}>Open a panel’s file…</button>
+          <button type="button" onclick={save} disabled={!runtime}>Save this panel’s file</button>
+          <input bind:this={file} type="file" accept=".json,application/json" hidden onchange={chosen} />
+        </div>
+        {#if problem}<p class="hint warning" role="alert">{problem}</p>{/if}
+        {#if editing && shownPanel}
+          <PanelEditor panel={shownPanel} onchange={(panel) => midi.editPanel(panel)} />
+          <div class="bar">
+            <span class="grow"></span><button type="button" class="danger" onclick={() => (midi.deletePanel(shownPanel.id), (editing = false))}>Delete this panel</button>
+          </div>
+        {:else if runtime && midi.shownPanel !== null}
+          {@const id = midi.shownPanel}
+          {#key runtime}
+            <PanelView {runtime} onsend={(data) => midi.played(id, data)} />
+          {/key}
+        {:else}
+          <p class="hint">
+            No panel in this setup yet: add one from the chips over the patch, then route its row to an output. Cell studio's own sound doesn't play a panel's notes (not yet).
+          </p>
+        {/if}
       </section>
 
       <section class="strip reset" aria-label="Reset">
@@ -254,13 +315,16 @@
     color: var(--text);
   }
   .reset,
-  .actions {
+  .actions,
+  .bar,
+  .tabs {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
     gap: 6px 8px;
   }
   .reset button,
+  .bar button,
   .failed button {
     min-height: 34px;
     padding: 0 12px;
@@ -270,6 +334,17 @@
     color: var(--text);
     font: inherit;
     cursor: pointer;
+  }
+  .grow {
+    flex: 1;
+  }
+  .bar button[aria-pressed='true'],
+  .tabs button[aria-selected='true'] {
+    border-color: currentColor;
+  }
+  .bar button:disabled {
+    opacity: 0.5;
+    cursor: default;
   }
   button.quiet {
     justify-self: start;

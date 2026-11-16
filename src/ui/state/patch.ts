@@ -10,8 +10,12 @@ import {
   activeSetup,
   hasBuiltIn,
   inputRow,
+  isPanelKey,
+  panelKey,
+  panelsOf,
   withClock,
   withCrossing,
+  withPanelActive,
   withPlays,
   withProfile,
   type Crossing,
@@ -221,21 +225,25 @@ export function keptChange(book: SetupBook, shown: SetupBook, changed: SetupBook
 /**
  * A change made on a locked matrix's book (`shown`: a piece routed by its MIDI cards, their channels written in on every
  * slot they name), kept on the book itself as the locked matrix edits it (webmidi v0.1.4): what each input plays (v0.2.0), the input
- * rows' crossings in `context`, the clock, and the devices' profiles. The cards' own rows are theirs, not the setup's,
+ * rows' crossings in `context`, the panels active and their rows' and columns' crossings (webmidi v0.5.0), the clock, and the devices' profiles. The cards' own rows are theirs, not the setup's,
  * and a crossing or the clock to a slot only the cards name (the setup lacks its output) isn't kept. Each through
  * webmidi's changes, so a change to a named setup is its custom variant; the book as it is when nothing kept changed.
  */
 export function lockedChange(book: SetupBook, shown: SetupBook, changed: SetupBook, context: string): SetupBook {
   if (changed === shown) return book;
   const [was, now] = [activeSetup(shown), activeSetup(changed)];
-  const keys = activeSetup(book).outputs.map((o) => o.key);
   let kept = book;
+  // (the panels active are the setup's: a panel added or taken out in the locked matrix is kept, its crossings with it)
+  for (const id of new Set([...panelsOf(was), ...panelsOf(now)]))
+    if (panelsOf(now).includes(id) !== panelsOf(was).includes(id)) kept = withPanelActive(kept, id, panelsOf(now).includes(id));
+  // (a crossing goes to an output of the setup, or to the column of a panel it has active)
+  const keys = [...activeSetup(book).outputs.map((o) => o.key), ...panelsOf(now).map(panelKey)];
   for (const row of new Set([...Object.keys(was.plays), ...Object.keys(now.plays)]))
     if (JSON.stringify(own(now.plays, row)) !== JSON.stringify(own(was.plays, row))) kept = withPlays(kept, row, own(now.plays, row));
   for (const key of keys) if (now.clock.includes(key) !== was.clock.includes(key)) kept = withClock(kept, key, now.clock.includes(key));
   const inputs = (s: Setup) => (own(s.routes, context) ?? {}) as Routes;
   const [before, after] = [inputs(was), inputs(now)];
-  const rows = new Set([...Object.keys(before), ...Object.keys(after)].filter((row) => row.startsWith('in:')));
+  const rows = new Set([...Object.keys(before), ...Object.keys(after)].filter((row) => row.startsWith('in:') || isPanelKey(row)));
   for (const row of rows)
     for (const key of keys) {
       const value = own(own(after, row) ?? {}, key);
