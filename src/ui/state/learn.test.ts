@@ -22,7 +22,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-const SONG = `# Song\n&bar scan(4 4 4 4) step=free(90bpm, 60..240)\n&fx lpf=free(1200, 200..5000)\n&pad meter(free(1, 0..3, "2/4 3/4 4/4 6/8"), 0) step=free(100bpm, 40..208)\n`;
+const SONG = `# Song\n&bar scan(4 4 4 4) step=free(90bpm, 60..240)\n&fx lpf=free(1200, 200..5000)\n&pad meter(free(1, 0..3, "2/4 3/4 4/4 6/8"), 0) step=pulse\n`;
 
 /**
  * A Learn on a piece, with a MIDI input a test plays into (`play`), what it sent (`sent`), its frames run by hand
@@ -273,7 +273,7 @@ describe('Learn: a knob moves its free()', () => {
   });
   it('survives an edit that moves its free() in reading order but not its cell', () => {
     const { piece, play, frame, value } = caught();
-    piece.code = SONG.replace('# Song\n', '# Song\n&first scan(4) step=free(2hz, 1..4)\n');
+    piece.code = SONG.replace('# Song\n', '# Song\n&first lpf=free(2, 1..4)\n');
     expect(freeList(piece.result).findIndex((f) => f.unit === 'bpm')).toBe(1);
     play(0xb0, 7, 10);
     play(0xb0, 7, 0);

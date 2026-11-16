@@ -605,6 +605,9 @@ describe('every name written is one wire carrying the transform it writes, and e
                 `&${c.name} → &${name}`,
               ).toBe(true);
               matched.add(`${c.name}|${name}|mix`);
+            } else if (count === 0 && model.edges.some((x) => x.from.startsWith(`${cellId(name)}_`) && x.to.startsWith('junction:'))) {
+              // (a head that takes a fragment, `&cycle from five_to_twelve &day`: since cells v0.26.0 its fills are the cells that sound, wires of their own)
+              matched.add(`${c.name}|${name}|mix`);
             } else if (count === 0 && model.nodes.some((n) => n.id === cellId(name))) missing.push(`&${c.name}: &${name} (in the mix)`);
             else if (count) expect(pair ? count + 1 : count, `&${c.name}: &${name}, written ${ts.length} times in the mix`).toBe(ts.length);
             // each wire carries what is written on the name in its product: a pick, a shift (a number in the sum is the
