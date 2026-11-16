@@ -24,4 +24,4 @@ Two things in this app's routing don't map one to one onto webmidi's book:
 - A person's settings migrate once: one named setup, *Cell studio*; the first change makes *Cell studio - custom*.
 - A piece routed by its MIDI cards shows them read only, inputs and clock included (but the Heard switches): the matrix locks every row (a webmidi follow-up).
 - The store before the book is left as it was, read on each load for the routes it chose.
-- Control panels (webmidi v0.5.0, its decisions 005 and 007) are on the page as webmidi has them: the library kept beside the book, the setup naming the active ones, their rows and columns in the patch, played and edited under it ([ui/midi.md](../ui/midi.md)). Cell studio's own sound doesn't play a panel's notes (not yet).
+- Control panels (webmidi v0.5.0, its decisions 005 and 007) are on the page as webmidi has them: the library kept beside the book, the setup naming the active ones, their rows and columns in the patch, played and edited under it ([ui/midi.md](../ui/midi.md)). A panel's row takes a Plays choice (webmidi v0.7.0), and what it plays goes down the path an input's message heard takes.

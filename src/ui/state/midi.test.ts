@@ -24,7 +24,7 @@ import {
   withPanelActive,
   type SetupBook,
 } from '@yggi/webmidi/core';
-import { type Panel } from '@yggi/webmidi/panels';
+import { BINDING_KINDS, type Panel } from '@yggi/webmidi/panels';
 import type { NoteSink } from '../../audio/player';
 import { plan, type Played } from '@yggi/cells/engine/realize';
 import { codeShifts } from '@yggi/cells/engine/program';
@@ -1400,5 +1400,80 @@ describe('Midi: control panels', () => {
     midi.changeMatrix(withPanelActive(midi.matrixBook, 'n', false));
     expect(out.sent.map((m) => m.data)).toEqual([[0x80, 60, 0]]);
     expect(midi.runtimeOf('n')).toBeUndefined();
+  });
+
+  // every kind a binding speaks, each on a control of its own (a button for a note, a knob for the rest)
+  const EVERY: Panel = {
+    id: 'every',
+    name: 'Every kind',
+    children: BINDING_KINDS.map((kind) => ({
+      type: kind === 'note' ? 'button' : 'knob',
+      id: kind,
+      label: kind,
+      bind: [{ kind, ...(kind === 'bend' || kind === 'pressure' ? {} : { number: kind === 'cc14' ? 1 : 5 }), channel: 2 }],
+    })) as Panel['children'],
+  };
+
+  async function heardRig() {
+    const keys = fakeInput('in-1', 'Keys');
+    installMidi(fakeAccess([keys], [fakePort('out-1', 'Circuit')]));
+    const midi = await made();
+    await midi.connect();
+    midi.chooseOutput('out-1');
+    midi.attach({ sink: null, internal: true }, { program: compilePiece(EXAMPLES.sailor.source), title: 'Sailor' });
+    midi.editPanel(EVERY);
+    midi.changeMatrix(withPanelActive(midi.matrixBook, 'every', true));
+    const heard: { data: number[]; source: string; plays: string | null }[] = [];
+    cleanups.push(midi.hear((data, source) => void heard.push({ data: [...data], source, plays: midi.playsFrom(source) })));
+    return { midi, keys, heard };
+  }
+  /** What every control of EVERY sends when moved to its top, as bytes, by kind. */
+  const messagesOf = (midi: Midi) => BINDING_KINDS.map((kind) => midi.runtimeOf('every')!.move(kind, { x: 1 }));
+
+  it("plays a panel's message, whichever kind it speaks, as the same bytes from an input with that Plays are played (a voice, then the default)", async () => {
+    for (const choice of ['fiddle', 'default'] as const) {
+      const { midi, keys, heard } = await heardRig();
+      const row = choice === 'default' ? 'default' : { row: choice, role: 'lead' };
+      midi.changeMatrix(withPlays(withPlays(midi.matrixBook, panelKey('every'), row), inputRow({ id: 'in-1', name: 'Keys' }), row));
+      const sent = messagesOf(midi);
+      expect(sent.flat().length).toBeGreaterThanOrEqual(BINDING_KINDS.length);
+      for (const message of sent.flat()) midi.played('every', message);
+      const fromPanel = heard.splice(0).map((h) => ({ data: h.data, plays: h.plays }));
+      for (const message of sent.flat()) keys.play(message);
+      const fromInput = heard.splice(0).map((h) => ({ data: h.data, plays: h.plays }));
+      expect(fromPanel).toEqual(fromInput);
+      expect(fromPanel.length).toBe(sent.flat().length);
+      expect(fromPanel[0]!.plays).toBe(choice === 'default' ? null : 'fiddle');
+    }
+  });
+
+  it('plays nothing of a panel until its Plays is chosen, and nothing on none, while it still sends where its row is routed', async () => {
+    const { midi, heard } = await heardRig();
+    const all = messagesOf(midi).flat();
+    for (const m of all) midi.played('every', m);
+    expect(heard).toEqual([]);
+    midi.changeMatrix(withPlays(midi.matrixBook, panelKey('every'), 'default'));
+    midi
+      .runtimeOf('every')!
+      .move('note', { x: 0 })
+      .forEach((m) => midi.played('every', m));
+    expect(heard.map((h) => h.source)).toEqual([panelKey('every')]);
+    heard.length = 0;
+    midi.changeMatrix(withPlays(midi.matrixBook, panelKey('every'), 'none'));
+    for (const m of all) midi.played('every', m);
+    expect(heard).toEqual([]);
+  });
+
+  it("keeps a panel's Plays on a piece routed by its MIDI cards, whose matrix is locked", async () => {
+    installMidi(fakeAccess([], [fakePort('out-1', 'Circuit')]));
+    const midi = await made();
+    await midi.connect();
+    midi.chooseOutput('out-1');
+    midi.attach({ sink: null, internal: true }, { program: compilePiece(CARDS), title: 'Cards' });
+    expect(midi.locked).toBe(true);
+    midi.editPanel(PANEL);
+    midi.changeMatrix(withPanelActive(midi.matrixBook, 'p', true));
+    midi.changeMatrix(withPlays(midi.matrixBook, panelKey('p'), 'default'));
+    expect(keptSetup().plays).toEqual({ [panelKey('p')]: 'default' });
   });
 });

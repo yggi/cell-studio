@@ -9,7 +9,7 @@
    * each drum's note) in the matrix's own dialog, opened from the output's head, with its test note and notes off. The built-in's
    * head opens Cell studio's own dialog (its settings are the frontend's, decision 004 in webmidi).
    * Then the control panels (webmidi's decisions 005 and 007): the library's, those the setup has active as rows and columns of the patch and as
-   * tabs to play, edit, make, open and save as files. A panel's row sends where it is crossed; Cell studio's own sound doesn't play its notes (not yet).
+   * tabs to play, edit, make, open and save as files. A panel's row sends where it is crossed; Its Plays choice says what Cell studio's own sound plays of it (a voice, the kit, the armed cell), as an input's does.
    * Then the built-in sound, the keys (#207) and the knobs learned, which stay Cell studio's. The sidebar is the whole
    * width of the window on this page (Sidebar.svelte), so the matrix has room. Colours: `--wm-*`, mapped to the theme in
    * `app.css`.
@@ -167,9 +167,7 @@
             <PanelView {runtime} onsend={(data) => midi.played(id, data)} />
           {/key}
         {:else}
-          <p class="hint">
-            No panel in this setup yet: add one from the chips over the patch, then route its row to an output. Cell studio's own sound doesn't play a panel's notes (not yet).
-          </p>
+          <p class="hint">No panel in this setup yet: add one from the chips over the patch, then route its row to an output.</p>
         {/if}
       </section>
 
