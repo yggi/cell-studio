@@ -62,6 +62,7 @@ import {
   type MidiPort,
   type PortOption,
   type Routes as BookRoutes,
+  type Setup,
   type SetupBook,
   type SetupOutput,
 } from '@yggi/webmidi/core';
@@ -179,6 +180,23 @@ function readOwn(old: OldStore | null): Own {
 /** Every setup of a book with the built-in sound as its first output, or as it is (the switch was off): the switch moved in. */
 const builtInEverywhere = (book: SetupBook, on: boolean): SetupBook =>
   on ? { ...book, setups: book.setups.map((s) => (hasBuiltIn(s) ? s : { ...s, outputs: [BUILT_IN, ...s.outputs] })) } : book;
+
+/**
+ * The rule for the panels a first visit seeds: when one of the two (`EXAMPLE_MIXER`, `EXAMPLE_PLAY`) is added to the setup in
+ * use, its row plays the default cell (webmidi's `withPlays`), so a key of the seeded keys and pads sounds on the built-in
+ * without a visit to the Plays choice. Only an add sets it, and only where the setup holds no choice for the panel yet (an
+ * explicit `'none'` is a choice): a panel of a person's own (new, or imported from a file) stays on none until chosen, as
+ * webmidi has it. A change that puts another setup in use is no add.
+ */
+const SEEDED_PANELS: readonly string[] = [EXAMPLE_MIXER.id, EXAMPLE_PLAY.id];
+function seededPlay(before: Setup, changed: SetupBook): SetupBook {
+  const after = activeSetup(changed);
+  if (after.id !== before.id) return changed;
+  let book = changed;
+  for (const id of panelsOf(after))
+    if (SEEDED_PANELS.includes(id) && !panelsOf(before).includes(id) && !Object.hasOwn(after.plays, panelKey(id))) book = withPlays(book, panelKey(id), 'default');
+  return book;
+}
 
 /** One output's senders: its notes (webmidi's `MidiOut`, on the routes its notes take here) and its clock (`ClockOut`). */
 interface Lane {
@@ -613,9 +631,9 @@ export class Midi implements NoteSink {
    */
   setBook(changed: SetupBook): void {
     // (the built-in's crossings are only shown, on `matrixBook`: the piece says what its own sound plays, so none is kept)
-    const next = withoutBuiltInCrossings(changed);
-    if (next === this.book) return;
     const before = this.#setup;
+    const next = seededPlay(before, withoutBuiltInCrossings(changed));
+    if (next === this.book) return;
     const after = activeSetup(next);
     for (const o of before.outputs) {
       const now = after.outputs.find((a) => a.key === o.key);
