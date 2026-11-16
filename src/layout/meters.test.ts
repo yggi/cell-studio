@@ -6,7 +6,6 @@ import { buildGraph } from './drawn';
 import { compilePiece } from '../compile';
 import { EXAMPLES } from '@yggi/cells/engine/examples';
 
-const graphOf = (src: string) => buildGraph(compilePiece(src));
 const name = (id: string) => id.replace(/^cell:/, '');
 
 describe('meters as ground', () => {
@@ -25,10 +24,13 @@ describe('meters as ground', () => {
   });
 
   it('two meters: each has its colour, in the order written', () => {
-    const order = (src: string) => [...meterIndex(graphOf(src)).keys()].map(name);
+    const order = (src: string) => {
+      const r = compilePiece(src);
+      return [...meterIndex(buildGraph(r), r).entries()].sort((a, b) => a[1] - b[1]).map(([id]) => name(id));
+    };
     expect(order(EXAMPLES.rhythm.source)).toEqual(['bar', 'tresillo']);
-    // (a meter a `from` line gives comes after the piece's own: bossa's `&bar from meter …`, cells v0.24.0; #636)
-    expect(order(EXAMPLES.bossa.source)).toEqual(['clave', 'bar']);
+    // (a meter a `from` line gives counts at its line: bossa's `&bar from meter …` is on line 11, `&clave` on 12; #636)
+    expect(order(EXAMPLES.bossa.source)).toEqual(['bar', 'clave']);
   });
 });
 

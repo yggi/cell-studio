@@ -214,7 +214,7 @@ export class GraphLayout {
         }
     // (the nodes and edges of the new snapshot, and the snapshot itself: one swap)
     this.shown = next;
-    const meters = { index: meterIndex(m) };
+    const meters = { index: meterIndex(m, next.program) };
     const before = this.nodes;
     // (each node its size as measured, as the one it replaces had it: the flow places a node by its centre, and one with
     // no size yet by its corner until it is measured again, a jump of half its size for a frame or more, #493)
