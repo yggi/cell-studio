@@ -2,7 +2,7 @@
 // kept moved onto webmidi's setups (decision 040): the book in `cell-studio:midi-setups`, read through webmidi's
 // `localBookStore`; the store from before it (`cell-studio:midi`) migrated once through `fromCellStudio`.
 
-import { MidiAccess, localBookStore, localPanelStore } from '@yggi/webmidi/web';
+import { MidiAccess, localBookStore, localPanelStore, runLinkProbe } from '@yggi/webmidi/web';
 import {
   EXAMPLE_MIXER,
   EXAMPLE_PLAY,
@@ -38,6 +38,7 @@ import {
   outputNow,
   panelForwardsOf,
   panelPlays,
+  probeMarker,
   panelKey,
   panelsOf,
   portsMessage,
@@ -59,6 +60,8 @@ import {
   type BookStore,
   type DeviceProfile,
   type DrumMap,
+  type LinkLength,
+  type LinkReport,
   type MidiPort,
   type PortOption,
   type Routes as BookRoutes,
@@ -248,6 +251,11 @@ export class Midi implements NoteSink {
   library = $state.raw<PanelLibrary>(null as unknown as PanelLibrary);
   /** The panel shown to play, by id: one active in the setup in use. */
   shownPanel = $state<string | null>(null);
+
+  /** The last link report of each output, by its key: in memory only (the report's own words and numbers are webmidi's). */
+  linkReports = $state.raw<Readonly<Record<string, LinkReport>>>({});
+  // a link measurement is on: the probes it sends come back on the input of its loop, and are the measurement's, not music
+  #probing = false;
 
   #store: BookStore;
   #panelStore: PanelStore;
@@ -571,6 +579,8 @@ export class Midi implements NoteSink {
   // a message from an input: heard (the keys, MIDI learn) when it comes from an input heard, and forwarded where its row
   // is routed; the light flashes (not for system messages: a device's active sensing)
   #onMessage(data: Uint8Array, source: string, timeStamp: number): void {
+    // (the probes of a link measurement heard back go nowhere: not forwarded, not learned, not played by the keys, not a panel's)
+    if (this.#probing && probeMarker(data) !== null) return;
     try {
       const heard = isHeard(this.#setup, { id: source, name: source });
       const routes = this.#routes;
@@ -600,6 +610,30 @@ export class Midi implements NoteSink {
   hear(hearer: (data: Uint8Array, source: string, timeStamp: number) => void): () => void {
     this.#hearers.add(hearer);
     return () => this.#hearers.delete(hearer);
+  }
+
+  /**
+   * Measure the link of an output (webmidi's decision 009, the matrix's `onmeasure`): probes go out of its port and are timed
+   * back on the input chosen, whose loop is a cable from the output to it, or a device that echoes. Only when the person
+   * presses the button, never on connecting. While it runs the markers heard back are dropped (`#onMessage`). The report is
+   * kept under the output's key, in memory only (`linkReports`); it rejects with an `AbortError` when `run.signal` aborts.
+   */
+  async measureLink(
+    key: string,
+    run: { readonly input: PortOption; readonly length: LinkLength; readonly signal: AbortSignal; readonly onprogress: (progress: { sent: number; of: number }) => void },
+  ): Promise<LinkReport> {
+    const output = this.portOf(this.#portNumber(key));
+    const input = this.access?.access.inputs.get(run.input.id);
+    if (!output || !input) throw new Error('That port is not plugged in.');
+    const name = this.#outputs.find((o) => o.key === key)?.name || key;
+    this.#probing = true;
+    try {
+      const report = await runLinkProbe({ output, input, outputName: name, inputName: run.input.name, length: run.length, signal: run.signal, onprogress: run.onprogress });
+      this.linkReports = { ...this.linkReports, [key]: report };
+      return report;
+    } finally {
+      this.#probing = false;
+    }
   }
 
   /** Look at the ports again, on a person's asking. */

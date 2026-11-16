@@ -134,6 +134,7 @@
           ontest={(key) => midi.testNote(slotOf(key))}
           onpanic={(key) => midi.panicOn(slotOf(key))}
           onbuiltin={() => (builtin = true)}
+          onmeasure={(key, run) => midi.measureLink(key, run)}
         />
         {#if midi.clocking && !midi.meter}<p class="hint" role="status">This piece has no meter, so no clock is sent.</p>{/if}
         {#if midi.warning}<p class="hint warning" role="status">{midi.warning}</p>{/if}

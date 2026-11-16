@@ -1,6 +1,6 @@
 // The settings part lifted from yggi/jambot apps/web/src/midi/settings.test.ts @ 8cdb6b8.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { fakeAccess, fakeInput, fakePort, installMidi, uninstallMidi } from '@yggi/webmidi/testing';
+import { fakeAccess, fakeInput, fakeLoop, fakePort, installMidi, uninstallMidi } from '@yggi/webmidi/testing';
 import { CONNECT_WAIT, Midi } from './midi.svelte';
 import { compilePiece } from '../../compile';
 import { EXAMPLES } from '@yggi/cells/engine/examples';
@@ -21,6 +21,8 @@ import {
   withProfile,
   panelKey,
   panelsOf,
+  LINK_RUNS,
+  probeBytes,
   withPanelActive,
   type SetupBook,
 } from '@yggi/webmidi/core';
@@ -1538,5 +1540,66 @@ describe('Midi: control panels', () => {
       expect(panelsOf(keptSetup())).toEqual(['play']);
       expect(plays()[panelKey('play')]).toBe('default');
     });
+  });
+});
+
+describe('Midi: measuring a link', () => {
+  /** A loop (an output wired to an input), connected and chosen, the input heard and routed back to the output: what a probe heard must not reach. */
+  async function looped() {
+    const loop = fakeLoop({ latency: 2, pageLag: 1 });
+    installMidi(fakeAccess([loop.input], [loop.output]));
+    const midi = await made();
+    await midi.connect();
+    midi.chooseOutput('loop-out');
+    midi.chooseInput('loop-in');
+    midi.attach({ sink: null, internal: true }, { program: compilePiece(EXAMPLES.sailor.source), title: 'Sailor' });
+    midi.changeMatrix(withCrossing(midi.matrixBook, 'piece:Sailor', 'in:Loop in', 'o1', AS_PLAYED));
+    const heard: number[][] = [];
+    cleanups.push(midi.hear((data) => void heard.push([...data])));
+    loop.output.sent.length = 0;
+    return { midi, loop, heard };
+  }
+  const run = (midi: Midi, length: 'quick' | 'long' = 'quick') =>
+    midi.measureLink('o1', { input: { id: 'loop-in', name: 'Loop in' }, length, signal: new AbortController().signal, onprogress: () => {} });
+
+  afterEach(() => vi.useRealTimers());
+
+  it('sends no probe until a measurement is asked for: connecting, choosing and waiting send none', async () => {
+    const { loop } = await looped();
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'performance', 'Date'] });
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(loop.output.sent).toEqual([]);
+  });
+
+  it('measures a quick run of 100 probes on a loop, giving a report and a tier, and the markers reach no forward, no hearer (the keys, MIDI learn), and are kept in memory only', async () => {
+    const { midi, loop, heard } = await looped();
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'performance', 'Date'] });
+    const running = run(midi);
+    await vi.advanceTimersByTimeAsync(5000);
+    const report = await running;
+    expect(report).toMatchObject({ report: 'webmidi link', n: LINK_RUNS.quick.probes, output: 'Loop out', input: 'Loop in' });
+    expect(report.tier.scheduled).toBe('tight');
+    expect(report.tier.played).not.toBeUndefined();
+    // (the probes went out once each: none was forwarded from the input's row back to the output)
+    expect(loop.output.sent.length).toBe(LINK_RUNS.quick.probes);
+    expect(heard).toEqual([]);
+    expect(midi.linkReports.o1).toBe(report);
+    expect(Object.keys(store)).not.toContain('cell-studio:link');
+    expect(JSON.stringify([...store.values()])).not.toContain('webmidi link');
+    // (after the run the same bytes are music again: forwarded, heard)
+    vi.useRealTimers();
+    loop.output.sent.length = 0;
+    loop.input.onmidimessage?.({ data: new Uint8Array(probeBytes(5)), timeStamp: 0 });
+    expect(heard).toEqual([probeBytes(5)]);
+    expect(loop.output.sent.map((m) => m.data)).toEqual([probeBytes(5)]);
+  });
+
+  it('says in words when the output or the input is not plugged in, and drops nothing then', async () => {
+    const { midi, heard, loop } = await looped();
+    await expect(
+      midi.measureLink('o9', { input: { id: 'loop-in', name: 'Loop in' }, length: 'quick', signal: new AbortController().signal, onprogress: () => {} }),
+    ).rejects.toThrow('not plugged in');
+    loop.input.onmidimessage?.({ data: new Uint8Array(probeBytes(5)), timeStamp: 0 });
+    expect(heard).toEqual([probeBytes(5)]);
   });
 });
