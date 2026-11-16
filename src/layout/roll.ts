@@ -325,6 +325,9 @@ function referred(result: CompileResult, name: string): boolean {
   return false;
 }
 
+/** The steps a melody is made of, what the roll draws. */
+const MELODIC_STEPS: ReadonlySet<string> = new Set(['note', 'chord', 'rest', 'ref', 'choice', 'seq']);
+
 /**
  * Does the sheet show a roll for this cell? A braid (a melody, a bass, chords) on a single line: not a voice, a mix, a
  * meter, a table, a curve; not a tape, its heads, a law or a scope (their braid isn't notes); not a clock or a table an
@@ -337,6 +340,8 @@ export function rolls(result: CompileResult, name: string): boolean {
   if (NOT_NOTES.some((k) => c.params[k] !== undefined)) return false;
   if (result.tapes.some((t) => t.name === name || t.heads.some((h) => h.head === name))) return false;
   if (kindOf(result, name) !== 'braid') return false;
+  // (its steps are notes, rests, splices or subsequences of them: a line of values, as a drive's sum, is no melody)
+  if (c.units.some((u) => !MELODIC_STEPS.has(u.atom.kind))) return false;
   const perSecond = c.clock ? (result.clocks.get(c.clock)?.perSecond ?? 0) * c.rate : 0;
   if (perSecond >= AUDIO_RATE) return false;
   const played = playedCells(result).has(name);
