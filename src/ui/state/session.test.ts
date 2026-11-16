@@ -275,10 +275,33 @@ describe('SessionClient: Cell studio following a Jambot session', () => {
     socket = new FakeSocket();
     await joined();
     const quiet = socket;
-    now += 3.1;
-    vi.advanceTimersByTime(250);
+    // (pinging on time, every 50 ms, and answered by nothing for 3.1 s)
+    for (let i = 0; i < 62; i++) {
+      now += 0.05;
+      vi.advanceTimersByTime(50);
+    }
     // (a link quiet that long is taken for dropped: closed, and joined again, rejoin.test.ts)
     expect([client.status, client.ended, quiet.closed]).toEqual(['rejoining', null, true]);
+  });
+
+  it('takes no host for quiet over its own page held up: the pongs queued behind the hold are read first', async () => {
+    await joined();
+    for (let i = 0; i < 8; i++) {
+      now += 0.25;
+      vi.advanceTimersByTime(250);
+      pong();
+    }
+    // (a long task holds the page for 4 s: the ping's timer fires late, before the pongs that came meanwhile are read)
+    now += 4;
+    vi.advanceTimersByTime(250);
+    pong();
+    expect([client.status, socket.closed]).toEqual(['joined', false]);
+    // (and a host that stays quiet after it is still taken for gone, once the pings are on time again)
+    for (let i = 0; i < 70; i++) {
+      now += 0.05;
+      vi.advanceTimersByTime(50);
+    }
+    expect(client.status).toBe('rejoining');
   });
 
   it('asks for nothing without a session’s name and a player’s', async () => {

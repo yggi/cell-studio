@@ -14,6 +14,13 @@ import { storageKey } from '../../storageKey';
 /** Where this browser keeps the name it joins a session by (`session/name.ts`). */
 export const NAME_KEY = storageKey('cell-studio:jam-name');
 
+/**
+ * How late a ping's timer may fire before it finds this page held up rather than the host quiet, in seconds: four times
+ * the steady ping (`LIMITS.pingEveryMs`, 250 ms). Laying out a followed text's graph held the page for 2 to 2.3 s when
+ * following began (#670, profiled).
+ */
+const HELD_SECONDS = 1;
+
 /** Idle; joining; joined (welcomed); or rejoining: seated, its link dropped, trying to come back (#482). */
 export type SessionStatus = 'idle' | 'joining' | 'joined' | 'rejoining';
 
@@ -109,6 +116,8 @@ export class SessionClient {
   #pinging: ReturnType<typeof setTimeout> | null = null;
   #welcomeWait: ReturnType<typeof setTimeout> | null = null;
   #lastHeard: number | null = null;
+  /** When this page last pinged: a ping's timer that fires `HELD_SECONDS` after it found the page itself held up. */
+  #lastPing: number | null = null;
   /** The reader of what the host says, between welcomes: the last welcome's version, or before one the join's. */
   #reader: Version = versionOf(JOIN_PROTOCOL);
   /** The join's second try, for a name refused as taken: through which lobby, and by which name. */
@@ -307,6 +316,7 @@ export class SessionClient {
     this.#token = null;
     this.notice = null;
     this.#lastHeard = null;
+    this.#lastPing = null;
     this.status = 'idle';
     this.hostPlaying = false;
     this.hostAway = false;
@@ -494,7 +504,11 @@ export class SessionClient {
   #ping(): void {
     if (this.status !== 'joined') return;
     const now = this.#now();
-    if (!this.hostAway && this.#lastHeard !== null && now - this.#lastHeard > LIMITS.silentSeconds) return this.#dropped('The host went quiet.');
+    // (a timer that fires that late found this page held up, a long task: what the host said meanwhile waits in the queue
+    // behind it, so the host is judged on the next ping's, on time)
+    const held = this.#lastPing !== null && now - this.#lastPing > HELD_SECONDS;
+    if (!held && !this.hostAway && this.#lastHeard !== null && now - this.#lastHeard > LIMITS.silentSeconds) return this.#dropped('The host went quiet.');
+    this.#lastPing = now;
     this.#send({ kind: 'ping', sent: now });
     const every = this.clock ? LIMITS.pingEveryMs : LIMITS.pingSettlingMs;
     this.#pinging = setTimeout(() => this.#ping(), every);
