@@ -4,7 +4,11 @@ import { describe, expect, it } from 'vitest';
 import { compileSource } from '@yggi/cells/engine/compile';
 import { EXAMPLES } from '@yggi/cells/engine/examples';
 import { extract } from '@yggi/cells/repository/extract';
-import { resolveSeed } from '@yggi/cells/repository/library';
+import { LIBRARY, resolveSeed, resolverOf } from '@yggi/cells/repository/library';
+import { createRepository, EMPTY_LAYER } from '@yggi/cells/repository/fragments';
+import { fileFragment } from '@yggi/cells/repository/learned';
+import { soundsIdentical } from '@yggi/cells/engine/sameness';
+import { pointOf } from './ui/complete';
 import { catalogue } from '@yggi/cells/repository/catalogue';
 import { exportable, facetFor, idFor } from './extraction';
 
@@ -18,6 +22,21 @@ const proposal = () => {
 const errors = (text: string) => compileSource(text, undefined, { resolve: resolveSeed }).diagnostics.filter((d) => d.severity === 'error');
 
 describe('a selection turned into a fragment', () => {
+  it('takes Kinderlieder’s vamp and its bass as one line over the key, and, filed, plays the same (#626)', () => {
+    const r = extract(k, [at('&harm '), at('&bassline ')], { id: 'my_vamp_bass', resolve: resolveSeed });
+    if ('why' in r) throw new Error(r.why);
+    expect(r.line).toBe('&harm, &bassline from my_vamp_bass &key');
+    expect(r.heads).toEqual(['&harm', '&bassline']);
+    expect(r.main).toBe('&key');
+    expect(r.same).toBe(true);
+    // (filed as the app files it, `mine.file`, the piece read through that layer plays as it did, its first 16 s;
+    // through the seed alone it doesn't)
+    const filed = fileFragment(createRepository(LIBRARY), EMPTY_LAYER, { text: r.fragment, point: pointOf([]), source: 'me', created: '2026-11-16T00:00:00Z', id: 'my_vamp_bass' });
+    expect(filed.id).toBe('my_vamp_bass');
+    expect(soundsIdentical(k, r.piece, 16, { resolve: resolverOf(filed.layer) })).toBe(true);
+    expect(soundsIdentical(k, r.piece, 16, { resolve: resolveSeed })).toBe(false);
+  });
+
   it('offers an id the library doesn’t hold, after its first head', () => {
     expect(idFor(['&harm', '&bassline'], new Set())).toBe('my_harm');
     expect(idFor(['&harm'], new Set(['my_harm', 'my_harm_2']))).toBe('my_harm_3');
