@@ -13,7 +13,7 @@ Two things in this app's routing don't map one to one onto webmidi's book:
 
 ## Decision
 
-- **The book is the store**, kept through webmidi's `localBookStore` (`cell-studio:midi-setups`); the page is webmidi's `MidiStatus`, `SetupPicker`, `PatchMatrix` and `DeviceInspector`, with the theme's colours (`--wm-*`), and the keys and MIDI learn under them, as Cell studio's.
+- **The book is the store**, kept through webmidi's `localBookStore` (`cell-studio:midi-setups`); the page is webmidi's `MidiStatus`, `SetupPicker`, `PatchMatrix` (which opens an output's details in its own dialog, `DeviceDialog`), with the theme's colours (`--wm-*`), and the keys and MIDI learn under them, as Cell studio's.
 - **A piece the setup in use has no routes for plays what it played before**: cells' defaults, or, for a piece the store before the book had a matrix for, that matrix as it was read (the book's migration leaves the pieces' routes out and this app keeps them beside it, `legacy`). The matrix shows that. **Its first change writes it into the setup, then the change**; from then on its routes are the setup's exactly: a row with no crossing, a voice added to the piece later too, goes nowhere until routed. So the same settings send the same bytes (every example, four stores, 103,981 messages compared with the class before it), and the book's rule holds once a person has routed a piece.
 - **An input's crossing forwards** a channel's messages as they come, the channel replaced or kept (*as played*); system messages are not forwarded. The Heard switches are what the keys and MIDI learn listen to.
 - **The keys' thru stays as it is**, an option of the keys, until the book has a crossing for the voice played.
