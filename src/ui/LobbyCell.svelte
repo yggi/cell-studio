@@ -27,11 +27,13 @@
         ? 'joining…'
         : session.status === 'rejoining'
           ? 'rejoining…'
-          : studio.following
-            ? 'following'
-            : session.hostPlaying
-              ? 'waiting for its text'
-              : 'not playing';
+          : session.version === 2
+            ? 'can’t play it yet'
+            : studio.following
+              ? 'following'
+              : session.hostPlaying
+                ? 'waiting for its text'
+                : 'not playing';
   const said = $derived(
     listed.problem ??
       (!listed.answered ? 'Asking the lobby…' : sessions.length ? (disc && sessions.length > MOST ? `and ${sessions.length - MOST} more (Cards)` : null) : 'No session is open.'),
