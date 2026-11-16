@@ -55,4 +55,4 @@ Kinderlieder's songs meet their tunes again: `&twinkleSong` reads `twinkle` and 
 
 - The map drawn: the fragments cell in the library, the axis pickers, the slider, facet filters, a re-run that glides (`from`). Then the contact sheet, and the open time on the `profile` skill (#625's 100 ms).
 - The pieces anchored once yggi/cells#543 gives each its style. The probe runs again then: a piece held at its style shortens the hubs' stars.
-- Each point's reach (yggi/cells#436, decision 079's ±) takes the place of the spread in a fragment's certainty.
+- Each point's reach (yggi/cells#436, decision 089 §6's `±`) joins the spread in a fragment's certainty: 1 less √(spread² + reach²) over the axis's half range (`anchorOf`, 2026-11-16). No seed writes a reach yet, so this probe's numbers stand; it runs again once the seeds do.
