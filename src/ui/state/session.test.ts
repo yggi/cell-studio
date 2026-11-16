@@ -127,7 +127,7 @@ describe('SessionClient: Cell studio following a Jambot session', () => {
     expect(client.dropped).toEqual({ refused: 0, ignored: 1 });
   });
 
-  it('follows a host of version 2 (#525): its conducts and scores kept, version 1’s kinds ignored, and nothing played yet', async () => {
+  it('follows a host of version 2 (#525): its conducts and scores kept and heard, version 1’s kinds ignored', async () => {
     await joined(null, welcome2({ seed: 1, start: 1070, track: {}, swing: {}, tempoMeter: {}, conducts: [conduct(0)], scores: [score(0)] }));
     expect([client.status, client.version, client.hostPlaying, client.role]).toEqual(['joined', 2, true, 'player']);
     expect(client.scored?.conducts.map((c) => c.bar)).toEqual([0]);
@@ -141,13 +141,15 @@ describe('SessionClient: Cell studio following a Jambot session', () => {
     socket.say({ op: 'said', message: { kind: 'bar', sent: { bar: { bar: 2 }, start: 1074 } } });
     socket.say({ op: 'said', message: { kind: 'section', ...text(0, '&a loop=A4') } });
     expect(client.dropped).toEqual({ refused: 0, ignored: 2 });
-    // (rung 2 plays it: until then the clock is set and nothing is heard or sounded)
+    // (heard from its conducts and scores, once the clock is set: bar 0 from its score, bar 1 stated by none, said silent)
     for (let i = 0; i < 4; i++) {
       vi.advanceTimersByTime(50);
       pong();
     }
     expect(client.clock?.offset).toBeCloseTo(100, 9);
-    expect([client.heading(1013), client.sounding(null, 1, 1013, () => 2), client.nextTurn(1013)]).toEqual([null, null, null]);
+    expect(client.heading(1011)).toMatchObject({ bar: 0, bars: 0.5, before: false, text: { bar: 0, text: '* from band' } });
+    expect(client.nextTurn(1011)).toBeCloseTo(1012, 9);
+    expect(client.sounding(null, 1, 1013, () => 2)).toMatchObject({ slices: [], lacked: [{ bar: 1, why: 'no text stated it', silent: true }], shift: 60 });
     socket.say({ op: 'said', message: { kind: 'finale', bar: 9 } });
     expect(client.scored?.finale).toBe(9);
     socket.say({ op: 'said', message: { kind: 'stop' } });

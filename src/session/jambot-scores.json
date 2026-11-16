@@ -1,0 +1,491 @@
+{
+  "lifted": "Lifted from yggi/jambot @ c472cf7 (packages/score and packages/engine/src/band.ts unchanged at main db3bcbb), run: three presets (Funk, Swing jazz, Bossa nova) at entropy 0.3, seed 1, two sections of 8 bars each composed as apps/web/src/playingView.test.ts firstSection composes one (band.advance), each section written as its score by packages/score/src/section-text.ts sectionAsCells and sectionTextOf, each bar digested by apps/web/src/section-texts.ts foreseenOf. A score is its message's fields (session contract, version 2); its lock is written here, not by Jambot, whose host writes no scores yet (yggi/jambot#553): every id its text takes from but band, hashed by cells' fragmentHash at Jambot's pin (v0.26.0), the same at this app's (v0.26.1). A bar's conduct is its seed, entropy and digest; the tests lay its start.",
+  "sections": [
+    {
+      "preset": "Funk",
+      "conducts": [
+        {
+          "bar": 0,
+          "seed": 1,
+          "entropy": 0.3,
+          "foreseen": "9e934af8f333"
+        },
+        {
+          "bar": 1,
+          "seed": 1,
+          "entropy": 0.3,
+          "foreseen": "176a857f0187dd"
+        },
+        {
+          "bar": 2,
+          "seed": 1,
+          "entropy": 0.3,
+          "foreseen": "9e934af8f333"
+        },
+        {
+          "bar": 3,
+          "seed": 1,
+          "entropy": 0.3,
+          "foreseen": "81c21fd03fd43"
+        },
+        {
+          "bar": 4,
+          "seed": 1,
+          "entropy": 0.3,
+          "foreseen": "3e526e9de284e"
+        },
+        {
+          "bar": 5,
+          "seed": 1,
+          "entropy": 0.3,
+          "foreseen": "11e25ab8631ff5"
+        },
+        {
+          "bar": 6,
+          "seed": 1,
+          "entropy": 0.3,
+          "foreseen": "3e526e9de284e"
+        },
+        {
+          "bar": 7,
+          "seed": 1,
+          "entropy": 0.3,
+          "foreseen": "1594b25c5499a3"
+        }
+      ],
+      "score": {
+        "bar": 0,
+        "step": 0,
+        "section": "intro",
+        "text": "&harm, &key from\n&bar from meter(swing=16n:.6) 104bpm\n&key from diatonic(mode=dorian) D\n&funk from styles\n&style label=\"intro\" style=&funk\n&harm over=&key step=1m [0,2,4] [0,2,4] [0,2,4] [0,2,4] [6,8,10] [6,8,10] [6,8,10] [6,8,10]\n&clave from rumba_clave_3_2\n&kickA &bd:0:.5 ~@2 &bd:0:.34 ~@2 &bd:0:.34 ~@3 &bd:0:.34 ~@5\n&kickB &bd:0:.5 ~@2 &bd:0:.34 ~@2 &bd:0:.34 ~@3 &bd:0:.34 ~@3 &bd:0:.34 ~\n&kick role=kick step=16n &kickA!3 &kickB &kickA!3 &kickB\n&backbeatA ~@4 &sd:0:.41 ~@7 &sd:0:.46 ~@3\n&backbeat role=backbeat step=16n &backbeatA!8\n&fill role=fill step=16n ~@125 &sd:0:.17 &sd:0:.26 &sd:0:.37\n&ghostA ~@7 &sd:0:.085 ~@8\n&ghost role=ghost step=16n &ghostA!3 ~@16 &ghostA!3 ~@5 &sd:0:.085 ~ &sd:0:.085 ~@8\n&hatA &hh:0:.246 ~ &oh:0:.174 ~ &hh:0:.246 ~@3 &hh:0:.246 ~@3 &hh:0:.246 ~@3\n&hat role=hat step=16n &hatA!5 &hh:0:.246 ~ &oh:0:.174 ~ &hh:0:.246 ~ &oh:0:.174 ~ &hh:0:.246 ~@3 &hh:0:.246 ~@3 &hatA!2\n&euclidA ~@3 &rim:0:.21 ~ &rim:0:.21 ~@4 &rim:0:.21 ~ &rim:0:.21 ~ &rim:0:.21 ~\n&euclid role=euclid step=16n &euclidA!8\n&drumlines [&kick, &backbeat, &fill, &ghost, &hat, &euclid, &clave * .21]\n&basslineA 3@3 6@3 3 3@3 6 3@2 3@3\n&basslineB 0@3 3@3 0 0@3 3 0@2 0@3\n&bassline part=bass over=&harm step=16n legato=.425 &basslineA 3@3 6@3 3 3@3 6 3@5 &basslineA 3@3 6@3 3 3@3 6 3@2 3b@3 &basslineB 0@3 3@3 0 0@3 3 0@5 &basslineB 0@3 3@3 0 0@3 3 0@2 0#@3\n&bassLevelA .46@3 .32@3 .32 .32@3 .32 .32@2 .32@3\n&bassLevelB .46@3 .32@3 .32 .32@3 .32 .32@5\n&bassLevel map=amp step=16n &bassLevelA &bassLevelB &bassLevelA!3 &bassLevelB &bassLevelA!2\n&stablineA ~@6 [2,3,4] ~@3 [2,3,4] ~@3 [2,3,4] ~\n&stablineB ~@6 [-1,0,1] ~@3 [-1,0,1] ~@3 [-1,0,1] ~\n&stabline part=stab over=&harm step=16n legato=.7575 &stablineA!3 ~@6 [2,3,4] ~@3 [2,3,4] ~@3 [1#,3b,3#] ~ &stablineB!3 ~@6 [-1,0,1] ~@3 [-1,0,1] ~@3 [-1#,0#,1#] ~\n&stabLevel map=amp .39\n&padline part=pad step=1m ~\n&leadline part=lead step=1m ~\n* from band(drumlines=&drumlines, bassline=&bassline, padline=&padline, stabline=&stabline, leadline=&leadline, bassLevel=&bassLevel, stabLevel=&stabLevel, style=&style)",
+        "unstated": null,
+        "lock": [
+          {
+            "id": "meter",
+            "hash": "e2:c680c0cf84de7442"
+          },
+          {
+            "id": "diatonic",
+            "hash": "e2:308a28028d1fba38"
+          },
+          {
+            "id": "styles",
+            "hash": "e2:3e7f1eae462c100f"
+          },
+          {
+            "id": "rumba_clave_3_2",
+            "hash": "e2:b085e7debec14389"
+          }
+        ],
+        "fragments": [],
+        "energy": [0.45, 0.45, 0.45, 0.45, 0.45, 0.45, 0.45, 0.45],
+        "foreseen": ["9e934af8f333", "176a857f0187dd", "9e934af8f333", "81c21fd03fd43", "3e526e9de284e", "11e25ab8631ff5", "3e526e9de284e", "1594b25c5499a3"],
+        "cut": []
+      }
+    },
+    {
+      "preset": "Funk",
+      "conducts": [
+        {
+          "bar": 8,
+          "seed": 1,
+          "entropy": 0.3,
+          "foreseen": "c6e210c2f0fed"
+        },
+        {
+          "bar": 9,
+          "seed": 1,
+          "entropy": 0.3,
+          "foreseen": "1e8f1aa016502d"
+        },
+        {
+          "bar": 10,
+          "seed": 1,
+          "entropy": 0.3,
+          "foreseen": "c6e210c2f0fed"
+        },
+        {
+          "bar": 11,
+          "seed": 1,
+          "entropy": 0.3,
+          "foreseen": "16939a87df3861"
+        },
+        {
+          "bar": 12,
+          "seed": 1,
+          "entropy": 0.3,
+          "foreseen": "7dd1b680fe16b"
+        },
+        {
+          "bar": 13,
+          "seed": 1,
+          "entropy": 0.3,
+          "foreseen": "15eae258e84a09"
+        },
+        {
+          "bar": 14,
+          "seed": 1,
+          "entropy": 0.3,
+          "foreseen": "7dd1b680fe16b"
+        },
+        {
+          "bar": 15,
+          "seed": 1,
+          "entropy": 0.3,
+          "foreseen": "ff48019fd5b9a"
+        }
+      ],
+      "score": {
+        "bar": 8,
+        "step": 128,
+        "section": "groove",
+        "text": "&harm, &key from\n&bar from meter(swing=16n:.6) 104bpm\n&key from diatonic(mode=dorian) D\n&funk from styles\n&style label=\"groove\" style=&funk\n&harm over=&key step=1m [0,2,4] [0,2,4] [0,2,4] [0,2,4] [6,8,10] [6,8,10] [6,8,10] [6,8,10]\n&clave from rumba_clave_3_2\n&kickA &bd:0:.65 ~@2 &bd:0:.44 ~@6 &bd:0:.44 &bd:0:.44 ~@4\n&kickB &bd:0:.65 ~@2 &bd:0:.44 ~@7 &bd:0:.44 ~@4\n&kick role=kick step=16n &kickA &kickB &kickA!3 &kickB &kickA &bd:0:.65 ~@2 &bd:0:.44 ~@6 &bd:0:.44 &bd:0:.44 ~@2 &bd:0:.44 ~\n&backbeatA ~@4 &sd:0:.51 ~@7 &sd:0:.58 ~@3\n&backbeat role=backbeat step=16n &backbeatA!8\n&fill role=fill step=16n ~@125 &sd:0:.216 &sd:0:.33 &sd:0:.47\n&ghostA ~@7 &sd:0:.11 ~@8\n&ghost role=ghost step=16n &ghostA!3 ~@7 &sd:0:.11 ~ &sd:0:.11 ~@6 &ghostA!4\n&hatA &hh &hh &oh ~ &hh &hh &oh ~ &hh ~ &hh &hh &hh &hh &oh ~\n&hat role=hat step=16n &hatA &hh &hh &oh ~ &hh &hh &oh ~ &hh ~ &hh &hh &hh &hh &oh &hh &hatA &hh &hh &oh ~ &hh &hh [&hh,&oh] ~ &hh ~ &hh ~ &hh &hh &oh ~ &hatA &hh &hh &oh ~ &hh &hh [&hh,&oh] ~ &hh ~ &hh &hh &hh &hh &oh ~ &hatA!2\n&hatLevelA .31 .13 .22 0 .31 .13 .22 0 .31 0 .22 .13 .31 .13 .22 .13\n&hatLevel map=amp step=16n &hatLevelA\n&euclidA &rim:0:.27 ~@2 &rim:0:.27 ~ &rim:0:.27 ~ &rim:0:.27 ~@2 &rim:0:.27 ~ &rim:0:.27 ~ &rim:0:.27 ~\n&euclid role=euclid step=16n &euclidA!8\n&drumlines [&kick, &backbeat, &fill, &ghost, &hat * &hatLevel, &euclid, &clave * .27]\n&basslineA 3@3 3@3 3 3@9\n&basslineB 0@3 0@3 0 0@9\n&basslineC 0@3 0@3 0 0@3 0@6\n&bassline part=bass over=&harm step=16n legato=.425 &basslineA!4 &basslineB &basslineC &basslineB &basslineC\n&bassLevelA .55@3 .39@3 .39 .39@9\n&bassLevelB .55@3 .39@3 .39 .39@3 .39@6\n&bassLevel map=amp step=16n &bassLevelA!5 &bassLevelB &bassLevelA &bassLevelB\n&stablineA ~@2 [2,3,4] ~@3 [2,3,4] ~@3 [2,3,4] ~@3 [2,3,4] [2,3,4]\n&stablineB ~@2 [-1,0,1] ~@3 [-1,0,1] ~@3 [-1,0,1] ~@3 [-1,0,1] [-1,0,1]\n&stabline part=stab over=&harm step=16n legato=.7575 &stablineA!3 ~@2 [2,3,4] ~@3 [2,3,4] ~@3 [2,3,4] ~@3 [1#,3b,3#] [1#,3b,3#] &stablineB!3 ~@2 [-1,0,1] ~@3 [-1,0,1] ~@3 [-1,0,1] ~@3 [-1#,0#,1#] [-1#,0#,1#]\n&stabLevel map=amp .45\n&leadlineA 7@4 10@2 7@4 11@2 10@4\n&leadline part=lead over=&key step=16n legato=.4125 &leadlineA 5@4 8@2 5@4 9@2 9@4 &leadlineA 5@4 8@2 5@4 7@6 &leadlineA 5@4 8@2 5@4 9@2 8@4 &leadlineA 9@4 6@2 9@4 5@2 6@4\n&leadLevel map=amp .51\n&padline part=pad step=1m ~\n* from band(drumlines=&drumlines, bassline=&bassline, padline=&padline, stabline=&stabline, leadline=&leadline, bassLevel=&bassLevel, stabLevel=&stabLevel, leadLevel=&leadLevel, style=&style)",
+        "unstated": null,
+        "lock": [
+          {
+            "id": "meter",
+            "hash": "e2:c680c0cf84de7442"
+          },
+          {
+            "id": "diatonic",
+            "hash": "e2:308a28028d1fba38"
+          },
+          {
+            "id": "styles",
+            "hash": "e2:3e7f1eae462c100f"
+          },
+          {
+            "id": "rumba_clave_3_2",
+            "hash": "e2:b085e7debec14389"
+          }
+        ],
+        "fragments": [],
+        "energy": [0.75, 0.75, 0.75, 0.75, 0.75, 0.75, 0.75, 0.75],
+        "foreseen": ["c6e210c2f0fed", "1e8f1aa016502d", "c6e210c2f0fed", "16939a87df3861", "7dd1b680fe16b", "15eae258e84a09", "7dd1b680fe16b", "ff48019fd5b9a"],
+        "cut": []
+      }
+    },
+    {
+      "preset": "Swing jazz",
+      "conducts": [
+        {
+          "bar": 0,
+          "seed": 1,
+          "entropy": 0.3,
+          "foreseen": "d1f34162a61c1"
+        },
+        {
+          "bar": 1,
+          "seed": 1,
+          "entropy": 0.3,
+          "foreseen": "1d70f14ddb067b"
+        },
+        {
+          "bar": 2,
+          "seed": 1,
+          "entropy": 0.3,
+          "foreseen": "67a02af2a5b46"
+        },
+        {
+          "bar": 3,
+          "seed": 1,
+          "entropy": 0.3,
+          "foreseen": "2df966bc8cd8b"
+        },
+        {
+          "bar": 4,
+          "seed": 1,
+          "entropy": 0.3,
+          "foreseen": "67a02af2a5b46"
+        },
+        {
+          "bar": 5,
+          "seed": 1,
+          "entropy": 0.3,
+          "foreseen": "195f70035b9c44"
+        },
+        {
+          "bar": 6,
+          "seed": 1,
+          "entropy": 0.3,
+          "foreseen": "67a02af2a5b46"
+        },
+        {
+          "bar": 7,
+          "seed": 1,
+          "entropy": 0.3,
+          "foreseen": "b7d53c3c8d7fc"
+        }
+      ],
+      "score": {
+        "bar": 0,
+        "step": 0,
+        "section": "intro",
+        "text": "&harm, &key from\n&bar from meter(swing=8n:2/3) 148bpm\n&key from diatonic(mode=ionian) C\n&swingJazz from styles\n&style label=\"intro\" style=&swingJazz\n&harm over=&key step=2n [0,2,4,6,8] [5,7,9,11,13] [1,3,5,7,9] [4,6,8,10,12] [0,2,4,6,8] [5,7,9,11,13] [1,3,5,7,9] [4,6,8,10,12] [0,2,4,6,8] [5,7,9,11,13] [1,3,5,7,9] [4,6,8,10,12] [0,2,4,6,8] [5,7,9,11,13] [1,3,5,7,9] [4,6,8,10,12]\n&backbeatA ~@12 &sd:0:.4 ~@3\n&backbeat role=backbeat step=16n &backbeatA!7 ~@16\n&fill role=fill step=16n ~@124 &sd:0:.09 &sd:0:.15 &sd:0:.22 &sd:0:.32\n&ghostA ~@8 &sd:0:.05 ~@7\n&ghost role=ghost step=16n ~@16 &ghostA ~@16 &ghostA ~@16 ~@5 &sd:0:.05 ~ &sd:0:.05 &sd:0:.05 ~@7 ~@16 &ghostA\n&hatA &rd:0:.216 ~@3 &rd:0:.216 ~@3 &rd:0:.216 ~@3 &rd:0:.216 ~ &rd:0:.155 ~\n&hatB &rd:0:.216 ~ &rd:0:.155 ~ &rd:0:.216 ~@3 &rd:0:.216 ~@3 &rd:0:.216 ~ &rd:0:.155 ~\n&hatC &rd:0:.216 ~@3 &rd:0:.216 ~@3 &rd:0:.216 ~@3 &rd:0:.216 ~@3\n&hat role=hat step=16n &hatA &hatB &hatA &hatC &hatA &hatB &hatA &hatC\n&pedalA ~@4 &ph:0:.12 ~@7 &ph:0:.12 ~@3\n&pedal role=pedal step=16n &pedalA!8\n&drumlines [&backbeat, &fill, &ghost, &hat, &pedal]\n&basslineA 7@4 9@4 9@4 8b@4\n&basslineB 8@4 10@4 8@4 6@4\n&bassline part=bass over=&key step=16n legato=.81 &basslineA &basslineB &basslineA &basslineB &basslineA &basslineB &basslineA &basslineB\n&bassLevel map=amp .43\n&padlineA ~@8 [0,1,3,4]@8\n&padline part=pad over=&harm step=16n ~@8 [-2,-1,5,6]@8 &padlineA!7\n&padLevel map=amp .194\n&stablineA ~@10 [0,1,3,4] ~@5\n&stabline part=stab over=&harm step=16n legato=1.885 ~@16 ~@16 ~@16 &stablineA ~@16 ~@16 ~@16 &stablineA\n&stabLevel map=amp .36\n&leadline part=lead step=1m ~\n* from band(drumlines=&drumlines, bassline=&bassline, padline=&padline, stabline=&stabline, leadline=&leadline, bassLevel=&bassLevel, padLevel=&padLevel, stabLevel=&stabLevel, style=&style)",
+        "unstated": null,
+        "lock": [
+          {
+            "id": "meter",
+            "hash": "e2:c680c0cf84de7442"
+          },
+          {
+            "id": "diatonic",
+            "hash": "e2:308a28028d1fba38"
+          },
+          {
+            "id": "styles",
+            "hash": "e2:3e7f1eae462c100f"
+          }
+        ],
+        "fragments": [],
+        "energy": [0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3],
+        "foreseen": ["d1f34162a61c1", "1d70f14ddb067b", "67a02af2a5b46", "2df966bc8cd8b", "67a02af2a5b46", "195f70035b9c44", "67a02af2a5b46", "b7d53c3c8d7fc"],
+        "cut": []
+      }
+    },
+    {
+      "preset": "Swing jazz",
+      "conducts": [
+        {
+          "bar": 8,
+          "seed": 1,
+          "entropy": 0.3,
+          "foreseen": "66a01468e4ce6"
+        },
+        {
+          "bar": 9,
+          "seed": 1,
+          "entropy": 0.3,
+          "foreseen": "c6a85008b0574"
+        },
+        {
+          "bar": 10,
+          "seed": 1,
+          "entropy": 0.3,
+          "foreseen": "1f7a1e3ecc6f6d"
+        },
+        {
+          "bar": 11,
+          "seed": 1,
+          "entropy": 0.3,
+          "foreseen": "6c0117b471bab"
+        },
+        {
+          "bar": 12,
+          "seed": 1,
+          "entropy": 0.3,
+          "foreseen": "66a01468e4ce6"
+        },
+        {
+          "bar": 13,
+          "seed": 1,
+          "entropy": 0.3,
+          "foreseen": "98638d53d17a7"
+        },
+        {
+          "bar": 14,
+          "seed": 1,
+          "entropy": 0.3,
+          "foreseen": "1f7a1e3ecc6f6d"
+        },
+        {
+          "bar": 15,
+          "seed": 1,
+          "entropy": 0.3,
+          "foreseen": "96fe55bc2db77"
+        }
+      ],
+      "score": {
+        "bar": 8,
+        "step": 128,
+        "section": "groove",
+        "text": "&harm, &key from\n&bar from meter(swing=8n:2/3) 148bpm\n&key from diatonic(mode=ionian) C\n&swingJazz from styles\n&style label=\"groove\" style=&swingJazz\n&harm over=&key step=2n [0,2,4,6,8] [5,7,9,11,13] [1,3,5,7,9] [4,6,8,10,12] [0,2,4,6,8] [5,7,9,11,13] [1,3,5,7,9] [4,6,8,10,12] [0,2,4,6,8] [5,7,9,11,13] [1,3,5,7,9] [4,6,8,10,12] [0,2,4,6,8] [5,7,9,11,13] [1,3,5,7,9] [4,6,8,10,12]\n&kickA &bd:0:.57 ~@10 &bd:0:.39 ~@4\n&kickB &bd:0:.57 ~@2 &bd:0:.39 ~@7 &bd:0:.39 ~@4\n&kick role=kick step=16n &kickA &kickB &kickA!3 &bd:0:.57 ~@15 &kickA &kickB\n&fill role=fill step=16n ~@124 &sd:0:.115 &sd:0:.194 &sd:0:.295 &sd:0:.42\n&ghost role=ghost step=16n ~@88 &sd:0:.064 ~@39\n&hatA &rd:0:.28 ~ &rd:0:.2 ~ &rd:0:.28 ~ &rd:0:.2 ~ &rd:0:.28 ~@3 &rd:0:.28 ~ &rd:0:.2 ~\n&hat role=hat step=16n &hatA!8\n&pedalA ~@4 &ph:0:.155 ~@7 &ph:0:.155 ~@3\n&pedal role=pedal step=16n &pedalA!8\n&euclidA ~ &rim:0:.24 ~@3 &rim:0:.24 ~@2 &rim:0:.24 ~@2 &rim:0:.24 ~@2 &rim:0:.24 ~\n&euclid role=euclid step=16n &euclidA!8\n&drumlines [&kick, &fill, &ghost, &hat, &pedal, &euclid]\n&basslineA 7@4 9@4 9@4 8b@4\n&basslineB 8@4 10@4 8@4 6@4\n&bassline part=bass over=&key step=16n legato=.81 &basslineA &basslineB &basslineA &basslineB &basslineA &basslineB &basslineA 8@4 10@4 8@4 9@4\n&bassLevel map=amp .5\n&padlineA [5,6,8,9]@8 [0,1,3,4]@8\n&padlineB [1,3,4,10]@8 [0,1,3,4]@8\n&padline part=pad over=&harm step=16n &padlineA &padlineB &padlineA &padlineB &padlineA &padlineB &padlineA ~@8 [0,1,3,4]@8\n&padLevel map=amp .246\n&stablineA ~@2 [1,3,4,10] ~@13\n&stabline part=stab over=&harm step=16n legato=1.885 ~@16 &stablineA ~@16 &stablineA ~@16 ~@16 ~@16 &stablineA\n&stabLevel map=amp .42\n&leadlineA 0@2 2@2 4@2 6@2 7@4 6@2 4@2\n&leadlineB 0@2 2@2 4@2 6@2 7@4 6@2 6@2\n&leadlineC 3@2 5@2 7@2 9@2 10@4 9@2 7@2\n&leadline part=lead over=&key step=16n legato=.825 &leadlineA &leadlineB &leadlineC &leadlineA!2 &leadlineB &leadlineC &leadlineA\n&leadLevel map=amp .51\n* from band(drumlines=&drumlines, bassline=&bassline, padline=&padline, stabline=&stabline, leadline=&leadline, bassLevel=&bassLevel, padLevel=&padLevel, stabLevel=&stabLevel, leadLevel=&leadLevel, style=&style)",
+        "unstated": null,
+        "lock": [
+          {
+            "id": "meter",
+            "hash": "e2:c680c0cf84de7442"
+          },
+          {
+            "id": "diatonic",
+            "hash": "e2:308a28028d1fba38"
+          },
+          {
+            "id": "styles",
+            "hash": "e2:3e7f1eae462c100f"
+          }
+        ],
+        "fragments": [],
+        "energy": [0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6],
+        "foreseen": ["66a01468e4ce6", "c6a85008b0574", "1f7a1e3ecc6f6d", "6c0117b471bab", "66a01468e4ce6", "98638d53d17a7", "1f7a1e3ecc6f6d", "96fe55bc2db77"],
+        "cut": []
+      }
+    },
+    {
+      "preset": "Bossa nova",
+      "conducts": [
+        {
+          "bar": 0,
+          "seed": 1,
+          "entropy": 0.3,
+          "foreseen": "1efb6d1bc118af"
+        },
+        {
+          "bar": 1,
+          "seed": 1,
+          "entropy": 0.3,
+          "foreseen": "1852d97280e862"
+        },
+        {
+          "bar": 2,
+          "seed": 1,
+          "entropy": 0.3,
+          "foreseen": "1072db1e1ffb7a"
+        },
+        {
+          "bar": 3,
+          "seed": 1,
+          "entropy": 0.3,
+          "foreseen": "b85ec1a56dc8b"
+        },
+        {
+          "bar": 4,
+          "seed": 1,
+          "entropy": 0.3,
+          "foreseen": "9a30bd060edf4"
+        },
+        {
+          "bar": 5,
+          "seed": 1,
+          "entropy": 0.3,
+          "foreseen": "19363145ccf97"
+        },
+        {
+          "bar": 6,
+          "seed": 1,
+          "entropy": 0.3,
+          "foreseen": "1072db1e1ffb7a"
+        },
+        {
+          "bar": 7,
+          "seed": 1,
+          "entropy": 0.3,
+          "foreseen": "b4328db31fa5"
+        }
+      ],
+      "score": {
+        "bar": 0,
+        "step": 0,
+        "section": "intro",
+        "text": "&harm, &key from\n&bar from meter 132bpm\n&key from diatonic(mode=ionian) C\n&bossaNova from styles\n&style label=\"intro\" style=&bossaNova\n&harm over=&key step=1m [1,3,5,7,9] [4,6,8,10,12] [0,2,4,6,8] [0,2,4,6,8] [1,3,5,7,9] [4,6,8,10,12] [0,2,4,6,8] [0,2,4,6,8]\n&clave from bossa_nova_clave_one_bar\n&kickA &bd:0:.39 ~@15\n&kick role=kick step=16n &kickA!8\n&fill role=fill step=16n ~@124 &sd:0:.076 &sd:0:.13 &sd:0:.194 &sd:0:.28\n&hatA ~@8 &hh:0:.19 ~@7\n&hatB ~@8 &hh:0:.19 ~@3 &hh:0:.19 ~@3\n&hat role=hat step=16n &hatA ~@16 &hatA ~@16 &hatA &hatB &hatA &hatB\n&drumlines [&kick, &fill, &hat, &clave * .16]\n&basslineA 5@3 10@3 5 5@3 10 5@5\n&basslineB 10@3 10@3 10 10@3 10 10@5\n&bassline part=bass over=&harm step=16n legato=.705 &basslineA!2 &basslineB 10@3 10@3 10 10@3 10 10@2 9@3 &basslineB &basslineA &basslineB!2\n&bassLevelA .39@3 .27@3 .27 .27@3 .27 .27@5\n&bassLevel map=amp step=16n &bassLevelA!3 .39@3 .27@3 .27 .27@3 .27 .27@2 .27@3 &bassLevelA!4\n&padlineA [1,3,4,10]@16\n&padlineB [5,6,8,9]@16\n&padline part=pad over=&harm step=16n &padlineA ~@16 &padlineB!2 [3,4,10,11]@16 &padlineA &padlineB!2\n&padLevel map=amp .17\n&stabline part=stab step=1m ~\n&leadline part=lead step=1m ~\n* from band(drumlines=&drumlines, bassline=&bassline, padline=&padline, stabline=&stabline, leadline=&leadline, bassLevel=&bassLevel, padLevel=&padLevel, style=&style)",
+        "unstated": null,
+        "lock": [
+          {
+            "id": "meter",
+            "hash": "e2:c680c0cf84de7442"
+          },
+          {
+            "id": "diatonic",
+            "hash": "e2:308a28028d1fba38"
+          },
+          {
+            "id": "styles",
+            "hash": "e2:3e7f1eae462c100f"
+          },
+          {
+            "id": "bossa_nova_clave_one_bar",
+            "hash": "e2:4c0577bcdfb754c1"
+          }
+        ],
+        "fragments": [],
+        "energy": [
+          0.15000000000000002, 0.15000000000000002, 0.15000000000000002, 0.15000000000000002, 0.15000000000000002, 0.15000000000000002, 0.15000000000000002, 0.15000000000000002
+        ],
+        "foreseen": ["1efb6d1bc118af", "1852d97280e862", "1072db1e1ffb7a", "b85ec1a56dc8b", "9a30bd060edf4", "19363145ccf97", "1072db1e1ffb7a", "b4328db31fa5"],
+        "cut": []
+      }
+    },
+    {
+      "preset": "Bossa nova",
+      "conducts": [
+        {
+          "bar": 8,
+          "seed": 1,
+          "entropy": 0.3,
+          "foreseen": "1460234f11e0a"
+        },
+        {
+          "bar": 9,
+          "seed": 1,
+          "entropy": 0.3,
+          "foreseen": "ec8e787f3d1df"
+        },
+        {
+          "bar": 10,
+          "seed": 1,
+          "entropy": 0.3,
+          "foreseen": "169848db62aa6c"
+        },
+        {
+          "bar": 11,
+          "seed": 1,
+          "entropy": 0.3,
+          "foreseen": "b076a4c4d6621"
+        },
+        {
+          "bar": 12,
+          "seed": 1,
+          "entropy": 0.3,
+          "foreseen": "1460234f11e0a"
+        },
+        {
+          "bar": 13,
+          "seed": 1,
+          "entropy": 0.3,
+          "foreseen": "158fc1554797c0"
+        },
+        {
+          "bar": 14,
+          "seed": 1,
+          "entropy": 0.3,
+          "foreseen": "169848db62aa6c"
+        },
+        {
+          "bar": 15,
+          "seed": 1,
+          "entropy": 0.3,
+          "foreseen": "1b1b0e983dd7fa"
+        }
+      ],
+      "score": {
+        "bar": 8,
+        "step": 128,
+        "section": "groove",
+        "text": "&harm, &key from\n&bar from meter 132bpm\n&key from diatonic(mode=ionian) C\n&bossaNova from styles\n&style label=\"groove\" style=&bossaNova\n&harm over=&key step=1m [1,3,5,7,9] [4,6,8,10,12] [0,2,4,6,8] [0,2,4,6,8] [1,3,5,7,9] [4,6,8,10,12] [0,2,4,6,8] [0,2,4,6,8]\n&clave from bossa_nova_clave_one_bar\n&kickA &bd:0:.5 ~@2 &bd:0:.34 ~@7 &bd:0:.34 ~@4\n&kick role=kick step=16n &kickA!8\n&backbeatA ~@4 &sd:0:.41 ~@7 &sd:0:.46 ~@3\n&backbeat role=backbeat step=16n &backbeatA!8\n&fill role=fill step=16n ~@125 &sd:0:.17 &sd:0:.26 &sd:0:.37\n&ghost role=ghost step=16n ~@87 &sd:0:.07 ~@40\n&hatA &hh:0:.246 ~ &hh:0:.174 ~@5 &hh:0:.246 ~@3 &hh:0:.246 ~ &hh:0:.174 ~\n&hatB &hh:0:.246 ~@7 &hh:0:.246 ~@3 &hh:0:.246 ~ &hh:0:.174 ~\n&hat role=hat step=16n &hatA &hatB &hatA &hatB &hatA &hatB &hatA &hatB\n&euclid role=euclid step=1m &rim(5,16,4) &rim(5,16,4) &rim(5,16,4) &rim(5,16,4) &rim(5,16,4) &rim(5,16,4) &rim(5,16,4) &rim(5,16,4)\n&drumlines [&kick, &backbeat, &fill, &ghost, &hat, &euclid * .21, &clave * .21]\n&basslineA 10@3 10@3 10 10@9\n&basslineB 5@3 5@3 5 5@9\n&bassline part=bass over=&harm step=16n legato=.705 &basslineA &basslineB &basslineA!3 &basslineB &basslineA!2\n&bassLevelA .46@3 .32@3 .32 .32@9\n&bassLevel map=amp step=16n &bassLevelA!8\n&stablineA ~@2 [3,4,10,11] ~@5 [3,4,10,11] ~@7\n&stablineB ~@2 [1,3,4,10] ~@5 [1,3,4,10] ~@7\n&stablineC ~@2 [5,6,8,9] ~@5 [5,6,8,9] ~@7\n&stabline part=stab over=&harm step=16n legato=1.5775 &stablineA &stablineB &stablineC!2 &stablineA &stablineB &stablineC ~@2 [5,6,8,9] ~@13\n&stabLevel map=amp .39\n&leadlineA 4@6 2@6 0@4\n&leadlineB 4@6 2@6 6@4\n&leadlineC 7@6 5@6 3@4\n&leadline part=lead over=&key step=16n legato=.7125 &leadlineA &leadlineB &leadlineC &leadlineA!2 &leadlineB &leadlineC &leadlineA\n&leadLevel map=amp .51\n&padline part=pad step=1m ~\n* from band(drumlines=&drumlines, bassline=&bassline, padline=&padline, stabline=&stabline, leadline=&leadline, bassLevel=&bassLevel, stabLevel=&stabLevel, leadLevel=&leadLevel, style=&style)",
+        "unstated": null,
+        "lock": [
+          {
+            "id": "meter",
+            "hash": "e2:c680c0cf84de7442"
+          },
+          {
+            "id": "diatonic",
+            "hash": "e2:308a28028d1fba38"
+          },
+          {
+            "id": "styles",
+            "hash": "e2:3e7f1eae462c100f"
+          },
+          {
+            "id": "bossa_nova_clave_one_bar",
+            "hash": "e2:4c0577bcdfb754c1"
+          }
+        ],
+        "fragments": [],
+        "energy": [0.45, 0.45, 0.45, 0.45, 0.45, 0.45, 0.45, 0.45],
+        "foreseen": ["1460234f11e0a", "ec8e787f3d1df", "169848db62aa6c", "b076a4c4d6621", "1460234f11e0a", "158fc1554797c0", "169848db62aa6c", "1b1b0e983dd7fa"],
+        "cut": []
+      }
+    }
+  ]
+}

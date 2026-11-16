@@ -1,7 +1,7 @@
 /**
- * What a client keeps of a song a host of the session's version 2 plays (#525, rung 1): the bars' conducts, the
- * scores told, the fragments they lock that came with them, the band the host names, and the finale. Rung 1 keeps them
- * and plays nothing from them; playing each bar from the score that states it is rung 2.
+ * What a client keeps of a song a host of the session's version 2 plays (#525): the bars' conducts, the scores told,
+ * the fragments they lock that came with them, the band the host names, and the finale. `follow-v2.ts` makes a song
+ * followed of them, which plays each bar from the score that states it.
  *
  * A conduct is kept by its bar (one sent again for the same bar replaces it); a score is kept in the order told, a
  * later one stating some bars again (a bar composed otherwise than foreseen has its section scored again from it), as
@@ -49,10 +49,20 @@ export function withScore(s: Scored, score: Score): Scored {
   return { ...s, scores: [...s.scores, score].slice(-SCORES_KEPT), fragments: withFragments(s.fragments, score.fragments) };
 }
 
-/** What a welcome says of the song: its conducts and scores (none while stopped), its fragments and band. */
-export function welcomed(song: { readonly conducts: readonly Conduct[]; readonly scores: readonly Score[] } | null, fragments: readonly Fragment[], band: Locked | null): Scored {
-  let s: Scored = { ...NOTHING_SCORED, band, fragments: withFragments([], fragments) };
+/**
+ * What a welcome says of the song: its conducts and scores (none while stopped), its fragments and band; over what was
+ * kept of the same song (`kept`: a rejoin's, #482), so the bar playing as the welcome came, whose conduct it no longer
+ * sends, keeps its start and score. A score kept already isn't told again.
+ */
+export function welcomed(
+  song: { readonly conducts: readonly Conduct[]; readonly scores: readonly Score[] } | null,
+  fragments: readonly Fragment[],
+  band: Locked | null,
+  kept?: Scored,
+): Scored {
+  let s: Scored = kept ? { ...kept, band, fragments: withFragments(kept.fragments, fragments) } : { ...NOTHING_SCORED, band, fragments: withFragments([], fragments) };
+  const told = new Set(s.scores.map((score) => JSON.stringify(score)));
   for (const c of song?.conducts ?? []) s = withConduct(s, c);
-  for (const score of song?.scores ?? []) s = withScore(s, score);
+  for (const score of song?.scores ?? []) if (!told.has(JSON.stringify(score))) s = withScore(s, score);
   return s;
 }

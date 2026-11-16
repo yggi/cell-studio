@@ -47,14 +47,13 @@
           Joining “{session.session}”…
         {:else if session.status === 'rejoining'}
           The link to “{session.session}” dropped: joining again as {session.name}…
-        {:else if session.version === 2}
-          In “{session.session}” as {session.name}: the host plays from scores (version 2 of the session protocol), which Cell studio reads and doesn’t play yet.
         {:else if !session.hostPlaying}
           In “{session.session}” as {session.name}: the host isn’t playing.
         {:else if !studio.following}
-          In “{session.session}” as {session.name}: waiting for the host’s first section in cells.
+          In “{session.session}” as {session.name}: waiting for the host’s first {session.version === 2 ? 'score' : 'section in cells'}.
         {:else}
-          Following “{session.session}” as {session.name}{#if studio.heard && !studio.heard.before}, bar {studio.heard.bar + 1}{/if}.
+          Following “{session.session}” as {session.name}{#if studio.heard && !studio.heard.before}, bar {studio.heard.bar + 1}{/if}{#if session.version === 2}: each bar from the
+            host’s score, on cells’ own band{/if}.
         {/if}
         {#if session.hostAway}The host’s link dropped: the lobby holds the session for it.{/if}
       </p>
