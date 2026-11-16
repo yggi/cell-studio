@@ -1,0 +1,2 @@
+### Changed
+- **The language moves to v0.26.1** ([its changelog](https://github.com/yggi/cells/blob/main/CHANGELOG.md)): a section's intensity, `&intensity`, which the default band's drums, bass and stab follow (its default of 1 plays as before); a cell that is one number is a term of a sum; a line of values may splice a value (`&intensity step=1m/8 &groove &breakdown`); extracting a selection takes what its `from` line passes as the fragment's main parameter. No saved piece plays differently.
