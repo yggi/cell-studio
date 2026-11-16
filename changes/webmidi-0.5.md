@@ -1,0 +1,2 @@
+### Changed
+- **MIDI page: an output's details open from its head in webmidi v0.5.0's own dialog**, with each drum's note on that device, a test note and All notes off; the kit's members are no longer rows of the patch, and the *Device settings* buttons under it and *+ Output* are gone (the devices plugged in that the setup has no output for are chips over the patch, each adding its device). A port kept is found by its name, so a setup whose kept id is now another device's sends nothing to that device. Saved pieces are unchanged.

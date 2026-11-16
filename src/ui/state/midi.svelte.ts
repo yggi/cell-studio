@@ -2,7 +2,22 @@
 // kept moved onto webmidi's setups (decision 040): the book in `cell-studio:midi-setups`, read through webmidi's
 // `localBookStore`; the store from before it (`cell-studio:midi`) migrated once through `fromCellStudio`.
 
-import { MidiAccess, localBookStore } from '@yggi/webmidi/web';
+import { MidiAccess, localBookStore, localPanelStore } from '@yggi/webmidi/web';
+import {
+  EXAMPLE_MIXER,
+  EXAMPLE_PLAY,
+  exportPanel,
+  importPanel,
+  loadLibrary,
+  PanelRack,
+  panelOf,
+  removePanel,
+  withPanel,
+  type Panel,
+  type PanelLibrary,
+  type PanelRuntime,
+  type PanelStore,
+} from '@yggi/webmidi/panels';
 import {
   activeSetup,
   addOutput,
@@ -21,17 +36,23 @@ import {
   loadBook,
   MidiOut,
   outputNow,
+  panelForwardsOf,
+  panelKey,
+  panelsOf,
   portsMessage,
   profileOf,
   removeOutput,
+  forwardsOf,
   withClock,
   withCrossing,
+  withPanelActive,
   withPlays,
   heardOf,
   isHeard,
   listenOf,
   playsOf,
   inputRow,
+  isPanelKey,
   ANY_INPUT,
   withProfile,
   type BookStore,
@@ -81,6 +102,8 @@ type ToDeviceMs = (seconds: number) => number;
 const OLD_KEY = 'cell-studio:midi';
 /** webmidi's book: the device profiles and the setups. */
 const BOOK_KEY = 'cell-studio:midi-setups';
+/** The control panels' library (webmidi's decision 005): the panels themselves; the setups name the ones active. */
+const PANELS_KEY = 'cell-studio:midi-panels';
 /** What stays Cell studio's own: the built-in sound, and the routes the store before the book chose per piece. */
 const OWN_KEY = 'cell-studio:midi-own';
 const ALL_CHANNELS = Array.from({ length: 16 }, (_, i) => i);
@@ -202,7 +225,17 @@ export class Midi implements NoteSink {
   /** The device profiles and the setups (webmidi's `SetupBook`): change it with `setBook`. */
   book = $state.raw<SetupBook>(null as unknown as SetupBook);
 
+  /** The control panels' library (webmidi's `PanelLibrary`): change it with `editPanel`, `newPanel`, `deletePanel` and `importPanel`. */
+  library = $state.raw<PanelLibrary>(null as unknown as PanelLibrary);
+  /** The panel shown to play, by id: one active in the setup in use. */
+  shownPanel = $state<string | null>(null);
+
   #store: BookStore;
+  #panelStore: PanelStore;
+  // one runtime for each panel active in the setup in use (webmidi's decision 007): a panel plays on, and follows what it is sent, whether or not it is shown
+  readonly #rack = new PanelRack();
+  // bumped when the rack's runtimes change, for what reads one
+  #racked = $state(0);
   #legacy = $state.raw<Own['legacy']>({});
   #piece = $state.raw<OpenPiece | null>(null);
   #player: Tapped | null = null;
@@ -301,7 +334,7 @@ export class Midi implements NoteSink {
     if (!table.byPiece) return shown(this.#routes ? this.book : withContext(this.book, this.context, routesOfTable(table, this.#outputs)));
     const setup = this.#setup;
     const outputs = [...(hasBuiltIn(setup) ? [BUILT_IN] : []), ...slotsOf(this.#outputs, Math.max(0, ...(table.ports ?? [])))];
-    const inputs = Object.fromEntries(Object.entries(this.#routes ?? {}).filter(([row]) => row.startsWith('in:')));
+    const inputs = Object.fromEntries(Object.entries(this.#routes ?? {}).filter(([row]) => row.startsWith('in:') || isPanelKey(row)));
     return shown(
       withSetup(this.book, { ...setup, outputs, routes: { ...setup.routes, [this.context]: { ...routesOfTable(table, hardwareOutputs({ ...setup, outputs })), ...inputs } } }),
     );
@@ -317,6 +350,11 @@ export class Midi implements NoteSink {
     const old = readOldStore(readKey(OLD_KEY));
     this.#store = localBookStore(storageKey(BOOK_KEY));
     this.book = loadBook(this.#store, () => (old ? migrated(old) : null));
+    this.#panelStore = localPanelStore(storageKey(PANELS_KEY));
+    const library = loadLibrary(this.#panelStore);
+    // (a first visit starts with two panels to try: webmidi's mixer, and keys and pads)
+    this.library = library.panels.length ? library : { version: 1, panels: [EXAMPLE_MIXER, EXAMPLE_PLAY] };
+    this.#syncPanels(this.book);
     const kept = readOwn(old);
     this.#legacy = kept.legacy;
     if (!kept.moved) {
@@ -520,6 +558,8 @@ export class Midi implements NoteSink {
       const sent = routes ? forwards(data, source, heard, routes) : [];
       if ((heard || sent.length) && data[0]! < 0xf0) this.activity.hit('in');
       for (const s of sent) this.#sendTo(s.key, s.data);
+      // (and to the panels whose column its row crosses: their controls move)
+      this.#rack.receive(panelForwardsOf(this.book, this.context, { id: source, name: source }, data));
       if (!heard) return;
       // (one hearer failing leaves the others hearing)
       for (const h of this.#hearers)
@@ -584,8 +624,10 @@ export class Midi implements NoteSink {
     // (what an input plays changed: the keys held from it let go, as they were struck on what it played)
     if (JSON.stringify(before.plays) !== JSON.stringify(after.plays)) this.#letGoAll();
     if (next.devices !== this.book.devices) this.warning = null;
+    const was = this.book;
     this.book = next;
     this.#saveBook();
+    this.#syncPanels(was);
     // (the built-in sound follows the setup in use: its column there, or none)
     if (this.#player) this.#player.internal = hasBuiltIn(after);
     this.outPort = this.access ? outputNow(this.access, this.#first) : null;
@@ -1048,6 +1090,8 @@ export class Midi implements NoteSink {
    */
   panic(): void {
     this.#letGoAll();
+    // (the panels' notes are let go first, so their note-offs reach the outputs before the rest)
+    for (const id of panelsOf(this.#setup)) for (const data of this.#rack.runtime(id)?.silence() ?? []) this.played(id, data);
     for (const c of this.#outputs) this.#panicLane(c.key);
   }
 
@@ -1073,6 +1117,85 @@ export class Midi implements NoteSink {
       } catch {
         continue; // (one channel's failed send doesn't leave the others sounding)
       }
+  }
+
+  // ---- control panels (webmidi's decisions 005 and 007) ----
+
+  /**
+   * The panels the setup in use has active, playing: a runtime for each, one gone or changed silenced first, its
+   * note-offs sent where its row was crossed in the book of `before`, through the ports of before.
+   */
+  #syncPanels(before: SetupBook): void {
+    for (const released of this.#rack.sync(panelsOf(this.#setup), this.library)) this.#routePanel(released.panel, released.data, before);
+    this.#racked++;
+    if (this.shownPanel !== null && !panelsOf(this.#setup).includes(this.shownPanel)) this.shownPanel = null;
+    this.shownPanel ??= panelsOf(this.#setup).find((id) => panelOf(this.library, id)) ?? null;
+  }
+
+  /** A panel's runtime, to draw and to play; undefined when it isn't active in the setup in use or isn't in the library. */
+  runtimeOf(id: string | null): PanelRuntime | undefined {
+    void this.#racked;
+    return id === null ? undefined : this.#rack.runtime(id);
+  }
+
+  // a message a panel made, sent where its row is crossed in `book`, in the open piece's context: to the outputs (as
+  // an input's row is, with the crossing's channel or as played) and to the other panels. Cell studio's own sound
+  // doesn't hear it: the built-in plays the piece's voices, not MIDI (webmidi's decision 007, not yet)
+  #routePanel(id: string, data: ArrayLike<number>, book: SetupBook = this.book): void {
+    const row = panelKey(id);
+    for (const f of forwardsOf(book, this.context, row, data)) this.#sendTo(f.output, f.data);
+    this.#rack.receive(panelForwardsOf(book, this.context, row, data));
+  }
+
+  /** A message a panel made by a touch (a `PanelView`'s `onsend`): sent where its row is crossed. */
+  played(id: string, data: ArrayLike<number>): void {
+    try {
+      this.#routePanel(id, data);
+    } catch (error) {
+      this.report(`A message from the panel ${panelOf(this.library, id)?.name ?? id} couldn’t be passed on`, error);
+    }
+  }
+
+  #keepLibrary(library: PanelLibrary): void {
+    this.library = library;
+    this.#panelStore.save(library);
+    this.#syncPanels(this.book);
+  }
+
+  /** A panel changed in the editor: kept, and played anew where it is active (its notes released first). */
+  editPanel(panel: Panel): void {
+    this.#keepLibrary(withPanel(this.library, panel));
+  }
+
+  /** A new, empty panel in the library, active in the setup in use and shown: its id. */
+  newPanel(): string {
+    let n = this.library.panels.length + 1;
+    while (panelOf(this.library, `p${n}`)) n++;
+    const id = `p${n}`;
+    this.#keepLibrary(withPanel(this.library, { id, name: `Panel ${n}`, children: [] }));
+    this.setBook(withPanelActive(this.book, id, true));
+    this.shownPanel = id;
+    return id;
+  }
+
+  /** A panel taken out of the library, and out of the setup in use with its routes. */
+  deletePanel(id: string): void {
+    this.setBook(withPanelActive(this.book, id, false));
+    this.#keepLibrary(removePanel(this.library, id));
+  }
+
+  /** A panel's file added to the library, or in words why not. */
+  importPanel(text: string): string | null {
+    const next = importPanel(this.library, text);
+    if (typeof next === 'string') return next;
+    this.#keepLibrary(next);
+    return null;
+  }
+
+  /** A panel as its file's text and name, or null: not in the library. */
+  exportPanel(id: string): { text: string; filename: string } | null {
+    const panel = panelOf(this.library, id);
+    return panel ? { text: exportPanel(panel), filename: `${panel.name.replace(/[^\w-]+/g, '-').toLowerCase() || 'panel'}.midipanel.json` } : null;
   }
 
   // the ports may have changed: adopt the ones chosen again, and list them

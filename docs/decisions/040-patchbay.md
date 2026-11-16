@@ -13,7 +13,7 @@ Two things in this app's routing don't map one to one onto webmidi's book:
 
 ## Decision
 
-- **The book is the store**, kept through webmidi's `localBookStore` (`cell-studio:midi-setups`); the page is webmidi's `MidiStatus`, `SetupPicker`, `PatchMatrix` and `DeviceInspector`, with the theme's colours (`--wm-*`), and the keys and MIDI learn under them, as Cell studio's.
+- **The book is the store**, kept through webmidi's `localBookStore` (`cell-studio:midi-setups`); the page is webmidi's `MidiStatus`, `SetupPicker`, `PatchMatrix` (which opens an output's details in its own dialog, `DeviceDialog`), with the theme's colours (`--wm-*`), and the keys and MIDI learn under them, as Cell studio's.
 - **A piece the setup in use has no routes for plays what it played before**: cells' defaults, or, for a piece the store before the book had a matrix for, that matrix as it was read (the book's migration leaves the pieces' routes out and this app keeps them beside it, `legacy`). The matrix shows that. **Its first change writes it into the setup, then the change**; from then on its routes are the setup's exactly: a row with no crossing, a voice added to the piece later too, goes nowhere until routed. So the same settings send the same bytes (every example, four stores, 103,981 messages compared with the class before it), and the book's rule holds once a person has routed a piece.
 - **An input's crossing forwards** a channel's messages as they come, the channel replaced or kept (*as played*); system messages are not forwarded. The Heard switches are what the keys and MIDI learn listen to.
 - **The keys' thru stays as it is**, an option of the keys, until the book has a crossing for the voice played.
@@ -24,3 +24,4 @@ Two things in this app's routing don't map one to one onto webmidi's book:
 - A person's settings migrate once: one named setup, *Cell studio*; the first change makes *Cell studio - custom*.
 - A piece routed by its MIDI cards shows them read only, inputs and clock included (but the Heard switches): the matrix locks every row (a webmidi follow-up).
 - The store before the book is left as it was, read on each load for the routes it chose.
+- Control panels (webmidi v0.5.0, its decisions 005 and 007) are on the page as webmidi has them: the library kept beside the book, the setup naming the active ones, their rows and columns in the patch, played and edited under it ([ui/midi.md](../ui/midi.md)). Cell studio's own sound doesn't play a panel's notes (not yet).
