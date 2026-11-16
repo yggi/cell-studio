@@ -10,9 +10,10 @@
  *   what none of its lines passes on, and to each of its parts nothing reads; a fragment to those it takes.
  * - **Springs.** Every node has the same total pull, shared among its edges: a spring pulls a toward b by b's share,
  *   1 / deg(b). A hub pulls each neighbour a little and is pulled to the middle of what takes it: a star.
- * - **Anchors.** A fragment is held on an axis where its points put it (their weighted mean), as surely as they agree:
- *   its points' weight as a share, times 1 less their weighted spread over the axis's half range. An axis no point names
- *   holds nothing. A piece has none until it names its style (yggi/cells#543).
+ * - **Anchors.** A fragment is held on an axis where its points put it (their weighted mean), as surely as they agree
+ *   and say they are sure: its points' weight as a share, times 1 less √(spread² + reach²) over the axis's half range,
+ *   the spread their weighted spread, the reach what each point writes (`bite=.55 ± .1`, cells decision 089 §6). An
+ *   axis no point names holds nothing. A piece has none until it names its style (yggi/cells#543).
  * - **The balance** (the style ↔ structure slider): the anchors' strength against the springs', 0 springs alone, 1
  *   anchors alone.
  * - **The square.** Every node stays within the square of the two axes' ranges, its whole disc inside.
@@ -115,7 +116,10 @@ export function anchorOf(entry: Pick<CatalogueEntry, 'association'>, axis: strin
   if (!(w > 0)) return null;
   const at = named.reduce((s, p) => s + p.weight * p.point[axis]!, 0) / w;
   const sd = Math.sqrt(named.reduce((s, p) => s + p.weight * (p.point[axis]! - at) ** 2, 0) / w);
-  const certainty = Math.min(1, w / entry.association.length) * Math.max(0, 1 - sd / ((hi - lo) / 2));
+  // (each point's own reach on the axis, `± .1` (cells decision 089 §6), as the root of its weighted mean square: a point
+  // that gives none adds nothing)
+  const reach = Math.sqrt(named.reduce((s, p) => s + p.weight * (p.reach?.[axis] ?? 0) ** 2, 0) / w);
+  const certainty = Math.min(1, w / entry.association.length) * Math.max(0, 1 - Math.hypot(sd, reach) / ((hi - lo) / 2));
   return { at: (at - lo) / (hi - lo), certainty };
 }
 

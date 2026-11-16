@@ -31,7 +31,7 @@ describe('the fragment map', () => {
     expect(g.edges).toContainEqual(['f:my_groove', 'f:gm_kit']);
   });
 
-  it('holds a fragment where its points agree, as surely as they agree; an axis no point names, not at all', () => {
+  it('holds a fragment where its points agree, as surely as they agree and their reach allows; an axis no point names, not at all', () => {
     for (const e of catalogue())
       for (const a of AXES) {
         const anchor = anchorOf(e, a.name);
@@ -50,6 +50,20 @@ describe('the fragment map', () => {
       X,
     )!;
     expect([spread.at, spread.certainty]).toEqual([0.5, 0]);
+    // (a point's reach, `± .25` on a half range of .5, halves how surely it holds; with its spread, √(spread² + reach²))
+    expect(anchorOf({ association: [{ point: { [X]: 0.2 }, weight: 1, reach: { [X]: 0.25 } }] }, X)).toEqual({ at: 0.2, certainty: 0.5 });
+    const both = anchorOf(
+      {
+        association: [
+          { point: { [X]: 0.35 }, weight: 1, reach: { [X]: 0.2 } },
+          { point: { [X]: 0.65 }, weight: 1, reach: { [X]: 0.2 } },
+        ],
+      },
+      X,
+    )!;
+    expect(both.certainty).toBeCloseTo(1 - Math.hypot(0.15, 0.2) / 0.5);
+    // (a reach on another axis says nothing here)
+    expect(anchorOf({ association: [{ point: { [X]: 0.2 }, weight: 1, reach: { [Y]: 0.25 } }] }, X)!.certainty).toBe(1);
   });
 
   it('lays out the same every run, within its square', () => {
