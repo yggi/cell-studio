@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SessionClient } from './session.svelte';
 import type { Socket } from '../../session/lobby';
 import { PROTOCOL } from '../../session/protocol';
+import { JOIN_PROTOCOL } from '../../session/readers';
 
 /** A lobby's socket, faked: it records what the page sends, and says what the test makes it say. */
 class FakeSocket implements Socket {
@@ -38,6 +39,20 @@ const muse = { offer: null, memory: [], asOf: null, lastPlayed: null, log: [], d
 const forecast = { from: 0, count: 0, changed: [] };
 const welcome = (protocol: number, song: unknown = null) => ({ kind: 'welcome', protocol, session: 'jam', resume: 'token', song, forecast, muse });
 const frame = { meter: { cycle: 8, heights: [0, 2, 4, 6] }, swing: { level: '16n', share: 0.5 }, bpm: 120, key: { tonic: 9, mode: 'aeolian' } };
+/** A welcome of a host of version 2 (#525): the song's conducts and scores, the fragments and the band. */
+const welcome2 = (song: unknown = null) => ({
+  kind: 'welcome',
+  protocol: 31,
+  session: 'jam',
+  resume: 'token',
+  song,
+  forecast,
+  muse,
+  fragments: [],
+  band: { id: 'band', hash: 'e2:0b7a' },
+});
+const conduct = (bar: number) => ({ bar, start: 1070 + 2 * bar, seed: 1, entropy: 0.3, offer: null, foreseen: `d${bar}` });
+const score = (bar: number) => ({ bar, step: bar * 16, section: 'groove', text: '* from band', unstated: null, lock: [], fragments: [], energy: [0.5], foreseen: ['d0'], cut: [] });
 const text = (bar: number, t: string) => ({ bar, step: bar * 16, text: t, unstated: null, frame, foreseen: Array.from({ length: 8 }, () => 'x'), cut: [] });
 
 describe('SessionClient: Cell studio following a Jambot session', () => {
@@ -52,13 +67,13 @@ describe('SessionClient: Cell studio following a Jambot session', () => {
   });
   afterEach(() => vi.useRealTimers());
 
-  /** Joined: the lobby said so, and the host welcomed it. */
-  async function joined(song: unknown = null) {
+  /** Joined: the lobby said so, and the host welcomed it (a host of version 1, at its reader's protocol, unless given another welcome). */
+  async function joined(song: unknown = null, first: unknown = welcome(PROTOCOL, song)) {
     const joining = client.join('wss://lobby.test', ' jam ', 'Cell studio');
     socket.open();
     socket.say({ op: 'joined', session: 'jam' });
     await joining;
-    socket.say({ op: 'said', message: welcome(PROTOCOL, song) });
+    socket.say({ op: 'said', message: first });
   }
 
   /** The host answers every ping so far, its page clock 100 s ahead, its output 40 s behind its page, answered at once. */
@@ -71,7 +86,7 @@ describe('SessionClient: Cell studio following a Jambot session', () => {
   it('joins by the session’s name through the lobby, then says its protocol and name to the host', async () => {
     await joined();
     expect(socket.sent[0]).toEqual({ op: 'join', session: 'jam' });
-    expect(socket.told[0]).toEqual({ kind: 'join', protocol: PROTOCOL, name: 'Cell studio' });
+    expect(socket.told[0]).toEqual({ kind: 'join', protocol: JOIN_PROTOCOL, name: 'Cell studio' });
     expect(client.status).toBe('joined');
   });
 
@@ -103,6 +118,58 @@ describe('SessionClient: Cell studio following a Jambot session', () => {
     // (a later section's text, told while it plays: from its bar on)
     socket.say({ op: 'said', message: { kind: 'section', ...text(4, '&b loop=B4') } });
     expect(client.heading(1019)).toMatchObject({ bar: 4, bars: 0.5, text: { text: '&b loop=B4' } });
+  });
+
+  it('follows a host of version 1 by version 1’s reader, exactly as before: a conduct is a kind it doesn’t know', async () => {
+    await joined();
+    expect([client.version, client.scored]).toEqual([1, null]);
+    socket.say({ op: 'said', message: { kind: 'conduct', ...conduct(0) } });
+    expect(client.dropped).toEqual({ refused: 0, ignored: 1 });
+  });
+
+  it('follows a host of version 2 (#525): its conducts and scores kept, version 1’s kinds ignored, and nothing played yet', async () => {
+    await joined(null, welcome2({ seed: 1, start: 1070, track: {}, swing: {}, tempoMeter: {}, conducts: [conduct(0)], scores: [score(0)] }));
+    expect([client.status, client.version, client.hostPlaying, client.role]).toEqual(['joined', 2, true, 'player']);
+    expect(client.scored?.conducts.map((c) => c.bar)).toEqual([0]);
+    expect(client.scored?.scores.map((s) => s.bar)).toEqual([0]);
+    expect(client.scored?.band).toEqual({ id: 'band', hash: 'e2:0b7a' });
+    socket.say({ op: 'said', message: { kind: 'conduct', ...conduct(1) } });
+    socket.say({ op: 'said', message: { kind: 'score', ...score(8) } });
+    expect(client.scored?.conducts.map((c) => c.bar)).toEqual([0, 1]);
+    expect(client.scored?.scores.map((s) => s.bar)).toEqual([0, 8]);
+    // (version 1's bar and section, from a host of version 2: kinds its reader doesn't know)
+    socket.say({ op: 'said', message: { kind: 'bar', sent: { bar: { bar: 2 }, start: 1074 } } });
+    socket.say({ op: 'said', message: { kind: 'section', ...text(0, '&a loop=A4') } });
+    expect(client.dropped).toEqual({ refused: 0, ignored: 2 });
+    // (rung 2 plays it: until then the clock is set and nothing is heard or sounded)
+    for (let i = 0; i < 4; i++) {
+      vi.advanceTimersByTime(50);
+      pong();
+    }
+    expect(client.clock?.offset).toBeCloseTo(100, 9);
+    expect([client.heading(1013), client.sounding(null, 1, 1013, () => 2), client.nextTurn(1013)]).toEqual([null, null, null]);
+    socket.say({ op: 'said', message: { kind: 'finale', bar: 9 } });
+    expect(client.scored?.finale).toBe(9);
+    socket.say({ op: 'said', message: { kind: 'stop' } });
+    expect([client.hostPlaying, client.scored?.conducts, client.scored?.scores, client.scored?.band]).toEqual([false, [], [], { id: 'band', hash: 'e2:0b7a' }]);
+    socket.say({ op: 'said', message: { kind: 'start', song: { seed: 2, start: 1100, track: {}, swing: {}, tempoMeter: {} } } });
+    expect(client.hostPlaying).toBe(true);
+    client.leave();
+    expect([client.version, client.scored]).toEqual([null, null]);
+  });
+
+  it('picks its reader by the welcome’s protocol: under 30 version 1’s, from 30 version 2’s', async () => {
+    await joined(null, welcome(29));
+    expect(client.version).toBe(1);
+    client.leave();
+    socket = new FakeSocket();
+    await joined(null, welcome2());
+    expect([client.version, client.hostPlaying, client.scored?.conducts]).toEqual([2, false, []]);
+    client.leave();
+    // (a welcome at 30 in version 1's shape: version 2's reader refuses it, and the join waits on)
+    socket = new FakeSocket();
+    await joined(null, welcome(30));
+    expect([client.status, client.dropped.refused]).toEqual(['joining', 1]);
   });
 
   it('drops what it can’t read, counting it, and keeps the link', async () => {
@@ -155,7 +222,7 @@ describe('SessionClient: Cell studio following a Jambot session', () => {
       const s = sockets.at(-1)!;
       s.open();
       s.say({ op: 'joined', session: 'jam' });
-      await vi.waitFor(() => expect(s.told).toEqual([{ kind: 'join', protocol: PROTOCOL, name: as }]));
+      await vi.waitFor(() => expect(s.told).toEqual([{ kind: 'join', protocol: JOIN_PROTOCOL, name: as }]));
       s.say({ op: 'said', message: { kind: 'refused', reason: `A player named ${as} is already in this session. Pick another name.` } });
     };
     void c.join('wss://lobby.test', 'jam', 'Cell studio abc', (taken) => `${taken} 2`);
