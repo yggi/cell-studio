@@ -37,6 +37,7 @@ import {
   MidiOut,
   outputNow,
   panelForwardsOf,
+  panelPlays,
   panelKey,
   panelsOf,
   portsMessage,
@@ -560,17 +561,21 @@ export class Midi implements NoteSink {
       for (const s of sent) this.#sendTo(s.key, s.data);
       // (and to the panels whose column its row crosses: their controls move)
       this.#rack.receive(panelForwardsOf(this.book, this.context, { id: source, name: source }, data));
-      if (!heard) return;
-      // (one hearer failing leaves the others hearing)
-      for (const h of this.#hearers)
-        try {
-          h(data, source, timeStamp);
-        } catch (error) {
-          this.report(`A message from ${source} couldn’t be played`, error);
-        }
+      if (heard) this.#deliver(data, source, timeStamp);
     } catch (error) {
       this.report(`A message from ${source} couldn’t be passed on`, error);
     }
+  }
+
+  // a message heard, handed to every hearer (the keys, MIDI learn): one hearer failing leaves the others hearing. A panel's
+  // message heard comes this way too, its source `panel:<id>` (webmidi's decision 007): no path of its own
+  #deliver(data: Uint8Array, source: string, timeStamp: number): void {
+    for (const h of this.#hearers)
+      try {
+        h(data, source, timeStamp);
+      } catch (error) {
+        this.report(`A message from ${source} couldn’t be played`, error);
+      }
   }
 
   /** Hear every message from the inputs heard, raw; the function returned stops it. */
@@ -1052,7 +1057,7 @@ export class Midi implements NoteSink {
    * `playsOf`): a voice's row, the kit's (`*`) or a member's (`*name`); null for the default, the cell the keys have armed.
    */
   playsFrom(source: string): string | null {
-    const played = playsOf(this.book, { id: source, name: source }, this.matrixRows);
+    const played = playsOf(this.book, isPanelKey(source) ? source : { id: source, name: source }, this.matrixRows);
     return played === null || played === 'default' ? null : played;
   }
 
@@ -1140,17 +1145,19 @@ export class Midi implements NoteSink {
 
   // a message a panel made, sent where its row is crossed in `book`, in the open piece's context: to the outputs (as
   // an input's row is, with the crossing's channel or as played) and to the other panels. Cell studio's own sound
-  // doesn't hear it: the built-in plays the piece's voices, not MIDI (webmidi's decision 007, not yet)
+  // hears it through its Plays choice (`played`), not here
   #routePanel(id: string, data: ArrayLike<number>, book: SetupBook = this.book): void {
     const row = panelKey(id);
     for (const f of forwardsOf(book, this.context, row, data)) this.#sendTo(f.output, f.data);
     this.#rack.receive(panelForwardsOf(book, this.context, row, data));
   }
 
-  /** A message a panel made by a touch (a `PanelView`'s `onsend`): sent where its row is crossed. */
+  /** A message a panel made by a touch (a `PanelView`'s `onsend`): sent where its row is crossed, and played where its Plays says. */
   played(id: string, data: ArrayLike<number>): void {
     try {
       this.#routePanel(id, data);
+      // (heard, as an input's message heard is: the keys and MIDI learn take it, by the Plays choice of its row)
+      if (panelPlays(this.book, id, this.matrixRows, data)) this.#deliver(Uint8Array.from(data), panelKey(id), performance.now());
     } catch (error) {
       this.report(`A message from the panel ${panelOf(this.library, id)?.name ?? id} couldn’t be passed on`, error);
     }
