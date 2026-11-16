@@ -7,9 +7,10 @@ import type { Played } from '@yggi/cells/engine/realize';
 import { readerOf } from '@yggi/cells/engine/perform/feel';
 import { perform } from '@yggi/cells/engine/perform/perform';
 import { compilePiece } from '../../compile';
-import { barSeconds } from '../../session/follow';
+import { barSeconds, type Stating } from '../../session/follow';
+import { isReadScore } from '../../session/follow-v2';
 import { PlayedLog, type PlayedEvent } from '../../session/played';
-import type { SectionText } from '../../session/protocol';
+import type { CompileResult } from '@yggi/cells/engine/program';
 import type { Lack, Place } from '../../session/sound';
 import type { Fed, Feed } from '../../audio/player';
 import type { SessionClient } from './session.svelte';
@@ -30,36 +31,44 @@ interface Compiled {
 /**
  * A followed session's song as the player's feed (#478, rung 3): each stretch the session says to play
  * (`SessionClient.sounding`), from its text's plan, placed on the page's clock. Each text is compiled once, as the app
- * compiles a piece (`compilePiece`), its own voices sounding it, each event as the host's performers play it (cells'
+ * compiles a piece (`compilePiece`), or a version 2 score as it was read with the session's fragments (`follow-v2.ts`,
+ * #525), its own voices sounding it, each event as the host's performers play it (cells'
  * default performer, `perform`, #492, #536): its velocity and length with the feel of its bar. It counts what it played,
- * logs each event as played (`log`, as Jambot's `played()` does), and keeps what it couldn't (`lacked`), for measuring.
+ * logs each event as played (`log`, as Jambot's `played()` does), and keeps what it couldn't (`lacked`, and how many
+ * bars were lacked and how many silent, no text stating them), for measuring.
  */
 export class SessionFeed implements Feed {
   /** The notes laid so far, those of them the feel didn't read (none of its parts, or a bar with no frame), and the latest of what couldn't be played. */
   played = 0;
   unread = 0;
   lacked: Lack[] = [];
+  /** How many bars were said not to play: lacked, and silent (no text stated them), since the feed began. */
+  lacks = 0;
+  silent = 0;
   /** Each event played, as the performers play it, on the host's clock. */
   readonly log = new PlayedLog();
   /** Where the last ask got to (null: start where the song is heard). */
   #done: Place | null = null;
   #texts = new Map<string, Compiled>();
   /** The text of the last bar started: a bar whose text is another starts a switch. */
-  #lastText: SectionText | null = null;
+  #lastText: Stating | null = null;
 
   constructor(readonly session: Pick<SessionClient, 'sounding'>) {}
 
   next(now: number, horizon: number, beyond = horizon): Fed[] {
-    const s = this.session.sounding(this.#done, horizon - now, now, (t) => this.#compiled(t.text).bar, beyond - now);
+    const s = this.session.sounding(this.#done, horizon - now, now, (t) => this.#compiled(t).bar, beyond - now);
     if (!s) {
       this.#done = null;
       return [];
     }
     this.#done = s.done;
     if (s.lacked.length) this.lacked = [...this.lacked, ...s.lacked].slice(-LACKS_KEPT);
+    for (const l of s.lacked)
+      if (l.silent) this.silent++;
+      else this.lacks++;
     return s.slices.map((x) => {
       // (a slice's text has a bar, so it compiled)
-      const c = this.#compiled(x.text.text);
+      const c = this.#compiled(x.text);
       const p = c.plan!;
       const seconds = c.bar!;
       const at = x.frame && { bar: x.bar, frame: x.frame, start: (x.bar - x.text.bar) * seconds, seconds };
@@ -82,10 +91,13 @@ export class SessionFeed implements Feed {
     });
   }
 
-  #compiled(text: string): Compiled {
+  /** A text compiled, once: a version 2 score as read (with the fragments it locks), any other as a piece. */
+  #compiled(t: Stating): Compiled {
+    const { text } = t;
     let c = this.#texts.get(text);
     if (c) return c;
-    const result = compilePiece(text);
+    const result: CompileResult | null = isReadScore(t) ? t.result : compilePiece(text);
+    if (!result) return { plan: null, bar: null, route: null, read: null };
     c = result.ok
       ? { plan: plan(result, codeShifts(result), result.off), bar: barSeconds(result), route: router(result, channelTable(result)), read: readerOf(result) }
       : { plan: null, bar: null, route: null, read: null };

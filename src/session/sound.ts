@@ -11,10 +11,14 @@
  * while the bar is played: it is taken to go on as the bars before it went (their glide), until the next bar's start says.
  *
  * What can't be played is said (`Lack`): a bar its text leaves unstated, a text that doesn't compile, a bar no text
- * stated, a bar the host passed without laying, and a stretch the asker came to too late (a page that slept).
+ * stated (silent), a bar the host passed without laying, a bar the song knows not to play from its text (`lacks`:
+ * version 2's digest check and locked fragments), a bar a version 2 host never told the start of (its conduct), and a
+ * stretch the asker came to too late (a page that slept).
+ *
+ * The texts are either version's (`Stating`): a section text of version 1, a score of version 2.
  */
 import type { FeelFrame } from '@yggi/cells/engine/perform/feel';
-import type { Followed } from './follow';
+import type { Followed, Stating } from './follow';
 import { textOf } from './follow';
 import type { SectionText } from './protocol';
 
@@ -25,8 +29,8 @@ export interface Place {
 }
 
 /** A stretch of a text's own time to play (seconds, half open), and where it falls on the host's clock. */
-export interface Slice {
-  readonly text: SectionText;
+export interface Slice<T extends Stating = SectionText> {
+  readonly text: T;
   /** The song's bar it is part of, and that bar's frame as the performers read it (null where its message gave none). */
   readonly bar: number;
   readonly frame: FeelFrame | null;
@@ -38,14 +42,15 @@ export interface Slice {
   readonly scale: number;
 }
 
-/** Something not played: a bar, and why (a stretch passed late is said of each bar it touches). */
+/** Something not played: a bar, and why (a stretch passed late is said of each bar it touches); `silent` for a bar no text states. */
 export interface Lack {
   readonly bar: number;
   readonly why: string;
+  readonly silent?: true;
 }
 
-export interface Sounding {
-  readonly slices: readonly Slice[];
+export interface Sounding<T extends Stating = SectionText> {
+  readonly slices: readonly Slice<T>[];
   /** Where the next ask begins: null to begin where the song is heard then. */
   readonly done: Place | null;
   readonly lacked: readonly Lack[];
@@ -60,8 +65,8 @@ const LATE = 0.005;
  * through the bars the host has told (their starts and frames sent), and no further: a section's switch laid ahead of
  * the work that holds the page (#513).
  */
-export function sounding(f: Followed, done: Place | null, horizon: number, now: number, length: (text: SectionText) => number | null, beyond = horizon): Sounding {
-  const slices: Slice[] = [];
+export function soundingOf<T extends Stating>(f: Followed<T>, done: Place | null, horizon: number, now: number, length: (text: T) => number | null, beyond = horizon): Sounding<T> {
+  const slices: Slice<T>[] = [];
   const lacked: Lack[] = [];
   const known = [...f.starts.keys()].sort((a, b) => a - b);
   const last = known.at(-1);
@@ -116,7 +121,8 @@ export function sounding(f: Followed, done: Place | null, horizon: number, now: 
     if (at !== null && at < now - LATE) {
       const why = `late by ${Math.round((now - at) * 1000)} ms`;
       const to = placeAt(now);
-      for (let bar = place.bar; bar <= (to?.bar ?? place.bar); bar++) lacked.push({ bar, why });
+      // (a bar whose start wasn't told was waited on, not come to late: the loop says so of it)
+      for (let bar = place.bar; bar <= (to?.bar ?? place.bar); bar++) if (!f.told || f.starts.has(bar)) lacked.push({ bar, why });
       place = to;
     }
   }
@@ -135,14 +141,23 @@ export function sounding(f: Followed, done: Place | null, horizon: number, now: 
     const until = f.starts.has(bar) ? Math.max(horizon, beyond) : horizon;
     if (at >= until) break;
     const text = textOf(f.texts, bar);
-    const seconds = text && text.unstated === null && text.text ? length(text) : null;
+    // (a bar whose start was only guessed waits for its own where the song says so; begun without it, it is lacked)
+    const untold = f.told && !f.starts.has(bar);
+    const known = untold ? null : (f.lacks?.get(bar) ?? null);
+    const seconds = text && text.unstated === null && text.text && !untold && known === null ? length(text) : null;
     if (!text || seconds === null || !(seconds > 0)) {
-      // (a text may yet come for a bar not begun: it waits for one)
-      if (!text && now < s) break;
-      lacked.push({
-        bar,
-        why: !text ? 'no text stated it' : (text.unstated ?? (text.text ? 'its text has no bar to play (it does not compile, or has no meter)' : 'its text is empty')),
-      });
+      // (a text, or a bar's start, may yet come for a bar not begun: it waits for one)
+      if ((!text || untold) && now < s) break;
+      lacked.push(
+        !text
+          ? { bar, why: 'no text stated it', silent: true }
+          : {
+              bar,
+              why: untold
+                ? 'the host never told where it starts'
+                : (known ?? text.unstated ?? (text.text ? 'its text has no bar to play (it does not compile, or has no meter)' : 'its text is empty')),
+            },
+      );
       place = { bar: bar + 1, into: 0 };
       continue;
     }
@@ -153,3 +168,7 @@ export function sounding(f: Followed, done: Place | null, horizon: number, now: 
   }
   return { slices, done: place, lacked };
 }
+
+/** `soundingOf` a song of version 1's section texts: its type named, so a caller's loop over asks needs none. */
+export const sounding = (f: Followed, done: Place | null, horizon: number, now: number, length: (text: SectionText) => number | null, beyond = horizon): Sounding =>
+  soundingOf(f, done, horizon, now, length, beyond);

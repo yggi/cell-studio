@@ -125,6 +125,7 @@ export class Studio {
           const h = this.session.heading(now / 1000);
           return {
             status: this.session.status,
+            version: this.session.version,
             ended: this.session.ended,
             hostPlaying: this.session.hostPlaying,
             clock: this.session.clock,
@@ -142,6 +143,8 @@ export class Studio {
               played: this.#feed.played,
               unread: this.#feed.unread,
               lacked: this.#feed.lacked,
+              lacks: this.#feed.lacks,
+              silent: this.#feed.silent,
               bars: this.playback.player.barsLaid,
             },
           };

@@ -1,24 +1,32 @@
-import { HOSTED_LOBBY, LIMITS, sessionNameProblem, type ClientMessage, type HostMessage, type KeptMessage, type Role, type SectionText } from '../../session/protocol';
+import { HOSTED_LOBBY, LIMITS, sessionNameProblem, type ClientMessage, type HostMessage, type KeptMessage, type Role } from '../../session/protocol';
 import type { HostMessage as HostMessage2 } from '../../session/protocol-v2';
 import { JOIN_PROTOCOL, leaveOver, readHostAs, versionOf, type Version } from '../../session/readers';
 import { NOTHING_SCORED, welcomed, withConduct, withScore, type Scored } from '../../session/scored';
 import { NO_CLOCK, hostHeardAt, reading, withPing, type HostClock } from '../../session/clock';
-import { NOTHING_FOLLOWED, heardAt, nextTextAt, pruned, reaches, withBar, withText, type Followed } from '../../session/follow';
+import { NOTHING_FOLLOWED, heardAt, nextTextAt, pruned, reaches, withBar, withText, type Followed, type Stating } from '../../session/follow';
+import { followedOf, type ReadScore } from '../../session/follow-v2';
 import { LobbyRefused, joinLobby, type ClientLink, type Heard, type Socket } from '../../session/lobby';
 import { refusesName } from '../../session/name';
-import { sounding, type Place, type Sounding } from '../../session/sound';
+import { soundingOf, type Place, type Sounding } from '../../session/sound';
 import { failed, outage, retry, type Outage } from '../../session/rejoin';
 import { storageKey } from '../../storageKey';
 
 /** Where this browser keeps the name it joins a session by (`session/name.ts`). */
 export const NAME_KEY = storageKey('cell-studio:jam-name');
 
+/**
+ * How late a ping's timer may fire before it finds this page held up rather than the host quiet, in seconds: four times
+ * the steady ping (`LIMITS.pingEveryMs`, 250 ms). Laying out a followed text's graph held the page for 2 to 2.3 s when
+ * following began (#670, profiled).
+ */
+const HELD_SECONDS = 1;
+
 /** Idle; joining; joined (welcomed); or rejoining: seated, its link dropped, trying to come back (#482). */
 export type SessionStatus = 'idle' | 'joining' | 'joined' | 'rejoining';
 
-/** Where the host's song is heard now: the text that states the bar, how far into the text (in its bars), the bar. */
+/** Where the host's song is heard now: the text that states the bar (a section text, or a version 2 score), how far into the text (in its bars), the bar. */
 export interface Heading {
-  readonly text: SectionText;
+  readonly text: Stating;
   readonly bars: number;
   readonly bar: number;
   /** Before the song's first bar: its count-in. */
@@ -40,8 +48,8 @@ export interface SessionOptions {
  *
  * It reads both versions of the contract (#525): the join carries version 2's protocol, and the welcome's protocol
  * picks the reader (`session/readers.ts`). A host of version 1 is followed as above. A host of version 2 is followed
- * as far as keeping its conducts and scores (`scored`, `session/scored.ts`); playing from them is #525's rung 2, so
- * until then nothing is heard or sounded of it, and the Jam page says so.
+ * by its conducts and scores (`scored`, `session/scored.ts`), and heard and sounded as version 1's is, each bar from
+ * the score that states it (`session/follow-v2.ts`, #525's rung 2).
  *
  * What it follows is read where it is heard (`heading`, by the page's frame loop): the text of the bar the host's
  * output sounds now, and where in it. It ends when asked, when the host closes or refuses it, when the lobby says the
@@ -102,10 +110,14 @@ export class SessionClient {
   #song: { seed: number; start: number } | null = null;
   #clock: HostClock = NO_CLOCK;
   #followed: Followed = NOTHING_FOLLOWED;
+  /** A version 2 song as followed, made of what is kept of it (`scored`) when that changes. */
+  #followed2: { scored: Scored; followed: Followed<ReadScore> } | null = null;
   #token: string | null = null;
   #pinging: ReturnType<typeof setTimeout> | null = null;
   #welcomeWait: ReturnType<typeof setTimeout> | null = null;
   #lastHeard: number | null = null;
+  /** When this page last pinged: a ping's timer that fires `HELD_SECONDS` after it found the page itself held up. */
+  #lastPing: number | null = null;
   /** The reader of what the host says, between welcomes: the last welcome's version, or before one the join's. */
   #reader: Version = versionOf(JOIN_PROTOCOL);
   /** The join's second try, for a name refused as taken: through which lobby, and by which name. */
@@ -124,14 +136,22 @@ export class SessionClient {
     return r && { ...r, heard: this.#clock.heard };
   }
 
+  /** The song as followed: version 1's, or a version 2 song's made of its conducts and scores (each score read once, `follow-v2.ts`). */
+  #song2(): Followed<Stating> {
+    if (this.version !== 2 || !this.scored) return this.#followed;
+    if (this.#followed2?.scored !== this.scored) this.#followed2 = { scored: this.scored, followed: followedOf(this.scored) };
+    return this.#followed2.followed;
+  }
+
   /** Where the host's song is heard at `now` on this page's clock (seconds): null while not joined, stopped, or before its clock and first text. */
   heading(now = this.#now()): Heading | null {
-    if (!this.live || !this.hostPlaying || this.version === 2) return null;
+    if (!this.live || !this.hostPlaying) return null;
     const at = hostHeardAt(this.#clock, now);
     if (at === null) return null;
-    const heard = heardAt(this.#followed, at);
+    const heard = heardAt(this.#song2(), at);
     if (!heard) return null;
-    this.#followed = pruned(this.#followed, heard.place.bar);
+    // (version 2's is kept bounded as it comes, `scored.ts`)
+    if (this.version !== 2) this.#followed = pruned(this.#followed, heard.place.bar);
     return { text: heard.text, bars: heard.bars, bar: heard.place.bar, before: heard.place.before };
   }
 
@@ -141,18 +161,18 @@ export class SessionClient {
    * `shift` is the host's clock less this page's, to place it here. Null while not following a song, or before the clock
    * is trusted.
    */
-  sounding(done: Place | null, lead: number, now: number, length: (text: SectionText) => number | null, reach = lead): (Sounding & { shift: number }) | null {
-    if (!this.live || !this.hostPlaying || this.version === 2) return null;
+  sounding(done: Place | null, lead: number, now: number, length: (text: Stating) => number | null, reach = lead): (Sounding<Stating> & { shift: number }) | null {
+    if (!this.live || !this.hostPlaying) return null;
     const at = hostHeardAt(this.#clock, now);
     if (at === null) return null;
-    return { ...sounding(this.#followed, done, at + lead, at, length, at + reach), shift: at - now };
+    return { ...soundingOf(this.#song2(), done, at + lead, at, length, at + reach), shift: at - now };
   }
 
   /** When, on this page's clock (seconds), the text heard next gives way to another, as known at `now`; null where none is known yet. */
   nextTurn(now = this.#now()): number | null {
-    if (!this.live || !this.hostPlaying || this.version === 2) return null;
+    if (!this.live || !this.hostPlaying) return null;
     const at = hostHeardAt(this.#clock, now);
-    const next = at === null ? null : nextTextAt(this.#followed, at);
+    const next = at === null ? null : nextTextAt(this.#song2(), at);
     return next === null || at === null ? null : now + (next - at);
   }
 
@@ -292,9 +312,11 @@ export class SessionClient {
     this.#song = null;
     this.#clock = NO_CLOCK;
     this.#followed = NOTHING_FOLLOWED;
+    this.#followed2 = null;
     this.#token = null;
     this.notice = null;
     this.#lastHeard = null;
+    this.#lastPing = null;
     this.status = 'idle';
     this.hostPlaying = false;
     this.hostAway = false;
@@ -357,16 +379,19 @@ export class SessionClient {
 
   /**
    * What a host of version 2 said: its welcome, conducts, scores, and the moves of its song kept (`scored`); the kinds
-   * it keeps from version 1 as version 1's are heard. Rung 1 of #525: a rejoin's welcome starts what is kept afresh.
+   * it keeps from version 1 as version 1's are heard. A rejoin's welcome starts what is kept afresh (#525).
    */
   #hear2(message: HostMessage2): void {
     switch (message.kind) {
       case 'welcome': {
+        // (back after a drop to the same song: what was kept of it carries on beneath the welcome's)
+        const back = this.status === 'rejoining';
         if (!this.#welcomed(2, message)) return;
         const { song } = message;
+        const same = back && song && this.#song?.seed === song.seed && this.#song.start === song.start;
         this.hostPlaying = song !== null;
         this.#followed = NOTHING_FOLLOWED;
-        this.scored = welcomed(song, message.fragments, message.band);
+        this.scored = welcomed(song, message.fragments, message.band, same && this.scored ? this.scored : undefined);
         this.#song = song && { seed: song.seed, start: song.start };
         if (this.#pinging) clearTimeout(this.#pinging);
         return this.#ping();
@@ -479,7 +504,11 @@ export class SessionClient {
   #ping(): void {
     if (this.status !== 'joined') return;
     const now = this.#now();
-    if (!this.hostAway && this.#lastHeard !== null && now - this.#lastHeard > LIMITS.silentSeconds) return this.#dropped('The host went quiet.');
+    // (a timer that fires that late found this page held up, a long task: what the host said meanwhile waits in the queue
+    // behind it, so the host is judged on the next ping's, on time)
+    const held = this.#lastPing !== null && now - this.#lastPing > HELD_SECONDS;
+    if (!held && !this.hostAway && this.#lastHeard !== null && now - this.#lastHeard > LIMITS.silentSeconds) return this.#dropped('The host went quiet.');
+    this.#lastPing = now;
     this.#send({ kind: 'ping', sent: now });
     const every = this.clock ? LIMITS.pingEveryMs : LIMITS.pingSettlingMs;
     this.#pinging = setTimeout(() => this.#ping(), every);

@@ -127,7 +127,7 @@ describe('SessionClient: Cell studio following a Jambot session', () => {
     expect(client.dropped).toEqual({ refused: 0, ignored: 1 });
   });
 
-  it('follows a host of version 2 (#525): its conducts and scores kept, version 1’s kinds ignored, and nothing played yet', async () => {
+  it('follows a host of version 2 (#525): its conducts and scores kept and heard, version 1’s kinds ignored', async () => {
     await joined(null, welcome2({ seed: 1, start: 1070, track: {}, swing: {}, tempoMeter: {}, conducts: [conduct(0)], scores: [score(0)] }));
     expect([client.status, client.version, client.hostPlaying, client.role]).toEqual(['joined', 2, true, 'player']);
     expect(client.scored?.conducts.map((c) => c.bar)).toEqual([0]);
@@ -141,13 +141,15 @@ describe('SessionClient: Cell studio following a Jambot session', () => {
     socket.say({ op: 'said', message: { kind: 'bar', sent: { bar: { bar: 2 }, start: 1074 } } });
     socket.say({ op: 'said', message: { kind: 'section', ...text(0, '&a loop=A4') } });
     expect(client.dropped).toEqual({ refused: 0, ignored: 2 });
-    // (rung 2 plays it: until then the clock is set and nothing is heard or sounded)
+    // (heard from its conducts and scores, once the clock is set: bar 0 from its score, bar 1 stated by none, said silent)
     for (let i = 0; i < 4; i++) {
       vi.advanceTimersByTime(50);
       pong();
     }
     expect(client.clock?.offset).toBeCloseTo(100, 9);
-    expect([client.heading(1013), client.sounding(null, 1, 1013, () => 2), client.nextTurn(1013)]).toEqual([null, null, null]);
+    expect(client.heading(1011)).toMatchObject({ bar: 0, bars: 0.5, before: false, text: { bar: 0, text: '* from band' } });
+    expect(client.nextTurn(1011)).toBeCloseTo(1012, 9);
+    expect(client.sounding(null, 1, 1013, () => 2)).toMatchObject({ slices: [], lacked: [{ bar: 1, why: 'no text stated it', silent: true }], shift: 60 });
     socket.say({ op: 'said', message: { kind: 'finale', bar: 9 } });
     expect(client.scored?.finale).toBe(9);
     socket.say({ op: 'said', message: { kind: 'stop' } });
@@ -273,10 +275,33 @@ describe('SessionClient: Cell studio following a Jambot session', () => {
     socket = new FakeSocket();
     await joined();
     const quiet = socket;
-    now += 3.1;
-    vi.advanceTimersByTime(250);
+    // (pinging on time, every 50 ms, and answered by nothing for 3.1 s)
+    for (let i = 0; i < 62; i++) {
+      now += 0.05;
+      vi.advanceTimersByTime(50);
+    }
     // (a link quiet that long is taken for dropped: closed, and joined again, rejoin.test.ts)
     expect([client.status, client.ended, quiet.closed]).toEqual(['rejoining', null, true]);
+  });
+
+  it('takes no host for quiet over its own page held up: the pongs queued behind the hold are read first', async () => {
+    await joined();
+    for (let i = 0; i < 8; i++) {
+      now += 0.25;
+      vi.advanceTimersByTime(250);
+      pong();
+    }
+    // (a long task holds the page for 4 s: the ping's timer fires late, before the pongs that came meanwhile are read)
+    now += 4;
+    vi.advanceTimersByTime(250);
+    pong();
+    expect([client.status, socket.closed]).toEqual(['joined', false]);
+    // (and a host that stays quiet after it is still taken for gone, once the pings are on time again)
+    for (let i = 0; i < 70; i++) {
+      now += 0.05;
+      vi.advanceTimersByTime(50);
+    }
+    expect(client.status).toBe('rejoining');
   });
 
   it('asks for nothing without a session’s name and a player’s', async () => {

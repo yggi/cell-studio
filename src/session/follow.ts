@@ -4,9 +4,14 @@
  * host's clock, the bar heard, how far into it, the text that states it, and where that is in the text's own time.
  *
  * A text states bars `bar` … `bar + foreseen.length − 1`; a later one may state some of them again (a bar composed
- * otherwise than foreseen has its section written again from it), so the text of a bar is the one told last of those
- * that start at it or before. The text's time runs at its first bar's tempo (its frame's), so a bar of it is a fixed
- * length (`barSeconds`) where the host's may glide: the place in the text is bar for bar, the fraction kept.
+ * otherwise than foreseen has its section written again from it, a looped window is a score of its own), so the text
+ * of a bar is the one told last of those that state it, whatever its length. The text's time runs at its first bar's
+ * tempo, so a bar of it is a fixed length (`barSeconds`) where the host's may glide: the place in the text is bar for
+ * bar, the fraction kept.
+ *
+ * The texts are either version's (`Stating`): version 1's section texts (`SectionText`, framed beside the text, each
+ * bar's frame from the bar the host sent), or version 2's scores (`scores.ts`, which makes a `Followed` of them: each
+ * states its own meter, tempo and key, its bars' frames from their conducts and the score).
  */
 import { clocking, EPS } from '@yggi/cells/engine/clocking';
 import { mainMeter } from '@yggi/cells/engine/midiclock';
@@ -14,14 +19,28 @@ import { codeShifts, type CompileResult } from '@yggi/cells/engine/program';
 import type { FeelFrame, SectionType } from '@yggi/cells/engine/perform/feel';
 import type { SectionText, SentBar } from './protocol';
 
+/** A text that states bars from `bar`, as many as its `foreseen` counts: a version 1 section text, or a version 2 score. */
+export interface Stating {
+  readonly bar: number;
+  /** cells' text, or empty where none states the bars (`unstated` says why). */
+  readonly text: string;
+  readonly unstated: string | null;
+  /** A digest of what each bar from `bar` on was built from: as many as the text states bars. */
+  readonly foreseen: readonly string[];
+}
+
 /** What a client keeps of a song: where each bar laid starts on the host's clock, what the feel reads of it, and the texts told, in the order told. */
-export interface Followed {
+export interface Followed<T extends Stating = SectionText> {
   readonly starts: ReadonlyMap<number, number>;
   /** Each bar's frame, as the performers read it (cells' `FeelFrame`): none for a bar whose message lacks what the feel reads. */
   readonly frames: ReadonlyMap<number, FeelFrame>;
-  readonly texts: readonly SectionText[];
+  readonly texts: readonly T[];
   /** The song's last bar, once the host composed its finale. */
   readonly finale: number | null;
+  /** Bars known not to play from their text, and why (version 2: a conduct's digest another than its score foresaw, a fragment it locks that none holds). */
+  readonly lacks?: ReadonlyMap<number, string>;
+  /** Whether a bar plays only once its own start is told (version 2: its conduct, which carries the digest it is checked by), never on one guessed from the bars before it. */
+  readonly told?: boolean;
 }
 
 export const NOTHING_FOLLOWED: Followed = { starts: new Map(), frames: new Map(), texts: [], finale: null };
@@ -66,7 +85,7 @@ const barNumber = (sent: SentBar): number | null => (Number.isInteger(sent.bar.b
 const KEPT_BEHIND = 16;
 
 /** A song followed further: a bar sent (one passed without laying, `start` null, has no start to keep). */
-export function withBar(f: Followed, sent: SentBar): Followed {
+export function withBar<T extends Stating>(f: Followed<T>, sent: SentBar): Followed<T> {
   const bar = barNumber(sent);
   if (bar === null || sent.start === null) return f;
   const frame = frameOf(sent);
@@ -77,16 +96,16 @@ export function withBar(f: Followed, sent: SentBar): Followed {
  * Whether what was followed of a song reaches a welcome's bars (a rejoin's, #482): it knows the start of the bar before
  * their first, the one playing as the welcome was sent, which the welcome no longer sends, so it carries on beneath them.
  */
-export function reaches(f: Followed, bars: readonly SentBar[]): boolean {
+export function reaches<T extends Stating>(f: Followed<T>, bars: readonly SentBar[]): boolean {
   const numbers = bars.map(barNumber).filter((b) => b !== null);
   return numbers.length > 0 && f.starts.has(Math.min(...numbers) - 1);
 }
 
 /** A song followed further: a text told. */
-export const withText = (f: Followed, text: SectionText): Followed => ({ ...f, texts: [...f.texts, text] });
+export const withText = <T extends Stating>(f: Followed<T>, text: T): Followed<T> => ({ ...f, texts: [...f.texts, text] });
 
-/** The text that states a bar: the one told last of those that start at it or before and reach it; null where none does. */
-export function textOf(texts: readonly SectionText[], bar: number): SectionText | null {
+/** The text that states a bar: the one told last of those that start at it or before and reach it, whatever its length; null where none does. */
+export function textOf<T extends Stating>(texts: readonly T[], bar: number): T | null {
   for (let i = texts.length - 1; i >= 0; i--) {
     const t = texts[i]!;
     if (t.bar <= bar && bar < t.bar + Math.max(1, t.foreseen.length)) return t;
@@ -120,7 +139,7 @@ export function placeAt(starts: ReadonlyMap<number, number>, at: number): Place 
 }
 
 /** The text heard at `at`, and where in its own time (bars from its first, and the fraction): the text of the bar heard, or before the song the first one told for it. */
-export function heardAt(f: Followed, at: number): { text: SectionText; bars: number; place: Place } | null {
+export function heardAt<T extends Stating>(f: Followed<T>, at: number): { text: T; bars: number; place: Place } | null {
   const place = placeAt(f.starts, at);
   if (!place) return null;
   const text = textOf(f.texts, place.bar) ?? (place.before ? (f.texts.find((t) => t.bar >= place.bar) ?? null) : null);
@@ -133,7 +152,7 @@ export function heardAt(f: Followed, at: number): { text: SectionText; bars: num
  * When, on the host's clock, the text heard next gives way to another: the start of the first bar after the one heard
  * at `at` that another text states; null where none is known yet.
  */
-export function nextTextAt(f: Followed, at: number): number | null {
+export function nextTextAt<T extends Stating>(f: Followed<T>, at: number): number | null {
   const place = placeAt(f.starts, at);
   if (!place) return null;
   const now = textOf(f.texts, place.bar);
@@ -143,7 +162,7 @@ export function nextTextAt(f: Followed, at: number): number | null {
 }
 
 /** What is kept of a song once a bar is heard: the starts, frames and texts of the last `KEPT_BEHIND` bars and on. */
-export function pruned(f: Followed, heard: number): Followed {
+export function pruned<T extends Stating>(f: Followed<T>, heard: number): Followed<T> {
   const from = heard - KEPT_BEHIND;
   if (![...f.starts.keys()].some((b) => b < from) && !f.texts.some((t) => t.bar + t.foreseen.length <= from)) return f;
   return {
