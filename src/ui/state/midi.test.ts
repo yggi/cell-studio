@@ -1476,4 +1476,67 @@ describe('Midi: control panels', () => {
     midi.changeMatrix(withPlays(midi.matrixBook, panelKey('p'), 'default'));
     expect(keptSetup().plays).toEqual({ [panelKey('p')]: 'default' });
   });
+
+  describe('the seeded panels', () => {
+    const plays = () => keptSetup().plays;
+    async function seeded() {
+      installMidi(fakeAccess([], [fakePort('out-1', 'Circuit')]));
+      const midi = await made();
+      await midi.connect();
+      midi.chooseOutput('out-1');
+      midi.attach({ sink: null, internal: true }, { program: compilePiece(EXAMPLES.sailor.source), title: 'Sailor' });
+      return midi;
+    }
+
+    it('play the default cell when added to a setup (a key of the seeded Keys and pads sounds), each one', async () => {
+      const midi = await seeded();
+      for (const id of ['mixer', 'play']) {
+        expect(midi.library.panels.map((p) => p.id)).toContain(id);
+        midi.changeMatrix(withPanelActive(midi.matrixBook, id, true));
+        expect(plays()[panelKey(id)]).toBe('default');
+      }
+      const heard: string[] = [];
+      cleanups.push(midi.hear((_, source) => void heard.push(source)));
+      midi.played('play', [0x90, 60, 100]);
+      expect(heard).toEqual([panelKey('play')]);
+    });
+
+    it("leave a panel of a person's own on none until chosen: made, or imported from a file", async () => {
+      const midi = await seeded();
+      const id = midi.newPanel();
+      expect(plays()).toEqual({});
+      midi.editPanel(PANEL);
+      expect(midi.importPanel(midi.exportPanel('p')!.text)).toBeNull();
+      const imported = midi.library.panels.at(-1)!.id;
+      midi.changeMatrix(withPanelActive(withPanelActive(midi.matrixBook, 'p', true), imported, true));
+      expect([id, 'p', imported].filter((x) => panelKey(x) in plays())).toEqual([]);
+    });
+
+    it('keep a choice the setup already holds, an explicit none too, and start anew when removed and added again', async () => {
+      const midi = await seeded();
+      midi.changeMatrix(withPlays(midi.matrixBook, panelKey('play'), 'none'));
+      midi.changeMatrix(withPanelActive(midi.matrixBook, 'play', true));
+      expect(plays()[panelKey('play')]).toBe('none');
+      midi.changeMatrix(withPlays(midi.matrixBook, panelKey('mixer'), { row: 'fiddle', role: 'lead' }));
+      midi.changeMatrix(withPanelActive(midi.matrixBook, 'mixer', true));
+      expect(plays()[panelKey('mixer')]).toEqual({ row: 'fiddle', role: 'lead' });
+      // (taken out, a panel's Plays goes with it, so added again it is added anew: the seeded one plays the default)
+      midi.changeMatrix(withPanelActive(midi.matrixBook, 'mixer', false));
+      expect(plays()).not.toHaveProperty([panelKey('mixer')]);
+      midi.changeMatrix(withPanelActive(midi.matrixBook, 'mixer', true));
+      expect(plays()[panelKey('mixer')]).toBe('default');
+    });
+
+    it('are kept on a piece routed by its MIDI cards, whose matrix is locked', async () => {
+      installMidi(fakeAccess([], [fakePort('out-1', 'Circuit')]));
+      const midi = await made();
+      await midi.connect();
+      midi.chooseOutput('out-1');
+      midi.attach({ sink: null, internal: true }, { program: compilePiece(CARDS), title: 'Cards' });
+      expect(midi.locked).toBe(true);
+      midi.changeMatrix(withPanelActive(midi.matrixBook, 'play', true));
+      expect(panelsOf(keptSetup())).toEqual(['play']);
+      expect(plays()[panelKey('play')]).toBe('default');
+    });
+  });
 });
