@@ -19,8 +19,12 @@ import {
   withCrossing,
   withPlays,
   withProfile,
+  panelKey,
+  panelsOf,
+  withPanelActive,
   type SetupBook,
 } from '@yggi/webmidi/core';
+import { type Panel } from '@yggi/webmidi/panels';
 import type { NoteSink } from '../../audio/player';
 import { plan, type Played } from '@yggi/cells/engine/realize';
 import { codeShifts } from '@yggi/cells/engine/program';
@@ -1305,5 +1309,96 @@ describe('Midi: what went wrong, said', () => {
     keys.play([0x90, 60, 100]);
     expect(heard).toEqual([60]);
     expect(midi.problems).toEqual(['A message from Keys couldn’t be played (Error: no voice)']);
+  });
+});
+
+describe('Midi: control panels', () => {
+  const PANEL: Panel = { id: 'p', name: 'Mixer', children: [{ type: 'knob', id: 'k', label: 'K', value: 0, bind: [{ kind: 'cc', number: 7, channel: 3 }] }] };
+  const PIECE = 'piece:Sailor';
+  const CARDS = `&bar scan(1 1 1 1) step=2\n&bass step=4n 0\n&sub loop=55\n&far map=midi(5) [&bass * &sub]`;
+
+  async function rig() {
+    const out = fakePort('out-1', 'Circuit');
+    const keys = fakeInput('in-1', 'Keys');
+    installMidi(fakeAccess([keys], [out]));
+    const midi = await made();
+    await midi.connect();
+    midi.chooseOutput('out-1');
+    midi.attach({ sink: null, internal: true }, { program: compilePiece(EXAMPLES.sailor.source), title: 'Sailor' });
+    midi.editPanel(PANEL);
+    midi.changeMatrix(withPanelActive(midi.matrixBook, 'p', true));
+    out.sent = [];
+    return { midi, out, keys };
+  }
+
+  it('starts a first visit with example panels, kept in a library of its own, and keeps what is edited, deleted or imported', async () => {
+    installMidi(fakeAccess([], []));
+    const midi = await made();
+    expect(midi.library.panels.length).toBeGreaterThan(0);
+    midi.editPanel(PANEL);
+    expect(JSON.parse(store.get('cell-studio:midi-panels')!).panels.map((p: Panel) => p.id)).toContain('p');
+    expect((await made()).library.panels.map((p) => p.id)).toContain('p');
+    const file = midi.exportPanel('p')!;
+    midi.deletePanel('p');
+    expect(midi.library.panels.map((p) => p.id)).not.toContain('p');
+    expect(midi.importPanel(file.text)).toBeNull();
+    // (an imported panel is made a new one in the library: its own id)
+    expect(midi.library.panels.map((p) => p.name)).toContain('Mixer');
+    expect(midi.importPanel('not a panel')).toEqual(expect.any(String));
+  });
+
+  it("sends a panel's messages where its row is routed, its channel replaced or kept as played, and nowhere unrouted", async () => {
+    const { midi, out } = await rig();
+    const move = (x: number) =>
+      midi
+        .runtimeOf('p')!
+        .move('k', { x })
+        .forEach((m) => midi.played('p', m));
+    move(1);
+    expect(out.sent).toEqual([]);
+    midi.changeMatrix(withCrossing(midi.matrixBook, PIECE, panelKey('p'), 'o1', AS_PLAYED));
+    move(0);
+    expect(out.sent.map((m) => m.data)).toEqual([[0xb2, 7, 0]]);
+    midi.changeMatrix(withCrossing(midi.matrixBook, PIECE, panelKey('p'), 'o1', 5));
+    move(1);
+    expect(out.sent.map((m) => m.data).at(-1)).toEqual([0xb4, 7, 127]);
+  });
+
+  it("hands an input's messages to the panel whose column its row crosses, which moves its controls and sends nothing back", async () => {
+    const { midi, out, keys } = await rig();
+    midi.changeMatrix(withCrossing(midi.matrixBook, PIECE, 'in:Keys', panelKey('p'), AS_PLAYED));
+    keys.play([0xb2, 7, 127]);
+    expect(midi.runtimeOf('p')!.value('k').x).toBe(1);
+    expect(out.sent).toEqual([]);
+  });
+
+  it('keeps panels and their crossings on a piece routed by its MIDI cards, whose matrix is locked', async () => {
+    installMidi(fakeAccess([fakeInput('in-1', 'Keys')], [fakePort('out-1', 'Circuit')]));
+    const midi = await made();
+    await midi.connect();
+    midi.chooseOutput('out-1');
+    midi.attach({ sink: null, internal: true }, { program: compilePiece(CARDS), title: 'Cards' });
+    expect(midi.locked).toBe(true);
+    midi.editPanel(PANEL);
+    midi.changeMatrix(withPanelActive(midi.matrixBook, 'p', true));
+    expect(panelsOf(keptSetup())).toEqual(['p']);
+    midi.changeMatrix(withCrossing(withCrossing(midi.matrixBook, 'piece:Cards', panelKey('p'), 'o1', 4), 'piece:Cards', 'in:Keys', panelKey('p'), AS_PLAYED));
+    expect(keptSetup().routes['piece:Cards']).toEqual({ [panelKey('p')]: { o1: 4 }, 'in:Keys': { [panelKey('p')]: AS_PLAYED } });
+  });
+
+  it("releases a panel's held notes where its row was crossed when the panel is taken out of the setup", async () => {
+    const { midi, out } = await rig();
+    const note: Panel = { id: 'n', name: 'Note', children: [{ type: 'button', id: 'b', label: 'B', bind: [{ kind: 'note', number: 60 }] }] };
+    midi.editPanel(note);
+    midi.changeMatrix(withPanelActive(midi.matrixBook, 'n', true));
+    midi.changeMatrix(withCrossing(midi.matrixBook, PIECE, panelKey('n'), 'o1', AS_PLAYED));
+    midi
+      .runtimeOf('n')!
+      .move('b', { x: 1 })
+      .forEach((m) => midi.played('n', m));
+    out.sent = [];
+    midi.changeMatrix(withPanelActive(midi.matrixBook, 'n', false));
+    expect(out.sent.map((m) => m.data)).toEqual([[0x80, 60, 0]]);
+    expect(midi.runtimeOf('n')).toBeUndefined();
   });
 });

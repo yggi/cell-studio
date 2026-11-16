@@ -3,11 +3,13 @@
    * MIDI, a page of the sidebar, on webmidi's shared components (`@yggi/webmidi/ui`, decision 040), laid out as webmidi's
    * patchbay mockup shows them in Cell studio: the connection (`MidiStatus`); the setups (`SetupPicker`: a change to a
    * named setup is kept as its custom variant until saved); the patch (`PatchMatrix`): the clock, the piece's gates and
-   * voices, its kit and the kit's members, then the inputs (each with its Plays choice: whether the keys and MIDI
+   * voices and its kit, then the inputs (each with its Plays choice: whether the keys and MIDI
    * learn hear it, and the voice it plays; a preset's button fills in the rest), down; the setup's outputs across; the piece's rows read only for a piece routed by its MIDI cards (the inputs, the clock and
-   * the kit's notes stay editable), an output's × removing it after asking; an output's device settings (`DeviceInspector`:
-   * its port and its device's profile, kept in every setup) in a dialog over the page, opened from the output's head or
-   * its button under the patch. A kit member's note per output is edited in the matrix.
+   * the kit's notes stay editable), an output's × removing it after asking; an output's device settings (its port, its device's profile kept in every setup,
+   * each drum's note) in the matrix's own dialog, opened from the output's head, with its test note and notes off. The built-in's
+   * head opens Cell studio's own dialog (its settings are the frontend's, decision 004 in webmidi).
+   * Then the control panels (webmidi's decisions 005 and 007): the library's, those the setup has active as rows and columns of the patch and as
+   * tabs to play, edit, make, open and save as files. A panel's row sends where it is crossed; Cell studio's own sound doesn't play its notes (not yet).
    * Then the built-in sound, the keys (#207) and the knobs learned, which stay Cell studio's. The sidebar is the whole
    * width of the window on this page (Sidebar.svelte), so the matrix has room. Colours: `--wm-*`, mapped to the theme in
    * `app.css`.
@@ -16,8 +18,10 @@
    * patch sit in a boundary: whatever throws there is shown with its error and a way back (try again, or reset the MIDI
    * settings), and the rest of the page goes on, where an error in a keyed list would have stopped it redrawing.
    */
-  import { activeSetup, DEFAULT_PRESET, hardwareOutputs, isBuiltIn, type PortOption } from '@yggi/webmidi/core';
-  import { DeviceInspector, MidiStatus, PatchMatrix, SetupPicker } from '@yggi/webmidi/ui';
+  import { activeSetup, DEFAULT_PRESET, hardwareOutputs, isBuiltIn, panelsOf } from '@yggi/webmidi/core';
+  import { panelOf } from '@yggi/webmidi/panels';
+  import { MidiStatus, PatchMatrix, SetupPicker } from '@yggi/webmidi/ui';
+  import { PanelEditor, PanelView } from '@yggi/webmidi/ui/panels';
   import KeysSettings from './KeysSettings.svelte';
   import LearnSettings from './LearnSettings.svelte';
   import type { Midi } from './state/midi.svelte';
@@ -26,32 +30,49 @@
 
   const out = $derived(!!midi.access && midi.sending);
   const shown = $derived(activeSetup(midi.matrixBook));
-  // the output whose device settings are open (by key), while the setup has it; else none
-  let inspecting = $state<string | null>(null);
-  const output = $derived(shown.outputs.find((o) => o.key === inspecting) ?? null);
+  // the built-in's settings are open: Cell studio's own dialog, since its settings are the frontend's (decision 004 in webmidi)
+  let builtin = $state(false);
+  const hasBuiltIn = $derived(shown.outputs.some(isBuiltIn));
   // an output's number, counting those that send MIDI (a piece's MIDI cards name them so); the built-in has none
   const slotOf = (key: string) => hardwareOutputs(shown).findIndex((o) => o.key === key) + 1;
-  const slot = $derived(output ? slotOf(output.key) : 0);
-  const real = $derived(midi.columns.filter((c) => c.key).length);
+  // the panels: the library's, those the setup in use has active as tabs, the one shown played or edited
+  const active = $derived(panelsOf(shown).flatMap((id) => panelOf(midi.library, id) ?? []));
+  const runtime = $derived(midi.runtimeOf(midi.shownPanel));
+  const shownPanel = $derived(midi.shownPanel === null ? undefined : panelOf(midi.library, midi.shownPanel));
+  let editing = $state(false);
+  let problem = $state<string | null>(null);
+  let file = $state<HTMLInputElement>();
+  async function chosen() {
+    const picked = file?.files?.[0];
+    if (!picked) return;
+    problem = midi.importPanel(await picked.text());
+    if (file) file.value = '';
+  }
+  function save() {
+    const out = midi.shownPanel === null ? null : midi.exportPanel(midi.shownPanel);
+    if (!out) return;
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([out.text], { type: 'application/json' }));
+    a.download = out.filename;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
   const title = $derived(midi.context.slice('piece:'.length));
-  // (a device chosen for a slot a piece's cards name past the setup's outputs adds the outputs up to it)
-  const choose = (p: PortOption) => midi.chooseDevice(slot, p.id);
   const SOUND = 'Sound';
-  const outLabel = (o: { id: string; name: string }) => (isBuiltIn(o) ? SOUND : o.id === 'none' ? 'No device' : o.name || o.id);
 
   let dialog = $state<HTMLDialogElement>();
   // the dialog follows what is inspected: shown modal (over everything; Escape closes it), or closed
   $effect(() => {
     if (!dialog) return;
-    if (output && !dialog.open) dialog.showModal();
-    else if (!output && dialog.open) dialog.close();
+    if (builtin && hasBuiltIn && !dialog.open) dialog.showModal();
+    else if (!(builtin && hasBuiltIn) && dialog.open) dialog.close();
   });
-  const close = () => (inspecting = null);
+  const close = () => (builtin = false);
 
   let confirmingReset = $state(false);
   function reset() {
     confirmingReset = false;
-    inspecting = null;
+    builtin = false;
     midi.reset();
   }
 </script>
@@ -106,19 +127,50 @@
           heardBy="the keys and MIDI learn"
           preset={DEFAULT_PRESET}
           builtIn={{ label: SOUND, rows: false }}
-          {...inspecting ? { selected: inspecting } : {}}
+          panels={midi.library.panels}
+          onpanel={(id) => ((midi.shownPanel = id), (editing = false))}
           locked={midi.locked}
           onchange={(b) => midi.changeMatrix(b)}
-          onselect={(key) => (inspecting = key)}
+          ontest={(key) => midi.testNote(slotOf(key))}
+          onpanic={(key) => midi.panicOn(slotOf(key))}
+          onbuiltin={() => (builtin = true)}
         />
-        <div class="devices" role="group" aria-label="Device settings">
-          <span>Device settings</span>
-          {#each shown.outputs as o (o.key)}
-            <button type="button" onclick={() => (inspecting = o.key)}><b>{isBuiltIn(o) ? 'BUILT-IN' : `OUT ${slotOf(o.key)}`}</b> {outLabel(o)}</button>
-          {/each}
-        </div>
         {#if midi.clocking && !midi.meter}<p class="hint" role="status">This piece has no meter, so no clock is sent.</p>{/if}
         {#if midi.warning}<p class="hint warning" role="status">{midi.warning}</p>{/if}
+        {#if midi.locked}<p class="hint">A channel per note (MPE) is off for a piece with MIDI cards: they say the channels.</p>{/if}
+      </section>
+
+      <section class="card" aria-labelledby="midi-panels">
+        <div class="bar">
+          <h4 id="midi-panels">Panels</h4>
+          <div class="tabs" role="tablist" aria-label="The panels in this setup">
+            {#each active as p (p.id)}
+              <button type="button" role="tab" aria-selected={midi.shownPanel === p.id} onclick={() => ((midi.shownPanel = p.id), (editing = false))}>{p.name}</button>
+            {/each}
+          </div>
+          <span class="grow"></span>
+          <button type="button" aria-pressed={editing} onclick={() => (editing = !editing)} disabled={!shownPanel}>{editing ? 'Done editing' : 'Edit'}</button>
+          <button type="button" onclick={() => (midi.newPanel(), (editing = true))}>New panel</button>
+          <button type="button" onclick={() => file?.click()}>Open a panel’s file…</button>
+          <button type="button" onclick={save} disabled={!runtime}>Save this panel’s file</button>
+          <input bind:this={file} type="file" accept=".json,application/json" hidden onchange={chosen} />
+        </div>
+        {#if problem}<p class="hint warning" role="alert">{problem}</p>{/if}
+        {#if editing && shownPanel}
+          <PanelEditor panel={shownPanel} onchange={(panel) => midi.editPanel(panel)} />
+          <div class="bar">
+            <span class="grow"></span><button type="button" class="danger" onclick={() => (midi.deletePanel(shownPanel.id), (editing = false))}>Delete this panel</button>
+          </div>
+        {:else if runtime && midi.shownPanel !== null}
+          {@const id = midi.shownPanel}
+          {#key runtime}
+            <PanelView {runtime} onsend={(data) => midi.played(id, data)} />
+          {/key}
+        {:else}
+          <p class="hint">
+            No panel in this setup yet: add one from the chips over the patch, then route its row to an output. Cell studio's own sound doesn't play a panel's notes (not yet).
+          </p>
+        {/if}
       </section>
 
       <section class="strip reset" aria-label="Reset">
@@ -131,14 +183,8 @@
         {/if}
       </section>
 
-      <dialog
-        class="inspect"
-        aria-label={output ? `${isBuiltIn(output) ? 'BUILT-IN' : `OUT ${slot}`}: ${outLabel(output)}` : 'Device settings'}
-        bind:this={dialog}
-        onclose={close}
-        onclick={(e) => e.target === dialog && close()}
-      >
-        {#if output && isBuiltIn(output)}
+      <dialog class="inspect" aria-label="Built-in sound" bind:this={dialog} onclose={close} onclick={(e) => e.target === dialog && close()}>
+        {#if builtin && hasBuiltIn}
           <div class="frame">
             <button type="button" class="close" aria-label="Close" onclick={close}>×</button>
             <section class="builtin" aria-labelledby="builtin-title">
@@ -158,29 +204,6 @@
               >
               <p class="hint">Removed, this setup plays MIDI only. + {SOUND} beside the patch's outputs brings it back.</p>
             </section>
-          </div>
-        {:else if output}
-          <div class="frame">
-            <button type="button" class="close" aria-label="Close" onclick={close}>×</button>
-            <DeviceInspector
-              {output}
-              {slot}
-              ports={midi.ports.outputs}
-              profile={midi.profileOf(slot)}
-              used={midi.usedOn(slot)}
-              drums={midi.rows.kit}
-              canRemove={slot <= real && (real > 1 || output.id !== 'none')}
-              onport={choose}
-              onprofile={(change) => midi.setProfile(slot, change)}
-              ontest={() => midi.testNote(slot)}
-              onpanic={() => midi.panicOn(slot)}
-              onremove={() => {
-                midi.removeOutput(slot);
-                close();
-              }}
-              {...midi.hasProfile(slot) ? { onforget: () => midi.forgetDevice(slot) } : {}}
-            />
-            {#if midi.locked}<p class="hint below">A channel per note (MPE) is off for a piece with MIDI cards: they say the channels.</p>{/if}
           </div>
         {/if}
       </dialog>
@@ -291,16 +314,17 @@
     border-radius: var(--radius);
     color: var(--text);
   }
-  .devices,
   .reset,
-  .actions {
+  .actions,
+  .bar,
+  .tabs {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
     gap: 6px 8px;
   }
-  .devices button,
   .reset button,
+  .bar button,
   .failed button {
     min-height: 34px;
     padding: 0 12px;
@@ -311,10 +335,16 @@
     font: inherit;
     cursor: pointer;
   }
-  .devices b {
-    margin-right: 4px;
-    font-size: 11px;
-    color: var(--text-muted);
+  .grow {
+    flex: 1;
+  }
+  .bar button[aria-pressed='true'],
+  .tabs button[aria-selected='true'] {
+    border-color: currentColor;
+  }
+  .bar button:disabled {
+    opacity: 0.5;
+    cursor: default;
   }
   button.quiet {
     justify-self: start;
@@ -395,9 +425,6 @@
   }
   .hint {
     margin: 0;
-  }
-  .below {
-    padding: 0 14px 12px;
   }
   .warning {
     color: var(--danger);
