@@ -13,6 +13,9 @@ export class View {
   /** The first view is choosing a piece (the library as a graph); then the piece's graph, its code, and it in time (on a
    * wide screen the graph's pane shows the graph or the time view). */
   tab = $state<Tab>('select');
+  /** The library shows its fragments' map, over its wheel (#625): kept while a fragment opened from it plays, so ◂ goes
+   * back to it. */
+  fragments = $state(false);
   readonly #wide = new MediaQuery('min-width: 900px');
   /** Tabs only on narrow screens (matches the CSS breakpoint). */
   readonly narrow = $derived(!this.#wide.current);

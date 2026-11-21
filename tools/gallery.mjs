@@ -14,6 +14,7 @@
 //   node tools/gallery.mjs keys                               the dock's on-screen keys and drum pads in each state (#255)
 //   node tools/gallery.mjs graphs                             every example's graph as the library's miniature (tools/graphs.mjs)
 //   node tools/gallery.mjs time [pieces…]                     the time view of each piece in the real app, in each state (#286)
+//   node tools/gallery.mjs browser                            the fragment browser in the real app, a phone's and a desktop's: map, cards, a fragment opened
 //   node tools/gallery.mjs sky [secs] [pieces…]              the tower layout's audible sky, playing: stills, filmstrips, flicker and lag
 //   node tools/gallery.mjs play [secs] titles…                pieces in the built app, playing: the graph and every node's and edge's state (#11)
 //   node tools/gallery.mjs shot <selector> [secs] pieces…     any element of the built app in the states asked for, with its computed styles
@@ -38,6 +39,7 @@ const SUBJECTS = [
   'labels',
   'graphs',
   'time',
+  'browser',
   'play',
   'sky',
   'shot',
@@ -71,10 +73,14 @@ for (const [name, script] of [
   await import(script);
   process.exit(process.exitCode ?? 0);
 }
-if (subject === 'time') {
+for (const [name, script] of [
+  ['time', './gallery/time.mjs'],
+  ['browser', './gallery/browser.mjs'],
+]) {
+  if (subject !== name) continue;
   process.argv = [process.argv[0], process.argv[1], ...args];
-  await import('./gallery/time.mjs');
-  process.exit(0);
+  await import(script);
+  process.exit(process.exitCode ?? 0);
 }
 const fast = args.includes('--fast') || subject !== 'wheels';
 process.argv = [process.argv[0], process.argv[1], ...args.filter((a) => a !== '--fast')];
