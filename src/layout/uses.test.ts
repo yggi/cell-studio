@@ -38,7 +38,8 @@ describe('a use line’s group (#480)', () => {
     const [kit, mode] = usesOf(r);
     expect(kit!.folded).toEqual([]);
     expect(kit!.nodes).toHaveLength(13);
-    expect(mode).toMatchObject({ id: 'diatonic', line: 2, nodes: ['cell:key', 'cell:key_tonic'], folded: ['key_mode'] });
+    // (the key's mode is a wire into the key since cells v0.27.0, yggi/cells#827, so it is drawn, not folded)
+    expect(mode).toMatchObject({ id: 'diatonic', line: 2, nodes: ['cell:key', 'cell:key_mode', 'cell:key_tonic'], folded: [] });
   });
 
   it('keys a group apart from any tags= tag, and finds it by its key', () => {

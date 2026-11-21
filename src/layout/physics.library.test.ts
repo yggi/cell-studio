@@ -52,7 +52,9 @@ describe('drawn crossings', () => {
       total += c;
       expect(c, key).toBeLessThanOrEqual(cells <= 25 ? 8 : Math.ceil(cells * 1.1));
     }
-    expect(total).toBeLessThanOrEqual(160); // the whole library (117 when this was written; 145 with five more pieces)
+    // the whole library (117 when this was written; 145 with five more pieces; 169 at cells v0.27.0, with the song in
+    // sections, the radio in sections and Electro swing's form as a selector)
+    expect(total).toBeLessThanOrEqual(175);
   });
 });
 
