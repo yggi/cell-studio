@@ -9,6 +9,8 @@ import {
   HEARD,
   activeSetup,
   hasBuiltIn,
+  channelsOf,
+  crossingFrom,
   inputRow,
   isPanelKey,
   panelKey,
@@ -143,9 +145,34 @@ export function choicesOf(routes: Routes, outputs: readonly SetupOutput[], voice
   const at = (row: string, key: string): number => {
     const c = own(routes, row);
     const v = c && own(c, key);
-    return sends(v) ? v : 0;
+    // (a set's first channel: the channel table takes one a voice on an output, the others are `withSets`')
+    const first = v === undefined ? undefined : channelsOf(v)[0];
+    return sends(first) ? first : 0;
   };
   return outputs.map((o) => ({ voices: Object.fromEntries(voices.map((v) => [v, at(v, o.key)])), kit: at(KIT, o.key) }));
+}
+
+/**
+ * A channel table with the voices and the kit the setup's routes send on several channels of one output (a crossing that
+ * is a set: webmidi v0.10): the channel table takes one channel a voice on an output, the first, so each further
+ * channel is an entry of its own, as a piece's MIDI cards make them. A one-channel crossing adds nothing.
+ */
+export function withSets(table: ChannelTable, routes: Routes | null, outputs: readonly SetupOutput[], voices: readonly string[]): ChannelTable {
+  if (!routes || table.byPiece) return table;
+  const extra: { voice: string; channel: number; port: number }[] = [];
+  const kits: { port: number; channel: number }[] = [];
+  for (const row of [...voices, KIT]) {
+    const crossings = own(routes, row);
+    if (!crossings) continue;
+    outputs.forEach((o, i) => {
+      const chs = channelsOf(own(crossings, o.key) ?? 0).filter((c) => sends(c));
+      for (const channel of chs.slice(1)) {
+        if (row === KIT) kits.push({ port: i + 1, channel });
+        else extra.push({ voice: row, channel, port: i + 1 });
+      }
+    });
+  }
+  return extra.length || kits.length ? { ...table, voices: [...table.voices, ...extra], kits: [...table.kits, ...kits] } : table;
 }
 
 /** The choices a piece's matrix from before the book makes (its title's, by output key): cells' defaults where it chose nothing. */
@@ -157,13 +184,20 @@ export const oldChoicesOf = (routes: OldRoutes | undefined, outputs: readonly Se
 
 /** A channel table as a setup's routes: each gate and voice, and the kit (`KIT`), on each output and channel it goes to. */
 export function routesOfTable(table: ChannelTable, outputs: readonly SetupOutput[]): Record<string, Record<string, Crossing>> {
-  const routes: Record<string, Record<string, Crossing>> = {};
+  // (a voice the cards put on several channels of one output is one crossing that is a set: webmidi's `crossingFrom` says it as 1 channel a bare number, 2 or more ascending)
+  const channels: Record<string, Record<string, number[]>> = {};
   const put = (row: string, port: number, ch: number) => {
     const key = outputs[port - 1]?.key;
-    if (key && !own(routes[row] ?? {}, key)) (routes[row] ??= {})[key] = ch;
+    if (key) ((channels[row] ??= {})[key] ??= []).push(ch);
   };
   for (const v of table.voices) put(v.voice, v.port, v.channel);
   for (const k of table.kits) put(KIT, k.port, k.channel);
+  const routes: Record<string, Record<string, Crossing>> = {};
+  for (const [row, byKey] of Object.entries(channels))
+    for (const [key, chs] of Object.entries(byKey)) {
+      const crossing = crossingFrom(chs);
+      if (crossing !== undefined) (routes[row] ??= {})[key] = crossing;
+    }
   return routes;
 }
 
@@ -247,7 +281,7 @@ export function lockedChange(book: SetupBook, shown: SetupBook, changed: SetupBo
   for (const row of rows)
     for (const key of keys) {
       const value = own(own(after, row) ?? {}, key);
-      if (value !== own(own(before, row) ?? {}, key)) kept = withCrossing(kept, context, row, key, value);
+      if (JSON.stringify(value) !== JSON.stringify(own(own(before, row) ?? {}, key))) kept = withCrossing(kept, context, row, key, value);
     }
   if (changed.devices !== shown.devices)
     for (const [name, profile] of Object.entries(changed.devices)) if (name && profile !== own(shown.devices, name)) kept = withProfile(kept, name, profile);
@@ -297,10 +331,17 @@ export function forwards(data: ArrayLike<number>, source: string, heard: boolean
     const crossings = own(routes, row);
     if (!crossings) continue;
     for (const [key, ch] of Object.entries(crossings)) {
-      if (ch !== AS_PLAYED && !sends(ch)) continue;
-      const bytes = Array.from(data);
-      if (ch !== AS_PLAYED) bytes[0] = (status & 0xf0) | (ch - 1);
-      out.push({ key, data: bytes });
+      // (a crossing of several channels sends once on each, ascending; as played keeps the message's own)
+      if (ch === AS_PLAYED) {
+        out.push({ key, data: Array.from(data) });
+        continue;
+      }
+      for (const c of channelsOf(ch)) {
+        if (!sends(c)) continue;
+        const bytes = Array.from(data);
+        bytes[0] = (status & 0xf0) | (c - 1);
+        out.push({ key, data: bytes });
+      }
     }
   }
   return out;

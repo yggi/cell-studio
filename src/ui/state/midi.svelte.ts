@@ -95,6 +95,7 @@ import {
   withBuiltInShown,
   withoutBuiltInCrossings,
   withContext,
+  withSets,
   withSetup,
   type OldRoutes,
   type OldStore,
@@ -317,7 +318,7 @@ export class Midi implements NoteSink {
   /** The open piece's channel table: each voice on its channels of each output, as routed (else on the first, in order), its kit members' notes. */
   readonly table = $derived.by(() => {
     const p = this.#piece;
-    return p ? channelTable(p.program, this.#choices()) : null;
+    return p ? withSets(channelTable(p.program, this.#choices()), this.#routes, this.#outputs, routable(p.program).voices) : null;
   });
 
   /**
