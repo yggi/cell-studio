@@ -1,0 +1,2 @@
+### Added
+- **Try, in the Panels card's editor** (webmidi v0.9.0): a *Try* toggle plays the panel you are editing, a press playing the control and choosing nothing, and its messages go where a played control's go: to the outputs the panel's row is routed to and to Cell studio's own sound by its Plays. It sends to real outputs, so mind a device. Turning Try off lets go of every held note. A panel not yet in the setup has no row, so Try sends nothing. Saved pieces are unchanged.
