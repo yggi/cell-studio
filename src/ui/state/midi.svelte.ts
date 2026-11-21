@@ -21,6 +21,7 @@ import {
 import {
   activeSetup,
   addOutput,
+  channelsOf,
   chooseDevice,
   ClockOut,
   DRUM_PRESETS,
@@ -777,7 +778,7 @@ export class Midi implements NoteSink {
   /** The channels routed to an output (1 the first): the open piece's voices and kit, and the inputs forwarded there on a channel of their own. */
   usedOn(port: number): number[] {
     const key = this.#outputs[port - 1]?.key;
-    const inputs = Object.entries(this.#routes ?? {}).flatMap(([row, c]) => (row.startsWith('in:') && key && (own(c, key) ?? 0) > 0 ? [own(c, key)!] : []));
+    const inputs = Object.entries(this.#routes ?? {}).flatMap(([row, c]) => (row.startsWith('in:') && key ? channelsOf(own(c, key) ?? 0) : []));
     const piece = [...(this.table?.voices ?? []).filter((v) => v.port === port).map((v) => v.channel), ...this.kitChannelsOf(port)];
     return [...new Set([...piece, ...inputs])].sort((a, b) => a - b);
   }

@@ -132,7 +132,7 @@ export function readOldStore(text: string | null): OldStore | null {
 // ---- a piece's routes, as cells' channel table reads them ----
 
 /** A crossing that sends on a channel (an input's `AS_PLAYED` on a voice's row sends nothing). */
-const sends = (c: Crossing | undefined): c is number => c !== undefined && Number.isInteger(c) && c >= 1 && c <= 16;
+const sends = (c: Crossing | undefined): c is number => typeof c === 'number' && Number.isInteger(c) && c >= 1 && c <= 16;
 
 /**
  * The choices cells' `channelTable` takes from a setup's routes for a piece: each row on each output exactly where its
