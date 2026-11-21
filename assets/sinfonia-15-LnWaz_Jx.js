@@ -1,0 +1,1 @@
+var e=new URL(`sinfonia-15-Db9VoSWv.mid`,import.meta.url).href;export{e as default};
