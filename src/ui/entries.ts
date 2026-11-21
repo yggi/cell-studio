@@ -1,5 +1,6 @@
 /**
- * The library's cards: every piece saved in this browser and every example, as the picker shows them.
+ * The library's cards: every piece saved in this browser and every example, as the picker shows them, and every
+ * fragment (the seed's and the person's own, #625), as its map shows them: one card, one details sheet, one search.
  */
 import { compilePiece } from '../compile';
 import { pieceTime, type PieceTime } from '@yggi/cells/engine/duration';
@@ -11,10 +12,11 @@ import { creditOf, loadMidiFile, MIDI_FILES, MIDI_SETS, type Credit } from '../c
 import { cellsFromMidi } from '@yggi/cells/engine/midiimport';
 import type { Miniature } from '../layout/miniature';
 import { textOf, type SavedPiece } from '../library';
+import type { CatalogueEntry } from '@yggi/cells/repository/catalogue';
 
 export interface Entry {
   readonly id: string;
-  readonly kind: 'example' | 'saved' | 'midi';
+  readonly kind: 'example' | 'saved' | 'midi' | 'fragment';
   readonly title: string;
   readonly description: string;
   readonly tags: readonly string[];
@@ -36,7 +38,31 @@ export interface Entry {
   readonly size?: number;
   /** How long it is: when it ends, or its cycle. */
   readonly time?: PieceTime;
+  /** A fragment: the library's entry (its text, facets, signature, what it takes); its tags are its facets. */
+  readonly fragment?: CatalogueEntry;
 }
+
+/** Prose as plain words: its first paragraph, links as their words, no emphasis or code marks. */
+export const firstParagraph = (prose: string): string =>
+  (
+    prose
+      .split(/\n\s*\n/)
+      .map((p) => p.trim())
+      .find((p) => p && !p.startsWith('#') && !p.startsWith('```')) ?? ''
+  )
+    .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
+    .replace(/\*\*|__|`/g, '')
+    .replace(/\s*\n\s*/g, ' ');
+
+/** A fragment's card (#625): its id for its title, its prose's first paragraph, its facets for its tags. */
+export const fragmentEntry = (e: CatalogueEntry): Entry => ({
+  id: `fragment:${e.id}`,
+  kind: 'fragment',
+  title: e.id,
+  description: firstParagraph(e.prose),
+  tags: e.facets,
+  fragment: e,
+});
 
 /** A saved piece's card: its size and length worked out from its text (a file's: its cells block). */
 export function savedEntry(p: SavedPiece): Entry {

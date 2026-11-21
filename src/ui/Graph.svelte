@@ -111,7 +111,11 @@
     onlayout,
     unsheet = 0,
     sheetHidden = false,
+    banner,
   }: {
+    /** What the page lays over the graph's top (a fragment's bar and its face, a session's): beside the toolbar where
+     * there's room, under it where not, never over the strip. */
+    banner?: import('svelte').Snippet;
     model: GraphModel;
     program: CompileResult;
     muted: ReadonlySet<string>;
@@ -777,27 +781,31 @@
       }}
     />
   {/if}
-  <div class="toolbar">
-    {#if !locked}<button class="add-cell" onclick={onadd} title="Add a cell (blank: the chromatic default)">+ cell</button>{/if}
-    <button class="forces-toggle" class:on={legendOpen} onclick={() => (legendOpen = !legendOpen)} aria-pressed={legendOpen} title="What the colours and values mean">legend</button
-    >
-    <button
-      class="forces-toggle"
-      class:on={towered}
-      onclick={() => layout.setMode(towered ? 'flow' : 'tower')}
-      aria-pressed={towered}
-      title="Lay the graph out by the frequency tower: each cell at its time scale, the sound card a strip at the right">tower layout</button
-    >
-    {#if hasSide}<button
+  <div class="top">
+    <div class="toolbar">
+      {#if !locked}<button class="add-cell" onclick={onadd} title="Add a cell (blank: the chromatic default)">+ cell</button>{/if}
+      <button class="forces-toggle" class:on={legendOpen} onclick={() => (legendOpen = !legendOpen)} aria-pressed={legendOpen} title="What the colours and values mean"
+        >legend</button
+      >
+      <button
         class="forces-toggle"
-        class:on={marginOpen}
-        onclick={() => {
-          marginOpen = !marginOpen;
-          sideFits++;
-        }}
-        aria-pressed={marginOpen}
-        title="The piece's notes and scopes, beside the graph">notes</button
-      >{/if}
+        class:on={towered}
+        onclick={() => layout.setMode(towered ? 'flow' : 'tower')}
+        aria-pressed={towered}
+        title="Lay the graph out by the frequency tower: each cell at its time scale, the sound card a strip at the right">tower layout</button
+      >
+      {#if hasSide}<button
+          class="forces-toggle"
+          class:on={marginOpen}
+          onclick={() => {
+            marginOpen = !marginOpen;
+            sideFits++;
+          }}
+          aria-pressed={marginOpen}
+          title="The piece's notes and scopes, beside the graph">notes</button
+        >{/if}
+    </div>
+    {#if banner}<div class="banner">{@render banner()}</div>{/if}
   </div>
   {#if legendOpen}
     <div class="legend-wrap"><GraphLegend program={shown.program} shifts={shown.shifts} {source} /></div>
@@ -861,8 +869,9 @@
   .graph.sky :global(.svelte-flow) {
     --xy-background-color: transparent;
   }
+  /* (clear of the flow's attribution, at its bottom right: 80 px, as the hint's own right) */
   .graph.stripped .hint {
-    right: calc(var(--strip-width) + 16px);
+    right: calc(var(--strip-width) + 80px);
   }
   .refusal {
     position: absolute;
@@ -910,13 +919,39 @@
     box-shadow: none;
     border-radius: 0;
   }
-  .toolbar {
+  /* the graph's top: its toolbar, then what the page lays there (a banner), wrapping under it on a narrow graph; left
+     of the strip, and through to the graph between them */
+  .top {
     position: absolute;
     left: var(--space-2);
+    right: var(--space-2);
     top: var(--space-2);
     z-index: 5;
     display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
     gap: var(--space-2);
+    pointer-events: none;
+  }
+  .graph.stripped .top {
+    right: calc(var(--strip-width) + var(--space-2));
+  }
+  .toolbar {
+    display: flex;
+    gap: var(--space-2);
+    pointer-events: auto;
+  }
+  .banner {
+    flex: 1 1 280px;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-2);
+  }
+  .banner > :global(*) {
+    pointer-events: auto;
+    max-width: 100%;
   }
   .forces-toggle {
     min-height: 32px;

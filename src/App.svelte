@@ -202,11 +202,68 @@
       onlayout={(l) => (view.layout = l)}
       locked={piece.midi || piece.readOnly ? () => tried++ : undefined}
       lockedHint={piece.fragment
-        ? 'A fragment of the seed library, heard alone: read only. Edit a copy to change it.'
+        ? 'A fragment, heard alone: read only. Edit a copy to change it.'
         : piece.readOnly
           ? 'The host’s section, as it plays: read only while you follow the session.'
           : undefined}
-    />
+    >
+      {#snippet banner()}
+        {#if piece.midi && !studio.conversion.phase && trying}
+          <p class="first" role="status">Convert to cells first: a MIDI file's machine is read only.</p>
+        {/if}
+        {#if studio.following}
+          <!-- a Jambot session followed (#478): its host's section, read only, turning with the host's transport; its link
+               dropped, it says so while it joins again (#482) -->
+          <div class="following">
+            <span role="status"
+              >{#if studio.session.status === 'rejoining'}The link to “{studio.session.session}” dropped: joining again…{:else if studio.heard?.before}Following “{studio.session
+                  .session}”: the host counts in{:else}Following “{studio.session.session}” · bar {(studio.heard?.bar ?? 0) +
+                  1}{/if}{#if studio.session.status === 'joined' && studio.session.rejoins.new}
+                · joined again as a new player{/if}{#if studio.heard?.unstated}
+                · no text states this section: {studio.heard.unstated}{/if}</span
+            >
+            <!-- (leaving returns to the piece you had) -->
+            <button class="unstyled" onclick={() => studio.session.leave()}>Leave</button>
+          </div>
+          {#if trying}
+            <p class="first" role="status">The host’s section is read only while you follow the session: leaving it returns to your piece.</p>
+          {/if}
+        {/if}
+        {#if piece.fragment && piece.audition}
+          <!-- a fragment heard alone (#623): where it was opened from (◂ back), what the host stood in for, a copy to edit -->
+          {@const last = studio.trail.at(-1)}
+          <div class="following fragment" role="group" aria-label="A fragment, heard alone">
+            {#if last}<button class="unstyled back" onclick={() => studio.back()} title="Back to {last.title}">◂ {last.title}</button>{:else}<button
+                class="unstyled back"
+                onclick={() => (view.tab = 'select')}
+                title="Back to the library">◂ {view.fragments ? 'Fragments' : 'Library'}</button
+              >{/if}
+            <span role="status" title={piece.audition.why}
+              >{#if piece.audition.why}Silent alone: {piece.audition.why}{:else}Heard alone{/if}</span
+            >
+            {#each piece.audition.host.filter((h) => h.fills !== null) as h (h.line)}
+              <code class="stand" title="The host stands in for {h.fills}: {h.line}">{h.fills}</code>
+            {/each}
+            <button
+              class="unstyled"
+              onclick={() => studio.openSource(piece.cells, `${piece.fragment!.id.replace('/', '-')}.cells`)}
+              title="Open its text with its host's lines as a piece of your own">Edit a copy</button
+            >
+          </div>
+          {#if trying}
+            <p class="first" role="status">A fragment of the seed library is read only: Edit a copy to change it.</p>
+          {/if}
+          <!-- (and pictured by its facet, what it reads as its controls) -->
+          <FragmentPreview />
+        {/if}
+        {#if offSaid}
+          <p class="first" role="status">{offSaid.text}</p>
+        {/if}
+        {#if piece.stale}
+          <p class="stale">Showing the last version that compiled</p>
+        {/if}
+      {/snippet}
+    </Graph>
     {#if piece.midi && !studio.conversion.phase}
       <!-- a MIDI file's machine (#390, decision 034): the cells it plays through, read only; converting it is the action -->
       <div class="hero" role="group" aria-label="A MIDI file">
@@ -216,56 +273,6 @@
           <button onclick={() => (view.tab = 'time')}>Show it in time</button>
         </div>
       </div>
-      {#if trying}
-        <p class="first" role="status">Convert to cells first: a MIDI file's machine is read only.</p>
-      {/if}
-    {/if}
-    {#if studio.following}
-      <!-- a Jambot session followed (#478): its host's section, read only, turning with the host's transport; its link
-           dropped, it says so while it joins again (#482) -->
-      <div class="following">
-        <span role="status"
-          >{#if studio.session.status === 'rejoining'}The link to “{studio.session.session}” dropped: joining again…{:else if studio.heard?.before}Following “{studio.session
-              .session}”: the host counts in{:else}Following “{studio.session.session}” · bar {(studio.heard?.bar ?? 0) +
-              1}{/if}{#if studio.session.status === 'joined' && studio.session.rejoins.new}
-            · joined again as a new player{/if}{#if studio.heard?.unstated}
-            · no text states this section: {studio.heard.unstated}{/if}</span
-        >
-        <!-- (leaving returns to the piece you had) -->
-        <button class="unstyled" onclick={() => studio.session.leave()}>Leave</button>
-      </div>
-      {#if trying}
-        <p class="first" role="status">The host’s section is read only while you follow the session: leaving it returns to your piece.</p>
-      {/if}
-    {/if}
-    {#if piece.fragment && piece.audition}
-      <!-- a fragment heard alone (#623): where it was opened from (◂ back), what the host stood in for, a copy to edit -->
-      {@const last = studio.trail.at(-1)}
-      <div class="following fragment" role="group" aria-label="A fragment, heard alone">
-        {#if last}<button class="unstyled back" onclick={() => studio.back()} title="Back to {last.title}">◂ {last.title}</button>{/if}
-        <span role="status" title={piece.audition.why}
-          >{#if piece.audition.why}{piece.fragment.id} is silent alone: {piece.audition.why}{:else}{piece.fragment.id}, heard alone{/if}</span
-        >
-        {#each piece.audition.host.filter((h) => h.fills !== null) as h (h.line)}
-          <code class="stand" title="The host stands in for {h.fills}: {h.line}">{h.fills}</code>
-        {/each}
-        <button
-          class="unstyled"
-          onclick={() => studio.openSource(piece.cells, `${piece.fragment!.id.replace('/', '-')}.cells`)}
-          title="Open its text with its host's lines as a piece of your own">Edit a copy</button
-        >
-      </div>
-      {#if trying}
-        <p class="first" role="status">A fragment of the seed library is read only: Edit a copy to change it.</p>
-      {/if}
-      <!-- (and pictured by its facet, what it reads as its controls) -->
-      <FragmentPreview />
-    {/if}
-    {#if offSaid}
-      <p class="first" role="status">{offSaid.text}</p>
-    {/if}
-    {#if piece.stale}
-      <p class="stale">Showing the last version that compiled</p>
     {/if}
     <!-- Convert to cells, watched (#390): its progress, what the frame did, its speed -->
     <ConvertStrip />
@@ -412,13 +419,8 @@
   .convert button {
     border-color: var(--accent);
   }
-  /* a try at a change in the machine: what to do first */
+  /* a try at a change in the machine: what to do first (in the graph's banner) */
   .first {
-    position: absolute;
-    top: 56px;
-    left: 50%;
-    transform: translateX(-50%);
-    z-index: 6;
     margin: 0;
     padding: 6px 14px;
     border-radius: var(--radius-pill);
@@ -426,7 +428,7 @@
     background: var(--surface);
     color: var(--text);
     font: 600 var(--text-sm) var(--font-ui);
-    white-space: nowrap;
+    text-align: center;
   }
   /* (under Shorten, as its row is: a line of the code's tools) */
   .extract-open {
@@ -852,14 +854,8 @@
   .canvas {
     position: relative;
   }
-  /* a session followed (#478): what it follows, over the graph */
+  /* a session followed (#478), or a fragment heard alone: what it is, in the graph's banner */
   .following {
-    position: absolute;
-    top: 10px;
-    left: 50%;
-    transform: translateX(-50%);
-    z-index: 5;
-    max-width: calc(100% - 32px);
     display: flex;
     align-items: center;
     gap: 10px;
@@ -904,14 +900,7 @@
     background: var(--bg);
     outline: none;
   }
-  .following ~ .stale {
-    top: 48px;
-  }
   .stale {
-    position: absolute;
-    top: 10px;
-    left: 50%;
-    transform: translateX(-50%);
     margin: 0;
     padding: 6px 12px;
     border-radius: 999px;

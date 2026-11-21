@@ -14,16 +14,26 @@ import { readFrom } from '@yggi/cells/engine/parser/use';
 /** The facets the library names, in the order its entries first name them: the order a facet's colour is read in. */
 export const FACETS: readonly string[] = [...new Set(catalogue().flatMap((e) => e.facets))];
 
-let taken: Map<string, number> | undefined;
-/** How many pieces (examples) and fragments take each id, counted once, the first time it is asked. */
-function takenBy(id: string): number {
+let taken: Map<string, { pieces: string[]; fragments: string[] }> | undefined;
+/**
+ * What takes an id, the first time it is asked: the pieces (examples, by key) and the seed's fragments (by id) whose
+ * `from` lines name it, each once.
+ */
+export function takersOf(id: string): { readonly pieces: readonly string[]; readonly fragments: readonly string[] } {
   if (!taken) {
     taken = new Map();
-    const texts = [...Object.values(EXAMPLES).map((e) => e.source), ...catalogue().map((e) => e.text)];
-    for (const t of texts) for (const ref of new Set(references(t).map((r) => r.id))) taken.set(ref, (taken.get(ref) ?? 0) + 1);
+    const at = (ref: string) => taken!.get(ref) ?? taken!.set(ref, { pieces: [], fragments: [] }).get(ref)!;
+    for (const [key, e] of Object.entries(EXAMPLES)) for (const ref of new Set(references(e.source).map((r) => r.id))) at(ref).pieces.push(key);
+    for (const e of catalogue()) for (const ref of new Set(references(e.text).map((r) => r.id))) at(ref).fragments.push(e.id);
   }
-  return taken.get(id) ?? 0;
+  return taken.get(id) ?? { pieces: [], fragments: [] };
 }
+const takenBy = (id: string) => takersOf(id).pieces.length + takersOf(id).fragments.length;
+
+/** The ids a text takes (its `from` lines'), each once, in the order written. */
+export const takenIn = (text: string): string[] => [...new Set(references(text).map((r) => r.id))];
+/** The ids an example takes, by its key (none for a key that is no example). */
+export const exampleTakes = (key: string): string[] => takenIn((EXAMPLES as Readonly<Record<string, { readonly source: string }>>)[key]?.source ?? '');
 
 /** A fragment as its hover card shows it; null for an id the library doesn't hold. */
 export interface FragmentCard {
