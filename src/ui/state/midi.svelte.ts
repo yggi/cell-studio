@@ -21,6 +21,7 @@ import {
 import {
   activeSetup,
   addOutput,
+  channelsOf,
   chooseDevice,
   ClockOut,
   DRUM_PRESETS,
@@ -94,6 +95,7 @@ import {
   withBuiltInShown,
   withoutBuiltInCrossings,
   withContext,
+  withSets,
   withSetup,
   type OldRoutes,
   type OldStore,
@@ -316,7 +318,7 @@ export class Midi implements NoteSink {
   /** The open piece's channel table: each voice on its channels of each output, as routed (else on the first, in order), its kit members' notes. */
   readonly table = $derived.by(() => {
     const p = this.#piece;
-    return p ? channelTable(p.program, this.#choices()) : null;
+    return p ? withSets(channelTable(p.program, this.#choices()), this.#routes, this.#outputs, routable(p.program).voices) : null;
   });
 
   /**
@@ -777,7 +779,7 @@ export class Midi implements NoteSink {
   /** The channels routed to an output (1 the first): the open piece's voices and kit, and the inputs forwarded there on a channel of their own. */
   usedOn(port: number): number[] {
     const key = this.#outputs[port - 1]?.key;
-    const inputs = Object.entries(this.#routes ?? {}).flatMap(([row, c]) => (row.startsWith('in:') && key && (own(c, key) ?? 0) > 0 ? [own(c, key)!] : []));
+    const inputs = Object.entries(this.#routes ?? {}).flatMap(([row, c]) => (row.startsWith('in:') && key ? channelsOf(own(c, key) ?? 0) : []));
     const piece = [...(this.table?.voices ?? []).filter((v) => v.port === port).map((v) => v.channel), ...this.kitChannelsOf(port)];
     return [...new Set([...piece, ...inputs])].sort((a, b) => a - b);
   }

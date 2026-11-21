@@ -22,6 +22,7 @@ import {
   panelKey,
   panelsOf,
   LINK_RUNS,
+  channelsOf,
   probeBytes,
   withPanelActive,
   type SetupBook,
@@ -1540,6 +1541,106 @@ describe('Midi: control panels', () => {
       expect(panelsOf(keptSetup())).toEqual(['play']);
       expect(plays()[panelKey('play')]).toBe('default');
     });
+  });
+});
+
+describe('Midi: a voice on several channels of one output (a piece’s MIDI cards, webmidi v0.10)', () => {
+  const TWO = `&bar scan(1 1 1 1) step=2\n&bass step=4n 0\n&sub loop=55\n&far map=midi [&bass * &sub] ~ [&bass * &sub]`;
+  const ONE = `&bar scan(1 1 1 1) step=2\n&bass step=4n 0\n&sub loop=55\n&far map=midi [&bass * &sub]`;
+  async function cards(source: string, title: string) {
+    const out = fakePort('out-1', 'Circuit');
+    installMidi(fakeAccess([fakeInput('in-1', 'Keys')], [out]));
+    const midi = await made();
+    await midi.connect();
+    midi.chooseOutput('out-1');
+    const program = compilePiece(source);
+    midi.attach({ sink: null, internal: true }, { program, title });
+    return { midi, out, program };
+  }
+
+  it('shows the voice as one crossing that is a set, [1, 3], and keeps the piece’s own rows out of the setup', async () => {
+    const { midi } = await cards(TWO, 'Two');
+    expect(midi.locked).toBe(true);
+    expect(activeSetup(midi.matrixBook).routes['piece:Two']!.sub?.o1).toEqual([1, 3]);
+    midi.changeMatrix(withPlays(midi.matrixBook, 'in:Keys', 'default'));
+    expect(keptSetup().routes['piece:Two']?.sub).toBeUndefined();
+  });
+
+  it('sends a note of that voice twice, once on each channel, ascending (the bytes)', async () => {
+    const { midi, out, program } = await cards(TWO, 'Two');
+    const p = plan(program, codeShifts(program));
+    midi.play(fakeTone(10), retime(windowAt(p, 0, 1), 10, 1).events, 11);
+    const ons = out.sent.filter((m) => (m.data[0]! & 0xf0) === 0x90).map((m) => [m.data[0]! & 0x0f, m.data[1]!]);
+    expect(ons.length).toBeGreaterThan(0);
+    expect(ons.length % 2).toBe(0);
+    for (let i = 0; i < ons.length; i += 2)
+      expect([ons[i], ons[i + 1]]).toEqual([
+        [0, ons[i]![1]],
+        [2, ons[i]![1]],
+      ]);
+  });
+
+  it('a piece with one channel per voice shows a bare number and sends as it did', async () => {
+    const { midi, out, program } = await cards(ONE, 'One');
+    expect(activeSetup(midi.matrixBook).routes['piece:One']!.sub?.o1).toBe(1);
+    const p = plan(program, codeShifts(program));
+    midi.play(fakeTone(10), retime(windowAt(p, 0, 1), 10, 1).events, 11);
+    expect(new Set(out.sent.filter((m) => (m.data[0]! & 0xf0) === 0x90).map((m) => m.data[0]! & 0x0f))).toEqual(new Set([0]));
+  });
+
+  it("shows, for every example with MIDI cards, each voice's channels on each output as the channel table has them", async () => {
+    const withCards = Object.entries(EXAMPLES).filter(([, e]) => /map=midi/.test(e.source));
+    expect(withCards.length).toBeGreaterThan(0);
+    for (const [name, example] of withCards) {
+      const { midi } = await cards(example.source, name);
+      const table = midi.table!;
+      const shown = activeSetup(midi.matrixBook).routes[`piece:${name}`] ?? {};
+      for (const v of new Set(table.voices.map((x) => `${x.voice}|${x.port}`))) {
+        const [voice, port] = v.split('|');
+        const key = midi.columns[Number(port) - 1]?.key;
+        const want = table.voices
+          .filter((x) => x.voice === voice && String(x.port) === port)
+          .map((x) => x.channel)
+          .sort((a, b) => a - b);
+        if (key) expect(channelsOf(shown[voice!]?.[key] ?? 0), `${name}: ${voice} on output ${port}`).toEqual([...new Set(want)]);
+      }
+    }
+  });
+
+  it('sends a voice of a piece without cards on every channel of a set the person chose, and a kit too', async () => {
+    const out = fakePort('out-1', 'Circuit');
+    installMidi(fakeAccess([], [out]));
+    const midi = await made();
+    await midi.connect();
+    midi.chooseOutput('out-1');
+    const program = compilePiece(EXAMPLES.sailor.source);
+    midi.attach({ sink: null, internal: true }, { program, title: 'Sailor' });
+    midi.changeMatrix(withCrossing(midi.matrixBook, 'piece:Sailor', 'fiddle', 'o1', [3, 1]));
+    const p = plan(program, codeShifts(program));
+    midi.play(fakeTone(10), retime(windowAt(p, 0, 1), 10, 1).events, 11);
+    const ons = (voiceChannels: number[]) => out.sent.filter((m) => (m.data[0]! & 0xf0) === 0x90 && voiceChannels.includes(m.data[0]! & 0x0f));
+    // (the fiddle: on 1 and 3, a note on each, the bass still on 2)
+    expect(ons([0]).map((m) => m.data[1])).toEqual(ons([2]).map((m) => m.data[1]));
+    expect(ons([0]).length).toBeGreaterThan(0);
+    expect(ons([1]).length).toBeGreaterThan(0);
+  });
+
+  it("forwards an input's message on a row crossed with a set once on each channel, ascending", async () => {
+    const out = fakePort('out-1', 'Circuit');
+    const keys = fakeInput('in-1', 'Keys');
+    installMidi(fakeAccess([keys], [out]));
+    const midi = await made();
+    await midi.connect();
+    midi.chooseOutput('out-1');
+    midi.attach({ sink: null, internal: true }, { program: compilePiece(EXAMPLES.sailor.source), title: 'Sailor' });
+    midi.changeMatrix(withCrossing(midi.matrixBook, 'piece:Sailor', 'in:Keys', 'o1', [3, 1]));
+    out.sent = [];
+    keys.play([0x90, 60, 100]);
+    expect(out.sent.map((m) => m.data)).toEqual([
+      [0x90, 60, 100],
+      [0x92, 60, 100],
+    ]);
+    expect(activeSetup(midi.book).routes['piece:Sailor']!['in:Keys']).toEqual({ o1: [1, 3] });
   });
 });
 
