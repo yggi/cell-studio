@@ -39,6 +39,8 @@
   const active = $derived(panelsOf(shown).flatMap((id) => panelOf(midi.library, id) ?? []));
   const runtime = $derived(midi.runtimeOf(midi.shownPanel));
   const shownPanel = $derived(midi.shownPanel === null ? undefined : panelOf(midi.library, midi.shownPanel));
+  // what a panel's controls send, played or tried in the editor: one path, `Midi.played`, to the outputs its row crosses and the built-in by its Plays
+  const sendOf = (id: string) => (data: number[]) => midi.played(id, data);
   let editing = $state(false);
   let problem = $state<string | null>(null);
   let file = $state<HTMLInputElement>();
@@ -158,14 +160,13 @@
         </div>
         {#if problem}<p class="hint warning" role="alert">{problem}</p>{/if}
         {#if editing && shownPanel}
-          <PanelEditor panel={shownPanel} onchange={(panel) => midi.editPanel(panel)} />
+          <PanelEditor panel={shownPanel} onchange={(panel) => midi.editPanel(panel)} onsend={sendOf(shownPanel.id)} />
           <div class="bar">
             <span class="grow"></span><button type="button" class="danger" onclick={() => (midi.deletePanel(shownPanel.id), (editing = false))}>Delete this panel</button>
           </div>
         {:else if runtime && midi.shownPanel !== null}
-          {@const id = midi.shownPanel}
           {#key runtime}
-            <PanelView {runtime} onsend={(data) => midi.played(id, data)} />
+            <PanelView {runtime} onsend={sendOf(midi.shownPanel)} />
           {/key}
         {:else}
           <p class="hint">No panel in this setup yet: add one from the chips over the patch, then route its row to an output.</p>

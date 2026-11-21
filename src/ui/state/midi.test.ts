@@ -26,7 +26,7 @@ import {
   withPanelActive,
   type SetupBook,
 } from '@yggi/webmidi/core';
-import { BINDING_KINDS, type Panel } from '@yggi/webmidi/panels';
+import { BINDING_KINDS, PanelRuntime, type Panel } from '@yggi/webmidi/panels';
 import type { NoteSink } from '../../audio/player';
 import { plan, type Played } from '@yggi/cells/engine/realize';
 import { codeShifts } from '@yggi/cells/engine/program';
@@ -1540,6 +1540,68 @@ describe('Midi: control panels', () => {
       expect(panelsOf(keptSetup())).toEqual(['play']);
       expect(plays()[panelKey('play')]).toBe('default');
     });
+  });
+});
+
+describe('Midi: trying a panel in its editor', () => {
+  // the editor's Try plays the panel on a runtime of its own (PanelView given a `panel`), its `onsend` the same `Midi.played` the Panels card's PanelView has
+  const TRY: Panel = {
+    id: 't',
+    name: 'Try',
+    children: [
+      { type: 'button', id: 'b', label: 'B', bind: [{ kind: 'note', number: 60, channel: 3 }] },
+      { type: 'knob', id: 'k', label: 'K', bind: [{ kind: 'cc', number: 7, channel: 3 }] },
+    ],
+  };
+  async function rig(active = true) {
+    const out = fakePort('out-1', 'Circuit');
+    installMidi(fakeAccess([], [out]));
+    const midi = await made();
+    await midi.connect();
+    midi.chooseOutput('out-1');
+    midi.attach({ sink: null, internal: true }, { program: compilePiece(EXAMPLES.sailor.source), title: 'Sailor' });
+    midi.editPanel(TRY);
+    if (active) {
+      midi.changeMatrix(withPanelActive(midi.matrixBook, 't', true));
+      midi.changeMatrix(withCrossing(midi.matrixBook, 'piece:Sailor', panelKey('t'), 'o1', AS_PLAYED));
+    }
+    out.sent = [];
+    return { midi, out };
+  }
+
+  it("sends a tried control's bytes where a played one's go: a note and a control change", async () => {
+    const { midi, out } = await rig();
+    const played = midi.runtimeOf('t')!;
+    played.move('b', { x: 1 }).forEach((m) => midi.played('t', m));
+    played.move('k', { x: 1 }).forEach((m) => midi.played('t', m));
+    const fromPlayed = out.sent.map((m) => m.data);
+    expect(fromPlayed).toEqual([
+      [0x92, 60, 127],
+      [0xb2, 7, 127],
+    ]);
+    out.sent = [];
+    const tried = new PanelRuntime(TRY);
+    tried.move('b', { x: 1 }).forEach((m) => midi.played('t', m));
+    tried.move('k', { x: 1 }).forEach((m) => midi.played('t', m));
+    expect(out.sent.map((m) => m.data)).toEqual(fromPlayed);
+  });
+
+  it('lets go of the held notes when Try is turned off: the editor calls silence, and the outputs see the note-offs', async () => {
+    const { midi, out } = await rig();
+    const tried = new PanelRuntime(TRY);
+    tried.move('b', { x: 1 }).forEach((m) => midi.played('t', m));
+    out.sent = [];
+    tried.silence().forEach((m) => midi.played('t', m));
+    expect(out.sent.map((m) => m.data)).toEqual([[0x82, 60, 0]]);
+  });
+
+  it('sends nothing for a panel that is not in the setup (it has no row), and nothing before Try sends', async () => {
+    const { midi, out } = await rig(false);
+    const tried = new PanelRuntime(TRY);
+    tried.move('b', { x: 1 }).forEach((m) => midi.played('t', m));
+    tried.move('k', { x: 1 }).forEach((m) => midi.played('t', m));
+    tried.silence().forEach((m) => midi.played('t', m));
+    expect(out.sent).toEqual([]);
   });
 });
 
