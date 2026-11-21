@@ -1,0 +1,2 @@
+### Changed
+- **The language moves to v0.27.0** ([its changelog](https://github.com/yggi/cells/blob/main/CHANGELOG.md)): the example *Radio* plays in sections, the song form its style finds (its sound changes on purpose), and a new example, *A song in sections*, plays a verse–chorus song through the default band; Electro swing writes its form once and plays the same notes. The language's API gains entry points by role (`@yggi/cells/edit`, `/midi`, `/inspect`, `/library`, `/repository`, `/time`), and a plugin-fragment may refuse a fill. No saved piece plays differently.

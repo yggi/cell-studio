@@ -665,6 +665,13 @@ describe('every name written is one wire carrying the transform it writes, and e
         const tapping = (x: (typeof into & object) | undefined) => !!x?.step?.tap && x.step.driver === nameOf(e.from);
         if (e.port === 'step' && (tapping(into) || [...(program.sections ?? [])].some(([b, t]) => t === nameOf(e.to) && tapping(program.cells.get(b))))) return [];
         if (e.port === 'mix' && into?.mix?.some((b) => gateOf(b.voice.name) && program.cells.get(b.voice.name)!.gate!.receivers.includes(nameOf(e.from)))) return [];
+        // (a gate spliced into a line goes in as its voices too, as into a mix: Electro swing's `&players` selector over
+        // its gates, cells v0.27.0, a wire from each voice a spliced gate plays into the line)
+        const splicedVoice = into?.units.some((u) => u.atom.kind === 'ref' && !!program.cells.get(u.atom.name)?.gate?.receivers.includes(nameOf(e.from)));
+        if (e.port === 'braid' && splicedVoice) return [];
+        // (an argument passed into a fragment's slot, `* from band(…, style=&style)`: written on the from line, into a cell
+        // of the fragment's own, cells v0.27.0)
+        if (into?.lambda) return [];
         // (the drums' kit: a groove's one wire into it, the names it writes; and its one wire into a mix a groove is in)
         const groove = (n: string) => program.cells.get(n)?.over === 'kit:voices';
         if (nameOf(e.from) === 'kit:voices' && ((e.port === 'over' && groove(nameOf(e.to))) || (e.port === 'mix' && into?.mix?.some((b) => groove(b.voice.name))))) return [];
