@@ -10,7 +10,7 @@
    */
   import type { Snippet } from 'svelte';
   import { MediaQuery } from 'svelte/reactivity';
-  import { trap } from './attach';
+  import { portal as toBody, trap } from './attach';
 
   let {
     label,
@@ -19,6 +19,7 @@
     hidden = false,
     layer = 40,
     focus = 'self',
+    portal = false,
     class: className = '',
     header,
     children,
@@ -32,6 +33,8 @@
     layer?: number;
     /** Where the focus goes when it opens, unless a control is marked autofocus (attach.ts `trap`). */
     focus?: string | 'self';
+    /** Laid over the whole page (moved to its body, `attach.ts`), not within the view it opens from. */
+    portal?: boolean;
     class?: string;
     /** What the header shows left of the Close button (a title, a name to edit). */
     header?: Snippet;
@@ -42,13 +45,16 @@
   // (a side sheet on a wide screen is a pane: the rest stays live beside it)
   const pane = $derived(side && wide.current);
   function onkeydown(e: KeyboardEvent) {
-    if (e.key === 'Escape' && !hidden && !e.defaultPrevented) onclose();
+    if (e.key !== 'Escape' || hidden || e.defaultPrevented) return;
+    // (said: what's under it doesn't close too)
+    e.preventDefault();
+    onclose();
   }
 </script>
 
 <svelte:window {onkeydown} />
 
-{#if !pane}<div class="backdrop" style:z-index={layer} onclick={onclose} role="presentation"></div>{/if}
+{#if !pane}<div class="backdrop" style:z-index={layer} onclick={onclose} role="presentation" {@attach portal ? toBody : undefined}></div>{/if}
 <div
   class={['bottom-sheet', 'sheet', pane && 'pane', className]}
   hidden={pane && hidden}
@@ -58,6 +64,7 @@
   aria-modal={pane ? undefined : 'true'}
   tabindex="-1"
   {@attach pane ? undefined : trap({ onescape: () => onclose(), focus })}
+  {@attach portal && !pane ? toBody : undefined}
 >
   {#if header}
     <header>

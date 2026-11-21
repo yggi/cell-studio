@@ -2,18 +2,20 @@
   /**
    * Choosing a piece: every example and every piece saved in this browser, as
    * cards with their graph in miniature (CardGrid), filtered by tag (TagFilters) and by words, or the library as a
-   * graph, a piece's card opened from it (PieceDetail). Opening and saving files, and saving here, live at the top.
+   * graph, a piece's card opened from it (Detail); over the graph, the fragments' map (#625), a fragment's card opened from
+   * it the same way. Opening and saving files, and saving here, live at the top.
    */
   import LibraryGraph from './LibraryGraph.svelte';
   import LobbyCell from './LobbyCell.svelte';
   import CardGrid from './picker/CardGrid.svelte';
-  import PieceDetail from './picker/PieceDetail.svelte';
+  import Detail from './picker/Detail.svelte';
   import TagFilters from './picker/TagFilters.svelte';
   import { tagColours } from './tags';
   import { MIDI_FILE } from '@yggi/cells/engine/tags';
   import { noteColour } from './theme';
   import type { LibraryLayout } from '../layout/library';
-  import { FILTER_KINDS, matches, type Entry, type FilterKind } from './entries';
+  import { FILTER_KINDS, fragmentEntry, matches, type Entry, type FilterKind } from './entries';
+  import { mine } from '../mine.svelte';
   import { onDestroy, untrack } from 'svelte';
   import { prefersReducedMotion } from 'svelte/motion';
 
@@ -32,8 +34,18 @@
   const current = $derived(library.currentId);
   const message = $derived(studio.view.message);
   const onpick = (id: string) => studio.pick(id);
-  // (the fragment map open over the library's graph, #625)
-  let mapOpen = $state(false);
+  // (the fragment map open over the library's graph, #625: kept while a fragment opened from it plays, ◂ back to it)
+  const screen = studio.view;
+  // every card: the pieces', and the fragments' (the seed's and the person's own), by id
+  const fragments = $derived(mine.entries.map(fragmentEntry));
+  const byId = $derived(new Map([...entries, ...fragments].map((e) => [e.id, e])));
+  const lookup = (id: string) => byId.get(id);
+  // the facet the map is filtered by (a fragment's card's facet chip sets it)
+  let facet = $state<string | null>(null);
+  const onplay = async (id: string) => {
+    await studio.pick(id);
+    if (studio.library.anyOpen && !studio.playback.playing) void studio.playback.toggle();
+  };
   const onclose = () => (studio.view.tab = 'graph');
   const onremove = (id: string) => library.remove(id);
 
@@ -59,6 +71,12 @@
   let refit = $state(0);
   // a tag chosen from a piece's rim: the details close, the graph frames it all
   function pickTag(t: string) {
+    // (a fragment's tag is a facet: the map's filter)
+    if (detail?.kind === 'fragment') {
+      facet = facet === t ? null : t;
+      detail = null;
+      return;
+    }
     tag = tag === t ? null : t;
     detail = null;
     if (view === 'graph') refit++;
@@ -98,8 +116,9 @@
   const matching = $derived(new Set(entries.filter((e) => matches(e, words)).map((e) => e.id)));
 
   function onkeydown(e: KeyboardEvent) {
-    if (e.key !== 'Escape') return;
+    if (e.key !== 'Escape' || e.defaultPrevented) return;
     if (detail) detail = null;
+    else if (screen.fragments && screen.tab === 'select') screen.fragments = false;
     else if (!embedded) onclose();
   }
 </script>
@@ -154,14 +173,17 @@
         top={embedded ? topHeight : 0}
         {refit}
         onopen={(e) => (detail = e)}
-        onfragments={() => (mapOpen = true)}
+        onfragments={() => (screen.fragments = true)}
       />
-      {#if mapOpen}
-        <!-- the fragment map (#625), over the wheel: ◂ back to it; its own chunk, fetched on first open -->
+      {#if screen.fragments}
+        <!-- the fragment map (#625), over the wheel: ◂ back to it; a node tapped, its card; its own chunk, fetched on first open -->
         {#await import('./FragmentMap.svelte') then m}<m.default
-            onfragment={(id) => ((mapOpen = false), onpick(`fragment:${id}`))}
-            onpiece={(key) => ((mapOpen = false), onpick(`example:${key}`))}
-            onclose={() => (mapOpen = false)}
+            bind:query
+            bind:facet
+            selected={detail?.id ?? null}
+            {lookup}
+            onopen={(id) => (detail = lookup(id) ?? null)}
+            onclose={() => (screen.fragments = false)}
           />{/await}
       {/if}
     {:else}
@@ -194,7 +216,19 @@
   <!-- a piece's card, opened from the graph -->
   <!-- (a keyed each over zero or one: closing it never reads a card that's gone) -->
   {#each detail ? [detail] : [] as d (d.id)}
-    <PieceDetail entry={d} {colours} {current} {tag} onclose={() => (detail = null)} {onpick} {onremove} onpicktag={pickTag} />
+    <Detail
+      entry={d}
+      {colours}
+      {current}
+      tag={d.kind === 'fragment' ? facet : tag}
+      onclose={() => (detail = null)}
+      {onpick}
+      {onplay}
+      {onremove}
+      onpicktag={pickTag}
+      onentry={(id) => (detail = lookup(id) ?? detail)}
+      {lookup}
+    />
   {/each}
 </div>
 

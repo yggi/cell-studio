@@ -138,3 +138,12 @@ export function onScreen(on: (visible: boolean) => void): Attachment<Element> {
     return () => watch.disconnect();
   };
 }
+
+/**
+ * Moves an element to the end of the page's body while it is there: out of its parent's stacking context, so a sheet
+ * opened inside a view (the library's) sits over what the page lays over that view (a phone's tabs).
+ */
+export const portal: Attachment<HTMLElement> = (node) => {
+  document.body.appendChild(node);
+  return () => node.remove();
+};

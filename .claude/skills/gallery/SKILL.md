@@ -1,6 +1,6 @@
 ---
 name: gallery
-description: Mock up what Cell studio's graph draws and take pictures of it, as contact sheets - every kind of wheel (cell glyphs, spectrum, wave, scope, sun, turntables, petals, sheets, library) and every kind of edge (by port: braid, over, step, mix, voice, attributes, about; belts, a meter's net) in each state, the golden reference graph (one real graph with all of them), plus design mock-ups; any element of the built app in the states asked for (hover, focus, a value typed) with its computed styles; and two runs paired as one before/after sheet. Use when asked for a contact sheet, a visual pass, a screenshot of how something is drawn, a before/after of a drawing or style change, a check of what the browser computes for a component, or to try a design option side by side.
+description: Mock up what Cell studio's graph draws and take pictures of it, as contact sheets - the fragment browser in the real app at a phone's size and a desktop's (map, cards, a fragment opened, with pinch, overlap and filter measured), every kind of wheel (cell glyphs, spectrum, wave, scope, sun, turntables, petals, sheets, library) and every kind of edge (by port: braid, over, step, mix, voice, attributes, about; belts, a meter's net) in each state, the golden reference graph (one real graph with all of them), plus design mock-ups; any element of the built app in the states asked for (hover, focus, a value typed) with its computed styles; and two runs paired as one before/after sheet. Use when asked for a contact sheet, a visual pass, a screenshot of how something is drawn, a before/after of a drawing or style change, a check of what the browser computes for a component, or to try a design option side by side.
 ---
 
 # Gallery
@@ -27,6 +27,7 @@ This skill pictures what the graph draws. Its siblings picture other things, so 
 | `keys` | the dock's on-screen keyboard and drum pads (#255) in each state: at rest, scale dots, keys held, pads held and glowing, a phone's width (`tools/gallery/keys/Sheet.svelte`) | fast |
 | `graphs` | every example's graph as the library's miniature draws it, with its numbers from the layout's baseline (`tools/graphs.mjs`; `OUT` default `shots/graphs/`) | fast |
 | `sky` | the tower layout's audible sky (`src/ui/TowerSky.svelte`) in the built app, playing, over pieces of every kind (an arrangement, dance, ambient, a fugue, a canon, a fast break, acid, jazz, a loop, one tone): the graph, a close-up over the audible, a filmstrip of it, the sky alone; and numbers, `flicker` (how much it changes from one 50 ms sample to the next, for its brightness), `lagPx` (how far the sky is drawn from where the graph is while panned and zoomed) (`tools/gallery/sky.mjs`; `OUT` default `shots/sky/`) | built app, ~30 s a piece |
+| `browser` | the fragment browser in the real app (vite's dev server, the working tree), at a phone's size (touch) and a desktop's: the library's wheel, the map (at rest, zoomed by a pinch or a wheel, filtered), a piece's card and each facet's fragment's card from it, each fragment opened; and measured in `browser.json`: the page's own zoom after a pinch (`pinch`, 1 = the view kept it), whether the map zoomed itself (`zoomed`), the visible controls whose boxes cross (`overlaps`), and whether a fragment the filter dims opens when tapped (`filtered`) (`tools/gallery/browser.mjs`; `OUT` default `shots/browser/`, `SIZES=phone,wide`, `FACETS=rhythm,harmony`) | real app, ~1 min a size |
 | `time` | the time view (`src/ui/TimeView.svelte`, #286) of each piece in the real app, in each state: `mix` (the default layers), `keys` (the scalogram on new pitch classes), `sound` (waterfall and waveform), `zoom` (8× in), `patterns` (motifs at two time scales boxed, foldings listed), `phone` (`tools/gallery/time.mjs`; `OUT` default `shots/time/`, `STATES=mix,keys`; default pieces Hypercell, Pop, Korobeiniki, 5 to 12, Pachelbel) | real app, ~1 min a piece |
 
 A piece in the built app, playing: `node tools/gallery.mjs play 3 "Sound on Tape"` (builds first; `DIST=` another build) keeps a screenshot of the graph and each node's and edge's drawn state as JSON, in `OUT` (default `shots/play/`).
@@ -73,6 +74,19 @@ SIZES=32,44,64 STOPPED=1 OUT=shots/fast-before node tools/gallery.mjs wheels --f
 Before / after: run it on the base commit (`git stash`) with `OUT=shots/<subject>-before`, then on the change; the
 tiles pair up by name. Show both in the PR as the "how verified" of a visual change. Open the harness yourself with
 `npx vite` and `/tools/gallery/harness.html?subject=edges&t=3&only=hypercell`.
+
+## The fragment browser (`browser`)
+`FACETS=rhythm,harmony,form node tools/gallery.mjs browser` walks what a person does with the library's fragments, at
+a phone's size (390 × 844, touch) and a desktop's: opens the fragments cell, the map, pinches it (a phone: two touch
+points moving apart, through CDP, as a hand; a desktop: the wheel), filters it by a facet and taps a fragment the
+filter dimmed where it is drawn, opens a piece's card from the map, then each facet's first fragment: its card, then
+Open. `tiles/<size>-<state>.png` (`library`, `map`, `map-zoomed`, `map-filtered`, `details-piece`, `details-<facet>`,
+`fragment-<facet>`, and `filtered-opened` only when the bug is back). Read `browser.json` first: `pinch` must stay 1
+(more is the page zoomed with no way back), `filtered.opened` false, `zoomed` true. `overlaps` lists the boxes of
+visible controls that cross, by their labels, for each picture: noise on the library's wheel (its pills crowd by
+design), but on a card or an opened fragment each line is a collision to look at in its tile. A new screen of the
+browser: a step in the script and a tile; a new measure: a field of `browser.json`, said here. Before / after:
+`OUT=shots/browser-before` on the base (`git stash`), then `node tools/gallery.mjs pair shots/browser-before shots/browser`.
 
 ## The sky (`sky`)
 `node tools/gallery.mjs sky 15 Hypercell Pachelbel "A tone"` (builds first; `DIST=` another build, `ZOOMS=` wheel notches for the
