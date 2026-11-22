@@ -146,8 +146,16 @@ describe('the frame of a bar a host sent', () => {
     ])
       expect(frameOf(without(path)), path.join('.')).toBeNull();
     expect(frameOf(without(['swing', 'level'], '4n'))).toBeNull();
-    expect(frameOf(without(['plan', 'section', 'type'], 'chorus'))).toBeNull();
+    expect(frameOf(without(['plan', 'section', 'type'], 'coda'))).toBeNull();
     expect(frameOf(without(['plan', 'meter', 'heights'], [2, 0]))).toBeNull();
+  });
+
+  it.each(['verse', 'chorus', 'outro'] as const)('…and reads a section of the kind %s, in a song or not (session minor 11)', (kind) => {
+    const bar = structuredClone(sent) as unknown as { bar: { plan: { section: Record<string, unknown> } } };
+    bar.bar.plan.section.type = kind;
+    expect(frameOf(bar as unknown as SentBar)?.section).toBe(kind);
+    bar.bar.plan.section.song = { form: 'verse-chorus', at: 1, of: 4 };
+    expect(frameOf(bar as unknown as SentBar)?.section).toBe(kind);
   });
 
   it('…and is the same with its style’s mood (session minor 9) or without it: cells’ feel reads no mood, so it is kept and not heard', () => {

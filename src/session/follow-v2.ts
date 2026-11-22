@@ -134,7 +134,8 @@ function frameOf(conduct: Scored['conducts'][number], score: ReadScore): FeelFra
     seed: conduct.seed,
     bar: conduct.bar,
     groups: score.framing.groups,
-    section: score.section,
+    // (a cast until a cells tag carries yggi/cells#851, which grows the feel's `SectionType` to the nine: music-commons#76)
+    section: score.section as FeelFrame['section'],
     style: { entropy: conduct.entropy, artic: style.artic, sync: style.sync },
     swing: score.framing.swing,
     energy,

@@ -45,7 +45,8 @@ export interface Followed<T extends Stating = SectionText> {
 
 export const NOTHING_FOLLOWED: Followed = { starts: new Map(), frames: new Map(), texts: [], finale: null };
 
-const SECTIONS: ReadonlySet<string> = new Set(['intro', 'groove', 'bridge', 'build', 'drop', 'breakdown']);
+/** The nine kinds a section may be: the six, and a song form's verse, chorus and outro (session v1 minor 11, protocol 24). */
+const SECTIONS: ReadonlySet<string> = new Set(['intro', 'groove', 'bridge', 'build', 'drop', 'breakdown', 'verse', 'chorus', 'outro']);
 const isObject = (v: unknown): v is Readonly<Record<string, unknown>> => typeof v === 'object' && v !== null && !Array.isArray(v);
 const isNumber = (v: unknown): v is number => Number.isFinite(v);
 
@@ -71,6 +72,8 @@ export function frameOf({ bar: b }: SentBar): FeelFrame | null {
     seed: b.seed as number,
     bar: b.bar as number,
     groups: (heights as number[]).map((h, i) => ((heights[i + 1] as number | undefined) ?? (cycle as number)) - h),
+    // (a cast until a cells tag carries yggi/cells#851, which grows the feel's `SectionType` to the nine; the feel plays
+    // verse, chorus and outro as any section but a breakdown, music-commons#76, so no frame plays differently)
     section: type as SectionType,
     style: { entropy: style.entropy as number, artic: style.artic as number, sync: style.sync as number },
     swing: { level: swing.level, share: swing.share as number },
