@@ -49,12 +49,13 @@ describe('references in the code view', () => {
     expect(n).toBeGreaterThan(100);
   });
 
-  it('reads Electroswing’s &hh from gm_kit, through drums_performer, to the piece’s line 1', () => {
+  it('reads Electroswing’s &hh from gm_kit, through drums_performer, to the piece’s line 2', () => {
+    // (line 2: its first line says where it is found, `* from style=…`, since cells v0.27.1, yggi/cells#543)
     const r = compilePiece(EXAMPLES.electroswing.source);
     expect(chainOf(r, 'hh')).toEqual([
       { id: 'gm_kit', line: 9 },
       { id: 'drums_performer', line: 2 },
-      { id: null, line: 1 },
+      { id: null, line: 2 },
     ]);
   });
 
