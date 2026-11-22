@@ -23,6 +23,19 @@
  * none (minor 2); and it sends no `nudge` (minors 5 and 6), which is a player's.
  */
 export const PROTOCOL = 24;
+
+/**
+ * The kinds a section may be, in both versions (a bar's `plan.section.type`, a score's `section`): one list, the one
+ * place the follower names them. A kind outside it is refused, as the contract says (a vector, `coda`). Until a cells
+ * tag exports the feel's own list (yggi/cells#851), this mirrors it: then it is that list, and a new kind arrives by
+ * moving the pin.
+ */
+const SECTION_TYPES = ['intro', 'groove', 'bridge', 'build', 'drop', 'breakdown', 'verse', 'chorus', 'outro'] as const;
+/** A section's kind. */
+export type SectionKind = (typeof SECTION_TYPES)[number];
+const SECTION_SET: ReadonlySet<unknown> = new Set(SECTION_TYPES);
+/** Whether a value is one of the section kinds. */
+export const isSectionKind = (v: unknown): v is SectionKind => SECTION_SET.has(v);
 /** The first protocol of the contract's version 1: a host of it or later is one of this version (any minor joins). */
 export const FIRST_PROTOCOL = 13;
 

@@ -22,7 +22,9 @@ import {
   isLogLine,
   isMuse,
   isObject,
+  isSectionKind,
   isSong,
+  type SectionKind,
   isString,
   type KeptMessage,
   type LogLine,
@@ -34,10 +36,6 @@ import {
 export const PROTOCOL = 33;
 /** The first protocol of version 2: a host of it or later is one of this version (any minor joins). */
 export const FIRST_PROTOCOL = 30;
-
-/** A section's type, as a score names it. */
-type SectionType = 'intro' | 'groove' | 'bridge' | 'build' | 'drop' | 'breakdown' | 'verse' | 'chorus' | 'outro';
-const SECTIONS: ReadonlySet<string> = new Set<SectionType>(['intro', 'groove', 'bridge', 'build', 'drop', 'breakdown', 'verse', 'chorus', 'outro']);
 
 /** A fragment named by its id and hash: a score's lock's entry, and a welcome's `band`. */
 export interface Locked {
@@ -63,7 +61,7 @@ export interface Conduct {
 export interface Score {
   readonly bar: number;
   readonly step: number;
-  readonly section: SectionType;
+  readonly section: SectionKind;
   readonly text: string;
   readonly unstated: string | null;
   readonly lock: readonly Locked[];
@@ -111,8 +109,7 @@ const isScore = (s: unknown): boolean =>
   isObject(s) &&
   isInt(s.bar) &&
   isInt(s.step) &&
-  isString(s.section) &&
-  SECTIONS.has(s.section) &&
+  isSectionKind(s.section) &&
   isString(s.text) &&
   (s.unstated === null || isString(s.unstated)) &&
   // (the band never travels: a lock that names it is refused)

@@ -16,8 +16,8 @@
 import { clocking, EPS } from '@yggi/cells/engine/clocking';
 import { mainMeter } from '@yggi/cells/engine/midiclock';
 import { codeShifts, type CompileResult } from '@yggi/cells/engine/program';
-import type { FeelFrame, SectionType } from '@yggi/cells/engine/perform/feel';
-import type { SectionText, SentBar } from './protocol';
+import type { FeelFrame } from '@yggi/cells/engine/perform/feel';
+import { isSectionKind, type SectionText, type SentBar } from './protocol';
 
 /** A text that states bars from `bar`, as many as its `foreseen` counts: a version 1 section text, or a version 2 score. */
 export interface Stating {
@@ -45,8 +45,6 @@ export interface Followed<T extends Stating = SectionText> {
 
 export const NOTHING_FOLLOWED: Followed = { starts: new Map(), frames: new Map(), texts: [], finale: null };
 
-/** The nine kinds a section may be: the six, and a song form's verse, chorus and outro (session v1 minor 11, protocol 24). */
-const SECTIONS: ReadonlySet<string> = new Set(['intro', 'groove', 'bridge', 'build', 'drop', 'breakdown', 'verse', 'chorus', 'outro']);
 const isObject = (v: unknown): v is Readonly<Record<string, unknown>> => typeof v === 'object' && v !== null && !Array.isArray(v);
 const isNumber = (v: unknown): v is number => Number.isFinite(v);
 
@@ -65,7 +63,7 @@ export function frameOf({ bar: b }: SentBar): FeelFrame | null {
     !heights.every((h, i) => Number.isInteger(h) && h < (cycle as number) && (i === 0 ? h === 0 : h > heights[i - 1]))
   )
     return null;
-  if (typeof type !== 'string' || !SECTIONS.has(type) || (swing.level !== '8n' && swing.level !== '16n')) return null;
+  if (!isSectionKind(type) || (swing.level !== '8n' && swing.level !== '16n')) return null;
   const numbers = [b.seed, b.bar, b.barEnergy, style.entropy, style.artic, style.sync, swing.share];
   if (!numbers.every(isNumber) || !Number.isInteger(b.seed) || !Number.isInteger(b.bar)) return null;
   return {
@@ -74,7 +72,7 @@ export function frameOf({ bar: b }: SentBar): FeelFrame | null {
     groups: (heights as number[]).map((h, i) => ((heights[i + 1] as number | undefined) ?? (cycle as number)) - h),
     // (a cast until a cells tag carries yggi/cells#851, which grows the feel's `SectionType` to the nine; the feel plays
     // verse, chorus and outro as any section but a breakdown, music-commons#76, so no frame plays differently)
-    section: type as SectionType,
+    section: type as FeelFrame['section'],
     style: { entropy: style.entropy as number, artic: style.artic as number, sync: style.sync as number },
     swing: { level: swing.level, share: swing.share as number },
     energy: b.barEnergy as number,
