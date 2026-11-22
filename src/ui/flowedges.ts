@@ -84,10 +84,12 @@ const BY_PORT: Readonly<Record<string, Carrier>> = {
   // a table read through, a cell spliced in: the reader's own wheel shows it — unless what is spliced in sounds (a mix
   // into the sound card or a scope, a voice into a pattern of voices): then its sound, as a mix's entry carries it
   over: NOTHING,
-  // a style point into a style's slot, and a bend's table into its meter (cells v0.27.0, yggi/cells#827, #823): they
-  // steer what is chosen and when, and no voice's sound travels along them
+  // a style point into a style's slot, a bend's table into its meter (cells v0.27.0, yggi/cells#827, #823) and a swing
+  // cell into its meter (cells v0.27.1, yggi/cells#825): they steer what is chosen and when, and no voice's sound
+  // travels along them
   style: NOTHING,
   bend: NOTHING,
+  swing: NOTHING,
   // (a pattern spliced in: the first voice it splices, which the model names)
   braid: (e) => (e.band === 'audio' ? { phaseCell: null, voice: e.sound ?? nameOf(e.from) } : { phaseCell: null, voice: null }),
   // a tape's edges take the colour of what's on them: a read head's notes, as played; what's being written, as its source plays it

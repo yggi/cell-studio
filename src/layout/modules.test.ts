@@ -18,8 +18,9 @@ describe('a module is one wheel (decision 069)', () => {
     // (the piece's own cells, and every module's head, are drawn)
     for (const n of ['vcf', 'vca', 'saw', 'sub', 'sweep', 'jitter', 'contour', 'drift']) expect(node(n), n).toBeDefined();
     // (and the meter template's grouping, `bar_grouping`, since cells v0.19.0's one `meter` fragment)
-    // (and the key's mode, a wire into the key since cells v0.27.0, yggi/cells#827)
-    expect(graph.nodes).toHaveLength(25);
+    // (and the key's mode, a wire into the key since cells v0.27.0, yggi/cells#827; and the meter's swing, `bar_swing`, a
+    // wire into the meter since cells v0.27.1, yggi/cells#825)
+    expect(graph.nodes).toHaveLength(26);
   });
 
   it('its head carries its module and its jacks, cells’ jacksOf', () => {
