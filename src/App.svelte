@@ -238,7 +238,7 @@
                 onclick={() => (view.tab = 'select')}
                 title="Back to the library">◂ {view.fragments ? 'Fragments' : 'Library'}</button
               >{/if}
-            <span role="status" title={piece.audition.why}
+            <span role="status" title={piece.audition.why} class:said={!piece.audition.why}
               >{#if piece.audition.why}Silent alone: {piece.audition.why}{:else}Heard alone{/if}</span
             >
             {#each piece.audition.host.filter((h) => h.fills !== null) as h (h.line)}
@@ -883,6 +883,13 @@
     font-family: var(--font-code);
     font-size: 12px;
     white-space: nowrap;
+  }
+  /* (on a phone a fragment that plays needs no "Heard alone" in its bar: the hint under the graph says it, and the
+     bar's room is its ◂, its stand-ins and Edit a copy) */
+  @media (max-width: 600px) {
+    .following > span.said {
+      display: none;
+    }
   }
   .following > span {
     overflow: hidden;

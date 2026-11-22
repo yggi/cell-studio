@@ -75,21 +75,26 @@
 
   // the square drawn as large as its room lets it be (the controls above it take theirs)
   let plot = $state<HTMLDivElement>();
-  let size = $state(600);
+  let W = $state(600);
+  let H = $state(600);
   $effect(() => {
     if (!plot) return;
-    const ro = new ResizeObserver(() => (size = Math.max(240, Math.min(plot!.clientWidth, plot!.clientHeight))));
+    // (the whole of its room, not a square in it: the two axes are independent, so a phone's tall room is all map)
+    const ro = new ResizeObserver(() => ((W = Math.max(200, plot!.clientWidth)), (H = Math.max(200, plot!.clientHeight))));
     ro.observe(plot);
     return () => ro.disconnect();
   });
-  const PAD = 28;
+  // the frame's margins: room for the y axis's ends at the left and the x axis's at the bottom, a hairline elsewhere
+  const [L, R, T, B] = [20, 4, 4, 20];
   // the view: zoomed `k` times about the square, shifted (tx, ty) px; 1 and (0, 0) is all of it
   let k = $state(1);
   let tx = $state(0);
   let ty = $state(0);
   const MAX_ZOOM = 16;
-  const sx = (v: number) => tx + k * (PAD + v * (size - 2 * PAD));
-  const sy = (v: number) => ty + k * (size - PAD - v * (size - 2 * PAD));
+  // (the unit square inside the frame by a node's room, so a node on an axis's end shows whole)
+  const IN = 10;
+  const sx = (v: number) => tx + k * (L + IN + v * (W - L - R - 2 * IN));
+  const sy = (v: number) => ty + k * (H - B - IN - v * (H - T - B - 2 * IN));
   /** Zoom to `next` about a point (px in the square), keeping the square's corners covering the frame. */
   function zoomAt(next: number, px: number, py: number) {
     const z = Math.max(1, Math.min(MAX_ZOOM, next));
@@ -99,8 +104,8 @@
     clamp();
   }
   function clamp() {
-    tx = Math.min(0, Math.max(size - size * k, tx));
-    ty = Math.min(0, Math.max(size - size * k, ty));
+    tx = Math.min(0, Math.max(W - W * k, tx));
+    ty = Math.min(0, Math.max(H - H * k, ty));
   }
   const fit = () => ((k = 1), (tx = 0), (ty = 0));
 
@@ -204,7 +209,7 @@
       const [x, y, w] = [sx(p.x), sy(p.y) - radius(p) - 4, text.length * 6.2 + 4];
       const box = { x0: x - w / 2, x1: x + w / 2, y0: y - 11, y1: y + 2 };
       const forced = rank(p) === 0;
-      if (!forced && (box.x0 < PAD || box.x1 > size - PAD || box.y0 < PAD || box.y1 > size - PAD)) continue;
+      if (!forced && (box.x0 < L || box.x1 > W - R || box.y0 < T || box.y1 > H - B)) continue;
       if (!forced && placed.some((b) => b.x0 < box.x1 && box.x0 < b.x1 && b.y0 < box.y1 && box.y0 < b.y1)) continue;
       placed.push(box);
       out.push({ p, text, x, y });
@@ -213,7 +218,8 @@
   });
   const facets = FACETS;
   // (a node grows as the map zooms, but slower, and at most twice: zooming in spreads a cluster out)
-  const radius = (p: Placed) => Math.max(2.5, p.r * (size - 2 * PAD) * Math.min(2, Math.sqrt(k)));
+  // (a node's radius is a share of the square: of the room's shorter side here)
+  const radius = (p: Placed) => Math.max(2.5, p.r * Math.min(W - L - R, H - T - B) * Math.min(2, Math.sqrt(k)));
 </script>
 
 <div class="map" role="region" aria-label="The fragment map">
@@ -242,9 +248,9 @@
   <div class="plot" bind:this={plot}>
     <svg
       bind:this={svg}
-      width={size}
-      height={size}
-      viewBox="0 0 {size} {size}"
+      width={W}
+      height={H}
+      viewBox="0 0 {W} {H}"
       role="img"
       aria-label="Fragments and pieces on {axisOf(x).label} and {axisOf(y).label}"
       onpointerdown={down}
@@ -252,12 +258,12 @@
       onpointerup={up}
       onpointercancel={up}
     >
-      <defs><clipPath id="map-square"><rect x={PAD} y={PAD} width={size - 2 * PAD} height={size - 2 * PAD} /></clipPath></defs>
-      <rect x={PAD} y={PAD} width={size - 2 * PAD} height={size - 2 * PAD} class="frame" />
-      <text x={PAD} y={size - 8} class="end">{axisOf(x).ends[0]}</text>
-      <text x={size - PAD} y={size - 8} class="end right">{axisOf(x).ends[1]}</text>
-      <text x={10} y={size - PAD} class="end up" transform="rotate(-90 10 {size - PAD})">{axisOf(y).ends[0]}</text>
-      <text x={10} y={PAD} class="end up right" transform="rotate(-90 10 {PAD})">{axisOf(y).ends[1]}</text>
+      <defs><clipPath id="map-square"><rect x={L} y={T} width={W - L - R} height={H - T - B} /></clipPath></defs>
+      <rect x={L} y={T} width={W - L - R} height={H - T - B} class="frame" />
+      <text x={L} y={H - 5} class="end">{axisOf(x).ends[0]}</text>
+      <text x={W - R} y={H - 5} class="end right">{axisOf(x).ends[1]}</text>
+      <text x={14} y={H - B} class="end up" transform="rotate(-90 14 {H - B})">{axisOf(y).ends[0]}</text>
+      <text x={14} y={T} class="end up right" transform="rotate(-90 14 {T})">{axisOf(y).ends[1]}</text>
       <g clip-path="url(#map-square)">
         <g class="edges">
           {#each graph.edges as [a, b], i (i)}
@@ -365,13 +371,16 @@
     background: var(--c);
     color: var(--bg);
   }
+  /* the map takes the room the controls leave, all of it (svg laid over it: its size never pushes the room's) */
   .plot {
     position: relative;
     flex: 1 1 auto;
     min-height: 0;
     width: 100%;
-    display: flex;
-    justify-content: center;
+  }
+  .plot svg {
+    position: absolute;
+    inset: 0;
   }
   svg {
     touch-action: none;
@@ -380,8 +389,8 @@
   }
   .fit {
     position: absolute;
-    right: 8px;
-    bottom: 8px;
+    right: 12px;
+    bottom: 30px;
     padding: 4px 12px;
     border: 1px solid var(--line);
     border-radius: var(--radius-pill);
@@ -459,5 +468,39 @@
   }
   .label.piece {
     fill: var(--text-muted);
+  }
+  /* a phone: the controls in as few rows as hold them, the facets one row that scrolls sideways, the map the rest */
+  @media (max-width: 600px) {
+    .map {
+      gap: 6px;
+      padding: 8px 8px max(8px, env(safe-area-inset-bottom));
+    }
+    .controls {
+      gap: 6px 10px;
+    }
+    .search {
+      flex: 1 1 160px;
+      width: auto;
+    }
+    .facets {
+      flex-wrap: nowrap;
+      justify-content: flex-start;
+      width: 100%;
+      overflow-x: auto;
+      scrollbar-width: none;
+      padding-bottom: 2px;
+    }
+    .facets::-webkit-scrollbar {
+      display: none;
+    }
+    /* (it scrolls: its far end fades, so a chip cut there says there's more) */
+    .facets {
+      mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);
+      padding-right: 28px;
+    }
+    .chip {
+      flex: none;
+      padding: 3px 10px;
+    }
   }
 </style>

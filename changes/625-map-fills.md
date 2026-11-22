@@ -1,0 +1,2 @@
+### Fixed
+- **The fragment map fills its room.** On a phone it no longer leaves the bottom of the screen empty below a square, and on a desktop the gaps at its sides are gone: the map takes all the space its controls leave. On a phone the controls fit in fewer rows: the facets are one row that scrolls sideways, its end fading. A node on an axis's end shows whole. On a phone, a fragment's bar no longer cuts "Heard alone" to a letter: the bar keeps its ◂, its stand-ins and Edit a copy, and the hint under the graph says it plays alone. Saved pieces are unchanged.
