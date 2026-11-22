@@ -621,6 +621,14 @@ describe('every name written is one wire carrying the transform it writes, and e
             } else if (count === 0 && model.edges.some((x) => x.from.startsWith(`${cellId(name)}_`) && x.to.startsWith('junction:'))) {
               // (a head that takes a fragment, `&cycle from five_to_twelve &day`: since cells v0.26.0 its fills are the cells that sound, wires of their own)
               matched.add(`${c.name}|${name}|mix`);
+            } else if (
+              count === 0 &&
+              program.cells.get(c.name)?.valueReads?.includes(name) &&
+              model.edges.some((x) => x.from === cellId(name) && x.to === cellId(c.name) && x.port === 'braid')
+            ) {
+              // (a cell the mix reads by value, a level or notes with their levels, `&tune * &leadV * &leadLevel`: compile writes
+              // it into the product, and cells draws it as a braid wire into the mix, cells v0.28.0, yggi/cells#859)
+              matched.add(`${c.name}|${name}|braid`);
             } else if (count === 0 && model.nodes.some((n) => n.id === cellId(name))) missing.push(`&${c.name}: &${name} (in the mix)`);
             else if (count) expect(pair ? count + 1 : count, `&${c.name}: &${name}, written ${ts.length} times in the mix`).toBe(ts.length);
             // each wire carries what is written on the name in its product: a pick, a shift (a number in the sum is the
@@ -703,6 +711,11 @@ describe('every name written is one wire carrying the transform it writes, and e
         // (an argument passed into a fragment's slot, `* from band(…, style=&style)`: written on the from line, into a cell
         // of the fragment's own, cells v0.27.0)
         if (into?.lambda) return [];
+        // (the notes of a cell the mix reads by value, `&bassLine [&roots * .5]` in `[&bassLine * &bass]`: compile writes them
+        // into the product, so its voice's notes come from the cell they read, cells v0.28.0, yggi/cells#859)
+        const mixOf = junctions.get(e.to)?.mix;
+        const byValue = mixOf ? (program.cells.get(mixOf)?.valueReads ?? []) : [];
+        if (e.port === 'voice' && byValue.some((v) => program.cells.get(v)?.valueReads?.includes(nameOf(e.from)))) return [];
         // (the drums' kit: a groove's one wire into it, the names it writes; and its one wire into a mix a groove is in)
         const groove = (n: string) => program.cells.get(n)?.over === 'kit:voices';
         if (nameOf(e.from) === 'kit:voices' && ((e.port === 'over' && groove(nameOf(e.to))) || (e.port === 'mix' && into?.mix?.some((b) => groove(b.voice.name))))) return [];
@@ -720,10 +733,6 @@ describe('every name written is one wire carrying the transform it writes, and e
 });
 
 describe('every cell a line reads is a wire, from every cell of every example, those a from line makes too (#675)', () => {
-  // (the reads of a fill's or a law's cells, `&cycle [&cycle_notes * &cycle_level]`, which cells draws no wire for yet: the
-  // `braid.tokens` reads cells' `UNDRAWN` holds, yggi/cells#792. Their number in each piece: when cells draws them, the count
-  // here is wrong and says so, and the exception comes out)
-  const FILLS: Record<string, number> = { daytime: 3, fiveto12: 3 };
   const all = { ...Object.fromEntries(Object.entries(EXAMPLES).map(([k, p]) => [k, p.source])), golden: readFileSync('tools/gallery/golden/golden.cells', 'utf8') };
 
   for (const [key, source] of Object.entries(all))
@@ -748,7 +757,6 @@ describe('every cell a line reads is a wire, from every cell of every example, t
       const throughSlot = (reader: string, style: string) =>
         [...program.cells.values()].some((m) => m.readsSlot?.cell === style && between(style, m.name) && between(m.name, reader));
       const missing: string[] = [];
-      const exempt: string[] = [];
       // (every cell the piece has is a line of the expansion: the lines are read, not guessed from the source, and none is left out)
       const names = new Set(decls.map((d) => d.name));
       // (a section its table declares has no line of its own: its name is written on the table's, decision 016)
@@ -770,14 +778,9 @@ describe('every cell a line reads is a wire, from every cell of every example, t
           if (between(d.name, r.name) || between(owner, r.name) || aliased(d.name, r.name) || aliased(owner, r.name)) continue;
           // (a cell the graph doesn't draw as a node of its own: a bulb on its host's wheel, a petal, show=off)
           if (!nodes.has(cellId(d.name)) || !nodes.has(cellId(r.name))) continue;
-          if (key in FILLS && r.form === 'braid.tokens') {
-            exempt.push(`&${d.name}: &${r.name}`);
-            continue;
-          }
           missing.push(`&${d.name}: &${r.name} (${r.form})`);
         }
       }
       expect(missing).toEqual([]);
-      expect(exempt.length, `the fills' reads with no wire, yggi/cells#792: ${exempt.join(' ; ')}`).toBe(FILLS[key] ?? 0);
     });
 });

@@ -80,8 +80,13 @@ describe('a document’s parts (cells decision 082, #623)', () => {
     const parts = documentParts(EXAMPLES.kinderlied.source);
     expect(parts.map((p) => p.heads[0])).toEqual(['twinkle', 'wonder', 'haenschen', 'hinein', 'heim', 'weinet']);
     const twinkle = parts[0]!;
-    expect([twinkle.signature, twinkle.main]).toEqual(['&twinkle from &key', '&key']);
-    expect(twinkle.heard.split('\n')).toEqual(['&twinkle from &key', '&twinkle over=&key step=8n 0 0 4 4 5 5 4@2', '&key from diatonic(mode=ionian) C']);
+    // (the signature says where the part is found since cells v0.28.0, yggi/cells#845, decision 089)
+    expect([twinkle.signature, twinkle.main]).toEqual(['&twinkle from &key style=&(map=style sync=.1 harm=.12 bite=.5 mood=.95) facet=motif', '&key']);
+    expect(twinkle.heard.split('\n')).toEqual([
+      '&twinkle from &key style=&(map=style sync=.1 harm=.12 bite=.5 mood=.95) facet=motif',
+      '&twinkle over=&key step=8n 0 0 4 4 5 5 4@2',
+      '&key from diatonic(mode=ionian) C',
+    ]);
     for (const p of parts) {
       expect(
         compilePiece(auditionOf(p.heard).text).diagnostics.filter((d) => d.severity === 'error'),
