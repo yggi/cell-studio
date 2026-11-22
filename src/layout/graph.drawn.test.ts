@@ -1,11 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
-import { compilePiece } from '../compile';
+import { compilePiece, resolveNow } from '../compile';
 import { type GraphModel } from '@yggi/cells/engine/graph';
 import { buildGraph } from './drawn';
 import { cellId, edgeId, stepEdgeId } from '@yggi/cells/engine/ids';
 import { transformLabel } from '@yggi/cells/engine/transform';
 import { EXAMPLES } from '@yggi/cells/engine/examples';
+import { parse } from '@yggi/cells/engine/parser/index';
+import { readsOf } from '@yggi/cells/engine/reads';
+import { expansion } from '@yggi/cells/engine/use';
 import { TIME_PARAMS } from '@yggi/cells/engine/attributes';
 
 /** The edge between two cells along the flow; through a product's junction (graph.ts) when they meet there: into a product whose voice is `to`, out of one whose voice is `from`. */
@@ -522,18 +525,26 @@ function openCall(text: string): string | undefined {
   return undefined;
 }
 
+/** The names cells gives the cells it makes from a slot read or a moving axis (`λstyle_2`, `λmine_2_0`): not the petals' (`λ47_25`). */
+const MADE = /^λ[A-Za-z]/;
+
 /** The port a name written as the value of an attribute is read through. */
 const PORT: Readonly<Record<string, string>> = { loop: 'step', generated: 'braid' };
 
+// Two tests read a piece's wires against what it writes, and each reads what the other can't.
+//
+// This one reads the piece's *written* lines with a regex (`tokensOn`): what a wire says about the name, the transform written on
+// it (a pick, a shift, a rate chain), which cells' `readsOf` doesn't carry, and, from the other side, that every wire is a name
+// written. It can't tell which cells it should check (a cell a `from` line makes has its span in the expanded text, not in the
+// source: yggi/cells#618's swing and the band's outs went unseen, #675) and its guess of a name's port is a regex's (`bend=8n:&lean`),
+// so a wire is looked for by its port and, failing that, by the two cells it joins.
+//
+// The next test reads cells' own list of what every cell reads, over the expanded text, so every cell is checked.
 describe('every name written is one wire carrying the transform it writes, and every wire a name written', () => {
   const all = { ...Object.fromEntries(Object.entries(EXAMPLES).map(([k, p]) => [k, p.source])), golden: readFileSync('tools/gallery/golden/golden.cells', 'utf8') };
 
-  // (a gap known in cells, expected to fail until the pin that carries its fix: it.fails turns red when it passes, so
-  // the exception comes out then. radio and style: the forms new in cells v0.21.0, `style=&x` among them, aren't wires
-  // yet, yggi/cells#618. twelve: a meter's `bend=8n:&lean` is no wire, cells v0.25.0, yggi/cells#737)
-  const gaps: Record<string, string> = { radio: 'yggi/cells#618', style: 'yggi/cells#618', twelve: 'yggi/cells#737' };
   for (const [key, source] of Object.entries(all))
-    (gaps[key] ? it.fails : it)(gaps[key] ? `${key} (a gap: ${gaps[key]})` : key, () => {
+    it(key, () => {
       // (as the app compiles it: a piece that uses the seed library resolves its uses, electroswing's among them)
       const program = compilePiece(source);
       const model = buildGraph(program);
@@ -546,7 +557,9 @@ describe('every name written is one wire carrying the transform it writes, and e
       const stacked = new Set([...program.cells.values()].flatMap((g) => (g.gate?.lines?.length ? [g.gate.notes] : [])));
       let wires = 0;
       for (const c of program.cells.values()) {
-        if (c.lambda || c.implicit) continue;
+        // (a cell compile made, `λstyle_2` for `&style[bite]` or `λmine_2_0` laid from a moving axis: it borrows the span of the line
+        // it was made from and is no line anyone wrote, so the line's tokens are not its; the petals' `λ47_25` start with a digit)
+        if (c.lambda || c.implicit || MADE.test(c.name)) continue;
         // (a section its table declares has no line of its own: its name is written on the table's, decision 016)
         const table = program.sections?.get(c.name);
         if (table && program.cells.get(table)?.span.line === c.span.line) continue;
@@ -626,15 +639,30 @@ describe('every name written is one wire carrying the transform it writes, and e
           const [from, to] = port === 'about' ? [c.name, name] : [name, c.name];
           // (a cell named on a MIDI card is its entry: a note bus into it, #208)
           const as = port === 'braid' && c.map?.kind === 'midi' ? 'midi' : port;
-          const e = model.edges.find((x) => x.from === cellId(from) && x.to === cellId(to) && x.port === as);
+          // (the port the text suggests, else the wire between the two cells whatever its port: the tokens' attribute is a regex's
+          // guess, which `bend=8n:&lean` and a sum in a braid defeat; the ports are checked where cells decides them, below)
+          const e =
+            model.edges.find((x) => x.from === cellId(from) && x.to === cellId(to) && x.port === as) ?? model.edges.find((x) => x.from === cellId(from) && x.to === cellId(to));
           if (!e) {
+            // (a style read by slot, `lpf=… * &style[bite]`: through the cell compile makes for the slot, the style into it and it
+            // into the reader: cells' `readsSlot`, yggi/cells#827)
+            const through = [...program.cells.values()].some(
+              (m) =>
+                m.readsSlot?.cell === name &&
+                model.edges.some((x) => x.from === cellId(name) && x.to === cellId(m.name)) &&
+                model.edges.some((x) => x.from === cellId(m.name) && x.to === cellId(c.name)),
+            );
+            if (through) {
+              wires++;
+              continue;
+            }
             // (drawn through a petal, hidden by show=off, or a name the graph reads elsewhere: a kit's voice)
             const ids = [edgeId(cellId(c.name), cellId(name)), edgeId(cellId(name), cellId(c.name)), stepEdgeId(cellId(c.name), cellId(name))];
             if (!ids.some((id) => model.alias.has(id))) missing.push(`&${c.name}: &${name} (${port})`);
             continue;
           }
           wires++;
-          matched.add(`${c.name}|${name}|${as}`);
+          matched.add(`${c.name}|${name}|${e.port}`);
           const labels = e.transforms.map(transformLabel);
           if (ts[0].where === 'generated') continue;
           if (as === 'midi') continue;
@@ -656,6 +684,9 @@ describe('every name written is one wire carrying the transform it writes, and e
       const unwritten = model.edges.flatMap((e) => {
         if (junctions.has(e.from) || forPetals.has(e.id)) return [];
         if (given.has(nameOf(e.from)) || given.has(nameOf(e.to))) return [];
+        // (a wire into or out of a cell compile made: the style into its slot cell, a laid axis's terms: cells draws them, and its
+        // own tests hold them, `graph.test.ts`)
+        if (MADE.test(nameOf(e.from)) || MADE.test(nameOf(e.to))) return [];
         // (a gate's note bus is its braid as written, and a gate in a mix goes in as its voices: #234)
         const gateOf = (n: string) => !!program.cells.get(n)?.gate;
         if (e.port === 'voice' && gateOf(nameOf(e.from))) return [];
@@ -685,5 +716,68 @@ describe('every name written is one wire carrying the transform it writes, and e
         return matched.has(key) || matched.has(asEntry) ? [] : [`${e.id} (${e.port})`];
       });
       expect(unwritten).toEqual([]);
+    });
+});
+
+describe('every cell a line reads is a wire, from every cell of every example, those a from line makes too (#675)', () => {
+  // (the reads of a fill's or a law's cells, `&cycle [&cycle_notes * &cycle_level]`, which cells draws no wire for yet: the
+  // `braid.tokens` reads cells' `UNDRAWN` holds, yggi/cells#792. Their number in each piece: when cells draws them, the count
+  // here is wrong and says so, and the exception comes out)
+  const FILLS: Record<string, number> = { daytime: 3, fiveto12: 3 };
+  const all = { ...Object.fromEntries(Object.entries(EXAMPLES).map(([k, p]) => [k, p.source])), golden: readFileSync('tools/gallery/golden/golden.cells', 'utf8') };
+
+  for (const [key, source] of Object.entries(all))
+    it(key, () => {
+      const program = compilePiece(source);
+      const model = buildGraph(program);
+      // (the piece with its `from` lines written in: every line of every cell, which a text's own lines are only some of)
+      const decls = parse(expansion(source, { resolve: resolveNow }).text).cells;
+      const junctions = new Map(model.nodes.flatMap((n) => (n.kind === 'junction' ? [[n.id, n.mix] as const] : [])));
+      const norm = (id: string) => (junctions.has(id) ? cellId(junctions.get(id)!) : id);
+      const wired = new Set<string>();
+      for (const e of model.edges) {
+        wired.add(`${norm(e.from)}|${norm(e.to)}`);
+        wired.add(`${norm(e.to)}|${norm(e.from)}`);
+      }
+      const nodes = new Set(model.nodes.map((n) => n.id));
+      const between = (a: string, b: string) => wired.has(`${cellId(a)}|${cellId(b)}`);
+      const aliased = (a: string, b: string) =>
+        [edgeId(cellId(a), cellId(b)), edgeId(cellId(b), cellId(a)), stepEdgeId(cellId(a), cellId(b)), stepEdgeId(cellId(b), cellId(a))].some((id) => model.alias.has(id));
+      // (a style read by slot, `lpf=… * &style[bite]`: through the cell compile makes for the slot, the style into it and it into the
+      // reader, yggi/cells#827; cells' own test counts it so)
+      const throughSlot = (reader: string, style: string) =>
+        [...program.cells.values()].some((m) => m.readsSlot?.cell === style && between(style, m.name) && between(m.name, reader));
+      const missing: string[] = [];
+      const exempt: string[] = [];
+      // (every cell the piece has is a line of the expansion: the lines are read, not guessed from the source, and none is left out)
+      const names = new Set(decls.map((d) => d.name));
+      // (a section its table declares has no line of its own: its name is written on the table's, decision 016)
+      const lines = [...program.cells.values()].filter((c) => !c.lambda && !c.implicit && !MADE.test(c.name) && !program.sections?.has(c.name));
+      expect(
+        lines.filter((c) => !names.has(c.name)).map((c) => `&${c.name}`),
+        'cells with no line in the expansion',
+      ).toEqual([]);
+      for (const d of decls) {
+        if (!d.name || !program.cells.has(d.name)) continue;
+        // (a read inside an unnamed cell, `&key:λ19_5`, is its owner's)
+        const owner = d.name.includes(':') ? d.name.split(':')[0]! : d.name;
+        for (const r of readsOf(d)) {
+          const read = program.cells.get(r.name);
+          if (!read || read.implicit || r.name === d.name || r.name === owner) continue;
+          // (an unnamed cell, `&( … )`: drawn as a petal on what reads it, which this test, like the one above, leaves to the petals')
+          if (read.lambda || program.cells.get(d.name)?.lambda) continue;
+          if (throughSlot(d.name, r.name) || throughSlot(owner, r.name)) continue;
+          if (between(d.name, r.name) || between(owner, r.name) || aliased(d.name, r.name) || aliased(owner, r.name)) continue;
+          // (a cell the graph doesn't draw as a node of its own: a bulb on its host's wheel, a petal, show=off)
+          if (!nodes.has(cellId(d.name)) || !nodes.has(cellId(r.name))) continue;
+          if (key in FILLS && r.form === 'braid.tokens') {
+            exempt.push(`&${d.name}: &${r.name}`);
+            continue;
+          }
+          missing.push(`&${d.name}: &${r.name} (${r.form})`);
+        }
+      }
+      expect(missing).toEqual([]);
+      expect(exempt.length, `the fills' reads with no wire, yggi/cells#792: ${exempt.join(' ; ')}`).toBe(FILLS[key] ?? 0);
     });
 });
