@@ -3,7 +3,7 @@
    * The library's fragments' cell (#625, rung S4 of #621): a disc beside the wheel (`disc`, its centre and radius in
    * pixels: `layout/library.ts` places it), its small discs the seed library's facets, each as large as the root of how
    * many fragments it holds, in its facet's colour; its inner ring the person's own fragments (#626), a dot each in its
-   * facet's colour. A tap opens the map (`FragmentMap.svelte`).
+   * facet's colour. A tap opens the library's style map (`StyleMap.svelte`).
    */
   import { catalogue } from '@yggi/cells/repository/catalogue';
   import { FACETS } from '../references';

@@ -129,7 +129,7 @@ for (const size of sizes) {
   if (await map.locator('.fit').isVisible()) await map.locator('.fit').click();
 
   // a filter, then a fragment it leaves out tapped
-  const chips = map.locator('.facets button');
+  const chips = map.locator('.facets button:not(.kind)');
   const facets = await chips.allTextContents();
   await chips.first().click();
   await page.waitForTimeout(300);

@@ -236,7 +236,7 @@
             {#if last}<button class="unstyled back" onclick={() => studio.back()} title="Back to {last.title}">◂ {last.title}</button>{:else}<button
                 class="unstyled back"
                 onclick={() => (view.tab = 'select')}
-                title="Back to the library">◂ {view.fragments ? 'Fragments' : 'Library'}</button
+                title="Back to the library">◂ {view.library === 'style' ? 'Style map' : 'Library'}</button
               >{/if}
             <span role="status" title={piece.audition.why} class:said={!piece.audition.why}
               >{#if piece.audition.why}Silent alone: {piece.audition.why}{:else}Heard alone{/if}</span

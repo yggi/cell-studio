@@ -460,6 +460,9 @@
 <style>
   .frame {
     position: relative;
+    /* (its own layers, the pieces' and the words' up to its zoom's 10, stay under what the picker floats over it: its
+       search, on a phone scrolled under it) */
+    isolation: isolate;
     flex: 1;
     min-height: 60svh;
     border-radius: var(--radius);
