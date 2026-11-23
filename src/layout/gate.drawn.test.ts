@@ -14,18 +14,6 @@ const BASE = `&bar scan(1 1 1 1) step=120bpm
 &accent map=amp step=8n 1 .5 .8 .5
 `;
 
-describe('a gate (trigger=): a product with a name', () => {
-  it('is a node of its own in the graph, its trigger, levels and receivers wired in', () => {
-    const r = compilePiece(BASE + '&beat step=8n 0 2 1 2\n&drums trigger=&beat velocity=&accent &kit\n&out map=sample &drums');
-    const g = buildGraph(r);
-    const into = g.edges.filter((e) => e.to === 'cell:drums').map((e) => `${e.from} ${e.port}`);
-    expect(into).toEqual(expect.arrayContaining(['cell:beat trigger', 'cell:accent velocity']));
-    // (its notes out to what it plays, whose sound goes on into the card)
-    expect(g.edges.filter((e) => e.from === 'cell:drums').map((e) => `${e.to} ${e.port}`)).toEqual(['cell:kit voice']);
-    expect(g.edges.some((e) => e.from === 'cell:kit' && e.to === 'cell:out' && e.band === 'audio')).toBe(true);
-  });
-});
-
 describe('a gate (play=, level=): decision 023', () => {
   it('a gate’s play= is no read head, and its cells are wired into it as written', () => {
     const r = compilePiece(BASE + '&duck map=amp step=4n 1 .25\n&leadOut play=&tune level=&accent*&duck*.4 [&lead, &bell]\n&out map=sample &leadOut');

@@ -72,7 +72,7 @@ Introduces canon: a theme shifted; mirrors: retrograde, slices, picks, transposi
 
 ### Tier 6 · Sound and tuning
 
-Introduces stereo: pan=; waveforms from braids: audio rates, sin(), ramps, tables, an instrument; moving parameters: a filter that opens, a fade in decibels; tuning: grids; free(): sliders and named choices; a style the voices read; a level a cell names.
+Introduces stereo: pan=; waveforms from braids: audio rates, sin(), ramps, tables, an instrument; moving parameters: a filter that opens, a fade in decibels; tuning: grids; free(): sliders and named choices; a style the voices read; a level a cell names, a number or a sum.
 
 | piece | file | about | postgain | length |
 |---|---|---|---|---|
