@@ -5,6 +5,8 @@
 //   pinch     the page's own zoom (`visualViewport.scale`) after a two-finger pinch on each screen: 1 where the screen
 //             keeps the gesture (it zooms its own canvas or nothing), more where the whole UI zoomed
 //   zoomed    whether the map zoomed itself (a pinch on a phone, a wheel on a desktop): its Fit shows
+//   blank     the room the map leaves empty, px between its plot and its region's edges (below, left, right): its
+//             padding only, where the plot fills what the controls leave
 //   overlaps  the visible controls of a screen whose boxes cross (buttons, fields, a dialog's parts, the fragment's
 //             bar and preview), a pair each, by their text or label
 //   filtered  a fragment the facet filter leaves out, tapped: whether it opened, its card or itself (it shouldn't)
@@ -26,7 +28,7 @@ const url = server.resolvedUrls.local[0];
 const browser = await chromium.launch({ args: ['--no-sandbox', '--autoplay-policy=no-user-gesture-required'] });
 const problems = [];
 const tiles = [];
-const report = { pinch: {}, zoomed: {}, overlaps: {}, filtered: {} };
+const report = { pinch: {}, zoomed: {}, blank: {}, overlaps: {}, filtered: {} };
 
 /** The visible controls on the page whose boxes cross: each pair once, by its text or label. */
 const overlaps = (page) =>
@@ -110,6 +112,11 @@ for (const size of sizes) {
   await map.waitFor();
   await page.waitForTimeout(900);
   await shoot(page, size, 'map');
+  // the room the map leaves empty: px between its plot and its region's edges (the region's padding included)
+  report.blank[size] = await page.evaluate(() => {
+    const [r, p] = [document.querySelector('.map').getBoundingClientRect(), document.querySelector('.map .plot svg').getBoundingClientRect()];
+    return { below: Math.round(r.bottom - p.bottom), left: Math.round(p.left - r.left), right: Math.round(r.right - p.right) };
+  });
   // the map's own zoom: a pinch on a phone, a wheel on a desktop; its names show once zoomed
   const plot = (await map.locator('.plot svg').boundingBox()) ?? { x: 0, y: 0, width: 390, height: 844 };
   if (phone) report.pinch[`${size}-map`] = await pinch(page, plot);
@@ -190,7 +197,7 @@ writeFileSync(
   join(out, 'index.html'),
   `<!doctype html><meta charset="utf-8"><title>Fragment browser</title><style>body{background:#111;color:#ddd;font:14px system-ui}img{max-height:80vh;display:inline-block;margin:4px 8px 24px 0;vertical-align:top}</style><pre>${JSON.stringify(report, null, 2).replace(/</g, '&lt;')}</pre>${tiles.map((t) => `<figure style="display:inline-block"><figcaption>${t}</figcaption><img src="tiles/${t}"></figure>`).join('')}`,
 );
-console.log(JSON.stringify({ pinch: report.pinch, zoomed: report.zoomed, filtered: report.filtered }));
+console.log(JSON.stringify({ pinch: report.pinch, zoomed: report.zoomed, blank: report.blank, filtered: report.filtered }));
 if (problems.length) {
   console.error(problems.join('\n'));
   process.exit(1);
