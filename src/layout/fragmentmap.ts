@@ -1,19 +1,21 @@
 /**
- * The fragment map (#625, rung S4 of #621; the model: docs/notes/fragments.md, "The map"): fragments, pieces and
- * meeting points, placed on any two of cells' style axes by two forces and a collision, run by d3-force as the library's
- * wheel is. Every number is read from cells (the catalogue, the examples, `AXES`): no axis is named here, no fragment
- * set apart, no edge weighted by hand. Pure: no DOM.
+ * The library's style map (#625, rung S4 of #621; the model: docs/notes/fragments.md, "The map"): fragments, pieces,
+ * their meeting points and the preset styles, placed on any two of cells' style axes by two forces and a collision, run
+ * by d3-force as the library's wheel is. Every number is read from cells (the catalogue, the pieces' texts, `STYLES`,
+ * `AXES`): no axis is named here, no fragment set apart, no edge weighted by hand. Pure: no DOM.
  *
- * - **The graph.** A node per catalogue entry (`f:id`), per example (`p:key`), and per meeting point (`c:key:i`): a
- *   piece's `from` line whose arguments bring two or more cells together, taken ones or the piece's own parts. Edges: a
- *   line to what each of its arguments came through (or the part it names); a meeting point to its fragment; a piece to
- *   what none of its lines passes on, and to each of its parts nothing reads; a fragment to those it takes.
+ * - **The graph.** A node per catalogue entry (`f:id`), per piece of the library (`p:<library id>`), per meeting point
+ *   (`c:<library id>:i`): a piece's `from` line whose arguments bring two or more cells together, taken ones or the
+ *   piece's own parts), and per preset style (`s:id`, a landmark). Edges: a line to what each of its arguments came
+ *   through (or the part it names); a meeting point to its fragment; a piece to what none of its lines passes on, and to
+ *   each of its parts nothing reads; a fragment to those it takes. A piece with no place and no edge is left out.
  * - **Springs.** Every node has the same total pull, shared among its edges: a spring pulls a toward b by b's share,
  *   1 / deg(b). A hub pulls each neighbour a little and is pulled to the middle of what takes it: a star.
- * - **Anchors.** A fragment is held on an axis where its points put it (their weighted mean), as surely as they agree
+ * - **Anchors.** What has points is held on an axis where they put it (their weighted mean), as surely as they agree
  *   and say they are sure: its points' weight as a share, times 1 less √(spread² + reach²) over the axis's half range,
  *   the spread their weighted spread, the reach what each point writes (`bite=.55 ± .1`, cells decision 089 §6). An
- *   axis no point names holds nothing. A piece has none until it names its style (yggi/cells#543).
+ *   axis no point names holds nothing. A fragment's points are its association, a piece's what it declares
+ *   (`* from style=&funk`, yggi/cells#543), a preset style's its point, held whatever the slider says.
  * - **The balance** (the style ↔ structure slider): the anchors' strength against the springs', 0 springs alone, 1
  *   anchors alone.
  * - **The square.** Every node stays within the square of the two axes' ranges, its whole disc inside.
@@ -23,11 +25,20 @@ import { EXAMPLES } from '@yggi/cells/engine/examples';
 import { references, type Reference } from '@yggi/cells/engine/references';
 import { AXES } from '@yggi/cells/engine/style';
 import { catalogue, type CatalogueEntry } from '@yggi/cells/repository/catalogue';
+import type { WeightedPoint } from '@yggi/cells/repository/fragments';
+import { placeOf } from '@yggi/cells/repository/declarations';
+import { styleNamesIn } from '@yggi/cells/repository/files';
+import { SEED_FILES } from '@yggi/cells/repository/seed.generated';
+import { STYLES } from '@yggi/cells/repository/styles';
 
 interface MapNode {
   readonly key: string;
-  readonly kind: 'fragment' | 'piece' | 'meeting';
+  readonly kind: 'fragment' | 'piece' | 'meeting' | 'style';
+  /** A fragment's id, a piece's library id (`example:pop`), a meeting's name, a preset style's name (`Funk`). */
   readonly label: string;
+  /** Where its points put it in style space: a fragment's association, a piece's declared place (`* from style=…`,
+   * cells' `placeOf`), a preset style's point. None: nothing holds it. */
+  readonly points?: readonly WeightedPoint[];
   /** A fragment's first facet. */
   readonly facet?: string;
   /** A fragment the person filed (a learned layer's, no file of the seed's: #626). */
@@ -36,7 +47,18 @@ interface MapNode {
 export interface MapGraph {
   readonly nodes: readonly MapNode[];
   readonly edges: readonly (readonly [string, string])[];
+  /** The pieces left out: those that declare no style and take no fragment, so nothing places them (by library id). */
+  readonly unplaced: readonly string[];
 }
+/** A piece the map is given: its library id (`example:pop`, `saved:…`, `midi:…`) and its text where it has one. */
+export interface MapPiece {
+  readonly id: string;
+  readonly source?: string;
+}
+/** Every example, as the map's pieces. */
+export const EXAMPLE_PIECES: readonly MapPiece[] = Object.entries(EXAMPLES).map(([key, e]) => ({ id: `example:${key}`, source: e.source }));
+// (the preset styles by name, as a piece's `style=&funk` names them)
+const STYLE_NAMES = styleNamesIn(SEED_FILES);
 
 /**
  * A piece's nodes and edges: its meeting points, and its edges to what it takes. `parts`: the parts this piece gives as a
@@ -79,24 +101,39 @@ function pieceGraph(key: string, source: string, known: ReadonlySet<string>, par
   for (const part of parts.values()) if (!partsRead.has(part)) edges.push([`p:${key}`, part]);
 }
 
-/** The map's graph over a catalogue and the examples. */
-export function mapGraph(entries: readonly CatalogueEntry[] = catalogue(), pieces: Readonly<Record<string, { readonly source: string }>> = EXAMPLES): MapGraph {
+/**
+ * The map's graph over a catalogue, the library's pieces and the preset styles (landmarks, each at its point). A piece
+ * that declares no style and takes no fragment has nothing to place it: it is left out, and said (`unplaced`).
+ */
+export function mapGraph(entries: readonly CatalogueEntry[] = catalogue(), pieces: readonly MapPiece[] = EXAMPLE_PIECES): MapGraph {
   const known = new Set(entries.map((e) => e.id));
   const nodes: MapNode[] = entries.map((e) => ({
     key: `f:${e.id}`,
     kind: 'fragment',
     label: e.id,
+    points: e.association,
     ...(e.facets[0] ? { facet: e.facets[0] } : {}),
     ...(e.path === null ? { own: true as const } : {}),
   }));
   const edges: [string, string][] = entries.flatMap((e) => e.takes.filter((t) => known.has(t)).map((t): [string, string] => [`f:${e.id}`, `f:${t}`]));
-  for (const [key, p] of Object.entries(pieces)) {
-    nodes.push({ key: `p:${key}`, kind: 'piece', label: key });
-    const parts = new Map(entries.flatMap((e) => (e.part?.document === key ? [[`&${e.part.head}`, `f:${e.id}`] as const] : [])));
-    pieceGraph(key, p.source, known, parts, nodes, edges);
+  const unplaced: string[] = [];
+  for (const p of pieces) {
+    // (an example's parts are its own fragments, `kinderlied/twinkle`: by the key the catalogue names its document)
+    const key = p.id.slice(p.id.indexOf(':') + 1);
+    const place = p.source ? (placeOf(p.source, { styles: STYLE_NAMES })?.association ?? []) : [];
+    const before = edges.length;
+    const mine: MapNode[] = [];
+    const parts = new Map(entries.flatMap((e) => (p.id.startsWith('example:') && e.part?.document === key ? [[`&${e.part.head}`, `f:${e.id}`] as const] : [])));
+    if (p.source) pieceGraph(p.id, p.source, known, parts, mine, edges);
+    if (!place.length && edges.length === before) {
+      unplaced.push(p.id);
+      continue;
+    }
+    nodes.push({ key: `p:${p.id}`, kind: 'piece', label: p.id, ...(place.length ? { points: place } : {}) }, ...mine);
   }
+  for (const s of STYLES) nodes.push({ key: `s:${s.id}`, kind: 'style', label: s.name, points: [{ point: s.point, weight: 1 }] });
   const seen = new Set<string>();
-  return { nodes, edges: edges.filter(([a, b]) => a !== b && !seen.has(`${a}|${b}`) && !!seen.add(`${a}|${b}`)) };
+  return { nodes, edges: edges.filter(([a, b]) => a !== b && !seen.has(`${a}|${b}`) && !!seen.add(`${a}|${b}`)), unplaced };
 }
 
 /** Where a fragment's points put it on an axis (0…1 of the axis's range) and how sure they are (0…1); null where none names it. */
@@ -161,17 +198,16 @@ const DECAY = 0.6;
 /** The two forces' strength together, per tick at certainty 1 (a spring's at balance 0, an anchor's at 1). */
 const STRENGTH = 0.4;
 /** A node's radius as a share of the square: a fragment grows with the root of its degree, as the mock-up drew it. */
-const radius = (n: MapNode, degree: number) => (n.kind === 'piece' ? 0.006 : n.kind === 'meeting' ? 0.005 : 0.006 + 0.0025 * Math.sqrt(degree));
+const radius = (n: MapNode, degree: number) => (n.kind === 'piece' ? 0.006 : n.kind === 'meeting' ? 0.005 : n.kind === 'style' ? 0.008 : 0.006 + 0.0025 * Math.sqrt(degree));
 
 /** The map laid out on two axes of `AXES` (by name). Deterministic: a fixed start, no randomness. */
-export function mapLayout(graph: MapGraph, xAxis: string, yAxis: string, options: MapOptions = {}, entries: readonly CatalogueEntry[] = catalogue()): Placed[] {
-  const byId = new Map(entries.map((e) => [e.id, e]));
+export function mapLayout(graph: MapGraph, xAxis: string, yAxis: string, options: MapOptions = {}): Placed[] {
   const degree = new Map<string, number>();
   for (const [a, b] of graph.edges) for (const k of [a, b]) degree.set(k, (degree.get(k) ?? 0) + 1);
   type N = SimulationNodeDatum & { node: MapNode; r: number; ax: Anchor | null; ay: Anchor | null };
   const byKey = new Map<string, N>();
   const nodes: N[] = graph.nodes.map((node, i) => {
-    const e = node.kind === 'fragment' ? byId.get(node.label) : undefined;
+    const e = node.points?.length ? { association: node.points } : null;
     const ax = e ? anchorOf(e, xAxis) : null;
     const ay = e ? anchorOf(e, yAxis) : null;
     const was = options.from?.get(node.key);
@@ -199,8 +235,10 @@ export function mapLayout(graph: MapGraph, xAxis: string, yAxis: string, options
   };
   const anchors = (alpha: number) => {
     for (const n of nodes) {
-      if (n.ax) n.vx! += (n.ax.at - n.x!) * anchor * alpha * n.ax.certainty;
-      if (n.ay) n.vy! += (n.ay.at - n.y!) * anchor * alpha * n.ay.certainty;
+      // (a preset style is a landmark: held at its point whatever the slider says)
+      const k = n.node.kind === 'style' ? STRENGTH : anchor;
+      if (n.ax) n.vx! += (n.ax.at - n.x!) * k * alpha * n.ax.certainty;
+      if (n.ay) n.vy! += (n.ay.at - n.y!) * k * alpha * n.ay.certainty;
     }
   };
   // (d3-force's own jiggle draws from a fixed-seed generator: the same run every time)

@@ -6,6 +6,8 @@ import { AXES } from '@yggi/cells/engine/style';
 import { catalogue } from '@yggi/cells/repository/catalogue';
 import { anchorOf, mapGraph, mapLayout } from './fragmentmap';
 import { EMPTY_LAYER } from '@yggi/cells/repository/fragments';
+import { STYLES } from '@yggi/cells/repository/styles';
+import { EXAMPLES } from '@yggi/cells/engine/examples';
 
 const graph = mapGraph();
 const [X, Y] = [AXES[0]!.name, AXES[1]!.name];
@@ -16,7 +18,25 @@ describe('the fragment map', () => {
     expect(graph.nodes.filter((n) => n.kind === 'fragment').length).toBe(catalogue().length);
     expect(graph.edges.every(([a, b]) => keys.has(a) && keys.has(b) && a !== b)).toBe(true);
     // (Kinderlieder's songs meet their tunes: a line whose arguments bring two or more taken cells together)
-    expect(graph.nodes.some((n) => n.kind === 'meeting' && n.key.startsWith('c:kinderlied:'))).toBe(true);
+    expect(graph.nodes.some((n) => n.kind === 'meeting' && n.key.startsWith('c:example:kinderlied:'))).toBe(true);
+  });
+
+  it('places a piece by the style it declares, the preset styles as landmarks, and leaves out a piece nothing places', () => {
+    // (every preset style, at its point)
+    for (const s of STYLES) expect(graph.nodes.find((n) => n.key === `s:${s.id}`)?.points).toEqual([{ point: s.point, weight: 1 }]);
+    // (an example that declares its style, `* from style=&funk`, is held where the style is)
+    const funk = graph.nodes.find((n) => n.key === 'p:example:funk')!;
+    expect(anchorOf({ association: funk.points! }, X)!.at).toBeCloseTo(anchorOf({ association: graph.nodes.find((n) => n.key === 's:funk')!.points! }, X)!.at);
+    // (a piece with no style and no fragment: left out, and said; one with either: in)
+    const g = mapGraph(catalogue(), [
+      { id: 'saved:plain', source: '&a step=4n 0 2 4' },
+      { id: 'saved:taking', source: '&bar meter("4/4") step=100bpm\n&kick from techno_drums' },
+      { id: 'midi:x' },
+    ]);
+    expect(g.unplaced).toEqual(['saved:plain', 'midi:x']);
+    expect(g.nodes.some((n) => n.key === 'p:saved:taking')).toBe(true);
+    // (and the examples: each in, or said)
+    expect(graph.nodes.filter((n) => n.kind === 'piece').length + graph.unplaced.length).toBe(Object.keys(EXAMPLES).length);
   });
 
   it('marks a fragment the person filed as their own, and only that one (#626)', () => {

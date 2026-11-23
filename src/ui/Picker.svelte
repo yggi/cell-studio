@@ -65,7 +65,8 @@
   // the cards' filters: a tag of each kind, or any (all of them hold: genre and artist and topic; the tutorial has its own section)
   let filter = $state<Record<FilterKind, string | null>>({ genre: null, artist: null, topic: null });
   // cards, or the library as a graph (pieces and their tags)
-  let view = $state<'cards' | 'graph'>('graph');
+  // (the studio's: kept while a piece opened from it plays, ◂ back to it)
+  const view = $derived(screen.library);
   // the floating top's height (the graph keeps it free) and a request to frame it all again
   let topHeight = $state(0);
   let refit = $state(0);
@@ -79,7 +80,7 @@
     }
     tag = tag === t ? null : t;
     detail = null;
-    if (view === 'graph') refit++;
+    if (view === 'wheel') refit++;
   }
   // a piece's card, opened from the graph: its details
   let detail = $state<Entry | null>(null);
@@ -118,7 +119,6 @@
   function onkeydown(e: KeyboardEvent) {
     if (e.key !== 'Escape' || e.defaultPrevented) return;
     if (detail) detail = null;
-    else if (screen.fragments && screen.tab === 'select') screen.fragments = false;
     else if (!embedded) onclose();
   }
 </script>
@@ -128,7 +128,7 @@
 <div
   class="picker"
   class:embedded
-  class:immersive={embedded && view === 'graph'}
+  class:immersive={embedded && view !== 'cards'}
   role={embedded ? 'region' : 'dialog'}
   aria-modal={embedded ? undefined : true}
   aria-label="Choose a piece"
@@ -147,10 +147,18 @@
     </header>
 
     <div class="bar">
-      <input class="search" type="search" placeholder="Search titles, descriptions, tags" bind:value={query} aria-label="Search" />
+      <input
+        class="search"
+        type="search"
+        placeholder={screen.narrow ? 'Search' : view === 'style' ? 'Search pieces and fragments' : 'Search titles, descriptions, tags'}
+        bind:value={query}
+        aria-label="Search"
+      />
+      <!-- the library's three views: its cards, its wheel (by tags and collections), its style map (by cells' axes) -->
       <div class="views" role="radiogroup" aria-label="View">
-        <button role="radio" aria-checked={view === 'cards'} class="unstyled" class:on={view === 'cards'} onclick={() => (view = 'cards')}>Cards</button>
-        <button role="radio" aria-checked={view === 'graph'} class="unstyled" class:on={view === 'graph'} onclick={() => (view = 'graph')}>Graph</button>
+        {#each [['cards', 'Cards'], ['wheel', 'Wheel'], ['style', 'Style']] as const as [v, name] (v)}
+          <button role="radio" aria-checked={view === v} class="unstyled" class:on={view === v} onclick={() => (screen.library = v)}>{name}</button>
+        {/each}
       </div>
     </div>
 
@@ -160,7 +168,19 @@
   </div>
   {#if message}<p class="message" role="status">{message}</p>{/if}
 
-  {#if view === 'graph'}
+  {#if view === 'style'}
+    <!-- the style map (#625): the library on cells' style axes; a node tapped, its card; its own chunk, fetched when shown -->
+    {#await import('./StyleMap.svelte') then m}<m.default
+        {query}
+        bind:facet
+        top={embedded ? topHeight : 0}
+        {colours}
+        selected={detail?.id ?? null}
+        {lookup}
+        pieces={entries}
+        onopen={(id) => (detail = lookup(id) ?? null)}
+      />{/await}
+  {:else if view === 'wheel'}
     {#if lib}
       <LibraryGraph
         {entries}
@@ -173,19 +193,8 @@
         top={embedded ? topHeight : 0}
         {refit}
         onopen={(e) => (detail = e)}
-        onfragments={() => (screen.fragments = true)}
+        onfragments={() => (screen.library = 'style')}
       />
-      {#if screen.fragments}
-        <!-- the fragment map (#625), over the wheel: ◂ back to it; a node tapped, its card; its own chunk, fetched on first open -->
-        {#await import('./FragmentMap.svelte') then m}<m.default
-            bind:query
-            bind:facet
-            selected={detail?.id ?? null}
-            {lookup}
-            onopen={(id) => (detail = lookup(id) ?? null)}
-            onclose={() => (screen.fragments = false)}
-          />{/await}
-      {/if}
     {:else}
       <!-- while the library is laid out: its wheel, turning (a transform: it keeps turning while the page works) -->
       <div class="arranging" role="status">

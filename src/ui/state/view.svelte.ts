@@ -3,6 +3,8 @@ import { keepPerf, perfWanted } from '../perfSwitch';
 import type { GraphLayout } from './graphLayout.svelte';
 
 export type Tab = 'select' | 'graph' | 'code' | 'time';
+/** The library's views: cards, its wheel, its style map. */
+export type LibraryView = 'cards' | 'wheel' | 'style';
 /** What the sidebar shows: the cell whose sheet is open (a wide screen's inspector), the piece's controls, MIDI (ports,
  * channels, keys, learned knobs), the graph's layout forces, files, a Jambot session (Jam), the piece's numbers, or the
  * parts a document of fragments gives (#623). */
@@ -13,9 +15,12 @@ export class View {
   /** The first view is choosing a piece (the library as a graph); then the piece's graph, its code, and it in time (on a
    * wide screen the graph's pane shows the graph or the time view). */
   tab = $state<Tab>('select');
-  /** The library shows its fragments' map, over its wheel (#625): kept while a fragment opened from it plays, so ◂ goes
-   * back to it. */
-  fragments = $state(false);
+  /**
+   * How the library shows itself (#625): its cards; its wheel (its tags and collections round it); or its style map (on
+   * cells' style axes: fragments, the pieces something places there, the preset styles). Kept while a piece or a
+   * fragment opened from it plays, so ◂ goes back to it.
+   */
+  library = $state<LibraryView>('wheel');
   readonly #wide = new MediaQuery('min-width: 900px');
   /** Tabs only on narrow screens (matches the CSS breakpoint). */
   readonly narrow = $derived(!this.#wide.current);

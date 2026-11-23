@@ -1,33 +1,44 @@
 <script lang="ts">
   /**
-   * The fragment map (#625, rung S4 of #621): the library's fragments, the examples and their meeting points, laid out by
-   * `layout/fragmentmap.ts` on any two of cells' style axes. Its controls:
-   * - a search, the library's own (`matches`): what it doesn't find dims;
+   * The library's style map (#625, rung S4 of #621), one of its views beside its cards and its wheel: its fragments, the
+   * pieces something places in style space (a style they declare, a fragment they take), their meeting points, and the
+   * preset styles as landmarks, laid out by `layout/fragmentmap.ts` on any two of cells' style axes. Its controls (the
+   * library's search is the picker's, one for every view):
    * - x and y, each any of `AXES` (read from cells: no axis is named here);
    * - the style ↔ structure slider (the anchors' share against the springs'), its default the probe's knee;
-   * - a filter by facet.
+   * - what it shows: pieces, fragments, and a fragment's facet.
    * A change re-runs the layout from where the nodes are, and they glide there. The map zooms and pans on its own (two
-   * fingers, a wheel, a drag; Fit back). Its names show where they have room. A node tapped opens its card (the picker's
-   * Detail: a fragment's or a piece's), never one the search or the filter dimmed.
+   * fingers, a wheel, a drag; Fit back). Its names show where they have room; zoomed in, a piece grows into its wheel,
+   * as on the library's wheel. A node tapped opens its card (the picker's Detail: a fragment's or a piece's), never one
+   * the search or the filter dimmed.
    */
-  import { onMount } from 'svelte';
+  import { onMount, untrack } from 'svelte';
   import { AXES } from '@yggi/cells/engine/style';
-  import { BALANCE, mapGraph, mapLayout, type Placed } from '../layout/fragmentmap';
+  import { BALANCE, EXAMPLE_PIECES, mapGraph, mapLayout, type Placed } from '../layout/fragmentmap';
+  import PieceNode from './PieceNode.svelte';
   import { FACETS } from '../references';
   import { facetColour } from './theme';
   import { mine } from '../mine.svelte';
   import { matches, type Entry } from './entries';
 
   let {
-    query = $bindable(''),
+    query = '',
     facet = $bindable(null),
+    top = 0,
+    colours,
     selected = null,
     lookup,
+    pieces,
     onopen,
-    onclose,
   }: {
-    /** The library's search (the picker's: one for its wheel and its map). */
+    /** The library's search (the picker's: one for its every view). */
     query?: string;
+    /** Room kept free at the top (the picker's controls float there). */
+    top?: number;
+    /** Each tag's colour (the picker's: a piece's wheel draws its tags in it). */
+    colours: ReadonlyMap<string, string>;
+    /** The library's pieces (its examples, the pieces saved here, the MIDI library's files). */
+    pieces: readonly Entry[];
     /** The facet it is filtered by, or null for every one. */
     facet?: string | null;
     /** The card open now, by its id (its node ringed). */
@@ -36,11 +47,17 @@
     lookup: (id: string) => Entry | undefined;
     /** A node tapped: its card's id. */
     onopen: (id: string) => void;
-    onclose: () => void;
   } = $props();
 
-  // (the library as the app lists it: the seed's and the person's own, #626)
-  const graph = mapGraph(mine.entries);
+  // (the library as the app lists it: the seed's fragments and the person's own, #626; every piece, an example's text
+  // the one cells holds, a saved piece's its own, a MIDI file's none: read when it opens)
+  const examples = new Map(EXAMPLE_PIECES.map((p) => [p.id, p]));
+  const graph = mapGraph(
+    mine.entries,
+    untrack(() => pieces).map((e) => examples.get(e.id) ?? { id: e.id, ...(e.source ? { source: e.source } : {}) }),
+  );
+  // what it shows: pieces, fragments (and the preset styles, always: they are where the map is)
+  let kinds = $state({ piece: true, fragment: true });
   let x = $state(AXES[0]!.name);
   let y = $state(AXES[1]!.name);
   let balance = $state(BALANCE);
@@ -52,7 +69,7 @@
   /** Lay out from where the nodes are, and glide there (400 ms; at once with reduced motion). */
   function relayout() {
     const from = drawn.length ? new Map(drawn.map((p) => [p.node.key, { x: p.x, y: p.y }])) : undefined;
-    const next = mapLayout(graph, x, y, { balance, ...(from ? { from } : {}) }, mine.entries);
+    const next = mapLayout(graph, x, y, { balance, ...(from ? { from } : {}) });
     cancelAnimationFrame(frame);
     const start = drawn;
     const still = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -68,7 +85,7 @@
   }
   // (opened, it shows at once where it starts, each fragment at its anchors, and lays out in the next task, gliding there)
   onMount(() => {
-    drawn = mapLayout(graph, x, y, { balance, ticks: 0 }, mine.entries);
+    drawn = mapLayout(graph, x, y, { balance, ticks: 0 });
     const t = setTimeout(relayout, 0);
     return () => (clearTimeout(t), cancelAnimationFrame(frame));
   });
@@ -177,11 +194,14 @@
   const at = $derived(new Map(drawn.map((p) => [p.node.key, p])));
   const axisOf = (name: string) => AXES.find((a) => a.name === name)!;
   // a node's card (a meeting point has none)
-  const idOf = (p: Placed) => (p.node.kind === 'fragment' ? `fragment:${p.node.label}` : p.node.kind === 'piece' ? `example:${p.node.label}` : null);
+  const idOf = (p: Placed) => (p.node.kind === 'fragment' ? `fragment:${p.node.label}` : p.node.kind === 'piece' ? p.node.label : null);
   // what the search and the filter let through: the rest dims, and can't be opened
   const words = $derived(query.trim().toLowerCase());
   function lit(p: Placed): boolean {
-    if (p.node.kind === 'meeting') return facet === null && !words;
+    // (a preset style is where the map is: always shown, a landmark)
+    if (p.node.kind === 'style') return true;
+    if (p.node.kind === 'meeting') return facet === null && !words && kinds.piece && kinds.fragment;
+    if ((p.node.kind === 'piece' && !kinds.piece) || (p.node.kind === 'fragment' && !kinds.fragment)) return false;
     if (facet !== null && p.node.facet !== facet) return false;
     if (!words) return true;
     const e = lookup(idOf(p)!);
@@ -200,13 +220,14 @@
   const nameOf = (p: Placed) => (p.node.kind === 'piece' ? (lookup(idOf(p)!)?.title ?? p.node.label) : p.node.label);
   const labels = $derived.by(() => {
     const placed: { x0: number; x1: number; y0: number; y1: number }[] = [];
-    const rank = (p: Placed) => (idOf(p) === selected || p.node.key === hovered ? 0 : p.node.kind === 'fragment' ? 1 : 2);
+    // (the open card's and the hovered node's first, then the landmarks, then fragments, then pieces)
+    const rank = (p: Placed) => (idOf(p) === selected || p.node.key === hovered ? 0 : p.node.kind === 'style' ? 1 : p.node.kind === 'fragment' ? 2 : 3);
     const order = drawn.filter((p) => p.node.kind !== 'meeting' && shown.has(p.node.key)).sort((a, b) => rank(a) - rank(b) || b.r - a.r);
     const out: { p: Placed; text: string; x: number; y: number }[] = [];
     for (const p of order) {
       const text = nameOf(p);
       // (11 px type: about 6 px a letter, 13 px a line)
-      const [x, y, w] = [sx(p.x), sy(p.y) - radius(p) - 4, text.length * 6.2 + 4];
+      const [x, y, w] = [sx(p.x), sy(p.y) - drawnRadius(p) - 4, text.length * 6.2 + 4];
       const box = { x0: x - w / 2, x1: x + w / 2, y0: y - 11, y1: y + 2 };
       const forced = rank(p) === 0;
       if (!forced && (box.x0 < L || box.x1 > W - R || box.y0 < T || box.y1 > H - B)) continue;
@@ -220,12 +241,32 @@
   // (a node grows as the map zooms, but slower, and at most twice: zooming in spreads a cluster out)
   // (a node's radius is a share of the square: of the room's shorter side here)
   const radius = (p: Placed) => Math.max(2.5, p.r * Math.min(W - L - R, H - T - B) * Math.min(2, Math.sqrt(k)));
+  // zoomed in, a piece grows into its wheel, as on the library's wheel: from 4 times in, 14 px across a step of zoom, at
+  // most 72; only those in view, and shown
+  const wheel = $derived(k >= 4 ? Math.min(72, 14 * k) : 0);
+  const drawnRadius = (p: Placed) => (withWheel.has(p.node.key) ? wheel / 2 : radius(p));
+  // (each where it has room, wholly inside the frame, the open card's first: a wheel never lies over another; a piece
+  // left without one stays a dot)
+  const wheels = $derived.by(() => {
+    if (!wheel) return [];
+    const out: { p: Placed; e: Entry; cx: number; cy: number }[] = [];
+    const first = (p: Placed) => (p.node.label === selected || p.node.key === hovered ? 0 : 1);
+    for (const p of drawn.filter((p) => p.node.kind === 'piece' && shown.has(p.node.key)).sort((a, b) => first(a) - first(b))) {
+      const [cx, cy] = [sx(p.x), sy(p.y)];
+      if (cx - wheel / 2 < L || cx + wheel / 2 > W - R || cy - wheel / 2 < T || cy + wheel / 2 > H - B) continue;
+      if (out.some((o) => Math.hypot(o.cx - cx, o.cy - cy) < wheel * 1.05)) continue;
+      const e = lookup(p.node.label);
+      if (e) out.push({ p, e, cx, cy });
+    }
+    return out;
+  });
+  const withWheel = $derived(new Set(wheels.map((w) => w.p.node.key)));
+  // what the map leaves out: pieces nothing places in style space (no style declared, no fragment taken)
+  const unplaced = graph.unplaced.length;
 </script>
 
-<div class="map" role="region" aria-label="The fragment map">
+<div class="map" role="region" aria-label="The library's style map" style:padding-top="{top}px">
   <div class="controls">
-    <button class="unstyled back" onclick={onclose}>◂ Library</button>
-    <input class="search" type="search" placeholder="Search fragments and pieces" bind:value={query} aria-label="Search" />
     <label
       >x <select bind:value={x} onchange={relayout}
         >{#each AXES as a (a.name)}<option value={a.name} disabled={a.name === y}>{a.label}</option>{/each}</select
@@ -238,13 +279,19 @@
     >
     <label class="balance">structure <input type="range" min="0" max="1" step="0.05" bind:value={balance} onchange={relayout} aria-label="Style against structure" /> style</label>
   </div>
-  <div class="facets" role="group" aria-label="Facets">
+  <div class="facets" role="group" aria-label="What it shows">
+    <!-- (pieces and fragments, each on or off; then a fragment's facet) -->
+    {#each [['piece', 'pieces'], ['fragment', 'fragments']] as const as [kind, name] (kind)}
+      <button class="unstyled chip kind" class:on={kinds[kind]} aria-pressed={kinds[kind]} onclick={() => (kinds = { ...kinds, [kind]: !kinds[kind] })}>{name}</button>
+    {/each}
+    <span class="sep" aria-hidden="true"></span>
     {#each facets as f (f)}
-      <button class="unstyled chip" class:on={facet === f} style:--c={facetColour(f, facets)} aria-pressed={facet === f} onclick={() => (facet = facet === f ? null : f)}
+      <button class="unstyled chip f" class:on={facet === f} style:--c={facetColour(f, facets)} aria-pressed={facet === f} onclick={() => (facet = facet === f ? null : f)}
         >{f}</button
       >
     {/each}
   </div>
+  {#if unplaced}<p class="unplaced">{unplaced} pieces declare no style and take no fragment yet: the wheel has them.</p>{/if}
   <div class="plot" bind:this={plot}>
     <svg
       bind:this={svg}
@@ -301,20 +348,35 @@
           />
         {/each}
         {#each labels as l (l.p.node.key)}
-          <text x={l.x} y={l.y} class="label" class:piece={l.p.node.kind === 'piece'}>{l.text}</text>
+          <text x={l.x} y={l.y} class="label" class:piece={l.p.node.kind === 'piece'} class:landmark={l.p.node.kind === 'style'}>{l.text}</text>
         {/each}
       </g>
     </svg>
+    <!-- (zoomed in: each piece in view as its wheel, its graph inside, as on the library's wheel; a tap opens its card) -->
+    {#each wheels as w (w.p.node.key)}
+      <button
+        class="unstyled wheel"
+        class:selected={w.e.id === selected}
+        style:left="{w.cx}px"
+        style:top="{w.cy}px"
+        style:width="{wheel}px"
+        style:height="{wheel}px"
+        onclick={() => open(w.p)}
+        aria-label="Piece {w.e.title}: details"
+        tabindex="-1"><PieceNode entry={w.e} {colours} size={wheel} petals={false} /></button
+      >
+    {/each}
     {#if k > 1}<button class="unstyled fit" onclick={fit} title="All of the map">Fit</button>{/if}
   </div>
 </div>
 
 <style>
+  /* the library's canvas, as its wheel's: the picker's controls float over its top (its padding keeps their room) */
   .map {
-    position: absolute;
-    inset: 0;
-    /* (over the library's graph, its zoom controls' 10 included) */
-    z-index: 11;
+    position: relative;
+    isolation: isolate;
+    flex: 1;
+    min-height: 0;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -333,19 +395,6 @@
     align-items: center;
     justify-content: center;
     gap: 6px 14px;
-  }
-  .back {
-    font-weight: 700;
-    color: var(--accent);
-  }
-  .search {
-    width: min(260px, 100%);
-    padding: 5px 10px;
-    font: inherit;
-    color: var(--text);
-    background: var(--surface);
-    border: 1px solid var(--line);
-    border-radius: var(--radius-pill);
   }
   select {
     font: inherit;
@@ -371,12 +420,50 @@
     background: var(--c);
     color: var(--bg);
   }
+  .chip.kind {
+    --c: var(--text-muted);
+  }
+  .sep {
+    flex: none;
+    width: 1px;
+    height: 16px;
+    background: var(--line);
+  }
+  circle.style {
+    fill: none;
+    stroke: var(--accent);
+    stroke-width: 2;
+    stroke-dasharray: 3 2;
+    cursor: default;
+  }
+  .label.landmark {
+    fill: var(--accent);
+    font-size: 12px;
+    font-weight: 800;
+  }
+  .wheel {
+    position: absolute;
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+  }
+  .wheel.selected {
+    outline: 3px solid var(--accent);
+    outline-offset: 2px;
+  }
+  .unplaced {
+    flex: none;
+    margin: 0;
+    font-size: 11.5px;
+    color: var(--text-muted);
+    text-align: center;
+  }
   /* the map takes the room the controls leave, all of it (svg laid over it: its size never pushes the room's) */
   .plot {
     position: relative;
     flex: 1 1 auto;
     min-height: 0;
     width: 100%;
+    overflow: hidden;
   }
   .plot svg {
     position: absolute;
@@ -477,10 +564,6 @@
     }
     .controls {
       gap: 6px 10px;
-    }
-    .search {
-      flex: 1 1 160px;
-      width: auto;
     }
     .facets {
       flex-wrap: nowrap;
