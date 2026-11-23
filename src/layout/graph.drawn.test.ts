@@ -629,6 +629,10 @@ describe('every name written is one wire carrying the transform it writes, and e
               // (a cell the mix reads by value, a level or notes with their levels, `&tune * &leadV * &leadLevel`: compile writes
               // it into the product, and cells draws it as a braid wire into the mix, cells v0.28.0, yggi/cells#859)
               matched.add(`${c.name}|${name}|braid`);
+            } else if (count === 0 && c.sum && model.edges.some((x) => x.from === cellId(name) && x.to === cellId(c.name) && x.port === 'braid')) {
+              // (a value summed from another, `&bassLevel [&leadLevel + .1]`: compile folds it to a number, and cells draws what
+              // it reads as a braid wire into it, cells v0.29.0)
+              matched.add(`${c.name}|${name}|braid`);
             } else if (count === 0 && model.nodes.some((n) => n.id === cellId(name))) missing.push(`&${c.name}: &${name} (in the mix)`);
             else if (count) expect(pair ? count + 1 : count, `&${c.name}: &${name}, written ${ts.length} times in the mix`).toBe(ts.length);
             // each wire carries what is written on the name in its product: a pick, a shift (a number in the sum is the

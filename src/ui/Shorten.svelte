@@ -58,7 +58,7 @@
               <code class="now">{s.after}</code>
             </div>
             <div class="row">
-              <span class="saves">{s.kind === 'card' ? 'into the file’s frontmatter' : `−${savedText(s.saving)}`}</span>
+              <span class="saves">−{savedText(s.saving)}</span>
               <button class="apply" onclick={() => onapply(s.apply(code))}>Apply</button>
             </div>
           </li>

@@ -197,26 +197,13 @@ describe('Piece: a piece file (decision 047)', () => {
     expect(p.file).toBe(SRC);
   });
 
-  it('a text whose card says what the piece is: one warning, on the card; Shorten’s suggestion moves it to the frontmatter', () => {
-    // (the warning's line and words, and the suggestion, are cells': its shorten/card.test.ts, #500)
+  it('a text whose card still says what the piece is: an error on the card, saying the frontmatter holds it, and no suggestion to move it (cells v0.29.0, yggi/cells#891)', () => {
+    // (the card's title= and tier= are retired before 1.0.0: an error says where each is written now; Shorten no
+    // longer moves a card, since cells reads none)
     const p = new Piece(OLD);
-    expect(p.result.diagnostics.filter((d) => d.severity === 'warning')).toHaveLength(1);
-    expect(p.title).toBe('Old way');
-    const card = shorten(p.code).filter((s) => s.kind === 'card');
-    expect(card).toHaveLength(1);
-    const before = p.program;
-    p.take(card[0]!.apply(p.code));
-    expect(p.result.diagnostics.filter((d) => d.severity === 'warning')).toEqual([]);
-    // (the card's label is the frontmatter's description, and the card's line goes: cells #199)
-    expect(p.frontmatter).toEqual({ title: 'Old way', tags: ['tutorial', 'diatonic'], tier: 2, description: 'A piece saved before files.' });
-    expect(p.title).toBe('Old way');
-    expect(p.code).not.toMatch(/title=|tier=|tags=|&piece/);
-    expect(pieceMeta(p.file)).toMatchObject({ title: 'Old way', tags: ['tutorial', 'diatonic'], tier: 2, description: 'A piece saved before files.', cell: null });
-    expect(p.program.cells.size).toBe(before.cells.size - 1);
-    // (a rewrite that is a text is the code)
-    p.take(`${p.code}\n&more 1`);
-    expect(p.program.cells.has('more')).toBe(true);
-    expect(p.frontmatter).toMatchObject({ title: 'Old way' });
+    const errors = p.result.diagnostics.filter((d) => d.severity === 'error').map((d) => d.message);
+    expect(errors.some((m) => m.includes('title= is retired'))).toBe(true);
+    expect(shorten(p.code).map((s) => s.kind)).not.toContain('card');
   });
 });
 

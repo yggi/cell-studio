@@ -119,11 +119,11 @@ describe('a host’s text played as its performers play it', () => {
  * gates on the card (`[&padOut, &stabOut]`) is read the same; a drum hit's role is its line's `role=`.
  */
 const PERFORMED = `&bar meter("4/4") step=120bpm swing=16n:.6
-&drums, &drumsOut from "drums performer" &drumlines
-&bass, &bassOut from "bass performer"(bassLevel=&bassLevel) &bassline
-&pad, &padOut from "pad performer"(padLevel=&padLevel) &padline
-&stab, &stabOut from "stab performer"(stabLevel=&stabLevel) &stabline
-&lead, &leadOut from "lead performer"(leadLevel=&leadLevel) &leadline
+&drums, &drumsOut from drums_performer &drumlines
+&bass, &bassOut from bass_performer(bassLevel=&bassLevel) &bassline
+&pad, &padOut from pad_performer(padLevel=&padLevel) &padline
+&stab, &stabOut from stab_performer(stabLevel=&stabLevel) &stabline
+&lead, &leadOut from lead_performer(leadLevel=&leadLevel) &leadline
 &kick role=kick step=16n &bd ~ ~ ~ &bd ~ ~ ~ &bd ~ ~ ~ &bd ~ ~ ~
 &hat role=hat step=16n &hh!16
 &drumlines [&kick, &hat]
