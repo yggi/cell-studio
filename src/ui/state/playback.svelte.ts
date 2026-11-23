@@ -1,5 +1,5 @@
 import { plan } from '@yggi/cells/engine/realize';
-import { liveAt } from '@yggi/cells/engine/live';
+import { liveAt } from '../../layout/live';
 import { anchoredAt, mainLength, pieceTime } from '@yggi/cells/engine/duration';
 import { Player, type Feed } from '../../audio/player';
 import { chooseEngine } from '../../audio/engine';

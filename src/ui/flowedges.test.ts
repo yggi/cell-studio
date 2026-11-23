@@ -3,7 +3,7 @@ import { compilePiece } from '../compile';
 import { feeds, type GraphEdge } from '@yggi/cells/engine/graph';
 import { buildGraph } from '../layout/drawn';
 import { codeShifts, type CompileResult } from '@yggi/cells/engine/program';
-import { routing } from '@yggi/cells/engine/routing';
+import { routing } from '../layout/routing';
 import { EXAMPLES } from '@yggi/cells/engine/examples';
 import { carried, flowEdgesOf } from './flowedges';
 import { snapshotOf } from './snapshot';

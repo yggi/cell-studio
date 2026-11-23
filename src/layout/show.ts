@@ -9,10 +9,40 @@ import type { ShowPlugin } from '@yggi/cells/engine/plugins';
 import type { Diagnostic } from '@yggi/cells/engine/ast';
 import { entries, positionOf, resolveIn, resolvePitch, semitones } from '@yggi/cells/engine/helix';
 import { midiOf, modeName, mod } from '@yggi/cells/theory/modes';
-import { SHOWS } from '@yggi/cells/engine/parser/index';
 import { selects } from '@yggi/cells/engine/clocking';
 
 /** The shows the language has. A piece can carry more (plugins: engine/plugins.ts). */
+/**
+ * The words `show=` takes that the workbench draws, a cell's default for everything below it: which words `show=` takes
+ * is the frontend's, the text keeps the word (cells decision 086 §2). Lifted from yggi/cells src/engine/parser/cell.ts
+ * @ e7d8793 (v0.29.0, #650).
+ */
+const SHOWS = [
+  'braid',
+  'pattern',
+  'equal',
+  'notes',
+  'midi',
+  'do',
+  'degrees',
+  'table',
+  'scale',
+  'mode',
+  'key',
+  'grid',
+  'meter',
+  'spectrum',
+  'wave',
+  'levels',
+  'adsr',
+  'mix',
+  'note',
+  'petal',
+  'off',
+  'matrix',
+  'lfo',
+  'brightness',
+] as const;
 export type CoreShow = (typeof SHOWS)[number];
 export type Show = string;
 

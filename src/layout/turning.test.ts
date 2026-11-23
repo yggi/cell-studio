@@ -3,7 +3,7 @@ import { compilePiece } from '../compile';
 import { codeShifts } from '@yggi/cells/engine/program';
 import { EXAMPLES } from '@yggi/cells/engine/examples';
 import { playedCells, shiftsAt } from '@yggi/cells/engine/clocking';
-import { liveAt } from '@yggi/cells/engine/live';
+import { liveAt } from './live';
 import { cellView } from './cellview';
 import { drawnShifts, turnKey, turnsSeen, turningCells } from './turning';
 import { formatLabel } from './labels';

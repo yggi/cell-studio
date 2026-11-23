@@ -5,7 +5,7 @@
  */
 import type { GraphModel } from '@yggi/cells/engine/graph';
 import type { CompileResult, Shifts } from '@yggi/cells/engine/program';
-import type { Routing } from '@yggi/cells/engine/routing';
+import type { Routing } from '../layout/routing';
 
 export interface GraphSnapshot {
   readonly program: CompileResult;

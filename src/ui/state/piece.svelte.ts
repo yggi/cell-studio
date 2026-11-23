@@ -7,7 +7,7 @@ import { addCell, offProblem, setFree, setOff, setShift } from '@yggi/cells/engi
 import { freeIndex, freeList, withHeld } from '@yggi/cells/engine/held';
 import { buildGraph } from '../../layout/drawn';
 import { showProblems } from '../../layout/show';
-import { routing } from '@yggi/cells/engine/routing';
+import { routing } from '../../layout/routing';
 import { mainTempo, sections } from '@yggi/cells/engine/duration';
 import { pieceFile, titleOf } from '../../library';
 import { isPieceFile, lockfileOf, readPiece, withLockfile, writePiece, type PieceFile, type PieceFrontmatter } from '@yggi/cells/engine/piecefile';

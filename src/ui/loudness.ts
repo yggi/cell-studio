@@ -4,7 +4,7 @@
  * rhythm and dynamics, the same shape again each bar. The slots not yet reached in this lap keep the last one's, older.
  */
 import type { CompileResult, Shifts } from '@yggi/cells/engine/program';
-import { liveAt } from '@yggi/cells/engine/live';
+import { liveAt } from '../layout/live';
 import { clocking } from '@yggi/cells/engine/clocking';
 import { mainMeter } from '@yggi/cells/engine/midiclock';
 

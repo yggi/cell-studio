@@ -4,8 +4,8 @@ import { compilePiece } from '../compile';
 import { codeShifts, type CompileResult } from '@yggi/cells/engine/program';
 import { buildGraph } from './drawn';
 import { eventsBetween, plan } from '@yggi/cells/engine/realize';
-import { liveAt } from '@yggi/cells/engine/live';
-import { drawn, edgeStateOf, nodeStateOf, routing } from '@yggi/cells/engine/routing';
+import { liveAt } from './live';
+import { drawn, edgeStateOf, nodeStateOf, routing } from './routing';
 import { EXAMPLES } from '@yggi/cells/engine/examples';
 import { mainLength, pieceTime } from '@yggi/cells/engine/duration';
 

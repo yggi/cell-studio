@@ -1,7 +1,7 @@
 import { createContext } from 'svelte';
 import type { CompileResult, Shifts } from '@yggi/cells/engine/program';
-import type { LiveState } from '@yggi/cells/engine/live';
-import { nodeStateOf, type Routing, type State } from '@yggi/cells/engine/routing';
+import type { LiveState } from '../layout/live';
+import { nodeStateOf, type Routing, type State } from '../layout/routing';
 import type { LiveSource } from '../audio/live';
 import { cellId } from '@yggi/cells/engine/ids';
 import type { TransportState } from '../audio/transport';

@@ -17,9 +17,9 @@
   import { untrack } from 'svelte';
   import { setGraphContext } from '../../../src/ui/context';
   import { compileSource } from '@yggi/cells/engine/compile';
-  import { liveAt } from '@yggi/cells/engine/live';
+  import { liveAt } from '../../../src/layout/live';
   import { codeShifts } from '@yggi/cells/engine/program';
-  import { routing } from '@yggi/cells/engine/routing';
+  import { routing } from '../../../src/layout/routing';
   import SectionLooms from '../../../src/ui/SectionLooms.svelte';
   import { loomContact, loomPorts, pillOf, sectionLoom } from '../../../src/layout/sectionloom';
   import { madeUpSound } from '../sound';

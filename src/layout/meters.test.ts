@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { groundsOf, levelsText, lineShare, meterIndex, meterNow, tapSwing } from './meters';
-import { liveAt } from '@yggi/cells/engine/live';
+import { liveAt } from './live';
 import { codeShifts } from '@yggi/cells/engine/program';
 import { buildGraph } from './drawn';
 import { compilePiece } from '../compile';

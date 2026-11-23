@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { compilePiece, ownLine } from '../compile';
 import { codeShifts } from '@yggi/cells/engine/program';
 import { eventsBetween, plan } from '@yggi/cells/engine/realize';
-import { liveAt } from '@yggi/cells/engine/live';
+import { liveAt } from './live';
 import { setAttr } from '@yggi/cells/engine/edit';
 import { EXAMPLES } from '@yggi/cells/engine/examples';
 import { cellView, hubLabel, lfoValues } from './cellview';
