@@ -1,5 +1,5 @@
 /**
- * The session contract's version 2 (yggi/music-commons `contracts/session`, minor 1) run against Cell studio's version 2
+ * The session contract's version 2 (yggi/music-commons `contracts/session`, minor 3) run against Cell studio's version 2
  * reader (`protocol-v2.ts`), as `protocol.test.ts` runs version 1's against its own: the hub's vectors are copied beside
  * this file (`vectors-v2.json`, its `lifted` line naming the hub and the commit), and the hub's README for the contract is
  * the rule. Every `client` and `page` vector runs here; the `host` and `lobby` vectors check that what this client sends
@@ -47,13 +47,13 @@ function messageOf(v: Vector): unknown {
 
 const of = (reader: Vector['reader']) => contract.vectors.filter((v) => v.reader === reader);
 
-/** The vectors of a client's two readers this client doesn't meet, by name, each with its reason (the contract's "Host → client"). None, at minor 1. */
+/** The vectors of a client's two readers this client doesn't meet, by name, each with its reason (the contract's "Host → client"). None, at minor 3. */
 const RECORDED: ReadonlyMap<string, string> = new Map();
 
-describe('the session contract (music-commons contracts/session, version 2, minor 1)', () => {
+describe('the session contract (music-commons contracts/session, version 2, minor 3)', () => {
   it('is the version this reader reads, lifted with its source named; and the join carries its protocol', () => {
     expect(contract.lifted).toMatch(/^Lifted from yggi\/music-commons contracts\/session\/vectors\.json @ [0-9a-f]{7}/);
-    expect([contract.contract, contract.version, contract.minor]).toEqual(['session', 2, 1]);
+    expect([contract.contract, contract.version, contract.minor]).toEqual(['session', 2, 3]);
     expect(contract.protocol).toBe(PROTOCOL);
     expect(contract.firstProtocol).toBe(FIRST_PROTOCOL);
     expect(JOIN_PROTOCOL).toBe(PROTOCOL);
@@ -75,6 +75,11 @@ describe('the session contract (music-commons contracts/session, version 2, mino
       expect([kind, read.length > 0]).toEqual([kind, true]);
       for (const v of read) expect([v.name, readHost(messageOf(v))]).toHaveProperty('1.message');
     }
+  });
+
+  it.each(['verse', 'chorus', 'outro', 'coda'])('admits a score of the section %s only if it is one of the nine (minor 3)', (kind) => {
+    const score = of('client').find((v) => v.reads && (v.message as { kind?: unknown }).kind === 'score')!.message;
+    expect([kind, 'message' in readHost({ ...(score as object), section: kind })]).toEqual([kind, kind !== 'coda']);
   });
 
   describe("a host's messages, as a client reads them", () => {
@@ -128,7 +133,7 @@ describe('the session contract (music-commons contracts/session, version 2, mino
     const score = { kind: 'score', bar: 0, step: 0, section: 'groove', text: '* from band', unstated: null, lock: [], fragments: [], energy: [0.5], foreseen: ['x'], cut: [] };
     expect(readHost(score)).toHaveProperty('message');
     expect(readHost({ ...score, lock: [{ id: 'band', hash: 'e2:0b7a' }] })).toEqual({ dropped: 'refused' });
-    expect(readHost({ ...score, section: 'verse' })).toEqual({ dropped: 'refused' });
+    expect(readHost({ ...score, section: 'coda' })).toEqual({ dropped: 'refused' });
     expect(readHost({ kind: 'bar', sent: { bar: {}, start: 1 } })).toEqual({ dropped: 'ignored' });
     expect(readHost({ kind: 'section' })).toEqual({ dropped: 'ignored' });
     expect(readHost({ kind: 'finale', bar: '9' })).toEqual({ dropped: 'refused' });

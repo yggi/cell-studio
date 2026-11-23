@@ -1,6 +1,6 @@
 /**
  * What a Jambot host and its clients say to each other through a lobby, as a client reads it: the session contract,
- * version 1 (yggi/music-commons `contracts/session-v1`, minor 10: protocol 23), implemented here from the contract, not
+ * version 1 (yggi/music-commons `contracts/session-v1`, minor 11: protocol 24), implemented here from the contract, not
  * from Jambot's code (#478). The contract's vectors run against these readers (`protocol.test.ts`).
  *
  * Cell studio is a client that listens (rung 1 of #478): it asks a lobby which sessions are open (`list`, rung 2),
@@ -9,7 +9,7 @@
  * kept). It keeps what it needs of each (the bars' starts, the section texts, the pongs, the role it is seated as) and
  * checks the rest only for its shape (the style, the forecast, the Muse, the session's log). A field a later minor adds
  * inside what it reads is kept beside it, unread: a motif's `origin` (minor 8), the style's `mood` (minor 9), a written
- * drum hit's `role: "ostinato"` (minor 10).
+ * drum hit's `role: "ostinato"` (minor 10), a bar's `plan.section.song` and a section of the kinds verse, chorus or outro (minor 11).
  *
  * This is version 1's reader, of a host whose welcome says 13 to 29; version 2's (`protocol-v2.ts`) reads a host from
  * 30, and `readers.ts` picks between them (#525). What a page says to a lobby and a client's own messages are the same
@@ -17,12 +17,25 @@
  */
 
 /**
- * The protocol this reader reads: version 1's minor 10. It is no longer the protocol a join carries, which is version
+ * The protocol this reader reads: version 1's minor 11. It is no longer the protocol a join carries, which is version
  * 2's (`JOIN_PROTOCOL` in `readers.ts`, #525): a host of version 1 admits a join of any protocol from `FIRST_PROTOCOL`
  * on and welcomes with its own, which then picks this reader. A join carries no code: a client that listens needs
  * none (minor 2); and it sends no `nudge` (minors 5 and 6), which is a player's.
  */
-export const PROTOCOL = 23;
+export const PROTOCOL = 24;
+
+/**
+ * The kinds a section may be, in both versions (a bar's `plan.section.type`, a score's `section`): one list, the one
+ * place the follower names them. A kind outside it is refused, as the contract says (a vector, `coda`). Until a cells
+ * tag exports the feel's own list (yggi/cells#851), this mirrors it: then it is that list, and a new kind arrives by
+ * moving the pin.
+ */
+const SECTION_TYPES = ['intro', 'groove', 'bridge', 'build', 'drop', 'breakdown', 'verse', 'chorus', 'outro'] as const;
+/** A section's kind. */
+export type SectionKind = (typeof SECTION_TYPES)[number];
+const SECTION_SET: ReadonlySet<unknown> = new Set(SECTION_TYPES);
+/** Whether a value is one of the section kinds. */
+export const isSectionKind = (v: unknown): v is SectionKind => SECTION_SET.has(v);
 /** The first protocol of the contract's version 1: a host of it or later is one of this version (any minor joins). */
 export const FIRST_PROTOCOL = 13;
 

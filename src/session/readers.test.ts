@@ -8,7 +8,7 @@ const welcome2 = (protocol: number) => ({ ...welcome1(protocol), fragments: [], 
 
 describe('the two readers, chosen by the welcome’s protocol (#525)', () => {
   it('joins at version 2’s protocol', () => {
-    expect(JOIN_PROTOCOL).toBe(31);
+    expect(JOIN_PROTOCOL).toBe(33);
   });
 
   it('gives a protocol under 30 to version 1’s reader, and from 30 to version 2’s', () => {
@@ -23,7 +23,7 @@ describe('the two readers, chosen by the welcome’s protocol (#525)', () => {
     // (under 13: version 1's reader reads it, and leaves the host, as before)
     expect(readHostAs(welcome1(12), 2).version).toBe(1);
     expect(leaveOver(1, 12)).toMatch(/version 12/);
-    expect([leaveOver(1, 23), leaveOver(2, 31)]).toEqual([null, null]);
+    expect([leaveOver(1, 23), leaveOver(2, 33)]).toEqual([null, null]);
   });
 
   it('reads anything else by the version chosen: version 1’s bar is ignored by version 2’s reader', () => {

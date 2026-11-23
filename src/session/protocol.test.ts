@@ -1,5 +1,5 @@
 /**
- * The session contract (yggi/music-commons `contracts/session-v1`, version 1, minor 10) run against Cell studio's client
+ * The session contract (yggi/music-commons `contracts/session-v1`, version 1, minor 11) run against Cell studio's client
  * side, in the form cells and webmidi run theirs (yggi/webmidi src/contracts.test.ts @ 41ef16b): the hub's vectors are
  * copied beside this file (`vectors.json`, its `lifted` line naming the hub and the commit), and the hub's README for
  * the contract is the rule. A client reads two of the contract's four readers: a host's messages (`client`) and what a
@@ -50,14 +50,14 @@ const of = (reader: Vector['reader']) => contract.vectors.filter((v) => v.reader
 /**
  * The vectors of a client's two readers that this client doesn't meet, by name, each with its reason: the contract lets
  * an implementer record one rather than tighten or loosen its reader (its README's "Host → client"). A recorded vector
- * still runs, and fails once the reader meets it, so the record can't go stale. None, at minor 10.
+ * still runs, and fails once the reader meets it, so the record can't go stale. None, at minor 11.
  */
 const RECORDED: ReadonlyMap<string, string> = new Map();
 
-describe('the session contract (music-commons contracts/session-v1, version 1, minor 10)', () => {
+describe('the session contract (music-commons contracts/session-v1, version 1, minor 11)', () => {
   it('is the version this reader reads, lifted with its source named', () => {
     expect(contract.lifted).toMatch(/^Lifted from yggi\/music-commons contracts\/session-v1\/vectors\.json @ [0-9a-f]{7}/);
-    expect([contract.contract, contract.version, contract.minor]).toEqual(['session', 1, 10]);
+    expect([contract.contract, contract.version, contract.minor]).toEqual(['session', 1, 11]);
     // (`PROTOCOL` is the protocol version 1's reader reads, this minor's; the join carries version 2's, `JOIN_PROTOCOL`,
     // which a host of version 1 admits as a minor after its own: the test of what this client sends, below)
     expect(contract.protocol).toBe(PROTOCOL);

@@ -1,6 +1,6 @@
 /**
  * What a Jambot host says to its clients, as a client reads it: the session contract, version 2 (yggi/music-commons
- * `contracts/session`, minor 1: protocol 31), implemented here from the contract, not from Jambot's code (#525). The
+ * `contracts/session`, minor 3: protocol 33), implemented here from the contract, not from Jambot's code (#525). The
  * contract's vectors run against this reader (`protocol-v2.test.ts`).
  *
  * Version 2 sends each bar's **conduct** in place of the bar it composed, and a section's **score** in place of its
@@ -22,7 +22,9 @@ import {
   isLogLine,
   isMuse,
   isObject,
+  isSectionKind,
   isSong,
+  type SectionKind,
   isString,
   type KeptMessage,
   type LogLine,
@@ -30,14 +32,10 @@ import {
   type Song,
 } from './protocol';
 
-/** The protocol of the contract's version 2, minor 1: the one a join of this client carries (`readers.ts`). */
-export const PROTOCOL = 31;
+/** The protocol of the contract's version 2, minor 3: the one a join of this client carries (`readers.ts`). */
+export const PROTOCOL = 33;
 /** The first protocol of version 2: a host of it or later is one of this version (any minor joins). */
 export const FIRST_PROTOCOL = 30;
-
-/** A section's type, as a score names it. */
-type SectionType = 'intro' | 'groove' | 'bridge' | 'build' | 'drop' | 'breakdown';
-const SECTIONS: ReadonlySet<string> = new Set<SectionType>(['intro', 'groove', 'bridge', 'build', 'drop', 'breakdown']);
 
 /** A fragment named by its id and hash: a score's lock's entry, and a welcome's `band`. */
 export interface Locked {
@@ -63,7 +61,7 @@ export interface Conduct {
 export interface Score {
   readonly bar: number;
   readonly step: number;
-  readonly section: SectionType;
+  readonly section: SectionKind;
   readonly text: string;
   readonly unstated: string | null;
   readonly lock: readonly Locked[];
@@ -111,8 +109,7 @@ const isScore = (s: unknown): boolean =>
   isObject(s) &&
   isInt(s.bar) &&
   isInt(s.step) &&
-  isString(s.section) &&
-  SECTIONS.has(s.section) &&
+  isSectionKind(s.section) &&
   isString(s.text) &&
   (s.unstated === null || isString(s.unstated)) &&
   // (the band never travels: a lock that names it is refused)

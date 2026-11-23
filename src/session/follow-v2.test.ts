@@ -102,7 +102,7 @@ describe('a version 2 song played from its scores (#525, rung 2)', () => {
           seed: c.seed,
           bar: c.bar,
           groups: [2, 2, 2, 2],
-          section: s.score.section,
+          section: s.score.section as FeelFrame['section'],
           style: { entropy: c.entropy, ...STYLE[s.preset]! },
           swing: SWING[s.preset]!,
           energy: s.score.energy[k],
@@ -218,9 +218,9 @@ describe('a version 2 song played from its scores (#525, rung 2)', () => {
     expect([passed!.lacked, passed!.slices.map((x) => x.bar)]).toEqual([[], passed!.conducts.map((c) => c.bar)]);
     // (the unstated score: each bar said, as it says)
     expect(unstated!.lacked).toEqual(unstated!.conducts.map((c) => ({ bar: c.bar, why: unstated!.unstated })));
-    // (the stand-in that locks the Muse's motif plays &muse_motif_1 without a line that takes it: it doesn't compile)
-    expect(standIn!.text).not.toMatch(/from muse_motif_1/);
-    expect(standIn!.lacked.map((l) => l.why)).toEqual(standIn!.conducts.map(() => 'its text has no bar to play (it does not compile, or has no meter)'));
+    // (the stand-in that locks the Muse's motif compiles since music-commons#73, its line over the key: it plays)
+    expect(standIn!.text).toMatch(/&muse_motif_1 from muse_motif_1 &key/);
+    expect([standIn!.lacked, standIn!.slices.map((x) => x.bar)]).toEqual([[], standIn!.conducts.map((c) => c.bar)]);
   });
 
   it.each(fixture.sections.map((s) => [`${s.preset} from bar ${s.score.bar}`, s] as const))(
@@ -242,7 +242,7 @@ describe('a version 2 song played from its scores (#525, rung 2)', () => {
           seed: c.seed,
           bar: c.bar,
           groups: [2, 2, 2, 2],
-          section: s.score.section,
+          section: s.score.section as FeelFrame['section'],
           style: { entropy: c.entropy, ...STYLE[s.preset]! },
           swing: SWING[s.preset]!,
           energy: s.score.energy[k]!,
