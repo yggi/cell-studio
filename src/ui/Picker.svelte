@@ -9,6 +9,7 @@
   import LobbyCell from './LobbyCell.svelte';
   import CardGrid from './picker/CardGrid.svelte';
   import Detail from './picker/Detail.svelte';
+  import type { MapGraph, Placed } from '../layout/fragmentmap';
   import TagFilters from './picker/TagFilters.svelte';
   import { tagColours } from './tags';
   import { MIDI_FILE } from '@yggi/cells/engine/tags';
@@ -40,8 +41,11 @@
   const fragments = $derived(mine.entries.map(fragmentEntry));
   const byId = $derived(new Map([...entries, ...fragments].map((e) => [e.id, e])));
   const lookup = (id: string) => byId.get(id);
-  // the facet the map is filtered by (a fragment's card's facet chip sets it)
+  // the style map (#625, #695): the facet its fragments are filtered by (a fragment's card's facet chip sets it), which
+  // kinds show, and its layout (kept when the lens turns back to the wheel: what it glides from)
   let facet = $state<string | null>(null);
+  let kinds = $state({ piece: true, fragment: true });
+  let styled = $state.raw<{ placed: readonly Placed[]; graph: MapGraph; axes: readonly [string, string] } | null>(null);
   const onplay = async (id: string) => {
     await studio.pick(id);
     if (studio.library.anyOpen && !studio.playback.playing) void studio.playback.toggle();
@@ -164,23 +168,20 @@
 
     {#if view === 'cards'}
       <TagFilters {entries} {colours} bind:filter />
+    {:else if view === 'style'}
+      <!-- the style map's controls (#625): its axes, its slider, what it shows; it lays the map out, the canvas draws it -->
+      <!-- (its own chunk, with the style layout: fetched the first time the view is shown) -->
+      {#await import('./picker/StyleControls.svelte') then m}<m.default
+          pieces={entries}
+          bind:facet
+          bind:kinds
+          onplaced={(placed, graph, axes) => (styled = { placed, graph, axes })}
+        />{/await}
     {/if}
   </div>
   {#if message}<p class="message" role="status">{message}</p>{/if}
 
-  {#if view === 'style'}
-    <!-- the style map (#625): the library on cells' style axes; a node tapped, its card; its own chunk, fetched when shown -->
-    {#await import('./StyleMap.svelte') then m}<m.default
-        {query}
-        bind:facet
-        top={embedded ? topHeight : 0}
-        {colours}
-        selected={detail?.id ?? null}
-        {lookup}
-        pieces={entries}
-        onopen={(id) => (detail = lookup(id) ?? null)}
-      />{/await}
-  {:else if view === 'wheel'}
+  {#if view !== 'cards'}
     {#if lib}
       <LibraryGraph
         {entries}
@@ -194,6 +195,13 @@
         {refit}
         onopen={(e) => (detail = e)}
         onfragments={() => (screen.library = 'style')}
+        lens={view === 'style' ? 'style' : 'wheel'}
+        style={styled}
+        {facet}
+        {kinds}
+        {words}
+        selected={detail?.id ?? null}
+        {lookup}
       />
     {:else}
       <!-- while the library is laid out: its wheel, turning (a transform: it keeps turning while the page works) -->
@@ -411,7 +419,8 @@
     background: linear-gradient(var(--bg) 0%, color-mix(in oklab, var(--bg) 88%, transparent) 70%, transparent 100%);
     pointer-events: none;
   }
-  .picker.immersive .top > * {
+  /* (its own controls and a child component's, as the style map's) */
+  .picker.immersive .top > :global(*) {
     pointer-events: auto;
   }
   .top {

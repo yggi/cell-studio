@@ -4,9 +4,9 @@
 // can't say, measured in `browser.json`:
 //   pinch     the page's own zoom (`visualViewport.scale`) after a two-finger pinch on each screen: 1 where the screen
 //             keeps the gesture (it zooms its own canvas or nothing), more where the whole UI zoomed
-//   zoomed    whether the map zoomed itself (a pinch on a phone, a wheel on a desktop): its Fit shows
-//   blank     the room the map leaves empty, px between its plot and its region's edges (below, left, right): its
-//             padding only, where the plot fills what the controls leave
+//   zoomed    whether the canvas zoomed itself (a pinch on a phone, ctrl + wheel on a desktop): its `data-zoom` grew
+//   blank     the room the style map leaves empty, px between its frame and the canvas's region (below, left, right):
+//             its margin only, where the map fills what the controls leave
 //   overlaps  the visible controls of a screen whose boxes cross (buttons, fields, a dialog's parts, the fragment's
 //             bar and preview), a pair each, by their text or label
 //   filtered  a fragment the facet filter leaves out, tapped: whether it opened, its card or itself (it shouldn't)
@@ -107,35 +107,46 @@ for (const size of sizes) {
   await cell.scrollIntoViewIfNeeded();
   await shoot(page, size, 'library');
 
+  // (the Fragments cell turns the library's canvas to its style lens: the fragments fly out of the cell, the pieces the
+  // two lenses share glide to their style places; a picture half way)
   await cell.click();
-  const map = page.locator('.map');
+  const map = page.locator('div.frame[data-lens="style"]');
   await map.waitFor();
+  // (caught a third of the way through, its `data-mix`, whatever the machine's pace)
+  await page.waitForFunction(() => Number(document.querySelector('div.frame[data-lens]')?.getAttribute('data-mix')) >= 0.3, null, { polling: 'raf' });
+  await page.screenshot({ path: join(out, 'tiles', `${size}-glide.png`) });
+  tiles.push(`${size}-glide.png`);
   await page.waitForTimeout(900);
   await shoot(page, size, 'map');
-  // the room the map leaves empty: px between its plot and its region's edges (the region's padding included)
+  // the room the map leaves empty: px between its frame and the canvas's region (the view, under the controls)
   report.blank[size] = await page.evaluate(() => {
-    const [r, p] = [document.querySelector('.map').getBoundingClientRect(), document.querySelector('.map .plot svg').getBoundingClientRect()];
+    const [r, p] = [document.querySelector('div.frame[data-lens="style"]').getBoundingClientRect(), document.querySelector('rect.mapframe').getBoundingClientRect()];
     return { below: Math.round(r.bottom - p.bottom), left: Math.round(p.left - r.left), right: Math.round(r.right - p.right) };
   });
-  // the map's own zoom: a pinch on a phone, a wheel on a desktop; its names show once zoomed
-  const plot = (await map.locator('.plot svg').boundingBox()) ?? { x: 0, y: 0, width: 390, height: 844 };
-  if (phone) report.pinch[`${size}-map`] = await pinch(page, plot);
+  // the canvas's own zoom: a pinch on a phone, ctrl + wheel on a desktop
+  const plot = (await map.boundingBox()) ?? { x: 0, y: 0, width: 390, height: 844 };
+  const zoomOf = async () => Number(await map.getAttribute('data-zoom'));
+  const before = await zoomOf();
+  if (phone) report.pinch[`${size}-map`] = await pinch(page, { ...plot, y: plot.y + plot.height / 3, height: plot.height / 2 });
   else {
     await page.mouse.move(plot.x + plot.width / 2, plot.y + plot.height / 2);
+    await page.keyboard.down('Control');
     for (let i = 0; i < 4; i++) await page.mouse.wheel(0, -250);
+    await page.keyboard.up('Control');
   }
-  report.zoomed = { ...report.zoomed, [size]: await map.locator('.fit').isVisible() };
+  await page.waitForTimeout(300);
+  report.zoomed = { ...report.zoomed, [size]: (await zoomOf()) > before };
   await shoot(page, size, 'map-zoomed');
-  if (await map.locator('.fit').isVisible()) await map.locator('.fit').click();
+  await map.locator('.zoom button', { hasText: 'Fit' }).click();
 
   // a filter, then a fragment it leaves out tapped
-  const chips = map.locator('.facets button:not(.kind)');
+  const chips = page.locator('.style-controls .facets button:not(.kind)');
   const facets = await chips.allTextContents();
   await chips.first().click();
   await page.waitForTimeout(300);
   await shoot(page, size, 'map-filtered');
   // (tapped where it is drawn, as a hand would: whatever is there takes the tap)
-  const left = map.locator('circle.fragment.dim').first();
+  const left = map.locator('circle.frag.dim').first();
   if (await left.count()) {
     const id = (await left.getAttribute('data-key')).slice(2);
     await left.click({ force: true });
@@ -149,12 +160,17 @@ for (const size of sizes) {
   }
   // a piece's card from the map
   await chips.first().click();
-  const pieceNode = map.locator('circle.piece[role=button]').first();
+  const pieceNode = map.locator('button.piece:not([inert]):not(.dim)').first();
   if (await pieceNode.count()) {
     await pieceNode.click({ force: true });
     await page.waitForTimeout(500);
     if (await page.locator('.sheet.detail').isVisible()) await shoot(page, size, 'details-piece');
   }
+  // (and back to the wheel: the same canvas turns back, the wheel as it was)
+  if (await page.locator('.sheet.detail').isVisible()) await page.keyboard.press('Escape');
+  await page.getByRole('radio', { name: 'Wheel' }).click();
+  await page.locator('div.frame[data-lens="wheel"][data-mix="0.00"]').waitFor();
+  await shoot(page, size, 'wheel-again');
   await page.goto(url);
   await page.locator('button.disc[aria-label^="Fragments"]').waitFor({ timeout: 60000 });
 
@@ -170,9 +186,9 @@ for (const size of sizes) {
   );
   for (const [facet, id] of ids) {
     await page.locator('button.disc[aria-label^="Fragments"]').click();
-    await page.locator('.map').waitFor();
-    await page.waitForTimeout(500);
-    const node = page.locator(`.map circle[data-key="f:${id}"]`).first();
+    await page.locator('div.frame[data-lens="style"]').waitFor();
+    await page.waitForTimeout(900);
+    const node = page.locator(`circle.frag[data-key="f:${id}"]`).first();
     await node.click({ force: true });
     await page.waitForTimeout(500);
     const details = page.locator('.sheet.detail');

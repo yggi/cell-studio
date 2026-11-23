@@ -1,18 +1,27 @@
 <script lang="ts">
   /**
-   * The library, one level up: every piece (its card) a wheel — its own graph in
-   * miniature in the middle, its tags round the rim — and every tag a node, the
-   * size of how many pieces carry it. Pieces sharing tags gather. Laid out by the
-   * same physics as the pieces' graphs, without its ranks: a cloud, not a flow.
+   * The library, one level up, through either of two lenses on one canvas (#695):
+   * - **the wheel**: every piece (its card) a wheel — its own graph in miniature in the middle, its tags round the rim —
+   *   and every tag a node, the size of how many pieces carry it. Pieces sharing tags gather. Laid out by the same
+   *   physics as the pieces' graphs, without its ranks: a cloud, not a flow (`layout/library.ts`).
+   * - **the style map** (#625): fragments, the pieces something places in style space, their meeting points and the
+   *   preset styles as landmarks, on two of cells' axes (`layout/fragmentmap.ts`, laid out by `picker/StyleControls`).
+   * One renderer draws both: a piece the two share is the same node, and a switch glides it from one place to the
+   * other; what one lens alone has fades in or out (the fragments fly out of the wheel's Fragments cell). One zoom, the
+   * wheel's (a scroll, a pinch, ctrl/⌘ + wheel, Fit).
    */
   import { foldSides, GENRES, PILL, shortTitle, sideOf, sideTitle, tagFont, type LibraryLayout } from '../layout/library';
   import { tagName } from '@yggi/cells/engine/tags';
-  import { tick } from 'svelte';
+  import { tick, untrack } from 'svelte';
   import PieceNode from './PieceNode.svelte';
   import LobbyCell from './LobbyCell.svelte';
   import FragmentsCell from './FragmentsCell.svelte';
   import { clusterDisc } from '../layout/clusters';
-  import type { Entry } from './entries';
+  import { matches, type Entry } from './entries';
+  import type { MapGraph, Placed } from '../layout/fragmentmap';
+  import { AXES } from '@yggi/cells/engine/style';
+  import { FACETS } from '../references';
+  import { facetColour } from './theme';
 
   let {
     entries,
@@ -26,7 +35,27 @@
     colours,
     onopen,
     onfragments,
+    lens = 'wheel',
+    style = null,
+    facet = null,
+    kinds = { piece: true, fragment: true },
+    selected = null,
+    words = '',
+    lookup = () => undefined,
   }: {
+    /** Which lens: the wheel, or the style map. */
+    lens?: 'wheel' | 'style';
+    /** The style map's layout (unit square, x right and y up), its graph and its two axes, by name; null until laid out. */
+    style?: { readonly placed: readonly Placed[]; readonly graph: MapGraph; readonly axes: readonly [string, string] } | null;
+    /** The style map's filters: a fragment's facet, and which kinds show. */
+    facet?: string | null;
+    kinds?: { readonly piece: boolean; readonly fragment: boolean };
+    /** The card open now, by its id (its node ringed). */
+    selected?: string | null;
+    /** The search's words (lower case), for the style map's fragments. */
+    words?: string;
+    /** The library's card by its id (a fragment's, `fragment:<id>`). */
+    lookup?: (id: string) => Entry | undefined;
     /** The library laid out (worked out once, by the picker). */
     lib: LibraryLayout;
     /** The view's own canvas (no frame), as the piece's graph is. */
@@ -57,11 +86,47 @@
   let width = $state(0);
   let height = $state(0);
   let zoom = $state(0.5);
+  // (as far out as a phone needs to see all of the library at once: its width is a fifteenth of the wheel's)
+  const MIN_ZOOM = 0.05;
   let scroller = $state<HTMLDivElement | null>(null);
+  // the style map's box (layout units): as wide as the wheel's, as tall as the frame's shape makes it (a phone's tall
+  // room is all map), from the same corner, so a zoom reads the same in both lenses
+  const styleBox = $derived({ w: layout.w, h: Math.max(0.3 * layout.w, (layout.w * Math.max(1, height - top - 8)) / Math.max(1, width - 8)) });
+  // how far the lens has turned: 0 the wheel, 1 the style map; between, a glide
+  let mix = $state(untrack(() => (lens === 'style' ? 1 : 0)));
+  let turning = 0;
+  $effect(() => {
+    const to = lens === 'style' ? 1 : 0;
+    const from = untrack(() => mix);
+    if (from === to) return;
+    cancelAnimationFrame(turning);
+    const still = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+    // (the zoom turns with it, from where it is to the other lens's fit: the fading lens keeps its scale meanwhile)
+    const [z0, z1] = untrack(() => [zoom, fitZoom(to)]);
+    untrack(() => ((openSide = null), scroller?.scrollTo(0, 0)));
+    if (still) return void ((mix = to), (zoom = z1));
+    const t0 = performance.now();
+    const step = (t: number) => {
+      const k = Math.min(1, (t - t0) / 600);
+      const e = k * k * (3 - 2 * k);
+      mix = from + (to - from) * e;
+      zoom = z0 + (z1 - z0) * e;
+      if (k < 1) turning = requestAnimationFrame(step);
+    };
+    turning = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(turning);
+  });
+  // the canvas: the lens's box (both while it turns)
+  const box = $derived(mix === 0 ? { w: layout.w, h: layout.h } : mix === 1 ? styleBox : { w: Math.max(layout.w, styleBox.w), h: Math.max(layout.h, styleBox.h) });
   // fit: all of it in the frame, both ways — and where it opens
-  const fit = () => {
+  /** The zoom that shows all of a lens's box, both ways. */
+  const fitZoom = (to: number) => {
+    const b = to ? styleBox : layout;
+    return Math.max(MIN_ZOOM, Math.min(1.6, (width - 8) / b.w, (height - top - 8) / b.h));
+  };
+  const fit = (to = lens === 'style' ? 1 : 0) => {
     openSide = null;
-    zoom = Math.max(0.15, Math.min(1.6, (width - 8) / layout.w, (height - top - 8) / layout.h));
+    zoom = fitZoom(to);
     requestAnimationFrame(() => scroller?.scrollTo(0, 0));
   };
   let fitted = false;
@@ -90,7 +155,7 @@
   let canvasEl = $state<HTMLDivElement | null>(null);
   async function zoomAt(next: number, fx: number, fy: number) {
     if (!scroller || !canvasEl) return;
-    const z = Math.max(0.15, Math.min(2.5, next));
+    const z = Math.max(MIN_ZOOM, Math.min(2.5, next));
     if (z === zoom) return;
     const frame = scroller.getBoundingClientRect();
     const before = canvasEl.getBoundingClientRect();
@@ -151,14 +216,33 @@
   const title = $derived(px(PILL * lib.tagScale));
   const pillFont = $derived(Math.max(8, Math.min(18, title)));
   // (with less room than that, a title would lie over its neighbours': a piece is a dot until zoomed in, or under the pointer)
-  const legible = (id: string) => title >= 8 || peek === id;
+  // (on the style map, where it has room among the others' names: `styleRoom`)
+  const roomy = (id: string) => mix < 1 || styleRoom.pieces.has(id);
+  const legible = (id: string) => (title >= 8 && roomy(id)) || peek === id;
   // … and zoomed in, its wheel grows behind it: from nothing where its title would be 12 px to whole at 20
   // (and whole for the piece under the pointer, or held)
-  const grown = (id: string) => (peek === id ? 1 : Math.max(0, Math.min(1, (title - 12) / 8)));
+  const grown = (id: string) => (peek === id ? 1 : roomy(id) ? Math.max(0, Math.min(1, (title - 12) / 8)) : 0);
+  // the style map's places (layout units), by key: a node's unit square spread over the box, a margin round it
+  const SM = $derived(0.04 * styleBox.w);
+  const styleAt = $derived(
+    new Map((style?.placed ?? []).map((p) => [p.node.key, { x: layout.x0 + SM + p.x * (styleBox.w - 2 * SM), y: layout.y0 + SM + (1 - p.y) * (styleBox.h - 2 * SM) }])),
+  );
+  // (on the wheel, what the style map alone has sits in the Fragments cell: it flies out of it)
+  const home = $derived({ x: layout.fragments.x, y: layout.fragments.y });
+  /** Where a node is drawn (layout units): its wheel place and its style place, as far between as the lens has turned. */
+  function at(id: string): { x: number; y: number } | null {
+    const w = layout.at.get(id) ?? (styleAt.has(id) ? home : null);
+    const s = styleAt.get(id) ?? w;
+    if (!w || !s) return null;
+    return mix === 0 ? w : mix === 1 ? s : { x: w.x + (s.x - w.x) * mix, y: w.y + (s.y - w.y) * mix };
+  }
   const pos = (id: string) => {
-    const p = layout.at.get(id);
+    const p = at(id);
     return p ? { x: px(p.x - layout.x0), y: px(p.y - layout.y0) } : null;
   };
+  // how much of a node shows: what both lenses have, fully; what one has, as far as the lens has turned to it
+  const onStyle = (id: string) => styleAt.has(id);
+  const pieceShows = (id: string) => (onStyle(`p:${id}`) ? 1 : 1 - mix);
   // lit: what the chosen tag carries; dim: what the search leaves out
   // zoomed out, a tag only one piece carries says little: left out (and its wash)
   const shownTag = (t: string) => zoom >= 0.6 || (tags.get(t) ?? 0) > 1 || tag === t;
@@ -181,6 +265,8 @@
     const key = searching ? [...shown].sort().join(',') : '';
     if (key === lastShown) return;
     lastShown = key;
+    // (the style map frames nothing: what it doesn't find dims where it is)
+    if (lens === 'style') return;
     if (!searching) return void fit();
     const found = entries.filter((e) => shown.has(e.id));
     // (everything found in one cell beside the wheel: it opens)
@@ -199,7 +285,7 @@
   // (`least`: at least this zoom, the box's middle in the middle)
   function frame(x0: number, x1: number, y0: number, y1: number, least = 0) {
     if (!scroller) return;
-    zoom = Math.max(0.15, least, Math.min(1.6, width / (x1 - x0), (height - top) / (y1 - y0)));
+    zoom = Math.max(MIN_ZOOM, least, Math.min(1.6, width / (x1 - x0), (height - top) / (y1 - y0)));
     void tick().then(() => {
       if (!scroller) return;
       scroller.scrollLeft = ((x0 + x1) / 2 - layout.x0) * zoom - width / 2;
@@ -229,192 +315,305 @@
       })
       .filter((c) => c !== null),
   );
-  const lit = (e: Entry) => (!tag || e.tags.includes(tag)) && shown.has(e.id);
+  const lit = (e: Entry) => (!tag || e.tags.includes(tag)) && shown.has(e.id) && (mix < 1 || (kinds.piece && facet === null));
+  // ---- the style map's own: its fragments, meeting points and landmarks, its ties, its frame and its names
+  const styleOnly = $derived((style?.placed ?? []).filter((p) => p.node.kind !== 'piece'));
+  const styleLit = (p: Placed): boolean => {
+    if (p.node.kind === 'style') return true;
+    if (p.node.kind === 'meeting') return facet === null && !words && kinds.piece && kinds.fragment;
+    if (!kinds.fragment || (facet !== null && p.node.facet !== facet)) return false;
+    if (!words) return true;
+    const e = lookup(`fragment:${p.node.label}`);
+    return !!e && matches(e, words);
+  };
+  // (a node's radius is a share of the square: of the box's shorter side, in px, grown with the zoom but only so far)
+  const rOf = (p: Placed) => Math.max(2.5, Math.min(16, px(p.r * Math.min(styleBox.w, styleBox.h))));
+  const axisOf = (name: string) => AXES.find((a) => a.name === name) ?? AXES[0]!;
+  // names, on the style map: each where it has room, the open card's first, then the landmarks, then the pieces (a
+  // title's pill, or its wheel once grown), then the larger fragments; one that would cross a name placed already isn't
+  // drawn, and a piece with no room is a dot (worked out once the lens has turned)
+  const styleRoom = $derived.by(() => {
+    const names: { key: string; text: string; x: number; y: number; landmark: boolean }[] = [];
+    const pieces = new Set<string>();
+    if (mix < 1 || !style) return { names, pieces };
+    const placed: { x0: number; x1: number; y0: number; y1: number }[] = [];
+    const free = (b: { x0: number; x1: number; y0: number; y1: number }, forced: boolean) => {
+      if (!forced && placed.some((o) => o.x0 < b.x1 && b.x0 < o.x1 && o.y0 < b.y1 && b.y0 < o.y1)) return false;
+      placed.push(b);
+      return true;
+    };
+    const named = (p: Placed) => {
+      const c = pos(p.node.key);
+      if (!c) return;
+      const [x, y, w] = [c.x, c.y - rOf(p) - 4, p.node.label.length * 6.2 + 4];
+      if (free({ x0: x - w / 2, x1: x + w / 2, y0: y - 11, y1: y + 2 }, `fragment:${p.node.label}` === selected))
+        names.push({ key: p.node.key, text: p.node.label, x, y, landmark: p.node.kind === 'style' });
+    };
+    for (const p of styleOnly) if (p.node.kind === 'style') named(p);
+    const first = (e: Entry) => (e.id === selected || e.id === current ? 0 : 1);
+    for (const e of entries.filter((e) => onStyle(`p:${e.id}`) && visible(e.id) && lit(e)).sort((a, b) => first(a) - first(b))) {
+      const c = pos(`p:${e.id}`);
+      if (!c) continue;
+      const g = Math.max(0, Math.min(1, (title - 12) / 8));
+      const d = px(2 * (lib.wheel.get(`p:${e.id}`) ?? PR)) * g;
+      // (a pill's width as its words take it, 0.62 em a letter, its padding, and 4 px between)
+      const w = Math.max(d, pillFont * (0.62 * shortTitle(e.title).length + 1.3) + 4);
+      const h = Math.max(d, pillFont * 1.4);
+      if (free({ x0: c.x - w / 2, x1: c.x + w / 2, y0: c.y - h / 2, y1: c.y + h / 2 }, first(e) === 0)) pieces.add(e.id);
+    }
+    for (const p of styleOnly.filter((p) => p.node.kind === 'fragment' && styleLit(p)).sort((a, b) => b.r - a.r)) named(p);
+    return { names, pieces };
+  });
+  const styleNames = $derived(styleRoom.names);
+  const openStyle = (p: Placed) => {
+    const e = p.node.kind === 'fragment' ? lookup(`fragment:${p.node.label}`) : undefined;
+    if (e && styleLit(p)) onopen(e);
+  };
 </script>
 
-<div class="frame" class:bare bind:clientWidth={width} bind:clientHeight={height}>
+<div class="frame" class:bare bind:clientWidth={width} bind:clientHeight={height} data-lens={lens} data-zoom={zoom.toFixed(3)} data-mix={mix.toFixed(2)}>
   <div class="zoom" role="group" aria-label="Zoom">
     <button onclick={() => (zoom = Math.max(0.25, zoom / 1.25))} aria-label="Zoom out">−</button>
-    <button onclick={fit}>Fit</button>
+    <button onclick={() => fit()}>Fit</button>
     <button onclick={() => (zoom = Math.min(2, zoom * 1.25))} aria-label="Zoom in">+</button>
   </div>
   <div class="scroll" bind:this={scroller} style:padding-top="{top}px">
-    <div class="canvas" bind:this={canvasEl} style:width="{px(layout.w)}px" style:height="{px(layout.h)}px">
-      <!-- the library as a wheel: the genres its rim, everything else inside -->
-      {#if layout.ring}
-        {@const c = { x: px(-layout.x0), y: px(-layout.y0) }}
-        {@const R = px(layout.ring.r)}
-        {@const band = px(64)}
-        {@const n = layout.ring.genres.length}
-        <svg class="ring" width={px(layout.w)} height={px(layout.h)} aria-hidden="true">
-          <defs>
-            <radialGradient id="disc">
-              <stop offset="0%" stop-color="var(--surface)" />
-              <stop offset="100%" stop-color="var(--wheel-disc)" />
-            </radialGradient>
-          </defs>
-          <circle cx={c.x} cy={c.y} r={R - band / 2} fill="url(#disc)" />
+    <div class="canvas" bind:this={canvasEl} style:width="{px(box.w)}px" style:height="{px(box.h)}px">
+      <!-- the wheel's own, fading as the lens turns to the style map, and inert there -->
+      <div class="lens" style:opacity={mix ? 1 - mix : undefined} inert={mix === 1} hidden={mix === 1}>
+        <!-- the library as a wheel: the genres its rim, everything else inside -->
+        {#if layout.ring}
+          {@const c = { x: px(-layout.x0), y: px(-layout.y0) }}
+          {@const R = px(layout.ring.r)}
+          {@const band = px(64)}
+          {@const n = layout.ring.genres.length}
+          <svg class="ring" width={px(layout.w)} height={px(layout.h)} aria-hidden="true">
+            <defs>
+              <radialGradient id="disc">
+                <stop offset="0%" stop-color="var(--surface)" />
+                <stop offset="100%" stop-color="var(--wheel-disc)" />
+              </radialGradient>
+            </defs>
+            <circle cx={c.x} cy={c.y} r={R - band / 2} fill="url(#disc)" />
+            {#each layout.ring.genres as g (g.tag)}
+              {@const a0 = g.angle - Math.PI / n + 0.02}
+              {@const a1 = g.angle + Math.PI / n - 0.02}
+              {@const ro = R + band / 2}
+              {@const ri = R - band / 2}
+              {@const pt = (r: number, a: number) => `${c.x + r * Math.cos(a)},${c.y + r * Math.sin(a)}`}
+              {@const below = Math.sin(g.angle) > 0.2}
+              <path
+                class="seg"
+                class:dim={tag !== null && tag !== g.tag}
+                d="M{pt(ro, a0)} A{ro},{ro} 0 0 1 {pt(ro, a1)} L{pt(ri, a1)} A{ri},{ri} 0 0 0 {pt(ri, a0)}Z"
+                style:fill={colours.get(g.tag)}
+              />
+              <path id="genre-{tagName(g.tag)}" d={below ? `M${pt(R, a1)} A${R},${R} 0 0 0 ${pt(R, a0)}` : `M${pt(R, a0)} A${R},${R} 0 0 1 ${pt(R, a1)}`} fill="none" />
+              <text class="segname" font-size={Math.max(12, px(30))} dy="0.35em"
+                ><textPath href="#genre-{tagName(g.tag)}" startOffset="50%" text-anchor="middle">{tagName(g.tag).toUpperCase()}</textPath></text
+              >
+            {/each}
+          </svg>
+          <!-- (the segments answer taps, like the tags they are) -->
           {#each layout.ring.genres as g (g.tag)}
-            {@const a0 = g.angle - Math.PI / n + 0.02}
-            {@const a1 = g.angle + Math.PI / n - 0.02}
-            {@const ro = R + band / 2}
-            {@const ri = R - band / 2}
-            {@const pt = (r: number, a: number) => `${c.x + r * Math.cos(a)},${c.y + r * Math.sin(a)}`}
-            {@const below = Math.sin(g.angle) > 0.2}
-            <path
-              class="seg"
-              class:dim={tag !== null && tag !== g.tag}
-              d="M{pt(ro, a0)} A{ro},{ro} 0 0 1 {pt(ro, a1)} L{pt(ri, a1)} A{ri},{ri} 0 0 0 {pt(ri, a0)}Z"
-              style:fill={colours.get(g.tag)}
-            />
-            <path id="genre-{tagName(g.tag)}" d={below ? `M${pt(R, a1)} A${R},${R} 0 0 0 ${pt(R, a0)}` : `M${pt(R, a0)} A${R},${R} 0 0 1 ${pt(R, a1)}`} fill="none" />
-            <text class="segname" font-size={Math.max(12, px(30))} dy="0.35em"
-              ><textPath href="#genre-{tagName(g.tag)}" startOffset="50%" text-anchor="middle">{tagName(g.tag).toUpperCase()}</textPath></text
-            >
+            {@const R2 = px(layout.ring.r)}
+            <button
+              class="unstyled segtap"
+              style:left="{c.x + R2 * Math.cos(g.angle)}px"
+              style:top="{c.y + R2 * Math.sin(g.angle)}px"
+              style:width="{px(260)}px"
+              style:height="{px(90)}px"
+              onclick={() => (tag = tag === g.tag ? null : g.tag)}
+              aria-pressed={tag === g.tag}
+              aria-label="{tagName(g.tag)}: light its pieces"
+            ></button>
           {/each}
-        </svg>
-        <!-- (the segments answer taps, like the tags they are) -->
-        {#each layout.ring.genres as g (g.tag)}
-          {@const R2 = px(layout.ring.r)}
+        {/if}
+        <!-- the lobby's cell (#478): the Jambot sessions open, live, beside the wheel -->
+        <LobbyCell disc={{ x: px(layout.lobby.x - layout.x0), y: px(layout.lobby.y - layout.y0), r: px(layout.lobby.r) }} />
+        <!-- the fragments' cell (#625): the seed library's facets; a tap opens the map -->
+        {#if onfragments}
+          <FragmentsCell disc={{ x: px(layout.fragments.x - layout.x0), y: px(layout.fragments.y - layout.y0), r: px(layout.fragments.r) }} onopen={onfragments} />
+        {/if}
+        <!-- the tutorial and the MIDI library: cells of their own beside the wheel, their pieces in order along a thread -->
+        {#each layout.sides.filter((t) => t.folded) as t (t.tag)}
+          {@const R = px(t.r)}
+          {@const n = searching ? entries.filter((e) => sideOf(e) === t.tag && shown.has(e.id)).length : t.order.length}
+          <!-- (folded: a small disc at the wheel's rim, its name and how many pieces it holds; a tap opens it) -->
+          <button
+            class="unstyled satellite"
+            class:dim={(tag !== null && tag !== t.tag) || (searching && !n)}
+            style:left="{px(t.x - layout.x0)}px"
+            style:top="{px(t.y - layout.y0)}px"
+            style:width="{2 * R}px"
+            style:height="{2 * R}px"
+            style:--hue={colours.get(t.tag)}
+            style:border-width="{Math.max(3, px(14))}px"
+            onclick={() => unfold(t.tag)}
+            aria-label="{tagName(t.tag)}: {n} pieces, open it"
+          >
+            <span
+              class="name"
+              style:font-size="{Math.max(
+                6,
+                Math.min(
+                  px(24),
+                  (1.5 * R) /
+                    (0.7 *
+                      Math.max(
+                        ...tagName(t.tag)
+                          .split(' ')
+                          .map((w) => w.length),
+                      )),
+                ),
+              )}px">{tagName(t.tag)}</span
+            >
+            <span class="count" style:font-size="{Math.max(11, Math.min(px(40), R * 0.42))}px">{n}</span>
+          </button>
+        {/each}
+        {#each layout.sides.filter((t) => !t.folded) as t, i (t.tag)}
+          {@const c = { x: px(t.x - layout.x0), y: px(t.y - layout.y0) }}
+          {@const R = px(t.r)}
+          {@const band = px(40)}
+          {@const pt = (r: number, a: number) => `${c.x + r * Math.cos(a)},${c.y + r * Math.sin(a)}`}
+          {@const name = tagName(t.tag).toUpperCase()}
+          <svg class="ring" width={px(layout.w)} height={px(layout.h)} aria-hidden="true">
+            <defs>
+              <radialGradient id="side-disc-{i}">
+                <stop offset="0%" stop-color="var(--surface)" />
+                <stop offset="100%" stop-color="var(--wheel-disc)" />
+              </radialGradient>
+            </defs>
+            <circle cx={c.x} cy={c.y} r={R - band / 2} fill="url(#side-disc-{i})" />
+            <circle class="seg" class:dim={tag !== null && tag !== t.tag} cx={c.x} cy={c.y} r={R} fill="none" stroke-width={band} style:stroke={colours.get(t.tag)} />
+            <path id="side-rim-{i}" d="M{pt(R, Math.PI)} A{R},{R} 0 0 1 {pt(R, 0)}" fill="none" />
+            <!-- (its name along the upper half of its rim, as large as the genres' but over the top of it only: clear of the pills along its sides) -->
+            <text class="segname" font-size={Math.min(Math.max(12, px(26)), (Math.PI * R * 0.55) / (0.84 * name.length))} dy="0.35em"
+              ><textPath href="#side-rim-{i}" startOffset="50%" text-anchor="middle">{name}</textPath></text
+            >
+            <polyline
+              class="thread"
+              points={t.order
+                .map(pos)
+                .filter((p) => p !== null)
+                .map((p) => `${p.x},${p.y}`)
+                .join(' ')}
+            />
+          </svg>
           <button
             class="unstyled segtap"
-            style:left="{c.x + R2 * Math.cos(g.angle)}px"
-            style:top="{c.y + R2 * Math.sin(g.angle)}px"
-            style:width="{px(260)}px"
-            style:height="{px(90)}px"
-            onclick={() => (tag = tag === g.tag ? null : g.tag)}
-            aria-pressed={tag === g.tag}
-            aria-label="{tagName(g.tag)}: light its pieces"
+            style:left="{c.x}px"
+            style:top="{c.y - R}px"
+            style:width="{px(300)}px"
+            style:height="{px(70)}px"
+            onclick={() => (openSide = null)}
+            aria-label="{tagName(t.tag)}: fold it"
           ></button>
         {/each}
-      {/if}
-      <!-- the lobby's cell (#478): the Jambot sessions open, live, beside the wheel -->
-      <LobbyCell disc={{ x: px(layout.lobby.x - layout.x0), y: px(layout.lobby.y - layout.y0), r: px(layout.lobby.r) }} />
-      <!-- the fragments' cell (#625): the seed library's facets; a tap opens the map -->
-      {#if onfragments}
-        <FragmentsCell disc={{ x: px(layout.fragments.x - layout.x0), y: px(layout.fragments.y - layout.y0), r: px(layout.fragments.r) }} onopen={onfragments} />
-      {/if}
-      <!-- the tutorial and the MIDI library: cells of their own beside the wheel, their pieces in order along a thread -->
-      {#each layout.sides.filter((t) => t.folded) as t (t.tag)}
-        {@const R = px(t.r)}
-        {@const n = searching ? entries.filter((e) => sideOf(e) === t.tag && shown.has(e.id)).length : t.order.length}
-        <!-- (folded: a small disc at the wheel's rim, its name and how many pieces it holds; a tap opens it) -->
-        <button
-          class="unstyled satellite"
-          class:dim={(tag !== null && tag !== t.tag) || (searching && !n)}
-          style:left="{px(t.x - layout.x0)}px"
-          style:top="{px(t.y - layout.y0)}px"
-          style:width="{2 * R}px"
-          style:height="{2 * R}px"
-          style:--hue={colours.get(t.tag)}
-          style:border-width="{Math.max(3, px(14))}px"
-          onclick={() => unfold(t.tag)}
-          aria-label="{tagName(t.tag)}: {n} pieces, open it"
-        >
-          <span
-            class="name"
-            style:font-size="{Math.max(
-              6,
-              Math.min(
-                px(24),
-                (1.5 * R) /
-                  (0.7 *
-                    Math.max(
-                      ...tagName(t.tag)
-                        .split(' ')
-                        .map((w) => w.length),
-                    )),
-              ),
-            )}px">{tagName(t.tag)}</span
-          >
-          <span class="count" style:font-size="{Math.max(11, Math.min(px(40), R * 0.42))}px">{n}</span>
-        </button>
-      {/each}
-      {#each layout.sides.filter((t) => !t.folded) as t, i (t.tag)}
-        {@const c = { x: px(t.x - layout.x0), y: px(t.y - layout.y0) }}
-        {@const R = px(t.r)}
-        {@const band = px(40)}
-        {@const pt = (r: number, a: number) => `${c.x + r * Math.cos(a)},${c.y + r * Math.sin(a)}`}
-        {@const name = tagName(t.tag).toUpperCase()}
-        <svg class="ring" width={px(layout.w)} height={px(layout.h)} aria-hidden="true">
-          <defs>
-            <radialGradient id="side-disc-{i}">
-              <stop offset="0%" stop-color="var(--surface)" />
-              <stop offset="100%" stop-color="var(--wheel-disc)" />
-            </radialGradient>
-          </defs>
-          <circle cx={c.x} cy={c.y} r={R - band / 2} fill="url(#side-disc-{i})" />
-          <circle class="seg" class:dim={tag !== null && tag !== t.tag} cx={c.x} cy={c.y} r={R} fill="none" stroke-width={band} style:stroke={colours.get(t.tag)} />
-          <path id="side-rim-{i}" d="M{pt(R, Math.PI)} A{R},{R} 0 0 1 {pt(R, 0)}" fill="none" />
-          <!-- (its name along the upper half of its rim, as large as the genres' but over the top of it only: clear of the pills along its sides) -->
-          <text class="segname" font-size={Math.min(Math.max(12, px(26)), (Math.PI * R * 0.55) / (0.84 * name.length))} dy="0.35em"
-            ><textPath href="#side-rim-{i}" startOffset="50%" text-anchor="middle">{name}</textPath></text
-          >
-          <polyline
-            class="thread"
-            points={t.order
-              .map(pos)
-              .filter((p) => p !== null)
-              .map((p) => `${p.x},${p.y}`)
-              .join(' ')}
-          />
-        </svg>
-        <button
-          class="unstyled segtap"
-          style:left="{c.x}px"
-          style:top="{c.y - R}px"
-          style:width="{px(300)}px"
-          style:height="{px(70)}px"
-          onclick={() => (openSide = null)}
-          aria-label="{tagName(t.tag)}: fold it"
-        ></button>
-      {/each}
-      <!-- clusters: the pieces a tag gathers, washed in its colour (as cells tagged alike in a piece's graph) -->
-      {#each clusters as c (c.tag)}
-        <div
-          class="cluster"
-          class:off={tag !== null && tag !== c.tag}
-          style:left="{px(c.x - layout.x0)}px"
-          style:top="{px(c.y - layout.y0)}px"
-          style:width="{px(c.r * 2)}px"
-          style:height="{px(c.r * 2)}px"
-          style:--hue={colours.get(c.tag)}
-        ></div>
-      {/each}
-      <!-- a lit tag's pieces: tied to it -->
-      {#if tag}
-        <svg width={px(layout.w)} height={px(layout.h)} aria-hidden="true">
-          {#each layout.edges.filter((e) => e.target === `t:${tag}` && visible(e.source.slice(2)) && !foldedId(e.source)) as e (e.id)}
-            {@const a = pos(e.source)}
-            {@const b = pos(e.target)}
-            {#if a && b}<line x1={a.x} y1={a.y} x2={b.x} y2={b.y} />{/if}
-          {/each}
-        </svg>
-      {/if}
-      {#each [...tags].filter(([t]) => asNode(t)) as [t, n] (t)}
-        {@const p = pos(`t:${t}`)}
-        {#if p}
-          <button
-            class="tagnode"
-            class:genre={isGenre(t)}
-            class:on={tag === t}
-            class:dim={tag !== null && tag !== t}
-            style:left="{p.x}px"
-            style:top="{p.y}px"
-            style:font-size="{Math.max(isGenre(t) ? 11 : 9, Math.min(26, px(tagFont(n) * lib.tagScale)))}px"
-            style:--hue={colours.get(t)}
-            onclick={() => (tag = tag === t ? null : t)}
-            aria-pressed={tag === t}>{tagName(t)}</button
-          >
+        <!-- clusters: the pieces a tag gathers, washed in its colour (as cells tagged alike in a piece's graph) -->
+        {#each clusters as c (c.tag)}
+          <div
+            class="cluster"
+            class:off={tag !== null && tag !== c.tag}
+            style:left="{px(c.x - layout.x0)}px"
+            style:top="{px(c.y - layout.y0)}px"
+            style:width="{px(c.r * 2)}px"
+            style:height="{px(c.r * 2)}px"
+            style:--hue={colours.get(c.tag)}
+          ></div>
+        {/each}
+        <!-- a lit tag's pieces: tied to it -->
+        {#if tag}
+          <svg width={px(layout.w)} height={px(layout.h)} aria-hidden="true">
+            {#each layout.edges.filter((e) => e.target === `t:${tag}` && visible(e.source.slice(2)) && !foldedId(e.source)) as e (e.id)}
+              {@const a = pos(e.source)}
+              {@const b = pos(e.target)}
+              {#if a && b}<line x1={a.x} y1={a.y} x2={b.x} y2={b.y} />{/if}
+            {/each}
+          </svg>
         {/if}
-      {/each}
-      {#each entries.filter((e) => visible(e.id) && !folded(e)) as e (e.id)}
+        {#each [...tags].filter(([t]) => asNode(t)) as [t, n] (t)}
+          {@const p = pos(`t:${t}`)}
+          {#if p}
+            <button
+              class="tagnode"
+              class:genre={isGenre(t)}
+              class:on={tag === t}
+              class:dim={tag !== null && tag !== t}
+              style:left="{p.x}px"
+              style:top="{p.y}px"
+              style:font-size="{Math.max(isGenre(t) ? 11 : 9, Math.min(26, px(tagFont(n) * lib.tagScale)))}px"
+              style:--hue={colours.get(t)}
+              onclick={() => (tag = tag === t ? null : t)}
+              aria-pressed={tag === t}>{tagName(t)}</button
+            >
+          {/if}
+        {/each}
+      </div>
+      {#if mix > 0 && style}
+        <!-- the style map's own, showing as the lens turns to it: its frame and the axes' ends, the ties, its
+             landmarks, meeting points and fragments, and their names -->
+        {@const [fx, fy] = [px(SM), px(SM)]}
+        {@const [fw, fh] = [px(styleBox.w - 2 * SM), px(styleBox.h - 2 * SM)]}
+        <div class="lens" style:opacity={mix < 1 ? mix : undefined} inert={mix < 1}>
+          <svg class="map" width={px(box.w)} height={px(box.h)} aria-hidden="true">
+            <rect x={fx} y={fy} width={fw} height={fh} class="mapframe" />
+            <text x={fx} y={fy + fh + 14} class="end">{axisOf(style.axes[0]).ends[0]}</text>
+            <text x={fx + fw} y={fy + fh + 14} class="end right">{axisOf(style.axes[0]).ends[1]}</text>
+            <text x={fx - 6} y={fy + fh} class="end" transform="rotate(-90 {fx - 6} {fy + fh})">{axisOf(style.axes[1]).ends[0]}</text>
+            <text x={fx - 6} y={fy} class="end right" transform="rotate(-90 {fx - 6} {fy})">{axisOf(style.axes[1]).ends[1]}</text>
+            {#if mix === 1}
+              {#each style.graph.edges as [a, b], i (i)}
+                {@const p = pos(a)}
+                {@const q = pos(b)}
+                {#if p && q}<line class="tie" x1={p.x} y1={p.y} x2={q.x} y2={q.y} />{/if}
+              {/each}
+            {/if}
+            {#each styleOnly as n (n.node.key)}
+              {@const c = pos(n.node.key)}
+              {@const on = styleLit(n)}
+              {@const held = n.anchors[0] !== null || n.anchors[1] !== null}
+              {#if c}
+                {#if n.node.kind === 'fragment'}
+                  <!-- svelte-ignore a11y_no_noninteractive_tabindex (a fragment is a button exactly when it is focusable: what can be opened) -->
+                  <circle
+                    cx={c.x}
+                    cy={c.y}
+                    r={rOf(n)}
+                    class="frag"
+                    class:loose={!held}
+                    class:own={n.node.own === true}
+                    class:dim={!on}
+                    class:selected={`fragment:${n.node.label}` === selected}
+                    style:--c={n.node.facet ? facetColour(n.node.facet, FACETS) : undefined}
+                    data-key={n.node.key}
+                    role={on ? 'button' : undefined}
+                    tabindex={on && mix === 1 ? 0 : undefined}
+                    aria-hidden={on ? undefined : 'true'}
+                    aria-label={on ? `${n.node.own ? 'Your fragment' : 'Fragment'} ${n.node.label}` : undefined}
+                    onclick={() => openStyle(n)}
+                    onkeydown={(e) => e.key === 'Enter' && openStyle(n)}
+                  />
+                {:else}
+                  <circle cx={c.x} cy={c.y} r={rOf(n)} class={n.node.kind} data-key={n.node.key} />
+                {/if}
+              {/if}
+            {/each}
+            {#each styleNames as l (l.key)}
+              <text x={l.x} y={l.y} class="name" class:landmark={l.landmark}>{l.text}</text>
+            {/each}
+          </svg>
+        </div>
+      {/if}
+      {#each entries.filter((e) => visible(e.id) && (!folded(e) || (mix > 0 && onStyle(`p:${e.id}`))) && pieceShows(e.id) > 0) as e (e.id)}
         {@const p = pos(`p:${e.id}`)}
         {#if p}
           {@const d = px(2 * (lib.wheel.get(`p:${e.id}`) ?? PR))}
           {@const g = grown(e.id)}
           <button
             class="unstyled piece"
+            style:opacity={pieceShows(e.id) < 1 ? pieceShows(e.id) : undefined}
+            inert={pieceShows(e.id) < 1}
             class:dim={!lit(e)}
             class:peeking={peek === e.id}
             class:current={e.id === current}
@@ -701,6 +900,83 @@
     font-weight: 800;
     opacity: 1;
     box-shadow: 0 0 14px color-mix(in oklab, var(--hue) 35%, transparent);
+  }
+  /* a lens's own layer, over the whole canvas */
+  .lens {
+    position: absolute;
+    inset: 0;
+  }
+  .lens[hidden] {
+    display: none;
+  }
+  /* the style map: its frame, the axes' ends, its ties, its nodes and their names */
+  svg.map {
+    overflow: visible;
+    pointer-events: none;
+  }
+  .mapframe {
+    fill: none;
+    stroke: var(--line);
+  }
+  .end {
+    fill: var(--text-muted);
+    font: 11px var(--font-ui);
+  }
+  .end.right {
+    text-anchor: end;
+  }
+  line.tie {
+    stroke: var(--line);
+    stroke-width: 1;
+    stroke-opacity: 1;
+  }
+  circle.frag {
+    fill: var(--c, var(--text-muted));
+    cursor: pointer;
+    pointer-events: auto;
+    transition: opacity 200ms;
+  }
+  circle.frag.loose {
+    fill: none;
+    stroke: var(--c, var(--text-muted));
+    stroke-width: 2;
+  }
+  circle.frag.own {
+    stroke: var(--accent);
+    stroke-width: 3;
+  }
+  circle.frag.dim {
+    opacity: 0.12;
+    pointer-events: none;
+  }
+  circle.frag.selected,
+  circle.frag:focus-visible {
+    outline: none;
+    stroke: var(--accent);
+    stroke-width: 3;
+  }
+  circle.meeting {
+    fill: none;
+    stroke: var(--text);
+  }
+  circle.style {
+    fill: none;
+    stroke: var(--accent);
+    stroke-width: 2;
+    stroke-dasharray: 3 2;
+  }
+  .name {
+    fill: var(--text);
+    font: 600 11px var(--font-ui);
+    text-anchor: middle;
+    paint-order: stroke;
+    stroke: var(--bg);
+    stroke-width: 3px;
+  }
+  .name.landmark {
+    fill: var(--accent);
+    font-size: 12px;
+    font-weight: 800;
   }
   /* the view's own canvas: no frame, the whole view, behind the controls */
   .frame.bare {
