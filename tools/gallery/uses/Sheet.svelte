@@ -7,7 +7,7 @@
    * cluster per use, named by its line, what nothing reads folded into that name (src/layout/uses.ts).
    */
   import { onMount } from 'svelte';
-  import { liveAt } from '@yggi/cells/engine/live';
+  import { liveAt } from '../../../src/layout/live';
   import Graph from '../../../src/ui/Graph.svelte';
   import { buildGraph } from '../../../src/layout/drawn';
   import { fromLabel, useGroups, type UseGroup } from '../../../src/layout/uses';

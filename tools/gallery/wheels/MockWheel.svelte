@@ -14,9 +14,9 @@
   import { compileSource } from '@yggi/cells/engine/compile';
   import { codeShifts } from '@yggi/cells/engine/program';
   import { buildGraph } from '../../../src/layout/drawn';
-  import { liveAt } from '@yggi/cells/engine/live';
+  import { liveAt } from '../../../src/layout/live';
   import { EXAMPLES, type ExampleKey } from '@yggi/cells/engine/examples';
-  import { routing } from '@yggi/cells/engine/routing';
+  import { routing } from '../../../src/layout/routing';
   import { flowNodeOf } from '../../../src/ui/flownode';
   import type { FlowNode } from '../../../src/ui/types';
   import { madeUpSound } from '../sound';

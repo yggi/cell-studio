@@ -42,7 +42,7 @@
   import TowerStrips from './TowerStrips.svelte';
   import { strip as stripWidth } from './state/strip.svelte';
   import type { TowerSource } from './context';
-  import { liveAt, type LiveState } from '@yggi/cells/engine/live';
+  import { liveAt, type LiveState } from '../layout/live';
   import { explainLevels, explainMoments, folded, writtenLevels, type Folded } from '../layout/explained';
   import { notePixels, scalogramPixels, waterfallPixels, type Pixels } from '../layout/timepictures';
   import {

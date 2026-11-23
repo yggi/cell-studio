@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { compilePiece } from '../../compile';
 import { buildGraph } from '../../layout/drawn';
 import { codeShifts } from '@yggi/cells/engine/program';
-import { routing } from '@yggi/cells/engine/routing';
+import { routing } from '../../layout/routing';
 import { EXAMPLES } from '@yggi/cells/engine/examples';
 import { cellView } from '../../layout/cellview';
 import { snapshotOf, type GraphSnapshot } from '../snapshot';

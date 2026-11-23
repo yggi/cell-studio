@@ -13,8 +13,8 @@
   import { onDestroy, untrack } from 'svelte';
   import type { CompileResult, Shifts } from '@yggi/cells/engine/program';
   import { isCellNode, type GraphModel } from '@yggi/cells/engine/graph';
-  import type { LiveState } from '@yggi/cells/engine/live';
-  import { drawn, type Routing } from '@yggi/cells/engine/routing';
+  import type { LiveState } from '../layout/live';
+  import { drawn, type Routing } from '../layout/routing';
   import { refsOf } from '@yggi/cells/engine/readers';
   import { bulbAt, setGraphContext, type RowKeys } from './context';
   import { snapshotOf } from './snapshot';
