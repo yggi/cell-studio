@@ -268,13 +268,17 @@ const HEARD_ALONE = [
   'ternary',
   'tonic_vamp',
   'lead',
-  'meter',
+  'bar',
   'diatonic',
   'techno_drums',
   'lowpass',
   'kinderlied/twinkle',
   'drums_performer',
   'charleston_stabs',
+  'plain',
+  'snare_run',
+  'stick_count',
+  'finale',
 ];
 const SILENT_ALONE = ['band', 'styles'];
 if (only.length === 0) {
@@ -791,7 +795,7 @@ const CARD_ONLY = { voice: 'sub', channel: 2 };
 // and last blocks were 2 and 4 dB from cells').
 const STAGE = (() => {
   const lines = (...xs) => xs.join('\n');
-  const base = lines('&bar meter("4/4") step=120bpm', '&tune step=8n 0 3 7 10 12 10 7 3', '&eg map=adsr .002 .2 .1 .1', '&lfo loop=&bar/2 sin(12)');
+  const base = lines('&bar meter("4/4") step=120bpm', '&tune step=8n 0 3 7 10 12 10 7 3', '&eg map=adsr .002 .2 .1 .1', '&lfo loop=&bar/2 sin(12, 0..1)');
   const filter = 'lpf=70..4800 * &eg * &lfo lpq=8 delay=.3 delaytime=&bar*3/16';
   return {
     flat: lines(base, `&saw s=saw loop=C2 ${filter}`, `&sub s=square loop=C1 ${filter}`, '&out map=sample [&tune * &saw * .4, &tune * &sub * .2]'),

@@ -11,7 +11,7 @@
   import PluginNode from '../../../src/ui/PluginNode.svelte';
   import CellGlyph from '../../../src/ui/CellGlyph.svelte';
   import SpectrumWheel from '../../../src/ui/SpectrumWheel.svelte';
-  import { compileSource } from '@yggi/cells/engine/compile';
+  import { compilePiece } from '../../../src/compile';
   import { codeShifts } from '@yggi/cells/engine/program';
   import { buildGraph } from '../../../src/layout/drawn';
   import { liveAt } from '../../../src/layout/live';
@@ -23,7 +23,7 @@
 
   let props: { piece: ExampleKey; name: string; size?: number; playing?: boolean; t?: number } = $props();
   const { piece, name, size = 128, playing = false, t = 3 } = untrack(() => props);
-  const program = compileSource(EXAMPLES[piece].source);
+  const program = compilePiece(EXAMPLES[piece].source);
   const shifts = codeShifts(program);
   const muted = new Set<string>();
   const live = playing ? liveAt(program, shifts, muted, t) : null;
