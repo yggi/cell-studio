@@ -5,8 +5,8 @@
    * sections as a timeline (Timeline.svelte) and the tempo (Tempo.svelte). On a wide screen one capsule in the header; on
    * a phone a bar at the foot, the timeline over the buttons, with Revert · Save (on a wide screen they're the header's).
    */
-  import { clockText } from '@yggi/cells/engine/duration';
-  import { freeIndex } from '@yggi/cells/engine/held';
+  import { clockText } from '@yggi/cells/inspect';
+  import { freeIndex } from '@yggi/cells/edit';
   import { getStudio } from './state/studio.svelte';
   import Timeline from './Timeline.svelte';
   import Tempo from './Tempo.svelte';

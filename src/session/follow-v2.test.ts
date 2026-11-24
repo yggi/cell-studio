@@ -5,14 +5,8 @@
  */
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { compileSource } from '@yggi/cells/engine/compile';
-import { channelTable, router } from '@yggi/cells/engine/midi';
-import { readerOf, type FeelFrame } from '@yggi/cells/engine/perform/feel';
-import { perform } from '@yggi/cells/engine/perform/perform';
-import { codeShifts } from '@yggi/cells/engine/program';
-import { eventsBetween, plan } from '@yggi/cells/engine/realize';
-import { fragmentHash } from '@yggi/cells/engine/use';
-import { resolveSeed } from '@yggi/cells/repository/library';
+import { codeShifts, compileSource, eventsBetween, type FeelFrame, fragmentHash, perform, plan, readerOf, resolveSeed } from '@yggi/cells';
+import { channelTable, router } from '@yggi/cells/midi';
 import { SessionFeed } from '../ui/state/sessionFeed';
 import { barSeconds, type Followed } from './follow';
 import { followedOf, readScore, type ReadScore } from './follow-v2';

@@ -3,10 +3,10 @@
  * the piece's main meter, each holding the loudest level heard while the lap was in it, so the ring traces the out's
  * rhythm and dynamics, the same shape again each bar. The slots not yet reached in this lap keep the last one's, older.
  */
-import type { CompileResult, Shifts } from '@yggi/cells/engine/program';
+import type { CompileResult, Shifts } from '@yggi/cells';
+import { clocking } from '@yggi/cells/inspect';
+import { mainMeter } from '@yggi/cells/midi';
 import { liveAt } from '../layout/live';
-import { clocking } from '@yggi/cells/engine/clocking';
-import { mainMeter } from '@yggi/cells/engine/midiclock';
 
 /** Levels from this many dB under full scale up to it read 0 … 1. */
 export const FLOOR_DB = -60;

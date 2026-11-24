@@ -7,10 +7,9 @@
    * d3-force as the library's, the rest drawn by hand in the app's theme.
    */
   import { AXIS_LIST, BY_ID, DEGREE, FACETS, FRAGS, GRAPH, PIECES, PULL, TAKEN, facetColour, mapLayout, stepsOf, type MapLayout, type Placed } from './data';
-  import { EXAMPLES } from '@yggi/cells/engine/examples';
-  import { readFrom } from '@yggi/cells/engine/parser/use';
-  import { splitComment } from '@yggi/cells/engine/edit';
-  import { PARTS } from '@yggi/cells/repository/library';
+  import { EXAMPLES, PARTS } from '@yggi/cells';
+  import { readFrom } from '@yggi/cells/repository';
+  import { splitComment } from '@yggi/cells/edit';
 
   const W = 860;
   const H = 600;

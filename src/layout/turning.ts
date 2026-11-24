@@ -8,9 +8,8 @@
  * (`readThrough`, cells v0.8.0, #203); its notes read a played cell's own shift as written (`playing`). So the drawing
  * holds back only what `shiftsAt` turns and the wheel shows by its hand: a played cell that is also read through (#475).
  */
-import type { CompileResult, Shifts } from '@yggi/cells/engine/program';
-import { playedCells, readThrough } from '@yggi/cells/engine/clocking';
-import { isPicked } from '@yggi/cells/engine/helix';
+import type { CompileResult, Shifts } from '@yggi/cells';
+import { isPicked, playedCells, readThrough } from '@yggi/cells/inspect';
 
 interface Turning {
   readonly played: ReadonlySet<string>;

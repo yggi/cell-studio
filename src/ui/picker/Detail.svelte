@@ -7,8 +7,8 @@
    */
   import PieceNode from '../PieceNode.svelte';
   import FragmentFace from '../FragmentFace.svelte';
-  import { durationText } from '@yggi/cells/engine/duration';
-  import { tagName } from '@yggi/cells/engine/tags';
+  import { durationText } from '@yggi/cells/inspect';
+  import { tagName } from '@yggi/cells/library';
   import Sheet from '../kit/Sheet.svelte';
   import type { Entry } from '../entries';
   import { auditionOf, compilePiece, heardOf } from '../../compile';

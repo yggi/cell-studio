@@ -10,12 +10,10 @@ import { describe, it } from 'vitest';
 import { appendFileSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { ForceLayout } from '../../src/layout/physics';
 import { buildGraph } from '../../src/layout/drawn';
-import { compileSource } from '@yggi/cells/engine/compile';
-import { readMidi } from '@yggi/cells/engine/midifile';
-import { cellsFromMidi } from '@yggi/cells/engine/midiimport';
+import { cellsFromMidi, compileSource, readMidi } from '@yggi/cells';
+import type { GraphModel } from '@yggi/cells/inspect';
 import { TOWER_LAYOUT, type LayoutOptions } from '../../src/layout/options';
 import { towerLayers, withSockets } from '../../src/layout/towerlayout';
-import type { GraphModel } from '@yggi/cells/engine/graph';
 
 const log = (t: string) => appendFileSync(process.env.PROBE!, t + '\n');
 const TICKS = Number(process.env.TICKS ?? 54);

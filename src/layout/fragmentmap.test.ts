@@ -2,12 +2,8 @@
 // same every run, stays in its square and glides from where it was; and no axis named in Cell studio.
 import { readFileSync, readdirSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { AXES } from '@yggi/cells/engine/style';
-import { catalogue } from '@yggi/cells/repository/catalogue';
+import { AXES, catalogue, EMPTY_LAYER, EXAMPLES, STYLES } from '@yggi/cells';
 import { anchorOf, mapGraph, mapLayout } from './fragmentmap';
-import { EMPTY_LAYER } from '@yggi/cells/repository/fragments';
-import { STYLES } from '@yggi/cells/repository/styles';
-import { EXAMPLES } from '@yggi/cells/engine/examples';
 
 const graph = mapGraph();
 const [X, Y] = [AXES[0]!.name, AXES[1]!.name];

@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { compilePiece } from '../compile';
-import { codeShifts } from '@yggi/cells/engine/program';
-import { EXAMPLES } from '@yggi/cells/engine/examples';
+import { codeShifts, EXAMPLES } from '@yggi/cells';
 import { FLOOR_DB, lapOf, levelOf, LoudRing, Score, SCORE_SLOTS } from './loudness';
 
 describe('levelOf', () => {

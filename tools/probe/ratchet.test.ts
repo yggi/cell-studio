@@ -12,14 +12,7 @@
 // Run: PROBE=out.txt [ONLY=bwv847,pop] [LONGEST=40000] npx vitest run tools/probe/ratchet.test.ts
 import { describe, it } from 'vitest';
 import { appendFileSync } from 'node:fs';
-import { compileSource } from '@yggi/cells/engine/compile';
-import { codeShifts } from '@yggi/cells/engine/program';
-import { plan } from '@yggi/cells/engine/realize';
-import { EXAMPLES } from '@yggi/cells/engine/examples';
-import { pieceMidi } from '@yggi/cells/engine/midiexport';
-import { readMidi, writeMidi } from '@yggi/cells/engine/midifile';
-import { cellsFromMidi } from '@yggi/cells/engine/midiimport';
-import { shortenAll } from '@yggi/cells/engine/shorten/index';
+import { cellsFromMidi, codeShifts, compileSource, EXAMPLES, pieceMidi, plan, readMidi, shortenAll, writeMidi } from '@yggi/cells';
 import { bare, differ, heard, phrases, same } from '@yggi/cells/engine/fold/score';
 
 const log = (t: string) => appendFileSync(process.env.PROBE!, t + '\n');

@@ -27,7 +27,7 @@ import {
   type SetupOutput,
 } from '@yggi/webmidi/core';
 import type { MatrixRow } from '@yggi/webmidi/ui';
-import { DEFAULT_BEND_RANGE, type ChannelTable, type OutputChoice } from '@yggi/cells/engine/midi';
+import { type ChannelTable, DEFAULT_BEND_RANGE, type OutputChoice } from '@yggi/cells/midi';
 
 /** The row the kit's channel is kept under in a piece's routes: no cell can be named so. */
 export const KIT = '*';

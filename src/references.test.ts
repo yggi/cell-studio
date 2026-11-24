@@ -1,12 +1,9 @@
 // The code view's references (#624): every `from` id of every example painted as a link, and every name a `from` line
 // gives shows its chain, from the fragment that defines it out to the piece's own line.
 import { describe, expect, it } from 'vitest';
-import { EXAMPLES } from '@yggi/cells/engine/examples';
-import { references } from '@yggi/cells/engine/references';
+import { catalogue, EMPTY_LAYER, EXAMPLES, references } from '@yggi/cells';
 import { compilePiece } from './compile';
 import { chainOf, fragmentCard, linksOf } from './references';
-import { catalogue } from '@yggi/cells/repository/catalogue';
-import { EMPTY_LAYER } from '@yggi/cells/repository/fragments';
 import { tokenize, withLinks } from './ui/highlight';
 
 describe('references in the code view', () => {

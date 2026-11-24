@@ -1,8 +1,7 @@
 // The library as the app lists it, for the tests: every example with its card's title, tags and tier, and the MIDI
 // library (as ui/entries.ts lists it).
-import { EXAMPLES } from '@yggi/cells/engine/examples';
-import { pieceMeta } from '@yggi/cells/engine/parser/index';
-import { canonicalTags, MIDI_FILE } from '@yggi/cells/engine/tags';
+import { EXAMPLES, pieceMeta } from '@yggi/cells';
+import { canonicalTags, MIDI_FILE } from '@yggi/cells/library';
 import { readdirSync, readFileSync } from 'node:fs';
 
 export const entries = [

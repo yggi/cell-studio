@@ -9,7 +9,7 @@
    */
   import { Handle, Position, useUpdateNodeInternals } from '@xyflow/svelte';
   import { tick } from 'svelte';
-  import type { Jack } from '@yggi/cells/engine/patch';
+  import type { Jack } from '@yggi/cells';
   import { jackAt, jackHandle, jacksDrawn, type JackShape } from '../layout/modules';
   import { getGraphContext } from './context';
   import { voiceOutline } from '../layout/voice';

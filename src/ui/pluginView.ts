@@ -3,10 +3,10 @@
  * it may know about the cell, the piece's time and (for a day's law) the law, as data.
  */
 import { dayLaw } from '@yggi/cells/engine/fiveto12';
-import { lawAt } from '@yggi/cells/engine/fills';
-import type { CompileResult } from '@yggi/cells/engine/program';
+import type { CompileResult } from '@yggi/cells';
 import type { ShowPlugin } from '@yggi/cells/engine/plugins';
-import { NOTE_NAMES } from '@yggi/cells/theory/modes';
+import { lawAt } from '@yggi/cells/inspect';
+import { NOTE_NAMES } from '@yggi/cells/library';
 
 export interface PluginView {
   readonly name: string;

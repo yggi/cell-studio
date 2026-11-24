@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { FreeSpec } from '@yggi/cells/engine/ast';
+import type { FreeSpec } from '@yggi/cells';
 import { compilePiece } from '../compile';
 import { freeAtPlace, freePlace, knobName, knobOf, LOOSE, padValue, readLearned, takeover, type Takeover } from './learn';
 

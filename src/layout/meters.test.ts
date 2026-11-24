@@ -1,10 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { groundsOf, levelsText, lineShare, meterIndex, meterNow, tapSwing } from './meters';
 import { liveAt } from './live';
-import { codeShifts } from '@yggi/cells/engine/program';
+import { codeShifts, EXAMPLES } from '@yggi/cells';
 import { buildGraph } from './drawn';
 import { compilePiece } from '../compile';
-import { EXAMPLES } from '@yggi/cells/engine/examples';
 
 const name = (id: string) => id.replace(/^cell:/, '');
 

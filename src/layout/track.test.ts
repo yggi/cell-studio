@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { compilePiece } from '../compile';
-import { codeShifts } from '@yggi/cells/engine/program';
+import { codeShifts } from '@yggi/cells';
 import { bulbHosts } from './drawn';
 import { bulbsOf, cursorOf, layTrack, netEnds, stepOn, tauOf, trackAt, trackReach } from './track';
 

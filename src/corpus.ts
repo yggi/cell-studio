@@ -10,7 +10,8 @@ import wtc from '@yggi/cells/midi/wtc/index.json';
 import inventions from '@yggi/cells/midi/inventions/index.json';
 import anna from '@yggi/cells/midi/anna/index.json';
 import offering from '@yggi/cells/midi/offering/index.json';
-import { readMidi, type Smf } from '@yggi/cells/engine/midifile';
+import { readMidi } from '@yggi/cells';
+import type { Smf } from '@yggi/cells/midi';
 
 /** A collection: its folder in midi/, and its name (the library's cell, and a tag its files carry). */
 export interface MidiSet {

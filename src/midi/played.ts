@@ -5,8 +5,8 @@
  * off that key and its bends. What a note is as MIDI stays the language's (`engine/midi.ts` in `@yggi/cells`): its key
  * and cents (`noteOf`) and velocity (`velocityOf`); the bends, the drum map and the wire are webmidi's.
  */
-import { legatoNotes, noteOf, routesOf, velocityOf, type Route, type Routes } from '@yggi/cells/engine/midi';
-import type { Played } from '@yggi/cells/engine/realize';
+import { legatoNotes, noteOf, type Route, type Routes, routesOf, velocityOf } from '@yggi/cells/midi';
+import type { Played } from '@yggi/cells';
 import type { OutNote } from '@yggi/webmidi/core';
 
 /**

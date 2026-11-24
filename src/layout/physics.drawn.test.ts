@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { buildGraph } from './drawn';
-import { edgeLabel } from '@yggi/cells/engine/transform';
+import { edgeLabel } from '@yggi/cells/inspect';
 import { compilePiece } from '../compile';
 
 describe('Tape Machine and Automaton', () => {

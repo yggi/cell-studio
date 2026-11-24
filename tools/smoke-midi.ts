@@ -3,10 +3,8 @@
 // the MIDI clock's ticks (#206, src/engine/midiclock.ts).
 import { fileURLToPath } from 'node:url';
 import { compilePiece } from '../src/compile';
-import { codeShifts } from '@yggi/cells/engine/program';
-import { eventsBetween, plan } from '@yggi/cells/engine/realize';
-import { channelTable, midiNote, router, routesOf } from '@yggi/cells/engine/midi';
-import { ticksBetween } from '@yggi/cells/engine/midiclock';
+import { codeShifts, eventsBetween, plan } from '@yggi/cells';
+import { channelTable, midiNote, router, routesOf, ticksBetween } from '@yggi/cells/midi';
 import { readExample } from './examples-index';
 
 const dir = fileURLToPath(new URL('../node_modules/@yggi/cells/examples', import.meta.url));

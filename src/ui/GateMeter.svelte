@@ -13,8 +13,7 @@
   import { cellView } from '../layout/cellview';
   import { gateBars } from '../layout/gate';
   import { wheelGeometry } from '../layout/wheel';
-  import { valuesAt } from '@yggi/cells/engine/values';
-  import { lapOf } from '@yggi/cells/engine/readers';
+  import { lapOf, valuesAt } from '@yggi/cells/inspect';
   import { getGraphContext } from './context';
   import { fillColour } from './edgeStyle';
 

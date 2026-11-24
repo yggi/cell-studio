@@ -4,22 +4,26 @@
  * lockfile's hashes where its file has one (`locked`). Cells resolves nothing itself; every compile of a piece the
  * person opened, saved or wrote goes through here, so a piece with `* from gm_kit` opens, draws and plays.
  */
-import { compileSource } from '@yggi/cells/engine/compile';
-import { takeIn } from '@yggi/cells/engine/takein';
-import { audition, type Audition } from '@yggi/cells/repository/audition';
-import { styleAt } from '@yggi/cells/engine/styleat';
-import { hasFrom, partOf, partsOf } from '@yggi/cells/engine/use';
-import { splitComment } from '@yggi/cells/engine/edit';
-import { readFrom } from '@yggi/cells/engine/parser/use';
-import { planOf } from '@yggi/cells/engine/host';
-import { windowAt } from '@yggi/cells/engine/schedule';
-import { plan } from '@yggi/cells/engine/realize';
-import { codeShifts } from '@yggi/cells/engine/program';
+import {
+  audition,
+  type Audition,
+  codeShifts,
+  type CompileResult,
+  compileSource,
+  type Env,
+  type Locked,
+  plan,
+  planOf,
+  type Resolve,
+  resolveSeed,
+  styleAt,
+  takeIn,
+  windowAt,
+} from '@yggi/cells';
+import { hasFrom, partOf, partsOf, readFrom } from '@yggi/cells/repository';
+import { splitComment } from '@yggi/cells/edit';
 import { barSeconds } from './session/follow';
 import type { HeardNote } from './layout/preview';
-import type { CompileResult, Env, Locked } from '@yggi/cells/engine/program';
-import { resolveSeed } from '@yggi/cells/repository/library';
-import type { Resolve } from '@yggi/cells/engine/program';
 
 /**
  * How every compile here reads a `from` line: the seed library, until the person's own fragments are read (`mine`, which

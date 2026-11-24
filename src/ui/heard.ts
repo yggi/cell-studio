@@ -7,7 +7,7 @@
 import type { GraphContext } from './context';
 import { bandsFromFFT, restingProfile } from '../layout/spectrum';
 import { hslRgb, noteHsl, UNIT_RGB } from './theme';
-import { kitOf } from '@yggi/cells/engine/plays';
+import { kitOf } from '@yggi/cells/inspect';
 
 export interface Heard {
   readonly left: Float32Array;

@@ -1,6 +1,6 @@
 <script lang="ts">
   import { tokenize, withLinks } from './highlight';
-  import type { Diagnostic } from '@yggi/cells/engine/ast';
+  import type { Diagnostic } from '@yggi/cells';
   import { facetColour } from './theme';
   import { FACETS, fragmentCard, type ChainStep, type Link } from '../references';
   import RefCard from './RefCard.svelte';

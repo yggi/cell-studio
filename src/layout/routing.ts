@@ -18,13 +18,9 @@
  * liveAt` is what does now (the same gates the scheduler uses: laps, what a selector picks), within
  * the routing. `stateOf` turns both into what the graph draws.
  */
-import { leaves } from '@yggi/cells/engine/subseq';
-import { isMidiCard, ROOT, type CompileResult, type Output, type ResolvedCell } from '@yggi/cells/engine/program';
-import { tableChain } from '@yggi/cells/engine/helix';
-import { cellId, clockTapId, edgeId, isJunction, stepEdgeId } from '@yggi/cells/engine/ids';
-import { chainMuted, outputPlays } from '@yggi/cells/engine/realize';
-import type { GraphModel } from '@yggi/cells/engine/graph';
-import { flows } from '@yggi/cells/engine/flows';
+import { cellId, clockTapId, edgeId, flows, type GraphModel, isJunction, isMidiCard, leaves, ROOT, stepEdgeId, tableChain } from '@yggi/cells/inspect';
+import { type CompileResult, type Output, outputPlays, type ResolvedCell } from '@yggi/cells';
+import { chainMuted } from '@yggi/cells/engine/realize';
 import { noteEdge, sourceOf } from '@yggi/cells/engine/plays';
 
 export interface Routing {

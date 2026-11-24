@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { GENRES, PILL, byTier, foldSides, sideOf, freezeLayout, layoutKey, libraryLayout, libraryLayoutAsync, shortTitle, stageOf, thawLayout } from './library';
 import { entries } from './library.fixture';
-import { MIDI_FILE, TUTORIAL } from '@yggi/cells/engine/tags';
+import { MIDI_FILE, TUTORIAL } from '@yggi/cells/library';
 
 // (how long it takes is timing.slow.test.ts's: the quick tests count no milliseconds)
 const lib = libraryLayout(entries);

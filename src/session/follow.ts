@@ -13,10 +13,9 @@
  * bar's frame from the bar the host sent), or version 2's scores (`scores.ts`, which makes a `Followed` of them: each
  * states its own meter, tempo and key, its bars' frames from their conducts and the score).
  */
-import { clocking, EPS } from '@yggi/cells/engine/clocking';
-import { mainMeter } from '@yggi/cells/engine/midiclock';
-import { codeShifts, type CompileResult } from '@yggi/cells/engine/program';
-import type { FeelFrame } from '@yggi/cells/engine/perform/feel';
+import { clocking, EPS } from '@yggi/cells/inspect';
+import { mainMeter } from '@yggi/cells/midi';
+import { codeShifts, type CompileResult, type FeelFrame } from '@yggi/cells';
 import { isSectionKind, type SectionText, type SentBar } from './protocol';
 
 /** A text that states bars from `bar`, as many as its `foreseen` counts: a version 1 section text, or a version 2 score. */

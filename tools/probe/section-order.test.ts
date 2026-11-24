@@ -6,9 +6,8 @@
 // Run: PROBE=out.txt npx vitest run tools/probe/section-order.test.ts
 import { describe, it } from 'vitest';
 import { appendFileSync } from 'node:fs';
-import { EXAMPLES } from '@yggi/cells/engine/examples';
-import { compileSource } from '@yggi/cells/engine/compile';
-import { type GraphModel } from '@yggi/cells/engine/graph';
+import { compileSource, EXAMPLES } from '@yggi/cells';
+import type { GraphModel } from '@yggi/cells/inspect';
 import { buildGraph } from '../../src/layout/drawn';
 import { ForceLayout } from '../../src/layout/physics';
 

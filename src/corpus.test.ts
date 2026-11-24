@@ -1,9 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync, readdirSync } from 'node:fs';
 import { creditLines, creditOf, MIDI_FILES, MIDI_SETS } from './corpus';
-import { readMidi, writeMidi } from '@yggi/cells/engine/midifile';
-import { cellsFromMidi } from '@yggi/cells/engine/midiimport';
-import { midiText, parseMidiText } from '@yggi/cells/engine/miditext';
+import { cellsFromMidi, readMidi, writeMidi } from '@yggi/cells';
+import { midiText, parseMidiText } from '@yggi/cells/midi';
 import { compilePiece } from './compile';
 
 describe('the MIDI library (midi/<set>)', () => {

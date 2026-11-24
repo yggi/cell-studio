@@ -4,10 +4,8 @@
  * to the audible (a voice at its pitch), with the sound card outside, above everything. As rows for the layered drawing
  * (`towerRanks`), the rows by time instead of by the signal path: a probe (`LayoutOptions.ranks`), off by default.
  */
-import { isMidiCard, type CompileResult } from '@yggi/cells/engine/program';
-import type { GraphModel } from '@yggi/cells/engine/graph';
-import { cellId } from '@yggi/cells/engine/ids';
-import { ownRate } from '@yggi/cells/engine/readers';
+import { cellId, type GraphModel, isMidiCard, ownRate } from '@yggi/cells/inspect';
+import type { CompileResult } from '@yggi/cells';
 import { isSide } from './side';
 
 /**

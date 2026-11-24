@@ -10,7 +10,7 @@
    *   `from` line.
    */
   import { untrack } from 'svelte';
-  import { extract } from '@yggi/cells/repository/extract';
+  import { extract } from '@yggi/cells';
   import { getStudio } from './state/studio.svelte';
   import { mine } from '../mine.svelte';
   import { facetFor, idFor } from '../extraction';

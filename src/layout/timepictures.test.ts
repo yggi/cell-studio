@@ -1,11 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { createHash } from 'node:crypto';
 import { compilePiece } from '../compile';
-import { EXAMPLES } from '@yggi/cells/engine/examples';
-import { codeShifts } from '@yggi/cells/engine/program';
-import { eventsBetween, plan } from '@yggi/cells/engine/realize';
-import { scalograms, SIGNALS, type Signal } from '@yggi/cells/engine/time/signals';
-import { grid } from '@yggi/cells/engine/time/wavelet';
+import { codeShifts, eventsBetween, EXAMPLES, plan } from '@yggi/cells';
+import { grid, scalograms, type Signal, SIGNALS } from '@yggi/cells/time';
 import { notePixels, ramp, relative, scalogramPixels, waterfallPixels, waveColumns } from './timepictures';
 import { frameFor } from './timeview';
 

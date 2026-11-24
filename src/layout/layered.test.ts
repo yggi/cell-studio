@@ -4,7 +4,7 @@ import { DEFAULT_LAYOUT } from './options';
 import { buildGraph } from './drawn';
 import { folded } from './junctions';
 import { compilePiece } from '../compile';
-import { EXAMPLES } from '@yggi/cells/engine/examples';
+import { EXAMPLES } from '@yggi/cells';
 
 describe('layered: tags as blocks', () => {
   for (const key of ['cellscape', 'baustelle', 'hypercell', 'brothers'] as const) {

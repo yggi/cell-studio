@@ -7,12 +7,7 @@
  *    instead, so a busy or broken worker costs nothing worse than the local engine.
  * Either way the main thread keeps its own plan: the views read it (live state, tapes' positions).
  */
-import type { Env, Locked } from '@yggi/cells/engine/program';
-import { createHost, emptyWindow, grabIn, type FromEngine, type ToEngine } from '@yggi/cells/engine/host';
-import { resetPhysics } from '@yggi/cells/engine/physics';
-import type { Plan } from '@yggi/cells/engine/realize';
-import { windowAt, type Window } from '@yggi/cells/engine/schedule';
-import { resolveSeed } from '@yggi/cells/repository/library';
+import { createHost, emptyWindow, type Env, type FromEngine, grabIn, type Locked, type Plan, resetPhysics, resolveSeed, type ToEngine, type Window, windowAt } from '@yggi/cells';
 import { storageKey } from '../storageKey';
 
 /**

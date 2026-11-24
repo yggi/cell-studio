@@ -1,7 +1,6 @@
-import { EXAMPLES } from '@yggi/cells/engine/examples';
+import { codeShifts, EXAMPLES } from '@yggi/cells';
 import { describe, expect, it } from 'vitest';
 import { compilePiece } from '../compile';
-import { codeShifts } from '@yggi/cells/engine/program';
 import { cellView, type Fill, type Segment } from './cellview';
 import { BORDER, MAX_SEGMENTS, border, coarsen } from './coarse';
 

@@ -12,10 +12,8 @@
  *   between the structure and the audible — a maker (a voice, a kit, a tape, a resonator, a braid at an audio rate), a
  *   gate (what plays voices: a gate, a groove read through a kit) a row under the makers, a mixer a row over them.
  */
-import type { CompileResult } from '@yggi/cells/engine/program';
-import { writtenGraph, type GraphModel, type GraphNode, type WrittenGraph } from '@yggi/cells/engine/graph';
-import { soundRole as roleOf } from '@yggi/cells/engine/outs';
-import { cellId } from '@yggi/cells/engine/ids';
+import type { CompileResult } from '@yggi/cells';
+import { cellId, type GraphModel, type GraphNode, soundRole as roleOf, writtenGraph, type WrittenGraph } from '@yggi/cells/inspect';
 
 /** The written graph with the built-in card in it, once a program. */
 const withBuiltin = new WeakMap<CompileResult, WrittenGraph>();

@@ -1,6 +1,6 @@
 import { isSide } from './side';
 import { describe, expect, it } from 'vitest';
-import { parse } from '@yggi/cells/engine/parser/index';
+import { EXAMPLES, parse } from '@yggi/cells';
 import { ForceLayout } from './physics';
 import { DEFAULT_LAYOUT } from './options';
 import { columns, flowRanks } from './ranks';
@@ -12,7 +12,6 @@ import { splinePoint } from './geometry';
 import { buildGraph } from './drawn';
 import { folded } from './junctions';
 import { compilePiece } from '../compile';
-import { EXAMPLES } from '@yggi/cells/engine/examples';
 
 // (every cell a node, splices used once too: these are about how parts sit beside their players, #221)
 const graphOf = (src: string) => buildGraph(compilePiece(src), { bulbs: false });

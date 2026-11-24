@@ -1,9 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { setOff, setShift } from '@yggi/cells/engine/edit';
-import { codeShifts, type CompileResult } from '@yggi/cells/engine/program';
-import { plan } from '@yggi/cells/engine/realize';
-import { windowAt } from '@yggi/cells/engine/schedule';
-import { EXAMPLES } from '@yggi/cells/engine/examples';
+import { setOff, setShift } from '@yggi/cells/edit';
+import { codeShifts, type CompileResult, EXAMPLES, plan, windowAt } from '@yggi/cells';
 import { auditionOf, compilePiece, documentParts, notesOf, ownLine, styleOfPiece } from './compile';
 
 const KIT = '&bd, &rim, &sd, &cp, &lt, &hh, &ph, &mt, &oh, &ht, &cr, &rd, &claves from gm_kit\n&bar meter("4/4") step=100bpm\n&beat step=8n &bd ~ &hh ~ &sd ~ &hh [&bd,&hh]';

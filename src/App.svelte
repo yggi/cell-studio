@@ -7,7 +7,7 @@
   import Transport from './ui/Transport.svelte';
   import Held from './ui/Held.svelte';
   import MidiLight from './ui/MidiLight.svelte';
-  import { tagKind, tagName } from '@yggi/cells/engine/tags';
+  import { tagKind, tagName } from '@yggi/cells/library';
   import { shortTitle } from './layout/library';
   import Sidebar from './ui/Sidebar.svelte';
   import Graph from './ui/Graph.svelte';

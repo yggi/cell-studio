@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { gmDrumNote } from '@yggi/cells/engine/midi';
+import { gmDrumNote } from '@yggi/cells/midi';
 import { compilePiece } from '../compile';
 import { drumNoteIn, drumPlaces, kitOf } from './kit';
 

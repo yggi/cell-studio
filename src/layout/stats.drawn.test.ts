@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { compilePiece } from '../compile';
 import { buildGraph } from './drawn';
-import { pieceStats } from '@yggi/cells/engine/stats';
+import { pieceStats } from '@yggi/cells/inspect';
 
 const statsOf = (text: string) => {
   const r = compilePiece(text);

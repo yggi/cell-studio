@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { compilePiece } from '../compile';
-import { codeShifts } from '@yggi/cells/engine/program';
-import { flatten } from '@yggi/cells/engine/flatten';
+import { codeShifts } from '@yggi/cells';
+import { flatten } from '@yggi/cells/inspect';
 import { cellView } from './cellview';
 
 // Strudel's other step forms (#337, decision 027: a spelling shared with Strudel's mini-notation keeps its meaning):

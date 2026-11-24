@@ -3,13 +3,9 @@
  * spectrum monitor), or a resonator's bodies in its place; and a note played on it — an oscillator (its braid as
  * the waveform, or a built-in one), or noise, each note its own source so it takes its own bends.
  */
-import type { CompileResult, ResolvedCell, Shifts } from '@yggi/cells/engine/program';
-import { BODIES } from '@yggi/cells/engine/program';
-import { DOUGH_SOURCES } from '@yggi/cells/engine/dough-params';
-import { filterModel } from '@yggi/cells/engine/attributes';
-import type { Played } from '@yggi/cells/engine/realize';
-import type { ParamTrack } from '@yggi/cells/engine/series';
-import { harmonics, waveform } from '@yggi/cells/engine/wave';
+import type { CompileResult, Played, ResolvedCell, Shifts } from '@yggi/cells';
+import { BODIES, filterModel, harmonics, type ParamTrack, waveform } from '@yggi/cells/inspect';
+import { DOUGH_SOURCES } from '@yggi/cells/library';
 import { inputOf, movable, type Disposable, type Movable, type ToneNS } from './nodes';
 import { grainOffset, noiseBuffer } from './noise';
 import { blendWave, type Builtin } from './blend';

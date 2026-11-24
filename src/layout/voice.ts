@@ -5,7 +5,7 @@
  * (`pitch=&(…)`, `lpf=… * &(…)`) as chips fused on its upper shoulders. Its sound leaves from the top of the disc; what
  * plays it comes in from below, into its envelope; what else feeds it (a filter's cell, a pitch, FM) from the side.
  */
-import type { CompileResult } from '@yggi/cells/engine/program';
+import type { CompileResult } from '@yggi/cells';
 
 /** A voice's disc, px across (size= scales it). */
 export const VOICE_SIZE = 160;

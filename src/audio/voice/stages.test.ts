@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { compilePiece } from '../../compile';
-import { codeShifts } from '@yggi/cells/engine/program';
-import { eventsBetween, plan, type Played } from '@yggi/cells/engine/realize';
+import { codeShifts, eventsBetween, plan, type Played } from '@yggi/cells';
 import { buildVoice, dropGates, freeVoice, playNote, type Built, type Bus, type Rack } from './voice';
 import type { ToneNS } from './nodes';
 

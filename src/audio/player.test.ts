@@ -3,9 +3,7 @@ import { Player } from './player';
 import { transportClock } from './clock.svelte';
 import type { TransportState } from './transport';
 import { compilePiece } from '../compile';
-import { codeShifts } from '@yggi/cells/engine/program';
-import { eventsBetween, plan } from '@yggi/cells/engine/realize';
-import { EXAMPLES } from '@yggi/cells/engine/examples';
+import { codeShifts, eventsBetween, EXAMPLES, plan } from '@yggi/cells';
 
 // (no Tone in node: the sound engine's waking is stubbed out; what is tested is the transport)
 const hands: [string, (p: Player) => void, (p: Player) => void][] = [

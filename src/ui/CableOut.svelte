@@ -6,7 +6,7 @@
    */
   import { Handle, Position, useUpdateNodeInternals } from '@xyflow/svelte';
   import { tick } from 'svelte';
-  import { cellId } from '@yggi/cells/engine/ids';
+  import { cellId } from '@yggi/cells/inspect';
   import { getGraphContext } from './context';
   import { bandOf } from '../layout/cables';
 

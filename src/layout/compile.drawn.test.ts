@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { compilePiece } from '../compile';
-import { codeShifts, MAX_SPLICE_DEPTH } from '@yggi/cells/engine/program';
-import { eventsBetween, plan } from '@yggi/cells/engine/realize';
+import { codeShifts, eventsBetween, plan } from '@yggi/cells';
+import { MAX_SPLICE_DEPTH } from '@yggi/cells/engine/program';
+import { edgeLabel } from '@yggi/cells/inspect';
 import { buildGraph } from './drawn';
-import { edgeLabel } from '@yggi/cells/engine/transform';
 
 type R = ReturnType<typeof compilePiece>;
 

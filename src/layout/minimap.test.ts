@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { compilePiece } from '../compile';
-import { EXAMPLES } from '@yggi/cells/engine/examples';
+import { EXAMPLES } from '@yggi/cells';
 import { buildGraph } from './drawn';
 import { minimap } from './minimap';
 import { withSockets } from './towerlayout';

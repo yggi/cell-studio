@@ -5,7 +5,7 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { compilePiece } from '../compile';
-import { codeShifts } from '@yggi/cells/engine/program';
+import { codeShifts } from '@yggi/cells';
 import type { Built } from './voice/voice';
 import type { ToneNS } from './voice/nodes';
 

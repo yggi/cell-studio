@@ -1,15 +1,9 @@
 // Lifted from yggi/cells src/engine/routing.test.ts @ e7d8793 (v0.29.0): the view lives in Cell studio (cells decision 086, #650).
 import { describe, expect, it } from 'vitest';
-import { compileSource as compileAlone } from '@yggi/cells/engine/compile';
-import { codeShifts, type CompileResult } from '@yggi/cells/engine/program';
+import { codeShifts, type CompileResult, compileSource as compileAlone, eventsBetween, EXAMPLES, plan, resolveSeed } from '@yggi/cells';
+import { type GraphEdge, type GraphModel, mainLength, pieceTime, writtenGraph } from '@yggi/cells/inspect';
 import { liveAt } from './live';
 import { drawn, routing } from './routing';
-import type { GraphEdge, GraphModel } from '@yggi/cells/engine/graph';
-import { writtenGraph } from '@yggi/cells/engine/graph';
-import { eventsBetween, plan } from '@yggi/cells/engine/realize';
-import { mainLength, pieceTime } from '@yggi/cells/engine/duration';
-import { EXAMPLES } from '@yggi/cells/engine/examples';
-import { resolveSeed } from '@yggi/cells/repository/library';
 /** As Cell studio compiles an example: its `use` lines read the seed library (#196); a text with none compiles as it would without. */
 const compileSource: typeof compileAlone = (text, env, options) => compileAlone(text, env, { resolve: resolveSeed, ...options });
 

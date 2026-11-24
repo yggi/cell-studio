@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fakeAccess, fakeInput, fakeLoop, fakePort, installMidi, uninstallMidi } from '@yggi/webmidi/testing';
 import { CONNECT_WAIT, Midi } from './midi.svelte';
 import { compilePiece } from '../../compile';
-import { EXAMPLES } from '@yggi/cells/engine/examples';
+import { codeShifts, EXAMPLES, plan, type Played, retime, windowAt } from '@yggi/cells';
 import {
   activeSetup,
   ANY_INPUT,
@@ -29,9 +29,6 @@ import {
 } from '@yggi/webmidi/core';
 import { BINDING_KINDS, PanelRuntime, type Panel } from '@yggi/webmidi/panels';
 import type { NoteSink } from '../../audio/player';
-import { plan, type Played } from '@yggi/cells/engine/realize';
-import { codeShifts } from '@yggi/cells/engine/program';
-import { retime, windowAt } from '@yggi/cells/engine/schedule';
 
 const store = new Map<string, string>();
 const page = Object.assign(new EventTarget(), { visibilityState: 'visible' });

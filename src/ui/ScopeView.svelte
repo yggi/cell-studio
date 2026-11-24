@@ -7,13 +7,9 @@
    * one: the colour of its value as it goes.
    */
   import { getGraphContext } from './context';
-  import { midiOf, mod, NOTE_NAMES } from '@yggi/cells/theory/modes';
-  import { clocking } from '@yggi/cells/engine/clocking';
-  import { refsOf } from '@yggi/cells/engine/readers';
-  import { notesAt, valueAt, valuesAt } from '@yggi/cells/engine/values';
-  import { DEFAULT_FREQ } from '@yggi/cells/engine/program';
+  import { midiOf, mod, NOTE_NAMES } from '@yggi/cells/library';
+  import { clocking, DEFAULT_FREQ, notesAt, refsOf, resolvePitch, semitones, valueAt, valuesAt } from '@yggi/cells/inspect';
   import { heldLevel } from '../layout/envelope';
-  import { resolvePitch, semitones } from '@yggi/cells/engine/helix';
   import { voiceBase } from '../layout/show';
   import { noteColour, channelColour, scopeBand } from './theme';
   import { onFrames } from '../audio/ticker';

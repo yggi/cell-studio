@@ -7,8 +7,8 @@
    * frontmatter (decision 047): its rewrite is a file, which the piece takes
    * (`onapply`: Piece.take), the frontmatter kept beside the code.
    */
-  import type { Locked } from '@yggi/cells/engine/program';
-  import { shorten, type Suggestion } from '@yggi/cells/engine/shorten/index';
+  import { type Locked, shorten } from '@yggi/cells';
+  import type { Suggestion } from '@yggi/cells/edit';
   import { mine } from '../mine.svelte';
   import { savedText } from './shortenText';
 

@@ -1,4 +1,4 @@
-import { EXAMPLES } from '@yggi/cells/engine/examples';
+import { EXAMPLES } from '@yggi/cells';
 import { describe, expect, it } from 'vitest';
 import { compilePiece } from '../compile';
 import { buildGraph } from '../layout/drawn';

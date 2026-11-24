@@ -5,7 +5,7 @@
    * many fragments it holds, in its facet's colour; its inner ring the person's own fragments (#626), a dot each in its
    * facet's colour. A tap turns the library's canvas to its style lens (`LibraryGraph.svelte`): the fragments fly out of it.
    */
-  import { catalogue } from '@yggi/cells/repository/catalogue';
+  import { catalogue } from '@yggi/cells';
   import { FACETS } from '../references';
   import { mine } from '../mine.svelte';
   import { facetColour } from './theme';

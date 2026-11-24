@@ -6,12 +6,10 @@
  * moves each into cells.
  */
 import { forceCollide, forceSimulation, type SimulationNodeDatum } from 'd3-force';
-import { AXES } from '@yggi/cells/engine/style';
-import { EXAMPLES } from '@yggi/cells/engine/examples';
-import { readFrom } from '@yggi/cells/engine/parser/use';
-import { splitComment } from '@yggi/cells/engine/edit';
-import { readPiece } from '@yggi/cells/engine/piecefile';
-import { SEED, fragmentsOf } from '@yggi/cells/repository/seed';
+import { AXES, EXAMPLES, readPiece } from '@yggi/cells';
+import { fragmentsOf, SEED } from '@yggi/cells/repository/seed';
+import { readFrom } from '@yggi/cells/repository';
+import { splitComment } from '@yggi/cells/edit';
 import { noteColour } from '../../../src/ui/theme';
 
 export interface Point {

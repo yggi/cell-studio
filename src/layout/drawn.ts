@@ -4,10 +4,9 @@
  * host (decision 014, every sub-wheel: decision 021), the room a host's bulbs take and where their edges leave from;
  * what each `use` line gives, a cluster named by its line, what nothing reads of it folded into that name (uses.ts).
  */
-import { cellId, clockTapId, edgeId, stepEdgeId } from '@yggi/cells/engine/ids';
-import { VOICE_KIT } from '@yggi/cells/engine/compiler/declare';
-import type { CompileResult } from '@yggi/cells/engine/program';
-import { feeds, netsOf, writtenGraph, type GraphEdge, type GraphModel, type GraphNode, type WrittenGraph } from '@yggi/cells/engine/graph';
+import { cellId, clockTapId, edgeId, feeds, type GraphEdge, type GraphModel, type GraphNode, netsOf, stepEdgeId, writtenGraph, type WrittenGraph } from '@yggi/cells/inspect';
+import { VOICE_KIT } from '@yggi/cells/library';
+import type { CompileResult } from '@yggi/cells';
 import { effectiveShow } from './show';
 import { bulbAt, leavesFromBulb, reachOf, subWheels } from './subwheels';
 import { withUses, type UseGroup } from './uses';

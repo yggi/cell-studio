@@ -4,17 +4,25 @@
  * patterns, the meter, the levels and the boundaries heard. Where they are drawn is layout/timeview.ts; the pictures,
  * layout/timepictures.ts. Pure: no DOM, no colours (a hue at most).
  */
-import type { CompileResult } from '@yggi/cells/engine/program';
-import type { GraphModel } from '@yggi/cells/engine/graph';
-import type { Played } from '@yggi/cells/engine/realize';
-import type { Signal } from '@yggi/cells/engine/time/signals';
-import { fold, ridges, type Scalogram } from '@yggi/cells/engine/time/wavelet';
-import { cones, swells, type Boundary } from '@yggi/cells/engine/time/boundaries';
-import type { StructureNode } from '@yggi/cells/engine/time/structure';
-import { motifs, multiscale } from '@yggi/cells/engine/time/motifs';
-import { alike, foldings, levelsOf, pulseOf } from '@yggi/cells/engine/time/necklace';
-import { mainTempo } from '@yggi/cells/engine/duration';
-import { mainMeter } from '@yggi/cells/engine/midiclock';
+import type { CompileResult, Played } from '@yggi/cells';
+import { type GraphModel, mainTempo } from '@yggi/cells/inspect';
+import {
+  alike,
+  type Boundary,
+  cones,
+  foldings,
+  foldScalogram as fold,
+  levelsOf,
+  motifs,
+  multiscale,
+  pulseOf,
+  ridges,
+  type Scalogram,
+  type Signal,
+  type StructureNode,
+  swells,
+} from '@yggi/cells/time';
+import { mainMeter } from '@yggi/cells/midi';
 import { towerSpans } from './tower';
 import { sameLevel, type HeardLevel } from './explained';
 

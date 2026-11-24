@@ -3,14 +3,9 @@
  * the facet it is prefilled with, and a piece written out for export, its takes of the person's own fragments in their
  * place, so a shared file plays anywhere. Pure: the dialog and the file save call it.
  */
-import { references } from '@yggi/cells/engine/references';
-import { expand, signatureOf } from '@yggi/cells/engine/use';
-import { splitComment } from '@yggi/cells/engine/edit';
-import { readFrom } from '@yggi/cells/engine/parser/use';
-import type { Resolve } from '@yggi/cells/engine/program';
-import type { CatalogueEntry } from '@yggi/cells/repository/catalogue';
-import { createRecogniser } from '@yggi/cells/repository/recognise';
-import type { Fragment } from '@yggi/cells/repository/fragments';
+import { type CatalogueEntry, createRecogniser, expand, type Fragment, references, type Resolve, signatureOf } from '@yggi/cells';
+import { splitComment } from '@yggi/cells/edit';
+import { readFrom } from '@yggi/cells/repository';
 
 /** The id a fragment is offered under: `my_` and its first head, then ` 2`, ` 3` … while the library holds it. */
 export function idFor(heads: readonly string[], taken: ReadonlySet<string>): string {

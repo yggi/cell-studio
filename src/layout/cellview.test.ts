@@ -1,11 +1,10 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { SAILOR_WITH_KIT } from '@yggi/cells/engine/fixtures';
+import { codeShifts, EXAMPLES, type Shifts } from '@yggi/cells';
 import { compilePiece } from '../compile';
-import { codeShifts, type Shifts } from '@yggi/cells/engine/program';
 import { blank, cellView, drawnOf, hubLabel, isGrid, selectorOf, selectorRow, swungTurn, valueAt, valueSpectrum, type CellView } from './cellview';
 import { handOf } from './glyph';
-import { EXAMPLES } from '@yggi/cells/engine/examples';
 
 const r = compilePiece(EXAMPLES.royal.source);
 const with_ =

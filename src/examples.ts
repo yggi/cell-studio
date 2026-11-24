@@ -7,7 +7,7 @@
  */
 import built from 'virtual:examples-index';
 import type { ExampleInfo } from '../tools/examples-index';
-import type { ExampleKey } from '@yggi/cells/engine/order';
+import type { ExampleKey } from '@yggi/cells';
 import royal from '@yggi/cells/examples/royal.md?raw';
 
 export type { ExampleInfo };

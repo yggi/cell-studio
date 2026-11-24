@@ -5,18 +5,17 @@ import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { compilePiece } from '../src/compile';
-import { pieceTime, type PieceTime } from '@yggi/cells/engine/duration';
+import { pieceTime, type PieceTime } from '@yggi/cells/inspect';
+import { type ExampleKey, pieceMeta, readPiece } from '@yggi/cells';
+import { ORDER } from '@yggi/cells/engine/order';
+import { canonicalTags } from '@yggi/cells/library';
 import { buildGraph } from '../src/layout/drawn';
-import { ORDER, type ExampleKey } from '@yggi/cells/engine/order';
-import { pieceMeta } from '@yggi/cells/engine/parser/index';
-import { readPiece } from '@yggi/cells/engine/piecefile';
 import { miniature, type Miniature } from '../src/layout/miniature';
 import { isSide, sideless } from '../src/layout/side';
 import { bestRowOrder } from '../src/layout/physics';
 import { rowsKey } from '../src/layout/start';
 import { TOWER_LAYOUT } from '../src/layout/options';
 import { towerSetup } from '../src/ui/towerSetup';
-import { canonicalTags } from '@yggi/cells/engine/tags';
 
 export interface ExampleInfo {
   readonly key: ExampleKey;

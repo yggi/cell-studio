@@ -1,8 +1,8 @@
 // docs/examples.md, written from examples/*.md: the catalogue can't drift from the files.
 // `npm run docs:examples` rewrites it; src/examplesDoc.test.ts fails when the checked-in page differs.
-import { durationText, mainLength } from '@yggi/cells/engine/duration';
+import { durationText, mainLength } from '@yggi/cells/inspect';
 import { TIERS } from '@yggi/cells/engine/ladder';
-import { parseTag, tagName, TUTORIAL } from '@yggi/cells/engine/tags';
+import { parseTag, tagName, TUTORIAL } from '@yggi/cells/library';
 import { buildExamplesMeta, EXAMPLES_DIR, type ExampleMeta } from './examples-index';
 
 /** The sound card's postgain= (linear): 1 when its card leaves it out, .8 when it writes none (the built-in card, decision 028; none when it writes only MIDI cards). */

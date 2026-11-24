@@ -10,10 +10,9 @@
  * reads (a kit's voice the beat doesn't play: silent, the built-in card doesn't hear a used fragment) is folded into the
  * group's name, not drawn, while the group has a cell that is read; a group of nothing but such cells is drawn whole.
  */
-import { VOICE_KIT } from '@yggi/cells/engine/compiler/declare';
-import { cellId } from '@yggi/cells/engine/ids';
-import { isCellNode, type GraphModel } from '@yggi/cells/engine/graph';
-import type { CompileResult } from '@yggi/cells/engine/program';
+import { VOICE_KIT } from '@yggi/cells/library';
+import { cellId, type GraphModel, isCellNode } from '@yggi/cells/inspect';
+import type { CompileResult } from '@yggi/cells';
 import { kitOf } from './kit';
 import { isModuleUse } from './modules';
 

@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest';
 import { compilePiece } from '../compile';
 import { buildGraph } from './drawn';
-import { cellId } from '@yggi/cells/engine/ids';
+import { cellId } from '@yggi/cells/inspect';
 
 const BAND = `&bar scan(1 1 1 1) step=2
 &theme step=4n 0 2 4 5

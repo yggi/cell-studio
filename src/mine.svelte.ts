@@ -4,13 +4,9 @@
  * (`resolverOf(layer)`). A layer is read once at start; filing writes it back. Where IndexedDB isn't there (a test, a
  * private window that refuses it) the layer lives as long as the page.
  */
-import { EMPTY_LAYER, type LearnedLayer } from '@yggi/cells/repository/fragments';
-import { fileFragment, type Filing } from '@yggi/cells/repository/learned';
-import { LIBRARY, resolverOf } from '@yggi/cells/repository/library';
-import { createRepository } from '@yggi/cells/repository/fragments';
+import { catalogue, createRepository, EMPTY_LAYER, fileFragment, type Filing, type LearnedLayer, LIBRARY, resolverOf } from '@yggi/cells';
 import { storageKey } from './storageKey';
 import { setResolver } from './compile';
-import { catalogue } from '@yggi/cells/repository/catalogue';
 
 const DB = storageKey('cell-studio-mine');
 const STORE = 'layer';

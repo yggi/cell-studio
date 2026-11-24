@@ -21,7 +21,7 @@
   import RollKeys from './RollKeys.svelte';
   import { palette } from './palette';
   import { lineShare } from '../layout/meters';
-  import { declWords, setBraid, spansLines } from '@yggi/cells/engine/edit';
+  import { declWords, setBraid, spansLines } from '@yggi/cells/edit';
   import {
     columnAt,
     frameOf,

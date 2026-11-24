@@ -2,12 +2,9 @@
 // src/midi/out.test.ts @ 04e24d2, where they ran on its own MidiOut); the rest of those cases are webmidi's, on its note
 // (`src/core/out.test.ts` there).
 import { describe, expect, it } from 'vitest';
-import { EXAMPLES } from '@yggi/cells/engine/examples';
+import { codeShifts, EXAMPLES, plan, type Played, retime, windowAt } from '@yggi/cells';
+import { channelTable, legatoNotes, midiNote, type Route, router, type Routes, routesOf } from '@yggi/cells/midi';
 import { compilePiece } from '../compile';
-import { plan, type Played } from '@yggi/cells/engine/realize';
-import { codeShifts } from '@yggi/cells/engine/program';
-import { retime, windowAt } from '@yggi/cells/engine/schedule';
-import { channelTable, legatoNotes, midiNote, router, routesOf, type Route, type Routes } from '@yggi/cells/engine/midi';
 import { MidiOut } from '@yggi/webmidi/core';
 import { fakePort } from '@yggi/webmidi/testing';
 import { outRuns } from './played';

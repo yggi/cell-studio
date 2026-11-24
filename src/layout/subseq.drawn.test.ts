@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { compilePiece } from '../compile';
-import { codeShifts } from '@yggi/cells/engine/program';
+import { codeShifts } from '@yggi/cells';
 import { liveAt } from './live';
 import { buildGraph } from './drawn';
 import { cellView } from './cellview';

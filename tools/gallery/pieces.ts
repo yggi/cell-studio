@@ -1,9 +1,7 @@
 /** The examples as the gallery's sheets use them: compiled, in the live state of a moment (`liveAt`). */
-import { codeShifts, type CompileResult, type Shifts } from '@yggi/cells/engine/program';
-import { liveAt, type LiveState } from '../../src/layout/live';
+import { codeShifts, type CompileResult, EXAMPLES, pieceMeta, type Shifts } from '@yggi/cells';
 import { ORDER } from '@yggi/cells/engine/order';
-import { EXAMPLES } from '@yggi/cells/engine/examples';
-import { pieceMeta } from '@yggi/cells/engine/parser/index';
+import { liveAt, type LiveState } from '../../src/layout/live';
 import { compilePiece } from '../../src/compile';
 import { textOf } from '../../src/library';
 import { routing, type Routing } from '../../src/layout/routing';

@@ -1,6 +1,6 @@
 import { setMaxListeners } from 'node:events';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { freeList } from '@yggi/cells/engine/held';
+import { freeList } from '@yggi/cells/edit';
 import type { MidiAccess } from '@yggi/webmidi/web';
 import { Learn, soon } from './learn.svelte';
 import { Piece } from './piece.svelte';

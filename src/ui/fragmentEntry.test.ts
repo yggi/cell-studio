@@ -1,6 +1,6 @@
 // A fragment's card (#679): one card for a piece and a fragment, the library's search over both.
 import { describe, expect, it } from 'vitest';
-import { catalogue } from '@yggi/cells/repository/catalogue';
+import { catalogue } from '@yggi/cells';
 import { firstParagraph, fragmentEntry, matches } from './entries';
 import { exampleTakes, takersOf } from '../references';
 

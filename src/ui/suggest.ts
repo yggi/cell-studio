@@ -2,7 +2,7 @@
  * Autocomplete for the braid editors: what the word being typed could become.
  * Pure, so it's tested on its own.
  */
-import { CORE } from '@yggi/cells/engine/attributes';
+import { CORE } from '@yggi/cells/inspect';
 
 export interface Suggestion {
   /** What replaces the word. */

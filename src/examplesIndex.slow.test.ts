@@ -1,10 +1,9 @@
 import { describe, expect, test } from 'vitest';
-import { EXAMPLES } from '@yggi/cells/engine/examples';
+import { EXAMPLES, pieceMeta } from '@yggi/cells';
+import { ORDER } from '@yggi/cells/engine/order';
 import { compilePiece } from './compile';
-import { pieceMeta } from '@yggi/cells/engine/parser/index';
 import built from 'virtual:examples-index';
 import { buildExamplesIndex } from '../tools/examples-index';
-import { ORDER } from '@yggi/cells/engine/order';
 import { miniature } from './layout/miniature';
 import { rowsKey } from './layout/start';
 import { buildGraph } from './layout/drawn';

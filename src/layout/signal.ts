@@ -4,9 +4,8 @@
  * from its clock's own time map (exact through swing, agogic bars and a tempo that moves), and where they are on a
  * wire now. The drawing is the UI's (EdgePayload.svelte).
  */
-import type { CompileResult, Shifts } from '@yggi/cells/engine/program';
-import { clocking } from '@yggi/cells/engine/clocking';
-import { stepsOf } from '@yggi/cells/engine/flatten';
+import type { CompileResult, Shifts } from '@yggi/cells';
+import { clocking, stepsOf } from '@yggi/cells/inspect';
 import { tickLevel } from './meters';
 
 const mod = (a: number, n: number) => ((a % n) + n) % n;

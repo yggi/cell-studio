@@ -3,7 +3,7 @@
  * of the two circles (an open belt). Pulleys sized by the step ratio: a cell stepped at half
  * its driver's rate (step=&bar/2) has a pulley twice the size.
  */
-import type { CompileResult } from '@yggi/cells/engine/program';
+import type { CompileResult } from '@yggi/cells';
 
 export type P = { x: number; y: number };
 

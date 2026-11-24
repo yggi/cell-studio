@@ -1,15 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { compilePiece } from '../compile';
-import { pieceTime, sections } from '@yggi/cells/engine/duration';
-import { EXAMPLES } from '@yggi/cells/engine/examples';
-import { codeShifts } from '@yggi/cells/engine/program';
-import { eventsBetween, plan } from '@yggi/cells/engine/realize';
-import { sectionsOver } from '@yggi/cells/engine/time/boundaries';
-import { scalograms, SIGNALS, type Signal } from '@yggi/cells/engine/time/signals';
-import { listening } from '@yggi/cells/engine/time/span';
-import { structure } from '@yggi/cells/engine/time/structure';
+import { pieceTime, sections } from '@yggi/cells/inspect';
+import { codeShifts, eventsBetween, EXAMPLES, plan } from '@yggi/cells';
+import { grid, listening, scalograms, sectionsOver, type Signal, SIGNALS, structure } from '@yggi/cells/time';
 import { explainLevels, sameLevel, writtenLevels } from './explained';
-import { grid } from '@yggi/cells/engine/time/wavelet';
 import { buildGraph } from './drawn';
 import {
   cellSpans,
