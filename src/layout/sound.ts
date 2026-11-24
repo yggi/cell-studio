@@ -13,7 +13,8 @@
  *   gate (what plays voices: a gate, a groove read through a kit) a row under the makers, a mixer a row over them.
  */
 import type { CompileResult } from '@yggi/cells';
-import { cellId, type GraphModel, type GraphNode, soundRole as roleOf, writtenGraph, type WrittenGraph } from '@yggi/cells/inspect';
+import { cellId, soundRole as roleOf, writtenGraph } from '@yggi/cells/inspect';
+import { type GraphModel, type GraphNode, type WrittenGraph } from './graph';
 
 /** The written graph with the built-in card in it, once a program. */
 const withBuiltin = new WeakMap<CompileResult, WrittenGraph>();

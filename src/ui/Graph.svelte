@@ -9,7 +9,8 @@
   import { Background, Controls, SvelteFlow, ViewportPortal, type NodeTypes } from '@xyflow/svelte';
   import { VOICE_KIT } from '@yggi/cells/library';
   import type { CompileResult, Jack, Shifts } from '@yggi/cells';
-  import { type GraphModel, isCellNode, refsOf } from '@yggi/cells/inspect';
+  import { isCellNode, refsOf } from '@yggi/cells/inspect';
+  import { type GraphModel } from '../layout/graph';
   import { noteColour, partColour, sectionTint, sectionTintRgb } from './theme';
   import '@xyflow/svelte/dist/style.css';
   import { onDestroy, untrack } from 'svelte';

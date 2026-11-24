@@ -7,7 +7,8 @@
  * right, its left channel the strip's left half and its right channel the right half (`towerOuts`, `towerNets`).
  */
 import type { CompileResult } from '@yggi/cells';
-import { cellId, type GraphModel, type GraphNode, isMidiCard, kitOf, outs } from '@yggi/cells/inspect';
+import { cellId, isMidiCard, kitOf, outs } from '@yggi/cells/inspect';
+import { type GraphModel, type GraphNode } from './graph';
 import { towerOf } from './tower';
 import { socketOf, VOICE_SIZE } from './voice';
 import { HEARING, TOWER_PX } from './towerscale';

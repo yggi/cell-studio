@@ -10,7 +10,8 @@
  * The jacks are cells' own (`jacksOf`, `@yggi/cells/engine/patch`), read off the module's `from` line as its use
  * records it (`Take.args`). Pure: no DOM.
  */
-import { cellId, edgeId, type GraphEdge, type GraphModel, type GraphNode, isCellNode, netsOf } from '@yggi/cells/inspect';
+import { cellId, edgeId, isCellNode } from '@yggi/cells/inspect';
+import { type GraphEdge, type GraphModel, type GraphNode, drawnNets } from './graph';
 import { type CompileResult, type Jack, jacksOf, LIBRARY, resolveSeed, signatureOf, type Take } from '@yggi/cells';
 import { MOVING } from '@yggi/cells/edit';
 import { envelopeBox, VOICE_SIZE } from './voice';
@@ -125,7 +126,7 @@ function withModules(result: CompileResult, model: GraphModel): GraphModel {
     const head = headOf.get(n.id);
     return head && isCellNode(n) ? [Object.assign({}, n, { module: modules.get(head)! })] : [n];
   });
-  return { ...model, nodes, edges, nets: netsOf(nodes, edges), alias };
+  return { ...model, nodes, edges, nets: drawnNets(nodes, edges), alias };
 }
 
 /** An unnamed cell (`&( … )`, resolved as `λ…`): a value written on the line, not a cable. */
@@ -185,7 +186,7 @@ export function withJacks(result: CompileResult, model: GraphModel): GraphModel 
     const j = jacks?.find((x) => x.port === e.port && x.patched.includes(e.from.slice('cell:'.length)));
     return j ? ({ ...e, jack: j.port } as GraphEdge) : e;
   });
-  return { ...folded, nodes, edges, nets: netsOf(nodes, edges) };
+  return { ...folded, nodes, edges, nets: drawnNets(nodes, edges) };
 }
 
 /** A node's jacks: its module's, or its own (a voice's, an instrument's); none for anything else. */

@@ -2,7 +2,7 @@
  * Which node draws a cell of the graph, and how large: the graph (`Graph.svelte`) and the wheels' contact
  * sheet (`tools/gallery/`) both place nodes by it.
  */
-import { type GraphNode, isTurntable } from '@yggi/cells/inspect';
+import { type GraphNode, isTurntable } from '../layout/graph';
 import type { CompileResult } from '@yggi/cells';
 import { pluginOf } from '../layout/show';
 import { wheelOf } from '../layout/wheels';

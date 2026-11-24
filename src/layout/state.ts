@@ -5,7 +5,7 @@
  * functions of it.
  */
 import type { SimulationLinkDatum, SimulationNodeDatum } from 'd3-force';
-import type { GraphModel } from '@yggi/cells/inspect';
+import type { GraphModel } from './graph';
 import type { LayoutOptions } from './options';
 import type { TapeFace } from './aims';
 

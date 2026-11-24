@@ -6,7 +6,8 @@
  * from the bulb or from the host. The rules are tried in order; the first that takes a cell decides. graph.ts asks here
  * and nowhere else; the glyphs draw what the layouts here place (track.ts, kit.ts, tape.ts).
  */
-import { cellId, type GraphEdge, type GraphNode } from '@yggi/cells/inspect';
+import { cellId } from '@yggi/cells/inspect';
+import { type GraphEdge, type GraphNode } from './graph';
 import type { CompileResult, ResolvedCell } from '@yggi/cells';
 import { VOICE_KIT } from '@yggi/cells/library';
 import { drumNoteIn, drumPlaces, kitOf } from './kit';

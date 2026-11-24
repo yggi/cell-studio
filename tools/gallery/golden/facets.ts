@@ -5,7 +5,8 @@
  * ring) is not one. An edge is its port (every attribute — fm=, lpf= … — one value), whether it has a label, and the few that are drawn differently: a belt, a
  * tape's head, a meter's net; and what it carries: its band (sync, CV, audio) and whether it is a bus. Which label it has (`×0.4`, `[<<]`, `lpf`) is the edge sheet's to show.
  */
-import { edgeLabel, type GraphEdge, isAttribute } from '@yggi/cells/inspect';
+import { edgeLabel, isAttribute } from '@yggi/cells/inspect';
+import { type GraphEdge } from '../../../src/layout/graph';
 import type { CompileResult } from '@yggi/cells';
 import { buildGraph } from '../../../src/layout/drawn';
 import { groundsOf } from '../../../src/layout/meters';

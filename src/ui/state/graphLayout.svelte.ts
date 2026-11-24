@@ -1,7 +1,7 @@
 import { PROBE_LAYOUT } from '../outputs';
 import type { Edge } from '@xyflow/svelte';
 import { SvelteSet } from 'svelte/reactivity';
-import { type GraphModel, type GraphNode, structureKey } from '@yggi/cells/inspect';
+import { type GraphModel, type GraphNode, structureKey } from '../../layout/graph';
 import type { LiveState } from '../../layout/live';
 import { ForceLayout } from '../../layout/physics';
 import { DEFAULT_LAYOUT, TOWER_LAYOUT, type LayoutOptions } from '../../layout/options';

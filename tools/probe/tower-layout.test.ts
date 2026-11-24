@@ -10,7 +10,7 @@
 import { describe, it } from 'vitest';
 import { appendFileSync, readFileSync, writeFileSync } from 'node:fs';
 import { ForceLayout } from '../../src/layout/physics';
-import type { GraphModel } from '@yggi/cells/inspect';
+import type { GraphModel } from '../../src/layout/graph';
 import { compileSource, EXAMPLES } from '@yggi/cells';
 import { buildGraph } from '../../src/layout/drawn';
 import { TOWER_LAYOUT, type LayoutOptions } from '../../src/layout/options';

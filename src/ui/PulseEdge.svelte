@@ -3,7 +3,8 @@
   import { fillColour, liveColour } from './edgeStyle';
   import { palette } from './palette';
   import { gridOf, heardPosition } from '../layout/show';
-  import { isTurntable, lapOf, pickIndices } from '@yggi/cells/inspect';
+  import { lapOf, pickIndices } from '@yggi/cells/inspect';
+  import { isTurntable } from '../layout/graph';
   import { pitchHue } from '@yggi/cells/library';
   import type { Pick } from '@yggi/cells';
   import { tickLevel } from '../layout/meters';

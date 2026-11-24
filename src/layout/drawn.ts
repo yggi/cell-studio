@@ -4,7 +4,8 @@
  * host (decision 014, every sub-wheel: decision 021), the room a host's bulbs take and where their edges leave from;
  * what each `use` line gives, a cluster named by its line, what nothing reads of it folded into that name (uses.ts).
  */
-import { cellId, clockTapId, edgeId, feeds, type GraphEdge, type GraphModel, type GraphNode, netsOf, stepEdgeId, writtenGraph, type WrittenGraph } from '@yggi/cells/inspect';
+import { cellId, clockTapId, edgeId, feeds, stepEdgeId } from '@yggi/cells/inspect';
+import { drawnNets, drawnWritten, type GraphEdge, type GraphModel, type GraphNode, type WrittenGraph } from './graph';
 import { VOICE_KIT } from '@yggi/cells/library';
 import type { CompileResult } from '@yggi/cells';
 import { effectiveShow } from './show';
@@ -31,10 +32,10 @@ export function buildGraph(result: CompileResult, opts: { readonly bulbs?: boole
 }
 
 const writtenMemo = new WeakMap<CompileResult, WrittenGraph>();
-/** cells' written graph of a program (what reads what), once per compile: every build of the drawing starts from it. */
+/** cells' written graph of a program (what reads what), each node at its ring and each belt drawn (`drawnWritten`), once per compile: every build of the drawing starts from it. */
 export function writtenOf(result: CompileResult): WrittenGraph {
   let hit = writtenMemo.get(result);
-  if (!hit) writtenMemo.set(result, (hit = writtenGraph(result)));
+  if (!hit) writtenMemo.set(result, (hit = drawnWritten(result)));
   return hit;
 }
 
@@ -187,7 +188,7 @@ function petals(result: CompileResult, written: WrittenGraph, withBulbs: boolean
     const at = e.bulb ? bulbAt(result, names(e.from), e.bulb, byName, sizes.get(e.from) ?? 128) : null;
     return at ? { ...e, bulbAt: at } : e;
   });
-  return { nodes: reached, edges: anchored, nets: netsOf(reached, anchored), alias, bulbs: byName };
+  return { nodes: reached, edges: anchored, nets: drawnNets(reached, anchored), alias, bulbs: byName };
 }
 
 /** The cells drawn as bulbs, by name, each to the cell that splices it (GraphModel.bulbs), for drawing a wheel: the piece's graph's. */

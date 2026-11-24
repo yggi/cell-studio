@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { compilePiece, resolveNow } from '../compile';
-import { cellId, edgeId, type GraphModel, stepEdgeId, TIME_PARAMS, transformLabel } from '@yggi/cells/inspect';
+import { cellId, edgeId, stepEdgeId, TIME_PARAMS, transformLabel } from '@yggi/cells/inspect';
+import { type GraphModel } from './graph';
 import { EXAMPLES, parse, readsOf } from '@yggi/cells';
 import { expansion } from '@yggi/cells/repository';
 import { buildGraph } from './drawn';

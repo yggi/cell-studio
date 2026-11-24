@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { SAILOR_WITH_KIT } from '@yggi/cells/engine/fixtures';
 import { codeShifts, eventsBetween, EXAMPLES, plan } from '@yggi/cells';
-import { edgeLabel, type GraphModel, structureKey } from '@yggi/cells/inspect';
+import { edgeLabel } from '@yggi/cells/inspect';
+import { type GraphModel, structureKey } from './graph';
 import { compilePiece } from '../compile';
 import { liveAt } from './live';
 import { routing } from './routing';

@@ -11,7 +11,8 @@
  * group's name, not drawn, while the group has a cell that is read; a group of nothing but such cells is drawn whole.
  */
 import { VOICE_KIT } from '@yggi/cells/library';
-import { cellId, type GraphModel, isCellNode } from '@yggi/cells/inspect';
+import { cellId, isCellNode } from '@yggi/cells/inspect';
+import { type GraphModel } from './graph';
 import type { CompileResult } from '@yggi/cells';
 import { kitOf } from './kit';
 import { isModuleUse } from './modules';

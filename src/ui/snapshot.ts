@@ -3,7 +3,7 @@
  * `Graph.svelte` hands its components this one snapshot and swaps it whole when the piece changes
  * (`GraphLayout.sync`), so a node or an edge is never drawn against another piece's program (#144).
  */
-import type { GraphModel } from '@yggi/cells/inspect';
+import type { GraphModel } from '../layout/graph';
 import type { CompileResult, Shifts } from '@yggi/cells';
 import type { Routing } from '../layout/routing';
 

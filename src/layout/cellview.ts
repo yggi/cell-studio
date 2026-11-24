@@ -9,7 +9,6 @@ import {
   entries,
   flatten,
   footOf,
-  isTurntable,
   keepsTime,
   lapOf,
   type Meter,
@@ -22,6 +21,7 @@ import {
   shiftedUnits,
   tapped,
 } from '@yggi/cells/inspect';
+import { isTurntable } from './graph';
 import type { CompileResult, Shifts } from '@yggi/cells';
 import { positionHue, positionOctave } from '@yggi/cells/inspect';
 import { mod, modeName, NOTE_NAMES } from '@yggi/cells/library';
