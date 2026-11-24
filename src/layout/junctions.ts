@@ -7,8 +7,8 @@
  * wires that come into it, as a tape's heads ride the tape. So a junction costs the layout nothing, and each product
  * still has its own place: its melody comes in at its meter, and its notes go on into the voice from there.
  */
-import { edgeId, isCellNode } from '@yggi/cells/inspect';
-import { type GraphEdge, type GraphModel, drawnNets } from './graph';
+import { edgeId } from '@yggi/cells/inspect';
+import { type GraphEdge, type GraphModel, drawnNets, isCellNode } from './graph';
 import { drawnSize, INSTRUMENT_MODULES, MODULE_NAME, moduleOf, voiceSize } from './modules';
 import { segmentsCross, splinePoint } from './geometry';
 import { hops } from './nets';

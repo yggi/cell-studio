@@ -297,7 +297,7 @@ describe('Piece: a piece that uses a fragment (cells decision 054)', () => {
   it('compiles its use through the seed library: the kit’s voices are there, and it plays', () => {
     const p = new Piece(USES);
     expect(p.result.diagnostics).toEqual([]);
-    expect(p.result.takes?.map((u) => [u.id, u.hash?.startsWith('e2:')])).toEqual([['gm_kit', true]]);
+    expect(p.result.takes?.map((u) => [u.id, u.hash?.startsWith('e3:')])).toEqual([['gm_kit', true]]);
     expect(['bd', 'hh', 'sd'].every((n) => p.program.cells.has(n))).toBe(true);
     const events = windowAt(plan(p.program, codeShifts(p.program), p.muted), 0, 2.4).events;
     expect(events.length).toBeGreaterThan(0);

@@ -10,8 +10,8 @@
  * The jacks are cells' own (`jacksOf`, `@yggi/cells/engine/patch`), read off the module's `from` line as its use
  * records it (`Take.args`). Pure: no DOM.
  */
-import { cellId, edgeId, isCellNode } from '@yggi/cells/inspect';
-import { type GraphEdge, type GraphModel, type GraphNode, drawnNets } from './graph';
+import { cellId, edgeId } from '@yggi/cells/inspect';
+import { type GraphEdge, type GraphModel, type GraphNode, drawnNets, isCellNode } from './graph';
 import { type CompileResult, type Jack, jacksOf, LIBRARY, resolveSeed, signatureOf, type Take } from '@yggi/cells';
 import { MOVING } from '@yggi/cells/edit';
 import { envelopeBox, VOICE_SIZE } from './voice';
