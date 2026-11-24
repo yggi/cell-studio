@@ -22,7 +22,13 @@ const errors = (src: string) => compilePiece(src).diagnostics.filter((d) => d.se
 describe('show=', () => {
   it('reads one of the shows; says which when it isn’t', () => {
     expect(compilePiece('&t show=do 0').cells.get('t')!.show).toBe('do');
-    expect(errors('&t show=fancy 0')[0].message).toMatch(/show=fancy: not a show \(braid pattern equal notes midi do.*no plugin of that name/);
+    // (the word is the workbench's to judge since cells v0.30.0, decision 086 §2: a warning, and the cell drawn as plain)
+    const fancy = compilePiece('&t show=fancy 0');
+    expect(errors('&t show=fancy 0')).toEqual([]);
+    expect(showProblems(fancy).map((d) => [d.severity, d.message])).toEqual([
+      ['warning', expect.stringMatching(/^show=fancy: not a show \(braid pattern equal notes midi do.*no plugin of that name/)],
+    ]);
+    expect(effectiveShow(fancy, 't').from).toBe('inferred');
   });
   it('a plugin of the piece is a show of its own, for the kinds it says; not passed down', () => {
     const src = [
@@ -54,7 +60,7 @@ describe('show=', () => {
   });
   it('the block is blanked in the cells’ text: the cells keep their line numbers', () => {
     const r = compilePiece(['=== plugin ring ===', '{ "fits": ["meter"] }', 'function draw() { return []; }', '=== end ===', '&bar scan(1 1) step=60bpm show=nope'].join('\n'));
-    expect(r.diagnostics.find((d) => d.severity === 'error')!.span.line).toBe(5);
+    expect(showProblems(r)[0]!.span.line).toBe(5);
   });
   it('says what is wrong with a block', () => {
     const msgs = (s: string) => errors(s).map((d) => d.message);
@@ -172,7 +178,8 @@ describe('label=, and the rest of show=', () => {
     // fixed do: C is do whatever the key; movable do: the tonic is
     expect(noteLabel('do', n(7), C4, 7, 'fixed')).toBe('sol');
     expect(noteLabel('do', n(7), C4, 7, '')).toBe('do');
-    expect(compilePiece('&t show=notes:klingon 0').diagnostics[0].message).toMatch(/flats, sharps or german/);
+    expect(showProblems(compilePiece('&t show=notes:klingon 0'))[0]!.message).toMatch(/flats, sharps or german/);
+    expect(showProblems(compilePiece('&t show=sun:bright 0'))[0]!.message).toBe('show=sun: takes no convention, not :bright');
   });
   it('show=wave fits a voice', () => {
     const r = compilePiece(setAttr(tiny, 'v', 'show', 'wave'));

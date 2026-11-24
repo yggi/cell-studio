@@ -36,7 +36,7 @@ describe('references in the code view', () => {
       for (const name of r.origins?.keys() ?? []) {
         const steps = chainOf(r, name);
         expect(steps?.length, `${key}: &${name}`).toBeGreaterThan(0);
-        // (an argument the piece writes, `&bar from meter 96bpm`'s tempo, is its line's alone: a chain of one)
+        // (an argument the piece writes, `&bar from bar 96bpm`'s tempo, is its line's alone: a chain of one)
         if (steps!.length > 1) expect(steps![0]!.id, `${key}: &${name}`).not.toBeNull();
         expect(steps!.at(-1)!.id, `${key}: &${name}`).toBeNull();
         n++;

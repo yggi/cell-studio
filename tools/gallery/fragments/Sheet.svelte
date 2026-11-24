@@ -54,7 +54,7 @@
     '# Kinderlieder: the tunes, each a fragment this file gives',
     ...MOTIFS.flatMap((m) => [...motifText(m).split('\n'), '']),
     '# the piece: what the file plays when it is opened',
-    '&bar from meter &tempo',
+    '&bar from bar &tempo',
     '&tempo step=free(100bpm, 80..120)',
     '&key from diatonic(mode=ionian) C',
     '&twinkleSong from ternary(answer=&wonder) &twinkle',
@@ -349,12 +349,12 @@
         <div class="host"><span class="stand">&amp;in: a saw on C2–C3</span><span class="play">▶</span></div>
       </div>
       <div class="card">
-        <div class="ct"><b>meter</b> <span class="chip" style:--c={facetColour('meter')}>meter</span> <span class="sig">{BY_ID.get('meter')!.signature}</span></div>
+        <div class="ct"><b>bar</b> <span class="chip" style:--c={facetColour('meter')}>meter</span> <span class="sig">{BY_ID.get('bar')!.signature}</span></div>
         <svg width="320" height="96">
           {#each Array.from({ length: 16 }, (_, i) => i) as i (i)}
             <line x1={10 + i * 19} x2={10 + i * 19} y1={i % 4 ? 70 : i % 8 ? 50 : 30} y2="80" stroke="var(--meter-1)" stroke-width={i % 4 ? 1.5 : 3} />
           {/each}
-          <text x="10" y="18" class="lab small">{BY_ID.get('meter')!.points.length} points: a star on the map</text>
+          <text x="10" y="18" class="lab small">{BY_ID.get('bar')!.points.length} points: a star on the map</text>
         </svg>
         <div class="host"><span class="stand">&amp;tempo: 120 bpm</span><span class="stand">&amp;swing: straight ▾</span><span class="play">▶ click</span></div>
       </div>

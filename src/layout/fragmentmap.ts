@@ -22,9 +22,8 @@
  */
 import { forceCollide, forceSimulation, type SimulationNodeDatum } from 'd3-force';
 import { AXES, catalogue, type CatalogueEntry, EXAMPLES, type Reference, references, STYLES, type WeightedPoint } from '@yggi/cells';
-import { placeOf } from '@yggi/cells/repository/declarations';
-import { styleNamesIn } from '@yggi/cells/repository/files';
-import { SEED_FILES } from '@yggi/cells/repository/seed.generated';
+import { placeOf, styleNamesIn } from '@yggi/cells/repository';
+import { SEED_FILES } from '@yggi/cells/library';
 
 interface MapNode {
   readonly key: string;

@@ -3,11 +3,12 @@ import { compilePiece } from '../compile';
 import { setAttr } from '@yggi/cells/edit';
 import { EXAMPLES } from '@yggi/cells';
 import { dayLaw } from '@yggi/cells/engine/fiveto12';
-import { pluginKey } from '@yggi/cells/engine/plugins';
+import { pluginKey } from '@yggi/cells/inspect';
 import { drawPlugin, loadPlugin } from './plugin';
 import { confirmed, isTrusted, revoke, trust } from './pluginTrust.svelte';
 import { attributesOf, boundedTree, h, plainAttribute, TAGS, type PNode } from './pluginTree';
 import { viewOf } from './pluginView';
+import { showProblems } from '../layout/show';
 
 const errors = (src: string) =>
   compilePiece(src)
@@ -32,11 +33,24 @@ describe('the sun, a built-in plugin', () => {
     expect(day.cells.get('day')!.show).toBe('sun');
   });
 
-  it('is there for any piece, and a piece cannot write another of its name', () => {
+  it('is there for any piece, and a piece cannot write another of its name, nor one named like a show', () => {
     const own = (name: string) => `&bar scan(1 1) step=60bpm show=${name}\n=== plugin ${name} ===\n{ "fits": ["meter"] }\nfunction draw() { return []; }\n=== end ===`;
     expect(compilePiece('&day scan(1!24) loop=1d show=sun').plugins.get('sun')?.builtin).toBe(true);
-    expect(errors(own('sun'))[0]).toMatch(/sun is a show of its own/);
-    expect(errors('&day scan(1!24) loop=1d show=moon')[0]).toMatch(/not one of the built-in plugins \(sun\)/);
+    expect(errors(own('sun'))).toEqual(['sun is a show of its own: a plugin needs another name']);
+    expect(compilePiece(own('sun')).plugins.get('sun')).toBe(sun);
+    expect(errors(own('braid'))).toEqual(['braid is a show of its own: a plugin needs another name']);
+    expect(compilePiece(own('braid')).plugins.has('braid')).toBe(false);
+  });
+
+  it('a show= word the workbench draws not, nor a plugin of the piece: a warning, the cell drawn as plain (cells decision 086 §2)', () => {
+    const moon = compilePiece('&day scan(1!24) loop=1d show=moon');
+    expect(moon.diagnostics.filter((d) => d.severity === 'error')).toEqual([]);
+    const [w, ...rest] = showProblems(moon);
+    expect(rest).toEqual([]);
+    expect(w).toMatchObject({ severity: 'warning', span: { line: 1 } });
+    expect(w!.message).toMatch(/^show=moon: not a show \(braid .*\), not one of the built-in plugins \(sun\)/);
+    expect(showProblems(compilePiece('&day scan(1!24) loop=1d show=sun'))).toEqual([]);
+    expect(showProblems(compilePiece('&tune step=8n 0 2 4 show=notes:flats'))).toEqual([]);
   });
 
   it('draws at any time of the day, only from the allowed elements and attributes', () => {

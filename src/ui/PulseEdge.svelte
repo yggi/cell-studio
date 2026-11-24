@@ -4,7 +4,7 @@
   import { palette } from './palette';
   import { gridOf, heardPosition } from '../layout/show';
   import { isTurntable, lapOf, pickIndices } from '@yggi/cells/inspect';
-  import { pitchHue } from '@yggi/cells/theory/modes';
+  import { pitchHue } from '@yggi/cells/library';
   import type { Pick } from '@yggi/cells';
   import { tickLevel } from '../layout/meters';
   import { drawnShifts, turnKey } from '../layout/turning';

@@ -7,12 +7,24 @@
  * it goes through picks it.
  */
 import { cellId, clocking, edgeId, footOf, playedCells, resolveIn, ROOT, selects, shiftsAt, slots, stepsOf } from '@yggi/cells/inspect';
-import { pickedUnits } from '@yggi/cells/engine/program';
-import { type Atom, type CompileResult, eventsBetween, type Output, outputPlays, plan, type Plan, type ResolvedCell, type Shifts } from '@yggi/cells';
-import { playing } from '@yggi/cells/engine/clocking';
-import { unitsFor } from '@yggi/cells/engine/flatten';
-import type { Slot } from '@yggi/cells/engine/subseq';
-import { droneEnd, endOf, kitPickAt, picksNow, voiceFor } from '@yggi/cells/engine/realize';
+import {
+  type Atom,
+  type CompileResult,
+  droneEnd,
+  endOf,
+  eventsBetween,
+  kitPickAt,
+  type Output,
+  outputPlays,
+  pickedUnits,
+  picksNow,
+  plan,
+  type Plan,
+  type ResolvedCell,
+  type Shifts,
+  voiceFor,
+} from '@yggi/cells';
+import { playing, type Slot, unitsFor } from '@yggi/cells/inspect';
 import { mod } from '@yggi/cells/library';
 import { liveRouting, type NotesOf, type RouteAcc } from './routing';
 

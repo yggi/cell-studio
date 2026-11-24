@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { catalogue, compileSource, createRepository, EMPTY_LAYER, EXAMPLES, extract, fileFragment, LIBRARY, resolverOf, resolveSeed } from '@yggi/cells';
 import { soundsIdentical } from '@yggi/cells/engine/sameness';
 import { pointOf } from './ui/complete';
-import { exportable, facetFor, idFor } from './extraction';
+import { exportable, facetFor, fileOwn, idFor } from './extraction';
 
 const k = EXAMPLES.kinderlied.source;
 const at = (head: string) => k.split('\n').findIndex((l) => l.startsWith(head)) + 1;
@@ -25,10 +25,21 @@ describe('a selection turned into a fragment', () => {
     expect(r.same).toBe(true);
     // (filed as the app files it, `mine.file`, the piece read through that layer plays as it did, its first 16 s;
     // through the seed alone it doesn't)
-    const filed = fileFragment(createRepository(LIBRARY), EMPTY_LAYER, { text: r.fragment, point: pointOf([]), source: 'me', created: '2026-11-16T00:00:00Z', id: 'my_vamp_bass' });
+    const filing = { text: r.fragment, point: pointOf([]), source: 'me', created: '2026-11-16T00:00:00Z', id: 'my_vamp_bass' };
+    const filed = fileOwn(LIBRARY, EMPTY_LAYER, filing);
     expect(filed.id).toBe('my_vamp_bass');
+    // (cells alone files this text of `from` lines alone as the seed `stick_count`, yggi/cells#941: when this fails, cells
+    // reads such a text as itself, and `fileOwn`'s guard can go)
+    expect(fileFragment(createRepository(LIBRARY), EMPTY_LAYER, filing).id).toBe('stick_count');
     expect(soundsIdentical(k, r.piece, 16, { resolve: resolverOf(filed.layer) })).toBe(true);
     expect(soundsIdentical(k, r.piece, 16, { resolve: resolveSeed })).toBe(false);
+  });
+
+  it('files a text of `from` lines alone that a seed is written as, as that seed (the guard of yggi/cells#941)', () => {
+    for (const id of ['stick_count', 'hat_count', 'clave_count']) {
+      const text = LIBRARY.find((f) => f.id === id)!.text;
+      expect(fileOwn(LIBRARY, EMPTY_LAYER, { text, point: pointOf([]), source: 'me', created: '2026-11-24T00:00:00Z' }).id, id).toBe(id);
+    }
   });
 
   it('offers an id the library doesn’t hold, after its first head', () => {

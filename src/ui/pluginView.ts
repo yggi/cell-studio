@@ -4,7 +4,7 @@
  */
 import { dayLaw } from '@yggi/cells/engine/fiveto12';
 import type { CompileResult } from '@yggi/cells';
-import type { ShowPlugin } from '@yggi/cells/engine/plugins';
+import type { ShowPlugin } from '@yggi/cells/inspect';
 import { lawAt } from '@yggi/cells/inspect';
 import { NOTE_NAMES } from '@yggi/cells/library';
 

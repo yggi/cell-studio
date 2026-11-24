@@ -23,7 +23,7 @@ import {
   tapped,
 } from '@yggi/cells/inspect';
 import type { CompileResult, Shifts } from '@yggi/cells';
-import { positionHue, positionOctave } from '@yggi/cells/engine/helix';
+import { positionHue, positionOctave } from '@yggi/cells/inspect';
 import { mod, modeName, NOTE_NAMES } from '@yggi/cells/library';
 import { effectiveShow, type Named, type Show } from './show';
 import { bulbHosts, writtenOf } from './drawn';

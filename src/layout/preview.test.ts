@@ -31,7 +31,7 @@ describe('a fragment pictured by its facet', () => {
     expect(roll.kind === 'roll' && roll.notes.length).toBeGreaterThan(8);
     const form = pictured('ternary');
     expect(form.kind === 'sections' && form.sections.map((s) => s.letter).join('')).toBe('ABCCAB');
-    const meter = pictured('meter');
+    const meter = pictured('bar');
     expect(meter.kind === 'ticks' && meter.ticks.map((t) => [t.x, t.strong])).toEqual([
       [0, true],
       [0.25, false],
@@ -58,7 +58,7 @@ describe('a fragment pictured by its facet', () => {
     ]);
     const style = controlsOf(text('lead'))[0]!;
     expect(style.kind === 'sliders' && style.axes.length).toBeGreaterThanOrEqual(4);
-    expect(controlsOf(text('meter'))[0]).toEqual({ kind: 'text', name: 'grouping', text: 'meter("4/4")' });
+    expect(controlsOf(text('bar'))[0]).toEqual({ kind: 'text', name: 'meter', text: '"4/4"' });
     // (a style alone plays nothing and reads nothing: no picture, no controls)
     expect([pictured('styles').kind, controlsOf(text('styles'))]).toEqual(['none', []]);
   });

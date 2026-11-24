@@ -47,7 +47,7 @@ const STYLE: Readonly<Record<string, { sync: number; artic: number }>> = {
   'Swing jazz': { sync: 0.35, artic: 0.3 },
   'Bossa nova': { sync: 0.75, artic: 0.45 },
 };
-/** Each preset's swing as its score's `&bar` states it (`meter(swing=16n:.6)`, `meter(swing=8n:2/3)`, straight). */
+/** Each preset's swing as its score's `&bar` states it (`&bar swing=16n:.6 from bar`, `swing=8n:2/3`, straight). */
 const SWING: Readonly<Record<string, FeelFrame['swing']>> = {
   Funk: { level: '16n', share: 0.6 },
   'Swing jazz': { level: '8n', share: 2 / 3 },

@@ -44,29 +44,21 @@ export default ts.config(
   },
   {
     // Import from cells' entry points (`@yggi/cells`, `/edit`, `/inspect`, `/midi`, `/time`, `/library`, `/repository`), not a module path (#677,
-    // yggi/cells#830). The files below still reach a module on purpose: the view until it moves here (#650, decision 086), names no
-    // entry point has (`ORDER`, `SEED`, the fixtures, `fiveto12`, the folder's scoring) and `Take`, a class the entry point exports as a type only.
+    // yggi/cells#830). The files below still reach a module on purpose: names no entry point has (`ORDER`, `SEED`, the fixtures, `fiveto12`,
+    // the plugins' module, the folder's scoring, `sameness`, `ladder`) and `Take`, a class the entry point exports as a type only.
     // The list only shrinks.
     files: ['**/*.{ts,svelte,mjs}'],
     ignores: [
       'src/examplesIndex.slow.test.ts',
       'src/extraction.test.ts',
+      'src/layout/builtinPlugins.ts',
       'src/layout/cellview.test.ts',
-      'src/layout/cellview.ts',
       'src/layout/compile.drawn.test.ts',
-      'src/layout/fragmentmap.ts',
-      'src/layout/live.ts',
       'src/layout/realize.drawn.test.ts',
       'src/layout/routing.drawn.test.ts',
-      'src/layout/routing.ts',
       'src/layout/show.ts',
-      'src/ui/GraphLegend.svelte',
-      'src/ui/PluginNode.svelte',
-      'src/ui/PulseEdge.svelte',
-      'src/ui/colour.test.ts',
       'src/ui/complete.test.ts',
       'src/ui/plugin.test.ts',
-      'src/ui/pluginTrust.svelte.ts',
       'src/ui/pluginView.ts',
       'src/ui/state/record.svelte.ts',
       'tools/examples-doc.ts',

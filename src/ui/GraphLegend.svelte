@@ -5,7 +5,7 @@
    * frequency, and its agogic mark (a meter's levels: * the bar, + a beat, . a subdivision, , finer).
    */
   import { type CompileResult, pieceMeta, type Shifts } from '@yggi/cells';
-  import { positionHue, positionOctave } from '@yggi/cells/engine/helix';
+  import { positionHue, positionOctave } from '@yggi/cells/inspect';
   import { period, resolvePitch, semitones } from '@yggi/cells/inspect';
   import { noteFrame, noteLabel, type Show } from '../layout/show';
   import { noteColour } from './theme';
