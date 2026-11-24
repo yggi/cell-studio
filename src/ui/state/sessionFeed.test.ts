@@ -50,7 +50,7 @@ describe('a followed session as the player’s feed', () => {
     expect(notes.map((t) => Math.round(t * 1000) / 1000)).toEqual([5, 5.5, 6, 6.5, 7, 7.5, 8, 8.5]);
     expect(feed.played).toBe(8);
     // (bar 2, which the asks reached, is said; bar 3 starts after the last)
-    expect(feed.lacked).toEqual([{ bar: 2, why: 'the section’s key moves between its bars' }]);
+    expect(feed.lacked).toEqual([{ bar: 2, why: 'the section’s key moves between its bars', kind: 'silent' }]);
   });
 
   it('says where each bar starts, and whether its text switched there (#492)', () => {

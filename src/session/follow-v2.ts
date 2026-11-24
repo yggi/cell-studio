@@ -147,14 +147,14 @@ export function followedOf(s: Scored): Followed<ReadScore> {
   const texts = s.scores.map((score) => readScore(score, s.fragments));
   const starts = new Map<number, number>();
   const frames = new Map<number, FeelFrame>();
-  const lacks = new Map<number, string>();
+  const lacks = new Map<number, { kind: 'digest' | 'lock'; text: string }>();
   for (const c of s.conducts) {
     if (c.start !== null) starts.set(c.bar, c.start);
     const score = textOf(texts, c.bar);
     if (!score?.text) continue;
     const foreseen = score.foreseen[c.bar - score.bar];
-    if (score.missing) lacks.set(c.bar, score.missing);
-    else if (c.foreseen !== foreseen) lacks.set(c.bar, `its conduct’s digest (${c.foreseen}) is not the one its score foresaw (${foreseen})`);
+    if (score.missing) lacks.set(c.bar, { kind: 'lock', text: score.missing });
+    else if (c.foreseen !== foreseen) lacks.set(c.bar, { kind: 'digest', text: `its conduct’s digest (${c.foreseen}) is not the one its score foresaw (${foreseen})` });
     const frame = frameOf(c, score);
     if (frame) frames.set(c.bar, frame);
   }

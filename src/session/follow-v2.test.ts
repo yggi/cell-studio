@@ -44,8 +44,8 @@ const played = (f: Followed<ReadScore>) => {
   const s = soundingOf(f, null, 1000, 9, length);
   return { slices: s.slices as readonly Slice<ReadScore>[], lacked: s.lacked as readonly Lack[] };
 };
-const lackedOf = (lacked: readonly Lack[]) => lacked.filter((l) => !l.silent);
-const silentOf = (lacked: readonly Lack[]) => lacked.filter((l) => l.silent);
+const lackedOf = (lacked: readonly Lack[]) => lacked.filter((l) => l.kind !== 'silent');
+const silentOf = (lacked: readonly Lack[]) => lacked.filter((l) => l.kind === 'silent');
 
 /** The style each preset's score states (cells' library of styles, `&funk from styles`): its sync and its bite, the feel's `artic`. */
 const STYLE: Readonly<Record<string, { sync: number; artic: number }>> = {
@@ -114,7 +114,7 @@ describe('a version 2 song played from its scores (#525, rung 2)', () => {
     const s = fixture.sections[0]!;
     const conducts = conductsOf(s, 2, (c) => (c.bar === 3 ? 'another' : c.foreseen));
     const { slices, lacked } = played({ ...followedOf(scoredOf(conducts, [s.score])), finale: 7 });
-    expect(lacked).toEqual([{ bar: 3, why: `its conduct’s digest (another) is not the one its score foresaw (${s.score.foreseen[3]})` }]);
+    expect(lacked).toEqual([{ bar: 3, why: `its conduct’s digest (another) is not the one its score foresaw (${s.score.foreseen[3]})`, kind: 'digest' }]);
     expect(slices.map((x) => x.bar)).toEqual([0, 1, 2, 4, 5, 6, 7]);
   });
 
@@ -126,7 +126,7 @@ describe('a version 2 song played from its scores (#525, rung 2)', () => {
     // (while it hasn't begun, a score may yet come for it: it waits)
     expect([slices.map((x) => x.bar), lacked]).toEqual([[0, 1, 2, 3, 4, 5, 6, 7], []]);
     // (begun with none: silent, said)
-    expect(soundingOf(f, { bar: 8, into: 0 }, 27, 26, (t) => barSeconds(t.result!)).lacked).toEqual([{ bar: 8, why: 'no text stated it', silent: true }]);
+    expect(soundingOf(f, { bar: 8, into: 0 }, 27, 26, (t) => barSeconds(t.result!)).lacked).toEqual([{ bar: 8, why: 'no text stated it', kind: 'silent' }]);
   });
 
   it('plays a bar only once its conduct is told: one begun without it is lacked, one not begun waits', () => {
@@ -137,7 +137,7 @@ describe('a version 2 song played from its scores (#525, rung 2)', () => {
     const early = soundingOf(f, null, 1000, 9, (t) => barSeconds(t.result!));
     expect([early.slices.map((x) => x.bar), early.lacked, early.done]).toEqual([[0, 1, 2, 3, 4], [], { bar: 5, into: 0 }]);
     // (come to it after it began, guessed from the bars before: lacked)
-    expect(soundingOf(f, early.done, 21, 20.5, (t) => barSeconds(t.result!)).lacked).toEqual([{ bar: 5, why: 'the host never told where it starts' }]);
+    expect(soundingOf(f, early.done, 21, 20.5, (t) => barSeconds(t.result!)).lacked).toEqual([{ bar: 5, why: 'the host never told where it starts', kind: 'silent' }]);
   });
 
   it('plays the bars a score of fewer bars told later states (a looped window) from it, and the rest from the section’s', () => {
@@ -190,7 +190,7 @@ describe('a version 2 song played from its scores (#525, rung 2)', () => {
     expect(eventsBetween(plan(first, codeShifts(first)), 0, 2, true).length).toBe(8);
     // (a score that locks it in a session that never sent it: its bars lacked, said)
     const lacking = played({ ...followedOf(scoredOf(conducted([0, 1]), [lead(0, [])])), finale: 1 });
-    expect(lacking.lacked).toEqual([0, 1].map((bar) => ({ bar, why: 'its score locks “muse_motif_1”, which neither this pin nor the session holds' })));
+    expect(lacking.lacked).toEqual([0, 1].map((bar) => ({ bar, why: 'its score locks “muse_motif_1”, which neither this pin nor the session holds', kind: 'lock' as const })));
   });
 
   it('plays the hub’s version 2 vectors’ scores where they fit: the score whose band is passed its lines, and the unstated one', () => {
@@ -217,7 +217,7 @@ describe('a version 2 song played from its scores (#525, rung 2)', () => {
     expect(passed!.text).toMatch(/\* from band\(drumlines=&drumlines, leadline=&leadline\)$/);
     expect([passed!.lacked, passed!.slices.map((x) => x.bar)]).toEqual([[], passed!.conducts.map((c) => c.bar)]);
     // (the unstated score: each bar said, as it says)
-    expect(unstated!.lacked).toEqual(unstated!.conducts.map((c) => ({ bar: c.bar, why: unstated!.unstated })));
+    expect(unstated!.lacked).toEqual(unstated!.conducts.map((c) => ({ bar: c.bar, why: unstated!.unstated, kind: 'silent' })));
     // (the stand-in that locks the Muse's motif compiles since music-commons#73, its line over the key: it plays)
     expect(standIn!.text).toMatch(/&muse_motif_1 from muse_motif_1 &key/);
     expect([standIn!.lacked, standIn!.slices.map((x) => x.bar)]).toEqual([[], standIn!.conducts.map((c) => c.bar)]);

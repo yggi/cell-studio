@@ -53,7 +53,7 @@ export class SessionFeed implements Feed {
   /** The text of the last bar started: a bar whose text is another starts a switch. */
   #lastText: Stating | null = null;
 
-  constructor(readonly session: Pick<SessionClient, 'sounding'>) {}
+  constructor(readonly session: Pick<SessionClient, 'sounding'> & Partial<Pick<SessionClient, 'report'>>) {}
 
   next(now: number, horizon: number, beyond = horizon): Fed[] {
     const s = this.session.sounding(this.#done, horizon - now, now, (t) => this.#compiled(t).bar, beyond - now);
@@ -62,9 +62,13 @@ export class SessionFeed implements Feed {
       return [];
     }
     this.#done = s.done;
-    if (s.lacked.length) this.lacked = [...this.lacked, ...s.lacked].slice(-LACKS_KEPT);
+    if (s.lacked.length) {
+      this.lacked = [...this.lacked, ...s.lacked].slice(-LACKS_KEPT);
+      // (said to the host too, version 2's `lacked`: each bar once, #698)
+      this.session.report?.(s.lacked);
+    }
     for (const l of s.lacked)
-      if (l.silent) this.silent++;
+      if (l.kind === 'silent') this.silent++;
       else this.lacks++;
     return s.slices.map((x) => {
       // (a slice's text has a bar, so it compiled)

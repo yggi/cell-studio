@@ -185,18 +185,18 @@ describe('sounding a followed song, bar by bar from the texts that state them', 
     // (bar 3 the host passed without laying; bar 5 has no text yet, and waits for one until it begins)
     const s = sounding(f, null, 21, 10, length);
     expect(s.lacked).toEqual([
-      { bar: 1, why: 'the section’s key moves between its bars' },
-      { bar: 2, why: 'its text has no bar to play (it does not compile, or has no meter)' },
-      { bar: 3, why: 'the host passed it without laying it' },
+      { bar: 1, why: 'the section’s key moves between its bars', kind: 'silent' },
+      { bar: 2, why: 'its text has no bar to play (it does not compile, or has no meter)', kind: 'silent' },
+      { bar: 3, why: 'the host passed it without laying it', kind: 'silent' },
     ]);
     expect(s.done).toEqual({ bar: 5, into: 0 });
     // (begun with none: said, and passed)
-    expect(sounding(f, s.done, 20.5, 20, length)).toMatchObject({ lacked: [{ bar: 5, why: 'no text stated it' }], slices: [] });
+    expect(sounding(f, s.done, 20.5, 20, length)).toMatchObject({ lacked: [{ bar: 5, why: 'no text stated it', kind: 'silent' }], slices: [] });
     // (an ask that comes late says so, of each bar it passed, and plays on from now)
     const late = sounding(song([2, 2, 2]), { bar: 0, into: 0.5 }, 13, 12.3, length);
     expect(late.lacked).toEqual([
-      { bar: 0, why: 'late by 1300 ms' },
-      { bar: 1, why: 'late by 1300 ms' },
+      { bar: 0, why: 'late by 1300 ms', kind: 'late' },
+      { bar: 1, why: 'late by 1300 ms', kind: 'late' },
     ]);
     expect(late.slices[0]).toMatchObject({ bar: 1, at: 12.3 });
   });

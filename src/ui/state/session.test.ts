@@ -127,6 +127,41 @@ describe('SessionClient: Cell studio following a Jambot session', () => {
     expect(client.dropped).toEqual({ refused: 0, ignored: 1 });
   });
 
+  describe('tells its host each bar it did not play: version 2, minor 2 (#698)', () => {
+    const lacks = (...bars: number[]) => bars.map((bar) => ({ bar, why: 'no text stated it', kind: 'silent' as const }));
+    const lackedTold = () => socket.told.filter((m) => (m as { kind: string }).kind === 'lacked');
+
+    it('says a silent bar to a host of version 2 exactly once, however often the follower lacks it', async () => {
+      await joined(null, welcome2());
+      client.report(lacks(7));
+      client.report(lacks(7));
+      vi.advanceTimersByTime(1000);
+      expect(lackedTold()).toEqual([{ kind: 'lacked', bar: 7, why: 'silent', text: 'bar 7: no text stated it' }]);
+    });
+
+    it('says nothing to a host of version 1, which has no such kind', async () => {
+      await joined();
+      client.report(lacks(7));
+      vi.advanceTimersByTime(1000);
+      expect(lackedTold()).toEqual([]);
+    });
+
+    it('says a flood of bars at 8 a second, the rest as time lets it, and nothing once it has left', async () => {
+      await joined(null, welcome2());
+      client.report(lacks(...Array.from({ length: 12 }, (_, i) => 100 + i)));
+      expect(lackedTold().length).toBe(8);
+      now += 1.1;
+      vi.advanceTimersByTime(1100);
+      expect(lackedTold().length).toBe(12);
+      client.report(lacks(200, 201));
+      expect(lackedTold().length).toBe(14);
+      client.leave();
+      client.report(lacks(300));
+      vi.advanceTimersByTime(2000);
+      expect(lackedTold().length).toBe(14);
+    });
+  });
+
   it('follows a host of version 2 (#525): its conducts and scores kept and heard, version 1’s kinds ignored', async () => {
     await joined(null, welcome2({ seed: 1, start: 1070, track: {}, swing: {}, tempoMeter: {}, conducts: [conduct(0)], scores: [score(0)] }));
     expect([client.status, client.version, client.hostPlaying, client.role]).toEqual(['joined', 2, true, 'player']);
@@ -149,7 +184,7 @@ describe('SessionClient: Cell studio following a Jambot session', () => {
     expect(client.clock?.offset).toBeCloseTo(100, 9);
     expect(client.heading(1011)).toMatchObject({ bar: 0, bars: 0.5, before: false, text: { bar: 0, text: '* from band' } });
     expect(client.nextTurn(1011)).toBeCloseTo(1012, 9);
-    expect(client.sounding(null, 1, 1013, () => 2)).toMatchObject({ slices: [], lacked: [{ bar: 1, why: 'no text stated it', silent: true }], shift: 60 });
+    expect(client.sounding(null, 1, 1013, () => 2)).toMatchObject({ slices: [], lacked: [{ bar: 1, why: 'no text stated it', kind: 'silent' }], shift: 60 });
     socket.say({ op: 'said', message: { kind: 'finale', bar: 9 } });
     expect(client.scored?.finale).toBe(9);
     socket.say({ op: 'said', message: { kind: 'stop' } });
