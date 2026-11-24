@@ -284,7 +284,7 @@ describe('the rest of what a wheel can be', () => {
   // #583: a meter(…) (every meter fragment's) is drawn as its braid of levels; its beats are the compiled meter's
   const labels = (r: CompileResult, size = 128) => beatLabels(view(r, 'bar', true), true, size, g);
   const near = (a: { x: number; y: number }[], b: { x: number; y: number }[]) => a.length === b.length && a.every((p, i) => Math.hypot(p.x - b[i]!.x, p.y - b[i]!.y) < 0.01);
-  it("Pop's bar, a meter from a fragment (`&bar from meter &tempo`): its 4 beats numbered, from 64 px (#583)", () => {
+  it("Pop's bar, a meter from a fragment (`&bar from bar &tempo`): its 4 beats numbered, from 64 px (#583)", () => {
     expect(view(pop, 'bar', true).mode).toBe('braid');
     expect(labels(pop).map((l) => l.text)).toEqual(['1', '2', '3', '4']);
     expect(labels(pop, 44)).toEqual([]);
@@ -325,7 +325,8 @@ describe('the rest of what a wheel can be', () => {
   it('every example whose bar is a meter from a fragment numbers its beats (#583)', () => {
     let from = 0;
     for (const [key, p] of Object.entries(EXAMPLES)) {
-      if (!/^&bar from meter\b/m.test(p.source)) continue;
+      // (`&bar from bar &tempo`, or with the bar's own swing first, `&bar swing=8n:2/3 from bar …`: cells v0.30.0's `bar`)
+      if (!/^&bar\b[^\n#]* from bar\b/m.test(p.source)) continue;
       from++;
       const r = compilePiece(p.source);
       expect(
@@ -333,6 +334,6 @@ describe('the rest of what a wheel can be', () => {
         key,
       ).toEqual(r.cells.get('bar')!.meter!.beats.map((_, i) => String(i + 1)));
     }
-    expect(from).toBeGreaterThanOrEqual(49);
+    expect(from).toBeGreaterThanOrEqual(66);
   });
 });

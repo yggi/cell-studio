@@ -10,7 +10,8 @@ import { readFrom } from '@yggi/cells/engine/parser/use';
 import type { Resolve } from '@yggi/cells/engine/program';
 import type { CatalogueEntry } from '@yggi/cells/repository/catalogue';
 import { createRecogniser } from '@yggi/cells/repository/recognise';
-import type { Fragment } from '@yggi/cells/repository/fragments';
+import { createRepository, type Fragment, type LearnedLayer, type Repository } from '@yggi/cells/repository/fragments';
+import { canonicalText, fileFragment, type Filed, type Filing } from '@yggi/cells/repository/learned';
 
 /** The id a fragment is offered under: `my_` and its first head, then ` 2`, ` 3` … while the library holds it. */
 export function idFor(heads: readonly string[], taken: ReadonlySet<string>): string {
@@ -76,4 +77,27 @@ export function exportable(code: string, mine: ReadonlyMap<string, string>, reso
     );
   }
   return lines.flatMap((l, i) => inline.get(i) ?? [l]).join('\n');
+}
+
+/** Each seed's repository, and the same seed less its texts of `from` lines alone (`fileOwn`). */
+const repositories = new WeakMap<readonly Fragment[], { readonly all: Repository; readonly sighted: readonly Fragment[]; readonly blind: Repository }>();
+
+/**
+ * A fragment filed as the person's own (cells' `fileFragment`), under the id it asks for unless the library holds its
+ * text already. Guarded until cells reads a text of `from` lines alone as itself (yggi/cells#941): cells reads every such
+ * text as the same (its `canonicalText` is ""), so at v0.30.0 one would be filed as the seed `stick_count` and the piece
+ * would take that. Such a text is matched against the seed's other texts, and against a seed of `from` lines alone only
+ * where it is written the same.
+ */
+export function fileOwn(seed: readonly Fragment[], layer: LearnedLayer, filing: Filing): Filed {
+  let kept = repositories.get(seed);
+  if (!kept) {
+    const sighted = seed.filter((f) => canonicalText(f.text) !== '');
+    kept = { all: createRepository(seed), sighted, blind: createRepository(sighted) };
+    repositories.set(seed, kept);
+  }
+  if (canonicalText(filing.text) !== '') return fileFragment(kept.all, layer, filing);
+  const written = filing.text.trim();
+  const same = seed.find((f) => canonicalText(f.text) === '' && f.text.trim() === written);
+  return fileFragment(same ? createRepository([...kept.sighted, same]) : kept.blind, layer, filing);
 }
