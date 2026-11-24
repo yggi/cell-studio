@@ -5,13 +5,12 @@
  * step= drivers aren't below in this sense: a melody's show never renames its meter.
  */
 import { codeShifts, DEFAULT_FREQ, ROOT, type CompileResult } from '@yggi/cells/engine/program';
-import type { ShowPlugin } from '@yggi/cells/engine/plugins';
+import { PLUGIN_SYNTAX, type ShowPlugin } from '@yggi/cells/engine/plugins';
 import type { Diagnostic } from '@yggi/cells/engine/ast';
 import { entries, positionOf, resolveIn, resolvePitch, semitones } from '@yggi/cells/engine/helix';
 import { midiOf, modeName, mod } from '@yggi/cells/theory/modes';
 import { selects } from '@yggi/cells/engine/clocking';
 
-/** The shows the language has. A piece can carry more (plugins: engine/plugins.ts). */
 /**
  * The words `show=` takes that the workbench draws, a cell's default for everything below it: which words `show=` takes
  * is the frontend's, the text keeps the word (cells decision 086 §2). Lifted from yggi/cells src/engine/parser/cell.ts
@@ -44,6 +43,10 @@ const SHOWS = [
   'brightness',
 ] as const;
 export type CoreShow = (typeof SHOWS)[number];
+/** The naming conventions a show takes after a colon (`notes:flats`, `do:fixed`); `mix:&grid` names a grid. Lifted from yggi/cells src/engine/parser/cell.ts @ e7d8793 (v0.29.0). */
+const SHOW_CONVENTIONS: Readonly<Record<string, readonly string[]>> = { notes: ['flats', 'sharps', 'german'], do: ['fixed', 'movable'] };
+/** Is a word one of the shows the workbench draws itself (not a plugin's)? */
+export const isCoreShow = (word: string): word is CoreShow => (SHOWS as readonly string[]).includes(word);
 export type Show = string;
 
 /** What a cell is, for showing it. */
@@ -77,7 +80,7 @@ function fitsOf(result: CompileResult, kind: Kind): readonly Show[] {
 function parseShow(result: CompileResult, raw: string | null | undefined): { show: Show; conv: string } | null {
   if (!raw) return null;
   const [show, conv = ''] = raw.split(':');
-  return (SHOWS as readonly string[]).includes(show) || result.plugins.has(show) ? { show, conv } : null;
+  return isCoreShow(show) || result.plugins.has(show) ? { show, conv } : null;
 }
 
 /** The plugin that draws a cell, if its own show= names one that fits it: its wheel is the cell's node. */
@@ -89,13 +92,32 @@ export function pluginOf(result: CompileResult, name: string): ShowPlugin | null
 }
 
 /**
- * A cell whose own show= names a plugin that doesn't fit what it is (show=sun on a braid): the plugin isn't drawn, and
- * says so. A warning from the layout, which knows what a cell is (kindOf); the editor shows it with the compiler's.
+ * What the workbench can't draw as a cell's own show= says, each a warning from the layout, which knows what a cell is
+ * (kindOf); the editor shows them with the compiler's. A word that is no show here and names no plugin the piece has
+ * (`show=moon`), or a convention its show doesn't take (`notes:klingon`): the text keeps the word, and the cell is drawn
+ * as without it (cells decision 086 §2; cells said so, as an error, before v0.30.0). A plugin that doesn't fit what the
+ * cell is (show=sun on a braid): it is drawn as one, without the plugin.
  */
 export function showProblems(result: CompileResult): Diagnostic[] {
   const out: Diagnostic[] = [];
   const a = (k: string) => (/^[aeiou]/.test(k) ? `an ${k}` : `a ${k}`);
+  const plugins = [...result.plugins.values()];
+  const builtins = plugins.filter((p) => p.builtin).map((p) => p.name);
   for (const c of result.cells.values()) {
+    const [word, conv] = c.show?.split(':') ?? [];
+    const at = c.showSpan ?? c.span;
+    if (word && !c.implicit && !parseShow(result, c.show))
+      out.push({
+        severity: 'warning',
+        message: `show=${word}: not a show (${SHOWS.join(' ')}), not one of the built-in plugins (${builtins.join(' ')}), and the piece carries no plugin of that name (${PLUGIN_SYNTAX}): it is drawn as it would be without show=`,
+        span: at,
+      });
+    else if (word && conv !== undefined && !(word === 'mix' && conv.startsWith('&')) && !SHOW_CONVENTIONS[word]?.includes(conv))
+      out.push({
+        severity: 'warning',
+        message: `show=${word}: takes ${word === 'notes' ? 'flats, sharps or german' : word === 'do' ? 'fixed or movable' : 'no convention'}, not :${conv}`,
+        span: at,
+      });
     const own = parseShow(result, c.show);
     const plugin = own && result.plugins.get(own.show);
     if (!plugin || pluginOf(result, c.name)) continue;

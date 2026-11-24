@@ -57,16 +57,16 @@ describe('Piece: the code and what it compiles to', () => {
   });
 
   it('switches a template’s head off before its from; a cell no line carries isn’t switched, and says why (yggi/cells#686)', () => {
-    const text = '&bar from meter &tempo\n&tempo step=120bpm\n&tune step=8n 0 2 4\n&lead s=sine\n&out [&tune * &lead]';
+    const text = '&bar from bar &tempo\n&tempo step=120bpm\n&tune step=8n 0 2 4\n&lead s=sine\n&out [&tune * &lead]';
     const p = new Piece(text);
     expect(p.toggle('cell:bar')).toBeNull();
-    expect(p.code.split('\n')[0]).toBe('&bar off from meter &tempo');
+    expect(p.code.split('\n')[0]).toBe('&bar off from bar &tempo');
     expect([p.stale, p.program.cells.get('bar')?.off]).toEqual([false, true]);
     expect(p.toggle('cell:bar')).toBeNull();
     expect(p.code).toBe(text);
-    // (the meter's own grouping: no line of the piece's to carry it)
-    expect(p.program.cells.has('bar_grouping')).toBe(true);
-    expect(p.toggle('cell:bar_grouping')).toMatch(/bar_grouping/);
+    // (the meter's own text cell: no line of the piece's to carry it)
+    expect(p.program.cells.has('bar_meter')).toBe(true);
+    expect(p.toggle('cell:bar_meter')).toMatch(/bar_meter/);
     expect(p.code).toBe(text);
   });
 
@@ -397,7 +397,7 @@ describe('Piece: a fragment opened (#623)', () => {
 
 describe('Piece: a piece taking a person’s own fragment (#626)', () => {
   const PIECE = [
-    '&bar from meter &tempo',
+    '&bar from bar &tempo',
     '&tempo step=100bpm',
     '&key from diatonic(mode=ionian) C',
     '&harm over=&key step=1m cycle=8 [0,2,4]!4 [4,6,8]!4',

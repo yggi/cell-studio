@@ -1,8 +1,9 @@
 /**
  * A piece's text compiled as Cell studio compiles it: its `from` lines read from the library this app holds, the seed
  * library of its cells pin and the person's own fragments (`setResolver`, which `mine` calls: #626), and its
- * lockfile's hashes where its file has one (`locked`). Cells resolves nothing itself; every compile of a piece the
- * person opened, saved or wrote goes through here, so a piece with `* from gm_kit` opens, draws and plays.
+ * lockfile's hashes where its file has one (`locked`), and the app's own show plugins merged in front of the piece's
+ * (`withBuiltinPlugins`: the sun). Cells resolves nothing itself; every compile of a piece the person opened, saved or
+ * wrote goes through here, so a piece with `* from gm_kit` opens, draws and plays, and one with `show=sun` draws the sun.
  */
 import { compileSource } from '@yggi/cells/engine/compile';
 import { takeIn } from '@yggi/cells/engine/takein';
@@ -16,6 +17,7 @@ import { windowAt } from '@yggi/cells/engine/schedule';
 import { plan } from '@yggi/cells/engine/realize';
 import { codeShifts } from '@yggi/cells/engine/program';
 import { barSeconds } from './session/follow';
+import { withBuiltinPlugins } from './layout/builtinPlugins';
 import type { HeardNote } from './layout/preview';
 import type { CompileResult, Env, Locked } from '@yggi/cells/engine/program';
 import { resolveSeed } from '@yggi/cells/repository/library';
@@ -32,7 +34,7 @@ export const setResolver = (resolve: Resolve): void => void (resolver = resolve)
 export const resolveNow: Resolve = (id, hash) => resolver(id, hash);
 
 export const compilePiece = (text: string, env?: Env, locked?: readonly Locked[]): CompileResult =>
-  compileSource(text, env, { resolve: resolver, ...(locked?.length ? { locked } : {}) });
+  withBuiltinPlugins(compileSource(text, env, { resolve: resolver, ...(locked?.length ? { locked } : {}) }));
 
 /**
  * The text with a given cell's line written in, the piece's own (cells' `takeIn`, #480, #610): before an edit of a

@@ -29,7 +29,7 @@ describe('meters as ground', () => {
       return [...meterIndex(buildGraph(r), r).entries()].sort((a, b) => a[1] - b[1]).map(([id]) => name(id));
     };
     expect(order(EXAMPLES.rhythm.source)).toEqual(['bar', 'tresillo']);
-    // (a meter a `from` line gives counts at its line: bossa's `&bar from meter …` is on line 11, `&clave` on 12; #636)
+    // (a meter a `from` line gives counts at its line: bossa's `&bar from bar …` is on line 11, `&clave` on 12; #636)
     expect(order(EXAMPLES.bossa.source)).toEqual(['bar', 'clave']);
   });
 });
