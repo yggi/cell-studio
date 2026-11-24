@@ -8,8 +8,9 @@
    */
   import MockWheel from './MockWheel.svelte';
   import BodyMock from './BodyMock.svelte';
-  import type { ComponentProps } from 'svelte';
-  import SwingMock from './SwingMock.svelte';
+  import { compilePiece } from '../../../src/compile';
+  import { EXAMPLES, type ExampleKey } from '@yggi/cells';
+  import MeterMock from './MeterMock.svelte';
 
   type Option = { label: string; note: string; cls?: string; vars?: Record<string, string> };
   const style = (vars?: Record<string, string>) =>
@@ -66,31 +67,28 @@
     { option: 'material', label: 'D · ringing', note: 'the moving part ghosted, the struck exciter glowing', ringing: 1 },
   ] as const;
 
-  // 3 · a meter's swing ring (#701): the wheel's own beat hues as the real wheel draws a 4/4 (1 red, 2 and 4 yellow, 3 orange)
-  const beatHues = ['#e05252', '#dfe04e', '#e0944a', '#dfe04e'];
-  const q3: { label: string; note: string; props: Omit<ComponentProps<typeof SwingMock>, 'hues' | 'size'> }[] = [
-    { label: 'A · straight', note: '&bar meter("4/4") step=&tempo: no swing=, no ring: the wheel as it is', props: { groups: [2, 2, 2, 2], share: null } },
-    {
-      label: 'B · swing=8n:2/3',
-      note: 'the eighths in pairs, long and short at the triplet; the handle on the 2/3 detent',
-      props: { groups: [2, 2, 2, 2], level: '8n', share: 2 / 3 },
-    },
-    {
-      label: 'C · swing=16n:.6',
-      note: 'the sixteenths in pairs (eight), each pair an eighth; the handle on the first split',
-      props: { groups: [2, 2, 2, 2], level: '16n', share: 0.6 },
-    },
-    {
-      label: 'D · swing=8n:.6, the handle held',
-      note: 'the share in the hub; the detents (1/2, 2/3) as ticks across the ring, the attribute’s range 1/2…3/4 as the gold arc inside it',
-      props: { groups: [2, 2, 2, 2], level: '8n', share: 0.6, drag: true },
-    },
-    {
-      label: 'E · swing=16n:&groove',
-      note: 'the share is &groove’s: a bulb on &bar (decision 021), the ring shows the share it plays now, the handle off',
-      props: { groups: [2, 2, 2, 2], level: '16n', share: 0.58, bulb: 'groove' },
-    },
-    { label: 'F · 7/8, 8n:2/3', note: 'groups 2+2+3: the group of three stays straight (decision 071), the pairs lean', props: { groups: [2, 2, 3], level: '8n', share: 2 / 3 } },
+  // 3 · &bar as one wheel (#701): each a real example's compiled meter
+  const meterOf = (piece: ExampleKey, name = 'bar') => {
+    const r = compilePiece(EXAMPLES[piece].source);
+    if (!r.ok) throw new Error(`${piece} does not compile`);
+    const c = r.cells.get(name)!;
+    const m = c.meter!;
+    const sw = m.swing?.[0];
+    return {
+      beats: m.beats as number[],
+      levels: m.levels as number[],
+      unit: m.unit,
+      swing: sw ? { whole: sw.whole, share: sw.share } : null,
+      bpm: Math.round(((r.clocks.get(name)?.perSecond ?? 0) * 60) / c.beat),
+    };
+  };
+  const q3: { label: string; note: string; meter: ReturnType<typeof meterOf> }[] = [
+    { label: 'A · straight', note: 'Metronome: 4/4, no swing=, no ring', meter: meterOf('metronome') },
+    { label: 'B · swing=8n:2/3', note: 'Swing: the eighths in pairs, long and short; the beats and bar line never move', meter: meterOf('swing') },
+    { label: 'C · swing=16n:.58', note: 'Funk: the sixteenths in pairs, two to a beat', meter: meterOf('funk') },
+    { label: 'D · 2+2+3 at 8n:.6', note: 'Aksak: the pulses are eighths, so they lean themselves; the three stays even', meter: meterOf('aksak') },
+    { label: 'E · 5/4', note: 'Five: five beats, a bar of five pulses, the swing on each', meter: meterOf('five') },
+    { label: 'F · 12/8', note: 'Twelve: 4 beats of three; a group of three leans nothing, no swing=', meter: meterOf('twelve') },
   ];
 </script>
 
@@ -119,22 +117,69 @@
     </div>
   </section>
 
-  <section data-mock="3-swing-ring">
-    <h2>3 · A meter's swing as a ring on its wheel, one wheel for &amp;bar (#701)</h2>
+  <section data-mock="3-meter-wheel">
+    <h2>3 · &amp;bar as one wheel: tempo, meter, swing (#701)</h2>
     <p class="meta">
-      The swing ring inside the beats (36.5 to 44.5 px of the 148 px wheel; the beats' ring is 21 px, it was 31), its pairs as a long and a short arc at the share they play, the
-      share a handle on the first split. `swing=` is the bar's own attribute, as `step=` is: one cell. Tokens from the app; the geometry is the wheel's (`wheelGeometry(148)`); the
-      arcs computed from the level and the share. Top row at 1:1, below the same at 2×.
+      The clock's white (<code>--meter-0</code>, the app's own colour for a meter), not a hue: hues on a wheel are pitches and voices. <b>Pulses</b> stand on the hub's side, as
+      tall as their sync level is strong (the bar's first reaches the rim, as an accent on a drum machine);
+      <b>beats</b> are the arc outside them, as long as their pulses, numbered on the rim; the <b>swing ring</b> inside is the swung level's pairs, long then short (a group that isn't
+      a pair stays even). Each from a real example's compiled meter. Top row 1:1 (148 px), below 2×. No handle: the share is set in the cell's details (section 5).
     </p>
     <div class="swings">
       {#each q3 as o (o.label)}
         <div class="swing">
           <h3>{o.label}</h3>
           <p>{o.note}</p>
-          <SwingMock {...o.props} hues={beatHues} />
-          <div class="big"><SwingMock {...o.props} hues={beatHues} size={300} /></div>
+          <MeterMock {...o.meter} />
+          <div class="big"><MeterMock {...o.meter} size={300} /></div>
         </div>
       {/each}
+    </div>
+  </section>
+
+  <section data-mock="4-meter-running">
+    <h2>4 · &amp;bar running: the wheel stays, the hand is the playhead, a turn a bar</h2>
+    <p class="meta">
+      Time is even round the wheel, so the hand's speed is the tempo over the bar and a swung pair is a long arc then a short one: the hand takes longer through the long. The pulse
+      under the hand is lit (full height, outlined) and so is its beat. Swing piece (4/4, 8n:2/3) and Aksak (2+2+3, 8n:.6, where the pulses themselves lean) at six moments of a
+      bar; funk (16n:.58) below.
+    </p>
+    <div class="strip">
+      {#each [0.02, 0.2, 0.3, 0.55, 0.72, 0.93] as t (t)}<MeterMock {...meterOf('swing')} turn={t} size={148} />{/each}
+    </div>
+    <div class="strip">
+      {#each [0.02, 0.22, 0.34, 0.5, 0.7, 0.9] as t (t)}<MeterMock {...meterOf('aksak')} turn={t} size={148} />{/each}
+    </div>
+    <div class="strip">
+      {#each [0.02, 0.07, 0.14, 0.2, 0.28, 0.45] as t (t)}<MeterMock {...meterOf('funk')} turn={t} size={148} />{/each}
+    </div>
+  </section>
+
+  <section data-mock="5-meter-details">
+    <h2>5 · Swing is set in the details, like the meter's other attributes</h2>
+    <p class="meta">
+      The cell's sheet (Settings) as the app lays out an attribute: its name, its value as written, its control; here a share between the attribute's own range, 1/2 straight, 2/3
+      the triplet as a detent.
+    </p>
+    <div class="details">
+      <MeterMock {...meterOf('swing')} size={220} />
+      <dl>
+        <div>
+          <dt>tempo</dt>
+          <dd><code>step=&amp;tempo</code> <span>160 bpm</span></dd>
+        </div>
+        <div>
+          <dt>meter</dt>
+          <dd><code>meter("4/4")</code> <span>4 beats of 1 pulse</span></dd>
+        </div>
+        <div>
+          <dt>swing</dt>
+          <dd>
+            <code>swing=8n:2/3</code>
+            <span class="slider"><i style="left: 66.7%"></i><b style="left: 0%">1/2</b><b style="left: 66.7%">2/3</b><b style="left: 100%">3/4</b></span>
+          </dd>
+        </div>
+      </dl>
     </div>
   </section>
 
@@ -239,6 +284,65 @@
   }
   .swing .big {
     margin-top: 16px;
+  }
+  .details {
+    display: flex;
+    gap: 28px;
+    align-items: center;
+    background: var(--bg);
+    border-radius: var(--radius);
+    padding: 16px 22px;
+    width: fit-content;
+  }
+  .details dl {
+    margin: 0;
+    display: grid;
+    gap: 14px;
+    min-width: 360px;
+  }
+  .details dt {
+    font: 700 11px var(--font-code);
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  .details dd {
+    margin: 4px 0 0;
+    display: grid;
+    gap: 8px;
+    font-size: 13px;
+  }
+  .details dd span:not(.slider) {
+    color: var(--text-muted);
+  }
+  .slider {
+    position: relative;
+    display: block;
+    height: 30px;
+    margin: 4px 8px 0;
+    border-top: 2px solid var(--text-faint);
+  }
+  .slider i {
+    position: absolute;
+    top: -7px;
+    width: 12px;
+    height: 12px;
+    margin-left: -6px;
+    border-radius: 50%;
+    background: var(--accent);
+  }
+  .slider b {
+    position: absolute;
+    top: 8px;
+    transform: translateX(-50%);
+    font: 11px var(--font-code);
+    color: var(--text-muted);
+  }
+  .strip {
+    display: flex;
+    gap: 22px;
+    justify-content: center;
+    margin: 10px 0;
   }
   .bodies {
     display: grid;
