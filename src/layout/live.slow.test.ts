@@ -1,10 +1,7 @@
 // Lifted from yggi/cells src/engine/timing.slow.test.ts @ 435243f, its live view's ceiling: the view lives in Cell studio
 // (cells decision 086, #650). A wall-clock ceiling, so in the slow tier.
 import { describe, expect, it } from 'vitest';
-import { compileSource } from '@yggi/cells/engine/compile';
-import { codeShifts } from '@yggi/cells/engine/program';
-import { EXAMPLES } from '@yggi/cells/engine/examples';
-import { resolveSeed } from '@yggi/cells/repository/library';
+import { codeShifts, compileSource, EXAMPLES, resolveSeed } from '@yggi/cells';
 import { liveAt } from './live';
 
 describe('what the live view costs', () => {

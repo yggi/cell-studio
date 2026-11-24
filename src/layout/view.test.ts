@@ -6,12 +6,8 @@
  * in the sound at all (`routing`), over the pieces cells tested them on.
  */
 import { describe, expect, it } from 'vitest';
-import { compileSource } from '@yggi/cells/engine/compile';
-import { codeShifts } from '@yggi/cells/engine/program';
-import { EXAMPLES } from '@yggi/cells/engine/examples';
-import { writtenGraph } from '@yggi/cells/engine/graph';
-import { cellId, edgeId } from '@yggi/cells/engine/ids';
-import { resolveSeed } from '@yggi/cells/repository/library';
+import { codeShifts, compileSource, EXAMPLES, resolveSeed } from '@yggi/cells';
+import { cellId, edgeId, writtenGraph } from '@yggi/cells/inspect';
 import { liveAt } from './live';
 import { routing } from './routing';
 
