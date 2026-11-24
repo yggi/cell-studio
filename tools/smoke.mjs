@@ -268,13 +268,17 @@ const HEARD_ALONE = [
   'ternary',
   'tonic_vamp',
   'lead',
-  'meter',
+  'bar',
   'diatonic',
   'techno_drums',
   'lowpass',
   'kinderlied/twinkle',
   'drums_performer',
   'charleston_stabs',
+  'plain',
+  'snare_run',
+  'stick_count',
+  'finale',
 ];
 const SILENT_ALONE = ['band', 'styles'];
 if (only.length === 0) {
