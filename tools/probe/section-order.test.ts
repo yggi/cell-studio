@@ -7,7 +7,7 @@
 import { describe, it } from 'vitest';
 import { appendFileSync } from 'node:fs';
 import { compileSource, EXAMPLES } from '@yggi/cells';
-import type { GraphModel } from '@yggi/cells/inspect';
+import type { GraphModel } from '../../src/layout/graph';
 import { buildGraph } from '../../src/layout/drawn';
 import { ForceLayout } from '../../src/layout/physics';
 

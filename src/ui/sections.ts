@@ -4,7 +4,7 @@
  * section (their ticks, their hand, their name's border) and, on the tower layout's strip, on its table's values.
  */
 import type { CompileResult } from '@yggi/cells';
-import type { GraphModel } from '@yggi/cells/inspect';
+import type { GraphModel } from '../layout/graph';
 import { sectionTintRgb } from './theme';
 
 export interface Section {

@@ -3,7 +3,7 @@
  * read heads' cells, or what a read head drawn as a bulb on it plays into), and those turn round it towards their
  * heads (layout/tape.ts draws the heads).
  */
-import type { GraphModel } from '@yggi/cells/inspect';
+import type { GraphModel } from './graph';
 import type { Aim } from './quality';
 import { fitTurn, headOffset, tapeHeads, UNTURNED } from './tape';
 import { positionOf, type LayoutState } from './state';

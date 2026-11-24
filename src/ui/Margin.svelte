@@ -11,7 +11,8 @@
    * Pointing at one lights its cells' marks; tapping a note opens it and holding it switches it off, as for a cell.
    */
   import { untrack } from 'svelte';
-  import { type GraphModel, refsOf } from '@yggi/cells/inspect';
+  import { refsOf } from '@yggi/cells/inspect';
+  import { type GraphModel } from '../layout/graph';
   import { sideEntries } from '../layout/side';
   import { formatLabel } from '../layout/labels';
   import { drawnShifts } from '../layout/turning';

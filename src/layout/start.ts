@@ -2,7 +2,7 @@
  * Where a graph starts: the layered start (layered.ts, from ranks.ts), a fresh graph's nodes put there and an edit's new ones beside their parents (startNodes), and the rows'
  * order chosen for a graph by its shape (rowsKey; the trial itself is physics.ts: bestRowOrder).
  */
-import { type GraphModel, structureKey } from '@yggi/cells/inspect';
+import { type GraphModel, structureKey } from './graph';
 import { flowRanks } from './ranks';
 import { fitTurns, tapeFaces } from './aims';
 import { layered } from './layered';

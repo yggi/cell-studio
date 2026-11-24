@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { compilePiece } from '../compile';
-import { feeds, type GraphEdge } from '@yggi/cells/inspect';
+import { feeds } from '@yggi/cells/inspect';
+import { type GraphEdge } from '../layout/graph';
 import { codeShifts, type CompileResult, EXAMPLES } from '@yggi/cells';
 import { buildGraph } from '../layout/drawn';
 import { routing } from '../layout/routing';

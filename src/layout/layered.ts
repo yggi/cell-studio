@@ -12,7 +12,7 @@
  *  4. Places: each node towards the mean of its neighbours, kept in order and
  *     apart by its width — columns appear where they're natural.
  */
-import type { GraphModel } from '@yggi/cells/inspect';
+import type { GraphModel } from './graph';
 import { columns, flowRanks } from './ranks';
 
 export interface LayeredOptions {

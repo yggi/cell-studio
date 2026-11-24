@@ -3,7 +3,8 @@
  * where a kind is what the edge looks like — the port it is read through, the shape of the transforms written on it —
  * so a new way to write an edge turns up here by itself. Beside them, the edges that aren't in the model: a meter's net.
  */
-import type { EdgeTransform as Transform, GraphEdge } from '@yggi/cells/inspect';
+import type { EdgeTransform as Transform } from '@yggi/cells/inspect';
+import type { GraphEdge } from '../../../src/layout/graph';
 import type { CompileResult } from '@yggi/cells';
 import { buildGraph } from '../../../src/layout/drawn';
 import { groundsOf, meterIndex } from '../../../src/layout/meters';

@@ -4,7 +4,8 @@
  */
 import { jackHandle, jackOfEdge } from '../layout/modules';
 import type { Edge } from '@xyflow/svelte';
-import { DEFAULT_FREQ, edgeLabel, type GraphEdge, isJunction, physicsOf } from '@yggi/cells/inspect';
+import { DEFAULT_FREQ, edgeLabel, isJunction, physicsOf } from '@yggi/cells/inspect';
+import { type GraphEdge } from '../layout/graph';
 import type { CompileResult } from '@yggi/cells';
 import { VOICE_KIT } from '@yggi/cells/library';
 import { drawn, edgeStateOf, type State } from '../layout/routing';

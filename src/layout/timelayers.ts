@@ -5,7 +5,8 @@
  * layout/timepictures.ts. Pure: no DOM, no colours (a hue at most).
  */
 import type { CompileResult, Played } from '@yggi/cells';
-import { type GraphModel, mainTempo } from '@yggi/cells/inspect';
+import { mainTempo } from '@yggi/cells/inspect';
+import { type GraphModel } from './graph';
 import {
   alike,
   type Boundary,

@@ -7,7 +7,8 @@
  * wires that come into it, as a tape's heads ride the tape. So a junction costs the layout nothing, and each product
  * still has its own place: its melody comes in at its meter, and its notes go on into the voice from there.
  */
-import { edgeId, type GraphEdge, type GraphModel, isCellNode, netsOf } from '@yggi/cells/inspect';
+import { edgeId, isCellNode } from '@yggi/cells/inspect';
+import { type GraphEdge, type GraphModel, drawnNets } from './graph';
 import { drawnSize, INSTRUMENT_MODULES, MODULE_NAME, moduleOf, voiceSize } from './modules';
 import { segmentsCross, splinePoint } from './geometry';
 import { hops } from './nets';
@@ -43,7 +44,7 @@ export function folded(model: GraphModel): GraphModel {
     ...fold(model.edges.filter((e) => through(e) && e.port !== 'mix' && e.port !== 'is')),
   ];
   const nodes = model.nodes.filter((n) => n.kind !== 'junction');
-  return { ...model, nodes, edges, nets: netsOf(nodes, edges) };
+  return { ...model, nodes, edges, nets: drawnNets(nodes, edges) };
 }
 
 /** How much a junction's sound out (to its mix) pulls it, beside its terms in (1 each). */

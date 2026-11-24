@@ -4,7 +4,8 @@
  * them; a strong edge pulls harder, and crossing it costs more. One table, read by the forces (start.ts, physics.ts)
  * and the quality count (quality.ts).
  */
-import { type GraphEdge, type GraphNode, isMidiCard, isTurntable } from '@yggi/cells/inspect';
+import { isMidiCard } from '@yggi/cells/inspect';
+import { type GraphEdge, type GraphNode, isTurntable } from './graph';
 
 /** A node's mass: a turntable (a body) heaviest, then a meter, a net's owner, a sound; a cell 1, a petal light, a junction nothing. */
 export function massOf(n: GraphNode, ownsNet: boolean): number {

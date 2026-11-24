@@ -3,7 +3,7 @@
  * thing it hears, its strata, and the layout's options that hold them. One place for the app (graphLayout.svelte.ts),
  * the examples' index (tools/examples-index.ts: each example's start chosen ahead for this layout too) and the probes.
  */
-import type { GraphModel } from '@yggi/cells/inspect';
+import type { GraphModel } from '../layout/graph';
 import type { CompileResult } from '@yggi/cells';
 import type { LayoutOptions } from '../layout/options';
 import { towerLayers, withSockets } from '../layout/towerlayout';

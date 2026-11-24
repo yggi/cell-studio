@@ -11,7 +11,7 @@ import { appendFileSync, readFileSync, readdirSync, writeFileSync } from 'node:f
 import { ForceLayout } from '../../src/layout/physics';
 import { buildGraph } from '../../src/layout/drawn';
 import { cellsFromMidi, compileSource, readMidi } from '@yggi/cells';
-import type { GraphModel } from '@yggi/cells/inspect';
+import type { GraphModel } from '../../src/layout/graph';
 import { TOWER_LAYOUT, type LayoutOptions } from '../../src/layout/options';
 import { towerLayers, withSockets } from '../../src/layout/towerlayout';
 
