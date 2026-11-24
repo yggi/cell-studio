@@ -11,6 +11,7 @@
   import { compilePiece } from '../../../src/compile';
   import { EXAMPLES, type ExampleKey } from '@yggi/cells';
   import MeterMock from './MeterMock.svelte';
+  import { sectionTint } from '../../../src/ui/theme';
 
   type Option = { label: string; note: string; cls?: string; vars?: Record<string, string> };
   const style = (vars?: Record<string, string>) =>
@@ -82,6 +83,12 @@
       bpm: Math.round(((r.clocks.get(name)?.perSecond ?? 0) * 60) / c.beat),
     };
   };
+  const sections = [
+    { name: 'intro', bar: 0, turn: 0.12 },
+    { name: 'verse', bar: 4, turn: 0.4 },
+    { name: 'chorus', bar: 8, turn: 0.62 },
+    { name: 'end', bar: 12, turn: 0.88 },
+  ];
   const q3: { label: string; note: string; meter: ReturnType<typeof meterOf> }[] = [
     { label: 'A · straight', note: 'Metronome: 4/4, no swing=, no ring', meter: meterOf('metronome') },
     { label: 'B · swing=8n:2/3', note: 'Swing: the eighths in pairs, long and short; the beats and bar line never move', meter: meterOf('swing') },
@@ -180,6 +187,27 @@
           </dd>
         </div>
       </dl>
+    </div>
+  </section>
+
+  <section data-mock="6-meter-selector">
+    <h2>6 · A selector's clock keeps its hue</h2>
+    <p class="meta">
+      Where a meter steps a selector (Arrangement: &amp;song picks the intro, verse, chorus and end, four bars each), the tower's loom tints the clock the playing section's colour,
+      one white in and its spectrum out (<code>sectionTint</code>). The wheel does the same while that section plays: its pulses, beats and swing take the tint; the hub says the
+      bar it is in, 1, 5, 9 and 13 (a bar is a lap, a section four bars). Stopped, or with no selector, it is the clock's white.
+    </p>
+    <div class="strip">
+      {#each sections as sec, k (sec.name)}
+        <figure>
+          <MeterMock {...meterOf('arrangement')} turn={sec.turn} bar={sec.bar} hue={sectionTint(k, sections.length)} />
+          <figcaption>{sec.name} · bar {sec.bar + 1}</figcaption>
+        </figure>
+      {/each}
+      <figure>
+        <MeterMock {...meterOf('arrangement')} turn={0.3} bar={2} />
+        <figcaption>no selector: white</figcaption>
+      </figure>
     </div>
   </section>
 
@@ -337,6 +365,15 @@
     transform: translateX(-50%);
     font: 11px var(--font-code);
     color: var(--text-muted);
+  }
+  figure {
+    margin: 0;
+    text-align: center;
+  }
+  figcaption {
+    font: 11px var(--font-code);
+    color: var(--text-muted);
+    margin-top: 6px;
   }
   .strip {
     display: flex;

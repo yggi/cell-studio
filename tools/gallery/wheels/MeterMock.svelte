@@ -11,7 +11,7 @@
    * then short at the share they play (a group that doesn't divide into pairs stays even, decision 071; none without
    * `swing=`). No handle: the share is set in the cell's details.
    *
-   * Running: the wheel stays put and the playhead is the hand every wheel has (white, dark edge), a turn a bar, so its speed
+   * Running, the hub says the bar it is in (`hubLabel`), and the white is tinted the playing section's colour when a selector is stepped by this meter. The wheel stays put and the playhead is the hand every wheel has (white, dark edge), a turn a bar, so its speed
    * is the tempo over the bar; the pulse under it is lit (full white, outlined), as is its beat.
    */
   type Props = {
@@ -23,9 +23,14 @@
     bpm: number;
     /** Where the playhead is, in turns of the bar (played time); null: stopped. */
     turn?: number | null;
+    /** The bar it is in, from 0 (the hub says it while it runs). */
+    bar?: number;
+    /** A selector's clock: the section's colour the white is tinted in, while its section plays (the tower's loom does the same); none: the clock's white. */
+    hue?: string | null;
     size?: number;
   };
-  let { beats, levels, unit, swing = null, bpm, turn = null, size = 148 }: Props = $props();
+  let { beats, levels, unit, swing = null, bpm, turn = null, bar = 0, hue = null, size = 148 }: Props = $props();
+  const ink = $derived(hue ?? 'var(--meter-0)');
 
   const C = 74;
   const R_RIM = 73;
@@ -103,14 +108,14 @@
     {@const t0 = turnAt(i)}
     {@const t1 = pulseEnd(i)}
     <path d={sector(BASE, BASE + MAX, t0, t1, 1)} fill="var(--wheel-rest)" opacity="0.8" />
-    <path d={sector(BASE, BASE + MAX * HEIGHT[l]!, t0, t1, 1)} fill="var(--meter-0)" opacity={lit === i ? 1 : l === 0 ? 0.85 : 0.6} />
+    <path d={sector(BASE, BASE + MAX * HEIGHT[l]!, t0, t1, 1)} fill={ink} opacity={lit === i ? 1 : l === 0 ? 0.85 : 0.6} />
     {#if lit === i}<path d={sector(BASE, BASE + MAX * HEIGHT[l]!, t0, t1, 1)} fill="none" stroke="var(--wheel-disc)" stroke-width="1" />{/if}
   {/each}
   <!-- the beats: an arc each, as long as its pulses, numbered on the rim -->
   {#each beats as g, b (b)}
     {@const t0 = turnAt(starts[b]!)}
     {@const t1 = pulseEnd(starts[b]! + g - 1)}
-    <path d={sector(BEATS.r0, BEATS.r1, t0, t1, 1.6)} fill="var(--meter-0)" opacity={litBeat === b ? 1 : 0.4} />
+    <path d={sector(BEATS.r0, BEATS.r1, t0, t1, 1.6)} fill={ink} opacity={litBeat === b ? 1 : 0.4} />
     {@const [lx, ly] = pt(70.3, t0 + 4 / (2 * Math.PI * 70))}
     <text class="beat" x={lx} y={ly} opacity={litBeat === b ? 1 : 0.75}>{b + 1}</text>
   {/each}
@@ -118,16 +123,16 @@
   {#if swing}
     {#each pairs as p, i (i)}
       {@const split = p.t0 + (p.t1 - p.t0) * swing.share}
-      <path d={sector(RING.r0, RING.r1, p.t0, split, 0.9)} fill="var(--meter-0)" opacity="0.9" />
-      <path d={sector(RING.r0, RING.r1, split, p.t1, 0.9)} fill="var(--meter-0)" opacity="0.32" />
+      <path d={sector(RING.r0, RING.r1, p.t0, split, 0.9)} fill={ink} opacity="0.9" />
+      <path d={sector(RING.r0, RING.r1, split, p.t1, 0.9)} fill={ink} opacity="0.32" />
     {/each}
     {#each straight as s, i (i)}
-      <path d={sector(RING.r0, RING.r1, s.t0, s.t1, 0.9)} fill="var(--meter-0)" opacity="0.62" />
+      <path d={sector(RING.r0, RING.r1, s.t0, s.t1, 0.9)} fill={ink} opacity="0.62" />
     {/each}
   {/if}
   <circle cx={C} cy={C} r={R_HUB} fill="var(--wheel-disc)" stroke="var(--text-faint)" stroke-opacity="0.35" />
-  <text class="big" x={C} y={C - 6}>{turn === null ? bpm : litBeat + 1}</text>
-  <text class="small" x={C} y={C + 12}>{turn === null ? `bpm, ${beats.length}/bar` : `bpm · beat`}</text>
+  <text class="big" x={C} y={C - 6}>{turn === null ? bpm : bar + 1}</text>
+  <text class="small" x={C} y={C + 12}>{`${turn === null ? 'bpm, ' : ''}${beats.length}/bar`}</text>
   {#if turn !== null}
     {@const [hx0, hy0] = pt(R_HUB - 3, turn)}
     {@const [hx1, hy1] = pt(R_RIM, turn)}

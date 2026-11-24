@@ -16,7 +16,7 @@ Measured with `liveAt` on Swing, Funk and Metronome (`&bar … from bar &tempo`,
 
 `TowerStrips.svelte` lights the row's step from `local = heads.cells.get(name)?.local ?? heads.beatAt.get(name)` over `lapOf` = 4: with `beatAt` in 0…1, `t = beatAt / 4` stays in 0…¼, so **the first step of the bar's row is the only one ever lit**; it flashes each beat but never steps on to the second, third and fourth. The same `beatAt` feeds `meterNow` (the segment lit: always 0), `MeterEdge`'s and `PulseEdge`'s `tickLevel` (`floor(beatAt)` is always 0, so every beat flashes as a bar's first: the palette's level 0), and `SectionLooms`. One cause: `live.ts`'s `k`. Fix: a clock that is a stepped cell takes its own lap (`max(beats, cell.steps)`), with a test over the examples that every meter's `beatAt` reaches `steps`. Not in this change.
 
-## The wheel, as drawn (`701-meter-wheel.jpg`, `701-meter-running.jpg`, `701-meter-details.jpg`)
+## The wheel, as drawn (`701-meter-wheel.jpg`, `701-meter-running.jpg`, `701-meter-details.jpg`, `701-meter-selector.jpg`)
 
 - **The clock's white** (`--meter-0`, which `app.css` gives a meter: "the clock, white light"), not a hue: on the wheels a hue is a pitch or a voice, and the current red / orange / yellow / green for a pulse's level reads as one. Level is **height** (the bar's first reaches the rim, a finer pulse stops short) and the sync-level colours stay the edges'.
 - **Pulses** stand on the hub's side, **beats** are the thin arc outside them, numbered on the rim, **swing** a ring inside: the swung level's pairs, long then short at the share they play; a group that doesn't divide into pairs stays even (decision 071), 12/8 and Twelve's groups of three show it; none without `swing=`. The wheel stays 148 px; its geometry is `wheelGeometry`'s.
@@ -24,8 +24,12 @@ Measured with `liveAt` on Swing, Funk and Metronome (`&bar … from bar &tempo`,
 - **Swing's share** is set in the cell's details (a slider over the attribute's own range, 2/3 a detent), not on the wheel.
 - Each wheel is drawn from a real example's compiled meter (`cell.meter`: `beats`, `levels`, `unit`, `swing`): Metronome, Swing, Funk, Aksak (2+2+3 at 8n:.6), Five and Twelve.
 
+## Decided (the owner, 2026-11-24)
+
+- The hub says **the bar** while it runs (what `hubLabel` means), not the beat; the live clock's fix is #710 (PR #711), which the mock-up assumes.
+- **A selector's clock keeps its hue**: where a meter steps a selector, the wheel is tinted the playing section's colour (`sectionTint`, as the tower's loom tints the clock: one white in, its spectrum out), `701-meter-selector.jpg`; stopped, or with no selector, the clock's white.
+
 ## Open
 
-- The hub while running: the beat number and the tempo (as drawn), or the bar number (what `hubLabel` means to show).
-- Whether a pulse's level should also keep a hue where the meter is a selector's clock (`app.css`: the white splits into the sections' colours).
-- The fix for the live clock's cycle (above), and a cells question if `Clock.beats` should say a stepped meter's steps.
+- Whether the wheel is built as the mock-up draws it (it is hand-drawn SVG, not the app's component).
+- A cells question if `Clock.beats` should say a stepped meter's steps (it is 1 for it; #710 reads the cell's lap instead).
