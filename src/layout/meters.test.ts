@@ -3,6 +3,8 @@ import { groundsOf, levelsText, lineShare, meterIndex, meterNow, tapSwing } from
 import { liveAt } from './live';
 import { codeShifts, EXAMPLES } from '@yggi/cells';
 import { buildGraph } from './drawn';
+import { hubLabel } from './cellview';
+import { lapOf } from '@yggi/cells/inspect';
 import { compilePiece } from '../compile';
 
 const name = (id: string) => id.replace(/^cell:/, '');
@@ -53,6 +55,63 @@ describe('a meter now, on its own wheel', () => {
       expect(at).toBeGreaterThanOrEqual(0);
       expect(at).toBeLessThan(4);
       expect(at).toBeCloseTo((s * 2) % 4, 6); // (120 bpm: two beats a second)
+    }
+  });
+});
+
+describe('a meter that is its own clock, stepped by a tempo (#710)', () => {
+  const PIECE = (meter: string) => `&bar ${meter} step=&tempo\n&tempo step=free(120bpm, 60..240)\n&a step=4n 0 2\n&v s=sine loop=C4\n&out loop=SAMPLE_RATE map=sample [&a * &v]`;
+  it('counts its own pulses as its cycle: the beat runs through the bar, and a bar is a lap', () => {
+    const r = compilePiece(PIECE('meter("4/4")'));
+    expect(r.diagnostics).toEqual([]);
+    // (120 bpm: two beats a second, a bar two seconds)
+    for (const [s, beat, bars] of [
+      [0.25, 0.5, 0],
+      [0.75, 1.5, 0],
+      [1.6, 3.2, 0],
+      [2.25, 0.5, 1],
+      [5.1, 2.2, 2],
+    ] as const) {
+      const live = liveAt(r, codeShifts(r), new Set(), s);
+      expect(live.beatAt.get('bar')).toBeCloseTo(beat, 6);
+      expect(live.bars.get('bar')).toBe(bars);
+      // (the hub of a running meter says the bar it is in: 1 at the start, 2 after one lap)
+      expect(hubLabel(r, 'bar', codeShifts(r), true, live.bars.get('bar')!).big).toBe(String(bars + 1));
+    }
+  });
+  it('lights each of its beats in turn, as the wheel and the tower read it, in 4/4, 2+2+3 and 12/8', () => {
+    for (const [meter, pulses] of [
+      ['meter("4/4")', 4],
+      ['meter("2+2+3")', 7],
+      ['meter("12/8")', 12],
+    ] as const) {
+      const r = compilePiece(PIECE(meter));
+      const lit = new Set<number>();
+      for (let i = 0; i < 64; i++) {
+        const live = liveAt(r, codeShifts(r), new Set(), i * 0.1);
+        const beat = live.beatAt.get('bar')!;
+        expect(beat).toBeLessThan(pulses);
+        lit.add(Math.floor(beat));
+        expect(live.cells.get('bar')?.entries.has(Math.floor(beat))).toBe(true);
+        // (the tower's row lights the step at beatAt / lap of its length: the pulse the beat is in)
+        expect(Math.floor((beat / lapOf(r, 'bar')) * pulses)).toBe(Math.floor(beat));
+      }
+      expect([...lit].sort((a, b) => a - b)).toEqual(Array.from({ length: pulses }, (_, i) => i));
+    }
+  });
+  it('keeps every example’s meter within its lap', () => {
+    for (const [key, e] of Object.entries(EXAMPLES)) {
+      const r = compilePiece(e.source);
+      if (!r.ok) continue;
+      for (const [name, info] of r.clocks) {
+        const c = r.cells.get(name);
+        if (info.tap || !c?.meter) continue;
+        const lap = c.units.length;
+        for (let i = 0; i < 40; i++) {
+          const beat = liveAt(r, codeShifts(r), new Set(), i * 0.37).beatAt.get(name)!;
+          expect(beat, `${key} &${name}`).toBeLessThan(lap);
+        }
+      }
     }
   });
 });

@@ -6,7 +6,7 @@
  * The gates are the scheduler's: an output plays until its end (laps=), and while every selector
  * it goes through picks it.
  */
-import { cellId, clocking, edgeId, footOf, playedCells, resolveIn, ROOT, selects, shiftsAt, slots, stepsOf } from '@yggi/cells/inspect';
+import { cellId, clocking, edgeId, footOf, lapOf, playedCells, resolveIn, ROOT, selects, shiftsAt, slots, stepsOf } from '@yggi/cells/inspect';
 import {
   type Atom,
   type CompileResult,
@@ -138,7 +138,10 @@ export function liveAt(result: CompileResult, statics: Shifts, muted: ReadonlySe
     // (a tap, step=16n, is a clock of its meter's, not a cell: its meter's beat and bar are the ones drawn)
     if (info.tap) continue;
     const beat = Math.floor(clk.stepOf(name) + EPS);
-    const k = clk.map(name).beats;
+    // (a clock that is a stepped cell, a meter stepped by a tempo, counts its own steps: the clock's `beats` is 1 for it, and
+    // the bar's beats would all be the first, the bar count the beat count, #710)
+    const beats = clk.map(name).beats;
+    const k = beats > 1 ? beats : Math.max(1, lapOf(result, name));
     mark(name).entries.add(mod(beat, k));
     bars.set(name, Math.floor(beat / k));
     beatAt.set(name, mod(clk.stepOf(name), k));
