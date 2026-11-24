@@ -7,7 +7,8 @@ import { NOTHING_FOLLOWED, heardAt, nextTextAt, pruned, reaches, withBar, withTe
 import { followedOf, type ReadScore } from '../../session/follow-v2';
 import { LobbyRefused, joinLobby, type ClientLink, type Heard, type Socket } from '../../session/lobby';
 import { refusesName } from '../../session/name';
-import { soundingOf, type Place, type Sounding } from '../../session/sound';
+import { Lacked } from '../../session/lacked';
+import { soundingOf, type Lack, type Place, type Sounding } from '../../session/sound';
 import { failed, outage, retry, type Outage } from '../../session/rejoin';
 import { storageKey } from '../../storageKey';
 
@@ -115,6 +116,9 @@ export class SessionClient {
   #token: string | null = null;
   #pinging: ReturnType<typeof setTimeout> | null = null;
   #welcomeWait: ReturnType<typeof setTimeout> | null = null;
+  /** The bars not played that the host is told of (`report`), and the timer for the rest of a queue. */
+  #lacked = new Lacked();
+  #lacking: ReturnType<typeof setTimeout> | null = null;
   #lastHeard: number | null = null;
   /** When this page last pinged: a ping's timer that fires `HELD_SECONDS` after it found the page itself held up. */
   #lastPing: number | null = null;
@@ -166,6 +170,25 @@ export class SessionClient {
     const at = hostHeardAt(this.#clock, now);
     if (at === null) return null;
     return { ...soundingOf(this.#song2(), done, at + lead, at, length, at + reach), shift: at - now };
+  }
+
+  /**
+   * Say to the host the bars not played (`lacked`, session version 2, minor 2; #698): each bar once, within the bounds of
+   * `session/lacked.ts`. Nothing to a host of version 1, which has no such kind, nor before a welcome.
+   */
+  report(lacked: readonly Lack[]): void {
+    if (this.version !== 2 || this.status !== 'joined') return;
+    this.#lacked.add(lacked);
+    this.#sayLacked();
+  }
+
+  #sayLacked(): void {
+    if (this.#lacking) clearTimeout(this.#lacking);
+    this.#lacking = null;
+    if (this.version !== 2 || this.status !== 'joined') return;
+    for (const m of this.#lacked.take(this.#now())) this.#send(m);
+    // (the rest as the rate allows)
+    if (this.#lacked.waiting) this.#lacking = setTimeout(() => this.#sayLacked(), 125);
   }
 
   /** When, on this page's clock (seconds), the text heard next gives way to another, as known at `now`; null where none is known yet. */
@@ -306,7 +329,9 @@ export class SessionClient {
     if (this.#pinging) clearTimeout(this.#pinging);
     if (this.#welcomeWait) clearTimeout(this.#welcomeWait);
     if (this.#retrying) clearTimeout(this.#retrying);
-    this.#pinging = this.#welcomeWait = this.#retrying = null;
+    if (this.#lacking) clearTimeout(this.#lacking);
+    this.#pinging = this.#welcomeWait = this.#retrying = this.#lacking = null;
+    this.#lacked = new Lacked();
     this.#outage = null;
     this.#lobby = null;
     this.#song = null;

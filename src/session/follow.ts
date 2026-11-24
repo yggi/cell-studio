@@ -37,7 +37,7 @@ export interface Followed<T extends Stating = SectionText> {
   /** The song's last bar, once the host composed its finale. */
   readonly finale: number | null;
   /** Bars known not to play from their text, and why (version 2: a conduct's digest another than its score foresaw, a fragment it locks that none holds). */
-  readonly lacks?: ReadonlyMap<number, string>;
+  readonly lacks?: ReadonlyMap<number, { readonly kind: 'digest' | 'lock'; readonly text: string }>;
   /** Whether a bar plays only once its own start is told (version 2: its conduct, which carries the digest it is checked by), never on one guessed from the bars before it. */
   readonly told?: boolean;
 }

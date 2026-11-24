@@ -142,11 +142,15 @@ export type HostMessage =
   | { readonly kind: 'bar'; readonly sent: SentBar }
   | ({ readonly kind: 'section' } & SectionText);
 
-/** What this client sends: a join, pings, and a leave (a client that listens sends nothing else). */
+/** Why a bar wasn't played (version 2, minor 2): no score stated it, its conduct's digest isn't the one its score foresaw, a fragment its score locks is lacking, or the client came to it too late. */
+export type LackedWhy = 'silent' | 'digest' | 'lock' | 'late';
+
+/** What this client sends: a join, pings, a leave and, to a host of version 2, each bar it didn't play (`lacked`). */
 export type ClientMessage =
   | { readonly kind: 'join'; readonly protocol: number; readonly name: string; readonly resume?: string }
   | { readonly kind: 'ping'; readonly sent: number }
-  | { readonly kind: 'leave' };
+  | { readonly kind: 'leave' }
+  | { readonly kind: 'lacked'; readonly bar: number; readonly why: LackedWhy; readonly text: string };
 
 /** A lobby's words, never a peer's: refused on the wire. */
 export const LOBBY_WORDS: ReadonlySet<string> = new Set(['lost', 'away', 'back']);

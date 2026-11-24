@@ -20,7 +20,7 @@
 import type { FeelFrame } from '@yggi/cells';
 import type { Followed, Stating } from './follow';
 import { textOf } from './follow';
-import type { SectionText } from './protocol';
+import type { LackedWhy, SectionText } from './protocol';
 
 /** Where playing has got to: a bar of the song, and the share of it played (0 to 1). */
 export interface Place {
@@ -42,11 +42,16 @@ export interface Slice<T extends Stating = SectionText> {
   readonly scale: number;
 }
 
-/** Something not played: a bar, and why (a stretch passed late is said of each bar it touches); `silent` for a bar no text states. */
+/**
+ * Something not played: a bar, and why in words (a stretch passed late is said of each bar it touches); `kind` is the
+ * contract's reason for the host (version 2, minor 2): `silent` where no text states the bar, however it came to that
+ * (never stated, passed without laying, a start never told, a text that is empty or doesn't compile), `digest`, `lock`
+ * and `late`.
+ */
 export interface Lack {
   readonly bar: number;
   readonly why: string;
-  readonly silent?: true;
+  readonly kind: LackedWhy;
 }
 
 export interface Sounding<T extends Stating = SectionText> {
@@ -122,7 +127,7 @@ export function soundingOf<T extends Stating>(f: Followed<T>, done: Place | null
       const why = `late by ${Math.round((now - at) * 1000)} ms`;
       const to = placeAt(now);
       // (a bar whose start wasn't told was waited on, not come to late: the loop says so of it)
-      for (let bar = place.bar; bar <= (to?.bar ?? place.bar); bar++) if (!f.told || f.starts.has(bar)) lacked.push({ bar, why });
+      for (let bar = place.bar; bar <= (to?.bar ?? place.bar); bar++) if (!f.told || f.starts.has(bar)) lacked.push({ bar, why, kind: 'late' });
       place = to;
     }
   }
@@ -130,7 +135,7 @@ export function soundingOf<T extends Stating>(f: Followed<T>, done: Place | null
     const { bar } = place;
     if (over(place)) break;
     if (passed(bar)) {
-      lacked.push({ bar, why: 'the host passed it without laying it' });
+      lacked.push({ bar, why: 'the host passed it without laying it', kind: 'silent' });
       place = { bar: bar + 1, into: 0 };
       continue;
     }
@@ -150,13 +155,12 @@ export function soundingOf<T extends Stating>(f: Followed<T>, done: Place | null
       if ((!text || untold) && now < s) break;
       lacked.push(
         !text
-          ? { bar, why: 'no text stated it', silent: true }
-          : {
-              bar,
-              why: untold
-                ? 'the host never told where it starts'
-                : (known ?? text.unstated ?? (text.text ? 'its text has no bar to play (it does not compile, or has no meter)' : 'its text is empty')),
-            },
+          ? { bar, why: 'no text stated it', kind: 'silent' }
+          : untold
+            ? { bar, why: 'the host never told where it starts', kind: 'silent' }
+            : known
+              ? { bar, why: known.text, kind: known.kind }
+              : { bar, why: text.unstated ?? (text.text ? 'its text has no bar to play (it does not compile, or has no meter)' : 'its text is empty'), kind: 'silent' },
       );
       place = { bar: bar + 1, into: 0 };
       continue;

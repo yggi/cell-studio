@@ -7,7 +7,9 @@
  */
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { LIMITS, readFromLobby, type ClientMessage, type ToLobby } from './protocol';
+import { Lacked } from './lacked';
+import { LIMITS, readFromLobby, type ClientMessage, type LackedWhy, type ToLobby } from './protocol';
+import type { Lack } from './sound';
 import { FIRST_PROTOCOL, PROTOCOL, leaveOver, readHost } from './protocol-v2';
 import { JOIN_PROTOCOL } from './readers';
 
@@ -117,6 +119,24 @@ describe('the session contract (music-commons contracts/session, version 2, mino
     for (const m of sent) expect(read.map((v) => shape(v.message))).toContain(shape(m));
     // (a join of this protocol is admitted by a host of version 2: the handshake's vector at this minor)
     expect(read.some((v) => v.admits && (v.message as { protocol?: number }).protocol === JOIN_PROTOCOL)).toBe(true);
+  });
+
+  it('sends a host of version 2 a lacked bar in each reason’s vector’s shape, and never a refused one (#698)', () => {
+    const lack = (bar: number, kind: LackedWhy): Lack => ({ bar, why: `a reason in words`, kind });
+    const lacked = new Lacked();
+    const whys: LackedWhy[] = ['silent', 'digest', 'lock', 'late'];
+    lacked.add(whys.map((w, i) => lack(12 + i, w)));
+    const sent = lacked.take(0);
+    expect(sent.map((m) => (m as { why: string }).why)).toEqual(whys);
+    for (const m of sent) {
+      const v = of('host').find((x) => x.reads && x.name === `lacked, ${(m as { why: string }).why}`)!;
+      expect(shape(m)).toBe(shape(v.message));
+      // (what the refused vectors have wrong, this never sends: a whole bar, one of the four reasons, the text there)
+      const { bar, why, text } = m as { bar: number; why: string; text: unknown };
+      expect([Number.isInteger(bar), whys.includes(why as LackedWhy), typeof text === 'string']).toEqual([true, true, true]);
+    }
+    // (the three refused vectors: bar = 1.5, why = "muted", text absent)
+    expect(of('host').filter((v) => !v.reads && (v.message as { kind?: string } | null)?.kind === 'lacked').length).toBe(3);
   });
 
   it("asks a lobby only what a lobby's reader reads: the sessions open, to join one, and to tell its host", () => {
