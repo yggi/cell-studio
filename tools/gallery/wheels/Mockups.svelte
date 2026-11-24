@@ -8,6 +8,8 @@
    */
   import MockWheel from './MockWheel.svelte';
   import BodyMock from './BodyMock.svelte';
+  import type { ComponentProps } from 'svelte';
+  import SwingMock from './SwingMock.svelte';
 
   type Option = { label: string; note: string; cls?: string; vars?: Record<string, string> };
   const style = (vars?: Record<string, string>) =>
@@ -63,6 +65,33 @@
     { option: 'material', label: 'D · C + its material', note: 'the disc of the body’s material: steel, wood, brass, organ metal' },
     { option: 'material', label: 'D · ringing', note: 'the moving part ghosted, the struck exciter glowing', ringing: 1 },
   ] as const;
+
+  // 3 · a meter's swing ring (#701): the wheel's own beat hues as the real wheel draws a 4/4 (1 red, 2 and 4 yellow, 3 orange)
+  const beatHues = ['#e05252', '#dfe04e', '#e0944a', '#dfe04e'];
+  const q3: { label: string; note: string; props: Omit<ComponentProps<typeof SwingMock>, 'hues' | 'size'> }[] = [
+    { label: 'A · straight', note: '&bar meter("4/4") step=&tempo: no swing=, no ring: the wheel as it is', props: { groups: [2, 2, 2, 2], share: null } },
+    {
+      label: 'B · swing=8n:2/3',
+      note: 'the eighths in pairs, long and short at the triplet; the handle on the 2/3 detent',
+      props: { groups: [2, 2, 2, 2], level: '8n', share: 2 / 3 },
+    },
+    {
+      label: 'C · swing=16n:.6',
+      note: 'the sixteenths in pairs (eight), each pair an eighth; the handle on the first split',
+      props: { groups: [2, 2, 2, 2], level: '16n', share: 0.6 },
+    },
+    {
+      label: 'D · swing=8n:.6, the handle held',
+      note: 'the share in the hub; the detents (1/2, 2/3) as ticks across the ring, the attribute’s range 1/2…3/4 as the gold arc inside it',
+      props: { groups: [2, 2, 2, 2], level: '8n', share: 0.6, drag: true },
+    },
+    {
+      label: 'E · swing=16n:&groove',
+      note: 'the share is &groove’s: a bulb on &bar (decision 021), the ring shows the share it plays now, the handle off',
+      props: { groups: [2, 2, 2, 2], level: '16n', share: 0.58, bulb: 'groove' },
+    },
+    { label: 'F · 7/8, 8n:2/3', note: 'groups 2+2+3: the group of three stays straight (decision 071), the pairs lean', props: { groups: [2, 2, 3], level: '8n', share: 2 / 3 } },
+  ];
 </script>
 
 <main>
@@ -85,6 +114,25 @@
             <MockWheel piece="forks" name="forkA" />
           </div>
           <div class="row tight"><MockWheel piece="fiveto12" name="day" /><MockWheel piece="transpose" name="key" size={128} /></div>
+        </div>
+      {/each}
+    </div>
+  </section>
+
+  <section data-mock="3-swing-ring">
+    <h2>3 · A meter's swing as a ring on its wheel, one wheel for &amp;bar (#701)</h2>
+    <p class="meta">
+      The swing ring inside the beats (36.5 to 44.5 px of the 148 px wheel; the beats' ring is 21 px, it was 31), its pairs as a long and a short arc at the share they play, the
+      share a handle on the first split. `swing=` is the bar's own attribute, as `step=` is: one cell. Tokens from the app; the geometry is the wheel's (`wheelGeometry(148)`); the
+      arcs computed from the level and the share. Top row at 1:1, below the same at 2×.
+    </p>
+    <div class="swings">
+      {#each q3 as o (o.label)}
+        <div class="swing">
+          <h3>{o.label}</h3>
+          <p>{o.note}</p>
+          <SwingMock {...o.props} hues={beatHues} />
+          <div class="big"><SwingMock {...o.props} hues={beatHues} size={300} /></div>
         </div>
       {/each}
     </div>
@@ -171,6 +219,26 @@
   }
   .row.tight {
     gap: 6px;
+  }
+  .swings {
+    display: grid;
+    grid-template-columns: repeat(3, 440px);
+    gap: 14px;
+    align-items: start;
+  }
+  .swing {
+    background: var(--bg);
+    border-radius: var(--radius);
+    padding: 10px 12px 14px;
+  }
+  .swing p {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin: 0 0 10px;
+    min-height: 44px;
+  }
+  .swing .big {
+    margin-top: 16px;
   }
   .bodies {
     display: grid;
