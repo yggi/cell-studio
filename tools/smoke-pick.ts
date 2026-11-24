@@ -4,10 +4,8 @@
 // new kind of sound joins the list by itself.
 //
 //   npx vite-node tools/smoke-pick.ts   (or: npm run smoke -- --list)
-import { compileSource } from '@yggi/cells/engine/compile';
-import type { CompileResult } from '@yggi/cells/engine/program';
+import { type CompileResult, compileSource, pieceMeta } from '@yggi/cells';
 import { ORDER } from '@yggi/cells/engine/order';
-import { pieceMeta } from '@yggi/cells/engine/parser/index';
 import { EXAMPLES_DIR, readExample } from './examples-index';
 
 /**

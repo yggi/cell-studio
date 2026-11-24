@@ -6,11 +6,10 @@
  * from the bulb or from the host. The rules are tried in order; the first that takes a cell decides. graph.ts asks here
  * and nowhere else; the glyphs draw what the layouts here place (track.ts, kit.ts, tape.ts).
  */
-import type { GraphEdge, GraphNode } from '@yggi/cells/engine/graph';
-import { cellId } from '@yggi/cells/engine/ids';
-import type { CompileResult, ResolvedCell } from '@yggi/cells/engine/program';
+import { cellId, type GraphEdge, type GraphNode } from '@yggi/cells/inspect';
+import type { CompileResult, ResolvedCell } from '@yggi/cells';
+import { VOICE_KIT } from '@yggi/cells/library';
 import { drumNoteIn, drumPlaces, kitOf } from './kit';
-import { VOICE_KIT } from '@yggi/cells/engine/compiler/declare';
 import { effectiveShow, pluginOf } from './show';
 import { drawnAsTape, headBulbs, TAPE_SIZE, UNTURNED } from './tape';
 import { bulbHub, trackRoom } from './track';

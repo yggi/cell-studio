@@ -1,4 +1,4 @@
-import { EXAMPLES, type ExampleKey } from '@yggi/cells/engine/examples';
+import { type ExampleKey, EXAMPLES } from '@yggi/cells';
 import { describe, expect, it } from 'vitest';
 import { buildGraph } from './drawn';
 import { ForceLayout } from './physics';

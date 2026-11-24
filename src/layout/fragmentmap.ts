@@ -21,15 +21,9 @@
  * - **The square.** Every node stays within the square of the two axes' ranges, its whole disc inside.
  */
 import { forceCollide, forceSimulation, type SimulationNodeDatum } from 'd3-force';
-import { EXAMPLES } from '@yggi/cells/engine/examples';
-import { references, type Reference } from '@yggi/cells/engine/references';
-import { AXES } from '@yggi/cells/engine/style';
-import { catalogue, type CatalogueEntry } from '@yggi/cells/repository/catalogue';
-import type { WeightedPoint } from '@yggi/cells/repository/fragments';
-import { placeOf } from '@yggi/cells/repository/declarations';
-import { styleNamesIn } from '@yggi/cells/repository/files';
-import { SEED_FILES } from '@yggi/cells/repository/seed.generated';
-import { STYLES } from '@yggi/cells/repository/styles';
+import { AXES, catalogue, type CatalogueEntry, EXAMPLES, type Reference, references, STYLES, type WeightedPoint } from '@yggi/cells';
+import { placeOf, styleNamesIn } from '@yggi/cells/repository';
+import { SEED_FILES } from '@yggi/cells/library';
 
 interface MapNode {
   readonly key: string;

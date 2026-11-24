@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { compilePiece } from '../compile';
-import { EXAMPLES } from '@yggi/cells/engine/examples';
+import { EXAMPLES } from '@yggi/cells';
 import { heardGrid } from '../layout/show';
 import { tickLevel } from '../layout/meters';
 import { palette, paletteHsl } from './palette';

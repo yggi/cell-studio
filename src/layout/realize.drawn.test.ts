@@ -1,14 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { SAILOR_WITH_KIT } from '@yggi/cells/engine/fixtures';
+import { codeShifts, eventsBetween, EXAMPLES, plan } from '@yggi/cells';
+import { edgeLabel, type GraphModel, structureKey } from '@yggi/cells/inspect';
 import { compilePiece } from '../compile';
-import { codeShifts } from '@yggi/cells/engine/program';
-import { eventsBetween, plan } from '@yggi/cells/engine/realize';
 import { liveAt } from './live';
 import { routing } from './routing';
-import { structureKey, type GraphModel } from '@yggi/cells/engine/graph';
 import { buildGraph } from './drawn';
-import { edgeLabel } from '@yggi/cells/engine/transform';
-import { EXAMPLES } from '@yggi/cells/engine/examples';
 
 type R = ReturnType<typeof compilePiece>;
 const events = (r: R, from: number, to: number, muted: string[] = []) => eventsBetween(plan(r, codeShifts(r), new Set(muted)), from, to);

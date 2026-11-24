@@ -7,10 +7,7 @@
  * `npx vitest run src/layout/live.snapshot.test.ts -u` and say in the PR which pieces changed and why.
  */
 import { describe, expect, it } from 'vitest';
-import { compileSource } from '@yggi/cells/engine/compile';
-import { codeShifts } from '@yggi/cells/engine/program';
-import { EXAMPLES } from '@yggi/cells/engine/examples';
-import { resolveSeed } from '@yggi/cells/repository/library';
+import { codeShifts, compileSource, EXAMPLES, resolveSeed } from '@yggi/cells';
 import { liveAt } from './live';
 
 /** Plain data for hashing: maps and sets in a fixed order, numbers to 9 significant digits. */

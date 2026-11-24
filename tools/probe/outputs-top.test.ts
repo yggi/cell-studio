@@ -6,10 +6,9 @@ import { describe, it } from 'vitest';
 import { appendFileSync } from 'node:fs';
 const log = (t: string) => appendFileSync(process.env.PROBE!, t + '\n');
 import { ForceLayout } from '../../src/layout/physics';
-import { type GraphModel } from '@yggi/cells/engine/graph';
+import type { GraphModel } from '@yggi/cells/inspect';
+import { compileSource, EXAMPLES } from '@yggi/cells';
 import { buildGraph } from '../../src/layout/drawn';
-import { compileSource } from '@yggi/cells/engine/compile';
-import { EXAMPLES } from '@yggi/cells/engine/examples';
 import { DEFAULT_LAYOUT, type LayoutOptions } from '../../src/layout/options';
 
 const deg = (r: number) => (r * 180) / Math.PI;

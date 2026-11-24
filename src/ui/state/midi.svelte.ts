@@ -70,10 +70,21 @@ import {
   type SetupBook,
   type SetupOutput,
 } from '@yggi/webmidi/core';
-import { mainMeter, type ClockTicks } from '@yggi/cells/engine/midiclock';
-import { channelTable, noteOf, rotationChannels, routable, router, rowsOf, routesOf, type ChannelTable, type OutputChoice, type Routes } from '@yggi/cells/engine/midi';
-import type { CompileResult } from '@yggi/cells/engine/program';
-import type { Played } from '@yggi/cells/engine/realize';
+import {
+  channelTable,
+  type ChannelTable,
+  type ClockTicks,
+  mainMeter,
+  noteOf,
+  type OutputChoice,
+  rotationChannels,
+  routable,
+  router,
+  type Routes,
+  routesOf,
+  rowsOf,
+} from '@yggi/cells/midi';
+import type { CompileResult, Played } from '@yggi/cells';
 import { outRuns } from '../../midi/played';
 import { contextClock } from '../../audio/device';
 import type { NoteSink } from '../../audio/player';

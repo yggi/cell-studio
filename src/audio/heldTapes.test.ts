@@ -1,9 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { compilePiece } from '../compile';
-import { codeShifts } from '@yggi/cells/engine/program';
-import { plan } from '@yggi/cells/engine/realize';
-import { clocking, tapeMotion } from '@yggi/cells/engine/clocking';
-import { EXAMPLES } from '@yggi/cells/engine/examples';
+import { codeShifts, EXAMPLES, plan } from '@yggi/cells';
+import { clocking, tapeMotion } from '@yggi/cells/inspect';
 import { HeldTapes } from './heldTapes';
 import type { VoiceBank } from './voices';
 

@@ -1,15 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { compilePiece, resolveNow } from '../compile';
-import { type GraphModel } from '@yggi/cells/engine/graph';
+import { cellId, edgeId, type GraphModel, stepEdgeId, TIME_PARAMS, transformLabel } from '@yggi/cells/inspect';
+import { EXAMPLES, parse, readsOf } from '@yggi/cells';
+import { expansion } from '@yggi/cells/repository';
 import { buildGraph } from './drawn';
-import { cellId, edgeId, stepEdgeId } from '@yggi/cells/engine/ids';
-import { transformLabel } from '@yggi/cells/engine/transform';
-import { EXAMPLES } from '@yggi/cells/engine/examples';
-import { parse } from '@yggi/cells/engine/parser/index';
-import { readsOf } from '@yggi/cells/engine/reads';
-import { expansion } from '@yggi/cells/engine/use';
-import { TIME_PARAMS } from '@yggi/cells/engine/attributes';
 
 /** The edge between two cells along the flow; through a product's junction (graph.ts) when they meet there: into a product whose voice is `to`, out of one whose voice is `from`. */
 const between = (model: GraphModel, from: string, to: string) => {

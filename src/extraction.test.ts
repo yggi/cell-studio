@@ -1,15 +1,9 @@
 // A selection turned into a fragment (#626): the id and facet it is offered with, and a piece taking it exported so it
 // compiles with the seed library alone.
 import { describe, expect, it } from 'vitest';
-import { compileSource } from '@yggi/cells/engine/compile';
-import { EXAMPLES } from '@yggi/cells/engine/examples';
-import { extract } from '@yggi/cells/repository/extract';
-import { LIBRARY, resolveSeed, resolverOf } from '@yggi/cells/repository/library';
-import { createRepository, EMPTY_LAYER } from '@yggi/cells/repository/fragments';
-import { fileFragment } from '@yggi/cells/repository/learned';
+import { catalogue, compileSource, createRepository, EMPTY_LAYER, EXAMPLES, extract, fileFragment, LIBRARY, resolverOf, resolveSeed } from '@yggi/cells';
 import { soundsIdentical } from '@yggi/cells/engine/sameness';
 import { pointOf } from './ui/complete';
-import { catalogue } from '@yggi/cells/repository/catalogue';
 import { exportable, facetFor, fileOwn, idFor } from './extraction';
 
 const k = EXAMPLES.kinderlied.source;

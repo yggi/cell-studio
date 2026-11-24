@@ -3,14 +3,12 @@
  * it mentions as links; and its connections, grouped by how they relate.
  * For the detail view (the sheet): read at a glance, every cell one tap away.
  */
-import { adsrOf, codeShifts, type CompileResult } from '@yggi/cells/engine/program';
-import { refsOf } from '@yggi/cells/engine/readers';
-import { entries, resolvePitch, semitones } from '@yggi/cells/engine/helix';
-import { modeName, mod, noteName } from '@yggi/cells/theory/modes';
+import { adsrOf, beatCount, entries, refsOf, resolvePitch, semitones } from '@yggi/cells/inspect';
+import { codeShifts, type CompileResult } from '@yggi/cells';
+import { mod, modeName, noteName } from '@yggi/cells/library';
 import { isSelector, kindOf } from './show';
 import { lfoValues } from './cellview';
 import { levelsText } from './meters';
-import { beatCount } from '@yggi/cells/engine/meter';
 
 /** A piece of the summary: words, or a cell to link to. */
 export type Bit = string | { readonly ref: string };

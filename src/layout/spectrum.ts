@@ -9,10 +9,9 @@
  * Drawn with a precomputed pixel → (side, frame, band) lookup, so each frame
  * is one pass over the pixels.
  */
-import { harmonics, waveform } from '@yggi/cells/engine/wave';
-import { fmLines } from '@yggi/cells/engine/fm';
-import { DOUGH_SOURCES } from '@yggi/cells/engine/dough-params';
-import type { CompileResult, Shifts } from '@yggi/cells/engine/program';
+import { fmLines, harmonics, waveform } from '@yggi/cells/inspect';
+import { DOUGH_SOURCES } from '@yggi/cells/library';
+import type { CompileResult, Shifts } from '@yggi/cells';
 
 /** C0. Bands are a semitone wide, centred on notes: the range runs half a semitone below C0, ten octaves up. */
 export const C0 = 16.3516;

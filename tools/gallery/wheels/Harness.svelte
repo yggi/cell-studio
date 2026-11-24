@@ -8,8 +8,8 @@
   import type { Entry } from '../../../src/ui/entries';
   import { compilePiece } from '../../../src/compile';
   import { buildGraph } from '../../../src/layout/drawn';
-  import { pieceTime } from '@yggi/cells/engine/duration';
-  import { EXAMPLES } from '@yggi/cells/engine/examples';
+  import { pieceTime } from '@yggi/cells/inspect';
+  import { EXAMPLES } from '@yggi/cells';
 
   const q = new URLSearchParams(location.search);
   const seconds = Number(q.get('t') ?? 3);

@@ -3,7 +3,7 @@
  * them (stepNets), where each reader of a bus comes on from (readersOf, hops), and each meter's net of traces (meterNet), costed
  * by what a straight edge runs into (hits, drawnPieces).
  */
-import type { GraphModel } from '@yggi/cells/engine/graph';
+import type { GraphModel } from '@yggi/cells/inspect';
 import { segmentsCross, splinePoint } from './geometry';
 import { GROUND_PULL, linkPull } from './options';
 import { nodeAt, type LayoutState, type MeterTrace, type PhysNode } from './state';

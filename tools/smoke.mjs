@@ -31,9 +31,7 @@
 import { preview, runnerImport } from 'vite';
 import { chromium } from './profile/playwright.mjs';
 import { freshBuild } from './fresh-build.mjs';
-import { compileSource } from '@yggi/cells/engine/compile';
-import { codeShifts } from '@yggi/cells/engine/program';
-import { pieceAudio } from '@yggi/cells/engine/audioexport';
+import { codeShifts, compileSource, pieceAudio } from '@yggi/cells';
 
 const args = process.argv.slice(2);
 const flag = (f) => args.includes(f) && args.splice(args.indexOf(f), 1);

@@ -1,9 +1,8 @@
 // A cable's depth (#598): a moving parameter's range set again with its cells kept, as cells' attrValue/setAttr write it
 // (yggi/cells#470), on texts from cells' patch.test.ts and Patchbay.
 import { describe, expect, it } from 'vitest';
-import { attrsOf } from '@yggi/cells/engine/edit';
-import { patch } from '@yggi/cells/engine/patch';
-import { EXAMPLES } from '@yggi/cells/engine/examples';
+import { attrsOf } from '@yggi/cells/edit';
+import { EXAMPLES, patch } from '@yggi/cells';
 import { depthsOf, formatEnd, positionOf, setDepth, spanOf, valueAt } from './depth';
 
 const text = '&eg map=adsr .01 .2 .3 .1\n&lfo loop=2 sin(12)\n&wob loop=4 sin(12)\n&v s=saw loop=C2 lpf=70..4800 * &eg lpq=8 # a voice';

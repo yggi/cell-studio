@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { Played } from '@yggi/cells/engine/realize';
+import type { Played } from '@yggi/cells';
 import { blendTerms, blendWave, shareOf, terms } from './blend';
 import { playNote, type Built } from './voice';
 import type { ToneNS } from './nodes';

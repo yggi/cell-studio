@@ -7,15 +7,14 @@
 
 <script lang="ts">
   import { Background, Controls, SvelteFlow, ViewportPortal, type NodeTypes } from '@xyflow/svelte';
-  import { VOICE_KIT } from '@yggi/cells/engine/compiler/declare';
+  import { VOICE_KIT } from '@yggi/cells/library';
+  import type { CompileResult, Jack, Shifts } from '@yggi/cells';
+  import { type GraphModel, isCellNode, refsOf } from '@yggi/cells/inspect';
   import { noteColour, partColour, sectionTint, sectionTintRgb } from './theme';
   import '@xyflow/svelte/dist/style.css';
   import { onDestroy, untrack } from 'svelte';
-  import type { CompileResult, Shifts } from '@yggi/cells/engine/program';
-  import { isCellNode, type GraphModel } from '@yggi/cells/engine/graph';
   import type { LiveState } from '../layout/live';
   import { drawn, type Routing } from '../layout/routing';
-  import { refsOf } from '@yggi/cells/engine/readers';
   import { bulbAt, setGraphContext, type RowKeys } from './context';
   import { snapshotOf } from './snapshot';
   import { GraphLayout } from './state/graphLayout.svelte';
@@ -24,7 +23,6 @@
   import ModuleNode from './ModuleNode.svelte';
   import { jackAt, jacksDrawn, portOfHandle, type Module } from '../layout/modules';
   import { bandOf, move as moveCable, plug, pull, type Band, type Drop } from '../layout/cables';
-  import type { Jack } from '@yggi/cells/engine/patch';
   import JunctionNode from './JunctionNode.svelte';
   import SocketNode from './SocketNode.svelte';
   import FitView from './FitView.svelte';
@@ -157,7 +155,7 @@
     /** What the hint says while read only (a MIDI file's, by default). */
     lockedHint?: string;
     /** A free(…) slider moved. */
-    onfree: (spec: import('@yggi/cells/engine/ast').FreeSpec, value: number | string) => void;
+    onfree: (spec: import('@yggi/cells').FreeSpec, value: number | string) => void;
     nudge?: (seconds: number) => void;
     /** Where play starts (stopped). */
     cursor?: number;

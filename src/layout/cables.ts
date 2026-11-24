@@ -4,11 +4,8 @@
  * cells' `patch` and `unpatch` (`@yggi/cells/engine/patch`), so the text stays the single source of truth and undo
  * is the editor's; a drop the text can't take (cells' `PatchError`) writes nothing and says why.
  */
-import { patch, unpatch, PatchError, type Jack } from '@yggi/cells/engine/patch';
-import { soundRole } from '@yggi/cells/engine/outs';
-import type { CompileResult } from '@yggi/cells/engine/program';
-import { resolveSeed } from '@yggi/cells/repository/library';
-import type { Resolve } from '@yggi/cells/engine/program';
+import { type CompileResult, type Jack, patch, PatchError, type Resolve, resolveSeed, unpatch } from '@yggi/cells';
+import { soundRole } from '@yggi/cells/inspect';
 
 /** What a cable carries: sound, or a level or a share (`jacksOf`'s bands). */
 export type Band = Jack['band'];

@@ -42,4 +42,46 @@ export default ts.config(
       'no-useless-assignment': 'off',
     },
   },
+  {
+    // Import from cells' entry points (`@yggi/cells`, `/edit`, `/inspect`, `/midi`, `/time`, `/library`, `/repository`), not a module path (#677,
+    // yggi/cells#830). The files below still reach a module on purpose: names no entry point has (`ORDER`, `SEED`, the fixtures, `fiveto12`,
+    // the plugins' module, the folder's scoring, `sameness`, `ladder`) and `Take`, a class the entry point exports as a type only.
+    // The list only shrinks.
+    files: ['**/*.{ts,svelte,mjs}'],
+    ignores: [
+      'src/examplesIndex.slow.test.ts',
+      'src/extraction.test.ts',
+      'src/layout/builtinPlugins.ts',
+      'src/layout/cellview.test.ts',
+      'src/layout/compile.drawn.test.ts',
+      'src/layout/realize.drawn.test.ts',
+      'src/layout/routing.drawn.test.ts',
+      'src/layout/show.ts',
+      'src/ui/complete.test.ts',
+      'src/ui/plugin.test.ts',
+      'src/ui/pluginView.ts',
+      'src/ui/state/record.svelte.ts',
+      'tools/examples-doc.ts',
+      'tools/examples-index.ts',
+      'tools/gallery/fragments/data.ts',
+      'tools/gallery/pieces.ts',
+      'tools/probe/midi.test.ts',
+      'tools/probe/ratchet.test.ts',
+      'tools/probe/scalogram.test.ts',
+      'tools/smoke-pick.ts',
+    ],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['@yggi/cells/engine/*', '@yggi/cells/theory/*', '@yggi/cells/repository/*'],
+              message: "Import from cells' entry points (@yggi/cells, /edit, /inspect, /midi, /time, /library, /repository): #677.",
+            },
+          ],
+        },
+      ],
+    },
+  },
 );

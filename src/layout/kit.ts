@@ -7,9 +7,9 @@
  * kit plays is a bulb on it (decision 021), where its piece is. Pure geometry, shared by the graph (where a bulb's edges
  * leave) and the glyph (ui/KitGlyph.svelte).
  */
-import type { CompileResult } from '@yggi/cells/engine/program';
-import { kitNotes } from '@yggi/cells/engine/midi';
-import { refsOf } from '@yggi/cells/engine/readers';
+import type { CompileResult } from '@yggi/cells';
+import { kitNotes } from '@yggi/cells/midi';
+import { refsOf } from '@yggi/cells/inspect';
 
 /** A kit's members (the voices in its braid, in order: 0 the first), or null: not a table of voices (a groove steps). */
 export function kitOf(result: CompileResult, name: string): readonly string[] | null {

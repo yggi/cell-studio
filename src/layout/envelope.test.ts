@@ -1,8 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { compilePiece } from '../compile';
-import { codeShifts } from '@yggi/cells/engine/program';
-import { lastNoteAt } from '@yggi/cells/engine/values';
-import { EXAMPLES } from '@yggi/cells/engine/examples';
+import { codeShifts, EXAMPLES } from '@yggi/cells';
+import { lastNoteAt } from '@yggi/cells/inspect';
 import { cellView } from './cellview';
 import { wheelGeometry } from './wheel';
 import { curvePoints, envelopeAt, envelopeAxis, envelopeCrossing, envelopeCurve, envelopeLabels, envelopeNotes, envelopeOf, heldLevel, latestNoteAt, voiceNotes } from './envelope';

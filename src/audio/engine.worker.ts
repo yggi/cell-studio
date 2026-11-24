@@ -1,6 +1,6 @@
 /// <reference lib="webworker" />
 // The engine in a worker (#15): engine/host.ts answering the main thread's messages (audio/engine.ts).
-import type { ToEngine } from '@yggi/cells/engine/host';
+import type { ToEngine } from '@yggi/cells';
 import { workerHost, type MineMessage } from './engine';
 
 const host = workerHost();

@@ -2,8 +2,7 @@
  * Where a node sits in the signal path: its rank, from time up to sound (flowRanks), and its column (columns), for the
  * layered start (layered.ts, start.ts) and the tower.
  */
-import { isMidiCard } from '@yggi/cells/engine/program';
-import { feeds, type GraphNode } from '@yggi/cells/engine/graph';
+import { feeds, type GraphNode, isMidiCard } from '@yggi/cells/inspect';
 
 /**
  * Each node's height in the signal path, from time (0, the meter) up to sound

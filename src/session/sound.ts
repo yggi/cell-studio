@@ -17,7 +17,7 @@
  *
  * The texts are either version's (`Stating`): a section text of version 1, a score of version 2.
  */
-import type { FeelFrame } from '@yggi/cells/engine/perform/feel';
+import type { FeelFrame } from '@yggi/cells';
 import type { Followed, Stating } from './follow';
 import { textOf } from './follow';
 import type { SectionText } from './protocol';

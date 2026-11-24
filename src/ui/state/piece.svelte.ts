@@ -1,22 +1,30 @@
-import { codeShifts, type CompileResult, type Take } from '@yggi/cells/engine/program';
+import {
+  cellsFromMidi,
+  codeShifts,
+  type CompileResult,
+  type FreeSpec,
+  isPieceFile,
+  type Layout,
+  lockfileOf,
+  type PieceFile,
+  type PieceFrontmatter,
+  readPiece,
+  type Take,
+  withLockfile,
+  writePiece,
+} from '@yggi/cells';
+import { addCell, freeIndex, freeList, offProblem, setFree, setOff, setShift, withHeld } from '@yggi/cells/edit';
+import { mainTempo, pieceStats, sections } from '@yggi/cells/inspect';
+import { isMidiText, parseMidiText } from '@yggi/cells/midi';
 import { auditionOf, compilePiece, documentParts, ownLine } from '../../compile';
 import { linksOf } from '../../references';
 import { mine } from '../../mine.svelte';
 import { exportable } from '../../extraction';
-import { addCell, offProblem, setFree, setOff, setShift } from '@yggi/cells/engine/edit';
-import { freeIndex, freeList, withHeld } from '@yggi/cells/engine/held';
 import { buildGraph } from '../../layout/drawn';
 import { showProblems } from '../../layout/show';
 import { routing } from '../../layout/routing';
-import { mainTempo, sections } from '@yggi/cells/engine/duration';
 import { pieceFile, titleOf } from '../../library';
-import { isPieceFile, lockfileOf, readPiece, withLockfile, writePiece, type PieceFile, type PieceFrontmatter } from '@yggi/cells/engine/piecefile';
-import type { Layout } from '@yggi/cells/engine/literate';
 import type { PieceSource } from '../../audio/engine';
-import type { FreeSpec } from '@yggi/cells/engine/ast';
-import { isMidiText, parseMidiText } from '@yggi/cells/engine/miditext';
-import { cellsFromMidi } from '@yggi/cells/engine/midiimport';
-import { pieceStats } from '@yggi/cells/engine/stats';
 
 /**
  * The open piece: its code — the single source of truth, and this the only place that writes it —

@@ -6,12 +6,9 @@
  * (`src/engine/perform/feel.test.ts`, over `fixtures/contracts/feel.json` and `swing.json`).
  */
 import { describe, expect, it } from 'vitest';
-import { channelTable, midiNote, routesOf, router } from '@yggi/cells/engine/midi';
-import { codeShifts } from '@yggi/cells/engine/program';
-import { eventsBetween, plan, type Played } from '@yggi/cells/engine/realize';
+import { channelTable, midiNote, readerByName, router, routesOf } from '@yggi/cells/midi';
+import { codeShifts, eventsBetween, type FeelFrame, perform, plan, played, type Played, readerOf, readingOf } from '@yggi/cells';
 import { compilePiece } from '../compile';
-import { played, readerByName, readerOf, readingOf, type FeelFrame } from '@yggi/cells/engine/perform/feel';
-import { perform } from '@yggi/cells/engine/perform/perform';
 import { barSeconds } from './follow';
 
 /** A host's text in its own forms (Jambot's `sectionAsCells`): a swung bar, the General MIDI kit's grooves mixed by `&drums`, each its drum role, the bass on its voice, its part, the MIDI card. */

@@ -1,10 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { compilePiece } from '../compile';
-import { codeShifts } from '@yggi/cells/engine/program';
-import { entries, lookup } from '@yggi/cells/engine/helix';
+import { codeShifts, EXAMPLES } from '@yggi/cells';
+import { entries, lookup } from '@yggi/cells/inspect';
+import { setAttr } from '@yggi/cells/edit';
 import { cellView } from './cellview';
-import { setAttr } from '@yggi/cells/engine/edit';
-import { EXAMPLES } from '@yggi/cells/engine/examples';
 import { effectiveShow } from './show';
 
 // entries() is memoised per compiled program (issue #41): the answers must always be the ones a fresh

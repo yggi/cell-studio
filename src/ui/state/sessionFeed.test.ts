@@ -1,8 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { channelTable, midiNote, routesOf, router } from '@yggi/cells/engine/midi';
-import { readerOf } from '@yggi/cells/engine/perform/feel';
-import { eventsBetween } from '@yggi/cells/engine/realize';
+import { channelTable, midiNote, router, routesOf } from '@yggi/cells/midi';
+import { eventsBetween, readerOf } from '@yggi/cells';
 import { compilePiece } from '../../compile';
 import { NOTHING_FOLLOWED, frameOf, withBar, withText, type Followed } from '../../session/follow';
 import { readHost, type SectionText, type SentBar } from '../../session/protocol';

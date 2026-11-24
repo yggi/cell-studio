@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { compilePiece } from '../compile';
-import { createHost, planOf } from '@yggi/cells/engine/host';
-import { windowAt } from '@yggi/cells/engine/schedule';
+import { createHost, planOf, windowAt } from '@yggi/cells';
 import { loudestAt, renderLength } from './render';
 import { LocalEngine } from './engine';
 

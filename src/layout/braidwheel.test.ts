@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { compilePiece, ownLine } from '../compile';
-import { codeShifts, DEFAULT_FREQ } from '@yggi/cells/engine/program';
-import { declWords } from '@yggi/cells/engine/edit';
-import { EXAMPLES } from '@yggi/cells/engine/examples';
+import { codeShifts, EXAMPLES } from '@yggi/cells';
+import { DEFAULT_FREQ } from '@yggi/cells/inspect';
+import { declWords } from '@yggi/cells/edit';
 import { atomOf, braidVoice, freeBraidOf, lap, listed, sheetPicture, sheetWheel, tokenHues, tokenLabels, tokenName } from './braidwheel';
 import { noteFrame, tonicOf, voiceBase } from './show';
 

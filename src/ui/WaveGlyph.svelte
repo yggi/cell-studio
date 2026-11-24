@@ -1,5 +1,7 @@
 <script lang="ts">
-  import { fmWave } from '@yggi/cells/engine/fm';
+  import { fmWave, waveform } from '@yggi/cells/inspect';
+  import { codeShifts } from '@yggi/cells';
+  import { noteName } from '@yggi/cells/library';
   /**
    * An instrument's, a mix's or a read head's wheel (show=wave, a voice's plain show): its waveform in a disc — one cycle of it
    * at rest (stopped, or an instrument no sound goes through); otherwise the sound itself, held still from a rising
@@ -8,9 +10,6 @@
   import { onDestroy, onMount } from 'svelte';
   import { onFrames } from '../audio/ticker';
   import { onScreen } from './kit/attach';
-  import { waveform } from '@yggi/cells/engine/wave';
-  import { codeShifts } from '@yggi/cells/engine/program';
-  import { noteName } from '@yggi/cells/theory/modes';
   import { getGraphContext, hearing } from './context';
   import { fitFont, hubMax } from '../layout/dial';
   import { wheelGeometry } from '../layout/wheel';

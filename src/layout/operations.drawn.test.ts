@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { compilePiece } from '../compile';
 import { buildGraph } from './drawn';
-import { edgeLabel } from '@yggi/cells/engine/transform';
+import { edgeLabel } from '@yggi/cells/inspect';
 
 const tail = '\n&v s=sine loop=C4\n&out map=sample [&t * &v]';
 

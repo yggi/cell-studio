@@ -1,6 +1,6 @@
 import type { Node } from '@xyflow/svelte';
 import type { Module } from '../layout/modules';
-import type { Jack } from '@yggi/cells/engine/patch';
+import type { Jack } from '@yggi/cells';
 
 /** petal: an unnamed cell, drawn small hanging from its parent (no label, no edges). */
 type CellNodeData = {

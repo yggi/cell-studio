@@ -12,10 +12,9 @@
   import CellGlyph from '../../../src/ui/CellGlyph.svelte';
   import SpectrumWheel from '../../../src/ui/SpectrumWheel.svelte';
   import { compilePiece } from '../../../src/compile';
-  import { codeShifts } from '@yggi/cells/engine/program';
+  import { codeShifts, EXAMPLES, type ExampleKey } from '@yggi/cells';
   import { buildGraph } from '../../../src/layout/drawn';
   import { liveAt } from '../../../src/layout/live';
-  import { EXAMPLES, type ExampleKey } from '@yggi/cells/engine/examples';
   import { routing } from '../../../src/layout/routing';
   import { flowNodeOf } from '../../../src/ui/flownode';
   import type { FlowNode } from '../../../src/ui/types';

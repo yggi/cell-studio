@@ -1,8 +1,5 @@
 import { describe, expect, it, onTestFinished, vi } from 'vitest';
-import { EXAMPLES } from '@yggi/cells/engine/examples';
-import { planOf, type FromEngine, type ToEngine } from '@yggi/cells/engine/host';
-import { resolveSeed } from '@yggi/cells/repository/library';
-import { windowAt } from '@yggi/cells/engine/schedule';
+import { EXAMPLES, type FromEngine, planOf, resolveSeed, type ToEngine, windowAt } from '@yggi/cells';
 import { LocalEngine, WorkerEngine, workerHost, type MineMessage, type Port } from './engine';
 
 /** A worker stand-in: the host behind a structured clone each way, answering after `delay` ms (null: never). */

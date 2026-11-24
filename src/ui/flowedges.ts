@@ -4,20 +4,17 @@
  */
 import { jackHandle, jackOfEdge } from '../layout/modules';
 import type { Edge } from '@xyflow/svelte';
-import type { GraphEdge } from '@yggi/cells/engine/graph';
-import { isJunction } from '@yggi/cells/engine/ids';
-import { edgeLabel } from '@yggi/cells/engine/transform';
-import { DEFAULT_FREQ, type CompileResult } from '@yggi/cells/engine/program';
+import { DEFAULT_FREQ, edgeLabel, type GraphEdge, isJunction, physicsOf } from '@yggi/cells/inspect';
+import type { CompileResult } from '@yggi/cells';
+import { VOICE_KIT } from '@yggi/cells/library';
 import { drawn, edgeStateOf, type State } from '../layout/routing';
 import type { LiveState } from '../layout/live';
-import { physicsOf } from '@yggi/cells/engine/clocking';
 import { beltLabel, beltRatio, pulleys } from '../layout/belts';
 import { groundsOf, meterIndex } from '../layout/meters';
 import { loomBands } from '../layout/looms';
 import type { MeterTrace } from '../layout/state';
 import type { GraphSnapshot } from './snapshot';
 import { payloadOf } from './payload';
-import { VOICE_KIT } from '@yggi/cells/engine/compiler/declare';
 import { entersFromSide, socketOf, VOICE_SIZE } from '../layout/voice';
 
 const nameOf = (id: string) => id.slice('cell:'.length);

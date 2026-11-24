@@ -4,12 +4,9 @@
  * take it), and a given name's chain (the compile's `origins`: the fragment that defines it, each line that took it on).
  * Pure: the editor paints and places it.
  */
-import { references, type Reference } from '@yggi/cells/engine/references';
-import { EXAMPLES } from '@yggi/cells/engine/examples';
-import { catalogue, type CatalogueEntry } from '@yggi/cells/repository/catalogue';
-import type { CompileResult } from '@yggi/cells/engine/program';
-import { splitComment } from '@yggi/cells/engine/edit';
-import { readFrom } from '@yggi/cells/engine/parser/use';
+import { catalogue, type CatalogueEntry, type CompileResult, EXAMPLES, type Reference, references } from '@yggi/cells';
+import { splitComment } from '@yggi/cells/edit';
+import { readFrom } from '@yggi/cells/repository';
 
 /** The facets the library names, in the order its entries first name them: the order a facet's colour is read in. */
 export const FACETS: readonly string[] = [...new Set(catalogue().flatMap((e) => e.facets))];

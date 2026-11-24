@@ -2,10 +2,10 @@
 // apps/web/src/instruments.svelte.ts (the computer keys and MIDI into one route) @ 8cdb6b8.
 
 import { SvelteMap, SvelteSet } from 'svelte/reactivity';
-import { armable, keyboardOf, kitPads, rowNote, scaleKeys, type Armable, type Keyboard, type KeyMode, type Pad } from '@yggi/cells/engine/keys';
-import { cellId } from '@yggi/cells/engine/ids';
+import { armable, type Armable, type Keyboard, keyboardOf, type KeyMode, kitPads, type Pad, rowNote, scaleKeys } from '@yggi/cells/midi';
+import { cellId } from '@yggi/cells/inspect';
+import type { CompileResult, Shifts } from '@yggi/cells';
 import { COMPUTER_KEY_MAP, DRUM_KEY_MAP, gmNotesFor, ignoreKeyEvent, parseMidiMessage, parseSustain, type DrumMap } from '@yggi/webmidi/core';
-import type { CompileResult, Shifts } from '@yggi/cells/engine/program';
 import { storageKey } from '../../storageKey';
 import { KIT } from './patch';
 

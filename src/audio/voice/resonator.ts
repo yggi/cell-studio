@@ -3,7 +3,8 @@
  * braid and coupled through a board they share. Struck by notes and hands, damped, bowed, driven by sound.
  * Native Web Audio nodes throughout (Tone won't take a negative Q, and the loops want plain delays).
  */
-import { BODIES, type ResolvedCell } from '@yggi/cells/engine/program';
+import { BODIES } from '@yggi/cells/inspect';
+import type { ResolvedCell } from '@yggi/cells';
 import { disposer, type Disposable } from './nodes';
 import { seeded } from './noise';
 

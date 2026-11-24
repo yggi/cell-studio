@@ -4,8 +4,8 @@
  * graph draws a meter's net instead (GraphModel.nets, the step ones; laid by layout/nets.ts: meterNet). A belt
  * keeps its belt: a body, drawn.
  */
-import type { CompileResult } from '@yggi/cells/engine/program';
-import { noteValue, tapShare, type Meter, type SwingLevel } from '@yggi/cells/engine/meter';
+import type { CompileResult } from '@yggi/cells';
+import { type Meter, noteValue, type SwingLevel, tapShare } from '@yggi/cells/inspect';
 
 type Node = { id: string; kind: string; isMeter?: boolean; petalOf?: string };
 

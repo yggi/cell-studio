@@ -8,9 +8,9 @@
  * (`withBuiltinPlugins`, which `compilePiece` calls), so the layout and the UI read one map. Plain data: only the UI runs
  * the drawing (ui/plugin.ts).
  */
-import { splitPlugins, type ShowPlugin } from '@yggi/cells/engine/plugins';
-import type { Diagnostic } from '@yggi/cells/engine/ast';
-import type { CompileResult } from '@yggi/cells/engine/program';
+import type { ShowPlugin } from '@yggi/cells/inspect';
+import { splitPlugins } from '@yggi/cells/engine/plugins';
+import type { CompileResult, Diagnostic } from '@yggi/cells';
 import { isCoreShow } from './show';
 
 // (String.raw: the drawings are written as they run; no backtick or `${` in them)

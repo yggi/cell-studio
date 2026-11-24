@@ -10,18 +10,12 @@ import { describe, it } from 'vitest';
 import { appendFileSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { buildGraph } from '../../src/layout/drawn';
-import { compileSource } from '@yggi/cells/engine/compile';
-import { codeShifts } from '@yggi/cells/engine/program';
-import { pieceTime, sections } from '@yggi/cells/engine/duration';
-import { listening } from '@yggi/cells/engine/time/span';
+import { codeShifts, compileSource, eventsBetween, EXAMPLES, plan } from '@yggi/cells';
 import { KEY, SECONDS_PER_STEP } from '@yggi/cells/engine/fiveto12';
-import { eventsBetween, plan } from '@yggi/cells/engine/realize';
-import { EXAMPLES } from '@yggi/cells/engine/examples';
+import { score } from '@yggi/cells/engine/time/boundaries';
+import { pieceTime, sections } from '@yggi/cells/inspect';
+import { type Boundary, cones, grid, listening, MOST_RATE, novelty, PER_OCTAVE, reach, type Scalogram, scalograms, sectionsOver, SIGNALS, splices, swells } from '@yggi/cells/time';
 import { towerSpans } from '../../src/layout/tower';
-import { MOST_RATE, PER_OCTAVE, grid, reach, type Scalogram } from '@yggi/cells/engine/time/wavelet';
-import { SIGNALS, scalograms } from '@yggi/cells/engine/time/signals';
-import { cones, novelty, score, sectionsOver, swells, type Boundary } from '@yggi/cells/engine/time/boundaries';
-import { splices } from '@yggi/cells/engine/time/splices';
 
 const log = (t: string) => appendFileSync(process.env.PROBE!, t + '\n');
 /** A piece shorter than this (s) is left out: a third of it is a bar or two. */

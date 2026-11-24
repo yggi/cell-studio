@@ -7,8 +7,7 @@
 import { describe, it } from 'vitest';
 import { appendFileSync, readFileSync } from 'node:fs';
 import { MIDI_FILES } from '../../src/corpus';
-import { readMidi } from '@yggi/cells/engine/midifile';
-import { cellsFromMidi } from '@yggi/cells/engine/midiimport';
+import { cellsFromMidi, readMidi } from '@yggi/cells';
 import { bare } from '@yggi/cells/engine/fold/score';
 
 const log = (t: string) => appendFileSync(process.env.PROBE!, t + '\n');

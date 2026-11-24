@@ -12,16 +12,10 @@
   import { untrack } from 'svelte';
   import { getStudio } from './state/studio.svelte';
   import { TimeSettings, type TimeLayers, type TimeSignal } from './state/time.svelte';
-  import { eventsBetween, plan, type Played } from '@yggi/cells/engine/realize';
-  import { codeShifts } from '@yggi/cells/engine/program';
-  import { pieceTime } from '@yggi/cells/engine/duration';
-  import { listening } from '@yggi/cells/engine/time/span';
+  import { codeShifts, eventsBetween, plan, type Played } from '@yggi/cells';
+  import { cellId, pieceTime } from '@yggi/cells/inspect';
+  import { listening, peaks, sectionsOver, SIGNALS, splices, structure } from '@yggi/cells/time';
   import { transportClock } from '../audio/clock.svelte';
-  import { SIGNALS } from '@yggi/cells/engine/time/signals';
-  import { sectionsOver } from '@yggi/cells/engine/time/boundaries';
-  import { peaks } from '@yggi/cells/engine/time/spectrogram';
-  import { splices } from '@yggi/cells/engine/time/splices';
-  import { structure } from '@yggi/cells/engine/time/structure';
   import { follow, frameFor, pan, resized, tOf, xOf, yOf, zoom, type Frame } from '../layout/timeview';
   import {
     cellSpans,
@@ -66,7 +60,6 @@
   import { TIME } from './theme';
   import { nodeSections, sectionRgb } from './sections';
   import { outTint } from './heard';
-  import { cellId } from '@yggi/cells/engine/ids';
   import type { TimeAnswer, TimeJob } from './time.worker';
 
   let { active }: { active: boolean } = $props();

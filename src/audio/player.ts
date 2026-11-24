@@ -8,11 +8,9 @@
  * every shift) and take effect at the next window, where the old one's beat is
  * (a tempo slider's move keeps the beat: `load`).
  */
-import { clocking, tapeMotion } from '@yggi/cells/engine/clocking';
-import { keepBeat } from '@yggi/cells/engine/keepbeat';
-import { eventsBetween, type Plan, type Played } from '@yggi/cells/engine/realize';
-import { isPhysical, retime, type Window } from '@yggi/cells/engine/schedule';
-import type { ClockTicks } from '@yggi/cells/engine/midiclock';
+import { clocking, tapeMotion } from '@yggi/cells/inspect';
+import { eventsBetween, isPhysical, keepBeat, type Plan, type Played, retime, type Window } from '@yggi/cells';
+import type { ClockTicks } from '@yggi/cells/midi';
 import { createVoices, type VoiceBank } from './voices';
 import { transportClock } from './clock.svelte';
 import { transition, type TransportEvent, type TransportState } from './transport';

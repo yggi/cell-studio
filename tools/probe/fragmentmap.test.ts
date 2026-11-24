@@ -4,7 +4,7 @@
 //   PROBE=/path/out.txt npx vitest run tools/probe/fragmentmap.test.ts && cat /path/out.txt
 import { appendFileSync } from 'node:fs';
 import { describe, it } from 'vitest';
-import { AXES } from '@yggi/cells/engine/style';
+import { AXES } from '@yggi/cells';
 import { mapGraph, mapLayout, type Placed } from '../../src/layout/fragmentmap';
 
 const log = (t: string) => appendFileSync(process.env.PROBE!, t + '\n');

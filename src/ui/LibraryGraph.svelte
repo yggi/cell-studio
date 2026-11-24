@@ -11,7 +11,8 @@
    * wheel's (a scroll, a pinch, ctrl/⌘ + wheel, Fit).
    */
   import { foldSides, GENRES, PILL, shortTitle, sideOf, sideTitle, tagFont, type LibraryLayout } from '../layout/library';
-  import { tagName } from '@yggi/cells/engine/tags';
+  import { tagName } from '@yggi/cells/library';
+  import { AXES } from '@yggi/cells';
   import { tick, untrack } from 'svelte';
   import PieceNode from './PieceNode.svelte';
   import LobbyCell from './LobbyCell.svelte';
@@ -19,7 +20,6 @@
   import { clusterDisc } from '../layout/clusters';
   import { matches, type Entry } from './entries';
   import type { MapGraph, Placed } from '../layout/fragmentmap';
-  import { AXES } from '@yggi/cells/engine/style';
   import { FACETS } from '../references';
   import { facetColour } from './theme';
 

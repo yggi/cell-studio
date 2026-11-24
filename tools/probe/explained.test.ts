@@ -7,16 +7,9 @@
 // Run: PROBE=out.txt [ONLY=pop,hypercell] [LENGTH=600] npx vitest run tools/probe/explained.test.ts
 import { describe, it } from 'vitest';
 import { appendFileSync } from 'node:fs';
-import { compileSource } from '@yggi/cells/engine/compile';
-import { codeShifts } from '@yggi/cells/engine/program';
-import { pieceTime } from '@yggi/cells/engine/duration';
-import { listening } from '@yggi/cells/engine/time/span';
-import { eventsBetween, plan } from '@yggi/cells/engine/realize';
-import { EXAMPLES } from '@yggi/cells/engine/examples';
-import { motifs } from '@yggi/cells/engine/time/motifs';
-import { structure } from '@yggi/cells/engine/time/structure';
-import { clocking } from '@yggi/cells/engine/clocking';
-import { lapOf } from '@yggi/cells/engine/readers';
+import { codeShifts, compileSource, eventsBetween, EXAMPLES, plan } from '@yggi/cells';
+import { clocking, lapOf, pieceTime } from '@yggi/cells/inspect';
+import { listening, motifs, structure } from '@yggi/cells/time';
 
 const log = (t: string) => appendFileSync(process.env.PROBE!, t + '\n');
 /** At most this much of a piece is listened to (s): motifs are looked for over ten minutes in the app too. */

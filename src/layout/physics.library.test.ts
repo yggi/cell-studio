@@ -6,7 +6,7 @@ import { DEFAULT_LAYOUT } from './options';
 import type { LayoutQuality } from './quality';
 import { buildGraph } from './drawn';
 import { compilePiece } from '../compile';
-import { EXAMPLES } from '@yggi/cells/engine/examples';
+import { EXAMPLES } from '@yggi/cells';
 
 // Every example laid out with the defaults and settled: the slow part of the layout tests. Each example is
 // laid out once and every check below reads that one layout (it is the same layout each would make on its

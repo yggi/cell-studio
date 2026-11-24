@@ -6,12 +6,8 @@
  * node: what goes into it goes into a socket of its own (`withSockets`), and shows on the tower's strip at the graph's
  * right, its left channel the strip's left half and its right channel the right half (`towerOuts`, `towerNets`).
  */
-import type { CompileResult } from '@yggi/cells/engine/program';
-import type { GraphModel, GraphNode } from '@yggi/cells/engine/graph';
-import { cellId } from '@yggi/cells/engine/ids';
-import { isMidiCard } from '@yggi/cells/engine/program';
-import { outs } from '@yggi/cells/engine/outs';
-import { kitOf } from '@yggi/cells/engine/plays';
+import type { CompileResult } from '@yggi/cells';
+import { cellId, type GraphModel, type GraphNode, isMidiCard, kitOf, outs } from '@yggi/cells/inspect';
 import { towerOf } from './tower';
 import { socketOf, VOICE_SIZE } from './voice';
 import { HEARING, TOWER_PX } from './towerscale';

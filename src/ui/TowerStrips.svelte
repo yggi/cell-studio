@@ -22,7 +22,7 @@
   import { heard, noteHz, outRgb } from './heard';
   import { drawSpire, spireOf } from './spire';
   import { cellView, selectorOf, selectorRow, valueAt, valueSpectrum, type CellView, type ValueShare } from '../layout/cellview';
-  import { lapOf } from '@yggi/cells/engine/readers';
+  import { lapOf } from '@yggi/cells/inspect';
   import { fillColour } from './edgeStyle';
   import { C0 } from '../layout/spectrum';
   import { STRIP_MAX, STRIP_MIN } from './state/strip.svelte';

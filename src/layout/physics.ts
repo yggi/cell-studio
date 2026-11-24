@@ -10,7 +10,7 @@
  * under the options (options.ts).
  */
 import { forceX, forceY, forceCollide, forceLink, forceManyBody, forceSimulation, type Simulation } from 'd3-force';
-import type { GraphModel } from '@yggi/cells/engine/graph';
+import type { GraphModel } from '@yggi/cells/inspect';
 import { drawnCrossings, layoutQuality, type DrawnEdge, type LayoutQuality } from './quality';
 import { groundsOf } from './meters';
 import { openBelt, pulleys } from './belts';

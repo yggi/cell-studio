@@ -17,9 +17,8 @@
   import { prefersReducedMotion } from 'svelte/motion';
   import { Handle, Position, useSvelteFlow, type NodeProps } from '@xyflow/svelte';
   import { getGraphContext, nodeState } from './context';
-  import { clocking } from '@yggi/cells/engine/clocking';
-  import { ownRate, stepsAt } from '@yggi/cells/engine/readers';
-  import { BODIES } from '@yggi/cells/engine/program';
+  import { BODIES, clocking, ownRate, stepsAt } from '@yggi/cells/inspect';
+  import { noteName } from '@yggi/cells/library';
   import { onFrames } from '../audio/ticker';
   import { timed } from '../audio/stats';
   import FreePills from './FreePills.svelte';
@@ -27,7 +26,6 @@
   import { bulbHosts } from '../layout/drawn';
   import { polar as onCircle } from '../layout/geometry';
   import { angleOf, turnDelta } from '../layout/dial';
-  import { noteName } from '@yggi/cells/theory/modes';
   import { bridgeOf, exciterPlaces, materialOf } from '../layout/exciters';
   import ExciterShape from './ExciterShape.svelte';
   import BodyFace from './BodyFace.svelte';

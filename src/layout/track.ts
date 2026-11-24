@@ -5,10 +5,8 @@
  * drawn hollow, its edge coming in to its hub. The ring and its bulbs are one smooth closed curve, time along it.
  * Pure geometry: CellGlyph draws it, the layout leaves it room.
  */
-import { codeShifts, type CompileResult, type Shifts } from '@yggi/cells/engine/program';
-import { shiftedUnits } from '@yggi/cells/engine/helix';
-import { stepsOf } from '@yggi/cells/engine/flatten';
-import { footOf, slots, type Leaf } from '@yggi/cells/engine/subseq';
+import { codeShifts, type CompileResult, type Shifts } from '@yggi/cells';
+import { footOf, type Leaf, shiftedUnits, slots, stepsOf } from '@yggi/cells/inspect';
 import { wheelGeometry } from './wheel';
 
 /** A splice on a track, in the host's time. */

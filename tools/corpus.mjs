@@ -9,12 +9,7 @@
 // engine is cells' (`@yggi/cells`, its built `dist/`), so a pin move is measured by recording before it and checking after.
 import { readFileSync, readdirSync } from 'node:fs';
 import { createHash } from 'node:crypto';
-import { compileSource } from '@yggi/cells/engine/compile';
-import { eventsBetween, plan } from '@yggi/cells/engine/realize';
-import { codeShifts } from '@yggi/cells/engine/program';
-import { shorten } from '@yggi/cells/engine/shorten/index';
-import { readPiece } from '@yggi/cells/engine/piecefile';
-import { resolveSeed } from '@yggi/cells/repository/library';
+import { codeShifts, compileSource, eventsBetween, plan, readPiece, resolveSeed, shorten } from '@yggi/cells';
 
 const arg = (k) => {
   const i = process.argv.indexOf(k);

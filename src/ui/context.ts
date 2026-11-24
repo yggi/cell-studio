@@ -1,9 +1,9 @@
 import { createContext } from 'svelte';
-import type { CompileResult, Shifts } from '@yggi/cells/engine/program';
+import type { CompileResult, Shifts } from '@yggi/cells';
+import { cellId } from '@yggi/cells/inspect';
 import type { LiveState } from '../layout/live';
 import { nodeStateOf, type Routing, type State } from '../layout/routing';
 import type { LiveSource } from '../audio/live';
-import { cellId } from '@yggi/cells/engine/ids';
 import type { TransportState } from '../audio/transport';
 
 /**
@@ -46,7 +46,7 @@ export interface GraphContext {
   readonly shifts: Shifts;
   turn(name: string, shift: number): void;
   /** Move a free(…) value (a slider): rewrites it in the code. */
-  setFree(spec: import('@yggi/cells/engine/ast').FreeSpec, value: number | string): void;
+  setFree(spec: import('@yggi/cells').FreeSpec, value: number | string): void;
   /** Open a cell's sheet (a link in another's: jump to it). */
   open(name: string): void;
   /** Where each edge's spline bends (by edge id), from the layout. */
@@ -78,7 +78,7 @@ export interface GraphContext {
   /** The cell tapped (its node id), whose sheet is open: its wheel offers its output, where a cable is dragged from (#555). */
   readonly selected?: string | null;
   /** A cable being dragged (#555): the cell it comes from and what it carries; null when none. */
-  readonly cable?: { readonly from: string; readonly band: import('@yggi/cells/engine/patch').Jack['band'] } | null;
+  readonly cable?: { readonly from: string; readonly band: import('@yggi/cells').Jack['band'] } | null;
   /** The graph is read only (a MIDI file's machine, a followed session): no cable is dragged. */
   readonly locked?: boolean;
   toggle(id: string): void;

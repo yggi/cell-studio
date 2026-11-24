@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { compilePiece } from '../compile';
-import { positionOctave } from '@yggi/cells/engine/helix';
+import { positionOctave } from '@yggi/cells/inspect';
 import { noteColour } from './theme';
 
 describe('colouring rule: 0 … 12 (C4 – C5) the natural range; other octaves muted, lighter above, darker below', () => {

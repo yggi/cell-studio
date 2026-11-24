@@ -2,7 +2,8 @@
  * Which wheels the harness shows: the first of each kind across the examples (a live one if any is), named
  * as `tools/gallery/real.mjs` names them from the page (`data-wheel`, `data-mode`, `data-show`, and where it sits).
  */
-import { isCellNode } from '@yggi/cells/engine/graph';
+import { isCellNode } from '@yggi/cells/inspect';
+import type { CompileResult, Shifts } from '@yggi/cells';
 import { buildGraph } from '../../../src/layout/drawn';
 import { cellView } from '../../../src/layout/cellview';
 import { effectiveShow } from '../../../src/layout/show';
@@ -10,7 +11,6 @@ import { flowNodeOf } from '../../../src/ui/flownode';
 import { isSide } from '../../../src/layout/side';
 import { meterIndex } from '../../../src/layout/meters';
 import type { FlowNode } from '../../../src/ui/types';
-import type { CompileResult, Shifts } from '@yggi/cells/engine/program';
 import type { Piece } from '../pieces';
 
 export interface Fixture {

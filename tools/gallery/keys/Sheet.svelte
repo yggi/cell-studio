@@ -7,9 +7,8 @@
    */
   import PianoKeys from '../../../src/ui/PianoKeys.svelte';
   import DrumPads from '../../../src/ui/DrumPads.svelte';
-  import { compileSource } from '@yggi/cells/engine/compile';
-  import { codeShifts } from '@yggi/cells/engine/program';
-  import { kitPads, scaleKeys } from '@yggi/cells/engine/keys';
+  import { codeShifts, compileSource } from '@yggi/cells';
+  import { kitPads, scaleKeys } from '@yggi/cells/midi';
   import { keyRange } from '@yggi/webmidi/core';
 
   const scaleOf = (src: string) => {

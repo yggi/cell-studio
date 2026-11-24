@@ -3,16 +3,14 @@
  * fragment (the seed's and the person's own, #625), as its map shows them: one card, one details sheet, one search.
  */
 import { compilePiece } from '../compile';
-import { pieceTime, type PieceTime } from '@yggi/cells/engine/duration';
+import { pieceTime, type PieceTime } from '@yggi/cells/inspect';
+import { type CatalogueEntry, cellsFromMidi, pieceMeta } from '@yggi/cells';
+import { canonicalTags, MIDI_FILE, type TagKind, tagName } from '@yggi/cells/library';
 import { buildGraph } from '../layout/drawn';
-import { pieceMeta } from '@yggi/cells/engine/parser/index';
-import { canonicalTags, MIDI_FILE, tagName, type TagKind } from '@yggi/cells/engine/tags';
 import { EXAMPLE_INDEX, loadExample, type ExampleKey } from '../examples';
 import { creditOf, loadMidiFile, MIDI_FILES, MIDI_SETS, type Credit } from '../corpus';
-import { cellsFromMidi } from '@yggi/cells/engine/midiimport';
 import type { Miniature } from '../layout/miniature';
 import { textOf, type SavedPiece } from '../library';
-import type { CatalogueEntry } from '@yggi/cells/repository/catalogue';
 
 export interface Entry {
   readonly id: string;

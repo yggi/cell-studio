@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { setAttr, declLine, declWords, deleteCell, renameCell, setBraid, setOff, setShift, setTiming, usersOf } from '@yggi/cells/engine/edit';
+import { declLine, declWords, deleteCell, renameCell, setAttr, setBraid, setOff, setShift, setTiming, usersOf } from '@yggi/cells/edit';
 import { compilePiece } from '../compile';
 import { buildGraph } from './drawn';
 import { readFileSync } from 'node:fs';

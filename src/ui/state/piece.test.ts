@@ -1,19 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { Piece } from './piece.svelte';
-import { EXAMPLES } from '@yggi/cells/engine/examples';
-import { pieceMeta } from '@yggi/cells/engine/parser/index';
-import { shorten } from '@yggi/cells/engine/shorten/index';
+import { catalogue, codeShifts, compileSource, EXAMPLES, extract, pieceMeta, plan, readPiece, resolveSeed, shorten, windowAt } from '@yggi/cells';
 import { fileName, pieceFile, textOf } from '../../library';
-import { codeShifts } from '@yggi/cells/engine/program';
-import { plan } from '@yggi/cells/engine/realize';
-import { windowAt } from '@yggi/cells/engine/schedule';
-import { readPiece } from '@yggi/cells/engine/piecefile';
 import { savedEntry } from '../entries';
 import { miniature } from '../../layout/miniature';
-import { catalogue } from '@yggi/cells/repository/catalogue';
-import { extract } from '@yggi/cells/repository/extract';
-import { compileSource } from '@yggi/cells/engine/compile';
-import { resolveSeed } from '@yggi/cells/repository/library';
 import { mine } from '../../mine.svelte';
 import { pointOf } from '../complete';
 

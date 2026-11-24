@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { compilePiece } from '../compile';
-import { EXAMPLES } from '@yggi/cells/engine/examples';
+import { EXAMPLES } from '@yggi/cells';
 import { connections, summary, type Bit } from './describe';
 
 const text = (bits: Bit[]) => bits.map((b) => (typeof b === 'string' ? b : `&${b.ref}`)).join('');

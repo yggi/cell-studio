@@ -7,7 +7,7 @@
    * library's canvas (`LibraryGraph`) draws what it hands over (`onplaced`).
    */
   import { onMount, untrack } from 'svelte';
-  import { AXES } from '@yggi/cells/engine/style';
+  import { AXES } from '@yggi/cells';
   import { BALANCE, EXAMPLE_PIECES, mapGraph, mapLayout, type MapGraph, type Placed } from '../../layout/fragmentmap';
   import { FACETS } from '../../references';
   import { facetColour } from '../theme';

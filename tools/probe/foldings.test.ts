@@ -10,15 +10,10 @@
 import { describe, it } from 'vitest';
 import { appendFileSync } from 'node:fs';
 import { buildGraph } from '../../src/layout/drawn';
-import { compileSource } from '@yggi/cells/engine/compile';
-import { codeShifts } from '@yggi/cells/engine/program';
-import { pieceTime } from '@yggi/cells/engine/duration';
-import { listening } from '@yggi/cells/engine/time/span';
-import { eventsBetween, plan } from '@yggi/cells/engine/realize';
-import { EXAMPLES } from '@yggi/cells/engine/examples';
+import { codeShifts, compileSource, eventsBetween, EXAMPLES, plan } from '@yggi/cells';
+import { pieceTime } from '@yggi/cells/inspect';
+import { alike, foldings, levelsOf, listening, motifs, multiscale, pulseOf } from '@yggi/cells/time';
 import { towerSpans } from '../../src/layout/tower';
-import { alike, foldings, levelsOf, pulseOf } from '@yggi/cells/engine/time/necklace';
-import { motifs, multiscale } from '@yggi/cells/engine/time/motifs';
 
 const log = (t: string) => appendFileSync(process.env.PROBE!, t + '\n');
 /** The longest stretch looked at (s), and the most slots a level's cycle may have. */

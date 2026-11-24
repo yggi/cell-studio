@@ -1,7 +1,7 @@
 // A fragment heard alone, pictured by its facet (#623): one of each facet the seed library names, drawn from its text
 // and the events its host plays.
 import { describe, expect, it } from 'vitest';
-import { catalogue } from '@yggi/cells/repository/catalogue';
+import { catalogue } from '@yggi/cells';
 import { auditionOf, compilePiece, heardOf } from '../compile';
 import { controlsOf, pictureKind, pictureOf, type Picture } from './preview';
 

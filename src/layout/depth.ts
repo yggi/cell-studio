@@ -4,8 +4,8 @@
  * fixed parameter opens at zero depth (`lpf=800..800 * &lfo`, cells decision 067 §4); its two ends moved apart, it is
  * heard. Each end a slider in the cell's sheet (ui/sheet/Depths.svelte), one line rewritten a move.
  */
-import { ATTRIBUTES, canonicalParam } from '@yggi/cells/engine/attributes';
-import { attrValue, declLine, setAttr, splitComment } from '@yggi/cells/engine/edit';
+import { ATTRIBUTES, canonicalParam } from '@yggi/cells/inspect';
+import { attrValue, declLine, setAttr, splitComment } from '@yggi/cells/edit';
 
 /** How a range's ends run on a slider: a frequency over 20 Hz to 20 kHz on a log scale, else a linear span. */
 export interface Span {

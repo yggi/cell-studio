@@ -1,8 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { compilePiece } from '../compile';
-import { codeShifts } from '@yggi/cells/engine/program';
-import { EXAMPLES } from '@yggi/cells/engine/examples';
-import { playedCells, shiftsAt } from '@yggi/cells/engine/clocking';
+import { codeShifts, EXAMPLES } from '@yggi/cells';
+import { playedCells, shiftsAt } from '@yggi/cells/inspect';
 import { liveAt } from './live';
 import { cellView } from './cellview';
 import { drawnShifts, turnKey, turnsSeen, turningCells } from './turning';

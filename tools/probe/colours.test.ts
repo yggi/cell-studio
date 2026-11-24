@@ -9,12 +9,9 @@
 import { describe, it } from 'vitest';
 import { appendFileSync } from 'node:fs';
 import { buildGraph } from '../../src/layout/drawn';
-import { compileSource } from '@yggi/cells/engine/compile';
-import { codeShifts, type CompileResult } from '@yggi/cells/engine/program';
-import { pieceTime } from '@yggi/cells/engine/duration';
-import { listening } from '@yggi/cells/engine/time/span';
-import { eventsBetween, plan, type Played } from '@yggi/cells/engine/realize';
-import { EXAMPLES } from '@yggi/cells/engine/examples';
+import { codeShifts, type CompileResult, compileSource, eventsBetween, EXAMPLES, plan, type Played } from '@yggi/cells';
+import { pieceTime } from '@yggi/cells/inspect';
+import { listening } from '@yggi/cells/time';
 import { towerOuts } from '../../src/layout/towerlayout';
 import { blank } from '../../src/layout/cellview';
 

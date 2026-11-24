@@ -10,7 +10,7 @@
  */
 import { isSide } from './side';
 import { compilePiece } from '../compile';
-import { codeShifts, type CompileResult } from '@yggi/cells/engine/program';
+import { codeShifts, type CompileResult } from '@yggi/cells';
 import { buildGraph } from './drawn';
 import { cellView } from './cellview';
 import { ForceLayout } from './physics';

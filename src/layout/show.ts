@@ -4,12 +4,11 @@
  * the cell (its parts, &refs, and its tables, over=) — wherever it fits.
  * step= drivers aren't below in this sense: a melody's show never renames its meter.
  */
-import { codeShifts, DEFAULT_FREQ, ROOT, type CompileResult } from '@yggi/cells/engine/program';
-import { PLUGIN_SYNTAX, type ShowPlugin } from '@yggi/cells/engine/plugins';
-import type { Diagnostic } from '@yggi/cells/engine/ast';
-import { entries, positionOf, resolveIn, resolvePitch, semitones } from '@yggi/cells/engine/helix';
-import { midiOf, modeName, mod } from '@yggi/cells/theory/modes';
-import { selects } from '@yggi/cells/engine/clocking';
+import { codeShifts, type CompileResult, type Diagnostic } from '@yggi/cells';
+import { PLUGIN_SYNTAX } from '@yggi/cells/engine/plugins';
+import type { ShowPlugin } from '@yggi/cells/inspect';
+import { DEFAULT_FREQ, entries, positionOf, resolveIn, resolvePitch, ROOT, selects, semitones } from '@yggi/cells/inspect';
+import { midiOf, mod, modeName } from '@yggi/cells/library';
 
 /**
  * The words `show=` takes that the workbench draws, a cell's default for everything below it: which words `show=` takes

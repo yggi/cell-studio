@@ -1,16 +1,9 @@
-import { codeShifts } from '@yggi/cells/engine/program';
-import { eventsBetween, plan, type Plan } from '@yggi/cells/engine/realize';
-import { tapeSpeeds } from '@yggi/cells/engine/schedule';
-import { ticksBetween } from '@yggi/cells/engine/midiclock';
-import { channelTable, router, type Routes } from '@yggi/cells/engine/midi';
-import type { Played } from '@yggi/cells/engine/realize';
-import { readerOf } from '@yggi/cells/engine/perform/feel';
-import { perform } from '@yggi/cells/engine/perform/perform';
+import { codeShifts, type CompileResult, eventsBetween, perform, plan, type Plan, type Played, readerOf, tapeSpeeds } from '@yggi/cells';
+import { channelTable, router, type Routes, ticksBetween } from '@yggi/cells/midi';
 import { compilePiece } from '../../compile';
 import { barSeconds, type Stating } from '../../session/follow';
 import { isReadScore } from '../../session/follow-v2';
 import { PlayedLog, type PlayedEvent } from '../../session/played';
-import type { CompileResult } from '@yggi/cells/engine/program';
 import type { Lack, Place } from '../../session/sound';
 import type { Fed, Feed } from '../../audio/player';
 import type { SessionClient } from './session.svelte';

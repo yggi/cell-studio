@@ -1,10 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { compilePiece, ownLine } from '../compile';
-import { codeShifts } from '@yggi/cells/engine/program';
-import { eventsBetween, plan } from '@yggi/cells/engine/realize';
+import { codeShifts, eventsBetween, EXAMPLES, plan } from '@yggi/cells';
+import { setAttr } from '@yggi/cells/edit';
 import { liveAt } from './live';
-import { setAttr } from '@yggi/cells/engine/edit';
-import { EXAMPLES } from '@yggi/cells/engine/examples';
 import { cellView, hubLabel, lfoValues } from './cellview';
 import { buildGraph } from './drawn';
 import { flowRanks } from './ranks';

@@ -1,13 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { SAILOR_WITH_KIT } from '@yggi/cells/engine/fixtures';
+import { codeShifts, type CompileResult, eventsBetween, EXAMPLES, plan } from '@yggi/cells';
+import { mainLength, pieceTime } from '@yggi/cells/inspect';
 import { compilePiece } from '../compile';
-import { codeShifts, type CompileResult } from '@yggi/cells/engine/program';
 import { buildGraph } from './drawn';
-import { eventsBetween, plan } from '@yggi/cells/engine/realize';
 import { liveAt } from './live';
 import { drawn, edgeStateOf, nodeStateOf, routing } from './routing';
-import { EXAMPLES } from '@yggi/cells/engine/examples';
-import { mainLength, pieceTime } from '@yggi/cells/engine/duration';
 
 const OUT = '&out loop=SAMPLE_RATE map=sample';
 const src = (...lines: string[]) => compilePiece(lines.join('\n'));

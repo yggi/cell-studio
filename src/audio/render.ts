@@ -4,10 +4,8 @@
  * For saving as WAV, and for measuring — loudness, peaks, clipping — what a test
  * can't hear.
  */
-import { eventsBetween, plan, type Plan } from '@yggi/cells/engine/realize';
-import { retime, tapeSpeeds, windowAt } from '@yggi/cells/engine/schedule';
-import type { CompileResult, Shifts } from '@yggi/cells/engine/program';
-import { pieceTime } from '@yggi/cells/engine/duration';
+import { type CompileResult, eventsBetween, plan, type Plan, retime, type Shifts, tapeSpeeds, windowAt } from '@yggi/cells';
+import { pieceTime } from '@yggi/cells/inspect';
 import { createVoices } from './voices';
 
 interface Rendered {

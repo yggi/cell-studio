@@ -6,16 +6,27 @@
  * The gates are the scheduler's: an output plays until its end (laps=), and while every selector
  * it goes through picks it.
  */
-import { ROOT, pickedUnits, type CompileResult, type Output, type ResolvedCell, type Shifts } from '@yggi/cells/engine/program';
-import { resolveIn } from '@yggi/cells/engine/helix';
-import { clocking, playedCells, playing, selects, shiftsAt } from '@yggi/cells/engine/clocking';
-import { stepsOf, unitsFor } from '@yggi/cells/engine/flatten';
-import { footOf, slots, type Slot } from '@yggi/cells/engine/subseq';
-import type { Atom } from '@yggi/cells/engine/ast';
-import { cellId, edgeId } from '@yggi/cells/engine/ids';
-import { droneEnd, endOf, eventsBetween, kitPickAt, outputPlays, picksNow, plan, voiceFor, type Plan } from '@yggi/cells/engine/realize';
+import { cellId, clocking, edgeId, footOf, playedCells, resolveIn, ROOT, selects, shiftsAt, slots, stepsOf } from '@yggi/cells/inspect';
+import {
+  type Atom,
+  type CompileResult,
+  droneEnd,
+  endOf,
+  eventsBetween,
+  kitPickAt,
+  type Output,
+  outputPlays,
+  pickedUnits,
+  picksNow,
+  plan,
+  type Plan,
+  type ResolvedCell,
+  type Shifts,
+  voiceFor,
+} from '@yggi/cells';
+import { playing, type Slot, unitsFor } from '@yggi/cells/inspect';
+import { mod } from '@yggi/cells/library';
 import { liveRouting, type NotesOf, type RouteAcc } from './routing';
-import { mod } from '@yggi/cells/theory/modes';
 
 const EPS = 1e-9;
 

@@ -4,9 +4,8 @@
  * ranked by its distance to the piece's style (cells' `fragmentDistance`; the centre of style space where the piece names
  * none), ties by id. Pure.
  */
-import { catalogue, type CatalogueEntry } from '@yggi/cells/repository/catalogue';
-import { fragmentDistance, type StylePoint } from '@yggi/cells/repository/fragments';
-import { AXES } from '@yggi/cells/engine/style';
+import { AXES, catalogue, type CatalogueEntry, type StylePoint } from '@yggi/cells';
+import { fragmentDistance } from '@yggi/cells/repository';
 import type { Suggestion } from './suggest';
 
 /** Where a line asks for a fragment: the caret just after `from ` and the id typed so far. */

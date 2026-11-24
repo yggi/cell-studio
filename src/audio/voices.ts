@@ -11,12 +11,11 @@
  * tape and resonator — the connections wiring.ts lists, from where sound goes (engine/flows.ts, the flows the
  * graph draws).
  */
-import type { Played } from '@yggi/cells/engine/realize';
-import type { CompileResult, Shifts } from '@yggi/cells/engine/program';
+import type { CompileResult, Played, Shifts } from '@yggi/cells';
+import { keyLevel } from '@yggi/cells/midi';
 import { audioContext, disposer, inputOf, type Disposable, type ToneNS } from './voice/nodes';
 import { Gate } from './gate';
 import { buildVoice, dropGates, freeVoice, letGo, playNote, releaseEnd, type Built, type Bus, type Rack, type Scope } from './voice/voice';
-import { keyLevel } from '@yggi/cells/engine/keys';
 import { bow, couple, damp, driveScale, hush, resonanceOf, strikeAt } from './voice/resonator';
 import { wiring } from './wiring';
 import { buildTapeNet, fadeOut, freezeTape, holdTape, scrubTape, tapeKey, tapeLevelOf, tapeSpeedOf, type TapeNet } from './voice/tape';

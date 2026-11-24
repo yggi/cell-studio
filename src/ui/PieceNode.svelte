@@ -6,7 +6,7 @@
    * in the list and in the library's graph.
    */
   import PieceWheel from './PieceWheel.svelte';
-  import { durationText } from '@yggi/cells/engine/duration';
+  import { durationText } from '@yggi/cells/inspect';
   import type { Entry } from './entries';
 
   let {

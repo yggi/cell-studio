@@ -1,5 +1,5 @@
 import { storageKey } from '../../storageKey';
-import { SIGNALS, type Signal } from '@yggi/cells/engine/time/signals';
+import { type Signal, SIGNALS } from '@yggi/cells/time';
 
 const KEY = 'cell-studio:time';
 

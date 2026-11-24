@@ -16,7 +16,7 @@
   import { drawPlugin, loadPlugin } from './plugin';
   import { confirmed, isTrusted, revoke, trust } from './pluginTrust.svelte';
   import { viewOf } from './pluginView';
-  import { pluginKey } from '@yggi/cells/engine/plugins';
+  import { pluginKey } from '@yggi/cells/inspect';
   import PluginTree from './PluginTree.svelte';
 
   let { data }: NodeProps = $props();

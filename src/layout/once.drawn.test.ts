@@ -1,14 +1,13 @@
 import { afterAll, describe, expect, it, vi } from 'vitest';
 import { compilePiece } from '../compile';
-import { codeShifts } from '@yggi/cells/engine/program';
-import { EXAMPLES } from '@yggi/cells/engine/examples';
+import { codeShifts, EXAMPLES } from '@yggi/cells';
 
 // (every build of the graph starts from cells' writtenGraph: counted. The test files share their modules, `isolate: false`
 // in vite.config.ts, so drawn.ts and cellview.ts are loaded afresh here, over the counting graph, and let go after)
 const built = { n: 0 };
 vi.resetModules();
-vi.doMock('@yggi/cells/engine/graph', async (original) => {
-  const m = await original<typeof import('@yggi/cells/engine/graph')>();
+vi.doMock('@yggi/cells/inspect', async (original) => {
+  const m = await original<typeof import('@yggi/cells/inspect')>();
   return {
     ...m,
     writtenGraph: (...a: Parameters<typeof m.writtenGraph>) => {
@@ -20,7 +19,7 @@ vi.doMock('@yggi/cells/engine/graph', async (original) => {
 const { buildGraph, bulbHosts, usesOf } = await import('./drawn');
 const { cellView } = await import('./cellview');
 afterAll(() => {
-  vi.doUnmock('@yggi/cells/engine/graph');
+  vi.doUnmock('@yggi/cells/inspect');
   vi.resetModules();
 });
 

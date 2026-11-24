@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { compilePiece } from '../compile';
-import { codeShifts } from '@yggi/cells/engine/program';
-import { eventsBetween, plan } from '@yggi/cells/engine/realize';
+import { codeShifts, eventsBetween, plan } from '@yggi/cells';
 import { NOTHING_FOLLOWED, barSeconds, withBar, withText, type Followed } from './follow';
 import type { SectionText } from './protocol';
 import { sounding, type Place, type Slice } from './sound';

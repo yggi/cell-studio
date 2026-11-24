@@ -1,10 +1,9 @@
 // Completion after `from` (#624, #587): every fragment of the library is offered, those headed by the line's names
 // first, then by their distance to the piece's style.
 import { describe, expect, it } from 'vitest';
-import { catalogue } from '@yggi/cells/repository/catalogue';
+import { catalogue, EMPTY_LAYER } from '@yggi/cells';
 import { FUNK } from '@yggi/cells/repository/styles';
 import { fromContext, suggestFragments } from './complete';
-import { EMPTY_LAYER } from '@yggi/cells/repository/fragments';
 
 describe('completion after from', () => {
   it('reads a line that asks for an id, and none that doesn’t', () => {

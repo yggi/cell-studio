@@ -1,6 +1,6 @@
 // A module drawn as one wheel (decision 069, #560): its private cells folded in, every wire into it at the jack it fills.
 import { describe, expect, it } from 'vitest';
-import { EXAMPLES } from '@yggi/cells/engine/examples';
+import { EXAMPLES } from '@yggi/cells';
 import { compilePiece } from '../compile';
 import { buildGraph, usesOf } from './drawn';
 import { FINGER, grownSize, jackAt, jackOfEdge, jacksOfNode, jacksShown, moduleOf } from './modules';

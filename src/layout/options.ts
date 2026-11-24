@@ -5,7 +5,7 @@
  */
 import { drawnSize, jacksOfNode } from './modules';
 import { VOICE_SIZE } from './voice';
-import type { GraphNode } from '@yggi/cells/engine/graph';
+import type { GraphNode } from '@yggi/cells/inspect';
 
 /** A belt's spring: its length against an edge's, and its pull. */
 export const BELT_LENGTH = 0.8;

@@ -12,7 +12,7 @@
   import type { MapGraph, Placed } from '../layout/fragmentmap';
   import TagFilters from './picker/TagFilters.svelte';
   import { tagColours } from './tags';
-  import { MIDI_FILE } from '@yggi/cells/engine/tags';
+  import { MIDI_FILE } from '@yggi/cells/library';
   import { noteColour } from './theme';
   import type { LibraryLayout } from '../layout/library';
   import { FILTER_KINDS, fragmentEntry, matches, type Entry, type FilterKind } from './entries';

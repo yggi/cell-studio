@@ -1,17 +1,13 @@
 import { createContext, tick } from 'svelte';
 import { shortVersion } from '../../buildInfo';
-import { codeShifts } from '@yggi/cells/engine/program';
-import { declLine } from '@yggi/cells/engine/edit';
+import { cellsFromMidi, codeShifts, type CompileResult, isMidi, pieceMidi, readMidi, writeMidi } from '@yggi/cells';
+import { declLine } from '@yggi/cells/edit';
+import { type Imported, midiText, type Smf } from '@yggi/cells/midi';
 import { FIRST_FILE, loadExample, type ExampleKey } from '../../examples';
 import { download, fileName, readFile, saveFile, savePiece } from '../../library';
 import { mine } from '../../mine.svelte';
 import { shortTitle } from '../../layout/library';
-import { pieceMidi } from '@yggi/cells/engine/midiexport';
-import { isMidi, readMidi, writeMidi } from '@yggi/cells/engine/midifile';
-import { midiText } from '@yggi/cells/engine/miditext';
-import { cellsFromMidi, type Imported } from '@yggi/cells/engine/midiimport';
 import { creditLines, loadMidiFile, MIDI_FILES } from '../../corpus';
-import type { Smf } from '@yggi/cells/engine/midifile';
 import type { FoldAnswer, FoldJob } from '../fold.worker';
 import { loudness, renderLength, renderPiece, wav } from '../../audio/render';
 import { transportClock } from '../../audio/clock.svelte';
@@ -34,7 +30,6 @@ import { barSeconds } from '../../session/follow';
 import { SessionFeed } from './sessionFeed';
 import { anotherName, browserStore, defaultPlayerName, keepPlayerName } from '../../session/name';
 import { onFrames } from '../../audio/ticker';
-import type { CompileResult } from '@yggi/cells/engine/program';
 
 /** What Convert to cells says it made. */
 function convertedText({ notes, lines, perQuarter, moved, dropped, folded, inKey }: Imported): string {

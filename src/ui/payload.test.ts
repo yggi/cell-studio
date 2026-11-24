@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { EXAMPLES } from '@yggi/cells/engine/examples';
+import { codeShifts, EXAMPLES } from '@yggi/cells';
 import { compilePiece } from '../compile';
-import { codeShifts } from '@yggi/cells/engine/program';
 import { cellView } from '../layout/cellview';
 import { carriesNotes, payloadOf, shapeOf, valuesOf } from './payload';
 

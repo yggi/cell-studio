@@ -5,8 +5,8 @@
  * the text as written otherwise). Every number comes from the fragment's text and the events its host plays: nothing is
  * kept per fragment. Pure.
  */
-import { splitComment } from '@yggi/cells/engine/edit';
-import { readFrom } from '@yggi/cells/engine/parser/use';
+import { splitComment } from '@yggi/cells/edit';
+import { readFrom } from '@yggi/cells/repository';
 
 /** An event as the picture reads it: when, how long, at what pitch, on which voice, how loud. */
 export interface HeardNote {

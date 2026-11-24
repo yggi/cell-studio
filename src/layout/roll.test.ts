@@ -1,10 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { compilePiece } from '../compile';
-import { declWords, setBraid } from '@yggi/cells/engine/edit';
-import { parse } from '@yggi/cells/engine/parser/index';
-import { EXAMPLES } from '@yggi/cells/engine/examples';
-import { codeShifts } from '@yggi/cells/engine/program';
-import { playedCells } from '@yggi/cells/engine/clocking';
+import { declWords, setBraid } from '@yggi/cells/edit';
+import { codeShifts, EXAMPLES, parse } from '@yggi/cells';
+import { playedCells } from '@yggi/cells/inspect';
 import { frameOf, freeBraidOf, fromBraid, ghostsOf, MAX_ROWS, readBraid, remove, resize, rolls, rowRange, rowsFor, tableOf, tooWide, toBraid, toggle, type Roll } from './roll';
 
 const roll = (text: string): Roll => {

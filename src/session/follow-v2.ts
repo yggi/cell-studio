@@ -22,13 +22,8 @@
  *
  * Each score is read once (compiled, its frame's parts worked out), kept by the score it was told as.
  */
-import { compileSource } from '@yggi/cells/engine/compile';
-import { mainMeter } from '@yggi/cells/engine/midiclock';
-import type { FeelFrame } from '@yggi/cells/engine/perform/feel';
-import type { CompileOptions, CompileResult, Resolve } from '@yggi/cells/engine/program';
-import { styleAt } from '@yggi/cells/engine/styleat';
-import { AXIS_NAMES } from '@yggi/cells/engine/style';
-import { resolveSeed } from '@yggi/cells/repository/library';
+import { AXIS_NAMES, type CompileOptions, type CompileResult, compileSource, type FeelFrame, type Resolve, resolveSeed, styleAt } from '@yggi/cells';
+import { mainMeter } from '@yggi/cells/midi';
 import { barSeconds, textOf, type Followed } from './follow';
 import type { Fragment, Score } from './protocol-v2';
 import type { Scored } from './scored';
