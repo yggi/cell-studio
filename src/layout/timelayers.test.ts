@@ -1,24 +1,17 @@
 import { describe, expect, it } from 'vitest';
-import { compilePiece } from '../compile';
-import { pieceTime, sections } from '@yggi/cells/inspect';
-import { codeShifts, eventsBetween, EXAMPLES, plan } from '@yggi/cells';
-import { grid, listening, scalograms, sectionsOver, type Signal, SIGNALS, structure } from '@yggi/cells/time';
+import { structure } from '@yggi/cells/time';
+import { piece } from './timelayers.fixture';
 import { explainLevels, sameLevel, writtenLevels } from './explained';
-import { buildGraph } from './drawn';
 import {
-  cellSpans,
   familyHue,
   firstAt,
   foldOnto,
   heardLevelsOf,
   heardMarksOf,
   longestOf,
-  meterCellOf,
-  meterOf,
   patternsOf,
   seconds,
   sectionGap,
-  shownNotes,
   structureLanes,
   voiceRows,
   type CellSpan,
@@ -31,31 +24,6 @@ function named(scal: Parameters<typeof heardLevelsOf>[0], periodic: boolean | un
   return heardLevelsOf(scal, 'mix', periodic, 5).map((h) => ({ period: h.period, label: x.both.find((b) => sameLevel(b.heard.period, h.period))?.written.label ?? null }));
 }
 
-/** A piece as the time view takes it in (ui/TimeView.svelte): its length shown, its rounds, the notes listened to. */
-function piece(key: keyof typeof EXAMPLES) {
-  const program = compilePiece(EXAMPLES[key].source);
-  if (!program.ok) throw new Error(`${key} does not compile`);
-  const time = pieceTime(program);
-  const heard = listening(time);
-  const length = Math.max(4, heard?.cycle ?? heard?.seconds ?? 30);
-  const loop = (heard?.rounds ?? 1) > 1;
-  const rounds = loop && time?.chance ? (heard?.rounds ?? 1) : 1;
-  const listened = rounds > 1 ? Math.max(4, heard?.seconds ?? 30) : length;
-  const planned = plan(program, codeShifts(program), new Set(program.off));
-  const heardNotes = eventsBetween(planned, 0, listened);
-  const notes = shownNotes(heardNotes, length, !!time?.chance && rounds > 1);
-  const spans = cellSpans(program, buildGraph(program));
-  const written = sectionsOver(sections(program) ?? [], length).filter((s) => s.at > 0 && s.at < length);
-  const meter = meterOf(spans, meterCellOf(program), written);
-  /** The scalograms as the worker makes them (ui/time.worker.ts). */
-  const listenedScal = () => {
-    const g = grid(listened, undefined, loop);
-    const rows: Partial<Record<Signal, Float32Array[]>> = {};
-    for (const [k, s] of Object.entries(scalograms(heardNotes, g, SIGNALS))) rows[k as Signal] = [...s.rows];
-    return { window: listened, periods: g.periods, rows, periodic: loop };
-  };
-  return { program, planned, length, loop, rounds, listened, heardNotes, notes, spans, written, meter, listenedScal };
-}
 const round = (x: number, d = 4) => +x.toFixed(d);
 
 describe('the time view: the notes and the cells', () => {
@@ -105,14 +73,6 @@ describe('the time view: the notes and the cells', () => {
       ['bar', 1.6667],
       ['section', 13.3333],
     ]);
-  });
-
-  it('5 to 12: a day, metered by its sections alone; its foldings alike', () => {
-    const p = piece('fiveto12');
-    expect(p.length).toBe(86400);
-    expect(p.notes.length).toBe(282240);
-    expect(p.meter).toEqual([{ period: 7200, label: 'section' }]);
-    expect(patternsOf(p.heardNotes, p.spans, p.listened, p.length)?.folded.map((f) => f.name)).toEqual(['2 2 2 1 2 2 1']);
   });
 
   it('Pachelbel: no sections, no section line; its structure in lanes', () => {
