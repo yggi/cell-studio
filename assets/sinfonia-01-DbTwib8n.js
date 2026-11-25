@@ -1,0 +1,1 @@
+var e=new URL(`sinfonia-01-C34FUY-v.mid`,import.meta.url).href;export{e as default};
