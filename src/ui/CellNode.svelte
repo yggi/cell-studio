@@ -4,6 +4,7 @@
   import { Handle, Position, type NodeProps } from '@xyflow/svelte';
   import type { CellFlowNode } from './types';
   import CellGlyph from './CellGlyph.svelte';
+  import MeterWheel from './MeterWheel.svelte';
   import { bulbAt, getGraphContext, nodeState } from './context';
   import { longpress } from './kit/attach';
   import FreePills from './FreePills.svelte';
@@ -17,6 +18,7 @@
   import SpectrumWheel from './SpectrumWheel.svelte';
   import WaveGlyph from './WaveGlyph.svelte';
   import { hubLabel } from '../layout/cellview';
+  import { meterWheel } from '../layout/meterwheel';
   import { formatLabel } from '../layout/labels';
   import { drawnShifts, turnKey } from '../layout/turning';
   import { meterColour } from './theme';
@@ -57,6 +59,8 @@
   const label = $derived(cell?.label ? formatLabel(ctx.program, data.name, cell.label, shown) : null);
   // the drums' kit the grooves read (unnamed, VOICE_KIT): named drums
   const drumsKit = $derived(data.name === VOICE_KIT);
+  // a meter written as levels is drawn by its own wheel (#701); a scan, by the cell's
+  const meterDrawn = $derived(data.isMeter && meterWheel(ctx.program, data.name) !== null);
   // (its section's tint, a selector's part upstream of it: its ticks, its hand and its name's border wear it)
   const section = $derived(ctx.sections?.get(id));
 </script>
@@ -84,6 +88,8 @@
     <WaveGlyph name={data.name} size={data.size} caption={hub ? `${hub.big} ${hub.small}` : null} />
   {:else if glyph === 'spectrum' && hub}
     <SpectrumWheel name={data.name} size={data.size} {hub} />
+  {:else if meterDrawn}
+    <MeterWheel name={data.name} size={data.size} />
   {:else}
     <CellGlyph name={data.name} isMeter={data.isMeter} size={data.size} />
   {/if}

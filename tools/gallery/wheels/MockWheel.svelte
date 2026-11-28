@@ -10,6 +10,8 @@
   import MaterialNode from '../../../src/ui/MaterialNode.svelte';
   import PluginNode from '../../../src/ui/PluginNode.svelte';
   import CellGlyph from '../../../src/ui/CellGlyph.svelte';
+  import MeterWheel from '../../../src/ui/MeterWheel.svelte';
+  import { meterWheel } from '../../../src/layout/meterwheel';
   import SpectrumWheel from '../../../src/ui/SpectrumWheel.svelte';
   import { compilePiece } from '../../../src/compile';
   import { codeShifts, EXAMPLES, type ExampleKey } from '@yggi/cells';
@@ -60,7 +62,8 @@
   const nodeTypes = { material: MaterialNode, plugin: PluginNode } as NodeTypes;
 </script>
 
-{#if kind === 'cell'}<CellGlyph {name} isMeter={'isMeter' in node.data && node.data.isMeter} {size} />
+{#if kind === 'cell' && 'isMeter' in node.data && node.data.isMeter && meterWheel(program, name)}<MeterWheel {name} {size} />
+{:else if kind === 'cell'}<CellGlyph {name} isMeter={'isMeter' in node.data && node.data.isMeter} {size} />
 {:else if kind === 'spectrum'}<SpectrumWheel {name} {size} />
 {:else}
   <div class="flow" style:width="{box}px" style:height="{box + 24}px">
