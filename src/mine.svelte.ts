@@ -4,14 +4,16 @@
  * (`resolverOf(layer)`). A layer is read once at start; filing writes it back. Where IndexedDB isn't there (a test, a
  * private window that refuses it) the layer lives as long as the page.
  */
-import { catalogue, EMPTY_LAYER, type Filing, type LearnedLayer, LIBRARY, resolverOf } from '@yggi/cells';
+import { catalogue, createRepository, EMPTY_LAYER, fileFragment, type Filing, type LearnedLayer, LIBRARY, resolverOf } from '@yggi/cells';
 import { storageKey } from './storageKey';
 import { setResolver } from './compile';
-import { fileOwn } from './extraction';
 
 const DB = storageKey('cell-studio-mine');
 const STORE = 'layer';
 const KEY = 'v1';
+
+/** The seed as a repository, for filing: made on the first filing (it checks every fragment), not at start. */
+let repository: ReturnType<typeof createRepository> | undefined;
 
 /** IndexedDB, opened once; null where the browser has none or refuses it. */
 function open(): Promise<IDBDatabase | null> {
@@ -73,7 +75,7 @@ class Mine {
   }
   /** File a fragment as this person's own; its id (the one it is held under, where the library holds its text already). */
   async file(filing: Filing): Promise<string> {
-    const filed = fileOwn(LIBRARY, this.layer, filing);
+    const filed = fileFragment((repository ??= createRepository(LIBRARY)), this.layer, filing);
     this.layer = filed.layer;
     this.#db ??= open();
     const db = await this.#db;

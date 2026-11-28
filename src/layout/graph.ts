@@ -7,7 +7,16 @@
  * sits one ring beyond the table it reads through and the cells it splices in; voices sit beyond what they play, a mix
  * beyond its voices, a product's junction where its voice sits.
  */
-import { cellId, netsOf, stepEdgeId, writtenGraph, type GraphEdge as WrittenEdge, type GraphNode as WrittenNode, type WrittenGraph as Written } from '@yggi/cells/inspect';
+import {
+  cellId,
+  netsOf,
+  stepEdgeId,
+  writtenGraph,
+  type GraphEdge as WrittenEdge,
+  type GraphNet as WrittenNet,
+  type GraphNode as WrittenNode,
+  type WrittenGraph as Written,
+} from '@yggi/cells/inspect';
 import type { CompileResult, ResolvedCell } from '@yggi/cells';
 
 /** What the drawing adds to a node: its ring, the cell it hangs from as a petal, the room its bulbs take. */
@@ -20,14 +29,16 @@ interface DrawnNode {
    */
   readonly reach?: { readonly room: number; readonly below: number };
 }
-type Drawn<N> = N extends { readonly kind: 'junction' } ? Omit<N, 'depth'> & { readonly depth: number } : Omit<N, keyof DrawnNode> & DrawnNode;
+type Drawn<N> = N extends { readonly kind: 'junction' } ? N & { readonly depth: number; readonly petalOf?: undefined } : N & DrawnNode;
 /** A node as drawn: cells' written node, with its ring, and where it hangs or how far its bulbs reach. */
 export type GraphNode = Drawn<WrittenNode>;
+/** A cell's node as drawn (not a product's junction): cells' `isCellNode`, over the drawn nodes. */
+export const isCellNode = (n: GraphNode): n is Exclude<GraphNode, { readonly kind: 'junction' }> => n.kind !== 'junction';
 
 /** Where a bulb's hub is from its wheel's centre (px, the wheel at its size in the graph), and its disc's radius. */
 type BulbAt = { readonly x: number; readonly y: number; readonly r: number };
 /** An edge as drawn: cells' written edge, and how it is drawn. */
-export type GraphEdge = Omit<WrittenEdge, 'belt' | 'bulb' | 'bulbAt'> & {
+export type GraphEdge = WrittenEdge & {
   /**
    * A step drawn as a belt between two turntables: `spring` when the driven cell says `belt=` (it lags and swings),
    * `rigid` when both are turntables anyway (a tape on its motor's capstan).
@@ -39,7 +50,7 @@ export type GraphEdge = Omit<WrittenEdge, 'belt' | 'bulb' | 'bulbAt'> & {
 };
 
 /** A net as drawn: cells' net (a cell read through one port by several, a meter by what it steps), and the bulb it leaves from. */
-export type GraphNet = Omit<ReturnType<typeof netsOf>[number], 'bulb' | 'bulbAt'> & {
+export type GraphNet = Omit<WrittenNet, 'part'> & {
   /** The bulb on the owner's wheel it leaves from (GraphEdge.bulb): a section's sub-net, from its place on its table. */
   readonly bulb?: string;
   readonly bulbAt?: BulbAt;
@@ -131,16 +142,24 @@ export function drawnWritten(result: CompileResult, options: { readonly card?: b
   }
   const nodes = written.nodes.map((n): GraphNode => (n.kind === 'junction' ? { ...n, depth: depthOf(n.voice) } : ({ ...n, depth: depthOf(n.cell.name) } as GraphNode)));
   const edges = written.edges.map((e): GraphEdge => {
-    const { belt: _, ...rest } = e as WrittenEdge & { belt?: unknown };
     const belt = belts.get(e.id);
-    return belt ? { ...rest, belt } : rest;
+    return belt ? { ...e, belt } : e;
   });
   return { nodes, edges, through: written.through };
 }
 
-/** The nets of a graph as drawn (cells' `netsOf`), each with the bulb its readers leave from. */
-export const drawnNets = (nodes: readonly GraphNode[], edges: readonly GraphEdge[]): GraphNet[] =>
-  netsOf(nodes as readonly WrittenNode[], edges as readonly WrittenEdge[]) as GraphNet[];
+/**
+ * The nets of a graph as drawn (cells' `netsOf`, cut as drawn): a bulb's readers a sub-net of their own (its `part`), a
+ * belt in no net (a body, drawn); each net with the bulb its readers leave from, and where that bulb sits.
+ */
+export function drawnNets(nodes: readonly GraphNode[], edges: readonly GraphEdge[]): GraphNet[] {
+  const byId = new Map(edges.map((e) => [e.id, e] as const));
+  return netsOf(nodes, edges, { part: (e) => e.bulb, apart: (e) => !!e.belt }).map(({ part, ...net }) => {
+    if (!part) return net;
+    const bulbAt = byId.get(net.readers[0]!)?.bulbAt;
+    return { ...net, bulb: part, ...(bulbAt ? { bulbAt } : {}) };
+  });
+}
 
 /** Changes only when the set of nodes or edges changes — not when contents do. */
 export function structureKey(model: Pick<GraphModel, 'nodes' | 'edges'>): string {
